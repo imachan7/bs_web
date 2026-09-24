@@ -213,8 +213,8 @@ export type EffectDef =
           levels: number[] | null
           whileCombined?: true
           whileOwnBurstSet?: true // バーストをセットしている間だけ発揮
-          condition?: AuraCondition // BS15共通器：aura.conditionと同じ判定式を流用
-          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // BS15共通器：aura.phaseTurnと同義
+          condition?: AuraCondition // aura.conditionと同じ判定式を流用
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // aura.phaseTurnと同義
           constraint: ConstraintDef
       }
     | {
@@ -424,8 +424,8 @@ export type EffectDef =
           vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "anySpiritAttacked" | "ownSpiritDeclaredBlock" 限定：主体が効果の記述を持たない（バニラ）ときのみ発火。
           // 破壊・召喚は主体が既にフィールドを離れているためeventInfo.vanillaで、アタック/ブロックは場に残るためinstIsVanillaで判定
           subjectKeywordFilter?: Keyword | Keyword[] // イベントの主体がこのキーワードを持つときのみ発火
-          subjectMaxCost?: number // 器BS16：イベントの主体のコストがこれ以下のときのみ発火
-          subjectHasTrigger?: TriggerEvent // 器BS16：イベントの主体が指定トリガーの誘発効果を現在のレベルで静的に持つときのみ発火
+          subjectMaxCost?: number // イベントの主体のコストがこれ以下のときのみ発火
+          subjectHasTrigger?: TriggerEvent // イベントの主体が指定トリガーの誘発効果を現在のレベルで静的に持つときのみ発火
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったときのみ発火
           duringSelfAttack?: true // event: "opponentSpiritDestroyed" 限定：発生源自身が現在のバトルのアタッカーのときだけ発火
@@ -516,7 +516,7 @@ export type EffectDef =
           turn?: "opponent" // 見出しの『相手のターン』限定。相手のフラッシュ効果で自分のターン中にデッキが破棄されたときは無効にできない
           exceptFunsai?: true // 【粉砕】による破棄は対象外
           cost: { ownLifeToReserve: number } | { exhaustSelf: true } // 支払うコスト。ownLifeToReserve=ライフのコアをこの数だけリザーブへ（足りなければ確認自体を出さない）／exhaustSelf=このスピリット自身を疲労
-          thenReturnCauseToDeckBottom?: true // BS15共通器：無効化成立時、破棄を引き起こした相手のスピリット（currentEffectSource.instanceId。破壊済みならno-op）を相手のデッキの下に戻す
+          thenReturnCauseToDeckBottom?: true // 無効化成立時、破棄を引き起こした相手のスピリット（currentEffectSource.instanceId。破壊済みならno-op）を相手のデッキの下に戻す
       }
     | {
           id: string
@@ -524,11 +524,11 @@ export type EffectDef =
           // millDeckが破棄したカードを1枚ずつ見て発火。トラッシュへ入れた直後にそこから取り除いて解決するため、破棄されたカードはトラッシュに残らない
           levels: null // デッキのカードにレベルは無いので常にnull
           by: "opponentEffect" | "opponentSpiritEffect" // 破棄の発生源の限定。opponentSpiritEffectは「相手のスピリットの効果で」
-          then: "castThisMagicFree" | "deployThisNexusFree" | "summonThisSpiritFree" | "destroyMillSource" | "voidOpponentLife" // castThisMagicFree=このマジックの効果を無償で即時発揮／deployThisNexusFree=このネクサスを無償配置／summonThisSpiritFree=器AR：このスピリットカードを無償召喚／
+          then: "castThisMagicFree" | "deployThisNexusFree" | "summonThisSpiritFree" | "destroyMillSource" | "voidOpponentLife" // castThisMagicFree=このマジックの効果を無償で即時発揮／deployThisNexusFree=このネクサスを無償配置／summonThisSpiritFree=このスピリットカードを無償召喚／
           // destroyMillSource=破棄を引き起こした相手のスピリットを破壊（発生源はトラッシュに残る）。最初の1枚で打ち切る（2026-09-21）
-          // voidOpponentLife=器BS16：resolveActionへlifeCrush count:1 dest:"void"を委譲し、相手のライフのコア1個をボイドに置く
-          optional?: true // 器AR：「〜できる」＝任意。interactiveTargetsでは確認を出す（非対話は自動召喚）。summonThisSpiritFree専用
-          thenProtectDeckThisTurn?: true // 器AR：この召喚が成立したときだけ、このターンの間デッキは（相手の効果では）破棄されなくなる
+          // voidOpponentLife=resolveActionへlifeCrush count:1 dest:"void"を委譲し、相手のライフのコア1個をボイドに置く
+          optional?: true // 「〜できる」＝任意。interactiveTargetsでは確認を出す（非対話は自動召喚）。summonThisSpiritFree専用
+          thenProtectDeckThisTurn?: true // この召喚が成立したときだけ、このターンの間デッキは（相手の効果では）破棄されなくなる
           thenBlockAllDeckMillThisTurn?: true // then:"destroyMillSource"専用：破壊解決後、このターンの間自分の効果も含めデッキは破棄されなくなる
       }
     | {
@@ -631,7 +631,7 @@ export type EffectDef =
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 『自分のアタックステップ』等の絞り込み（AuraDef.phaseTurnと同型）。
           // timingだけでは「フラッシュで使えるタイミング全般」になり相手ターンにも撃ててしまうため、ステップを明示しているカードには必ず付ける
           cost?: { reserveToTrash: number } | { exhaustSelf: true } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } | { exhaustOwnFamilyOne: FamilyFilter } | { discardHandOne: true; exhaustSelf: true } | { discardHandKeyword: Keyword } | { discardHandColor: Color } // 発動コスト。reserveToTrash=リザーブから／exhaustSelf=自身を疲労。省略時は追加コストなし
-          // discardHandColor=器BS16：手札にある指定色のカード（種別不問）1枚を破棄。selfCoresToTrash=発生源自身の上のコアをこの数だけトラッシュへ。
+          // discardHandColor=手札にある指定色のカード（種別不問）1枚を破棄。selfCoresToTrash=発生源自身の上のコアをこの数だけトラッシュへ。
           // discardHandFamily=手札にある指定系統（配列＝OR）のスピリットカード1枚を破棄。exhaustOwnFamilyOne=フィールドの指定系統（配列＝OR）の回復状態スピリット1体を疲労。
           // { discardHandOne; exhaustSelf }=手札1枚（末尾。決定的簡略化）を破棄しこのスピリット自身を疲労。{ discardHandKeyword }=指定キーワードを静的に持つ手札のスピリットカード1枚を破棄
           oncePerTurn?: true // 「ターンに1回」。発生源のスピリット1体につきターン1回
@@ -700,13 +700,13 @@ export type EffectDef =
               byOpponent?: boolean // 「相手によって破壊されたとき」＝相手の効果による破壊 または バトルのBP比較による破壊（2026-09-07確認。BS12-X05 Lv2-3）。
               // 自分の効果で自分のスピリットを破壊した場合は含まない。byOpponentEffectより広い
               byBattleVsArmorColor?: boolean // 装甲で指定した色の相手とのBP比較による破壊のみ
-              byBattleVsHeavyArmorColor?: boolean // 器AI：【重装甲】で指定した色の相手とのBP比較による破壊のみ
+              byBattleVsHeavyArmorColor?: boolean // 【重装甲】で指定した色の相手とのBP比較による破壊のみ
               byBattle?: boolean // BP比較による破壊のみ
               byBattleKillerLevel?: number // BP比較による破壊で、破壊した側（勝者）のcurrentLevelがこの値のときのみ
               byBattleKillerMaxBp?: number // BP比較による破壊で、破壊した側（勝者）の実効BPがこの値以下のときのみ
           }
           phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件
-          revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // toBurst=トラッシュの代わりにバーストエリアへ。Q3469（解決中は発動不可）は簡略化して未実装：HANDOFFに記録
+          revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // toBurst=トラッシュの代わりにバーストエリアへ。Q3469（解決中は発動不可）は未実装（簡略化）
           // 戻るときの状態はfalse=回復／true=疲労。toHand=場に残らず手札へ（コアはリザーブへ）。braveStay指定時は合体していたブレイヴを確認なしで指定状態のまま残す。省略時はdetachBravesOnLeaveへ
           cost?: {
               sourceCoresToTrash?: number // 発生源自身の上のコアをこの数だけトラッシュへ。足りなければ支払い不可＝不発
@@ -720,10 +720,10 @@ export type EffectDef =
               millSelfOneMatching?: { color: Color; cardType: CardType; thenHandIfNameIncludes?: string } // デッキ上から1枚破棄し色・種別が一致したときだけ成立。thenHandIfNameIncludes指定時は成立可否と独立に、名前が一致すれば手札へ
               exhaustOwnFamilyOne?: FamilyFilter // フィールドの指定系統（配列＝OR）を持つ回復状態スピリット1体（実効BP最小の簡略化。破壊される個体自身は除く）を疲労させる。該当なしなら不発
               ownLifeOneToVoid?: boolean // ライフのコア1個をボイドへ（リザーブへは戻らない）。ライフ0なら不発。結果0になればそのまま勝敗が決まる
-              ownLifeOneToReserve?: boolean // 器AR：ライフのコア1個を自分のリザーブへ。ライフ0なら不発
-              millSelfCount?: number // 器AR：デッキを上からこの枚数だけ無条件に破棄する
-              exhaustOwnSameFamilyOne?: true // 器AR：このスピリット自身の系統と一致する、自身以外の持ち主のフィールドの回復状態スピリット1体を疲労させる
-              opponentLifeOneToTrash?: true // 器BW：相手のライフのコア1個を相手のトラッシュに置く。相手のライフが0なら不発。結果0になれば持ち主の勝利が決まる
+              ownLifeOneToReserve?: boolean // ライフのコア1個を自分のリザーブへ。ライフ0なら不発
+              millSelfCount?: number // デッキを上からこの枚数だけ無条件に破棄する
+              exhaustOwnSameFamilyOne?: true // このスピリット自身の系統と一致する、自身以外の持ち主のフィールドの回復状態スピリット1体を疲労させる
+              opponentLifeOneToTrash?: true // 相手のライフのコア1個を相手のトラッシュに置く。相手のライフが0なら不発。結果0になれば持ち主の勝利が決まる
               discardOwnBurst?: true // 自分のバースト1つを破棄（トラッシュへ）することがコスト
               exhaustOwnNexusOne?: true // フィールドの回復状態ネクサス1つ（コア最少の簡略化）を疲労させる。候補が無い・相手のconstraintで疲労させられないなら不発
           }
@@ -798,10 +798,10 @@ export type EffectDef =
           kind: "familyGrant" // 発生源が場にありレベル有効の間、持ち主の対象スピリットに系統を継続付与する
           levels: number[] | null
           whileCombined?: true
-          target: "ownAll" | "self" // 器BH：self＝発生源自身にだけ付与する
+          target: "ownAll" | "self" // self＝発生源自身にだけ付与する
           family?: string // 付与する系統（familyFromChoice / familiesFromOwnField指定時は不要）
           familyFromChoice?: true // familyの代わりに、発生源インスタンスのlentChoiceFamily（貸与時にプレイヤーが選んだ系統）を付与する
-          familiesFromOwnField?: true // 器BH：familyの代わりに、持ち主のフィールドのスピリットが（カード静的に）持つ系統すべてを動的に付与する
+          familiesFromOwnField?: true // familyの代わりに、持ち主のフィールドのスピリットが（カード静的に）持つ系統すべてを動的に付与する
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
           colorFilter?: Color // 指定時は対象スピリットの色がこれと一致するときのみ
@@ -822,7 +822,7 @@ export type EffectDef =
           plus?: number // 指定時は固定値ではなく「元のコスト+plus」として扱う。
           // 目的は【転召：コスト◯以上】の条件を満たしやすくすること（2026-08-16確認。docs/design/SD02_PLAN.md §1）
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ
-          combinedOnly?: true // 器AY：合体スピリットのみ対象
+          combinedOnly?: true // 合体スピリットのみ対象
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
       }
     | {
@@ -833,8 +833,8 @@ export type EffectDef =
           cardColor?: Color // 対象カードの色（省略時は色不問）
           keywordFilter?: Keyword // 対象手札カードがこのキーワードを静的に持つ場合のみ付与
           familyFilter?: FamilyFilter // 対象カードが持つ系統（カード静的なfamilyのみ）。配列＝OR
-          selfOnly?: true // 器BJ：対象を発生源自身のカード（手札にあるこのカード）だけに絞る
-          symbolCountFromFamily?: FamilyFilter // 器BJ：symbolsを固定1組ではなく、持ち主のフィールドの指定系統（配列＝OR）のスピリット数ぶん繰り返し付与する
+          selfOnly?: true // 対象を発生源自身のカード（手札にあるこのカード）だけに絞る
+          symbolCountFromFamily?: FamilyFilter // symbolsを固定1組ではなく、持ち主のフィールドの指定系統（配列＝OR）のスピリット数ぶん繰り返し付与する
           symbols: Color[] // 与える軽減シンボル（symbolCountFromFamily指定時は先頭の1色を繰り返す）
           replace?: true // 指定時は素の印刷軽減シンボルを置き換える。省略時は加算
           vanillaFilter?: true // 指定時は対象カードが効果の記述を持たない（バニラ）ときのみ付与
@@ -934,7 +934,7 @@ export type EffectDef =
       }
     | {
           id: string
-          kind: "bpEqualizeFamily" // 器BS16：発生源が場にありレベル有効の間、指定系統を持つ発生源以外の自分のスピリットすべてのLv別BPを、発生源自身の現在の実効BP（合体時BP込み）と同じとして扱う。
+          kind: "bpEqualizeFamily" // 発生源が場にありレベル有効の間、指定系統を持つ発生源以外の自分のスピリットすべてのLv別BPを、発生源自身の現在の実効BP（合体時BP込み）と同じとして扱う。
           // 全面上書き
           levels: number[] | null
           familyFilter: FamilyFilter
@@ -1035,7 +1035,7 @@ export type EffectDef =
           id: string
           kind: "nameAsGrant" // 発生源が場にありレベル有効の間、持ち主の対象スピリットを「カード名に指定文字列が入っているもの」として扱う
           levels: number[] | null
-          target: "ownAll" | "self" // 器BK：self＝発生源自身にだけ付与する
+          target: "ownAll" | "self" // self＝発生源自身にだけ付与する
           nameIncludes: string // 扱わせるカード名の部分文字列
           costFilter?: number // 対象のコストがこれと一致するスピリットのみ（付与コストも考慮）
           colorFilter?: Color // 対象がこの色を持つスピリットのみ
@@ -1120,7 +1120,7 @@ export type EffectDef =
           levels: number[] | null
           amount?: number // 固定加算値（従来通り。amountPerSymbolColor / amountPerBurstCount指定時は無視される）
           amountPerSymbolColor?: Color // 指定時はamountの代わりに、フィールドが持つこの色のシンボル総数を加算する
-          amountPerBurstCount?: true // BS15共通器：amountの代わりに「自分と相手のバースト1つにつき+1」（合計0〜2）を加算する
+          amountPerBurstCount?: true // amountの代わりに「自分と相手のバースト1つにつき+1」（合計0〜2）を加算する
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は持ち主基準でこのステップ・turn条件の間だけ有効
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
       }
@@ -1217,7 +1217,7 @@ export type EffectDef =
           restriction:
               | "oncePerTurnAll" // お互い、ターンに1回しかマジックの効果を使用できない
               | "noReductionOpponent" // 相手は、マジック使用時に軽減シンボルによるコスト軽減ができない
-              | "noReductionOpponentNexus" // 器AZ：相手は、ネクサス配置時に軽減シンボルによるコスト軽減ができない
+              | "noReductionOpponentNexus" // 相手は、ネクサス配置時に軽減シンボルによるコスト軽減ができない
               | "colorLockOpponent" // 相手は、自分（使用者）のフィールドのシンボルと同じ色を含まないマジックカードを使用できない
               | "reserveOnlyOpponent" // 相手は、マジックのコストをすべてリザーブから支払わなければならない
               | "noFreeCastOpponent" // 相手は、マジックの無償化（kind:"magicFreeGrant"）を適用できない
@@ -1273,7 +1273,7 @@ export type EffectDef =
     | {
           id: string
           kind: "fushiFreeByExhaust" // 【不死】召喚をこの発生源（未疲労ネクサス）の疲労でコスト無償化（維持コアは通常どおり要る）。対象はカード記載コストがmaxCost以下の【不死】のみ
-          // 無償召喚を選んだ場合、召喚時効果は発揮されない。BS15-064 Lv2。BS15_PLAN.md §7.4
+          // 無償召喚を選んだ場合、召喚時効果は発揮されない（BS15_PLAN.md §7.4）
           levels: number[] | null
           maxCost: number
       }
