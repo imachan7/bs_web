@@ -33,6 +33,11 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（進み具合は同 §1 の表と §2.2 の表の「状態」列。09-24 に M1 の一部・M3・M4 の大半・R4 の effectDef.ts が済んだ） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
+### いまの本線：期間つき効果の記録を1か所にまとめる（2026-09-25 ユーザー合意・試作から）
+
+M8 の残り30種の移行は止めて、先に [TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) の一覧 `timedEffects` と読む関数 `timedContentsOn` を作る。
+試作は `cantAttack`・`cantBlock` だけ（挙動は変えない）。変更量を見て全体を移すか決める。§4 は未決。
+
 ### 次の一手：R4 の残り（effectAction.ts・type.ts のコメント削減）
 
 effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファイルずつ Sonnet に任せる。**1回目の指示で次を明示する**（effectDef.ts では1回目が29%減で止まり、2回目で45%減になった）：
