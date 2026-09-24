@@ -4150,7 +4150,17 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "bounceToDeckTopThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "bounceToDeckTopForPid"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -4837,7 +4847,16 @@
     ],
     "optional": false,
     "action": {
-     "type": "opponentNexusEffectsDisabledThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "nexusEffectsDisabledForPid"
+       }
+      }
+     ],
+     "duration": "turn"
     }
    },
    {

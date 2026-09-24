@@ -1,6 +1,6 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter, TurnConstraintDef } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
@@ -381,8 +381,27 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     if (target) askColor(target)
 }
 
+// プレイヤーに掛かる制約を置く（ライフが減らない・手札を使えない など）。効くプレイヤーは side（既定は相手）
+function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, sourceName } = ctx
+    if (action.duration !== "turn") {
+        log(state, `${sourceName}：「このバトルの間」の制約は未対応のため発揮しなかった。`)
+        return
+    }
+    const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
+    for (const c of action.content) {
+        if (c.type !== "playerRule") continue
+        for (const pid of pids) state.turnConstraints.push({ ...c.rule, pid } as TurnConstraintDef)
+    }
+    log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "playerRule")) {
+        placePlayerRule(ctx, action)
+        return
+    }
     if (action.content.some((c) => c.type === "color")) {
         placeColor(ctx, action)
         return

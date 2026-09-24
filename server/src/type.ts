@@ -1426,8 +1426,13 @@ export type TimedContent =
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
+    | { type: "playerRule"; rule: PlayerRuleDef } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true } // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+// pid を持つ「このターンの間」の制約から pid を除いたもの（timedEffect が side から pid を入れて積む）
+export type PlayerRuleDef = DistributiveOmit<Extract<TurnConstraintDef, { pid: PlayerId }>, "pid">
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =

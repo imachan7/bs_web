@@ -417,91 +417,6 @@ const suppressTriggerThisTurnHandler: ActionHandler<"suppressTriggerThisTurn"> =
         return
 }
 
-// このターンの間、指定側は手札のカードを使えない（BS11-082 ウィッグバインド＝「相手は黄以外の手札のカードを使えない」）
-const banHandCardsThisTurnHandler: ActionHandler<"banHandCardsThisTurn"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
-    state.turnConstraints.push({
-        type: "cantUseHandCardsForPid",
-        pid: opp,
-        ...(action.allowedColor !== undefined ? { allowedColor: action.allowedColor } : {}),
-        ...(action.cardType !== undefined ? { cardType: action.cardType } : {}),
-    })
-    log(
-        state,
-        action.cardType !== undefined
-            ? `${sourceName}：このターンの間、${state.players[opp].name}は${action.cardType === "magic" ? "マジックカード" : action.cardType}を使用できない。`
-            : action.allowedColor !== undefined
-              ? `${sourceName}：このターンの間、${state.players[opp].name}は${COLOR_LABELS[action.allowedColor]}以外の手札のカードを使えない。`
-              : `${sourceName}：このターンの間、${state.players[opp].name}は手札のカードを使えない。`,
-    )
-}
-
-// このターンの間、持ち主のスピリットの【装甲】を働かなくする（SD01-040 アーマーパージ）。
-// 「【装甲】をないものとして扱い、**新たに得ることもない**」＝ すでに持っている分も、
-// このターンに付与された分もまとめて落とす。判定の入口（boardResistanceAgainst）で一括して無視する
-const disableOwnArmorThisTurnHandler: ActionHandler<"disableOwnArmorThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
-    // side:"opponent"（BS11-049 ジャンビ・オレピス）＝相手のスピリットの【装甲】を落とす
-    const pid = action.side === "opponent" ? opp : owner
-    state.turnConstraints.push({ type: "armorDisabledForPid", pid })
-    log(state, `${sourceName}：このターンの間、${state.players[pid].name}のスピリットの【装甲】は働かない。`)
-}
-
-// このターンの**最初の**【不死】召喚だけコストを0にする（BS14-098ダークリボーン）。
-// 維持コアは通常どおり要る。使い切りなので applyFushiSummon 側で制約を取り除く
-const freeFushiSummonThisTurnHandler: ActionHandler<"freeFushiSummonThisTurn"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "freeFushiSummonForPid", pid: owner })
-    log(state, `${sourceName}：このターン最初の【不死】の召喚はコストを支払わない。`)
-}
-
-// このターンの間、持ち主のライフが1回のアタックで減る量に**上限**を設ける（SD01-039 ブリザードウォール）。
-// 「減るか／減らないか」ではなく**値**で持つので、今後の同種の効果（〇しか減らない）もここに集まる
-const capLifeDamageThisTurnHandler: ActionHandler<"capLifeDamageThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "lifeDamageMaxForPid", max: action.max, pid: owner })
-    log(
-        state,
-        `${sourceName}：このターンの間、${state.players[owner].name}のライフは1回のアタックで${action.max}しか減らない。`,
-    )
-}
-
-// このターンの間、持ち主のライフはあらゆる原因（アタック・lifeCrushアクション）で減らない
-// （capLifeDamageThisTurnのmax:0はアタック限定なので届かない。BS10-093時刻む花時計）
-const lifeImmuneThisTurnHandler: ActionHandler<"lifeImmuneThisTurn"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "lifeImmuneForPid", pid: owner })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは減らない。`)
-}
-
-// 器AO：このターンの間、発生源の持ち主の効果で手札に戻るスピリットは持ち主のデッキの上に戻る（BS13-079ヴァニシングデイ）
-const bounceToDeckTopThisTurnHandler: ActionHandler<"bounceToDeckTopThisTurn"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "bounceToDeckTopForPid", pid: owner })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}の効果で手札に戻るスピリットは持ち主のデッキの上に戻る。`)
-}
-
-// 器BC：このターンの間、発生源の持ち主から見た相手のネクサスすべての効果は発揮されない（BS13-039神獣バーロン『このスピリットの召喚時』）
-const opponentNexusEffectsDisabledThisTurnHandler: ActionHandler<"opponentNexusEffectsDisabledThisTurn"> = (ctx) => {
-    const { state, opp, sourceName } = ctx
-    state.turnConstraints.push({ type: "nexusEffectsDisabledForPid", pid: opp })
-    log(state, `${sourceName}：このターンの間、${state.players[opp].name}のネクサスすべての効果は発揮されない。`)
-}
-
-// このターンの間、持ち主のライフが指定の下限を下回らないようにする（BS11-080 デルタバリア）。
-// 「減らない」（lifeImmuneThisTurn）とは別物で、**下限まではふつうに減る**
-const lifeFloorThisTurnHandler: ActionHandler<"lifeFloorThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({
-        type: "lifeFloorForPid",
-        pid: owner,
-        floor: action.floor,
-        ...(action.byAttackMinCost !== undefined ? { byAttackMinCost: action.byAttackMinCost } : {}),
-        ...(action.byEffectSourceTypes !== undefined ? { byEffectSourceTypes: action.byEffectSourceTypes } : {}),
-    })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のライフは${action.floor}を下回らない。`)
-}
-
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
@@ -1204,14 +1119,6 @@ const handlers = {
     refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
     colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     suppressTriggerThisTurn: suppressTriggerThisTurnHandler,
-    banHandCardsThisTurn: banHandCardsThisTurnHandler,
-    capLifeDamageThisTurn: capLifeDamageThisTurnHandler,
-    lifeImmuneThisTurn: lifeImmuneThisTurnHandler,
-    bounceToDeckTopThisTurn: bounceToDeckTopThisTurnHandler,
-    opponentNexusEffectsDisabledThisTurn: opponentNexusEffectsDisabledThisTurnHandler,
-    lifeFloorThisTurn: lifeFloorThisTurnHandler,
-    disableOwnArmorThisTurn: disableOwnArmorThisTurnHandler,
-    freeFushiSummonThisTurn: freeFushiSummonThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,

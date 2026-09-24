@@ -39,12 +39,6 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
-### M8 ⑧ プレイヤーに掛かる制約（ブランチ `feat/timed-player-rule`。2026-09-24 確定スキーマ）
-
-内容 `{ type: "playerRule"; rule: PlayerRuleDef }`。`PlayerRuleDef` は `TurnConstraintDef` のうち `pid` を持つものから `pid` を除いた型（既存の語彙をそのまま使う）。
-効くプレイヤーは `side`（相手＝既定／`own`／`both`）で決め、解決時に `pid` を入れて `turnConstraints` に積む。いまは期間 `turn` だけ。
-移すのは `capLifeDamageThisTurn`・`lifeFloorThisTurn`・`lifeImmuneThisTurn`・`banHandCardsThisTurn`・`disableOwnArmorThisTurn`・`opponentNexusEffectsDisabledThisTurn`（8か所）。
-
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。

@@ -254,7 +254,7 @@ console.log("=== 器BC：BS13-039 召喚時（このターンの間、相手の�
         effectSources(s, "p2").some((i) => i.instanceId === oppNexus.instanceId),
         "前提：通常は発生源に含まれる",
     )
-    resolveAction(s, "p1", null, { type: "opponentNexusEffectsDisabledThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "nexusEffectsDisabledForPid" } }], duration: "turn" })
     assert(
         !effectSources(s, "p2").some((i) => i.instanceId === oppNexus.instanceId),
         "このターンの間、相手（p2）のネクサスは発生源から外れる",
