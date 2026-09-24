@@ -405,25 +405,18 @@
       },
       {
         "id": "BS16-007-e2",
-        "kind": "step",
-        "step": "attack",
-        "turn": "own",
+        "kind": "aura",
         "levels": [
           2
         ],
-        "action": {
-          "type": "timedEffect",
-          "content": [
-            {
-              "type": "bp",
-              "amount": 2000
-            }
-          ],
-          "duration": "turn",
-          "all": true,
-          "side": "own",
-          "filter": {
-            "nameContains": "ドラゴン"
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "nameIncludesFilter": "ドラゴン",
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
           }
         }
       }

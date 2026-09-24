@@ -205,7 +205,8 @@ console.log("=== 1. 新旧一致：selfBuff を持つ全カード（変換後の
         collectSelfBuffActions(c.effects, found)
         for (const a of found) entries.push({ cardId: c.cardId, action: a })
     }
-    assert(entries.length === 82, `移行した「このスピリットをBP+」は82件（実際:${entries.length}）`)
+    // BS16-024 は『自分のアタックステップ』見出しの継続効果としてオーラへ移したので 82-1
+    assert(entries.length === 81, `移行した「このスピリットをBP+」は81件（実際:${entries.length}）`)
     assert(!JSON.stringify(ALL_CARDS.map((c) => c.effects)).includes('"type":"selfBuff"'), "カードデータに旧 selfBuff は残っていない")
 
     let mismatches = 0

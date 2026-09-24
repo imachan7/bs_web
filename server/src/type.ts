@@ -360,6 +360,7 @@ export interface AuraDef {
     costFilter?: number // ownAll 用: 対象スピリットのコストがこれと一致するときのみ有効（太古の断層）
     costMinFilter?: number // ownAll 用: 対象スピリットのコストがこれ以上のときのみ有効（costFilter＝完全一致とは別軸。BS07造兵工房Lv2：コスト3以上）
     familyFilter?: FamilyFilter // ownAll 用: 指定系統（静的付与・familyGrant による付与を含む。matchesFamilyFilter で判定）を持つスピリットのみ。配列＝いずれかの系統でOR（ポム／BS04翼持つ者の空域）
+    familyAllFilter?: string[] // ownAll 用: 指定した系統をすべて持つスピリットのみ（AND。familyFilter の配列は OR）
     nameIncludesFilter?: string // ownAll 用: カード名にこの文字列を含むスピリットのみ（BS03アルカナビースト・ペイラ：カード名に「アルカナ」）
     vanillaFilter?: true // ownAll 用: カードに効果の記述を持たない（バニラ）スピリットのみ（無法者の荒野）
     lentOnly?: boolean // 仮想発生源（PlayerState.turnVirtualInstances。マジックが lendSelfThisTurn で貸した場合）からのみ有効。実在するスピリット/ネクサスからは適用しない＝恒久化を防ぐ（TURN_EFFECT_SOURCES.md。パワーオーラ等）
