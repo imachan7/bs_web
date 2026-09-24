@@ -39,6 +39,11 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
+### M8 ⑩ 効果の付け替え（ブランチ `feat/timed-trigger-swap`。2026-09-24 確定スキーマ）
+
+内容 `{ type: "triggerSwap"; from: "onAttack" | "onBlock" }`（from の効果をもう片方のタイミングで発揮する）。1体指定は個体の印（`attackTriggersAsBlockThisTurn`／`blockTriggersAsAttackThisTurn`）、
+`all: true` は置き場を今のまま（`side:"both"`＝`state.blockTriggersAsAttackThisTurn`、`side:"own"`＝`blockTriggersAsAttackForPid`）。対象の決め方・クライアントの先取りは旧と同じ。4か所。
+
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。
