@@ -1588,8 +1588,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToSelfPer",
-          "counter": {
+          "type": "voidCoreToSelf",
+          "count": 1,
+          "countCounter": {
             "ownFamily": [
               "剣獣",
               "巨獣"
@@ -3490,8 +3491,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToSelfPer",
-          "counter": "lastFunsaiTotal"
+          "type": "voidCoreToSelf",
+          "count": 1,
+          "countCounter": "lastFunsaiTotal"
         }
       }
     ]
@@ -4942,8 +4944,9 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "destroyPer",
-          "counter": "restedEnemyNexuses",
+          "type": "destroy",
+          "count": 1,
+          "countCounter": "restedEnemyNexuses",
           "filter": {
             "keywordExclude": "tensho"
           }

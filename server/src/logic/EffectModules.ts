@@ -2233,7 +2233,7 @@ export function findSpiritAny(
     return null
 }
 
-// 騎獣スレイプホース：マジックによるBPバフ（bpBuff/bpBuffPer）が対象に適用された直後にフックし、
+// 騎獣スレイプホース：マジックによるBPバフ（bpBuff）が対象に適用された直後にフックし、
 // 条件を満たせばさらに magicBuffBonus 分のBP+を追加する。
 // 効果文の『このスピリットのアタック時』／『自分のアタックステップ』条件は「バトル中または
 // 自分のアタックステップ」で近似する簡略化とし、判定は state.phase === "attack" のみとする。
@@ -2279,7 +2279,7 @@ export function applyMagicBuffBonus(
     }
 }
 
-// bpBuff / bpBuffPer の「対象になれるか」の判定。
+// bpBuff の「対象になれるか」の判定。
 // minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
 // nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」。配列＝OR。BS08ダークパワー）・
 // attackingOnly（BS07桜の妖精オウカ＝アタックしているスピリット）・
@@ -2312,7 +2312,7 @@ export function bpBuffTargetPasses(
     return true
 }
 
-// bpBuff / bpBuffPer 共通の対象選択：
+// bpBuff の対象選択：
 // 対象指定があれば両プレイヤーから検索、なければバトル中の自分スピリット優先、
 // いなければ自分フィールドの先頭スピリット
 // minSymbols指定時、対象（明示指定・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効
@@ -2377,12 +2377,12 @@ export function pickOwnKeywordTarget(
     return target
 }
 
-// 疲労状態の相手スピリット数（drawPer / bpBuffPer の "exhaustedEnemies" カウンタ）
+// 疲労状態の相手スピリット数（draw / bpBuff の "exhaustedEnemies" カウンタ）
 function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId, sourceType?: CardType): number {
     return countSpiritsWeighted(state, owner, opp, (s) => s.isRested, sourceType)
 }
 
-// selfBuffPer / bpBuffPer / voidCoreToSelfPer / drawPer / coreGainPer 共通のカウンタ集計（BS03バッチで統一）。
+// selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
 // readyEnemies / exhaustedEnemies / opponentHand は相手（opponentOf(owner)）基準、
 // ownReserve / ownNexuses / ownExhausted / ownOtherSpirits / { ownFamily } / { ownNameIncludes } は
 // 自分（owner）のフィールド基準、allNexuses は両者基準、selfCoresAtDestruction は
@@ -2462,10 +2462,10 @@ export function countEffectCounter(
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     // BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」
     if (counter === "selfCores") return self?.cores ?? 0
-    // targetSymbols：bpBuffPerハンドラが対象選択後に個別計算するため、このカウンタが直接ここに来ることは無い
+    // targetSymbols：対象を選んだ後に logic/counted.ts が数えるため、このカウンタが直接ここに来ることは無い
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
-    // targetSameFamilyOwn も同様（bpBuffPer が対象選択後に数える。SD02-015 フレンドリーパワー）
+    // targetSameFamilyOwn も同様（logic/counted.ts が対象を選んだ後に数える。SD02-015 フレンドリーパワー）
     if (counter === "targetSameFamilyOwn") return 0
     // restedEnemyNexuses：相手の疲労状態のネクサス数（BS09-080エグゾーストネクサス）
     if (counter === "restedEnemyNexuses") {
@@ -2584,7 +2584,7 @@ export function countEffectCounter(
 
 // 効果ドロー倍化（封印された魔導書）：owner のフィールドにレベル有効かつ phaseTurn 一致の
 // kind:"drawDouble" があれば2を返す（重複しない＝複数あっても2倍まで）。
-// draw / drawPer アクションの枚数確定箇所からのみ参照する（deckReveal・通常のドローステップは対象外）
+// draw アクションの枚数確定箇所からのみ参照する（deckReveal・通常のドローステップは対象外）
 export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number {
     const player = state.players[owner]
     const sources = [...player.field.spirits, ...player.field.nexuses]

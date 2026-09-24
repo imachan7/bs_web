@@ -49,10 +49,10 @@ const COUNTER_CARD = CARDS.find((c) => {
     return (c.effects ?? []).some((e) => {
         if (e["kind"] !== "triggered" || e["trigger"] !== "onDestroy") return false
         const action = e["action"] as Record<string, unknown> | undefined
-        if (action?.["type"] !== "coreGainPer") return false
+        if (action?.["type"] !== "coreGain") return false
         // 「自分のフィールドにいる系統：Xを持つスピリット1体につき」＝自分自身も数に入るはずの形。
         // selfCoresAtDestruction のような別の数え方は除く
-        const counter = action["counter"] as Record<string, unknown> | string | undefined
+        const counter = action["countCounter"] as Record<string, unknown> | string | undefined
         if (typeof counter !== "object" || counter === null) return false
         const family = counter["ownFamily"]
         return typeof family === "string" && (c.family ?? []).includes(family)

@@ -868,19 +868,14 @@ process.on("exit", () => {
         )
 
         // (4.7) keyword「暴風」: **挙動そのものは対になる triggered エントリ（onBlocked の exhaust）が持つ**ため、
-        //     keyword エントリ自体が読まれるのは颶風高原（voidCoreToSelfPerBofuCount）が指定数を引く1箇所だけ。
+        //     keyword エントリ自体が読まれるのは颶風高原（voidCoreToSelf の countCounter:"selfBofuCount"）が指定数を引く1箇所だけ。
         //     そこを計測点にする（「暴風を持っている」ではなく「指定数が実際に使われた」時点）
-        const coresFile = path.join(tree, "server/src/logic/actions/cores.ts")
         patch(
-            coresFile,
-            `import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, opponentOf, suspend } from "../GameState"`,
-            `import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, opponentOf, suspend, __covRecord } from "../GameState"`,
-        )
-        patch(
-            coresFile,
-            `        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0`,
-            `        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
-        if (entry && count > 0) __covRecord("cont\\t" + String((entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
+            path.join(tree, "server/src/logic/EffectModules.ts"),
+            `        return entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0`,
+            `        const bofuCount = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        if (entry && bofuCount > 0) __covRecord("cont\\t" + String((entry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
+        return bofuCount`,
         )
 
         // (5) EffectModules 側で __covRecord を使うための import 追記

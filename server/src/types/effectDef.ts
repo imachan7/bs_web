@@ -444,7 +444,7 @@ export type EffectDef =
           winnerCombinedOnly?: true // 勝利したスピリットが**合体スピリット**のときのみ発火（instIsCombined。BS11-062 オールトの竜巣Lv2）
           winnerColorFilter?: Color // 勝利したスピリットがこの色を持つときのみ発火（多色はOR。instHasColorで判定。BS15-005虚獣チャンプボンゴル：「自分の赤のスピリットがBPを比べ相手のスピリットだけを破壊したとき」）
           loserMinBp?: number // **敗北して破壊された側**の実効BPがこれ以上のときのみ発火（state.lastBattleDestroyedBpで判定＝破壊直前の実効BP。BS13-050輝竜シャイン・ブレイザー【合体時】：BP8000以上の相手のスピリットを破壊したとき）
-          loserCostAtMost?: number // **敗北して破壊された側**のコストがこれ以下のときのみ発火（state.lastBattleDestroyedCostで判定＝millPerLoserCostと同じ記録。BS14-060ティンダロ・ハウンドLv2：コスト3以下の相手のスピリットだけを破壊したとき）
+          loserCostAtMost?: number // **敗北して破壊された側**のコストがこれ以下のときのみ発火（state.lastBattleDestroyedCostで判定＝mill（countCounter:"lastBattleDestroyedCost"）と同じ記録。BS14-060ティンダロ・ハウンドLv2：コスト3以下の相手のスピリットだけを破壊したとき）
           whileCombined?: true // 【合体時】＝**発生源自身が合体しているときだけ**発火する（docs/design/BRAVE.md §12.3。winnerCombinedOnlyと違い判定対象は勝利したスピリットでなく発生源。BS12-X03独眼武神マンティクス・マサムネ）
           selfOnly?: true // 発生源自身が勝利したときのみ発火（『このスピリットのバトル時』。同名の別個体では発火しない。BS01要塞龍ギガLv2）
           firstAttackOfTurn?: true // そのターンの最初のアタックで勝利したときのみ発火（GameState.attacksThisTurn === 1。triggered.condition／fieldEvent.conditionの同名軸と同じ判定。BS08太陽石の神殿）
@@ -1196,7 +1196,7 @@ export type EffectDef =
     | {
           id: string
           kind: "drawDouble" // 持ち主フィールドにある間、自分がスピリット/マジックの効果でデッキからドローする合計枚数を2倍にする
-          // （draw/drawPerアクションが対象。deckRevealと通常のドローステップは対象外。重複しない＝複数あっても2倍まで。封印された魔導書）
+          // （draw アクションが対象。deckRevealと通常のドローステップは対象外。重複しない＝複数あっても2倍まで。封印された魔導書）
           levels: number[] | null
           phaseTurn: { phase: Phase; turn: "own" }
       }
@@ -1304,7 +1304,7 @@ export type EffectDef =
       }
     | {
           id: string
-          kind: "millCapBonus" // 持ち主のスピリットの効果によるデッキ破棄枚数の上限（millPer.cap／【粉砕】の破棄枚数そのものではなく「◯枚まで」の上限値）を+amountする（BS06マキシマムブレイク）
+          kind: "millCapBonus" // 持ち主のスピリットの効果によるデッキ破棄枚数の上限（mill.countMax／【粉砕】の破棄枚数そのものではなく「◯枚まで」の上限値）を+amountする（BS06マキシマムブレイク）
           levels: number[] | null
           amount: number
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効。aura.lentOnly と同じ意味（BS06マキシマムブレイク：メインでlendSelfThisTurnして貸す）

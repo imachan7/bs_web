@@ -45,15 +45,15 @@ const VERIFIED = new Map<string, string>([
     ],
     [
         "lifeCrush:excludeSelf",
-        "誤検出。BS01-X03 キングタウロス大公の「このスピリット以外」は別ブロック（voidCoreToSelfPer）のもの",
+        "誤検出。BS01-X03 キングタウロス大公の「このスピリット以外」は別ブロック（voidCoreToSelf の countCounter）のもの",
     ],
     [
-        "selfBuffPer:excludeSelf",
-        "誤検出。ジェン・フーの当該ブロックは counter:{ownKeyword:soku} で、「このスピリット以外」は別ブロック",
+        "selfBuff:excludeSelf",
+        "誤検出。ジェン・フーの当該ブロックは amountCounter:{ownKeyword:soku} で、「このスピリット以外」は別ブロック",
     ],
     [
-        "voidCoreToSelfPer:excludeSelf",
-        "正しい実装。キングタウロス大公は counter:ownOtherSpirits（self 除外を意味する専用カウンター）を使い、他の4枚は別のカウンターを使っている",
+        "voidCoreToSelf:excludeSelf",
+        "正しい実装。キングタウロス大公は countCounter:ownOtherSpirits（self 除外を意味する専用カウンター）を使い、他のカードは除外を持たない",
     ],
 ])
 

@@ -33,13 +33,6 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（R3 は handDeck・EffectModules・magic まで分割済み。**§2.1 の④が進行中**：[ACTION_DECOMPOSITION.md](./docs/design/ACTION_DECOMPOSITION.md) の「要確認」83行と一覧に無い種類を調査役が定義を読んで埋める。ブランチ `docs/action-decomposition`。期間つき付与は「対象（プレイヤー含む）・内容・期間」の1つの器に寄せる＝ACTION_VOCABULARY §3） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
-### M3 数え上げの統一（2026-09-24 確定。ブランチ `feat/count-counter`）— **名前を変えない**
-
-- 量の規則は1つ：`countCounter` 指定時の量＝`(count ?? 1) × カウンタ値`、`countMax` があれば上限。`amountCounter` 指定時の量＝`amount × カウンタ値`（BS15 の `costMod.amountCounter` と同じ意味）。計算は共通関数1つ（各ハンドラが個別に計算しない）
-- 既存の `countCounter` は「count を無視して置き換え」だった → 器の PR でカードデータの `count: 0` を `1` に直す（15か所。結果は変わらない）
-- 足す：`mill`・`coreGain`・`voidCoreToSelf` に `countCounter`（`mill` は `countMax` も）、`selfBuff`・`bpBuff`・`bpBuffAll` に `amountCounter`。`EffectCounter` に直前のバトルで破壊されたスピリットのコスト・self の【暴風】の数
-- 移行（別 PR）：`drawPer`・`destroyPer`・`coreGainPer`・`voidCoreToSelfPer`・`voidCoreToSelfPerBofuCount`・`selfBuffPer`・`bpBuffPer`・`bpBuffAllPer`・`millPer`（`multiplier`→`count`、`cap`→`countMax`）・`millPerLoserCost` の10種・72枚。`sequence`・`ifLast`・選択を含む `*Per` は M2 へ
-
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。

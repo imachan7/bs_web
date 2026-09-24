@@ -294,9 +294,9 @@ console.log("--- Lv2：コスト5の自分のスピリットすべてを「ア�
     const probe = put(s, "p1", "BS02-049", 1)
     refreshLevelAsOverrides(s) // nameAsGrant等の継続付与（CardInstance.namesAsContinuous）を反映
     resolveAction(s, "p1", probe, {
-        type: "selfBuffPer",
-        counter: { ownNameIncludes: "アルカナ" },
-        amountPer: 1000,
+        type: "selfBuff",
+        amountCounter: { ownNameIncludes: "アルカナ" },
+        amount: 1000,
     })
     assert(
         probe.tempBpBuff === 2000,
@@ -311,9 +311,9 @@ console.log("--- Lv2：コスト5の自分のスピリットすべてを「ア�
     const probe = put(s, "p1", "BS02-049", 1)
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", probe, {
-        type: "selfBuffPer",
-        counter: { ownNameIncludes: "アルカナ" },
-        amountPer: 1000,
+        type: "selfBuff",
+        amountCounter: { ownNameIncludes: "アルカナ" },
+        amount: 1000,
     })
     assert(probe.tempBpBuff === 1000, "Lv1ではnameAsGrantが無いため、カール自身の1体分のみ")
 }

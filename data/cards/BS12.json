@@ -192,9 +192,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuffPer",
-          "counter": "ownBraveSpirits",
-          "amountPer": 2000
+          "type": "selfBuff",
+          "amount": 2000,
+          "amountCounter": "ownBraveSpirits"
         }
       },
       {
@@ -548,11 +548,11 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuffPer",
-          "counter": {
+          "type": "selfBuff",
+          "amount": 3000,
+          "amountCounter": {
             "ownFamily": "古竜"
-          },
-          "amountPer": 3000
+          }
         }
       }
     ]
@@ -905,8 +905,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyPer",
-          "counter": {
+          "type": "destroy",
+          "count": 1,
+          "countCounter": {
             "ownFamily": "無魔"
           },
           "filter": {
@@ -1347,8 +1348,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreGainPer",
-          "counter": {
+          "type": "coreGain",
+          "count": 1,
+          "countCounter": {
             "ownFamily": "殻人"
           }
         }
@@ -2348,9 +2350,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "selfBuffPer",
-          "counter": "battlingOpponentCombinedSymbols",
-          "amountPer": 3000
+          "type": "selfBuff",
+          "amount": 3000,
+          "amountCounter": "battlingOpponentCombinedSymbols"
         }
       }
     ]

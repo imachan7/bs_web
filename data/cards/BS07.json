@@ -134,13 +134,13 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "enemyCost": {
        "max": 3
       }
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    }
@@ -450,11 +450,11 @@
      3
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownFamily": "勇傑"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    },
@@ -5002,10 +5002,12 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuffPer",
-     "counter": "ownRestedNexuses",
-     "amountPer": 2000,
-     "keywordFilter": "kyoshu"
+     "type": "bpBuff",
+     "amount": 2000,
+     "amountCounter": "ownRestedNexuses",
+     "filter": {
+      "keyword": "kyoshu"
+     }
     }
    }
   ]

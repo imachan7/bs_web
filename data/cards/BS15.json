@@ -1887,9 +1887,9 @@
      2
     ],
     "action": {
-     "type": "bpBuffPer",
-     "counter": "opponentFieldSpiritColors",
-     "amountPer": 2000
+     "type": "bpBuff",
+     "amount": 2000,
+     "amountCounter": "opponentFieldSpiritColors"
     },
     "optional": false
    },
@@ -2208,9 +2208,9 @@
      2
     ],
     "action": {
-     "type": "bpBuffPer",
-     "counter": "opponentFieldColors",
-     "amountPer": 3000
+     "type": "bpBuff",
+     "amount": 3000,
+     "amountCounter": "opponentFieldColors"
     },
     "optional": false
    },
@@ -3383,8 +3383,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "millPer",
-     "counter": "selfLevel"
+     "type": "mill",
+     "count": 1,
+     "countCounter": "selfLevel"
     }
    }
   ]
@@ -5379,8 +5380,9 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "millPer",
-     "counter": "burstEventCost"
+     "type": "mill",
+     "count": 1,
+     "countCounter": "burstEventCost"
     },
     "thenPay": "flash"
    },
@@ -5912,9 +5914,9 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "millPer",
-       "counter": "selfLevel",
-       "multiplier": 5
+       "type": "mill",
+       "count": 5,
+       "countCounter": "selfLevel"
       },
       {
        "type": "destroyIfLastMillHadBurst"

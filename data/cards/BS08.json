@@ -4817,9 +4817,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuffAllPer",
-     "counter": "ownExhausted",
-     "amountPer": 2000,
+     "type": "bpBuffAll",
+     "amount": 2000,
+     "amountCounter": "ownExhausted",
      "filter": {
       "nameContains": [
        "ダーク",
@@ -5303,8 +5303,9 @@
      3
     ],
     "action": {
-     "type": "destroyPer",
-     "counter": {
+     "type": "destroy",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "龍帝"
      },
      "filter": {

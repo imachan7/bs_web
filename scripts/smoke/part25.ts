@@ -76,7 +76,7 @@ console.log("=== 汎用 millPer：EffectCounter { ownColor } 経由でカウン�
         createInstance("BS01-001", s.turn, 1), // 赤（対象外）
     )
     const deckBefore = s.players.p2.deck.length
-    resolveAction(s, "p1", null, { type: "millPer", counter: { ownColor: "blue" } })
+    resolveAction(s, "p1", null, { type: "mill", count: 1, countCounter: { ownColor: "blue" } })
     assert(s.players.p2.deck.length === deckBefore - 2, "自分の青スピリット数（2）ぶん相手のデッキが減る")
 }
 

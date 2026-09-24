@@ -765,9 +765,9 @@
      3
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "readyEnemies",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "readyEnemies"
     },
     "optional": false
    }
@@ -5713,8 +5713,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "drawPer",
-     "counter": "exhaustedEnemies"
+     "type": "draw",
+     "count": 1,
+     "countCounter": "exhaustedEnemies"
     }
    },
    {
@@ -6065,9 +6066,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuffPer",
-     "counter": "exhaustedEnemies",
-     "amountPer": 1000
+     "type": "bpBuff",
+     "amount": 1000,
+     "amountCounter": "exhaustedEnemies"
     }
    }
   ]
@@ -6105,8 +6106,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "drawPer",
-     "counter": "opponentHand"
+     "type": "draw",
+     "count": 1,
+     "countCounter": "opponentHand"
     }
    },
    {
@@ -6615,8 +6617,9 @@
      3
     ],
     "action": {
-     "type": "voidCoreToSelfPer",
-     "counter": "ownOtherSpirits"
+     "type": "voidCoreToSelf",
+     "count": 1,
+     "countCounter": "ownOtherSpirits"
     },
     "optional": false
    },

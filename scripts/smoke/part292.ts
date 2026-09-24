@@ -167,7 +167,7 @@ console.log("=== YC: EffectCounter battlingOpponentCombinedSymbols ===")
     refreshLevelAsOverrides(s)
     const bpBefore = effectiveBp(s, "p1", pomeran)
     s.battle = { attackerPid: "p2", attackerInstanceId: host.instanceId, blockerInstanceId: pomeran.instanceId } as never
-    resolveAction(s, "p1", pomeran, { type: "bpBuffPer", amountPer: 3000, counter: "battlingOpponentCombinedSymbols" })
+    resolveAction(s, "p1", pomeran, { type: "bpBuff", amount: 3000, amountCounter: "battlingOpponentCombinedSymbols" })
     assert(
         effectiveBp(s, "p1", pomeran) > bpBefore,
         "バトルしている相手の合体スピリットのシンボル数ぶんBPが上がる",

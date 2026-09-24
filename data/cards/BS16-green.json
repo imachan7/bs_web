@@ -488,9 +488,9 @@
           2
         ],
         "action": {
-          "type": "selfBuffPer",
-          "counter": "selfCores",
-          "amountPer": 1000
+          "type": "selfBuff",
+          "amount": 1000,
+          "amountCounter": "selfCores"
         }
       },
       {

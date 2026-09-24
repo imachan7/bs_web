@@ -1581,8 +1581,9 @@
      2
     ],
     "action": {
-     "type": "voidCoreToSelfPer",
-     "counter": "ownNexuses"
+     "type": "voidCoreToSelf",
+     "count": 1,
+     "countCounter": "ownNexuses"
     },
     "optional": false
    }
@@ -1631,9 +1632,9 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "ownReserve",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "ownReserve"
     },
     "optional": false
    }
@@ -1907,11 +1908,11 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownFamily": "爪鳥"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    },
@@ -2417,9 +2418,9 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "ownNexuses",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "ownNexuses"
     },
     "optional": false
    }
@@ -2528,11 +2529,11 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownFamily": "巨獣"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    },
@@ -3584,11 +3585,11 @@
      3
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownNameIncludes": "アルカナ"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    },
@@ -4581,8 +4582,9 @@
      3
     ],
     "action": {
-     "type": "millPer",
-     "counter": "selfCoresAtDestruction"
+     "type": "mill",
+     "count": 1,
+     "countCounter": "selfCoresAtDestruction"
     },
     "optional": false
    }
@@ -4939,9 +4941,9 @@
      1
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "ownNexuses",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "ownNexuses"
     },
     "optional": false
    },
@@ -4953,9 +4955,9 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "allNexuses",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "allNexuses"
     },
     "optional": false
    }
@@ -5326,11 +5328,11 @@
      3
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownNexusColor": "blue"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    }
@@ -6832,8 +6834,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "coreGainPer",
-     "counter": "ownExhausted"
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": "ownExhausted"
     }
    }
   ]
@@ -7172,8 +7175,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "drawPer",
-     "counter": {
+     "type": "draw",
+     "count": 1,
+     "countCounter": {
       "ownKeyword": "kobo"
      }
     }

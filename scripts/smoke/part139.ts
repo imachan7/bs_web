@@ -80,15 +80,15 @@ console.log("=== BS07 赤：相手のコスト3以下の体数ぶんBP+する（
 {
     const basi = findByEffect(
         (e) =>
-            ((e["action"] as Record<string, unknown> | undefined)?.["counter"] as Record<string, unknown> | undefined)?.[
+            ((e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] as Record<string, unknown> | undefined)?.[
                 "enemyCost"
             ] !== undefined,
     )
-    const action = entryOf(basi, (e) => (e["action"] as Record<string, unknown> | undefined)?.["counter"] !== undefined)[
+    const action = entryOf(basi, (e) => (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] !== undefined)[
         "action"
     ] as Record<string, unknown>
-    const enemyCost = (action["counter"] as Record<string, unknown>)["enemyCost"] as { max: number }
-    const amountPer = Number(action["amountPer"])
+    const enemyCost = (action["amountCounter"] as Record<string, unknown>)["enemyCost"] as { max: number }
+    const amountPer = Number(action["amount"])
     const cheap = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= enemyCost.max,
     )

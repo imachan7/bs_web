@@ -154,7 +154,7 @@ console.log("=== BS09-080 エグゾーストネクサス：疲労状態の相手
     const n2 = putNexus(s, "p2", "BS09-063", 0)
     n1.isRested = true
     n2.isRested = true
-    resolveAction(s, "p1", null, { type: "destroyPer", counter: "restedEnemyNexuses", filter: { keywordExclude: "tensho" } })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, countCounter: "restedEnemyNexuses", filter: { keywordExclude: "tensho" } })
     const alive = [a, b].filter((x) => s.players.p2.field.spirits.some((y) => y.instanceId === x.instanceId))
     assert(alive.length === 0, "疲労ネクサス2つぶん、2体が破壊される")
     assert(s.players.p2.field.spirits.some((x) => x.instanceId === tensho.instanceId), "【転召】持ちは破壊されない")

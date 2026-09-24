@@ -40,11 +40,11 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownColor": "red"
-     },
-     "amountPer": 1000
+     }
     }
    }
   ]
@@ -1472,8 +1472,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "voidCoreToSelfPer",
-     "counter": "selfLevel"
+     "type": "voidCoreToSelf",
+     "count": 1,
+     "countCounter": "selfLevel"
     }
    }
   ]
@@ -3927,7 +3928,9 @@
     ],
     "winnerKeywordFilter": "funsai",
     "action": {
-     "type": "millPerLoserCost"
+     "type": "mill",
+     "count": 1,
+     "countCounter": "lastBattleDestroyedCost"
     }
    }
   ]

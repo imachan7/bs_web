@@ -3,7 +3,7 @@
 // BS08の緑15枚取り込みで追加したエンジン拡張を実カード経由で1回ずつ通す:
 //   kind"bofuCountBonus"＋bofuCountFor（自分のスピリットすべての【暴風】の指定数+1。BS08-023）／
 //   action"bpBuffAllByBofuCount"（【暴風】の指定体数1につきBP+2000。BS08-074）／
-//   action"bpBuffAllPer"＋filter.nameContains配列OR（「ダーク」/「ブラック」。BS08-075）／
+//   action"bpBuffAll"（amountCounter）＋filter.nameContains配列OR（「ダーク」/「ブラック」。BS08-075）／
 //   action"grantKeywordToHandCard".all（手札の該当カードすべてに【神速】。BS08-073）／
 //   action"refreshSelf".costSelfCoresToVoid（自身のコアを払って回復。BS08-X31）／
 //   fieldEvent"ownTensho"のnameIncludes加算（コア2+2=4。BS08-025）／
@@ -142,14 +142,14 @@ console.log("=== BS08スナイピングブラスト：bpBuffAllByBofuCount（【
     assert(effectiveBp(s, "p1", plain) === bpAt(FILLER, 1), "対照実験：【暴風】を持たないスピリットは変化しない")
 }
 
-console.log("=== BS08ダークパワー：bpBuffAllPer + filter.nameContains配列（「ダーク」/「ブラック」のOR） ===")
+console.log("=== BS08ダークパワー：bpBuffAll（amountCounter）+ filter.nameContains配列（「ダーク」/「ブラック」のOR） ===")
 {
     const darkpower = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAllPer",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAll" && (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] !== undefined,
     )
-    const entry = entryOf(darkpower, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAllPer")
+    const entry = entryOf(darkpower, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAll" && (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] !== undefined)
     const action = entry["action"] as Record<string, unknown>
-    const amountPer = Number(action["amountPer"])
+    const amountPer = Number(action["amount"])
     const names = ((action["filter"] as Record<string, unknown>)["nameContains"] as string[]) ?? []
     const matchSpirit = CARDS.find(
         (c) => c.type === "spirit" && names.some((n) => c.name.includes(n)) && c.cardId !== darkpower.cardId,

@@ -595,7 +595,7 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
     const lone = createInstance("BS01-X03", s2.turn, 1)
     s2.players.p1.field.spirits.push(lone)
     const logLen2 = s2.log.length
-    resolveAction(s2, "p1", lone, { type: "voidCoreToSelfPer", counter: "ownOtherSpirits" })
+    resolveAction(s2, "p1", lone, { type: "voidCoreToSelf", count: 1, countCounter: "ownOtherSpirits" })
     assert(lone.cores === 1 && s2.log.length === logLen2 + 1, "他スピリットが0体ならコアは増えずログのみ")
 }
 

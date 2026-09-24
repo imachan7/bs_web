@@ -728,9 +728,9 @@
      2
     ],
     "action": {
-     "type": "bpBuffAllPer",
-     "counter": "ownLife",
-     "amountPer": 1000,
+     "type": "bpBuffAll",
+     "amount": 1000,
+     "amountCounter": "ownLife",
      "filter": {
       "familyAll": [
        "地竜",
@@ -2262,11 +2262,11 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownFamily": "遊精"
-     },
-     "amountPer": 1000
+     }
     }
    }
   ]
@@ -2419,9 +2419,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuffPer",
-     "counter": "selfCores",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "selfCores"
     }
    }
   ]
@@ -2539,8 +2539,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGainPer",
-     "counter": "selfLevel"
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": "selfLevel"
     }
    }
   ]
@@ -2664,8 +2665,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGainPer",
-     "counter": {
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "遊精"
      }
     }
@@ -3707,13 +3709,13 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 2000,
+     "amountCounter": {
       "ownFamily": [
        "甲竜"
       ]
-     },
-     "amountPer": 2000
+     }
     }
    }
   ]
@@ -3929,9 +3931,9 @@
     ],
     "whileCombined": true,
     "action": {
-     "type": "selfBuffPer",
-     "counter": "battlingOpponentSymbols",
-     "amountPer": 5000
+     "type": "selfBuff",
+     "amount": 5000,
+     "amountCounter": "battlingOpponentSymbols"
     }
    }
   ],
@@ -5924,12 +5926,12 @@
     "ownOnly": true,
     "familyFilter": "闘神",
     "action": {
-     "type": "millPer",
-     "counter": {
+     "type": "mill",
+     "count": 2,
+     "countCounter": {
       "ownNexusNameIncludes": "古代戦艦"
      },
-     "multiplier": 2,
-     "cap": 8
+     "countMax": 8
     }
    },
    {
@@ -5942,12 +5944,12 @@
     "phase": "attack",
     "familyFilter": "闘神",
     "action": {
-     "type": "millPer",
-     "counter": {
+     "type": "mill",
+     "count": 2,
+     "countCounter": {
       "ownNexusNameIncludes": "古代戦艦"
      },
-     "multiplier": 2,
-     "cap": 8
+     "countMax": 8
     }
    }
   ]

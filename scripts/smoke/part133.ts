@@ -41,6 +41,8 @@ for (const c of cards) {
         if (e["kind"] !== "magic" || e["timing"] !== "flash") continue
         const action = e["action"] as Record<string, unknown> | undefined
         if (!action || action["type"] !== "bpBuff") continue
+        // 量が数え上げで決まるもの（amountCounter）は固定値 N の検証に合わない。part1・part358 が見る
+        if (action["amountCounter"] !== undefined) continue
         const filter = action["filter"] as Record<string, unknown> | undefined
         const filterKeys = Object.keys(filter ?? {})
         if (filterKeys.some((k) => k !== "minSymbols" && k !== "nameContains" && k !== "family" && k !== "combined" && k !== "vanilla")) {

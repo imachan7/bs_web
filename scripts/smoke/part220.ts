@@ -25,7 +25,7 @@ console.log("=== ownColorSymbols：ネクサスのシンボルも数える ===")
     s.players.p1.field.spirits.push(castle)
     // スピリットだけのとき＝青シンボル1つ
     const deckBefore1 = s.players.p2.deck.length
-    resolveAction(s, "p1", castle, { type: "millPer", counter: { ownColorSymbols: "blue" }, multiplier: 1 })
+    resolveAction(s, "p1", castle, { type: "mill", count: 1, countCounter: { ownColorSymbols: "blue" } })
     assert(
         deckBefore1 - s.players.p2.deck.length === 1,
         `スピリットの青シンボル1つぶん破棄する（実際: ${deckBefore1 - s.players.p2.deck.length}）`,
@@ -33,7 +33,7 @@ console.log("=== ownColorSymbols：ネクサスのシンボルも数える ===")
     // 青ネクサスを1つ置くと2つになる（修正前はネクサスを数えず1のままだった）
     s.players.p1.field.nexuses.push(createInstance(BLUE_NEXUS, s.turn, 1))
     const deckBefore2 = s.players.p2.deck.length
-    resolveAction(s, "p1", castle, { type: "millPer", counter: { ownColorSymbols: "blue" }, multiplier: 1 })
+    resolveAction(s, "p1", castle, { type: "mill", count: 1, countCounter: { ownColorSymbols: "blue" } })
     assert(
         deckBefore2 - s.players.p2.deck.length === 2,
         `ネクサスの青シンボルも数えて2枚破棄する（実際: ${deckBefore2 - s.players.p2.deck.length}）`,
