@@ -637,10 +637,10 @@ export interface CardInstance {
     // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
     // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
     pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
-    cantBlockThisBattle?: true // このバトルの間ブロックできない（markCantBlockThisBattle。clearBattle で消える。BS09-042妖精騎士ピーター）
+    cantBlockThisBattle?: true // このバトルの間ブロックできない（timedEffect。clearBattle で消える。BS09-042妖精騎士ピーター）
     unblockableMinBpThisBattle?: number // このバトルの間、実効BPがこの値以上のスピリットからブロックされない（action:"unblockableAboveBpThisBattle"。clearBattle で消える。BS13-032光速の騎士ヘルモード【合体時】Lv3：「BP6000以上の相手のスピリットからブロックされない」）
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
-    cantBlockThisTurn?: true // このターンの間ブロックできない（markCantBlockThisTurn。PhaseManagerのターン終了処理で消える。BS12-038オリンピアの天使ファレグ）
+    cantBlockThisTurn?: true // このターンの間ブロックできない（timedEffect。PhaseManagerのターン終了処理で消える。BS12-038オリンピアの天使ファレグ）
     suppressedTriggersThisTurn?: TriggerEvent[] // このターンの間、この個体自身の指定トリガーが発揮されない（markSuppressTriggerThisTurn。triggerSuppressionThisTurnの個体版＝1体だけを指定する。PhaseManagerのターン終了処理で消える。BS14-043月光姫マーニLv2）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）

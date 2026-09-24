@@ -816,11 +816,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "banAttackTargetThisTurn",
-     "combinedOnly": true,
-     "alsoCantBlock": true
-    }
+    "action": { "type": "timedEffect", "content": [{ "type": "cantAttack" }, { "type": "cantBlock" }], "duration": "turn", "filter": { "combined": true } }
    },
    {
     "id": "SD06-012-e2",
