@@ -32,7 +32,6 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
     TargetFilter,
-    TimedContent,
     TriggerEvent,
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
@@ -285,7 +284,7 @@ export function fireTrigger(
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
-    // markSuppressTriggerThisTurn：**この個体1体だけ**が対象の一時抑止（BS14-043月光姫マーニLv2）。
+    // timedEffect の suppressTrigger（1体）：**この個体1体だけ**が対象の一時抑止（BS14-043月光姫マーニLv2）。
     // trigger:"onAttack"は【合体時】の『合体アタック時』も同時に防ぐ（どちらも内部的にonAttack）
     if (selfInstance.suppressedTriggersThisTurn?.includes(event)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
@@ -511,17 +510,9 @@ export function fireTrigger(
     // 付与された誘発効果（kind: "effectGrant"。アルカナビースト・ケン）：持ち主フィールドの発生源から
     // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
     // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
-    // 加えて、action:"grantEffectToTargetThisTurn" でこの個体1体に直接付与された、このターン限りの
+    // 加えて、timedEffect の grantTrigger でこの個体1体に直接付与された、このターン限りの
     // 誘発効果（tempGrantedTriggers）も同様に合成する（BS08メテオストーム）
-    // timedEffect の grantTrigger：1体は個体の tempGrantedTriggers、「すべて」は timedRule（後から出たスピリットにも付く）
-    const ruleGranted = state.turnConstraints.flatMap((c) =>
-        c.type === "timedRule" &&
-        (c.pid === undefined || c.pid === owner) &&
-        matchesTarget(state, owner, selfInstance, c.filter, c.selfInstanceId)
-            ? c.content.filter((x): x is Extract<TimedContent, { type: "grantTrigger" }> => x.type === "grantTrigger")
-            : [],
-    )
-    const tempGranted = [...(selfInstance.tempGrantedTriggers ?? []), ...ruleGranted]
+    const tempGranted = (selfInstance.tempGrantedTriggers ?? [])
         .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
         .map((g) => g.action)
     const grantedActions = [
@@ -656,8 +647,11 @@ function collectGrantedTriggerActions(
     event: TriggerEvent,
     targetInstanceId?: string,
 ): EffectAction[] {
-    // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS03ブリッツ）も含める
-    const sources = effectSources(state, owner)
+    // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS03ブリッツ）も含める。
+    // 破壊後に誘発する『バトル時』破壊されたとき等は、場を離れた直前の状態を見るので、誘発している個体自身も発生源に含める
+    // ponytail: 同時に場を離れた別の発生源は拾わない。要るカードが出たら破壊直前の発生源を控える
+    const fieldSources = effectSources(state, owner)
+    const sources = fieldSources.includes(selfInstance) ? fieldSources : [...fieldSources, selfInstance]
     const actions: EffectAction[] = []
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
@@ -677,7 +671,12 @@ function collectGrantedTriggerActions(
             ) {
                 continue
             }
-            if (effect.keywordFilter && !hasKeyword(selfInstance.cardId, effect.keywordFilter)) continue
+            if (effect.keywordFilter && !spiritHasKeyword(state, owner, selfInstance, effect.keywordFilter)) continue
+            if (effect.phaseTurn) {
+                if (state.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && owner === state.turnPlayer) continue
+            }
             // 付与された誘発の発火条件（BS07ライフセービング＝コスト3以下をブロックしたとき）。
             // fireTrigger が渡す targetInstanceId（onBlock ならアタッカー）を見る
             if (effect.granted.condition !== undefined) {

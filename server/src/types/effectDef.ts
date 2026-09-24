@@ -1016,7 +1016,8 @@ export type EffectDef =
           nameIncludes?: string // 対象スピリットのカード名に含まれる文字列（省略時は自分のスピリットすべてが対象。発生源自身も一致すれば含む）
           colorFilter?: Color // 指定時はこの色を持つスピリットのみ
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ
-          keywordFilter?: Keyword // 指定時はこのキーワードを静的に持つスピリットのみ
+          keywordFilter?: Keyword // 指定時はこのキーワードを持つスピリットのみ（効果で得たキーワードも含む。2026-09-25 ユーザー確認）
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 見出しの『自分のアタックステップ』等＝そのステップの間だけ付与する（own/opponentは持ち主基準）
           whileCombined?: true
           granted: {
               trigger: TriggerEvent

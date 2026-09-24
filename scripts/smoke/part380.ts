@@ -1,4 +1,4 @@
-// smoke パート380（誘発効果の付与：timedEffect の内容 grantTrigger。移したカードデータを直接解決する）
+// smoke パート380（誘発効果の付与：1体は timedEffect の内容 grantTrigger、見出しのステップ限定は effectGrant の phaseTurn）
 import { assert, createGame, createInstance, fireTrigger, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 
@@ -17,7 +17,7 @@ function grantAction(cardId: string): Extract<EffectAction, { type: "timedEffect
 }
 
 const VANILLA = "BS01-002" // ロクケラトプス
-const YATSU = "BS14-032" // ヤツノカンゾウ（【暴風】）
+const YATSU = "BS14-032" // ヤツノカンゾウ
 const HAOU = "BS14-010" // 皇牙獣キンタローグ・ベアー（系統：覇皇）
 
 function game(): GameState {
@@ -62,25 +62,31 @@ console.log("=== 2. 1体：爆覇炎神剣＝系統：覇皇だけが候補 ==="
     assert(other.tempGrantedTriggers === undefined, "覇皇でない方には付かない")
 }
 
-console.log("=== 3. すべて：ヤツノカンゾウ＝解決後に出た【暴風】持ちにも付く（timedRule） ===")
+console.log("=== 3. ヤツノカンゾウ Lv2：自分のアタックステップの間、【暴風】を持つ自分のスピリットに付く（継続効果） ===")
 {
-    const s = game()
-    const action = grantAction(YATSU)
-    assert(action.all === true && action.side === "own", "カードデータは all・自分")
-    resolveAction(s, "p1", null, action)
-    assert(s.turnConstraints.some((c) => c.type === "timedRule" && c.content.some((x) => x.type === "grantTrigger")), "全体ルールが積まれる")
-    // 仕組みの確認：同じ全体ルールに観測しやすい効果を載せ、後から出た【暴風】持ちで発火させる
-    const probe = { ...action, content: [{ type: "grantTrigger" as const, trigger: "onLifeDealt" as const, action: { type: "voidCoreToReserve", count: 1 } as EffectAction }] }
-    resolveAction(s, "p1", null, probe)
-    const later = createInstance(YATSU, 1, 3)
-    const plain = createInstance(VANILLA, 1, 1)
-    s.players.p1.field.spirits.push(later, plain)
-    refreshLevelAsOverrides(s)
-    const before = s.players.p1.reserve
-    fireTrigger(s, "p1", later, "onLifeDealt")
-    assert(s.players.p1.reserve === before + 1, "後から出た【暴風】持ちで付与した効果が発火する")
-    fireTrigger(s, "p1", plain, "onLifeDealt")
-    assert(s.players.p1.reserve === before + 1, "【暴風】を持たないスピリットでは発火しない")
+    const entry = getCard(YATSU).effects.find((e) => e.kind === "effectGrant")
+    assert(entry?.kind === "effectGrant" && entry.phaseTurn?.phase === "attack" && entry.phaseTurn.turn === "own", "カードデータは effectGrant・自分のアタックステップ")
+    // X の【暴風】で疲労させた相手を用意し、X が『バトル時』に負けたときを発火させる
+    function scene(opts: { phase: GameState["phase"]; turnPlayer: "p1" | "p2"; bofu: boolean; kanzouLv2: boolean }) {
+        const s = game()
+        s.phase = opts.phase
+        s.turnPlayer = opts.turnPlayer
+        const kanzou = createInstance(YATSU, 1, opts.kanzouLv2 ? 3 : 1)
+        const x = createInstance(VANILLA, 1, 1)
+        if (opts.bofu) x.tempKeywords.push({ keyword: "bofu" })
+        const foe = createInstance(VANILLA, 1, 1)
+        s.players.p1.field.spirits = [kanzou, x]
+        s.players.p2.field.spirits = [foe]
+        refreshLevelAsOverrides(s)
+        s.bofuExhaustedThisBattle = [{ pid: "p2", instanceId: foe.instanceId, bofuSourceInstanceId: x.instanceId }]
+        fireTrigger(s, "p1", x, "onBattleLose")
+        return !s.players.p2.field.spirits.includes(foe)
+    }
+    assert(scene({ phase: "attack", turnPlayer: "p1", bofu: true, kanzouLv2: true }), "自分のアタックステップ：効果で【暴風】を得たスピリットにも付き、相手が手札に戻る")
+    assert(!scene({ phase: "attack", turnPlayer: "p1", bofu: false, kanzouLv2: true }), "【暴風】を持たないスピリットには付かない")
+    assert(!scene({ phase: "main", turnPlayer: "p1", bofu: true, kanzouLv2: true }), "メインステップには付かない")
+    assert(!scene({ phase: "attack", turnPlayer: "p2", bofu: true, kanzouLv2: true }), "相手のアタックステップには付かない")
+    assert(!scene({ phase: "attack", turnPlayer: "p1", bofu: true, kanzouLv2: false }), "ヤツノカンゾウが Lv1 なら付かない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part380）")

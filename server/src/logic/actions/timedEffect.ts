@@ -697,6 +697,11 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         else placeSymbolOrCost(ctx, action, filter)
         return
     }
+    // 「〜すべてに誘発効果を与える」は見出しのステップ限定を持つ継続効果（effectGrant）で書く。ここでは1体だけ
+    if (action.all && action.content.some((c) => c.type === "grantTrigger")) {
+        log(state, `${sourceName}：「すべてに効果を与える」は未対応のため発揮しなかった。`)
+        return
+    }
     if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return

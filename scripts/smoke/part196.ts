@@ -165,6 +165,11 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
                       directed: false,
                   }
             refreshLevelAsOverrides(s)
+            // 「【暴風】で疲労させた相手を戻す」付与（ヤツノカンゾウ）は、付与先の【暴風】で疲労させた記録が要る
+            const grantedType = (granted?.["action"] as Record<string, unknown> | undefined)?.["type"]
+            if (grantedType === "returnBofuExhaustedToHand" && foeInst) {
+                s.bofuExhaustedThisBattle = [{ pid: "p2", instanceId: foeInst, bofuSourceInstanceId: target.instanceId }]
+            }
 
             // 付与前：同じ誘発を撃っても何も起きない
             // 役割（アタッカー／ブロッカー）は常に渡す。
