@@ -555,13 +555,17 @@ const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHea
     }
 }
 
-// 「すべて」を戻すのは範囲の効果（attempt が "area"）。returnToHand{all} もここを通す。
-// 1体版と違って noHandGainByEffect を見ていない（範囲版は以前から見ていない。挙動を変えないためそのまま）
+// 「すべて」を戻すのは範囲の効果（attempt が "area"）。returnToHand{all} もここを通す
 function returnAllTargetsToHand(
     ctx: ActionCtx,
     action: { side: "opponent" | "both"; costFilter?: { max?: number; min?: number }; filter?: TargetFilter },
 ): void {
     const { state, opp, self, sourceName, srcType } = ctx
+        // 1体版と同じく、手札を増やせない間は発揮しない（全員が場に残る。2026-09-24 ユーザー確認）
+        if (hasGlobalConstraint(state, "noHandGainByEffect")) {
+            log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
+            return
+        }
         // filter指定時はさらにTargetFilterの軸で絞り込む（既存costFilterは残す。BS06鎧神機ヴァルハランスLv3＝BP4000以下）
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) {
