@@ -2987,8 +2987,16 @@
     ],
     "optional": false,
     "action": {
-     "type": "disableOwnArmorThisTurn",
-     "side": "opponent"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "armorDisabledForPid"
+       }
+      }
+     ],
+     "duration": "turn"
     }
    }
   ],
@@ -4746,13 +4754,23 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lifeFloorThisTurn",
-     "floor": 1,
-     "byAttackMinCost": 4,
-     "byEffectSourceTypes": [
-      "spirit",
-      "magic"
-     ]
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "lifeFloorForPid",
+        "floor": 1,
+        "byAttackMinCost": 4,
+        "byEffectSourceTypes": [
+         "spirit",
+         "magic"
+        ]
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -4859,9 +4877,17 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "banHandCardsThisTurn",
-     "side": "opponent",
-     "allowedColor": "yellow"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "cantUseHandCardsForPid",
+        "allowedColor": "yellow"
+       }
+      }
+     ],
+     "duration": "turn"
     }
    }
   ]

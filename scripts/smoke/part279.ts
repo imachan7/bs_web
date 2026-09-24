@@ -50,7 +50,7 @@ console.log("=== §B BS11-049：このターンの間、相手のスピリット
     s.players.p2.field.spirits.push(enemy)
     refreshLevelAsOverrides(s)
     assert(hasArmorAgainst(enemy, ["red", "blue", "green", "white", "yellow", "purple"]), "テスト前提: 装甲を持つ")
-    resolveAction(s, "p1", null, { type: "disableOwnArmorThisTurn", side: "opponent" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "armorDisabledForPid" } }], duration: "turn" })
     assert(
         s.turnConstraints.some((c) => c.type === "armorDisabledForPid" && c.pid === "p2"),
         "相手側の装甲が落ちる",

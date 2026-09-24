@@ -70,11 +70,11 @@ console.log("=== BS14-098：メイン効果でこのターンの制約が積ま�
     const main = (card.effects ?? []).find((e) => e["timing"] === "main")
     assert(main !== undefined, "メイン側の効果が書かれている")
     assert(
-        (main!["action"] as Record<string, unknown>)["type"] === "freeFushiSummonThisTurn",
-        "メイン側は freeFushiSummonThisTurn",
+        JSON.stringify(main!["action"]).includes('"type":"freeFushiSummonForPid"'),
+        "メイン側は「このターン最初の【不死】召喚のコストが0」の制約（freeFushiSummonForPid）",
     )
     const s = setup("darkreborn-push")
-    resolveAction(s, "p1", null, { type: "freeFushiSummonThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "freeFushiSummonForPid" } }], duration: "turn", side: "own" })
     assert(
         s.turnConstraints.some((c) => c.type === "freeFushiSummonForPid" && c.pid === "p1"),
         "このターンの制約が積まれる",
@@ -84,7 +84,7 @@ console.log("=== BS14-098：メイン効果でこのターンの制約が積ま�
 console.log("=== BS14-098：【不死】の召喚コストが0になり、維持コアだけ要る ===")
 {
     const s = setup("darkreborn-free")
-    resolveAction(s, "p1", null, { type: "freeFushiSummonThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "freeFushiSummonForPid" } }], duration: "turn", side: "own" })
     const victim = put(s, "p1", victimCard(FUSHI_COSTS[0]!).cardId, 1)
     const cost = effectiveCost(s, "p1", FUSHI as unknown as Parameters<typeof effectiveCost>[2])
     assert(cost > 0, `素の実コストは0より大きい（${String(cost)}）`)
@@ -109,7 +109,7 @@ console.log("=== BS14-098：【不死】の召喚コストが0になり、維持
 console.log("=== BS14-098：2回目の【不死】召喚は通常どおりコストを支払う ===")
 {
     const s = setup("darkreborn-second")
-    resolveAction(s, "p1", null, { type: "freeFushiSummonThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "freeFushiSummonForPid" } }], duration: "turn", side: "own" })
     const cost = effectiveCost(s, "p1", FUSHI as unknown as Parameters<typeof effectiveCost>[2])
 
     const v1 = put(s, "p1", victimCard(FUSHI_COSTS[0]!).cardId, 1)
@@ -132,7 +132,7 @@ console.log("=== BS14-098：コストぶんのリザーブが無くても、維�
 {
     // 素のコストには足りないが、維持コアだけは足りる量（生贄のコア1個が戻るぶんも見込む）
     const s = setup("darkreborn-poor", MAINTAIN)
-    resolveAction(s, "p1", null, { type: "freeFushiSummonThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "freeFushiSummonForPid" } }], duration: "turn", side: "own" })
     const victim = put(s, "p1", victimCard(FUSHI_COSTS[0]!).cardId, 1)
     destroyByEffect(s, "p1", victim.instanceId)
     assert(ON_FIELD(s, "p1", FUSHI.cardId), "コスト0なので維持コアだけで召喚できる")
@@ -142,7 +142,7 @@ console.log("=== BS14-098：対話モードの確認プロンプトもコスト0
 {
     const s = setup("darkreborn-prompt")
     s.interactiveTargets = true
-    resolveAction(s, "p1", null, { type: "freeFushiSummonThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "freeFushiSummonForPid" } }], duration: "turn", side: "own" })
     const victim = put(s, "p1", victimCard(FUSHI_COSTS[0]!).cardId, 1)
     destroyByEffect(s, "p1", victim.instanceId)
     assert(s.pendingChoice?.fushiSummon !== undefined, "【不死】の召喚確認が立つ")

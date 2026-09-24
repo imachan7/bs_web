@@ -300,7 +300,7 @@ console.log("=== 器AN：BS13-027Lv2「相手のスピリットの効果では�
 console.log("=== 器AO：BS13-079メイン「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」 ===")
 {
     const s = game("ao-bounce-decktop")
-    resolveAction(s, "p1", null, { type: "bounceToDeckTopThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "bounceToDeckTopForPid" } }], duration: "turn", side: "own" })
     const target = createInstance(ALL_CARDS.find((c) => c.type === "spirit")!.cardId, s.turn, 1)
     s.players.p2.field.spirits.push(target)
     refreshLevelAsOverrides(s)
@@ -318,7 +318,7 @@ console.log("=== 器AO：BS13-079メイン「このターンの間、自分の�
 console.log("=== 器AO：「〜を手札に戻すことで」のコスト支払いもデッキの上へ振り替わる ===")
 {
     const s = game("ao-bounce-cost")
-    resolveAction(s, "p1", null, { type: "bounceToDeckTopThisTurn" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "bounceToDeckTopForPid" } }], duration: "turn", side: "own" })
     // コストにする自分のスピリット（【神速】持ち）と、効果の対象になる相手のスピリット
     const cost = createInstance("BS13-021", s.turn, 1)
     s.players.p1.field.spirits.push(cost)

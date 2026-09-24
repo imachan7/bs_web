@@ -5550,7 +5550,17 @@
         "colorFilter": "yellow",
         "byOpponentSpiritEffectOnly": true,
         "action": {
-          "type": "lifeImmuneThisTurn"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "lifeImmuneForPid"
+              }
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       },
       {

@@ -5923,7 +5923,17 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "freeFushiSummonThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "freeFushiSummonForPid"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -6561,9 +6571,17 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "banHandCardsThisTurn",
-     "side": "opponent",
-     "cardType": "magic"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "cantUseHandCardsForPid",
+        "cardType": "magic"
+       }
+      }
+     ],
+     "duration": "turn"
     },
     "thenPay": "flash"
    },
