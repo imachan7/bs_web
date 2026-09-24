@@ -422,52 +422,6 @@ const handReductionColorAsThisTurnHandler: ActionHandler<"handReductionColorAsTh
         return
 }
 
-const grantCanBlockWhileRestedThisTurnHandler: ActionHandler<"grantCanBlockWhileRestedThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-        // singleTarget（BS14-101仁王壁）：colorFilter一致の自分のスピリット1体を指定してから付与する
-        if (action.singleTarget) {
-            const candidates = state.players[owner].field.spirits.filter(
-                (s) => action.colorFilter === undefined || instHasColor(s, action.colorFilter),
-            )
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：対象のスピリットがいなかった。`)
-                return
-            }
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}：疲労状態でブロックできるようにするスピリットを選んでください`,
-                    candidates,
-                    action,
-                    null,
-                )
-            ) {
-                return
-            }
-            const target =
-                (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
-                candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
-            state.turnConstraints.push({ type: "canBlockWhileRestedThisTurn", pid: owner, instanceId: target.instanceId })
-            log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}は疲労状態でもブロックできる。`)
-            return
-        }
-        state.turnConstraints.push({
-            type: "canBlockWhileRestedThisTurn",
-            pid: owner,
-            ...(action.familyFilter !== undefined ? { familyFilter: action.familyFilter } : {}),
-        })
-        const familyLabel = action.familyFilter
-            ? `系統：「${(Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]).join("」/「")}」を持つ`
-            : ""
-        log(
-            state,
-            `${sourceName}：このターンの間、${state.players[owner].name}の${familyLabel}スピリットすべては疲労状態でもブロックできる。`,
-        )
-        return
-}
-
 const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
@@ -884,7 +838,6 @@ const handlers = {
     exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
-    grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     handReductionColorAsThisTurn: handReductionColorAsThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 

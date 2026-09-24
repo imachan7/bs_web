@@ -659,6 +659,7 @@ export interface CardInstance {
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
     cantBlockThisTurn?: true // このターンの間ブロックできない（timedEffect。PhaseManagerのターン終了処理で消える。BS12-038オリンピアの天使ファレグ）
     mustAttackThisTurn?: true // このターンの間、可能ならば必ずアタックする（timedEffect。PhaseManagerのターン終了処理で消える）
+    canBlockWhileRestedThisTurn?: true // このターンの間、疲労状態でもブロックできる（timedEffect。PhaseManagerのターン終了処理で消える）
     suppressedTriggersThisTurn?: TriggerEvent[] // このターンの間、この個体自身の指定トリガーが発揮されない（markSuppressTriggerThisTurn。triggerSuppressionThisTurnの個体版＝1体だけを指定する。PhaseManagerのターン終了処理で消える。BS14-043月光姫マーニLv2）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
@@ -1426,6 +1427,7 @@ export interface GameState {
 export type TimedContent =
     | { type: "cantAttack" }
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
+    | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
@@ -1467,7 +1469,6 @@ export type TurnConstraintDef =
     | { type: "unblockableByLevelThisTurn"; pid: PlayerId; levels: number[] } // このターンの間、pid のスピリットすべては、currentLevel が levels に含まれる相手のスピリットからブロックされない（action:"grantUnblockableByLevelThisTurn" が積む。BS10-073 エンジェドール）
     | { type: "braveHostUnblockableThisTurn"; pid: PlayerId; braveInstanceId: string } // このターンの間、braveInstanceId のブレイヴが**いま合体しているホスト**はブロックされない（毎回いまのホストをbravesOf経由で引き直す。分離したら誰にも乗らない。2026-09-07 ユーザー確認。action:"grantHostUnblockableThisTurn" が積む。BS12-055ゲッコ・グライダー）
     | { type: "blockTriggersAsAttackForPid"; pid: PlayerId } // このターンの間、pid のスピリットすべての『ブロック時』効果を『アタック時』に発揮させる（action:"blockTriggersAsAttackOwnThisTurn" が積む。BS10-072 セイバーシャーク）
-    | { type: "canBlockWhileRestedThisTurn"; pid: PlayerId; familyFilter?: FamilyFilter; instanceId?: string } // このターンの間、pidのfamilyFilter一致スピリット（省略時は全て）は疲労状態でもブロックできる（action:"grantCanBlockWhileRestedThisTurn"が積む。constraint:"canBlockWhileRested"のターン付与版。BS08インフィニティシールド）。instanceId指定時はその個体だけ（BS14-101仁王壁）
     | { type: "lifeFloorForPid"; pid: PlayerId; floor: number; byAttackMinCost?: number; byEffectSourceTypes?: CardType[] } // このターンの間、この pid のライフは floor を下回らない（「自分のライフは0にならない」＝floor:1）。byAttackMinCost指定時は**その値以上のコストのスピリットのアタック**でだけ効き、byEffectSourceTypes指定時は**その種別の効果による減少**でだけ効く（どちらも指定すればOR。BS11-080 デルタバリア＝「相手のスピリット/マジックの効果と、コスト4以上の相手のスピリットのアタックでは、自分のライフは0にならない」）
     | { type: "lifeImmuneForPid"; pid: PlayerId } // このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らない。lifeDamageMaxForPid（max:0でアタックのみ止める）と違い、lifeCrushアクションの実行自体もこの pid に対しては不発にする全面ロック（action:"lifeImmuneThisTurn"が積む。BS10-093時刻む花時計）
     | { type: "bounceToDeckTopForPid"; pid: PlayerId } // このターンの間、この pid（発生源の持ち主＝効果を発揮した側）が returnToHand で戻すスピリットは、持ち主の手札の代わりにデッキの上へ（action:"bounceToDeckTopThisTurn"が積む。removal.ts の markBounce が currentEffectSource.pid を見て振り替える。BS13-079ヴァニシングデイ）

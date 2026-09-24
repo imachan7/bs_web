@@ -6084,9 +6084,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantCanBlockWhileRestedThisTurn",
-     "colorFilter": "green",
-     "singleTarget": true
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "canBlockWhileRested"
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1,
+     "filter": {
+      "color": "green"
+     }
     }
    }
   ]
