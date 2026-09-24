@@ -554,8 +554,59 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
     log(state, `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。このターンの間、${who}スピリットすべてはそのシンボル1つを失う。`)
 }
 
+// アタック時⇔ブロック時の効果の付け替え。「すべて」は置き場が判定のたびに見られるので後から出たスピリットにも効く
+function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "triggerSwap" }> => c.type === "triggerSwap")
+    if (!content) return
+    const fromLabel = content.from === "onAttack" ? "アタック時" : "ブロック時"
+    const toLabel = content.from === "onAttack" ? "ブロック時" : "アタック時"
+    if (action.all) {
+        if (content.from !== "onBlock") {
+            log(state, `${sourceName}：この付け替えは未対応のため発揮しなかった。`)
+            return
+        }
+        if (action.side === "both") {
+            state.blockTriggersAsAttackThisTurn = true
+            log(state, `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`)
+            return
+        }
+        if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
+        state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
+        log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
+        return
+    }
+    // ブロック時→アタック時は『ブロック時』効果を持つスピリットだけが候補で、候補が2体以上なら選ばせる（旧と同じ）
+    const mine =
+        content.from === "onBlock"
+            ? state.players[owner].field.spirits.filter((s) => getCard(s.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock"))
+            : state.players[owner].field.spirits
+    if (
+        content.from === "onBlock" &&
+        targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(state, owner, self, `${sourceName}：『ブロック時』効果を『アタック時』に変えるスピリットを選んでください`, mine, action, null)
+    ) {
+        return
+    }
+    const target =
+        targetInstanceId !== undefined
+            ? mine.find((s) => s.instanceId === targetInstanceId)
+            : mine.reduce<CardInstance | undefined>((best, s) => (!best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best), undefined)
+    if (!target) {
+        log(state, `${sourceName}：${content.from === "onBlock" ? "『ブロック時』効果を持つ" : "対象の"}自分のスピリットがいなかった。`)
+        return
+    }
+    if (content.from === "onBlock") target.blockTriggersAsAttackThisTurn = true
+    else target.attackTriggersAsBlockThisTurn = true
+    log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}の『${fromLabel}』効果は『${toLabel}』に発揮される。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "triggerSwap")) {
+        placeTriggerSwap(ctx, action)
+        return
+    }
     if (action.content.some((c) => c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost" || c.type === "symbolLoss")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return

@@ -6578,7 +6578,16 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "blockTriggersAsAttackAllThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "triggerSwap",
+       "from": "onBlock"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "both"
     }
    }
   ]

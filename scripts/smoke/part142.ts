@@ -195,7 +195,11 @@ console.log("=== BS07 白：『ブロック時』効果をアタック時に発�
 console.log("=== BS07 白：指定した1体の『ブロック時』効果をアタック時に移す（マクラーンスラッシュ） ===")
 {
     const maclean = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "blockTriggersAsAttackTargetThisTurn",
+        // マクラーンスラッシュ：timedEffect の内容 triggerSwap（ブロック時→アタック時・1体）に移した
+        (e) => {
+            const a = e["action"] as { type?: string; all?: true; content?: { type: string; from?: string }[] } | undefined
+            return a?.type === "timedEffect" && a.all === undefined && a.content?.some((c) => c.type === "triggerSwap" && c.from === "onBlock") === true
+        },
     )
     const blockBuffer = findByEffect(
         (e, c) =>

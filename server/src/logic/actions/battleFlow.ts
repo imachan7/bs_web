@@ -85,14 +85,6 @@ const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (
     log(state, `${sourceName}：破壊されたスピリット上のコア${cores}個はリザーブへ戻らずボイドに置かれた。`)
 }
 
-// BS10-072 セイバーシャーク：このターンの間、**自分の**スピリットすべての『ブロック時』効果を『アタック時』へ移す
-const blockTriggersAsAttackOwnThisTurnHandler: ActionHandler<"blockTriggersAsAttackOwnThisTurn"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
-    state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
-}
-
 // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない
 // （バーストの発動自体は止めない＝summonBurstCardFreeHandlerが召喚だけ止める）
 const blockBurstSpiritSummonThisTurnHandler: ActionHandler<"blockBurstSpiritSummonThisTurn"> = (ctx) => {
@@ -2236,7 +2228,6 @@ const handlers = {
     setBattleBpFixed: setBattleBpFixedHandler,
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
-    blockTriggersAsAttackOwnThisTurn: blockTriggersAsAttackOwnThisTurnHandler,
     endStepLock: endStepLockHandler,
     skipBpCompareThenRefreshOne: skipBpCompareThenRefreshOneHandler,
     extraAttackStep: extraAttackStepHandler,
