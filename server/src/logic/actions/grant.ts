@@ -384,34 +384,6 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
         return
 }
 
-// BS14-110天災之禍風：levelOverrideOpponentNexusesのスピリット版（コスト・確認なしの単純な一括付与）
-const levelOverrideOpponentSpiritsAllThisTurnHandler: ActionHandler<"levelOverrideOpponentSpiritsAllThisTurn"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
-    const oppPlayer = state.players[opp]
-    for (const spirit of oppPlayer.field.spirits) {
-        spirit.levelOverrideThisTurn = action.level
-    }
-    log(
-        state,
-        `${sourceName}：${oppPlayer.name}のスピリットすべてを、このターンの間Lv${action.level}として扱う。`,
-    )
-    return
-}
-
-const levelMaxAllOwnThisTurnHandler: ActionHandler<"levelMaxAllOwnThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 自分のスピリットすべてを、各カードの最高Lvとして扱う（このターンの間。levelOverrideThisTurnはターン終了でリセット）
-        const player = state.players[owner]
-        let count = 0
-        for (const s of player.field.spirits) {
-            const maxLevel = getCard(s.cardId).levels.reduce((m, l) => Math.max(m, l.level), 1)
-            s.levelOverrideThisTurn = maxLevel
-            count++
-        }
-        log(state, `${sourceName}：このターンの間、自分のスピリット${count}体を最高Lvとして扱う。`)
-        return
-}
-
 // 「自分か相手のスピリット1体を指定する」系の対象決定（ダブルハート／ビルドアップ）。
 // targetInstanceId 指定時はそれを使う。未指定なら anySide のとき両陣営から、
 // そうでなければ自分側だけから候補を作り、interactiveTargets ならプレイヤーに選ばせる。
@@ -1303,8 +1275,6 @@ const handlers = {
     blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
-    levelOverrideOpponentSpiritsAllThisTurn: levelOverrideOpponentSpiritsAllThisTurnHandler,
-    levelMaxAllOwnThisTurn: levelMaxAllOwnThisTurnHandler,
     addSymbolThisTurn: addSymbolThisTurnHandler,
     addSymbolPermanent: addSymbolPermanentHandler,
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,

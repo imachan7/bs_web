@@ -6459,8 +6459,15 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "levelOverrideOpponentSpiritsAllThisTurn",
-     "level": 1
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "level",
+       "set": 1
+      }
+     ],
+     "duration": "turn",
+     "all": true
     },
     "thenPay": "flash"
    },

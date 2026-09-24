@@ -262,8 +262,6 @@ export type EffectAction =
     | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統を CardInstance.lentChoiceFamily に載せた仮想発生源を積む（＝lendSelfThisTurn と同じ貸与。以後は kind:"familyGrant" の familyFromChoice エントリが継続付与する。音鳥クルーク）
     | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
     | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
-    | { type: "levelMaxAllOwnThisTurn" } // 自分のスピリットすべての levelOverrideThisTurn を各カードの最高Lvに設定する（このターンの間。ターン終了でリセット。BS04幻影士のミラージ）
-    | { type: "levelOverrideOpponentSpiritsAllThisTurn"; level: number } // levelOverrideOpponentNexusesのスピリット版：発生源の持ち主から見た相手のスピリット**すべて**の levelOverrideThisTurn を level に設定する（このターンの間。BS14-110天災之禍風：「相手のスピリットすべてをLv1として扱う」）
     | { type: "suppressTriggerThisTurn"; trigger: TriggerEvent } // このターンの間、相手のスピリットの指定トリガーを発揮させない（GameState.triggerSuppressionThisTurn。BS04ユーサネイジア＝破壊時）
     | { type: "destroyAllNexusesWithCores" } // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（nexusIndestructible等の破壊耐性はdestroyNexus内で尊重。フレイム・エルク）
     | { type: "voidCoreToAllOwnByFamily"; families: string[]; count: number } // ボイドからコアcount個ずつを、指定系統のいずれかを持つ自分のスピリットすべての上に置く（太陽花ゾンネ・ブルム）

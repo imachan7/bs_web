@@ -978,7 +978,30 @@ export function sweepLevelCostDepletion(state: GameState): void {
     }
 }
 
+// 「このターンの間、〜のスピリットすべてを Lv◯として扱う」（timedEffect の all:true）を、まだ書いていない個体
+// （＝ルールを置いた後に場に出たスピリット）に書き込む（2026-09-24 ユーザー確認：Lv も後から出たものに効く）
+function applyTimedLevelRules(state: GameState): void {
+    for (const rule of state.turnConstraints) {
+        if (rule.type !== "timedRule") continue
+        const level = rule.content.find((c) => c.type === "level")
+        if (!level || level.type !== "level") continue
+        const applied = (rule.appliedIds ??= [])
+        for (const pid of rule.pid === undefined ? (["p1", "p2"] as PlayerId[]) : [rule.pid]) {
+            for (const inst of state.players[pid].field.spirits) {
+                if (applied.includes(inst.instanceId) || !matchesTarget(state, pid, inst, rule.filter, rule.selfInstanceId)) continue
+                const levels = getCard(inst.cardId).levels
+                if (level.requireLevelExists && level.set !== undefined && !levels.some((l) => l.level === level.set)) continue
+                const to = level.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : level.set
+                if (to === undefined) continue
+                inst.levelOverrideThisTurn = to
+                applied.push(inst.instanceId)
+            }
+        }
+    }
+}
+
 export function refreshLevelAsOverrides(state: GameState): void {
+    applyTimedLevelRules(state)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
             ...state.players[pid].field.spirits,
