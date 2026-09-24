@@ -3,7 +3,7 @@
 // BS08の白15枚取り込みで追加したエンジン拡張を実カード経由で1回ずつ通す:
 //   timedEffect の内容 mustAttack（すべて＝timedRule。BS08アンブッシュブロッカー／
 //   count版=BS08獣機合神セイ・ドリガン）／
-//   action"grantCanBlockWhileRestedThisTurn"（GameState.turnConstraints。BS08インフィニティシールド）／
+//   timedEffect の内容 canBlockWhileRested（すべて＝timedRule。BS08インフィニティシールド）／
 //   constraint"canBlockWhileRested".targetKeywordExclude（BS08一角魚モノケロック）／
 //   constraint"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）／
 //   globalConstraint"noSummonTriggerByCost"（BS08共鳴する音叉の塔）／
@@ -142,17 +142,14 @@ console.log("=== BS08獣機合神セイ・ドリガン：timedEffect mustAttack�
     assert(seidorigan.name.length > 0, "対象カードを実カード経由で特定できた")
 }
 
-console.log("=== BS08インフィニティシールド：action grantCanBlockWhileRestedThisTurn（GameState.turnConstraints） ===")
+console.log("=== BS08インフィニティシールド：timedEffect canBlockWhileRested（系統で絞ったすべて） ===")
 {
-    const shield = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "grantCanBlockWhileRestedThisTurn",
-    )
-    const entry = entryOf(
-        shield,
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "grantCanBlockWhileRestedThisTurn",
-    )
-    const action = entry["action"] as Record<string, unknown>
-    const families = action["familyFilter"] as string[]
+    const isShield = (e: Record<string, unknown>) =>
+        JSON.stringify(e["action"] ?? null).includes('"canBlockWhileRested"') && (e["action"] as Record<string, unknown>)["all"] === true
+    const shield = findByEffect(isShield)
+    assert(shield.cardId === "BS08-077" && shield.name === "インフィニティシールド", "系統で絞ったすべてはインフィニティシールド")
+    const action = entryOf(shield, isShield)["action"] as EffectAction
+    const families = ((action as { filter?: { family?: string[] } }).filter?.family ?? []) as string[]
     const matchBlocker = CARDS.find((c) => c.type === "spirit" && families.some((f) => (c.family ?? []).includes(f)))!
     const otherBlocker = CARDS.find(
         (c) => c.type === "spirit" && !families.some((f) => (c.family ?? []).includes(f)) && c.cardId !== matchBlocker.cardId,
@@ -166,7 +163,7 @@ console.log("=== BS08インフィニティシールド：action grantCanBlockWhi
     blocker.isRested = true
     const other = put(s, "p1", otherBlocker.cardId, coresFor(otherBlocker, 1))
     other.isRested = true
-    resolveAction(s, "p1", null, { type: "grantCanBlockWhileRestedThisTurn", familyFilter: families })
+    resolveAction(s, "p1", null, action)
 
     const attacker1 = put(s, "p2", attackerCard.cardId, coresFor(attackerCard, 1))
     s.turnPlayer = "p2"
@@ -424,7 +421,7 @@ console.log("=== BS08アンブッシュブロッカー／インフィニティ�
     const ambushAction = entryOf(ambush, (e) => e["kind"] === "magic")["action"] as Record<string, unknown>
     const shieldAction = entryOf(shield, (e) => e["kind"] === "magic")["action"] as Record<string, unknown>
     const maxCost = Number((ambushAction["filter"] as { cost: { max: number } }).cost.max)
-    const families = shieldAction["familyFilter"] as string[]
+    const families = (shieldAction["filter"] as { family: string[] }).family
     // カードIDの取り違えを防ぐため、名前も突き合わせておく（cardId は過去に全面的にズレた事故がある）
     assert(ambush.name === "アンブッシュブロッカー", "BS08-076 はアンブッシュブロッカー")
     assert(shield.name === "インフィニティシールド", "BS08-077 はインフィニティシールド")

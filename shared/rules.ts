@@ -2732,15 +2732,17 @@ export function mustAttackThisTurn(board: Board, pid: PlayerId, inst: CardInstan
     )
 }
 
-// このターンだけの疲労状態ブロック許可（TurnConstraintDef "canBlockWhileRestedThisTurn"。
-// action:"grantCanBlockWhileRestedThisTurn" が積む。constraint:"canBlockWhileRested" のターン付与版。BS08インフィニティシールド）
+// このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のターン付与版）。
+// 1体は個体の印、「すべて」は timedRule（後から出たスピリットにも効く）
 export function canBlockWhileRestedThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
-    return board.turnConstraints.some((c) => {
-        if (c.type !== "canBlockWhileRestedThisTurn" || c.pid !== pid) return false
-        if (c.instanceId !== undefined) return c.instanceId === inst.instanceId
-        if (c.familyFilter === undefined) return true
-        return matchesFamilyFilter(board, pid, inst, c.familyFilter)
-    })
+    if (inst.canBlockWhileRestedThisTurn) return true
+    return board.turnConstraints.some(
+        (c) =>
+            c.type === "timedRule" &&
+            c.content.some((x) => x.type === "canBlockWhileRested") &&
+            (c.pid === undefined || c.pid === pid) &&
+            matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
+    )
 }
 
 // constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの

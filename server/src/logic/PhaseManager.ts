@@ -395,6 +395,7 @@ export function endTurn(state: GameState): void {
             inst.blockConstraintNegatedThisTurn = false
             delete inst.cantBlockThisTurn
             delete inst.mustAttackThisTurn
+            delete inst.canBlockWhileRestedThisTurn
             delete inst.suppressedTriggersThisTurn
             delete inst.lifeDamageNegatedFor
             inst.tempKeywords = []

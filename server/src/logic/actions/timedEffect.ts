@@ -43,7 +43,8 @@ function contentLabel(action: TimedEffect): string {
     const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
     const must = action.content.some((c) => c.type === "mustAttack") ? ["可能ならば必ずアタックする"] : []
     const suppress = action.content.some((c) => c.type === "suppressTrigger") ? ["効果が発揮されない"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress].join("、")
+    const rested = action.content.some((c) => c.type === "canBlockWhileRested") ? ["疲労状態でもブロックできる"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -467,6 +468,31 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
 }
 
+// 自分のスピリット1体に「疲労状態でもブロックできる」。対話なら選ばせ、非対話は実効BP最大
+function placeCanBlockWhileRested(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (action.duration !== "turn" || action.side !== "own") {
+        log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
+        return
+    }
+    const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    if (
+        targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(state, owner, self, `${sourceName}：疲労状態でブロックできるようにするスピリットを選んでください`, candidates, action, null)
+    ) {
+        return
+    }
+    const target =
+        (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
+        candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+    target.canBlockWhileRestedThisTurn = true
+    log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}は疲労状態でもブロックできる。`)
+}
+
 // 陣営のスピリットすべての指定トリガーを発揮させない。判定のたびに見るので後から出たスピリットにも効く。絞り込みは持たない
 function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
@@ -658,6 +684,12 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         if (filter === SELF_REQUIRED) return
         if (action.all && action.content.some((c) => c.type === "symbolLoss")) placeSymbolLossRule(ctx, action, filter)
         else placeSymbolOrCost(ctx, action, filter)
+        return
+    }
+    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested")) {
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) return
+        placeCanBlockWhileRested(ctx, action, filter)
         return
     }
     if (action.all && action.content.some((c) => c.type === "suppressTrigger")) {

@@ -4955,11 +4955,21 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantCanBlockWhileRestedThisTurn",
-     "familyFilter": [
-      "機獣",
-      "武装"
-     ]
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "canBlockWhileRested"
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "all": true,
+     "filter": {
+      "family": [
+       "機獣",
+       "武装"
+      ]
+     }
     }
    }
   ]
