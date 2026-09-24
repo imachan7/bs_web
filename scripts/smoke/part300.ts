@@ -127,7 +127,7 @@ console.log("=== Y: ドロー枚数の追加（keyword配列でOR。BS13-063 Lv2
     const jugeki = createInstance("BS13-011", s.turn, 1)
     p1.hand.push(jugeki.cardId)
     const before = p1.deck.length
-    resolveAction(s, "p1", null, { type: "costDiscardHandKeywordThenDraw", keyword: ["jugeki", "fushi"], count: 2 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: "spirit", keyword: ["jugeki", "fushi"] }, then: { type: "draw", count: 2 } })
     assert(p1.deck.length === before - 2, "【呪撃】/【不死】いずれかの手札を破棄してドロー+2できた（OR判定）")
     assert(!p1.hand.includes("BS13-011"), "コストとして手札の該当カードが破棄された")
 }

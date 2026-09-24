@@ -125,8 +125,8 @@ console.log("=== タイダルタイド：破壊する相手スピリットは相
 console.log("=== マインドブレイク：前半は支払う本人、後半は相手が選ぶ ===")
 {
     assert(
-        usesAction("BS08-072", "costOwnSpiritCoresToTrashThenOpponent"),
-        "BS08-072 が costOwnSpiritCoresToTrashThenOpponent を使っている",
+        usesAction("BS08-072", "pay"),
+        "BS08-072 が pay を使っている",
     )
 
     const s = base("mindbreak-chooser", true)
@@ -135,7 +135,7 @@ console.log("=== マインドブレイク：前半は支払う本人、後半は
     const theirs = put(s, "p2", "BS01-020", 3)
     put(s, "p2", "BS01-003", 3)
 
-    resolveAction(s, "p1", null, { type: "costOwnSpiritCoresToTrashThenOpponent", count: 2 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "coreRemove", side: "own", spread: true, count: 2, dest: "trash" }, then: { type: "coreRemove", spread: true, count: 2, dest: "trash", chooserIsTarget: true } })
     // 前半：コストなので支払う本人（p1）が選ぶ
     assert(s.pendingChoice?.pid === "p1", "前半（コストの支払い）は自分が選ぶ")
     assert(s.pendingChoice?.actorPid === undefined, "自分の効果なので actorPid は入らない")
@@ -163,7 +163,7 @@ console.log("=== マインドブレイク：自分のコアが足りなければ
     put(s, "p1", "BS01-003", 1)
     put(s, "p2", "BS01-020", 3)
     const oppTrashBefore = s.players.p2.trashCores
-    resolveAction(s, "p1", null, { type: "costOwnSpiritCoresToTrashThenOpponent", count: 5 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "coreRemove", side: "own", spread: true, count: 5, dest: "trash" }, then: { type: "coreRemove", spread: true, count: 5, dest: "trash", chooserIsTarget: true } })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p1.trashCores === 0, "自分のコアは減らない")
     assert(s.players.p2.trashCores === oppTrashBefore, "相手のコアも減らない")

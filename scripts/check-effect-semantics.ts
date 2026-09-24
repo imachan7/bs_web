@@ -168,26 +168,23 @@ function hasOncePerTurnEvidence(effects: Record<string, unknown>[]): boolean {
 // 等価表現: 「〜することで」のコストが、汎用の cost* フィールドではなく
 // **アクションの type 自体にコストが焼き込まれている**ものが多数ある（docs/design/COST_MODEL.md §4、
 // および type.ts の各アクション定義コメントに「〜することで」「任意コスト」と明記されている）。
-// 例: selfBuffByHandDiscard（城壊しのデニス／島持ちのフランシス＝手札破棄でBP+）、
+// 例: pay（「〜することで〜する」の汎用の器）、
 //     targetNegateByHandDiscard（竜騎集う円卓＝手札1枚破棄で対象を防ぐ）、
 //     summonCostHandDiscardPay（ビクティム＝召喚コストを手札破棄で）、
 //     nexusCostMillPay（栄光の表彰台＝配置コストをデッキ破棄で）、
 //     tenshoCoreSubstitute（ダークスカルデーモン＝疲労することでコアを置いたものとして扱う）
 // これらは cost で始まる**キー名**を持たないため、type の**値**を別途チェックする
 const COST_BAKED_ACTION_TYPES = new Set([
-    "selfBuffByHandDiscard",
     "revealHandMagicToTegamotoDraw",
     "handMagicToTegamotoDraw",
     "selfBuffByExhaustFamily",
-    "refreshSelfByDestroyFamily",
-    "refreshSelfByReturnToDeckTopName",
     "discardHandNexusToVoidCoreSelf",
     "targetNegateByHandDiscard",
     "summonCostHandDiscardPay",
     "nexusCostMillPay",
     "coreRemovePerHandDiscard",
     "tenshoCoreSubstitute",
-    "sacrificeNexusThenWipeEnemyNexusCores",
+    "pay",
 ])
 
 // S2: 「〜することで」等の実装側の印。cost で始まるキーはすべて対象
@@ -726,7 +723,6 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     "discardOpponentDownTo",
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
     "destroyDownToOwnCount",
-    "costOwnSpiritCoresToTrashThenOpponent",
     "sacrificeOwnNexusesThenEnemyDestroysOwn",
     // 相手本人に手札から選ばせてデッキの上へ戻す（type.ts の定義コメントで明言。BS07-013 ディーシャ）
     "opponentHandToDeckTop",

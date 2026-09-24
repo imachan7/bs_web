@@ -4555,12 +4555,20 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "costDiscardHandTypeThenCoreRemove",
-     "cardTypes": [
-      "spirit",
-      "brave"
-     ],
-     "count": 2
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1,
+      "cardType": [
+       "spirit",
+       "brave"
+      ]
+     },
+     "then": {
+      "type": "coreRemove",
+      "spread": true,
+      "count": 2
+     }
     }
    }
   ]

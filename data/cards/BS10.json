@@ -2654,9 +2654,15 @@
         ],
         "optional": true,
         "action": {
-          "type": "costDiscardHandThenDraw",
-          "discardCount": 2,
-          "drawCount": 3
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 2
+          },
+          "then": {
+            "type": "draw",
+            "count": 3
+          }
         }
       },
       {

@@ -3824,9 +3824,16 @@
      2
     ],
     "action": {
-     "type": "selfBuffByHandDiscard",
-     "discardCardType": "nexus",
-     "amount": 4000
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1,
+      "cardType": "nexus"
+     },
+     "then": {
+      "type": "selfBuff",
+      "amount": 4000
+     }
     },
     "optional": true
    },
@@ -3838,9 +3845,16 @@
      2
     ],
     "action": {
-     "type": "selfBuffByHandDiscard",
-     "discardCardType": "nexus",
-     "amount": 4000
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1,
+      "cardType": "nexus"
+     },
+     "then": {
+      "type": "selfBuff",
+      "amount": 4000
+     }
     },
     "optional": true
    }

@@ -214,7 +214,7 @@ console.log("=== X012R：『このスピリットの召喚時』バースト持�
     s.players.p1.field.spirits.push(dom)
     s.players.p1.hand = ["BS14-091"] // バースト効果を持つカード（双光気弾）
     const deckBefore = s.players.p1.deck.length
-    resolveAction(s, "p1", dom, { type: "costSetBurstThenDraw", count: 1 })
+    resolveAction(s, "p1", dom, { type: "pay", cost: { type: "setBurstFromHand" }, then: { type: "draw", count: 1 } })
     assert(s.players.p1.burst === "BS14-091", "バースト持ちの手札カードがセットされる")
     assert(s.players.p1.deck.length === deckBefore - 1, "セットできたときだけ1枚ドローする")
 
@@ -224,7 +224,7 @@ console.log("=== X012R：『このスピリットの召喚時』バースト持�
     s2.players.p1.field.spirits.push(dom2)
     s2.players.p1.hand = ["BS01-001"] // バースト効果を持たない
     const deckBefore2 = s2.players.p1.deck.length
-    resolveAction(s2, "p1", dom2, { type: "costSetBurstThenDraw", count: 1 })
+    resolveAction(s2, "p1", dom2, { type: "pay", cost: { type: "setBurstFromHand" }, then: { type: "draw", count: 1 } })
     assert(s2.players.p1.deck.length === deckBefore2, "バースト持ちの手札カードが無ければドローしない")
 }
 

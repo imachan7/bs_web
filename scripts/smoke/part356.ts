@@ -1,4 +1,4 @@
-// smoke パート356（pay：「〜することで〜する」の汎用の器＋discardSelfChooseのcardType/keyword絞り込み。PAY_HOOKS.md）
+// smoke パート356（pay：「〜することで〜する」の汎用の器＋discardSelfChooseのcardType/keyword絞り込み。COST_MODEL §1）
 import { assert, createGame, createInstance, getCard, resolveAction, act } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 

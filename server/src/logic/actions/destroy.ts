@@ -1301,6 +1301,24 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
             destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
             return
         }
+        // side:"own" の1つ破壊は持ち主が選ぶ。非対話は旧サクリファイスと同じくコア最少（同数は先頭）
+        if (action.side === "own" && action.count === 1 && !action.all) {
+            const candidates = state.players[owner].field.nexuses.filter(matchesLevel)
+            const chosen = targetInstanceId !== undefined
+                ? candidates.find((n) => n.instanceId === targetInstanceId)
+                : undefined
+            if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+                requestChoice(state, owner, `${sourceName}：破壊する自分のネクサスを選んでください`, candidates.map((n) => n.instanceId), false, action, self)
+                return
+            }
+            const victim = chosen ?? candidates.reduce<CardInstance | undefined>((a, n) => (a === undefined || n.cores < a.cores ? n : a), undefined)
+            if (!victim) {
+                log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                return
+            }
+            destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            return
+        }
         let destroyed = 0
         for (const pid of sides) {
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
@@ -1871,59 +1889,6 @@ const opponentNexusCoresToTrashOneHandler: ActionHandler<"opponentNexusCoresToTr
         wipe(chosen)
 }
 
-const sacrificeNexusThenWipeEnemyNexusCoresHandler: ActionHandler<"sacrificeNexusThenWipeEnemyNexusCores"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // サクリファイス：自分のネクサス1つを破壊し、相手の全ネクサス上のコアを相手のトラッシュへ置く。
-        // 実対戦（interactiveTargets）では破壊するネクサスをプレイヤーが選び、
-        // 非対話時はコア数最小（同数は配列先頭）を自動選択する
-        const mine = state.players[owner].field.nexuses
-        if (mine.length === 0) {
-            log(state, `${sourceName}：自分のネクサスがなかった。`)
-            return
-        }
-        const chosenNexus = targetInstanceId
-            ? mine.find((n) => n.instanceId === targetInstanceId)
-            : undefined
-        if (!chosenNexus && targetInstanceId === undefined && state.interactiveTargets) {
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}：破壊する自分のネクサスを選んでください`,
-                    mine,
-                    action,
-                    null,
-                )
-            ) {
-                return
-            }
-        }
-        const sacrifice = chosenNexus ?? mine.reduce((best, n) => (n.cores < best.cores ? n : best))
-        const destroyed = destroyNexus(state, owner, sacrifice.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
-        if (!destroyed) {
-            log(state, `${sourceName}：ネクサスを破壊できなかったため効果は発動しなかった。`)
-            return
-        }
-        const oppPlayer = state.players[opp]
-        let total = 0
-        for (const nexus of oppPlayer.field.nexuses) {
-            if (nexus.cores <= 0) continue
-            total += nexus.cores
-            oppPlayer.trashCores += nexus.cores
-            nexus.cores = 0
-        }
-        if (total === 0) {
-            log(state, `${sourceName}：${oppPlayer.name}のネクサスにコアがなかった。`)
-            return
-        }
-        log(
-            state,
-            `${sourceName}：${oppPlayer.name}のネクサス上のコア合計${total}個をトラッシュに置いた。`,
-        )
-        return
-}
-
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
         // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
@@ -2403,7 +2368,6 @@ const handlers = {
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
     opponentNexusCoresToTrashOne: opponentNexusCoresToTrashOneHandler,
-    sacrificeNexusThenWipeEnemyNexusCores: sacrificeNexusThenWipeEnemyNexusCoresHandler,
     returnNexusToHand: returnNexusToHandHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,
 } satisfies Partial<ActionRegistry>

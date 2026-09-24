@@ -547,165 +547,8 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
 // discardCountは「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入）
 // 手札の指定種別1枚を破棄することで、相手のスピリットのコアを取り除く（BS11-075 トーテンタンツ）。
 // コストと本体の両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）
-const costDiscardHandTypeThenCoreRemoveHandler: ActionHandler<"costDiscardHandTypeThenCoreRemove"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（コア除去は remainingAction 側）
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-        return
-    }
-    const indices = player.hand
-        .map((cardId, i) => ({ cardId, i }))
-        .filter(({ cardId }) => cardId !== undefined && action.cardTypes.includes(getCard(cardId).type))
-        .map(({ i }) => i)
-    if (indices.length === 0) {
-        log(state, `${sourceName}：コストにできる手札がないため発動しなかった。`)
-        return
-    }
-    const coreRemove: EffectAction = { type: "coreRemove", count: action.count }
-    if (
-        state.interactiveTargets &&
-        tryInteractiveCardChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：コストとして破棄するカードを選んでください`,
-            "hand",
-            indices,
-            { type: "costDiscardHandTypeThenCoreRemove", cardTypes: action.cardTypes, count: action.count },
-            coreRemove,
-        )
-    ) {
-        return
-    }
-    // 決定的自動選択：候補の末尾を破棄する
-    const at = indices[indices.length - 1]!
-    const cardId = player.hand[at]!
-    player.hand.splice(at, 1)
-    player.trashCards.push(cardId)
-    log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-    ctx.resolve(coreRemove, {})
-}
 
-const costDiscardHandThenDrawHandler: ActionHandler<"costDiscardHandThenDraw"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残り／ドローは remainingAction 側が処理する）
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-        return
-    }
-    // ①コストを完全に払えるときだけ発揮できる（COST_MODEL.md §1）
-    if (player.hand.length < action.discardCount) {
-        log(state, `${sourceName}：手札が${action.discardCount}枚に満たないため発動しなかった。`)
-        return
-    }
-    if (state.interactiveTargets) {
-        const indices = player.hand.map((_, i) => i)
-        if (
-            tryInteractiveCardChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：コストとして破棄するカードを選んでください（残り${action.discardCount}枚）`,
-                "hand",
-                indices,
-                { type: "costDiscardHandThenDraw", discardCount: 1, drawCount: action.drawCount },
-                action.discardCount > 1
-                    ? { type: "costDiscardHandThenDraw", discardCount: action.discardCount - 1, drawCount: action.drawCount }
-                    : { type: "draw", count: action.drawCount },
-            )
-        ) {
-            return
-        }
-    }
-    // 決定的自動選択：手札末尾から discardCount 枚を破棄してからドロー
-    for (let i = 0; i < action.discardCount; i++) {
-        const cardId = player.hand.pop()
-        if (cardId === undefined) break
-        player.trashCards.push(cardId)
-    }
-    draw(state, owner, action.drawCount)
-    log(state, `${sourceName}：手札${action.discardCount}枚を破棄し、自分はデッキから${action.drawCount}枚ドローした。`)
-}
 
-// BS13-044吟遊詩人のオルフェ：自分の手札1枚を破棄することで、相手の手札すべてを見て、
-// その中のマジックカード1枚を破棄する（COST_MODEL.md §1：自分の手札1枚以上・相手の手札にマジック1枚以上の
-// 両方が揃うときだけ発揮する）。costDiscardHandThenDrawの兄弟だが、効果側は discardOpponent への委譲
-const costDiscardHandThenDiscardOpponentMagicHandler: ActionHandler<"costDiscardHandThenDiscardOpponentMagic"> = (ctx) => {
-    const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    // 選択の解決から戻ってきた場合：選ばれた1枚を自分のコストとして破棄し、相手の手札破棄へ委譲する
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-        ctx.resolve({ type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
-        return
-    }
-    // ①コストとBの両方が完全に解決できるときだけ発揮できる（COST_MODEL.md §1）：
-    // 自分の手札が1枚以上、かつ相手の手札にマジックカードが1枚以上
-    if (player.hand.length < 1 || !state.players[opp].hand.some((id) => getCard(id).type === "magic")) {
-        log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
-        return
-    }
-    if (
-        tryInteractiveCardChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：コストとして破棄するカードを選んでください`,
-            "hand",
-            player.hand.map((_, i) => i),
-            { type: "costDiscardHandThenDiscardOpponentMagic" },
-            null,
-        )
-    ) {
-        return
-    }
-    // 決定的自動選択：手札末尾を破棄してから相手の手札破棄へ委譲
-    const cardId = player.hand.pop()
-    if (cardId !== undefined) {
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-    }
-    ctx.resolve({ type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
-}
 
 // 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
 // どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
@@ -991,54 +834,6 @@ const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek">
 
 // BS09-055転生の谷Lv1-2：自分の手札にある【転召】持ちスピリットカード1枚を破棄することで、
 // ドローの枚数を+1する。手札に該当が無ければ**何も起きない**（払えないコストは発揮できない。COST_MODEL.md §1）
-const costDiscardHandKeywordThenDrawHandler: ActionHandler<"costDiscardHandKeywordThenDraw"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    // トラッシュのカードと同じく、手札のカードはカード静的なキーワード保有・種別で判定する。
-    // cardType 省略時はスピリットカード（従来どおり）
-    const eligible = (cardId: string): boolean => {
-        if (getCard(cardId).type !== (action.cardType ?? "spirit")) return false
-        if (action.keyword === undefined) return true
-        const wanted = Array.isArray(action.keyword) ? action.keyword : [action.keyword]
-        return wanted.some((kw) => hasKeyword(cardId, kw))
-    }
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined || !eligible(cardId)) {
-            log(state, `${sourceName}：破棄するカードがなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}はコストとして${getCard(cardId).name}を破棄した。`)
-        draw(state, owner, action.count)
-        return
-    }
-    const indices = player.hand.map((_, i) => i).filter((i) => eligible(player.hand[i]!))
-    if (indices.length === 0) {
-        const what =
-            action.keyword !== undefined
-                ? `【${(Array.isArray(action.keyword) ? action.keyword : [action.keyword]).map((kw) => KEYWORDS[kw].label).join("】/【")}】を持つ${action.cardType ?? "スピリット"}カード`
-                : `${action.cardType === "nexus" ? "ネクサス" : action.cardType === "magic" ? "マジック" : "スピリット"}カード`
-        log(state, `${sourceName}：${what}が手札になく、発動しなかった。`)
-        return
-    }
-    if (tryInteractiveCardChoice(state, owner, self, `${sourceName}：コストとして破棄するカードを選んでください`, "hand", indices, action, null)) {
-        return
-    }
-    // 自動時は先頭（決定的簡略化）
-    const index = indices[0]!
-    const cardId = player.hand[index]!
-    player.hand.splice(index, 1)
-    player.trashCards.push(cardId)
-    log(state, `${player.name}はコストとして${getCard(cardId).name}を破棄した。`)
-    draw(state, owner, action.count)
-}
 
 // BS09-058魔本収められし書架Lv2：持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す。
 // opponentHandToDeckTop の自分版（選ぶのは戻す本人なので owner に選択を出す）
@@ -1151,16 +946,12 @@ const handlers = {
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
-    costDiscardHandThenDraw: costDiscardHandThenDrawHandler,
-    costDiscardHandThenDiscardOpponentMagic: costDiscardHandThenDiscardOpponentMagicHandler,
-    costDiscardHandTypeThenCoreRemove: costDiscardHandTypeThenCoreRemoveHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     drawThenDiscard: drawThenDiscardHandler,
     discardHandAnyThenCoreRemove: discardHandAnyThenCoreRemoveHandler,
     drawPerHandDiscard: drawPerHandDiscardHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
-    costDiscardHandKeywordThenDraw: costDiscardHandKeywordThenDrawHandler,
     handToOwnDeckTop: handToOwnDeckTopHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,
 } satisfies Partial<ActionRegistry>
