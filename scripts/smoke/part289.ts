@@ -186,7 +186,7 @@ console.log("=== §おまけ recoverSpiritFromTrash：countCounter / anyCardType
     const handBefore = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "recoverSpiritFromTrash",
-        count: 0, // countCounter指定時は無視される
+        count: 1,
         countCounter: { ownFamily: ["光導", "星魂"] },
         colorFilter: "purple",
         anyCardType: true,

@@ -3,6 +3,7 @@ import type { EffectAction } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, destroySpirit, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
 import { KEYWORDS, canDiscardHand, instanceSymbolCount, matchesFamilyFilter, hasGlobalConstraint, hasKeyword } from "../../../../shared/rules"
+import { countedAmount } from "../counted"
 
 const noopHandler: ActionHandler<"noop"> = () => {
     // 何もしない（PendingChoice.magicNegate のプレースホルダ）
@@ -77,10 +78,10 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         // コア置きを支払いに使う（step.beforeStepAction と対。BS10-087戦場に息づく命）。
         // コア置き区間がこのフラグを見て置かずに進む
         if (action.costSkipCoreStep === true) state.coreStepSkipped = true
-        // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：countを無視しEffectCounterの値を枚数とする
+        // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：count×EffectCounterの値を枚数とする
         const count =
             action.countCounter !== undefined
-                ? countEffectCounter(state, owner, self, action.countCounter, srcType)
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
             log(state, `${sourceName}：カウントが0のためドローしなかった。`)

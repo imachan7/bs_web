@@ -164,7 +164,7 @@ console.log("=== §H 双魚賊神ピスケガレオン：coreDrainAllOthers.rewa
     assert(n === 1, "配列OR：系統「光導」/「星魂」のいずれかを持つスピリット数を数えられる")
     s2.players.p1.hand = ["BS01-001", "BS01-001"]
     s2.players.p2.hand = ["BS01-001", "BS01-001"]
-    resolveAction(s2, "p1", null, { type: "discardBothHands", count: 0, countCounter: { ownFamily: ["光導", "星魂"] } })
+    resolveAction(s2, "p1", null, { type: "discardBothHands", count: 1, countCounter: { ownFamily: ["光導", "星魂"] } })
     assert(s2.players.p1.hand.length === 1, "自分は光導/星魂1体ぶん＝1枚破棄した")
     assert(s2.players.p2.hand.length === 1, "相手も同じ枚数破棄した（お互いに）")
 }

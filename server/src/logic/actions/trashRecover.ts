@@ -1,10 +1,11 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { Color } from "../../type"
 import { getCard, log, suspend } from "../GameState"
-import { summonFreeFromTrashIndex, countEffectCounter, destroySpirit, payCost, notifyHandGained, requestCardChoice, requestChoice, resolveMagic, tryInteractiveCardChoice } from "../EffectModules"
+import { summonFreeFromTrashIndex, destroySpirit, payCost, notifyHandGained, requestCardChoice, requestChoice, resolveMagic, tryInteractiveCardChoice } from "../EffectModules"
 import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, isTrashCardProtected, isVanillaCard, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { countedAmount } from "../counted"
 
 // トラッシュにあって「デッキの下に戻せる」スピリットカードの枚数
 function countChoosableTrashSpirits(trashCards: string[]): number {
@@ -186,10 +187,10 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
             return
         }
-        // countCounter指定時はcountを無視しEffectCounterの値を戻す枚数として使う（BS12-X02魔羯邪神シュタイン・ボルグ）。
+        // countCounter指定時はcount×EffectCounterの値を戻す枚数として使う（BS12-X02魔羯邪神シュタイン・ボルグ）。
         // 一度だけ解決し、countCounterを落としたactionへ入り直す（coreRemove.countCounterと同じ考え方）
         if (action.countCounter !== undefined) {
-            const resolvedCount = countEffectCounter(state, owner, self, action.countCounter, srcType)
+            const resolvedCount = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
             if (resolvedCount === 0) {
                 log(state, `${sourceName}のスピリット回収：カウントが0のため発動しなかった。`)
                 return

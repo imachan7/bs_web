@@ -4,6 +4,7 @@ import { getCard, log, opponentOf } from "../GameState"
 import { summonFreeFromTrashIndex, countEffectCounter, millCapBonusFor, millDeck, notifyHandGained, requestCardChoice } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { countedAmount } from "../counted"
 
 // 相手のデッキを上から1枚破棄し、**破棄したカード**に応じて続けて解決する
 // （BS11-045 MCギンガー／BS11-071 柱岩の海上都市Lv2／BS11-060 雷神砲カノン・アームズ）
@@ -90,8 +91,18 @@ const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> =
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
+        // countMax にはマキシマムブレイク（kind:"millCapBonus"）の加算が乗る
+        const count =
+            action.countCounter !== undefined
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType,
+                      action.countMax !== undefined ? action.countMax + millCapBonusFor(state, owner) : undefined)
+                : action.count
+        if (action.countCounter !== undefined && count === 0) {
+            log(state, `${sourceName}：カウントが0のため粉砕しなかった。`)
+            return
+        }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, action.count, owner, srcType ? { sourceType: srcType } : undefined)
+        millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
         return
 }
 

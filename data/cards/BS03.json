@@ -5076,7 +5076,7 @@
     "optional": false,
     "action": {
      "type": "coreRemove",
-     "count": 0,
+     "count": 1,
      "countCounter": "lastFunsaiTotal"
     }
    }

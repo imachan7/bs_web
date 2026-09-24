@@ -30,6 +30,7 @@ import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorA
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../removal"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { countedAmount } from "../counted"
 
 // 疲労させたときのログ。**どのカードの効果で疲労したのか**が対戦者に分かるように発生源を前に置く
 // （2026-08-10 ユーザー要望。【暴風】由来のときはキーワード名まで出す＝颶風高原がどれを戻すのか追えるように）
@@ -68,9 +69,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             action = { ...rest, count: bofu, bofuSourcePid: owner }
         }
         // countCounter（BS10-029木星神龍ノブナガード・ゼウシス「自分の合体スピリット1体につき」）：
-        // countを無視しEffectCounterの値を疲労させる体数として使う（coreRemove.countCounterと同型）
+        // count×EffectCounterの値を疲労させる体数として使う（coreRemove.countCounterと同型）
         if (action.countCounter !== undefined) {
-            const n = countEffectCounter(state, owner, self, action.countCounter, srcType)
+            const n = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
             const { countCounter: _cc, ...restCc } = action
             if (n === 0) {
                 log(state, `${sourceName}：対象がいなかった。`)

@@ -9,6 +9,7 @@ import { discardSelfChooseEligible } from "./drawDiscard"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
+import { countedAmount } from "../counted"
 
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
@@ -25,9 +26,13 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const count = state.players[owner].hand.filter((cardId) => discardSelfChooseEligible(cardId, action)).length
         return count >= action.count
     },
-    draw: (state, owner, _self, action) => {
+    draw: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "draw") return false
-        return state.players[owner].deck.length >= action.count
+        const count =
+            action.countCounter !== undefined
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+                : action.count
+        return state.players[owner].deck.length >= count
     },
     discardOpponent: (state, owner, _self, action) => {
         if (action.type !== "discardOpponent") return false
