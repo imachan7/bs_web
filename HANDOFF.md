@@ -37,7 +37,8 @@
 
 アクション `{ type: "pay"; cost: EffectAction; then: EffectAction }`。cost と then の**両方が書いてある数どおりに解決できるときだけ**、cost→then の順に解決する（COST_MODEL §1。数も含む＝09-24 に 09-02 の確定を覆した）。
 判定は「アクション type ごとの解決可能判定」1か所に置く。対象は pay 18種のうち量が支払いの結果に依存しない12種（REFACTOR_PLAN §2.2）。
-器の PR（Sonnet）と移行の PR（Haiku）を分ける。既存のステップの `cost`（`costReserveToVoid` など）との関係は調査役のメモで決める。
+器は PR #91（`feat/pay-vessel`）。**次は `feat/pay-migrate`（#91 の上）で残り7種の部品＋12種の移行**。確定スキーマは [PAY_HOOKS.md](./docs/design/PAY_HOOKS.md) §0 の「バッチ2」。
+既存の `costXxx` 31種は `pay` へ移すときに数どおりの規則へ揃える（COST_MODEL §1）。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 

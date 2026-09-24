@@ -4,7 +4,17 @@
 
 今回（試し）の範囲は **`pay` の器＋`discardSelfChoose` の絞り込み軸** だけ。移すのは5種
 （`costDiscardHandThenDraw`・`costDiscardHandThenDiscardOpponentMagic`・`costSetBurstThenDraw`・`selfBuffByHandDiscard`・`costDiscardHandKeywordThenDraw`）。
-残り7種（「自分側だけ・自分を除く」の軸、`coreRemove` の `dest:"reserve"`、1個ずつ複数体）と、アクションに焼き込まれた `costXxx` 42種を 09-24 の規則に揃える作業は別バッチ。
+残り7種と12種の移行は下の「バッチ2」。`costXxx`（支払いを表すものは31種・54枚。「42種」は `costFilter` 等を数えた誤り）は `pay` へ移すときに規則を揃える。
+
+### バッチ2（2026-09-24 ユーザー確認済み。ブランチ `feat/pay-migrate`）
+
+- **`coreRemove` の置き先の既定はリザーブ**（ハンドラの else 側）。下の①②の「dest:"reserve" が無い」は調査の誤りで、足す部品ではない
+- `destroy`・`returnToHand`・`returnToDeckTop`・`destroyNexus`・`coreRemove` に `side?: "own"`（自分側だけを対象にする。「どちらでも」は既存の `anySide`／`side:"both"` のまま）。self 除外は既存の `TargetFilter.excludeSelf`
+- `coreRemove` に `spread?: true`：count 個を**複数のスピリットから1個ずつ**選ぶ（途中の消滅は既存の消滅処理に任せる）。
+  `chooserIsTarget?: true` で対象側の持ち主が選ぶ（「相手は」）。「スピリット1体のコア」と書いてあるカードは spread を付けない
+- pay の判定表に足す：`destroy`／`returnToHand`／`returnToDeckTop`／`destroyNexus`（候補が count 以上）、`refreshSelf`（self が疲労状態）、
+  `nexusCoresToTrash`（対象のネクサスにコアが1個以上）、`coreRemove`（spread＝候補の合計コアが count 以上／all＝候補が1体以上／それ以外＝count 個以上持つ候補がいる）
+- 移行：12種すべてを `pay` へ（BS08-072 マインドブレイク系の「相手側のコア不足でも払っていた」不具合はこれで直る）。旧 type・ハンドラ・`check-effect-semantics.ts` の `COST_BAKED_ACTION_TYPES` の該当行を消し、旧 type を直接呼ぶ smoke を `pay` に書き換える
 
 - アクション `{ type: "pay"; cost: EffectAction; then: EffectAction }`（`server/src/types/effectAction.ts`）
 - `discardSelfChoose` に `cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]`（配列はOR、cardType と keyword はAND。`costDiscardHandKeywordThenDraw` と同じ名前・意味）
