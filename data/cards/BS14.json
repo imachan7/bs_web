@@ -2548,8 +2548,15 @@
      "exhaustSelf": true
     },
     "action": {
-     "type": "markSuppressTriggerThisTurn",
-     "trigger": "onAttack"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "suppressTrigger",
+       "trigger": "onAttack"
+      }
+     ],
+     "duration": "turn",
+     "count": 1
     }
    }
   ]

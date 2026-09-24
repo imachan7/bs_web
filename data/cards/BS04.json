@@ -5421,8 +5421,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "suppressTriggerThisTurn",
-     "trigger": "onDestroy"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "suppressTrigger",
+       "trigger": "onDestroy"
+      }
+     ],
+     "duration": "turn",
+     "all": true
     }
    }
   ]
