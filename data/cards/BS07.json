@@ -4923,8 +4923,23 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "banActByCostThisTurn",
-     "maxCost": 3
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cantAttack"
+      },
+      {
+       "type": "cantBlock"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "both",
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
     }
    },
    {

@@ -22,7 +22,7 @@ import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFil
 import { braveCombineCandidates } from "../../shared/summon"
 import {
     activeConstraints,
-    cantActByCost,
+    cantActByTimedRule,
     currentLevel,
     instCostCantAct,
     effectiveBp,
@@ -54,7 +54,7 @@ import {
     burstSetCoresRequired,
     shinsokuAssistCandidates,
 } from "../../shared/rules"
-export { activeConstraints, cantActByCost, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
+export { activeConstraints, cantActByTimedRule, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
 
@@ -1350,7 +1350,7 @@ function fieldCardEl(
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
         // （道化師クランの付与コストも考慮する instCostCantAct を使う）
-        const costLocked = cantActByCost(view, inst) || instCostCantAct(view, inst)
+        const costLocked = cantActByTimedRule(view, inst) || instCostCantAct(view, inst)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&

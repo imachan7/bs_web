@@ -362,9 +362,9 @@ console.log("=== 082 神閃月下：バーストでトラッシュ整理、フ�
     const s = game("p346-082b")
     put(s, "p2", "BS15-041", 1)
     put(s, "p2", "BS15-046", 1)
-    resolveAction(s, "p1", null, { type: "restrictActionsToColorThisTurn", color: "yellow" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantAttack" }, { type: "cantBlock" }], duration: "turn", all: true, side: "both", filter: { colorExclude: "yellow" } })
     assert(
-        s.turnConstraints.some((c) => c.type === "cantActExceptColor" && c.color === "yellow"),
+        s.turnConstraints.some((c) => c.type === "timedRule" && c.filter.colorExclude === "yellow" && c.pid === undefined),
         "黄以外はアタック/ブロックできない制約が付く",
     )
 }

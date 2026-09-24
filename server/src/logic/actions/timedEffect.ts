@@ -1,6 +1,6 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, EffectAction } from "../../type"
+import type { CardInstance, EffectAction, ResolvedTargetFilter } from "../../type"
 import { getCard, log } from "../GameState"
 import { pickEnemyCandidates, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, matchesTarget } from "../../../../shared/rules"
@@ -33,11 +33,38 @@ function apply(inst: CardInstance, action: TimedEffect): string {
     return `${getCard(inst.cardId).name}は、${period}の間${what}できない。`
 }
 
+function contentLabel(action: TimedEffect): string {
+    return action.content.map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック")).join("と")
+}
+
+// all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
+function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+    const { state, owner, opp, self, sourceName } = ctx
+    if (action.duration !== "turn") {
+        log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)
+        return
+    }
+    const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
+    state.turnConstraints.push({
+        type: "timedRule",
+        content: action.content.map((c) => c.type),
+        ...(pid !== undefined ? { pid } : {}),
+        filter,
+        ...(self ? { selfInstanceId: self.instanceId } : {}),
+    })
+    const who = pid === undefined ? "" : `${state.players[pid].name}の`
+    log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}ができない。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) {
         log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    if (action.all) {
+        placeRule(ctx, action, filter)
         return
     }
     const candidates = pickEnemyCandidates(
