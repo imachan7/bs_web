@@ -2765,9 +2765,11 @@
      2
     ],
     "action": {
-     "type": "refreshAllByKeyword",
-     "keyword": "funsai",
-     "side": "own"
+     "type": "refreshOne",
+     "all": true,
+     "filter": {
+      "keyword": "funsai"
+     }
     }
    }
   ]

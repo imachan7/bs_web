@@ -26,7 +26,7 @@ import {
     continuousKeywordGrantCount,
     lifeCostBlockedByFloor,
 } from "../EffectModules"
-import { KEYWORDS, staticKeywordCount, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../removal"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -451,7 +451,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         }
         // all 指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）。
         // anySide は両陣営。封印された魔導書の片側への変更（bothSidesPids）は通さない：回復は受ける側に得な効果で、
-        // どちら側を残すかが未決のため（旧 refreshAllByCost・refreshAllByKeyword の挙動のまま）
+        // どちら側を残すかが未決のため（以前から通していない）
         if (action.all) {
             let refreshed = 0
             for (const pid of action.anySide ? (["p1", "p2"] as PlayerId[]) : [owner]) {
@@ -530,57 +530,6 @@ function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
 }
 
-const refreshAllByKeywordHandler: ActionHandler<"refreshAllByKeyword"> = (ctx, action) => {
-    const { state, owner, sourceName , srcType } = ctx
-        // 蛮騎士ハーキュリー：修飾なしの「【神速】を持つスピリットすべて」＝両陣営が対象。
-        // refreshAllByCostと同型でcantAttackThisTurnは付与しない。
-        // side:"own"指定時は自分のスピリットのみ（BS06名誉ある御前試合Lv2＝「自分のスピリットすべて」）
-        let count = 0
-        for (const pid of (action.side === "own" ? [owner] : (["p1", "p2"] as PlayerId[]))) {
-            for (const s of state.players[pid].field.spirits) {
-                if (!s.isRested) continue
-                if (!spiritHasKeyword(state, pid, s, action.keyword)) continue
-                // keywordCount（BS07突風侯爵コカトリーフLv2＝【暴風：1】限定）：
-                // カードが静的に持つキーワードエントリの count が一致するものだけ
-                if (action.keywordCount !== undefined && staticKeywordCount(s, action.keyword) !== action.keywordCount) {
-                    continue
-                }
-                refreshSpirit(state, pid, s, srcType)
-                count++
-            }
-        }
-        if (count === 0) {
-            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つ疲労スピリットがいなかった。`)
-            return
-        }
-        log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリット${count}体を回復した。`)
-        return
-}
-
-const refreshAllOwnByFilterHandler: ActionHandler<"refreshAllOwnByFilter"> = (ctx, action) => {
-    const { state, owner, sourceName , srcType } = ctx
-        // filterに一致する自分の疲労スピリットすべてを回復（refreshAllByKeywordと同様cantAttackThisTurnは付与しない。
-        // BS10-088天貫く塔の城Lv2：「効果の記述を持たない自分のスピリットすべて」＝filter.vanilla:true）
-        const allFilter = normalizeFilter(ctx, action)
-        if (allFilter === SELF_REQUIRED) {
-            log(state, `${sourceName}：回復対象がいなかった。`)
-            return
-        }
-        let count = 0
-        for (const s of state.players[owner].field.spirits) {
-            if (!s.isRested) continue
-            if (!matchesTarget(state, owner, s, allFilter, ctx.self?.instanceId)) continue
-            refreshSpirit(state, owner, s, srcType)
-            count++
-        }
-        if (count === 0) {
-            log(state, `${sourceName}：条件を満たす疲労スピリットがいなかった。`)
-            return
-        }
-        log(state, `${sourceName}：スピリット${count}体を回復した。`)
-        return
-}
-
 const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
@@ -651,27 +600,6 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
             state,
             `${sourceName}は${getCard(target.cardId).name}を指定した。（${sourceName}が疲労状態でフィールドにいる間、回復できない）`,
         )
-        return
-}
-
-const refreshAllByCostHandler: ActionHandler<"refreshAllByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 両陣営のコストが一致するスピリットすべてを回復させる（refreshAllOwnと異なりcantAttackThisTurnは付与しない）
-        let count = 0
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const s of state.players[pid].field.spirits) {
-                if (!s.isRested) continue
-                // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る
-                if (!instHasCost(s, action.cost)) continue
-                refreshSpirit(state, pid, s, srcType)
-                count++
-            }
-        }
-        if (count === 0) {
-            log(state, `${sourceName}：コスト${action.cost}の疲労スピリットがいなかった。`)
-            return
-        }
-        log(state, `${sourceName}：コスト${action.cost}のスピリット${count}体を回復した。`)
         return
 }
 
@@ -985,22 +913,6 @@ const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
         return
 }
 
-const refreshByFamilyHandler: ActionHandler<"refreshByFamily"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 自分の疲労スピリットのうちfamilyFilter一致（配列=OR）を実効BP最大からcount体まで回復
-        const candidates = state.players[owner].field.spirits
-            .filter((s) => s.isRested && matchesFamilyFilter(state, owner, s, action.familyFilter))
-            .sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
-            .slice(0, action.count)
-        if (candidates.length === 0) {
-            log(state, `${sourceName}の回復：対象がいなかった。`)
-            return
-        }
-        for (const s of candidates) refreshSpirit(state, owner, s, srcType)
-        log(state, `${sourceName}：${candidates.length}体を回復させた。`)
-        return
-}
-
 const refreshByFamilyAutoHandler: ActionHandler<"refreshByFamilyAuto"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 疲労中の自分スピリットの最多系統を自動指定し、その系統の疲労スピリットを最大count体回復させる
@@ -1196,15 +1108,11 @@ const handlers = {
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
     exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,
     refreshOne: refreshOneHandler,
-    refreshAllByKeyword: refreshAllByKeywordHandler,
     refreshAllOwn: refreshAllOwnHandler,
-    refreshAllOwnByFilter: refreshAllOwnByFilterHandler,
-    refreshAllByCost: refreshAllByCostHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
     refreshSelfByExhaustNexus: refreshSelfByExhaustNexusHandler,
     exhaustSelf: exhaustSelfHandler,
-    refreshByFamily: refreshByFamilyHandler,
     refreshByFamilyAuto: refreshByFamilyAutoHandler,
 } satisfies Partial<ActionRegistry>
 

@@ -92,7 +92,7 @@ R1 と R2 は挙動を変えずに効くので最初にやる。R6 と R7 は着
 | 順 | 器 | 対象 | 器の PR の中身 | 確認が要ること |
 | :-- | :-- | :-- | :-- | :-- |
 | 1 | M3 `countCounter` の統一 | 24種・延べ90枚 | 量の軸に `EffectCounter` を書けるようにする（`*Per` と `countCounter` の2通りの書き方を1つに） | **10種・72枚は移行済み（09-24）**。`sequence`・`ifLast`・選択を含む `*Per` は M2 で |
-| 2 | M4 `filter` の統一 | 36種・延べ125枚 | `ByColor`・`ByLevel`・`All` などを元のアクション＋`TargetFilter` で書く | **destroyAll・exhaustAll・exhaustAllByLevel・returnAllToHand（54か所）は移行済み（09-24）**。残りは coreRemove 系の「すべて」（`all` の意味が衝突）と refresh 系、色・コストを選ぶもの |
+| 2 | M4 `filter` の統一 | 36種・延べ125枚 | `ByColor`・`ByLevel`・`All` などを元のアクション＋`TargetFilter` で書く | **「すべて」4種（54か所）と refresh 4種（15か所）は移行済み（09-24）**。残りは coreRemove 系の「すべて」（`all` の意味が衝突）、`refreshAllOwn`（アタック不可の付与）、色・コスト・系統を選ぶもの |
 | 3 | M1 `pay` | 18種・延べ44枚 | `pay { cost, then }` と「完全に解決できる」の判定 | **12種は移行済み（09-24）**。残りは量が支払いの結果で決まる6種と、アクションに組み込まれた `costXxx` 31種・54枚（移すときに数どおりの規則へ揃える） |
 | 4 | M2 `if`・`forEach`・マジックの使用 | 18＋2＋3種 | `if { cond: last／state／event }`、`forEach`、`マジックの使用 { from, コスト }` | 接続詞ごとの読み（下記） |
 | 5 | M5 オープン | 17種・延べ36枚 | `オープン { from, 枚数, 選ぶ, 行き先, 残り }` | |

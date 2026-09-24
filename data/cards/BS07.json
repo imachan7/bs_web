@@ -1639,10 +1639,12 @@
      2
     ],
     "action": {
-     "type": "refreshAllByKeyword",
-     "keyword": "bofu",
-     "side": "own",
-     "keywordCount": 1
+     "type": "refreshOne",
+     "all": true,
+     "filter": {
+      "keyword": "bofu",
+      "keywordCount": 1
+     }
     },
     "optional": false
    }
@@ -3931,9 +3933,11 @@
     },
     "selfMode": "source",
     "action": {
-     "type": "refreshByFamily",
-     "familyFilter": "機獣",
-     "count": 99
+     "type": "refreshOne",
+     "all": true,
+     "filter": {
+      "family": "機獣"
+     }
     }
    },
    {

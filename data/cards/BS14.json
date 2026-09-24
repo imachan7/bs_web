@@ -4872,7 +4872,8 @@
      2
     ],
     "action": {
-     "type": "refreshAllOwnByFilter",
+     "type": "refreshOne",
+     "all": true,
      "filter": {
       "color": "green"
      }
