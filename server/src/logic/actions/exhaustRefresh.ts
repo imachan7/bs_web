@@ -450,11 +450,10 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             return
         }
         // all 指定時は候補すべてを回復する（cantAttackThisTurnは付与しない。決闘台地Lv2）。
-        // anySide は両陣営。封印された魔導書の片側への変更（bothSidesPids）は通さない：回復は受ける側に得な効果で、
-        // どちら側を残すかが未決のため（以前から通していない）
+        // anySide は両陣営。封印された魔導書の片側への変更に従い、回復は得な効果として扱う（2026-09-24 ユーザー確認）
         if (action.all) {
             let refreshed = 0
-            for (const pid of action.anySide ? (["p1", "p2"] as PlayerId[]) : [owner]) {
+            for (const pid of action.anySide ? bothSidesPids(state, srcType, true) : [owner]) {
                 for (const s of [...state.players[pid].field.spirits]) {
                     if (!s.isRested || !matchesTarget(state, pid, s, filter, self?.instanceId)) continue
                     refreshSpirit(state, pid, s, srcType)
