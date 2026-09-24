@@ -158,47 +158,6 @@ const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (
         return
 }
 
-// BS07マクラーンスラッシュ：『ブロック時』効果を持つ自分のスピリット1体を指定し、
-// このターンの間その効果を『アタック時』に発揮させる（ブロック時には発揮しなくなる＝移し替え）
-const blockTriggersAsAttackTargetThisTurnHandler: ActionHandler<"blockTriggersAsAttackTargetThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-        const hasBlockTrigger = (inst: CardInstance): boolean =>
-            getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onBlock")
-        const mine = state.players[owner].field.spirits.filter(hasBlockTrigger)
-        if (
-            targetInstanceId === undefined &&
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：『ブロック時』効果を『アタック時』に変えるスピリットを選んでください`,
-                mine,
-                action,
-                null,
-            )
-        ) {
-            return
-        }
-        const target = targetInstanceId
-            ? mine.find((s) => s.instanceId === targetInstanceId)
-            : // 未指定時は実効BP最大（プレイヤー選択の決定的簡略化）
-              mine.reduce<CardInstance | undefined>(
-                  (best, s) =>
-                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-                  undefined,
-              )
-        if (!target) {
-            log(state, `${sourceName}：『ブロック時』効果を持つ自分のスピリットがいなかった。`)
-            return
-        }
-        target.blockTriggersAsAttackThisTurn = true
-        log(
-            state,
-            `${sourceName}：このターンの間、${getCard(target.cardId).name}の『ブロック時』効果は『アタック時』に発揮される。`,
-        )
-        return
-}
-
 const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx, action) => {
     const { state, owner, self, sourceCardId, sourceName, chosenOption } = ctx
         if (!self) return
@@ -299,43 +258,6 @@ function pickSingleTarget(
             !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
         undefined,
     )
-}
-
-const attackTriggersAsBlockThisTurnHandler: ActionHandler<"attackTriggersAsBlockThisTurn"> = (ctx) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-        // ブレイブチャージ：自分のスピリット1体の『このスピリットのアタック時』効果を、このターンの間
-        // 『このスピリットのブロック時』に発揮させる（未指定時は自分の実効BP最大。addSymbolThisTurn と同じ選び方）
-        const target = targetInstanceId
-            ? state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            : state.players[owner].field.spirits.reduce<CardInstance | undefined>(
-                  (best, s) =>
-                      !best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                          ? s
-                          : best,
-                  undefined,
-              )
-        if (!target) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        target.attackTriggersAsBlockThisTurn = true
-        log(
-            state,
-            `${getCard(target.cardId).name}の『アタック時』効果は、このターンの間『ブロック時』に発揮される。`,
-        )
-        return
-}
-
-const blockTriggersAsAttackAllThisTurnHandler: ActionHandler<"blockTriggersAsAttackAllThisTurn"> = (ctx) => {
-    const { state, sourceName } = ctx
-        // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果を『アタック時』に移す
-        // （ブロック時には発揮されなくなる＝移し替え。fireTriggerが state.blockTriggersAsAttackThisTurn を参照）
-        state.blockTriggersAsAttackThisTurn = true
-        log(
-            state,
-            `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`,
-        )
-        return
 }
 
 const addSymbolPermanentHandler: ActionHandler<"addSymbolPermanent"> = (ctx, action) => {
@@ -1027,12 +949,9 @@ const handlers = {
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantEffectToAllByKeywordThisTurn: grantEffectToAllByKeywordThisTurnHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
-    blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     addSymbolPermanent: addSymbolPermanentHandler,
-    attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
-    blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
     requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
     grantBlockRequiresMagicDiscardThisTurn: grantBlockRequiresMagicDiscardThisTurnHandler,
     refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,

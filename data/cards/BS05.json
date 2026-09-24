@@ -4417,7 +4417,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "attackTriggersAsBlockThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "triggerSwap",
+       "from": "onAttack"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]

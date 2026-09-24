@@ -1434,6 +1434,7 @@ export type TimedContent =
     | { type: "symbolSet"; color: Color; count: number } // シンボルを◯色◯つとして扱う
     | { type: "symbolLoss"; color?: Color } // 指定した色のシンボルを1つ失う。color を省くと使う人が色を選ぶ
     | { type: "cost"; amount: number } // コストを増減する（元のコストは残らない）
+    | { type: "triggerSwap"; from: "onAttack" | "onBlock" } // from の効果を、もう片方（アタック時⇔ブロック時）に発揮する（元のタイミングでは発揮しない）
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true } // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 

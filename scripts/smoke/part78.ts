@@ -50,7 +50,7 @@ console.log("=== BS05-075 ブレイブチャージ：『アタック時』効果
         "通常はブロック時に『アタック時』効果は発揮されない",
     )
 
-    resolveAction(s, "p1", null, { type: "attackTriggersAsBlockThisTurn" }, spirit.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "triggerSwap", from: "onAttack" }], duration: "turn", side: "own" }, spirit.instanceId, undefined, "magic")
     assert(spirit.attackTriggersAsBlockThisTurn === true, "対象に読み替えフラグが立つ")
 
     fireTrigger(s, "p1", spirit, "onBlock")
@@ -73,7 +73,7 @@ console.log("=== BS05-075 ブレイブチャージ：『アタック時』効果
 console.log("--- 対象を取らなかった場合（自分のスピリットがいない）は不発 ---")
 {
     const s = setup("bravecharge-notarget-test", "green", "red")
-    resolveAction(s, "p1", null, { type: "attackTriggersAsBlockThisTurn" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "triggerSwap", from: "onAttack" }], duration: "turn", side: "own" }, undefined, undefined, "magic")
     assert(s.winner === null, "対象不在でもエラーにならず続行する")
 }
 

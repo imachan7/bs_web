@@ -4970,7 +4970,15 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "blockTriggersAsAttackTargetThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "triggerSwap",
+       "from": "onBlock"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {

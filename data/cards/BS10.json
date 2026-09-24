@@ -773,7 +773,16 @@
           1
         ],
         "action": {
-          "type": "blockTriggersAsAttackOwnThisTurn"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "triggerSwap",
+              "from": "onBlock"
+            }
+          ],
+          "duration": "turn",
+          "all": true,
+          "side": "own"
         },
         "optional": false
       },
