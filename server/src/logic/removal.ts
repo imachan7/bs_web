@@ -631,7 +631,7 @@ export function destroySpirit(
     // 前回の待機から残った印を拾わないよう、破壊のたびに付け直す
     if (cause === "deplete") inst.pendingVanish = true
     else delete inst.pendingVanish
-    // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGainPer: selfCoresAtDestruction）
+    // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGain: selfCoresAtDestruction）
     inst.coresAtDestruction = inst.cores
     // 「フィールドに残る」の判定に要る材料を、破壊待機状態の間だけ控えておく。
     // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく

@@ -335,10 +335,10 @@ console.log("=== キーワード【装甲】【転召】【粉砕】【呪撃】
 
     // 【暴風】の keyword エントリ（指定数）そのものを読むのは颶風高原だけ——
     // ブロック時の疲労は対になる triggered エントリの担当なので、指定数の読み出しは別に確かめる。
-    // ネクサスもIDを直書きせず、voidCoreToSelfPerBofuCount を持つカードとしてデータから引く
+    // ネクサスもIDを直書きせず、countCounter:"selfBofuCount" を持つカードとしてデータから引く
     const bofuNexus = CARDS.find((c) =>
         (c.effects ?? []).some(
-            (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "voidCoreToSelfPerBofuCount",
+            (e) => (e["action"] as Record<string, unknown> | undefined)?.["countCounter"] === "selfBofuCount",
         ),
     )
     assert(bofuNexus !== undefined, "【暴風】の指定数を読むネクサス（颶風高原）をデータから引ける")

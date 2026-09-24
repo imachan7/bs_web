@@ -200,12 +200,12 @@ console.log("=== BS07 青：コスト3以下をブロックしたとき疲労し
 console.log("=== BS07 青：疲労状態のネクサス1つにつきBP+2000（ネクサスアタック） ===")
 {
     const magic = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["counter"] === "ownRestedNexuses",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] === "ownRestedNexuses",
     )
     const amountPer = Number(
         ((magic.effects ?? []).find(
-            (e) => (e["action"] as Record<string, unknown> | undefined)?.["counter"] === "ownRestedNexuses",
-        )?.["action"] as Record<string, unknown>)["amountPer"],
+            (e) => (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] === "ownRestedNexuses",
+        )?.["action"] as Record<string, unknown>)["amount"],
     )
     const kyoshuHolder = findByEffect(
         (e) => e["kind"] === "keyword" && e["keyword"] === "kyoshu" && Array.isArray(e["levels"]) && (e["levels"] as number[]).includes(1),

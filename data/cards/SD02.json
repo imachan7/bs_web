@@ -1005,9 +1005,9 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuffPer",
-          "counter": "targetSameFamilyOwn",
-          "amountPer": 1000
+          "type": "bpBuff",
+          "amount": 1000,
+          "amountCounter": "targetSameFamilyOwn"
         }
       }
     ]

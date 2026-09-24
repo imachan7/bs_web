@@ -187,7 +187,7 @@ const destroySpiritBraveNexusEachHandler: ActionHandler<"destroySpiritBraveNexus
     }
 }
 
-// BS15共通器：直前のmillPer系アクションで破棄したカードの中に【バースト】効果を持つカードが
+// BS15共通器：直前のmill系アクションで破棄したカードの中に【バースト】効果を持つカードが
 // あったときだけ相手のスピリット1体を破壊する（GameState.lastMillHadBurst。BS15-X06鉄の覇王サイゴード・ゴレム）
 const destroyIfLastMillHadBurstHandler: ActionHandler<"destroyIfLastMillHadBurst"> = (ctx, action) => {
     const { state, sourceName } = ctx
@@ -1502,45 +1502,6 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
         return
 }
 
-// BS08魔帝龍騎ダーク・クリムゾン：カウント値の体数ぶん、相手スピリットを1体ずつ実効BP最大から繰り返し破壊する
-const destroyPerHandler: ActionHandler<"destroyPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count <= 0) {
-            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
-            return
-        }
-        const filter = normalizeFilter(ctx, action)
-        if (filter === SELF_REQUIRED) {
-            log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
-            return
-        }
-        // 先に選び切ってからまとめて破壊する（destroyByBpBudget と同じ理由）
-        const chosenIds: string[] = []
-        for (let i = 0; i < count; i++) {
-            const target = pickEnemyByBp(
-                state,
-                opp,
-                Infinity,
-                (s) =>
-                    matchesTarget(state, opp, s, filter, self?.instanceId) &&
-                    !chosenIds.includes(s.instanceId),
-                srcColors,
-                srcType,
-            )
-            if (!target) break
-            chosenIds.push(target.instanceId)
-        }
-        const destroyedCount = chosenIds.length
-        if (destroyedCount > 0) {
-            destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
-        }
-        if (destroyedCount === 0) {
-            log(state, `${sourceName}：破壊できる対象がいなかった。`)
-        }
-        return
-}
-
 // BS08ジャッジメントフレア：相手のスピリットを、自分のフィールドのスピリット数と同じになるまで破壊する。
 // 効果文は「**相手は**、相手のスピリットを自分のスピリットと同じ体数になるように破壊する」なので、
 // **どれを破壊するかは相手が1体ずつ選ぶ**（CHOOSER_RULES.md §1。解決は発生源の持ち主の効果として行う）。
@@ -2361,7 +2322,6 @@ const handlers = {
     destroyAllByChosenCost: destroyAllByChosenCostHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
-    destroyPer: destroyPerHandler,
     destroyDownToOwnCount: destroyDownToOwnCountHandler,
     destroyThenMillByCost: destroyThenMillByCostHandler,
     destroyOwnByCost: destroyOwnByCostHandler,

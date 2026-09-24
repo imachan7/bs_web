@@ -910,8 +910,9 @@
      3
     ],
     "action": {
-     "type": "drawPer",
-     "counter": {
+     "type": "draw",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "天霊"
      }
     },
@@ -1265,9 +1266,9 @@
      3
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "opponentTrashCores",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "opponentTrashCores"
     },
     "optional": false
    }
@@ -3578,9 +3579,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuffPer",
-     "counter": "lastFunsaiSpirits",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "lastFunsaiSpirits"
     }
    }
   ]
@@ -6046,8 +6047,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "millPer",
-     "counter": "opponentHand"
+     "type": "mill",
+     "count": 1,
+     "countCounter": "opponentHand"
     }
    },
    {
@@ -6487,10 +6489,10 @@
      2
     ],
     "action": {
-     "type": "millPer",
-     "counter": "ownNexuses",
-     "multiplier": 5,
-     "cap": 15
+     "type": "mill",
+     "count": 5,
+     "countCounter": "ownNexuses",
+     "countMax": 15
     },
     "optional": false
    },
@@ -6502,11 +6504,11 @@
      2
     ],
     "action": {
-     "type": "millPer",
-     "counter": {
+     "type": "mill",
+     "count": 1,
+     "countCounter": {
       "ownColorSymbols": "blue"
-     },
-     "multiplier": 1
+     }
     },
     "optional": false
    }

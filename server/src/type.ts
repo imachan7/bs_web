@@ -156,8 +156,8 @@ export type EffectCounter =
     | "selfSymbols" // このスピリット（self）自身が持つシンボル数（instanceSymbolCount。selfがnullなら0。BS05碧緑の竜使いグリューン：「このスピリットのシンボルと同じ数」）
     | "targetSameFamilyOwn" // 対象スピリットと系統を1つ以上共有する自分のスピリットの数（**対象自身も数える**。
     // 効果文が「このスピリット以外の」と書いていないため。SD02-015 フレンドリーパワー）。
-    // targetSymbols と同じく bpBuffPer ハンドラが対象選択後に個別計算するので、countEffectCounter には来ない
-    | "targetSymbols" // **対象スピリット自身**（bpBuffPerが解決するtargetInstanceId等）が持つシンボル数。selfSymbolsと異なりself（発生源）ではなく対象基準。マジックはself=nullのためselfSymbolsが使えない場合に使う（bpBuffPerハンドラが対象選択後に個別計算する。BS06サベージパワー）
+    // targetSymbols と同じく、対象を選んだ後に logic/counted.ts が数える（countEffectCounter には来ない）
+    | "targetSymbols" // **対象スピリット自身**（bpBuffが解決するtargetInstanceId等）が持つシンボル数。selfSymbolsと異なりself（発生源）ではなく対象基準。マジックはself=nullのためselfSymbolsが使えない場合に使う（対象を選んだ後に logic/counted.ts が数える。BS06サベージパワー）
     | "lastFunsaiTotal" // 直前の【粉砕】で破棄した総枚数（GameState.lastFunsai。次のアタック宣言でリセット。BS03巨人王ランドルフ）
     | "lastFunsaiSpirits" // 直前の【粉砕】で破棄したカードのうちスピリットカードの枚数（GameState.lastFunsai。BS04二刀流のアムブローズ）
     | "ownCombinedSpirits" // 自分のフィールドの合体スピリット数（braveRefsを持つホストの数。instIsCombinedで判定。BS10-029木星神龍ノブナガード・ゼウシスLv2-3＝「自分の合体スピリット1体につき」）
@@ -473,7 +473,7 @@ export type GlobalConstraintDef =
     | { type: "maxSpiritsOnField"; max: number } // 両陣営とも、フィールドのスピリットがmax体以上のときは召喚できない（メインステップの通常召喚のみ。BS04旋風渦巻く渓谷＝5体以上召喚できない＝max4）
     | { type: "levelCantAct"; levels: number[] } // currentLevel がこのリストに含まれるスピリットは、アタックとブロックができない（両陣営。costCantAct のレベル版。BS07腐りゆく湖沼Lv2＝Lv1）
     | { type: "costCantAct"; maxCost?: number; costs?: number[] } // コストがmaxCost以下のスピリットは、アタックとブロックができない（両陣営。shared/rules.tsの専用判定costCantActが参照。BS05白夜の虚空Lv1=maxCost1、青嵐の虚空Lv1=maxCost2）。costs指定時はmaxCostの代わりにこのリストと完全一致するコストのみ対象（BS02グレートウォール：コスト6と8）
-    | { type: "millCap"; maxCount: number; perTurn?: boolean; mutual?: true; bothSides?: true } // 発生源の持ち主のデッキは、相手の効果によるミル（mill/millPer/粉砕/voidCoresAndMillByCost等）でmaxCount枚を超えて破棄されない
+    | { type: "millCap"; maxCount: number; perTurn?: boolean; mutual?: true; bothSides?: true } // 発生源の持ち主のデッキは、相手の効果によるミル（mill/粉砕/voidCoresAndMillByCost等）でmaxCount枚を超えて破棄されない
       // （ownNexusIndestructibleと同様に発生源の持ち主のみに効く。EffectModules.millCapForがeffectSources経由で判定＝lendSelfThisTurnで貸与可。
       // perTurn省略時=1回のミルにつきmaxCount枚まで（BS05エターナルシールド：5枚まで＝6枚以上破棄されない）。
       // perTurn:true=ターン累計でmaxCount枚まで（GameState.millCountThisTurnで加算管理。BS04侵されざる聖域Lv2：ターンに5枚まで）
@@ -1311,7 +1311,7 @@ export interface GameState {
     // bofuSourceInstanceId：疲労させた側の【暴風】持ちスピリットのinstanceId（自分自身の【暴風】での疲労のときのみ入る。
     // action:"returnBofuExhaustedToHand" がこれをselfと突き合わせて「このスピリットの【暴風】で疲労させた」を絞り込む。BS14-032）
     bofuExhaustedThisBattle: { pid: PlayerId; instanceId: string; bofuSourceInstanceId?: string }[]
-    lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。action:"millPerLoserCost" が参照。BS06名誉ある御前試合）
+    lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。mill の countCounter:"lastBattleDestroyedCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）
     // 同時破壊グループ（destroyTargetsBatch の1回の呼び出し＝1グループ）。
     // 他カードの「〜が破壊されたとき」（fieldEvent ownSpiritDestroyed/opponentSpiritDestroyed）と
@@ -1396,7 +1396,7 @@ export interface GameState {
     // 場から取り除かれた後でもオブジェクト参照からは読み取れる（resolveBattle が attacker を
     // ローカル変数で持ち回っているのと同じ考え方）。clearBattle で消す
     lastFunsai?: { total: number; spirits: number; nexuses: number; magics: number; costAtLeast4: number } // 直前の【粉砕】で破棄した内容（resolveFunsaiが記録）。アタック宣言のたびにクリアする（doAttack冒頭）。EffectCounter "lastFunsaiTotal"/"lastFunsaiSpirits"とtriggered.condition {lastFunsaiHasNexus}が参照する（BS03巨人王ランドルフ／BS04二刀流のアムブローズ／BS04伝説巨人ジュード）。costAtLeast4はBS15共通器：破棄したカードのうちコスト4以上の枚数（BS15-053コジロンド・ゴレムLv2-3：「コスト4以上のカードを破棄したとき」）
-    lastMillHadBurst?: boolean // BS15共通器：直前のmillPer系アクションで破棄したカードの中に【バースト】効果を持つカードがあったか（action:"millPer"/"millPerThenSummonSelfIfBurstMilled"が更新。次のミルで上書きされる。BS15-X06鉄の覇王サイゴード・ゴレム）
+    lastMillHadBurst?: boolean // BS15共通器：直前のmill系アクションで破棄したカードの中に【バースト】効果を持つカードがあったか（action:"mill"/"millPerThenSummonSelfIfBurstMilled"が更新。次のミルで上書きされる。BS15-X06鉄の覇王サイゴード・ゴレム）
     burstEventCost?: number // BS15共通器：バースト発動時、eventInfo.costsの先頭値を一時的に積む（EffectCounter "burstEventCost" が読む。confirmを経由する対話モードでもpendingChoice.burstActivate.destroyedCostへ引き継いで復元する。BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     lastMagicCast?: { pid: PlayerId; cardId: string; timing: "main" | "flash"; targetInstanceId?: string } // 直前にプレイヤー自身が手札/手元から使用したマジック（doCastMagic・castMagicFromTrashByColorが記録。action:"magicMirrorRepeat"が参照する。**フラッシュタイミングが閉じた時点**でクリアされ、それより前の使用は対象にならない＝フラッシュ①で使われたマジックをフラッシュ②で写すことはできない。バトル終了時（clearBattle）にもクリアする。BS08マジックミラー）
 }

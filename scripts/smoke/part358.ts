@@ -1,7 +1,7 @@
-// smoke パート358（M3 数え上げの統一：旧 *Per 10種と「元のアクション＋countCounter／amountCounter」が同じ結果になる。HANDOFF §1）
+// smoke パート358（数え上げの統一：countCounter は (count ?? 1)×値で countMax が上限、amountCounter は amount×値）
 import { assert, createGame, createInstance, getCard, resolveAction } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import type { CardInstance, EffectAction } from "../../server/src/type"
+import type { CardInstance } from "../../server/src/type"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
 const BOFU2 = "BS06-036" // 牙王樹ラフレシオー（【暴風：2】）
@@ -44,45 +44,6 @@ function board(seed: string): { s: GameState; self: CardInstance } {
     s.lastBattleDestroyedCost = 3
     return { s, self }
 }
-
-// 盤面で結果に効くところだけを比べる（ログ・ID採番は比べない）
-function snapshot(s: GameState): string {
-    const side = (pid: PlayerId) => {
-        const p = s.players[pid]
-        return {
-            hand: p.hand.length,
-            deck: p.deck.length,
-            trash: p.trashCards.length,
-            reserve: p.reserve,
-            spirits: p.field.spirits.map((x) => [x.cardId, x.cores, x.isRested, x.tempBpBuff]),
-        }
-    }
-    return JSON.stringify({ p1: side("p1"), p2: side("p2") })
-}
-
-function same(label: string, oldAction: EffectAction, newAction: EffectAction, srcType: "spirit" | "magic" = "spirit"): void {
-    const a = board(label)
-    const b = board(label)
-    resolveAction(a.s, "p1", a.self, oldAction, undefined, undefined, srcType)
-    resolveAction(b.s, "p1", b.self, newAction, undefined, undefined, srcType)
-    const before = snapshot(board(label).s)
-    const oldSnap = snapshot(a.s)
-    assert(oldSnap !== before, `${label}：旧の書き方で盤面が動く（比べる意味がある）`)
-    assert(oldSnap === snapshot(b.s), `${label}：旧と新で同じ結果`)
-}
-
-console.log("=== 1. 旧 *Per と新しい書き方が同じ結果 ===")
-same("drawPer", { type: "drawPer", counter: "exhaustedEnemies" }, { type: "draw", count: 1, countCounter: "exhaustedEnemies" })
-same("destroyPer", { type: "destroyPer", counter: "ownExhausted", filter: { rested: true } }, { type: "destroy", count: 1, countCounter: "ownExhausted", filter: { rested: true } })
-same("coreGainPer", { type: "coreGainPer", counter: "opponentHand" }, { type: "coreGain", count: 1, countCounter: "opponentHand" })
-same("voidCoreToSelfPer", { type: "voidCoreToSelfPer", counter: "ownExhausted" }, { type: "voidCoreToSelf", count: 1, countCounter: "ownExhausted" })
-same("voidCoreToSelfPerBofuCount", { type: "voidCoreToSelfPerBofuCount" }, { type: "voidCoreToSelf", count: 1, countCounter: "selfBofuCount" })
-same("selfBuffPer", { type: "selfBuffPer", counter: "exhaustedEnemies", amountPer: 2000 }, { type: "selfBuff", amount: 2000, amountCounter: "exhaustedEnemies" })
-same("bpBuffPer", { type: "bpBuffPer", counter: "opponentHand", amountPer: 1000 }, { type: "bpBuff", amount: 1000, amountCounter: "opponentHand" }, "magic")
-same("bpBuffPer（対象のシンボル）", { type: "bpBuffPer", counter: "targetSymbols", amountPer: 3000 }, { type: "bpBuff", amount: 3000, amountCounter: "targetSymbols" }, "magic")
-same("bpBuffAllPer", { type: "bpBuffAllPer", counter: "ownExhausted", amountPer: 1000 }, { type: "bpBuffAll", amount: 1000, amountCounter: "ownExhausted" })
-same("millPer", { type: "millPer", counter: "opponentHand", multiplier: 2, cap: 6 }, { type: "mill", count: 2, countCounter: "opponentHand", countMax: 6 })
-same("millPerLoserCost", { type: "millPerLoserCost" }, { type: "mill", count: 1, countCounter: "lastBattleDestroyedCost" })
 
 console.log("=== 2. 量の規則：(count ?? 1) × 値、countMax で頭打ち ===")
 {

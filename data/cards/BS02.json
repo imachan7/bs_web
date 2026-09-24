@@ -1460,9 +1460,9 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "readyEnemies",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "readyEnemies"
     },
     "optional": false
    }
@@ -1926,8 +1926,9 @@
      3
     ],
     "action": {
-     "type": "coreGainPer",
-     "counter": "selfCoresAtDestruction"
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": "selfCoresAtDestruction"
     },
     "optional": false
    }
@@ -3936,8 +3937,9 @@
      3
     ],
     "action": {
-     "type": "coreGainPer",
-     "counter": {
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "想獣"
      }
     },
@@ -3952,8 +3954,9 @@
      3
     ],
     "action": {
-     "type": "drawPer",
-     "counter": {
+     "type": "draw",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "想獣"
      }
     },
@@ -5594,8 +5597,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "coreGainPer",
-     "counter": {
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "武装"
      }
     }
@@ -6033,8 +6037,9 @@
      2
     ],
     "action": {
-     "type": "coreGainPer",
-     "counter": "lastBattleDestroyedCores"
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": "lastBattleDestroyedCores"
     },
     "optional": false
    }

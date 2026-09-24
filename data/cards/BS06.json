@@ -366,11 +366,11 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownFamily": "地竜"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    }
@@ -1831,11 +1831,11 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownFamily": "樹魔"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    }
@@ -2427,9 +2427,9 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": "ownExhausted",
-     "amountPer": 1000
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": "ownExhausted"
     },
     "optional": false
    }
@@ -2739,11 +2739,11 @@
      2
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownKeyword": "armor"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    },
@@ -3304,11 +3304,11 @@
      3
     ],
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "anyNameIncludes": "アルカナ"
-     },
-     "amountPer": 1000
+     }
     },
     "optional": false
    },
@@ -3691,10 +3691,10 @@
      2
     ],
     "action": {
-     "type": "millPer",
-     "counter": "ownNexuses",
-     "multiplier": 2,
-     "cap": 4
+     "type": "mill",
+     "count": 2,
+     "countCounter": "ownNexuses",
+     "countMax": 4
     },
     "optional": false
    }
@@ -4622,7 +4622,9 @@
     "turn": "own",
     "keywordFilter": "bofu",
     "action": {
-     "type": "voidCoreToSelfPerBofuCount"
+     "type": "voidCoreToSelf",
+     "count": 1,
+     "countCounter": "selfBofuCount"
     }
    },
    {
@@ -5249,7 +5251,9 @@
     "turn": "own",
     "winnerKeywordFilter": "funsai",
     "action": {
-     "type": "millPerLoserCost"
+     "type": "mill",
+     "count": 1,
+     "countCounter": "lastBattleDestroyedCost"
     }
    },
    {
@@ -5623,9 +5627,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuffPer",
-     "counter": "targetSymbols",
-     "amountPer": 2000
+     "type": "bpBuff",
+     "amount": 2000,
+     "amountCounter": "targetSymbols"
     }
    }
   ]
@@ -6304,8 +6308,9 @@
      3
     ],
     "action": {
-     "type": "drawPer",
-     "counter": {
+     "type": "draw",
+     "count": 1,
+     "countCounter": {
       "ownFamily": "古竜"
      }
     },

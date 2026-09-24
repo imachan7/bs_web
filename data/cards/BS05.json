@@ -1498,8 +1498,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGainPer",
-     "counter": "selfSymbols"
+     "type": "coreGain",
+     "count": 1,
+     "countCounter": "selfSymbols"
     }
    },
    {
@@ -1516,8 +1517,9 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "coreGainPer",
-      "counter": "selfSymbols"
+      "type": "coreGain",
+      "count": 1,
+      "countCounter": "selfSymbols"
      }
     }
    }
@@ -1587,11 +1589,11 @@
     ],
     "optional": false,
     "action": {
-     "type": "selfBuffPer",
-     "counter": {
+     "type": "selfBuff",
+     "amount": 1000,
+     "amountCounter": {
       "ownKeyword": "soku"
-     },
-     "amountPer": 1000
+     }
     }
    }
   ]
@@ -2959,10 +2961,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "millPer",
-     "counter": "ownNexuses",
-     "multiplier": 2,
-     "cap": 6
+     "type": "mill",
+     "count": 2,
+     "countCounter": "ownNexuses",
+     "countMax": 6
     }
    }
   ]
@@ -5097,8 +5099,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "voidCoreToSelfPer",
-     "counter": "allExhausted"
+     "type": "voidCoreToSelf",
+     "count": 1,
+     "countCounter": "allExhausted"
     }
    },
    {

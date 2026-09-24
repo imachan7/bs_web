@@ -102,7 +102,14 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+        const beforeLen = state.players[targetPid].trashCards.length
+        const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+        // 続く destroyIfLastMillHadBurst などが読む（BS15-X06鉄の覇王サイゴード・ゴレム）
+        state.lastMillHadBurst =
+            actual > 0 &&
+            state.players[targetPid].trashCards
+                .slice(beforeLen, beforeLen + actual)
+                .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
         return
 }
 
@@ -257,30 +264,7 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
     runMillUntilMagicCastFree(state, owner, sourceName, action)
 }
 
-const millPerHandler: ActionHandler<"millPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const raw = countEffectCounter(state, owner, self, action.counter, srcType)
-        let count = raw * (action.multiplier ?? 1)
-        // マキシマムブレイク（kind:"millCapBonus"）：持ち主のスピリットの効果によるデッキ破棄枚数の
-        // 上限（cap）に+amountする
-        if (action.cap !== undefined) count = Math.min(count, action.cap + millCapBonusFor(state, owner))
-        if (count === 0) {
-            log(state, `${sourceName}の可変粉砕：カウントが0のため粉砕しなかった。`)
-            return
-        }
-        const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        const beforeLen = state.players[targetPid].trashCards.length
-        const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
-        // BS15共通器：破棄したカードの中に【バースト】効果を持つカードがあったか（BS15-X06鉄の覇王サイゴード・ゴレム）
-        state.lastMillHadBurst =
-            actual > 0 &&
-            state.players[targetPid].trashCards
-                .slice(beforeLen, beforeLen + actual)
-                .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
-        return
-}
-
-// バースト専用：millPerと同じ計算で相手のデッキを破棄し、破棄した中に【バースト】効果を持つカードが
+// バースト専用：millと同じ計算で相手のデッキを破棄し、破棄した中に【バースト】効果を持つカードが
 // あれば続けて自身をコストを支払わずに召喚する（BS15-X06鉄の覇王サイゴード・ゴレム）
 const millPerThenSummonSelfIfBurstMilledHandler: ActionHandler<"millPerThenSummonSelfIfBurstMilled"> = (ctx, action) => {
     const { state, owner, self, srcType, sourceName } = ctx
@@ -321,18 +305,6 @@ const millThenCoreIfBurstHandler: ActionHandler<"millThenCoreIfBurst"> = (ctx, a
     ctx.resolve({ type: "voidCoreToSelf", count: 1 })
 }
 
-const millPerLoserCostHandler: ActionHandler<"millPerLoserCost"> = (ctx) => {
-    const { state, owner, sourceName, srcType } = ctx
-        // 名誉ある御前試合：直前のバトルで破壊された相手のスピリットのコストと同じ枚数、相手のデッキを破棄する
-        const cost = state.lastBattleDestroyedCost
-        if (cost === 0) {
-            log(state, `${sourceName}：直前のバトルで破壊されたスピリットがいなかった。`)
-            return
-        }
-        millDeck(state, opponentOf(owner), cost, owner, srcType ? { sourceType: srcType } : undefined)
-        return
-}
-
 const handlers = {
     millSelfTopThenRefreshSelfIfFamily: millSelfTopThenRefreshSelfIfFamilyHandler,
     millOpponentThenReact: millOpponentThenReactHandler,
@@ -342,10 +314,8 @@ const handlers = {
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
-    millPer: millPerHandler,
     millPerThenSummonSelfIfBurstMilled: millPerThenSummonSelfIfBurstMilledHandler,
     millThenCoreIfBurst: millThenCoreIfBurstHandler,
-    millPerLoserCost: millPerLoserCostHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

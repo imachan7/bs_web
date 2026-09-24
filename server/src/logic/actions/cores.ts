@@ -713,26 +713,6 @@ const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
         return
 }
 
-const coreGainPerHandler: ActionHandler<"coreGainPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        if (voidCorePlacementBlocked(state)) {
-            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
-            return
-        }
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count === 0) {
-            log(state, `${sourceName}の可変コア獲得：カウントが0のため獲得しなかった。`)
-            return
-        }
-        const player = state.players[owner]
-        player.reserve += count
-        log(
-            state,
-            `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`,
-        )
-        return
-}
-
 // ボイドからコアを持ち主の「デッキの横」へ置く（BS12-078 カシオペアシール）。
 // デッキ横はどのゾーンにも属さないので、コストの支払いにもコア移動にも使えない
 // （効果文の「このコアは、この効果以外に使用することはできない」）。
@@ -829,59 +809,6 @@ const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => 
                 })
                 return
             }
-        }
-        log(
-            state,
-            `${getCard(self.cardId).name}は、ボイドからコア${count}個を自身の上に置いた。`,
-        )
-        placeCoresOnSpirit(state, self, count, owner)
-        return
-}
-
-const voidCoreToSelfPerHandler: ActionHandler<"voidCoreToSelfPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // カウント値ぶん、ボイドからこのスピリット上にコアを置く
-        if (voidCorePlacementBlocked(state)) {
-            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
-            return
-        }
-        if (!self) {
-            log(state, `${sourceName}：コアを置く対象がいなかった。`)
-            return
-        }
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count === 0) {
-            log(state, `${sourceName}：カウントが0のためコアを置かなかった。`)
-            return
-        }
-        self.cores += count
-        log(
-            state,
-            `${getCard(self.cardId).name}は、ボイドからコア${count}個を自身の上に置いた。`,
-        )
-        return
-}
-
-const voidCoreToSelfPerBofuCountHandler: ActionHandler<"voidCoreToSelfPerBofuCount"> = (ctx) => {
-    const { state, owner, self, sourceName } = ctx
-        // 颶風高原：召喚されたスピリット（self＝fieldEventのselfOverride）自身が持つ【暴風】の指定数ぶん、
-        // ボイドからそのスピリット上にコアを置く（【暴風】を持たない／selfが無いならno-op）
-        if (voidCorePlacementBlocked(state)) {
-            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
-            return
-        }
-        if (!self) {
-            log(state, `${sourceName}：コアを置く対象がいなかった。`)
-            return
-        }
-        const level = currentLevel(self).level
-        const entry = getCard(self.cardId).effects.find(
-            (e) => e.kind === "keyword" && e.keyword === "bofu" && effectActiveAtLevel(e.levels, level),
-        )
-        const count = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
-        if (count === 0) {
-            log(state, `${sourceName}：${getCard(self.cardId).name}は【暴風】を持たないため置かなかった。`)
-            return
         }
         log(
             state,
@@ -2779,13 +2706,10 @@ const handlers = {
     coreCharge: coreChargeHandler,
     coreGain: coreGainHandler,
     capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
-    coreGainPer: coreGainPerHandler,
     voidCoreToDeckSide: voidCoreToDeckSideHandler,
     voidCoreToReserve: voidCoreToReserveHandler,
     trashCoresToReserve: trashCoresToReserveHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
-    voidCoreToSelfPer: voidCoreToSelfPerHandler,
-    voidCoreToSelfPerBofuCount: voidCoreToSelfPerBofuCountHandler,
     voidCoreToOther: voidCoreToOtherHandler,
     coreSqueezeAll: coreSqueezeAllHandler,
     coreSqueezeOne: coreSqueezeOneHandler,

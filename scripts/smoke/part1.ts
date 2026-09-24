@@ -430,20 +430,20 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
     s.players.p2.field.spirits.push(e1, e2)
 
     const handBefore1 = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "drawPer", counter: "exhaustedEnemies" })
+    resolveAction(s, "p1", null, { type: "draw", count: 1, countCounter: "exhaustedEnemies" })
     assert(s.players.p1.hand.length === handBefore1 + 2, "相手の疲労スピリット2体で2枚ドローする")
 
     // 疲労スピリットがいなければドローしない（ログのみ）
     e1.isRested = false
     e2.isRested = false
     const handBefore2 = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "drawPer", counter: "exhaustedEnemies" })
+    resolveAction(s, "p1", null, { type: "draw", count: 1, countCounter: "exhaustedEnemies" })
     assert(s.players.p1.hand.length === handBefore2, "疲労スピリットが0体ならドローしない")
 
     console.log("--- drawPer: opponentHand ---")
     s.players.p2.hand = ["BS01-001", "BS01-002", "BS01-003"]
     const handBefore3 = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "drawPer", counter: "opponentHand" })
+    resolveAction(s, "p1", null, { type: "draw", count: 1, countCounter: "opponentHand" })
     assert(s.players.p1.hand.length === handBefore3 + 3, "相手の手札枚数（3枚）ぶんドローする")
 
     console.log("--- bpBuffPer ---")
@@ -455,7 +455,7 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
         s,
         "p1",
         null,
-        { type: "bpBuffPer", counter: "exhaustedEnemies", amountPer: 1000 },
+        { type: "bpBuff", amount: 1000, amountCounter: "exhaustedEnemies" },
         buffTarget.instanceId,
     )
     assert(buffTarget.tempBpBuff === 2000, "疲労2体×1000でtempBpBuffが2000増える")
@@ -468,7 +468,7 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
         s,
         "p1",
         null,
-        { type: "bpBuffPer", counter: "exhaustedEnemies", amountPer: 1000 },
+        { type: "bpBuff", amount: 1000, amountCounter: "exhaustedEnemies" },
         buffTarget.instanceId,
     )
     assert(buffTarget.tempBpBuff === buffBefore, "疲労スピリットが0体ならBPが増加しない")

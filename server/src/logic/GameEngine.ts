@@ -2267,7 +2267,7 @@ function resolveBattle(state: GameState): void {
         return
     }
 
-    // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGainPer counter "lastBattleDestroyedCores"）
+    // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGain countCounter "lastBattleDestroyedCores"）
     state.lastBattleDestroyedCores = 0
     // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaustAllByLevel level "lastBattleDestroyed"）
     state.lastBattleDestroyedLevel = 0
@@ -2411,7 +2411,7 @@ function resolveBattle(state: GameState): void {
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
         // 破壊直前の実効BP（TargetFilter.sameBpAsBattleLoser。BS03熾烈極める最前線Lv2）
         state.lastBattleDestroyedBp = blockerBp
-        // 破壊直前のコスト（action:"millPerLoserCost"。BS06名誉ある御前試合）
+        // 破壊直前のコスト（mill の countCounter:"lastBattleDestroyedCost" が読む。BS06名誉ある御前試合）
         state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
     } else if (outcome === "blockerWins") {
         // 破壊直前のアタッカーのコア数も同様に記録する（BS10ヘッジボルグ：role制限なしでattacker/blocker両方から発火する）

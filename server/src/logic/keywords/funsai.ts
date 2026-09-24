@@ -34,7 +34,7 @@ export function funsaiBonusTotal(state: GameState, ownerPid: PlayerId): number {
     return total
 }
 
-// 持ち主フィールドの millCapBonus（BS06マキシマムブレイク）合計：millPer.cap の上限値に加算する。
+// 持ち主フィールドの millCapBonus（BS06マキシマムブレイク）合計：mill.countMax の上限値に加算する。
 // funsaiBonusTotal と同じ考え方（effectSources経由でlendSelfThisTurnによる貸与にも対応）
 export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
     let total = 0

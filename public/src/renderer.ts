@@ -210,6 +210,8 @@ export function magicTargetSide(
     // **対象を先取りしない**。ここは片側しか選ばせられず、選べるはずの側が選べなくなるため、
     // サーバー側の pendingChoice へ委ねる（対象選択はサーバーへ一本化する方針。2026-08-21 利用者確定）
     if ((effect.action as { anySide?: true }).anySide) return null
+    // 体数を数え上げで決める効果（countCounter）も1体だけ先取りできないので、サーバーの自動選択に委ねる
+    if ((effect.action as { countCounter?: unknown }).countCounter !== undefined) return null
     if (
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
@@ -221,7 +223,6 @@ export function magicTargetSide(
     }
     if (
         effect.action.type === "bpBuff" ||
-        effect.action.type === "bpBuffPer" ||
         effect.action.type === "coreCharge" ||
         effect.action.type === "grantKeyword" ||
         effect.action.type === "refireSummonEffect" ||

@@ -101,17 +101,6 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         return
 }
 
-const drawPerHandler: ActionHandler<"drawPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count === 0) {
-            log(state, `${sourceName}の可変ドロー：カウントが0のためドローしなかった。`)
-            return
-        }
-        draw(state, owner, count * drawDoubleMultiplier(state, owner))
-        return
-}
-
 const drawUpToHandler: ActionHandler<"drawUpTo"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
         // フォースドロー：自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op）
@@ -937,7 +926,6 @@ const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ct
 const handlers = {
     drawPerChosenFamily: drawPerChosenFamilyHandler,
     draw: drawHandler,
-    drawPer: drawPerHandler,
     drawUpTo: drawUpToHandler,
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,

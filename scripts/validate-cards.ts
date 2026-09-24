@@ -117,14 +117,12 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 // （TURN_EFFECT_SOURCES.md §4.1）
 const SELF_REFERENCING_ACTIONS = new Set([
     "selfBuff",
-    "selfBuffPer",
     "refreshSelf",
     "destroySelf",
     "returnSelfToHand",
     "coreRemoveSelf",
     "coreToTrashSelf",
     "voidCoreToSelf",
-    "voidCoreToSelfPer",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
     "markNoRefreshTarget",

@@ -2889,11 +2889,11 @@
      3
     ],
     "action": {
-     "type": "millPer",
-     "counter": {
+     "type": "mill",
+     "count": 3,
+     "countCounter": {
       "ownKeyword": "funsai"
-     },
-     "multiplier": 3
+     }
     },
     "optional": false
    },

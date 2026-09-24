@@ -154,27 +154,6 @@ const symbolOverrideThisBattleHandler: ActionHandler<"symbolOverrideThisBattle">
     )
 }
 
-const selfBuffPer: ActionHandler<"selfBuffPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // このスピリット自身を「カウント値×amountPer」だけBP+
-        if (!self) {
-            log(state, `${sourceName}：バフ対象がいなかった。`)
-            return
-        }
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count === 0) {
-            log(state, `${sourceName}：カウントが0のため増加しなかった。`)
-            return
-        }
-        const amount = count * action.amountPer
-        self.tempBpBuff += amount
-        log(
-            state,
-            `${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-        )
-        return
-}
-
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // costReturnSelfToHand（BS14-X03風の覇王ドルクス・ウシワカ）：このスピリット自身を手札に戻すことがコスト。
@@ -502,103 +481,6 @@ const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action
         return
 }
 
-// BS08ダークパワー：カウント値×amountPerを、filter一致の自分のスピリットすべてにBP+
-// （bpBuffPerの単体対象を「全体」に広げた版）
-const bpBuffAllPer: ActionHandler<"bpBuffAllPer"> = (ctx, action) => {
-    const { state, owner, self, sourceName, srcType } = ctx
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count === 0) {
-            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
-            return
-        }
-        const filter = normalizeFilter(ctx, action)
-        if (filter === SELF_REQUIRED) {
-            log(state, `${sourceName}のBP増加：BP参照元がいなかった。`)
-            return
-        }
-        const spirits = state.players[owner].field.spirits.filter((s) =>
-            matchesTarget(state, owner, s, filter, self?.instanceId),
-        )
-        if (spirits.length === 0) {
-            log(state, `${sourceName}のBP増加：対象条件を満たすスピリットがいなかった。`)
-            return
-        }
-        const amount = count * action.amountPer
-        for (const s of spirits) s.tempBpBuff += amount
-        log(
-            state,
-            `${state.players[owner].name}の対象スピリット${spirits.length}体がBP+${amount}（ターン終了時まで）。`,
-        )
-        return
-}
-
-const bpBuffPer: ActionHandler<"bpBuffPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // targetSymbols（BS06サベージパワー）：**対象スピリット自身**のシンボル数を数えるため、
-        // 対象選択をカウント計算より先に行う（マジックはself=nullでselfSymbolsが使えない）
-        // targetSameFamilyOwn（SD02-015 フレンドリーパワー）：**対象スピリットと系統を共有する自分のスピリット数**。
-        // targetSymbols と同じく、カウントが対象に依存するので対象選択を先に行う（マジックは self=null）
-        if (action.counter === "targetSameFamilyOwn") {
-            const target = pickBpBuffTarget(state, owner, targetInstanceId)
-            if (!target) {
-                log(state, `${sourceName}のBP増加：対象がいなかった。`)
-                return
-            }
-            // 系統は付与も考慮する（spiritHasFamily）。対象自身も数える
-            const families = instFamilies(target)
-            const count = state.players[owner].field.spirits.filter((s) =>
-                families.some((f) => spiritHasFamily(state, owner, s, f)),
-            ).length
-            if (count === 0) {
-                log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
-                return
-            }
-            const amount = count * action.amountPer
-            target.tempBpBuff += amount
-            log(state, `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`)
-            applyMagicBuffBonus(state, target, srcType, srcColors)
-            return
-        }
-        if (action.counter === "targetSymbols") {
-            const target = pickBpBuffTarget(state, owner, targetInstanceId)
-            if (!target) {
-                log(state, `${sourceName}のBP増加：対象がいなかった。`)
-                return
-            }
-            const count = instanceSymbolCount(target)
-            if (count === 0) {
-                log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
-                return
-            }
-            const amount = count * action.amountPer
-            target.tempBpBuff += amount
-            log(
-                state,
-                `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-            )
-            applyMagicBuffBonus(state, target, srcType, srcColors)
-            return
-        }
-        const count = countEffectCounter(state, owner, self, action.counter, srcType)
-        if (count === 0) {
-            log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
-            return
-        }
-        const target = pickBpBuffTarget(state, owner, targetInstanceId, undefined, action.keywordFilter)
-        if (!target) {
-            log(state, `${sourceName}のBP増加：対象がいなかった。`)
-            return
-        }
-        const amount = count * action.amountPer
-        target.tempBpBuff += amount
-        log(
-            state,
-            `${getCard(target.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-        )
-        applyMagicBuffBonus(state, target, srcType, srcColors)
-        return
-}
-
 const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // ユナイテッドパワー：回復状態の自分スピリット1体を疲労させ、その実効BP分だけ
@@ -812,12 +694,9 @@ const handlers = {
     selfBuff,
     colorlessSelfThisBattle,
     symbolOverrideThisBattle: symbolOverrideThisBattleHandler,
-    selfBuffPer,
     bpBuff,
     bpBuffAll,
     bpBuffAllByBofuCount,
-    bpBuffAllPer,
-    bpBuffPer,
     bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,
     familyChoiceThenBpBuffAll: familyChoiceThenBpBuffAllHandler,

@@ -6,7 +6,7 @@
 //   reviveOnDestroy.cost.ownLifeOneToVoid／summonFromHandFree.keywordFilter+skipTensho／
 //   destroyAll.drawPerDestroyed／grantEffectToTargetThisTurn＋lifeCrush.countCounter／
 //   destroyDownToOwnCount＋magic condition"ownSpiritCountAtLeast"／revealAndSummonAllByFamily／
-//   destroyPer（EffectCounter { ownFamily }）
+//   destroy の countCounter（EffectCounter { ownFamily }）
 import {
     act,
     assert,
@@ -526,13 +526,13 @@ console.log("=== BS08魔帝龍騎ダーク・クリムゾン：revealAndSummonAl
     assert(trashedNonMatch === count - 1, "対照実験：系統不一致のカードはすべてトラッシュへ破棄される")
 }
 
-console.log("=== BS08魔帝龍騎ダーク・クリムゾン：destroyPer（EffectCounter { ownFamily }） ===")
+console.log("=== BS08魔帝龍騎ダーク・クリムゾン：destroy の countCounter（EffectCounter { ownFamily }） ===")
 {
-    const crimson = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyPer")
-    const entry = entryOf(crimson, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyPer")
+    const crimson = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" && typeof (e["action"] as Record<string, unknown> | undefined)?.["countCounter"] === "object")
+    const entry = entryOf(crimson, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" && typeof (e["action"] as Record<string, unknown> | undefined)?.["countCounter"] === "object")
     const level = (entry["levels"] as number[])[0]!
     const destroyAction = entry["action"] as Record<string, unknown>
-    const family = String((destroyAction["counter"] as Record<string, unknown>)["ownFamily"])
+    const family = String((destroyAction["countCounter"] as Record<string, unknown>)["ownFamily"])
     const maxBp = ((destroyAction["filter"] as Record<string, unknown>)["maxBp"]) as number
     const extraFamilyMember = CARDS.find((c) => c.type === "spirit" && c.cardId !== crimson.cardId && (c.family ?? []).includes(family))!
     const lowBp1 = CARDS.find((c) => c.type === "spirit" && bpAt(c, 1) <= maxBp)!
