@@ -1855,11 +1855,21 @@
      2
     ],
     "action": {
-     "type": "grantEffectToAllByKeywordThisTurn",
-     "keyword": "bofu",
-     "trigger": "onBattleLose",
-     "action": {
-      "type": "returnBofuExhaustedToHand"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "grantTrigger",
+       "trigger": "onBattleLose",
+       "action": {
+        "type": "returnBofuExhaustedToHand"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "all": true,
+     "filter": {
+      "keyword": "bofu"
      }
     }
    }

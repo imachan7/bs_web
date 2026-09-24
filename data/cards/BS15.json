@@ -5117,12 +5117,20 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantEffectToTargetThisTurn",
-     "trigger": "onLifeDealt",
-     "action": {
-      "type": "voidCoreToReserve",
-      "count": 1
-     }
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "grantTrigger",
+       "trigger": "onLifeDealt",
+       "action": {
+        "type": "voidCoreToReserve",
+        "count": 1
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
     }
    }
   ]

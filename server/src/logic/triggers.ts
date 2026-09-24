@@ -32,6 +32,7 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
     TargetFilter,
+    TimedContent,
     TriggerEvent,
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
@@ -512,7 +513,15 @@ export function fireTrigger(
     // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
     // 加えて、action:"grantEffectToTargetThisTurn" でこの個体1体に直接付与された、このターン限りの
     // 誘発効果（tempGrantedTriggers）も同様に合成する（BS08メテオストーム）
-    const tempGranted = (selfInstance.tempGrantedTriggers ?? [])
+    // timedEffect の grantTrigger：1体は個体の tempGrantedTriggers、「すべて」は timedRule（後から出たスピリットにも付く）
+    const ruleGranted = state.turnConstraints.flatMap((c) =>
+        c.type === "timedRule" &&
+        (c.pid === undefined || c.pid === owner) &&
+        matchesTarget(state, owner, selfInstance, c.filter, c.selfInstanceId)
+            ? c.content.filter((x): x is Extract<TimedContent, { type: "grantTrigger" }> => x.type === "grantTrigger")
+            : [],
+    )
+    const tempGranted = [...(selfInstance.tempGrantedTriggers ?? []), ...ruleGranted]
         .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
         .map((g) => g.action)
     const grantedActions = [

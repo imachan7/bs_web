@@ -1,6 +1,6 @@
 // smoke パート315（BS14 緑バッチ20枚：BS14-023〜033/069/079〜081/099〜102/X03）
 // 新設した器: kind:"burst" の granted.condition.targetMaxBp（effectGrant onBattleEnd用）／
-// action:"grantEffectToAllByKeywordThisTurn"／action:"returnBofuExhaustedToHand"（bofuSourceInstanceId限定）／
+// timedEffect の grantTrigger（all）／action:"returnBofuExhaustedToHand"（bofuSourceInstanceId限定）／
 // action:"revealTopSummonFreeOrReturnToDeck"／action:"sequence"／action:"bpBuff.costReturnSelfToHand"／
 // action:"grantCanBlockWhileRestedThisTurn.singleTarget"／action:"summonBurstCardFreeIfCoresAtLeast"／
 // AuraCounter "opponentSpirits"／step.condition.ownTrashOnlyColor

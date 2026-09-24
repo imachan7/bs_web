@@ -1428,6 +1428,7 @@ export type TimedContent =
     | { type: "cantAttack" }
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
+    | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker" } // 誘発効果を与える（期間は turn のみ。1体は自分のスピリットから選ぶ）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }

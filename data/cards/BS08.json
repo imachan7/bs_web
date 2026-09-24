@@ -4547,16 +4547,24 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantEffectToTargetThisTurn",
-     "trigger": "onBattleWin",
-     "battleRole": "attacker",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "grantTrigger",
+       "trigger": "onBattleWin",
+       "action": {
+        "type": "lifeCrush",
+        "count": 1,
+        "countCounter": "selfSymbols"
+       },
+       "battleRole": "attacker"
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1,
      "filter": {
       "nameContains": "ヴルム"
-     },
-     "action": {
-      "type": "lifeCrush",
-      "count": 1,
-      "countCounter": "selfSymbols"
      }
     }
    }
