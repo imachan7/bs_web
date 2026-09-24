@@ -1,18 +1,19 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { AuraCounter, CardInstance, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { COLOR_LABELS } from "../../../../data/constants"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 置き場はいまの印のまま。「このバトルの間アタックできない」を書くカードは無いので置き場も無い
 function flagOf(content: Content, duration: TimedEffect["duration"]) {
-    if (content.type === "bp" || content.type === "keyword" || content.type === "level") return null
+    if (content.type !== "cantAttack" && content.type !== "cantBlock") return null
     if (content.type === "cantBlock") return duration === "turn" ? "cantBlockThisTurn" : "cantBlockThisBattle"
     return duration === "turn" ? "cantAttackThisTurn" : null
 }
@@ -331,8 +332,61 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     log(state, `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${next}として扱う。`)
 }
 
+const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+
+// 1体に色を与える（「〜としても扱う」。個体の tempColors に書く）。色を使う人が選ぶときは、対象を選ぶ→色を選ぶ、の2段階で、
+// 選ばれた対象は次の選択の self として持ち回る（選択の再開は targetInstanceId を渡さず chosenOption だけを渡すため）
+function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, self, sourceName, targetInstanceId, chosenOption } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "color" }> => c.type === "color")
+    if (!content) return
+    const give = (target: CardInstance, color: Color) => {
+        if (!target.tempColors.includes(color)) target.tempColors.push(color)
+        log(state, `${getCard(target.cardId).name}に色「${COLOR_LABELS[color]}」が与えられた（ターン終了時まで）。`)
+    }
+    if (content.color !== undefined) {
+        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        give(target, content.color)
+        return
+    }
+    const askColor = (target: CardInstance) =>
+        requestChoice(state, owner, "与える色を選んでください", [], false, action, target, "option", ALL_COLORS.map((c) => COLOR_LABELS[c]))
+    if (chosenOption !== undefined) {
+        const color = ALL_COLORS.find((c) => COLOR_LABELS[c] === chosenOption)
+        if (self && color) give(self, color)
+        return
+    }
+    if (action.target === "self") {
+        if (!self) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        askColor(self)
+        return
+    }
+    if (targetInstanceId === undefined) {
+        const candidates = (action.side === "both" ? [...state.players.p1.field.spirits, ...state.players.p2.field.spirits] : state.players[action.side === "own" ? owner : opp].field.spirits).map((s) => s.instanceId)
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        requestChoice(state, owner, "色を与える対象のスピリットを選んでください", candidates, false, action, self)
+        return
+    }
+    const target = findSpiritAny(state, targetInstanceId)?.inst
+    if (target) askColor(target)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "color")) {
+        placeColor(ctx, action)
+        return
+    }
     if (!action.all && action.content.some((c) => c.type === "level")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return

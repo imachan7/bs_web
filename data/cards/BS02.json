@@ -5764,7 +5764,14 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantColorChoice"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "color"
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
     }
    }
   ]

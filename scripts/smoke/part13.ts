@@ -204,7 +204,7 @@ console.log("=== BS02-104 アディショナルカラー：対象選択→色選
     const enemy = createInstance("BS01-002", s.turn, 1) // ロクケラトプス Lv1（赤）
     s.players.p2.field.spirits.push(enemy)
 
-    resolveAction(s, "p1", null, { type: "grantColorChoice" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "color" }], duration: "turn", side: "both" }, undefined, undefined, "magic")
 
     assert(s.pendingChoice !== null, "第1段階：対象選択のpendingChoiceが立つ")
     assert(s.pendingChoice?.kind === "target", "第1段階はkind:target")
