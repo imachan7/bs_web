@@ -6,7 +6,7 @@
 //   - server/src/logic/EffectModules.ts: activeConstraintsへのconstraintGrant合成、
 //     refreshLevelAsOverridesでのcoresLinkedTo同期、resolveActionのlinkNexusCoresChoiceハンドラ
 //   - server/src/logic/GameEngine.ts: checkExhaustOnManualCoreAdd（doMoveCore/doAwaken後のフック）
-//   - server/src/logic/PhaseManager.ts: endTurnでcoresLinkedTo/coresOverrideをリセット
+//   - server/src/logic/PhaseManager.ts: 持ち主のスタートステップでcoresLinkedTo/coresOverrideをリセット
 //   - data/cards.json: BS02-028 クロスシザース・BS02-078 夢魔の寝所・BS02-063 冥犬ケルル・ベロス
 import {
     act,
@@ -52,10 +52,15 @@ console.log("=== BS02-028 クロスシザース：スタートステップでネ
     assert(currentLevel(antNest).level === 2, "ネクサスはクロスシザースのコア数(3)基準でLv2として扱われる")
     assert(sageTree.coresLinkedTo === undefined, "選ばなかったネクサスはリンクされない")
 
-    endTurn(s) // p1 → p2（ターン終了でリンク解除）
-    assert(antNest.coresLinkedTo === undefined, "ターン終了でリンクが解除される")
-    assert(antNest.coresOverride === undefined, "ターン終了でoverrideも解除される")
-    assert(currentLevel(antNest).level === 1, "リンク解除後は実コア数(0)基準のLv1に戻る")
+    // 指定は次の自分のスタートステップまで続く（2026-09-25 ユーザー確認）
+    endTurn(s) // p1 → p2
+    assert(antNest.coresLinkedTo === shears.instanceId, "相手のターンでもリンクは続く")
+    assert(currentLevel(antNest).level === 2, "相手のターンでもLv2として扱われる")
+    endTurn(s) // p2 → p1：自分のスタートステップで一度外れ、指定し直しの選択が立つ
+    assert(antNest.coresLinkedTo === undefined && antNest.coresOverride === undefined, "次の自分のスタートステップでリンクが外れる")
+    assert(s.pendingChoice?.kind === "target", "指定し直しの選択が立つ")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "指定し直さない")
+    assert(currentLevel(antNest).level === 1, "指定し直さなければ実コア数(0)基準のLv1に戻る")
 }
 
 console.log("--- スキップも可能 ---")

@@ -74,6 +74,11 @@ function turnStartSegments(state: GameState): (() => void)[] {
         () => {
             state.phase = "start"
             log(state, `―――― ターン${state.turn}：${player.name}のターン ――――`)
+            // クロスシザースのコア数リンクは次の自分のスタートステップまで続く（2026-09-25 ユーザー確認）。指定し直す前に外す
+            for (const nexus of player.field.nexuses) {
+                delete nexus.coresLinkedTo
+                delete nexus.coresOverride
+            }
             fireStepTriggers(state, "start")
         },
         // コアステップ①：コアを置くより前に発火する効果（「コアを置かないことで〜する」）。
@@ -439,13 +444,6 @@ export function endTurn(state: GameState): void {
             ...state.players[pid].field.nexuses,
         ]) {
             delete inst.levelOverrideThisTurn
-        }
-    }
-    // ネクサスのコア数リンク（クロスシザース）もこのターンだけの簡略化のためリセットする
-    for (const pid of ["p1", "p2"] as const) {
-        for (const nexus of state.players[pid].field.nexuses) {
-            delete nexus.coresLinkedTo
-            delete nexus.coresOverride
         }
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット
