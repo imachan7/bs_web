@@ -2292,7 +2292,7 @@
        }
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     }
    }
@@ -2454,7 +2454,7 @@
        "amountCounter": "selfCores"
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     }
    }
@@ -2719,7 +2719,8 @@
      "type": "bpBuff",
      "amount": 0,
      "costExhaustFamily": "遊精",
-     "amountFromExhaustedCost": true
+     "amountFromExhaustedCost": true,
+     "scope": "battle"
     }
    },
    {
@@ -3769,7 +3770,7 @@
        }
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     }
    }
@@ -3994,7 +3995,7 @@
        "amountCounter": "battlingOpponentSymbols"
       }
      ],
-     "duration": "turn",
+     "duration": "battle",
      "target": "self"
     }
    }
@@ -6258,7 +6259,8 @@
      "type": "bpBuff",
      "amount": 6000,
      "costMillSelfCount": 6,
-     "thenRefreshIfMilledFamily": "光導"
+     "thenRefreshIfMilledFamily": "光導",
+     "scope": "battle"
     }
    }
   ],

@@ -17,8 +17,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
-    takeLifeAndResolve,
-} from "./helpers"
+    takeLifeAndResolve, bpBuffOf } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -180,8 +179,8 @@ console.log("=== BS07 白：『ブロック時』効果をアタック時に発�
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, `${blockBuffer.name}がアタック`)
     assert(
-        attacker.tempBpBuff === raw + amount,
-        `『ブロック時』のBP+${amount}がアタック時に発揮される（実際+${attacker.tempBpBuff}）`,
+        bpBuffOf(s, attacker) === raw + amount,
+        `『ブロック時』のBP+${amount}がアタック時に発揮される（実際+${bpBuffOf(s, attacker)}）`,
     )
 
     // 対照実験：付与元がなければアタック時には発揮しない
@@ -190,7 +189,7 @@ console.log("=== BS07 白：『ブロック時』効果をアタック時に発�
     put(s2, "p2", FILLER.cardId, 1)
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "アタック")
-    assert(attacker2.tempBpBuff === 0, "対照実験：付与元がなければアタック時には発揮しない")
+    assert(bpBuffOf(s2, attacker2) === 0, "対照実験：付与元がなければアタック時には発揮しない")
 }
 
 console.log("=== BS07 白：指定した1体の『ブロック時』効果をアタック時に移す（マクラーンスラッシュ） ===")
@@ -224,7 +223,7 @@ console.log("=== BS07 白：指定した1体の『ブロック時』効果をア
     assert(attacker.blockTriggersAsAttackThisTurn === true, "指定した1体に印が付く")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
-    assert(attacker.tempBpBuff === amount, `『ブロック時』のBP+${amount}がアタック時に発揮される`)
+    assert(bpBuffOf(s, attacker) === amount, `『ブロック時』のBP+${amount}がアタック時に発揮される`)
 }
 
 console.log("=== BS07 白：BP4000以下の相手からブロックされない（鋼翼魚オルカノン） ===")

@@ -15,8 +15,7 @@ import {
     createInstance,
     effectiveBp,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, bpBuffOf } from "./helpers"
 import { fireTrigger, resolveMagic } from "../../server/src/logic/EffectModules"
 
 console.log("=== 汎用 destroyAllNexusesWithCores：コアが1個以上の両陣営ネクサスをすべて破壊 ===")
@@ -152,7 +151,7 @@ console.log("=== triggered condition targetSameLevelAsSelf：BS03-008 剣竜ス�
     s.players.p1.field.spirits.push(stego)
     s.players.p2.field.spirits.push(blocker)
     fireTrigger(s, "p1", stego, "onBlocked", undefined, blocker.instanceId)
-    assert(stego.tempBpBuff === 3000, "同じLvのスピリットにブロックされたときはBP+3000する")
+    assert(bpBuffOf(s, stego) === 3000, "同じLvのスピリットにブロックされたときはBP+3000する")
 }
 {
     const s = createGame(

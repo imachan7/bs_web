@@ -176,7 +176,7 @@ console.log("=== BS03-X10 凍獣マン・モール：effectGrant colorFilter=whi
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: whiteAlly.instanceId }) === null, "白のスピリットでブロック")
-    assert(whiteAlly.tempBpBuff === 2000, "白のスピリットはブロック時+2000される")
+    assert(bpBuffOf(s, whiteAlly) === 2000, "白のスピリットはブロック時+2000される")
 }
 
 console.log("--- BS03-X10：白以外のスピリットは付与されない ---")

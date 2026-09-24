@@ -12,7 +12,7 @@
 // 新設した器: GameState.lastFunsai（直前の【粉砕】で破棄した内容。アタック宣言のたびにクリア）。
 // resolveFunsai内で記録するが、onAttackの誘発（fireTrigger）より前に解決する必要がある
 // （doAttack内の呼び出し順を修正済み。逆順だとlastFunsaiが常に空になる）。
-import { act, assert, createGame, createInstance, declareBlock, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, runTurnStart, bpBuffOf } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -48,7 +48,7 @@ console.log("=== BS04-063 二刀流のアムブローズ Lv2：【粉砕】で�
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アムブローズでアタック宣言")
     assert(s.lastFunsai?.total === 2, "2枚破棄したことが記録される")
     assert(s.lastFunsai?.spirits === 1, "うちスピリットカードは1枚")
-    assert(attacker.tempBpBuff === 1000, "スピリットカード1枚につきBP+1000（マジックは数えない）")
+    assert(bpBuffOf(s, attacker) === 1000, "スピリットカード1枚につきBP+1000（マジックは数えない）")
 }
 
 console.log("--- Lv3：破棄3枚中スピリット2枚（他系統が混ざっていても正しく数えられる） ---")
@@ -61,7 +61,7 @@ console.log("--- Lv3：破棄3枚中スピリット2枚（他系統が混ざっ�
 
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アムブローズでアタック宣言")
     assert(s.lastFunsai?.spirits === 2, "スピリットカード2枚とカウントされる")
-    assert(attacker.tempBpBuff === 2000, "BP+2000（ネクサス1枚は数えない）")
+    assert(bpBuffOf(s, attacker) === 2000, "BP+2000（ネクサス1枚は数えない）")
 }
 
 console.log("=== BS04-075 伝説巨人ジュード Lv2：【粉砕】でネクサスカードを破棄していたらバトル終了時に回復 ===")

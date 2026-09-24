@@ -4,7 +4,7 @@
 // 拡張C: returnAllToHand{side,costFilter} — BS04-102 ドリームハンド（両陣営コスト1以下を手札へ）
 // 拡張D: refreshByFamily{familyFilter(OR),count} — BS04-103 ハイエーテル（巨獣/甲獣を3体回復）
 // 拡張E: trashCoresToKeywordSpirit{keyword} — BS04-089 グレートリンク（トラッシュのコアを覚醒スピリットへ）
-import { assert, act, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { assert, act, createGame, createInstance, resolveAction, runTurnStart, bpBuffOf } from "./helpers"
 
 console.log("=== 拡張A: BS04-001 クナノミ（覚醒持ちがいればアタック時BP+2000／いなければ発動しない） ===")
 {
@@ -16,7 +16,7 @@ console.log("=== 拡張A: BS04-001 クナノミ（覚醒持ちがいればアタ
     s.players.p1.field.spirits.push(awakenAlly)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: clanomi.instanceId }) === null, "クナノミでアタック")
-    assert(clanomi.tempBpBuff === 2000, "覚醒持ちが自陣にいるためBP+2000が発動")
+    assert(bpBuffOf(s, clanomi) === 2000, "覚醒持ちが自陣にいるためBP+2000が発動")
 }
 {
     const s = createGame("bs04-001-ng", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "green" })

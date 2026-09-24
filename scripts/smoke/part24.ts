@@ -28,7 +28,7 @@ console.log("=== BS03-074 戦闘獣ドーベン：アタック時に自身がBP+
     s.players.p1.field.spirits.push(doben)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: doben.instanceId }) === null, "ドーベンでアタック")
-    assert(doben.tempBpBuff === 1000, "アタック時に自身がBP+1000される")
+    assert(bpBuffOf(s, doben) === 1000, "アタック時に自身がBP+1000される")
 }
 
 console.log("=== BS03-077 強襲兵のノーマン：破壊時に手札の青ネクサスを無償配置 ===")

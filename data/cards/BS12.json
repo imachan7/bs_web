@@ -200,7 +200,7 @@
               "amountCounter": "ownBraveSpirits"
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         }
       },
@@ -406,7 +406,7 @@
               "amount": 10000
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         }
       }
@@ -580,7 +580,7 @@
               }
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         }
       }
@@ -2390,7 +2390,7 @@
               "amountCounter": "battlingOpponentCombinedSymbols"
             }
           ],
-          "duration": "turn",
+          "duration": "battle",
           "target": "self"
         }
       }

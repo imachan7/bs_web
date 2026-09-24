@@ -12,8 +12,7 @@ import {
     destroySpirit,
     getCard,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, bpBuffOf } from "./helpers"
 import { fireTrigger } from "../../server/src/logic/EffectModules"
 import { validateSummon } from "../../server/src/logic/RuleValidator"
 
@@ -70,7 +69,7 @@ console.log("=== BS03-088 城壊しのデニス：アタック時、手札のネ
     s.players.p1.hand.push("BS01-098") // ネクサスカード
     const handBefore = s.players.p1.hand.length
     fireTrigger(s, "p1", dennis, "onAttack")
-    assert(dennis.tempBpBuff === 5000, "手札のネクサスを破棄してBP+5000（ターン終了時まで）")
+    assert(bpBuffOf(s, dennis) === 5000, "手札のネクサスを破棄してBP+5000（ターン終了時まで）")
     assert(s.players.p1.hand.length === handBefore - 1, "手札のネクサスが1枚減る")
     assert(s.players.p1.trashCards.includes("BS01-098"), "破棄したネクサスはトラッシュへ")
 
@@ -100,7 +99,7 @@ console.log("=== BS03-092 島持ちのフランシス：ブロック時、手札
     s.players.p1.field.spirits.push(francis)
     s.players.p1.hand.push("BS01-098")
     fireTrigger(s, "p1", francis, "onBlock")
-    assert(francis.tempBpBuff === 5000, "手札のネクサスを破棄してBP+5000（ターン終了時まで）")
+    assert(bpBuffOf(s, francis) === 5000, "手札のネクサスを破棄してBP+5000（ターン終了時まで）")
     assert(s.players.p1.trashCards.includes("BS01-098"), "破棄したネクサスはトラッシュへ")
 }
 

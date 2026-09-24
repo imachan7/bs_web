@@ -15,8 +15,7 @@ import {
     effectiveCost,
     engineRunTurnStart,
     getCard,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, bpBuffOf } from "./helpers"
 import { destroyNexus, resolveMagic } from "../../server/src/logic/EffectModules"
 
 console.log("=== BS03-021 魔界伯爵ヴィールLv3：ブロッカー破壊で同Lvの両陣営スピリットが疲労 ===")
@@ -126,7 +125,7 @@ console.log("=== BS03-050 キノコノコLv2：アタック中のマジック使
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: kinoko.instanceId }) === null, "キノコノコでアタック（未ブロック）")
     resolveMagic(s, "p1", "BS01-126", "flash") // シャドウエリクサー（lifeCharge。BPには無関係）
-    assert(kinoko.tempBpBuff === 1000, "アタック中のマジック使用でBP+1000")
+    assert(bpBuffOf(s, kinoko) === 1000, "アタック中のマジック使用でBP+1000")
 }
 {
     const s = createGame(
