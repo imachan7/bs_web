@@ -39,6 +39,13 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
+### M8 ③ 「すべてをBP+」（ブランチ `feat/timed-bp`。2026-09-24 確定スキーマ）
+
+`timedEffect` の内容に `{ type: "bp"; amount: number; amountCounter?: EffectCounter }`（いまは `all: true` のときだけ）。`timedRule` に `ownerPid` を足し、
+`content` はオブジェクトの配列で持つ。`effectiveBp`（shared/rules.ts）が**計算のたびに**ルールを照合し、量も `countAuraCounter(board, ownerPid, …)` で数え直す
+（ダークパワーの Q&A。2026-09-24 ユーザー確認）。古代闘技場の抑止も計算のたびに見る。BP 軸の `filter` は循環するので BP のルールでは拒否。`AuraCounter` に `ownLife`。
+移すのは `bpBuffAll`（11）。1体指定の `bpBuff`（約147）は次の PR（陣営・自動選択・クライアントの対象の先取りを揃える）。
+
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。
