@@ -1324,6 +1324,18 @@ export function countAuraCounter(
     }
     if (counter === "opponentFieldColors") return opponentFieldColorCount(board, sourcePid)
     if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(board, sourcePid, true)
+    if (counter === "exhaustedEnemies") {
+        const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        return countSpiritsWeighted(board, sourcePid, opp, (s) => s.isRested, countingSourceType)
+    }
+    if (counter === "ownRestedNexuses") return board.players[sourcePid].field.nexuses.filter((n) => n.isRested).length
+    if (counter === "targetSymbols") return targetInst ? instanceSymbolCount(targetInst) : 0
+    // counted.ts の同名軸（対象を選んだ後に数える版）と同じく重み付けしない素の件数（サーバー側の既存実装に合わせる）
+    if (counter === "targetSameFamilyOwn") {
+        if (!targetInst) return 0
+        const families = instFamilies(targetInst)
+        return board.players[sourcePid].field.spirits.filter((s) => families.some((f) => spiritHasFamily(board, sourcePid, s, f))).length
+    }
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(targetInst) : 0
     }
@@ -1652,13 +1664,14 @@ function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): numb
     let total = 0
     for (const c of board.turnConstraints) {
         if (c.type !== "timedRule" || (c.pid !== undefined && c.pid !== ownerPid)) continue
+        // instanceId指定時（timedEffectの1体指定＋可変量）はfilterではなくこの1体だけに効く
+        if (c.instanceId !== undefined ? inst.instanceId !== c.instanceId : !matchesTarget(board, ownerPid, inst, c.filter, c.selfInstanceId)) continue
         for (const x of c.content) {
             if (x.type !== "bp") continue
-            if (!matchesTarget(board, ownerPid, inst, c.filter, c.selfInstanceId)) continue
             const amount =
                 x.amountCounter === undefined
                     ? x.amount
-                    : x.amount * countAuraCounter(board, c.ownerPid, x.amountCounter as AuraCounter)
+                    : x.amount * countAuraCounter(board, c.ownerPid, x.amountCounter as AuraCounter, inst)
             total += amount
         }
     }

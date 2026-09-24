@@ -34,16 +34,32 @@ const cards = loadAllCards() as unknown as {
     effects?: Record<string, unknown>[]
 }[]
 
+// 旧bpBuff／新timedEffect（1体指定＋contentにbp。allは対象外）のどちらでも量とfilterを取り出す
+// （カードデータは単純な旧bpBuffを新timedEffectへ変換済み。旧型はオプション付きの7件だけ残る）
+function bpContentOf(action: Record<string, unknown> | undefined): { amount: unknown; amountCounter: unknown; filter: Record<string, unknown> | undefined } | null {
+    if (!action) return null
+    if (action["type"] === "bpBuff") {
+        return { amount: action["amount"], amountCounter: action["amountCounter"], filter: action["filter"] as Record<string, unknown> | undefined }
+    }
+    if (action["type"] === "timedEffect" && action["all"] !== true) {
+        const content = (action["content"] as Record<string, unknown>[] | undefined)?.find((x) => x["type"] === "bp")
+        if (!content) return null
+        return { amount: content["amount"], amountCounter: content["amountCounter"], filter: action["filter"] as Record<string, unknown> | undefined }
+    }
+    return null
+}
+
 const entries: FlashBpEntry[] = []
 const unexpectedFilters: string[] = []
 for (const c of cards) {
     for (const e of c.effects ?? []) {
         if (e["kind"] !== "magic" || e["timing"] !== "flash") continue
         const action = e["action"] as Record<string, unknown> | undefined
-        if (!action || action["type"] !== "bpBuff") continue
+        const bp = bpContentOf(action)
+        if (!bp) continue
         // 量が数え上げで決まるもの（amountCounter）は固定値 N の検証に合わない。part1・part358 が見る
-        if (action["amountCounter"] !== undefined) continue
-        const filter = action["filter"] as Record<string, unknown> | undefined
+        if (bp.amountCounter !== undefined) continue
+        const filter = bp.filter
         const filterKeys = Object.keys(filter ?? {})
         if (filterKeys.some((k) => k !== "minSymbols" && k !== "nameContains" && k !== "family" && k !== "combined" && k !== "vanilla")) {
             unexpectedFilters.push(`${c.cardId} ${c.name}（${filterKeys.join(",")}）`)
@@ -61,7 +77,7 @@ for (const c of cards) {
             cardId: c.cardId,
             name: c.name,
             eid: String(e["id"] ?? c.cardId),
-            amount: Number(action["amount"] ?? 0),
+            amount: Number(bp.amount ?? 0),
             minSymbols: Number(filter?.["minSymbols"] ?? 1),
             ...(typeof nameContains === "string" ? { nameContains } : {}),
             ...(typeof family === "string" ? { family } : {}),

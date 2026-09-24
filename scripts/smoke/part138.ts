@@ -58,6 +58,14 @@ function kindOf(c: CardRow, kind: string): Record<string, unknown> {
     if (!found) throw new Error(`${c.name} に kind:${kind} のエントリがありません`)
     return found
 }
+// 旧bpBuffの単純形はtimedEffect（content[0].amount）へ変換済み。両方の形からamountを読む
+function bpAmountOf(action: Record<string, unknown>): number {
+    if (action["type"] === "timedEffect") {
+        const content = (action["content"] as Record<string, unknown>[]).find((c) => c["type"] === "bp")
+        return Number(content?.["amount"])
+    }
+    return Number(action["amount"])
+}
 
 function base(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
@@ -132,7 +140,7 @@ console.log("=== BS07 黄：起動能力を「自身を疲労させて」発動�
     const ouka = findByEffect(
         (e) => e["kind"] === "activated" && (e["cost"] as Record<string, unknown> | undefined)?.["exhaustSelf"] === true,
     )
-    const amount = Number((kindOf(ouka, "activated")["action"] as Record<string, unknown>)["amount"])
+    const amount = bpAmountOf(kindOf(ouka, "activated")["action"] as Record<string, unknown>)
     const s = base("activated-exhaust-self")
     const ability = put(s, "p1", ouka.cardId, 1)
     const attacker = put(s, "p1", SEIMEI_L2.cardId, SEIMEI_L2.levels?.[1]?.cores ?? 2)

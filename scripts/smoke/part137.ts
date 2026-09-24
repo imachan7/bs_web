@@ -199,13 +199,19 @@ console.log("=== BS07 青：コスト3以下をブロックしたとき疲労し
 
 console.log("=== BS07 青：疲労状態のネクサス1つにつきBP+2000（ネクサスアタック） ===")
 {
-    const magic = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] === "ownRestedNexuses",
-    )
+    // 旧bpBuffの単純形amountCounter付きはtimedEffectへ変換済み（content[0].amountCounter）。両方の形を見る
+    const hasOwnRestedNexuses = (e: Record<string, unknown>): boolean => {
+        const action = e["action"] as Record<string, unknown> | undefined
+        if (action?.["amountCounter"] === "ownRestedNexuses") return true
+        const content = action?.["content"] as Record<string, unknown>[] | undefined
+        return content?.some((c) => c["amountCounter"] === "ownRestedNexuses") ?? false
+    }
+    const magic = findByEffect(hasOwnRestedNexuses)
+    const magicEffect = (magic.effects ?? []).find(hasOwnRestedNexuses)?.["action"] as Record<string, unknown>
     const amountPer = Number(
-        ((magic.effects ?? []).find(
-            (e) => (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] === "ownRestedNexuses",
-        )?.["action"] as Record<string, unknown>)["amount"],
+        magicEffect["type"] === "timedEffect"
+            ? (magicEffect["content"] as Record<string, unknown>[]).find((c) => c["amountCounter"] === "ownRestedNexuses")?.["amount"]
+            : magicEffect["amount"],
     )
     const kyoshuHolder = findByEffect(
         (e) => e["kind"] === "keyword" && e["keyword"] === "kyoshu" && Array.isArray(e["levels"]) && (e["levels"] as number[]).includes(1),

@@ -4867,9 +4867,15 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuff",
-          "amount": 5000,
-          "anySide": true,
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "turn",
+          "side": "both",
           "filter": {
             "combined": true
           }
@@ -4918,9 +4924,15 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuff",
-          "amount": 2000,
-          "anySide": true
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
         }
       }
     ]
@@ -5041,9 +5053,15 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuff",
-          "amount": 2000,
-          "anySide": true
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
         }
       }
     ]
@@ -5097,9 +5115,15 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuff",
-          "amount": 3000,
-          "anySide": true
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
         }
       }
     ]
@@ -5262,9 +5286,15 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuff",
-          "amount": 5000,
-          "anySide": true
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
         }
       }
     ]
@@ -5303,12 +5333,18 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "bpBuff",
-          "amount": 5000,
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "turn",
+          "side": "both",
           "filter": {
             "vanilla": true
-          },
-          "anySide": true
+          }
         }
       }
     ]

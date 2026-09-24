@@ -5222,11 +5222,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
      "filter": {
       "minSymbols": 2
-     },
-     "amount": 5000
+     }
     }
    }
   ]
@@ -5258,8 +5265,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -5382,8 +5396,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -5416,11 +5437,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
      "filter": {
       "minSymbols": 2
-     },
-     "amount": 5000
+     }
     },
     "mainForbidden": true
    },
@@ -5510,8 +5538,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -5569,11 +5604,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
      "filter": {
       "minSymbols": 2
-     },
-     "amount": 5000
+     }
     }
    }
   ]
@@ -5619,8 +5661,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -5770,11 +5819,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
      "filter": {
       "minSymbols": 2
-     },
-     "amount": 5000
+     }
     }
    }
   ]
@@ -5804,8 +5860,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -5844,8 +5907,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {
@@ -5887,11 +5957,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
      "filter": {
       "minSymbols": 2
-     },
-     "amount": 5000
+     }
     },
     "mainForbidden": true
    },
@@ -5959,8 +6036,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 4000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 4000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -6005,8 +6089,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -6075,8 +6166,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -6158,8 +6256,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -6203,11 +6308,18 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "bpBuff",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
      "filter": {
       "minSymbols": 2
-     },
-     "amount": 5000
+     }
     }
    }
   ]

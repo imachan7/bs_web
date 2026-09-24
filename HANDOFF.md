@@ -39,15 +39,6 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
-### M8 ④ 1体を指定する BP+（ブランチ `feat/timed-bp-target`。2026-09-24 確定スキーマ）
-
-移し方：`bpBuff{amount, anySide?, filter?, amountCounter?, scope?}` → `timedEffect{content:[{type:"bp",amount,amountCounter?}], duration: scope==="battle"?"battle":"turn", side: anySide?"both":"own", filter?}`。
-1枚専用のオプション（cost*・then*・amountFrom*・extraPerCoreToTrash）を持つ10件は旧 `bpBuff` に残す。`selfBuff`（82）は次の PR（数え方ごとに可変か確認が要る）。
-- **量が固定**：個体に書く（`tempBpBuff`／`battleBpBuff`）。**量が可変**（amountCounter）：`timedRule` に `instanceId`（その個体だけに効く）と `until?: "battle"` を足して置き、`effectiveBp` が計算のたびに `countAuraCounter(board, ownerPid, counter, 対象)` で数える（`clearBattle` で battle のものを消す）
-- 対象の決め方は旧 `bpBuff` と同じ：`targetInstanceId` があればそれ／`side:"both"` かつ対話なら候補2体以上で選ばせる／それ以外は旧 `pickBpBuffTarget` の自動選択（バトル中はバトルしている自分のスピリット優先）
-- 残すもの：`lastBpBuffTargetId`・`applyMagicBuffBonus`・古代闘技場は発揮時だけ判定・クライアントのマジック対象の先取り（renderer の magicTargetSide）
-- `AuraCounter` に `exhaustedEnemies`・`targetSymbols`・`ownRestedNexuses`・`targetSameFamilyOwn` を足し、サーバーの数え方と同じ結果を共有層で出す
-
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。

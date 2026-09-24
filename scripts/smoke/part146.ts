@@ -145,8 +145,8 @@ console.log("=== BS08スナイピングブラスト：bpBuffAllByBofuCount（【
 console.log("=== BS08ダークパワー：すべてをBP+（1体につき）+ filter.nameContains配列（「ダーク」/「ブラック」のOR） ===")
 {
     const isDarkPower = (e: Record<string, unknown>) => {
-        const a = e["action"] as { type?: string; content?: { type: string; amountCounter?: unknown }[] } | undefined
-        return a?.type === "timedEffect" && a.content?.some((c) => c.type === "bp" && c.amountCounter !== undefined) === true
+        const a = e["action"] as { type?: string; all?: true; content?: { type: string; amountCounter?: unknown }[] } | undefined
+        return a?.type === "timedEffect" && a.all === true && a.content?.some((c) => c.type === "bp" && c.amountCounter !== undefined) === true
     }
     const darkpower = findByEffect(isDarkPower)
     const entry = entryOf(darkpower, isDarkPower)
