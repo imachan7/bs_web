@@ -12,6 +12,7 @@ const EXPECTED: Record<string, PlayerId> = {
     nexusEffectsDisabledForPid: "p2",
     freeFushiSummonForPid: "p1",
     bounceToDeckTopForPid: "p1",
+    unblockableByLevelThisTurn: "p1",
 }
 
 function collect(): { cardId: string; action: Extract<EffectAction, { type: "timedEffect" }> }[] {
@@ -29,10 +30,11 @@ function collect(): { cardId: string; action: Extract<EffectAction, { type: "tim
     return out
 }
 
-console.log("=== 1. 移したカードデータ10か所が、正しい制約を正しいプレイヤーに積む ===")
+console.log("=== 1. 移したカードデータ11か所が、正しい制約を正しいプレイヤーに積む ===")
 {
     const entries = collect()
-    assert(entries.length === 10, `playerRule は10か所（実際: ${entries.length}）`)
+    // BS10-073 エンジェドール（Lv2の相手からブロックされない）を足して11か所
+    assert(entries.length === 11, `playerRule は11か所（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         const s = createGame("p371", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         s.turnConstraints = []

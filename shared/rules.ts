@@ -1783,6 +1783,7 @@ export function matchesTarget(
     if (filter.unblockableOnly) {
         const hasUnblockable =
             inst.unblockableOnceThisTurn === true ||
+            inst.unblockableThisTurn === true ||
             activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
         if (!hasUnblockable) return false
     }
@@ -1794,6 +1795,7 @@ export function matchesTarget(
         )
         const activelyUnblockable =
             inst.unblockableOnceThisTurn === true ||
+            inst.unblockableThisTurn === true ||
             activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
         if (!declaresUnblockable && !activelyUnblockable) return false
     }

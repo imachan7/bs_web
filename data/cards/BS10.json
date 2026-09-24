@@ -838,10 +838,20 @@
           1
         ],
         "action": {
-          "type": "grantUnblockableByLevelThisTurn",
-          "levels": [
-            2
-          ]
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "unblockableByLevelThisTurn",
+                "levels": [
+                  2
+                ]
+              }
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         },
         "optional": false
       },
@@ -5859,8 +5869,13 @@
           "requirePrevAttackerCombined": true
         },
         "action": {
-          "type": "markUnblockableThisTurn",
-          "minBp": 0,
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "unblockable"
+            }
+          ],
+          "duration": "battle",
           "target": "self"
         },
         "optional": false

@@ -2787,8 +2787,13 @@
      2
     ],
     "action": {
-     "type": "markUnblockableThisTurn",
-     "minBp": 0,
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "unblockable"
+      }
+     ],
+     "duration": "turn",
      "target": "self"
     },
     "optional": false
