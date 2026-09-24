@@ -76,7 +76,7 @@ console.log("=== BS03-121 ダブルハート：シンボル+1でライフダメ�
     runTurnStart(s)
     const attacker = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1（シンボル1つ）
     s.players.p1.field.spirits.push(attacker)
-    resolveAction(s, "p1", null, { type: "addSymbolThisTurn" }, attacker.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolAdd" }], duration: "turn", side: "own" }, attacker.instanceId, undefined, "magic")
     assert(attacker.tempExtraSymbols === 1, "tempExtraSymbolsが1になる")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     const lifeBefore = s.players.p2.life
@@ -95,7 +95,7 @@ console.log("=== BS03-121 ダブルハート：ターン終了でtempExtraSymbol
     runTurnStart(s)
     const attacker = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(attacker)
-    resolveAction(s, "p1", null, { type: "addSymbolThisTurn" }, attacker.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolAdd" }], duration: "turn", side: "own" }, attacker.instanceId, undefined, "magic")
     assert(attacker.tempExtraSymbols === 1, "tempExtraSymbolsが1になる")
     endTurn(s)
     assert((attacker.tempExtraSymbols ?? 0) === 0, "ターン終了でtempExtraSymbolsがリセットされる")

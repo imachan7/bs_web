@@ -22,39 +22,6 @@ import { KEYWORDS, activeConstraints, cantActByTimedRule, effectiveBp, instBaseC
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
-// BS08グロウアップ：自分のスピリット1体のコストを、このターンの間 amount だけ増減する
-// （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget）。
-// **増減であって追加ではない**ので、元のコストは残らない（+3したスピリットは
-// 相手の「コスト3以下を破壊」にもう当たらない）。読み口は instCostDelta → instBaseCost の1本
-const costBuffThisTurnHandler: ActionHandler<"costBuffThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-    if (
-        targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：コストを変えるスピリットを選んでください`,
-            state.players[owner].field.spirits,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
-    if (!target) {
-        log(state, `${sourceName}：対象のスピリットがいなかった。`)
-        return
-    }
-    target.tempCostDelta = (target.tempCostDelta ?? 0) + action.amount
-    log(
-        state,
-        `${getCard(target.cardId).name}は、このターンの間コスト${instBaseCost(target)}になる。（コスト${action.amount >= 0 ? "+" : ""}${action.amount}）`,
-    )
-    return
-}
-
 // BS08メテオストーム：カード名に「ヴルム」と入っている自分のスピリット1体に、このターンの間だけ
 // 誘発効果を直接付与する（CardInstance.tempGrantedTriggers。fireTriggerが静的effectsと合成して読む）
 const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThisTurn"> = (ctx, action) => {
@@ -367,24 +334,6 @@ const blockTriggersAsAttackAllThisTurnHandler: ActionHandler<"blockTriggersAsAtt
         log(
             state,
             `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`,
-        )
-        return
-}
-
-const addSymbolThisTurnHandler: ActionHandler<"addSymbolThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象スピリットのtempExtraSymbolsをこのターンの間+1する（anySide指定で両陣営から選べる。ダブルハート）
-        const picked = pickSingleTarget(ctx, action, `${sourceName}：シンボルを追加するスピリットを選んでください`)
-        if (picked === "pending") return
-        const target = picked
-        if (!target) {
-            log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
-            return
-        }
-        target.tempExtraSymbols = (target.tempExtraSymbols ?? 0) + 1
-        log(
-            state,
-            `${sourceName}：${getCard(target.cardId).name}に、このターンの間シンボル1つを追加した。`,
         )
         return
 }
@@ -996,35 +945,6 @@ const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhen
     log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
 }
 
-// BS12-080バキュームシンボル：色1色を指定し、このターンの間、相手のスピリットすべてはその色の
-// シンボル1つを失う（CardInstance.tempSymbolLoss。使えないターンの制限はRuleValidatorのownTurnForbiddenが見る）
-const grantSymbolLossThisTurnHandler: ActionHandler<"grantSymbolLossThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, chosenOption } = ctx
-    const targets = state.players[opp].field.spirits
-    const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-    const apply = (color: Color): void => {
-        for (const sp of targets) (sp.tempSymbolLoss ??= []).push(color)
-        log(
-            state,
-            `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。このターンの間、${state.players[opp].name}のスピリットすべてはそのシンボル1つを失う。`,
-        )
-    }
-    if (state.interactiveTargets) {
-        if (chosenOption === undefined) {
-            requestChoice(state, owner, "指定する色を選んでください", [], false, action, null, "option", allColors.map((c) => COLOR_LABELS[c]))
-            return
-        }
-        const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
-        if (!colorEntry) return
-        apply(colorEntry[0])
-        return
-    }
-    // 非対話：相手フィールドに最も多い色（同数は定義順の先頭）
-    const counts = allColors.map((c) => [c, targets.filter((sp) => instHasColor(sp, c)).length] as const)
-    const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
-    apply(best[0])
-}
-
 const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
     const { state, owner, sourceCardId, chosenOption } = ctx
         if (chosenOption === undefined) {
@@ -1110,7 +1030,6 @@ const handlers = {
     blockTriggersAsAttackTargetThisTurn: blockTriggersAsAttackTargetThisTurnHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
-    addSymbolThisTurn: addSymbolThisTurnHandler,
     addSymbolPermanent: addSymbolPermanentHandler,
     attackTriggersAsBlockThisTurn: attackTriggersAsBlockThisTurnHandler,
     blockTriggersAsAttackAllThisTurn: blockTriggersAsAttackAllThisTurnHandler,
@@ -1130,10 +1049,8 @@ const handlers = {
     exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
-    grantSymbolLossThisTurn: grantSymbolLossThisTurnHandler,
     grantCanBlockWhileRestedThisTurn: grantCanBlockWhileRestedThisTurnHandler,
     handReductionColorAsThisTurn: handReductionColorAsThisTurnHandler,
-    costBuffThisTurn: costBuffThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

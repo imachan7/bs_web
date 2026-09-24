@@ -3,7 +3,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter, TurnConstraintDef } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
-import { KEYWORDS, countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -462,8 +462,107 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
 }
 
+// 1体のシンボル・コストを変える。対象の決め方は旧 type のまま（symbolAdd＝陣営を問わず実効BP最大、cost＝自分のスピリットから、
+// symbolSet＝filter に合う自分のスピリットでバトル中の個体優先）
+function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+    const { state, owner, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "symbolAdd" | "symbolSet" | "cost" }> =>
+        c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost")
+    if (!content) return
+    if (content.type === "symbolAdd") {
+        let target: CardInstance | undefined
+        if (targetInstanceId !== undefined) target = findSpiritAny(state, targetInstanceId)?.inst
+        else {
+            const candidates =
+                action.side === "both" ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType) : state.players[owner].field.spirits.slice()
+            if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：シンボルを追加するスピリットを選んでください`, candidates, action, null)) return
+            target = candidates.reduce<CardInstance | undefined>(
+                (best, s) => (!best || effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best),
+                undefined,
+            )
+        }
+        if (!target) {
+            log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
+            return
+        }
+        target.tempExtraSymbols = (target.tempExtraSymbols ?? 0) + 1
+        log(state, `${sourceName}：${getCard(target.cardId).name}に、このターンの間シンボル1つを追加した。`)
+        return
+    }
+    if (content.type === "cost") {
+        if (
+            targetInstanceId === undefined &&
+            tryInteractiveTargetChoice(state, owner, self, `${sourceName}：コストを変えるスピリットを選んでください`, state.players[owner].field.spirits, action, null)
+        ) {
+            return
+        }
+        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+        if (!target) {
+            log(state, `${sourceName}：対象のスピリットがいなかった。`)
+            return
+        }
+        target.tempCostDelta = (target.tempCostDelta ?? 0) + content.amount
+        log(state, `${getCard(target.cardId).name}は、このターンの間コスト${instBaseCost(target)}になる。（コスト${content.amount >= 0 ? "+" : ""}${content.amount}）`)
+        return
+    }
+    let target: CardInstance | null = null
+    if (targetInstanceId !== undefined) {
+        const found = findSpiritAny(state, targetInstanceId)
+        if (found && matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) target = found.inst
+    } else target = pickOwnBpTarget(state, owner, filter, self?.instanceId)
+    if (!target) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    target.symbolsOverrideThisBattle = new Array(content.count).fill(content.color)
+    log(state, `${getCard(target.cardId).name}は、このバトルの間シンボルを${COLOR_LABELS[content.color]}${content.count}つとして扱う。`)
+}
+
+// 「このターンの間、〜のスピリットすべては指定した色のシンボル1つを失う」。色を使う人が選ぶときは選んでからルールを置く。
+// 非対話は相手のフィールドに最も多い色（旧 grantSymbolLossThisTurn と同じ）
+function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "symbolLoss" }> => c.type === "symbolLoss")
+    if (!content) return
+    const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
+    let color = content.color
+    if (color === undefined) {
+        if (state.interactiveTargets) {
+            if (chosenOption === undefined) {
+                requestChoice(state, owner, "指定する色を選んでください", [], false, action, null, "option", ALL_COLORS.map((c) => COLOR_LABELS[c]))
+                return
+            }
+            color = ALL_COLORS.find((c) => COLOR_LABELS[c] === chosenOption)
+            if (color === undefined) return
+        } else {
+            const targets = pid === undefined ? [...state.players.p1.field.spirits, ...state.players.p2.field.spirits] : state.players[pid].field.spirits
+            const counts = ALL_COLORS.map((c) => [c, targets.filter((sp) => instHasColor(sp, c)).length] as const)
+            color = counts.reduce((a, b) => (b[1] > a[1] ? b : a))[0]
+        }
+    }
+    state.turnConstraints.push({
+        type: "timedRule",
+        content: [{ type: "symbolLoss", color }],
+        ownerPid: owner,
+        ...(pid !== undefined ? { pid } : {}),
+        filter,
+        ...(self ? { selfInstanceId: self.instanceId } : {}),
+        appliedIds: [],
+    })
+    refreshLevelAsOverrides(state)
+    const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
+    log(state, `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。このターンの間、${who}スピリットすべてはそのシンボル1つを失う。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost" || c.type === "symbolLoss")) {
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) return
+        if (action.all && action.content.some((c) => c.type === "symbolLoss")) placeSymbolLossRule(ctx, action, filter)
+        else placeSymbolOrCost(ctx, action, filter)
+        return
+    }
     if (action.content.some((c) => c.type === "battleLock")) {
         placeBattleLock(ctx, action)
         return

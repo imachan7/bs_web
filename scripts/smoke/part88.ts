@@ -58,7 +58,7 @@ console.log("=== ダブルハート（addSymbolThisTurn）：相手のスピリ�
     put(s, "p1", "BS01-001", 1)
     const theirs = put(s, "p2", "BS01-002", 1)
 
-    resolveAction(s, "p1", null, { type: "addSymbolThisTurn", anySide: true }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolAdd" }], duration: "turn", side: "both" }, undefined, undefined, "magic")
     assert(s.pendingChoice !== null, "選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: theirs.instanceId }) === null, "相手のスピリットを選ぶ")
     assert(theirs.tempExtraSymbols === 1, "相手のスピリットにシンボルが追加される")

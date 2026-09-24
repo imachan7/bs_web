@@ -264,9 +264,16 @@
           "discardHandColor": "red"
         },
         "action": {
-          "type": "symbolOverrideThisBattle",
-          "count": 2,
-          "color": "red",
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "symbolSet",
+              "color": "red",
+              "count": 2
+            }
+          ],
+          "duration": "battle",
+          "side": "own",
           "filter": {
             "family": [
               "覇皇",

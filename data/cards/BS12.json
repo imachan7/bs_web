@@ -5205,8 +5205,14 @@
         "timing": "flash",
         "ownTurnForbidden": true,
         "action": {
-          "type": "grantSymbolLossThisTurn",
-          "side": "opponent"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "symbolLoss"
+            }
+          ],
+          "duration": "turn",
+          "all": true
         }
       }
     ]

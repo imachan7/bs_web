@@ -5182,8 +5182,15 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "costBuffThisTurn",
-     "amount": 3
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "cost",
+       "amount": 3
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    },
    {

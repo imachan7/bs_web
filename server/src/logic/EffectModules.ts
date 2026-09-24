@@ -978,11 +978,23 @@ export function sweepLevelCostDepletion(state: GameState): void {
     }
 }
 
-// 「このターンの間、〜のスピリットすべてを Lv◯として扱う」（timedEffect の all:true）を、まだ書いていない個体
-// （＝ルールを置いた後に場に出たスピリット）に書き込む（2026-09-24 ユーザー確認：Lv も後から出たものに効く）
+// 「このターンの間、〜のスピリットすべてを Lv◯として扱う／シンボルを失う」（timedEffect の all:true）を、まだ書いていない個体
+// （＝ルールを置いた後に場に出たスピリット）に書き込む（2026-09-24 ユーザー確認：「すべて」は後から出たものにも効く）
 function applyTimedLevelRules(state: GameState): void {
     for (const rule of state.turnConstraints) {
         if (rule.type !== "timedRule") continue
+        const loss = rule.content.find((c) => c.type === "symbolLoss")
+        if (loss && loss.type === "symbolLoss" && loss.color !== undefined) {
+            const color = loss.color
+            const applied = (rule.appliedIds ??= [])
+            for (const pid of rule.pid === undefined ? (["p1", "p2"] as PlayerId[]) : [rule.pid]) {
+                for (const inst of state.players[pid].field.spirits) {
+                    if (applied.includes(inst.instanceId) || !matchesTarget(state, pid, inst, rule.filter, rule.selfInstanceId)) continue
+                    ;(inst.tempSymbolLoss ??= []).push(color)
+                    applied.push(inst.instanceId)
+                }
+            }
+        }
         const level = rule.content.find((c) => c.type === "level")
         if (!level || level.type !== "level") continue
         const applied = (rule.appliedIds ??= [])
