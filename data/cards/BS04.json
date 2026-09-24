@@ -6001,8 +6001,15 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "grantKeyword",
-     "keyword": "kobo"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "keyword",
+       "keyword": "kobo"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]

@@ -22,25 +22,6 @@ import { KEYWORDS, activeConstraints, cantActByTimedRule, effectiveBp, instBaseC
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
-const grantKeywordHandler: ActionHandler<"grantKeyword"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // スピリットリンク／インビンシブルシールド：自分のスピリット1体に一時的にキーワードを付与
-        const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
-        if (!target) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        target.tempKeywords.push({
-            keyword: action.keyword,
-            ...(action.colors ? { colors: action.colors } : {}),
-        })
-        log(
-            state,
-            `${getCard(target.cardId).name}に【${KEYWORDS[action.keyword].label}】を付与した。`,
-        )
-        return
-}
-
 // BS08グロウアップ：自分のスピリット1体のコストを、このターンの間 amount だけ増減する
 // （対象選択はgrantKeywordと同型＝pickOwnKeywordTarget）。
 // **増減であって追加ではない**ので、元のコストは残らない（+3したスピリットは
@@ -144,33 +125,6 @@ const grantEffectToAllByKeywordThisTurnHandler: ActionHandler<"grantEffectToAllB
             ]
         }
         log(state, `${sourceName}：このターンの間、【${KEYWORDS[action.keyword].label}】を持つ自分のスピリットすべてに効果を付与した。`)
-        return
-}
-
-const grantKeywordAllHandler: ActionHandler<"grantKeywordAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // リフレクションアーマー：自分のスピリット全員（costFilter指定時はコスト一致のみ）に
-        // このターンの間キーワードを付与する（grantKeywordの全体版）
-        // vanillaFilter指定時は効果の記述を持たないスピリットのみ（BS05サーキュラーソー・アーム）
-        const targets = state.players[owner].field.spirits.filter(
-            (s) =>
-                (action.costFilter === undefined || instHasCost(s, action.costFilter)) &&
-                (!action.vanillaFilter || instIsVanilla(s)),
-        )
-        if (targets.length === 0) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        for (const t of targets) {
-            t.tempKeywords.push({
-                keyword: action.keyword,
-                ...(action.colors ? { colors: action.colors } : {}),
-            })
-        }
-        log(
-            state,
-            `${state.players[owner].name}の${action.costFilter !== undefined ? `コスト${action.costFilter}の` : ""}${action.vanillaFilter ? "効果の記述を持たない" : ""}スピリットすべてに【${KEYWORDS[action.keyword].label}】を付与した。（${targets.length}体）`,
-        )
         return
 }
 
@@ -1416,10 +1370,8 @@ const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsS
 
 const handlers = {
     treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
-    grantKeyword: grantKeywordHandler,
     grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
     grantEffectToAllByKeywordThisTurn: grantEffectToAllByKeywordThisTurnHandler,
-    grantKeywordAll: grantKeywordAllHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantColorChoice: grantColorChoiceHandler,
     grantColorThisTurn: grantColorThisTurnHandler,

@@ -5774,17 +5774,18 @@
    },
    {
     "id": "BS03-105-e2",
-    "kind": "step",
-    "step": "attack",
-    "turn": "own",
+    "kind": "keywordGrant",
     "levels": [
      2
     ],
-    "action": {
-     "type": "grantKeywordAll",
-     "keyword": "jugeki",
-     "costFilter": 2
-    }
+    "keyword": "jugeki",
+    "target": "ownAll",
+    "costFilter": {
+     "min": 2,
+     "max": 2
+    },
+    "phase": "attack",
+    "turn": "own"
    }
   ]
  },

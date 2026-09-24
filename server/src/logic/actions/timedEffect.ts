@@ -2,8 +2,8 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { getCard, log } from "../GameState"
-import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
-import { countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
+import { KEYWORDS, countAuraCounter, effectiveBp, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 
@@ -12,7 +12,7 @@ type Content = TimedEffect["content"][number]
 
 // 置き場はいまの印のまま。「このバトルの間アタックできない」を書くカードは無いので置き場も無い
 function flagOf(content: Content, duration: TimedEffect["duration"]) {
-    if (content.type === "bp") return null
+    if (content.type === "bp" || content.type === "keyword") return null
     if (content.type === "cantBlock") return duration === "turn" ? "cantBlockThisTurn" : "cantBlockThisBattle"
     return duration === "turn" ? "cantAttackThisTurn" : null
 }
@@ -240,8 +240,30 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
     log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
 }
 
+// 1体にキーワードを与える。対象の決め方は旧 grantKeyword と同じ（指定が無ければバトル中の自分のスピリット優先）
+function placeKeyword(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "keyword" }> => c.type === "keyword")
+    if (!content) return
+    if (action.duration !== "turn") {
+        log(state, `${sourceName}：「このバトルの間」キーワードを与える効果は未対応のため発揮しなかった。`)
+        return
+    }
+    const target = pickOwnKeywordTarget(state, owner, targetInstanceId)
+    if (!target) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    target.tempKeywords.push({ keyword: content.keyword, ...(content.colors ? { colors: content.colors } : {}) })
+    log(state, `${getCard(target.cardId).name}に【${KEYWORDS[content.keyword].label}】を付与した。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "keyword")) {
+        placeKeyword(ctx, action)
+        return
+    }
     if (action.target === "self") {
         placeSelfBp(ctx, action)
         return

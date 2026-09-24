@@ -158,18 +158,6 @@ console.log("=== ⑥ summonFromHandFree：costFilter と nameIncludes ===")
     assert(s.players.p1.hand.includes("BS05-046"), "無関係のバビーバーは手札に残った")
 }
 
-console.log("=== ⑦ grantKeywordAll vanillaFilter：バニラのみに粉砕を付与 ===")
-{
-    const s = createGame("bs05-082-vanillafilter", { p1: "アキラ", p2: "ユウキ" }, { p1: "blue", p2: "blue" })
-    const vanilla = createInstance("BS05-046", s.turn, 1) // 戦闘獣バビーバー：効果テキストなし（バニラ）
-    const nonVanilla = createInstance("BS05-047", s.turn, 1) // ブロンズ・ゴレム：効果あり
-    assert(getCard("BS05-046").effect === "", "テスト前提: BS05-046はバニラ")
-    s.players.p1.field.spirits.push(vanilla, nonVanilla)
-    resolveAction(s, "p1", null, { type: "grantKeywordAll", keyword: "funsai", vanillaFilter: true })
-    assert(vanilla.tempKeywords.some((k) => k.keyword === "funsai"), "バニラのバビーバーには粉砕が付与された")
-    assert(!nonVanilla.tempKeywords.some((k) => k.keyword === "funsai"), "非バニラのゴレムには付与されない")
-}
-
 console.log("=== ⑧ returnToHand countPerOpponentNexus：相手のネクサス数ぶんバウンス ===")
 {
     const s = createGame("bs05-x17-countpernexus", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "yellow" })

@@ -1985,8 +1985,15 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "grantKeyword",
-          "keyword": "jugeki"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "keyword",
+              "keyword": "jugeki"
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       },
       {

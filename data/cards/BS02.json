@@ -5085,8 +5085,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantKeyword",
-     "keyword": "awaken"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "keyword",
+       "keyword": "awaken"
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
@@ -5578,14 +5585,21 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "grantKeyword",
-     "keyword": "armor",
-     "colors": [
-      "red",
-      "purple",
-      "green",
-      "blue"
-     ]
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "keyword",
+       "keyword": "armor",
+       "colors": [
+        "red",
+        "purple",
+        "green",
+        "blue"
+       ]
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]

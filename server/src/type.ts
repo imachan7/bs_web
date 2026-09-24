@@ -1421,7 +1421,11 @@ export interface GameState {
 
 // 期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
 // countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
-export type TimedContent = { type: "cantAttack" } | { type: "cantBlock" } | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
+export type TimedContent =
+    | { type: "cantAttack" }
+    | { type: "cantBlock" }
+    | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
+    | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =

@@ -224,7 +224,6 @@ export function magicTargetSide(
     if (
         effect.action.type === "bpBuff" ||
         effect.action.type === "coreCharge" ||
-        effect.action.type === "grantKeyword" ||
         effect.action.type === "refireSummonEffect" ||
         effect.action.type === "trashCoresToSpirit" ||
         effect.action.type === "voidCoreToTarget" ||
@@ -235,7 +234,7 @@ export function magicTargetSide(
         return "self"
     // timedEffect の1体指定BP（旧bpBuffの単純形の置き換え）：side:"both"はanySideと同じく先取りしない、
     // side:"own"は旧bpBuffと同じ"self"、既定（相手）は"opponent"
-    if (effect.action.type === "timedEffect" && effect.action.content.some((c) => c.type === "bp") && !effect.action.all) {
+    if (effect.action.type === "timedEffect" && effect.action.content.some((c) => c.type === "bp" || c.type === "keyword") && !effect.action.all) {
         if (effect.action.side === "both") return null
         return effect.action.side === "own" ? "self" : "opponent"
     }
