@@ -39,6 +39,12 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
+### M8 ⑦ 「Lv すべて」（ブランチ `feat/timed-level-all`。2026-09-24 確定スキーマ。ユーザー確認：後から出たスピリットにも効く・場に出た時点で書き込む案）
+
+- 内容 `level` に `max?: true`（各カードの最高Lv）。`all: true` の level は `timedRule` に `appliedIds: string[]`（書き込み済みの個体）を持たせて置く
+- `refreshLevelAsOverrides` の中で、level を持つ `timedRule` ごとに、対象で `appliedIds` に無い個体の `levelOverrideThisTurn` に書き、`appliedIds` に足す（書いた後の個体は上書きしない＝後から使われた1体の Lv 変更が勝つ）
+- 移行：`levelOverrideOpponentSpiritsAllThisTurn{level}` → `{content:[{type:"level",set}],duration:"turn",all:true}`、`levelMaxAllOwnThisTurn` → `{content:[{type:"level",max:true}],duration:"turn",all:true,side:"own"}`
+
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。
@@ -117,11 +123,6 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 ---
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
-
-**M8「Lv を〜として扱う」の「すべて」2種（2026-09-24。1体指定の2種は移行済み）**
-- 「すべて」を扱う2種（`levelOverrideOpponentSpiritsAllThisTurn`＝BS14-110 天災之禍風、`levelMaxAllOwnThisTurn`＝BS04-069 幻影士のミラージ）は、解決時にいた個体の `levelOverrideThisTurn` に書くだけ。「すべては後から出たスピリットにも効く」規則に合わせるなら、レベルの計算に盤面のルールを入れる必要があるが、`currentLevel(inst)` は盤面を受け取らず呼び出しが209か所ある。案：(a) `currentLevel` に盤面を渡す大改修、(b) スピリットが場に出た時点で有効なレベルのルールを個体に書き込む（差し込み先は場に出る処理の1か所）。**ユーザーに「Lv として扱う すべて」も後から出たものに効くかを確認してから選ぶ**
-- 1体を指定する2種（`levelOverrideTarget`・`levelUpThisTurn`、9か所）は `timedEffect` の内容 `level`（`set`／`up`）へ移行済み（ブランチ `feat/timed-level`）
-- 作業ブランチ `feat/timed-level` は #110（`feat/timed-keyword`）の上に積んである。#110 のマージ後に main へ合わせ直す
 
 
 
