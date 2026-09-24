@@ -336,41 +336,6 @@ const battleOpponentDestroyedCoresToVoidHandler: ActionHandler<"battleOpponentDe
         return
 }
 
-const lockFlashHandler: ActionHandler<"lockFlash"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        if (!state.battle) {
-            log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
-            return
-        }
-        // attackerFamilyFilter（BS07ウィリアンスラッシュ）：アタックしているのが指定系統の
-        // 自分のスピリットのときだけロックする。アタッカーが自分側でない／系統が一致しないなら不発
-        if (action.attackerFamilyFilter !== undefined) {
-            const attackerId = state.battle.attackerInstanceId
-            const attacker = state.players[owner].field.spirits.find((sp) => sp.instanceId === attackerId)
-            if (!attacker || !matchesFamilyFilter(state, owner, attacker, action.attackerFamilyFilter)) {
-                log(state, `${sourceName}：指定の系統を持つ自分のスピリットがアタックしていないため効かなかった。`)
-                return
-            }
-        }
-        state.battle.flashLockedPlayer = opp
-        log(
-            state,
-            `${sourceName}：このバトルの間、${state.players[opp].name}はフラッシュで手札のカードを使用できない。`,
-        )
-        return
-}
-
-const disableOpponentBurstThisBattleHandler: ActionHandler<"disableOpponentBurstThisBattle"> = (ctx) => {
-    const { state, opp, sourceName } = ctx
-        if (!state.battle) {
-            log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
-            return
-        }
-        state.battle.burstBlockedForPid = opp
-        log(state, `${sourceName}：このバトルの間、${state.players[opp].name}はバーストを発動できない。`)
-        return
-}
-
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（アタック経路はlifeDamageLimitが見る）
@@ -2283,8 +2248,6 @@ const handlers = {
     battleCompareByCores: battleCompareByCoresHandler,
     battleCompareByCost: battleCompareByCostHandler,
     battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,
-    lockFlash: lockFlashHandler,
-    disableOpponentBurstThisBattle: disableOpponentBurstThisBattleHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,

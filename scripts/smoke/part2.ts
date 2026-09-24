@@ -70,7 +70,7 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
     assert(s.priorityPlayer === "p2", "アタック直後は防御側に優先権")
 
-    resolveAction(s, "p1", null, { type: "lockFlash" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "battleLock", lock: "flash" }], duration: "battle" })
     assert(s.battle?.flashLockedPlayer === "p2", "lockFlashで相手（p2）がロックされる")
 
     const lockedMagicErr = act(s, "p2", { type: "castMagic", handIndex: 0, targetInstanceId: atk.instanceId })

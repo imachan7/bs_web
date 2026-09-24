@@ -438,8 +438,36 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     }
 }
 
+// このバトルの間、プレイヤーに掛ける印（フラッシュで手札を使えない／バーストを発動できない）。印は1人ぶんしか持てない
+function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトルが発生していないため使用できなかった。`)
+        return
+    }
+    if (action.duration !== "battle" || action.side === "both") {
+        log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
+        return
+    }
+    const pid = action.side === "own" ? owner : opp
+    for (const c of action.content) {
+        if (c.type !== "battleLock") continue
+        if (c.lock === "flash") {
+            state.battle.flashLockedPlayer = pid
+            log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
+        } else {
+            state.battle.burstBlockedForPid = pid
+            log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はバーストを発動できない。`)
+        }
+    }
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "battleLock")) {
+        placeBattleLock(ctx, action)
+        return
+    }
     if (action.content.some((c) => c.type === "unblockable")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return

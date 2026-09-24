@@ -5684,7 +5684,14 @@
      2
     ],
     "action": {
-     "type": "disableOpponentBurstThisBattle"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "battleLock",
+       "lock": "burst"
+      }
+     ],
+     "duration": "battle"
     },
     "optional": false
    },

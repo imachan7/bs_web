@@ -2088,7 +2088,14 @@
      2
     ],
     "action": {
-     "type": "lockFlash"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "battleLock",
+       "lock": "flash"
+      }
+     ],
+     "duration": "battle"
     },
     "optional": false
    }

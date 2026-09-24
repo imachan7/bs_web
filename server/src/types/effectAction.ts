@@ -89,8 +89,6 @@ export type EffectAction =
     | { type: "exhaustSpiritsAndNexusesUpTo"; count: number } // 相手のスピリット/ネクサスを合計count個まで疲労させる（決定的簡略化：スピリットを実効BP最大から優先して疲労させ、残った枠をネクサスへ場の並び順で充てる。BS10-018エル・クラーケン＝合計3つまで）
     | { type: "returnOwnSpiritToHand"; filter?: TargetFilter } // returnToHandの自陣専用版：自分のスピリット1体（filter絞り込み。候補2体以上なら自分が選ぶ。非対話は実効BP最大を自動選択）を持ち主の手札へ戻す（BS13-002鎧竜人アンキロング：【超覚醒】を持つ自分のスピリット1体を手札に戻すことができる）
     | { type: "trashCoresToKeywordSpirit"; keyword: Keyword } // 自分のトラッシュのコアすべてを、指定キーワードを持つ自分のスピリット1体へ置く（候補複数かつinteractiveならpendingChoice、そうでなければ実効BP最大へ。BS04グレートリンク）
-    | { type: "lockFlash"; attackerFamilyFilter?: FamilyFilter } // バトル中のみ有効：このバトルの間、相手はフラッシュで手札のカードを使用できなくする。attackerFamilyFilter指定時は、アタックしているのがこの系統（配列＝OR）の自分のスピリットのときだけ効く（BS07ウィリアンスラッシュ）
-    | { type: "disableOpponentBurstThisBattle" } // バトル中のみ有効：このバトルの間、相手はバーストを発動できなくする（lockFlashのバースト版。state.battle.burstBlockedForPidをfireFieldEventTriggersのバースト発火ループが見る。BS15-X03鳥武帝スザクロス・ソウソー：「このスピリットのバトル時、相手はバーストを発動できない」）
     | { type: "returnNexusToHand"; count: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す（破壊ではない）。anySide指定時は自分/相手どちらのネクサスも対象にできる（targetInstanceId優先、interactiveTargets時はrequestChoiceで両陣営から選択、非対話時は既存どおり相手の先頭ネクサスを自動選択。BS03メビウスリング）。voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ置く。all指定時はcountを無視し、side（省略時はopponent）が指すすべてのネクサスを戻す。side:"both"は両陣営すべて（BS06ホワイトホール：ネクサスすべて）。
       // dest:"deckTop"指定時は「手札に戻す」の代わりに持ち主のデッキの上に戻す（returnNexusToDeckTop。BS13-055重装合体シールド・ドラゴンMk-II：「相手のネクサス1つをデッキの上に戻す」）
     | { type: "reclaimTrashCores" } // 自分のtrashCoresをすべてリザーブへ（0ならログのみ）
