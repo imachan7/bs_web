@@ -129,7 +129,7 @@ console.log("=== §G C' tempSymbolLoss：BS12-080バキュームシンボル＝�
     s.players.p2.field.spirits.push(white1, white2)
     refreshLevelAsOverrides(s)
     const before = instanceSymbolCount(white2)
-    resolveAction(s, "p1", null, { type: "grantSymbolLossThisTurn", side: "opponent" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolLoss" }], duration: "turn", all: true }, undefined, undefined, "magic")
     assert((white2.tempSymbolLoss ?? []).length > 0, "相手のスピリットにtempSymbolLossが付く")
     const after = instanceSymbolCount(white2)
     assert(after <= before, "シンボル数が減る（対象色を持たない個体は無変化のまま）")

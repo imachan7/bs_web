@@ -227,7 +227,6 @@ export function magicTargetSide(
         effect.action.type === "refireSummonEffect" ||
         effect.action.type === "trashCoresToSpirit" ||
         effect.action.type === "voidCoreToTarget" ||
-        effect.action.type === "addSymbolThisTurn" ||
         effect.action.type === "attackTriggersAsBlockThisTurn"
     )
         return "self"

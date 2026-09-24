@@ -261,11 +261,17 @@ console.log("=== BS08海底に眠りし古代都市Lv2：kind symbolFix（シン
     assert(instanceSymbolCount(inst) === 1, "発生源が離れると固定は解除される")
 }
 
+// グロウアップは timedEffect の内容 cost に移した
+const isGrowCost = (e: Record<string, unknown>) =>
+    actionOf(e)?.["type"] === "timedEffect" && ((actionOf(e)?.["content"] as { type: string }[] | undefined) ?? []).some((c) => c.type === "cost")
+const costAmountOf = (e: Record<string, unknown>) =>
+    Number(((actionOf(e)!["content"] as { type: string; amount?: number }[]).find((c) => c.type === "cost"))!.amount)
+
 console.log("=== BS08グロウアップ：action costBuffThisTurn（このターンの間コスト+N。置き換え） ===")
 {
-    const growup = findByEffect((e) => actionOf(e)?.["type"] === "costBuffThisTurn")
-    const entry = entryOf(growup, (e) => actionOf(e)?.["type"] === "costBuffThisTurn")
-    const amount = Number(actionOf(entry)["amount"])
+    const growup = findByEffect(isGrowCost)
+    const entry = entryOf(growup, isGrowCost)
+    const amount = costAmountOf(entry)
 
     // 実カードを手札からメインで使用する（resolveAction を直接叩くと、カードデータ側の
     // timing・引数の書き方を一度も通さないまま緑になるため。2026-08-09 の実行時カバレッジ由来）
@@ -290,8 +296,8 @@ console.log("=== BS08グロウアップ：action costBuffThisTurn（このター
 
 console.log("=== BS08グロウアップ：コストの増減はターン終了でリセットされる ===")
 {
-    const growup = findByEffect((e) => actionOf(e)?.["type"] === "costBuffThisTurn")
-    const amount = Number(actionOf(entryOf(growup, (e) => actionOf(e)?.["type"] === "costBuffThisTurn"))["amount"])
+    const growup = findByEffect(isGrowCost)
+    const amount = costAmountOf(entryOf(growup, isGrowCost))
     const s = base("grow-up-reset")
     const target = put(s, "p1", VANILLA.cardId, coresFor(VANILLA, 1))
     const baseCost = VANILLA.cost ?? 0
