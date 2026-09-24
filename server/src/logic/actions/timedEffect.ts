@@ -13,6 +13,7 @@ type Content = TimedEffect["content"][number]
 
 // 置き場はいまの印のまま。「このバトルの間アタックできない」を書くカードは無いので置き場も無い
 function flagOf(content: Content, duration: TimedEffect["duration"]) {
+    if (content.type === "mustAttack") return duration === "turn" ? "mustAttackThisTurn" : null
     if (content.type !== "cantAttack" && content.type !== "cantBlock") return null
     if (content.type === "cantBlock") return duration === "turn" ? "cantBlockThisTurn" : "cantBlockThisBattle"
     return duration === "turn" ? "cantAttackThisTurn" : null
@@ -36,9 +37,10 @@ function apply(inst: CardInstance, action: TimedEffect): string {
 }
 
 function contentLabel(action: TimedEffect): string {
-    const cant = action.content.filter((c) => c.type !== "bp").map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック"))
+    const cant = action.content.filter((c) => c.type === "cantAttack" || c.type === "cantBlock").map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック"))
     const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : [])].join("、")
+    const must = action.content.some((c) => c.type === "mustAttack") ? ["可能ならば必ずアタックする"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける

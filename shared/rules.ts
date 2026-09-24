@@ -2719,15 +2719,17 @@ export function lifeProtectedByCostThisTurn(
     })
 }
 
-// このターンだけの強制アタック（TurnConstraintDef "mustAttackByCost" / "mustAttackByInstance"。
-// action:"forceAttackThisTurn" が積む。BS08アンブッシュブロッカー／獣機合神セイ・ドリガン）：
-// pid の対象スピリットが、恒久的な constraint:"mustAttack" と同じ扱いで強制アタックの対象になるか
+// このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか。
+// 1体は個体の印、「すべて」は timedRule（判定のたびに照合するので後から出たスピリットにも効く）
 export function mustAttackThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
-    return board.turnConstraints.some((c) => {
-        if (c.type === "mustAttackByCost") return c.pid === pid && instAllCosts(inst).some((cost) => cost <= c.maxCost)
-        if (c.type === "mustAttackByInstance") return c.pid === pid && c.instanceId === inst.instanceId
-        return false
-    })
+    if (inst.mustAttackThisTurn) return true
+    return board.turnConstraints.some(
+        (c) =>
+            c.type === "timedRule" &&
+            c.content.some((x) => x.type === "mustAttack") &&
+            (c.pid === undefined || c.pid === pid) &&
+            matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
+    )
 }
 
 // このターンだけの疲労状態ブロック許可（TurnConstraintDef "canBlockWhileRestedThisTurn"。

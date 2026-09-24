@@ -2288,8 +2288,13 @@
     ],
     "optional": true,
     "action": {
-     "type": "forceAttackThisTurn",
-     "side": "opponent",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "mustAttack"
+      }
+     ],
+     "duration": "turn",
      "count": 1
     }
    },
@@ -4908,9 +4913,19 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "forceAttackThisTurn",
-     "side": "opponent",
-     "maxCost": 3
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "mustAttack"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
     }
    }
   ]

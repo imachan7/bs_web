@@ -390,9 +390,7 @@ console.log("--- SD01-032 機械神の加護：白のネクサスは相手の赤
     s.phase = "start"
     fireStepTriggers(s, "start")
     assert(
-        s.turnConstraints.some(
-            (c) => c.type === "mustAttackByInstance" && c.pid === "p2" && c.instanceId === target.instanceId,
-        ),
+        target.mustAttackThisTurn === true,
         "相手のスタートステップに、相手のスピリット1体へ強制アタックが課される",
     )
 }

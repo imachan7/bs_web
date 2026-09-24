@@ -2147,8 +2147,13 @@
      "reserveToTrash": 1
     },
     "action": {
-     "type": "forceAttackThisTurn",
-     "side": "opponent",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "mustAttack"
+      }
+     ],
+     "duration": "turn",
      "count": 1
     }
    },
@@ -5192,8 +5197,13 @@
     "timing": "flash",
     "usableAtOpponentMainEnd": true,
     "action": {
-     "type": "forceAttackThisTurn",
-     "side": "opponent",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "mustAttack"
+      }
+     ],
+     "duration": "turn",
      "count": 1
     }
    }

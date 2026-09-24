@@ -39,11 +39,6 @@ effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファ
 意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
 
-### M8 強制アタック（進行中。ブランチ `chore/timed-must-attack`）
-
-`TimedContent` に `{ type: "mustAttack" }`（期間 `turn` のみ）。1体＝既存の1体経路で個体の印 `mustAttackThisTurn`（`excludeCombined`→`filter.uncombined`）、
-「コスト3以下すべて」＝`all: true`＋`filter.cost.max` の `timedRule`。`mustAttackByCost`／`ByInstance` は消す。BS12-079（`count:"any"`＋名前条件）だけ旧 type に残し、印は個体へ。
-
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。
