@@ -52,7 +52,7 @@ console.log("=== §D コストとしての破棄も止まり、効果自体が�
     s.players.p1.hand = [vanilla[0]!.cardId, vanilla[1]!.cardId]
     const deckBefore = s.players.p1.deck.length
     s.phase = "main"
-    resolveAction(s, "p1", null, { type: "costDiscardHandThenDraw", discardCount: 1, drawCount: 2 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1 }, then: { type: "draw", count: 2 } })
     assert(s.players.p1.hand.length === 2, "コストの破棄が止まるので手札は減らない")
     assert(s.players.p1.deck.length === deckBefore, "コストが払えないので本体のドローも発揮しない")
 }

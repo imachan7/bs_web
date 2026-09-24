@@ -5097,9 +5097,22 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "costOwnAllCoresThenEnemyCoresToReserve",
-     "minBp": 7000,
-     "count": 7
+     "type": "pay",
+     "cost": {
+      "type": "coreRemove",
+      "side": "own",
+      "all": true,
+      "count": 1,
+      "filter": {
+       "minBp": 7000
+      },
+      "dest": "void"
+     },
+     "then": {
+      "type": "coreRemove",
+      "spread": true,
+      "count": 7
+     }
     }
    },
    {
@@ -5271,7 +5284,16 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "sacrificeNexusThenWipeEnemyNexusCores"
+     "type": "pay",
+     "cost": {
+      "type": "destroyNexus",
+      "side": "own",
+      "count": 1
+     },
+     "then": {
+      "type": "nexusCoresToTrash",
+      "side": "opponent"
+     }
     }
    }
   ]
@@ -6096,8 +6118,19 @@
     ],
     "optional": true,
     "action": {
-     "type": "refreshSelfByDestroyFamily",
-     "familyFilter": "武装"
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "武装",
+       "excludeSelf": true
+      }
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    }
   ]

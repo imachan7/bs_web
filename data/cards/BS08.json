@@ -3004,8 +3004,19 @@
      3
     ],
     "action": {
-     "type": "refreshSelfByReturnToDeckTopName",
-     "nameIncludes": "ペンタン"
+     "type": "pay",
+     "cost": {
+      "type": "returnToDeckTop",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "nameContains": "ペンタン",
+       "excludeSelf": true
+      }
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     },
     "optional": true
    },
@@ -4675,8 +4686,21 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "costOwnSpiritCoresToTrashThenOpponent",
-     "count": 5
+     "type": "pay",
+     "cost": {
+      "type": "coreRemove",
+      "side": "own",
+      "spread": true,
+      "count": 5,
+      "dest": "trash"
+     },
+     "then": {
+      "type": "coreRemove",
+      "spread": true,
+      "count": 5,
+      "dest": "trash",
+      "chooserIsTarget": true
+     }
     }
    },
    {

@@ -2,8 +2,8 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type {
-    CardType, CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
-import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, suspend } from "../GameState"
+    CardType, CardInstance, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import { coresForLevel, draw, findNexus, findSpirit, getCard, instMinLevelCores, log, minLevelCores, opponentOf, suspend } from "../GameState"
 import {
     fireFieldEventTriggers,
     bothSidesPids,
@@ -45,6 +45,33 @@ import {
 import { KEYWORDS, OPPONENT_RESERVE_TARGET, canDiscardHand, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
+// pay の判定表（coreRemove）が使う候補。spread＝候補の合計コア数、all＝候補数（0/1）、
+// それ以外＝count個以上持つ候補の有無を、呼び出し側が比較できるよう「達成できる最大量」を返す。
+// ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
+export function coreRemoveAchievableCountForPay(
+    state: GameState,
+    owner: PlayerId,
+    selfInstanceId: string | undefined,
+    action: Extract<EffectAction, { type: "coreRemove" }>,
+    srcColors: Color[] | undefined,
+    srcType: CardType | undefined,
+): number {
+    const opp = opponentOf(owner)
+    const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+    const ownList = (): CardInstance[] =>
+        state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, selfInstanceId))
+    const oppMatches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
+    const candidates: CardInstance[] =
+        action.side === "own"
+            ? ownList()
+            : action.anySide
+              ? pickAnySideCandidates(state, owner, oppMatches, srcColors, srcType)
+              : pickEnemyCandidates(state, opp, Infinity, oppMatches, srcColors, srcType)
+    if (action.spread) return candidates.reduce((sum, s) => sum + s.cores, 0)
+    if (action.all) return candidates.length > 0 ? 1 : 0
+    return candidates.some((s) => s.cores >= action.count) ? action.count : 0
+}
+
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // costDiscardOwnBurst（BS15-016闇騎士ガウェイン）：自分のバースト1つを破棄することがコスト。
@@ -82,6 +109,97 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             return
         }
         const matchesFilter = (s: CardInstance) => matchesTarget(state, opp, s, filter, self?.instanceId)
+        // spread：countぶんを複数のスピリットから1個ずつ選んで取り除く
+        // （2026-09-24ユーザー確認：「スピリットのコアN個を置く」は複数のスピリットから合計N個を1個ずつ選ぶ）。
+        // chooserIsTarget指定時は対象側（相手）の持ち主が選ぶ（解決は発生源owner の効果のまま）
+        if (action.spread) {
+            const chooser = action.chooserIsTarget ? opp : owner
+            const spreadCandidates = (): { pid: PlayerId; inst: CardInstance }[] => {
+                if (action.side === "own") {
+                    return state.players[owner].field.spirits
+                        .filter((s) => s.cores > 0 && matchesTarget(state, owner, s, filter, self?.instanceId))
+                        .map((inst) => ({ pid: owner, inst }))
+                }
+                const oppList = pickEnemyCandidates(state, opp, Infinity, (s) => s.cores > 0 && matchesFilter(s), srcColors, srcType)
+                    .map((inst) => ({ pid: opp, inst }))
+                if (!action.anySide) return oppList
+                const ownList = state.players[owner].field.spirits
+                    .filter((s) => s.cores > 0 && matchesFilter(s))
+                    .map((inst) => ({ pid: owner, inst }))
+                return [...oppList, ...ownList]
+            }
+            const removeOne = (pid: PlayerId, inst: CardInstance): number => {
+                if (action.dest === "void") return removeCoresToVoid(state, pid, inst, 1, owner)
+                if (action.dest === "trash") return removeCoresToTrash(state, pid, inst, 1, owner)
+                return removeCores(state, pid, inst, 1, owner, srcType)
+            }
+            const resolveSpread = (remaining: number): void => {
+                if (state.winner || remaining <= 0) return
+                const candidates = spreadCandidates()
+                if (candidates.length === 0) return
+                if (state.interactiveTargets) {
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}のコア除去：コアを取り除くスピリットを選んでください（あと${remaining}個）`,
+                        candidates.map((c) => c.inst.instanceId),
+                        false,
+                        { ...action, spreadRemaining: remaining },
+                        self,
+                        "target",
+                        undefined,
+                        chooser !== owner ? chooser : undefined,
+                    )
+                    return
+                }
+                const richest = candidates.reduce((best, c) => (c.inst.cores > best.inst.cores ? c : best))
+                removeOne(richest.pid, richest.inst)
+                resolveSpread(remaining - 1)
+            }
+            // 対話時の再入：選ばれた1体から1個取り除いて続きを解決する
+            if (action.spreadRemaining !== undefined && targetInstanceId !== undefined) {
+                const chosen = spreadCandidates().find((c) => c.inst.instanceId === targetInstanceId)
+                if (chosen) removeOne(chosen.pid, chosen.inst)
+                resolveSpread(action.spreadRemaining - 1)
+                return
+            }
+            // 数が足りないときに発揮しないのは pay の事前判定の役目。単独の効果としてはあるだけ取り除く
+            resolveSpread(count)
+            return
+        }
+        // side:"own"：自分側のスピリットだけが対象（pay { cost: coreRemove{side:"own"} } の器。
+        // 自分の効果は自分のスピリットに免疫が働かないためisResistedは挟まない＝anySideの自分側と同じ扱い）
+        if (action.side === "own") {
+            const ownCandidates = () => state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+            if (targetInstanceId === undefined && state.interactiveTargets) {
+                const candidates = ownCandidates()
+                if (candidates.length >= 2) {
+                    requestChoice(state, owner, `${sourceName}のコア除去：対象を選んでください`, candidates.map((s) => s.instanceId), false, action, self)
+                    return
+                }
+            }
+            const foundOwn = targetInstanceId
+                ? (() => {
+                      const inst = ownCandidates().find((s) => s.instanceId === targetInstanceId)
+                      return inst ? { pid: owner, inst } : null
+                  })()
+                : (() => {
+                      const pool = ownCandidates()
+                      if (pool.length === 0) return null
+                      const t = pool.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+                      return { pid: owner, inst: t }
+                  })()
+            if (!foundOwn) {
+                log(state, `${sourceName}のコア除去：対象がいなかった。`)
+                return
+            }
+            // 簡略化：side:"own"はleaveAtLeast/drawIfEmptiedと組み合わない前提（現状そのようなカードは無い）
+            const removeCount = action.all ? foundOwn.inst.cores : count
+            if (action.dest === "void") removeCoresToVoid(state, owner, foundOwn.inst, removeCount, owner)
+            else if (action.dest === "trash") removeCoresToTrash(state, owner, foundOwn.inst, removeCount, owner)
+            else removeCores(state, owner, foundOwn.inst, removeCount, owner, srcType)
+            return
+        }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
@@ -1033,86 +1151,6 @@ export function payCoresFromFieldOrReserveToTrash(state: GameState, pid: PlayerI
 export function fieldOrReserveCores(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
     return player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
-}
-
-// BS08マインドブレイク：「自分のスピリット上のコアcount個を自分のトラッシュに置くことで、
-// **相手は**、相手のスピリット上のコアcount個を相手のトラッシュに置く」。
-//
-// 選択者が前半と後半で入れ替わる:
-//   - 前半（phase:"own"）＝コストの支払い。**支払う本人が**どのスピリットから出すかを選ぶ（COST_MODEL.md §2）
-//   - 後半（phase:"opp"）＝効果。効果文の主語が「相手は」なので**相手が**選ぶ（CHOOSER_RULES.md §1）
-// どちらも1個ずつ選ばせ、残数を action.remaining に持ち回る。非対話は従来どおりコアの多い個体から。
-// 自分のスピリット上のコア合計が count 未満なら発揮できない（COST_MODEL.md §1）
-const costOwnSpiritCoresToTrashThenOpponentHandler: ActionHandler<"costOwnSpiritCoresToTrashThenOpponent"> = (
-    ctx,
-    action,
-) => {
-    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
-    // side のスピリットから1個ずつ置かせる。remaining が尽きたら次の段階へ
-    const step = (phase: "own" | "opp", remaining: number): void => {
-        if (state.winner) return
-        const side = phase === "own" ? owner : opp
-        if (remaining <= 0) {
-            if (phase === "own") step("opp", action.count)
-            return
-        }
-        const candidates = state.players[side].field.spirits.filter((s) => s.cores > 0)
-        if (candidates.length === 0) {
-            if (phase === "opp") {
-                log(state, `${sourceName}：${state.players[opp].name}のスピリットにコアがなかった。`)
-                return
-            }
-            step("opp", action.count)
-            return
-        }
-        if (state.interactiveTargets) {
-            requestChoice(
-                state,
-                owner,
-                phase === "own"
-                    ? `${sourceName}：コストとしてコアを置く自分のスピリットを選んでください（あと${remaining}個）`
-                    : `${sourceName}：コアをトラッシュに置く自分のスピリットを選んでください（あと${remaining}個）`,
-                candidates.map((s) => s.instanceId),
-                false,
-                { ...action, phase, remaining },
-                self,
-                "target",
-                undefined,
-                // 後半は「相手は」なので選択者を相手に差し替える（解決は発生源の持ち主の効果のまま）
-                phase === "opp" ? opp : undefined,
-            )
-            return
-        }
-        // 非対話：コアの多い個体から自動で置く（従来どおりの決定的簡略化）
-        const moved = moveRichestSpiritCoresToTrash(state, side, remaining)
-        log(state, `${sourceName}：${state.players[side].name}のスピリットからコア${moved}個をトラッシュに置いた。`)
-        if (phase === "own") step("opp", action.count)
-    }
-    // 選択の再開：選ばれたスピリットからコアを1個置いて、残りを続ける
-    if (action.phase !== undefined && action.remaining !== undefined) {
-        const side = action.phase === "own" ? owner : opp
-        const chosen = state.players[side].field.spirits.find((s) => s.instanceId === targetInstanceId)
-        if (chosen && chosen.cores > 0) {
-            chosen.cores -= 1
-            state.players[side].trashCores += 1
-            log(
-                state,
-                `${sourceName}：${state.players[side].name}は${getCard(chosen.cardId).name}のコア1個をトラッシュに置いた。`,
-            )
-            // 維持コア割れは既存の消滅処理に委ねる
-            if (chosen.cores < instMinLevelCores(chosen)) {
-                destroySpirit(state, side, chosen.instanceId, "deplete")
-            }
-        }
-        step(action.phase, action.remaining - 1)
-        return
-    }
-    const ownTotal = state.players[owner].field.spirits.reduce((sum, s) => sum + s.cores, 0)
-    if (ownTotal < action.count) {
-        log(state, `${sourceName}：自分のスピリット上のコアが足りず発動しなかった。`)
-        return
-    }
-    step("own", action.count)
 }
 
 const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, action) => {
@@ -2703,54 +2741,6 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, actio
     swap(a, b)
 }
 
-// セブンスクリムゾン：BPminBp以上の自分のスピリット1体（BP最大）のコアすべてをボイドへ置くことをコストに、
-// 相手のスピリット上のコアを合計count個（コアの多い個体から）相手のリザーブへ置く
-const costOwnAllCoresThenEnemyCoresToReserveHandler: ActionHandler<"costOwnAllCoresThenEnemyCoresToReserve"> = (
-    ctx,
-    action,
-) => {
-    const { state, owner, opp, sourceName } = ctx
-    const ownPlayer = state.players[owner]
-    let payer: CardInstance | undefined
-    for (const s of ownPlayer.field.spirits) {
-        if (s.cores === 0) continue
-        if (effectiveBp(state, owner, s) < action.minBp) continue
-        if (!payer || effectiveBp(state, owner, s) > effectiveBp(state, owner, payer)) payer = s
-    }
-    if (!payer) {
-        log(state, `${sourceName}：コストにできるBP${action.minBp}以上のスピリットがいないため発動しなかった。`)
-        return
-    }
-    const paid = payer.cores
-    payer.cores = 0
-    log(state, `${sourceName}：コストとして${getCard(payer.cardId).name}のコア${paid}個をボイドに置いた。`)
-    if (payer.cores < instMinLevelCores(payer)) {
-        destroySpirit(state, owner, payer.instanceId, "deplete")
-    }
-    let remaining = action.count
-    let moved = 0
-    while (remaining > 0) {
-        let richest: CardInstance | undefined
-        for (const s of state.players[opp].field.spirits) {
-            if (s.cores > 0 && (!richest || s.cores > richest.cores)) richest = s
-        }
-        if (!richest) break
-        const take = Math.min(remaining, richest.cores)
-        richest.cores -= take
-        remaining -= take
-        moved += take
-        state.players[opp].reserve += take
-        if (richest.cores < instMinLevelCores(richest)) {
-            destroySpirit(state, opp, richest.instanceId, "deplete")
-        }
-    }
-    if (moved === 0) {
-        log(state, `${sourceName}：相手のスピリット上にコアがなかった。`)
-        return
-    }
-    log(state, `${sourceName}：相手のスピリット上のコア${moved}個を相手のリザーブに置いた。（選ぶ順は簡略化）`)
-}
-
 const handlers = {
     opponentCoresToVoidByTotal: opponentCoresToVoidByTotalHandler,
     coresDownToLimit: coresDownToLimitHandler,
@@ -2758,7 +2748,6 @@ const handlers = {
     opponentLifeToReserve: opponentLifeToReserveHandler,
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
     swapOpponentCores: swapOpponentCoresHandler,
-    costOwnAllCoresThenEnemyCoresToReserve: costOwnAllCoresThenEnemyCoresToReserveHandler,
     coreRemove: coreRemoveHandler,
     coreRemoveByPayingSelfCores: coreRemoveByPayingSelfCoresHandler,
     voidCoresFromField: voidCoresFromFieldHandler,
@@ -2785,7 +2774,6 @@ const handlers = {
     coreSqueezeOne: coreSqueezeOneHandler,
     coreToVoidOwn: coreToVoidOwnHandler,
     bothSidesCoreToTrash: bothSidesCoreToTrashHandler,
-    costOwnSpiritCoresToTrashThenOpponent: costOwnSpiritCoresToTrashThenOpponentHandler,
     coreDrainAllOthers: coreDrainAllOthersHandler,
     trashCoresToSpirit: trashCoresToSpiritHandler,
     trashCoresToKeywordSpirit: trashCoresToKeywordSpiritHandler,

@@ -748,73 +748,6 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
         return
 }
 
-const selfBuffByHandDiscard: ActionHandler<"selfBuffByHandDiscard"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-        // 手札の指定種別カード1枚を破棄することでself自身をBP+amountできる（任意コスト）
-        if (!self) {
-            log(state, `${sourceName}：バフ対象がいなかった。`)
-            return
-        }
-        const player = state.players[owner]
-        const typeLabel =
-            action.discardCardType === "nexus"
-                ? "ネクサス"
-                : action.discardCardType === "magic"
-                  ? "マジック"
-                  : "スピリット"
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}：破棄する手札がなかった。`)
-                return
-            }
-            player.hand.splice(chosenCardIndex, 1)
-            player.trashCards.push(cardId)
-            self.tempBpBuff += action.amount
-            log(
-                state,
-                `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄し、${getCard(self.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
-            )
-            return
-        }
-        const indices = player.hand
-            .map((_, i) => i)
-            .filter((i) => getCard(player.hand[i]!).type === action.discardCardType)
-        if (indices.length === 0) {
-            log(state, `${sourceName}：手札に${typeLabel}カードがなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            requestCardChoice(
-                state,
-                owner,
-                `${sourceName}：${typeLabel}カード1枚を破棄してBP+${action.amount}できます（任意）`,
-                "hand",
-                indices,
-                true,
-                action,
-                self,
-            )
-            return
-        }
-        // 自動時：手札末尾（新しい方）の該当カードを破棄する簡略化
-        const idx = indices[indices.length - 1]!
-        const cardId = player.hand[idx]!
-        player.hand.splice(idx, 1)
-        player.trashCards.push(cardId)
-        self.tempBpBuff += action.amount
-        log(
-            state,
-            `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄し、${getCard(self.cardId).name}はBP+${action.amount}（ターン終了時まで）。`,
-        )
-        return
-}
-
 // BS15-073五輪転生炎フラッシュ：自分のフィールドのスピリットが持つ系統（重複除く）から1つ指定し、
 // このターンの間、合体していない指定した系統を持つ自分のスピリットすべてをBP+amountする
 const familyChoiceThenBpBuffAllHandler: ActionHandler<"familyChoiceThenBpBuffAll"> = (ctx, action) => {
@@ -862,7 +795,6 @@ const handlers = {
     bpBuffPer,
     bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,
-    selfBuffByHandDiscard,
     familyChoiceThenBpBuffAll: familyChoiceThenBpBuffAllHandler,
 } satisfies Partial<ActionRegistry>
 

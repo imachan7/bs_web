@@ -1,9 +1,55 @@
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, PlayerId } from "../../type"
-import { getCard, log, pushResumeFrames } from "../GameState"
+import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, heavyArmorColorsOf, instColors, spiritHasKeyword, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+
+// side:"own"（returnToHand/returnToDeckTopの自分側対象）の候補列挙。ハンドラ本体とpayの判定表
+// （CHECKERS）の両方から呼び、判定と実際の対象がずれないようにする
+function ownSideBounceCandidates(
+    state: GameState,
+    owner: PlayerId,
+    selfInstanceId: string | undefined,
+    filter: ResolvedTargetFilter,
+): CardInstance[] {
+    return state.players[owner].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(state, owner, s, filter, selfInstanceId))
+}
+
+// ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
+export function returnToHandCandidateCountForPay(
+    state: GameState,
+    owner: PlayerId,
+    selfInstanceId: string | undefined,
+    action: Extract<EffectAction, { type: "returnToHand" }>,
+    srcColors: Color[] | undefined,
+    srcType: CardType | undefined,
+): number {
+    const opp = opponentOf(owner)
+    const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+    if (action.side === "own") return ownSideBounceCandidates(state, owner, selfInstanceId, filter).length
+    const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
+    if (action.anySide) return pickAnySideCandidates(state, owner, matches, srcColors, srcType, "bounce").length
+    return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
+}
+
+// pay の判定表（returnToDeckTop）が使う候補数
+export function returnToDeckTopCandidateCountForPay(
+    state: GameState,
+    owner: PlayerId,
+    selfInstanceId: string | undefined,
+    action: Extract<EffectAction, { type: "returnToDeckTop" }>,
+    srcColors: Color[] | undefined,
+    srcType: CardType | undefined,
+): number {
+    const opp = opponentOf(owner)
+    const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+    if (action.side === "own") return ownSideBounceCandidates(state, owner, selfInstanceId, filter).length
+    const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
+    return action.anySide
+        ? pickAnySideCandidates(state, owner, matches, srcColors, srcType, "bounce").length
+        : pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
+}
 
 // 相手のスピリット1体を手札に戻し、戻したコストが条件を満たしたときだけ味方1体を回復させる
 // （BS11-032 天王神獣スレイ・ウラノスLv2-3）
@@ -376,6 +422,38 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             log(state, `${sourceName}の手札戻し：相手にネクサスがなかった。`)
             return
         }
+        // side:"own"：自分側のスピリットだけが対象（pay { cost: returnToHand{side:"own"} } の器。
+        // 自分の効果は自分のスピリットに免疫が働かないためisResistedは挟まない＝anySideの自分側と同じ扱い）
+        if (action.side === "own") {
+            const ownMatchesBp = (s: CardInstance) =>
+                effectiveBp(state, owner, s) <= limitBp && !s.pendingBounce && matchesTarget(state, owner, s, filter, self?.instanceId)
+            const ownCandidates = state.players[owner].field.spirits.filter(ownMatchesBp)
+            if (
+                state.interactiveTargets &&
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}の手札戻し：手札に戻す自分のスピリットを選んでください`,
+                    ownCandidates,
+                    { ...action, count: 1 },
+                    resolvedCount > 1 ? { ...action, count: resolvedCount - 1, countPerOpponentNexus: false } : null,
+                )
+            ) {
+                return
+            }
+            for (let i = 0; i < resolvedCount; i++) {
+                const pool = state.players[owner].field.spirits.filter(ownMatchesBp)
+                if (pool.length === 0) {
+                    log(state, `${sourceName}の手札戻し：対象がいなかった。`)
+                    break
+                }
+                const target = pool.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+                markBounce(state, owner, target, "hand", sourceName)
+            }
+            flushBounces(state)
+            return
+        }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (action.anySide) {
@@ -675,10 +753,12 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
         if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = (action.anySide
-                ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType, "bounce")
-                : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
-            ).filter((s) => action.anySide === undefined || filterOk(opp, s))
+            const candidates = action.side === "own"
+                ? state.players[owner].field.spirits.filter((s) => filterOk(owner, s))
+                : (action.anySide
+                      ? pickAnySideCandidates(state, owner, () => true, srcColors, srcType, "bounce")
+                      : pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
+                  ).filter((s) => action.anySide === undefined || filterOk(opp, s))
             if (candidates.length >= 2) {
                 // chooserIsTarget（BS07ブリシンガメンの首飾り）：「**相手は**、相手のスピリット3体を〜戻す」。
                 // 選ぶのは戻される側だが、解決は発生源の持ち主の効果として行う（actorPid）
@@ -701,12 +781,19 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
         }
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
-            : action.anySide
-              ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType, "bounce")
-              : (() => {
-                    const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
-                    return t ? { pid: opp, inst: t } : null
+            : action.side === "own"
+              ? (() => {
+                    const pool = state.players[owner].field.spirits.filter((s) => filterOk(owner, s))
+                    if (pool.length === 0) return null
+                    const t = pool.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+                    return { pid: owner, inst: t }
                 })()
+              : action.anySide
+                ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType, "bounce")
+                : (() => {
+                      const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
+                      return t ? { pid: opp, inst: t } : null
+                  })()
         if (!found) {
             log(state, `${sourceName}のデッキ戻し：対象がいなかった。`)
             return

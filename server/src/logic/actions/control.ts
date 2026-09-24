@@ -330,52 +330,6 @@ const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
     placeBurst(state, owner, best.cardId)
 }
 
-// 「自分の手札にあるバースト効果を持つカード1枚をセットすることで、自分はデッキからN枚ドローする」
-// （X012R英雄皇ロード・ドラゴン・ドミニオン）。setBurstFromHandと同じ候補選択・非対話簡略化（コスト最大の1枚）で
-// セットし、**セットできたときだけ**続けてドローする（COST_MODEL.md §1：コストが払えないなら効果も起きない）
-const costSetBurstThenDrawHandler: ActionHandler<"costSetBurstThenDraw"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        placeBurst(state, owner, cardId)
-        draw(state, owner, action.count)
-        return
-    }
-    const candidates = player.hand
-        .map((cardId, i) => ({ cardId, i }))
-        .filter(({ cardId }) => getCard(cardId).effects.some((e) => e.kind === "burst"))
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：セットできるバースト持ちのカードが手札になかったため発動しなかった。`)
-        return
-    }
-    if (
-        tryInteractiveCardChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：コストとしてセットするバーストを選んでください`,
-            "hand",
-            candidates.map((c) => c.i),
-            { type: "costSetBurstThenDraw", count: action.count },
-            null,
-        )
-    ) {
-        return
-    }
-    let best = candidates[0]!
-    for (const c of candidates) {
-        if (getCard(c.cardId).cost > getCard(best.cardId).cost) best = c
-    }
-    player.hand.splice(best.i, 1)
-    placeBurst(state, owner, best.cardId)
-    draw(state, owner, action.count)
-}
 
 // BS14-053オリンピアの天使ハギト：自分のバースト1つをオープンできる。マジックカードなら手札に戻し、
 // それ以外は破棄する（burstがnullなら不発。バーストの中身は非公開ゾーンなので選択の余地はない）
@@ -506,7 +460,6 @@ const handlers = {
     summonBurstCardFreeIfOwnNexusAtLeast: summonBurstCardFreeIfOwnNexusAtLeastHandler,
     burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,
-    costSetBurstThenDraw: costSetBurstThenDrawHandler,
     payNegateDecide: payNegateDecideHandler,
 } satisfies Partial<ActionRegistry>
 

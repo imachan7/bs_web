@@ -526,10 +526,21 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshSelfByReturnToHandFamily",
-     "familyFilter": [
-      "地竜"
-     ]
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": [
+        "地竜"
+       ],
+       "excludeSelf": true
+      }
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    }
   ]
@@ -1840,12 +1851,20 @@
     ],
     "optional": true,
     "action": {
-     "type": "costDiscardHandKeywordThenDraw",
-     "keyword": [
-      "jugeki",
-      "fushi"
-     ],
-     "count": 2
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1,
+      "cardType": "spirit",
+      "keyword": [
+       "jugeki",
+       "fushi"
+      ]
+     },
+     "then": {
+      "type": "draw",
+      "count": 2
+     }
     }
    }
   ]
@@ -5544,7 +5563,17 @@
     ],
     "optional": false,
     "action": {
-     "type": "costDiscardHandThenDiscardOpponentMagic"
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1
+     },
+     "then": {
+      "type": "discardOpponent",
+      "count": 1,
+      "cardTypeFilter": "magic",
+      "chooserIsSource": true
+     }
     }
    },
    {

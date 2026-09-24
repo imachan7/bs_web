@@ -118,7 +118,6 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 const SELF_REFERENCING_ACTIONS = new Set([
     "selfBuff",
     "selfBuffPer",
-    "selfBuffByHandDiscard",
     "refreshSelf",
     "destroySelf",
     "returnSelfToHand",
@@ -584,7 +583,6 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     // 使う側のカードができるのでこの行を消すこと（消し忘れると「実装だけ残っている」検出が効かなくなる）
     ["extraAttackStep", "BS10-008 火星神龍アレス・ドラグーンが使う。BS10 は data/staging にあり data/cards 未投入のため、仕組みだけ先行（2026-08-25）"],
     ["endStepLock", "BS10-108 ルナティックシールが使う。同上（2026-08-25）"],
-    ["pay", "「〜することで〜する」の汎用の器を先行導入（PAY_HOOKS.md）。既存12種からの移行は別バッチで、移行が終わったらカードが使うのでこの行を消すこと（2026-09-24）"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {

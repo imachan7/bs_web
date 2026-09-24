@@ -67,7 +67,7 @@ console.log("=== §C BS11-075：手札のスピリット/ブレイヴ1枚を破�
     s.players.p2.field.spirits.push(target)
     s.players.p1.hand = [vanilla[1]!.cardId]
     const before = s.players.p2.reserve
-    resolveAction(s, "p1", null, { type: "costDiscardHandTypeThenCoreRemove", cardTypes: ["spirit", "brave"], count: 2 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: ["spirit", "brave"] }, then: { type: "coreRemove", spread: true, count: 2 } })
     assert(s.players.p1.hand.length === 0, "コストとして手札を破棄する")
     assert(target.cores === 3, "コアが2個減る")
     assert(s.players.p2.reserve === before + 2, "取り除いたコアは相手のリザーブへ")
@@ -77,7 +77,7 @@ console.log("=== §C BS11-075：手札のスピリット/ブレイヴ1枚を破�
     const target = createInstance(vanilla[0]!.cardId, s.turn, 5)
     s.players.p2.field.spirits.push(target)
     s.players.p1.hand = [] // コストにできる手札が無い
-    resolveAction(s, "p1", null, { type: "costDiscardHandTypeThenCoreRemove", cardTypes: ["spirit", "brave"], count: 2 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: ["spirit", "brave"] }, then: { type: "coreRemove", spread: true, count: 2 } })
     assert(target.cores === 5, "コストを払えなければ発揮しない（COST_MODEL §1）")
 }
 

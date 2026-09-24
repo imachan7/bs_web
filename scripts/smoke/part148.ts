@@ -186,7 +186,7 @@ console.log("=== BS08勇者フェニックスペンタンLv2：action refreshSel
     pentan1.isRested = true
     const pentan2 = put(s, "p1", "BS02-058", 1) // 「ペンタン」を含む別のスピリット
     const deckBefore = [...s.players.p1.deck]
-    resolveAction(s, "p1", pentan1, { type: "refreshSelfByReturnToDeckTopName", nameIncludes: "ペンタン" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", pentan1, { type: "pay", cost: { type: "returnToDeckTop", side: "own", count: 1, filter: { nameContains: "ペンタン", excludeSelf: true } }, then: { type: "refreshSelf" } }, undefined, undefined, "spirit")
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === pentan2.instanceId), "対象はフィールドから離れる")
     assert(s.players.p1.deck[0] === "BS02-058", "対象はデッキの一番上に戻る")
     assert(s.players.p1.deck.length === deckBefore.length + 1, "デッキ枚数が1枚増える")

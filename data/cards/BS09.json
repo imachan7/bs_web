@@ -3622,9 +3622,17 @@
         ],
         "optional": true,
         "action": {
-          "type": "costDiscardHandKeywordThenDraw",
-          "keyword": "tensho",
-          "count": 1
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 1,
+            "cardType": "spirit",
+            "keyword": "tensho"
+          },
+          "then": {
+            "type": "draw",
+            "count": 1
+          }
         }
       },
       {
@@ -4338,9 +4346,16 @@
         ],
         "optional": true,
         "action": {
-          "type": "costDiscardHandKeywordThenDraw",
-          "cardType": "nexus",
-          "count": 1
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 1,
+            "cardType": "nexus"
+          },
+          "then": {
+            "type": "draw",
+            "count": 1
+          }
         }
       }
     ]
@@ -4505,8 +4520,21 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "costOwnSpiritCoresToTrashThenOpponent",
-          "count": 1
+          "type": "pay",
+          "cost": {
+            "type": "coreRemove",
+            "side": "own",
+            "spread": true,
+            "count": 1,
+            "dest": "trash"
+          },
+          "then": {
+            "type": "coreRemove",
+            "spread": true,
+            "count": 1,
+            "dest": "trash",
+            "chooserIsTarget": true
+          }
         }
       }
     ]

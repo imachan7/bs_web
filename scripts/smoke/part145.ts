@@ -310,16 +310,17 @@ console.log("=== BS08冥将アマイモン：millUntilFamilyToHand（系統が�
     )
 }
 
-console.log("=== BS08マインドブレイク：costOwnSpiritCoresToTrashThenOpponent（コストを払えたときだけ相手も支払う） ===")
+console.log("=== BS08マインドブレイク：pay（コストを払えたときだけ相手も支払う） ===")
 {
     const mindbreak = findByEffect(
         (e) =>
             e["kind"] === "magic" &&
             e["timing"] === "main" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "costOwnSpiritCoresToTrashThenOpponent",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "pay" &&
+            ((e["action"] as Record<string, Record<string, unknown>>)["then"]?.["chooserIsTarget"] === true),
     )
     const entry = entryOf(mindbreak, (e) => e["kind"] === "magic" && e["timing"] === "main")
-    const count = Number((entry["action"] as Record<string, unknown>)["count"])
+    const count = Number(((entry["action"] as Record<string, unknown>)["cost"] as Record<string, unknown>)["count"])
 
     const s = base("mindbreak-pay")
     s.players.p1.hand.push(mindbreak.cardId)

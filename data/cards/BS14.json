@@ -5744,8 +5744,21 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "costOwnSpiritCoresToTrashThenOpponent",
-     "count": 3
+     "type": "pay",
+     "cost": {
+      "type": "coreRemove",
+      "side": "own",
+      "spread": true,
+      "count": 3,
+      "dest": "trash"
+     },
+     "then": {
+      "type": "coreRemove",
+      "spread": true,
+      "count": 3,
+      "dest": "trash",
+      "chooserIsTarget": true
+     }
     },
     "thenPay": "flash"
    },
@@ -7181,8 +7194,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "costSetBurstThenDraw",
-     "count": 1
+     "type": "pay",
+     "cost": {
+      "type": "setBurstFromHand"
+     },
+     "then": {
+      "type": "draw",
+      "count": 1
+     }
     }
    },
    {
