@@ -462,6 +462,27 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
 }
 
+// このバトルの解決方法を変える印（BattleState に置く）
+function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, sourceName } = ctx
+    if (!state.battle) {
+        log(state, `${sourceName}：バトル外のため不発。`)
+        return
+    }
+    const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
+    for (const c of action.content) {
+        if (c.type === "compareBy") {
+            if (c.by === "level") state.battle.compareByLevel = true
+            else if (c.by === "cores") state.battle.compareByCores = true
+            else state.battle.compareByCost = true
+            log(state, `${sourceName}：バトル解決時、BPの代わりに${label[c.by]}を比較する。`)
+        } else if (c.type === "invertBattleWinner") {
+            state.battle.invertBpWinner = true
+            log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
+        }
+    }
+}
+
 // 1体のシンボル・コストを変える。対象の決め方は旧 type のまま（symbolAdd＝陣営を問わず実効BP最大、cost＝自分のスピリットから、
 // symbolSet＝filter に合う自分のスピリットでバトル中の個体優先）
 function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
@@ -612,6 +633,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         if (filter === SELF_REQUIRED) return
         if (action.all && action.content.some((c) => c.type === "symbolLoss")) placeSymbolLossRule(ctx, action, filter)
         else placeSymbolOrCost(ctx, action, filter)
+        return
+    }
+    if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner")) {
+        placeBattleCompare(ctx, action)
         return
     }
     if (action.content.some((c) => c.type === "battleLock")) {

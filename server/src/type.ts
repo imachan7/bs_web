@@ -1430,6 +1430,8 @@ export type TimedContent =
     | { type: "playerRule"; rule: PlayerRuleDef } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side
     | { type: "unblockable"; fromMinBp?: number } // 相手のスピリットにブロックされない。fromMinBp＝実効BPがこれ以上の相手からだけ（期間は battle のみ）
     | { type: "battleLock"; lock: "flash" | "burst" } // このバトルの間、プレイヤーはフラッシュで手札のカードを使えない／バーストを発動できない（期間は battle のみ）
+    | { type: "compareBy"; by: "level" | "cores" | "cost" } // このバトルの解決で BP の代わりに比べるもの（期間は battle のみ。複数重なったら level→cores→cost の順で優先）
+    | { type: "invertBattleWinner" } // このバトルの解決で値が高い方が破壊される（期間は battle のみ。装甲では防げない）
     | { type: "symbolAdd" } // 持っているシンボルと同じ色のシンボルを1つ追加する
     | { type: "symbolSet"; color: Color; count: number } // シンボルを◯色◯つとして扱う
     | { type: "symbolLoss"; color?: Color } // 指定した色のシンボルを1つ失う。color を省くと使う人が色を選ぶ

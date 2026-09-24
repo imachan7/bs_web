@@ -267,53 +267,6 @@ const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
         return
 }
 
-const battleCompareByLevelHandler: ActionHandler<"battleCompareByLevel"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // エンジェルボイス：現在のバトルにフラグを立て、解決時にBPの代わりにLvを比較させる
-        if (!state.battle) {
-            log(state, `${sourceName}：バトル外のため不発。`)
-            return
-        }
-        state.battle.compareByLevel = true
-        log(state, `${sourceName}：バトル解決時、BPの代わりにLvを比較する。`)
-        return
-}
-
-// 器BS16：現在のバトルにフラグを立て、解決時の勝敗を反転させる（P070カオティック・リクゴー）
-const battleInvertBpWinnerHandler: ActionHandler<"battleInvertBpWinner"> = (ctx) => {
-    const { state, sourceName } = ctx
-    if (!state.battle) {
-        log(state, `${sourceName}：バトル外のため不発。`)
-        return
-    }
-    state.battle.invertBpWinner = true
-    log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
-}
-
-const battleCompareByCoresHandler: ActionHandler<"battleCompareByCores"> = (ctx, action) => {
-    const { state, sourceName } = ctx
-        // イマジンフィールド：現在のバトルにフラグを立て、解決時にBPの代わりにコアの数を比較させる
-        if (!state.battle) {
-            log(state, `${sourceName}：バトル外のため不発。`)
-            return
-        }
-        state.battle.compareByCores = true
-        log(state, `${sourceName}：バトル解決時、BPの代わりにコアの数を比較する。`)
-        return
-}
-
-const battleCompareByCostHandler: ActionHandler<"battleCompareByCost"> = (ctx, action) => {
-    const { state, sourceName } = ctx
-        // ノックアウト：現在のバトルにフラグを立て、解決時にBPの代わりにコストを比較させる
-        if (!state.battle) {
-            log(state, `${sourceName}：バトル外のため不発。`)
-            return
-        }
-        state.battle.compareByCost = true
-        log(state, `${sourceName}：バトル解決時、BPの代わりにコストを比較する。`)
-        return
-}
-
 // BS10-X01 幻羅星龍ガイ・アスラLv4：このバトルの間、破壊された相手のスピリットのコアすべてはボイドへ。
 // battleLoserCoresToVoidと違い「直前バトルの1回きり」ではなく、**このバトルが終わるまで継続**するフラグ。
 // 自分のスピリットには効かない（opp限定）。実際のコア移動はcommitPendingDestructionが読む
@@ -2234,10 +2187,6 @@ const handlers = {
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
-    battleCompareByLevel: battleCompareByLevelHandler,
-    battleInvertBpWinner: battleInvertBpWinnerHandler,
-    battleCompareByCores: battleCompareByCoresHandler,
-    battleCompareByCost: battleCompareByCostHandler,
     battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
