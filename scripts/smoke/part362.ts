@@ -1,7 +1,7 @@
 // smoke パート362（M8 試行：期間つき継続効果の器 timedEffect。カードデータの4か所が旧 type と同じ結果になるか。REFACTOR_PLAN §2.2）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import type { GameState } from "./helpers"
-import { cantActByTimedRule } from "../../shared/rules"
+import { cantActByTimedRule, effectiveBp } from "../../shared/rules"
 import type { EffectAction } from "../../server/src/type"
 
 const FAREG = "BS12-038"
@@ -124,6 +124,28 @@ console.log("=== 7. 絞り込み：cost.in と vanilla:false、内容 cantBlock 
     const withText = createInstance(FAREG, 1, 1)
     t.players.p2.field.spirits.push(withText)
     assert(cantActByTimedRule(t, withText), "効果の記述を持つ相手は止まる")
+}
+
+console.log("=== 8. すべてをBP+：解決後に場に出たスピリットにも乗る（2026-09-24 ユーザー確認） ===")
+{
+    const s = board()
+    const own = s.players.p1.field.spirits[0]!
+    const before = effectiveBp(s, "p1", own)
+    resolveAction(s, "p1", null, cardAction("BS14-025")) // ムシャメガ：このターンの間、自分のスピリットすべてをBP+1000
+    assert(effectiveBp(s, "p1", own) === before + 1000, "解決時にいたスピリットはBP+1000")
+    assert(own.tempBpBuff === 0, "個体には書かない")
+    const later = createInstance(FAREG, 1, 1)
+    s.players.p1.field.spirits.push(later)
+    refreshLevelAsOverrides(s)
+    assert(effectiveBp(s, "p1", later) === before + 1000, "解決後に出たスピリットもBP+1000")
+    assert(effectiveBp(s, "p2", s.players.p2.field.spirits[0]!) === 1000, "相手のスピリットには乗らない")
+}
+
+console.log("=== 9. BP を条件にしたBP変更は循環するので発揮しない ===")
+{
+    const s = board()
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", all: true, side: "own", filter: { maxBp: 5000 } })
+    assert(s.turnConstraints.length === 0 && s.log.at(-1)?.includes("未対応") === true, "ルールを置かずに未対応と記録する")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part362）")

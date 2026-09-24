@@ -483,14 +483,16 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
         "discardHandAllで手札がすべてトラッシュへ送られる",
     )
 
-    console.log("--- bpBuffAll ---")
+    console.log("--- timedEffect（すべてをBP+） ---")
     const spA = createInstance("BS01-001", s.turn, 1)
     const spB = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(spA, spB)
-    resolveAction(s, "p1", null, { type: "bpBuffAll", amount: 1000 })
+    const baseA = effectiveBp(s, "p1", spA)
+    const baseB = effectiveBp(s, "p1", spB)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", all: true, side: "own" })
     assert(
-        spA.tempBpBuff === 1000 && spB.tempBpBuff === 1000,
-        "bpBuffAllで自分のスピリット全員のtempBpBuffが増える",
+        effectiveBp(s, "p1", spA) === baseA + 1000 && effectiveBp(s, "p1", spB) === baseB + 1000,
+        "自分のスピリット全員の実効BPが+1000される",
     )
 }
 

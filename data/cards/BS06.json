@@ -42,11 +42,19 @@
      2
     ],
     "action": {
-     "type": "bpBuffAll",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own",
      "filter": {
       "family": "地竜"
-     },
-     "amount": 1000
+     }
     },
     "optional": false
    }
@@ -1455,8 +1463,16 @@
      3
     ],
     "action": {
-     "type": "bpBuffAll",
-     "amount": 1000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own"
     },
     "optional": false
    }

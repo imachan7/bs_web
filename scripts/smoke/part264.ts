@@ -12,7 +12,7 @@
 //     sameCostAsSelfの「以下」版。cost:{max: selfのコスト}へ解決する
 //
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・コストを機械検証してから使う。
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, effectiveBp, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { attachBrave, fireTrigger } from "../../server/src/logic/EffectModules"
@@ -73,12 +73,12 @@ console.log("=== braveStatsAs：上書きされたブレイヴが元から持つ
     const brave = createInstance("BS10-061", s.turn, 1)
     s.players.p1.field.spirits.push(brave)
     refreshLevelAsOverrides(s)
-    assert(x06.tempBpBuff === 0, "前提：発火前はBP増加なし")
+    const before = effectiveBp(s, "p1", x06)
 
-    // BS10-061自身の『召喚時』効果（bpBuffAll amount:2000。自分のスピリットすべて）を発火させる。
+    // BS10-061自身の『召喚時』効果（自分のスピリットすべてをBP+2000）を発火させる。
     // braveStatsAsContinuous が誤って effectsDisabledContinuous 相当を立てていれば、これは発火しない
     fireTrigger(s, "p1", brave, "onSummon")
-    assert(x06.tempBpBuff === 2000, "上書きされていても、ブレイヴ自身の『召喚時』効果（BP+2000オールバフ）は発揮される")
+    assert(effectiveBp(s, "p1", x06) === before + 2000, "上書きされていても、ブレイヴ自身の『召喚時』効果（BP+2000オールバフ）は発揮される")
 }
 
 console.log("=== braveStatsAs：合体中のブレイヴには及ばない ===")

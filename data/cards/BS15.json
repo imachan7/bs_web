@@ -5189,8 +5189,16 @@
     "event": "anySpiritAttacked",
     "subjectSide": "opponent",
     "action": {
-     "type": "bpBuffAll",
-     "amount": 3000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own"
     },
     "thenPay": "flash"
    },

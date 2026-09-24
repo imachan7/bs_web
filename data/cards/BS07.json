@@ -1174,8 +1174,16 @@
      3
     ],
     "action": {
-     "type": "bpBuffAll",
-     "amount": 1000,
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own",
      "filter": {
       "family": "剣獣"
      }

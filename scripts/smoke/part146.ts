@@ -142,14 +142,16 @@ console.log("=== BS08スナイピングブラスト：bpBuffAllByBofuCount（【
     assert(effectiveBp(s, "p1", plain) === bpAt(FILLER, 1), "対照実験：【暴風】を持たないスピリットは変化しない")
 }
 
-console.log("=== BS08ダークパワー：bpBuffAll（amountCounter）+ filter.nameContains配列（「ダーク」/「ブラック」のOR） ===")
+console.log("=== BS08ダークパワー：すべてをBP+（1体につき）+ filter.nameContains配列（「ダーク」/「ブラック」のOR） ===")
 {
-    const darkpower = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAll" && (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] !== undefined,
-    )
-    const entry = entryOf(darkpower, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAll" && (e["action"] as Record<string, unknown> | undefined)?.["amountCounter"] !== undefined)
+    const isDarkPower = (e: Record<string, unknown>) => {
+        const a = e["action"] as { type?: string; content?: { type: string; amountCounter?: unknown }[] } | undefined
+        return a?.type === "timedEffect" && a.content?.some((c) => c.type === "bp" && c.amountCounter !== undefined) === true
+    }
+    const darkpower = findByEffect(isDarkPower)
+    const entry = entryOf(darkpower, isDarkPower)
     const action = entry["action"] as Record<string, unknown>
-    const amountPer = Number(action["amount"])
+    const amountPer = Number((action["content"] as { amount: number }[])[0]!.amount)
     const names = ((action["filter"] as Record<string, unknown>)["nameContains"] as string[]) ?? []
     const matchSpirit = CARDS.find(
         (c) => c.type === "spirit" && names.some((n) => c.name.includes(n)) && c.cardId !== darkpower.cardId,
@@ -175,6 +177,11 @@ console.log("=== BS08ダークパワー：bpBuffAll（amountCounter）+ filter.n
         `カード名に「${names.join("」/「")}」を含むスピリットは、疲労スピリット1体につきBP+${amountPer}`,
     )
     assert(effectiveBp(s, "p1", other) === otherBefore, "対照実験：名前が一致しないスピリットは変化しない")
+    other.isRested = true
+    assert(
+        effectiveBp(s, "p1", match) === matchBefore + amountPer * 2,
+        "使用後に疲労状態のスピリットが増えると、BP+も増える（数は判定のたびに数え直す。Q&A）",
+    )
 }
 
 console.log("=== BS08ライトニングスピード：grantKeywordToHandCard.all（手札の該当カードすべてに【神速】） ===")

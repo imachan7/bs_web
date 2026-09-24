@@ -1306,6 +1306,7 @@ export function countAuraCounter(
     countingSourceType?: CardType, // 数えている効果の発生源の種別（spiritCountWeight の限定に使う）
 ): number {
     if (counter === "ownReserve") return board.players[sourcePid].reserve
+    if (counter === "ownLife") return board.players[sourcePid].life
     if (counter === "ownHand") return handSizeOf(board.players[sourcePid])
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
     if (counter === "allNexuses") {
@@ -1639,6 +1640,26 @@ export function effectiveBp(
                 if (bpBuffSuppressed && amount > 0) continue
                 total += amount
             }
+        }
+    }
+    return total + timedRuleBp(board, ownerPid, inst)
+}
+
+// 全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
+// （解決後に場に出たスピリットにも効き、「1体につき」の数も変わる。2026-09-24 ユーザー確認）
+function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
+    let total = 0
+    for (const c of board.turnConstraints) {
+        if (c.type !== "timedRule" || (c.pid !== undefined && c.pid !== ownerPid)) continue
+        for (const x of c.content) {
+            if (x.type !== "bp") continue
+            if (!matchesTarget(board, ownerPid, inst, c.filter, c.selfInstanceId)) continue
+            const amount =
+                x.amountCounter === undefined
+                    ? x.amount
+                    : x.amount * countAuraCounter(board, c.ownerPid, x.amountCounter as AuraCounter)
+            if (amount > 0 && isBpBuffSuppressed(board, c.ownerPid)) continue
+            total += amount
         }
     }
     return total
@@ -2855,7 +2876,7 @@ export function cantActByTimedRule(board: Board, inst: CardInstance, act: "attac
     return board.turnConstraints.some(
         (c) =>
             c.type === "timedRule" &&
-            c.content.includes(needed) &&
+            c.content.some((x) => x.type === needed) &&
             (c.pid === undefined || c.pid === pid) &&
             matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
     )
