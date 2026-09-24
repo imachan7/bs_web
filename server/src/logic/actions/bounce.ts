@@ -1,5 +1,5 @@
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, heavyArmorColorsOf, instColors, spiritHasKeyword, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
@@ -267,6 +267,10 @@ const returnFieldExceptOpponentChosenColorHandler: ActionHandler<"returnFieldExc
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.all) {
+            returnAllTargetsToHand(ctx, { side: action.anySide ? "both" : "opponent", ...(action.filter ? { filter: action.filter } : {}) })
+            return
+        }
         // BS15共通器：globalConstraint "noHandGainByEffect" が効いている間は、バウンス効果自体が
         // 発揮されない＝戻すはずのスピリットは場に残る（お互い。BS15-052天蒼元帥チョウハッカイ）
         if (hasGlobalConstraint(state, "noHandGainByEffect")) {
@@ -551,8 +555,13 @@ const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHea
     }
 }
 
-const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+// 「すべて」を戻すのは範囲の効果（attempt が "area"）。returnToHand{all} もここを通す。
+// 1体版と違って noHandGainByEffect を見ていない（旧 returnAllToHand の挙動のまま）
+function returnAllTargetsToHand(
+    ctx: ActionCtx,
+    action: { side: "opponent" | "both"; costFilter?: { max?: number; min?: number }; filter?: TargetFilter },
+): void {
+    const { state, opp, self, sourceName, srcType } = ctx
         // filter指定時はさらにTargetFilterの軸で絞り込む（既存costFilterは残す。BS06鎧神機ヴァルハランスLv3＝BP4000以下）
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) {
@@ -581,6 +590,8 @@ const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) =
         if (returned === 0) log(state, `${sourceName}：手札に戻す対象がいなかった。`)
         return
 }
+
+const returnAllToHandHandler: ActionHandler<"returnAllToHand"> = (ctx, action) => returnAllTargetsToHand(ctx, action)
 
 // グラシアルブレス：自分のスピリットcount体をデッキの下へ戻すことをコストに、
 // 相手のスピリットcount体もデッキの下へ戻す。自分がcount体戻せないなら不発。

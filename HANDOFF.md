@@ -33,6 +33,10 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（R3 は handDeck・EffectModules・magic まで分割済み。**§2.1 の④が進行中**：[ACTION_DECOMPOSITION.md](./docs/design/ACTION_DECOMPOSITION.md) の「要確認」83行と一覧に無い種類を調査役が定義を読んで埋める。ブランチ `docs/action-decomposition`。期間つき付与は「対象（プレイヤー含む）・内容・期間」の1つの器に寄せる＝ACTION_VOCABULARY §3） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
+### M4a「すべて」の統一（2026-09-24。器はブランチ `feat/filter-unify`）
+
+`destroy`・`exhaust`・`returnToHand` に `all: true`（対象すべて。範囲の効果として耐性を判定）、`TargetFilter` に `sameLevelAsBattleLoser`。**次は移行**：`destroyAll`・`exhaustAll`・`exhaustAllByLevel`・`returnAllToHand` の54か所を part359 の `convert` と同じ規則で書き換えて旧 type を消す（器の PR のマージ後に最新の main から）。`coreRemove` の `all` は「コアすべて」の意味で衝突するので、`coreRemove` 系と `refresh` 系は M4b。
+
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
 残りは REFACTOR_PLAN §2 の表の3行目（量が支払いの結果で決まる6種と `costXxx` 31種）。`costXxx` は移すときに数どおりの規則へ揃え、挙動が変わるカードを PR に表で書く。

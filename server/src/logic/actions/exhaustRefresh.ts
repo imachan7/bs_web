@@ -40,6 +40,10 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.all) {
+            exhaustAllTargets(ctx, action)
+            return
+        }
         // costReserveToTrashFromBofu（BS15-026軍師鳥ショカツリョーLv2）：実効【暴風】指定数ぶんのコストを
         // 先に払う。払えなければ不発（countFromBofuの解決より前に見る）
         if (action.costReserveToTrashFromBofu) {
@@ -238,6 +242,28 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             }
         }
         return
+}
+
+// 「すべて」の疲労は範囲の効果（attempt が "area"）。両陣営は bothSidesPids（封印された魔導書の片側への変更を見る）
+function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anySide?: true }): void {
+    const { state, owner, opp, self, sourceName, srcType } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) {
+        log(state, `${sourceName}：条件の参照元がいなかった。`)
+        return
+    }
+    const sides: PlayerId[] = action.anySide ? bothSidesPids(state, srcType) : [opp]
+    let exhausted = 0
+    for (const pid of sides) {
+        for (const s of [...state.players[pid].field.spirits]) {
+            if (s.isRested) continue
+            if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
+            if (isResisted(state, pid, s, attemptOf(ctx, "exhaust", "area"))) continue
+            exhaustSpirit(state, pid, s, undefined, owner, srcType)
+            exhausted++
+        }
+    }
+    log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
 }
 
 const exhaustAllHandler: ActionHandler<"exhaustAll"> = (ctx, action) => {

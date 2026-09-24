@@ -1,7 +1,7 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     applyBothSidesRedirectToCandidates,
@@ -200,6 +200,10 @@ const destroyIfLastMillHadBurstHandler: ActionHandler<"destroyIfLastMillHadBurst
 
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.all) {
+            destroyAllTargets(ctx, action)
+            return
+        }
         // 絞り込みは共通の TargetFilter に一本化（maxBp/keyword/cost と、self相対BP＝
         // maxBpFromSelf「召喚されたスピリットのBP以下」・bpEqualsSelf「selfと同BP」）。
         // self 相対BPは normalizeFilter が数値へ解決し、self 不在なら SELF_REQUIRED を返す
@@ -579,8 +583,12 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         return
 }
 
-const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+// 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
+function destroyAllTargets(
+    ctx: ActionCtx,
+    action: { filter?: TargetFilter; anySide?: boolean; drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true },
+): void {
+    const { state, owner, opp, self, sourceName, srcType, destroyContext } = ctx
         // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
         // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
         // 絞り込み（maxBp / colorExclude）は共通の TargetFilter に一本化。
@@ -651,6 +659,8 @@ const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => {
         applyDestroyBatchAfter(state, owner, destroyed, after)
         return
 }
+
+const destroyAllHandler: ActionHandler<"destroyAll"> = (ctx, action) => destroyAllTargets(ctx, action)
 
 // BS12-X06海賊王レヴィアダン『召喚時』：自分の familyFilter 一致スピリット（self自身も含む）の
 // コストの集合に、コストが一致する相手のスピリットすべてを破壊する（器BH）
