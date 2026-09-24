@@ -6290,10 +6290,19 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "levelOverrideTarget",
-     "level": 3,
-     "colorFilter": "blue",
-     "requireLevelExists": true
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "level",
+       "set": 3,
+       "requireLevelExists": true
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "filter": {
+      "color": "blue"
+     }
     }
    }
   ]

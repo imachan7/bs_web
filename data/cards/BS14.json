@@ -2991,9 +2991,14 @@
      "exhaustOwnFamilyOne": "四道"
     },
     "action": {
-     "type": "levelOverrideTarget",
-     "level": 1,
-     "side": "opponent"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "level",
+       "set": 1
+      }
+     ],
+     "duration": "turn"
     }
    }
   ]
@@ -6560,7 +6565,15 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "levelUpThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "level",
+       "up": 1
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]
