@@ -40,7 +40,7 @@ console.log("=== ビルドアップ（levelUpThisTurn）：相手のスピリッ
     const mine = put(s, "p1", "BS01-001", 1) // ゴラドン Lv1
     const theirs = put(s, "p2", "BS01-002", 1) // ロクケラトプス Lv1
 
-    resolveAction(s, "p1", null, { type: "levelUpThisTurn", anySide: true }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "level", up: 1 }], duration: "turn", side: "both" }, undefined, undefined, "magic")
     assert(s.pendingChoice !== null, "両陣営が候補になり選択待ちが立つ")
     const cands = s.pendingChoice?.candidates ?? []
     assert(cands.includes(mine.instanceId), "自分のスピリットが候補に入る")
