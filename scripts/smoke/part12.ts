@@ -4,7 +4,7 @@
 //   - server/src/logic/EffectModules.ts: instHasCost・drawDoubleMultiplier・
 //     fireTrigger の effectGrant 合成（collectGrantedTriggerActions）・
 //     fireStepTriggers の condition拡張（ownColorTotalAtLeast）・
-//     resolveAction の battleCompareByLevel / grantAlsoCostAll ケース
+//     resolveAction の timedEffect の compareBy（level） / grantAlsoCostAll ケース
 //   - server/src/logic/RuleValidator.ts: cantActByTimedRuleのtempAlsoCosts対応
 //   - data/cards.json: BS02-109 エンジェルボイス・BS02-056 アルカナビースト・ケン・
 //     BS02-060 道化師クラン・BS02-087 封印された魔導書（e2のみ）

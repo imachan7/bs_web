@@ -6198,7 +6198,14 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "battleCompareByCores"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "compareBy",
+       "by": "cores"
+      }
+     ],
+     "duration": "battle"
     }
    }
   ]

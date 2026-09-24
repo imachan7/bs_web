@@ -871,7 +871,14 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "battleCompareByLevel"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "compareBy",
+              "by": "level"
+            }
+          ],
+          "duration": "battle"
         },
         "optional": false
       }
@@ -5916,7 +5923,14 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "battleCompareByCost"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "compareBy",
+              "by": "cost"
+            }
+          ],
+          "duration": "battle"
         }
       }
     ]

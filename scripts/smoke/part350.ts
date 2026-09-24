@@ -3,7 +3,7 @@
 // - kind:"bpEqualizeFamily"（BS16-009。自分のアタックステップ限定）
 // - kind:"destroyBpThresholdBonus"（BS16-061）
 // - action:"summonBurstCardFreeIfDestroyedColor"（BS16-018）
-// - action:"battleInvertBpWinner"（P070）
+// - timedEffect の invertBattleWinner（P070）
 // - action:"openOwnBurstActivateIfSummonCond"（BS16-X01）
 // - globalConstraint "allSpiritsCantBounce"（BS16-012）
 // - summonBurstCardFree のブレイヴ対応（自動合体。P069）

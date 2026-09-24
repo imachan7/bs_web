@@ -10,7 +10,7 @@
 //   Y5: EffectCounter { anyNameIncludes }（両陣営でカード名に指定文字列を含む数）
 //   Y6: reductionGrant.phase（このステップ中のみ有効）
 //   Y9: summonFromHandFree.count（コスト最大から複数体、維持コア不足で打ち切り）
-//   Y10: battleCompareByCores（BPの代わりにコア数を比較）
+//   Y10: timedEffect の compareBy（cores）（BPの代わりにコア数を比較）
 //   その他: reviveOnDestroy.colorFilter/condition・magicTargetRedirect.turn:"own"/protectCost・
 //     magicBuffBonus.target:"ownAll"・AuraCounter { ownCost }
 import { bpBuffOf,
@@ -189,7 +189,7 @@ console.log("=== Y9: summonFromHandFree.count（コスト最大から複数体�
     assert(s.players.p1.hand.length === 3, "残り3枚は手札に残る")
 }
 
-console.log("=== Y10: battleCompareByCores（BS06-110 イマジンフィールド）===")
+console.log("=== Y10: timedEffect の compareBy（cores）（BS06-110 イマジンフィールド）===")
 {
     const s = createGame("t129-imaginfield-cores", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "yellow" })
     runTurnStart(s)

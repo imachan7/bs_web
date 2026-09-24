@@ -1,7 +1,7 @@
 // smoke パート254（BS10黄バッチ：ノックアウト／龍仙公主／赤ずきん妖精ルージュ）
 // 新設した機構:
 //   - state.battle.compareByCost（既存のcompareByLevel/compareByCoresの3つ目。BS10-110ノックアウト）
-//     action "battleCompareByCost" と battleFlow.ts の battleCompareByCostHandler
+//     timedEffect の compareBy（cost）
 //   - reviveOnDestroy.cost.handDiscardCardType（handDiscardOneの種別絞り込み。BS10-046龍仙公主Lv1＝magic）
 //   - triggered.condition の requirePrevAttackerCombined（GameState.lastAttackerCombinedPid /
 //     prevAttackerCombinedPid をdoAttackがスライドさせ、直前のアタックが自分の合体スピリットだった

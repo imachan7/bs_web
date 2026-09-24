@@ -5362,7 +5362,14 @@
      "selfCoresToTrash": 2
     },
     "action": {
-     "type": "battleCompareByLevel"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "compareBy",
+       "by": "level"
+      }
+     ],
+     "duration": "battle"
     }
    }
   ]

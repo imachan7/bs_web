@@ -5996,7 +5996,14 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "battleCompareByLevel"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "compareBy",
+       "by": "level"
+      }
+     ],
+     "duration": "battle"
     }
    }
   ]

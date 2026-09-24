@@ -114,7 +114,13 @@
         "whileCombined": true,
         "optional": false,
         "action": {
-          "type": "battleInvertBpWinner"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "invertBattleWinner"
+            }
+          ],
+          "duration": "battle"
         }
       }
     ],
