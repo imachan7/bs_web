@@ -396,8 +396,56 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
 
+// 1体を「ブロックされない」にする。期間 battle は次のバトルが終わると消える印（強者統べる大地の「ターンに1回」もこれ）、
+// turn はターン終了まで何回アタックしても効く印。対象を選ぶときは自分のスピリットから、非対話は実効BP最大
+function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "unblockable" }> => c.type === "unblockable")
+    if (!content) return
+    let target: CardInstance | undefined
+    if (action.target === "self") {
+        if (!self) return
+        target = self
+    } else {
+        const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        if (candidates.length === 0) {
+            log(state, `${sourceName}：条件に合う自分のスピリットがいなかった。`)
+            return
+        }
+        if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+            requestChoice(state, owner, `${sourceName}：ブロックされないスピリットを選んでください`, candidates.map((s) => s.instanceId), false, action, self)
+            return
+        }
+        target =
+            targetInstanceId !== undefined
+                ? candidates.find((s) => s.instanceId === targetInstanceId)
+                : candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
+        if (!target) {
+            log(state, `${sourceName}：指定されたスピリットは条件を満たさなかった。`)
+            return
+        }
+    }
+    const name = getCard(target.cardId).name
+    if (content.fromMinBp !== undefined) {
+        target.unblockableMinBpThisBattle = content.fromMinBp
+        log(state, `${sourceName}：このバトルの間、BP${content.fromMinBp}以上のスピリットからブロックされない。`)
+    } else if (action.duration === "battle") {
+        target.unblockableOnceThisTurn = true
+        log(state, `${sourceName}：${name}は、このターン1回だけ相手のスピリットにブロックされない。`)
+    } else {
+        target.unblockableThisTurn = true
+        log(state, `${sourceName}：${name}は、このターンの間相手のスピリットにブロックされない。`)
+    }
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.content.some((c) => c.type === "unblockable")) {
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) return
+        placeUnblockable(ctx, action, filter)
+        return
+    }
     if (action.content.some((c) => c.type === "playerRule")) {
         placePlayerRule(ctx, action)
         return

@@ -100,6 +100,7 @@
 - 「このターンの間、〜のスピリットすべてを Lv◯（最高Lv）として扱う」も解決後に場に出たスピリットに効く（2026-09-24 ユーザー確認）。`timedEffect` の内容 `level`（`set`／`max`）＋ `all: true` は `timedRule` に `appliedIds` を持たせて置き、`refreshLevelAsOverrides` がまだ書いていない個体（後から場に出たもの）にだけ `levelOverrideThisTurn` を書く。書いた後は上書きしない（後から使われた1体の Lv 変更が勝つ）。1体指定は `set`／`up`
 - 「このターンの間、スピリット1体を◯色としても扱う」は `timedEffect` の内容 `{ type: "color"; color? }`。`color` を省くと使う人が選ぶ（対象を選ぶ→色を選ぶ、の2段階。`target: "self"` なら色だけ）。個体の `tempColors` に書く。系統・色を「貸す」もの（`grantFamilyChoiceAll`・`colorChoiceLendThisTurn`）は仮想発生源の仕組みなので器に入れない（2026-09-24）
 - プレイヤーに掛かる「このターンの間」の制約（ライフが減らない・手札を使えない・【装甲】が働かない など）は `timedEffect` の内容 `{ type: "playerRule"; rule }`。`rule` は `TurnConstraintDef` のうち `pid` を持つものから `pid` を除いた既存の語彙（`PlayerRuleDef`）で、効くプレイヤーは `side`（相手＝既定／`own`／`both`）から解決時に入れる（2026-09-24）
+- 「ブロックされない」は `timedEffect` の内容 `{ type: "unblockable"; fromMinBp? }`。期間 `battle` は次のバトルが終わると消える印（強者統べる大地の「ターンに1回」・アタック時の効果）、`turn` はターン終了まで何回アタックしても効く印（天使長トロン）。`fromMinBp` は「BP◯以上の相手から」。「Lv◯の相手から」はプレイヤーに掛かる制約（`playerRule` の `unblockableByLevelThisTurn`）（2026-09-24）
 - `timedEffect` の `all: true` は個体を選ばず `turnConstraints` に `timedRule`（内容・陣営・解決済みの `filter`）を積み、宣言のたびに `shared/rules.ts` の `cantActByTimedRule` が `matchesTarget` で照合する。陣営は `side`（相手＝既定／`own`／`both`）。いまは期間 `turn` だけ（2026-09-24）
 - 「このターンの間、〜のスピリットすべては〜できない」は、効果の解決後に場に出たスピリットや、後から条件に合うようになったスピリットにも効く（判定のたびに条件を照合する全体ルール。2026-09-24 ユーザー確認）。「〜1体を指定し」は解決時に選んだ個体にだけ効く
 - 「この効果で消滅したスピリット1体につき」（BS10-X02）は、直前の結果を数える形（`if` の `last`／カウンタ）で読む

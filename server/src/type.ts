@@ -604,6 +604,7 @@ export interface CardInstance {
     cantAttackThisTurn: boolean // このターンの間アタック不可（refreshAllOwn で回復した個体などに付与）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
+    unblockableThisTurn?: true // このターンの間ずっと相手のスピリットにブロックされない（何回アタックしても）。ターン終了で消える
     unblockableOnceThisTurn?: boolean // 「ターンに1回、相手のスピリットにブロックされない」印。canBlock が参照し、次のバトル終了時（clearBattle）に消える。ターン終了でもリセットする（BS04強者統べる大地Lv2）
     unblockableColorsThisTurn?: Color[] // このターンの間、この色（配列＝OR）を持つ相手のスピリットからブロックされない。markUnblockableByIceWallColorThisTurnが指定時点のiceWallColorsOfを固定値として保存する（【氷壁】が後で無効化されても保持。canBlockが参照しターン終了でリセット。BS16-079ムーンボウクローク）
     destroyAtBattleEnd?: true // 器BS16：バトル参加者としてonBattleEndまで生き残ったら、そこで破壊される（GameEngine.runBattleStep case8/9が判定）。summonFromTrashFree.destroyAtBattleEndが召喚時に立てる（BS16-075スケープゴート：「バトル終了時、この効果で召喚されたスピリットは破壊される」＝チャンプブロック用の一時召喚）
@@ -1427,6 +1428,7 @@ export type TimedContent =
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
     | { type: "playerRule"; rule: PlayerRuleDef } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side
+    | { type: "unblockable"; fromMinBp?: number } // 相手のスピリットにブロックされない。fromMinBp＝実効BPがこれ以上の相手からだけ（期間は battle のみ）
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true } // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 

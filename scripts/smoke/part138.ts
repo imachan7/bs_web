@@ -329,16 +329,20 @@ console.log("=== BS07 黄：召喚時に自分自身が「ブロックされな�
     const tron = findByEffect(
         (e) =>
             e["kind"] === "triggered" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "markUnblockableThisTurn" &&
-            (e["action"] as Record<string, unknown>)["target"] === "self",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+            (e["action"] as Record<string, unknown>)["target"] === "self" &&
+            (e["action"] as Record<string, unknown>)["duration"] === "turn" &&
+            JSON.stringify(e["action"]).includes('"unblockable"'),
     )
     const s = base("tron-unblockable")
     // BP最大の別スピリットを先に置いておく（自動選択なら誤ってこちらが選ばれる）
     const decoy = put(s, "p1", SEIMEI_L2.cardId, SEIMEI_L2.levels?.[1]?.cores ?? 2)
     const tronInst = put(s, "p1", tron.cardId, 1)
-    resolveAction(s, "p1", tronInst, { type: "markUnblockableThisTurn", minBp: 0, target: "self" })
-    assert(tronInst.unblockableOnceThisTurn === true, `${tron.name}自身に印が付く`)
-    assert(decoy.unblockableOnceThisTurn !== true, "対照実験：BPが上の別スピリットには付かない")
+    const tronAction = (tron.effects ?? []).find((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect")!["action"]
+    resolveAction(s, "p1", tronInst, tronAction as never)
+    // 効果文は「このターンの間、このスピリットはブロックされない」＝次のバトルで消える印ではなくターン終了まで（2026-09-24 修正）
+    assert(tronInst.unblockableThisTurn === true, `${tron.name}自身に「このターンの間ブロックされない」印が付く`)
+    assert(decoy.unblockableThisTurn !== true, "対照実験：BPが上の別スピリットには付かない")
 }
 
 console.log("=== BS07 黄：最高Lvではない相手にブロックされたとき回復する ===")

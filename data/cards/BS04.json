@@ -4722,8 +4722,17 @@
      2
     ],
     "action": {
-     "type": "markUnblockableThisTurn",
-     "minBp": 10000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "unblockable"
+      }
+     ],
+     "duration": "battle",
+     "side": "own",
+     "filter": {
+      "minBp": 10000
+     }
     }
    }
   ]

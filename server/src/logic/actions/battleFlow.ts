@@ -102,13 +102,6 @@ const blockBurstSpiritSummonThisTurnHandler: ActionHandler<"blockBurstSpiritSumm
     log(state, `${sourceName}：このターンの間、お互い、バースト効果でスピリットを召喚できない。`)
 }
 
-// BS10-073 エンジェドール：このターンの間、自分のスピリットすべては指定Lvの相手からブロックされない
-const grantUnblockableByLevelThisTurnHandler: ActionHandler<"grantUnblockableByLevelThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    state.turnConstraints.push({ type: "unblockableByLevelThisTurn", pid: owner, levels: [...action.levels] })
-    log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットはLv${action.levels.join("/")}の相手のスピリットにブロックされない。`)
-}
-
 // BS10-108 ルナティックシール：発揮した側のエンドステップを turns 回数えるまで、両陣営に制限をかける。
 // カードは「ボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く」と書くが、
 // **置かれたコアは以後どこからも参照されない**ので、実体のコアではなくカウンターとして持つ
@@ -2205,15 +2198,6 @@ const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle
     log(state, `${getCard(chosen.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
-// BS13-032光速の騎士ヘルモード【合体時】Lv3『このスピリットの合体アタック時』：発生源自身に、
-// このバトルの間「実効BPがminBp以上の相手からブロックされない」印を付ける（BRAVE.md §12.4）
-const unblockableAboveBpThisBattleHandler: ActionHandler<"unblockableAboveBpThisBattle"> = (ctx, action) => {
-    const { state, self, sourceName } = ctx
-    if (!self) return
-    self.unblockableMinBpThisBattle = action.minBp
-    log(state, `${sourceName}：このバトルの間、BP${action.minBp}以上のスピリットからブロックされない。`)
-}
-
 // BS12-058【合体時】：フィールドイベント（ownMagicUsed。「その効果発揮後」）が渡すtargetInstanceIdの
 // 対象1体の実効BPを、このバトルの間amountに固定する（器J）。BS12-037はanySpiritAttackedのselfOverride＝
 // アタックしたスピリットがそのままtargetInstanceIdとして渡る
@@ -2231,62 +2215,6 @@ const setBattleBpFixedHandler: ActionHandler<"setBattleBpFixed"> = (ctx, action)
     }
     inst.battleBpFixed = action.amount
     log(state, `${getCard(inst.cardId).name}のBPは、このバトルの間${action.amount}として扱う。`)
-}
-
-const markUnblockableThisTurnHandler: ActionHandler<"markUnblockableThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-    // target:"self"（BS07天使長トロン）は発生源自身。BP最大の自動選択は行わない
-    if (action.target === "self") {
-        if (!self) return
-        self.unblockableOnceThisTurn = true
-        log(state, `${getCard(self.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。`)
-        return
-    }
-    // 「BP◯◯◯以上の自分のスピリット1体を指定する」（BS04強者統べる大地Lv2）。
-    // 候補が2体以上あればプレイヤーに選ばせる（非対話時＝smoke等は従来どおり実効BP最大を自動選択）
-    const candidates = state.players[owner].field.spirits.filter(
-        (inst) => effectiveBp(state, owner, inst) >= action.minBp,
-    )
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：BP${action.minBp}以上の自分のスピリットがいなかった。`)
-        return
-    }
-    if (targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：ブロックされないスピリットを選んでください`,
-            candidates.map((s) => s.instanceId),
-            false,
-            action,
-            self,
-        )
-        return
-    }
-    // 明示ターゲット（選択の再開もここに戻ってくる）。条件を満たさない個体が指定されたら不発
-    let chosen: CardInstance | undefined
-    if (targetInstanceId !== undefined) {
-        chosen = candidates.find((s) => s.instanceId === targetInstanceId)
-        if (!chosen) {
-            log(state, `${sourceName}：指定されたスピリットは条件を満たさなかった。`)
-            return
-        }
-    } else {
-        let bestBp = -1
-        for (const inst of candidates) {
-            const bp = effectiveBp(state, owner, inst)
-            if (bp > bestBp) {
-                chosen = inst
-                bestBp = bp
-            }
-        }
-    }
-    if (!chosen) return
-    chosen.unblockableOnceThisTurn = true
-    log(
-        state,
-        `${sourceName}：${getCard(chosen.cardId).name}は、このターン1回だけ相手のスピリットにブロックされない。`,
-    )
 }
 
 // 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
@@ -2340,13 +2268,10 @@ const handlers = {
     blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
-    unblockableAboveBpThisBattle: unblockableAboveBpThisBattleHandler,
     setBattleBpFixed: setBattleBpFixedHandler,
-    markUnblockableThisTurn: markUnblockableThisTurnHandler,
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
     blockTriggersAsAttackOwnThisTurn: blockTriggersAsAttackOwnThisTurnHandler,
-    grantUnblockableByLevelThisTurn: grantUnblockableByLevelThisTurnHandler,
     endStepLock: endStepLockHandler,
     skipBpCompareThenRefreshOne: skipBpCompareThenRefreshOneHandler,
     extraAttackStep: extraAttackStepHandler,

@@ -3846,8 +3846,15 @@
     ],
     "whileCombined": true,
     "action": {
-     "type": "unblockableAboveBpThisBattle",
-     "minBp": 6000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "unblockable",
+       "fromMinBp": 6000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
     }
    }
   ]

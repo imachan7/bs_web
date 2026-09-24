@@ -120,6 +120,9 @@ export function canBlock(
         if (attackerInst.unblockableOnceThisTurn) {
             return "このスピリットはこのターン1回だけブロックされません"
         }
+        if (attackerInst.unblockableThisTurn) {
+            return "このスピリットはこのターンの間ブロックされません"
+        }
         // BS13-032光速の騎士ヘルモード【合体時】Lv3：このバトルの間、実効BPがminBp以上の相手からブロックされない
         if (
             attackerInst.unblockableMinBpThisBattle !== undefined &&
