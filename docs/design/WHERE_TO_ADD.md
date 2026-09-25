@@ -24,3 +24,17 @@
 ## 除去（`server/src/logic/removal.ts`）
 
 スピリット・ネクサスの破壊（`destroySpirit`・`destroyNexus`）、手札・デッキへ戻す、コアを取り除く。ブレイヴと復活は上の2ファイルへ分けた。
+
+## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| レベル・BP の表・ブレイヴの合成・キーワードの定義 | `rules/level.ts` |
+| シンボルの数と色 | `rules/symbols.ts` |
+| 盤面の付与効果を含めたキーワード・系統の判定 | `rules/keywordState.ts` |
+| 効果耐性（装甲・効果を受けない・対象にならない） | `rules/resistance.ts`（入口は `boardResistanceAgainst`） |
+| オーラ・実効BP・数を数えるときの重み | `rules/bp.ts` |
+| 対象の絞り込み（`TargetFilter` の新しい軸） | `rules/targetFilter.ts` の `matchesTarget` |
+| 継続制約・期間つき効果の読み取り（`timedContentsOn` など） | `rules/constraints.ts` |
+| 覚醒・起動能力・指定アタック・維持コア・フラッシュのロック | `rules/activation.ts` |
+
