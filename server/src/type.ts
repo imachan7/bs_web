@@ -821,7 +821,7 @@ export interface BattleState {
     treatAsUnblockedIfBlockerLevel1?: true // ブロッカーがLv1なら、BPを比べずに「ブロックされなかった」ものとして扱う（ライフに通り、どちらも破壊されない。ブロッカーは疲労したまま残る。BS09-044妖精の姫巫女ハマ・ドリュアス。BS09_PLAN.md §4）
     treatAsUnblockedByCost?: true // BS15共通器：action:"unblockedByVoidSelfCore" がonBlocked時に立てる。挙動はtreatAsUnblockedIfBlockerLevel1と同じ（BS15-045虚獣帝スフィン・クロス）
     blockerCoresProtected?: true // このバトルの間、ブロッカー上のコアは効果で取り除けない（protectBlockerCoresThisBattle。BS09-027密林の勇者皇ヴォルザLv2-3）
-    opponentDestroyedCoresToVoidPid?: PlayerId // action:"battleOpponentDestroyedCoresToVoid" が立てるフラグ。この値と一致する持ち主のスピリットがこのバトル中に破壊されたとき、commitPendingDestructionがコアをリザーブでなくボイドへ送る（BS10-X01幻羅星龍ガイ・アスラLv4：「このバトルの間、破壊された相手のスピリットのコアすべてはボイドに置かれる」）
+    opponentDestroyedCoresTo?: { pid: PlayerId; to: "void" | "trash" } // このバトルの間、pid のスピリットが破壊されたときのコアの行き先（リザーブの代わり）
     // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
     // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
     // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、

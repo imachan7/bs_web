@@ -260,17 +260,15 @@ const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
         return
 }
 
-// BS10-X01 幻羅星龍ガイ・アスラLv4：このバトルの間、破壊された相手のスピリットのコアすべてはボイドへ。
-// battleLoserCoresToVoidと違い「直前バトルの1回きり」ではなく、**このバトルが終わるまで継続**するフラグ。
-// 自分のスピリットには効かない（opp限定）。実際のコア移動はcommitPendingDestructionが読む
-const battleOpponentDestroyedCoresToVoidHandler: ActionHandler<"battleOpponentDestroyedCoresToVoid"> = (ctx) => {
+// 「直前バトルの1回きり」の battleLoserCoresToVoid と違い、このバトルが終わるまで続く。自分のスピリットには効かない
+const battleOpponentDestroyedCoresToHandler: ActionHandler<"battleOpponentDestroyedCoresTo"> = (ctx, action) => {
     const { state, opp, sourceName } = ctx
         if (!state.battle) {
             log(state, `${sourceName}：バトル外のため不発。`)
             return
         }
-        state.battle.opponentDestroyedCoresToVoidPid = opp
-        log(state, `${sourceName}：このバトルの間、破壊された相手のスピリット上のコアはボイドに置かれる。`)
+        state.battle.opponentDestroyedCoresTo = { pid: opp, to: action.to }
+        log(state, `${sourceName}：このバトルの間、破壊された相手のスピリット上のコアは${action.to === "void" ? "ボイド" : "トラッシュ"}に置かれる。`)
         return
 }
 
@@ -2177,7 +2175,7 @@ const handlers = {
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
     swapBattler: swapBattlerHandler,
-    battleOpponentDestroyedCoresToVoid: battleOpponentDestroyedCoresToVoidHandler,
+    battleOpponentDestroyedCoresTo: battleOpponentDestroyedCoresToHandler,
     lifeCrush: lifeCrushHandler,
     deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
