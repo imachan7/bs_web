@@ -1742,7 +1742,7 @@ export function matchesTarget(
     if (filter.keywordCount !== undefined && (filter.keyword === undefined || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
-    // 継続的な制約（unblockableBy）と期間つき効果の両方を見る。「BP◯以上から」だけのものは数えない
+    // 継続的な制約（unblockableBy）と期間つき効果の両方を見る。どちらも「◯◯の相手から」の条件つきでも数える
     if (filter.unblockableOnly) {
         const hasUnblockable =
             hasTimedUnblockable(board, inst) ||
@@ -2890,7 +2890,7 @@ function hasImmunityAgainst(
 // この個体にいま掛かっている期間つき効果の内容（docs/design/TIMED_EFFECTS.md）。1体指定と「すべて」の両方を追加順に返す。
 // 「すべて」は判定のたびに照合するので、効果の解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認）
 function hasTimedUnblockable(board: Board, inst: CardInstance): boolean {
-    return timedContentsOn(board, inst).some((c) => c.type === "unblockable" && c.fromMinBp === undefined)
+    return timedContentsOn(board, inst).some((c) => c.type === "unblockable")
 }
 
 export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[] {
@@ -2903,7 +2903,9 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
         const hit =
             t.kind === "instance"
                 ? t.instanceId === inst.instanceId
-                : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
+                : t.kind === "braveHost"
+                  ? bravesOf(board.players[pid], inst).some((b) => b.instanceId === t.braveInstanceId)
+                  : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
         return hit ? r.content : []
     })
 }

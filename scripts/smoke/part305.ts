@@ -18,6 +18,7 @@ import {
     resolveAction,
     runTurnStart,
     takeLifeAndResolve,
+    timedHas,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { destroySpiritsFrom } from "../../server/src/logic/removal"
@@ -221,7 +222,7 @@ console.log("=== 器BF：BS13-058【合体時】（このバトルの間、Lv1/L
     })
     assert(s.players.p1.deck.length === deckBefore - 5, "デッキ上5枚を破棄した")
     assert(s.players.p1.life === lifeBefore + 1, "ボイドからライフにコア1個")
-    assert(host.unblockableLevelsThisBattle?.join(",") === "1,2", "このバトルの間Lv1/2からブロックされない印が付く")
+    assert(timedHas(s, host, "unblockable"), "このバトルの間Lv1/2からブロックされない効果が掛かる")
     const lv1Blocker = createInstance("BS13-034", s.turn, 1) // Lv1
     const lv2Blocker = createInstance("BS13-036", s.turn, 2) // Lv2
     s.players.p2.field.spirits.push(lv1Blocker, lv2Blocker)

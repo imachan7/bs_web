@@ -20,6 +20,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    timedHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -160,7 +161,7 @@ console.log("=== 5. 079：【氷壁】を持つ自分のスピリット1体を�
     const s = game("p079-unblockable")
     const jeanne = put(s, "p1", C036, 1) // Lv1（氷壁：赤/紫/緑/白）
     resolveAction(s, "p1", null, { type: "markUnblockableByIceWallColorThisTurn" }, undefined, undefined, "magic")
-    assert(jeanne.unblockableColorsThisTurn !== undefined && jeanne.unblockableColorsThisTurn.includes("red"), "赤を含む【氷壁】の色が固定された")
+    assert(timedHas(s, jeanne, "unblockable"), "【氷壁】の色の相手からブロックされない効果が掛かる")
     const redBlocker = put(s, "p2", RED_VANILLA, 1)
     const yellowBlocker = put(s, "p2", YELLOW_VANILLA, 1)
     assert(canBlock(s, "p2", redBlocker, "p1", jeanne) !== null, "赤のスピリットはブロックできない")

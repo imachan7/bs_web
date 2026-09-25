@@ -12,6 +12,7 @@ import {
     activeConstraints,
     boardResistanceAgainst,
     cantActByTimed,
+    matchesTarget,
     timedContentsOn,
     canBlockWhileRestedThisTurn,
     currentLevel,
@@ -112,50 +113,11 @@ export function canBlock(
     // （継続的な制約・ターン限定の印のどちらも乗り越える。2026-08-14 ユーザー確認）
     const ignoresUnblockable = blockerConstraints.some((c) => c.type === "canBlockUnblockable")
     if (attackerInst && !ignoresUnblockable && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
-        // 期間つき効果の「ブロックされない」。until:"attack"（強者統べる大地Lv2の「ターンに1回」）は
-        // そのスピリットのアタックの終了で消えるので、同じターンの2回目のアタックはブロックできる
-        const unblockRecord = board.timedEffects.find(
-            (r) => r.target.kind === "instance" && r.target.instanceId === attackerInst.instanceId && r.content.some((c) => c.type === "unblockable" && c.fromMinBp === undefined),
-        )
-        if (unblockRecord) {
-            return unblockRecord.until === "attack" ? "このスピリットはこのターン1回だけブロックされません" : "このスピリットはこのターンの間ブロックされません"
-        }
-        // BS13-032光速の騎士ヘルモード【合体時】Lv3：このバトルの間、実効BPがminBp以上の相手からブロックされない
+        // 期間つき効果の「ブロックされない」（1体・すべて・ブレイヴのホスト）。from があればそれに合う相手からだけ
         for (const c of timedContentsOn(board, attackerInst)) {
-            if (c.type === "unblockable" && c.fromMinBp !== undefined && effectiveBp(board, blockerPid, blockerInst) >= c.fromMinBp) {
-                return `このスピリットはBP${c.fromMinBp}以上のスピリットにブロックされません`
-            }
-        }
-        // 器BF：このバトルの間、指定Lvの相手からブロックされない（BS13-058シユウ）
-        if (
-            attackerInst.unblockableLevelsThisBattle !== undefined &&
-            attackerInst.unblockableLevelsThisBattle.includes(currentLevel(blockerInst).level)
-        ) {
-            return `このスピリットはLv${attackerInst.unblockableLevelsThisBattle.join("/")}のスピリットにブロックされません`
-        }
-        // このターンの間、指定色の相手からブロックされない（markUnblockableByIceWallColorThisTurnが固定値として保存。
-        // 【氷壁】が後で無効化されても保持する。BS16-079ムーンボウクローク）
-        if (
-            attackerInst.unblockableColorsThisTurn !== undefined &&
-            attackerInst.unblockableColorsThisTurn.some((c) => instHasColor(blockerInst, c))
-        ) {
-            return `このスピリットは${attackerInst.unblockableColorsThisTurn.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされません`
-        }
-        // このターンの間、指定Lvの相手からブロックされない（BS10-073 エンジェドール＝Lv2）。
-        // アタッカーの持ち主にかかっているターン制約を見る
-        for (const c of board.turnConstraints) {
-            if (c.type !== "unblockableByLevelThisTurn" || c.pid !== attackerPid) continue
-            if (c.levels.includes(currentLevel(blockerInst).level)) {
-                return `このスピリットはLv${c.levels.join("/")}のスピリットにブロックされません`
-            }
-        }
-        // BS12-055ゲッコ・グライダー『このブレイヴの召喚時』：このターンの間、このブレイヴといま
-        // 合体しているホストはブロックされない（毎回いまのホストをbravesOf経由で引き直す。分離したら効かない）
-        for (const c of board.turnConstraints) {
-            if (c.type !== "braveHostUnblockableThisTurn" || c.pid !== attackerPid) continue
-            if (bravesOf(board.players[attackerPid], attackerInst).some((b) => b.instanceId === c.braveInstanceId)) {
-                return "このスピリットはブロックされません"
-            }
+            if (c.type !== "unblockable") continue
+            if (c.from === undefined) return "このスピリットはブロックされません"
+            if (matchesTarget(board, blockerPid, blockerInst, c.from)) return "このスピリットはこの相手にブロックされません"
         }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
