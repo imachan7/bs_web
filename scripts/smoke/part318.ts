@@ -376,7 +376,7 @@ console.log("=== BS14-112封渦斬：バースト＝このターン相手はマ�
     const s = game("t318-112-b")
     const target = put(s, "p1", "BS01-001", 1)
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "level", up: 1 }], duration: "turn", side: "own" }, target.instanceId)
-    assert(target.levelOverrideThisTurn !== undefined, "フラッシュ：このターンの間、自分のスピリット1体のLvを1つ上として扱う")
+    assert(target.timedLevel !== undefined, "フラッシュ：このターンの間、自分のスピリット1体のLvを1つ上として扱う")
 }
 
 console.log("=== BS14-113退魔絶刀角：バースト＝相手のデッキ5枚破棄、フラッシュは相手のトラッシュ1枚をデッキの下へ ===")

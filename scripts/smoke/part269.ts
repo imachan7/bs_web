@@ -46,8 +46,8 @@ console.log("=== §A levelOverrideTarget（マッシブアップ）：どれをL
     assert(s.pendingChoice?.kind === "target", "対象の選択待ちが立つ")
     assert(s.pendingChoice?.candidates.length === 2, "候補は青のLv3持ち2体")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: b.instanceId }) === null, "2体目を選ぶ")
-    assert(b.levelOverrideThisTurn === 3, "選んだスピリットがLv3として扱われる")
-    assert(a.levelOverrideThisTurn === undefined, "選ばなかったほうは変わらない")
+    assert(b.timedLevel === 3, "選んだスピリットがLv3として扱われる")
+    assert(a.timedLevel === undefined, "選ばなかったほうは変わらない")
 
     // 非対話：従来どおり先頭を自動選択
     const s2 = game(false)
@@ -55,7 +55,7 @@ console.log("=== §A levelOverrideTarget（マッシブアップ）：どれをL
     put(s2, "p1", blueLv3[1]!.cardId)
     resolveAction(s2, "p1", null, action!)
     assert(s2.pendingChoice === null, "非対話では選択待ちが立たない")
-    assert(a2.levelOverrideThisTurn === 3, "先頭が自動選択される（従来どおり）")
+    assert(a2.timedLevel === 3, "先頭が自動選択される（従来どおり）")
 }
 
 console.log("=== §B costBuffThisTurn（グロウアップ）：コストを上げる1体を選ぶ ===")

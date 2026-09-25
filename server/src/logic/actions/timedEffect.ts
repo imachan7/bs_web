@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -238,16 +238,12 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
     }
     const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
     if (action.content.some((c) => c.type === "level")) {
-        state.turnConstraints.push({
-            type: "timedRule",
+        recordTimed(state, {
             content: action.content,
+            target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
+            until: "turn",
             ownerPid: owner,
-            ...(pid !== undefined ? { pid } : {}),
-            filter,
-            ...(self ? { selfInstanceId: self.instanceId } : {}),
-            appliedIds: [],
         })
-        refreshLevelAsOverrides(state)
         const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
         const lv = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")!
         log(state, `${sourceName}：このターンの間、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
@@ -324,7 +320,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             log(state, `${sourceName}：対象が条件を満たさなかった。`)
             return
         }
-        found.inst.levelOverrideThisTurn = level
+        recordTimed(state, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：${getCard(found.inst.cardId).name}はこのターンの間Lv${level}として扱われる。`)
         return
     }
@@ -345,7 +341,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         return
     }
     const next = Math.min(currentLevel(target).level + (content.up ?? 1), maxLevelOf(target))
-    target.levelOverrideThisTurn = next
+    recordTimed(state, { content: [{ type: "level", set: next }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：${getCard(target.cardId).name}のLvを、このターンの間${next}として扱う。`)
 }
 

@@ -115,7 +115,7 @@ console.log("=== BS14-051アルカナビーストクィーン：cost.exhaustOwnF
     )
     assert(yondo.isRested === true, "系統「四道」を持つスピリットが疲労した")
     assert(shido.isRested === false, "四道を持たないスピリットは疲労しない")
-    assert(oppSpirit.levelOverrideThisTurn === 1, "相手のスピリットがこのターンLv1として扱われる")
+    assert(oppSpirit.timedLevel === 1, "相手のスピリットがこのターンLv1として扱われる")
 }
 
 console.log("=== BS14-085賛美するパイプオルガン：noDeckMillInMain＋anySpiritRefreshed(spirit/magic限定)で破壊 ===")

@@ -428,16 +428,6 @@ export function endTurn(state: GameState): void {
             log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
         }
     }
-    // このターンの間のレベル上書き（levelOverrideThisTurn）もリセット
-    // （スピリット・ネクサス両方が対象になりうる。皇帝アンプルールは相手のネクサスに設定する）
-    for (const pid of ["p1", "p2"] as const) {
-        for (const inst of [
-            ...state.players[pid].field.spirits,
-            ...state.players[pid].field.nexuses,
-        ]) {
-            delete inst.levelOverrideThisTurn
-        }
-    }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット

@@ -41,14 +41,14 @@ console.log("=== 1. マッシブアップ：青で Lv3 を持つ自分のスピ�
     s.players.p1.field.spirits = [noLv3, notBlue, ok]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, levelAction(MASSIVE), undefined, undefined, "magic")
-    assert(ok.levelOverrideThisTurn === 3 && currentLevel(ok).level === 3, "青で Lv3 を持つスピリットが Lv3 になる")
-    assert(noLv3.levelOverrideThisTurn === undefined && notBlue.levelOverrideThisTurn === undefined, "条件に合わないものは変わらない")
+    assert(ok.timedLevel === 3 && currentLevel(ok).level === 3, "青で Lv3 を持つスピリットが Lv3 になる")
+    assert(noLv3.timedLevel === undefined && notBlue.timedLevel === undefined, "条件に合わないものは変わらない")
     const t = game()
     const bad = createInstance(red3.cardId, 1, 1)
     t.players.p1.field.spirits = [bad]
     refreshLevelAsOverrides(t)
     resolveAction(t, "p1", null, levelAction(MASSIVE), bad.instanceId, undefined, "magic")
-    assert(bad.levelOverrideThisTurn === undefined, "指定された対象が青でなければ効果は無い")
+    assert(bad.timedLevel === undefined, "指定された対象が青でなければ効果は無い")
 }
 
 console.log("=== 2. アルカナビーストクィーン：相手のスピリットを Lv1 として扱う ===")
@@ -60,7 +60,7 @@ console.log("=== 2. アルカナビーストクィーン：相手のスピリッ
     s.players.p2.field.spirits = [theirs]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", mine, levelAction(QUEEN))
-    assert(theirs.levelOverrideThisTurn === 1 && mine.levelOverrideThisTurn === undefined, "相手のスピリットだけが Lv1 になる")
+    assert(theirs.timedLevel === 1 && mine.timedLevel === undefined, "相手のスピリットだけが Lv1 になる")
 }
 
 console.log("=== 3. ビルドアップ：Lv を1つ上げ、最大Lvで止まる ===")
@@ -70,9 +70,9 @@ console.log("=== 3. ビルドアップ：Lv を1つ上げ、最大Lvで止まる
     s.players.p1.field.spirits = [lv1]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, levelAction(BUILD), lv1.instanceId, undefined, "magic")
-    assert(lv1.levelOverrideThisTurn === 2, "Lv1 → Lv2")
+    assert(lv1.timedLevel === 2, "Lv1 → Lv2")
     resolveAction(s, "p1", null, levelAction(BUILD), lv1.instanceId, undefined, "magic")
-    assert(lv1.levelOverrideThisTurn === 2, "最大Lv（2）で止まる")
+    assert(lv1.timedLevel === 2, "最大Lv（2）で止まる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part368）")

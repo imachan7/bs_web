@@ -151,7 +151,7 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
         }
         const oppPlayer = state.players[opp]
         for (const nexus of oppPlayer.field.nexuses) {
-            nexus.levelOverrideThisTurn = action.level
+            recordTimed(state, { content: [{ type: "level", set: action.level }], target: { kind: "instance", instanceId: nexus.instanceId }, until: "turn", ownerPid: owner })
         }
         log(
             state,
