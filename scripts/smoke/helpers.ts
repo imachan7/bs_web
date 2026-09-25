@@ -43,6 +43,7 @@ import {
     hasKeyword,
     placeBurst,
     recordBp,
+    recordTimed,
     refreshLevelAsOverrides,
     refreshSpirit,
     resolveAction,
@@ -404,6 +405,10 @@ export function timedHas(state: GameState, inst: CardInstance, type: TimedConten
 // テスト用：1体をこのターンの間 BP+ する（写しの tempBpBuff を直接書くと、作り直しで消える）
 export function giveBp(state: GameState, inst: CardInstance, amount: number): void {
     recordBp(state, "p1", inst, amount, "turn")
+}
+// テスト用：1体に期間つき効果を記録する（写しを直接書くと、作り直しで消える）
+export function giveTimed(state: GameState, inst: CardInstance, content: TimedContent, until: "turn" | "battle" = "turn", ownerPid: PlayerId = "p1"): void {
+    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid })
 }
 // テスト用：1体に掛かっている一定量の BP+ の記録を消す
 export function clearBp(state: GameState, inst: CardInstance): void {

@@ -393,12 +393,9 @@ export function endTurn(state: GameState): void {
         for (const inst of state.players[pid].field.spirits) {
             // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
             delete inst.attackedThisTurn
-            inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
-            delete inst.lifeDamageNegatedFor
             inst.tempAlsoCosts = []
             delete inst.refreshOnBlockedByColorThisTurn
-            delete inst.countAsThisTurn
             delete inst.lifeDealtThisTurn
         }
     }

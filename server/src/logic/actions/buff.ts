@@ -28,6 +28,7 @@ import {
     spiritHasKeyword,
     returnSpiritToHand,
     recordBp,
+    recordTimed,
 } from "../EffectModules"
 import { canDiscardHand, instFamilies, instIsCombined, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -53,11 +54,12 @@ const countAsMultipleThisTurnHandler: ActionHandler<"countAsMultipleThisTurn"> =
         return
     }
     // sourceTypes（数える側の発生源種別の限定。スリーカード＝スピリット/ネクサスの効果のみ）は印へそのまま写す
-    found.inst.countAsThisTurn = {
-        pid: owner,
-        count: action.count,
-        ...(action.sourceTypes ? { sourceTypes: action.sourceTypes } : {}),
-    }
+    recordTimed(state, {
+        content: [{ type: "countAs", count: action.count, ...(action.sourceTypes ? { sourceTypes: action.sourceTypes } : {}) }],
+        target: { kind: "instance", instanceId: found.inst.instanceId },
+        until: "turn",
+        ownerPid: owner,
+    })
     log(
         state,
         `${sourceName}：このターンの間、${getCard(found.inst.cardId).name}は${state.players[owner].name}の効果で${action.count}体分として数えられる。`,
@@ -107,7 +109,7 @@ const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, 
                 log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
             }
         }
-        self.colorlessThisBattle = true
+        recordTimed(state, { content: [{ type: "colorless" }], target: { kind: "instance", instanceId: self.instanceId }, until: "battle", ownerPid: owner })
         log(state, `${getCard(self.cardId).name}は、このバトルの間色を無いものとして扱う。`)
         return
 }

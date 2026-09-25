@@ -586,10 +586,10 @@ export interface CardInstance {
     summonedTurn: number
     tempBpBuff: number // ターン終了時まで有効なBP増減
     battleBpBuff?: number // このバトルの間だけ有効なBP増減（bpBuff の scope:"battle"）。clearBattle でリセットする。
-    colorlessThisBattle?: true // このバトルの間、色とシンボルを無いものとして扱う（instColors/instHasColorが空を返し、countSymbolsがこの個体を軽減の数から丸ごと飛ばす。clearBattleでリセットする。BS13-011/015/052：「このスピリットの色を無いものとして扱う」＝色とシンボルの両方が無色になる。2018年ルールマニュアルVer.9.0改定。docs/design/BS13_PLAN.md §1 #10・#11）
+    colorlessThisBattle?: true // 期間つき効果の一覧（colorless）から作り直す写し。色とシンボルを無いものとして扱う
     bpAsContinuous?: number // 継続的な「BPを◯として扱う」上書き（kind:"bpAs"。levelAsのBP版。EffectModules.refreshLevelAsOverridesが毎回再計算する。器Q。BS13-X011）
     bpEqualizeContinuous?: number // 継続的な「Lv1/Lv2/Lv3BPを、発生源のBPと同じとして扱う」（kind:"bpEqualizeFamily"）。扱いは bpAsContinuous と同じ
-    battleBpAs?: { levels: number[]; amount: number } // BS15共通器：action:"setOpponentBpAsThisBattle" が付ける「このバトルの間、currentLevelがlevelsに含まれるときだけ基礎BPをamountとして扱う」印（bpAsContinuousのこのバトル限定・単体対象版。levelsに含まれない現在Lvのときは無視して通常どおり。clearBattleでリセットする。BS15-X05光の覇王ルナアーク・カグヤ）
+    battleBpAs?: { levels: number[]; amount: number } // 期間つき効果の一覧（bpAs）から作り直す写し
     battleSymbolsAdded?: Color[] // このバトルの間だけ追加されるシンボル（bpBuff.thenAddSymbolThisBattleが積む。symbolsAddedContinuousの「このバトルの間」版。clearBattleでリセット。BS13-062光り輝く大銀河Lv2）
     timedSymbolsOverride?: Color[] // このバトルの間「シンボルを◯色◯つとして扱う」（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
     borrowedAttackEffectOnce?: true // borrowCombinedAttackEffectの再帰ガード（内部専用。cards.jsonには書かない）。
@@ -600,10 +600,10 @@ export interface CardInstance {
     // 効果テキストが「このバトルの間、BP+」と明示しているものだけがこちら（BS07ニードルショット）。無記述のBP+はターン終了時まで＝tempBpBuff
     skipNextRefresh?: true // 次に自分のリフレッシュステップが来たとき、この個体は回復しない（そこで消費する。BS11-055 ジャノメ・シールダー＝「指定したスピリットは、次の『相手のリフレッシュステップ』で回復できない」）
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
-    immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
+    immuneToOpponentThisTurn: boolean // 期間つき効果の一覧（immune）から作り直す写し
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     destroyAtBattleEnd?: true // 器BS16：バトル参加者としてonBattleEndまで生き残ったら、そこで破壊される（GameEngine.runBattleStep case8/9が判定）。summonFromTrashFree.destroyAtBattleEndが召喚時に立てる（BS16-075スケープゴート：「バトル終了時、この効果で召喚されたスピリットは破壊される」＝チャンプブロック用の一時召喚）
-    countAsThisTurn?: { pid: PlayerId; count: number; sourceTypes?: CardType[] } // このターンの間、pid の効果が「スピリットの数を数える」ときこの個体を count 体分として数える（ターン終了でリセット。BS05スリーカード）。sourceTypes は数える側の発生源種別の限定（印を付けた action からそのまま写す）
+    countAsThisTurn?: { pid: PlayerId; count: number; sourceTypes?: CardType[] } // 期間つき効果の一覧（countAs）から作り直す写し。pid＝記録を出した側
     activatedUsedTurn?: Record<string, number> // kind:"activated" の oncePerTurn 用。effectId -> 最後に発動したターン番号（state.turn と一致する間は再発動できない。BS08帝竜騎サイクル）
     magicNegateUsedTurn?: number // kind:"magicNegate" の oncePerTurn 用。この個体が最後にマジックを無効にしたターン番号（state.turn と一致する間は再使用できない。BS02鏡の回廊Lv2）
     reviveOnDestroyUsedTurn?: number // kind:"reviveOnDestroy" の oncePerTurn 用。この発生源が最後に復活を成立させたターン番号（magicNegateUsedTurnと同型。BS06暴かれた墓石Lv2）
@@ -651,7 +651,7 @@ export interface CardInstance {
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
-    lifeDamageNegatedFor?: PlayerId // このスピリットのアタックでは、ここに入っているプレイヤーのライフはこのターン減らない（ターン終了処理でリセット。BS04ミストカーテン）
+    lifeDamageNegatedFor?: PlayerId // 期間つき効果の一覧（noLifeDamage）から作り直す写し。守られるプレイヤー＝記録を出した側
     coresLinkedTo?: string // このネクサスのコア数を、リンク元スピリット（instanceId）のコア数と同じものとして扱う
     // （クロスシザース。本来は再指定まで永続だが、このターンの間だけの簡略化。ターン終了でリセット）
     coresOverride?: number // coresLinkedTo設定時、EffectModules.refreshLevelAsOverridesがリンク元スピリットの
@@ -1417,7 +1417,12 @@ export type TimedContent =
     | { type: "cost"; amount: number } // コストを増減する（元のコストは残らない）
     | { type: "triggerSwap"; from: "onAttack" | "onBlock" } // from の効果を、もう片方（アタック時⇔ブロック時）に発揮する（元のタイミングでは発揮しない）
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
-    | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true } // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
+    | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true }
+    | { type: "bpAs"; levels: number[]; amount: number } // Lv◯BP を amount として扱う（ブレイヴの合体時BP+ は含めて置き換わり、BP+ は上に乗る。RULES_BATSPI_WIKI §5.1）
+    | { type: "countAs"; count: number; sourceTypes?: CardType[] } // 記録を出した側の効果で数えるとき count 体分として数える。sourceTypes＝数える側の発生源の種別の限定
+    | { type: "immune" } // 相手のカードの効果を受けない（範囲効果も含む）
+    | { type: "noLifeDamage" } // このスピリットのアタックでは、記録を出した側のライフが減らない
+    | { type: "colorless" } // 色とシンボルを無いものとして扱う // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 
 // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
 export type TimedRecord = {

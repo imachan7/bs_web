@@ -79,6 +79,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `compareBy`・`invertBattleWinner`・`battleLock` | バトルの状態の印6つ（`compareByLevel`・`compareByCores`・`compareByCost`・`invertBpWinner`・`flashLockedPlayer`・`burstBlockedForPid`）。比べるもの・勝敗の逆転は `target.kind:"battle"`、フラッシュ／バーストの禁止は `player`（寿命はどちらも `battle`）。読む側は `timedBattleContents`・`timedFlashLocked`。禁止は1人ぶんしか持てなかった制限が消えた |
 | `playerRule` | ターン制約8種（`lifeImmuneForPid`・`armorDisabledForPid`・`lifeFloorForPid`・`cantUseHandCardsForPid`・`bounceToDeckTopForPid`・`nexusEffectsDisabledForPid`・`freeFushiSummonForPid`・`lifeDamageMaxForPid`）。`PlayerRuleDef` はターン制約の型から独立させた。読む側は `timedPlayerRules(board, pid)`。ダークリボーンの「最初の1回」は使ったら記録を消す。残っていたターン制約5種（ライフ保護のコスト条件・手札の軽減色・デッキ破棄の禁止2種・バースト召喚の禁止）とレッドウォールの専用フィールドも移し、`turnConstraints` は型ごと消えた。専用 action 3つ（`ignoreUnblockableThisTurn`・`handReductionColorAsThisTurn`・`blockBurstSpiritSummonThisTurn`）は `timedEffect` に畳んだ。効果の途中で掛ける制約は `recordPlayerRule` で書く |
 | `bp` | 個体への直接の書き込み17か所（旧 type を含む）とターン制約 `timedRule`（型ごと削除）。1体への一定量は写し `tempBpBuff`（このターン）・`battleBpBuff`（このバトル）に作り直す（テスト144か所が読むので名前は変えない）。「すべて」と「1体につき」の量は `timedRuleBp` が読むたびに一覧から数える。テストで BP を盛るときは `helpers.ts` の `giveBp`／`clearBp` を使う（写しを直接書くと作り直しで消える） |
+| `bpAs`・`countAs`・`immune`・`noLifeDamage`・`colorless` | 個体の印5つは、同じ名前の写し（`battleBpAs`・`countAsThisTurn`・`immuneToOpponentThisTurn`・`lifeDamageNegatedFor`・`colorlessThisBattle`）になった。読む側（`instHasColor` など盤面を受け取らない関数）は変えていない。記録を出した側が意味を持つ内容（`countAs`・`noLifeDamage`）は、写しを作るときに記録の `ownerPid` を入れる。旧 action（対象の選び方・支払いを持つ）は残し、記録を書くだけにした。テストで掛けるときは `helpers.ts` の `giveTimed` |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。
@@ -91,4 +92,9 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
   正本は一覧のまま、`refreshLevelAsOverrides` が一覧を記録順に処理して個体の写し（`timed〜` という名前にそろえる）を毎回ゼロから書き直す。場のカードの継続効果（`〜Continuous`）と同じ作り。
   **写しを書くのは作り直しの処理だけ**。一覧に記録する関数は、記録と作り直しを必ずセットで行う（作り直す前に読んで古い値が見える、を防ぐ）。
   検討して採らなかった案：読むたびに盤面を渡す（約700か所）／個体から盤面を参照する（循環参照・複製のたびの張り直し）／グローバルな「いまの盤面」（盤面が複数ある場面で取り違える）
+- **一覧に入れないもの**（2026-09-26 ユーザー了承）：期間が「ターン／バトル」で区切れない、または対象が場の外のもの
+  - スクルディア（`markNoRefreshTarget`）：「このスピリットが疲労状態で場にいる間」＝発生源の状態に連動する継続効果
+  - ビートプリースト・ライトニングスピード（`grantKeywordToHandCard`）：対象が手札のカードで、個体を持たない
+  - ゴーレムクラフト・トランスフォーメーション（`treatOwnNexusesAsSpiritsThisTurn`）：場の区分が変わる手順
+  - ルナティックシール・ドリームシール（`endStepLock`）：「自分のエンドステップを3回行うまで」をコアで数える独自の仕組み
 - （未決）**場を離れる直前の状態**（破壊後に誘発する効果が、破壊直前に掛かっていた記録を見る）はこの設計だけでは解けない。`instance` の記録は残るので読めるが、`effectGrant` のような場の発生源からの継続効果は別の話

@@ -40,6 +40,7 @@ import {
     summonFreeFromTrashIndex,
     tryInteractiveTargetChoice,
     tryOwnLifeFloorByCost,
+    recordTimed,
 } from "../EffectModules"
 import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeDamagePerSpiritRemaining, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -2070,7 +2071,7 @@ const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        found.battleBpAs = { levels: [...action.levels], amount: action.amount }
+        recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: found.instanceId }, until: "battle", ownerPid: owner })
         log(state, `${getCard(found.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
         return
     }
@@ -2094,13 +2095,13 @@ const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle
     const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
         effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
     )
-    chosen.battleBpAs = { levels: [...action.levels], amount: action.amount }
+    recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "battle", ownerPid: owner })
     log(state, `${getCard(chosen.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
 // 対象はフィールドイベントが渡す targetInstanceId（BS12-037 はアタックしたスピリット、BS12-058 はブロックしている相手）
 const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> = (ctx, action) => {
-    const { state, sourceName, targetInstanceId } = ctx
+    const { state, owner, sourceName, targetInstanceId } = ctx
     const inst =
         targetInstanceId === undefined
             ? undefined
@@ -2111,7 +2112,7 @@ const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> =
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    inst.battleBpAs = { levels: [...action.levels], amount: action.amount }
+    recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: inst.instanceId }, until: "battle", ownerPid: owner })
     log(state, `${getCard(inst.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 

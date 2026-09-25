@@ -33,6 +33,7 @@ import {
     act,
     takeLifeAndResolve,
     runTurnStart,
+    giveTimed,
 } from "./helpers"
 import type { GameState } from "./helpers"
 
@@ -472,7 +473,7 @@ console.log("=== 免疫・効果無効システム（ワルキューレ／フェ
     runTurnStart(s2)
     const protectee = createInstance("BS01-001", s2.turn, 1)
     s2.players.p2.field.spirits.push(protectee)
-    protectee.immuneToOpponentThisTurn = true
+    giveTimed(s2, protectee, { type: "immune" })
     resolveAction(s2, "p1", null, { type: "destroy", count: 1 })
     assert(
         s2.players.p2.field.spirits.length === 1,
