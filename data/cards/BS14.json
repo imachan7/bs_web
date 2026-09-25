@@ -1848,15 +1848,17 @@
    },
    {
     "id": "BS14-032-e3",
-    "kind": "step",
-    "step": "attack",
-    "turn": "own",
+    "kind": "effectGrant",
     "levels": [
      2
     ],
-    "action": {
-     "type": "grantEffectToAllByKeywordThisTurn",
-     "keyword": "bofu",
+    "target": "ownAll",
+    "keywordFilter": "bofu",
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "granted": {
      "trigger": "onBattleLose",
      "action": {
       "type": "returnBofuExhaustedToHand"
