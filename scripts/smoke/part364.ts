@@ -156,10 +156,11 @@ function collectSelfBuffActions(node: unknown, out: OldSelfBuff[]): void {
     }
 }
 
+// __eid は coverage:effects がカードデータに付け足す計測用の印なので比べない
 function canonical(v: unknown): string {
     return JSON.stringify(v, (_k, x: unknown) =>
         x && typeof x === "object" && !Array.isArray(x)
-            ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+            ? Object.fromEntries(Object.entries(x as Record<string, unknown>).filter(([k]) => k !== "__eid").sort(([a], [b]) => a.localeCompare(b)))
             : x,
     )
 }
