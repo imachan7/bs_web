@@ -7,7 +7,7 @@
 //
 // 同じ依頼にあった BS04-079 王蛇の住処Lv2 は調べたら既に選択式だったので、ここでは
 // 「選択が出ること」だけを確認している（card-notes の記述のほうが古かった）。
-import { act, assert, createGame, createInstance, effectiveBp, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, effectiveBp, runTurnStart, giveBp } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireStepTriggers } from "../../server/src/logic/EffectModules"
 
@@ -69,7 +69,7 @@ console.log("=== 非対話（smokeの既定）では従来どおり自動選択 
     const weak = putSpirit(s, "p1", "BS01-X03", 9) // BP12000
     const strong = putSpirit(s, "p1", "BS01-X03", 9)
     // 片方だけ実効BPを上げて「BP最大が選ばれる」ことを見る
-    s.players.p1.field.spirits.find((x) => x.instanceId === strong)!.tempBpBuff = 3000
+    giveBp(s, s.players.p1.field.spirits.find((x) => x.instanceId === strong)!, 3000)
 
     s.phase = "attack"
     fireStepTriggers(s, "attack")

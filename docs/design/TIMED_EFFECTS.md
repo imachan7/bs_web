@@ -65,6 +65,8 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 
 ### 3.2 移し終えた内容
 
+**2026-09-25 に全内容を移し終えた**（#127〜）。期間つき効果の置き場は一覧1つになり、`timedRule` と個体・バトルの印は消えた。`timedEffect.ts` は 795→756行
+
 | 内容 | 消えた置き場 |
 | :-- | :-- |
 | `cantAttack`・`cantBlock`（#127） | 個体の印3つ・`timedRule` |
@@ -76,6 +78,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `triggerSwap` | 個体の印2つ（`attackTriggersAsBlockThisTurn`・`blockTriggersAsAttackThisTurn`）・GameState の全体フラグ・ターン制約 `blockTriggersAsAttackForPid`。「すべて」は `rule`（お互い＝pid なし、自分＝pid あり） |
 | `compareBy`・`invertBattleWinner`・`battleLock` | バトルの状態の印6つ（`compareByLevel`・`compareByCores`・`compareByCost`・`invertBpWinner`・`flashLockedPlayer`・`burstBlockedForPid`）。比べるもの・勝敗の逆転は `target.kind:"battle"`、フラッシュ／バーストの禁止は `player`（寿命はどちらも `battle`）。読む側は `timedBattleContents`・`timedFlashLocked`。禁止は1人ぶんしか持てなかった制限が消えた |
 | `playerRule` | ターン制約8種（`lifeImmuneForPid`・`armorDisabledForPid`・`lifeFloorForPid`・`cantUseHandCardsForPid`・`bounceToDeckTopForPid`・`nexusEffectsDisabledForPid`・`freeFushiSummonForPid`・`lifeDamageMaxForPid`）。`PlayerRuleDef` はターン制約の型から独立させた。読む側は `timedPlayerRules(board, pid)`。ダークリボーンの「最初の1回」は使ったら記録を消す |
+| `bp` | 個体への直接の書き込み17か所（旧 type を含む）とターン制約 `timedRule`（型ごと削除）。1体への一定量は写し `tempBpBuff`（このターン）・`battleBpBuff`（このバトル）に作り直す（テスト144か所が読むので名前は変えない）。「すべて」と「1体につき」の量は `timedRuleBp` が読むたびに一覧から数える。テストで BP を盛るときは `helpers.ts` の `giveBp`／`clearBp` を使う（写しを直接書くと作り直しで消える） |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。

@@ -27,6 +27,7 @@ import {
     tryInteractiveTargetChoice,
     spiritHasKeyword,
     returnSpiritToHand,
+    recordBp,
 } from "../EffectModules"
 import { canDiscardHand, instFamilies, instIsCombined, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -159,8 +160,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                 milledIds.push(cardId)
             }
             log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
-            if (action.scope === "battle") self.battleBpBuff = (self.battleBpBuff ?? 0) + action.amount
-            else self.tempBpBuff += action.amount
+            recordBp(state, owner, self, action.amount, action.scope === "battle" ? "battle" : "turn")
             log(
                 state,
                 `${getCard(self.cardId).name}はBP+${action.amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`,
@@ -222,8 +222,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             }
             const amount = effectiveBp(state, owner, victim)
             exhaustSpirit(state, owner, victim)
-            if (action.scope === "battle") self.battleBpBuff = (self.battleBpBuff ?? 0) + amount
-            else self.tempBpBuff += amount
+            recordBp(state, owner, self, amount, action.scope === "battle" ? "battle" : "turn")
             log(state, `${state.players[owner].name}は${sourceName}のコストとして${getCard(victim.cardId).name}を疲労させた。`)
             log(state, `${getCard(self.cardId).name}はBP+${amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
             applyMagicBuffBonus(state, self, srcType, srcColors)
@@ -242,11 +241,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             const stillThere = findSpiritAny(state, action.boostTargetInstanceId)
             log(state, `${sourceName}：コア${placed}個を${state.players[owner].name}のトラッシュに置いた。`)
             if (!stillThere) return
-            if (action.scope === "battle") {
-                stillThere.inst.battleBpBuff = (stillThere.inst.battleBpBuff ?? 0) + extra
-            } else {
-                stillThere.inst.tempBpBuff += extra
-            }
+            recordBp(state, owner, stillThere.inst, extra, action.scope === "battle" ? "battle" : "turn")
             log(state, `${getCard(stillThere.inst.cardId).name}はさらにBP+${extra}。`)
             return
         }
@@ -317,10 +312,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
         // scope:"battle"（BS07ニードルショット「このバトルの間」）だけ積む先と寿命が変わる。
         // 既定（無指定）は従来どおりターン終了時まで
         const battleScope = action.scope === "battle"
-        const addBuff = (inst: typeof target, amount: number): void => {
-            if (battleScope) inst.battleBpBuff = (inst.battleBpBuff ?? 0) + amount
-            else inst.tempBpBuff += amount
-        }
+        const addBuff = (inst: typeof target, amount: number): void => recordBp(state, owner, inst, amount, battleScope ? "battle" : "turn")
         const untilLabel = battleScope ? "このバトルの間" : "ターン終了時まで"
         // amountFromSelfBp（BS08機人フィアラル）：amountを無視し、発生源自身の実効BPを加算量として使う
         if (action.amountFromSelfBp) {
@@ -392,7 +384,7 @@ const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action
         for (const s of state.players[owner].field.spirits) {
             const bofu = bofuCountFor(state, owner, s)
             if (bofu === 0) continue
-            s.tempBpBuff += action.amountPer * bofu
+            recordBp(state, owner, s, action.amountPer * bofu, "turn")
             count++
         }
         if (count === 0) {
@@ -421,7 +413,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
                 return
             }
             const amount = effectiveBp(state, owner, self)
-            buffTarget.tempBpBuff += amount
+            recordBp(state, owner, buffTarget, amount, "turn")
             log(
                 state,
                 `${getCard(self.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
@@ -458,7 +450,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
                 return
             }
             const amount = effectiveBp(state, owner, exhaustTarget)
-            buffTarget.tempBpBuff += amount
+            recordBp(state, owner, buffTarget, amount, "turn")
             log(
                 state,
                 `${getCard(exhaustTarget.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
@@ -494,7 +486,7 @@ const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) =>
             return
         }
         const amount = effectiveBp(state, owner, auto)
-        buffTarget.tempBpBuff += amount
+        recordBp(state, owner, buffTarget, amount, "turn")
         log(
             state,
             `${getCard(auto.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
@@ -534,7 +526,7 @@ const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, 
             // amount 指定時は固定値（BS12-050＝BP+3000）。省略時は疲労させた個体の実効BP（巨神機トール）
             const amount = action.amount ?? effectiveBp(state, owner, target)
             exhaustSpirit(state, owner, target)
-            self.tempBpBuff += amount
+            recordBp(state, owner, self, amount, "turn")
             log(
                 state,
                 `${getCard(target.cardId).name}は疲労し、${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
@@ -590,7 +582,7 @@ const familyChoiceThenBpBuffAllHandler: ActionHandler<"familyChoiceThenBpBuffAll
         const targets = player.field.spirits.filter(
             (s) => matchesFamilyFilter(state, owner, s, family) && (!action.uncombinedOnly || !instIsCombined(s)),
         )
-        for (const t of targets) t.tempBpBuff += action.amount
+        for (const t of targets) recordBp(state, owner, t, action.amount, "turn")
         log(state, `${sourceName}：系統「${family}」を持つ自分のスピリットすべてをBP+${action.amount}（ターン終了時まで）。`)
     }
     if (chosenOption !== undefined && candidateFamilies.includes(chosenOption)) {

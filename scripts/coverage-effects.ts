@@ -1195,12 +1195,12 @@ process.on("exit", () => {
                             __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                             spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
         )
-        // magicBuffBonus: applyMagicBuffBonus が tempBpBuff を実際に加算する時点
+        // magicBuffBonus: applyMagicBuffBonus が BP+ を実際に記録する時点
         patch(
             em,
-            `            target.tempBpBuff += effect.amountBonus`,
+            `            recordBp(state, targetOwner, target, effect.amountBonus, "turn")`,
             `            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            target.tempBpBuff += effect.amountBonus`,
+            recordBp(state, targetOwner, target, effect.amountBonus, "turn")`,
         )
         // drawDouble: drawDoubleMultiplier の return 2 判定
         patch(

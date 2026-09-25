@@ -87,7 +87,7 @@ console.log("=== §C BS11-057：コスト4/6/8の相手のスピリットはブ�
     const mine = createInstance(cost4.cardId, s.turn, 2)
     s.players.p1.field.spirits.push(mine)
     refreshLevelAsOverrides(s)
-    s.turnConstraints.push({ type: "timedRule", content: [{ type: "cantBlock" }], ownerPid: "p2", pid: "p1", filter: { cost: { in: [4] } } })
+    s.timedEffects.push({ content: [{ type: "cantBlock" }], target: { kind: "rule", pid: "p1", filter: { cost: { in: [4] } } }, until: "turn", ownerPid: "p2" })
     assert(act(s, "p1", { type: "attack", instanceId: mine.instanceId }) === null, "アタックは止まらない")
 }
 

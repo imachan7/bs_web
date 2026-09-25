@@ -11,7 +11,7 @@
 //   - BS01-090 ヘル・ブリンディ：『召喚時』スピリット1体を持ち主の手札へ（returnToHand anySide）
 //   - BS01-017 ランスラプトル：『召喚時』BP2000以下のスピリット1体を破壊できる（destroy anySide）
 //   - BS01-129 ポイズンシュート：フラッシュでスピリット1体のコア1個を持ち主のリザーブへ（coreRemove anySide）
-import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, runTurnStart, giveBp } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function put(
@@ -23,8 +23,8 @@ function put(
 ): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)
     if (opts.rested) inst.isRested = true
-    if (opts.bpBuff) inst.tempBpBuff = opts.bpBuff
     s.players[pid].field.spirits.push(inst)
+    if (opts.bpBuff) giveBp(s, inst, opts.bpBuff)
     return inst
 }
 

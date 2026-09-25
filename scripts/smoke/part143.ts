@@ -17,6 +17,7 @@ import {
     fireStepTriggers,
     refreshLevelAsOverrides,
     runTurnStart,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { canBattleSwapSummon } from "../../shared/summon"
@@ -167,7 +168,7 @@ console.log("=== BS07：ニードルショットが貸した battleWon（剣獣�
     const blocker = put(s, "p2", FILLER.cardId, 1)
     const spare = put(s, "p2", FILLER.cardId, 1)
     // アタッカーが確実にBP比較で勝つようにする
-    attacker.tempBpBuff = 999999
+    giveBp(s, attacker, 999999)
     s.players.p1.hand.push(needle.cardId)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")

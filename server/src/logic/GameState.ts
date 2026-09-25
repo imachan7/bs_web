@@ -444,7 +444,6 @@ export function clearBattle(state: GameState): void {
         }
         // 「このバトルの間」のBP増減（bpBuff の scope:"battle"）も同じ寿命（BS07ニードルショット）
         for (const inst of state.players[pid].field.spirits) {
-            if (inst.battleBpBuff) inst.battleBpBuff = 0
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
             // BS15共通器：battleBpAs（このバトル限定・単体対象の「Lv◯BPを◯として扱う」）も同じ寿命
             delete inst.battleBpAs
@@ -457,7 +456,6 @@ export function clearBattle(state: GameState): void {
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
     state.bofuExhaustedThisBattle = []
     // timedEffect の1体指定＋可変量（duration:"battle"）はここで切れる（ターン終了までのturnConstraintsとは寿命が別）
-    state.turnConstraints = state.turnConstraints.filter((c) => !(c.type === "timedRule" && c.until === "battle"))
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer

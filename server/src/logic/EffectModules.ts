@@ -995,6 +995,8 @@ function applyTimedCopies(state: GameState): void {
         const field = state.players[pid].field
         for (const inst of [...field.spirits, ...field.nexuses, ...field.combinedBraves]) {
             inst.timedColors = []
+            inst.tempBpBuff = 0
+            delete inst.battleBpBuff
             delete inst.timedLevel
             delete inst.timedExtraSymbols
             delete inst.timedCostDelta
@@ -1021,6 +1023,22 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolLoss" && c.color !== undefined) (inst.timedSymbolLoss ??= []).push(c.color)
         }
     }
+    // 1体への一定量の BP+ だけを写す。「すべて」と「1体につき」の量は effectiveBp が読むたびに数え直す（timedRuleBp）
+    const byId = new Map(all.map((inst) => [inst.instanceId, inst]))
+    for (const r of state.timedEffects) {
+        const inst = r.target.kind === "instance" ? byId.get(r.target.instanceId) : undefined
+        if (!inst) continue
+        for (const c of r.content) {
+            if (c.type !== "bp" || c.amountCounter !== undefined) continue
+            if (r.until === "battle") inst.battleBpBuff = (inst.battleBpBuff ?? 0) + c.amount
+            else inst.tempBpBuff += c.amount
+        }
+    }
+}
+
+// 1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
+export function recordBp(state: GameState, ownerPid: PlayerId, inst: CardInstance, amount: number, until: "turn" | "battle"): void {
+    recordTimed(state, { content: [{ type: "bp", amount }], target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid })
 }
 
 export function refreshLevelAsOverrides(state: GameState): void {
@@ -2316,7 +2334,7 @@ export function applyMagicBuffBonus(
                 if (source.instanceId === target.instanceId) continue
                 if (!instHasColor(target, "green")) continue
             }
-            target.tempBpBuff += effect.amountBonus
+            recordBp(state, targetOwner, target, effect.amountBonus, "turn")
             log(
                 state,
                 `${getCard(source.cardId).name}の効果で${getCard(target.cardId).name}はさらにBP+${effect.amountBonus}（ターン終了時まで）。`,

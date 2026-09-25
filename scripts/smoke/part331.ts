@@ -15,6 +15,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    giveBp,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
@@ -240,7 +241,7 @@ console.log("=== BS15-X01 刀の覇王：バースト（相手のアタック後
     const s = game("p331-x01")
     placeBurst(s, "p1", "BS15-X01")
     const attacker = createInstance("BS01-002", s.turn, 1)
-    attacker.tempBpBuff = 10000 // BP5000以上を確実にする
+    giveBp(s, attacker, 10000) // BP5000以上を確実にする
     s.players.p2.field.spirits.push(attacker)
     refreshLevelAsOverrides(s)
     assert(effectiveBp(s, "p2", attacker) >= 5000, "前提：アタッカーのBPは5000以上")

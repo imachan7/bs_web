@@ -58,9 +58,10 @@ for (const b of BRAVES) {
     assert(brave.cardId === b.cardId, `${b.name}：実体が combinedBraves にいる`)
     const hostBp = getCard(host.cardId).levels[0]!.bp
     // 召喚時効果で自分のスピリットすべてをBP+するブレイヴがいる（剣鎧竜バスター・ドラゴン）ので、
-    // ターン限りの増減（tempBpBuff と全体ルール）を外して「レベルBP＋合体時BP+」だけを見る
-    s.turnConstraints = []
-    assert(effectiveBp(s, "p1", host) - host.tempBpBuff === hostBp + b.braveLevels![0]!.bp,
+    // 期間つきの BP+ を外して「レベルBP＋合体時BP+」だけを見る
+    s.timedEffects = []
+    refreshLevelAsOverrides(s)
+    assert(effectiveBp(s, "p1", host) === hostBp + b.braveLevels![0]!.bp,
         `${b.name}：合体時BP+${b.braveLevels![0]!.bp} が乗る`)
 }
 

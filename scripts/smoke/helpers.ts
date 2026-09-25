@@ -42,6 +42,7 @@ import {
     fireTrigger,
     hasKeyword,
     placeBurst,
+    recordBp,
     refreshLevelAsOverrides,
     refreshSpirit,
     resolveAction,
@@ -399,6 +400,17 @@ export function bpBuffOf(state: GameState, inst: CardInstance): number {
 // その個体に期間つき効果の内容が掛かっているか（state.timedEffects。置き場に依存しないよう、テストはこれで確かめる）
 export function timedHas(state: GameState, inst: CardInstance, type: TimedContent["type"], trigger?: string): boolean {
     return timedContentsOn(state, inst).some((c) => c.type === type && (trigger === undefined || ("trigger" in c && c.trigger === trigger)))
+}
+// テスト用：1体をこのターンの間 BP+ する（写しの tempBpBuff を直接書くと、作り直しで消える）
+export function giveBp(state: GameState, inst: CardInstance, amount: number): void {
+    recordBp(state, "p1", inst, amount, "turn")
+}
+// テスト用：1体に掛かっている一定量の BP+ の記録を消す
+export function clearBp(state: GameState, inst: CardInstance): void {
+    state.timedEffects = state.timedEffects.filter(
+        (r) => !(r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.content.some((c) => c.type === "bp")),
+    )
+    refreshLevelAsOverrides(state)
 }
 // このバトルに掛かっている内容（比べるもの・勝敗の逆転）
 export function battleHas(state: GameState, type: "compareBy" | "invertBattleWinner", by?: "level" | "cores" | "cost"): boolean {

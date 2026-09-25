@@ -1667,17 +1667,15 @@ export function effectiveBp(
 // 古代闘技場の抑止はここでは見ない：発揮を止める効果は、発揮し終わって続いている効果を止めない（置くときだけ見る）
 export function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
     let total = 0
-    for (const c of board.turnConstraints) {
-        if (c.type !== "timedRule" || (c.pid !== undefined && c.pid !== ownerPid)) continue
-        // instanceId指定時（timedEffectの1体指定＋可変量）はfilterではなくこの1体だけに効く
-        if (c.instanceId !== undefined ? inst.instanceId !== c.instanceId : !matchesTarget(board, ownerPid, inst, c.filter, c.selfInstanceId)) continue
-        for (const x of c.content) {
-            if (x.type !== "bp") continue
-            const amount =
-                x.amountCounter === undefined
-                    ? x.amount
-                    : x.amount * countAuraCounter(board, c.ownerPid, x.amountCounter as AuraCounter, inst)
-            total += amount
+    for (const r of board.timedEffects) {
+        const t = r.target
+        // 1体への一定量は写し（tempBpBuff・battleBpBuff）に入っているので、ここでは「1体につき」の量だけ
+        const onInstance = t.kind === "instance" && t.instanceId === inst.instanceId
+        const byRule = t.kind === "rule" && (t.pid === undefined || t.pid === ownerPid) && matchesTarget(board, ownerPid, inst, t.filter, t.selfInstanceId)
+        if (!onInstance && !byRule) continue
+        for (const x of r.content) {
+            if (x.type !== "bp" || (onInstance && x.amountCounter === undefined)) continue
+            total += x.amountCounter === undefined ? x.amount : x.amount * countAuraCounter(board, r.ownerPid, x.amountCounter as AuraCounter, inst)
         }
     }
     return total

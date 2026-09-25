@@ -1447,10 +1447,6 @@ export type PlayerRuleDef =
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =
-    // timedEffect の all:true。判定のたびに照合するので、解決後に場に出たスピリットにも効く。ownerPid＝効果を出した側、pid＝効く陣営（省略は両方）
-    // instanceId指定時（timedEffect の1体指定＋可変量）は filter/pid ではなくこの1体だけに効く（「〜1体につき」を計算のたびに数え直すため）
-    // until:"battle"指定時はターン終了ではなくclearBattleで消える（timedEffectのduration:"battle"）
-    | { type: "timedRule"; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; instanceId?: string; until?: "battle" }
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
     // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**
     //  ＝「【装甲】をないものとして扱い、新たに得ることもない」。2026-08-16 ユーザー判断。SD01-040 アーマーパージ）

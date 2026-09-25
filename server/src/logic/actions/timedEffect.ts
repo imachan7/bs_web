@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
-import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
+import { applyMagicBuffBonus, recordBp, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -23,7 +23,7 @@ function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstanc
 // 強制アタック・トリガー抑止は、既に掛かっている個体もそのまま選べる（2026-09-25 ユーザー確認）
 function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
-        if (c.type === "mustAttack" || c.type === "suppressTrigger") return false
+        if (c.type === "mustAttack" || c.type === "suppressTrigger" || c.type === "bp") return false
         if (!isRecorded(c)) return false
         return state.timedEffects.some(
             (r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.until === action.duration && r.content.some((x) => x.type === c.type),
@@ -135,8 +135,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
     state.lastBpBuffTargetId = target.instanceId
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
     if (content.amountCounter === undefined) {
-        if (action.duration === "battle") target.battleBpBuff = (target.battleBpBuff ?? 0) + content.amount
-        else target.tempBpBuff += content.amount
+        recordBp(state, owner, target, content.amount, action.duration)
         log(state, `${getCard(target.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
@@ -148,22 +147,13 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
             log(state, `${sourceName}：カウントが0のため増加しなかった。`)
             return
         }
-        if (action.duration === "battle") target.battleBpBuff = (target.battleBpBuff ?? 0) + amount
-        else target.tempBpBuff += amount
+        recordBp(state, owner, target, amount, action.duration)
         log(state, `${getCard(target.cardId).name}はBP+${amount}（${untilLabel}）。`)
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
     }
-    // 量が可変（amountCounter あり）：個体には書かず全体ルールと同じ器（turnConstraints）に積み、
-    // 「1体につき」の数は計算のたびに数え直す（timedRuleBp。2026-09-24 ユーザー確認）。解決時に0でも置く
-    state.turnConstraints.push({
-        type: "timedRule",
-        content: [content],
-        ownerPid: owner,
-        instanceId: target.instanceId,
-        filter: {},
-        ...(action.duration === "battle" ? { until: "battle" as const } : {}),
-    })
+    // 量が可変（amountCounter あり）：「1体につき」の数は計算のたびに数え直す（timedRuleBp。2026-09-24 ユーザー確認）。解決時に0でも置く
+    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: action.duration, ownerPid: owner })
     const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, target)
     log(state, `${getCard(target.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
     applyMagicBuffBonus(state, target, srcType, srcColors)
@@ -179,10 +169,7 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         return
     }
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
-    const addBp = (amount: number) => {
-        if (action.duration === "battle") self.battleBpBuff = (self.battleBpBuff ?? 0) + amount
-        else self.tempBpBuff += amount
-    }
+    const addBp = (amount: number) => recordBp(state, owner, self, amount, action.duration)
     if (content.amountCounter === undefined) {
         addBp(content.amount)
         log(state, `${getCard(self.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
@@ -199,15 +186,8 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         log(state, `${getCard(self.cardId).name}はBP+${amount}（${untilLabel}）。`)
         return
     }
-    // 可変：1体指定の timedRule と同じ器に積み、量は判定のたびに数え直す（2026-09-24 ユーザー確認）。解決時に0でも置く
-    state.turnConstraints.push({
-        type: "timedRule",
-        content: [content],
-        ownerPid: owner,
-        instanceId: self.instanceId,
-        filter: {},
-        ...(action.duration === "battle" ? { until: "battle" as const } : {}),
-    })
+    // 可変：量は判定のたびに数え直す（2026-09-24 ユーザー確認）。解決時に0でも置く
+    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: action.duration, ownerPid: owner })
     const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, self)
     log(state, `${getCard(self.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
 }
@@ -249,23 +229,12 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         log(state, `${sourceName}：このターンの間、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
         return
     }
-    if (action.content.every(isRecorded)) {
-        recordTimed(state, {
-            content: action.content,
-            target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
-            until: action.duration,
-            ownerPid: owner,
-        })
-    } else {
-        state.turnConstraints.push({
-            type: "timedRule",
-            content: action.content,
-            ownerPid: owner,
-            ...(pid !== undefined ? { pid } : {}),
-            filter,
-            ...(self ? { selfInstanceId: self.instanceId } : {}),
-        })
-    }
+    recordTimed(state, {
+        content: action.content,
+        target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
+        until: action.duration,
+        ownerPid: owner,
+    })
     const who = pid === undefined ? "" : `${state.players[pid].name}の`
     log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
 }

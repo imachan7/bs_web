@@ -19,6 +19,7 @@ import {
     refreshLevelAsOverrides,
     runTurnStart,
     takeLifeAndResolve,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -264,7 +265,7 @@ console.log("=== BS08太陽石の神殿：battleWon.firstAttackOfTurn＋destroyB
     const s = base("sunstone-first")
     putNexus(s, "p1", sunstone.cardId, coresFor(sunstone, level))
     const attacker = put(s, "p1", clashCard.cardId, coresFor(clashCard, clashLevel))
-    attacker.tempBpBuff = 999999
+    giveBp(s, attacker, 999999)
     const blocker = put(s, "p2", FILLER.cardId, 1)
     const bonus = put(s, "p2", FILLER2.cardId, 1)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
@@ -284,7 +285,7 @@ console.log("=== BS08太陽石の神殿：battleWon.firstAttackOfTurn＋destroyB
     putNexus(s2, "p1", sunstone.cardId, coresFor(sunstone, level))
     const filler = put(s2, "p1", FILLER.cardId, 1)
     const attacker2 = put(s2, "p1", clashCard.cardId, coresFor(clashCard, clashLevel))
-    attacker2.tempBpBuff = 999999
+    giveBp(s2, attacker2, 999999)
     const blocker1 = put(s2, "p2", FILLER.cardId, 1)
     const blocker2 = put(s2, "p2", FILLER.cardId, 1)
     const bonus2 = put(s2, "p2", FILLER2.cardId, 1)
@@ -324,9 +325,9 @@ console.log("=== BS08太陽石の神殿：reviveOnDestroy.cost.ownLifeOneToVoid 
     const clashAttacker = put(s, "p1", clashCard.cardId, coresFor(clashCard, clashLevel))
     const plainAttacker = put(s, "p1", FILLER.cardId, 1)
     const strongBlocker1 = put(s, "p2", FILLER.cardId, 1)
-    strongBlocker1.tempBpBuff = 999999
+    giveBp(s, strongBlocker1, 999999)
     const strongBlocker2 = put(s, "p2", FILLER.cardId, 1)
-    strongBlocker2.tempBpBuff = 999999
+    giveBp(s, strongBlocker2, 999999)
     const lifeBefore = s.players.p1.life
     const reserveBefore = s.players.p1.reserve
 
@@ -441,7 +442,7 @@ console.log("=== BS08メテオストーム：timedEffect の grantTrigger＋life
 
     const s = base("meteor-grant")
     const attacker = put(s, "p1", targetCard.cardId, coresFor(targetCard, 1))
-    attacker.tempBpBuff = 999999
+    giveBp(s, attacker, 999999)
     const blocker = put(s, "p2", FILLER.cardId, 1)
     s.players.p1.hand = [meteor.cardId]
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
@@ -462,7 +463,7 @@ console.log("=== BS08メテオストーム：timedEffect の grantTrigger＋life
 
     const s2 = base("meteor-nogrant")
     const attacker2 = put(s2, "p1", targetCard.cardId, coresFor(targetCard, 1))
-    attacker2.tempBpBuff = 999999
+    giveBp(s2, attacker2, 999999)
     const blocker2 = put(s2, "p2", FILLER.cardId, 1)
     const lifeBefore2 = s2.players.p2.life
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")

@@ -17,6 +17,7 @@ import {
     effectiveBp,
     resolveAction,
     runTurnStart,
+    clearBp,
 } from "./helpers"
 
 console.log("=== BS02-070 アルカナプリンス・オベロ：自分のアタックステップ中のみBP+1000×アルカナ数 ===")
@@ -169,7 +170,7 @@ console.log("=== BS02-033 騎獣スレイプホース：緑マジックのBP+に
     )
 
     // メインステップに戻すと自身の magicBuffBonus 条件（アタックステップ中）を満たさない
-    sleipnir.tempBpBuff = 0
+    clearBp(s, sleipnir)
     s.phase = "main"
     resolveAction(
         s,
@@ -187,7 +188,7 @@ console.log("=== BS02-033 騎獣スレイプホース：緑マジックのBP+に
 
     // アタックステップに戻し、赤マジックでは上乗せなし
     s.phase = "attack"
-    sleipnir.tempBpBuff = 0
+    clearBp(s, sleipnir)
     resolveAction(
         s,
         "p1",
