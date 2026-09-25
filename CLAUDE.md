@@ -128,6 +128,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run smoke` — エンジン単体テスト（scripts/smoke.ts）
 - `npm run validate:cards` — カードデータの構造検査（旧フィールド・未知の軸・未知の trigger 名）
 - **`npm run validate:gaps` — 効果の実装漏れが増えていないかの検査**（下記）
+- **`npm run validate:size` — ファイルの大きさの検査**。1ファイル2000行（型ファイルは120KB）を超えたら落とす。すでに超えているファイルは
+  `scripts/check-file-size.ts` の一覧の値が上限で、それより増えたら落ちる。**落ちたら、足す前にどの概念を切り出すかを決める**（設計の2原則の2）
 - **`npm run validate:notes` — `data/card-notes.json` の検査**。status と effects の整合（unimplemented なのに
   構造化済み等）、**note が140文字以内で句点終わり**か、効果文があるのに構造化0件のカードが載っているかを見る。
   note は**対戦者が読む文面**なので長さ制限がある。`card-notes.json` を触ったら必ず通すこと
@@ -139,7 +141,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 バッチ完了時の定型は次の1行（`validate:notes` を落とさない）:
 
 ```
-npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run smoke:quiet && npm run build:client
+npm run typecheck && npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run validate:size && npm run smoke:quiet && npm run build:client
 ```
 
 ### 自動選択の棚卸し（`npm run audit:choices`）— 効果を実装したあとに回す
