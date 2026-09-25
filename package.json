@@ -15,6 +15,8 @@
     "smoke:quiet": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet",
     "smoke:interactive": "BS_DEBUG_CHECKS=1 tsx scripts/smoke.ts --quiet --interactive",
     "chatbox": "tsx scripts/chatbox.ts",
+    "codemap": "tsx scripts/codemap.ts",
+    "codemap:check": "tsx scripts/codemap.ts --check",
     "validate:cards": "tsx scripts/validate-cards.ts",
     "validate:notes": "tsx scripts/validate-card-notes.ts",
     "validate:gaps": "tsx scripts/check-effect-gaps.ts --check",

@@ -50,6 +50,10 @@ jobs:
       - name: カードデータの検査
         run: npm run validate:cards && npm run validate:notes && npm run validate:gaps
 
+      # ヘルパーの索引（docs/CODEMAP.md）が古いと、実装役が引いた名前の置き場がずれる
+      - name: ヘルパーの索引が最新か
+        run: npm run codemap:check
+
       - name: スモークテスト（エンジン単体）
         run: npm run smoke:quiet
 
