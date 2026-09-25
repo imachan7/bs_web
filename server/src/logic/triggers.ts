@@ -298,17 +298,14 @@ export function fireTrigger(
     // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
     // ターン限定（ブレイブチャージ）に加え、継続付与（ドラグノ近衛兵）でも移し替えが起きる
     const movedToBlock =
-        selfInstance.attackTriggersAsBlockThisTurn === true ||
+        timed.some((c) => c.type === "triggerSwap" && c.from === "onAttack") ||
         hasAttackTriggersAsBlock(state, owner, selfInstance)
     // アタックシフト：このターンの間、両陣営スピリットすべての『ブロック時』効果は『アタック時』へ移る
     // （ブロック時には発揮されなくなり＝移し替え、アタック時に『アタック時』効果と一緒に発揮される。BS01-149）
     // アタックシフト（全体・このターン）に加えて、個体単位の移し替え（BS07マクラーンスラッシュ）と
     // 継続付与（BS07大械獣ギガ・テリウム）も見る
     const movedToAttack =
-        state.blockTriggersAsAttackThisTurn === true ||
-        selfInstance.blockTriggersAsAttackThisTurn === true ||
-        // このターンの間、**片側のプレイヤーの**スピリットすべてが対象（BS10-072 セイバーシャーク）
-        state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner) ||
+        timed.some((c) => c.type === "triggerSwap" && c.from === "onBlock") ||
         hasBlockTriggersAsAttack(state, owner, selfInstance)
     if (movedToBlock && event === "onAttack") {
         return

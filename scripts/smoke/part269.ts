@@ -3,7 +3,7 @@
 // docs/design/PROCEDURES_AUDIT.md §5 の一般則（2026-09-02 ユーザー確定）:
 // **効果文が「選ぶ」と書いているなら、候補が2つ以上あるとき実装も選ばせる。**
 // 非対話（テスト・AI）は従来の自動選択を残す。ここでは grant.ts の4アクションを見る。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, resolveAction, runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
@@ -123,8 +123,8 @@ console.log("=== §D blockTriggersAsAttackTargetThisTurn（マクラーンスラ
     resolveAction(s, "p1", null, action)
     assert(s.pendingChoice?.kind === "target", "対象の選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: b.instanceId }) === null, "2体目を選ぶ")
-    assert(b.blockTriggersAsAttackThisTurn === true, "選んだスピリットの『ブロック時』が『アタック時』になる")
-    assert(a.blockTriggersAsAttackThisTurn === undefined, "選ばなかったほうは変わらない")
+    assert(timedHas(s, b, "triggerSwap"), "選んだスピリットの『ブロック時』が『アタック時』になる")
+    assert(!timedHas(s, a, "triggerSwap"), "選ばなかったほうは変わらない")
 
     const s2 = game(false)
     put(s2, "p1", blockers[0]!.cardId)
@@ -132,7 +132,7 @@ console.log("=== §D blockTriggersAsAttackTargetThisTurn（マクラーンスラ
     resolveAction(s2, "p1", null, action)
     assert(s2.pendingChoice === null, "非対話では選択待ちが立たない")
     assert(
-        s2.players.p1.field.spirits.some((sp) => sp.blockTriggersAsAttackThisTurn === true),
+        s2.players.p1.field.spirits.some((sp) => timedHas(s2, sp, "triggerSwap")),
         "従来どおり実効BP最大が自動選択される",
     )
 }

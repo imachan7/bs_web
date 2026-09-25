@@ -200,7 +200,6 @@ export function createGame(
         endStepLocks: [],
         attacksThisTurn: 0,
         ignoreUnblockableThisTurn: [],
-        blockTriggersAsAttackThisTurn: false,
         lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
