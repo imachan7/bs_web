@@ -436,9 +436,6 @@ export function clearBattle(state: GameState): void {
         (r) => r.until !== "battle" && !(r.until === "attack" && r.target.kind === "instance" && r.target.instanceId === attackerId),
     )
     refreshLevelAsOverrides(state)
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of state.players[pid].field.spirits) delete inst.unblockableLevelsThisBattle
-    }
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const lent = state.players[pid].battleVirtualInstances

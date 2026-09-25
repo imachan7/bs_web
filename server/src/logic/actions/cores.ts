@@ -41,6 +41,7 @@ import {
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
+    recordTimed,
 } from "../EffectModules"
 import { KEYWORDS, OPPONENT_RESERVE_TARGET, canDiscardHand, currentLevel, effectActiveAtLevel, effectiveBp, instHasColor, instIsCombined, instMatchesCostFilter, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -1975,7 +1976,7 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
         // 器BF：thenUnblockableByLevelThisBattle（BS13-058）：置いた後に発生源自身へブロック不可の印を付ける
         const grantThenUnblockable = (): void => {
             if (action.thenUnblockableByLevelThisBattle === undefined || !self) return
-            self.unblockableLevelsThisBattle = action.thenUnblockableByLevelThisBattle
+            recordTimed(state, { content: [{ type: "unblockable", from: { level: action.thenUnblockableByLevelThisBattle } }], target: { kind: "instance", instanceId: self.instanceId }, until: "battle", ownerPid: owner })
             log(
                 state,
                 `${sourceName}：このバトルの間、Lv${action.thenUnblockableByLevelThisBattle.join("/")}のスピリットからブロックされない。`,

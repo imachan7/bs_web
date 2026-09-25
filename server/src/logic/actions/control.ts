@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectDef } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
-import { attachBrave, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { attachBrave, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -402,7 +402,8 @@ const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockab
         log(state, `${sourceName}：${getCard(chosen.cardId).name}は【氷壁】の色を持たなかった。`)
         return
     }
-    chosen.unblockableColorsThisTurn = colors
+    // 色は指定した時点の【氷壁】の色で固定する（あとで【氷壁】が無効になっても保つ）
+    recordTimed(state, { content: [{ type: "unblockable", from: { colorAny: colors } }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
     log(
         state,
         `${sourceName}：${getCard(chosen.cardId).name}は、このターンの間${colors.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされない。`,

@@ -602,7 +602,6 @@ export interface CardInstance {
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
-    unblockableColorsThisTurn?: Color[] // このターンの間、この色（配列＝OR）を持つ相手のスピリットからブロックされない。markUnblockableByIceWallColorThisTurnが指定時点のiceWallColorsOfを固定値として保存する（【氷壁】が後で無効化されても保持。canBlockが参照しターン終了でリセット。BS16-079ムーンボウクローク）
     destroyAtBattleEnd?: true // 器BS16：バトル参加者としてonBattleEndまで生き残ったら、そこで破壊される（GameEngine.runBattleStep case8/9が判定）。summonFromTrashFree.destroyAtBattleEndが召喚時に立てる（BS16-075スケープゴート：「バトル終了時、この効果で召喚されたスピリットは破壊される」＝チャンプブロック用の一時召喚）
     countAsThisTurn?: { pid: PlayerId; count: number; sourceTypes?: CardType[] } // このターンの間、pid の効果が「スピリットの数を数える」ときこの個体を count 体分として数える（ターン終了でリセット。BS05スリーカード）。sourceTypes は数える側の発生源種別の限定（印を付けた action からそのまま写す）
     activatedUsedTurn?: Record<string, number> // kind:"activated" の oncePerTurn 用。effectId -> 最後に発動したターン番号（state.turn と一致する間は再発動できない。BS08帝竜騎サイクル）
@@ -649,7 +648,6 @@ export interface CardInstance {
     // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
     // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
     pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
-    unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
@@ -1420,7 +1418,7 @@ export type TimedContent =
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
     | { type: "playerRule"; rule: PlayerRuleDef } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side
-    | { type: "unblockable"; fromMinBp?: number } // 相手のスピリットにブロックされない。fromMinBp＝実効BPがこれ以上の相手からだけ（期間は battle のみ）
+    | { type: "unblockable"; from?: ResolvedTargetFilter } // 相手のスピリットにブロックされない。from に合う相手からだけ（省くとどの相手からも）。条件つきでも「ブロックされない効果を持つ」に数える（2026-09-25 ユーザー決定）
     | { type: "battleLock"; lock: "flash" | "burst" } // このバトルの間、プレイヤーはフラッシュで手札のカードを使えない／バーストを発動できない（期間は battle のみ）
     | { type: "compareBy"; by: "level" | "cores" | "cost" } // このバトルの解決で BP の代わりに比べるもの（期間は battle のみ。複数重なったら level→cores→cost の順で優先）
     | { type: "invertBattleWinner" } // このバトルの解決で値が高い方が破壊される（期間は battle のみ。装甲では防げない）
@@ -1439,6 +1437,7 @@ export type TimedRecord = {
         | { kind: "instance"; instanceId: string }
         | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 判定のたびに照合＝後から出たスピリットにも効く
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
+        | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
     until: "turn" | "battle" | "attack" // attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）
     ownerPid: PlayerId
 }
@@ -1463,8 +1462,6 @@ export type TurnConstraintDef =
     // **「減るか／減らないか」ではなく上限を値で持つ**のが要点（2026-08-16 ユーザー提案）。
     // ライフダメージはブロックされなかったアタックでのみ発生するので、
     // 効果文の「ブロックされなかった相手のスピリットのアタックでは」は自動的に満たされる（SD01-039 ブリザードウォール）
-    | { type: "unblockableByLevelThisTurn"; pid: PlayerId; levels: number[] } // このターンの間、pid のスピリットすべては、currentLevel が levels に含まれる相手のスピリットからブロックされない（action:"grantUnblockableByLevelThisTurn" が積む。BS10-073 エンジェドール）
-    | { type: "braveHostUnblockableThisTurn"; pid: PlayerId; braveInstanceId: string } // このターンの間、braveInstanceId のブレイヴが**いま合体しているホスト**はブロックされない（毎回いまのホストをbravesOf経由で引き直す。分離したら誰にも乗らない。2026-09-07 ユーザー確認。action:"grantHostUnblockableThisTurn" が積む。BS12-055ゲッコ・グライダー）
     | { type: "blockTriggersAsAttackForPid"; pid: PlayerId } // このターンの間、pid のスピリットすべての『ブロック時』効果を『アタック時』に発揮させる（action:"blockTriggersAsAttackOwnThisTurn" が積む。BS10-072 セイバーシャーク）
     | { type: "lifeFloorForPid"; pid: PlayerId; floor: number; byAttackMinCost?: number; byEffectSourceTypes?: CardType[] } // このターンの間、この pid のライフは floor を下回らない（「自分のライフは0にならない」＝floor:1）。byAttackMinCost指定時は**その値以上のコストのスピリットのアタック**でだけ効き、byEffectSourceTypes指定時は**その種別の効果による減少**でだけ効く（どちらも指定すればOR。BS11-080 デルタバリア＝「相手のスピリット/マジックの効果と、コスト4以上の相手のスピリットのアタックでは、自分のライフは0にならない」）
     | { type: "lifeImmuneForPid"; pid: PlayerId } // このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らない。lifeDamageMaxForPid（max:0でアタックのみ止める）と違い、lifeCrushアクションの実行自体もこの pid に対しては不発にする全面ロック（action:"lifeImmuneThisTurn"が積む。BS10-093時刻む花時計）

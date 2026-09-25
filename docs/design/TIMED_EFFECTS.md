@@ -28,6 +28,7 @@ type TimedRecord = {
         | { kind: "instance"; instanceId: string }                        // 1体指定・このスピリット
         | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 「〜すべて」。判定のたびに照合＝後から出たスピリットにも効く
         | { kind: "player"; pid: PlayerId }                               // プレイヤーに掛かる制約
+        | { kind: "braveHost"; braveInstanceId: string }                  // そのブレイヴがいま合体しているホスト（読むたびに引き直す）
         | { kind: "battle" }                                              // このバトルの解決方法（比較基準など）
     until: "turn" | "battle" | "attack"   // attack＝対象の個体のアタックの終了かターン終了（「ターンに1回」）
     ownerPid: PlayerId               // 効果を出した側
@@ -71,7 +72,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `keyword` | 個体の `tempKeywords`。読む側は `timedKeywords(board, inst)`。【装甲】の判定（`hasArmorAgainst`・`targetArmorColorCount`）は盤面を受け取る形にした。`all:true` が1体向けに化けていた振り分けも直した |
 | `level` | 個体の `levelOverrideThisTurn` は写し `timedLevel` になった。`timedRule`＋`appliedIds` はやめ、一覧を記録順に処理して「後から掛けた方が勝つ」を再現する。「1つ上として扱う」は記録する時点の Lv から具体的な Lv にして記録する。旧 type（`refreshOne` の Lv 上げ・相手のネクサスすべての Lv）も `recordTimed` で書く。照合は写しを空にした状態で全員ぶん先に済ませる（処理順で結果が変わらない） |
 | `symbolAdd`・`symbolSet`・`symbolLoss`・`cost` | 個体の印4つは写し `timedExtraSymbols`・`timedSymbolsOverride`・`timedSymbolLoss`・`timedCostDelta` になった。「すべての色のシンボルを失う」の `timedRule`＋`appliedIds` はやめた（`appliedIds` の型も削除）。バトル終了時（`clearBattle`）にも作り直す。残る `timedRule` は BP だけ |
-| `unblockable` | 個体の印3つ（`unblockableThisTurn`・`unblockableOnceThisTurn`・`unblockableMinBpThisBattle`）。強者統べる大地の「ターンに1回」は寿命 `attack` にした（別のスピリットが先にアタックしても消えない、という今の挙動を保つ） |
+| `unblockable` | 個体の印5つ（`unblockableThisTurn`・`unblockableOnceThisTurn`・`unblockableMinBpThisBattle`・`unblockableLevelsThisBattle`・`unblockableColorsThisTurn`）とターン制約2つ（`unblockableByLevelThisTurn`・`braveHostUnblockableThisTurn`）。条件は `from: ResolvedTargetFilter` 1つで表す。「ターンに1回」は寿命 `attack`。ゲッコ・グライダーは `braveHost`（合体・分離で書き換える案は不採用。分離の経路を1つ書き忘れると元ホストに残るため）。条件つきでも「ブロックされない効果を持つ」に数える（2026-09-25 ユーザー決定。継続の `unblockableBy` 33件と揃えた） |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。
