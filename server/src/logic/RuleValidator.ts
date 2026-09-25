@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -1116,15 +1116,14 @@ export function validateBlock(
     if (instCostCantAct(state, inst)) {
         return "コストが低いためブロックできません"
     }
-    // BS11-037 ヒポグリフィー：リザーブのコアを払わなければブロックできない（払えないならブロック不可）
-    const blockCost = state.battle?.blockCostReserveToTrash
-    if (blockCost && blockCost.pid === pid && state.players[pid].reserve < blockCost.count) {
-        return `リザーブのコアが${String(blockCost.count)}個ないためブロックできません`
-    }
-    // 器BU（BS13-047深海大帝ノーグ・デンス）：手札のマジックカード1枚を破棄しなければブロックできない
-    const blockMagicCost = state.battle?.blockCostDiscardMagic
-    if (blockMagicCost && blockMagicCost.pid === pid && !state.players[pid].hand.some((id) => getCard(id).type === "magic")) {
-        return "手札にマジックカードがないためブロックできません"
+    // アタッカーに掛かっている「〜しなければブロックできない」（blockCost）。払えなければブロックできない
+    const costAttacker = state.battle ? findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
+    for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
+        if (c.type !== "blockCost") continue
+        if (c.cost === "reserveCoreToTrash" && state.players[pid].reserve < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
+        if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
+            return "手札にマジックカードがないためブロックできません"
+        }
     }
 
     const attackerPid = opponentOf(pid)

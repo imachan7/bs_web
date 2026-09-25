@@ -572,28 +572,24 @@ const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => 
 // EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
 // このバトルの間、相手はリザーブのコアを払わなければブロックできない（BS11-037 ヒポグリフィーLv2-3）
 const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThisBattle"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
+    const { state, owner, opp, sourceName } = ctx
     if (!state.battle) {
         log(state, `${sourceName}：バトル中でないため何も起きなかった。`)
         return
     }
-    state.battle.blockCostReserveToTrash = { pid: opp, count: action.count }
+    // このバトルのアタッカーへのブロックに支払いを課す
+    recordTimed(state, { content: [{ type: "blockCost", cost: "reserveCoreToTrash", count: action.count }], target: { kind: "instance", instanceId: state.battle.attackerInstanceId }, until: "battle", ownerPid: owner })
     log(
         state,
         `${sourceName}：${state.players[opp].name}はリザーブのコア${action.count}個をトラッシュに置かなければブロックできない。`,
     )
 }
 
-// 器BU：このターンの間、このスピリットがアタックしたとき、相手は手札のマジック1枚を破棄しなければ
-// ブロックできない、という制約を発生源自身に付与する（kind:"triggered" trigger:"onSummon"専用）。
-// requireCoreToBlockThisBattleと違い「このバトルだけ」でなく「このターンの以後の全アタック」に効くため、
-// state.battleでなく自分自身（self）にターン番号を刻む。実際のブロック要求への橋渡しはGameEngine.doAttackが行う
-// （self.blockRequiresMagicDiscardGrantedTurn === state.turn を見て state.battle.blockCostDiscardMagic を立てる）。
-// BS13-047深海大帝ノーグ・デンス召喚時
+// このターンの間、このスピリットをブロックするには、相手は手札のマジック1枚を破棄しなければならない
 const grantBlockRequiresMagicDiscardThisTurnHandler: ActionHandler<"grantBlockRequiresMagicDiscardThisTurn"> = (ctx) => {
-    const { state, self, sourceName } = ctx
+    const { state, owner, self, sourceName } = ctx
     if (!self) return
-    self.blockRequiresMagicDiscardGrantedTurn = state.turn
+    recordTimed(state, { content: [{ type: "blockCost", cost: "discardMagic", count: 1 }], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない。`)
 }
 
