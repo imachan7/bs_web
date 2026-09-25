@@ -8,7 +8,7 @@ import { cantActByTimed } from "../../shared/rules"
 import { act, assert, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { braveCombineCandidates } from "../../shared/summon"
 
 const NOVA = "BS11-X02" // 滅神星龍ダークヴルム・ノヴァ（コスト7・Lv2=3コア）

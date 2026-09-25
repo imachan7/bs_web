@@ -4,7 +4,7 @@
 // M=系統AND（familyAll）／R=手札のカードのコストを置換する
 import { assert, createGame, createInstance, effectiveBp, effectiveCost, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart, giveBp } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { braveCombineCandidates } from "../../shared/summon"
 
 function game(seed: string): GameState {

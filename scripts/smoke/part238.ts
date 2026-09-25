@@ -6,7 +6,8 @@
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS, CARD_DB } from "../../server/src/logic/GameState"
-import { destroySpirit, returnSpiritToHand, flushBounces, detachBravesOnLeave } from "../../server/src/logic/removal"
+import { destroySpirit, returnSpiritToHand, flushBounces } from "../../server/src/logic/removal"
+import { detachBravesOnLeave } from "../../server/src/logic/brave"
 import { bravesOf, hostsOf, braveLevelOf, matchesBraveCondition, instBaseCost, instColors, instanceSymbolCount, countSymbols, effectiveBp, currentLevel, effectSources, instIsCombined, spiritHasKeyword, matchesTarget } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
 

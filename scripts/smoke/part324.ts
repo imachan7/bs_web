@@ -16,7 +16,8 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { millDeck } from "../../server/src/logic/EffectModules"
-import { attachBrave, removeCoresToTrash } from "../../server/src/logic/removal"
+import { removeCoresToTrash } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 
 function base(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })

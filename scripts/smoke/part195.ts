@@ -10,7 +10,7 @@
 import { act, assert, createGame, createInstance, declareBlock, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger, findMagicNegateSource } from "../../server/src/logic/EffectModules"
-import { fushiCandidates } from "../../server/src/logic/removal"
+import { fushiCandidates } from "../../server/src/logic/revive"
 import { getCard } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 

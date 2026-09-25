@@ -1,7 +1,7 @@
 // smoke パート383（シンボルを固定されたスピリットには、追加・失う・ブレイヴのシンボルが効かない。2026-09-25 ユーザー確認）
 import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { countSymbols, instanceSymbolCount } from "../../shared/rules"
 
 const CITY = "BS08-066" // 海底に眠りし古代都市（Lv2：異合のスピリットのシンボルを同じ色2つにする）

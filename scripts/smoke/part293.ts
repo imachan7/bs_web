@@ -20,7 +20,7 @@ import {
     playerHas,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { summonFreeFromHandIndex } from "../../server/src/logic/EffectModules"
 import { endTurn } from "../../server/src/logic/PhaseManager"
 import { fireStepTriggers } from "../../server/src/logic/triggers"

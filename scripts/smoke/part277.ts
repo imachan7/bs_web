@@ -6,7 +6,9 @@
 import { assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { attachBrave, destroySpirit, fushiCandidates } from "../../server/src/logic/removal"
+import { destroySpirit } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
+import { fushiCandidates } from "../../server/src/logic/revive"
 import { validateDetachBrave, validateSummon } from "../../server/src/logic/RuleValidator"
 
 const VESPER = "BS11-052" // 魔銃ヴェスパー（シンボル紫1つ・合体条件コスト5以上）

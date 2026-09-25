@@ -13,7 +13,7 @@ import {
     resolveAction,
     runTurnStart, timedHas } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { refreshLevelAsOverrides, resolveMagic } from "../../server/src/logic/EffectModules"
 import { boardResistanceAgainst, hasBraveImmuneAgainst, instanceSymbolCount, spiritHasKeyword } from "../../shared/rules"
 import { canBlock } from "../../shared/block"

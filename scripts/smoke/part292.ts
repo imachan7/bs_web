@@ -16,7 +16,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { hasDestroyAsMaxLevelGrant, ownLifeFloorContinuous, cantActByTimed } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { validateAttack } from "../../server/src/logic/RuleValidator"

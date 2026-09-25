@@ -26,13 +26,13 @@
 ## 1. 項目
 
 **数字**（09-22 → 09-26）：アクション type 328 → 251、カード1枚だけで使われている type 180 → 138。
-2000行を超えるファイルは7本（shared/rules 3400、EffectModules 3051、removal 2893、cores 2745、GameEngine 2717、destroy 2345、battleFlow 2200）。
+2000行を超えるファイルは9本（`validate:size` の据え置き一覧。removal は 09-26 に分割して外れた）。
 
 | # | 項目 | 効くもの | 規模 | 状態 |
 | :-- | :-- | :-- | :-- | :-- |
-| R1 | **差し込み先の手順書** `docs/design/WHERE_TO_ADD.md`：変更の種類ごとに、触るファイルと関数を列挙する（下の表） | A・B・C | 小（メインループが書く） | 未着手。R3 と一緒に育てる |
-| R2 | **ヘルパーの索引を自動生成**：`npm run codemap` → `docs/CODEMAP.md`（export 名・ファイル:行・先頭コメント1行）。CI で「生成し直すと差分が出る」なら落とす | A | 小 | 未着手 |
-| R3 | **責務単位の分割**（§3） | E・A | 中（移すだけ） | handDeck・EffectModules の一部・マジックは分割済み（09-23）。残りは §3 の表 |
+| R1 | **差し込み先の手順書** `docs/design/WHERE_TO_ADD.md`：変更の種類ごとに、触るファイルと関数を列挙する（下の表） | A・B・C | 小（メインループが書く） | 書き始めた（09-26。ブレイヴ・復活）。R3 と一緒に育てる |
+| R2 | **ヘルパーの索引を自動生成**：`npm run codemap` → `docs/CODEMAP.md`（export 名・ファイル:行・先頭コメント1行）。CI で「生成し直すと差分が出る」なら落とす | A | 小 | 済み（09-26。行番号は入れない：並行する PR が索引でぶつかるため） |
+| R3 | **責務単位の分割**（§3） | E・A | 中（移すだけ） | handDeck・EffectModules の一部・マジック（09-23）、removal のブレイヴ・復活（09-26）は分割済み。残りは §3 の表 |
 | R4 | 型3ファイルのコメント削減（CLAUDE.md「コードスタイル」の基準で） | B・E | 中（機械的） | effectDef.ts は済み（09-24）。effectAction.ts は作業中（09-26）、type.ts が残り（検査：`scripts/check-comment-trim.py`） |
 | R5 | 器の統合（§2） | 器の増殖 | 大（段階的） | M3・M4・M1 の一部と M8 は済み。残りは §2.2 |
 | R6 | 誘発条件の軸を `triggers.ts` の1関数に集める | D | 中 | 調査から |
@@ -132,7 +132,7 @@
 | `actions/handDeck.ts` | 4566 | ドロー・破棄・公開・トラッシュ回収・デッキ破棄・バウンス・手元が同居 → `drawDiscard`／`tegamoto`／`reveal`／`trashRecover`／`mill`／`bounce`＋`magic`（09-23 分割済み。`familyChoiceThenBpBuffAll` は buff、`payNegateDecide` は control へ） |
 | `EffectModules.ts` | 4239 | 【転召】（`tenshoSpecOf`〜`applyTenshoSubstitute*`）、【粉砕】【呪撃】【暴風】【強襲】など**キーワードごとの判定**、デッキ破棄（`millDeck`・破棄無効）、疲労・回復（`exhaustSpirit`・`refreshSpirit`） → `keywords/tensho.ts`・`keywords/<キーワード>.ts`・`zones/mill.ts`・`state/exhaust.ts` |
 | `triggers.ts` | 2911 | マジックの処理は `magic/`（cast 使用の手続き／negate 無効化／redirect 対象の絞り込みと「お互い」の変更／resolve 解決・再発揮・マジックミラー）へ分割済み（09-23。GameEngine の `doCastMagic` も cast へ） |
-| `removal.ts` | 2879 | ブレイヴの合体・分離・維持（`attachBrave`〜`takeBraveKeep`）、復活・【不死】（`queueReviveConfirm`〜`tryReviveOnDestroy`） → `brave.ts`・`revive.ts`。ネクサス破壊は残す |
+| `removal.ts` | 1509 | （09-26 分割済み：`brave.ts`・`revive.ts`） |
 | `GameEngine.ts` | 2877 | `doResolveChoice`（約450行）＝選択の解決と再開 → `choice.ts`。バトル解決（`resolveBattle`〜`runBattleStep`） → `battle.ts`。【烈神速】 → 召喚側へ |
 | `actions/cores.ts` | 2745 | コアの移動の全部入り（未調査） |
 | `actions/destroy.ts` | 2345 | 破壊の全部入り（未調査） |

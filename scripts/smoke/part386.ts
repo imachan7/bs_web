@@ -2,7 +2,7 @@
 // Q3630・Q3632・Q18859。2026-09-25 ユーザー確認）
 import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { effectiveBp } from "../../shared/rules"
 
 const LUNA = "BS15-X05" // 光の覇王ルナアーク・カグヤ

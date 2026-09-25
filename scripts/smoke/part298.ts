@@ -4,7 +4,7 @@
 // O=【超覚醒】を持つ合体スピリットは分離できない
 import { assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart, getCard, resolveAction, handleAction } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave, detachBraveByEffect } from "../../server/src/logic/removal"
+import { attachBrave, detachBraveByEffect } from "../../server/src/logic/brave"
 import { canAwakenFromReserve, instanceSymbolCount, AWAKEN_FROM_RESERVE } from "../../shared/rules"
 import { fireCombinedAttackTrigger } from "../../server/src/logic/EffectModules"
 

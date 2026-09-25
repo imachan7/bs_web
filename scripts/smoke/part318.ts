@@ -25,7 +25,7 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers, fireTrigger, notifyNexusDeployed, fireStepTriggers, fireBattleWonTriggers } from "../../server/src/logic/triggers"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { braveBpBonus, attackOncePerTurnByCostLimitApplies, noSummonTriggerByCost } from "../../shared/rules"
 import { hasMagicRestriction } from "../../shared/cost"
 import { validateCastMagic } from "../../server/src/logic/RuleValidator"

@@ -29,7 +29,7 @@ import {
 } from "../EffectModules"
 import { KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
-import { detachBraveByEffect } from "../removal"
+import { detachBraveByEffect } from "../brave"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 
