@@ -237,12 +237,13 @@ console.log("=== BS04-096 インフェルノアイズ：メイン＝お互いの
     assert(s.players.p2.trashCores === 0, "相手はコストを払っていないのでトラッシュは増えない（ボイド送りのため）")
 }
 
-console.log("=== BS04-096 インフェルノアイズ：条件不成立（シンボル2つ以上のスピリットがいない）ならメインは不発 ===")
+console.log("=== BS04-096 インフェルノアイズ：シンボル2つ以上のスピリットがいないと使えない（2026-09-26 ユーザー確認） ===")
 {
     const s = setupMain("infernoeyes-noop-main")
     s.players.p1.hand = ["BS04-096"]
     const p1Spirit = put(s, "p1", "BS01-001", 2) // シンボル1つのみ
     const p2Spirit = put(s, "p2", "BS01-001", 2)
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "使用できる")
-    assert(p1Spirit.cores === 2 && p2Spirit.cores === 2, "条件不成立のためコアは変化しない")
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "条件を満たさないので使用できない")
+    assert(s.players.p1.hand.includes("BS04-096"), "マジックは手札に残る")
+    assert(p1Spirit.cores === 2 && p2Spirit.cores === 2, "コアは変化しない")
 }

@@ -5199,7 +5199,7 @@
         "id": "BS12-079-e1",
         "kind": "magic",
         "timing": "flash",
-        "condition": {
+        "useCondition": {
           "ownNameIncludesCountAtLeast": {
             "names": [
               "ストライク"
@@ -5333,7 +5333,7 @@
         "id": "BS12-082-e2",
         "kind": "magic",
         "timing": "main",
-        "condition": {
+        "useCondition": {
           "ownFamilyCountAtLeast": {
             "family": "天霊",
             "count": 7

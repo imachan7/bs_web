@@ -62,15 +62,16 @@ console.log("=== BS04-107 ジャッジメントライツ：シンボル2つ以�
     assert(effectiveBp(s, "p2", enemy) === 1000, "実効BPも1000に落ちる")
 }
 
-console.log("--- シンボル2つ以上のスピリットがいないと不発 ---")
+console.log("--- シンボル2つ以上のスピリットがいないと使えない（2026-09-26 ユーザー確認） ---")
 {
     const s = setup("judgmentlights-condition-unmet")
     put(s, "p1", "BS01-001", 1) // ゴラドン（シンボル赤×1のみ）
     const enemy = put(s, "p2", "BS01-002", 3)
 
     s.players.p1.hand = ["BS04-107"]
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "使用自体はできる（条件未成立で不発）")
-    assert(s.players.p1.turnVirtualInstances.length === 0, "条件未成立のため仮想発生源は立たない")
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "条件を満たさないので使用できない")
+    assert(s.players.p1.hand.includes("BS04-107"), "マジックは手札に残る")
+    assert(s.players.p1.turnVirtualInstances.length === 0, "仮想発生源は立たない")
     assert(currentLevel(enemy).level === 3, "相手スピリットはLv3のまま")
 }
 
