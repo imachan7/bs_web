@@ -32,6 +32,7 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
     TargetFilter,
+    TimedContent,
     TriggerEvent,
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
@@ -100,6 +101,8 @@ import {
     isVirtualSource,
     cardNameContains,
     matchesTarget,
+    timedContentsFor,
+    timedContentsOn,
     KEYWORDS,
     instMatchesCostFilter,
     matchesCostFilter,
@@ -194,9 +197,7 @@ export function isTriggerSuppressed(
     ownerPid: PlayerId,
     event: TriggerEvent,
 ): boolean {
-    if (state.triggerSuppressionThisTurn.some((e) => e.pid === ownerPid && e.trigger === event)) {
-        return true
-    }
+    if (timedContentsFor(state, ownerPid).some((c) => c.type === "suppressTrigger" && c.trigger === event)) return true
     for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
         if (opponentOf(sourcePid) !== ownerPid) continue
         const player = state.players[sourcePid]
@@ -286,7 +287,8 @@ export function fireTrigger(
     }
     // timedEffect の suppressTrigger（1体）：**この個体1体だけ**が対象の一時抑止（BS14-043月光姫マーニLv2）。
     // trigger:"onAttack"は【合体時】の『合体アタック時』も同時に防ぐ（どちらも内部的にonAttack）
-    if (selfInstance.suppressedTriggersThisTurn?.includes(event)) {
+    const timed = timedContentsOn(state, selfInstance)
+    if (timed.some((c) => c.type === "suppressTrigger" && c.trigger === event)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
@@ -511,8 +513,9 @@ export function fireTrigger(
     // target/nameIncludes 一致でこのインスタンスに継続付与された誘発効果を、静的effectsの末尾に合成する
     // （grantedのlevelsは常に有効扱い。発生源自身もnameIncludes一致すれば対象に含む）
     // 加えて、timedEffect の grantTrigger でこの個体1体に直接付与された、このターン限りの
-    // 誘発効果（tempGrantedTriggers）も同様に合成する（BS08メテオストーム）
-    const tempGranted = (selfInstance.tempGrantedTriggers ?? [])
+    // 誘発効果も同様に合成する（BS08メテオストーム）
+    const tempGranted = timed
+        .filter((g): g is Extract<TimedContent, { type: "grantTrigger" }> => g.type === "grantTrigger")
         .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
         .map((g) => g.action)
     const grantedActions = [

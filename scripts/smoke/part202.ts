@@ -6,7 +6,7 @@
 //      （ベリトの「0個にはできない」は召喚時だけ。docs/design/CONJUNCTION.md「効果ブロック（『』）の範囲」）
 //   ② 「『破壊時』効果は発揮されない」が封じるのは『』でカテゴライズされた効果だけで、
 //      ネクサスの常在効果による「フィールドに残る」は封じられない（朝焼け岬Lv2）
-import { act, assert, createGame, createInstance, declareBlock, destroySpirit, fireStepTriggers, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, destroySpirit, fireStepTriggers, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { effectiveBp } from "../../shared/rules"
 import { fireTrigger } from "../../server/src/logic/triggers"
@@ -390,7 +390,7 @@ console.log("--- SD01-032 機械神の加護：白のネクサスは相手の赤
     s.phase = "start"
     fireStepTriggers(s, "start")
     assert(
-        target.mustAttackThisTurn === true,
+        timedHas(s, target, "mustAttack"),
         "相手のスタートステップに、相手のスピリット1体へ強制アタックが課される",
     )
 }

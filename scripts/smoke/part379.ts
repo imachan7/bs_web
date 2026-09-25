@@ -1,5 +1,5 @@
 // smoke パート379（疲労状態でもブロック：timedEffect の内容 canBlockWhileRested。移したカードデータを直接解決する）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, timedHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 import { canBlockWhileRestedThisTurn } from "../../shared/rules"
 
@@ -46,8 +46,8 @@ console.log("=== 1. 1体：仁王壁＝自分の緑のスピリットのうち�
     s.players.p1.field.spirits = [weak, strong, red]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, restedBlockAction("BS14-101"), undefined, undefined, "magic")
-    assert(strong.canBlockWhileRestedThisTurn === true, "緑で実効BP最大の1体に付く")
-    assert(!weak.canBlockWhileRestedThisTurn && !red.canBlockWhileRestedThisTurn, "ほかの緑・緑以外には付かない")
+    assert(timedHas(s, strong, "canBlockWhileRested"), "緑で実効BP最大の1体に付く")
+    assert(!timedHas(s, weak, "canBlockWhileRested") && !timedHas(s, red, "canBlockWhileRested"), "ほかの緑・緑以外には付かない")
 }
 
 console.log("=== 2. すべて：インフィニティシールド＝系統一致の自分のスピリット（後から出たものにも） ===")

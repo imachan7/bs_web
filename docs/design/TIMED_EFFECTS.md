@@ -61,6 +61,15 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 - `timedEffect.ts` は移行中は増える（795→814行）。一覧に移したもの／まだ印のもの、の両方を扱う分岐が要るため。減るのは全内容を移して印と `timedRule` を消した後
 - テストの多く（14本）が印を直接読んでいた。置き場を変えるたびにテストも直ることになるので、テストは `cantActByTimed` のような判定関数で確かめる
 
+### 3.2 移し終えた内容
+
+| 内容 | 消えた置き場 |
+| :-- | :-- |
+| `cantAttack`・`cantBlock`（#127） | 個体の印3つ・`timedRule` |
+| `mustAttack`・`canBlockWhileRested`・`suppressTrigger`・`grantTrigger` | 個体の印4つ・`triggerSuppressionThisTurn`・`timedRule`。「すべての誘発を止める」は `target.kind:"player"` |
+
+テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。
+
 ## 4. 決まったこと・未決
 
 - **全内容を一覧へ移す**（2026-09-25 ユーザー決定。試作の結果を見て）。`timedEffect` の内容すべてと、旧 type が書いている同じ意味の印（BP・Lv など）も一覧に書く。プレイヤー・バトルに掛かるものは `target` の種類を足して同じ一覧に入れる。場の発生源から出る継続効果（オーラ・`effectGrant`）は入れない

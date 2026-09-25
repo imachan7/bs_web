@@ -655,9 +655,6 @@ export interface CardInstance {
     pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
     unblockableMinBpThisBattle?: number // このバトルの間、実効BPがこの値以上のスピリットからブロックされない（action:"unblockableAboveBpThisBattle"。clearBattle で消える。BS13-032光速の騎士ヘルモード【合体時】Lv3：「BP6000以上の相手のスピリットからブロックされない」）
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
-    mustAttackThisTurn?: true // このターンの間、可能ならば必ずアタックする（timedEffect。PhaseManagerのターン終了処理で消える）
-    canBlockWhileRestedThisTurn?: true // このターンの間、疲労状態でもブロックできる（timedEffect。PhaseManagerのターン終了処理で消える）
-    suppressedTriggersThisTurn?: TriggerEvent[] // このターンの間、この個体自身の指定トリガーが発揮されない（markSuppressTriggerThisTurn。triggerSuppressionThisTurnの個体版＝1体だけを指定する。PhaseManagerのターン終了処理で消える。BS14-043月光姫マーニLv2）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     levelOverrideThisTurn?: number // このターンの間のレベル上書き（ターン終了処理でリセット。皇帝アンプルール）
@@ -709,9 +706,6 @@ export interface CardInstance {
     effectsDisabledContinuous?: boolean // このスピリットが持つ効果すべてを発揮させない（kind:"spiritEffectsDisabledGrant"）。
     // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築し、shared/rules の effectSources・activeConstraints・
     // spiritHasKeyword と EffectModules.fireTrigger が参照する（BS07ルナースラッシュ）
-    tempGrantedTriggers?: { trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker" }[]
-    // このターンの間だけ、対象1体に直接付与された誘発効果（timedEffect の grantTrigger。ターン終了でリセット。
-    // fireTrigger が card.effects と同様に走査する。BS08メテオストーム＝「ヴルム」入りの自分のスピリット1体に付与）
     asSpiritThisTurn?: { cost: number; family: string[]; levels: LevelDef[] }
     // このターンの間だけ「スピリットとして扱われている」ネクサスに載る上書き（action:"treatOwnNexusesAsSpiritsThisTurn"。BS03ゴーレムクラフト）。
     // **付くのは field.nexuses から field.spirits へ移されたネクサスのインスタンスだけ**で、ターン終了時に元へ戻す目印も兼ねる。
@@ -1272,7 +1266,6 @@ export interface GameState {
     turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
     timedEffects: TimedRecord[] // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。ターン終了・バトル終了で until に応じて消える
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。**ターン終了でリセットしない**
-    triggerSuppressionThisTurn: { pid: PlayerId; trigger: TriggerEvent }[] // このターンの間、pid のスピリットの指定トリガーを発揮させない（ターン終了でリセット。ユーサネイジア）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
     lastAttackerCombinedPid?: PlayerId // 直前のアタック宣言が合体スピリットによるものだったとき、そのアタッカーの持ち主（doAttackが宣言のたびに更新。それ以外はundefined）
     prevAttackerCombinedPid?: PlayerId // 「1つ前」の lastAttackerCombinedPid（doAttackが次の宣言の直前にスライドさせる）。ターン開始でどちらもリセット（「次にアタックした」はターンをまたがない。BS10-047赤ずきん妖精ルージュLv3）
@@ -1450,6 +1443,7 @@ export type TimedRecord = {
     target:
         | { kind: "instance"; instanceId: string }
         | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 判定のたびに照合＝後から出たスピリットにも効く
+        | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
     until: "turn" | "battle"
     ownerPid: PlayerId
 }

@@ -23,8 +23,7 @@ import {
     resolveAction,
     refreshLevelAsOverrides,
     runTurnStart,
-    takeLifeAndResolve,
-} from "./helpers"
+    takeLifeAndResolve, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 import { fireSummonTrigger, resolveTensho } from "../../server/src/logic/EffectModules"
@@ -125,11 +124,11 @@ console.log("=== BS08獣機合神セイ・ドリガン：timedEffect mustAttack�
     const strong = put(s, "p2", filler.cardId, coresFor(filler, 1) + 2) // 実効BPを変えて自動選択を決定的にする
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "mustAttack" }], duration: "turn", count: 1 })
     assert(
-        strong.mustAttackThisTurn === true,
+        timedHas(s, strong, "mustAttack"),
         "実効BP最大の相手スピリットが強制アタック対象に指定される",
     )
     assert(
-        weak.mustAttackThisTurn !== true,
+        !timedHas(s, weak, "mustAttack"),
         "BPが低い方は対象にならない",
     )
     s.turnPlayer = "p2"

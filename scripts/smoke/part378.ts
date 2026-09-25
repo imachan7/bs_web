@@ -1,5 +1,5 @@
 // smoke パート378（トリガー抑止：timedEffect の内容 suppressTrigger。移したカードデータを直接解決する）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, timedHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 import { isTriggerSuppressed } from "../../server/src/logic/triggers"
 
@@ -50,8 +50,8 @@ console.log("=== 2. 1体：月光姫マーニ＝実効BP最大の相手1体の�
     s.players.p2.field.spirits = [strong, weak]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, suppressAction("BS14-043"))
-    assert(strong.suppressedTriggersThisTurn?.includes("onAttack") === true, "実効BP最大の1体に印が付く")
-    assert(weak.suppressedTriggersThisTurn === undefined, "もう1体には付かない")
+    assert(timedHas(s, strong, "suppressTrigger", "onAttack"), "実効BP最大の1体に印が付く")
+    assert(!timedHas(s, weak, "suppressTrigger"), "もう1体には付かない")
     s.interactiveTargets = true
     resolveAction(s, "p1", null, suppressAction("BS14-043"))
     assert(s.pendingChoice?.candidates.includes(strong.instanceId) === true, "既に止められている個体も候補に出る（2026-09-25 ユーザー確認）")

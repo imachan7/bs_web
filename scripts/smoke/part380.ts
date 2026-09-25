@@ -1,5 +1,5 @@
 // smoke パート380（誘発効果の付与：1体は timedEffect の内容 grantTrigger、見出しのステップ限定は effectGrant の phaseTurn）
-import { assert, createGame, createInstance, fireTrigger, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, fireTrigger, getCard, refreshLevelAsOverrides, resolveAction, timedHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 
 function grantAction(cardId: string): Extract<EffectAction, { type: "timedEffect" }> {
@@ -44,7 +44,7 @@ console.log("=== 1. 1体：ヒートライド＝実効BP最大の自分のスピ
     s.players.p1.field.spirits = [weak, strong]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, grantAction("BS15-077"), undefined, undefined, "magic")
-    assert(strong.tempGrantedTriggers?.length === 1 && weak.tempGrantedTriggers === undefined, "実効BP最大の1体にだけ付く")
+    assert(timedHas(s, strong, "grantTrigger") && !timedHas(s, weak, "grantTrigger"), "実効BP最大の1体にだけ付く")
     const before = s.players.p1.reserve
     fireTrigger(s, "p1", strong, "onLifeDealt")
     assert(s.players.p1.reserve === before + 1, "付与した効果でボイドからコア1個")
@@ -58,8 +58,8 @@ console.log("=== 2. 1体：爆覇炎神剣＝系統：覇皇だけが候補 ==="
     s.players.p1.field.spirits = [other, haou]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, grantAction("BS16-074"), undefined, undefined, "magic")
-    assert(haou.tempGrantedTriggers?.[0]?.trigger === "onBattleWin", "覇皇に『アタック時・BP比較で破壊したとき』が付く")
-    assert(other.tempGrantedTriggers === undefined, "覇皇でない方には付かない")
+    assert(timedHas(s, haou, "grantTrigger", "onBattleWin"), "覇皇に『アタック時・BP比較で破壊したとき』が付く")
+    assert(!timedHas(s, other, "grantTrigger"), "覇皇でない方には付かない")
 }
 
 console.log("=== 3. ヤツノカンゾウ Lv2：自分のアタックステップの間、【暴風】を持つ自分のスピリットに付く（継続効果） ===")

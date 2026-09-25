@@ -199,7 +199,6 @@ export function createGame(
         turnConstraints: [],
         timedEffects: [],
         endStepLocks: [],
-        triggerSuppressionThisTurn: [],
         attacksThisTurn: 0,
         ignoreUnblockableThisTurn: [],
         blockTriggersAsAttackThisTurn: false,

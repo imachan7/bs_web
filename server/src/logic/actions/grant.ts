@@ -319,7 +319,7 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
         for (const id of chosen) {
             const target = onField(id)
             if (!target) continue
-            target.mustAttackThisTurn = true
+            state.timedEffects.push({ content: [{ type: "mustAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
             log(state, `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`)
         }
         return
@@ -330,7 +330,7 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    for (const target of candidates) target.mustAttackThisTurn = true
+    for (const target of candidates) state.timedEffects.push({ content: [{ type: "mustAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：${state.players[opp].name}のスピリットすべては、このターンの間可能ならば必ずアタックする。`)
 }
 
