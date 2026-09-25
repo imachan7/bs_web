@@ -5199,11 +5199,23 @@
         "id": "BS12-079-e1",
         "kind": "magic",
         "timing": "flash",
+        "condition": {
+          "ownNameIncludesCountAtLeast": {
+            "names": [
+              "ストライク"
+            ],
+            "count": 1
+          }
+        },
         "action": {
-          "type": "forceAttackThisTurn",
-          "side": "opponent",
-          "count": "any",
-          "requireOwnNameIncludes": "ストライク"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "mustAttack"
+            }
+          ],
+          "duration": "turn",
+          "count": "any"
         }
       }
     ]

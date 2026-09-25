@@ -2,9 +2,10 @@
 // Y=braveImmuneGrant（scope:"all"/"matchArmorColors"）／AC=armorEffectiveGrant（2パス目・他カード付与色も配る）／
 // Z=effectEntryGrant（magicNegateを丸ごと配る）／P=reviveOnDestroy.combinedOnly（ブレイヴを残しスピリットだけ手札へ）／
 // M=globalConstraint.handImmuneForPid／C'=timedSymbolLoss（grantSymbolLossThisTurn）／
-// AA=fieldEvent"ownHyohekiUsed"／AD=forceAttackThisTurn count:"any"+requireOwnNameIncludes／
+// AA=fieldEvent"ownHyohekiUsed"／AD=timedEffect count:"any"＋マジックの条件 ownNameIncludesCountAtLeast／
 // AE=braveHostUnblockableThisTurn（毎回いまのホストを見る）
 import {
+    act,
     assert,
     createGame,
     createInstance,
@@ -147,23 +148,40 @@ console.log("=== §H AA fieldEvent\"ownHyohekiUsed\"：BS12-032蹴激皇ヴィ�
     assert(viizal.isRested === false, "【氷壁】を発揮して疲労した直後、コアを払って回復する（ownHyohekiUsedが発火）")
 }
 
-console.log("=== §I AD forceAttackThisTurn count:\"any\"＋requireOwnNameIncludes：BS12-079アブソリュートストライク ===")
+console.log("=== §I BS12-079アブソリュートストライク：timedEffect の count:\"any\"（好きなだけ）＋マジックの条件（名前に「ストライク」） ===")
 {
     const s = game("ad-force")
     const oppA = createInstance("BS01-001", s.turn, 1)
     const oppB = createInstance("BS01-002", s.turn, 1)
     s.players.p2.field.spirits.push(oppA, oppB)
     // 前提を満たさない場合：不発
-    resolveAction(s, "p1", null, { type: "forceAttackThisTurn", side: "opponent", count: "any", requireOwnNameIncludes: "ストライク" }, undefined, undefined, "magic")
+    resolveMagic(s, "p1", "BS12-079", "flash")
     assert(!timedHas(s, oppA, "mustAttack") && !timedHas(s, oppB, "mustAttack"), "カード名に「ストライク」を含む自分のスピリットがいなければ不発")
     // 前提を満たす場合：非対話は候補すべてに課す
     const striker = createInstance("BS12-X04", s.turn, 1) // 名前に「ストライク」が入っている自分のスピリット
     s.players.p1.field.spirits.push(striker)
-    resolveAction(s, "p1", null, { type: "forceAttackThisTurn", side: "opponent", count: "any", requireOwnNameIncludes: "ストライク" }, undefined, undefined, "magic")
+    resolveMagic(s, "p1", "BS12-079", "flash")
     assert(
         timedHas(s, oppA, "mustAttack") && timedHas(s, oppB, "mustAttack"),
         "非対話では相手のスピリットすべてに強制アタックを課す",
     )
+}
+{
+    // 対話：押すたびに選ぶ／外すを切り替え、確定で選んだものにだけ掛かる
+    const s = game("ad-force-toggle")
+    s.interactiveTargets = true
+    const oppA = createInstance("BS01-001", s.turn, 1)
+    const oppB = createInstance("BS01-002", s.turn, 1)
+    s.players.p2.field.spirits.push(oppA, oppB)
+    s.players.p1.field.spirits.push(createInstance("BS12-X04", s.turn, 1))
+    resolveMagic(s, "p1", "BS12-079", "flash")
+    assert(s.pendingChoice?.kind === "target" && s.pendingChoice.candidates.length === 2, "相手のスピリット2体から選ぶ")
+    assert(act(s, "p1", { type: "resolveChoice", instanceId: oppA.instanceId }) === null, "A を選ぶ")
+    assert(act(s, "p1", { type: "resolveChoice", instanceId: oppB.instanceId }) === null, "B を選ぶ")
+    assert(act(s, "p1", { type: "resolveChoice", instanceId: oppA.instanceId }) === null, "A をもう一度押して外す")
+    assert(s.pendingChoice?.selectedIds?.length === 1, "選ばれているのは B だけ")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "確定する")
+    assert(!timedHas(s, oppA, "mustAttack") && timedHas(s, oppB, "mustAttack"), "B にだけ強制アタックが掛かる")
 }
 
 console.log("=== §J AE braveHostUnblockableThisTurn：BS12-055ゲッコ・グライダー『このブレイヴの召喚時』＝毎回いまのホストを見る ===")
