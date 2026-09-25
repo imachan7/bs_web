@@ -4485,7 +4485,8 @@
     "turn": "own",
     "ownOnly": true,
     "action": {
-     "type": "battleOpponentDestroyedCoresToVoid"
+     "type": "battleOpponentDestroyedCoresTo",
+     "to": "trash"
     }
    }
   ]

@@ -2233,7 +2233,8 @@
           4
         ],
         "action": {
-          "type": "battleOpponentDestroyedCoresToVoid"
+          "type": "battleOpponentDestroyedCoresTo",
+          "to": "void"
         },
         "optional": false
       }
