@@ -12,6 +12,7 @@ import {
     createInstance,
     effectiveBp,
     resolveAction,
+    timedHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger } from "../../server/src/logic/EffectModules"
@@ -51,7 +52,7 @@ console.log("=== BS05-075 ブレイブチャージ：『アタック時』効果
     )
 
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "triggerSwap", from: "onAttack" }], duration: "turn", side: "own" }, spirit.instanceId, undefined, "magic")
-    assert(spirit.attackTriggersAsBlockThisTurn === true, "対象に読み替えフラグが立つ")
+    assert(timedHas(s, spirit, "triggerSwap"), "対象に読み替えフラグが立つ")
 
     fireTrigger(s, "p1", spirit, "onBlock")
     const afterBlock = effectiveBp(s, "p1", spirit)
@@ -65,7 +66,7 @@ console.log("=== BS05-075 ブレイブチャージ：『アタック時』効果
 
     endTurn(s)
     assert(
-        spirit.attackTriggersAsBlockThisTurn === undefined,
+        !timedHas(s, spirit, "triggerSwap"),
         "ターン終了で読み替えフラグがリセットされる",
     )
 }

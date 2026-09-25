@@ -1,5 +1,5 @@
 // smoke パート375（アタック時⇔ブロック時の効果の付け替え：timedEffect の内容 triggerSwap。移したカードデータを直接解決する）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, timedHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
@@ -31,20 +31,20 @@ console.log("=== 1. 1体：ブレイブチャージ（アタック時→ブロ�
 {
     const { s, a } = game()
     resolveAction(s, "p1", null, swapAction("BS05-075"), a.instanceId, undefined, "magic")
-    assert(a.attackTriggersAsBlockThisTurn === true, "ブレイブチャージ：指定した1体のアタック時効果がブロック時に")
+    assert(timedHas(s, a, "triggerSwap"), "ブレイブチャージ：指定した1体のアタック時効果がブロック時に")
     const t = game()
     resolveAction(t.s, "p1", null, swapAction("BS07-078"), undefined, undefined, "magic")
-    assert(t.a.blockTriggersAsAttackThisTurn === true, "マクラーンスラッシュ：ブロック時効果を持つ1体がアタック時に")
+    assert(timedHas(t.s, t.a, "triggerSwap"), "マクラーンスラッシュ：ブロック時効果を持つ1体がアタック時に")
 }
 
 console.log("=== 2. すべて：アタックシフト（両陣営）・セイバーシャーク（自分） ===")
 {
     const { s } = game()
     resolveAction(s, "p1", null, swapAction("BS01-149"), undefined, undefined, "magic")
-    assert(s.blockTriggersAsAttackThisTurn === true, "アタックシフト：両陣営すべて")
+    assert(s.timedEffects.some((r) => r.target.kind === "rule" && r.target.pid === undefined && r.content.some((c) => c.type === "triggerSwap")), "アタックシフト：両陣営すべて")
     const t = game()
     resolveAction(t.s, "p1", null, swapAction("BS10-072"))
-    assert(t.s.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === "p1"), "セイバーシャーク：自分のスピリットすべて")
+    assert(t.s.timedEffects.some((r) => r.target.kind === "rule" && r.target.pid === "p1" && r.content.some((c) => c.type === "triggerSwap")), "セイバーシャーク：自分のスピリットすべて")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part375）")

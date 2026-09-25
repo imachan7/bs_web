@@ -17,7 +17,9 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
-    takeLifeAndResolve, bpBuffOf } from "./helpers"
+    takeLifeAndResolve, bpBuffOf,
+    timedHas,
+} from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -224,7 +226,7 @@ console.log("=== BS07 白：指定した1体の『ブロック時』効果をア
         }) === null,
         `${maclean.name}をメインで使用`,
     )
-    assert(attacker.blockTriggersAsAttackThisTurn === true, "指定した1体に印が付く")
+    assert(timedHas(s, attacker, "triggerSwap"), "指定した1体に印が付く")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
     assert(bpBuffOf(s, attacker) === amount, `『ブロック時』のBP+${amount}がアタック時に発揮される`)

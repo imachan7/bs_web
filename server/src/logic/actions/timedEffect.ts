@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -638,14 +638,10 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
             log(state, `${sourceName}：この付け替えは未対応のため発揮しなかった。`)
             return
         }
-        if (action.side === "both") {
-            state.blockTriggersAsAttackThisTurn = true
-            log(state, `${sourceName}：このターンの間、『このスピリットのブロック時』効果はすべて『このスピリットのアタック時』に発揮される。`)
-            return
-        }
-        if (state.turnConstraints.some((c) => c.type === "blockTriggersAsAttackForPid" && c.pid === owner)) return
-        state.turnConstraints.push({ type: "blockTriggersAsAttackForPid", pid: owner })
-        log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットの『ブロック時』効果は『アタック時』に発揮される。`)
+        const pid = action.side === "both" ? undefined : owner
+        recordTimed(state, { content: [content], target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter: {} }, until: "turn", ownerPid: owner })
+        const who = pid === undefined ? "お互いの" : `${state.players[owner].name}の`
+        log(state, `${sourceName}：このターンの間、${who}スピリットの『ブロック時』効果は『アタック時』に発揮される。`)
         return
     }
     // ブロック時→アタック時は『ブロック時』効果を持つスピリットだけが候補で、候補が2体以上なら選ばせる（旧と同じ）
@@ -668,8 +664,7 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         log(state, `${sourceName}：${content.from === "onBlock" ? "『ブロック時』効果を持つ" : "対象の"}自分のスピリットがいなかった。`)
         return
     }
-    if (content.from === "onBlock") target.blockTriggersAsAttackThisTurn = true
-    else target.attackTriggersAsBlockThisTurn = true
+    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}の『${fromLabel}』効果は『${toLabel}』に発揮される。`)
 }
 
