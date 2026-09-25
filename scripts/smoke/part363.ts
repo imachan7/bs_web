@@ -128,9 +128,11 @@ function collectMigrated(): { cardId: string; cardName: string; action: BpBuffAc
 }
 
 const candidates = collectMigrated()
+const noEid = (k: string, v: unknown): unknown => (k === "__eid" ? undefined : v)
 assert(candidates.length === 148, `移行したカードデータの1体指定 BP は148件（フェネボラック・キマイラ・デブリは「このスピリット」へ移した）（実際: ${candidates.length}）`)
 assert(
-    candidates.every(({ action, now }) => JSON.stringify(toTimedEffect(action)) === JSON.stringify(now)),
+    // __eid は coverage:effects がカードデータに付け足す計測用の印なので比べない
+    candidates.every(({ action, now }) => JSON.stringify(toTimedEffect(action), noEid) === JSON.stringify(now, noEid)),
     "データの書き方は確定スキーマの変換どおり",
 )
 assert(collectBpBuff().every(({ action }) => Object.keys(action).some((k) => EXCLUDED_KEYS.includes(k))), "旧 bpBuff に残るのはオプション付きだけ")
