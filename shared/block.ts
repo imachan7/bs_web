@@ -13,6 +13,7 @@ import {
     boardResistanceAgainst,
     cantActByTimed,
     matchesTarget,
+    timedPlayerRules,
     timedContentsOn,
     canBlockWhileRestedThisTurn,
     currentLevel,
@@ -112,7 +113,7 @@ export function canBlock(
     // BS09-049炎蜥蜴クトゥグマ：このスピリットは「ブロックされない」効果を持つ相手もブロックできる
     // （継続的な制約・ターン限定の印のどちらも乗り越える。2026-08-14 ユーザー確認）
     const ignoresUnblockable = blockerConstraints.some((c) => c.type === "canBlockUnblockable")
-    if (attackerInst && !ignoresUnblockable && !board.ignoreUnblockableThisTurn.includes(blockerPid)) {
+    if (attackerInst && !ignoresUnblockable && !timedPlayerRules(board, blockerPid).some((c) => c.type === "ignoreUnblockableForPid")) {
         // 期間つき効果の「ブロックされない」（1体・すべて・ブレイヴのホスト）。from があればそれに合う相手からだけ
         for (const c of timedContentsOn(board, attackerInst)) {
             if (c.type !== "unblockable") continue

@@ -195,11 +195,9 @@ export function createGame(
         log: [],
         winner: null,
         endAttackStepAfterBattle: false,
-        turnConstraints: [],
         timedEffects: [],
         endStepLocks: [],
         attacksThisTurn: 0,
-        ignoreUnblockableThisTurn: [],
         lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleDestroyedLevel: 0,
@@ -455,7 +453,6 @@ export function clearBattle(state: GameState): void {
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
     state.bofuExhaustedThisBattle = []
-    // timedEffect の1体指定＋可変量（duration:"battle"）はここで切れる（ターン終了までのturnConstraintsとは寿命が別）
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer
@@ -656,12 +653,10 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         log: state.log.slice(-60),
         winner: state.winner,
         you: viewer,
-        turnConstraints: [...state.turnConstraints],
         timedEffects: [...state.timedEffects],
         ...(state.extraMainStep ? { extraMainStep: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
-        ignoreUnblockableThisTurn: [...state.ignoreUnblockableThisTurn],
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
                 ? { ...state.pendingChoice }

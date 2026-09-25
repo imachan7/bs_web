@@ -195,7 +195,6 @@ function buildGameAttachment(gameId: string): Record<string, unknown> | null {
         isFlashTiming: state.isFlashTiming,
         battle: state.battle,
         pendingChoice: state.pendingChoice,
-        turnConstraints: state.turnConstraints,
         winner: state.winner,
         players,
         logTail: state.log.slice(-200), // 全文ではなく末尾200行（jsonl 1行が肥大しすぎないように）

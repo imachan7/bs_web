@@ -2816,9 +2816,19 @@
         ],
         "optional": false,
         "action": {
-          "type": "handReductionColorAsThisTurn",
-          "color": "blue",
-          "cardType": "nexus"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "handReductionColorAsForPid",
+                "color": "blue",
+                "cardType": "nexus"
+              }
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       },
       {
@@ -2885,9 +2895,19 @@
           "exhaustSelf": true
         },
         "action": {
-          "type": "protectLifeByCostThisTurn",
-          "symbolCount": 2,
-          "combinedOnly": true
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "noLifeDamageByCostForPid",
+                "symbolCount": 2,
+                "combinedOnly": true
+              }
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       },
       {

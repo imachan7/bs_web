@@ -191,6 +191,7 @@ checkExhaustOnCoreChange,
     lifeCostBlockedByFloor,
     tryOwnLifeFloorByCost,
     voidCorePlacementBlocked,
+    recordPlayerRule,
 } from "./EffectModules"
 
 
@@ -1467,7 +1468,7 @@ export function applySpiritMillFreeSummon(
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
     // 「さらに、このターンの間、自分のデッキは破棄されない」＝**この召喚が成立したときだけ**付く（§1 #27）
-    state.turnConstraints.push({ type: "noDeckMillForPidThisTurn", pid: info.pid })
+    recordPlayerRule(state, info.pid, { type: "noDeckMillByOpponentForPid" })
     log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
     if (!state.winner) resolveTensho(state, info.pid, inst)
     if (state.winner) return

@@ -12,6 +12,7 @@ import {
     resolveAction,
     runTurnStart,
     spiritHasKeyword,
+    playerHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { millDeck } from "../../server/src/logic/EffectModules"
@@ -86,7 +87,7 @@ console.log("=== BS13-034-e1 ミノガメン：相手のデッキ破棄効果で
     assert(s.players.p1.reserve === reserveBefore, "コストは支払っていない（リザーブは減らない）")
     assert(!s.players.p1.trashCards.includes("BS13-034"), "トラッシュには残らない")
     assert(
-        s.turnConstraints.some((c) => c.type === "noDeckMillForPidThisTurn" && c.pid === "p1"),
+        playerHas(s, "p1", "noDeckMillByOpponentForPid"),
         "召喚成立時だけ、このターンの間デッキが相手の効果で破棄されなくなる",
     )
 }
@@ -218,7 +219,7 @@ console.log("=== BS14-049-e1 執事ペンタン：相手のデッキ破棄効果
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-049"), "コストを支払わず場に出る")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された分だけ場が増える")
     assert(
-        s.turnConstraints.some((c) => c.type === "noDeckMillForPidThisTurn" && c.pid === "p1"),
+        playerHas(s, "p1", "noDeckMillByOpponentForPid"),
         "召喚成立時だけ、このターンの間デッキが相手の効果で破棄されなくなる",
     )
 }
