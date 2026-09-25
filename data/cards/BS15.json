@@ -1902,7 +1902,7 @@
       }
      ],
      "duration": "battle",
-     "side": "own"
+     "target": "self"
     },
     "optional": false
    },
@@ -2235,7 +2235,7 @@
       }
      ],
      "duration": "battle",
-     "side": "own"
+     "target": "self"
     },
     "optional": false
    },
