@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -107,8 +107,8 @@ function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string
     if (battleBan && battleBan.pid === pid && getCard(cardId).colors.includes(battleBan.color)) {
         return "効果により、このバトルの間はこの色のカードを使えません"
     }
-    for (const c of state.turnConstraints) {
-        if (c.type !== "cantUseHandCardsForPid" || c.pid !== pid) continue
+    for (const c of timedPlayerRules(state, pid)) {
+        if (c.type !== "cantUseHandCardsForPid") continue
         const card = getCard(cardId)
         if (c.cardType !== undefined && card.type !== c.cardType) continue
         const colors = card.colors

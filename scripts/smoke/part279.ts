@@ -1,5 +1,5 @@
 // smoke パート279（BS11 グループA/B その2：047 / 049 / 057 / 066 / 067）
-import { act, assert, createGame, createInstance, currentLevel, effectiveBp, hasArmorAgainst, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, currentLevel, effectiveBp, hasArmorAgainst, refreshLevelAsOverrides, resolveAction, runTurnStart, playerHas } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { destroySpirit } from "../../server/src/logic/removal"
@@ -52,11 +52,11 @@ console.log("=== §B BS11-049：このターンの間、相手のスピリット
     assert(hasArmorAgainst(s, enemy, ["red", "blue", "green", "white", "yellow", "purple"]), "テスト前提: 装甲を持つ")
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "armorDisabledForPid" } }], duration: "turn" })
     assert(
-        s.turnConstraints.some((c) => c.type === "armorDisabledForPid" && c.pid === "p2"),
+        playerHas(s, "p2", "armorDisabledForPid"),
         "相手側の装甲が落ちる",
     )
     assert(
-        !s.turnConstraints.some((c) => c.type === "armorDisabledForPid" && c.pid === "p1"),
+        !playerHas(s, "p1", "armorDisabledForPid"),
         "自分側は落ちない",
     )
 }

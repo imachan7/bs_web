@@ -1434,9 +1434,16 @@ export type TimedRecord = {
     ownerPid: PlayerId
 }
 
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
-// pid を持つ「このターンの間」の制約から pid を除いたもの（timedEffect が side から pid を入れて積む）
-export type PlayerRuleDef = DistributiveOmit<Extract<TurnConstraintDef, { pid: PlayerId }>, "pid">
+// プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）
+export type PlayerRuleDef =
+    | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // 手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない、cardType＝その種別だけ使えない
+    | { type: "armorDisabledForPid" } // スピリットの【装甲】が働かない（持っている分もこのターンに得た分も。2026-08-16 ユーザー判断）
+    | { type: "freeFushiSummonForPid" } // このターン最初の【不死】召喚だけコストが0（維持コアは要る）。使ったら記録を消す
+    | { type: "lifeDamageMaxForPid"; max: number } // ライフは1回のアタックで max 個までしか減らない
+    | { type: "lifeFloorForPid"; floor: number; byAttackMinCost?: number; byEffectSourceTypes?: CardType[] } // ライフは floor を下回らない。byAttackMinCost＝そのコスト以上のスピリットのアタックでだけ、byEffectSourceTypes＝その種別の効果でだけ（指定すればOR）
+    | { type: "lifeImmuneForPid" } // ライフはあらゆる原因（アタック・効果）で減らない
+    | { type: "bounceToDeckTopForPid" } // このプレイヤーの効果で手札に戻すスピリットは、手札の代わりにデッキの上へ
+    | { type: "nexusEffectsDisabledForPid" } // ネクサスすべての効果が発揮されない
 
 // このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
 export type TurnConstraintDef =
@@ -1444,21 +1451,13 @@ export type TurnConstraintDef =
     // instanceId指定時（timedEffect の1体指定＋可変量）は filter/pid ではなくこの1体だけに効く（「〜1体につき」を計算のたびに数え直すため）
     // until:"battle"指定時はターン終了ではなくclearBattleで消える（timedEffectのduration:"battle"）
     | { type: "timedRule"; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; instanceId?: string; until?: "battle" }
-    | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）。cardType指定時はこの種別のカードだけ使えない（BS14-112封渦斬：「このターンの間、相手はマジックカードを使用できない」＝cardType:"magic"）
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
-    | { type: "armorDisabledForPid"; pid: PlayerId } // このターンの間、この pid のスピリットの【装甲】は一切働かない
-    | { type: "freeFushiSummonForPid"; pid: PlayerId } // このターンの**最初の**【不死】召喚だけコストが0になる（維持コアは通常どおり要る）。applyFushiSummon が使ったら自分でこの制約を取り除く（BS14-098ダークリボーン）
     // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**
     //  ＝「【装甲】をないものとして扱い、新たに得ることもない」。2026-08-16 ユーザー判断。SD01-040 アーマーパージ）
-    | { type: "lifeDamageMaxForPid"; max: number; pid: PlayerId } // このターンの間、この pid のライフは1回のアタックで max 個までしか減らない（0 なら減らない）。
     // **「減るか／減らないか」ではなく上限を値で持つ**のが要点（2026-08-16 ユーザー提案）。
     // ライフダメージはブロックされなかったアタックでのみ発生するので、
     // 効果文の「ブロックされなかった相手のスピリットのアタックでは」は自動的に満たされる（SD01-039 ブリザードウォール）
-    | { type: "lifeFloorForPid"; pid: PlayerId; floor: number; byAttackMinCost?: number; byEffectSourceTypes?: CardType[] } // このターンの間、この pid のライフは floor を下回らない（「自分のライフは0にならない」＝floor:1）。byAttackMinCost指定時は**その値以上のコストのスピリットのアタック**でだけ効き、byEffectSourceTypes指定時は**その種別の効果による減少**でだけ効く（どちらも指定すればOR。BS11-080 デルタバリア＝「相手のスピリット/マジックの効果と、コスト4以上の相手のスピリットのアタックでは、自分のライフは0にならない」）
-    | { type: "lifeImmuneForPid"; pid: PlayerId } // このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らない。lifeDamageMaxForPid（max:0でアタックのみ止める）と違い、lifeCrushアクションの実行自体もこの pid に対しては不発にする全面ロック（action:"lifeImmuneThisTurn"が積む。BS10-093時刻む花時計）
-    | { type: "bounceToDeckTopForPid"; pid: PlayerId } // このターンの間、この pid（発生源の持ち主＝効果を発揮した側）が returnToHand で戻すスピリットは、持ち主の手札の代わりにデッキの上へ（action:"bounceToDeckTopThisTurn"が積む。removal.ts の markBounce が currentEffectSource.pid を見て振り替える。BS13-079ヴァニシングデイ）
     | { type: "handReductionColorAsForPid"; pid: PlayerId; color: Color; cardType: CardType } // このターンの間、この pid の**手札**にある cardType のカードすべての軽減シンボル（printed reduction）を color 一色として扱う（effectiveCostがcardData.reductionの代わりに読む。手札のカードなので判定時に都度算出＝書き込まない。action:"handReductionColorAsThisTurn"が積む。BS12-042ヒノキ・ゴレムLv1「自分の手札にあるネクサスカードすべての軽減シンボルすべてを[青]として扱う」）
-    | { type: "nexusEffectsDisabledForPid"; pid: PlayerId } // 器BC：このターンの間、この pid（＝相手側）のネクサスすべての効果は発揮されない（action:"opponentNexusEffectsDisabledThisTurn"が積む。nexusEffectsDisabledFor が読む。BS13-039神獣バーロン）
     | { type: "noDeckMillForPidThisTurn"; pid: PlayerId } // 器AR：このターンの間、この pid のデッキは**相手の効果では**破棄されない（globalConstraint "noDeckMillByOpponent" のターン限定版。isDeckMillBlockedが読む。BS13-034ミノガメン：デッキ破棄効果で破棄され無償召喚したときだけ付く）
     | { type: "noDeckMillAtAllForPidThisTurn"; pid: PlayerId } // 器BS16：このターンの間、この pid のデッキは**自分の効果も含め**一切破棄されない（noDeckMillForPidThisTurnの相手限定を外した全面版。millDeckの冒頭でbyOpponentを問わず判定する。BS16-002パイルドラコ：「このターンの間、自分のデッキは破棄されない」）
     | { type: "noBurstSpiritSummonThisTurn" } // このターンの間、お互い、バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴのバースト召喚は対象外。summonBurstCardFreeHandlerが判定。BS16-058サテライド・バード）

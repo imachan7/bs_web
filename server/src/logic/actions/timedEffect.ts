@@ -1,6 +1,6 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter, TurnConstraintDef } from "../../type"
+import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -402,10 +402,8 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         return
     }
     const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
-    for (const c of action.content) {
-        if (c.type !== "playerRule") continue
-        for (const pid of pids) state.turnConstraints.push({ ...c.rule, pid } as TurnConstraintDef)
-    }
+    const rules = action.content.filter((c) => c.type === "playerRule")
+    for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
 

@@ -9,6 +9,7 @@
 import type {
     AuraCondition,
     ConstraintDef,
+    PlayerRuleDef,
     GlobalConstraintDef,
     AuraCounter,
     AuraDef,
@@ -241,8 +242,7 @@ function restedNexusEffectsDisabled(board: Board): boolean {
 // ネクサスが自分自身を無効化する形は現データに無いが、仮に書かれても
 // 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
 function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
-    // 器BC：ターン限定版（TurnConstraintDef "nexusEffectsDisabledForPid"。BS13-039神獣バーロン）
-    if (board.turnConstraints.some((c) => c.type === "nexusEffectsDisabledForPid" && c.pid === pid)) return true
+    if (timedPlayerRules(board, pid).some((c) => c.type === "nexusEffectsDisabledForPid")) return true
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const sources = [
         ...opp.field.spirits,
@@ -1109,9 +1109,7 @@ export function boardResistanceAgainst(
 
     // 【装甲】。ただしこのターン「装甲を無いものとして扱う」効果を受けていれば働かない
     //（すでに持っている分も、このターンに付与された分もまとめて落とす。SD01-040 アーマーパージ）
-    const armorDisabled = board.turnConstraints.some(
-        (c) => c.type === "armorDisabledForPid" && c.pid === targetOwnerPid,
-    )
+    const armorDisabled = timedPlayerRules(board, targetOwnerPid).some((c) => c.type === "armorDisabledForPid")
     // ⚠️ **ブレイヴの効果は【装甲】では防げない**（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
     // 【装甲：色】の効果文は「指定された色の相手の**スピリット/ネクサス/マジック**の効果を受けない」で、
     // ブレイヴを列挙していない。これを防ぐのは【重装甲】（ブレイヴ登場後のキーワード。プールに入ったら実装する）。
@@ -2521,14 +2519,14 @@ export function lifeDamageLimit(
     }
     // このターン限定の上限（ブリザードウォール＝1しか減らない）。複数あれば最も厳しいものを採る
     let max = Number.POSITIVE_INFINITY
-    for (const c of board.turnConstraints) {
-        if (c.type === "lifeDamageMaxForPid" && c.pid === defenderPid) max = Math.min(max, c.max)
+    for (const c of timedPlayerRules(board, defenderPid)) {
+        if (c.type === "lifeDamageMaxForPid") max = Math.min(max, c.max)
     }
     // このターンの間のライフ下限（BS11-080 デルタバリア＝「ライフは0にならない」）。
     // アタック経路では byAttackMinCost（アタッカーのコスト）で絞る
     const attackerCost = Math.max(...instAllCosts(attacker), 0)
-    for (const c of board.turnConstraints) {
-        if (c.type !== "lifeFloorForPid" || c.pid !== defenderPid) continue
+    for (const c of timedPlayerRules(board, defenderPid)) {
+        if (c.type !== "lifeFloorForPid") continue
         if (c.byAttackMinCost !== undefined && attackerCost < c.byAttackMinCost) continue
         max = Math.min(max, Math.max(0, board.players[defenderPid].life - c.floor))
     }
@@ -2553,8 +2551,8 @@ export function lifeDamageLimit(
 // 下限が無ければ 0（＝0まで減らせる）。BS11-080 デルタバリア
 export function lifeFloorByEffect(board: Board, pid: PlayerId, srcType: CardType | undefined): number {
     let floor = 0
-    for (const c of board.turnConstraints) {
-        if (c.type !== "lifeFloorForPid" || c.pid !== pid) continue
+    for (const c of timedPlayerRules(board, pid)) {
+        if (c.type !== "lifeFloorForPid") continue
         if (c.byEffectSourceTypes !== undefined && (srcType === undefined || !c.byEffectSourceTypes.includes(srcType))) continue
         floor = Math.max(floor, c.floor)
     }
@@ -2620,7 +2618,7 @@ export function cantReduceOpponentLife(board: Board, attackerPid: PlayerId): boo
 }
 
 export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
-    return board.turnConstraints.some((c) => c.type === "lifeImmuneForPid" && c.pid === pid)
+    return timedPlayerRules(board, pid).some((c) => c.type === "lifeImmuneForPid")
 }
 
 // BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
@@ -2907,6 +2905,11 @@ export function timedKeywords(board: Board, inst: CardInstance): { keyword: Keyw
 // このプレイヤーに掛かっている期間つき効果の内容
 export function timedContentsFor(board: Board, pid: PlayerId): TimedContent[] {
     return board.timedEffects.flatMap((r) => (r.target.kind === "player" && r.target.pid === pid ? r.content : []))
+}
+
+// このプレイヤーに掛かっている「このターンの間」の制約
+export function timedPlayerRules(board: Board, pid: PlayerId): PlayerRuleDef[] {
+    return timedContentsFor(board, pid).flatMap((c) => (c.type === "playerRule" ? [c.rule] : []))
 }
 
 // このバトルの解決方法（比べるもの・勝敗の逆転）
