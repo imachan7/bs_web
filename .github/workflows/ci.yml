@@ -48,7 +48,7 @@ jobs:
       # CLAUDE.md の「バッチ完了時の定型」に揃える（カードデータは型検査の対象外なので、
       # ここを落とすと効果の実装漏れ・注意書きの不整合がすり抜ける）
       - name: カードデータの検査
-        run: npm run validate:cards && npm run validate:notes && npm run validate:gaps
+        run: npm run validate:cards && npm run validate:notes && npm run validate:gaps && npm run validate:size
 
       # ヘルパーの索引（docs/CODEMAP.md）が古いと、実装役が引いた名前の置き場がずれる
       - name: ヘルパーの索引が最新か
