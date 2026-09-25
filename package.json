@@ -18,6 +18,7 @@
     "validate:cards": "tsx scripts/validate-cards.ts",
     "validate:notes": "tsx scripts/validate-card-notes.ts",
     "validate:gaps": "tsx scripts/check-effect-gaps.ts --check",
+    "validate:size": "tsx scripts/check-file-size.ts",
     "gaps:report": "tsx scripts/check-effect-gaps.ts",
     "gaps:update": "tsx scripts/check-effect-gaps.ts --update-baseline",
     "coverage:effects": "tsx scripts/coverage-effects.ts",
