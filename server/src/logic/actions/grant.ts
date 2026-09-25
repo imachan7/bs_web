@@ -271,7 +271,7 @@ const grantHostUnblockableThisTurnHandler: ActionHandler<"grantHostUnblockableTh
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    state.turnConstraints.push({ type: "braveHostUnblockableThisTurn", pid: owner, braveInstanceId: self.instanceId })
+    recordTimed(state, { content: [{ type: "unblockable" }], target: { kind: "braveHost", braveInstanceId: self.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、このブレイヴと合体しているスピリットはブロックされない。`)
 }
 

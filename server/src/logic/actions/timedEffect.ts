@@ -409,12 +409,20 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
 
-// 1体を「ブロックされない」にする。期間 battle は次のバトルが終わると消える印（強者統べる大地の「ターンに1回」もこれ）、
-// turn はターン終了まで何回アタックしても効く印。対象を選ぶときは自分のスピリットから、非対話は実効BP最大
+// 「ブロックされない」を置く。期間 battle で from なしは強者統べる大地の「ターンに1回」＝そのスピリットのアタックの終了で消える（until:"attack"）。
+// すべて（all）は自分のスピリットすべてに掛かる記録。1体は自分のスピリットから選び、非対話は実効BP最大
 function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "unblockable" }> => c.type === "unblockable")
     if (!content) return
+    const until = action.duration === "battle" && content.from === undefined ? "attack" : action.duration
+    const period = until === "attack" ? "このターン1回だけ" : action.duration === "turn" ? "このターンの間" : "このバトルの間"
+    const fromLabel = content.from === undefined ? "相手のスピリット" : "条件に合う相手のスピリット"
+    if (action.all) {
+        recordTimed(state, { content: [content], target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until, ownerPid: owner })
+        log(state, `${sourceName}：${period}、自分のスピリットすべては${fromLabel}にブロックされない。`)
+        return
+    }
     let target: CardInstance | undefined
     if (action.target === "self") {
         if (!self) return
@@ -438,12 +446,8 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
             return
         }
     }
-    const name = getCard(target.cardId).name
-    const until = content.fromMinBp !== undefined ? "battle" : action.duration === "battle" ? "attack" : "turn"
     recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until, ownerPid: owner })
-    if (content.fromMinBp !== undefined) log(state, `${sourceName}：このバトルの間、BP${content.fromMinBp}以上のスピリットからブロックされない。`)
-    else if (until === "attack") log(state, `${sourceName}：${name}は、このターン1回だけ相手のスピリットにブロックされない。`)
-    else log(state, `${sourceName}：${name}は、このターンの間相手のスピリットにブロックされない。`)
+    log(state, `${sourceName}：${getCard(target.cardId).name}は、${period}${fromLabel}にブロックされない。`)
 }
 
 // このバトルの間、プレイヤーに掛ける印（フラッシュで手札を使えない／バーストを発動できない）。印は1人ぶんしか持てない

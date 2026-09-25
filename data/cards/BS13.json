@@ -3850,7 +3850,9 @@
      "content": [
       {
        "type": "unblockable",
-       "fromMinBp": 6000
+       "from": {
+        "minBp": 6000
+       }
       }
      ],
      "duration": "battle",

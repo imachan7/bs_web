@@ -850,17 +850,17 @@
           "type": "timedEffect",
           "content": [
             {
-              "type": "playerRule",
-              "rule": {
-                "type": "unblockableByLevelThisTurn",
-                "levels": [
+              "type": "unblockable",
+              "from": {
+                "level": [
                   2
                 ]
               }
             }
           ],
           "duration": "turn",
-          "side": "own"
+          "side": "own",
+          "all": true
         },
         "optional": false
       },
