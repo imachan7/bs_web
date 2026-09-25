@@ -137,7 +137,7 @@
 | `actions/cores.ts` | 2745 | コアの移動の全部入り（未調査） |
 | `actions/destroy.ts` | 2345 | 破壊の全部入り（未調査） |
 | `actions/battleFlow.ts` | 2200 | バトルの進行と、BP・比べ方の効果（未調査） |
-| `shared/rules.ts` | 3400 | クライアントと共有する判定の全部入り → `shared/rules/`（レベルとブレイヴ／色と系統／BP とオーラ／対象の絞り込み）に分け、`shared/rules.ts` は再エクスポートだけにする（import 側は変えない） |
+| `shared/rules.ts` | 18 | （09-26 分割済み：`shared/rules/` の下に level・symbols・keywordState・resistance・bp・targetFilter・constraints・activation。`shared/rules.ts` は再輸出だけ） |
 
 **再発を防ぐ**：`npm run validate:size`（09-26 に定型と CI へ足した）。`server/src`・`shared`・`public/src` の1ファイルが
 **2000行**を超えたら落とす（型3ファイルは行が長いので KB で見て 120KB）。基準を超えたら「どの概念を切り出すか」を決めてから足す。
