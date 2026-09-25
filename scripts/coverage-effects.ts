@@ -262,14 +262,18 @@ export function checkPatchTargets(): string[] {
 // shared/ は node:fs や server/ に依存しない設計なので、計測用の依存を持ち込まず
 // **この worktree の中だけで**自前の記録器を定義し、別ファイルへ書き出す
 function instrumentShared(tree: string, out: string): void {
-    const f = path.join(tree, "shared/rules.ts")
+    // shared/rules.ts は再輸出だけで、中身は shared/rules/ の下に概念ごとに分けてある（2026-09-26）。
+    // 記録器は level.ts の1か所に置いて export し、ほかのファイルはそれを import する（記録を1つにまとめるため）
+    const rulesDir = path.join(tree, "shared/rules")
+    const ruleTargets = fs.readdirSync(rulesDir).filter((n) => n.endsWith(".ts")).map((n) => path.join(rulesDir, n))
+    const f = path.join(rulesDir, "level.ts")
     const header = `// [計測] 継続効果の適用を記録する（coverage-effects.ts が差し込む。共有ツリーには存在しない）
 const __covSet2 = new Set<string>()
-const __covRec2 = (line: string): void => { __covSet2.add(line) }
+export const __covRec2 = (line: string): void => { __covSet2.add(line) }
 process.on("exit", () => {
     try { require("fs").writeFileSync(${JSON.stringify(out + ".shared")}, [...__covSet2].join("\\n")) } catch { /* 計測失敗は無視 */ }
 })
-const __covEid = (e: unknown): string =>
+export const __covEid = (e: unknown): string =>
     String((e as Record<string, unknown> | null)?.["__eid"] ?? "?")
 
 `
@@ -277,8 +281,8 @@ const __covEid = (e: unknown): string =>
     // （hasArmorAgainst の .some() 等）が多いため、cardId+keyword名から対象の効果エントリの
     // __eid を引く。card() は cardDb.ts の遅延注入だが、この関数自体は呼ばれた時点で評価されるため
     // ファイル先頭に置いても import 順の問題は起きない（既存の __covEid と同じ考え方）
-    const keywordHelper = `const __covKeywordEid2 = (cid: string, keyword: string, level?: number): string => {
-    const effects = (card(cid).effects as unknown as Record<string, unknown>[]).filter(
+    const keywordHelper = `export const __covKeywordEid2 = (cid: string, keyword: string, level?: number): string => {
+    const effects = (__covCard(cid).effects as unknown as Record<string, unknown>[]).filter(
         (e) => e["kind"] === "keyword" && e["keyword"] === keyword,
     )
     const found = level === undefined
@@ -291,11 +295,17 @@ const __covEid = (e: unknown): string =>
 }
 
 `
-    if (!DRY_RUN) fs.writeFileSync(f, header + keywordHelper + fs.readFileSync(f, "utf-8"))
+    if (!DRY_RUN) {
+        fs.writeFileSync(f, `import { card as __covCard } from "../cardDb"\n` + header + keywordHelper + fs.readFileSync(f, "utf-8"))
+        for (const other of ruleTargets.filter((t) => t !== f)) {
+            fs.writeFileSync(other, `import { __covRec2, __covEid, __covKeywordEid2 } from "./level"\n` + fs.readFileSync(other, "utf-8"))
+        }
+    }
 
     // shared/cost.ts 側にも同じ記録器を注入する（別ファイルなので import せず自前で持つ）
-    const fc = f.replace("rules.ts", "cost.ts")
+    const fc = path.join(tree, "shared/cost.ts")
     const headerC = header
+        .replace(/export const /g, "const ")
         .replace(/__covSet2/g, "__covSet2C")
         .replace(/__covRec2/g, "__covRec2C")
         .replace(/__covEid/g, "__covEid2C")
@@ -304,7 +314,7 @@ const __covEid = (e: unknown): string =>
 
     // aura: effectiveBp が実際に加算する時点（全フィルタ通過後）
     patch(
-        f,
+        ruleTargets,
         // ※ 2026-08-08: bpBuffSuppressed（BPバフ無効化）の導入で
         //    「auraAmount を求める行」と「加算する行」が分かれた。
         //    計測点は**抑止を通過して実際に加算する時点**に置く
@@ -318,7 +328,7 @@ const __covEid = (e: unknown): string =>
     // ※ 2026-08-10 の耐性一本化で、判定本体が EffectModules.isExhaustImmune から
     //    shared/rules.isExhaustImmuneOnBoard へ移った（差し込み先もこちらへ移設）
     patch(
-        f,
+        ruleTargets,
         `                if (effect.phaseTurn.turn === "own" && targetOwnerPid !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === board.turnPlayer) continue
             }
@@ -331,13 +341,13 @@ const __covEid = (e: unknown): string =>
     )
     // constraint: activeConstraints が自身の制約として採用する時点
     patch(
-        f,
+        ruleTargets,
         `        .map((e) => (e as { constraint: ConstraintDef }).constraint)`,
         `        .map((e) => { __covRec2("cont\\t" + __covEid(e)); return (e as { constraint: ConstraintDef }).constraint })`,
     )
     // costMod（加算）: 実際にコストへ加算する時点
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `                total += amt`,
         `                __covRec2C("cont\t" + __covEid2C(effect))
                 total += amt`,
@@ -345,7 +355,7 @@ const __covEid = (e: unknown): string =>
     // costMod（置換 mode:"set"）: 採用値を決める時点
     // （2026-08-14: setToCounter の追加で置換値の計算が1行増えたためアンカーを追随させた）
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `            if (result === undefined || setTo < result) result = setTo`,
         `            __covRec2C("cont\t" + __covEid2C(effect))
             if (result === undefined || setTo < result) result = setTo`,
@@ -353,14 +363,14 @@ const __covEid = (e: unknown): string =>
     // reductionGrant: 軽減シンボルを実際に足す時点（器BJ：symbolCountFromFamily対応でeffect.symbolsを
     // 直接pushする形からrepeated変数経由に変わった。2026-09-10）
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `                extra.push(...repeated)`,
         `                __covRec2C("cont\t" + __covEid2C(effect))
                 extra.push(...repeated)`,
     )
     // magicRestriction: 制限が成立して true を返す時点
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 return true`,
         `                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
@@ -371,7 +381,7 @@ const __covEid = (e: unknown): string =>
     // **上の hasMagicRestriction とは別の関数**なので、こちらにも計測点が要る
     // （BS05-065 青嵐の虚空 がこちらだけを通り、動作しているのに「未実行」と出ていた。2026-08-16）
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `                        spiritHasKeyword(board, ownerPid, s, effect.requireOwnKeyword!),
                     )
                 ) {
@@ -392,7 +402,7 @@ const __covEid = (e: unknown): string =>
     //   返り値が true から effect.count ?? 1 に変わったためアンカーを追随させた）
     // （2026-08-14: keywordGrant.minBp の追加で最終行の直前が変わったためアンカーを追随させた）
     patch(
-        f,
+        ruleTargets,
         `            return effect.count ?? 1`,
         `            __covRec2("cont\t" + __covEid(effect))
             return effect.count ?? 1`,
@@ -401,7 +411,7 @@ const __covEid = (e: unknown): string =>
     // isUntargetableByOpponent が直接 effects を走査する。ここを入れないと
     // 「ワルキューレの制約が一度も適用されていない」という誤検出が出る
     patch(
-        f,
+        ruleTargets,
         `    return card(inst.cardId).effects.some(
         (e) =>
             e.kind === "constraint" &&
@@ -422,7 +432,7 @@ const __covEid = (e: unknown): string =>
     )
     // familyGrant: spiritHasFamily が継続付与を採用して true を返す時点
     patch(
-        f,
+        ruleTargets,
         `                const { color, count } = effect.condition.ownColorTotalAtLeast
                 const onField = [...player.field.spirits, ...player.field.nexuses]
                 const total = onField.filter((s) => instHasColor(s, color)).length
@@ -440,7 +450,7 @@ const __covEid = (e: unknown): string =>
     // alsoCostGrant: instHasCost / instMatchesCostFilter が alsoCostsContinuous を採用して true を返す時点。
     // 付与元の __eid は EffectModules 側の差し込みが __covAlsoCostEid として載せている
     patch(
-        f,
+        ruleTargets,
         `    if (inst.tempAlsoCosts.includes(cost)) return true
     return (inst.alsoCostsContinuous ?? []).includes(cost)`,
         `    if (inst.tempAlsoCosts.includes(cost)) return true
@@ -449,7 +459,7 @@ const __covEid = (e: unknown): string =>
     return __covHit`,
     )
     patch(
-        f,
+        ruleTargets,
         `    if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
     return (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))`,
         `    if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
@@ -459,7 +469,7 @@ const __covEid = (e: unknown): string =>
     )
     // constraintGrant: activeConstraints が付与制約を合成する時点
     patch(
-        f,
+        ruleTargets,
         `            granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })`,
         `            __covRec2("cont\\t" + __covEid(effect))
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })`,
@@ -467,7 +477,7 @@ const __covEid = (e: unknown): string =>
     // constraintGrant（colorFromChosen）: 「指定した色」を解決して積む分岐は**別の push** を通るため、
     // 上の計測点を迂回する（BS09-081 サマーソルトターンが動作しているのに「未実行」と出ていた。2026-08-16）
     patch(
-        f,
+        ruleTargets,
         `                const { colorFromChosen: _flag, ...rest } = c
                 granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })`,
         `                const { colorFromChosen: _flag, ...rest } = c
@@ -476,7 +486,7 @@ const __covEid = (e: unknown): string =>
     )
     // familySuppression: 系統を「持たない」と判定して true を返す時点（BS03暗礁海域Lv1）
     patch(
-        f,
+        ruleTargets,
         `                if (effect.kind !== "familySuppression") continue
                 if (effect.lentOnly && !isVirtualSource(source)) continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
@@ -493,7 +503,7 @@ const __covEid = (e: unknown): string =>
     )
     // bpBuffSuppression: 「BPを+する効果は発揮されない」と判定する時点（BS04古代闘技場Lv1）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "bpBuffSuppression") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
@@ -510,7 +520,7 @@ const __covEid = (e: unknown): string =>
     )
     // sokuPaySourceGrant: 【神速】召喚の支払い元としてフィールドを許可する時点
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "sokuPaySourceGrant") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
@@ -523,7 +533,7 @@ const __covEid = (e: unknown): string =>
     )
     // nexusEffectsDisabled: 相手のネクサスの効果を止めると判定した時点（BS05ネクサスブロケイド）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
             if (effect.target !== "opponentAll" && effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
@@ -540,7 +550,7 @@ const __covEid = (e: unknown): string =>
     )
     // target:"bothAll" の自分側（BS15-034ミブロック・ジーナス）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
             if (effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
@@ -557,7 +567,7 @@ const __covEid = (e: unknown): string =>
     )
     // handKeywordGrant: 手札のカードにキーワードを与えていると判定した時点（BS02緑芽吹く原野Lv2）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "handKeywordGrant") continue
             if (effect.keyword !== keyword) continue`,
         `            if (effect.kind !== "handKeywordGrant") continue
@@ -566,7 +576,7 @@ const __covEid = (e: unknown): string =>
     )
     // countAsMultiple: 「数えるとき N 体分」を実際に適用した時点（BS05シーサーズLv2）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "countAsMultiple") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
             if (!typeAllowed(effect.sourceTypes)) continue
@@ -579,7 +589,7 @@ const __covEid = (e: unknown): string =>
     )
     // constraintSuppression: 制約を発揮させないと判定した時点（BS04獣使いドヴェルグ）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "constraintSuppression") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
@@ -598,7 +608,7 @@ const __covEid = (e: unknown): string =>
     )
     // awakenFromReserve: 【覚醒】の移動元にリザーブを許可した時点（BS05合成恐竜ディノゾール）
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "awakenFromReserve") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
@@ -615,7 +625,7 @@ const __covEid = (e: unknown): string =>
     )
     // flashLockWhileAttackingFamily（BS07ウィリアンスラッシュ）：フラッシュ封印が成立した時点
     patch(
-        f,
+        ruleTargets,
         `            if (effect.kind !== "flashLockWhileAttackingFamily") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) return true`,
@@ -628,7 +638,7 @@ const __covEid = (e: unknown): string =>
     )
     // nexusCostMillPay（BS04栄光の表彰台Lv1）：デッキ破棄での支払いが可能と判定した時点
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `            if (effect.kind !== "nexusCostMillPay") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue`,
         `            if (effect.kind !== "nexusCostMillPay") continue
@@ -637,7 +647,7 @@ const __covEid = (e: unknown): string =>
     )
     // summonCostHandDiscardPay（BS08ビクティム）：手札破棄での支払いが可能と判定した時点
     patch(
-        f.replace("rules.ts", "cost.ts"),
+        fc,
         `            if (effect.kind !== "summonCostHandDiscardPay") continue
             return true`,
         `            if (effect.kind !== "summonCostHandDiscardPay") continue
@@ -647,7 +657,7 @@ const __covEid = (e: unknown): string =>
     // keyword「装甲」: hasArmorAgainst の静的判定が true を返す時点
     // （.some() の中は effect を取り出せないため、cid+keyword+level から専用ヘルパーで引き直す）
     patch(
-        f,
+        ruleTargets,
         `    if (staticArmor) return true`,
         `    if (staticArmor) {
         __covRec2("cont\\t" + __covKeywordEid2(inst.cardId, "armor", level))
@@ -656,7 +666,7 @@ const __covEid = (e: unknown): string =>
     )
     // globalConstraint（singleCoreCantAct / nexusIndestructible）: hasGlobalConstraint の true 判定
     patch(
-        f,
+        ruleTargets,
         `            for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
@@ -677,7 +687,7 @@ const __covEid = (e: unknown): string =>
     )
     // globalConstraint（costCantAct）: しきい値を実際に満たして true を返す時点
     patch(
-        f,
+        ruleTargets,
         // ※ 2026-08-08: costs（コスト完全一致・グレートウォール）の追加で判定式が変わった
         `                if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
                     return true
@@ -689,7 +699,7 @@ const __covEid = (e: unknown): string =>
     )
     // immunityGrant: hasMagicImmunity が true を返す時点
     patch(
-        f,
+        ruleTargets,
         // ※ 2026-08-08: 集計が countSpiritsWeighted + instHasCost（道化師クランの付与コスト対応）へ変わった
         // ※ 2026-08-10: 数える側の発生源種別（card(source.cardId).type）を渡すようになり複数行に整形された
         `                if (matchCount < count) continue

@@ -40,66 +40,32 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `magicConditionFailure`（fn）：満たしていれば null、満たしていなければ理由の文を返す
 
-## shared/rules.ts
+## shared/rules/activation.ts
 
-- `KeywordInfo`（型）：キーワードの存在と表示名を一元管理する（挙動は GameEngine / RuleValidator が hasKeyword で参照する）
-- `KEYWORDS`（const）：キーワード効果のレジストリ。カードデータには名前だけを持たせ、挙動はエンジン側で解決する
-- `hasKeyword`（fn）：カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
-- `instHasTriggerEffect`（fn）：指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
-- `staticKeywordCount`（fn）：効果の levels 指定が現在のレベルで有効か（null = レベル不問）
-- `effectActiveAtLevel`（fn）
-- `instIsCombined`（fn）：このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
-- `effectActiveOn`（fn）：効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
-- `combinedBraveColorsOk`（fn）：【合体時】の色条件（X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」）。
-- `isVanillaCard`（fn）：カードに効果の記述を持たない（バニラ）か
-- `isTrashCardProtected`（fn）：トラッシュにあるこのカードが、一切の効果を受けない（kind:"trashImmunity"）か。
-- `isTrashReturnAtEndStep`（fn）：トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
-- `instIsVanilla`（fn）：インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
-- `instEffectsSuppressed`（fn）：この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
-- `effectSources`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
-- `isVirtualSource`（fn）：このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
-- `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
-- `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
-- `instBaseCost`（fn）：このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
-- `instFamilies`（fn）：このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
-- `instAllCosts`（fn）：インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
-- `cardHasColor`（fn）：カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
-- `instHasColor`（fn）：状態を考慮した色判定：master色 ‖ 一時付与された色（timedColors。アディショナルカラー） ‖
-- `instColors`（fn）：状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
-- `opponentFieldColorCount`（fn）：持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
-- `ownFieldOnlyColor`（fn）：自分のフィールド（スピリット+ネクサス）のカードがすべて指定色1色だけか。
-- `currentLevel`（fn）：現在のレベルとBP。timedLevel（このターンの上書き）または levelAsContinuous（継続置換）が
-- `displayLevel`（fn）：「見た目・他のカードから見えるレベル」。**効果の発揮判定にだけ効く置き換え**
-- `bravesOf`（fn）：ホストに合体しているブレイヴの実体。参照が切れている（実体が既に無い）ぶんは黙って落とす
-- `hostsOf`（fn）：ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
-- `braveLevelOf`（fn）：合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
-- `braveBpBonus`（fn）：合体しているブレイヴが足す「合体時BP+」の合計。**ホストのコア数で合体状態のレベルが変わる**ため、
-- `braveKeepCores`（fn）：スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
-- `matchesBraveCondition`（fn）：このブレイヴが対象のスピリットに合体できるか（合体条件。§1.2）。
-- `instLevels`（fn）：このインスタンスが参照すべきレベル表。asSpiritThisTurn の上書きがあればそちらを使う
-- `instMinLevelCores`（fn）：インスタンス単位の維持コア数（最小レベルに必要なコア数）。
-- `instanceSymbolCount`（fn）：インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
-- `countSymbols`（fn）：軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
-- `countTrashSymbols`（fn）：軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
-- `handSizeOf`（fn）：手札の枚数（内容は隠匿されても枚数は公開情報）。BoardPlayer.handCountがあればそれを使い、
-- `isSpiritOnField`（fn）：指定インスタンスがそのプレイヤーのフィールドにスピリットとして存在するか
-- `isOnFieldAnyZone`（fn）：この個体が**まだ場にいるか**（スピリット／ネクサス／**合体中のブレイヴ**）。
-- `spiritHasKeyword`（fn）：状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
-- `iceWallColorsOf`（fn）：【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので
-- `hasDestroyAsMaxLevelGrant`（fn）：器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
-- `hasContinuousKeywordGrant`（fn）：継続付与（kind: "keywordGrant"）によるキーワード保持判定（暴双龍ディラノス）
-- `continuousKeywordGrantCount`（fn）：継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
-- `targetArmorColorCount`（fn）：対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・期間つきの付与・継続付与armorColorsGrantedを
-- `familiesSuppressed`（fn）：状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
-- `hasHandKeywordGrant`（fn）：緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
-- `spiritHasFamily`（fn）
-- `matchesFamilyFilter`（fn）：FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
-- `ResistanceCategory`（型）：耐性の分類。**分岐用ではなくログ・UI表示用**（呼び出し側は「防がれたかどうか」だけ見ればよい）
-- `Resistance`（型）
-- `EffectAttempt`（型）：「何をしようとしているか」。耐性ごとに効く操作が違うので、**この2軸は必ず渡す**
-- `boardResistanceAgainst`（fn）：盤面だけで決まる耐性を判定する。防がれるなら理由を、通るなら null を返す。
-- `isInBattle`（fn）：現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
-- `isExhaustImmuneOnBoard`（fn）：【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
+- `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
+- `shinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
+- `burstSetCoresRequired`（fn）：kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
+- `OPPONENT_RESERVE_TARGET`（const）：pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
+- `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
+- `canAwakenFromReserve`（fn）：【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
+- `hasSuperAwaken`（fn）：この個体が【超覚醒】を持つか（＝コアを置いたあと回復するか）。
+- `isEndStepLocked`（fn）：このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
+- `coresCantBeRemoved`（fn）
+- `summonExhausted`（fn）：globalConstraint "summonExhausted"（BS13緑バッチ 器AB）：お互い、条件を満たすカードを召喚するとき、
+- `coresCantBeRemovedByOpponent`（fn）：globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：
+- `canAwaken`（fn）
+- `activatableAbility`（fn）：起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
+- `DirectAttackFilter`（型）：指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
+- `directAttackFilter`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
+- `minLevelCores`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
+- `minLevelCoresOf`（fn）：レベル表から最小レベルの必要コア数を求める素の計算（minLevelCores / instMinLevelCores の共通実体）
+- `isFlashLockedFor`（fn）：pid がいま「フラッシュで手札のカードを使えない」状態か。
+- `AltSummonFromHandOption`（型）
+- `altSummonFromHandCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**
+- `canAltSummonFromHand`（fn）：UI向け：手札の handIndex 枚目がいま代替召喚できるなら候補ネクサスを返す（できなければ ok:false）
+
+## shared/rules/bp.ts
+
 - `spiritCountWeight`（fn）：オーラのカウンタを、発生源の持ち主（sourcePid）基準で数える。
 - `countSpiritsWeighted`（fn）：ownerPid のフィールドで predicate に合うスピリットを、上記の重みつきで数える。
 - `countAuraCounter`（fn）
@@ -109,11 +75,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isBpBuffSuppressed`（fn）：「BPを+する」効果が、effectOwnerPid（効果を出す側）にとって発揮されない状態か
 - `effectiveBp`（fn）：実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
 - `timedRuleBp`（fn）：全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
-- `matchesTarget`（fn）：対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
-- `cardNameContains`（fn）：カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
-- `trashCardNameMatches`（fn）：トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。
-- `matchesCostFilter`（fn）：コスト範囲の判定（TargetFilter.cost）。
-- `instMatchesCostFilter`（fn）：フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
+
+## shared/rules/constraints.ts
+
 - `ConstraintWithSource`（型）：指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
 - `activeConstraints`（fn）：制約だけが要る呼び出し（大多数）はこちら。判定の本体は activeConstraintsWithSource に1本化してある
 - `activeConstraintsWithSource`（fn）
@@ -157,6 +121,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noReductionBySummonCost`（fn）：フィールド全体制約 noReductionBySummonCost（両陣営）：コストがmaxCost以下のスピリットカードを
 - `hasMagicImmunity`（fn）：⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 - `hasBounceImmunity`（fn）：発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
+- `hasTimedUnblockable`（fn）：この個体にいま掛かっている期間つき効果の内容（docs/design/TIMED_EFFECTS.md）。1体指定と「すべて」の両方を追加順に返す。
 - `timedContentsOn`（fn）
 - `timedKeywords`（fn）：この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
 - `timedContentsFor`（fn）：このプレイヤーに掛かっている期間つき効果の内容
@@ -164,26 +129,86 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
-- `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
-- `shinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
-- `burstSetCoresRequired`（fn）：kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
-- `OPPONENT_RESERVE_TARGET`（const）：pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
-- `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
-- `canAwakenFromReserve`（fn）：【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
-- `hasSuperAwaken`（fn）：この個体が【超覚醒】を持つか（＝コアを置いたあと回復するか）。
-- `isEndStepLocked`（fn）：このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
-- `coresCantBeRemoved`（fn）
-- `summonExhausted`（fn）：globalConstraint "summonExhausted"（BS13緑バッチ 器AB）：お互い、条件を満たすカードを召喚するとき、
-- `coresCantBeRemovedByOpponent`（fn）：globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：
-- `canAwaken`（fn）
-- `activatableAbility`（fn）：起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
-- `DirectAttackFilter`（型）：指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
-- `directAttackFilter`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
-- `minLevelCores`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
-- `isFlashLockedFor`（fn）：pid がいま「フラッシュで手札のカードを使えない」状態か。
-- `AltSummonFromHandOption`（型）
-- `altSummonFromHandCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**
-- `canAltSummonFromHand`（fn）：UI向け：手札の handIndex 枚目がいま代替召喚できるなら候補ネクサスを返す（できなければ ok:false）
+
+## shared/rules/keywordState.ts
+
+- `spiritHasKeyword`（fn）：状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
+- `iceWallColorsOf`（fn）：【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので
+- `hasDestroyAsMaxLevelGrant`（fn）：器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
+- `hasContinuousKeywordGrant`（fn）：継続付与（kind: "keywordGrant"）によるキーワード保持判定（暴双龍ディラノス）
+- `continuousKeywordGrantCount`（fn）：継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
+- `targetArmorColorCount`（fn）：対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・期間つきの付与・継続付与armorColorsGrantedを
+- `familiesSuppressed`（fn）：状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
+- `hasHandKeywordGrant`（fn）：緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
+- `spiritHasFamily`（fn）
+- `matchesFamilyFilter`（fn）：FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
+
+## shared/rules/level.ts
+
+- `KeywordInfo`（型）：キーワードの存在と表示名を一元管理する（挙動は GameEngine / RuleValidator が hasKeyword で参照する）
+- `KEYWORDS`（const）：キーワード効果のレジストリ。カードデータには名前だけを持たせ、挙動はエンジン側で解決する
+- `keywordMatches`（fn）
+- `hasKeyword`（fn）：カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
+- `instHasTriggerEffect`（fn）：指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
+- `staticKeywordCount`（fn）：効果の levels 指定が現在のレベルで有効か（null = レベル不問）
+- `effectActiveAtLevel`（fn）
+- `instIsCombined`（fn）：このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
+- `effectActiveOn`（fn）：効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
+- `combinedBraveColorsOk`（fn）：【合体時】の色条件（X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」）。
+- `isVanillaCard`（fn）：カードに効果の記述を持たない（バニラ）か
+- `isTrashCardProtected`（fn）：トラッシュにあるこのカードが、一切の効果を受けない（kind:"trashImmunity"）か。
+- `isTrashReturnAtEndStep`（fn）：トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
+- `instIsVanilla`（fn）：インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
+- `instEffectsSuppressed`（fn）：この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
+- `effectSources`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+- `isVirtualSource`（fn）：このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
+- `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
+- `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
+- `instBaseCost`（fn）：このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
+- `instFamilies`（fn）：このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
+- `instAllCosts`（fn）：インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
+- `cardHasColor`（fn）：カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
+- `instHasColor`（fn）：状態を考慮した色判定：master色 ‖ 一時付与された色（timedColors。アディショナルカラー） ‖
+- `instColors`（fn）：状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
+- `opponentFieldColorCount`（fn）：持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
+- `ownFieldOnlyColor`（fn）：自分のフィールド（スピリット+ネクサス）のカードがすべて指定色1色だけか。
+- `currentLevel`（fn）：現在のレベルとBP。timedLevel（このターンの上書き）または levelAsContinuous（継続置換）が
+- `displayLevel`（fn）：「見た目・他のカードから見えるレベル」。**効果の発揮判定にだけ効く置き換え**
+- `bravesOf`（fn）：ホストに合体しているブレイヴの実体。参照が切れている（実体が既に無い）ぶんは黙って落とす
+- `hostsOf`（fn）：ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
+- `braveLevelOf`（fn）：合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
+- `braveBpBonus`（fn）：合体しているブレイヴが足す「合体時BP+」の合計。**ホストのコア数で合体状態のレベルが変わる**ため、
+- `braveKeepCores`（fn）：スピリット状態のブレイヴを場に残すのに必要なコア数（＝**スピリット状態の**Lv1維持コスト。§1.4）。
+- `matchesBraveCondition`（fn）：このブレイヴが対象のスピリットに合体できるか（合体条件。§1.2）。
+- `instLevels`（fn）：このインスタンスが参照すべきレベル表。asSpiritThisTurn の上書きがあればそちらを使う
+- `instMinLevelCores`（fn）：インスタンス単位の維持コア数（最小レベルに必要なコア数）。
+- `isSpiritOnField`（fn）：指定インスタンスがそのプレイヤーのフィールドにスピリットとして存在するか
+- `isOnFieldAnyZone`（fn）：この個体が**まだ場にいるか**（スピリット／ネクサス／**合体中のブレイヴ**）。
+
+## shared/rules/resistance.ts
+
+- `ResistanceCategory`（型）：耐性の分類。**分岐用ではなくログ・UI表示用**（呼び出し側は「防がれたかどうか」だけ見ればよい）
+- `Resistance`（型）
+- `EffectAttempt`（型）：「何をしようとしているか」。耐性ごとに効く操作が違うので、**この2軸は必ず渡す**
+- `boardResistanceAgainst`（fn）：盤面だけで決まる耐性を判定する。防がれるなら理由を、通るなら null を返す。
+- `hasUntargetableConstraint`（fn）：constraint:"untargetableByOpponent" だけを見る（immuneToOpponentThisTurn は上で別扱いにしたので含めない）。
+- `isInBattle`（fn）：現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
+- `isExhaustImmuneOnBoard`（fn）：【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
+
+## shared/rules/symbols.ts
+
+- `instanceSymbolCount`（fn）：インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
+- `countSymbols`（fn）：軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
+- `countTrashSymbols`（fn）：軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
+- `handSizeOf`（fn）：手札の枚数（内容は隠匿されても枚数は公開情報）。BoardPlayer.handCountがあればそれを使い、
+
+## shared/rules/targetFilter.ts
+
+- `matchesTarget`（fn）：対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
+- `cardNameContains`（fn）：カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
+- `trashCardNameMatches`（fn）：トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。
+- `matchesCostFilter`（fn）：コスト範囲の判定（TargetFilter.cost）。
+- `instMatchesCostFilter`（fn）：フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
 
 ## shared/summon.ts
 

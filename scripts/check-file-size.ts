@@ -16,7 +16,6 @@ const BASELINE: Record<string, number> = {
     "server/src/logic/actions/cores.ts": 2745,
     "server/src/logic/actions/destroy.ts": 2345,
     "server/src/logic/triggers.ts": 2037,
-    "shared/rules.ts": 3400,
     "server/src/type.ts": 211,
     "server/src/types/effectAction.ts": 190,
 }
