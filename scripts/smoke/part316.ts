@@ -22,7 +22,7 @@ import type { GameState, PlayerId } from "./helpers"
 import { placeBurst, hasBlockTriggersAsAttack } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers, fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
 import { destroySpirit } from "../../server/src/logic/removal"
-import { activeConstraints, hasHeavyArmorAgainst } from "../../shared/rules"
+import { activeConstraints, hasHeavyArmorAgainst, cantActByTimed } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)
@@ -301,8 +301,8 @@ console.log("=== BS14-105 氷河零刀斬：バースト（デッキ上へ）そ
     alreadyRefreshed.isRested = false
     fireFieldEventTriggers(s, "p1", "ownLifeDamaged")
     assert(!restedOne.isRested, "疲労していたスピリットは回復する")
-    assert(restedOne.cantAttackThisTurn === true, "この効果で回復したスピリットはアタックできない")
-    assert(!alreadyRefreshed.cantAttackThisTurn, "もともと回復状態だったスピリットはアタックできる")
+    assert(cantActByTimed(s, restedOne), "この効果で回復したスピリットはアタックできない")
+    assert(!cantActByTimed(s, alreadyRefreshed), "もともと回復状態だったスピリットはアタックできる")
 }
 
 console.log("=== BS14-106 リカバードコア：メインでライフとスピリットへコア各1個 + フラッシュでBP+3000 ===")

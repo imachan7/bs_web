@@ -14,6 +14,7 @@
 //   W8: 【装甲：∞】= keyword.colorsFrom:"opponentFieldSymbols"
 //   W9（不要）: BS06-X24 Lv2-3 は既存の selfBuffByExhaustFamily でそのまま書けたため拡張なし
 //   W10: returnAllToHand に filter を追加
+import { cantActByTimed } from "../../shared/rules"
 import {
     act,
     assert,
@@ -269,8 +270,8 @@ console.log("=== BS06-103 キャバルリー：戦騎はアタック可、それ
     other.isRested = true
     resolveAction(s, "p1", null, { type: "refreshAllOwn", exemptFamily: "戦騎" }, undefined, ["white"], "magic")
     assert(!cavalry.isRested && !other.isRested, "両方とも回復する")
-    assert(cavalry.cantAttackThisTurn === false, "系統「戦騎」持ちはこのターンもアタックできる")
-    assert(other.cantAttackThisTurn === true, "系統「戦騎」を持たないスピリットはアタックできない")
+    assert(!cantActByTimed(s, cavalry), "系統「戦騎」持ちはこのターンもアタックできる")
+    assert(cantActByTimed(s, other), "系統「戦騎」を持たないスピリットはアタックできない")
 }
 
 console.log("=== BS06-104 アバランチオーラ：ブロック中+2000、装甲持ちはさらに+2000で合計+4000 ===")

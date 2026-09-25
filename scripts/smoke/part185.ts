@@ -20,7 +20,7 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { findMagicNegateSource } from "../../server/src/logic/triggers"
-import { noLifeDamageByCost } from "../../shared/rules"
+import { noLifeDamageByCost, cantActByTimed } from "../../shared/rules"
 import { loadAllCards } from "../../data/loadCards"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -136,8 +136,8 @@ console.log("=== BS09-076 エマージェンシー：回復させるが【転召
     plain.isRested = true
     resolveAction(s, "p1", null, { type: "refreshAllOwn", exemptKeyword: "tensho" })
     assert(!tensho.isRested && !plain.isRested, "どちらも回復する")
-    assert(tensho.cantAttackThisTurn !== true, "【転召】持ちはアタックできる")
-    assert(plain.cantAttackThisTurn === true, "【転召】を持たない個体はアタックできない")
+    assert(!cantActByTimed(s, tensho), "【転召】持ちはアタックできる")
+    assert(cantActByTimed(s, plain), "【転召】を持たない個体はアタックできない")
 }
 
 console.log("=== BS09-X38 要塞騎神オーディーンType-X：【転召】を持たない相手3体をデッキの上へ ===")

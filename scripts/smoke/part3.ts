@@ -238,11 +238,11 @@ console.log("=== 制約：必ずアタック（mustAttack、ウィル・オー�
     )
     runTurnStart(s2)
     const orb2 = createInstance("BS01-027", s2.turn, 1)
-    orb2.cantAttackThisTurn = true
     s2.players.p1.field.spirits.push(orb2)
+    s2.timedEffects.push({ content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: orb2.instanceId }, until: "turn", ownerPid: "p1" })
     assert(
         act(s2, "p1", { type: "endTurn" }) === null,
-        "cantAttackThisTurn付与時はmustAttackが働かずendTurnできる",
+        "アタック不可の期間つき効果が掛かっていればmustAttackが働かずendTurnできる",
     )
 }
 

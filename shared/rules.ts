@@ -21,6 +21,7 @@ import type {
     LevelDef,
     PlayerId,
     ResolvedTargetFilter,
+    TimedContent,
     TriggerEvent,
 } from "../server/src/type"
 import type { Board, BoardPlayer } from "./board"
@@ -2942,18 +2943,24 @@ function hasImmunityAgainst(
     return false
 }
 
-// このターン限りの全体ルール（timedEffect の all:true）により、指定スピリットがアタック/ブロックできないか。
-// 宣言のたびに照合するので、効果の解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認）
-export function cantActByTimedRule(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
+// この個体にいま掛かっている期間つき効果の内容（docs/design/TIMED_EFFECTS.md）。1体指定と「すべて」の両方を追加順に返す。
+// 「すべて」は判定のたびに照合するので、効果の解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認）
+export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[] {
     const pid: PlayerId = board.players.p1.field.spirits.includes(inst) ? "p1" : "p2"
+    return board.timedEffects.flatMap((r) => {
+        const t = r.target
+        const hit =
+            t.kind === "instance"
+                ? t.instanceId === inst.instanceId
+                : (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
+        return hit ? r.content : []
+    })
+}
+
+// 期間つき効果でアタック／ブロックできないか
+export function cantActByTimed(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
     const needed = act === "attack" ? "cantAttack" : "cantBlock"
-    return board.turnConstraints.some(
-        (c) =>
-            c.type === "timedRule" &&
-            c.content.some((x) => x.type === needed) &&
-            (c.pid === undefined || c.pid === pid) &&
-            matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
-    )
+    return timedContentsOn(board, inst).some((c) => c.type === needed)
 }
 
 // ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----

@@ -2,6 +2,7 @@
 // 今回足した4つの器（AuraDef.uncombinedFilter／globalConstraint ownLifeDamageCapPerSourcePerTurn／
 // timedEffect の cantAttack＋cantBlock／ownNexusIndestructible.nameIncludes）と、
 // SD06-003/005/007/009/010/011/012の効果解釈を確認する
+import { cantActByTimed } from "../../shared/rules"
 import {
     act,
     assert,
@@ -103,8 +104,8 @@ console.log("=== 器: timedEffect の cantAttack＋cantBlock（SD06-012英雄皇
     refreshLevelAsOverrides(s)
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行（お互いのアタックステップ誘発が発火）")
-    assert(target.cantAttackThisTurn === true, "指定された合体スピリットはこのターンアタックできない")
-    assert(target.cantBlockThisTurn === true, "alsoCantBlockによりブロックもできない（バトルできない）")
+    assert(cantActByTimed(s, target), "指定された合体スピリットはこのターンアタックできない")
+    assert(cantActByTimed(s, target, "block"), "alsoCantBlockによりブロックもできない（バトルできない）")
 }
 
 console.log("=== 器: ownNexusIndestructible.nameIncludes（SD06-012英雄皇の御盾 Lv2） ===")

@@ -5,7 +5,7 @@
 //     fireTrigger の effectGrant 合成（collectGrantedTriggerActions）・
 //     fireStepTriggers の condition拡張（ownColorTotalAtLeast）・
 //     resolveAction の timedEffect の compareBy（level） / grantAlsoCostAll ケース
-//   - server/src/logic/RuleValidator.ts: cantActByTimedRuleのtempAlsoCosts対応
+//   - server/src/logic/RuleValidator.ts: cantActByTimedのtempAlsoCosts対応
 //   - data/cards.json: BS02-109 エンジェルボイス・BS02-056 アルカナビースト・ケン・
 //     BS02-060 道化師クラン・BS02-087 封印された魔導書（e2のみ）
 import {
@@ -19,7 +19,7 @@ import {
     runTurnStart,
     spiritHasKeyword, bpBuffOf } from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
-import { instHasCost } from "../../shared/rules"
+import { instHasCost, cantActByTimed } from "../../shared/rules"
 
 console.log("=== BS02-109 エンジェルボイス：フラッシュでバトル解決の比較をBPからLvへ切り替える ===")
 {

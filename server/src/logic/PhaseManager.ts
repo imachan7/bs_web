@@ -394,11 +394,9 @@ export function endTurn(state: GameState): void {
             inst.tempBpBuff = 0
             // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
             if (inst.battleBpBuff) inst.battleBpBuff = 0
-            inst.cantAttackThisTurn = false
             delete inst.attackedThisTurn
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
-            delete inst.cantBlockThisTurn
             delete inst.mustAttackThisTurn
             delete inst.canBlockWhileRestedThisTurn
             delete inst.suppressedTriggersThisTurn
@@ -450,6 +448,8 @@ export function endTurn(state: GameState): void {
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット
     state.turnConstraints = []
+    // バトル限定の記録も、バトルが成立しないまま終わる経路のためにここで消す
+    state.timedEffects = []
     delete state.extraStepAfterAttackUsed
     delete state.extraMainStep
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット

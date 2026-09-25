@@ -11,25 +11,36 @@ import { COLOR_LABELS } from "../../../../data/constants"
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
-// 置き場はいまの印のまま。「このバトルの間アタックできない」を書くカードは無いので置き場も無い
+// 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
+const RECORDED = ["cantAttack", "cantBlock"] as const
+const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
+
+// 個体の印に置く内容（一覧へ移す前のもの）
 function flagOf(content: Content, duration: TimedEffect["duration"]) {
     if (content.type === "mustAttack") return duration === "turn" ? "mustAttackThisTurn" : null
-    if (content.type !== "cantAttack" && content.type !== "cantBlock") return null
-    if (content.type === "cantBlock") return duration === "turn" ? "cantBlockThisTurn" : "cantBlockThisBattle"
-    return duration === "turn" ? "cantAttackThisTurn" : null
+    return null
 }
 
 // BP は重ねがけできるので「既に持つ」とは見ない
 // 強制アタック・トリガー抑止は、既に掛かっている個体もそのまま選べる（2026-09-25 ユーザー確認）
-function has(inst: CardInstance, action: TimedEffect): boolean {
+function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
         if (c.type === "mustAttack" || c.type === "suppressTrigger") return false
+        if (isRecorded(c)) {
+            return state.timedEffects.some(
+                (r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.until === action.duration && r.content.some((x) => x.type === c.type),
+            )
+        }
         const flag = flagOf(c, action.duration)
         return flag !== null && inst[flag] === true
     })
 }
 
-function apply(inst: CardInstance, action: TimedEffect): string {
+function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect): string {
+    const recorded = action.content.filter(isRecorded)
+    if (recorded.length > 0) {
+        state.timedEffects.push({ content: recorded, target: { kind: "instance", instanceId: inst.instanceId }, until: action.duration, ownerPid: owner })
+    }
     for (const c of action.content) {
         if (c.type === "suppressTrigger") inst.suppressedTriggersThisTurn = [...(inst.suppressedTriggersThisTurn ?? []), c.trigger]
         const flag = flagOf(c, action.duration)
@@ -38,7 +49,6 @@ function apply(inst: CardInstance, action: TimedEffect): string {
     const period = action.duration === "turn" ? "このターン" : "このバトル"
     return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
-
 function contentLabel(action: TimedEffect): string {
     const cant = action.content.filter((c) => c.type === "cantAttack" || c.type === "cantBlock").map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック"))
     const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
@@ -253,14 +263,23 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         log(state, `${sourceName}：このターンの間、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
         return
     }
-    state.turnConstraints.push({
-        type: "timedRule",
-        content: action.content,
-        ownerPid: owner,
-        ...(pid !== undefined ? { pid } : {}),
-        filter,
-        ...(self ? { selfInstanceId: self.instanceId } : {}),
-    })
+    if (action.content.every(isRecorded)) {
+        state.timedEffects.push({
+            content: action.content,
+            target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
+            until: action.duration,
+            ownerPid: owner,
+        })
+    } else {
+        state.turnConstraints.push({
+            type: "timedRule",
+            content: action.content,
+            ownerPid: owner,
+            ...(pid !== undefined ? { pid } : {}),
+            filter,
+            ...(self ? { selfInstanceId: self.instanceId } : {}),
+        })
+    }
     const who = pid === undefined ? "" : `${state.players[pid].name}の`
     log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
 }
@@ -766,14 +785,14 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         state,
         opp,
         Infinity,
-        (s) => !has(s, action) && matchesTarget(state, opp, s, filter, self?.instanceId),
+        (s) => !has(state, s, action) && matchesTarget(state, opp, s, filter, self?.instanceId),
         srcColors,
         srcType,
     )
     // 選択の再開：1体ぶんの action（count:1）が選ばれた個体つきで戻ってくる
     if (targetInstanceId !== undefined) {
         const found = candidates.find((s) => s.instanceId === targetInstanceId)
-        log(state, found ? apply(found, action) : `${sourceName}：対象がいなかった。`)
+        log(state, found ? apply(state, owner, found, action) : `${sourceName}：対象がいなかった。`)
         return
     }
     const count =
@@ -802,7 +821,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const picked = [...candidates]
         .sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a))
         .slice(0, count)
-    for (const s of picked) log(state, apply(s, action))
+    for (const s of picked) log(state, apply(state, owner, s, action))
 }
 
 const handlers = {

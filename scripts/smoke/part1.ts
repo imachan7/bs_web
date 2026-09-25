@@ -22,6 +22,7 @@
 //   - バトル制御アクション（endBattle）
 //   - 色選択の疲労アクション（exhaustAllByColor）
 //   - 色選択の疲労アクション：相手フィールドが0体（no-op）
+import { cantActByTimed } from "../../shared/rules"
 import {
     createGame,
     createInstance,
@@ -817,10 +818,10 @@ console.log("=== 疲労回復・アタック制御アクション（refreshAllOw
     resolveAction(s, "p1", null, { type: "refreshAllOwn" })
     assert(!restA.isRested && !restB.isRested, "疲労していた2体が回復する")
     assert(
-        restA.cantAttackThisTurn === true && restB.cantAttackThisTurn === true,
+        cantActByTimed(s, restA) && cantActByTimed(s, restB),
         "回復した2体はこのターンアタック不可になる",
     )
-    assert(freshC.cantAttackThisTurn === false, "元から回復状態だった個体はアタック不可にならない")
+    assert(!cantActByTimed(s, freshC), "元から回復状態だった個体はアタック不可にならない")
 
     // 疲労状態のスピリットが0体になった状態で再実行 → no-op（ログのみで安全）
     const logLenBefore = s.log.length
@@ -840,7 +841,7 @@ console.log("=== 疲労回復・アタック制御アクション（refreshAllOw
 
     assert(act(s, "p1", { type: "endTurn" }) === null, "ターン終了できる")
     assert(
-        restA.cantAttackThisTurn === false && restB.cantAttackThisTurn === false,
+        !cantActByTimed(s, restA) && !cantActByTimed(s, restB),
         "ターン終了でアタック不可状態が解除される",
     )
 }
