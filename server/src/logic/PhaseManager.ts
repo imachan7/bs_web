@@ -1,5 +1,5 @@
 // ターン進行・フェーズ遷移の制御
-import type { GameState } from "../type"
+import type { GameState, PlayerId, TimedRecord } from "../type"
 import { currentLevel, draw, getCard, log, pushResumeFrames, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
@@ -132,11 +132,11 @@ function turnStartSegments(state: GameState): (() => void)[] {
         // リフレッシュステップ：トラッシュのコアをリザーブに戻し、全回復
         () => {
             state.phase = "refresh"
+            // 「次のリフレッシュステップで」の記録（寿命 nextRefresh）は、このステップで読んで使い切る
+            const nextRefresh = consumeNextRefreshRecords(state, pid)
             if (player.trashCores > 0) {
-                // trashCoreReturnCapNext（BS12-047海王神龍トライ・メルクリウス）：次の1回のリフレッシュ
-                // ステップだけ、トラッシュ→リザーブの戻しをこの数に制限する（超過分はトラッシュに残る）
-                const cap = player.trashCoreReturnCapNext
-                delete player.trashCoreReturnCapNext
+                const caps = nextRefresh.flatMap((r) => r.content.flatMap((c) => (c.type === "trashCoreReturnCap" ? [c.max] : [])))
+                const cap = caps.length > 0 ? Math.min(...caps) : undefined
                 const moved = cap !== undefined ? Math.min(player.trashCores, cap) : player.trashCores
                 player.reserve += moved
                 player.trashCores -= moved
@@ -155,11 +155,8 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 // 相手のスピリットから「回復できない」と指定されている間も回復しない
                 // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
                 if (isRefreshBlockedByMark(state, pid, inst)) continue
-                // 「次のリフレッシュステップで回復できない」の印はここで消費する（BS11-055）
-                if (inst.skipNextRefresh) {
-                    delete inst.skipNextRefresh
-                    continue
-                }
+                // 「次のリフレッシュステップで回復できない」（BS11-055）
+                if (nextRefresh.some((r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.content.some((c) => c.type === "skipRefresh"))) continue
                 const isNexus = player.field.nexuses.includes(inst)
                 if (limits.nexuses && isNexus) continue
                 if (limits.combined && !isNexus && instIsCombined(inst)) continue
@@ -419,7 +416,8 @@ export function endTurn(state: GameState): void {
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット
     // バトル限定の記録も、バトルが成立しないまま終わる経路のためにここで消す
-    state.timedEffects = []
+    // 「次のリフレッシュステップで」の記録だけはターンをまたいで残す
+    state.timedEffects = state.timedEffects.filter((r) => r.until === "nextRefresh")
     refreshLevelAsOverrides(state)
     delete state.extraStepAfterAttackUsed
     delete state.extraMainStep
@@ -441,4 +439,18 @@ export function endTurn(state: GameState): void {
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"
     state.turn += 1
     runTurnStart(state)
+}
+
+// pid の「次のリフレッシュステップで」の記録（寿命 nextRefresh）を一覧から取り除いて返す。
+// 対象はそのプレイヤー自身か、そのプレイヤーのフィールドにいる個体。場を離れた個体への記録もここで捨てる
+function consumeNextRefreshRecords(state: GameState, pid: PlayerId): TimedRecord[] {
+    const field = state.players[pid].field
+    const onField = new Set([...field.spirits, ...field.nexuses].map((i) => i.instanceId))
+    const anyField = new Set((["p1", "p2"] as PlayerId[]).flatMap((p) => [...state.players[p].field.spirits, ...state.players[p].field.nexuses].map((i) => i.instanceId)))
+    const mine = (r: TimedRecord): boolean =>
+        r.until === "nextRefresh" &&
+        ((r.target.kind === "player" && r.target.pid === pid) || (r.target.kind === "instance" && (onField.has(r.target.instanceId) || !anyField.has(r.target.instanceId))))
+    const used = state.timedEffects.filter(mine)
+    state.timedEffects = state.timedEffects.filter((r) => !mine(r))
+    return used
 }

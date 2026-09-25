@@ -44,7 +44,7 @@ timedContentsFor(board, pid): TimedContent[]        // このプレイヤーに�
 timedBattleContents(board): TimedContent[]          // このバトルに掛かっている内容（battle）
 ```
 
-- 寿命：`until:"turn"` はターン終了時、`"battle"` は `clearBattle` で一覧から消す。`"attack"` は `clearBattle` でアタックした個体の分だけ消し、残りはターン終了で消える（消すのはこの2か所だけ）
+- 寿命：`until:"turn"` はターン終了時、`"battle"` は `clearBattle` で一覧から消す。`"attack"` は `clearBattle` でアタックした個体の分だけ消し、残りはターン終了で消える（消すのはこの2か所だけ） `"nextRefresh"`（「次の相手のリフレッシュステップで」）はターン終了では消さず、対象のプレイヤー（個体なら持ち主）のリフレッシュステップで読んで消す
 - `instance` の対象が場を離れたら、その記録は誰にも当たらないだけ（消す処理は要らない）
 - `rule`（「〜のスピリットすべて」）は場のスピリットにだけ当たる。ネクサスに掛かる期間つき効果は `instance` で1つずつ記録する（2026-09-25。ネクサスにも当てていた不具合を直した）
 - 内容の**意味**（強制アタックとは何か）は、ルールを判定する場所（アタックの検証など）に残る。そこは減らさない
@@ -81,6 +81,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `bp` | 個体への直接の書き込み17か所（旧 type を含む）とターン制約 `timedRule`（型ごと削除）。1体への一定量は写し `tempBpBuff`（このターン）・`battleBpBuff`（このバトル）に作り直す（テスト144か所が読むので名前は変えない）。「すべて」と「1体につき」の量は `timedRuleBp` が読むたびに一覧から数える。テストで BP を盛るときは `helpers.ts` の `giveBp`／`clearBp` を使う（写しを直接書くと作り直しで消える） |
 | `bpAs`・`countAs`・`immune`・`noLifeDamage`・`colorless` | 個体の印5つは、同じ名前の写し（`battleBpAs`・`countAsThisTurn`・`immuneToOpponentThisTurn`・`lifeDamageNegatedFor`・`colorlessThisBattle`）になった。読む側（`instHasColor` など盤面を受け取らない関数）は変えていない。記録を出した側が意味を持つ内容（`countAs`・`noLifeDamage`）は、写しを作るときに記録の `ownerPid` を入れる。旧 action（対象の選び方・支払いを持つ）は残し、記録を書くだけにした。テストで掛けるときは `helpers.ts` の `giveTimed` |
 | `destroyedCoresTo`・`blockCost` | バトルの状態の印3つ（コアの行き先・ブロックの追加コスト2種）と、ノーグ・デンスの「有効なターン番号」。コアの行き先は相手のプレイヤーに掛ける記録（寿命はこのバトル）。ブロックの追加コストはアタッカーに掛ける記録で、ヒポグリフィーはこのバトル、ノーグ・デンスはこのターンの間。ブロックの可否（`validateBlock`）・支払い・クライアントの確認は、アタッカーの `blockCost` を読む |
+| `skipRefresh`・`trashCoreReturnCap` | 個体の印 `skipNextRefresh`（ジャノメ・シールダー）とプレイヤーの印 `trashCoreReturnCapNext`（トライ・メルクリウス）。寿命 `nextRefresh` を足した。上限が重なったら小さい方 |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。

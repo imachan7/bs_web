@@ -27,7 +27,7 @@ import {
     lifeCostBlockedByFloor,
     recordTimed,
 } from "../EffectModules"
-import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../removal"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -981,14 +981,14 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
 }
 
 // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
-// 印は対象自身に付け、そのリフレッシュステップで消費する（PhaseManager）
+// 寿命 nextRefresh の記録で、そのリフレッシュステップで使い切る（PhaseManager）
 const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName } = ctx
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) return
     const candidates = state.players[opp].field.spirits.filter(
         (s) =>
-            !s.skipNextRefresh &&
+            !timedContentsOn(state, s).some((c) => c.type === "skipRefresh") &&
             matchesTarget(state, opp, s, filter, self?.instanceId) &&
             !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
     )
@@ -1015,7 +1015,7 @@ const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, a
             ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
             : undefined) ??
         candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
-    target.skipNextRefresh = true
+    recordTimed(state, { content: [{ type: "skipRefresh" }], target: { kind: "instance", instanceId: target.instanceId }, until: "nextRefresh", ownerPid: owner })
     log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（次のリフレッシュステップで回復しない）`)
 }
 
