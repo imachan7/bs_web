@@ -601,7 +601,6 @@ export interface CardInstance {
     // 効果テキストが「このバトルの間、BP+」と明示しているものだけがこちら（BS07ニードルショット）。無記述のBP+はターン終了時まで＝tempBpBuff
     skipNextRefresh?: true // 次に自分のリフレッシュステップが来たとき、この個体は回復しない（そこで消費する。BS11-055 ジャノメ・シールダー＝「指定したスピリットは、次の『相手のリフレッシュステップ』で回復できない」）
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
-    cantAttackThisTurn: boolean // このターンの間アタック不可（refreshAllOwn で回復した個体などに付与）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     unblockableThisTurn?: true // このターンの間ずっと相手のスピリットにブロックされない（何回アタックしても）。ターン終了で消える
@@ -654,10 +653,8 @@ export interface CardInstance {
     // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
     // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
     pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
-    cantBlockThisBattle?: true // このバトルの間ブロックできない（timedEffect。clearBattle で消える。BS09-042妖精騎士ピーター）
     unblockableMinBpThisBattle?: number // このバトルの間、実効BPがこの値以上のスピリットからブロックされない（action:"unblockableAboveBpThisBattle"。clearBattle で消える。BS13-032光速の騎士ヘルモード【合体時】Lv3：「BP6000以上の相手のスピリットからブロックされない」）
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
-    cantBlockThisTurn?: true // このターンの間ブロックできない（timedEffect。PhaseManagerのターン終了処理で消える。BS12-038オリンピアの天使ファレグ）
     mustAttackThisTurn?: true // このターンの間、可能ならば必ずアタックする（timedEffect。PhaseManagerのターン終了処理で消える）
     canBlockWhileRestedThisTurn?: true // このターンの間、疲労状態でもブロックできる（timedEffect。PhaseManagerのターン終了処理で消える）
     suppressedTriggersThisTurn?: TriggerEvent[] // このターンの間、この個体自身の指定トリガーが発揮されない（markSuppressTriggerThisTurn。triggerSuppressionThisTurnの個体版＝1体だけを指定する。PhaseManagerのターン終了処理で消える。BS14-043月光姫マーニLv2）
@@ -1273,6 +1270,7 @@ export interface GameState {
     // ⚠️ この位置より後ろでリセットするとターン終了時の一時状態（tempBpBuff 等）が消えてしまうので、
     // 分岐はリセット群より前でなければならない
     turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
+    timedEffects: TimedRecord[] // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。ターン終了・バトル終了で until に応じて消える
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。**ターン終了でリセットしない**
     triggerSuppressionThisTurn: { pid: PlayerId; trigger: TriggerEvent }[] // このターンの間、pid のスピリットの指定トリガーを発揮させない（ターン終了でリセット。ユーサネイジア）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
@@ -1445,6 +1443,16 @@ export type TimedContent =
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true } // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 
+// 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
+export type TimedRecord = {
+    content: TimedContent[]
+    target:
+        | { kind: "instance"; instanceId: string }
+        | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 判定のたびに照合＝後から出たスピリットにも効く
+    until: "turn" | "battle"
+    ownerPid: PlayerId
+}
+
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 // pid を持つ「このターンの間」の制約から pid を除いたもの（timedEffect が side から pid を入れて積む）
 export type PlayerRuleDef = DistributiveOmit<Extract<TurnConstraintDef, { pid: PlayerId }>, "pid">
@@ -1520,6 +1528,7 @@ export interface GameView {
     winner: PlayerId | null
     you: PlayerId
     turnConstraints: TurnConstraintDef[]
+    timedEffects: TimedRecord[] // 公開情報
     extraMainStep?: true // BS15-X04 Lv2 の追加メインステップ中（「アタックステップへ」ボタンを出さない）
     endStepLocks: EndStepLock[] // 公開情報。両者に配信する（画面にカウンターとして出す）
     magicUsedThisTurn: Record<PlayerId, number> // このターンの各プレイヤーのマジック使用回数（隠匿情報なし。クライアントのmagicRestriction判定に必要＝作戦参謀フォクシン）

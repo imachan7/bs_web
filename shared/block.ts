@@ -11,6 +11,7 @@ import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
     boardResistanceAgainst,
+    cantActByTimed,
     canBlockWhileRestedThisTurn,
     currentLevel,
     effectiveBp,
@@ -86,15 +87,10 @@ export function canBlock(
             }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }
-    // このバトルの間だけブロックできない（BS09-042妖精騎士ピーター）。
-    // 効果で直接付けた印なので blockConstraintNegatedThisTurn（制約の無効化）では消えない
-    if (blockerInst.cantBlockThisBattle) {
-        return "このスピリットはこのバトルの間ブロックできません"
-    }
-    // このターンの間だけブロックできない（BS12-038オリンピアの天使ファレグ。器YB）。
-    // cantBlockThisBattleと同じく効果で直接付けた印なので blockConstraintNegatedThisTurn では消えない
-    if (blockerInst.cantBlockThisTurn) {
-        return "このスピリットはこのターンの間ブロックできません"
+    // 期間つき効果でブロックできない（1体指定・「すべて」とも）。
+    // 効果で直接掛けたものなので blockConstraintNegatedThisTurn（制約の無効化）では消えない
+    if (cantActByTimed(board, blockerInst, "block")) {
+        return "このスピリットは効果によりブロックできません"
     }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {

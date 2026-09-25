@@ -9,6 +9,7 @@
 //   - BS02-065 花の子リップ：黄3つ以上で、黄スピリットをブロックした相手をこのターンLv1として扱う
 //     （kind:fieldEvent ownSpiritBlocked、ターン終了でリセット）
 //   - BS02-077 決闘台地 e2：相手のスタートステップに覚醒持ちを全回復（cantAttackThisTurnは付けない）
+import { cantActByTimed } from "../../shared/rules"
 import {
     act,
     takeLifeAndResolve,
@@ -221,6 +222,6 @@ console.log("=== BS02-077 決闘台地 e2：相手のスタートステップに
     assert(!awaken1.isRested, "覚醒持ちawaken1は回復した")
     assert(!awaken2.isRested, "覚醒持ちawaken2も回復した（全体回復）")
     assert(plain.isRested === true, "覚醒を持たないplainは回復しない")
-    assert(awaken1.cantAttackThisTurn === false, "refreshAllOwnと異なりcantAttackThisTurnは付与されない")
-    assert(awaken2.cantAttackThisTurn === false, "awaken2もcantAttackThisTurnは付与されない")
+    assert(!cantActByTimed(s, awaken1), "refreshAllOwnと異なりcantAttackThisTurnは付与されない")
+    assert(!cantActByTimed(s, awaken2), "awaken2もcantAttackThisTurnは付与されない")
 }

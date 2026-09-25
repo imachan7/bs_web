@@ -4,6 +4,7 @@
 //   合体スピリットとバトルしたときBP+10000
 // - BS11-030 ドルフィング：相手のアタックステップ開始時、相手の合体スピリット1体をアタック不可にする
 // - BS11-063 終末描かれしキャンバスLv2：自分の合体スピリットに疲労状態を狙う指定アタックを与える
+import { cantActByTimed } from "../../shared/rules"
 import { act, assert, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
@@ -113,8 +114,8 @@ console.log("=== §D BS11-030：相手のアタックステップ開始時、合
     s.players.p1.field.spirits.push(lone)
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "p1のアタックステップへ")
-    assert(host.cantAttackThisTurn === true, "合体スピリットはこのターンアタックできない")
-    assert(lone.cantAttackThisTurn === false, "合体していないスピリットは指定されない")
+    assert(cantActByTimed(s, host), "合体スピリットはこのターンアタックできない")
+    assert(!cantActByTimed(s, lone), "合体していないスピリットは指定されない")
     assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) !== null, "実際にアタックが拒否される")
 }
 

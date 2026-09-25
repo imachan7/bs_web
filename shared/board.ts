@@ -12,6 +12,7 @@ import type {
     GameView,
     Phase,
     PlayerId,
+    TimedRecord,
     TurnConstraintDef,
 } from "../server/src/type"
 
@@ -46,6 +47,7 @@ export interface Board {
     isFlashTiming: boolean
     priorityPlayer: PlayerId
     turnConstraints: TurnConstraintDef[]
+    timedEffects: TimedRecord[] // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。両陣営に効く
     magicUsedThisTurn: Record<PlayerId, number>
     ignoreUnblockableThisTurn: PlayerId[]

@@ -36,7 +36,7 @@
 ### いまの本線：期間つき効果の記録を1か所にまとめる（2026-09-25 ユーザー合意・試作から）
 
 M8 の残り30種の移行は止めて、先に [TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) の一覧 `timedEffects` と読む関数 `timedContentsOn` を作る。
-試作は `cantAttack`・`cantBlock` だけ（挙動は変えない）。変更量を見て全体を移すか決める。§4 は未決。
+試作（`cantAttack`・`cantBlock`）は済み（ブランチ `chore/timed-effects-store`、結果は同 §3.1）。全体を移すかはユーザーと決める。§4 は未決。
 
 ### 次の一手：R4 の残り（effectAction.ts・type.ts のコメント削減）
 

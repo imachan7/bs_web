@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimedRule, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -1022,7 +1022,7 @@ export function validateAttack(
     const inst = findSpirit(state.players[pid], instanceId)
     if (!inst) return "対象のスピリットが見つかりません"
     if (inst.isRested) return "疲労しているためアタックできません"
-    if (inst.cantAttackThisTurn) return "このターンはアタックできません"
+    if (cantActByTimed(state, inst)) return "このターンの間、このスピリットはアタックできません"
     if (currentLevel(inst).level < 1) return "レベル1未満のためアタックできません"
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
@@ -1056,10 +1056,6 @@ export function validateAttack(
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
         return "このスピリットはアタックできません"
-    }
-    // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタックできない
-    if (cantActByTimedRule(state, inst)) {
-        return "このターンの間、このスピリットはアタックできません"
     }
     // フィールド全体制約（BS13-068遥かなる衛星砲。器AQ）：シンボル数がちょうど一致するスピリットはターンに1回しかアタックできない
     if (attackOncePerTurnLimitApplies(state, inst)) {
@@ -1130,10 +1126,6 @@ export function validateBlock(
     if (blockMagicCost && blockMagicCost.pid === pid && !state.players[pid].hand.some((id) => getCard(id).type === "magic")) {
         return "手札にマジックカードがないためブロックできません"
     }
-    // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはブロックできない
-    if (cantActByTimedRule(state, inst, "block")) {
-        return "このターンの間、このスピリットはブロックできません"
-    }
 
     const attackerPid = opponentOf(pid)
     const attacker = findSpirit(
@@ -1191,7 +1183,7 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     const player = state.players[pid]
     for (const inst of player.field.spirits) {
         if (inst.isRested) continue
-        if (inst.cantAttackThisTurn) continue
+        if (cantActByTimed(state, inst)) continue
         if (currentLevel(inst).level < 1) continue
         // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
         if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
@@ -1203,8 +1195,6 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
         if (instCantAttackByOpponentCost(state, pid, inst)) continue
         // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
         if (instCantAttackByCost(state, inst)) continue
-        // このターンの間だけの全体制約（ヘビィゲート）でアタックできない個体もアタック強制の対象外
-        if (cantActByTimedRule(state, inst)) continue
         const constraints = activeConstraints(state, pid, inst)
         // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
         if (constraints.some((c) => c.type === "cantAttack")) continue

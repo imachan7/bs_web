@@ -18,7 +18,7 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/EffectModules"
 import { fireBattleWonTriggers } from "../../server/src/logic/triggers"
-import { instHasColor } from "../../shared/rules"
+import { instHasColor, cantActByTimed } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)
@@ -124,7 +124,7 @@ console.log("=== カードデータ経由で動かす（手で組んだ action �
     const blocker = put(s, "p2", PLAIN, 1)
     s.battle = { attackerInstanceId: peter.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
     fireTrigger(s, "p1", peter, "onAttack")
-    assert(blocker.cantBlockThisBattle === true, "指定された相手はこのバトルの間ブロックできない")
+    assert(cantActByTimed(s, blocker, "block"), "指定された相手はこのバトルの間ブロックできない")
 }
 {
     // 密林の勇者皇ヴォルザ：『アタック時』
