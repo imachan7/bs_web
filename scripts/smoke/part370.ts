@@ -35,7 +35,7 @@ console.log("=== 1. 自分自身に与える：対象を選ばず、色だけを
     resolveAction(s, "p1", jack, toSelf)
     assert(s.pendingChoice?.kind === "option", "色の選択から始まる")
     assert(act(s, "p1", { type: "resolveChoice", option: "青" }) === null, "青を選ぶ")
-    assert(jack.tempColors.includes("blue"), "自分自身が青としても扱われる")
+    assert(jack.timedColors.includes("blue"), "自分自身が青としても扱われる")
 }
 
 console.log("=== 2. 相手のスピリットに与える：候補は相手のスピリットだけ ===")
@@ -46,7 +46,7 @@ console.log("=== 2. 相手のスピリットに与える：候補は相手のス
     assert(s.pendingChoice?.kind === "target" && c.length === 2 && c.includes(theirs.instanceId) && c.includes(theirs2.instanceId), "候補は相手のスピリット2体だけ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: theirs.instanceId }) === null, "相手のスピリットを選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", option: "紫" }) === null, "紫を選ぶ")
-    assert(theirs.tempColors.includes("purple"), "相手のスピリットが紫としても扱われる")
+    assert(theirs.timedColors.includes("purple"), "相手のスピリットが紫としても扱われる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part370）")

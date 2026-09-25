@@ -190,7 +190,7 @@ console.log("--- 赤以外の相手とのバトルでは復活しない ---")
     assert(!s.players.p2.field.spirits.includes(rob), "黄の攻撃側には装甲が効かず通常通り破壊される")
 }
 
-console.log("=== BS02-104 アディショナルカラー：対象選択→色選択の2段階choiceでtempColorsに色が追加される ===")
+console.log("=== BS02-104 アディショナルカラー：対象選択→色選択の2段階choiceでtimedColorsに色が追加される ===")
 {
     const s = createGame(
         "additionalcolor-test",
@@ -219,12 +219,12 @@ console.log("=== BS02-104 アディショナルカラー：対象選択→色選
 
     assert(act(s, "p1", { type: "resolveChoice", option: "白" }) === null, "色「白」を選ぶ")
     assert(s.pendingChoice === null, "選択完了後pendingChoiceは解消される")
-    assert(mine.tempColors.includes("white"), "対象のtempColorsにwhiteが追加される")
+    assert(mine.timedColors.includes("white"), "対象のtimedColorsにwhiteが追加される")
     assert(instHasColor(mine, "white"), "instHasColorでも白として判定される")
     assert(instHasColor(mine, "red"), "本来の色（赤）の判定は変わらない")
 
-    endTurn(s) // ターン終了時までの効果のため、ターン終了でtempColorsがリセットされることを確認
-    assert(mine.tempColors.length === 0, "ターン終了でtempColorsが空に戻る")
+    endTurn(s) // ターン終了時までの効果のため、ターン終了でtimedColorsがリセットされることを確認
+    assert(mine.timedColors.length === 0, "ターン終了でtimedColorsが空に戻る")
 }
 
 console.log("=== BS02-064 音鳥クルーク：自分のスタートステップに「歌鳥」持ち全員へ系統を付与するoption choice ===")

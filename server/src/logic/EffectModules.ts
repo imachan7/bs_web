@@ -30,6 +30,7 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
     TargetFilter,
+    TimedRecord,
     TriggerEvent,
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
@@ -119,6 +120,7 @@ import {
     isVirtualSource,
     cardNameContains,
     matchesTarget,
+    timedContentsOn,
     KEYWORDS,
     instMatchesCostFilter,
     matchesCostFilter,
@@ -1012,6 +1014,30 @@ function applyTimedLevelRules(state: GameState): void {
     }
 }
 
+// 期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
+export function recordTimed(state: GameState, record: TimedRecord): void {
+    state.timedEffects.push(record)
+    refreshLevelAsOverrides(state)
+}
+
+// 一覧から個体の写し（timed〜）をゼロから作り直す。盤面を受け取らない読み取り関数（instHasColor 等）はこの写しを読む
+// ponytail: 写しの材料を照合する matchesTarget が写し自身（色）を読むと順序で結果が変わる。「〜色のスピリットすべてを〇色に」を書くカードが出たら固定点を考える
+function applyTimedCopies(state: GameState): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const field = state.players[pid].field
+        for (const inst of [...field.spirits, ...field.nexuses, ...field.combinedBraves]) inst.timedColors = []
+    }
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) {
+            const colors: Color[] = []
+            for (const c of timedContentsOn(state, inst)) {
+                if (c.type === "color" && c.color !== undefined && !colors.includes(c.color)) colors.push(c.color)
+            }
+            inst.timedColors = colors
+        }
+    }
+}
+
 export function refreshLevelAsOverrides(state: GameState): void {
     applyTimedLevelRules(state)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -1050,6 +1076,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
             }
         }
     }
+    applyTimedCopies(state)
     // 合体しているブレイヴがホストへ足すぶんを組み直す（docs/design/BRAVE.md §3）。
     // **レベルに依らない値だけ**（コスト・色・シンボル）。「合体時BP+」はホストのコア数で変わるので
     // ここには入れず、shared/rules.ts の effectiveBp が都度引く

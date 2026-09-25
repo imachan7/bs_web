@@ -384,7 +384,7 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {
         const symbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
         if (symbols.length === 0) continue
         for (const sym of symbols) colors.add(sym)
-        for (const c of inst.tempColors) colors.add(c)
+        for (const c of inst.timedColors) colors.add(c)
         for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
     }
     return colors

@@ -248,7 +248,7 @@ console.log("=== §G grantColorChoice（BS02-104 アディショナルカラー�
     assert(s.pendingChoice?.kind === "option", "色の選択（kind: option）が要求される")
     // ⚠️ 現在の実装は**6色すべて**を選択肢に出す（本来の色＝赤も含む）。
     // カード文は「本来持っている色とは別に、もう1色」なので、厳密には自色を除くべき。
-    // ただし自色を選んでも tempColors に同じ色が入るだけで挙動は変わらない（意味のない選択肢が出るだけ）ため、
+    // ただし自色を選んでも timedColors に同じ色が入るだけで挙動は変わらない（意味のない選択肢が出るだけ）ため、
     // ここでは**現状の挙動を固定**しておく（忠実化する場合はこの assert を反転させる）
     assert(
         (s.pendingChoice?.options ?? []).length === 6,
@@ -258,8 +258,8 @@ console.log("=== §G grantColorChoice（BS02-104 アディショナルカラー�
 
     const inst = spiritOf(s, "p1", target)
     assert(
-        inst !== undefined && inst.tempColors.length === 1 && inst.tempColors.includes("white"),
-        `本来の色とは別の1色（白）が付与される（実際: ${JSON.stringify(inst?.tempColors)}）`,
+        inst !== undefined && inst.timedColors.length === 1 && inst.timedColors.includes("white"),
+        `本来の色とは別の1色（白）が付与される（実際: ${JSON.stringify(inst?.timedColors)}）`,
     )
 }
 

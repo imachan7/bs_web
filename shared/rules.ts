@@ -343,24 +343,24 @@ export function cardHasColor(cardData: CardData, color: Color): boolean {
     return cardData.colors.includes(color)
 }
 
-// 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
+// 状態を考慮した色判定：master色 ‖ 一時付与された色（timedColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
 // ⚠️ colorlessThisBattle（器S。BS13-011/015/052「色を無いものとして扱う」）が立っている間は、
 //    付与色も含めて常に無色（false）を返す
 export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (inst.colorlessThisBattle) return false
     if (cardHasColor(card(inst.cardId), color)) return true
-    if (inst.tempColors.includes(color)) return true
+    if (inst.timedColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
 }
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
-// （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+// （多色カードは複数返る。付与色＝timedColors／colorsAsContinuous も含む）
 // colorlessThisBattle が立っている間は常に空配列（instHasColorと同じ扱い）
 export function instColors(inst: CardInstance): Color[] {
     if (inst.colorlessThisBattle) return []
     const colors = new Set<Color>(card(inst.cardId).colors)
-    for (const c of inst.tempColors) colors.add(c)
+    for (const c of inst.timedColors) colors.add(c)
     for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
     // 合体しているブレイヴの色が加わり、合体スピリットは**混色扱い**になる
     // （BRAVE.md §12.2。2026-08-25 ユーザー確認）。装甲・軽減・「相手の〈色〉のスピリット」の
@@ -663,11 +663,11 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                 if (idx >= 0) cardSymbols.splice(idx, 1)
             }
         }
-        // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
+        // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / timedColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
         // 「緑シンボル1つ」としても「白シンボル1つ」としても数える（置き換えではない）
-        const grantedColors = [...inst.tempColors, ...(inst.colorsAsContinuous ?? [])]
+        const grantedColors = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
         const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
         for (const sym of cardSymbols) {
@@ -1564,7 +1564,7 @@ export function auraAppliesTo(
         return false
     }
     // 軽減シンボルの色数（BS09-003角竜人ドラケンLv2＝「軽減シンボルを2色以上持つ」）。
-    // 軽減はカード固有の情報なので、付与色（tempColors）ではなくカード静的な reduction を見る
+    // 軽減はカード固有の情報なので、付与色（timedColors）ではなくカード静的な reduction を見る
     if (aura.reductionColorsAtLeast !== undefined) {
         const colors = new Set(card(targetInst.cardId).reduction)
         if (colors.size < aura.reductionColorsAtLeast) return false

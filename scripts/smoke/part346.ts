@@ -72,11 +72,11 @@ console.log("=== 038 アルカナビースト・ジャック：召喚時に自�
     assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
     // fixedTarget:"self" なので対象選択は飛ばし、いきなり色選択（kind:"option"）になる
     assert(act(s, "p1", { type: "resolveChoice", option: "赤" }) === null, "自分に与える色を選ぶ")
-    assert(jack.tempColors.includes("red"), "自分のスピリットに赤が与えられた")
+    assert(jack.timedColors.includes("red"), "自分のスピリットに赤が与えられた")
     // 続けて相手側の対象選択（targetSide:"opponent"）→色選択
     assert(act(s, "p1", { type: "resolveChoice", instanceId: oppSpirit.instanceId }) === null, "相手の対象を選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", option: "青" }) === null, "相手に与える色を選ぶ")
-    assert(oppSpirit.tempColors.includes("blue"), "相手のスピリットに青が与えられた")
+    assert(oppSpirit.timedColors.includes("blue"), "相手のスピリットに青が与えられた")
 }
 
 console.log("=== 039 僧侶ペンタン：黄しかない間、相手のスタートステップにトラッシュのコアをリザーブへ ===")

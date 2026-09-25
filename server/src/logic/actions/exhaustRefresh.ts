@@ -25,6 +25,7 @@ import {
     bofuCountFor,
     continuousKeywordGrantCount,
     lifeCostBlockedByFloor,
+    recordTimed,
 } from "../EffectModules"
 import { KEYWORDS, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -545,7 +546,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
                 (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword)) ||
                 (action.exemptCombined === true && instIsCombined(s))
             if (!exempt) {
-                state.timedEffects.push({ content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: s.instanceId }, until: "turn", ownerPid: owner })
+                recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: s.instanceId }, until: "turn", ownerPid: owner })
             }
             count++
         }

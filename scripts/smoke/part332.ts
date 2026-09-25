@@ -10,8 +10,9 @@ runTurnStart(s)
 s.interactiveTargets = false
 const redOnly = createInstance("BS01-001", s.turn, 1)
 const redWhite = createInstance("BS01-001", s.turn, 1)
-redWhite.tempColors = ["white"] // 赤白の多色として扱う
 s.players.p2.field.spirits.push(redOnly, redWhite)
+// 赤白の多色として扱う
+s.timedEffects.push({ content: [{ type: "color", color: "white" }], target: { kind: "instance", instanceId: redWhite.instanceId }, until: "turn", ownerPid: "p1" })
 refreshLevelAsOverrides(s)
 
 console.log("=== マタドーラの器：相手が赤を指定しても、赤白のスピリットは白で破壊される ===")

@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter, TurnConstraintDef } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
-import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
+import { applyMagicBuffBonus, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -12,11 +12,11 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
-    state.timedEffects.push({ content, target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid: owner })
+    recordTimed(state, { content, target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid: owner })
 }
 
 // BP は重ねがけできるので「既に持つ」とは見ない
@@ -254,7 +254,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         return
     }
     if (action.content.every(isRecorded)) {
-        state.timedEffects.push({
+        recordTimed(state, {
             content: action.content,
             target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
             until: action.duration,
@@ -358,7 +358,7 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     const content = action.content.find((c): c is Extract<Content, { type: "color" }> => c.type === "color")
     if (!content) return
     const give = (target: CardInstance, color: Color) => {
-        if (!target.tempColors.includes(color)) target.tempColors.push(color)
+        recordTimed(state, { content: [{ type: "color", color }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${getCard(target.cardId).name}に色「${COLOR_LABELS[color]}」が与えられた（ターン終了時まで）。`)
     }
     if (content.color !== undefined) {
@@ -517,7 +517,7 @@ function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect"
         return
     }
     const pids: PlayerId[] = action.side === "both" ? [owner, opp] : [action.side === "own" ? owner : opp]
-    for (const pid of pids) state.timedEffects.push({ content: action.content, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
+    for (const pid of pids) recordTimed(state, { content: action.content, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
     const who = action.side === "both" ? "お互い" : state.players[pids[0]!].name
     log(state, `${sourceName}：このターンの間、${who}のスピリットの誘発効果は発揮されない。`)
 }
@@ -728,7 +728,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placePlayerRule(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "color")) {
+    if (!action.all && action.content.some((c) => c.type === "color")) {
         placeColor(ctx, action)
         return
     }

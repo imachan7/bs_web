@@ -249,7 +249,7 @@ console.log("=== BS07 赤：自分のスピリット1体を青としても扱い
         act(s, "p1", { type: "castMagic", handIndex, targetInstanceId: target.instanceId }) === null,
         `${meteor.name}をフラッシュで使用`,
     )
-    assert(target.tempColors.includes(color as never), `対象が「${color}」としても扱われる`)
+    assert(target.timedColors.includes(color as never), `対象が「${color}」としても扱われる`)
     assert(
         effectiveBp(s, "p1", target) === raw + buffAmount,
         `同じ1体がBP+${buffAmount}（${raw}→${effectiveBp(s, "p1", target)}）`,

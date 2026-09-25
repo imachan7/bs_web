@@ -68,6 +68,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `cantAttack`・`cantBlock`（#127） | 個体の印3つ・`timedRule` |
 | `mustAttack`・`canBlockWhileRested`・`suppressTrigger`・`grantTrigger`（#129） | 個体の印4つ・`triggerSuppressionThisTurn`・`timedRule`。「すべての誘発を止める」は `target.kind:"player"` |
 | `keyword` | 個体の `tempKeywords`。読む側は `timedKeywords(board, inst)`。【装甲】の判定（`hasArmorAgainst`・`targetArmorColorCount`）は盤面を受け取る形にした。`all:true` が1体向けに化けていた振り分けも直した |
+| `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。
 

@@ -622,7 +622,7 @@ export interface CardInstance {
     blockRequiresMagicDiscardGrantedTurn?: number // 器BU：召喚時に付与された「このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない」の有効ターン番号（state.turnと一致する間だけ有効。GameEngine.doAttackがこのスピリット自身のアタックのたびに見る。BS13-047深海大帝ノーグ・デンス）
     tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
-    tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
+    timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
     // **破壊待機状態**（docs/design/TIMING_CHART.md §1.5）。破壊が決まってから、
     // 破壊時の誘発を解決し終えてトラッシュに置かれるまでの間だけ立つ。
     // この間もカードはフィールドに存在し、コアも乗ったままで、**カードの効果の対象に取れる**
