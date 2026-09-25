@@ -238,7 +238,7 @@ export type EffectAction =
     // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する
     // （2026-08-16 ユーザー確認。docs/design/COST_MODEL.md の「コストではない」側）。
     // interactiveTargets が無い（テスト・自動解決）ときは modes の先頭を選ぶ決定的簡略化
-    | { type: "battleOpponentDestroyedCoresToVoid" } // 現在のバトル（state.battle）にフラグを立て、**このバトルが終わるまで**、相手の破壊されたスピリット上のコアすべてをリザーブでなくボイドへ送る（commitPendingDestructionが読む。battleLoserCoresToVoidは直前バトルの1回きり・自陣コアも対象にしうるのに対し、こちらは継続フラグ・相手専用。バトル外は不発。BS10-X01幻羅星龍ガイ・アスラLv4）
+    | { type: "battleOpponentDestroyedCoresTo"; to: "void" | "trash" } // このバトルの間、破壊された相手のスピリットのコアすべてをリザーブではなく to に置く（void＝ゲームから取り除く）
     | { type: "revealDiscardRest" } // 公開ゾーン（GameState.revealedCards）に残っているカードをすべて持ち主のトラッシュへ置く（cards.jsonには書かない。revealAndSummonKeyword が選択待ちの queue に積み、**選んでもスキップしても**必ず後始末が走るようにする。BS05トランスマイグレーション）
     | { type: "revealReturnToDeck"; toTop?: true; placed?: number } // 公開ゾーン（GameState.revealedCards）の残りをデッキの下へ戻す。interactiveTargets 時は戻す順番を1枚ずつ選ばせる（スキップで残りを現在の順のまま戻す）。BS01-067 スワロウアイヴィー／BS03-142 サルベージ // toTop指定時はデッキの**上**へ戻す（先に選んだカードが上＝次に引くカード。BS06-107 セカンドサイト「好きな順番でデッキの上に戻す」） // placed は toTop の選択の再入をまたいで「すでに上へ戻した枚数」を持ち回る**内部専用フィールド**（cards.jsonには書かない）
     | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統を CardInstance.lentChoiceFamily に載せた仮想発生源を積む（＝lendSelfThisTurn と同じ貸与。以後は kind:"familyGrant" の familyFromChoice エントリが継続付与する。音鳥クルーク）

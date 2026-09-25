@@ -4,8 +4,8 @@
 // 新設した機構:
 //   - TargetFilter.maxLv1BpOfSelf（server/src/logic/actions/filter.ts）：selfのカードのLv1BP以下
 //     （fieldEventではselfにイベント対象＝召喚されたスピリットが入る。実効BPでなく印刷値）
-//   - action:"battleOpponentDestroyedCoresToVoid"（server/src/logic/actions/battleFlow.ts）：
-//     state.battle.opponentDestroyedCoresToVoidPidを立て、commitPendingDestruction（removal.ts）が
+//   - action:"battleOpponentDestroyedCoresTo"（server/src/logic/actions/battleFlow.ts）：
+//     state.battle.opponentDestroyedCoresToを立て、commitPendingDestruction（removal.ts）が
 //     このバトルが終わるまで相手のスピリットのコアをリザーブでなくボイドへ送る
 //   - EffectDef kind:"trashImmunity" + isTrashCardProtected（shared/rules.ts）：
 //     トラッシュにある間、このカード自身が一切の効果を受けない共通述語。
@@ -106,7 +106,7 @@ console.log("=== BS10-X01 幻羅星龍ガイ・アスラ Lv4：アタック時�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: guy.instanceId }) === null, "ガイ・アスラでアタック宣言")
-    assert(s.battle?.opponentDestroyedCoresToVoidPid === "p2", "アタック時に「相手のスピリットのコアはボイドへ」のフラグが立つ")
+    assert(s.battle?.opponentDestroyedCoresTo?.pid === "p2" && s.battle.opponentDestroyedCoresTo.to === "void", "アタック時に「相手のスピリットのコアはボイドへ」のフラグが立つ")
 
     // 巻き添え：フラグが立っている間でも、自分のスピリットの破壊は通常どおりリザーブへ
     assert(destroySpirit(s, "p1", bystander.instanceId) === true, "巻き添えの自分のスピリットを破壊")
@@ -119,7 +119,7 @@ console.log("=== BS10-X01 幻羅星龍ガイ・アスラ Lv4：アタック時�
 
     assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === blocker.instanceId), "BPで敗れたブロッカーは破壊される")
     assert(s.players.p2.reserve === p2ReserveBefore, "破壊された相手のスピリットのコアはリザーブへ戻らない")
-    assert(s.players.p2.trashCores === p2TrashCoresBefore + 2, "破壊された相手のスピリットのコアはボイドに置かれる")
+    assert(s.players.p2.trashCores === p2TrashCoresBefore, "破壊された相手のスピリットのコアはトラッシュではなくボイドに置かれる（ゲームから取り除かれる）")
 }
 
 console.log("=== BS10-108 ルナティックシール：トラッシュにある間は一切の効果を受けない（自分の効果からも） ===")
