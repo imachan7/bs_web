@@ -118,6 +118,7 @@ export type EffectDef =
               | { ownSpiritCountAtLeast: number } // 自分のフィールドのスピリット数がこれ以上のときのみ実行
               | { ownFieldHasColorSpirits: Color[] } // 自分のフィールドに指定した色のスピリットがそれぞれ1体以上いるときのみ実行（1体が多色で複数色満たしてもよい）
               | { ownFieldHasAllNames: string[] } // 自分のフィールドに指定したカード名すべてが1体ずつ揃っているときのみ実行（cardIdでなく名前の完全一致）
+              | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 自分のフィールドに names のいずれかをカード名に含むスピリットが count 体以上いるときのみ実行
               | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 相手フィールドの色の種類数がこれ以上のときのみ実行
       }
     | {

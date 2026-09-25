@@ -213,6 +213,14 @@ export function runMagicActions(
                     log(state, `${card.name}：指定されたスピリットがフィールドに揃っていないため発動しなかった。`)
                     continue
                 }
+            } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
+                // 判定は解決の時点（ほかの条件と同じ）。撃った後に場を離れても効果は続く（2026-09-07 ユーザー確認）
+                const { names, count } = effect.condition.ownNameIncludesCountAtLeast
+                const matched = state.players[owner].field.spirits.filter((s) => names.some((n) => getCard(s.cardId).name.includes(n))).length
+                if (matched < count) {
+                    log(state, `${card.name}：カード名に「${names.join("」か「")}」と入っているスピリットがいないため発動しなかった。`)
+                    continue
+                }
             } else if ("opponentFieldColorsAtLeast" in effect.condition) {
                 // BS15-078飛雷震之計：相手のフィールドの色の種類数がこれ以上ないと使用できない
                 const { opponentFieldColorsAtLeast: minColors, spiritsOnly } = effect.condition

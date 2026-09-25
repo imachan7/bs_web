@@ -1,7 +1,7 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { currentLevel, getCard, log } from "../GameState"
+import { currentLevel, getCard, log, suspend } from "../GameState"
 import { applyMagicBuffBonus, recordBp, findSpiritAny, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -714,6 +714,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         srcColors,
         srcType,
     )
+    if (action.count === "any") {
+        placeAny(ctx, action, candidates)
+        return
+    }
     // 選択の再開：1体ぶんの action（count:1）が選ばれた個体つきで戻ってくる
     if (targetInstanceId !== undefined) {
         const found = candidates.find((s) => s.instanceId === targetInstanceId)
@@ -747,6 +751,38 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         .sort((a, b) => effectiveBp(state, opp, b) - effectiveBp(state, opp, a))
         .slice(0, count)
     for (const s of picked) log(state, apply(state, owner, s, action))
+}
+
+// 「好きなだけ指定する」：候補を押すたびに選ぶ／外すを切り替え、確定で掛ける。非対話は候補すべてに掛ける
+function placeAny(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, candidates: CardInstance[]): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const ids = candidates.map((s) => s.instanceId)
+    let chosen = (action.chosenIds ?? []).filter((id) => ids.includes(id))
+    if (action.choosing && targetInstanceId !== undefined) {
+        chosen = chosen.includes(targetInstanceId) ? chosen.filter((id) => id !== targetInstanceId) : [...chosen, targetInstanceId]
+    }
+    if (!state.interactiveTargets) {
+        chosen = ids
+    } else if (!(action.choosing && targetInstanceId === undefined) && candidates.length > 0) {
+        suspend(state, {
+            pid: owner,
+            kind: "target",
+            prompt: `${sourceName}：${contentLabel(action)}ようにする相手のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
+            candidates: ids,
+            selectedIds: chosen,
+            skipLabel: chosen.length > 0 ? `これで確定する（${chosen.length}体）` : "指定しない",
+            optional: true,
+            resolveOnSkip: true,
+            action: { ...action, choosing: true, chosenIds: chosen },
+            selfInstanceId: self ? self.instanceId : null,
+        })
+        return
+    }
+    if (chosen.length === 0) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    for (const id of chosen) log(state, apply(state, owner, candidates.find((s) => s.instanceId === id)!, action))
 }
 
 const handlers = {
