@@ -111,7 +111,7 @@ export interface TargetFilter {
     // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
     // onBlock なら**アタックしている相手**（SD02-002 ミザール）。かつて sameCostAsBlocker という名前だったが、
     // ブロッカー限定だと読める名前で実体と食い違っていたため 2026-08-16 に改名した
-    unblockableOnly?: true // 「ブロックされない」効果を持つものだけ（継続的な制約 unblockableBy ／ターン限定の印 unblockableOnceThisTurn のどちらでもよい。BS09-049炎蜥蜴クトゥグマLv3）
+    unblockableOnly?: true // 「ブロックされない」効果を持つものだけ（継続的な制約 unblockableBy ／期間つき効果の unblockable のどちらでもよい。BS09-049炎蜥蜴クトゥグマLv3）
     hasUnblockableEffectOrActive?: true // BS15共通器：カード自身の効果文に「ブロックされない」（kind:"constraint" constraint:"unblockableBy"）を持てば**条件の成否を問わず**対象。加えて、unblockableOnlyと同じく他の効果で**今まさに**ブロックされなくなっているスピリットも対象（両方のOR。BS15-051虚海獣エメヒドラルLv2：「『ブロックされない』効果を持つ相手のスピリット1体」＝2026-09-18ユーザー確認G）
     keywords?: Keyword[] // 指定したキーワードの**いずれか**を持つもの（keyword の複数版。OR。BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）
     keywordExclude?: Keyword // 指定キーワードを**持たない**もの（一時付与・継続付与も考慮。keyword の否定。BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
@@ -603,8 +603,6 @@ export interface CardInstance {
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
     immuneToOpponentThisTurn: boolean // このターンの間、相手のカード効果を受けない（フェザーバリア）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
-    unblockableThisTurn?: true // このターンの間ずっと相手のスピリットにブロックされない（何回アタックしても）。ターン終了で消える
-    unblockableOnceThisTurn?: boolean // 「ターンに1回、相手のスピリットにブロックされない」印。canBlock が参照し、次のバトル終了時（clearBattle）に消える。ターン終了でもリセットする（BS04強者統べる大地Lv2）
     unblockableColorsThisTurn?: Color[] // このターンの間、この色（配列＝OR）を持つ相手のスピリットからブロックされない。markUnblockableByIceWallColorThisTurnが指定時点のiceWallColorsOfを固定値として保存する（【氷壁】が後で無効化されても保持。canBlockが参照しターン終了でリセット。BS16-079ムーンボウクローク）
     destroyAtBattleEnd?: true // 器BS16：バトル参加者としてonBattleEndまで生き残ったら、そこで破壊される（GameEngine.runBattleStep case8/9が判定）。summonFromTrashFree.destroyAtBattleEndが召喚時に立てる（BS16-075スケープゴート：「バトル終了時、この効果で召喚されたスピリットは破壊される」＝チャンプブロック用の一時召喚）
     countAsThisTurn?: { pid: PlayerId; count: number; sourceTypes?: CardType[] } // このターンの間、pid の効果が「スピリットの数を数える」ときこの個体を count 体分として数える（ターン終了でリセット。BS05スリーカード）。sourceTypes は数える側の発生源種別の限定（印を付けた action からそのまま写す）
@@ -652,7 +650,6 @@ export interface CardInstance {
     // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
     // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
     pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
-    unblockableMinBpThisBattle?: number // このバトルの間、実効BPがこの値以上のスピリットからブロックされない（action:"unblockableAboveBpThisBattle"。clearBattle で消える。BS13-032光速の騎士ヘルモード【合体時】Lv3：「BP6000以上の相手のスピリットからブロックされない」）
     unblockableLevelsThisBattle?: number[] // このバトルの間、currentLevelがこの配列に含まれるスピリットからブロックされない（action:"unblockableByLevelThisBattle"。clearBattle で消える。BS13-058シユウ）
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
@@ -1443,7 +1440,7 @@ export type TimedRecord = {
         | { kind: "instance"; instanceId: string }
         | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 判定のたびに照合＝後から出たスピリットにも効く
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
-    until: "turn" | "battle"
+    until: "turn" | "battle" | "attack" // attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）
     ownerPid: PlayerId
 }
 

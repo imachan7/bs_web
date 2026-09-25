@@ -21,6 +21,7 @@ import {
     handleAction,
     runTurnStart,
     takeLifeAndResolve,
+    timedHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -57,13 +58,13 @@ console.log("=== BS04-081 強者統べる大地 Lv2：BP10000以上の自分の�
     const blocker = put(s, "p2", "BS01-031", 4) // デス・ハーデス Lv2（BP7000）
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ（ステップ誘発が発動する）")
-    assert(giga.unblockableOnceThisTurn === true, "BP10000以上のギガに印が付く")
-    assert(small.unblockableOnceThisTurn !== true, "BP10000未満のスピリットには付かない")
+    assert(timedHas(s, giga, "unblockable"), "BP10000以上のギガに印が付く")
+    assert(!timedHas(s, small, "unblockable"), "BP10000未満のスピリットには付かない")
 
     assert(act(s, "p1", { type: "attack", instanceId: giga.instanceId }) === null, "ギガでアタック宣言")
     assert(declareBlock(s, "p2", blocker.instanceId) !== null, "印の付いたアタッカーはブロックできない")
     assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
-    assert(giga.unblockableOnceThisTurn === false, "印はそのアタックの解決で使い切る")
+    assert(!timedHas(s, giga, "unblockable"), "印はそのアタックの解決で使い切る")
 
     // 印を使い切ったあとは通常どおりブロックできる（同じターンの2回目のアタック）
     giga.isRested = false
@@ -78,14 +79,14 @@ console.log("=== BS04-081 強者統べる大地：Lv1では印を付けない／
     putNexus(s, "p1", "BS04-081", 0) // Lv1
     const giga = put(s, "p1", "BS01-025", 3)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(giga.unblockableOnceThisTurn !== true, "Lv1では印を付けない")
+    assert(!timedHas(s, giga, "unblockable"), "Lv1では印を付けない")
 
     const s2 = createGame("t118-land-3", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
     runTurnStart(s2)
     putNexus(s2, "p1", "BS04-081", 1)
     const weak = put(s2, "p1", "BS01-001", 1)
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(weak.unblockableOnceThisTurn !== true, "BP10000以上がいなければ印は付かない")
+    assert(!timedHas(s2, weak, "unblockable"), "BP10000以上がいなければ印は付かない")
 }
 
 console.log("=== BS04-X14 魔界七将パンデミウム Lv2：自分のスピリットがバトルで破壊されたとき相手1体を疲労 ===")

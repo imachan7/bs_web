@@ -26,6 +26,7 @@ import {
     resolveAction,
     runTurnStart,
     takeLifeAndResolve,
+    timedHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -341,8 +342,8 @@ console.log("=== BS07 黄：召喚時に自分自身が「ブロックされな�
     const tronAction = (tron.effects ?? []).find((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect")!["action"]
     resolveAction(s, "p1", tronInst, tronAction as never)
     // 効果文は「このターンの間、このスピリットはブロックされない」＝次のバトルで消える印ではなくターン終了まで（2026-09-24 修正）
-    assert(tronInst.unblockableThisTurn === true, `${tron.name}自身に「このターンの間ブロックされない」印が付く`)
-    assert(decoy.unblockableThisTurn !== true, "対照実験：BPが上の別スピリットには付かない")
+    assert(timedHas(s, tronInst, "unblockable"), `${tron.name}自身に「このターンの間ブロックされない」印が付く`)
+    assert(!timedHas(s, decoy, "unblockable"), "対照実験：BPが上の別スピリットには付かない")
 }
 
 console.log("=== BS07 黄：最高Lvではない相手にブロックされたとき回復する ===")

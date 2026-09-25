@@ -427,23 +427,16 @@ export function resumeTriggerBatch(
 
 // バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）
 export function clearBattle(state: GameState): void {
-    // 「ターンに1回だけブロックされない」印は、そのアタックの解決（＝このバトルの終了）で使い切る
-    // （強者統べる大地Lv2）。ブロックされずライフに通った場合もここを通る
+    // until:"attack"（「ターンに1回だけブロックされない」）は、そのスピリットのアタックの解決（＝このバトルの終了）で使い切る。
+    // ブロックされずライフに通った場合もここを通る
     const attackerId = state.battle?.attackerInstanceId
-    if (attackerId !== undefined) {
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const inst of state.players[pid].field.spirits) {
-                if (inst.instanceId === attackerId) inst.unblockableOnceThisTurn = false
-            }
-        }
-    }
     state.battle = null
     delete state.battleAttackerRef
-    state.timedEffects = state.timedEffects.filter((r) => r.until !== "battle")
+    state.timedEffects = state.timedEffects.filter(
+        (r) => r.until !== "battle" && !(r.until === "attack" && r.target.kind === "instance" && r.target.instanceId === attackerId),
+    )
     refreshLevelAsOverrides(state)
-    // 「このバトルの間、BP◯以上のスピリットからブロックされない」もここで切れる（器S2。BS13-032光速の騎士ヘルモード【合体時】Lv3）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of state.players[pid].field.spirits) delete inst.unblockableMinBpThisBattle
         for (const inst of state.players[pid].field.spirits) delete inst.unblockableLevelsThisBattle
     }
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
