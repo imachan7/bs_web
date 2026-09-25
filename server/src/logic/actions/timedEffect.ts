@@ -20,9 +20,10 @@ function flagOf(content: Content, duration: TimedEffect["duration"]) {
 }
 
 // BP は重ねがけできるので「既に持つ」とは見ない
+// 強制アタック・トリガー抑止は、既に掛かっている個体もそのまま選べる（2026-09-25 ユーザー確認）
 function has(inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
-        if (c.type === "suppressTrigger") return inst.suppressedTriggersThisTurn?.includes(c.trigger) === true
+        if (c.type === "mustAttack" || c.type === "suppressTrigger") return false
         const flag = flagOf(c, action.duration)
         return flag !== null && inst[flag] === true
     })

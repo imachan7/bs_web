@@ -51,7 +51,7 @@ console.log("=== 1. 1体：合体していないスピリットだけが候補�
     assert(combined.mustAttackThisTurn !== true, "合体スピリットは選ばれない")
 }
 
-console.log("=== 2. 1体：既に印がある個体は候補にしない（機械神の加護を2回） ===")
+console.log("=== 2. 1体：既に掛かっている個体も選べる（機械神の加護を2回。2026-09-25 ユーザー確認） ===")
 {
     const s = game()
     const strong = createInstance(VANILLA, 1, 3)
@@ -60,7 +60,10 @@ console.log("=== 2. 1体：既に印がある個体は候補にしない（機�
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, mustAttackAction("SD01-032"))
     resolveAction(s, "p1", null, mustAttackAction("SD01-032"))
-    assert(strong.mustAttackThisTurn === true && weak.mustAttackThisTurn === true, "2回目は別の1体に付く")
+    assert(strong.mustAttackThisTurn === true && weak.mustAttackThisTurn !== true, "自動選択では2回目も実効BP最大の同じ1体")
+    s.interactiveTargets = true
+    resolveAction(s, "p1", null, mustAttackAction("SD01-032"))
+    assert(s.pendingChoice?.candidates.includes(strong.instanceId) === true, "対話では既に掛かっている個体も候補に出る")
 }
 
 console.log("=== 3. すべて：解決後に場に出たコスト3以下にも効く（アンブッシュブロッカー） ===")
