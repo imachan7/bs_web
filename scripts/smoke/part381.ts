@@ -1,5 +1,6 @@
 // smoke パート381（期間つき効果の記録 state.timedEffects：寿命・「すべて」の照合・配信。docs/design/TIMED_EFFECTS.md）
-import { assert, createGame, createInstance, endTurn, getCard, refreshLevelAsOverrides, resolveAction, viewFor } from "./helpers"
+import { assert, createGame, createInstance, endTurn, fireTrigger, getCard, refreshLevelAsOverrides, resolveAction, viewFor } from "./helpers"
+import { isTriggerSuppressed } from "../../server/src/logic/triggers"
 import type { GameState } from "./helpers"
 import { clearBattle } from "../../server/src/logic/GameState"
 import { canBlock } from "../../shared/block"
@@ -59,6 +60,28 @@ console.log("=== 3. すべて：後から出たスピリットにも効き、配
     assert(!cantActByTimed(s, mine), "既定の陣営（相手）以外には効かない")
     const view = viewFor(s, "p2")
     assert(view.timedEffects.length === 1 && cantActByTimed(view, view.players.p2.field.spirits[0]!), "クライアントに送る盤面でも同じ判定になる")
+}
+
+console.log("=== 4. プレイヤーに掛かる記録（誘発を止める）：陣営単位で効き、ターン終了で消える ===")
+{
+    const s = game()
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "suppressTrigger", trigger: "onDestroy" }], duration: "turn", all: true })
+    assert(isTriggerSuppressed(s, "p2", "onDestroy") && !isTriggerSuppressed(s, "p1", "onDestroy"), "相手の破壊時だけ止まる")
+    endTurn(s)
+    assert(!isTriggerSuppressed(s, "p2", "onDestroy"), "ターン終了で消える")
+}
+
+console.log("=== 5. 1体に与えた誘発効果は、場を離れた後に誘発しても読める ===")
+{
+    const s = game()
+    const a = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits = [a]
+    refreshLevelAsOverrides(s)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "grantTrigger", trigger: "onDestroy", action: { type: "voidCoreToReserve", count: 1 } }], duration: "turn", side: "own", count: 1 })
+    s.players.p1.field.spirits = [] // 破壊されて場を離れた後
+    const before = s.players.p1.reserve
+    fireTrigger(s, "p1", a, "onDestroy")
+    assert(s.players.p1.reserve === before + 1, "場を離れた個体でも付与した効果が発火する")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part381）")

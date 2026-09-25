@@ -14,8 +14,7 @@ import {
     minLevelCores,
     refreshLevelAsOverrides,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, timedHas } from "./helpers"
 import type { GameState } from "./helpers"
 import { fireFieldEventTriggers, fireStepTriggers } from "../../server/src/logic/triggers"
 import { effectiveCost } from "../../shared/cost"
@@ -185,7 +184,7 @@ console.log("=== BS15-032 スノーフレイクン：相手のアタックステ
     fireStepTriggers(s, "attack")
     assert(s.players.p2.reserve === 4, "リザーブのコア1個をトラッシュに置いた")
     assert(
-        target.mustAttackThisTurn === true,
+        timedHas(s, target, "mustAttack"),
         "指定した相手のスピリットは必ずアタックする",
     )
     assert(currentLevel(snow).level === 1, "前提：Lv1で開始")

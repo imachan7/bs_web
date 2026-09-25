@@ -1,6 +1,6 @@
 // smoke パート316（BS14 白バッチ20枚：BS14-034〜044/070/082〜084/103〜106/X04）
 // 新設した器: AuraCounter { ownColor: Color }／kind:"blockTriggersAsAttackGrant".whileOwnBurstSet／
-// timedEffect の suppressTrigger（CardInstance.suppressedTriggersThisTurn）／
+// timedEffect の suppressTrigger（state.timedEffects）／
 // globalConstraint "handImmuneForPid".includeNexus／
 // globalConstraint "ownLifeFloor".costSelfToTrash/then（EffectModules.tryOwnLifeFloorByCost）／
 // kind:"fieldEvent" event:"ownBurstActivated" condition.ownBurstSet／action:"returnToHandCostBudget"
@@ -16,8 +16,7 @@ import {
     hasKeyword,
     refreshLevelAsOverrides,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst, hasBlockTriggersAsAttack } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers, fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
@@ -171,7 +170,7 @@ console.log("=== BS14-043 月光姫マーニ：【氷壁：赤/緑/白/青】+ �
     const baseBp = effectiveBp(s, "p2", target)
     s.phase = "attack"
     resolveAction(s, "p1", marni, { type: "timedEffect", content: [{ type: "suppressTrigger", trigger: "onAttack" }], duration: "turn", count: 1 }, target.instanceId)
-    assert(target.suppressedTriggersThisTurn?.includes("onAttack") === true, "指定した相手のスピリットのonAttackを抑止する印が付く")
+    assert(timedHas(s, target, "suppressTrigger", "onAttack"), "指定した相手のスピリットのonAttackを抑止する印が付く")
     fireTrigger(s, "p2", target, "onAttack")
     assert(effectiveBp(s, "p2", target) === baseBp, "指定されたスピリットの『アタック時』効果は発揮されない")
 }

@@ -2720,30 +2720,14 @@ export function lifeProtectedByCostThisTurn(
     })
 }
 
-// このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか。
-// 1体は個体の印、「すべて」は timedRule（判定のたびに照合するので後から出たスピリットにも効く）
-export function mustAttackThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
-    if (inst.mustAttackThisTurn) return true
-    return board.turnConstraints.some(
-        (c) =>
-            c.type === "timedRule" &&
-            c.content.some((x) => x.type === "mustAttack") &&
-            (c.pid === undefined || c.pid === pid) &&
-            matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
-    )
+// このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
+export function mustAttackThisTurn(board: Board, _pid: PlayerId, inst: CardInstance): boolean {
+    return timedContentsOn(board, inst).some((c) => c.type === "mustAttack")
 }
 
-// このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のターン付与版）。
-// 1体は個体の印、「すべて」は timedRule（後から出たスピリットにも効く）
-export function canBlockWhileRestedThisTurn(board: Board, pid: PlayerId, inst: CardInstance): boolean {
-    if (inst.canBlockWhileRestedThisTurn) return true
-    return board.turnConstraints.some(
-        (c) =>
-            c.type === "timedRule" &&
-            c.content.some((x) => x.type === "canBlockWhileRested") &&
-            (c.pid === undefined || c.pid === pid) &&
-            matchesTarget(board, pid, inst, c.filter, c.selfInstanceId),
-    )
+// このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のターン付与版）
+export function canBlockWhileRestedThisTurn(board: Board, _pid: PlayerId, inst: CardInstance): boolean {
+    return timedContentsOn(board, inst).some((c) => c.type === "canBlockWhileRested")
 }
 
 // constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの
@@ -2952,9 +2936,14 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
         const hit =
             t.kind === "instance"
                 ? t.instanceId === inst.instanceId
-                : (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
+                : t.kind === "rule" && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
         return hit ? r.content : []
     })
+}
+
+// このプレイヤーに掛かっている期間つき効果の内容
+export function timedContentsFor(board: Board, pid: PlayerId): TimedContent[] {
+    return board.timedEffects.flatMap((r) => (r.target.kind === "player" && r.target.pid === pid ? r.content : []))
 }
 
 // 期間つき効果でアタック／ブロックできないか

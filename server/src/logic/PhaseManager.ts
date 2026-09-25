@@ -397,9 +397,6 @@ export function endTurn(state: GameState): void {
             delete inst.attackedThisTurn
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
-            delete inst.mustAttackThisTurn
-            delete inst.canBlockWhileRestedThisTurn
-            delete inst.suppressedTriggersThisTurn
             delete inst.lifeDamageNegatedFor
             inst.tempKeywords = []
             inst.tempAlsoCosts = []
@@ -413,7 +410,6 @@ export function endTurn(state: GameState): void {
             delete inst.unblockableThisTurn
             delete inst.unblockableColorsThisTurn
             delete inst.countAsThisTurn
-            delete inst.tempGrantedTriggers
             delete inst.tempSymbolLoss
             delete inst.lifeDealtThisTurn
         }
@@ -453,7 +449,6 @@ export function endTurn(state: GameState): void {
     delete state.extraStepAfterAttackUsed
     delete state.extraMainStep
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット
-    state.triggerSuppressionThisTurn = []
     // このターンのアタック回数（「最初のアタック」判定用）もリセット
     state.attacksThisTurn = 0
     // BS10-047：「次にアタックした」はターンをまたがないので、直前のアタック宣言の記録もリセット

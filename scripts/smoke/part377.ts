@@ -1,5 +1,5 @@
 // smoke パート377（強制アタック：timedEffect の内容 mustAttack。移したカードデータを直接解決する）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, timedHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 import { mustAttackThisTurn } from "../../shared/rules"
 
@@ -47,8 +47,8 @@ console.log("=== 1. 1体：合体していないスピリットだけが候補�
     combined.braveRefs = [{ slot: "single", instanceId: brave.instanceId }]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, mustAttackAction(BRAVE))
-    assert(plain.mustAttackThisTurn === true, "合体していない方に印が付く")
-    assert(combined.mustAttackThisTurn !== true, "合体スピリットは選ばれない")
+    assert(timedHas(s, plain, "mustAttack"), "合体していない方に印が付く")
+    assert(!timedHas(s, combined, "mustAttack"), "合体スピリットは選ばれない")
 }
 
 console.log("=== 2. 1体：既に掛かっている個体も選べる（機械神の加護を2回。2026-09-25 ユーザー確認） ===")
@@ -60,7 +60,7 @@ console.log("=== 2. 1体：既に掛かっている個体も選べる（機械�
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, mustAttackAction("SD01-032"))
     resolveAction(s, "p1", null, mustAttackAction("SD01-032"))
-    assert(strong.mustAttackThisTurn === true && weak.mustAttackThisTurn !== true, "自動選択では2回目も実効BP最大の同じ1体")
+    assert(timedHas(s, strong, "mustAttack") && !timedHas(s, weak, "mustAttack"), "自動選択では2回目も実効BP最大の同じ1体")
     s.interactiveTargets = true
     resolveAction(s, "p1", null, mustAttackAction("SD01-032"))
     assert(s.pendingChoice?.candidates.includes(strong.instanceId) === true, "対話では既に掛かっている個体も候補に出る")

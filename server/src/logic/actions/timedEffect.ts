@@ -12,13 +12,11 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
-// 個体の印に置く内容（一覧へ移す前のもの）
-function flagOf(content: Content, duration: TimedEffect["duration"]) {
-    if (content.type === "mustAttack") return duration === "turn" ? "mustAttackThisTurn" : null
-    return null
+function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
+    state.timedEffects.push({ content, target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid: owner })
 }
 
 // BP は重ねがけできるので「既に持つ」とは見ない
@@ -26,29 +24,20 @@ function flagOf(content: Content, duration: TimedEffect["duration"]) {
 function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
         if (c.type === "mustAttack" || c.type === "suppressTrigger") return false
-        if (isRecorded(c)) {
-            return state.timedEffects.some(
-                (r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.until === action.duration && r.content.some((x) => x.type === c.type),
-            )
-        }
-        const flag = flagOf(c, action.duration)
-        return flag !== null && inst[flag] === true
+        if (!isRecorded(c)) return false
+        return state.timedEffects.some(
+            (r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.until === action.duration && r.content.some((x) => x.type === c.type),
+        )
     })
 }
 
 function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect): string {
     const recorded = action.content.filter(isRecorded)
-    if (recorded.length > 0) {
-        state.timedEffects.push({ content: recorded, target: { kind: "instance", instanceId: inst.instanceId }, until: action.duration, ownerPid: owner })
-    }
-    for (const c of action.content) {
-        if (c.type === "suppressTrigger") inst.suppressedTriggersThisTurn = [...(inst.suppressedTriggersThisTurn ?? []), c.trigger]
-        const flag = flagOf(c, action.duration)
-        if (flag !== null) inst[flag] = true
-    }
+    if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
     const period = action.duration === "turn" ? "このターン" : "このバトル"
     return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
+
 function contentLabel(action: TimedEffect): string {
     const cant = action.content.filter((c) => c.type === "cantAttack" || c.type === "cantBlock").map((c) => (c.type === "cantAttack" ? "アタック" : "ブロック"))
     const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
@@ -512,19 +501,14 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
         candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
     const name = getCard(target.cardId).name
+    pushInstanceRecord(state, owner, target, action.content.filter(isRecorded), action.duration)
     for (const c of action.content) {
-        if (c.type === "canBlockWhileRested") {
-            target.canBlockWhileRestedThisTurn = true
-            log(state, `${sourceName}：このターンの間、${name}は疲労状態でもブロックできる。`)
-        } else if (c.type === "grantTrigger") {
-            const { type: _t, ...grant } = c
-            target.tempGrantedTriggers = [...(target.tempGrantedTriggers ?? []), grant]
-            log(state, `${sourceName}：このターンの間、${name}に効果を付与した。`)
-        }
+        if (c.type === "canBlockWhileRested") log(state, `${sourceName}：このターンの間、${name}は疲労状態でもブロックできる。`)
+        else if (c.type === "grantTrigger") log(state, `${sourceName}：このターンの間、${name}に効果を付与した。`)
     }
 }
 
-// 陣営のスピリットすべての指定トリガーを発揮させない。判定のたびに見るので後から出たスピリットにも効く。絞り込みは持たない
+// 陣営の指定トリガーすべてを発揮させない（そのプレイヤーに掛かる記録）。絞り込みは持たない
 function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
     if (action.duration !== "turn" || action.filter !== undefined) {
@@ -532,14 +516,7 @@ function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect"
         return
     }
     const pids: PlayerId[] = action.side === "both" ? [owner, opp] : [action.side === "own" ? owner : opp]
-    for (const c of action.content) {
-        if (c.type !== "suppressTrigger") continue
-        for (const pid of pids) {
-            if (!state.triggerSuppressionThisTurn.some((e) => e.pid === pid && e.trigger === c.trigger)) {
-                state.triggerSuppressionThisTurn.push({ pid, trigger: c.trigger })
-            }
-        }
-    }
+    for (const pid of pids) state.timedEffects.push({ content: action.content, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
     const who = action.side === "both" ? "お互い" : state.players[pids[0]!].name
     log(state, `${sourceName}：このターンの間、${who}のスピリットの誘発効果は発揮されない。`)
 }
