@@ -29,7 +29,7 @@ type TimedRecord = {
         | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 「〜すべて」。判定のたびに照合＝後から出たスピリットにも効く
         | { kind: "player"; pid: PlayerId }                               // プレイヤーに掛かる制約
         | { kind: "battle" }                                              // このバトルの解決方法（比較基準など）
-    until: "turn" | "battle"
+    until: "turn" | "battle" | "attack"   // attack＝対象の個体のアタックの終了かターン終了（「ターンに1回」）
     ownerPid: PlayerId               // 効果を出した側
     sourceInstanceId?: string
 }
@@ -43,7 +43,7 @@ timedContentsFor(board, pid): TimedContent[]        // このプレイヤーに�
 timedBattleContents(board): TimedContent[]          // このバトルに掛かっている内容（battle）
 ```
 
-- 寿命：`until:"turn"` はターン終了時、`"battle"` は `clearBattle` で一覧から消す（この2か所だけ）
+- 寿命：`until:"turn"` はターン終了時、`"battle"` は `clearBattle` で一覧から消す。`"attack"` は `clearBattle` でアタックした個体の分だけ消し、残りはターン終了で消える（消すのはこの2か所だけ）
 - `instance` の対象が場を離れたら、その記録は誰にも当たらないだけ（消す処理は要らない）
 - `rule`（「〜のスピリットすべて」）は場のスピリットにだけ当たる。ネクサスに掛かる期間つき効果は `instance` で1つずつ記録する（2026-09-25。ネクサスにも当てていた不具合を直した）
 - 内容の**意味**（強制アタックとは何か）は、ルールを判定する場所（アタックの検証など）に残る。そこは減らさない
@@ -71,6 +71,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `keyword` | 個体の `tempKeywords`。読む側は `timedKeywords(board, inst)`。【装甲】の判定（`hasArmorAgainst`・`targetArmorColorCount`）は盤面を受け取る形にした。`all:true` が1体向けに化けていた振り分けも直した |
 | `level` | 個体の `levelOverrideThisTurn` は写し `timedLevel` になった。`timedRule`＋`appliedIds` はやめ、一覧を記録順に処理して「後から掛けた方が勝つ」を再現する。「1つ上として扱う」は記録する時点の Lv から具体的な Lv にして記録する。旧 type（`refreshOne` の Lv 上げ・相手のネクサスすべての Lv）も `recordTimed` で書く。照合は写しを空にした状態で全員ぶん先に済ませる（処理順で結果が変わらない） |
 | `symbolAdd`・`symbolSet`・`symbolLoss`・`cost` | 個体の印4つは写し `timedExtraSymbols`・`timedSymbolsOverride`・`timedSymbolLoss`・`timedCostDelta` になった。「すべての色のシンボルを失う」の `timedRule`＋`appliedIds` はやめた（`appliedIds` の型も削除）。バトル終了時（`clearBattle`）にも作り直す。残る `timedRule` は BP だけ |
+| `unblockable` | 個体の印3つ（`unblockableThisTurn`・`unblockableOnceThisTurn`・`unblockableMinBpThisBattle`）。強者統べる大地の「ターンに1回」は寿命 `attack` にした（別のスピリットが先にアタックしても消えない、という今の挙動を保つ） |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。

@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -439,16 +439,11 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
         }
     }
     const name = getCard(target.cardId).name
-    if (content.fromMinBp !== undefined) {
-        target.unblockableMinBpThisBattle = content.fromMinBp
-        log(state, `${sourceName}：このバトルの間、BP${content.fromMinBp}以上のスピリットからブロックされない。`)
-    } else if (action.duration === "battle") {
-        target.unblockableOnceThisTurn = true
-        log(state, `${sourceName}：${name}は、このターン1回だけ相手のスピリットにブロックされない。`)
-    } else {
-        target.unblockableThisTurn = true
-        log(state, `${sourceName}：${name}は、このターンの間相手のスピリットにブロックされない。`)
-    }
+    const until = content.fromMinBp !== undefined ? "battle" : action.duration === "battle" ? "attack" : "turn"
+    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until, ownerPid: owner })
+    if (content.fromMinBp !== undefined) log(state, `${sourceName}：このバトルの間、BP${content.fromMinBp}以上のスピリットからブロックされない。`)
+    else if (until === "attack") log(state, `${sourceName}：${name}は、このターン1回だけ相手のスピリットにブロックされない。`)
+    else log(state, `${sourceName}：${name}は、このターンの間相手のスピリットにブロックされない。`)
 }
 
 // このバトルの間、プレイヤーに掛ける印（フラッシュで手札を使えない／バーストを発動できない）。印は1人ぶんしか持てない

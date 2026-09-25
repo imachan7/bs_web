@@ -20,7 +20,7 @@ function putNexus(s: GameState, pid: PlayerId, cardId: string, cores: number): v
     s.players[pid].field.nexuses.push(createInstance(cardId, s.turn, cores))
 }
 const unblockable = (s: GameState, id: string): boolean =>
-    s.players.p1.field.spirits.find((x) => x.instanceId === id)?.unblockableOnceThisTurn === true
+    s.timedEffects.some((r) => r.target.kind === "instance" && r.target.instanceId === id && r.content.some((c) => c.type === "unblockable"))
 
 console.log("=== 対話モード：BP10000以上が2体いれば選択になる ===")
 {

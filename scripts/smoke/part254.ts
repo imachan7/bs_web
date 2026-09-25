@@ -16,6 +16,7 @@ import {
     getCard,
     runTurnStart,
     takeLifeAndResolve,
+    timedHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -136,7 +137,7 @@ console.log("=== BS10-047 赤ずきん妖精ルージュLv3：自分の合体ス
     assert(act(s, "p1", { type: "attack", instanceId: atk1.instanceId }) === null, "合体スピリットでアタック（p2にブロッカーなし）")
     assert(takeLifeAndResolve(s, "p2") === null, "p2はライフで受ける（バトル終了）")
     assert(act(s, "p1", { type: "attack", instanceId: rouge.instanceId }) === null, "続けてルージュでアタック")
-    assert(rouge.unblockableOnceThisTurn === true, "直前が自分の合体スピリットのアタックだったので、ブロックされない印がつく")
+    assert(timedHas(s, rouge, "unblockable"), "直前が自分の合体スピリットのアタックだったので、ブロックされない印がつく")
 }
 
 console.log("--- 直前が合体していないスピリットのアタックならブロックされる（条件が効いている） ---")
@@ -148,7 +149,7 @@ console.log("--- 直前が合体していないスピリットのアタックな
     assert(act(s, "p1", { type: "attack", instanceId: atk2.instanceId }) === null, "通常のスピリットでアタック")
     assert(takeLifeAndResolve(s, "p2") === null, "p2はライフで受ける（バトル終了）")
     assert(act(s, "p1", { type: "attack", instanceId: rouge.instanceId }) === null, "続けてルージュでアタック")
-    assert(!rouge.unblockableOnceThisTurn, "直前が合体スピリットのアタックではないので、ブロックされない印はつかない")
+    assert(!timedHas(s, rouge, "unblockable"), "直前が合体スピリットのアタックではないので、ブロックされない印はつかない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part254）")

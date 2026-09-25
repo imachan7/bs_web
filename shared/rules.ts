@@ -1742,11 +1742,10 @@ export function matchesTarget(
     if (filter.keywordCount !== undefined && (filter.keyword === undefined || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
-    // 継続的な制約（unblockableBy）とターン限定の印（unblockableOnceThisTurn）の両方を見る
+    // 継続的な制約（unblockableBy）と期間つき効果の両方を見る。「BP◯以上から」だけのものは数えない
     if (filter.unblockableOnly) {
         const hasUnblockable =
-            inst.unblockableOnceThisTurn === true ||
-            inst.unblockableThisTurn === true ||
+            hasTimedUnblockable(board, inst) ||
             activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
         if (!hasUnblockable) return false
     }
@@ -1757,8 +1756,7 @@ export function matchesTarget(
             (e) => e.kind === "constraint" && e.constraint.type === "unblockableBy",
         )
         const activelyUnblockable =
-            inst.unblockableOnceThisTurn === true ||
-            inst.unblockableThisTurn === true ||
+            hasTimedUnblockable(board, inst) ||
             activeConstraints(board, ownerPid, inst).some((c) => c.type === "unblockableBy")
         if (!declaresUnblockable && !activelyUnblockable) return false
     }
@@ -2891,6 +2889,10 @@ function hasImmunityAgainst(
 
 // この個体にいま掛かっている期間つき効果の内容（docs/design/TIMED_EFFECTS.md）。1体指定と「すべて」の両方を追加順に返す。
 // 「すべて」は判定のたびに照合するので、効果の解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認）
+function hasTimedUnblockable(board: Board, inst: CardInstance): boolean {
+    return timedContentsOn(board, inst).some((c) => c.type === "unblockable" && c.fromMinBp === undefined)
+}
+
 export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[] {
     const p1 = board.players.p1.field
     const pid: PlayerId = p1.spirits.includes(inst) || p1.nexuses.includes(inst) ? "p1" : "p2"

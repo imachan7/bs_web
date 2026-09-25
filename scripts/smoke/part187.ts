@@ -58,7 +58,7 @@ console.log("=== BS09-049 炎蜥蜴クトゥグマ：「ブロックされない
     runTurnStart(s)
     const kutu = put(s, "p1", "BS09-049", 4) // Lv3
     const attacker = put(s, "p2", PLAIN, 1)
-    attacker.unblockableOnceThisTurn = true
+    s.timedEffects.push({ content: [{ type: "unblockable" }], target: { kind: "instance", instanceId: attacker.instanceId }, until: "attack", ownerPid: "p2" })
     assert(canBlock(s, "p1", kutu, "p2", attacker) === null, "「ブロックされない」相手もブロックできる")
     const plain = put(s, "p1", PLAIN, 1)
     assert(canBlock(s, "p1", plain, "p2", attacker) !== null, "対照実験：普通のスピリットはブロックできない")
