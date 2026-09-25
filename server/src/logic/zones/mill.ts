@@ -2,9 +2,9 @@ import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, Playe
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
 import { returnSpiritToDeckBottom, spiritMillFreeSummonOrConfirm } from "../removal"
 import { fireFieldEventTriggers, fireNexusDeployed, resolveMagicEffects } from "../triggers"
-import { effectActiveAtLevel, effectSources, hasGlobalConstraint, isEndStepLocked } from "../../../../shared/rules"
+import { effectActiveAtLevel, effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
-import { lifeCostBlockedByFloor, resolveAction } from "../EffectModules"
+import { lifeCostBlockedByFloor, recordPlayerRule, resolveAction } from "../EffectModules"
 
 // globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
 // このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
@@ -120,8 +120,8 @@ export function millDeck(
         return 0
     }
     // 器BS16：「このターンの間、自分のデッキは破棄されない」（**自分の効果も含め**）。
-    // noDeckMillForPidThisTurnと違いbyOpponentを問わず止める（BS16-002パイルドラコ）
-    if (state.turnConstraints.some((c) => c.type === "noDeckMillAtAllForPidThisTurn" && c.pid === pid)) {
+    // noDeckMillByOpponentForPid と違い byOpponent を問わず止める（BS16-002パイルドラコ）
+    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillForPid")) {
         log(state, `${state.players[pid].name}のデッキは、このターンの間破棄されない。`)
         return 0
     }
@@ -225,7 +225,7 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
 // millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
 export function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
     // 器AR：ターン限定版（BS13-034ミノガメン。無償召喚したときだけ付く）
-    if (state.turnConstraints.some((c) => c.type === "noDeckMillForPidThisTurn" && c.pid === pid)) return true
+    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillByOpponentForPid")) return true
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -436,7 +436,7 @@ export function resolveMilledFromDeck(
                     resolveAction(state, pid, null, { type: "destroy", count: 1 }, causerInst.instanceId, getCard(cardId).colors, "spirit")
                 }
                 if (effect.thenBlockAllDeckMillThisTurn) {
-                    state.turnConstraints.push({ type: "noDeckMillAtAllForPidThisTurn", pid })
+                    recordPlayerRule(state, pid, { type: "noDeckMillForPid" })
                 }
                 break
             }

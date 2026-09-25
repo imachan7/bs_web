@@ -1155,8 +1155,6 @@ export function validateBlock(
     return null
 }
 
-// このターンの間だけ有効な全体制約（turnConstraints）により、指定スピリットがアタック/ブロック
-// できないか（ヘビィゲート：コストがmaxCost以下のスピリットはすべて対象）
 
 // フラッシュの優先権を相手に渡す（パス）
 export function validatePass(state: GameState, pid: PlayerId): string | null {

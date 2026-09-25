@@ -4,7 +4,7 @@ import type { EffectAction, PlayerId } from "../../server/src/type"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
 // 制約の type → p1 が使ったときに効くプレイヤー（旧 type と同じ）
-const EXPECTED: Record<string, PlayerId> = {
+const EXPECTED: Record<string, PlayerId | "both"> = {
     lifeDamageMaxForPid: "p1",
     lifeFloorForPid: "p1",
     lifeImmuneForPid: "p1",
@@ -12,6 +12,10 @@ const EXPECTED: Record<string, PlayerId> = {
     nexusEffectsDisabledForPid: "p2",
     freeFushiSummonForPid: "p1",
     bounceToDeckTopForPid: "p1",
+    ignoreUnblockableForPid: "p1",
+    handReductionColorAsForPid: "p1",
+    noLifeDamageByCostForPid: "p1",
+    noBurstSpiritSummonForPid: "both",
 }
 
 function collect(): { cardId: string; action: Extract<EffectAction, { type: "timedEffect" }> }[] {
@@ -29,11 +33,11 @@ function collect(): { cardId: string; action: Extract<EffectAction, { type: "tim
     return out
 }
 
-console.log("=== 1. 移したカードデータ10か所が、正しい制約を正しいプレイヤーに積む ===")
+console.log("=== 1. 移したカードデータ14か所が、正しい制約を正しいプレイヤーに積む ===")
 {
     const entries = collect()
-    // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）
-    assert(entries.length === 10, `playerRule は10か所（実際: ${entries.length}）`)
+    // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バードを足した
+    assert(entries.length === 14, `playerRule は14か所（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         const s = createGame("p371", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         resolveAction(s, "p1", null, action)
@@ -41,7 +45,8 @@ console.log("=== 1. 移したカードデータ10か所が、正しい制約を�
         const placed = (["p1", "p2"] as PlayerId[]).filter((pid) => playerHas(s, pid, rule.type))
         // 【装甲】を働かなくするのは、アーマーパージ（SD01-040）が自分、ジャンビ・オレピス（BS11-049）が相手
         const want = rule.type === "armorDisabledForPid" ? (cardId === "SD01-040" ? "p1" : "p2") : EXPECTED[rule.type]
-        assert(placed.length === 1 && placed[0] === want, `${cardId} ${getCard(cardId).name}：${rule.type} が ${want} に1つ積まれる`)
+        const ok = want === "both" ? placed.length === 2 : placed.length === 1 && placed[0] === want
+        assert(ok, `${cardId} ${getCard(cardId).name}：${rule.type} が ${want} に積まれる`)
     }
 }
 

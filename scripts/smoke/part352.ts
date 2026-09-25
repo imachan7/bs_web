@@ -119,7 +119,8 @@ console.log("=== 4. 誓いの桃園Lv2（effectGrant再利用）：烈の覇王�
 console.log("=== 5. サテライド・バード：このターンの間バースト効果でスピリットは召喚できない（ブレイヴは対象外） ===")
 {
     const s = game("case5")
-    s.turnConstraints.push({ type: "noBurstSpiritSummonThisTurn" })
+    s.timedEffects.push({ content: [{ type: "playerRule", rule: { type: "noBurstSpiritSummonForPid" } }], target: { kind: "player", pid: "p1" }, until: "turn", ownerPid: "p1" })
+    s.timedEffects.push({ content: [{ type: "playerRule", rule: { type: "noBurstSpiritSummonForPid" } }], target: { kind: "player", pid: "p2" }, until: "turn", ownerPid: "p2" })
     s.players.p1.burst = BURST_SPIRIT
     s.players.p1.burstSet = true
     s.players.p1.reserve = 5

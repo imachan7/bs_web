@@ -46,7 +46,17 @@
     "levels": null,
     "optional": false,
     "action": {
-     "type": "blockBurstSpiritSummonThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "noBurstSpiritSummonForPid"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
     }
    },
    {

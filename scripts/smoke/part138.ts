@@ -29,6 +29,7 @@ import {
     timedHas,
     giveBp,
     clearBp,
+    playerHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -444,7 +445,7 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
     fireStepTriggers(s, "start")
     assert(musician.isRested === true, `コストとして系統「${family}」の1体が疲労している`)
     assert(
-        s.turnConstraints.some((c) => c.type === "noLifeDamageByCostForPid" && c.pid === "p1"),
+        playerHas(s, "p1", "noLifeDamageByCostForPid") && !playerHas(s, "p2", "noLifeDamageByCostForPid"),
         "p1 限定のライフ保護が積まれている",
     )
     // p2 がコスト条件を満たすスピリットでアタックしてもライフは減らない
@@ -468,7 +469,7 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= maxCost,
     )!
     const s = base("garden-protect-oneside")
-    s.turnConstraints.push({ type: "noLifeDamageByCostForPid", maxCost, pid: "p1" })
+    s.timedEffects.push({ content: [{ type: "playerRule", rule: { type: "noLifeDamageByCostForPid", maxCost } }], target: { kind: "player", pid: "p1" }, until: "turn", ownerPid: "p1" })
     const attacker = put(s, "p1", cheap.cardId, 1)
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")

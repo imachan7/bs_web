@@ -11,7 +11,7 @@
 //
 // 実装は「選ばせたら、そのコスト軸を落とした action で入り直す」形
 // （exhaust の chooserIsTarget と同じ、解決済みの軸を落として再入する書き方）。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, resolveAction, runTurnStart, playerHas } from "./helpers"
 import type { GameState } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -146,7 +146,7 @@ console.log("=== 秘密の花園：コストで疲労させる「楽族」を選
     assert(rested(give), "選んだほうが疲労する")
     assert(!rested(keep), "選ばなかったほうは疲労しない")
     assert(
-        s.turnConstraints.some((c) => c.type === "noLifeDamageByCostForPid"),
+        playerHas(s, "p1", "noLifeDamageByCostForPid"),
         "コストを払ったので効果（ライフ保護）が付く",
     )
 }

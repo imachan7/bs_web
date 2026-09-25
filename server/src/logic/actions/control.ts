@@ -8,7 +8,7 @@ import { burstConditionMet } from "../triggers"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { effectiveBp, iceWallColorsOf, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
@@ -132,7 +132,7 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     }
     // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
     // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
-    if (card.type === "spirit" && state.turnConstraints.some((c) => c.type === "noBurstSpiritSummonThisTurn")) {
+    if (card.type === "spirit" && timedPlayerRules(state, owner).some((c) => c.type === "noBurstSpiritSummonForPid")) {
         player.burst = null
         player.burstSet = false
         player.trashCards.push(cardId)

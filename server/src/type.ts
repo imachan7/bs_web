@@ -475,7 +475,7 @@ export type GlobalConstraintDef =
     | { type: "braveBpBonusZero" } // 両陣営の合体スピリットすべての「合体時BP+」（braveBpBonus。合体しているブレイヴのbraveLevels.bpの合計）を0にする。コア数によるブレイヴ自体のLv判定は変えない＝加算値だけ無視する（BS14-090勇壮なる船上都市：「合体スピリットすべての『合体時BP+』を0として扱う」。主語が無いので両陣営が対象）
     | { type: "lifeDamagePerSpiritPerTurn"; max: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計はmaxまで（アタック・そのスピリットの効果のどちらも合算。CardInstance.lifeDealtThisTurnで判定＝ownLifeDamageCapPerSourcePerTurnと同じ記録を使うが、こちらは発生源がどちらの陣営にあっても**お互いに**効く。effect.whileOwnBurstSetで「発生源の持ち主がバーストをセットしている間」に絞れる。shared/rules.lifeDamagePerSpiritRemaining。BS15共通器：神将）
     | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number } // **発生源の持ち主だけ**を守る片側型（ownLifeFloorと同じパターン）。「自分のライフは、ターンごとに相手のスピリット1体からmaxまでしか減らされない」＝**アタッカー個体ごとのターン累計**で判定する（1回のアタックでmax個ずつのcapLifeDamageThisTurnとは別物）。CardInstance.lifeDealtThisTurn（そのアタッカーがこのターンに与えたライフダメージ累計）を見て残り許容量を返す（shared/rules.ownLifeDamageCapRemaining）。ターン終了でリセット（SD06-010海皇龍シーマ・クリークLv1-2-3：max:1）
-    | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // **発生源の持ち主だけ**のライフはfloorを下回らない（globalConstraintの他の型と違い片側のみ。既存turnConstraints.lifeFloorForPidの「このターンの間」版に対する常在・条件式版。condition:{ownFamilyCountAtLeast}と組み合わせて使う。BS12-070天の階Lv2＝「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、自分のライフは0にならない」floor:1）。
+    | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // **発生源の持ち主だけ**のライフはfloorを下回らない（globalConstraintの他の型と違い片側のみ。既存playerRule "lifeFloorForPid"（このターンの間）に対する常在・条件式版。condition:{ownFamilyCountAtLeast}と組み合わせて使う。BS12-070天の階Lv2＝「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、自分のライフは0にならない」floor:1）。
     // costSelfToTrash指定時：ライフが実際に0になる瞬間だけ発揮する任意コスト版（tryOwnLifeFloorByCostが life<=0 判定の直後で処理する）。
     // 発生源自身（このネクサス）を持ち主のトラッシュへ置くことでfloorを適用する。全プレイヤーが払わない理由が無い（払わなければ即敗北）ため、
     // 対話確認を省いて自動で支払う簡略化（COST_MODEL.md）。then指定時は支払い成立後にそのアクションを1回発揮する（BS14-084永久凍土の王都：ボイドからコア1個をリザーブへ）
@@ -1248,13 +1248,11 @@ export interface GameState {
     // ターンプレイヤーを交代せずアタックステップへ戻す。**一度使ったら消す**（同じターンに何度も戻らないため）。
     // ⚠️ この位置より後ろでリセットするとターン終了時の一時状態（tempBpBuff 等）が消えてしまうので、
     // 分岐はリセット群より前でなければならない
-    turnConstraints: TurnConstraintDef[] // このターンの間だけ有効な全体制約（ターン終了でリセット。ヘビィゲート）
     timedEffects: TimedRecord[] // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。ターン終了・バトル終了で until に応じて消える
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。**ターン終了でリセットしない**
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
     lastAttackerCombinedPid?: PlayerId // 直前のアタック宣言が合体スピリットによるものだったとき、そのアタッカーの持ち主（doAttackが宣言のたびに更新。それ以外はundefined）
     prevAttackerCombinedPid?: PlayerId // 「1つ前」の lastAttackerCombinedPid（doAttackが次の宣言の直前にスライドさせる）。ターン開始でどちらもリセット（「次にアタックした」はターンをまたがない。BS10-047赤ずきん妖精ルージュLv3）
-    ignoreUnblockableThisTurn: PlayerId[] // このターンの間、ここに含まれるプレイヤーのスピリットは「ブロックされない」効果を無視してブロックできる（ターン終了でリセット。BS04レッドウォール）
     lastDestroyedNexus: { pid: PlayerId; cardId: string } | null // 直近に破壊されたネクサス（destroyNexusが誘発の直前に記録）。reviveLastDestroyedNexus が参照する（BS04戦闘獣ジャッカー）
     lastBattleDestroyedCores: number // 直前のバトル解決でBP比較により破壊されたブロッカーが持っていたコア数（次のバトル解決の冒頭でリセット。魔界七将デストロード）
     lastBattleDestroyedLevel: number // 直前のバトル解決でBP比較により破壊されたブロッカーのcurrentLevel（次のバトル解決の冒頭でリセット。0=まだ発生していない。魔界伯爵ヴィール）
@@ -1444,19 +1442,13 @@ export type PlayerRuleDef =
     | { type: "lifeImmuneForPid" } // ライフはあらゆる原因（アタック・効果）で減らない
     | { type: "bounceToDeckTopForPid" } // このプレイヤーの効果で手札に戻すスピリットは、手札の代わりにデッキの上へ
     | { type: "nexusEffectsDisabledForPid" } // ネクサスすべての効果が発揮されない
+    | { type: "noLifeDamageByCostForPid"; maxCost?: number; symbolCount?: number; combinedOnly?: true } // maxCost 以下のスピリット（symbolCount 指定時はシンボル数ちょうど、combinedOnly なら合体スピリット）のアタックではライフが減らない
+    | { type: "handReductionColorAsForPid"; color: Color; cardType: CardType } // 手札にある cardType のカードすべての軽減シンボルを color 一色として扱う（件数は変えない）
+    | { type: "noDeckMillByOpponentForPid" } // デッキは相手の効果では破棄されない
+    | { type: "noDeckMillForPid" } // デッキは自分の効果も含めて破棄されない
+    | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
+    | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
 
-// このターンの間だけ有効な全体制約の定義（GameState.turnConstraints が参照する宣言的ルール）
-export type TurnConstraintDef =
-    | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
-    // （すでに持っている分も、このターンに新たに付与された分も。**判定の入口で一括して落とす**
-    //  ＝「【装甲】をないものとして扱い、新たに得ることもない」。2026-08-16 ユーザー判断。SD01-040 アーマーパージ）
-    // **「減るか／減らないか」ではなく上限を値で持つ**のが要点（2026-08-16 ユーザー提案）。
-    // ライフダメージはブロックされなかったアタックでのみ発生するので、
-    // 効果文の「ブロックされなかった相手のスピリットのアタックでは」は自動的に満たされる（SD01-039 ブリザードウォール）
-    | { type: "handReductionColorAsForPid"; pid: PlayerId; color: Color; cardType: CardType } // このターンの間、この pid の**手札**にある cardType のカードすべての軽減シンボル（printed reduction）を color 一色として扱う（effectiveCostがcardData.reductionの代わりに読む。手札のカードなので判定時に都度算出＝書き込まない。action:"handReductionColorAsThisTurn"が積む。BS12-042ヒノキ・ゴレムLv1「自分の手札にあるネクサスカードすべての軽減シンボルすべてを[青]として扱う」）
-    | { type: "noDeckMillForPidThisTurn"; pid: PlayerId } // 器AR：このターンの間、この pid のデッキは**相手の効果では**破棄されない（globalConstraint "noDeckMillByOpponent" のターン限定版。isDeckMillBlockedが読む。BS13-034ミノガメン：デッキ破棄効果で破棄され無償召喚したときだけ付く）
-    | { type: "noDeckMillAtAllForPidThisTurn"; pid: PlayerId } // 器BS16：このターンの間、この pid のデッキは**自分の効果も含め**一切破棄されない（noDeckMillForPidThisTurnの相手限定を外した全面版。millDeckの冒頭でbyOpponentを問わず判定する。BS16-002パイルドラコ：「このターンの間、自分のデッキは破棄されない」）
-    | { type: "noBurstSpiritSummonThisTurn" } // このターンの間、お互い、バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴのバースト召喚は対象外。summonBurstCardFreeHandlerが判定。BS16-058サテライド・バード）
 
 // ---- クライアントへ送る公開ビュー（相手の手札・デッキ内容は隠す） ----
 
@@ -1499,12 +1491,10 @@ export interface GameView {
     log: string[]
     winner: PlayerId | null
     you: PlayerId
-    turnConstraints: TurnConstraintDef[]
     timedEffects: TimedRecord[] // 公開情報
     extraMainStep?: true // BS15-X04 Lv2 の追加メインステップ中（「アタックステップへ」ボタンを出さない）
     endStepLocks: EndStepLock[] // 公開情報。両者に配信する（画面にカウンターとして出す）
     magicUsedThisTurn: Record<PlayerId, number> // このターンの各プレイヤーのマジック使用回数（隠匿情報なし。クライアントのmagicRestriction判定に必要＝作戦参謀フォクシン）
-    ignoreUnblockableThisTurn: PlayerId[] // このターン「ブロックされない」効果を無視できるプレイヤー（隠匿情報なし。クライアントのブロック可否表示に必要＝レッドウォール）
     pendingChoice: PendingChoice | null // 相手視点では candidates を空配列・prompt をマスクして配信（viewFor）
     events: GameEvent[] // クライアント演出用の一時イベント列（隠匿情報なし。viewForがそのまま渡す）
     revealedCards?: { pid: PlayerId; cardIds: string[] } // 公開ゾーン（オープンされたカードは両者に見えるためマスクしない）

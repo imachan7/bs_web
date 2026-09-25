@@ -2472,7 +2472,7 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
     return false
 }
 
-// 片側限定のライフ保護（TurnConstraintDef "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
+// 片側限定のライフ保護（playerRule "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
 // このターンの間、コストがmaxCost以下のスピリットのアタックでは defenderPid のライフだけが減らされない。
 // noLifeDamageByCost（両陣営）と違い、守られるのは積んだ側だけ
 // このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
@@ -2652,8 +2652,8 @@ export function lifeProtectedByCostThisTurn(
     defenderPid: PlayerId,
     attacker: CardInstance,
 ): boolean {
-    return board.turnConstraints.some((c) => {
-        if (c.type !== "noLifeDamageByCostForPid" || c.pid !== defenderPid) return false
+    return timedPlayerRules(board, defenderPid).some((c) => {
+        if (c.type !== "noLifeDamageByCostForPid") return false
         // symbolCount+combinedOnly（BS12-043大地の狩人コンドラッドLv1）：maxCostの代わりに
         // 「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックだけを保護する
         if (c.symbolCount !== undefined) {

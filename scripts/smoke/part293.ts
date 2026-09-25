@@ -17,6 +17,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    playerHas,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/removal"
@@ -255,9 +256,8 @@ console.log("=== BE/colorAs: 042ヒノキ・ゴレム（手札ネクサスの軽
     const s = game("be-reduction")
     const nexusCardId = "BS12-071" // 青ネクサス（読み替え後もeffectiveCostが計算できることを確認する）
     s.players.p1.hand = [nexusCardId]
-    resolveAction(s, "p1", null, { type: "handReductionColorAsThisTurn", color: "blue", cardType: "nexus" })
-    const constraint = s.turnConstraints.find((c) => c.type === "handReductionColorAsForPid")
-    assert(constraint !== undefined, "手札の軽減シンボルを読み替えるturnConstraintsが積まれる")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "handReductionColorAsForPid", color: "blue", cardType: "nexus" } }], duration: "turn", side: "own" })
+    assert(playerHas(s, "p1", "handReductionColorAsForPid"), "手札の軽減シンボルを読み替える制約が自分に掛かる")
     const cardData = getCard(nexusCardId)
     const cost = effectiveCost(s, "p1", cardData)
     assert(cost <= cardData.cost, "軽減シンボルの読み替え後もeffectiveCostが計算できる（クラッシュしない）")

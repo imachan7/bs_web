@@ -149,7 +149,7 @@ console.log("=== 9. BP を条件にしたBP変更は循環するので発揮し�
 {
     const s = board()
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", all: true, side: "own", filter: { maxBp: 5000 } })
-    assert(s.turnConstraints.length === 0 && s.log.at(-1)?.includes("未対応") === true, "ルールを置かずに未対応と記録する")
+    assert(s.timedEffects.length === 0 && s.log.at(-1)?.includes("未対応") === true, "ルールを置かずに未対応と記録する")
 }
 
 console.log("=== 10. 古代闘技場：発揮する時点でだけ止める（発揮し終わった BP+ は止めない。2026-09-24 ユーザー確認） ===")
@@ -166,7 +166,7 @@ console.log("=== 10. 古代闘技場：発揮する時点でだけ止める（�
     s.turnPlayer = "p2"
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, buff)
-    assert(effectiveBp(s, "p1", own) === before && s.turnConstraints.length === 0, "相手に古代闘技場があれば発揮されない")
+    assert(effectiveBp(s, "p1", own) === before && s.timedEffects.length === 0, "相手に古代闘技場があれば発揮されない")
 
     const t = board()
     const mine = t.players.p1.field.spirits[0]!

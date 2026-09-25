@@ -6236,7 +6236,17 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "ignoreUnblockableThisTurn"
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "ignoreUnblockableForPid"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
     }
    }
   ]

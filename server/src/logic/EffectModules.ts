@@ -32,6 +32,7 @@ import type {
     TargetFilter,
     TimedRecord,
     TriggerEvent,
+    PlayerRuleDef,
 } from "../type"
 import { COLOR_LABELS } from "../../../data/constants"
 import {
@@ -1034,6 +1035,11 @@ function applyTimedCopies(state: GameState): void {
             else inst.tempBpBuff += c.amount
         }
     }
+}
+
+// pid にこのターンの間の制約を掛ける（効果の中の「さらに、このターンの間〜」から書く）
+export function recordPlayerRule(state: GameState, pid: PlayerId, rule: PlayerRuleDef): void {
+    recordTimed(state, { content: [{ type: "playerRule", rule }], target: { kind: "player", pid }, until: "turn", ownerPid: pid })
 }
 
 // 1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側

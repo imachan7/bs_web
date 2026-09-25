@@ -334,7 +334,7 @@ export function endTurn(state: GameState): void {
 
     // 「アタックステップとエンドステップを順番にもう1回ずつ行う」（BS10-008 火星神龍アレス・ドラグーン）。
     // ⚠️ **この位置でなければならない**：エンドステップの誘発を解決した直後で、
-    // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances・turnConstraints 等）より**前**。
+    // かつ下の一時状態のリセット群（tempBpBuff・turnVirtualInstances 等）より**前**。
     // 後ろに置くと、追加のアタックステップに入る前にこのターンの継続効果が消えてしまう。
     // ターンプレイヤーは交代せず、アタックステップへ戻して return する
     if (state.extraAttackStepPending === true) {
@@ -421,7 +421,6 @@ export function endTurn(state: GameState): void {
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット
     state.endAttackStepAfterBattle = false
     // このターン限りの全体制約（ヘビィゲート）もリセット
-    state.turnConstraints = []
     // バトル限定の記録も、バトルが成立しないまま終わる経路のためにここで消す
     state.timedEffects = []
     refreshLevelAsOverrides(state)
@@ -434,7 +433,6 @@ export function endTurn(state: GameState): void {
     delete state.lastAttackerCombinedPid
     delete state.prevAttackerCombinedPid
     // このターンの「ブロックされない」無視（レッドウォール）もリセット
-    state.ignoreUnblockableThisTurn = []
     // このターンの「ブロック時→アタック時」移し替え（アタックシフト）もリセット
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }

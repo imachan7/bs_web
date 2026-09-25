@@ -85,14 +85,6 @@ const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (
     log(state, `${sourceName}：破壊されたスピリット上のコア${cores}個はリザーブへ戻らずボイドに置かれた。`)
 }
 
-// BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない
-// （バーストの発動自体は止めない＝summonBurstCardFreeHandlerが召喚だけ止める）
-const blockBurstSpiritSummonThisTurnHandler: ActionHandler<"blockBurstSpiritSummonThisTurn"> = (ctx) => {
-    const { state, sourceName } = ctx
-    if (state.turnConstraints.some((c) => c.type === "noBurstSpiritSummonThisTurn")) return
-    state.turnConstraints.push({ type: "noBurstSpiritSummonThisTurn" })
-    log(state, `${sourceName}：このターンの間、お互い、バースト効果でスピリットを召喚できない。`)
-}
 
 // BS10-108 ルナティックシール：発揮した側のエンドステップを turns 回数えるまで、両陣営に制限をかける。
 // カードは「ボイドからコア3個をデッキの横に置き、『自分のエンドステップ』に1個ずつボイドに置く」と書くが、
@@ -2173,7 +2165,6 @@ const handlers = {
     endBattle: endBattleHandler,
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
-    blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,

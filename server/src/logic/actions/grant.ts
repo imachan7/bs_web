@@ -18,6 +18,7 @@ import {
     returnSpiritToHand,
     tryInteractiveTargetChoice,
     recordTimed,
+    recordPlayerRule,
 } from "../EffectModules"
 import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -247,19 +248,8 @@ const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn
             )
             exhaustSpirit(state, owner, chosen)
         }
-        state.turnConstraints.push({
-            type: "noLifeDamageByCostForPid",
-            pid: owner,
-            ...(action.symbolCount !== undefined
-                ? { symbolCount: action.symbolCount, ...(action.combinedOnly ? { combinedOnly: true as const } : {}) }
-                : { maxCost: action.maxCost! }),
-        })
-        log(
-            state,
-            action.symbolCount !== undefined
-                ? `${sourceName}：このターンの間、シンボル${action.symbolCount}つを持つ${action.combinedOnly ? "合体" : ""}スピリットのアタックでは${state.players[owner].name}のライフは減らされない。`
-                : `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`,
-        )
+        recordPlayerRule(state, owner, { type: "noLifeDamageByCostForPid", maxCost: action.maxCost })
+        log(state, `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`)
         return
 }
 
@@ -335,20 +325,6 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
     log(state, `${sourceName}：${state.players[opp].name}のスピリットすべては、このターンの間可能ならば必ずアタックする。`)
 }
 
-const handReductionColorAsThisTurnHandler: ActionHandler<"handReductionColorAsThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-        state.turnConstraints.push({
-            type: "handReductionColorAsForPid",
-            pid: owner,
-            color: action.color,
-            cardType: action.cardType,
-        })
-        log(
-            state,
-            `${sourceName}：このターンの間、${state.players[owner].name}の手札にある${action.cardType === "nexus" ? "ネクサス" : action.cardType}カードすべての軽減シンボルは${COLOR_LABELS[action.color]}として扱う。`,
-        )
-        return
-}
 
 const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -418,15 +394,6 @@ const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint">
         return
 }
 
-const ignoreUnblockableThisTurnHandler: ActionHandler<"ignoreUnblockableThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // レッドウォール：このターンの間、自分のスピリットは「ブロックされない」効果を無視してブロックできる
-        if (!state.ignoreUnblockableThisTurn.includes(owner)) {
-            state.ignoreUnblockableThisTurn.push(owner)
-        }
-        log(state, `${sourceName}：このターンの間、${state.players[owner].name}のスピリットは「ブロックされない」効果を無視してブロックできる。`)
-        return
-}
 
 const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
@@ -756,7 +723,6 @@ const handlers = {
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
-    ignoreUnblockableThisTurn: ignoreUnblockableThisTurnHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
     targetChoiceLendThisTurn: targetChoiceLendThisTurnHandler,
@@ -764,7 +730,6 @@ const handlers = {
     exhaustSelfThenLendThisTurn: exhaustSelfThenLendThisTurnHandler,
     forceAttackThisTurn: forceAttackThisTurnHandler,
     grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
-    handReductionColorAsThisTurn: handReductionColorAsThisTurnHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

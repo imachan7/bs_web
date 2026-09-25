@@ -5,7 +5,7 @@
 import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { canDiscardHand, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
+import { canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -510,8 +510,8 @@ export function effectiveCost(
     {
         // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の
         // 軽減シンボルすべてを指定色1色として扱う（printed reduction の色を置き換え。件数は変えない）
-        const handColorOverride = board.turnConstraints.find(
-            (c) => c.type === "handReductionColorAsForPid" && c.pid === pid && c.cardType === cardData.type,
+        const handColorOverride = timedPlayerRules(board, pid).find(
+            (c) => c.type === "handReductionColorAsForPid" && c.cardType === cardData.type,
         )
         const baseReduction =
             handColorOverride && "color" in handColorOverride
