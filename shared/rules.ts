@@ -750,7 +750,7 @@ export function spiritHasKeyword(
     ) {
         return true
     }
-    if (inst.tempKeywords.some((k) => keywordMatches(k.keyword, keyword))) return true
+    if (timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
 }
 
@@ -887,9 +887,9 @@ export function continuousKeywordGrantCount(
     return 0
 }
 
-// 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・一時付与tempKeywords・継続付与armorColorsGrantedを
+// 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・期間つきの付与・継続付与armorColorsGrantedを
 // 合算、重複除く）。AuraCounter "targetArmorColors"（アイシクルアサルト）専用。発生源ではなく**対象**基準の点に注意
-export function targetArmorColorCount(inst: CardInstance): number {
+export function targetArmorColorCount(board: Board, inst: CardInstance): number {
     const level = currentLevel(inst).level
     const colors = new Set<Color>()
     for (const e of card(inst.cardId).effects) {
@@ -897,7 +897,7 @@ export function targetArmorColorCount(inst: CardInstance): number {
             for (const c of e.colors ?? []) colors.add(c)
         }
     }
-    for (const k of inst.tempKeywords) {
+    for (const k of timedKeywords(board, inst)) {
         if (k.keyword === "armor") {
             for (const c of k.colors ?? []) colors.add(c)
         }
@@ -1165,7 +1165,7 @@ export function boardResistanceAgainst(
     if (hasHeavyArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.heavyArmor.label}】` }
     }
-    if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
+    if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(board, target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
     if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType)) {
@@ -1338,7 +1338,7 @@ export function countAuraCounter(
         return board.players[sourcePid].field.spirits.filter((s) => families.some((f) => spiritHasFamily(board, sourcePid, s, f))).length
     }
     if (counter === "targetArmorColors") {
-        return targetInst ? targetArmorColorCount(targetInst) : 0
+        return targetInst ? targetArmorColorCount(board, targetInst) : 0
     }
     if (counter === "readyEnemies") {
         const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
@@ -2089,7 +2089,7 @@ export function hasFullEffectImmunity(
 // ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
 // （【呪撃】を装甲で防ぐ判定と、reviveOnDestroy の byBattleVsArmorColor＝「装甲の色の相手に
 // バトルで破壊されたとき」。どちらも『効果が届くか』ではなく装甲の色そのものを問う判定）
-export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
+export function hasArmorAgainst(board: Board, inst: CardInstance, sourceColors: Color[] | undefined): boolean {
     if (sourceColors === undefined || sourceColors.length === 0) return false
     const level = currentLevel(inst).level
     const staticArmor = card(inst.cardId).effects.some(
@@ -2102,7 +2102,7 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
     if (staticArmor) return true
     // 一時付与の装甲（インビンシブルシールド）
     if (
-        inst.tempKeywords.some(
+        timedKeywords(board, inst).some(
             (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
         )
     ) {
@@ -2941,6 +2941,11 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
     })
 }
 
+// この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
+export function timedKeywords(board: Board, inst: CardInstance): { keyword: Keyword; colors?: Color[] }[] {
+    return timedContentsOn(board, inst).flatMap((c) => (c.type === "keyword" ? [c] : []))
+}
+
 // このプレイヤーに掛かっている期間つき効果の内容
 export function timedContentsFor(board: Board, pid: PlayerId): TimedContent[] {
     return board.timedEffects.flatMap((r) => (r.target.kind === "player" && r.target.pid === pid ? r.content : []))
@@ -3177,7 +3182,7 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
-    return inst.tempKeywords.some((k) => keywordMatches(k.keyword, "awaken"))
+    return timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
 

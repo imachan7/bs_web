@@ -54,8 +54,8 @@ console.log("=== BS09-030 白銀の守護者リン Lv2：「氷姫」に【装�
     const plain = put(s, "p1", "BS09-031", 1) // 守護巨獣ガラパーゾ＝「巨獣」
     refreshLevelAsOverrides(s)
     assert(spiritHasKeyword(s, "p1", guna, "armor"), "「氷姫」は【装甲】を得る")
-    assert(hasArmorAgainst(guna, ["purple"]), "紫の効果を受けない")
-    assert(!hasArmorAgainst(plain, ["purple"]), "「氷姫」でないスピリットは得ない")
+    assert(hasArmorAgainst(s, guna, ["purple"]), "紫の効果を受けない")
+    assert(!hasArmorAgainst(s, plain, ["purple"]), "「氷姫」でないスピリットは得ない")
 }
 
 console.log("=== BS09-064 天駆ける方舟 Lv2：自分のマジックに軽減シンボル[黄]を与える ===")

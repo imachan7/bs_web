@@ -193,7 +193,7 @@ console.log("=== BS02-060 道化師クラン e1：黄3つ以上で自分のス�
         "実コスト0のピヨンもクランでコスト2として扱われている間は装甲を得る",
     )
     assert(
-        hasArmorAgainst(piyon, ["red"]),
+        hasArmorAgainst(s, piyon, ["red"]),
         "装甲の実効判定（armorColorsGranted経由）でもクランのコスト2扱いが効く",
     )
     assert(getCard(piyon.cardId).cost === 0, "ピヨンの実コストは変わらない")

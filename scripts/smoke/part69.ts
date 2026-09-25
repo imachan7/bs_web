@@ -246,15 +246,15 @@ console.log("=== BS04-082-e1 侵されざる聖域（コスト8以上へ継続�
     const smallCost = put(s, "p1", "BS01-001", 1) // コスト1
     refreshLevelAsOverrides(s)
     assert(
-        hasArmorAgainst(spiritOf(s, "p1", bigCost)!, ["purple"]) === true,
+        hasArmorAgainst(s, spiritOf(s, "p1", bigCost)!, ["purple"]) === true,
         "コスト8以上のスピリットは付与された装甲色（紫）を防ぐ",
     )
     assert(
-        hasArmorAgainst(spiritOf(s, "p1", bigCost)!, ["red"]) === false,
+        hasArmorAgainst(s, spiritOf(s, "p1", bigCost)!, ["red"]) === false,
         "付与色に含まれない色（赤）は防がない",
     )
     assert(
-        hasArmorAgainst(spiritOf(s, "p1", smallCost)!, ["purple"]) === false,
+        hasArmorAgainst(s, spiritOf(s, "p1", smallCost)!, ["purple"]) === false,
         "コスト8未満のスピリットには付与されない",
     )
 }

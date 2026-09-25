@@ -317,7 +317,7 @@ console.log("=== BS06-X24 鎧神機ヴァルハランス：装甲：∞ ===")
     runTurnStart(s)
     const self = put(s, "p1", "BS06-X24", 1) // Lv1
     refreshLevelAsOverrides(s)
-    assert(!hasArmorAgainst(self, ["red"]), "相手の場が空なら装甲は成立しない")
+    assert(!hasArmorAgainst(s, self, ["red"]), "相手の場が空なら装甲は成立しない")
 }
 {
     const s = createGame("t128-valhallance-red", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
@@ -325,8 +325,8 @@ console.log("=== BS06-X24 鎧神機ヴァルハランス：装甲：∞ ===")
     const self = put(s, "p1", "BS06-X24", 1) // Lv1
     put(s, "p2", "BS06-001", 1) // 相手の場にシンボル：赤
     refreshLevelAsOverrides(s)
-    assert(hasArmorAgainst(self, ["red"]), "相手のフィールドのシンボル色（赤）への効果を受けない")
-    assert(!hasArmorAgainst(self, ["blue"]), "相手のフィールドにないシンボル色（青）は防げない")
+    assert(hasArmorAgainst(s, self, ["red"]), "相手のフィールドのシンボル色（赤）への効果を受けない")
+    assert(!hasArmorAgainst(s, self, ["blue"]), "相手のフィールドにないシンボル色（青）は防げない")
 }
 
 console.log("=== BS06-X24 Lv3：BP4000以下の相手のスピリットすべてを手札に戻す ===")

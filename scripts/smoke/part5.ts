@@ -17,6 +17,7 @@
 //   - BS02-067 天使バーチュ：手札の黄スピリットのコストが下がる
 //   - BS02-107 タイムリープ：メインで召喚時効果持ちスピリットのonSummonを再発揮
 //   - BS02-102 ホワイトポーション：フラッシュで自分のスピリット1体を回復
+import { timedKeywords } from "../../shared/rules"
 import {
     createGame,
     createInstance,
@@ -619,7 +620,7 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
         "フラッシュでスピリットリンクを使用",
     )
     assert(
-        attacker.tempKeywords.some((k) => k.keyword === "awaken"),
+        timedKeywords(s, attacker).some((k) => k.keyword === "awaken"),
         "対象に覚醒が一時付与される",
     )
     act(s, "p2", { type: "pass" }) // 使用で優先権がp2へ移る → p2パスでp1へ戻る
@@ -639,7 +640,7 @@ console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura 
     act(s, "p1", { type: "pass" }) // フラッシュ終了
     takeLifeAndResolve(s, "p2")
     act(s, "p1", { type: "endTurn" })
-    assert(attacker.tempKeywords.length === 0, "endTurnでtempKeywordsが空になる")
+    assert(timedKeywords(s, attacker).length === 0, "endTurnで期間つきのキーワードが消える")
 
     console.log("--- インビンシブルシールド：付与された装甲が赤の効果を防ぐ ---")
     const s2 = createGame(

@@ -398,7 +398,6 @@ export function endTurn(state: GameState): void {
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
             delete inst.lifeDamageNegatedFor
-            inst.tempKeywords = []
             inst.tempAlsoCosts = []
             delete inst.tempCostDelta
             delete inst.refreshOnBlockedByColorThisTurn

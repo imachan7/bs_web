@@ -271,9 +271,9 @@ console.log("=== BS04-082 侵されざる聖域：Lv1-2でコスト8以上の自
     refreshLevelAsOverrides(s)
     const bigInst = s.players.p1.field.spirits.find((x) => x.instanceId === big)!
     const smallInst = s.players.p1.field.spirits.find((x) => x.instanceId === small)!
-    assert(hasArmorAgainst(bigInst, ["purple"]) === true, "コスト8以上は装甲：紫を受ける")
-    assert(hasArmorAgainst(bigInst, ["red"]) === false, "指定色以外(赤)には装甲が効かない")
-    assert(hasArmorAgainst(smallInst, ["purple"]) === false, "コスト7は対象外（costFilterの境界確認）")
+    assert(hasArmorAgainst(s, bigInst, ["purple"]) === true, "コスト8以上は装甲：紫を受ける")
+    assert(hasArmorAgainst(s, bigInst, ["red"]) === false, "指定色以外(赤)には装甲が効かない")
+    assert(hasArmorAgainst(s, smallInst, ["purple"]) === false, "コスト7は対象外（costFilterの境界確認）")
 }
 
 console.log("=== BS04-082 侵されざる聖域Lv2：自分のデッキは相手の効果でターンに5枚までしか破棄されない（累計） ===")

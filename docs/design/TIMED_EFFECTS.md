@@ -66,7 +66,8 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | 内容 | 消えた置き場 |
 | :-- | :-- |
 | `cantAttack`・`cantBlock`（#127） | 個体の印3つ・`timedRule` |
-| `mustAttack`・`canBlockWhileRested`・`suppressTrigger`・`grantTrigger` | 個体の印4つ・`triggerSuppressionThisTurn`・`timedRule`。「すべての誘発を止める」は `target.kind:"player"` |
+| `mustAttack`・`canBlockWhileRested`・`suppressTrigger`・`grantTrigger`（#129） | 個体の印4つ・`triggerSuppressionThisTurn`・`timedRule`。「すべての誘発を止める」は `target.kind:"player"` |
+| `keyword` | 個体の `tempKeywords`。読む側は `timedKeywords(board, inst)`。【装甲】の判定（`hasArmorAgainst`・`targetArmorColorCount`）は盤面を受け取る形にした。`all:true` が1体向けに化けていた振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。
 
@@ -74,4 +75,5 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 
 - **全内容を一覧へ移す**（2026-09-25 ユーザー決定。試作の結果を見て）。`timedEffect` の内容すべてと、旧 type が書いている同じ意味の印（BP・Lv など）も一覧に書く。プレイヤー・バトルに掛かるものは `target` の種類を足して同じ一覧に入れる。場の発生源から出る継続効果（オーラ・`effectGrant`）は入れない
 - **自動選択の規則はそろえない**（2026-09-25 ユーザー決定）。内容ごとの今の規則（相手＝実効BP最大、自分の BP・キーワード＝バトル中優先→先頭、など）を移行後も残す。実対戦では選択画面が出るか候補が1体なので、変わるのは AI とテストだけ
+- （未決）**色（`color`）の読み方**：色の判定 `instHasColor(inst, color)`／`instColors(inst)` は盤面を受け取らず、102か所から呼ばれている。一覧から読むには (a) 102か所すべてに盤面を渡す、(b) 一覧から個体の `tempColors` を毎回作り直す（継続効果の `colorsAsContinuous` と同じ作り）、のどちらか。ユーザーと相談して決める
 - （未決）**場を離れる直前の状態**（破壊後に誘発する効果が、破壊直前に掛かっていた記録を見る）はこの設計だけでは解けない。`instance` の記録は残るので読めるが、`effectGrant` のような場の発生源からの継続効果は別の話

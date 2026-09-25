@@ -4,7 +4,7 @@ import { isTriggerSuppressed } from "../../server/src/logic/triggers"
 import type { GameState } from "./helpers"
 import { clearBattle } from "../../server/src/logic/GameState"
 import { canBlock } from "../../shared/block"
-import { cantActByTimed } from "../../shared/rules"
+import { cantActByTimed, spiritHasKeyword } from "../../shared/rules"
 
 const VANILLA = "BS01-002" // ロクケラトプス（コスト1）
 
@@ -82,6 +82,21 @@ console.log("=== 5. 1体に与えた誘発効果は、場を離れた後に誘�
     const before = s.players.p1.reserve
     fireTrigger(s, "p1", a, "onDestroy")
     assert(s.players.p1.reserve === before + 1, "場を離れた個体でも付与した効果が発火する")
+}
+
+console.log("=== 6. すべてにキーワード：1体向けに化けず、後から出た自分のスピリットにも効く ===")
+{
+    const s = game()
+    const first = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits = [first]
+    refreshLevelAsOverrides(s)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "keyword", keyword: "jugeki" }], duration: "turn", all: true, side: "own" })
+    const later = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits.push(later)
+    const opp = createInstance(VANILLA, 1, 1)
+    s.players.p2.field.spirits.push(opp)
+    assert(spiritHasKeyword(s, "p1", first, "jugeki") && spiritHasKeyword(s, "p1", later, "jugeki"), "既にいた1体も後から出た1体も【呪撃】を持つ")
+    assert(!spiritHasKeyword(s, "p2", opp, "jugeki"), "相手のスピリットは持たない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part381）")

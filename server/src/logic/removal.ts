@@ -1710,7 +1710,7 @@ function tryReviveOnDestroy(
         }
         if (when.byBattleVsArmorColor) {
             const attackerColors = context?.battle?.attackerColors
-            if (attackerColors === undefined || !hasArmorAgainst(inst, attackerColors)) return false
+            if (attackerColors === undefined || !hasArmorAgainst(state, inst, attackerColors)) return false
         }
         // 器AI：byBattleVsArmorColorの【重装甲】版（BS13-067光導く巨塔）
         if (when.byBattleVsHeavyArmorColor) {

@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -45,7 +45,8 @@ function contentLabel(action: TimedEffect): string {
     const suppress = action.content.some((c) => c.type === "suppressTrigger") ? ["効果が発揮されない"] : []
     const rested = action.content.some((c) => c.type === "canBlockWhileRested") ? ["疲労状態でもブロックできる"] : []
     const granted = action.content.some((c) => c.type === "grantTrigger") ? ["効果を持つ"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted].join("、")
+    const keywords = action.content.flatMap((c) => (c.type === "keyword" ? [`【${KEYWORDS[c.keyword].label}】を持つ`] : []))
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -287,7 +288,7 @@ function placeKeyword(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: 
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
     }
-    target.tempKeywords.push({ keyword: content.keyword, ...(content.colors ? { colors: content.colors } : {}) })
+    pushInstanceRecord(state, owner, target, [content], "turn")
     log(state, `${getCard(target.cardId).name}に【${KEYWORDS[content.keyword].label}】を付与した。`)
 }
 
@@ -737,7 +738,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeLevel(ctx, action, filter)
         return
     }
-    if (action.content.some((c) => c.type === "keyword")) {
+    if (!action.all && action.content.some((c) => c.type === "keyword")) {
         placeKeyword(ctx, action)
         return
     }

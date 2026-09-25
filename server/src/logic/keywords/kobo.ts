@@ -1,7 +1,7 @@
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { notifyHandGained } from "../triggers"
-import { effectActiveAtLevel, effectSources, hasContinuousKeywordGrant } from "../../../../shared/rules"
+import { effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, timedKeywords } from "../../../../shared/rules"
 
 // 士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を
 // 『このスピリットのブロック時』にも発揮させる発生源が、持ち主のフィールドにあるか。
@@ -31,14 +31,14 @@ export function resolveKoboOnBattleEnd(
     if (!usedMagicCardIds || usedMagicCardIds.length === 0) return
     const attackerLevel = currentLevel(attacker).level
     // 静的キーワードはレベル判定つきで判定する（spiritHasKeywordの静的分岐＝hasKeywordはレベルを見ないため、
-    // ここだけは従来通り自前でレベルを確認する）。一時付与（tempKeywords。グリームホープ）・
+    // ここだけは従来通り自前でレベルを確認する）。期間つきの付与（グリームホープ）・
     // 継続付与（keywordGrant）はspiritHasKeywordの非静的判定と同じヘルパーを利用する（BS04エンジン拡張バッチ1）
     const hasStaticKobo = getCard(attacker.cardId).effects.some(
         (e) => e.kind === "keyword" && e.keyword === "kobo" && effectActiveAtLevel(e.levels, attackerLevel),
     )
     const hasKobo =
         hasStaticKobo ||
-        attacker.tempKeywords.some((k) => k.keyword === "kobo") ||
+        timedKeywords(state, attacker).some((k) => k.keyword === "kobo") ||
         hasContinuousKeywordGrant(state, attackerPid, attacker, "kobo")
     if (!hasKobo) return
     const player = state.players[attackerPid]

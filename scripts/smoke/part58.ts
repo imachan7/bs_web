@@ -13,6 +13,9 @@
 import { assert, cardHasColor, createGame, createInstance, getCard, hasKeyword, resolveAction } from "./helpers"
 import { countSymbols, hasArmorAgainst, instanceSymbolCount, instColors, instHasColor } from "../../shared/rules"
 
+// 期間つき効果が何も掛かっていない盤面（装甲の判定に盤面が要る）
+const emptyBoard = createGame("p58-empty", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "white" })
+
 const MULTI_RW = "BS05-X19" // 聖皇ジークフリーデン（赤・白）
 const MULTI_PG = "BS05-X20" // 大甲帝デスタウロス（紫・緑）
 
@@ -38,14 +41,14 @@ console.log("=== §B 装甲は発生源のいずれかの色に一致すれば�
 {
     // ラタトスカ（BS03-037）は【装甲：赤】。赤・白の多色発生源の効果も防がれる
     const armored = createInstance("BS03-037", 1, 1)
-    assert(hasArmorAgainst(armored, ["red"]) === true, "赤の発生源は防ぐ")
-    assert(hasArmorAgainst(armored, ["white"]) === false, "白の発生源は防がない")
+    assert(hasArmorAgainst(emptyBoard, armored, ["red"]) === true, "赤の発生源は防ぐ")
+    assert(hasArmorAgainst(emptyBoard, armored, ["white"]) === false, "白の発生源は防がない")
     assert(
-        hasArmorAgainst(armored, getCard(MULTI_RW).colors) === true,
+        hasArmorAgainst(emptyBoard, armored, getCard(MULTI_RW).colors) === true,
         "赤・白の多色発生源は（赤を含むので）防ぐ",
     )
     assert(
-        hasArmorAgainst(armored, getCard(MULTI_PG).colors) === false,
+        hasArmorAgainst(emptyBoard, armored, getCard(MULTI_PG).colors) === false,
         "紫・緑の多色発生源は防がない",
     )
 
@@ -109,12 +112,12 @@ console.log("=== §F BS05 のキーワード保持カード ===")
 
     // 装甲は色指定つき。多色指定（赤/白）もそのまま持てる
     const yellowArmor = createInstance("BS05-028", 1, 1)
-    assert(hasArmorAgainst(yellowArmor, ["yellow"]) === true, "アーメットクラブは黄の効果を受けない")
-    assert(hasArmorAgainst(yellowArmor, ["red"]) === false, "アーメットクラブは赤の効果は受ける")
+    assert(hasArmorAgainst(emptyBoard, yellowArmor, ["yellow"]) === true, "アーメットクラブは黄の効果を受けない")
+    assert(hasArmorAgainst(emptyBoard, yellowArmor, ["red"]) === false, "アーメットクラブは赤の効果は受ける")
     const rwArmor = createInstance("BS05-032", 1, 1)
-    assert(hasArmorAgainst(rwArmor, ["red"]) === true, "珊瑚蟹シオマネキッドは赤の効果を受けない")
-    assert(hasArmorAgainst(rwArmor, ["white"]) === true, "珊瑚蟹シオマネキッドは白の効果も受けない")
-    assert(hasArmorAgainst(rwArmor, ["green"]) === false, "珊瑚蟹シオマネキッドは緑の効果は受ける")
+    assert(hasArmorAgainst(emptyBoard, rwArmor, ["red"]) === true, "珊瑚蟹シオマネキッドは赤の効果を受けない")
+    assert(hasArmorAgainst(emptyBoard, rwArmor, ["white"]) === true, "珊瑚蟹シオマネキッドは白の効果も受けない")
+    assert(hasArmorAgainst(emptyBoard, rwArmor, ["green"]) === false, "珊瑚蟹シオマネキッドは緑の効果は受ける")
 
     // 参照するだけのカード（【粉砕】を持つ自分のスピリット〜）は保持者ではない
     assert(!hasKeyword("BS05-022", "funsai"), "水馬ケルピーは【粉砕】を参照するだけで保持しない")

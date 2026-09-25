@@ -1,4 +1,5 @@
 // smoke パート367（キーワードを与える：timedEffect の内容 keyword と、見出しの継続効果 keywordGrant。ACTION_VOCABULARY §4）
+import { timedKeywords } from "../../shared/rules"
 import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, spiritHasKeyword } from "./helpers"
 import type { GameState } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
@@ -42,14 +43,14 @@ for (const [id, name, keyword] of GIVERS) {
     s.players.p1.field.spirits = [a, b]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, keywordAction(id), b.instanceId, undefined, "magic")
-    assert(b.tempKeywords.some((k) => k.keyword === keyword) && a.tempKeywords.length === 0, `${name}：指定した1体だけに付く`)
+    assert(timedKeywords(s, b).some((k) => k.keyword === keyword) && timedKeywords(s, a).length === 0, `${name}：指定した1体だけに付く`)
     const t = game()
     const c = createInstance("BS01-001", 1, 1)
     t.players.p1.field.spirits = [c]
     t.players.p2.field.spirits = [createInstance("BS01-001", 1, 1)]
     refreshLevelAsOverrides(t)
     resolveAction(t, "p1", null, keywordAction(id), undefined, undefined, "magic")
-    assert(c.tempKeywords.some((k) => k.keyword === keyword), `${name}：指定が無ければ自分のスピリットに付く`)
+    assert(timedKeywords(t, c).some((k) => k.keyword === keyword), `${name}：指定が無ければ自分のスピリットに付く`)
 }
 {
     const armor = (keywordAction("BS02-100") as { content: { colors?: string[] }[] }).content[0]!.colors

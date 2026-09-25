@@ -3,6 +3,7 @@
 // 拡張2: シンボル数条件（magic condition ownFieldHasMinSymbolSpirit）・
 //        対象フィルタ（bpBuff の minSymbols）— BS04-091 ライトニングバリスタ
 // 拡張3: 光芒（kobo）の一時付与対応（resolveKoboOnBattleEndがtempKeywordsも見るように）— BS04-106 グリームホープ
+import { timedKeywords } from "../../shared/rules"
 import { assert, act, takeLifeAndResolve, createGame, createInstance, currentLevel, effectiveBp, runTurnStart } from "./helpers"
 
 // 2026-07-31: 両カードとも bpBuffAll（tempBpBuff直書き）から lendSelfThisTurn + kind:"aura"
@@ -169,8 +170,8 @@ console.log("=== 拡張3: BS04-106 グリームホープ（メイン：光芒の
         "グリームホープでハンマドレイクに光芒を一時付与",
     )
     assert(
-        attacker.tempKeywords.some((k) => k.keyword === "kobo"),
-        "ハンマドレイクにtempKeywordsとして【光芒】が付与された",
+        timedKeywords(s, attacker).some((k) => k.keyword === "kobo"),
+        "ハンマドレイクに期間つきで【光芒】が付与された",
     )
     s.players.p1.hand[0] = "BS01-123" // リターンドロー（フラッシュ：BP+1000、コスト2）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")

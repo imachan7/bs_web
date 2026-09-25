@@ -74,7 +74,6 @@ export function createInstance(
         tempBpBuff: 0,
         immuneToOpponentThisTurn: false,
         blockConstraintNegatedThisTurn: false,
-        tempKeywords: [],
         tempAlsoCosts: [],
         tempColors: [],
     }
