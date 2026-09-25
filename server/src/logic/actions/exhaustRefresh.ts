@@ -545,7 +545,7 @@ const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
                 (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword)) ||
                 (action.exemptCombined === true && instIsCombined(s))
             if (!exempt) {
-                s.cantAttackThisTurn = true
+                state.timedEffects.push({ content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: s.instanceId }, until: "turn", ownerPid: owner })
             }
             count++
         }

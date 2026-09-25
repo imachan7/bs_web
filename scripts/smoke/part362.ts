@@ -1,8 +1,8 @@
 // smoke パート362（M8 試行：期間つき継続効果の器 timedEffect。カードデータの4か所が旧 type と同じ結果になるか。REFACTOR_PLAN §2.2）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import type { GameState } from "./helpers"
-import { cantActByTimedRule, effectiveBp } from "../../shared/rules"
-import type { EffectAction } from "../../server/src/type"
+import { cantActByTimed, effectiveBp } from "../../shared/rules"
+import type { CardInstance, EffectAction } from "../../server/src/type"
 
 const FAREG = "BS12-038"
 const VANILLA = "BS01-002"
@@ -25,9 +25,13 @@ function board(interactive = false): GameState {
     return s
 }
 
+// 1体指定で個体に掛かっている記録（A＝アタック不可・B＝ブロック不可（ターン）・b＝ブロック不可（バトル））
+function onInst(s: GameState, i: CardInstance, type: "cantAttack" | "cantBlock", until: "turn" | "battle"): boolean {
+    return s.timedEffects.some((r) => r.target.kind === "instance" && r.target.instanceId === i.instanceId && r.until === until && r.content.some((c) => c.type === type))
+}
 function flags(s: GameState): string {
     return s.players.p2.field.spirits
-        .map((i) => `${i.cantAttackThisTurn ? "A" : "-"}${i.cantBlockThisTurn ? "B" : "-"}${i.cantBlockThisBattle ? "b" : "-"}`)
+        .map((i) => `${onInst(s, i, "cantAttack", "turn") ? "A" : "-"}${onInst(s, i, "cantBlock", "turn") ? "B" : "-"}${onInst(s, i, "cantBlock", "battle") ? "b" : "-"}`)
         .join(" ")
 }
 
@@ -72,15 +76,15 @@ console.log("=== 3. 対話時：1体ずつ選び、選んだ個体は次の候�
     assert(act(s, "p1", { type: "resolveChoice", instanceId: y!.instanceId }) === null, "1体目を選ぶ")
     assert(s.pendingChoice?.candidates?.length === 2 && !s.pendingChoice.candidates.includes(y!.instanceId), "2体目の候補から1体目が外れる")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: x!.instanceId }) === null, "2体目を選ぶ")
-    assert(x!.cantBlockThisTurn === true && y!.cantBlockThisTurn === true && z!.cantBlockThisTurn !== true, "選んだ2体だけがブロックできない")
+    assert(cantActByTimed(s, x!, "block") && cantActByTimed(s, y!, "block") && !cantActByTimed(s, z!, "block"), "選んだ2体だけがブロックできない")
 }
 
 console.log("=== 4. 内容をすべて既に持つ個体しかいなければ何もしない ===")
 {
     const s = board()
-    for (const i of s.players.p2.field.spirits) i.cantAttackThisTurn = true
+    for (const i of s.players.p2.field.spirits) s.timedEffects.push({ content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: i.instanceId }, until: "turn", ownerPid: "p1" })
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantAttack" }, { type: "cantBlock" }], duration: "turn" })
-    assert(s.players.p2.field.spirits.filter((i) => i.cantBlockThisTurn).length === 1, "アタックだけ持つ個体には、足りないブロックを付けられる")
+    assert(s.players.p2.field.spirits.filter((i) => onInst(s, i, "cantBlock", "turn")).length === 1, "アタックだけ持つ個体には、足りないブロックを付けられる")
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantAttack" }], duration: "turn" })
     assert(s.log.at(-1)?.includes("対象がいなかった") === true, "全員が既に持っていれば対象なし")
 }
@@ -92,9 +96,9 @@ console.log("=== 5. all:true：解決後に場に出たスピリットにも効�
     const later = createInstance(VANILLA, 1, 1)
     s.players.p2.field.spirits.push(later)
     refreshLevelAsOverrides(s)
-    assert(cantActByTimedRule(s, later) && cantActByTimedRule(s, later, "block"), "解決後に出たコスト1もアタック・ブロックできない")
-    assert(cantActByTimedRule(s, s.players.p1.field.spirits[0]!) === false, "コスト1より大きい自分のスピリットは止まらない")
-    assert(later.cantAttackThisTurn === false && later.cantBlockThisTurn !== true, "個体には印を書かない")
+    assert(cantActByTimed(s, later) && cantActByTimed(s, later, "block"), "解決後に出たコスト1もアタック・ブロックできない")
+    assert(cantActByTimed(s, s.players.p1.field.spirits[0]!) === false, "コスト1より大きい自分のスピリットは止まらない")
+    assert(!s.timedEffects.some((r) => r.target.kind === "instance"), "個体には記録しない（「すべて」の記録1件だけ）")
 }
 
 console.log("=== 6. all:true の陣営：既定は相手／own は自分／both は両方 ===")
@@ -102,7 +106,7 @@ console.log("=== 6. all:true の陣営：既定は相手／own は自分／both 
     const make = (side?: "own" | "both") => {
         const s = board()
         resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantAttack" }], duration: "turn", all: true, ...(side ? { side } : {}) })
-        return [cantActByTimedRule(s, s.players.p1.field.spirits[0]!), cantActByTimedRule(s, s.players.p2.field.spirits[0]!)]
+        return [cantActByTimed(s, s.players.p1.field.spirits[0]!), cantActByTimed(s, s.players.p2.field.spirits[0]!)]
     }
     assert(make().join() === "false,true", "既定は相手だけ")
     assert(make("own").join() === "true,false", "own は自分だけ")
@@ -114,16 +118,16 @@ console.log("=== 7. 絞り込み：cost.in と vanilla:false、内容 cantBlock 
     const s = board()
     resolveAction(s, "p1", null, cardAction("BS11-057")) // バタホルン：コスト4/6/8の相手はブロックできない
     const opp = s.players.p2.field.spirits[0]!
-    assert(!cantActByTimedRule(s, opp, "block"), "コスト1は止まらない")
+    assert(!cantActByTimed(s, opp, "block"), "コスト1は止まらない")
     opp.tempAlsoCosts.push(4)
-    assert(cantActByTimedRule(s, opp, "block") && !cantActByTimedRule(s, opp), "コスト4としても扱うならブロックだけ止まる")
+    assert(cantActByTimed(s, opp, "block") && !cantActByTimed(s, opp), "コスト4としても扱うならブロックだけ止まる")
 
     const t = board()
     resolveAction(t, "p1", null, cardAction("BS11-082")) // ウィッグバインド：効果の記述を持つ相手
-    assert(!cantActByTimedRule(t, t.players.p2.field.spirits[0]!), "バニラの相手は止まらない")
+    assert(!cantActByTimed(t, t.players.p2.field.spirits[0]!), "バニラの相手は止まらない")
     const withText = createInstance(FAREG, 1, 1)
     t.players.p2.field.spirits.push(withText)
-    assert(cantActByTimedRule(t, withText), "効果の記述を持つ相手は止まる")
+    assert(cantActByTimed(t, withText), "効果の記述を持つ相手は止まる")
 }
 
 console.log("=== 8. すべてをBP+：解決後に場に出たスピリットにも乗る（2026-09-24 ユーザー確認） ===")

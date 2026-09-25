@@ -6,7 +6,7 @@
 import { act, assert, createGame, createInstance, destroyNexus, destroySpirit, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { cantActByTimedRule, noSummonTriggerByCost } from "../../shared/rules"
+import { cantActByTimed, noSummonTriggerByCost } from "../../shared/rules"
 import { validateCastMagic } from "../../server/src/logic/RuleValidator"
 
 const byName = (n: string) => {
@@ -145,8 +145,8 @@ console.log("=== §F リブートコード：回復しても、合体スピリ�
     plain.isRested = true
     resolveAction(s, "p1", null, rebootAction)
     assert(!host.isRested && !plain.isRested, "疲労していた自分のスピリットはすべて回復する")
-    assert(plain.cantAttackThisTurn === true, "合体していないスピリットはこのターンアタックできない")
-    assert(host.cantAttackThisTurn !== true, "合体スピリットはアタックできる")
+    assert(cantActByTimed(s, plain), "合体していないスピリットはこのターンアタックできない")
+    assert(!cantActByTimed(s, host), "合体スピリットはアタックできる")
 }
 
 console.log("=== §G 発見されし世界樹：『自分の緑のネクサスが破壊されたとき』の色の絞り込みが効く ===")
@@ -311,9 +311,9 @@ console.log("=== §L ウィッグバインド：効果持ちの相手はアタ�
     const oppVanilla = put(s, "p2", vanilla!.cardId, 3)
     const mineWith = put(s, "p1", withEffect!.cardId, 3)
     resolveAction(s, "p1", null, banAct!)
-    assert(cantActByTimedRule(s, oppWith), "効果の記述を持つ相手はアタック/ブロックできない")
-    assert(!cantActByTimedRule(s, oppVanilla), "バニラの相手は止まらない")
-    assert(!cantActByTimedRule(s, mineWith), "自分のスピリットは止まらない（「相手の」限定）")
+    assert(cantActByTimed(s, oppWith), "効果の記述を持つ相手はアタック/ブロックできない")
+    assert(!cantActByTimed(s, oppVanilla), "バニラの相手は止まらない")
+    assert(!cantActByTimed(s, mineWith), "自分のスピリットは止まらない（「相手の」限定）")
 
     // 手札の色制限：黄だけ使える
     resolveAction(s, "p1", null, banHand!)

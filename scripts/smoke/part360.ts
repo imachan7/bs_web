@@ -1,4 +1,5 @@
 // smoke パート360（TargetFilter.keywordCount：カードに書かれたキーワードの指定数で絞る。【暴風：1】限定）
+import { cantActByTimed } from "../../shared/rules"
 import { assert, createGame, createInstance, resolveAction } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import type { CardData, CardInstance } from "../../server/src/type"
@@ -45,7 +46,7 @@ function board(): { s: GameState; self: CardInstance } {
     return { s, self: s.players.p1.field.spirits[0]! }
 }
 const snapshot = (s: GameState): string =>
-    JSON.stringify((["p1", "p2"] as PlayerId[]).map((pid) => s.players[pid].field.spirits.map((x) => [x.cardId, x.isRested, x.cantAttackThisTurn ?? false])))
+    JSON.stringify((["p1", "p2"] as PlayerId[]).map((pid) => s.players[pid].field.spirits.map((x) => [x.cardId, x.isRested, cantActByTimed(s, x)])))
 
 console.log("=== 2. keywordCount：付与や別の指定数の暴風は対象外 ===")
 {

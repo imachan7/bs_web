@@ -72,7 +72,6 @@ export function createInstance(
         isRested: false,
         summonedTurn: turn,
         tempBpBuff: 0,
-        cantAttackThisTurn: false,
         immuneToOpponentThisTurn: false,
         blockConstraintNegatedThisTurn: false,
         tempKeywords: [],
@@ -198,6 +197,7 @@ export function createGame(
         winner: null,
         endAttackStepAfterBattle: false,
         turnConstraints: [],
+        timedEffects: [],
         endStepLocks: [],
         triggerSuppressionThisTurn: [],
         attacksThisTurn: 0,
@@ -441,10 +441,7 @@ export function clearBattle(state: GameState): void {
     }
     state.battle = null
     delete state.battleAttackerRef
-    // 「このバトルの間ブロックできない」の印もここで切れる（BS09-042妖精騎士ピーター）
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of state.players[pid].field.spirits) delete inst.cantBlockThisBattle
-    }
+    state.timedEffects = state.timedEffects.filter((r) => r.until !== "battle")
     // 「このバトルの間、BP◯以上のスピリットからブロックされない」もここで切れる（器S2。BS13-032光速の騎士ヘルモード【合体時】Lv3）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) delete inst.unblockableMinBpThisBattle
@@ -677,6 +674,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         winner: state.winner,
         you: viewer,
         turnConstraints: [...state.turnConstraints],
+        timedEffects: [...state.timedEffects],
         ...(state.extraMainStep ? { extraMainStep: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         magicUsedThisTurn: { ...state.magicUsedThisTurn },

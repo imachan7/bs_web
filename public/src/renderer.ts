@@ -22,7 +22,7 @@ import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFil
 import { braveCombineCandidates } from "../../shared/summon"
 import {
     activeConstraints,
-    cantActByTimedRule,
+    cantActByTimed,
     currentLevel,
     instCostCantAct,
     effectiveBp,
@@ -54,7 +54,7 @@ import {
     burstSetCoresRequired,
     shinsokuAssistCandidates,
 } from "../../shared/rules"
-export { activeConstraints, cantActByTimedRule, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
+export { activeConstraints, cantActByTimed, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
 
@@ -1245,8 +1245,8 @@ function fieldCardEl(
         return el
     }
 
-    // このターンアタック不可（ピュアエリクサー等で回復した個体）
-    if (inst.cantAttackThisTurn) {
+    // 期間つき効果でアタック不可（ピュアエリクサー等で回復した個体・「〜すべてはアタックできない」）
+    if (!isNexus && cantActByTimed(view, inst)) {
         const badge = document.createElement("div")
         badge.className = "cant-attack-badge"
         badge.textContent = "アタック不可"
@@ -1352,7 +1352,7 @@ function fieldCardEl(
         // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
         // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
         // （道化師クランの付与コストも考慮する instCostCantAct を使う）
-        const costLocked = cantActByTimedRule(view, inst) || instCostCantAct(view, inst)
+        const costLocked = cantActByTimed(view, inst) || instCostCantAct(view, inst)
         // アタック可能（先攻1ターン目はアタック禁止）
         if (
             myTurn &&
@@ -1360,7 +1360,6 @@ function fieldCardEl(
             view.turn !== 1 &&
             !view.battle &&
             !inst.isRested &&
-            !inst.cantAttackThisTurn &&
             !singleCoreLocked &&
             !cantAttack &&
             !costLocked &&

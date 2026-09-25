@@ -17,7 +17,7 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/removal"
-import { hasDestroyAsMaxLevelGrant, ownLifeFloorContinuous } from "../../shared/rules"
+import { hasDestroyAsMaxLevelGrant, ownLifeFloorContinuous, cantActByTimed } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { validateAttack } from "../../server/src/logic/RuleValidator"
 
@@ -149,7 +149,7 @@ console.log("=== YB: timedEffect（このターンの間ブロックできない
     s.players.p2.field.spirits.push(enemy)
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", faleg, { type: "timedEffect", content: [{ type: "cantBlock" }], duration: "turn", countCounter: { ownFamily: "天霊" } })
-    assert(enemy.cantBlockThisTurn === true, "指定された相手のスピリットはこのターン ブロックできない")
+    assert(cantActByTimed(s, enemy, "block"), "指定された相手のスピリットはこのターン ブロックできない")
     const attacker = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(attacker)
     assert(canBlock(s, "p2", enemy, "p1", attacker) !== null, "ブロック宣言そのものが拒否される")
