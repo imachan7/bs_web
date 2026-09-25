@@ -391,9 +391,7 @@ export function endTurn(state: GameState): void {
         // ターンが終わる経路のために念のためここでも空にする（lendSelfThisBattle）
         state.players[pid].battleVirtualInstances = []
         for (const inst of state.players[pid].field.spirits) {
-            inst.tempBpBuff = 0
             // バトル終了で消えるはずのBP増減も、バトルが成立しないまま終わる経路のために念のため消す
-            if (inst.battleBpBuff) inst.battleBpBuff = 0
             delete inst.attackedThisTurn
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false

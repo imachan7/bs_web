@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectDef } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
-import { attachBrave, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { attachBrave, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -282,7 +282,7 @@ const burstSummonSelfIfTargetBpAtLeastHandler: ActionHandler<"burstSummonSelfIfT
     if (state.winner) return
     const newInst = state.players[owner].field.spirits.find((s) => !before.has(s.instanceId))
     if (newInst && action.thenBuffSelf) {
-        newInst.tempBpBuff += action.thenBuffSelf
+        recordBp(state, owner, newInst, action.thenBuffSelf, "turn")
         log(state, `${getCard(newInst.cardId).name}はBP+${action.thenBuffSelf}（ターン終了時まで）。`)
     }
 }

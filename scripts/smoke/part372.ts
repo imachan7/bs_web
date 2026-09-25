@@ -1,5 +1,5 @@
 // smoke パート372（ブロックされない：timedEffect の内容 unblockable。天使長トロンはターン終了まで＝2026-09-24 効果文どおりに修正）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, giveBp } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 import { canBlock } from "../../shared/block"
 import { clearBattle } from "../../server/src/logic/GameState"
@@ -61,7 +61,7 @@ console.log("=== 2. 強者統べる大地：アタックしたバトルが終わ
 {
     const s = game()
     const big = createInstance(VANILLA, 1, 1)
-    big.tempBpBuff = 20000
+    giveBp(s, big, 20000)
     const blocker = createInstance(VANILLA, 1, 1)
     s.players.p1.field.spirits = [big]
     s.players.p2.field.spirits = [blocker]
@@ -80,7 +80,7 @@ console.log("=== 3. 光速の騎士ヘルモード：BP6000以上の相手から
     const hermod = createInstance(HERMOD, 1, 1)
     const weak = createInstance(VANILLA, 1, 1)
     const strong = createInstance(VANILLA, 1, 1)
-    strong.tempBpBuff = 10000
+    giveBp(s, strong, 10000)
     s.players.p1.field.spirits = [hermod]
     s.players.p2.field.spirits = [weak, strong]
     refreshLevelAsOverrides(s)

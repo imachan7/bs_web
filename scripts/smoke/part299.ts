@@ -2,7 +2,7 @@
 // E=ブレイヴ同士の合体（塊は2段で止める）／G=他のブレイヴの『合体アタック時』を借りて発揮／
 // P=ブレイヴの合体上限を2つにする／Q=継続で実効BPを固定する（BP+は上に乗る）／
 // M=系統AND（familyAll）／R=手札のカードのコストを置換する
-import { assert, createGame, createInstance, effectiveBp, effectiveCost, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, effectiveBp, effectiveCost, getCard, handleAction, refreshLevelAsOverrides, resolveAction, runTurnStart, giveBp } from "./helpers"
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/removal"
 import { braveCombineCandidates } from "../../shared/summon"
@@ -194,7 +194,7 @@ console.log("=== Q: 継続で実効BPを固定する（X011【合体時】Lv2）
     assert(effectiveBp(s, "p1", scol) === 12000, "系統「光導」を持つ自分のスピリットの実効BPが12000になる")
 
     // 「Lv1/Lv2/Lv3**BP**を12000として扱う」＝置き換わるのは印刷BPだけ。BP+はその上に乗る
-    scol.tempBpBuff += 2000
+    giveBp(s, scol, 2000)
     assert(effectiveBp(s, "p1", scol) === 14000, "BP+2000は12000の上に乗る（全上書きではない）")
 
     // 系統「光導」を持たないスピリットは影響を受けない（恐竜王メガロ・ザウルのLv1のBPは5000）

@@ -6,6 +6,7 @@ import {
     effectiveBp,
     getCard,
     resolveAction,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
@@ -193,7 +194,7 @@ function oldSelfBuffBp(cardId: string, action: OldSelfBuff, seed: string): numbe
     const self = putSpirit(s, "p1", cardId)
     setupForCounter(s, self, "p1", "p2", action.amountCounter)
     const add = action.amountCounter !== undefined ? countedAmount(s, "p1", self, action.amount, action.amountCounter, undefined) : action.amount
-    self.tempBpBuff += add
+    giveBp(s, self, add)
     return effectiveBp(s, "p1", self)
 }
 

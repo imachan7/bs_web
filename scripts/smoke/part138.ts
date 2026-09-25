@@ -27,6 +27,8 @@ import {
     runTurnStart,
     takeLifeAndResolve,
     timedHas,
+    giveBp,
+    clearBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
@@ -368,9 +370,9 @@ console.log("=== BS07 黄：最高Lvではない相手にブロックされた�
     const s = base("sphinx-refresh")
     const attacker = put(s, "p1", sphinx.cardId, cores)
     const blocker = put(s, "p2", blockerCard.cardId, blockerCard.levels?.[0]?.cores ?? 1)
-    blocker.tempBpBuff = 999999 // アタッカーが倒されないようにブロッカー側を勝たせない
-    blocker.tempBpBuff = 0
-    attacker.tempBpBuff = 999999 // BP比較でアタッカーが勝つようにする
+    giveBp(s, blocker, 999999) // アタッカーが倒されないようにブロッカー側を勝たせない
+    clearBp(s, blocker)
+    giveBp(s, attacker, 999999) // BP比較でアタッカーが勝つようにする
     assert(currentLevel(blocker).level === 1, "ブロッカーはLv1（最高Lvではない）")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック")
@@ -382,7 +384,7 @@ console.log("=== BS07 黄：最高Lvではない相手にブロックされた�
     const attacker2 = put(s2, "p1", sphinx.cardId, cores)
     const maxCores = blockerCard.levels?.[blockerCard.levels.length - 1]?.cores ?? 3
     const blocker2 = put(s2, "p2", blockerCard.cardId, maxCores)
-    attacker2.tempBpBuff = 999999
+    giveBp(s2, attacker2, 999999)
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "アタック")
     assert(declareBlock(s2, "p2", blocker2.instanceId) === null, "ブロック宣言")
@@ -525,7 +527,7 @@ console.log("=== BS07 黄：【聖命】持ちがブロックされるとライ�
     )
     const s = base("bloom-flute")
     const attacker = put(s, "p1", SEIMEI_L2.cardId, SEIMEI_L2.levels?.[1]?.cores ?? 2)
-    attacker.tempBpBuff = 999999
+    giveBp(s, attacker, 999999)
     const blocker = put(s, "p2", FILLER.cardId, 1)
     s.players.p1.hand.push(bloom.cardId)
     const handIndex = s.players.p1.hand.length - 1

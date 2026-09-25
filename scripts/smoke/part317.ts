@@ -16,6 +16,7 @@ import {
     resolveAction,
     runTurnStart,
     battleHas,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { millDeck, placeBurst, refreshSpirit } from "../../server/src/logic/EffectModules"
@@ -55,7 +56,7 @@ console.log("=== BS14-087 帝都アンプルール：Lvの低い側が破壊さ�
     s.players.p1.field.nexuses.push(nexus)
     const attacker = put(s, "p1", "BS14-045", 1) // Lv1 BP3000
     const blocker = put(s, "p2", "BS14-048", 7) // Lv3 BP6000（効果を持たないアゲハ妖精ナミ。ゴリスタルLv1同士だと勝者の【バトル時】自壊と混同するため避ける）
-    attacker.tempBpBuff = 10000 // 実効BP13000（Lvより高いが、Lv比較では見ない）
+    giveBp(s, attacker, 10000) // 実効BP13000（Lvより高いが、Lv比較では見ない）
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック宣言")
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "ブロック宣言")

@@ -10,7 +10,7 @@
 //   - onBattleLose: BP比較で負けた側でのみ発火し、相打ちでは発火しない（BS03-036 神鳥ピーゴッド）
 //   - onBattleWin: 改名後も従来どおり勝った側だけで発火する（回帰確認。BS01-047 魔女ナージャ）
 //   - BS05-053 蒼海の竜使いアズール：誤実装（onBattleのため勝敗依存だった）をonBattleStartに修正し、勝敗不問で発火することを確認
-import { act, assert, createGame, createInstance, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, runTurnStart, giveBp } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
@@ -85,7 +85,7 @@ console.log("--- onBattleStart: 勝ち・負け・相打ちのいずれでも発
         const s = setup("battlestart-lose")
         const dionaea = put(s, "p1", "BS05-025", 3) // Lv2 BP8000
         const foe = put(s, "p2", "BS01-001", 1) // BP1000+8000=9000でディオネアスの負け
-        foe.tempBpBuff = 8000
+        giveBp(s, foe, 8000)
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: dionaea.instanceId }) === null, "アタック宣言")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
@@ -103,7 +103,7 @@ console.log("--- onBattleStart: 勝ち・負け・相打ちのいずれでも発
         const s = setup("battlestart-draw")
         const dionaea = put(s, "p1", "BS05-025", 3) // Lv2 BP8000
         const foe = put(s, "p2", "BS01-001", 1) // BP1000+7000=8000で相打ち
-        foe.tempBpBuff = 7000
+        giveBp(s, foe, 7000)
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: dionaea.instanceId }) === null, "アタック宣言")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
@@ -124,7 +124,7 @@ console.log("=== onBattleLose: BP比較で負けた側だけで発火し、相�
         const s = setup("battlelose-attacker")
         const pigod = put(s, "p1", "BS03-036", 1) // 神鳥ピーゴッド Lv1（コア1・BP4000）
         const foe = put(s, "p2", "BS01-001", 1) // BP1000+4000=5000でピーゴッドの負け
-        foe.tempBpBuff = 4000
+        giveBp(s, foe, 4000)
         const reserveBefore = s.players.p1.reserve
         assert(act(s, "p1", { type: "attack", instanceId: pigod.instanceId }) === null, "ピーゴッドでアタック")
         assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
@@ -140,7 +140,7 @@ console.log("=== onBattleLose: BP比較で負けた側だけで発火し、相�
     {
         const s = setup("battlelose-blocker")
         const atk = put(s, "p1", "BS01-001", 1) // BP1000+4000=5000でピーゴッドの負け
-        atk.tempBpBuff = 4000
+        giveBp(s, atk, 4000)
         const pigod = put(s, "p2", "BS03-036", 1) // Lv1（コア1・BP4000）＝ブロッカー
         const reserveBefore = s.players.p2.reserve
         assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
@@ -156,7 +156,7 @@ console.log("=== onBattleLose: BP比較で負けた側だけで発火し、相�
     {
         const s = setup("battlelose-draw")
         const atk = put(s, "p1", "BS01-001", 1) // BP1000+3000=4000でピーゴッドと相打ち
-        atk.tempBpBuff = 3000
+        giveBp(s, atk, 3000)
         const pigod = put(s, "p2", "BS03-036", 1) // Lv1（コア1・BP4000）＝ブロッカー
         const reserveBefore = s.players.p2.reserve
         assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
@@ -223,7 +223,7 @@ console.log("=== BS05-053 蒼海の竜使いアズール：バトルするたび
 
     console.log("--- 負けたとき ---")
     azul.isRested = false // 2回目のアタックのため回復させる
-    strongFoe.tempBpBuff = 9000 // BP1000+9000=10000でアズールの負け
+    giveBp(s, strongFoe, 9000) // BP1000+9000=10000でアズールの負け
     const trashBefore2 = s.players.p2.trashCards.length
     assert(act(s, "p1", { type: "attack", instanceId: azul.instanceId }) === null, "アズールで再度アタック")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")

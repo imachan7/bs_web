@@ -1,5 +1,5 @@
 // smoke パート282（BS11：条件つきの制約とコスト増減。008 / 017 / 027）
-import { assert, createGame, createInstance, instHasCost, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, instHasCost, refreshLevelAsOverrides, runTurnStart, giveBp } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { activeConstraints, instBaseCost } from "../../shared/rules"
@@ -79,7 +79,7 @@ console.log("=== §D BS11-008：お互いにBP10000以上がいるときだけ�
     const beard = createInstance(BEARD, s.turn, 3)
     s.players.p1.field.spirits.push(beard)
     const mine = createInstance(vanilla[0]!.cardId, s.turn, 2)
-    mine.tempBpBuff = 10000 // BP10000以上にする
+    giveBp(s, mine, 10000) // BP10000以上にする
     s.players.p1.field.spirits.push(mine)
     refreshLevelAsOverrides(s)
     fireTrigger(s, "p1", beard, "onSummon")
@@ -91,8 +91,8 @@ console.log("=== §D BS11-008：お互いにBP10000以上がいるときだけ�
     s.players.p1.field.spirits.push(beard)
     const mine = createInstance(vanilla[0]!.cardId, s.turn, 2)
     const theirs = createInstance(vanilla[1]!.cardId, s.turn, 2)
-    mine.tempBpBuff = 10000
-    theirs.tempBpBuff = 10000
+    giveBp(s, mine, 10000)
+    giveBp(s, theirs, 10000)
     s.players.p1.field.spirits.push(mine)
     s.players.p2.field.spirits.push(theirs)
     refreshLevelAsOverrides(s)

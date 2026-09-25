@@ -24,6 +24,7 @@ import { bpBuffOf,
     resolveAction,
     runTurnStart,
     battleHas,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
@@ -234,7 +235,7 @@ console.log("=== BS06-056 細剣の猫騎士ケット・シー：コスト2の�
     const s = createGame("t129-ketsi-redirect-own", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
     runTurnStart(s)
     const ketsi = put(s, "p1", "BS06-056", 1) // Lv1・BP4000
-    ketsi.tempBpBuff = -500 // BP3500（コスト2側より低くしておく）
+    giveBp(s, ketsi, -500) // BP3500（コスト2側より低くしておく）
     const cost2 = put(s, "p1", "BS01-003", 1) // テラノセイバー：コスト2・BP4000
     s.turnPlayer = "p1" // 『自分のターン』（ケット・シーの持ち主のターン）
     resolveMagic(s, "p2", "BS03-120", "flash") // フレイムサイクロン：BP5000以下の相手スピリット1体を破壊（対象未指定＝BP上位を自動選択）
@@ -252,7 +253,7 @@ console.log("--- 相手のターンには働かない ---")
     const s = createGame("t129-ketsi-redirect-opp", { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })
     runTurnStart(s)
     const ketsi = put(s, "p1", "BS06-056", 1)
-    ketsi.tempBpBuff = -500
+    giveBp(s, ketsi, -500)
     const cost2 = put(s, "p1", "BS01-003", 1)
     s.turnPlayer = "p2" // 『相手のターン』＝ケット・シーの持ち主のターンではない
     resolveMagic(s, "p2", "BS03-120", "flash")

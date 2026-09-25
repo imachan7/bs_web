@@ -18,6 +18,7 @@ import {
     getCard,
     refreshLevelAsOverrides,
     runTurnStart,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { reductionGrantSymbols } from "../../shared/cost"
@@ -139,7 +140,7 @@ console.log("=== BS13-X02 蛇皇神帝アスクレピオーズ：『自分のア
     put(s, "p1", "BS13-X02", 4) // Lv2（ownAll発生源）
     const attacker = put(s, "p1", "BS13-011", 1) // 妖蛇・Lv1
     const blocker = put(s, "p2", "BS01-050", 1)
-    blocker.tempBpBuff = 30000 // 確実に勝たせる
+    giveBp(s, blocker, 30000) // 確実に勝たせる
     s.turnPlayer = "p1"
     s.phase = "attack"
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "p1がアタック宣言")
@@ -155,7 +156,7 @@ console.log("=== BS13-X02 蛇皇神帝アスクレピオーズ：『自分のア
     put(s2, "p1", "BS13-X02", 4) // Lv2（ownAll発生源）
     const defender = put(s2, "p1", "BS13-011", 1) // 妖蛇・Lv1
     const oppAttacker = put(s2, "p2", "BS01-050", 1)
-    oppAttacker.tempBpBuff = 30000
+    giveBp(s2, oppAttacker, 30000)
     s2.turnPlayer = "p2"
     s2.phase = "attack"
     assert(act(s2, "p2", { type: "attack", instanceId: oppAttacker.instanceId }) === null, "p2がアタック宣言")

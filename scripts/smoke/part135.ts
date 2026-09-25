@@ -13,6 +13,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    giveBp,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import type { Color } from "../../server/src/type"
@@ -219,7 +220,7 @@ console.log("=== キーワード【装甲】【転召】【粉砕】【呪撃】
         // バニラのLv1 BPは5000が上限で、それを超えるアタッカー（BS07冥勇士デスカラビアLv2＝6000）が
         // 現れたため、足りない分をここで補って必ず壁役が勝つようにする
         const gap = effectiveBp(s, "p1", attacker) - effectiveBp(s, "p2", blocker)
-        if (gap >= 0) blocker.tempBpBuff += gap + 1000
+        if (gap >= 0) giveBp(s, blocker, gap + 1000)
         if (effectiveBp(s, "p2", blocker) <= effectiveBp(s, "p1", attacker)) {
             assert(false, `${card.cardId} ${card.name}：壁役のBPがアタッカーを上回る（対照条件）`)
             continue

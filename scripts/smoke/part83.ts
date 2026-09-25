@@ -5,7 +5,7 @@
 // 「対象に含む」には全体効果も含まれる（利用者確認。DECISIONS.md）。
 // 実装は GameState.magicRedirectTo を resolveMagic が立て、isEffectBlocked が各ガード地点で参照する。
 // 「できる」は自動適用の簡略化。
-import { act, assert, createGame, createInstance } from "./helpers"
+import { act, assert, createGame, createInstance, giveBp } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 // p1 = サンクの持ち主 / p2 = マジックを使う側。『相手のターン』のため turnPlayer は p2
@@ -77,7 +77,7 @@ console.log("--- Lv2 でサンクが対象に含まれるとき、サンクだ�
     s.players.p2.reserve = 20
     // コアを減らして BP3000 にすると Lv1 になり効果自体が無効になってしまうため、
     // 「Lv2 のままBP3000以下」を tempBpBuff で作って対象に入れる
-    sank.tempBpBuff = -1000 // BP4000 → 3000（Lv2のまま対象に入る）
+    giveBp(s, sank, -1000) // BP4000 → 3000（Lv2のまま対象に入る）
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "フレイムテンペストを使用")
 
     assert(!alive(s, "p1", sank), "対象に含まれたサンク自身は効果を受ける")
@@ -90,7 +90,7 @@ console.log("--- 自分のターン（サンクの持ち主のターン）には
     const s = setup("sank-ownturn-test")
     s.turnPlayer = "p1" // サンクの持ち主のターン＝『相手のターン』ではない
     const sank = put(s, "p1", "BS04-054", 2)
-    sank.tempBpBuff = -1000
+    giveBp(s, sank, -1000)
     const ally1 = put(s, "p1", "BS02-049", 1)
 
     // 自分（p1）のターンなので、相手（p2）はバトル中のフラッシュでしか使用できない。
@@ -115,7 +115,7 @@ console.log("--- 絞り込みは解決中のマジックにのみ効き、次の
 {
     const s = setup("sank-notpersist-test")
     const sank = put(s, "p1", "BS04-054", 2)
-    sank.tempBpBuff = -1000
+    giveBp(s, sank, -1000)
     const ally1 = put(s, "p1", "BS02-049", 1)
 
     s.players.p2.hand[0] = "BS01-122"
@@ -137,7 +137,7 @@ console.log("=== 実対戦では絞り込むかを守る側に確認する（『
     const s = setup("sank-redirect-confirm")
     s.interactiveTargets = true
     const sank = put(s, "p1", "BS04-054", 2) // Lv2＝効果が有効
-    sank.tempBpBuff = -1000 // BP4000→3000。Lv2のままフレイムテンペストの対象に入れる
+    giveBp(s, sank, -1000) // BP4000→3000。Lv2のままフレイムテンペストの対象に入れる
     const ally1 = put(s, "p1", "BS02-049", 1)
     const ally2 = put(s, "p1", "BS02-051", 1)
     s.players.p2.hand[0] = "BS01-122" // フレイムテンペスト（BP3000以下を全体破壊）
@@ -161,7 +161,7 @@ console.log("--- 絞り込まないことも選べる（味方が巻き込まれ
     const s = setup("sank-redirect-decline")
     s.interactiveTargets = true
     const sank = put(s, "p1", "BS04-054", 2)
-    sank.tempBpBuff = -1000
+    giveBp(s, sank, -1000)
     const ally1 = put(s, "p1", "BS02-049", 1)
     const ally2 = put(s, "p1", "BS02-051", 1)
     s.players.p2.hand[0] = "BS01-122"
