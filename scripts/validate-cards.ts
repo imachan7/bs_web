@@ -543,6 +543,8 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         for (const a of actions) {
             if (typeof a.type !== "string") {
                 add(id, "action に type が無い")
+            } else if (INTERNAL_ONLY_ACTIONS.has(a.type)) {
+                add(id, `action.type "${a.type}" は内部専用でカードデータには書けない（${INTERNAL_ONLY_ACTIONS.get(a.type)}）`)
             } else if (!VALID_ACTIONS.has(a.type)) {
                 add(id, `未登録の action.type: "${a.type}"（ハンドラが無いため実行時にクラッシュする）`)
             }
@@ -587,11 +589,12 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 //
 // ⚠️ 内部専用（他のハンドラが ctx.resolve で呼ぶだけで cards.json には書かない）ものは
 // 正当なので、ここに登録して除外する。**除外理由を必ず書くこと**
+// ここに載せた action.type がカードデータに書かれていたら validate:cards で落とす（2026-09-25）。
+// 「先に仕組みだけ入れる」用途でここに載せない（カードが入った時点で落ちて気づけるが、載せっぱなしの原因になる）
 const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["revealDiscardRest", "revealAndSummonKeyword が選択待ちの queue に積む後始末"],
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
-    ["discardSelfChoose", "discardSelf 系が選択式のとき内部で呼び直す"],
     ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
@@ -601,10 +604,6 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
-    // ⚠️ **先に仕組みだけ入れてある枠**。BS10 を data/cards へ入れて構造化したら、
-    // 使う側のカードができるのでこの行を消すこと（消し忘れると「実装だけ残っている」検出が効かなくなる）
-    ["extraAttackStep", "BS10-008 火星神龍アレス・ドラグーンが使う。BS10 は data/staging にあり data/cards 未投入のため、仕組みだけ先行（2026-08-25）"],
-    ["endStepLock", "BS10-108 ルナティックシールが使う。同上（2026-08-25）"],
 ])
 
 export function findUnusedActions(cards: CardData[]): string[] {
