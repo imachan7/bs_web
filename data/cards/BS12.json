@@ -2439,7 +2439,12 @@
         "turn": "opponent",
         "symbolCount": 2,
         "action": {
-          "type": "setBattleBpFixed",
+          "type": "setTargetBpAsThisBattle",
+          "levels": [
+            1,
+            2,
+            3
+          ],
           "amount": 2000
         }
       },
@@ -3922,7 +3927,12 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "setBattleBpFixed",
+          "type": "setTargetBpAsThisBattle",
+          "levels": [
+            1,
+            2,
+            3
+          ],
           "amount": 2000
         }
       }

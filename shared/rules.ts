@@ -1624,27 +1624,16 @@ export function effectiveBp(
     ownerPid: PlayerId,
     inst: CardInstance,
 ): number {
-    // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）：実効BPそのものを固定値へ上書きする。
-    // 既存battleBpAsLevel（バトルのBP比較のときだけ）より広く、対象条件（「BP◯以下」）の判定にも効く
-    if (inst.battleBpFixed !== undefined) return inst.battleBpFixed
-    // 器BS16：継続的な「他のBPを発生源自身の現在BPと同じとして扱う」全面上書き（kind:"bpEqualizeFamily"）。
-    // battleBpFixedと同じく対象側の tempBpBuff 等は加算しない（BS16-009百地ダイル）
-    if (inst.bpEqualizeContinuous !== undefined) return inst.bpEqualizeContinuous
-    // 継続的な「BPを◯として扱う」（器Q。BS13-X011）：効果文が「Lv1/Lv2/Lv3**BP**を12000として扱う」と
-    // 印刷BPを名指ししているので、**基礎BPだけを置き換える**（battleBpFixedのような全上書きではない）。
-    // このあとのBP+（ブレイヴの合体時BP+・オーラ・一時BP+）は通常どおり上に乗る
-    // 合体しているブレイヴの「合体時BP+」（BRAVE.md §3）。オーラより先に基礎BPへ足す
-    // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるのは印刷BPのぶんだけ
-    const bpBuffsOnInst = inst.tempBpBuff + (inst.battleBpBuff ?? 0)
-    // BS15共通器：battleBpAs（このバトル限定・単体対象の「Lv◯BPを◯として扱う」）。levelsに現在Lvが
-    // 含まれるときだけ基礎BPを置き換える（bpAsContinuousと同じ考え方。BS15-X05光の覇王ルナアーク・カグヤ）
-    const battleBpAsMatch = inst.battleBpAs !== undefined && inst.battleBpAs.levels.includes(currentLevel(inst).level)
-    const baseBp = battleBpAsMatch
-        ? inst.battleBpAs!.amount + bpBuffsOnInst
-        : inst.bpAsContinuous !== undefined
-          ? inst.bpAsContinuous + bpBuffsOnInst
-          : currentLevel(inst).bp
-    let total = baseBp + braveBpBonus(board, board.players[ownerPid], inst)
+    // 「Lv◯BPを◯として扱う」は Lv の BP を置き換える：ブレイヴの合体時BP+ は含めて置き換わり（足さない）、
+    // 効果による BP+ とオーラは掛かった前後を問わず上に乗る（Q3630・Q3632・Q18859。2026-09-25 ユーザー確認）。
+    // 重なったら このバトル限定＞継続の同値化（百地ダイル）＞継続（X011）の順で1つだけ見る
+    const battleBpAs = inst.battleBpAs !== undefined && inst.battleBpAs.levels.includes(currentLevel(inst).level) ? inst.battleBpAs.amount : undefined
+    const lvBpAs = battleBpAs ?? inst.bpEqualizeContinuous ?? inst.bpAsContinuous
+    // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるときはそれを足し直す
+    let total =
+        lvBpAs !== undefined
+            ? lvBpAs + inst.tempBpBuff + (inst.battleBpBuff ?? 0)
+            : currentLevel(inst).bp + braveBpBonus(board, board.players[ownerPid], inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
         // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）

@@ -1,5 +1,5 @@
 // smoke パート292（BS12 黄バッチ5：新しく足した7つの器を1件ずつ発火させる）
-// J=setBattleBpFixed（バトル中の実効BPそのものを2000に）／N=destroyAsMaxLevelGrant（コア0で最高Lv破壊）／
+// J=setTargetBpAsThisBattle（バトル中のLvBPを2000に）／N=destroyAsMaxLevelGrant（コア0で最高Lv破壊）／
 // V=reviveOnDestroy when.byOpponent（相手によって＝効果もバトルも）／YA=globalConstraint ownLifeFloor／
 // YB=timedEffect（体数はカウンタ）／YC=EffectCounter battlingOpponentCombinedSymbols／
 // YD=globalConstraint opponentCantAttackByCost（コスト完全一致の配列）
@@ -36,7 +36,7 @@ function game(seed: string): GameState {
     return s
 }
 
-console.log("=== J: setBattleBpFixed（実効BPそのものが2000になる＝対象条件にも効く） ===")
+console.log("=== J: setTargetBpAsThisBattle（実効BPが2000になる＝対象条件にも効く） ===")
 {
     const s = game("j-battlebp")
     const target = createInstance("BS12-X05", s.turn, 3) // Lv2＝BP10000
@@ -44,7 +44,7 @@ console.log("=== J: setBattleBpFixed（実効BPそのものが2000になる＝�
     refreshLevelAsOverrides(s)
     const before = effectiveBp(s, "p2", target)
     assert(before > 2000, `前提: 素の実効BPは2000より大きい（実際 ${before}）`)
-    resolveAction(s, "p1", null, { type: "setBattleBpFixed", amount: 2000 }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "setTargetBpAsThisBattle", levels: [1, 2, 3], amount: 2000 }, target.instanceId)
     assert(
         effectiveBp(s, "p2", target) === 2000,
         "バトル中の実効BPそのものが2000になる（BP比較だけでなく対象条件からも2000に見える）",

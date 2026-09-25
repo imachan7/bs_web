@@ -450,7 +450,6 @@ export function clearBattle(state: GameState): void {
         for (const inst of state.players[pid].field.spirits) {
             if (inst.battleBpBuff) inst.battleBpBuff = 0
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
-            delete inst.battleBpFixed
             // BS15共通器：battleBpAs（このバトル限定・単体対象の「Lv◯BPを◯として扱う」）も同じ寿命
             delete inst.battleBpAs
             // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
