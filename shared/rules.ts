@@ -573,55 +573,38 @@ export function instMinLevelCores(inst: CardInstance): number {
 
 // ---- シンボル ----
 
-// インスタンスのシンボル数：カードの静的シンボル数 + このターンの追加シンボル数（timedExtraSymbols。ダブルハート）。
-// ライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
-export function instanceSymbolCount(inst: CardInstance): number {
-    // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
-    // シンボルの代わりにこちらを見る（BS08海底に眠りし古代都市）
-    // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：継続的な「シンボルを追加する」は
-    // **固定値に対しても加算する**（symbolsOverrideContinuousが勝つ既存の規則は変えない。2026-09-04ユーザー確認）
-    const added = inst.symbolsAddedContinuous?.length ?? 0
-    // extraSymbolsPermanent（kind:"addSymbolPermanent"。BS13初出）：トリガーで永続的に蓄積するシンボル。
-    // symbolsAddedContinuousと同じく固定値に対しても加算する
-    const addedPermanent = inst.extraSymbolsPermanent?.length ?? 0
-    // battleSymbolsAdded（kind:"bpBuff" thenAddSymbolThisBattle。BS13初出）：このバトルの間だけの追加シンボル。
-    // symbolsAddedContinuous/extraSymbolsPermanentと同じく固定値に対しても加算する
-    const addedBattle = inst.battleSymbolsAdded?.length ?? 0
-    // timedSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
-    const lost = symbolLossCountOf(inst)
-    // 器BS16：timedSymbolsOverride（このバトルの間だけのシンボル上書き）はsymbolsOverrideContinuousより優先する
-    if (inst.timedSymbolsOverride) {
-        return inst.timedSymbolsOverride.length + (inst.timedExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
-    }
-    if (inst.symbolsOverrideContinuous) {
-        // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
-        // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
-        return inst.symbolsOverrideContinuous.length + (inst.timedExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
-    }
-    // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
-    // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
-    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.timedExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
+// シンボルを固定する効果（「シンボルを◯つにする」＝symbolFix・期間つきの symbolSet・召喚の軽減の間だけの置き換え）を
+// 受けた個体は固定値だけを持つ。追加・失う・ブレイヴのシンボルは効かない（公式のルール改定で「シンボル2つに固定する」へ
+// 表記変更。固定の後に1つ加えても2つのまま。2026-09-25 ユーザー確認。BRAVE.md §12 の3 もこの一般則の1例）。
+// 複数の固定が重なったときは期間つき＞継続の順で1つだけ見る（発揮順は見ていない）
+function fixedSymbolsOf(inst: CardInstance, forSummon: boolean): Color[] | undefined {
+    return (forSummon ? inst.symbolsForSummonReduction : undefined) ?? inst.timedSymbolsOverride ?? inst.symbolsOverrideContinuous
 }
 
-// timedSymbolLoss（BS12-080バキュームシンボル）：指定色のシンボルのうち実際に持っている分だけを
-// 1個ずつ減らした数を返す（持たない色を指定していても0扱い＝無変化）。
-// instanceSymbolCount / countSymbols の両方から呼ぶ共通判定
-function symbolLossCountOf(inst: CardInstance): number {
-    const colors = inst.timedSymbolLoss
-    if (!colors || colors.length === 0) return 0
-    const pool = inst.symbolsOverrideContinuous
-        ? [...inst.symbolsOverrideContinuous]
-        : [...card(inst.cardId).symbol, ...(inst.braveComposite?.symbols ?? [])]
-    pool.push(...(inst.symbolsAddedContinuous ?? []))
-    let lost = 0
-    for (const c of colors) {
-        const idx = pool.indexOf(c)
-        if (idx >= 0) {
-            pool.splice(idx, 1)
-            lost++
-        }
+// 個体が持つシンボルの色の列。timedSymbolLoss（指定色を1つ失う）は持っている色だけ減る（持たなければ無変化）。
+// ダブルハートの timedExtraSymbols は色を持たない数だけの加算なので、呼び出し側で足す
+function symbolsOf(inst: CardInstance, forSummon = false): { symbols: Color[]; fixed: boolean } {
+    const fixed = fixedSymbolsOf(inst, forSummon)
+    if (fixed) return { symbols: [...fixed], fixed: true }
+    // 合体しているブレイヴのシンボルが加わる（BRAVE.md §3）。混色でも合成するだけ（§12.2）
+    const symbols = [
+        ...card(inst.cardId).symbol,
+        ...(inst.braveComposite?.symbols ?? []),
+        ...(inst.symbolsAddedContinuous ?? []),
+        ...(inst.extraSymbolsPermanent ?? []),
+        ...(inst.battleSymbolsAdded ?? []),
+    ]
+    for (const c of inst.timedSymbolLoss ?? []) {
+        const idx = symbols.indexOf(c)
+        if (idx >= 0) symbols.splice(idx, 1)
     }
-    return lost
+    return { symbols, fixed: false }
+}
+
+// インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
+export function instanceSymbolCount(inst: CardInstance): number {
+    const { symbols, fixed } = symbolsOf(inst)
+    return symbols.length + (fixed ? 0 : inst.timedExtraSymbols ?? 0)
 }
 
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
@@ -641,28 +624,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // colorlessThisBattle（器S）：色とシンボルを無いものとして扱う個体は軽減の数からまるごと飛ばす
         // （BS13-011/015/052。docs/design/BS13_PLAN.md §1 #10）
         if (inst.colorlessThisBattle) continue
-        // symbolsOverrideContinuous（kind:"symbolFix"）: 固定されたシンボルで数える（BS08海底に眠りし古代都市）
-        // 合体しているブレイヴのシンボルを足す。**シンボル固定を受けていれば固定値が勝つ**（§12 の3）
-        // symbolsAddedContinuous（kind:"symbolAddGrant"。BS12初出）：固定・召喚軽減用の置き換えを受けていても
-        // **加算分は必ず足す**（instanceSymbolCountと同じ規則。2026-09-04ユーザー確認）
-        const cardSymbols = [
-            ...((forSummon ? inst.symbolsForSummonReduction : undefined) ??
-                inst.timedSymbolsOverride ??
-                inst.symbolsOverrideContinuous ??
-                (inst.braveComposite === undefined
-                    ? card(inst.cardId).symbol
-                    : [...card(inst.cardId).symbol, ...inst.braveComposite.symbols])),
-            ...(inst.symbolsAddedContinuous ?? []),
-            ...(inst.extraSymbolsPermanent ?? []),
-            ...(inst.battleSymbolsAdded ?? []),
-        ]
-        // timedSymbolLoss（BS12-080）：指定色のシンボルを1つ減らす（持っていなければ無変化）
-        if (inst.timedSymbolLoss) {
-            for (const c of inst.timedSymbolLoss) {
-                const idx = cardSymbols.indexOf(c)
-                if (idx >= 0) cardSymbols.splice(idx, 1)
-            }
-        }
+        const { symbols: cardSymbols, fixed } = symbolsOf(inst, forSummon)
         // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / timedColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
@@ -676,7 +638,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                 matched = true
             }
         }
-        if (matched && inst.timedExtraSymbols) count += inst.timedExtraSymbols
+        if (matched && !fixed && inst.timedExtraSymbols) count += inst.timedExtraSymbols
     }
     return count
 }
