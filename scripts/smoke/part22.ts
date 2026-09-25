@@ -189,7 +189,7 @@ console.log("--- BS03-X10：白以外のスピリットは付与されない ---
     runTurnStart(s)
     const manmoll = createInstance("BS03-X10", s.turn, 1)
     s.players.p2.field.spirits.push(manmoll)
-    const redAlly = createInstance("BS01-001", s.turn, 1) // ゴラドン：赤（tempColorsも無し）
+    const redAlly = createInstance("BS01-001", s.turn, 1) // ゴラドン：赤（timedColorsも無し）
     s.players.p2.field.spirits.push(redAlly)
     const atk = createInstance("BS03-034", s.turn, 1)
     s.players.p1.field.spirits.push(atk)

@@ -150,9 +150,9 @@ console.log("=== §N フェンリルキャノンType-B：【合体時】【装�
 {
     const s = game("bs10-fenrilb")
     const { host } = combine(s, "p1", "フェンリルキャノンType-B")
-    assert(hasArmorAgainst(host, ["red"]), "赤の効果を受けない")
-    assert(hasArmorAgainst(host, ["purple"]), "紫の効果を受けない")
-    assert(!hasArmorAgainst(host, ["green"]), "緑の効果は装甲の対象外なので受ける")
+    assert(hasArmorAgainst(s, host, ["red"]), "赤の効果を受けない")
+    assert(hasArmorAgainst(s, host, ["purple"]), "紫の効果を受けない")
+    assert(!hasArmorAgainst(s, host, ["green"]), "緑の効果は装甲の対象外なので受ける")
 }
 
 console.log("=== §O バズーカ・アームズ：【合体時】【強襲：1】ネクサスを疲労させることで回復できる ===")

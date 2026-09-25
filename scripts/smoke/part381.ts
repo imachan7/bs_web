@@ -4,7 +4,7 @@ import { isTriggerSuppressed } from "../../server/src/logic/triggers"
 import type { GameState } from "./helpers"
 import { clearBattle } from "../../server/src/logic/GameState"
 import { canBlock } from "../../shared/block"
-import { cantActByTimed } from "../../shared/rules"
+import { cantActByTimed, instHasColor, spiritHasKeyword } from "../../shared/rules"
 
 const VANILLA = "BS01-002" // ロクケラトプス（コスト1）
 
@@ -82,6 +82,35 @@ console.log("=== 5. 1体に与えた誘発効果は、場を離れた後に誘�
     const before = s.players.p1.reserve
     fireTrigger(s, "p1", a, "onDestroy")
     assert(s.players.p1.reserve === before + 1, "場を離れた個体でも付与した効果が発火する")
+}
+
+console.log("=== 6. すべてにキーワード：1体向けに化けず、後から出た自分のスピリットにも効く ===")
+{
+    const s = game()
+    const first = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits = [first]
+    refreshLevelAsOverrides(s)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "keyword", keyword: "jugeki" }], duration: "turn", all: true, side: "own" })
+    const later = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits.push(later)
+    const opp = createInstance(VANILLA, 1, 1)
+    s.players.p2.field.spirits.push(opp)
+    assert(spiritHasKeyword(s, "p1", first, "jugeki") && spiritHasKeyword(s, "p1", later, "jugeki"), "既にいた1体も後から出た1体も【呪撃】を持つ")
+    assert(!spiritHasKeyword(s, "p2", opp, "jugeki"), "相手のスピリットは持たない")
+}
+
+console.log("=== 7. 色：記録した直後から写しに反映され、ターン終了で消え、配信した盤面でも同じ ===")
+{
+    const s = game()
+    const x = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits = [x]
+    refreshLevelAsOverrides(s)
+    assert(!instHasColor(x, "blue"), "前提：赤単色")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "color", color: "blue" }], duration: "turn", side: "own", count: 1 }, x.instanceId)
+    assert(instHasColor(x, "blue") && instHasColor(x, "red"), "記録した直後から青としても扱う（元の赤も残る）")
+    assert(instHasColor(viewFor(s, "p2").players.p1.field.spirits[0]!, "blue"), "配信した盤面でも青としても扱う")
+    endTurn(s)
+    assert(!instHasColor(x, "blue"), "ターン終了で消える")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part381）")

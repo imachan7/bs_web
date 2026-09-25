@@ -616,14 +616,13 @@ export interface CardInstance {
     magicFreeUseCount?: number // 同上：magicFreeUseTurn === state.turn の間だけ有効な、そのターンに実際に無償使用した回数（「ターンに2回しか使えない」の実測カウント。confirmで断った・候補が無かった場合は増えない）
     triggeredUsedTurn?: Record<string, number> // kind:"triggered" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（stepUsedTurnと同型。BS11-032 天王神獣スレイ・ウラノス）
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
-    tempKeywords: { keyword: Keyword; colors?: Color[] }[] // このターンの間だけ付与されたキーワード（ターン終了でリセット。スピリットリンク／インビンシブルシールド）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
     refreshOnBlockedByColorThisTurn?: Color // このターンの間、この色のスピリットにブロックされたら回復する（BS11-054 武槍鳥スピニード・ハヤト。ターン終了でリセット）
     blockRequiresMagicDiscardGrantedTurn?: number // 器BU：召喚時に付与された「このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない」の有効ターン番号（state.turnと一致する間だけ有効。GameEngine.doAttackがこのスピリット自身のアタックのたびに見る。BS13-047深海大帝ノーグ・デンス）
     tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
-    tempColors: Color[] // このターンの間だけ付与された色（master色に加えて持つ。ターン終了でリセット。アディショナルカラー）
+    timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
     // **破壊待機状態**（docs/design/TIMING_CHART.md §1.5）。破壊が決まってから、
     // 破壊時の誘発を解決し終えてトラッシュに置かれるまでの間だけ立つ。
     // この間もカードはフィールドに存在し、コアも乗ったままで、**カードの効果の対象に取れる**

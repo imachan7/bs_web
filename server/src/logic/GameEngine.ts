@@ -2565,7 +2565,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (!staticJugeki(attacker.cardId, f.attackerLevel) || attackerJugekiReplaced) return
             const stillOnField = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (!stillOnField) return
-            if (hasArmorAgainst(stillOnField, f.attackerColors)) {
+            if (hasArmorAgainst(state, stillOnField, f.attackerColors)) {
                 log(state, `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`)
                 return
             }
@@ -2595,7 +2595,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (!staticJugeki(blocker.cardId, f.blockerLevel)) return
             const attackerStill = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (!attackerStill) return
-            if (hasArmorAgainst(attackerStill, f.blockerColors)) {
+            if (hasArmorAgainst(state, attackerStill, f.blockerColors)) {
                 log(state, `${getCard(attacker.cardId).name}は装甲によって【呪撃】を防いだ。`)
                 return
             }

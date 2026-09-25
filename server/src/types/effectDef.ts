@@ -71,7 +71,7 @@ export type EffectDef =
           turn?: "own" | "opponent" // 指定時、発生源の持ち主基準のturn条件のときのみ発火
           condition?:
               | { opponentNexusColorsAtLeast: number } // 相手フィールドのネクサス色数（重複除く）がこれ以上のときのみ発火
-              | { ownFieldHasColorSpirit: Color } // 自分のフィールドに指定色のスピリットがいるときのみ発火（tempColors考慮）
+              | { ownFieldHasColorSpirit: Color } // 自分のフィールドに指定色のスピリットがいるときのみ発火（timedColors考慮）
               | { ownFieldHasColorNexus: Color } // 自分のフィールドに指定色のネクサスがあるときのみ発火
               | { targetSameLevelAsSelf: true } // targetInstanceIdのスピリットのLvがselfと同じときのみ発火（onBlocked用）
               | { ownFieldHasKeyword: Keyword } // 自分のフィールドに指定キーワード持ちがいるときのみ発火（一時/継続付与も考慮）

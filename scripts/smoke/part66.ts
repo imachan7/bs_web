@@ -157,9 +157,9 @@ console.log("=== BS05-061 白夜の虚空：Lv1コスト1以下アタブロ禁�
     refreshLevelAsOverrides(s2)
     const tenshoInst = s2.players.p1.field.spirits.find((x) => x.instanceId === tensho)!
     const plainInst = s2.players.p1.field.spirits.find((x) => x.instanceId === plain)!
-    assert(hasArmorAgainst(tenshoInst, ["red"]) === true, "転召持ちは付与された装甲：赤を受ける")
-    assert(hasArmorAgainst(tenshoInst, ["yellow"]) === false, "付与色以外(黄)には装甲が効かない")
-    assert(hasArmorAgainst(plainInst, ["red"]) === false, "転召を持たないスピリットには装甲が付与されない")
+    assert(hasArmorAgainst(s, tenshoInst, ["red"]) === true, "転召持ちは付与された装甲：赤を受ける")
+    assert(hasArmorAgainst(s, tenshoInst, ["yellow"]) === false, "付与色以外(黄)には装甲が効かない")
+    assert(hasArmorAgainst(s, plainInst, ["red"]) === false, "転召を持たないスピリットには装甲が付与されない")
 }
 
 console.log("=== BS05-065 青嵐の虚空：Lv1コスト2以下アタブロ禁止 ===")

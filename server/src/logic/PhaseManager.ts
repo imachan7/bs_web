@@ -398,11 +398,9 @@ export function endTurn(state: GameState): void {
             inst.immuneToOpponentThisTurn = false
             inst.blockConstraintNegatedThisTurn = false
             delete inst.lifeDamageNegatedFor
-            inst.tempKeywords = []
             inst.tempAlsoCosts = []
             delete inst.tempCostDelta
             delete inst.refreshOnBlockedByColorThisTurn
-            inst.tempColors = []
             delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn
             delete inst.blockTriggersAsAttackThisTurn
@@ -446,6 +444,7 @@ export function endTurn(state: GameState): void {
     state.turnConstraints = []
     // バトル限定の記録も、バトルが成立しないまま終わる経路のためにここで消す
     state.timedEffects = []
+    refreshLevelAsOverrides(state)
     delete state.extraStepAfterAttackUsed
     delete state.extraMainStep
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット

@@ -73,7 +73,7 @@ console.log("=== 3. ヤツノカンゾウ Lv2：自分のアタックステッ�
         s.turnPlayer = opts.turnPlayer
         const kanzou = createInstance(YATSU, 1, opts.kanzouLv2 ? 3 : 1)
         const x = createInstance(VANILLA, 1, 1)
-        if (opts.bofu) x.tempKeywords.push({ keyword: "bofu" })
+        if (opts.bofu) s.timedEffects.push({ content: [{ type: "keyword", keyword: "bofu" }], target: { kind: "instance", instanceId: x.instanceId }, until: "turn", ownerPid: "p1" })
         const foe = createInstance(VANILLA, 1, 1)
         s.players.p1.field.spirits = [kanzou, x]
         s.players.p2.field.spirits = [foe]

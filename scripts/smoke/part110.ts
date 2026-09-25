@@ -46,12 +46,12 @@ console.log("=== BS03-X10 凍獣マン・モール Lv2：自分のスピリッ�
     const ally = putSpirit(s, "p1", "BS01-001", 1)
     const enemy = putSpirit(s, "p2", "BS01-001", 1)
     refreshLevelAsOverrides(s)
-    assert(hasArmorAgainst(ally, ["red"]) === true, "自分のスピリットは装甲：赤を得る")
-    assert(hasArmorAgainst(ally, ["purple"]) === true, "装甲：紫も得る")
-    assert(hasArmorAgainst(ally, ["green"]) === true, "装甲：緑も得る")
-    assert(hasArmorAgainst(ally, ["yellow"]) === false, "Lv2では黄は含まれない")
-    assert(hasArmorAgainst(ally, ["blue"]) === false, "Lv2では青は含まれない")
-    assert(hasArmorAgainst(enemy, ["red"]) === false, "相手のスピリットには付与されない")
+    assert(hasArmorAgainst(s, ally, ["red"]) === true, "自分のスピリットは装甲：赤を得る")
+    assert(hasArmorAgainst(s, ally, ["purple"]) === true, "装甲：紫も得る")
+    assert(hasArmorAgainst(s, ally, ["green"]) === true, "装甲：緑も得る")
+    assert(hasArmorAgainst(s, ally, ["yellow"]) === false, "Lv2では黄は含まれない")
+    assert(hasArmorAgainst(s, ally, ["blue"]) === false, "Lv2では青は含まれない")
+    assert(hasArmorAgainst(s, enemy, ["red"]) === false, "相手のスピリットには付与されない")
 }
 
 console.log("=== BS03-X10 Lv3：装甲：赤/紫/緑/黄/青 に広がる ===")
@@ -62,7 +62,7 @@ console.log("=== BS03-X10 Lv3：装甲：赤/紫/緑/黄/青 に広がる ===")
     const ally = putSpirit(s, "p1", "BS01-001", 1)
     refreshLevelAsOverrides(s)
     for (const color of ["red", "purple", "green", "yellow", "blue"] as const) {
-        assert(hasArmorAgainst(ally, [color]) === true, `Lv3では装甲：${color} を得る`)
+        assert(hasArmorAgainst(s, ally, [color]) === true, `Lv3では装甲：${color} を得る`)
     }
 }
 
@@ -73,7 +73,7 @@ console.log("=== BS03-X10 Lv1：装甲は付与されない（levels:[2]/[3]） 
     putSpirit(s, "p1", "BS03-X10", 1) // Lv1
     const ally = putSpirit(s, "p1", "BS01-001", 1)
     refreshLevelAsOverrides(s)
-    assert(hasArmorAgainst(ally, ["red"]) === false, "Lv1では装甲を配らない")
+    assert(hasArmorAgainst(s, ally, ["red"]) === false, "Lv1では装甲を配らない")
 }
 
 console.log("=== BS05-056 最古龍の顎 Lv2：シンボル2つ以上はBP4000以上を指定アタックできる ===")

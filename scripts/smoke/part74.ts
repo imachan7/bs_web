@@ -172,14 +172,14 @@ console.log("=== BS05-061 白夜の虚空：Lv2で、転召を持つ自分のス
     refreshLevelAsOverrides(s)
     const holderInst = spiritOf(s, "p1", tenshoHolder)!
     const nonInst = spiritOf(s, "p1", nonTensho)!
-    assert(hasArmorAgainst(holderInst, ["red"]) === false, "Lv1（コア0）ではまだ装甲が付与されない")
+    assert(hasArmorAgainst(s, holderInst, ["red"]) === false, "Lv1（コア0）ではまだ装甲が付与されない")
 
     s.players.p1.field.nexuses.find((n) => n.instanceId === nexusId)!.cores = 3 // Lv2へ
     refreshLevelAsOverrides(s)
-    assert(hasArmorAgainst(holderInst, ["red"]) === true, "Lv2：転召持ちは装甲：赤を受ける")
-    assert(hasArmorAgainst(holderInst, ["white"]) === true, "Lv2：転召持ちは装甲：白を受ける")
-    assert(hasArmorAgainst(holderInst, ["yellow"]) === false, "指定されていない色（黄）の装甲は受けない")
-    assert(hasArmorAgainst(nonInst, ["red"]) === false, "転召を持たないスピリットには付与されない")
+    assert(hasArmorAgainst(s, holderInst, ["red"]) === true, "Lv2：転召持ちは装甲：赤を受ける")
+    assert(hasArmorAgainst(s, holderInst, ["white"]) === true, "Lv2：転召持ちは装甲：白を受ける")
+    assert(hasArmorAgainst(s, holderInst, ["yellow"]) === false, "指定されていない色（黄）の装甲は受けない")
+    assert(hasArmorAgainst(s, nonInst, ["red"]) === false, "転召を持たないスピリットには付与されない")
 }
 
 console.log("=== BS05-062 永久氷殿：氷姫スピリットにBP+1000（Lv1-2）／Lv2でアタックステップの破壊に反応し手札へ ===")

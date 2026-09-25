@@ -17,6 +17,7 @@ import {
     requestChoice,
     returnSpiritToHand,
     tryInteractiveTargetChoice,
+    recordTimed,
 } from "../EffectModules"
 import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -319,7 +320,7 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
         for (const id of chosen) {
             const target = onField(id)
             if (!target) continue
-            state.timedEffects.push({ content: [{ type: "mustAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+            recordTimed(state, { content: [{ type: "mustAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
             log(state, `${sourceName}：${getCard(target.cardId).name}は、このターンの間可能ならば必ずアタックする。`)
         }
         return
@@ -330,7 +331,7 @@ const forceAttackThisTurnHandler: ActionHandler<"forceAttackThisTurn"> = (ctx, a
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    for (const target of candidates) state.timedEffects.push({ content: [{ type: "mustAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+    for (const target of candidates) recordTimed(state, { content: [{ type: "mustAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：${state.players[opp].name}のスピリットすべては、このターンの間可能ならば必ずアタックする。`)
 }
 

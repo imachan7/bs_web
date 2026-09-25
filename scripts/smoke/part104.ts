@@ -160,9 +160,9 @@ console.log("=== BS05-032 珊瑚蟹シオマネキッド Lv2：自分の緑の�
     const greenSpirit = put(s, "p1", "BS02-030", 1) // 緑のスピリット
     refreshLevelAsOverrides(s)
 
-    assert(hasArmorAgainst(greenSpirit, ["red"]) === true, "緑のスピリットは装甲：赤を得る")
-    assert(hasArmorAgainst(greenSpirit, ["white"]) === true, "緑のスピリットは装甲：白を得る")
-    assert(hasArmorAgainst(greenSpirit, ["blue"]) === false, "赤/白以外の色には装甲が効かない")
+    assert(hasArmorAgainst(s, greenSpirit, ["red"]) === true, "緑のスピリットは装甲：赤を得る")
+    assert(hasArmorAgainst(s, greenSpirit, ["white"]) === true, "緑のスピリットは装甲：白を得る")
+    assert(hasArmorAgainst(s, greenSpirit, ["blue"]) === false, "赤/白以外の色には装甲が効かない")
 
     resolveAction(s, "p2", null, { type: "destroy", count: 1 }, greenSpirit.instanceId, ["red"], "spirit")
     assert(

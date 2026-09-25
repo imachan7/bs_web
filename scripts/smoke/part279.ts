@@ -49,7 +49,7 @@ console.log("=== §B BS11-049：このターンの間、相手のスピリット
     const enemy = createInstance(armored!.cardId, s.turn, 3)
     s.players.p2.field.spirits.push(enemy)
     refreshLevelAsOverrides(s)
-    assert(hasArmorAgainst(enemy, ["red", "blue", "green", "white", "yellow", "purple"]), "テスト前提: 装甲を持つ")
+    assert(hasArmorAgainst(s, enemy, ["red", "blue", "green", "white", "yellow", "purple"]), "テスト前提: 装甲を持つ")
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "armorDisabledForPid" } }], duration: "turn" })
     assert(
         s.turnConstraints.some((c) => c.type === "armorDisabledForPid" && c.pid === "p2"),

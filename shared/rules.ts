@@ -343,24 +343,24 @@ export function cardHasColor(cardData: CardData, color: Color): boolean {
     return cardData.colors.includes(color)
 }
 
-// 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
+// 状態を考慮した色判定：master色 ‖ 一時付与された色（timedColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
 // ⚠️ colorlessThisBattle（器S。BS13-011/015/052「色を無いものとして扱う」）が立っている間は、
 //    付与色も含めて常に無色（false）を返す
 export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (inst.colorlessThisBattle) return false
     if (cardHasColor(card(inst.cardId), color)) return true
-    if (inst.tempColors.includes(color)) return true
+    if (inst.timedColors.includes(color)) return true
     return (inst.colorsAsContinuous ?? []).includes(color)
 }
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
-// （多色カードは複数返る。付与色＝tempColors／colorsAsContinuous も含む）
+// （多色カードは複数返る。付与色＝timedColors／colorsAsContinuous も含む）
 // colorlessThisBattle が立っている間は常に空配列（instHasColorと同じ扱い）
 export function instColors(inst: CardInstance): Color[] {
     if (inst.colorlessThisBattle) return []
     const colors = new Set<Color>(card(inst.cardId).colors)
-    for (const c of inst.tempColors) colors.add(c)
+    for (const c of inst.timedColors) colors.add(c)
     for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
     // 合体しているブレイヴの色が加わり、合体スピリットは**混色扱い**になる
     // （BRAVE.md §12.2。2026-08-25 ユーザー確認）。装甲・軽減・「相手の〈色〉のスピリット」の
@@ -663,11 +663,11 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                 if (idx >= 0) cardSymbols.splice(idx, 1)
             }
         }
-        // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / tempColors）を持つ個体は、
+        // 「このスピリットは◯色のスピリットとしても扱う」（colorAs / timedColors）を持つ個体は、
         // **そのシンボルを付与色のシンボルとしても数える**（2026-08-20 ユーザー確認）。
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
         // 「緑シンボル1つ」としても「白シンボル1つ」としても数える（置き換えではない）
-        const grantedColors = [...inst.tempColors, ...(inst.colorsAsContinuous ?? [])]
+        const grantedColors = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
         const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
         for (const sym of cardSymbols) {
@@ -750,7 +750,7 @@ export function spiritHasKeyword(
     ) {
         return true
     }
-    if (inst.tempKeywords.some((k) => keywordMatches(k.keyword, keyword))) return true
+    if (timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
 }
 
@@ -887,9 +887,9 @@ export function continuousKeywordGrantCount(
     return 0
 }
 
-// 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・一時付与tempKeywords・継続付与armorColorsGrantedを
+// 対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・期間つきの付与・継続付与armorColorsGrantedを
 // 合算、重複除く）。AuraCounter "targetArmorColors"（アイシクルアサルト）専用。発生源ではなく**対象**基準の点に注意
-export function targetArmorColorCount(inst: CardInstance): number {
+export function targetArmorColorCount(board: Board, inst: CardInstance): number {
     const level = currentLevel(inst).level
     const colors = new Set<Color>()
     for (const e of card(inst.cardId).effects) {
@@ -897,7 +897,7 @@ export function targetArmorColorCount(inst: CardInstance): number {
             for (const c of e.colors ?? []) colors.add(c)
         }
     }
-    for (const k of inst.tempKeywords) {
+    for (const k of timedKeywords(board, inst)) {
         if (k.keyword === "armor") {
             for (const c of k.colors ?? []) colors.add(c)
         }
@@ -1165,7 +1165,7 @@ export function boardResistanceAgainst(
     if (hasHeavyArmorAgainst(target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.heavyArmor.label}】` }
     }
-    if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(target, attempt.sourceColors)) {
+    if (!armorDisabled && attempt.sourceType !== "brave" && hasArmorAgainst(board, target, attempt.sourceColors)) {
         return { category: "armor", label: `【${KEYWORDS.armor.label}】` }
     }
     if (hasFullEffectImmunity(board, targetOwnerPid, target, attempt.sourceType)) {
@@ -1338,7 +1338,7 @@ export function countAuraCounter(
         return board.players[sourcePid].field.spirits.filter((s) => families.some((f) => spiritHasFamily(board, sourcePid, s, f))).length
     }
     if (counter === "targetArmorColors") {
-        return targetInst ? targetArmorColorCount(targetInst) : 0
+        return targetInst ? targetArmorColorCount(board, targetInst) : 0
     }
     if (counter === "readyEnemies") {
         const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
@@ -1564,7 +1564,7 @@ export function auraAppliesTo(
         return false
     }
     // 軽減シンボルの色数（BS09-003角竜人ドラケンLv2＝「軽減シンボルを2色以上持つ」）。
-    // 軽減はカード固有の情報なので、付与色（tempColors）ではなくカード静的な reduction を見る
+    // 軽減はカード固有の情報なので、付与色（timedColors）ではなくカード静的な reduction を見る
     if (aura.reductionColorsAtLeast !== undefined) {
         const colors = new Set(card(targetInst.cardId).reduction)
         if (colors.size < aura.reductionColorsAtLeast) return false
@@ -2089,7 +2089,7 @@ export function hasFullEffectImmunity(
 // ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
 // （【呪撃】を装甲で防ぐ判定と、reviveOnDestroy の byBattleVsArmorColor＝「装甲の色の相手に
 // バトルで破壊されたとき」。どちらも『効果が届くか』ではなく装甲の色そのものを問う判定）
-export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
+export function hasArmorAgainst(board: Board, inst: CardInstance, sourceColors: Color[] | undefined): boolean {
     if (sourceColors === undefined || sourceColors.length === 0) return false
     const level = currentLevel(inst).level
     const staticArmor = card(inst.cardId).effects.some(
@@ -2102,7 +2102,7 @@ export function hasArmorAgainst(inst: CardInstance, sourceColors: Color[] | unde
     if (staticArmor) return true
     // 一時付与の装甲（インビンシブルシールド）
     if (
-        inst.tempKeywords.some(
+        timedKeywords(board, inst).some(
             (k) => k.keyword === "armor" && (k.colors?.some((c) => sourceColors.includes(c)) ?? false),
         )
     ) {
@@ -2941,6 +2941,11 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
     })
 }
 
+// この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
+export function timedKeywords(board: Board, inst: CardInstance): { keyword: Keyword; colors?: Color[] }[] {
+    return timedContentsOn(board, inst).flatMap((c) => (c.type === "keyword" ? [c] : []))
+}
+
 // このプレイヤーに掛かっている期間つき効果の内容
 export function timedContentsFor(board: Board, pid: PlayerId): TimedContent[] {
     return board.timedEffects.flatMap((r) => (r.target.kind === "player" && r.target.pid === pid ? r.content : []))
@@ -3177,7 +3182,7 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
-    return inst.tempKeywords.some((k) => keywordMatches(k.keyword, "awaken"))
+    return timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
 

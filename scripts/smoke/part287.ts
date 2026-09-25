@@ -70,9 +70,8 @@ console.log("=== §B 【重装甲：可変】は自分自身の色（付与色�
         boardResistanceAgainst(s, "p1", luna, { ...attempt, sourceColors: ["purple"] }) === null,
         "自分が持たない色（紫）の効果は受ける",
     )
-    // 色が増えたら防ぐ色も増える（毎回算出。2026-09-03 ユーザー確認）。tempColors は
-    // refreshLevelAsOverrides に消されない枠なので、そこへ足して再計算させる
-    luna.tempColors.push("purple")
+    // 色が増えたら防ぐ色も増える（毎回算出。2026-09-03 ユーザー確認）。期間つきの色を一覧に記録して作り直させる
+    s.timedEffects.push({ content: [{ type: "color", color: "purple" }], target: { kind: "instance", instanceId: luna.instanceId }, until: "turn", ownerPid: "p1" })
     refreshLevelAsOverrides(s)
     assert(
         boardResistanceAgainst(s, "p1", luna, { ...attempt, sourceColors: ["purple"] })?.category === "armor",
