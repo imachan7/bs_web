@@ -14,7 +14,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { refreshLevelAsOverrides } from "../../server/src/logic/EffectModules"
 import { countSymbols, instanceSymbolCount } from "../../shared/rules"
 

@@ -4,7 +4,7 @@ import { act, assert, createGame, createInstance, getCard, handleAction, resolve
 import type { GameState } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
 import { fireTrigger, fireFieldEventTriggers } from "../../server/src/logic/EffectModules"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 
 function base(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "red" })

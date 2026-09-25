@@ -15,7 +15,7 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { noLifeDamageByCost, coresCantBeRemovedByOpponent, boardResistanceAgainst } from "../../shared/rules"
 
 const SHIBERUZA = "BS12-020" // 一番槍のシベルザ（symbolCount+combinedOnly）

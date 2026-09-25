@@ -3,7 +3,7 @@
 import { assert, act, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { instanceSymbolCount, countSymbols, activatableAbility } from "../../shared/rules"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { exhaustSpirit } from "../../server/src/logic/EffectModules"
 
 const CASTLE = "BS12-008" // グランド・ドラグキャッスル（赤・指定アタック）

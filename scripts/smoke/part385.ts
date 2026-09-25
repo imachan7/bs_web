@@ -2,7 +2,7 @@
 // 条件つきでも「ブロックされない効果を持つ」に数える＝2026-09-25 ユーザー決定。ゲッコ・グライダーは読むたびにホストを見る）
 import { assert, createGame, createInstance, currentLevel, getCard, refreshLevelAsOverrides, resolveAction, timedHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
-import { attachBrave, detachBraveByEffect } from "../../server/src/logic/removal"
+import { attachBrave, detachBraveByEffect } from "../../server/src/logic/brave"
 import { canBlock } from "../../shared/block"
 
 function game(id: string): GameState {

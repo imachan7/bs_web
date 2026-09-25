@@ -6,7 +6,7 @@
 import { assert, createGame, createInstance, effectiveCost, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS, getCard } from "../../server/src/logic/GameState"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { countSymbols, instanceSymbolCount } from "../../shared/rules"
 
 const TIAEL = "BS11-039" // 天使ティアエル（黄・召喚の軽減の間だけシンボル黄3つ）

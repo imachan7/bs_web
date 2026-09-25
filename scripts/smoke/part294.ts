@@ -3,7 +3,8 @@
 // BL=FieldEvent anySpiritReturnedToHand（「相手のスピリットが手札に戻ったとき」を書けるようにする）
 import { assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart, getCard } from "./helpers"
 import type { GameState } from "./helpers"
-import { attachBrave, returnSpiritToHand } from "../../server/src/logic/removal"
+import { returnSpiritToHand } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { combinedBraveColorsOk } from "../../shared/rules"
 

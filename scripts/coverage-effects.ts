@@ -776,10 +776,10 @@ process.on("exit", () => {
         //     BS07ブラックリチュアルの fireDestroyTriggerFirst で両経路に1行挟まったため、
         //     アンカーは applyRevived の行だけにした。**先頭の改行は必須**：これが無いと
         //     8スペース版のパターンが12スペース版の一部にも一致して「2箇所」になる
-        //     ※ 2026-08-10: tryReviveOnDestroy は EffectModules.ts から removal.ts へ移設された
+        //     ※ 2026-09-26: tryReviveOnDestroy は removal.ts から revive.ts へ移設された
         for (const indent of ["        ", "            "]) {
             patch(
-                path.join(tree, "server/src/logic/removal.ts"),
+                path.join(tree, "server/src/logic/revive.ts"),
                 `\n${indent}applyRevived(effect.revived)`,
                 `\n${indent}__covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))\n` +
                     `${indent}applyRevived(effect.revived)`,
@@ -820,7 +820,7 @@ process.on("exit", () => {
         )
         // 不死：トラッシュのカードが【不死】の引き金条件を満たして候補になった時点
         patch(
-            path.join(tree, "server/src/logic/removal.ts"),
+            path.join(tree, "server/src/logic/revive.ts"),
             `        found.push(i)`,
             `        __covRecord("cont\t" + ${kwEid("cardId", "fushi")})
         found.push(i)`,
@@ -835,14 +835,11 @@ process.on("exit", () => {
             `    rawLevel,\n    pushResumeFrames,\n    __covRecord,`,
         )
 
-        // (4.1) removal.ts 側で __covRecord を使うための import 追記。
-        //     (4) の applyRevived 計測はここが無いと ReferenceError で落ちる
-        //     （2026-08-14: tryReviveOnDestroy の移設時に入れ忘れていたぶんを補った）
-        patch(
-            path.join(tree, "server/src/logic/removal.ts"),
-            `    rawLevel,`,
-            `    rawLevel,\n    __covRecord,`,
-        )
+        // (4.1) removal.ts・revive.ts 側で __covRecord を使うための import 追記。
+        //     (4) の applyRevived・【不死】の計測は revive.ts、除去の計測は removal.ts にあり、無いと ReferenceError で落ちる
+        for (const file of ["removal.ts", "revive.ts"]) {
+            patch(path.join(tree, "server/src/logic", file), `suspend } from "./GameState"`, `suspend, __covRecord } from "./GameState"`)
+        }
 
         // (4.5) keywordGrant（装甲）は shared/ の hasContinuousKeywordGrant を通らない。
         //     refreshLevelAsOverrides が CardInstance.armorColorsGranted へ毎回再計算して

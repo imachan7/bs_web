@@ -6,7 +6,7 @@
 import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { driveTurnStart } from "../../server/src/logic/PhaseManager"
 
 const AQUA = "BS11-X04" // 宝瓶神機アクア・エリシオン

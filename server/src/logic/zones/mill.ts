@@ -1,6 +1,7 @@
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
-import { returnSpiritToDeckBottom, spiritMillFreeSummonOrConfirm } from "../removal"
+import { returnSpiritToDeckBottom } from "../removal"
+import { spiritMillFreeSummonOrConfirm } from "../revive"
 import { fireFieldEventTriggers, fireNexusDeployed, resolveMagicEffects } from "../triggers"
 import { effectActiveAtLevel, effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"

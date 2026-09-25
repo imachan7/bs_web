@@ -7,7 +7,7 @@
 import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
-import { attachBrave } from "../../server/src/logic/removal"
+import { attachBrave } from "../../server/src/logic/brave"
 import { braveKeepCores } from "../../shared/rules"
 
 const anySpirit = ALL_CARDS.filter((c) => c.type === "spirit" && c.effects.length === 0 && c.symbol.length === 1)

@@ -21,7 +21,8 @@ import {
     resumeTriggerBatch,
 } from "./GameState"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
 import { AWAKEN_FROM_RESERVE, timedBattleContents, timedContentsOn, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"

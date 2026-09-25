@@ -24,7 +24,7 @@ import {
     spiritHasKeyword,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { applyFushiSummon } from "../../server/src/logic/removal"
+import { applyFushiSummon } from "../../server/src/logic/revive"
 import { sweepLevelCostDepletion } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
 

@@ -59,7 +59,9 @@ import {
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
-import { attachBrave, destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToDeckBottom, returnSpiritToHand, spiritMillFreeSummonOrConfirm } from "./removal"
+import { destroySpirit, flushBounces, returnNexusToDeckTop, returnSpiritToDeckBottom, returnSpiritToHand } from "./removal"
+import { attachBrave } from "./brave"
+import { spiritMillFreeSummonOrConfirm } from "./revive"
 import {
     applyBothSidesRedirectToCandidates,
     bothSidesRedirectKeepPid,
@@ -3006,33 +3008,17 @@ export {
     revertDestroyGroupUsage,
 } from "./triggers"
 
-// ---- スピリット／ネクサスの除去（server/src/logic/removal.ts へ分割。2026-08-10）----
+// ---- スピリット／ネクサスの除去・ブレイヴ・復活（removal.ts・brave.ts・revive.ts へ分割）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
 export {
-    attachBrave,
-    detachBraveByEffect,
-    detachBraveByOwnerChoice,
-    returnCombinedBraveToHand,
-    returnCombinedBraveToDeckBottom,
-    destroyCombinedBrave,
-    detachBraveVoluntary,
-    detachBravesOnLeave,
-    flushBraveKeeps,
-    applyBraveKeep,
-    declineBraveKeep,
     destroySpiritsFrom,
     destroyTargetsBatch,
-    applyReviveEntry,
-    collectReviveEntries,
-    fushiSummonOrConfirm,
     applyDestroyBatchAfter,
     resumeDestroyBatch,
     destroySpirit,
     tryFreeSummonOnHandDiscard,
     tryHandFreeSummonOnLifeDamaged,
     applyHandFreeSummon,
-    applyReviveConfirm,
-    declineReviveConfirm,
     destroyNexus,
     returnNexusToHand,
     returnNexusToDeckTop,
@@ -3049,3 +3035,5 @@ export {
     removeCoresToTrash,
     removeCoresToVoid,
 } from "./removal"
+export { attachBrave, detachBraveByEffect, detachBraveByOwnerChoice, returnCombinedBraveToHand, returnCombinedBraveToDeckBottom, destroyCombinedBrave, detachBraveVoluntary, detachBravesOnLeave, flushBraveKeeps, applyBraveKeep, declineBraveKeep } from "./brave"
+export { applyReviveEntry, collectReviveEntries, fushiSummonOrConfirm, applyReviveConfirm, declineReviveConfirm } from "./revive"

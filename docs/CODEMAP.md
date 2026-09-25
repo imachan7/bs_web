@@ -389,6 +389,21 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ActionHandler`（型）：単一アクションのハンドラ。action は type で絞り込まれた具体型が渡る
 - `ActionRegistry`（型）：全 EffectAction.type を網羅するハンドラ表。
 
+## server/src/logic/brave.ts
+
+- `attachBrave`（fn）：**合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
+- `detachBraveByEffect`（fn）：効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
+- `detachBraveByOwnerChoice`（fn）：相手の効果で分離させられるとき、**コアの移動はブレイヴの持ち主が行う**（BRAVE.md §12.5.1）。
+- `destroyCombinedBrave`（fn）：合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
+- `returnCombinedBraveToHand`（fn）：合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。
+- `returnCombinedBraveToDeckBottom`（fn）：合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
+- `detachBraveVoluntary`（fn）：メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離…
+- `detachBravesOnLeaveFree`（fn）：**ホストが場を離れるときに必ず1回だけ呼ぶ共通の入口。**
+- `detachBravesOnLeave`（fn）
+- `flushBraveKeeps`（fn）：脇に置いてあるブレイヴを1体ずつ決着させる。
+- `applyBraveKeep`（fn）：「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
+- `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
+
 ## server/src/logic/counted.ts
 
 - `countedAmount`（fn）
@@ -498,17 +513,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/removal.ts
 
-- `attachBrave`（fn）：**合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
-- `detachBraveByEffect`（fn）：効果によるブレイヴの分離（§12.5）。**コアは要らない**（「場を離れるときに残す」＝
-- `detachBraveByOwnerChoice`（fn）：相手の効果で分離させられるとき、**コアの移動はブレイヴの持ち主が行う**（BRAVE.md §12.5.1）。
-- `destroyCombinedBrave`（fn）：合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
-- `returnCombinedBraveToHand`（fn）：合体中のブレイヴ**だけ**を手札へ戻す（destroyCombinedBrave のバウンス版。
-- `returnCombinedBraveToDeckBottom`（fn）：合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
-- `detachBraveVoluntary`（fn）：メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離…
-- `detachBravesOnLeave`（fn）
-- `flushBraveKeeps`（fn）：脇に置いてあるブレイヴを1体ずつ決着させる。
-- `applyBraveKeep`（fn）：「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
-- `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
 - `destroySpirit`（fn）：スピリットを破壊（または消滅）：コアをリザーブへ戻し、カードをトラッシュへ。
 - `resumeDestroyCommit`（fn）：中断していた破壊処理の続き（drainResumeStack から呼ぶ）
 - `commitPendingDestruction`（fn）：破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
@@ -516,21 +520,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryFreeSummonOnHandDiscard`（fn）：手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
 - `tryHandFreeSummonOnLifeDamaged`（fn）：手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
 - `applyHandFreeSummon`（fn）：pendingChoice（手札からの無償召喚の確認）で「召喚する」が選ばれたときの後処理。
-- `wouldAskReviveConfirm`（fn）：この個体を今このコンテキストで破壊しようとしたとき、
-- `collectReviveEntries`（fn）：この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
-- `applyReviveEntry`（fn）：集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
-- `fushiCandidates`（fn）
-- `fushiSummonOrConfirm`（fn）：【不死】の確認で「召喚する」が選ばれたときの後処理。**コストはここで支払う**
-- `applyFushiSummon`（fn）
-- `spiritMillFreeSummonOrConfirm`（fn）：器AR：BS13-034ミノガメン「相手のデッキ破棄効果で破棄されたこのカードは、コストを支払わずに
-- `declineSpiritMillFreeSummon`（fn）
-- `applySpiritMillFreeSummon`（fn）
 - `destroySpiritsFrom`（fn）：複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
 - `destroyTargetsBatch`（fn）：事前に確定した対象リストをまとめて破壊する（呼び出し元の定型）。
 - `resumeDestroyBatch`（fn）：破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
 - `applyDestroyBatchAfter`（fn）：「この効果で破壊したスピリット1体につき」の後処理。
-- `applyReviveConfirm`（fn）：保留していた復活の確認で「復活させる」が選ばれたときの後処理。
-- `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 - `destroyNexus`（fn）：ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
 - `resumeDestroyNexusCommit`（fn）：中断していたネクサスの破壊処理の続き（drainResumeStack から呼ぶ）
 - `commitPendingNexusDestruction`（fn）：破壊待機状態のネクサスを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）
@@ -548,6 +541,22 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `removeCoresToTrash`（fn）：コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
 - `removeCoresToVoid`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
 - `coreFloorFor`（fn）：globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
+
+## server/src/logic/revive.ts
+
+- `wouldAskReviveConfirm`（fn）：この個体を今このコンテキストで破壊しようとしたとき、
+- `collectReviveEntries`（fn）：この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
+- `applyReviveEntry`（fn）：集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
+- `destroyedCostsOf`（fn）：この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
+- `destroyedFamiliesOf`（fn）：破壊された個体が【不死：系統】の引き金として持つ系統の一覧（静的な系統。BS13-014 闇騎士アグラヴェイン）
+- `fushiCandidates`（fn）
+- `fushiSummonOrConfirm`（fn）：【不死】の確認で「召喚する」が選ばれたときの後処理。**コストはここで支払う**
+- `applyFushiSummon`（fn）
+- `spiritMillFreeSummonOrConfirm`（fn）：器AR：BS13-034ミノガメン「相手のデッキ破棄効果で破棄されたこのカードは、コストを支払わずに
+- `declineSpiritMillFreeSummon`（fn）
+- `applySpiritMillFreeSummon`（fn）
+- `applyReviveConfirm`（fn）：保留していた復活の確認で「復活させる」が選ばれたときの後処理。
+- `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 
 ## server/src/logic/state/exhaust.ts
 
