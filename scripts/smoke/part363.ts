@@ -128,7 +128,7 @@ function collectMigrated(): { cardId: string; cardName: string; action: BpBuffAc
 }
 
 const candidates = collectMigrated()
-assert(candidates.length === 150, `移行したカードデータの1体指定 BP は150件（実際: ${candidates.length}）`)
+assert(candidates.length === 148, `移行したカードデータの1体指定 BP は148件（フェネボラック・キマイラ・デブリは「このスピリット」へ移した）（実際: ${candidates.length}）`)
 assert(
     candidates.every(({ action, now }) => JSON.stringify(toTimedEffect(action)) === JSON.stringify(now)),
     "データの書き方は確定スキーマの変換どおり",
