@@ -4,7 +4,7 @@
 //   TargetFilter.hasTrigger／fieldEvent.excludePhase／FieldEvent"ownTensho"＋discardOpponent.cardTypeFilter／
 //   fieldEvent.condition"targetMaxBp"／battleWon.firstAttackOfTurn＋destroyByBpBudget.budgetFromSelfBp／
 //   reviveOnDestroy.cost.ownLifeOneToVoid／summonFromHandFree.keywordFilter+skipTensho／
-//   destroyAll.drawPerDestroyed／grantEffectToTargetThisTurn＋lifeCrush.countCounter／
+//   destroyAll.drawPerDestroyed／timedEffect の grantTrigger＋lifeCrush.countCounter／
 //   destroyDownToOwnCount＋magic condition"ownSpiritCountAtLeast"／revealAndSummonAllByFamily／
 //   destroy の countCounter（EffectCounter { ownFamily }）
 import {
@@ -427,10 +427,13 @@ console.log("=== BS08ドラゴンスクランブル：lendSelfThisTurn＋destroy
     assert(s.players.p1.hand.length === handBefore + 1, "破壊した数ぶんデッキから1枚ドローする")
 }
 
-console.log("=== BS08メテオストーム：grantEffectToTargetThisTurn＋lifeCrush.countCounter ===")
+console.log("=== BS08メテオストーム：timedEffect の grantTrigger＋lifeCrush.countCounter ===")
 {
-    const meteor = findByEffect((e) => e["kind"] === "magic" && (e["action"] as Record<string, unknown> | undefined)?.["type"] === "grantEffectToTargetThisTurn")
-    const entry = entryOf(meteor, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "grantEffectToTargetThisTurn")
+    const isMeteor = (e: Record<string, unknown>) =>
+        e["kind"] === "magic" && JSON.stringify(e["action"] ?? null).includes('"grantTrigger"') && JSON.stringify(e["action"]).includes('"nameContains"')
+    const meteor = findByEffect(isMeteor)
+    assert(meteor.cardId === "BS08-068" && meteor.name === "メテオストーム", "名前で絞る付与はメテオストーム")
+    const entry = entryOf(meteor, isMeteor)
     const grantAction = (entry["action"] as Record<string, unknown>)
     const nameFilter = String(((grantAction["filter"]) as Record<string, unknown>)["nameContains"])
     const targetCard = CARDS.find((c) => c.type === "spirit" && c.name.includes(nameFilter))!

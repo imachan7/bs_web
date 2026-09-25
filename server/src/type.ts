@@ -710,7 +710,7 @@ export interface CardInstance {
     // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築し、shared/rules の effectSources・activeConstraints・
     // spiritHasKeyword と EffectModules.fireTrigger が参照する（BS07ルナースラッシュ）
     tempGrantedTriggers?: { trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker" }[]
-    // このターンの間だけ、対象1体に直接付与された誘発効果（action:"grantEffectToTargetThisTurn"。ターン終了でリセット。
+    // このターンの間だけ、対象1体に直接付与された誘発効果（timedEffect の grantTrigger。ターン終了でリセット。
     // fireTrigger が card.effects と同様に走査する。BS08メテオストーム＝「ヴルム」入りの自分のスピリット1体に付与）
     asSpiritThisTurn?: { cost: number; family: string[]; levels: LevelDef[] }
     // このターンの間だけ「スピリットとして扱われている」ネクサスに載る上書き（action:"treatOwnNexusesAsSpiritsThisTurn"。BS03ゴーレムクラフト）。
@@ -1426,6 +1426,7 @@ export type TimedContent =
     | { type: "cantAttack" }
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
+    | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker" } // 誘発効果を与える（期間は turn のみ。1体は自分のスピリットから選ぶ）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }

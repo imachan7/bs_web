@@ -22,9 +22,10 @@ function flagOf(content: Content, duration: TimedEffect["duration"]) {
 }
 
 // BP は重ねがけできるので「既に持つ」とは見ない
+// 強制アタック・トリガー抑止は、既に掛かっている個体もそのまま選べる（2026-09-25 ユーザー確認）
 function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
-        if (c.type === "suppressTrigger") return inst.suppressedTriggersThisTurn?.includes(c.trigger) === true
+        if (c.type === "mustAttack" || c.type === "suppressTrigger") return false
         if (isRecorded(c)) {
             return state.timedEffects.some(
                 (r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.until === action.duration && r.content.some((x) => x.type === c.type),
@@ -54,7 +55,8 @@ function contentLabel(action: TimedEffect): string {
     const must = action.content.some((c) => c.type === "mustAttack") ? ["可能ならば必ずアタックする"] : []
     const suppress = action.content.some((c) => c.type === "suppressTrigger") ? ["効果が発揮されない"] : []
     const rested = action.content.some((c) => c.type === "canBlockWhileRested") ? ["疲労状態でもブロックできる"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested].join("、")
+    const granted = action.content.some((c) => c.type === "grantTrigger") ? ["効果を持つ"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -487,8 +489,8 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
 }
 
-// 自分のスピリット1体に「疲労状態でもブロックできる」。対話なら選ばせ、非対話は実効BP最大
-function placeCanBlockWhileRested(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+// 自分のスピリット1体に置く（疲労状態でもブロックできる・誘発効果を与える）。対話なら選ばせ、非対話は実効BP最大
+function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     if (action.duration !== "turn" || action.side !== "own") {
         log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
@@ -499,17 +501,27 @@ function placeCanBlockWhileRested(ctx: Parameters<ActionHandler<"timedEffect">>[
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
     }
+    const prompt = action.content.some((c) => c.type === "grantTrigger") ? "効果を付与する" : "疲労状態でブロックできるようにする"
     if (
         targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(state, owner, self, `${sourceName}：疲労状態でブロックできるようにするスピリットを選んでください`, candidates, action, null)
+        tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${prompt}スピリットを選んでください`, candidates, action, null)
     ) {
         return
     }
     const target =
         (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
         candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
-    target.canBlockWhileRestedThisTurn = true
-    log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}は疲労状態でもブロックできる。`)
+    const name = getCard(target.cardId).name
+    for (const c of action.content) {
+        if (c.type === "canBlockWhileRested") {
+            target.canBlockWhileRestedThisTurn = true
+            log(state, `${sourceName}：このターンの間、${name}は疲労状態でもブロックできる。`)
+        } else if (c.type === "grantTrigger") {
+            const { type: _t, ...grant } = c
+            target.tempGrantedTriggers = [...(target.tempGrantedTriggers ?? []), grant]
+            log(state, `${sourceName}：このターンの間、${name}に効果を付与した。`)
+        }
+    }
 }
 
 // 陣営のスピリットすべての指定トリガーを発揮させない。判定のたびに見るので後から出たスピリットにも効く。絞り込みは持たない
@@ -705,10 +717,15 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         else placeSymbolOrCost(ctx, action, filter)
         return
     }
-    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested")) {
+    // 「〜すべてに誘発効果を与える」は見出しのステップ限定を持つ継続効果（effectGrant）で書く。ここでは1体だけ
+    if (action.all && action.content.some((c) => c.type === "grantTrigger")) {
+        log(state, `${sourceName}：「すべてに効果を与える」は未対応のため発揮しなかった。`)
+        return
+    }
+    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
-        placeCanBlockWhileRested(ctx, action, filter)
+        placeOwnOne(ctx, action, filter)
         return
     }
     if (action.all && action.content.some((c) => c.type === "suppressTrigger")) {
