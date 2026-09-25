@@ -73,7 +73,7 @@ console.log("=== addSymbolThisTurn（BS03-121 ダブルハート） ===")
     const s = setupMain("double-heart")
     const target = put(s, "p1", "BS01-001", 1)
     assert(castFromHand(s, "p1", "BS03-121", target) === null, "ダブルハートを使用")
-    assert(spiritOf(s, "p1", target)!.tempExtraSymbols === 1, "対象のtempExtraSymbolsが+1された")
+    assert(spiritOf(s, "p1", target)!.timedExtraSymbols === 1, "対象のtimedExtraSymbolsが+1された")
 }
 
 console.log("=== bpBuffAllByArmorColors（BS05-078 アイシクルアサルト メイン） ===")

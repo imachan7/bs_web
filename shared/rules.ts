@@ -298,13 +298,13 @@ export function instHasCost(inst: CardInstance, cost: number): boolean {
 
 // このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
 // **コストを読む処理はすべて instBaseCost を通るので、増減の種類が増えたらここに項を足せば全体へ効く**。
-// いまは「このターンの間」の増減（tempCostDelta）だけだが、今後のブレイヴ（合体中はコストが加算される）の
+// いまは「このターンの間」の増減（timedCostDelta）だけだが、今後のブレイヴ（合体中はコストが加算される）の
 // ような継続の増減もここへ足すこと。個別の判定側に足し算を散らさない
 export function instCostDelta(inst: CardInstance): number {
     // 合体しているブレイヴのコストが加算される（BRAVE.md §1.1・§3.1）。
     // instBaseCost が唯一のコスト算出口なので、ここに1項足せば
     // 「コスト◯以下を破壊」「同じコストの相手を疲労」などコストを見る判定すべてに一度で効く
-    return (inst.tempCostDelta ?? 0) + (inst.costDeltaContinuous ?? 0) + (inst.braveComposite?.cost ?? 0)
+    return (inst.timedCostDelta ?? 0) + (inst.costDeltaContinuous ?? 0) + (inst.braveComposite?.cost ?? 0)
 }
 
 // このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
@@ -573,7 +573,7 @@ export function instMinLevelCores(inst: CardInstance): number {
 
 // ---- シンボル ----
 
-// インスタンスのシンボル数：カードの静的シンボル数 + このターンの追加シンボル数（tempExtraSymbols。ダブルハート）。
+// インスタンスのシンボル数：カードの静的シンボル数 + このターンの追加シンボル数（timedExtraSymbols。ダブルハート）。
 // ライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
 export function instanceSymbolCount(inst: CardInstance): number {
     // symbolsOverrideContinuous（kind:"symbolFix"）: シンボルを固定された個体は、カード静的な
@@ -587,27 +587,27 @@ export function instanceSymbolCount(inst: CardInstance): number {
     // battleSymbolsAdded（kind:"bpBuff" thenAddSymbolThisBattle。BS13初出）：このバトルの間だけの追加シンボル。
     // symbolsAddedContinuous/extraSymbolsPermanentと同じく固定値に対しても加算する
     const addedBattle = inst.battleSymbolsAdded?.length ?? 0
-    // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
+    // timedSymbolLoss（BS12-080）：指定色のシンボルを1つ失う（持たなければ無変化。symbolLossCountOfが判定）
     const lost = symbolLossCountOf(inst)
-    // 器BS16：symbolsOverrideThisBattle（このバトルの間だけのシンボル上書き）はsymbolsOverrideContinuousより優先する
-    if (inst.symbolsOverrideThisBattle) {
-        return inst.symbolsOverrideThisBattle.length + (inst.tempExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
+    // 器BS16：timedSymbolsOverride（このバトルの間だけのシンボル上書き）はsymbolsOverrideContinuousより優先する
+    if (inst.timedSymbolsOverride) {
+        return inst.timedSymbolsOverride.length + (inst.timedExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
     }
     if (inst.symbolsOverrideContinuous) {
         // ⚠️ **シンボル固定が勝つ**（BRAVE.md §12 の3。2026-08-25 ユーザー確認）。
         // 合体しているブレイヴのシンボルも固定値に含まれるので、ここでは足さない
-        return inst.symbolsOverrideContinuous.length + (inst.tempExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
+        return inst.symbolsOverrideContinuous.length + (inst.timedExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
     }
     // 合体しているブレイヴのシンボルが加わる（ライフダメージに効く。BRAVE.md §3）。
     // 色が混色になってもシンボルは合成するだけ＝多色カードと同じ扱い（§12.2）
-    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.tempExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
+    return card(inst.cardId).symbol.length + (inst.braveComposite?.symbols.length ?? 0) + (inst.timedExtraSymbols ?? 0) + added + addedPermanent + addedBattle - lost
 }
 
-// tempSymbolLoss（BS12-080バキュームシンボル）：指定色のシンボルのうち実際に持っている分だけを
+// timedSymbolLoss（BS12-080バキュームシンボル）：指定色のシンボルのうち実際に持っている分だけを
 // 1個ずつ減らした数を返す（持たない色を指定していても0扱い＝無変化）。
 // instanceSymbolCount / countSymbols の両方から呼ぶ共通判定
 function symbolLossCountOf(inst: CardInstance): number {
-    const colors = inst.tempSymbolLoss
+    const colors = inst.timedSymbolLoss
     if (!colors || colors.length === 0) return 0
     const pool = inst.symbolsOverrideContinuous
         ? [...inst.symbolsOverrideContinuous]
@@ -625,7 +625,7 @@ function symbolLossCountOf(inst: CardInstance): number {
 }
 
 // 軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
-// tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
+// timedExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
 // forSummon: スピリット召喚の軽減計算から呼ばれたか。true のときだけ
 // symbolsForSummonReduction（BS11-039 天使ティアエル＝召喚の軽減の間だけ黄3つ）を使う
@@ -647,7 +647,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // **加算分は必ず足す**（instanceSymbolCountと同じ規則。2026-09-04ユーザー確認）
         const cardSymbols = [
             ...((forSummon ? inst.symbolsForSummonReduction : undefined) ??
-                inst.symbolsOverrideThisBattle ??
+                inst.timedSymbolsOverride ??
                 inst.symbolsOverrideContinuous ??
                 (inst.braveComposite === undefined
                     ? card(inst.cardId).symbol
@@ -656,9 +656,9 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
             ...(inst.extraSymbolsPermanent ?? []),
             ...(inst.battleSymbolsAdded ?? []),
         ]
-        // tempSymbolLoss（BS12-080）：指定色のシンボルを1つ減らす（持っていなければ無変化）
-        if (inst.tempSymbolLoss) {
-            for (const c of inst.tempSymbolLoss) {
+        // timedSymbolLoss（BS12-080）：指定色のシンボルを1つ減らす（持っていなければ無変化）
+        if (inst.timedSymbolLoss) {
+            for (const c of inst.timedSymbolLoss) {
                 const idx = cardSymbols.indexOf(c)
                 if (idx >= 0) cardSymbols.splice(idx, 1)
             }
@@ -676,7 +676,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
                 matched = true
             }
         }
-        if (matched && inst.tempExtraSymbols) count += inst.tempExtraSymbols
+        if (matched && inst.timedExtraSymbols) count += inst.timedExtraSymbols
     }
     return count
 }

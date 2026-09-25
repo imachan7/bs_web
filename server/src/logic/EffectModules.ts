@@ -827,7 +827,7 @@ export function hasAttackTriggersAsBlock(
 // 状態を考慮した色判定：master色 ‖ 一時付与された色（tempColors。アディショナルカラー） ‖
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
 
-// インスタンスのシンボル数：カードの静的シンボル数 + このターンの間の追加シンボル数（tempExtraSymbols。ダブルハート）。
+// インスタンスのシンボル数：カードの静的シンボル数 + このターンの間の追加シンボル数（timedExtraSymbols。ダブルハート）。
 // GameEngineのライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
 // （BS04エンジン拡張バッチ1。state/ownerPidは将来の拡張用に受け取るが現状は未使用）
 
@@ -980,26 +980,6 @@ export function sweepLevelCostDepletion(state: GameState): void {
     }
 }
 
-// 「このターンの間、〜のスピリットすべてのシンボルを失う」（timedEffect の all:true）を、まだ書いていない個体
-// （＝ルールを置いた後に場に出たスピリット）に書き込む（2026-09-24 ユーザー確認：「すべて」は後から出たものにも効く）
-function applyTimedLevelRules(state: GameState): void {
-    for (const rule of state.turnConstraints) {
-        if (rule.type !== "timedRule") continue
-        const loss = rule.content.find((c) => c.type === "symbolLoss")
-        if (loss && loss.type === "symbolLoss" && loss.color !== undefined) {
-            const color = loss.color
-            const applied = (rule.appliedIds ??= [])
-            for (const pid of rule.pid === undefined ? (["p1", "p2"] as PlayerId[]) : [rule.pid]) {
-                for (const inst of state.players[pid].field.spirits) {
-                    if (applied.includes(inst.instanceId) || !matchesTarget(state, pid, inst, rule.filter, rule.selfInstanceId)) continue
-                    ;(inst.tempSymbolLoss ??= []).push(color)
-                    applied.push(inst.instanceId)
-                }
-            }
-        }
-    }
-}
-
 // 期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
 export function recordTimed(state: GameState, record: TimedRecord): void {
     state.timedEffects.push(record)
@@ -1016,6 +996,10 @@ function applyTimedCopies(state: GameState): void {
         for (const inst of [...field.spirits, ...field.nexuses, ...field.combinedBraves]) {
             inst.timedColors = []
             delete inst.timedLevel
+            delete inst.timedExtraSymbols
+            delete inst.timedCostDelta
+            delete inst.timedSymbolsOverride
+            delete inst.timedSymbolLoss
         }
         all.push(...field.spirits, ...field.nexuses)
     }
@@ -1031,12 +1015,15 @@ function applyTimedCopies(state: GameState): void {
                 const to = c.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : c.set
                 if (to !== undefined) inst.timedLevel = to
             }
+            if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
+            if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
+            if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color)
+            if (c.type === "symbolLoss" && c.color !== undefined) (inst.timedSymbolLoss ??= []).push(c.color)
         }
     }
 }
 
 export function refreshLevelAsOverrides(state: GameState): void {
-    applyTimedLevelRules(state)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of [
             ...state.players[pid].field.spirits,

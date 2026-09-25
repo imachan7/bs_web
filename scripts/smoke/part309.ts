@@ -73,11 +73,13 @@ console.log("=== 器: globalConstraint ownLifeDamageCapPerSourcePerTurn（SD06-0
     refreshLevelAsOverrides(s)
 
     const a1 = createInstance("BS01-001", s.turn, 1)
-    a1.tempExtraSymbols = 3 // 素のシンボル数+3。上限が無ければ4減るはず
     s.players.p1.field.spirits.push(a1)
     const a2 = createInstance("BS01-001", s.turn, 1)
-    a2.tempExtraSymbols = 3
     s.players.p1.field.spirits.push(a2)
+    // 素のシンボル数+3。上限が無ければ4減るはず
+    for (const a of [a1, a2]) {
+        s.timedEffects.push({ content: [{ type: "symbolAdd" }, { type: "symbolAdd" }, { type: "symbolAdd" }], target: { kind: "instance", instanceId: a.instanceId }, until: "turn", ownerPid: "p1" })
+    }
     refreshLevelAsOverrides(s)
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")

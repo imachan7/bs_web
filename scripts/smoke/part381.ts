@@ -4,7 +4,7 @@ import { isTriggerSuppressed } from "../../server/src/logic/triggers"
 import type { GameState } from "./helpers"
 import { clearBattle } from "../../server/src/logic/GameState"
 import { canBlock } from "../../shared/block"
-import { cantActByTimed, instHasColor, spiritHasKeyword } from "../../shared/rules"
+import { cantActByTimed, instanceSymbolCount, instHasColor, spiritHasKeyword } from "../../shared/rules"
 
 const VANILLA = "BS01-002" // ロクケラトプス（コスト1）
 
@@ -111,6 +111,20 @@ console.log("=== 7. 色：記録した直後から写しに反映され、ター
     assert(instHasColor(viewFor(s, "p2").players.p1.field.spirits[0]!, "blue"), "配信した盤面でも青としても扱う")
     endTurn(s)
     assert(!instHasColor(x, "blue"), "ターン終了で消える")
+}
+
+console.log("=== 8. シンボル上書き（このバトルの間）：記録した直後から効き、バトル終了で写しも消える ===")
+{
+    const s = game()
+    const a = createInstance(VANILLA, 1, 1)
+    s.players.p1.field.spirits = [a]
+    refreshLevelAsOverrides(s)
+    s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    const before = instanceSymbolCount(a)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolSet", color: "red", count: 3 }], duration: "battle", side: "own", count: 1 }, a.instanceId)
+    assert(instanceSymbolCount(a) === 3, "このバトルの間シンボル3つとして扱う")
+    clearBattle(s)
+    assert(instanceSymbolCount(a) === before, "バトル終了で元のシンボル数に戻る")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part381）")

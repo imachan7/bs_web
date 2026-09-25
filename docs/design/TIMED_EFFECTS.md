@@ -69,6 +69,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `mustAttack`・`canBlockWhileRested`・`suppressTrigger`・`grantTrigger`（#129） | 個体の印4つ・`triggerSuppressionThisTurn`・`timedRule`。「すべての誘発を止める」は `target.kind:"player"` |
 | `keyword` | 個体の `tempKeywords`。読む側は `timedKeywords(board, inst)`。【装甲】の判定（`hasArmorAgainst`・`targetArmorColorCount`）は盤面を受け取る形にした。`all:true` が1体向けに化けていた振り分けも直した |
 | `level` | 個体の `levelOverrideThisTurn` は写し `timedLevel` になった。`timedRule`＋`appliedIds` はやめ、一覧を記録順に処理して「後から掛けた方が勝つ」を再現する。「1つ上として扱う」は記録する時点の Lv から具体的な Lv にして記録する。旧 type（`refreshOne` の Lv 上げ・相手のネクサスすべての Lv）も `recordTimed` で書く。照合は写しを空にした状態で全員ぶん先に済ませる（処理順で結果が変わらない） |
+| `symbolAdd`・`symbolSet`・`symbolLoss`・`cost` | 個体の印4つは写し `timedExtraSymbols`・`timedSymbolsOverride`・`timedSymbolLoss`・`timedCostDelta` になった。「すべての色のシンボルを失う」の `timedRule`＋`appliedIds` はやめた（`appliedIds` の型も削除）。バトル終了時（`clearBattle`）にも作り直す。残る `timedRule` は BP だけ |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。
