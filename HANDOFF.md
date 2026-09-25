@@ -33,21 +33,34 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（進み具合は同 §1 の表と §2.2 の表の「状態」列。09-24 に M1 の一部・M3・M4 の大半・R4 の effectDef.ts が済んだ） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
+### いまの本線：REFACTOR_PLAN §1 の順番（2026-09-26 見直し・ユーザー了承）
+
+1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
+2. **R3 の続き**（いまここ）：済み＝removal → `brave.ts`・`revive.ts`（#156）、`shared/rules.ts` → `shared/rules/` 8本（#157 マージ待ち）。
+   残り＝`validate:size` の据え置き一覧（`scripts/check-file-size.ts`）の8本：GameEngine（選択の解決・バトル）・EffectModules・cores・destroy・battleFlow・triggers・型2本。
+   **分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
+3. BS16 の黄・青（バッチ3）に一度戻り、REFACTOR_PLAN §0 と同じ形で実装役の呼び出し数を測る
+4. R5 の残り（§2.2）と R6・R7 は、3 の結果を見て決め直す
+
+**分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
+関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
+`tsc --noUnusedLocals` の報告で写った不要な import を消す → **元の関数本体が1文字も変わらず残っているかをスクリプトで確かめる** →
+`scripts/coverage-effects.ts` の差し込み先を移した先へ直す（part160 が壊れた差し込み先を検出する）→ `npm run codemap`・据え置き一覧の更新。
+罠：`patch()` に `f.replace("rules.ts", ...)` のようにパス文字列を組み立てている箇所がある／import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
+
+**マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
+
 ### M8（期間つき効果）は一区切り（2026-09-26）
 
-[TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) の一覧 `timedEffects` に全内容を移し終えた（同 §3.2）。M8 は 09-26 に一区切り（ユーザー判断。残りの書き直しは周辺を触るときに行う＝REFACTOR_PLAN §2.2 の6行目）。
+一覧 `timedEffects` に全内容を移した（[TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) §3.2）。期間つき効果を置くだけの旧 action 19種は入口として残し、周りを触るときに書き直す（REFACTOR_PLAN §2.2 の6行目）。
 未着手の決定済み事項：②破壊直前の発生源を控える（ユーザー決定 a）。
 回答待ち：④セイ・ドリガンの「このステップの最初に」の義務が消える条件／クロスシザースの「指定する」は必須か任意か／ブロック時効果と『ブロックされたとき』効果を同時発揮にしてターンプレイヤーに解決順を選ばせるか（今は決まった順。TIMING_CHART ＞３）／ベトール・サンダ・バードの「Lv◯BP を2000として扱う」は相手の【装甲】等で防げるか（今は防げない）。
 
-### 次の一手：REFACTOR_PLAN §1 の順番（2026-09-26 見直し）
+### R4 の残り（type.ts 211KB）
 
-R2（ヘルパーの索引）と `validate:size` → R3 の続き（R1 の手順書と一緒に）→ **BS16 の黄・青に一度戻って実装役の呼び出し数を測る** → R5 の残りの優先順位を決め直す。
-
-### R4 の残り（effectAction.ts は作業中、type.ts が残り）
-
-effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファイルずつ Sonnet に任せる。**1回目の指示で次を明示する**（effectDef.ts では1回目が29%減で止まり、2回目で45%減になった）：
-意味は1行で残す／カードの例示・作業番号（「器AR」「BS15共通器」）・経緯・実装の場所は消す、を前後の例つきで示す。作業ファイルはリポジトリの外（`scripts/` に置くと typecheck の対象になる）。
-検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付の保存）。コードだけで約40KBあるので、目標は「コメント半減」程度が現実的。
+effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**その委譲1体で5時間枠を約25ポイント使った**（「分けて sed で読め」と指示したのに Read で大きな範囲を読み、文脈29万トークン）。
+type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
+検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
 ### M1 `pay`：12種は移行済み（2026-09-24。PR #91 の器 → `feat/pay-migrate` の移行。書き方は COST_MODEL §1「実装の形」）
 
