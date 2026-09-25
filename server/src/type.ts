@@ -586,10 +586,9 @@ export interface CardInstance {
     summonedTurn: number
     tempBpBuff: number // ターン終了時まで有効なBP増減
     battleBpBuff?: number // このバトルの間だけ有効なBP増減（bpBuff の scope:"battle"）。clearBattle でリセットする。
-    battleBpFixed?: number // このバトルの間、実効BPそのものをこの値に固定する（既存battleBpAsLevelの「BP比較のときだけ」より広く、対象条件のBP比較にも効く。effectiveBpが最優先で読み、加算ではなく上書き。clearBattleでリセットする。BS12-037/058＝「Lv1/Lv2/Lv3BPを2000として扱う」）
     colorlessThisBattle?: true // このバトルの間、色とシンボルを無いものとして扱う（instColors/instHasColorが空を返し、countSymbolsがこの個体を軽減の数から丸ごと飛ばす。clearBattleでリセットする。BS13-011/015/052：「このスピリットの色を無いものとして扱う」＝色とシンボルの両方が無色になる。2018年ルールマニュアルVer.9.0改定。docs/design/BS13_PLAN.md §1 #10・#11）
     bpAsContinuous?: number // 継続的な「BPを◯として扱う」上書き（kind:"bpAs"。levelAsのBP版。EffectModules.refreshLevelAsOverridesが毎回再計算する。器Q。BS13-X011）
-    bpEqualizeContinuous?: number // 器BS16：継続的な「他のスピリットのBPを、発生源自身の現在の実効BPと同じとして扱う」全面上書き（kind:"bpEqualizeFamily"。battleBpFixedの継続版＝effectiveBpが最優先級で読み、対象側のtempBpBuff等は加算されない。BS16-009百地ダイル：「爬獣使い百地ダイル以外の系統：「爬獣」を持つ自分のスピリットすべてのLv1/Lv2/Lv3BPを、このスピリットのBPと同じとして扱う」）
+    bpEqualizeContinuous?: number // 継続的な「Lv1/Lv2/Lv3BPを、発生源のBPと同じとして扱う」（kind:"bpEqualizeFamily"）。扱いは bpAsContinuous と同じ
     battleBpAs?: { levels: number[]; amount: number } // BS15共通器：action:"setOpponentBpAsThisBattle" が付ける「このバトルの間、currentLevelがlevelsに含まれるときだけ基礎BPをamountとして扱う」印（bpAsContinuousのこのバトル限定・単体対象版。levelsに含まれない現在Lvのときは無視して通常どおり。clearBattleでリセットする。BS15-X05光の覇王ルナアーク・カグヤ）
     battleSymbolsAdded?: Color[] // このバトルの間だけ追加されるシンボル（bpBuff.thenAddSymbolThisBattleが積む。symbolsAddedContinuousの「このバトルの間」版。clearBattleでリセット。BS13-062光り輝く大銀河Lv2）
     timedSymbolsOverride?: Color[] // このバトルの間「シンボルを◯色◯つとして扱う」（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）

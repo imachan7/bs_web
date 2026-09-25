@@ -2108,10 +2108,8 @@ const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle
     log(state, `${getCard(chosen.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
-// BS12-058【合体時】：フィールドイベント（ownMagicUsed。「その効果発揮後」）が渡すtargetInstanceIdの
-// 対象1体の実効BPを、このバトルの間amountに固定する（器J）。BS12-037はanySpiritAttackedのselfOverride＝
-// アタックしたスピリットがそのままtargetInstanceIdとして渡る
-const setBattleBpFixedHandler: ActionHandler<"setBattleBpFixed"> = (ctx, action) => {
+// 対象はフィールドイベントが渡す targetInstanceId（BS12-037 はアタックしたスピリット、BS12-058 はブロックしている相手）
+const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> = (ctx, action) => {
     const { state, sourceName, targetInstanceId } = ctx
     const inst =
         targetInstanceId === undefined
@@ -2123,8 +2121,8 @@ const setBattleBpFixedHandler: ActionHandler<"setBattleBpFixed"> = (ctx, action)
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    inst.battleBpFixed = action.amount
-    log(state, `${getCard(inst.cardId).name}のBPは、このバトルの間${action.amount}として扱う。`)
+    inst.battleBpAs = { levels: [...action.levels], amount: action.amount }
+    log(state, `${getCard(inst.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
 // 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
@@ -2178,7 +2176,7 @@ const handlers = {
     blockBurstSpiritSummonThisTurn: blockBurstSpiritSummonThisTurnHandler,
     setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
-    setBattleBpFixed: setBattleBpFixedHandler,
+    setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
     endStepLock: endStepLockHandler,

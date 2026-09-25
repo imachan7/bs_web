@@ -691,11 +691,11 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
         // 主体がどちらでも結果が変わらないので対象外にする。
         //   destroySelf              … アタックしたスピリット自身を破壊する
         //                              （BS13-006 炎獣ファイオリック／BS13-061 戴冠する活火山／BS13-063 血塗られた魔具）
-        //   setBattleBpFixed         … そのバトルの間、アタックしたスピリット自身のBPを固定する
+        //   setTargetBpAsThisBattle  … そのバトルの間、アタックしたスピリット自身のLvBPを置き換える
         //                              （BS12-037 オリンピアの天使ベトール）
         //   endAttackStepAfterBattle … アタックステップの終了はプレイヤーに紐づかない
         //                              （BS13-059 フォビッド・バルチャー／BS14-083 氷結した瀑布）
-        if (a.type === "destroySelf" || a.type === "setBattleBpFixed" || a.type === "endAttackStepAfterBattle") return true
+        if (a.type === "destroySelf" || a.type === "setTargetBpAsThisBattle" || a.type === "endAttackStepAfterBattle") return true
 
     }
     // 等価表現3: anySpiritAttacked に turn:"own" がある＝自分のターンのアタックに限られる。
