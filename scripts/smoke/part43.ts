@@ -73,10 +73,11 @@ console.log("=== 拡張2: BS04-091 ライトニングバリスタ メイン（�
     s.players.p2.field.spirits.push(enemy)
     s.players.p1.hand[0] = "BS04-091"
     s.players.p1.reserve = 10
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ライトニングバリスタを使用（発動条件未達）")
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "シンボル2つ以上の自陣スピリットがいないので使用できない（2026-09-26 ユーザー確認）")
+    assert(s.players.p1.hand[0] === "BS04-091", "マジックは手札に残る")
     assert(
         s.players.p2.field.spirits.some((sp) => sp.instanceId === enemy.instanceId),
-        "シンボル2つ以上の自陣スピリットがいないため破壊が発動せず、相手スピリットは残る",
+        "相手スピリットは残る",
     )
 }
 

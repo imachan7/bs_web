@@ -5046,7 +5046,7 @@
     "id": "BS02-088-e1",
     "kind": "magic",
     "timing": "main",
-    "condition": {
+    "useCondition": {
      "bothFieldsHaveNexus": true
     },
     "action": {

@@ -109,17 +109,8 @@ export type EffectDef =
           ownTurnForbidden?: true // trueなら発生源の持ち主のターン中は使用不可
           usableAtOpponentMainEnd?: true // timing:"flash"限定：相手がメインステップ終了を宣言した瞬間にも使用できる
           oncePerTurn?: true // 使用者ごと・cardIdごとにそのターン1回だけ発揮。2枚目は使用はできるが効果は発揮されない
-          condition?:
-              | { ownFamilyCountAtLeast: { family: string; count: number } } // 指定系統を持つ自分のスピリットがcount体以上のときのみ実行
-              | { ownFieldHasMinSymbolSpirit: number } // 自分のフィールドにシンボル数がこれ以上のスピリットが1体以上いるときのみ実行
-              | { ownFieldSymbolColorsAtLeast: number } // 自分のフィールド全体が持つシンボルの色の種類数（重複除く）がこれ以上のときのみ実行
-              | { bothFieldsHaveNexus: true } // お互いのフィールドにネクサスが1つ以上あるときのみ実行
-              | { ownSpiritIsBlocking: true } // 自分のスピリットが現在のバトルでブロッカーになっているときのみ実行
-              | { ownSpiritCountAtLeast: number } // 自分のフィールドのスピリット数がこれ以上のときのみ実行
-              | { ownFieldHasColorSpirits: Color[] } // 自分のフィールドに指定した色のスピリットがそれぞれ1体以上いるときのみ実行（1体が多色で複数色満たしてもよい）
-              | { ownFieldHasAllNames: string[] } // 自分のフィールドに指定したカード名すべてが1体ずつ揃っているときのみ実行（cardIdでなく名前の完全一致）
-              | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 自分のフィールドに names のいずれかをカード名に含むスピリットが count 体以上いるときのみ実行
-              | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 相手フィールドの色の種類数がこれ以上のときのみ実行
+          condition?: MagicCondition // 「〜とき、〜する」：使うことはでき、解決の時点で満たさなければこのエントリは発揮しない
+          useCondition?: MagicCondition // 「この効果は〜ないと使えない」：使う前に見て、満たさなければ使用できない（解決の時点でも見る。2026-09-26 ユーザー確認）
       }
     | {
           id: string
@@ -1281,3 +1272,16 @@ export type EffectDef =
       }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応
+
+// マジックの条件（判定は shared/magicCondition.ts）
+export type MagicCondition =
+    | { ownFamilyCountAtLeast: { family: string; count: number } } // 指定系統を持つ自分のスピリットがcount体以上のときのみ実行
+    | { ownFieldHasMinSymbolSpirit: number } // 自分のフィールドにシンボル数がこれ以上のスピリットが1体以上いるときのみ実行
+    | { ownFieldSymbolColorsAtLeast: number } // 自分のフィールド全体が持つシンボルの色の種類数（重複除く）がこれ以上のときのみ実行
+    | { bothFieldsHaveNexus: true } // お互いのフィールドにネクサスが1つ以上あるときのみ実行
+    | { ownSpiritIsBlocking: true } // 自分のスピリットが現在のバトルでブロッカーになっているときのみ実行
+    | { ownSpiritCountAtLeast: number } // 自分のフィールドのスピリット数がこれ以上のときのみ実行
+    | { ownFieldHasColorSpirits: Color[] } // 自分のフィールドに指定した色のスピリットがそれぞれ1体以上いるときのみ実行（1体が多色で複数色満たしてもよい）
+    | { ownFieldHasAllNames: string[] } // 自分のフィールドに指定したカード名すべてが1体ずつ揃っているときのみ実行（cardIdでなく名前の完全一致）
+    | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 自分のフィールドに names のいずれかをカード名に含むスピリットが count 体以上いるときのみ実行
+    | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 相手フィールドの色の種類数がこれ以上のときのみ実行

@@ -46,6 +46,7 @@ import {
     tenshoSpecOf,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
+import { magicConditionFailure } from "../../../shared/magicCondition"
 
 
 
@@ -722,6 +723,14 @@ export function validateCastMagic(
         card.effects.some((e) => e.kind === "magic" && e.timing === "flash" && e.ownTurnForbidden)
     ) {
         return "このマジックは自分のターンでは使用できません"
+    }
+    // 「この効果は〜ないと使えない」（useCondition）：使う前に見る（2026-09-26 ユーザー確認）。
+    // 使うことになる timing のエントリ（バトル中は flash、メインステップは main があれば main）で判定する
+    const useTiming: "main" | "flash" = state.battle || !card.effects.some((e) => e.kind === "magic" && e.timing === "main") ? "flash" : "main"
+    for (const e of card.effects) {
+        if (e.kind !== "magic" || e.timing !== useTiming || !e.useCondition) continue
+        const failure = magicConditionFailure(state, pid, e.useCondition)
+        if (failure) return `${failure}ため、このマジックは使用できません`
     }
     if (state.battle) {
         // バトル中のフラッシュ：優先権・lockFlash の判定は validateHandFlash に共有する

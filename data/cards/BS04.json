@@ -5309,7 +5309,7 @@
      },
      "count": 1
     },
-    "condition": {
+    "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     }
    },
@@ -5563,7 +5563,7 @@
      "type": "bothSidesCoreToVoid",
      "count": 4
     },
-    "condition": {
+    "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     }
    }
@@ -5690,7 +5690,7 @@
     "id": "BS04-099-e1",
     "kind": "magic",
     "timing": "main",
-    "condition": {
+    "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     },
     "action": {
@@ -5909,7 +5909,7 @@
     "id": "BS04-104-e1",
     "kind": "magic",
     "timing": "main",
-    "condition": {
+    "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     },
     "action": {
@@ -6089,7 +6089,7 @@
     "action": {
      "type": "lendSelfThisTurn"
     },
-    "condition": {
+    "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     }
    },
@@ -6425,7 +6425,7 @@
     "id": "BS04-114-e1",
     "kind": "magic",
     "timing": "main",
-    "condition": {
+    "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     },
     "action": {

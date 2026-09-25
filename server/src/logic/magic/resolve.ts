@@ -1,7 +1,8 @@
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
-import { isSelfInBattle, magicEffectiveColors, ownFieldSymbolColors } from "../../../../shared/cost"
-import { countSpiritsWeighted, effectActiveAtLevel, effectSources, instanceSymbolCount, instHasColor, spiritHasFamily, opponentFieldColorCount } from "../../../../shared/rules"
+import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
+import { magicConditionFailure } from "../../../../shared/magicCondition"
+import { effectActiveAtLevel, effectSources } from "../../../../shared/rules"
 import { resolveAction } from "../EffectModules"
 import { fireFieldEventTriggers } from "../triggers"
 import { setTargetRedirect } from "./redirect"
@@ -128,120 +129,11 @@ export function runMagicActions(
     for (let i = 0; i < effects.length; i++) {
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
-        if (effect.condition) {
-            if ("ownFamilyCountAtLeast" in effect.condition) {
-                // デルタクラッシュ：指定系統を持つ自分のスピリットがcount体以上のときのみ実行
-                const { family, count } = effect.condition.ownFamilyCountAtLeast
-                const total = countSpiritsWeighted(
-                    state,
-                    owner,
-                    owner,
-                    (s) => spiritHasFamily(state, owner, s, family),
-                    "magic", // ここはマジックの使用条件なので発生源は常にマジック
-                )
-                if (total < count) {
-                    log(
-                        state,
-                        `${card.name}：系統「${family}」を持つスピリットが${count}体未満のため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownFieldHasMinSymbolSpirit" in effect.condition) {
-                // ライトニングバリスタ等：自分のフィールドにシンボル数がこれ以上のスピリットが
-                // 1体もいなければ実行しない（BS04エンジン拡張バッチ1）
-                const minSymbols = effect.condition.ownFieldHasMinSymbolSpirit
-                const has = state.players[owner].field.spirits.some(
-                    (s) => instanceSymbolCount(s) >= minSymbols,
-                )
-                if (!has) {
-                    log(
-                        state,
-                        `${card.name}：シンボル${minSymbols}個以上を持つスピリットがいないため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownSpiritIsBlocking" in effect.condition) {
-                // BS07アームズインパクト：自分のスピリットが現在のバトルでブロッカーのときだけ使える
-                const blockerId = state.battle?.blockerInstanceId
-                const blocking =
-                    blockerId !== undefined &&
-                    blockerId !== null &&
-                    state.players[owner].field.spirits.some((s) => s.instanceId === blockerId)
-                if (!blocking) {
-                    log(state, `${card.name}：自分のスピリットがブロックしていないため発動しなかった。`)
-                    continue
-                }
-            } else if ("bothFieldsHaveNexus" in effect.condition) {
-                // クロスファイア：どちらのフィールドにもネクサスが1つ以上ないと使用できない
-                const bothHave =
-                    state.players.p1.field.nexuses.length > 0 &&
-                    state.players.p2.field.nexuses.length > 0
-                if (!bothHave) {
-                    log(
-                        state,
-                        `${card.name}：どちらかのフィールドにネクサスがないため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownSpiritCountAtLeast" in effect.condition) {
-                // BS08ジャッジメントフレア：自分のフィールドのスピリット数がこれ以上ないと使用できない
-                const minCount = effect.condition.ownSpiritCountAtLeast
-                if (state.players[owner].field.spirits.length < minCount) {
-                    log(
-                        state,
-                        `${card.name}：自分のスピリットが${minCount}体未満のため発動しなかった。`,
-                    )
-                    continue
-                }
-            } else if ("ownFieldHasColorSpirits" in effect.condition) {
-                // BS09-072シャドウブレイド：指定した色のスピリットが**それぞれ**1体以上いないと使用できない
-                // （1体が多色で複数の色を満たしてもよい）
-                const wanted = effect.condition.ownFieldHasColorSpirits
-                const spirits = state.players[owner].field.spirits
-                if (!wanted.every((c) => spirits.some((s) => instHasColor(s, c)))) {
-                    log(state, `${card.name}：必要な色のスピリットがそろっていないため発動しなかった。`)
-                    continue
-                }
-            } else if ("ownFieldHasAllNames" in effect.condition) {
-                // BS08ロイヤルストレートフラッシュ：指定したカード名すべてが自分のフィールドに
-                // 1体ずつ揃っていないと使用できない（cardIdではなく名前の完全一致で判定）
-                const names = effect.condition.ownFieldHasAllNames
-                const ownNames = new Set(
-                    state.players[owner].field.spirits.map((s) => getCard(s.cardId).name),
-                )
-                if (!names.every((n) => ownNames.has(n))) {
-                    log(state, `${card.name}：指定されたスピリットがフィールドに揃っていないため発動しなかった。`)
-                    continue
-                }
-            } else if ("ownNameIncludesCountAtLeast" in effect.condition) {
-                // 判定は解決の時点（ほかの条件と同じ）。撃った後に場を離れても効果は続く（2026-09-07 ユーザー確認）
-                const { names, count } = effect.condition.ownNameIncludesCountAtLeast
-                const matched = state.players[owner].field.spirits.filter((s) => names.some((n) => getCard(s.cardId).name.includes(n))).length
-                if (matched < count) {
-                    log(state, `${card.name}：カード名に「${names.join("」か「")}」と入っているスピリットがいないため発動しなかった。`)
-                    continue
-                }
-            } else if ("opponentFieldColorsAtLeast" in effect.condition) {
-                // BS15-078飛雷震之計：相手のフィールドの色の種類数がこれ以上ないと使用できない
-                const { opponentFieldColorsAtLeast: minColors, spiritsOnly } = effect.condition
-                if (opponentFieldColorCount(state, owner, spiritsOnly) < minColors) {
-                    log(state, `${card.name}：相手のフィールドの色が${minColors}色未満のため発動しなかった。`)
-                    continue
-                }
-            } else {
-                // ブランチロック：自分のフィールド（スピリット+ネクサス）が持つシンボルの色の種類数（重複除く）がこれ以上
-                const minColors = effect.condition.ownFieldSymbolColorsAtLeast
-                // 数え方は shared/cost.ts の ownFieldSymbolColors に一本化する（2026-08-20。
-                // symbolFix・バウンス待機・付与色の扱いを軽減計算と揃えるため）
-                const colors = ownFieldSymbolColors(state, owner)
-                if (colors.size < minColors) {
-                    log(
-                        state,
-                        `${card.name}：シンボルの色が${minColors}色未満のため発動しなかった。`,
-                    )
-                    continue
-                }
-            }
+        // 使用条件（手札以外から使う経路もあるので、解決の時点でも見る）と、解決時の条件
+        const failure = [effect.useCondition, effect.condition].map((c) => (c ? magicConditionFailure(state, owner, c) : null)).find((f) => f !== null)
+        if (failure) {
+            log(state, `${card.name}：${failure}ため発動しなかった。`)
+            continue
         }
         // 「(この効果はターンに1回しか使えない)」＝使用者ごと・cardIdごとにそのターン1回だけ発揮する。
         // 判定はエントリ単位（同じカードの他の timing のエントリには影響させない）。
