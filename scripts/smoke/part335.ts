@@ -47,7 +47,7 @@ console.log("=== §A magicEffectiveColors：バトル中だけ／バトル外で
         magicEffectiveColors(s, "p1", magic).includes("purple"),
         "バトル外（エサルフリーダがバトルに参加していない）では紫のまま",
     )
-    s.battle = { attackerInstanceId: esalfrida.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: esalfrida.instanceId, blockerInstanceId: null, directed: false }
     assert(
         magicEffectiveColors(s, "p1", magic).length === 0,
         "エサルフリーダがアタッカーとしてバトル中なら色が無くなる",
@@ -55,7 +55,7 @@ console.log("=== §A magicEffectiveColors：バトル中だけ／バトル外で
     s.battle = null
     // 発生源（エサルフリーダ）自身がバトルの当事者でないと効かない（別のスピリットがバトルしていても及ばない）
     const other = put(s, "p1", "BS01-001", 1)
-    s.battle = { attackerInstanceId: other.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: other.instanceId, blockerInstanceId: null, directed: false }
     assert(
         magicEffectiveColors(s, "p1", magic).includes("purple"),
         "エサルフリーダ自身が参加していないバトルでは効かない",

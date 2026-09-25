@@ -91,7 +91,7 @@ console.log("=== 3. 027-e3 Lv2〜3：このスピリットのアタック中に�
     const coka = put(s, "p1", COKA, 4) // Lv2
     const victim = put(s, "p2", FAMILY_SPIRIT, 1)
     const ally = put(s, "p2", FAMILY_SPIRIT, 1) // 同じ系統
-    s.battle = { attackerInstanceId: coka.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: coka.instanceId, blockerInstanceId: null, directed: false }
     destroyTargetsBatch(s, "p1", [{ pid: "p2", instanceId: victim.instanceId }], { sourcePid: "p1", sourceType: "spirit" })
     assert(ally.isRested === true, "このスピリットのアタック中だったので、同じ系統の相手が疲労した")
 }
@@ -139,7 +139,7 @@ console.log("=== 5. 080：ライフ減少後に手札に戻し、その後コス
     s.players.p1.burstSet = true
     const attacker = put(s, "p2", VANILLA, 1) // ライフを減らした相手（軽いBP）
     const bystander = put(s, "p2", FAMILY_SPIRIT, 1) // BPが高いので手札に戻る側の自動選択対象
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false, lifeDamagers: [attacker.instanceId] }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false, lifeDamagers: [attacker.instanceId] }
     fireFieldEventTriggers(s, "p1", "ownLifeDamaged")
     assert(s.players.p2.hand.includes(bystander.cardId), "メイン効果で相手のスピリット1体を手札に戻した")
     assert(findSpiritAny(s, attacker.instanceId) === null, "フラッシュ効果でライフを減らした相手（このバトルの間）が破壊された")
@@ -159,7 +159,7 @@ console.log("=== 6. destroyLifeDamager：両方に対象がいるときはoption
     const s = game("080-option-choice")
     const battleTarget = put(s, "p2", VANILLA, 1)
     const burstTarget = put(s, "p2", FAMILY_SPIRIT, 1)
-    s.battle = { attackerInstanceId: battleTarget.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false, lifeDamagers: [battleTarget.instanceId] }
+    s.battle = { attackerInstanceId: battleTarget.instanceId, blockerInstanceId: null, directed: false, lifeDamagers: [battleTarget.instanceId] }
     s.burstEventLifeDamagerId = burstTarget.instanceId
     s.interactiveTargets = true
     resolveAction(s, "p1", null, { type: "destroyLifeDamager" }, undefined, undefined, "magic")

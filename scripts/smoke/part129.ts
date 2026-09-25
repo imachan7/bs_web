@@ -23,6 +23,7 @@ import { bpBuffOf,
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    battleHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
@@ -87,7 +88,6 @@ console.log("--- BS06-050 Lv2：相手のアタックステップに相手がマ
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     s.isFlashTiming = true
@@ -203,7 +203,7 @@ console.log("=== Y10: timedEffect の compareBy（cores）（BS06-110 イマジ�
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blk.instanceId }) === null, "リザドエッジでブロック")
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "イマジンフィールドを使用（コア比較へ切り替え）")
-    assert(s.battle?.compareByCores === true, "compareByCoresフラグが立つ")
+    assert(battleHas(s, "compareBy", "cores"), "compareByCoresフラグが立つ")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（バトル解決）")
     assert(!s.players.p1.field.spirits.includes(atk), "コアが1個しかないバーバルが破壊される（BPは高いのに）")

@@ -2909,6 +2909,16 @@ export function timedContentsFor(board: Board, pid: PlayerId): TimedContent[] {
     return board.timedEffects.flatMap((r) => (r.target.kind === "player" && r.target.pid === pid ? r.content : []))
 }
 
+// このバトルの解決方法（比べるもの・勝敗の逆転）
+export function timedBattleContents(board: Board): TimedContent[] {
+    return board.timedEffects.flatMap((r) => (r.target.kind === "battle" ? r.content : []))
+}
+
+// 期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
+export function timedFlashLocked(board: Board, pid: PlayerId): boolean {
+    return timedContentsFor(board, pid).some((c) => c.type === "battleLock" && c.lock === "flash")
+}
+
 // 期間つき効果でアタック／ブロックできないか
 export function cantActByTimed(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
     const needed = act === "attack" ? "cantAttack" : "cantBlock"
@@ -3317,11 +3327,11 @@ function minLevelCoresOf(levels: LevelDef[]): number {
 // ---- フラッシュのロック ----
 
 // pid がいま「フラッシュで手札のカードを使えない」状態か。
-// ① action "lockFlash" がこのバトルに立てたロック（board.battle.flashLockedPlayer）
+// ① 期間つき効果の battleLock（このバトルの間）
 // ② 相手の継続効果 kind:"flashLockWhileAttackingFamily"（BS07ウィリアンスラッシュ）：
 //    相手の指定系統スピリットがアタックしている間だけ効く
 export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
-    if (board.battle?.flashLockedPlayer === pid) return true
+    if (timedFlashLocked(board, pid)) return true
     const attackerId = board.battle?.attackerInstanceId
     if (attackerId === undefined) return false
     const opp: PlayerId = pid === "p1" ? "p2" : "p1"

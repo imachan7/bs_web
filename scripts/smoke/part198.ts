@@ -83,7 +83,7 @@ console.log("--- unblockableBy（レベル指定）：指定レベルのスピ�
     const low = put(s, "p2", plain, coresFor(plain, filter))
     const high = put(s, "p2", plain, coresFor(plain, filter + 1))
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
 
     assert(currentLevel(low).level === filter, `前提: 低い方はLv${filter}`)
     assert(currentLevel(high).level === filter + 1, `前提: 高い方はLv${filter + 1}`)
@@ -103,7 +103,7 @@ console.log("--- cantBlock：そのレベルの間はブロックできない --
     const attacker = put(s, "p1", foe, coresFor(foe, 1))
     const blocker = put(s, "p2", card, coresFor(card, level))
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
 
     assert(currentLevel(blocker).level === level, `前提: Lv${level}`)
     assert(canBlock(s, "p2", blocker, "p1", attacker) !== null, `${card.name}：Lv${level}ではブロックできない`)
@@ -127,7 +127,7 @@ console.log("--- unblockableBy（色指定）：指定色のスピリットに�
         const sameInst = put(s, "p2", same, coresFor(same, 1))
         const otherInst = put(s, "p2", other, coresFor(other, 1))
         refreshLevelAsOverrides(s)
-        s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+        s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
 
         assert(canBlock(s, "p2", sameInst, "p1", attacker) !== null, `${card.name} Lv${level}：${color}のスピリットにはブロックされない`)
         assert(canBlock(s, "p2", otherInst, "p1", attacker) === null, `${card.name} Lv${level}：${color}以外なら通常どおりブロックできる`)

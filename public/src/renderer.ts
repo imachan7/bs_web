@@ -53,6 +53,7 @@ import {
     bravesOf,
     burstSetCoresRequired,
     shinsokuAssistCandidates,
+    timedFlashLocked,
 } from "../../shared/rules"
 export { activeConstraints, cantActByTimed, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -1427,7 +1428,7 @@ function renderHand(view: GameView, ui: UiState): void {
     const inFlash =
         !!view.battle && view.isFlashTiming && view.priorityPlayer === view.you
     // ディバインチェイン等でこのバトルの間フラッシュの手札使用を封じられているか
-    const flashLocked = view.battle?.flashLockedPlayer === view.you
+    const flashLocked = timedFlashLocked(view, view.you)
     const reserve = view.players[view.you].reserve
 
     // 効果解決中の選択待ち（自分宛・kind:"card"・cardZone:"hand"）：候補インデックスをハイライトする
@@ -1730,9 +1731,9 @@ function renderBattle(view: GameView): void {
     }
 
     // ディバインチェイン等でフラッシュ封印中の場合、封じられている側の視点で追記
-    if (view.battle.flashLockedPlayer === view.you) {
+    if (timedFlashLocked(view, view.you)) {
         message += " あなたはフラッシュ封印中（手札のカードを使用できない）。"
-    } else if (view.battle.flashLockedPlayer !== null) {
+    } else if (timedFlashLocked(view, view.you === "p1" ? "p2" : "p1")) {
         message += " 相手はフラッシュ封印中（手札のカードを使用できない）。"
     }
 

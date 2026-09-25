@@ -133,7 +133,6 @@ console.log("=== BS05-060 茨の決戦地：自分のアタックステップ中
     s.battle = {
         attackerInstanceId: attacker,
         blockerInstanceId: blocker,
-        flashLockedPlayer: null,
         directed: false,
     }
     const attackerInst = s.players.p1.field.spirits.find((x) => x.instanceId === attacker)!

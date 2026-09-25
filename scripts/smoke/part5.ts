@@ -39,7 +39,9 @@ import {
     assert,
     act,
     takeLifeAndResolve,
-    runTurnStart, bpBuffOf } from "./helpers"
+    runTurnStart, bpBuffOf,
+    lockedFor,
+} from "./helpers"
 import type { GameState } from "./helpers"
 
 console.log("=== BS02第二弾（赤・紫）構造化カードの確認 ===")
@@ -277,7 +279,7 @@ console.log("=== BS02 緑・白の構造化効果 ===")
     act(s2, "p2", { type: "pass" }) // 防御側パス（フラッシュ①を閉じる）
     act(s2, "p1", { type: "pass" }) // 攻撃側パス（フラッシュ①終了）
     assert(act(s2, "p2", { type: "block", instanceId: frey.instanceId }) === null, "フレイでブロック")
-    assert(s2.battle?.flashLockedPlayer === "p1", "onBlockのlockFlashで攻撃側がフラッシュ封印される")
+    assert(lockedFor(s2, "p1", "flash"), "onBlockのlockFlashで攻撃側がフラッシュ封印される")
 
     console.log("--- リロードコア：フラッシュでBP+3000 ---")
     const s3 = createGame(

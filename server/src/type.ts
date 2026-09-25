@@ -812,14 +812,8 @@ export interface BattleState {
     blockCostReserveToTrash?: { pid: PlayerId; count: number } // このバトルで、この pid はリザーブのコアをこの数だけトラッシュに置かなければブロックできない（払えないならブロック自体ができない。BS11-037 ヒポグリフィーLv2-3）。バトル終了で消える
     blockCostDiscardMagic?: { pid: PlayerId } // 器BU：このバトルで、この pid は手札のマジックカード1枚を破棄しなければブロックできない（手札にマジックが無ければブロック自体ができない。破棄は自動選択＝最初に見つかったマジック1枚。バトル終了で消える。BS13-047深海大帝ノーグ・デンス召喚時）
     handColorBannedFor?: { pid: PlayerId; color: Color } // このバトルの間、この pid は指定色の手札のカードを使えない（BS11-060 雷神砲カノン・アームズ＝破棄したカードと同じ色）。バトル終了（clearBattle）で消える
-    flashLockedPlayer: PlayerId | null // このバトルの間フラッシュで手札のカードを使用できないプレイヤー（lockFlash 用）
-    burstBlockedForPid?: PlayerId // このバトルの間、この pid はバーストを発動できない（action:"disableOpponentBurstThisBattle" が立てる。fireFieldEventTriggersのバースト発火ループが見る。BS15-X03鳥武帝スザクロス・ソウソー：「このスピリットのバトル時、相手はバーストを発動できない」）
     directed: boolean // 指定アタックか（canDirectAttack。通常アタックは false）
     directedTargetInstanceId?: string // 指定アタックで指定された相手スピリット。**アタック宣言の時点ではまだブロックは確定しない**（アタック時効果と【バースト】をすべて解決した後に確定する。2026-09-06 ユーザー確認）。GameEngine.doPass がフラッシュ①を閉じる時点で finishBlockDeclaration へ渡し、正規のブロック宣言として成立させる（疲労状態でも成立する＝『ブロック時』効果は発揮する）。指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もせず、通常のアタックに戻る
-    compareByLevel?: boolean // trueの場合、バトル解決時にBPの代わりにcurrentLevelを比較する（エンジェルボイス）
-    compareByCores?: boolean // trueの場合、バトル解決時にBPの代わりに置かれているコアの数を比較する（BS06イマジンフィールド）
-    compareByCost?: boolean // trueの場合、バトル解決時にBPの代わりにカードのコスト（getCard(inst.cardId).cost）を比較する（BS10-110ノックアウト）
-    invertBpWinner?: boolean // 器BS16：trueの場合、BP比較（またはcompareBy*の代替比較）の勝敗を反転する＝**値が高い方が破壊される**（同値は従来どおり相打ち）。装甲では防げない（compareByLevel等と同じくバトル解決の方法そのものを変える。P070カオティック・リクゴー【合体時】：「バトル解決時、BPの低いスピリットではなく、BPの高いスピリットが破壊される」。Q21769）
     skipBpCompare?: true // 器AV：バトル解決時にBP比較（とその結果の破壊）自体を飛ばす。outcomeが"none"になり、勝敗判定・onBattleWin/onBattleLose・fireBattleWonTriggersは発火しない。【呪撃】・endBattleDestroy等のBP比較に依らない処理はそのまま動く（BS13-082ペガサスフラップ）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
     treatAsUnblockedIfLevelAtLeastBlocker?: true // アタッカーのLvがブロッカーのLv以上なら、BPを比べずに「ブロックされなかった」ものとして扱う
@@ -1434,6 +1428,7 @@ export type TimedRecord = {
         | { kind: "instance"; instanceId: string }
         | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 判定のたびに照合＝後から出たスピリットにも効く
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
+        | { kind: "battle" } // このバトルの解決方法（比べるもの・勝敗の逆転）。until は "battle"
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
     until: "turn" | "battle" | "attack" // attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）
     ownerPid: PlayerId

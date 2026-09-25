@@ -45,6 +45,7 @@ import {
     act,
     takeLifeAndResolve,
     runTurnStart,
+    lockedFor,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { cardHasColor } from "../../shared/rules"
@@ -71,7 +72,7 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     assert(s.priorityPlayer === "p2", "アタック直後は防御側に優先権")
 
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "battleLock", lock: "flash" }], duration: "battle" })
-    assert(s.battle?.flashLockedPlayer === "p2", "lockFlashで相手（p2）がロックされる")
+    assert(lockedFor(s, "p2", "flash"), "lockFlashで相手（p2）がロックされる")
 
     const lockedMagicErr = act(s, "p2", { type: "castMagic", handIndex: 0, targetInstanceId: atk.instanceId })
     assert(
@@ -99,12 +100,12 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     assert(takeLifeAndResolve(s, "p2") === null, "ライフで受けてバトルを終える")
     assert(s.battle === null, "バトルが終了する")
 
-    // 2回目のバトル：新しいbattleではflashLockedPlayerがnullに戻っている
+    // 2回目のバトル：前のバトルのフラッシュの封印は消えている
     const atk2 = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(atk2)
     s.players.p2.hand[0] = "BS01-123"
     assert(act(s, "p1", { type: "attack", instanceId: atk2.instanceId }) === null, "2体目でアタック")
-    assert(s.battle?.flashLockedPlayer === null, "新しいバトルではflashLockedPlayerがリセットされている")
+    assert(!lockedFor(s, "p1", "flash") && !lockedFor(s, "p2", "flash"), "新しいバトルではフラッシュの封印が消えている")
     assert(
         act(s, "p2", { type: "castMagic", handIndex: 0, targetInstanceId: atk2.instanceId }) === null,
         "制限が残っていないため相手も通常通りフラッシュマジックを使える",
@@ -411,7 +412,7 @@ console.log("--- 賢者の樹（BS01-106）：e1バトル限定カウンタ型 /
     rested2.isRested = true
     s.players.p1.field.spirits.push(rested1, rested2)
 
-    s.battle = { attackerInstanceId: battler.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: battler.instanceId, blockerInstanceId: null, directed: false }
     assert(
         effectiveBp(s, "p1", battler) === 2000 + 2 * 1000,
         "疲労スピリット2体ぶん、バトル中のスピリットにBP+2000（e1: amountPer×ownExhausted）",

@@ -26,7 +26,7 @@ console.log("=== 1. 1体・このバトルの間：バトル終了で消える =
     s.players.p1.field.spirits = [a]
     s.players.p2.field.spirits = [b]
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: null, directed: false }
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "cantBlock" }], duration: "battle" }, b.instanceId)
     assert(cantActByTimed(s, b, "block"), "このバトルの間ブロックできない")
     assert(canBlock(s, "p2", b, "p1", a) !== null, "共有のブロック判定も拒否する")
@@ -119,7 +119,7 @@ console.log("=== 8. シンボル上書き（このバトルの間）：記録し
     const a = createInstance(VANILLA, 1, 1)
     s.players.p1.field.spirits = [a]
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: null, directed: false }
     const before = instanceSymbolCount(a)
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolSet", color: "red", count: 3 }], duration: "battle", side: "own", count: 1 }, a.instanceId)
     assert(instanceSymbolCount(a) === 3, "このバトルの間シンボル3つとして扱う")

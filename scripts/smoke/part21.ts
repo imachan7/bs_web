@@ -8,6 +8,7 @@ import {
     effectiveBp,
     hasKeyword,
     runTurnStart,
+    lockedFor,
 } from "./helpers"
 import { hasArmorAgainst } from "../../server/src/logic/EffectModules"
 
@@ -93,7 +94,7 @@ console.log("=== BS03-039 笛吹きのヘイムダル：Lv2ブロック時にフ
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: heimdal.instanceId }) === null, "ヘイムダルでブロック")
-    assert(s.battle?.flashLockedPlayer === "p1", "ブロック時に相手（攻撃側）のフラッシュが封印される")
+    assert(lockedFor(s, "p1", "flash"), "ブロック時に相手（攻撃側）のフラッシュが封印される")
 }
 
 console.log("=== BS03-048 鎧蛇竜ミッドガルズ：Lv2ブロック勝利時に回復 ===")

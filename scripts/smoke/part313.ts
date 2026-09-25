@@ -248,7 +248,7 @@ console.log("=== 確認済み解釈: BS14-093 リベレイションオーラ『�
     s.players.p1.field.spirits.push(attacker)
     refreshLevelAsOverrides(s)
     s.phase = "attack"
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     const baseBp = effectiveBp(s, "p1", attacker)
     resolveMagic(s, "p1", "BS14-093", "flash")
     assert(effectiveBp(s, "p1", attacker) === baseBp + 2000, "バースト未セットならBP+2000のみ")
@@ -258,7 +258,7 @@ console.log("=== 確認済み解釈: BS14-093 リベレイションオーラ『�
     s2.players.p1.field.spirits.push(attacker2)
     refreshLevelAsOverrides(s2)
     s2.phase = "attack"
-    s2.battle = { attackerInstanceId: attacker2.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s2.battle = { attackerInstanceId: attacker2.instanceId, blockerInstanceId: null, directed: false }
     const baseBp2 = effectiveBp(s2, "p1", attacker2)
     s2.players.p1.burst = "SD06-013"
     s2.players.p1.burstSet = true
@@ -271,7 +271,7 @@ console.log("=== 確認済み解釈: BS14-093 リベレイションオーラ『�
     s3.players.p1.field.spirits.push(attacker3)
     refreshLevelAsOverrides(s3)
     s3.phase = "attack"
-    s3.battle = { attackerInstanceId: attacker3.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s3.battle = { attackerInstanceId: attacker3.instanceId, blockerInstanceId: null, directed: false }
     const baseBp3 = effectiveBp(s3, "p1", attacker3)
     s3.players.p2.burst = "SD06-013"
     s3.players.p2.burstSet = true

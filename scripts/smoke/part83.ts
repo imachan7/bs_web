@@ -100,7 +100,6 @@ console.log("--- 自分のターン（サンクの持ち主のターン）には
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     s.players.p2.hand[0] = "BS01-122"

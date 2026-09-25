@@ -76,7 +76,7 @@ function setupForCounter(s: GameState, self: CardInstance, owner: PlayerId, opp:
         const c = counter === "battlingOpponentCombinedSymbols" ? findCard((c) => c.type === "brave") : findCard((c) => c.type === "spirit")
         if (!c) return
         const otherInst = putSpirit(s, opp, c.cardId)
-        s.battle = { attackerInstanceId: self.instanceId, blockerInstanceId: otherInst.instanceId, flashLockedPlayer: null, directed: false }
+        s.battle = { attackerInstanceId: self.instanceId, blockerInstanceId: otherInst.instanceId, directed: false }
         return
     }
     if (counter === "lastFunsaiSpirits") {
@@ -319,7 +319,7 @@ console.log("=== 4. 追加したカウンタが countEffectCounter（サーバ�
         const self = putSpirit(s, "p1", "BS01-002")
         const base = effectiveBp(s, "p1", self)
         const otherInst = putSpirit(s, "p2", oppCard!.cardId)
-        s.battle = { attackerInstanceId: self.instanceId, blockerInstanceId: otherInst.instanceId, flashLockedPlayer: null, directed: false }
+        s.battle = { attackerInstanceId: self.instanceId, blockerInstanceId: otherInst.instanceId, directed: false }
         const action: EffectAction = { type: "timedEffect", duration: "turn", target: "self", content: [{ type: "bp", amount: 1000, amountCounter: "battlingOpponentSymbols" }] }
         resolveAction(s, "p1", self, action)
         const expected = base + 1000 * oppCard!.symbol.length

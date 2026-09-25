@@ -1,5 +1,5 @@
 // smoke パート376（バトルの比較基準・勝敗反転：timedEffect の内容 compareBy／invertBattleWinner。移したカードデータを直接解決する）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, battleHas } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 
 function timedAction(cardId: string): EffectAction {
@@ -23,13 +23,16 @@ function game(inBattle: boolean): GameState {
     s.players.p1.field.spirits = [a]
     s.players.p2.field.spirits = [b]
     refreshLevelAsOverrides(s)
-    if (inBattle) s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: b.instanceId, flashLockedPlayer: null, directed: false }
+    if (inBattle) s.battle = { attackerInstanceId: a.instanceId, blockerInstanceId: b.instanceId, directed: false }
     return s
 }
 
 console.log("=== 1. バトル中：移した6か所がそれぞれの印を立てる ===")
 {
-    const cases: [string, string, "compareByLevel" | "compareByCores" | "compareByCost" | "invertBpWinner"][] = [
+    type Flag = "compareByLevel" | "compareByCores" | "compareByCost" | "invertBpWinner"
+    const has = (s: GameState, f: Flag): boolean =>
+        f === "invertBpWinner" ? battleHas(s, "invertBattleWinner") : battleHas(s, "compareBy", f === "compareByLevel" ? "level" : f === "compareByCores" ? "cores" : "cost")
+    const cases: [string, string, Flag][] = [
         ["BS02-109", "エンジェルボイス", "compareByLevel"],
         ["BS06-110", "イマジンフィールド", "compareByCores"],
         ["BS10-073", "エンジェドール", "compareByLevel"],
@@ -41,9 +44,9 @@ console.log("=== 1. バトル中：移した6か所がそれぞれの印を立�
         assert(getCard(cardId).name === name, `${cardId} は${name}`)
         const s = game(true)
         resolveAction(s, "p1", null, timedAction(cardId))
-        assert(s.battle?.[flag] === true, `${name}：${flag} が立つ`)
+        assert(has(s, flag), `${name}：${flag} が立つ`)
         const others = (["compareByLevel", "compareByCores", "compareByCost", "invertBpWinner"] as const).filter((f) => f !== flag)
-        assert(others.every((f) => !s.battle?.[f]), `${name}：ほかの印は立たない`)
+        assert(others.every((f) => !has(s, f)), `${name}：ほかの印は立たない`)
     }
 }
 

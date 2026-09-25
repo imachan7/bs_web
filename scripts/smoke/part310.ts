@@ -55,7 +55,7 @@ console.log("=== 相手のアタックステップでは発動できない（『
     s.turnPlayer = "p2"
     s.priorityPlayer = "p1"
     s.isFlashTiming = true
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     const err = handleAction(s, "p1", { type: "activateAbility", instanceId, effectId })
     assert(err !== null && err.includes("ターン"), `相手のアタックステップでは拒否される（${err ?? "許可されてしまった"}）`)
     assert(s.players.p1.burst !== null, "拒否されたのでバーストは破棄されない")
@@ -70,7 +70,7 @@ console.log("=== 自分のアタックステップなら発動でき、バース
     s.turnPlayer = "p1"
     s.priorityPlayer = "p1"
     s.isFlashTiming = true
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     const err = handleAction(s, "p1", { type: "activateAbility", instanceId, effectId })
     assert(err === null, `自分のアタックステップなら発動できる（${err ?? ""}）`)
     assert(s.players.p1.burst === null, "発動コストとしてバーストが破棄される")

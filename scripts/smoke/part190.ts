@@ -276,7 +276,7 @@ function pickWinner(s: GameState, cond: Record<string, unknown>): ReturnType<typ
 
 // バトルを成立させる（バトル関連の誘発・継続効果のため）
 function setBattle(s: GameState, attacker: string, blocker: string | null): void {
-    s.battle = { attackerInstanceId: attacker, blockerInstanceId: blocker, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker, blockerInstanceId: blocker, directed: false }
 }
 
 // 継続効果は「読まれた時点」で計測されるので、盤面を一通り読む

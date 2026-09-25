@@ -92,7 +92,7 @@ console.log("=== 3. オフェンシブオーラ：フラッシュで使用→ア
     const s = setup("offensive-aura-persist", "red", "blue")
     const attackerA = put(s, "p1", "BS01-001", 1)
     const attackerB = put(s, "p1", "BS01-002", 1)
-    s.battle = { attackerInstanceId: attackerA.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attackerA.instanceId, blockerInstanceId: null, directed: false }
     lendMagic(s, "p1", "BS01-116", ["red"])
     assert(
         effectiveBp(s, "p1", attackerA) === currentLevel(attackerA).bp + 2000,
@@ -102,7 +102,7 @@ console.log("=== 3. オフェンシブオーラ：フラッシュで使用→ア
 
     // 同じターンの2体目のバトル（再キャスト不要。仮想発生源はターン内で持続し、現在のアタッカーを動的に見る＝
     // tempBpBuffのような静的な対象固定ではないことの証明）
-    s.battle = { attackerInstanceId: attackerB.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attackerB.instanceId, blockerInstanceId: null, directed: false }
     assert(
         effectiveBp(s, "p1", attackerB) === currentLevel(attackerB).bp + 2000,
         "同ターン2体目のアタックにも再キャストなしで+2000",
@@ -118,7 +118,7 @@ console.log("=== 4. attackingOnly と battlingOnly の違い：自分のブロ�
     const s = setup("offensive-aura-blocker", "red", "blue")
     const blocker = put(s, "p1", "BS01-001", 1)
     const enemyAttacker = put(s, "p2", "BS01-001", 1)
-    s.battle = { attackerInstanceId: enemyAttacker.instanceId, blockerInstanceId: blocker.instanceId, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: enemyAttacker.instanceId, blockerInstanceId: blocker.instanceId, directed: false }
     lendMagic(s, "p1", "BS01-116", ["red"])
     assert(
         effectiveBp(s, "p1", blocker) === currentLevel(blocker).bp,

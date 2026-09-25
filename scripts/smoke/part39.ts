@@ -27,7 +27,6 @@ console.log("=== オフェンシブオーラ: アタックしている自分ス�
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["red"], "magic", undefined, undefined, "BS01-116")

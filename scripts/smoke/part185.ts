@@ -88,7 +88,7 @@ console.log("=== BS09-027 密林の勇者皇ヴォルザ：ブロッカー上の
     runTurnStart(s)
     const volza = put(s, "p1", "BS09-027", 3)
     const blocker = put(s, "p2", PLAIN, 3)
-    s.battle = { attackerInstanceId: volza.instanceId, blockerInstanceId: blocker.instanceId, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: volza.instanceId, blockerInstanceId: blocker.instanceId, directed: false }
     resolveAction(s, "p1", volza, { type: "coreRemove", count: 1 }, blocker.instanceId)
     assert(blocker.cores === 2, "前提：保護がなければコアは取り除ける")
     resolveAction(s, "p1", volza, { type: "protectBlockerCoresThisBattle" })

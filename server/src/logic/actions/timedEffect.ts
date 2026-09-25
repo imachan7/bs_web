@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -450,7 +450,7 @@ function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     log(state, `${sourceName}：${getCard(target.cardId).name}は、${period}${fromLabel}にブロックされない。`)
 }
 
-// このバトルの間、プレイヤーに掛ける印（フラッシュで手札を使えない／バーストを発動できない）。印は1人ぶんしか持てない
+// このバトルの間、プレイヤーに掛ける（フラッシュで手札を使えない／バーストを発動できない）
 function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
     if (!state.battle) {
@@ -462,15 +462,11 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         return
     }
     const pid = action.side === "own" ? owner : opp
-    for (const c of action.content) {
-        if (c.type !== "battleLock") continue
-        if (c.lock === "flash") {
-            state.battle.flashLockedPlayer = pid
-            log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
-        } else {
-            state.battle.burstBlockedForPid = pid
-            log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はバーストを発動できない。`)
-        }
+    const locks = action.content.filter((c) => c.type === "battleLock")
+    recordTimed(state, { content: locks, target: { kind: "player", pid }, until: "battle", ownerPid: owner })
+    for (const c of locks) {
+        if (c.lock === "flash") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
+        else log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はバーストを発動できない。`)
     }
 }
 
@@ -517,22 +513,20 @@ function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect"
     log(state, `${sourceName}：このターンの間、${who}のスピリットの誘発効果は発揮されない。`)
 }
 
-// このバトルの解決方法を変える印（BattleState に置く）
+// このバトルの解決方法を変える（一覧の target.kind:"battle"）
 function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
-    const { state, sourceName } = ctx
+    const { state, owner, sourceName } = ctx
     if (!state.battle) {
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
+    const contents = action.content.filter((c) => c.type === "compareBy" || c.type === "invertBattleWinner")
+    recordTimed(state, { content: contents, target: { kind: "battle" }, until: "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
-    for (const c of action.content) {
+    for (const c of contents) {
         if (c.type === "compareBy") {
-            if (c.by === "level") state.battle.compareByLevel = true
-            else if (c.by === "cores") state.battle.compareByCores = true
-            else state.battle.compareByCost = true
             log(state, `${sourceName}：バトル解決時、BPの代わりに${label[c.by]}を比較する。`)
-        } else if (c.type === "invertBattleWinner") {
-            state.battle.invertBpWinner = true
+        } else {
             log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
         }
     }

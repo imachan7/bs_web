@@ -122,7 +122,6 @@ console.log("=== BS01-116 オフェンシブオーラ（フラッシュ）：ア
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveMagic(s, "p1", "BS01-116", "flash")
@@ -144,7 +143,6 @@ console.log("=== BS04-097 フォレストオーラ（フラッシュ）：アタ
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveMagic(s, "p1", "BS04-097", "flash")

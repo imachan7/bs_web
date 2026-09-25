@@ -124,7 +124,6 @@ console.log("=== テレポートチェンジ：バトル中の自分のスピリ
     s.battle = {
         attackerInstanceId: attackerA.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s, "p1", null, { type: "swapBattler" })
@@ -147,7 +146,6 @@ console.log("=== テレポートチェンジ：バトル中の自分のスピリ
     s2.battle = {
         attackerInstanceId: onlyAttacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s2, "p1", null, { type: "swapBattler" })
@@ -173,7 +171,6 @@ console.log("=== テレポートチェンジ：バトル中の自分のスピリ
     s3.battle = {
         attackerInstanceId: attackerC.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s3, "p2", null, { type: "swapBattler" })

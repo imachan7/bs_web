@@ -87,6 +87,7 @@ function snapshot(s: GameState): string {
     }
     // バトルに付く印（「ブロックされなかったものとして扱う」等）も見る
     parts.push(JSON.stringify(s.battle))
+    parts.push(JSON.stringify(s.timedEffects))
     return parts.join("|")
 }
 
@@ -155,13 +156,11 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
                 ? {
                       attackerInstanceId: foeInst ?? target.instanceId,
                       blockerInstanceId: target.instanceId,
-                      flashLockedPlayer: null,
                       directed: false,
                   }
                 : {
                       attackerInstanceId: target.instanceId,
                       blockerInstanceId: foeInst,
-                      flashLockedPlayer: null,
                       directed: false,
                   }
             refreshLevelAsOverrides(s)

@@ -37,7 +37,7 @@ console.log("=== 027-e3：相手の覇皇と地竜が同時に破壊されたと
     const victimChiryu = put(s, "p2", CHIRYU, 1)
     const allyHaou = put(s, "p2", HAOU, 1)
     const allyChiryu = put(s, "p2", CHIRYU, 1)
-    s.battle = { attackerInstanceId: coka.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: coka.instanceId, blockerInstanceId: null, directed: false }
     destroyTargetsBatch(s, "p1", [
         { pid: "p2", instanceId: victimHaou.instanceId },
         { pid: "p2", instanceId: victimChiryu.instanceId },

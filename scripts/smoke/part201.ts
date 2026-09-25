@@ -114,7 +114,7 @@ console.log("--- エメラルドブースト：軽減シンボル1つにつきBP
     const small = put(s, "p1", few, coresFor(few, 1))
     refreshLevelAsOverrides(s)
     // アタック中のスピリットだけが対象なので、バトルを成立させる
-    s.battle = { attackerInstanceId: big.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: big.instanceId, blockerInstanceId: null, directed: false }
     const bigBefore = effectiveBp(s, "p1", big)
     const smallBefore = effectiveBp(s, "p1", small)
 

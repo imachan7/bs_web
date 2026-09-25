@@ -319,7 +319,7 @@ console.log("--- マジックが色を指定して貸すブロック制限 ---")
     const sameInst = put(s, "p2", same, coresFor(same, 1))
     const otherInst = put(s, "p2", other, coresFor(other, 1))
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     assert(canBlock(s, "p2", sameInst, "p1", attacker) === null, "前提: マジックを使う前は同じ色でもブロックできる")
 
     // 色を選んで、このターンの間だけ効果を貸す

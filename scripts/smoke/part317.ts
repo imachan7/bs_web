@@ -15,6 +15,7 @@ import {
     getCard,
     resolveAction,
     runTurnStart,
+    battleHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { millDeck, placeBurst, refreshSpirit } from "../../server/src/logic/EffectModules"
@@ -65,7 +66,7 @@ console.log("=== BS14-087 帝都アンプルール：Lvの低い側が破壊さ�
         "ネクサスのコア2個を払って起動",
     )
     assert(nexus.cores === 0, "ネクサスのコアが2個減った")
-    assert(s.battle?.compareByLevel === true, "バトル解決をLv比較に差し替えた")
+    assert(battleHas(s, "compareBy", "level"), "バトル解決をLv比較に差し替えた")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
     assert(s.battle === null, "バトルが解決される")

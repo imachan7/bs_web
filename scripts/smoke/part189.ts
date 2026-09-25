@@ -122,7 +122,7 @@ console.log("=== カードデータ経由で動かす（手で組んだ action �
     runTurnStart(s)
     const peter = put(s, "p1", "BS09-042", 2) // Lv2
     const blocker = put(s, "p2", PLAIN, 1)
-    s.battle = { attackerInstanceId: peter.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: peter.instanceId, blockerInstanceId: null, directed: false }
     fireTrigger(s, "p1", peter, "onAttack")
     assert(cantActByTimed(s, blocker, "block"), "指定された相手はこのバトルの間ブロックできない")
 }
@@ -131,7 +131,7 @@ console.log("=== カードデータ経由で動かす（手で組んだ action �
     const s: GameState = createGame("cov-027", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
     runTurnStart(s)
     const volza = put(s, "p1", "BS09-027", 3) // Lv2
-    s.battle = { attackerInstanceId: volza.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: volza.instanceId, blockerInstanceId: null, directed: false }
     fireTrigger(s, "p1", volza, "onAttack")
     assert(s.battle?.blockerCoresProtected === true, "ブロッカー上のコアが保護される")
 }
@@ -143,7 +143,7 @@ console.log("=== カードデータ経由で動かす（手で組んだ action �
     const same = put(s, "p2", "BS09-049", 1)
     // フラッシュマジックはフラッシュタイミング（バトル中）にしか使えない
     const attacker = put(s, "p1", PLAIN, 1)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     s.isFlashTiming = true
     s.priorityPlayer = "p1"
     const err = castFromHand(s, "p1", "BS09-084", "attack")

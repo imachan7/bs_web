@@ -10,6 +10,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    lockedFor,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -110,9 +111,9 @@ console.log("=== 4. 誓いの桃園Lv2（effectGrant再利用）：烈の覇王�
     refreshLevelAsOverrides(s)
     assert(getCard(nexus.cardId).levels.length >= 2, "誓いの桃園はLv2を持つ")
     const seiryubi = put(s, "p1", SEIRYUBI, 6)
-    s.battle = { attackerInstanceId: seiryubi.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: seiryubi.instanceId, blockerInstanceId: null, directed: false }
     fireTrigger(s, "p1", seiryubi, "onBattleStart")
-    assert(s.battle.burstBlockedForPid === "p2", "セイリュービのバトル時、相手はバーストを発動できなくなる")
+    assert(lockedFor(s, "p2", "burst"), "セイリュービのバトル時、相手はバーストを発動できなくなる")
 }
 
 console.log("=== 5. サテライド・バード：このターンの間バースト効果でスピリットは召喚できない（ブレイヴは対象外） ===")

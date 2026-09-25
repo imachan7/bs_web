@@ -66,7 +66,7 @@ console.log("=== §C lockFlash 中は使えない ===")
     s.players.p1.hand = ["BS15-011"]
     declareAttack(s)
     s.priorityPlayer = "p1"
-    s.battle!.flashLockedPlayer = "p1"
+    s.timedEffects.push({ content: [{ type: "battleLock", lock: "flash" }], target: { kind: "player", pid: "p1" }, until: "battle", ownerPid: "p2" })
     const err = act(s, "p1", { type: "useHandAbility", handIndex: 0, effectId: EFFECT_ID })
     assert(err !== null, "lockFlash 中は使用できない")
     assert(s.players.p1.hand.length === 1, "拒否されたので手札は破棄されない")

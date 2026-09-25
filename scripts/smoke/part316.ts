@@ -119,7 +119,7 @@ console.log("=== BS14-041 バスター・フェンリルキャノン：白1体�
     refreshLevelAsOverrides(s)
     put(s, "p1", "BS14-035", 1) // 白のスピリットもう1体
     assert(effectiveBp(s, "p1", cannon) === currentLevel(cannon).bp, "ブロックしていない間はBP+されない")
-    s.battle = { attackerInstanceId: "dummy", blockerInstanceId: cannon.instanceId, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: "dummy", blockerInstanceId: cannon.instanceId, directed: false }
     assert(effectiveBp(s, "p1", cannon) === currentLevel(cannon).bp + 4000, "ブロック中は白2体ぶんBP+2000×2")
     s.battle = null
 
@@ -222,7 +222,7 @@ console.log("=== BS14-083 氷結した瀑布：BP3000以下のバトル終了で
     refreshLevelAsOverrides(s)
     const weakAttacker = put(s, "p2", "BS01-001", 1) // BP1000（3000以下）
     s.phase = "attack"
-    s.battle = { attackerInstanceId: weakAttacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: weakAttacker.instanceId, blockerInstanceId: null, directed: false }
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p2", inst: weakAttacker })
     assert(s.endAttackStepAfterBattle === true, "アタッカーがBP3000以下ならアタックステップを終了する")
     s.battle = null
@@ -232,7 +232,7 @@ console.log("=== BS14-083 氷結した瀑布：BP3000以下のバトル終了で
     // 発揮する（2026-09-12 ユーザー確認。BS14_PLAN §1）。ブロッカー側は anySpiritDeclaredBlock で見る
     const bigAttacker = put(s, "p2", "BS01-002", 3) // Lv3 BP4000（3000超）
     const weakBlocker = put(s, "p1", "BS01-001", 1) // BP1000（3000以下）
-    s.battle = { attackerInstanceId: bigAttacker.instanceId, blockerInstanceId: weakBlocker.instanceId, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: bigAttacker.instanceId, blockerInstanceId: weakBlocker.instanceId, directed: false }
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p2", inst: bigAttacker })
     // 直前に false を代入しているため型が false に絞られる。=== true と書くと型エラーになるので真偽で見る
     assert(!s.endAttackStepAfterBattle, "アタッカーがBP3000超なら、アタック宣言だけでは終了しない")

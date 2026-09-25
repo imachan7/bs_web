@@ -24,7 +24,7 @@ import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhas
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, timedBattleContents, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -998,7 +998,6 @@ function doAttack(
     state.battle = {
         attackerInstanceId: instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: targetSpiritInstanceId !== undefined,
         ...(targetSpiritInstanceId !== undefined ? { directedTargetInstanceId: targetSpiritInstanceId } : {}),
     }
@@ -2349,17 +2348,19 @@ function resolveBattle(state: GameState): void {
     )
 
     // エンジェルボイス：バトル解決時、BPの代わりにLvを比較する（Lvが低い方が破壊される。同Lvは相打ち）
-    const compareByLevel = state.battle.compareByLevel === true
+    const battleContents = timedBattleContents(state)
+    const compareBy = (by: "level" | "cores" | "cost") => battleContents.some((c) => c.type === "compareBy" && c.by === by)
+    const compareByLevel = compareBy("level")
     if (compareByLevel) {
         log(state, "バトル解決：BPの代わりにLvを比較する。")
     }
     // イマジンフィールド：バトル解決時、BPの代わりにコアの数を比較する（コアが少ない方が破壊される。同数は相打ち）
-    const compareByCores = state.battle.compareByCores === true
+    const compareByCores = compareBy("cores")
     if (compareByCores) {
         log(state, "バトル解決：BPの代わりにコアの数を比較する。")
     }
     // ノックアウト：バトル解決時、BPの代わりにコストを比較する（コストが低い方が破壊される。同コストは相打ち）
-    const compareByCost = state.battle.compareByCost === true
+    const compareByCost = compareBy("cost")
     if (compareByCost) {
         log(state, "バトル解決：BPの代わりにコストを比較する。")
     }
@@ -2391,10 +2392,10 @@ function resolveBattle(state: GameState): void {
             : attackerValue < blockerValue
               ? "blockerWins"
               : "mutual"
-    // 器BS16：invertBpWinner（P070カオティック・リクゴー）＝勝敗を反転し、値が高い方を破壊する
+    // invertBattleWinner（P070カオティック・リクゴー）＝勝敗を反転し、値が高い方を破壊する
     // （同値の相打ちはそのまま。BPそのものではなくcompareBy*の代替比較にも同じく効く）
     const outcome: BattleOutcome =
-        state.battle.invertBpWinner && (rawOutcome === "attackerWins" || rawOutcome === "blockerWins")
+        battleContents.some((c) => c.type === "invertBattleWinner") && (rawOutcome === "attackerWins" || rawOutcome === "blockerWins")
             ? rawOutcome === "attackerWins"
                 ? "blockerWins"
                 : "attackerWins"

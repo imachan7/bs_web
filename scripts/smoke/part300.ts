@@ -43,7 +43,7 @@ console.log("=== S: 無色化（色とシンボルを無いものとして扱う
     assert(instColors(spirit).length === 0, "無色化後はinstColorsが空配列")
     assert(countSymbols(p1, ["purple"]) === 0, "無色化後はそのスピリットのシンボルが紫の軽減に使えない（丸ごと飛ぶ）")
 
-    s.battle = { attackerInstanceId: spirit.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: spirit.instanceId, blockerInstanceId: null, directed: false }
     clearBattle(s)
     assert(spirit.colorlessThisBattle === undefined, "clearBattleでcolorlessThisBattleが戻る")
     assert(instHasColor(spirit, "purple"), "バトル終了後は紫の色が戻る")
