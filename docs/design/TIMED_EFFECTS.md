@@ -82,7 +82,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `bpAs`・`countAs`・`immune`・`noLifeDamage`・`colorless` | 個体の印5つは、同じ名前の写し（`battleBpAs`・`countAsThisTurn`・`immuneToOpponentThisTurn`・`lifeDamageNegatedFor`・`colorlessThisBattle`）になった。読む側（`instHasColor` など盤面を受け取らない関数）は変えていない。記録を出した側が意味を持つ内容（`countAs`・`noLifeDamage`）は、写しを作るときに記録の `ownerPid` を入れる。旧 action（対象の選び方・支払いを持つ）は残し、記録を書くだけにした。テストで掛けるときは `helpers.ts` の `giveTimed` |
 | `destroyedCoresTo`・`blockCost` | バトルの状態の印3つ（コアの行き先・ブロックの追加コスト2種）と、ノーグ・デンスの「有効なターン番号」。コアの行き先は相手のプレイヤーに掛ける記録（寿命はこのバトル）。ブロックの追加コストはアタッカーに掛ける記録で、ヒポグリフィーはこのバトル、ノーグ・デンスはこのターンの間。ブロックの可否（`validateBlock`）・支払い・クライアントの確認は、アタッカーの `blockCost` を読む |
 | `skipRefresh`・`trashCoreReturnCap` | 個体の印 `skipNextRefresh`（ジャノメ・シールダー）とプレイヤーの印 `trashCoreReturnCapNext`（トライ・メルクリウス）。寿命 `nextRefresh` を足した。上限が重なったら小さい方 |
-| `blockerCoresProtected`・`refreshWhenBlockedBy` | バトルの状態の印（ヴォルザ・タイタス）はバトルに掛ける記録に、個体の印（スピニード・ハヤト）は1体に掛ける記録にした。ハヤトの回復はブロック宣言の処理の中で行う今の作りのまま（誘発効果として書き直すと解決順が変わり得るので別に相談する） |
+| `blockerCoresProtected` | バトルの状態の印（ヴォルザ・タイタス）をバトルに掛ける記録にした。スピニード・ハヤトは内容を新設せず、`grantTrigger`（`onBlocked` に `refreshSelf`）＋ `targetColorFilter`（イベントの相手役の色）で書く（2026-09-26 ユーザー指示で誘発効果にした） |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。

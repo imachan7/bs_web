@@ -595,6 +595,17 @@ const grantBlockRequiresMagicDiscardThisTurnHandler: ActionHandler<"grantBlockRe
 
 // 色1色を指定し、このターンの間、発生源自身はその色のスピリットにブロックされたとき回復する
 // （BS11-054 武槍鳥スピニード・ハヤト）。非対話は相手のフィールドに最も多い色を自動指定する
+// 「指定した色のスピリットにブロックされたとき回復する」は『ブロックされたとき』の誘発効果として与える（2026-09-26 ユーザー指示）。
+// ほかの onBlocked と同じく、ブロッカーの『ブロック時』効果のあとに発揮する
+function recordRefreshWhenBlockedBy(state: GameState, owner: PlayerId, self: CardInstance, color: Color): void {
+    recordTimed(state, {
+        content: [{ type: "grantTrigger", trigger: "onBlocked", action: { type: "refreshSelf" }, targetColorFilter: color }],
+        target: { kind: "instance", instanceId: self.instanceId },
+        until: "turn",
+        ownerPid: owner,
+    })
+}
+
 const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhenBlockedByChosenColorThisTurn"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, chosenOption } = ctx
     if (!self) return
@@ -619,13 +630,13 @@ const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhen
             (c) => [c, state.players[opp].field.spirits.filter((sp) => instHasColor(sp, c)).length] as const,
         )
         const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
-        recordTimed(state, { content: [{ type: "refreshWhenBlockedBy", color: best[0] }], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
+        recordRefreshWhenBlockedBy(state, owner, self, best[0])
         log(state, `${sourceName}：色「${COLOR_LABELS[best[0]]}」を指定した。（この色にブロックされたら回復する）`)
         return
     }
     const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
     if (!colorEntry) return
-    recordTimed(state, { content: [{ type: "refreshWhenBlockedBy", color: colorEntry[0] }], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
+    recordRefreshWhenBlockedBy(state, owner, self, colorEntry[0])
     log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
 }
 
