@@ -2932,12 +2932,14 @@ function hasImmunityAgainst(
 export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[] {
     const p1 = board.players.p1.field
     const pid: PlayerId = p1.spirits.includes(inst) || p1.nexuses.includes(inst) ? "p1" : "p2"
+    // 「〜のスピリットすべて」の記録はスピリットにだけ当たる（ネクサスは1体指定の記録でだけ受ける）
+    const isSpirit = board.players[pid].field.spirits.includes(inst)
     return board.timedEffects.flatMap((r) => {
         const t = r.target
         const hit =
             t.kind === "instance"
                 ? t.instanceId === inst.instanceId
-                : t.kind === "rule" && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
+                : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
         return hit ? r.content : []
     })
 }
