@@ -12,7 +12,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -562,7 +562,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
             return
         }
-        target.tempExtraSymbols = (target.tempExtraSymbols ?? 0) + 1
+        recordTimed(state, { content: [{ type: "symbolAdd" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：${getCard(target.cardId).name}に、このターンの間シンボル1つを追加した。`)
         return
     }
@@ -578,7 +578,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
             return
         }
-        target.tempCostDelta = (target.tempCostDelta ?? 0) + content.amount
+        recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${getCard(target.cardId).name}は、このターンの間コスト${instBaseCost(target)}になる。（コスト${content.amount >= 0 ? "+" : ""}${content.amount}）`)
         return
     }
@@ -591,7 +591,7 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    target.symbolsOverrideThisBattle = new Array(content.count).fill(content.color)
+    recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "battle", ownerPid: owner })
     log(state, `${getCard(target.cardId).name}は、このバトルの間シンボルを${COLOR_LABELS[content.color]}${content.count}つとして扱う。`)
 }
 
@@ -617,16 +617,12 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
             color = counts.reduce((a, b) => (b[1] > a[1] ? b : a))[0]
         }
     }
-    state.turnConstraints.push({
-        type: "timedRule",
+    recordTimed(state, {
         content: [{ type: "symbolLoss", color }],
+        target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
+        until: "turn",
         ownerPid: owner,
-        ...(pid !== undefined ? { pid } : {}),
-        filter,
-        ...(self ? { selfInstanceId: self.instanceId } : {}),
-        appliedIds: [],
     })
-    refreshLevelAsOverrides(state)
     const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
     log(state, `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。このターンの間、${who}スピリットすべてはそのシンボル1つを失う。`)
 }

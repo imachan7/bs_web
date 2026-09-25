@@ -61,7 +61,7 @@ console.log("=== ダブルハート（addSymbolThisTurn）：相手のスピリ�
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolAdd" }], duration: "turn", side: "both" }, undefined, undefined, "magic")
     assert(s.pendingChoice !== null, "選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: theirs.instanceId }) === null, "相手のスピリットを選ぶ")
-    assert(theirs.tempExtraSymbols === 1, "相手のスピリットにシンボルが追加される")
+    assert(theirs.timedExtraSymbols === 1, "相手のスピリットにシンボルが追加される")
 }
 
 console.log("=== exhaust anySide：自分のスピリットも疲労させられる ===")

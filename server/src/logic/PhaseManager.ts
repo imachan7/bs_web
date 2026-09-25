@@ -399,16 +399,13 @@ export function endTurn(state: GameState): void {
             inst.blockConstraintNegatedThisTurn = false
             delete inst.lifeDamageNegatedFor
             inst.tempAlsoCosts = []
-            delete inst.tempCostDelta
             delete inst.refreshOnBlockedByColorThisTurn
-            delete inst.tempExtraSymbols
             delete inst.attackTriggersAsBlockThisTurn
             delete inst.blockTriggersAsAttackThisTurn
             delete inst.unblockableOnceThisTurn
             delete inst.unblockableThisTurn
             delete inst.unblockableColorsThisTurn
             delete inst.countAsThisTurn
-            delete inst.tempSymbolLoss
             delete inst.lifeDealtThisTurn
         }
     }

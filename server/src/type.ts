@@ -592,7 +592,7 @@ export interface CardInstance {
     bpEqualizeContinuous?: number // 器BS16：継続的な「他のスピリットのBPを、発生源自身の現在の実効BPと同じとして扱う」全面上書き（kind:"bpEqualizeFamily"。battleBpFixedの継続版＝effectiveBpが最優先級で読み、対象側のtempBpBuff等は加算されない。BS16-009百地ダイル：「爬獣使い百地ダイル以外の系統：「爬獣」を持つ自分のスピリットすべてのLv1/Lv2/Lv3BPを、このスピリットのBPと同じとして扱う」）
     battleBpAs?: { levels: number[]; amount: number } // BS15共通器：action:"setOpponentBpAsThisBattle" が付ける「このバトルの間、currentLevelがlevelsに含まれるときだけ基礎BPをamountとして扱う」印（bpAsContinuousのこのバトル限定・単体対象版。levelsに含まれない現在Lvのときは無視して通常どおり。clearBattleでリセットする。BS15-X05光の覇王ルナアーク・カグヤ）
     battleSymbolsAdded?: Color[] // このバトルの間だけ追加されるシンボル（bpBuff.thenAddSymbolThisBattleが積む。symbolsAddedContinuousの「このバトルの間」版。clearBattleでリセット。BS13-062光り輝く大銀河Lv2）
-    symbolsOverrideThisBattle?: Color[] // 器BS16：このバトルの間だけの「シンボルを◯個に上書きする」（symbolsOverrideContinuousの「このバトルの間」版。色は変えない＝instColorsには影響しない。clearBattleでリセット。action:"symbolOverrideThisBattle"が積む。BS16-005ゴエモン・シーフ・ドラゴン：「このバトルの間、系統：「覇皇」/「雄将」を持つ自分のスピリット1体の持つシンボルを、赤のシンボル2つにする」）
+    timedSymbolsOverride?: Color[] // このバトルの間「シンボルを◯色◯つとして扱う」（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
     borrowedAttackEffectOnce?: true // borrowCombinedAttackEffectの再帰ガード（内部専用。cards.jsonには書かない）。
     // 「自身を選べば同じ効果がそのアタックで2回発揮される」（2026-09-08ユーザー確認）を文字どおり2回で
     // 止めるための印。自身を選んで発揮する間だけ立て、次に同じ効果を借りようとしたときは自身を候補から外す
@@ -620,7 +620,7 @@ export interface CardInstance {
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
     refreshOnBlockedByColorThisTurn?: Color // このターンの間、この色のスピリットにブロックされたら回復する（BS11-054 武槍鳥スピニード・ハヤト。ターン終了でリセット）
     blockRequiresMagicDiscardGrantedTurn?: number // 器BU：召喚時に付与された「このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない」の有効ターン番号（state.turnと一致する間だけ有効。GameEngine.doAttackがこのスピリット自身のアタックのたびに見る。BS13-047深海大帝ノーグ・デンス）
-    tempCostDelta?: number // このターンの間のコストの増減（ターン終了でリセット。shared/rules.ts の instCostDelta が読む。BS08グロウアップ「コスト+3」）。
+    timedCostDelta?: number // このターンの間のコストの増減（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。shared/rules.ts の instCostDelta が読む
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
     // **破壊待機状態**（docs/design/TIMING_CHART.md §1.5）。破壊が決まってから、
@@ -684,7 +684,7 @@ export interface CardInstance {
     // **貸与した時点の答えをターン中ずっと保持する**（継続効果なので、マジックの解決が終わった後も絞り込みが効く。
     // 2026-08-16 ユーザー確認。BS02-111スピリットイリュージョン）
     kyoshuUsed?: { turn: number; count: number } // 【強襲】をこのターン何回使ったか（turnがstate.turnと一致する間だけ有効。BS07）
-    tempExtraSymbols?: number // このターンの間の追加シンボル数（ターン終了でリセット。ダブルハート）
+    timedExtraSymbols?: number // このターンの間の追加シンボル数（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
     lifeDealtThisTurn?: number // このスピリットがこのターンに与えたライフダメージの累計（globalConstraint "ownLifeDamageCapPerSourcePerTurn" 用。ライフダメージ解決時に加算し、ターン終了でリセット。SD06-010）
     blockTriggersAsAttackThisTurn?: boolean // このターンの間、『このスピリットのブロック時』効果を『アタック時』に発揮する
     // （ブロック時には発揮しない。ターン終了でリセット。fireTriggerが参照。GameState の同名フラグは両陣営全体版で、こちらは個体単位。BS07マクラーンスラッシュ）
@@ -697,7 +697,7 @@ export interface CardInstance {
     braveImmuneAll?: true // kind:"braveImmuneGrant"のscope:"all"分。相手のブレイヴの効果を色不問で受けない。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、shared/rules.hasBraveImmuneAgainstが参照する（BS12-028セイルフィッシュLv2）
     braveImmuneMatchArmorColors?: true // kind:"braveImmuneGrant"のscope:"matchArmorColors"分。自身が持つ【装甲】の色と一致する相手のブレイヴの効果だけ受けない（BS12-067月光集める塔Lv2）
     grantedMagicNegate?: Extract<EffectDef, { kind: "magicNegate" }>[] // kind:"effectEntryGrant"で継続付与されたmagicNegateエントリ。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、triggers.findMagicNegateSourceがcard自身のeffectsと合わせて走査する（BS12-068光の聖剣Lv1）
-    tempSymbolLoss?: Color[] // このターンの間、指定色のシンボルを1つ失う（この個体がその色のシンボルを持たなければ無変化。ターン終了でリセット。shared/rules.countSymbols/instanceSymbolCountが読む。BS12-080バキュームシンボル）
+    timedSymbolLoss?: Color[] // このターンの間、指定色のシンボルを1つ失う（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。その色のシンボルを持たなければ無変化
     returnToDeckBottomAtEndStep?: boolean // このスピリットはエンドステップに持ち主のデッキの下へ戻る
     // （action:"revealAndSummonKeyword" が立てる。PhaseManager.endTurn がステップ誘発の直後に処理する。BS05トランスマイグレーション）
     treatedAsVanillaContinuous?: boolean // 継続付与された「カードに効果の記述を持たないスピリットとしても扱う」（kind:"vanillaAsGrant"）。
@@ -1456,8 +1456,7 @@ export type TurnConstraintDef =
     // timedEffect の all:true。判定のたびに照合するので、解決後に場に出たスピリットにも効く。ownerPid＝効果を出した側、pid＝効く陣営（省略は両方）
     // instanceId指定時（timedEffect の1体指定＋可変量）は filter/pid ではなくこの1体だけに効く（「〜1体につき」を計算のたびに数え直すため）
     // until:"battle"指定時はターン終了ではなくclearBattleで消える（timedEffectのduration:"battle"）
-    // appliedIds＝内容 level を書き込み済みの個体。後から場に出た個体にだけ書き、書いた後は上書きしない（後から使われた1体の Lv 変更が勝つ）
-    | { type: "timedRule"; appliedIds?: string[]; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; instanceId?: string; until?: "battle" }
+    | { type: "timedRule"; content: TimedContent[]; ownerPid: PlayerId; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; instanceId?: string; until?: "battle" }
     | { type: "cantUseHandCardsForPid"; pid: PlayerId; allowedColor?: Color; bannedColors?: Color[]; cardType?: CardType } // このターンの間、この pid は手札のカードを使えない（召喚・配置・マジック使用のすべて）。allowedColor指定時はその色だけ使える（BS11-082＝「黄以外の手札のカードを使えない」）、bannedColors指定時はその色だけ使えない（BS11-060 雷神砲カノン・アームズ）。cardType指定時はこの種別のカードだけ使えない（BS14-112封渦斬：「このターンの間、相手はマジックカードを使用できない」＝cardType:"magic"）
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; pid: PlayerId; symbolCount?: number; combinedOnly?: true } // コストがmaxCost以下のスピリットのアタックでは、この pid のライフだけが減らされない（action:"protectLifeByCostThisTurn" が積む。BS07秘密の花園Lv2）。symbolCount+combinedOnly指定時はmaxCostの代わりに「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（globalConstraint:"noLifeDamageByCost"のsymbolCount+combinedOnlyの片側版。BS12-043大地の狩人コンドラッドLv1：「シンボル2つを持つ合体スピリットのアタックでは、自分のライフは減らない」）
     | { type: "armorDisabledForPid"; pid: PlayerId } // このターンの間、この pid のスピリットの【装甲】は一切働かない

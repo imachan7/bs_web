@@ -71,15 +71,15 @@ console.log("=== §B costBuffThisTurn（グロウアップ）：コストを上�
     resolveAction(s, "p1", null, action)
     assert(s.pendingChoice?.kind === "target", "対象の選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: b.instanceId }) === null, "2体目を選ぶ")
-    assert(b.tempCostDelta === 3, "選んだスピリットのコストが+3される")
-    assert(a.tempCostDelta === undefined, "選ばなかったほうは変わらない")
+    assert(b.timedCostDelta === 3, "選んだスピリットのコストが+3される")
+    assert(a.timedCostDelta === undefined, "選ばなかったほうは変わらない")
 
     const s2 = game(false)
     const a2 = put(s2, "p1", blueLv3[0]!.cardId)
     put(s2, "p1", blueLv3[1]!.cardId)
     resolveAction(s2, "p1", null, action)
     assert(s2.pendingChoice === null, "非対話では選択待ちが立たない")
-    assert(a2.tempCostDelta === 3, "従来どおり自動選択される")
+    assert(a2.timedCostDelta === 3, "従来どおり自動選択される")
 }
 
 console.log("=== §C negateOwnBlockConstraint（バーストファイア）：『ブロックできない』を消す1体を選ぶ ===")

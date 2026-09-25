@@ -1,7 +1,7 @@
 // smoke パート291（BS12 バッチ4・白：新しく足した9つの器を1件ずつ発火させる）
 // Y=braveImmuneGrant（scope:"all"/"matchArmorColors"）／AC=armorEffectiveGrant（2パス目・他カード付与色も配る）／
 // Z=effectEntryGrant（magicNegateを丸ごと配る）／P=reviveOnDestroy.combinedOnly（ブレイヴを残しスピリットだけ手札へ）／
-// M=globalConstraint.handImmuneForPid／C'=tempSymbolLoss（grantSymbolLossThisTurn）／
+// M=globalConstraint.handImmuneForPid／C'=timedSymbolLoss（grantSymbolLossThisTurn）／
 // AA=fieldEvent"ownHyohekiUsed"／AD=forceAttackThisTurn count:"any"+requireOwnNameIncludes／
 // AE=braveHostUnblockableThisTurn（毎回いまのホストを見る）
 import {
@@ -120,7 +120,7 @@ console.log("=== §F M handImmuneForPid：BS12-067月光集める塔Lv1＝自分
     assert(s.players.p1.hand.length === 1, "手札は相手のスピリットの効果では破棄されない")
 }
 
-console.log("=== §G C' tempSymbolLoss：BS12-080バキュームシンボル＝相手のスピリットすべては指定色のシンボル1つを失う ===")
+console.log("=== §G C' timedSymbolLoss：BS12-080バキュームシンボル＝相手のスピリットすべては指定色のシンボル1つを失う ===")
 {
     const s = game("c-symbolloss")
     const white1 = createInstance("BS01-001", s.turn, 1) // 白1シンボル想定（後で実シンボルを確認）
@@ -129,7 +129,7 @@ console.log("=== §G C' tempSymbolLoss：BS12-080バキュームシンボル＝�
     refreshLevelAsOverrides(s)
     const before = instanceSymbolCount(white2)
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolLoss" }], duration: "turn", all: true }, undefined, undefined, "magic")
-    assert((white2.tempSymbolLoss ?? []).length > 0, "相手のスピリットにtempSymbolLossが付く")
+    assert((white2.timedSymbolLoss ?? []).length > 0, "相手のスピリットにtimedSymbolLossが付く")
     const after = instanceSymbolCount(white2)
     assert(after <= before, "シンボル数が減る（対象色を持たない個体は無変化のまま）")
 }

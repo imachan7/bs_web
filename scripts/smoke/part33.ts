@@ -77,7 +77,7 @@ console.log("=== BS03-121 ダブルハート：シンボル+1でライフダメ�
     const attacker = createInstance("BS01-001", s.turn, 1) // ゴラドン Lv1（シンボル1つ）
     s.players.p1.field.spirits.push(attacker)
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolAdd" }], duration: "turn", side: "own" }, attacker.instanceId, undefined, "magic")
-    assert(attacker.tempExtraSymbols === 1, "tempExtraSymbolsが1になる")
+    assert(attacker.timedExtraSymbols === 1, "timedExtraSymbolsが1になる")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "ゴラドンでアタック")
@@ -85,7 +85,7 @@ console.log("=== BS03-121 ダブルハート：シンボル+1でライフダメ�
     assert(s.players.p2.life === lifeBefore - 2, "シンボル1つ+追加1つ＝ダメージ2")
 }
 
-console.log("=== BS03-121 ダブルハート：ターン終了でtempExtraSymbolsがリセットされる ===")
+console.log("=== BS03-121 ダブルハート：ターン終了でtimedExtraSymbolsがリセットされる ===")
 {
     const s = createGame(
         "doubleheart-reset-test",
@@ -96,9 +96,9 @@ console.log("=== BS03-121 ダブルハート：ターン終了でtempExtraSymbol
     const attacker = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(attacker)
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "symbolAdd" }], duration: "turn", side: "own" }, attacker.instanceId, undefined, "magic")
-    assert(attacker.tempExtraSymbols === 1, "tempExtraSymbolsが1になる")
+    assert(attacker.timedExtraSymbols === 1, "timedExtraSymbolsが1になる")
     endTurn(s)
-    assert((attacker.tempExtraSymbols ?? 0) === 0, "ターン終了でtempExtraSymbolsがリセットされる")
+    assert((attacker.timedExtraSymbols ?? 0) === 0, "ターン終了でtimedExtraSymbolsがリセットされる")
 }
 
 console.log("=== BS03-141 ビルドアップ：対象のLvを+1する（最大Lvでキャップ、ターン終了でリセット） ===")

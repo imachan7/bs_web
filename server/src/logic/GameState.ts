@@ -440,6 +440,7 @@ export function clearBattle(state: GameState): void {
     state.battle = null
     delete state.battleAttackerRef
     state.timedEffects = state.timedEffects.filter((r) => r.until !== "battle")
+    refreshLevelAsOverrides(state)
     // 「このバトルの間、BP◯以上のスピリットからブロックされない」もここで切れる（器S2。BS13-032光速の騎士ヘルモード【合体時】Lv3）
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) delete inst.unblockableMinBpThisBattle
@@ -461,8 +462,6 @@ export function clearBattle(state: GameState): void {
             delete inst.battleBpAs
             // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
             delete inst.battleSymbolsAdded
-            // 器BS16：「このバトルの間」のシンボル上書き（action:"symbolOverrideThisBattle"。BS16-005）も同じ寿命
-            delete inst.symbolsOverrideThisBattle
             // 「このバトルの間、色を無いものとして扱う」（器S。BS13-011/015/052）も同じ寿命
             delete inst.colorlessThisBattle
         }
@@ -556,7 +555,7 @@ export function coresForLevel(card: CardData, level: number): number | null {
 }
 
 // 軽減計算用：自分のフィールドにある指定色シンボルの数を数える。
-// tempExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
+// timedExtraSymbols（ダブルハート）は「持っているシンボルと同じ色を1つ追加」の簡略化として、
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
 
 export function findSpirit(
