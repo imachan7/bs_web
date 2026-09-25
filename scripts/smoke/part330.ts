@@ -3,7 +3,7 @@
 // 確定した仕様: opponentFieldColorCount（色の種類数）／ownFieldOnlyColor（1色しかない）／
 // lifeDamagePerSpiritRemaining（神将）／costSetOverrideのownBurstSet条件（虚神）／
 // costModTotalのbeforeReduction・amountCounter（軽減前のコスト増）
-import { act, assert, createGame, createInstance, effectiveCost, resolveAction, runTurnStart, takeLifeAndResolve } from "./helpers"
+import { act, assert, createGame, createInstance, effectiveCost, resolveAction, runTurnStart, takeLifeAndResolve, giveTimed } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
 import type { CardData } from "../../server/src/type"
@@ -81,7 +81,7 @@ console.log("=== 1. opponentFieldColorCount：色の種類数 ===")
 
     const s5 = game("p330-colorcount-colorless")
     const cl = putSpirit(s5, "p2", "T330-COLORLESS")
-    cl.colorlessThisBattle = true
+    giveTimed(s5, cl, { type: "colorless" }, "battle")
     assert(opponentFieldColorCount(s5, "p1") === 0, "colorlessThisBattleの個体は数えない")
 }
 

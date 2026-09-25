@@ -7,7 +7,7 @@
 // exhaustAllByLevel は装甲判定そのものが欠落していたため、装甲による回避も併せて固定する。
 // 各アクションは実カード（グラウンドハウリング・ジャングルロウ・バインディングウッズ・ドリームハンド）の
 // data/cards.json 上の action 定義をそのまま resolveAction に渡して検証する。
-import { assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, resolveAction, runTurnStart, giveTimed } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function setupMain(seed: string): GameState {
@@ -39,7 +39,7 @@ console.log("=== §A exhaustAll（BS04-099 グラウンドハウリング：BP40
     const immune = put(s, "p2", "BS01-018", 1)
     const control = put(s, "p2", "BS01-018", 1)
     const immuneInst = spiritOf(s, "p2", immune)
-    if (immuneInst) immuneInst.immuneToOpponentThisTurn = true
+    if (immuneInst) giveTimed(s, immuneInst, { type: "immune" })
 
     // 実カード（BS04-099-e1）の action をそのまま解決
     resolveAction(s, "p1", null, { type: "exhaust", count: 1, all: true, filter: { minBp: 4000 } }, undefined, ["green"], "magic")
@@ -55,12 +55,12 @@ console.log("=== §B exhaustAllByColor（BS01-140 バインディングウッズ
     const immune = put(s, "p2", "BS01-018", 1)
     const control = put(s, "p2", "BS01-018", 1)
     const immuneInst = spiritOf(s, "p2", immune)
-    if (immuneInst) immuneInst.immuneToOpponentThisTurn = true
+    if (immuneInst) giveTimed(s, immuneInst, { type: "immune" })
     // 自分（効果所有者）側の同色スピリットにも免疫フラグを立てるが、
     // 免疫は「相手の効果」を防ぐものなので自分側には適用されないはず
     const ownSpirit = put(s, "p1", "BS01-018", 1)
     const ownInst = spiritOf(s, "p1", ownSpirit)
-    if (ownInst) ownInst.immuneToOpponentThisTurn = true
+    if (ownInst) giveTimed(s, ownInst, { type: "immune" })
 
     // 実カード（BS01-140-e2）の action をそのまま解決
     resolveAction(s, "p1", null, { type: "exhaustAllByColor" }, undefined, ["green"], "magic")
@@ -80,7 +80,7 @@ console.log("=== §C exhaustAllByLevel（BS04-100 ジャングルロウのaction
     // BS01-002 ロクケラトプス Lv2（cores2）：免疫フラグを直接付与
     const immune = put(s, "p2", "BS01-002", 2)
     const immuneInst = spiritOf(s, "p2", immune)
-    if (immuneInst) immuneInst.immuneToOpponentThisTurn = true
+    if (immuneInst) giveTimed(s, immuneInst, { type: "immune" })
     // BS01-018 リザードマン Lv2（cores2）：無防備な対照
     const control = put(s, "p2", "BS01-018", 2)
 
@@ -98,7 +98,7 @@ console.log("=== §D returnAllToHand（BS04-102 ドリームハンド：コス�
     const immune = put(s, "p2", "BS01-002", 1)
     const control = put(s, "p2", "BS01-002", 1)
     const immuneInst = spiritOf(s, "p2", immune)
-    if (immuneInst) immuneInst.immuneToOpponentThisTurn = true
+    if (immuneInst) giveTimed(s, immuneInst, { type: "immune" })
     const handBefore = s.players.p2.hand.length
 
     // 実カード（BS04-102-e1）の action をそのまま解決

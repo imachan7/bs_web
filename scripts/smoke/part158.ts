@@ -9,7 +9,7 @@
 // ここでは判定表そのもの（shared/rules.boardResistanceAgainst ＋ サーバー側の上乗せ）を直接叩き、
 // **どの耐性がどの操作・どの範囲で効くか**を固定する。個々のカードの挙動は各パートが見ているので、
 // このパートは「表が壊れていないこと」だけを見る。
-import { assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart, giveTimed } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resistanceAgainst } from "../../server/src/logic/EffectModules"
 import type { EffectAttempt } from "../../shared/rules"
@@ -100,7 +100,7 @@ console.log("=== 「このターンの間、相手の効果を受けない」は
 {
     const s = base("resist-feather")
     const t = put(s, "p2", PLAIN.cardId, 3)
-    t.immuneToOpponentThisTurn = true
+    giveTimed(s, t, { type: "immune" })
     assert(resistanceAgainst(s, "p2", t, byP1("destroy", "area"))?.category === "fullImmune", "範囲効果も防ぐ")
     assert(resistanceAgainst(s, "p2", t, byP1("coreRemove", "targeted"))?.category === "fullImmune", "操作の種類も問わない")
 }
@@ -110,7 +110,7 @@ console.log("=== 相手限定の耐性は、自分の効果には働かない ==
     const s = base("resist-own")
     const armored = put(s, "p1", ARMORED.cardId, 3)
     const feather = put(s, "p1", PLAIN.cardId, 3)
-    feather.immuneToOpponentThisTurn = true
+    giveTimed(s, feather, { type: "immune" })
     const own: EffectAttempt = { op: "destroy", scope: "targeted", actorPid: "p1", sourceType: "spirit", sourceColors: ["red"] }
     assert(resistanceAgainst(s, "p1", armored, own) === null, "自分の効果は自分の装甲持ちに通る")
     assert(resistanceAgainst(s, "p1", feather, own) === null, "「相手の効果を受けない」も自分の効果は止めない")

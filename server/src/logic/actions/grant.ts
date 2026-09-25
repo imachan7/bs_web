@@ -344,7 +344,7 @@ const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx,
             log(state, `${sourceName}：対象のスピリットがいなかった。`)
             return
         }
-        target.immuneToOpponentThisTurn = true
+        recordTimed(state, { content: [{ type: "immune" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(
             state,
             `${getCard(target.cardId).name}はこのターン、相手のカードの効果を受けない。`,
@@ -437,7 +437,7 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        found.inst.lifeDamageNegatedFor = owner
+        recordTimed(state, { content: [{ type: "noLifeDamage" }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
         log(
             state,
             `${sourceName}：このターン、${getCard(found.inst.cardId).name}のアタックでは${state.players[owner].name}のライフは減らない。`,

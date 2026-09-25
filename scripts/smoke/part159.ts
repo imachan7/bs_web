@@ -8,7 +8,7 @@
 //
 // probing の向きに注意: **既定が「適用する」側**。立て忘れると払いすぎる＝ここが落ちる。
 // 逆向きだと立て忘れが「耐性が無言で効かない」になり検出できない。
-import { assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, refreshLevelAsOverrides, runTurnStart, giveTimed } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { pickEnemyCandidates, resistanceAgainst } from "../../server/src/logic/EffectModules"
 import type { EffectAttempt } from "../../shared/rules"
@@ -133,7 +133,7 @@ console.log("=== 元々防げる対象化では手札を払わない（判定の
 {
     const s = base("table-order")
     const guarded = put(s, "p2", GUARDED.cardId)
-    guarded.immuneToOpponentThisTurn = true // 盤面だけで決まる耐性が先に成立する
+    giveTimed(s, guarded, { type: "immune" }) // 盤面だけで決まる耐性が先に成立する
     const handBefore = s.players.p2.hand.length
 
     const r = resistanceAgainst(s, "p2", guarded, TARGETED)

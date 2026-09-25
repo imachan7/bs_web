@@ -998,6 +998,11 @@ function applyTimedCopies(state: GameState): void {
             inst.timedColors = []
             inst.tempBpBuff = 0
             delete inst.battleBpBuff
+            delete inst.battleBpAs
+            delete inst.colorlessThisBattle
+            inst.immuneToOpponentThisTurn = false
+            delete inst.countAsThisTurn
+            delete inst.lifeDamageNegatedFor
             delete inst.timedLevel
             delete inst.timedExtraSymbols
             delete inst.timedCostDelta
@@ -1024,15 +1029,22 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolLoss" && c.color !== undefined) (inst.timedSymbolLoss ??= []).push(c.color)
         }
     }
-    // 1体への一定量の BP+ だけを写す。「すべて」と「1体につき」の量は effectiveBp が読むたびに数え直す（timedRuleBp）
+    // 1体に掛けた記録を写す。BP+ は一定量だけ（「すべて」と「1体につき」の量は effectiveBp が読むたびに数え直す＝timedRuleBp）
     const byId = new Map(all.map((inst) => [inst.instanceId, inst]))
     for (const r of state.timedEffects) {
         const inst = r.target.kind === "instance" ? byId.get(r.target.instanceId) : undefined
         if (!inst) continue
         for (const c of r.content) {
-            if (c.type !== "bp" || c.amountCounter !== undefined) continue
-            if (r.until === "battle") inst.battleBpBuff = (inst.battleBpBuff ?? 0) + c.amount
-            else inst.tempBpBuff += c.amount
+            if (c.type === "bp" && c.amountCounter === undefined) {
+                if (r.until === "battle") inst.battleBpBuff = (inst.battleBpBuff ?? 0) + c.amount
+                else inst.tempBpBuff += c.amount
+            }
+            // 記録を出した側（ownerPid）が意味を持つ内容はここで写す（timedContentsOn では誰が出したかが消えるため）
+            if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
+            if (c.type === "colorless") inst.colorlessThisBattle = true
+            if (c.type === "immune") inst.immuneToOpponentThisTurn = true
+            if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
+            if (c.type === "noLifeDamage") inst.lifeDamageNegatedFor = r.ownerPid
         }
     }
 }
