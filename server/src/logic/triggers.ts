@@ -514,6 +514,11 @@ export function fireTrigger(
     const tempGranted = timed
         .filter((g): g is Extract<TimedContent, { type: "grantTrigger" }> => g.type === "grantTrigger")
         .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
+        .filter((g) => {
+            if (g.targetColorFilter === undefined) return true
+            const other = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : null
+            return other != null && instHasColor(other.inst, g.targetColorFilter)
+        })
         .map((g) => g.action)
     const grantedActions = [
         ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
