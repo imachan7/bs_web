@@ -242,13 +242,13 @@ console.log("=== F: 047召喚時 capOpponentTrashCoreReturnNextRefresh（次の�
     const s = game("f-caprefresh")
     s.players.p2.trashCores = 10
     resolveAction(s, "p1", null, { type: "capOpponentTrashCoreReturnNextRefresh", max: 3 })
-    assert(s.players.p2.trashCoreReturnCapNext === 3, "相手の次のリフレッシュステップ用の上限が立つ")
+    assert(s.timedEffects.some((r) => r.target.kind === "player" && r.target.pid === "p2" && r.content.some((c) => c.type === "trashCoreReturnCap" && c.max === 3)), "相手の次のリフレッシュステップ用の上限が記録される")
     const reserveBefore = s.players.p2.reserve
     endTurn(s) // p1 -> p2 のターン開始（p2のリフレッシュステップを実行）
     // +3はトラッシュからの戻し上限、+1は通常のコアステップ（先攻1ターン目でなければ毎ターン+1リザーブ）ぶん
     assert(s.players.p2.reserve === reserveBefore + 3 + 1, `トラッシュから戻るコアが3個までに制限される（実際のリザーブ増分 ${s.players.p2.reserve - reserveBefore}）`)
     assert(s.players.p2.trashCores === 7, `超過分の7個はトラッシュに残る（実際 ${s.players.p2.trashCores}）`)
-    assert(s.players.p2.trashCoreReturnCapNext === undefined, "上限は消費後に消える（次回以降は通常どおり）")
+    assert(!s.timedEffects.some((r) => r.target.kind === "player" && r.target.pid === "p2" && r.content.some((c) => c.type === "trashCoreReturnCap" && c.max === 3)), "上限は使ったら消える（次回以降は通常どおり）")
 }
 
 console.log("=== BE/colorAs: 042ヒノキ・ゴレム（手札ネクサスの軽減シンボルを青扱い・自分のネクサスは青扱い） ===")

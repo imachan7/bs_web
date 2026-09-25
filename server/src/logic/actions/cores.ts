@@ -648,8 +648,8 @@ const coreChargeHandler: ActionHandler<"coreCharge"> = (ctx, action) => {
 }
 
 const capOpponentTrashCoreReturnNextRefreshHandler: ActionHandler<"capOpponentTrashCoreReturnNextRefresh"> = (ctx, action) => {
-    const { state, opp, sourceName } = ctx
-    state.players[opp].trashCoreReturnCapNext = action.max
+    const { state, owner, opp, sourceName } = ctx
+    recordTimed(state, { content: [{ type: "trashCoreReturnCap", max: action.max }], target: { kind: "player", pid: opp }, until: "nextRefresh", ownerPid: owner })
     log(state, `${sourceName}：次の${state.players[opp].name}のリフレッシュステップでは、トラッシュのコアは${action.max}個までしかリザーブに戻せない。`)
     return
 }

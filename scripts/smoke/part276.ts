@@ -3,7 +3,7 @@
 // docs/design/BS11_PLAN.md §1 の1（2026-09-02 ユーザー確認）:
 // 「合体していないスピリットは1体しか回復できない」の**選択者はそのステップのプレイヤー**。
 // リフレッシュステップに中断点を新設し、既存の refreshOne へ委譲する。
-import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { attachBrave } from "../../server/src/logic/removal"
@@ -100,11 +100,11 @@ console.log("=== §E BS11-055：指定されたスピリットは次のリフレ
     void JANOME
     other.isRested = false // 候補を1体に絞る（自動選択の対象を固定する）
     resolveAction(s, "p2", null, { type: "markSkipNextRefresh", filter: { rested: true } })
-    assert(target.skipNextRefresh === true, "指定された側に印が付く")
+    assert(timedHas(s, target, "skipRefresh"), "指定された側に「次のリフレッシュで回復しない」が掛かる")
     other.isRested = true
     runRefreshStep(s)
     assert(target.isRested === true, "指定されたスピリットは回復しない")
-    assert(target.skipNextRefresh === undefined, "印はそのステップで消費される")
+    assert(!timedHas(s, target, "skipRefresh"), "記録はそのステップで使い切る")
     assert(!(other.isRested as boolean), "他のスピリットは回復する")
     // 次のリフレッシュでは回復する
     runRefreshStep(s)

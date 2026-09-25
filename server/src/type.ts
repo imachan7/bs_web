@@ -598,7 +598,6 @@ export interface CardInstance {
     // （無限再帰の防止。BS13-049イリテバン）
     destroyAsMaxLevel?: true // 破壊処理中、このスピリットのLvを一時的に「そのカードのレベル表の最大Lv」として扱う（levelOf/currentLevelが読む）。destroyAsMaxLevelGrant（器N）によるコア0破壊のときだけdestroySpiritが立てる。すぐトラッシュへ移るインスタンスなので後始末は不要
     // 効果テキストが「このバトルの間、BP+」と明示しているものだけがこちら（BS07ニードルショット）。無記述のBP+はターン終了時まで＝tempBpBuff
-    skipNextRefresh?: true // 次に自分のリフレッシュステップが来たとき、この個体は回復しない（そこで消費する。BS11-055 ジャノメ・シールダー＝「指定したスピリットは、次の『相手のリフレッシュステップ』で回復できない」）
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
     immuneToOpponentThisTurn: boolean // 期間つき効果の一覧（immune）から作り直す写し
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
@@ -791,7 +790,6 @@ export interface PlayerState {
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
     magicOncePerTurnUsed?: Record<string, number> // oncePerTurn 指定のマジックを最後に発揮したターン番号（cardId -> GameState.turn）
-    trashCoreReturnCapNext?: number // 指定時、**次の1回のリフレッシュステップ**でトラッシュのコアをリザーブへ戻す数をこの値までに制限する（超過分はトラッシュに残る）。消費後にフィールドが削除する（BS12-047海王神龍トライ・メルクリウス「次の『相手のリフレッシュステップ』で、相手のトラッシュのコアを3個しか相手のリザーブに戻せない」）
     burst: string | null // バーストエリアに伏せているカードのcardId（非公開。docs/design/BURST.md）
     // 「セットしているか」の公開情報版（burst !== null と常に一致するよう mutation 側で同期する）。
     // shared/board.ts の BoardPlayer が持つのはこちらだけ（burstはGameViewで相手はnullに隠されるため、
@@ -1420,6 +1418,8 @@ export type TimedContent =
     | { type: "noLifeDamage" } // このスピリットのアタックでは、記録を出した側のライフが減らない
     | { type: "colorless" } // 色とシンボルを無いものとして扱う
     | { type: "destroyedCoresTo"; to: "void" | "trash" } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
+    | { type: "skipRefresh" } // 次のリフレッシュステップで回復しない（寿命 nextRefresh）
+    | { type: "trashCoreReturnCap"; max: number } // 次のリフレッシュステップで、トラッシュのコアを max 個までしかリザーブに戻せない（寿命 nextRefresh。重なったら小さい方）
     | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic"; count: number } // このスピリットをブロックするには、ブロックする側が cost を count 回払う（払えなければブロックできない） // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 
 // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
@@ -1431,7 +1431,7 @@ export type TimedRecord = {
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
         | { kind: "battle" } // このバトルの解決方法（比べるもの・勝敗の逆転）。until は "battle"
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
-    until: "turn" | "battle" | "attack" // attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）
+    until: "turn" | "battle" | "attack" | "nextRefresh" // attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
 }
 
