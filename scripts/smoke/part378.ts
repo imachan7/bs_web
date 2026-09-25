@@ -52,8 +52,9 @@ console.log("=== 2. 1体：月光姫マーニ＝実効BP最大の相手1体の�
     resolveAction(s, "p1", null, suppressAction("BS14-043"))
     assert(strong.suppressedTriggersThisTurn?.includes("onAttack") === true, "実効BP最大の1体に印が付く")
     assert(weak.suppressedTriggersThisTurn === undefined, "もう1体には付かない")
+    s.interactiveTargets = true
     resolveAction(s, "p1", null, suppressAction("BS14-043"))
-    assert(weak.suppressedTriggersThisTurn?.includes("onAttack") === true, "既に印がある個体は候補にしない")
+    assert(s.pendingChoice?.candidates.includes(strong.instanceId) === true, "既に止められている個体も候補に出る（2026-09-25 ユーザー確認）")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part378）")
