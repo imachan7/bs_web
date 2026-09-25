@@ -613,7 +613,6 @@ export interface CardInstance {
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
-    refreshOnBlockedByColorThisTurn?: Color // このターンの間、この色のスピリットにブロックされたら回復する（BS11-054 武槍鳥スピニード・ハヤト。ターン終了でリセット）
     timedCostDelta?: number // このターンの間のコストの増減（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。shared/rules.ts の instCostDelta が読む
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
@@ -815,7 +814,6 @@ export interface BattleState {
     // （挙動は treatAsUnblockedIfBlockerLevel1 と同じ。判定だけが違う。SD02-016 ウィングブーツ）
     treatAsUnblockedIfBlockerLevel1?: true // ブロッカーがLv1なら、BPを比べずに「ブロックされなかった」ものとして扱う（ライフに通り、どちらも破壊されない。ブロッカーは疲労したまま残る。BS09-044妖精の姫巫女ハマ・ドリュアス。BS09_PLAN.md §4）
     treatAsUnblockedByCost?: true // BS15共通器：action:"unblockedByVoidSelfCore" がonBlocked時に立てる。挙動はtreatAsUnblockedIfBlockerLevel1と同じ（BS15-045虚獣帝スフィン・クロス）
-    blockerCoresProtected?: true // このバトルの間、ブロッカー上のコアは効果で取り除けない（protectBlockerCoresThisBattle。BS09-027密林の勇者皇ヴォルザLv2-3）
     // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
     // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
     // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、
@@ -1420,7 +1418,9 @@ export type TimedContent =
     | { type: "destroyedCoresTo"; to: "void" | "trash" } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
     | { type: "skipRefresh" } // 次のリフレッシュステップで回復しない（寿命 nextRefresh）
     | { type: "trashCoreReturnCap"; max: number } // 次のリフレッシュステップで、トラッシュのコアを max 個までしかリザーブに戻せない（寿命 nextRefresh。重なったら小さい方）
-    | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic"; count: number } // このスピリットをブロックするには、ブロックする側が cost を count 回払う（払えなければブロックできない） // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
+    | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic"; count: number }
+    | { type: "blockerCoresProtected" } // このバトルのブロッカー上のコアは効果で取り除けない（target.kind:"battle"。アタック時にはまだブロッカーが決まっていないため）
+    | { type: "refreshWhenBlockedBy"; color: Color } // この色のスピリットにブロックされたとき回復する（ブロック宣言の処理の中で回復させる。誘発効果にはしていない） // このスピリットをブロックするには、ブロックする側が cost を count 回払う（払えなければブロックできない） // set＝Lv◯として扱う／up＝いまの Lv から上げる（最大Lvで止める）／max＝各カードの最高Lv
 
 // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
 export type TimedRecord = {

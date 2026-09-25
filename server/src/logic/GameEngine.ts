@@ -1216,8 +1216,8 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
     // BS11-054 武槍鳥スピニード・ハヤト：指定した色のスピリットにブロックされたら、アタッカーは回復する
     const blockedAttackerPid = opponentOf(pid)
     const blockedAttacker = findSpirit(state.players[blockedAttackerPid], state.battle.attackerInstanceId)
-    const wantColor = blockedAttacker?.refreshOnBlockedByColorThisTurn
-    if (blockedAttacker && wantColor !== undefined && blocker && instHasColor(blocker, wantColor)) {
+    const wantColors = blockedAttacker ? timedContentsOn(state, blockedAttacker).flatMap((c) => (c.type === "refreshWhenBlockedBy" ? [c.color] : [])) : []
+    if (blockedAttacker && blocker && wantColors.some((c) => instHasColor(blocker, c))) {
         refreshSpirit(state, blockedAttackerPid, blockedAttacker)
     }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"

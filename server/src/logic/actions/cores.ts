@@ -543,15 +543,13 @@ const coreRemoveMultiHandler: ActionHandler<"coreRemoveMulti"> = (ctx, action) =
         return
 }
 
-// BS09-027密林の勇者皇ヴォルザLv2-3：このバトルの間、ブロッカー上のコアを効果で取り除けなくする。
-// アタック宣言の時点ではまだブロッカーが決まっていないので、印はバトル側に立てる
 const protectBlockerCoresThisBattleHandler: ActionHandler<"protectBlockerCoresThisBattle"> = (ctx) => {
-    const { state, sourceName } = ctx
+    const { state, owner, sourceName } = ctx
     if (!state.battle) {
         log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
         return
     }
-    state.battle.blockerCoresProtected = true
+    recordTimed(state, { content: [{ type: "blockerCoresProtected" }], target: { kind: "battle" }, until: "battle", ownerPid: owner })
     log(state, `${sourceName}：このバトルの間、ブロックしたスピリット上のコアは取り除けない。`)
 }
 

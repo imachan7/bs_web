@@ -619,13 +619,13 @@ const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhen
             (c) => [c, state.players[opp].field.spirits.filter((sp) => instHasColor(sp, c)).length] as const,
         )
         const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
-        self.refreshOnBlockedByColorThisTurn = best[0]
+        recordTimed(state, { content: [{ type: "refreshWhenBlockedBy", color: best[0] }], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${sourceName}：色「${COLOR_LABELS[best[0]]}」を指定した。（この色にブロックされたら回復する）`)
         return
     }
     const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
     if (!colorEntry) return
-    self.refreshOnBlockedByColorThisTurn = colorEntry[0]
+    recordTimed(state, { content: [{ type: "refreshWhenBlockedBy", color: colorEntry[0] }], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
 }
 
