@@ -38,6 +38,11 @@
 M8 の残り30種の移行は止めて、先に [TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) の一覧 `timedEffects` と読む関数 `timedContentsOn` を作る。
 試作（`cantAttack`・`cantBlock`）は済み（ブランチ `chore/timed-effects-store`、結果は同 §3.1）。次は残りの内容を1つずつ一覧へ移す（全体を移す・自動選択はそろえない＝同 §4、2026-09-25 ユーザー決定）。
 
+**進行中（2026-09-25 ユーザー決定）**：ブロックされないを `{ type: "unblockable"; from?: TargetFilter }` 1つにする（`fromMinBp` をやめる）。
+シユウの `unblockableLevelsThisBattle`・ムーンボウクロークの `unblockableColorsThisTurn`・エンジェドールの `unblockableByLevelThisTurn` を一覧へ移す。
+ゲッコ・グライダーは `target: { kind: "braveHost"; braveInstanceId }`（読むたびに `bravesOf` でホストを見る。合体・分離で書き換える案は不採用）。
+「『ブロックされない』効果を持つ」は条件つきも含む（継続の unblockableBy 33件と揃える）。分離5か所の共通部分は `unlinkBrave` にまとめる。
+
 ### 次の一手：R4 の残り（effectAction.ts・type.ts のコメント削減）
 
 effectDef.ts（#99 と、その消し残しの修正）と同じ手順で1ファイルずつ Sonnet に任せる。**1回目の指示で次を明示する**（effectDef.ts では1回目が29%減で止まり、2回目で45%減になった）：
