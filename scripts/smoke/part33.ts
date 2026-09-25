@@ -116,5 +116,5 @@ console.log("=== BS03-141 ビルドアップ：対象のLvを+1する（最大Lv
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "level", up: 1 }], duration: "turn", side: "own" }, spirit.instanceId, undefined, "magic")
     assert(currentLevel(spirit).level === 2, "最大Lv2でキャップされる（Lv3にはならない）")
     endTurn(s)
-    assert(currentLevel(spirit).level === 1, "ターン終了でlevelOverrideThisTurnがリセットされ元のLvに戻る")
+    assert(currentLevel(spirit).level === 1, "ターン終了でtimedLevelがリセットされ元のLvに戻る")
 }

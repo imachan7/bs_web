@@ -189,12 +189,12 @@ console.log("=== BS02-065 花の子リップ e1：黄3つ以上で、黄スピ�
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blocker.instanceId }) === null, "p2がブロック")
-    assert(blocker.levelOverrideThisTurn === 1, "ブロックした相手はこのターンLv1として扱われる")
+    assert(blocker.timedLevel === 1, "ブロックした相手はこのターンLv1として扱われる")
 
     assert(act(s, "p2", { type: "pass" }) === null, "p2がパス")
     assert(act(s, "p1", { type: "pass" }) === null, "p1がパス（両者パスでバトル解決）")
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1がターンを終了")
-    assert(blocker.levelOverrideThisTurn === undefined, "ターン終了でLv上書きは解除される")
+    assert(blocker.timedLevel === undefined, "ターン終了でLv上書きは解除される")
 }
 
 console.log("=== BS02-077 決闘台地 e2：相手のスタートステップに覚醒持ちを全回復（cantAttackThisTurnは付けない） ===")

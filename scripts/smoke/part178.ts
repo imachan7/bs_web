@@ -136,7 +136,7 @@ console.log("=== 皇帝アンプルール：相手のネクサスが無ければ
     const before2 = s2.players.p1.reserve
     resolveAction(s2, "p1", null, { type: "levelOverrideOpponentNexuses", level: 1, costReserveToVoid: 1 })
     assert(s2.players.p1.reserve === before2 - 1, "相手のネクサスがあればコアを払う")
-    assert(s2.players.p2.field.nexuses[0]?.levelOverrideThisTurn === 1, "相手のネクサスがLv1として扱われる")
+    assert(s2.players.p2.field.nexuses[0]?.timedLevel === 1, "相手のネクサスがLv1として扱われる")
 }
 
 console.log("=== 保留中：体数が足りなくても発揮できる（現状の挙動を固定） ===")

@@ -37,15 +37,15 @@ console.log("=== 1. 天災之禍風：相手のスピリットすべて（後か
     s.players.p1.field.spirits = [mine]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", null, levelAllAction(DISASTER), undefined, undefined, "magic")
-    assert(theirs.levelOverrideThisTurn === 1 && mine.levelOverrideThisTurn === undefined, "相手のスピリットだけ Lv1")
+    assert(theirs.timedLevel === 1 && mine.timedLevel === undefined, "相手のスピリットだけ Lv1")
     const later = createInstance(lv3.cardId, 1, 5)
     s.players.p2.field.spirits.push(later)
     refreshLevelAsOverrides(s)
-    assert(later.levelOverrideThisTurn === 1, "解決後に出た相手のスピリットも Lv1")
+    assert(later.timedLevel === 1, "解決後に出た相手のスピリットも Lv1")
     // 後から使われた1体の Lv 変更はルールに上書きされない
     resolveAction(s, "p2", null, { type: "timedEffect", content: [{ type: "level", up: 1 }], duration: "turn", side: "own" }, theirs.instanceId, undefined, "magic")
     refreshLevelAsOverrides(s)
-    assert(theirs.levelOverrideThisTurn === 2, "後から Lv を上げた個体はそのまま（Lv2）")
+    assert(theirs.timedLevel === 2, "後から Lv を上げた個体はそのまま（Lv2）")
 }
 
 console.log("=== 2. 幻影士のミラージ：自分のスピリットすべて（後から出たものも）を最高Lvとして扱う ===")
@@ -56,15 +56,15 @@ console.log("=== 2. 幻影士のミラージ：自分のスピリットすべて
     s.players.p1.field.spirits = [mirage, a]
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", mirage, levelAllAction(MIRAGE))
-    assert(a.levelOverrideThisTurn === maxLv(lv3.cardId), "いた個体は最高Lv")
+    assert(a.timedLevel === maxLv(lv3.cardId), "いた個体は最高Lv")
     const later = createInstance(lv3.cardId, 1, 1)
     s.players.p1.field.spirits.push(later)
     refreshLevelAsOverrides(s)
-    assert(later.levelOverrideThisTurn === maxLv(lv3.cardId), "解決後に出た個体も最高Lv")
+    assert(later.timedLevel === maxLv(lv3.cardId), "解決後に出た個体も最高Lv")
     const opp = createInstance(lv3.cardId, 1, 1)
     s.players.p2.field.spirits.push(opp)
     refreshLevelAsOverrides(s)
-    assert(opp.levelOverrideThisTurn === undefined, "相手のスピリットには効かない")
+    assert(opp.timedLevel === undefined, "相手のスピリットには効かない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part369）")

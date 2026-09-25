@@ -214,7 +214,7 @@ console.log("=== BS08堕天使ミカファールLv2-3：action castMagicFromTras
     resolveAction(s, "p1", null, { type: "castMagicFromTrashByColor", colorFilter: "yellow" }, undefined, undefined, "spirit")
     assert(s.players.p1.reserve === reserveBefore - 3, "コスト3がリザーブから支払われる")
     assert(s.players.p1.trashCards.includes("BS08-079"), "使用後もトラッシュに留まる（元々トラッシュのカードのため）")
-    assert(own.levelOverrideThisTurn === 1, "メイン効果（levelOverrideTarget）が手札にあるときと同様に発揮される")
+    assert(own.timedLevel === 1, "メイン効果（levelOverrideTarget）が手札にあるときと同様に発揮される")
 }
 {
     const s = base("mikafael-cast-from-trash-no-color-match")
@@ -373,7 +373,7 @@ console.log("=== BS08勇者フェニックスペンタン／堕天使ミカフ�
     fireTrigger(s, "p1", mika, "onAttack")
     // 支払い額はカード静的なコストではなく**軽減後**（自分の黄シンボルぶん減る）
     assert(s.players.p1.reserve < reserveBefore, "『アタック時』の誘発としてトラッシュのマジックを使用する")
-    assert(target.levelOverrideThisTurn === 1, "使用したマジックのメイン効果が発揮される")
+    assert(target.timedLevel === 1, "使用したマジックのメイン効果が発揮される")
 }
 
 console.log("=== BS08-X33 ミカファール：トラッシュのマジックのコストは、フィールドのコアでも払える（2026-08-24） ===")
@@ -411,7 +411,7 @@ console.log("=== BS08-X33 ミカファール：トラッシュのマジックの
     // 対話モードでは、キャッツアイの対象もプレイヤーが選ぶ（2026-09-02。候補は自分のスピリット3体）
     assert(s.pendingChoice?.kind === "target", "Lv3として扱うスピリットの選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: target.instanceId }) === null, "対象を選ぶ")
-    assert(target.levelOverrideThisTurn === 1, "使用したマジックのメイン効果が発揮される")
+    assert(target.timedLevel === 1, "使用したマジックのメイン効果が発揮される")
 }
 
 console.log("=== BS08-X33 ミカファール：リザーブから払ったコアもトラッシュへ置かれる ===")

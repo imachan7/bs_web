@@ -980,7 +980,7 @@ export function sweepLevelCostDepletion(state: GameState): void {
     }
 }
 
-// 「このターンの間、〜のスピリットすべてを Lv◯として扱う／シンボルを失う」（timedEffect の all:true）を、まだ書いていない個体
+// 「このターンの間、〜のスピリットすべてのシンボルを失う」（timedEffect の all:true）を、まだ書いていない個体
 // （＝ルールを置いた後に場に出たスピリット）に書き込む（2026-09-24 ユーザー確認：「すべて」は後から出たものにも効く）
 function applyTimedLevelRules(state: GameState): void {
     for (const rule of state.turnConstraints) {
@@ -997,20 +997,6 @@ function applyTimedLevelRules(state: GameState): void {
                 }
             }
         }
-        const level = rule.content.find((c) => c.type === "level")
-        if (!level || level.type !== "level") continue
-        const applied = (rule.appliedIds ??= [])
-        for (const pid of rule.pid === undefined ? (["p1", "p2"] as PlayerId[]) : [rule.pid]) {
-            for (const inst of state.players[pid].field.spirits) {
-                if (applied.includes(inst.instanceId) || !matchesTarget(state, pid, inst, rule.filter, rule.selfInstanceId)) continue
-                const levels = getCard(inst.cardId).levels
-                if (level.requireLevelExists && level.set !== undefined && !levels.some((l) => l.level === level.set)) continue
-                const to = level.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : level.set
-                if (to === undefined) continue
-                inst.levelOverrideThisTurn = to
-                applied.push(inst.instanceId)
-            }
-        }
     }
 }
 
@@ -1021,19 +1007,30 @@ export function recordTimed(state: GameState, record: TimedRecord): void {
 }
 
 // 一覧から個体の写し（timed〜）をゼロから作り直す。盤面を受け取らない読み取り関数（instHasColor 等）はこの写しを読む
-// ponytail: 写しの材料を照合する matchesTarget が写し自身（色）を読むと順序で結果が変わる。「〜色のスピリットすべてを〇色に」を書くカードが出たら固定点を考える
+// 「すべて」の記録の照合は、期間つきの写しを含まない状態で行う（期間つきで青にした個体は、別の「青のスピリットすべて」の記録の照合では青に数えない）。
+// そう読むべきか割れるカードが出たら、ユーザーと相談して決める（2026-09-25 時点で該当カードなし）
 function applyTimedCopies(state: GameState): void {
+    const all: CardInstance[] = []
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const field = state.players[pid].field
-        for (const inst of [...field.spirits, ...field.nexuses, ...field.combinedBraves]) inst.timedColors = []
+        for (const inst of [...field.spirits, ...field.nexuses, ...field.combinedBraves]) {
+            inst.timedColors = []
+            delete inst.timedLevel
+        }
+        all.push(...field.spirits, ...field.nexuses)
     }
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of state.players[pid].field.spirits) {
-            const colors: Color[] = []
-            for (const c of timedContentsOn(state, inst)) {
-                if (c.type === "color" && c.color !== undefined && !colors.includes(c.color)) colors.push(c.color)
+    // 照合は写しを空にした状態で全員ぶん先に済ませる（写しを書きながら照合すると処理順で結果が変わるため）
+    const hits = all.map((inst) => [inst, timedContentsOn(state, inst)] as const)
+    for (const [inst, contents] of hits) {
+        // 記録順に処理する＝後から掛けた Lv が勝つ
+        for (const c of contents) {
+            if (c.type === "color" && c.color !== undefined && !inst.timedColors.includes(c.color)) inst.timedColors.push(c.color)
+            if (c.type === "level") {
+                const levels = getCard(inst.cardId).levels
+                if (c.requireLevelExists && c.set !== undefined && !levels.some((l) => l.level === c.set)) continue
+                const to = c.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : c.set
+                if (to !== undefined) inst.timedLevel = to
             }
-            inst.timedColors = colors
         }
     }
 }

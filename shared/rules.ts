@@ -397,7 +397,7 @@ export function ownFieldOnlyColor(board: Board, pid: PlayerId, color: Color, spi
     })
 }
 
-// 現在のレベルとBP。levelOverrideThisTurn（このターンの上書き）または levelAsContinuous（継続置換）が
+// 現在のレベルとBP。timedLevel（このターンの上書き）または levelAsContinuous（継続置換）が
 // あればそちらを優先し、無ければコア数（coresOverride があればそれ）から判定する。
 // BP には tempBpBuff と battleBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）。
 // 両者の違いは寿命だけ：tempBpBuff はターン終了まで、battleBpBuff は clearBattle まで
@@ -431,7 +431,7 @@ function levelOf(inst: CardInstance, forEffects: boolean): { level: number; bp: 
     }
     // 効果の発揮判定にだけ効く置き換えは、他から見えるレベル（forEffects=false）では無視する
     const continuous = inst.levelAsEffectsOnly && !forEffects ? undefined : inst.levelAsContinuous
-    const override = inst.levelOverrideThisTurn ?? continuous
+    const override = inst.timedLevel ?? continuous
     if (override !== undefined) {
         const lv = levels.find((l) => l.level === override)
         if (lv) {
@@ -2930,7 +2930,8 @@ function hasImmunityAgainst(
 // この個体にいま掛かっている期間つき効果の内容（docs/design/TIMED_EFFECTS.md）。1体指定と「すべて」の両方を追加順に返す。
 // 「すべて」は判定のたびに照合するので、効果の解決後に場に出たスピリットにも効く（2026-09-24 ユーザー確認）
 export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[] {
-    const pid: PlayerId = board.players.p1.field.spirits.includes(inst) ? "p1" : "p2"
+    const p1 = board.players.p1.field
+    const pid: PlayerId = p1.spirits.includes(inst) || p1.nexuses.includes(inst) ? "p1" : "p2"
     return board.timedEffects.flatMap((r) => {
         const t = r.target
         const hit =

@@ -526,7 +526,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
 function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
     const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
-    target.levelOverrideThisTurn = nextLevel
+    recordTimed(state, { content: [{ type: "level", set: nextLevel }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: state.players.p1.field.spirits.includes(target) ? "p1" : "p2" })
     log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
 }
 
