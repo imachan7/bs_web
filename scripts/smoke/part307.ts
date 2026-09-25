@@ -155,7 +155,7 @@ console.log("=== 器BL：BS13-059【合体時】コスト4以下のアタック�
     refreshLevelAsOverrides(s)
     const attacker = createInstance("BS02-039", s.turn, 1) // コスト2（4以下）。相手側のアタックでも発火することを見る
     s.players.p2.field.spirits.push(attacker)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p2", inst: attacker }, [], undefined, undefined, { costs: [2] })
     assert(s.endAttackStepAfterBattle === true, "コスト4以下のアタックでフラグが立つ")
 }
@@ -171,7 +171,7 @@ console.log("=== 器BL：BS13-059【合体時】コスト4以下のアタック�
     refreshLevelAsOverrides(s)
     const attacker = createInstance("BS13-048", s.turn, 1) // コスト10（4超）
     s.players.p2.field.spirits.push(attacker)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p2", inst: attacker }, [], undefined, undefined, { costs: [10] })
     assert(s.endAttackStepAfterBattle !== true, "コスト4超のアタックではフラグが立たない")
 }

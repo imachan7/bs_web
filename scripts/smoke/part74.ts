@@ -14,6 +14,7 @@ import {
     refreshLevelAsOverrides,
     runTurnStart,
     hasArmorAgainst,
+    lockedFor,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -268,7 +269,7 @@ console.log("=== BS05-X18 超獣王ベヒードス：召喚時破壊／アタッ
     const behedosuId = put(s, "p1", "BS05-X18", 6) // Lv3
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: behedosuId }) === null, "ベヒードスがアタック宣言")
-    assert(s.battle?.flashLockedPlayer === "p2", "アタック時に相手（p2）がフラッシュ封印される")
+    assert(lockedFor(s, "p2", "flash"), "アタック時に相手（p2）がフラッシュ封印される")
 }
 {
     // e4: onBlock lockFlash（levels:[3]）
@@ -280,7 +281,7 @@ console.log("=== BS05-X18 超獣王ベヒードス：召喚時破壊／アタッ
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ①を閉じる）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: behedosuId }) === null, "ベヒードスがブロック")
-    assert(s.battle?.flashLockedPlayer === "p1", "ブロック時に攻撃側（p1）がフラッシュ封印される")
+    assert(lockedFor(s, "p1", "flash"), "ブロック時に攻撃側（p1）がフラッシュ封印される")
 }
 
 console.log("=== BS05-X19 聖皇ジークフリーデン：アタック時（Lv3）、BP7000以下の相手スピリットを2体破壊 ===")

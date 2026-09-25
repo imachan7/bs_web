@@ -1,5 +1,5 @@
 // smoke パート373（このバトルの間、相手はフラッシュで手札を使えない／バーストを発動できない：timedEffect の内容 battleLock）
-import { assert, createGame, createInstance, getCard, resolveAction } from "./helpers"
+import { assert, createGame, createInstance, getCard, resolveAction, lockedFor } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
@@ -25,10 +25,9 @@ console.log("=== 1. 移したカードデータ9か所：バトル中なら相�
         const s = createGame("p373", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         const attacker = createInstance("BS01-001", 1, 1)
         s.players.p1.field.spirits = [attacker]
-        s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+        s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: null, directed: false }
         resolveAction(s, "p1", null, action)
-        const got = lock === "flash" ? s.battle.flashLockedPlayer : s.battle.burstBlockedForPid
-        assert(got === "p2", `${cardId} ${getCard(cardId).name}：相手（p2）に${lock === "flash" ? "フラッシュ" : "バースト"}の印`)
+        assert(lockedFor(s, "p2", lock as "flash" | "burst") && !lockedFor(s, "p1", lock as "flash" | "burst"), `${cardId} ${getCard(cardId).name}：相手（p2）に${lock === "flash" ? "フラッシュ" : "バースト"}の印`)
     }
 }
 

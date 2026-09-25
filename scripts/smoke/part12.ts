@@ -17,7 +17,9 @@ import {
     hasArmorAgainst,
     resolveAction,
     runTurnStart,
-    spiritHasKeyword, bpBuffOf } from "./helpers"
+    spiritHasKeyword, bpBuffOf,
+    battleHas,
+} from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
 import { instHasCost, cantActByTimed } from "../../shared/rules"
 
@@ -47,7 +49,7 @@ console.log("=== BS02-109 エンジェルボイス：フラッシュでバトル
         act(s, "p2", { type: "castMagic", handIndex: 0 }) === null,
         "エンジェルボイスを使用（Lv比較へ切り替え）",
     )
-    assert(s.battle?.compareByLevel === true, "compareByLevelフラグが立つ")
+    assert(battleHas(s, "compareBy", "level"), "compareByLevelフラグが立つ")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（バトル解決）")
 

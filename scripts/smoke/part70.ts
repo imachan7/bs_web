@@ -173,7 +173,6 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
     s.battle = {
         attackerInstanceId: birdId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["green"], "magic", undefined, undefined, "BS04-097")
@@ -193,7 +192,6 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
     s2.battle = {
         attackerInstanceId: plainId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s2, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["green"], "magic", undefined, undefined, "BS04-097")

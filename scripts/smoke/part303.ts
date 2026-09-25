@@ -227,7 +227,7 @@ console.log("=== 器AG：バトルしているブレイヴは対象外 ===")
     const host = createInstance("BS12-019", s.turn, 1)
     s.players.p1.field.spirits.push(host)
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: mokubao.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: mokubao.instanceId, blockerInstanceId: null, directed: false }
 
     resolveAction(s, "p1", mokubao, { type: "refreshSelfBraveThenCombine" }, host.instanceId)
     assert(mokubao.isRested, "バトルしている間は回復も合体もしない")

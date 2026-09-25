@@ -14,7 +14,9 @@ import {
     minLevelCores,
     refreshLevelAsOverrides,
     resolveAction,
-    runTurnStart, timedHas } from "./helpers"
+    runTurnStart, timedHas,
+    lockedFor,
+} from "./helpers"
 import type { GameState } from "./helpers"
 import { fireFieldEventTriggers, fireStepTriggers } from "../../server/src/logic/triggers"
 import { effectiveCost } from "../../shared/cost"
@@ -76,7 +78,7 @@ console.log("=== BS15-020 パンダル：【暴風：1】ブロックされた�
     s.players.p2.field.spirits.push(oppA)
     refreshLevelAsOverrides(s)
     assert(spiritHasKeyword(s, "p1", panda, "bofu"), "【暴風】を持つ")
-    s.battle = { attackerInstanceId: panda.instanceId, blockerInstanceId: oppA.instanceId, flashLockedPlayer: null, directed: false } as never
+    s.battle = { attackerInstanceId: panda.instanceId, blockerInstanceId: oppA.instanceId, directed: false } as never
     // excludeTarget:trueはfireTriggerが渡すブロッカー自身のtargetInstanceIdを除外候補にするためのもの。
     // ここでは自動選択の経路を確認するのでtargetInstanceIdは渡さない
     resolveAction(s, "p1", panda, { type: "exhaust", count: 1, chooserIsTarget: true, excludeTarget: true, countFromBofu: true })
@@ -244,9 +246,9 @@ console.log("=== BS15-X03 鳥武帝スザクロス・ソウソー：バトル時
     const suzaku = createInstance("BS15-X03", s.turn, minLevelCores(getCard("BS15-X03")))
     s.players.p1.field.spirits.push(suzaku)
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: suzaku.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false } as never
+    s.battle = { attackerInstanceId: suzaku.instanceId, blockerInstanceId: null, directed: false } as never
     resolveAction(s, "p1", suzaku, { type: "timedEffect", content: [{ type: "battleLock", lock: "burst" }], duration: "battle" })
-    assert((s.battle as unknown as { burstBlockedForPid?: string }).burstBlockedForPid === "p2", "相手のバーストがこのバトルの間無効化された")
+    assert(lockedFor(s, "p2", "burst"), "相手のバーストがこのバトルの間無効化された")
 }
 
 console.log("=== BS15-X04 機獣要塞ナウマンガルド：相手によって破壊されたとき3枚ドロー+ボイドからコア3個 ===")

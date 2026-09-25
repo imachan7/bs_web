@@ -153,7 +153,6 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
             s.battle = {
                 attackerInstanceId: subject.instanceId,
                 blockerInstanceId: s.players.p2.field.spirits[0]?.instanceId ?? null,
-                flashLockedPlayer: null,
                 directed: false,
             }
 

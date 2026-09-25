@@ -152,8 +152,8 @@ console.log(`=== 1. 新旧一致：対象外を除く全${candidates.length}件 
                 const t2Old = put(sOld, "p2", VANILLA, 1)
                 const t2New = put(sNew, "p2", VANILLA, 1)
                 if (battling) {
-                    sOld.battle = { attackerInstanceId: t1Old.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
-                    sNew.battle = { attackerInstanceId: t1New.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+                    sOld.battle = { attackerInstanceId: t1Old.instanceId, blockerInstanceId: null, directed: false }
+                    sNew.battle = { attackerInstanceId: t1New.instanceId, blockerInstanceId: null, directed: false }
                 }
                 resolveAction(sOld, "p1", selfOld, action, withTarget ? t1Old.instanceId : undefined)
                 resolveAction(sNew, "p1", selfNew, now, withTarget ? t1New.instanceId : undefined)

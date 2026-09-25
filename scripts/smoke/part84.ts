@@ -56,7 +56,6 @@ console.log("=== 基礎ルール：【神速】召喚のコストはリザーブ
     s.battle = {
         attackerInstanceId: bank.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     const err = trySokuSummon(s, bank.instanceId)
@@ -95,7 +94,6 @@ console.log("=== BS04-080 旋風渦巻く渓谷 Lv2：神速召喚の取得元�
     s.battle = {
         attackerInstanceId: bank.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     s.players.p1.reserve = 1 // 置くコア1個ぶんはリザーブから
@@ -120,7 +118,6 @@ console.log("--- 渓谷が Lv1 のときは制限が残る ---")
     s.battle = {
         attackerInstanceId: bank.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     assert(
@@ -139,7 +136,6 @@ console.log("--- 相手のターンでは働かない（『自分のアタック
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     assert(
@@ -156,7 +152,6 @@ console.log("=== BS04-033 甲殻戦士ロングホーン Lv2-3：ロングホー
     s.battle = {
         attackerInstanceId: longhorn.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     s.players.p1.reserve = 1 // 置くコア1個ぶん
@@ -180,7 +175,6 @@ console.log("--- ロングホーンが Lv1 のときは制限が残る ---")
     s.battle = {
         attackerInstanceId: longhorn.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
     assert(

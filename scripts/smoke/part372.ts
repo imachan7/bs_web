@@ -38,7 +38,7 @@ function game(): GameState {
 }
 
 function battle(s: GameState, attackerId: string): void {
-    s.battle = { attackerInstanceId: attackerId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attackerId, blockerInstanceId: null, directed: false }
 }
 
 console.log("=== 1. 天使長トロン：バトルが終わっても2回目のアタックもブロックされない ===")

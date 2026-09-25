@@ -49,7 +49,6 @@ console.log("=== BS05-060 茨の決戦地 Lv2：バトル中のスピリット�
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: blocker.instanceId,
-        flashLockedPlayer: null,
         directed: false,
     }
 
@@ -92,7 +91,6 @@ console.log("--- Lv1（維持コア0）では効果免疫は働かない（コ�
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: blocker.instanceId,
-        flashLockedPlayer: null,
         directed: false,
     }
 
@@ -131,7 +129,6 @@ console.log("=== BS05-048 合成恐竜ディノゾール Lv2：【覚醒】が�
     s.battle = {
         attackerInstanceId: enemy.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
 
@@ -190,7 +187,6 @@ console.log("--- ディノゾールがLv1のときは書き換わらない ---")
     s.battle = {
         attackerInstanceId: enemy.instanceId,
         blockerInstanceId: null,
-        flashLockedPlayer: null,
         directed: false,
     }
 

@@ -1775,7 +1775,7 @@ export function fireBurstOnEvent(
         }
         if (!effect) continue
         // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
-        if (state.battle?.burstBlockedForPid === holderPid) continue
+        if (timedContentsFor(state, holderPid).some((c) => c.type === "battleLock" && c.lock === "burst")) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
         if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
         if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue

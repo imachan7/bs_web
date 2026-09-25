@@ -27,7 +27,7 @@ function board(): { s: GameState; me: ReturnType<typeof createInstance> } {
     s.players.p1.field.spirits = [me]
     s.players.p2.field.spirits = [createInstance(VANILLA, 1, 1), createInstance(VANILLA, 1, 1)]
     refreshLevelAsOverrides(s)
-    s.battle = { attackerInstanceId: me.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: me.instanceId, blockerInstanceId: null, directed: false }
     return { s, me }
 }
 

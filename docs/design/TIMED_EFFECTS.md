@@ -74,6 +74,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `symbolAdd`・`symbolSet`・`symbolLoss`・`cost` | 個体の印4つは写し `timedExtraSymbols`・`timedSymbolsOverride`・`timedSymbolLoss`・`timedCostDelta` になった。「すべての色のシンボルを失う」の `timedRule`＋`appliedIds` はやめた（`appliedIds` の型も削除）。バトル終了時（`clearBattle`）にも作り直す。残る `timedRule` は BP だけ |
 | `unblockable` | 個体の印5つ（`unblockableThisTurn`・`unblockableOnceThisTurn`・`unblockableMinBpThisBattle`・`unblockableLevelsThisBattle`・`unblockableColorsThisTurn`）とターン制約2つ（`unblockableByLevelThisTurn`・`braveHostUnblockableThisTurn`）。条件は `from: ResolvedTargetFilter` 1つで表す。「ターンに1回」は寿命 `attack`。ゲッコ・グライダーは `braveHost`（合体・分離で書き換える案は不採用。分離の経路を1つ書き忘れると元ホストに残るため）。条件つきでも「ブロックされない効果を持つ」に数える（2026-09-25 ユーザー決定。継続の `unblockableBy` 33件と揃えた） |
 | `triggerSwap` | 個体の印2つ（`attackTriggersAsBlockThisTurn`・`blockTriggersAsAttackThisTurn`）・GameState の全体フラグ・ターン制約 `blockTriggersAsAttackForPid`。「すべて」は `rule`（お互い＝pid なし、自分＝pid あり） |
+| `compareBy`・`invertBattleWinner`・`battleLock` | バトルの状態の印6つ（`compareByLevel`・`compareByCores`・`compareByCost`・`invertBpWinner`・`flashLockedPlayer`・`burstBlockedForPid`）。比べるもの・勝敗の逆転は `target.kind:"battle"`、フラッシュ／バーストの禁止は `player`（寿命はどちらも `battle`）。読む側は `timedBattleContents`・`timedFlashLocked`。禁止は1人ぶんしか持てなかった制限が消えた |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
 テストで掛かっているかを見るときは `scripts/smoke/helpers.ts` の `timedHas(state, inst, type, trigger?)` を使う。

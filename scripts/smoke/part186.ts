@@ -82,7 +82,7 @@ console.log("=== BS09-042 妖精騎士ピーター：指定した相手はこの
     runTurnStart(s)
     const peter = put(s, "p1", "BS09-042", 2)
     const blocker = put(s, "p2", PLAIN, 1)
-    s.battle = { attackerInstanceId: peter.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: peter.instanceId, blockerInstanceId: null, directed: false }
     assert(canBlock(s, "p2", blocker, "p1", peter) === null, "前提：指定前はブロックできる")
     resolveAction(s, "p1", peter, { type: "timedEffect", content: [{ type: "cantBlock" }], duration: "battle" })
     assert(canBlock(s, "p2", blocker, "p1", peter) !== null, "指定後はブロックできない")

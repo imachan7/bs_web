@@ -55,7 +55,7 @@ console.log("=== BS15-001 タッチベット・モンキ：自分のフィール
     refreshLevelAsOverrides(s)
     s.phase = "attack"
     assert(effectiveBp(s, "p1", monk) === 1000, "アタックしていない間は乗らない（『このスピリットのアタック時』）")
-    s.battle = { attackerInstanceId: monk.instanceId, blockerInstanceId: null, flashLockedPlayer: null, directed: false } as never
+    s.battle = { attackerInstanceId: monk.instanceId, blockerInstanceId: null, directed: false } as never
     assert(effectiveBp(s, "p1", monk) === 1000 + 2000, "赤しかないのでBP+2000")
     const other = createInstance("BS01-030", s.turn, 1) // 紫（赤以外）
     s.players.p1.field.spirits.push(other)

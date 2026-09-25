@@ -13,7 +13,7 @@ import {
 } from "../../server/src/logic/GameState"
 import { runTurnStart as engineRunTurnStart, endTurn } from "../../server/src/logic/PhaseManager"
 // 色判定は必ず述語経由にする（多色カード対応。MULTICOLOR.md）
-import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores, timedContentsOn, timedRuleBp } from "../../shared/rules"
+import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores, timedBattleContents, timedContentsFor, timedContentsOn, timedRuleBp } from "../../shared/rules"
 
 // テスト用ラッパー: 1ターン目固有ルール（コアステップなし・アタック不可）の影響を受けずに
 // 既存テストを動かすため、ターン数を3（先攻の2ターン目相当）へ進めて通常ターンとして処理する。
@@ -399,5 +399,13 @@ export function bpBuffOf(state: GameState, inst: CardInstance): number {
 // その個体に期間つき効果の内容が掛かっているか（state.timedEffects。置き場に依存しないよう、テストはこれで確かめる）
 export function timedHas(state: GameState, inst: CardInstance, type: TimedContent["type"], trigger?: string): boolean {
     return timedContentsOn(state, inst).some((c) => c.type === type && (trigger === undefined || ("trigger" in c && c.trigger === trigger)))
+}
+// このバトルに掛かっている内容（比べるもの・勝敗の逆転）
+export function battleHas(state: GameState, type: "compareBy" | "invertBattleWinner", by?: "level" | "cores" | "cost"): boolean {
+    return timedBattleContents(state).some((c) => c.type === type && (by === undefined || ("by" in c && c.by === by)))
+}
+// pid がこのバトルの間、フラッシュで手札を使えない／バーストを発動できないか
+export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burst"): boolean {
+    return timedContentsFor(state, pid).some((c) => c.type === "battleLock" && c.lock === lock)
 }
 export type { GameAction, GameState, PlayerId }

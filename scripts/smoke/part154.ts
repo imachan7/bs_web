@@ -91,7 +91,6 @@ console.log("=== BS05茨の決戦地Lv1：バトル中のスピリットのコ�
     s.battle = {
         attackerInstanceId: attacker.instanceId,
         blockerInstanceId: battling.instanceId,
-        flashLockedPlayer: null,
         directed: false,
     }
     resolveAction(s, "p1", null, { type: "coreSqueezeAll" }, undefined, ["red"] as never, "magic")

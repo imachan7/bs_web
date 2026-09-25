@@ -249,7 +249,7 @@ console.log("=== BS06-083 希望の大灯台Lv2：ブロック中の自分のス
     s.turnPlayer = "p2"
     s.phase = "attack"
     const attacker = put(s, "p2", "BS06-048", 4)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: blocker.instanceId, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: blocker.instanceId, directed: false }
     assert(
         effectiveBp(s, "p1", blocker) === currentLevel(blocker).bp + 1000,
         `ブロック中は疲労1体ぶんBP+1000（実際: ${String(effectiveBp(s, "p1", blocker))}）`,
@@ -282,7 +282,7 @@ console.log("=== BS06-104 アバランチオーラ：ブロック中+2000、装�
     const armored = put(s, "p1", "BS06-037", 2) // Lv2【装甲】持ち・ブロッカー
     const plain = put(s, "p1", "BS06-013", 1) // 装甲なし・ブロッカーではない
     const attacker = put(s, "p2", "BS06-048", 4)
-    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: armored.instanceId, flashLockedPlayer: null, directed: false }
+    s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: armored.instanceId, directed: false }
     resolveAction(s, "p1", null, { type: "lendSelfThisTurn" }, undefined, ["white"], "magic", undefined, undefined, "BS06-104")
     assert(
         effectiveBp(s, "p1", armored) === currentLevel(armored).bp + 4000,

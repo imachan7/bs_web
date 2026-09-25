@@ -17,6 +17,7 @@ import {
     runTurnStart,
     takeLifeAndResolve,
     timedHas,
+    battleHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
@@ -53,7 +54,7 @@ console.log("=== BS10-110 ノックアウト：BPではなくコストを比較�
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     assert(act(s, "p2", { type: "block", instanceId: blk.instanceId }) === null, "グラン・ドルバルカンでブロック")
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "ノックアウトを使用（コスト比較へ切り替え）")
-    assert(s.battle?.compareByCost === true, "compareByCostフラグが立つ")
+    assert(battleHas(s, "compareBy", "cost"), "compareByCostフラグが立つ")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（バトル解決）")
     assert(!s.players.p1.field.spirits.includes(atk), "BPはブロッカーより高いが、コストが低いテラノセイバーが破壊される")
