@@ -132,6 +132,7 @@ import {
     lifeDamagePerSpiritRemaining,
     ownFieldOnlyColor,
     timedPlayerRules,
+    timedContentsFor,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -895,7 +896,7 @@ export function commitPendingDestruction(
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
     // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間、または現在のバトルで
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）
-    const redirect = state.battle?.opponentDestroyedCoresTo?.pid === ownerPid ? state.battle.opponentDestroyedCoresTo.to : undefined
+    const redirect = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")?.to
     if (redirect === "void") {
         // ボイドへ：ゲームから取り除く
     } else if (redirect === "trash" || destroyedCoresGoToTrash(state)) {

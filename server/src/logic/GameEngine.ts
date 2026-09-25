@@ -24,7 +24,7 @@ import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhas
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon, destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import type { EffectAttempt } from "../../../shared/rules"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, timedBattleContents, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, timedBattleContents, timedContentsOn, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import {
     summonFreeFromTrashIndex,
     placeBurst,
@@ -1010,11 +1010,6 @@ function doAttack(
         player.trashCores += 1
         log(state, `${player.name}はアタックのためリザーブのコア1個をトラッシュに置いた。`)
     }
-    // 器BU（BS13-047深海大帝ノーグ・デンス）：召喚時に付与された「このターンの間、アタックしたとき」の
-    // 制約が有効なら、このバトルのブロックにマジック破棄を要求する
-    if (inst.blockRequiresMagicDiscardGrantedTurn === state.turn) {
-        state.battle.blockCostDiscardMagic = { pid: opponentOf(pid) }
-    }
     state.isFlashTiming = true
     state.priorityPlayer = opponentOf(pid)
     if (targetSpiritInstanceId !== undefined) {
@@ -1188,20 +1183,21 @@ function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: str
     if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
     const blocker = findSpirit(state.players[pid], instanceId)
-    // BS11-037 ヒポグリフィー：ブロックの追加コスト（リザーブ→トラッシュ）。検証で払えることは確認済み
-    const blockCost = state.battle.blockCostReserveToTrash
-    if (blockCost && blockCost.pid === pid) {
-        state.players[pid].reserve -= blockCost.count
-        state.players[pid].trashCores += blockCost.count
-        log(state, `${state.players[pid].name}はブロックのためリザーブのコア${blockCost.count}個をトラッシュに置いた。`)
-    }
-    // 器BU（BS13-047深海大帝ノーグ・デンス）：ブロックの追加コスト（手札のマジック1枚を破棄）。
-    // 検証（validateBlock）で払えることは確認済み。どれを捨てるかは自動選択（最初に見つかったマジック1枚）
-    const blockMagicCost = state.battle.blockCostDiscardMagic
-    if (blockMagicCost && blockMagicCost.pid === pid) {
+    // ブロックの追加コスト（アタッカーに掛かっている blockCost）。検証（validateBlock）で払えることは確認済み。
+    // マジックの破棄は自動選択（最初に見つかったマジック）
+    const costAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
+        if (c.type !== "blockCost") continue
         const blockerPlayer = state.players[pid]
-        const magicIdx = blockerPlayer.hand.findIndex((id) => getCard(id).type === "magic")
-        if (magicIdx !== -1) {
+        if (c.cost === "reserveCoreToTrash") {
+            blockerPlayer.reserve -= c.count
+            blockerPlayer.trashCores += c.count
+            log(state, `${blockerPlayer.name}はブロックのためリザーブのコア${c.count}個をトラッシュに置いた。`)
+            continue
+        }
+        for (let i = 0; i < c.count; i++) {
+            const magicIdx = blockerPlayer.hand.findIndex((id) => getCard(id).type === "magic")
+            if (magicIdx === -1) break
             const cardId = blockerPlayer.hand[magicIdx]!
             blockerPlayer.hand.splice(magicIdx, 1)
             blockerPlayer.trashCards.push(cardId)

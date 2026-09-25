@@ -5,7 +5,7 @@
 //   - TargetFilter.maxLv1BpOfSelf（server/src/logic/actions/filter.ts）：selfのカードのLv1BP以下
 //     （fieldEventではselfにイベント対象＝召喚されたスピリットが入る。実効BPでなく印刷値）
 //   - action:"battleOpponentDestroyedCoresTo"（server/src/logic/actions/battleFlow.ts）：
-//     state.battle.opponentDestroyedCoresToを立て、commitPendingDestruction（removal.ts）が
+//     相手のプレイヤーに destroyedCoresTo を記録し、commitPendingDestruction（removal.ts）が
 //     このバトルが終わるまで相手のスピリットのコアをリザーブでなくボイドへ送る
 //   - EffectDef kind:"trashImmunity" + isTrashCardProtected（shared/rules.ts）：
 //     トラッシュにある間、このカード自身が一切の効果を受けない共通述語。
@@ -17,6 +17,7 @@
 import { act, assert, createGame, createInstance, declareBlock, destroySpirit, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { isTrashCardProtected } from "../../shared/rules"
+import { timedContentsFor } from "../../shared/rules"
 
 function base(seed: string, interactive: boolean): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
@@ -106,7 +107,7 @@ console.log("=== BS10-X01 幻羅星龍ガイ・アスラ Lv4：アタック時�
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: guy.instanceId }) === null, "ガイ・アスラでアタック宣言")
-    assert(s.battle?.opponentDestroyedCoresTo?.pid === "p2" && s.battle.opponentDestroyedCoresTo.to === "void", "アタック時に「相手のスピリットのコアはボイドへ」のフラグが立つ")
+    assert(timedContentsFor(s, "p2").some((c) => c.type === "destroyedCoresTo" && c.to === "void"), "アタック時に「相手のスピリットのコアはボイドへ」のフラグが立つ")
 
     // 巻き添え：フラグが立っている間でも、自分のスピリットの破壊は通常どおりリザーブへ
     assert(destroySpirit(s, "p1", bystander.instanceId) === true, "巻き添えの自分のスピリットを破壊")

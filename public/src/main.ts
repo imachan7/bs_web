@@ -18,7 +18,7 @@ import {
     hideWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAltSummonFromHand, canAwakenFromReserve, instAttackRequiresCoreToll, instMinLevelCores, minLevelCores, sokuPayableInstanceIds } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAltSummonFromHand, canAwakenFromReserve, instAttackRequiresCoreToll, instMinLevelCores, minLevelCores, sokuPayableInstanceIds, timedContentsOn } from "../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../shared/summon"
 
@@ -77,7 +77,9 @@ function confirmExtraCost(action: GameAction): boolean {
         )
     }
     if (action.type === "block") {
-        if (view.battle?.blockCostDiscardMagic?.pid !== view.you) return true
+        const battle = view.battle
+        const attacker = battle ? view.players[view.you === "p1" ? "p2" : "p1"].field.spirits.find((s) => s.instanceId === battle.attackerInstanceId) : undefined
+        if (!attacker || !timedContentsOn(view, attacker).some((c) => c.type === "blockCost" && c.cost === "discardMagic")) return true
         return window.confirm(
             "ブロックするには、手札のマジックカード1枚を破棄する必要があります。\n\n破棄してブロックしますか？",
         )

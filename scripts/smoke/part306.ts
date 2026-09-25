@@ -13,6 +13,7 @@ import {
     resolveAction,
     runTurnStart,
     takeLifeAndResolve,
+    timedHas,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
@@ -112,7 +113,7 @@ console.log("=== 器BU：BS13-047召喚時「このターンの間、アタッ�
     act(s, "p1", { type: "nextPhase" })
 
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "召喚時に付与された制約は、このターンの以後のアタックにも効く")
-    assert(s.battle?.blockCostDiscardMagic?.pid === "p2", "器BU：このバトルのブロックにマジック破棄が要求される")
+    assert(timedHas(s, attacker, "blockCost"), "器BU：このバトルのブロックにマジック破棄が要求される")
 
     s.players.p2.hand = [] // デッキ由来の初期手札にマジックが紛れていても判定が崩れないよう空にする
     act(s, "p2", { type: "pass" })
