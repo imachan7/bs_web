@@ -13,7 +13,7 @@ import {
 } from "../../server/src/logic/GameState"
 import { runTurnStart as engineRunTurnStart, endTurn } from "../../server/src/logic/PhaseManager"
 // 色判定は必ず述語経由にする（多色カード対応。MULTICOLOR.md）
-import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores, timedBattleContents, timedContentsFor, timedContentsOn, timedRuleBp } from "../../shared/rules"
+import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores, timedBattleContents, timedContentsFor, timedContentsOn, timedPlayerRules, timedRuleBp } from "../../shared/rules"
 
 // テスト用ラッパー: 1ターン目固有ルール（コアステップなし・アタック不可）の影響を受けずに
 // 既存テストを動かすため、ターン数を3（先攻の2ターン目相当）へ進めて通常ターンとして処理する。
@@ -403,6 +403,10 @@ export function timedHas(state: GameState, inst: CardInstance, type: TimedConten
 // このバトルに掛かっている内容（比べるもの・勝敗の逆転）
 export function battleHas(state: GameState, type: "compareBy" | "invertBattleWinner", by?: "level" | "cores" | "cost"): boolean {
     return timedBattleContents(state).some((c) => c.type === type && (by === undefined || ("by" in c && c.by === by)))
+}
+// pid にこのターンの間の制約（playerRule）が掛かっているか
+export function playerHas(state: GameState, pid: PlayerId, type: string): boolean {
+    return timedPlayerRules(state, pid).some((c) => c.type === type)
 }
 // pid がこのバトルの間、フラッシュで手札を使えない／バーストを発動できないか
 export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burst"): boolean {

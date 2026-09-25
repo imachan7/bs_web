@@ -16,6 +16,7 @@ import {
     resolveAction,
     runTurnStart,
     takeLifeAndResolve,
+    playerHas,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { activeConstraints, boardResistanceAgainst, instIsCombined } from "../../shared/rules"
@@ -140,7 +141,7 @@ console.log("=== BS10-093 時刻む花時計：相手の効果で自分の黄の
     s.phase = "attack"
     destroySpirit(s, "p1", yellowSpirit.instanceId, "destroy", { sourcePid: "p2", sourceType: "spirit" })
     assert(
-        s.turnConstraints.some((c) => c.type === "lifeImmuneForPid" && c.pid === "p1"),
+        playerHas(s, "p1", "lifeImmuneForPid"),
         "p1にlifeImmuneForPidが積まれる",
     )
 

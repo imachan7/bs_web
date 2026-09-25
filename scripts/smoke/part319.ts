@@ -4,7 +4,7 @@
 //          コストを支払わずに召喚する。」
 //   - コスト0になるのは**このターン最初の1回だけ**（使ったら制約を取り除く）
 //   - **維持コアは通常どおり要る**（「コストを支払わずに」＝召喚コストのみ）
-import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart, playerHas } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 import { destroyTargetsBatch } from "../../server/src/logic/removal"
@@ -76,7 +76,7 @@ console.log("=== BS14-098：メイン効果でこのターンの制約が積ま�
     const s = setup("darkreborn-push")
     resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "freeFushiSummonForPid" } }], duration: "turn", side: "own" })
     assert(
-        s.turnConstraints.some((c) => c.type === "freeFushiSummonForPid" && c.pid === "p1"),
+        playerHas(s, "p1", "freeFushiSummonForPid"),
         "このターンの制約が積まれる",
     )
 }
@@ -101,7 +101,7 @@ console.log("=== BS14-098：【不死】の召喚コストが0になり、維持
     )
     assert(s.players.p1.trashCores === trashCoresBefore, "召喚コストぶんのコアはトラッシュへ行かない")
     assert(
-        !s.turnConstraints.some((c) => c.type === "freeFushiSummonForPid" && c.pid === "p1"),
+        !playerHas(s, "p1", "freeFushiSummonForPid"),
         "使い切りなので制約は取り除かれる",
     )
 }

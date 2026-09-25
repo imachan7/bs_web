@@ -131,6 +131,7 @@ import {
     spiritHasKeyword,
     lifeDamagePerSpiritRemaining,
     ownFieldOnlyColor,
+    timedPlayerRules,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -1228,7 +1229,7 @@ function destroyedFamiliesOf(inst: CardInstance): string[] {
 // 【不死】召喚で実際に払うコスト。このターン最初の1回だけ0になる制約があれば0
 // （BS14-098ダークリボーン。維持コアはここに含まない＝通常どおり要る）
 function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): number {
-    if (state.turnConstraints.some((c) => c.type === "freeFushiSummonForPid" && c.pid === ownerPid)) return 0
+    if (timedPlayerRules(state, ownerPid).some((c) => c.type === "freeFushiSummonForPid")) return 0
     return effectiveCost(state, ownerPid, card)
 }
 
@@ -1384,8 +1385,10 @@ export function applyFushiSummon(
         exhaustSpirit(state, info.pid, freeNexus)
     } else {
         // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
-        const freeIndex = state.turnConstraints.findIndex((c) => c.type === "freeFushiSummonForPid" && c.pid === info.pid)
-        if (freeIndex !== -1) state.turnConstraints.splice(freeIndex, 1)
+        const freeIndex = state.timedEffects.findIndex(
+            (r) => r.target.kind === "player" && r.target.pid === info.pid && r.content.some((c) => c.type === "playerRule" && c.rule.type === "freeFushiSummonForPid"),
+        )
+        if (freeIndex !== -1) state.timedEffects.splice(freeIndex, 1)
         // 召喚コストはリザーブからトラッシュへ（通常の召喚と同じ）
         player.reserve -= cost
         player.trashCores += cost
@@ -2494,7 +2497,7 @@ export function returnSpiritToHand(
 function bouncesToDeckTop(state: GameState): boolean {
     const pid = state.currentEffectSource?.pid
     if (pid === undefined) return false
-    return state.turnConstraints.some((c) => c.type === "bounceToDeckTopForPid" && c.pid === pid)
+    return timedPlayerRules(state, pid).some((c) => c.type === "bounceToDeckTopForPid")
 }
 
 // 器BS16：globalConstraint "allSpiritsCantBounce"（BS16-012金狐角）。両陣営のeffectSourcesを
