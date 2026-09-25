@@ -118,6 +118,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
+**「【X】を持つ」を印刷だけで見ている kind が残っている**：規則は「効果で得たものも含む」に確定（2026-09-25、ACTION_VOCABULARY）。`effectGrant` だけ揃えた。`effectDef.ts` で `keywordFilter` に「静的に持つ」と注記のある kind（fieldEvent の召喚・costMod・手札付与など）と `triggers.ts` の `hasKeyword(cardId…)` を洗い、挙動が変わるカードを一覧にしてから揃える。
 
 
 

@@ -22,79 +22,6 @@ import { KEYWORDS, activeConstraints, cantActByTimedRule, effectiveBp, instBaseC
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
-// BS08メテオストーム：カード名に「ヴルム」と入っている自分のスピリット1体に、このターンの間だけ
-// 誘発効果を直接付与する（CardInstance.tempGrantedTriggers。fireTriggerが静的effectsと合成して読む）
-const grantEffectToTargetThisTurnHandler: ActionHandler<"grantEffectToTargetThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-        if (targetInstanceId !== undefined) {
-            const target = state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            if (!target) {
-                log(state, `${sourceName}：対象のスピリットがいなかった。`)
-                return
-            }
-            target.tempGrantedTriggers = [
-                ...(target.tempGrantedTriggers ?? []),
-                { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
-            ]
-            log(state, `${getCard(target.cardId).name}に効果を付与した。`)
-            return
-        }
-        const filter = normalizeFilter(ctx, action)
-        if (filter === SELF_REQUIRED) {
-            log(state, `${sourceName}：BP参照元がいなかった。`)
-            return
-        }
-        const candidates = state.players[owner].field.spirits.filter((s) =>
-            matchesTarget(state, owner, s, filter, self?.instanceId),
-        )
-        if (candidates.length === 0) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：効果を付与するスピリットを選んでください`,
-                candidates,
-                action,
-                null,
-            )
-        ) {
-            return
-        }
-        // 自動選択：実効BP最大の1体（決定的簡略化）
-        const target = candidates.reduce((best, s) =>
-            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-        )
-        target.tempGrantedTriggers = [
-            ...(target.tempGrantedTriggers ?? []),
-            { trigger: action.trigger, action: action.action, ...(action.battleRole ? { battleRole: action.battleRole } : {}) },
-        ]
-        log(state, `${getCard(target.cardId).name}に効果を付与した。`)
-        return
-}
-
-// BS14-032ヤツノカンゾウLv2：指定キーワードを持つ自分のスピリットすべてに、このターンの間だけ
-// 誘発効果を直接付与する（grantEffectToTargetThisTurnの全体版）
-const grantEffectToAllByKeywordThisTurnHandler: ActionHandler<"grantEffectToAllByKeywordThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-        const targets = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, action.keyword))
-        if (targets.length === 0) {
-            log(state, `${sourceName}：【${KEYWORDS[action.keyword].label}】を持つスピリットがいなかった。`)
-            return
-        }
-        for (const target of targets) {
-            target.tempGrantedTriggers = [
-                ...(target.tempGrantedTriggers ?? []),
-                { trigger: action.trigger, action: action.action },
-            ]
-        }
-        log(state, `${sourceName}：このターンの間、【${KEYWORDS[action.keyword].label}】を持つ自分のスピリットすべてに効果を付与した。`)
-        return
-}
-
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 手札の条件一致カード（all指定時はすべて、それ以外は1枚）に、このターンの間キーワードを付与する
@@ -817,8 +744,6 @@ const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsS
 
 const handlers = {
     treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
-    grantEffectToTargetThisTurn: grantEffectToTargetThisTurnHandler,
-    grantEffectToAllByKeywordThisTurn: grantEffectToAllByKeywordThisTurnHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,

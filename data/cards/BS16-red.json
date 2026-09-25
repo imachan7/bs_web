@@ -839,17 +839,25 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "grantEffectToTargetThisTurn",
-          "trigger": "onBattleWin",
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "grantTrigger",
+              "trigger": "onBattleWin",
+              "action": {
+                "type": "lifeCrush",
+                "count": 1,
+                "countCounter": "selfSymbols"
+              }
+            }
+          ],
+          "duration": "turn",
+          "side": "own",
+          "count": 1,
           "filter": {
             "family": [
               "覇皇"
             ]
-          },
-          "action": {
-            "type": "lifeCrush",
-            "count": 1,
-            "countCounter": "selfSymbols"
           }
         }
       }
