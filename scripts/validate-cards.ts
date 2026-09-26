@@ -606,6 +606,9 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
 ])
 
+// 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
+const AWAITING_MIGRATION = new Set<string>(["placeCores"])
+
 export function findUnusedActions(cards: CardData[]): string[] {
     const used = new Set<string>()
     const walk = (o: unknown): void => {
@@ -621,7 +624,7 @@ export function findUnusedActions(cards: CardData[]): string[] {
     }
     for (const c of cards) walk(c.effects)
     return [...VALID_ACTIONS]
-        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a))
+        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a) && !AWAITING_MIGRATION.has(a))
         .sort()
 }
 

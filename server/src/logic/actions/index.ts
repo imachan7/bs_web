@@ -14,6 +14,7 @@ import exhaustRefresh from "./exhaustRefresh"
 import grant from "./grant"
 import mill from "./mill"
 import pay from "./pay"
+import placeCores from "./placeCores"
 import reveal from "./reveal"
 import tegamoto from "./tegamoto"
 import timedEffect from "./timedEffect"
@@ -32,6 +33,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     magicMirrorRepeat: magicMirrorRepeatHandler,
     ...mill,
     ...pay,
+    ...placeCores,
     ...reveal,
     ...tegamoto,
     ...timedEffect,

@@ -49,6 +49,9 @@
    移す19種＝coreCharge・coreGain・voidCoreToDeckSide・voidCoreToReserve・trashCoresToReserve・voidCoreToSelf・voidCoreToOther・trashCoresToSpirit・trashCoresToKeywordSpirit・reclaimTrashCores・voidCoreToAllOwnByFamily・voidCoreToOwnNexuses・voidCoreToTarget・voidCoreToOwnByKeyword・voidCoreToOwnTrash・voidCoresToNexusLevel・selfCoreToOwnLife・fieldCoreToLife・lifeCharge（延べ175）。
    **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
    対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
+   **器は実装済み（`actions/placeCores.ts`・smoke part391）。移す前に直すこと**：①`targets`≥2 が自動選択だけ（voidCoreToOther 4枚を移す前に選ばせる）
+   ②`from: "self"`／`"field"` がコアを直接減らし、保護・下限を見ていない（selfCoreToOwnLife・fieldCoreToLife 3枚を移す前に取り除く共通処理を通す）
+   ③`orReserve` と `target: "one"` の組み合わせは未対応（使うカードは無い）。移行時に直す明らかな誤り：BS10-056 のリザーブ行きガード（voidCoreToReserve）・coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
    **並行：コアの支払いの自動／手動の切り替え（2026-09-26 ユーザー依頼。ブランチ `feat/manual-core-pay`、クライアントだけ）**：
    上部のボタン列に「支払い：自動／手動」（`localStorage` の `bs_pay_mode`）。手動なら手札から使うカード（召喚・ネクサス・マジック・ブレイヴ）で、リザーブが足りていても支払い画面を開き、
    不足が埋まっても自動送信せず確定ボタンで送る。フィールドの割り当ては必要数まで・取り消し可、残りはリザーブ。サーバーは既に `paySources` で任意の配分を受け付けるので変えない。
