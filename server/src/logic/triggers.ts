@@ -42,7 +42,6 @@ import {
     createInstance,
     currentLevel,
     draw,
-    fieldInstanceIdsOf,
     findInstanceAnywhere,
     getCard,
     log,
@@ -164,8 +163,6 @@ import {
     emitEvent,
     exhaustSpirit,
     findSpiritAny,
-    finishBurstActivation,
-    fireOwnBurstActivated,
     hasAttackTriggersAsBlock,
     hasBlockTriggersAsAttack,
     removeCores,
@@ -179,6 +176,7 @@ export { resolveMagic } from "./magic/cast"
 export { findMagicNegateSource, applyMagicNegateChoice, declineMagicNegateChoice } from "./magic/negate"
 export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice, applyMagicRedirectChoice } from "./magic/redirect"
 import { setTargetRedirect } from "./magic/redirect"
+import { finishSummonEffect, fireBurstOnEvent } from "./keywords/burst"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
 // ---- イベント発火 ----
@@ -232,10 +230,18 @@ export function fireSummonTrigger(
         log(state, `${getCard(selfInstance.cardId).name}：コストが低いため、召喚時効果は発揮されなかった。`)
         return
     }
+    // ponytail: 召喚時効果の中で別のスピリットが召喚されたら、内側の分を発火した後に外側へ戻す。内側が選択で中断したときは外側の分が落ちる
+    const outer = state.summonEffectSource
+    state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cost: getCard(selfInstance.cardId).cost }
     state.resolvingSummonTriggerPid = owner
     fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi)
-    if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
+    if (!state.pendingChoice) {
+        delete state.resolvingSummonTriggerPid
+        finishSummonEffect(state)
+        if (outer !== undefined && state.summonEffectSource === undefined) state.summonEffectSource = outer
+    }
 }
+
 
 // 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
 export function revertOncePerTurn(inst: CardInstance, effectId: string): void {
@@ -1732,152 +1738,6 @@ export function fireFieldEventTriggers(
         targetInstanceId,
         eventInfo,
     )
-}
-
-// kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
-// BS16バッチ0：破壊後バースト（event:"ownSpiritDestroyed"）はトラッシュ行き確定後に
-// removal.ts の fireQueuedDestroyBursts が単独で呼ぶ（selfOverrideは{pid, cardId}の軽量版でよい。
-// 破壊済みの個体はもうCardInstance実体が無いため）
-export function fireBurstOnEvent(
-    state: GameState,
-    pid: PlayerId,
-    event: FieldEvent,
-    selfOverride: { pid: PlayerId; cardId?: string } | undefined,
-    eventColors: Color[] | undefined,
-    targetInstanceId: string | undefined,
-    eventInfo?: {
-        byOpponentEffect?: boolean
-        destroyedBp?: number
-        costs?: number[]
-    },
-): void {
-    // 同時に条件を満たした場合は防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
-    // （2026-09-11 ユーザー確認）
-    const order: PlayerId[] = [opponentOf(state.turnPlayer), state.turnPlayer]
-    for (const holderPid of order) {
-        const holder = state.players[holderPid]
-        const burstCardId = holder.burst
-        if (burstCardId === null) continue
-        let effect = getCard(burstCardId).effects.find(
-            (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === event,
-        )
-        // BS15共通器：globalConstraint "burstAltEventFromOpponentSummon"（発生源=holder自身）が
-        // 効いている間、event:"opponentSummonEffectResolved"のバーストは"ownLifeDamaged"でも拾う
-        // （BS15-069太陰の宮廷Lv2）
-        const hasBurstAltEvent = effectSources(state, holderPid).some((src) => {
-            const srcLevel = currentLevel(src).level
-            return getCard(src.cardId).effects.some(
-                (e) =>
-                    e.kind === "globalConstraint" &&
-                    e.constraint.type === "burstAltEventFromOpponentSummon" &&
-                    effectActiveAtLevel(e.levels, srcLevel),
-            )
-        })
-        if (!effect && event === "ownLifeDamaged" && hasBurstAltEvent) {
-            effect = getCard(burstCardId).effects.find(
-                (e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst" && e.event === "opponentSummonEffectResolved",
-            )
-        }
-        if (!effect) continue
-        // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
-        if (timedContentsFor(state, holderPid).some((c) => c.type === "battleLock" && c.lock === "burst")) continue
-        // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
-        if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
-        if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
-        // byOpponentEffectOnly / destroyedColorFilter：fieldEvent の同名軸と同じ判定（event: "ownSpiritDestroyed" 限定）
-        if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
-        if (effect.destroyedColorFilter !== undefined && !(eventColors ?? []).includes(effect.destroyedColorFilter)) continue
-        if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
-        // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
-        // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
-        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
-        // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
-        // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
-        const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
-        // alsoDrawIfDestroyedColor（BS14-X02）：eventColorsはここでしか手に入らないため、宣言時点でbool化しておく
-        const alsoDraw = effect.alsoDrawIfDestroyedColor !== undefined && (eventColors ?? []).includes(effect.alsoDrawIfDestroyedColor)
-        // BS16バッチ0：破壊後バーストのコストが1つの値に決まらない（同時破壊で複数体・値違い）ときは、
-        // 発動者が使う値を1つ選ぶ（対話：選択肢／非対話：最大値。1つだけ・全部同じならそのまま）
-        const costs = eventInfo?.costs ?? []
-        const distinctCosts = [...new Set(costs)]
-        // event:"ownLifeDamaged"限定：ライフを減らしたスピリットのinstanceId（EffectCounter等が読む先はstate.burstEventLifeDamagerId）
-        const lifeDamagerId = event === "ownLifeDamaged" ? (targetInstanceId ?? state.battle?.lifeDamagers?.at(-1)) : undefined
-        // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
-        // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
-        if (state.interactiveTargets) {
-            if (distinctCosts.length > 1) {
-                // コストの選択肢つき確認（「発動する」の代わりに「コストNで発動する」を並べる）
-                suspend(state, {
-                    pid: holderPid,
-                    kind: "option",
-                    prompt: `${getCard(burstCardId).name}のバーストを発動しますか？`,
-                    candidates: [],
-                    options: distinctCosts.map((c) => `コスト${c}で発動する`),
-                    optional: true,
-                    confirm: true,
-                    action: actionToRun,
-                    selfInstanceId: null,
-                })
-            } else {
-                requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
-            }
-            // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
-            // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
-            // 上の早期 return で pendingChoice は null に絞られているため、型注釈付きの局所変数で読み直す
-            const pending = state.pendingChoice as PendingChoice | null
-            if (pending) {
-                pending.burstActivate = {
-                    pid: holderPid,
-                    cardId: burstCardId,
-                    ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
-                    ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
-                    ...(alsoDraw ? { alsoDraw: true as const } : {}),
-                    ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
-                    // BS15共通器：EffectCounter "burstEventCost" が読む値を確認の再入まで持ち回る
-                    // （BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
-                    ...(distinctCosts.length > 1
-                        ? { burstEventCostOptions: distinctCosts }
-                        : costs[0] !== undefined
-                          ? { burstEventCost: costs[0] }
-                          : {}),
-                    ...(eventColors && eventColors.length > 0 ? { burstEventColors: eventColors } : {}),
-                    ...(lifeDamagerId !== undefined ? { burstEventLifeDamagerId: lifeDamagerId } : {}),
-                }
-            }
-            return
-        }
-        const before = fieldInstanceIdsOf(state, holderPid)
-        // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
-        state.resolvingBurstPid = holderPid
-        // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
-        if (distinctCosts.length > 0) state.burstEventCost = Math.max(...distinctCosts)
-        else delete state.burstEventCost
-        // BS16共通器：条件{burstDestroyedColor}用
-        if (eventColors && eventColors.length > 0) state.burstEventColors = eventColors
-        else delete state.burstEventColors
-        if (lifeDamagerId !== undefined) state.burstEventLifeDamagerId = lifeDamagerId
-        else delete state.burstEventLifeDamagerId
-        // バーストのカードの色と種別を渡す（【装甲】などの効果耐性はバースト効果にも効く。【氷壁】は resolveMagic にしか無いので対象外のまま。BURST.md §7）。
-        // 色は magicEffectiveColors を通す（紫のマジックのバースト効果にも015が効くように。BS15_PLAN.md §7.3）
-        const burstCard = getCard(burstCardId)
-        resolveAction(
-            state,
-            holderPid,
-            null,
-            actionToRun,
-            destroyedCardId ?? targetInstanceId,
-            magicEffectiveColors(state, holderPid, burstCard),
-            burstCard.type,
-            undefined,
-            undefined,
-            burstCardId,
-        )
-        delete state.resolvingBurstPid
-        if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
-        finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
-        if (state.pendingChoice) return
-        fireOwnBurstActivated(state, holderPid, before, burstCardId)
-    }
 }
 
 // フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：

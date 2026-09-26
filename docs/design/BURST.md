@@ -354,7 +354,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | 同時発動の優先権 | v1は簡略化（§5.4） |
 | バースト効果を持たないカードのセット＝敗北 | 拒否に簡略化（§4） |
 
-## 10. ⚠️ 既知の不具合（2026-09-24 発見・未修正。REFACTOR_PLAN の完了後に直す）
+## 10. 既知の不具合（2026-09-24 発見・2026-09-27 修正。ブランチ `fix/burst-event-side`・smoke part399）
 
 すべて a122c49（09-11 の WIP・未検証のまま中断）で入り、テストがイベントを直接呼ぶ書き方だったため気づかれなかった。
 
@@ -364,7 +364,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 | B | **自分が**相手を破壊して「相手による自分のスピリット破壊後」が発動する | `subjectSide` の無い `ownSpiritDestroyed` 5枚（BS14-091 等） | A と同じ。`subjectSide:"own"` の13枚はデータ側で塞がっていただけ |
 | C | 「相手の『召喚時』発揮後」が一切発動しない（SD06-013 双翼乱舞で実プレイ確認） | `opponentSummonEffectResolved` の15枚 | 召喚時効果の解決後にこのイベントを発火する行が本番に無い（型と受け口だけある） |
 
-修正案（未確認）：A・B は走査に `if (holderPid !== pid) continue` の1行。C は `resolvingSummonTriggerPid` を落とす事後フック（GameEngine.ts）で、落とす直前に相手側へ発火する。
+修正：A・B は `fireBurstOnEvent`（keywords/burst.ts）で持ち主＝事象の当事者 pid 以外を飛ばす。C は召喚時効果の発生源を `GameState.summonEffectSource` に控え、そのスピリットを self とするアクションが解決されたら印を付け、召喚時効果を解決しきった地点（`fireSummonTrigger` の末尾か handleAction の事後フック）で `finishSummonEffect` が相手側へ発火する。
+残した制限：召喚時効果の中で別のスピリットを召喚し、その内側の召喚時効果が選択で中断すると、外側の分は発火しない。
 **C の発火時点（2026-09-27 ユーザー確認）**：相手の召喚時効果を、選択を挟んだ場合も含めて**すべて解決しきった後**（その効果が起こした誘発の解決も済んだ後）に1回。任意の召喚時効果を使わなかったら発揮していないので発動しない。召喚時効果が2つ以上あっても、全部解決した後に1回。
 直す前に、本物の操作から通して左右反転も見る場面テストを先に書き、赤いことを確かめる（[TEST_STRATEGY.md](./TEST_STRATEGY.md)）。
 SD06-014・015・017 はバースト効果のテストが1件も無い。

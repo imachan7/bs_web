@@ -252,7 +252,7 @@ console.log("=== BS15-X01 刀の覇王：バースト（相手のアタック後
     s.players.p2.field.spirits.push(attacker)
     refreshLevelAsOverrides(s)
     assert(effectiveBp(s, "p2", attacker) >= 5000, "前提：アタッカーのBPは5000以上")
-    fireFieldEventTriggers(s, "p2", "anySpiritAttacked", { pid: "p2", inst: attacker }, undefined, attacker.instanceId)
+    fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p2", inst: attacker }, undefined, attacker.instanceId)
     const summoned = s.players.p1.field.spirits.find((sp) => sp.cardId === "BS15-X01")
     assert(summoned !== undefined, "BP5000以上のアタック後、コストを支払わずに自身を召喚した")
     if (summoned) assert(summoned.tempBpBuff === 3000, "召喚後、このターンの間BP+3000した")

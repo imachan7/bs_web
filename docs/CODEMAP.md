@@ -469,6 +469,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `placeBurst`（fn）：バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
 - `finishBurstActivation`（fn）：バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
+- `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
+- `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 
 ## server/src/logic/keywords/funsai.ts
 
@@ -657,7 +659,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
 - `fireFieldEventTriggers`（fn）
-- `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 - `notifyHandGained`（fn）：フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
 - `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
 - `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:

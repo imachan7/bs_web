@@ -15,7 +15,8 @@ import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCor
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
-import { fireBurstOnEvent, fireFieldEventTriggers, notifyHandGained, notifySpiritCoresRemovedByOpponent } from "./triggers"
+import { fireBurstOnEvent } from "./keywords/burst"
+import { fireFieldEventTriggers, notifyHandGained, notifySpiritCoresRemovedByOpponent } from "./triggers"
 import type { FieldEventExtraItem } from "./triggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave } from "./brave"
