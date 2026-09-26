@@ -208,7 +208,8 @@ function effectModulesFiles(tree: string): string[] {
         const dir = path.join(logic, d)
         return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".ts")).map((f) => path.join(dir, f)) : []
     })
-    return [path.join(logic, "EffectModules.ts"), ...split]
+    const rootSplit = ["targeting.ts", "summon.ts"].map((f) => path.join(logic, f)).filter((f) => fs.existsSync(f))
+    return [path.join(logic, "EffectModules.ts"), ...split, ...rootSplit]
 }
 
 function patch(files: string | string[], needle: string, replacement: string): void {
@@ -888,8 +889,8 @@ process.on("exit", () => {
         // (5) EffectModules 側で __covRecord を使うための import 追記
         patch(
             path.join(tree, "server/src/logic/EffectModules.ts"),
-            `    minLevelCores,`,
-            `    minLevelCores,\n    __covRecord,`,
+            `"./GameState"\n`,
+            `"./GameState"\nimport { __covRecord } from "./GameState"\n`,
         )
 
         // (5a) EffectModules.ts 内の残り継続 kind（2026-07-30 拡張）。
