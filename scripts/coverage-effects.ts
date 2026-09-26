@@ -237,7 +237,7 @@ function patch(files: string | string[], needle: string, replacement: string): v
     // 分割先のファイルは __covRecord を import していないので足す（EffectModules.ts は (5) で足す）
     if (replacement.includes("__covRecord") && path.basename(file) !== "EffectModules.ts" && !out.includes("import { __covRecord }")) {
         const gs = path.relative(path.dirname(file), path.join(file.slice(0, file.indexOf("server/src/logic/") + "server/src/logic/".length), "GameState"))
-        out = `import { __covRecord } from "${gs}"\n` + out
+        out = `import { __covRecord } from "${gs.startsWith(".") ? gs : "./" + gs}"\n` + out
     }
     fs.writeFileSync(file, out)
 }
