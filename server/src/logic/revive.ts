@@ -756,7 +756,7 @@ function tryReviveOnDestroy(
             }
             return true
         }
-        // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」（bpBuff.costDiscardOwnBurstと同型）。
+        // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」。
         // バーストがセットされていなければ支払い不可＝不発
         if (effect.cost?.discardOwnBurst) {
             if (player.burst === null) return false

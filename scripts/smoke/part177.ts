@@ -57,12 +57,11 @@ console.log("=== ブリュナグオン：コストで破壊する【呪撃】持
     const give = put(s, jugeki[1]!.cardId, 3)
     s.players.p1.trashCards = [recoverable.cardId]
 
-    resolveAction(s, "p1", null, {
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { keyword: "jugeki" } }, then: {
         type: "recoverSpiritFromTrash",
         count: 1,
         familyFilter: ["虚神", "神将"],
-        costDestroyOwnKeyword: "jugeki",
-    })
+    } })
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(s.pendingChoice?.candidates.length === 2, "【呪撃】持ち2体が候補")
 
@@ -90,7 +89,7 @@ console.log("=== キャストオフ：コストで破壊する「怪虫」を選
     const give = put(s, kaichu[1]!.cardId, 3)
     s.players.p1.hand = [summonable.cardId]
 
-    resolveAction(s, "p1", null, { type: "summonFromHandFree", costFilter: 5, costDestroyOwnFamily: "怪虫" })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { family: "怪虫" } }, then: { type: "summonFromHandFree", costFilter: 5} })
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give }) === null, "犠牲を選ぶ")
     assert(!alive(s, give), "選んだほうが破壊される")
@@ -112,12 +111,11 @@ console.log("=== リクラメーション：コストで破壊するネクサス
     )!
     s.players.p1.hand = [blue4.cardId]
 
-    resolveAction(s, "p1", null, {
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: {
         type: "summonFromHandFree",
         colorFilter: "blue",
         costFilter: { max: 4 },
-        costDestroyOwnNexus: true,
-    })
+    } })
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(s.pendingChoice?.candidates.length === 2, "自分のネクサス2つが候補")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give.instanceId }) === null, "犠牲を選ぶ")
@@ -137,7 +135,7 @@ console.log("=== 秘密の花園：コストで疲労させる「楽族」を選
     const keep = put(s, gakuzoku[0]!.cardId, 3)
     const give = put(s, gakuzoku[1]!.cardId, 3)
 
-    resolveAction(s, "p1", null, { type: "protectLifeByCostThisTurn", maxCost: 3, costExhaustFamily: "楽族" })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "exhaust", side: "own", count: 1, filter: { family: "楽族" } }, then: { type: "protectLifeByCostThisTurn", maxCost: 3 } })
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give }) === null, "犠牲を選ぶ")
 
@@ -158,7 +156,7 @@ console.log("=== 非対話（smokeの既定）では従来どおり自動で選�
     s.interactiveTargets = false
     put(s, gakuzoku[0]!.cardId, 3)
     put(s, gakuzoku[1]!.cardId, 3)
-    resolveAction(s, "p1", null, { type: "protectLifeByCostThisTurn", maxCost: 3, costExhaustFamily: "楽族" })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "exhaust", side: "own", count: 1, filter: { family: "楽族" } }, then: { type: "protectLifeByCostThisTurn", maxCost: 3 } })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p1.field.spirits.filter((x) => x.isRested).length === 1, "1体だけが自動で疲労する")
 }

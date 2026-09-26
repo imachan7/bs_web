@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"
+import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import {
     canExhaustNexus,
     bothSidesPids,
@@ -27,7 +27,7 @@ import {
     lifeCostBlockedByFloor,
     recordTimed,
 } from "../EffectModules"
-import { KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, instIsVanilla, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
+import { KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../brave"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -105,18 +105,6 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, false))
             }
             return
-        }
-        // costReserveToTrashFromBofu（BS15-026軍師鳥ショカツリョーLv2）：実効【暴風】指定数ぶんのコストを
-        // 先に払う。払えなければ不発（countFromBofuの解決より前に見る）
-        if (action.costReserveToTrashFromBofu) {
-            const bofuForCost = self ? bofuCountFor(state, owner, self) : 0
-            if (bofuForCost === 0 || state.players[owner].reserve < bofuForCost) {
-                log(state, `${sourceName}：コストを支払えないため発動しなかった。`)
-                return
-            }
-            state.players[owner].reserve -= bofuForCost
-            state.players[owner].trashCores += bofuForCost
-            log(state, `${sourceName}：リザーブのコア${bofuForCost}個をトラッシュに置いた。`)
         }
         // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、
         // 実効指定数（静的 count ＋ bofuCountBonus）で解決し直す。BS08ゲラン准将Lv2 の
@@ -686,50 +674,6 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
         }
-        // costReserveToVoid（BS06-X23天帝ホウオウガLv3）：lifeCrush.costReserveToVoidと同じ方針。
-        // 自分のリザーブが足りなければ不発（ログのみ）。足りればその数のコアをリザーブからボイドへ送ってから回復する
-        if (action.costReserveToVoid !== undefined) {
-            const ownerPlayer = state.players[owner]
-            if (ownerPlayer.reserve < action.costReserveToVoid) {
-                log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
-                return
-            }
-            ownerPlayer.reserve -= action.costReserveToVoid
-            log(
-                state,
-                `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
-            )
-        }
-        // costSelfCoresToVoid（BS08ブラックタウロス大王）：リザーブでなく**このスピリット自身**の上のコアから支払う。
-        // 支払うとLv1コア数を下回るなら不発（selfCoreToOwnLifeと異なり、支払った上で回復させる効果のため
-        // 維持コア割れを起こさない範囲でしか払えない、という決定的簡略化）
-        if (action.costSelfCoresToVoid !== undefined) {
-            const minCores = instMinLevelCores(self)
-            if (self.cores - action.costSelfCoresToVoid < minCores) {
-                log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
-                return
-            }
-            self.cores -= action.costSelfCoresToVoid
-            log(
-                state,
-                `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToVoid}個をボイドに置いた。`,
-            )
-        }
-        // costSelfCoresToTrash（BS12-032蹴激皇ヴィーザル）：costSelfCoresToVoidのトラッシュ版。
-        // 自身のコアを持ち主のトラッシュへ置く。支払うとLv1コア数を下回るなら不発
-        if (action.costSelfCoresToTrash !== undefined) {
-            const minCores = instMinLevelCores(self)
-            if (self.cores - action.costSelfCoresToTrash < minCores) {
-                log(state, `${sourceName}：${getCard(self.cardId).name}のコアが足りず発動しなかった。`)
-                return
-            }
-            self.cores -= action.costSelfCoresToTrash
-            state.players[owner].trashCores += action.costSelfCoresToTrash
-            log(
-                state,
-                `${getCard(self.cardId).name}は自身のコア${action.costSelfCoresToTrash}個を自分のトラッシュに置いた。`,
-            )
-        }
         // costOwnLifeToReserve（BS13-039神獣バーロン【合体時】Lv3）：持ち主のライフのコアをこの数だけ
         // リザーブへ置くことがコスト。ライフが足りなければ不発
         if (action.costOwnLifeToReserve !== undefined) {
@@ -756,81 +700,6 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
                 log(state, `${state.players[opp].name}の勝利！`)
                 return
             }
-        }
-        // costDestroyOwnVanillaSpirit（BS12-X06海賊王レヴィアダンLv2-3）：効果の記述を持たない
-        // 自分のスピリット1体を破壊することがコスト（COST_MODEL.md：AとBの両方が完全に解決できるときだけ発揮）。
-        // 該当がなければ不発。候補2体以上なら破壊するスピリットをプレイヤーが選ぶ（coreGain.costDestroyOwnSpiritと同じ考え方）
-        if (action.costDestroyOwnVanillaSpirit) {
-            const player = state.players[owner]
-            const candidates = player.field.spirits.filter((s) => instIsVanilla(s))
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            let victim: CardInstance | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                victim = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!victim) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                victim = candidates[0]!
-                for (const s of candidates) {
-                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
-                }
-            }
-            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
-            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
-            if (state.winner) return
-        }
-        // 器AE：costReturnOwnSpiritKeyword指定時は、指定キーワードを持つ自分のスピリット1体を
-        // 手札に戻すことがコスト（該当がなければ不発＝COST_MODEL.md §1）。候補2体以上なら
-        // プレイヤーが選ぶ（§2）。非対話・自動選択はコスト最小（他のcostSacrificeChosen系と同じ方針）
-        if (action.costReturnOwnSpiritKeyword !== undefined) {
-            const kw = action.costReturnOwnSpiritKeyword
-            const candidates = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, kw))
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            let victim: CardInstance | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                victim = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!victim) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                victim = candidates[0]!
-                for (const s of candidates) {
-                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
-                }
-            }
-            returnSpiritToHand(state, owner, victim, sourceName)
-            if (state.winner) return
         }
         // 器AE：costReturnOwnBrave指定時は、自身に合体しているブレイヴ1つを手札に戻すことがコスト
         // （回復と合体はセット＝BS13_PLAN.md §1 #16と同じ考え方で、合体していなければ不発）。
@@ -870,19 +739,6 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
             detachBraveByEffect(state, owner, self, brave)
             returnSpiritToHand(state, owner, brave, sourceName)
             if (state.winner) return
-        }
-        // costDiscardOwnBurst（docs/design/BURST.md）：自分のバースト1つを破棄（トラッシュへ）することがコスト。
-        // バーストがセットされていなければ不発（COST_MODEL.md §1）
-        if (action.costDiscardOwnBurst) {
-            const ownerPlayer = state.players[owner]
-            if (ownerPlayer.burst === null) {
-                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
-                return
-            }
-            ownerPlayer.trashCards.push(ownerPlayer.burst)
-            ownerPlayer.burst = null
-            ownerPlayer.burstSet = false
-            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
         }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)

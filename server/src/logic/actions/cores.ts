@@ -60,27 +60,6 @@ export function coreRemoveAchievableCountForPay(
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // costDiscardOwnBurst（BS15-016闇騎士ガウェイン）：自分のバースト1つを破棄することがコスト。
-        // 「〜することで〜する」は両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、
-        // 対象条件を満たす相手のスピリットが1体もいなければバーストも破棄しない
-        if (action.costDiscardOwnBurst) {
-            const ownerPlayer = state.players[owner]
-            const filterForCheck = normalizeFilter(ctx, action)
-            const hasEligibleTarget =
-                filterForCheck !== SELF_REQUIRED &&
-                state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filterForCheck, self?.instanceId))
-            if (ownerPlayer.burst === null || !hasEligibleTarget) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            ownerPlayer.trashCards.push(ownerPlayer.burst)
-            ownerPlayer.burst = null
-            ownerPlayer.burstSet = false
-            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
-            const { costDiscardOwnBurst: _cdob, ...rest } = action
-            ctx.resolve(rest)
-            return
-        }
         // countCounter指定時はcount×EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count

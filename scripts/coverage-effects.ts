@@ -806,8 +806,8 @@ process.on("exit", () => {
         // 強襲：ネクサスを疲労させて実際に回復した時点
         patch(
             path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
-            `import { currentLevel, getCard, instMinLevelCores, log, minLevelCores } from "../GameState"`,
-            `import { currentLevel, getCard, instMinLevelCores, log, minLevelCores, __covRecord } from "../GameState"`,
+            `import { currentLevel, getCard, log, minLevelCores } from "../GameState"`,
+            `import { currentLevel, getCard, log, minLevelCores, __covRecord } from "../GameState"`,
         )
         patch(
             path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),

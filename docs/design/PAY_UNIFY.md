@@ -135,4 +135,4 @@ then の書き換え：旧 coreGain → `placeCores { from: "void", to: "reserve
 このうち一般則に合っていない BS13-058・BS13-060 は、旧ハンドラで「デッキが N 枚以上あるか」を払う前に確かめる形に直す。
 BS14-X03・BS13-027（costReturnSelfToHand）も残す（2026-09-27）：then の対象が「戻した自身以外」になる／「指定する」＝選ばせるのが cost 付きのときだけ、で、どちらも pay の then 判定（bpBuff は `excludeSelf` を見ない）では同じ条件を書けない。
 
-**残った作業**（後始末の PR）：どのカードも使わなくなった costXxx 16種（costDestroyOwn*・costDiscardOwnBurst・costHandDiscardOne 等）を型とハンドラ・smoke から消す。挙動は変わらない。
+どのカードも使わなくなった costXxx 16種は型・ハンドラ・smoke から消した（2026-09-27）。

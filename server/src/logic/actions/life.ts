@@ -1,7 +1,7 @@
 // ライフを増やす・減らすアクション
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log, suspend } from "../GameState"
-import { fireFieldEventTriggers, exhaustSpirit, recordTimed } from "../EffectModules"
+import { fireFieldEventTriggers, recordTimed } from "../EffectModules"
 import { spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 
@@ -9,16 +9,6 @@ import { countedAmount } from "../counted"
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
-        // costExhaustSelf（BS13-070星宿の障壁Lv2）：発生源自身（ネクサス）を疲労させることがコスト。
-        // 既に疲労状態なら不発（COST_MODEL.md §1）
-        if (action.costExhaustSelf) {
-            if (!self || self.isRested) {
-                log(state, `${sourceName}：疲労できないため発動しなかった。`)
-                state.effectFizzled = true
-                return
-            }
-            exhaustSpirit(state, owner, self)
-        }
         // 器BF：costMillSelfCount（BS13-058シユウ）「デッキを上からN枚破棄することで」。
         // 一般則（COST_MODEL.md §1）どおり、デッキがN枚未満なら払わず発揮もしない
         // （2026-09-26修正：以前はあるだけ破棄して成立させていた）

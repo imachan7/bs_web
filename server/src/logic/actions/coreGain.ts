@@ -9,22 +9,6 @@ import { countedAmount } from "../counted"
 
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, srcType, chosenOption } = ctx
-        // costDiscardOwnBurst（BS15-022アナグマッド・デビル）：自分のバースト1つを破棄することがコスト。
-        // バーストをセットしていなければ不発
-        if (action.costDiscardOwnBurst) {
-            const ownerPlayer = state.players[owner]
-            if (ownerPlayer.burst === null) {
-                log(state, `${sourceName}：バーストをセットしていないため発動しなかった。`)
-                return
-            }
-            ownerPlayer.trashCards.push(ownerPlayer.burst)
-            ownerPlayer.burst = null
-            ownerPlayer.burstSet = false
-            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
-            const { costDiscardOwnBurst: _cdob, ...rest } = action
-            ctx.resolve(rest)
-            return
-        }
         // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
         if (voidCorePlacementBlocked(state)) {
             log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)

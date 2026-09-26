@@ -52,7 +52,7 @@ console.log("=== BS13-045：召喚時、自分のネクサス1つを破壊する
     const oppNex = createInstance("BS11-072", s.turn, minLevelCores(getCard("BS11-072")))
     s.players.p1.field.nexuses.push(ownNex)
     s.players.p2.field.nexuses.push(oppNex)
-    resolveAction(s, "p1", iason, { type: "destroyNexus", count: 1, costDestroyOwnNexus: true })
+    resolveAction(s, "p1", iason, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "destroyNexus", count: 1} })
     assert(s.players.p1.field.nexuses.length === 0, "自分のネクサスが破壊された（コスト）")
     assert(s.players.p2.field.nexuses.length === 0, "相手のネクサスが破壊された")
 }
@@ -62,7 +62,7 @@ console.log("=== BS13-045：召喚時、自分のネクサス1つを破壊する
     s.players.p1.field.spirits.push(iason)
     const oppNex = createInstance("BS11-072", s.turn, minLevelCores(getCard("BS11-072")))
     s.players.p2.field.nexuses.push(oppNex)
-    resolveAction(s, "p1", iason, { type: "destroyNexus", count: 1, costDestroyOwnNexus: true })
+    resolveAction(s, "p1", iason, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "destroyNexus", count: 1} })
     assert(s.players.p2.field.nexuses.length === 1, "自分のネクサスが無いため発揮できなかった（COST_MODEL §1）")
 }
 

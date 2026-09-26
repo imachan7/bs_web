@@ -20,7 +20,7 @@ import {
     recordTimed,
     recordPlayerRule,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -129,27 +129,6 @@ const grantFamilyChoiceAllHandler: ActionHandler<"grantFamilyChoiceAll"> = (ctx,
 
 const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentNexuses"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 皇帝アンプルール：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
-        // 足りればその数のコアをリザーブからボイドへ送ってから、相手の全ネクサスの
-        // levelOverrideThisTurn を level に設定する（このターンの間。ターン終了処理でリセット）
-        if (action.costReserveToVoid !== undefined) {
-            const player = state.players[owner]
-            if (player.reserve < action.costReserveToVoid) {
-                log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
-                return
-            }
-            // B（レベルを変える相手のネクサス）が無ければ発揮できない（COST_MODEL.md §1）。
-            // 以前は払ってから相手のネクサスを見ていたため、いないときも払い損になっていた
-            if (state.players[opp].field.nexuses.length === 0) {
-                log(state, `${sourceName}：相手のネクサスがないため発動しなかった。`)
-                return
-            }
-            player.reserve -= action.costReserveToVoid
-            log(
-                state,
-                `${player.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
-            )
-        }
         const oppPlayer = state.players[opp]
         for (const nexus of oppPlayer.field.nexuses) {
             recordTimed(state, { content: [{ type: "level", set: action.level }], target: { kind: "instance", instanceId: nexus.instanceId }, until: "turn", ownerPid: owner })
@@ -207,47 +186,7 @@ const addSymbolPermanentHandler: ActionHandler<"addSymbolPermanent"> = (ctx, act
 }
 
 const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-        // BS07秘密の花園Lv2：「楽族」1体を疲労させることで、このターンの間、
-        // コストmaxCost以下のスピリットのアタックでは**自分の**ライフが減らされない。
-        // **誰を疲労させるかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
-        if (action.costExhaustFamily !== undefined) {
-            const candidates = state.players[owner].field.spirits.filter(
-                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
-            )
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：疲労させられるスピリットがいなかった。`)
-                return
-            }
-            const { costExhaustFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const picked = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!picked) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                exhaustSpirit(state, owner, picked)
-                ctx.resolve(rest)
-                return
-            }
-            if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
-            const chosen = candidates.reduce((min, s) =>
-                effectiveBp(state, owner, s) < effectiveBp(state, owner, min) ? s : min,
-            )
-            exhaustSpirit(state, owner, chosen)
-        }
+    const { state, owner, sourceName } = ctx
         recordPlayerRule(state, owner, { type: "noLifeDamageByCostForPid", maxCost: action.maxCost })
         log(state, `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`)
         return
