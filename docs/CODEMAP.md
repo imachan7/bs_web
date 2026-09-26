@@ -262,7 +262,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryLifeDamageMillGuard`（fn）：kind:"lifeDamageMillGuard"（BS07六花の司書長サーガ）：defenderPid のライフが減る直前に呼ぶ。
 - `lifeCostBlockedByFloor`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
 - `tryOwnLifeFloorByCost`（fn）
-- `fireSummonSequence`（fn）
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 - `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
 - `hasAttackTriggersAsBlock`（fn）
@@ -272,34 +271,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く（無限に湧くボイドが原資。
 - `voidCorePlacementBlocked`（fn）：globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
 - `sweepLevelCostDepletion`（fn）：継続的なレベル置換（kind: "levelAs"）を再計算する。
-- `recordTimed`（fn）：期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
-- `recordPlayerRule`（fn）：pid にこのターンの間の制約を掛ける（効果の中の「さらに、このターンの間〜」から書く）
-- `recordBp`（fn）：1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
-- `refreshLevelAsOverrides`（fn）
-- `pickEnemyCandidates`（fn）：相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
-- `pickAnySideCandidates`（fn）：「自分か相手のスピリット1体」を対象にする効果（action.anySide）の候補列挙。
-- `pickAnySideByBp`（fn）：「自分か相手のスピリット1体」を対象にする効果（action.anySide）の自動選択（非対話時）で使う共通ロジック。
-- `pickEnemyByBp`（fn）：相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
-- `pickEnemyLowestCost`（fn）：destroy.lowestCost（BS12-084マーキュリーゴブレット）：相手スピリットからコスト最小のものを1体選ぶ
-- `tryInteractiveTargetChoice`（fn）：interactiveTargets 有効時、count で複数体を処理するアクション（destroy/exhaust/destroyExhausted/
-- `tryInteractiveCardChoice`（fn）：tryInteractiveTargetChoice のカード版：interactiveTargets有効時、count等で複数回に分けて
 - `payCost`（fn）：summonFromHandFree 共通の召喚実行部：指定した手札インデックスのスピリットを、
-- `placeBurst`（fn）：バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
-- `finishBurstActivation`（fn）：バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
-- `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
-- `summonFreeFromHandIndex`（fn）
-- `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `findSpiritAny`（fn）：instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
 - `applyMagicBuffBonus`（fn）：騎獣スレイプホース：マジックによるBPバフ（bpBuff）が対象に適用された直後にフックし、
-- `bpBuffTargetPasses`（fn）：bpBuff の「対象になれるか」の判定。
-- `pickBpBuffTarget`（fn）：bpBuff の対象選択：
-- `pickOwnKeywordTarget`（fn）：grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
 - `countEffectCounter`（fn）：selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
 - `drawDoubleMultiplier`（fn）：効果ドロー倍化（封印された魔導書）：owner のフィールドにレベル有効かつ phaseTurn 一致の
 - `resolveAction`（fn）
-- `requestActivationConfirm`（fn）：「〜できる」（EffectDef.triggered.optional）の発動確認。
-- `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
-- `requestCardChoice`（fn）：requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
 
 ## server/src/logic/GameEngine.ts
 
@@ -465,6 +442,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasBofuOnBlock`（fn）：持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
 - `hasBofuChooserSelf`（fn）：持ち主のフィールドに bofuChooserSelf（BS07ワールウィンド）が有効な発生源があるか。
 
+## server/src/logic/keywords/burst.ts
+
+- `placeBurst`（fn）：バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
+- `finishBurstActivation`（fn）：バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+- `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
+
 ## server/src/logic/keywords/funsai.ts
 
 - `funsaiBonusTotal`（fn）：持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ）合計：【粉砕】の破棄枚数に加算する。
@@ -597,6 +580,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyReviveConfirm`（fn）：保留していた復活の確認で「復活させる」が選ばれたときの後処理。
 - `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 
+## server/src/logic/state/continuous.ts
+
+- `recordTimed`（fn）：期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
+- `recordPlayerRule`（fn）：pid にこのターンの間の制約を掛ける（効果の中の「さらに、このターンの間〜」から書く）
+- `recordBp`（fn）：1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
+- `refreshLevelAsOverrides`（fn）
+
 ## server/src/logic/state/exhaust.ts
 
 - `checkExhaustOnCoreChange`（fn）
@@ -605,6 +595,28 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireExhaustedTriggers`（fn）：「スピリットが疲労したとき」のフィールドイベント発火。
 - `isRefreshBlockedByMark`（fn）：スクルディア：相手のスピリットから「回復できない」と指定されていて、
 - `canExhaustNexus`（fn）：BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
+
+## server/src/logic/summon.ts
+
+- `fireSummonSequence`（fn）
+- `summonFreeFromHandIndex`（fn）
+- `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
+
+## server/src/logic/targeting.ts
+
+- `pickEnemyCandidates`（fn）：相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
+- `pickAnySideCandidates`（fn）：「自分か相手のスピリット1体」を対象にする効果（action.anySide）の候補列挙。
+- `pickAnySideByBp`（fn）：「自分か相手のスピリット1体」を対象にする効果（action.anySide）の自動選択（非対話時）で使う共通ロジック。
+- `pickEnemyByBp`（fn）：相手スピリットから BP <= maxBp かつ extraPredicate を満たすものの中で
+- `pickEnemyLowestCost`（fn）：destroy.lowestCost（BS12-084マーキュリーゴブレット）：相手スピリットからコスト最小のものを1体選ぶ
+- `tryInteractiveTargetChoice`（fn）：interactiveTargets 有効時、count で複数体を処理するアクション（destroy/exhaust/destroyExhausted/
+- `tryInteractiveCardChoice`（fn）：tryInteractiveTargetChoice のカード版：interactiveTargets有効時、count等で複数回に分けて
+- `bpBuffTargetPasses`（fn）：bpBuff の「対象になれるか」の判定。
+- `pickBpBuffTarget`（fn）：bpBuff の対象選択：
+- `pickOwnKeywordTarget`（fn）：grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
+- `requestActivationConfirm`（fn）：「〜できる」（EffectDef.triggered.optional）の発動確認。
+- `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
+- `requestCardChoice`（fn）：requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
 
 ## server/src/logic/triggers.ts
 

@@ -10,7 +10,6 @@ const MAX_TYPE_KB = 120
 
 // 2026-09-26 時点で基準を超えていたもの（行数、型ファイルは KB）。分割して基準を下回ったら、ここから消す
 const BASELINE: Record<string, number> = {
-    "server/src/logic/EffectModules.ts": 3051,
     "server/src/logic/actions/battleFlow.ts": 2200,
     "server/src/logic/actions/cores.ts": 2745,
     "server/src/logic/actions/destroy.ts": 2345,

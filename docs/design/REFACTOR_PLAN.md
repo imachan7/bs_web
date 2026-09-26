@@ -130,7 +130,7 @@
 | ファイル | 行 | 名前に無い責務（切り出し先の案） |
 | :-- | --: | :-- |
 | `actions/handDeck.ts` | 4566 | ドロー・破棄・公開・トラッシュ回収・デッキ破棄・バウンス・手元が同居 → `drawDiscard`／`tegamoto`／`reveal`／`trashRecover`／`mill`／`bounce`＋`magic`（09-23 分割済み。`familyChoiceThenBpBuffAll` は buff、`payNegateDecide` は control へ） |
-| `EffectModules.ts` | 4239 | 【転召】（`tenshoSpecOf`〜`applyTenshoSubstitute*`）、【粉砕】【呪撃】【暴風】【強襲】など**キーワードごとの判定**、デッキ破棄（`millDeck`・破棄無効）、疲労・回復（`exhaustSpirit`・`refreshSpirit`） → `keywords/tensho.ts`・`keywords/<キーワード>.ts`・`zones/mill.ts`・`state/exhaust.ts` |
+| `EffectModules.ts` | 4239 | 【転召】（`tenshoSpecOf`〜`applyTenshoSubstitute*`）、【粉砕】【呪撃】【暴風】【強襲】など**キーワードごとの判定**、デッキ破棄（`millDeck`・破棄無効）、疲労・回復（`exhaustSpirit`・`refreshSpirit`） → `keywords/tensho.ts`・`keywords/<キーワード>.ts`・`zones/mill.ts`・`state/exhaust.ts`（済み）。09-26 に継続効果の再計算 → `state/continuous.ts`、対象の選び方と選択待ち → `targeting.ts`、バースト → `keywords/burst.ts`、召喚時の誘発と無償召喚 → `summon.ts`（1393行） |
 | `triggers.ts` | 2911 | マジックの処理は `magic/`（cast 使用の手続き／negate 無効化／redirect 対象の絞り込みと「お互い」の変更／resolve 解決・再発揮・マジックミラー）へ分割済み（09-23。GameEngine の `doCastMagic` も cast へ） |
 | `removal.ts` | 1509 | （09-26 分割済み：`brave.ts`・`revive.ts`） |
 | `GameEngine.ts` | 2877 | `doResolveChoice`（約450行）＝選択の解決と再開 → `choice.ts`。バトル解決（`resolveBattle`〜`runBattleStep`・`resolveLifeDamage`） → `battleResolve.ts`（09-26 分割済み。`actions/battleFlow.ts` と紛れないよう名前を変えた）。【烈神速】は召喚の本体と密なので残した |

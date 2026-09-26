@@ -43,6 +43,32 @@
 
 アクションの実行（召喚・アタック・ブロック宣言・起動能力・【烈神速】）は `GameEngine.ts` に残した。
 
+## 継続効果の再計算（`server/src/logic/state/continuous.ts`）
+
+| 変更の種類 | 触るところ | 手本 | 罠 |
+| :-- | :-- | :-- | :-- |
+| 個体に書き戻す継続効果（`〜Continuous` のフィールド） | `refreshLevelAsOverrides` の先頭の `delete` 群に1行、本体に付与を1か所 | `levelAsContinuous` | **先頭で消してから付け直す**ので、消し忘れると効果が切れても残る。GameState の型にフィールドを足すのは `type.ts` |
+| 期間つき効果を置くだけのアクション | `recordTimed`（プレイヤーの制約は `recordPlayerRule`、BP+ は `recordBp`） | — | 中身の種類は TIMED_EFFECTS.md §3.2 |
+
+## 対象の選び方と選択待ち（`server/src/logic/targeting.ts`）
+
+| 変更の種類 | 触るところ | 手本 | 罠 |
+| :-- | :-- | :-- | :-- |
+| 対象を選ぶアクション | 候補を作って `requestChoice`（カードなら `requestCardChoice`）。複数体を1体ずつ選ばせるなら `tryInteractiveTargetChoice` | — | 候補0件は不発、1件は即解決、2件以上で選択待ち。応答側は `choice.ts` |
+| 自動で選ぶ規則（AI・非対話） | `pickEnemyCandidates`・`pickEnemyByBp`・`pickEnemyLowestCost` など | — | 対戦者が選ぶべき場面を自動にしていないかは `npm run audit:choices` |
+| 「〜することで」の発動確認 | `requestActivationConfirm` | — | — |
+
+## 【バースト】（`server/src/logic/keywords/burst.ts`）
+
+セットは `placeBurst`、発動後の後始末は `finishBurstActivation`、「自分のバーストを発動したとき」の誘発は `fireOwnBurstActivated`。バーストの条件と解決順は BURST.md。
+
+## 召喚時の誘発と効果による無償召喚（`server/src/logic/summon.ts`）
+
+| 変更の種類 | 触るところ | 罠 |
+| :-- | :-- | :-- |
+| 召喚時の誘発の並び | `fireSummonSequence` | 手札からの通常の召喚の入口は `GameEngine.doSummon`（【烈神速】も GameEngine） |
+| 効果による手札・トラッシュからの無償召喚 | `summonFreeFromHandIndex`・`summonFreeFromTrashIndex` | — |
+
 ## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
 
 | 変更の種類 | 触るところ |
