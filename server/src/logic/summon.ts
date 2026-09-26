@@ -1,12 +1,12 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { hasSummonedExhaustGrant, payCost } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
-import type { CardInstance, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 import { attachBrave } from "./brave"
 import { fireFieldEventTriggers, fireSummonTrigger } from "./triggers"
 import { effectiveCost } from "../../../shared/cost"
-import { instColors, instIsVanilla, summonByEffectBlocked, isOnFieldAnyZone } from "../../../shared/rules"
+import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, isTrashCardProtected, matchesCostFilter, summonByEffectBlocked, trashCardNameMatches } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
 
@@ -263,4 +263,115 @@ export function summonFreeFromTrashIndex(
     } else {
         fireSummonSequence(state, owner, inst)
     }
+}
+
+// summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
+// pay の checker（pay.ts）とこのハンドラで共有する（候補のずれ防止）
+export function summonFromHandFreeCandidateMatches(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    action: Extract<EffectAction, { type: "summonFromHandFree" }>,
+    candidateId: string,
+): boolean {
+    const player = state.players[owner]
+    const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
+    const candidate = getCard(candidateId)
+    // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
+    // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
+    if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false
+    if (action.colorFilter !== undefined) {
+        const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
+        if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
+    }
+    if (action.sameFamilyAsSelf) {
+        if (!selfFamily) return false
+        if (!candidate.family.some((f) => selfFamily.includes(f))) return false
+    }
+    // familyFilter（配列＝OR）：selfの系統全部とのOR判定にしたくない場合の直接指定
+    // （BS05火龍王ボルケノス：系統「竜人」限定。カード静的な family のみ＝手札カード判定のため）
+    if (action.familyFilter !== undefined) {
+        const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+        if (!wanted.some((f) => candidate.family.includes(f))) return false
+    }
+    // costFilter：数値指定時はコストが完全一致するもののみ（BS05シーサーズ：コスト2）。
+    // {max,min}指定時は範囲一致（BS06リクラメーション：コスト4以下）
+    if (action.costFilter !== undefined) {
+        if (typeof action.costFilter === "number") {
+            if (candidate.cost !== action.costFilter) return false
+        } else if (!matchesCostFilter(candidate.cost, action.costFilter)) {
+            return false
+        }
+    }
+    // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
+    if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
+    // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
+    if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
+    // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）
+    if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+    // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
+    // （選ばせてから「払えなかった」で不発にすると、ターンに1回の権利だけ失う）。
+    // **リザーブだけでなくフィールドのコアも支払いに使える**（通常の召喚と同じ。paySources）。
+    // 2026-08-23 まではリザーブだけで判定しており、盤面のコアでなら払えるカードが
+    // 候補にすら出なかった（利用者報告。BS08空帝竜騎プラチナム等の帝竜騎サイクル6枚）
+    if (action.payCost) {
+        const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
+            (sum, i) => sum + i.cores,
+            0,
+        )
+        if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
+            return false
+        }
+    }
+    return true
+}
+
+// summonFromTrashFree の候補判定。summonFromHandFreeCandidateMatches のトラッシュ版。
+// pay の checker（pay.ts）とこのハンドラで共有する
+export function summonFromTrashFreeCandidateMatches(
+    state: GameState,
+    owner: PlayerId,
+    action: Extract<EffectAction, { type: "summonFromTrashFree" }>,
+    candidateId: string,
+    targetInstanceId?: string,
+): boolean {
+    const player = state.players[owner]
+    const candidate = getCard(candidateId)
+    if (candidate.type !== "spirit") return false
+    if (action.colorFilter !== undefined) {
+        const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
+        if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
+    }
+    if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
+    // familyFilter（BS07常闇の聖堂＝「夜族」）：トラッシュのカードが対象なので
+    // カード静的な family で判定する（配列＝OR）
+    if (action.familyFilter !== undefined) {
+        const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+        if (!wanted.some((f) => candidate.family.includes(f))) return false
+    }
+    // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
+    // カード静的な名前（trashNameAsによる別名も一致する）で判定する
+    if (action.nameIncludes !== undefined && !trashCardNameMatches(candidateId, action.nameIncludes)) return false
+    // whileCombinedFilter（BS10-084虚実の口Lv2＝「【合体時】効果を持つスピリットカード」）：
+    // トラッシュのカードが対象なので、カード静的な effects に whileCombined:true のエントリがあるかで判定する
+    if (action.whileCombinedFilter === true && !candidate.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) {
+        return false
+    }
+    if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
+    if (isTrashCardProtected(candidateId)) return false
+    // onlyBurstDestroyedCard（BS15-073五輪転生炎）：そのバースト発動のきっかけになった破壊で
+    // 落ちたカードだけが対象（burst.destroyedAsTargetがtargetInstanceIdの枠に入れたcardIdと一致）
+    if (action.onlyBurstDestroyedCard && candidateId !== targetInstanceId) return false
+    // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
+    // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
+    if (action.payCost) {
+        const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
+            (sum, i) => sum + i.cores,
+            0,
+        )
+        if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
+            return false
+        }
+    }
+    return true
 }

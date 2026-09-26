@@ -1,13 +1,12 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { summonFromHandFreeCandidateMatches, summonFromTrashFreeCandidateMatches } from "../summon"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
-import { COLOR_LABELS } from "../../../../data/constants"
 import {
     attachBrave,
     bothSidesPids,
-    countEffectCounter,
     destroyCombinedBrave,
     detachBraveByEffect,
     detachBraveByOwnerChoice,
@@ -42,7 +41,26 @@ import {
     tryOwnLifeFloorByCost,
     recordTimed,
 } from "../EffectModules"
-import { activeConstraints, boardResistanceAgainst, cantReduceOpponentLife, bravesOf, cardHasColor, cardNameContains, currentLevel, effectActiveAtLevel, effectiveBp, hasKeyword, instBaseCost, instIsCombined, instMinLevelCores, isInBattle, isTrashCardProtected, lifeDamagePerSpiritRemaining, lifeFloorByEffect, lifeImmuneThisTurn, matchesBraveCondition, matchesCostFilter, ownLifeImmuneToOpponentSpiritEffects, trashCardNameMatches } from "../../../../shared/rules"
+import {
+    activeConstraints,
+    cantReduceOpponentLife,
+    bravesOf,
+    cardHasColor,
+    cardNameContains,
+    currentLevel,
+    effectActiveAtLevel,
+    effectiveBp,
+    instBaseCost,
+    instIsCombined,
+    instMinLevelCores,
+    isInBattle,
+    lifeDamagePerSpiritRemaining,
+    lifeFloorByEffect,
+    lifeImmuneThisTurn,
+    matchesBraveCondition,
+    matchesCostFilter,
+    ownLifeImmuneToOpponentSpiritEffects,
+} from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 import { countedAmount } from "../counted"
@@ -553,57 +571,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         // この効果で召喚されたスピリットの onSummon 効果は発揮されないため、fireTrigger を呼ばず
         // 直接 createInstance → push する（summonFreeFromHandIndex に共通化）
         const player = state.players[owner]
-        const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
-        const matchesCardId = (candidateId: string): boolean => {
-            const candidate = getCard(candidateId)
-            // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
-            // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
-            if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false
-            if (action.colorFilter !== undefined) {
-                const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
-                if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
-            }
-            if (action.sameFamilyAsSelf) {
-                if (!selfFamily) return false
-                if (!candidate.family.some((f) => selfFamily.includes(f))) return false
-            }
-            // familyFilter（配列＝OR）：selfの系統全部とのOR判定にしたくない場合の直接指定
-            // （BS05火龍王ボルケノス：系統「竜人」限定。カード静的な family のみ＝手札カード判定のため）
-            if (action.familyFilter !== undefined) {
-                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
-                if (!wanted.some((f) => candidate.family.includes(f))) return false
-            }
-            // costFilter：数値指定時はコストが完全一致するもののみ（BS05シーサーズ：コスト2）。
-            // {max,min}指定時は範囲一致（BS06リクラメーション：コスト4以下）
-            if (action.costFilter !== undefined) {
-                if (typeof action.costFilter === "number") {
-                    if (candidate.cost !== action.costFilter) return false
-                } else if (!matchesCostFilter(candidate.cost, action.costFilter)) {
-                    return false
-                }
-            }
-            // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
-            if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
-            // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
-            if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
-            // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）
-            if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
-            // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
-            // （選ばせてから「払えなかった」で不発にすると、ターンに1回の権利だけ失う）。
-            // **リザーブだけでなくフィールドのコアも支払いに使える**（通常の召喚と同じ。paySources）。
-            // 2026-08-23 まではリザーブだけで判定しており、盤面のコアでなら払えるカードが
-            // 候補にすら出なかった（利用者報告。BS08空帝竜騎プラチナム等の帝竜騎サイクル6枚）
-            if (action.payCost) {
-                const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
-                    (sum, i) => sum + i.cores,
-                    0,
-                )
-                if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
-                    return false
-                }
-            }
-            return true
-        }
+        const matchesCardId = (candidateId: string): boolean => summonFromHandFreeCandidateMatches(state, owner, self, action, candidateId)
         // summonFreeFromHandIndex へ渡す追加指定（コストを支払う／召喚時効果を発揮させない／
         // フィールドのコアからの支払い指定）
         const summonOpts = {
@@ -1159,46 +1127,8 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
         // コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。interactiveTargets時は選択式
         // （選択者=使用者。cardZone:"trash"）。summonFromHandFreeHandlerのトラッシュ版
         const player = state.players[owner]
-        const matchesCardId = (candidateId: string): boolean => {
-            const candidate = getCard(candidateId)
-            if (candidate.type !== "spirit") return false
-            if (action.colorFilter !== undefined) {
-                const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
-                if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
-            }
-            if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
-            // familyFilter（BS07常闇の聖堂＝「夜族」）：トラッシュのカードが対象なので
-            // カード静的な family で判定する（配列＝OR）
-            if (action.familyFilter !== undefined) {
-                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
-                if (!wanted.some((f) => candidate.family.includes(f))) return false
-            }
-            // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
-            // カード静的な名前（trashNameAsによる別名も一致する）で判定する
-            if (action.nameIncludes !== undefined && !trashCardNameMatches(candidateId, action.nameIncludes)) return false
-            // whileCombinedFilter（BS10-084虚実の口Lv2＝「【合体時】効果を持つスピリットカード」）：
-            // トラッシュのカードが対象なので、カード静的な effects に whileCombined:true のエントリがあるかで判定する
-            if (action.whileCombinedFilter === true && !candidate.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) {
-                return false
-            }
-            if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
-            if (isTrashCardProtected(candidateId)) return false
-            // onlyBurstDestroyedCard（BS15-073五輪転生炎）：そのバースト発動のきっかけになった破壊で
-            // 落ちたカードだけが対象（burst.destroyedAsTargetがtargetInstanceIdの枠に入れたcardIdと一致）
-            if (action.onlyBurstDestroyedCard && candidateId !== ctx.targetInstanceId) return false
-            // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
-            // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
-            if (action.payCost) {
-                const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
-                    (sum, i) => sum + i.cores,
-                    0,
-                )
-                if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
-                    return false
-                }
-            }
-            return true
-        }
+        const matchesCardId = (candidateId: string): boolean =>
+            summonFromTrashFreeCandidateMatches(state, owner, action, candidateId, ctx.targetInstanceId)
         // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定／召喚時効果の抑止）
         const trashSummonOpts = {
             ...(action.payCost ? { payCost: action.payCost } : {}),
