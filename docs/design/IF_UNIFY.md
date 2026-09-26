@@ -78,3 +78,16 @@ pay で旧 type に残した BS13-024・BS13-060・BS15-067 も、この `last`�
 1. 調査役：`last` の記録の置き場と、記録するハンドラ（mill・reveal・discard・returnToHand・destroy）の差し込み先をこのファイル §5 に書く
 2. 実装役：`if`・`cond`（last／state／event）・`lastCount`／`lastCost`・`sameAsLast` を足す（器の PR。カードはまだ移さない）
 3. データ役：§2 の表どおりにカードを移し、旧 type を消す（移行の PR）
+
+## §5 器の確定スキーマ（2026-09-27。PR を2つに分ける）
+
+**器 PR 1（`feat/if-core`）**：
+- アクション `{ type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction }`（`control.ts`。複数なら `then` に `sequence`）
+- `IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number }`。
+  `last`＝`GameState.lastMoved` に `CardPick` を満たすカードが1枚以上。`count`＝既存カウンタとの比較（新しい条件の語彙を作らない）
+- `CardPick`＝`reveal.pick` を名前付きの型に切り出したもの（判定は revealAction.ts の `matchesPick` を export して共用）
+- `EffectCounter` に `"lastMoved"`（`lastMoved.length`）
+- `GameState.lastMoved: string[]`：記録するアクションが**完了時に上書き**（0枚なら空）。PR 1 で書くのは `mill`・`reveal`（オープンしたカード全部）。
+  **`sequence` の開始時に空にする**（前半を選ばなかったときに前の効果の記録を見ないため＝Q4）
+
+**器 PR 2**：`cond.event`・`lastCost`・`sameAsLast`、破棄／手札に戻す／破壊の記録。そのあと §2 の表どおりに移行し、`lastMillHadBurst` を消す。

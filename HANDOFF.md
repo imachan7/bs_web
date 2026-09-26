@@ -69,7 +69,7 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 
 ### M2 `if`：答えをもらった（2026-09-27）→ 器を作る（ブランチ `feat/if-core`）
 
-答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。次は §4 の1（調査役）→2（器の PR）→3（移行の PR）。
+答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（PR 1＝`if`・`cond.last/count`・`lastMoved`。名前を変えない）**。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
