@@ -87,11 +87,11 @@
 | coreSqueezeOne（10）／coreSqueezeAll（2） | count 1・leaveAtLeast 1・target one（targets＝旧 count）／all。anySide→any、Squeeze All は side both |
 | coreRemoveDistributed（2） | target spread・leaveAtLeast・chooser |
 | coreRemoveAllOpponent（1）／coreToTrashAllByCost（1） | target all（後者は filter maxCost・count 1・to trash） |
-| coreToOpponentTrashChoice（3） | from [spirit, nexus]（spiritsOnly→[spirit]、includeReserve→＋reserve）・to trash・target one・chooser |
+| coreToOpponentTrashChoice（3） | from [spirit, nexus]（spiritsOnly→[spirit]）・to trash・target one・chooser。includeReserve（BS03-075 犬人マードック「フィールド/リザーブから」）は from [spirit, nexus, reserve]・target spread |
 | opponentCoresToTrash（3） | from [spirit, nexus, reserve]・to trash・target spread（reserveAll→from [reserve]・count "all"） |
 | opponentNexusOrReserveCoreToTrash（1） | from [nexus, reserve]・to trash・target spread |
 | coreToVoidOwn（1） | side own・from [spirit, nexus, trash]・to void・target spread |
-| bothSidesCoreToTrash（2）／bothSidesCoreToVoid（1） | side both・target spread（BS01-087 は1体指定＝target one）・to trash／void（後者は from [spirit, nexus]） |
+| bothSidesCoreToTrash（2）／bothSidesCoreToVoid（1） | side both・target spread・chooser owner（「お互い、それぞれの」）。BS01-087 は使用者が「指定する」ので target one・chooser 無し。to trash／void（後者は from [spirit, nexus]） |
 | destroyerCoresToTrash（2） | target event・count "all"・to trash |
 | coreDrainToLowerLevel（1） | count "toLowerLevel"・to trash |
 | voidCoresFromField（1） | pay { cost: removeCores{side own・from [spirit, nexus]・to void・spread・count 3}, then: removeCores{同・side opponent・count 4} } |
