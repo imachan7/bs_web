@@ -1,12 +1,10 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, DestroyContext, EffectAction, EffectDef, GameAction, GameState, PaySource, PendingChoice, PlayerId, ResumeFrame } from "../type"
+import type { CardInstance, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     coresForLevel,
     createInstance,
     currentLevel,
-    fieldInstanceIdsOf,
-    findInstanceAnywhere,
     findNexus,
     findSpirit,
     getCard,
@@ -18,68 +16,47 @@ import {
     noteHandleActionEntry,
     pushResumeFrames,
     suspend,
-    resumeTriggerBatch,
 } from "./GameState"
-import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { destroyTargetsBatch, fireQueuedDestroyBursts, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
-import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
-import type { EffectAttempt } from "../../../shared/rules"
+import { endTurn, toAttackPhase } from "./PhaseManager"
+import { fireQueuedDestroyBursts } from "./removal"
 import { blockRequiredCount } from "../../../shared/block"
-import { AWAKEN_FROM_RESERVE, timedBattleContents, timedContentsOn, activeConstraintsWithSource, cardHasColor, hostsOf, boardResistanceAgainst, instEffectsSuppressed, effectSources, hasKeyword, instAllCosts, instAttackRequiresCoreToll, instIsCombined, lifeDamageLimit, lifeProtectedByCostThisTurn, matchesFamilyFilter, matchesTarget, noLifeDamageByCost, protectedByBpUpToSelf, spiritHasKeyword, hasSuperAwaken, isEndStepLocked, summonExhausted, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import {
-    summonFreeFromTrashIndex,
+    AWAKEN_FROM_RESERVE,
+    timedContentsOn,
+    activeConstraintsWithSource,
+    cardHasColor,
+    hostsOf,
+    hasKeyword,
+    instAllCosts,
+    instAttackRequiresCoreToll,
+    instIsCombined,
+    matchesFamilyFilter,
+    spiritHasKeyword,
+    hasSuperAwaken,
+    isEndStepLocked,
+    summonExhausted,
+    burstSetCoresRequired,
+    shinsokuAssistCandidates,
+} from "../../../shared/rules"
+import {
     placeBurst,
-    finishBurstActivation,
-    fireOwnBurstActivated,
     attachBrave,
     detachBraveVoluntary,
-    activeConstraints,
     checkExhaustOnCoreChange,
     consumeSummonHandDiscardPay,
     destroySpirit,
-    effectActiveAtLevel,
     effectiveBp,
     emitEvent,
     exhaustSpirit,
-    applyJugekiCoreToVoid,
-    applyMagicNegateChoice,
-    applyMagicRedirectChoice,
-    applyMagicSideChoice,
-    applyMagicRepeatChoice,
-    applyHandFreeSummon,
-    applyDeckMillNegate,
-    applyProvocationUse,
     offerOpponentMainEndMagic,
-    applyReviveConfirm,
-    declineDeckMillNegate,
-    declineReviveConfirm,
-    tryHandFreeSummonOnLifeDamaged,
-    battleBp,
-    bofuCountFor,
-    declineMagicNegateChoice,
-    fireBattleWonTriggers,
     fireExhaustedTriggers,
     fireSummonSequence,
     flushPendingTenshoEvent,
     fireFieldEventTriggers,
     fireTrigger,
-    revertDestroyGroupUsage,
-    revertOncePerTurn,
-    hasArmorAgainst,
-    resistanceAgainst,
-    findSpiritAny,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
-    hasJugekiOnBlockReplace,
-    hasBofuOnBlock,
-    hasKoboOnBlock,
-    hasLifeDamageNegate,
-    tryLifeDamageMillGuard,
-    tryOwnLifeFloorByCost,
-    hasSummonedExhaustGrant,
-    instanceSymbolCount,
     instColors,
-    instHasColor,
     millDeck,
     fireNexusDeployed,
     payCost,
@@ -88,16 +65,10 @@ import {
     resolveAction,
     resolveFunsai,
     resolveKoboOnBattleEnd,
-    resolveMagic,
     resolveTensho,
     returnSpiritToHand,
     returnNexusToDeckBottom,
-    fireBounceTriggers,
     flushBounces,
-    flushBraveKeeps,
-    applyBraveKeep,
-    declineBraveKeep,
-    requestActivationConfirm,
     refreshSpirit,
 } from "./EffectModules"
 import {
@@ -106,9 +77,7 @@ import {
     validateAttack,
     validateAwaken,
     validateBlock,
-    validateCastMagic,
     validateEndTurn,
-    validatePaySources,
     validateCombineBrave,
     validateDetachBrave,
     validateMoveCore,
@@ -122,8 +91,9 @@ import {
     validateTakeLife,
     validateUseHandAbility,
 } from "./RuleValidator"
-import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
+import { doResolveChoice } from "./choice"
+import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -433,7 +403,7 @@ function doBattleSwapSummon(
 // 手順の「4. カードに維持コストを置く → 5. 召喚完了。その後、召喚時効果」に当たる
 // （docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は
 // ResumeFrame "placeSummon" から呼び直される
-function placeSummonedSpirit(
+export function placeSummonedSpirit(
     state: GameState,
     pid: PlayerId,
     inst: CardInstance,
@@ -665,7 +635,7 @@ function requestResshinsokuDestination(state: GameState, pid: PlayerId, info: Re
 }
 
 // distributeCores の選択を1件適用し、残りがあれば続けて聞く
-function applyResshinsokuDestination(
+export function applyResshinsokuDestination(
     state: GameState,
     pid: PlayerId,
     info: ResshinsokuInfo,
@@ -1180,7 +1150,7 @@ function exhaustDeclaredBlocker(
     }
 }
 
-function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
+export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
     if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
     const blocker = findSpirit(state.players[pid], instanceId)
@@ -1316,141 +1286,14 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
     return null
 }
 
-// ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
-// フラッシュ①中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
-// 解決時点の状態を読む
-function resolveLifeDamage(state: GameState): void {
-    if (!state.battle) return
-    const attackerPid = state.turnPlayer
-    const defenderPid = opponentOf(attackerPid)
-    const attacker = findSpirit(
-        state.players[attackerPid],
-        state.battle.attackerInstanceId,
-    )
-    const defender = state.players[defenderPid]
-
-    // フラッシュ中にアタッカーが破壊された等で場を離れていたら、ライフダメージなしでバトル終了
-    if (!attacker) {
-        log(state, "アタッカーが場を離れたため、ライフダメージは発生しなかった。")
-        clearBattle(state)
-        return
-    }
-
-    // ライフが減る量の上限を**1回で求める**（shared/rules.lifeDamageLimit）。
-    // 「減るか／減らないか」だった5つの門番（ダメージ打ち消し・コスト条件2種・BP条件・ターン上限）を
-    // ここに集約してある。0 なら従来どおり「受けなかった」扱い（2026-08-16 ユーザー提案）
-    const limit = lifeDamageLimit(state, defenderPid, attacker)
-    // hasLifeDamageNegate だけは GameState 依存でまだ shared に移せていないので個別に見る
-    if (limit.max === 0 || hasLifeDamageNegate(state, defenderPid, attackerPid, attacker)) {
-        log(
-            state,
-            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
-        )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
-        return
-    }
-
-    // BS07六花の司書長サーガ：ライフが減る直前にデッキを1枚破棄し、条件に合えばライフが減らない
-    if (tryLifeDamageMillGuard(state, defenderPid, attacker)) {
-        log(
-            state,
-            `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
-        )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
-        return
-    }
-
-    // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
-    // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
-    // ダメージはアタッカーのシンボル数。**上限があればそこで切り下げる**
-    //（ブリザードウォール＝1しか減らない）。ライフの残りも超えられない
-    const damage = Math.min(instanceSymbolCount(attacker), limit.max)
-    const dealt = Math.min(damage, defender.life)
-    attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
-    const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
-    defender.life -= dealt
-    if (toVoid) {
-        log(
-            state,
-            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）。コアはボイドへ消えた。`,
-        )
-    } else {
-        defender.reserve += dealt
-        log(
-            state,
-            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
-        )
-    }
-    if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
-    // event:"ownLifeDamaged"のバースト用の器（080）：このバトルでライフを減らしたスピリットを記録する
-    if (dealt > 0 && state.battle) (state.battle.lifeDamagers ??= []).push(attacker.instanceId)
-
-    if (defender.life <= 0) {
-        // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
-        if (tryOwnLifeFloorByCost(state, defenderPid)) {
-            fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
-            tryHandFreeSummonOnLifeDamaged(state, defenderPid)
-        } else {
-            state.winner = attackerPid
-            log(state, `${state.players[attackerPid].name}の勝利！`)
-        }
-    } else if (dealt > 0) {
-        // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
-        // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
-        // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
-        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
-        // 手札のカード自身が持つ「ライフが減ったとき無償召喚できる」（BS08猫娘アニー）。
-        // 場・トラッシュではなく**手札**が発生源なので、フィールド誘発の走査では拾えない
-        tryHandFreeSummonOnLifeDamaged(state, defenderPid)
-    }
-    // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
-    // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
-    if (dealt > 0) {
-        fireTrigger(state, attackerPid, attacker, "onLifeDealt")
-        // フィールドイベント誘発「自分のスピリットのアタックによって相手のライフを減らしたとき」
-        // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
-        if (!state.winner) {
-            fireFieldEventTriggers(
-                state,
-                attackerPid,
-                "ownSpiritDealtLife",
-                { pid: attackerPid, inst: attacker },
-                instColors(attacker),
-            )
-        }
-    }
-
-    resolveKoboOnBattleEnd(state, attackerPid, attacker)
-    clearBattle(state)
-}
-
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
 // 起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
 // 記録が消えるので、同じターンにもう一度起動ボタンを押せる（2026-08-21 ユーザー確定）
-function revertActivatedUse(inst: CardInstance, effectId: string): void {
+export function revertActivatedUse(inst: CardInstance, effectId: string): void {
     if (!inst.activatedUsedTurn) return
     const rest = { ...inst.activatedUsedTurn }
     delete rest[effectId]
     inst.activatedUsedTurn = rest
-}
-
-// 選択を「やめた」ときに、「ターンに1回」を巻き戻す
-// （起動能力＝PendingChoice.revertActivated／誘発＝revertTriggered。2026-09-16）
-function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): void {
-    const r = pending.revertActivated
-    if (r) {
-        const inst = findInstanceAnywhere(state, r.instanceId)
-        if (inst) revertActivatedUse(inst, r.effectId)
-    }
-    const t = pending.revertTriggered
-    if (t) {
-        const inst = findInstanceAnywhere(state, t.instanceId)
-        if (inst) revertOncePerTurn(inst, t.effectId)
-        // 同時破壊グループの仮消費も戻す（キーが無ければ何もしない。fix/destroyed-trigger-once）
-        revertDestroyGroupUsage(state, t.instanceId, t.effectId)
-    }
 }
 
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
@@ -1613,551 +1456,6 @@ function doActivateAbility(
     return null
 }
 
-// pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
-// instanceId 省略時は「選ばない」（optional な選択のみ許可）。
-// 選択実行後、退避していた queue（同一トリガー内の残りの誘発）を先頭から順に消化する。
-// 途中で新たな pendingChoice が立てば、残りの queue をそちらへ引き継いで中断する。
-function doResolveChoice(
-    state: GameState,
-    pid: PlayerId,
-    instanceId?: string,
-    option?: string,
-    cardIndex?: number,
-    // 「コストを支払って召喚できる」起動効果（summonFromHandFree の payCost）で、
-    // リザーブの不足分をフィールドのコアから払うための指定。通常の召喚と同じ支払いUIから届く
-    paySources?: PaySource[],
-): string | null {
-    const pending = state.pendingChoice
-    if (!pending) return "選択待ちの効果がありません"
-    if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
-
-    // マジックの無効化の確認（鏡の回廊Lv2／【氷壁】）。action は解決せず、
-    // 「無効にする」ならコストを払ってマジックの効果を捨て、選ばなければ中断していた解決を続ける
-    if (pending.magicNegate) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.magicNegate
-        state.pendingChoice = null
-        if (option !== undefined) {
-            applyMagicNegateChoice(state, info)
-        } else {
-            log(state, `${getCard(info.cardId).name}の効果を無効にしなかった。`)
-            declineMagicNegateChoice(state, info)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 複数体ブロック（blockRequiresCount）で、アタック側がバトル相手を選ぶ待ち。action は解決しない
-    // （BS10-X03巨蟹武神キャンサード：「どれか1体とだけバトルする」）
-    if (pending.blockBattlePick) {
-        if (instanceId === undefined || !pending.candidates.includes(instanceId)) {
-            return "選択できない対象です"
-        }
-        const blockerPid = pending.blockBattlePick.blockerPid
-        state.pendingChoice = null
-        if (!state.battle) return null
-        state.battle.extraBlockerIds = pending.candidates.filter((id) => id !== instanceId)
-        finishBlockDeclaration(state, blockerPid, instanceId)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 手札からの無償召喚の確認（BS08猫娘アニー）。action は解決しない
-    if (pending.handFreeSummon) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.handFreeSummon
-        state.pendingChoice = null
-        if (option !== undefined) {
-            applyHandFreeSummon(state, info)
-        } else {
-            log(state, `${getCard(info.cardId).name}：手札から召喚しなかった。`)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 手札から破棄されたカード自身の無償召喚の確認（BS09-025忍者サルトベ）。action は解決しない
-    if (pending.trashFreeSummon) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.trashFreeSummon
-        state.pendingChoice = null
-        if (option !== undefined) {
-            // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばIDで取り直す
-            const trash = state.players[info.pid].trashCards
-            const index = trash[info.trashIndex] === info.cardId ? info.trashIndex : trash.lastIndexOf(info.cardId)
-            if (index !== -1) summonFreeFromTrashIndex(state, info.pid, getCard(info.cardId).name, index)
-        } else {
-            log(state, `${getCard(info.cardId).name}：トラッシュから召喚しなかった。`)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 「破壊される代わりに復活できる」の確認。action は解決せず、
-    // 選べばコストを払って復活が確定し、選ばなければ見送っていた破壊をここで行う
-    if (pending.reviveConfirm) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const entry = pending.reviveConfirm
-        state.pendingChoice = null
-        if (option !== undefined) {
-            applyReviveConfirm(state, entry)
-        } else {
-            declineReviveConfirm(state, entry)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 合体スピリットが場を離れたときの「ブレイヴを残しますか？」の確認（BRAVE.md §6.3）。
-    // action は解決せず、選べばコアを置いてフィールドへ戻し、選ばなければトラッシュへ置く
-    if (pending.braveKeep) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.braveKeep
-        // 支払い元の検証は召喚と同じ形。**指定が無いときは検証しない**（リザーブで足りなければ
-        // applyBraveKeep がフィールドのコアから自動で補う。AI・自動応答はここを通る）
-        if (option !== undefined && paySources !== undefined) {
-            const invalid = validatePaySources(state, info.pid, info.need, paySources)
-            if (invalid) return invalid
-        }
-        state.pendingChoice = null
-        if (option !== undefined) applyBraveKeep(state, info, paySources)
-        else declineBraveKeep(state, info)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 器AR（BS13-034）：デッキ破棄効果で破棄されたこのカードを、コストを支払わず召喚するかの確認。action は解決しない
-    if (pending.spiritMillFreeSummon) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.spiritMillFreeSummon
-        state.pendingChoice = null
-        if (option !== undefined) {
-            applySpiritMillFreeSummon(state, info)
-        } else {
-            declineSpiritMillFreeSummon(state, info)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 【不死】（BS09）：トラッシュのこのカードを、コストを支払って召喚するかの確認。action は解決しない
-    if (pending.fushiSummon) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.fushiSummon
-        state.pendingChoice = null
-        if (option === "魔門を疲労させて無償で召喚する") {
-            // BS15-064冥府へ続く魔門Lv2：未疲労の魔門を疲労させ、コストを支払わずに召喚する（召喚時効果は発揮されない）
-            applyFushiSummon(state, info, true)
-        } else if (option !== undefined) {
-            applyFushiSummon(state, info)
-        } else {
-            log(state, `${getCard(info.cardId).name}：【不死】で召喚しなかった。`)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 同時に発揮する誘発のうち「どれから解決するか」（ターンプレイヤーが決める）。
-    // action は解決せず、選ばれた番号を記録して誘発バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
-    if (pending.triggerOrder) {
-        const options = pending.options ?? []
-        if (option === undefined) return "どの効果から解決するか選んでください"
-        const index = options.indexOf(option)
-        if (index < 0 || index >= pending.triggerOrder.count) return "選択できない候補です"
-        state.pendingChoice = null
-        state.triggerOrderPick = index
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 同時に破壊される複数体のうち「どの体から破壊処理をするか」（ターンプレイヤーが決める）。
-    // action は解決せず、選ばれた個体を記録して破壊バッチの再開へ戻す（docs/design/TIMING_CHART.md §0-3）
-    if (pending.destroyOrder) {
-        const options = pending.options ?? []
-        if (option === undefined) return "どのスピリットから破壊処理をするか選んでください"
-        const index = options.indexOf(option)
-        const picked = pending.destroyOrder.instanceIds[index]
-        if (index < 0 || picked === undefined) return "選択できない候補です"
-        state.pendingChoice = null
-        state.destroyOrderPick = picked
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 【烈神速】：トラッシュのコアの置き先を1個ぶん選ぶ（BS16-X03）。action は解決せず、
-    // 選んだ置き先へ1個（一括なら残り全部）置いてから、残っていればまた同じ選択を出す
-    if (pending.distributeCores) {
-        const options = pending.options ?? []
-        if (option === undefined) return "コアの置き先を選んでください"
-        const index = options.indexOf(option)
-        const destination = pending.distributeCores.destinations[index]
-        if (index < 0 || destination === undefined) return "選択できない候補です"
-        const info = pending.distributeCores
-        state.pendingChoice = null
-        applyResshinsokuDestination(state, pid, info, destination)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pid)
-    }
-
-    // 「デッキの破棄を、コストを払って無効にできる」の確認（BS08鳳翼の聖剣Lv2）。action は解決せず、
-    // 選べばコストを払って破棄が無効になり、選ばなければ見送っていた破棄をここで行う
-    if (pending.deckMillNegate) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const entry = pending.deckMillNegate
-        state.pendingChoice = null
-        if (option !== undefined) {
-            applyDeckMillNegate(state, entry)
-        } else {
-            declineDeckMillNegate(state, entry)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 「相手のメインステップ終了時に使用できる」マジックの使用確認（BS15-079プロボケイション）。
-    // action は解決せず、選べば使用してからアタックステップへ、選ばなくてもそのままアタックステップへ進む
-    // アタックステップ終了後に行うステップの選択（BS15-X04 機獣要塞ナウマンガルド Lv2）。断れない
-    if (pending.extraStepChoice) {
-        if (option === undefined || !(EXTRA_STEP_OPTIONS as readonly string[]).includes(option)) {
-            return "行うステップを選んでください"
-        }
-        state.pendingChoice = null
-        runExtraStep(state, option)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    if (pending.provocationUse) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const entry = pending.provocationUse
-        state.pendingChoice = null
-        if (option !== undefined) {
-            applyProvocationUse(state, entry)
-        } else {
-            log(state, `${getCard(entry.cardId).name}：使用しなかった。`)
-        }
-        if (state.winner) return null
-        // 使わなかった直接ターン終了は endTurn に任せる（phase が main なのでアタックステップを経由する）
-        if (option === undefined && entry.endTurnIfDeclined) endTurn(state)
-        else toAttackPhase(state)
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 再発揮の確認（BS07大天使イスフィール）。action は解決せず、
-    // 選べば効果の並びをもう1周し、選ばなければマジック使用時の誘発へ進む
-    if (pending.magicRepeat) {
-        const options = pending.options ?? []
-        if (option === undefined) return "もう1度発揮するかどうか選んでください"
-        const index = options.indexOf(option)
-        if (index < 0) return "選択できない候補です"
-        const info = pending.magicRepeat
-        state.pendingChoice = null
-        applyMagicRepeatChoice(state, info, index === 0) // 0=もう1度発揮する
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 無償化の使用時確認（BS07大天使イスフィールほか）。action は解決せず、
-    // 答えを持って doCastMagic をやり直す（コストの支払いはそのやり直しの中で行う）
-    if (pending.magicFreeChoice) {
-        const options = pending.options ?? []
-        if (option === undefined) return "コストを支払うかどうか選んでください"
-        const index = options.indexOf(option)
-        if (index < 0) return "選択できない候補です"
-        const info = pending.magicFreeChoice
-        state.pendingChoice = null
-        const error = doCastMagic(
-            state,
-            pending.pid,
-            info.handIndex,
-            info.targetInstanceId,
-            info.paySources,
-            info.fromTegamoto,
-            index === 0, // 0=コストを支払わずに使用する
-        )
-        if (error) return error
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 対象の変更の確認（BS02封印された魔導書Lv1）。action は解決せず、
-    // どちらを対象として残すかを記録してから、中断していたマジックの解決を続ける。
-    // options の並びは BOTH_SIDES_REDIRECT_OPTIONS（0=変更しない / 1=相手のみ / 2=自分のみ）で、
-    // 「相手」「自分」はどちらも**魔導書の持ち主から見た**呼び方
-    if (pending.magicSideChoice) {
-        const options = pending.options ?? []
-        if (option === undefined) return "対象をどちらに変更するか選んでください"
-        const index = options.indexOf(option)
-        if (index < 0) return "選択できない候補です"
-        const info = pending.magicSideChoice
-        state.pendingChoice = null
-        const keepPid =
-            index === 0 ? null : index === 1 ? opponentOf(info.ownerPid) : info.ownerPid
-        applyMagicSideChoice(state, info, keepPid)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    // 対象の絞り込みの確認（BS04サンク／BS05スノーホワイト）。action は解決せず、
-    // 承認・拒否のどちらでも中断していたマジックの解決を続ける（絞り込むかだけが変わる）
-    if (pending.magicRedirect) {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        const info = pending.magicRedirect
-        state.pendingChoice = null
-        if (option === undefined) {
-            const source = findInstanceAnywhere(state, info.sourceInstanceId)
-            const name = source ? getCard(source.cardId).name : "効果"
-            log(state, `${name}：${getCard(info.cardId).name}の対象を絞り込まなかった。`)
-        }
-        applyMagicRedirectChoice(state, info, option !== undefined)
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    if (pending.kind === "option") {
-        if (option !== undefined && !(pending.options ?? []).includes(option)) {
-            return "選択できない候補です"
-        }
-        if (option === undefined && !pending.optional) {
-            return "選択肢を選んでください"
-        }
-        state.pendingChoice = null
-        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
-        // 実行者は actorPid（省略時は選択者自身）。「相手に選ばせて自分の効果として解決する」形に対応する
-        const actor = pending.actorPid ?? pending.pid
-        if (option !== undefined) {
-            // confirm（「〜できる」の発動確認）は選んだラベルを渡さない。
-            // 渡すと、選択肢を解釈するアクション（grantColorChoice 等）が誤動作する
-            if (pending.confirm) {
-                // 発動を選んだ側もログに残す（発動しなかった場合と対になる。発生源がログから追えるように）
-                log(state, `${self ? getCard(self.cardId).name : "効果"}：効果を発動した。`)
-                if (pending.burstThenPay) {
-                    // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
-                    const info = pending.burstThenPay
-                    state.players[info.pid].reserve -= info.cost
-                    log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
-                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
-                    resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
-                } else if (pending.burstActivate) {
-                    // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
-                    // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
-                    // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
-                    const info = pending.burstActivate
-                    const before = fieldInstanceIdsOf(state, info.pid)
-                    // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
-                    state.resolvingBurstPid = info.pid
-                    // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
-                    // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う
-                    if (info.burstEventCostOptions !== undefined) {
-                        const idx = (pending.options ?? []).indexOf(option)
-                        state.burstEventCost = info.burstEventCostOptions[idx] ?? Math.max(...info.burstEventCostOptions)
-                    } else if (info.burstEventCost !== undefined) {
-                        state.burstEventCost = info.burstEventCost
-                    } else {
-                        delete state.burstEventCost
-                    }
-                    // BS16共通器：条件{burstDestroyedColor}用
-                    if (info.burstEventColors !== undefined) state.burstEventColors = info.burstEventColors
-                    else delete state.burstEventColors
-                    if (info.burstEventLifeDamagerId !== undefined) state.burstEventLifeDamagerId = info.burstEventLifeDamagerId
-                    else delete state.burstEventLifeDamagerId
-                    // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
-                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
-                    const burstCard = getCard(info.cardId)
-                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId)
-                    delete state.resolvingBurstPid
-                    if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
-                    if (!state.pendingChoice) {
-                        finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay, info.toHand ? { toHand: true } : undefined)
-                        if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
-                    }
-                } else {
-                    delete state.effectFizzled
-                    resolveAction(state, actor, self, pending.action)
-                    // 発動を選んだがコストを払えず不発だった＝発揮していないので「ターンに1回」を戻す（2026-09-16）
-                    if (state.effectFizzled) revertActivatedIfSkipped(state, pending)
-                    delete state.effectFizzled
-                }
-            } else {
-                resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
-            }
-        } else {
-            const name = self ? getCard(self.cardId).name : "効果"
-            log(state, pending.confirm ? `${name}：効果を発動しなかった。` : `${name}：選択しなかった。`)
-            // 「〜できる」を断った＝発揮していないので「ターンに1回」を戻す（2026-09-16）
-            revertActivatedIfSkipped(state, pending)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    if (pending.kind === "card") {
-        if (cardIndex !== undefined && !(pending.cardIndices ?? []).includes(cardIndex)) {
-            return "選択できない対象です"
-        }
-        if (cardIndex === undefined && !pending.optional) {
-            return "対象を選択してください"
-        }
-        state.pendingChoice = null
-        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
-        if (cardIndex !== undefined) {
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex, undefined, paySources)
-        } else if (pending.resolveOnSkip) {
-            // 「選び終わったら後処理がある」効果（BS08堕天使ミカファール：破棄した枚数ぶんドローする）。
-            // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
-        } else {
-            // 起動能力から出た選択をやめた＝発揮しなかった扱いにして、同じターンにもう一度起動できるようにする
-            revertActivatedIfSkipped(state, pending)
-            log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
-        }
-        if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
-    }
-
-    if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
-        return "選択できない対象です"
-    }
-    if (instanceId === undefined && !pending.optional) {
-        return "対象を選択してください"
-    }
-
-    state.pendingChoice = null
-    const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
-
-    if (instanceId !== undefined) {
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId)
-    } else if (pending.resolveOnSkip) {
-        // 「選び終わったら後処理がある」効果（予算内で好きなだけ破壊するトグル選択）。
-        // スキップ＝「これで確定」の合図なので、対象なしで action をもう一度解決させる
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
-    } else {
-        log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
-    }
-    if (state.winner) return null
-    return finishChoiceResolution(state, pending.pid)
-}
-
-// 選択解決後の共通後処理：queue を消化し、消化しきって新たな選択待ちも無く勝敗も未決なら、
-// ステップ誘発の pendingChoice で中断していたターン開始処理を続きのステップから再開する
-// （百識の谷Lv1のドローステップ破棄選択など。中断していなければ resumeTurnStart は no-op）。
-function finishChoiceResolution(state: GameState, pid: PlayerId): string | null {
-    drainResumeStack(state, pid)
-    return null
-}
-
-// 再開スタック（中断された残りの処理）を先頭から1つずつ消化する。
-//
-// **中断が起きたら、その場で止めるだけでよい**（残りはスタックに載ったまま）。
-// 新しい中断で積まれたフレームは pushResumeFrames が「今回の領域の末尾」＝古いフレームより前へ
-// 入れるので、配列は常に「内側 → 外側 → 古いもの」の正しい実行順に並ぶ。
-// 移行前は queue を引数で持ち回り、中断のたびに新しい pendingChoice へ積み直していた
-// （docs/design/RESUME_STACK.md §2・§3）
-function drainResumeStack(state: GameState, pid: PlayerId): string | null {
-    // 直前のアクションが新しい選択待ちを立てていたら、消化せずそのまま中断を続ける
-    // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
-    // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
-    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0)) {
-        // 脇に置いたままのブレイヴ（BRAVE.md §6.3）を先に決着させる。detachBravesOnLeave 直後の
-        // 確認が別の中断に上書きされていても、ここで聞き直せる（エントリは答えるまで消えない）
-        flushBraveKeeps(state)
-        if (state.pendingChoice || state.resumeStack.length === 0) continue
-        const frame = state.resumeStack.shift()
-        if (!frame) continue
-        if (frame.kind === "placeSummon") {
-            // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
-            placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId)
-            continue
-        }
-        if (frame.kind === "endTurn") {
-            // メインから直接ターン終了して経由したアタックステップの開始時誘発が片付いたので、ターン終了をやり直す
-            endTurn(state)
-            continue
-        }
-        if (frame.kind === "turnStart") {
-            // 中断していたターン開始処理を続きのステップから再開する
-            // （百識の谷Lv1のドローステップ破棄選択など）
-            driveTurnStart(state, frame.step, frame.until)
-            continue
-        }
-        if (frame.kind === "destroyBatch") {
-            resumeDestroyBatch(state, frame)
-            continue
-        }
-        if (frame.kind === "destroyNexusCommit") {
-            // 破壊待機状態のまま中断していたネクサスの破壊処理を続ける
-            resumeDestroyNexusCommit(state, frame)
-            continue
-        }
-        if (frame.kind === "destroyCommit") {
-            // 破壊待機状態のまま中断していた破壊処理（誘発の残り＋トラッシュ行き）を続ける
-            resumeDestroyCommit(state, frame)
-            continue
-        }
-        if (frame.kind === "bounceFlush") {
-            // バウンス待機から実際に戻したあとの誘発が中断していた。残りの体ぶんを続ける
-            fireBounceTriggers(state, frame.moved, frame.index)
-            continue
-        }
-        if (frame.kind === "battleResolve") {
-            // 中断していたバトル解決（＞６破壊処理〜＞７バトル終了）を続きのステップから再開する
-            resumeBattleResolution(state, frame)
-            continue
-        }
-        if (frame.kind === "triggerBatch") {
-            resumeTriggerBatch(state, frame)
-            continue
-        }
-        // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
-        // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
-        // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
-        if (frame.requiresPendingDestructionOf !== undefined) {
-            const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
-            if (target == null || target.pendingDestruction !== true) continue
-        }
-        // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
-        if (frame.logText !== undefined) log(state, frame.logText)
-        const frameSelf = frame.selfInstanceId
-            ? findInstanceAnywhere(state, frame.selfInstanceId) ?? null
-            : null
-        // optional な誘発の残りは、解決ではなく**発動確認から**再開する
-        if (frame.confirmPrompt !== undefined) {
-            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf)
-            continue
-        }
-        // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る
-        resolveAction(
-            state,
-            frame.actorPid ?? pid,
-            frameSelf,
-            frame.action,
-            frame.targetInstanceId,
-            frame.sourceColors,
-            frame.sourceType,
-        )
-    }
-    return null
-}
-
 // 降参：相手の勝利としてただちにゲームを終了する。
 // 進行中のバトル・フラッシュ・選択待ちはすべて破棄する（勝敗が決まった後は誰も操作しないため、
 // 中途半端な状態を残さない）
@@ -2200,519 +1498,4 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         // ライフ受けはフラッシュ②を開かず宣言時に即解決するため、ここでは扱わない
     }
     return null
-}
-
-// 指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
-// 自動的に成立させる。validateBlock/doBlock を経由しないため**疲労状態でもブロックさせられる**
-// （2026-09-06 ユーザー確認：指定された側は疲労のままブロック宣言する）。
-// 指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もしない＝**通常のアタックに戻る**
-// （このあと防御側の block/takeLife 待ちに落ちる。アタック宣言後のフラッシュタイミングは消さない）
-function resolveDirectedBlock(state: GameState): void {
-    if (!state.battle) return
-    const id = state.battle.directedTargetInstanceId
-    delete state.battle.directedTargetInstanceId
-    const defenderPid = opponentOf(state.turnPlayer)
-    const attacker = findSpirit(state.players[state.turnPlayer], state.battle.attackerInstanceId)
-    const target = id !== undefined ? findSpirit(state.players[defenderPid], id) : undefined
-    // アタッカーが場を離れた／指定アタックの効果そのものを失った場合も通常のアタックに戻る
-    // （2026-09-04 ユーザー確認。BS12-008 は Lv1-3 すべてで発揮するのでレベル低下は見なくてよい）
-    const resisted =
-        target && attacker
-            ? boardResistanceAgainst(state, defenderPid, target, {
-                  actorPid: state.turnPlayer,
-                  op: "other",
-                  scope: "targeted",
-                  sourceType: "spirit",
-                  sourceColors: instColors(attacker),
-              })
-            : null
-    if (target && attacker && !instEffectsSuppressed(attacker) && !resisted) {
-        finishBlockDeclaration(state, defenderPid, id!)
-    }
-    // アタッカーの『このスピリットのバトル時』は、指定アタックでは**ブロックが確定したこの時点**で
-    // 発揮する（アタック宣言の時点ではまだ相手が決まっていないため。BS11-X02 滅神星龍ダークヴルム・ノヴァの
-    // 「相手の合体スピリットとバトルしたとき」がブロッカーを見る）。通常のアタックでは doAttack の中で
-    // 発揮するので、二重には発揮しない
-    if (!state.winner && state.battle && attacker) {
-        fireTrigger(state, state.turnPlayer, attacker, "onBattleStart")
-    }
-}
-
-// ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）
-function resolveBattle(state: GameState): void {
-    if (!state.battle) return
-    const attackerPid = state.turnPlayer
-    const defenderPid = opponentOf(attackerPid)
-    const attacker = findSpirit(
-        state.players[attackerPid],
-        state.battle.attackerInstanceId,
-    )
-    const blocker = state.battle.blockerInstanceId
-        ? findSpirit(state.players[defenderPid], state.battle.blockerInstanceId)
-        : undefined
-
-    if (!attacker || !blocker) {
-        clearBattle(state)
-        return
-    }
-
-    // 直前のバトル解決の記録をリセット（魔界七将デストロード：coreGain countCounter "lastBattleDestroyedCores"）
-    state.lastBattleDestroyedCores = 0
-    // 直前のバトル解決の記録をリセット（魔界伯爵ヴィール：exhaust の filter.sameLevelAsBattleLoser）
-    state.lastBattleDestroyedLevel = 0
-    // 「BPを比べ相手のスピリットだけを破壊した」ときの破壊された側の色・系統
-    // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
-    state.lastBattleDestroyedColors = []
-    delete state.lastBattleDestroyedInstanceId
-    state.lastBattleDestroyedFamilies = []
-    state.lastBattleDestroyedBp = 0
-    state.lastBattleDestroyedCost = 0
-
-    // ブロッカーの疲労（と「ブロックしても疲労しない」の判定）はブロック宣言時に済んでいる（exhaustDeclaredBlocker）
-    const attackerColors = instColors(attacker)
-    // 【暴風】を『このスピリットのブロック時』へ差し替える継続付与（BS07大風車の丘Lv2）。
-    // 本来は「アタックしてブロックされたとき」だが、これがある間はブロックした側が発揮する。
-    // 疲労させられるのはアタッカー側で、既に疲労しているアタッカー自身は除く（excludeTarget）
-    if (hasBofuOnBlock(state, defenderPid)) {
-        const count = bofuCountFor(state, defenderPid, blocker)
-        if (count > 0) {
-            resolveAction(
-                state,
-                defenderPid,
-                blocker,
-                { type: "exhaust", count, chooserIsTarget: true, excludeTarget: true },
-                attacker.instanceId,
-            )
-        }
-    }
-    // 疲労誘発でアタッカー／ブロッカーが消滅したらバトルは成立しない（BS05藍紫の虚空Lv1のような
-    // 「疲労したときコアを置く」効果は、ブロックの疲労でも発火してその場で消滅させうる）
-    if (state.winner) return
-    if (
-        !findSpirit(state.players[attackerPid], attacker.instanceId) ||
-        !findSpirit(state.players[defenderPid], blocker.instanceId)
-    ) {
-        clearBattle(state)
-        return
-    }
-    // BS09-044妖精の姫巫女ハマ・ドリュアス：ブロッカーがLv1なら、**BPを比べずに**
-    // 「ブロックされなかった」ものとして扱う（＝ライフに通る。どちらも破壊されず、
-    // ブロッカーは疲労したまま場に残る。BS09_PLAN.md §4。2026-08-14 ユーザー確認）
-    if (state.battle.treatAsUnblockedIfBlockerLevel1 && currentLevel(blocker).level === 1) {
-        log(
-            state,
-            `${getCard(blocker.cardId).name}はLv1のため、BPを比べずブロックされなかったものとして扱う。`,
-        )
-        resolveLifeDamage(state)
-        return
-    }
-    // SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら同じ扱い（判定だけが違う一般化版）
-    if (
-        state.battle.treatAsUnblockedIfLevelAtLeastBlocker &&
-        currentLevel(attacker).level >= currentLevel(blocker).level
-    ) {
-        log(
-            state,
-            `${getCard(attacker.cardId).name}は${getCard(blocker.cardId).name}と同じLv以上のため、BPを比べずブロックされなかったものとして扱う。`,
-        )
-        resolveLifeDamage(state)
-        return
-    }
-    // BS15-045虚獣帝スフィン・クロス：action:"unblockedByVoidSelfCore" がonBlocked時に立てる印
-    if (state.battle.treatAsUnblockedByCost) {
-        log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)
-        resolveLifeDamage(state)
-        return
-    }
-    // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
-    const attackerBp = battleBp(state, attackerPid, attacker)
-    const blockerBp = battleBp(state, defenderPid, blocker)
-    // バトルによる破壊コンテキストに載せる「破壊した側（勝者）」のレベル（子供部屋 午前0時の
-    // byBattleKillerLevel判定用）。命名はattackerColorと同じく歴史的なもので、実際は勝者側の値
-    const attackerLevel = currentLevel(attacker).level
-    const blockerLevel = currentLevel(blocker).level
-
-    log(
-        state,
-        `${getCard(blocker.cardId).name}（BP${blockerBp}）が${getCard(attacker.cardId).name}（BP${attackerBp}）をブロック！`,
-    )
-
-    // エンジェルボイス：バトル解決時、BPの代わりにLvを比較する（Lvが低い方が破壊される。同Lvは相打ち）
-    const battleContents = timedBattleContents(state)
-    const compareBy = (by: "level" | "cores" | "cost") => battleContents.some((c) => c.type === "compareBy" && c.by === by)
-    const compareByLevel = compareBy("level")
-    if (compareByLevel) {
-        log(state, "バトル解決：BPの代わりにLvを比較する。")
-    }
-    // イマジンフィールド：バトル解決時、BPの代わりにコアの数を比較する（コアが少ない方が破壊される。同数は相打ち）
-    const compareByCores = compareBy("cores")
-    if (compareByCores) {
-        log(state, "バトル解決：BPの代わりにコアの数を比較する。")
-    }
-    // ノックアウト：バトル解決時、BPの代わりにコストを比較する（コストが低い方が破壊される。同コストは相打ち）
-    const compareByCost = compareBy("cost")
-    if (compareByCost) {
-        log(state, "バトル解決：BPの代わりにコストを比較する。")
-    }
-    const attackerValue = compareByLevel
-        ? currentLevel(attacker).level
-        : compareByCores
-          ? attacker.cores
-          : compareByCost
-            ? getCard(attacker.cardId).cost
-            : attackerBp
-    const blockerValue = compareByLevel
-        ? currentLevel(blocker).level
-        : compareByCores
-          ? blocker.cores
-          : compareByCost
-            ? getCard(blocker.cardId).cost
-            : blockerBp
-
-    // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。
-    // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない
-    // （docs/design/TIMING_CHART.md §2。『BPを比べ相手のスピリットだけを破壊したとき』は
-    // 敗者が生き残っても発揮する）
-    // 器AV：BS13-082ペガサスフラップ「BPを比べずにバトルを終了させる」。BP比較自体を飛ばし、
-    // どちらも破壊されない（勝敗が付かない＝onBattleWin/onBattleLose/fireBattleWonTriggersも発火しない）
-    const rawOutcome: BattleOutcome = state.battle.skipBpCompare
-        ? "none"
-        : attackerValue > blockerValue
-            ? "attackerWins"
-            : attackerValue < blockerValue
-              ? "blockerWins"
-              : "mutual"
-    // invertBattleWinner（P070カオティック・リクゴー）＝勝敗を反転し、値が高い方を破壊する
-    // （同値の相打ちはそのまま。BPそのものではなくcompareBy*の代替比較にも同じく効く）
-    const outcome: BattleOutcome =
-        battleContents.some((c) => c.type === "invertBattleWinner") && (rawOutcome === "attackerWins" || rawOutcome === "blockerWins")
-            ? rawOutcome === "attackerWins"
-                ? "blockerWins"
-                : "attackerWins"
-            : rawOutcome
-    if (state.battle.skipBpCompare) {
-        log(state, "バトル解決：BPを比べずにバトルを終了させる。")
-    }
-    if (outcome === "attackerWins") {
-        // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
-        state.lastBattleDestroyedCores = blocker.cores
-        state.lastBattleDestroyedInstanceId = blocker.instanceId
-        state.lastBattleDestroyedLevel = blockerLevel
-        state.lastBattleDestroyedColors = instColors(blocker)
-        state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
-        // 破壊直前の実効BP（TargetFilter.sameBpAsBattleLoser。BS03熾烈極める最前線Lv2）
-        state.lastBattleDestroyedBp = blockerBp
-        // 破壊直前のコスト（mill の countCounter:"lastBattleDestroyedCost" が読む。BS06名誉ある御前試合）
-        state.lastBattleDestroyedCost = getCard(blocker.cardId).cost
-    } else if (outcome === "blockerWins") {
-        // 破壊直前のアタッカーのコア数も同様に記録する（BS10ヘッジボルグ：role制限なしでattacker/blocker両方から発火する）
-        state.lastBattleDestroyedCores = attacker.cores
-        state.lastBattleDestroyedInstanceId = attacker.instanceId
-        state.lastBattleDestroyedColors = instColors(attacker)
-        state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
-        state.lastBattleDestroyedBp = attackerBp
-        state.lastBattleDestroyedCost = getCard(attacker.cardId).cost
-    }
-
-    driveBattleResolution(state, {
-        kind: "battleResolve",
-        step: 1,
-        attackerPid,
-        attackerInstanceId: attacker.instanceId,
-        blockerInstanceId: blocker.instanceId,
-        outcome,
-        attackerColors,
-        blockerColors: instColors(blocker),
-        attackerLevel,
-        blockerLevel,
-        attackerBp,
-        blockerBp,
-        // ＞６に入る直前の写し。破壊されると場から消えるが、『相手のスピリットに破壊されたとき』や
-        // ログのカード名は破壊後にも参照する（destroySpirit と同じく、コア数は破壊直前の値）
-        attackerSnapshot: { ...attacker, coresAtDestruction: attacker.cores },
-        blockerSnapshot: { ...blocker, coresAtDestruction: blocker.cores },
-    })
-}
-
-type BattleOutcome = "attackerWins" | "blockerWins" | "mutual" | "none"
-type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
-
-// バトル解決の最終ステップ番号（runBattleStep の switch と対応）
-const BATTLE_LAST_STEP = 12
-
-// ＞６（破壊処理）〜＞７（バトル終了宣言）を1ステップずつ進める。
-// **1ステップ＝中断しうる呼び出し1つ**にしてあるので、選択待ちが立ったら
-// 次のステップ番号を battleResolve フレームに載せて抜ければよい
-// （続きは drainResumeStack が resumeBattleResolution 経由で回す）。
-// docs/design/TIMING_CHART.md ／ docs/design/RESUME_STACK.md §7
-function driveBattleResolution(state: GameState, frame: BattleResolveFrame): void {
-    for (let step = frame.step; step <= BATTLE_LAST_STEP; step++) {
-        runBattleStep(state, frame, step)
-        if (state.pendingChoice) {
-            pushResumeFrames(state, [{ ...frame, step: step + 1 }])
-            return
-        }
-    }
-}
-
-// 中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
-export function resumeBattleResolution(state: GameState, frame: BattleResolveFrame): void {
-    driveBattleResolution(state, frame)
-}
-
-// 【呪撃】をそのレベルで静的に持つか（一時付与は見ない）
-function staticJugeki(cardId: string, level: number): boolean {
-    return getCard(cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, level),
-    )
-}
-
-// バトル解決の1ステップ。**中断（pendingChoice）は呼び出し元 driveBattleResolution が見る**ので、
-// ここでは元の解決順にある `!state.winner` ガードだけを保つ
-function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): void {
-    const attackerPid = f.attackerPid
-    const defenderPid = opponentOf(attackerPid)
-    // 破壊された個体は場から消えるので、生存していれば実体を、していなければ写しを使う
-    const attacker =
-        findSpirit(state.players[attackerPid], f.attackerInstanceId) ?? f.attackerSnapshot
-    const blocker = findSpirit(state.players[defenderPid], f.blockerInstanceId) ?? f.blockerSnapshot
-    const attackerContext: DestroyContext = {
-        sourcePid: attackerPid,
-        sourceType: "spirit",
-        battle: {
-            attackerColors: f.attackerColors,
-            attackerLevel: f.attackerLevel,
-            attackerBp: f.attackerBp,
-        },
-    }
-    const blockerContext: DestroyContext = {
-        sourcePid: defenderPid,
-        sourceType: "spirit",
-        battle: {
-            attackerColors: f.blockerColors,
-            attackerLevel: f.blockerLevel,
-            attackerBp: f.blockerBp,
-        },
-    }
-
-    switch (step) {
-        // ＞６：破壊処理。相打ちは**同時破壊**なので1つのバッチにまとめる
-        // （復活の確認が2体に出るなら、バッチがターンプレイヤーに順番を聞く。TIMING_CHART.md §0-3）。
-        // 破壊元は対象ごとに違う（ブロッカーを破壊したのはアタッカー、その逆も同様）ため context も対象ごとに渡す
-        case 1: {
-            if (f.outcome === "none") return
-            if (f.outcome === "attackerWins") {
-                destroyTargetsBatch(state, attackerPid, [
-                    { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },
-                ])
-            } else if (f.outcome === "blockerWins") {
-                destroyTargetsBatch(state, defenderPid, [
-                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
-                ])
-            } else {
-                destroyTargetsBatch(state, attackerPid, [
-                    { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },
-                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
-                ])
-            }
-            return
-        }
-        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（敗北側）。
-        // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
-        case 2: {
-            if (state.winner) return
-            if (f.outcome === "attackerWins") fireTrigger(state, defenderPid, blocker, "onBattleLose")
-            else if (f.outcome === "blockerWins") fireTrigger(state, attackerPid, attacker, "onBattleLose")
-            return
-        }
-        // 勝利側の『このスピリットのバトル時』（相打ちでは発火しない）
-        case 3: {
-            if (state.winner) return
-            if (f.outcome === "attackerWins") {
-                fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker")
-            } else if (f.outcome === "blockerWins") {
-                fireTrigger(state, defenderPid, blocker, "onBattleWin", "blocker")
-            }
-            return
-        }
-        // 勝利側フィールドのネクサス等による『BPを比べ相手のスピリットだけを破壊したとき』
-        case 4: {
-            if (state.winner) return
-            if (f.outcome === "attackerWins") {
-                fireBattleWonTriggers(state, attackerPid, attacker, "attacker")
-            } else if (f.outcome === "blockerWins") {
-                fireBattleWonTriggers(state, defenderPid, blocker, "blocker")
-            }
-            return
-        }
-        // ＞７：【呪撃】。アタッカーが現レベルで持つなら、ブロッカーが（BP比較の結果に関わらず）
-        // まだフィールドにいる場合にバトル終了時に破壊する。ブロッカー側の呪撃は発動しない。
-        // アタッカー自身がBP比較で破壊されていても発動する。
-        // ＞６で「フィールドに残る」を使って生き残った個体もここでは対象になる（TIMING_CHART.md §2）
-        case 5: {
-            // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
-            // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
-            const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
-            if (!staticJugeki(attacker.cardId, f.attackerLevel) || attackerJugekiReplaced) return
-            const stillOnField = findSpirit(state.players[defenderPid], f.blockerInstanceId)
-            if (!stillOnField) return
-            if (hasArmorAgainst(state, stillOnField, f.attackerColors)) {
-                log(state, `${getCard(blocker.cardId).name}は装甲によって【呪撃】を防いだ。`)
-                return
-            }
-            log(
-                state,
-                `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
-            )
-            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
-            applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
-            destroyTargetsBatch(state, attackerPid, [
-                {
-                    pid: defenderPid,
-                    instanceId: f.blockerInstanceId,
-                    context: {
-                        sourcePid: attackerPid,
-                        sourceType: "spirit",
-                        battle: { attackerColors: f.attackerColors, attackerLevel: f.attackerLevel },
-                    },
-                },
-            ])
-            return
-        }
-        // BS06カウンターカース：差し替えが効いている側では、**ブロッカー**の【呪撃】が
-        // バトルした相手（＝アタッカー）をバトル終了時に破壊する
-        case 6: {
-            if (!hasJugekiOnBlockReplace(state, defenderPid)) return
-            if (!staticJugeki(blocker.cardId, f.blockerLevel)) return
-            const attackerStill = findSpirit(state.players[attackerPid], f.attackerInstanceId)
-            if (!attackerStill) return
-            if (hasArmorAgainst(state, attackerStill, f.blockerColors)) {
-                log(state, `${getCard(attacker.cardId).name}は装甲によって【呪撃】を防いだ。`)
-                return
-            }
-            log(
-                state,
-                `${getCard(blocker.cardId).name}の【呪撃】（ブロック時）：${getCard(attacker.cardId).name}を破壊した。`,
-            )
-            applyJugekiCoreToVoid(state, defenderPid, attackerPid, attackerStill)
-            destroyTargetsBatch(state, defenderPid, [
-                {
-                    pid: attackerPid,
-                    instanceId: f.attackerInstanceId,
-                    context: {
-                        sourcePid: defenderPid,
-                        sourceType: "spirit",
-                        battle: { attackerColors: f.blockerColors, attackerLevel: f.blockerLevel },
-                    },
-                },
-            ])
-            return
-        }
-        // ＞７：「バトル終了後に破壊する」の予約（BattleState.endBattleDestroy）。
-        // 【呪撃】と同じ＞７に置く（2026-08-16 ユーザー確認。BS01-104 千本槍の古戦場Lv2）。
-        // 破壊は destroyTargetsBatch へまとめて渡す（1体ずつ復活の確認で中断しうるが、
-        // バッチ自身が再開フレームを持つので途中の予約が落ちない）。
-        // 発生源が既に場を離れていても予約は消えない（発揮はコストを払った時点で成立している）ので、
-        // 装甲・効果耐性の判定には予約時に控えた色と種別を使う
-        case 7: {
-            const reservations = state.battle?.endBattleDestroy ?? []
-            if (reservations.length === 0) return
-            // 予約は一度きり。ここで消してから解決する（同じステップに戻ってきても二重に破壊しない）
-            if (state.battle) delete state.battle.endBattleDestroy
-            const batch: { pid: PlayerId; instanceId: string; context?: DestroyContext }[] = []
-            for (const entry of reservations) {
-                const found = findSpiritAny(state, entry.targetInstanceId)
-                if (!found) continue
-                const attempt: EffectAttempt = {
-                    op: "destroy",
-                    scope: "targeted",
-                    actorPid: entry.sourcePid,
-                    sourceType: "nexus",
-                    sourceColors: entry.sourceColors,
-                }
-                const resisted = resistanceAgainst(state, found.pid, found.inst, attempt)
-                if (resisted) {
-                    log(
-                        state,
-                        `${getCard(found.inst.cardId).name}はバトル終了後の破壊を受けなかった（${resisted.label}）。`,
-                    )
-                    continue
-                }
-                batch.push({
-                    pid: found.pid,
-                    instanceId: found.inst.instanceId,
-                    context: {
-                        sourcePid: entry.sourcePid,
-                        sourceType: "nexus",
-                        sourceColors: entry.sourceColors,
-                    },
-                })
-            }
-            if (batch.length > 0) destroyTargetsBatch(state, attackerPid, batch)
-            return
-        }
-        // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
-        // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
-        case 8: {
-            const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
-            if (survivingAttacker) {
-                fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker", f.blockerInstanceId)
-                // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
-                // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
-                if (instIsCombined(survivingAttacker)) {
-                    fireFieldEventTriggers(
-                        state,
-                        attackerPid,
-                        "ownCombinedSpiritBattleEnded",
-                        { pid: attackerPid, inst: survivingAttacker },
-                        instColors(survivingAttacker),
-                        survivingAttacker.instanceId,
-                    )
-                }
-                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
-                if (!state.winner && survivingAttacker.destroyAtBattleEnd && findSpirit(state.players[attackerPid], survivingAttacker.instanceId)) {
-                    destroySpirit(state, attackerPid, survivingAttacker.instanceId)
-                }
-            }
-            return
-        }
-        case 9: {
-            if (state.winner) return
-            const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
-            if (survivingBlocker) {
-                fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker", f.attackerInstanceId)
-                if (instIsCombined(survivingBlocker)) {
-                    fireFieldEventTriggers(
-                        state,
-                        defenderPid,
-                        "ownCombinedSpiritBattleEnded",
-                        { pid: defenderPid, inst: survivingBlocker },
-                        instColors(survivingBlocker),
-                        survivingBlocker.instanceId,
-                    )
-                }
-                // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
-                if (!state.winner && survivingBlocker.destroyAtBattleEnd && findSpirit(state.players[defenderPid], survivingBlocker.instanceId)) {
-                    destroySpirit(state, defenderPid, survivingBlocker.instanceId)
-                }
-            }
-            return
-        }
-        case 10: {
-            resolveKoboOnBattleEnd(state, attackerPid, attacker)
-            return
-        }
-        // 星降る巡礼地Lv2：自分のスピリットの【光芒】は『ブロック時』にも発揮される。
-        // ブロッカー側の使用マジックを、ブロッカーの持ち主基準でもう一度解決する
-        case 11: {
-            if (hasKoboOnBlock(state, defenderPid)) {
-                resolveKoboOnBattleEnd(state, defenderPid, blocker)
-            }
-            return
-        }
-        case 12: {
-            clearBattle(state)
-            return
-        }
-    }
 }
