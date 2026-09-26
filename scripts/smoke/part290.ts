@@ -72,7 +72,7 @@ console.log("=== X: revealTopSummonFreeByFamily（対象なら無償召喚・対
     assert(matching !== undefined, "テスト前提: 系統「怪虫」のスピリットカードがいる")
     s.players.p1.deck.unshift(matching!.cardId)
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "revealTopSummonFreeByFamily", familyFilter: ["怪虫", "殻虫", "殻人"] })
+    resolveAction(s, "p1", null, { type: "reveal", count: 1, pick: { cardType: "spirit", family: ["怪虫", "殻虫", "殻人"] }, optional: true, dest: "summon", rest: "trash" })
     assert(s.players.p1.field.spirits.length === before + 1, "対象カードは非対話時にコストを支払わず召喚される")
     assert(!s.players.p1.trashCards.includes(matching!.cardId), "召喚できたカードはトラッシュへ行かない")
 }
@@ -82,7 +82,7 @@ console.log("=== X: revealTopSummonFreeByFamily（対象なら無償召喚・対
     assert(nonMatching !== undefined, "テスト前提: 対象外の系統のスピリットカードがいる")
     s.players.p1.deck.unshift(nonMatching!.cardId)
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "revealTopSummonFreeByFamily", familyFilter: ["怪虫", "殻虫", "殻人"] })
+    resolveAction(s, "p1", null, { type: "reveal", count: 1, pick: { cardType: "spirit", family: ["怪虫", "殻虫", "殻人"] }, optional: true, dest: "summon", rest: "trash" })
     assert(s.players.p1.field.spirits.length === before, "対象外のカードは召喚されない")
     assert(s.players.p1.trashCards.includes(nonMatching!.cardId), "対象外のカードはトラッシュへ破棄される")
 }

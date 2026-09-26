@@ -337,6 +337,8 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
 
     if (pickCount === "all") {
         const matched = revealed.filter((id) => matchesPick(id, action.pick))
+        // 選んだものは公開中から外す（残すと「残り」の後始末で同じカードがもう一度送られる）
+        state.revealedCards = { pid: srcPid, cardIds: revealed.filter((id) => !matchesPick(id, action.pick)) }
         const steps: RevealStep[] = matched.map((cardId) => ({ kind: "pick" as const, cardId }))
         steps.push({ kind: "rest" })
         runSteps(ctx, action, srcPid, steps)

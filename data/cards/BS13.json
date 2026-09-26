@@ -878,9 +878,15 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "revealAndSummonKeyword",
+     "type": "reveal",
      "count": 4,
-     "familyFilter": "光導"
+     "pick": {
+      "cardType": "spirit",
+      "family": "光導"
+     },
+     "optional": true,
+     "dest": "summon",
+     "rest": "trash"
     }
    },
    {
@@ -1124,12 +1130,20 @@
      2
     ],
     "action": {
-     "type": "revealAndSummonAllByFamily",
+     "type": "reveal",
      "count": 12,
-     "familyFilter": [
-      "神星",
-      "光導"
-     ]
+     "pick": {
+      "cardType": "spirit",
+      "family": [
+       "神星",
+       "光導"
+      ]
+     },
+     "pickCount": "all",
+     "dest": "summon",
+     "tensho": "none",
+     "noSummonEffects": true,
+     "rest": "trash"
     }
    },
    {
@@ -4503,11 +4517,13 @@
     ],
     "optional": false,
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 1,
-     "pickType": "spirit",
-     "costFilter": 2,
-     "returnToTop": true
+     "pick": {
+      "cardType": "spirit",
+      "cost": 2
+     },
+     "rest": "deckTop"
     }
    }
   ]

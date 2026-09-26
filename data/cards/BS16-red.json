@@ -406,8 +406,12 @@
         ],
         "optional": false,
         "action": {
-          "type": "revealTopBurstOneToHandRestBottom",
-          "count": 3
+          "type": "reveal",
+          "count": 3,
+          "pick": {
+            "hasBurst": true
+          },
+          "rest": "deckBottom"
         }
       },
       {

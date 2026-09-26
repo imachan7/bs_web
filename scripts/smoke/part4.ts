@@ -709,7 +709,7 @@ console.log("=== 山札公開（スワロウアイヴィー）・起動能力（
     const deckBefore = s.players.p1.deck.length
     s.players.p1.deck.splice(0, 5, "BS01-098", "BS01-001", "BS01-001", "BS01-001", "BS01-001")
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" })
+    resolveAction(s, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } })
     assert(s.players.p1.hand.includes("BS01-098"), "公開したネクサスが手札に入る")
     assert(s.players.p1.hand.length === handBefore + 1, "手札が1枚増える")
     assert(s.players.p1.deck.length === deckBefore - 1, "デッキは公開5枚のうち1枚が手札へ移り残り4枚が下へ（枚数-1）")
@@ -724,7 +724,7 @@ console.log("=== 山札公開（スワロウアイヴィー）・起動能力（
     s2.players.p1.deck.splice(0, 5, "BS01-001", "BS01-001", "BS01-001", "BS01-001", "BS01-001")
     const deck2 = s2.players.p1.deck.length
     const hand2 = s2.players.p1.hand.length
-    resolveAction(s2, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" })
+    resolveAction(s2, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } })
     assert(s2.players.p1.hand.length === hand2, "一致なしでは手札は増えない")
     assert(s2.players.p1.deck.length === deck2, "一致なしではデッキ枚数は変わらない（順だけ変わる）")
 

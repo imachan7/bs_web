@@ -7677,9 +7677,11 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 5,
-     "pickType": "nexus"
+     "pick": {
+      "cardType": "nexus"
+     }
     }
    },
    {

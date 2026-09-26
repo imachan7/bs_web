@@ -35,7 +35,7 @@ console.log("=== deckReveal：手札に加えるネクサスを選べる ===")
     stackDeck(s) // 燃えさかる戦場(BS01-098) と 主無き古城(BS01-102) の2枚がネクサス
     const handBefore = s.players.p1.hand.length
 
-    resolveAction(s, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } }, undefined, undefined, "spirit")
 
     assert(s.pendingChoice?.kind === "card", "カード選択待ちが立つ")
     assert(s.pendingChoice?.cardZone === "reveal", "選択元は公開ゾーン")
@@ -50,19 +50,20 @@ console.log("=== deckReveal：手札に加えるネクサスを選べる ===")
     assert(s.players.p1.hand.length === handBefore + 1, "手札は1枚だけ増える")
 }
 
-console.log("--- 残りを戻す順番を選べる（スキップで現在の順のまま） ---")
+console.log("--- 残りを戻す順番を選べる（最後の1枚以外はスキップできない） ---")
 {
     const s = setup("reveal-order-test")
     s.interactiveTargets = true
     stackDeck(s)
 
-    resolveAction(s, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } }, undefined, undefined, "spirit")
     const pickIdx = s.revealedCards!.cardIds.indexOf("BS01-098")
     assert(act(s, "p1", { type: "resolveChoice", cardIndex: pickIdx }) === null, "ネクサスを1枚選ぶ")
 
-    // 残り4枚 → 戻す順番の選択が続く（スキップ可）
+    // 残り4枚 → 戻す順番の選択が続く。
+    // 2026-09-26 の統合で、reveal の順番選択は「最後の1枚は自動」以外はスキップできない（規則3）
     assert(s.pendingChoice?.cardZone === "reveal", "続けて戻す順番の選択待ちが立つ")
-    assert(s.pendingChoice?.optional === true, "順番の選択はスキップできる")
+    assert(s.pendingChoice?.optional === false, "順番の選択はスキップできない")
     const remaining = [...s.revealedCards!.cardIds]
     assert(remaining.length === 4, "残りは4枚")
 
@@ -71,30 +72,37 @@ console.log("--- 残りを戻す順番を選べる（スキップで現在の順
     assert(act(s, "p1", { type: "resolveChoice", cardIndex: firstBack }) === null, "戻す1枚目を選ぶ")
     assert(s.players.p1.deck[s.players.p1.deck.length - 1] === "BS01-050", "選んだカードがデッキの一番下へ")
 
-    assert(act(s, "p1", { type: "resolveChoice" }) === null, "残りはスキップして現在の順のまま戻す")
+    // 残り3枚 → まだ選択が続く（1枚だけになるまで自動化されない）
+    while (s.pendingChoice) {
+        const idx = s.pendingChoice.cardIndices?.[0] ?? 0
+        assert(act(s, "p1", { type: "resolveChoice", cardIndex: idx }) === null, "続けて1枚ずつ選ぶ")
+    }
     assert(s.pendingChoice === null, "選択は解消される")
     assert(s.revealedCards === undefined, "公開ゾーンは片付けられる")
     assert(s.players.p1.deck.length >= 4, "残りのカードがデッキへ戻っている")
 }
 
-console.log("--- 非対話時は従来どおり自動（最初の一致を手札へ、残りは公開順で戻す） ---")
+console.log("--- 非対話時は従来どおり自動（コスト最大を手札へ、残りは公開順で戻す） ---")
 {
     const s = setup("reveal-auto-test")
     stackDeck(s)
 
-    resolveAction(s, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" }, undefined, undefined, "spirit")
+    // 2026-09-26 の統合で、非対話時の自動選択は「最初の一致」ではなく「コスト最大」になった。
+    // BS01-102（コスト4）＞BS01-098（コスト3）
+    resolveAction(s, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } }, undefined, undefined, "spirit")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(s.revealedCards === undefined, "公開ゾーンは使わない")
-    assert(s.players.p1.hand.includes("BS01-098"), "最初に一致したネクサスが自動で手札へ")
+    assert(s.players.p1.hand.includes("BS01-102"), "コスト最大のネクサスが自動で手札へ")
 }
 
-console.log("--- 一致するカードが1枚だけなら選択を挟まない ---")
+console.log("--- 一致するカードが1枚だけなら手札追加の選択は挟まないが、残りを戻す順番は聞かれる ---")
 {
     const s = setup("reveal-single-test")
     s.interactiveTargets = true
     s.players.p1.deck = ["BS01-001", "BS01-098", "BS01-002", "BS01-050", "BS01-051", ...s.players.p1.deck]
 
-    resolveAction(s, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" }, undefined, undefined, "spirit")
-    assert(s.pendingChoice === null, "候補1枚なので手札追加の選択は立たない")
+    // 2026-09-26 の統合で、手札に加える候補が1枚でも、残りが2枚以上あればデッキへ戻す順番は使用者が選ぶ（規則3）
+    resolveAction(s, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } }, undefined, undefined, "spirit")
     assert(s.players.p1.hand.includes("BS01-098"), "唯一のネクサスが手札に加わる")
+    assert(s.pendingChoice?.cardZone === "reveal", "手札追加は自動だが、残り4枚を戻す順番の選択待ちが立つ")
 }

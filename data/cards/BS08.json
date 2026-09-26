@@ -264,13 +264,15 @@
      3
     ],
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 2,
-     "pickType": "spirit",
-     "familyFilter": [
-      "虚神",
-      "神将"
-     ]
+     "pick": {
+      "cardType": "spirit",
+      "family": [
+       "虚神",
+       "神将"
+      ]
+     }
     },
     "optional": true
    },
@@ -3390,15 +3392,17 @@
      2
     ],
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "countPer": {
       "ownNexuses": true
      },
-     "pickType": "spirit",
-     "familyFilter": [
-      "虚神",
-      "神将"
-     ]
+     "pick": {
+      "cardType": "spirit",
+      "family": [
+       "虚神",
+       "神将"
+      ]
+     }
     },
     "optional": true
    },
@@ -5443,12 +5447,20 @@
      3
     ],
     "action": {
-     "type": "revealAndSummonAllByFamily",
+     "type": "reveal",
      "count": 7,
-     "familyFilter": [
-      "龍帝",
-      "竜騎"
-     ]
+     "pick": {
+      "cardType": "spirit",
+      "family": [
+       "龍帝",
+       "竜騎"
+      ]
+     },
+     "pickCount": "all",
+     "dest": "summon",
+     "tensho": "none",
+     "noSummonEffects": true,
+     "rest": "trash"
     },
     "optional": false
    },

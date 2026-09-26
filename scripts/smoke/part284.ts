@@ -94,7 +94,7 @@ console.log("=== §D BS11-058：デッキの一番上がマジックなら無償
     assert(magic !== undefined, "テスト前提: フラッシュマジックがいる")
     s.players.p1.deck = [magic!.cardId, ...s.players.p1.deck]
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "revealTopCastMagicFreeOrHand" })
+    resolveAction(s, "p1", null, { type: "reveal", count: 1, pick: { cardType: "magic" }, optional: true, dest: "cast", orHand: true, rest: "hand" })
     assert(s.players.p1.hand.length === handBefore, "マジックは手札に入らず使用される")
     assert(s.players.p1.deck[0] !== magic!.cardId, "デッキから離れる")
 }
@@ -103,7 +103,7 @@ console.log("=== §D BS11-058：デッキの一番上がマジックなら無償
     const top = vanilla[0]!.cardId
     s.players.p1.deck = [top, ...s.players.p1.deck]
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "revealTopCastMagicFreeOrHand" })
+    resolveAction(s, "p1", null, { type: "reveal", count: 1, pick: { cardType: "magic" }, optional: true, dest: "cast", orHand: true, rest: "hand" })
     assert(s.players.p1.hand.length === handBefore + 1, "マジック以外は手札に加わる")
     assert(getCard(s.players.p1.hand[s.players.p1.hand.length - 1]!).cardId === top, "加わるのはオープンしたカード")
 }

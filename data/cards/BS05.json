@@ -3990,11 +3990,13 @@
     "turn": "own",
     "colorFilter": "blue",
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 1,
-     "pickType": "spirit",
-     "nameIncludes": "巨人",
-     "discardNonMatching": true
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "巨人"
+     },
+     "rest": "trash"
     },
     "optional": true
    },
@@ -4160,9 +4162,16 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "revealAndSummonKeyword",
+     "type": "reveal",
      "count": 3,
-     "keyword": "tensho",
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "tensho"
+     },
+     "optional": true,
+     "dest": "summon",
+     "tensho": "asIfDone",
+     "rest": "trash",
      "returnToDeckBottomAtEndStep": true
     }
    },

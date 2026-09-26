@@ -6448,11 +6448,14 @@
      2
     ],
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "countPer": {
       "ownColorTotal": "yellow"
      },
-     "pickAllOfType": "magic"
+     "pick": {
+      "cardType": "magic"
+     },
+     "pickCount": "all"
     },
     "optional": false
    },

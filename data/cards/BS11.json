@@ -391,15 +391,23 @@
     ],
     "optional": true,
     "action": {
-     "type": "revealAndSummonAllByFamily",
+     "type": "reveal",
      "count": 1,
      "countFromSelfLevel": true,
-     "familyFilter": [
-      "星竜"
-     ],
-     "costFilter": {
-      "max": 7
-     }
+     "pick": {
+      "cardType": "spirit",
+      "family": [
+       "星竜"
+      ],
+      "cost": {
+       "max": 7
+      }
+     },
+     "pickCount": "all",
+     "dest": "summon",
+     "tensho": "none",
+     "noSummonEffects": true,
+     "rest": "trash"
     }
    }
   ]
@@ -3118,9 +3126,9 @@
      1
     ],
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 2,
-     "discardNonMatching": true
+     "rest": "trash"
     },
     "optional": false
    },
@@ -3564,7 +3572,15 @@
     "whileCombined": true,
     "optional": true,
     "action": {
-     "type": "revealTopCastMagicFreeOrHand"
+     "type": "reveal",
+     "count": 1,
+     "pick": {
+      "cardType": "magic"
+     },
+     "optional": true,
+     "dest": "cast",
+     "orHand": true,
+     "rest": "hand"
     }
    }
   ],
@@ -5413,7 +5429,17 @@
     ],
     "fromHandOnly": true,
     "action": {
-     "type": "revealTopSummonFreeOrHand"
+     "type": "reveal",
+     "count": 1,
+     "pick": {
+      "cardType": [
+       "spirit",
+       "brave"
+      ]
+     },
+     "dest": "summon",
+     "orHand": true,
+     "rest": "hand"
     }
    },
    {

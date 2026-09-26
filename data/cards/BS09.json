@@ -349,9 +349,11 @@
         ],
         "optional": true,
         "action": {
-          "type": "deckReveal",
+          "type": "reveal",
           "count": 2,
-          "familyFilter": "星竜"
+          "pick": {
+            "family": "星竜"
+          }
         }
       },
       {
@@ -4257,9 +4259,11 @@
         "turn": "own",
         "optional": true,
         "action": {
-          "type": "deckReveal",
+          "type": "reveal",
           "count": 2,
-          "pickType": "magic"
+          "pick": {
+            "cardType": "magic"
+          }
         }
       },
       {

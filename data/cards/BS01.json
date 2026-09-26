@@ -3268,9 +3268,11 @@
      2
     ],
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 5,
-     "pickType": "nexus"
+     "pick": {
+      "cardType": "nexus"
+     }
     },
     "optional": false
    }

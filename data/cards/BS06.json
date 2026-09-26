@@ -358,11 +358,13 @@
      2
     ],
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 1,
-     "pickType": "spirit",
-     "familyFilter": "地竜",
-     "returnToTop": true
+     "pick": {
+      "cardType": "spirit",
+      "family": "地竜"
+     },
+     "rest": "deckTop"
     },
     "optional": false
    },
@@ -6115,10 +6117,10 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 3,
-     "pickNone": true,
-     "returnToTop": true
+     "pickCount": 0,
+     "rest": "deckTop"
     }
    },
    {

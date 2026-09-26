@@ -59,7 +59,7 @@ console.log("=== deckReveal：公開ゾーン経由で選んでもデッキが�
     const totalBefore = totalCards(s)
     const deckBefore = s.players.p1.deck.length
 
-    resolveAction(s, "p1", src, { type: "deckReveal", count: 5, pickType: "spirit" })
+    resolveAction(s, "p1", src, { type: "reveal", count: 5, pick: { cardType: "spirit" } })
     assert(zoneCount(s) === 5, "5枚が公開ゾーンに乗る")
     assert(s.players.p1.deck.length === deckBefore - 5, "公開したぶんだけデッキが減る")
     assert(s.pendingChoice?.kind === "card", "手札に加える1枚の選択待ちになる")
@@ -71,8 +71,12 @@ console.log("=== deckReveal：公開ゾーン経由で選んでもデッキが�
         "選んだ再入で、デッキの上からさらに5枚が抜かれたりしない",
     )
 
-    // 残り4枚の「戻す順番」を最後まで進める（スキップ可なのでスキップで畳む）
-    while (s.pendingChoice) assert(act(s, "p1", { type: "resolveChoice" }) === null, "戻す順番はスキップできる")
+    // 残り4枚の「戻す順番」を最後まで進める（2026-09-26 の統合で、reveal の順番選択は
+    // 「最後の1枚は自動」以外はスキップできない＝毎回1枚選ぶ必要がある）
+    while (s.pendingChoice) {
+        const idx = s.pendingChoice.cardIndices?.[0] ?? 0
+        assert(act(s, "p1", { type: "resolveChoice", cardIndex: idx }) === null, "戻す順番を1枚ずつ選ぶ")
+    }
     assert(zoneCount(s) === 0, "公開ゾーンが片付く")
     assert(s.players.p1.hand.length === totalBefore - s.players.p1.deck.length, "手札に加わったのは1枚だけ")
     assert(totalCards(s) === totalBefore, "デッキ＋手札の総数が変わらない（カードが消えていない）")
@@ -87,7 +91,7 @@ console.log("=== セカンドサイト：デッキ上3枚を公開し、好き�
     const top3 = s.players.p1.deck.slice(0, 3)
     const totalBefore = totalCards(s)
 
-    resolveAction(s, "p1", src, { type: "deckReveal", count: 3, pickNone: true, returnToTop: true })
+    resolveAction(s, "p1", src, { type: "reveal", count: 3, pickCount: 0, rest: "deckTop" })
     assert(zoneCount(s) === 3, "3枚が公開される")
     assert(s.players.p1.hand.length === totalBefore - s.players.p1.deck.length - 3, "手札には加わらない")
     assert(s.pendingChoice?.optional === false, "上に戻す順番はスキップできない（残りが下に沈むため）")
@@ -112,7 +116,7 @@ console.log("=== セカンドサイト：非対話（smokeの既定）では同�
     const top3 = s.players.p1.deck.slice(0, 3)
     const deckBefore = s.players.p1.deck.length
 
-    resolveAction(s, "p1", src, { type: "deckReveal", count: 3, pickNone: true, returnToTop: true })
+    resolveAction(s, "p1", src, { type: "reveal", count: 3, pickCount: 0, rest: "deckTop" })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(zoneCount(s) === 0, "公開ゾーンが残らない")
     assert(s.players.p1.deck.length === deckBefore, "デッキ枚数が変わらない")
