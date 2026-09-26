@@ -506,13 +506,18 @@ console.log("=== BS08ジャッジメントフレア：magic condition ownSpiritC
     )
 }
 
-console.log("=== BS08魔帝龍騎ダーク・クリムゾン：revealAndSummonAllByFamily ===")
+console.log("=== BS08魔帝龍騎ダーク・クリムゾン：reveal（旧revealAndSummonAllByFamily） ===")
 {
-    const crimson = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "revealAndSummonAllByFamily")
-    const entry = entryOf(crimson, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "revealAndSummonAllByFamily")
+    // 2026-09-26 の統合で revealAndSummonAllByFamily は reveal（dest summon・pickCount all・noSummonEffects）へ移った
+    const isCrimsonReveal = (e: Record<string, unknown>) => {
+        const a = e["action"] as Record<string, unknown> | undefined
+        return a?.["type"] === "reveal" && a?.["dest"] === "summon" && a?.["pickCount"] === "all" && a?.["noSummonEffects"] === true
+    }
+    const crimson = findByEffect(isCrimsonReveal)
+    const entry = entryOf(crimson, isCrimsonReveal)
     const revealAction = entry["action"] as Record<string, unknown>
     const count = Number(revealAction["count"])
-    const families = revealAction["familyFilter"] as string[]
+    const families = (revealAction["pick"] as Record<string, unknown>)["family"] as string[]
     const matchCard = CARDS.find((c) => c.type === "spirit" && c.cardId !== crimson.cardId && families.some((f) => (c.family ?? []).includes(f)))!
     const nonMatchCard = FILLER
 

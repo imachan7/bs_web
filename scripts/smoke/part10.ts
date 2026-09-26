@@ -128,9 +128,10 @@ console.log("=== BS02-X08 大天使ミカファール e1：黄2つでデッキ�
     const handBefore = s.players.p1.hand.length
 
     resolveAction(s, "p1", mikafal, {
-        type: "deckReveal",
+        type: "reveal",
         countPer: { ownColorTotal: "yellow" },
-        pickAllOfType: "magic",
+        pick: { cardType: "magic" },
+        pickCount: "all",
     })
 
     assert(s.players.p1.hand.includes("BS01-133"), "公開したマジックが手札に入る")

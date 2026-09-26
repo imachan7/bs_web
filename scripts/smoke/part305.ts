@@ -138,7 +138,7 @@ console.log("=== BS13-034 召喚時：デッキ上1枚オープンし、コス�
     const minogamen = createInstance("BS13-034", s.turn, 1)
     s.players.p1.field.spirits.push(minogamen)
     const before = s.players.p1.hand.length
-    resolveAction(s, "p1", minogamen, { type: "deckReveal", count: 1, pickType: "spirit", costFilter: 2, returnToTop: true })
+    resolveAction(s, "p1", minogamen, { type: "reveal", count: 1, pick: { cardType: "spirit", cost: 2 }, rest: "deckTop" })
     assert(s.players.p1.hand.length === before + 1, "コスト2のスピリットカードは手札に加わる")
     assert(s.players.p1.hand.includes("BS13-034"), "手札に加わったのはオープンした本人")
 }

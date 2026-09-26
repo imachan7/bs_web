@@ -266,7 +266,7 @@ console.log("=== BS14-081神樹の切り株都市：緑のスピリットカー�
     s.players.p1.field.spirits = s.players.p1.field.spirits.filter((x) => x.instanceId !== nexus.instanceId)
     s.players.p1.field.nexuses.push(nexus)
     s.players.p1.deck = ["BS14-023", "BS01-001"]
-    resolveAction(s, "p1", nexus, { type: "revealTopSummonFreeOrReturnToDeck", cardType: "spirit", colorFilter: "green" })
+    resolveAction(s, "p1", nexus, { type: "reveal", count: 1, pick: { cardType: "spirit", color: "green" }, optional: true, dest: "summon", rest: "deckTop" })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-023"),
         "緑のスピリットカードは召喚する（非対話では召喚側に倒す）",
@@ -278,7 +278,7 @@ console.log("=== BS14-081神樹の切り株都市：緑のスピリットカー�
     s2.players.p1.field.spirits = s2.players.p1.field.spirits.filter((x) => x.instanceId !== nexus2.instanceId)
     s2.players.p1.field.nexuses.push(nexus2)
     s2.players.p1.deck = ["BS01-001", "BS14-023"] // 赤のスピリット（対象外）
-    resolveAction(s2, "p1", nexus2, { type: "revealTopSummonFreeOrReturnToDeck", cardType: "spirit", colorFilter: "green" })
+    resolveAction(s2, "p1", nexus2, { type: "reveal", count: 1, pick: { cardType: "spirit", color: "green" }, optional: true, dest: "summon", rest: "deckTop" })
     assert(s2.players.p1.deck[0] === "BS01-001", "対象でないカードはデッキの上に残る（取り除かれない）")
     assert(
         !s2.players.p1.field.spirits.some((sp) => sp.cardId === "BS01-001"),

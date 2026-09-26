@@ -130,7 +130,7 @@ console.log("=== BS03-142 サルベージ：山札上5枚からネクサス回�
     runTurnStart(s)
     s.players.p1.deck.splice(0, 5, "BS01-001", "BS01-001", "BS03-113", "BS01-001", "BS01-001")
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "deckReveal", count: 5, pickType: "nexus" })
+    resolveAction(s, "p1", null, { type: "reveal", count: 5, pick: { cardType: "nexus" } })
     assert(s.players.p1.hand.includes("BS03-113"), "メイン：公開した5枚の中のネクサスが手札に加わる")
     assert(s.players.p1.hand.length === handBefore + 1, "手札が1枚増える")
 

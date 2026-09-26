@@ -47,7 +47,7 @@ console.log("=== §B BS11-X05：デッキの上をオープンし、スピリッ
     const s = game("geminize")
     const top = vanilla[0]!.cardId
     s.players.p1.deck = [top, ...s.players.p1.deck]
-    resolveAction(s, "p1", null, { type: "revealTopSummonFreeOrHand" })
+    resolveAction(s, "p1", null, { type: "reveal", count: 1, pick: { cardType: ["spirit", "brave"] }, dest: "summon", orHand: true, rest: "hand" })
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === top), "スピリットなら場に出る")
 }
 {
@@ -55,7 +55,7 @@ console.log("=== §B BS11-X05：デッキの上をオープンし、スピリッ
     const magic = ALL_CARDS.find((c) => c.type === "magic")!
     s.players.p1.deck = [magic.cardId, ...s.players.p1.deck]
     const before = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "revealTopSummonFreeOrHand" })
+    resolveAction(s, "p1", null, { type: "reveal", count: 1, pick: { cardType: ["spirit", "brave"] }, dest: "summon", orHand: true, rest: "hand" })
     assert(s.players.p1.hand.length === before + 1, "スピリット/ブレイヴ以外は手札に加わる")
     assert(s.players.p1.field.spirits.length === 0, "場には出ない")
 }

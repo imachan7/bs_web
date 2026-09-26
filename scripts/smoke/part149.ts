@@ -374,7 +374,7 @@ console.log("=== BS08古将ドグウ・ゴレム：deckReveal.countPer{ownNexuse
         dogu,
         (e) => (actionOf(e)?.["countPer"] as Record<string, unknown> | undefined)?.["ownNexuses"] === true,
     )
-    const families = actionOf(entry)["familyFilter"] as string[]
+    const families = (actionOf(entry)["pick"] as Record<string, unknown>)["family"] as string[]
     const pick = CARDS.find(
         (c) => c.type === "spirit" && families.some((f) => (c.family ?? []).includes(f)),
     )!

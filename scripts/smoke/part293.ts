@@ -278,7 +278,7 @@ console.log("=== 083マジックランプ：revealAndPlaceNexusFree・bpBuff van
     const s = game("083-lamp")
     s.players.p1.deck = ["BS12-071", "BS12-041", "BS12-041", ...s.players.p1.deck]
     const before = s.players.p1.field.nexuses.length
-    resolveAction(s, "p1", null, { type: "revealAndPlaceNexusFree", count: 3 })
+    resolveAction(s, "p1", null, { type: "reveal", count: 3, pick: { cardType: "nexus" }, optional: true, dest: "placeNexus", rest: "trash" })
     assert(s.players.p1.field.nexuses.length === before + 1, "公開した中のネクサスカード1枚がコストを支払わず配置される")
 
     const s2 = game("083-lamp-bp")
