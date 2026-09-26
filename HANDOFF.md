@@ -42,7 +42,7 @@
 2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープン（17種）を調査中 → [REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md)。コアと同じ手順（調査→相談→スキーマ→器→移行）
+3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープン（17種）はスキーマ確定 → [REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4。次は器 `reveal` とテスト（カードは触らない）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
