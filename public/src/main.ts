@@ -47,8 +47,28 @@ socket.on("disconnect", (reason: string) => {
     for (const ev of events) document.addEventListener(ev, reconnect, true)
 })
 
+// コアの支払い方式はブラウザごとに覚える。保存できない環境（プライベートモード等）では毎回「自動」に戻る
+const PAY_MODE_KEY = "bs_pay_mode"
+function loadPayMode(): "auto" | "manual" {
+    try {
+        return localStorage.getItem(PAY_MODE_KEY) === "manual" ? "manual" : "auto"
+    } catch {
+        return "auto"
+    }
+}
+function savePayMode(mode: "auto" | "manual"): void {
+    try {
+        localStorage.setItem(PAY_MODE_KEY, mode)
+    } catch {
+        // 保存できなくても、このタブの間は切り替えた方式で動く
+    }
+}
+function payModeLabel(mode: "auto" | "manual"): string {
+    return mode === "manual" ? "🪙 支払い：手動" : "🪙 支払い：自動"
+}
+
 let view: GameView | null = null
-const ui: UiState = { targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null, burstResetConfirm: null }
+const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -297,7 +317,7 @@ function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | u
     // 手札破棄はどこまで代替で払うか、デッキ破棄はコアで払うかデッキで払うかをプレイヤーが選ぶ
     // （そのまま確定すれば従来どおり全額コア払いになる）
     const altAvailable = millPayable > 0 || handDiscardPayable > 0
-    if (!altAvailable && reserve >= cost + maintain) {
+    if (ui.payMode === "auto" && !altAvailable && reserve >= cost + maintain) {
         sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds)
         return
     }
@@ -524,7 +544,7 @@ function startChoicePaying(cardIndex: number): boolean {
     const card = master(cardId)
     // マジックには「置くコア」が無いのでコストだけ
     const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : minLevelCores(card))
-    if (player.reserve >= need) return false
+    if (ui.payMode === "auto" && player.reserve >= need) return false
     ui.paying = {
         handIndex: cardIndex,
         forChoiceCardIndex: cardIndex,
@@ -846,7 +866,7 @@ function assignOneCore(
     if (assignedTotal >= need) return // 必要数に到達済み（過払い防止）
     if (already >= instCores) return // このスピリットのコアを使い切った
     pay.assigned[instanceId] = already + 1
-    if (reserve + assignedTotal + 1 >= need) {
+    if (ui.payMode === "auto" && reserve + assignedTotal + 1 >= need) {
         // 必要数に達したので送信する（代替コストの選択も submitPaying が一緒に送る）
         submitPaying()
         return
@@ -1271,7 +1291,7 @@ async function init(): Promise<void> {
             const brave = view.players[view.you].field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
             if (!brave) return
             const need = minLevelCores(master(brave.cardId))
-            if (view.players[view.you].reserve >= need) {
+            if (ui.payMode === "auto" && view.players[view.you].reserve >= need) {
                 send({ type: "detachBrave", braveInstanceId })
             } else {
                 ui.targeting = null
@@ -1397,6 +1417,14 @@ async function init(): Promise<void> {
         if (!window.confirm("本当に降参しますか？\n相手の勝利になります。")) return
         send({ type: "surrender" })
     })
+    const payModeBtn = byId("btn-pay-mode")
+    payModeBtn.textContent = payModeLabel(ui.payMode)
+    payModeBtn.addEventListener("click", () => {
+        ui.payMode = ui.payMode === "auto" ? "manual" : "auto"
+        savePayMode(ui.payMode)
+        payModeBtn.textContent = payModeLabel(ui.payMode)
+        if (view) rerender()
+    })
     byId("chk-pay-to-negate").addEventListener("change", (e) => {
         const checked = (e.target as HTMLInputElement).checked
         send({ type: "setPayToNegate", enabled: checked })
@@ -1416,6 +1444,11 @@ async function init(): Promise<void> {
         const btn = closestData(e, "data-altpay")
         if (!btn) return
         changeAltPay(String(btn.dataset.altpay) === "dec" ? -1 : 1)
+    })
+    byId("targeting-info").addEventListener("click", (e) => {
+        if (!closestData(e, "data-payreset") || !ui.paying) return
+        ui.paying.assigned = {}
+        rerender()
     })
     // kind:"shinsokuPayAssist"（BS16-021）：疲労させて肩代わりする候補のオン/オフ切り替え
     byId("targeting-info").addEventListener("click", (e) => {

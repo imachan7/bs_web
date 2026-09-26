@@ -163,15 +163,14 @@ export function payableFieldCores(view: GameView, cardId: string): number {
         .reduce((sum, i) => sum + i.cores, 0)
 }
 
-// 支払いモードでの残り不足コア数（0なら送信可能）
-export function payingRemaining(view: GameView, paying: PayingState): number {
+// 支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
+export function payingNeed(view: GameView, paying: PayingState): number {
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
     const card = master(cardId)
     // ブレイヴの分離（§6.3・§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
     if (paying.forDetachBraveInstanceId !== undefined || paying.forBraveKeep !== undefined) {
-        const assigned = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
-        return Math.max(minLevelCores(card) - view.players[view.you].reserve - assigned, 0)
+        return minLevelCores(card)
     }
     // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
     const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
@@ -180,14 +179,20 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア。BRAVE.md §5）
     const maintain =
         card.type === "magic" || paying.braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
-    const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
     // kind:"shinsokuPayAssist"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
     // 召喚コストを肩代わりする（置くコアには使えない）
     const shinsokuDiscount = payingShinsokuAssistDiscount(view, paying)
     const costAfterDiscounts = Math.max(0, cost - Math.min(alt.used, cost) - shinsokuDiscount)
-    const need = costAfterDiscounts + maintain
+    return costAfterDiscounts + maintain
+}
+
+// 支払いモードでの残り不足コア数（0なら送信可能）
+export function payingRemaining(view: GameView, paying: PayingState): number {
+    if (payingCardId(view, paying) === undefined) return 0
+    const need = payingNeed(view, paying)
+    const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
     const reserve = view.players[view.you].reserve
     return Math.max(need - reserve - assignedTotal, 0)
 }
@@ -346,6 +351,8 @@ export function payingShinsokuAssistDiscount(view: GameView, paying: PayingState
 }
 
 export interface UiState {
+    // コアの支払い方式。"manual" だとリザーブで足りても支払いモードへ入り、確定ボタンを押すまで送信しない
+    payMode: "auto" | "manual"
     targeting: { handIndex: number; side: TargetSide } | null
     // 覚醒モード：コアの移動先（覚醒持ちスピリット）の instanceId
     awakenTarget: string | null
@@ -732,6 +739,14 @@ export function render(view: GameView, ui: UiState): void {
                 })
                 .join(" ")
             $("targeting-info").innerHTML += `<br>${buttons}`
+        }
+        if (ui.payMode === "manual") {
+            const need = payingNeed(view, ui.paying)
+            const fromField = Object.values(ui.paying.assigned).reduce((a, b) => a + b, 0)
+            const fromReserve = Math.max(0, Math.min(view.players[view.you].reserve, need - fromField))
+            $("targeting-info").innerHTML +=
+                `<br>リザーブから${fromReserve}個／フィールドから${fromField}個` +
+                (fromField > 0 ? ` <button data-payreset="1">割り当てをやり直す</button>` : "")
         }
     } else if (ui.awakenTarget !== null) {
         const awakenInst = view.players[view.you].field.spirits.find((s) => s.instanceId === ui.awakenTarget)
