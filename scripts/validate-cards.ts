@@ -608,7 +608,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst"])
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "if"])
 
 export function findUnusedActions(cards: CardData[]): string[] {
     const used = new Set<string>()
