@@ -403,7 +403,8 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             (c) => !excludeIds.includes(sourceIdOf(c)),
         )
         if (candidates.length === 0) return
-        if (state.interactiveTargets) {
+        // 候補が1つなら選ぶ余地が無いので聞かない（「リザーブのコアすべて」で個数ぶん確認が出ないように）
+        if (state.interactiveTargets && candidates.length > 1) {
             requestChoice(
                 state,
                 owner,
