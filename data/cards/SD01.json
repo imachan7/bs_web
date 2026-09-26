@@ -1896,11 +1896,13 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "deckReveal",
+          "type": "reveal",
           "count": 1,
-          "pickType": "spirit",
-          "colorFilter": "red",
-          "returnToTop": true
+          "pick": {
+            "cardType": "spirit",
+            "color": "red"
+          },
+          "rest": "deckTop"
         }
       },
       {

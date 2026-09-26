@@ -322,11 +322,13 @@
           3
         ],
         "action": {
-          "type": "deckReveal",
+          "type": "reveal",
           "countPer": {
             "ownSymbols": "yellow"
           },
-          "pickType": "magic"
+          "pick": {
+            "cardType": "magic"
+          }
         },
         "optional": false
       },

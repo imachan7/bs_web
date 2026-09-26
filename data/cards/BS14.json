@@ -2993,10 +2993,10 @@
     ],
     "optional": true,
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 4,
-     "pickNone": true,
-     "returnToTop": true
+     "pickCount": 0,
+     "rest": "deckTop"
     }
    },
    {
@@ -4977,9 +4977,15 @@
      1
     ],
     "action": {
-     "type": "revealTopSummonFreeOrReturnToDeck",
-     "cardType": "spirit",
-     "colorFilter": "green"
+     "type": "reveal",
+     "count": 1,
+     "pick": {
+      "cardType": "spirit",
+      "color": "green"
+     },
+     "optional": true,
+     "dest": "summon",
+     "rest": "deckTop"
     }
    }
   ]
@@ -5346,10 +5352,10 @@
     ],
     "optional": true,
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 3,
-     "pickNone": true,
-     "returnToTop": true
+     "pickCount": 0,
+     "rest": "deckTop"
     }
    }
   ]
@@ -6438,10 +6444,12 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "deckReveal",
+     "type": "reveal",
      "count": 4,
-     "pickType": "magic",
-     "discardNonMatching": true
+     "pick": {
+      "cardType": "magic"
+     },
+     "rest": "trash"
     }
    },
    {
@@ -7249,8 +7257,11 @@
     ],
     "optional": true,
     "action": {
-     "type": "revealOpponentDeckPickBottomRestTop",
-     "count": 5
+     "type": "reveal",
+     "from": "opponentDeck",
+     "count": 5,
+     "dest": "deckBottom",
+     "rest": "deckTop"
     }
    },
    {

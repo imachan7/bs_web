@@ -688,7 +688,7 @@ export interface CardInstance {
     grantedMagicNegate?: Extract<EffectDef, { kind: "magicNegate" }>[] // kind:"effectEntryGrant"で継続付与されたmagicNegateエントリ。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、triggers.findMagicNegateSourceがcard自身のeffectsと合わせて走査する（BS12-068光の聖剣Lv1）
     timedSymbolLoss?: Color[] // このターンの間、指定色のシンボルを1つ失う（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。その色のシンボルを持たなければ無変化
     returnToDeckBottomAtEndStep?: boolean // このスピリットはエンドステップに持ち主のデッキの下へ戻る
-    // （action:"revealAndSummonKeyword" が立てる。PhaseManager.endTurn がステップ誘発の直後に処理する。BS05トランスマイグレーション）
+    // （action:"reveal" の returnToDeckBottomAtEndStep が立てる。PhaseManager.endTurn がステップ誘発の直後に処理する）
     treatedAsVanillaContinuous?: boolean // 継続付与された「カードに効果の記述を持たないスピリットとしても扱う」（kind:"vanillaAsGrant"）。
     // EffectModules.refreshLevelAsOverrides が毎回全消去→再構築し、instIsVanilla が参照する（BS04スイッチヒッター）
     effectsDisabledContinuous?: boolean // このスピリットが持つ効果すべてを発揮させない（kind:"spiritEffectsDisabledGrant"）。

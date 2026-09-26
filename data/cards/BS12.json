@@ -4414,12 +4414,19 @@
         "turn": "opponent",
         "optional": true,
         "action": {
-          "type": "revealTopSummonFreeByFamily",
-          "familyFilter": [
-            "怪虫",
-            "殻虫",
-            "殻人"
-          ]
+          "type": "reveal",
+          "count": 1,
+          "pick": {
+            "cardType": "spirit",
+            "family": [
+              "怪虫",
+              "殻虫",
+              "殻人"
+            ]
+          },
+          "optional": true,
+          "dest": "summon",
+          "rest": "trash"
         }
       }
     ]
@@ -4966,14 +4973,21 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "revealTopFamilyToHand",
+          "type": "reveal",
           "count": 3,
-          "familyFilter": [
-            "光導",
-            "星魂",
-            "星竜"
-          ],
-          "includeBraves": true
+          "pick": {
+            "cardType": [
+              "spirit",
+              "brave"
+            ],
+            "family": [
+              "光導",
+              "星魂",
+              "星竜"
+            ]
+          },
+          "pickCount": "all",
+          "rest": "trash"
         }
       },
       {
@@ -5405,8 +5419,14 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "revealAndPlaceNexusFree",
-          "count": 3
+          "type": "reveal",
+          "count": 3,
+          "pick": {
+            "cardType": "nexus"
+          },
+          "optional": true,
+          "dest": "placeNexus",
+          "rest": "trash"
         }
       },
       {

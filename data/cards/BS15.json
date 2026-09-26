@@ -576,9 +576,15 @@
     ],
     "optional": true,
     "action": {
-     "type": "revealAndSummonAllByKeyword",
+     "type": "reveal",
      "count": 2,
-     "keyword": "clash"
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "clash"
+     },
+     "pickCount": "all",
+     "dest": "summon",
+     "rest": "trash"
     }
    },
    {
@@ -5005,8 +5011,13 @@
        "count": 2
       },
       {
-       "type": "revealTopToHandIfColorSpiritElseReturnToDeck",
-       "colorFilter": "red"
+       "type": "reveal",
+       "count": 1,
+       "pick": {
+        "cardType": "spirit",
+        "color": "red"
+       },
+       "rest": "deckTop"
       }
      ]
     }
