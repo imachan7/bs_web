@@ -561,7 +561,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `canTakeCoresFrom`（fn）：相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。
 - `removeCores`（fn）：コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
 - `removeCoresToTrash`（fn）：コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
-- `removeCoresToVoid`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
+- `takeCoresFromSpirit`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
+- `removeCoresToVoid`（fn）
 - `coreFloorFor`（fn）：globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
 
 ## server/src/logic/revive.ts
