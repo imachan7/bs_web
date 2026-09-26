@@ -1018,6 +1018,11 @@ export function countEffectCounter(
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     if (counter === "lastMoved") return state.lastMoved?.length ?? 0
+    if (counter === "ownCoresTotal") {
+        const p = state.players[owner]
+        const onField = [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].reduce((n, i) => n + i.cores, 0)
+        return onField + p.reserve + p.trashCores
+    }
     // BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」
     if (counter === "selfCores") return self?.cores ?? 0
     // targetSymbols：対象を選んだ後に logic/counted.ts が数えるため、このカウンタが直接ここに来ることは無い

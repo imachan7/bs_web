@@ -40,7 +40,6 @@ export type EffectAction =
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // 相手のフィールドに同じカード名のスピリットが2体以上いるとき、カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文「カード名1つにつきスピリット1体ずつを残し」に主語が無いので発生源の持ち主。2026-08-24。自動選択はフィールドの先頭側）。choosing / keptIds は重複するカード名を1つずつ聞くための内部フィールド
  | { type: "destroyByOwnFamilyCostSet"; familyFilter: FamilyFilter } // 自分の familyFilter 一致スピリット（self自身も含む）の**コストの集合**（instAllCostsの和集合。同じコストを何体持っていても集合としては1つ）に、コストが一致する（instAllCostsのいずれかが集合に含まれる）相手のスピリットすべてを破壊する
  | { type: "summonBurstCardFree"; payCost?: true } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
- | { type: "summonBurstCardFreeIfCoresAtLeast"; coresAtLeast: number } // burst.conditionはburstエントリのactionを丸ごとゲートするため、「A。その後、条件を満たすときだけB。」のB側だけを条件付きにしたいとき用（kind:"sequence"のactionsに混ぜる）。自分のフィールド/リザーブ/トラッシュのコア合計がこれ未満なら何もしない。満たせばsummonBurstCardFreeへ委譲する
  | { type: "summonBurstCardFreeIfDestroyedColor"; color: Color }
  | { type: "openOwnBurstActivateIfSummonCond" } // 自分のバースト1つをオープンし、条件が【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】のときだけ通常のバースト発動手順（burst.condition判定→action解決→finishBurstActivation→ownBurstActivated発火）で強制発動させる（実際には召喚が起きていないので召喚コストを参照する効果は不発）。それ以外の条件のバーストは発動させずデッキの下へ戻す（トラッシュではない）。セットが無ければ不発
 
@@ -49,10 +48,6 @@ export type EffectAction =
 
 
 
- | { type: "summonBurstCardFreeIfOwnNexusAtLeast"; nexusAtLeast: number } // summonBurstCardFreeIfCoresAtLeastのネクサス数版。自分のフィールドのネクサス数がnexusAtLeast未満なら何もしない（burstConditionMetのownNexusAtLeastと同じ計算）。満たせばsummonBurstCardFreeへ委譲する
- | { type: "burstDestroyThenSummonSelf"; condition?: { ownLifeAtMost: number }; filter?: TargetFilter } // バースト専用：condition指定時、満たすときだけ破壊1体（filterで絞り込み）を解決する。**その後、成否によらず必ず**このカード自身をコストを支払わずに召喚する（「この効果発揮後」＝発揮の有無を問わず後段は実行。2026-09-12ユーザー確認：条件は破壊のほうだけに掛かる）
- | { type: "millSelfTopThenRefreshSelfIfFamily"; familyFilter: FamilyFilter } // 自分のデッキを上から1枚破棄し、それが指定系統（配列＝OR）を持つスピリットカードだったときだけ、このスピリット自身を回復させる（refreshSelfへ委譲。デッキが尽きていれば不発）
- | { type: "revealTopToHandThenRefreshOwn"; colorFilter?: Color } // 自分のデッキを上から1枚オープンし、無条件に自分の手札に加える。それが指定色（省略時は色不問）のマジックカードだったときだけ、自分のスピリット1体を回復させる（refreshOneへ委譲。候補選択はrefreshOneと同じ）。デッキが尽きていれば不発
  | { type: "revealOwnBurstThenSortByType" } //オリンピアの天使ハギト：自分のバースト1つ（あれば）をオープンする。マジックカードなら手札に戻し、それ以外はトラッシュへ破棄する（burstがnullなら不発）
  | { type: "setBurstFromHand" } // バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。setBurst（GameAction）と異なり**ターン1回制限を受けない**。候補2体以上ならinteractiveTargetsでkind:"card"の選択、自動選択はコスト最大の1枚（決定的簡略化）
  | { type: "destroyNexus"; count: number; drawPerDestroyed?: number; discardOpponentPerDestroyed?: number; all?: boolean; side?: "opponent" | "both" | "own"; levelFilter?: number[]; colorFilter?: Color; chooseColor?: true; costSacrificeChosen?: true; chooserIsTarget?: true } // side:"own"指定時は自分側のネクサスだけが対象（pay { cost: destroyNexus{side:"own"} } の器）
@@ -130,9 +125,6 @@ export type EffectAction =
  // target:"self" は「このスピリット自身をBP+」（旧 selfBuff 相当）：対象は常に発生源自身で、filter/side/count/targetInstanceIdは見ない
  | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle"; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" }
  | { type: "unblockedByVoidSelfCore" } // trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。selfが現在のバトルのアタッカーで、かつブロッカーがいるときだけ、selfのコア1個をボイドに置くことでBPを比べずに「ブロックされなかった」ものとして扱う（その場でresolveLifeDamageする＝ライフに通る。ブロッカーは疲労状態のまま残り回復しない）。「〜することで」は任意コストなので、カード側でoptional:trueを立てて確認を出す。自身がアタッカーでない・ブロッカーがいない・コアが無いときは何も起きない
- | { type: "millPerThenSummonSelfIfBurstMilled" ; counter: EffectCounter; multiplier?: number } // バースト専用：counter（×multiplier）ぶん相手のデッキを破棄し、破棄したカードの中に【バースト】効果を持つカードが1枚でもあれば続けてこのカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲。finishBurstActivationはこのtypeも同じ扱い）。GameState.lastMillHadBurstをmillと同じ判定で更新する
- | { type: "millThenCoreIfBurst"; count: number } // 相手のデッキを上からcount枚破棄し（GameState.lastMillHadBurstを更新）、破棄したカードの中に【バースト】効果を持つカードが1枚でもあればボイドからコア1個をこのスピリット上に置く（voidCoreToSelfへ委譲＝合体中はselfがホストなのでホストに置かれる）。
- | { type: "destroyIfLastMillHadBurst"; filter?: TargetFilter } // 直前のmill系アクションで破棄したカードの中に【バースト】効果を持つカードが1枚でもあれば（GameState.lastMillHadBurst）、相手のスピリット1体を破壊する（無ければ何もしない）鉄の覇王サイゴード・ゴレムLv1-3：「相手のデッキを上から、このスピリットのLv1につき5枚破棄し、バースト効果を持つカードが破棄されたとき、相手のスピリット1体を破壊する」
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、そのスピリットが持つ【氷壁】の色（iceWallColorsOfで判定）と同じ色の相手のスピリットからブロックされないようにする（期間つき効果の一覧に指定時点の色で記録する。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）。複数なら選ぶ
  | { type: "discardHandNexusToVoidCoreSelf"; count: number } // 自分の手札のネクサスカード1枚を破棄することで、ボイドからコアcount個をこのスピリット上に置く。手札にネクサスが無ければ不発
  | { type: "discardHandNexusesThenDraw" } // 自分の手札にあるネクサスカードをすべて破棄し、破棄した枚数ぶんデッキから引く（「好きなだけ」を全部破棄に決定的簡略化）
@@ -141,7 +133,6 @@ export type EffectAction =
  | { type: "grantBlockRequiresMagicDiscardThisTurn" } // このターンの間、このスピリットがアタックしたとき、相手は手札のマジックカード1枚を破棄しなければブロックできない、という制約を自分自身に付与する（kind:"triggered" trigger:"onSummon"専用。CardInstance.blockRequiresMagicDiscardGrantedTurnに付与ターンを記録し、GameEngine.doAttackが同ターンかを見てstate.battle.blockCostDiscardMagicへ橋渡しする）
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない。ログのみ）。破棄するカードはCOST_MODEL.md §2どおりinteractiveTargets時は1枚ずつ持ち主が選び、自動選択は手札末尾から機械的に選ぶ（discardSelfChooseと同じ選び方）。
  // discardCountは選択の再入をまたいで「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入し、0になった時点でdrawCount枚ドローする）土星神龍クロノ・ボロス
- | { type: "drawThenDiscard"; drawCount: number; discardCount: number } // デッキからdrawCount枚引いたあと、手札からdiscardCount枚を破棄する
  | { type: "coreDrainAllOthers"; rewardDraw?: true } // このスピリット（self）以外のすべてのスピリット上からコアを1個ずつ持ち主のリザーブへ（両陣営）。この効果で消滅した数ぶんボイドからselfへコアを置く（selfがnullならno-op）。
  // rewardDraw指定時は、コアをselfへ置く代わりに消滅した数ぶん自分がドローする
  | { type: "grantBlockerImmunity" } // ブロックしている自分のスピリット1体に、このターンの間 immuneToOpponentThisTurn を付与する（フェザーバリア）
@@ -288,7 +279,6 @@ export type EffectAction =
  | { type: "millOpponentThenReact"; react: "destroyOneSameCost" | "exhaustOneIfMaxCost" | "banHandColorThisBattle"; maxCost?: number } // 相手のデッキを上から1枚破棄し、**その破棄したカード**に応じて続けて解決する（デッキ0枚なら不発）。destroyOneSameCost＝同じコストの相手のスピリット1体を破壊／exhaustOneIfMaxCost＝そのカードのコストがmaxCost以下のとき相手のスピリット1体を疲労／banHandColorThisBattle＝このバトルの間、相手はそのカードと同じ色の手札のカードを使えない
  | { type: "destroyAllByChosenCost"; maxCost: number } // コスト0〜maxCostの中からコスト1つを効果の使用者が指定し（destroyNexus.chooseColorのコスト版）、そのコストと完全一致する相手のスピリットすべてを破壊する（destroy{all}へ委譲）。自動選択は破壊できる数が最大になるコストを選ぶ（同数はコストが低い方）
  | { type: "opponentTrashCardToDeckBottom" }
- | { type: "millThenDestroyByCardType" } // 相手のデッキを上から1枚破棄し（デッキ0枚なら不発）、**その破棄したカードの種別**に応じて相手は自分の場を1つ破壊する：スピリットカード/ブレイヴカードなら相手のスピリット1体（destroy chooserIsTarget）、ネクサスカード/マジックカードなら相手のネクサス1つ（destroyNexus chooserIsTarget）。どちらも破壊されるのは**相手のフィールドのもの**で、選ぶのも相手（CHOOSER_RULES.md）
  | { type: "millThenDestroySameCost" } // 自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の相手のスピリットすべてを破壊する（デッキが0枚なら不発）
  | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（。候補1色以下・自動選択は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
  | {

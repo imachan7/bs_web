@@ -6064,8 +6064,25 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "millPerThenSummonSelfIfBurstMilled",
-     "counter": "burstEventCost"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "mill",
+       "count": 1,
+       "countCounter": "burstEventCost"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "hasBurst": true
+        }
+       },
+       "then": {
+        "type": "summonBurstCardFree"
+       }
+      }
+     ]
     }
    },
    {
@@ -6097,7 +6114,16 @@
        "countCounter": "selfLevel"
       },
       {
-       "type": "destroyIfLastMillHadBurst"
+       "type": "if",
+       "cond": {
+        "last": {
+         "hasBurst": true
+        }
+       },
+       "then": {
+        "type": "destroy",
+        "count": 1
+       }
       }
      ]
     }

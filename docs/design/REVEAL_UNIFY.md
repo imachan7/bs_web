@@ -102,5 +102,5 @@
 | revealTopCastMagicFreeOrHand（1） | count 1・pick{magic}・optional・dest cast・orHand・rest hand |
 | revealHandMagicToTegamotoDraw（1） | 「手元に置くことで1枚ドロー」＝pay{ cost: reveal{from hand・pick{magic}・dest tegamoto}, then: draw 1 }。**pay の対応一覧に reveal を足すまで旧 type のまま**（sequence だと手札にマジックが無くてもドローしてしまう） |
 
-**旧 type のまま残す**：revealTopToHandThenRefreshOwn（「マジックだったとき回復」＝直前に選んだカードを見る if が要る）。
+revealTopToHandThenRefreshOwn は M2 の `if`（cond.last）で移行済み（2026-09-27）。
 内部専用の revealReturnToDeck・revealDiscardRest は新しい器の後始末として使い続けてよい（カードデータには書かない）。

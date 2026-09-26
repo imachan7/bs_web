@@ -3895,8 +3895,14 @@
        "optional": true
       },
       {
-       "type": "summonBurstCardFreeIfOwnNexusAtLeast",
-       "nexusAtLeast": 3
+       "type": "if",
+       "cond": {
+        "count": "ownNexuses",
+        "atLeast": 3
+       },
+       "then": {
+        "type": "summonBurstCardFree"
+       }
       }
      ]
     }
@@ -5344,8 +5350,27 @@
     ],
     "optional": true,
     "action": {
-     "type": "revealTopToHandThenRefreshOwn",
-     "colorFilter": "yellow"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "reveal",
+       "count": 1,
+       "pickCount": "all",
+       "dest": "hand"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cardType": "magic",
+         "color": "yellow"
+        }
+       },
+       "then": {
+        "type": "refreshOne"
+       }
+      }
+     ]
     }
    },
    {
@@ -6610,7 +6635,45 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "millThenDestroyByCardType"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "mill",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cardType": [
+          "spirit",
+          "brave"
+         ]
+        }
+       },
+       "then": {
+        "type": "destroy",
+        "count": 1,
+        "chooserIsTarget": true
+       },
+       "else": {
+        "type": "if",
+        "cond": {
+         "last": {
+          "cardType": [
+           "nexus",
+           "magic"
+          ]
+         }
+        },
+        "then": {
+         "type": "destroyNexus",
+         "count": 1,
+         "chooserIsTarget": true
+        }
+       }
+      }
+     ]
     }
    },
    {
@@ -6830,12 +6893,25 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "burstDestroyThenSummonSelf",
-     "condition": {
-      "ownLifeAtMost": 3
+     "type": "if",
+     "cond": {
+      "count": "ownLife",
+      "atMost": 3
      },
-     "filter": {
-      "maxBp": 15000
+     "then": {
+      "type": "sequence",
+      "actions": [
+       {
+        "type": "destroy",
+        "count": 1,
+        "filter": {
+         "maxBp": 15000
+        }
+       },
+       {
+        "type": "summonBurstCardFree"
+       }
+      ]
      }
     }
    },
@@ -7015,8 +7091,14 @@
        "count": 2
       },
       {
-       "type": "summonBurstCardFreeIfCoresAtLeast",
-       "coresAtLeast": 8
+       "type": "if",
+       "cond": {
+        "count": "ownCoresTotal",
+        "atLeast": 8
+       },
+       "then": {
+        "type": "summonBurstCardFree"
+       }
       }
      ]
     }
@@ -7185,8 +7267,26 @@
     ],
     "optional": true,
     "action": {
-     "type": "millSelfTopThenRefreshSelfIfFamily",
-     "familyFilter": "想獣"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "mill",
+       "count": 1,
+       "side": "own"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cardType": "spirit",
+         "family": "想獣"
+        }
+       },
+       "then": {
+        "type": "refreshSelf"
+       }
+      }
+     ]
     }
    },
    {

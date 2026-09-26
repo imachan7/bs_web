@@ -6041,9 +6041,17 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "drawThenDiscard",
-     "drawCount": 3,
-     "discardCount": 2
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "draw",
+       "count": 3
+      },
+      {
+       "type": "discardSelfChoose",
+       "count": 2
+      }
+     ]
     }
    },
    {

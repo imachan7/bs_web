@@ -561,15 +561,6 @@ const discardHandNexusesThenDrawHandler: ActionHandler<"discardHandNexusesThenDr
     draw(state, owner, discarded.length * drawDoubleMultiplier(state, owner))
 }
 
-// ドローしてから手札を破棄する（ストームドロー：3枚引いて2枚破棄）。
-// 破棄は discardSelfChoose に委譲するので、実対戦では引いた後の手札から選べる
-const drawThenDiscardHandler: ActionHandler<"drawThenDiscard"> = (ctx, action) => {
-    const { state, owner } = ctx
-    draw(state, owner, action.drawCount * drawDoubleMultiplier(state, owner))
-    if (state.winner) return
-    ctx.resolve({ type: "discardSelfChoose", count: action.discardCount })
-}
-
 // SD02-004 神獣ハクタク：系統を1つ選び、その系統を持つ自分のスピリット1体につき1枚引く。
 // **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
 // interactiveTargets 時は系統を選ばせ、非対話では引ける枚数が多い方を選ぶ決定的簡略化
@@ -880,7 +871,6 @@ const handlers = {
     discardSelfChoose: discardSelfChooseHandler,
     discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
-    drawThenDiscard: drawThenDiscardHandler,
     discardHandAnyThenCoreRemove: discardHandAnyThenCoreRemoveHandler,
     drawPerHandDiscard: drawPerHandDiscardHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
