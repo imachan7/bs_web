@@ -24,6 +24,12 @@ import type {
  TriggerEvent,
 } from "../type"
 
+// カードデータ1枚に対する条件（reveal の pick・if の cond.last）
+export type CardPick = { cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true }
+
+// last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
+export type IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number }
+
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true; countCounter?: EffectCounter; costSacrificeChosen?: true } // countCounter指定時はEffectCounterの値を枚数として使う（0ならログのみ）。自分がデッキから引く（side:"both"は自分→相手の順で両者。省略時は自分のみ）。costSkipCoreStep指定時は「ボイドからコアを置かないことで」がコスト＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）
  | { type: "destroyCostsEachOne"; costs: number[] } // 指定コストごとに1体ずつ相手のスピリットを破壊する（コスト3から1体・4から1体＝計2体。片方のみならその1体だけ。2026-08-14 ユーザー確認）
@@ -218,12 +224,13 @@ export type EffectAction =
  | { type: "battleOpponentDestroyedCoresTo"; to: "void" | "trash" } // このバトルの間、破壊された相手のスピリットのコアすべてをリザーブではなく to に置く（void＝ゲームから取り除く）
  | { type: "revealDiscardRest" } // 公開ゾーン（GameState.revealedCards）に残っているカードをすべて持ち主のトラッシュへ置く。revealAndSummonKeyword が選択待ちの queue に積み、**選んでもスキップしても**必ず後始末が走るようにする）
  | { type: "revealReturnToDeck"; toTop?: true; placed?: number } // 公開ゾーン（GameState.revealedCards）の残りをデッキの下へ戻す。**戻す順番は1枚ずつ選ばせる**（スキップで残りを現在の順のまま戻す）。toTop指定時はデッキの**上**へ戻す（先に選んだカードが上＝次に引くカード）
- | { type: "reveal"; from?: "ownDeck" | "opponentDeck" | "hand"; count?: number; countPer?: { ownColorTotal: Color } | { ownNexuses: true } | { ownSymbols: Color }; countFromSelfLevel?: true; pick?: { cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true }; pickCount?: 1 | "all" | 0; optional?: true; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom"; orHand?: true; tensho?: "asIfDone" | "none"; noSummonEffects?: true; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; returnToDeckBottomAtEndStep?: true } // オープン統合の器（docs/design/REVEAL_UNIFY.md §4）。from省略時はownDeck、pickCount省略時は1、dest省略時はhand、rest省略時はdeckBottom。選ぶのは常に効果の使用者
+ | { type: "reveal"; from?: "ownDeck" | "opponentDeck" | "hand"; count?: number; countPer?: { ownColorTotal: Color } | { ownNexuses: true } | { ownSymbols: Color }; countFromSelfLevel?: true; pick?: CardPick; pickCount?: 1 | "all" | 0; optional?: true; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom"; orHand?: true; tensho?: "asIfDone" | "none"; noSummonEffects?: true; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; returnToDeckBottomAtEndStep?: true } // オープン統合の器（docs/design/REVEAL_UNIFY.md §4）。from省略時はownDeck、pickCount省略時は1、dest省略時はhand、rest省略時はdeckBottom。選ぶのは常に効果の使用者
  | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom"; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true } // 内部専用：revealで選ばれた1枚（すでに元のゾーンから取り除き済み）を dest へ送る。中断（【転召】の対象選択）から再開する経路もここを通る
  | { type: "revealRest"; destPid: PlayerId; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; pool?: string[]; placed?: number } // 内部専用：revealで選ばれなかった残り（GameState.revealedCards、またはpool）をrest先へ送る。デッキへ戻すときは1枚ずつ順番を選ばせる（destPidが持ち主。相手のデッキでも選ぶのはctx.owner）
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統をCardInstance.lentChoiceFamilyに載せた仮想発生源を積む（＝lendSelfThisTurnと同じ貸与。以後はkind:"familyGrant"のfamilyFromChoiceエントリが継続付与する）
  | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
+ | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
  | { type: "destroyAllNexusesWithCores" } // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（nexusIndestructible等の破壊耐性はdestroyNexus内で尊重。フレイム・エルク）
  | { type: "refreshByFamilyAuto"; count: number } // 疲労中の自分スピリットの最多系統を自動指定し、その系統の疲労スピリットを最大count体回復させる（プレイヤー選択の決定的簡略化。cantAttackThisTurnは付与しない。フロックリカバリー）

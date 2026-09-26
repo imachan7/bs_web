@@ -396,6 +396,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `removeCoresAchievableCountForPay`（fn）：pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
 
+## server/src/logic/actions/revealAction.ts
+
+- `matchesPick`（fn）
+
 ## server/src/logic/actions/timedEffect.ts
 
 - `isAllowedRuleCounter`（fn）
@@ -726,6 +730,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/effectAction.ts
 
+- `CardPick`（型）：カードデータ1枚に対する条件（reveal の pick・if の cond.last）
+- `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
 - `EffectAction`（型）
 
 ## server/src/types/effectDef.ts

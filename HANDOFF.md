@@ -42,7 +42,7 @@
 2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープンは移行済み（器 #170・移行はブランチ `feat/reveal-migrate`。[REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4）。旧 type で残るのは revealTopToHandThenRefreshOwn（if 待ち）と revealHandMagicToTegamotoDraw（pay が reveal に対応するまで）。**M1 pay は完了**（#172〜#175・`feat/pay-life-cost`。旧 type に残した4枚と理由は [PAY_UNIFY.md](./docs/design/PAY_UNIFY.md) §5）。**次は M2 `if`**：接続詞の解釈を実装前にユーザーへ確認する（[CONJUNCTION.md](./docs/design/CONJUNCTION.md)）
+3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープンは移行済み（器 #170・移行はブランチ `feat/reveal-migrate`。[REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4）。旧 type で残るのは revealTopToHandThenRefreshOwn（if 待ち）と revealHandMagicToTegamotoDraw（pay が reveal に対応するまで）。**M1 pay は完了**（#172〜#175・`feat/pay-life-cost`。旧 type に残した4枚と理由は [PAY_UNIFY.md](./docs/design/PAY_UNIFY.md) §5）。**次は M2 `if`**：解釈は確認済み。器を作る
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き4本：destroy・battleFlow・triggers・type.ts）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
@@ -67,10 +67,9 @@ effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**そ
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### M2 `if`：解釈一覧を出してユーザーの答え待ち（2026-09-27）
+### M2 `if`：答えをもらった（2026-09-27）→ 器を作る（ブランチ `feat/if-core`）
 
-[IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3 の Q1〜Q5 に答えをもらってから器を作る。**次のセッションはまずここを聞く**。
-Q1（BS14-X01 の条件が召喚まで掛かるか）は答えによって挙動が変わる。器の形（`if`・`cond`・`lastCount`・`sameAsLast`）は §1 の案
+答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（PR 1＝`if`・`cond.last/count`・`lastMoved`。名前を変えない）**。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 

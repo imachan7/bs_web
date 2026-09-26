@@ -3,8 +3,9 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
-import { attachBrave, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
+import { matchesPick } from "./revealAction"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -73,6 +74,8 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
 // 全部解決する（BS14-100ストームアタック）
 const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType } = ctx
+        // 前半を選ばなかった（「〜できる」）とき、後ろの if が前の効果の記録を見ないように
+        state.lastMoved = []
         resolveInOrder(state, action.actions, {
             resolve: (a) => ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType }),
             frame: (a) => ({
@@ -85,6 +88,24 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
             }),
         })
         return
+}
+
+// 「〜とき／〜なら B（他のときは C）」。条件は解決する時点の盤面・記録で判定する
+// （中断して再開スタックから来た場合も、前のアクションを解決した後に判定される＝IF_UNIFY.md Q3）
+const ifHandler: ActionHandler<"if"> = (ctx, action) => {
+    const { state, owner, self, srcColors, srcType, sourceName } = ctx
+    const cond = action.cond
+    const met = "last" in cond
+        ? (state.lastMoved ?? []).some((id) => matchesPick(id, cond.last))
+        : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
+              countEffectCounter(state, owner, self, cond.count, srcType),
+          )
+    const branch = met ? action.then : action.else
+    if (branch === undefined) {
+        log(state, `${sourceName}：条件を満たさなかった。`)
+        return
+    }
+    ctx.resolve(branch, { sourceColors: srcColors, sourceType: srcType })
 }
 
 // 器AK：発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める
@@ -460,6 +481,7 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
+    if: ifHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
     discardOpponentBurst: discardOpponentBurstHandler,

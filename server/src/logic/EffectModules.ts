@@ -1017,6 +1017,7 @@ export function countEffectCounter(
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
+    if (counter === "lastMoved") return state.lastMoved?.length ?? 0
     // BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」
     if (counter === "selfCores") return self?.cores ?? 0
     // targetSymbols：対象を選んだ後に logic/counted.ts が数えるため、このカウンタが直接ここに来ることは無い

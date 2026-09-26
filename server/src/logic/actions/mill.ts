@@ -98,12 +98,14 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
                       action.countMax !== undefined ? action.countMax + millCapBonusFor(state, owner) : undefined)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
+            state.lastMoved = []
             log(state, `${sourceName}：カウントが0のため粉砕しなかった。`)
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         const beforeLen = state.players[targetPid].trashCards.length
         const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+        state.lastMoved = state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual)
         // 続く destroyIfLastMillHadBurst などが読む（BS15-X06鉄の覇王サイゴード・ゴレム）
         state.lastMillHadBurst =
             actual > 0 &&
