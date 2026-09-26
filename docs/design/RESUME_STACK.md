@@ -268,14 +268,9 @@ if (inst.cores < instMinLevelCores(inst)) destroySpirit(state, ownerPid, inst.in
 
 #### 実装への当てはめ
 
-現状 `drawPerDestroyed`（BS08ドラゴンスクランブル）と `voidCoreToSelfPerDestroyed`
-（X003D極帝龍騎ジーク・クリムゾン）は **`targets.length`＝「破壊しようとした数」** で数えている。
-どちらのカードも効果文は「**この効果で破壊した**スピリット1体につき」なので、
-①により**実際に破壊できた数**でなければならない。
-
-`destroySpirit` の戻り値が `void` で「実際に破壊できたか」を呼び出し元が知れないのが原因。
-**戻り値を用意するのが、batch 化の前にやるべき前提作業**（数え方が確定しないまま
-batch 化すると、誤った数え方を固定してしまう）。
+**「この効果で破壊したスピリット1体につき〜」は、最終的にフィールドに残っても、破壊待機のまま解決していれば数える**（2026-09-27 ユーザー確認。②と同じく同じ効果の中の後半なので、派生の「残る」より先に数える）。
+実装は `destroySpirit` が場に残った場合も true を返す形で満たしている（TIMING_CHART.md）。
+**①の「別の効果の『〜が破壊されたとき』」は、同じ列で「残る」が先に解決したら発揮しない**。fieldEvent の `ownSpiritDestroyed`／`opponentSpiritDestroyed` にも `requiresPendingDestructionOf` のガードを掛けた（2026-09-27。smoke part401。それまでは『破壊時』と【不死】だけにしか掛かっておらず、残った後でも発揮していた）。
 
 ### 骨格（導入済み・2026-08-13）
 

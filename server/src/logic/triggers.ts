@@ -1655,11 +1655,18 @@ export function fireFieldEventTriggers(
         ...extras.filter((e) => e.first !== true).map((extra) => ({ extra })),
     ]
 
+    // 「〜が破壊されたとき」は、同じ列の「フィールドに残る」が先に解決して破壊が無かったことになれば発揮しない
+    // （RESUME_STACK.md §7 ①。破壊されたカード自身の『破壊時』と同じガード）
+    const destroyGuard =
+        (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride?.inst.pendingDestruction === true
+            ? selfOverride.inst.instanceId
+            : undefined
     resolveInOrder(state, pool, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
-            e.extra === undefined && !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId),
+            (e.extra === undefined && !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId)) ||
+            (e.extra === undefined && destroyGuard !== undefined && findInstanceAnywhere(state, destroyGuard)?.pendingDestruction !== true),
         resolve: (e) => {
             if (e.extra !== undefined) {
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
@@ -1708,6 +1715,7 @@ export function fireFieldEventTriggers(
                 selfInstanceId: c.actionSelf.instanceId,
                 action: e.effect.action,
                 actorPid: c.actionPid,
+                ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
                 ...(c.srcType !== undefined ? { sourceType: c.srcType } : {}),
