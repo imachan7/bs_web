@@ -36,8 +36,8 @@
 ### いまの本線：REFACTOR_PLAN §1 の順番（2026-09-26 見直し・ユーザー了承）
 
 1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
-2. **R3 の続き**（いまここ）：済み＝removal → `brave.ts`・`revive.ts`（#156）、`shared/rules.ts` → `shared/rules/` 8本（#157）、GameEngine → `choice.ts`・`battleResolve.ts`（#160）、EffectModules → `state/continuous.ts`・`targeting.ts`・`keywords/burst.ts`・`summon.ts`。
-   残り＝`validate:size` の据え置き一覧（`scripts/check-file-size.ts`）の6本：cores・destroy・battleFlow・triggers・型2本。
+2. **R3 の続き**（いまここ）：済み＝removal → `brave.ts`・`revive.ts`（#156）、`shared/rules.ts` → `shared/rules/` 8本（#157）、GameEngine → `choice.ts`・`battleResolve.ts`（#160）、EffectModules → `state/continuous.ts`・`targeting.ts`・`keywords/burst.ts`・`summon.ts`（#162）、actions/cores → `coreGain.ts`・`life.ts`・`tensho.ts`。
+   残り＝`validate:size` の据え置き一覧（`scripts/check-file-size.ts`）の5本：destroy・battleFlow・triggers・型2本。
    **分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 3. BS16 の黄・青（バッチ3）に一度戻り、REFACTOR_PLAN §0 と同じ形で実装役の呼び出し数を測る
 4. R5 の残り（§2.2）と R6・R7 は、3 の結果を見て決め直す

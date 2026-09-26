@@ -69,6 +69,18 @@
 | 召喚時の誘発の並び | `fireSummonSequence` | 手札からの通常の召喚の入口は `GameEngine.doSummon`（【烈神速】も GameEngine） |
 | 効果による手札・トラッシュからの無償召喚 | `summonFreeFromHandIndex`・`summonFreeFromTrashIndex` | — |
 
+## アクションのハンドラ（`server/src/logic/actions/`）
+
+新しいアクション type のハンドラは、概念の合うファイルに `const xxxHandler: ActionHandler<"xxx">` を書き、そのファイル末尾の `handlers` に1行足す。
+新しいファイルを作ったら `actions/index.ts` の `ACTION_HANDLERS` に `...名前` を足す（書き漏れは `ActionRegistry` の型で検出される）。
+
+| 概念 | ファイル |
+| :-- | :-- |
+| 相手のコアを取り除く・自分のコアを払う／動かす | `cores.ts` |
+| ボイド・トラッシュからコアを置く、コアチャージ | `coreGain.ts` |
+| ライフを増やす・減らす | `life.ts`（【聖命】の計測点が `coverage-effects.ts` から差し込まれている） |
+| 【転召】のコアの置き先・再開・代わりの支払い | `tensho.ts`（判定の本体は `keywords/tensho.ts`） |
+
 ## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
 
 | 変更の種類 | 触るところ |
