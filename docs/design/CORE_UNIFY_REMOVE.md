@@ -84,7 +84,7 @@
 | coreRemove（51） | side（anySide→any・side own→own）・target（spread→spread、all:true→count "all"）・to（dest）・chooser（chooserIsTarget→owner）・leaveAtLeast・countCounter・filter をそのまま。**drawIfEmptied・costDiscardOwnBurst を持つものは if／pay がそろうまで旧 type のまま** |
 | coreRemoveMulti（7） | target one・targets・filter（costFilter→cost） |
 | coreRemoveSelf（1）／coreToTrashSelf（4） | side own・target self・to reserve／trash |
-| coreSqueezeOne（10）／coreSqueezeAll（2） | count 1・leaveAtLeast 1・target one（targets＝旧 count）／all。anySide→any、Squeeze All は side both |
+| coreSqueezeOne（10）／coreSqueezeAll（2） | 「コアを1個だけ残す」＝count "all"・leaveAtLeast 1。target one（targets＝旧 count）／all（旧 all:true）。anySide→any、to（dest）。Squeeze All は side both・target all |
 | coreRemoveDistributed（2） | target spread・leaveAtLeast・chooser |
 | coreRemoveAllOpponent（1）／coreToTrashAllByCost（1） | target all（後者は filter maxCost・count 1・to trash） |
 | coreToOpponentTrashChoice（3） | from [spirit, nexus]（spiritsOnly→[spirit]）・to trash・target one・chooser。includeReserve（BS03-075 犬人マードック「フィールド/リザーブから」）は from [spirit, nexus, reserve]・target spread |
@@ -94,7 +94,7 @@
 | bothSidesCoreToTrash（2）／bothSidesCoreToVoid（1） | side both・target spread・chooser owner（「お互い、それぞれの」）。BS01-087 は使用者が「指定する」ので target one・chooser 無し。to trash／void（後者は from [spirit, nexus]） |
 | destroyerCoresToTrash（2） | target event・count "all"・to trash |
 | coreDrainToLowerLevel（1） | count "toLowerLevel"・to trash |
-| voidCoresFromField（1） | pay { cost: removeCores{side own・from [spirit, nexus]・to void・spread・count 3}, then: removeCores{同・side opponent・count 4} } |
+| voidCoresFromField（1） | pay { cost: removeCores{side own・from [spirit, nexus]・to void・spread・count 3}, then: removeCores{同・side opponent・count 4} }。**pay の対応一覧（actions/pay.ts の PAYABLE_TYPES）に removeCores を足すまで旧 type のまま** |
 | coresDownToLimit（1）／coreToVoidEqualizeByTotal（1） | from 4ゾーン・to void・downTo（5／equalize）・chooser owner。前者は相手→自分の sequence |
 
 **旧 type のまま残す9種**（組み合わせの器が足りない）：coreRemoveByPayingSelfCores・coreTradeToOpponentTrash・coreRemovePerHandDiscard（量が支払いで決まる pay）／
