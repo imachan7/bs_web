@@ -43,30 +43,6 @@ const millOpponentThenReactHandler: ActionHandler<"millOpponentThenReact"> = (ct
     log(state, `${sourceName}：このバトルの間、${state.players[opp].name}は${COLOR_LABELS[color]}の手札のカードを使えない。`)
 }
 
-// BS14-111エクスキューションデストロイ：相手のデッキを上から1枚破棄し、その種別で分岐する
-const millThenDestroyByCardTypeHandler: ActionHandler<"millThenDestroyByCardType"> = (ctx) => {
-    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
-    const top = state.players[opp].deck[0]
-    if (top === undefined) {
-        log(state, `${sourceName}：相手のデッキが0枚のため発動しなかった。`)
-        return
-    }
-    if (millDeck(state, opp, 1, owner, srcType ? { sourceType: srcType } : undefined) === 0) {
-        log(state, `${sourceName}：デッキを破棄できなかった。`)
-        return
-    }
-    const milled = getCard(top)
-    log(state, `${sourceName}：破棄したのは${milled.name}。`)
-    if (milled.type === "spirit" || milled.type === "brave") {
-        ctx.resolve({ type: "destroy", count: 1, chooserIsTarget: true }, { sourceColors: srcColors, sourceType: srcType })
-        return
-    }
-    if (milled.type === "nexus" || milled.type === "magic") {
-        ctx.resolve({ type: "destroyNexus", count: 1, chooserIsTarget: true }, { sourceColors: srcColors, sourceType: srcType })
-        return
-    }
-}
-
 const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> = (ctx) => {
     const { state, owner, sourceName, srcColors, srcType } = ctx
     const player = state.players[owner]
@@ -106,31 +82,7 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
         const beforeLen = state.players[targetPid].trashCards.length
         const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
         state.lastMoved = state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual)
-        // 続く destroyIfLastMillHadBurst などが読む（BS15-X06鉄の覇王サイゴード・ゴレム）
-        state.lastMillHadBurst =
-            actual > 0 &&
-            state.players[targetPid].trashCards
-                .slice(beforeLen, beforeLen + actual)
-                .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
         return
-}
-
-// BS14-X05神獣鳥アン・ズール：自分のデッキを上から1枚破棄し、それが指定系統を持つスピリットカードだったときだけ自身を回復させる
-const millSelfTopThenRefreshSelfIfFamilyHandler: ActionHandler<"millSelfTopThenRefreshSelfIfFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName } = ctx
-    const player = state.players[owner]
-    const cardId = player.deck.shift()
-    if (cardId === undefined) {
-        log(state, `${sourceName}：デッキが尽きているため破棄できなかった。`)
-        return
-    }
-    player.trashCards.push(cardId)
-    const card = getCard(cardId)
-    log(state, `${player.name}はデッキを上から1枚（${card.name}）破棄した。`)
-    const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
-    if (card.type === "spirit" && wanted.some((f) => card.family.includes(f)) && self) {
-        ctx.resolve({ type: "refreshSelf" })
-    }
 }
 
 const millUntilCostSpiritSummonFreeHandler: ActionHandler<"millUntilCostSpiritSummonFree"> = (ctx, action) => {
@@ -266,58 +218,13 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
     runMillUntilMagicCastFree(state, owner, sourceName, action)
 }
 
-// バースト専用：millと同じ計算で相手のデッキを破棄し、破棄した中に【バースト】効果を持つカードが
-// あれば続けて自身をコストを支払わずに召喚する（BS15-X06鉄の覇王サイゴード・ゴレム）
-const millPerThenSummonSelfIfBurstMilledHandler: ActionHandler<"millPerThenSummonSelfIfBurstMilled"> = (ctx, action) => {
-    const { state, owner, self, srcType, sourceName } = ctx
-    const raw = countEffectCounter(state, owner, self, action.counter, srcType)
-    const count = raw * (action.multiplier ?? 1)
-    if (count === 0) {
-        log(state, `${sourceName}：カウントが0のため破棄しなかった。`)
-        return
-    }
-    const targetPid = opponentOf(owner)
-    const beforeLen = state.players[targetPid].trashCards.length
-    const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
-    state.lastMillHadBurst =
-        actual > 0 &&
-        state.players[targetPid].trashCards
-            .slice(beforeLen, beforeLen + actual)
-            .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
-    if (!state.lastMillHadBurst) {
-        log(state, `${sourceName}：バースト効果を持つカードは破棄されなかった。`)
-        return
-    }
-    ctx.resolve({ type: "summonBurstCardFree" })
-}
-
-// P071サイゴード・アームズ【合体時】：相手のデッキを上からcount枚破棄し、破棄した中に【バースト】効果を
-// 持つカードが1枚でもあればボイドからコア1個をこのスピリット上に置く（合体中はselfがホストなのでホストに置かれる）
-const millThenCoreIfBurstHandler: ActionHandler<"millThenCoreIfBurst"> = (ctx, action) => {
-    const { state, owner, srcType } = ctx
-    const targetPid = opponentOf(owner)
-    const beforeLen = state.players[targetPid].trashCards.length
-    const actual = millDeck(state, targetPid, action.count, owner, srcType ? { sourceType: srcType } : undefined)
-    state.lastMillHadBurst =
-        actual > 0 &&
-        state.players[targetPid].trashCards
-            .slice(beforeLen, beforeLen + actual)
-            .some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
-    if (!state.lastMillHadBurst) return
-    ctx.resolve({ type: "voidCoreToSelf", count: 1 })
-}
-
 const handlers = {
-    millSelfTopThenRefreshSelfIfFamily: millSelfTopThenRefreshSelfIfFamilyHandler,
     millOpponentThenReact: millOpponentThenReactHandler,
-    millThenDestroyByCardType: millThenDestroyByCardTypeHandler,
     millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
-    millPerThenSummonSelfIfBurstMilled: millPerThenSummonSelfIfBurstMilledHandler,
-    millThenCoreIfBurst: millThenCoreIfBurstHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

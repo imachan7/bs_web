@@ -184,8 +184,28 @@
         "whileCombined": true,
         "optional": false,
         "action": {
-          "type": "millThenCoreIfBurst",
-          "count": 2
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "mill",
+              "count": 2
+            },
+            {
+              "type": "if",
+              "cond": {
+                "last": {
+                  "hasBurst": true
+                }
+              },
+              "then": {
+                "type": "placeCores",
+                "from": "void",
+                "to": "spirit",
+                "target": "self",
+                "count": 1
+              }
+            }
+          ]
         }
       }
     ]

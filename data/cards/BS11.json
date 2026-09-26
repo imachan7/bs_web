@@ -4458,9 +4458,27 @@
     "turn": "own",
     "subjectSide": "own",
     "action": {
-     "type": "millOpponentThenReact",
-     "react": "exhaustOneIfMaxCost",
-     "maxCost": 3
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "mill",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cost": {
+          "max": 3
+         }
+        }
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 1
+       }
+      }
+     ]
     }
    }
   ]

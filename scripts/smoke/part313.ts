@@ -1,7 +1,7 @@
 // smoke パート313（BS14赤バッチ21種）
 // バースト持ち（BS14-010/091/092/094/X01/X012R）と、確認済み解釈3枚
 // （BS14-093の「バーストがセットされている間」＝自分のバーストのみ／BS14-073のBP+累積／
-//  BS14-X01のcondition:ownLifeAtMostが破壊のほうだけに掛かる）を確認する
+//  BS14-X01はライフ3以下のときだけ破壊→召喚。2026-09-27 ユーザー回答で「召喚は常に」から変更＝IF_UNIFY.md Q1）を確認する
 import {
     act,
     assert,
@@ -154,7 +154,7 @@ console.log("=== BS14-094 天翔龍神覇：バースト（ネクサス2つ破�
     assert(s.players.p2.field.nexuses.length === 0, "相手のネクサス2つを破壊する")
 }
 
-console.log("=== BS14-X01 龍の覇王ジーク・ヤマト・フリード：バースト（ライフ3以下でだけ破壊、召喚は常に発揮） ===")
+console.log("=== BS14-X01 龍の覇王ジーク・ヤマト・フリード：バースト（ライフ3以下のときだけ破壊→召喚） ===")
 {
     // ライフ3以下：破壊も召喚も発揮する
     const s = game("bs14-x01-low-life")
@@ -166,21 +166,23 @@ console.log("=== BS14-X01 龍の覇王ジーク・ヤマト・フリード：バ
     assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === prey.instanceId), "ライフ3以下なら相手を破壊する")
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-X01"), "この効果発揮後、コストを支払わずに自身を召喚する")
 
-    // ライフ4（3を超える）：破壊は発揮しないが、召喚は「この効果発揮後」なので常に発揮する
+    // ライフ4（3を超える）：条件が召喚まで掛かるので何も起きず、バーストはトラッシュへ
     const s2 = game("bs14-x01-high-life")
     s2.players.p1.life = 4
     placeBurst(s2, "p1", "BS14-X01")
     const prey2 = createInstance("BS01-001", s2.turn, 1)
     s2.players.p2.field.spirits.push(prey2)
     fireFieldEventTriggers(s2, "p1", "ownLifeDamaged")
-    assert(
-        s2.players.p2.field.spirits.some((sp) => sp.instanceId === prey2.instanceId),
-        "ライフ4なら破壊は発揮しない（conditionは破壊のほうだけに掛かる）",
-    )
-    assert(
-        s2.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-X01"),
-        "破壊が不発でも、召喚はconditionの成否によらず発揮する",
-    )
+    assert(s2.players.p2.field.spirits.some((sp) => sp.instanceId === prey2.instanceId), "ライフ4なら破壊しない")
+    assert(!s2.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-X01"), "ライフ4なら召喚もしない")
+    assert(s2.players.p1.trashCards.includes("BS14-X01") && s2.players.p1.burst === null, "発動したバーストはトラッシュに置かれる")
+
+    // ライフ3以下で破壊できる相手がいない：破壊を「発揮」したので召喚する
+    const s3 = game("bs14-x01-no-prey")
+    s3.players.p1.life = 3
+    placeBurst(s3, "p1", "BS14-X01")
+    fireFieldEventTriggers(s3, "p1", "ownLifeDamaged")
+    assert(s3.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-X01"), "相手がいなくてもライフ3以下なら召喚する")
 }
 
 console.log("=== BS14-X01 Lv3-4：自分のバーストをセットしているとき、このスピリットのBP以下の相手を破壊 ===")
