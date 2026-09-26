@@ -1219,11 +1219,13 @@
           3
         ],
         "action": {
-          "type": "coreRemoveMulti",
+          "type": "removeCores",
+          "to": "trash",
           "targets": 1,
-          "count": 2,
-          "dest": "trash",
-          "keywordExclude": "tensho"
+          "filter": {
+            "keywordExclude": "tensho"
+          },
+          "count": 2
         },
         "optional": false
       }

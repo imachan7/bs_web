@@ -661,10 +661,11 @@
           3
         ],
         "action": {
-          "type": "coreRemoveDistributed",
+          "type": "removeCores",
+          "target": "spread",
           "count": 3,
           "leaveAtLeast": 1,
-          "chooserIsTarget": true
+          "chooser": "owner"
         },
         "optional": false
       },
@@ -677,7 +678,7 @@
           3
         ],
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         },
         "optional": false
@@ -1555,10 +1556,11 @@
         "sourceColorFilter": "green",
         "repeatPerCount": true,
         "action": {
-          "type": "coreRemoveDistributed",
+          "type": "removeCores",
+          "to": "void",
+          "target": "spread",
           "count": 1,
-          "dest": "void",
-          "chooserIsTarget": true
+          "chooser": "owner"
         }
       },
       {

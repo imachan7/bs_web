@@ -717,7 +717,7 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "optional": true
@@ -898,7 +898,7 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "optional": false
@@ -1157,7 +1157,7 @@
      3
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "optional": false
@@ -1230,7 +1230,12 @@
     ],
     "condition": "selfWasRefreshedThisStep",
     "action": {
-     "type": "coreToOpponentTrashChoice",
+     "type": "removeCores",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
+     "to": "trash",
      "count": 1
     }
    },
@@ -1244,7 +1249,12 @@
     ],
     "condition": "selfWasRefreshedThisStep",
     "action": {
-     "type": "coreToOpponentTrashChoice",
+     "type": "removeCores",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
+     "to": "trash",
      "count": 2
     }
    }
@@ -1339,7 +1349,7 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 2
     },
     "optional": true
@@ -5212,18 +5222,17 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "coreRemove",
+      "type": "removeCores",
       "side": "own",
-      "all": true,
-      "count": 1,
+      "to": "void",
       "filter": {
        "minBp": 7000
       },
-      "dest": "void"
+      "count": "all"
      },
      "then": {
-      "type": "coreRemove",
-      "spread": true,
+      "type": "removeCores",
+      "target": "spread",
       "count": 7
      }
     }
@@ -5288,7 +5297,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "opponentNexusOrReserveCoreToTrash",
+     "type": "removeCores",
+     "from": [
+      "nexus",
+      "reserve"
+     ],
+     "to": "trash",
+     "target": "spread",
      "count": 1
     }
    }
@@ -5336,8 +5351,12 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "bothSidesCoreToTrash",
-     "count": 4
+     "type": "removeCores",
+     "side": "both",
+     "to": "trash",
+     "target": "spread",
+     "count": 4,
+     "chooser": "owner"
     }
    }
   ]

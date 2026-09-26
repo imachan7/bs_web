@@ -1280,8 +1280,15 @@
      3
     ],
     "action": {
-     "type": "coreToTrashAllByCost",
-     "maxCost": 4
+     "type": "removeCores",
+     "to": "trash",
+     "target": "all",
+     "filter": {
+      "cost": {
+       "max": 4
+      }
+     },
+     "count": 1
     },
     "optional": false
    },
@@ -2673,7 +2680,14 @@
     "magicCostEquals": 4,
     "magicTiming": "flash",
     "action": {
-     "type": "opponentCoresToTrash",
+     "type": "removeCores",
+     "from": [
+      "spirit",
+      "nexus",
+      "reserve"
+     ],
+     "to": "trash",
+     "target": "spread",
      "count": 4
     }
    },
@@ -2688,7 +2702,14 @@
     "magicCostEquals": 3,
     "magicTiming": "flash",
     "action": {
-     "type": "opponentCoresToTrash",
+     "type": "removeCores",
+     "from": [
+      "spirit",
+      "nexus",
+      "reserve"
+     ],
+     "to": "trash",
+     "target": "spread",
      "count": 3
     }
    }
@@ -4600,7 +4621,7 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1,
      "countCounter": {
       "ownFamily": "妖蛇"
@@ -5025,7 +5046,10 @@
      }
     },
     "action": {
-     "type": "coreToTrashSelf",
+     "type": "removeCores",
+     "side": "own",
+     "target": "self",
+     "to": "trash",
      "count": 1
     }
    }
@@ -5505,9 +5529,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "dest": "void"
+     "type": "removeCores",
+     "to": "void",
+     "count": 1
     }
    },
    {
@@ -5576,8 +5600,16 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "bothSidesCoreToVoid",
-     "count": 4
+     "type": "removeCores",
+     "side": "both",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
+     "to": "void",
+     "target": "spread",
+     "count": 4,
+     "chooser": "owner"
     },
     "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2

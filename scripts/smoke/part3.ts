@@ -887,13 +887,13 @@ console.log("=== 魔帝の墓標Lv2（e2）：アタック宣言でコア1個を
         "減ったコアは持ち主（p2）のトラッシュへ",
     )
 
-    console.log("--- コアが維持コアを下回る場合は消滅する（coreToTrashSelf） ---")
+    console.log("--- コアが維持コアを下回る場合は消滅する（removeCores side own/target self/to trash） ---")
     // 第一弾に維持コア2のスピリットは存在せず、コア1個の個体は e1 でアタック自体が拒否されるため、
     // 消滅経路はアクション単体（resolveAction）で検証する
     const fragile = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(fragile)
     const p1TrashBefore = s.players.p1.trashCores
-    resolveAction(s, "p1", fragile, { type: "coreToTrashSelf", count: 1 })
+    resolveAction(s, "p1", fragile, { type: "removeCores", side: "own", target: "self", to: "trash", count: 1 })
     assert(
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === fragile.instanceId),
         "維持コア割れで消滅する",

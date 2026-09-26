@@ -250,7 +250,7 @@ console.log("=== BS14-022幻双龍シェイロン：召喚時に相手フィー�
     s.players.p2.field.spirits.push(a, b)
     const sheylon = createInstance("BS14-022", s.turn, 1)
     s.players.p1.field.spirits.push(sheylon)
-    resolveAction(s, "p1", sheylon, { type: "coreSqueezeOne", count: 0, all: true })
+    resolveAction(s, "p1", sheylon, { type: "removeCores", target: "all", count: "all", leaveAtLeast: 1 })
     assert(a.cores === 1 && b.cores === 1, "相手フィールドのスピリットすべてがコア1個に圧縮される")
 }
 

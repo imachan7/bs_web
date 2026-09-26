@@ -45,7 +45,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
 - `shinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
 - `burstSetCoresRequired`（fn）：kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
-- `OPPONENT_RESERVE_TARGET`（const）：pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
+- `coreZoneChoiceId`（fn）：pendingChoice の候補に混ぜる「そのプレイヤーのリザーブ／トラッシュのコア」の番兵（removeCores で取り先を1個ずつ選ぶとき）。
 - `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
 - `canAwakenFromReserve`（fn）：【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
 - `hasSuperAwaken`（fn）：この個体が【超覚醒】を持つか（＝コアを置いたあと回復するか）。

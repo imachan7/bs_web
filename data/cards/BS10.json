@@ -409,11 +409,11 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "coreRemove",
-          "count": 1,
+          "type": "removeCores",
           "filter": {
             "combined": false
-          }
+          },
+          "count": 1
         },
         "optional": false
       }
@@ -2340,7 +2340,10 @@
         ],
         "byOpponentSpiritEffectOnly": true,
         "action": {
-          "type": "destroyerCoresToTrash"
+          "type": "removeCores",
+          "target": "event",
+          "to": "trash",
+          "count": "all"
         }
       }
     ]
@@ -2455,7 +2458,10 @@
         ],
         "byOpponentSpiritEffectOnly": true,
         "action": {
-          "type": "destroyerCoresToTrash"
+          "type": "removeCores",
+          "target": "event",
+          "to": "trash",
+          "count": "all"
         }
       }
     ]
@@ -2731,11 +2737,36 @@
         "whileCombined": true,
         "optional": false,
         "action": {
-          "type": "coresDownToLimit",
-          "limit": 5,
-          "sides": [
-            "opponent",
-            "own"
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "removeCores",
+              "side": "opponent",
+              "from": [
+                "spirit",
+                "nexus",
+                "reserve",
+                "trash"
+              ],
+              "to": "void",
+              "count": 0,
+              "downTo": 5,
+              "chooser": "owner"
+            },
+            {
+              "type": "removeCores",
+              "side": "own",
+              "from": [
+                "spirit",
+                "nexus",
+                "reserve",
+                "trash"
+              ],
+              "to": "void",
+              "count": 0,
+              "downTo": 5,
+              "chooser": "owner"
+            }
           ]
         }
       }
@@ -2790,7 +2821,7 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1,
           "countCounter": {
             "ownFamily": "星魂"
@@ -2855,8 +2886,10 @@
         ],
         "familyFilter": "魔影",
         "action": {
-          "type": "coreSqueezeOne",
-          "count": 1
+          "type": "removeCores",
+          "targets": 1,
+          "count": "all",
+          "leaveAtLeast": 1
         }
       }
     ]
@@ -3101,8 +3134,10 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "coreSqueezeOne",
-          "count": 1
+          "type": "removeCores",
+          "targets": 1,
+          "count": "all",
+          "leaveAtLeast": 1
         }
       }
     ]

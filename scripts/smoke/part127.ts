@@ -7,7 +7,7 @@
 //   A: fieldEvent anySpiritAttacked に ownOnly／keywordFilter（動的判定）を追加
 //   B: reviveOnDestroy に cost.handDiscardOne／oncePerTurn を追加
 //   C: keywordGrant.familyFilter を string→FamilyFilter へ（型のみ）
-//   D: 新アクション coreDrainToLowerLevel
+//   D: removeCores（count:"toLowerLevel"）
 //   E: summonFromTrashFree に keywordFilter／costBudget を追加
 //   F: 新 FieldEvent "ownSpiritDealtLife"
 // BS06-098 カウンターカースは実装しない（card-notes.json に理由を記載）。
@@ -226,7 +226,7 @@ console.log("=== 拡張D：レベルドレイン（Lv3→Lv2ぶんまでトラ�
     runTurnStart(s)
     const target = put(s, "p2", "BS06-021", 6) // Lv3（コア6個）
     const trashBefore = s.players.p2.trashCores
-    resolveAction(s, "p1", null, { type: "coreDrainToLowerLevel" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", to: "trash", count: "toLowerLevel" }, undefined, undefined, "magic")
     assert(target.cores === 3, `Lv2ぶん（コア3個）まで減る（実際: ${String(target.cores)}個）`)
     assert(s.players.p2.trashCores === trashBefore + 3, "取り除いたコアは相手のトラッシュへ")
 }
@@ -234,7 +234,7 @@ console.log("=== 拡張D：レベルドレイン（Lv3→Lv2ぶんまでトラ�
     const s = createGame("t127-extD-lv1", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "purple" })
     runTurnStart(s)
     const target = put(s, "p2", "BS06-021", 1) // Lv1
-    resolveAction(s, "p1", null, { type: "coreDrainToLowerLevel" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", to: "trash", count: "toLowerLevel" }, undefined, undefined, "magic")
     assert(target.cores === 1, `Lv1は対象にしても何も起きない（実際: ${String(target.cores)}個）`)
 }
 

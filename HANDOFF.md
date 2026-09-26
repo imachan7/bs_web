@@ -52,7 +52,7 @@
    **器は実装済み（`actions/placeCores.ts`・smoke part391・392）**。`targets`≥2 は1体ずつ選ばせ、選んだ個体は内部フィールド `excludeIds` で外す。
    `from: "self"`／`"field"` は `removal.ts` の `takeCoresFromSpirit`（保護・下限・消滅）を通す。
    **カードの移行は済み（ブランチ `feat/place-cores-migrate`）**：170か所を placeCores に書き換え、旧16種を消した。旧 type で残るのはコスト付き4か所（coreGain・lifeCharge・voidCoreToSelf）とブレイヴ自身に置く BS14-069 だけ（`pay` がそろったら移す）。
-   **取り除く系の器 `removeCores` はスキーマ確定（2026-09-26）→ [CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3**。19種を移し9種は残す。ブランチ `feat/remove-cores`。次は器とテスト（カードは触らない）
+   **取り除く系も移行済み**（器 #168・移行はブランチ `feat/remove-cores-migrate`）：カード103か所を removeCores に書き換え、旧18種を消した（cores.ts 1930→1072行）。自動選択は「選ぶ人が自分のコアを失うなら損の小さい順（トラッシュ→リザーブ→ネクサス→スピリットのコア最多）、奪うなら逆」。リザーブ／トラッシュを候補にする番兵は shared/rules の `coreZoneChoiceId`（クライアントでクリック可）。**残り9種**（CORE_UNIFY_REMOVE.md §3 末尾）と voidCoresFromField は pay／if／移動の器がそろってから
    未対応：`orReserve` と `target: "one"` の組み合わせ（使うカードは無い）。取り除く系で直す明らかな誤り：coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
 3. R5 の残り（REFACTOR_PLAN §2.2）

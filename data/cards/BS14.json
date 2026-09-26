@@ -1277,9 +1277,10 @@
      2
     ],
     "action": {
-     "type": "coreSqueezeOne",
-     "count": 0,
-     "all": true
+     "type": "removeCores",
+     "target": "all",
+     "count": "all",
+     "leaveAtLeast": 1
     }
    },
    {
@@ -1290,8 +1291,10 @@
      2
     ],
     "action": {
-     "type": "coreSqueezeOne",
-     "count": 2
+     "type": "removeCores",
+     "targets": 2,
+     "count": "all",
+     "leaveAtLeast": 1
     }
    }
   ]
@@ -4665,9 +4668,13 @@
      2
     ],
     "action": {
-     "type": "opponentCoresToTrash",
-     "count": 0,
-     "reserveAll": true
+     "type": "removeCores",
+     "from": [
+      "reserve"
+     ],
+     "to": "trash",
+     "target": "spread",
+     "count": "all"
     }
    },
    {
@@ -5814,18 +5821,18 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "coreRemove",
+      "type": "removeCores",
       "side": "own",
-      "spread": true,
-      "count": 3,
-      "dest": "trash"
+      "to": "trash",
+      "target": "spread",
+      "count": 3
      },
      "then": {
-      "type": "coreRemove",
-      "spread": true,
+      "type": "removeCores",
+      "to": "trash",
+      "target": "spread",
       "count": 3,
-      "dest": "trash",
-      "chooserIsTarget": true
+      "chooser": "owner"
      }
     },
     "thenPay": "flash"
@@ -5915,7 +5922,7 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "thenPay": "main"
@@ -6896,9 +6903,9 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "dest": "trash"
+     "type": "removeCores",
+     "to": "trash",
+     "count": 1
     },
     "alsoDrawIfDestroyedColor": "purple",
     "returnSelfToHandAfter": true

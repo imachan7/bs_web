@@ -4,7 +4,7 @@
 //   - globalConstraint "costCantAct"（コスト以下は両陣営アタック/ブロック不可。白夜の虚空／青嵐の虚空）
 //   - kind:"costMod" の mode:"set"（コスト置換。パントマイスター／ゴッドスピード）
 //   - globalConstraint "millCap"（相手効果によるミルの上限。エターナルシールド。effectSources経由でlendSelfThisTurn対応）
-//   - action "coreRemoveMulti"（複数対象への同時コア除去。ガストラス）
+//   - action "removeCores" targets指定（複数対象への同時コア除去。ガストラス）
 //   - action "summonFromTrashFree"（トラッシュからの無償召喚。妖狐キュービック）
 //   - kind:"keywordGrant" の colors（継続付与の装甲。CardInstance.armorColorsGranted。白夜の虚空Lv2）
 //   - kind:"keywordGrant" の keyword:"awaken"（既存機構の再利用。紅蓮の虚空Lv2）

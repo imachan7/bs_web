@@ -7,6 +7,7 @@ import { act, assert, createGame, createInstance, resolveAction, runTurnStart } 
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import type { EffectAction } from "../../server/src/type"
+import { coreZoneChoiceId } from "../../shared/rules"
 
 const byName = (n: string) => {
     const c = ALL_CARDS.find((x) => x.name === n)
@@ -52,11 +53,12 @@ console.log("=== §A エナジードレイン：相手のネクサスかリザ�
     const nexus = putNexus(s, "p2", anyNexus[0]!.cardId, 3)
     s.players.p2.reserve = 5
     resolveAction(s, "p1", null, action)
-    assert(s.pendingChoice?.kind === "option", "取り先の選択待ちが立つ")
-    assert((s.pendingChoice?.options ?? []).length === 2, "候補はネクサスとリザーブの2つ")
-    const reserveOption = (s.pendingChoice?.options ?? []).find((o) => o.startsWith("リザーブ"))
-    assert(reserveOption !== undefined, "リザーブが選択肢に出る")
-    assert(act(s, "p1", { type: "resolveChoice", option: reserveOption! }) === null, "リザーブを選ぶ")
+    // 2026-09-26 の統合で、取り先は選択肢の文字列ではなく候補（ネクサスの instanceId とリザーブの番兵）から選ぶ形になった
+    assert(s.pendingChoice?.kind === "target", "取り先の選択待ちが立つ")
+    assert((s.pendingChoice?.candidates ?? []).length === 2, "候補はネクサスとリザーブの2つ")
+    const reserveId = coreZoneChoiceId("reserve", "p2")
+    assert((s.pendingChoice?.candidates ?? []).includes(reserveId), "リザーブが選択肢に出る")
+    assert(act(s, "p1", { type: "resolveChoice", instanceId: reserveId }) === null, "リザーブを選ぶ")
     assert(s.players.p2.reserve === 4, "リザーブからコアが減る")
     assert(nexus.cores === 3, "選ばなかったネクサスは減らない")
 

@@ -89,10 +89,11 @@ export function burstSetCoresRequired(board: Board, pid: PlayerId): number {
     return total
 }
 
-// pendingChoice の候補に混ぜると「相手のリザーブ」を意味する番兵。
-// 通常の instanceId とは衝突しない固定文字列（BS03-075 犬人マードック：
-// 「相手のフィールド/リザーブから」コアをトラッシュへ置く）
-export const OPPONENT_RESERVE_TARGET = "opponent-reserve"
+// pendingChoice の候補に混ぜる「そのプレイヤーのリザーブ／トラッシュのコア」の番兵（removeCores で取り先を1個ずつ選ぶとき）。
+// 通常の instanceId とは衝突しない。サーバーとクライアントで同じ文字列を使うためここに置く
+export function coreZoneChoiceId(zone: "reserve" | "trash", pid: PlayerId): string {
+    return `__${zone}__${pid}`
+}
 
 // GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
 // 通常の instanceId とは衝突しない固定文字列（BS05合成恐竜ディノゾールLv2）

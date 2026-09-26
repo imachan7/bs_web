@@ -1,7 +1,7 @@
 // smoke パート145（第八弾「戦嵐」紫15枚：新規エンジン拡張の経路確認）
 //
 // BS08の紫15枚取り込みで追加したエンジン拡張を実カード経由で1回ずつ通す:
-//   fieldEvent.maxBp（anySpiritAttacked。BS08-012）／coreRemove.filter（TargetFilter。BS08-058）／
+//   fieldEvent.maxBp（anySpiritAttacked。BS08-012）／removeCores.filter（TargetFilter。BS08-058）／
 //   globalConstraint"singleCoreCantAttack"（BS08-057）／coreRemoveMulti.keywordExclude（BS08-015）／
 //   summonFromTrashFree.nameIncludes（BS08-013）／recoverSpiritFromTrash.keywordFilter（BS08-070）／
 //   millUntilFamilyToHand（BS08-014）／costOwnSpiritCoresToTrashThenOpponent（BS08-072）／
@@ -110,20 +110,20 @@ console.log("=== BS08ダークスカルデーモン：fieldEvent.maxBp（anySpir
     assert(strongAttacker.cores === strongCoresBefore, `対照実験：BP${maxBp}超のアタックではコアが減らない`)
 }
 
-console.log("=== BS08倒逆ピラミッド群：coreRemove.filter（TargetFilter） ===")
+console.log("=== BS08倒逆ピラミッド群：removeCores.filter（TargetFilter） ===")
 {
     const pyramid = findByEffect(
         (e) =>
             e["kind"] === "step" &&
             e["step"] === "end" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemove" &&
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "removeCores" &&
             ((e["action"] as Record<string, unknown>)["filter"] as Record<string, unknown> | undefined)?.[
                 "maxBp"
             ] !== undefined,
     )
     const entry = entryOf(
         pyramid,
-        (e) => e["kind"] === "step" && (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemove",
+        (e) => e["kind"] === "step" && (e["action"] as Record<string, unknown> | undefined)?.["type"] === "removeCores",
     )
     const level = (entry["levels"] as number[])[0]!
     const maxBp = Number(((entry["action"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["maxBp"])
@@ -186,19 +186,18 @@ console.log("=== BS08赤き砂の座：globalConstraint singleCoreCantAttack（�
     assert(declareBlock(s3, "p2", blocker.instanceId) === null, "対照実験：コア1個でもブロックはできる")
 }
 
-console.log("=== BS08闇帝竜騎サブナ・ルーク：coreRemoveMulti.keywordExclude（【転召】を持たない相手すべて） ===")
+console.log("=== BS08闇帝竜騎サブナ・ルーク：removeCores target:all filter.keywordExclude（【転召】を持たない相手すべて） ===")
 {
+    const isSabnaAction = (e: Record<string, unknown>): boolean => {
+        const action = e["action"] as Record<string, unknown> | undefined
+        if (action?.["type"] !== "removeCores" || action["target"] !== "all") return false
+        const filter = action["filter"] as Record<string, unknown> | undefined
+        return filter?.["keywordExclude"] !== undefined
+    }
     const sabna = findByEffect(
-        (e) =>
-            e["kind"] === "fieldEvent" &&
-            e["event"] === "anySpiritAttacked" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemoveMulti" &&
-            (e["action"] as Record<string, unknown>)["keywordExclude"] !== undefined,
+        (e) => e["kind"] === "fieldEvent" && e["event"] === "anySpiritAttacked" && isSabnaAction(e),
     )
-    const entry = entryOf(
-        sabna,
-        (e) => e["kind"] === "fieldEvent" && (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemoveMulti",
-    )
+    const entry = entryOf(sabna, (e) => e["kind"] === "fieldEvent" && isSabnaAction(e))
     const level = (entry["levels"] as number[])[0]!
     const family = String(entry["familyFilter"])
     const attackerCard = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(family))!
@@ -317,7 +316,7 @@ console.log("=== BS08マインドブレイク：pay（コストを払えたと�
             e["kind"] === "magic" &&
             e["timing"] === "main" &&
             (e["action"] as Record<string, unknown> | undefined)?.["type"] === "pay" &&
-            ((e["action"] as Record<string, Record<string, unknown>>)["then"]?.["chooserIsTarget"] === true),
+            ((e["action"] as Record<string, Record<string, unknown>>)["then"]?.["chooser"] === "owner"),
     )
     const entry = entryOf(mindbreak, (e) => e["kind"] === "magic" && e["timing"] === "main")
     const count = Number(((entry["action"] as Record<string, unknown>)["cost"] as Record<string, unknown>)["count"])

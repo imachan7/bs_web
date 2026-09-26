@@ -681,7 +681,7 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "optional": false
@@ -801,7 +801,7 @@
      3
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "optional": false
@@ -1016,9 +1016,9 @@
      3
     ],
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "dest": "void"
+     "type": "removeCores",
+     "to": "void",
+     "count": 1
     },
     "optional": false
    },
@@ -1031,9 +1031,9 @@
      3
     ],
     "action": {
-     "type": "coreRemove",
-     "count": 2,
-     "dest": "void"
+     "type": "removeCores",
+     "to": "void",
+     "count": 2
     },
     "optional": false
    }
@@ -3726,11 +3726,10 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "coreRemoveMulti",
-     "targets": 0,
-     "allTargets": true,
-     "count": 1,
-     "dest": "trash"
+     "type": "removeCores",
+     "to": "trash",
+     "target": "all",
+     "count": 1
     },
     "byOpponentEffectOnly": true
    },
@@ -4702,7 +4701,7 @@
     "levels": null,
     "lentOnly": true,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    }

@@ -120,8 +120,6 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "refreshSelf",
     "destroySelf",
     "returnSelfToHand",
-    "coreRemoveSelf",
-    "coreToTrashSelf",
     "voidCoreToSelf",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
@@ -191,7 +189,7 @@ function checkLentEffects(
             const lent: { type?: unknown; target?: unknown }[] = []
             collectActions([e], lent)
             for (const a of lent) {
-                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (a.type === "timedEffect" && a.target === "self"))) {
+                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
                     add(
                         c.cardId,
                         `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
@@ -607,7 +605,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["removeCores"])
+const AWAITING_MIGRATION = new Set<string>([])
 
 export function findUnusedActions(cards: CardData[]): string[] {
     const used = new Set<string>()

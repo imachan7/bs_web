@@ -698,13 +698,15 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemoveMulti",
+     "type": "removeCores",
+     "to": "trash",
      "targets": 2,
-     "count": 2,
-     "dest": "trash",
-     "costFilter": {
-      "max": 1
-     }
+     "filter": {
+      "cost": {
+       "max": 1
+      }
+     },
+     "count": 2
     }
    }
   ]
@@ -3390,7 +3392,10 @@
      "max": 1
     },
     "action": {
-     "type": "coreToTrashSelf",
+     "type": "removeCores",
+     "side": "own",
+     "target": "self",
+     "to": "trash",
      "count": 2
     }
    },
@@ -5251,9 +5256,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
-     "count": 2,
-     "dest": "void"
+     "type": "removeCores",
+     "to": "void",
+     "count": 2
     }
    }
   ]

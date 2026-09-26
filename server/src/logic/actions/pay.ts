@@ -14,7 +14,7 @@ import { countedAmount } from "../counted"
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "discardSelfChoose", "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
-    "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "refreshSelf", "nexusCoresToTrash",
+    "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf", "nexusCoresToTrash",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -69,6 +69,23 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const achievable = coreRemoveAchievableCountForPay(state, owner, self?.instanceId, action, srcColors, srcType)
         if (action.all) return achievable >= 1
         return achievable >= action.count
+    },
+    // pay の中で使うのはスピリットから取る形だけなので、旧 coreRemove の形に写して同じ判定で数える
+    removeCores: (state, owner, self, action, srcColors, srcType) => {
+        if (action.type !== "removeCores") return false
+        if (action.from !== undefined && !(action.from.length === 1 && action.from[0] === "spirit")) return false
+        if (typeof action.count !== "number" && action.count !== "all") return false
+        const asOld: Extract<EffectAction, { type: "coreRemove" }> = {
+            type: "coreRemove",
+            count: typeof action.count === "number" ? action.count : 0,
+            ...(action.side === "own" ? { side: "own" as const } : {}),
+            ...(action.side === "any" ? { anySide: true as const } : {}),
+            ...(action.target === "spread" ? { spread: true as const } : {}),
+            ...(action.count === "all" ? { all: true as const } : {}),
+            ...(action.filter ? { filter: action.filter } : {}),
+        }
+        const achievable = coreRemoveAchievableCountForPay(state, owner, self?.instanceId, asOld, srcColors, srcType)
+        return action.count === "all" ? achievable >= 1 : achievable >= action.count
     },
     refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
     nexusCoresToTrash: (state, owner, _self, action, _srcColors, srcType) => {
