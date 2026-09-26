@@ -17,7 +17,6 @@ import {
     applyDestroyBatchAfter,
     destroyBpThresholdBonusFor,
     fireTrigger,
-    lifeCostBlockedByFloor,
     findSpiritAny,
     isResisted,
     askPayToNegateIfNeeded,
@@ -64,8 +63,10 @@ export function destroyCandidateCountForPay(
     srcType: CardType | undefined,
 ): number {
     const opp = opponentOf(owner)
-    const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+    const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
     if (action.side === "own") return ownSideDestroyCandidates(state, owner, selfInstanceId, filter).length
+    // ハンドラと同じ「BP◯以下」の閾値加算（destroyBpThresholdBonus）
+    if (filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) filter.maxBp += destroyBpThresholdBonusFor(state, owner)
     const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
     if (action.anySide) return pickAnySideCandidates(state, owner, matches, srcColors, srcType).length
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).length
@@ -212,28 +213,6 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         if (filter !== SELF_REQUIRED && filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) {
             const bonus = destroyBpThresholdBonusFor(state, owner)
             if (bonus > 0) filter.maxBp += bonus
-        }
-        // 器BS16：costOwnLifeToVoid（BS16-008ダークナイト・ドラゴン）。「〜することで〜する」は
-        // 両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、対象条件を満たす
-        // 相手のスピリットが1体もいなければライフも払わない
-        if (action.costOwnLifeToVoid !== undefined && filter !== SELF_REQUIRED) {
-            const player = state.players[owner]
-            const amount = action.costOwnLifeToVoid
-            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
-            if (player.life < amount || lifeCostBlockedByFloor(state, owner, amount) || !hasEligibleTarget) {
-                log(state, `${sourceName}：対象がいない、またはライフが足りないため発動しなかった。`)
-                return
-            }
-            player.life -= amount
-            log(state, `${player.name}は${sourceName}のコストとして、ライフのコア${amount}個をボイドに置いた。（残りライフ${player.life}）`)
-            if (player.life <= 0 && !state.winner) {
-                state.winner = opp
-                log(state, `${state.players[opp].name}の勝利！`)
-                return
-            }
-            const { costOwnLifeToVoid: _colv, ...rest } = action
-            ctx.resolve(rest)
-            return
         }
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
