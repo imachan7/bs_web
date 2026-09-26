@@ -81,3 +81,13 @@ R3コア統合の前提調査。担当21種のハンドラ本体（`server/src/l
 | 上位2 | destructionCoresToOwnSpirit：効果文「指定する」だが実装は常に自動（2枚、簡略化とコメント済み） |
 | 上位3 | opponentLifeToReserve：型定義コメントが実装と不一致（3枚、コメントが別の器の説明の使い回しの疑い） |
 | 相談事項 | なし（設計担当がスキーマを決める材料として提出） |
+
+## §3 確定スキーマ `placeCores`（2026-09-26。#165〜#167 で実装・移行済み）
+
+`{ type: "placeCores"; from: "void"|"reserve"|"trash"|"self"|"field"; to: "reserve"|"trash"|"life"|"spirit"|"nexus"|"deckSide"; target?: "self"|"one"|"all"; targets?: number; filter?: TargetFilter; count: number|"all"; countCounter?: EffectCounter; upTo?: number; upToLevel?: number; orReserve?: true }`
+
+- すべて自分側。`target` は to が spirit／nexus のときだけ（既定 "one"＝候補2体以上なら使用者が選ぶ。AI・非対話はBP最大、ネクサスはコア最少）。`self`＝発生源の上、`field`＝自分のネクサス→スピリット（BP最小）の順に取る。
+- ボイドから spirit／nexus／reserve へ置くときは `voidCorePlacementBlocked`（BS10-056）を見る。ライフへはライフ専用のガードと【聖命】。置いた先は `placeCoresOnSpirit` を通す。
+- `targets`≥2 は1体ずつ選ばせ、選んだ個体は内部フィールド `excludeIds` で外す。`from: "self"`／`"field"` は removal.ts の `takeCoresFromSpirit`（保護・下限・消滅）を通す
+- `target: "self"` は置き先の種別に関係なく発生源そのもの（ネクサスの誘発で召喚されたスピリットを指すことがある）
+- 旧 type で残るもの：コスト付き4か所（coreGain・lifeCharge・voidCoreToSelf）、ブレイヴ自身に置く BS14-069、destructionCoresToOwnSpirit（破壊時のコアの行き先の置換）、opponentLifeToReserve（ライフ減少）。未対応：`orReserve` と `target: "one"` の組み合わせ
