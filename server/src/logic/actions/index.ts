@@ -19,6 +19,7 @@ import pay from "./pay"
 import placeCores from "./placeCores"
 import removeCores from "./removeCores"
 import reveal from "./reveal"
+import revealAction from "./revealAction"
 import tegamoto from "./tegamoto"
 import tensho from "./tensho"
 import timedEffect from "./timedEffect"
@@ -42,6 +43,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...placeCores,
     ...removeCores,
     ...reveal,
+    ...revealAction,
     ...tegamoto,
     ...tensho,
     ...timedEffect,

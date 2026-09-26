@@ -602,10 +602,13 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
+    ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
+    ["revealRest", "revealで選ばれなかった残りをrest先へ送る内部専用（revealApplyOne/revealの内側から積む）"],
+    ["revealFinishSummon", "revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き"],
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>([])
+const AWAITING_MIGRATION = new Set<string>(["reveal"])
 
 export function findUnusedActions(cards: CardData[]): string[] {
     const used = new Set<string>()
