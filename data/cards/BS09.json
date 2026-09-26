@@ -5244,7 +5244,22 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "millThenDestroySameCost"
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "mill",
+              "count": 1,
+              "side": "own"
+            },
+            {
+              "type": "destroy",
+              "count": 1,
+              "all": true,
+              "filter": {
+                "sameCostAsLast": true
+              }
+            }
+          ]
         }
       }
     ]

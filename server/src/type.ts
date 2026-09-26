@@ -107,6 +107,7 @@ export interface TargetFilter {
     maxCostAsSelf?: true // self と同じかそれ以下のコスト（sameCostAsSelfの以下版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS10-X06天蠍神騎スコル・スピア＝「このスピリットのコスト以下の相手」）
     sameIceWallColorAs?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝アタックしたスピリット等）が持つ【氷壁】の色（iceWallColorsOfで判定。複数色ならOR）のいずれかを持つもの。normalizeFilter が colorAny 軸へ解決する。self がいない／【氷壁】の色を持たなければ対象なし（BS16-036氷聖女ジャンヌダルク【合体時】：「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
+    sameCostAsLast?: true // GameState.lastMoved 先頭のカードと同じコスト（記録が空なら対象なし。IF_UNIFY.md §5）
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
     // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
     // onBlock なら**アタックしている相手**（SD02-002 ミザール）。かつて sameCostAsBlocker という名前だったが、
@@ -154,6 +155,7 @@ export type EffectCounter =
     | "opponentTrashCores" // 相手のトラッシュに置かれているコア数（PlayerState.trashCores。BS04吸血鬼ダンピール）
     | "selfLevel" // このスピリット（self）自身の現在のLv（selfがnullなら0。BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」）
     | "ownCoresTotal" // 自分のフィールド（合体中ブレイヴを含む）・リザーブ・トラッシュのコアの合計
+    | "lastCost" // GameState.lastMoved のカードの印刷コストの合計（「破壊したスピリットのコストと同じ枚数」）
     | "lastMoved" // GameState.lastMoved の枚数（「破棄したカード1枚につき」。docs/design/IF_UNIFY.md §5）
     | "burstEventCost" // BS15共通器：GameState.burstEventCost（バースト発動時のeventInfo.costs先頭値）。未設定なら0（BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     | "selfCores" // このスピリット（self）自身の上に置かれているコア数（selfがnullなら0。BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」）

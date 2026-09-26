@@ -5666,12 +5666,23 @@
      2
     ],
     "action": {
-     "type": "destroyThenMillByCost",
-     "filter": {
-      "cost": {
-       "max": 4
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "cost": {
+         "max": 4
+        }
+       }
+      },
+      {
+       "type": "mill",
+       "count": 1,
+       "countCounter": "lastCost"
       }
-     }
+     ]
     },
     "optional": false
    }

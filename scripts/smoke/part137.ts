@@ -244,10 +244,10 @@ console.log("=== BS07 青：疲労状態のネクサス1つにつきBP+2000（�
 console.log("=== BS07 青：コスト4以下を破壊し、そのコスト分だけデッキを破棄する（巨人大帝アレクサンダー） ===")
 {
     const alexander = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyThenMillByCost",
+        (e) => e["id"] === "BS07-X28-e3",
     )
     const levels = ((alexander.effects ?? []).find(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyThenMillByCost",
+        (e) => e["id"] === "BS07-X28-e3",
     )?.["levels"] ?? [1]) as number[]
     const lv = Math.min(...levels)
     const victim = CARDS.find(

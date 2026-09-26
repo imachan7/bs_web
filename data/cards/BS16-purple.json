@@ -549,8 +549,15 @@
               }
             },
             {
-              "type": "summonBurstCardFreeIfDestroyedColor",
-              "color": "purple"
+              "type": "if",
+              "cond": {
+                "event": {
+                  "destroyedColor": "purple"
+                }
+              },
+              "then": {
+                "type": "summonBurstCardFree"
+              }
             }
           ]
         }

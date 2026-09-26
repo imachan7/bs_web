@@ -2731,8 +2731,20 @@
     ],
     "optional": false,
     "action": {
-     "type": "millOpponentThenReact",
-     "react": "destroyOneSameCost"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "mill",
+       "count": 1
+      },
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "sameCostAsLast": true
+       }
+      }
+     ]
     }
    }
   ]

@@ -41,6 +41,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { recordDestroysOf } from "../removal"
 
 // side:"own"（destroyの自分側対象）の候補列挙。ハンドラ本体とpayの判定表（CHECKERS）の両方から呼び、
 // 判定と実際の対象がずれないようにする
@@ -1415,57 +1416,6 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
         return
 }
 
-// BS07巨人大帝アレクサンダーLv2：相手のスピリット1体を破壊し、
-// **破壊したスピリットのコストと同じ枚数**だけ相手のデッキを上から破棄する。
-// 「破壊した対象のコスト」を後段で使うため、汎用 destroy のオプションにせず専用ハンドラにする
-// （destroy は出口が複数あり、どこで破壊が確定したかを一箇所に集約できないため）
-const destroyThenMillByCostHandler: ActionHandler<"destroyThenMillByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
-    const filter = normalizeFilter(ctx, action)
-    if (filter === SELF_REQUIRED) {
-        log(state, `${sourceName}：BP参照元がいなかった。`)
-        return
-    }
-    const matches = (sp: CardInstance) => matchesTarget(state, opp, sp, filter, self?.instanceId)
-    // pendingChoice 解決時は選ばれた1体、それ以外は実効BP最大を自動選択（既存の破壊系と同じ簡略化）
-    const chosen = targetInstanceId
-        ? state.players[opp].field.spirits.find((sp) => sp.instanceId === targetInstanceId && matches(sp))
-        : undefined
-    if (!chosen && targetInstanceId === undefined && state.interactiveTargets) {
-        const candidates = pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType)
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                ctx.owner,
-                self,
-                `${sourceName}：破壊する相手のスピリットを選んでください`,
-                candidates,
-                action,
-                null,
-            )
-        ) {
-            return
-        }
-    }
-    const target = chosen ?? pickEnemyByBp(state, opp, Infinity, matches, srcColors, srcType)
-    if (!target) {
-        log(state, `${sourceName}：破壊できる対象がいなかった。`)
-        return
-    }
-    // コストは破壊前に読む（破壊後はフィールドから消えるため）。
-    // 「破壊した相手のスピリットのコスト」なので付与コストではなくカード本来のコストを使う
-    const cost = getCard(target.cardId).cost
-    const name = getCard(target.cardId).name
-    destroySpirit(state, opp, target.instanceId, "destroy", destroyContext)
-    if (cost <= 0) {
-        log(state, `${sourceName}：${name}のコストが0のため、デッキは破棄しなかった。`)
-        return
-    }
-    log(state, `${sourceName}：破壊した${name}のコストと同じ${cost}枚を相手のデッキから破棄する。`)
-    millDeck(state, opp, cost, owner, srcType ? { sourceType: srcType } : undefined)
-    return
-}
-
 const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 自分のフィールドからself以外でコスト<=maxCostの1体を破壊する。
@@ -2087,6 +2037,11 @@ const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, act
     fushiSummonOrConfirm(state, action.pid, trashIndex)
 }
 
+// 破壊したカードを lastMoved に残す（if の cond.last・カウンタ lastCost が読む。IF_UNIFY.md §5）
+const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
+    ctx.state.lastMoved = recordDestroysOf(ctx.destroyContext, () => destroyHandler(ctx, action))
+}
+
 const handlers = {
     resolveFushiSummon: resolveFushiSummonHandler,
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
@@ -2095,7 +2050,7 @@ const handlers = {
     destroyOnePerCost: destroyOnePerCostHandler,
     destroySpiritBraveNexusEach: destroySpiritBraveNexusEachHandler,
     destroyCostsEachOne: destroyCostsEachOneHandler,
-    destroy: destroyHandler,
+    destroy: destroyRecordedHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyOwnFreelyThenDraw: destroyOwnFreelyThenDrawHandler,
@@ -2112,7 +2067,6 @@ const handlers = {
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyDownToOwnCount: destroyDownToOwnCountHandler,
-    destroyThenMillByCost: destroyThenMillByCostHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
     fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,

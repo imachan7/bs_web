@@ -43,27 +43,6 @@ const millOpponentThenReactHandler: ActionHandler<"millOpponentThenReact"> = (ct
     log(state, `${sourceName}：このバトルの間、${state.players[opp].name}は${COLOR_LABELS[color]}の手札のカードを使えない。`)
 }
 
-const millThenDestroySameCostHandler: ActionHandler<"millThenDestroySameCost"> = (ctx) => {
-    const { state, owner, sourceName, srcColors, srcType } = ctx
-    const player = state.players[owner]
-    const top = player.deck[0]
-    if (top === undefined) {
-        log(state, `${sourceName}：自分のデッキが0枚のため発動しなかった。`)
-        return
-    }
-    const milled = millDeck(state, owner, 1, owner)
-    if (milled === 0) {
-        log(state, `${sourceName}：デッキを破棄できなかった。`)
-        return
-    }
-    const cost = getCard(top).cost
-    log(state, `${sourceName}：破棄したのは${getCard(top).name}（コスト${String(cost)}）。`)
-    ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: cost, max: cost } } }, {
-        sourceColors: srcColors,
-        sourceType: srcType,
-    })
-}
-
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
@@ -220,7 +199,6 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
 
 const handlers = {
     millOpponentThenReact: millOpponentThenReactHandler,
-    millThenDestroySameCost: millThenDestroySameCostHandler,
     mill: millHandler,
     millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
     millUntilFamilyToHand: millUntilFamilyToHandHandler,

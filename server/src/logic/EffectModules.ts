@@ -1018,6 +1018,7 @@ export function countEffectCounter(
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     if (counter === "lastMoved") return state.lastMoved?.length ?? 0
+    if (counter === "lastCost") return (state.lastMoved ?? []).reduce((n, id) => n + getCard(id).cost, 0)
     if (counter === "ownCoresTotal") {
         const p = state.players[owner]
         const onField = [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].reduce((n, i) => n + i.cores, 0)
