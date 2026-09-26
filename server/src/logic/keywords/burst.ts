@@ -39,13 +39,8 @@ export function finishBurstActivation(
     opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
-    // burstDestroyThenSummonSelf（BS14-X01）はsummonBurstCardFreeへ内部委譲して自身を召喚するため、
-    // 同じ扱いにする（そうしないと召喚済みのカードIDがトラッシュにも二重に積まれる）
-    if (
-        actionType !== "summonBurstCardFree" &&
-        actionType !== "burstDestroyThenSummonSelf" &&
-        actionType !== "millPerThenSummonSelfIfBurstMilled"
-    ) {
+    // sequence／if の中で召喚した場合は、summonBurstCardFree がバーストエリアを空にしているので下の分岐に入らない
+    if (actionType !== "summonBurstCardFree") {
         if (player.burst === cardId) {
             player.burst = null
             player.burstSet = false

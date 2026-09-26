@@ -194,43 +194,6 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     if (!state.winner) fireSummonSequence(state, owner, inst)
 }
 
-// バースト専用（BS14-X01龍の覇王ジーク・ヤマト・フリード）：条件（あれば）を満たすときだけ破壊を解決し、
-// その後**条件の成否によらず必ず**このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。
-// 破壊が復活確認等で中断したら、召喚をresumeStackへ積んで再開後に続ける（COST_MODEL.mdの「その後」＝
-// 前段の発揮の有無を問わず後段は実行する。CONJUNCTION.md「この効果発揮後」）
-const burstDestroyThenSummonSelfHandler: ActionHandler<"burstDestroyThenSummonSelf"> = (ctx, action) => {
-    const { state, owner } = ctx
-    const conditionMet = action.condition === undefined || state.players[owner].life <= action.condition.ownLifeAtMost
-    if (conditionMet) {
-        ctx.resolve({ type: "destroy", count: 1, ...(action.filter ? { filter: action.filter } : {}) })
-        if (state.pendingChoice) {
-            pushResumeFrames(state, [
-                { kind: "action", selfInstanceId: null, actorPid: owner, action: { type: "summonBurstCardFree" } },
-            ])
-            return
-        }
-    }
-    ctx.resolve({ type: "summonBurstCardFree" })
-}
-
-// バースト専用（BS14-X03風の覇王ドルクス・ウシワカ）：自分のフィールド/リザーブ/トラッシュのコア合計が
-// coresAtLeast以上のときだけ、このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。
-// 満たさないときは何もしない（burst.conditionと違い、この1ステップだけがゲートされる。sequenceの後段に混ぜて使う）
-const summonBurstCardFreeIfCoresAtLeastHandler: ActionHandler<"summonBurstCardFreeIfCoresAtLeast"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    const player = state.players[owner]
-    const fieldCores =
-        player.field.spirits.reduce((n, i) => n + i.cores, 0) +
-        player.field.nexuses.reduce((n, i) => n + i.cores, 0) +
-        player.field.combinedBraves.reduce((n, i) => n + i.cores, 0)
-    const total = fieldCores + player.reserve + player.trashCores
-    if (total < action.coresAtLeast) {
-        log(state, `${sourceName}：コア合計が${action.coresAtLeast}個未満のため召喚しなかった。`)
-        return
-    }
-    ctx.resolve({ type: "summonBurstCardFree" })
-}
-
 // 器BS16（BS16-018太骨望）：このバースト発動時に破壊された自分のスピリットの色にactionの色が
 // 含まれるときだけ、このカード自身をコストを支払わずに召喚する（summonBurstCardFreeIfCoresAtLeastの同型）
 const summonBurstCardFreeIfDestroyedColorHandler: ActionHandler<"summonBurstCardFreeIfDestroyedColor"> = (ctx, action) => {
@@ -272,19 +235,6 @@ const openOwnBurstActivateIfSummonCondHandler: ActionHandler<"openOwnBurstActiva
     fireOwnBurstActivated(state, owner, before, cardId)
 }
 
-// バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
-// setBurst（GameAction）と異なりターン1回制限を受けない
-// バースト専用（BS14-064レボルシング・ゼヨン）：自分のフィールドのネクサス数がnexusAtLeast以上のときだけ、
-// このカード自身をコストを支払わずに召喚する（summonBurstCardFreeIfCoresAtLeastのネクサス数版）
-const summonBurstCardFreeIfOwnNexusAtLeastHandler: ActionHandler<"summonBurstCardFreeIfOwnNexusAtLeast"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    if (state.players[owner].field.nexuses.length < action.nexusAtLeast) {
-        log(state, `${sourceName}：自分のネクサスが${action.nexusAtLeast}つ未満のため召喚しなかった。`)
-        return
-    }
-    ctx.resolve({ type: "summonBurstCardFree" })
-}
-
 // バースト専用（BS15-X01刀の覇王ムサシード・アシュライガー）：fireFieldEventTriggersが渡すイベント対象
 // （event:"anySpiritAttacked"の場合はアタックしたスピリット。targetInstanceId経由）の実効BPがminBp以上のときだけ、
 // このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。召喚できたら、新しく場に出た個体を
@@ -308,6 +258,8 @@ const burstSummonSelfIfTargetBpAtLeastHandler: ActionHandler<"burstSummonSelfIfT
     }
 }
 
+// バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
+// setBurst（GameAction）と異なりターン1回制限を受けない
 const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
@@ -488,11 +440,8 @@ const handlers = {
     discardBurst: discardBurstHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
-    burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,
-    summonBurstCardFreeIfCoresAtLeast: summonBurstCardFreeIfCoresAtLeastHandler,
     summonBurstCardFreeIfDestroyedColor: summonBurstCardFreeIfDestroyedColorHandler,
     openOwnBurstActivateIfSummonCond: openOwnBurstActivateIfSummonCondHandler,
-    summonBurstCardFreeIfOwnNexusAtLeast: summonBurstCardFreeIfOwnNexusAtLeastHandler,
     burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,
     payNegateDecide: payNegateDecideHandler,

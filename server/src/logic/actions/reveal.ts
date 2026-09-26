@@ -79,26 +79,6 @@ const revealDiscardRestHandler: ActionHandler<"revealDiscardRest"> = (ctx) => {
     discardRevealedZone(ctx.state, ctx.owner, ctx.sourceName)
 }
 
-// BS14-086運命のルーレット：自分のデッキを上から1枚オープンし、無条件に手札へ加える。
-// それが指定色（省略時は色不問）のマジックカードだったときだけ、自分のスピリット1体を回復させる
-const revealTopToHandThenRefreshOwnHandler: ActionHandler<"revealTopToHandThenRefreshOwn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    const player = state.players[owner]
-    const cardId = player.deck.shift()
-    if (cardId === undefined) {
-        log(state, `${sourceName}：デッキが尽きているため公開できなかった。`)
-        return
-    }
-    const card = getCard(cardId)
-    player.hand.push(cardId)
-    log(state, `${player.name}はデッキを上から1枚（${card.name}）オープンし、手札に加えた。`)
-    notifyHandGained(state, owner, 1)
-    const matches = card.type === "magic" && (action.colorFilter === undefined || card.colors.includes(action.colorFilter))
-    if (matches) {
-        ctx.resolve({ type: "refreshOne" })
-    }
-}
-
 // 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ置き、公開ゾーンを閉じる
 function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: string): void {
     const zone = state.revealedCards
@@ -112,7 +92,6 @@ function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: stri
 }
 
 const handlers = {
-    revealTopToHandThenRefreshOwn: revealTopToHandThenRefreshOwnHandler,
     revealReturnToDeck: revealReturnToDeckHandler,
     revealDiscardRest: revealDiscardRestHandler,
 } satisfies Partial<ActionRegistry>

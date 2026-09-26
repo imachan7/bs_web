@@ -339,12 +339,13 @@ console.log("=== BS14-090勇壮なる船上都市：合体スピリットすべ�
     }
 }
 
+const BS14_111_MAIN = (getCard("BS14-111").effects[0] as Extract<ReturnType<typeof getCard>["effects"][number], { kind: "magic" }>).action
 console.log("=== BS14-111エクスキューションデストロイ：メインで破棄したカード種別に応じて相手が破壊、フラッシュはBP+2000 ===")
 {
     const s = game("t318-111-a")
     s.players.p2.deck.unshift("BS01-001")
     const foe = put(s, "p2", "BS01-001", 1)
-    resolveAction(s, "p1", null, { type: "millThenDestroyByCardType" })
+    resolveAction(s, "p1", null, BS14_111_MAIN)
     assert(s.players.p2.trashCards.includes("BS01-001"), "相手のデッキを上から1枚破棄する")
     assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === foe.instanceId), "破棄がスピリットカードなら相手のスピリット1体を破壊する（相手が選ぶ）")
 }
@@ -352,7 +353,7 @@ console.log("=== BS14-111エクスキューションデストロイ：メイン�
     const s = game("t318-111-b")
     s.players.p2.deck.unshift("BS01-098")
     const foeNexus = putNexus(s, "p2", "BS01-098", 0)
-    resolveAction(s, "p1", null, { type: "millThenDestroyByCardType" })
+    resolveAction(s, "p1", null, BS14_111_MAIN)
     assert(!s.players.p2.field.nexuses.some((n) => n.instanceId === foeNexus.instanceId), "破棄がネクサスカードなら相手のネクサス1つを破壊する（相手が選ぶ）")
 }
 {
