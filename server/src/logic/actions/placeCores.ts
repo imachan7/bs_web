@@ -148,7 +148,9 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         const candidates = pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId))
 
         if (action.target === "self") {
-            if (!self || !candidates.some((c) => c.instanceId === self.instanceId)) {
+            // 「自分自身」は発生源そのもの。ネクサスの誘発で召喚されたスピリットを指すこともあるので、to に関係なく両方から探す
+            const onField = [...player.field.spirits, ...player.field.nexuses].includes(self as CardInstance)
+            if (!self || !onField || !matchesTarget(state, owner, self, resolvedFilter, self.instanceId)) {
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
             }
@@ -178,7 +180,8 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
             } else if (picks >= open.length) {
-                allTargets = open
+                if (open.length === 1) targetInst = open[0]!
+                else allTargets = open
             } else if (state.interactiveTargets) {
                 requestChoice(
                     state,
@@ -289,11 +292,15 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
 
     // --- 実際の移動 ---
     const targetsFinal: (CardInstance | null)[] = allTargets ?? [targetInst]
+    const FROM_LABEL = { void: "ボイドから", reserve: "リザーブから", trash: "トラッシュから", self: "", field: "フィールドから" }
+    const TO_LABEL = { reserve: "自分のリザーブに", trash: "自分のトラッシュに", life: "自分のライフに", deckSide: "デッキの横に", spirit: "", nexus: "" }
     let totalMoved = 0
     for (const t of targetsFinal) {
         const taken = takeFromSource(state, owner, action.from, self, perTarget)
         if (taken <= 0) continue
         totalMoved += taken
+        const fromLabel = action.from === "self" && self ? `${getCard(self.cardId).name}の` : FROM_LABEL[action.from]
+        log(state, `${sourceName}：${fromLabel}コア${taken}個を${t ? `${getCard(t.cardId).name}に` : TO_LABEL[action.to]}置いた。`)
         if (t) {
             placeCoresOnSpirit(state, t, taken, owner)
         } else {
@@ -317,7 +324,6 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         log(state, `${sourceName}：置けるコアがなかった。`)
         return
     }
-    log(state, `${player.name}は${sourceName}でコア${totalMoved}個を置いた。`)
 
     // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。既存lifeChargeと同じ絞り）
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {

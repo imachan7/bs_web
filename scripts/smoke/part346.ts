@@ -86,7 +86,7 @@ console.log("=== 039 僧侶ペンタン：黄しかない間、相手のスタ�
     s.players.p1.trashCores = 5
     const reserveBefore = s.players.p1.reserve
     fireFieldEventTriggers(s, "p1", "ownBurstSet") // ダミー発火ではなくstep経由をkind:"step"で直接呼ぶ
-    resolveAction(s, "p1", put(s, "p1", "BS15-039", 3), { type: "trashCoresToReserve", count: 2 })
+    resolveAction(s, "p1", put(s, "p1", "BS15-039", 3), { type: "placeCores", from: "trash", to: "reserve", count: 2 })
     assert(s.players.p1.reserve === reserveBefore + 2, "リザーブが2増える")
     assert(s.players.p1.trashCores === 3, "トラッシュのコアが2減る")
 }

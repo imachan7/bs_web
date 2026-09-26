@@ -350,7 +350,9 @@ console.log("=== BS07 白：ブロックしたスピリットのコアを自分�
         (e) =>
             ((e["granted"] as Record<string, unknown> | undefined)?.["action"] as Record<string, unknown> | undefined)?.[
                 "type"
-            ] === "selfCoreToOwnLife",
+            ] === "placeCores" &&
+            ((e["granted"] as Record<string, unknown>)["action"] as Record<string, unknown>)["from"] === "self" &&
+            ((e["granted"] as Record<string, unknown>)["action"] as Record<string, unknown>)["to"] === "life",
     )
     const grant = entryOf(saving, (e) => e["kind"] === "effectGrant")
     const family = String(grant["familyFilter"])
@@ -394,7 +396,9 @@ console.log("=== BS07の各色ネクサス：fieldEvent.byOpponentEffectOnly（�
     // 観測しやすい1枚（ライフが増えるもの）で、発生源の違いによる発火の有無を見る
     const garden = guarded.find((c) =>
         (c.effects ?? []).some(
-            (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "lifeCharge",
+            (e) =>
+                (e["action"] as Record<string, unknown> | undefined)?.["type"] === "placeCores" &&
+                (e["action"] as Record<string, unknown>)["to"] === "life",
         ),
     )!
     const spareNexus = CARDS.find(

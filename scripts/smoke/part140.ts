@@ -196,13 +196,13 @@ console.log("=== BS07 緑：ボイドからのコアを系統条件を満たす�
 {
     const delphangs = findByEffect(
         (e) =>
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "voidCoreToTarget" &&
-            (e["action"] as Record<string, unknown>)["familyFilter"] !== undefined,
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "placeCores" &&
+            ((e["action"] as Record<string, unknown>)["filter"] as Record<string, unknown> | undefined)?.["family"] !== undefined,
     )
-    const action = entryOf(delphangs, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "voidCoreToTarget")[
+    const action = entryOf(delphangs, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "placeCores")[
         "action"
     ] as Record<string, unknown>
-    const families = action["familyFilter"] as string[]
+    const families = (action["filter"] as Record<string, unknown>)["family"] as string[]
     // 系統に該当しないがBPが高いスピリットを置いて、自動選択が系統で絞られることを見る
     const outsider = CARDS.filter(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && !families.some((f) => (c.family ?? []).includes(f)),
@@ -213,7 +213,7 @@ console.log("=== BS07 緑：ボイドからのコアを系統条件を満たす�
     const strong = put(s, "p1", outsider.cardId, 1)
     const coresBefore = src.cores
     const strongBefore = strong.cores
-    resolveAction(s, "p1", src, { type: "voidCoreToTarget", count: 1, familyFilter: families })
+    resolveAction(s, "p1", src, { type: "placeCores", from: "void", to: "spirit", count: 1, filter: { family: families } })
     assert(
         src.cores === coresBefore + 1,
         `系統「${families.join("/")}」を持つ${delphangs.name}にコアが置かれる（${coresBefore}→${src.cores}）`,

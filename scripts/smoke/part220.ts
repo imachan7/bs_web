@@ -83,7 +83,7 @@ console.log("=== voidCoreToOther：発生源自身も対象に含む ===")
     const larvaBefore = larva.cores
     const allyBefore = ally.cores
 
-    resolveAction(s, "p1", larva, { type: "voidCoreToOther", count: 1, colorFilter: "white", targets: 2 })
+    resolveAction(s, "p1", larva, { type: "placeCores", from: "void", to: "spirit", count: 1, targets: 2, filter: { color: "white" } })
     assert(ally.cores === allyBefore + 1, `味方の白スピリットにコアが置かれる（実際: ${ally.cores}）`)
     assert(
         larva.cores === larvaBefore + 1,
@@ -102,7 +102,7 @@ console.log("=== voidCoreToOther：excludeSelf のカードは自身を対象に
     const stagBefore = stag.cores
     const allyBefore = ally.cores
 
-    resolveAction(s, "p1", stag, { type: "voidCoreToOther", count: 1, excludeSelf: true })
+    resolveAction(s, "p1", stag, { type: "placeCores", from: "void", to: "spirit", count: 1, filter: { excludeSelf: true } })
     assert(stag.cores === stagBefore, "「このスピリット以外の」なので自身には置かれない")
     assert(ally.cores === allyBefore + 1, "他のスピリットに置かれる")
 }

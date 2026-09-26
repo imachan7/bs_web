@@ -222,7 +222,7 @@ console.log(
     const target = putSpirit(s, "p2", "BS01-005", 2)
     const targetInst = s.players.p2.field.spirits.find((x) => x.instanceId === target)!
 
-    resolveAction(s, "p2", null, { type: "coreCharge", count: 1 }, target)
+    resolveAction(s, "p2", null, { type: "placeCores", from: "reserve", to: "spirit", count: 1 }, target)
     assert(targetInst.isRested === true, "相手(p1)の貸与中の効果で、コアが増えたp2のスピリットは疲労する")
 
     targetInst.isRested = false
@@ -232,7 +232,7 @@ console.log(
     targetInst.isRested = false
     targetInst.cores = 2
     assert(act(s, "p1", { type: "endTurn" }) === null, "p1ターン終了→貸与が消える")
-    resolveAction(s, "p2", null, { type: "coreCharge", count: 1 }, target)
+    resolveAction(s, "p2", null, { type: "placeCores", from: "reserve", to: "spirit", count: 1 }, target)
     assert(targetInst.isRested === false, "ターン終了後は貸与が消え、コア増加では疲労しない")
 }
 
@@ -253,7 +253,7 @@ console.log(
     assert(targetInst.isRested === true, "相手(p1視点)の手動コア増加で疲労する（従来通り）")
 
     targetInst.isRested = false
-    resolveAction(s, "p2", null, { type: "coreCharge", count: 1 }, target)
+    resolveAction(s, "p2", null, { type: "placeCores", from: "reserve", to: "spirit", count: 1 }, target)
     assert(
         targetInst.isRested === false,
         "trigger省略(=manual)は効果によるコア増加には反応しない（trigger:\"effect\"との切り分け）",

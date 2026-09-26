@@ -92,10 +92,10 @@ console.log("=== BS09-020 ヤミヤンマ / BS09-023 要塞蟲ラルバ：白の
     const white2 = put(s, "p1", "BS09-030", 1)
     const green = put(s, "p1", "BS09-019", 1) // オオクチバは colorAs で白を持つ
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", self, { type: "voidCoreToOther", count: 1, colorFilter: "white" })
+    resolveAction(s, "p1", self, { type: "placeCores", from: "void", to: "spirit", count: 1, filter: { color: "white" } })
     const placed = [white1, white2, green].filter((x) => x.cores === 2).length
     assert(placed === 1, "白のスピリット1体にだけコアが置かれる")
-    resolveAction(s, "p1", self, { type: "voidCoreToOther", count: 1, colorFilter: "white", targets: 2 })
+    resolveAction(s, "p1", self, { type: "placeCores", from: "void", to: "spirit", count: 1, targets: 2, filter: { color: "white" } })
     const placed2 = [white1, white2, green].filter((x) => x.cores >= 2).length
     assert(placed2 >= 2, "targets:2 なら2体に置かれる")
 }

@@ -748,12 +748,12 @@ console.log("=== バウンス系・コア操作系アクション ===")
     const chargeTarget = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(chargeTarget)
     s.players.p1.reserve = 5
-    resolveAction(s, "p1", null, { type: "coreCharge", count: 3 }, chargeTarget.instanceId)
+    resolveAction(s, "p1", null, { type: "placeCores", from: "reserve", to: "spirit", count: 3 }, chargeTarget.instanceId)
     assert(chargeTarget.cores === 4, "リザーブが十分なら指定数ぶんコアが増える（1→4）")
     assert(s.players.p1.reserve === 2, "置いた分だけリザーブが減る（5→2）")
 
     s.players.p1.reserve = 1 // リザーブ不足（count=3に対して1しかない）
-    resolveAction(s, "p1", null, { type: "coreCharge", count: 3 }, chargeTarget.instanceId)
+    resolveAction(s, "p1", null, { type: "placeCores", from: "reserve", to: "spirit", count: 3 }, chargeTarget.instanceId)
     assert(chargeTarget.cores === 5, "リザーブ不足時は置ける分だけコアが増える（4→5）")
     assert(s.players.p1.reserve === 0, "リザーブは0まで減って止まる")
 

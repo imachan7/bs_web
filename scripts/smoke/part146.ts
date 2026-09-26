@@ -267,7 +267,8 @@ console.log("=== BS08女王アントレーヌ：ownTenshoのnameIncludes加算�
         (e) =>
             e["kind"] === "fieldEvent" &&
             e["event"] === "ownTensho" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreGain",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "placeCores" &&
+            (e["action"] as Record<string, unknown>)["to"] === "reserve",
     )
     const tenshoEntry = entryOf(antoreine, (e) => e["kind"] === "keyword" && e["keyword"] === "tensho")
     const minCost = Number(tenshoEntry["minCost"] ?? 0)

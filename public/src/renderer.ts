@@ -229,10 +229,13 @@ export function magicTargetSide(
     }
     if (
         effect.action.type === "bpBuff" ||
-        effect.action.type === "coreCharge" ||
         effect.action.type === "refireSummonEffect" ||
-        effect.action.type === "trashCoresToSpirit" ||
-        effect.action.type === "voidCoreToTarget"
+        (effect.action.type === "placeCores" &&
+            effect.action.to === "spirit" &&
+            (effect.action.target ?? "one") === "one" &&
+            (effect.action.targets ?? 1) === 1 &&
+            // 絞り込みがあると、先取りした対象が条件に合わず不発になりうる（選択はサーバーの選択待ちに任せる）
+            effect.action.filter === undefined)
     )
         return "self"
     // timedEffect の1体指定BP（旧bpBuffの単純形の置き換え）：side:"both"はanySideと同じく先取りしない、
