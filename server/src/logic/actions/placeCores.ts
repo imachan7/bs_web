@@ -1,8 +1,8 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
 // lifeCharge等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
-import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, EffectAction, GameState, PlayerId } from "../../type"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { coresForLevel, getCard, log } from "../GameState"
 import {
     fireFieldEventTriggers,
@@ -19,8 +19,9 @@ import { countedAmount } from "../counted"
 
 type PlaceCoresAction = Extract<EffectAction, { type: "placeCores" }>
 
-// from の残量（count:"all" の解決に使う。void は上限なしなので呼び出し側で扱う）
-function availableFromSource(state: GameState, owner: PlayerId, from: PlaceCoresAction["from"], self: CardInstance | null): number {
+// from の残量（count:"all" の解決に使う。void は上限なしなので呼び出し側で扱う）。
+// pay の checker（pay.ts）とこのファイルのハンドラで共有する
+export function availableFromSource(state: GameState, owner: PlayerId, from: PlaceCoresAction["from"], self: CardInstance | null): number {
     const player = state.players[owner]
     switch (from) {
         case "void":
@@ -99,6 +100,20 @@ function takeFromSource(
     }
 }
 
+// to:"spirit"/"nexus" の置き先候補（filter一致分のみ。target:"self"/"all"/"one" の絞り込みは
+// 呼び出し側が行う）。pay の checker（pay.ts）とこのファイルのハンドラで共有する
+export function placeCoresPoolCandidates(
+    ctx: ActionCtx,
+    action: PlaceCoresAction,
+): CardInstance[] | typeof SELF_REQUIRED {
+    const { state, owner, self } = ctx
+    const player = state.players[owner]
+    const pool = action.to === "spirit" ? player.field.spirits : player.field.nexuses
+    const resolvedFilter = normalizeFilter(ctx, action)
+    if (resolvedFilter === SELF_REQUIRED) return SELF_REQUIRED
+    return pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId))
+}
+
 const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
     const { state, owner, self, sourceName, srcType, targetInstanceId, chosenOption } = ctx
     const player = state.players[owner]
@@ -139,17 +154,17 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
     let nextPick: PlaceCoresAction | null = null
 
     if (wantsSpiritOrNexus) {
-        const pool = action.to === "spirit" ? player.field.spirits : player.field.nexuses
-        const resolvedFilter = normalizeFilter(ctx, action)
-        if (resolvedFilter === SELF_REQUIRED) {
+        const candidates = placeCoresPoolCandidates(ctx, action)
+        if (candidates === SELF_REQUIRED) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        const candidates = pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId))
 
         if (action.target === "self") {
             // 「自分自身」は発生源そのもの。ネクサスの誘発で召喚されたスピリットを指すこともあるので、to に関係なく両方から探す
             const onField = [...player.field.spirits, ...player.field.nexuses].includes(self as CardInstance)
+            // candidates が SELF_REQUIRED でない時点で normalizeFilter は解決済み（同じ ctx/action への再呼び出しは同じ結果になる）
+            const resolvedFilter = normalizeFilter(ctx, action) as ResolvedTargetFilter
             if (!self || !onField || !matchesTarget(state, owner, self, resolvedFilter, self.instanceId)) {
                 log(state, `${sourceName}：対象がいなかった。`)
                 return

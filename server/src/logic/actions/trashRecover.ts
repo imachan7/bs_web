@@ -1,5 +1,5 @@
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { Color } from "../../type"
+import type { Color, EffectAction } from "../../type"
 import { getCard, log, suspend } from "../GameState"
 import { summonFreeFromTrashIndex, destroySpirit, payCost, notifyHandGained, requestCardChoice, requestChoice, resolveMagic, tryInteractiveCardChoice } from "../EffectModules"
 import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, isTrashCardProtected, isVanillaCard, trashCardNameMatches } from "../../../../shared/rules"
@@ -180,6 +180,77 @@ const trashMagicToDeckTopHandler: ActionHandler<"trashMagicToDeckTop"> = (ctx) =
         return
 }
 
+// recoverSpiritFromTrash の対象判定（カード種別・色・系統・キーワード・名前・コスト等の絞り込み）。
+// カードの静的情報だけで決まる（owner/self に依存しない）。pay の checker（pay.ts）とこのハンドラで共有する
+export function recoverSpiritFromTrashCandidateOk(
+    action: Extract<EffectAction, { type: "recoverSpiritFromTrash" }>,
+    cardId: string,
+): boolean {
+    // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
+    // トラッシュのカードが対象のため、判定はカード静的な family で行う（BS04鋼葉の樹林＝甲獣）
+    const familyOk = (): boolean => {
+        if (action.familyFilter === undefined) return true
+        const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+        return wanted.some((f) => getCard(cardId).family.includes(f))
+    }
+    // keywordFilter（BS08ターンインフェルノ＝【転召】持ち）：トラッシュのカードが対象なので
+    // カード静的なキーワード保有（hasKeyword）で判定する。
+    // keywordFilterAny（BS13-015冥総裁ハーゲン＝【呪撃】/【不死】）はいずれか1つ持てばよいOR判定
+    const keywordOk = (): boolean =>
+        (action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)) &&
+        (action.keywordFilterAny === undefined || action.keywordFilterAny.some((kw) => hasKeyword(cardId, kw)))
+    // nameIncludes（BS08アルカナクィーン・パラス＝「アルカナ」）：トラッシュのカードが対象なので
+    // カード静的な名前（cardId基準。trashNameAsによる別名も一致する）で判定する
+    const nameOk = (): boolean => action.nameIncludes === undefined || trashCardNameMatches(cardId, action.nameIncludes)
+    // colorFilter（BS09-015獄獣ガシャベルスLv3＝黄）：トラッシュのカードが対象なので
+    // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
+    const colorOk = (): boolean => action.colorFilter === undefined || getCard(cardId).colors.includes(action.colorFilter)
+    // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）。
+    // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象（BS10-100ブレイヴセメタリー：「ブレイヴカード」）
+    const typeOk = (): boolean => {
+        if (action.anyCardType) return true // BS12-X02：「紫のカード」＝種別を問わない
+        // bravesAnyOrSpiritColorFilter（BS14-092烈光閃刃：「ブレイヴカード1枚か、赤のスピリットカード1枚」）：
+        // OR判定なのでtypeOkは通し、braveOrColorOkのほうで絞る
+        if (action.bravesAnyOrSpiritColorFilter !== undefined) return true
+        const t = getCard(cardId).type
+        if (action.bravesOnly) return t === "brave"
+        return t === "spirit" || (action.includeBraves === true && t === "brave")
+    }
+    // bravesAnyOrSpiritColorFilter：ブレイヴカード（色問わず）OR 指定色のスピリットカード。
+    // typeOk側でスピリット/ブレイヴ以外（ネクサス/マジック）は素通りしてしまうため、ここで種別自体も見る
+    const braveOrColorOk = (): boolean => {
+        if (action.bravesAnyOrSpiritColorFilter === undefined) return true
+        const card = getCard(cardId)
+        if (card.type === "brave") return true
+        return card.type === "spirit" && card.colors.includes(action.bravesAnyOrSpiritColorFilter)
+    }
+    // vanillaFilter（BS10-082六分儀天文台：「効果の記述を持たないスピリットカード」）：
+    // トラッシュのカードが対象なのでカード静的な isVanillaCard で判定する
+    const vanillaOk = (): boolean => action.vanillaFilter !== true || isVanillaCard(getCard(cardId))
+    // costFilter（BS11-051 イビル・フィッシャー＝コスト6以下）：トラッシュのカードが対象なので
+    // カード静的なコストで判定する（フィールドの一時的なコスト修正は関係しない）
+    const costOk = (): boolean => {
+        if (action.costFilter === undefined) return true
+        const cost = getCard(cardId).cost
+        return (
+            (action.costFilter.max === undefined || cost <= action.costFilter.max) &&
+            (action.costFilter.min === undefined || cost >= action.costFilter.min)
+        )
+    }
+    // costAtMostOrHasBurst（BS14-005ヒノシシ：「コスト4以下のスピリットカード1枚か、バースト効果を持つスピリットカード1枚」）：
+    // コスト条件とバースト所持のOR判定
+    const costOrBurstOk = (): boolean =>
+        action.costAtMostOrHasBurst === undefined ||
+        getCard(cardId).cost <= action.costAtMostOrHasBurst ||
+        getCard(cardId).effects.some((e) => e.kind === "burst")
+    // excludeBurst（BS16-055アームストロンガー）：kind:"burst"エントリを持つカードを除外する
+    const burstExcludeOk = (): boolean => !action.excludeBurst || !getCard(cardId).effects.some((e) => e.kind === "burst")
+    return (
+        typeOk() && braveOrColorOk() && familyOk() && keywordOk() && nameOk() && colorOk() && vanillaOk() &&
+        costOk() && costOrBurstOk() && burstExcludeOk() && !isTrashCardProtected(cardId)
+    )
+}
+
 const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
@@ -215,74 +286,7 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             if (!hit) return
             ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
         }
-        // familyFilter 指定時はその系統（配列＝OR）を持つスピリットカードのみ対象。
-        // トラッシュのカードが対象のため、判定はカード静的な family で行う（BS04鋼葉の樹林＝甲獣）
-        const familyOk = (cardId: string): boolean => {
-            if (action.familyFilter === undefined) return true
-            const wanted = Array.isArray(action.familyFilter)
-                ? action.familyFilter
-                : [action.familyFilter]
-            return wanted.some((f) => getCard(cardId).family.includes(f))
-        }
-        // keywordFilter（BS08ターンインフェルノ＝【転召】持ち）：トラッシュのカードが対象なので
-        // カード静的なキーワード保有（hasKeyword）で判定する。
-        // keywordFilterAny（BS13-015冥総裁ハーゲン＝【呪撃】/【不死】）はいずれか1つ持てばよいOR判定
-        const keywordOk = (cardId: string): boolean =>
-            (action.keywordFilter === undefined || hasKeyword(cardId, action.keywordFilter)) &&
-            (action.keywordFilterAny === undefined || action.keywordFilterAny.some((kw) => hasKeyword(cardId, kw)))
-        // nameIncludes（BS08アルカナクィーン・パラス＝「アルカナ」）：トラッシュのカードが対象なので
-        // カード静的な名前（cardId基準。trashNameAsによる別名も一致する）で判定する
-        const nameOk = (cardId: string): boolean =>
-            action.nameIncludes === undefined || trashCardNameMatches(cardId, action.nameIncludes)
-        // colorFilter（BS09-015獄獣ガシャベルスLv3＝黄）：トラッシュのカードが対象なので
-        // カード静的な colors で判定する（多色カードはいずれかが一致すればよい）
-        const colorOk = (cardId: string): boolean =>
-            action.colorFilter === undefined || getCard(cardId).colors.includes(action.colorFilter)
-        // includeBraves指定時はブレイヴカードも対象に含める（BS10-006ヤシウム：「スピリットカード/ブレイヴカード」）。
-        // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象（BS10-100ブレイヴセメタリー：「ブレイヴカード」）
-        const typeOk = (cardId: string): boolean => {
-            if (action.anyCardType) return true // BS12-X02：「紫のカード」＝種別を問わない
-            // bravesAnyOrSpiritColorFilter（BS14-092烈光閃刃：「ブレイヴカード1枚か、赤のスピリットカード1枚」）：
-            // OR判定なのでtypeOkは通し、braveOrColorOkのほうで絞る
-            if (action.bravesAnyOrSpiritColorFilter !== undefined) return true
-            const t = getCard(cardId).type
-            if (action.bravesOnly) return t === "brave"
-            return t === "spirit" || (action.includeBraves === true && t === "brave")
-        }
-        // bravesAnyOrSpiritColorFilter：ブレイヴカード（色問わず）OR 指定色のスピリットカード。
-        // typeOk側でスピリット/ブレイヴ以外（ネクサス/マジック）は素通りしてしまうため、ここで種別自体も見る
-        const braveOrColorOk = (cardId: string): boolean => {
-            if (action.bravesAnyOrSpiritColorFilter === undefined) return true
-            const card = getCard(cardId)
-            if (card.type === "brave") return true
-            return card.type === "spirit" && card.colors.includes(action.bravesAnyOrSpiritColorFilter)
-        }
-        // vanillaFilter（BS10-082六分儀天文台：「効果の記述を持たないスピリットカード」）：
-        // トラッシュのカードが対象なのでカード静的な isVanillaCard で判定する
-        const vanillaOk = (cardId: string): boolean =>
-            action.vanillaFilter !== true || isVanillaCard(getCard(cardId))
-        // costFilter（BS11-051 イビル・フィッシャー＝コスト6以下）：トラッシュのカードが対象なので
-        // カード静的なコストで判定する（フィールドの一時的なコスト修正は関係しない）
-        const costOk = (cardId: string): boolean => {
-            if (action.costFilter === undefined) return true
-            const cost = getCard(cardId).cost
-            return (
-                (action.costFilter.max === undefined || cost <= action.costFilter.max) &&
-                (action.costFilter.min === undefined || cost >= action.costFilter.min)
-            )
-        }
-        // costAtMostOrHasBurst（BS14-005ヒノシシ：「コスト4以下のスピリットカード1枚か、バースト効果を持つスピリットカード1枚」）：
-        // コスト条件とバースト所持のOR判定
-        const costOrBurstOk = (cardId: string): boolean =>
-            action.costAtMostOrHasBurst === undefined ||
-            getCard(cardId).cost <= action.costAtMostOrHasBurst ||
-            getCard(cardId).effects.some((e) => e.kind === "burst")
-        // excludeBurst（BS16-055アームストロンガー）：kind:"burst"エントリを持つカードを除外する
-        const burstExcludeOk = (cardId: string): boolean =>
-            !action.excludeBurst || !getCard(cardId).effects.some((e) => e.kind === "burst")
-        const isRecoverable = (cardId: string): boolean =>
-            typeOk(cardId) && braveOrColorOk(cardId) && familyOk(cardId) && keywordOk(cardId) && nameOk(cardId) && colorOk(cardId) && vanillaOk(cardId) &&
-            costOk(cardId) && costOrBurstOk(cardId) && burstExcludeOk(cardId) && !isTrashCardProtected(cardId)
+        const isRecoverable = (cardId: string): boolean => recoverSpiritFromTrashCandidateOk(action, cardId)
         // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
         // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
         // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
@@ -452,6 +456,24 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
         return
 }
 
+// recoverMagicFromTrash の対象判定（カード種別・色・バースト有無・onlyBurstDestroyedCard）。
+// pay の checker（pay.ts）とこのハンドラで共有する
+export function recoverMagicFromTrashCandidateOk(
+    action: Extract<EffectAction, { type: "recoverMagicFromTrash" }>,
+    cardId: string,
+    targetInstanceId?: string,
+): boolean {
+    return (
+        (action.anyCardType === true || getCard(cardId).type === "magic") &&
+        (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
+        (action.hasBurst !== true || getCard(cardId).effects.some((e) => e.kind === "burst")) &&
+        // onlyBurstDestroyedCard：バースト発動のきっかけになった破壊で落ちたカードだけ。
+        // burst.destroyedAsTarget が targetInstanceId の枠に cardId を入れてくる（BS14-103）
+        (action.onlyBurstDestroyedCard !== true || cardId === targetInstanceId) &&
+        !isTrashCardProtected(cardId)
+    )
+}
+
 const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
@@ -466,14 +488,7 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         // anyCardType指定時はマジック限定を外す（hasBurstと組み合わせてカード種別を問わない回収に使う。
         // SD06-014爆烈十紋刃：「自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す」）。
         // hasBurst指定時はkind:"burst"エントリを持つカードだけが対象
-        const magicOk = (cardId: string): boolean =>
-            (action.anyCardType === true || getCard(cardId).type === "magic") &&
-            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
-            (action.hasBurst !== true || getCard(cardId).effects.some((e) => e.kind === "burst")) &&
-            // onlyBurstDestroyedCard：バースト発動のきっかけになった破壊で落ちたカードだけ。
-            // burst.destroyedAsTarget が targetInstanceId の枠に cardId を入れてくる（BS14-103）
-            (action.onlyBurstDestroyedCard !== true || cardId === targetInstanceId) &&
-            !isTrashCardProtected(cardId)
+        const magicOk = (cardId: string): boolean => recoverMagicFromTrashCandidateOk(action, cardId, targetInstanceId)
         // costDiscardOwnBurst（BS15-044天使サクエル）：自分のバースト1つを破棄することがコスト。
         // 対象条件を満たすカードが1枚も無ければコストも払わない（COST_MODEL.md §1）
         if (action.costDiscardOwnBurst) {

@@ -371,6 +371,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `discardSelfChooseEligible`（const）：pay.ts の判定表からも使う
 
+## server/src/logic/actions/exhaustRefresh.ts
+
+- `refreshOneOwnCandidates`（fn）：refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
+
 ## server/src/logic/actions/filter.ts
 
 - `attemptOf`（fn）：耐性判定（EffectModules.resistanceAgainst / isResisted）へ渡す「何をしようとしているか」を
@@ -383,6 +387,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `PAYABLE_TYPES`（const）：判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 - `canPayResolve`（const）：判定表に無い type、または判定に落ちた場合は false
 
+## server/src/logic/actions/placeCores.ts
+
+- `availableFromSource`（fn）：from の残量（count:"all" の解決に使う。void は上限なしなので呼び出し側で扱う）。
+- `placeCoresPoolCandidates`（fn）：to:"spirit"/"nexus" の置き先候補（filter一致分のみ。target:"self"/"all"/"one" の絞り込みは
+
 ## server/src/logic/actions/removeCores.ts
 
 - `removeCoresAchievableCountForPay`（fn）：pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
@@ -390,6 +399,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/actions/timedEffect.ts
 
 - `isAllowedRuleCounter`（fn）
+
+## server/src/logic/actions/trashRecover.ts
+
+- `recoverSpiritFromTrashCandidateOk`（fn）：recoverSpiritFromTrash の対象判定（カード種別・色・系統・キーワード・名前・コスト等の絞り込み）。
+- `recoverMagicFromTrashCandidateOk`（fn）：recoverMagicFromTrash の対象判定（カード種別・色・バースト有無・onlyBurstDestroyedCard）。
 
 ## server/src/logic/actions/types.ts
 
@@ -607,6 +621,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireSummonSequence`（fn）
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
+- `summonFromHandFreeCandidateMatches`（fn）：summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
+- `summonFromTrashFreeCandidateMatches`（fn）：summonFromTrashFree の候補判定。summonFromHandFreeCandidateMatches のトラッシュ版。
 
 ## server/src/logic/targeting.ts
 

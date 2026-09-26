@@ -480,6 +480,19 @@ const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (
         return
 }
 
+// refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
+// pay の then で使う既定経路のみ）。pay の checker（pay.ts）とこのハンドラで共有する
+export function refreshOneOwnCandidates(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    filter: import("../../type").ResolvedTargetFilter,
+): CardInstance[] {
+    return state.players[owner].field.spirits.filter(
+        (s) => s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
+    )
+}
+
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
     const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
         // eventTargetOnly（BS15-067雪の結晶樹Lv2）：誘発が渡すtargetInstanceIdだけを対象にする
@@ -525,9 +538,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             log(state, refreshed === 0 ? `${sourceName}の回復：対象がいなかった。` : `${sourceName}：条件を満たすスピリット${refreshed}体を回復させた。`)
             return
         }
-        const candidates = state.players[owner].field.spirits.filter(
-            (s) => s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
-        )
+        const candidates = refreshOneOwnCandidates(state, owner, self, filter)
         if (candidates.length === 0) {
             log(state, `${sourceName}の回復：対象がいなかった。`)
             return
