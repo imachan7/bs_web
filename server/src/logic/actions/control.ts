@@ -1,7 +1,7 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { EffectDef } from "../../type"
+import type { EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
 import { attachBrave, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
@@ -355,10 +355,8 @@ const revealOwnBurstThenSortByTypeHandler: ActionHandler<"revealOwnBurstThenSort
 
 // BS16-X04魁の覇王ミブロック・ブレイヴァー【合体時】Lv2･Lv3：「相手の手札が増えたとき、相手のバースト1つを破棄する」。
 // fieldEvent event:"opponentHandAdded"と組み合わせて使う。セットしていなければno-op
-const discardOpponentBurstHandler: ActionHandler<"discardOpponentBurst"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    const opp = opponentOf(owner)
-    const player = state.players[opp]
+function discardBurstOf(state: GameState, pid: PlayerId, sourceName: string): void {
+    const player = state.players[pid]
     const cardId = player.burst
     if (cardId === null) {
         log(state, `${sourceName}：${player.name}はバーストをセットしていなかった。`)
@@ -368,6 +366,19 @@ const discardOpponentBurstHandler: ActionHandler<"discardOpponentBurst"> = (ctx)
     player.burstSet = false
     player.trashCards.push(cardId)
     log(state, `${sourceName}：${player.name}のバーストを破棄した。`)
+}
+
+const discardOpponentBurstHandler: ActionHandler<"discardOpponentBurst"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    discardBurstOf(state, opponentOf(owner), sourceName)
+}
+
+// pay の cost 側で使う汎用版（server/src/logic/actions/pay.ts）。既存のdiscardOpponentBurstとそれを
+// 使うカードは変えず、こちらは新しいカードが移行するまで validate:cards の AWAITING_MIGRATION に載る
+const discardBurstHandler: ActionHandler<"discardBurst"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const pid = action.side === "own" ? owner : opponentOf(owner)
+    discardBurstOf(state, pid, sourceName)
 }
 
 // BS16-079ムーンボウクロークのメイン効果：【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、
@@ -452,6 +463,7 @@ const handlers = {
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
     discardOpponentBurst: discardOpponentBurstHandler,
+    discardBurst: discardBurstHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
     burstDestroyThenSummonSelf: burstDestroyThenSummonSelfHandler,

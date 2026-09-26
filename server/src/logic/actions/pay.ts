@@ -2,19 +2,22 @@
 // 解決できるときだけ発揮する。判定を通すのはこのファイルだけの責務で、実際の解決は
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId } from "../../type"
+import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { getCard, log, opponentOf, resolveInOrder } from "../GameState"
-import { canDiscardHand } from "../../../../shared/rules"
+import { canDiscardHand, matchesTarget } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
+import { removeCoresAchievableCountForPay } from "./removeCores"
+import { millCapBonusFor } from "../EffectModules"
 import { countedAmount } from "../counted"
 
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "discardSelfChoose", "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
     "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf", "nexusCoresToTrash",
+    "exhaust", "mill", "discardBurst",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -70,27 +73,49 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.all) return achievable >= 1
         return achievable >= action.count
     },
-    // pay の中で使うのはスピリットから取る形だけなので、旧 coreRemove の形に写して同じ判定で数える
+    // removeCores.ts の removeCoresAchievableCountForPay に判定を委譲（候補の集め方は本ハンドラと共用）
     removeCores: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "removeCores") return false
-        if (action.from !== undefined && !(action.from.length === 1 && action.from[0] === "spirit")) return false
-        if (typeof action.count !== "number" && action.count !== "all") return false
-        const asOld: Extract<EffectAction, { type: "coreRemove" }> = {
-            type: "coreRemove",
-            count: typeof action.count === "number" ? action.count : 0,
-            ...(action.side === "own" ? { side: "own" as const } : {}),
-            ...(action.side === "any" ? { anySide: true as const } : {}),
-            ...(action.target === "spread" ? { spread: true as const } : {}),
-            ...(action.count === "all" ? { all: true as const } : {}),
-            ...(action.filter ? { filter: action.filter } : {}),
-        }
-        const achievable = coreRemoveAchievableCountForPay(state, owner, self?.instanceId, asOld, srcColors, srcType)
-        return action.count === "all" ? achievable >= 1 : achievable >= action.count
+        const achievable = removeCoresAchievableCountForPay(state, owner, self, action, srcColors, srcType)
+        if (typeof action.count !== "number") return achievable >= 1
+        return achievable >= action.count
     },
     refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
     nexusCoresToTrash: (state, owner, _self, action, _srcColors, srcType) => {
         if (action.type !== "nexusCoresToTrash") return false
         return nexusHasCoresForPay(state, owner, action, srcType)
+    },
+    // exhaust：target:"self"（発生源自身が回復状態か）／side:"own"（自分の場に条件に合う回復状態の個体がcount体以上いるか）
+    exhaust: (state, owner, self, action) => {
+        if (action.type !== "exhaust") return false
+        if (action.target === "self") return self !== null && !self.isRested
+        if (action.side === "own") {
+            const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+            const count = state.players[owner].field.spirits.filter(
+                (s) => !s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
+            ).length
+            return count >= action.count
+        }
+        return false // 既存の書き方（相手を疲労）はpayのcostに使う想定が無いため今回は判定を足さない
+    },
+    // mill：side（既定opponent）側のデッキがcount枚（countCounterがあれば数えた値）以上あるか
+    mill: (state, owner, self, action, _srcColors, srcType) => {
+        if (action.type !== "mill") return false
+        const count =
+            action.countCounter !== undefined
+                ? countedAmount(
+                      state, owner, self, action.count ?? 1, action.countCounter, srcType,
+                      action.countMax !== undefined ? action.countMax + millCapBonusFor(state, owner) : undefined,
+                  )
+                : action.count
+        const targetPid = action.side === "own" ? owner : opponentOf(owner)
+        return state.players[targetPid].deck.length >= count
+    },
+    // discardBurst：side（既定opponent）側にバーストがセットされているか
+    discardBurst: (state, owner, _self, action) => {
+        if (action.type !== "discardBurst") return false
+        const pid = action.side === "own" ? owner : opponentOf(owner)
+        return state.players[pid].burst !== null
     },
 }
 

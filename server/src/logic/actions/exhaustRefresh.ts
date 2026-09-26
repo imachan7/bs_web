@@ -45,6 +45,67 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             exhaustAllTargets(ctx, action)
             return
         }
+        // target:"self"（pay の cost 用）：発生源自身を疲労させる。スピリット／ネクサスどちらでもよい
+        if (action.target === "self") {
+            if (!self || self.isRested) {
+                log(state, `${sourceName}：発生源自身は疲労させられなかった。`)
+                return
+            }
+            exhaustSpirit(state, owner, self, undefined, owner, srcType)
+            log(state, exhaustLog(sourceName, getCard(self.cardId).name, false))
+            return
+        }
+        // side:"own"（pay の cost 用）：相手ではなく自分のスピリットを疲労させる
+        if (action.side === "own") {
+            const filter = normalizeFilter(ctx, action)
+            if (filter === SELF_REQUIRED) {
+                log(state, `${sourceName}の疲労付与：BP参照元がいなかった。`)
+                return
+            }
+            const matchesOwn = (s: CardInstance) => !s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId)
+            if (targetInstanceId !== undefined) {
+                const found = state.players[owner].field.spirits.find((s) => s.instanceId === targetInstanceId)
+                if (!found || !matchesOwn(found)) {
+                    log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+                    return
+                }
+                exhaustSpirit(state, owner, found, undefined, owner, srcType)
+                log(state, exhaustLog(sourceName, getCard(found.cardId).name, false))
+                return
+            }
+            const candidates = state.players[owner].field.spirits.filter(matchesOwn)
+            const { count: _ownCount, ...restForChoice } = action
+            if (
+                tryInteractiveTargetChoice(
+                    state,
+                    owner,
+                    self,
+                    `${sourceName}：疲労させる自分のスピリットを選んでください`,
+                    candidates,
+                    { ...restForChoice, count: 1 },
+                    action.count > 1 ? { ...restForChoice, count: action.count - 1 } : null,
+                )
+            ) {
+                return
+            }
+            // 自動選択は実効BP最小（コストとして失う損が小さい方）
+            for (let i = 0; i < action.count; i++) {
+                const target = state.players[owner].field.spirits
+                    .filter(matchesOwn)
+                    .reduce<CardInstance | undefined>(
+                        (worst, s) =>
+                            !worst || effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+                        undefined,
+                    )
+                if (!target) {
+                    log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+                    break
+                }
+                exhaustSpirit(state, owner, target, undefined, owner, srcType)
+                log(state, exhaustLog(sourceName, getCard(target.cardId).name, false))
+            }
+            return
+        }
         // costReserveToTrashFromBofu（BS15-026軍師鳥ショカツリョーLv2）：実効【暴風】指定数ぶんのコストを
         // 先に払う。払えなければ不発（countFromBofuの解決より前に見る）
         if (action.costReserveToTrashFromBofu) {
