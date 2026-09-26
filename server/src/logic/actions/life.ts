@@ -20,9 +20,14 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
             exhaustSpirit(state, owner, self)
         }
         // 器BF：costMillSelfCount（BS13-058シユウ）「デッキを上からN枚破棄することで」。
-        // 破棄はあるだけ処理してコストも払う（COST_MODEL.md）ので、デッキが尽きていても0枚破棄で成立する
+        // 一般則（COST_MODEL.md §1）どおり、デッキがN枚未満なら払わず発揮もしない
+        // （2026-09-26修正：以前はあるだけ破棄して成立させていた）
         if (action.costMillSelfCount !== undefined) {
-            const n = Math.min(action.costMillSelfCount, player.deck.length)
+            const n = action.costMillSelfCount
+            if (player.deck.length < n) {
+                log(state, `${sourceName}：デッキが足りないため発動しなかった。`)
+                return
+            }
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!
                 player.trashCards.push(cardId)

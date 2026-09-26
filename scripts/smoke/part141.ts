@@ -185,14 +185,18 @@ console.log("=== BS07 紫：Lv1のスピリットはアタックもブロック�
 
 console.log("=== BS07 紫：【呪撃】持ちを破壊してトラッシュから回収する（ブリュナグオン） ===")
 {
-    const bruna = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["costDestroyOwnKeyword"] !== undefined,
-    )
-    const action = entryOf(bruna, (e) => (e["action"] as Record<string, unknown> | undefined)?.["costDestroyOwnKeyword"] !== undefined)[
-        "action"
-    ] as Record<string, unknown>
-    const kw = String(action["costDestroyOwnKeyword"])
-    const families = action["familyFilter"] as string[]
+    // pay の cost が【キーワード】持ちの破壊、then がトラッシュからの回収のエントリ
+    const isBruna = (e: Record<string, unknown>): boolean => {
+        const a = e["action"] as Record<string, unknown> | undefined
+        const cost = a?.["cost"] as Record<string, unknown> | undefined
+        return a?.["type"] === "pay" && cost?.["type"] === "destroy" &&
+            (cost["filter"] as Record<string, unknown> | undefined)?.["keyword"] !== undefined &&
+            (a["then"] as Record<string, unknown>)["type"] === "recoverSpiritFromTrash"
+    }
+    const bruna = findByEffect(isBruna)
+    const payAction = entryOf(bruna, isBruna)["action"] as Record<string, unknown>
+    const kw = String(((payAction["cost"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["keyword"])
+    const families = (payAction["then"] as Record<string, unknown>)["familyFilter"] as string[]
     const jugekiSpirit = CARDS.find(
         (c) =>
             c.type === "spirit" &&
@@ -207,12 +211,7 @@ console.log("=== BS07 紫：【呪撃】持ちを破壊してトラッシュか�
     const src = put(s, "p1", bruna.cardId, 1)
     const sacrifice = put(s, "p1", jugekiSpirit.cardId, 1)
     s.players.p1.trashCards.push(recoverable.cardId)
-    resolveAction(s, "p1", src, {
-        type: "recoverSpiritFromTrash",
-        count: 1,
-        familyFilter: families,
-        costDestroyOwnKeyword: kw as never,
-    })
+    resolveAction(s, "p1", src, payAction as never)
     assert(
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === sacrifice.instanceId),
         `コストとして【${kw}】持ちの${jugekiSpirit.name}が破壊される`,
@@ -223,12 +222,7 @@ console.log("=== BS07 紫：【呪撃】持ちを破壊してトラッシュか�
     const s2 = base("brunagon-no-cost")
     const src2 = put(s2, "p1", bruna.cardId, 1)
     s2.players.p1.trashCards.push(recoverable.cardId)
-    resolveAction(s2, "p1", src2, {
-        type: "recoverSpiritFromTrash",
-        count: 1,
-        familyFilter: families,
-        costDestroyOwnKeyword: kw as never,
-    })
+    resolveAction(s2, "p1", src2, payAction as never)
     assert(!s2.players.p1.hand.includes(recoverable.cardId), `対照実験：【${kw}】持ちがいなければ回収しない`)
 }
 

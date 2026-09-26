@@ -6748,9 +6748,20 @@
     ],
     "optional": true,
     "action": {
-     "type": "lifeCrush",
-     "count": 2,
-     "costReserveToVoid": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "void",
+      "count": 1
+     },
+     "then": {
+      "type": "lifeCrush",
+      "count": 2
+     }
     }
    }
   ]

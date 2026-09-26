@@ -109,3 +109,30 @@ then 側の判定（その効果が完全に解決できるか）の両方が要
 
 **移さないもの（理由つき）**：costSkipDraw・costSkipCoreStep（ステップを飛ばす部品が無い。1枚ずつ）／
 costReturnOwnBrave（ブレイヴの分離は別処理）／costDestroySelfAndCostFilter・costDestroyOwnSpiritSameCost（破壊したものが召喚の条件になる＝直前の結果を見る if が要る）／costSelfToTrash（対象外）
+
+## §5 段階3の変換規則（2026-09-26。host の action から costXxx を外したものが then、下が cost）
+
+| フィールド | cost |
+| :-- | :-- |
+| costDiscardOwnBurst | `discardBurst { side: "own" }` |
+| costHandDiscardOne・costDiscardOwnHandOne | `discardSelfChoose { count: 1 }`（捨てる手札は選ばせる。§2） |
+| costReserveToVoid N／costReserveToTrash N／costReserveCoreToTrash | `removeCores { side: "own", from: ["reserve"], to: "void"／"trash", count: N（CoreToTrash は1） }` |
+| costSelfCoresToTrash N／costSelfCoresToVoid N | `removeCores { side: "own", target: "self", to: "trash"／"void", count: N }`（旧ハンドラが維持コアを割らない条件を持つなら `leaveAtLeast` 等で同じ条件にする） |
+| costOwnFieldCoresToVoid N | `removeCores { side: "own", from: ["spirit", "nexus"], to: "void", target: "spread", count: N }` |
+| costReserveToTrashFromBofu | `removeCores { side: "own", from: ["reserve"], to: "trash", count: 1, countCounter: "selfBofuCount" }` |
+| costDestroyOwnSpirit（true／{minCost}） | `destroy { side: "own", count: 1, filter: { cost: { min } } }` |
+| costDestroyOwnFamily／Keyword／VanillaSpirit | `destroy { side: "own", count: 1, filter: { family／keyword／vanilla } }` |
+| costDestroyOwnNexus | `destroyNexus { side: "own", count: 1 }` |
+| costExhaustFamily／costExhaustSelf | `exhaust { side: "own", count: 1, filter: { family } }`／`exhaust { target: "self", count: 1 }` |
+| costReturnOwnSpiritKeyword | `returnToHand { side: "own", count: 1, filter: { keyword } }` |
+| costReturnSelfToHand | `returnSelfToHand`（pay の判定を足す：自身が場にいる） |
+| costMillSelfCount N | `mill { side: "own", count: N }` |
+
+then の書き換え：旧 coreGain → `placeCores { from: "void", to: "reserve" }`、旧 voidCoreToSelf → `placeCores { from: "void", to: "spirit", target: "self" }`、旧 lifeCharge → `placeCores { to: "life", from }`、
+旧 coreRemove → `removeCores`（CORE_UNIFY_REMOVE §3 の対応）、旧 voidCoresFromField → `removeCores { side: "opponent", from: ["spirit", "nexus"], to: "void", target: "spread" }`。
+
+**旧 type に残す**（then が cost の結果を見る＝if 待ち）：BS13-024（BP を疲労させたスピリットから取る）、BS13-060（破棄したカードの系統で回復）、BS13-058（「その後、このバトルの間ブロックされない」）、BS15-067（誘発のきっかけの1体だけを回復）。
+このうち一般則に合っていない BS13-058・BS13-060 は、旧ハンドラで「デッキが N 枚以上あるか」を払う前に確かめる形に直す。
+BS14-X03・BS13-027（costReturnSelfToHand）も残す（2026-09-27）：then の対象が「戻した自身以外」になる／「指定する」＝選ばせるのが cost 付きのときだけ、で、どちらも pay の then 判定（bpBuff は `excludeSelf` を見ない）では同じ条件を書けない。
+
+**残った作業**（後始末の PR）：どのカードも使わなくなった costXxx 16種（costDestroyOwn*・costDiscardOwnBurst・costHandDiscardOne 等）を型とハンドラ・smoke から消す。挙動は変わらない。

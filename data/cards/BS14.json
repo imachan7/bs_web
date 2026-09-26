@@ -843,12 +843,18 @@
      2
     ],
     "action": {
-     "type": "destroy",
-     "count": 1,
-     "filter": {
-      "rested": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
      },
-     "costDiscardOwnBurst": true
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "filter": {
+       "rested": true
+      }
+     }
     }
    }
   ]
@@ -5894,10 +5900,17 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroy",
-     "count": 1,
-     "costDestroyOwnSpirit": true,
-     "chooserIsTarget": true
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "chooserIsTarget": true
+     }
     }
    }
   ]

@@ -2240,7 +2240,7 @@ const destroyOwnFreelyThenDrawHandler: ActionHandler<"destroyOwnFreelyThenDraw">
 // **ここでは破壊しない**。実際の破壊は GameEngine のバトル解決＞７（【呪撃】の直後）で
 // 通常の destroy 経路を通すので、装甲・効果耐性はその時点で判定される。
 // self は発生源のネクサス自身（データ側で fieldEvent.selfMode:"source" を指定する）
-const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle"> = (ctx, action) => {
+const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle"> = (ctx) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const battle = state.battle
     if (!self) return
@@ -2254,15 +2254,8 @@ const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle
         log(state, `${sourceName}：ブロックしたスピリットがいなかった。`)
         return
     }
-    const cost = action.costSelfCoresToTrash
-    if (self.cores < cost) {
-        log(state, `${sourceName}：置くコアが足りなかった。`)
-        return
-    }
-    // ネクサスのコアはレベルが下がるだけで消滅しない。**支払いでLv2を割っても予約は残る**
+    // コスト（ネクサスのコアをトラッシュへ）は pay の cost 側。**支払いでLv2を割っても予約は残る**
     // （発揮はコストを払った時点で成立している。2026-08-16 ユーザー確認）
-    self.cores -= cost
-    state.players[owner].trashCores += cost
     const list = battle.endBattleDestroy ?? []
     list.push({
         targetInstanceId: found.inst.instanceId,
@@ -2273,7 +2266,7 @@ const destroyBlockerAfterBattleHandler: ActionHandler<"destroyBlockerAfterBattle
     battle.endBattleDestroy = list
     log(
         state,
-        `${sourceName}：コア${cost}個をトラッシュに置き、${getCard(found.inst.cardId).name}をバトル終了後に破壊する。`,
+        `${sourceName}：${getCard(found.inst.cardId).name}をバトル終了後に破壊する。`,
     )
 }
 

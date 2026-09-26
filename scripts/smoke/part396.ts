@@ -184,14 +184,14 @@ console.log("=== 9. destroyBlockerAfterBattle：ブロックしたスピリッ�
     const me = put(s, "p1", RED, 1)
     const foe = put(s, "p2", PURPLE, 1)
     s.battle = { attackerInstanceId: me.instanceId, blockerInstanceId: foe.instanceId, directed: false }
-    resolveAction(s, "p1", me, { type: "pay", cost: costRemoveOne(), then: { type: "destroyBlockerAfterBattle", costSelfCoresToTrash: 0 } })
+    resolveAction(s, "p1", me, { type: "pay", cost: costRemoveOne(), then: { type: "destroyBlockerAfterBattle" } })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
     assert((s.battle?.endBattleDestroy ?? []).length === 1, "バトル終了後の破壊が予約された")
 }
 {
     const s = game("case9b")
     const me = put(s, "p1", RED, 1)
-    resolveAction(s, "p1", me, { type: "pay", cost: costRemoveOne(), then: { type: "destroyBlockerAfterBattle", costSelfCoresToTrash: 0 } })
+    resolveAction(s, "p1", me, { type: "pay", cost: costRemoveOne(), then: { type: "destroyBlockerAfterBattle" } })
     assert(s.players.p1.reserve === 5, "ブロックしたスピリットがいないため払わなかった")
 }
 

@@ -134,7 +134,7 @@ console.log("=== BS03-128 マルチプルコア：coreGainPer counter=ownExhaust
     rested2.isRested = true
     s.players.p1.field.spirits.push(rested1, rested2)
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", null, { type: "coreGain", count: 1, countCounter: "ownExhausted" })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "reserve", count: 1, countCounter: "ownExhausted" })
     assert(s.players.p1.reserve === reserveBefore + 2, "疲労スピリット2体ぶんボイドからリザーブへ+2")
 }
 

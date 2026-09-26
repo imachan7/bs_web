@@ -313,71 +313,6 @@ const coreRemoveByPayingSelfCoresHandler: ActionHandler<"coreRemoveByPayingSelfC
     return
 }
 
-// BS12-015冥王神龍クロノ・ハデス：召喚時「自分のフィールドのコアcostOwnFieldCoresToVoid個をボイドに
-// 置くことで、sideのフィールドのコアcount個をボイドに置く」。「フィールドのコア」はスピリット/ネクサス
-// 上のコアのみ（リザーブは含まない）。「〜することで」はコストなので、自分のフィールド合計が
-// costOwnFieldCoresToVoid以上・side側のフィールド合計がcount以上の両方を満たすときだけ発揮する
-// （COST_MODEL.md §1）。どちらもコアの多い個体から順に自動で取る（範囲効果のため対象選択は挟まない）
-function fieldCoresTotal(state: GameState, pid: PlayerId): number {
-    const player = state.players[pid]
-    return (
-        player.field.spirits.reduce((sum, s) => sum + s.cores, 0) +
-        player.field.nexuses.reduce((sum, n) => sum + n.cores, 0)
-    )
-}
-
-function takeFieldCoresToVoid(state: GameState, pid: PlayerId, count: number, actorPid: PlayerId): number {
-    const player = state.players[pid]
-    let remaining = count
-    let taken = 0
-    while (remaining > 0) {
-        let richest: CardInstance | undefined
-        let richestKind: "spirit" | "nexus" | undefined
-        for (const s of player.field.spirits) {
-            if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
-                richest = s
-                richestKind = "spirit"
-            }
-        }
-        for (const n of player.field.nexuses) {
-            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
-                richest = n
-                richestKind = "nexus"
-            }
-        }
-        if (!richest || !richestKind) break
-        if (richestKind === "spirit") {
-            const removed = removeCoresToVoid(state, pid, richest, Math.min(remaining, richest.cores), actorPid)
-            if (removed === 0) break
-            remaining -= removed
-            taken += removed
-        } else {
-            const take = Math.min(remaining, richest.cores)
-            richest.cores -= take
-            remaining -= take
-            taken += take
-        }
-    }
-    return taken
-}
-
-const voidCoresFromFieldHandler: ActionHandler<"voidCoresFromField"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
-    const targetPid = action.side === "own" ? owner : opp
-    const costRequired = action.costOwnFieldCoresToVoid ?? 0
-    if (fieldCoresTotal(state, owner) < costRequired || fieldCoresTotal(state, targetPid) < action.count) {
-        log(state, `${sourceName}：コアが足りず発動しなかった。`)
-        return
-    }
-    if (costRequired > 0) {
-        takeFieldCoresToVoid(state, owner, costRequired, owner)
-        log(state, `${sourceName}：自分のフィールドのコア${costRequired}個をボイドに置いた。`)
-    }
-    const taken = takeFieldCoresToVoid(state, targetPid, action.count, owner)
-    log(state, `${sourceName}：${state.players[targetPid].name}のフィールドのコア${taken}個をボイドに置いた。`)
-    return
-}
-
 const protectBlockerCoresThisBattleHandler: ActionHandler<"protectBlockerCoresThisBattle"> = (ctx) => {
     const { state, owner, sourceName } = ctx
     if (!state.battle) {
@@ -1059,7 +994,6 @@ const handlers = {
     swapOpponentCores: swapOpponentCoresHandler,
     coreRemove: coreRemoveHandler,
     coreRemoveByPayingSelfCores: coreRemoveByPayingSelfCoresHandler,
-    voidCoresFromField: voidCoresFromFieldHandler,
     protectBlockerCoresThisBattle: protectBlockerCoresThisBattleHandler,
     capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreDrainAllOthers: coreDrainAllOthersHandler,

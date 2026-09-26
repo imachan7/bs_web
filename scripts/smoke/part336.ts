@@ -144,15 +144,15 @@ console.log("=== §D Lv1-2の手札破棄は持ち主が選ぶ（末尾の自動
     assert(attacker.colorlessThisBattle === true, "このバトルの間、アタッカーの色は無いものとして扱われる")
 }
 
-console.log("=== 対照: 非対話では決定的に選ぶ（先頭の1枚） ===")
+console.log("=== 対照: 非対話では決定的に選ぶ（discardSelfChoose と同じく末尾の1枚） ===")
 {
     const s = game("p336-d2", false)
     putNexus(s, "p1", "BS15-064", 0)
     const attacker = put(s, "p1", "BS15-011", 1)
     s.players.p1.hand = ["BS01-001", "BS02-040"]
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p1", inst: attacker }, getCard(attacker.cardId).colors)
-    assert(!s.players.p1.hand.includes("BS01-001"), "非対話では先頭の手札が破棄される（決定的簡略化）")
-    assert(s.players.p1.hand.includes("BS02-040"), "末尾の手札は残る")
+    assert(!s.players.p1.hand.includes("BS02-040"), "非対話では末尾の手札が破棄される（決定的簡略化）")
+    assert(s.players.p1.hand.includes("BS01-001"), "先頭の手札は残る")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part336）")

@@ -2,70 +2,10 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { getCard, log, suspend } from "../GameState"
-import { destroySpirit, placeCoresOnSpirit, requestChoice, voidCorePlacementBlocked } from "../EffectModules"
+import { placeCoresOnSpirit, voidCorePlacementBlocked } from "../EffectModules"
 import { effectiveBp } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 
-
-const coreGainHandler: ActionHandler<"coreGain"> = (ctx, action) => {
-    const { state, owner, self, sourceName, srcType, destroyContext, targetInstanceId } = ctx
-        if (voidCorePlacementBlocked(state)) {
-            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
-            return
-        }
-        const player = state.players[owner]
-        // costDestroyOwnSpirit：コストがminCost以上の自分のスピリット1体を破壊することがコスト
-        // （BS10-105ライフチャージ）。「〜することで〜する」の任意コストは、破壊できる対象が
-        // いなければ不発（COST_MODEL.md §1）。何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2）
-        if (action.costDestroyOwnSpirit) {
-            const minCost = action.costDestroyOwnSpirit.minCost ?? 0
-            const candidates = player.field.spirits.filter((s) => getCard(s.cardId).cost >= minCost)
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            let victim: CardInstance | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                victim = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!victim) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                victim = candidates[0]!
-                for (const s of candidates) {
-                    if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
-                }
-            }
-            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
-            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
-        }
-        const count =
-            action.countCounter !== undefined
-                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
-                : action.count
-        if (action.countCounter !== undefined && count === 0) {
-            log(state, `${sourceName}：カウントが0のため獲得しなかった。`)
-            return
-        }
-        player.reserve += count
-        log(
-            state,
-            `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`,
-        )
-        return
-}
 
 const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
     const { state, owner, self, sourceName, srcType, chosenOption } = ctx
@@ -178,7 +118,6 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
 }
 
 const handlers = {
-    coreGain: coreGainHandler,
     voidCoreToSelf: voidCoreToSelfHandler,
     destructionCoresToOwnSpirit: destructionCoresToOwnSpiritHandler,
 } satisfies Partial<ActionRegistry>

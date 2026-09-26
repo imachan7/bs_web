@@ -290,9 +290,15 @@
      3
     ],
     "action": {
-     "type": "bpBuff",
-     "amount": 5000,
-     "costDiscardOwnBurst": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
+     },
+     "then": {
+      "type": "bpBuff",
+      "amount": 5000
+     }
     },
     "phaseTurn": {
      "phase": "attack",
@@ -467,8 +473,14 @@
      3
     ],
     "action": {
-     "type": "refreshSelf",
-     "costDiscardOwnBurst": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     },
     "optional": false
    }

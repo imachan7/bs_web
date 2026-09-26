@@ -3699,10 +3699,22 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "coreGain",
-          "count": 3,
-          "costDestroyOwnSpirit": {
-            "minCost": 3
+          "type": "pay",
+          "cost": {
+            "type": "destroy",
+            "side": "own",
+            "count": 1,
+            "filter": {
+              "cost": {
+                "min": 3
+              }
+            }
+          },
+          "then": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "reserve",
+            "count": 3
           }
         }
       }

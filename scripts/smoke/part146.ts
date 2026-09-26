@@ -231,24 +231,24 @@ console.log("=== BS08ライトニングスピード：grantKeywordToHandCard.all
     assert(!grants.some((g) => g.cardId === other.cardId), "対照実験：条件に合わないカードには与えられない")
 }
 
-console.log("=== BS08ブラックタウロス大王：refreshSelf.costSelfCoresToVoid（自身のコアを払って回復） ===")
+console.log("=== BS08ブラックタウロス大王：pay（自身のコアを払って回復） ===")
 {
-    const taurus = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "refreshSelf" &&
-            (e["action"] as Record<string, unknown>)["costSelfCoresToVoid"] !== undefined,
-    )
-    const entry = entryOf(
-        taurus,
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "refreshSelf",
-    )
-    const cost = Number((entry["action"] as Record<string, unknown>)["costSelfCoresToVoid"])
+    // pay の cost が自身のコア、then が refreshSelf のエントリ
+    const isTaurus = (e: Record<string, unknown>): boolean => {
+        const a = e["action"] as Record<string, unknown> | undefined
+        return a?.["type"] === "pay" && (a["then"] as Record<string, unknown>)["type"] === "refreshSelf" &&
+            (a["cost"] as Record<string, unknown>)["target"] === "self" && (a["cost"] as Record<string, unknown>)["to"] === "void"
+    }
+    const taurus = findByEffect(isTaurus)
+    const payAction = entryOf(taurus, isTaurus)["action"] as Record<string, unknown>
+    const cost = Number((payAction["cost"] as Record<string, unknown>)["count"])
     const minCores = coresFor(taurus, 1)
 
     const s = base("taurus-pay")
     const inst = put(s, "p1", taurus.cardId, cost + minCores + 2)
     inst.isRested = true
     const before = inst.cores
-    resolveAction(s, "p1", inst, { type: "refreshSelf", costSelfCoresToVoid: cost })
+    resolveAction(s, "p1", inst, payAction as never)
     assert(inst.cores === before - cost, `自身のコア${cost}個をボイドに置いて回復する`)
     assert(!inst.isRested, "支払うと回復する")
 
@@ -256,7 +256,7 @@ console.log("=== BS08ブラックタウロス大王：refreshSelf.costSelfCoresT
     const inst2 = put(s2, "p1", taurus.cardId, cost + minCores - 1)
     inst2.isRested = true
     const before2 = inst2.cores
-    resolveAction(s2, "p1", inst2, { type: "refreshSelf", costSelfCoresToVoid: cost })
+    resolveAction(s2, "p1", inst2, payAction as never)
     assert(inst2.cores === before2, "対照実験：払うと維持コアを割り込む場合は発動せず、コアは変化しない")
     assert(inst2.isRested, "対照実験：発動しなければ疲労状態のまま")
 }

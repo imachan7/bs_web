@@ -999,10 +999,29 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoresFromField",
-          "side": "opponent",
-          "count": 4,
-          "costOwnFieldCoresToVoid": 3
+          "type": "pay",
+          "cost": {
+            "type": "removeCores",
+            "side": "own",
+            "from": [
+              "spirit",
+              "nexus"
+            ],
+            "to": "void",
+            "target": "spread",
+            "count": 3
+          },
+          "then": {
+            "type": "removeCores",
+            "side": "opponent",
+            "from": [
+              "spirit",
+              "nexus"
+            ],
+            "to": "void",
+            "target": "spread",
+            "count": 4
+          }
         }
       },
       {
@@ -2170,8 +2189,18 @@
         "eventTargetIsSelf": true,
         "optional": true,
         "action": {
-          "type": "refreshSelf",
-          "costSelfCoresToTrash": 1
+          "type": "pay",
+          "cost": {
+            "type": "removeCores",
+            "side": "own",
+            "target": "self",
+            "to": "trash",
+            "count": 1,
+            "leaveAtLeast": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          }
         }
       }
     ]
@@ -6026,8 +6055,18 @@
         ],
         "optional": false,
         "action": {
-          "type": "refreshSelf",
-          "costDestroyOwnVanillaSpirit": true
+          "type": "pay",
+          "cost": {
+            "type": "destroy",
+            "side": "own",
+            "count": 1,
+            "filter": {
+              "vanilla": true
+            }
+          },
+          "then": {
+            "type": "refreshSelf"
+          }
         }
       },
       {
