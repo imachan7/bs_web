@@ -1290,6 +1290,7 @@ export interface GameState {
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
     // action:"exhaustOpponentSameFamilyAll" が読む（removal.ts の発火直前にセット。BS16-027コーカサス・リョフ・ビートル）
+    summonEffectSource?: { pid: PlayerId; instanceId: string; cost: number; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
     // （fireSummonTrigger が設定し、選択待ちで中断した場合は残して handleAction の事後フックがクリアする。
     // ConstraintDef.immuneToOpponentSummonEffects を isEffectBlocked が判定するために使う。BS05リトルナイト・ランスロットLv3）

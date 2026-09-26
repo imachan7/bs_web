@@ -19,6 +19,7 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
+import { finishSummonEffect } from "./keywords/burst"
 import { blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
@@ -125,7 +126,10 @@ export function handleAction(
     flushRevealedCardsIfIdle(state)
     // 『召喚時』効果の解決中フラグは、選択待ちが無くなった時点で必ず落とす
     // （選択を挟んで中断した召喚時効果も、解決しきったここでクリアされる）
-    if (!state.pendingChoice) delete state.resolvingSummonTriggerPid
+    if (!state.pendingChoice) {
+        delete state.resolvingSummonTriggerPid
+        finishSummonEffect(state)
+    }
     // 「破壊される代わりに復活できる」の確認は、破壊処理の途中では中断できないので
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される

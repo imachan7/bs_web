@@ -1237,6 +1237,7 @@ export function resolveAction(
     sourceCardId?: string,
     paySources?: PaySource[],
 ): void {
+    if (self !== null && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)

@@ -60,7 +60,7 @@
 
 ## 【バースト】（`server/src/logic/keywords/burst.ts`）
 
-セットは `placeBurst`、発動後の後始末は `finishBurstActivation`、「自分のバーストを発動したとき」の誘発は `fireOwnBurstActivated`。バーストの条件と解決順は BURST.md。
+セットは `placeBurst`、発動後の後始末は `finishBurstActivation`、「自分のバーストを発動したとき」の誘発は `fireOwnBurstActivated`。発動条件の走査は `fireBurstOnEvent`（持ち主から見た事象だけ拾う）、【相手の『召喚時』発揮後】の発火は `finishSummonEffect`（2026-09-27 に triggers.ts から移した）。バーストの条件と解決順は BURST.md。
 
 ## 召喚時の誘発と効果による無償召喚（`server/src/logic/summon.ts`）
 
