@@ -101,8 +101,11 @@ then 側の判定（その効果が完全に解決できるか）の両方が要
 | discardBurst { side } | 旧 discardOpponentBurst を置き換え（自分のバーストも捨てられる）、判定はバーストがセットされているか | costDiscardOwnBurst |
 | 既存の部品で書けるもの | destroy・destroyNexus・returnToHand・discardSelfChoose（手札は選ばせる） | costDestroyOwnSpirit／Family／Keyword／VanillaSpirit・costDestroyOwnNexus・costReturnOwnSpiritKeyword・costReturnSelfToHand・costHandDiscardOne・costDiscardOwnHandOne |
 
+**判定の原則（2026-09-26 ユーザー指摘）**：cost 側の「完全に払えるか」は数だけでなく、**支払いを止める効果**まで見る。実際に払う処理と同じ判定を使う（ライフのコア＝永久凍土の王都 `lifeCostBlockedByFloor`（COST_MODEL §9）、スピリットのコア＝バトル中の保護・下限・「取り除けない」、手札＝`canDiscardHand`、疲労＝既に疲労している等）。払えないと分かったら cost も then も何もしない（途中まで払って止まる状態を作らない）。
+**段階1の追加**：ライフのコアを払う部品（costOwnLifeToReserve・costOwnLifeToVoid と、太陽石の神殿など §9 の4枚）。判定に `lifeCostBlockedByFloor` を使う。
+
 **段階2：then 側の判定**：段階1で書けるフィールドの host（bpBuff・refreshSelf・refreshOne・draw・returnToHand・destroy・summonFromHandFree・summonFromTrashFree・exhaust・placeCores・recoverSpiritFromTrash など）に、完全に解決できるかの判定を1つずつ足す。
 **段階3：カードの移行**：フィールドを消し、pay{cost, then} に書き換える（§3 の8枚は挙動が変わるので PR に表で書く）。旧 coreGain・lifeCharge・voidCoreToSelf のコスト付き4か所と revealHandMagicToTegamotoDraw もここで placeCores・reveal へ移す。
 
-**移さないもの（理由つき）**：costSkipDraw・costSkipCoreStep（ステップを飛ばす部品が無い。1枚ずつ）／costOwnLifeToReserve・costOwnLifeToVoid（ライフのコアを払う＝COST_MODEL §9 の特別扱い）／
+**移さないもの（理由つき）**：costSkipDraw・costSkipCoreStep（ステップを飛ばす部品が無い。1枚ずつ）／
 costReturnOwnBrave（ブレイヴの分離は別処理）／costDestroySelfAndCostFilter・costDestroyOwnSpiritSameCost（破壊したものが召喚の条件になる＝直前の結果を見る if が要る）／costSelfToTrash（対象外）
