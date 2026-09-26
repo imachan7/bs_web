@@ -42,6 +42,13 @@
 2. **R5：コアの統合**（いまここ）。action type 55種（うち27種がカード1枚以下）を ACTION_VOCABULARY の「コアを置く `{from,to}`／取り除く `{to}`」へ寄せる。
    ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md)・[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) に書いた（済み。各行にハンドラの行番号つき）
    → ②判断が割れる点をユーザーに確認 → ③器のスキーマを確定して §1 に貼る → 器の PR → 移行の PR（REFACTOR_PLAN §2.2 の分け方）
+   **置く系の器 `placeCores`（2026-09-26 確定。名前を変えない）**：
+   `{ type: "placeCores"; from: "void"|"reserve"|"trash"|"self"|"field"; to: "reserve"|"trash"|"life"|"spirit"|"nexus"|"deckSide"; target?: "self"|"one"|"all"; targets?: number; filter?: TargetFilter; count: number|"all"; countCounter?: EffectCounter; upTo?: number; upToLevel?: number; orReserve?: true }`
+   すべて自分側。`target` は to が spirit／nexus のときだけ（既定 "one"＝候補2体以上なら使用者が選ぶ。AI・非対話はBP最大、ネクサスはコア最少）。`self`＝発生源の上、`field`＝自分のネクサス→スピリット（BP最小）の順に取る。
+   ボイドから spirit／nexus／reserve へ置くときは `voidCorePlacementBlocked`（BS10-056）を見る。ライフへはライフ専用のガードと【聖命】。置いた先は `placeCoresOnSpirit` を通す。
+   移す19種＝coreCharge・coreGain・voidCoreToDeckSide・voidCoreToReserve・trashCoresToReserve・voidCoreToSelf・voidCoreToOther・trashCoresToSpirit・trashCoresToKeywordSpirit・reclaimTrashCores・voidCoreToAllOwnByFamily・voidCoreToOwnNexuses・voidCoreToTarget・voidCoreToOwnByKeyword・voidCoreToOwnTrash・voidCoresToNexusLevel・selfCoreToOwnLife・fieldCoreToLife・lifeCharge（延べ175）。
+   **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
+   対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
 3. R5 の残り（REFACTOR_PLAN §2.2）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
