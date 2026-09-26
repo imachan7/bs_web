@@ -71,7 +71,7 @@ console.log("=== 「〜できる」の確認を断ったら消費しない／承
     const src = createInstance("BS13-039", s.turn, 1)
     s.players.p1.field.spirits.push(src)
     const effectId = "BS13-039-e3"
-    const action = { type: "refreshSelf" as const, costOwnLifeToReserve: 1 }
+    const action = { type: "pay" as const, cost: { type: "removeCores" as const, side: "own" as const, from: ["life" as const], to: "reserve" as const, count: 1 }, then: { type: "refreshSelf" as const } }
 
     // 断る
     src.triggeredUsedTurn = { [effectId]: s.turn }

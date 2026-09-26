@@ -485,12 +485,23 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroy",
-          "count": 1,
-          "filter": {
-            "maxBp": 6000
+          "type": "pay",
+          "cost": {
+            "type": "removeCores",
+            "side": "own",
+            "from": [
+              "life"
+            ],
+            "to": "void",
+            "count": 1
           },
-          "costOwnLifeToVoid": 1
+          "then": {
+            "type": "destroy",
+            "count": 1,
+            "filter": {
+              "maxBp": 6000
+            }
+          }
         }
       }
     ]

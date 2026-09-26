@@ -9,6 +9,7 @@ import {
     bothSidesPids,
     canTakeCoresFrom,
     findSpiritAny,
+    lifeCostBlockedByFloor,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -21,7 +22,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
-type Zone = "spirit" | "nexus" | "reserve" | "trash"
+type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
 type Dest = "reserve" | "trash" | "void"
 type CountSpec = number | "all" | "toLowerLevel"
 
@@ -107,6 +108,11 @@ export function removeCoresAchievableCountForPay(
         typeof action.count === "number" && action.countCounter !== undefined
             ? countedAmount(state, owner, self, action.count, action.countCounter, srcType)
             : action.count
+
+    if (action.from?.includes("life")) {
+        if (action.side !== "own" || typeof countSpec !== "number") return 0
+        return lifeCostBlockedByFloor(state, owner, countSpec) ? 0 : state.players[owner].life
+    }
 
     if (defaultTarget(action) === "self") {
         if (!self) return 0
@@ -586,7 +592,30 @@ const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action) => {
     dispatchByTarget(ctx, action)
 }
 
+// 自分のライフのコアを置く（「〜することで」のコスト用。from: ["life"] は単独・side "own" だけ）。
+// 「ライフは0にならない」が働いている間は払って0にできない（COST_MODEL §9。2026-09-16 ユーザー確定）
+function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
+    const { state, owner, opp, sourceName } = ctx
+    const count = resolvedCount(ctx, action)
+    const player = state.players[owner]
+    if (action.side !== "own" || typeof count !== "number" || player.life < count || lifeCostBlockedByFloor(state, owner, count)) {
+        log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
+        state.effectFizzled = true
+        return
+    }
+    player.life -= count
+    depositTo(state, owner, action.to ?? "trash", count, "ライフ")
+    if (player.life <= 0 && !state.winner) {
+        state.winner = opp
+        log(state, `${state.players[opp].name}の勝利！`)
+    }
+}
+
 function dispatchByTarget(ctx: ActionCtx, action: RemoveCoresAction): void {
+    if (action.from?.includes("life")) {
+        resolveLife(ctx, action)
+        return
+    }
     if (action.downTo !== undefined) {
         resolveDownTo(ctx, action)
         return

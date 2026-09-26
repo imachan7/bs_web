@@ -65,7 +65,7 @@
 ```ts
 | { type: "removeCores"
     side?: "opponent" | "own" | "any" | "both"   // 既定 opponent。any＝両陣営の中から選ぶ、both＝お互いそれぞれ（各持ち主が自分の分を選ぶ。ターンプレイヤーから）
-    from?: ("spirit" | "nexus" | "reserve" | "trash")[]   // 既定 ["spirit"]。複数なら選ぶ人が1個ずつどこから取るか選ぶ
+    from?: ("spirit" | "nexus" | "reserve" | "trash" | "life")[]   // 既定 ["spirit"]。複数なら選ぶ人が1個ずつどこから取るか選ぶ。"life" は side "own" で単独だけ（「自分のライフのコアを置くことで」のコスト。止める判定は lifeCostBlockedByFloor＝COST_MODEL §9。2026-09-27）
     to?: "reserve" | "trash" | "void"   // 既定 reserve（持ち主の）
     target?: "one" | "spread" | "all" | "self" | "event"   // 既定 one。spread＝複数体から合計 count を1個ずつ、event＝誘発のきっかけの個体
     targets?: number; filter?: TargetFilter
