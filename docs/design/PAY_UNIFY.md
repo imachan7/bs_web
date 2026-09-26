@@ -86,3 +86,23 @@
 | §3 の項目数 | 5項目 |
 | §3 上位3件 | ①costMillSelfCount（デッキ不足でも成立、COST_MODEL.md既に予告）／②costReserveToTrash（体数2以上で候補1体でも成立、COST_MODEL.mdの例示カード）／③costDiscardOwnBurst 2経路（B未確認のまま先払い） |
 | 相談事項 | (a) costMillSelfCountとcostReserveToTrashは09-24規則の適用対象として明示済みなので、pay移行と同時に直してよいか。(b) costDiscardOwnBurst/costDestroyOwnFamily(drawDiscard)/costSkipCoreStep/costReserveToTrashFromBofu/costDiscardOwnHandOneの「B未確認先払い」5経路は§1違反の新規発見（COST_MODEL.mdに未記載）。pay移行で自動的に直る（checker必須になるため）が、影響カード（アナグマッド・デビル／アスクレピオーズ／戦場に息づく命／ショカツリョー／ネコマーダ）の挙動が変わることをどこまで一括で許容するか。(c) PAYABLE_TYPESに無い「コア払い」「疲労払い」「複合破壊」の3軸は、pay移行前にcost側のchecker設計が要る（§2）。 |
+
+## §4 移行計画（2026-09-26。一般則は COST_MODEL §1 の確定どおり＝コストか効果のどちらかが完全に解決できないなら、払わずに発揮しない。§3 の8枚もこれに揃える）
+
+`pay { cost, then }` へ移すには、cost 側の部品（その支払いを書ける action と、完全に払えるかの判定）と、
+then 側の判定（その効果が完全に解決できるか）の両方が要る。then 側は host の action type ごとに1つずつ判定を足す。
+
+**段階1：cost 側の部品（器の PR）**
+| 部品 | 中身 | これで書けるフィールド |
+| :-- | :-- | :-- |
+| removeCores の判定を広げる | 取り先（reserve・trash・nexus）・自分自身（target self）・countCounter を数えられるようにする | costSelfCoresToTrash・costSelfCoresToVoid・costReserveToVoid・costReserveToTrash・costReserveCoreToTrash・costOwnFieldCoresToVoid・costReserveToTrashFromBofu（countCounter selfBofuCount） |
+| exhaust に side と自分自身 | `side?: "own"`・`target?: "self"` を足し、判定を足す | costExhaustFamily・costExhaustSelf |
+| mill の判定 | デッキが count 枚以上 | costMillSelfCount |
+| discardBurst { side } | 旧 discardOpponentBurst を置き換え（自分のバーストも捨てられる）、判定はバーストがセットされているか | costDiscardOwnBurst |
+| 既存の部品で書けるもの | destroy・destroyNexus・returnToHand・discardSelfChoose（手札は選ばせる） | costDestroyOwnSpirit／Family／Keyword／VanillaSpirit・costDestroyOwnNexus・costReturnOwnSpiritKeyword・costReturnSelfToHand・costHandDiscardOne・costDiscardOwnHandOne |
+
+**段階2：then 側の判定**：段階1で書けるフィールドの host（bpBuff・refreshSelf・refreshOne・draw・returnToHand・destroy・summonFromHandFree・summonFromTrashFree・exhaust・placeCores・recoverSpiritFromTrash など）に、完全に解決できるかの判定を1つずつ足す。
+**段階3：カードの移行**：フィールドを消し、pay{cost, then} に書き換える（§3 の8枚は挙動が変わるので PR に表で書く）。旧 coreGain・lifeCharge・voidCoreToSelf のコスト付き4か所と revealHandMagicToTegamotoDraw もここで placeCores・reveal へ移す。
+
+**移さないもの（理由つき）**：costSkipDraw・costSkipCoreStep（ステップを飛ばす部品が無い。1枚ずつ）／costOwnLifeToReserve・costOwnLifeToVoid（ライフのコアを払う＝COST_MODEL §9 の特別扱い）／
+costReturnOwnBrave（ブレイヴの分離は別処理）／costDestroySelfAndCostFilter・costDestroyOwnSpiritSameCost（破壊したものが召喚の条件になる＝直前の結果を見る if が要る）／costSelfToTrash（対象外）
