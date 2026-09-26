@@ -1527,7 +1527,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -1956,9 +1958,14 @@
      3
     ],
     "action": {
-     "type": "voidCoreToOwnByKeyword",
-     "keyword": "soku",
-     "count": 1
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "all",
+     "count": 1,
+     "filter": {
+      "keyword": "soku"
+     }
     },
     "optional": false
    },
@@ -3443,9 +3450,11 @@
      2
     ],
     "action": {
-     "type": "voidCoreToOwnNexuses",
-     "count": 1,
-     "single": true
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "one",
+     "count": 1
     },
     "optional": false
    }
@@ -5191,7 +5200,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    }
@@ -5223,8 +5234,13 @@
     "timing": "flash",
     "mainForbidden": true,
     "action": {
-     "type": "trashCoresToKeywordSpirit",
-     "keyword": "awaken"
+     "type": "placeCores",
+     "from": "trash",
+     "to": "spirit",
+     "count": "all",
+     "filter": {
+      "keyword": "awaken"
+     }
     }
    }
   ]
@@ -5657,8 +5673,11 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "voidCoresToNexusLevel",
-     "level": 2
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "count": 0,
+     "upToLevel": 2
     }
    }
   ]

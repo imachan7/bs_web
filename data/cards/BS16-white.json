@@ -520,7 +520,9 @@
     "turn": "opponent",
     "winnerNameContains": "ミブロック",
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     }
    }

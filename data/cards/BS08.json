@@ -1237,7 +1237,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -1597,7 +1599,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 2
     },
     "optional": false
@@ -1614,7 +1618,9 @@
      "アントマン"
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 2
     }
    }
@@ -1677,7 +1683,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -2615,9 +2623,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    }
@@ -2684,9 +2693,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    },
@@ -2774,9 +2784,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    },
@@ -3047,9 +3058,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    }
@@ -3259,9 +3271,11 @@
      2
     ],
     "action": {
-     "type": "voidCoreToOwnNexuses",
-     "count": 3,
-     "single": true
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "one",
+     "count": 3
     },
     "optional": false
    }
@@ -4039,12 +4053,16 @@
     "maxBp": 6000,
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1,
-     "familyFilter": [
-      "殻虫",
-      "殻人"
-     ]
+     "filter": {
+      "family": [
+       "殻虫",
+       "殻人"
+      ]
+     }
     }
    },
    {
@@ -4374,9 +4392,13 @@
     },
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1,
-     "familyFilter": "獣頭"
+     "filter": {
+      "family": "獣頭"
+     }
     }
    },
    {
@@ -4438,7 +4460,9 @@
     ],
     "familyFilter": "異合",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },

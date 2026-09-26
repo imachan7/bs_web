@@ -497,7 +497,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "trashCoresToSpirit",
+          "type": "placeCores",
+          "from": "trash",
+          "to": "spirit",
           "count": 2
         }
       }
@@ -558,7 +560,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "trashCoresToSpirit",
+          "type": "placeCores",
+          "from": "trash",
+          "to": "spirit",
           "count": 2
         }
       },
@@ -1339,9 +1343,13 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToOther",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
           "count": 1,
-          "colorFilter": "white"
+          "filter": {
+            "color": "white"
+          }
         }
       }
     ]
@@ -1531,10 +1539,14 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToOther",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
           "count": 1,
-          "colorFilter": "white",
-          "targets": 2
+          "targets": 2,
+          "filter": {
+            "color": "white"
+          }
         }
       },
       {
@@ -1595,7 +1607,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToSelf",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
           "count": 1,
           "countCounter": {
             "ownFamily": [
@@ -2121,7 +2136,10 @@
           "ownSpiritMinCost": 7
         },
         "action": {
-          "type": "voidCoreToSelf",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
           "count": 1
         }
       },
@@ -2800,9 +2818,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "lifeCharge",
-          "count": 1,
-          "from": "void"
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
         }
       },
       {
@@ -3323,7 +3342,10 @@
         ],
         "selfMode": "source",
         "action": {
-          "type": "voidCoreToSelf",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
           "count": 1
         }
       }
@@ -3513,7 +3535,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToSelf",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
           "count": 1,
           "countCounter": "lastFunsaiTotal"
         }
@@ -4029,7 +4054,10 @@
         "granted": {
           "trigger": "onBlock",
           "action": {
-            "type": "voidCoreToSelf",
+            "type": "placeCores",
+            "from": "void",
+            "to": "nexus",
+            "target": "self",
             "count": 1
           }
         }
@@ -4288,7 +4316,9 @@
         "familyFilter": "創手",
         "selfMode": "source",
         "action": {
-          "type": "coreGain",
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
           "count": 1
         }
       },
@@ -4905,9 +4935,10 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "lifeCharge",
-          "count": 1,
-          "from": "void"
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
         }
       },
       {
@@ -5152,7 +5183,10 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "voidCoreToOwnNexuses",
+          "type": "placeCores",
+          "from": "void",
+          "to": "nexus",
+          "target": "all",
           "count": 1
         }
       },
@@ -5273,7 +5307,9 @@
           "ジークヴルム"
         ],
         "action": {
-          "type": "lifeCharge",
+          "type": "placeCores",
+          "from": "reserve",
+          "to": "life",
           "count": 0,
           "upTo": 5
         }
@@ -5458,7 +5494,10 @@
         ],
         "selfMode": "source",
         "action": {
-          "type": "voidCoreToSelf",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
           "count": 6
         }
       },

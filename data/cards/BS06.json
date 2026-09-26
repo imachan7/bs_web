@@ -1640,7 +1640,9 @@
      3
     ],
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     },
     "optional": false
@@ -1691,7 +1693,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -1742,7 +1746,9 @@
      2
     ],
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     },
     "optional": false
@@ -2334,7 +2340,10 @@
      2
     ],
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     },
     "optional": false
@@ -2716,7 +2725,10 @@
      3
     ],
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     },
     "optional": false
@@ -3660,7 +3672,10 @@
     "winnerFamilyFilter": "造兵",
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     }
    }
@@ -4691,7 +4706,10 @@
     "turn": "own",
     "keywordFilter": "bofu",
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "self",
      "count": 1,
      "countCounter": "selfBofuCount"
     }
@@ -4753,7 +4771,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -4882,7 +4902,9 @@
     "countMode": "cores",
     "repeatPerCount": true,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -4951,7 +4973,10 @@
      2
     ],
     "action": {
-     "type": "reclaimTrashCores"
+     "type": "placeCores",
+     "from": "trash",
+     "to": "reserve",
+     "count": "all"
     }
    },
    {
@@ -5801,7 +5826,9 @@
     "levels": null,
     "lentOnly": true,
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     },
     "selfMode": "source"
@@ -5860,7 +5887,9 @@
     "levels": null,
     "lentOnly": true,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 2
     }
    },
@@ -5993,7 +6022,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "lifeCharge",
+     "type": "placeCores",
+     "from": "reserve",
+     "to": "life",
      "count": 1
     }
    }

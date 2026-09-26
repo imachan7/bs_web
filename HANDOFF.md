@@ -50,7 +50,12 @@
    **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
    対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
    **器は実装済み（`actions/placeCores.ts`・smoke part391・392）**。`targets`≥2 は1体ずつ選ばせ、選んだ個体は内部フィールド `excludeIds` で外す。
-   `from: "self"`／`"field"` は `removal.ts` の `takeCoresFromSpirit`（保護・下限・消滅）を通す。**次はカードの移行（データ役）**。
+   `from: "self"`／`"field"` は `removal.ts` の `takeCoresFromSpirit`（保護・下限・消滅）を通す。
+   **カードの移行は途中（ブランチ `feat/place-cores-migrate`、WIP コミット）**：カード170か所は書き換え済み（ジョブの tmp の `migrate_place2.py`。整形を崩さないよう該当オブジェクトだけ差し替え）。
+   残り：①旧16種（validate:cards が「未使用」と出す一覧）を effectAction.ts・actions/cores.ts・coreGain.ts・life.ts から消す
+   ②それを直接組み立てている smoke 13本（part1・26・45・67・140・142・187・220・271・297・315・346・381）を placeCores に書き換える
+   ③**`public/src/renderer.ts:232-235` が起動能力の対象選択を旧 type 名で判定している**（coreCharge・trashCoresToSpirit・voidCoreToTarget）→ placeCores（to: spirit・target が one）で判定する
+   ④smoke 全体で挙動の差（自動選択の向き・BS10-056 のリザーブ行き）を確かめ、PR に表で書く
    未対応：`orReserve` と `target: "one"` の組み合わせ（使うカードは無い）。移行時に直す明らかな誤り：BS10-056 のリザーブ行きガード（voidCoreToReserve）・coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
    **並行：コアの支払いの自動／手動の切り替え（2026-09-26 ユーザー依頼。ブランチ `feat/manual-core-pay`、クライアントだけ）**：
    上部のボタン列に「支払い：自動／手動」（`localStorage` の `bs_pay_mode`）。手動なら手札から使うカード（召喚・ネクサス・マジック・ブレイヴ）で、リザーブが足りていても支払い画面を開き、

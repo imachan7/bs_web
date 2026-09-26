@@ -1273,7 +1273,9 @@
           2
         ],
         "action": {
-          "type": "coreGain",
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
           "count": 2
         },
         "optional": false

@@ -1091,7 +1091,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -1105,12 +1107,16 @@
      2
     ],
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1,
-     "familyFilter": [
-      "星魂"
-     ],
-     "excludeSelf": true
+     "filter": {
+      "family": [
+       "星魂"
+      ],
+      "excludeSelf": true
+     }
     },
     "optional": false
    }
@@ -1232,7 +1238,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -2220,9 +2228,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    },
@@ -2546,7 +2555,9 @@
      "lastFunsaiHasSpirit": true
     },
     "action": {
-     "type": "voidCoreToOther",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     }
    }
@@ -4206,12 +4217,16 @@
     "phase": "attack",
     "turn": "opponent",
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1,
-     "familyFilter": [
-      "空魚",
-      "星魂"
-     ]
+     "filter": {
+      "family": [
+       "空魚",
+       "星魂"
+      ]
+     }
     }
    },
    {
@@ -4294,9 +4309,10 @@
     "subjectKeywordFilter": "seimei",
     "selfMode": "source",
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     }
    }
   ]
