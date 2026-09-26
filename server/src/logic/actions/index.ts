@@ -17,6 +17,7 @@ import life from "./life"
 import mill from "./mill"
 import pay from "./pay"
 import placeCores from "./placeCores"
+import removeCores from "./removeCores"
 import reveal from "./reveal"
 import tegamoto from "./tegamoto"
 import tensho from "./tensho"
@@ -39,6 +40,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...mill,
     ...pay,
     ...placeCores,
+    ...removeCores,
     ...reveal,
     ...tegamoto,
     ...tensho,

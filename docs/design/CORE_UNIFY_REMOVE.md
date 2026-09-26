@@ -59,3 +59,44 @@
 | §1行数 | 28行（未確認0件） |
 | §2項目数 | 5件（上位3件：①spread系の自動選択順が逆、②「相手は」の選択者がカード側設定に依存、③removeCores系を通らない4 type） |
 | 相談事項 | (a) coreRemoveDistributed既定時の自動選択（コア最少）とcoreRemove spread（コア最多）のどちらが正か、(b) SD01-013にchooserIsTargetが付いているかはカードデータ側で別途確認要、(c) coreToVoidOwn/voidCoresAndMillByCost/moveCoresLeavingOne/swapOpponentCoresの「バトル中保護を見ない」を統合後も踏襲するか |
+
+## §3 確定スキーマ `removeCores`（2026-09-26。名前を変えない）
+
+```ts
+| { type: "removeCores"
+    side?: "opponent" | "own" | "any" | "both"   // 既定 opponent。any＝両陣営の中から選ぶ、both＝お互いそれぞれ（各持ち主が自分の分を選ぶ。ターンプレイヤーから）
+    from?: ("spirit" | "nexus" | "reserve" | "trash")[]   // 既定 ["spirit"]。複数なら選ぶ人が1個ずつどこから取るか選ぶ
+    to?: "reserve" | "trash" | "void"   // 既定 reserve（持ち主の）
+    target?: "one" | "spread" | "all" | "self" | "event"   // 既定 one。spread＝複数体から合計 count を1個ずつ、event＝誘発のきっかけの個体
+    targets?: number; filter?: TargetFilter
+    count: number | "all" | "toLowerLevel"; countCounter?: EffectCounter
+    leaveAtLeast?: number   // 1体に最低残す数（「0個にはできない」＝1）
+    downTo?: number | "equalize"   // 合計（from の全ゾーン）がこの数以下になるまで。equalize＝お互いの合計を比べて多い方が少ない方に揃える
+    chooser?: "owner" }   // 「相手は」＝コアを失う側が選ぶ。既定は効果の使用者
+```
+
+規則（ACTION_VOCABULARY §4 に書いたユーザー確認どおり）：選ぶ人の得になる自動選択（使用者が選ぶ＝スピリットのコア最少→ネクサス→リザーブ→トラッシュ、相手が選ぶ＝その逆でスピリットはコア最多）／
+スピリットから取るときは必ず removal.ts の共通処理（保護・下限・消滅・通知。行き先ごとに removeCores／removeCoresToTrash／removeCoresToVoid／takeCoresFromSpirit）／
+耐性は既存 coreRemove の判定を踏襲（one・targets＝対象を取る、spread・all＝範囲）。
+
+| 旧 type（枚数） | 書き方 |
+| :-- | :-- |
+| coreRemove（51） | side（anySide→any・side own→own）・target（spread→spread、all:true→count "all"）・to（dest）・chooser（chooserIsTarget→owner）・leaveAtLeast・countCounter・filter をそのまま。**drawIfEmptied・costDiscardOwnBurst を持つものは if／pay がそろうまで旧 type のまま** |
+| coreRemoveMulti（7） | target one・targets・filter（costFilter→cost） |
+| coreRemoveSelf（1）／coreToTrashSelf（4） | side own・target self・to reserve／trash |
+| coreSqueezeOne（10）／coreSqueezeAll（2） | 「コアを1個だけ残す」＝count "all"・leaveAtLeast 1。target one（targets＝旧 count）／all（旧 all:true）。anySide→any、to（dest）。Squeeze All は side both・target all |
+| coreRemoveDistributed（2） | target spread・leaveAtLeast・chooser |
+| coreRemoveAllOpponent（1）／coreToTrashAllByCost（1） | target all（後者は filter maxCost・count 1・to trash） |
+| coreToOpponentTrashChoice（3） | from [spirit, nexus]（spiritsOnly→[spirit]）・to trash・target one・chooser。includeReserve（BS03-075 犬人マードック「フィールド/リザーブから」）は from [spirit, nexus, reserve]・target spread |
+| opponentCoresToTrash（3） | from [spirit, nexus, reserve]・to trash・target spread（reserveAll→from [reserve]・count "all"） |
+| opponentNexusOrReserveCoreToTrash（1） | from [nexus, reserve]・to trash・target spread |
+| coreToVoidOwn（1） | side own・from [spirit, nexus, trash]・to void・target spread |
+| bothSidesCoreToTrash（2）／bothSidesCoreToVoid（1） | side both・target spread・chooser owner（「お互い、それぞれの」）。BS01-087 は使用者が「指定する」ので target one・chooser 無し。to trash／void（後者は from [spirit, nexus]） |
+| destroyerCoresToTrash（2） | target event・count "all"・to trash |
+| coreDrainToLowerLevel（1） | count "toLowerLevel"・to trash |
+| voidCoresFromField（1） | pay { cost: removeCores{side own・from [spirit, nexus]・to void・spread・count 3}, then: removeCores{同・side opponent・count 4} }。**pay の対応一覧（actions/pay.ts の PAYABLE_TYPES）に removeCores を足すまで旧 type のまま** |
+| coresDownToLimit（1）／coreToVoidEqualizeByTotal（1） | from 4ゾーン・to void・downTo（5／equalize）・chooser owner。前者は相手→自分の sequence |
+
+**旧 type のまま残す9種**（組み合わせの器が足りない）：coreRemoveByPayingSelfCores・coreTradeToOpponentTrash・coreRemovePerHandDiscard（量が支払いで決まる pay）／
+coreDrainAllOthers・voidCoresAndMillByCost・opponentCoresToVoidByTotal（直前の結果・段階の if）／moveCoresLeavingOne・swapOpponentCores（取り除くではなく移動・入れ替え）。
+voidCoresAndMillByCost・moveCoresLeavingOne・swapOpponentCores・coreToVoidOwn の「保護・下限を見ない」は、残す種類も含めて直す（ユーザー確認 §4）。
