@@ -918,7 +918,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreGain",
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
           "count": 1
         }
       }
@@ -2043,7 +2045,9 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "coreGain",
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
           "count": 1
         }
       },

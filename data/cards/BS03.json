@@ -1602,7 +1602,10 @@
      2
     ],
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1,
      "countCounter": "ownNexuses"
     },
@@ -1880,12 +1883,17 @@
      2
     ],
     "action": {
-     "type": "voidCoreToAllOwnByFamily",
-     "families": [
-      "樹魔",
-      "爪鳥"
-     ],
-     "count": 1
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "all",
+     "count": 1,
+     "filter": {
+      "family": [
+       "樹魔",
+       "爪鳥"
+      ]
+     }
     },
     "optional": false
    }
@@ -1960,7 +1968,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 4
     },
     "optional": false
@@ -3025,7 +3035,10 @@
      "ownFieldHasColorSpirit": "green"
     },
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     },
     "optional": false
@@ -3513,7 +3526,10 @@
      "ownFieldHasColorNexus": "green"
     },
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     },
     "optional": false
@@ -3530,7 +3546,10 @@
      "ownFieldHasColorNexus": "green"
     },
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     },
     "optional": false
@@ -4610,7 +4629,10 @@
      "ownFieldHasColorNexus": "green"
     },
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     }
    }
@@ -5518,9 +5540,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "voidCoreToOwnNexuses",
-     "colorFilter": "blue",
-     "count": 1
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "all",
+     "count": 1,
+     "filter": {
+      "color": "blue"
+     }
     }
    }
   ]
@@ -5842,7 +5869,10 @@
     "vanillaWinnerOnly": true,
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "self",
      "count": 1
     }
    },
@@ -6049,7 +6079,9 @@
     ],
     "repeatPerCount": true,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -6548,7 +6580,9 @@
     ],
     "phase": "attack",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    }
@@ -6929,7 +6963,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     }
    }
@@ -7013,7 +7049,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": "ownExhausted"
     }
@@ -7218,7 +7256,9 @@
     "timing": "flash",
     "oncePerTurn": true,
     "action": {
-     "type": "lifeCharge",
+     "type": "placeCores",
+     "from": "reserve",
+     "to": "life",
      "count": 2
     }
    }
@@ -7705,7 +7745,9 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "voidCoreToOwnTrash",
+      "type": "placeCores",
+      "from": "void",
+      "to": "trash",
       "count": 1
      }
     },

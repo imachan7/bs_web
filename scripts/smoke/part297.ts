@@ -147,7 +147,7 @@ console.log("=== #3 BS12-078 カシオペアシール：デッキ横のコアを
     assert(s.players.p1.deckSideCores === 0, "前提: 初期状態ではデッキ横のコアは0")
 
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", null, { type: "voidCoreToDeckSide", count: 5 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "deckSide", count: 5 })
     assert(s.players.p1.deckSideCores === 5, "ボイドからコア5個がデッキの横に置かれる")
     // 「このコアは、この効果以外に使用することはできない」＝どのゾーンにも属さない
     assert(s.players.p1.reserve === reserveBefore, "デッキ横のコアはリザーブに入らない（コストの支払いに使えない）")

@@ -77,7 +77,7 @@ console.log("=== 5. 1体に与えた誘発効果は、場を離れた後に誘�
     const a = createInstance(VANILLA, 1, 1)
     s.players.p1.field.spirits = [a]
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "grantTrigger", trigger: "onDestroy", action: { type: "voidCoreToReserve", count: 1 } }], duration: "turn", side: "own", count: 1 })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "grantTrigger", trigger: "onDestroy", action: { type: "placeCores", from: "void", to: "reserve", count: 1 } }], duration: "turn", side: "own", count: 1 })
     s.players.p1.field.spirits = [] // 破壊されて場を離れた後
     const before = s.players.p1.reserve
     fireTrigger(s, "p1", a, "onDestroy")

@@ -1433,12 +1433,16 @@
      3
     ],
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1,
-     "familyFilter": [
-      "虚神",
-      "神将"
-     ]
+     "filter": {
+      "family": [
+       "虚神",
+       "神将"
+      ]
+     }
     },
     "optional": false
    },
@@ -2460,9 +2464,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    }
@@ -2814,9 +2819,10 @@
      2
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    }
@@ -2902,9 +2908,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    },
@@ -3009,7 +3016,10 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     }
    }
@@ -4140,9 +4150,10 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "byOpponentEffectOnly": true
    },
@@ -4935,7 +4946,9 @@
     "granted": {
      "trigger": "onBlock",
      "action": {
-      "type": "selfCoreToOwnLife",
+      "type": "placeCores",
+      "from": "self",
+      "to": "life",
       "count": 1
      },
      "condition": {
@@ -5037,9 +5050,10 @@
     "lentOnly": true,
     "keywordFilter": "seimei",
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     }
    }
   ]
@@ -5545,9 +5559,10 @@
      3
     ],
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "optional": false
    }

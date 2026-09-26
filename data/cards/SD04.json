@@ -54,9 +54,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     }
    }
   ]

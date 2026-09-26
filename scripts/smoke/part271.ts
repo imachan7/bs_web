@@ -108,7 +108,9 @@ console.log("=== §D バスターハンマー：色を指定して、その色�
 console.log("=== §E ダンデラビット：「このスピリット以外の」でコアを置く先から自分を外す ===")
 {
     const dande = byName("ダンデラビット")
-    const e2 = dande.effects.find((x) => "action" in x && (x as { action: { type: string } }).action.type === "voidCoreToTarget")
+    const e2 = dande.effects.find(
+        (x) => "action" in x && (x as { action: { type: string; to?: string } }).action.type === "placeCores" && (x as { action: { to?: string } }).action.to === "spirit",
+    )
     assert(e2 !== undefined, "テスト前提: ダンデラビットは voidCoreToTarget を持つ")
     const action2 = (e2 as { action: Parameters<typeof resolveAction>[3] }).action
     // 系統「星魂」を持つスピリットをデータから引く

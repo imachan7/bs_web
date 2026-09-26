@@ -235,7 +235,7 @@ console.log("=== BS14-079緑の五条橋：召喚されたスピリットはそ�
     refreshLevelAsOverrides(s)
     assert(effectiveBp(s, "p1", summoned) === getCard("BS01-001").levels[0]!.bp + 2000, "召喚されたスピリットはそのターンBP+2000")
 
-    resolveAction(s, "p1", nexus, { type: "voidCoreToReserve", count: 1 })
+    resolveAction(s, "p1", nexus, { type: "placeCores", from: "void", to: "reserve", count: 1 })
     assert(s.players.p1.reserve >= 21, "Lv2の器（voidCoreToReserve）が動く")
 }
 

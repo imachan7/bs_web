@@ -2566,7 +2566,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": "selfLevel"
     }
@@ -2692,7 +2694,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": {
       "ownFamily": "遊精"
@@ -2974,7 +2978,9 @@
     ],
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -2988,7 +2994,9 @@
     "phase": "attack",
     "turn": "opponent",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -4655,7 +4663,9 @@
     ],
     "colorFilter": "yellow",
     "action": {
-     "type": "voidCoreToReserve",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "phase": "attack"
@@ -4963,8 +4973,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "lifeCharge",
+     "type": "placeCores",
      "from": "void",
+     "to": "life",
      "count": 1,
      "countCounter": "selfSymbols"
     }

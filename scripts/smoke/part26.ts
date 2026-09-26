@@ -52,8 +52,11 @@ console.log("=== 汎用 voidCoreToAllOwnByFamily：指定系統いずれか持�
     const other = createInstance("BS01-002", s.turn, 1) // 系統:地竜（対象外）
     s.players.p1.field.spirits.push(jumo, tsumedori, other)
     resolveAction(s, "p1", null, {
-        type: "voidCoreToAllOwnByFamily",
-        families: ["樹魔", "爪鳥"],
+        type: "placeCores",
+        from: "void",
+        to: "spirit",
+        target: "all",
+        filter: { family: ["樹魔", "爪鳥"] },
         count: 2,
     })
     assert(jumo.cores === 3, "樹魔はコア+2される")
@@ -72,7 +75,7 @@ console.log("=== 汎用 voidCoreToTarget：targetInstanceId指定時はその対
     const low = createInstance("BS01-001", s.turn, 1) // Lv1 BP1000
     const high = createInstance("BS01-002", s.turn, 3) // Lv3 BP4000
     s.players.p1.field.spirits.push(low, high)
-    resolveAction(s, "p1", null, { type: "voidCoreToTarget", count: 1 }, low.instanceId)
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "spirit", count: 1 }, low.instanceId)
     assert(low.cores === 2 && high.cores === 3, "BP最大でなくても指定した対象にコアが置かれる")
 }
 
@@ -87,7 +90,7 @@ console.log("=== 汎用 voidCoreToTarget：targetInstanceId省略時は自分の
     const low = createInstance("BS01-001", s.turn, 1) // Lv1 BP1000
     const high = createInstance("BS01-002", s.turn, 3) // Lv3 BP4000
     s.players.p1.field.spirits.push(low, high)
-    resolveAction(s, "p1", null, { type: "voidCoreToTarget", count: 1 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "spirit", count: 1 })
     assert(high.cores === 4 && low.cores === 1, "対象未指定時は実効BP最大のスピリットにコアが置かれる")
 }
 

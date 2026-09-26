@@ -1185,7 +1185,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    }
@@ -1333,7 +1335,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     }
    },
@@ -1444,7 +1449,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -1509,7 +1516,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": "selfSymbols"
     }
@@ -1528,7 +1537,9 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "coreGain",
+      "type": "placeCores",
+      "from": "void",
+      "to": "reserve",
       "count": 1,
       "countCounter": "selfSymbols"
      }
@@ -4496,11 +4507,16 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "voidCoreToAllOwnByFamily",
-     "families": [
-      "氷姫"
-     ],
-     "count": 1
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "all",
+     "count": 1,
+     "filter": {
+      "family": [
+       "氷姫"
+      ]
+     }
     }
    },
    {
@@ -5217,7 +5233,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1,
      "countCounter": "allExhausted"
     }

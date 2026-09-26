@@ -1367,7 +1367,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreGain",
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
           "count": 1,
           "countCounter": {
             "ownFamily": "殻人"
@@ -2313,7 +2315,9 @@
         ],
         "optional": true,
         "action": {
-          "type": "selfCoreToOwnLife",
+          "type": "placeCores",
+          "from": "self",
+          "to": "life",
           "count": 1
         }
       }
@@ -2462,7 +2466,9 @@
         "phase": "attack",
         "optional": true,
         "action": {
-          "type": "fieldCoreToLife",
+          "type": "placeCores",
+          "from": "field",
+          "to": "life",
           "count": 1
         }
       }
@@ -2548,9 +2554,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "lifeCharge",
-          "count": 1,
-          "from": "void"
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
         }
       }
     ]
@@ -2723,9 +2730,10 @@
         "selfMode": "source",
         "ignoreEventTarget": true,
         "action": {
-          "type": "lifeCharge",
-          "count": 1,
-          "from": "void"
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
         }
       }
     ]
@@ -4474,7 +4482,9 @@
           "星魂"
         ],
         "action": {
-          "type": "coreGain",
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
           "count": 1
         }
       }
@@ -5089,7 +5099,10 @@
         "granted": {
           "trigger": "onAttack",
           "action": {
-            "type": "voidCoreToSelf",
+            "type": "placeCores",
+            "from": "void",
+            "to": "spirit",
+            "target": "self",
             "count": 1,
             "orReserve": true
           }
@@ -5153,7 +5166,9 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "voidCoreToDeckSide",
+          "type": "placeCores",
+          "from": "void",
+          "to": "deckSide",
           "count": 5
         }
       },
@@ -5340,9 +5355,10 @@
           }
         },
         "action": {
-          "type": "lifeCharge",
-          "count": 0,
+          "type": "placeCores",
           "from": "void",
+          "to": "life",
+          "count": 0,
           "upTo": 7
         }
       },
@@ -5687,7 +5703,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "voidCoreToSelf",
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
           "count": 2,
           "orReserve": true
         }
@@ -5873,9 +5892,10 @@
         },
         "optional": false,
         "action": {
-          "type": "lifeCharge",
-          "count": 1,
-          "from": "void"
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
         }
       },
       {

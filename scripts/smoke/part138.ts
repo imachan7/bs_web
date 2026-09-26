@@ -399,7 +399,8 @@ console.log("=== BS07 黄：自分のネクサスが破壊されるとボイド�
         (e) =>
             e["kind"] === "fieldEvent" &&
             e["event"] === "ownNexusDestroyed" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "lifeCharge",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "placeCores" &&
+            (e["action"] as Record<string, unknown>)["to"] === "life",
     )
     const s = base("garden-life")
     putNexus(s, "p1", garden.cardId, 0)

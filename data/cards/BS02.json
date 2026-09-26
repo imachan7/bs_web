@@ -1595,7 +1595,10 @@
      2
     ],
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     },
     "optional": false
@@ -1766,7 +1769,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 2
     },
     "optional": false
@@ -1882,7 +1887,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "optional": false
@@ -1954,7 +1961,9 @@
      3
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": "selfCoresAtDestruction"
     },
@@ -2623,7 +2632,10 @@
      3
     ],
     "action": {
-     "type": "voidCoreToOwnNexuses",
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "all",
      "count": 1
     },
     "optional": false
@@ -3168,8 +3180,11 @@
      3
     ],
     "action": {
-     "type": "trashCoresToSpirit",
-     "count": 2
+     "type": "placeCores",
+     "from": "trash",
+     "to": "spirit",
+     "count": 2,
+     "target": "self"
     },
     "optional": true
    }
@@ -4000,7 +4015,9 @@
      3
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": {
       "ownFamily": "想獣"
@@ -4590,7 +4607,10 @@
     "winnerMinCores": 3,
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "nexus",
+     "target": "self",
      "count": 1
     },
     "id": "BS02-080-e2"
@@ -4641,7 +4661,9 @@
     ],
     "phase": "attack",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -4717,7 +4739,9 @@
     "phase": "attack",
     "familyFilter": "武装",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    }
@@ -4830,7 +4854,9 @@
     "phase": "attack",
     "colorFilter": "yellow",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    },
@@ -5486,7 +5512,10 @@
     "timing": "flash",
     "mainForbidden": true,
     "action": {
-     "type": "trashCoresToSpirit"
+     "type": "placeCores",
+     "from": "trash",
+     "to": "spirit",
+     "count": "all"
     }
    }
   ]
@@ -5737,7 +5766,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": {
       "ownFamily": "武装"
@@ -6248,7 +6279,9 @@
      2
     ],
     "action": {
-     "type": "coreGain",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1,
      "countCounter": "lastBattleDestroyedCores"
     },

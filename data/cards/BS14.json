@@ -622,7 +622,11 @@
     ],
     "optional": true,
     "action": {
-     "type": "trashCoresToSpirit"
+     "type": "placeCores",
+     "from": "trash",
+     "to": "spirit",
+     "count": "all",
+     "target": "self"
     }
    },
    {
@@ -1487,7 +1491,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1,
      "countCounter": "selfLevel"
     }
@@ -1760,7 +1767,9 @@
      "ownBurstSet": true
     },
     "action": {
-     "type": "voidCoreToReserve",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 2
     }
    },
@@ -2148,7 +2157,10 @@
      "ownBurstSet": true
     },
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     }
    }
@@ -3073,9 +3085,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     }
    },
    {
@@ -3232,9 +3245,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     }
    },
    {
@@ -3553,7 +3567,10 @@
      "ownBurstSet": true
     },
     "action": {
-     "type": "voidCoreToSelf",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
      "count": 1
     }
    }
@@ -4835,7 +4852,9 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "voidCoreToReserve",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     }
    }
@@ -5141,7 +5160,9 @@
      "floor": 1,
      "costSelfToTrash": true,
      "then": {
-      "type": "coreGain",
+      "type": "placeCores",
+      "from": "void",
+      "to": "reserve",
       "count": 1
      }
     }
@@ -6005,7 +6026,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "voidCoreToTarget",
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
      "count": 1
     }
    }
@@ -6077,7 +6100,9 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "voidCoreToReserve",
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
      "count": 1
     },
     "thenPay": "flash"
@@ -6299,14 +6324,19 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "lifeCharge",
-       "count": 1,
-       "from": "void"
+       "type": "placeCores",
+       "from": "void",
+       "to": "life",
+       "count": 1
       },
       {
-       "type": "voidCoreToTarget",
+       "type": "placeCores",
+       "from": "void",
+       "to": "spirit",
        "count": 1,
-       "colorFilter": "white"
+       "filter": {
+        "color": "white"
+       }
       }
      ]
     }
@@ -6354,9 +6384,10 @@
     "event": "ownSpiritDestroyed",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "lifeCharge",
-     "count": 1,
-     "from": "void"
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
     },
     "thenPay": "flash"
    },

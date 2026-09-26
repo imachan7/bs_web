@@ -50,12 +50,11 @@
    **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
    対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
    **器は実装済み（`actions/placeCores.ts`・smoke part391・392）**。`targets`≥2 は1体ずつ選ばせ、選んだ個体は内部フィールド `excludeIds` で外す。
-   `from: "self"`／`"field"` は `removal.ts` の `takeCoresFromSpirit`（保護・下限・消滅）を通す。**次はカードの移行（データ役）**。
-   未対応：`orReserve` と `target: "one"` の組み合わせ（使うカードは無い）。移行時に直す明らかな誤り：BS10-056 のリザーブ行きガード（voidCoreToReserve）・coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
-   **並行：コアの支払いの自動／手動の切り替え（2026-09-26 ユーザー依頼。ブランチ `feat/manual-core-pay`、クライアントだけ）**：
-   上部のボタン列に「支払い：自動／手動」（`localStorage` の `bs_pay_mode`）。手動なら手札から使うカード（召喚・ネクサス・マジック・ブレイヴ）で、リザーブが足りていても支払い画面を開き、
-   不足が埋まっても自動送信せず確定ボタンで送る。フィールドの割り当ては必要数まで・取り消し可、残りはリザーブ。サーバーは既に `paySources` で任意の配分を受け付けるので変えない。
-   起動能力・効果の中の支払い（サーバーが支払い元を受け取らない）は対象外＝使ってみて要れば次の段
+   `from: "self"`／`"field"` は `removal.ts` の `takeCoresFromSpirit`（保護・下限・消滅）を通す。
+   **カードの移行は済み（ブランチ `feat/place-cores-migrate`）**：170か所を placeCores に書き換え、旧16種を消した。旧 type で残るのはコスト付き4か所（coreGain・lifeCharge・voidCoreToSelf）とブレイヴ自身に置く BS14-069 だけ（`pay` がそろったら移す）。
+   **次は取り除く系（28種）の器の設計**：取り先の順番（リザーブ／フィールド）を効果文で確かめてユーザーに相談する（CORE_UNIFY_REMOVE.md §2）
+   未対応：`orReserve` と `target: "one"` の組み合わせ（使うカードは無い）。取り除く系で直す明らかな誤り：coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
+   支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
 3. R5 の残り（REFACTOR_PLAN §2.2）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
