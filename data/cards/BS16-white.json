@@ -210,8 +210,15 @@
     "byOpponentEffectOnly": true,
     "subjectSide": "own",
     "action": {
-     "type": "summonBurstCardFreeIfDestroyedColor",
-     "color": "white"
+     "type": "if",
+     "cond": {
+      "event": {
+       "destroyedColor": "white"
+      }
+     },
+     "then": {
+      "type": "summonBurstCardFree"
+     }
     }
    },
    {

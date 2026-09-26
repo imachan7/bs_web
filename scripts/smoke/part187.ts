@@ -110,7 +110,9 @@ console.log("=== BS09-084 ドラゴニックハウル：破棄したカードと
     const same2 = put(s, "p2", "BS09-012", 1) // ボーギー＝コスト3
     const other = put(s, "p2", "BS09-050", 1) // コスト4
     assert(getCard("BS09-012").cost === 3, "前提：もう1枚もコスト3")
-    resolveAction(s, "p1", null, { type: "millThenDestroySameCost" })
+    const main = getCard("BS09-084").effects[0]
+    assert(main?.kind === "magic", "BS09-084 の効果はマジック")
+    if (main?.kind === "magic") resolveAction(s, "p1", null, main.action)
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === same1.instanceId), "同じコストの相手は破壊される")
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === same2.instanceId), "同じコストはすべて破壊される")
     assert(s.players.p2.field.spirits.some((x) => x.instanceId === other.instanceId), "コストが違う相手は残る")

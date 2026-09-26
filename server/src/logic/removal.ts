@@ -148,6 +148,21 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
 
 // スピリットを破壊（または消滅）：コアをリザーブへ戻し、カードをトラッシュへ。
 // cause が "destroy" のときのみ破壊時効果（onDestroy）が誘発する。
+// destroy アクション1回ぶんで破壊待機に入れたカード（if の cond.last・カウンタ lastMoved/lastCost が読む）。
+// destroyContext は効果の解決ごとに作られるので、同じオブジェクトなら同じアクションの破壊（破壊時の誘発が別に破壊したものは混ざらない）
+let destroyRecorder: { context: DestroyContext; cardIds: string[] } | null = null
+export function recordDestroysOf(context: DestroyContext, run: () => void): string[] {
+    const outer = destroyRecorder
+    const rec = { context, cardIds: [] as string[] }
+    destroyRecorder = rec
+    try {
+        run()
+    } finally {
+        destroyRecorder = outer
+    }
+    return rec.cardIds
+}
+
 export function destroySpirit(
     state: GameState,
     ownerPid: PlayerId,
@@ -218,6 +233,7 @@ export function destroySpirit(
     // （2026-09-08 ユーザー確認。TIMING_CHART.md「『フィールドに残る／戻る』と『破壊時』」）。
     // 中断・再開の経路もすべて commitPendingDestruction を通るので、そこ1か所で拾える
     if (cause === "destroy" && !options?.skipRevive) {
+        if (destroyRecorder !== null && context !== undefined && destroyRecorder.context === context) destroyRecorder.cardIds.push(inst.cardId)
         if (context !== undefined) inst.pendingDestroyContext = context
         if (options?.allowSuspend === true) inst.pendingDestroyAllowSuspend = true
     } else {

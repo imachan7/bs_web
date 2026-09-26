@@ -559,7 +559,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/removal.ts
 
-- `destroySpirit`（fn）：スピリットを破壊（または消滅）：コアをリザーブへ戻し、カードをトラッシュへ。
+- `recordDestroysOf`（fn）
+- `destroySpirit`（fn）
 - `resumeDestroyCommit`（fn）：中断していた破壊処理の続き（drainResumeStack から呼ぶ）
 - `commitPendingDestruction`（fn）：破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
 - `fireQueuedDestroyBursts`（fn）：破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）を、pendingBurstDestroyQueueにたまった分だけ

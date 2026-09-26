@@ -97,7 +97,9 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const cond = action.cond
     const met = "last" in cond
         ? (state.lastMoved ?? []).some((id) => matchesPick(id, cond.last))
-        : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
+        : "event" in cond
+          ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)
+          : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
               countEffectCounter(state, owner, self, cond.count, srcType),
           )
     const branch = met ? action.then : action.else
@@ -192,17 +194,6 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     )
     if (!state.winner) resolveTensho(state, owner, inst)
     if (!state.winner) fireSummonSequence(state, owner, inst)
-}
-
-// 器BS16（BS16-018太骨望）：このバースト発動時に破壊された自分のスピリットの色にactionの色が
-// 含まれるときだけ、このカード自身をコストを支払わずに召喚する（summonBurstCardFreeIfCoresAtLeastの同型）
-const summonBurstCardFreeIfDestroyedColorHandler: ActionHandler<"summonBurstCardFreeIfDestroyedColor"> = (ctx, action) => {
-    const { state, sourceName } = ctx
-    if (!(state.burstEventColors ?? []).includes(action.color)) {
-        log(state, `${sourceName}：条件を満たさなかったため召喚しなかった。`)
-        return
-    }
-    ctx.resolve({ type: "summonBurstCardFree" })
 }
 
 // 器BS16（BS16-X01爆炎の覇王ロード・ドラゴン・バゼル）：自分のバースト1つをオープンし、
@@ -440,7 +431,6 @@ const handlers = {
     discardBurst: discardBurstHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
-    summonBurstCardFreeIfDestroyedColor: summonBurstCardFreeIfDestroyedColorHandler,
     openOwnBurstActivateIfSummonCond: openOwnBurstActivateIfSummonCondHandler,
     burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,

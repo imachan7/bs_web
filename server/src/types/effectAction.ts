@@ -28,7 +28,8 @@ import type {
 export type CardPick = { cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true }
 
 // last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
-export type IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number }
+// event＝このバースト発動時の出来事（destroyedColor＝破壊されたスピリットの色。GameState.burstEventColors）
+export type IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } }
 
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true; countCounter?: EffectCounter; costSacrificeChosen?: true } // countCounter指定時はEffectCounterの値を枚数として使う（0ならログのみ）。自分がデッキから引く（side:"both"は自分→相手の順で両者。省略時は自分のみ）。costSkipCoreStep指定時は「ボイドからコアを置かないことで」がコスト＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）
@@ -40,7 +41,6 @@ export type EffectAction =
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // 相手のフィールドに同じカード名のスピリットが2体以上いるとき、カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文「カード名1つにつきスピリット1体ずつを残し」に主語が無いので発生源の持ち主。2026-08-24。自動選択はフィールドの先頭側）。choosing / keptIds は重複するカード名を1つずつ聞くための内部フィールド
  | { type: "destroyByOwnFamilyCostSet"; familyFilter: FamilyFilter } // 自分の familyFilter 一致スピリット（self自身も含む）の**コストの集合**（instAllCostsの和集合。同じコストを何体持っていても集合としては1つ）に、コストが一致する（instAllCostsのいずれかが集合に含まれる）相手のスピリットすべてを破壊する
  | { type: "summonBurstCardFree"; payCost?: true } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
- | { type: "summonBurstCardFreeIfDestroyedColor"; color: Color }
  | { type: "openOwnBurstActivateIfSummonCond" } // 自分のバースト1つをオープンし、条件が【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】のときだけ通常のバースト発動手順（burst.condition判定→action解決→finishBurstActivation→ownBurstActivated発火）で強制発動させる（実際には召喚が起きていないので召喚コストを参照する効果は不発）。それ以外の条件のバーストは発動させずデッキの下へ戻す（トラッシュではない）。セットが無ければ不発
 
 
@@ -279,7 +279,6 @@ export type EffectAction =
  | { type: "millOpponentThenReact"; react: "destroyOneSameCost" | "exhaustOneIfMaxCost" | "banHandColorThisBattle"; maxCost?: number } // 相手のデッキを上から1枚破棄し、**その破棄したカード**に応じて続けて解決する（デッキ0枚なら不発）。destroyOneSameCost＝同じコストの相手のスピリット1体を破壊／exhaustOneIfMaxCost＝そのカードのコストがmaxCost以下のとき相手のスピリット1体を疲労／banHandColorThisBattle＝このバトルの間、相手はそのカードと同じ色の手札のカードを使えない
  | { type: "destroyAllByChosenCost"; maxCost: number } // コスト0〜maxCostの中からコスト1つを効果の使用者が指定し（destroyNexus.chooseColorのコスト版）、そのコストと完全一致する相手のスピリットすべてを破壊する（destroy{all}へ委譲）。自動選択は破壊できる数が最大になるコストを選ぶ（同数はコストが低い方）
  | { type: "opponentTrashCardToDeckBottom" }
- | { type: "millThenDestroySameCost" } // 自分のデッキを上から1枚破棄し、**そのカードと同じコスト**の相手のスピリットすべてを破壊する（デッキが0枚なら不発）
  | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（。候補1色以下・自動選択は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
  | {
  type: "summonRepeatFromHand"
@@ -288,7 +287,6 @@ export type EffectAction =
  costFilter?: { max?: number; min?: number }
  extraReserveCostPerSummon?: number
  } // 自分の手札にある条件（familyFilter・costFilterはカード静的判定）を満たすスピリットカードを、リザーブが続く限り好きなだけ召喚する（1体あたりの必要リザーブが小さいものから貪欲に選び、召喚数を最大化する決定的簡略化）。いずれもこの効果で召喚されたスピリットのonSummon効果は発揮されない
- | { type: "destroyThenMillByCost"; filter?: TargetFilter } // 相手のスピリット1体（filterで絞り込み。自動選択は実効BP最大を自動選択）を破壊し、破壊したスピリットのコストと同じ枚数だけ相手のデッキを上から破棄する
  | { type: "destroyByBpBudget"; budget?: number; budgetFromSelfBp?: true; budgetFromFamilyBpSum?: FamilyFilter; choosing?: true; chosenIds?: string[] }
  // 相手スピリットを、**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。budgetFromSelfBp指定時はbudgetを無視し、selfの実効BPを予算にする。budgetFromFamilyBpSum指定時はbudgetを無視し、指定系統（配列＝OR）を持つ**自分の**スピリットの実効BP合計を予算にする。choosing/chosenIdsはトグル選択の途中経過を持ち回る内部専用（destroyByCostBudgetと同じ仕組み＝budgetToggleDestroy）
  | { type: "destroyDownToOwnCount" } // 相手のスピリットを、その数が自分のフィールドのスピリット数と同じになるまで破壊する（相手のほうが少ない/同数なら不発）。効果文が「**相手は**、相手のスピリットを〜破壊する」なので**破壊する側（相手）が1体ずつ選ぶ**（CHOOSER_RULES.md。解決は発生源の持ち主の効果＝PendingChoice.actorPid）。自動選択は相手が選ぶであろう実効BP最小から破壊する。残り体数は毎回「相手の体数−自分の体数」で数え直すので、actionに持ち回る内部フィールドは要らない
