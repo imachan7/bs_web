@@ -1406,6 +1406,31 @@ export function removeCoresToTrash(
 
 // コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
 // 維持コア（Lv1）を下回ったら消滅させる（BS04ヴェノムショット）。actorPidの扱いはremoveCoresと同じ
+// スピリットからコアを取る共通部分（行き先への加算とログは呼び出し側）。自分の効果で動かすときも保護・下限を見る
+// （2026-09-26 ユーザー確認）。removeCoresToVoid も同じ中身だがログの順が違うので、取り除く系の器を作るときにまとめる
+export function takeCoresFromSpirit(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    count: number,
+    actorPid?: PlayerId,
+): number {
+    if (isBattlingCoreProtected(state, inst)) {
+        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
+        return 0
+    }
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    inst.cores -= removed
+    if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
+    if (inst.cores < instMinLevelCores(inst)) {
+        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+    }
+    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
+        notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
+    }
+    return removed
+}
+
 export function removeCoresToVoid(
     state: GameState,
     ownerPid: PlayerId,

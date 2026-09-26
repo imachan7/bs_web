@@ -5,14 +5,14 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, GameState, PlayerId } from "../../type"
 import { coresForLevel, getCard, log } from "../GameState"
 import {
-    destroySpirit,
     fireFieldEventTriggers,
     placeCoresOnSpirit,
     requestChoice,
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
 } from "../EffectModules"
-import { effectiveBp, hasGlobalConstraint, instMinLevelCores, isEndStepLocked, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasGlobalConstraint, isEndStepLocked, spiritHasKeyword } from "../../../../shared/rules"
+import { takeCoresFromSpirit } from "../removal"
 import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -41,7 +41,7 @@ function availableFromSource(state: GameState, owner: PlayerId, from: PlaceCores
 
 // 取り元から amount 個取り除き、実際に取れた個数を返す（不足時はあるだけ）。
 // field はネクサス（コア最多）→スピリット（実効BP最小）の順（fieldCoreToLifeと同じ優先順）。
-// self・field でスピリットのコアを抜いて維持コアを割ったら destroySpirit(deplete) を通す
+// self・field でスピリットから取るときは takeCoresFromSpirit（保護・下限・消滅）を通す
 function takeFromSource(
     state: GameState,
     owner: PlayerId,
@@ -66,16 +66,16 @@ function takeFromSource(
         }
         case "self": {
             if (!self) return 0
+            if (player.field.spirits.includes(self)) return takeCoresFromSpirit(state, owner, self, amount)
             const taken = Math.min(amount, self.cores)
             self.cores -= taken
-            if (taken > 0 && self.cores < instMinLevelCores(self)) {
-                destroySpirit(state, owner, self.instanceId, "deplete")
-            }
             return taken
         }
         case "field": {
             let remaining = amount
             let taken = 0
+            // 保護・下限で1個も取れなかったスピリットは候補から外す（外さないと同じ個体を選び続ける）
+            const exhausted = new Set<string>()
             while (remaining > 0) {
                 const nexusCandidates = player.field.nexuses.filter((n) => n.cores > 0)
                 if (nexusCandidates.length > 0) {
@@ -86,16 +86,13 @@ function takeFromSource(
                     taken += got
                     continue
                 }
-                const spirits = player.field.spirits.filter((s) => s.cores > 0)
+                const spirits = player.field.spirits.filter((s) => s.cores > 0 && !exhausted.has(s.instanceId))
                 if (spirits.length === 0) break
                 const t = spirits.reduce((worst, s) => (effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst))
-                const got = Math.min(remaining, t.cores)
-                t.cores -= got
+                const got = takeCoresFromSpirit(state, owner, t, remaining)
+                if (got === 0) exhausted.add(t.instanceId)
                 remaining -= got
                 taken += got
-                if (t.cores < instMinLevelCores(t)) {
-                    destroySpirit(state, owner, t.instanceId, "deplete")
-                }
             }
             return taken
         }
@@ -139,6 +136,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
     // --- 対象の決定（spirit/nexus のときだけ） ---
     let targetInst: CardInstance | null = null
     let allTargets: CardInstance[] | null = null
+    let nextPick: PlaceCoresAction | null = null
 
     if (wantsSpiritOrNexus) {
         const pool = action.to === "spirit" ? player.field.spirits : player.field.nexuses
@@ -162,40 +160,46 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
             }
             allTargets = candidates
         } else {
-            // "one"（既定）。targets>=2 は対話選択を作らず自動選択のみ（実カードが出たら拡張する）
+            // "one"（既定）。targets 体は別々の個体（「白のスピリット2体に」）。対話では1体ずつ選ばせ、
+            // 選んだ個体を excludeIds に積んで残りを選び直す
             const picks = action.targets ?? 1
+            const open = action.excludeIds ? candidates.filter((c) => !action.excludeIds!.includes(c.instanceId)) : candidates
             if (targetInstanceId) {
-                const found = candidates.find((c) => c.instanceId === targetInstanceId)
+                const found = open.find((c) => c.instanceId === targetInstanceId)
                 if (!found) {
                     log(state, `${sourceName}：指定された対象は条件を満たさなかった。`)
                     return
                 }
                 targetInst = found
-            } else if (candidates.length === 0) {
+                if (picks > 1) {
+                    nextPick = { ...action, targets: picks - 1, excludeIds: [...(action.excludeIds ?? []), found.instanceId] }
+                }
+            } else if (open.length === 0) {
                 log(state, `${sourceName}：対象がいなかった。`)
                 return
+            } else if (picks >= open.length) {
+                allTargets = open
+            } else if (state.interactiveTargets) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：コアを置く対象を選んでください${picks > 1 ? `（あと${picks}体）` : ""}`,
+                    open.map((c) => c.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
             } else if (picks <= 1) {
-                if (candidates.length >= 2 && state.interactiveTargets) {
-                    requestChoice(
-                        state,
-                        owner,
-                        `${sourceName}：コアを置く対象を選んでください`,
-                        candidates.map((c) => c.instanceId),
-                        false,
-                        action,
-                        self,
-                    )
-                    return
-                }
                 targetInst =
                     action.to === "spirit"
-                        ? candidates.reduce((best, c) => (effectiveBp(state, owner, c) > effectiveBp(state, owner, best) ? c : best))
-                        : candidates.reduce((best, c) => (c.cores < best.cores ? c : best))
+                        ? open.reduce((best, c) => (effectiveBp(state, owner, c) > effectiveBp(state, owner, best) ? c : best))
+                        : open.reduce((best, c) => (c.cores < best.cores ? c : best))
             } else {
                 const ordered =
                     action.to === "spirit"
-                        ? [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
-                        : [...candidates].sort((a, b) => a.cores - b.cores)
+                        ? [...open].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
+                        : [...open].sort((a, b) => a.cores - b.cores)
                 allTargets = ordered.slice(0, picks)
             }
         }
@@ -319,6 +323,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }
+    if (nextPick && !state.pendingChoice) placeCoresHandler({ ...ctx, targetInstanceId: undefined }, nextPick)
 }
 
 const handlers = { placeCores: placeCoresHandler } satisfies Partial<ActionRegistry>
