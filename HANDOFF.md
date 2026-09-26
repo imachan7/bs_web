@@ -33,16 +33,19 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（進み具合は同 §1 の表と §2.2 の表の「状態」列。09-24 に M1 の一部・M3・M4 の大半・R4 の effectDef.ts が済んだ） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
-### いまの本線：REFACTOR_PLAN §1 の順番（2026-09-26 見直し・ユーザー了承）
+### いまの本線（2026-09-26 午後にユーザー決定で順番を変えた）
+
+**統合（R5）を先にやり、BS16 の黄・青は統合後の新しい書き方がそろってから実装する**（旧 type で書いて移し替える二度手間を避ける）。
+実装役の呼び出し数の測定（REFACTOR_PLAN §0 と同じ形）は、その BS16 の実装のときに行う。
 
 1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
-2. **R3 の続き**（いまここ）：済み＝removal → `brave.ts`・`revive.ts`（#156）、`shared/rules.ts` → `shared/rules/` 8本（#157）、GameEngine → `choice.ts`・`battleResolve.ts`（#160）、EffectModules → `state/continuous.ts`・`targeting.ts`・`keywords/burst.ts`・`summon.ts`。
-   残り＝`validate:size` の据え置き一覧（`scripts/check-file-size.ts`）の6本：cores・destroy・battleFlow・triggers・型2本。
-   **分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
-3. BS16 の黄・青（バッチ3）に一度戻り、REFACTOR_PLAN §0 と同じ形で実装役の呼び出し数を測る
-4. R5 の残り（§2.2）と R6・R7 は、3 の結果を見て決め直す
-   **09-26 ユーザー指示で、3 より先に R5 のコア（action type 55種・うち27種がカード1枚以下）の統合に着手**。ACTION_VOCABULARY の「コアを置く `{from,to}`／取り除く `{to}`」へ寄せる。
-   ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY.md](./docs/design/CORE_UNIFY.md) に書く → ②判断が割れる点をユーザーに確認 → ③器のスキーマを確定して §1 に貼る
+2. **R5：コアの統合**（いまここ）。action type 55種（うち27種がカード1枚以下）を ACTION_VOCABULARY の「コアを置く `{from,to}`／取り除く `{to}`」へ寄せる。
+   ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY.md](./docs/design/CORE_UNIFY.md) に書く（1回目は14回の呼び出しでハンドラをほぼ読まずに書いたので、置く系・取り除く系に分けて出し直し中）
+   → ②判断が割れる点をユーザーに確認 → ③器のスキーマを確定して §1 に貼る → 器の PR → 移行の PR（REFACTOR_PLAN §2.2 の分け方）
+3. R5 の残り（REFACTOR_PLAN §2.2）
+4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
+5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
+   R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
 関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
