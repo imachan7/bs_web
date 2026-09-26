@@ -33,7 +33,6 @@ import {
     requestChoice,
     returnNexusToHand,
     returnNexusToDeckTop,
-    tryInteractiveCardChoice,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
@@ -199,7 +198,7 @@ const destroyIfLastMillHadBurstHandler: ActionHandler<"destroyIfLastMillHadBurst
 }
 
 const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption } = ctx
         if (action.all) {
             destroyAllTargets(ctx, action)
             return
@@ -213,120 +212,6 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
         if (filter !== SELF_REQUIRED && filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) {
             const bonus = destroyBpThresholdBonusFor(state, owner)
             if (bonus > 0) filter.maxBp += bonus
-        }
-        // costDiscardOwnBurst：自分のバースト1つを破棄（トラッシュへ）することがコスト（BS14-015トウダーLv2）。
-        // bpBuff.costDiscardOwnBurst と同じ考え方。対象条件を満たす相手のスピリットが1体もいなければ
-        // バーストも破棄しない（COST_MODEL.md §1：AとBの両方が完全に解決できるときだけ発揮する）
-        if (action.costDiscardOwnBurst && filter !== SELF_REQUIRED) {
-            const ownerPlayer = state.players[owner]
-            if (ownerPlayer.burst === null) {
-                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
-                return
-            }
-            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
-            if (!hasEligibleTarget) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            ownerPlayer.trashCards.push(ownerPlayer.burst)
-            ownerPlayer.burst = null
-            ownerPlayer.burstSet = false
-            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
-            const { costDiscardOwnBurst: _cdob, ...rest } = action
-            ctx.resolve(rest)
-            return
-        }
-        // costDestroyOwnSpirit：自分のスピリット1体を破壊することがコスト（BS13-051ズガネーク）。
-        // 「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する（COST_MODEL.md §1）ので、
-        // 対象条件を満たす相手のスピリットが1体もいなければコストも払わない。
-        // 何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2。coreGain.costDestroyOwnSpiritと同じ考え方）
-        if (action.costDestroyOwnSpirit && filter !== SELF_REQUIRED) {
-            const player = state.players[owner]
-            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
-            if (!hasEligibleTarget) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            const candidates = player.field.spirits
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいなかった。`)
-                return
-            }
-            let victim: CardInstance | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                victim = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!victim) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                victim = candidates[0]!
-            }
-            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
-            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
-            const { costDestroyOwnSpirit: _cdos, costSacrificeChosen: _csc, ...rest } = action
-            ctx.resolve(rest)
-            return
-        }
-        // costHandDiscardOne（BS15-007ゼニス・ドラグーン）：自分の手札1枚を破棄することがコスト。
-        // 「〜することで〜する」は両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、
-        // 対象条件を満たす相手のスピリットが1体もいなければ手札も破棄しない
-        if (action.costHandDiscardOne && filter !== SELF_REQUIRED) {
-            const player = state.players[owner]
-            if (chosenCardIndex !== undefined) {
-                const cardId = player.hand[chosenCardIndex]
-                if (cardId === undefined) {
-                    log(state, `${sourceName}：コストとして破棄する手札がなかった。`)
-                    return
-                }
-                player.hand.splice(chosenCardIndex, 1)
-                player.trashCards.push(cardId)
-                log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-                const { costHandDiscardOne: _chd, ...rest } = action
-                ctx.resolve(rest)
-                return
-            }
-            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
-            if (player.hand.length < 1 || !hasEligibleTarget) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            if (state.interactiveTargets && player.hand.length >= 2) {
-                const indices = player.hand.map((_, i) => i)
-                if (
-                    tryInteractiveCardChoice(
-                        state,
-                        owner,
-                        self,
-                        `${sourceName}：コストとして破棄するカードを選んでください`,
-                        "hand",
-                        indices,
-                        action,
-                        null,
-                    )
-                ) {
-                    return
-                }
-            }
-            const idx = player.hand.length - 1
-            const cardId = player.hand[idx]!
-            player.hand.splice(idx, 1)
-            player.trashCards.push(cardId)
-            log(state, `${player.name}は${sourceName}のコストとして手札から${getCard(cardId).name}を破棄した。`)
-            const { costHandDiscardOne: _chd2, ...rest } = action
-            ctx.resolve(rest)
-            return
         }
         // 器BS16：costOwnLifeToVoid（BS16-008ダークナイト・ドラゴン）。「〜することで〜する」は
         // 両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、対象条件を満たす
@@ -424,9 +309,8 @@ const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
             log(state, `${sourceName}の破壊効果：カウントが0のため発動しなかった。`)
             return
         }
-        // side:"own"：自分側のスピリットだけが対象（costDestroyOwnSpiritと違い、選択肢は候補全部＝
-        // pay { cost: destroy{side:"own"} } の器。自分の効果は自分のスピリットに免疫が働かないため
-        // isResisted は挟まない＝anySideの自分側と同じ扱い）
+        // side:"own"：自分側のスピリットだけが対象（選択肢は候補全部＝pay { cost: destroy{side:"own"} } の器。
+        // 自分の効果は自分のスピリットに免疫が働かないため isResisted は挟まない＝anySideの自分側と同じ扱い）
         if (action.side === "own") {
             if (state.interactiveTargets) {
                 const candidates = ownSideDestroyCandidates(state, owner, self?.instanceId, filter)
@@ -1230,54 +1114,6 @@ const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
         const matchesLevel = (n: CardInstance) =>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
             (action.colorFilter === undefined || instHasColor(n, action.colorFilter))
-        // costDestroyOwnNexus：自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコスト
-        // （BS13-045巨人船長イアソン：「自分のネクサス1つを破壊することで、相手のネクサス1つを破壊する」）。
-        // COST_MODEL.md §1：AとBの両方が完全に解決できるときだけ発揮できる（自分のネクサスが無い／
-        // 相手に破壊できるネクサスが無いなら不発）
-        if (action.costDestroyOwnNexus) {
-            const ownNexuses = state.players[owner].field.nexuses
-            const hasTarget = sides.some((pid) => state.players[pid].field.nexuses.some(matchesLevel))
-            if (ownNexuses.length === 0 || !hasTarget) {
-                log(state, `${sourceName}：発揮できなかった。`)
-                return
-            }
-            const { costDestroyOwnNexus: _paid, costSacrificeChosen: _flag, ...rest } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = ownNexuses.find((n) => n.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたネクサスはコストにできなかった。`)
-                    return
-                }
-                if (!destroyNexus(state, owner, chosen.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
-                    log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
-                    return
-                }
-                ctx.resolve(rest)
-                return
-            }
-            if (state.interactiveTargets && ownNexuses.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のネクサスを選んでください`,
-                    ownNexuses.map((n) => n.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            let victim = ownNexuses[0]!
-            for (const n of ownNexuses) {
-                if (n.cores < victim.cores) victim = n
-            }
-            if (!destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
-                log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
-                return
-            }
-            ctx.resolve(rest)
-            return
-        }
         // chooserIsTarget（BS14-111エクスキューションデストロイ＝「相手は、相手のネクサス1つを破壊する」）：
         // 破壊される側（opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
         if (action.chooserIsTarget && action.count === 1) {
@@ -1456,21 +1292,6 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
                     .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
                 : (action.budget ?? 0)
         const budgetForLog = remaining
-        // costDiscardOwnBurst（BS15-X014超星覇龍ヤマトヴルム・ノヴァ）：自分のバースト1つを破棄することがコスト。
-        // 「〜することで〜する」は両方が完全に解決できるときだけ発揮する（COST_MODEL.md §1）ので、
-        // 対象条件を満たす相手のスピリットが1体もいなければバーストも破棄しない
-        if (action.costDiscardOwnBurst && !action.choosing) {
-            const ownerPlayer = state.players[owner]
-            const hasEligibleTarget = state.players[opp].field.spirits.some((s) => effectiveBp(state, opp, s) <= remaining)
-            if (ownerPlayer.burst === null || remaining <= 0 || !hasEligibleTarget) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            ownerPlayer.trashCards.push(ownerPlayer.burst)
-            ownerPlayer.burst = null
-            ownerPlayer.burstSet = false
-            log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
-        }
         // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲へ落ちる）
         if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp))) return
         let destroyedCount = 0

@@ -287,53 +287,6 @@ const recoverSpiritFromTrashHandler: ActionHandler<"recoverSpiritFromTrash"> = (
             ctx.resolve({ type: "destroy", filter: { maxBp: spec.maxBp }, count: 1 })
         }
         const isRecoverable = (cardId: string): boolean => recoverSpiritFromTrashCandidateOk(action, cardId)
-        // BS07ブリュナグオン：【呪撃】を持つ自分のスピリット1体を破壊することがコスト。
-        // 払えなければ何も起きない。**何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
-        // 選ばせたあとは costDestroyOwnKeyword を落とした action で入り直し、二重に払わないようにする
-        // （exhaust の chooserIsTarget と同じ「解決済みの軸を落として再入する」書き方）
-        if (action.costDestroyOwnKeyword !== undefined && chosenCardIndex === undefined) {
-            const kw = action.costDestroyOwnKeyword
-            const candidates = player.field.spirits.filter((sp) => spiritHasKeyword(state, owner, sp, kw))
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：【${KEYWORDS[kw].label}】を持つ自分のスピリットがいないため発動しなかった。`)
-                return
-            }
-            // B（トラッシュから戻せるカード）が無ければ発揮できない（COST_MODEL.md §1）。
-            // 以前は先に自分のスピリットを破壊してからトラッシュを見ていたため、払い損になっていた
-            if (!player.trashCards.some(isRecoverable)) {
-                log(state, `${sourceName}：トラッシュに戻せるスピリットカードがないため発動しなかった。`)
-                return
-            }
-            const { costDestroyOwnKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = candidates.find((sp) => sp.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
-                destroySpirit(state, owner, chosen.instanceId, "destroy", { sourcePid: owner })
-                ctx.resolve(rest)
-                return
-            }
-            if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    candidates.map((sp) => sp.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            // 非対話・候補1体：実効BP最小を自動選択（犠牲を最小化する決定的簡略化）
-            const victim = candidates.reduce((min, sp) =>
-                effectiveBp(state, owner, sp) < effectiveBp(state, owner, min) ? sp : min,
-            )
-            destroySpirit(state, owner, victim.instanceId, "destroy", { sourcePid: owner })
-        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {
@@ -489,25 +442,6 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         // SD06-014爆烈十紋刃：「自分のトラッシュにあるバースト効果を持つカード1枚を手札に戻す」）。
         // hasBurst指定時はkind:"burst"エントリを持つカードだけが対象
         const magicOk = (cardId: string): boolean => recoverMagicFromTrashCandidateOk(action, cardId, targetInstanceId)
-        // costDiscardOwnBurst（BS15-044天使サクエル）：自分のバースト1つを破棄することがコスト。
-        // 対象条件を満たすカードが1枚も無ければコストも払わない（COST_MODEL.md §1）
-        if (action.costDiscardOwnBurst) {
-            if (player.burst === null) {
-                log(state, `${sourceName}：セットしているバーストがないため発動しなかった。`)
-                return
-            }
-            if (!player.trashCards.some((id) => magicOk(id))) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            player.trashCards.push(player.burst)
-            player.burst = null
-            player.burstSet = false
-            log(state, `${player.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
-            const { costDiscardOwnBurst: _cdob, ...rest } = action
-            ctx.resolve(rest)
-            return
-        }
         if (chosenCardIndex !== undefined) {
             const cardId = player.trashCards[chosenCardIndex]
             if (cardId === undefined) {

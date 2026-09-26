@@ -1,8 +1,8 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectAction } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
-import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, destroySpirit, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
-import { KEYWORDS, canDiscardHand, instanceSymbolCount, matchesFamilyFilter, hasGlobalConstraint, hasKeyword } from "../../../../shared/rules"
+import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
+import { KEYWORDS, canDiscardHand, instanceSymbolCount, hasGlobalConstraint, hasKeyword } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 
 const noopHandler: ActionHandler<"noop"> = () => {
@@ -10,68 +10,11 @@ const noopHandler: ActionHandler<"noop"> = () => {
 }
 
 const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+    const { state, owner, opp, self, sourceName, srcType } = ctx
         // BS15共通器：globalConstraint "noHandGainByEffect" が効いている間は、ドロー効果自体が
         // 発揮されない（お互い。BS15-052天蒼元帥チョウハッカイ）
         if (hasGlobalConstraint(state, "noHandGainByEffect")) {
             log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
-            return
-        }
-        // costDiscardOwnHandOne（BS15-040ネコマーダ）：自分の手札1枚（末尾＝決定的簡略化）を
-        // 破棄することがコスト。手札0枚なら不発
-        if (action.costDiscardOwnHandOne) {
-            const player = state.players[owner]
-            if (player.hand.length === 0) {
-                log(state, `${sourceName}：破棄できる手札がないため発動しなかった。`)
-                return
-            }
-            const cardId = player.hand.pop()!
-            player.trashCards.push(cardId)
-            log(state, `${player.name}は${sourceName}のコストとして手札1枚を破棄した。`)
-            const { costDiscardOwnHandOne: _cdoh, ...rest } = action
-            ctx.resolve(rest)
-            return
-        }
-        // costDestroyOwnFamily（BS13-X02蛇皇神帝アスクレピオーズ）：指定系統の自分のスピリット1体を
-        // 破壊することがコスト。破壊できる対象がいなければ不発（COST_MODEL.md §1）。
-        // 何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ（§2。summonFromHandFreeと同じ考え方）
-        if (action.costDestroyOwnFamily !== undefined) {
-            const player = state.players[owner]
-            const sacrifices = player.field.spirits.filter((s) =>
-                matchesFamilyFilter(state, owner, s, action.costDestroyOwnFamily!),
-            )
-            if (sacrifices.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            const { costDestroyOwnFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
-                destroySpirit(state, owner, chosen.instanceId, "destroy", undefined)
-                ctx.resolve(rest)
-                return
-            }
-            if (state.interactiveTargets && sacrifices.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    sacrifices.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            const victim = sacrifices[0]!
-            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
-            destroySpirit(state, owner, victim.instanceId, "destroy", undefined)
-            ctx.resolve(rest)
             return
         }
         // costSkipCoreStep：「ボイドからコアを自分のリザーブに置かないことで」＝そのコアステップの

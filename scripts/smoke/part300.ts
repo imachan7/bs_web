@@ -239,7 +239,7 @@ console.log("=== destroy.costDestroyOwnSpirit（BS13-051ズガネーク）：自
     p1.field.spirits.push(sac)
     const oppTarget = createInstance("BS13-009", s.turn, 1)
     p2.field.spirits.push(oppTarget)
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, chooserIsTarget: true, costDestroyOwnSpirit: true })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1 }, then: { type: "destroy", count: 1, chooserIsTarget: true} })
     assert(!p1.field.spirits.some((sp) => sp.instanceId === sac.instanceId), "コストとして自分のスピリットが破壊された")
     assert(!p2.field.spirits.some((sp) => sp.instanceId === oppTarget.instanceId), "相手のスピリットも破壊された")
 }
@@ -249,7 +249,7 @@ console.log("=== destroy.costDestroyOwnSpirit（BS13-051ズガネーク）：自
     const p1 = s.players.p1
     const sac = createInstance("BS13-009", s.turn, 1)
     p1.field.spirits.push(sac)
-    resolveAction(s, "p1", null, { type: "destroy", count: 1, chooserIsTarget: true, costDestroyOwnSpirit: true })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1 }, then: { type: "destroy", count: 1, chooserIsTarget: true} })
     assert(p1.field.spirits.some((sp) => sp.instanceId === sac.instanceId), "相手に対象がいなければ、自分のスピリットも破壊されない（コストも払わない）")
 }
 

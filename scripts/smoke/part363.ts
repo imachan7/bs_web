@@ -58,10 +58,9 @@ type BpBuffAction = Extract<EffectAction, { type: "bpBuff" }>
 // 対象外キー（コスト・特殊な量決定を伴うもの。COST_MODEL.md）：これらを持つbpBuffは変換対象から外す
 const EXCLUDED_KEYS = [
     "costReturnSelfToHand",
-    "costDiscardOwnBurst",
     "costMillSelfCount",
-    "thenRefreshIfMilledFamily",
     "costExhaustFamily",
+    "thenRefreshIfMilledFamily",
     "amountFromExhaustedCost",
     "costSacrificeChosen",
     "amountFromSelfBp",

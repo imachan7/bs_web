@@ -2,7 +2,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, spiritHasKeyword, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 // side:"own"（returnToHand/returnToDeckTopの自分側対象）の候補列挙。ハンドラ本体とpayの判定表
@@ -283,110 +283,6 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
             return
-        }
-        // costExhaustSelf指定時は、発生源自身（ネクサス等）を疲労させることがコスト。
-        // 対象はfieldEventが渡すtargetInstanceId固定（自由選択ではない）ため、それが定まらない／
-        // 既に疲労済みなら不発（COST_MODEL.md §1。BS13-068遥かなる衛星砲Lv2）
-        if (action.costExhaustSelf) {
-            if (!self || self.isRested || targetInstanceId === undefined || !findSpiritAny(state, targetInstanceId)) {
-                log(state, `${sourceName}：発動しなかった。`)
-                return
-            }
-            self.isRested = true
-            log(state, `${state.players[owner].name}は${sourceName}を疲労させた。`)
-            const { costExhaustSelf: _paid, ...rest } = action
-            ctx.resolve(rest, { targetInstanceId })
-            return
-        }
-        // 器AE：costReturnOwnSpiritKeyword指定時は、指定キーワードを持つ自分のスピリット1体を
-        // 手札に戻すことがコスト（COST_MODEL.md §1：AとBの両方が成立するときだけ払う）。
-        // Bの候補（戻せる相手）が1体もいなければ不発。候補2体以上ならプレイヤーが選ぶ（§2）。
-        // 支払った後は targetInstanceId を落として再入し、以降は通常の対象選択に合流する
-        // （BS13-053モクバオー【合体時】：【神速】持ち1体を戻して相手1体を戻す）
-        if (action.costReturnOwnSpiritKeyword !== undefined) {
-            const kw = action.costReturnOwnSpiritKeyword
-            const costCandidates = state.players[owner].field.spirits.filter((s) => spiritHasKeyword(state, owner, s, kw))
-            const hasTarget =
-                pickEnemyCandidates(
-                    state,
-                    opp,
-                    Infinity,
-                    (s) => matchesTarget(state, opp, s, filter, self?.instanceId),
-                    srcColors,
-                    srcType,
-                    "bounce",
-                ).length >= 1
-            if (costCandidates.length === 0 || !hasTarget) {
-                log(state, `${sourceName}：発動しなかった。`)
-                return
-            }
-            const { costReturnOwnSpiritKeyword: _paid, costSacrificeChosen: _flag, ...rest } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = costCandidates.find((s) => s.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                returnSpiritToHand(state, owner, chosen, sourceName)
-                if (state.winner) return
-                ctx.resolve(rest)
-                return
-            }
-            if (state.interactiveTargets && costCandidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
-                    costCandidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            let victim = costCandidates[0]!
-            for (const s of costCandidates) {
-                if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
-            }
-            returnSpiritToHand(state, owner, victim, sourceName)
-            if (state.winner) return
-            ctx.resolve(rest)
-            return
-        }
-        // 「〜することで」の任意コスト（BS07剣王獣ビャク・ガロウLv2）。
-        // **A（コスト）と B（効果）の両方が成立するときだけ払う**（COST_MODEL.md §1）。
-        // 以前はここで払ってから対象を探していたため、戻せる相手がいなくてもコアを失っていた。
-        // 体数のしきい値は「候補が1体以上」。B を体数ぶん満たせるかまで求めるかは保留中（COST_MODEL.md §1）
-        if (action.costReserveToTrash !== undefined) {
-            const player = state.players[owner]
-            if (player.reserve < action.costReserveToTrash) {
-                log(state, `${sourceName}：リザーブのコアが足りず発動しなかった。`)
-                return
-            }
-            const costLimitBp = action.maxBpFromSelf && self ? effectiveBp(state, owner, self) : Infinity
-            const costMatches = (s: CardInstance): boolean =>
-                matchesTarget(state, opp, s, filter, self?.instanceId)
-            const hasTarget =
-                targetInstanceId !== undefined
-                    ? findSpiritAny(state, targetInstanceId) !== undefined
-                    : (action.anySide
-                          ? pickAnySideCandidates(
-                                state,
-                                owner,
-                                (s) => effectiveBp(state, owner, s) <= costLimitBp && costMatches(s),
-                                srcColors,
-                                srcType,
-                                "bounce",
-                            )
-                          : pickEnemyCandidates(state, opp, costLimitBp, costMatches, srcColors, srcType, "bounce")
-                      ).length >= 1
-            if (!hasTarget) {
-                log(state, `${sourceName}：手札に戻せる対象がいないため発動しなかった。`)
-                return
-            }
-            player.reserve -= action.costReserveToTrash
-            player.trashCores += action.costReserveToTrash
-            log(state, `${player.name}はリザーブのコア${action.costReserveToTrash}個をトラッシュに置いた。`)
         }
         // 対象指定時はその1体のみ手札へ戻す
         if (targetInstanceId) {

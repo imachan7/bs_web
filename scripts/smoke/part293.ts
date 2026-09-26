@@ -174,7 +174,7 @@ console.log("=== BI: X06 refreshSelf costDestroyOwnVanillaSpirit ===")
     s.players.p1.field.spirits.push(x06)
     const vanillaAlly = createInstance("BS12-041", s.turn, 1)
     s.players.p1.field.spirits.push(vanillaAlly)
-    resolveAction(s, "p1", x06, { type: "refreshSelf", costDestroyOwnVanillaSpirit: true })
+    resolveAction(s, "p1", x06, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { vanilla: true } }, then: { type: "refreshSelf"} })
     assert(!x06.isRested, "効果の記述を持たない自分のスピリットを破壊するコストを払えたので回復する")
     assert(
         !s.players.p1.field.spirits.some((sp) => sp.instanceId === vanillaAlly.instanceId),
@@ -185,7 +185,7 @@ console.log("=== BI: X06 refreshSelf costDestroyOwnVanillaSpirit ===")
     const x06b = createInstance("BS12-X06", s2.turn, 4)
     x06b.isRested = true
     s2.players.p1.field.spirits.push(x06b)
-    resolveAction(s2, "p1", x06b, { type: "refreshSelf", costDestroyOwnVanillaSpirit: true })
+    resolveAction(s2, "p1", x06b, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { vanilla: true } }, then: { type: "refreshSelf"} })
     assert(x06b.isRested, "AとBの両方が完全に解決できるときだけ発揮される：バニラの候補がいなければコストが払えず不発")
 }
 

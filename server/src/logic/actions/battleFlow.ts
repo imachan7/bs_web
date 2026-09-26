@@ -307,31 +307,6 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             log(state, `${sourceName}：${state.players[opp].name}は相手のスピリットの効果ではライフが減らないため発動しなかった。`)
             return
         }
-        // カイザーアトラス皇帝：costReserveToVoid指定時、自分のリザーブが足りなければ不発（ログのみ）。
-        // 足りればその数のコアをリザーブからボイドへ送ってから実行する（「〜することで」の任意コストは
-        // 自動発動で簡略化。levelOverrideOpponentNexuses.costReserveToVoidと同じ方針）
-        if (action.costReserveToVoid !== undefined) {
-            const ownerPlayer = state.players[owner]
-            if (ownerPlayer.reserve < action.costReserveToVoid) {
-                log(state, `${sourceName}：リザーブが足りず発動しなかった。`)
-                return
-            }
-            // B（減らせるライフ）が無ければ発揮できない（COST_MODEL.md §1）。
-            // 以前は払ってからカウントを見ていたため、減らせないときも払い損になっていた
-            const costCount =
-                action.countCounter !== undefined
-                    ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
-                    : action.count
-            if (costCount <= 0 || state.players[opp].life <= 0) {
-                log(state, `${sourceName}：減らせるライフがないため発動しなかった。`)
-                return
-            }
-            ownerPlayer.reserve -= action.costReserveToVoid
-            log(
-                state,
-                `${ownerPlayer.name}は${sourceName}の効果で、リザーブのコア${action.costReserveToVoid}個をボイドに置いた。`,
-            )
-        }
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
         // countCounter指定時はcount×EffectCounterの値を個数として使う（BS08メテオストーム）
@@ -743,111 +718,6 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             }
             return
         }
-        // costDestroyOwnFamily：指定系統の自分のスピリット1体を破壊することがコスト（BS02キャストオフ）。
-        // 破壊できる対象がいなければ不発。対象はコスト最小（同コストはフィールドの先頭側）を機械的に選ぶ
-        // 「〜することで召喚する」の任意コストは、**B（召喚できる手札）が無ければ発揮できない**
-        // （COST_MODEL.md §1）。以前は先に自分のスピリット／ネクサスを破壊してから手札を見ていたため、
-        // 召喚できないときも払い損になっていた。
-        // なお維持コアの足りるかまではここで見ない：コストで破壊したスピリットのコアがリザーブに戻り、
-        // 支払い後に払えるようになる場合があるため（誤って発揮不可にしないための保守的な判定）
-        if (
-            (action.costDestroyOwnFamily !== undefined || action.costDestroyOwnNexus) &&
-            chosenCardIndex === undefined &&
-            !action.costSacrificeChosen &&
-            !player.hand.some(matchesCardId)
-        ) {
-            log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
-            return
-        }
-        // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）。
-        // 選ばせたあとは costDestroyOwnFamily を落とした action で入り直し、二重に払わないようにする
-        if (action.costDestroyOwnFamily !== undefined && chosenCardIndex === undefined) {
-            const sacrifices = player.field.spirits.filter((s) =>
-                matchesFamilyFilter(state, owner, s, action.costDestroyOwnFamily!),
-            )
-            if (sacrifices.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            const { costDestroyOwnFamily: _paid, costSacrificeChosen: _flag, ...rest } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                log(state, `${player.name}は${sourceName}のコストとして${getCard(chosen.cardId).name}を破壊した。`)
-                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
-                ctx.resolve(rest)
-                return
-            }
-            if (state.interactiveTargets && sacrifices.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    sacrifices.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            // 非対話・候補1体：コスト最小を自動選択（決定的簡略化）
-            let victim = sacrifices[0]!
-            for (const s of sacrifices) {
-                if (getCard(s.cardId).cost < getCard(victim.cardId).cost) victim = s
-            }
-            log(state, `${player.name}は${sourceName}のコストとして${getCard(victim.cardId).name}を破壊した。`)
-            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
-        }
-        // costDestroyOwnNexus：自分のネクサス1つ（コア最少、同数はフィールド先頭）を破壊することがコスト
-        // （BS06リクラメーション）。破壊できるネクサスがなければ不発
-        if (action.costDestroyOwnNexus && chosenCardIndex === undefined) {
-            const nexuses = player.field.nexuses
-            if (nexuses.length === 0) {
-                log(state, `${sourceName}：破壊できるネクサスがないため発動しなかった。`)
-                return
-            }
-            const { costDestroyOwnNexus: _paidNx, costSacrificeChosen: _flagNx, ...restNx } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = nexuses.find((n) => n.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたネクサスはコストにできなかった。`)
-                    return
-                }
-                if (!destroyNexus(state, owner, chosen.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
-                    log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
-                    return
-                }
-                ctx.resolve(restNx)
-                return
-            }
-            // **どのネクサスを壊すかは候補2つ以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
-            if (state.interactiveTargets && nexuses.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のネクサスを選んでください`,
-                    nexuses.map((n) => n.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            // 非対話・候補1つ：コア最少を自動選択（同数はフィールド先頭）
-            let victim = nexuses[0]!
-            for (const n of nexuses) {
-                if (n.cores < victim.cores) victim = n
-            }
-            // destroyNexus自体が成否のログを出す（破壊耐性で不発の場合あり）。
-            // 不発ならコストを支払えなかったとして召喚もしない
-            if (!destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
-                log(state, `${sourceName}：コストを支払えなかったため発動しなかった。`)
-                return
-            }
-        }
         // costDestroySelfAndCostFilter：**このスピリット自身**と、コストがmin以上の自分のスピリット1体の
         // 両方を破壊することがコスト（BS13-004フォボス・ドラグーンLv3：バトル終了時、自身とコスト3以上の
         // 自分のスピリット1体を破壊することで系統「神星」を手札から無償召喚）。
@@ -1135,22 +1005,6 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: action.destroyAtBattleEnd } : {}),
-        }
-        // costReserveCoreToTrash（BS13-075スネイクスレイヴ）：自分のリザーブのコア1個を自分のトラッシュに
-        // 置くことがコスト。「〜することで〜する」は**両方が完全に解決できるときだけ**発揮する
-        // （COST_MODEL.md §1）ので、コアを1個引いた残りリザーブでも召喚できる候補が無ければ払わない
-        if (action.costReserveCoreToTrash) {
-            const affordableAfterCost = player.trashCards.some((cardId) => {
-                if (!matchesCardId(cardId)) return false
-                return minLevelCores(getCard(cardId)) <= player.reserve - 1
-            })
-            if (player.reserve < 1 || !affordableAfterCost) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            player.reserve -= 1
-            player.trashCores += 1
-            log(state, `${player.name}は${sourceName}のコストとして、リザーブのコア1個を自分のトラッシュに置いた。`)
         }
         // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
         // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった

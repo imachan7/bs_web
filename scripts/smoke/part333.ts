@@ -108,7 +108,7 @@ console.log("=== BS15-022 アナグマッド・デビル：緑しかない間ア
     s.players.p1.burst = "BS01-001"
     s.players.p1.burstSet = true
     resolveAction(s, "p1", spirit, { type: "voidCoreToSelf", count: 1 })
-    resolveAction(s, "p1", spirit, { type: "voidCoreToSelf", count: 1, costDiscardOwnBurst: true })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "discardBurst", side: "own" }, then: { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1 } })
     assert(spirit.cores === minLevelCores(getCard("BS15-022")) + 2, "ボイドから2個乗った")
     assert(s.players.p1.burst === null, "バーストを破棄した")
 }
