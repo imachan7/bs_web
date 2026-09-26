@@ -1524,7 +1524,7 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
 // バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が
 // 有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない（BS05茨の決戦地Lv1-2）。
 // phase/turnはEffectDef側（globalConstraintエントリ自身）が持つ（発生源の持ち主基準のturn判定）
-function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
+export function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
     // ブロッカー限定の保護（期間つき効果 blockerCoresProtected。このバトルの間）
     if (state.battle?.blockerInstanceId === inst.instanceId && timedBattleContents(state).some((c) => c.type === "blockerCoresProtected")) {
         return true

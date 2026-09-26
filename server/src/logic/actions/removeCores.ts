@@ -2,8 +2,8 @@
 // スキーマは docs/design/CORE_UNIFY_REMOVE.md §3。
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { ActionCtx } from "./types"
-import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { coresForLevel, getCard, log, pushResumeFrames } from "../GameState"
+import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import { coresForLevel, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import {
     askPayToNegateIfNeeded,
     bothSidesPids,
@@ -15,6 +15,7 @@ import {
     requestChoice,
     resistanceAgainst,
 } from "../EffectModules"
+import { coreFloorFor, isBattlingCoreProtected } from "../removal"
 import { coreZoneChoiceId, currentLevel, effectiveBp, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -82,6 +83,67 @@ function pidsFor(side: RemoveCoresAction["side"], owner: PlayerId, opp: PlayerId
     if (side === "own") return [owner]
     if (side === "any") return [owner, opp]
     return [opp]
+}
+
+// 取り先がリザーブ・トラッシュだけなら「1体から」は意味が無いので、既定は複数から合計
+function defaultTarget(action: RemoveCoresAction): NonNullable<RemoveCoresAction["target"]> {
+    if (action.target !== undefined) return action.target
+    const from = action.from ?? ["spirit"]
+    return from.includes("spirit") || from.includes("nexus") ? "one" : "spread"
+}
+
+// pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
+// （destroyCandidateCountForPay と同じ簡略化）。止める判定（保護・下限・耐性）は実際に取る処理と揃える
+export function removeCoresAchievableCountForPay(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    action: RemoveCoresAction,
+    srcColors: Color[] | undefined,
+    srcType: CardType | undefined,
+): number {
+    const opp = opponentOf(owner)
+    const countSpec: CountSpec =
+        typeof action.count === "number" && action.countCounter !== undefined
+            ? countedAmount(state, owner, self, action.count, action.countCounter, srcType)
+            : action.count
+
+    if (defaultTarget(action) === "self") {
+        if (!self) return 0
+        const own = state.players[owner]
+        if (!own.field.spirits.includes(self) && !own.field.nexuses.includes(self)) return 0
+        return amountFor(self, countSpec, action.leaveAtLeast)
+    }
+
+    const from = action.from ?? ["spirit"]
+    const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+    const pids = pidsFor(action.side ?? "opponent", owner, opp)
+    // 実際に取る処理（removal.ts の removeCores*・takeCoresFromSpirit）と同じ止める判定で、1体ずつ取れる数を出す
+    const perInst: number[] = []
+    let zones = 0
+    for (const pid of pids) {
+        const player = state.players[pid]
+        if (from.includes("reserve")) zones += player.reserve
+        if (from.includes("trash")) zones += player.trashCores
+        if (from.includes("spirit")) {
+            for (const s of player.field.spirits) {
+                if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
+                if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
+                if (isBattlingCoreProtected(state, s)) continue
+                const keep = Math.max(action.leaveAtLeast ?? 0, coreFloorFor(state, s, pid))
+                perInst.push(Math.max(0, s.cores - keep))
+            }
+        }
+        if (from.includes("nexus")) {
+            for (const n of player.field.nexuses) {
+                if (!matchesTarget(state, pid, n, filter, self?.instanceId)) continue
+                perInst.push(n.cores)
+            }
+        }
+    }
+    // 1体から取る形はその最大、それ以外（複数から合計・すべて）は合計
+    if (defaultTarget(action) === "one") return perInst.length > 0 ? Math.max(...perInst) : 0
+    return zones + perInst.reduce((a, b) => a + b, 0)
 }
 
 // ============ target: "self" / "event" ============
@@ -529,7 +591,7 @@ function dispatchByTarget(ctx: ActionCtx, action: RemoveCoresAction): void {
         resolveDownTo(ctx, action)
         return
     }
-    switch (action.target ?? "one") {
+    switch (defaultTarget(action)) {
         case "self":
             resolveSelfTarget(ctx, action)
             return

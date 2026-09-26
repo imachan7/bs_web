@@ -383,6 +383,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `PAYABLE_TYPES`（const）：判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 - `canPayResolve`（const）：判定表に無い type、または判定に落ちた場合は false
 
+## server/src/logic/actions/removeCores.ts
+
+- `removeCoresAchievableCountForPay`（fn）：pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
+
 ## server/src/logic/actions/timedEffect.ts
 
 - `isAllowedRuleCounter`（fn）
@@ -564,6 +568,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `takeCoresFromSpirit`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
 - `removeCoresToVoid`（fn）
 - `coreFloorFor`（fn）：globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
+- `isBattlingCoreProtected`（fn）：バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が
 
 ## server/src/logic/revive.ts
 
