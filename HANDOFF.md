@@ -33,14 +33,33 @@
 **進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
 ②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（進み具合は同 §1 の表と §2.2 の表の「状態」列。09-24 に M1 の一部・M3・M4 の大半・R4 の effectDef.ts が済んだ） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
 
-### いまの本線：REFACTOR_PLAN §1 の順番（2026-09-26 見直し・ユーザー了承）
+### いまの本線（2026-09-26 午後にユーザー決定で順番を変えた）
+
+**統合（R5）を先にやり、BS16 の黄・青は統合後の新しい書き方がそろってから実装する**（旧 type で書いて移し替える二度手間を避ける）。
+実装役の呼び出し数の測定（REFACTOR_PLAN §0 と同じ形）は、その BS16 の実装のときに行う。
 
 1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
-2. **R3 の続き**（いまここ）：済み＝removal → `brave.ts`・`revive.ts`（#156）、`shared/rules.ts` → `shared/rules/` 8本（#157）、GameEngine → `choice.ts`・`battleResolve.ts`（#160）、EffectModules → `state/continuous.ts`・`targeting.ts`・`keywords/burst.ts`・`summon.ts`（#162）、actions/cores → `coreGain.ts`・`life.ts`・`tensho.ts`。
-   残り＝`validate:size` の据え置き一覧（`scripts/check-file-size.ts`）の5本：destroy・battleFlow・triggers・型2本。
-   **分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
-3. BS16 の黄・青（バッチ3）に一度戻り、REFACTOR_PLAN §0 と同じ形で実装役の呼び出し数を測る
-4. R5 の残り（§2.2）と R6・R7 は、3 の結果を見て決め直す
+2. **R5：コアの統合**（いまここ）。action type 55種（うち27種がカード1枚以下）を ACTION_VOCABULARY の「コアを置く `{from,to}`／取り除く `{to}`」へ寄せる。
+   ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md)・[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) に書いた（済み。各行にハンドラの行番号つき）
+   → ②判断が割れる点をユーザーに確認 → ③器のスキーマを確定して §1 に貼る → 器の PR → 移行の PR（REFACTOR_PLAN §2.2 の分け方）
+   **置く系の器 `placeCores`（2026-09-26 確定。名前を変えない）**：
+   `{ type: "placeCores"; from: "void"|"reserve"|"trash"|"self"|"field"; to: "reserve"|"trash"|"life"|"spirit"|"nexus"|"deckSide"; target?: "self"|"one"|"all"; targets?: number; filter?: TargetFilter; count: number|"all"; countCounter?: EffectCounter; upTo?: number; upToLevel?: number; orReserve?: true }`
+   すべて自分側。`target` は to が spirit／nexus のときだけ（既定 "one"＝候補2体以上なら使用者が選ぶ。AI・非対話はBP最大、ネクサスはコア最少）。`self`＝発生源の上、`field`＝自分のネクサス→スピリット（BP最小）の順に取る。
+   ボイドから spirit／nexus／reserve へ置くときは `voidCorePlacementBlocked`（BS10-056）を見る。ライフへはライフ専用のガードと【聖命】。置いた先は `placeCoresOnSpirit` を通す。
+   移す19種＝coreCharge・coreGain・voidCoreToDeckSide・voidCoreToReserve・trashCoresToReserve・voidCoreToSelf・voidCoreToOther・trashCoresToSpirit・trashCoresToKeywordSpirit・reclaimTrashCores・voidCoreToAllOwnByFamily・voidCoreToOwnNexuses・voidCoreToTarget・voidCoreToOwnByKeyword・voidCoreToOwnTrash・voidCoresToNexusLevel・selfCoreToOwnLife・fieldCoreToLife・lifeCharge（延べ175）。
+   **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
+   対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
+   **器は実装済み（`actions/placeCores.ts`・smoke part391）。移す前に直すこと**：①`targets`≥2 が自動選択だけ（voidCoreToOther 4枚を移す前に選ばせる）
+   ②`from: "self"`／`"field"` がコアを直接減らし、保護・下限を見ていない（selfCoreToOwnLife・fieldCoreToLife 3枚を移す前に取り除く共通処理を通す）
+   ③`orReserve` と `target: "one"` の組み合わせは未対応（使うカードは無い）。移行時に直す明らかな誤り：BS10-056 のリザーブ行きガード（voidCoreToReserve）・coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
+   **並行：コアの支払いの自動／手動の切り替え（2026-09-26 ユーザー依頼。ブランチ `feat/manual-core-pay`、クライアントだけ）**：
+   上部のボタン列に「支払い：自動／手動」（`localStorage` の `bs_pay_mode`）。手動なら手札から使うカード（召喚・ネクサス・マジック・ブレイヴ）で、リザーブが足りていても支払い画面を開き、
+   不足が埋まっても自動送信せず確定ボタンで送る。フィールドの割り当ては必要数まで・取り消し可、残りはリザーブ。サーバーは既に `paySources` で任意の配分を受け付けるので変えない。
+   起動能力・効果の中の支払い（サーバーが支払い元を受け取らない）は対象外＝使ってみて要れば次の段
+3. R5 の残り（REFACTOR_PLAN §2.2）
+4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
+5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
+   R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
 関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
