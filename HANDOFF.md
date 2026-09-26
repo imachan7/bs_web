@@ -49,6 +49,10 @@
    移す19種＝coreCharge・coreGain・voidCoreToDeckSide・voidCoreToReserve・trashCoresToReserve・voidCoreToSelf・voidCoreToOther・trashCoresToSpirit・trashCoresToKeywordSpirit・reclaimTrashCores・voidCoreToAllOwnByFamily・voidCoreToOwnNexuses・voidCoreToTarget・voidCoreToOwnByKeyword・voidCoreToOwnTrash・voidCoresToNexusLevel・selfCoreToOwnLife・fieldCoreToLife・lifeCharge（延べ175）。
    **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
    対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
+   **並行：コアの支払いの自動／手動の切り替え（2026-09-26 ユーザー依頼。ブランチ `feat/manual-core-pay`、クライアントだけ）**：
+   上部のボタン列に「支払い：自動／手動」（`localStorage` の `bs_pay_mode`）。手動なら手札から使うカード（召喚・ネクサス・マジック・ブレイヴ）で、リザーブが足りていても支払い画面を開き、
+   不足が埋まっても自動送信せず確定ボタンで送る。フィールドの割り当ては必要数まで・取り消し可、残りはリザーブ。サーバーは既に `paySources` で任意の配分を受け付けるので変えない。
+   起動能力・効果の中の支払い（サーバーが支払い元を受け取らない）は対象外＝使ってみて要れば次の段
 3. R5 の残り（REFACTOR_PLAN §2.2）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
