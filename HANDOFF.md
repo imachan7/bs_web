@@ -39,23 +39,10 @@
 実装役の呼び出し数の測定（REFACTOR_PLAN §0 と同じ形）は、その BS16 の実装のときに行う。
 
 1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
-2. **R5：コアの統合**（いまここ）。action type 55種（うち27種がカード1枚以下）を ACTION_VOCABULARY の「コアを置く `{from,to}`／取り除く `{to}`」へ寄せる。
-   ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md)・[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) に書いた（済み。各行にハンドラの行番号つき）
-   → ②判断が割れる点をユーザーに確認 → ③器のスキーマを確定して §1 に貼る → 器の PR → 移行の PR（REFACTOR_PLAN §2.2 の分け方）
-   **置く系の器 `placeCores`（2026-09-26 確定。名前を変えない）**：
-   `{ type: "placeCores"; from: "void"|"reserve"|"trash"|"self"|"field"; to: "reserve"|"trash"|"life"|"spirit"|"nexus"|"deckSide"; target?: "self"|"one"|"all"; targets?: number; filter?: TargetFilter; count: number|"all"; countCounter?: EffectCounter; upTo?: number; upToLevel?: number; orReserve?: true }`
-   すべて自分側。`target` は to が spirit／nexus のときだけ（既定 "one"＝候補2体以上なら使用者が選ぶ。AI・非対話はBP最大、ネクサスはコア最少）。`self`＝発生源の上、`field`＝自分のネクサス→スピリット（BP最小）の順に取る。
-   ボイドから spirit／nexus／reserve へ置くときは `voidCorePlacementBlocked`（BS10-056）を見る。ライフへはライフ専用のガードと【聖命】。置いた先は `placeCoresOnSpirit` を通す。
-   移す19種＝coreCharge・coreGain・voidCoreToDeckSide・voidCoreToReserve・trashCoresToReserve・voidCoreToSelf・voidCoreToOther・trashCoresToSpirit・trashCoresToKeywordSpirit・reclaimTrashCores・voidCoreToAllOwnByFamily・voidCoreToOwnNexuses・voidCoreToTarget・voidCoreToOwnByKeyword・voidCoreToOwnTrash・voidCoresToNexusLevel・selfCoreToOwnLife・fieldCoreToLife・lifeCharge（延べ175）。
-   **コスト付きの4か所（`costDestroyOwnSpirit`・`costDiscardOwnBurst`・`costExhaustSelf`・`costMillSelfCount`・`thenUnblockableByLevelThisBattle`）は `pay` がそろうまで旧 type のまま。**
-   対象外：destructionCoresToOwnSpirit（破壊時のコアの行き先の置換。選ばせる修正だけ入れる）・opponentLifeToReserve（ライフ減少）
-   **器は実装済み（`actions/placeCores.ts`・smoke part391・392）**。`targets`≥2 は1体ずつ選ばせ、選んだ個体は内部フィールド `excludeIds` で外す。
-   `from: "self"`／`"field"` は `removal.ts` の `takeCoresFromSpirit`（保護・下限・消滅）を通す。
-   **カードの移行は済み（ブランチ `feat/place-cores-migrate`）**：170か所を placeCores に書き換え、旧16種を消した。旧 type で残るのはコスト付き4か所（coreGain・lifeCharge・voidCoreToSelf）とブレイヴ自身に置く BS14-069 だけ（`pay` がそろったら移す）。
-   **取り除く系も移行済み**（器 #168・移行はブランチ `feat/remove-cores-migrate`）：カード103か所を removeCores に書き換え、旧18種を消した（cores.ts 1930→1072行）。自動選択は「選ぶ人が自分のコアを失うなら損の小さい順（トラッシュ→リザーブ→ネクサス→スピリットのコア最多）、奪うなら逆」。リザーブ／トラッシュを候補にする番兵は shared/rules の `coreZoneChoiceId`（クライアントでクリック可）。**残り9種**（CORE_UNIFY_REMOVE.md §3 末尾）と voidCoresFromField は pay／if／移動の器がそろってから
-   未対応：`orReserve` と `target: "one"` の組み合わせ（使うカードは無い）。取り除く系で直す明らかな誤り：coreRemoveAllOpponent の srcType・opponentLifeToReserve の型コメント
+2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
+   旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. R5 の残り（REFACTOR_PLAN §2.2）
+3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープン（17種）はスキーマ確定 → [REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4。次は器 `reveal` とテスト（カードは触らない）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き5本：destroy・battleFlow・triggers・型2本）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
