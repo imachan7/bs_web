@@ -229,5 +229,5 @@ BS14-084 永久凍土の王都は**原因を限定せず**「自分のライフ�
 **コストを完全に支払えない＝その効果を発揮できない**（§1 の一般則）。
 
 - 対象4枚: BS08-056 太陽石の神殿 / BS13-036 星鳥クージャ / BS13-039 神獣バーロン / BS08-064 鳳翼の聖剣
-- 実装は `lifeCostBlockedByFloor`（`server/src/logic/EffectModules.ts`）を各支払い箇所で呼ぶ
+- 実装は `lifeCostBlockedByFloor`（`server/src/logic/EffectModules.ts`）を各支払い箇所で呼ぶ。アクションの「〜することで」は `pay { cost: removeCores { side: "own", from: ["life"] } }`（神獣バーロン・BS16-008）、誘発のコスト（太陽石の神殿・星鳥クージャ・鳳翼の聖剣）は revive.ts／zones/mill.ts
 - 王都が無ければ従来どおり払える（払って0になれば敗北する）。smoke part327

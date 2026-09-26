@@ -24,7 +24,6 @@ import {
     hasBofuChooserSelf,
     bofuCountFor,
     continuousKeywordGrantCount,
-    lifeCostBlockedByFloor,
     recordTimed,
 } from "../EffectModules"
 import { KEYWORDS, timedContentsOn, cardNameContains, effectActiveAtLevel, effectiveBp, hasArmorAgainst, hasFullEffectImmunity, hasMagicImmunity, instColors, instHasColor, instHasCost, isVanillaCard, matchesFamilyFilter, matchesTarget, spiritHasFamily, spiritHasKeyword, instMatchesCostFilter, instIsCombined, bravesOf } from "../../../../shared/rules"
@@ -673,33 +672,6 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
         if (!self.isRested) {
             log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
-        }
-        // costOwnLifeToReserve（BS13-039神獣バーロン【合体時】Lv3）：持ち主のライフのコアをこの数だけ
-        // リザーブへ置くことがコスト。ライフが足りなければ不発
-        if (action.costOwnLifeToReserve !== undefined) {
-            const ownerPlayer = state.players[owner]
-            if (ownerPlayer.life < action.costOwnLifeToReserve) {
-                log(state, `${sourceName}：ライフが足りず発動しなかった。`)
-                state.effectFizzled = true
-                return
-            }
-            // 「ライフは0にならない」が働いている間は、払って0にすることもできない（2026-09-16 ユーザー確定）
-            if (lifeCostBlockedByFloor(state, owner, action.costOwnLifeToReserve)) {
-                log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
-                state.effectFizzled = true
-                return
-            }
-            ownerPlayer.life -= action.costOwnLifeToReserve
-            ownerPlayer.reserve += action.costOwnLifeToReserve
-            log(
-                state,
-                `${ownerPlayer.name}は${sourceName}の効果で、ライフのコア${action.costOwnLifeToReserve}個をリザーブに置いた。（残りライフ${ownerPlayer.life}）`,
-            )
-            if (ownerPlayer.life <= 0 && !state.winner) {
-                state.winner = opp
-                log(state, `${state.players[opp].name}の勝利！`)
-                return
-            }
         }
         // 器AE：costReturnOwnBrave指定時は、自身に合体しているブレイヴ1つを手札に戻すことがコスト
         // （回復と合体はセット＝BS13_PLAN.md §1 #16と同じ考え方で、合体していなければ不発）。
