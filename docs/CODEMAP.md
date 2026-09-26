@@ -722,6 +722,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `canBlockAttacker`（fn）：ブロック可能ハイライト用: blocker が attacker をブロックできるか。
 - `hasMagicImmunityView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）
 - `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+- `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
 - `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
 - `TargetSide`（型）：マジックが対象を必要とするか（"opponent" = 相手スピリット、"self" = 自分スピリット）
 - `magicTargetSide`（fn）：timing: メイン効果とフラッシュ効果で対象側が異なるカード（例: BS01-131）があるため、
