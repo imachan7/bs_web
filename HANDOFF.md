@@ -40,7 +40,7 @@
 
 1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
 2. **R5：コアの統合**（いまここ）。action type 55種（うち27種がカード1枚以下）を ACTION_VOCABULARY の「コアを置く `{from,to}`／取り除く `{to}`」へ寄せる。
-   ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY.md](./docs/design/CORE_UNIFY.md) に書く（1回目は14回の呼び出しでハンドラをほぼ読まずに書いたので、置く系・取り除く系に分けて出し直し中）
+   ①調査役が55種の実際の軸と挙動の違いを [CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md)・[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) に書いた（済み。各行にハンドラの行番号つき）
    → ②判断が割れる点をユーザーに確認 → ③器のスキーマを確定して §1 に貼る → 器の PR → 移行の PR（REFACTOR_PLAN §2.2 の分け方）
 3. R5 の残り（REFACTOR_PLAN §2.2）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
