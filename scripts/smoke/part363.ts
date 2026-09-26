@@ -81,6 +81,11 @@ function collectBpBuff(): { cardId: string; cardName: string; action: BpBuffActi
         }
         const obj = node as Record<string, unknown>
         if (obj.type === "bpBuff") results.push({ cardId, cardName, action: obj as unknown as BpBuffAction })
+        // pay の then にある bpBuff はコスト付き（pay の判定は1体指定の timedEffect をまだ扱えない）
+        if (obj.type === "pay" && (obj.then as Record<string, unknown>).type === "bpBuff") {
+            walk(obj.cost, cardId, cardName)
+            return
+        }
         for (const k of Object.keys(obj)) walk(obj[k], cardId, cardName)
     }
     for (const c of ALL_CARDS) walk(c.effects, c.cardId, c.name)

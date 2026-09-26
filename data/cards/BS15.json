@@ -427,12 +427,18 @@
        }
       },
       {
-       "type": "destroy",
-       "count": 1,
-       "filter": {
-        "minBp": 10000
+       "type": "pay",
+       "cost": {
+        "type": "discardSelfChoose",
+        "count": 1
        },
-       "costHandDiscardOne": true
+       "then": {
+        "type": "destroy",
+        "count": 1,
+        "filter": {
+         "minBp": 10000
+        }
+       }
       }
      ]
     }
@@ -890,12 +896,18 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroy",
-     "count": 1,
-     "filter": {
-      "rested": true
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1
      },
-     "costHandDiscardOne": true
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "filter": {
+       "rested": true
+      }
+     }
     }
    }
   ]
@@ -1022,10 +1034,16 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
-     "count": 3,
-     "dest": "trash",
-     "costDiscardOwnBurst": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
+     },
+     "then": {
+      "type": "coreRemove",
+      "count": 3,
+      "dest": "trash"
+     }
     }
    },
    {
@@ -1434,9 +1452,18 @@
      "ownFieldOnlyColor": "green"
     },
     "action": {
-     "type": "voidCoreToSelf",
-     "count": 1,
-     "costDiscardOwnBurst": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
+     },
+     "then": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "spirit",
+      "target": "self",
+      "count": 1
+     }
     }
    }
   ]
@@ -1745,10 +1772,22 @@
     "subjectSide": "own",
     "subjectKeywordFilter": "bofu",
     "action": {
-     "type": "exhaust",
-     "count": 0,
-     "countFromBofu": true,
-     "costReserveToTrashFromBofu": true
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "trash",
+      "count": 1,
+      "countCounter": "selfBofuCount"
+     },
+     "then": {
+      "type": "exhaust",
+      "count": 0,
+      "countFromBofu": true
+     }
     }
    }
   ]
@@ -2737,9 +2776,15 @@
     ],
     "optional": true,
     "action": {
-     "type": "draw",
-     "count": 1,
-     "costDiscardOwnHandOne": true
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1
+     },
+     "then": {
+      "type": "draw",
+      "count": 1
+     }
     }
    }
   ]
@@ -3022,12 +3067,18 @@
     ],
     "optional": true,
     "action": {
-     "type": "recoverMagicFromTrash",
-     "colors": [
-      "yellow"
-     ],
-     "hasBurst": true,
-     "costDiscardOwnBurst": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
+     },
+     "then": {
+      "type": "recoverMagicFromTrash",
+      "colors": [
+       "yellow"
+      ],
+      "hasBurst": true
+     }
     }
    },
    {
@@ -4387,8 +4438,14 @@
     "subjectSide": "own",
     "colorFilter": "purple",
     "action": {
-     "type": "colorlessSelfThisBattle",
-     "costHandDiscardOne": true
+     "type": "pay",
+     "cost": {
+      "type": "discardSelfChoose",
+      "count": 1
+     },
+     "then": {
+      "type": "colorlessSelfThisBattle"
+     }
     }
    },
    {
@@ -6129,9 +6186,15 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyByBpBudget",
-     "budget": 10000,
-     "costDiscardOwnBurst": true
+     "type": "pay",
+     "cost": {
+      "type": "discardBurst",
+      "side": "own"
+     },
+     "then": {
+      "type": "destroyByBpBudget",
+      "budget": 10000
+     }
     }
    }
   ]

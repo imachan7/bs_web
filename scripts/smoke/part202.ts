@@ -187,7 +187,7 @@ console.log("--- SD01-029 蠢く地下墓地：相手が緑の効果でコアを
     const source = put(s, "p2", green, coresFor(green, 1))
     const reserveBefore = s.players.p2.reserve
     const coresBefore = victim.cores
-    resolveAction(s, "p2", source, { type: "coreGain", count: 2 }, undefined, ["green"], "spirit")
+    resolveAction(s, "p2", source, { type: "placeCores", from: "void", to: "reserve", count: 2 }, undefined, ["green"], "spirit")
     assert(s.players.p2.reserve === reserveBefore + 2, "前提：緑の効果でリザーブにコアが2個置かれた")
     assert(coresBefore - victim.cores === 2, `置いたコア1個につき1個がボイドへ（${coresBefore}→${victim.cores}）`)
 }
@@ -198,7 +198,7 @@ console.log("--- SD01-029 蠢く地下墓地：相手が緑の効果でコアを
     putNexus(s, "p1", CATACOMB, coresFor(CATACOMB, 1))
     const victim = put(s, "p2", VANILLA, 3)
     const source = put(s, "p2", VANILLA, 1)
-    resolveAction(s, "p2", source, { type: "coreGain", count: 2 }, undefined, ["red"], "spirit")
+    resolveAction(s, "p2", source, { type: "placeCores", from: "void", to: "reserve", count: 2 }, undefined, ["red"], "spirit")
     assert(victim.cores === 3, "緑以外の効果では発火しない")
 }
 {

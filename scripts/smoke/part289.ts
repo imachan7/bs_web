@@ -131,7 +131,7 @@ console.log("=== §G voidCoresFromField：自分のフィールドのコアを�
     s.players.p1.field.spirits.push(ownSpirit)
     s.players.p2.field.spirits.push(oppSpirit)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "voidCoresFromField", side: "opponent", count: 4, costOwnFieldCoresToVoid: 3 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", from: ["spirit", "nexus"], to: "void", target: "spread", count: 3 }, then: { type: "removeCores", side: "opponent", from: ["spirit", "nexus"], to: "void", target: "spread", count: 4 } })
     assert(ownSpirit.cores === 0, "自分のフィールドのコア3個をコストとしてボイドに置いた")
     assert(oppSpirit.cores === 1, "相手のフィールドのコア4個をボイドに置いた")
 }
@@ -144,7 +144,7 @@ console.log("=== §G voidCoresFromField：自分のフィールドのコアを�
     s.players.p1.field.spirits.push(ownSpirit)
     s.players.p2.field.spirits.push(oppSpirit)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "voidCoresFromField", side: "opponent", count: 4, costOwnFieldCoresToVoid: 3 })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", from: ["spirit", "nexus"], to: "void", target: "spread", count: 3 }, then: { type: "removeCores", side: "opponent", from: ["spirit", "nexus"], to: "void", target: "spread", count: 4 } })
     assert(ownSpirit.cores === 2, "コストを払いきれないときは何も起きない（自分側）")
     assert(oppSpirit.cores === 5, "コストを払いきれないときは何も起きない（相手側）")
 }

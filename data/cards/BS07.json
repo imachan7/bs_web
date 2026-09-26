@@ -860,13 +860,23 @@
      3
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1,
-     "familyFilter": [
-      "虚神",
-      "神将"
-     ],
-     "costDestroyOwnKeyword": "jugeki"
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "keyword": "jugeki"
+      }
+     },
+     "then": {
+      "type": "recoverSpiritFromTrash",
+      "count": 1,
+      "familyFilter": [
+       "虚神",
+       "神将"
+      ]
+     }
     },
     "optional": true
    },
@@ -4166,9 +4176,19 @@
     ],
     "optional": true,
     "action": {
-     "type": "protectLifeByCostThisTurn",
-     "maxCost": 3,
-     "costExhaustFamily": "楽族"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "楽族"
+      }
+     },
+     "then": {
+      "type": "protectLifeByCostThisTurn",
+      "maxCost": 3
+     }
     }
    }
   ]
@@ -5465,11 +5485,22 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
-     "count": 2,
-     "costReserveToTrash": 1,
-     "filter": {
-      "keywordExclude": "tensho"
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "returnToHand",
+      "count": 2,
+      "filter": {
+       "keywordExclude": "tensho"
+      }
      }
     },
     "optional": true

@@ -142,9 +142,10 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             ownerPlayer.burstSet = false
             log(state, `${ownerPlayer.name}は${sourceName}のコストとして自分のバーストを破棄した。`)
         }
-        // 器：costMillSelfCount指定時は自分のデッキを上からこの枚数だけ無条件に破棄することがコスト
-        // （lifeCharge.costMillSelfCountと同型。あるだけ処理してコストも払う＝COST_MODEL.md。対象は常にself固定
-        // 「このスピリットをBP+」）。thenRefreshIfMilledFamily指定時は、破棄した中に指定系統のスピリットカードが
+        // 器：costMillSelfCount指定時は自分のデッキを上からこの枚数だけ破棄することがコスト
+        // （対象は常にself固定「このスピリットをBP+」）。一般則（COST_MODEL.md §1）どおり、
+        // デッキがこの枚数未満なら払わず発揮もしない（2026-09-26修正：以前はあるだけ破棄して成立させていた）。
+        // thenRefreshIfMilledFamily指定時は、破棄した中に指定系統のスピリットカードが
         // 1枚以上あればselfを回復させる（BS13-060トレス・ベルーガ【合体時】：「自分のデッキを上から6枚破棄する
         // ことで、このスピリットをBP+6000する。この効果で自分のトラッシュに系統：「光導」を持つスピリットカードが
         // 1枚以上置かれたとき、このスピリットは回復する」）
@@ -154,7 +155,11 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                 return
             }
             const player = state.players[owner]
-            const n = Math.min(action.costMillSelfCount, player.deck.length)
+            const n = action.costMillSelfCount
+            if (player.deck.length < n) {
+                log(state, `${sourceName}：デッキが足りないため発動しなかった。`)
+                return
+            }
             const milledIds: string[] = []
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!

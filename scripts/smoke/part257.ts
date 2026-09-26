@@ -135,11 +135,11 @@ console.log("=== BS10-056 節3：コアステップ以外はボイドからフ�
     put(s, "p1", "BS10-056", 1) // Lv1
     const reserveBefore = s.players.p1.reserve
     s.phase = "main"
-    resolveAction(s, "p1", null, { type: "coreGain", count: 2 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "reserve", count: 2 })
     assert(s.players.p1.reserve === reserveBefore, "コアステップ以外はボイドからリザーブへ置けない")
 
     s.phase = "core"
-    resolveAction(s, "p1", null, { type: "coreGain", count: 2 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "reserve", count: 2 })
     assert(s.players.p1.reserve === reserveBefore + 2, "コアステップならボイドからリザーブへ置ける")
 }
 

@@ -4873,8 +4873,17 @@
     "selfMode": "source",
     "optional": true,
     "action": {
-     "type": "destroyBlockerAfterBattle",
-     "costSelfCoresToTrash": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "destroyBlockerAfterBattle"
+     }
     }
    }
   ]

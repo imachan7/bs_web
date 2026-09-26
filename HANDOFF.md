@@ -42,7 +42,7 @@
 2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープンは移行済み（器 #170・移行はブランチ `feat/reveal-migrate`。[REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4）。旧 type で残るのは revealTopToHandThenRefreshOwn（if 待ち）と revealHandMagicToTegamotoDraw（pay が reveal に対応するまで）。**いまは M1 pay の残り**：調査と移行計画 → [PAY_UNIFY.md](./docs/design/PAY_UNIFY.md) §4（段階1 cost 側の部品→段階2 then 側の判定→段階3 カードの移行）。§3 の8枚も一般則に揃える（09-24 確定則の適用。ユーザー再確認済み）
+3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープンは移行済み（器 #170・移行はブランチ `feat/reveal-migrate`。[REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4）。旧 type で残るのは revealTopToHandThenRefreshOwn（if 待ち）と revealHandMagicToTegamotoDraw（pay が reveal に対応するまで）。**いまは M1 pay の残り**：段階1〜3 は済み（#172・#173・`feat/pay-migrate-rest`）。残りは [PAY_UNIFY.md](./docs/design/PAY_UNIFY.md) §5 末尾の「残った作業」（未使用 costXxx の削除）と §4 の「段階1の追加」（ライフのコアを払う部品）
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 5. R3 の残り（`validate:size` の据え置き4本：destroy・battleFlow・triggers・type.ts）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**

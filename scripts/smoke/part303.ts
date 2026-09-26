@@ -246,7 +246,7 @@ console.log("=== 既存の器で書けるもの：selfBuffPer / coreGainPer（01
     assert(bpBuffOf(s, koske) === 2000, "系統「遊精」2体（自身を含む）ぶんBP+2000（017）")
 
     const yanoga = createInstance("BS13-022", s.turn, 4) // Lv3
-    resolveAction(s, "p1", yanoga, { type: "coreGain", count: 1, countCounter: "selfLevel" })
+    resolveAction(s, "p1", yanoga, { type: "placeCores", from: "void", to: "reserve", count: 1, countCounter: "selfLevel" })
     assert(s.players.p1.reserve === 23, "自身のLvと同じ個数のコアをリザーブへ（022：Lv3なら3個。20+3）")
 }
 

@@ -1737,10 +1737,17 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroy",
-     "count": 1,
-     "chooserIsTarget": true,
-     "costDestroyOwnSpirit": true
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "chooserIsTarget": true
+     }
     }
    }
   ],
@@ -1990,11 +1997,22 @@
     "levels": null,
     "lentOnly": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "count": 1,
-     "familyFilter": "妖蛇",
-     "costReserveCoreToTrash": true,
-     "skipOnSummon": true
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "summonFromTrashFree",
+      "count": 1,
+      "familyFilter": "妖蛇",
+      "skipOnSummon": true
+     }
     }
    },
    {
@@ -2131,9 +2149,19 @@
     ],
     "optional": false,
     "action": {
-     "type": "draw",
-     "count": 3,
-     "costDestroyOwnFamily": "星魂"
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "星魂"
+      }
+     },
+     "then": {
+      "type": "draw",
+      "count": 3
+     }
     }
    },
    {
@@ -2390,8 +2418,18 @@
      2
     ],
     "action": {
-     "type": "refreshSelf",
-     "costReturnOwnSpiritKeyword": "soku"
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "keyword": "soku"
+      }
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    },
    {
@@ -2810,9 +2848,19 @@
     ],
     "whileCombined": true,
     "action": {
-     "type": "returnToHand",
-     "count": 1,
-     "costReturnOwnSpiritKeyword": "soku"
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "keyword": "soku"
+      }
+     },
+     "then": {
+      "type": "returnToHand",
+      "count": 1
+     }
     }
    }
   ],
@@ -4149,9 +4197,16 @@
     "selfMode": "source",
     "attackerAsTarget": true,
     "action": {
-     "type": "returnToHand",
-     "count": 1,
-     "costExhaustSelf": true
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "returnToHand",
+      "count": 1
+     }
     }
    }
   ]
@@ -5237,10 +5292,18 @@
     "turn": "opponent",
     "oncePerTurn": true,
     "action": {
-     "type": "lifeCharge",
-     "from": "void",
-     "count": 1,
-     "costExhaustSelf": true
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "placeCores",
+      "to": "life",
+      "from": "void",
+      "count": 1
+     }
     }
    }
   ]
@@ -6033,9 +6096,16 @@
     ],
     "optional": true,
     "action": {
-     "type": "destroyNexus",
-     "count": 1,
-     "costDestroyOwnNexus": true
+     "type": "pay",
+     "cost": {
+      "type": "destroyNexus",
+      "side": "own",
+      "count": 1
+     },
+     "then": {
+      "type": "destroyNexus",
+      "count": 1
+     }
     }
    },
    {

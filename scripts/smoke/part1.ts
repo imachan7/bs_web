@@ -773,7 +773,7 @@ console.log("=== バウンス系・コア操作系アクション ===")
     console.log("--- coreGain: ボイドからリザーブ+（他は減らない） ---")
     const p1ReserveBefore = s.players.p1.reserve
     const p2ReserveBefore3 = s.players.p2.reserve
-    resolveAction(s, "p1", null, { type: "coreGain", count: 1 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "reserve", count: 1 })
     assert(s.players.p1.reserve === p1ReserveBefore + 1, "自分のリザーブが1増える")
     assert(s.players.p2.reserve === p2ReserveBefore3, "相手のリザーブは変化しない（ボイドから湧くため）")
 

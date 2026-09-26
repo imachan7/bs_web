@@ -6280,12 +6280,19 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "summonFromHandFree",
-     "colorFilter": "blue",
-     "costFilter": {
-      "max": 4
+     "type": "pay",
+     "cost": {
+      "type": "destroyNexus",
+      "side": "own",
+      "count": 1
      },
-     "costDestroyOwnNexus": true
+     "then": {
+      "type": "summonFromHandFree",
+      "colorFilter": "blue",
+      "costFilter": {
+       "max": 4
+      }
+     }
     }
    },
    {
@@ -6699,8 +6706,19 @@
      3
     ],
     "action": {
-     "type": "refreshSelf",
-     "costReserveToVoid": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "void",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     },
     "optional": true
    }

@@ -5673,8 +5673,18 @@
     ],
     "optional": true,
     "action": {
-     "type": "refreshSelf",
-     "costSelfCoresToVoid": 2
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "void",
+      "count": 2,
+      "leaveAtLeast": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    }
   ]

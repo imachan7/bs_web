@@ -4158,9 +4158,20 @@
     ],
     "optional": true,
     "action": {
-     "type": "levelOverrideOpponentNexuses",
-     "level": 1,
-     "costReserveToVoid": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "void",
+      "count": 1
+     },
+     "then": {
+      "type": "levelOverrideOpponentNexuses",
+      "level": 1
+     }
     }
    }
   ]
@@ -5565,9 +5576,19 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "summonFromHandFree",
-     "costFilter": 5,
-     "costDestroyOwnFamily": "怪虫"
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "怪虫"
+      }
+     },
+     "then": {
+      "type": "summonFromHandFree",
+      "costFilter": 5
+     }
     }
    },
    {

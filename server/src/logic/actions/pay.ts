@@ -233,7 +233,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (!battle || blockerId === undefined) return false
         const found = findSpiritAny(state, blockerId)
         if (!found || found.pid === owner) return false
-        if (self.cores < action.costSelfCoresToTrash) return false
         return true
     },
     // lifeCrush：相手のライフがcount以上（止める効果＝lifeImmuneThisTurn・cantReduceOpponentLife・
@@ -287,6 +286,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     if (!canPayResolve(state, owner, self, action.cost, srcColors, srcType) || !canPayResolve(state, owner, self, action.then, srcColors, srcType)) {
         log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
+        state.effectFizzled = true
         return
     }
     resolveInOrder(state, [action.cost, action.then], {

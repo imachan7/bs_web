@@ -21,6 +21,7 @@ import {
     takeLifeAndResolve,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
+import type { EffectAction } from "../../server/src/type"
 import { loadAllCards } from "../../data/loadCards"
 
 interface CardRow {
@@ -223,17 +224,19 @@ console.log("=== BS07 緑：ボイドからのコアを系統条件を満たす�
 
 console.log("=== BS07 緑：【転召】を持たない相手だけを手札に戻す（剣王獣ビャク・ガロウ） ===")
 {
-    // keywordExclude と costReserveToTrash を両方持つエントリ（＝ビャク・ガロウ）に絞る
+    // pay の then が keywordExclude 付きの returnToHand のエントリ（＝ビャク・ガロウ）に絞る
     // （keywordExclude だけなら BS07鋼翼魚オルカノンも該当してしまう）
-    const hasBoth = (e: Record<string, unknown>): boolean => {
+    const thenOf = (e: Record<string, unknown>): Record<string, unknown> | undefined => {
         const a = e["action"] as Record<string, unknown> | undefined
-        if (a === undefined || a["costReserveToTrash"] === undefined) return false
-        return (a["filter"] as Record<string, unknown> | undefined)?.["keywordExclude"] !== undefined
+        return a?.["type"] === "pay" ? (a["then"] as Record<string, unknown>) : undefined
     }
+    const hasBoth = (e: Record<string, unknown>): boolean =>
+        (thenOf(e)?.["filter"] as Record<string, unknown> | undefined)?.["keywordExclude"] !== undefined
     const byakko = findByEffect((e) => hasBoth(e))
-    const action = entryOf(byakko, hasBoth)["action"] as Record<string, unknown>
-    const excluded = String((action["filter"] as Record<string, unknown>)["keywordExclude"])
-    const cost = Number(action["costReserveToTrash"])
+    const payAction = entryOf(byakko, hasBoth)["action"] as unknown as EffectAction
+    const then = thenOf(entryOf(byakko, hasBoth))!
+    const excluded = String((then["filter"] as Record<string, unknown>)["keywordExclude"])
+    const cost = Number(((payAction as unknown as Record<string, unknown>)["cost"] as Record<string, unknown>)["count"])
     const withKw = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).some((e) => e["kind"] === "keyword" && e["keyword"] === excluded),
     )!
@@ -247,34 +250,38 @@ console.log("=== BS07 緑：【転召】を持たない相手だけを手札に�
     const s = base("byakko-return")
     const src = put(s, "p1", byakko.cardId, 1)
     const plain = put(s, "p2", withoutKw.cardId, 1)
+    const plainB = put(s, "p2", withoutKw.cardId, 1)
     const immune = put(s, "p2", withKw.cardId, coresFor(withKw, 1))
     const reserveBefore = s.players.p1.reserve
     const trashBefore = s.players.p1.trashCores
-    resolveAction(s, "p1", src, {
-        type: "returnToHand",
-        count: 2,
-        costReserveToTrash: cost,
-        filter: { keywordExclude: excluded as never },
-    })
+    resolveAction(s, "p1", src, payAction)
     const alive = s.players.p2.field.spirits.map((sp) => sp.instanceId)
-    assert(!alive.includes(plain.instanceId), `【${excluded}】を持たない${withoutKw.name}は手札に戻る`)
+    assert(!alive.includes(plain.instanceId) && !alive.includes(plainB.instanceId), `【${excluded}】を持たない${withoutKw.name}2体は手札に戻る`)
     assert(alive.includes(immune.instanceId), `対照実験：【${excluded}】を持つ${withKw.name}は戻らない`)
     assert(
         s.players.p1.reserve === reserveBefore - cost && s.players.p1.trashCores === trashBefore + cost,
         `コストとしてリザーブのコア${cost}個がトラッシュへ移る`,
     )
 
+    // 対照実験：戻せる相手が1体だけなら、2体そろわないので払わず発揮しない（COST_MODEL §1。2026-09-26 PAY_UNIFY §3）
+    const s1 = base("byakko-one-target")
+    const src1 = put(s1, "p1", byakko.cardId, 1)
+    const plain1 = put(s1, "p2", withoutKw.cardId, 1)
+    put(s1, "p2", withKw.cardId, coresFor(withKw, 1))
+    const reserve1 = s1.players.p1.reserve
+    resolveAction(s1, "p1", src1, payAction)
+    assert(
+        s1.players.p2.field.spirits.some((sp) => sp.instanceId === plain1.instanceId) && s1.players.p1.reserve === reserve1,
+        "対照実験：戻せる相手が1体だけならコアも払わず、手札にも戻さない",
+    )
+
     // 対照実験：リザーブが足りなければ不発
     const s2 = base("byakko-no-reserve")
     const src2 = put(s2, "p1", byakko.cardId, 1)
     const plain2 = put(s2, "p2", withoutKw.cardId, 1)
+    put(s2, "p2", withoutKw.cardId, 1)
     s2.players.p1.reserve = 0
-    resolveAction(s2, "p1", src2, {
-        type: "returnToHand",
-        count: 2,
-        costReserveToTrash: cost,
-        filter: { keywordExclude: excluded as never },
-    })
+    resolveAction(s2, "p1", src2, payAction)
     assert(
         s2.players.p2.field.spirits.some((sp) => sp.instanceId === plain2.instanceId),
         "対照実験：リザーブが足りなければ不発",
