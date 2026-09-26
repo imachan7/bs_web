@@ -305,9 +305,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
 - `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
+- `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す。
+- `applyResshinsokuDestination`（fn）：distributeCores の選択を1件適用し、残りがあれば続けて聞く
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 - `COUNT_IS_BODIES`（const）：count が「対象の**体数**」を表すアクション。ここに挙げたものだけを
-- `resumeBattleResolution`（fn）：中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
+- `finishBlockDeclaration`（fn）
+- `revertActivatedUse`（fn）：フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
 
 ## server/src/logic/GameState.ts
 
@@ -414,6 +417,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ActionHandler`（型）：単一アクションのハンドラ。action は type で絞り込まれた具体型が渡る
 - `ActionRegistry`（型）：全 EffectAction.type を網羅するハンドラ表。
 
+## server/src/logic/battleResolve.ts
+
+- `resolveLifeDamage`（fn）：ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
+- `resolveDirectedBlock`（fn）：指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
+- `resolveBattle`（fn）：ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）
+- `resumeBattleResolution`（fn）：中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
+
 ## server/src/logic/brave.ts
 
 - `attachBrave`（fn）：**合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
@@ -428,6 +438,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `flushBraveKeeps`（fn）：脇に置いてあるブレイヴを1体ずつ決着させる。
 - `applyBraveKeep`（fn）：「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
 - `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
+
+## server/src/logic/choice.ts
+
+- `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
 
 ## server/src/logic/counted.ts
 

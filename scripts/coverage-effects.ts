@@ -1721,12 +1721,12 @@ process.on("exit", () => {
     }`,
         )
 
-        // (5c) GameEngine.ts: keyword「覚醒」（実行された時点）・keyword「呪撃」（バトル終了時の破壊）
+        // (5c) GameEngine.ts: keyword「覚醒」（実行された時点）／battleResolve.ts: keyword「呪撃」（バトル終了時の破壊）
         const ge = path.join(tree, "server/src/logic/GameEngine.ts")
         patch(
             ge,
-            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    checkNoMutationAfterSuspend,\n    noteHandleActionEntry,\n    pushResumeFrames,\n    suspend,\n    resumeTriggerBatch,\n} from "./GameState"`,
-            `    getCard,\n    log,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    checkNoMutationAfterSuspend,\n    noteHandleActionEntry,\n    pushResumeFrames,\n    suspend,\n    resumeTriggerBatch,\n    __covRecord,\n} from "./GameState"`,
+            `import { doCastMagic } from "./magic/cast"\n`,
+            `import { doCastMagic } from "./magic/cast"\nimport { effectActiveAtLevel } from "./EffectModules"\n`,
         )
         // ※ 2026-08-08: リザーブからの【覚醒】（ディノゾールLv2）が分岐として増え、
         //    コア移動の実行点が2つになった。両方に同じ記録を入れる（記録関数を1つ差し込んで共有）
@@ -1758,9 +1758,9 @@ process.on("exit", () => {
     from.cores -= count`,
         )
         // ※ 2026-08-14: バトル解決を再開可能なステップ列（runBattleStep）に割ったため、
-        //    【呪撃】の破壊は case 5 の中へ移動した。差し込み先もその形に合わせる
+        //    【呪撃】の破壊は case 5 の中へ移動した。差し込み先もその形に合わせる（09-26 に battleResolve.ts へ移した）
         patch(
-            ge,
+            path.join(tree, "server/src/logic/battleResolve.ts"),
             `            // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
             applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)`,
             `            const __jugekiEntry = getCard(attacker.cardId).effects.find(

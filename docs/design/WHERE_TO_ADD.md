@@ -25,6 +25,24 @@
 
 スピリット・ネクサスの破壊（`destroySpirit`・`destroyNexus`）、手札・デッキへ戻す、コアを取り除く。ブレイヴと復活は上の2ファイルへ分けた。
 
+## 選択の解決と再開（`server/src/logic/choice.ts`）
+
+| 変更の種類 | 触るところ | 手本 | 罠 |
+| :-- | :-- | :-- | :-- |
+| 新しい `PendingChoice` の応答 | `doResolveChoice` に `if (pending.<印>)` の分岐を1つ足す（型は `type.ts`、UI は `public/src`） | `pending.blockBattlePick` | 分岐の最後は必ず `finishChoiceResolution` を返す（返さないと再開スタックが消化されず、後続の誘発が放置される）。**分岐の順番に意味がある**：`kind === "option"`／`"card"` の汎用分岐より前に置く |
+| 新しい再開フレーム（`ResumeFrame` の kind） | `drainResumeStack` に `frame.kind === "…"` の分岐 | `battleResolve`（→ `resumeBattleResolution`） | 積むのは `pushResumeFrames`。挿入順の規則は RESUME_STACK.md |
+| 「やめた」ときに「ターンに1回」を戻す | `PendingChoice.revertActivated`／`revertTriggered` を立てる（戻すのは `revertActivatedIfSkipped`） | `GameEngine.doActivateAbility` | — |
+
+## バトル解決（`server/src/logic/battleResolve.ts`）
+
+| 変更の種類 | 触るところ | 手本 | 罠 |
+| :-- | :-- | :-- | :-- |
+| BP 比較後の破壊・バトル終了時の処理 | `runBattleStep` の `case` に足す。ステップを増やしたら `BATTLE_LAST_STEP` も上げる | case 5（【呪撃】） | **1ステップ＝中断しうる呼び出し1つ**（選択待ちが立つとその次のステップから再開する）。順序は TIMING_CHART.md の ＞６〜＞７。`coverage-effects.ts` が case 5 の文字列に差し込んでいる |
+| ライフで受けたときのライフ減少 | `resolveLifeDamage` | — | 宣言した時点の盤面を読む（フラッシュ①で変わりうる） |
+| 指定アタックのブロック確定 | `resolveDirectedBlock` | — | 疲労状態でもブロックさせる（`validateBlock` を通さない） |
+
+アクションの実行（召喚・アタック・ブロック宣言・起動能力・【烈神速】）は `GameEngine.ts` に残した。
+
 ## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
 
 | 変更の種類 | 触るところ |
