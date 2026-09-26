@@ -67,10 +67,9 @@ effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**そ
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### M2 `if`：答えをもらった（2026-09-27）→ 器を作る（ブランチ `feat/if-core`）
+### M2 `if`（2026-09-27〜）
 
-答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（名前を変えない）**。器 PR 1 は #178 でマージ済み、`last`／`count` で書ける11件の移行は `feat/if-migrate-1`。次は器 PR 2。
-**その次に BURST.md §10 の既知の不具合 A〜C を直す**（2026-09-27 ユーザーから実プレイでの指摘あり。C の発火時点はユーザー確認が要る）。
+答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（名前を変えない）**。#178・#179（移行11件）・#180（BURST.md §10 A〜C）はマージ済み。**いまは器 PR 2（`feat/if-last-more`）**、その次が器 PR 3（同 §5）。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 

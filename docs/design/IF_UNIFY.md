@@ -93,4 +93,11 @@ pay で旧 type に残した BS13-024・BS13-060・BS15-067 も、この `last`�
 - `GameState.lastMoved: string[]`：記録するアクションが**完了時に上書き**（0枚なら空）。PR 1 で書くのは `mill`・`reveal`（オープンしたカード全部）。
   **`sequence` の開始時に空にする**（前半を選ばなかったときに前の効果の記録を見ないため＝Q4）
 
-**器 PR 2**：`cond.event`・`lastCost`・`sameAsLast`、破棄／手札に戻す／破壊の記録。そのあと §2 の表どおりに移行し、`lastMillHadBurst` を消す。
+**器 PR 2（`feat/if-last-more`。2026-09-27 確定）**：器と移行を1本で入れる。
+- `IfCond` に `{ event: { destroyedColor: Color } }`（このバースト発動時に破壊されたスピリットの色＝`GameState.burstEventColors`）
+- `EffectCounter` に `"lastCost"`（`lastMoved` のカードの印刷コストの合計）
+- `TargetFilter` に `sameCostAsLast?: true`（`lastMoved` 先頭のカードと同じコスト。記録が空なら対象なし。`sameCostAsEventTarget` と同じ作り）
+- `destroy` の記録：`removal.ts` の `destroySpirit` が**破壊待機に入れる時点**で、その `destroy` アクションの `destroyContext` と同じものだけを数える（破壊時の誘発が別に破壊したものは混ざらない。「フィールドに残る」で残っても破壊はしているので数える）
+- 移行：BS07-X28（destroy → mill lastCost）・BS09-084／BS11-045（mill → destroy sameCostAsLast）・BS16-018／X04（if event）
+- 残す：BS15-X01（召喚した自分を BP+ する部品が要る）・BS11-060（手札の色を使えなくする timedEffect が要る）
+**器 PR 3**：破棄の記録と「手札を好きなだけ破棄」→「1枚につき」（coreRemovePerHandDiscard 等。Q2＝重ねて選べる）・手元・ネクサス。
