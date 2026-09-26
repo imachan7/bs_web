@@ -134,7 +134,7 @@
 | `triggers.ts` | 2911 | マジックの処理は `magic/`（cast 使用の手続き／negate 無効化／redirect 対象の絞り込みと「お互い」の変更／resolve 解決・再発揮・マジックミラー）へ分割済み（09-23。GameEngine の `doCastMagic` も cast へ） |
 | `removal.ts` | 1509 | （09-26 分割済み：`brave.ts`・`revive.ts`） |
 | `GameEngine.ts` | 2877 | `doResolveChoice`（約450行）＝選択の解決と再開 → `choice.ts`。バトル解決（`resolveBattle`〜`runBattleStep`・`resolveLifeDamage`） → `battleResolve.ts`（09-26 分割済み。`actions/battleFlow.ts` と紛れないよう名前を変えた）。【烈神速】は召喚の本体と密なので残した |
-| `actions/cores.ts` | 2745 | コアの移動の全部入り（未調査） |
+| `actions/cores.ts` | 2745 | コアの移動の全部入り → 09-26 にコアを置く系 `actions/coreGain.ts`・ライフ `actions/life.ts`・【転召】 `actions/tensho.ts` を切り出した（1930行）。相手のコアを取り除く系と自分のコアを払う・動かす系は残した |
 | `actions/destroy.ts` | 2345 | 破壊の全部入り（未調査） |
 | `actions/battleFlow.ts` | 2200 | バトルの進行と、BP・比べ方の効果（未調査） |
 | `shared/rules.ts` | 18 | （09-26 分割済み：`shared/rules/` の下に level・symbols・keywordState・resistance・bp・targetFilter・constraints・activation。`shared/rules.ts` は再輸出だけ） |

@@ -817,7 +817,7 @@ process.on("exit", () => {
         )
         // 聖命：【聖命】持ちがボイドからライフにコアを置いた時点
         patch(
-            path.join(tree, "server/src/logic/actions/cores.ts"),
+            path.join(tree, "server/src/logic/actions/life.ts"),
             `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {`,
             `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {
                 __covRecord("cont\t" + ${kwEid("self.cardId", "seimei")})`,

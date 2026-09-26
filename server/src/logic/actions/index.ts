@@ -7,15 +7,18 @@ import battleFlow from "./battleFlow"
 import bounce from "./bounce"
 import buff from "./buff"
 import control from "./control"
+import coreGain from "./coreGain"
 import cores from "./cores"
 import destroy from "./destroy"
 import drawDiscard from "./drawDiscard"
 import exhaustRefresh from "./exhaustRefresh"
 import grant from "./grant"
+import life from "./life"
 import mill from "./mill"
 import pay from "./pay"
 import reveal from "./reveal"
 import tegamoto from "./tegamoto"
+import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
 
@@ -24,16 +27,19 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...bounce,
     ...buff,
     ...control,
+    ...coreGain,
     ...cores,
     ...destroy,
     ...drawDiscard,
     ...exhaustRefresh,
     ...grant,
+    ...life,
     magicMirrorRepeat: magicMirrorRepeatHandler,
     ...mill,
     ...pay,
     ...reveal,
     ...tegamoto,
+    ...tensho,
     ...timedEffect,
     ...trashRecover,
 }
