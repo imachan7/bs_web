@@ -614,7 +614,7 @@
      2
     ],
     "action": {
-     "type": "coreRemoveMulti",
+     "type": "removeCores",
      "targets": 2,
      "count": 1
     },
@@ -775,9 +775,9 @@
      3
     ],
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "dest": "reserve"
+     "type": "removeCores",
+     "to": "reserve",
+     "count": 1
     },
     "optional": false
    },
@@ -3191,7 +3191,7 @@
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1,
      "countCounter": "selfSymbols"
     }
@@ -3876,7 +3876,7 @@
     "turn": "opponent",
     "subjectSide": "opponent",
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    },
@@ -4637,8 +4637,8 @@
       ]
      },
      "then": {
-      "type": "coreRemove",
-      "spread": true,
+      "type": "removeCores",
+      "target": "spread",
       "count": 2
      }
     }

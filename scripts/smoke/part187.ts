@@ -125,9 +125,9 @@ console.log("=== BS09-059 翡翠の社 Lv2：自分のスピリットだけ、�
     putNexus(s, "p1", "BS09-059", 2) // Lv2
     const mine = put(s, "p1", PLAIN, 6) // Lv1コスト＝1
     const theirs = put(s, "p2", PLAIN, 6)
-    resolveAction(s, "p1", mine, { type: "coreRemoveSelf", count: 99 })
+    resolveAction(s, "p1", mine, { type: "removeCores", side: "own", target: "self", count: 99 })
     assert(mine.cores === 1, "自分のスピリットはLv1コスト（1個）を下回らない")
-    resolveAction(s, "p2", theirs, { type: "coreRemoveSelf", count: 99 })
+    resolveAction(s, "p2", theirs, { type: "removeCores", side: "own", target: "self", count: 99 })
     // 守られない側はコア0になり、維持コア割れで場から消える
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === theirs.instanceId), "相手のスピリットは守られない")
 }

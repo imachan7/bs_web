@@ -253,7 +253,9 @@
      2
     ],
     "action": {
-     "type": "coreRemoveSelf",
+     "type": "removeCores",
+     "side": "own",
+     "target": "self",
      "count": 1
     }
    }
@@ -309,7 +311,15 @@
      3
     ],
     "action": {
-     "type": "coreToVoidOwn",
+     "type": "removeCores",
+     "side": "own",
+     "from": [
+      "spirit",
+      "nexus",
+      "trash"
+     ],
+     "to": "void",
+     "target": "spread",
      "count": 1
     },
     "optional": false
@@ -1987,9 +1997,11 @@
      2
     ],
     "action": {
-     "type": "coreSqueezeOne",
-     "count": 1,
-     "anySide": true
+     "type": "removeCores",
+     "side": "any",
+     "targets": 1,
+     "count": "all",
+     "leaveAtLeast": 1
     },
     "optional": false
    }
@@ -2196,7 +2208,11 @@
      2
     ],
     "action": {
-     "type": "coreSqueezeAll"
+     "type": "removeCores",
+     "side": "both",
+     "target": "all",
+     "count": "all",
+     "leaveAtLeast": 1
     },
     "optional": false
    },
@@ -4052,7 +4068,9 @@
      2
     ],
     "action": {
-     "type": "bothSidesCoreToTrash",
+     "type": "removeCores",
+     "side": "both",
+     "to": "trash",
      "count": 1
     },
     "optional": false
@@ -4912,7 +4930,10 @@
      2
     ],
     "action": {
-     "type": "coreToTrashSelf",
+     "type": "removeCores",
+     "side": "own",
+     "target": "self",
+     "to": "trash",
      "count": 1
     }
    }
@@ -5878,9 +5899,9 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "anySide": true
+     "type": "removeCores",
+     "side": "any",
+     "count": 1
     }
    }
   ]
@@ -6763,9 +6784,11 @@
      2
     ],
     "action": {
-     "type": "coreSqueezeOne",
-     "count": 1,
-     "anySide": true
+     "type": "removeCores",
+     "side": "any",
+     "targets": 1,
+     "count": "all",
+     "leaveAtLeast": 1
     },
     "optional": false
    }

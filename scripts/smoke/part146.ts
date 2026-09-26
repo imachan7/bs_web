@@ -412,14 +412,14 @@ console.log("=== BS08聖なる柱状彫刻：globalConstraint coreFloorByCost（
     s.phase = "attack"
     putNexus(s, "p1", pillar.cardId, coresFor(pillar, level))
     const spirit = put(s, "p2", target.cardId, floor + 5)
-    resolveAction(s, "p2", spirit, { type: "coreRemoveSelf", count: 99 })
+    resolveAction(s, "p2", spirit, { type: "removeCores", side: "own", target: "self", count: 99 })
     assert(spirit.cores === floor, `アタックステップ中はLv1コスト${floor}を下回らない`)
 
     const s2 = base("floor-main")
     s2.phase = "main"
     putNexus(s2, "p1", pillar.cardId, coresFor(pillar, level))
     const spirit2 = put(s2, "p2", target.cardId, floor + 5)
-    resolveAction(s2, "p2", spirit2, { type: "coreRemoveSelf", count: 99 })
+    resolveAction(s2, "p2", spirit2, { type: "removeCores", side: "own", target: "self", count: 99 })
     // 制約が無ければ「維持コア（＝Lv1コスト）を割る」ところまで取り除ける
     assert(spirit2.cores < floor, "対照実験：アタックステップでなければ下限は効かない")
 }

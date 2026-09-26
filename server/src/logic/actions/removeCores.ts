@@ -15,7 +15,7 @@ import {
     requestChoice,
     resistanceAgainst,
 } from "../EffectModules"
-import { currentLevel, effectiveBp, matchesTarget } from "../../../../shared/rules"
+import { coreZoneChoiceId, currentLevel, effectiveBp, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 
@@ -251,6 +251,8 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         log(state, `${sourceName}のコア除去：対象がいなかった。`)
         return
     }
+    // 「相手は」（chooser owner）はコアを失う側が選ぶ
+    const chooserPid = pids.length === 1 && action.chooser === "owner" ? pids[0]! : owner
     if (state.interactiveTargets && open.length > picks) {
         requestChoice(
             state,
@@ -260,14 +262,23 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             false,
             action,
             self,
+            "target",
+            undefined,
+            chooserPid !== owner ? chooserPid : undefined,
         )
         return
     }
-    // 自動選択：実効BP上位からpicks体（既存coreRemove/coreRemoveMultiと同じ簡略化）
-    const remainingPool = [...open]
+    // 自動選択：使用者が選ぶなら実効BP上位から（既存coreRemove/coreRemoveMultiと同じ）、失う側が選ぶなら損の小さいBP下位から
+    const favorHigh = chooserPid === owner
+    // どちらの陣営からでも選べる（side any）ときの自動選択は、使用者の得になる相手側を優先する
+    const oppOnly = open.filter((c) => c.pid !== owner)
+    const remainingPool = favorHigh && action.side === "any" && oppOnly.length > 0 ? oppOnly : [...open]
     const n = Math.min(picks, remainingPool.length)
     for (let i = 0; i < n; i++) {
-        const best = remainingPool.reduce((b, c) => (effectiveBp(state, c.pid, c.inst) > effectiveBp(state, b.pid, b.inst) ? c : b))
+        const best = remainingPool.reduce((b, c) => {
+            const d = effectiveBp(state, c.pid, c.inst) - effectiveBp(state, b.pid, b.inst)
+            return (favorHigh ? d > 0 : d < 0) ? c : b
+        })
         remainingPool.splice(remainingPool.indexOf(best), 1)
         applyOne(best.pid, best.inst)
     }
@@ -282,7 +293,7 @@ interface RemoveSource {
 }
 
 function sourceIdOf(s: RemoveSource): string {
-    return s.inst ? s.inst.instanceId : `__${s.kind}__${s.pid}`
+    return s.inst ? s.inst.instanceId : coreZoneChoiceId(s.kind as "reserve" | "trash", s.pid)
 }
 
 function sourceCoresOf(state: GameState, s: RemoveSource): number {
@@ -294,16 +305,16 @@ function sourceCoresOf(state: GameState, s: RemoveSource): number {
 const ZONE_ORDER: Zone[] = ["spirit", "nexus", "reserve", "trash"]
 
 // 非対話の自動選択：選ぶ人の得になる方（2026-09-26ユーザー確認。CORE_UNIFY_REMOVE.md §2-1/§3）。
-// favorSelf=trueは効果の使用者が選ぶ＝スピリットのコア最少優先→ネクサス→リザーブ→トラッシュ、
-// falseは相手（コアを失う側）が選ぶ＝その逆でスピリットはコア最多
-function pickAutoSource(state: GameState, candidates: RemoveSource[], favorSelf: boolean): RemoveSource {
-    const order = favorSelf ? ZONE_ORDER : [...ZONE_ORDER].reverse()
+// hurting=true は選ぶ人が相手のコアを奪う＝スピリットのコア最少優先→ネクサス→リザーブ→トラッシュ、
+// false は選ぶ人が自分のコアを失う＝損の小さい逆順でスピリットはコア最多（お互いの自分の分・「相手は」）
+function pickAutoSource(state: GameState, candidates: RemoveSource[], hurting: boolean): RemoveSource {
+    const order = hurting ? ZONE_ORDER : [...ZONE_ORDER].reverse()
     for (const kind of order) {
         const inKind = candidates.filter((c) => c.kind === kind)
         if (inKind.length === 0) continue
         if (kind !== "spirit") return inKind[0]!
         return inKind.reduce((best, c) =>
-            favorSelf
+            hurting
                 ? (sourceCoresOf(state, c) < sourceCoresOf(state, best) ? c : best)
                 : (sourceCoresOf(state, c) > sourceCoresOf(state, best) ? c : best),
         )
@@ -388,7 +399,8 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const pids = pidsFor(action.side ?? "opponent", owner, opp)
     const drainPid = pids.length === 1 ? pids[0]! : undefined
     const chooserPid = drainPid !== undefined && action.chooser === "owner" ? drainPid : owner
-    const favorSelf = chooserPid === owner
+    // 自分のコアを失う側が選ぶか（損を小さく）、相手のコアを奪う側が選ぶか（痛手を大きく）
+    const hurting = drainPid === undefined ? chooserPid === owner : chooserPid !== drainPid
 
     const count = resolvedCount(ctx, action)
     if (count === 0) {
@@ -419,7 +431,9 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             )
             return
         }
-        const picked = pickAutoSource(state, candidates, favorSelf)
+        // どちらの陣営からでも選べるときは、奪う側の得になる相手側を優先する
+        const oppSide = candidates.filter((c) => c.pid !== chooserPid)
+        const picked = pickAutoSource(state, drainPid === undefined && oppSide.length > 0 ? oppSide : candidates, hurting)
         const taken = takeOneFromSource(ctx, picked, to)
         step(left - (taken > 0 ? 1 : 0), taken > 0 ? excludeIds : [...excludeIds, sourceIdOf(picked)])
     }

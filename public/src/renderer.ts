@@ -36,7 +36,7 @@ import {
     canAwaken as sharedCanAwaken,
     minLevelCores,
     sokuPayableInstanceIds,
-    OPPONENT_RESERVE_TARGET,
+    coreZoneChoiceId,
     canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
@@ -226,6 +226,12 @@ export function magicTargetSide(
         effect.action.type === "returnToDeckTop"
     ) {
         return "opponent"
+    }
+    // 先取りするのは「相手のスピリット1体から取る」形だけ。複数から1個ずつ・取り先が並ぶ・相手が選ぶ等はサーバーの選択待ちに任せる
+    if (effect.action.type === "removeCores") {
+        const a = effect.action
+        const simple = a.side === undefined && a.target === undefined && a.targets === undefined && a.from === undefined
+        return simple && a.chooser === undefined && a.filter === undefined ? "opponent" : null
     }
     if (
         effect.action.type === "bpBuff" ||
@@ -880,16 +886,16 @@ function renderInfo(
         && ui.awakenTarget !== null
         && canAwakenFromReserve(view, view.you, awakenInstForHighlight)
         && p.reserve >= 1
-    // 効果解決の選択待ちで「相手のリザーブ」が候補になっているか（犬人マードック）
-    const oppReserveChoice = !isSelf
-        && view.pendingChoice?.pid === view.you
-        && (view.pendingChoice?.candidates ?? []).includes(OPPONENT_RESERVE_TARGET)
+    // 効果解決の選択待ちで、このプレイヤーのリザーブ／トラッシュのコアが候補になっているか（取り先を1個ずつ選ぶ removeCores）
+    const myChoiceCandidates = view.pendingChoice?.pid === view.you ? (view.pendingChoice.candidates ?? []) : []
+    const zoneChoice = (zone: "reserve" | "trash"): string | undefined =>
+        myChoiceCandidates.includes(coreZoneChoiceId(zone, pid)) ? coreZoneChoiceId(zone, pid) : undefined
     // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
         ["reserve", `🔵 リザーブ ${p.reserve}`],
-        ["", `トラッシュコア ${p.trashCores}`],
+        ["trash-cores", `トラッシュコア ${p.trashCores}`],
         // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
         ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
         // バーストのセット状況（公開情報）。中身は出さない。自分側だけターン1回制限の消化を添える
@@ -915,10 +921,11 @@ function renderInfo(
             span.dataset.reserve = "self"
             if (reserveHighlight) span.classList.add("targetable", "clickable")
         }
-        // 相手のリザーブも、選択待ちの候補になっているときだけクリック対象にする
-        if (!isSelf && isReserve) {
-            span.dataset.reserve = "opponent"
-            if (oppReserveChoice) span.classList.add("targetable", "clickable")
+        // リザーブ／トラッシュのコアは、選択待ちの候補になっているときだけクリック対象にする
+        const choiceId = isReserve ? zoneChoice("reserve") : cls === "trash-cores" ? zoneChoice("trash") : undefined
+        if (choiceId !== undefined) {
+            span.dataset.corezone = choiceId
+            span.classList.add("targetable", "clickable")
         }
         span.textContent = text
         el.appendChild(span)

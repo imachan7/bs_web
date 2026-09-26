@@ -1364,9 +1364,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "dest": "trash"
+     "type": "removeCores",
+     "to": "trash",
+     "count": 1
     }
    }
   ]
@@ -1422,13 +1422,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemoveMulti",
-     "targets": 0,
-     "allTargets": true,
-     "count": 1,
-     "costFilter": {
-      "max": 3
-     }
+     "type": "removeCores",
+     "target": "all",
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     },
+     "count": 1
     }
    }
   ]
@@ -1653,7 +1654,7 @@
     "phase": "attack",
     "familyFilter": "竜人",
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    },
@@ -2153,10 +2154,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
-     "count": 0,
-     "all": true,
-     "dest": "void"
+     "type": "removeCores",
+     "to": "void",
+     "count": "all"
     }
    }
   ]

@@ -82,7 +82,7 @@ console.log("--- SD01-013 冥剣士ベリト：召喚時はコア3個を配分�
     const b = put(s, "p2", VANILLA, 3)
     const self = put(s, "p1", BERITH, coresFor(BERITH, 1))
     const before = s.players.p2.reserve
-    resolveAction(s, "p1", self, { type: "coreRemoveDistributed", count: 3, leaveAtLeast: 1, chooserIsTarget: true })
+    resolveAction(s, "p1", self, { type: "removeCores", target: "spread", to: "reserve", count: 3, leaveAtLeast: 1, chooser: "owner" })
     assert(a.cores >= 1 && b.cores >= 1, `どちらも0個にはならない（${a.cores}/${b.cores}）`)
     assert(a.cores + b.cores === 3, `合計3個が取り除かれる（残り${a.cores + b.cores}個）`)
     assert(s.players.p2.reserve === before + 3, "取り除いたコアは相手のリザーブへ置かれる")
@@ -93,7 +93,7 @@ console.log("--- SD01-013 冥剣士ベリト：召喚時はコア3個を配分�
     const a = put(s, "p2", VANILLA, 1)
     const self = put(s, "p1", BERITH, coresFor(BERITH, 1))
     const before = s.players.p2.reserve
-    resolveAction(s, "p1", self, { type: "coreRemoveDistributed", count: 3, leaveAtLeast: 1, chooserIsTarget: true })
+    resolveAction(s, "p1", self, { type: "removeCores", target: "spread", to: "reserve", count: 3, leaveAtLeast: 1, chooser: "owner" })
     assert(a.cores === 1, "コア1個の相手からは取れない（0個にはできない）")
     assert(s.players.p2.reserve === before, "リザーブも増えない")
 }

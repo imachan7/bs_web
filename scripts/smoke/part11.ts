@@ -24,6 +24,8 @@ console.log("=== BS02-022 魔界侯爵コキュートス e1：自分のリフレ
         { p1: "purple", p2: "red" },
     )
     runTurnStart(s) // p1のターン開始（turn=3に進む、phase=main）
+    // 2026-09-26 の統合で、対象を選ばせるのは対戦者が操作するとき（interactiveTargets）だけになった
+    s.interactiveTargets = true
     const cocytus = createInstance("BS02-022", s.turn, 1) // Lv1（維持コア1）
     cocytus.isRested = true // 疲労状態から次の自分のリフレッシュステップで回復させる
     s.players.p1.field.spirits.push(cocytus)

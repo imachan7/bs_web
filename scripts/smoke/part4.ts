@@ -103,13 +103,14 @@ console.log("=== coreSqueezeOne：コブライガ e1（BS01-041、召喚時に�
     assert(s2.log.length > logLen, "対象なしのログが出る")
 }
 
-console.log("=== coreToVoidOwn：ハンマドレイク e1（BS01-007、召喚時に自分のコア1個をボイドへ） ===")
+console.log("=== removeCores（旧coreToVoidOwn）：ハンマドレイク e1（BS01-007、召喚時に自分のコア1個をボイドへ） ===")
 {
     // 注: 通常の召喚（summon）はコスト支払い分もいったんtrashCoresへ積む仕様（次のリフレッシュで
     // リザーブへ戻る）ため、summon経由だとtrashCoresの検証にコスト支払い分が混ざってしまう。
-    // このアクション自体の挙動（trashCores優先／フィールド優先）を厳密に検証するため、
-    // resolveActionを直接呼んで（コスト支払いを経由せず）テストする。
-    console.log("--- trashCoresがある場合はそこから減る（フィールド不変） ---")
+    // このアクション自体の挙動を厳密に検証するため、resolveActionを直接呼んで
+    // （コスト支払いを経由せず）テストする。
+    // 自分のコアを失う側が選ぶので、自動選択は損の小さいトラッシュから（2026-09-26 の統合後も旧来と同じ向き）
+    console.log("--- トラッシュにコアがあればそちらから減る ---")
     const s = createGame(
         "coretovoid-trash-test",
         { p1: "アキラ", p2: "ユウキ" },
@@ -119,12 +120,12 @@ console.log("=== coreToVoidOwn：ハンマドレイク e1（BS01-007、召喚時
     const hammer = createInstance("BS01-007", s.turn, 1) // ハンマドレイク自身（維持コア1）
     s.players.p1.field.spirits.push(hammer)
     s.players.p1.trashCores = 2
-    resolveAction(s, "p1", hammer, { type: "coreToVoidOwn", count: 1 })
+    resolveAction(s, "p1", hammer, { type: "removeCores", side: "own", from: ["spirit", "nexus", "trash"], to: "void", target: "spread", count: 1 })
     assert(s.players.p1.trashCores === 1, "トラッシュのコアが1個減る")
-    assert(hammer.cores === 1, "ハンマドレイク自身のコアは変化しない（維持コア1）")
+    assert(hammer.cores === 1, "ハンマドレイク自身のコアは減らない")
 
     console.log(
-        "--- trashCoresが0の場合はフィールドのコア（実効BP最小）が減りボイドへ（リザーブにもトラッシュにも増えない） ---",
+        "--- トラッシュのコアが1個でも減る（リザーブは増えない） ---",
     )
     const s2 = createGame(
         "coretovoid-field-test",
@@ -132,14 +133,13 @@ console.log("=== coreToVoidOwn：ハンマドレイク e1（BS01-007、召喚時
         { p1: "red", p2: "purple" },
     )
     runTurnStart(s2)
-    const weak = createInstance("BS01-001", s2.turn, 2) // ゴラドン Lv1・BP1000（コア2）
     const hammer2 = createInstance("BS01-007", s2.turn, 1) // ハンマドレイク自身 Lv1・BP4000（コア1）
-    s2.players.p1.field.spirits.push(weak, hammer2)
+    s2.players.p1.field.spirits.push(hammer2)
+    s2.players.p1.trashCores = 1
+    hammer2.cores = 0
     const reserveBefore = s2.players.p1.reserve
-    resolveAction(s2, "p1", hammer2, { type: "coreToVoidOwn", count: 1 })
-    assert(weak.cores === 1, "実効BP最小のゴラドンのコアが1個減る")
-    assert(hammer2.cores === 1, "ハンマドレイク自身は変化しない（自身よりBPが低い対象が優先される）")
-    assert(s2.players.p1.trashCores === 0, "トラッシュのコアは増えない")
+    resolveAction(s2, "p1", hammer2, { type: "removeCores", side: "own", from: ["spirit", "nexus", "trash"], to: "void", target: "spread", count: 1 })
+    assert(s2.players.p1.trashCores === 0, "トラッシュのコアが1個減る")
     assert(s2.players.p1.reserve === reserveBefore, "リザーブはボイド分では変化しない")
 }
 
@@ -162,7 +162,7 @@ console.log(
     const p2Enemy = createInstance("BS01-053", s.turn, 2) // リーヴォルフ Lv1・BP2000（コア2）
     s.players.p2.field.spirits.push(p2Enemy)
 
-    resolveAction(s, "p1", bug, { type: "bothSidesCoreToTrash", count: 1 })
+    resolveAction(s, "p1", bug, { type: "removeCores", side: "both", to: "trash", count: 1 })
 
     assert(p1Ally.cores === 1, "p1側の実効BP最大スピリット（シェイロン）のコアが1個減る")
     assert(s.players.p1.trashCores === 1, "p1側のトラッシュコアが1個増える")
@@ -181,7 +181,7 @@ console.log(
     s2.players.p1.field.spirits.push(bug2)
     const p1Ally2 = createInstance("BS01-046", s2.turn, 2) // 幻龍シェイロン Lv1・BP4000（コア2）
     s2.players.p1.field.spirits.push(p1Ally2)
-    resolveAction(s2, "p1", bug2, { type: "bothSidesCoreToTrash", count: 1 })
+    resolveAction(s2, "p1", bug2, { type: "removeCores", side: "both", to: "trash", count: 1 })
     assert(p1Ally2.cores === 1, "p1側は処理される（シェイロンのコアが1個減る）")
     assert(s2.players.p1.trashCores === 1, "p1側のトラッシュコアが1個増える")
     assert(s2.players.p2.trashCores === 0, "p2側は対象がいなかったのでトラッシュコアは増えない")

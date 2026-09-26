@@ -214,7 +214,14 @@ console.log("=== BS15-075 ブラッディロンド：コア合計が多い方が
     const s = game("p331-075", "purple", "red")
     s.players.p1.reserve = 10
     s.players.p2.reserve = 2
-    resolveAction(s, "p1", null, { type: "coreToVoidEqualizeByTotal" })
+    resolveAction(s, "p1", null, {
+        type: "removeCores",
+        from: ["spirit", "nexus", "reserve", "trash"],
+        to: "void",
+        count: 0,
+        downTo: "equalize",
+        chooser: "owner",
+    })
     assert(s.players.p1.reserve === 2, "多かった自分がボイドへ置き、相手と同じ合計になった")
     const target = createInstance("BS01-001", s.turn, 1)
     s.players.p2.field.spirits.push(target)

@@ -111,7 +111,9 @@ console.log("=== BS07 紫：自分のスピリットすべての『破壊時』�
             c.type === "spirit" &&
             e["kind"] === "triggered" &&
             e["trigger"] === "onDestroy" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemove",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "removeCores" &&
+            (e["action"] as Record<string, unknown>)["side"] === undefined &&
+            (e["action"] as Record<string, unknown>)["target"] === undefined,
     )
     const batEntry = entryOf(bat, (e) => e["kind"] === "triggered" && e["trigger"] === "onDestroy")
     const batLevel = ((batEntry["levels"] as number[] | null) ?? [1])[0]!
@@ -132,7 +134,10 @@ console.log("=== BS07 紫：ネクサス破壊で相手のスピリットすべ�
 {
     const swamp = findByEffect(
         (e) =>
-            ((e["action"] as Record<string, unknown> | undefined)?.["allTargets"] as boolean | undefined) === true,
+            e["kind"] === "fieldEvent" &&
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "removeCores" &&
+            (e["action"] as Record<string, unknown>)["target"] === "all" &&
+            (e["action"] as Record<string, unknown>)["side"] === undefined,
     )
     const s = base("core-remove-all")
     putNexus(s, "p1", swamp.cardId, 0)
@@ -282,7 +287,9 @@ console.log("=== BS07 紫：相手の効果で破壊されたとき、破壊時�
             c.type === "spirit" &&
             e["kind"] === "triggered" &&
             e["trigger"] === "onDestroy" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemove",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "removeCores" &&
+            (e["action"] as Record<string, unknown>)["side"] === undefined &&
+            (e["action"] as Record<string, unknown>)["target"] === undefined,
     )
     const triggerEntry = entryOf(withTrigger, (e) => e["kind"] === "triggered" && e["trigger"] === "onDestroy")
     const triggerLevel = ((triggerEntry["levels"] as number[] | null) ?? [1])[0]!

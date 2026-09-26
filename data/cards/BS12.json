@@ -723,9 +723,9 @@
         "eventTargetIsSelf": true,
         "optional": false,
         "action": {
-          "type": "coreRemove",
-          "count": 1,
-          "dest": "trash"
+          "type": "removeCores",
+          "to": "trash",
+          "count": 1
         }
       }
     ]
@@ -4286,7 +4286,7 @@
         "ownOnly": true,
         "familyFilter": "無魔",
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         }
       }
@@ -5627,7 +5627,7 @@
           "星魂"
         ],
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         }
       },

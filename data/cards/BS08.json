@@ -749,10 +749,13 @@
     "turn": "opponent",
     "maxBp": 6000,
     "action": {
-     "type": "coreToOpponentTrashChoice",
+     "type": "removeCores",
+     "from": [
+      "spirit"
+     ],
+     "to": "trash",
      "count": 1,
-     "spiritsOnly": true,
-     "chooserIsTarget": true
+     "chooser": "owner"
     },
     "selfMode": "source"
    }
@@ -938,11 +941,12 @@
     "ownOnly": true,
     "familyFilter": "龍帝",
     "action": {
-     "type": "coreRemoveMulti",
-     "targets": 0,
-     "allTargets": true,
-     "count": 1,
-     "keywordExclude": "tensho"
+     "type": "removeCores",
+     "target": "all",
+     "filter": {
+      "keywordExclude": "tensho"
+     },
+     "count": 1
     }
    }
   ]
@@ -3922,11 +3926,11 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
-     "count": 1,
+     "type": "removeCores",
      "filter": {
       "maxBp": 5000
-     }
+     },
+     "count": 1
     }
    },
    {
@@ -4756,18 +4760,18 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "coreRemove",
+      "type": "removeCores",
       "side": "own",
-      "spread": true,
-      "count": 5,
-      "dest": "trash"
+      "to": "trash",
+      "target": "spread",
+      "count": 5
      },
      "then": {
-      "type": "coreRemove",
-      "spread": true,
+      "type": "removeCores",
+      "to": "trash",
+      "target": "spread",
       "count": 5,
-      "dest": "trash",
-      "chooserIsTarget": true
+      "chooser": "owner"
      }
     }
    },
@@ -5537,9 +5541,8 @@
      3
     ],
     "action": {
-     "type": "coreRemoveMulti",
-     "targets": 0,
-     "allTargets": true,
+     "type": "removeCores",
+     "target": "all",
      "count": 2
     },
     "optional": false
@@ -5570,9 +5573,9 @@
      3
     ],
     "action": {
-     "type": "coreRemove",
-     "count": 2,
-     "dest": "void"
+     "type": "removeCores",
+     "to": "void",
+     "count": 2
     },
     "optional": false
    }

@@ -96,7 +96,7 @@ console.log("=== BS09-018 暗空の勇者皇ザンバ：アタック時、Lvと�
     assert(s.players.p2.reserve === reserveBefore + 2, "取り除いた2個は相手のリザーブへ")
 }
 
-console.log("=== BS09-017 の器：opponentCoresToTrash.reserveAll ===")
+console.log("=== BS09-017 の器：removeCores（from:[reserve], count:\"all\"） ===")
 {
     const s: GameState = createGame("reserve-all", { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
     runTurnStart(s)
@@ -104,7 +104,7 @@ console.log("=== BS09-017 の器：opponentCoresToTrash.reserveAll ===")
     const enemy = put(s, "p2", PLAIN, 3)
     s.players.p2.reserve = 4
     const trashBefore = s.players.p2.trashCores
-    resolveAction(s, "p1", src, { type: "opponentCoresToTrash", reserveAll: true, count: 0 })
+    resolveAction(s, "p1", src, { type: "removeCores", from: ["reserve"], to: "trash", target: "spread", count: "all" })
     assert(s.players.p2.reserve === 0, "相手のリザーブが空になる")
     assert(s.players.p2.trashCores === trashBefore + 4, "リザーブのコアはすべてトラッシュへ")
     assert(enemy.cores === 3, "スピリット上のコアには触れない")

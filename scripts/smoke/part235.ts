@@ -72,7 +72,7 @@ console.log("=== コア圧縮（coreSqueezeOne）：下限があるとLv1コス�
     // 対照：柱状彫刻が無ければ従来どおりコア1個まで減る（維持コア割れで消滅する）
     const bare = base("p235-squeeze-bare")
     const victimBare = put(bare, "p2", HEAVY.cardId, 5)
-    resolveAction(bare, "p1", null, { type: "coreSqueezeOne", count: 1 }, undefined, ["red"] as never, "magic")
+    resolveAction(bare, "p1", null, { type: "removeCores", targets: 1, count: "all", leaveAtLeast: 1 }, undefined, ["red"] as never, "magic")
     assert(
         !bare.players.p2.field.spirits.some((s) => s.instanceId === victimBare.instanceId),
         "柱状彫刻が無ければコア1個まで減り、維持コア割れで消滅する",
@@ -82,7 +82,7 @@ console.log("=== コア圧縮（coreSqueezeOne）：下限があるとLv1コス�
     putPillar(s)
     const victim = put(s, "p2", HEAVY.cardId, 5)
     const reserveBefore = s.players.p2.reserve
-    resolveAction(s, "p1", null, { type: "coreSqueezeOne", count: 1 }, undefined, ["red"] as never, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", targets: 1, count: "all", leaveAtLeast: 1 }, undefined, ["red"] as never, "magic")
     assert(victim.cores === floor, `下限（${String(floor)}個）で止まる（実際: ${String(victim.cores)}個）`)
     assert(
         s.players.p2.reserve === reserveBefore + (5 - floor),

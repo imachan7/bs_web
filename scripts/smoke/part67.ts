@@ -226,7 +226,7 @@ console.log(
     assert(targetInst.isRested === true, "相手(p1)の貸与中の効果で、コアが増えたp2のスピリットは疲労する")
 
     targetInst.isRested = false
-    resolveAction(s, "p2", targetInst, { type: "coreRemoveSelf", count: 1 })
+    resolveAction(s, "p2", targetInst, { type: "removeCores", side: "own", target: "self", count: 1 })
     assert((targetInst.isRested as boolean) === true, "コアが減った場合も疲労する（onRemove）")
 
     targetInst.isRested = false

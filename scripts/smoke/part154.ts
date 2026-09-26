@@ -63,7 +63,7 @@ console.log("=== 範囲のコア圧搾（coreSqueezeAll）は【装甲】を尊�
     const s = base("squeeze-armor")
     const guarded = put(s, "p2", armored.cardId, 4)
     const plain = put(s, "p2", FILLER.cardId, 4)
-    resolveAction(s, "p1", null, { type: "coreSqueezeAll" }, undefined, ["red"] as never, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", side: "both", target: "all", count: "all", leaveAtLeast: 1 }, undefined, ["red"] as never, "magic")
     assert(guarded.cores === 4, `【装甲：赤】を持つ${armored.name}はコアを取られない`)
     assert(plain.cores === 1, `装甲を持たない${FILLER.name}はコア1個だけ残る（実際: ${String(plain.cores)}個）`)
 }
@@ -93,17 +93,20 @@ console.log("=== BS05茨の決戦地Lv1：バトル中のスピリットのコ�
         blockerInstanceId: battling.instanceId,
         directed: false,
     }
-    resolveAction(s, "p1", null, { type: "coreSqueezeAll" }, undefined, ["red"] as never, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", side: "both", target: "all", count: "all", leaveAtLeast: 1 }, undefined, ["red"] as never, "magic")
     assert(battling.cores === 4, "バトル中のスピリットはコアを取り除かれない")
     assert(bench.cores === 1, "バトルしていないスピリットは通常どおり取り除かれる")
 }
 
 console.log("=== 相手のコアをトラッシュへ送る範囲効果（氷の女神フリッグ）も同様 ===")
 {
-    const frigg = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "opponentCoresToTrash")
-    const action = (frigg.effects ?? []).find(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "opponentCoresToTrash",
-    )!["action"] as Record<string, unknown>
+    const isFriggAction = (e: Record<string, unknown>): boolean => {
+        if (e["kind"] !== "fieldEvent" || e["event"] !== "opponentMagicUsed") return false
+        const action = e["action"] as Record<string, unknown> | undefined
+        return action?.["type"] === "removeCores" && action["target"] === "spread" && Array.isArray(action["from"]) && (action["from"] as string[]).includes("reserve")
+    }
+    const frigg = findByEffect((e) => isFriggAction(e))
+    const action = (frigg.effects ?? []).find((e) => isFriggAction(e))!["action"] as Record<string, unknown>
     const armored = CARDS.find((c) =>
         (c.effects ?? []).some(
             (e) =>

@@ -826,7 +826,7 @@
      2
     ],
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     },
     "optional": false
@@ -4093,9 +4093,15 @@
     "phase": "main",
     "repeatPerCount": true,
     "action": {
-     "type": "coreToOpponentTrashChoice",
-     "count": 1,
-     "includeReserve": true
+     "type": "removeCores",
+     "from": [
+      "spirit",
+      "nexus",
+      "reserve"
+     ],
+     "to": "trash",
+     "target": "spread",
+     "count": 1
     }
    }
   ]
@@ -5218,7 +5224,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1,
      "countCounter": "lastFunsaiTotal"
     }
@@ -6930,9 +6936,11 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "coreSqueezeOne",
-     "count": 1,
-     "anySide": true
+     "type": "removeCores",
+     "side": "any",
+     "targets": 1,
+     "count": "all",
+     "leaveAtLeast": 1
     }
    }
   ]

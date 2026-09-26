@@ -812,7 +812,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1,
      "countCounter": "opponentFieldColors"
     }
@@ -3870,7 +3870,7 @@
     "levels": null,
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    }
@@ -5038,7 +5038,17 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "coreToVoidEqualizeByTotal"
+     "type": "removeCores",
+     "from": [
+      "spirit",
+      "nexus",
+      "reserve",
+      "trash"
+     ],
+     "to": "void",
+     "count": 0,
+     "downTo": "equalize",
+     "chooser": "owner"
     }
    },
    {
@@ -5661,9 +5671,9 @@
     "subjectSide": "own",
     "subjectKeywordFilter": "fushi",
     "action": {
-     "type": "coreRemove",
-     "count": 2,
-     "dest": "trash"
+     "type": "removeCores",
+     "to": "trash",
+     "count": 2
     }
    }
   ]

@@ -18,7 +18,7 @@ import {
     hideWaiting,
     type UiState,
 } from "./renderer"
-import { AWAKEN_FROM_RESERVE, OPPONENT_RESERVE_TARGET, canAltSummonFromHand, canAwakenFromReserve, instAttackRequiresCoreToll, instMinLevelCores, minLevelCores, sokuPayableInstanceIds, timedContentsOn } from "../../shared/rules"
+import { AWAKEN_FROM_RESERVE, canAltSummonFromHand, canAwakenFromReserve, instAttackRequiresCoreToll, instMinLevelCores, minLevelCores, sokuPayableInstanceIds, timedContentsOn } from "../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../shared/summon"
 
@@ -1391,11 +1391,14 @@ async function init(): Promise<void> {
             return
         }
     })
-    // 相手のリザーブが選択待ちの候補になっているとき（犬人マードック）にクリックで選ぶ
-    byId("opp-info").addEventListener("click", (e) => {
-        if (!closestData(e, "data-reserve")) return
-        tryResolveChoice(OPPONENT_RESERVE_TARGET)
-    })
+    // リザーブ／トラッシュのコアが選択待ちの候補になっているとき（removeCores で取り先を1個ずつ選ぶ）にクリックで選ぶ
+    for (const infoId of ["opp-info", "my-info"]) {
+        byId(infoId).addEventListener("click", (e) => {
+            const zone = closestData(e, "data-corezone")
+            if (!zone) return
+            tryResolveChoice(String(zone.dataset.corezone))
+        })
+    }
 
     byId("opp-nexuses").addEventListener("click", (e) => {
         const el = closestData(e, "data-instance-id")

@@ -292,7 +292,7 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 2
         }
       }
@@ -481,7 +481,7 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1,
           "countCounter": {
             "ownFamily": "霊獣"
@@ -630,7 +630,8 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemoveAllOpponent",
+          "type": "removeCores",
+          "target": "all",
           "count": 1
         }
       },
@@ -768,8 +769,10 @@
         "fromHandOnly": true,
         "optional": false,
         "action": {
-          "type": "coreSqueezeOne",
-          "count": 2
+          "type": "removeCores",
+          "targets": 2,
+          "count": "all",
+          "leaveAtLeast": 1
         }
       },
       {
@@ -852,8 +855,10 @@
         "byOpponentEffectOnly": true,
         "subjectSide": "own",
         "action": {
-          "type": "coreSqueezeOne",
-          "count": 1
+          "type": "removeCores",
+          "targets": 1,
+          "count": "all",
+          "leaveAtLeast": 1
         },
         "thenPay": "flash"
       },
@@ -941,7 +946,7 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1,
           "countCounter": {
             "ownFamily": [

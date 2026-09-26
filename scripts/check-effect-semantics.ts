@@ -685,7 +685,7 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
         // coreToTrashSelf は「self 上のコアを持ち主のトラッシュへ」なので、
         // アタック/疲労したスピリット自身が対象で固定されている
         // （魔帝の墓標／魔力満ちる泉／藍紫の虚空／魔帝の寝所）
-        if (a.type === "coreToTrashSelf") return true
+        if (a.type === "removeCores" && a.target === "self") return true
         // 等価表現4（2026-09-13 に S6 を全12件仕分けて追加）：
         // **イベント対象そのものに作用する／実行者に依存しない action** は、
         // 主体がどちらでも結果が変わらないので対象外にする。

@@ -90,7 +90,9 @@ console.log("=== BS07：召喚時に自分全体の『破壊時』効果を発�
             c.type === "spirit" &&
             e["kind"] === "triggered" &&
             e["trigger"] === "onDestroy" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "coreRemove",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "removeCores" &&
+            (e["action"] as Record<string, unknown>)["side"] === undefined &&
+            (e["action"] as Record<string, unknown>)["target"] === undefined,
     )
     const helperEntry = entryOf(helperCard, (e) => e["kind"] === "triggered" && e["trigger"] === "onDestroy")
     const helperLevel = ((helperEntry["levels"] as number[] | null) ?? [1])[0]!

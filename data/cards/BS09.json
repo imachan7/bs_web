@@ -772,7 +772,7 @@
         "turn": "opponent",
         "colorFilter": "red",
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         }
       }
@@ -823,9 +823,11 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreSqueezeOne",
-          "count": 1,
-          "dest": "trash"
+          "type": "removeCores",
+          "to": "trash",
+          "targets": 1,
+          "count": "all",
+          "leaveAtLeast": 1
         }
       }
     ]
@@ -875,7 +877,7 @@
         ],
         "fushiSummonOnly": true,
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         }
       }
@@ -1071,7 +1073,7 @@
         "turn": "opponent",
         "colorFilter": "red",
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         }
       },
@@ -1171,9 +1173,13 @@
         ],
         "optional": false,
         "action": {
-          "type": "opponentCoresToTrash",
-          "reserveAll": true,
-          "count": 0
+          "type": "removeCores",
+          "from": [
+            "reserve"
+          ],
+          "to": "trash",
+          "target": "spread",
+          "count": "all"
         }
       }
     ]
@@ -1246,7 +1252,7 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1,
           "countCounter": "selfLevel"
         }
@@ -3857,7 +3863,7 @@
         ],
         "phase": "attack",
         "action": {
-          "type": "coreRemove",
+          "type": "removeCores",
           "count": 1
         }
       },
@@ -4585,18 +4591,18 @@
         "action": {
           "type": "pay",
           "cost": {
-            "type": "coreRemove",
+            "type": "removeCores",
             "side": "own",
-            "spread": true,
-            "count": 1,
-            "dest": "trash"
+            "to": "trash",
+            "target": "spread",
+            "count": 1
           },
           "then": {
-            "type": "coreRemove",
-            "spread": true,
+            "type": "removeCores",
+            "to": "trash",
+            "target": "spread",
             "count": 1,
-            "dest": "trash",
-            "chooserIsTarget": true
+            "chooser": "owner"
           }
         }
       }
