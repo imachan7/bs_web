@@ -607,7 +607,24 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst"])
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "declare"])
+
+// declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
+export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {
+    const out: { cardId: string; message: string }[] = []
+    const walk = (o: unknown, cardId: string, inside: boolean): void => {
+        if (Array.isArray(o)) {
+            for (const x of o) walk(x, cardId, inside)
+            return
+        }
+        if (o === null || typeof o !== "object") return
+        const r = o as Record<string, unknown>
+        if ("declared" in r && !inside) out.push({ cardId, message: "declared は declare の then の中にだけ書ける" })
+        for (const [k, v] of Object.entries(r)) walk(v, cardId, inside || (r["type"] === "declare" && k === "then"))
+    }
+    for (const c of cards) walk(c.effects, c.cardId, false)
+    return out
+}
 
 export function findUnusedActions(cards: CardData[]): string[] {
     const used = new Set<string>()
@@ -680,6 +697,7 @@ function main(): void {
     const issues = validateCards(cards)
 
     issues.push(...findUndeclaredEffectKeys(cards))
+    issues.push(...findStrayDeclared(cards))
 
     for (const a of findUnusedActions(cards)) {
         issues.push({

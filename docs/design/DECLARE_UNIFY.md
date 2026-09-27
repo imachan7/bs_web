@@ -9,7 +9,7 @@ R5_TRIAGE の G-exceptColor・G-familyChoice と、「指定する」を名前�
 | `declare` | 組み合わせ方 | `{ what: "color"｜"family"｜"cost", options?, from?, chooser?: "opponent"｜"each", then }` | 「値を1つ選び、後ろの効果の絞り込みに使う」を書く器が無い。`if`・`sequence` は値を渡さない |
 | `declared` | 絞り込みの軸 | `TargetFilter.declared`・`CardPick.declared` に `"match"`（指定した値を持つ）／`"except"`（指定されなかった色を1つでも持つ） | 既存の `color`・`family`・`cost` は固定値しか書けない |
 
-- 指定した値は記録の枠（record.ts。IF_UNIFY §6）に `declared` として残す。`then` の中だけが読む
+- 指定した値は記録の枠に置かず、`then` の中の `declared` を実際の値（`color`・`family`・`cost`・`colorNotIn`）に**書き換えてから**解決する（`then` が `sequence` だと記録の枠が変わって読めないため。継続効果にも値がそのまま残る）。`declare` の外の `declared` は validate:cards が落とす
 - 候補：`options`（効果文が並べる：「緑/黄から」「コスト4以下から」「想獣か獣頭」）か `from`（盤面から：「自分のフィールドに出ているスピリットの色」）。どちらも無ければ全色
 - `chooser: "each"`（お互い）は、発生源の持ち主→相手の順に指定し、`except` はどちらかが指定した色を安全とする（今の実装どおり）
 - 「このターンの間、指定した色の〜」（継続効果）は、置く時点で `declared` を実際の値に置き換えて `timedEffect` に書く（PR3）
@@ -33,10 +33,14 @@ R5_TRIAGE の G-exceptColor・G-familyChoice と、「指定する」を名前�
 
 ## §3 確認したいこと（私はこう読みました → これでいいですか）
 
-（ユーザーの答えをここに書く）
+2026-09-27 ユーザー確認（3つとも私の読みどおり）
+- 自動で決めていた6枚（exhaustAllByColor 3枚・refreshByFamilyAuto 2枚・プレシオス）は、プレイヤーが選べるようにする。非対話（AI・テスト）の自動選択は近い形で残す
+- 「色をひとつ選び」「色1色を指定する」（候補の書かれていないもの）は6色すべて。場にいない色も指定できる
+- 「系統1つを指定する」は自分のフィールドのスピリットが持つ系統（五輪転生炎の 09-16 の決定と同じ）
+- 多色の個体と「指定されなかった色」：指定されなかった色を1つでも持てば対象（ケンドラゴス・マタドーラの今の実装と同じ。確認は不要だった）
 
 ## §4 PR の分け方
 
-1. 器：`declare`・`declared` 軸・記録。カードデータは触らない
+1. 器：`declare`・`declared`／`colorNotIn` 軸。カードデータは触らない
 2. 移行（即時の効果）：§2 の上から10行
 3. 継続効果の4種と、トラッシュ→手札の器がそろったらヴァリエル

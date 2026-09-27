@@ -81,6 +81,8 @@ export interface TargetFilter {
     exactBp?: "selfBp" // 発生源と実効BPが同じものだけ（BS01プテラトマホーク）
     color?: Color // この色を持つ（多色カードはOR判定。instHasColor/cardHasColor 経由）
     colorExclude?: Color // この色を持つものを除外
+    colorNotIn?: Color[] // 並べた色以外の色を1つでも持つ（「指定されなかった色のスピリット」）
+    declared?: "match" | "except" // declare の then の中だけで書く。解決前に color／family／cost／colorNotIn へ置き換わる（DECLARE_UNIFY §1）
     family?: FamilyFilter // 系統（配列＝いずれかでOR。付与系統も考慮）
     familyAll?: string[] // 指定した系統すべてを持つ（AND。familyのOR配列とは別軸。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     cost?: { max?: number; min?: number; in?: number[] } // in＝いずれかのコストと一致
@@ -109,9 +111,7 @@ export interface TargetFilter {
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
     sameCostAsLast?: true // 直前に動いたカード（logic/record.ts）の先頭と同じコスト。記録が空なら対象なし
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
-    // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
-    // onBlock なら**アタックしている相手**（SD02-002 ミザール）。かつて sameCostAsBlocker という名前だったが、
-    // ブロッカー限定だと読める名前で実体と食い違っていたため 2026-08-16 に改名した
+    // イベント対象は誘発ごとに違う（onBlocked＝ブロッカー、onBlock＝アタックしている相手）
     unblockableOnly?: true // 「ブロックされない」効果を持つものだけ（継続的な制約 unblockableBy ／期間つき効果の unblockable のどちらでもよい。BS09-049炎蜥蜴クトゥグマLv3）
     hasUnblockableEffectOrActive?: true // BS15共通器：カード自身の効果文に「ブロックされない」（kind:"constraint" constraint:"unblockableBy"）を持てば**条件の成否を問わず**対象。加えて、unblockableOnlyと同じく他の効果で**今まさに**ブロックされなくなっているスピリットも対象（両方のOR。BS15-051虚海獣エメヒドラルLv2：「『ブロックされない』効果を持つ相手のスピリット1体」＝2026-09-18ユーザー確認G）
     keywords?: Keyword[] // 指定したキーワードの**いずれか**を持つもの（keyword の複数版。OR。BS09-068ランドマイン＝覚醒/呪撃/神速/光芒/粉砕）
