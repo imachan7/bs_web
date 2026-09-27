@@ -882,7 +882,7 @@ export type EffectDef =
           kind: "levelAs" // 継続的な「Lv◯として扱う」置換
           levels: null
           whileCombined?: true
-          target: "self" | "ownNexusesAll" | "opponentNexusesAll" | "ownSpiritsAll" | "ownSpiritsByKeyword" | "ownSpiritsByFamily" | "ownSpiritsVanilla" | "opponentSpiritsAll" | "allSpiritsByChosenColor" | "opponentBlockersOfOwnKeyword" // ByKeyword=keywordFilter一致（Lv不問）／ByFamily=familyFilterのOR／Vanilla=無地スピリット／allSpiritsByChosenColor=貸与時に選んだ色の両陣営
+          target: "self" | "ownNexusesAll" | "opponentNexusesAll" | "ownSpiritsAll" | "ownSpiritsByKeyword" | "ownSpiritsByFamily" | "ownSpiritsVanilla" | "opponentSpiritsAll" | "opponentBlockersOfOwnKeyword" // ByKeyword=keywordFilter一致（Lv不問）／ByFamily=familyFilterのOR／Vanilla=無地スピリット／allSpiritsByChosenColor=貸与時に選んだ色の両陣営
           treatAs: number | "max" | "coresScaled" | { plus: number } // 扱うレベル。
           // 数値=そのレベル固定／"max"=対象カード自身が持つ最高Lv（対象ごとに算出）／"coresScaled"=対象のコア数で換算／
           // { plus: N }=いまのレベルから相対的にN上げる（BS10-094 Lv2「Lvを1つ上のものとして扱う」。2026-08-25確認で「文字どおり」）。

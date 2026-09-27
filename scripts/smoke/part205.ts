@@ -219,6 +219,7 @@ console.log("=== BS02-111 スピリットイリュージョン × 封印され�
 {
     // 対照：魔導書が無ければ両陣営の指定色スピリットが最高Lv扱いになる（従来どおり）
     const s = base("illusion-no-book")
+    s.interactiveTargets = true
     const mine = put(s, "p1", ROKUKERA, 1)
     const theirs = put(s, "p2", ROKUKERA, 1)
     s.players.p1.hand = [ILLUSION]

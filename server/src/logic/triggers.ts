@@ -521,9 +521,9 @@ export function fireTrigger(
         .filter((g): g is Extract<TimedContent, { type: "grantTrigger" }> => g.type === "grantTrigger")
         .filter((g) => firedEvents.includes(g.trigger) && (g.battleRole === undefined || g.battleRole === battleRole))
         .filter((g) => {
-            if (g.targetColorFilter === undefined) return true
+            if (g.targetFilter === undefined) return true
             const other = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : null
-            return other != null && instHasColor(other.inst, g.targetColorFilter)
+            return other != null && matchesTarget(state, other.pid, other.inst, g.targetFilter as unknown as ResolvedTargetFilter)
         })
         .map((g) => g.action)
     const grantedActions = [

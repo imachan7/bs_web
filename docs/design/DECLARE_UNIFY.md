@@ -45,4 +45,5 @@ R5_TRIAGE の G-exceptColor・G-familyChoice と、「指定する」を名前�
 2. 移行（即時の効果）：済み＝destroyAllByChosenCost・exhaustAllByColor・refreshByFamilyAuto・destroyAllExceptChosenColors・returnFieldExceptOpponentChosenColor（8枚）。
    ネクサスを含む3種（destroyNexus.chooseColor・destroyFieldExceptOpponentChosenColor・destroyAllNexusesExceptChosenColors）も済み：destroyNexus に `filter` を足した。プレシオスの「ネクサスが合計3色以上あるとき」は `if{count: bothNexusColors}`。
    familyChoiceThenBpBuffAll（五輪転生炎）は `timedEffect{all}` で書いた。「このターンの間…すべて」は後から出た個体にも効く（SEMANTICS_AUDIT §3.12。旧実装は使った時点の個体だけだった）。drawPerChosenFamily（SD02-004）はカウンタ `{ ownSpirits: TargetFilter }` で書いた
-3. 継続効果の4種と、トラッシュ→手札の器がそろったらヴァリエル
+3. 継続効果：済み＝スピリットイリュージョン（`timedEffect{level max, all, both}`）・サマーソルトターン（`unblockable{from: declared}`）・スピニード・ハヤト（`grantTrigger{onBlocked, targetFilter: declared}`、target self）。仮想発生源に色を載せる仕組み（lentChoiceColor 等）は消した。
+   音鳥クルーク（grantFamilyChoiceAll）は手札のカードにも系統を与えるので timedEffect では書けず、今の仕組みのまま残す。ヴァリエルはトラッシュ→手札の器がそろってから

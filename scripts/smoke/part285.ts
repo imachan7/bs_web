@@ -1,6 +1,7 @@
 // smoke パート285（BS11：ブロックの追加コストと、指定色にブロックされたときの回復。037 / 054）
 import { act, assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart, giveTimed } from "./helpers"
 import type { GameState } from "./helpers"
+import type { EffectAction } from "../../server/src/type"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { validateBlock } from "../../server/src/logic/RuleValidator"
 import { timedContentsOn } from "../../shared/rules"
@@ -48,8 +49,8 @@ console.log("=== §B BS11-054：指定した色にブロックされたらアタ
     const blocker = createInstance(redSpirit!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(blocker)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", atk, { type: "refreshWhenBlockedByChosenColorThisTurn" })
-    assert(timedContentsOn(s, atk).some((c) => c.type === "grantTrigger" && c.trigger === "onBlocked" && c.targetColorFilter === "red"), "非対話では相手に最も多い色（赤）を指定する")
+    resolveAction(s, "p1", atk, (ALL_CARDS.find((c) => c.cardId === "BS11-054")!.effects[0] as { action: EffectAction }).action)
+    assert(timedContentsOn(s, atk).some((c) => c.type === "grantTrigger" && c.trigger === "onBlocked" && c.targetFilter?.color === "red"), "非対話では相手に最も多い色（赤）を指定する")
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言（疲労する）")
     assert(atk.isRested === true, "アタックで疲労している")
@@ -67,7 +68,7 @@ console.log("=== §B BS11-054：指定した色にブロックされたらアタ
     const blocker = createInstance(blue!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(blocker)
     refreshLevelAsOverrides(s)
-    giveTimed(s, atk, { type: "grantTrigger", trigger: "onBlocked", action: { type: "refreshSelf" }, targetColorFilter: "red" })
+    giveTimed(s, atk, { type: "grantTrigger", trigger: "onBlocked", action: { type: "refreshSelf" }, targetFilter: { color: "red" } })
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")

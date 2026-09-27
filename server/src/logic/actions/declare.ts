@@ -49,7 +49,8 @@ function substitute(node: unknown, what: DeclareAction["what"], values: Value[])
 }
 
 const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, chosenOption } = ctx
+    const { state, owner, opp, self, sourceName, chosenOption, srcColors, srcType } = ctx
+    const src = { sourceColors: srcColors, sourceType: srcType }
     const choosers: PlayerId[] = action.chooser === "opponent" ? [opp] : action.chooser === "each" ? [owner, opp] : [owner]
     const zoneOf = (pid: PlayerId): CardInstance[] =>
         action.from === "nexuses" ? state.players[pid].field.nexuses : state.players[pid].field.spirits
@@ -96,7 +97,7 @@ const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
             )
             return
         }
-        ctx.resolve({ ...action, picked })
+        ctx.resolve({ ...action, picked }, src)
         return
     }
 
@@ -106,7 +107,7 @@ const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
         return
     }
     log(state, `${sourceName}：${values.map((v) => labelOf(action.what, v)).join("・")}を指定した。`)
-    ctx.resolve(substitute(action.then, action.what, values) as EffectAction)
+    ctx.resolve(substitute(action.then, action.what, values) as EffectAction, src)
 }
 
 const handlers = {

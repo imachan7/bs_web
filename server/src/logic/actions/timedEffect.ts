@@ -6,6 +6,7 @@ import { applyMagicBuffBonus, recordBp, findSpiritAny, pickAnySideCandidates, pi
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
@@ -80,6 +81,16 @@ export function isAllowedRuleCounter(counter: EffectCounter): boolean {
 }
 
 // 1体指定モードの対象選択：battle中は対象を持つ battling 個体を優先し、無ければ先頭（旧 pickBpBuffTarget と同じ順序）
+// 「すべて」をルールとして置くときの陣営。両陣営は封印された魔導書Lv1で片側に変わりうる（bothSidesPids）。
+// 置いた時点の答えをルールに書き込むので、ターン中ずっとその側だけに効く（2026-08-16 ユーザー確認）
+function rulePid(ctx: Parameters<ActionHandler<"timedEffect">>[0], side: TimedEffect["side"]): PlayerId | undefined {
+    if (side === "both") {
+        const sides = bothSidesPids(ctx.state, ctx.srcType)
+        return sides.length === 1 ? sides[0] : undefined
+    }
+    return side === "own" ? ctx.owner : ctx.opp
+}
+
 function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTargetFilter, selfInstanceId?: string): CardInstance | null {
     const mine = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, selfInstanceId))
     if (state.battle) {
@@ -216,7 +227,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         log(state, `${sourceName}：BPを+する効果は発揮されなかった。`)
         return
     }
-    const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
+    const pid = rulePid(ctx, action.side)
     if (action.content.some((c) => c.type === "level")) {
         recordTimed(state, {
             content: action.content,
@@ -370,7 +381,7 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         log(state, `${sourceName}：「このバトルの間」の制約は未対応のため発揮しなかった。`)
         return
     }
-    const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
+    const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
     const rules = action.content.filter((c) => c.type === "playerRule")
     for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
     log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
@@ -440,6 +451,12 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
 // 自分のスピリット1体に置く（疲労状態でもブロックできる・誘発効果を与える）。対話なら選ばせ、非対話は実効BP最大
 function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (action.duration === "turn" && action.target === "self") {
+        if (!self) return
+        pushInstanceRecord(state, owner, self, action.content.filter(isRecorded), action.duration)
+        log(state, `${sourceName}：このターンの間、${getCard(self.cardId).name}に効果を付与した。`)
+        return
+    }
     if (action.duration !== "turn" || action.side !== "own") {
         log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
         return
@@ -474,7 +491,7 @@ function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect"
         log(state, `${sourceName}：この期間・絞り込みの指定は未対応のため発揮しなかった。`)
         return
     }
-    const pids: PlayerId[] = action.side === "both" ? [owner, opp] : [action.side === "own" ? owner : opp]
+    const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
     for (const pid of pids) recordTimed(state, { content: action.content, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
     const who = action.side === "both" ? "お互い" : state.players[pids[0]!].name
     log(state, `${sourceName}：このターンの間、${who}のスピリットの誘発効果は発揮されない。`)
@@ -561,7 +578,7 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
     const { state, owner, opp, self, sourceName, chosenOption } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "symbolLoss" }> => c.type === "symbolLoss")
     if (!content) return
-    const pid = action.side === "both" ? undefined : action.side === "own" ? owner : opp
+    const pid = rulePid(ctx, action.side)
     let color = content.color
     if (color === undefined) {
         if (state.interactiveTargets) {
@@ -599,7 +616,7 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
             log(state, `${sourceName}：この付け替えは未対応のため発揮しなかった。`)
             return
         }
-        const pid = action.side === "both" ? undefined : owner
+        const pid = action.side === "both" ? rulePid(ctx, "both") : owner
         recordTimed(state, { content: [content], target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter: {} }, until: "turn", ownerPid: owner })
         const who = pid === undefined ? "お互いの" : `${state.players[owner].name}の`
         log(state, `${sourceName}：このターンの間、${who}スピリットの『ブロック時』効果は『アタック時』に発揮される。`)

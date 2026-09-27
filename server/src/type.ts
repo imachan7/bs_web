@@ -416,7 +416,7 @@ export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; levelAtMostAttacker?: true; colorFromChosen?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; familyFilterAbsent?: FamilyFilter; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、条件を満たすスピリットにブロックされない。*Absent は「持たない」側。maxCost はブロッカーの付与コストも見る。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
+    | { type: "unblockableBy"; levelAtMostAttacker?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; familyFilterAbsent?: FamilyFilter; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、条件を満たすスピリットにブロックされない。*Absent は「持たない」側。maxCost はブロッカーの付与コストも見る。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
     | { type: "blockRequiresCount"; count: number } // このスピリットのアタックは、相手がスピリットをcount体そろえてブロック宣言しないとブロックできない（BS10-X03巨蟹武神キャンサード＝2体）。
     // 効果文は「スピリット2体か、**アルティメット1体**でないとブロックできない」だが、アルティメットは未実装のため2体ブロックだけを見る。
     // count体そろえられないときはブロックそのものができない。宣言は BattleState.pendingBlockerIds に貯まり、
@@ -674,14 +674,9 @@ export interface CardInstance {
     levelAsEffectsOnly?: true // levelAsContinuous による置き換えが**効果の発揮判定にだけ効く**目印（kind:"levelAs" の effectsOnly）。
     // 立っていると shared/rules.ts の displayLevel（表示・他カードから見えるレベル）はこの置き換えを無視する。
     // BS03ウッド・ゴレム「相手のネクサスすべてのLv2効果は発揮されない」＝Lv1にするわけではない
-    lentChoiceColor?: Color // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ色。仮想発生源にのみ載り、kind:"levelAs" の target:"allSpiritsByChosenColor" が読む（BS02-111スピリットイリュージョン）
     lentBuffTargetId?: string // 同じマジックの**直前の効果でBP増加した相手**のinstanceId。仮想発生源にのみ載り、
     // kind:"battleWon" の winnerIsLentBuffTarget が読む。効果文が「**そのスピリットが**、BPを比べ〜したとき」と
     // 前の文を指しているカード用（BS07ニードルショット）。GameState.lastBpBuffTargetId 経由で受け取る
-    lentKeepPid?: PlayerId // 封印された魔導書Lv1（bothSidesTargetRedirect）が「対象を片側のみに変更する」を選んだときの**残る側**。
-    // 仮想発生源にのみ載り、lentChoiceColor と同じく kind:"levelAs" の target:"allSpiritsByChosenColor" が読む。
-    // **貸与した時点の答えをターン中ずっと保持する**（継続効果なので、マジックの解決が終わった後も絞り込みが効く。
-    // 2026-08-16 ユーザー確認。BS02-111スピリットイリュージョン）
     kyoshuUsed?: { turn: number; count: number } // 【強襲】をこのターン何回使ったか（turnがstate.turnと一致する間だけ有効。BS07）
     timedExtraSymbols?: number // このターンの間の追加シンボル数（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
     lifeDealtThisTurn?: number // このスピリットがこのターンに与えたライフダメージの累計（globalConstraint "ownLifeDamageCapPerSourcePerTurn" 用。ライフダメージ解決時に加算し、ターン終了でリセット。SD06-010）
@@ -850,6 +845,7 @@ export interface BattleState {
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
     recordScope?: string
+    effectSource?: { type?: CardType; colors?: Color[] } // 中断した効果の発生源の種別・色。再開時に渡し直す（渡さないとマジックの効果が種別なしで続き、耐性や封印された魔導書が効かない）
     kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
     prompt: string // クライアント表示用の説明文（日本語）
     candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"/"card"のときは空配列）
@@ -1405,7 +1401,7 @@ export type TimedContent =
     | { type: "cantAttack" }
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
-    | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetColorFilter?: Color } // 誘発効果を与える（期間は turn のみ。1体は自分のスピリットから選ぶ）。targetColorFilter＝イベントの相手役（onBlocked ならブロッカー）がこの色のときだけ発火
+    | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter } // 誘発効果を与える（期間は turn のみ。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }

@@ -438,7 +438,7 @@ export function doResolveChoice(
                     delete state.effectFizzled
                 }
             } else {
-                resolveAction(state, actor, self, pending.action, undefined, undefined, undefined, option)
+                resolveAction(state, actor, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, option)
             }
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
@@ -460,11 +460,11 @@ export function doResolveChoice(
         state.pendingChoice = null
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         if (cardIndex !== undefined) {
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, undefined, undefined, undefined, cardIndex, undefined, paySources)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type, undefined, cardIndex, undefined, paySources)
         } else if (pending.resolveOnSkip) {
             // 「選び終わったら後処理がある」効果（BS08堕天使ミカファール：破棄した枚数ぶんドローする）。
             // スキップ＝「もう選ばない」の合図なので、cardIndex なしで action をもう一度解決させる
-            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
+            resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
         } else {
             // 起動能力から出た選択をやめた＝発揮しなかった扱いにして、同じターンにもう一度起動できるようにする
             revertActivatedIfSkipped(state, pending)
@@ -485,11 +485,11 @@ export function doResolveChoice(
     const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
 
     if (instanceId !== undefined) {
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, instanceId, pending.effectSource?.colors, pending.effectSource?.type)
     } else if (pending.resolveOnSkip) {
         // 「選び終わったら後処理がある」効果（予算内で好きなだけ破壊するトグル選択）。
         // スキップ＝「これで確定」の合図なので、対象なしで action をもう一度解決させる
-        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action)
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
     } else {
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }

@@ -2,7 +2,7 @@
 // メイン側が未実装だった5枚を実装：レベル読み替え系3枚＋誘発の移し替え2枚）
 //
 // - BS03-137 フォーカード／BS04-107 ジャッジメントライツ：levelAs の target:"opponentSpiritsAll" 新設
-// - BS02-111 スピリットイリュージョン：levelAs の target:"allSpiritsByChosenColor" 新設（色choice→貸与）
+// - BS02-111 スピリットイリュージョン：色を指定（declare）→ このターンの間の Lv（timedEffect）
 // - BS01-149 アタックシフト：blockTriggersAsAttackAllThisTurn（attackTriggersAsBlockThisTurnの逆方向・全体版）
 // - BS03-143 ブリッツ：effectGrant(lentOnly) + 新action voidCoreToOwnTrash
 // いずれも既存の lendSelfThisTurn（マジック自身をこのターンだけ仮想発生源として場に置く器）を使う。
@@ -78,6 +78,7 @@ console.log("--- シンボル2つ以上のスピリットがいないと使え�
 console.log("=== BS02-111 スピリットイリュージョン：色を1つ選ぶと、その色のスピリットだけが最高Lv扱いになる ===")
 {
     const s = setup("spiritillusion-color")
+    s.interactiveTargets = true
     const red = put(s, "p1", "BS01-002", 1) // ロクケラトプス（赤）Lv1（最高Lv3・BP4000）
     const green = put(s, "p2", "BS01-054", 1) // ショックイーター（緑）Lv1（最高Lv2・BP4000）
     assert(currentLevel(red).level === 1 && currentLevel(green).level === 1, "使用前：両者ともLv1")
@@ -88,7 +89,7 @@ console.log("=== BS02-111 スピリットイリュージョン：色を1つ選�
     assert((s.pendingChoice?.options ?? []).includes("赤"), "選択肢に「赤」が含まれる")
 
     assert(act(s, "p1", { type: "resolveChoice", option: "赤" }) === null, "色「赤」を選ぶ")
-    assert(s.players.p1.turnVirtualInstances.length === 1, "仮想発生源が1件立つ")
+    assert(s.timedEffects.some((r) => r.target.kind === "rule" && r.content.some((c) => c.type === "level")), "このターンの間のルールが1件置かれる")
     assert(currentLevel(red).level === 3, "赤スピリットは最高Lv（3）として扱われる")
     assert(effectiveBp(s, "p1", red) === 4000, "赤スピリットの実効BPも最高Lv相当（4000）")
     assert(currentLevel(green).level === 1, "選ばなかった緑スピリットはLv1のまま（別色は変わらない）")

@@ -244,10 +244,6 @@ export const BOTH_SIDES_REDIRECT_OPTIONS = ["変更しない", "相手のみ", "
 // **ここだけは値として再帰的に**走査する（新しい action を足しても印さえ同じなら追随不要）
 export const BOTH_SIDES_ACTION_TYPES = new Set([
     "discardBothHands",
-    // 「指定した色のスピリットすべて」＝両陣営が対象（BS02-111スピリットイリュージョン）。
-    // 効果本体は貸与した継続効果なので、絞り込みの答えは仮想発生源の lentKeepPid に写して
-    // ターン中ずっと使う（colorChoiceLendThisTurnHandler）
-    "colorChoiceLendThisTurn",
 ])
 
 export function actionTouchesBothSides(node: unknown): boolean {

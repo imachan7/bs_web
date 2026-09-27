@@ -3320,19 +3320,7 @@
    }
   ],
   "braveConditionText": "コスト5以上",
-  "effects": [
-   {
-    "id": "BS11-054-e1",
-    "kind": "step",
-    "step": "attack",
-    "turn": "own",
-    "levels": null,
-    "whileCombined": true,
-    "action": {
-     "type": "refreshWhenBlockedByChosenColorThisTurn"
-    }
-   }
-  ],
+  "effects": [{"id": "BS11-054-e1", "kind": "step", "step": "attack", "turn": "own", "levels": null, "whileCombined": true, "action": {"type": "declare", "what": "color", "then": {"type": "timedEffect", "target": "self", "duration": "turn", "content": [{"type": "grantTrigger", "trigger": "onBlocked", "action": {"type": "refreshSelf"}, "targetFilter": {"declared": "match"}}]}}}],
   "braveCondition": {
    "minCost": 5
   }

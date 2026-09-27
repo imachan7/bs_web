@@ -19,7 +19,7 @@ import { instColors } from "../../shared/rules"
 import { COLOR_LABELS } from "../../data/constants"
 import { canBlock } from "../../shared/block"
 import { loadAllCards } from "../../data/loadCards"
-import type { Color, Phase } from "../../server/src/type"
+import type { Color, EffectAction, Phase } from "../../server/src/type"
 
 interface CardRow {
     cardId: string
@@ -306,8 +306,8 @@ console.log("--- マジックが色を指定して貸すブロック制限 ---")
     // その色の相手のスピリットからブロックされない
     const card = byId("BS09-081")
     assert(card.name === "サマーソルトターン", "前提: BS09-081 はサマーソルトターン")
-    const entry = entryOf(card, "e2")
-    const fam = String(entry["familyFilter"])
+    const declare = entryOf(card, "e1")["action"] as EffectAction & { then: { filter: { family: string } } }
+    const fam = declare.then.filter.family
     const attackerCard = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(fam))!
     // 指定する色と、その色を持つブロック役／持たないブロック役
     const chosen: Color = "red"
@@ -323,12 +323,12 @@ console.log("--- マジックが色を指定して貸すブロック制限 ---")
     assert(canBlock(s, "p2", sameInst, "p1", attacker) === null, "前提: マジックを使う前は同じ色でもブロックできる")
 
     // 色を選んで、このターンの間だけ効果を貸す
-    // 色は**表示ラベル**（日本語）で渡し、発生源は action の sourceCardId で指定する
+    // 色は**表示ラベル**（日本語）で渡す
     resolveAction(
         s,
         "p1",
         null,
-        { type: "colorChoiceLendThisTurn", sourceCardId: card.cardId },
+        declare,
         undefined,
         (card.colors ?? ["green"]) as Color[],
         "magic",
