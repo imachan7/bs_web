@@ -1,4 +1,4 @@
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { EffectAction } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
@@ -411,9 +411,72 @@ export const discardSelfChooseEligible = (cardId: string, action: Extract<Effect
 
 // 実対戦（interactiveTargets）では1枚ずつ選ばせ、残りぶんを queue に積んで同じアクションへ戻ってくる。
 // 非interactive時は条件に合う候補の末尾から破棄する（決定的簡略化）
+// count:"any"（好きなだけ。0枚も可）：対話は1枚ずつ任意で選び、スキップで終える。非対話は条件に合う手札をすべて破棄。
+// 破棄し終えたら lastMoved に書く（「その破棄したカード1枚につき」。IF_UNIFY.md §5）
+function discardSelfAny(ctx: ActionCtx, action: Extract<EffectAction, { type: "discardSelfChoose" }>): void {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    const discarded = action.discarded ?? []
+    const finish = (ids: string[]): void => {
+        state.lastMoved = ids
+        if (ids.length === 0) log(state, `${sourceName}：手札を破棄しなかった。`)
+    }
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined || !discardSelfChooseEligible(cardId, action)) {
+            finish(discarded)
+            return
+        }
+        player.hand.splice(chosenCardIndex, 1)
+        player.trashCards.push(cardId)
+        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+        const { awaitingSkip: _dropped, ...rest } = action
+        ctx.resolve({ ...rest, discarded: [...discarded, cardId] })
+        return
+    }
+    if (action.awaitingSkip) {
+        finish(discarded)
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => discardSelfChooseEligible(player.hand[i]!, action))
+    if (indices.length === 0) {
+        finish(discarded)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestCardChoice(
+            state,
+            owner,
+            `${sourceName}：破棄する手札を選んでください（選ばなければ終了します）`,
+            "hand",
+            indices,
+            true,
+            { ...action, discarded, awaitingSkip: true },
+            self,
+            true,
+            true,
+        )
+        return
+    }
+    const ids = indices.map((i) => player.hand[i]!)
+    player.hand = player.hand.filter((_, i) => !indices.includes(i))
+    player.trashCards.push(...ids)
+    log(state, `${player.name}は手札「${ids.map((id) => getCard(id).name).join("、")}」を破棄した。`)
+    finish([...discarded, ...ids])
+}
+
 const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
+    if (action.count === "any") {
+        if (!canDiscardHand(state, owner)) {
+            log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
+            state.lastMoved = []
+            return
+        }
+        discardSelfAny(ctx, action)
+        return
+    }
     if (action.count <= 0) return
     // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
     if (!canDiscardHand(state, owner)) {
@@ -527,40 +590,6 @@ const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVo
     )
 }
 
-// 手札のネクサスカードをすべて破棄し、破棄した枚数ぶんドローする（ネクサスレジスター）。
-// 効果文は「好きなだけ破棄する」だが、枚数を選ばせず全部破棄する決定的簡略化にしてある
-// （ドロー枚数が最大になる選択なので、プレイヤーの不利にはならない）
-const discardHandNexusesThenDrawHandler: ActionHandler<"discardHandNexusesThenDraw"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    const player = state.players[owner]
-    const nexusIndices: number[] = []
-    for (let i = 0; i < player.hand.length; i++) {
-        if (getCard(player.hand[i]!).type === "nexus") nexusIndices.push(i)
-    }
-    if (nexusIndices.length === 0) {
-        log(state, `${sourceName}：手札にネクサスカードがなかった。`)
-        return
-    }
-    // 後ろから抜くとインデックスがずれない
-    const discarded: string[] = []
-    for (let i = nexusIndices.length - 1; i >= 0; i--) {
-        const [cardId] = player.hand.splice(nexusIndices[i]!, 1)
-        if (cardId === undefined) continue
-        player.trashCards.push(cardId)
-        discarded.push(getCard(cardId).name)
-    }
-    log(
-        state,
-        `${player.name}は${sourceName}の効果で、手札のネクサス${discarded.length}枚（${discarded.reverse().join("、")}）をすべて破棄した。（「好きなだけ」は全部破棄として処理）`,
-    )
-    draw(state, owner, discarded.length * drawDoubleMultiplier(state, owner))
-}
-
 // SD02-004 神獣ハクタク：系統を1つ選び、その系統を持つ自分のスピリット1体につき1枚引く。
 // **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
 // interactiveTargets 時は系統を選ばせ、非対話では引ける枚数が多い方を選ぶ決定的簡略化
@@ -594,132 +623,6 @@ const drawPerChosenFamilyHandler: ActionHandler<"drawPerChosenFamily"> = (ctx, a
     }
     log(state, `${sourceName}：系統「${family}」の自分のスピリット${count}体ぶん引く。`)
     ctx.resolve({ type: "draw", count })
-}
-
-// BS15-076妖華吸血爪フラッシュ：自分の手札を好きなだけ破棄する（0枚から選べる）。破棄した1枚につき、
-// 相手のスピリット1体のコア1個を相手のトラッシュに置く（同じスピリットを何度選んでもよい＝2026-09-16
-// ユーザー確認。実装は毎回coreRemoveの通常の対象選択に委譲するのでそれが自然に成り立つ）
-const discardHandAnyThenCoreRemoveHandler: ActionHandler<"discardHandAnyThenCoreRemove"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) return
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は${sourceName}のコストとして${getCard(cardId).name}を破棄した。`)
-        pushResumeFrames(state, [
-            { kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: { type: "coreRemove", count: 1, dest: "trash" as const } },
-            { kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action },
-        ])
-        return
-    }
-    if (!state.interactiveTargets) {
-        // 非対話：手札をすべて破棄し、その枚数ぶんまとめて1体からコアを取り除く（決定的簡略化）
-        const n = player.hand.length
-        if (n === 0) return
-        const names = player.hand.map((id) => getCard(id).name)
-        player.trashCards.push(...player.hand)
-        player.hand = []
-        log(state, `${player.name}は${sourceName}のコストとして手札${n}枚（${names.join("、")}）を破棄した。`)
-        ctx.resolve({ type: "coreRemove", count: n, dest: "trash" })
-        return
-    }
-    if (player.hand.length === 0) return
-    const indices = player.hand.map((_, i) => i)
-    requestCardChoice(
-        state,
-        owner,
-        `${sourceName}：破棄する手札を選んでください（これ以上破棄しない場合は選ばない）`,
-        "hand",
-        indices,
-        true,
-        action,
-        self,
-        true,
-    )
-}
-
-// 自分の手札を好きなだけ破棄し、破棄したカード1枚につき自分がデッキから1枚ドローする
-// （BS08堕天使ミカファール。coreRemovePerHandDiscardの「破棄1枚につき〜」をドローに差し替えた版）
-// BS08堕天使ミカファール：手札を好きなだけ破棄し、破棄した枚数ぶんドローする。
-// **破棄を全部済ませてからまとめてドローする**のが要点。1枚ごとにドローすると、
-// 引いたカードをそのまま次の破棄対象にできてデッキが尽きるまで回せてしまう。
-// 途中経過は action に持ち回る（discardedSoFar＝ここまでに破棄した枚数、
-// awaitingSkip＝「選択をスキップして戻ってきた＝破棄終了」の目印）
-const drawPerHandDiscardHandler: ActionHandler<"drawPerHandDiscard"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-        const player = state.players[owner]
-        const discarded = action.discardedSoFar ?? 0
-        // まとめてドローして終える共通処理
-        const finish = (): void => {
-            if (discarded === 0) {
-                log(state, `${sourceName}：手札を破棄しなかった。`)
-                return
-            }
-            log(state, `${sourceName}：破棄した${discarded}枚ぶんドローする。`)
-            draw(state, owner, discarded)
-        }
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}：破棄する手札がなかった。`)
-                finish()
-                return
-            }
-            player.hand.splice(chosenCardIndex, 1)
-            player.trashCards.push(cardId)
-            log(state, `${player.name}は手札の「${getCard(cardId).name}」を破棄した。`)
-            // ここではドローしない。続けて破棄するか再度尋ねる
-            // （awaitingSkip は落とす。付けたままだと「選択をスキップして戻ってきた」と誤読される）
-            const { awaitingSkip: _dropped, ...rest } = action
-            ctx.resolve({ ...rest, discardedSoFar: discarded + 1 })
-            return
-        }
-        // スキップされて戻ってきた＝これ以上破棄しない。ここで初めてドローする
-        if (action.awaitingSkip) {
-            finish()
-            return
-        }
-        if (state.interactiveTargets) {
-            if (player.hand.length === 0) {
-                // 手札を出し切った場合もここへ来る（破棄済みぶんはドローする）
-                if (discarded === 0) log(state, `${sourceName}：手札がなかった。`)
-                else finish()
-                return
-            }
-            requestCardChoice(
-                state,
-                owner,
-                `${sourceName}：破棄する手札を選んでください（選ばなければ終了してドローに移ります）`,
-                "hand",
-                player.hand.map((_, i) => i),
-                true,
-                { ...action, discardedSoFar: discarded, awaitingSkip: true },
-                self,
-                // 手札が1枚でも「破棄しない」を選べるようにする（「好きなだけ」なので0枚も選択肢）
-                true,
-                // スキップ＝破棄終了。まとめてドローするためにハンドラへ戻す
-                true,
-            )
-            return
-        }
-        // 非interactive時：手札をすべて破棄し、破棄枚数ぶん一括でドローする（決定的簡略化）
-        const count = player.hand.length
-        if (count === 0) {
-            log(state, `${sourceName}：手札がなかった。`)
-            return
-        }
-        const discardedNames = player.hand.map((cardId) => getCard(cardId).name)
-        player.trashCards.push(...player.hand)
-        player.hand = []
-        log(state, `${player.name}は手札「${discardedNames.join("、")}」を破棄した。`)
-        draw(state, owner, count)
 }
 
 // BS09-039探偵ペンタンLv1-2：自分の手札の指定カード名1枚を破棄することで、相手の手札1枚を
@@ -869,10 +772,7 @@ const handlers = {
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
-    discardHandNexusesThenDraw: discardHandNexusesThenDrawHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
-    discardHandAnyThenCoreRemove: discardHandAnyThenCoreRemoveHandler,
-    drawPerHandDiscard: drawPerHandDiscardHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
     handToOwnDeckTop: handToOwnDeckTopHandler,
     opponentHandToDeckTop: opponentHandToDeckTopHandler,

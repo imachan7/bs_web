@@ -196,7 +196,7 @@ console.log("=== BS04-022 王蛇ケツァルカトル: onAttack coreRemovePerHan
     assert(e3.cores === 2, "3番目のゴラドンから1個除去された")
 }
 
-console.log("=== BS04-094 ダンスマカブル: フラッシュ coreRemovePerHandDiscard（メインステップからも使用可） ===")
+console.log("=== BS04-094 ダンスマカブル: フラッシュ（手札を好きなだけ破棄し1枚につきコア1個。メインステップからも使用可） ===")
 {
     const s = createGame(
         "bs04-094-test",
@@ -215,8 +215,8 @@ console.log("=== BS04-094 ダンスマカブル: フラッシュ coreRemovePerHa
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ダンスマカブルを使用（手札index0）")
     assert(s.players.p1.hand.length === 0, "破棄対象2枚（フィラー）がすべて破棄された")
     assert(s.players.p2.trashCores === trashBefore + 2, "破棄2枚ぶん、相手トラッシュにコア2個")
-    assert(e1.cores === 1, "BP最大のハンマドレイクから1個除去された")
-    assert(e2.cores === 2, "次点のゴラドンから1個除去された")
+    // 同じスピリットを重ねて選べる（2026-09-27 ユーザー回答 Q2。IF_UNIFY.md §3）ので、どの体から取るかは問わない
+    assert(e1.cores + e2.cores === 5 - 2, "相手のスピリットから合計2個除去された")
 }
 
 console.log("=== BS04-095 ヴェノムショット: メイン coreRemove(dest:void)（ボイドへ消滅、トラッシュ/リザーブは増えない） ===")
