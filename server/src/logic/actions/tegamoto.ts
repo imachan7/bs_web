@@ -2,6 +2,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance } from "../../type"
 import { draw, getCard, log } from "../GameState"
 import { requestCardChoice, requestChoice, resolveMagic, removeCoresToVoid } from "../EffectModules"
+import { recordMoved } from "../record"
 
 // BS11-X05 魔導双神ジェミナイズLv2-3：自分の手札/手元(tegamoto)にあるマジックカード1枚を選び、
 // コストを支払わずに使用する（任意。候補0なら不発）。「ターンに2回」の判定は
@@ -240,7 +241,7 @@ const discardOpponentTegamotoHandler: ActionHandler<"discardOpponentTegamoto"> =
     const { state, opp, sourceName } = ctx
     const target = state.players[opp]
     const ids = [...target.tegamoto]
-    state.lastMoved = ids
+    recordMoved(state, ids)
     if (ids.length === 0) {
         log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
         return

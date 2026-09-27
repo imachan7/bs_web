@@ -7,6 +7,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
+import { lastMovedOf } from "../../server/src/logic/record"
 
 const MAGIC = "BS01-114" // バスタースピア（赤・マジック・コスト3）
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
@@ -35,7 +36,7 @@ console.log("=== 1. mill → if last：破棄したカードが条件を満た�
     s.players.p1.deck[1] = MAGIC
     const hand = s.players.p1.hand.length
     resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "mill", count: 2, side: "own" }, ifMilledMagicDraw] })
-    assert(s.lastMoved?.length === 2 && s.lastMoved.includes(MAGIC), "破棄した2枚が lastMoved に記録される")
+    assert(lastMovedOf(s).length === 2 && lastMovedOf(s).includes(MAGIC), "破棄した2枚が lastMoved に記録される")
     assert(s.players.p1.hand.length === hand + 1, "マジックを破棄したので1枚引く")
 }
 
@@ -55,7 +56,8 @@ console.log("=== 2. mill → if last：条件を満たさなければ else／els
 console.log("=== 3. sequence の開始時に前の効果の記録を消す（前半をしなかったら後半も起きない＝Q4） ===")
 {
     const s = game("stale")
-    s.lastMoved = [MAGIC]
+    s.recordScope = ""
+    s.lastMoved = { "": [MAGIC] }
     const hand = s.players.p1.hand.length
     resolveAction(s, "p1", null, { type: "sequence", actions: [ifMilledMagicDraw] })
     assert(s.players.p1.hand.length === hand, "前の効果で動いたマジックを見ない")
@@ -101,7 +103,7 @@ console.log("=== 6. カウンタ lastMoved：「破棄したカード1枚につ�
         type: "sequence",
         actions: [{ type: "mill", count: 3, side: "own" }, { type: "draw", count: 1, countCounter: "lastMoved" }],
     })
-    assert(s.lastMoved?.length === 1 && s.players.p1.hand.length === hand2, "デッキが1枚なら破棄できた1枚で数える（引くデッキは0枚）")
+    assert(lastMovedOf(s).length === 1 && s.players.p1.hand.length === hand2, "デッキが1枚なら破棄できた1枚で数える（引くデッキは0枚）")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part398）")

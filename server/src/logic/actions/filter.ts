@@ -15,6 +15,7 @@ import type { EffectAttempt } from "../../../../shared/rules"
 import { effectiveBp, iceWallColorsOf } from "../../../../shared/rules"
 import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
+import { lastMovedOf } from "../record"
 
 // 耐性判定（EffectModules.resistanceAgainst / isResisted）へ渡す「何をしようとしているか」を
 // ActionCtx から組み立てる。**発生源の色と種別を渡し忘れると装甲やマジック耐性が無言で効かなくなる**ため、
@@ -103,7 +104,7 @@ export function normalizeFilter(
     }
 
     if (sameCostAsLast) {
-        const first = ctx.state.lastMoved?.[0]
+        const first = lastMovedOf(ctx.state)[0]
         if (first === undefined) return SELF_REQUIRED
         const cost = getCard(first).cost
         resolved.cost = { min: cost, max: cost }

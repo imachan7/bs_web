@@ -558,6 +558,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
 
+## server/src/logic/record.ts
+
+- `newRecordScope`（fn）
+- `currentRecordScope`（fn）
+- `recordMoved`（fn）：scope は書く側が**開始時に控えた**枠を渡す（途中の誘発が recordScope を変えても自分の枠に書くため）
+- `lastMovedOf`（fn）
+
 ## server/src/logic/removal.ts
 
 - `recordDestroysOf`（fn）

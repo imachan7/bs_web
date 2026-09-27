@@ -11,6 +11,7 @@ import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveBp, iceWallColorsOf, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { lastMovedOf, newRecordScope } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -74,15 +75,19 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
 // 全部解決する（BS14-100ストームアタック）
 const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType } = ctx
-        // 前半を選ばなかった（「〜できる」）とき、後ろの if が前の効果の記録を見ないように
-        state.lastMoved = []
+        // 自分の枠を作る。前半を選ばなかった（「〜できる」）とき後ろの if が前の効果の記録を見ない・途中に挟まった別の効果の記録と混ざらない（IF_UNIFY.md §6）
+        const scope = newRecordScope()
         resolveInOrder(state, action.actions, {
-            resolve: (a) => ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType }),
+            resolve: (a) => {
+                state.recordScope = scope
+                ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType })
+            },
             frame: (a) => ({
                 kind: "action" as const,
                 selfInstanceId: self ? self.instanceId : null,
                 action: a,
                 actorPid: owner,
+                recordScope: scope,
                 ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
                 ...(srcType !== undefined ? { sourceType: srcType } : {}),
             }),
@@ -96,7 +101,7 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     const cond = action.cond
     const met = "last" in cond
-        ? (state.lastMoved ?? []).some((id) => matchesPick(id, cond.last))
+        ? lastMovedOf(state).some((id) => matchesPick(id, cond.last))
         : "event" in cond
           ? "destroyedColor" in cond.event
               ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)

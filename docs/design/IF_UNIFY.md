@@ -126,3 +126,17 @@ pay で旧 type に残した BS13-024・BS13-060・BS15-067 も、この `last`�
 - `destroyNexus` の `count: "any"`（`side: "own"`）：同じ選び方。破壊したネクサスを `lastMoved` に記録
 - 移行：BS12-052 → `sequence [destroy side own count any suppressOnDestroy, draw countCounter lastMoved]`（**同時破壊になる**＝他カードの「破壊されたとき」はグループで1回。HANDOFF の制限が解消）／
   BS04-114 → `sequence [destroyNexus side own count any, destroy chooserIsTarget count 1 countCounter lastMoved]`（**「好きなだけ」を選べるようになる**。旧実装はすべて破壊の簡略化）
+
+## §6 記録の枠（2026-09-27 確定。ユーザー了承。ブランチ `feat/record-scope`）
+
+「直前のアクションで動いたカード」（`lastMoved`）を、GameState の1つの置き場から**効果ごとの枠**に分ける。
+中断（選択待ち）しても、ステップの間に別の効果（誘発）が挟まっても、同じ効果の後ろのステップが正しい記録を読むため。
+（別セッションの評価で「前のステップの結果を後ろへ渡す仕組みを、見たい値ごとのフィールドではなく共通の形にする」と指摘された。フィールドは #178 で1つにしてあるので、残りの穴＝寿命と混線をここで塞ぐ）
+
+- `GameState.lastMoved: Record<scope, string[]>`・`GameState.recordScope?: string`（いまの枠）
+- `sequence`／`pay` は開始時に新しい枠を作り、各ステップの直前に `recordScope` を自分の枠にし、残りのステップの再開フレーム（`ResumeFrame` の action）に `recordScope` を載せる
+- `suspend()` は `PendingChoice.recordScope` にいまの枠を載せ、選択の解決時に戻す（中断したステップが自分の枠に書ける）
+- 再開フレームを解決するときは `frame.recordScope` を戻す。**持たないフレーム（別の効果）は新しい枠**で解決する
+- 書く側は**開始時の枠を控えてから**書く（途中の誘発が枠を変えても自分の枠に書く）。読む側はいまの枠だけを見る
+- 選択待ちも再開スタックも空になったら表を捨てる（handleAction の事後フック）
+- 置き場は新しいファイル `server/src/logic/record.ts`（`newRecordScope`・`recordMoved`・`lastMovedOf`）

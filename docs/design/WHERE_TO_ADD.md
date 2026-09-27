@@ -69,6 +69,10 @@
 | 召喚時の誘発の並び | `fireSummonSequence` | 手札からの通常の召喚の入口は `GameEngine.doSummon`（【烈神速】も GameEngine） |
 | 効果による手札・トラッシュからの無償召喚 | `summonFreeFromHandIndex`・`summonFreeFromTrashIndex` | — |
 
+## 直前に動いたカードの記録（`server/src/logic/record.ts`）
+
+「この効果で〜した数だけ」「そのカードが〜のとき」が読む記録。カードを動かすアクションは、**開始時に `currentRecordScope` で枠を控え**、動かし終えたら `recordMoved(state, ids, scope)` で書く。読む側は `lastMovedOf(state)`。枠は `sequence`／`pay` が作り、再開フレームと選択待ちが運ぶ（IF_UNIFY.md §6）。
+
 ## アクションのハンドラ（`server/src/logic/actions/`）
 
 新しいアクション type のハンドラは、概念の合うファイルに `const xxxHandler: ActionHandler<"xxx">` を書き、そのファイル末尾の `handlers` に1行足す。

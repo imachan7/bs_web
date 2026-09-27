@@ -5,6 +5,7 @@ import { summonFreeFromTrashIndex, countEffectCounter, millCapBonusFor, millDeck
 import { resolveMagicEffects } from "../triggers"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { currentRecordScope, recordMoved } from "../record"
 
 // 相手のデッキを上から1枚破棄し、**破棄したカード**に応じて続けて解決する
 // （BS11-045 MCギンガー／BS11-071 柱岩の海上都市Lv2／BS11-060 雷神砲カノン・アームズ）
@@ -53,14 +54,15 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
                       action.countMax !== undefined ? action.countMax + millCapBonusFor(state, owner) : undefined)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
-            state.lastMoved = []
+            recordMoved(state, [])
             log(state, `${sourceName}：カウントが0のため粉砕しなかった。`)
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
+        const scope = currentRecordScope(state)
         const beforeLen = state.players[targetPid].trashCards.length
         const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
-        state.lastMoved = state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual)
+        recordMoved(state, state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual), scope)
         return
 }
 
