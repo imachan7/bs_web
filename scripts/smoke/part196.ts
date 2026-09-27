@@ -165,8 +165,9 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
                   }
             refreshLevelAsOverrides(s)
             // 「【暴風】で疲労させた相手を戻す」付与（ヤツノカンゾウ）は、付与先の【暴風】で疲労させた記録が要る
-            const grantedType = (granted?.["action"] as Record<string, unknown> | undefined)?.["type"]
-            if (grantedType === "returnBofuExhaustedToHand" && foeInst) {
+            const grantedAction = granted?.["action"] as Record<string, unknown> | undefined
+            const grantedFilter = grantedAction?.["filter"] as Record<string, unknown> | undefined
+            if (grantedAction?.["type"] === "returnToHand" && grantedFilter?.["bofuExhausted"] !== undefined && foeInst) {
                 s.bofuExhaustedThisBattle = [{ pid: "p2", instanceId: foeInst, bofuSourceInstanceId: target.instanceId }]
             }
 

@@ -288,6 +288,8 @@ const VALID_FILTER_KEYS = new Set([
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
     "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
     "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
+    "bofuExhausted", // このバトル中に【暴風】で疲労した相手のスピリット（R5。"self"=発生源の【暴風】限定）
+    "damagedOwnLife", // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（R5）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する

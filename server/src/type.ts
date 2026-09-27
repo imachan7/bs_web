@@ -127,6 +127,8 @@ export interface TargetFilter {
     braveInSpiritState?: true // **スピリット状態のブレイヴ**だけ（＝カード種別がブレイヴで、合体せず field.spirits にいる個体）。
     // BS10-083 魔星輝く古戦場Lv2／BS10-086 巨星望む大樹／BS10-X06 天蠍神騎スコル・スピア
     hasBurst?: boolean // カードの effects に kind:"burst" を持つものだけ（docs/design/BURST.md）。false指定時は**持たない**ものだけ（BS15-034ミブロック・ジーナス：「バースト効果を持たない相手のスピリット」）
+    bofuExhausted?: "any" | "self" // このバトル中に【暴風】で疲労した相手のスピリット（GameState.bofuExhaustedThisBattle）。"self"は発生源（self）の【暴風】で疲労したものに限る
+    damagedOwnLife?: true // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（このバトル中の全員と、バースト発動時の1体の和集合）
 }
 
 // normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。
@@ -136,6 +138,7 @@ export interface ResolvedTargetFilter extends Omit<TargetFilter, "maxBp" | "minB
     minBp?: number
     exactBp?: number
     colorAny?: Color[] // sameIceWallColorAs の解決先。いずれかの色を持てば一致（OR。colorが単色専用なのに対しこちらは複数色）
+    instanceIn?: string[] // bofuExhausted/damagedOwnLife の解決先（内部専用）。指定時はinstanceIdがこの配列に含まれるものだけ一致
 }
 
 // 効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
@@ -1308,7 +1311,7 @@ export interface GameState {
     // このバトル中に自分の【暴風】で疲労させた相手のスピリット（BS06颶風高原Lv2 が「【暴風】で疲労した
     // 相手のスピリットすべて」を参照する）。バトルごとの記録なので clearBattle でクリアする
     // bofuSourceInstanceId：疲労させた側の【暴風】持ちスピリットのinstanceId（自分自身の【暴風】での疲労のときのみ入る。
-    // action:"returnBofuExhaustedToHand" がこれをselfと突き合わせて「このスピリットの【暴風】で疲労させた」を絞り込む。BS14-032）
+    // TargetFilter.bofuExhausted:"self" がこれをselfと突き合わせて「このスピリットの【暴風】で疲労させた」を絞り込む。BS14-032）
     bofuExhaustedThisBattle: { pid: PlayerId; instanceId: string; bofuSourceInstanceId?: string }[]
     lastBattleDestroyedCost: number // 同上のコスト（破壊直前のカード記載コスト。0=まだ発生していない。mill の countCounter:"lastBattleDestroyedCost" が参照。BS06名誉ある御前試合）
     pendingChoice: PendingChoice | null // 効果解決中のプレイヤー選択（非null中は resolveChoice 以外のアクションを拒否する）

@@ -171,5 +171,29 @@ export function normalizeFilter(
         resolved.exactBp = selfBp
     }
 
+    // 記録から引いた個体の集合（instanceIn）へ解決する軸。自分側の記録は「相手のスピリット」に当たらないので除く
+    if (resolved.bofuExhausted !== undefined) {
+        const bofuSpec = resolved.bofuExhausted
+        delete resolved.bofuExhausted
+        let ids = ctx.state.bofuExhaustedThisBattle.filter((r) => r.pid !== ctx.owner)
+        if (bofuSpec === "self") {
+            ids = ctx.self ? ids.filter((r) => r.bofuSourceInstanceId === ctx.self!.instanceId) : []
+        }
+        const instanceIds = ids.map((r) => r.instanceId)
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
+    if (resolved.damagedOwnLife !== undefined) {
+        delete resolved.damagedOwnLife
+        const ids = new Set(ctx.state.battle?.lifeDamagers ?? [])
+        if (ctx.state.burstEventLifeDamagerId !== undefined) ids.add(ctx.state.burstEventLifeDamagerId)
+        const instanceIds = [...ids]
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
+    if (resolved.instanceIn !== undefined && resolved.instanceIn.length === 0) return SELF_REQUIRED
+
     return resolved
 }
