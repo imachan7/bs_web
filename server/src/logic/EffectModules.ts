@@ -1019,6 +1019,7 @@ export function countEffectCounter(
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     if (counter === "lastMoved") return lastMovedOf(state).length
+    if (counter === "bothNexusColors") return new Set([...state.players.p1.field.nexuses, ...state.players.p2.field.nexuses].flatMap(instColors)).size
     if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + getCard(id).cost, 0)
     if (counter === "ownCoresTotal") {
         const p = state.players[owner]

@@ -99,7 +99,7 @@ console.log("=== §D バスターハンマー：色を指定して、その色�
     resolveAction(s, "p1", null, hammerAction)
     assert(s.pendingChoice?.kind === "option", "色の選択待ちが立つ")
     assert((s.pendingChoice?.options ?? []).length === 6, "6色から選ぶ")
-    assert(act(s, "p1", { type: "resolveChoice", option: "red" }) === null, "赤を指定する")
+    assert(act(s, "p1", { type: "resolveChoice", option: "赤" }) === null, "赤を指定する")
     assert(s.players.p1.field.nexuses.length === 0, "自分の赤ネクサスも破壊される（指定した色すべて）")
     assert(s.players.p2.field.nexuses.length === 1, "相手は赤だけ破壊され、青は残る")
     assert(s.players.p1.hand.length === handBefore + 2, "破壊できた2つぶん引く")

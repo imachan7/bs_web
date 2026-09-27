@@ -281,7 +281,7 @@ const FILTER_ACTIONS = new Set([
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "maxCores", "rested", "refreshed",
+    "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "minCores", "maxCores", "rested", "refreshed",
     "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
     "sameCostAsEventTarget", "sameCostAsLast", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）

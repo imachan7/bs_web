@@ -18,7 +18,7 @@ refreshLevelAsOverrides(s)
 console.log("=== マタドーラの器：相手が赤を指定しても、赤白のスピリットは白で破壊される ===")
 assert(getCard("BS01-001").colors.join() === "red", "前提：BS01-001 は赤単色")
 // 非対話では破壊数が最小になる色を選ぶ（同数なら色の定義順＝赤）。赤でも白でも1体ずつなので赤
-resolveAction(s, "p1", null, { type: "destroyFieldExceptOpponentChosenColor" })
+resolveAction(s, "p1", null, { type: "declare", what: "color", from: "spirits", chooser: "opponent", then: { type: "sequence", actions: [{ type: "destroy", count: 1, all: true, filter: { declared: "except" } }, { type: "destroyNexus", count: 1, all: true, filter: { declared: "except" } }] } })
 const alive = (id: string) => s.players.p2.field.spirits.some((x) => x.instanceId === id)
 assert(alive(redOnly.instanceId), "赤単色は残る")
 assert(!alive(redWhite.instanceId), "赤白は、指定されていない白を持つので破壊される")

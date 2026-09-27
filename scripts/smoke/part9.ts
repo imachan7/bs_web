@@ -38,10 +38,7 @@ console.log("=== BS02-010 溶海竜プレシオス e1：両者ネクサス色数
     s.players.p1.field.nexuses.push(ownNexus)
     s.players.p2.field.nexuses.push(enemyNexus)
 
-    resolveAction(s, "p1", plesio, {
-        type: "destroyAllNexusesExceptChosenColors",
-        minTotalColors: 3,
-    })
+    resolveAction(s, "p1", plesio, { type: "if", cond: { count: "bothNexusColors", atLeast: 3 }, then: { type: "declare", what: "color", from: "nexuses", chooser: "each", then: { type: "destroyNexus", count: 1, all: true, side: "both", filter: { declared: "except" } } } })
     assert(s.players.p1.field.nexuses.includes(ownNexus), "色数合計2色（未満）のため自分のネクサスは破壊されない")
     assert(s.players.p2.field.nexuses.includes(enemyNexus), "相手のネクサスも破壊されない")
 }
@@ -65,10 +62,7 @@ console.log("=== BS02-010 溶海竜プレシオス e1：3色以上で指定外�
     const green = createInstance("BS01-106", s.turn, 0)
     s.players.p2.field.nexuses.push(green)
 
-    resolveAction(s, "p1", plesio, {
-        type: "destroyAllNexusesExceptChosenColors",
-        minTotalColors: 3,
-    })
+    resolveAction(s, "p1", plesio, { type: "if", cond: { count: "bothNexusColors", atLeast: 3 }, then: { type: "declare", what: "color", from: "nexuses", chooser: "each", then: { type: "destroyNexus", count: 1, all: true, side: "both", filter: { declared: "except" } } } })
     assert(s.players.p1.field.nexuses.includes(red1), "自分の指定色（赤）のネクサスは残る")
     assert(s.players.p1.field.nexuses.includes(red2), "自分の指定色（赤）のネクサスは残る（2つ目）")
     assert(!s.players.p1.field.nexuses.includes(purple), "指定色でない紫のネクサスは破壊される")
