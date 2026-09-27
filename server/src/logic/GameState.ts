@@ -239,7 +239,7 @@ export function log(state: GameState, message: string): void {
 // ここが唯一の入口であることで、再開スタックの挿入境界（resumeInsertAt）のリセットを
 // 1箇所に集約できる（各所で書き忘れると解決順が壊れる）
 export function suspend(state: GameState, choice: PendingChoice): void {
-    state.pendingChoice = choice
+    state.pendingChoice = state.recordScope !== undefined && choice.recordScope === undefined ? { ...choice, recordScope: state.recordScope } : choice
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
     state.resumeInsertAt = 0
     if (DEBUG_CHECKS) suspendFingerprint = boardFingerprint(state)

@@ -18,6 +18,7 @@ import { findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../Eff
 import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { newRecordScope } from "../record"
 
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
@@ -289,13 +290,18 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         state.effectFizzled = true
         return
     }
+    const scope = newRecordScope()
     resolveInOrder(state, [action.cost, action.then], {
-        resolve: (a) => ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType }),
+        resolve: (a) => {
+            state.recordScope = scope
+            ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType })
+        },
         frame: (a) => ({
             kind: "action" as const,
             selfInstanceId: self ? self.instanceId : null,
             action: a,
             actorPid: owner,
+            recordScope: scope,
             ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
             ...(srcType !== undefined ? { sourceType: srcType } : {}),
         }),

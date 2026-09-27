@@ -9,6 +9,7 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
+import { lastMovedOf } from "../../server/src/logic/record"
 
 const X28 = "BS07-X28" // 巨人大帝アレクサンダー（Lv2 アタック時：コスト4以下1体破壊→そのコストと同じ枚数破棄）
 const GINGER = "BS11-045" // MCギンガー（アタック時：相手のデッキ1枚破棄→同じコストの相手1体を破壊）
@@ -70,7 +71,7 @@ console.log("=== 2. 破壊時の誘発が別に破壊したカードは記録に
     put(s, "p2", VOLGAMES, 1)
     resolveAction(s, "p1", null, { type: "destroy", count: 1 })
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === me.instanceId), "前提：ボルガメスの破壊時効果で自分のスピリットも破壊された")
-    assert(s.lastMoved?.length === 1 && s.lastMoved[0] === VOLGAMES, "記録はこの destroy が破壊したボルガメスだけ")
+    assert(lastMovedOf(s).length === 1 && lastMovedOf(s)[0] === VOLGAMES, "記録はこの destroy が破壊したボルガメスだけ")
 }
 
 console.log("=== 3. BS11-045：破棄したカードと同じコストの相手1体を破壊（sameCostAsLast） ===")

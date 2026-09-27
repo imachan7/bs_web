@@ -7,6 +7,7 @@ import { fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardCho
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
 import { hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from "../../../../shared/rules"
 import { activateBurstCard } from "../keywords/burst"
+import { recordMoved } from "../record"
 
 type RevealActionT = Extract<EffectAction, { type: "reveal" }>
 type RevealPick = NonNullable<RevealActionT["pick"]>
@@ -294,7 +295,7 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
             const pickedId = srcPlayer.hand[chosenCardIndex]
             if (pickedId !== undefined) {
                 srcPlayer.hand.splice(chosenCardIndex, 1)
-                state.lastMoved = [pickedId]
+                recordMoved(state, [pickedId])
                 runSteps(ctx, action, srcPid, [{ kind: "pick", cardId: pickedId }])
             }
             return
@@ -311,7 +312,7 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
     if (from === "hand") {
         const indices = srcPlayer.hand.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick)).map((x) => x.i)
         if (indices.length === 0) {
-            state.lastMoved = []
+            recordMoved(state, [])
             log(state, `${sourceName}：対象がなかった。`)
             return
         }
@@ -323,7 +324,7 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
         for (const i of indices) if (getCard(srcPlayer.hand[i]!).cost > getCard(srcPlayer.hand[best]!).cost) best = i
         const cardId = srcPlayer.hand[best]!
         srcPlayer.hand.splice(best, 1)
-        state.lastMoved = [cardId]
+        recordMoved(state, [cardId])
         runSteps(ctx, action, srcPid, [{ kind: "pick", cardId }])
         return
     }
@@ -340,7 +341,7 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
                 : state.players[owner].field.nexuses.length
           : action.count ?? 0
     const revealed = from === "burst" ? takeOwnBurst(srcPlayer) : srcPlayer.deck.splice(0, count)
-    state.lastMoved = [...revealed]
+    recordMoved(state, [...revealed])
     if (revealed.length === 0) {
         log(state, from === "burst" ? `${sourceName}：バーストをセットしていなかった。` : `${sourceName}：デッキにカードがないため公開できなかった。`)
         return

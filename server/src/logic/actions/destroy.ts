@@ -42,6 +42,7 @@ import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { recordDestroysOf } from "../removal"
+import { currentRecordScope, recordMoved } from "../record"
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
 type DestroyNexusAction = Extract<EffectAction, { type: "destroyNexus" }>
@@ -192,6 +193,12 @@ const destroySpiritBraveNexusEachHandler: ActionHandler<"destroySpiritBraveNexus
     }
 }
 
+// 「残り N 体」を再開フレームに積むときは体数を固定する（countCounter を再開のたびに数え直さない）
+function fixedCount(a: DestroyAction, count: number): DestroyAction {
+    const { countCounter: _counted, ...rest } = a
+    return { ...rest, count, countPerOpponentTrashMagicColors: false }
+}
+
 const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption } = ctx
         if (action.all) {
@@ -295,7 +302,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                         `${sourceName}の破壊効果：破壊する自分のスピリットを選んでください`,
                         candidates,
                         { ...actionForChoice, count: 1 },
-                        resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
+                        resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1) : null,
                     )
                 ) {
                     return
@@ -316,7 +323,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                             kind: "action",
                             selfInstanceId: self ? self.instanceId : null,
                             actorPid: owner,
-                            action: { ...action, count: rest, countPerOpponentTrashMagicColors: false },
+                            action: fixedCount(action, rest),
                         }])
                     }
                     return
@@ -339,7 +346,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                     anySideCandidates,
                     { ...actionForChoice, count: 1 },
                     resolvedCount > 1
-                        ? { ...actionForChoice, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false }
+                        ? fixedCount(actionForChoice, resolvedCount - 1)
                         : null,
                 )
             ) {
@@ -361,7 +368,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                             kind: "action",
                             selfInstanceId: self ? self.instanceId : null,
                             actorPid: owner,
-                            action: { ...action, count: rest, countPerOpponentTrashMagicColors: false },
+                            action: fixedCount(action, rest),
                         }])
                     }
                     return
@@ -382,7 +389,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                         : `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     candidates,
                     { ...actionForChoice, count: 1 },
-                    resolvedCount > 1 ? { ...actionForChoice, count: resolvedCount - 1, countPerOpponentTrashMagicColors: false } : null,
+                    resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1) : null,
                     // chooserIsTarget（BS10-101ハングドマン＝「相手は、相手のスピリット1体を破壊する」）：
                     // 破壊される側（相手＝opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
                     action.chooserIsTarget ? opp : undefined,
@@ -430,7 +437,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                         kind: "action",
                         selfInstanceId: self ? self.instanceId : null,
                         actorPid: owner,
-                        action: { ...action, count: rest, countPerOpponentTrashMagicColors: false },
+                        action: fixedCount(action, rest),
                     }])
                 }
                 return
@@ -1874,9 +1881,11 @@ const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, act
 // 破壊したカードを lastMoved に残す（if の cond.last・カウンタ lastCost が読む。IF_UNIFY.md §5）
 const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { count } = action
-    ctx.state.lastMoved = recordDestroysOf(ctx.destroyContext, () =>
+    const scope = currentRecordScope(ctx.state)
+    const ids = recordDestroysOf(ctx.destroyContext, () =>
         count === "any" ? destroyOwnSpiritsAny(ctx, action) : destroyHandler(ctx, { ...action, count }),
     )
+    recordMoved(ctx.state, ids, scope)
 }
 
 const destroyNexusEntryHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
@@ -1934,10 +1943,11 @@ function destroyOwnSpiritsAny(ctx: ActionCtx, action: DestroyAction): void {
 // 破壊したネクサスを lastMoved に書く（「その破壊したネクサス1つにつき」）
 function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void {
     const { state, owner, sourceName, srcType } = ctx
+    const scope = currentRecordScope(state)
     const candidates = state.players[owner].field.nexuses.map((n) => n.instanceId)
     const chosen = chooseOwnAny(ctx, action, candidates, "ネクサス")
     if (chosen === null) {
-        state.lastMoved = []
+        recordMoved(state, [], scope)
         return
     }
     const destroyed: string[] = []
@@ -1945,7 +1955,7 @@ function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void 
         const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === id)
         if (nexus && destroyNexus(state, owner, id, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed.push(nexus.cardId)
     }
-    state.lastMoved = destroyed
+    recordMoved(state, destroyed, scope)
     log(state, destroyed.length > 0 ? `${sourceName}：自分のネクサス${destroyed.length}つを破壊した。` : `${sourceName}：ネクサスを破壊しなかった。`)
 }
 

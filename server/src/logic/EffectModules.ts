@@ -72,6 +72,7 @@ import {
     instIsCombined,
     opponentFieldColorCount,
 } from "../../../shared/rules"
+import { lastMovedOf } from "./record"
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
 export { millCapBonusFor, hasFunsaiOnBlock, resolveFunsai } from "./keywords/funsai"
 export { hasJugekiOnBlockReplace } from "./keywords/jugeki"
@@ -1017,8 +1018,8 @@ export function countEffectCounter(
     // BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
-    if (counter === "lastMoved") return state.lastMoved?.length ?? 0
-    if (counter === "lastCost") return (state.lastMoved ?? []).reduce((n, id) => n + getCard(id).cost, 0)
+    if (counter === "lastMoved") return lastMovedOf(state).length
+    if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + getCard(id).cost, 0)
     if (counter === "ownCoresTotal") {
         const p = state.players[owner]
         const onField = [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].reduce((n, i) => n + i.cores, 0)

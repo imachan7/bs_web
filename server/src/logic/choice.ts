@@ -33,6 +33,7 @@ import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
 import { applyResshinsokuDestination, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution } from "./battleResolve"
+import { newRecordScope } from "./record"
 
 // 選択を「やめた」ときに、「ターンに1回」を巻き戻す
 // （起動能力＝PendingChoice.revertActivated／誘発＝revertTriggered。2026-09-16）
@@ -68,6 +69,7 @@ export function doResolveChoice(
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
     if (pending.pid !== pid) return "あなたが選択するタイミングではありません"
+    state.recordScope = pending.recordScope ?? newRecordScope()
 
     // マジックの無効化の確認（鏡の回廊Lv2／【氷壁】）。action は解決せず、
     // 「無効にする」ならコストを払ってマジックの効果を捨て、選ばなければ中断していた解決を続ける
@@ -568,6 +570,8 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
         // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
         // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
+        // 記録の枠：同じ効果の続きは自分の枠へ、持たないフレーム（別の効果）は新しい枠で（IF_UNIFY.md §6）
+        state.recordScope = frame.recordScope ?? newRecordScope()
         if (frame.requiresPendingDestructionOf !== undefined) {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
             if (target == null || target.pendingDestruction !== true) continue

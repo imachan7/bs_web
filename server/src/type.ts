@@ -107,7 +107,7 @@ export interface TargetFilter {
     maxCostAsSelf?: true // self と同じかそれ以下のコスト（sameCostAsSelfの以下版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS10-X06天蠍神騎スコル・スピア＝「このスピリットのコスト以下の相手」）
     sameIceWallColorAs?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝アタックしたスピリット等）が持つ【氷壁】の色（iceWallColorsOfで判定。複数色ならOR）のいずれかを持つもの。normalizeFilter が colorAny 軸へ解決する。self がいない／【氷壁】の色を持たなければ対象なし（BS16-036氷聖女ジャンヌダルク【合体時】：「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
-    sameCostAsLast?: true // GameState.lastMoved 先頭のカードと同じコスト（記録が空なら対象なし。IF_UNIFY.md §5）
+    sameCostAsLast?: true // 直前に動いたカード（logic/record.ts）の先頭と同じコスト。記録が空なら対象なし
     sameCostAsEventTarget?: true // **イベント対象**（ctx.targetInstanceId）と同じコスト（normalizeFilter が cost 軸へ解決する。対象が見つからなければ対象なし）。
     // 誘発ごとに「イベント対象」が何かは変わる: onBlocked なら**ブロッカー**（BS06計画された場外乱闘Lv2）、
     // onBlock なら**アタックしている相手**（SD02-002 ミザール）。かつて sameCostAsBlocker という名前だったが、
@@ -155,8 +155,8 @@ export type EffectCounter =
     | "opponentTrashCores" // 相手のトラッシュに置かれているコア数（PlayerState.trashCores。BS04吸血鬼ダンピール）
     | "selfLevel" // このスピリット（self）自身の現在のLv（selfがnullなら0。BS09-018暗空の勇者皇ザンバ：「このスピリットのLvと同じ個数」）
     | "ownCoresTotal" // 自分のフィールド（合体中ブレイヴを含む）・リザーブ・トラッシュのコアの合計
-    | "lastCost" // GameState.lastMoved のカードの印刷コストの合計（「破壊したスピリットのコストと同じ枚数」）
-    | "lastMoved" // GameState.lastMoved の枚数（「破棄したカード1枚につき」。docs/design/IF_UNIFY.md §5）
+    | "lastCost" // 直前に動いたカードの印刷コストの合計
+    | "lastMoved" // 直前に動いたカードの枚数（logic/record.ts）
     | "burstEventCost" // BS15共通器：GameState.burstEventCost（バースト発動時のeventInfo.costs先頭値）。未設定なら0（BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     | "selfCores" // このスピリット（self）自身の上に置かれているコア数（selfがnullなら0。BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」）
     | "selfSymbols" // このスピリット（self）自身が持つシンボル数（instanceSymbolCount。selfがnullなら0。BS05碧緑の竜使いグリューン：「このスピリットのシンボルと同じ数」）
@@ -846,6 +846,7 @@ export interface BattleState {
 // （fireTrigger / resolveMagic のエントリループが積む。selfInstanceId から self を復元して再開する）。
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
+    recordScope?: string
     kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
     prompt: string // クライアント表示用の説明文（日本語）
     candidates: string[] // kind:"target" のとき使用する候補instanceId（kind:"option"/"card"のときは空配列）
@@ -1091,6 +1092,7 @@ export type ResumeFrame =
           selfInstanceId: string | null // 発生源（self の復元用）
           action: EffectAction
           actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
+          recordScope?: string
           // ここから下は fieldEvent 誘発の残りを積むときに使う（2026-08-17）。
           // fieldEvent は「self＝イベント対象／発生源＝エントリを持つカード」がずれることがあり、
           // 発生源の色・種別を渡さないと装甲やマジック効果耐性の判定が self 側から導出されて誤る
@@ -1388,7 +1390,8 @@ export interface GameState {
     // 場から取り除かれた後でもオブジェクト参照からは読み取れる（resolveBattle が attacker を
     // ローカル変数で持ち回っているのと同じ考え方）。clearBattle で消す
     lastFunsai?: { total: number; spirits: number; nexuses: number; magics: number; costAtLeast4: number } // 直前の【粉砕】で破棄した内容（resolveFunsaiが記録）。アタック宣言のたびにクリアする（doAttack冒頭）。EffectCounter "lastFunsaiTotal"/"lastFunsaiSpirits"とtriggered.condition {lastFunsaiHasNexus}が参照する（BS03巨人王ランドルフ／BS04二刀流のアムブローズ／BS04伝説巨人ジュード）。costAtLeast4はBS15共通器：破棄したカードのうちコスト4以上の枚数（BS15-053コジロンド・ゴレムLv2-3：「コスト4以上のカードを破棄したとき」）
-    lastMoved?: string[] // 直前の記録するアクション（mill・reveal）で動いたカード。if の cond.last とカウンタ "lastMoved" が読む。sequence の開始時に空にする（IF_UNIFY.md §5）
+    lastMoved?: Record<string, string[]> // 枠ごとの直前に動いたカード（logic/record.ts）
+    recordScope?: string
     burstEventCost?: number // BS15共通器：バースト発動時、eventInfo.costsの先頭値を一時的に積む（EffectCounter "burstEventCost" が読む。confirmを経由する対話モードでもpendingChoice.burstActivate.destroyedCostへ引き継いで復元する。BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     lastMagicCast?: { pid: PlayerId; cardId: string; timing: "main" | "flash"; targetInstanceId?: string } // 直前にプレイヤー自身が手札/手元から使用したマジック（doCastMagic・castMagicFromTrashByColorが記録。action:"magicMirrorRepeat"が参照する。**フラッシュタイミングが閉じた時点**でクリアされ、それより前の使用は対象にならない＝フラッシュ①で使われたマジックをフラッシュ②で写すことはできない。バトル終了時（clearBattle）にもクリアする。BS08マジックミラー）
 }

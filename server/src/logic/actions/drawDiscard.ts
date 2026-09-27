@@ -4,6 +4,7 @@ import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
 import { KEYWORDS, canDiscardHand, instanceSymbolCount, hasGlobalConstraint, hasKeyword } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
+import { recordMoved } from "../record"
 
 const noopHandler: ActionHandler<"noop"> = () => {
     // 何もしない（PendingChoice.magicNegate のプレースホルダ）
@@ -418,7 +419,7 @@ function discardSelfAny(ctx: ActionCtx, action: Extract<EffectAction, { type: "d
     const player = state.players[owner]
     const discarded = action.discarded ?? []
     const finish = (ids: string[]): void => {
-        state.lastMoved = ids
+        recordMoved(state, ids)
         if (ids.length === 0) log(state, `${sourceName}：手札を破棄しなかった。`)
     }
     if (chosenCardIndex !== undefined) {
@@ -471,7 +472,7 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
     if (action.count === "any") {
         if (!canDiscardHand(state, owner)) {
             log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-            state.lastMoved = []
+            recordMoved(state, [])
             return
         }
         discardSelfAny(ctx, action)

@@ -130,6 +130,10 @@ export function handleAction(
         delete state.resolvingSummonTriggerPid
         finishSummonEffect(state)
     }
+    if (!state.pendingChoice && state.resumeStack.length === 0) {
+        delete state.lastMoved
+        delete state.recordScope
+    }
     // 「破壊される代わりに復活できる」の確認は、破壊処理の途中では中断できないので
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
