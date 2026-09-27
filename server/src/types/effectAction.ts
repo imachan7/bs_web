@@ -209,10 +209,10 @@ export type EffectAction =
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統をCardInstance.lentChoiceFamilyに載せた仮想発生源を積む（＝lendSelfThisTurnと同じ貸与。以後はkind:"familyGrant"のfamilyFromChoiceエントリが継続付与する）
  | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
  // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。from＝選ぶ人の場の spirits／nexuses から候補を取る。picked は再開用
- | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）
  | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number; until?: CardPick } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
+ | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）
  | { type: "grantKeywordToHandCard"; keyword: Keyword; familyFilter?: FamilyFilter; cardType?: "spirit" | "nexus" | "magic"; all?: true } // 手札の条件一致（cardType/familyFilter。配列＝いずれかの系統でOR）カード1枚に、このターンの間キーワードを付与する（PlayerState.tempHandKeywordGrants。自動選択は手札末尾の該当カード。該当なしはno-op。付与はcardId単位＝同名重複カードにも効く簡略化）。all指定時は選択を挟まず、条件一致する手札カード**すべて**に付与する
  | { type: "coreTradeToOpponentTrash" } // 自分のリザーブのコアをX個自分のトラッシュへ置き、同数だけ相手のリザーブのコアを相手のトラッシュへ置く（Xの上限はmin(自分のリザーブ,相手のリザーブ)。interactiveTargets時はkind:"option"のoption choice（「1個」〜「上限個」、optional=スキップ可＝0個）、自動時は上限個。ポイズンミスト）
  | { type: "addSymbolPermanent"; count: number; color: Color } // 発生源自身（self）に、指定色のシンボルをcount個**永続的に**追加する（symbolAddGrantと違い、条件で消える継続付与ではなく蓄積するトリガー式。CardInstance.extraSymbolsPermanentへ加算）
