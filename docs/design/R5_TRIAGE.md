@@ -21,11 +21,12 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #189 | G-toDeck | 6種 → `toDeck` |
 | #190 | G-delegate の一部 | `voidCoreToSelf`→`placeCores`、`returnOwnSpiritToHand`→`returnToHand{side own}`、`opponentNexusCoresToTrashOne`→`removeCores{from nexus}`、`discardSelfDownTo`・`discardOpponentDownTo`→`downTo` 軸 |
 | #191 | G-compose | `skipBpCompareThenRefreshOne` → `skipBpCompare`＋`refreshOne` |
-| #192・（この PR） | 「指定する」 | `destroyAllByChosenCost`・`exhaustAllByColor`・`refreshByFamilyAuto`・`destroyAllExceptChosenColors`・`returnFieldExceptOpponentChosenColor` → `declare`（DECLARE_UNIFY） |
+| #192・#193 | 「指定する」 | `destroyAllByChosenCost`・`exhaustAllByColor`・`refreshByFamilyAuto`・`destroyAllExceptChosenColors`・`returnFieldExceptOpponentChosenColor` → `declare`（DECLARE_UNIFY） |
+| （この PR） | 「指定する」のネクサス3種＋フレイム・エルク | `destroyAllNexusesExceptChosenColors`・`destroyFieldExceptOpponentChosenColor`・`destroyAllNexusesWithCores` と `destroyNexus.chooseColor`・`colorFilter` → `destroyNexus{filter}`（`minCores` 軸） |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
-- ネクサスを対象に取る軸（疲労・破壊の絞り込み）へ：`exhaustAllOpponentNexuses`・`destroyAllNexusesWithCores`（要相談の `exhaustSpiritsAndNexusesUpTo` と一緒に）
+- ネクサスを対象に取る軸（疲労・破壊の絞り込み）へ：`exhaustAllOpponentNexuses`（要相談の `exhaustSpiritsAndNexusesUpTo` と一緒に）
 - トラッシュ→手札へ：`recoverNexusFromTrash`。pay へ：`revealHandMagicToTegamotoDraw`
 - ルールの確認待ち：`skipBpCompareThenRefreshOne`（BS06-109 と同じ文面で実装が違う）、`destroyOwnByFamilyThenWipeEnemy`（同時か順か）、`returnOneThenRefreshIfMaxCost`（戻したコストの見方）
 - 残す候補（判断が要る）：`mutualKeepChoice`・`bpBuffAllByBofuCount`・`destroyByOwnFamilyCostSet`

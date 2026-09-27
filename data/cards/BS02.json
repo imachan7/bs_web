@@ -511,10 +511,7 @@
      2,
      3
     ],
-    "action": {
-     "type": "destroyAllNexusesExceptChosenColors",
-     "minTotalColors": 3
-    },
+    "action": {"type": "if", "cond": {"count": "bothNexusColors", "atLeast": 3}, "then": {"type": "declare", "what": "color", "from": "nexuses", "chooser": "each", "then": {"type": "destroyNexus", "count": 1, "all": true, "side": "both", "filter": {"declared": "except"}}}},
     "optional": false
    },
    {

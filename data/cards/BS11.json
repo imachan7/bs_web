@@ -4577,14 +4577,7 @@
     "id": "BS11-073-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "destroyNexus",
-     "count": 0,
-     "all": true,
-     "side": "both",
-     "chooseColor": true,
-     "drawPerDestroyed": 1
-    }
+    "action": {"type": "declare", "what": "color", "then": {"type": "destroyNexus", "count": 0, "all": true, "side": "both", "drawPerDestroyed": 1, "filter": {"declared": "match"}}}
    }
   ]
  },

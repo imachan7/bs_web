@@ -78,7 +78,8 @@ export function destroyCandidateCountForPay(
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).length
 }
 
-// pay の判定表（destroyNexus）が使う候補数。levelFilter/colorFilterのみ対応（他は今回のpay移行対象外）
+// pay の判定表（destroyNexus）が使う候補数。
+// ponytail: filter は normalizeFilter を通さない（self 相対の BP 指定は見ない）。pay で使うカードが出たら通す
 export function destroyNexusCandidateCountForPay(
     state: GameState,
     owner: PlayerId,
@@ -87,10 +88,10 @@ export function destroyNexusCandidateCountForPay(
 ): number {
     const opp = opponentOf(owner)
     const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.side === "own" ? [owner] : [opp]
-    const matchesLevel = (n: CardInstance) =>
+    const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
         (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
-        (action.colorFilter === undefined || instHasColor(n, action.colorFilter))
-    return sides.reduce((sum, pid) => sum + state.players[pid].field.nexuses.filter(matchesLevel).length, 0)
+        matchesTarget(state, pid, n, (action.filter ?? {}) as unknown as ResolvedTargetFilter)
+    return sides.reduce((sum, pid) => sum + state.players[pid].field.nexuses.filter(matchesIn(pid)).length, 0)
 }
 
 // pay の判定表（nexusCoresToTrash）：対象側のネクサスのどれかにコアが1個以上あるか
@@ -711,112 +712,9 @@ const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ct
 }
 
 
-const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexusesExceptChosenColors"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // destroyAllExceptChosenColorsのネクサス版。両者フィールドのネクサスの色数合計
-        // （重複除く）がminTotalColors未満なら不発（ログのみ）。
-        // お互い自分フィールドで最多のネクサス色を1色ずつ自動指定し（同数はcolorOrder先頭、
-        // ネクサス0の側は指定なし）、どちらの指定色でもないネクサスをすべて破壊する
-        // （色選択の決定的簡略化。溶海竜プレシオス）
-        const colorOrder: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-        const pickChosenNexusColor = (pid: PlayerId): Color | null => {
-            const nexuses = state.players[pid].field.nexuses
-            if (nexuses.length === 0) return null
-            const counts = new Map<Color, number>()
-            for (const n of nexuses) {
-                for (const c of instColors(n)) counts.set(c, (counts.get(c) ?? 0) + 1)
-            }
-            let best: Color | null = null
-            let bestCount = 0
-            for (const c of colorOrder) {
-                const n = counts.get(c) ?? 0
-                if (n > bestCount) {
-                    bestCount = n
-                    best = c
-                }
-            }
-            return best
-        }
-        const allNexusColors = new Set<Color>()
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            for (const n of state.players[pid].field.nexuses) {
-                for (const c of instColors(n)) allNexusColors.add(c)
-            }
-        }
-        if (allNexusColors.size < action.minTotalColors) {
-            log(
-                state,
-                `${sourceName}：両者のネクサスの色数合計が${action.minTotalColors}色未満のため発動しなかった。`,
-            )
-            return
-        }
-        const chosenP1 = pickChosenNexusColor("p1")
-        const chosenP2 = pickChosenNexusColor("p2")
-        const safeColors = new Set([chosenP1, chosenP2].filter((c): c is Color => c !== null))
-        log(
-            state,
-            `${sourceName}：ネクサスの指定色は p1=${chosenP1 ?? "なし"}, p2=${chosenP2 ?? "なし"}。` +
-                `いずれでもない色のネクサスを破壊する。`,
-        )
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            const targets = state.players[pid].field.nexuses.filter(
-                (n) => instColors(n).some((c) => !safeColors.has(c)),
-            )
-            for (const t of targets) destroyNexus(state, pid, t.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
-        }
-        return
-}
 
 const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
-// BS15-055マタドーラ：**相手が**自分（相手）のスピリットの色から1色指定し、指定されなかった色を
-// 1つでも持つ相手のスピリットとネクサスすべてを破壊する（destroyAllExceptChosenColorsの片側版）。
-// 選ぶのは相手だが解決は発生源の持ち主の効果として続ける（CHOOSER_RULES.md）
-const destroyFieldExceptOpponentChosenColorHandler: ActionHandler<"destroyFieldExceptOpponentChosenColor"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcType, chosenOption } = ctx
-    const destroyContext = { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }
-    const targetsFor = (color: Color) => ({
-        spirits: state.players[opp].field.spirits.filter((s) => instColors(s).some((c) => c !== color)),
-        nexuses: state.players[opp].field.nexuses.filter((n) => instColors(n).some((c) => c !== color)),
-    })
-    const resolveWithColor = (color: Color): void => {
-        const { spirits, nexuses } = targetsFor(color)
-        log(state, `${sourceName}：相手の指定色は${color}。それ以外の色を持つ相手のスピリット/ネクサスを破壊する。`)
-        destroyTargetsBatch(state, owner, spirits.map((s) => ({ pid: opp, instanceId: s.instanceId })), destroyContext)
-        for (const n of nexuses) destroyNexus(state, opp, n.instanceId, destroyContext)
-    }
-    if (chosenOption !== undefined && (ALL_COLORS as string[]).includes(chosenOption)) {
-        resolveWithColor(chosenOption as Color)
-        return
-    }
-    const oppSpirits = state.players[opp].field.spirits
-    if (oppSpirits.length === 0) {
-        log(state, `${sourceName}：色を指定するスピリットが相手にいないため発動しなかった。`)
-        return
-    }
-    if (state.interactiveTargets) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：自分のスピリットの色を1色指定してください`,
-            [],
-            false,
-            action,
-            self,
-            "option",
-            ALL_COLORS,
-            opp,
-        )
-        return
-    }
-    // 非対話：相手視点で破壊される数が最小になる色を選ぶ（プレイヤー選択の決定的簡略化）
-    const countFor = (color: Color): number => {
-        const { spirits, nexuses } = targetsFor(color)
-        return spirits.length + nexuses.length
-    }
-    const best = ALL_COLORS.reduce((a, b) => (countFor(b) < countFor(a) ? b : a))
-    resolveWithColor(best)
-}
 
 
 const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>): void => {
@@ -824,38 +722,18 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both。
         // "own"は自分側のネクサスだけが対象＝pay { cost: destroyNexus{side:"own"} } の器）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.side === "own" ? [owner] : [opp]
-        // chooseColor（BS11-073 バスターハンマー）：まず色1色を指定させ、その色を colorFilter に
-        // 載せて解決し直す。**色を選ぶのは効果の使用者**（効果文に「相手は」が無い）
-        if (action.chooseColor) {
-            const { chooseColor: _chooseColor, ...rest } = action
-            const chosen = chosenOption !== undefined && (ALL_COLORS as string[]).includes(chosenOption)
-                ? (chosenOption as Color)
-                : undefined
-            if (chosen !== undefined) {
-                ctx.resolve({ ...rest, colorFilter: chosen })
-                return
-            }
-            if (state.interactiveTargets) {
-                requestChoice(state, owner, `${sourceName}：破壊するネクサスの色を指定してください`, [], false, action, self, "option", ALL_COLORS)
-                return
-            }
-            // 非対話（テスト・AI）：破壊できる数が最大になる色を選ぶ（同数は ALL_COLORS の順）
-            const countFor = (color: Color): number =>
-                sides.reduce(
-                    (sum, pid) => sum + state.players[pid].field.nexuses.filter((n) => instHasColor(n, color)).length,
-                    0,
-                )
-            const best = ALL_COLORS.reduce((a, b) => (countFor(b) > countFor(a) ? b : a))
-            ctx.resolve({ ...rest, colorFilter: best })
-            return
-        }
         // levelFilter指定時はこれに含まれるレベルのネクサスのみ対象（BS03バスターランス＝Lv1のみ）。
         // **他のカードから見えるレベル（displayLevel）で判定する**：ウッド・ゴレムの
         // 「相手のネクサスすべてのLv2効果は発揮されない」は効果の発揮判定にだけ効く置き換えなので、
         // それでLv1に見えるようになったネクサスをバスターランスが破壊できてはいけない
-        const matchesLevel = (n: CardInstance) =>
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) {
+            log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+            return
+        }
+        const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
-            (action.colorFilter === undefined || instHasColor(n, action.colorFilter))
+            matchesTarget(state, pid, n, filter, self?.instanceId)
         // chooserIsTarget（BS14-111エクスキューションデストロイ＝「相手は、相手のネクサス1つを破壊する」）：
         // 破壊される側（opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
         if (action.chooserIsTarget && action.count === 1) {
@@ -866,7 +744,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 else log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
             }
-            const candidates = state.players[pid].field.nexuses.filter(matchesLevel).map((n) => n.instanceId)
+            const candidates = state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => n.instanceId)
             if (state.interactiveTargets) {
                 requestChoice(
                     state,
@@ -882,7 +760,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 )
                 return
             }
-            const nexus = state.players[pid].field.nexuses.find(matchesLevel)
+            const nexus = state.players[pid].field.nexuses.find(matchesIn(pid))
             if (!nexus) {
                 log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
@@ -892,7 +770,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         }
         // side:"own" の1つ破壊は持ち主が選ぶ。非対話は旧サクリファイスと同じくコア最少（同数は先頭）
         if (action.side === "own" && action.count === 1 && !action.all) {
-            const candidates = state.players[owner].field.nexuses.filter(matchesLevel)
+            const candidates = state.players[owner].field.nexuses.filter(matchesIn(owner))
             const chosen = targetInstanceId !== undefined
                 ? candidates.find((n) => n.instanceId === targetInstanceId)
                 : undefined
@@ -912,12 +790,12 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         for (const pid of sides) {
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
             const iterations = action.all
-                ? state.players[pid].field.nexuses.filter(matchesLevel).length
+                ? state.players[pid].field.nexuses.filter(matchesIn(pid)).length
                 : action.count
             for (let i = 0; i < iterations; i++) {
                 const nexus =
-                    action.levelFilter !== undefined || action.colorFilter !== undefined
-                        ? state.players[pid].field.nexuses.find(matchesLevel)
+                    action.levelFilter !== undefined || action.filter !== undefined
+                        ? state.players[pid].field.nexuses.find(matchesIn(pid))
                         : state.players[pid].field.nexuses[0]
                 if (!nexus) {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
@@ -1286,24 +1164,6 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
         return
 }
 
-const destroyAllNexusesWithCoresHandler: ActionHandler<"destroyAllNexusesWithCores"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（フレイム・エルク）。
-        // 破壊耐性（nexusIndestructible）はdestroyNexus内で尊重される
-        let destroyed = 0
-        for (const pid of ["p1", "p2"] as PlayerId[]) {
-            const targets = state.players[pid].field.nexuses
-                .filter((n) => n.cores >= 1)
-                .map((n) => n.instanceId)
-            for (const instanceId of targets) {
-                if (destroyNexus(state, pid, instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed++
-            }
-        }
-        if (destroyed === 0) {
-            log(state, `${sourceName}：コアが置かれているネクサスがなかった。`)
-        }
-        return
-}
 
 const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, action) => {
     const { state, opp, sourceName, srcType } = ctx
@@ -1795,8 +1655,6 @@ const handlers = {
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyLifeDamager: destroyLifeDamagerHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
-    destroyFieldExceptOpponentChosenColor: destroyFieldExceptOpponentChosenColorHandler,
-    destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusEntryHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
@@ -1804,7 +1662,6 @@ const handlers = {
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
     fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,
-    destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
     returnNexusToHand: returnNexusToHandHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,

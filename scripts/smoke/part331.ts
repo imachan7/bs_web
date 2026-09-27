@@ -204,7 +204,7 @@ console.log("=== BS15-055 マタドーラ：相手が自分のスピリットの
     const oppPurple = createInstance("BS01-030", s.turn, 1) // 紫
     s.players.p2.field.spirits.push(oppRed, oppPurple)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", matadora, { type: "destroyFieldExceptOpponentChosenColor" })
+    resolveAction(s, "p1", matadora, { type: "declare", what: "color", from: "spirits", chooser: "opponent", then: { type: "sequence", actions: [{ type: "destroy", count: 1, all: true, filter: { declared: "except" } }, { type: "destroyNexus", count: 1, all: true, filter: { declared: "except" } }] } })
     const remaining = s.players.p2.field.spirits.length
     assert(remaining === 1, "相手視点で被害が最小になる色が選ばれ、1体だけ残る（非対話の決定的簡略化）")
 }

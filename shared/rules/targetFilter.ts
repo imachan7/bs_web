@@ -38,6 +38,7 @@ export function matchesTarget(
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
+    if (filter.minCores !== undefined && inst.cores < filter.minCores) return false
     if (filter.colorNotIn !== undefined && !instColors(inst).some((c) => !filter.colorNotIn!.includes(c))) return false
     if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false

@@ -31,7 +31,7 @@ console.log("=== 汎用 destroyAllNexusesWithCores：コアが1個以上の両�
     const p2Cored = createInstance("BS01-112", s.turn, 4) // コアあり
     s.players.p1.field.nexuses.push(p1Cored, p1Empty)
     s.players.p2.field.nexuses.push(p2Cored)
-    resolveAction(s, "p1", null, { type: "destroyAllNexusesWithCores" })
+    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, all: true, side: "both", filter: { minCores: 1 } })
     assert(
         s.players.p1.field.nexuses.length === 1 && s.players.p1.field.nexuses[0]?.instanceId === p1Empty.instanceId,
         "自分のコアなしネクサスは残る",

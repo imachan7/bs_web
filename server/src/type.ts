@@ -94,6 +94,7 @@ export interface TargetFilter {
     symbolCount?: number // シンボル数が**これと完全一致**（minSymbols＝以上とは別軸。「シンボル1つを持つ相手のスピリット」「シンボル2つを持つ相手の合体スピリット」。instanceSymbolCountで判定＝合体しているブレイヴのシンボルも数える。BS12初出）
     excludeSelf?: boolean // 発生源自身を対象から外す
     cores?: number // 実際に置かれているコア数がこれと一致する（BS05ドラグノ爆弾兵：コア1個）
+    minCores?: number // 実際に置かれているコア数がこれ以上
     maxCores?: number // 実際に置かれているコア数がこれ以下（cores＝完全一致とは別軸。BS03水龍王リヴァイア：コアが3個以下）
     uncombined?: true // **合体していない**スピリットだけ（instIsCombined が false。BS11-X04 宝瓶神機アクア・エリシオン＝リフレッシュステップで1体しか回復できない対象）
     rested?: true // 疲労状態（isRested）のものだけ（BS05吸血女王カーミラ：範囲破壊の疲労限定）
@@ -142,6 +143,7 @@ export type EffectCounter =
     | "readyEnemies" // 相手フィールドの回復状態スピリット数
     | "exhaustedEnemies" // 相手フィールドの疲労状態スピリット数
     | "opponentHand" // 相手の手札枚数
+    | "bothNexusColors" // お互いのフィールドのネクサスの色の種類数（重複を除く）
     | "ownOtherSpirits" // self以外の自分フィールドのスピリット数
     | "ownReserve" // 自分のリザーブのコア数
     | "ownNexuses" // 自分のネクサス数
@@ -413,7 +415,7 @@ export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; levelAtMostAttacker?: true; colorFromChosen?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; familyFilterAbsent?: FamilyFilter; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // familyFilterAbsent＝keywordFilterAbsentの系統版：指定系統（配列＝OR。matchesFamilyFilterで判定）を持た**ない**スピリットにブロックされない（BS14-055ミスティック・ヒミコLv2-3：「系統「覇皇」を持たない相手のスピリット」） // maxBp指定時はブロッカーの実効BPがこれ以下ならブロックされない（BS07鋼翼魚オルカノンLv2＝BP4000以下）。maxCost指定時はブロッカーのコストがこれ以下ならブロックされない（costNot＝完全一致の否定とは別軸。instMatchesCostFilterで判定＝付与コストも見る。BS07聖なる命の泉Lv2）// nonVanilla指定時は「カードに効果の記述を持つ」スピリットにブロックされない（isVanillaCardの否定。BS05幻獣王リーンLv3）／requireOwnCostCountAtLeast指定時は、持ち主のフィールドに指定コストのスピリットがcount体以上いる間だけ有効（activeConstraintsが判定して外す。BS05幻獣王リーンLv3＝コスト2が3体以上） // requireOwnFieldColorNexus指定時は、持ち主のフィールドに指定色のネクサスがある間だけ有効（BS03鷹人ホークアイLv2＝紫のネクサス） // このスピリットのアタックは、指定色／指定キーワード持ち／コア数がmaxCores以下／currentLevelがlevelFilterに含まれる／コストがcostNot以外のスピリットにブロックされない。costAtMostAttacker指定時はブロッカーのコストがこのアタッカーのコスト以下ならブロックされない（BS05ポテンシャルパワー：バニラのアタックは同コスト以下にブロックされない）。keywordFilterAbsent指定時はこのキーワードを持た**ない**スピリットにブロックされない（keywordFilterの否定版。BS08光帝竜騎アルカナジョーカーLv3＝【転召】を持たない相手）
+    | { type: "unblockableBy"; levelAtMostAttacker?: true; colorFromChosen?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; familyFilterAbsent?: FamilyFilter; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、条件を満たすスピリットにブロックされない。*Absent は「持たない」側。maxCost はブロッカーの付与コストも見る。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
     | { type: "blockRequiresCount"; count: number } // このスピリットのアタックは、相手がスピリットをcount体そろえてブロック宣言しないとブロックできない（BS10-X03巨蟹武神キャンサード＝2体）。
     // 効果文は「スピリット2体か、**アルティメット1体**でないとブロックできない」だが、アルティメットは未実装のため2体ブロックだけを見る。
     // count体そろえられないときはブロックそのものができない。宣言は BattleState.pendingBlockerIds に貯まり、

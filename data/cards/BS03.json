@@ -368,9 +368,7 @@
      2,
      3
     ],
-    "action": {
-     "type": "destroyAllNexusesWithCores"
-    },
+    "action": {"type": "destroyNexus", "count": 1, "all": true, "side": "both", "filter": {"minCores": 1}},
     "optional": false
    }
   ]
