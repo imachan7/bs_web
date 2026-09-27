@@ -182,7 +182,6 @@ const COST_BAKED_ACTION_TYPES = new Set([
     "targetNegateByHandDiscard",
     "summonCostHandDiscardPay",
     "nexusCostMillPay",
-    "coreRemovePerHandDiscard",
     "tenshoCoreSubstitute",
     "pay",
 ])
@@ -724,7 +723,6 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     // drawDiscard.ts の tryInteractiveCardChoice(state, targetPid, ...) で確認）
     "discardOpponent",
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
-    "destroyDownToOwnCount",
     // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）
 ])
 

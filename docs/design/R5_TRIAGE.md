@@ -27,7 +27,10 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #196 | 「指定する」の継続効果3種 | `colorChoiceLendThisTurn`・`refreshWhenBlockedByChosenColorThisTurn` → `declare`＋`timedEffect` |
 | #197 | G-matchCount・G-coresToVoid の一部 | `exhaustOpponentToMatch`・`opponentCoresToVoidByTotal` → カウンタ `minus`・`opponentCoresTotal` |
 | #198 | G-perCost | `destroyCostsEachOne`・`destroyOnePerCost`・`destroySpiritBraveNexusEach` → `sequence` |
-| （この PR） | G-existingContent の一部 | `protectLifeByCostThisTurn`・`grantBlockRequiresMagicDiscardThisTurn`・`setOpponentBpAsThisBattle` → `timedEffect` |
+| #199 | G-existingContent の一部 | `protectLifeByCostThisTurn`・`grantBlockRequiresMagicDiscardThisTurn`・`setOpponentBpAsThisBattle` → `timedEffect` |
+| #200 | G-refire・G-borrow | `refireSummonEffect`・`fireOwnDestroyTriggers`・`borrowDestroyEffect`・`borrowSummonEffect` → `fireEffect` |
+| #201 | G-millUntil の2種 | `millUntilFamilyToHand`・`millUntilCostSpiritSummonFree` → `mill{until}`＋`takeLast` |
+| （この PR） | G-matchCount の残り・M2 の BS04-022 | `destroyDownToOwnCount` → `destroy{countCounter: minus}`、`coreRemovePerHandDiscard` → `pay`＋`removeCores{targetsCounter}` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
@@ -35,7 +38,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 - トラッシュ→手札へ：`recoverNexusFromTrash`。pay へ：`revealHandMagicToTegamotoDraw`
 - ルールの確認待ち：`skipBpCompareThenRefreshOne`（BS06-109 と同じ文面で実装が違う）、`destroyOwnByFamilyThenWipeEnemy`（同時か順か）、`returnOneThenRefreshIfMaxCost`（戻したコストの見方）
 - 残す候補（判断が要る）：`mutualKeepChoice`・`bpBuffAllByBofuCount`・`destroyByOwnFamilyCostSet`
-- 09-27 に回したもの：`destroyDownToOwnCount`（旧実装は1体破壊するたびに体数を数え直す。破壊されても場に残るときの読みを確かめてから）。G-refire・G-borrow（「効果を発揮させる」1つにまとめる設計が要る。`borrowSummonEffect` は配置と条件まで抱えている）。G-existingContent の残り6種は、対象の選び方が timedEffect に無い（バトル中のアタッカー・ブレイヴの合体先・相手のネクサスすべて・自分か相手の1体・【氷壁】の色）ので、M8 の決定どおり入口として残す
+- 09-27 に回したもの：G-existingContent の残り6種は、対象の選び方が timedEffect に無い（バトル中のアタッカー・ブレイヴの合体先・相手のネクサスすべて・自分か相手の1体・【氷壁】の色）ので、M8 の決定どおり入口として残す
 
 ## 0. 前提整理：timedEffect / PlayerRuleDef の中身（15種、対象外）
 
@@ -201,3 +204,4 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | G-borrow / G-millUntil / G-perCost / G-exceptColor | 各3 |
 | G-matchCount / G-familyChoice / G-refire / G-coresToVoid / G-refreshBlock | 各2〜3 |
 | G-sequence / G-compose | 各1 |
+- 残したもの（09-27）：`borrowCombinedAttackEffect`（イリテバン。借りた効果を自分の効果として発揮・自分を選べるのは2回まで）、`millUntilMagicCastFree`（マジックの使用と一緒に）、`millOpponentThenReact`（破棄したカードの色を継続効果へ渡す部品が要る）

@@ -524,78 +524,6 @@ const coreTradeToOpponentTrashHandler: ActionHandler<"coreTradeToOpponentTrash">
         return
 }
 
-const coreRemovePerHandDiscardHandler: ActionHandler<"coreRemovePerHandDiscard"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-        // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体
-        // （実効BP最大を自動選択。同一解決内で既に選んだ個体は除外して異なる個体へ広げる）の
-        // コアを1個、相手のトラッシュへ置く（王蛇ケツァルカトル／ダンスマカブル）
-        const player = state.players[owner]
-        const removeOneCoreFromEnemy = (excluded: Set<string>): void => {
-            const target = pickEnemyByBp(
-                state,
-                opp,
-                Infinity,
-                (s) => !excluded.has(s.instanceId),
-                srcColors,
-                srcType,
-            )
-            if (!target) {
-                log(state, `${sourceName}：コアを除去する対象がいなかった。`)
-                return
-            }
-            excluded.add(target.instanceId)
-            removeCoresToTrash(state, opp, target, 1, owner)
-        }
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}：破棄する手札がなかった。`)
-                return
-            }
-            player.hand.splice(chosenCardIndex, 1)
-            player.trashCards.push(cardId)
-            log(state, `${player.name}は手札の「${getCard(cardId).name}」を破棄した。`)
-            removeOneCoreFromEnemy(new Set())
-            // 続けて破棄できるか再度尋ねる（optional=trueのためスキップで終了する）
-            ctx.resolve(action)
-            return
-        }
-        if (state.interactiveTargets) {
-            if (player.hand.length === 0) {
-                log(state, `${sourceName}：手札がなかった。`)
-                return
-            }
-            requestCardChoice(
-                state,
-                owner,
-                `${sourceName}：破棄する手札を選んでください（選ばなければ終了）`,
-                "hand",
-                player.hand.map((_, i) => i),
-                true,
-                action,
-                self,
-            )
-            return
-        }
-        // 非interactive時：手札をすべて破棄し、破棄枚数ぶん一括でコア除去する（決定的簡略化）
-        const count = player.hand.length
-        if (count === 0) {
-            log(state, `${sourceName}：手札がなかった。`)
-            return
-        }
-        const discardedNames = player.hand.map((cardId) => getCard(cardId).name)
-        player.trashCards.push(...player.hand)
-        player.hand = []
-        log(state, `${player.name}は手札「${discardedNames.join("、")}」を破棄した。`)
-        const excluded = new Set<string>()
-        for (let i = 0; i < count; i++) removeOneCoreFromEnemy(excluded)
-        return
-}
 
 // ブラッディレイン：相手のコア総量（フィールド＋トラッシュ＋リザーブ）に応じた個数をボイドへ置く。
 // 「相手がその中から選ぶ」を、リザーブ→トラッシュ→フィールド（コアの多い個体から）の順で
@@ -901,7 +829,6 @@ const handlers = {
     coreDrainAllOthers: coreDrainAllOthersHandler,
     linkNexusCoresChoice: linkNexusCoresChoiceHandler,
     coreTradeToOpponentTrash: coreTradeToOpponentTrashHandler,
-    coreRemovePerHandDiscard: coreRemovePerHandDiscardHandler,
     voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
 } satisfies Partial<ActionRegistry>
 

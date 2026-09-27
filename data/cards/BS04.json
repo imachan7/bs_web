@@ -1382,9 +1382,7 @@
      2,
      3
     ],
-    "action": {
-     "type": "coreRemovePerHandDiscard"
-    },
+    "action": {"type": "pay", "cost": {"type": "discardSelfChoose", "count": "any"}, "then": {"type": "removeCores", "side": "opponent", "to": "trash", "target": "one", "count": 1, "targetsCounter": "lastMoved"}},
     "optional": true
    }
   ]

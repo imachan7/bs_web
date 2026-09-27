@@ -4623,9 +4623,7 @@
     "condition": {
      "ownSpiritCountAtLeast": 2
     },
-    "action": {
-     "type": "destroyDownToOwnCount"
-    }
+    "action": {"type": "destroy", "count": 1, "countCounter": {"minus": [{"opponentSpirits": {}}, {"ownSpirits": {}}]}, "chooserIsTarget": true}
    }
   ]
  },

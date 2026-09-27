@@ -1090,6 +1090,10 @@ export function countEffectCounter(
             sourceType,
         )
     }
+    if ("opponentSpirits" in counter) {
+        const filter = counter.opponentSpirits as unknown as ResolvedTargetFilter
+        return countSpiritsWeighted(state, owner, opp, (s) => matchesTarget(state, opp, s, filter), sourceType)
+    }
     if ("ownSpirits" in counter) {
         const filter = counter.ownSpirits as unknown as ResolvedTargetFilter
         return countSpiritsWeighted(state, owner, owner, (s) => matchesTarget(state, owner, s, filter), sourceType)
