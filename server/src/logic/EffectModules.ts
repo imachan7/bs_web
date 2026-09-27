@@ -73,7 +73,7 @@ import {
     instIsCombined,
     opponentFieldColorCount,
 } from "../../../shared/rules"
-import { lastMovedCount, lastMovedOf } from "./record"
+import { lastCoresCount, lastMovedCount, lastMovedOf } from "./record"
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
 export { millCapBonusFor, hasFunsaiOnBlock, resolveFunsai } from "./keywords/funsai"
 export { hasJugekiOnBlockReplace } from "./keywords/jugeki"
@@ -1020,6 +1020,7 @@ export function countEffectCounter(
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     if (counter === "lastMoved") return lastMovedCount(state)
+    if (counter === "lastCores") return lastCoresCount(state)
     if (counter === "bothNexusColors") return new Set([...state.players.p1.field.nexuses, ...state.players.p2.field.nexuses].flatMap(instColors)).size
     if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + getCard(id).cost, 0)
     if (typeof counter === "object" && "minus" in counter) {

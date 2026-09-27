@@ -4817,10 +4817,7 @@
     "id": "BS05-083-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "voidCoresAndMillByCost",
-     "familyFilter": "造兵"
-    }
+    "action": {"type": "sequence", "actions": [{"type": "removeCores", "side": "own", "target": "one", "filter": {"family": "造兵"}, "count": "all", "to": "void"}, {"type": "mill", "count": 1, "countCounter": "lastCost"}]}
    }
   ]
  },

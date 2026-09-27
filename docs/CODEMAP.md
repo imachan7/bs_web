@@ -566,6 +566,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lastMovedOf`（fn）
 - `withMovedProbe`（fn）
 - `lastMovedCount`（fn）
+- `recordCores`（fn）
+- `lastCoresCount`（fn）
 
 ## server/src/logic/removal.ts
 

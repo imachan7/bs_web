@@ -5505,10 +5505,7 @@
        "from": [
         "spirit"
        ],
-       "to": "trash",
-       "target": "spread",
-       "count": 1,
-       "countCounter": "lastMoved"
+       "to": "trash", "count": 1, "countCounter": "lastMoved"
       }
      ]
     }
