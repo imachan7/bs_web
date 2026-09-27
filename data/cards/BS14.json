@@ -6794,9 +6794,7 @@
     "id": "BS14-113-e2",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "opponentTrashCardToDeckBottom"
-    }
+    "action": {"type": "toDeck", "from": "trash", "side": "opponent", "position": "bottom", "count": 1}
    }
   ]
  },

@@ -3881,10 +3881,7 @@
         "condition": {
           "opponentDeckNotEmpty": true
         },
-        "action": {
-          "type": "handToOwnDeckTop",
-          "count": 1
-        }
+        "action": {"type": "toDeck", "from": "hand", "position": "top", "count": 1}
       }
     ]
   },

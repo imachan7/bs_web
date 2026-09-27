@@ -730,10 +730,7 @@
     "levels": [
      2
     ],
-    "action": {
-     "type": "opponentHandToDeckTop",
-     "count": 1
-    },
+    "action": {"type": "toDeck", "from": "hand", "side": "opponent", "position": "top", "count": 1, "chooserIsTarget": true},
     "optional": false
    }
   ]
