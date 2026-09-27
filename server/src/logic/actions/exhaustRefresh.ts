@@ -324,11 +324,8 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
     log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
 }
 
-// exhaust action.nexus（"only"＝ネクサスだけ、"also"＝スピリットと合わせた候補）の解決。
-// action.all（BS10-074きぐるみクマッター：相手のネクサスすべて）と count 指定
-// （BS10-018エル・クラーケン：スピリット/ネクサス合計count個まで）の両方をここで扱う。
-// 対話時はスピリット/ネクサスを同じ候補一覧に並べて使用者が1つずつ選ぶ（2026-09-27決定）。
-// 非対話は実効BP最大のスピリットから優先し、残り枠を場の並び順のネクサスへ充てる
+// 対話時はスピリットとネクサスを同じ候補一覧に並べて使用者が1つずつ選ぶ（2026-09-27 ユーザー決定）。
+// ネクサスには疲労の耐性を持つカードが無いので耐性判定をしない
 function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { type: "exhaust" }>): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const oppField = state.players[opp].field
