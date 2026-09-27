@@ -3870,10 +3870,7 @@
      2
     ],
     "selfMode": "source",
-    "action": {
-     "type": "exhaustAllByColor",
-     "side": "opponent"
-    },
+    "action": {"type": "declare", "what": "color", "then": {"type": "exhaust", "count": 1, "all": true, "filter": {"declared": "match"}}},
     "byOpponentEffectOnly": true
    },
    {

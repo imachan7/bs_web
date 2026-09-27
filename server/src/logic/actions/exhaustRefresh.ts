@@ -355,61 +355,6 @@ const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexus
     log(state, `${sourceName}：相手のスピリット/ネクサス合計${exhausted}個を疲労させた。`)
 }
 
-const exhaustAllByColorHandler: ActionHandler<"exhaustAllByColor"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const oppSpirits = state.players[opp].field.spirits
-        if (oppSpirits.length === 0) {
-            log(state, `${sourceName}：相手フィールドにスピリットがいなかった。`)
-            return
-        }
-        // 相手フィールドで最多の色を選ぶ（同数なら先に見つかった色。Map は挿入順を保持する）
-        const tally = new Map<Color, number>()
-        for (const s of oppSpirits) {
-            const colors = new Set<Color>(instColors(s))
-            for (const color of colors) {
-                tally.set(color, (tally.get(color) ?? 0) + 1)
-            }
-        }
-        // 「色をひとつ選び」＝プレイヤーの選択。実対戦では相手フィールドに実在する色から選ばせる
-        // （選択後は chosenOption 経由で再入する）
-        if (chosenOption !== undefined) {
-            const entry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
-                ([, label]) => label === chosenOption,
-            )
-            if (entry) {
-                exhaustSpiritsOfColor(ctx, entry[0], action.side)
-                return
-            }
-        }
-        if (state.interactiveTargets && tally.size > 1) {
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：疲労させる色を選んでください`,
-                [],
-                false,
-                action,
-                self,
-                "option",
-                [...tally.keys()].map((c) => COLOR_LABELS[c]),
-            )
-            return
-        }
-        let chosen: Color | null = null
-        let best = 0
-        for (const [color, count] of tally) {
-            if (count > best) {
-                best = count
-                chosen = color
-            }
-        }
-        if (!chosen) {
-            log(state, `${sourceName}：対象の色がなかった。`)
-            return
-        }
-        exhaustSpiritsOfColor(ctx, chosen, action.side)
-        return
-}
 
 // 指定色のスピリットすべてを疲労させる（exhaustAllByColor の共通部分。自動選択・色choiceの双方から使う）
 function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent"): void {
@@ -813,57 +758,6 @@ const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
         return
 }
 
-const refreshByFamilyAutoHandler: ActionHandler<"refreshByFamilyAuto"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 疲労中の自分スピリットの最多系統を自動指定し、その系統の疲労スピリットを最大count体回復させる
-        // （プレイヤー選択の決定的簡略化。フロックリカバリー）
-        const rested = state.players[owner].field.spirits.filter((s) => s.isRested)
-        if (rested.length === 0) {
-            log(state, `${sourceName}：疲労状態のスピリットがいなかった。`)
-            return
-        }
-        // 疲労中の自分スピリットで最多の系統を選ぶ（同数は先に見つかった系統。Mapは挿入順を保持する）
-        const tally = new Map<string, number>()
-        for (const s of rested) {
-            const families = new Set(getCard(s.cardId).family)
-            for (const family of families) {
-                tally.set(family, (tally.get(family) ?? 0) + 1)
-            }
-        }
-        // 「系統1つを指定する」＝プレイヤーの選択。実対戦では疲労中の自分スピリットが持つ系統から選ばせる
-        if (chosenOption !== undefined && tally.has(chosenOption)) {
-            refreshSpiritsOfFamily(ctx, action.count, chosenOption)
-            return
-        }
-        if (state.interactiveTargets && tally.size > 1) {
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：回復させる系統を選んでください`,
-                [],
-                false,
-                action,
-                self,
-                "option",
-                [...tally.keys()],
-            )
-            return
-        }
-        let chosen: string | null = null
-        let best = 0
-        for (const [family, count] of tally) {
-            if (count > best) {
-                best = count
-                chosen = family
-            }
-        }
-        if (!chosen) {
-            log(state, `${sourceName}：対象の系統がなかった。`)
-            return
-        }
-        refreshSpiritsOfFamily(ctx, action.count, chosen)
-        return
-}
 
 // 指定系統の疲労スピリットを最大count体回復させる（refreshByFamilyAuto の共通部分）。
 // 回復させる個体の選択は実効BP降順の簡略化のまま（「3体」の内訳までは選ばせない）
@@ -924,7 +818,6 @@ const handlers = {
     exhaust: exhaustHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
     exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,
-    exhaustAllByColor: exhaustAllByColorHandler,
     exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
     exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,
     refreshOne: refreshOneHandler,
@@ -933,7 +826,6 @@ const handlers = {
     refreshSelf: refreshSelfHandler,
     refreshSelfByExhaustNexus: refreshSelfByExhaustNexusHandler,
     exhaustSelf: exhaustSelfHandler,
-    refreshByFamilyAuto: refreshByFamilyAutoHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -133,7 +133,7 @@ console.log("=== BS07 緑：コスト条件を満たす相手だけを破壊し�
 console.log("=== BS07 緑：ネクサス破壊で、選んだ色の「相手だけ」を疲労させる（大風車の丘） ===")
 {
     const windmill = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "exhaustAllByColor" && (e["action"] as Record<string, unknown>)["side"] === "opponent",
+        (e) => e["event"] === "ownNexusDestroyed" && (e["action"] as Record<string, unknown> | undefined)?.["type"] === "declare",
     )
     // 相手フィールドで最多になる色のバニラと、自分側にも同じ色のスピリットを置く
     const carrier = CARDS.find(

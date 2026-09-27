@@ -622,7 +622,10 @@ function collectNumbers(effects: Record<string, unknown>[]): Set<number> {
     const rec = (o: unknown) => {
         if (o === null || typeof o !== "object") return
         if (Array.isArray(o)) {
-            for (const item of o) rec(item)
+            for (const item of o) {
+                if (typeof item === "number") nums.add(item)
+                else rec(item)
+            }
             return
         }
         for (const v of Object.values(o as Record<string, unknown>)) {
@@ -801,6 +804,8 @@ function hasChooserEvidence(effects: Record<string, unknown>[]): boolean {
             if (found) return
             if (key === "chooserIsTarget" && value === true) found = true
             if (key === "forcedTargetPid") found = true
+            // declare の「相手は／お互い、〜を指定する」
+            if (key === "chooser" && (value === "opponent" || value === "each")) found = true
         })
         if (found) break
     }

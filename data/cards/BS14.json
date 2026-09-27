@@ -6199,10 +6199,7 @@
     "id": "BS14-102-e1",
     "kind": "burst",
     "event": "ownLifeDamaged",
-    "action": {
-     "type": "refreshByFamilyAuto",
-     "count": 3
-    },
+    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refreshOne", "count": 3, "filter": {"declared": "match"}}},
     "thenPay": "flash"
    },
    {
@@ -6812,10 +6809,7 @@
     "id": "BS14-114-e1",
     "kind": "burst",
     "event": "ownLifeDamaged",
-    "action": {
-     "type": "destroyAllByChosenCost",
-     "maxCost": 4
-    },
+    "action": {"type": "declare", "what": "cost", "options": [0, 1, 2, 3, 4], "then": {"type": "destroy", "count": 1, "all": true, "filter": {"declared": "match"}}},
     "thenPay": "flash"
    },
    {

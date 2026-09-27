@@ -710,121 +710,6 @@ const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ct
     destroyTargetsBatch(state, opp, doomed.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
 }
 
-// 指定されていない色を1つでも持てば対象（赤白は、赤を指定しても白で破壊＝公式Q&A Q3478 / Q20161 / Q3546）
-const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosenColors"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // お互い自分のフィールドで最多のスピリット色を1色ずつ自動指定する
-        // （同数の場合はColor定義順=red,purple,green,white,yellow,blueの先頭を採用。
-        // フィールドが空のプレイヤーは指定なし。プレイヤー選択の決定的簡略化）
-        const colorOrder: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-        const pickChosenColor = (pid: PlayerId): Color | null => {
-            const spirits = state.players[pid].field.spirits
-            if (spirits.length === 0) return null
-            const counts = new Map<Color, number>()
-            for (const s of spirits) {
-                // 多色スピリットはどちらの色にも1票を入れる
-                for (const c of instColors(s)) counts.set(c, (counts.get(c) ?? 0) + 1)
-            }
-            let best: Color | null = null
-            let bestCount = 0
-            for (const c of colorOrder) {
-                const n = counts.get(c) ?? 0
-                if (n > bestCount) {
-                    bestCount = n
-                    best = c
-                }
-            }
-            return best
-        }
-        // 実対戦では「お互い、自分のフィールドに出ているスピリットの色を1色指定する」を
-        // **両プレイヤーが順に**選ぶ。進捗は action の chosenOwn / chosenOpp / awaiting に持たせて再入する。
-        // 相手に選ばせる段では PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする
-        const fieldColors = (pid: PlayerId): Color[] => {
-            const set = new Set<Color>()
-            for (const sp of state.players[pid].field.spirits) for (const c of instColors(sp)) set.add(c)
-            return colorOrder.filter((c) => set.has(c))
-        }
-        const colorOf = (label: string | undefined): Color | undefined =>
-            (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, l]) => l === label)?.[0]
-
-        let chosenOwn = action.chosenOwn
-        let chosenOpp = action.chosenOpp
-        if (state.interactiveTargets) {
-            // 選択の応答を取り込む
-            if (action.awaiting === "own") chosenOwn = colorOf(chosenOption) ?? chosenOwn
-            if (action.awaiting === "opponent") chosenOpp = colorOf(chosenOption) ?? chosenOpp
-
-            const ownColors = fieldColors(owner)
-            if (chosenOwn === undefined && ownColors.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：自分のフィールドから残す色を1色指定してください`,
-                    [],
-                    false,
-                    { ...action, awaiting: "own", ...(chosenOpp ? { chosenOpp } : {}) },
-                    self,
-                    "option",
-                    ownColors.map((c) => COLOR_LABELS[c]),
-                )
-                return
-            }
-            if (chosenOwn === undefined) chosenOwn = ownColors[0]
-
-            const oppColors = fieldColors(opp)
-            if (chosenOpp === undefined && oppColors.length >= 2) {
-                requestChoice(
-                    state,
-                    opp, // ← 選ぶのは相手
-                    `${sourceName}：自分のフィールドから残す色を1色指定してください`,
-                    [],
-                    false,
-                    { ...action, awaiting: "opponent", ...(chosenOwn ? { chosenOwn } : {}) },
-                    self,
-                    "option",
-                    oppColors.map((c) => COLOR_LABELS[c]),
-                )
-                // 破壊は発生源の持ち主の効果として解決する
-                if (state.pendingChoice) state.pendingChoice.actorPid = owner
-                return
-            }
-            if (chosenOpp === undefined) chosenOpp = oppColors[0]
-        }
-        const chosenP1 = chosenOwn ?? chosenOpp ?? pickChosenColor("p1")
-        const chosenP2 = state.interactiveTargets
-            ? (chosenOpp ?? null)
-            : pickChosenColor("p2")
-        const safeColors = new Set(
-            (state.interactiveTargets ? [chosenOwn, chosenOpp] : [chosenP1, chosenP2]).filter(
-                (c): c is Color => c !== null && c !== undefined,
-            ),
-        )
-        log(
-            state,
-            `${sourceName}：指定色は p1=${chosenP1 ?? "なし"}, p2=${chosenP2 ?? "なし"}。` +
-                `いずれでもない色のスピリットを破壊する。`,
-        )
-        // 相手フィールドだけ耐性を判定する（自分の効果は自分のスピリットには効かないので、
-        // 自分フィールドは素通し。この非対称は resistanceAgainst が actorPid で自動的に扱う）
-        const oppTargets = state.players[opp].field.spirits.filter(
-            (s) =>
-                instColors(s).some((c) => !safeColors.has(c)) &&
-                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
-        )
-        const ownTargets = state.players[owner].field.spirits.filter(
-            (s) => instColors(s).some((c) => !safeColors.has(c)),
-        )
-        destroyTargetsBatch(
-            state,
-            owner,
-            [
-                ...oppTargets.map((t) => ({ pid: opp, instanceId: t.instanceId })),
-                ...ownTargets.map((t) => ({ pid: owner, instanceId: t.instanceId })),
-            ],
-            destroyContext,
-        )
-        return
-}
 
 const destroyAllNexusesExceptChosenColorsHandler: ActionHandler<"destroyAllNexusesExceptChosenColors"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -933,26 +818,6 @@ const destroyFieldExceptOpponentChosenColorHandler: ActionHandler<"destroyFieldE
     resolveWithColor(best)
 }
 
-// BS14-114雷神轟招来：コスト0〜maxCostから使用者が1つ指定し、そのコストの相手スピリットすべてを破壊する
-const destroyAllByChosenCostHandler: ActionHandler<"destroyAllByChosenCost"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, chosenOption } = ctx
-    if (chosenOption !== undefined) {
-        const n = parseInt(chosenOption, 10)
-        if (!Number.isFinite(n)) return
-        ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: n, max: n } } })
-        return
-    }
-    const options = Array.from({ length: action.maxCost + 1 }, (_, i) => String(i))
-    if (state.interactiveTargets) {
-        requestChoice(state, owner, `${sourceName}：破壊するスピリットのコストを指定してください`, [], false, action, ctx.self, "option", options)
-        return
-    }
-    // 非対話（テスト・AI）：破壊できる数が最大になるコストを選ぶ（同数はコストが低い方）
-    const countFor = (cost: number): number => state.players[opp].field.spirits.filter((s) => instAllCosts(s).includes(cost)).length
-    let best = 0
-    for (let c = 1; c <= action.maxCost; c++) if (countFor(c) > countFor(best)) best = c
-    ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: best, max: best } } })
-}
 
 const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>): void => {
     const { state, owner, opp, self, sourceName, srcType, chosenOption, targetInstanceId } = ctx
@@ -1930,11 +1795,9 @@ const handlers = {
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyLifeDamager: destroyLifeDamagerHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
-    destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyFieldExceptOpponentChosenColor: destroyFieldExceptOpponentChosenColorHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
     destroyNexus: destroyNexusEntryHandler,
-    destroyAllByChosenCost: destroyAllByChosenCostHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyDownToOwnCount: destroyDownToOwnCountHandler,

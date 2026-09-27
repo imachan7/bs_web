@@ -63,7 +63,7 @@ console.log("=== §B exhaustAllByColor（BS01-140 バインディングウッズ
     if (ownInst) giveTimed(s, ownInst, { type: "immune" })
 
     // 実カード（BS01-140-e2）の action をそのまま解決
-    resolveAction(s, "p1", null, { type: "exhaustAllByColor" }, undefined, ["green"], "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", then: { type: "exhaust", count: 1, all: true, anySide: true, filter: { declared: "match" } } }, undefined, ["green"], "magic")
 
     assert(spiritOf(s, "p2", immune)?.isRested === false, "exhaustAllByColor：相手の免疫スピリットは疲労しない")
     assert(spiritOf(s, "p2", control)?.isRested === true, "exhaustAllByColor：免疫を持たない相手対照は疲労する")

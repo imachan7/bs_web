@@ -490,9 +490,7 @@
      2
     ],
     "optional": false,
-    "action": {
-     "type": "destroyAllExceptChosenColors"
-    }
+    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "each", "then": {"type": "destroy", "count": 1, "all": true, "anySide": true, "filter": {"declared": "except"}}}
    },
    {
     "id": "BS15-008-e2",
@@ -2437,9 +2435,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "returnFieldExceptOpponentChosenColor"
-    }
+    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "opponent", "then": {"type": "returnToHand", "count": 1, "all": true, "filter": {"declared": "except"}}}
    },
    {
     "id": "BS15-035-e2",
@@ -5279,10 +5275,7 @@
     "condition": {
      "opponentFieldColorsAtLeast": 2
     },
-    "action": {
-     "type": "exhaustAllByColor",
-     "side": "opponent"
-    }
+    "action": {"type": "declare", "what": "color", "then": {"type": "exhaust", "count": 1, "all": true, "filter": {"declared": "match"}}}
    }
   ]
  },

@@ -109,7 +109,7 @@ console.log("=== 汎用 refreshByFamilyAuto：疲労中スピリットの最多�
     tousin2.isRested = true
     other.isRested = true
     s.players.p1.field.spirits.push(tousin1, tousin2, other)
-    resolveAction(s, "p1", null, { type: "refreshByFamilyAuto", count: 3 })
+    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refreshOne", count: 3, filter: { declared: "match" } } })
     assert(!tousin1.isRested && !tousin2.isRested, "最多系統（闘神）の疲労スピリットは回復する")
     assert(other.isRested, "少数派の系統は回復対象に選ばれない")
 }

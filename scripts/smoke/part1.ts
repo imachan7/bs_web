@@ -901,14 +901,14 @@ console.log("=== 色選択の疲労アクション（exhaustAllByColor） ===")
     const ownPurple = createInstance("BS01-027", s.turn, 1)
     s.players.p1.field.spirits.push(ownRed, ownPurple)
 
-    resolveAction(s, "p1", null, { type: "exhaustAllByColor" })
+    resolveAction(s, "p1", null, { type: "declare", what: "color", then: { type: "exhaust", count: 1, all: true, anySide: true, filter: { declared: "match" } } })
     assert(oppRed1.isRested === true && oppRed2.isRested === true, "相手の赤スピリットは疲労する")
     assert(ownRed.isRested === true, "自分の赤スピリットも疲労する（両陣営が対象）")
     assert(oppPurple.isRested === false, "相手の紫スピリットは疲労しない")
     assert(ownPurple.isRested === false, "自分の紫スピリットは疲労しない")
 }
 
-console.log("=== 色選択の疲労アクション：相手フィールドが0体（no-op） ===")
+console.log("=== 色選択の疲労アクション：相手フィールドが0体 ===")
 {
     const s = createGame(
         "exhaust-color-noop-test",
@@ -917,7 +917,8 @@ console.log("=== 色選択の疲労アクション：相手フィールドが0�
     )
     runTurnStart(s)
     const logLenBefore = s.log.length
-    resolveAction(s, "p1", null, { type: "exhaustAllByColor" })
-    assert(s.log.length === logLenBefore + 1, "相手フィールドが0体ならログのみで安全")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", then: { type: "exhaust", count: 1, all: true, anySide: true, filter: { declared: "match" } } })
+    // 色は6色から指定できる（DECLARE_UNIFY §3）ので、相手が0体でも指定まで進み、疲労する対象が無いだけ
+    assert(s.log.length > logLenBefore && s.players.p1.field.spirits.every((x) => !x.isRested), "相手フィールドが0体でも安全に解決する")
 }
 

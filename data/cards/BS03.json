@@ -7097,10 +7097,7 @@
     "id": "e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "refreshByFamilyAuto",
-     "count": 3
-    }
+    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refreshOne", "count": 3, "filter": {"declared": "match"}}}
    }
   ]
  },

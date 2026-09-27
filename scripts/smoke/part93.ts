@@ -44,7 +44,7 @@ console.log("=== BS02-012 ケンドラゴス：お互いが自分のフィール
     const oppPurple = put(s, "p2", "BS01-031", 1) // デス・ハーデス（紫）
     const oppWhite = put(s, "p2", "BS02-040", 1) // ロブスターク（白）
 
-    resolveAction(s, "p1", null, { type: "destroyAllExceptChosenColors" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", from: "spirits", chooser: "each", then: { type: "destroy", count: 1, all: true, anySide: true, filter: { declared: "except" } } }, undefined, undefined, "spirit")
 
     // 1段目：発生源の持ち主が選ぶ
     assert(s.pendingChoice?.pid === "p1", "まず発生源の持ち主が色を選ぶ")
@@ -73,7 +73,7 @@ console.log("--- 相手の選択待ち中は、相手以外のアクションは
     put(s, "p2", "BS01-031", 1)
     put(s, "p2", "BS02-040", 1)
 
-    resolveAction(s, "p1", null, { type: "destroyAllExceptChosenColors" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", from: "spirits", chooser: "each", then: { type: "destroy", count: 1, all: true, anySide: true, filter: { declared: "except" } } }, undefined, undefined, "spirit")
     assert(act(s, "p1", { type: "resolveChoice", option: "緑" }) === null, "p1が選ぶ")
     assert(s.pendingChoice?.pid === "p2", "相手の選択待ちになる")
     assert(
@@ -90,7 +90,7 @@ console.log("--- 片方のフィールドに色が1種類しかなければ、�
     const oppPurple = put(s, "p2", "BS01-031", 1) // 紫のみ
     const oppWhite = put(s, "p2", "BS02-040", 1) // 白（＝相手は2色）
 
-    resolveAction(s, "p1", null, { type: "destroyAllExceptChosenColors" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", from: "spirits", chooser: "each", then: { type: "destroy", count: 1, all: true, anySide: true, filter: { declared: "except" } } }, undefined, undefined, "spirit")
     assert(s.pendingChoice?.pid === "p2", "自分は1色なので選択を挟まず、相手の選択から始まる")
     assert(act(s, "p2", { type: "resolveChoice", option: "紫" }) === null, "p2は紫を残す")
     assert(alive(s, "p1", myRed), "自分の唯一の色（赤）は自動で指定され残る")
@@ -106,7 +106,7 @@ console.log("--- 非対話時（テスト既定）は従来どおり最多の色
     const myGreen = put(s, "p1", "BS01-050", 1)
     const oppPurple = put(s, "p2", "BS01-031", 1)
 
-    resolveAction(s, "p1", null, { type: "destroyAllExceptChosenColors" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", from: "spirits", chooser: "each", then: { type: "destroy", count: 1, all: true, anySide: true, filter: { declared: "except" } } }, undefined, undefined, "spirit")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(alive(s, "p1", myRed1) && alive(s, "p1", myRed2), "最多の赤が自動指定され残る")
     assert(!alive(s, "p1", myGreen), "指定されなかった緑は破壊される")
