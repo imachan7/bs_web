@@ -44,7 +44,7 @@
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
 3. **R5 の残り（REFACTOR_PLAN §2.2）**（いまここ）：M5 オープンは移行済み（器 #170・移行はブランチ `feat/reveal-migrate`。[REVEAL_UNIFY.md](./docs/design/REVEAL_UNIFY.md) §4）。旧 type で残るのは revealHandMagicToTegamotoDraw（pay が reveal に対応するまで）。**M1 pay は完了**（#172〜#175・`feat/pay-life-cost`。旧 type に残した4枚と理由は [PAY_UNIFY.md](./docs/design/PAY_UNIFY.md) §5）。**次は M2 `if`**：解釈は確認済み。器を作る
 4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
-5. R3 の残り（`validate:size` の据え置き2本：destroy・type.ts）と R6・R7 は随時。
+5. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
@@ -77,7 +77,6 @@ BS07-042 パオ・ペイール等の reviveOnDestroy は `optional` が無いと
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
-- BS12-052 デス・ヘイズの「好きなだけ破壊」（`destroyOwnFreelyThenDrawHandler`）は独自ループのまま＝同時破壊グループに入らない（`suppressOnDestroy` をバッチに通す改修が要る）
 - 必須（任意でない）の `reviveOnDestroy` がコスト不足で不発になった場合、グループの消費を戻していない（次の1体で使えない）
 
 ### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
@@ -124,8 +123,7 @@ BS07-042 パオ・ペイール等の reviveOnDestroy は `optional` が無いと
 
 監査 S3・S4 の残0件化、実行実績0の継続効果の解消、永久凍土の王都（COST_MODEL §9）、
 Wiki 食い違い（RULES_BATSPI_WIKI）まで片付いた。**BS15 の実装に入ってよい。**
-`coverage:effects` の action 側だけ穴が残る: (a) 未実行3種（destroyOwnFreelyThenDraw /
-negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
+`coverage:effects` の action 側だけ穴が残る: (a) 未実行2種（negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
 
 ### 作業の進め方が2026-09-13 に変わった（CLAUDE.md に反映済み）
 

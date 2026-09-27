@@ -24,6 +24,7 @@ REFACTOR_PLAN §2.2 の4行目。直前の結果・いまの盤面・誘発の�
 **移行済み（器 PR 2）**：destroyThenMillByCost・millThenDestroySameCost・summonBurstCardFreeIfDestroyedColor、と BS11-045（millOpponentThenReact は BS11-060 だけが残る）。
 **移行済み（器 PR 3）**：drawPerHandDiscard・discardHandNexusesThenDraw・discardHandAnyThenCoreRemove、と BS04-094（coreRemovePerHandDiscard は BS04-022 だけが残る）。
 **移行済み（器 PR 4）**：discardOpponentTegamotoDestroyPer・discardOpponentTegamotoVoidCoresPer。
+**移行済み（器 PR 5）**：destroyOwnFreelyThenDraw・sacrificeOwnNexusesThenEnemyDestroysOwn。
 残りは器 PR 2（event・lastCost・sameAsLast・破棄／破壊の記録）の後。destroyOwnByFamilyThenWipeEnemy（BS04-108）は条件がマジックの condition 側に既にあり、`if` ではなく「Aして、B」の同時破壊なので M2 から外す。
 
 | 旧 type | カード | 書き方（案） |
@@ -111,4 +112,9 @@ pay で旧 type に残した BS13-024・BS13-060・BS15-067 も、この `last`�
 **器 PR 4（`feat/if-tegamoto`。2026-09-27 確定）**：相手の手元を破棄して1枚につき。
 - アクション `{ type: "discardOpponentTegamoto" }`：相手の手元をすべてトラッシュへ（使用権 `tegamotoPlayable` も消す）。破棄したカードを `lastMoved` に書く（0枚なら空）
 - 移行：BS03-016 → `destroy count 1 countCounter lastMoved`／BS12-011 → `removeCores side opponent from [reserve, spirit, nexus] to void target spread count 1 countCounter lastMoved`（取るコアを使用者が選べるようになる。旧実装はリザーブ優先の自動選択）
-**器 PR 5 以降**：自分のスピリット／ネクサスを好きなだけ破壊して1つにつき（BS12-052・BS04-114）。
+**器 PR 5（`feat/if-destroy-any`。2026-09-27 確定）**：自分のスピリット／ネクサスを好きなだけ破壊して1つにつき。
+- `destroy` の `count: "any"`（`side: "own"` のときだけ）：対話は複数選んで確定（選び直し可。旧 destroyOwnFreelyThenDraw の UI）、非対話はすべて。選んだものを**同時破壊**（`destroyTargetsBatch`）する。記録は既存の `destroy` の記録（#181）
+- `destroy` の `suppressOnDestroy?: true`：『このスピリットの破壊時』を発揮させない。`DestroyContext.suppressOnDestroy` に載せて同時破壊・再開まで運ぶ
+- `destroyNexus` の `count: "any"`（`side: "own"`）：同じ選び方。破壊したネクサスを `lastMoved` に記録
+- 移行：BS12-052 → `sequence [destroy side own count any suppressOnDestroy, draw countCounter lastMoved]`（**同時破壊になる**＝他カードの「破壊されたとき」はグループで1回。HANDOFF の制限が解消）／
+  BS04-114 → `sequence [destroyNexus side own count any, destroy chooserIsTarget count 1 countCounter lastMoved]`（**「好きなだけ」を選べるようになる**。旧実装はすべて破壊の簡略化）

@@ -6496,7 +6496,20 @@
      "ownFieldHasMinSymbolSpirit": 2
     },
     "action": {
-     "type": "sacrificeOwnNexusesThenEnemyDestroysOwn"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroyNexus",
+       "side": "own",
+       "count": "any"
+      },
+      {
+       "type": "destroy",
+       "count": 1,
+       "countCounter": "lastMoved",
+       "chooserIsTarget": true
+      }
+     ]
     }
    },
    {

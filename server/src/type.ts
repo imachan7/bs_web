@@ -551,6 +551,7 @@ export type GlobalConstraintDef =
 export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: CardType
+    suppressOnDestroy?: true
     sourceColors?: Color[] // 破壊を引き起こした効果の発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
     sourceInstanceId?: string // 破壊を引き起こした効果の発生源インスタンスID。
     // fieldEvent.byOpponentSpiritEffectOnly が「その効果を発揮したスピリット」を対象にするために使う（BS10-012アントイーター/BS10-014闇騎士マリス）

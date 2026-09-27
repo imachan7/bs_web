@@ -43,6 +43,10 @@ import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { recordDestroysOf } from "../removal"
 
+type DestroyAction = Extract<EffectAction, { type: "destroy" }>
+type DestroyNexusAction = Extract<EffectAction, { type: "destroyNexus" }>
+type Counted<T> = T & { count: number }
+
 // side:"own"（destroyの自分側対象）の候補列挙。ハンドラ本体とpayの判定表（CHECKERS）の両方から呼び、
 // 判定と実際の対象がずれないようにする
 export function ownSideDestroyCandidates(
@@ -188,7 +192,7 @@ const destroySpiritBraveNexusEachHandler: ActionHandler<"destroySpiritBraveNexus
     }
 }
 
-const destroyHandler: ActionHandler<"destroy"> = (ctx, action) => {
+const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption } = ctx
         if (action.all) {
             destroyAllTargets(ctx, action)
@@ -699,109 +703,6 @@ const destroyDuplicateNamesHandler: ActionHandler<"destroyDuplicateNames"> = (ct
     destroyTargetsBatch(state, opp, doomed.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
 }
 
-// タイダルタイド：自分のネクサスをすべて破壊し（「好きなだけ」の決定的簡略化）、
-// 破壊できた数だけ相手が相手自身のスピリットを破壊する。
-// 相手が選ぶ処理は、実効BPが低い方から機械的に破壊する簡略化にしてある（相手にとって被害が小さい選択）
-// BS04タイダルタイド：自分のネクサスをすべて破壊し、その数だけ相手が相手自身のスピリットを破壊する。
-// 効果文が「**相手は**、その破壊したネクサス1つにつき、相手のスピリット1体を破壊する」なので、
-// **どれを破壊するかは相手が1体ずつ選ぶ**（CHOOSER_RULES.md §1）。
-// ネクサスの破壊数は選択の再入時に数え直せないため、残り体数を action.remaining に持ち回る
-const sacrificeOwnNexusesThenEnemyDestroysOwnHandler: ActionHandler<"sacrificeOwnNexusesThenEnemyDestroysOwn"> = (
-    ctx,
-    action,
-) => {
-    const { state, owner, opp, self, sourceName, srcType, destroyContext, targetInstanceId } = ctx
-    // 相手が破壊する候補（破壊するのは**相手自身**なので、実行者を opp に差し替えて耐性を判定する）
-    const enemyCandidates = (): CardInstance[] =>
-        state.players[opp].field.spirits.filter(
-            (s) => !isResisted(state, opp, s, { ...attemptOf(ctx, "destroy", "area"), actorPid: opp }),
-        )
-    // 残り remaining 体を相手に破壊させる。実対戦は1体ずつ選ばせ、非対話は実効BP最小から自動で
-    const enemyDestroys = (remaining: number): void => {
-        if (remaining <= 0 || state.winner) return
-        const candidates = enemyCandidates()
-        if (candidates.length === 0) return
-        if (state.interactiveTargets) {
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：破壊する自分のスピリットを選んでください（あと${remaining}体）`,
-                candidates.map((s) => s.instanceId),
-                false,
-                { ...action, remaining },
-                self,
-                "target",
-                undefined,
-                opp,
-            )
-            return
-        }
-        for (let i = 0; i < remaining; i++) {
-            let weakest: CardInstance | undefined
-            for (const s of enemyCandidates()) {
-                if (!weakest || effectiveBp(state, opp, s) < effectiveBp(state, opp, weakest)) weakest = s
-            }
-            if (!weakest) break
-            log(state, `${sourceName}：${state.players[opp].name}は${getCard(weakest.cardId).name}を破壊した。`)
-            destroySpirit(state, opp, weakest.instanceId, "destroy", destroyContext, { allowSuspend: true })
-            if (state.winner) return
-            // 復活の確認で中断した。残りの体数を action.remaining に載せて再入する
-            if (state.pendingChoice) {
-                const rest = remaining - i - 1
-                if (rest > 0) {
-                    pushResumeFrames(state, [{
-                        kind: "action",
-                        selfInstanceId: self ? self.instanceId : null,
-                        actorPid: owner,
-                        action: { ...action, remaining: rest + 1 },
-                    }])
-                }
-                return
-            }
-        }
-    }
-    // 選択の再開：相手が選んだ1体を破壊して、残りを続ける
-    if (action.remaining !== undefined) {
-        if (targetInstanceId !== undefined) {
-            const chosen = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            if (chosen) {
-                log(state, `${sourceName}：${state.players[opp].name}は${getCard(chosen.cardId).name}を破壊した。`)
-                destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext, { allowSuspend: true })
-            }
-        }
-        if (state.pendingChoice) {
-            // 復活の確認で中断した。残りは再入して続ける
-            const rest = action.remaining - 1
-            if (rest > 0) {
-                pushResumeFrames(state, [{
-                    kind: "action",
-                    selfInstanceId: self ? self.instanceId : null,
-                    actorPid: owner,
-                    action: { ...action, remaining: rest },
-                }])
-            }
-            return
-        }
-        enemyDestroys(action.remaining - 1)
-        return
-    }
-    // 初回：自分のネクサスをすべて破壊して、破壊できた数を相手に渡す
-    const ownNexusIds = state.players[owner].field.nexuses.map((n) => n.instanceId)
-    if (ownNexusIds.length === 0) {
-        log(state, `${sourceName}：自分のフィールドにネクサスがなかった。`)
-        return
-    }
-    let destroyed = 0
-    for (const instanceId of ownNexusIds) {
-        if (destroyNexus(state, owner, instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed++
-    }
-    log(
-        state,
-        `${sourceName}：自分のネクサス${destroyed}つを破壊した。（「好きなだけ」はすべて破壊として処理）`,
-    )
-    enemyDestroys(destroyed)
-}
-
 // 指定されていない色を1つでも持てば対象（赤白は、赤を指定しても白で破壊＝公式Q&A Q3478 / Q20161 / Q3546）
 const destroyAllExceptChosenColorsHandler: ActionHandler<"destroyAllExceptChosenColors"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -1046,7 +947,7 @@ const destroyAllByChosenCostHandler: ActionHandler<"destroyAllByChosenCost"> = (
     ctx.resolve({ type: "destroy", count: 1, all: true, filter: { cost: { min: best, max: best } } })
 }
 
-const destroyNexusHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
+const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>): void => {
     const { state, owner, opp, self, sourceName, srcType, chosenOption, targetInstanceId } = ctx
         // side指定時は破壊対象の陣営を切り替える（省略時はopponent＝従来どおり。BS01バスターファランクス＝both。
         // "own"は自分側のネクサスだけが対象＝pay { cost: destroyNexus{side:"own"} } の器）
@@ -1907,73 +1808,6 @@ const mutualKeepChoiceHandler: ActionHandler<"mutualKeepChoice"> = (ctx, action)
     return
 }
 
-// BS12-052デス・ヘイズ：召喚時「自分のスピリットを好きなだけ破壊し、破壊したスピリット1体につき
-// 自分はデッキから1枚ドローする。ただし『このスピリットの破壊時』効果は発揮されない」。
-// budgetToggleDestroyと同じ「クリックで選択/解除、確定でまとめて破壊」のトグル選択を自分のフィールドに使う
-const destroyOwnFreelyThenDrawHandler: ActionHandler<"destroyOwnFreelyThenDraw"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-    const onField = (id: string): CardInstance | undefined =>
-        state.players[owner].field.spirits.find((sp) => sp.instanceId === id)
-
-    if (state.interactiveTargets) {
-        let chosen = [...(action.chosenIds ?? [])]
-        if (action.choosing && targetInstanceId !== undefined) {
-            chosen = chosen.includes(targetInstanceId)
-                ? chosen.filter((id) => id !== targetInstanceId)
-                : [...chosen, targetInstanceId]
-        }
-        chosen = chosen.filter((id) => onField(id) !== undefined)
-
-        // スキップ（＝「これで破壊する」）で戻ってきたときだけ、聞き直さずに確定する
-        if (!(action.choosing && targetInstanceId === undefined)) {
-            const candidates = state.players[owner].field.spirits.map((sp) => sp.instanceId)
-            if (candidates.length > 0) {
-                suspend(state, {
-                    pid: owner,
-                    kind: "target",
-                    prompt: `${sourceName}：破壊する自分のスピリットを選んでください（選んだものをもう一度押すと外れます）`,
-                    candidates,
-                    selectedIds: chosen,
-                    skipLabel: chosen.length > 0 ? `これで破壊する（${chosen.length}体）` : "破壊しない",
-                    optional: true,
-                    resolveOnSkip: true,
-                    action: { ...action, choosing: true as const, chosenIds: chosen },
-                    selfInstanceId: self ? self.instanceId : null,
-                })
-                return
-            }
-        }
-        if (chosen.length === 0) {
-            log(state, `${sourceName}：スピリットを破壊しなかった。`)
-            return
-        }
-        let destroyed = 0
-        for (const id of chosen) {
-            if (destroySpirit(state, owner, id, "destroy", undefined, { suppressOnDestroy: true })) destroyed++
-        }
-        if (destroyed > 0) {
-            draw(state, owner, destroyed)
-            log(state, `${sourceName}：スピリット${destroyed}体を破壊し、デッキから${destroyed}枚ドローした。`)
-        }
-        return
-    }
-    // 非対話時：自分のフィールドのスピリットすべてを破壊する決定的簡略化
-    const ids = state.players[owner].field.spirits.map((sp) => sp.instanceId)
-    if (ids.length === 0) {
-        log(state, `${sourceName}：破壊できるスピリットがいなかった。`)
-        return
-    }
-    let destroyed = 0
-    for (const id of ids) {
-        if (destroySpirit(state, owner, id, "destroy", undefined, { suppressOnDestroy: true })) destroyed++
-    }
-    if (destroyed > 0) {
-        draw(state, owner, destroyed)
-        log(state, `${sourceName}：スピリット${destroyed}体を破壊し、デッキから${destroyed}枚ドローした。`)
-    }
-    return
-}
-
 // BS01-104 千本槍の古戦場Lv2：このネクサス上のコア1個をトラッシュに置くことで、
 // 相手のブロックしたスピリット1体を「バトル終了後に破壊する」予約を立てる（BattleState.endBattleDestroy）。
 // **ここでは破壊しない**。実際の破壊は GameEngine のバトル解決＞７（【呪撃】の直後）で
@@ -2039,7 +1873,80 @@ const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, act
 
 // 破壊したカードを lastMoved に残す（if の cond.last・カウンタ lastCost が読む。IF_UNIFY.md §5）
 const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
-    ctx.state.lastMoved = recordDestroysOf(ctx.destroyContext, () => destroyHandler(ctx, action))
+    const { count } = action
+    ctx.state.lastMoved = recordDestroysOf(ctx.destroyContext, () =>
+        count === "any" ? destroyOwnSpiritsAny(ctx, action) : destroyHandler(ctx, { ...action, count }),
+    )
+}
+
+const destroyNexusEntryHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
+    const { count } = action
+    if (count === "any") destroyOwnNexusesAny(ctx, action)
+    else destroyNexusHandler(ctx, { ...action, count })
+}
+
+// count:"any"（「自分の〜を好きなだけ」）の選び方。対話は複数選んで確定（選び直し可）、非対話は候補すべて。
+// 途中経過は action.chosenIds／choosing で持ち回る。選択待ちを立てたら null
+function chooseOwnAny(ctx: ActionCtx, action: DestroyAction | DestroyNexusAction, candidates: string[], noun: string): string[] | null {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (!state.interactiveTargets) return candidates
+    let chosen = [...(action.chosenIds ?? [])]
+    if (action.choosing && targetInstanceId !== undefined) {
+        chosen = chosen.includes(targetInstanceId) ? chosen.filter((id) => id !== targetInstanceId) : [...chosen, targetInstanceId]
+    }
+    chosen = chosen.filter((id) => candidates.includes(id))
+    // スキップ（＝「これで破壊する」）で戻ってきたときだけ、聞き直さずに確定する
+    if (action.choosing && targetInstanceId === undefined) return chosen
+    if (candidates.length === 0) return []
+    suspend(state, {
+        pid: owner,
+        kind: "target",
+        prompt: `${sourceName}：破壊する自分の${noun}を選んでください（選んだものをもう一度押すと外れます）`,
+        candidates,
+        selectedIds: chosen,
+        skipLabel: chosen.length > 0 ? `これで破壊する（${chosen.length}）` : "破壊しない",
+        optional: true,
+        resolveOnSkip: true,
+        action: { ...action, choosing: true as const, chosenIds: chosen },
+        selfInstanceId: self ? self.instanceId : null,
+    })
+    return null
+}
+
+// 選んだスピリットは同時に破壊する（同時破壊グループ。他カードの「破壊されたとき」はグループで1回）
+function destroyOwnSpiritsAny(ctx: ActionCtx, action: DestroyAction): void {
+    const { state, owner, self, sourceName, destroyContext } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) return
+    const candidates = state.players[owner].field.spirits
+        .filter((sp) => !sp.pendingDestruction && matchesTarget(state, owner, sp, filter, self?.instanceId))
+        .map((sp) => sp.instanceId)
+    const chosen = chooseOwnAny(ctx, action, candidates, "スピリット")
+    if (chosen === null) return
+    if (chosen.length === 0) {
+        log(state, `${sourceName}：スピリットを破壊しなかった。`)
+        return
+    }
+    if (action.suppressOnDestroy) destroyContext.suppressOnDestroy = true
+    destroyTargetsBatch(state, owner, chosen.map((instanceId) => ({ pid: owner, instanceId })), destroyContext)
+}
+
+// 破壊したネクサスを lastMoved に書く（「その破壊したネクサス1つにつき」）
+function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void {
+    const { state, owner, sourceName, srcType } = ctx
+    const candidates = state.players[owner].field.nexuses.map((n) => n.instanceId)
+    const chosen = chooseOwnAny(ctx, action, candidates, "ネクサス")
+    if (chosen === null) {
+        state.lastMoved = []
+        return
+    }
+    const destroyed: string[] = []
+    for (const id of chosen) {
+        const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === id)
+        if (nexus && destroyNexus(state, owner, id, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) destroyed.push(nexus.cardId)
+    }
+    state.lastMoved = destroyed
+    log(state, destroyed.length > 0 ? `${sourceName}：自分のネクサス${destroyed.length}つを破壊した。` : `${sourceName}：ネクサスを破壊しなかった。`)
 }
 
 const handlers = {
@@ -2053,16 +1960,14 @@ const handlers = {
     destroy: destroyRecordedHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
-    destroyOwnFreelyThenDraw: destroyOwnFreelyThenDrawHandler,
     destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
     destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyLifeDamager: destroyLifeDamagerHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
-    sacrificeOwnNexusesThenEnemyDestroysOwn: sacrificeOwnNexusesThenEnemyDestroysOwnHandler,
     destroyAllExceptChosenColors: destroyAllExceptChosenColorsHandler,
     destroyFieldExceptOpponentChosenColor: destroyFieldExceptOpponentChosenColorHandler,
     destroyAllNexusesExceptChosenColors: destroyAllNexusesExceptChosenColorsHandler,
-    destroyNexus: destroyNexusHandler,
+    destroyNexus: destroyNexusEntryHandler,
     destroyAllByChosenCost: destroyAllByChosenCostHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
