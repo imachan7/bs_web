@@ -235,7 +235,6 @@ export function magicTargetSide(
     }
     if (
         effect.action.type === "bpBuff" ||
-        effect.action.type === "refireSummonEffect" ||
         (effect.action.type === "placeCores" &&
             effect.action.to === "spirit" &&
             (effect.action.target ?? "one") === "one" &&

@@ -186,15 +186,15 @@ console.log("=== 器BR：BS13-084アルゴアタック（トラッシュの「�
     s.players.p2.field.spirits.push(oppSp)
     resolveAction(s, "p1", null, { type: "deployNexus", from: "trash", nameContains: "古代戦艦", all: true }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
     assert(s.players.p1.field.nexuses.length === 3, "トラッシュの「古代戦艦」ネクサス3枚が配置された")
-    resolveAction(s, "p1", null, { type: "borrowSummonEffect", nameIncludes: "古代戦艦アルゴ・ゴレム" }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
+    resolveAction(s, "p1", null, { type: "fireEffect", trigger: "onSummon", filter: { nameContains: "古代戦艦アルゴ・ゴレム" } }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
     assert(s.players.p2.field.spirits.length === 1, "ネクサスが3種類のため召喚時効果は発揮されなかった")
     s.players.p1.field.nexuses.push(createInstance("BS13-072", s.turn, minLevelCores(getCard("BS13-072"))))
-    resolveAction(s, "p1", null, { type: "borrowSummonEffect", nameIncludes: "古代戦艦アルゴ・ゴレム" }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
+    resolveAction(s, "p1", null, { type: "fireEffect", trigger: "onSummon", filter: { nameContains: "古代戦艦アルゴ・ゴレム" } }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
     assert(s.players.p2.field.spirits.length === 0, "4種類そろい、借用した召喚時効果で相手のスピリットが破壊された")
 }
 {
     const s = game("br-084-none")
-    resolveAction(s, "p1", null, { type: "borrowSummonEffect", nameIncludes: "古代戦艦アルゴ・ゴレム" }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
+    resolveAction(s, "p1", null, { type: "fireEffect", trigger: "onSummon", filter: { nameContains: "古代戦艦アルゴ・ゴレム" } }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
     assert(true, "候補が無くても例外を投げない")
 }
 

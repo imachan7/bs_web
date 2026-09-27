@@ -1054,30 +1054,6 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
         return
 }
 
-// BS07女教皇リル・サキュバス：自分のスピリットすべての『このスピリットの破壊時』効果を、
-// **破壊させずに**発揮させる。フィールドからは取り除かないので、コアも場に残ったまま
-const fireOwnDestroyTriggersHandler: ActionHandler<"fireOwnDestroyTriggers"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-        // 解決中に破壊・召喚で並びが変わりうるので、開始時点のスナップショットに対して回す
-        const targets = [...state.players[owner].field.spirits]
-        let fired = 0
-        for (const inst of targets) {
-            // 途中で場を離れた個体（自身の破壊時効果で消えた等）は飛ばす
-            if (!state.players[owner].field.spirits.some((s) => s.instanceId === inst.instanceId)) continue
-            if (!getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")) {
-                continue
-            }
-            fireTrigger(state, owner, inst, "onDestroy")
-            fired++
-            if (state.winner) break
-        }
-        if (fired === 0) {
-            log(state, `${sourceName}：『破壊時』効果を持つ自分のスピリットがいなかった。`)
-            return
-        }
-        log(state, `${sourceName}：自分のスピリット${fired}体の『破壊時』効果を、破壊させずに発揮した。`)
-        return
-}
 
 const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -1584,7 +1560,6 @@ const handlers = {
     destroyDownToOwnCount: destroyDownToOwnCountHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
-    fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
     returnNexusToHand: returnNexusToHandHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,

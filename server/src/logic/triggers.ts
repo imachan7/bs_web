@@ -223,6 +223,8 @@ export function fireSummonTrigger(
     owner: PlayerId,
     selfInstance: CardInstance,
     byFushi = false,
+    // 発揮する効果 id を絞る（fireEffect の「効果1つ」。付与された誘発は発揮しない）
+    onlyEffectIds?: string[],
 ): void {
     // globalConstraint "noSummonTriggerByCost"（BS08共鳴する音叉の塔）：コストが低いスピリットの
     // 『このスピリットの召喚時』効果は発揮されない
@@ -234,7 +236,7 @@ export function fireSummonTrigger(
     const outer = state.summonEffectSource
     state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cost: getCard(selfInstance.cardId).cost }
     state.resolvingSummonTriggerPid = owner
-    fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi)
+    fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi, undefined, undefined, onlyEffectIds)
     if (!state.pendingChoice) {
         delete state.resolvingSummonTriggerPid
         finishSummonEffect(state)
@@ -271,6 +273,7 @@ export function fireTrigger(
     byFushi?: boolean, // 【不死】の効果で召喚されたときの召喚か（onSummon限定。condition.selfSummonedByFushi の判定に使う。BS13-014 闇騎士アグラヴェイン）
     byOpponent?: boolean, // 相手によって破壊されたか（onDestroy限定。condition.selfDestroyedByOpponent の判定に使う。reviveOnDestroy.when.byOpponentと同じ判定＝相手の効果 または バトルのBP比較。BS13-010スカルザード）
     fromHand?: boolean, // 器BS16：onDeploy限定：手札から配置されたか（effect.fromHandOnly の判定に使う。BS16-062天下眺める絶景門）
+    onlyEffectIds?: string[], // fireSummonTrigger と同じ
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -331,6 +334,7 @@ export function fireTrigger(
     const matches = (effect: EffectDef, src: CardInstance = selfInstance): effect is Extract<EffectDef, { kind: "triggered" }> => {
         if (effect.kind !== "triggered") return false
         if (!firedEvents.includes(effect.trigger)) return false
+        if (onlyEffectIds !== undefined && !onlyEffectIds.includes(effect.id)) return false
         // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
         // 2026-08-25 ユーザー確認）
@@ -526,7 +530,7 @@ export function fireTrigger(
             return other != null && matchesTarget(state, other.pid, other.inst, g.targetFilter as unknown as ResolvedTargetFilter)
         })
         .map((g) => g.action)
-    const grantedActions = [
+    const grantedActions = onlyEffectIds !== undefined ? [] : [
         ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
         ...tempGranted,
     ]
