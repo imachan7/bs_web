@@ -4976,7 +4976,8 @@
         "timing": "main",
         "action": {
           "type": "destroyNexus",
-          "count": 2
+          "count": 2,
+          "upTo": true
         }
       },
       {
