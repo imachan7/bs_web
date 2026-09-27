@@ -77,7 +77,7 @@ console.log("=== BS09-052 フォレスト・ゴレム：コスト3と4を1体ず
     const c3b = put(s, "p2", "BS09-049", 1)
     const c4 = put(s, "p2", "BS09-050", 1) // コスト4
     assert(getCard("BS09-049").cost === 3 && getCard("BS09-050").cost === 4, "前提：コスト3と4のカードを用意できる")
-    resolveAction(s, "p1", null, { type: "destroyCostsEachOne", costs: [3, 4] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "destroy", count: 1, filter: { cost: { min: 3, max: 3 } } }, { type: "destroy", count: 1, filter: { cost: { min: 4, max: 4 } } }] })
     const c3alive = [c3a, c3b].filter((x) => s.players.p2.field.spirits.some((y) => y.instanceId === x.instanceId))
     assert(c3alive.length === 1, "コスト3からは1体だけ破壊される")
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === c4.instanceId), "コスト4からも1体破壊される")

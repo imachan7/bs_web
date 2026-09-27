@@ -117,82 +117,8 @@ function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): numb
     return colors.size
 }
 
-// BS09-052フォレスト・ゴレム：「相手のコスト3/4のスピリット1体ずつを破壊する」＝
-// コスト3から1体・コスト4から1体（計2体）。片方しかいなければその1体だけ（2026-08-14 ユーザー確認）
-const destroyCostsEachOneHandler: ActionHandler<"destroyCostsEachOne"> = (ctx, action) => {
-    const { state, sourceName, srcColors, srcType } = ctx
-    for (const cost of action.costs) {
-        if (state.pendingChoice || state.winner) return
-        ctx.resolve({ type: "destroy", count: 1, filter: { cost: { min: cost, max: cost } } }, {
-            sourceColors: srcColors,
-            sourceType: srcType,
-        })
-    }
-    void sourceName
-}
 
-// SD02-010 轟剣士レーヴェン：「コスト0/1/2/3/4の相手のスピリット1体ずつを破壊する」。
-// コストごとに独立して destroy count:1 へ委譲する（装甲・効果耐性・選択・破壊待機の扱いを
-// destroy 側の1箇所に残すため）。選択待ちで中断したら、残りのコストを再開フレームへ積む
-// （Pattern C「体数で再入」の応用。docs/design/RESUME_STACK.md §7）
-const destroyOnePerCostHandler: ActionHandler<"destroyOnePerCost"> = (ctx, action) => {
-    const { state, owner, self, srcColors, srcType } = ctx
-    for (let i = 0; i < action.costs.length; i++) {
-        const cost = action.costs[i]
-        if (cost === undefined) continue
-        ctx.resolve(
-            { type: "destroy", count: 1, filter: { cost: { min: cost, max: cost } } },
-            { sourceColors: srcColors, sourceType: srcType },
-        )
-        if (state.winner) return
-        if (state.pendingChoice) {
-            const rest = action.costs.slice(i + 1)
-            if (rest.length > 0) {
-                pushResumeFrames(state, [{
-                    kind: "action",
-                    selfInstanceId: self ? self.instanceId : null,
-                    actorPid: owner,
-                    action: { ...action, costs: rest },
-                }])
-            }
-            return
-        }
-    }
-}
 
-// SD06-014爆烈十紋刃：「BP6000以下の相手のスピリット1体と、相手の合体スピリットのブレイヴ1つと、
-// 相手のネクサス1つを破壊する」。3種はそれぞれ独立（1種でも対象なしで他は成立）。
-// destroyOnePerCostHandler と同じ委譲パターンだが、委譲先の型が異なる（destroy/destroyBrave/destroyNexus）ため
-// 残りは1つのactionへ畳まず、ヘテロな複数frameとしてそのままresumeStackへ積む
-const destroySpiritBraveNexusEachHandler: ActionHandler<"destroySpiritBraveNexusEach"> = (ctx, action) => {
-    const { state, owner, self, srcColors, srcType } = ctx
-    const steps: EffectAction[] = [
-        { type: "destroy", count: 1, ...(action.spiritFilter !== undefined ? { filter: action.spiritFilter } : {}) },
-        { type: "destroyBrave" },
-        { type: "destroyNexus", count: 1 },
-    ]
-    for (let i = 0; i < steps.length; i++) {
-        const step = steps[i]
-        if (step === undefined) continue
-        ctx.resolve(step, { sourceColors: srcColors, sourceType: srcType })
-        if (state.winner) return
-        if (state.pendingChoice) {
-            const rest = steps.slice(i + 1)
-            if (rest.length > 0) {
-                pushResumeFrames(
-                    state,
-                    rest.map((a) => ({
-                        kind: "action" as const,
-                        selfInstanceId: self ? self.instanceId : null,
-                        actorPid: owner,
-                        action: a,
-                    })),
-                )
-            }
-            return
-        }
-    }
-}
 
 // 「残り N 体」を再開フレームに積むときは体数を固定する（countCounter を再開のたびに数え直さない）
 function fixedCount(a: DestroyAction, count: number): DestroyAction {
@@ -1645,9 +1571,6 @@ const handlers = {
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
-    destroyOnePerCost: destroyOnePerCostHandler,
-    destroySpiritBraveNexusEach: destroySpiritBraveNexusEachHandler,
-    destroyCostsEachOne: destroyCostsEachOneHandler,
     destroy: destroyRecordedHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,

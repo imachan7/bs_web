@@ -3455,13 +3455,7 @@
         "condition": {
           "ownFieldHasColorSpirit": "green"
         },
-        "action": {
-          "type": "destroyCostsEachOne",
-          "costs": [
-            3,
-            4
-          ]
-        }
+        "action": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "filter": {"cost": {"min": 3, "max": 3}}}, {"type": "destroy", "count": 1, "filter": {"cost": {"min": 4, "max": 4}}}]}
       },
       {
         "id": "BS09-052-e2",
