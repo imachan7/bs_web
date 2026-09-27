@@ -364,7 +364,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `ownSideDestroyCandidates`（fn）：side:"own"（destroyの自分側対象）の候補列挙。ハンドラ本体とpayの判定表（CHECKERS）の両方から呼び、
 - `destroyCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
-- `destroyNexusCandidateCountForPay`（fn）：pay の判定表（destroyNexus）が使う候補数。levelFilter/colorFilterのみ対応（他は今回のpay移行対象外）
+- `destroyNexusCandidateCountForPay`（fn）：pay の判定表（destroyNexus）が使う候補数。
 - `nexusHasCoresForPay`（fn）：pay の判定表（nexusCoresToTrash）：対象側のネクサスのどれかにコアが1個以上あるか
 
 ## server/src/logic/actions/drawDiscard.ts
