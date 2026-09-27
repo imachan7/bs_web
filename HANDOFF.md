@@ -57,11 +57,8 @@
 
 **マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
 
-### 進行中：「N まで」＝0〜N をそろえる（ブランチ `feat/up-to-any-count`。2026-09-28 ユーザー決定）
-
-8種に共通の軸 `upTo?: true`（count は上限。対話時は1つ選ぶたびに「選ばない」を出し、スキップしたら残りも止める。AI・非対話は選べるだけ選ぶ）。
-対象選択は新しい共通関数 `requestUpToChoice`（targeting.ts。候補1つでも聞く・optional）、カードは既存の `requestCardChoice(optional, alwaysAsk)`、コアの個数は option の増減表示で0〜N を1回で選ぶ。
-A 組＝`exhaust`・`refreshOne`・`destroyNexus`（BS01-036・BS14-102・BS12-073。part427）、B 組＝`placeCores`・`removeCores`・`summonFromHandFree`・`summonFromTrashFree`・`toDeck`（BS01-115・BS02-024・BS06-057・BS13-010・BS15-082。part428）。
+**「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
+後始末：#209 のマージ後、エル・クラーケン（`exhaustNexusOrSpirit` の `askNext`）を `requestUpToChoice`＋データの `upTo: true` に寄せる。`toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている
 
 ### M8（期間つき効果）は一区切り（2026-09-26）
 

@@ -5290,7 +5290,7 @@
           "from": "reserve",
           "to": "life",
           "count": 0,
-          "upTo": 5
+          "fillTo": 5
         }
       },
       {

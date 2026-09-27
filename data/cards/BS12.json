@@ -5427,7 +5427,7 @@
           "from": "void",
           "to": "life",
           "count": 0,
-          "upTo": 7
+          "fillTo": 7
         }
       },
       {

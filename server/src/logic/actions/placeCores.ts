@@ -137,10 +137,10 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
 
     const wantsSpiritOrNexus = action.to === "spirit" || action.to === "nexus"
 
-    // 取り元が空でupTo/upToLevelでもないなら、対象選択より前に打ち切る（無駄な選択を出さない）
+    // 取り元が空でfillTo/upToLevelでもないなら、対象選択より前に打ち切る（無駄な選択を出さない）
     if (
         action.from !== "void" &&
-        action.upTo === undefined &&
+        action.fillTo === undefined &&
         action.upToLevel === undefined &&
         availableFromSource(state, owner, action.from, self) <= 0
     ) {
@@ -245,7 +245,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
             return
         }
         perTarget = required - targetInst.cores
-    } else if (typeof action.upTo === "number") {
+    } else if (action.fillTo !== undefined) {
         const current =
             action.to === "life"
                 ? player.life
@@ -256,9 +256,9 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
                     : action.to === "deckSide"
                       ? player.deckSideCores
                       : (targetInst?.cores ?? 0)
-        const need = action.upTo - current
+        const need = action.fillTo - current
         if (need <= 0) {
-            log(state, `${sourceName}：すでに${String(action.upTo)}以上のため、コアは置かれなかった。`)
+            log(state, `${sourceName}：すでに${String(action.fillTo)}以上のため、コアは置かれなかった。`)
             return
         }
         perTarget = need
