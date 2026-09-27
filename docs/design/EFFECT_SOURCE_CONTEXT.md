@@ -79,3 +79,5 @@ fireCorePlacedFromDiff() … 増えた側だけを合計して "opponentCorePlac
 
 - 中断された側をどう書くか: [RESUME_STACK.md](./RESUME_STACK.md)
 - 効果文の『』ブロックの範囲: [CONJUNCTION.md](./CONJUNCTION.md)
+
+**選択をまたぐとき**（2026-09-27）：`suspend` が `currentEffectSource` の種別・色を `PendingChoice.effectSource` に控え、`doResolveChoice` が再開の `resolveAction` に渡し直す。これが無いと、マジックの効果が選択のあと種別なしで続き、「マジックの効果を受けない」や封印された魔導書が効かなかった。組み合わせ方（`sequence`・`if`・`pay`・`declare`）は `ctx.resolve` に `sourceColors`・`sourceType` を明示して渡す（`ctx.resolve` は暗黙には引き継がない）

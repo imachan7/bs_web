@@ -146,16 +146,6 @@ export function activeConstraintsWithSource(
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             // BS10-093時刻む花時計Lv2：合体スピリットのみ（AuraDef.combinedFilterと同じ意味）
             if (effect.combinedFilter && !instIsCombined(inst)) continue
-            // colorFromChosen（BS09-081サマーソルトターン）：「指定した色」を、貸与時に選ばれた色
-            // （仮想発生源の lentChoiceColor）へ解決してから積む。色が選ばれていなければ付与しない
-            const c = effect.constraint
-            if (c.type === "unblockableBy" && c.colorFromChosen) {
-                const chosen = source.lentChoiceColor
-                if (chosen === undefined) continue
-                const { colorFromChosen: _flag, ...rest } = c
-                granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })
-                continue
-            }
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
     }

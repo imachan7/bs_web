@@ -5083,44 +5083,7 @@
     "rarity": "R",
     "limited": false,
     "effect": "メイン：\nスピリットの色を1色指定する。\nこのターンの間、系統：「楽族」を持つ自分のスピリットすべては、指定した色の相手のスピリットからブロックされない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+4000する。",
-    "effects": [
-      {
-        "id": "BS09-081-e1",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "colorChoiceLendThisTurn"
-        }
-      },
-      {
-        "id": "BS09-081-e2",
-        "kind": "constraintGrant",
-        "levels": null,
-        "target": "ownAll",
-        "familyFilter": "楽族",
-        "lentOnly": true,
-        "constraint": {
-          "type": "unblockableBy",
-          "colorFromChosen": true
-        }
-      },
-      {
-        "id": "BS09-081-e3",
-        "kind": "magic",
-        "timing": "flash",
-        "action": {
-          "type": "timedEffect",
-          "content": [
-            {
-              "type": "bp",
-              "amount": 4000
-            }
-          ],
-          "duration": "turn",
-          "side": "own"
-        }
-      }
-    ]
+    "effects": [{"id": "BS09-081-e1", "kind": "magic", "timing": "main", "action": {"type": "declare", "what": "color", "then": {"type": "timedEffect", "content": [{"type": "unblockable", "from": {"declared": "match"}}], "duration": "turn", "all": true, "side": "own", "filter": {"family": "楽族"}}}}, {"id": "BS09-081-e3", "kind": "magic", "timing": "flash", "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 4000}], "duration": "turn", "side": "own"}}]
   },
   {
     "cardId": "BS09-082",

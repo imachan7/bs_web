@@ -475,16 +475,6 @@ export const __covEid = (e: unknown): string =>
         `            __covRec2("cont\\t" + __covEid(effect))
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })`,
     )
-    // constraintGrant（colorFromChosen）: 「指定した色」を解決して積む分岐は**別の push** を通るため、
-    // 上の計測点を迂回する（BS09-081 サマーソルトターンが動作しているのに「未実行」と出ていた。2026-08-16）
-    patch(
-        ruleTargets,
-        `                const { colorFromChosen: _flag, ...rest } = c
-                granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })`,
-        `                const { colorFromChosen: _flag, ...rest } = c
-                __covRec2("cont\\t" + __covEid(effect))
-                granted.push({ constraint: { ...rest, colorFilter: chosen }, sourceInstanceId: source.instanceId })`,
-    )
     // familySuppression: 系統を「持たない」と判定して true を返す時点（BS03暗礁海域Lv1）
     patch(
         ruleTargets,
@@ -1194,14 +1184,6 @@ process.on("exit", () => {
                                 __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                                 blocker.levelAsContinuous = resolveTreatAs(effect.treatAs, blocker)
                             }`,
-        )
-        patch(
-            em,
-            `                            if (!instHasColor(spirit, chosenColor)) continue
-                            spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
-            `                            if (!instHasColor(spirit, chosenColor)) continue
-                            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-                            spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)`,
         )
         // magicBuffBonus: applyMagicBuffBonus が BP+ を実際に記録する時点
         patch(

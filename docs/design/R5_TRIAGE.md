@@ -23,7 +23,8 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #191 | G-compose | `skipBpCompareThenRefreshOne` → `skipBpCompare`＋`refreshOne` |
 | #192・#193 | 「指定する」 | `destroyAllByChosenCost`・`exhaustAllByColor`・`refreshByFamilyAuto`・`destroyAllExceptChosenColors`・`returnFieldExceptOpponentChosenColor` → `declare`（DECLARE_UNIFY） |
 | #194 | 「指定する」のネクサス3種＋フレイム・エルク | `destroyAllNexusesExceptChosenColors`・`destroyFieldExceptOpponentChosenColor`・`destroyAllNexusesWithCores` と `destroyNexus.chooseColor`・`colorFilter` → `destroyNexus{filter}`（`minCores` 軸） |
-| （この PR） | 「指定する」の系統2種 | `familyChoiceThenBpBuffAll`・`drawPerChosenFamily` → `declare`＋`timedEffect`／カウンタ `ownSpirits` |
+| #195 | 「指定する」の系統2種 | `familyChoiceThenBpBuffAll`・`drawPerChosenFamily` → `declare`＋`timedEffect`／カウンタ `ownSpirits` |
+| （この PR） | 「指定する」の継続効果3種 | `colorChoiceLendThisTurn`・`refreshWhenBlockedByChosenColorThisTurn` → `declare`＋`timedEffect` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）

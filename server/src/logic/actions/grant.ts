@@ -445,11 +445,6 @@ const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => 
     )
 }
 
-// スピリットイリュージョン：全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに
-// 載せてこのターンの間貸し出す（familyGrantのfamilyFromChoiceと同形。BS02-111）。
-// マジックのselfは常にnullのため、pushVirtualSourceと同じ§3.3の罠を踏む：resolveChoice再開時に
-// resolveActionのsourceCardId引数が渡されず失われるので、sourceCardIdをaction自身（第2段階の
-// EffectAction）に載せて引き継ぐ（ctx.sourceCardIdではなくaction.sourceCardIdを読む）
 // このバトルの間、相手はリザーブのコアを払わなければブロックできない（BS11-037 ヒポグリフィーLv2-3）
 const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThisBattle"> = (ctx, action) => {
     const { state, owner, opp, sourceName } = ctx
@@ -473,91 +468,8 @@ const grantBlockRequiresMagicDiscardThisTurnHandler: ActionHandler<"grantBlockRe
     log(state, `${sourceName}：このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない。`)
 }
 
-// 色1色を指定し、このターンの間、発生源自身はその色のスピリットにブロックされたとき回復する
-// （BS11-054 武槍鳥スピニード・ハヤト）。非対話は相手のフィールドに最も多い色を自動指定する
-// 「指定した色のスピリットにブロックされたとき回復する」は『ブロックされたとき』の誘発効果として与える（2026-09-26 ユーザー指示）。
-// ほかの onBlocked と同じく、ブロッカーの『ブロック時』効果のあとに発揮する
-function recordRefreshWhenBlockedBy(state: GameState, owner: PlayerId, self: CardInstance, color: Color): void {
-    recordTimed(state, {
-        content: [{ type: "grantTrigger", trigger: "onBlocked", action: { type: "refreshSelf" }, targetColorFilter: color }],
-        target: { kind: "instance", instanceId: self.instanceId },
-        until: "turn",
-        ownerPid: owner,
-    })
-}
 
-const refreshWhenBlockedByChosenColorThisTurnHandler: ActionHandler<"refreshWhenBlockedByChosenColorThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, chosenOption } = ctx
-    if (!self) return
-    const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-    if (chosenOption === undefined) {
-        if (state.interactiveTargets) {
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：指定する色を選んでください`,
-                [],
-                false,
-                action,
-                self,
-                "option",
-                allColors.map((c) => COLOR_LABELS[c]),
-            )
-            return
-        }
-        // 非対話：相手のフィールドに最も多い色（同数は定義順の先頭）を選ぶ
-        const counts = allColors.map(
-            (c) => [c, state.players[opp].field.spirits.filter((sp) => instHasColor(sp, c)).length] as const,
-        )
-        const best = counts.reduce((a, b) => (b[1] > a[1] ? b : a))
-        recordRefreshWhenBlockedBy(state, owner, self, best[0])
-        log(state, `${sourceName}：色「${COLOR_LABELS[best[0]]}」を指定した。（この色にブロックされたら回復する）`)
-        return
-    }
-    const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(([, label]) => label === chosenOption)
-    if (!colorEntry) return
-    recordRefreshWhenBlockedBy(state, owner, self, colorEntry[0])
-    log(state, `${sourceName}：色「${chosenOption}」を指定した。（この色にブロックされたら回復する）`)
-}
 
-const colorChoiceLendThisTurnHandler: ActionHandler<"colorChoiceLendThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceCardId, chosenOption } = ctx
-        if (chosenOption === undefined) {
-            const allColors: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-            requestChoice(
-                state,
-                owner,
-                "指定する色を選んでください",
-                [],
-                false,
-                { type: "colorChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
-                null,
-                "option",
-                allColors.map((c) => COLOR_LABELS[c]),
-            )
-            return
-        }
-        const colorEntry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
-            ([, label]) => label === chosenOption,
-        )
-        if (!colorEntry) return
-        const [color] = colorEntry
-        const cardId = action.sourceCardId
-        const virtual = pushVirtualSource(state, owner, cardId)
-        if (!virtual) return
-        virtual.lentChoiceColor = color
-        // 封印された魔導書Lv1：「対象を片側のみに変更する」を選んでいたら、その答えを仮想発生源に残す。
-        // 継続効果はマジックの解決が終わった後もターン中ずっと生きるため、
-        // 解決中しか生きない magicSideDecision ではなく**こちら側に写す**（2026-08-16 ユーザー確認）
-        const keepPid = bothSidesRedirectKeepPid(state, "magic")
-        if (keepPid !== null) virtual.lentKeepPid = keepPid
-        const sideLabel = keepPid !== null ? `${state.players[keepPid].name}の` : ""
-        log(
-            state,
-            `${getCard(cardId!).name}：このターンの間、色「${COLOR_LABELS[color]}」を指定した${sideLabel}色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。`,
-        )
-        return
-}
 
 // BS03ゴーレムクラフト：自分のフィールドのコアが1個以上置かれているネクサスすべてを、
 // このターンの間「コスト:1／系統:「造兵」／Lv1コスト:1／Lv1BP:2000／効果の記述なし」のスピリットとして扱う。
@@ -605,8 +517,6 @@ const handlers = {
     addSymbolPermanent: addSymbolPermanentHandler,
     requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
     grantBlockRequiresMagicDiscardThisTurn: grantBlockRequiresMagicDiscardThisTurnHandler,
-    refreshWhenBlockedByChosenColorThisTurn: refreshWhenBlockedByChosenColorThisTurnHandler,
-    colorChoiceLendThisTurn: colorChoiceLendThisTurnHandler,
     protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
