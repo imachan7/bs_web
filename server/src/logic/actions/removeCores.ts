@@ -20,6 +20,7 @@ import { coreFloorFor, isBattlingCoreProtected } from "../removal"
 import { coreZoneChoiceId, currentLevel, effectiveBp, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { recordCores, recordMoved } from "../record"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
@@ -28,6 +29,7 @@ type CountSpec = number | "all" | "toLowerLevel"
 
 // countCounter を解決した後の count（typeof action.count === "number" のときだけ EffectCounter を適用）
 function resolvedCount(ctx: ActionCtx, action: RemoveCoresAction): CountSpec {
+    if (action.count === "any") return 0 // removeCoresHandler が数を決めてから入れ直すので、ここには来ない
     if (typeof action.count !== "number") return action.count
     if (action.countCounter === undefined) return action.count
     return countedAmount(ctx.state, ctx.owner, ctx.self, action.count, action.countCounter, ctx.srcType)
@@ -105,7 +107,9 @@ export function removeCoresAchievableCountForPay(
 ): number {
     const opp = opponentOf(owner)
     const countSpec: CountSpec =
-        typeof action.count === "number" && action.countCounter !== undefined
+        action.count === "any"
+            ? "all"
+            : typeof action.count === "number" && action.countCounter !== undefined
             ? countedAmount(state, owner, self, action.count, action.countCounter, srcType)
             : action.count
 
@@ -146,6 +150,11 @@ export function removeCoresAchievableCountForPay(
                 perInst.push(n.cores)
             }
         }
+    }
+    // targetsCounter（N体から1個ずつ）は、取れる体の数が N 以上か
+    if (action.targetsCounter !== undefined) {
+        const n = countedAmount(state, owner, self, 1, action.targetsCounter, srcType)
+        return perInst.filter((a) => a > 0).length >= n ? (typeof countSpec === "number" ? countSpec : 1) : 0
     }
     // 1体から取る形はその最大、それ以外（複数から合計・すべて）は合計
     if (defaultTarget(action) === "one") return perInst.length > 0 ? Math.max(...perInst) : 0
@@ -307,6 +316,8 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             log(state, `${sourceName}のコア除去：${getCard(inst.cardId).name}のコアは取り除けなかった。`)
             return
         }
+        // 「そのスピリットのコスト」を後ろで読むため、コアを取り除いた個体を書く（カード自体は動かない）
+        recordMoved(state, [inst.cardId])
         applyToIndividual(ctx, pid, inst, amount, to)
     }
 
@@ -578,8 +589,44 @@ const resolveDownTo = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 
 // ============ トップレベル ============
 
+// 好きなだけ：0〜取れる数（pay が渡す anyMax まで）から持ち主が選ぶ。非対話は上限まで（discardSelfChoose の any と同じ）
+const resolveAny = (ctx: ActionCtx, action: RemoveCoresAction): void => {
+    const { state, owner, self, sourceName, srcColors, srcType, chosenOption } = ctx
+    const { anyMax, ...rest } = action
+    const max = Math.min(removeCoresAchievableCountForPay(state, owner, self, action, srcColors, srcType), anyMax ?? Infinity)
+    let n = max
+    if (chosenOption !== undefined) {
+        n = Math.max(0, Math.min(max, Number(chosenOption) || 0))
+    } else if (state.interactiveTargets && max > 0) {
+        requestChoice(
+            state,
+            owner,
+            `${sourceName}：コアを置く数を選んでください`,
+            [],
+            false,
+            action,
+            self,
+            "option",
+            Array.from({ length: max + 1 }, (_, i) => String(i)),
+            undefined,
+            true,
+        )
+        return
+    }
+    recordCores(state, n)
+    if (n === 0) {
+        log(state, `${sourceName}：コアを置かなかった。`)
+        return
+    }
+    dispatchByTarget(ctx, { ...rest, count: n })
+}
+
 const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action) => {
     const { state, owner, opp, srcType } = ctx
+    if (action.count === "any") {
+        resolveAny(ctx, action)
+        return
+    }
     if (action.side === "both") {
         // 陣営ごとに順に解決する。選ぶ人はカードの chooser に従う（「お互い、それぞれの」は owner＝各持ち主。
         // 2026-09-26 ユーザー確認）。途中で選択待ちが立ったら、残りの陣営は選び終わってから解決する

@@ -1,4 +1,5 @@
 // smoke パート63（BS05 黄・青バッチ3で追加したエンジン拡張の動作確認）
+import type { EffectAction } from "../../server/src/type"
 //
 // このパートは smoke.ts にまだ import されていない（統合はメインループが行う）。
 //
@@ -198,7 +199,7 @@ console.log("=== ⑩ voidCoresAndMillByCost：造兵の中でコスト最大を�
     assert(getCard("BS05-047").cost === 3 && getCard("BS05-052").cost === 6, "テスト前提のコスト確認")
     s.players.p1.field.spirits.push(low, high)
     const deckBefore = s.players.p2.deck.length
-    resolveAction(s, "p1", null, { type: "voidCoresAndMillByCost", familyFilter: "造兵" })
+    resolveAction(s, "p1", null, (getCard("BS05-083").effects[0] as { action: EffectAction }).action)
     assert(high.cores === 0, "コスト最大（6）のスピリットのコアがボイドに置かれた")
     assert(low.cores === 1, "コスト3のスピリットは対象にならなかった")
     assert(s.players.p2.deck.length === deckBefore - 6, "対象スピリットのコスト（6）ぶん相手デッキが破棄された")

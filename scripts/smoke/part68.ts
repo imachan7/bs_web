@@ -241,7 +241,7 @@ console.log("=== voidCoresAndMillByCost（BS05-083 マジックスパナ） ==="
     const deckBefore = s.players.p2.deck.length
     const trashBefore = s.players.p2.trashCards.length
     assert(castFromHand(s, "p1", "BS05-083") === null, "マジックスパナを使用")
-    assert(spiritOf(s, "p1", target)!.cores === 0, "対象スピリットのコアがすべてボイドに置かれた")
+    assert(spiritOf(s, "p1", target) === undefined && s.players.p1.trashCards.includes("BS03-085"), "コアがすべてボイドに置かれ、維持コア割れで破壊された")
     assert(s.players.p2.deck.length === deckBefore - 4, "相手デッキが対象のコスト分（4枚）破棄された")
     assert(s.players.p2.trashCards.length === trashBefore + 4, "破棄分が相手トラッシュへ積まれた")
 }

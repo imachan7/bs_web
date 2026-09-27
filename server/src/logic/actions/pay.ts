@@ -94,9 +94,11 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // removeCores.ts の removeCoresAchievableCountForPay に判定を委譲（候補の集め方は本ハンドラと共用）
     removeCores: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "removeCores") return false
+        if (action.count === "any") return true
         const achievable = removeCoresAchievableCountForPay(state, owner, self, action, srcColors, srcType)
         if (typeof action.count !== "number") return achievable >= 1
-        return achievable >= action.count
+        const need = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count
+        return achievable >= need
     },
     refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
     nexusCoresToTrash: (state, owner, _self, action, _srcColors, srcType) => {
@@ -275,9 +277,12 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
 }
 
 // cost が「好きなだけ」のとき払える最大数（それ以外は undefined）
-const anyCapacity = (state: GameState, owner: PlayerId, cost: EffectAction): number | undefined => {
+const anyCapacity = (state: GameState, owner: PlayerId, self: CardInstance | null, cost: EffectAction): number | undefined => {
     if (cost.type === "discardSelfChoose" && cost.count === "any") {
         return canDiscardHand(state, owner) ? state.players[owner].hand.filter((id) => discardSelfChooseEligible(id, cost)).length : 0
+    }
+    if (cost.type === "removeCores" && cost.count === "any") {
+        return removeCoresAchievableCountForPay(state, owner, self, cost, undefined, undefined)
     }
     if (cost.type === "toTegamoto" && cost.count === "any") {
         return Math.min(state.players[owner].hand.filter((id) => matchesPick(id, cost.pick)).length, cost.upTo ?? Infinity)
@@ -302,7 +307,7 @@ export const canPayResolve = (
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     let cost = action.cost
-    const capacity = anyCapacity(state, owner, cost)
+    const capacity = anyCapacity(state, owner, self, cost)
     const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType)
     let ok = canPayResolve(state, owner, self, cost, srcColors, srcType)
     if (ok && capacity !== undefined) {

@@ -132,6 +132,7 @@ export function handleAction(
     }
     if (!state.pendingChoice && state.resumeStack.length === 0) {
         delete state.lastMoved
+        delete state.lastCores
         delete state.recordScope
     }
     // 「破壊される代わりに復活できる」の確認は、破壊処理の途中では中断できないので
