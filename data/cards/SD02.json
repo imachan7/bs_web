@@ -238,13 +238,7 @@
           2,
           3
         ],
-        "action": {
-          "type": "drawPerChosenFamily",
-          "families": [
-            "想獣",
-            "獣頭"
-          ]
-        },
+        "action": {"type": "declare", "what": "family", "options": ["想獣", "獣頭"], "then": {"type": "draw", "count": 1, "countCounter": {"ownSpirits": {"declared": "match"}}}},
         "optional": false
       },
       {

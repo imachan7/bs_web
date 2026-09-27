@@ -196,7 +196,6 @@ export type EffectAction =
 
  // コストごとに独立して選ぶ（同じ個体は二度選べない＝コストが一致する個体は1体につき1回）。
  // 対象がいないコストは飛ばす。interactiveTargets 時はコストごとに選択を出し、非対話では実効BP最大を自動選択
- | { type: "drawPerChosenFamily"; families: string[] } // families から1つを選び、その系統を持つ自分のスピリット1体につき1枚引く
  // 。系統は付与も考慮する（spiritHasFamily）。
  // **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
  // interactiveTargets 時は kind:"option" で系統を選ばせ、非対話では**引ける枚数が多い方**を選ぶ決定的簡略化
@@ -282,7 +281,6 @@ export type EffectAction =
  | { type: "millUntilCostSpiritSummonFree"; costs: number[]; maxCount: number; skipOnSummon?: true } // 自分のデッキを上から、指定コストのスピリットカードが出るまで破棄し（上限 maxCount 枚）、出たらそのカードをトラッシュからコストを支払わずに召喚する。skipOnSummon指定時は『このスピリットの召喚時』効果を発揮させない（効果文に明記があるカードだけ）
  | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない）
  | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 手札の指定種別カード1枚を破棄することで（任意コスト。自動選択は手札末尾の該当カードを破棄。該当カードなしはno-op＝不発）、自分のデッキを上から、マジックカードが出るまでトラッシュへ破棄し、出たらそのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する（出ないままデッキ切れなら何も起きない）。maxCountは**省略時は上限なし**（デッキが尽きるまで。デッキ枚数は下限40枚のみで上限が無いため、固定値を書くと原文に無い天井になる）
- | { type: "familyChoiceThenBpBuffAll"; amount: number; uncombinedOnly?: true } // 自分のフィールドのスピリットが持つ系統（配列でなく個々の系統名。重複除く）から効果の使用者が1つ指定し、このターンの間、指定した系統を持つ自分のスピリットすべてをBP+amountする（uncombinedOnly指定時は合体していないスピリットだけが対象。候補が無ければ不発）。自動選択は該当数が最大になる系統を選ぶ（決定的簡略化。指定できる系統の候補は自分のフィールドのスピリットが持つ系統＝2026-09-16ユーザー確認）
  | { type: "opponentLifeToReserve"; count: number } // お互いのフィールド（スピリット+ネクサス）+リザーブ+トラッシュのコア合計を比べ、多かった方の持ち主が、少ない方と同じ合計になるまでボイドへ置く（同数なら不発）。取り先はその持ち主が選ぶ（coresDownToLimitへ、多かった方をsides、少なかった方の合計をlimitとして委譲。CHOOSER_RULES.md）
 
 // selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ定義。

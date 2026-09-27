@@ -174,6 +174,7 @@ export type EffectCounter =
     | "selfBraveCount" // このスピリット（self）に合体しているブレイヴの数（self.braveRefs?.length。BS13-X01光龍騎神サジット・アポロドラゴン【合体中】Lv3：「このスピリットのブレイヴ1つにつき」）
     | "battlingOpponentCombinedSymbols" // 器YC：selfが参加している現在のバトルの相手側（state.battle.attacker/blockerInstanceId）が**合体スピリットのときだけ**そのシンボル数（instanceSymbolCount）、合体していない相手や非バトル中は0（BS12-036星犬ポメラン：「バトルしている相手の合体スピリットのシンボル1つにつき」）
     | "battlingOpponentSymbols" // battlingOpponentCombinedSymbolsの合体限定を外した版：selfが参加している現在のバトルの相手側のシンボル数（instanceSymbolCount）。合体していなくても数える。非バトル中は0（BS13-056ホーク・ブレイカー【合体時】：「バトルしている相手のスピリットのシンボル1つにつき」）
+    | { ownSpirits: TargetFilter } // 絞り込みに合う自分のスピリットの数（declare の then の中なら declared を書ける）
     | { ownFamily: string | string[] } // 配列＝いずれかの系統でOR（BS10-X02双魚賊神ピスケガレオン：「光導」/「星魂」）
     | { ownNameIncludes: string }
     | { anyNameIncludes: string } // 両陣営のフィールドでカード名にこの文字列を含むスピリット数（ownNameIncludesの両陣営版。BS06アルカナナイト・ヘクス：修飾なしの「スピリット」）
