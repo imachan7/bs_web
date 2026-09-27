@@ -1345,7 +1345,8 @@
     ],
     "action": {
      "type": "removeCores",
-     "count": 2
+     "count": "any",
+     "anyMax": 2
     },
     "optional": true
    },
