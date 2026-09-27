@@ -107,4 +107,7 @@ pay で旧 type に残した BS13-024・BS13-060・BS15-067 も、この `last`�
   破棄し終えた時点で破棄したカードを `lastMoved` に書く（途中経過は内部フィールド `discarded` で持ち回る）
 - 移行：BS08-X33・BS03-146（cardType nexus）→ `draw countCounter lastMoved`／BS04-094・BS15-076 → `removeCores target spread countCounter lastMoved`（Q2＝同じスピリットを重ねて選べる。**挙動が変わる**）
 - 残す：BS04-022（「枚数と同じ数の相手のスピリットから1個ずつ」＝別々。体数をカウンタで決める軸が removeCores に無い）
-**器 PR 4 以降**：相手の手元を破棄して1枚につき（BS03-016・BS12-011）、自分のスピリット／ネクサスを好きなだけ破壊して1つにつき（BS12-052・BS04-114）。
+**器 PR 4（`feat/if-tegamoto`。2026-09-27 確定）**：相手の手元を破棄して1枚につき。
+- アクション `{ type: "discardOpponentTegamoto" }`：相手の手元をすべてトラッシュへ（使用権 `tegamotoPlayable` も消す）。破棄したカードを `lastMoved` に書く（0枚なら空）
+- 移行：BS03-016 → `destroy count 1 countCounter lastMoved`／BS12-011 → `removeCores side opponent from [reserve, spirit, nexus] to void target spread count 1 countCounter lastMoved`（取るコアを使用者が選べるようになる。旧実装はリザーブ優先の自動選択）
+**器 PR 5 以降**：自分のスピリット／ネクサスを好きなだけ破壊して1つにつき（BS12-052・BS04-114）。
