@@ -311,7 +311,12 @@
         ],
         "duringSelfAttack": true,
         "action": {
-          "type": "exhaustOpponentSameFamilyAll"
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "filter": {
+            "sameFamilyAsDestroyed": true
+          }
         },
         "selfMode": "source"
       }

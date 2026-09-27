@@ -1,8 +1,8 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, log, minLevelCores } from "../GameState"
+import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
+import { currentLevel, getCard, log, minLevelCores, suspend } from "../GameState"
 import { recordTargets } from "../record"
 import {
     canExhaustNexus,
@@ -41,6 +41,10 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.nexus) {
+            exhaustNexusOrSpirit(ctx, action)
+            return
+        }
         if (action.all) {
             exhaustAllTargets(ctx, action)
             return
@@ -320,35 +324,84 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
     log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
 }
 
-// BS10-074 きぐるみクマッター：相手のネクサスすべてを疲労させる
-const exhaustAllOpponentNexusesHandler: ActionHandler<"exhaustAllOpponentNexuses"> = (ctx) => {
-    const { state, opp, sourceName } = ctx
-    let count = 0
-    for (const n of state.players[opp].field.nexuses) {
-        if (n.isRested) continue
-        n.isRested = true
-        count++
-    }
-    log(state, `${sourceName}：相手のネクサス${count}個を疲労させた。`)
-}
+// 対話時はスピリットとネクサスを同じ候補一覧に並べて使用者が1つずつ選ぶ（2026-09-27 ユーザー決定）。
+// ネクサスには疲労の耐性を持つカードが無いので耐性判定をしない
+function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { type: "exhaust" }>): void {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const oppField = state.players[opp].field
+    const nexusCandidates = () => oppField.nexuses.filter((n) => !n.isRested)
+    const spiritCandidates = () =>
+        action.nexus === "also"
+            ? oppField.spirits.filter((s) => !s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "exhaust", action.all ? "area" : "targeted")))
+            : []
+    const label = action.nexus === "also" ? "スピリット/ネクサス" : "ネクサス"
 
-// 「相手のスピリット/ネクサス合計count個までを疲労させる」（BS10-018エル・クラーケン）。
-// 決定的簡略化：スピリットを実効BP最大から優先して疲労させ（既存の疲労耐性・装甲を尊重）、
-// 残った枠をネクサスへ場の並び順で充てる（ネクサスに耐性判定は無い）
-const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexusesUpTo"> = (ctx, action) => {
-    const { state, owner, opp, srcColors, srcType, sourceName } = ctx
-    let remaining = action.count
+    if (action.all) {
+        let exhausted = 0
+        for (const s of spiritCandidates()) {
+            exhaustSpirit(state, opp, s, undefined, owner, srcType)
+            exhausted++
+        }
+        for (const n of nexusCandidates()) {
+            n.isRested = true
+            exhausted++
+        }
+        log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
+        return
+    }
+
+    // 「◯つまで」は0〜count の好きな数（2026-09-28 ユーザー確認）。対話時は1つ選ぶたびに残りの数で聞き直し、
+    // 選ばずに終えたら残りも疲労させない（再開スタックに残りを積むと、スキップ後にまた聞いてしまう）
+    const askNext = (remaining: number): void => {
+        const candidates = [...spiritCandidates(), ...nexusCandidates()]
+        if (remaining <= 0 || candidates.length === 0) return
+        suspend(state, {
+            pid: owner,
+            kind: "target",
+            prompt: `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
+            candidates: candidates.map((c) => c.instanceId),
+            optional: true,
+            action: { ...action, count: remaining },
+            selfInstanceId: self ? self.instanceId : null,
+        })
+    }
+
+    if (targetInstanceId !== undefined) {
+        const nexus = nexusCandidates().find((n) => n.instanceId === targetInstanceId)
+        const spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === targetInstanceId)
+        if (nexus) nexus.isRested = true
+        else if (spirit) exhaustSpirit(state, opp, spirit, undefined, owner, srcType)
+        else {
+            log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+            return
+        }
+        const picked = (nexus ?? spirit)!
+        log(state, exhaustLog(sourceName, getCard(picked.cardId).name, false))
+        recordTargets(state, [picked.instanceId])
+        askNext(action.count - 1)
+        return
+    }
+
+    const count = action.count
+    if (state.interactiveTargets) {
+        askNext(count)
+        return
+    }
+    // 非対話：スピリットを実効BP最大から優先し、残り枠をネクサスへ場の並び順で充てる
+    let remaining = count
     let exhausted = 0
     while (remaining > 0) {
-        const target = pickEnemyByBp(state, opp, Infinity, (sp) => !sp.isRested, srcColors, srcType, "exhaust")
+        const target = spiritCandidates().reduce<CardInstance | undefined>(
+            (best, s) => (!best || effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best),
+            undefined,
+        )
         if (!target) break
         exhaustSpirit(state, opp, target, undefined, owner, srcType)
         exhausted++
         remaining--
     }
-    for (const n of state.players[opp].field.nexuses) {
+    for (const n of nexusCandidates()) {
         if (remaining <= 0) break
-        if (n.isRested) continue
         n.isRested = true
         exhausted++
         remaining--
@@ -357,9 +410,8 @@ const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexus
         log(state, `${sourceName}：疲労させる対象がいなかった。`)
         return
     }
-    log(state, `${sourceName}：相手のスピリット/ネクサス合計${exhausted}個を疲労させた。`)
+    log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
 }
-
 
 // 指定色のスピリットすべてを疲労させる（exhaustAllByColor の共通部分。自動選択・色choiceの双方から使う）
 function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent"): void {
@@ -381,27 +433,6 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
         `${sourceName}：色「${COLOR_LABELS[chosen]}」を選び、${exhausted}体を疲労させた。`,
     )
 }
-
-// BS16-027コーカサス・リョフ・ビートル：「相手のスピリットが破壊されたとき（このスピリットのアタック中）、
-// そのスピリットと同じ系統を持つ相手のスピリットすべてを疲労させる」。系統は removal.ts が発火直前に
-// GameState.lastOpponentSpiritDestroyedFamilies へ控えたものを読む
-const exhaustOpponentSameFamilyAllHandler: ActionHandler<"exhaustOpponentSameFamilyAll"> = (ctx) => {
-    const { state, owner, opp, sourceName } = ctx
-    const families = state.lastOpponentSpiritDestroyedFamilies
-    if (families.length === 0) {
-        log(state, `${sourceName}：破壊されたスピリットの系統が分からず発動しなかった。`)
-        return
-    }
-    let exhausted = 0
-    for (const s of [...state.players[opp].field.spirits]) {
-        if (!matchesFamilyFilter(state, opp, s, families)) continue
-        if (isResisted(state, opp, s, attemptOf(ctx, "exhaust", "area"))) continue
-        exhaustSpirit(state, opp, s, undefined, owner, ctx.srcType)
-        exhausted++
-    }
-    log(state, `${sourceName}：同じ系統の相手のスピリット${exhausted}体を疲労させた。`)
-}
-
 
 // refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
 // pay の then で使う既定経路のみ）。pay の checker（pay.ts）とこのハンドラで共有する
@@ -807,9 +838,6 @@ const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, a
 const handlers = {
     markSkipNextRefresh: markSkipNextRefreshHandler,
     exhaust: exhaustHandler,
-    exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
-    exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,
-    exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,
     refreshOne: refreshOneHandler,
     refreshAllOwn: refreshAllOwnHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,

@@ -2,7 +2,7 @@
 // BS16-080次元断。docs/design/BS16_HOOKS_B.md）
 // - 027-e1: kind:"burst" event:"ownSpiritDestroyed" byOpponentEffectOnly + condition:opponentFamilyCountAtLeast
 // - 027-e2: kind:"triggered" trigger:"onAttack" action:selfBuff（BP+10000）
-// - 027-e3: kind:"fieldEvent" event:"opponentSpiritDestroyed" duringSelfAttack + action:exhaustOpponentSameFamilyAll
+// - 027-e3: kind:"fieldEvent" event:"opponentSpiritDestroyed" duringSelfAttack + action:exhaust all filter:sameFamilyAsDestroyed
 // - P071-e2: kind:"triggered" trigger:"onAttack" whileCombined action:millThenCoreIfBurst
 // - 080-e1/e2: burst event:"ownLifeDamaged" thenPay:"flash" → magic timing:"flash" action:destroy{filter:damagedOwnLife}
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
