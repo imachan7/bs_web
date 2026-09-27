@@ -270,18 +270,19 @@ console.log("=== BS08ターンインフェルノ：recoverSpiritFromTrash.keywor
     assert(s.players.p1.trashCards.includes(withoutKw.cardId), "対照実験：【転召】を持たないカードは残る")
 }
 
-console.log("=== BS08冥将アマイモン：millUntilFamilyToHand（系統が出るまで破棄・上限あり） ===")
+console.log("=== BS08冥将アマイモン：系統が出るまで破棄（上限あり）し、そのカードを手札に戻す ===")
 {
     const amaimon = findByEffect(
         (e) =>
             e["kind"] === "triggered" &&
             e["trigger"] === "onDestroy" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "millUntilFamilyToHand",
+            JSON.stringify(e["action"] ?? {}).includes('"until"'),
     )
     const entry = entryOf(amaimon, (e) => e["kind"] === "triggered" && e["trigger"] === "onDestroy")
     const level = (entry["levels"] as number[])[0]!
-    const family = String((entry["action"] as Record<string, unknown>)["family"])
-    const maxCount = Number((entry["action"] as Record<string, unknown>)["maxCount"])
+    const mill = ((entry["action"] as Record<string, unknown>)["actions"] as Record<string, unknown>[])[0]!
+    const family = String((mill["until"] as Record<string, unknown>)["family"])
+    const maxCount = Number(mill["count"])
     const matchCard = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(family))!
     const filler = CARDS.find((c) => c.cardId === FILLER.cardId)!
 

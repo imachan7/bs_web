@@ -2317,15 +2317,7 @@
      2
     ],
     "optional": true,
-    "action": {
-     "type": "millUntilCostSpiritSummonFree",
-     "costs": [
-      6,
-      7
-     ],
-     "maxCount": 6,
-     "skipOnSummon": true
-    }
+    "action": {"type": "sequence", "actions": [{"type": "mill", "count": 6, "side": "own", "until": {"cardType": "spirit", "cost": {"min": 6, "max": 7}}}, {"type": "takeLast", "pick": {"cardType": "spirit", "cost": {"min": 6, "max": 7}}, "to": "summon", "skipOnSummon": true}]}
    }
   ]
  },
