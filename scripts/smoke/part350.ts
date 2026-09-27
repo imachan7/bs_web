@@ -157,6 +157,11 @@ console.log("=== 7. P069ロード・ブレイバン：バーストで召喚す�
     assert((host.braveRefs ?? []).some((r) => s.players.p1.field.combinedBraves.some((b) => b.cardId === "P069" && b.instanceId === r.instanceId)), "ホストがP069を参照している")
 }
 
+const X01_OPEN = (() => {
+    const e = getCard("BS16-X01").effects.find((x) => x.id === "BS16-X01-e2")
+    if (e?.kind !== "triggered") throw new Error("BS16-X01-e2 が無い")
+    return e.action
+})()
 console.log("=== 8. BS16-X01：バーストをオープンし、条件が合えば発動・合わなければデッキの下 ===")
 {
     const s = game("x01-match")
@@ -164,7 +169,7 @@ console.log("=== 8. BS16-X01：バーストをオープンし、条件が合え�
     s.players.p1.burstSet = true
     const x01 = put(s, "p1", "BS16-X01", 5)
     const deckBefore = s.players.p1.deck.length
-    resolveAction(s, "p1", x01, { type: "openOwnBurstActivateIfSummonCond" })
+    resolveAction(s, "p1", x01, X01_OPEN)
     assert(s.players.p1.burst === null && !s.players.p1.burstSet, "バーストは空になった")
     assert(!s.players.p1.deck.includes("BS16-074"), "条件が合ったのでデッキの下には戻らない")
     assert(s.players.p1.trashCards.includes("BS16-074") || s.players.p1.deck.length === deckBefore + 1, "発動して手順どおり後始末された")
@@ -174,7 +179,7 @@ console.log("=== 8. BS16-X01：バーストをオープンし、条件が合え�
     s.players.p1.burst = "BS16-018" // 【バースト：相手による自分のスピリット破壊後】＝条件が違う
     s.players.p1.burstSet = true
     const x01 = put(s, "p1", "BS16-X01", 5)
-    resolveAction(s, "p1", x01, { type: "openOwnBurstActivateIfSummonCond" })
+    resolveAction(s, "p1", x01, X01_OPEN)
     assert(s.players.p1.burst === null && !s.players.p1.burstSet, "バーストは空になった")
     assert(s.players.p1.deck[s.players.p1.deck.length - 1] === "BS16-018", "条件が合わないのでデッキの下に戻った")
     assert(!s.players.p1.trashCards.includes("BS16-018"), "トラッシュには置かれない")

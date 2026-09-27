@@ -25,6 +25,7 @@ REFACTOR_PLAN §2.2 の4行目。直前の結果・いまの盤面・誘発の�
 **移行済み（器 PR 3）**：drawPerHandDiscard・discardHandNexusesThenDraw・discardHandAnyThenCoreRemove、と BS04-094（coreRemovePerHandDiscard は BS04-022 だけが残る）。
 **移行済み（器 PR 4）**：discardOpponentTegamotoDestroyPer・discardOpponentTegamotoVoidCoresPer。
 **移行済み（器 PR 5）**：destroyOwnFreelyThenDraw・sacrificeOwnNexusesThenEnemyDestroysOwn。
+**移行済み（器 PR 6）**：revealOwnBurstThenSortByType・openOwnBurstActivateIfSummonCond・burstSummonSelfIfTargetBpAtLeast。
 
 **器 PR 6（`feat/if-burst`。2026-09-27 確定）**：バースト絡みの3枚。
 - `reveal` の `from: "burst"`（自分のバーストをオープン。バーストエリアから外す）・`CardPick.burstEvent`（そのカードのバースト条件）・行き先 `"activateBurst"`（バーストエリアに戻して発動させる。発動処理は keywords/burst.ts の `activateBurstCard`）

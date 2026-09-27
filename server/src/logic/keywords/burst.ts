@@ -279,3 +279,26 @@ export function fireBurstOnEvent(
         fireOwnBurstActivated(state, holderPid, before, burstCardId)
     }
 }
+
+// オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
+// 後始末（finishBurstActivation）がバーストエリアのカードを前提にするので、いったんエリアに戻してから解決する
+export function activateBurstCard(state: GameState, owner: PlayerId, cardId: string): void {
+    const player = state.players[owner]
+    const card = getCard(cardId)
+    const effect = card.effects.find((e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst")
+    if (!effect) {
+        player.trashCards.push(cardId)
+        return
+    }
+    player.burst = cardId
+    player.burstSet = true
+    log(state, `${player.name}は${card.name}をバーストとして発動させた。`)
+    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" }
+    const before = fieldInstanceIdsOf(state, owner)
+    state.resolvingBurstPid = owner
+    resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
+    delete state.resolvingBurstPid
+    finishBurstActivation(state, owner, cardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
+    if (state.pendingChoice || state.winner) return
+    fireOwnBurstActivated(state, owner, before, cardId)
+}

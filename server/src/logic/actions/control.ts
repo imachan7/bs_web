@@ -98,7 +98,11 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const met = "last" in cond
         ? (state.lastMoved ?? []).some((id) => matchesPick(id, cond.last))
         : "event" in cond
-          ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)
+          ? "destroyedColor" in cond.event
+              ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)
+              : ((t) => t !== undefined && effectiveBp(state, t.pid, t.inst) >= (cond.event as { targetBpAtLeast: number }).targetBpAtLeast)(
+                    ctx.targetInstanceId ? findSpiritAny(state, ctx.targetInstanceId) ?? undefined : undefined,
+                )
           : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
               countEffectCounter(state, owner, self, cond.count, srcType),
           )
@@ -194,58 +198,10 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     )
     if (!state.winner) resolveTensho(state, owner, inst)
     if (!state.winner) fireSummonSequence(state, owner, inst)
-}
-
-// 器BS16（BS16-X01爆炎の覇王ロード・ドラゴン・バゼル）：自分のバースト1つをオープンし、
-// 条件が【相手の『このスピリット/ブレイヴの召喚時』発揮後】なら強制発動、それ以外はデッキの下へ戻す
-const openOwnBurstActivateIfSummonCondHandler: ActionHandler<"openOwnBurstActivateIfSummonCond"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    const player = state.players[owner]
-    const cardId = player.burst
-    if (cardId === null) {
-        log(state, `${sourceName}：セットしているバーストがなかった。`)
-        return
-    }
-    const card = getCard(cardId)
-    const effect = card.effects.find((e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst")
-    log(state, `${player.name}は${sourceName}の効果でバーストの${card.name}をオープンした。`)
-    if (!effect || effect.event !== "opponentSummonEffectResolved") {
-        player.burst = null
-        player.burstSet = false
-        player.deck.push(cardId)
-        log(state, `${card.name}は発動条件を満たさないため、デッキの下に戻った。`)
-        return
-    }
-    const actionToRun = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" as const }
-    const before = fieldInstanceIdsOf(state, owner)
-    state.resolvingBurstPid = owner
-    resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
-    delete state.resolvingBurstPid
-    finishBurstActivation(state, owner, cardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
-    if (state.pendingChoice || state.winner) return
-    fireOwnBurstActivated(state, owner, before, cardId)
-}
-
-// バースト専用（BS15-X01刀の覇王ムサシード・アシュライガー）：fireFieldEventTriggersが渡すイベント対象
-// （event:"anySpiritAttacked"の場合はアタックしたスピリット。targetInstanceId経由）の実効BPがminBp以上のときだけ、
-// このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲）。召喚できたら、新しく場に出た個体を
-// before/after差分で特定し、thenBuffSelf指定時はこのターンの間BP+する
-const burstSummonSelfIfTargetBpAtLeastHandler: ActionHandler<"burstSummonSelfIfTargetBpAtLeast"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-    const target = targetInstanceId
-        ? (findSpiritAny(state, targetInstanceId) ?? undefined)
-        : undefined
-    if (!target || effectiveBp(state, target.pid, target.inst) < action.minBp) {
-        log(state, `${sourceName}：条件を満たさなかったため発動しなかった。`)
-        return
-    }
-    const before = new Set(state.players[owner].field.spirits.map((s) => s.instanceId))
-    ctx.resolve({ type: "summonBurstCardFree" })
-    if (state.winner) return
-    const newInst = state.players[owner].field.spirits.find((s) => !before.has(s.instanceId))
-    if (newInst && action.thenBuffSelf) {
-        recordBp(state, owner, newInst, action.thenBuffSelf, "turn")
-        log(state, `${getCard(newInst.cardId).name}はBP+${action.thenBuffSelf}（ターン終了時まで）。`)
+    // 「その後、このターンの間、このスピリットをBP+」（BS15-X01）
+    if (action.thenBuffSelf !== undefined && !state.winner && combineHost === undefined) {
+        recordBp(state, owner, inst, action.thenBuffSelf, "turn")
+        log(state, `${card.name}はBP+${action.thenBuffSelf}（ターン終了時まで）。`)
     }
 }
 
@@ -294,28 +250,6 @@ const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
     placeBurst(state, owner, best.cardId)
 }
 
-
-// BS14-053オリンピアの天使ハギト：自分のバースト1つをオープンできる。マジックカードなら手札に戻し、
-// それ以外は破棄する（burstがnullなら不発。バーストの中身は非公開ゾーンなので選択の余地はない）
-const revealOwnBurstThenSortByTypeHandler: ActionHandler<"revealOwnBurstThenSortByType"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    const player = state.players[owner]
-    const cardId = player.burst
-    if (cardId === null) {
-        log(state, `${sourceName}：発動中のバーストが見つからなかった。`)
-        return
-    }
-    player.burst = null
-    player.burstSet = false
-    const card = getCard(cardId)
-    if (card.type === "magic") {
-        player.hand.push(cardId)
-        log(state, `${player.name}はバーストの${card.name}をオープンし、手札に戻した。`)
-    } else {
-        player.trashCards.push(cardId)
-        log(state, `${player.name}はバーストの${card.name}をオープンし、トラッシュへ破棄した。`)
-    }
-}
 
 // BS16-X04魁の覇王ミブロック・ブレイヴァー【合体時】Lv2･Lv3：「相手の手札が増えたとき、相手のバースト1つを破棄する」。
 // fieldEvent event:"opponentHandAdded"と組み合わせて使う。セットしていなければno-op
@@ -430,9 +364,6 @@ const handlers = {
     discardOpponentBurst: discardOpponentBurstHandler,
     discardBurst: discardBurstHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
-    revealOwnBurstThenSortByType: revealOwnBurstThenSortByTypeHandler,
-    openOwnBurstActivateIfSummonCond: openOwnBurstActivateIfSummonCondHandler,
-    burstSummonSelfIfTargetBpAtLeast: burstSummonSelfIfTargetBpAtLeastHandler,
     setBurstFromHand: setBurstFromHandHandler,
     payNegateDecide: payNegateDecideHandler,
 } satisfies Partial<ActionRegistry>

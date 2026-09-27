@@ -1,16 +1,26 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { EffectAction, PlayerId } from "../../type"
+import type { EffectAction, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames, resolveInOrder } from "../GameState"
 import { fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, resolveTensho } from "../EffectModules"
 import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
 import { hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from "../../../../shared/rules"
+import { activateBurstCard } from "../keywords/burst"
 
 type RevealActionT = Extract<EffectAction, { type: "reveal" }>
 type RevealPick = NonNullable<RevealActionT["pick"]>
 type RevealDest = NonNullable<RevealActionT["dest"]>
 type RevealStep = { kind: "pick"; cardId: string } | { kind: "rest" }
+
+export // バーストエリアのカードを外して返す（オープンしたら元のバーストではなくなる）
+function takeOwnBurst(player: PlayerState): string[] {
+    const cardId = player.burst
+    if (cardId === null) return []
+    player.burst = null
+    player.burstSet = false
+    return [cardId]
+}
 
 export function matchesPick(id: string, pick: RevealPick | undefined): boolean {
     if (!pick) return true
@@ -35,6 +45,7 @@ export function matchesPick(id: string, pick: RevealPick | undefined): boolean {
         }
     }
     if (pick.hasBurst === true && !card.effects.some((e) => e.kind === "burst")) return false
+    if (pick.burstEvent !== undefined && !card.effects.some((e) => e.kind === "burst" && e.event === pick.burstEvent)) return false
     return true
 }
 
@@ -67,6 +78,9 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
         case "deckBottom":
             state.players[action.srcPid].deck.push(cardId)
             log(state, `${sourceName}：${card.name}をデッキの下に戻した。`)
+            return
+        case "activateBurst":
+            activateBurstCard(state, owner, cardId)
             return
         case "tegamoto":
             player.tegamoto.push(cardId)
@@ -325,13 +339,13 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
                 ? countSymbols(state.players[owner], [countPer.ownSymbols])
                 : state.players[owner].field.nexuses.length
           : action.count ?? 0
-    const revealed = srcPlayer.deck.splice(0, count)
+    const revealed = from === "burst" ? takeOwnBurst(srcPlayer) : srcPlayer.deck.splice(0, count)
     state.lastMoved = [...revealed]
     if (revealed.length === 0) {
-        log(state, `${sourceName}：デッキにカードがないため公開できなかった。`)
+        log(state, from === "burst" ? `${sourceName}：バーストをセットしていなかった。` : `${sourceName}：デッキにカードがないため公開できなかった。`)
         return
     }
-    log(state, `${srcPlayer.name}はデッキ上${revealed.length}枚（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`)
+    log(state, `${srcPlayer.name}は${from === "burst" ? "バースト" : `デッキ上${revealed.length}枚`}（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`)
     state.revealedCards = { pid: srcPid, cardIds: revealed }
 
     if (pickCount === 0) {

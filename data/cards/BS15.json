@@ -5629,9 +5629,16 @@
     "event": "anySpiritAttacked",
     "subjectSide": "opponent",
     "action": {
-     "type": "burstSummonSelfIfTargetBpAtLeast",
-     "minBp": 5000,
-     "thenBuffSelf": 3000
+     "type": "if",
+     "cond": {
+      "event": {
+       "targetBpAtLeast": 5000
+      }
+     },
+     "then": {
+      "type": "summonBurstCardFree",
+      "thenBuffSelf": 3000
+     }
     }
    },
    {
