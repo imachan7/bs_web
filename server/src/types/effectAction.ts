@@ -35,7 +35,6 @@ export type IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: numb
 
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true; countCounter?: EffectCounter; costSacrificeChosen?: true } // countCounter指定時はEffectCounterの値を枚数として使う（0ならログのみ）。自分がデッキから引く（side:"both"は自分→相手の順で両者。省略時は自分のみ）。costSkipCoreStep指定時は「ボイドからコアを置かないことで」がコスト＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）
- | { type: "destroyCostsEachOne"; costs: number[] } // 指定コストごとに1体ずつ相手のスピリットを破壊する（コスト3から1体・4から1体＝計2体。片方のみならその1体だけ。2026-08-14 ユーザー確認）
  | { type: "destroy"; filter?: TargetFilter; count: number | "any"; suppressOnDestroy?: true; chosenIds?: string[]; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: true; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true } // side:"own"指定時は自分側のスピリットが対象（選ぶのは持ち主。pay { cost: destroy{side:"own"} } の器）。thenDrawFixed指定時は破壊処理後（「その後」＝0体でも発火）に固定枚数ドローする。countCounter指定時はEffectCounterの値を破壊数として使う（0ならログのみ）。lowestCost指定時は自動選択の基準をBP最大でなくコスト最小にする（同コストはBP最大）。drawPerDestroyed指定時は実際に破壊できた1体につき1枚ドローする（「残る」で残った個体は数えない）。chooserIsTarget指定時は破壊される側（相手）が対象を選ぶ（実行は発生源の持ち主の効果として解決）。相手スピリットを破壊（filterで絞り込み。省略時はBP不問）。countPerOpponentTrashMagicColors指定時は相手のトラッシュのマジックカードの色種類数（重複除く）を対象数にする。anySide指定時は自分/相手どちらも対象にできる（自動選択は実効BP最大。同値は相手側優先）。excludeTarget指定時はtargetInstanceIdを除外対象として扱う（誘発が渡す対象を避ける）
 
  | { type: "destroyOwnByFamilyThenWipeEnemy"; family: FamilyFilter } // 指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する
@@ -188,8 +187,6 @@ export type EffectAction =
  // この制限は**その『』ブロックの中だけ**に効く。docs/design/CONJUNCTION.md「効果ブロック（『』）の範囲」）。
  // chooserIsTarget 指定時は、**コアを取られる側（相手）が対象を選ぶ**（「**相手は**、相手のスピリット上のコア3個を〜置く」。
  // 解決は発生源の持ち主の効果として行う＝PendingChoice.actorPid。exhaust.chooserIsTarget と同型。docs/design/CHOOSER_RULES.md）
- | { type: "destroyOnePerCost"; costs: number[] } // 指定コストそれぞれについて相手のスピリット1体ずつを破壊する
- | { type: "destroySpiritBraveNexusEach"; spiritFilter?: TargetFilter } // 相手のスピリット1体（spiritFilterで絞り込み）と、相手の合体スピリットのブレイヴ1つと、相手のネクサス1つを、それぞれ独立に破壊する（destroyOnePerCostと同型：内部で"destroy"/"destroyBrave"/"destroyNexus"count:1へ順にctx.resolveで委譲し、中断したら残りをresumeStackへ個別のframeとして積む。いずれか1種が対象なしでも他は独立して成立する）
 
  // コストごとに独立して選ぶ（同じ個体は二度選べない＝コストが一致する個体は1体につき1回）。
  // 対象がいないコストは飛ばす。interactiveTargets 時はコストごとに選択を出し、非対話では実効BP最大を自動選択
