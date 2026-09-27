@@ -581,40 +581,6 @@ const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVo
     )
 }
 
-// SD02-004 神獣ハクタク：系統を1つ選び、その系統を持つ自分のスピリット1体につき1枚引く。
-// **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
-// interactiveTargets 時は系統を選ばせ、非対話では引ける枚数が多い方を選ぶ決定的簡略化
-const drawPerChosenFamilyHandler: ActionHandler<"drawPerChosenFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenOption } = ctx
-    const countFor = (family: string): number =>
-        state.players[owner].field.spirits.filter((sp) => spiritHasFamily(state, owner, sp, family)).length
-    if (action.families.length === 0) return
-    if (chosenOption === undefined && state.interactiveTargets && action.families.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：数える系統を選んでください`,
-            [],
-            false,
-            action,
-            self,
-            "option",
-            [...action.families],
-        )
-        return
-    }
-    const family =
-        chosenOption !== undefined && action.families.includes(chosenOption)
-            ? chosenOption
-            : [...action.families].reduce((best, f) => (countFor(f) > countFor(best) ? f : best))
-    const count = countFor(family)
-    if (count === 0) {
-        log(state, `${sourceName}：系統「${family}」を持つ自分のスピリットがいなかった。`)
-        return
-    }
-    log(state, `${sourceName}：系統「${family}」の自分のスピリット${count}体ぶん引く。`)
-    ctx.resolve({ type: "draw", count })
-}
 
 // BS09-039探偵ペンタンLv1-2：自分の手札の指定カード名1枚を破棄することで、相手の手札1枚を
 // 「内容を見ないで選び」その内容だけを見る。盤面は動かない。
@@ -656,7 +622,6 @@ const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek">
 
 
 const handlers = {
-    drawPerChosenFamily: drawPerChosenFamilyHandler,
     draw: drawHandler,
     drawUpTo: drawUpToHandler,
     discardHandAll: discardHandAllHandler,

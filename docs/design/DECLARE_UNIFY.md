@@ -44,5 +44,5 @@ R5_TRIAGE の G-exceptColor・G-familyChoice と、「指定する」を名前�
 1. 器：`declare`・`declared`／`colorNotIn` 軸。カードデータは触らない
 2. 移行（即時の効果）：済み＝destroyAllByChosenCost・exhaustAllByColor・refreshByFamilyAuto・destroyAllExceptChosenColors・returnFieldExceptOpponentChosenColor（8枚）。
    ネクサスを含む3種（destroyNexus.chooseColor・destroyFieldExceptOpponentChosenColor・destroyAllNexusesExceptChosenColors）も済み：destroyNexus に `filter` を足した。プレシオスの「ネクサスが合計3色以上あるとき」は `if{count: bothNexusColors}`。
-   残り：familyChoiceThenBpBuffAll は「このターンの間…すべて」を置いた時点の個体に限るかを確かめてから。drawPerChosenFamily は「指定した系統の自分のスピリットの数」を数えるカウンタが要る
+   familyChoiceThenBpBuffAll（五輪転生炎）は `timedEffect{all}` で書いた。「このターンの間…すべて」は後から出た個体にも効く（SEMANTICS_AUDIT §3.12。旧実装は使った時点の個体だけだった）。drawPerChosenFamily（SD02-004）はカウンタ `{ ownSpirits: TargetFilter }` で書いた
 3. 継続効果の4種と、トラッシュ→手札の器がそろったらヴァリエル

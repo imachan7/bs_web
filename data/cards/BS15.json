@@ -5008,11 +5008,7 @@
     "id": "BS15-073-e2",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "familyChoiceThenBpBuffAll",
-     "amount": 4000,
-     "uncombinedOnly": true
-    }
+    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "timedEffect", "content": [{"type": "bp", "amount": 4000}], "duration": "turn", "all": true, "side": "own", "filter": {"declared": "match", "uncombined": true}}}
    }
   ]
  },

@@ -19,6 +19,7 @@ import type {
     GameState,
     PaySource,
     PlayerId,
+    ResolvedTargetFilter,
 } from "../type"
 import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, opponentOf } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
@@ -1084,6 +1085,10 @@ export function countEffectCounter(
             (s) => spiritHasKeyword(state, owner, s, counter.ownKeyword),
             sourceType,
         )
+    }
+    if ("ownSpirits" in counter) {
+        const filter = counter.ownSpirits as unknown as ResolvedTargetFilter
+        return countSpiritsWeighted(state, owner, owner, (s) => matchesTarget(state, owner, s, filter), sourceType)
     }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
