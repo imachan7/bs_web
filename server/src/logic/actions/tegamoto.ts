@@ -236,91 +236,26 @@ const revealHandMagicToTegamotoDrawHandler: ActionHandler<"revealHandMagicToTega
         return
 }
 
-const discardOpponentTegamotoDestroyPerHandler: ActionHandler<"discardOpponentTegamotoDestroyPer"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 透明人間エクリア：相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ破棄し、
-        // その枚数ぶん相手のスピリットを破壊する（既存destroyアクションへcount委譲。BP不問=maxBpなし）
-        const target = state.players[opp]
-        const count = target.tegamoto.length
-        if (count === 0) {
-            log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
-            return
-        }
-        const discardedNames = target.tegamoto.map((cardId) => getCard(cardId).name)
-        target.trashCards.push(...target.tegamoto)
-        target.tegamoto = []
-        target.tegamotoPlayable = [] // 手元が空になるので使用権も残さない
-        log(
-            state,
-            `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`,
-        )
-        ctx.resolve({ type: "destroy", count })
-        return
-}
-
-// discardOpponentTegamotoDestroyPerの兄弟。相手の手元(tegamoto)にあるカードすべてを相手のトラッシュへ
-// 破棄し、破棄した枚数ぶん、相手のフィールド（スピリット/ネクサス上）またはリザーブから
-// ソウルコア以外のコアをボイドへ置く（ソウルコア未実装のいまはリザーブ・フィールドとも通常コアのみなので
-// 絞り込み不要）。リザーブ優先で取る（autoTakeCoresToVoidと同じ順）。相手の手元が0枚ならno-op。
-// BS12-011ミイラバード：召喚時
-const discardOpponentTegamotoVoidCoresPerHandler: ActionHandler<"discardOpponentTegamotoVoidCoresPer"> = (ctx) => {
-    const { state, owner, opp, sourceName } = ctx
+const discardOpponentTegamotoHandler: ActionHandler<"discardOpponentTegamoto"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
     const target = state.players[opp]
-    const count = target.tegamoto.length
-    if (count === 0) {
+    const ids = [...target.tegamoto]
+    state.lastMoved = ids
+    if (ids.length === 0) {
         log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
         return
     }
-    const discardedNames = target.tegamoto.map((cardId) => getCard(cardId).name)
-    target.trashCards.push(...target.tegamoto)
+    target.trashCards.push(...ids)
     target.tegamoto = []
-    target.tegamotoPlayable = []
-    log(state, `${sourceName}：${target.name}の手元「${discardedNames.join("、")}」を破棄した。`)
-
-    let remaining = count
-    const fromReserve = Math.min(remaining, target.reserve)
-    target.reserve -= fromReserve
-    remaining -= fromReserve
-    let fromField = 0
-    while (remaining > 0) {
-        let richest: CardInstance | undefined
-        let richestKind: "spirit" | "nexus" | undefined
-        for (const s of target.field.spirits) {
-            if (s.cores > 0 && (!richest || s.cores > richest.cores)) {
-                richest = s
-                richestKind = "spirit"
-            }
-        }
-        for (const n of target.field.nexuses) {
-            if (n.cores > 0 && (!richest || n.cores > richest.cores)) {
-                richest = n
-                richestKind = "nexus"
-            }
-        }
-        if (!richest || !richestKind) break
-        if (richestKind === "spirit") {
-            const removed = removeCoresToVoid(state, opp, richest, Math.min(remaining, richest.cores), owner)
-            if (removed === 0) break
-            remaining -= removed
-            fromField += removed
-        } else {
-            const take = Math.min(remaining, richest.cores)
-            richest.cores -= take
-            remaining -= take
-            fromField += take
-        }
-    }
-    const voided = fromReserve + fromField
-    if (voided > 0) log(state, `${sourceName}：${target.name}のコア${voided}個をボイドに置いた。`)
-    return
+    target.tegamotoPlayable = [] // 手元が空になるので使用権も残さない
+    log(state, `${sourceName}：${target.name}の手元「${ids.map((id) => getCard(id).name).join("、")}」を破棄した。`)
 }
 
 const handlers = {
+    discardOpponentTegamoto: discardOpponentTegamotoHandler,
     magicFreeUseFromHandOrTegamoto: magicFreeUseFromHandOrTegamotoHandler,
     handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
     revealHandMagicToTegamotoDraw: revealHandMagicToTegamotoDrawHandler,
-    discardOpponentTegamotoDestroyPer: discardOpponentTegamotoDestroyPerHandler,
-    discardOpponentTegamotoVoidCoresPer: discardOpponentTegamotoVoidCoresPerHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers
