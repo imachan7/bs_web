@@ -18,7 +18,8 @@ import { findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../Eff
 import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
-import { newRecordScope } from "../record"
+import { newRecordScope, withMovedProbe } from "../record"
+import { matchesPick } from "./revealAction"
 
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
@@ -28,7 +29,7 @@ export const PAYABLE_TYPES = [
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree", "summonFromTrashFree",
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
-    "negateLifeDamageFromTarget",
+    "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -57,6 +58,11 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
             : target.hand.length
         return count >= action.count
     },
+    toTegamoto: (state, owner, _self, action) => {
+        if (action.type !== "toTegamoto") return false
+        return action.count === "any" || state.players[owner].hand.filter((id) => matchesPick(id, action.pick)).length >= action.count
+    },
+    lendSelfThisTurn: () => true,
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
@@ -268,6 +274,17 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
 }
 
+// cost が「好きなだけ」のとき払える最大数（それ以外は undefined）
+const anyCapacity = (state: GameState, owner: PlayerId, cost: EffectAction): number | undefined => {
+    if (cost.type === "discardSelfChoose" && cost.count === "any") {
+        return canDiscardHand(state, owner) ? state.players[owner].hand.filter((id) => discardSelfChooseEligible(id, cost)).length : 0
+    }
+    if (cost.type === "toTegamoto" && cost.count === "any") {
+        return Math.min(state.players[owner].hand.filter((id) => matchesPick(id, cost.pick)).length, cost.upTo ?? Infinity)
+    }
+    return undefined
+}
+
 // 判定表に無い type、または判定に落ちた場合は false
 export const canPayResolve = (
     state: GameState,
@@ -284,13 +301,26 @@ export const canPayResolve = (
 
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
-    if (!canPayResolve(state, owner, self, action.cost, srcColors, srcType) || !canPayResolve(state, owner, self, action.then, srcColors, srcType)) {
+    let cost = action.cost
+    const capacity = anyCapacity(state, owner, cost)
+    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType)
+    let ok = canPayResolve(state, owner, self, cost, srcColors, srcType)
+    if (ok && capacity !== undefined) {
+        // 好きなだけ払う：then を解決しきれる最大数までしか選べない（2026-09-27 ユーザー確認）
+        let max = capacity
+        while (max >= 0 && !withMovedProbe(max, thenOk)) max--
+        ok = max >= 0
+        if (ok) cost = { ...cost, anyMax: max } as EffectAction
+    } else if (ok) {
+        ok = thenOk()
+    }
+    if (!ok) {
         log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
         state.effectFizzled = true
         return
     }
     const scope = newRecordScope()
-    resolveInOrder(state, [action.cost, action.then], {
+    resolveInOrder(state, [cost, action.then], {
         resolve: (a) => {
             state.recordScope = scope
             ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType })
