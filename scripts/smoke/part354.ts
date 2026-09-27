@@ -4,7 +4,7 @@
 // - 027-e2: kind:"triggered" trigger:"onAttack" action:selfBuff（BP+10000）
 // - 027-e3: kind:"fieldEvent" event:"opponentSpiritDestroyed" duringSelfAttack + action:exhaust all filter:sameFamilyAsDestroyed
 // - P071-e2: kind:"triggered" trigger:"onAttack" whileCombined action:millThenCoreIfBurst
-// - 080-e1/e2: burst event:"ownLifeDamaged" thenPay:"flash" → magic timing:"flash" action:destroyLifeDamager
+// - 080-e1/e2: burst event:"ownLifeDamaged" thenPay:"flash" → magic timing:"flash" action:destroy{filter:damagedOwnLife}
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
 import { destroyTargetsBatch } from "../../server/src/logic/removal"
 import { attachBrave } from "../../server/src/logic/brave"
@@ -155,19 +155,21 @@ console.log("=== 5. 080：ライフ減少後に手札に戻し、その後コス
     assert(s.players.p2.hand.includes(bystander.cardId), "メイン効果（手札に戻す）は記録が無くても成立する")
     assert(s.players.p2.field.spirits.length === 0, "フラッシュ効果は対象がおらず不発（追加の破壊は起きない）")
 }
-console.log("=== 6. destroyLifeDamager：両方に対象がいるときはoptionで選ばせる ===")
+console.log("=== 6. destroy{filter:damagedOwnLife}：バトルとバースト両方の記録が候補の和集合になる ===")
 {
-    const s = game("080-option-choice")
+    // R5：旧 destroyLifeDamager は「このバトルの間」「このバースト発動時」を先に選ばせる専用typeだったが、
+    // 絞り込みの軸（TargetFilter.damagedOwnLife）に畳んだので、候補は単純に和集合＝対象選択の1つになる
+    const s = game("080-union-choice")
     const battleTarget = put(s, "p2", VANILLA, 1)
     const burstTarget = put(s, "p2", FAMILY_SPIRIT, 1)
     s.battle = { attackerInstanceId: battleTarget.instanceId, blockerInstanceId: null, directed: false, lifeDamagers: [battleTarget.instanceId] }
     s.burstEventLifeDamagerId = burstTarget.instanceId
     s.interactiveTargets = true
-    resolveAction(s, "p1", null, { type: "destroyLifeDamager" }, undefined, undefined, "magic")
-    assert(s.pendingChoice !== null && s.pendingChoice.kind === "option", "両方に対象がいるのでoption選択が立つ")
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, filter: { damagedOwnLife: true } }, undefined, undefined, "magic")
+    assert(s.pendingChoice !== null && s.pendingChoice.kind === "target", "両方に対象がいるので対象選択が立つ")
     assert(
-        (s.pendingChoice?.options ?? []).length === 2,
-        "選択肢は「このバトルの間」/「このバースト発動時」の2つ",
+        (s.pendingChoice?.candidates ?? []).length === 2,
+        "候補はバトル側・バースト側の2体（実際は" + (s.pendingChoice?.candidates.length ?? 0) + "）",
     )
 }
 

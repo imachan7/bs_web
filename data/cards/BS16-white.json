@@ -440,9 +440,7 @@
     "id": "BS16-080-e2",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "destroyLifeDamager"
-    }
+    "action": {"type": "destroy", "count": 1, "filter": {"damagedOwnLife": true}}
    }
   ]
  },
