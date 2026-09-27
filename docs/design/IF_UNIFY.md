@@ -25,6 +25,13 @@ REFACTOR_PLAN §2.2 の4行目。直前の結果・いまの盤面・誘発の�
 **移行済み（器 PR 3）**：drawPerHandDiscard・discardHandNexusesThenDraw・discardHandAnyThenCoreRemove、と BS04-094（coreRemovePerHandDiscard は BS04-022 だけが残る）。
 **移行済み（器 PR 4）**：discardOpponentTegamotoDestroyPer・discardOpponentTegamotoVoidCoresPer。
 **移行済み（器 PR 5）**：destroyOwnFreelyThenDraw・sacrificeOwnNexusesThenEnemyDestroysOwn。
+
+**器 PR 6（`feat/if-burst`。2026-09-27 確定）**：バースト絡みの3枚。
+- `reveal` の `from: "burst"`（自分のバーストをオープン。バーストエリアから外す）・`CardPick.burstEvent`（そのカードのバースト条件）・行き先 `"activateBurst"`（バーストエリアに戻して発動させる。発動処理は keywords/burst.ts の `activateBurstCard`）
+- `IfCond` の `event: { targetBpAtLeast: number }`（誘発のきっかけの個体＝targetInstanceId の実効BP）
+- `summonBurstCardFree` の `thenBuffSelf?: number`（召喚できたら、このターンその個体を BP+）
+- 移行：BS14-053 → `reveal from burst pick{magic} dest hand rest trash`（if 不要）／BS16-X01 → `reveal from burst pick{burstEvent opponentSummonEffectResolved} dest activateBurst rest deckBottom`／
+  BS15-X01 → `if event{targetBpAtLeast 5000} then summonBurstCardFree{thenBuffSelf 3000}`
 残りは器 PR 2（event・lastCost・sameAsLast・破棄／破壊の記録）の後。destroyOwnByFamilyThenWipeEnemy（BS04-108）は条件がマジックの condition 側に既にあり、`if` ではなく「Aして、B」の同時破壊なので M2 から外す。
 
 | 旧 type | カード | 書き方（案） |
