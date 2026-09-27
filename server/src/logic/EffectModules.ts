@@ -1419,6 +1419,7 @@ export {
     requestActivationConfirm,
     requestChoice,
     requestCardChoice,
+    requestUpToChoice,
 } from "./targeting"
 export { placeBurst, finishBurstActivation, fireOwnBurstActivated } from "./keywords/burst"
 export { fireSummonSequence, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "./summon"

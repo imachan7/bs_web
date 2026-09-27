@@ -659,6 +659,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `pickOwnKeywordTarget`（fn）：grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
 - `requestActivationConfirm`（fn）：「〜できる」（EffectDef.triggered.optional）の発動確認。
 - `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
+- `requestUpToChoice`（fn）：「N体まで／Nつまで」（0〜N の好きな数を選べる）用の選択発行。requestChoice と違い、
 - `requestCardChoice`（fn）：requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
 
 ## server/src/logic/triggers.ts

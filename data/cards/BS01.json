@@ -1781,7 +1781,8 @@
     "action": {
      "type": "exhaust",
      "count": 2,
-     "anySide": true
+     "anySide": true,
+     "upTo": true
     },
     "optional": false
    }
