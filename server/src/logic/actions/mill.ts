@@ -1,4 +1,5 @@
 import type { ActionHandler, ActionRegistry } from "./types"
+import { matchesPick } from "./revealAction"
 import type { GameState, PlayerId } from "../../type"
 import { getCard, log, opponentOf } from "../GameState"
 import { summonFreeFromTrashIndex, countEffectCounter, millCapBonusFor, millDeck, notifyHandGained, requestCardChoice } from "../EffectModules"
@@ -61,66 +62,13 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         const scope = currentRecordScope(state)
         const beforeLen = state.players[targetPid].trashCards.length
-        const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined)
+        const until = action.until
+        const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined, until ? { until: (id) => matchesPick(id, until) } : undefined)
         recordMoved(state, state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual), scope)
         return
 }
 
-const millUntilCostSpiritSummonFreeHandler: ActionHandler<"millUntilCostSpiritSummonFree"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    const player = state.players[owner]
-    let found: string | undefined
-    let milled = 0
-    for (let i = 0; i < action.maxCount; i++) {
-        const cardId = player.deck.shift()
-        if (cardId === undefined) break
-        player.trashCards.push(cardId)
-        milled++
-        const candidate = getCard(cardId)
-        if (candidate.type === "spirit" && action.costs.includes(candidate.cost)) {
-            found = cardId
-            break
-        }
-    }
-    log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
-    if (found === undefined) {
-        log(state, `${sourceName}：対象のスピリットカードが出なかった。`)
-        return
-    }
-    const idx = player.trashCards.lastIndexOf(found)
-    if (idx === -1) return
-    summonFreeFromTrashIndex(state, owner, sourceName, idx, action.skipOnSummon ? { skipOnSummon: true } : undefined)
-}
 
-const millUntilFamilyToHandHandler: ActionHandler<"millUntilFamilyToHand"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    const player = state.players[owner]
-    const wanted = Array.isArray(action.family) ? action.family : [action.family]
-    let found: string | undefined
-    let milled = 0
-    for (let i = 0; i < action.maxCount; i++) {
-        const cardId = player.deck.shift()
-        if (cardId === undefined) break
-        player.trashCards.push(cardId)
-        milled++
-        const candidate = getCard(cardId)
-        if (candidate.type === "spirit" && wanted.some((f) => candidate.family.includes(f))) {
-            found = cardId
-            break
-        }
-    }
-    log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
-    if (found === undefined) {
-        log(state, `${sourceName}：対象のスピリットカードが出なかった。`)
-        return
-    }
-    const idx = player.trashCards.lastIndexOf(found)
-    if (idx === -1) return
-    player.trashCards.splice(idx, 1)
-    player.hand.push(found)
-    log(state, `${player.name}は${sourceName}の効果で${getCard(found).name}を手札に戻した。`)
-    notifyHandGained(state, owner, 1)
-}
 
 // BS10-X05：手札の指定種別カード1枚を破棄することで（任意コスト。selfBuffByHandDiscardと同型）、
 // デッキを上からmaxCount枚を上限に、マジックカードが出るまでトラッシュへ破棄し、
@@ -202,8 +150,6 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
 const handlers = {
     millOpponentThenReact: millOpponentThenReactHandler,
     mill: millHandler,
-    millUntilCostSpiritSummonFree: millUntilCostSpiritSummonFreeHandler,
-    millUntilFamilyToHand: millUntilFamilyToHandHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
 } satisfies Partial<ActionRegistry>
 

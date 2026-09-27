@@ -102,7 +102,7 @@ console.log("=== BS07 紫：破壊時に相手の手札1枚をデッキの上へ
 console.log("=== BS07 紫：自分のスピリットすべての『破壊時』効果を、破壊させずに発揮させる（女教皇リル・サキュバス） ===")
 {
     const pope = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "fireOwnDestroyTriggers",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "fireEffect" && (e["action"] as Record<string, unknown>)["all"] === true,
     )
     // 『破壊時』効果が観測しやすいカード（コア除去）を隣に置く。
     // レベル条件があるので、そのエントリが有効になるレベルで立てる
@@ -122,7 +122,7 @@ console.log("=== BS07 紫：自分のスピリットすべての『破壊時』�
     const helper = put(s, "p1", bat.cardId, coresFor(bat, batLevel))
     const enemy = put(s, "p2", FILLER.cardId, 3)
     const coresBefore = enemy.cores
-    resolveAction(s, "p1", src, { type: "fireOwnDestroyTriggers" })
+    resolveAction(s, "p1", src, { type: "fireEffect", trigger: "onDestroy", all: true })
     assert(enemy.cores === coresBefore - 1, `${bat.name}の『破壊時』効果が発揮し相手のコアが減る（${coresBefore}→${enemy.cores}）`)
     assert(
         s.players.p1.field.spirits.some((sp) => sp.instanceId === helper.instanceId),

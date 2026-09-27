@@ -108,7 +108,8 @@ export function millDeck(
     cause?: { sourceType?: CardType; funsai?: true },
     // skipNegate: kind:"deckMillNegate" の確認で「無効にしない」が選ばれたあとの破棄。
     // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
-    options?: { skipNegate?: true },
+    // until：このカードを破棄したところで止める（「〜が出るまで破棄する」）
+    options?: { skipNegate?: true; until?: (cardId: string) => boolean },
 ): number {
     // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
     if (isEndStepLocked(state, "deckMill")) {
@@ -155,6 +156,7 @@ export function millDeck(
         if (cardId === undefined) break
         player.trashCards.push(cardId)
         milled.push(cardId)
+        if (options?.until?.(cardId)) break
         // 器BS16：then:"destroyMillSource"（BS16-002パイルドラコ）は**破棄された瞬間**に発揮し、
         // その回の破棄の残りを打ち切る。byOpponentのときだけ判定する（自分自身のミルでは発火しない）
         if (byOpponent) {

@@ -6,6 +6,8 @@ import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstra
 import { effectiveCost } from "../../../../shared/cost"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { lastMovedOf } from "../record"
+import { matchesPick } from "./revealAction"
 
 // トラッシュにあって「デッキの下に戻せる」スピリットカードの枚数
 function countChoosableTrashSpirits(trashCards: string[]): number {
@@ -589,7 +591,29 @@ const summonFreeFromTrashIndexInternalHandler: ActionHandler<"summonFreeFromTras
     summonFreeFromTrashIndex(state, owner, getCard(cardId).name, action.trashIndex)
 }
 
+// 「その後、トラッシュにあるそのカードを〜」：直前に動いたカードのうち pick に合う最後の1枚。
+// 誘発などでトラッシュを離れていたら何もしない（2026-09-27 ユーザー確認）
+const takeLastHandler: ActionHandler<"takeLast"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const player = state.players[owner]
+    const cardId = [...lastMovedOf(state)].reverse().find((id) => matchesPick(id, action.pick))
+    const idx = cardId === undefined ? -1 : player.trashCards.lastIndexOf(cardId)
+    if (cardId === undefined || idx === -1) {
+        log(state, `${sourceName}：対象のカードがトラッシュになかった。`)
+        return
+    }
+    if (action.to === "summon") {
+        summonFreeFromTrashIndex(state, owner, sourceName, idx, action.skipOnSummon ? { skipOnSummon: true } : undefined)
+        return
+    }
+    player.trashCards.splice(idx, 1)
+    player.hand.push(cardId)
+    log(state, `${player.name}は${sourceName}の効果で${getCard(cardId).name}を手札に戻した。`)
+    notifyHandGained(state, owner, 1)
+}
+
 const handlers = {
+    takeLast: takeLastHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
     recoverNexusFromTrash: recoverNexusFromTrashHandler,

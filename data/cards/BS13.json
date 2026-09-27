@@ -1796,9 +1796,7 @@
      1
     ],
     "optional": false,
-    "action": {
-     "type": "borrowDestroyEffect"
-    }
+    "action": {"type": "fireEffect", "trigger": "onDestroy", "oneEffect": true}
    },
    {
     "id": "BS13-052-e2",
@@ -6521,10 +6519,7 @@
     "id": "BS13-084-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {
-     "type": "borrowSummonEffect",
-     "nameIncludes": "古代戦艦アルゴ・ゴレム"
-    }
+    "action": {"type": "fireEffect", "trigger": "onSummon", "filter": {"nameContains": "古代戦艦アルゴ・ゴレム"}}
    },
    {
     "id": "BS13-084-e3",

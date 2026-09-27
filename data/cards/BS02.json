@@ -5973,9 +5973,7 @@
     "id": "BS02-107-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {
-     "type": "refireSummonEffect"
-    }
+    "action": {"type": "fireEffect", "trigger": "onSummon", "oneEffect": true}
    }
   ]
  },
