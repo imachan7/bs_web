@@ -33,7 +33,10 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #202 | G-matchCount の残り・M2 の BS04-022 | `destroyDownToOwnCount` → `destroy{countCounter: minus}`、`coreRemovePerHandDiscard` → `pay`＋`removeCores{targetsCounter}` |
 | #203 | G-pay（手元・自分を疲労・手札破棄） | `handMagicToTegamotoDraw`・`revealHandMagicToTegamotoDraw` → `pay`＋`toTegamoto`＋`draw`、`discardHandNexusToVoidCoreSelf`・`exhaustSelfThenLendThisTurn` → `pay` |
 | #204 | G-pay（コアを払う） | `coreRemoveByPayingSelfCores`・`coreTradeToOpponentTrash` → `pay`＋`removeCores{count any}`＋カウンタ `lastCores`、`voidCoresAndMillByCost` → `sequence`＋`mill{countCounter lastCost}` |
-| （この PR） | G-pay（戻す・疲労させた BP） | `returnBothSidesToDeckBottom` → `pay`＋`returnToDeckBottom{side,count}`、`returnToHandCostBudget` → `returnToHand{costBudget}`、`bpBuffByExhaustOwn` → `exhaust`＋`bpBuff{amountCounter lastBp}` |
+| #205 | G-pay（戻す・疲労させた BP） | `returnBothSidesToDeckBottom` → `pay`＋`returnToDeckBottom{side,count}`、`returnToHandCostBudget` → `returnToHand{costBudget}`、`bpBuffByExhaustOwn` → `exhaust`＋`bpBuff{amountCounter lastBp}` |
+| feat/filter-recorded-sets | 要相談（記録の絞り込み） | `returnBofuExhaustedToDeckBottom`・`returnBofuExhaustedToHand`・`destroyLifeDamager` → 絞り込み `bofuExhausted`・`damagedOwnLife`（内部軸 `instanceIn`）＋`returnToDeckBottom{all}`／`returnToHand{all}`／`destroy` |
+| feat/exhaust-nexus-family | 要相談（疲労） | `exhaustOpponentSameFamilyAll`・`exhaustAllOpponentNexuses`・`exhaustSpiritsAndNexusesUpTo` → `exhaust`＋絞り込み `sameFamilyAsDestroyed`／`nexus: "only"｜"also"` |
+| feat/pay-peek-mill-color | 要相談（pay・継続効果の色） | `costDiscardNamedThenPeek` → `pay`＋`discardSelfChoose{cardName}`＋`peekOpponentHand`、`millOpponentThenReact` → `sequence`＋`timedEffect{playerRule battle, bannedColors "last"}`、`lifeCharge` の埋め込みコスト → `pay{mill own}`＋`sequence`（`lifeCharge` 本体はカード0枚・smoke だけが使う） |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
@@ -180,7 +183,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 
 ---
 
-## 4. 要相談（2026-09-27 に全件決定）
+## 4. 要相談（2026-09-27 に全件決定。「残す」2種以外は 09-28 に実装）
 
 | type | カード | 決定 | 書き方 |
 | :-- | :-- | :-- | :-- |
