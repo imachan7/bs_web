@@ -25,6 +25,7 @@ import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
 import toDeck from "./toDeck"
+import declare from "./declare"
 
 const ACTION_HANDLERS: ActionRegistry = {
     ...battleFlow,
@@ -50,6 +51,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...timedEffect,
     ...trashRecover,
     ...toDeck,
+    ...declare,
 }
 
 export default ACTION_HANDLERS

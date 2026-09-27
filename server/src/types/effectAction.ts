@@ -27,7 +27,7 @@ import type {
 
 // カードデータ1枚に対する条件（reveal の pick・if の cond.last）
 // burstEvent＝そのカードのバースト条件（kind:"burst" の event）
-export type CardPick = { cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true; burstEvent?: FieldEvent }
+export type CardPick = { declared?: "match"; cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true; burstEvent?: FieldEvent }
 
 // last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
 // event＝誘発のきっかけ（destroyedColor＝このバースト発動時に破壊されたスピリットの色。targetBpAtLeast＝きっかけの個体の実効BP）
@@ -218,6 +218,8 @@ export type EffectAction =
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統をCardInstance.lentChoiceFamilyに載せた仮想発生源を積む（＝lendSelfThisTurnと同じ貸与。以後はkind:"familyGrant"のfamilyFromChoiceエントリが継続付与する）
  | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
+ // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。from＝選ぶ人の場の spirits／nexuses から候補を取る。picked は再開用
+ | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
  | { type: "destroyAllNexusesWithCores" } // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（nexusIndestructible等の破壊耐性はdestroyNexus内で尊重。フレイム・エルク）

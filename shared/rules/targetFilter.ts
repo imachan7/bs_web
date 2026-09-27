@@ -10,7 +10,7 @@ import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { activeConstraints, hasTimedUnblockable } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { currentLevel, instBaseCost, instHasColor, instHasTriggerEffect, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
+import { currentLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
 
 // ---- 対象選択の絞り込み（TargetFilter） ----
@@ -38,6 +38,7 @@ export function matchesTarget(
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
+    if (filter.colorNotIn !== undefined && !instColors(inst).some((c) => !filter.colorNotIn!.includes(c))) return false
     if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
