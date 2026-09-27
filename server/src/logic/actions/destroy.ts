@@ -348,9 +348,15 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             return
         }
         for (let i = 0; i < resolvedCount; i++) {
+            // 相手が選ぶ（chooserIsTarget）なら、相手が差し出すであろう実効BP最小から（CHOOSER_RULES.md §2）
             const target = action.lowestCost
                 ? pickEnemyLowestCost(state, opp, matchesFilter, srcColors, srcType)
-                : pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
+                : action.chooserIsTarget
+                  ? pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType).reduce<CardInstance | null>(
+                        (min, s) => (min === null || effectiveBp(state, opp, s) < effectiveBp(state, opp, min) ? s : min),
+                        null,
+                    )
+                  : pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
@@ -878,74 +884,6 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
         return
 }
 
-// BS08ジャッジメントフレア：相手のスピリットを、自分のフィールドのスピリット数と同じになるまで破壊する。
-// 効果文は「**相手は**、相手のスピリットを自分のスピリットと同じ体数になるように破壊する」なので、
-// **どれを破壊するかは相手が1体ずつ選ぶ**（CHOOSER_RULES.md §1。解決は発生源の持ち主の効果として行う）。
-// 残り体数は毎回「相手の体数 − 自分の体数」で数え直すため、選択の再入をまたぐ内部フィールドは要らない
-const destroyDownToOwnCountHandler: ActionHandler<"destroyDownToOwnCount"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
-        // 選択の再開：相手が選んだ1体を破壊してから、残りを数え直す
-        if (targetInstanceId !== undefined) {
-            const chosen = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-            if (chosen) destroySpirit(state, opp, chosen.instanceId, "destroy", destroyContext, { allowSuspend: true })
-            if (state.winner) return
-            // 復活の確認で中断した。残り体数は「相手の体数−自分の体数」で数え直すので、
-            // 同じアクションをもう一度積むだけでよい（内部フィールドは不要）
-            if (state.pendingChoice) {
-                pushResumeFrames(state, [{
-                    kind: "action",
-                    selfInstanceId: self ? self.instanceId : null,
-                    actorPid: owner,
-                    action: { ...action },
-                }])
-                return
-            }
-        }
-        const need = state.players[opp].field.spirits.length - state.players[owner].field.spirits.length
-        if (need <= 0) {
-            // 初回だけ「発動しなかった」を出す（再入時は破壊し終えただけなので黙って終わる）
-            if (targetInstanceId === undefined) {
-                log(state, `${sourceName}：相手のスピリットは既に自分と同数以下のため発動しなかった。`)
-            }
-            return
-        }
-        const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
-        if (candidates.length === 0) {
-            log(state, `${sourceName}：破壊できる対象がいなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            // 候補1体なら requestChoice が即解決して上の再入経路へ戻る（0体は上で弾いてある）
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：破壊する自分のスピリットを選んでください（あと${need}体）`,
-                candidates.map((s) => s.instanceId),
-                false,
-                action,
-                self,
-                "target",
-                undefined,
-                opp,
-            )
-            return
-        }
-        // 非対話：相手が選ぶなら差し出すであろう実効BP**最小**から破壊する（CHOOSER_RULES.md §2）
-        // 先に選び切ってからまとめて破壊する（実効BP最小から順に）
-        const chosenIds: string[] = []
-        for (let i = 0; i < need; i++) {
-            const remaining = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType)
-            let weakest: CardInstance | undefined
-            for (const s of remaining) {
-                if (chosenIds.includes(s.instanceId)) continue
-                if (!weakest || effectiveBp(state, opp, s) < effectiveBp(state, opp, weakest)) weakest = s
-            }
-            if (!weakest) break
-            chosenIds.push(weakest.instanceId)
-        }
-        destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
-        return
-}
 
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
     const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
@@ -1581,7 +1519,6 @@ const handlers = {
     destroyNexus: destroyNexusEntryHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
-    destroyDownToOwnCount: destroyDownToOwnCountHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
     fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,

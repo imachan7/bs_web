@@ -50,7 +50,7 @@ const alive = (s: GameState, pid: PlayerId, id: string): boolean =>
 
 console.log("=== ジャッジメントフレア：破壊する1体は相手が選ぶ ===")
 {
-    assert(usesAction("BS08-069", "destroyDownToOwnCount"), "BS08-069 が destroyDownToOwnCount を使っている")
+    assert(usesAction("BS08-069", "destroy"), "BS08-069 が destroy を使っている")
 
     const s = base("judgment-chooser", true)
     put(s, "p1", "BS01-003", 1) // 自分1体 → 相手は1体になるまで破壊される
@@ -58,7 +58,7 @@ console.log("=== ジャッジメントフレア：破壊する1体は相手が�
     const weakA = put(s, "p2", "BS01-003", 1)
     const weakB = put(s, "p2", "BS01-002", 1)
 
-    resolveAction(s, "p1", null, { type: "destroyDownToOwnCount" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, countCounter: { minus: [{ opponentSpirits: {} }, { ownSpirits: {} }] }, chooserIsTarget: true })
     assert(s.pendingChoice?.pid === "p2", "選ぶのは破壊される側（p2）")
     assert(s.pendingChoice?.actorPid === "p1", "解決は発生源の持ち主（p1）の効果として行う")
     assert(s.pendingChoice?.candidates.length === 3, "相手のスピリット3体が候補")
@@ -79,7 +79,7 @@ console.log("=== ジャッジメントフレア：発生源の持ち主は選べ
     put(s, "p2", "BS01-020", 1)
     put(s, "p2", "BS01-003", 1)
     put(s, "p2", "BS01-002", 1)
-    resolveAction(s, "p1", null, { type: "destroyDownToOwnCount" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, countCounter: { minus: [{ opponentSpirits: {} }, { ownSpirits: {} }] }, chooserIsTarget: true })
     const pick = s.pendingChoice?.candidates[0] ?? ""
     assert(act(s, "p1", { type: "resolveChoice", instanceId: pick }) !== null, "p1が選ぼうとしても拒否される")
 }
@@ -90,7 +90,7 @@ console.log("=== ジャッジメントフレア：非対話では相手が差し
     put(s, "p1", "BS01-003", 1)
     const strong = put(s, "p2", "BS01-020", 1)
     const weak = put(s, "p2", "BS01-002", 1)
-    resolveAction(s, "p1", null, { type: "destroyDownToOwnCount" })
+    resolveAction(s, "p1", null, { type: "destroy", count: 1, countCounter: { minus: [{ opponentSpirits: {} }, { ownSpirits: {} }] }, chooserIsTarget: true })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(alive(s, "p2", strong), "実効BP最大は残る")
     assert(!alive(s, "p2", weak), "実効BP最小が破壊される")

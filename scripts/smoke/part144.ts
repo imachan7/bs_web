@@ -475,7 +475,7 @@ console.log("=== BS08メテオストーム：timedEffect の grantTrigger＋life
 
 console.log("=== BS08ジャッジメントフレア：magic condition ownSpiritCountAtLeast＋destroyDownToOwnCount ===")
 {
-    const judgment = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyDownToOwnCount")
+    const judgment = findByEffect((e) => JSON.stringify(e["action"] ?? {}).includes('"opponentSpirits"'))
 
     const s = base("judgment-ok")
     const attacker = put(s, "p1", FILLER.cardId, 1)
@@ -537,8 +537,8 @@ console.log("=== BS08魔帝龍騎ダーク・クリムゾン：reveal（旧revea
 
 console.log("=== BS08魔帝龍騎ダーク・クリムゾン：destroy の countCounter（EffectCounter { ownFamily }） ===")
 {
-    const crimson = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" && typeof (e["action"] as Record<string, unknown> | undefined)?.["countCounter"] === "object")
-    const entry = entryOf(crimson, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" && typeof (e["action"] as Record<string, unknown> | undefined)?.["countCounter"] === "object")
+    const crimson = findByEffect((e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" && JSON.stringify((e["action"] as Record<string, unknown> | undefined)?.["countCounter"] ?? "").includes("ownFamily"))
+    const entry = entryOf(crimson, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroy" && JSON.stringify((e["action"] as Record<string, unknown> | undefined)?.["countCounter"] ?? "").includes("ownFamily"))
     const level = (entry["levels"] as number[])[0]!
     const destroyAction = entry["action"] as Record<string, unknown>
     const family = String((destroyAction["countCounter"] as Record<string, unknown>)["ownFamily"])

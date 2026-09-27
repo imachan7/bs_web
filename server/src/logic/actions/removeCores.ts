@@ -244,6 +244,17 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 
 const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const { state, owner, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    // 体数をカウンタで決める（「破棄した枚数と同じ数の相手のスピリットから1個ずつ」）。最初に一度だけ数えて固定する
+    if (action.targetsCounter !== undefined) {
+        const { targetsCounter, ...rest } = action
+        const n = countedAmount(state, owner, self, 1, targetsCounter, srcType)
+        if (n <= 0) {
+            log(state, `${sourceName}のコア除去：対象の数が0のため発動しなかった。`)
+            return
+        }
+        ctx.resolve({ ...rest, targets: n }, { sourceColors: srcColors, sourceType: srcType })
+        return
+    }
     const to = action.to ?? "reserve"
     const from = action.from ?? ["spirit"]
     const filter = normalizeFilter(ctx, action)
