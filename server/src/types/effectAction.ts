@@ -11,6 +11,7 @@ import type {
  EffectCounter,
  EndStepLock,
  FamilyFilter,
+ FieldEvent,
  GameAction,
  GameState,
  Keyword,
@@ -25,11 +26,12 @@ import type {
 } from "../type"
 
 // カードデータ1枚に対する条件（reveal の pick・if の cond.last）
-export type CardPick = { cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true }
+// burstEvent＝そのカードのバースト条件（kind:"burst" の event）
+export type CardPick = { cardType?: CardType | CardType[]; family?: FamilyFilter; color?: Color; keyword?: Keyword; nameIncludes?: string; cost?: number | { min?: number; max?: number }; hasBurst?: true; burstEvent?: FieldEvent }
 
 // last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
-// event＝このバースト発動時の出来事（destroyedColor＝破壊されたスピリットの色。GameState.burstEventColors）
-export type IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } }
+// event＝誘発のきっかけ（destroyedColor＝このバースト発動時に破壊されたスピリットの色。targetBpAtLeast＝きっかけの個体の実効BP）
+export type IfCond = { last: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } | { targetBpAtLeast: number } }
 
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true; countCounter?: EffectCounter; costSacrificeChosen?: true } // countCounter指定時はEffectCounterの値を枚数として使う（0ならログのみ）。自分がデッキから引く（side:"both"は自分→相手の順で両者。省略時は自分のみ）。costSkipCoreStep指定時は「ボイドからコアを置かないことで」がコスト＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）
@@ -40,15 +42,13 @@ export type EffectAction =
  | { type: "destroyLifeDamager" } // 「このバトルの間、自分のライフを減らした相手のスピリット1体を破壊する」または「このバースト発動時に自分のライフを減らした相手のスピリット1体を破壊する」の両対応。両方に対象がいれば使用者がoptionで選ぶ（chosenOption）。片方だけなら自動でそちらを使う（対象はstate.battle?.lifeDamagers.at(-1)／state.burstEventLifeDamagerId）
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // 相手のフィールドに同じカード名のスピリットが2体以上いるとき、カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文「カード名1つにつきスピリット1体ずつを残し」に主語が無いので発生源の持ち主。2026-08-24。自動選択はフィールドの先頭側）。choosing / keptIds は重複するカード名を1つずつ聞くための内部フィールド
  | { type: "destroyByOwnFamilyCostSet"; familyFilter: FamilyFilter } // 自分の familyFilter 一致スピリット（self自身も含む）の**コストの集合**（instAllCostsの和集合。同じコストを何体持っていても集合としては1つ）に、コストが一致する（instAllCostsのいずれかが集合に含まれる）相手のスピリットすべてを破壊する
- | { type: "summonBurstCardFree"; payCost?: true } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
- | { type: "openOwnBurstActivateIfSummonCond" } // 自分のバースト1つをオープンし、条件が【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】のときだけ通常のバースト発動手順（burst.condition判定→action解決→finishBurstActivation→ownBurstActivated発火）で強制発動させる（実際には召喚が起きていないので召喚コストを参照する効果は不発）。それ以外の条件のバーストは発動させずデッキの下へ戻す（トラッシュではない）。セットが無ければ不発
+ | { type: "summonBurstCardFree"; payCost?: true; thenBuffSelf?: number } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
 
 
 
 
 
 
- | { type: "revealOwnBurstThenSortByType" } //オリンピアの天使ハギト：自分のバースト1つ（あれば）をオープンする。マジックカードなら手札に戻し、それ以外はトラッシュへ破棄する（burstがnullなら不発）
  | { type: "setBurstFromHand" } // バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。setBurst（GameAction）と異なり**ターン1回制限を受けない**。候補2体以上ならinteractiveTargetsでkind:"card"の選択、自動選択はコスト最大の1枚（決定的簡略化）
  | { type: "destroyNexus"; count: number | "any"; chosenIds?: string[]; choosing?: true; drawPerDestroyed?: number; discardOpponentPerDestroyed?: number; all?: boolean; side?: "opponent" | "both" | "own"; levelFilter?: number[]; colorFilter?: Color; chooseColor?: true; costSacrificeChosen?: true; chooserIsTarget?: true } // side:"own"指定時は自分側のネクサスだけが対象（pay { cost: destroyNexus{side:"own"} } の器）
 
@@ -214,8 +214,8 @@ export type EffectAction =
  | { type: "battleOpponentDestroyedCoresTo"; to: "void" | "trash" } // このバトルの間、破壊された相手のスピリットのコアすべてをリザーブではなく to に置く（void＝ゲームから取り除く）
  | { type: "revealDiscardRest" } // 公開ゾーン（GameState.revealedCards）に残っているカードをすべて持ち主のトラッシュへ置く。revealAndSummonKeyword が選択待ちの queue に積み、**選んでもスキップしても**必ず後始末が走るようにする）
  | { type: "revealReturnToDeck"; toTop?: true; placed?: number } // 公開ゾーン（GameState.revealedCards）の残りをデッキの下へ戻す。**戻す順番は1枚ずつ選ばせる**（スキップで残りを現在の順のまま戻す）。toTop指定時はデッキの**上**へ戻す（先に選んだカードが上＝次に引くカード）
- | { type: "reveal"; from?: "ownDeck" | "opponentDeck" | "hand"; count?: number; countPer?: { ownColorTotal: Color } | { ownNexuses: true } | { ownSymbols: Color }; countFromSelfLevel?: true; pick?: CardPick; pickCount?: 1 | "all" | 0; optional?: true; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom"; orHand?: true; tensho?: "asIfDone" | "none"; noSummonEffects?: true; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; returnToDeckBottomAtEndStep?: true } // オープン統合の器（docs/design/REVEAL_UNIFY.md §4）。from省略時はownDeck、pickCount省略時は1、dest省略時はhand、rest省略時はdeckBottom。選ぶのは常に効果の使用者
- | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom"; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true } // 内部専用：revealで選ばれた1枚（すでに元のゾーンから取り除き済み）を dest へ送る。中断（【転召】の対象選択）から再開する経路もここを通る
+ | { type: "reveal"; from?: "ownDeck" | "opponentDeck" | "hand" | "burst"; count?: number; countPer?: { ownColorTotal: Color } | { ownNexuses: true } | { ownSymbols: Color }; countFromSelfLevel?: true; pick?: CardPick; pickCount?: 1 | "all" | 0; optional?: true; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom" | "activateBurst"; orHand?: true; tensho?: "asIfDone" | "none"; noSummonEffects?: true; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; returnToDeckBottomAtEndStep?: true } // オープン統合の器（docs/design/REVEAL_UNIFY.md §4）。from省略時はownDeck、pickCount省略時は1、dest省略時はhand、rest省略時はdeckBottom。選ぶのは常に効果の使用者
+ | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "cast" | "placeNexus" | "tegamoto" | "deckBottom" | "activateBurst"; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true } // 内部専用：revealで選ばれた1枚（すでに元のゾーンから取り除き済み）を dest へ送る。中断（【転召】の対象選択）から再開する経路もここを通る
  | { type: "revealRest"; destPid: PlayerId; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; pool?: string[]; placed?: number } // 内部専用：revealで選ばれなかった残り（GameState.revealedCards、またはpool）をrest先へ送る。デッキへ戻すときは1枚ずつ順番を選ばせる（destPidが持ち主。相手のデッキでも選ぶのはctx.owner）
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統をCardInstance.lentChoiceFamilyに載せた仮想発生源を積む（＝lendSelfThisTurnと同じ貸与。以後はkind:"familyGrant"のfamilyFromChoiceエントリが継続付与する）
@@ -295,7 +295,6 @@ export type EffectAction =
  | { type: "millUntilCostSpiritSummonFree"; costs: number[]; maxCount: number; skipOnSummon?: true } // 自分のデッキを上から、指定コストのスピリットカードが出るまで破棄し（上限 maxCount 枚）、出たらそのカードをトラッシュからコストを支払わずに召喚する。skipOnSummon指定時は『このスピリットの召喚時』効果を発揮させない（効果文に明記があるカードだけ）
  | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない）
  | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 手札の指定種別カード1枚を破棄することで（任意コスト。自動選択は手札末尾の該当カードを破棄。該当カードなしはno-op＝不発）、自分のデッキを上から、マジックカードが出るまでトラッシュへ破棄し、出たらそのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する（出ないままデッキ切れなら何も起きない）。maxCountは**省略時は上限なし**（デッキが尽きるまで。デッキ枚数は下限40枚のみで上限が無いため、固定値を書くと原文に無い天井になる）
- | { type: "burstSummonSelfIfTargetBpAtLeast"; minBp: number; thenBuffSelf?: number } // バースト専用：fireFieldEventTriggersが渡すイベント対象（targetInstanceId）の実効BPがminBp以上のときだけ、このカード自身をコストを支払わずに召喚する（summonBurstCardFreeへ委譲。対象がいない／BP不足なら不発＝finishBurstActivationの既定どおりトラッシュへ）。thenBuffSelf指定時、召喚できたときだけ続けて新しく場に出た個体をこのターンの間BP+thenBuffSelfする（bpBuffのtempBpBuffと同じ機構）
  | { type: "destroyFieldExceptOpponentChosenColor"; chosenOption?: string } // バースト・召喚時等の専用ではない汎用アクション：**相手が**自分（相手）のスピリットの色から1色指定し、指定されなかった色を1つでも持つ**相手のスピリットとネクサスすべて**を破壊する（destroyAllExceptChosenColorsの片側版＝選ぶのは相手だけ、破壊も相手側だけ）。相手のスピリットが1体もいなければ色を指定できず不発。実対戦ではrequestChoiceのchooserPidで相手に選ばせ、解決は発生源の持ち主の効果として続ける（CHOOSER_RULES.md）。自動選択は相手視点で破壊数が最小になる色を選ぶ（同数はColor定義順）。chosenOptionは選択の再入用内部専用
  | { type: "returnFieldExceptOpponentChosenColor"; chosenOption?: string } // destroyFieldExceptOpponentChosenColorの手札バウンス版：**相手が**相手自身のスピリットの色から1色指定し、指定外の色を1つでも持つ**相手のスピリット/ブレイヴすべて**（ネクサスは対象外）を持ち主の手札に戻す（instColorsで判定＝合体スピリットはホスト+ブレイヴの合成色を1体として見るので、該当すれば合体スピリットごと戻る）。相手のスピリットが1体もいなければ色を指定できず不発。実対戦ではrequestChoiceのchooserPidで相手に選ばせる（CHOOSER_RULES.md）。自動選択は相手視点で戻る数が最小になる色を選ぶ。chosenOptionは選択の再入用内部専用（Q3546：多色は指定色を含んでいても他の色を持てば戻る）
  | { type: "familyChoiceThenBpBuffAll"; amount: number; uncombinedOnly?: true } // 自分のフィールドのスピリットが持つ系統（配列でなく個々の系統名。重複除く）から効果の使用者が1つ指定し、このターンの間、指定した系統を持つ自分のスピリットすべてをBP+amountする（uncombinedOnly指定時は合体していないスピリットだけが対象。候補が無ければ不発）。自動選択は該当数が最大になる系統を選ぶ（決定的簡略化。指定できる系統の候補は自分のフィールドのスピリットが持つ系統＝2026-09-16ユーザー確認）

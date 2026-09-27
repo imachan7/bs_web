@@ -938,7 +938,13 @@
         ],
         "optional": true,
         "action": {
-          "type": "openOwnBurstActivateIfSummonCond"
+          "type": "reveal",
+          "from": "burst",
+          "pick": {
+            "burstEvent": "opponentSummonEffectResolved"
+          },
+          "dest": "activateBurst",
+          "rest": "deckBottom"
         }
       },
       {
