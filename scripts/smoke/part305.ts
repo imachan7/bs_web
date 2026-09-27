@@ -153,7 +153,7 @@ console.log("=== §1 #28：BS13-082（BPを比べず終了させても、ブロ�
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック宣言")
-    resolveAction(s, "p1", null, { type: "skipBpCompareThenRefreshOne" }) // フラッシュでBS13-082を使う想定
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "skipBpCompare" }, { type: "refreshOne" }] }) // フラッシュでBS13-082を使う想定
     assert(s.battle?.skipBpCompare === true, "このバトルはBP比較を飛ばす印が付く")
     const lifeBefore = s.players.p2.life
     assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
@@ -169,7 +169,7 @@ console.log("=== §1 #28：BS13-082（BPを比べず終了させても、ブロ�
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s2, "p1", { type: "attack", instanceId: weakAttacker.instanceId }) === null, "アタック宣言")
     assert(declareBlock(s2, "p2", strongBlocker.instanceId) === null, "ブロック宣言")
-    resolveAction(s2, "p1", null, { type: "skipBpCompareThenRefreshOne" })
+    resolveAction(s2, "p1", null, { type: "sequence", actions: [{ type: "skipBpCompare" }, { type: "refreshOne" }] })
     assert(s2.battle?.skipBpCompare === true, "BP比較を飛ばす印が付く")
     while (s2.isFlashTiming && s2.battle) {
         assert(act(s2, s2.priorityPlayer, { type: "pass" }) === null, "パスして解決へ進める")

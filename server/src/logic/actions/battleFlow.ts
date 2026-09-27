@@ -121,15 +121,14 @@ const endStepLockHandler: ActionHandler<"endStepLock"> = (ctx, action) => {
     log(state, `${sourceName}：${state.players[owner].name}のエンドステップを${action.turns}回行うまで、お互いに制限がかかる。`)
 }
 
-// 器AV：BS13-082ペガサスフラップ「バトル解決時、BPを比べずにバトルを終了させる。その後、
-// 自分のスピリット1体を回復させる」。バトルがなければBP比較を飛ばす対象が無いのでrefreshOneだけ行う
-const skipBpCompareThenRefreshOneHandler: ActionHandler<"skipBpCompareThenRefreshOne"> = (ctx) => {
+const skipBpCompareHandler: ActionHandler<"skipBpCompare"> = (ctx) => {
     const { state, sourceName } = ctx
-    if (state.battle) {
-        state.battle.skipBpCompare = true
-        log(state, `${sourceName}：このバトルはBPを比べずに終了する。`)
+    if (!state.battle) {
+        log(state, `${sourceName}：バトルが発生していない。`)
+        return
     }
-    ctx.resolve({ type: "refreshOne" })
+    state.battle.skipBpCompare = true
+    log(state, `${sourceName}：このバトルはBPを比べずに終了する。`)
 }
 
 // BS12-049 アンフィスバエナー：相手側が発揮中の endStepLock（BS10-108ルナティックシール型）のうち、
@@ -1954,7 +1953,7 @@ const handlers = {
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
     endStepLock: endStepLockHandler,
-    skipBpCompareThenRefreshOne: skipBpCompareThenRefreshOneHandler,
+    skipBpCompare: skipBpCompareHandler,
     extraAttackStep: extraAttackStepHandler,
     endAttackStep: endAttackStepHandler,
     endAttackStepAfterBattle: endAttackStepAfterBattleHandler,
