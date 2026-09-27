@@ -180,19 +180,19 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 
 ---
 
-## 4. 要相談
+## 4. 要相談（2026-09-27 に全件決定）
 
-| type | カード | 迷った理由 |
-| :-- | :-- | :-- |
-| costDiscardNamedThenPeek | BS09-039 | 「手札を破棄することで」はG-payと同型だが、「内容を見ずに1枚選び、中身だけ見る（盤面は変えない）」という覗き見処理はrandomOpponentHandMagicDiscardとも違う一意の効果。pay部分だけ剥がすべきか判断が要る |
-| deployNexusFromTrashByFieldCores | BS09-065 | 「トラッシュから通常のコスト支払いを経ずに場へ出す」点でmillUntilCostSpiritSummonFree（G-millUntil内で同種）と親戚だが、配置元がトラッシュ指定カードで、支払いがフィールドのコア限定という制約が独自。まとめ先を新設するか判断が要る |
-| exhaustSpiritsAndNexusesUpTo | BS10-018 | スピリットとネクサスの2ゾーンを跨いだ合計上限処理。型コメント自身が「決定的簡略化」と認めている優先順位ロジックを含み、単純な filter+exhaust の組み合わせで表現しきれるか要検討 |
-| millOpponentThenReact | BS11-060 | 「相手のデッキを1枚破棄し、その中身に応じて分岐」は mill＋if で書けそうだが、reactの3分岐（destroyOneSameCost/exhaustOneIfMaxCost/banHandColorThisBattle）がそれぞれ別の一意効果で、単純な部品の組み合わせと言い切れるか未確認 |
-| returnBofuExhaustedToDeckBottom | BS06-080 | 対象の取得元が GameState.bofuExhaustedThisBattle という戦闘中トラッキング配列。移動先処理は既存 returnSpiritToDeckBottom を使っており共通処理は通っているが、`destroyLifeDamager`/`exhaustOpponentSameFamilyAll` と同種の「直近の記録を対象にする」軸を一般化すべきか要判断 |
-| returnToHandEachHeavyArmorColor | BS13-030 | 自身の持つ【重装甲】の色ごとにループする処理。G-familyChoice（1つ選ぶ）とは違い「持っている分すべてを回す」ループで、同じ器に入るか要確認 |
-| lifeCharge | BS13-058 | パラメータが非常に多く（from/upTo/costMillSelfCount/thenUnblockableByLevelThisBattle/orReserve/countCounter）、既にかなり汎用化された部品の可能性が高い。単に「今回の組み合わせが単発」なだけで、type自体は多用途の可能性があり、ハンドラを読んでの裏取りが必要 |
-| destroyLifeDamager | BS16-080 | 「直近の記録（state.battle?.lifeDamager）を対象にする」軸。exhaustOpponentSameFamilyAll・returnBofuExhaustedToDeckBottomと同じ軸だが、記録の種類ごとにフィールド名が違い、共通化するなら新しい条件の軸（「直前の記録」参照）を1つ起こす価値があるか要判断 |
-| exhaustOpponentSameFamilyAll | BS16-027 | 上と同じ「直近の記録を対象にする」軸の一例 |
+| type | カード | 決定 | 書き方 |
+| :-- | :-- | :-- | :-- |
+| returnBofuExhaustedToDeckBottom・returnBofuExhaustedToHand | BS06-080・BS14-032 | 部品で書く | TargetFilter に「【暴風】で疲労した」軸（`bofuExhaustedThisBattle` を読む）＋`returnToDeckBottom`／`returnToHand` の `all` |
+| destroyLifeDamager | BS16-080 | 部品で書く | TargetFilter に「ライフを減らした」軸（`battle.lifeDamagers`、バースト発動時の分も）＋`destroy` |
+| exhaustOpponentSameFamilyAll | BS16-027 | 部品で書く | TargetFilter に「きっかけのスピリットと同じ系統」軸（前例：`sameFamilyAsBattleLoser`）＋`exhaust{all}` |
+| exhaustSpiritsAndNexusesUpTo・exhaustAllOpponentNexuses | BS10-018・BS10-074 | 部品で書く | `exhaust` に「ネクサスも対象」軸。エル・クラーケンは対話時に使う人が1つずつ選ぶ（今の優先順位の自動選択をやめる＝挙動が変わる） |
+| lifeCharge | BS13-058 | 部品で書く | `pay`（cost＝自分のデッキ5枚破棄、then＝`placeCores{void→life}`＋このバトルの間 Lv1/Lv2 からブロックされない）。デッキ5枚未満では発揮しない |
+| costDiscardNamedThenPeek | BS09-039 | 部品で書く | `pay`（`discardSelfChoose` に名前の絞り込み）＋新部品「相手の手札を見ないで1枚選び、内容を見る」 |
+| millOpponentThenReact | BS11-060 | 部品で書く | `sequence`（`mill`＋`timedEffect`）。継続効果の色を「直前に破棄したカードの色」から読む軸（`declared` と同じ形。`mill` は lastMoved に書く） |
+| deployNexusFromTrashByFieldCores | BS09-065 | 固有として残す | 配置コストの支払い元を変える効果（COST_MODEL §4 の代替支払い）。トラッシュからの配置は「マジックの使用」と一緒に見直す |
+| returnToHandEachHeavyArmorColor | BS13-030 | 残す | `forEach`（各〜ごとに）を足すときに一緒に移す |
 
 ---
 

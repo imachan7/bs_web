@@ -42,9 +42,11 @@
 2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. **R5 の残り**（いまここ）：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み。**次は G-toDeck**（手札／トラッシュ→デッキの上下）
-4. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
-5. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
+3. **次の一手（09-27 決定）**：R5_TRIAGE §4 の要相談の決定7種を実装する（3本の目安：記録の絞り込み軸4種／exhaust のネクサス軸2種／pay 2種＋カノン・アームズ）。書き方は同 §4 の表。
+   その後にまとめる残り（スフィン・クロス・次のリフレッシュステップまでの3種・トラッシュ→手札の2種）
+4. **R5 の残り**（いまここ）：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み。**次は G-toDeck**（手札／トラッシュ→デッキの上下）
+5. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
+6. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
