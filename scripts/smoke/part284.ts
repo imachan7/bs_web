@@ -71,7 +71,7 @@ console.log("=== §C BS11-038：コスト6/7が出るまで破棄し、出たら
     assert(big !== undefined, "テスト前提: コスト6/7のバニラがいる")
     const filler = vanilla.find((c) => c.cost <= 2)!
     s.players.p1.deck = [filler.cardId, filler.cardId, big!.cardId, ...s.players.p1.deck]
-    resolveAction(s, "p1", null, { type: "millUntilCostSpiritSummonFree", costs: [6, 7], maxCount: 6, skipOnSummon: true })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "mill", count: 6, side: "own", until: { cardType: "spirit", cost: { min: 6, max: 7 } } }, { type: "takeLast", pick: { cardType: "spirit", cost: { min: 6, max: 7 } }, to: "summon", skipOnSummon: true }] })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === big!.cardId),
         "コスト6/7のスピリットが場に出る",
@@ -82,7 +82,7 @@ console.log("=== §C BS11-038：コスト6/7が出るまで破棄し、出たら
     const s = game("pegasida-miss")
     const filler = vanilla.find((c) => c.cost <= 2)!
     s.players.p1.deck = new Array(8).fill(filler.cardId)
-    resolveAction(s, "p1", null, { type: "millUntilCostSpiritSummonFree", costs: [6, 7], maxCount: 6, skipOnSummon: true })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "mill", count: 6, side: "own", until: { cardType: "spirit", cost: { min: 6, max: 7 } } }, { type: "takeLast", pick: { cardType: "spirit", cost: { min: 6, max: 7 } }, to: "summon", skipOnSummon: true }] })
     assert(s.players.p1.field.spirits.length === 0, "出なければ召喚されない")
     assert(s.players.p1.trashCards.length === 6, "上限6枚で止まる")
 }

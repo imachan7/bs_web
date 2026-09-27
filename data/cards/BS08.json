@@ -861,11 +861,7 @@
      2
     ],
     "optional": true,
-    "action": {
-     "type": "millUntilFamilyToHand",
-     "family": "虚神",
-     "maxCount": 6
-    }
+    "action": {"type": "sequence", "actions": [{"type": "mill", "count": 6, "side": "own", "until": {"cardType": "spirit", "family": "虚神"}}, {"type": "takeLast", "pick": {"cardType": "spirit", "family": "虚神"}, "to": "hand"}]}
    }
   ]
  },
