@@ -934,7 +934,10 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "exhaustAllOpponentNexuses"
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "nexus": "only"
         },
         "optional": false
       },
@@ -2656,8 +2659,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "exhaustSpiritsAndNexusesUpTo",
-          "count": 3
+          "type": "exhaust",
+          "count": 3,
+          "nexus": "also"
         }
       }
     ]
