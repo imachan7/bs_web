@@ -723,8 +723,6 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     "discardOpponentDownTo",
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
     "destroyDownToOwnCount",
-    // 相手本人に手札から選ばせてデッキの上へ戻す（type.ts の定義コメントで明言。BS07-013 ディーシャ）
-    "opponentHandToDeckTop",
     // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）
     "opponentCoresToVoidByTotal",
 ])

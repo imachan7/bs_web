@@ -5440,13 +5440,8 @@
     "action": {
      "type": "sequence",
      "actions": [
-      {
-       "type": "trashMagicToDeckTop"
-      },
-      {
-       "type": "trashCardsToDeckBottom",
-       "count": 10
-      }
+      {"type": "toDeck", "from": "trash", "position": "top", "count": 1, "pick": {"cardType": "magic"}},
+      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10}
      ]
     },
     "thenPay": "flash"

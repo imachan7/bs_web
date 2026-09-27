@@ -24,6 +24,7 @@ import tegamoto from "./tegamoto"
 import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
+import toDeck from "./toDeck"
 
 const ACTION_HANDLERS: ActionRegistry = {
     ...battleFlow,
@@ -48,6 +49,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...tensho,
     ...timedEffect,
     ...trashRecover,
+    ...toDeck,
 }
 
 export default ACTION_HANDLERS

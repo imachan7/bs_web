@@ -663,103 +663,7 @@ const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek">
 // BS09-055転生の谷Lv1-2：自分の手札にある【転召】持ちスピリットカード1枚を破棄することで、
 // ドローの枚数を+1する。手札に該当が無ければ**何も起きない**（払えないコストは発揮できない。COST_MODEL.md §1）
 
-// BS09-058魔本収められし書架Lv2：持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す。
-// opponentHandToDeckTop の自分版（選ぶのは戻す本人なので owner に選択を出す）
-const handToOwnDeckTopHandler: ActionHandler<"handToOwnDeckTop"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：対象の手札がなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.deck.unshift(cardId)
-        log(state, `${player.name}は手札1枚をデッキの上に戻した。`)
-        return
-    }
-    if (player.hand.length === 0) {
-        log(state, `${sourceName}：${player.name}の手札がなかった。`)
-        return
-    }
-    if (state.interactiveTargets) {
-        const indices = player.hand.map((_, i) => i)
-        if (
-            tryInteractiveCardChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：デッキの上に戻すカードを選んでください`,
-                "hand",
-                indices,
-                { type: "handToOwnDeckTop", count: 1 },
-                action.count > 1 ? { type: "handToOwnDeckTop", count: action.count - 1 } : null,
-            )
-        ) {
-            return
-        }
-    }
-    // 自動時は手札末尾から（本来は本人が選ぶ。決定的簡略化）
-    let moved = 0
-    for (let i = 0; i < action.count; i++) {
-        const cardId = player.hand.pop()
-        if (cardId === undefined) break
-        player.deck.unshift(cardId)
-        moved++
-    }
-    log(state, `${player.name}は手札${String(moved)}枚をデッキの上に戻した。`)
-    return
-}
 
-// BS07魔札の占い師ディーシャLv2：相手は手札からcount枚を選んで自分のデッキの一番上に戻す。
-// 選ぶのは戻される側（相手）なので、interactiveTargets では相手本人に選択を出す（discardOpponent と同じ形）
-const opponentHandToDeckTopHandler: ActionHandler<"opponentHandToDeckTop"> = (ctx, action) => {
-    const { state, opp, self, sourceName, chosenCardIndex } = ctx
-        const target = state.players[opp]
-        if (chosenCardIndex !== undefined) {
-            const cardId = target.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}：対象の手札がなかった。`)
-                return
-            }
-            target.hand.splice(chosenCardIndex, 1)
-            target.deck.unshift(cardId)
-            log(state, `${target.name}は手札1枚をデッキの上に戻した。`)
-            return
-        }
-        if (target.hand.length === 0) {
-            log(state, `${sourceName}：${target.name}の手札がなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            const indices = target.hand.map((_, i) => i)
-            if (
-                tryInteractiveCardChoice(
-                    state,
-                    opp,
-                    self,
-                    `${sourceName}：デッキの上に戻すカードを選んでください`,
-                    "hand",
-                    indices,
-                    { type: "opponentHandToDeckTop", count: 1 },
-                    action.count > 1 ? { type: "opponentHandToDeckTop", count: action.count - 1 } : null,
-                )
-            ) {
-                return
-            }
-        }
-        // 自動時は手札末尾から（本来は相手が選ぶ。決定的簡略化）
-        let moved = 0
-        for (let i = 0; i < action.count; i++) {
-            const cardId = target.hand.pop()
-            if (cardId === undefined) break
-            target.deck.unshift(cardId)
-            moved++
-        }
-        log(state, `${target.name}は手札${moved}枚をデッキの上に戻した。`)
-        return
-}
 
 const handlers = {
     drawPerChosenFamily: drawPerChosenFamilyHandler,
@@ -775,8 +679,6 @@ const handlers = {
     discardSelfChoose: discardSelfChooseHandler,
     discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
-    handToOwnDeckTop: handToOwnDeckTopHandler,
-    opponentHandToDeckTop: opponentHandToDeckTopHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

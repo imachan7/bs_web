@@ -351,7 +351,10 @@ console.log("=== 082 神閃月下：バーストでトラッシュ整理、フ�
     const deckBottomBefore = s.players.p1.deck[s.players.p1.deck.length - 1]
     resolveAction(s, "p1", null, {
         type: "sequence",
-        actions: [{ type: "trashMagicToDeckTop" }, { type: "trashCardsToDeckBottom", count: 10 }],
+        actions: [
+            { type: "toDeck", from: "trash", position: "top", count: 1, pick: { cardType: "magic" } },
+            { type: "toDeck", from: "trash", position: "bottom", count: 10 },
+        ],
     })
     assert(s.players.p1.deck[0] === "BS15-081", "マジックがデッキの上に戻った")
     assert(s.players.p1.trashCards.length === 0, "残りのトラッシュもすべて戻った")

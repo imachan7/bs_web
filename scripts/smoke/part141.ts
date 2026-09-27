@@ -75,9 +75,9 @@ const FILLER = CARDS.find(
 console.log("=== BS07 紫：破壊時に相手の手札1枚をデッキの上へ戻させる（魔札の占い師ディーシャ） ===")
 {
     const seer = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "opponentHandToDeckTop",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["chooserIsTarget"] === true && (e["action"] as Record<string, unknown>)["type"] === "toDeck",
     )
-    const entry = entryOf(seer, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "opponentHandToDeckTop")
+    const entry = entryOf(seer, (e) => (e["action"] as Record<string, unknown> | undefined)?.["chooserIsTarget"] === true && (e["action"] as Record<string, unknown>)["type"] === "toDeck")
     const level = (entry["levels"] as number[])[0]!
 
     const s = base("hand-to-deck")

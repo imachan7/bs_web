@@ -65,8 +65,8 @@ export type EffectAction =
  | { type: "discardHandAll"; thenDrawOpponentHand?: true } // 自分の手札をすべてトラッシュへ。thenDrawOpponentHand指定時は、破棄を完全に解決した後（手札0枚で破棄が起きなかった場合は発揮しない）、自分は相手の手札枚数ぶんデッキから引く
  | { type: "returnOneThenRefreshIfMaxCost"; maxCost: number; refreshFamilyFilter: FamilyFilter } // 相手のスピリット1体を手札に戻し、**戻したスピリットのコストが maxCost 以下だったとき**に限り、指定系統を持つ自分のスピリット1体を回復させる。複数なら選ぶ
  | { type: "returnToHand"; count: number; all?: true; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true; side?: "own"; filter?: TargetFilter; costSacrificeChosen?: true } // side:"own"指定時は自分側のスピリットが対象。対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）。maxBpFromSelf指定時はselfの実効BP以下の相手のみ。countPerOpponentNexus指定時は相手のネクサス数を対象数にする。anySide指定時は自分/相手どちらも対象にできる（自動選択は実効BP最大。同値は相手側優先）。filter指定時は対象自動選択・明示ターゲット両方に絞り込みを適用する
- | { type: "handToOwnDeckTop"; count: number } // 持ち主が自分の手札からcount枚を選んで自分のデッキの一番上に戻す（opponentHandToDeckTopの自分版。interactiveTargetsでは持ち主本人に選ばせ、自動時は手札末尾＝決定的簡略化）
- | { type: "opponentHandToDeckTop"; count: number } // 相手は手札からcount枚を選んで自分のデッキの一番上に戻す（interactiveTargetsでは相手本人に選ばせる。自動時は手札末尾＝決定的簡略化）
+ // picked は選択の再開用（選び終わるまでゾーンから抜かない）。chooserIsTarget＝戻すカードの持ち主が選ぶ（「相手は手札1枚を選んで」）
+ | { type: "toDeck"; from: "hand" | "trash"; side?: "opponent"; position: "top" | "bottom"; count: number; pick?: CardPick; chooserIsTarget?: true; picked?: number[] }
  | { type: "returnBofuExhaustedToDeckBottom"; orderedIds?: string[] } // このバトル中に自分の【暴風】で疲労させた相手のスピリットすべて（GameState.bofuExhaustedThisBattle）を持ち主のデッキの下に戻す。**戻す順番は発揮した側が1体ずつ選ぶ**（効果文「好きな順番で」。自動選択は記録順）。まだフィールドにいる個体だけが対象で、コアは持ち主のリザーブへ。orderedIdsは内部専用（選んだ順番を持ち回る）
  | { type: "returnToDeckTop"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter } // side:"own"指定時は自分側のスピリットが対象。filter指定時は対象の絞り込みに使う。count指定時はその体数ぶん繰り返す（1体ずつ選ぶので最後に選んだものがデッキの一番上＝「好きな順番で戻す」を表現。中断時は残り体数を再開スタックへ積む）。chooserIsTarget指定時は戻される側（相手）が対象を選ぶ（解決は発生源の持ち主の効果として行う）。対象スピリットを持ち主のデッキの一番上に戻す。anySide指定時は自分/相手どちらも対象にできる
  | { type: "returnToDeckBottom"; filter?: TargetFilter } // 対象の相手スピリット1体を持ち主のデッキの下に戻す（returnToHandの兄弟・単体版。returnToDeckTopと違いcount/anySide/chooserIsTargetは持たない。filter指定時は対象自動選択・明示ターゲットの両方に絞り込みを適用する）
@@ -263,9 +263,6 @@ export type EffectAction =
  | { type: "nexusCoresToTrash"; side: "opponent" | "both" } // 指定側（相手/両陣営）のネクサスすべての上に置いてあるコアすべてを、各持ち主のトラッシュへ置く。ネクサスはコア0になっても消滅しない
  | { type: "opponentNexusCoresToTrashOne" } // 相手のネクサス**1つ**の上に置いてあるコアすべてを相手のトラッシュへ置く（nexusCoresToTrashの単体版。複数なら選ぶ）
  | { type: "drawUpTo"; size: number } // 自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op。デッキ切れ判定はdrawへ委譲）
- | { type: "trashSpiritsToDeckBottom"; count: number; pickedIndices?: number[] } // 自分のトラッシュにあるスピリットカードをcount枚、**好きな順番で**自分のデッキの下に戻す。**選んだ順がデッキの下へ積む順**になる（PROCEDURES_AUDIT §5 Q4）。自動選択は末尾（新しい方）からその順で戻す。count枚未満しかなければ可能な分だけ。pickedIndicesは内部専用（選び終わったトラッシュのインデックス。**選び終わるまでカードをトラッシュから抜かない**＝途中でどのゾーンにも無いカードを作らないため）
- | { type: "trashMagicToDeckTop" } // 自分のトラッシュにあるマジックカード1枚を自分のデッキの上に戻す（候補2枚以上ならinteractiveTargetsでcard choiceを出し、自動選択は末尾＝新しい方を自動選択。該当なしはno-op）
- | { type: "trashCardsToDeckBottom"; count: number; pickedIndices?: number[] } // trashSpiritsToDeckBottomの汎用版：カード種別を問わず自分のトラッシュのカードをcount枚まで、**好きな順番で**自分のデッキの下に戻す（好きな枚数でよい＝count未満で打ち切ってもよい）。選んだ順が積む順になる。自動選択は末尾（新しい方）からcount枚戻す。pickedIndicesは内部専用（2026-09-18ユーザー確認：既存の器を使い回してよい）
  | { type: "opponentCoresToVoidByTotal"; tiers: { minTotal: number; count: number }[]; remaining?: number } // 相手のフィールド（スピリット+ネクサス）+トラッシュ+リザーブのコア合計を数え、条件を満たす中で最大のminTotalの段に応じた個数をボイドへ置く。**効果文の主語は「相手は」なので、取り先を1個ずつ相手に選ばせる**（kind:"option"。2026-08-17ユーザー確認。CHOOSER_RULES.md §1.6）。remainingは選択式の再入用の内部専用（残り個数を持ち回る）。選択者はrequestChoiceのchooserPidで相手に差し替えるため、解決の主体（装甲・効果耐性の判定基準）はactorPidによって発生源の持ち主のまま保たれる。自動選択はリザーブ→トラッシュ→フィールド（コアの多い個体から）の決定的簡略化
  | { type: "moveCoresLeavingOne"; anySide?: true; selfTarget?: true; allowNexusDest?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（フィールドの先頭側＝決定的簡略化）へ移す。移動先がいなければ不発。selfTarget指定時は対象を発生源自身に固定し、allowNexusDest指定時は移し先のスピリットがいなければ自分のネクサス（先頭側）へ移す
  | { type: "swapOpponentCores"; choosing?: true; firstChosen?: string } // 効果文が「相手のスピリット2体を**指定する**」なので、実対戦では2体とも持ち主が選ぶ（2026-08-24。自動選択は実効BP上位2体）。choosing/firstChosenは選択の進み具合を持ち回る内部専用（choosingが無いtargetInstanceIdは誘発が渡すイベント対象なので取り違えない）。相手のスピリット2体の上のコアをすべて入れ替える。相手のスピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する
@@ -273,7 +270,6 @@ export type EffectAction =
  | { type: "colorChoiceLendThisTurn"; sourceCardId?: string } // 全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに載せてこのターンの間貸し出す（kind:"levelAs" target:"allSpiritsByChosenColor"のlentOnlyエントリが読む。familyGrantのfamilyFromChoiceと同形）。マジックのselfは常にnullで選択再開時にresolveActionのsourceCardId引数が失われるため、sourceCardIdをaction自身に載せて2段階目へ引き継ぐ内部専用
  | { type: "millOpponentThenReact"; react: "destroyOneSameCost" | "exhaustOneIfMaxCost" | "banHandColorThisBattle"; maxCost?: number } // 相手のデッキを上から1枚破棄し、**その破棄したカード**に応じて続けて解決する（デッキ0枚なら不発）。destroyOneSameCost＝同じコストの相手のスピリット1体を破壊／exhaustOneIfMaxCost＝そのカードのコストがmaxCost以下のとき相手のスピリット1体を疲労／banHandColorThisBattle＝このバトルの間、相手はそのカードと同じ色の手札のカードを使えない
  | { type: "destroyAllByChosenCost"; maxCost: number } // コスト0〜maxCostの中からコスト1つを効果の使用者が指定し（destroyNexus.chooseColorのコスト版）、そのコストと完全一致する相手のスピリットすべてを破壊する（destroy{all}へ委譲）。自動選択は破壊できる数が最大になるコストを選ぶ（同数はコストが低い方）
- | { type: "opponentTrashCardToDeckBottom" }
  | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（。候補1色以下・自動選択は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
  | {
  type: "summonRepeatFromHand"

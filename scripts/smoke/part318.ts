@@ -395,7 +395,7 @@ console.log("=== BS14-113退魔絶刀角：バースト＝相手のデッキ5枚
     const s = game("t318-113-b")
     s.players.p2.trashCards.push("BS01-001")
     const beforeDeck = s.players.p2.deck.length
-    resolveAction(s, "p1", null, { type: "opponentTrashCardToDeckBottom" })
+    resolveAction(s, "p1", null, { type: "toDeck", from: "trash", side: "opponent", position: "bottom", count: 1 })
     assert(!s.players.p2.trashCards.includes("BS01-001"), "相手のトラッシュにあるカードが1枚戻る")
     assert(s.players.p2.deck[s.players.p2.deck.length - 1] === "BS01-001", "相手のデッキの下に戻る")
     assert(s.players.p2.deck.length === beforeDeck + 1, "デッキ枚数が1増える")

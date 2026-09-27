@@ -12,173 +12,8 @@ function countChoosableTrashSpirits(trashCards: string[]): number {
     return trashCards.filter((id) => getCard(id).type === "spirit" && !isTrashCardProtected(id)).length
 }
 
-const trashSpiritsToDeckBottomHandler: ActionHandler<"trashSpiritsToDeckBottom"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        // トリックプランク：自分のトラッシュにあるスピリットカードをcount枚、**好きな順番で**デッキの下へ。
-        // 対話では1枚ずつ選ばせ、**選んだ順**に積む（PROCEDURES_AUDIT §5 Q4）
-        const player = state.players[owner]
-        // ⚠️ **選び終わるまでトラッシュから抜かない**（インデックスで控える）。
-        // 途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる
-        const picked = action.pickedIndices ?? []
-        if (chosenCardIndex !== undefined) {
-            const next = [...picked, chosenCardIndex]
-            if (next.length < action.count && next.length < countChoosableTrashSpirits(player.trashCards)) {
-                ctx.resolve({ ...action, pickedIndices: next })
-                return
-            }
-            // 選んだ順のまま、まとめてデッキの下へ（インデックスの大きい方から抜くとずれない）
-            const movedIds = next.map((j) => player.trashCards[j]!)
-            for (const j of [...next].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
-            for (const id of movedIds) player.deck.push(id)
-            log(
-                state,
-                `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
-            )
-            return
-        }
-        const choosable = player.trashCards
-            .map((id, j) => ({ id, j }))
-            .filter(({ id, j }) => getCard(id).type === "spirit" && !isTrashCardProtected(id) && !picked.includes(j))
-            .map(({ j }) => j)
-        if (
-            tryInteractiveCardChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：デッキの下に戻すスピリットカードを選んでください（${picked.length + 1}/${action.count}枚目）`,
-                "trash",
-                choosable,
-                { ...action, pickedIndices: picked },
-                null,
-            )
-        ) {
-            return
-        }
-        // 非対話（テスト・AI）と候補1枚のとき：末尾（新しい方）からその順で戻す。
-        // 既に選んだぶん（picked）が先、そのあとに自動で拾ったぶんが続く
-        const indices: number[] = []
-        for (let j = player.trashCards.length - 1; j >= 0 && picked.length + indices.length < action.count; j--) {
-            const id = player.trashCards[j]!
-            if (getCard(id).type === "spirit" && !isTrashCardProtected(id) && !picked.includes(j)) indices.push(j)
-        }
-        if (indices.length === 0 && picked.length === 0) {
-            log(state, `${sourceName}：トラッシュにスピリットカードがなかった。`)
-            return
-        }
-        const order = [...picked, ...indices]
-        const movedIds = order.map((j) => player.trashCards[j]!)
-        for (const j of [...order].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
-        for (const id of movedIds) player.deck.push(id)
-        log(
-            state,
-            `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
-        )
-        return
-}
 
-// BS15-082神閃月下：trashSpiritsToDeckBottomの汎用版（カード種別を問わない。「count枚まで」＝
-// 好きな枚数でよいが、trashSpiritsToDeckBottomと同じく「候補が尽きるまで選ばせる」簡略化で実装する。
-// 途中でやめる専用UI（クリックで番号付与→取り消しで詰め直し）は見送った＝要確認）
-const trashCardsToDeckBottomHandler: ActionHandler<"trashCardsToDeckBottom"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        const player = state.players[owner]
-        const picked = action.pickedIndices ?? []
-        const remainingChoosable = (excludeIndices: number[]): number[] =>
-            player.trashCards
-                .map((id, j) => ({ id, j }))
-                .filter(({ id, j }) => !isTrashCardProtected(id) && !excludeIndices.includes(j))
-                .map(({ j }) => j)
-        if (chosenCardIndex !== undefined) {
-            const next = [...picked, chosenCardIndex]
-            if (next.length < action.count && remainingChoosable(next).length > 0) {
-                ctx.resolve({ ...action, pickedIndices: next })
-                return
-            }
-            const movedIds = next.map((j) => player.trashCards[j]!)
-            for (const j of [...next].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
-            for (const id of movedIds) player.deck.push(id)
-            log(
-                state,
-                `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
-            )
-            return
-        }
-        const choosable = remainingChoosable(picked)
-        if (
-            tryInteractiveCardChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：デッキの下に戻すカードを選んでください（${picked.length + 1}/${action.count}枚まで）`,
-                "trash",
-                choosable,
-                { ...action, pickedIndices: picked },
-                null,
-            )
-        ) {
-            return
-        }
-        // 非対話：末尾（新しい方）からcount枚まで戻す
-        const indices: number[] = []
-        for (let j = player.trashCards.length - 1; j >= 0 && picked.length + indices.length < action.count; j--) {
-            if (!isTrashCardProtected(player.trashCards[j]!) && !picked.includes(j)) indices.push(j)
-        }
-        const order = [...picked, ...indices]
-        if (order.length === 0) {
-            log(state, `${sourceName}：トラッシュに戻せるカードがなかった。`)
-            return
-        }
-        const movedIds = order.map((j) => player.trashCards[j]!)
-        for (const j of [...order].sort((a, b) => b - a)) player.trashCards.splice(j, 1)
-        for (const id of movedIds) player.deck.push(id)
-        log(
-            state,
-            `${player.name}はトラッシュの「${movedIds.map((id) => getCard(id).name).join("、")}」をデッキの下に戻した。`,
-        )
-        return
-}
 
-// BS15-082神閃月下：自分のトラッシュにあるマジックカード1枚をデッキの上に戻す
-const trashMagicToDeckTopHandler: ActionHandler<"trashMagicToDeckTop"> = (ctx) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        const player = state.players[owner]
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.trashCards[chosenCardIndex]
-            if (cardId === undefined) return
-            player.trashCards.splice(chosenCardIndex, 1)
-            player.deck.unshift(cardId)
-            log(state, `${player.name}はトラッシュの「${getCard(cardId).name}」をデッキの上に戻した。`)
-            return
-        }
-        const choosable = player.trashCards
-            .map((id, j) => ({ id, j }))
-            .filter(({ id }) => getCard(id).type === "magic" && !isTrashCardProtected(id))
-            .map(({ j }) => j)
-        if (
-            tryInteractiveCardChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：デッキの上に戻すマジックカードを選んでください`,
-                "trash",
-                choosable,
-                { type: "trashMagicToDeckTop" },
-                null,
-            )
-        ) {
-            return
-        }
-        if (choosable.length === 0) {
-            log(state, `${sourceName}：トラッシュにマジックカードがなかった。`)
-            return
-        }
-        const j = choosable[choosable.length - 1]!
-        const cardId = player.trashCards[j]!
-        player.trashCards.splice(j, 1)
-        player.deck.unshift(cardId)
-        log(state, `${player.name}はトラッシュの「${getCard(cardId).name}」をデッキの上に戻した。`)
-        return
-}
 
 // recoverSpiritFromTrash の対象判定（カード種別・色・系統・キーワード・名前・コスト等の絞り込み）。
 // カードの静的情報だけで決まる（owner/self に依存しない）。pay の checker（pay.ts）とこのハンドラで共有する
@@ -741,49 +576,6 @@ const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMag
         return
 }
 
-// BS14-113退魔絶刀角：相手のトラッシュにあるカード1枚を相手のデッキの下に戻す（選ぶのは効果の使用者）。
-// トラッシュはゾーンの持ち主＝相手なので、requestCardChoiceの汎用形（chooserPid=zoneOwnerの前提）に乗らず、
-// PendingChoiceを直接組んでcardOwnerだけ相手にする（AI/クライアントはcardOwnerでゾーンを見る）
-const opponentTrashCardToDeckBottomHandler: ActionHandler<"opponentTrashCardToDeckBottom"> = (ctx) => {
-    const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
-    const oppPlayer = state.players[opp]
-    if (chosenCardIndex !== undefined) {
-        const cardId = oppPlayer.trashCards[chosenCardIndex]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        oppPlayer.trashCards.splice(chosenCardIndex, 1)
-        oppPlayer.deck.push(cardId)
-        log(state, `${sourceName}：${oppPlayer.name}のトラッシュにあった${getCard(cardId).name}をデッキの下に戻した。`)
-        return
-    }
-    if (oppPlayer.trashCards.length === 0) {
-        log(state, `${sourceName}：${oppPlayer.name}のトラッシュにカードが無かった。`)
-        return
-    }
-    if (state.interactiveTargets && oppPlayer.trashCards.length >= 2) {
-        suspend(state, {
-            pid: owner,
-            kind: "card",
-            prompt: `${sourceName}：デッキの下に戻すカードを選んでください`,
-            candidates: [],
-            cardZone: "trash",
-            cardOwner: opp,
-            cardIndices: oppPlayer.trashCards.map((_, i) => i),
-            optional: false,
-            action: { type: "opponentTrashCardToDeckBottom" },
-            selfInstanceId: self ? self.instanceId : null,
-        })
-        return
-    }
-    // 非対話、または候補1枚：末尾（新しい方）を機械的に選ぶ
-    const index = oppPlayer.trashCards.length - 1
-    const cardId = oppPlayer.trashCards[index]!
-    oppPlayer.trashCards.splice(index, 1)
-    oppPlayer.deck.push(cardId)
-    log(state, `${sourceName}：${oppPlayer.name}のトラッシュにあった${getCard(cardId).name}をデッキの下に戻した。`)
-}
 
 // BS08冥将アマイモン：自分のデッキを上から、指定系統を持つスピリットカードが出るまで（上限maxCount枚）破棄し、
 // 出ればそのカード1枚を手札に戻す。デッキ切れ・上限到達まで出なければ手札には戻らない
@@ -798,15 +590,11 @@ const summonFreeFromTrashIndexInternalHandler: ActionHandler<"summonFreeFromTras
 }
 
 const handlers = {
-    trashSpiritsToDeckBottom: trashSpiritsToDeckBottomHandler,
-    trashCardsToDeckBottom: trashCardsToDeckBottomHandler,
-    trashMagicToDeckTop: trashMagicToDeckTopHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
     recoverNexusFromTrash: recoverNexusFromTrashHandler,
     recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     castMagicFromTrashByColor: castMagicFromTrashByColorHandler,
-    opponentTrashCardToDeckBottom: opponentTrashCardToDeckBottomHandler,
     summonFreeFromTrashIndexInternal: summonFreeFromTrashIndexInternalHandler,
 } satisfies Partial<ActionRegistry>
 

@@ -6045,10 +6045,7 @@
     "id": "BS04-105-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {
-     "type": "trashSpiritsToDeckBottom",
-     "count": 5
-    }
+    "action": {"type": "toDeck", "from": "trash", "position": "bottom", "count": 5, "pick": {"cardType": "spirit"}}
    }
   ]
  },
