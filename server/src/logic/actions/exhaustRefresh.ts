@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, log, minLevelCores, suspend } from "../GameState"
+import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import { recordTargets } from "../record"
 import {
     canExhaustNexus,
@@ -401,20 +401,16 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
         return
     }
 
-    // 「◯つまで」は0〜count の好きな数（2026-09-28 ユーザー確認）。対話時は1つ選ぶたびに残りの数で聞き直し、
-    // 選ばずに終えたら残りも疲労させない（再開スタックに残りを積むと、スキップ後にまた聞いてしまう）
     const askNext = (remaining: number): void => {
-        const candidates = [...spiritCandidates(), ...nexusCandidates()]
-        if (remaining <= 0 || candidates.length === 0) return
-        suspend(state, {
-            pid: owner,
-            kind: "target",
-            prompt: `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
-            candidates: candidates.map((c) => c.instanceId),
-            optional: true,
-            action: { ...action, count: remaining },
-            selfInstanceId: self ? self.instanceId : null,
-        })
+        if (remaining <= 0) return
+        requestUpToChoice(
+            state,
+            owner,
+            `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
+            [...spiritCandidates(), ...nexusCandidates()].map((c) => c.instanceId),
+            { ...action, count: remaining },
+            self,
+        )
     }
 
     if (targetInstanceId !== undefined) {
@@ -434,7 +430,7 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
     }
 
     const count = action.count
-    if (state.interactiveTargets) {
+    if (state.interactiveTargets && action.upTo) {
         askNext(count)
         return
     }
