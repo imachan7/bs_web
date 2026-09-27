@@ -53,13 +53,13 @@ console.log("=== §A アントイーター：byOpponentSpiritEffectOnly + destro
     assert(s.players.p2.trashCores === 3, "発生源スピリットのコア3個がp2のトラッシュに置かれた")
 }
 
-console.log("=== §B エル・クラーケン：exhaustSpiritsAndNexusesUpTo（スピリット/ネクサス混合で合計count個まで） ===")
+console.log("=== §B エル・クラーケン：exhaust nexus:also（スピリット/ネクサス混合で合計count個まで） ===")
 {
     const s = setup("bs10-kraken")
     const sp1 = put(s, "p2", "BS01-001", 1)
     const sp2 = put(s, "p2", "BS01-001", 1)
     const nx1 = putNexus(s, "p2", byName("六分儀天文台").cardId, 0)
-    resolveAction(s, "p1", null, { type: "exhaustSpiritsAndNexusesUpTo", count: 3 })
+    resolveAction(s, "p1", null, { type: "exhaust", count: 3, nexus: "also" })
     assert(sp1.isRested && sp2.isRested && nx1.isRested, "相手のスピリット2体・ネクサス1つがすべて疲労した（合計3）")
 }
 

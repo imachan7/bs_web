@@ -282,7 +282,7 @@ const FILTER_ACTIONS = new Set([
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "minCores", "maxCores", "rested", "refreshed",
-    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameFamilyAsDestroyed", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
     "sameCostAsEventTarget", "sameCostAsLast", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
