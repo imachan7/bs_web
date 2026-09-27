@@ -1,0 +1,180 @@
+# R5 の仕分け：カード1枚だけで使われているアクション type（2026-09-27）
+
+R5（器の統合）の終わりを決めるための表。終わりの基準は [REFACTOR_PLAN.md](./REFACTOR_PLAN.md) §2.3。
+
+**判定の基準**（2026-09-27 ユーザー了承）
+- **Q-A 仲間がいるか**：同じ動詞で対象・量・期間だけが違う type がある／既存の器の組み合わせで書ける → **まとめる**
+- **Q-B 共通処理を通っているか**：ゾーンの配列を直接いじり、移動・破壊の共通関数（誘発・耐性・記録）を通っていない → **共通処理に直す**
+- どちらでもない（ルールの手順そのものを変える・他に無い記録先を持つ） → **固有として残す**。今後のカードの邪魔にならないので移さない
+
+集計：まとめる 66種（21グループ）／共通処理に直す 6種（全部 G-toDeck と重複）／固有 16種／要相談 9種／対象外 15種
+
+**限界**：Q-B はハンドラ本体を読んだ G-toDeck・G-pay・入れ替え系だけで確かめた。それ以外は型定義のコメントから判定している。
+まとめる PR では、着手時にハンドラを読んで判定を確かめる（違ったらこの表を直す）。
+
+---
+
+## 0. 前提整理：timedEffect / PlayerRuleDef の中身（15種、対象外）
+
+`single.py` の一覧には `kind:"timedEffect"` の `content` 配列の要素や `playerRule` の `rule` がそのまま `type` として出てくる。これらは **既に統一された器**（`TimedContent` / `PlayerRuleDef` という1つの判別共用体）のバリアントで、「カード1枚専用の type」ではなく「1枚しか使っていないバリアント」にすぎない。まとめ直す動機がない。
+
+`bounceToDeckTopForPid, cost, freeFushiSummonForPid, handReductionColorAsForPid, ignoreUnblockableForPid, invertBattleWinner, lifeDamageMaxForPid, lifeFloorForPid, lifeImmuneForPid, nexusEffectsDisabledForPid, noBurstSpiritSummonForPid, noLifeDamageByCostForPid, symbolAdd, symbolLoss, symbolSet`
+
+（定義：`server/src/type.ts` 1396-1460行付近。`TimedContent`／`PlayerRuleDef`）
+
+---
+
+## 1. まとめる（グループごと）
+
+### G-borrow：他カードの誘発効果を借りて自分の効果として発揮する
+- `borrowCombinedAttackEffect`（BS13-049）／`borrowDestroyEffect`（BS13-052）／`borrowSummonEffect`（BS13-084）
+- 型定義コメント同士が「borrowCombinedAttackEffectとは逆で」「もう1つと同様」と互いを参照済み。
+- 部品案：`borrowTriggeredEffect{ trigger: "onAttack"|"onDestroy"|"onSummon"; scope: "self"|"otherSpirit"; nameIncludes?: string }` の1種に統合。
+
+### G-millUntil：デッキを条件のカードが出るまで破棄する（プロンプト例と同一）
+- `millUntilCostSpiritSummonFree`（BS11-038）／`millUntilFamilyToHand`（BS08-014）／`millUntilMagicCastFree`（BS10-X05）
+- 既存の `mill` 部品＋停止条件（`if`／`filter`）＋見つかった後の処理（`sequence`）で書ける。ハンドラは3つとも `server/src/logic/actions/mill.ts` に隣接（11〜193行）。
+
+### G-toDeck：手札／トラッシュのカードをデッキの上下へ（★共通処理に直すも該当）
+- `trashCardsToDeckBottom`／`trashSpiritsToDeckBottom`／`trashMagicToDeckTop`／`opponentTrashCardToDeckBottom`／`handToOwnDeckTop`／`opponentHandToDeckTop`
+- 実コードを読んで確認：`trashSpiritsToDeckBottom`（trashRecover.ts:15-73）と`trashCardsToDeckBottom`（同82-133）はカード種別フィルタが違うだけの**ほぼ全文コピペ**（`player.trashCards.splice` → `player.deck.push` を2箇所で重複実装）。`handToOwnDeckTop`（drawDiscard.ts:668-709）と`opponentHandToDeckTop`（同717-757）も同様に自分／相手の違いだけで全文コピペ（`player.hand.pop/splice` → `player.deck.unshift`）。`trashMagicToDeckTop`（trashRecover.ts:142-165）と`opponentTrashCardToDeckBottom`（同747-780）も同型。
+- 部品案：`moveCardsToDeck{ zone: "hand"|"trash"; side: "self"|"opponent"; position: "top"|"bottom"; count: number; cardType?: CardType }` の1種＋共通ヘルパー関数（配列操作を1箇所に）。
+
+### G-perCost：指定コストごとに1体ずつ処理する
+- `destroyCostsEachOne`（BS09-052）／`destroyOnePerCost`（SD02-010）／`destroySpiritBraveNexusEach`（SD06-014）
+- `destroySpiritBraveNexusEach`のコメントに明記：「destroyOnePerCostと同型：内部で"destroy"/"destroyBrave"へ委譲」。
+- 部品案：`filter`（costs配列に一致）＋既存の単体destroy/destroyBraveのループ。
+
+### G-exceptColor：相手が1色指定し、それ以外を一掃する
+- `destroyAllNexusesExceptChosenColors`（BS02-010）／`destroyFieldExceptOpponentChosenColor`（BS15-055）／`returnFieldExceptOpponentChosenColor`（BS15-035）
+- `returnFieldExceptOpponentChosenColor`のコメント明記：「destroyFieldExceptOpponentChosenColorの手札バウンス版」。
+- 部品案：`filter{ colorNotIn: chosenColor }` ＋ 既存の `destroy{all}` / `returnToHand{all}`。
+
+### G-matchCount：相手の数を自分の数に合わせる
+- `destroyDownToOwnCount`（BS08-069）／`exhaustOpponentToMatch`（BS03-139）
+- `exhaustOpponentToMatch`のコメント明記：「既存exhaustの単体処理へcountを渡して委譲」＝差分カウントを計算する前段だけの違い。
+
+### G-familyChoice：系統を1つ選んでから一括処理
+- `drawPerChosenFamily`（SD02-004）／`familyChoiceThenBpBuffAll`（BS15-073）
+- 「optionでfamilyを1つ選ぶ」→「一致する自分のスピリットに一括で作用」という同じ手順。
+
+### G-pay：「〜することで／支払って〜する」（R5で `pay` 部品を新設予定＝CLAUDE.mdに明記済み）
+- `bpBuffByExhaustOwn`（BS03-131）／`coreRemoveByPayingSelfCores`（BS12-012）／`coreRemovePerHandDiscard`（BS04-022）／`discardHandNexusToVoidCoreSelf`（BS04-065）／`exhaustSelfThenLendThisTurn`（BS06-052）／`returnToHandCostBudget`（BS14-X04）／`unblockedByVoidSelfCore`（BS15-045）／`voidCoresAndMillByCost`（BS05-083）／`returnBothSidesToDeckBottom`（BS04-104、相互版）／`coreTradeToOpponentTrash`（BS03-124、相互版）
+- いずれも「自分が何かを払う（疲労／コア／手札破棄）→効果」の型。`coreRemoveByPayingSelfCores`と`coreRemovePerHandDiscard`は「払った数だけ相手コアを除去」で完全に同型（払うものが違うだけ）。`returnToHandCostBudget`はコメントで既存文書 `INTERRUPTION_POINTS.md` パターンBを明記＝既に一般則がある。
+- 部品案：`pay`（コスト側）＋既存効果。相互版2種は「自分がXすることで相手も同数Xされる」の一般形が要る。
+
+### G-refire：破壊／召喚させずにトリガー効果だけ再発揮する
+- `fireOwnDestroyTriggers`（BS07-018）／`refireSummonEffect`（BS02-107）
+- 「このスピリットのX時」を、Xの発生なしに発揮させる、という同じ考え方（自分全体か対象1体かの違いのみ）。
+
+### G-existingContent：既存の `TimedContent`／`PlayerRuleDef` バリアントで書けるはずのラッパー（新しい器は不要）
+- `grantBlockRequiresMagicDiscardThisTurn`（BS13-047）・`requireCoreToBlockThisBattle`（BS11-037）→ 既存 `blockCost{cost,count}`
+- `grantBlockerImmunity`（BS01-139）→ 既存 `immune`
+- `grantHostUnblockableThisTurn`（BS12-055）→ 既存 `unblockable` ＋ 既存の `target.kind:"braveHost"`
+- `levelOverrideOpponentNexuses`（BS02-073）→ 既存 `level{set}` ＋ `target.kind:"rule"`（相手ネクサス全体）
+- `markUnblockableByIceWallColorThisTurn`（BS16-079）→ 既存 `unblockable{from: colorFilter}`
+- `refreshWhenBlockedByChosenColorThisTurn`（BS11-054）→ 既存 `refreshWhenBlockedBy{color}`（色を選ぶ前段だけが固有）
+- `setOpponentBpAsThisBattle`（BS15-X05）→ 既存 `bpAs{levels,amount}`
+- `protectLifeByCostThisTurn`（BS07-063）→ コメントに明記：「playerRule "noLifeDamageByCostForPid" を記録する」＝既存 PlayerRuleDef そのもの
+- `countAsMultipleThisTurn`（BS05-079）→ 既存 `countAs{count,sourceTypes}`（`anySide` だけ差分）
+- これらは「新しい器」を作る話ですらなく、**既存の器へ選択前段（色を選ぶ・対象を選ぶ）を足すだけ**で吸収できる可能性が高い。実装を開いての裏取りが必要（「要相談」に格上げしてもよい）。
+
+### G-delegate：型コメントが既存の多用途 type への委譲・対応版であることを明記
+- `destroyAllByChosenCost`（BS14-114）→「destroy{all}へ委譲」
+- `destroyAllNexusesWithCores`（BS03-007）→ フィルタ(コア1個以上)＋destroy{all}
+- `destroyByOwnFamilyCostSet`（BS12-X06）→ フィルタ(コスト集合一致)＋destroy{all}
+- `exhaustAllOpponentNexuses`（BS10-074）→ フィルタ(相手ネクサス全体)＋exhaust{all}
+- `discardSelfDownTo`（BS14-089）→「既存discardSelfChooseへ委譲」
+- `opponentNexusCoresToTrashOne`（BS14-095）→「nexusCoresToTrashの単体版」
+- `recoverNexusFromTrash`（BS10-112）／`recoverAllMagicFromTrashByColorChoice`（BS03-X11）→ どちらも「recoverMagicFromTrashの◯◯版」
+- `revealHandMagicToTegamotoDraw`（BS06-054）→「handMagicToTegamotoDrawの単発版」
+- `mutualKeepChoice`（BS12-015）→「mutualDestroyChoiceの否定版」
+- `grantFamilyChoiceAll`（BS02-064）→「lendSelfThisTurnと同じ貸与」
+- `returnOwnSpiritToHand`（BS13-002）→「returnToHandの自陣専用版」
+- `bpBuffAllByBofuCount`（BS08-074）→「bpBuffAllByArmorColorsの暴風版」
+- `voidCoreToSelf`（BS14-069）→ `placeCores` で書ける（CORE_UNIFY_PLACE.md。当初「固有」と判定したのを 09-27 に訂正）
+
+### G-sequence：既存アクションの直列実行で書ける
+- `destroyOwnByFamilyThenWipeEnemy`（BS04-108）→ フィルタ破壊→destroy{all} を `sequence` で繋ぐだけ
+- `returnOneThenRefreshIfMaxCost`（BS11-032）→ 相手を1体手札に戻す（既存returnToHand）→ `if`（戻したコストがmaxCost以下）→ 既存 `refreshOne`（フィルタ絞り込み）。CONJUNCTION.md の「そうしたとき」に相当する`if`の条件パターンで書ける
+
+### G-coresToVoid：条件でコア個数を決めてボイドへ
+- `opponentCoresToVoidByTotal`（BS02-094）／`battleLoserCoresToVoid`（BS10-065）
+- どちらも「対象と個数の決め方」が違うだけで、最終処理は既存の removeCoresToVoid 系。
+
+### G-refreshBlock：相手の回復を封じる（期間違い）
+- `markNoRefreshTarget`（BS02-042、疲労中ずっと）／`markSkipNextRefresh`（BS11-055、次の1回だけ）／`capOpponentTrashCoreReturnNextRefresh`（BS12-047、次の1回のトラッシュ→リザーブ上限）
+- 既存 `trashCoreReturnCap`（TimedContent、次リフレッシュ限定）とほぼ同型の「相手版・次リフレッシュ限定フラグ」。
+
+### G-compose：既存フラグ＋既存部品の組み合わせ
+- `skipBpCompareThenRefreshOne`（BS13-082）→ 既存の `BattleState.skipBpCompare` フラグ＋既存の `refreshOne`
+
+---
+
+## 2. 共通処理に直す（Q-B：配列を直接操作。実際に読んだもののみ）
+
+| type | カード | 直接いじっている箇所 |
+| :-- | :-- | :-- |
+| trashSpiritsToDeckBottom | BS04-105 | `server/src/logic/actions/trashRecover.ts:29-30,66-67` `player.trashCards.splice` → `player.deck.push` |
+| trashCardsToDeckBottom | BS15-082 | `trashRecover.ts:97-98,126-127` 同上（trashSpiritsToDeckBottomと全文重複） |
+| trashMagicToDeckTop | BS15-082 | `trashRecover.ts:147-148` `player.trashCards.splice` → `player.deck.unshift` |
+| opponentTrashCardToDeckBottom | BS14-113 | `trashRecover.ts:754-755` `oppPlayer.trashCards.splice` → `oppPlayer.deck.push` |
+| handToOwnDeckTop | BS09-058 | `drawDiscard.ts:676-677,702-704` `player.hand.splice/pop` → `player.deck.unshift` |
+| opponentHandToDeckTop | BS07-013 | `drawDiscard.ts:722-723,749-751` 同上（handToOwnDeckTopと全文重複） |
+
+上記6種は G-toDeck と同一グループ。**まとめる**ことで自動的にQ-Bも解消する（共通ヘルパー1つに集約されるため）。
+
+他に読んだ範囲では `swapOpponentCores`（cores.ts:868-907）が `a.cores = beforeB` 等コアを直接書き換えているが、`isResisted`／`coreFloorFor`／`checkExhaustOnCoreChange`／`destroySpirit`／`notifySpiritCoresRemovedByOpponent` という共通関数群を正しく経由しており、「入れ替え」という処理の性質上コア数の代入自体は避けられない。Q-B違反とは見なさない。
+
+---
+
+## 3. 固有として残す
+
+| type | カード | 理由 |
+| :-- | :-- | :-- |
+| addSymbolPermanent | BS13-003 | シンボルの永続蓄積は他に無い一意の記録先（extraSymbolsPermanent） |
+| destroyBlockerAfterBattle | BS01-104 | 「バトル終了後」という時点への破壊予約。既存の【呪撃】と同じ実行タイミングに乗るがラップする type 自体は他に無い |
+| destroyDuplicateNames | BS02-090 | カード名の重複排除という一意の集約ロジック |
+| discardOpponentBurst | BS16-X04 | バーストゾーン限定の破棄。手札／トラッシュ破棄と対象ゾーンが異なる |
+| endAttackStep | BS01-096 | アタックステップ終了フラグを立てるだけの手順制御。仲間なし |
+| extraAttackStep | BS10-008 | アタック＋エンドステップをもう1周する手順制御。仲間なし |
+| lifeCoresBySymbolDiff | BS12-X01 | onBlockedでのシンボル差分計算という一意の式 |
+| linkNexusCoresChoice | BS02-028 | ネクサス間のコアリンクという一意の記録（coresLinkedTo） |
+| magicMirrorRepeat | BS08-080 | 相手の直前マジック効果を再現するという一意の参照（lastMagicCast） |
+| negateContinuousMagicByName | BS12-049 | 名前一致でendStepLockを解除する一意の検索 |
+| negateOwnBlockConstraint | BS01-119 | 既存の禁止フラグ（cantBlock等）を打ち消す一意の逆操作 |
+| randomOpponentHandMagicDiscard | BS10-058 | 「内容を見ずランダムに選び、中身次第で処理を変える」一意の手順 |
+| refreshSelfBraveThenCombine | BS13-053 | 回復と合体をセットで行うブレイヴ固有の手順 |
+| swapBattler | BS03-138 | バトル参加者を入れ替える一意の手順（ゲームの手順そのものを変える） |
+| swapOpponentCores | BS04-053 | 2体間でコアを入れ替える一意の処理（下限チェック等を伴う） |
+| treatAsUnblockedIfLevelAtLeastBlocker | SD02-016 | Lv比較でブロック無効化という一意の判定式 |
+
+---
+
+## 4. 要相談
+
+| type | カード | 迷った理由 |
+| :-- | :-- | :-- |
+| costDiscardNamedThenPeek | BS09-039 | 「手札を破棄することで」はG-payと同型だが、「内容を見ずに1枚選び、中身だけ見る（盤面は変えない）」という覗き見処理はrandomOpponentHandMagicDiscardとも違う一意の効果。pay部分だけ剥がすべきか判断が要る |
+| deployNexusFromTrashByFieldCores | BS09-065 | 「トラッシュから通常のコスト支払いを経ずに場へ出す」点でmillUntilCostSpiritSummonFree（G-millUntil内で同種）と親戚だが、配置元がトラッシュ指定カードで、支払いがフィールドのコア限定という制約が独自。まとめ先を新設するか判断が要る |
+| exhaustSpiritsAndNexusesUpTo | BS10-018 | スピリットとネクサスの2ゾーンを跨いだ合計上限処理。型コメント自身が「決定的簡略化」と認めている優先順位ロジックを含み、単純な filter+exhaust の組み合わせで表現しきれるか要検討 |
+| millOpponentThenReact | BS11-060 | 「相手のデッキを1枚破棄し、その中身に応じて分岐」は mill＋if で書けそうだが、reactの3分岐（destroyOneSameCost/exhaustOneIfMaxCost/banHandColorThisBattle）がそれぞれ別の一意効果で、単純な部品の組み合わせと言い切れるか未確認 |
+| returnBofuExhaustedToDeckBottom | BS06-080 | 対象の取得元が GameState.bofuExhaustedThisBattle という戦闘中トラッキング配列。移動先処理は既存 returnSpiritToDeckBottom を使っており共通処理は通っているが、`destroyLifeDamager`/`exhaustOpponentSameFamilyAll` と同種の「直近の記録を対象にする」軸を一般化すべきか要判断 |
+| returnToHandEachHeavyArmorColor | BS13-030 | 自身の持つ【重装甲】の色ごとにループする処理。G-familyChoice（1つ選ぶ）とは違い「持っている分すべてを回す」ループで、同じ器に入るか要確認 |
+| lifeCharge | BS13-058 | パラメータが非常に多く（from/upTo/costMillSelfCount/thenUnblockableByLevelThisBattle/orReserve/countCounter）、既にかなり汎用化された部品の可能性が高い。単に「今回の組み合わせが単発」なだけで、type自体は多用途の可能性があり、ハンドラを読んでの裏取りが必要 |
+| destroyLifeDamager | BS16-080 | 「直近の記録（state.battle?.lifeDamager）を対象にする」軸。exhaustOpponentSameFamilyAll・returnBofuExhaustedToDeckBottomと同じ軸だが、記録の種類ごとにフィールド名が違い、共通化するなら新しい条件の軸（「直前の記録」参照）を1つ起こす価値があるか要判断 |
+| exhaustOpponentSameFamilyAll | BS16-027 | 上と同じ「直近の記録を対象にする」軸の一例 |
+
+---
+
+## 5. 集計内訳（グループ別件数、多い順）
+
+| グループ | 件数 |
+| :-- | --: |
+| G-pay（支払ってから効果。R5で`pay`部品予定） | 10 |
+| G-existingContent（既存TimedContent/PlayerRuleDefで代替可） | 9 |
+| G-delegate（型コメントが既存typeへの委譲・対応版と明記） | 13 |
+| G-toDeck（手札/トラッシュ→デッキ上下。共通処理も要修正） | 6 |
+| G-borrow / G-millUntil / G-perCost / G-exceptColor | 各3 |
+| G-matchCount / G-familyChoice / G-refire / G-coresToVoid / G-refreshBlock | 各2〜3 |
+| G-sequence / G-compose | 各1 |
