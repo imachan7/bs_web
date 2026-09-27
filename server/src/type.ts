@@ -143,6 +143,8 @@ export type EffectCounter =
     | "readyEnemies" // 相手フィールドの回復状態スピリット数
     | "exhaustedEnemies" // 相手フィールドの疲労状態スピリット数
     | "opponentHand" // 相手の手札枚数
+    | "opponentCoresTotal" // 相手のフィールド・リザーブ・トラッシュのコアの合計（ownCoresTotal の相手版）
+    | { minus: [EffectCounter, EffectCounter] } // 1つ目 − 2つ目（負なら0）。「〜と同じ数になるように」
     | "bothNexusColors" // お互いのフィールドのネクサスの色の種類数（重複を除く）
     | "ownOtherSpirits" // self以外の自分フィールドのスピリット数
     | "ownReserve" // 自分のリザーブのコア数

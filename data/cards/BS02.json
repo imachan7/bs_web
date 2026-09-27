@@ -5391,19 +5391,7 @@
     "id": "BS02-094-e1",
     "kind": "magic",
     "timing": "main",
-    "action": {
-     "type": "opponentCoresToVoidByTotal",
-     "tiers": [
-      {
-       "minTotal": 10,
-       "count": 2
-      },
-      {
-       "minTotal": 20,
-       "count": 6
-      }
-     ]
-    }
+    "action": {"type": "if", "cond": {"count": "opponentCoresTotal", "atLeast": 20}, "then": {"type": "removeCores", "side": "opponent", "from": ["spirit", "nexus", "reserve", "trash"], "to": "void", "target": "spread", "count": 6, "chooser": "owner"}, "else": {"type": "if", "cond": {"count": "opponentCoresTotal", "atLeast": 10}, "then": {"type": "removeCores", "side": "opponent", "from": ["spirit", "nexus", "reserve", "trash"], "to": "void", "target": "spread", "count": 2, "chooser": "owner"}}}
    },
    {
     "id": "BS02-094-e2",
