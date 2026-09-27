@@ -910,12 +910,7 @@
     "id": "SD06-014-e1",
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
-    "action": {
-     "type": "destroySpiritBraveNexusEach",
-     "spiritFilter": {
-      "maxBp": 6000
-     }
-    },
+    "action": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "filter": {"maxBp": 6000}}, {"type": "destroyBrave"}, {"type": "destroyNexus", "count": 1}]},
     "thenPay": "main"
    },
    {
