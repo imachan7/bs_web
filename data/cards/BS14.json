@@ -1878,9 +1878,7 @@
     },
     "granted": {
      "trigger": "onBattleLose",
-     "action": {
-      "type": "returnBofuExhaustedToHand"
-     }
+     "action": {"type": "returnToHand", "count": 1, "all": true, "filter": {"bofuExhausted": "self"}}
     }
    }
   ]

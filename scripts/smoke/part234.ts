@@ -170,7 +170,7 @@ console.log("=== 颶風高原Lv2：デッキの下に戻す順番を選べる ==
     ]
     const deckBefore = s.players.p2.deck.length
 
-    resolveAction(s, "p1", null, { type: "returnBofuExhaustedToDeckBottom" })
+    resolveAction(s, "p1", null, { type: "returnToDeckBottom", all: true, filter: { bofuExhausted: "any" } })
     assert(!!s.pendingChoice, "戻す順番を聞かれる")
     assert(s.pendingChoice!.pid === "p1", "選ぶのは発揮した側（p1）")
     // 記録順どおりなら a が先。あえて b を先にする
@@ -192,7 +192,7 @@ console.log("=== 颶風高原Lv2：非対話では従来どおり記録順 ===")
         { pid: "p2", instanceId: a },
         { pid: "p2", instanceId: b },
     ]
-    resolveAction(s, "p1", null, { type: "returnBofuExhaustedToDeckBottom" })
+    resolveAction(s, "p1", null, { type: "returnToDeckBottom", all: true, filter: { bofuExhausted: "any" } })
     assert(!s.pendingChoice, "選択は出ない")
     const deck = s.players.p2.deck
     assert(deck[deck.length - 2] === BIG, "記録順（a が先）で戻る")

@@ -4730,9 +4730,7 @@
     ],
     "winnerKeywordFilter": "bofu",
     "selfMode": "source",
-    "action": {
-     "type": "returnBofuExhaustedToDeckBottom"
-    }
+    "action": {"type": "returnToDeckBottom", "all": true, "filter": {"bofuExhausted": "any"}}
    }
   ]
  },
