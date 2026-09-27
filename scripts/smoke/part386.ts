@@ -47,7 +47,7 @@ console.log("=== 1. Q3630：先に BP+3000 されていても、ルナアーク�
     const target = put(s, "p2", HADES, 4)
     resolveAction(s, "p2", target, plus3000)
     assert(effectiveBp(s, "p2", target) === 10000, "前提：7000＋3000")
-    resolveAction(s, "p1", null, cardAction(LUNA, "setOpponentBpAsThisBattle"), target.instanceId)
+    resolveAction(s, "p1", null, cardAction(LUNA, "bpAs"), target.instanceId)
     assert(effectiveBp(s, "p2", target) === 5000, "BP5000")
 }
 
@@ -66,7 +66,7 @@ console.log("=== 3. Q3632：書き換えた後に合体しても、ブレイヴ�
 {
     const s = game("p386-q3632")
     const target = put(s, "p2", HADES, 4)
-    resolveAction(s, "p1", null, cardAction(LUNA, "setOpponentBpAsThisBattle"), target.instanceId)
+    resolveAction(s, "p1", null, cardAction(LUNA, "bpAs"), target.instanceId)
     const brave = createInstance(KAMYURA, s.turn, 0)
     attachBrave(s, "p2", target, brave)
     assert(effectiveBp(s, "p2", target) === 2000, "合体しても2000のまま")

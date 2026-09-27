@@ -240,13 +240,13 @@ console.log("=== 12. colorlessSelfThisBattle：発生源が場にいれば払っ
 console.log("=== 13. protectLifeByCostThisTurn：対象を要求しないので、コストさえ払えれば常に発動する ===")
 {
     const s = game("case13a")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "protectLifeByCostThisTurn", maxCost: 3 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noLifeDamageByCostForPid", maxCost: 3 } }], duration: "turn", side: "own" } })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払って発動した")
 }
 {
     const s = game("case13b")
     s.players.p1.reserve = 0
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "protectLifeByCostThisTurn", maxCost: 3 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noLifeDamageByCostForPid", maxCost: 3 } }], duration: "turn", side: "own" } })
     assert(s.players.p1.reserve === 0, "コストが払えないため発動しなかった")
 }
 

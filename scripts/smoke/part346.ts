@@ -395,7 +395,7 @@ console.log("=== X05 光の覇王ルナアーク・カグヤ：バーストで�
     put(s, "p1", "BS15-X05", 5)
     const target = put(s, "p2", "BS15-041", 1)
     s.players.p1.reserve = 5
-    resolveAction(s, "p1", null, { type: "setOpponentBpAsThisBattle", levels: [1, 2, 3, 4], amount: 2000 }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", count: 1, duration: "battle", content: [{ type: "bpAs", levels: [1, 2, 3, 4], amount: 2000 }] }, target.instanceId)
     assert(target.battleBpAs?.amount === 2000, "相手のBPがこのバトルの間2000として扱われる")
 }
 

@@ -33,11 +33,11 @@ function collect(): { cardId: string; action: Extract<EffectAction, { type: "tim
     return out
 }
 
-console.log("=== 1. 移したカードデータ14か所が、正しい制約を正しいプレイヤーに積む ===")
+console.log("=== 1. 移したカードデータ15か所が、正しい制約を正しいプレイヤーに積む ===")
 {
     const entries = collect()
-    // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バードを足した
-    assert(entries.length === 14, `playerRule は14か所（実際: ${entries.length}）`)
+    // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
+    assert(entries.length === 15, `playerRule は15か所（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         const s = createGame("p371", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         resolveAction(s, "p1", null, action)

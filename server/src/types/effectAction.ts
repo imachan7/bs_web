@@ -125,7 +125,6 @@ export type EffectAction =
  | { type: "discardHandNexusToVoidCoreSelf"; count: number } // 自分の手札のネクサスカード1枚を破棄することで、ボイドからコアcount個をこのスピリット上に置く。手札にネクサスが無ければ不発
  | { type: "discardSelfChoose"; count: number | "any"; downTo?: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; discarded?: string[]; awaitingSkip?: true } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
  | { type: "pay"; cost: EffectAction; then: EffectAction } // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに解決できるときだけ発揮する（片方でも欠けたら何もしない）。対応type一覧・判定はactions/pay.tsのPAYABLE_TYPES
- | { type: "grantBlockRequiresMagicDiscardThisTurn" } // このターンの間、このスピリットがアタックしたとき、相手は手札のマジックカード1枚を破棄しなければブロックできない、という制約を自分自身に付与する（kind:"triggered" trigger:"onSummon"専用。CardInstance.blockRequiresMagicDiscardGrantedTurnに付与ターンを記録し、GameEngine.doAttackが同ターンかを見てstate.battle.blockCostDiscardMagicへ橋渡しする）
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない。ログのみ）。破棄するカードはCOST_MODEL.md §2どおりinteractiveTargets時は1枚ずつ持ち主が選び、自動選択は手札末尾から機械的に選ぶ（discardSelfChooseと同じ選び方）。
  // discardCountは選択の再入をまたいで「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入し、0になった時点でdrawCount枚ドローする）土星神龍クロノ・ボロス
  | { type: "coreDrainAllOthers"; rewardDraw?: true } // このスピリット（self）以外のすべてのスピリット上からコアを1個ずつ持ち主のリザーブへ（両陣営）。この効果で消滅した数ぶんボイドからselfへコアを置く（selfがnullならno-op）。
@@ -136,7 +135,6 @@ export type EffectAction =
  | { type: "negateContinuousMagicByName"; nameIncludes: string } // 相手側（endStepLock.pid===opp）が発揮中のendStepLockのうち、発生源カード名（EndStepLock.cardId）にこの文字列を含むものだけを解除する。トラッシュ・手札のカードには何もしない
  | { type: "lifeCoresBySymbolDiff" } // onBlocked（self=アタッカー、targetInstanceId=ブロッカー）で解決する。instanceSymbolCount(アタッカー)-instanceSymbolCount(ブロッカー)が正のとき、その数ぶん相手のライフのコアを相手のリザーブへ置く（0以下は何もしない。内部でlifeCrushへ委譲）金牛龍神ドラゴニック・タウラスLv2/3
  | { type: "battleLoserCoresToVoid" } // 直前のバトルで破壊された相手のスピリット上のコアすべてを、リザーブでなく**ボイド**へ送る。破壊待機中（コアが乗ったまま）に呼ぶ前提
- | { type: "setOpponentBpAsThisBattle"; levels: number[]; amount: number } // 相手のスピリット1体（targetInstanceId優先、候補が複数なら選ばせ、自動選択は実効BP最大）に、**このバトルの間**「currentLevelがlevelsに含まれるとき、基礎BPをamountとして扱う」印を付ける（継続版kind:"bpAs"のこのバトル限定・単体対象版。効果によるBP+は印刷BPの置き換え後に通常どおり加算される。clearBattleで消える）
  | { type: "extraAttackStep" } // アタックステップとエンドステップを順番にもう1回ずつ行う（GameState.extraAttackStepPending を立てる）。既に立っていれば何もしない
  | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない。妖機妃ソール）
  | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean; thenDestroyEnemyByCostBudget?: true } // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する（決定的選択）。gainCoresEqualCost指定時は破壊したスピリットのコストと同数のコアをボイドから自分のリザーブへ。thenDestroyEnemyByCostBudget指定時は、破壊した自分のスピリットのコストを予算としてdestroyByCostBudgetと同じ貪欲選択で相手のスピリットを破壊する
@@ -267,7 +265,6 @@ export type EffectAction =
  | { type: "destroyByCostBudget"; budget: number; choosing?: true; chosenIds?: string[] } // 相手スピリットを、コスト合計がbudgetを超えない範囲で好きなだけ破壊する。実対戦では**トグル式で選ばせる**（クリックで選択／もう一度クリックで解除。合計はpromptに出し、「これで破壊する」で確定。2026-08-24ユーザー確定）。choosing/chosenIdsはその途中経過を持ち回る内部専用。自動選択は残り予算内でコスト最大から貪欲に選ぶ（同コストは実効BP最大）聖皇ジークフリーデンの上限8への切替は転召対象の記録が必要になるため簡略化しbudget=5固定とする
  | { type: "selfBuffByExhaustFamily"; familyFilter?: FamilyFilter; amount?: number; sacrificeChosen?: true } // familyFilter一致・self以外・回復状態の自分のスピリット1体（候補が複数なら選ばせる。自動選択は実効BP最大＝バフ量を最大化する簡略化）を疲労させ、このスピリット自身をその実効BP分だけBP+する（ターン終了時まで。該当なしはno-op）。sacrificeChosenは内部フラグ（疲労させるスピリットを選び終えて再入したことを示す。これが無いtargetInstanceIdは誘発が渡すイベント対象なので、犠牲と取り違えないためのもの）
  | { type: "forceEndMainStep"; who?: "opponent" | "turnPlayer" } // 発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める（PhaseManager.toAttackPhase。ターンを飛ばすのではなく召喚・ネクサス配置ができなくなるだけ）。発動条件（何によって）はこれを使う各fieldEvent/triggered側で持たせる（黄・青バッチが別条件で再利用する想定）。相手がメインステップにいなければ何もしない。who省略時は従来どおり"opponent"（発生源の持ち主から見た相手のメインステップだけを狙う）。who:"turnPlayer"指定時は、いま誰のターンかを問わずメインステップにいれば強制終了する（自分がマジックを使っても自分のメインステップが終わる）
- | { type: "protectLifeByCostThisTurn"; maxCost: number } // このターンの間、コスト maxCost 以下のスピリットのアタックでは自分のライフが減らない（playerRule "noLifeDamageByCostForPid" を記録する）
  | { type: "grantHostUnblockableThisTurn" } // このターンの間、**このブレイヴ（self）がいま合体しているホスト**はブロックされない（期間つき効果の一覧に target.kind:"braveHost" で記録し、読むたびにホストを引き直す。self＝ブレイヴ自身が必須）
  | { type: "skipBpCompare" } // バトル解決時まで進め、BP の比較（とその結果の破壊）だけを飛ばす（TIMING_CHART §1.12）。ただちに終わらせるのは endBattle
  | { type: "returnBofuExhaustedToHand" } // このバトル中に**このスピリット自身（self）の【暴風】の効果で**疲労させた相手のスピリットすべてを手札に戻す（GameState.bofuExhaustedThisBattleのうちbofuSourceInstanceIdがself一致のものだけ。returnBofuExhaustedToDeckBottomの手札版＋発生源限定版）

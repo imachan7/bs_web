@@ -58,6 +58,15 @@ function hostOf(e: Record<string, unknown>): Record<string, unknown> | undefined
     return a?.["type"] === "pay" ? (a["then"] as Record<string, unknown>) : a
 }
 
+// 秘密の花園Lv2 の「このターンの間、コスト◯以下のアタックではライフが減らない」（timedEffect の playerRule）
+function lifeRuleOf(e: Record<string, unknown>): Record<string, unknown> | undefined {
+    const h = hostOf(e)
+    if (h?.["type"] !== "timedEffect") return undefined
+    const c = (h["content"] as Record<string, unknown>[])[0]
+    const rule = c?.["rule"] as Record<string, unknown> | undefined
+    return rule?.["type"] === "noLifeDamageByCostForPid" ? rule : undefined
+}
+
 function findByEffect(pred: (e: Record<string, unknown>, c: CardRow) => boolean): CardRow {
     const found = CARDS.find((c) => (c.effects ?? []).some((e) => pred(e, c)))
     if (!found) throw new Error("条件に合うカードが見つかりません")
@@ -424,15 +433,13 @@ console.log("=== BS07 黄：自分のネクサスが破壊されるとボイド�
 
 console.log("=== BS07 黄：楽族を疲労させて、このターン自分だけコスト3以下のアタックでライフが減らない ===")
 {
-    // 秘密の花園Lv2：protectLifeByCostThisTurn を持つ唯一のカード
     const garden = findByEffect(
-        (e) => hostOf(e)?.["type"] === "protectLifeByCostThisTurn",
+        (e) => lifeRuleOf(e) !== undefined,
     )
     const stepEntry = (garden.effects ?? []).find(
-        (e) => hostOf(e)?.["type"] === "protectLifeByCostThisTurn",
+        (e) => lifeRuleOf(e) !== undefined,
     )!
-    const action = hostOf(stepEntry)!
-    const maxCost = Number(action["maxCost"])
+    const maxCost = Number(lifeRuleOf(stepEntry)!["maxCost"])
     const payCost = (stepEntry["action"] as Record<string, unknown>)["cost"] as Record<string, unknown>
     const family = String((payCost["filter"] as Record<string, unknown>)["family"])
     const gakuzoku = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(family))
@@ -467,12 +474,12 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
 {
     // 対照実験：保護は片側だけ（積んでいない側のライフは通常どおり減る）
     const garden = findByEffect(
-        (e) => hostOf(e)?.["type"] === "protectLifeByCostThisTurn",
+        (e) => lifeRuleOf(e) !== undefined,
     )
     const action = (garden.effects ?? []).find(
-        (e) => hostOf(e)?.["type"] === "protectLifeByCostThisTurn",
+        (e) => lifeRuleOf(e) !== undefined,
     )!
-    const maxCost = Number(hostOf(action)!["maxCost"])
+    const maxCost = Number(lifeRuleOf(action)!["maxCost"])
     const cheap = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= maxCost,
     )!
