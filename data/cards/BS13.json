@@ -1245,7 +1245,8 @@
      "count": 2,
      "costFilter": {
       "max": 1
-     }
+     },
+     "upTo": true
     }
    }
   ]

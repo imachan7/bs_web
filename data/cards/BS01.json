@@ -5389,7 +5389,8 @@
      "type": "placeCores",
      "from": "reserve",
      "to": "spirit",
-     "count": 3
+     "count": 3,
+     "upTo": true
     }
    },
    {
