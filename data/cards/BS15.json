@@ -5502,10 +5502,7 @@
     "condition": {
      "opponentHandAtLeast": 5
     },
-    "action": {
-     "type": "discardOpponentDownTo",
-     "limit": 2
-    },
+    "action": {"type": "discardOpponent", "count": 0, "downTo": 2},
     "thenPay": "flash"
    },
    {

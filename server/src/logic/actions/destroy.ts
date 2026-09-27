@@ -1463,50 +1463,6 @@ const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, actio
         return
 }
 
-const opponentNexusCoresToTrashOneHandler: ActionHandler<"opponentNexusCoresToTrashOne"> = (ctx) => {
-    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
-        // 相手のネクサス1つの上のコアすべてを相手のトラッシュへ（nexusCoresToTrashの単体版。BS14-095紫魂葬フラッシュ）
-        const nexuses = state.players[opp].field.nexuses
-        const wipe = (nexus: CardInstance): void => {
-            const player = state.players[opp]
-            if (nexus.cores <= 0) {
-                log(state, `${getCard(nexus.cardId).name}にはコアが置かれていなかった。`)
-                return
-            }
-            player.trashCores += nexus.cores
-            log(state, `${sourceName}：${getCard(nexus.cardId).name}の上のコア${nexus.cores}個を持ち主のトラッシュに置いた。`)
-            nexus.cores = 0
-        }
-        if (targetInstanceId !== undefined) {
-            const found = findNexus(state.players[opp], targetInstanceId)
-            if (!found) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                return
-            }
-            wipe(found)
-            return
-        }
-        if (nexuses.length === 0) {
-            log(state, `${sourceName}：相手にネクサスがなかった。`)
-            return
-        }
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：コアをトラッシュに置く相手のネクサスを選んでください`,
-                nexuses,
-                { type: "opponentNexusCoresToTrashOne" },
-                null,
-            )
-        ) {
-            return
-        }
-        // 非対話：コア数最多（同数はフィールド先頭）を自動選択
-        const chosen = nexuses.reduce((best, n) => (n.cores > best.cores ? n : best))
-        wipe(chosen)
-}
 
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
@@ -1987,7 +1943,6 @@ const handlers = {
     fireOwnDestroyTriggers: fireOwnDestroyTriggersHandler,
     destroyAllNexusesWithCores: destroyAllNexusesWithCoresHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
-    opponentNexusCoresToTrashOne: opponentNexusCoresToTrashOneHandler,
     returnNexusToHand: returnNexusToHandHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,
 } satisfies Partial<ActionRegistry>

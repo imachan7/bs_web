@@ -7,55 +7,6 @@ import { effectiveBp } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 
 
-const voidCoreToSelfHandler: ActionHandler<"voidCoreToSelf"> = (ctx, action) => {
-    const { state, owner, self, sourceName, srcType, chosenOption } = ctx
-        // ボイドからコアをこのスピリット上に置く（レベル変動は cores 増加で自然に反映される）
-        if (voidCorePlacementBlocked(state)) {
-            log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
-            return
-        }
-        if (!self) {
-            log(state, `${sourceName}：コアを置く対象がいなかった。`)
-            return
-        }
-        const count =
-            action.countCounter !== undefined
-                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
-                : action.count
-        if (action.countCounter !== undefined && count === 0) {
-            log(state, `${sourceName}：カウントが0のためコアを置かなかった。`)
-            return
-        }
-        // orReserve（BS12-077/BS12-X03）：「自分のリザーブか、このスピリット上か」を効果の使用者が毎回選ぶ
-        if (action.orReserve) {
-            if (chosenOption === "このスピリット上に置く") {
-                // 下の通常経路（スピリット上に置く）へ落ちる
-            } else if (chosenOption === "リザーブに置く" || !state.interactiveTargets) {
-                const player = state.players[owner]
-                player.reserve += count
-                log(state, `${player.name}はボイドからコア${count}個をリザーブに置いた。（リザーブ${player.reserve}）`)
-                return
-            } else {
-                suspend(state, {
-                    pid: owner,
-                    kind: "option",
-                    prompt: `${sourceName}：ボイドからコア${count}個を、自分のリザーブか、このスピリット上のどちらに置きますか？`,
-                    candidates: [],
-                    options: ["リザーブに置く", "このスピリット上に置く"],
-                    optional: false,
-                    action,
-                    selfInstanceId: self.instanceId,
-                })
-                return
-            }
-        }
-        log(
-            state,
-            `${getCard(self.cardId).name}は、ボイドからコア${count}個を自身の上に置いた。`,
-        )
-        placeCoresOnSpirit(state, self, count, owner)
-        return
-}
 
 const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSpirit"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -102,7 +53,6 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
 }
 
 const handlers = {
-    voidCoreToSelf: voidCoreToSelfHandler,
     destructionCoresToOwnSpirit: destructionCoresToOwnSpiritHandler,
 } satisfies Partial<ActionRegistry>
 

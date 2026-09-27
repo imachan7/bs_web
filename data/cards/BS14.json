@@ -4248,10 +4248,7 @@
     "whileCombined": true,
     "battleRole": "attacker",
     "optional": false,
-    "action": {
-     "type": "voidCoreToSelf",
-     "count": 1
-    }
+    "action": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}
    }
   ]
  },
@@ -5556,10 +5553,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "discardSelfDownTo",
-     "limit": 4
-    }
+    "action": {"type": "discardSelfChoose", "count": 0, "downTo": 4}
    },
    {
     "id": "BS14-089-e2",
@@ -5570,10 +5564,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "discardOpponentDownTo",
-     "limit": 4
-    }
+    "action": {"type": "discardOpponent", "count": 0, "downTo": 4}
    },
    {
     "id": "BS14-089-e3",
@@ -5884,9 +5875,7 @@
     "id": "BS14-095-e2",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "opponentNexusCoresToTrashOne"
-    }
+    "action": {"type": "removeCores", "side": "opponent", "from": ["nexus"], "to": "trash", "target": "one", "count": "all"}
    }
   ]
  },

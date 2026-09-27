@@ -263,7 +263,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const candidatesFor = (): { pid: PlayerId; inst: CardInstance }[] => {
         const list: { pid: PlayerId; inst: CardInstance }[] = []
         for (const pid of pids) {
-            for (const s of state.players[pid].field.spirits) {
+            for (const s of from.includes("spirit") ? state.players[pid].field.spirits : []) {
                 if (excludeIds.includes(s.instanceId)) continue
                 if (action.leaveAtLeast !== undefined && s.cores <= action.leaveAtLeast) continue
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue

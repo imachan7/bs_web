@@ -5165,10 +5165,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "discardOpponentDownTo",
-     "limit": 3
-    }
+    "action": {"type": "discardOpponent", "count": 0, "downTo": 3}
    }
   ]
  },

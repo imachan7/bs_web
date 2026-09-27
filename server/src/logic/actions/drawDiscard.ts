@@ -89,6 +89,12 @@ const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => 
 
 const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.downTo !== undefined) {
+            const count = state.players[opp].hand.length - action.downTo
+            if (count <= 0) log(state, `${sourceName}：相手の手札は${action.downTo}枚以下のため発動しなかった。`)
+            else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count }) }
+            return
+        }
         // countAttackerSymbols（BS13-064蛇教徒の宮殿Lv2）：countを無視し、targetInstanceIdが指す
         // スピリット（fieldEvent event:"ownLifeDamaged"が渡すアタッカー）のシンボル数を破棄枚数として使う。
         // 一度だけ解決し、countAttackerSymbolsを落としたactionへ入り直す（他のcountCounter系と同じ考え方）
@@ -320,29 +326,7 @@ const randomOpponentHandMagicDiscardHandler: ActionHandler<"randomOpponentHandMa
     return
 }
 
-const discardOpponentDownToHandler: ActionHandler<"discardOpponentDownTo"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 奇術師オリバー：相手の手札がlimit枚を超えている場合のみ、limit枚になるまで破棄する
-        const count = state.players[opp].hand.length - action.limit
-        if (count <= 0) {
-            log(state, `${sourceName}：相手の手札は${action.limit}枚以下のため発動しなかった。`)
-            return
-        }
-        ctx.resolve({ type: "discardOpponent", count })
-        return
-}
 
-const discardSelfDownToHandler: ActionHandler<"discardSelfDownTo"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    // BS14-089爆発する海底火山：自分の手札がlimit枚を超えている場合のみ、limit枚になるまで破棄する
-    const count = state.players[owner].hand.length - action.limit
-    if (count <= 0) {
-        log(state, `${sourceName}：自分の手札は${action.limit}枚以下のため発動しなかった。`)
-        return
-    }
-    ctx.resolve({ type: "discardSelfChoose", count })
-    return
-}
 
 const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -469,6 +453,12 @@ function discardSelfAny(ctx: ActionCtx, action: Extract<EffectAction, { type: "d
 const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
+    if (action.downTo !== undefined) {
+        const count = player.hand.length - action.downTo
+        if (count <= 0) log(state, `${sourceName}：自分の手札は${action.downTo}枚以下のため発動しなかった。`)
+        else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count }) }
+        return
+    }
     if (action.count === "any") {
         if (!canDiscardHand(state, owner)) {
             log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
@@ -671,8 +661,6 @@ const handlers = {
     drawUpTo: drawUpToHandler,
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
-    discardOpponentDownTo: discardOpponentDownToHandler,
-    discardSelfDownTo: discardSelfDownToHandler,
     randomOpponentHandMagicDiscard: randomOpponentHandMagicDiscardHandler,
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
