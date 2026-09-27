@@ -84,12 +84,7 @@
      2
     ],
     "optional": true,
-    "action": {
-     "type": "returnOwnSpiritToHand",
-     "filter": {
-      "keyword": "superAwaken"
-     }
-    }
+    "action": {"type": "returnToHand", "side": "own", "count": 1, "filter": {"keyword": "superAwaken"}}
    },
    {
     "id": "BS13-002-e2",

@@ -563,13 +563,13 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
     const sp = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(sp)
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", sp, { type: "voidCoreToSelf", count: 2 })
+    resolveAction(s, "p1", sp, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 2 })
     assert(sp.cores === 3, "自身のコアが1→3に増える")
     assert(s.players.p1.reserve === reserveBefore, "コアはボイド由来（リザーブは変化しない）")
 
     // self が null なら no-op（ログのみ）
     const logLen1 = s.log.length
-    resolveAction(s, "p1", null, { type: "voidCoreToSelf", count: 1 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1 })
     assert(s.log.length === logLen1 + 1, "selfがnullでもログのみで安全")
 
     console.log("--- voidCoreToSelfPer: キングタウロス大公の召喚時 ---")
@@ -596,7 +596,7 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
     const lone = createInstance("BS01-X03", s2.turn, 1)
     s2.players.p1.field.spirits.push(lone)
     const logLen2 = s2.log.length
-    resolveAction(s2, "p1", lone, { type: "voidCoreToSelf", count: 1, countCounter: "ownOtherSpirits" })
+    resolveAction(s2, "p1", lone, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1, countCounter: "ownOtherSpirits" })
     assert(lone.cores === 1 && s2.log.length === logLen2 + 1, "他スピリットが0体ならコアは増えずログのみ")
 }
 

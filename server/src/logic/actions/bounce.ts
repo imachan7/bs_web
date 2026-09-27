@@ -91,51 +91,6 @@ const returnOneThenRefreshIfMaxCostHandler: ActionHandler<"returnOneThenRefreshI
     )
 }
 
-// returnToHandの自陣専用版：自分のスピリット1体（filter絞り込み）を持ち主の手札へ戻す。
-// 候補2体以上ならプレイヤーが選び、非対話は実効BP最大を自動選択する（BS13-002鎧竜人アンキロング：
-// 【超覚醒】を持つ自分のスピリット1体を手札に戻すことができる）
-const returnOwnSpiritToHandHandler: ActionHandler<"returnOwnSpiritToHand"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-    const player = state.players[owner]
-    const filter = normalizeFilter(ctx, action)
-    if (filter === SELF_REQUIRED) {
-        log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
-        return
-    }
-    const candidates = player.field.spirits.filter((sp) => matchesTarget(state, owner, sp, filter, self?.instanceId))
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：手札に戻せる自分のスピリットがいなかった。`)
-        return
-    }
-    if (targetInstanceId !== undefined) {
-        const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
-        if (!chosen) {
-            log(state, `${sourceName}：指定されたスピリットは対象にできなかった。`)
-            return
-        }
-        returnSpiritToHand(state, owner, chosen, sourceName)
-        return
-    }
-    if (
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：手札に戻すスピリットを選んでください`,
-            candidates,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    // 非対話：実効BP最大を自動選択
-    const target = candidates.reduce((best, s) =>
-        effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-    )
-    returnSpiritToHand(state, owner, target, sourceName)
-    return
-}
 
 // BS14-X04氷の覇王ミブロック・バラガンLv2-3：「自分のスピリット1体を手札に戻すことで、
 // コスト合計(戻したスピリットのコスト)まで、相手のスピリットを好きなだけ手札に戻す」。
@@ -803,7 +758,6 @@ const handlers = {
     returnFieldExceptOpponentChosenColor: returnFieldExceptOpponentChosenColorHandler,
     returnToHandCostBudget: returnToHandCostBudgetHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
-    returnOwnSpiritToHand: returnOwnSpiritToHandHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,

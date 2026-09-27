@@ -134,7 +134,7 @@ console.log("=== orReserve: voidCoreToSelf（自分のリザーブかこのス�
     s.players.p1.field.spirits.push(self)
     const coresBefore = self.cores
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", self, { type: "voidCoreToSelf", count: 1, orReserve: true })
+    resolveAction(s, "p1", self, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1, orReserve: true })
     assert(self.cores === coresBefore, "非対話時はスピリット上に置かず")
     assert(s.players.p1.reserve === reserveBefore + 1, "非対話時はリザーブに置く側に倒す")
 }
@@ -144,9 +144,9 @@ console.log("=== orReserve: voidCoreToSelf（自分のリザーブかこのス�
     const self = createInstance(oneSymbolSpirit!.cardId, s.turn, 1)
     s.players.p1.field.spirits.push(self)
     const coresBefore = self.cores
-    resolveAction(s, "p1", self, { type: "voidCoreToSelf", count: 1, orReserve: true })
-    assert(s.pendingChoice !== null && (s.pendingChoice?.options ?? []).includes("このスピリット上に置く"), "対話時は選択が立つ")
-    assert(act(s, "p1", { type: "resolveChoice", option: "このスピリット上に置く" }) === null, "スピリット上に置くを選ぶ")
+    resolveAction(s, "p1", self, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1, orReserve: true })
+    assert(s.pendingChoice !== null && (s.pendingChoice?.options ?? []).includes("対象の上に置く"), "対話時は選択が立つ")
+    assert(act(s, "p1", { type: "resolveChoice", option: "対象の上に置く" }) === null, "スピリット上に置くを選ぶ")
     assert(self.cores === coresBefore + 1, "選んだ側（スピリット上）に置かれた")
 }
 

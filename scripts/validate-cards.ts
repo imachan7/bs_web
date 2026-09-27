@@ -120,7 +120,6 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "refreshSelf",
     "destroySelf",
     "returnSelfToHand",
-    "voidCoreToSelf",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
     "markNoRefreshTarget",
