@@ -3,6 +3,7 @@
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
+import { recordTargets } from "../record"
 import {
     canExhaustNexus,
     bothSidesPids,
@@ -70,6 +71,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 }
                 exhaustSpirit(state, owner, found, undefined, owner, srcType)
                 log(state, exhaustLog(sourceName, getCard(found.cardId).name, false))
+                recordTargets(state, [found.instanceId])
                 return
             }
             const candidates = state.players[owner].field.spirits.filter(matchesOwn)
@@ -88,6 +90,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 return
             }
             // 自動選択は実効BP最小（コストとして失う損が小さい方）
+            const exhausted: string[] = []
             for (let i = 0; i < action.count; i++) {
                 const target = state.players[owner].field.spirits
                     .filter(matchesOwn)
@@ -102,7 +105,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 }
                 exhaustSpirit(state, owner, target, undefined, owner, srcType)
                 log(state, exhaustLog(sourceName, getCard(target.cardId).name, false))
+                exhausted.push(target.instanceId)
             }
+            recordTargets(state, exhausted)
             return
         }
         // countFromBofu（【暴風】の onBlocked エントリ）：カード側の固定 count ではなく、

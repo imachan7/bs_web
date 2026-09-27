@@ -7195,9 +7195,7 @@
      2,
      3
     ],
-    "action": {
-     "type": "returnToHandCostBudget"
-    }
+    "action": {"type": "pay", "cost": {"type": "returnToHand", "side": "own", "count": 1}, "then": {"type": "returnToHand", "count": 1, "costBudget": "lastCost"}}
    }
   ]
  },

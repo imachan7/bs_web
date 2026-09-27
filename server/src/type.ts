@@ -162,6 +162,7 @@ export type EffectCounter =
     | "lastCost" // 直前に動いたカードの印刷コストの合計
     | "lastMoved" // 直前に動いたカードの枚数（logic/record.ts）
     | "lastCores" // 直前の removeCores が取り除いたコアの数（logic/record.ts）
+    | "lastBp" // 直前に疲労させた個体の実効BP（logic/record.ts）
     | "burstEventCost" // BS15共通器：GameState.burstEventCost（バースト発動時のeventInfo.costs先頭値）。未設定なら0（BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     | "selfCores" // このスピリット（self）自身の上に置かれているコア数（selfがnullなら0。BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」）
     | "selfSymbols" // このスピリット（self）自身が持つシンボル数（instanceSymbolCount。selfがnullなら0。BS05碧緑の竜使いグリューン：「このスピリットのシンボルと同じ数」）
@@ -1395,6 +1396,7 @@ export interface GameState {
     lastFunsai?: { total: number; spirits: number; nexuses: number; magics: number; costAtLeast4: number } // 直前の【粉砕】で破棄した内容（resolveFunsaiが記録）。アタック宣言のたびにクリアする（doAttack冒頭）。EffectCounter "lastFunsaiTotal"/"lastFunsaiSpirits"とtriggered.condition {lastFunsaiHasNexus}が参照する（BS03巨人王ランドルフ／BS04二刀流のアムブローズ／BS04伝説巨人ジュード）。costAtLeast4はBS15共通器：破棄したカードのうちコスト4以上の枚数（BS15-053コジロンド・ゴレムLv2-3：「コスト4以上のカードを破棄したとき」）
     lastMoved?: Record<string, string[]> // 枠ごとの直前に動いたカード（logic/record.ts）
     lastCores?: Record<string, number>
+    lastTargets?: Record<string, string[]>
     recordScope?: string
     burstEventCost?: number // BS15共通器：バースト発動時、eventInfo.costsの先頭値を一時的に積む（EffectCounter "burstEventCost" が読む。confirmを経由する対話モードでもpendingChoice.burstActivate.destroyedCostへ引き継いで復元する。BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     lastMagicCast?: { pid: PlayerId; cardId: string; timing: "main" | "flash"; targetInstanceId?: string } // 直前にプレイヤー自身が手札/手元から使用したマジック（doCastMagic・castMagicFromTrashByColorが記録。action:"magicMirrorRepeat"が参照する。**フラッシュタイミングが閉じた時点**でクリアされ、それより前の使用は対象にならない＝フラッシュ①で使われたマジックをフラッシュ②で写すことはできない。バトル終了時（clearBattle）にもクリアする。BS08マジックミラー）
