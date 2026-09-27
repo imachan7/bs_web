@@ -55,21 +55,6 @@
 
 **マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
 
-### R5 pay の残り（2026-09-27 設計。3本まとめて出す）
-
-ユーザー確認（09-27）：
-- **「好きなだけ払うことで、払った数だけ〜」は、後半が解決しきれない数を選べない**。pay は cost が `count:"any"` のとき、then が解決できる最大数を上限（内部の `anyMax`）にして cost へ渡す（仮の値をカウンタ lastMoved／lastCores に入れて then を判定）
-- **「〜1つにつき、相手のスピリット1体のコア1個」は1体を選び、その1体に N 回**（複数の体に分けない。一般則。IF_UNIFY Q2 の答えを置き換え）→ ダンスマカブル・妖華吸血爪を spread→one。ケツァルカトル（「同じ数の相手のスピリット上から」）は別々の体のまま
-- グラシアルブレスは一般則どおり相手が2体未満なら発揮しない／ユナイテッドパワーの BP を上げる先は相手のスピリットも選べる（今は自分だけ＝挙動が変わる）
-
-| PR | 足す部品 | 消す type |
-| :-- | :-- | :-- |
-| ① feat/r5-pay-tegamoto | `toTegamoto{from:"hand", count: number\|"any", upTo?, pick?}`（手札→手元。lastMoved に書く）、pay 判定に `lendSelfThisTurn`（常に成立） | handMagicToTegamotoDraw・revealHandMagicToTegamotoDraw（→pay＋draw{countCounter lastMoved}）、discardHandNexusToVoidCoreSelf（→discardSelfChoose{nexus}＋placeCores{void→self}）、exhaustSelfThenLendThisTurn（→exhaust{target self}＋lendSelfThisTurn） |
-| ② feat/r5-pay-cores | カウンタ `lastCores`（直前の removeCores が取り除いたコア数）、removeCores は取り除いたカードも lastMoved に書く、`removeCores{count:"any"}`、pay の上限、pay 判定が targetsCounter を見る | coreRemoveByPayingSelfCores・coreTradeToOpponentTrash（→pay＋removeCores{countCounter lastCores}）、voidCoresAndMillByCost（→sequence＋mill{countCounter lastCost}） |
-| ③ feat/r5-pay-return | returnToDeckBottom に `side:"own"`・`count`（returnToDeckTop と同じ意味）と pay 判定、returnToHand／returnToDeckBottom が戻したカードを lastMoved に書く、returnToHand `costBudget`（好きなだけ・コスト合計がカウンタの値まで）、exhaust が疲労させた個体を記録しカウンタ `lastBp`（その実効BP） | returnBothSidesToDeckBottom・returnToHandCostBudget・bpBuffByExhaustOwn |
-
-スフィン・クロス（unblockedByVoidSelfCore）はバトル中の扱いがあるので別に回す。
-
 ### M8（期間つき効果）は一区切り（2026-09-26）
 
 一覧 `timedEffects` に全内容を移した（[TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) §3.2）。期間つき効果を置くだけの旧 action 19種は入口として残し、周りを触るときに書き直す（REFACTOR_PLAN §2.2 の6行目）。

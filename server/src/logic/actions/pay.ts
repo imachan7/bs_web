@@ -29,7 +29,7 @@ export const PAYABLE_TYPES = [
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree", "summonFromTrashFree",
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
-    "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
+    "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -75,12 +75,14 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     returnToHand: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "returnToHand") return false
+        if (action.costBudget !== undefined) return true
         return returnToHandCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
     returnToDeckTop: (state, owner, self, action, srcColors, srcType) => {
-        if (action.type !== "returnToDeckTop") return false
+        if (action.type !== "returnToDeckTop" && action.type !== "returnToDeckBottom") return false
         return returnToDeckTopCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= (action.count ?? 1)
     },
+    returnToDeckBottom: (...args) => CHECKERS.returnToDeckTop!(...args),
     destroyNexus: (state, owner, _self, action, _srcColors, srcType) => {
         if (action.type !== "destroyNexus") return false
         return action.count === "any" || destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count

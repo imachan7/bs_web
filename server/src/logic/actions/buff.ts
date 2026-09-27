@@ -350,103 +350,6 @@ const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action
         return
 }
 
-const bpBuffByExhaustOwn: ActionHandler<"bpBuffByExhaustOwn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // ユナイテッドパワー：回復状態の自分スピリット1体を疲労させ、その実効BP分だけ
-        // 自分のスピリット1体をバフする。段階判定は「最も進んだ段階の指標を先に見る」方式
-        // （grantColorChoiceと同じ考え方）: selfが埋まっていれば第2段階（疲労元は既に確定）、
-        // targetInstanceIdのみなら第1段階の応答（疲労させる対象が確定した直後）、
-        // どちらもなければ最初の呼び出し
-        if (self && targetInstanceId !== undefined) {
-            // 第2段階：selfが疲労させたスピリット、targetInstanceIdがバフ先
-            const buffTarget = pickBpBuffTarget(state, owner, targetInstanceId)
-            if (!buffTarget) {
-                log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
-                return
-            }
-            const amount = effectiveBp(state, owner, self)
-            recordBp(state, owner, buffTarget, amount, "turn")
-            log(
-                state,
-                `${getCard(self.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-            )
-            applyMagicBuffBonus(state, buffTarget, srcType, srcColors)
-            return
-        }
-        if (targetInstanceId !== undefined) {
-            // 第1段階の応答：疲労させるスピリットが決まったので疲労させ、続けてバフ先を選ばせる
-            const exhaustTarget = state.players[owner].field.spirits.find(
-                (s) => s.instanceId === targetInstanceId,
-            )
-            if (!exhaustTarget || exhaustTarget.isRested) {
-                log(state, `${sourceName}：疲労させる対象がいなかった。`)
-                return
-            }
-            exhaustSpirit(state, owner, exhaustTarget)
-            if (state.interactiveTargets) {
-                const buffCandidates = state.players[owner].field.spirits.map((s) => s.instanceId)
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：BPを増加させる自分のスピリットを選んでください`,
-                    buffCandidates,
-                    false,
-                    action,
-                    exhaustTarget,
-                )
-                return
-            }
-            const buffTarget = pickBpBuffTarget(state, owner)
-            if (!buffTarget) {
-                log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
-                return
-            }
-            const amount = effectiveBp(state, owner, exhaustTarget)
-            recordBp(state, owner, buffTarget, amount, "turn")
-            log(
-                state,
-                `${getCard(exhaustTarget.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-            )
-            applyMagicBuffBonus(state, buffTarget, srcType, srcColors)
-            return
-        }
-        // 最初の呼び出し：疲労させる自分のスピリット（回復状態のみ）を選ぶ
-        const restCandidates = state.players[owner].field.spirits.filter((s) => !s.isRested)
-        if (restCandidates.length === 0) {
-            log(state, `${sourceName}：回復状態の自分のスピリットがいないため発動しなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：疲労させる自分のスピリットを選んでください`,
-                restCandidates.map((s) => s.instanceId),
-                false,
-                action,
-                self,
-            )
-            return
-        }
-        const auto = restCandidates.reduce((best, s) =>
-            effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-        )
-        exhaustSpirit(state, owner, auto)
-        const buffTarget = pickBpBuffTarget(state, owner)
-        if (!buffTarget) {
-            log(state, `${sourceName}：BPを増加させる対象がいなかった。`)
-            return
-        }
-        const amount = effectiveBp(state, owner, auto)
-        recordBp(state, owner, buffTarget, amount, "turn")
-        log(
-            state,
-            `${getCard(auto.cardId).name}は疲労し、${getCard(buffTarget.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-        )
-        applyMagicBuffBonus(state, buffTarget, srcType, srcColors)
-        return
-}
-
 const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体を疲労させ、
@@ -530,7 +433,6 @@ const handlers = {
     colorlessSelfThisBattle,
     bpBuff,
     bpBuffAllByBofuCount,
-    bpBuffByExhaustOwn,
     selfBuffByExhaustFamily,
 } satisfies Partial<ActionRegistry>
 

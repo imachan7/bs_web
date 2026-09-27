@@ -568,6 +568,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lastMovedCount`（fn）
 - `recordCores`（fn）
 - `lastCoresCount`（fn）
+- `recordTargets`（fn）：直前に疲労させた個体（カードは動かないので lastMoved とは別に instanceId で持つ）
+- `lastTargetsOf`（fn）
 
 ## server/src/logic/removal.ts
 

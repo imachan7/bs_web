@@ -1,4 +1,5 @@
 // smoke パート316（BS14 白バッチ20枚：BS14-034〜044/070/082〜084/103〜106/X04）
+import type { EffectAction } from "../../server/src/type"
 // 新設した器: AuraCounter { ownColor: Color }／kind:"blockTriggersAsAttackGrant".whileOwnBurstSet／
 // timedEffect の suppressTrigger（state.timedEffects）／
 // globalConstraint "handImmuneForPid".includeNexus／
@@ -332,7 +333,7 @@ console.log("=== BS14-X04 氷の覇王ミブロック・バラガン：バース
     const payer = put(s3, "p1", "BS14-044", 5) // コスト8（自分の最大コスト＝コストの高い方が予算最大化なのでこちらが自動選択される）
     const cheapEnemy = put(s3, "p2", "SD01-001", 1) // コスト0
     const handBefore = s3.players.p2.hand.length
-    resolveAction(s3, "p1", bulk, { type: "returnToHandCostBudget" })
+    resolveAction(s3, "p1", bulk, (getCard("BS14-X04").effects.find((e) => e.id === "BS14-X04-e3") as { action: EffectAction }).action)
     assert(!s3.players.p1.field.spirits.some((sp) => sp.instanceId === payer.instanceId), "コストが最大の自分のスピリットが手札へ戻った（予算最大化）")
     assert(s3.players.p1.field.spirits.some((sp) => sp.instanceId === bulk.instanceId), "発生源自身はコストで劣るため選ばれない")
     assert(!s3.players.p2.field.spirits.some((sp) => sp.instanceId === cheapEnemy.instanceId), "予算(コスト8)内の相手のコスト0スピリットは手札へ戻る")
@@ -347,7 +348,7 @@ console.log("=== BS14-X04 氷の覇王ミブロック・バラガン：バース
     const own4b = put(s4, "p1", "BS01-002", 1) // コスト1（コスト8の own4a より小さい）
     put(s4, "p2", "SD01-001", 1) // コスト0
     put(s4, "p2", "BS01-001", 1) // コスト0（予算1で2体とも候補に入る）
-    resolveAction(s4, "p1", src4, { type: "returnToHandCostBudget" })
+    resolveAction(s4, "p1", src4, (getCard("BS14-X04").effects.find((e) => e.id === "BS14-X04-e3") as { action: EffectAction }).action)
     assert(s4.pendingChoice !== null, "コストにする自分のスピリットを対戦者に選ばせる")
     assert(
         s4.pendingChoice?.candidates.includes(own4a.instanceId) === true &&

@@ -90,17 +90,17 @@ console.log("=== bpBuffAllByArmorColors（BS05-078 アイシクルアサルト �
     )
 }
 
-console.log("=== bpBuffByExhaustOwn（BS03-131 ユナイテッドパワー） ===")
+console.log("=== BS03-131 ユナイテッドパワー（pay＋exhaust＋bpBuff{lastBp}） ===")
 {
     const s = setupMain("united-power")
-    const buffed = put(s, "p1", "BS01-001", 1) // BP1000（field[0]＝自動バフ先）
-    const exhausted = put(s, "p1", "BS01-018", 1) // リザードマンLv1 BP4000（自動疲労先＝BP最大）
-    const amount = effectiveBp(s, "p1", spiritOf(s, "p1", exhausted)!)
+    const low = put(s, "p1", "BS01-001", 1) // BP1000（非対話の自動疲労先＝exhaust{side own}の既定どおり実効BP最小）
+    const high = put(s, "p1", "BS01-018", 1) // リザードマンLv1 BP4000
+    const amount = effectiveBp(s, "p1", spiritOf(s, "p1", low)!)
     assert(castFromHand(s, "p1", "BS03-131") === null, "ユナイテッドパワーを使用")
-    assert(spiritOf(s, "p1", exhausted)!.isRested, "BP最大の回復スピリットが疲労した")
+    assert(spiritOf(s, "p1", low)!.isRested && !spiritOf(s, "p1", high)!.isRested, "実効BP最小の回復スピリットが疲労した")
     assert(
-        spiritOf(s, "p1", buffed)!.tempBpBuff === amount,
-        "自動選択されたバフ先が疲労元の実効BP分だけ増加した",
+        spiritOf(s, "p1", low)!.tempBpBuff + spiritOf(s, "p1", high)!.tempBpBuff === amount,
+        "スピリット1体が疲労元の実効BP分だけ増加した",
     )
 }
 

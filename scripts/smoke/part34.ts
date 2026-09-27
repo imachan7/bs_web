@@ -1,4 +1,5 @@
 // smoke パート34（第三弾 BS03 構造化バッチ：フレイア／オリバー／トランプの王国／ユナイテッドパワー／セイムタイアード）
+import type { EffectAction } from "../../server/src/type"
 //   - kind: "lifeDamageNegate"（BS03-047 硝子の女神フレイア）
 //   - アクション: discardOpponentDownTo（BS03-095 奇術師オリバー）
 //   - kind: "exhaustImmunityGrant"（BS03-112 トランプの王国 e1）＋既存fieldEvent refreshOne（e2）
@@ -6,6 +7,7 @@
 //   - アクション: exhaustOpponentToMatch（BS03-139 セイムタイアード）
 import {
     act,
+    getCard,
     takeLifeAndResolve,
     assert,
     createGame,
@@ -137,10 +139,10 @@ console.log("=== BS03-131 ユナイテッドパワー：疲労させたスピリ
     const low = createInstance("BS02-049", s.turn, 1) // ピヨン Lv1 BP1000
     const high = createInstance("BS03-054", s.turn, 3) // アルカナドール・トリア Lv2 BP4000
     s.players.p1.field.spirits.push(low, high)
-    resolveAction(s, "p1", null, { type: "bpBuffByExhaustOwn" })
-    assert(high.isRested, "実効BP最大の回復スピリット(high)が疲労させられた")
-    assert(low.tempBpBuff === 4000, "field先頭(low)がhighの実効BP分バフされた")
-    assert(high.tempBpBuff === 0, "疲労させた側(high)自身はバフされない")
+    resolveAction(s, "p1", null, (getCard("BS03-131").effects[0] as { action: EffectAction }).action)
+    // 非対話の自動選択：疲労させるのは exhaust{side own} の既定どおり実効BP最小
+    assert(low.isRested && !high.isRested, "実効BP最小の回復スピリット(low)が疲労させられた")
+    assert(low.tempBpBuff + high.tempBpBuff === 1000, "lowの実効BP(1000)ぶん、スピリット1体がバフされた")
 }
 
 console.log("=== BS03-131 ユナイテッドパワー：回復状態のスピリットがいなければ不発 ===")
@@ -154,7 +156,7 @@ console.log("=== BS03-131 ユナイテッドパワー：回復状態のスピリ
     const rested = createInstance("BS02-049", s.turn, 1)
     rested.isRested = true
     s.players.p1.field.spirits.push(rested)
-    resolveAction(s, "p1", null, { type: "bpBuffByExhaustOwn" })
+    resolveAction(s, "p1", null, (getCard("BS03-131").effects[0] as { action: EffectAction }).action)
     assert(rested.tempBpBuff === 0, "対象がいないためバフされなかった")
     assert(rested.isRested, "疲労状態も変化しなかった")
 }
@@ -171,7 +173,7 @@ console.log("=== BS03-131 ユナイテッドパワー：interactiveTargets時は
     const low = createInstance("BS02-049", s.turn, 1) // BP1000
     const high = createInstance("BS03-054", s.turn, 3) // BP4000
     s.players.p1.field.spirits.push(low, high)
-    resolveAction(s, "p1", null, { type: "bpBuffByExhaustOwn" })
+    resolveAction(s, "p1", null, (getCard("BS03-131").effects[0] as { action: EffectAction }).action)
     assert(s.pendingChoice?.kind === "target" && s.pendingChoice.candidates.length === 2, "疲労させる対象の選択待ちになった")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: high.instanceId }) === null, "highを疲労対象に選ぶ")
     assert(high.isRested, "選んだhighが疲労した")

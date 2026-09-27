@@ -4,6 +4,8 @@ import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { recordMoved } from "../record"
+import { countedAmount } from "../counted"
 
 // side:"own"（returnToHand/returnToDeckTopの自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 // （CHECKERS）の両方から呼び、判定と実際の対象がずれないようにする
@@ -38,7 +40,7 @@ export function returnToDeckTopCandidateCountForPay(
     state: GameState,
     owner: PlayerId,
     selfInstanceId: string | undefined,
-    action: Extract<EffectAction, { type: "returnToDeckTop" }>,
+    action: Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>,
     srcColors: Color[] | undefined,
     srcType: CardType | undefined,
 ): number {
@@ -92,63 +94,21 @@ const returnOneThenRefreshIfMaxCostHandler: ActionHandler<"returnOneThenRefreshI
 }
 
 
-// BS14-X04氷の覇王ミブロック・バラガンLv2-3：「自分のスピリット1体を手札に戻すことで、
-// コスト合計(戻したスピリットのコスト)まで、相手のスピリットを好きなだけ手札に戻す」。
-// コストにする自分のスピリットも、戻す相手のスピリットも**対戦者が選ぶ**。
-// 残り予算を action.budget に載せて1体ずつ再入する（INTERRUPTION_POINTS.md パターンB）。
-// 非対話時（interactiveTargets無効）は従来どおり貪欲（コスト最大から順に）で自動選択する
-const returnToHandCostBudgetHandler: ActionHandler<"returnToHandCostBudget"> = (ctx, action) => {
+const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
+
+
+// 好きなだけ・コスト合計が予算まで：1体ずつ選ばせ、残り予算を budgetLeft に載せて再入する（INTERRUPTION_POINTS.md パターンB）。
+// 非対話・候補1体はコスト最大から
+function returnToHandByBudget(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToHand" }>): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-
-    // 段階1：コストにする自分のスピリットを決める（budget 未設定のとき）
-    if (action.budget === undefined) {
-        const ownField = state.players[owner].field.spirits
-        if (ownField.length === 0) {
-            log(state, `${sourceName}：コストにできる自分のスピリットがいなかった。`)
-            return
-        }
-        const chosen = targetInstanceId !== undefined ? ownField.find((s) => s.instanceId === targetInstanceId) : undefined
-        if (!chosen) {
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}：コストとして手札に戻す自分のスピリットを選んでください`,
-                    ownField,
-                    action,
-                    null,
-                )
-            ) {
-                return
-            }
-        }
-        // 非対話・候補1体：コスト最大を選ぶ（予算が最大になる）
-        let payer = chosen ?? ownField[0]!
-        if (!chosen) {
-            for (const s of ownField) {
-                if (getCard(s.cardId).cost > getCard(payer.cardId).cost) payer = s
-            }
-        }
-        const budget = getCard(payer.cardId).cost
-        returnSpiritToHand(state, owner, payer, sourceName)
-        if (state.winner) return
-        log(state, `${sourceName}：コスト合計${budget}まで、相手のスピリットを手札に戻せる。`)
-        ctx.resolve({ ...action, budget })
-        return
-    }
-
-    // 段階2：予算内で相手のスピリットを1体ずつ戻す（対戦者が選ぶ）
-    const remaining = action.budget
-    if (remaining <= 0) return
+    const remaining = action.budgetLeft ?? countedAmount(state, owner, self, 1, action.costBudget!, srcType)
+    if (action.budgetLeft === undefined) log(state, `${sourceName}：コスト合計${remaining}まで、相手のスピリットを手札に戻せる。`)
     const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce").filter(
         (s) => getCard(s.cardId).cost <= remaining,
     )
     if (candidates.length === 0) return
-
-    const picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : undefined
+    let picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : undefined
     if (!picked) {
-        // optional：予算が残っていても「もう戻さない」を選べる（「好きなだけ」なので0体でよい）
         if (state.interactiveTargets && candidates.length >= 2) {
             requestChoice(
                 state,
@@ -156,29 +116,17 @@ const returnToHandCostBudgetHandler: ActionHandler<"returnToHandCostBudget"> = (
                 `${sourceName}：手札に戻す相手のスピリットを選んでください（残りコスト${remaining}）`,
                 candidates.map((s) => s.instanceId),
                 true,
-                action,
+                { ...action, budgetLeft: remaining },
                 self,
             )
             return
         }
-        // 非対話／候補1体：貪欲（コスト最大）で1体戻して再入する
-        let best = candidates[0]!
-        for (const s of candidates) {
-            if (getCard(s.cardId).cost > getCard(best.cardId).cost) best = s
-        }
-        returnSpiritToHand(state, opp, best, sourceName)
-        if (state.winner) return
-        ctx.resolve({ ...action, budget: remaining - getCard(best.cardId).cost })
-        return
+        picked = candidates.reduce((best, s) => (getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best))
     }
-
     returnSpiritToHand(state, opp, picked, sourceName)
     if (state.winner) return
-    ctx.resolve({ ...action, budget: remaining - getCard(picked.cardId).cost })
+    ctx.resolve({ ...action, budgetLeft: remaining - getCard(picked.cardId).cost })
 }
-
-const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
-
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -190,6 +138,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         // 発揮されない＝戻すはずのスピリットは場に残る（お互い。BS15-052天蒼元帥チョウハッカイ）
         if (hasGlobalConstraint(state, "noHandGainByEffect")) {
             log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
+            return
+        }
+        if (action.costBudget !== undefined) {
+            returnToHandByBudget(ctx, action)
             return
         }
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する
@@ -219,6 +171,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 return
             }
             returnSpiritToHand(state, found.pid, found.inst, sourceName)
+            recordMoved(state, [found.inst.cardId])
             return
         }
         // maxBpFromSelf：selfの実効BP以下の相手のみ（selfが「召喚されたスピリット」になる
@@ -257,6 +210,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             ) {
                 return
             }
+            const moved: string[] = []
             for (let i = 0; i < resolvedCount; i++) {
                 const pool = state.players[owner].field.spirits.filter(ownMatchesBp)
                 if (pool.length === 0) {
@@ -265,8 +219,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 }
                 const target = pool.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
                 markBounce(state, owner, target, "hand", sourceName)
+                moved.push(target.cardId)
             }
             flushBounces(state)
+            recordMoved(state, moved)
             return
         }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
@@ -407,32 +363,6 @@ function returnAllTargetsToHand(
 }
 
 
-// グラシアルブレス：自分のスピリットcount体をデッキの下へ戻すことをコストに、
-// 相手のスピリットcount体もデッキの下へ戻す。自分がcount体戻せないなら不発。
-// 「好きな順番で」はコスト最小から（自分）／実効BP上位から（相手）の決定的簡略化
-const returnBothSidesToDeckBottomHandler: ActionHandler<"returnBothSidesToDeckBottom"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcColors, srcType } = ctx
-    const ownSpirits = [...state.players[owner].field.spirits]
-    if (ownSpirits.length < action.count) {
-        log(state, `${sourceName}：自分のスピリットが${action.count}体いないため発動しなかった。`)
-        return
-    }
-    ownSpirits.sort((a, b) => getCard(a.cardId).cost - getCard(b.cardId).cost)
-    for (const inst of ownSpirits.slice(0, action.count)) {
-        returnSpiritToDeckBottom(state, owner, inst, sourceName)
-    }
-    let returned = 0
-    for (let i = 0; i < action.count; i++) {
-        const target = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType, "bounce")
-        if (!target) break
-        returnSpiritToDeckBottom(state, opp, target, sourceName)
-        returned++
-    }
-    if (returned === 0) {
-        log(state, `${sourceName}：相手のスピリットがいなかった。`)
-    }
-}
-
 // BS06颶風高原Lv2：このバトル中に自分の【暴風】で疲労させた相手のスピリットすべてをデッキの下へ。
 // 効果文どおり**戻す順番は持ち主（発揮した側）が選ぶ**（2026-08-24。それまでは記録順の簡略化）。
 // orderedIds に選んだ順を積んで再入し、選び終わってからまとめて戻す
@@ -536,7 +466,12 @@ const returnBofuExhaustedToHandHandler: ActionHandler<"returnBofuExhaustedToHand
         return
 }
 
-const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => {
+type DeckReturnAction = Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>
+
+const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => returnToDeck(ctx, action, "top")
+const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) => returnToDeck(ctx, action, "bottom")
+
+function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // count 指定（BS07ブリシンガメンの首飾り＝3体）：1体ぶんの処理を count 回繰り返す。
         // 選ばれた順に一番上へ積むので、**最後に選んだものがデッキの一番上**になる
@@ -591,7 +526,7 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
                     state,
                     owner,
                     action.chooserIsTarget
-                        ? `${sourceName}：デッキの上に戻す自分のスピリットを選んでください`
+                        ? `${sourceName}：デッキの${position === "top" ? "上" : "下"}に戻す自分のスピリットを選んでください`
                         : `${sourceName}のデッキ戻し：対象を選んでください`,
                     candidates.map((s) => s.instanceId),
                     false,
@@ -632,52 +567,9 @@ const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =
             log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckTopResisted.label}）。`)
             return
         }
-        returnSpiritToDeckTop(state, found.pid, found.inst, sourceName)
-        return
-}
-
-// 対象の相手スピリット1体を持ち主のデッキの下に戻す（returnToHandの単体版・bounce系。
-// returnToDeckTopと違いcount/anySide/chooserIsTargetは持たない。BS10-042カラドリアス＝【強襲】を持つ相手のスピリット1体）
-const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-        const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
-        const filterOk = (pid: PlayerId, s: CardInstance): boolean =>
-            resolvedFilter === undefined ||
-            (resolvedFilter !== SELF_REQUIRED && matchesTarget(state, pid, s, resolvedFilter, self?.instanceId))
-        if (targetInstanceId === undefined && state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => filterOk(opp, s), srcColors, srcType, "bounce")
-            if (candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}のデッキ下戻し：対象を選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    action,
-                    self,
-                    "target",
-                )
-                return
-            }
-        }
-        const found = targetInstanceId
-            ? findSpiritAny(state, targetInstanceId)
-            : (() => {
-                  const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
-                  return t ? { pid: opp, inst: t } : null
-              })()
-        if (!found) {
-            log(state, `${sourceName}のデッキ下戻し：対象がいなかった。`)
-            return
-        }
-        const deckBottomResisted = targetInstanceId
-            ? resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "bounce", "targeted"))
-            : null
-        if (deckBottomResisted) {
-            log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${deckBottomResisted.label}）。`)
-            return
-        }
-        returnSpiritToDeckBottom(state, found.pid, found.inst, sourceName)
+        if (position === "top") returnSpiritToDeckTop(state, found.pid, found.inst, sourceName)
+        else returnSpiritToDeckBottom(state, found.pid, found.inst, sourceName)
+        recordMoved(state, [found.inst.cardId])
         return
 }
 
@@ -715,13 +607,11 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 const handlers = {
     returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
-    returnToHandCostBudget: returnToHandCostBudgetHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
     returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
     returnBofuExhaustedToHand: returnBofuExhaustedToHandHandler,
-    returnBothSidesToDeckBottom: returnBothSidesToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
 } satisfies Partial<ActionRegistry>
 
