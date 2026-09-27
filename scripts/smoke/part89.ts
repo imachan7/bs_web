@@ -37,7 +37,7 @@ console.log("=== BS01-140 バインディングウッズ：疲労させる色を
     const red2 = put(s, "p2", "BS01-002", 1) // ロクケラトプス（赤）
     const purple = put(s, "p2", "BS01-031", 1) // デス・ハーデス（紫）
 
-    resolveAction(s, "p1", null, { type: "exhaustAllByColor" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", then: { type: "exhaust", count: 1, all: true, anySide: true, filter: { declared: "match" } } }, undefined, undefined, "magic")
     assert(s.pendingChoice?.kind === "option", "色の選択待ちが立つ")
     const opts = s.pendingChoice?.options ?? []
     assert(opts.includes("赤") && opts.includes("紫"), "相手フィールドに実在する色が選択肢になる")
@@ -54,7 +54,7 @@ console.log("--- 非対話時は従来どおり最多の色を自動選択 ---")
     const red2 = put(s, "p2", "BS01-002", 1)
     const purple = put(s, "p2", "BS01-031", 1)
 
-    resolveAction(s, "p1", null, { type: "exhaustAllByColor" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "color", then: { type: "exhaust", count: 1, all: true, anySide: true, filter: { declared: "match" } } }, undefined, undefined, "magic")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(red1.isRested && red2.isRested, "最多の赤が自動で選ばれる")
     assert(!purple.isRested, "紫は疲労しない")
@@ -70,7 +70,7 @@ console.log("=== BS03-129 フロックリカバリー：回復させる系統を
     const treant = put(s, "p1", "BS01-054", 1) // ショックイーター（樹魔）
     for (const sp of [beetle1, beetle2, treant]) sp.isRested = true
 
-    resolveAction(s, "p1", null, { type: "refreshByFamilyAuto", count: 3 }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refreshOne", count: 3, filter: { declared: "match" } } }, undefined, undefined, "magic")
     assert(s.pendingChoice?.kind === "option", "系統の選択待ちが立つ")
     const opts = s.pendingChoice?.options ?? []
     assert(opts.includes("殻虫") && opts.includes("樹魔"), "疲労中のスピリットが持つ系統が選択肢になる")
@@ -88,7 +88,7 @@ console.log("--- 非対話時は従来どおり最多の系統を自動選択 --
     const treant = put(s, "p1", "BS01-054", 1)
     for (const sp of [beetle1, beetle2, treant]) sp.isRested = true
 
-    resolveAction(s, "p1", null, { type: "refreshByFamilyAuto", count: 3 }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refreshOne", count: 3, filter: { declared: "match" } } }, undefined, undefined, "magic")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(!beetle1.isRested && !beetle2.isRested, "最多の殻虫が自動で選ばれる")
     assert(treant.isRested, "樹魔は回復しない")

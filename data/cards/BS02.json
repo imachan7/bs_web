@@ -670,9 +670,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "destroyAllExceptChosenColors"
-    },
+    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "each", "then": {"type": "destroy", "count": 1, "all": true, "anySide": true, "filter": {"declared": "except"}}},
     "optional": false
    }
   ]

@@ -6391,9 +6391,7 @@
     "id": "BS01-140-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {
-     "type": "exhaustAllByColor"
-    }
+    "action": {"type": "declare", "what": "color", "then": {"type": "exhaust", "count": 1, "all": true, "anySide": true, "filter": {"declared": "match"}}}
    },
    {
     "id": "BS01-140-e1",

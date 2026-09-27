@@ -79,7 +79,6 @@ export type EffectAction =
  | { type: "refreshAllOwn"; exemptFamily?: FamilyFilter; exemptKeyword?: Keyword; exemptCombined?: true } // exemptCombined指定時は合体スピリットには cantAttackThisTurn を付与しない。exemptKeyword指定時はそのキーワードを持つ個体には付与しない。自分の疲労スピリットをすべて回復。回復した個体はこのターン中アタック不可。exemptFamily指定時は指定系統（配列＝OR）を持つ個体には付与しない
  | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
  | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）
- | { type: "exhaustAllByColor"; side?: "opponent" } // 相手フィールドで最多の色を自動選択し（「色をひとつ選び」の決定的簡略化）、その色を持つ両陣営のスピリットを疲労させる。side:"opponent"指定時は相手のスピリットのみ
  | { type: "exhaustOpponentSameFamilyAll" } // GameState.lastOpponentSpiritDestroyedFamilies（直近に破壊された相手のスピリットの系統）と1つでも共有する相手のスピリットすべてを疲労させる（記録が無ければ不発）
  | { type: "exhaustAllOpponentNexuses" } // 相手のネクサスすべてを疲労させる。装甲・耐性は問わない（ネクサスへの疲労付与に耐性判定を持つカードは現状無い）
  | { type: "exhaustSpiritsAndNexusesUpTo"; count: number } // 相手のスピリット/ネクサスを合計count個まで疲労させる（決定的簡略化：スピリットを実効BP最大から優先して疲労させ、残った枠をネクサスへ場の並び順で充てる）
@@ -142,7 +141,6 @@ export type EffectAction =
  | { type: "extraAttackStep" } // アタックステップとエンドステップを順番にもう1回ずつ行う（GameState.extraAttackStepPending を立てる）。既に立っていれば何もしない
  | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない。妖機妃ソール）
  | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean; thenDestroyEnemyByCostBudget?: true } // 自分のフィールドからself以外でコスト<=maxCostのうちコスト最大の1体を破壊する（決定的選択）。gainCoresEqualCost指定時は破壊したスピリットのコストと同数のコアをボイドから自分のリザーブへ。thenDestroyEnemyByCostBudget指定時は、破壊した自分のスピリットのコストを予算としてdestroyByCostBudgetと同じ貪欲選択で相手のスピリットを破壊する
- | { type: "destroyAllExceptChosenColors"; chosenOwn?: Color; chosenOpp?: Color; awaiting?: "own" | "opponent" } // 「お互い、自分のフィールドに出ているスピリットの色を1色指定する。指定されなかった色のスピリットすべてを破壊する」（地龍王ケンドラゴス）。
  // interactiveTargets では**両プレイヤーが順に**色を選ぶ。選択の進捗は chosenOwn / chosenOpp / awaiting に持たせて再入する
  // （相手に選ばせる段は PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする）。
  // 自動選択は従来どおり、お互い自分フィールドで最多の色を自動指定する
@@ -223,7 +221,6 @@ export type EffectAction =
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
  | { type: "destroyAllNexusesWithCores" } // コアが1個以上置かれている両陣営のネクサスをすべて破壊する（nexusIndestructible等の破壊耐性はdestroyNexus内で尊重。フレイム・エルク）
- | { type: "refreshByFamilyAuto"; count: number } // 疲労中の自分スピリットの最多系統を自動指定し、その系統の疲労スピリットを最大count体回復させる（プレイヤー選択の決定的簡略化。cantAttackThisTurnは付与しない。フロックリカバリー）
  | { type: "grantKeywordToHandCard"; keyword: Keyword; familyFilter?: FamilyFilter; cardType?: "spirit" | "nexus" | "magic"; all?: true } // 手札の条件一致（cardType/familyFilter。配列＝いずれかの系統でOR）カード1枚に、このターンの間キーワードを付与する（PlayerState.tempHandKeywordGrants。自動選択は手札末尾の該当カード。該当なしはno-op。付与はcardId単位＝同名重複カードにも効く簡略化）。all指定時は選択を挟まず、条件一致する手札カード**すべて**に付与する
  | { type: "coreTradeToOpponentTrash" } // 自分のリザーブのコアをX個自分のトラッシュへ置き、同数だけ相手のリザーブのコアを相手のトラッシュへ置く（Xの上限はmin(自分のリザーブ,相手のリザーブ)。interactiveTargets時はkind:"option"のoption choice（「1個」〜「上限個」、optional=スキップ可＝0個）、自動時は上限個。ポイズンミスト）
  | { type: "addSymbolPermanent"; count: number; color: Color } // 発生源自身（self）に、指定色のシンボルをcount個**永続的に**追加する（symbolAddGrantと違い、条件で消える継続付与ではなく蓄積するトリガー式。CardInstance.extraSymbolsPermanentへ加算）
@@ -266,7 +263,6 @@ export type EffectAction =
  | { type: "returnBothSidesToDeckBottom"; count: number } // 自分のスピリットcount体（コスト最小から）をデッキの下へ戻すことで、相手のスピリットcount体（実効BP上位から）もデッキの下へ戻す。自分がcount体戻せなければ不発
  | { type: "colorChoiceLendThisTurn"; sourceCardId?: string } // 全色からの1色choiceを経て、選ばれた色を仮想発生源のlentChoiceColorに載せてこのターンの間貸し出す（kind:"levelAs" target:"allSpiritsByChosenColor"のlentOnlyエントリが読む。familyGrantのfamilyFromChoiceと同形）。マジックのselfは常にnullで選択再開時にresolveActionのsourceCardId引数が失われるため、sourceCardIdをaction自身に載せて2段階目へ引き継ぐ内部専用
  | { type: "millOpponentThenReact"; react: "destroyOneSameCost" | "exhaustOneIfMaxCost" | "banHandColorThisBattle"; maxCost?: number } // 相手のデッキを上から1枚破棄し、**その破棄したカード**に応じて続けて解決する（デッキ0枚なら不発）。destroyOneSameCost＝同じコストの相手のスピリット1体を破壊／exhaustOneIfMaxCost＝そのカードのコストがmaxCost以下のとき相手のスピリット1体を疲労／banHandColorThisBattle＝このバトルの間、相手はそのカードと同じ色の手札のカードを使えない
- | { type: "destroyAllByChosenCost"; maxCost: number } // コスト0〜maxCostの中からコスト1つを効果の使用者が指定し（destroyNexus.chooseColorのコスト版）、そのコストと完全一致する相手のスピリットすべてを破壊する（destroy{all}へ委譲）。自動選択は破壊できる数が最大になるコストを選ぶ（同数はコストが低い方）
  | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（。候補1色以下・自動選択は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
  | {
  type: "summonRepeatFromHand"
@@ -289,7 +285,6 @@ export type EffectAction =
  | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない）
  | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 手札の指定種別カード1枚を破棄することで（任意コスト。自動選択は手札末尾の該当カードを破棄。該当カードなしはno-op＝不発）、自分のデッキを上から、マジックカードが出るまでトラッシュへ破棄し、出たらそのマジックカードのフラッシュ効果を、コストを支払わずに即時に発揮する（出ないままデッキ切れなら何も起きない）。maxCountは**省略時は上限なし**（デッキが尽きるまで。デッキ枚数は下限40枚のみで上限が無いため、固定値を書くと原文に無い天井になる）
  | { type: "destroyFieldExceptOpponentChosenColor"; chosenOption?: string } // バースト・召喚時等の専用ではない汎用アクション：**相手が**自分（相手）のスピリットの色から1色指定し、指定されなかった色を1つでも持つ**相手のスピリットとネクサスすべて**を破壊する（destroyAllExceptChosenColorsの片側版＝選ぶのは相手だけ、破壊も相手側だけ）。相手のスピリットが1体もいなければ色を指定できず不発。実対戦ではrequestChoiceのchooserPidで相手に選ばせ、解決は発生源の持ち主の効果として続ける（CHOOSER_RULES.md）。自動選択は相手視点で破壊数が最小になる色を選ぶ（同数はColor定義順）。chosenOptionは選択の再入用内部専用
- | { type: "returnFieldExceptOpponentChosenColor"; chosenOption?: string } // destroyFieldExceptOpponentChosenColorの手札バウンス版：**相手が**相手自身のスピリットの色から1色指定し、指定外の色を1つでも持つ**相手のスピリット/ブレイヴすべて**（ネクサスは対象外）を持ち主の手札に戻す（instColorsで判定＝合体スピリットはホスト+ブレイヴの合成色を1体として見るので、該当すれば合体スピリットごと戻る）。相手のスピリットが1体もいなければ色を指定できず不発。実対戦ではrequestChoiceのchooserPidで相手に選ばせる（CHOOSER_RULES.md）。自動選択は相手視点で戻る数が最小になる色を選ぶ。chosenOptionは選択の再入用内部専用（Q3546：多色は指定色を含んでいても他の色を持てば戻る）
  | { type: "familyChoiceThenBpBuffAll"; amount: number; uncombinedOnly?: true } // 自分のフィールドのスピリットが持つ系統（配列でなく個々の系統名。重複除く）から効果の使用者が1つ指定し、このターンの間、指定した系統を持つ自分のスピリットすべてをBP+amountする（uncombinedOnly指定時は合体していないスピリットだけが対象。候補が無ければ不発）。自動選択は該当数が最大になる系統を選ぶ（決定的簡略化。指定できる系統の候補は自分のフィールドのスピリットが持つ系統＝2026-09-16ユーザー確認）
  | { type: "opponentLifeToReserve"; count: number } // お互いのフィールド（スピリット+ネクサス）+リザーブ+トラッシュのコア合計を比べ、多かった方の持ち主が、少ない方と同じ合計になるまでボイドへ置く（同数なら不発）。取り先はその持ち主が選ぶ（coresDownToLimitへ、多かった方をsides、少なかった方の合計をlimitとして委譲。CHOOSER_RULES.md）
 

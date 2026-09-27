@@ -136,7 +136,7 @@ console.log("=== BS15-008 パラディン・ドラゴン：お互い1色ずつ�
     const oppPurple = createInstance("BS01-030", s.turn, 1)
     s.players.p2.field.spirits.push(oppRed1, oppRed2, oppPurple)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", paladin, { type: "destroyAllExceptChosenColors" })
+    resolveAction(s, "p1", paladin, { type: "declare", what: "color", from: "spirits", chooser: "each", then: { type: "destroy", count: 1, all: true, anySide: true, filter: { declared: "except" } } })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.instanceId === ownRed.instanceId) ||
             s.players.p1.field.spirits.some((sp) => sp.instanceId === paladin.instanceId),

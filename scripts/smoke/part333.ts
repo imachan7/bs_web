@@ -230,7 +230,7 @@ console.log("=== BS15-035 軍神機メガ・テュール：相手が1色指定�
     const oppPurple = createInstance("BS01-030", s.turn, 1)
     s.players.p2.field.spirits.push(oppRed1, oppRed2, oppPurple)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", mega, { type: "returnFieldExceptOpponentChosenColor" })
+    resolveAction(s, "p1", mega, { type: "declare", what: "color", from: "spirits", chooser: "opponent", then: { type: "returnToHand", count: 1, all: true, filter: { declared: "except" } } })
     assert(
         s.players.p2.field.spirits.some((sp) => sp.instanceId === oppRed1.instanceId) &&
             s.players.p2.field.spirits.some((sp) => sp.instanceId === oppRed2.instanceId),
