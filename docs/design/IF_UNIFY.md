@@ -24,6 +24,7 @@ REFACTOR_PLAN §2.2 の4行目。直前の結果・いまの盤面・誘発の�
 **移行済み（器 PR 2）**：destroyThenMillByCost・millThenDestroySameCost・summonBurstCardFreeIfDestroyedColor、と BS11-045（millOpponentThenReact は BS11-060 だけが残る）。
 **移行済み（器 PR 3）**：drawPerHandDiscard・discardHandNexusesThenDraw・discardHandAnyThenCoreRemove、と BS04-094（coreRemovePerHandDiscard は BS04-022 だけが残る）。
 **移行済み（器 PR 4）**：discardOpponentTegamotoDestroyPer・discardOpponentTegamotoVoidCoresPer。
+**移行済み（器 PR 5）**：destroyOwnFreelyThenDraw・sacrificeOwnNexusesThenEnemyDestroysOwn。
 残りは器 PR 2（event・lastCost・sameAsLast・破棄／破壊の記録）の後。destroyOwnByFamilyThenWipeEnemy（BS04-108）は条件がマジックの condition 側に既にあり、`if` ではなく「Aして、B」の同時破壊なので M2 から外す。
 
 | 旧 type | カード | 書き方（案） |

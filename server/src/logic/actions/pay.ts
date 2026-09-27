@@ -63,7 +63,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     timedEffect: (_state, _owner, self, action) => action.type === "timedEffect" && action.target === "self" && self !== null,
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
-        return destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
+        return action.count === "any" || destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
     returnToHand: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "returnToHand") return false
@@ -75,7 +75,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     destroyNexus: (state, owner, _self, action, _srcColors, srcType) => {
         if (action.type !== "destroyNexus") return false
-        return destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count
+        return action.count === "any" || destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count
     },
     coreRemove: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "coreRemove") return false

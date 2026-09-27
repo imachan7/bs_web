@@ -3565,7 +3565,20 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyOwnFreelyThenDraw"
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "side": "own",
+              "count": "any",
+              "suppressOnDestroy": true
+            },
+            {
+              "type": "draw",
+              "count": 1,
+              "countCounter": "lastMoved"
+            }
+          ]
         }
       },
       {

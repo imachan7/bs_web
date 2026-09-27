@@ -8,7 +8,7 @@
 //   BS08-069 ジャッジメントフレア    実効BP最大から破壊 → 相手が1体ずつ選ぶ
 //   BS08-072 マインドブレイク        コア最多から5個    → 前半は支払う本人、後半は相手が選ぶ
 //   BS04-114 タイダルタイド          実効BP最小から破壊 → 相手が1体ずつ選ぶ（ほぼ等価だが選択は本人へ）
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -96,22 +96,26 @@ console.log("=== ジャッジメントフレア：非対話では相手が差し
     assert(!alive(s, "p2", weak), "実効BP最小が破壊される")
 }
 
-console.log("=== タイダルタイド：破壊する相手スピリットは相手が選ぶ ===")
+console.log("=== タイダルタイド：自分のネクサスを好きなだけ破壊し、破壊する相手スピリットは相手が選ぶ ===")
 {
-    assert(
-        usesAction("BS04-114", "sacrificeOwnNexusesThenEnemyDestroysOwn"),
-        "BS04-114 が sacrificeOwnNexusesThenEnemyDestroysOwn を使っている",
-    )
+    assert(usesAction("BS04-114", "destroyNexus"), "BS04-114 が destroyNexus（好きなだけ）を使っている")
 
     const s = base("tidal-chooser", true)
-    s.players.p1.field.nexuses.push(createInstance("BS06-080", s.turn, 0))
-    s.players.p1.field.nexuses.push(createInstance("BS06-080", s.turn, 0))
+    const n1 = createInstance("BS06-080", s.turn, 0)
+    const n2 = createInstance("BS06-080", s.turn, 0)
+    const n3 = createInstance("BS06-080", s.turn, 0)
+    s.players.p1.field.nexuses.push(n1, n2, n3)
     const keep = put(s, "p2", "BS01-020", 1)
     const giveA = put(s, "p2", "BS01-003", 1)
     const giveB = put(s, "p2", "BS01-002", 1)
 
-    resolveAction(s, "p1", null, { type: "sacrificeOwnNexusesThenEnemyDestroysOwn" })
-    assert(s.players.p1.field.nexuses.length === 0, "自分のネクサスはすべて破壊される")
+    const main = getCard("BS04-114").effects.find((e) => e.id === "BS04-114-e1")
+    if (main?.kind === "magic") resolveAction(s, "p1", null, main.action)
+    assert(s.pendingChoice?.pid === "p1", "破壊する自分のネクサスは自分が選ぶ")
+    act(s, "p1", { type: "resolveChoice", instanceId: n1.instanceId })
+    act(s, "p1", { type: "resolveChoice", instanceId: n2.instanceId })
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "2つ選んで確定する")
+    assert(s.players.p1.field.nexuses.length === 1, "選んだ2つだけ破壊され、1つは残る（好きなだけ）")
     assert(s.pendingChoice?.pid === "p2", "破壊する1体を選ぶのは相手")
     assert(s.pendingChoice?.actorPid === "p1", "解決は発生源の持ち主の効果として行う")
 

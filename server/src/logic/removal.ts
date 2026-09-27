@@ -275,7 +275,7 @@ export function destroySpirit(
     // ③が解決した時点でこの破壊は無かったことになり、列の残りは
     // requiresPendingDestructionOf のガードで空振りする
     const extraItems: FieldEventExtraItem[] = []
-    if (cause === "destroy" && !options?.suppressOnDestroy && hasOwnDestroyTrigger(inst)) {
+    if (cause === "destroy" && !options?.suppressOnDestroy && !context?.suppressOnDestroy && hasOwnDestroyTrigger(inst)) {
         extraItems.push({
             key: `selfOnDestroy:${inst.instanceId}`,
             label: `${player.name}の${master.name}（破壊時）`,
