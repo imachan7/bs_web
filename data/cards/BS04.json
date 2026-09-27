@@ -5971,10 +5971,7 @@
     "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     },
-    "action": {
-     "type": "returnBothSidesToDeckBottom",
-     "count": 2
-    }
+    "action": {"type": "pay", "cost": {"type": "returnToDeckBottom", "side": "own", "count": 2}, "then": {"type": "returnToDeckBottom", "count": 2}}
    },
    {
     "id": "BS04-104-e2",

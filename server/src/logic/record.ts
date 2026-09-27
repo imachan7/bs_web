@@ -42,3 +42,12 @@ export function recordCores(state: GameState, n: number, scope: string = current
 export function lastCoresCount(state: GameState): number {
     return probe ?? state.lastCores?.[currentRecordScope(state)] ?? 0
 }
+
+// 直前に疲労させた個体（カードは動かないので lastMoved とは別に instanceId で持つ）
+export function recordTargets(state: GameState, instanceIds: string[], scope: string = currentRecordScope(state)): void {
+    state.lastTargets = { ...(state.lastTargets ?? {}), [scope]: instanceIds }
+}
+
+export function lastTargetsOf(state: GameState): string[] {
+    return state.lastTargets?.[currentRecordScope(state)] ?? []
+}

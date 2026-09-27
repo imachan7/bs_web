@@ -7171,9 +7171,7 @@
     "id": "e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "bpBuffByExhaustOwn"
-    }
+    "action": {"type": "pay", "cost": {"type": "exhaust", "side": "own", "count": 1}, "then": {"type": "bpBuff", "amount": 1, "amountCounter": "lastBp", "anySide": true}}
    }
   ]
  },

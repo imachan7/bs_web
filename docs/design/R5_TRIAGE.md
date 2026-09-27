@@ -30,7 +30,10 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #199 | G-existingContent の一部 | `protectLifeByCostThisTurn`・`grantBlockRequiresMagicDiscardThisTurn`・`setOpponentBpAsThisBattle` → `timedEffect` |
 | #200 | G-refire・G-borrow | `refireSummonEffect`・`fireOwnDestroyTriggers`・`borrowDestroyEffect`・`borrowSummonEffect` → `fireEffect` |
 | #201 | G-millUntil の2種 | `millUntilFamilyToHand`・`millUntilCostSpiritSummonFree` → `mill{until}`＋`takeLast` |
-| （この PR） | G-matchCount の残り・M2 の BS04-022 | `destroyDownToOwnCount` → `destroy{countCounter: minus}`、`coreRemovePerHandDiscard` → `pay`＋`removeCores{targetsCounter}` |
+| #202 | G-matchCount の残り・M2 の BS04-022 | `destroyDownToOwnCount` → `destroy{countCounter: minus}`、`coreRemovePerHandDiscard` → `pay`＋`removeCores{targetsCounter}` |
+| #203 | G-pay（手元・自分を疲労・手札破棄） | `handMagicToTegamotoDraw`・`revealHandMagicToTegamotoDraw` → `pay`＋`toTegamoto`＋`draw`、`discardHandNexusToVoidCoreSelf`・`exhaustSelfThenLendThisTurn` → `pay` |
+| #204 | G-pay（コアを払う） | `coreRemoveByPayingSelfCores`・`coreTradeToOpponentTrash` → `pay`＋`removeCores{count any}`＋カウンタ `lastCores`、`voidCoresAndMillByCost` → `sequence`＋`mill{countCounter lastCost}` |
+| （この PR） | G-pay（戻す・疲労させた BP） | `returnBothSidesToDeckBottom` → `pay`＋`returnToDeckBottom{side,count}`、`returnToHandCostBudget` → `returnToHand{costBudget}`、`bpBuffByExhaustOwn` → `exhaust`＋`bpBuff{amountCounter lastBp}` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
@@ -204,4 +207,5 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | G-borrow / G-millUntil / G-perCost / G-exceptColor | 各3 |
 | G-matchCount / G-familyChoice / G-refire / G-coresToVoid / G-refreshBlock | 各2〜3 |
 | G-sequence / G-compose | 各1 |
+- G-pay で残したもの（09-27）：`unblockedByVoidSelfCore`（虚獣帝スフィン・クロス。バトル中の「ブロックされなかったものとして扱う」の部品と一緒に）
 - 残したもの（09-27）：`borrowCombinedAttackEffect`（イリテバン。借りた効果を自分の効果として発揮・自分を選べるのは2回まで）、`millUntilMagicCastFree`（マジックの使用と一緒に）、`millOpponentThenReact`（破棄したカードの色を継続効果へ渡す部品が要る）
