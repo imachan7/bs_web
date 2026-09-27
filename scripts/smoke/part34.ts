@@ -195,7 +195,7 @@ console.log("=== BS03-139 セイムタイアード：疲労数が同じになる
     const enemyHigh = createInstance("BS03-054", s.turn, 3) // BP4000
     s.players.p1.field.spirits.push(mine)
     s.players.p2.field.spirits.push(enemyLow, enemyHigh)
-    resolveAction(s, "p1", null, { type: "exhaustOpponentToMatch" })
+    resolveAction(s, "p1", null, { type: "exhaust", count: 1, countCounter: { minus: ["ownExhausted", "exhaustedEnemies"] } })
     assert(enemyHigh.isRested, "実効BP最大(enemyHigh)が疲労させられた")
     assert(!enemyLow.isRested, "差分は1体分のためenemyLowはそのまま")
 }
@@ -214,6 +214,6 @@ console.log("=== BS03-139 セイムタイアード：自分の疲労数が相手
     const enemyReady = createInstance("BS03-054", s.turn, 3)
     s.players.p1.field.spirits.push(mine)
     s.players.p2.field.spirits.push(enemyRested, enemyReady)
-    resolveAction(s, "p1", null, { type: "exhaustOpponentToMatch" })
+    resolveAction(s, "p1", null, { type: "exhaust", count: 1, countCounter: { minus: ["ownExhausted", "exhaustedEnemies"] } })
     assert(!enemyReady.isRested, "自分の疲労数が相手以下のため発動しなかった")
 }

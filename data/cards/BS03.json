@@ -7563,9 +7563,7 @@
     "id": "e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "exhaustOpponentToMatch"
-    }
+    "action": {"type": "exhaust", "count": 1, "countCounter": {"minus": ["ownExhausted", "exhaustedEnemies"]}}
    }
   ]
  },

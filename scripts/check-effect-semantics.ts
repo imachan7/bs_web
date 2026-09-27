@@ -726,7 +726,6 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
     "destroyDownToOwnCount",
     // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）
-    "opponentCoresToVoidByTotal",
 ])
 
 // 「相手は」と書かれていても、**選択そのものは通常の手順に委ねられる**kind。
