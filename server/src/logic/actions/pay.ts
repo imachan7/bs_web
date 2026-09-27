@@ -37,7 +37,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "discardSelfChoose") return false
         if (!canDiscardHand(state, owner)) return false
         const count = state.players[owner].hand.filter((cardId) => discardSelfChooseEligible(cardId, action)).length
-        return count >= action.count
+        return action.count === "any" || count >= action.count
     },
     draw: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "draw") return false

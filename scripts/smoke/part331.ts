@@ -238,7 +238,8 @@ console.log("=== BS15-076 妖華吸血爪：手札を好きなだけ破棄し、
     oppSpirit.cores = 3
     s.players.p2.field.spirits.push(oppSpirit)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "discardHandAnyThenCoreRemove" })
+    const flash = getCard("BS15-076").effects.find((e) => e.id === "BS15-076-e2")
+    if (flash?.kind === "magic") resolveAction(s, "p1", null, flash.action)
     assert(s.players.p1.hand.length === 0, "非対話では手札をすべて破棄する（決定的簡略化）")
     assert(oppSpirit.cores === 1, "破棄した2枚ぶんコア2個をトラッシュへ")
 }

@@ -193,13 +193,14 @@ console.log("=== BS08勇者フェニックスペンタンLv2：action refreshSel
     assert(!pentan1.isRested, "このスピリット自身は回復する")
 }
 
-console.log("=== BS08堕天使ミカファールLv1-3：action drawPerHandDiscard ===")
+console.log("=== BS08堕天使ミカファールLv1-3：手札を好きなだけ破棄し、1枚につきドロー ===")
 {
     const s = base("mikafael-draw-per-discard")
     s.players.p1.hand = ["BS01-001", "BS01-002", "BS01-003"]
     const deckBefore = s.players.p1.deck.length
     const trashBefore = s.players.p1.trashCards.length
-    resolveAction(s, "p1", null, { type: "drawPerHandDiscard" }, undefined, undefined, "spirit")
+    const e1 = getCard("BS08-X33").effects.find((e) => e.id === "BS08-X33-e1")
+    if (e1?.kind === "triggered") resolveAction(s, "p1", null, e1.action, undefined, undefined, "spirit")
     assert(s.players.p1.trashCards.length === trashBefore + 3, "破棄した3枚はトラッシュへ")
     assert(s.players.p1.hand.length === 3, "破棄した枚数ぶんドローする（3枚）")
     assert(s.players.p1.deck.length === deckBefore - 3, "デッキが3枚減る")

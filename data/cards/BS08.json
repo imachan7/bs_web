@@ -5847,7 +5847,18 @@
      3
     ],
     "action": {
-     "type": "drawPerHandDiscard"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discardSelfChoose",
+       "count": "any"
+      },
+      {
+       "type": "draw",
+       "count": 1,
+       "countCounter": "lastMoved"
+      }
+     ]
     },
     "optional": false
    },

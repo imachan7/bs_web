@@ -127,8 +127,7 @@ export type EffectAction =
  | { type: "unblockedByVoidSelfCore" } // trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。selfが現在のバトルのアタッカーで、かつブロッカーがいるときだけ、selfのコア1個をボイドに置くことでBPを比べずに「ブロックされなかった」ものとして扱う（その場でresolveLifeDamageする＝ライフに通る。ブロッカーは疲労状態のまま残り回復しない）。「〜することで」は任意コストなので、カード側でoptional:trueを立てて確認を出す。自身がアタッカーでない・ブロッカーがいない・コアが無いときは何も起きない
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、そのスピリットが持つ【氷壁】の色（iceWallColorsOfで判定）と同じ色の相手のスピリットからブロックされないようにする（期間つき効果の一覧に指定時点の色で記録する。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）。複数なら選ぶ
  | { type: "discardHandNexusToVoidCoreSelf"; count: number } // 自分の手札のネクサスカード1枚を破棄することで、ボイドからコアcount個をこのスピリット上に置く。手札にネクサスが無ければ不発
- | { type: "discardHandNexusesThenDraw" } // 自分の手札にあるネクサスカードをすべて破棄し、破棄した枚数ぶんデッキから引く（「好きなだけ」を全部破棄に決定的簡略化）
- | { type: "discardSelfChoose"; count: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[] } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）
+ | { type: "discardSelfChoose"; count: number | "any"; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; discarded?: string[]; awaitingSkip?: true } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
  | { type: "pay"; cost: EffectAction; then: EffectAction } // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに解決できるときだけ発揮する（片方でも欠けたら何もしない）。対応type一覧・判定はactions/pay.tsのPAYABLE_TYPES
  | { type: "grantBlockRequiresMagicDiscardThisTurn" } // このターンの間、このスピリットがアタックしたとき、相手は手札のマジックカード1枚を破棄しなければブロックできない、という制約を自分自身に付与する（kind:"triggered" trigger:"onSummon"専用。CardInstance.blockRequiresMagicDiscardGrantedTurnに付与ターンを記録し、GameEngine.doAttackが同ターンかを見てstate.battle.blockCostDiscardMagicへ橋渡しする）
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない。ログのみ）。破棄するカードはCOST_MODEL.md §2どおりinteractiveTargets時は1枚ずつ持ち主が選び、自動選択は手札末尾から機械的に選ぶ（discardSelfChooseと同じ選び方）。
@@ -245,7 +244,6 @@ export type EffectAction =
  | { type: "discardOpponentTegamotoDestroyPer" } // 相手の手元（tegamoto）にあるカードすべてを相手のトラッシュへ破棄し、その枚数を既存のdestroyアクション（count=枚数、maxBpなし=BP不問）へ委譲して相手スピリットを破壊する（interactive時の連続対象選択・装甲/免疫判定はdestroy側の経路をそのまま再利用）。相手の手元が0枚ならno-op。透明人間エクリア
  | { type: "discardOpponentTegamotoVoidCoresPer" } // discardOpponentTegamotoDestroyPerの兄弟。相手の手元（tegamoto）にあるカードすべてを相手のトラッシュへ破棄し、破棄した枚数ぶん、相手のフィールド（スピリット/ネクサス上）またはリザーブから**ソウルコア以外の**コアをボイドへ置く（ソウルコア未実装のいまはリザーブ・フィールドとも通常コアのみなので絞り込み不要。リザーブ優先で取る）。相手の手元が0枚ならno-op
  | { type: "coreRemovePerHandDiscard" } // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき相手のスピリット1体（実効BP最大を自動選択、同一解決内で既に選んだ個体は除外して異なる個体へ広げる）のコアを1個、相手のトラッシュへ置く。自動選択（interactiveTargetsが無い側）は手札をすべて破棄し、破棄枚数ぶん一括でコア除去する（決定的簡略化）
- | { type: "drawPerHandDiscard"; discardedSoFar?: number; awaitingSkip?: true } // 自分の手札を好きなだけ破棄し、破棄したカード1枚につき自分がデッキから1枚ドローする。
  // **破棄をすべて済ませてからまとめてドローする**。1枚破棄するたびにドローすると、引いたカードをまた破棄できてデッキが尽きるまで回せてしまう（2026-08-10 に実対戦で発覚）。
  // discardedSoFar / awaitingSkip は解決の途中経過を持ち回るための内部フィールドで、cards.json には書かない（awaitingSkip は「スキップされて戻ってきた＝破棄終了」の目印）
  | { type: "bpBuffAllByBofuCount"; amountPer: number } // 自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数（静的keywordのcount。bofuCountBonusの加算を含む）×amountPerだけBP+（ターン終了時まで。【暴風】を持たない個体は対象外。bpBuffAllByArmorColorsの暴風版）
@@ -305,7 +303,6 @@ export type EffectAction =
  | { type: "returnFieldExceptOpponentChosenColor"; chosenOption?: string } // destroyFieldExceptOpponentChosenColorの手札バウンス版：**相手が**相手自身のスピリットの色から1色指定し、指定外の色を1つでも持つ**相手のスピリット/ブレイヴすべて**（ネクサスは対象外）を持ち主の手札に戻す（instColorsで判定＝合体スピリットはホスト+ブレイヴの合成色を1体として見るので、該当すれば合体スピリットごと戻る）。相手のスピリットが1体もいなければ色を指定できず不発。実対戦ではrequestChoiceのchooserPidで相手に選ばせる（CHOOSER_RULES.md）。自動選択は相手視点で戻る数が最小になる色を選ぶ。chosenOptionは選択の再入用内部専用（Q3546：多色は指定色を含んでいても他の色を持てば戻る）
  | { type: "familyChoiceThenBpBuffAll"; amount: number; uncombinedOnly?: true } // 自分のフィールドのスピリットが持つ系統（配列でなく個々の系統名。重複除く）から効果の使用者が1つ指定し、このターンの間、指定した系統を持つ自分のスピリットすべてをBP+amountする（uncombinedOnly指定時は合体していないスピリットだけが対象。候補が無ければ不発）。自動選択は該当数が最大になる系統を選ぶ（決定的簡略化。指定できる系統の候補は自分のフィールドのスピリットが持つ系統＝2026-09-16ユーザー確認）
  | { type: "opponentLifeToReserve"; count: number } // お互いのフィールド（スピリット+ネクサス）+リザーブ+トラッシュのコア合計を比べ、多かった方の持ち主が、少ない方と同じ合計になるまでボイドへ置く（同数なら不発）。取り先はその持ち主が選ぶ（coresDownToLimitへ、多かった方をsides、少なかった方の合計をlimitとして委譲。CHOOSER_RULES.md）
- | { type: "discardHandAnyThenCoreRemove" } // 自分の手札を好きなだけ破棄する（0枚から選べる。選ばなければ終了）。破棄した1枚につき、相手のスピリット1体のコア1個を相手のトラッシュに置く（同じスピリットを何度選んでもよい＝2026-09-16ユーザー確認。実装は毎回coreRemoveの通常の対象選択に委譲するため、同じ対象を選び続けることも別の対象を選ぶことも両方できる）。自動選択は手札をすべて破棄し、その枚数ぶんまとめて1体からコアを取り除く（決定的簡略化）
 
 // selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数、{ ownNameIncludes: string } は

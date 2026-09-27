@@ -7895,7 +7895,19 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "discardHandNexusesThenDraw"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discardSelfChoose",
+       "count": "any",
+       "cardType": "nexus"
+      },
+      {
+       "type": "draw",
+       "count": 1,
+       "countCounter": "lastMoved"
+      }
+     ]
     }
    },
    {

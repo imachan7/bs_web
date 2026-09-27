@@ -5499,7 +5499,23 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "coreRemovePerHandDiscard"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discardSelfChoose",
+       "count": "any"
+      },
+      {
+       "type": "removeCores",
+       "from": [
+        "spirit"
+       ],
+       "to": "trash",
+       "target": "spread",
+       "count": 1,
+       "countCounter": "lastMoved"
+      }
+     ]
     }
    }
   ]
