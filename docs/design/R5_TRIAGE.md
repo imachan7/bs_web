@@ -24,7 +24,10 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #192・#193 | 「指定する」 | `destroyAllByChosenCost`・`exhaustAllByColor`・`refreshByFamilyAuto`・`destroyAllExceptChosenColors`・`returnFieldExceptOpponentChosenColor` → `declare`（DECLARE_UNIFY） |
 | #194 | 「指定する」のネクサス3種＋フレイム・エルク | `destroyAllNexusesExceptChosenColors`・`destroyFieldExceptOpponentChosenColor`・`destroyAllNexusesWithCores` と `destroyNexus.chooseColor`・`colorFilter` → `destroyNexus{filter}`（`minCores` 軸） |
 | #195 | 「指定する」の系統2種 | `familyChoiceThenBpBuffAll`・`drawPerChosenFamily` → `declare`＋`timedEffect`／カウンタ `ownSpirits` |
-| （この PR） | 「指定する」の継続効果3種 | `colorChoiceLendThisTurn`・`refreshWhenBlockedByChosenColorThisTurn` → `declare`＋`timedEffect` |
+| #196 | 「指定する」の継続効果3種 | `colorChoiceLendThisTurn`・`refreshWhenBlockedByChosenColorThisTurn` → `declare`＋`timedEffect` |
+| #197 | G-matchCount・G-coresToVoid の一部 | `exhaustOpponentToMatch`・`opponentCoresToVoidByTotal` → カウンタ `minus`・`opponentCoresTotal` |
+| #198 | G-perCost | `destroyCostsEachOne`・`destroyOnePerCost`・`destroySpiritBraveNexusEach` → `sequence` |
+| （この PR） | G-existingContent の一部 | `protectLifeByCostThisTurn`・`grantBlockRequiresMagicDiscardThisTurn`・`setOpponentBpAsThisBattle` → `timedEffect` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
@@ -32,6 +35,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 - トラッシュ→手札へ：`recoverNexusFromTrash`。pay へ：`revealHandMagicToTegamotoDraw`
 - ルールの確認待ち：`skipBpCompareThenRefreshOne`（BS06-109 と同じ文面で実装が違う）、`destroyOwnByFamilyThenWipeEnemy`（同時か順か）、`returnOneThenRefreshIfMaxCost`（戻したコストの見方）
 - 残す候補（判断が要る）：`mutualKeepChoice`・`bpBuffAllByBofuCount`・`destroyByOwnFamilyCostSet`
+- 09-27 に回したもの：`destroyDownToOwnCount`（旧実装は1体破壊するたびに体数を数え直す。破壊されても場に残るときの読みを確かめてから）。G-refire・G-borrow（「効果を発揮させる」1つにまとめる設計が要る。`borrowSummonEffect` は配置と条件まで抱えている）。G-existingContent の残り6種は、対象の選び方が timedEffect に無い（バトル中のアタッカー・ブレイヴの合体先・相手のネクサスすべて・自分か相手の1体・【氷壁】の色）ので、M8 の決定どおり入口として残す
 
 ## 0. 前提整理：timedEffect / PlayerRuleDef の中身（15種、対象外）
 

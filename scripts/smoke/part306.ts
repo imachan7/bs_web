@@ -109,7 +109,7 @@ console.log("=== 器BU：BS13-047召喚時「このターンの間、アタッ�
     const blocker = createInstance(costLE3Spirit, s.turn, 1)
     s.players.p2.field.spirits.push(blocker)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", attacker, { type: "grantBlockRequiresMagicDiscardThisTurn" })
+    resolveAction(s, "p1", attacker, { type: "timedEffect", target: "self", duration: "turn", content: [{ type: "blockCost", cost: "discardMagic", count: 1 }] })
     act(s, "p1", { type: "nextPhase" })
 
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "召喚時に付与された制約は、このターンの以後のアタックにも効く")

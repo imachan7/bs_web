@@ -60,8 +60,9 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
-    // いまは「このスピリットをBP+」（target:"self"）だけを後半に置ける。他の形を置くなら判定を足す
-    timedEffect: (_state, _owner, self, action) => action.type === "timedEffect" && action.target === "self" && self !== null,
+    // 自分自身に置くものは自分が場にいること。プレイヤーに掛ける制約（playerRule）は対象を要らないので常に成立
+    timedEffect: (_state, _owner, self, action) =>
+        action.type === "timedEffect" && ((action.target === "self" && self !== null) || action.content.every((c) => c.type === "playerRule")),
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
         return action.count === "any" || destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
@@ -260,8 +261,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "colorlessSelfThisBattle") return false
         return self !== null
     },
-    // protectLifeByCostThisTurn：対象を要求しない（playerRuleを記録するだけ）ので常に成立
-    protectLifeByCostThisTurn: (_state, _owner, _self, action) => action.type === "protectLifeByCostThisTurn",
     // negateLifeDamageFromTarget：印を置く相手（対象未指定なら pickEnemyByBp の自動選択と同じ候補）が存在する
     negateLifeDamageFromTarget: (state, owner, _self, action, srcColors, srcType) => {
         if (action.type !== "negateLifeDamageFromTarget") return false

@@ -6005,16 +6005,7 @@
     "cost": {
      "reserveToTrash": 2
     },
-    "action": {
-     "type": "setOpponentBpAsThisBattle",
-     "levels": [
-      1,
-      2,
-      3,
-      4
-     ],
-     "amount": 2000
-    }
+    "action": {"type": "timedEffect", "count": 1, "duration": "battle", "content": [{"type": "bpAs", "levels": [1, 2, 3, 4], "amount": 2000}]}
    }
   ]
  },

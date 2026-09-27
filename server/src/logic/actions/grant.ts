@@ -185,12 +185,6 @@ const addSymbolPermanentHandler: ActionHandler<"addSymbolPermanent"> = (ctx, act
     return
 }
 
-const protectLifeByCostThisTurnHandler: ActionHandler<"protectLifeByCostThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-        recordPlayerRule(state, owner, { type: "noLifeDamageByCostForPid", maxCost: action.maxCost })
-        log(state, `${sourceName}：このターンの間、コスト${action.maxCost}以下のスピリットのアタックでは${state.players[owner].name}のライフは減らされない。`)
-        return
-}
 
 // BS12-055ゲッコ・グライダー『このブレイヴの召喚時』：このターンの間、このブレイヴといま合体している
 // ホストはブロックされない。selfはブレイヴ自身のインスタンス（毎回いまのホストをshared/block.tsが引き直す）
@@ -460,13 +454,6 @@ const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThis
     )
 }
 
-// このターンの間、このスピリットをブロックするには、相手は手札のマジック1枚を破棄しなければならない
-const grantBlockRequiresMagicDiscardThisTurnHandler: ActionHandler<"grantBlockRequiresMagicDiscardThisTurn"> = (ctx) => {
-    const { state, owner, self, sourceName } = ctx
-    if (!self) return
-    recordTimed(state, { content: [{ type: "blockCost", cost: "discardMagic", count: 1 }], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
-    log(state, `${sourceName}：このターンの間、このスピリットがアタックしたとき、相手はマジック1枚を破棄しなければブロックできない。`)
-}
 
 
 
@@ -516,8 +503,6 @@ const handlers = {
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     addSymbolPermanent: addSymbolPermanentHandler,
     requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
-    grantBlockRequiresMagicDiscardThisTurn: grantBlockRequiresMagicDiscardThisTurnHandler,
-    protectLifeByCostThisTurn: protectLifeByCostThisTurnHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,

@@ -1844,43 +1844,6 @@ const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnbloc
     log(state, `${sourceName}：ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。`)
 }
 
-// BS15-X05光の覇王ルナアーク・カグヤ：相手のスピリット1体に、このバトルの間
-// 「currentLevelがlevelsに含まれるとき基礎BPをamountとして扱う」印を付ける
-const setOpponentBpAsThisBattleHandler: ActionHandler<"setOpponentBpAsThisBattle"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    if (targetInstanceId !== undefined) {
-        const found = state.players[opp].field.spirits.find((s) => s.instanceId === targetInstanceId)
-        if (!found) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: found.instanceId }, until: "battle", ownerPid: owner })
-        log(state, `${getCard(found.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
-        return
-    }
-    const candidates: CardInstance[] = pickEnemyCandidates(state, opp, Infinity, undefined, srcColors, srcType)
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    if (state.interactiveTargets && candidates.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：対象の相手スピリットを選んでください`,
-            candidates.map((s: CardInstance) => s.instanceId),
-            false,
-            { type: "setOpponentBpAsThisBattle", levels: action.levels, amount: action.amount },
-            self,
-        )
-        return
-    }
-    const chosen = candidates.reduce((best: CardInstance, s: CardInstance) =>
-        effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
-    )
-    recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "battle", ownerPid: owner })
-    log(state, `${getCard(chosen.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
-}
 
 // 対象はフィールドイベントが渡す targetInstanceId（BS12-037 はアタックしたスピリット、BS12-058 はブロックしている相手）
 const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> = (ctx, action) => {
@@ -1947,7 +1910,6 @@ const handlers = {
     endBattle: endBattleHandler,
     treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
     unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
-    setOpponentBpAsThisBattle: setOpponentBpAsThisBattleHandler,
     treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     discardBothHands: discardBothHandsHandler,

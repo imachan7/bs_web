@@ -5977,9 +5977,7 @@
      3
     ],
     "optional": false,
-    "action": {
-     "type": "grantBlockRequiresMagicDiscardThisTurn"
-    }
+    "action": {"type": "timedEffect", "target": "self", "duration": "turn", "content": [{"type": "blockCost", "cost": "discardMagic", "count": 1}]}
    },
    {
     "id": "BS13-047-e3",

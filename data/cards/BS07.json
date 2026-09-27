@@ -4179,10 +4179,7 @@
        "family": "楽族"
       }
      },
-     "then": {
-      "type": "protectLifeByCostThisTurn",
-      "maxCost": 3
-     }
+     "then": {"type": "timedEffect", "content": [{"type": "playerRule", "rule": {"type": "noLifeDamageByCostForPid", "maxCost": 3}}], "duration": "turn", "side": "own"}
     }
    }
   ]

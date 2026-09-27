@@ -13,7 +13,7 @@ type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp", "blockCost", "bpAs"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -24,7 +24,7 @@ function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstanc
 // 強制アタック・トリガー抑止は、既に掛かっている個体もそのまま選べる（2026-09-25 ユーザー確認）
 function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean {
     return action.content.every((c) => {
-        if (c.type === "mustAttack" || c.type === "suppressTrigger" || c.type === "bp") return false
+        if (c.type === "mustAttack" || c.type === "suppressTrigger" || c.type === "bp" || c.type === "bpAs") return false
         if (!isRecorded(c)) return false
         return state.timedEffects.some(
             (r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.until === action.duration && r.content.some((x) => x.type === c.type),
@@ -47,7 +47,9 @@ function contentLabel(action: TimedEffect): string {
     const rested = action.content.some((c) => c.type === "canBlockWhileRested") ? ["疲労状態でもブロックできる"] : []
     const granted = action.content.some((c) => c.type === "grantTrigger") ? ["効果を持つ"] : []
     const keywords = action.content.flatMap((c) => (c.type === "keyword" ? [`【${KEYWORDS[c.keyword].label}】を持つ`] : []))
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords].join("、")
+    const bpAs = action.content.flatMap((c) => (c.type === "bpAs" ? [`Lv${c.levels.join("/")}のBPを${c.amount}として扱う`] : []))
+    const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords, ...bpAs, ...blockCost].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -704,6 +706,11 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (!action.all && action.content.some((c) => c.type === "keyword")) {
         placeKeyword(ctx, action)
+        return
+    }
+    if (action.target === "self" && !action.content.some((c) => c.type === "bp")) {
+        if (!self) return
+        log(state, apply(state, owner, self, action))
         return
     }
     if (action.target === "self") {
