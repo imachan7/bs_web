@@ -119,9 +119,31 @@ console.log("=== 6. BS10-018：nexus:\"also\" 対話時はスピリット/ネク
     assert(nx1.isRested === true, "選んだネクサスが疲労した")
     assert(s.pendingChoice !== null, "残り2回ぶんの選択が続く")
     act(s, "p1", { type: "resolveChoice", instanceId: sp1.instanceId })
-    // 残り候補が1件になると requestChoice が選択を待たず即解決するため、pendingChoiceが立つときだけ答える
-    if (s.pendingChoice) act(s, "p1", { type: "resolveChoice", instanceId: sp2.instanceId })
+    assert(s.pendingChoice?.optional === true, "候補が1つでも「選ばない」を選べるので聞く")
+    act(s, "p1", { type: "resolveChoice", instanceId: sp2.instanceId })
     assert(sp1.isRested && sp2.isRested, "残りのスピリット2体も選んだ順に疲労した")
+}
+
+console.log("=== 7. BS10-018：「3つまで」は0〜3（途中で選ばずに終えたら残りも疲労させない） ===")
+{
+    const s = game("018-also-stop", true)
+    const me = put(s, "p1", KRAKEN.cardId, 1)
+    const sp1 = put(s, "p2", VANILLA, 1)
+    const sp2 = put(s, "p2", VANILLA, 1)
+    const nx1 = putNexus(s, "p2", byName("六分儀天文台").cardId, 0)
+    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also" })
+    act(s, "p1", { type: "resolveChoice", instanceId: sp1.instanceId })
+    act(s, "p1", { type: "resolveChoice" })
+    assert(s.pendingChoice === null, "選ばずに終えたら選択は続かない")
+    assert(sp1.isRested && !sp2.isRested && !nx1.isRested, "選んだ1体だけが疲労した")
+
+    const s2 = game("018-also-zero", true)
+    const me2 = put(s2, "p1", KRAKEN.cardId, 1)
+    const only = put(s2, "p2", VANILLA, 1)
+    resolveAction(s2, "p1", me2, { type: "exhaust", count: 3, nexus: "also" })
+    assert(s2.pendingChoice?.optional === true, "候補が1体だけでも聞く")
+    act(s2, "p1", { type: "resolveChoice" })
+    assert(!only.isRested && s2.pendingChoice === null, "0個を選べる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part425）")

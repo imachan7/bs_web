@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, log, minLevelCores } from "../GameState"
+import { currentLevel, getCard, log, minLevelCores, suspend } from "../GameState"
 import { recordTargets } from "../record"
 import {
     canExhaustNexus,
@@ -350,43 +350,42 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
         return
     }
 
-    // 対話の再入：候補一覧から選ばれた1件（スピリットかネクサスか分からないので両方を探す）
+    // 「◯つまで」は0〜count の好きな数（2026-09-28 ユーザー確認）。対話時は1つ選ぶたびに残りの数で聞き直し、
+    // 選ばずに終えたら残りも疲労させない（再開スタックに残りを積むと、スキップ後にまた聞いてしまう）
+    const askNext = (remaining: number): void => {
+        const candidates = [...spiritCandidates(), ...nexusCandidates()]
+        if (remaining <= 0 || candidates.length === 0) return
+        suspend(state, {
+            pid: owner,
+            kind: "target",
+            prompt: `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
+            candidates: candidates.map((c) => c.instanceId),
+            optional: true,
+            action: { ...action, count: remaining },
+            selfInstanceId: self ? self.instanceId : null,
+        })
+    }
+
     if (targetInstanceId !== undefined) {
         const nexus = nexusCandidates().find((n) => n.instanceId === targetInstanceId)
-        if (nexus) {
-            nexus.isRested = true
-            log(state, exhaustLog(sourceName, getCard(nexus.cardId).name, false))
-            recordTargets(state, [nexus.instanceId])
+        const spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === targetInstanceId)
+        if (nexus) nexus.isRested = true
+        else if (spirit) exhaustSpirit(state, opp, spirit, undefined, owner, srcType)
+        else {
+            log(state, `${sourceName}の疲労付与：対象がいなかった。`)
             return
         }
-        const spirit = spiritCandidates().find((s) => s.instanceId === targetInstanceId)
-        if (spirit) {
-            exhaustSpirit(state, opp, spirit, undefined, owner, srcType)
-            log(state, exhaustLog(sourceName, getCard(spirit.cardId).name, false))
-            recordTargets(state, [spirit.instanceId])
-            return
-        }
-        log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+        const picked = (nexus ?? spirit)!
+        log(state, exhaustLog(sourceName, getCard(picked.cardId).name, false))
+        recordTargets(state, [picked.instanceId])
+        askNext(action.count - 1)
         return
     }
 
     const count = action.count
     if (state.interactiveTargets) {
-        const candidates = [...spiritCandidates(), ...nexusCandidates()]
-        const { count: _c, ...restForChoice } = action
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：疲労させる相手の${label}を選んでください`,
-                candidates,
-                { ...restForChoice, count: 1 },
-                count > 1 ? { ...restForChoice, count: count - 1 } : null,
-            )
-        ) {
-            return
-        }
+        askNext(count)
+        return
     }
     // 非対話：スピリットを実効BP最大から優先し、残り枠をネクサスへ場の並び順で充てる
     let remaining = count
