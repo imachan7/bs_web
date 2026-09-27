@@ -19,3 +19,26 @@ export function recordMoved(state: GameState, cardIds: string[], scope: string =
 export function lastMovedOf(state: GameState): string[] {
     return state.lastMoved?.[currentRecordScope(state)] ?? []
 }
+
+// pay が「好きなだけ払う」の上限を探すときだけ、カウンタ lastMoved／lastCores に仮の値を入れて then を判定する（COST_MODEL §1。2026-09-27 ユーザー確認：後半が解決しきれない数は選べない）
+let probe: number | undefined
+export function withMovedProbe<T>(n: number, f: () => T): T {
+    probe = n
+    try {
+        return f()
+    } finally {
+        probe = undefined
+    }
+}
+
+export function lastMovedCount(state: GameState): number {
+    return probe ?? lastMovedOf(state).length
+}
+
+export function recordCores(state: GameState, n: number, scope: string = currentRecordScope(state)): void {
+    state.lastCores = { ...(state.lastCores ?? {}), [scope]: n }
+}
+
+export function lastCoresCount(state: GameState): number {
+    return probe ?? state.lastCores?.[currentRecordScope(state)] ?? 0
+}

@@ -1,4 +1,5 @@
 // smoke パート29（第三弾 BS03：任意コスト支払い系5枚の構造化）
+import type { EffectAction } from "../../server/src/type"
 // 収録セクション:
 //   - activated + grantKeywordToHandCard: 手札の系統/種別一致カードに神速を一時付与（BS03-033 ビートプリースト）
 //   - triggered optional + selfBuffByHandDiscard: 手札のネクサス1枚破棄でBP+（アタック時=BS03-088／ブロック時=BS03-092）
@@ -208,7 +209,7 @@ console.log("=== BS03-124 ポイズンミスト：min(自分,相手)のリザー
     runTurnStart(s)
     s.players.p1.reserve = 5
     s.players.p2.reserve = 3
-    resolveAction(s, "p1", null, { type: "coreTradeToOpponentTrash" })
+    resolveAction(s, "p1", null, (getCard("BS03-124").effects[0] as { action: EffectAction }).action)
     assert(s.players.p1.reserve === 5 - 3, "自分のリザーブはmin(5,3)=3個減る")
     assert(s.players.p2.reserve === 3 - 3, "相手のリザーブも同数減る")
     assert(s.players.p1.trashCores === 3, "自分のトラッシュへ3個")
@@ -223,7 +224,7 @@ console.log("=== BS03-124 ポイズンミスト：min(自分,相手)のリザー
     runTurnStart(s2)
     s2.players.p1.reserve = 0
     s2.players.p2.reserve = 5
-    resolveAction(s2, "p1", null, { type: "coreTradeToOpponentTrash" })
+    resolveAction(s2, "p1", null, (getCard("BS03-124").effects[0] as { action: EffectAction }).action)
     assert(s2.players.p1.reserve === 0, "自分のリザーブが0のため不発（据え置き）")
     assert(s2.players.p2.reserve === 5, "相手のリザーブも据え置き")
 }

@@ -3757,10 +3757,7 @@
      2
     ],
     "optional": true,
-    "action": {
-     "type": "discardHandNexusToVoidCoreSelf",
-     "count": 1
-    },
+    "action": {"type": "pay", "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "nexus"}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}},
     "id": "BS04-065-e1"
    },
    {
@@ -5508,10 +5505,7 @@
        "from": [
         "spirit"
        ],
-       "to": "trash",
-       "target": "spread",
-       "count": 1,
-       "countCounter": "lastMoved"
+       "to": "trash", "count": 1, "countCounter": "lastMoved"
       }
      ]
     }

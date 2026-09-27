@@ -1,4 +1,5 @@
 // smoke パート289（BS12 バッチ2・紫：新しく足した6つの器を1件ずつ発火させる）
+import type { EffectAction } from "../../server/src/type"
 // K=mutualKeepChoice／T=coresToOpponentReserveGoToTrash／reviveOnDestroy.whileCombined／
 // exhaustImmunityGrant.scope:"self"（ブレイヴの効果も防ぐ）／costMod.ownTrashFamilyCountAtLeast／
 // discardOpponentTegamotoVoidCoresPer／voidCoresFromField／coreRemoveByPayingSelfCores
@@ -150,7 +151,7 @@ console.log("=== §G voidCoresFromField：自分のフィールドのコアを�
     assert(oppSpirit.cores === 5, "コストを払いきれないときは何も起きない（相手側）")
 }
 
-console.log("=== §H coreRemoveByPayingSelfCores：selfのコアを好きなだけ払い、1個につき対象のコアをトラッシュへ ===")
+console.log("=== §H 戦車皇ディルガン（pay＋removeCores any／lastCores）：selfのコアを好きなだけ払い、1個につき対象のコアをトラッシュへ ===")
 {
     const s = game("pay-self-cores")
     s.interactiveTargets = true
@@ -164,11 +165,7 @@ console.log("=== §H coreRemoveByPayingSelfCores：selfのコアを好きなだ�
     attachBrave(s, "p2", target, brave)
     refreshLevelAsOverrides(s)
     const trashBefore = s.players.p1.trashCores
-    resolveAction(s, "p1", dilgan, {
-        type: "coreRemoveByPayingSelfCores",
-        filter: { symbolCount: 2, combined: true },
-        dest: "trash",
-    })
+    resolveAction(s, "p1", dilgan, (getCard(DILGAN).effects[0] as { action: EffectAction }).action)
     assert(s.pendingChoice?.kind === "option" && s.pendingChoice.stepper === true, "支払う数を増減式で選ばせる")
     const err = handleAction(s, "p1", { type: "resolveChoice", option: "2" })
     assert(err === null, "2個払う選択に応答できる")

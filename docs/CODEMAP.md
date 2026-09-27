@@ -564,6 +564,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `currentRecordScope`（fn）
 - `recordMoved`（fn）：scope は書く側が**開始時に控えた**枠を渡す（途中の誘発が recordScope を変えても自分の枠に書くため）
 - `lastMovedOf`（fn）
+- `withMovedProbe`（fn）
+- `lastMovedCount`（fn）
+- `recordCores`（fn）
+- `lastCoresCount`（fn）
 
 ## server/src/logic/removal.ts
 

@@ -799,14 +799,7 @@
           2,
           3
         ],
-        "action": {
-          "type": "coreRemoveByPayingSelfCores",
-          "filter": {
-            "symbolCount": 2,
-            "combined": true
-          },
-          "dest": "trash"
-        }
+        "action": {"type": "pay", "cost": {"type": "removeCores", "side": "own", "target": "self", "count": "any", "to": "trash"}, "then": {"type": "removeCores", "filter": {"symbolCount": 2, "combined": true}, "count": 1, "countCounter": "lastCores", "to": "trash"}}
       },
       {
         "id": "BS12-012-e2",

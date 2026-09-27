@@ -240,58 +240,6 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         return
 }
 
-// BS12-012戦車皇ディルガン『相手のアタックステップ』ステップ開始時：
-// 「このスピリットのコアを好きなだけ自分のトラッシュに置くことで、置いたコア1個につき、
-// filter一致の相手スピリットのコア1個を相手のトラッシュに置く」。
-// selfのコア数（0〜self.cores）をbpBuff.extraPerCoreToTrashと同じ増減式stepperで選ばせ、
-// 支払った数nをcoreRemove（count:n, dest:"trash", filter）へ委譲する（装甲・効果耐性・維持コア割れの判定を1箇所に保つ）
-const coreRemoveByPayingSelfCoresHandler: ActionHandler<"coreRemoveByPayingSelfCores"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenOption } = ctx
-    if (!self) {
-        log(state, `${sourceName}：発生源がいなかった。`)
-        return
-    }
-    // stepperの回答（0〜selfのコア数）が戻ってきた経路
-    if (chosenOption !== undefined) {
-        const n = Number(chosenOption)
-        if (!Number.isFinite(n) || n <= 0) {
-            log(state, `${sourceName}：コアを置かなかった。`)
-            return
-        }
-        self.cores -= n
-        state.players[owner].trashCores += n
-        log(state, `${sourceName}：自分のコア${n}個をトラッシュに置いた。`)
-        if (self.cores < instMinLevelCores(self)) {
-            destroySpirit(state, owner, self.instanceId, "deplete")
-        }
-        ctx.resolve({ type: "coreRemove", count: n, dest: action.dest, ...(action.filter ? { filter: action.filter } : {}) })
-        return
-    }
-    if (self.cores <= 0) {
-        log(state, `${sourceName}：コアが無いため発動しなかった。`)
-        return
-    }
-    if (state.interactiveTargets) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：自分のコアをトラッシュに置く数を選んでください（1個につき対象のコアを1個トラッシュへ）`,
-            [],
-            true,
-            action,
-            self,
-            "option",
-            Array.from({ length: self.cores + 1 }, (_, i) => String(i)),
-            undefined,
-            true,
-        )
-        return
-    }
-    // 非対話時：0個（何もしない）に倒す
-    log(state, `${sourceName}：コアを置かなかった。`)
-    return
-}
-
 const protectBlockerCoresThisBattleHandler: ActionHandler<"protectBlockerCoresThisBattle"> = (ctx) => {
     const { state, owner, sourceName } = ctx
     if (!state.battle) {
@@ -405,53 +353,6 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
         return
 }
 
-const voidCoresAndMillByCostHandler: ActionHandler<"voidCoresAndMillByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
-        // BS05マジックスパナ：familyFilter一致の自分のスピリット1体のコアすべてをボイドに置き、
-        // そのスピリットのコストと同じ枚数だけ相手のデッキをトラッシュへ送る
-        const player = state.players[owner]
-        const candidates = player.field.spirits.filter((s) =>
-            matchesFamilyFilter(state, owner, s, action.familyFilter),
-        )
-        if (candidates.length === 0) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        let target = targetInstanceId
-            ? candidates.find((s) => s.instanceId === targetInstanceId)
-            : undefined
-        if (!target) {
-            if (candidates.length >= 2 && state.interactiveTargets) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コアをボイドに置くスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    action,
-                    self,
-                )
-                return
-            }
-            // 決定的自動選択：コスト最大（破棄枚数を最大化する）。
-            // 複数コストを持つ状態（道化師クラン）では「最大」を定義できないため、
-            // ここと下のミル枚数計算はカード本来のコストのまま比較・参照する（順序付け・値の参照）
-            target = candidates.reduce((best, s) =>
-                getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
-            )
-        }
-        const voided = target.cores
-        const cost = getCard(target.cardId).cost
-        const name = getCard(target.cardId).name
-        target.cores = 0
-        log(state, `${player.name}は${name}のコア${voided}個をボイドに置いた。`)
-        if (voided < instMinLevelCores(target)) {
-            destroySpirit(state, owner, target.instanceId, "deplete")
-        }
-        millDeck(state, opp, cost, owner, srcType ? { sourceType: srcType } : undefined)
-        return
-}
-
 const linkNexusCoresChoiceHandler: ActionHandler<"linkNexusCoresChoice"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // クロスシザース：自分のネクサス1つを指定し、コア数をこのスピリットのコア数と同じものとして扱う
@@ -468,58 +369,6 @@ const linkNexusCoresChoiceHandler: ActionHandler<"linkNexusCoresChoice"> = (ctx,
         log(
             state,
             `${sourceName}：${getCard(nexus.cardId).name}のコア数は、このスピリットのコア数と同じものとして扱われる。`,
-        )
-        return
-}
-
-const coreTradeToOpponentTrashHandler: ActionHandler<"coreTradeToOpponentTrash"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 自分のリザーブのコアをX個自分のトラッシュへ、同数だけ相手のリザーブから相手のトラッシュへ
-        const player = state.players[owner]
-        const opponent = state.players[opp]
-        if (chosenOption !== undefined) {
-            const n = parseInt(chosenOption, 10)
-            if (!Number.isFinite(n) || n <= 0) return
-            const capped = Math.min(n, player.reserve, opponent.reserve)
-            if (capped <= 0) return
-            player.reserve -= capped
-            player.trashCores += capped
-            opponent.reserve -= capped
-            opponent.trashCores += capped
-            log(
-                state,
-                `${player.name}はリザーブのコア${capped}個をトラッシュへ置き、${opponent.name}のリザーブのコア${capped}個も相手のトラッシュへ置かれた。`,
-            )
-            return
-        }
-        const maxAmount = Math.min(player.reserve, opponent.reserve)
-        if (maxAmount <= 0) {
-            log(state, `${sourceName}：お互いのリザーブが不足しており実行できなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            const options = Array.from({ length: maxAmount }, (_, i) => `${i + 1}個`)
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：自分のリザーブのコアを何個トラッシュへ置きますか？（同数だけ相手のリザーブもトラッシュへ。任意）`,
-                [],
-                true,
-                action,
-                self,
-                "option",
-                options,
-            )
-            return
-        }
-        // 自動時：上限個（min(自分,相手)）を実行
-        player.reserve -= maxAmount
-        player.trashCores += maxAmount
-        opponent.reserve -= maxAmount
-        opponent.trashCores += maxAmount
-        log(
-            state,
-            `${player.name}はリザーブのコア${maxAmount}個をトラッシュへ置き、${opponent.name}のリザーブのコア${maxAmount}個も相手のトラッシュへ置かれた。`,
         )
         return
 }
@@ -823,13 +672,10 @@ const handlers = {
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
     swapOpponentCores: swapOpponentCoresHandler,
     coreRemove: coreRemoveHandler,
-    coreRemoveByPayingSelfCores: coreRemoveByPayingSelfCoresHandler,
     protectBlockerCoresThisBattle: protectBlockerCoresThisBattleHandler,
     capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreDrainAllOthers: coreDrainAllOthersHandler,
     linkNexusCoresChoice: linkNexusCoresChoiceHandler,
-    coreTradeToOpponentTrash: coreTradeToOpponentTrashHandler,
-    voidCoresAndMillByCost: voidCoresAndMillByCostHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -415,11 +415,16 @@ function discardSelfAny(ctx: ActionCtx, action: Extract<EffectAction, { type: "d
         player.hand.splice(chosenCardIndex, 1)
         player.trashCards.push(cardId)
         log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
+        const next = [...discarded, cardId]
+        if (next.length >= (action.anyMax ?? Infinity)) {
+            finish(next)
+            return
+        }
         const { awaitingSkip: _dropped, ...rest } = action
-        ctx.resolve({ ...rest, discarded: [...discarded, cardId] })
+        ctx.resolve({ ...rest, discarded: next })
         return
     }
-    if (action.awaitingSkip) {
+    if (action.awaitingSkip || discarded.length >= (action.anyMax ?? Infinity)) {
         finish(discarded)
         return
     }
@@ -443,8 +448,9 @@ function discardSelfAny(ctx: ActionCtx, action: Extract<EffectAction, { type: "d
         )
         return
     }
-    const ids = indices.map((i) => player.hand[i]!)
-    player.hand = player.hand.filter((_, i) => !indices.includes(i))
+    const take = indices.slice(-Math.min(indices.length, (action.anyMax ?? Infinity) - discarded.length))
+    const ids = take.map((i) => player.hand[i]!)
+    player.hand = player.hand.filter((_, i) => !take.includes(i))
     player.trashCards.push(...ids)
     log(state, `${player.name}は手札「${ids.map((id) => getCard(id).name).join("、")}」を破棄した。`)
     finish([...discarded, ...ids])
@@ -537,50 +543,6 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
 
 
 
-// 機織のハーフェレシテLv1：手札のネクサスカード1枚の破棄をコストに、ボイドからコアを自身へ置く。
-// どのネクサスを捨てるかは手札の先頭側に固定した決定的簡略化（「できる」の任意性は step.optional 側で扱う）
-const discardHandNexusToVoidCoreSelfHandler: ActionHandler<"discardHandNexusToVoidCoreSelf"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    if (!self) return
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    const player = state.players[owner]
-    const nexusIndices = player.hand.map((id, i) => ({ id, i })).filter(({ id }) => getCard(id).type === "nexus").map(({ i }) => i)
-    if (nexusIndices.length === 0) {
-        log(state, `${sourceName}：手札にネクサスカードがなかった。`)
-        return
-    }
-    // どのネクサスカードを破棄するかは持ち主が選ぶ（2026-09-02。PROCEDURES_AUDIT §5 の一般則）
-    if (
-        chosenCardIndex === undefined &&
-        tryInteractiveCardChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：破棄するネクサスカードを選んでください`,
-            "hand",
-            nexusIndices,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    // 非対話（テスト・AI）と候補1枚のとき：手札の先頭側から
-    const index = chosenCardIndex !== undefined && nexusIndices.includes(chosenCardIndex) ? chosenCardIndex : nexusIndices[0]!
-    const [cardId] = player.hand.splice(index, 1)
-    if (cardId === undefined) return
-    player.trashCards.push(cardId)
-    self.cores += action.count
-    log(
-        state,
-        `${player.name}は${sourceName}の効果で、手札の${getCard(cardId).name}を破棄してボイドからコア${action.count}個を置いた。`,
-    )
-}
-
 
 // BS09-039探偵ペンタンLv1-2：自分の手札の指定カード名1枚を破棄することで、相手の手札1枚を
 // 「内容を見ないで選び」その内容だけを見る。盤面は動かない。
@@ -630,7 +592,6 @@ const handlers = {
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
-    discardHandNexusToVoidCoreSelf: discardHandNexusToVoidCoreSelfHandler,
     costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
 } satisfies Partial<ActionRegistry>
 

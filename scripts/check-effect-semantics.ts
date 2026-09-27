@@ -175,10 +175,7 @@ function hasOncePerTurnEvidence(effects: Record<string, unknown>[]): boolean {
 //     tenshoCoreSubstitute（ダークスカルデーモン＝疲労することでコアを置いたものとして扱う）
 // これらは cost で始まる**キー名**を持たないため、type の**値**を別途チェックする
 const COST_BAKED_ACTION_TYPES = new Set([
-    "revealHandMagicToTegamotoDraw",
-    "handMagicToTegamotoDraw",
     "selfBuffByExhaustFamily",
-    "discardHandNexusToVoidCoreSelf",
     "targetNegateByHandDiscard",
     "summonCostHandDiscardPay",
     "nexusCostMillPay",

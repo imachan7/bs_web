@@ -3034,9 +3034,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "exhaustSelfThenLendThisTurn"
-    },
+    "action": {"type": "pay", "cost": {"type": "exhaust", "target": "self", "count": 1}, "then": {"type": "lendSelfThisTurn"}},
     "optional": true
    },
    {
@@ -3134,9 +3132,7 @@
      1,
      2
     ],
-    "action": {
-     "type": "revealHandMagicToTegamotoDraw"
-    },
+    "action": {"type": "pay", "cost": {"type": "toTegamoto", "count": 1, "pick": {"cardType": "magic"}}, "then": {"type": "draw", "count": 1}},
     "optional": true
    }
   ]
