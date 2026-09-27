@@ -126,8 +126,8 @@ export interface TargetFilter {
     braveInSpiritState?: true // **スピリット状態のブレイヴ**だけ（＝カード種別がブレイヴで、合体せず field.spirits にいる個体）。
     // BS10-083 魔星輝く古戦場Lv2／BS10-086 巨星望む大樹／BS10-X06 天蠍神騎スコル・スピア
     hasBurst?: boolean // カードの effects に kind:"burst" を持つものだけ（docs/design/BURST.md）。false指定時は**持たない**ものだけ（BS15-034ミブロック・ジーナス：「バースト効果を持たない相手のスピリット」）
-    bofuExhausted?: "any" | "self" // このバトル中に【暴風】で疲労した相手のスピリット（GameState.bofuExhaustedThisBattle）。"self"は発生源（self）の【暴風】に限る（R5：returnBofuExhaustedToDeckBottom/returnBofuExhaustedToHandの絞り込み版）
-    damagedOwnLife?: true // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（battle.lifeDamagers ∪ burstEventLifeDamagerId。R5：destroyLifeDamagerの絞り込み版）
+    bofuExhausted?: "any" | "self" // このバトル中に【暴風】で疲労した相手のスピリット（GameState.bofuExhaustedThisBattle）。"self"は発生源（self）の【暴風】で疲労したものに限る
+    damagedOwnLife?: true // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（このバトル中の全員と、バースト発動時の1体の和集合）
 }
 
 // normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。

@@ -362,11 +362,7 @@ function returnAllTargetsToHand(
         return
 }
 
-
-// R5：returnToDeckBottom{all}（filterで候補を絞り込み、選んだ順にまとめて戻す）の実装本体。
-// 旧 returnBofuExhaustedToDeckBottom はbofuExhausted専用のtypeとして持っていたが、
-// TargetFilter.bofuExhausted→instanceIn（filter.ts）に畳んだので汎用のfilter経由で書ける。
-// 「選び終えてからmarkBounce→flushBouncesでまとめて戻す」のは、1体ずつ即座に戻すと
+// 戻す順番は持ち主が選ぶ（2026-08-24）。選び終えてから markBounce→flushBounces でまとめて戻すのは、1体ずつ即座に戻すと
 // 誘発（「戻ったとき」等）が後続の対象選びに割り込んでしまうため（flushBouncesのコメント参照）
 function returnAllMatchingToDeckBottom(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToDeckBottom" }>): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx

@@ -166,8 +166,7 @@ export function normalizeFilter(
         resolved.exactBp = selfBp
     }
 
-    // R5：記録から引いた個体を対象にする軸。旧 returnBofuExhaustedToDeckBottom / returnBofuExhaustedToHand /
-    // destroyLifeDamager が直接記録を読んでいたのを、絞り込みの軸（instanceIn）へ畳んで一本化した
+    // 記録から引いた個体の集合（instanceIn）へ解決する軸。自分側の記録は「相手のスピリット」に当たらないので除く
     if (resolved.bofuExhausted !== undefined) {
         const bofuSpec = resolved.bofuExhausted
         delete resolved.bofuExhausted
