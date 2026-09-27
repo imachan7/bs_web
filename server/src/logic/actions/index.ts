@@ -26,6 +26,7 @@ import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
 import toDeck from "./toDeck"
 import declare from "./declare"
+import fireEffect from "./fireEffect"
 
 const ACTION_HANDLERS: ActionRegistry = {
     ...battleFlow,
@@ -52,6 +53,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...trashRecover,
     ...toDeck,
     ...declare,
+    ...fireEffect,
 }
 
 export default ACTION_HANDLERS
