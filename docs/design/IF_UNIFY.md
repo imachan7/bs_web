@@ -101,4 +101,9 @@ pay で旧 type に残した BS13-024・BS13-060・BS15-067 も、この `last`�
 - `destroy` の記録：`removal.ts` の `destroySpirit` が**破壊待機に入れる時点**で、その `destroy` アクションの `destroyContext` と同じものだけを数える（破壊時の誘発が別に破壊したものは混ざらない。「フィールドに残る」で残っても破壊はしているので数える）
 - 移行：BS07-X28（destroy → mill lastCost）・BS09-084／BS11-045（mill → destroy sameCostAsLast）・BS16-018／X04（if event）
 - 残す：BS15-X01（召喚した自分を BP+ する部品が要る）・BS11-060（手札の色を使えなくする timedEffect が要る）
-**器 PR 3**：破棄の記録と「手札を好きなだけ破棄」→「1枚につき」（coreRemovePerHandDiscard 等。Q2＝重ねて選べる）・手元・ネクサス。
+**器 PR 3（`feat/if-discard`。2026-09-27 確定）**：「自分の手札を好きなだけ破棄」→「1枚につき」だけ。
+- `discardSelfChoose.count` に `"any"`（好きなだけ。0枚も可）。対話は1枚ずつ任意で選び、スキップで終える。非対話は条件に合う手札をすべて破棄（旧 drawPerHandDiscard と同じ）。
+  破棄し終えた時点で破棄したカードを `lastMoved` に書く（途中経過は内部フィールド `discarded` で持ち回る）
+- 移行：BS08-X33・BS03-146（cardType nexus）→ `draw countCounter lastMoved`／BS04-094・BS15-076 → `removeCores target spread countCounter lastMoved`（Q2＝同じスピリットを重ねて選べる。**挙動が変わる**）
+- 残す：BS04-022（「枚数と同じ数の相手のスピリットから1個ずつ」＝別々。体数をカウンタで決める軸が removeCores に無い）
+**器 PR 4 以降**：相手の手元を破棄して1枚につき（BS03-016・BS12-011）、自分のスピリット／ネクサスを好きなだけ破壊して1つにつき（BS12-052・BS04-114）。
