@@ -19,7 +19,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | PR | グループ | 消えた type |
 | :-- | :-- | :-- |
 | #189 | G-toDeck | 6種 → `toDeck` |
-| （この行の PR） | G-delegate の一部 | `voidCoreToSelf`→`placeCores`、`returnOwnSpiritToHand`→`returnToHand{side own}`、`opponentNexusCoresToTrashOne`→`removeCores{from nexus}`、`discardSelfDownTo`・`discardOpponentDownTo`→`downTo` 軸 |
+| #190 | G-delegate の一部 | `voidCoreToSelf`→`placeCores`、`returnOwnSpiritToHand`→`returnToHand{side own}`、`opponentNexusCoresToTrashOne`→`removeCores{from nexus}`、`discardSelfDownTo`・`discardOpponentDownTo`→`downTo` 軸 |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
