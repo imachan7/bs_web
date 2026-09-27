@@ -83,7 +83,7 @@ const FILLER = CARDS.find(
 console.log("=== BS07：召喚時に自分全体の『破壊時』効果を発揮させる（実カードの召喚経由） ===")
 {
     const pope = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "fireOwnDestroyTriggers",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "fireEffect" && (e["action"] as Record<string, unknown>)["all"] === true,
     )
     const helperCard = findByEffect(
         (e, c) =>

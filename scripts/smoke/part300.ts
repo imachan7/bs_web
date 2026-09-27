@@ -62,7 +62,7 @@ console.log("=== V: 破壊時効果の借用（借り元自身が発揮。現在
     p1.field.spirits.push(lender)
     refreshLevelAsOverrides(s)
     const handBefore = p1.hand.length
-    resolveAction(s, "p1", borrower, { type: "borrowDestroyEffect" })
+    resolveAction(s, "p1", borrower, { type: "fireEffect", trigger: "onDestroy", oneEffect: true })
     assert(p1.hand.length !== handBefore + 3, "Lv1では『破壊時』のdraw3エントリは候補にならない（現在Lvで無効なため）")
     assert(lender.pendingDestruction === undefined, "借り元は破壊されない")
     assert(p1.field.spirits.some((sp) => sp.instanceId === lender.instanceId), "借り元はフィールドに残ったまま")
@@ -76,7 +76,7 @@ console.log("=== V: 破壊時効果の借用（借り元自身が発揮。現在
     p1.field.spirits.push(lender)
     refreshLevelAsOverrides(s)
     const handBefore = p1.hand.length
-    resolveAction(s, "p1", borrower, { type: "borrowDestroyEffect" })
+    resolveAction(s, "p1", borrower, { type: "fireEffect", trigger: "onDestroy", oneEffect: true })
     assert(p1.hand.length === handBefore + 3, "Lv2ではdraw3エントリ（先頭のエントリ）が候補に入り発揮する")
     assert(lender.pendingDestruction === undefined, "借り元自身は破壊されない（発揮するのは借り元自身）")
     assert(p1.field.spirits.some((sp) => sp.instanceId === lender.instanceId), "借り元はフィールドに残ったまま")
@@ -89,7 +89,7 @@ console.log("=== V: 破壊時効果の借用（借り元自身が発揮。現在
     const borrower = createInstance("BS13-052", s.turn, 1)
     p1.field.spirits.push(borrower)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", borrower, { type: "borrowDestroyEffect" })
+    resolveAction(s, "p1", borrower, { type: "fireEffect", trigger: "onDestroy", oneEffect: true })
     assert(true, "候補が無くても例外を投げない")
 }
 

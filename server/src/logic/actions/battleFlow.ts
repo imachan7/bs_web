@@ -1189,22 +1189,6 @@ const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => 
     fireSummonSequence(state, owner, self, action.byFushi === true)
 }
 
-const refireSummonEffectHandler: ActionHandler<"refireSummonEffect"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 対象の自分スピリット1体（targetInstanceId優先、フォールバックは自分フィールド先頭）の
-        // onSummon効果を再発揮する（タイムリープ。効果を持たなければ何も起きない）
-        const mine = state.players[owner].field.spirits
-        const target = targetInstanceId
-            ? (mine.find((s) => s.instanceId === targetInstanceId) ?? null)
-            : (mine[0] ?? null)
-        if (!target) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        log(state, `${sourceName}：${getCard(target.cardId).name}の召喚時効果を再発揮する。`)
-        fireSummonTrigger(state, owner, target)
-        return
-}
 
 // 相手の合体スピリットの**ブレイヴだけ**を破壊する（BRAVE.md §6.5。BS11-014／BS11-016）。
 // ホストは無傷で場に残る。どのホストのブレイヴを壊すかは**効果の使用者**が選ぶ
@@ -1460,97 +1444,7 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
     fire(effectiveCandidates[0]!)
 }
 
-// 器BR：カード名にnameIncludesを含む自分のスピリット1体（現在Lvで有効な『このスピリットの召喚時』効果を
-// 持つもの）を選び、実際に召喚し直さずその『召喚時』効果一式（kind:"triggered" trigger:"onSummon" のエントリ
-// すべて）を発揮させる。器V（borrowDestroyEffect）の召喚時版だが、「このスピリット」＝効果を持つ本人自身
-// （borrowCombinedAttackEffectと同じ向き。BS13_PLAN.md §1 #12の逆）なので、そのままfireTriggerへ渡す。
-// 該当エントリ自身の条件（BS13-048の器BQ等）はfireTrigger内部でいつもどおり判定されるため、
-// 条件未成立なら何も起きない（BS13-084アルゴアタック）
-const borrowSummonEffectHandler: ActionHandler<"borrowSummonEffect"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-    const player = state.players[owner]
-    const candidates = player.field.spirits.filter((sp) => {
-        if (!cardNameContains(sp, action.nameIncludes)) return false
-        const level = currentLevel(sp).level
-        return getCard(sp.cardId).effects.some(
-            (e) => e.kind === "triggered" && e.trigger === "onSummon" && effectActiveAtLevel(e.levels, level),
-        )
-    })
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    const fire = (inst: CardInstance): void => {
-        log(state, `${player.name}は${sourceName}の効果として、${getCard(inst.cardId).name}の『召喚時』効果を発揮させた。`)
-        fireTrigger(state, owner, inst, "onSummon")
-    }
-    if (targetInstanceId !== undefined) {
-        const chosen = candidates.find((c) => c.instanceId === targetInstanceId)
-        if (!chosen) return
-        fire(chosen)
-        return
-    }
-    if (state.interactiveTargets && candidates.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：召喚時効果を発揮させるスピリットを選んでください`,
-            candidates.map((c) => c.instanceId),
-            false,
-            action,
-            null,
-        )
-        return
-    }
-    fire(candidates[0]!)
-}
 
-// 器V：自分のスピリット1体が持つ『このスピリットの破壊時』効果を、そのスピリット自身を破壊させずに
-// そのスピリット自身の効果として発揮させる（BS13-052イビルグライダー）。BS13-049の借用（器G）と違い、
-// 「このスピリット」＝借り元自身を指す（docs/design/BS13_PLAN.md §1 #12）ので、resolveActionへ渡す
-// self は借り元のインスタンス（発生源であるブレイヴ自身ではない）。候補は借り元自身の現在Lvで判定する
-const borrowDestroyEffectHandler: ActionHandler<"borrowDestroyEffect"> = (ctx) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-    const player = state.players[owner]
-    type Candidate = { inst: CardInstance; effect: Extract<EffectDef, { kind: "triggered" }> }
-    const candidates: Candidate[] = []
-    for (const sp of player.field.spirits) {
-        const level = currentLevel(sp).level
-        for (const effect of getCard(sp.cardId).effects) {
-            if (effect.kind !== "triggered" || effect.trigger !== "onDestroy") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            candidates.push({ inst: sp, effect })
-        }
-    }
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：借りられる『破壊時』効果がなかった。`)
-        return
-    }
-    const fire = (chosen: Candidate): void => {
-        log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の『破壊時』効果を、破壊させずに発揮させた。`)
-        resolveAction(state, owner, chosen.inst, chosen.effect.action)
-    }
-    if (targetInstanceId !== undefined) {
-        const chosen = candidates.find((c) => c.inst.instanceId === targetInstanceId)
-        if (!chosen) return
-        fire(chosen)
-        return
-    }
-    const uniqueIds = [...new Set(candidates.map((c) => c.inst.instanceId))]
-    if (state.interactiveTargets && uniqueIds.length >= 2) {
-        requestChoice(
-            state,
-            owner,
-            `${sourceName}：借りる『破壊時』効果を選んでください`,
-            uniqueIds,
-            false,
-            { type: "borrowDestroyEffect" },
-            null,
-        )
-        return
-    }
-    fire(candidates[0]!)
-}
 
 // 相手のスピリット/ブレイヴ/ネクサスのどれか1つを破壊する／手札に戻す（BS11-056／BS11-X01 Lv3）。
 // 「ブレイヴ」は合体中もスピリット状態も含む（2026-09-02 ユーザー確認）。スピリット状態のブレイヴは
@@ -1928,8 +1822,6 @@ const handlers = {
     combineOwnBrave: combineOwnBraveHandler,
     refreshSelfBraveThenCombine: refreshSelfBraveThenCombineHandler,
     borrowCombinedAttackEffect: borrowCombinedAttackEffectHandler,
-    borrowDestroyEffect: borrowDestroyEffectHandler,
-    borrowSummonEffect: borrowSummonEffectHandler,
     removeOneOfAnyType: removeOneOfAnyTypeHandler,
     lifeCoresBySymbolDiff: lifeCoresBySymbolDiffHandler,
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,
@@ -1938,7 +1830,6 @@ const handlers = {
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonFromTrashFree: summonFromTrashFreeHandler,
-    refireSummonEffect: refireSummonEffectHandler,
     summonSequence: summonSequenceHandler,
 } satisfies Partial<ActionRegistry>
 
