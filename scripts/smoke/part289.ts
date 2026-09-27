@@ -105,7 +105,7 @@ console.log("=== §E costMod ownTrashFamilyCountAtLeast：トラッシュの「�
     assert(effectiveCost(s, "p1", card) === 3, "無魔のスピリットカードが5枚以上でコスト3になる")
 }
 
-console.log("=== §F discardOpponentTegamotoVoidCoresPer：手元を破棄した枚数ぶんリザーブ優先でボイドへ ===")
+console.log("=== §F BS12-011 ミイラバード：手元を破棄した枚数ぶん相手のフィールド／リザーブのコアをボイドへ ===")
 {
     const s = game("tegamoto-void")
     s.players.p2.tegamoto = ["BS01-001", "BS01-002"]
@@ -114,11 +114,12 @@ console.log("=== §F discardOpponentTegamotoVoidCoresPer：手元を破棄した
     spirit.cores = 5
     s.players.p2.field.spirits.push(spirit)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "discardOpponentTegamotoVoidCoresPer" })
+    const onSummon = getCard("BS12-011").effects.find((e) => e.id === "BS12-011-e1")
+    if (onSummon?.kind === "triggered") resolveAction(s, "p1", null, onSummon.action)
     assert(s.players.p2.tegamoto.length === 0, "手元のカードはすべて破棄された")
     assert(s.players.p2.trashCards.includes("BS01-001") && s.players.p2.trashCards.includes("BS01-002"), "破棄したカードはトラッシュへ")
-    assert(s.players.p2.reserve === 1, "破棄した2枚ぶん、リザーブ優先でコアがボイドに置かれた")
-    assert(spirit.cores === 5, "リザーブで足りたのでフィールドのコアは減らなかった")
+    // 取るコアは使用者が選ぶ（2026-09-27。旧実装はリザーブ優先の自動選択）ので、合計だけを見る
+    assert(s.players.p2.reserve + spirit.cores === 3 + 5 - 2, "破棄した2枚ぶん、コア2個がボイドに置かれた")
 }
 
 console.log("=== §G voidCoresFromField：自分のフィールドのコアを払うことで相手のフィールドのコアをボイドへ ===")

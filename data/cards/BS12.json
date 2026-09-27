@@ -709,7 +709,25 @@
         ],
         "optional": false,
         "action": {
-          "type": "discardOpponentTegamotoVoidCoresPer"
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "discardOpponentTegamoto"
+            },
+            {
+              "type": "removeCores",
+              "side": "opponent",
+              "from": [
+                "reserve",
+                "spirit",
+                "nexus"
+              ],
+              "to": "void",
+              "target": "spread",
+              "count": 1,
+              "countCounter": "lastMoved"
+            }
+          ]
         }
       },
       {

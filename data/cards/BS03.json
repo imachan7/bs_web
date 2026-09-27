@@ -878,7 +878,17 @@
      2
     ],
     "action": {
-     "type": "discardOpponentTegamotoDestroyPer"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discardOpponentTegamoto"
+      },
+      {
+       "type": "destroy",
+       "count": 1,
+       "countCounter": "lastMoved"
+      }
+     ]
     },
     "optional": false
    }
