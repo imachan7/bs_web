@@ -125,13 +125,13 @@ console.log("=== §C 機織のハーフェレシテ：破棄する手札のネ�
     assert(s.players.p1.hand.includes(anyNexus[0]!.cardId), "選ばなかったネクサスは手札に残る")
     assert(source.cores === coresBefore + 1, "ボイドからコアが置かれる")
 
-    // 非対話：従来どおり手札の先頭側のネクサスを破棄する
+    // 非対話：discardSelfChoose の既定どおり手札の末尾側のネクサスを破棄する
     const s2 = game(false)
     const source2 = put(s2, "p1", byName("機織のハーフェレシテ").cardId, 1)
     s2.players.p1.hand = [anyNexus[0]!.cardId, anySpirit[0]!.cardId, anyNexus[1]!.cardId]
     resolveAction(s2, "p1", source2, action)
     assert(s2.pendingChoice === null, "非対話では選択待ちが立たない")
-    assert(s2.players.p1.trashCards.includes(anyNexus[0]!.cardId), "従来どおり先頭側を破棄する")
+    assert(s2.players.p1.trashCards.includes(anyNexus[1]!.cardId), "末尾側を破棄する")
 }
 
 console.log("=== §D スクルディア：回復できなくする相手のスピリットを選ぶ ===")

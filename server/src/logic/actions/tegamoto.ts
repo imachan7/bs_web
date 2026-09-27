@@ -1,8 +1,8 @@
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance } from "../../type"
-import { draw, getCard, log } from "../GameState"
-import { requestCardChoice, requestChoice, resolveMagic, removeCoresToVoid } from "../EffectModules"
+import { getCard, log } from "../GameState"
+import { requestCardChoice, requestChoice, resolveMagic } from "../EffectModules"
 import { recordMoved } from "../record"
+import { matchesPick } from "./revealAction"
 
 // BS11-X05 魔導双神ジェミナイズLv2-3：自分の手札/手元(tegamoto)にあるマジックカード1枚を選び、
 // コストを支払わずに使用する（任意。候補0なら不発）。「ターンに2回」の判定は
@@ -95,146 +95,74 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
     doUse(best.zone, best.i, best.id)
 }
 
-const handMagicToTegamotoDrawHandler: ActionHandler<"handMagicToTegamotoDraw"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // マジックブック：自分の手札にあるマジックカードを好きなだけ（max指定時はmax枚まで）手元(tegamoto)に置き、
-        // 置いた枚数ぶんデッキから引く。**置き終わってからまとめて引く**のが要点で、
-        // 1枚ごとに引くと引いたマジックカードをそのまま次に置けてしまう
-        // （drawPerHandDiscard と同じ不具合。2026-08-10 修正）
-        const player = state.players[owner]
-        const placed = action.placedSoFar ?? 0
-        const max = action.max
-        const finish = (count: number): void => {
-            if (count === 0) {
-                log(state, `${sourceName}：手元に置かなかった。`)
-                return
-            }
-            log(state, `${sourceName}：手元に置いた${count}枚ぶんデッキから引く。`)
-            draw(state, owner, count)
-        }
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                finish(placed)
-                return
-            }
-            player.hand.splice(chosenCardIndex, 1)
-            player.tegamoto.push(cardId)
-            log(state, `${player.name}は${getCard(cardId).name}を手元に置いた。`)
-            // ここでは引かない。続けて置くか再度尋ねる（awaitingSkip は落とす）
-            const { awaitingSkip: _dropped, ...rest } = action
-            const nextPlaced = placed + 1
-            if (max !== undefined && nextPlaced >= max) {
-                // 上限に達したらここで打ち切ってまとめて引く
-                finish(nextPlaced)
-                return
-            }
-            ctx.resolve({ ...rest, placedSoFar: nextPlaced })
-            return
-        }
-        // スキップされて戻ってきた＝これ以上置かない。ここで初めて引く
-        if (action.awaitingSkip) {
+// 手札→手元。count:"any" は対話なら1枚ずつ任意で選び、スキップで終える（0枚も可）。非対話は条件に合う手札を上限まで末尾から置く。
+// 置き終えてから lastMoved に書く（マジックブックの「置いた枚数ドロー」は pay の then が置き終えた後に読む。
+// 1枚ごとに引くと引いたマジックをそのまま置けてしまう。2026-08-10 の不具合）
+const toTegamotoHandler: ActionHandler<"toTegamoto"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const player = state.players[owner]
+    const placed = action.placed ?? []
+    const optional = action.count === "any"
+    const limit = Math.min(
+        action.count === "any" ? Infinity : action.count,
+        action.upTo ?? Infinity,
+        action.anyMax ?? Infinity,
+    )
+    const finish = (ids: string[]): void => {
+        recordMoved(state, ids)
+        if (ids.length === 0) log(state, `${sourceName}：手元に置かなかった。`)
+    }
+    if (chosenCardIndex !== undefined) {
+        const cardId = player.hand[chosenCardIndex]
+        if (cardId === undefined || !matchesPick(cardId, action.pick)) {
             finish(placed)
             return
         }
-        const indices: number[] = []
-        for (let i = 0; i < player.hand.length; i++) {
-            if (getCard(player.hand[i]!).type === "magic") indices.push(i)
-        }
-        if (indices.length === 0) {
-            // 手札のマジックを出し切った場合もここへ来る（置いたぶんは引く）
-            if (placed === 0) log(state, `${sourceName}：手札にマジックカードがなかった。`)
-            else finish(placed)
-            return
-        }
-        if (state.interactiveTargets) {
-            requestCardChoice(
-                state,
-                owner,
-                `${sourceName}：手元に置くマジックカードを選んでください（選ばなければ終了してドローに移ります）`,
-                "hand",
-                indices,
-                true,
-                { ...action, placedSoFar: placed, awaitingSkip: true },
-                self,
-                // 候補が1枚でも「置かない」を選べるようにする（「好きなだけ」なので0枚も選択肢）
-                true,
-                // スキップ＝終了。まとめて引くためにハンドラへ戻す
-                true,
-            )
-            return
-        }
-        // 非interactive時：手札のマジックカードを（max指定時はmax枚まで、未指定なら全部）一括で手元へ移動し、同数ドロー（決定的簡略化）
-        const movedNames: string[] = []
-        for (let i = player.hand.length - 1; i >= 0; i--) {
-            if (max !== undefined && movedNames.length >= max) break
-            const cardId = player.hand[i]!
-            if (getCard(cardId).type !== "magic") continue
-            player.hand.splice(i, 1)
-            player.tegamoto.push(cardId)
-            movedNames.unshift(getCard(cardId).name)
-        }
-        if (movedNames.length > 0) draw(state, owner, movedNames.length)
-        log(
-            state,
-            `${player.name}は手元にマジックカード「${movedNames.join("、")}」を置き、デッキから${movedNames.length}枚引いた。`,
-        )
-        return
-}
-
-const revealHandMagicToTegamotoDrawHandler: ActionHandler<"revealHandMagicToTegamotoDraw"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        // 占いペンタン：handMagicToTegamotoDrawの単発版。自分の手札にあるマジックカード1枚を
-        // オープンして手元に置き、1枚ドローする（「〜することで」の任意コストはtriggered.optionalで表現）
-        const player = state.players[owner]
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}：対象がいなかった。`)
-                return
-            }
-            player.hand.splice(chosenCardIndex, 1)
-            player.tegamoto.push(cardId)
-            draw(state, owner, 1)
-            log(
-                state,
-                `${player.name}は${getCard(cardId).name}をオープンして手元に置き、デッキから1枚引いた。`,
-            )
-            return
-        }
-        const indices: number[] = []
-        for (let i = 0; i < player.hand.length; i++) {
-            if (getCard(player.hand[i]!).type === "magic") indices.push(i)
-        }
-        if (indices.length === 0) {
-            log(state, `${sourceName}：手札にマジックカードがなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            requestCardChoice(
-                state,
-                owner,
-                `${sourceName}：オープンして手元に置くマジックカードを選んでください`,
-                "hand",
-                indices,
-                false,
-                action,
-                self,
-            )
-            return
-        }
-        // 非interactive時：手札末尾（新しい方）の該当カード1枚を機械的に選ぶ（決定的簡略化）
-        const idx = indices[indices.length - 1]!
-        const cardId = player.hand[idx]!
-        player.hand.splice(idx, 1)
+        player.hand.splice(chosenCardIndex, 1)
         player.tegamoto.push(cardId)
-        draw(state, owner, 1)
-        log(
+        log(state, `${player.name}は${getCard(cardId).name}を手元に置いた。`)
+        const next = [...placed, cardId]
+        if (next.length >= limit) {
+            finish(next)
+            return
+        }
+        const { awaitingSkip: _dropped, ...rest } = action
+        ctx.resolve({ ...rest, placed: next })
+        return
+    }
+    if (action.awaitingSkip || placed.length >= limit) {
+        finish(placed)
+        return
+    }
+    const indices = player.hand.map((_, i) => i).filter((i) => matchesPick(player.hand[i]!, action.pick))
+    if (indices.length === 0) {
+        finish(placed)
+        return
+    }
+    if (state.interactiveTargets && (optional || indices.length >= 2)) {
+        requestCardChoice(
             state,
-            `${player.name}は${getCard(cardId).name}をオープンして手元に置き、デッキから1枚引いた。`,
+            owner,
+            optional
+                ? `${sourceName}：手元に置くカードを選んでください（選ばなければ終了します）`
+                : `${sourceName}：手元に置くカードを選んでください`,
+            "hand",
+            indices,
+            optional,
+            optional ? { ...action, placed, awaitingSkip: true } : { ...action, placed },
+            self,
+            optional,
+            optional,
         )
         return
+    }
+    // 非対話：条件に合う手札を末尾から上限まで（決定的簡略化）
+    const take = indices.slice(-Math.min(indices.length, limit - placed.length))
+    const ids = take.map((i) => player.hand[i]!)
+    player.hand = player.hand.filter((_, i) => !take.includes(i))
+    player.tegamoto.push(...ids)
+    log(state, `${player.name}は手元に「${ids.map((id) => getCard(id).name).join("、")}」を置いた。`)
+    finish([...placed, ...ids])
 }
 
 const discardOpponentTegamotoHandler: ActionHandler<"discardOpponentTegamoto"> = (ctx) => {
@@ -255,8 +183,7 @@ const discardOpponentTegamotoHandler: ActionHandler<"discardOpponentTegamoto"> =
 const handlers = {
     discardOpponentTegamoto: discardOpponentTegamotoHandler,
     magicFreeUseFromHandOrTegamoto: magicFreeUseFromHandOrTegamotoHandler,
-    handMagicToTegamotoDraw: handMagicToTegamotoDrawHandler,
-    revealHandMagicToTegamotoDraw: revealHandMagicToTegamotoDrawHandler,
+    toTegamoto: toTegamotoHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

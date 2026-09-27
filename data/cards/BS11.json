@@ -2167,10 +2167,7 @@
      2,
      3
     ],
-    "action": {
-     "type": "handMagicToTegamotoDraw",
-     "max": 3
-    },
+    "action": {"type": "pay", "cost": {"type": "toTegamoto", "count": "any", "upTo": 3, "pick": {"cardType": "magic"}}, "then": {"type": "draw", "count": 1, "countCounter": "lastMoved"}},
     "optional": true
    }
   ]

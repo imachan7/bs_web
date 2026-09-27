@@ -121,8 +121,7 @@ export type EffectAction =
  | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle"; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" }
  | { type: "unblockedByVoidSelfCore" } // trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。selfが現在のバトルのアタッカーで、かつブロッカーがいるときだけ、selfのコア1個をボイドに置くことでBPを比べずに「ブロックされなかった」ものとして扱う（その場でresolveLifeDamageする＝ライフに通る。ブロッカーは疲労状態のまま残り回復しない）。「〜することで」は任意コストなので、カード側でoptional:trueを立てて確認を出す。自身がアタッカーでない・ブロッカーがいない・コアが無いときは何も起きない
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、そのスピリットが持つ【氷壁】の色（iceWallColorsOfで判定）と同じ色の相手のスピリットからブロックされないようにする（期間つき効果の一覧に指定時点の色で記録する。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）。複数なら選ぶ
- | { type: "discardHandNexusToVoidCoreSelf"; count: number } // 自分の手札のネクサスカード1枚を破棄することで、ボイドからコアcount個をこのスピリット上に置く。手札にネクサスが無ければ不発
- | { type: "discardSelfChoose"; count: number | "any"; downTo?: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; discarded?: string[]; awaitingSkip?: true } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
+ | { type: "discardSelfChoose"; count: number | "any"; downTo?: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; discarded?: string[]; awaitingSkip?: true; anyMax?: number } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
  | { type: "pay"; cost: EffectAction; then: EffectAction } // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに解決できるときだけ発揮する（片方でも欠けたら何もしない）。対応type一覧・判定はactions/pay.tsのPAYABLE_TYPES
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない。ログのみ）。破棄するカードはCOST_MODEL.md §2どおりinteractiveTargets時は1枚ずつ持ち主が選び、自動選択は手札末尾から機械的に選ぶ（discardSelfChooseと同じ選び方）。
  // discardCountは選択の再入をまたいで「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入し、0になった時点でdrawCount枚ドローする）土星神龍クロノ・ボロス
@@ -219,11 +218,10 @@ export type EffectAction =
  | { type: "markNoRefreshTarget" } // 相手の疲労状態のスピリット1体を「回復できない」と指定する（発生源＝selfにCardInstance.noRefreshTargetInstanceIdとして記録し、**selfが疲労状態で持ち主のフィールドにいる間**だけ効く。PhaseManagerのリフレッシュステップがisRefreshBlockedByMarkで参照）。対象は実効BP最大の1体を自動選択する決定的簡略化（アタック宣言中に発火しうるため、ここでpendingChoiceを立てない）
  | { type: "payNegateDecide"; targetInstanceId: string; discardCount: number; sourceName: string; resume: EffectAction } // 「自分の手札1枚を破棄することで、その効果を受けない」の**確認専用**（内部専用）。守る側に「破棄する手札を選ぶ／スキップして効果を受ける」を聞き、答えをGameState.payNegateDecisionに置いてからresume（元のアクション）を解決し直す。スキップでもresumeを解決するのでrequestCardChoiceのresolveOnSkipを立てる
  | { type: "tenshoSubstituteChoice"; dest: "trash" | "void"; exhaustInstanceId?: string } // 【転召】置換（constraint "tenshoCoreSubstitute"）の任意発動の再開専用（内部専用）。selfに渡された自分のスピリットについて、chosenOptionが「疲労する」なら疲労してコアを維持し、それ以外なら通常どおり上のコアすべてをdestへ置く。exhaustInstanceId指定時は**selfでなくこのインスタンス**（宣言した発生源＝ネクサス）を疲労させる
- | { type: "handMagicToTegamotoDraw"; max?: number; placedSoFar?: number; awaitingSkip?: true } // 自分の手札にあるマジックカードを好きなだけ（max指定時はmax枚まで）手元（PlayerState.tegamoto）に置き、置いた枚数ぶんデッキから引く（マジックブック、max未指定＝無制限）。
+ | { type: "toTegamoto"; count: number | "any"; upTo?: number; pick?: CardPick; placed?: string[]; awaitingSkip?: true; anyMax?: number } // 自分の手札を手元（PlayerState.tegamoto）に置く。count:"any"＝好きなだけ（0枚も可）。置き終えたら lastMoved に書く。placed／awaitingSkip／anyMax は内部用（anyMax は pay が後半を解決しきれる数として渡す上限）
  // **置くのを全部済ませてからまとめてドローする**。1枚ごとにドローすると、引いたマジックカードをそのまま次に置けてデッキが尽きるまで回せてしまう（drawPerHandDiscard と同じ不具合。2026-08-10 修正）。
  // interactiveTargets時はkind:"card"のcard choice（cardZone:"hand"、optional=スキップ可）を1枚ずつ繰り返し発行し、スキップ（またはmax到達、または手札のマジックが尽きた時点）でドローする。自動時は該当カードをmax枚まで（未指定なら全部）一括移動して同数ドロー（決定的簡略化）。
  // placedSoFar / awaitingSkip は解決の途中経過を持ち回る内部フィールドで、cards.json には書かない
- | { type: "revealHandMagicToTegamotoDraw" } // handMagicToTegamotoDrawの単発版：自分の手札にあるマジックカード1枚をオープンして手元に置き、1枚ドローする。手札にマジックカードが無ければ不発。interactiveTargets時はkind:"card"のcard choice（cardZone:"hand"、optional=スキップ可）を1回だけ発行。自動時は手札末尾（新しい方）の該当カード（決定的簡略化）。「〜することで」は任意コストのため、カード側でoptional:trueと併用する
  | { type: "discardOpponentTegamoto" } // 相手の手元をすべてトラッシュへ。破棄したカードを GameState.lastMoved に書く（IF_UNIFY.md §5）
  // **破棄をすべて済ませてからまとめてドローする**。1枚破棄するたびにドローすると、引いたカードをまた破棄できてデッキが尽きるまで回せてしまう（2026-08-10 に実対戦で発覚）。
  // discardedSoFar / awaitingSkip は解決の途中経過を持ち回るための内部フィールドで、cards.json には書かない（awaitingSkip は「スキップされて戻ってきた＝破棄終了」の目印）
@@ -232,7 +230,6 @@ export type EffectAction =
  | { type: "lendSelfThisTurn" } // このマジック自身を、このターンの間だけ自分の仮想発生源（PlayerState.turnVirtualInstances）として場に置いたものとして扱う。
  | { type: "targetChoiceLendThisTurn" } // 「スピリット1体は」（どちらの陣営でもよい）を選び、このターンの間その1体だけへ効果を貸す。colorChoiceLendThisTurnの対象インスタンス版（sourceCardId経由でlendSelfThisTurnと同じ仮想発生源を積み、CardInstance.lentChoiceInstanceIdに選んだインスタンスIDを載せる）メロディアスハープ
  // 同じカードの他の効果エントリ（levels:null必須）が effectSources() 経由で継続効果として一斉に有効になる（TURN_EFFECT_SOURCES.md §3）
- | { type: "exhaustSelfThenLendThisTurn" } // 「このスピリットを疲労させることで、このターンの間〜」。発生源自身を疲労させてから lendSelfThisTurn と同じ貸与を行う。
  // **1つのアクションにまとめてあるのが要点**：疲労（コスト）と貸与（効果）を別々の optional エントリに分けると、確認が2回に割れて「疲労だけして効果が出ない」が起きる（実際に起きていた。2026-08-10 修正）。
  // 既に疲労している場合は支払えないので不発（ログのみ）
  | { type: "lendSelfThisBattle" } // lendSelfThisTurn の「このバトルの間」版。積む先が PlayerState.battleVirtualInstances になるだけで、貸与の仕組みは同一（effectSources が両方を混ぜる／instanceIdの "virtual-" 接頭辞も共通）。

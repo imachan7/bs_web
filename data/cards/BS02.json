@@ -6017,9 +6017,7 @@
     "id": "BS02-108-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {
-     "type": "handMagicToTegamotoDraw"
-    }
+    "action": {"type": "pay", "cost": {"type": "toTegamoto", "count": "any", "pick": {"cardType": "magic"}}, "then": {"type": "draw", "count": 1, "countCounter": "lastMoved"}}
    }
   ]
  },
