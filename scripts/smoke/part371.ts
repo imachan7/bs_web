@@ -37,8 +37,10 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 {
     const entries = collect()
     // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
-    assert(entries.length === 15, `playerRule は15か所（実際: ${entries.length}）`)
+    assert(entries.length === 16, `playerRule は16か所（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
+        // 雷神砲カノン・アームズは直前に破棄したカードの色を読むので、単独で解決しても何も置かない（part281・part426）
+        if (cardId === "BS11-060") continue
         const s = createGame("p371", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         resolveAction(s, "p1", null, action)
         const rule = (action.content[0] as { rule: { type: string } }).rule
