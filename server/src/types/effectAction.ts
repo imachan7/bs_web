@@ -281,7 +281,7 @@ export type EffectAction =
  | { type: "forceEndMainStep"; who?: "opponent" | "turnPlayer" } // 発生源の持ち主から見た相手がいま自分のメインステップにいるなら、強制的にアタックステップへ進める（PhaseManager.toAttackPhase。ターンを飛ばすのではなく召喚・ネクサス配置ができなくなるだけ）。発動条件（何によって）はこれを使う各fieldEvent/triggered側で持たせる（黄・青バッチが別条件で再利用する想定）。相手がメインステップにいなければ何もしない。who省略時は従来どおり"opponent"（発生源の持ち主から見た相手のメインステップだけを狙う）。who:"turnPlayer"指定時は、いま誰のターンかを問わずメインステップにいれば強制終了する（自分がマジックを使っても自分のメインステップが終わる）
  | { type: "protectLifeByCostThisTurn"; maxCost: number } // このターンの間、コスト maxCost 以下のスピリットのアタックでは自分のライフが減らない（playerRule "noLifeDamageByCostForPid" を記録する）
  | { type: "grantHostUnblockableThisTurn" } // このターンの間、**このブレイヴ（self）がいま合体しているホスト**はブロックされない（期間つき効果の一覧に target.kind:"braveHost" で記録し、読むたびにホストを引き直す。self＝ブレイヴ自身が必須）
- | { type: "skipBpCompareThenRefreshOne" } // 現在のバトルでBP比較（とその結果の破壊）を飛ばしてバトルを終了させ、その後refreshOneで自分のスピリット1体を回復させる。ブロックされなかったアタックのライフ減少は対象外＝ここでは触らない（BattleState.skipBpCompareを立てるだけなので、resolveBattle側のBP比較そのものに対してのみ効く）
+ | { type: "skipBpCompare" } // バトル解決時まで進め、BP の比較（とその結果の破壊）だけを飛ばす（TIMING_CHART §1.12）。ただちに終わらせるのは endBattle
  | { type: "returnBofuExhaustedToHand" } // このバトル中に**このスピリット自身（self）の【暴風】の効果で**疲労させた相手のスピリットすべてを手札に戻す（GameState.bofuExhaustedThisBattleのうちbofuSourceInstanceIdがself一致のものだけ。returnBofuExhaustedToDeckBottomの手札版＋発生源限定版）
  | { type: "millUntilCostSpiritSummonFree"; costs: number[]; maxCount: number; skipOnSummon?: true } // 自分のデッキを上から、指定コストのスピリットカードが出るまで破棄し（上限 maxCount 枚）、出たらそのカードをトラッシュからコストを支払わずに召喚する。skipOnSummon指定時は『このスピリットの召喚時』効果を発揮させない（効果文に明記があるカードだけ）
  | { type: "millUntilFamilyToHand"; family: FamilyFilter; maxCount: number } // 自分のデッキを上からmaxCount枚を上限に、指定系統（配列＝OR。カード静的なfamilyで判定）を持つスピリットカードが出るまでトラッシュへ破棄し、出ればそのカード1枚を手札に戻す（出ないまま上限/デッキ切れに達したら手札には戻らない）

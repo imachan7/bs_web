@@ -6211,7 +6211,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "endBattle"
+     "type": "skipBpCompare"
     }
    }
   ]

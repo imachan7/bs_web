@@ -5392,7 +5392,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "skipBpCompareThenRefreshOne"
+     "type": "sequence", "actions": [{"type": "skipBpCompare"}, {"type": "refreshOne"}]
     }
    }
   ]
