@@ -1022,8 +1022,12 @@ export function countEffectCounter(
     if (counter === "lastMoved") return lastMovedOf(state).length
     if (counter === "bothNexusColors") return new Set([...state.players.p1.field.nexuses, ...state.players.p2.field.nexuses].flatMap(instColors)).size
     if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + getCard(id).cost, 0)
-    if (counter === "ownCoresTotal") {
-        const p = state.players[owner]
+    if (typeof counter === "object" && "minus" in counter) {
+        const [a, b] = counter.minus
+        return Math.max(0, countEffectCounter(state, owner, self, a, sourceType) - countEffectCounter(state, owner, self, b, sourceType))
+    }
+    if (counter === "ownCoresTotal" || counter === "opponentCoresTotal") {
+        const p = state.players[counter === "ownCoresTotal" ? owner : opp]
         const onField = [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves].reduce((n, i) => n + i.cores, 0)
         return onField + p.reserve + p.trashCores
     }

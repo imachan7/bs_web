@@ -397,20 +397,6 @@ const exhaustOpponentSameFamilyAllHandler: ActionHandler<"exhaustOpponentSameFam
     log(state, `${sourceName}：同じ系統の相手のスピリット${exhausted}体を疲労させた。`)
 }
 
-const exhaustOpponentToMatchHandler: ActionHandler<"exhaustOpponentToMatch"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // セイムタイアード：自分の疲労スピリット数と同数になるまで相手のスピリットを疲労させる。
-        // 差分をcountとして既存"exhaust"の単体処理へ委譲し、armor/免疫/interactive choiceを自然に通す
-        const ownExhausted = state.players[owner].field.spirits.filter((s) => s.isRested).length
-        const oppExhausted = state.players[opp].field.spirits.filter((s) => s.isRested).length
-        const diff = ownExhausted - oppExhausted
-        if (diff <= 0) {
-            log(state, `${sourceName}：相手の疲労スピリットが自分以上のため発動しなかった。`)
-            return
-        }
-        ctx.resolve({ type: "exhaust", count: diff }, { targetInstanceId, sourceColors: srcColors, sourceType: srcType })
-        return
-}
 
 // refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
 // pay の then で使う既定経路のみ）。pay の checker（pay.ts）とこのハンドラで共有する
@@ -818,7 +804,6 @@ const handlers = {
     exhaust: exhaustHandler,
     exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
     exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,
-    exhaustOpponentToMatch: exhaustOpponentToMatchHandler,
     exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,
     refreshOne: refreshOneHandler,
     refreshAllOwn: refreshAllOwnHandler,
