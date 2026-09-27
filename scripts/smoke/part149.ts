@@ -215,7 +215,7 @@ console.log("=== BS08ボクルガー：triggered.condition{opponentHandAtLeast}�
     )
     const entry = entryOf(bokuru, (e) => e["kind"] === "triggered")
     const need = Number((entry["condition"] as Record<string, unknown>)["opponentHandAtLeast"])
-    const limit = Number(actionOf(entry)["limit"])
+    const limit = Number(actionOf(entry)["downTo"])
 
     const s = base("bokurga-fires")
     const self = put(s, "p1", bokuru.cardId, coresFor(bokuru, 1))

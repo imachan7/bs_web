@@ -720,7 +720,6 @@ const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
     // 選択者は破棄される相手本人（type.ts の discardOpponent 定義コメント／
     // drawDiscard.ts の tryInteractiveCardChoice(state, targetPid, ...) で確認）
     "discardOpponent",
-    "discardOpponentDownTo",
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
     "destroyDownToOwnCount",
     // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）

@@ -738,12 +738,12 @@ console.log("=== 山札公開（スワロウアイヴィー）・起動能力（
     const graba = createInstance("BS01-057", s3.turn, 1) // グラーバ（coreBonus +1）
     s3.players.p1.field.spirits.push(graba)
     // voidCoreToSelf 1 → グラーバは coreBonus で +1 され、計 +2
-    resolveAction(s3, "p1", graba, { type: "voidCoreToSelf", count: 1 })
+    resolveAction(s3, "p1", graba, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1 })
     assert(graba.cores === 1 + 2, "グラーバへのボイド配置は+1され計2個置かれる")
     // coreBonus を持たない通常スピリットは増えない
     const plain = createInstance("BS01-001", s3.turn, 1)
     s3.players.p1.field.spirits.push(plain)
-    resolveAction(s3, "p1", plain, { type: "voidCoreToSelf", count: 1 })
+    resolveAction(s3, "p1", plain, { type: "placeCores", from: "void", to: "spirit", target: "self", count: 1 })
     assert(plain.cores === 1 + 1, "通常スピリットは修飾なし（+1のみ）")
 
     // --- activateAbility: グランがバトル中フラッシュでコアを払い自分でバトル終了 ---
