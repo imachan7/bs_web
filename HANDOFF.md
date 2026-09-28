@@ -46,7 +46,7 @@
    その後にまとめる残り（下の4本。スクルディア・ヘッジボルグ・クロノ・ハデスは固有として R5_TRIAGE §3 へ）
    **09-28 に決めた残りの書き方**（1本ずつ別 PR）
    - レヴィアダン：絞り込みの軸 `costSameAsOwn: FamilyFilter`（自分の◯◯のスピリットのいずれかと同じコスト）
-   - ストレートフラッシュ：組み合わせ方の部品「同時に」（中の破壊の対象をまとめて1回で破壊待機に入れる）を足す（09-28 ユーザー了承 2a）
+   - ストレートフラッシュ（`feat/destroy-together`）：組み合わせ方の部品 `simultaneous{ actions }`（中は `destroy{all}` だけ書ける。対象をすべて集めてから1回の destroySpiritsFrom で破壊待機に入れる）。`destroy{all, side:"own"}` を自分側だけに効くようにする（今は all のとき side が無視される）。`simultaneous[destroy{all, own, family 四道}, destroy{all}]`（09-28 ユーザー了承 2a）
    - スレイ・ウラノス：戻す直前の場のコストで判定（09-28 ユーザー了承 1a）。記録に「場を離れる直前のコスト」を足す。**合体スピリットのとき、合計コストかホストだけか未決**（今は合計）
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
 5. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
