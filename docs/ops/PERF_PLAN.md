@@ -21,17 +21,62 @@ JSONは圧縮率が高いはずなので、ここで十分な効果が出てい�
 
 ## 2. デッキビルダーの初期化・再描画（優先度: 高、工数: 小〜中）
 
-`public/src/deck.ts` の実測済みの問題:
+`public/src/deck.ts` の実測済みの問題と対応方針。**効果が高ければ工数増は許容**（2026-09-28 ユーザー方針）。
 
-- **逐次フェッチ**：`init()`（`deck.ts:1221`）が `card-notes.json` → `/api/cards` を await で直列に取得している。
-  `Promise.all` で並列化すれば1往復分（ネットワークの遅い環境ほど効く）短縮できる
-- **検索欄に debounce が無い**：`deck.ts:1140` の `input` リスナーが1文字ごとに `renderPool()`（全件再構築）を呼ぶ。
-  150ms程度の debounce を入れるだけで体感が変わる。工数が一番小さく効果が分かりやすいので最初にやる
-- **`renderPool()` が毎回全件DOM再構築**（`deck.ts:194`）：表示対象（最大1600枚超）ぶんの `.pool-card` を
-  フィルタ・検索のたびに作り直している。1枚あたり5〜10ノード＋リスナー3つなので、初回表示・フィルタ変更の
-  どちらも重い。本格対応は**表示中のスクロール範囲だけDOM生成する仮想化**（IntersectionObserver か
-  固定行高+スクロール位置計算）。既存のカード要素構築ロジック（`el` を組み立てる部分）はそのまま流用できるので
-  難易度は中。ここは設計判断が要るので、着手前に「どちらの仮想化方式にするか」を相談する
+### 2.1 初期化の並列化（工数: 小）
+
+`init()`（`deck.ts:1221`）が `card-notes.json` → `/api/cards` を await で直列に取得している。
+依存関係が無い2つの fetch なので `Promise.all` で並列化する。実装は1箇所の書き換えのみ。
+
+### 2.2 検索欄の debounce（工数: 小）
+
+`deck.ts:1140` の `input` リスナーが1文字ごとに `renderPool()`（全件再構築）を呼ぶ。
+150ms 程度の `setTimeout` debounce を挟む。他の filter chip（色・タイプ・コスト等）は
+クリック単位の離散操作なので debounce 不要（現状のままでよい）。
+
+### 2.3 renderPool の呼び出しを「構造が変わる場合」と「バッジだけでよい場合」に分ける（工数: 中、効果: 大）
+
+**わかったこと**：`passesFilter()`（`deck.ts:158`）は `filterColors` / `filterTypes` / `searchText` などの
+フィルタ状態と静的なカードデータだけを見ており、**`deck`（デッキ内訳）を一切参照していない**。
+つまり `addCard` / `removeCard`（`deck.ts:464, 479`）は毎回 `renderAll()` → `renderPool()` を呼び、
+**プールの表示対象・並び順が変わらないのに1600枚を丸ごと作り直している**。デッキ構築中は
+カードをクリックするたびにこれが起きるので、フィルタの重さとは別に効いている。
+
+対応方針：
+
+- 各 `.pool-card` 生成時に `el.dataset.cardId = card.cardId` を持たせる（今は付いていない）
+- `updatePoolBadges()` を新設：既存の `.pool-card` 要素を`dataset.cardId` で引き、
+  枚数バッジ（`count-badge`）と `+` ボタンの状態だけを書き換える。**要素の再生成はしない**
+- 呼び分け:
+  - フィルタ・検索・ソートの変更 → 従来通り `renderPool()`（表示対象/並び順が変わるため全体再構築が必要）
+  - `addCard` / `removeCard` / デッキ読み込み（`deck.ts:852, 1258` の `renderAll()`）→
+    `updatePoolBadges()` + `renderDeck()` + `renderStats()` に置き換える（`renderPool()` を呼ばない）
+- デッキ読み込み時は「新しいデッキに含まれない旧カードのバッジも0に戻す」必要があるため、
+  `updatePoolBadges()` は差分ではなく**描画済み全 `.pool-card` を毎回舐めて `deck` の値と同期**する
+  （バッジのテキスト/クラス書き換えだけなので、要素再生成に比べて十分軽い）
+
+### 2.4 イベント委譲（工数: 小〜中）
+
+現状は1枚ごとに `mouseenter` / `mouseleave` / `click` の3リスナーを登録しており、
+1600枚では最大4800個。`#pool-grid` に1つずつ委譲すれば `renderPool()` 実行時のコストも下がる。
+
+**注意点**：`mouseenter` / `mouseleave` はバブリングしないため、委譲するときは
+`mouseover` / `mouseout` を使い、`event.target.closest(".pool-card")` と
+`event.relatedTarget` が同じカード内かどうかのチェックを自前で書く必要がある
+（`click` は `closest()` だけで単純に委譲できる）。
+
+### 2.5 content-visibility: auto（工数: 小、CSSのみ）
+
+`.pool-card`（`public/css/deck.css:255`）に `content-visibility: auto` と
+`contain-intrinsic-size`（カード実測高さの概算値）を付ける。画面外のカードはブラウザが
+レイアウト・描画をスキップするようになり、スクロール時と初回表示の描画コストが下がる。
+**DOM要素の生成コスト自体は減らない**ので 2.3・2.4 とセットで効く。
+
+### 2.6 本格的な仮想化（見送り）
+
+表示範囲だけDOMを持つ windowing は効果が最大だが、`grid-template-columns: repeat(auto-fill, ...)` で
+列数が画面幅依存のため行位置計算を新設する必要があり、リスクの割に 2.1〜2.5 で得られる効果と
+差が小さいと判断。2.1〜2.5 を入れてまだ重ければ改めて検討する。
 
 ## 3. main.js のコード分割（優先度: 中、工数: 中）
 

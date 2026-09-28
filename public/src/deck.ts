@@ -145,6 +145,7 @@ function nameLimit(name: string): number {
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 function showToast(message: string): void {
     const toast = $("toast")
@@ -207,6 +208,7 @@ function renderPool(): void {
     for (const card of visible) {
         const el = document.createElement("div")
         el.className = "pool-card"
+        el.dataset.cardId = card.cardId
         el.style.setProperty("--c-main", `var(--c-${card.colors[0]})`)
         el.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
         if (card.limited) el.classList.add("limited")
@@ -294,29 +296,80 @@ function renderPool(): void {
             addBtn.className = "add-btn"
             addBtn.textContent = "＋"
             addBtn.title = "デッキに追加"
-            addBtn.addEventListener("click", (e) => {
-                e.stopPropagation()
-                addCard(card.cardId)
-            })
             el.appendChild(addBtn)
         }
-
-        el.addEventListener("mouseenter", () => {
-            renderDetail(card, el)
-        })
-        el.addEventListener("mouseleave", () => {
-            hideDetail()
-        })
-        // タッチ端末では本体タップは効果の表示だけにし、追加は＋ボタンに限る（誤追加を防ぐ）
-        el.addEventListener("click", () => {
-            renderDetail(card, el)
-            if (!matchMedia("(hover: none)").matches) addCard(card.cardId)
-        })
 
         grid.appendChild(el)
     }
 
     $("pool-count").textContent = `${visible.length} / ${cards.length} 枚を表示中`
+}
+
+// カードプールへのクリック・ホバーを委譲で1回だけ登録する（renderPool() は毎回呼ばれるが
+// #pool-grid 自体は使い回すため、ここは init() から1度だけ呼べばよい）
+function setupPoolGridEvents(): void {
+    const grid = $("pool-grid")
+
+    grid.addEventListener("click", (e) => {
+        const target = e.target as HTMLElement
+        const cardEl = target.closest<HTMLElement>(".pool-card")
+        if (!cardEl) return
+        const cardId = cardEl.dataset.cardId
+        if (!cardId) return
+
+        // ＋ボタンなら追加だけ行う（本体クリック側の renderDetail/追加は動かさない）
+        if (target.closest(".add-btn")) {
+            addCard(cardId)
+            return
+        }
+
+        renderDetail(master(cardId), cardEl)
+        // タッチ端末では本体タップは効果の表示だけにし、追加は＋ボタンに限る（誤追加を防ぐ）
+        if (!matchMedia("(hover: none)").matches) addCard(cardId)
+    })
+
+    // mouseenter/mouseleave はバブリングしないため、委譲には mouseover/mouseout を使う。
+    // カード内の子要素間の移動では発火させない（relatedTarget が同じカード内かで判定）
+    grid.addEventListener("mouseover", (e) => {
+        const cardEl = (e.target as HTMLElement).closest<HTMLElement>(".pool-card")
+        if (!cardEl) return
+        const related = e.relatedTarget as Node | null
+        if (related && cardEl.contains(related)) return
+        const cardId = cardEl.dataset.cardId
+        if (!cardId) return
+        renderDetail(master(cardId), cardEl)
+    })
+    grid.addEventListener("mouseout", (e) => {
+        const cardEl = (e.target as HTMLElement).closest<HTMLElement>(".pool-card")
+        if (!cardEl) return
+        const related = e.relatedTarget as Node | null
+        if (related && cardEl.contains(related)) return
+        hideDetail()
+    })
+}
+
+// デッキ内訳だけが変わったときの再描画。プールの表示対象・並び順は passesFilter() が
+// deck を見ないため変わらない。renderPool() のようにDOMを作り直さず、枚数バッジだけ書き換える
+function updatePoolBadges(): void {
+    const grid = $("pool-grid")
+    for (const el of Array.from(grid.querySelectorAll<HTMLElement>(".pool-card"))) {
+        const cardId = el.dataset.cardId
+        if (!cardId) continue
+        const inDeck = deck.get(cardId) ?? 0
+        const existing = el.querySelector<HTMLElement>(".count-badge")
+        if (inDeck > 0) {
+            if (existing) {
+                existing.textContent = `×${inDeck}`
+            } else {
+                const badge = document.createElement("span")
+                badge.className = "count-badge"
+                badge.textContent = `×${inDeck}`
+                el.appendChild(badge)
+            }
+        } else if (existing) {
+            existing.remove()
+        }
+    }
 }
 
 // カード詳細（効果テキスト全文）の表示
@@ -473,7 +526,7 @@ function addCard(cardId: string): void {
         return
     }
     deck.set(cardId, (deck.get(cardId) ?? 0) + 1)
-    renderAll()
+    refreshAfterDeckChange()
 }
 
 function removeCard(cardId: string): void {
@@ -483,7 +536,7 @@ function removeCard(cardId: string): void {
     } else {
         deck.set(cardId, count - 1)
     }
-    renderAll()
+    refreshAfterDeckChange()
 }
 
 // デッキ全体の制約検証。問題がなければ空配列を返す
@@ -849,7 +902,7 @@ function applyDeck(cardCounts: Record<string, number>, name: string): void {
     deck = new Map(Object.entries(cardCounts))
     const nameInput = $("deck-name-input") as HTMLInputElement
     nameInput.value = name
-    renderAll()
+    refreshAfterDeckChange()
 }
 
 // ---- JSON 書き出し・読み込み ----
@@ -1139,7 +1192,9 @@ function setupFilterChips(): void {
     const searchInput = $("search-input") as HTMLInputElement
     searchInput.addEventListener("input", () => {
         searchText = searchInput.value
-        renderPool()
+        // 1文字ごとの全件再構築を避ける（deck.ts の renderPool は全件DOM再生成のため重い）
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+        searchDebounceTimer = setTimeout(() => renderPool(), 150)
     })
 
     const sortSelect = $("sort-order") as HTMLSelectElement
@@ -1182,7 +1237,7 @@ function setupDeckIo(): void {
         if (deck.size === 0) return
         if (confirm("編集中のデッキを空にしますか？")) {
             deck = new Map()
-            renderAll()
+            refreshAfterDeckChange()
         }
     })
     $("btn-export").addEventListener("click", exportDeck)
@@ -1218,19 +1273,29 @@ function renderAll(): void {
     renderStats()
 }
 
+// デッキ内訳だけが変わったとき用（追加・削除・読込・空にする）。フィルタ・検索・ソートは
+// 変わらないので renderPool() の全件DOM再構築は不要（updatePoolBadges() で十分）
+function refreshAfterDeckChange(): void {
+    updatePoolBadges()
+    renderDeck()
+    renderStats()
+}
+
 async function init(): Promise<void> {
-    try {
-        const notesRes = await fetch("/data/card-notes.json")
-        if (notesRes.ok) {
+    // card-notes.json と /api/cards は互いに依存しないので並列に取得する
+    const notesPromise = fetch("/data/card-notes.json")
+        .then(async (notesRes) => {
+            if (!notesRes.ok) return
             const data = await notesRes.json()
             cardNotes = data.notes ?? {}
-        }
-    } catch (e) {
-        console.warn("Failed to fetch card-notes.json", e)
-    }
-
+        })
+        .catch((e) => {
+            console.warn("Failed to fetch card-notes.json", e)
+        })
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
-    const res = await fetch("/api/cards")
+    const cardsPromise = fetch("/api/cards")
+
+    const [, res] = await Promise.all([notesPromise, cardsPromise])
     if (!res.ok) {
         showToast("カードデータの取得に失敗しました")
         return
@@ -1253,6 +1318,7 @@ async function init(): Promise<void> {
     }
 
     setupFilterChips()
+    setupPoolGridEvents()
     setupDeckIo()
     renderSavedDecks()
     renderAll()
