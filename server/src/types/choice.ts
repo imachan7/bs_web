@@ -390,3 +390,14 @@ export type ResumeFrame =
           attackerSnapshot: CardInstance
           blockerSnapshot: CardInstance
       }
+    | {
+          // ライフで受けたバトルの、ライフが減ったあと 〜 ＞７のバトル終了宣言の続き。
+          // ライフ減少後バースト（＞５ ２Ｌ）はバトル中に解決するので、その確認で中断してもバトルを終わらせない。
+          // 終わらせると「このバトルが終了したとき」を指定する効果（絶甲氷盾）が空振りする（2026-09-28 発覚）
+          kind: "lifeDamageResolve"
+          step: number
+          attackerPid: PlayerId
+          attackerSnapshot: CardInstance
+          dealt: number
+          lifeTriggers: boolean // 「ライフが減ったとき」系を発火するか（ライフ0で敗北が決まったときは発火しない）
+      }
