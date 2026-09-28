@@ -149,7 +149,7 @@ console.log("=== BS10-056 節3：ボイドからライフへ置くのは対象�
     const spirit = put(s, "p1", "BS10-056", 1) // Lv1
     s.phase = "main" // コアステップ以外でも
     const lifeBefore = s.players.p1.life
-    resolveAction(s, "p1", spirit, { type: "lifeCharge", count: 1, from: "void" })
+    resolveAction(s, "p1", spirit, { type: "placeCores", from: "void", to: "life", count: 1 })
     assert(s.players.p1.life === lifeBefore + 1, "ボイドからライフへの補充はコアステップ以外でも通る")
 }
 

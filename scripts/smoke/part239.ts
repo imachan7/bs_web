@@ -160,7 +160,7 @@ console.log("=== §E エンドステップを数える封印（BS10-108 ルナ�
     assert(s.players.p1.deck.length === deckBefore, "デッキの枚数が変わらない")
     // ③ ボイド/リザーブからライフにコアを置けない
     const lifeBefore = s.players.p1.life
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "void" })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", count: 1 })
     assert(s.players.p1.life === lifeBefore, "封印中はボイドからライフにコアを置けない")
 
     // ④ **発揮した側のエンドステップだけ**数える

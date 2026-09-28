@@ -52,7 +52,7 @@ console.log("=== 【聖命】の器：lifeCharge from:\"void\" はリザーブ�
     const s = base("seimei-void")
     const lifeBefore = s.players.p1.life
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "void" })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", count: 1 })
     assert(s.players.p1.life === lifeBefore + 1, `ライフ+1（${lifeBefore}→${s.players.p1.life}）`)
     assert(s.players.p1.reserve === reserveBefore, "リザーブは減らない（ボイドから置くため）")
 }
@@ -61,7 +61,7 @@ console.log("=== 【聖命】の器：lifeCharge from:\"void\" はリザーブ�
     const s = base("seimei-reserve")
     const lifeBefore = s.players.p1.life
     s.players.p1.reserve = 3
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 2 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "reserve", to: "life", count: 2 })
     assert(s.players.p1.life === lifeBefore + 2, "from 未指定ならライフ+2")
     assert(s.players.p1.reserve === 1, "from 未指定ならリザーブが2個減る")
 }

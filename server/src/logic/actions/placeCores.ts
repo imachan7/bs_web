@@ -1,6 +1,6 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
-// lifeCharge等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
+// 旧 lifeCharge 等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { coresForLevel, getCard, log } from "../GameState"
@@ -270,7 +270,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         return
     }
 
-    // orReserve：to以外にリザーブへ置く選択肢を、効果の使用者に毎回選ばせる（voidCoreToSelf/lifeChargeの鏡）。
+    // orReserve：to以外にリザーブへ置く選択肢を、効果の使用者に毎回選ばせる（旧 voidCoreToSelf・lifeCharge の鏡）。
     // 非対話の既定は to==="life" ならライフ、それ以外はリザーブ（既存2種の非対話挙動をそのまま踏襲）
     if (action.orReserve && action.to !== "reserve") {
         const destLabel = action.to === "life" ? "自分のライフに置く" : "対象の上に置く"
@@ -340,7 +340,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         return
     }
 
-    // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。既存lifeChargeと同じ絞り）
+    // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。旧 lifeCharge と同じ絞り）
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }

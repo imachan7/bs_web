@@ -168,9 +168,9 @@ console.log("=== BS09-X35 超神星龍ジークヴルム・ノヴァ：ライフ
     runTurnStart(s)
     s.players.p1.life = 2
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 0, upTo: 5 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", count: 0, upTo: 5 })
     assert(s.players.p1.life === 5, "ライフ2から5まで補充される")
     assert(s.players.p1.reserve === reserveBefore, "ボイドから置くのでリザーブは減らない")
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 0, upTo: 5 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", count: 0, upTo: 5 })
     assert(s.players.p1.life === 5, "すでに5ならそれ以上は増えない")
 }

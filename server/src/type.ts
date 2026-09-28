@@ -220,7 +220,7 @@ export type TriggerEvent =
 // fieldEvent は「フィールド上の他のスピリットに起きたこと」に対してネクサス等が反応する場合に使う
 // （相手によってライフが減った／自分のスピリットが破壊された、など）。
 export type FieldEvent =
-    | "ownSeimeiLifeCharged" // 持ち主の【聖命】の効果でライフにコアが置かれたとき（lifeCharge の from:"void" が、【聖命】持ちの発生源から解決されたときだけ発火。BS09-064天駆ける方舟）
+    | "ownSeimeiLifeCharged" // 持ち主の【聖命】の効果でライフにコアが置かれたとき（placeCores の void→life が、【聖命】持ちの発生源から解決されたときだけ発火。BS09-064天駆ける方舟）
     | "ownLifeDamaged" // 相手によって自分のライフが減らされたとき
     | "ownSpiritDestroyed" // 自分のスピリットが破壊されたとき
     | "opponentSpiritDestroyed" // **相手の**スピリットが破壊されたとき、持ち主から見た相手側のフィールドから発火（手段を問わない＝バトル・効果のどちらでも。BS04-X14 魔界七将パンデミウムLv1-3：『お互いのアタックステップ』「相手のスピリットを破壊したとき」。2026-09-12 ユーザー確認）
@@ -539,7 +539,7 @@ export type GlobalConstraintDef =
     // （maxCost=カード記載コストがこれ以下のもの限定／keywordExclude=そのキーワードを持たないもの限定）。
     // SD02-013 転召の祭壇Lv1-2＝「【転召】を持たないコスト3以下のスピリットカードを召喚するとき、1コスト余分に」
     | { type: "noSummonTriggerByCost"; maxCost?: number; side?: "opponent" } // お互い、コストがmaxCost以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす。BS08共鳴する音叉の塔：コスト4以下）。**maxCost省略時はコストを問わずすべて**（BS11-072 未完成の古代戦艦：船尾Lv2＝「『このスピリットの召喚時』効果と『このブレイヴの召喚時』効果は発揮されない」）。エントリの phase / turn を書けばその区間だけ有効になる。// side:"opponent"指定時は**発生源の持ち主から見た相手**のスピリット/ブレイヴだけを対象にする（既定は両陣営。BS14-088青玉の巨大迷宮Lv2：「相手のスピリットすべての『このスピリットの召喚時』効果と、相手のブレイヴすべての『このブレイヴの召喚時』効果は発揮されない」）
-    | { type: "noVoidToLife" } // お互い、ボイドからライフにコアを置けない（lifeCharge の from:"void" を落とす。【聖命】も止まる。BS11-072 未完成の古代戦艦：船尾Lv1-2）
+    | { type: "noVoidToLife" } // お互い、ボイドからライフにコアを置けない（placeCores の void→life を落とす。【聖命】も止まる。BS11-072 未完成の古代戦艦：船尾Lv1-2）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストがmaxCost以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（**カード静的なコスト**で判定＝軽減前の値。使用コスト計算の共通経路で軽減分を0にする。BS08超時空重力炉：コスト3以下）
     | { type: "coreFloorByCost"; ownOnly?: true; colorFilter?: Color } // ownOnly指定時は発生源の持ち主のスピリットだけを守る（BS09-059翡翠の社Lv2）。colorFilter指定時はこの色を持つスピリットだけを守る（BS12-065大樹茂る天守閣：「自分の緑のスピリットすべて」）。// **「Lv1コスト」＝Lv1に必要なコア数**（レベル表の表記。2026-08-14 ユーザー確認。以前は召喚コストとして実装していた）。// 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない（removeCores/removeCoresToTrash/removeCoresToVoidの共通処理で判定。**コアの動かし方を問わず効く**＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない。2026-08-24 ユーザー確認。BS08聖なる柱状彫刻）
     | { type: "coresCantBeRemovedByOpponent"; nameContains: string } // 発生源の持ち主の、カード名にnameContainsを含む自分のスピリット上のコアは、相手のスピリット/ブレイヴ/マジックの効果では取り除けない（coresCantBeRemovedと違い片側限定＝相手の効果だけを止める。判定はboardResistanceAgainstのcoreRemove経路。BS12-022太陽武者ゲンジ・ボルタ：カード名に「太陽」）
