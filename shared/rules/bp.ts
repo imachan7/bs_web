@@ -197,11 +197,12 @@ export function countAuraCounter(
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数
     if ("ownKeyword" in counter) {
+        const keywords = Array.isArray(counter.ownKeyword) ? counter.ownKeyword : [counter.ownKeyword]
         return countSpiritsWeighted(
             board,
             sourcePid,
             sourcePid,
-            (s) => spiritHasKeyword(board, sourcePid, s, counter.ownKeyword),
+            (s) => keywords.some((k) => spiritHasKeyword(board, sourcePid, s, k)),
             countingSourceType,
         )
     }

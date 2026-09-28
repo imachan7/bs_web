@@ -68,6 +68,7 @@ export type EffectDef =
           oncePerTurn?: true // 「ターンに1回」。発生源1体につきターン1回
           battleRole?: "attacker" | "blocker" // onBattleWin/onBattleEnd：勝利/生存時の自分の役割がこれと一致する場合のみ発火。省略時は常に発火
           fromHandOnly?: true // trigger:"onDeploy"限定：手札から配置されたときのみ発火
+          burstSummonOnly?: true // trigger:"onSummon"限定：その召喚がバースト効果の解決中に行われたときのみ発火（バーストで自分自身を召喚する場合を含む。BS17-044）
           turn?: "own" | "opponent" // 指定時、発生源の持ち主基準のturn条件のときのみ発火
           condition?:
               | { opponentNexusColorsAtLeast: number } // 相手フィールドのネクサス色数（重複除く）がこれ以上のときのみ発火
@@ -682,6 +683,7 @@ export type EffectDef =
           perDestroyed?: true // scope:"ownAll"限定：同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）。scope:"self"は対象外
           whileCombined?: true // scope:"self"専用：合体しているホストが破壊されるとき、代わりに防ぐ
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnでこのターンだけ貸した効果）からのみ有効
+          blockingOnly?: true // scope:"ownAll"用：現在のバトルのブロッカー（AuraDef.blockingOnlyと同義）のみ対象
           optional?: true // 「〜できる」の任意指定。承認でコスト支払い＋復活確定、断ればその場で破壊（非対話は即時確定）。省略時は必ず戻る
           vanillaFilter?: true // scope:"ownAll"用：効果の記述を持たない（バニラ）スピリットのみ対象
           colorFilter?: Color // scope:"ownAll"用：この色を持つスピリットのみ対象
@@ -706,6 +708,7 @@ export type EffectDef =
           revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // toBurst=トラッシュの代わりにバーストエリアへ。Q3469（解決中は発動不可）は未実装（簡略化）
           // 戻るときの状態はfalse=回復／true=疲労。toHand=場に残らず手札へ（コアはリザーブへ）。braveStay指定時は合体していたブレイヴを確認なしで指定状態のまま残す。省略時はdetachBravesOnLeaveへ
           cost?: {
+              exhaustSelf?: true // 発生源自身を疲労させる。既に疲労状態なら支払い不可＝不発
               sourceCoresToTrash?: number // 発生源自身の上のコアをこの数だけトラッシュへ。足りなければ支払い不可＝不発
               keepOneCoreRestToTrash?: boolean // 自身のコアを1個だけ残し、残りをトラッシュへ
               oneCoreToVoid?: boolean // 対象のコア1個をボイドへ（コア1個の個体は支払い不可＝不発）

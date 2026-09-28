@@ -553,6 +553,12 @@ function tryReviveOnDestroy(
         effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
         source?: CardInstance,
     ): boolean => {
+        // 発生源自身を疲労させる（BS17-069）。COST_MODEL.mdのexhaustSelfと同じく既疲労なら不発
+        if (effect.cost?.exhaustSelf) {
+            if (!source || source.isRested) return false
+            source.isRested = true
+            return true
+        }
         // 発生源自身のコアを払う（BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）
         if (effect.cost?.sourceCoresToTrash !== undefined) {
             const need = effect.cost.sourceCoresToTrash
@@ -948,6 +954,8 @@ function tryReviveOnDestroy(
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
             // BS12-068光の聖剣Lv2：合体スピリットのみ対象
             if (effect.combinedOnly && !instIsCombined(inst)) continue
+            // BS17-079：このバトルのブロッカーのみ対象（AuraDef.blockingOnlyと同義）
+            if (effect.blockingOnly && state.battle?.blockerInstanceId !== inst.instanceId) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             // BS14-109アルターミラージュ：コストが閾値以上のスピリットのみ対象（instMatchesCostFilterで判定＝付与コストも見る）

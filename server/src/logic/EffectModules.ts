@@ -1103,11 +1103,12 @@ export function countEffectCounter(
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
+        const keywords = Array.isArray(counter.ownKeyword) ? counter.ownKeyword : [counter.ownKeyword]
         return countSpiritsWeighted(
             state,
             owner,
             owner,
-            (s) => spiritHasKeyword(state, owner, s, counter.ownKeyword),
+            (s) => keywords.some((k) => spiritHasKeyword(state, owner, s, k)),
             sourceType,
         )
     }

@@ -349,6 +349,8 @@ export function fireTrigger(
         if (effect.battleRole !== undefined && effect.battleRole !== battleRole) return false
         // 器BS16：fromHandOnly（trigger:"onDeploy"限定。BS16-062／BS16-064）
         if (effect.fromHandOnly && !fromHand) return false
+        // trigger:"onSummon"限定：バースト効果の解決中（resolvingBurstPidが立っている間）の召喚のみ（BS17-044）
+        if (effect.burstSummonOnly && state.resolvingBurstPid !== owner) return false
         // turn（BS13-010スカルザードLv2＝『相手のターン』）：発生源の持ち主基準でown/opponentを絞る
         if (effect.turn === "own" && owner !== state.turnPlayer) return false
         if (effect.turn === "opponent" && owner === state.turnPlayer) return false
