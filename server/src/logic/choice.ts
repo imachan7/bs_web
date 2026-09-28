@@ -32,7 +32,7 @@ import { validatePaySources } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
 import { applyResshinsokuDestination, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
-import { resumeBattleResolution } from "./battleResolve"
+import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 
 // 選択を「やめた」ときに、「ターンに1回」を巻き戻す
@@ -568,6 +568,10 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (frame.kind === "battleResolve") {
             // 中断していたバトル解決（＞６破壊処理〜＞７バトル終了）を続きのステップから再開する
             resumeBattleResolution(state, frame)
+            continue
+        }
+        if (frame.kind === "lifeDamageResolve") {
+            resumeLifeDamageResolution(state, frame)
             continue
         }
         if (frame.kind === "triggerBatch") {

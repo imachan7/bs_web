@@ -103,45 +103,75 @@ export function resolveLifeDamage(state: GameState): void {
     // event:"ownLifeDamaged"のバースト用の器（080）：このバトルでライフを減らしたスピリットを記録する
     if (dealt > 0 && state.battle) (state.battle.lifeDamagers ??= []).push(attacker.instanceId)
 
+    let lifeTriggers = false
     if (defender.life <= 0) {
         // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
         if (tryOwnLifeFloorByCost(state, defenderPid)) {
-            fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
-            fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
-            tryHandFreeSummonOnLifeDamaged(state, defenderPid)
+            lifeTriggers = true
         } else {
             state.winner = attackerPid
             log(state, `${state.players[attackerPid].name}の勝利！`)
         }
     } else if (dealt > 0) {
-        // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）。
-        // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
-        // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
-        fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
-        fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
-        // 手札のカード自身が持つ「ライフが減ったとき無償召喚できる」（BS08猫娘アニー）。
-        // 場・トラッシュではなく**手札**が発生源なので、フィールド誘発の走査では拾えない
-        tryHandFreeSummonOnLifeDamaged(state, defenderPid)
+        lifeTriggers = true
     }
-    // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
-    // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
-    if (dealt > 0) {
-        fireTrigger(state, attackerPid, attacker, "onLifeDealt")
-        // フィールドイベント誘発「自分のスピリットのアタックによって相手のライフを減らしたとき」
-        // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
-        if (!state.winner) {
-            fireFieldEventTriggers(
-                state,
-                attackerPid,
-                "ownSpiritDealtLife",
-                { pid: attackerPid, inst: attacker },
-                instColors(attacker),
-            )
+    driveLifeDamageResolution(state, {
+        kind: "lifeDamageResolve",
+        step: 0,
+        attackerPid,
+        attackerSnapshot: { ...attacker },
+        dealt,
+        lifeTriggers,
+    })
+}
+
+type LifeDamageResolveFrame = Extract<ResumeFrame, { kind: "lifeDamageResolve" }>
+
+// ライフが減ったあとの手順。1ステップ＝中断しうる呼び出し1つ（battleResolve と同じ形）
+const LIFE_DAMAGE_LAST_STEP = 5
+function driveLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
+    for (let step = frame.step; step <= LIFE_DAMAGE_LAST_STEP; step++) {
+        runLifeDamageStep(state, frame, step)
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ ...frame, step: step + 1 }])
+            return
         }
     }
+}
 
-    resolveKoboOnBattleEnd(state, attackerPid, attacker)
-    clearBattle(state)
+// 中断されていたライフ受けの続き（drainResumeStack から呼ぶ）
+export function resumeLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
+    driveLifeDamageResolution(state, frame)
+}
+
+function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: number): void {
+    const attackerPid = f.attackerPid
+    const defenderPid = opponentOf(attackerPid)
+    const attacker = findSpirit(state.players[attackerPid], f.attackerSnapshot.instanceId) ?? f.attackerSnapshot
+    if (step === 0) {
+        // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）とライフ減少後バースト。
+        // targetInstanceIdにアタッカーを渡す（BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
+        if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+    } else if (step === 1) {
+        if (f.lifeTriggers) fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
+    } else if (step === 2) {
+        // 手札のカード自身が持つ「ライフが減ったとき無償召喚できる」（BS08猫娘アニー）。
+        // 場・トラッシュではなく**手札**が発生源なので、フィールド誘発の走査では拾えない
+        if (f.lifeTriggers) tryHandFreeSummonOnLifeDamaged(state, defenderPid)
+    } else if (step === 3) {
+        // トリガー誘発「このスピリットのアタックによって相手のライフを減らしたとき」（老賢樹トレントン）。
+        // アタッカー側で発火。勝敗が決まっていても発火して問題ない（コア獲得のみのため）
+        if (f.dealt > 0) fireTrigger(state, attackerPid, attacker, "onLifeDealt")
+    } else if (step === 4) {
+        // フィールドイベント誘発「自分のスピリットのアタックによって相手のライフを減らしたとき」
+        // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
+        if (f.dealt > 0 && !state.winner) {
+            fireFieldEventTriggers(state, attackerPid, "ownSpiritDealtLife", { pid: attackerPid, inst: attacker }, instColors(attacker))
+        }
+    } else {
+        resolveKoboOnBattleEnd(state, attackerPid, attacker)
+        clearBattle(state)
+    }
 }
 
 // 指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として

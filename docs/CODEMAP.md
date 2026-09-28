@@ -425,6 +425,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/battleResolve.ts
 
 - `resolveLifeDamage`（fn）：ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
+- `resumeLifeDamageResolution`（fn）：中断されていたライフ受けの続き（drainResumeStack から呼ぶ）
 - `resolveDirectedBlock`（fn）：指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
 - `resolveBattle`（fn）：ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）
 - `resumeBattleResolution`（fn）：中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
