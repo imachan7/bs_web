@@ -12,7 +12,7 @@
 // 無言で無視されてしまうため、データ側の検査が必要）。
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
 import type { EffectAttempt } from "../../../../shared/rules"
-import { effectiveBp, iceWallColorsOf } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter } from "../../../../shared/rules"
 import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
 import { lastMovedOf } from "../record"
@@ -57,7 +57,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, maxCostAsSelf, maxLv1BpOfSelf, sameIceWallColorAs, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, sameIceWallColorAs, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -72,6 +72,11 @@ export function normalizeFilter(
         const families = ctx.state.lastBattleDestroyedFamilies
         if (families.length === 0) return SELF_REQUIRED
         resolved.family = families // 配列＝いずれかの系統でOR
+    }
+    if (sameFamilyAsDestroyed) {
+        const families = ctx.state.lastOpponentSpiritDestroyedFamilies
+        if (families.length === 0) return SELF_REQUIRED
+        resolved.family = families
     }
     if (sameLevelAsBattleLoser) {
         const level = ctx.state.lastBattleDestroyedLevel
@@ -108,6 +113,14 @@ export function normalizeFilter(
         if (first === undefined) return SELF_REQUIRED
         const cost = getCard(first).cost
         resolved.cost = { min: cost, max: cost }
+    }
+
+    if (costSameAsOwn !== undefined) {
+        const costs = ctx.state.players[ctx.owner].field.spirits
+            .filter((s) => matchesFamilyFilter(ctx.state, ctx.owner, s, costSameAsOwn))
+            .flatMap((s) => instAllCosts(s))
+        if (costs.length === 0) return SELF_REQUIRED
+        resolved.cost = { in: [...new Set(costs)] }
     }
 
     // self と同じコスト（BS09-060緑翼の大樹：召喚された【暴風】持ちと同じコストの相手）。
@@ -165,6 +178,37 @@ export function normalizeFilter(
         if (selfBp === undefined) return SELF_REQUIRED
         resolved.exactBp = selfBp
     }
+
+    // 記録から引いた個体の集合（instanceIn）へ解決する軸。自分側の記録は「相手のスピリット」に当たらないので除く
+    if (resolved.bofuExhausted !== undefined) {
+        const bofuSpec = resolved.bofuExhausted
+        delete resolved.bofuExhausted
+        let ids = ctx.state.bofuExhaustedThisBattle.filter((r) => r.pid !== ctx.owner)
+        if (bofuSpec === "self") {
+            ids = ctx.self ? ids.filter((r) => r.bofuSourceInstanceId === ctx.self!.instanceId) : []
+        }
+        const instanceIds = ids.map((r) => r.instanceId)
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
+    if (resolved.damagedOwnLife !== undefined) {
+        delete resolved.damagedOwnLife
+        const ids = new Set(ctx.state.battle?.lifeDamagers ?? [])
+        if (ctx.state.burstEventLifeDamagerId !== undefined) ids.add(ctx.state.burstEventLifeDamagerId)
+        const instanceIds = [...ids]
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
+    if (resolved.lastBpBuffTarget !== undefined) {
+        delete resolved.lastBpBuffTarget
+        const instanceIds = ctx.state.lastBpBuffTargetId !== undefined ? [ctx.state.lastBpBuffTargetId] : []
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
+    if (resolved.instanceIn !== undefined && resolved.instanceIn.length === 0) return SELF_REQUIRED
 
     return resolved
 }

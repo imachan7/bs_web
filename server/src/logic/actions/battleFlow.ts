@@ -54,6 +54,7 @@ import {
     instIsCombined,
     instMinLevelCores,
     isInBattle,
+    isTrashCardProtected,
     lifeDamagePerSpiritRemaining,
     lifeFloorByEffect,
     lifeImmuneThisTurn,
@@ -342,6 +343,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コストで0を回避できる
             if (tryOwnLifeFloorByCost(state, opp)) {
                 fireFieldEventTriggers(state, opp, "ownLifeDamaged")
+                fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
             } else {
                 state.winner = owner
                 log(state, `${state.players[owner].name}の勝利！`)
@@ -349,6 +351,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         } else if (dealt > 0) {
             // 相手（opp）から見て「相手（owner）によって自分のライフが減らされたとき」に該当（命の果実）
             fireFieldEventTriggers(state, opp, "ownLifeDamaged")
+            fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
         }
         return
 }
@@ -692,6 +695,134 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
         // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
         if (action.count !== undefined) {
+            // alsoFrom:"trash"：手札とトラッシュの合計でcount枚まで、1枚ずつどちらの場所かを選べる（X05）
+            if (action.alsoFrom === "trash") {
+                const matchesTrashId = (candidateId: string): boolean =>
+                    !isTrashCardProtected(candidateId) && matchesCardId(candidateId)
+                const requestZone = (zone: "hand" | "trash", remaining: number): void => {
+                    const idxs: number[] = []
+                    if (zone === "hand") {
+                        for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) idxs.push(i)
+                    } else {
+                        for (let i = 0; i < player.trashCards.length; i++) {
+                            const id = player.trashCards[i]
+                            if (id !== undefined && matchesTrashId(id)) idxs.push(i)
+                        }
+                    }
+                    if (idxs.length === 0) {
+                        askPick(remaining)
+                        return
+                    }
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚する${zone === "hand" ? "手札" : "トラッシュ"}のカードを選んでください（あと${remaining}枚まで）`,
+                        zone,
+                        idxs,
+                        true,
+                        { ...action, count: remaining, pendingZone: zone },
+                        self,
+                        true,
+                    )
+                }
+                function askPick(remaining: number): void {
+                    if (remaining <= 0) return
+                    if (!state.interactiveTargets) {
+                        let left = remaining
+                        while (left > 0) {
+                            let bestZone: "hand" | "trash" | null = null
+                            let bestIdx = -1
+                            let bestCost = -1
+                            for (let i = 0; i < player.hand.length; i++) {
+                                if (!matchesCardId(player.hand[i]!)) continue
+                                const cost = getCard(player.hand[i]!).cost
+                                if (cost > bestCost) {
+                                    bestCost = cost
+                                    bestIdx = i
+                                    bestZone = "hand"
+                                }
+                            }
+                            for (let i = 0; i < player.trashCards.length; i++) {
+                                const id = player.trashCards[i]
+                                if (id === undefined || !matchesTrashId(id)) continue
+                                const cost = getCard(id).cost
+                                if (cost > bestCost) {
+                                    bestCost = cost
+                                    bestIdx = i
+                                    bestZone = "trash"
+                                }
+                            }
+                            if (bestZone === null) break
+                            if (bestZone === "hand") summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho, summonOpts)
+                            else summonFreeFromTrashIndex(state, owner, sourceName, bestIdx, summonOpts)
+                            left--
+                            if (state.winner) return
+                        }
+                        return
+                    }
+                    const handIdxs: number[] = []
+                    for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) handIdxs.push(i)
+                    const trashIdxs: number[] = []
+                    for (let i = 0; i < player.trashCards.length; i++) {
+                        const id = player.trashCards[i]
+                        if (id !== undefined && matchesTrashId(id)) trashIdxs.push(i)
+                    }
+                    if (handIdxs.length === 0 && trashIdxs.length === 0) return
+                    if (handIdxs.length > 0 && trashIdxs.length > 0) {
+                        suspend(state, {
+                            pid: owner,
+                            kind: "option",
+                            prompt: `${sourceName}：召喚するカードを手札／トラッシュのどちらから選びますか（あと${remaining}枚まで。選ばない場合は終了します）`,
+                            candidates: [],
+                            options: ["手札から選ぶ", "トラッシュから選ぶ"],
+                            optional: true,
+                            action: { ...action, count: remaining },
+                            selfInstanceId: self ? self.instanceId : null,
+                        })
+                        return
+                    }
+                    requestZone(handIdxs.length > 0 ? "hand" : "trash", remaining)
+                }
+                if (chosenCardIndex !== undefined) {
+                    if (action.pendingZone === "trash") summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, summonOpts)
+                    else summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                    askPick(action.count - 1)
+                    return
+                }
+                if (chosenOption !== undefined) {
+                    requestZone(chosenOption === "トラッシュから選ぶ" ? "trash" : "hand", action.count)
+                    return
+                }
+                askPick(action.count)
+                return
+            }
+            // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
+            if (action.upTo && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.hand.length; i++) {
+                    if (matchesCardId(player.hand[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚まで。選ばない場合は終了します）`,
+                        "hand",
+                        indices,
+                        true,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                }
+                return
+            }
             let summonedCount = 0
             for (let n = 0; n < action.count; n++) {
                 let bestIdx = -1
@@ -1096,6 +1227,32 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
         // 決定的簡略化、count枚に満たなければ可能な分だけ。対象選択を伴わないため
         // choseCardIndex / interactiveTargets 分岐は不要）
         if (action.count !== undefined) {
+            // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
+            if (action.upTo && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    if (matchesCardId(player.trashCards[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚まで。選ばない場合は終了します）`,
+                        "trash",
+                        indices,
+                        true,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                }
+                return
+            }
             let remaining = action.count
             const summonedNames: string[] = []
             while (remaining > 0) {
@@ -1690,52 +1847,21 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
     }
 }
 
-// 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
-// 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
-// BS09-044妖精の姫巫女ハマ・ドリュアス：このバトルに「ブロッカーがLv1なら
-// BPを比べずブロックされなかった扱いにする」印を立てる（判定はバトル解決側）
-const treatAsUnblockedIfBlockerLevel1Handler: ActionHandler<"treatAsUnblockedIfBlockerLevel1"> = (ctx) => {
+const TREAT_AS_UNBLOCKED_LABEL = {
+    always: "BPを比べずブロックされなかったものとして扱う。",
+    blockerLevel1: "Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。",
+    levelAtLeastBlocker: "ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。",
+} as const
+
+const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action) => {
     const { state, sourceName } = ctx
     if (!state.battle) {
         log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
         return
     }
-    state.battle.treatAsUnblockedIfBlockerLevel1 = true
-    log(state, `${sourceName}：Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。`)
-}
-
-// BS15-045虚獣帝スフィン・クロス：trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。
-// selfが現在のバトルのアタッカーで、ブロッカーがいて、コアが1個以上あるときだけ、
-// selfのコア1個をボイドに置いてBPを比べずブロックされなかった扱いにする（判定はバトル解決側）
-const unblockedByVoidSelfCoreHandler: ActionHandler<"unblockedByVoidSelfCore"> = (ctx) => {
-    const { state, self, sourceName } = ctx
-    if (!state.battle || !state.battle.blockerInstanceId) {
-        log(state, `${sourceName}：発動しなかった。`)
-        return
-    }
-    if (!self || self.instanceId !== state.battle.attackerInstanceId) {
-        log(state, `${sourceName}：発動しなかった。`)
-        return
-    }
-    if (self.cores <= 0) {
-        log(state, `${sourceName}：コアが無いため発動しなかった。`)
-        return
-    }
-    self.cores -= 1
-    state.battle.treatAsUnblockedByCost = true
-    log(state, `${sourceName}：コア1個をボイドに置き、BPを比べずブロックされなかったものとして扱う。`)
-}
-
-// SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら、BPを比べずに
-// 「ブロックされなかった」ものとして扱う（treatAsUnblockedIfBlockerLevel1 の一般化版）
-const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnblockedIfLevelAtLeastBlocker"> = (ctx) => {
-    const { state, sourceName } = ctx
-    if (!state.battle) {
-        log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
-        return
-    }
-    state.battle.treatAsUnblockedIfLevelAtLeastBlocker = true
-    log(state, `${sourceName}：ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。`)
+    const when = action.when ?? "always"
+    state.battle.treatAsUnblocked = [...(state.battle.treatAsUnblocked ?? []), when]
+    log(state, `${sourceName}：${TREAT_AS_UNBLOCKED_LABEL[when]}`)
 }
 
 
@@ -1802,9 +1928,7 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 
 const handlers = {
     endBattle: endBattleHandler,
-    treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
-    unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
-    treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
+    treatAsUnblocked: treatAsUnblockedHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,

@@ -89,7 +89,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
-    "bpEqualizeFamily", "destroyBpThresholdBonus",
+    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect",
 ])
 
 export interface ValidationIssue {
@@ -282,12 +282,15 @@ const FILTER_ACTIONS = new Set([
 const VALID_FILTER_KEYS = new Set([
     "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
     "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "minCores", "maxCores", "rested", "refreshed",
-    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
-    "sameCostAsEventTarget", "sameCostAsLast", "sameCostAsSelf", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
+    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameFamilyAsDestroyed", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
+    "sameCostAsEventTarget", "sameCostAsLast", "sameCostAsSelf", "costSameAsOwn", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
     "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
     "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
     "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
     "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
+    "bofuExhausted", // このバトル中に【暴風】で疲労した相手のスピリット（R5。"self"=発生源の【暴風】限定）
+    "damagedOwnLife", // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（R5）
+    "familyExclude", // familyの否定：並べた系統をどれも持たない（BS16-052）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
@@ -603,11 +606,13 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
     ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
     ["revealRest", "revealで選ばれなかった残りをrest先へ送る内部専用（revealApplyOne/revealの内側から積む）"],
+    ["burstMagicFreeOrThenPay", "burstMagicFreeEffect の4択（払う／無償メイン／無償フラッシュ／やめる）の再開用の内部専用"],
     ["revealFinishSummon", "revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き"],
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst"])
+// atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
 
 // declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
 export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {
@@ -623,6 +628,27 @@ export function findStrayDeclared(cards: CardData[]): { cardId: string; message:
         for (const [k, v] of Object.entries(r)) walk(v, cardId, inside || (r["type"] === "declare" && k === "then"))
     }
     for (const c of cards) walk(c.effects, c.cardId, false)
+    return out
+}
+
+// simultaneous の中は destroy{all} だけ（それ以外はハンドラが発揮しない）
+export function findBadSimultaneous(cards: CardData[]): { cardId: string; message: string }[] {
+    const out: { cardId: string; message: string }[] = []
+    const walk = (o: unknown, cardId: string): void => {
+        if (Array.isArray(o)) {
+            for (const x of o) walk(x, cardId)
+            return
+        }
+        if (o === null || typeof o !== "object") return
+        const r = o as Record<string, unknown>
+        if (r["type"] === "simultaneous") {
+            for (const a of (r["actions"] as Record<string, unknown>[] | undefined) ?? []) {
+                if (a["type"] !== "destroy" || a["all"] !== true) out.push({ cardId, message: "simultaneous の中には destroy{all} だけ書ける" })
+            }
+        }
+        for (const v of Object.values(r)) walk(v, cardId)
+    }
+    for (const c of cards) walk(c.effects, c.cardId)
     return out
 }
 
@@ -698,6 +724,7 @@ function main(): void {
 
     issues.push(...findUndeclaredEffectKeys(cards))
     issues.push(...findStrayDeclared(cards))
+    issues.push(...findBadSimultaneous(cards))
 
     for (const a of findUnusedActions(cards)) {
         issues.push({

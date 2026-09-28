@@ -6,6 +6,10 @@
     --text-muted: #9ca3af;
     --accent: #3b82f6;
     --accent-hover: #60a5fa;
+    /* button の白文字との組み合わせは #3b82f6 だと 4.5:1 未満（PageSpeed a11y 指摘対応）。--accent 自体は
+       境界線・光彩など他の用途で使われているのでそちらは変えず、button 専用の色を分ける */
+    --btn-bg: #2563eb;
+    --btn-bg-hover: #1d4ed8;
     --danger: #ef4444;
     --warning: #f59e0b;
     --success: #10b981;
@@ -87,7 +91,7 @@ button {
     padding: 10px 16px;
     border: none;
     border-radius: 8px;
-    background: var(--accent);
+    background: var(--btn-bg);
     color: #fff;
     font-weight: 500;
     cursor: pointer;
@@ -96,7 +100,7 @@ button {
 }
 
 button:hover {
-    background: var(--accent-hover);
+    background: var(--btn-bg-hover);
 }
 
 button:active {
@@ -1792,4 +1796,11 @@ button:active {
     padding: 16px;
     color: var(--text-muted);
     font-size: 13px;
+}
+
+/* 印刷されていない補足（effectText.ts）。本文と区別できるよう色と下線を変える */
+.effect-note {
+    color: #8fd3ff;
+    text-decoration: underline dotted;
+    cursor: help;
 }

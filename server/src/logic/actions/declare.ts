@@ -5,6 +5,7 @@ import { getCard, log } from "../GameState"
 import { requestChoice } from "../EffectModules"
 import { instBaseCost, instColors } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { matchesPick } from "./revealAction"
 
 type DeclareAction = Extract<EffectAction, { type: "declare" }>
 type Value = string | number
@@ -24,9 +25,16 @@ function labelOf(what: DeclareAction["what"], v: Value): string {
     return String(v)
 }
 
+function cardValuesOf(what: DeclareAction["what"], cardId: string): Value[] {
+    const card = getCard(cardId)
+    if (what === "color") return card.colors
+    if (what === "family") return card.family
+    return [card.cost]
+}
+
 // 候補の中で pool に最も多く現れる値（同数は候補の並び順で先）。非対話（テスト・AI）の自動選択
-function mostFrequent(candidates: Value[], pool: CardInstance[], what: DeclareAction["what"]): Value {
-    const count = (v: Value): number => pool.filter((i) => valuesOf(what, i).includes(v)).length
+function mostFrequent(candidates: Value[], valuesPerItem: Value[][]): Value {
+    const count = (v: Value): number => valuesPerItem.filter((vs) => vs.includes(v)).length
     return candidates.reduce((best, v) => (count(v) > count(best) ? v : best))
 }
 
@@ -74,13 +82,19 @@ const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
         } else if (candidates.length === 0) {
             picked[next] = "" // 指定できる値がない側は指定なし
         } else if (candidates.length === 1 || !state.interactiveTargets) {
-            // 自動選択：from があれば選ぶ人の場で最多、系統は自分の場、色・コストは相手の場で最多
-            const pool = action.from
-                ? zoneOf(next)
-                : action.what === "family"
-                  ? state.players[owner].field.spirits
-                  : [...state.players[opp].field.spirits, ...state.players[opp].field.nexuses]
-            picked[next] = mostFrequent(candidates, pool, action.what)
+            // 自動選択：autoFrom があればその基準、from があれば選ぶ人の場で最多、系統は自分の場、色・コストは相手の場で最多
+            if (action.autoFrom) {
+                const pick = action.autoFrom.ownTrash
+                const ids = state.players[next].trashCards.filter((id) => matchesPick(id, pick))
+                picked[next] = mostFrequent(candidates, ids.map((id) => cardValuesOf(action.what, id)))
+            } else {
+                const pool = action.from
+                    ? zoneOf(next)
+                    : action.what === "family"
+                      ? state.players[owner].field.spirits
+                      : [...state.players[opp].field.spirits, ...state.players[opp].field.nexuses]
+                picked[next] = mostFrequent(candidates, pool.map((i) => valuesOf(action.what, i)))
+            }
         } else {
             const what = action.what === "color" ? "色" : action.what === "family" ? "系統" : "コスト"
             requestChoice(

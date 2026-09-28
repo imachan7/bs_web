@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -100,22 +100,18 @@ function paySourcesTotal(paySources: PaySource[] | undefined): number {
     return (paySources ?? []).reduce((sum, s) => sum + s.count, 0)
 }
 
-// このターンの間、この pid は手札のカードを使えないか（BS11-082 ウィッグバインド）。
+// この pid は手札のカードを使えないか（期間つき効果の playerRule。期間はターン／バトル）。
 // 使えないなら理由の文字列、使えるなら null。**召喚・配置・マジック使用のすべてが通る入口**で見る
 function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string | null {
-    // このバトルの間だけの色制限（BS11-060 雷神砲カノン・アームズ）
-    const battleBan = state.battle?.handColorBannedFor
-    if (battleBan && battleBan.pid === pid && getCard(cardId).colors.includes(battleBan.color)) {
-        return "効果により、このバトルの間はこの色のカードを使えません"
-    }
     for (const c of timedPlayerRules(state, pid)) {
         if (c.type !== "cantUseHandCardsForPid") continue
         const card = getCard(cardId)
         if (c.cardType !== undefined && card.type !== c.cardType) continue
         const colors = card.colors
         if (c.allowedColor !== undefined && colors.includes(c.allowedColor)) continue
-        if (c.bannedColors !== undefined && !c.bannedColors.some((col) => colors.includes(col))) continue
-        return "効果により、このターンはこのカードを使えません"
+        // bannedColors は置く時点（timedEffect.ts）で"last"を具体色へ解決済みなので、ここでは配列のみ来る
+        if (Array.isArray(c.bannedColors) && !c.bannedColors.some((col) => colors.includes(col))) continue
+        return "効果により、このカードは使えません"
     }
     return null
 }
@@ -626,6 +622,8 @@ export function validateCastMagic(
     const bannedMagic = fromTegamoto ? null : handCardBanned(state, pid, cardId)
     if (bannedMagic) return bannedMagic
     if (card.type !== "magic") return "マジックカードではありません"
+    // battleLock "magic"（BS16-X06）：手札・手元どちらの経路でも「使用」自体を止める。バースト発動は別経路なので掛からない
+    if (timedMagicLocked(state, pid)) return "効果により、このバトルの間マジックを使用できません"
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
     // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）

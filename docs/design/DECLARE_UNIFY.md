@@ -10,6 +10,7 @@ R5_TRIAGE の G-exceptColor・G-familyChoice と、「指定する」を名前�
 | `declared` | 絞り込みの軸 | `TargetFilter.declared`・`CardPick.declared` に `"match"`（指定した値を持つ）／`"except"`（指定されなかった色を1つでも持つ） | 既存の `color`・`family`・`cost` は固定値しか書けない |
 
 - 指定した値は記録の枠に置かず、`then` の中の `declared` を実際の値（`color`・`family`・`cost`・`colorNotIn`）に**書き換えてから**解決する（`then` が `sequence` だと記録の枠が変わって読めないため。継続効果にも値がそのまま残る）。`declare` の外の `declared` は validate:cards が落とす
+- 非対話の自動選択：既定は §1 の盤面から。`autoFrom: { ownTrash: CardPick }` を書くと、自分のトラッシュのうち pick に合うカードに最も多い値（ヴァリエル。09-28 ユーザー了承）
 - 候補：`options`（効果文が並べる：「緑/黄から」「コスト4以下から」「想獣か獣頭」）か `from`（盤面から：「自分のフィールドに出ているスピリットの色」）。どちらも無ければ全色
 - `chooser: "each"`（お互い）は、発生源の持ち主→相手の順に指定し、`except` はどちらかが指定した色を安全とする（今の実装どおり）
 - 「このターンの間、指定した色の〜」（継続効果）は、置く時点で `declared` を実際の値に置き換えて `timedEffect` に書く（PR3）
@@ -28,7 +29,7 @@ R5_TRIAGE の G-exceptColor・G-familyChoice と、「指定する」を名前�
 | destroyAllNexusesExceptChosenColors | 1 | 同上のネクサス版 | **お互いの色を自動で選んでいた → 各自が選ぶ** |
 | destroyFieldExceptOpponentChosenColor | 1 | `declare{color, from 相手のスピリット, chooser opponent}` → `destroy`＋`destroyNexus`（except） | なし |
 | returnFieldExceptOpponentChosenColor | 1 | 同上 → `returnToHand{all, filter{declared except}}` | なし |
-| recoverAllMagicFromTrashByColorChoice | 1 | `declare{color, options[緑,黄]}` → トラッシュ→手札（pick{declared}） | トラッシュ→手札の器がそろってから |
+| recoverAllMagicFromTrashByColorChoice | 1 | `declare{color, options[緑,黄], autoFrom{ownTrash{magic}}}` → `toHand{count all, pick{magic, declared}}`（09-28 済み） | **トラッシュに無い色も指定できる**（09-28 ユーザー了承） |
 | colorChoiceLendThisTurn・grantFamilyChoiceAll・refreshWhenBlockedByChosenColorThisTurn | 4 | `declare` → `timedEffect`（PR3） | |
 
 ## §3 確認したいこと（私はこう読みました → これでいいですか）

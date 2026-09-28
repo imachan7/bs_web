@@ -8302,11 +8302,26 @@
     ],
     "optional": false,
     "action": {
-     "type": "recoverAllMagicFromTrashByColorChoice",
-     "colors": [
+     "type": "declare",
+     "what": "color",
+     "options": [
       "green",
       "yellow"
-     ]
+     ],
+     "autoFrom": {
+      "ownTrash": {
+       "cardType": "magic"
+      }
+     },
+     "then": {
+      "type": "toHand",
+      "from": "trash",
+      "count": "all",
+      "pick": {
+       "cardType": "magic",
+       "declared": "match"
+      }
+     }
     }
    }
   ]

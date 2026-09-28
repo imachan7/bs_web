@@ -3,6 +3,7 @@ import * as fs from "node:fs"
 import * as http from "node:http"
 import * as path from "node:path"
 import express from "express"
+import compression from "compression"
 import { Server, type Socket } from "socket.io"
 import type { CardInstance, DeckSpec, GameAction, PlayerId } from "./type"
 import { MatchQueue, RoomManager, type Room } from "./roomManager"
@@ -19,6 +20,7 @@ const PORT = Number(process.env.PORT ?? 3000)
 const app = express()
 // アクセスログは express.static より前（static は該当ファイルを返した時点で後段へ進まない）
 app.use(accessLogMiddleware)
+app.use(compression())
 app.use(express.static(path.resolve(__dirname, "../../public")))
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 

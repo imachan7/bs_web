@@ -20,7 +20,7 @@ function collect(): { cardId: string; action: EffectAction; lock: string }[] {
 console.log("=== 1. 移したカードデータ9か所：バトル中なら相手に印が付く ===")
 {
     const entries = collect()
-    assert(entries.length === 9, `battleLock は9か所（実際: ${entries.length}）`)
+    assert(entries.length === 10, `battleLock は10か所（BS16-X06 で+1）（実際: ${entries.length}）`)
     for (const { cardId, action, lock } of entries) {
         const s = createGame("p373", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         const attacker = createInstance("BS01-001", 1, 1)

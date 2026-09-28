@@ -128,6 +128,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedPlayerRules`（fn）：このプレイヤーに掛かっている「このターンの間」の制約
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
+- `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 
 ## shared/rules/keywordState.ts
@@ -142,6 +143,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasHandKeywordGrant`（fn）：緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
 - `spiritHasFamily`（fn）
 - `matchesFamilyFilter`（fn）：FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
+- `bofuCountBonusFor`（fn）：持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
+- `bofuCountFor`（fn）：このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
 
 ## shared/rules/level.ts
 
@@ -263,6 +266,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeCostBlockedByFloor`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
 - `tryOwnLifeFloorByCost`（fn）
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
+- `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
 - `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
 - `hasAttackTriggersAsBlock`（fn）
 - `hasLifeDamageNegate`（fn）：硝子の女神フレイア：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の
@@ -366,6 +370,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
 - `destroyNexusCandidateCountForPay`（fn）：pay の判定表（destroyNexus）が使う候補数。
 - `nexusHasCoresForPay`（fn）：pay の判定表（nexusCoresToTrash）：対象側のネクサスのどれかにコアが1個以上あるか
+- `destroyAllTargetList`（fn）：destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
+- `destroyTargetList`（fn）：まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
 
 ## server/src/logic/actions/drawDiscard.ts
 
@@ -398,7 +404,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/revealAction.ts
 
-- `matchesPick`（fn）
+- `matchesPick`（fn）：costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
 
 ## server/src/logic/actions/timedEffect.ts
 
@@ -459,13 +465,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/keywords/bofu.ts
 
-- `bofuCountBonusFor`（fn）：持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
-- `bofuCountFor`（fn）：このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
 - `hasBofuOnBlock`（fn）：持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
 - `hasBofuChooserSelf`（fn）：持ち主のフィールドに bofuChooserSelf（BS07ワールウィンド）が有効な発生源があるか。
 
 ## server/src/logic/keywords/burst.ts
 
+- `BURST_MAGIC_FREE_MAIN_LABEL`（const）：burstMagicFreeEffect（BS16-070）の選択肢ラベル。actions/control.tsのburstMagicFreeOrThenPayHandlerと
+- `BURST_MAGIC_FREE_FLASH_LABEL`（const）
 - `placeBurst`（fn）：バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
 - `finishBurstActivation`（fn）：バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
@@ -563,6 +569,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `newRecordScope`（fn）
 - `currentRecordScope`（fn）
 - `recordMoved`（fn）：scope は書く側が**開始時に控えた**枠を渡す（途中の誘発が recordScope を変えても自分の枠に書くため）
+- `recordLeftCost`（fn）：効果で場から移すスピリットの、待機状態に入ったときのコスト（「この効果で〜を戻したとき」の続きは待機中に解決するので、
+- `lastLeftCostOf`（fn）
 - `lastMovedOf`（fn）
 - `withMovedProbe`（fn）
 - `lastMovedCount`（fn）
@@ -659,6 +667,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `pickOwnKeywordTarget`（fn）：grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
 - `requestActivationConfirm`（fn）：「〜できる」（EffectDef.triggered.optional）の発動確認。
 - `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
+- `requestUpToChoice`（fn）：「N体まで／Nつまで」（0〜N の好きな数を選べる）用の選択発行。requestChoice と違い、
 - `requestCardChoice`（fn）：requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
 
 ## server/src/logic/triggers.ts
@@ -754,6 +763,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `EffectDef`（型）
 - `MagicCondition`（型）：マジックの条件（判定は shared/magicCondition.ts）
+
+## public/src/effectText.ts
+
+- `EffectSegment`（型）
+- `effectLineSegments`（fn）：バースト効果の「召喚する／配置する」は、「コストを支払わずに」と書かれていなくても無償
 
 ## public/src/renderer.ts
 

@@ -6,12 +6,14 @@ import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, 
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
 import { matchesPick } from "./revealAction"
+import { destroyAllTargetList, destroyTargetList } from "./destroy"
+import { SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveBp, iceWallColorsOf, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { lastMovedOf, newRecordScope } from "../record"
+import { lastLeftCostOf, lastMovedOf, newRecordScope } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -95,13 +97,30 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
         return
 }
 
+// 「Aして、B」＝同時に解決する（CONJUNCTION.md。BS04-108。2026-09-27 ユーザー確認）。
+// 対象はすべて解決の開始時に決め、1回の破壊にまとめる（片方の破壊時の誘発がもう片方の対象を変えないように）
+const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+    const targets: { pid: PlayerId; instanceId: string }[] = []
+    for (const a of action.actions) {
+        if (a.type !== "destroy" || !a.all) {
+            log(state, `${sourceName}：同時に解決できない効果が含まれているため発揮しなかった。`)
+            return
+        }
+        const list = destroyAllTargetList(ctx, a)
+        if (list === SELF_REQUIRED) continue
+        for (const t of list) if (!targets.some((x) => x.instanceId === t.instanceId)) targets.push(t)
+    }
+    destroyTargetList(ctx, targets)
+}
+
 // 「〜とき／〜なら B（他のときは C）」。条件は解決する時点の盤面・記録で判定する
 // （中断して再開スタックから来た場合も、前のアクションを解決した後に判定される＝IF_UNIFY.md Q3）
 const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     const cond = action.cond
     const met = "last" in cond
-        ? lastMovedOf(state).some((id) => matchesPick(id, cond.last))
+        ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
         : "event" in cond
           ? "destroyedColor" in cond.event
               ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)
@@ -360,9 +379,42 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     return
 }
 
+// burstMagicFreeEffect（BS16-070）の選択肢の解決（keywords/burst.tsのtryBurstMagicFreeOrThenPayが積む）。
+// chosenOptionの文言で「無償でメイン／無償でフラッシュ／コストを払ってthenPay」を判定する。
+// ラベル文字列はkeywords/burst.tsのBURST_MAGIC_FREE_MAIN_LABEL／_FLASH_LABELと一致させること
+// （circular import回避のため定数を共有せず、ここに複製してある）
+const BURST_MAGIC_FREE_MAIN_LABEL = "コストを支払わずにメイン効果を発揮する"
+const BURST_MAGIC_FREE_FLASH_LABEL = "コストを支払わずにフラッシュ効果を発揮する"
+const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> = (ctx, action) => {
+    const { state, owner, chosenOption } = ctx
+    if (chosenOption === undefined) return
+    const card = getCard(action.cardId)
+    const magicEntry = (timing: "main" | "flash") =>
+        card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === timing)
+    const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
+        if (!entry) return
+        resolveAction(state, owner, null, entry.action, undefined, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, action.cardId)
+    }
+    if (chosenOption === BURST_MAGIC_FREE_MAIN_LABEL) {
+        resolveFree(magicEntry("main"))
+        return
+    }
+    if (chosenOption === BURST_MAGIC_FREE_FLASH_LABEL) {
+        resolveFree(magicEntry("flash"))
+        return
+    }
+    if (action.payTiming === undefined || action.payCost === undefined) return
+    const player = state.players[owner]
+    if (player.reserve < action.payCost) return
+    player.reserve -= action.payCost
+    log(state, `${player.name}は${card.name}のコスト${action.payCost}を支払った。`)
+    resolveFree(magicEntry(action.payTiming))
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
+    simultaneous: simultaneousHandler,
     if: ifHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
@@ -371,6 +423,7 @@ const handlers = {
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     setBurstFromHand: setBurstFromHandHandler,
     payNegateDecide: payNegateDecideHandler,
+    burstMagicFreeOrThenPay: burstMagicFreeOrThenPayHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

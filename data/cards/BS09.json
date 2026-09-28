@@ -2620,8 +2620,15 @@
         ],
         "optional": true,
         "action": {
-          "type": "costDiscardNamedThenPeek",
-          "cardName": "キャラクターロスト"
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 1,
+            "cardName": "キャラクターロスト"
+          },
+          "then": {
+            "type": "peekOpponentHand"
+          }
         }
       },
       {
@@ -2986,7 +2993,8 @@
         "granted": {
           "trigger": "onAttack",
           "action": {
-            "type": "treatAsUnblockedIfBlockerLevel1"
+            "type": "treatAsUnblocked",
+              "when": "blockerLevel1"
           }
         }
       }
@@ -5290,7 +5298,7 @@
           "from": "reserve",
           "to": "life",
           "count": 0,
-          "upTo": 5
+          "fillTo": 5
         }
       },
       {

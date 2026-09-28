@@ -934,7 +934,10 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "exhaustAllOpponentNexuses"
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "nexus": "only"
         },
         "optional": false
       },
@@ -2656,8 +2659,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "exhaustSpiritsAndNexusesUpTo",
-          "count": 3
+          "type": "exhaust",
+          "count": 3,
+          "nexus": "also",
+          "upTo": true
         }
       }
     ]
@@ -6598,7 +6603,12 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "recoverNexusFromTrash"
+          "type": "toHand",
+          "from": "trash",
+          "count": 1,
+          "pick": {
+            "cardType": "nexus"
+          }
         }
       },
       {

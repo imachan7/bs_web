@@ -30,13 +30,14 @@ import {
     pickEnemyLowestCost,
     pickEnemyCandidates,
     requestChoice,
+    requestUpToChoice,
     returnNexusToHand,
     returnNexusToDeckTop,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instAllCosts, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -380,22 +381,17 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         return
 }
 
-// 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
-function destroyAllTargets(
-    ctx: ActionCtx,
-    action: { filter?: TargetFilter; anySide?: boolean; drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true },
-): void {
-    const { state, owner, opp, self, sourceName, srcType, destroyContext } = ctx
-        // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
-        // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
-        // 絞り込み（maxBp / colorExclude）は共通の TargetFilter に一本化。
-        // anySide は「どちらのフィールドを見るか」＝対象プールの選択なので filter には含めない
+type AllTargetsSpec = { filter?: TargetFilter; anySide?: boolean; side?: "own" }
+
+// destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
+// 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
+// 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
+// anySide／side は「どちらのフィールドを見るか」＝対象プールの選択なので filter には含めない
+export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { pid: PlayerId; instanceId: string }[] | typeof SELF_REQUIRED {
+    const { state, owner, opp, self, srcType } = ctx
         const areaFilter = normalizeFilter(ctx, action)
-        if (areaFilter === SELF_REQUIRED) {
-            log(state, `${sourceName}：BP参照元がいなかった。`)
-            return
-        }
-        const oppTargets = state.players[opp].field.spirits
+        if (areaFilter === SELF_REQUIRED) return SELF_REQUIRED
+        const oppTargets = action.side === "own" ? [] : state.players[opp].field.spirits
             .filter(
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
@@ -404,7 +400,7 @@ function destroyAllTargets(
             .map((s) => ({ pid: opp, inst: s }))
         // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
         // 同様に自分側には適用しない非対称ルール。BS04魔龍帝ジークフリードLv3）
-        const ownTargets = action.anySide
+        const ownTargets = action.anySide || action.side === "own"
             ? state.players[owner].field.spirits
                   .filter(
                       (s) =>
@@ -416,8 +412,33 @@ function destroyAllTargets(
         // 封印された魔導書Lv1：マジックで「スピリットすべて」を対象にしたとき、
         // 片側だけに変更する選択が済んでいればその側に絞る（anySide の単体対象と同じ扱い）
         const keepPid = bothSidesRedirectKeepPid(state, srcType)
-        const targets = [...oppTargets, ...ownTargets].filter((t) => keepPid === null || t.pid === keepPid)
-        if (targets.length === 0) {
+        return [...oppTargets, ...ownTargets]
+            .filter((t) => keepPid === null || t.pid === keepPid)
+            .map((t) => ({ pid: t.pid, instanceId: t.inst.instanceId }))
+}
+
+// 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
+function destroyAllTargets(
+    ctx: ActionCtx,
+    action: AllTargetsSpec & { drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true },
+): void {
+    const { state, sourceName } = ctx
+        const list = destroyAllTargetList(ctx, action)
+        if (list === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
+        destroyTargetList(ctx, list, action)
+}
+
+// まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
+export function destroyTargetList(
+    ctx: ActionCtx,
+    batchTargets: { pid: PlayerId; instanceId: string }[],
+    action: { drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true } = {},
+): void {
+    const { state, owner, self, sourceName, destroyContext } = ctx
+        if (batchTargets.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
@@ -427,7 +448,6 @@ function destroyAllTargets(
         //
         // バッチ経由なので、1体ごとに「復活しますか」の確認で**その場で中断できる**。
         // 中断したら destroyBatch フレームを積んで抜け、残りは drainResumeStack が続きを回す
-        const batchTargets = targets.map((t) => ({ pid: t.pid, instanceId: t.inst.instanceId }))
         const after = {
             ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
             ...(action.voidCoreToSelfPerDestroyed ? { voidCoreToSelfPerDestroyed: true as const } : {}),
@@ -455,138 +475,6 @@ function destroyAllTargets(
         if (state.winner) return
         applyDestroyBatchAfter(state, owner, destroyed, after)
         return
-}
-
-
-// BS12-X06海賊王レヴィアダン『召喚時』：自分の familyFilter 一致スピリット（self自身も含む）の
-// コストの集合に、コストが一致する相手のスピリットすべてを破壊する（器BH）
-const destroyByOwnFamilyCostSetHandler: ActionHandler<"destroyByOwnFamilyCostSet"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, destroyContext } = ctx
-    const costSet = new Set<number>()
-    for (const s of state.players[owner].field.spirits) {
-        if (!matchesFamilyFilter(state, owner, s, action.familyFilter)) continue
-        for (const c of instAllCosts(s)) costSet.add(c)
-    }
-    if (costSet.size === 0) {
-        log(state, `${sourceName}：コストの参照元がいなかった。`)
-        return
-    }
-    const targets = state.players[opp].field.spirits
-        .filter(
-            (s) =>
-                instAllCosts(s).some((c) => costSet.has(c)) &&
-                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
-        )
-        .map((s) => ({ pid: opp, instanceId: s.instanceId }))
-    if (targets.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, destroyContext)
-    if (stoppedAt < targets.length) {
-        pushResumeFrames(state, [{
-            kind: "destroyBatch",
-            ownerPid: owner,
-            targets,
-            index: stoppedAt,
-            destroyed,
-            ...(destroyContext ? { context: destroyContext } : {}),
-            after: {},
-        }])
-        return
-    }
-    if (state.winner) return
-    applyDestroyBatchAfter(state, owner, destroyed, {})
-    return
-}
-
-// BS16-080次元断のフラッシュ効果：「このバトルの間、自分のライフを減らした相手のスピリット1体を破壊する。
-// または、このバースト発動時に自分のライフを減らした相手のスピリット1体を破壊する」。
-// 両方に対象がいれば使用者がどちらか選ぶ（orReserveと同型のoption選択）。片方だけなら自動でそちらを使う
-const DESTROY_LIFE_DAMAGER_OPTION_BATTLE = "このバトルの間"
-const DESTROY_LIFE_DAMAGER_OPTION_BURST = "このバースト発動時"
-const destroyLifeDamagerHandler: ActionHandler<"destroyLifeDamager"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenOption, destroyContext } = ctx
-    const battleId = state.battle?.lifeDamagers?.at(-1)
-    const burstId = state.burstEventLifeDamagerId
-    const battleFound = battleId !== undefined ? findSpiritAny(state, battleId) : null
-    const burstFound = burstId !== undefined ? findSpiritAny(state, burstId) : null
-    if (!battleFound && !burstFound) {
-        log(state, `${sourceName}：自分のライフを減らした相手のスピリットがいないため発動しなかった。`)
-        return
-    }
-    let targetId: string
-    if (battleFound && burstFound && battleId !== burstId) {
-        if (chosenOption === DESTROY_LIFE_DAMAGER_OPTION_BURST) {
-            targetId = burstId!
-        } else if (chosenOption === DESTROY_LIFE_DAMAGER_OPTION_BATTLE || !state.interactiveTargets) {
-            // 非対話時は既定で「このバトルの間」側を使う（両方あって差が無いときの自動選択）
-            targetId = battleId!
-        } else {
-            suspend(state, {
-                pid: owner,
-                kind: "option",
-                prompt: `${sourceName}：どちらの相手のスピリットを破壊しますか？`,
-                candidates: [],
-                options: [DESTROY_LIFE_DAMAGER_OPTION_BATTLE, DESTROY_LIFE_DAMAGER_OPTION_BURST],
-                optional: false,
-                action,
-                selfInstanceId: self ? self.instanceId : null,
-            })
-            return
-        }
-    } else {
-        targetId = (battleFound ? battleId : burstId)!
-    }
-    const found = findSpiritAny(state, targetId)
-    if (!found) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    const destroyAttempt = attemptOf(ctx, "destroy", "targeted")
-    if (askPayToNegateIfNeeded(state, found.pid, found.inst, destroyAttempt, action, self, sourceName)) return
-    const resisted = resistanceAgainst(state, found.pid, found.inst, destroyAttempt)
-    if (resisted) {
-        log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-        return
-    }
-    destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
-}
-
-// ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
-// 自分側と相手側で絞り込みが違う（自分＝系統一致のみ／相手＝すべて）ため destroy{all} では表現できない。
-// 免疫まわりの扱いは destroy{all} と揃える（自分側には装甲・マジック効果耐性を適用しない非対称ルール）
-const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyThenWipeEnemy"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-    const ownTargets = state.players[owner].field.spirits
-        .filter(
-            (s) =>
-                matchesFamilyFilter(state, owner, s, action.family) &&
-                !isResisted(state, owner, s, attemptOf(ctx, "destroy", "area")),
-        )
-        .map((s) => s.instanceId)
-    // **対象は解決の開始時に確定させる**（自分側→相手側の順に1つのバッチで処理する）。
-    // 復活の確認で中断しても、再開フレームが残りを同じ順で処理できるようにするため
-    const oppTargets = state.players[opp].field.spirits
-        .filter(
-            (s) =>
-                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
-        )
-        .map((s) => s.instanceId)
-    if (ownTargets.length === 0 && oppTargets.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    destroyTargetsBatch(
-        state,
-        owner,
-        [
-            ...ownTargets.map((instanceId) => ({ pid: owner, instanceId })),
-            ...oppTargets.map((instanceId) => ({ pid: opp, instanceId })),
-        ],
-        destroyContext,
-    )
-    void self
 }
 
 // マインドフレア：相手のフィールドに同じカード名のスピリットが2体以上いるとき、
@@ -715,7 +603,53 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
             }
-            destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            // 破壊したネクサスを lastMoved に書く（「破壊したネクサスのコストと同じ枚数」＝カウンタlastCostが読む。060）
+            const scope = currentRecordScope(state)
+            if (destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                recordMoved(state, [victim.cardId], scope)
+            }
+            return
+        }
+        // upTo（0〜count の好きな数を選べる）：既存の自動選択ループは聞かずに先頭から決め打ちするため、
+        // 対話時はここで分岐する。side:both との組み合わせは使用例が無いため sides[0] のみ扱う。
+        // drawPerDestroyed／discardOpponentPerDestroyed は upTo と組み合わせて使うカードが無いため、
+        // 対話の再入をまたいで合計を持ち回る仕組みは未対応（必要になったら action に合計を載せる）
+        if (action.upTo && state.interactiveTargets) {
+            const pid = sides[0]
+            if (pid === undefined) {
+                log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                return
+            }
+            if (targetInstanceId !== undefined) {
+                const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+                if (!nexus) {
+                    log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                    return
+                }
+                destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+                const remaining = action.count - 1
+                if (remaining > 0) {
+                    const nextCandidates = state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => n.instanceId)
+                    requestUpToChoice(
+                        state,
+                        owner,
+                        `${sourceName}：破壊するネクサスを選んでください（あと${remaining}つまで）`,
+                        nextCandidates,
+                        { ...action, count: remaining },
+                        self,
+                    )
+                }
+                return
+            }
+            const candidates = state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => n.instanceId)
+            requestUpToChoice(
+                state,
+                owner,
+                `${sourceName}：破壊するネクサスを選んでください（あと${action.count}つまで）`,
+                candidates,
+                action,
+                self,
+            )
             return
         }
         let destroyed = 0
@@ -886,12 +820,16 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
 
 
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
         // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する。
         // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲＝残り予算内でコスト最大から。
         // 同コストは実効BP最大を優先）
-        if (budgetToggleDestroy(ctx, action, action.budget, "コスト", (sp) => getCard(sp.cardId).cost)) return
-        let remaining = action.budget
+        // budgetCounter指定時（083）：実際の予算はbudget×counter値（burstEventCost等）で算出する
+        const budget = action.budgetCounter !== undefined
+            ? countedAmount(state, owner, self, action.budget, action.budgetCounter, srcType)
+            : action.budget
+        if (budgetToggleDestroy(ctx, action, budget, "コスト", (sp) => getCard(sp.cardId).cost)) return
+        let remaining = budget
         let destroyedCount = 0
         const destroyedNames: string[] = []
         // 先に選び切ってからまとめて破壊する（destroyByBpBudget と同じ理由）
@@ -926,7 +864,7 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
         }
         log(
             state,
-            `${sourceName}：コスト合計${action.budget}まで「${destroyedNames.join("、")}」を破壊した。`,
+            `${sourceName}：コスト合計${budget}まで「${destroyedNames.join("、")}」を破壊した。`,
         )
         return
 }
@@ -1488,9 +1426,6 @@ const handlers = {
     destroy: destroyRecordedHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
-    destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
-    destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
-    destroyLifeDamager: destroyLifeDamagerHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     destroyNexus: destroyNexusEntryHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,

@@ -20,6 +20,7 @@ import { fireFieldEventTriggers, notifyHandGained, notifySpiritCoresRemovedByOpp
 import type { FieldEventExtraItem } from "./triggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave } from "./brave"
+import { recordLeftCost } from "./record"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, wouldAskReviveConfirm } from "./revive"
 
 export type { KeywordInfo }
@@ -50,6 +51,7 @@ import {
     hasKeyword,
     instanceSymbolCount,
     instAllCosts,
+    instBaseCost,
     instColors,
     instHasColor,
     instHasCost,
@@ -406,7 +408,7 @@ function fireOwnSpiritDestroyed(
     }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestructionが積み、fireQueuedDestroyBurstsがトラッシュ行き確定後に発火させる。BS16バッチ0）
     // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
     // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
-    // exhaustOpponentSameFamilyAll（BS16-027）が読む橋渡し。同時破壊なら破壊待機の全員の系統
+    // sameFamilyAsDestroyed（BS16-027）が読む橋渡し。同時破壊なら破壊待機の全員の系統
     state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? master.family
     fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
         byBattle,
@@ -1173,6 +1175,7 @@ export function markBounce(
     // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
     // 「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
+    recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
 }
 
@@ -1353,7 +1356,7 @@ export function removeCores(
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const floor = coreFloorFor(state, inst, ownerPid)
+    const floor = coreFloorFor(state, inst, ownerPid, actorPid)
     const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
     inst.cores -= removed
     // coresToOpponentReserveGoToTrash（BS12-X02）：本来リザーブへ置かれるはずのコアを、
@@ -1404,7 +1407,7 @@ export function removeCoresToTrash(
         log(state, `トラッシュに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count + bonus, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count + bonus, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
     inst.cores -= removed
     player.trashCores += removed
     log(
@@ -1436,7 +1439,7 @@ export function takeCoresFromSpirit(
         log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
         return 0
     }
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
     inst.cores -= removed
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < instMinLevelCores(inst)) {
@@ -1463,7 +1466,7 @@ export function removeCoresToVoid(
     }
     const player = state.players[ownerPid]
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
     inst.cores -= removed
     log(
         state,
@@ -1486,7 +1489,7 @@ export function removeCoresToVoid(
 // 書き方なので、取り除く効果だけでなく**移動・入れ替え**でも下回れない。
 // 取り除く系は removeCores/removeCoresToTrash/removeCoresToVoid が、
 // 移動・入れ替え系（moveCoresLeavingOne／swapOpponentCores）は各ハンドラがこの関数を直接見る。
-export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId): number {
+export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     if (getCard(inst.cardId).type !== "spirit") return 0
     // ownOnly（BS09-059翡翠の社Lv2）は発生源の持ち主のスピリットだけを守るので、
     // 「どちらの発生源から来た制約か」を見る必要がある
@@ -1502,6 +1505,8 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
+                // byOpponentOnly（BS16-039）：減らす側がactorPidで、pid（守る側）と同じなら自分自身の減少なので床を張らない
+                if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
                 // colorFilter（BS12-065大樹茂る天守閣：「自分の緑のスピリットすべて」）：この色を持たなければ守らない
                 if (effect.constraint.colorFilter !== undefined && !instHasColor(inst, effect.constraint.colorFilter)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。

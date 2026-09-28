@@ -1,6 +1,6 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
-// lifeCharge等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
+// 旧 lifeCharge 等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { coresForLevel, getCard, log } from "../GameState"
@@ -137,10 +137,10 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
 
     const wantsSpiritOrNexus = action.to === "spirit" || action.to === "nexus"
 
-    // 取り元が空でupTo/upToLevelでもないなら、対象選択より前に打ち切る（無駄な選択を出さない）
+    // 取り元が空でfillTo/upToLevelでもないなら、対象選択より前に打ち切る（無駄な選択を出さない）
     if (
         action.from !== "void" &&
-        action.upTo === undefined &&
+        action.fillTo === undefined &&
         action.upToLevel === undefined &&
         availableFromSource(state, owner, action.from, self) <= 0
     ) {
@@ -153,7 +153,16 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
     let allTargets: CardInstance[] | null = null
     let nextPick: PlaceCoresAction | null = null
 
-    if (wantsSpiritOrNexus) {
+    if (wantsSpiritOrNexus && action.upToTargetId !== undefined) {
+        // upTo（true）の個数選択（stepper）から戻ってきた再入：対象は既に決めてあるので選び直さない
+        const pool = action.to === "spirit" ? player.field.spirits : player.field.nexuses
+        const found = pool.find((c) => c.instanceId === action.upToTargetId)
+        if (!found) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        targetInst = found
+    } else if (wantsSpiritOrNexus) {
         const candidates = placeCoresPoolCandidates(ctx, action)
         if (candidates === SELF_REQUIRED) {
             log(state, `${sourceName}：対象がいなかった。`)
@@ -236,7 +245,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
             return
         }
         perTarget = required - targetInst.cores
-    } else if (action.upTo !== undefined) {
+    } else if (action.fillTo !== undefined) {
         const current =
             action.to === "life"
                 ? player.life
@@ -247,12 +256,54 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
                     : action.to === "deckSide"
                       ? player.deckSideCores
                       : (targetInst?.cores ?? 0)
-        const need = action.upTo - current
+        const need = action.fillTo - current
         if (need <= 0) {
-            log(state, `${sourceName}：すでに${String(action.upTo)}以上のため、コアは置かれなかった。`)
+            log(state, `${sourceName}：すでに${String(action.fillTo)}以上のため、コアは置かれなかった。`)
             return
         }
         perTarget = need
+    } else if (action.upTo === true) {
+        // 「count個まで」＝0〜count個の好きな数（2026-09-28ユーザー決定）。対象は上の「対象の決定」で確定済み
+        // （複数対象・all指定は今回の対象カードには無いため未対応。来たら相談する）
+        if (action.count === "all" || typeof action.count !== "number") {
+            log(state, `${sourceName}：置ける個数を決められなかった。`)
+            return
+        }
+        const capacity = availableFromSource(state, owner, action.from, self)
+        const n = Math.min(action.count, capacity)
+        if (n <= 0) {
+            log(state, `${sourceName}：置けるコアがなかった。`)
+            return
+        }
+        if (chosenOption !== undefined) {
+            const chosenN = Math.max(0, Math.min(n, Number(chosenOption) || 0))
+            if (chosenN <= 0) {
+                log(state, `${sourceName}：コアを置かなかった。`)
+                return
+            }
+            perTarget = chosenN
+        } else if (state.interactiveTargets) {
+            if (!targetInst) {
+                log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：置くコアの数を選んでください（最大${n}個）`,
+                [],
+                false,
+                { ...action, upToTargetId: targetInst.instanceId },
+                self,
+                "option",
+                Array.from({ length: n + 1 }, (_, i) => String(i)),
+                undefined,
+                true,
+            )
+            return
+        } else {
+            perTarget = n
+        }
     } else if (action.count === "all") {
         perTarget = availableFromSource(state, owner, action.from, self)
     } else {
@@ -270,7 +321,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         return
     }
 
-    // orReserve：to以外にリザーブへ置く選択肢を、効果の使用者に毎回選ばせる（voidCoreToSelf/lifeChargeの鏡）。
+    // orReserve：to以外にリザーブへ置く選択肢を、効果の使用者に毎回選ばせる（旧 voidCoreToSelf・lifeCharge の鏡）。
     // 非対話の既定は to==="life" ならライフ、それ以外はリザーブ（既存2種の非対話挙動をそのまま踏襲）
     if (action.orReserve && action.to !== "reserve") {
         const destLabel = action.to === "life" ? "自分のライフに置く" : "対象の上に置く"
@@ -340,7 +391,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         return
     }
 
-    // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。既存lifeChargeと同じ絞り）
+    // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。旧 lifeCharge と同じ絞り）
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }

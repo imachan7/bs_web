@@ -403,6 +403,36 @@ export function requestChoice(
     })
 }
 
+// 「N体まで／Nつまで」（0〜N の好きな数を選べる）用の選択発行。requestChoice と違い、
+// 候補が1件でも自動解決しない（0個で終える選択肢を必ず残す）。optional:true 固定で、
+// スキップ時は choice.ts が「選ばなかった」ログだけ出して終わる（resolveOnSkip を立てないので
+// 残りは処理されない＝ 2026-09-28 決定の「スキップしたらそこで終える」）。
+// 呼び出し側（各ハンドラ）が1体処理するたびに count-1 で呼び直す形（再開スタックには積まない）
+export function requestUpToChoice(
+    state: GameState,
+    pid: PlayerId,
+    prompt: string,
+    candidates: string[],
+    action: EffectAction,
+    self: CardInstance | null,
+    chooserPid?: PlayerId,
+): void {
+    if (candidates.length === 0) {
+        log(state, `${self ? getCard(self.cardId).name : "効果"}：対象がいなかった。`)
+        return
+    }
+    suspend(state, {
+        pid: chooserPid ?? pid,
+        kind: "target",
+        prompt,
+        candidates,
+        optional: true,
+        action,
+        selfInstanceId: self ? self.instanceId : null,
+        ...(chooserPid !== undefined && chooserPid !== pid ? { actorPid: pid } : {}),
+    })
+}
+
 // requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
 // 候補が0件なら不発、1件なら即座に resolveAction（chosenCardIndex渡し）で解決、
 // 2件以上なら state.pendingChoice(kind:"card") を立てて GameAction "resolveChoice"（cardIndex）を待つ。

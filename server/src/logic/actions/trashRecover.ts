@@ -1,10 +1,9 @@
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { Color, EffectAction } from "../../type"
+import type { EffectAction } from "../../type"
 import { getCard, log, suspend } from "../GameState"
-import { summonFreeFromTrashIndex, destroySpirit, payCost, notifyHandGained, requestCardChoice, requestChoice, resolveMagic, tryInteractiveCardChoice } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, isTrashCardProtected, isVanillaCard, trashCardNameMatches } from "../../../../shared/rules"
+import { summonFreeFromTrashIndex, destroySpirit, payCost, notifyHandGained, requestCardChoice, resolveMagic, tryInteractiveCardChoice } from "../EffectModules"
+import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, isTrashCardProtected, isVanillaCard, trashCardNameMatches, timedMagicLocked } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
-import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { lastMovedOf } from "../record"
 import { matchesPick } from "./revealAction"
@@ -332,70 +331,6 @@ const recoverMagicFromTrashHandler: ActionHandler<"recoverMagicFromTrash"> = (ct
         return
 }
 
-// recoverMagicFromTrashHandlerのネクサス版（BS10-112ネクサスエクステンション：「その後、自分のトラッシュにある
-// ネクサスカード1枚を手札に戻す」）。同じマジックの前半でdeployNexusが既に1枚トラッシュから取り除いた後に
-// 呼ばれる想定で、末尾（新しい方）から探すのは同じ考え方
-const recoverNexusFromTrashHandler: ActionHandler<"recoverNexusFromTrash"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
-            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
-            return
-        }
-        const player = state.players[owner]
-        const nexusOk = (cardId: string): boolean =>
-            getCard(cardId).type === "nexus" &&
-            (action.colors === undefined || action.colors.some((c) => getCard(cardId).colors.includes(c))) &&
-            !isTrashCardProtected(cardId)
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.trashCards[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}のネクサス回収：対象がいなかった。`)
-                return
-            }
-            player.trashCards.splice(chosenCardIndex, 1)
-            player.hand.push(cardId)
-            log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
-            notifyHandGained(state, owner, 1)
-            return
-        }
-        if (state.interactiveTargets) {
-            const indices = player.trashCards
-                .map((id, i) => ({ id, i }))
-                .filter(({ id }) => nexusOk(id))
-                .map(({ i }) => i)
-            if (indices.length >= 2) {
-                requestCardChoice(
-                    state,
-                    owner,
-                    `${sourceName}のネクサス回収：手札に戻すカードを選んでください`,
-                    "trash",
-                    indices,
-                    false,
-                    action,
-                    self,
-                )
-                return
-            }
-        }
-        let idx = -1
-        for (let j = player.trashCards.length - 1; j >= 0; j--) {
-            if (nexusOk(player.trashCards[j]!)) {
-                idx = j
-                break
-            }
-        }
-        if (idx === -1) {
-            log(state, `${sourceName}のネクサス回収：トラッシュに対象がいなかった。`)
-            return
-        }
-        const cardId = player.trashCards[idx]!
-        player.trashCards.splice(idx, 1)
-        player.hand.push(cardId)
-        log(state, `${player.name}は${getCard(cardId).name}をトラッシュから手札に戻した。`)
-        notifyHandGained(state, owner, 1)
-        return
-}
-
 // トラッシュにある指定色のマジックカード1枚を、手札にあるときと同様にコストを支払って使用する
 // （BS08堕天使ミカファールLv2-3）。フィールドのコアは使えずリザーブのみで支払う簡略化
 const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor"> = (ctx, action) => {
@@ -413,6 +348,11 @@ const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor
             const cardId = player.trashCards[idx]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            // battleLock "magic"（BS16-X06）：トラッシュからの使用も「使用」に含む
+            if (timedMagicLocked(state, owner)) {
+                log(state, `${sourceName}：効果によりマジックを使用できなかった。`)
                 return
             }
             const card = getCard(cardId)
@@ -491,94 +431,6 @@ const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor
         perform(bestIdx)
 }
 
-const recoverAllMagicFromTrashByColorChoiceHandler: ActionHandler<"recoverAllMagicFromTrashByColorChoice"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenOption } = ctx
-        // 鎖縛の武舞台Lv1-2：お互い、トラッシュからカードを手札に戻せない
-        if (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner)) {
-            log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
-            return
-        }
-        // 大天使ヴァリエル：緑/黄から1色を指定し、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
-        const player = state.players[owner]
-        const recoverColor = (color: Color): void => {
-            const indices: number[] = []
-            for (let i = 0; i < player.trashCards.length; i++) {
-                const id = player.trashCards[i]!
-                const c = getCard(id)
-                if (c.type === "magic" && cardHasColor(c, color) && !isTrashCardProtected(id)) indices.push(i)
-            }
-            if (indices.length === 0) {
-                log(state, `${sourceName}：色「${COLOR_LABELS[color]}」のマジックカードがトラッシュになかった。`)
-                return
-            }
-            const names: string[] = []
-            // 後ろのインデックスから順に取り除く（spliceでインデックスがずれないように）
-            for (let i = indices.length - 1; i >= 0; i--) {
-                const idx = indices[i]!
-                const cardId = player.trashCards[idx]!
-                player.trashCards.splice(idx, 1)
-                player.hand.push(cardId)
-                names.unshift(getCard(cardId).name)
-            }
-            log(
-                state,
-                `${player.name}は色「${COLOR_LABELS[color]}」のマジックカード「${names.join("、")}」をトラッシュから手札に戻した。`,
-            )
-            notifyHandGained(state, owner, names.length)
-        }
-        if (chosenOption !== undefined) {
-            const entry = (Object.entries(COLOR_LABELS) as [Color, string][]).find(
-                ([, label]) => label === chosenOption,
-            )
-            if (entry) recoverColor(entry[0])
-            return
-        }
-        // 候補色（action.colorsのうちトラッシュに該当マジックがある色）を集計する
-        const tally = new Map<Color, number>()
-        for (const cardId of player.trashCards) {
-            const c = getCard(cardId)
-            if (c.type !== "magic") continue
-            for (const color of action.colors) {
-                if (cardHasColor(c, color)) tally.set(color, (tally.get(color) ?? 0) + 1)
-            }
-        }
-        if (tally.size === 0) {
-            log(state, `${sourceName}：対象の色のマジックカードがトラッシュになかった。`)
-            return
-        }
-        if (state.interactiveTargets && tally.size > 1) {
-            requestChoice(
-                state,
-                owner,
-                `${sourceName}：色を1つ指定してください`,
-                [],
-                false,
-                action,
-                self,
-                "option",
-                [...tally.keys()].map((c) => COLOR_LABELS[c]),
-            )
-            return
-        }
-        // 非対話時（候補1色以下も含む）：該当枚数最多の色を自動選択（同数はaction.colorsの先頭を優先）
-        let chosen: Color | null = null
-        let best = 0
-        for (const color of action.colors) {
-            const count = tally.get(color) ?? 0
-            if (count > best) {
-                best = count
-                chosen = color
-            }
-        }
-        if (!chosen) {
-            log(state, `${sourceName}：対象の色がなかった。`)
-            return
-        }
-        recoverColor(chosen)
-        return
-}
-
-
 // BS08冥将アマイモン：自分のデッキを上から、指定系統を持つスピリットカードが出るまで（上限maxCount枚）破棄し、
 // 出ればそのカード1枚を手札に戻す。デッキ切れ・上限到達まで出なければ手札には戻らない
 // デッキを上から、指定コストのスピリットカードが出るまで破棄し（上限あり）、
@@ -616,8 +468,6 @@ const handlers = {
     takeLast: takeLastHandler,
     recoverSpiritFromTrash: recoverSpiritFromTrashHandler,
     recoverMagicFromTrash: recoverMagicFromTrashHandler,
-    recoverNexusFromTrash: recoverNexusFromTrashHandler,
-    recoverAllMagicFromTrashByColorChoice: recoverAllMagicFromTrashByColorChoiceHandler,
     castMagicFromTrashByColor: castMagicFromTrashByColorHandler,
     summonFreeFromTrashIndexInternal: summonFreeFromTrashIndexInternalHandler,
 } satisfies Partial<ActionRegistry>

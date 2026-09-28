@@ -42,10 +42,10 @@
 2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. **次の一手（09-27 決定）**：R5_TRIAGE §4 の要相談の決定7種を実装する（3本の目安：記録の絞り込み軸4種／exhaust のネクサス軸2種／pay 2種＋カノン・アームズ）。書き方は同 §4 の表。
-   その後にまとめる残り（スフィン・クロス・次のリフレッシュステップまでの3種・トラッシュ→手札の2種）
-4. **R5 の残り**（いまここ）：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み。**次は G-toDeck**（手札／トラッシュ→デッキの上下）
-5. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
+3. **次の一手**：R5_TRIAGE §1「まとめる」と §4「要相談」は 09-28 で一区切り（進み具合の表。残したものは §3「固有」と、M8 の決定で入口として残す G-existingContent・イリテバン・`millUntilMagicCastFree`・音鳥クルーク）。
+   R5 の終わりの基準のもう1つ（M2・M3・M4 の残り）は REFACTOR_PLAN §2.2 の表で確かめてから、BS16 の黄・青（手順5）へ
+4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
+5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装（`feat/bs16-yellow-blue`）。測定は REFACTOR_PLAN §0.1。残りは 045 Lv3（何が足りないかは BS16_BATCH3 の効果節の段落）と、「効果で複数体を同時に召喚したら召喚は1回」（BS16_PLAN §2.4 の ⚠️。009・044・X05）
 6. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
@@ -56,6 +56,9 @@
 罠：`patch()` に `f.replace("rules.ts", ...)` のようにパス文字列を組み立てている箇所がある／import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
 
 **マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
+
+**「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
+`toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）
 
 ### M8（期間つき効果）は一区切り（2026-09-26）
 
@@ -150,6 +153,9 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
+
+**「この効果で破壊した／戻したスピリットのコスト」を待機時のコストで見るか**：`if` の `cond.last` は待機に入ったときのコスト（バウンスのみ記録。CONJUNCTION 27行目）を見るが、カウンタ `lastCost`・絞り込み `sameCostAsLast` と破壊の記録は印刷コストのまま。揃えると他のカードの結果が変わるので未着手（2026-09-28）。
+
 **「【X】を持つ」を印刷だけで見ている kind が残っている**：規則は「効果で得たものも含む」に確定（2026-09-25、ACTION_VOCABULARY）。`effectGrant` だけ揃えた。`effectDef.ts` で `keywordFilter` に「静的に持つ」と注記のある kind（fieldEvent の召喚・costMod・手札付与など）と `triggers.ts` の `hasKeyword(cardId…)` を洗い、挙動が変わるカードを一覧にしてから揃える。
 
 
@@ -175,6 +181,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 - **`createGame(seed, …)` の seed は名前だけで、シャッフルは `Math.random()`**（`GameState.ts` の `shuffle`）。
   **デッキの中身に依存するテストは間欠的に落ちる。** 必要なカードは自分で山札の先頭へ置くこと。
   smoke が1〜2件落ちたら、まず**同じコマンドを再実行**して再現するか見る
+- **smoke パートが例外で止まると `❌` は0件のまま**（2026-09-28 に踏んだ）。単独で回すときは `grep -c "❌"` に加えて末尾の「合格しました」が出たかも見る
 - **`assert` は失敗しても例外を投げず、smoke パートの末尾の成功バナーはそのまま出る。**
   合否は必ず `npx tsx scripts/smoke/partN.ts 2>&1 | grep -c "❌"` が0であることで見ること。
   `tail -3` でバナーを見て「通った」と判断すると、実際の失敗を見落とす（2026-09-12 に実際に踏んだ）

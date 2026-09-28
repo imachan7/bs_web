@@ -5,7 +5,21 @@ import { isTrashCardProtected } from "../../../../shared/rules"
 import { matchesPick } from "./revealAction"
 import { recordMoved } from "../record"
 
+function millEventIndices(zone: string[], ids: string[]): Set<number> {
+    const left = new Map<string, number>()
+    for (const id of ids) left.set(id, (left.get(id) ?? 0) + 1)
+    const out = new Set<number>()
+    for (let j = zone.length - 1; j >= 0; j--) {
+        const n = left.get(zone[j]!) ?? 0
+        if (n === 0) continue
+        left.set(zone[j]!, n - 1)
+        out.add(j)
+    }
+    return out
+}
+
 // 「count枚まで」（BS15-082）でも途中でやめられず、候補が尽きるか count 枚まで選ばせる（途中でやめる UI は見送った）。
+// upTo指定時は0〜count枚を選べる（2026-09-28ユーザー決定。途中で1枚も選ばずに終えられる）
 // ⚠️ 選び終わるまでゾーンから抜かない（インデックスで控える）。途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる
 const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
@@ -13,10 +27,19 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
     const player = state.players[zonePid]
     const zone = action.from === "hand" ? player.hand : player.trashCards
     const picked = action.picked ?? []
+    const chooser = action.chooserIsTarget ? zonePid : owner
+    // fromEvent：その回に破棄されたカード（state.lastDeckMill）だけ。同じ cardId が複数あるときは新しい方から枚数ぶん当てる
+    const fromEventIdx = action.fromEvent ? millEventIndices(zone, state.lastDeckMill?.pid === zonePid ? state.lastDeckMill.cardIds : []) : undefined
     const choosable = (exclude: number[]): number[] =>
         zone
             .map((id, j) => ({ id, j }))
-            .filter(({ id, j }) => !exclude.includes(j) && matchesPick(id, action.pick) && (action.from === "hand" || !isTrashCardProtected(id)))
+            .filter(
+                ({ id, j }) =>
+                    !exclude.includes(j) &&
+                    matchesPick(id, action.pick) &&
+                    (action.from === "hand" || !isTrashCardProtected(id)) &&
+                    (fromEventIdx === undefined || fromEventIdx.has(j)),
+            )
             .map(({ j }) => j)
 
     const finish = (order: number[]): void => {
@@ -37,15 +60,58 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
         log(state, `${player.name}は${what}をデッキの${where}に戻した。`)
     }
 
+    // upTo：候補があるかぎり1枚ずつ聞き直し、スキップ（resolveOnSkip）でその時点の枚数を確定する。
+    // action.picked が既に定義されているかどうかで「初回の呼び出し」と「スキップで戻ってきた」を区別する
+    // （どちらも picked=[] であり得るため、配列の中身では区別できない）
+    const askUpTo = (soFar: number[]): void => {
+        const candidates = choosable(soFar)
+        if (candidates.length === 0) {
+            finish(soFar)
+            return
+        }
+        suspend(state, {
+            pid: chooser,
+            kind: "card",
+            prompt: `${sourceName}：デッキの${action.position === "top" ? "上" : "下"}に戻すカードを選んでください（最大${action.count}枚。${soFar.length}枚選択済み）`,
+            candidates: [],
+            cardZone: action.from,
+            cardOwner: zonePid,
+            cardIndices: candidates,
+            optional: true,
+            resolveOnSkip: true,
+            action: { ...action, picked: soFar },
+            selfInstanceId: self ? self.instanceId : null,
+            ...(chooser !== owner ? { actorPid: owner } : {}),
+        })
+    }
+
     if (chosenCardIndex !== undefined) {
         const next = [...picked, chosenCardIndex]
+        if (action.upTo && state.interactiveTargets) {
+            if (next.length >= action.count) {
+                finish(next)
+                return
+            }
+            askUpTo(next)
+            return
+        }
         if (next.length < action.count && choosable(next).length > 0) ctx.resolve({ ...action, picked: next })
         else finish(next)
         return
     }
+
+    if (action.upTo && state.interactiveTargets) {
+        // action.picked が定義済み＝askUpToのスキップから戻ってきた（もう聞かず確定する）
+        if (action.picked !== undefined) {
+            finish(picked)
+            return
+        }
+        askUpTo(picked)
+        return
+    }
+
     const candidates = choosable(picked)
     if (state.interactiveTargets && candidates.length >= 2) {
-        const chooser = action.chooserIsTarget ? zonePid : owner
         suspend(state, {
             pid: chooser,
             kind: "card",

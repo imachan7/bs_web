@@ -1878,9 +1878,7 @@
     },
     "granted": {
      "trigger": "onBattleLose",
-     "action": {
-      "type": "returnBofuExhaustedToHand"
-     }
+     "action": {"type": "returnToHand", "count": 1, "all": true, "filter": {"bofuExhausted": "self"}}
     }
    }
   ]
@@ -6199,7 +6197,7 @@
     "id": "BS14-102-e1",
     "kind": "burst",
     "event": "ownLifeDamaged",
-    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refreshOne", "count": 3, "filter": {"declared": "match"}}},
+    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refreshOne", "count": 3, "filter": {"declared": "match"}, "upTo": true}},
     "thenPay": "flash"
    },
    {
@@ -6208,7 +6206,8 @@
     "timing": "flash",
     "action": {
      "type": "exhaust",
-     "count": 3
+     "count": 3,
+     "upTo": true
     }
    }
   ]

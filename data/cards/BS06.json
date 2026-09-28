@@ -3311,7 +3311,8 @@
     "action": {
      "type": "summonFromHandFree",
      "nameIncludes": "アルカナ",
-     "count": 4
+     "count": 4,
+     "upTo": true
     },
     "optional": true
    },
@@ -4730,9 +4731,7 @@
     ],
     "winnerKeywordFilter": "bofu",
     "selfMode": "source",
-    "action": {
-     "type": "returnBofuExhaustedToDeckBottom"
-    }
+    "action": {"type": "returnToDeckBottom", "all": true, "filter": {"bofuExhausted": "any"}}
    }
   ]
  },

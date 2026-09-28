@@ -3,9 +3,9 @@
 // BD=noSummonTriggerByCostの両陣営（既存挙動を変えていないことも確認）／
 // BJ=step kind cost:{exhaustSelf}＋protectLifeByCostThisTurn symbolCount+combinedOnly／
 // BA/BC=immunityGrant vanillaFilter+phaseTurn／H=magicRestriction noSpiritCoresOpponent・whileCombined／
-// BH=destroyByOwnFamilyCostSet／BI=refreshSelf costDestroyOwnVanillaSpirit／BG=destroy lowestCost／
+// BH=destroy{all, filter costSameAsOwn}／BI=refreshSelf costDestroyOwnVanillaSpirit／BG=destroy lowestCost／
 // BF=discardOpponent revealAllHandIfNone／G=globalConstraint noSummonByEffect／
-// F=capOpponentTrashCoreReturnNextRefresh／BE=handReductionColorAsThisTurn／colorAs ownNexusesAll／
+// F=timedEffect{trashCoreReturnCap}／BE=handReductionColorAsThisTurn／colorAs ownNexusesAll／
 // 083=revealAndPlaceNexusFree・bpBuff vanillaFilter
 import {
     assert,
@@ -145,7 +145,7 @@ console.log("=== H: 046ナタ・ゴレムLv1（noSpiritCoresOpponent）／047【
     )
 }
 
-console.log("=== BH: X06召喚時 destroyByOwnFamilyCostSet（自身のコストも数える） ===")
+console.log("=== BH: X06召喚時 destroy{all, filter costSameAsOwn}（自身のコストも数える） ===")
 {
     const s = game("bh-destroybycostset")
     const x06 = createInstance("BS12-X06", s.turn, 1) // コスト7・系統「獣頭」
@@ -155,7 +155,7 @@ console.log("=== BH: X06召喚時 destroyByOwnFamilyCostSet（自身のコスト
     s.players.p2.field.spirits.push(matchCost7)
     const noMatch = createInstance("BS12-041", s.turn, 1) // コスト1
     s.players.p2.field.spirits.push(noMatch)
-    resolveAction(s, "p1", x06, { type: "destroyByOwnFamilyCostSet", familyFilter: "獣頭" })
+    resolveAction(s, "p1", x06, { type: "destroy", count: 1, all: true, filter: { costSameAsOwn: "獣頭" } })
     assert(
         !s.players.p2.field.spirits.some((sp) => sp.instanceId === "p2-match-7"),
         "自身(X06)と同じコスト7の相手のスピリットは破壊される（自身も数える。§1 #16）",
@@ -237,11 +237,11 @@ console.log("=== G: 072Lv1 globalConstraint noSummonByEffect（両陣営・メ�
     assert(s.players.p1.hand.length === 1, "手札のカードも消費されない")
 }
 
-console.log("=== F: 047召喚時 capOpponentTrashCoreReturnNextRefresh（次の相手のリフレッシュステップだけ制限） ===")
+console.log("=== F: 047召喚時 timedEffect{trashCoreReturnCap}（次の相手のリフレッシュステップだけ制限） ===")
 {
     const s = game("f-caprefresh")
     s.players.p2.trashCores = 10
-    resolveAction(s, "p1", null, { type: "capOpponentTrashCoreReturnNextRefresh", max: 3 })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "trashCoreReturnCap", max: 3 }], duration: "nextRefresh" })
     assert(s.timedEffects.some((r) => r.target.kind === "player" && r.target.pid === "p2" && r.content.some((c) => c.type === "trashCoreReturnCap" && c.max === 3)), "相手の次のリフレッシュステップ用の上限が記録される")
     const reserveBefore = s.players.p2.reserve
     endTurn(s) // p1 -> p2 のターン開始（p2のリフレッシュステップを実行）

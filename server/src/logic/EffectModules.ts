@@ -567,6 +567,20 @@ export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): b
     return false
 }
 
+// kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
+// 発動したときコストを支払わずメイン/フラッシュを発揮できる、を持つ発生源が有効か
+export function hasBurstMagicFreeEffect(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "burstMagicFreeEffect") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            return true
+        }
+    }
+    return false
+}
+
 // kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
 // 対象スピリットの『アタック時』効果が『ブロック時』へ**移し替え**られているか。
 // target:"anyAll" は両陣営のスピリットが対象になりうるので、**両プレイヤーの発生源**を走査する。
@@ -770,7 +784,7 @@ export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: 
 
 // globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
 // お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない。ライフ・トラッシュへは対象外
-// （voidCoreToOwnTrash / lifeCharge の from:"void" はこれを呼ばない）。
+// （voidCoreToOwnTrash / placeCores の void→life はこれを呼ばない）。
 // ボイドから直接置く各アクション（coreGain系／voidCoreToSelf系／voidCoreToOther系／
 // voidCoreToAllOwnByFamily／voidCoreToOwnNexuses／voidCoreToTarget／voidCoreToOwnByKeyword／
 // voidCoresToNexusLevel／coreDrainAllOthers／destroyのvoidCoreToSelfPerDestroyed）が冒頭で呼ぶ
@@ -1044,7 +1058,7 @@ export function countEffectCounter(
     // （マジックはself=nullで対象基準のため。フォールスルー防止のためのプレースホルダ。BS06サベージパワー）
     if (counter === "targetSymbols") return 0
     // targetSameFamilyOwn も同様（logic/counted.ts が対象を選んだ後に数える。SD02-015 フレンドリーパワー）
-    if (counter === "targetSameFamilyOwn") return 0
+    if (counter === "targetSameFamilyOwn" || counter === "targetBofuCount") return 0
     // restedEnemyNexuses：相手の疲労状態のネクサス数（BS09-080エグゾーストネクサス）
     if (counter === "restedEnemyNexuses") {
         return state.players[opp].field.nexuses.filter((n) => n.isRested).length
@@ -1419,6 +1433,7 @@ export {
     requestActivationConfirm,
     requestChoice,
     requestCardChoice,
+    requestUpToChoice,
 } from "./targeting"
 export { placeBurst, finishBurstActivation, fireOwnBurstActivated } from "./keywords/burst"
 export { fireSummonSequence, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "./summon"

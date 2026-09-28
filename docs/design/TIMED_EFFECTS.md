@@ -81,7 +81,7 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
 | `bp` | 個体への直接の書き込み17か所（旧 type を含む）とターン制約 `timedRule`（型ごと削除）。1体への一定量は写し `tempBpBuff`（このターン）・`battleBpBuff`（このバトル）に作り直す（テスト144か所が読むので名前は変えない）。「すべて」と「1体につき」の量は `timedRuleBp` が読むたびに一覧から数える。テストで BP を盛るときは `helpers.ts` の `giveBp`／`clearBp` を使う（写しを直接書くと作り直しで消える） |
 | `bpAs`・`countAs`・`immune`・`noLifeDamage`・`colorless` | 個体の印5つは、同じ名前の写し（`battleBpAs`・`countAsThisTurn`・`immuneToOpponentThisTurn`・`lifeDamageNegatedFor`・`colorlessThisBattle`）になった。読む側（`instHasColor` など盤面を受け取らない関数）は変えていない。記録を出した側が意味を持つ内容（`countAs`・`noLifeDamage`）は、写しを作るときに記録の `ownerPid` を入れる。旧 action（対象の選び方・支払いを持つ）は残し、記録を書くだけにした。テストで掛けるときは `helpers.ts` の `giveTimed` |
 | `destroyedCoresTo`・`blockCost` | バトルの状態の印3つ（コアの行き先・ブロックの追加コスト2種）と、ノーグ・デンスの「有効なターン番号」。コアの行き先は相手のプレイヤーに掛ける記録（寿命はこのバトル）。ブロックの追加コストはアタッカーに掛ける記録で、ヒポグリフィーはこのバトル、ノーグ・デンスはこのターンの間。ブロックの可否（`validateBlock`）・支払い・クライアントの確認は、アタッカーの `blockCost` を読む |
-| `skipRefresh`・`trashCoreReturnCap` | 個体の印 `skipNextRefresh`（ジャノメ・シールダー）とプレイヤーの印 `trashCoreReturnCapNext`（トライ・メルクリウス）。寿命 `nextRefresh` を足した。上限が重なったら小さい方 |
+| `skipRefresh`・`trashCoreReturnCap` | 個体の印 `skipNextRefresh`（ジャノメ・シールダー）とプレイヤーの印 `trashCoreReturnCapNext`（トライ・メルクリウス）。寿命 `nextRefresh` を足した。上限が重なったら小さい方。カードからは `timedEffect` の `duration:"nextRefresh"` で置く（この2つの内容にしか書けない。`trashCoreReturnCap` は side のプレイヤーに掛かる）。スクルディアの「発生源が疲労状態で場にいる間」は期間が違うので `markNoRefreshTarget` のまま |
 | `blockerCoresProtected` | バトルの状態の印（ヴォルザ・タイタス）をバトルに掛ける記録にした。スピニード・ハヤトは内容を新設せず、`grantTrigger`（`onBlocked` に `refreshSelf`）＋ `targetColorFilter`（イベントの相手役の色）で書く（2026-09-26 ユーザー指示で誘発効果にした） |
 | `color` | 個体の `tempColors` は写し `timedColors` になった（§4 の作り直し方式の最初）。一覧への追加は `recordTimed` 1つにまとめ、記録のたびに作り直す。`all:true` の振り分けも直した |
 
@@ -100,4 +100,5 @@ timedBattleContents(board): TimedContent[]          // このバトルに掛か�
   - ビートプリースト・ライトニングスピード（`grantKeywordToHandCard`）：対象が手札のカードで、個体を持たない
   - ゴーレムクラフト・トランスフォーメーション（`treatOwnNexusesAsSpiritsThisTurn`）：場の区分が変わる手順
   - ルナティックシール・ドリームシール（`endStepLock`）：「自分のエンドステップを3回行うまで」をコアで数える独自の仕組み
+- プレイヤーへの制約（`playerRule`）は「このバトルの間」でも置ける。「破棄したカードと同じ色」は `bannedColors: "last"` で直前に動いたカードの色を読み、**多色なら全色**（どれか1色でも一致すれば同じ色。雷神砲カノン・アームズ、2026-09-28 ユーザー確認）
 - （未決）**場を離れる直前の状態**（破壊後に誘発する効果が、破壊直前に掛かっていた記録を見る）はこの設計だけでは解けない。`instance` の記録は残るので読めるが、`effectGrant` のような場の発生源からの継続効果は別の話

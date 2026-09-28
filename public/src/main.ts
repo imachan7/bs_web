@@ -24,14 +24,19 @@ import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } fro
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
+    readonly connected: boolean
     emit: (event: string, payload?: unknown) => void
     on: (event: string, handler: (payload: any) => void) => void
+    off: (event: string, handler?: (payload: any) => void) => void
     connect: () => void
 }
 
-declare const io: () => SocketLike
+declare const io: (opts?: { autoConnect?: boolean }) => SocketLike
 
-const socket = io()
+// ページ読み込み時には接続しない（Cloud Run は min-instances=0 のため、ロビーを開いただけの
+// 訪問者にも常時接続させるとコストが伸びる。docs/ops/PERF_PLAN.md §5）。
+// 実際に対戦操作をするボタンを押したときだけ connectAndRun() 経由で接続する
+const socket = io({ autoConnect: false })
 
 // 対戦していない接続はサーバーが15分で切る（課金対策。server/src/index.ts の「放置接続の切断」）。
 // サーバーから切られたときだけ socket.io は自動で再接続しないので、次の操作かタブ復帰で繋ぎ直す。
@@ -46,6 +51,44 @@ socket.on("disconnect", (reason: string) => {
     }
     for (const ev of events) document.addEventListener(ev, reconnect, true)
 })
+
+// 未接続ならボタンを「接続中…」表示にして無効化し、繋がってから action() を実行する。
+// Cloud Run が min-instances=0 でコールドスタートする間、ボタンが押せる（＝何も起きていないように
+// 見える）のを防ぐ。一定時間で繋がらない場合・接続エラーの場合はボタンを元に戻してトーストで知らせる
+const CONNECT_TIMEOUT_MS = 10_000
+
+function connectAndRun(button: HTMLElement, action: () => void): void {
+    if (socket.connected) {
+        action()
+        return
+    }
+    const btn = button as HTMLButtonElement
+    if (btn.disabled) return // 二重クリック防止
+    const original = btn.textContent
+    btn.disabled = true
+    btn.textContent = "接続中…"
+
+    const cleanup = () => {
+        clearTimeout(timer)
+        socket.off("connect", onConnect)
+        socket.off("connect_error", onError)
+        btn.disabled = false
+        btn.textContent = original
+    }
+    const onConnect = () => {
+        cleanup()
+        action()
+    }
+    const onError = () => {
+        cleanup()
+        showToast("サーバーに接続できませんでした。もう一度お試しください")
+    }
+    const timer = setTimeout(onError, CONNECT_TIMEOUT_MS)
+
+    socket.on("connect", onConnect)
+    socket.on("connect_error", onError)
+    socket.connect()
+}
 
 // コアの支払い方式はブラウザごとに覚える。保存できない環境（プライベートモード等）では毎回「自動」に戻る
 const PAY_MODE_KEY = "bs_pay_mode"
@@ -1128,6 +1171,7 @@ async function init(): Promise<void> {
             (byId("room-input") as HTMLInputElement).value.trim() || "room1"
         const deck = (byId("deck-select") as HTMLSelectElement).value
         joinMode = "room"
+        let emitJoin: () => void
         if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
             // カスタムデッキ: カードリスト（cardId -> 枚数）を付けて送信する
             const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
@@ -1136,10 +1180,11 @@ async function init(): Promise<void> {
                 showToast(`カスタムデッキが見つかりません: ${deckName}`)
                 return
             }
-            socket.emit("join", { roomId, name, deckCards })
+            emitJoin = () => socket.emit("join", { roomId, name, deckCards })
         } else {
-            socket.emit("join", { roomId, name, deck })
+            emitJoin = () => socket.emit("join", { roomId, name, deck })
         }
+        connectAndRun(byId("join-btn"), emitJoin)
     })
 
     // ---- ランダムマッチ ----
@@ -1148,6 +1193,7 @@ async function init(): Promise<void> {
             (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
         const deck = (byId("deck-select") as HTMLSelectElement).value
         joinMode = "random"
+        let emitRandomMatch: () => void
         if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
             const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
             const deckCards = customDecks.get(deckName)
@@ -1155,10 +1201,11 @@ async function init(): Promise<void> {
                 showToast(`カスタムデッキが見つかりません: ${deckName}`)
                 return
             }
-            socket.emit("randomMatch", { name, deckCards })
+            emitRandomMatch = () => socket.emit("randomMatch", { name, deckCards })
         } else {
-            socket.emit("randomMatch", { name, deck })
+            emitRandomMatch = () => socket.emit("randomMatch", { name, deck })
         }
+        connectAndRun(byId("random-match-btn"), emitRandomMatch)
     })
 
     byId("random-match-cancel").addEventListener("click", () => {
@@ -1215,7 +1262,7 @@ async function init(): Promise<void> {
         payload.aiName = oppLabel
 
         joinMode = "ai"
-        socket.emit("startAi", payload)
+        connectAndRun(byId("start-ai-btn"), () => socket.emit("startAi", payload))
     })
 
     byId("btn-return-lobby").addEventListener("click", () => {

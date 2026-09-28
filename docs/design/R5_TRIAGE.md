@@ -33,7 +33,18 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | #202 | G-matchCount の残り・M2 の BS04-022 | `destroyDownToOwnCount` → `destroy{countCounter: minus}`、`coreRemovePerHandDiscard` → `pay`＋`removeCores{targetsCounter}` |
 | #203 | G-pay（手元・自分を疲労・手札破棄） | `handMagicToTegamotoDraw`・`revealHandMagicToTegamotoDraw` → `pay`＋`toTegamoto`＋`draw`、`discardHandNexusToVoidCoreSelf`・`exhaustSelfThenLendThisTurn` → `pay` |
 | #204 | G-pay（コアを払う） | `coreRemoveByPayingSelfCores`・`coreTradeToOpponentTrash` → `pay`＋`removeCores{count any}`＋カウンタ `lastCores`、`voidCoresAndMillByCost` → `sequence`＋`mill{countCounter lastCost}` |
-| （この PR） | G-pay（戻す・疲労させた BP） | `returnBothSidesToDeckBottom` → `pay`＋`returnToDeckBottom{side,count}`、`returnToHandCostBudget` → `returnToHand{costBudget}`、`bpBuffByExhaustOwn` → `exhaust`＋`bpBuff{amountCounter lastBp}` |
+| #205 | G-pay（戻す・疲労させた BP） | `returnBothSidesToDeckBottom` → `pay`＋`returnToDeckBottom{side,count}`、`returnToHandCostBudget` → `returnToHand{costBudget}`、`bpBuffByExhaustOwn` → `exhaust`＋`bpBuff{amountCounter lastBp}` |
+| feat/filter-recorded-sets | 要相談（記録の絞り込み） | `returnBofuExhaustedToDeckBottom`・`returnBofuExhaustedToHand`・`destroyLifeDamager` → 絞り込み `bofuExhausted`・`damagedOwnLife`（内部軸 `instanceIn`）＋`returnToDeckBottom{all}`／`returnToHand{all}`／`destroy` |
+| feat/exhaust-nexus-family | 要相談（疲労） | `exhaustOpponentSameFamilyAll`・`exhaustAllOpponentNexuses`・`exhaustSpiritsAndNexusesUpTo` → `exhaust`＋絞り込み `sameFamilyAsDestroyed`／`nexus: "only"｜"also"` |
+| feat/pay-peek-mill-color | 要相談（pay・継続効果の色） | `costDiscardNamedThenPeek` → `pay`＋`discardSelfChoose{cardName}`＋`peekOpponentHand`、`millOpponentThenReact` → `sequence`＋`timedEffect{playerRule battle, bannedColors "last"}`、`lifeCharge` の埋め込みコスト → `pay{mill own}`＋`sequence` |
+| chore/remove-life-charge | 使われなくなった旧 type | `lifeCharge` → smoke を `placeCores{to life}` へ書き換えて削除 |
+| feat/timed-next-refresh | G-refreshBlock の2種 | `markSkipNextRefresh`・`capOpponentTrashCoreReturnNextRefresh` → `timedEffect{duration nextRefresh}`（`markNoRefreshTarget` は期間が違うので残す） |
+| feat/recover-from-trash | トラッシュ→手札 | 単純なアクション `toHand{from trash, count, pick}` を新設。`recoverNexusFromTrash` → `toHand{pick nexus}`、`recoverAllMagicFromTrashByColorChoice` → `declare{autoFrom}`＋`toHand{count all}` |
+| feat/treat-as-unblocked | ブロックされなかった扱い | `treatAsUnblockedIfBlockerLevel1`・`treatAsUnblockedIfLevelAtLeastBlocker`・`unblockedByVoidSelfCore` → `treatAsUnblocked{when}`（スフィン・クロスは `pay`＋`removeCores{self→void}`） |
+| feat/bofu-count-bp | 【暴風】の数ぶんの BP | `bpBuffAllByBofuCount` → `timedEffect{all, own, bp × カウンタ targetBofuCount}`（あとから出たスピリットにも効く。09-28 ユーザー了承）。`bofuCountFor` は shared/rules/keywordState.ts へ |
+| feat/return-then-refresh-cost | G-sequence | `returnOneThenRefreshIfMaxCost` → `sequence`＋`returnToHand{1}`＋`if{last cost max 4}`＋`refreshOne`（待機状態に入ったときのコストを記録） |
+| feat/cost-same-as-own | G-delegate | `destroyByOwnFamilyCostSet` → `destroy{all, filter{costSameAsOwn: 系統}}`（normalizeFilter が cost.in に畳む） |
+| feat/destroy-together | G-sequence | `destroyOwnByFamilyThenWipeEnemy` → 組み合わせ方の部品 `simultaneous`＋`destroy{all, side own, family}`＋`destroy{all}` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
@@ -176,11 +187,13 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | refreshSelfBraveThenCombine | BS13-053 | 回復と合体をセットで行うブレイヴ固有の手順 |
 | swapBattler | BS03-138 | バトル参加者を入れ替える一意の手順（ゲームの手順そのものを変える） |
 | swapOpponentCores | BS04-053 | 2体間でコアを入れ替える一意の処理（下限チェック等を伴う） |
-| treatAsUnblockedIfLevelAtLeastBlocker | SD02-016 | Lv比較でブロック無効化という一意の判定式 |
+| markNoRefreshTarget | BS02-042 | 期間が「発生源が疲労状態で場にいる間」で、他に無い（09-28 ユーザー了承） |
+| battleLoserCoresToVoid | BS10-065 | バトルで破壊されたスピリットのコアの行き先を変える。今は破壊後にリザーブから引き直す近似（09-28 ユーザー了承） |
+| mutualKeepChoice | BS12-015 | お互い1体ずつ指定し、それ以外すべてを破壊。仲間なし（09-28 ユーザー了承） |
 
 ---
 
-## 4. 要相談（2026-09-27 に全件決定）
+## 4. 要相談（2026-09-27 に全件決定。「残す」2種以外は 09-28 に実装）
 
 | type | カード | 決定 | 書き方 |
 | :-- | :-- | :-- | :-- |

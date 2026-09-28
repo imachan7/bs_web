@@ -42,6 +42,7 @@ export function matchesTarget(
     if (filter.colorNotIn !== undefined && !instColors(inst).some((c) => !filter.colorNotIn!.includes(c))) return false
     if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
+    if (filter.familyExclude !== undefined && matchesFamilyFilter(board, ownerPid, inst, filter.familyExclude)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     if (filter.familyAll !== undefined && !filter.familyAll.every((f) => spiritHasFamily(board, ownerPid, inst, f))) return false
     // 場のスピリット/ネクサスのコストを条件にする判定なので、道化師クランの付与コストも見る
@@ -108,6 +109,7 @@ export function matchesTarget(
     if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
     // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
     if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
+    if (filter.instanceIn !== undefined && !filter.instanceIn.includes(inst.instanceId)) return false
     return true
 }
 

@@ -8,12 +8,17 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { lastMovedOf } from "../record"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
+
+// 期間 nextRefresh は ONLY_NEXT_REFRESH の内容にしか書けない（ハンドラの入口で落とす）
+const ONLY_NEXT_REFRESH = ["skipRefresh", "trashCoreReturnCap"] as const
+const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration === "battle" ? "battle" : "turn")
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp", "blockCost", "bpAs"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -35,6 +40,7 @@ function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean
 function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect): string {
     const recorded = action.content.filter(isRecorded)
     if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
+    if (action.duration === "nextRefresh") return `${getCard(inst.cardId).name}は、次のリフレッシュステップで${contentLabel(action)}。`
     const period = action.duration === "turn" ? "このターン" : "このバトル"
     return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
@@ -49,7 +55,8 @@ function contentLabel(action: TimedEffect): string {
     const keywords = action.content.flatMap((c) => (c.type === "keyword" ? [`【${KEYWORDS[c.keyword].label}】を持つ`] : []))
     const bpAs = action.content.flatMap((c) => (c.type === "bpAs" ? [`Lv${c.levels.join("/")}のBPを${c.amount}として扱う`] : []))
     const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords, ...bpAs, ...blockCost].join("、")
+    const skipRefresh = action.content.some((c) => c.type === "skipRefresh") ? ["回復できない"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -57,8 +64,10 @@ function contentLabel(action: TimedEffect): string {
 const RULE_COUNTERS = [
     "ownExhausted",
     "ownLife",
+    "opponentHand",
     "exhaustedEnemies",
     "targetSymbols",
+    "targetBofuCount",
     "ownRestedNexuses",
     "targetSameFamilyOwn",
     "readyEnemies",
@@ -148,7 +157,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
     state.lastBpBuffTargetId = target.instanceId
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
     if (content.amountCounter === undefined) {
-        recordBp(state, owner, target, content.amount, action.duration)
+        recordBp(state, owner, target, content.amount, bpUntil(action))
         log(state, `${getCard(target.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
@@ -160,7 +169,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
             log(state, `${sourceName}：カウントが0のため増加しなかった。`)
             return
         }
-        recordBp(state, owner, target, amount, action.duration)
+        recordBp(state, owner, target, amount, bpUntil(action))
         log(state, `${getCard(target.cardId).name}はBP+${amount}（${untilLabel}）。`)
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
@@ -182,7 +191,7 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         return
     }
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
-    const addBp = (amount: number) => recordBp(state, owner, self, amount, action.duration)
+    const addBp = (amount: number) => recordBp(state, owner, self, amount, bpUntil(action))
     if (content.amountCounter === undefined) {
         addBp(content.amount)
         log(state, `${getCard(self.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
@@ -376,17 +385,31 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     if (target) askColor(target)
 }
 
+// bannedColors:"last" を、直前に動いたカード（lastMovedOf）の色の和集合へ解決する
+// （多色なら全色＝どれか1色でも一致すれば「同じ色」。記録が空なら null）
+function resolvePlayerRuleContent(state: GameState, c: Extract<Content, { type: "playerRule" }>): Extract<Content, { type: "playerRule" }> | null {
+    if (c.rule.type !== "cantUseHandCardsForPid" || c.rule.bannedColors !== "last") return c
+    const colors = [...new Set(lastMovedOf(state).flatMap((id) => getCard(id).colors))]
+    if (colors.length === 0) return null
+    return { ...c, rule: { ...c.rule, bannedColors: colors } }
+}
+
 // プレイヤーに掛かる制約を置く（ライフが減らない・手札を使えない など）。効くプレイヤーは side（既定は相手）
 function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
-    if (action.duration !== "turn") {
-        log(state, `${sourceName}：「このバトルの間」の制約は未対応のため発揮しなかった。`)
+    if (action.duration !== "turn" && action.duration !== "battle") {
+        log(state, `${sourceName}：この期間の制約は未対応のため発揮しなかった。`)
         return
     }
     const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
-    const rules = action.content.filter((c) => c.type === "playerRule")
-    for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
-    log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
+    const rules = action.content
+        .filter((c): c is Extract<Content, { type: "playerRule" }> => c.type === "playerRule")
+        .map((c) => resolvePlayerRuleContent(state, c))
+        .filter((c): c is Extract<Content, { type: "playerRule" }> => c !== null)
+    if (rules.length === 0) return
+    for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
+    const period = action.duration === "battle" ? "このバトルの間" : "このターンの間"
+    log(state, `${sourceName}：${period}、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
 
 // 「ブロックされない」を置く。期間 battle で from なしは強者統べる大地の「ターンに1回」＝そのスピリットのアタックの終了で消える（until:"attack"）。
@@ -648,8 +671,32 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}の『${fromLabel}』効果は『${toLabel}』に発揮される。`)
 }
 
+// 「次の相手のリフレッシュステップで、トラッシュのコアを◯個しか戻せない」：そのプレイヤーに掛かる記録
+function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, sourceName } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "trashCoreReturnCap" }> => c.type === "trashCoreReturnCap")
+    if (!content) return
+    if (action.duration !== "nextRefresh") {
+        log(state, `${sourceName}：この期間の指定は未対応のため発揮しなかった。`)
+        return
+    }
+    const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
+    for (const pid of pids) {
+        recordTimed(state, { content: [content], target: { kind: "player", pid }, until: "nextRefresh", ownerPid: owner })
+        log(state, `${sourceName}：次の${state.players[pid].name}のリフレッシュステップでは、トラッシュのコアは${content.max}個までしかリザーブに戻せない。`)
+    }
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if ((action.duration === "nextRefresh") !== action.content.every((c) => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type))) {
+        log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
+        return
+    }
+    if (action.content.some((c) => c.type === "trashCoreReturnCap")) {
+        placeTrashCoreReturnCap(ctx, action)
+        return
+    }
     if (action.content.some((c) => c.type === "triggerSwap")) {
         placeTriggerSwap(ctx, action)
         return
@@ -809,8 +856,20 @@ function placeAny(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Time
     for (const id of chosen) log(state, apply(state, owner, candidates.find((s) => s.instanceId === id)!, action))
 }
 
+// atTurnEnd（BS16-068）：解決した時点ではactionを実行せず、state.turnEndActionsへ記録するだけ。
+// 実際の解決はPhaseManager.endTurnが「エンドステップの誘発の後・timedEffectsのuntil:"turn"を消す前」で行う
+const atTurnEndHandler: ActionHandler<"atTurnEnd"> = (ctx, action) => {
+    const { state, owner, sourceName, sourceCardId } = ctx
+    state.turnEndActions = [
+        ...(state.turnEndActions ?? []),
+        { ownerPid: owner, action: action.action, ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+    ]
+    log(state, `${sourceName}：このターン終了時に効果を発揮する。`)
+}
+
 const handlers = {
     timedEffect: timedEffectHandler,
+    atTurnEnd: atTurnEndHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -91,10 +91,18 @@ console.log("=== 【暴風】で疲労させた相手を、バトル単位で記
 console.log("=== BS06颶風高原Lv2：BP比較で勝ったとき、【暴風】で疲労した相手をデッキの下に戻す ===")
 {
     const highland = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnBofuExhaustedToDeckBottom",
+        (e) => {
+            const a = e["action"] as Record<string, unknown> | undefined
+            const f = a?.["filter"] as Record<string, unknown> | undefined
+            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+        },
     )
     const entry = (highland.effects ?? []).find(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnBofuExhaustedToDeckBottom",
+        (e) => {
+            const a = e["action"] as Record<string, unknown> | undefined
+            const f = a?.["filter"] as Record<string, unknown> | undefined
+            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+        },
     )!
     const level = (entry["levels"] as number[])[0]!
 
@@ -121,7 +129,11 @@ console.log("=== BS06颶風高原Lv2：BP比較で勝ったとき、【暴風】
 console.log("--- 発生源がLv1なら戻さない（levels 指定が効いている） ---")
 {
     const highland = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnBofuExhaustedToDeckBottom",
+        (e) => {
+            const a = e["action"] as Record<string, unknown> | undefined
+            const f = a?.["filter"] as Record<string, unknown> | undefined
+            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+        },
     )
     const s = base("highland-level1")
     putNexus(s, "p1", highland.cardId, 0) // Lv1
@@ -189,7 +201,11 @@ console.log("--- 装甲を持つ相手は、デッキの下に戻されない --
     // 【装甲】は【暴風】の疲労自体も防ぐため、自然な流れでは記録に載らない
     // （＝バトル中に装甲を付与された等でだけ起きる）。ここは記録を直接組んで判定だけを見る
     const highland = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnBofuExhaustedToDeckBottom",
+        (e) => {
+            const a = e["action"] as Record<string, unknown> | undefined
+            const f = a?.["filter"] as Record<string, unknown> | undefined
+            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+        },
     )
     const sourceColor = (highland.colors ?? [])[0]!
     const armored = CARDS.find((c) =>
@@ -213,7 +229,7 @@ console.log("--- 装甲を持つ相手は、デッキの下に戻されない --
         s,
         "p1",
         null,
-        { type: "returnBofuExhaustedToDeckBottom" },
+        { type: "returnToDeckBottom", all: true, filter: { bofuExhausted: "any" } },
         undefined,
         [sourceColor] as never,
         "nexus",

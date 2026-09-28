@@ -305,6 +305,7 @@ export function summonFromHandFreeCandidateMatches(
     }
     // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
     if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
+    if (action.nameExcludes !== undefined && candidate.name.includes(action.nameExcludes)) return false
     // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
     if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
     // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）

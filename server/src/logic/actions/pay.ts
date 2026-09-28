@@ -25,11 +25,12 @@ import { matchesPick } from "./revealAction"
 export const PAYABLE_TYPES = [
     "discardSelfChoose", "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
     "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf", "nexusCoresToTrash",
-    "exhaust", "mill", "discardBurst",
+    "exhaust", "mill", "discardBurst", "discardHandAll",
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree", "summonFromTrashFree",
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
+    "peekOpponentHand", "sequence", "treatAsUnblocked",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -63,6 +64,13 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return action.count === "any" || state.players[owner].hand.filter((id) => matchesPick(id, action.pick)).length >= action.count
     },
     lendSelfThisTurn: () => true,
+    // peekOpponentHand：相手の手札が1枚以上あるか
+    peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
+    // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
+    sequence: (state, owner, self, action, srcColors, srcType) => {
+        if (action.type !== "sequence") return false
+        return action.actions.every((a) => canPayResolve(state, owner, self, a, srcColors, srcType))
+    },
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
@@ -103,6 +111,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return achievable >= need
     },
     refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
+    treatAsUnblocked: (state) => (state.battle?.blockerInstanceId ?? null) !== null,
     nexusCoresToTrash: (state, owner, _self, action, _srcColors, srcType) => {
         if (action.type !== "nexusCoresToTrash") return false
         return nexusHasCoresForPay(state, owner, action, srcType)
@@ -139,6 +148,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const pid = action.side === "own" ? owner : opponentOf(owner)
         return state.players[pid].burst !== null
     },
+    // discardHandAll：手札が1枚以上あるか（COST_MODEL §1。081。0枚なら不発）
+    discardHandAll: (state, owner) => state.players[owner].hand.length >= 1 && canDiscardHand(state, owner),
     // bpBuff：anySide指定時は両陣営から、それ以外はfilterに合う自分のスピリットから1体以上
     // （buff.ts の bpBuffHandler と同じ pickAnySideCandidates／pickBpBuffTarget を使う）
     bpBuff: (state, owner, _self, action, srcColors, srcType) => {

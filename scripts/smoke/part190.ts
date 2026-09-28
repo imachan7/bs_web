@@ -305,6 +305,27 @@ function readContinuousEffects(s: GameState): void {
     }
 }
 
+// 継続効果を読み直すステップ。継続効果が無ければ読まない。ステップを書いていなければ1つで足りる
+const TRIGGERED_KINDS = new Set(["triggered", "magic", "burst", "fieldEvent", "step", "activated", "battleWon", "handActivated"])
+function continuousPhases(effects: EffectDef[]): Phase[] {
+    const continuous = effects.filter((e) => !TRIGGERED_KINDS.has(e.kind))
+    if (continuous.length === 0) return []
+    const phases = new Set<Phase>()
+    const collect = (node: unknown): void => {
+        if (Array.isArray(node)) {
+            for (const v of node) collect(v)
+            return
+        }
+        if (node === null || typeof node !== "object") return
+        for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+            if ((k === "phase" || k === "step") && typeof v === "string" && (PHASES as string[]).includes(v)) phases.add(v as Phase)
+            else collect(v)
+        }
+    }
+    collect(continuous)
+    return phases.size > 0 ? [...phases] : ["main"]
+}
+
 // 誘発イベントごとの前準備（バトル関連はバトルを成立させ、対象を渡す）
 const BATTLE_EVENTS: TriggerEvent[] = [
     "onBlock",
@@ -404,8 +425,9 @@ for (const card of CARDS) {
                 fired++
             }
         }
-        // (6) 継続効果は「読まれた時点」で計測されるので、各ステップで読み直す
-        for (const ph of PHASES) {
+        // (6) 継続効果は「読まれた時点」で計測されるので、そのカードの継続効果が効くステップで読み直す。
+        // 全カード×7ステップ×両ターンで読むと smoke 全体の9割超の時間を使っていた（2026-09-28 計測）
+        for (const ph of continuousPhases(effects)) {
             for (const tp of ["p1", "p2"] as PlayerId[]) {
                 s.turnPlayer = tp
                 s.phase = ph

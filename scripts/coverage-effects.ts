@@ -325,6 +325,17 @@ export const __covEid = (e: unknown): string =>
                 __covRec2("cont\\t" + __covEid(effect))
                 total += amount`,
     )
+    // bofuCountBonus（BS08ゲラン准将Lv2）。2026-09-28 に bofuCountFor ごと shared/rules/keywordState.ts へ移した
+    patch(
+        ruleTargets,
+        `            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount`,
+        `            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            total += effect.amount`,
+    )
     // exhaustImmunityGrant: isExhaustImmuneOnBoard が true を返す時点。
     // ※ 2026-08-10 の耐性一本化で、判定本体が EffectModules.isExhaustImmune から
     //    shared/rules.isExhaustImmuneOnBoard へ移った（差し込み先もこちらへ移設）
@@ -530,12 +541,16 @@ export const __covEid = (e: unknown): string =>
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             return true`,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
             if (effect.target !== "opponentAll" && effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
     )
@@ -546,12 +561,16 @@ export const __covEid = (e: unknown): string =>
             if (effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             return true`,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
             if (effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
@@ -807,10 +826,10 @@ process.on("exit", () => {
         )
         // 聖命：【聖命】持ちがボイドからライフにコアを置いた時点
         patch(
-            path.join(tree, "server/src/logic/actions/life.ts"),
-            `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {`,
-            `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {
-                __covRecord("cont\t" + ${kwEid("self.cardId", "seimei")})`,
+            path.join(tree, "server/src/logic/actions/placeCores.ts"),
+            `    if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {`,
+            `    if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
+        __covRecord("cont\t" + ${kwEid("self.cardId", "seimei")})`,
         )
         // 氷壁：【氷壁】を持つ発生源が無効化元として確定した時点
         patch(
@@ -1346,17 +1365,6 @@ process.on("exit", () => {
             total += effect.amount`,
         )
 
-        // bofuCountBonus（BS08ゲラン准将Lv2）
-        patch(
-            em,
-            `            if (effect.kind !== "bofuCountBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            total += effect.amount`,
-            `            if (effect.kind !== "bofuCountBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            total += effect.amount`,
-        )
         // kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）
         patch(
             em,

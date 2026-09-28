@@ -1,7 +1,7 @@
 // 疲労・回復系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, Color, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
+import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import { recordTargets } from "../record"
 import {
@@ -19,6 +19,7 @@ import {
     pickEnemyByBp,
     pickEnemyCandidates,
     requestChoice,
+    requestUpToChoice,
     returnSpiritToDeckTop,
     returnSpiritToHand,
     tryInteractiveTargetChoice,
@@ -41,6 +42,10 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.nexus) {
+            exhaustNexusOrSpirit(ctx, action)
+            return
+        }
         if (action.all) {
             exhaustAllTargets(ctx, action)
             return
@@ -158,6 +163,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         }
         const matchesLevel = (s: CardInstance) =>
             s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
+        // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
+        // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
+        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
         if (targetInstanceId && !action.excludeTarget) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -191,11 +199,33 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 found.inst.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
                 log(state, `${getCard(found.inst.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
             }
+            // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
+            if (action.upTo) {
+                recordTargets(state, [found.inst.instanceId])
+                const remaining = action.count - 1
+                if (remaining > 0) {
+                    const nextCandidates = (
+                        action.anySide
+                            ? pickAnySideCandidates(state, owner, (sp) => !sp.isRested && matchesLevel(sp), srcColors, srcType, "exhaust")
+                            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+                    ).map((s) => s.instanceId)
+                    requestUpToChoice(
+                        state,
+                        owner,
+                        action.anySide
+                            ? `${sourceName}：疲労させるスピリットを選んでください（あと${remaining}体まで）`
+                            : action.chooserIsTarget
+                              ? `${sourceName}：疲労させる自分のスピリットを選んでください（あと${remaining}体まで）`
+                              : `${sourceName}の疲労付与：対象を選んでください（あと${remaining}体まで）`,
+                        nextCandidates,
+                        { ...action, count: remaining },
+                        self,
+                        action.chooserIsTarget ? opp : undefined,
+                    )
+                }
+            }
             return
         }
-        // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
-        // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
-        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
         // interactive の選択後に再入するときは excludeTarget を落とす。
         // 残したままだと、プレイヤーが選んだ instanceId を「除外する対象」と誤読して自動選択に落ちてしまう
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
@@ -210,6 +240,17 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 srcType,
                 "exhaust",
             )
+            if (action.upTo && state.interactiveTargets) {
+                requestUpToChoice(
+                    state,
+                    owner,
+                    `${sourceName}：疲労させるスピリットを選んでください（あと${action.count}体まで）`,
+                    candidates.map((sp) => sp.instanceId),
+                    actionForChoice,
+                    self,
+                )
+                return
+            }
             if (
                 state.interactiveTargets &&
                 tryInteractiveTargetChoice(
@@ -253,6 +294,20 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+            if (action.upTo) {
+                requestUpToChoice(
+                    state,
+                    owner,
+                    action.chooserIsTarget
+                        ? `${sourceName}：疲労させる自分のスピリットを選んでください（あと${action.count}体まで）`
+                        : `${sourceName}の疲労付与：対象を選んでください（あと${action.count}体まで）`,
+                    candidates.map((s) => s.instanceId),
+                    actionForChoice,
+                    self,
+                    action.chooserIsTarget ? opp : undefined,
+                )
+                return
+            }
             // chooserIsTarget（【暴風】）：疲労させられる側が自分で対象を選ぶ。
             // 解決は発生源の持ち主の効果として行う（tryInteractiveTargetChoice が actorPid を立てる）
             if (
@@ -320,35 +375,80 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
     log(state, `${sourceName}：条件を満たす${exhausted}体を疲労させた。`)
 }
 
-// BS10-074 きぐるみクマッター：相手のネクサスすべてを疲労させる
-const exhaustAllOpponentNexusesHandler: ActionHandler<"exhaustAllOpponentNexuses"> = (ctx) => {
-    const { state, opp, sourceName } = ctx
-    let count = 0
-    for (const n of state.players[opp].field.nexuses) {
-        if (n.isRested) continue
-        n.isRested = true
-        count++
-    }
-    log(state, `${sourceName}：相手のネクサス${count}個を疲労させた。`)
-}
+// 対話時はスピリットとネクサスを同じ候補一覧に並べて使用者が1つずつ選ぶ（2026-09-27 ユーザー決定）。
+// ネクサスには疲労の耐性を持つカードが無いので耐性判定をしない
+function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { type: "exhaust" }>): void {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const oppField = state.players[opp].field
+    const nexusCandidates = () => oppField.nexuses.filter((n) => !n.isRested)
+    const spiritCandidates = () =>
+        action.nexus === "also"
+            ? oppField.spirits.filter((s) => !s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "exhaust", action.all ? "area" : "targeted")))
+            : []
+    const label = action.nexus === "also" ? "スピリット/ネクサス" : "ネクサス"
 
-// 「相手のスピリット/ネクサス合計count個までを疲労させる」（BS10-018エル・クラーケン）。
-// 決定的簡略化：スピリットを実効BP最大から優先して疲労させ（既存の疲労耐性・装甲を尊重）、
-// 残った枠をネクサスへ場の並び順で充てる（ネクサスに耐性判定は無い）
-const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexusesUpTo"> = (ctx, action) => {
-    const { state, owner, opp, srcColors, srcType, sourceName } = ctx
-    let remaining = action.count
+    if (action.all) {
+        let exhausted = 0
+        for (const s of spiritCandidates()) {
+            exhaustSpirit(state, opp, s, undefined, owner, srcType)
+            exhausted++
+        }
+        for (const n of nexusCandidates()) {
+            n.isRested = true
+            exhausted++
+        }
+        log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
+        return
+    }
+
+    const askNext = (remaining: number): void => {
+        if (remaining <= 0) return
+        requestUpToChoice(
+            state,
+            owner,
+            `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
+            [...spiritCandidates(), ...nexusCandidates()].map((c) => c.instanceId),
+            { ...action, count: remaining },
+            self,
+        )
+    }
+
+    if (targetInstanceId !== undefined) {
+        const nexus = nexusCandidates().find((n) => n.instanceId === targetInstanceId)
+        const spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === targetInstanceId)
+        if (nexus) nexus.isRested = true
+        else if (spirit) exhaustSpirit(state, opp, spirit, undefined, owner, srcType)
+        else {
+            log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+            return
+        }
+        const picked = (nexus ?? spirit)!
+        log(state, exhaustLog(sourceName, getCard(picked.cardId).name, false))
+        recordTargets(state, [picked.instanceId])
+        askNext(action.count - 1)
+        return
+    }
+
+    const count = action.count
+    if (state.interactiveTargets && action.upTo) {
+        askNext(count)
+        return
+    }
+    // 非対話：スピリットを実効BP最大から優先し、残り枠をネクサスへ場の並び順で充てる
+    let remaining = count
     let exhausted = 0
     while (remaining > 0) {
-        const target = pickEnemyByBp(state, opp, Infinity, (sp) => !sp.isRested, srcColors, srcType, "exhaust")
+        const target = spiritCandidates().reduce<CardInstance | undefined>(
+            (best, s) => (!best || effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best),
+            undefined,
+        )
         if (!target) break
         exhaustSpirit(state, opp, target, undefined, owner, srcType)
         exhausted++
         remaining--
     }
-    for (const n of state.players[opp].field.nexuses) {
+    for (const n of nexusCandidates()) {
         if (remaining <= 0) break
-        if (n.isRested) continue
         n.isRested = true
         exhausted++
         remaining--
@@ -357,9 +457,8 @@ const exhaustSpiritsAndNexusesUpToHandler: ActionHandler<"exhaustSpiritsAndNexus
         log(state, `${sourceName}：疲労させる対象がいなかった。`)
         return
     }
-    log(state, `${sourceName}：相手のスピリット/ネクサス合計${exhausted}個を疲労させた。`)
+    log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
 }
-
 
 // 指定色のスピリットすべてを疲労させる（exhaustAllByColor の共通部分。自動選択・色choiceの双方から使う）
 function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent"): void {
@@ -381,27 +480,6 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
         `${sourceName}：色「${COLOR_LABELS[chosen]}」を選び、${exhausted}体を疲労させた。`,
     )
 }
-
-// BS16-027コーカサス・リョフ・ビートル：「相手のスピリットが破壊されたとき（このスピリットのアタック中）、
-// そのスピリットと同じ系統を持つ相手のスピリットすべてを疲労させる」。系統は removal.ts が発火直前に
-// GameState.lastOpponentSpiritDestroyedFamilies へ控えたものを読む
-const exhaustOpponentSameFamilyAllHandler: ActionHandler<"exhaustOpponentSameFamilyAll"> = (ctx) => {
-    const { state, owner, opp, sourceName } = ctx
-    const families = state.lastOpponentSpiritDestroyedFamilies
-    if (families.length === 0) {
-        log(state, `${sourceName}：破壊されたスピリットの系統が分からず発動しなかった。`)
-        return
-    }
-    let exhausted = 0
-    for (const s of [...state.players[opp].field.spirits]) {
-        if (!matchesFamilyFilter(state, opp, s, families)) continue
-        if (isResisted(state, opp, s, attemptOf(ctx, "exhaust", "area"))) continue
-        exhaustSpirit(state, opp, s, undefined, owner, ctx.srcType)
-        exhausted++
-    }
-    log(state, `${sourceName}：同じ系統の相手のスピリット${exhausted}体を疲労させた。`)
-}
-
 
 // refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
 // pay の then で使う既定経路のみ）。pay の checker（pay.ts）とこのハンドラで共有する
@@ -479,6 +557,34 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             refreshSpirit(state, owner, chosen, srcType)
             if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, chosen)
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
+            // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
+            if (action.upTo) {
+                const remaining = (action.count ?? 1) - 1
+                if (remaining > 0) {
+                    const nextCandidates = refreshOneOwnCandidates(state, owner, self, filter).map((s) => s.instanceId)
+                    requestUpToChoice(
+                        state,
+                        owner,
+                        `${sourceName}：回復させるスピリットを選んでください（あと${remaining}体まで）`,
+                        nextCandidates,
+                        { ...action, count: remaining },
+                        self,
+                    )
+                }
+            }
+            return
+        }
+        // upTo（0〜count の好きな数を選べる）：既存の tryInteractiveTargetChoice（強制count体選択）とは
+        // 分けて、聞くたびに「選ばない」を残す requestUpToChoice を使う
+        if (action.upTo && state.interactiveTargets) {
+            requestUpToChoice(
+                state,
+                owner,
+                `${sourceName}：回復させるスピリットを選んでください（あと${action.count ?? 1}体まで）`,
+                candidates.map((s) => s.instanceId),
+                { ...action, chosenByPlayer: true },
+                self,
+            )
             return
         }
         // 実対戦では**どれを回復させるかはプレイヤーが選ぶ**（2026-08-23）。
@@ -766,50 +872,8 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
 }
 
 // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
-// 寿命 nextRefresh の記録で、そのリフレッシュステップで使い切る（PhaseManager）
-const markSkipNextRefreshHandler: ActionHandler<"markSkipNextRefresh"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName } = ctx
-    const filter = normalizeFilter(ctx, action)
-    if (filter === SELF_REQUIRED) return
-    const candidates = state.players[opp].field.spirits.filter(
-        (s) =>
-            !timedContentsOn(state, s).some((c) => c.type === "skipRefresh") &&
-            matchesTarget(state, opp, s, filter, self?.instanceId) &&
-            !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
-    )
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：指定できる相手のスピリットがいなかった。`)
-        return
-    }
-    if (
-        ctx.targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：次のリフレッシュステップで回復できなくするスピリットを選んでください`,
-            candidates,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    const target =
-        (ctx.targetInstanceId !== undefined
-            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
-            : undefined) ??
-        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
-    recordTimed(state, { content: [{ type: "skipRefresh" }], target: { kind: "instance", instanceId: target.instanceId }, until: "nextRefresh", ownerPid: owner })
-    log(state, `${sourceName}は${getCard(target.cardId).name}を指定した。（次のリフレッシュステップで回復しない）`)
-}
-
 const handlers = {
-    markSkipNextRefresh: markSkipNextRefreshHandler,
     exhaust: exhaustHandler,
-    exhaustAllOpponentNexuses: exhaustAllOpponentNexusesHandler,
-    exhaustSpiritsAndNexusesUpTo: exhaustSpiritsAndNexusesUpToHandler,
-    exhaustOpponentSameFamilyAll: exhaustOpponentSameFamilyAllHandler,
     refreshOne: refreshOneHandler,
     refreshAllOwn: refreshAllOwnHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,

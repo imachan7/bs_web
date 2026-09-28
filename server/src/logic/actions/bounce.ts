@@ -2,7 +2,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
 import { countedAmount } from "../counted"
@@ -52,47 +52,6 @@ export function returnToDeckTopCandidateCountForPay(
         ? pickAnySideCandidates(state, owner, matches, srcColors, srcType, "bounce").length
         : pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
 }
-
-// 相手のスピリット1体を手札に戻し、戻したコストが条件を満たしたときだけ味方1体を回復させる
-// （BS11-032 天王神獣スレイ・ウラノスLv2-3）
-const returnOneThenRefreshIfMaxCostHandler: ActionHandler<"returnOneThenRefreshIfMaxCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType } = ctx
-    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce")
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：手札に戻せる相手のスピリットがいなかった。`)
-        return
-    }
-    if (
-        ctx.targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：手札に戻す相手のスピリットを選んでください`,
-            candidates,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    const target =
-        (ctx.targetInstanceId !== undefined
-            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
-            : undefined) ??
-        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
-    const returnedCost = instBaseCost(target)
-    returnSpiritToHand(state, opp, target, sourceName)
-    if (returnedCost > action.maxCost) {
-        log(state, `${sourceName}：戻したスピリットのコストが${String(action.maxCost)}を超えるため回復しない。`)
-        return
-    }
-    ctx.resolve(
-        { type: "refreshOne", filter: { family: action.refreshFamilyFilter } },
-        { sourceColors: srcColors, sourceType: srcType },
-    )
-}
-
 
 const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
@@ -249,6 +208,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             // **まとめて待機させてから一度に戻す**（Wiki「バウンスについて」）。
             // 1体ずつ戻すと、1体目の「戻ったとき」の誘発が2体目以降の対象を変えてしまう
+            const moved: string[] = []
             for (let i = 0; i < resolvedCount; i++) {
                 const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType, "bounce")
                 if (!target) {
@@ -256,8 +216,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     break
                 }
                 markBounce(state, target.pid, target.inst, "hand", sourceName)
+                moved.push(target.inst.cardId)
             }
             flushBounces(state)
+            recordMoved(state, moved)
             return
         }
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
@@ -279,6 +241,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
         }
         // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
+        const moved: string[] = []
         for (let i = 0; i < resolvedCount; i++) {
             const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
             if (!target) {
@@ -286,7 +249,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 break
             }
             returnSpiritToHand(state, opp, target, sourceName)
+            moved.push(target.cardId)
         }
+        recordMoved(state, moved)
         return
 }
 
@@ -362,40 +327,39 @@ function returnAllTargetsToHand(
         return
 }
 
-
-// BS06颶風高原Lv2：このバトル中に自分の【暴風】で疲労させた相手のスピリットすべてをデッキの下へ。
-// 効果文どおり**戻す順番は持ち主（発揮した側）が選ぶ**（2026-08-24。それまでは記録順の簡略化）。
-// orderedIds に選んだ順を積んで再入し、選び終わってからまとめて戻す
-const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhaustedToDeckBottom"> = (ctx, action) => {
-    const { state, owner, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-        const records = state.bofuExhaustedThisBattle
-        if (records.length === 0) {
-            log(state, `${sourceName}：【暴風】で疲労させた相手のスピリットがいなかった。`)
+// 戻す順番は持ち主が選ぶ（2026-08-24）。選び終えてから markBounce→flushBounces でまとめて戻すのは、1体ずつ即座に戻すと
+// 誘発（「戻ったとき」等）が後続の対象選びに割り込んでしまうため（flushBouncesのコメント参照）
+// all版の本体。returnToDeckTop/returnToDeckBottom共通（positionだけが違う）
+function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        const posLabel = position === "top" ? "上" : "下"
+        const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+        if (resolvedFilter === SELF_REQUIRED) {
+            log(state, `${sourceName}：デッキの${posLabel}に戻す対象がいなかった。`)
             return
         }
+        const targetPid = action.side === "own" ? owner : opp
+        const pool = state.players[targetPid].field.spirits.filter((s) =>
+            resolvedFilter === undefined || matchesTarget(state, targetPid, s, resolvedFilter, self?.instanceId),
+        )
         const ordered = action.orderedIds ?? []
         // まだ順番を決めていない対象を集める。耐性の判定とログは**1周目だけ**行う
-        //（判定結果は途中で変わらないので、選ぶたびに同じログを出さない）
+        // （判定結果は途中で変わらないので、選ぶたびに同じログを出さない）
         const firstPass = action.orderedIds === undefined
-        const remaining: { pid: PlayerId; inst: CardInstance }[] = []
-        for (const rec of [...records]) {
-            if (rec.pid === owner) continue // 自分側が疲労した記録は対象外（「相手のスピリット」）
-            if (ordered.includes(rec.instanceId)) continue
-            const inst = state.players[rec.pid].field.spirits.find((sp) => sp.instanceId === rec.instanceId)
-            if (!inst) continue // 既に場から居ない個体は飛ばす
-            // **対象を記録から引いているので、他のハンドラのように候補選びの中で耐性を弾けない**。
-            // 相手側スピリットへの範囲効果として、returnToHand{all} と同じ耐性判定をここで行う
-            const resisted = resistanceAgainst(state, rec.pid, inst, attemptOf(ctx, "bounce", "area"))
+        const remaining: CardInstance[] = []
+        for (const s of pool) {
+            if (ordered.includes(s.instanceId)) continue
+            const resisted = resistanceAgainst(state, targetPid, s, attemptOf(ctx, "bounce", "area"))
             if (resisted) {
                 if (firstPass) {
-                    log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                    log(state, `${getCard(s.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
                 }
                 continue
             }
-            remaining.push({ pid: rec.pid, inst })
+            remaining.push(s)
         }
         // 選択から戻ってきた：選ばれた1体を順番の末尾に積んで、残りを聞き直す
-        if (targetInstanceId !== undefined && remaining.some((r) => r.inst.instanceId === targetInstanceId)) {
+        if (targetInstanceId !== undefined && remaining.some((s) => s.instanceId === targetInstanceId)) {
             ctx.resolve(
                 { ...action, orderedIds: [...ordered, targetInstanceId] },
                 { sourceColors: srcColors, sourceType: srcType },
@@ -407,69 +371,36 @@ const returnBofuExhaustedToDeckBottomHandler: ActionHandler<"returnBofuExhausted
             requestChoice(
                 state,
                 owner,
-                `${sourceName}：デッキの下に戻す順番を選んでください（残り${remaining.length}体）`,
-                remaining.map((r) => r.inst.instanceId),
+                `${sourceName}：デッキの${posLabel}に戻す順番を選んでください（残り${remaining.length}体）`,
+                remaining.map((s) => s.instanceId),
                 false,
                 { ...action, orderedIds: ordered },
                 self,
             )
             return
         }
-        const finalOrder = [...ordered, ...remaining.map((r) => r.inst.instanceId)]
+        const finalOrder = [...ordered, ...remaining.map((s) => s.instanceId)]
         let returned = 0
         for (const id of finalOrder) {
             const found = findSpiritAny(state, id)
             if (!found) continue
-            markBounce(state, found.pid, found.inst, "deckBottom", sourceName)
+            markBounce(state, found.pid, found.inst, position === "top" ? "deckTop" : "deckBottom", sourceName)
             returned += 1
         }
         // 全部を待機させてから、選ばれた順に一度に戻す
         flushBounces(state, finalOrder)
         if (returned === 0) {
-            log(state, `${sourceName}：デッキの下に戻せるスピリットがいなかった。`)
-        }
-        return
-}
-
-// BS14-032ヤツノカンゾウLv2が付与する誘発効果の本体：このバトル中に**self自身の【暴風】の効果で**
-// 疲労させた相手のスピリットすべてを手札に戻す（returnBofuExhaustedToDeckBottomと違い、
-// 発生源をselfに絞り込み・順番選択は行わない＝効果文に「好きな順番で」の記載が無いため）
-const returnBofuExhaustedToHandHandler: ActionHandler<"returnBofuExhaustedToHand"> = (ctx) => {
-    const { state, self, sourceName } = ctx
-        if (!self) {
-            log(state, `${sourceName}：発生源がいなかった。`)
-            return
-        }
-        const records = state.bofuExhaustedThisBattle.filter((r) => r.bofuSourceInstanceId === self.instanceId)
-        if (records.length === 0) {
-            log(state, `${sourceName}：【暴風】で疲労させた相手のスピリットがいなかった。`)
-            return
-        }
-        const ids: string[] = []
-        let returned = 0
-        for (const rec of records) {
-            const found = findSpiritAny(state, rec.instanceId)
-            if (!found) continue
-            const resisted = resistanceAgainst(state, found.pid, found.inst, attemptOf(ctx, "bounce", "area"))
-            if (resisted) {
-                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                continue
-            }
-            markBounce(state, found.pid, found.inst, "hand", sourceName)
-            ids.push(found.inst.instanceId)
-            returned += 1
-        }
-        flushBounces(state, ids)
-        if (returned === 0) {
-            log(state, `${sourceName}：手札に戻せるスピリットがいなかった。`)
+            log(state, `${sourceName}：デッキの${posLabel}に戻せるスピリットがいなかった。`)
         }
         return
 }
 
 type DeckReturnAction = Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>
 
-const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => returnToDeck(ctx, action, "top")
-const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) => returnToDeck(ctx, action, "bottom")
+const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =>
+    action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
+const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) =>
+    action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
 
 function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -604,15 +535,39 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
         return
 }
 
+const returnSelfToDeckTopHandler: ActionHandler<"returnSelfToDeckTop"> = (ctx) => {
+    const { state, owner, self } = ctx
+        if (!self) return
+        const player = state.players[owner]
+        // returnSelfToHandHandler と同じ形：破壊待機状態ならそこからデッキトップへ、既にトラッシュならそこから
+        if (self.pendingDestruction) {
+            const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
+            if (fieldIdx >= 0) {
+                player.field.spirits.splice(fieldIdx, 1)
+                player.reserve += self.cores
+                detachBravesOnLeave(state, owner, self)
+            }
+            delete self.pendingDestruction
+            player.deck.unshift(self.cardId)
+            log(state, `${getCard(self.cardId).name}はデッキの一番上に戻った。`)
+            return
+        }
+        const idx = player.trashCards.lastIndexOf(self.cardId)
+        if (idx >= 0) {
+            player.trashCards.splice(idx, 1)
+            player.deck.unshift(self.cardId)
+            log(state, `${getCard(self.cardId).name}はデッキの一番上に戻った。`)
+        }
+        return
+}
+
 const handlers = {
-    returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
-    returnBofuExhaustedToDeckBottom: returnBofuExhaustedToDeckBottomHandler,
-    returnBofuExhaustedToHand: returnBofuExhaustedToHandHandler,
     returnSelfToHand: returnSelfToHandHandler,
+    returnSelfToDeckTop: returnSelfToDeckTopHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -162,6 +162,73 @@
   ]
  },
  {
+  "cardId": "BS16-068",
+  "name": "イ・ケダヤンの階段山脈",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このネクサスの配置時』\n手札から配置したとき、このターン終了時、自分のスピリットすべてを回復させる。\nLv2『自分のメインステップ』\n自分がスピリットカード/ブレイヴカードを召喚するとき、このネクサスのシンボルを白のシンボル3つにする。",
+  "effects": [
+   {
+    "id": "BS16-068-e1",
+    "kind": "triggered",
+    "trigger": "onDeploy",
+    "levels": [
+     1,
+     2
+    ],
+    "fromHandOnly": true,
+    "optional": false,
+    "action": {
+     "type": "atTurnEnd",
+     "action": {
+      "type": "refreshAllOwn"
+     }
+    }
+   },
+   {
+    "id": "BS16-068-e2",
+    "kind": "symbolFix",
+    "levels": [
+     2
+    ],
+    "target": "self",
+    "count": 3,
+    "color": "white",
+    "summonReductionOnly": true,
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS16-X04",
   "name": "魁の覇王ミブロック・ブレイヴァー",
   "type": "spirit",
@@ -441,7 +508,11 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroyLifeDamager"
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "damagedOwnLife": true
+     }
     }
    }
   ]

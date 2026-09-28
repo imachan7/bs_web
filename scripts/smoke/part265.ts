@@ -9,8 +9,8 @@
 //     このバトルが終わるまで相手のスピリットのコアをリザーブでなくボイドへ送る
 //   - EffectDef kind:"trashImmunity" + isTrashCardProtected（shared/rules.ts）：
 //     トラッシュにある間、このカード自身が一切の効果を受けない共通述語。
-//     recoverSpiritFromTrash/recoverMagicFromTrash/recoverNexusFromTrash/castMagicFromTrashByColor/
-//     recoverAllMagicFromTrashByColorChoice/summonFromTrashFree/trashSpiritsToDeckBottomの
+//     recoverSpiritFromTrash/recoverMagicFromTrash/toHand/castMagicFromTrashByColor/
+//     declare→toHand/summonFromTrashFree/trashSpiritsToDeckBottomの
 //     候補フィルタから1つずつ呼ぶ
 //
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・コストを機械検証してから使う。

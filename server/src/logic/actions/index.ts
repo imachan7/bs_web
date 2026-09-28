@@ -16,6 +16,7 @@ import grant from "./grant"
 import life from "./life"
 import mill from "./mill"
 import pay from "./pay"
+import peekHand from "./peekHand"
 import placeCores from "./placeCores"
 import removeCores from "./removeCores"
 import reveal from "./reveal"
@@ -25,6 +26,7 @@ import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
 import toDeck from "./toDeck"
+import toHand from "./toHand"
 import declare from "./declare"
 import fireEffect from "./fireEffect"
 
@@ -43,6 +45,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     magicMirrorRepeat: magicMirrorRepeatHandler,
     ...mill,
     ...pay,
+    ...peekHand,
     ...placeCores,
     ...removeCores,
     ...reveal,
@@ -52,6 +55,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...timedEffect,
     ...trashRecover,
     ...toDeck,
+    ...toHand,
     ...declare,
     ...fireEffect,
 }

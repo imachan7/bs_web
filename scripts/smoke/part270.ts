@@ -172,7 +172,7 @@ console.log("=== §E 探偵ペンタン：「内容を見ないで選ぶ」は�
     const e1 = pentan.effects.find((e) => e.kind === "step")
     assert(e1 !== undefined && "action" in e1, "テスト前提: 探偵ペンタンは『スタートステップ』効果を持つ")
     const action = (e1 as { action: EffectAction }).action
-    const costCardName = (action as { cardName?: string }).cardName
+    const costCardName = (action as { cost?: { cardName?: string } }).cost?.cardName
     assert(costCardName !== undefined, "テスト前提: コストに破棄するカード名がある")
     const costCard = byName(costCardName!)
 

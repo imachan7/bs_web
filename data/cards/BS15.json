@@ -3148,7 +3148,17 @@
     "selfOnly": true,
     "optional": true,
     "action": {
-     "type": "unblockedByVoidSelfCore"
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "count": 1,
+      "to": "void"
+     },
+     "then": {
+      "type": "treatAsUnblocked"
+     }
     }
    },
    {
@@ -3163,7 +3173,17 @@
     "subjectKeywordFilter": "seimei",
     "optional": true,
     "action": {
-     "type": "unblockedByVoidSelfCore"
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "count": 1,
+      "to": "void"
+     },
+     "then": {
+      "type": "treatAsUnblocked"
+     }
     }
    },
    {
@@ -5425,7 +5445,7 @@
      "type": "sequence",
      "actions": [
       {"type": "toDeck", "from": "trash", "position": "top", "count": 1, "pick": {"cardType": "magic"}},
-      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10}
+      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10, "upTo": true}
      ]
     },
     "thenPay": "flash"

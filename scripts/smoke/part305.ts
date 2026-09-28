@@ -214,11 +214,15 @@ console.log("=== 器BF：BS13-058【合体時】（このバトルの間、Lv1/L
     const deckBefore = s.players.p1.deck.length
     const lifeBefore = s.players.p1.life
     resolveAction(s, "p1", host, {
-        type: "lifeCharge",
-        from: "void",
-        count: 1,
-        costMillSelfCount: 5,
-        thenUnblockableByLevelThisBattle: [1, 2],
+        type: "pay",
+        cost: { type: "mill", side: "own", count: 5 },
+        then: {
+            type: "sequence",
+            actions: [
+                { type: "placeCores", from: "void", to: "life", count: 1 },
+                { type: "timedEffect", duration: "battle", target: "self", content: [{ type: "unblockable", from: { level: [1, 2] } }] },
+            ],
+        },
     })
     assert(s.players.p1.deck.length === deckBefore - 5, "デッキ上5枚を破棄した")
     assert(s.players.p1.life === lifeBefore + 1, "ボイドからライフにコア1個")
