@@ -244,11 +244,11 @@ console.log("=== §J 未完成の古代戦艦：船尾 ===")
     s.players.p1.field.nexuses.push(nexus)
     s.players.p1.life = 3
     s.players.p2.life = 3
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "void" })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", count: 1 })
     assert(s.players.p1.life === 3, "自分もボイドからライフにコアを置けない")
     // リザーブからは置ける（止めるのはボイドからだけ）
     s.players.p1.reserve = 5
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1, from: "reserve" })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "reserve", to: "life", count: 1 })
     assert(s.players.p1.life === 4, "リザーブからは置ける")
 
     // Lv2『相手のメインステップ』：『召喚時』効果は発揮されない

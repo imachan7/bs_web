@@ -760,13 +760,13 @@ console.log("=== バウンス系・コア操作系アクション ===")
     console.log("--- lifeCharge: ライフ+・リザーブ-（不足時は可能な分だけ） ---")
     const lifeBefore = s.players.p1.life
     s.players.p1.reserve = 5
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "reserve", to: "life", count: 1 })
     assert(s.players.p1.life === lifeBefore + 1, "ライフが1増える")
     assert(s.players.p1.reserve === 4, "リザーブが1減る")
 
     s.players.p1.reserve = 0
     const lifeBefore2 = s.players.p1.life
-    resolveAction(s, "p1", null, { type: "lifeCharge", count: 1 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "reserve", to: "life", count: 1 })
     assert(s.players.p1.life === lifeBefore2, "リザーブ不足時はライフが増えない")
     assert(s.players.p1.reserve === 0, "リザーブ不足時はリザーブも変化しない")
 
