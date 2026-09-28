@@ -224,7 +224,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 ## 設計ドキュメント
 
 仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（型 → `server/src/logic/EffectModules.ts` にハンドラ → `data/cards/BS0N.json` にデータ）に従う。
-型の置き場は2026-09-12に分割した: **アクションは `server/src/types/effectAction.ts`、効果定義は `server/src/types/effectDef.ts`、それ以外は `server/src/type.ts`**。利用側は従来どおり `type.ts` から import すればよい（re-export 済み）。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+型の置き場は2026-09-12に分割した: **アクションは `server/src/types/effectAction.ts`、効果定義は `server/src/types/effectDef.ts`、選択待ちと再開スタック（`PendingChoice`／`ResumeFrame`）は `server/src/types/choice.ts`（09-28）、それ以外は `server/src/type.ts`**。利用側は従来どおり `type.ts` から import すればよい（re-export 済み）。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
 
 **SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
 

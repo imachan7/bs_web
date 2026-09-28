@@ -10,7 +10,7 @@ const MAX_TYPE_KB = 120
 
 // 2026-09-26 時点で基準を超えていたもの（行数、型ファイルは KB）。分割して基準を下回ったら、ここから消す
 const BASELINE: Record<string, number> = {
-    "server/src/type.ts": 211,
+    "server/src/type.ts": 182,
 }
 
 function walk(dir: string): string[] {
