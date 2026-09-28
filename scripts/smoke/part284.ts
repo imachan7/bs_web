@@ -20,6 +20,12 @@ function game(seed: string): GameState {
     return s
 }
 
+// BS11-032 のアタック時効果（カードデータのまま）
+function uranosAction(): Parameters<typeof resolveAction>[3] {
+    const e = getCard("BS11-032").effects.find((x) => x.kind === "triggered" && x.trigger === "onAttack") as { action: Parameters<typeof resolveAction>[3] }
+    return e.action
+}
+
 console.log("=== §A BS11-032：コスト4以下を戻したときだけ味方を回復させる ===")
 {
     const s = game("uranos-hit")
@@ -29,7 +35,7 @@ console.log("=== §A BS11-032：コスト4以下を戻したときだけ味方�
     const target = createInstance(cheap!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(target)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "returnOneThenRefreshIfMaxCost", maxCost: 4, refreshFamilyFilter: ["光導", "神星"] })
+    resolveAction(s, "p1", null, uranosAction())
     assert(s.players.p2.hand.includes(target.cardId), "相手のスピリットが手札に戻る")
     assert(!(ally.isRested as boolean), "コスト4以下だったので味方が回復する")
 }
@@ -41,7 +47,7 @@ console.log("=== §A BS11-032：コスト4以下を戻したときだけ味方�
     const target = createInstance(pricey!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(target)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "returnOneThenRefreshIfMaxCost", maxCost: 4, refreshFamilyFilter: ["光導", "神星"] })
+    resolveAction(s, "p1", null, uranosAction())
     assert(s.players.p2.hand.includes(target.cardId), "相手のスピリットが手札に戻る")
     assert(ally.isRested === true, "コスト5以上なら回復しない")
 }

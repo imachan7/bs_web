@@ -23,7 +23,8 @@ function takeOwnBurst(player: PlayerState): string[] {
     return [cardId]
 }
 
-export function matchesPick(id: string, pick: RevealPick | undefined): boolean {
+// costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
+export function matchesPick(id: string, pick: RevealPick | undefined, costOverride?: number): boolean {
     if (!pick) return true
     const card = getCard(id)
     if (pick.cardType !== undefined) {
@@ -38,11 +39,12 @@ export function matchesPick(id: string, pick: RevealPick | undefined): boolean {
     if (pick.keyword !== undefined && !hasKeyword(id, pick.keyword)) return false
     if (pick.nameIncludes !== undefined && !card.name.includes(pick.nameIncludes)) return false
     if (pick.cost !== undefined) {
+        const cost = costOverride ?? card.cost
         if (typeof pick.cost === "number") {
-            if (card.cost !== pick.cost) return false
+            if (cost !== pick.cost) return false
         } else {
-            if (pick.cost.min !== undefined && card.cost < pick.cost.min) return false
-            if (pick.cost.max !== undefined && card.cost > pick.cost.max) return false
+            if (pick.cost.min !== undefined && cost < pick.cost.min) return false
+            if (pick.cost.max !== undefined && cost > pick.cost.max) return false
         }
     }
     if (pick.hasBurst === true && !card.effects.some((e) => e.kind === "burst")) return false
