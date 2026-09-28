@@ -37,6 +37,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     funsai: { id: "funsai", label: "粉砕" },
     daifunsai: { id: "daifunsai", label: "大粉砕" },
     kobo: { id: "kobo", label: "光芒" },
+    makobo: { id: "makobo", label: "魔光芒" },
     tensho: { id: "tensho", label: "転召" },
     bofu: { id: "bofu", label: "暴風" },
     seimei: { id: "seimei", label: "聖命" },
@@ -56,9 +57,10 @@ export function keywordMatches(has: Keyword, asked: Keyword): boolean {
     return has === asked || (KEYWORD_INCLUDES[asked]?.includes(has) ?? false)
 }
 
-// カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
-export function hasKeyword(cardId: string, keyword: Keyword): boolean {
-    return card(cardId).effects.some((e) => e.kind === "keyword" && e.keyword === keyword)
+// カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）。配列＝いずれかでOR
+export function hasKeyword(cardId: string, keyword: Keyword | Keyword[]): boolean {
+    const wanted = Array.isArray(keyword) ? keyword : [keyword]
+    return card(cardId).effects.some((e) => e.kind === "keyword" && wanted.includes(e.keyword))
 }
 
 // 指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。

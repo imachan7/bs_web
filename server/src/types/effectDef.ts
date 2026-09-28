@@ -687,7 +687,7 @@ export type EffectDef =
           optional?: true // 「〜できる」の任意指定。承認でコスト支払い＋復活確定、断ればその場で破壊（非対話は即時確定）。省略時は必ず戻る
           vanillaFilter?: true // scope:"ownAll"用：効果の記述を持たない（バニラ）スピリットのみ対象
           colorFilter?: Color // scope:"ownAll"用：この色を持つスピリットのみ対象
-          keywordFilter?: Keyword // scope:"ownAll"用：このキーワードを静的に持つカードのみ対象
+          keywordFilter?: Keyword | Keyword[] // scope:"ownAll"用：このキーワードを静的に持つカードのみ対象。配列＝いずれかでOR
           minBp?: number // scope:"ownAll"用：対象スピリットの実効BPがこれ以上のときのみ
           minCost?: number // scope:"ownAll"用：対象スピリットのコストがこれ以上のときのみ
           familyFilter?: FamilyFilter // scope:"ownAll"用：指定系統（配列＝OR）を持つスピリットのみ対象

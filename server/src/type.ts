@@ -90,7 +90,7 @@ export interface TargetFilter {
     cost?: { max?: number; min?: number; in?: number[] } // in＝いずれかのコストと一致
     level?: number[] // currentLevel がこれに含まれる
     minLevel?: number // currentLevel がこれ以上（levelの完全一致とは別軸。BS13-023マウンテン・セイカイLv1-3：「Lv2以上の自分のスピリットすべて」）
-    keyword?: Keyword // 指定キーワード持ち（一時付与・継続付与も考慮）
+    keyword?: Keyword | Keyword[] // 指定キーワード持ち（一時付与・継続付与も考慮）。配列＝いずれかでOR
     vanilla?: boolean // true＝効果の記述を持たない／false＝持つ
     minSymbols?: number // シンボル数がこれ以上
     symbolCount?: number // シンボル数が**これと完全一致**（minSymbols＝以上とは別軸。「シンボル1つを持つ相手のスピリット」「シンボル2つを持つ相手の合体スピリット」。instanceSymbolCountで判定＝合体しているブレイヴのシンボルも数える。BS12初出）
@@ -103,7 +103,7 @@ export interface TargetFilter {
     refreshed?: true // 回復状態（!isRested）のものだけ（restedの逆。BS12-039導化姫トリックスターLv2＝「回復状態の相手のスピリット」）
     nameContains?: string | string[] // カード名にこの文字列を含むものだけ（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。配列＝いずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
     sameColorAsBattleLoser?: true // 直前のバトルで破壊された側と同じ色（normalizeFilter が state.lastBattleDestroyedColors を color 軸へ解決する。記録が無ければ対象なし。BS04獣使いドヴェルグ）
-    keywordCount?: number // keyword と併用。カードに静的に書かれた指定数が一致するもの（【暴風：1】限定。付与された暴風は対象外）
+    keywordCount?: number // keyword（単数指定のみ）と併用。カードに静的に書かれた指定数が一致するもの（【暴風：1】限定。付与された暴風は対象外）
     sameLevelAsBattleLoser?: true // 直前のバトルで破壊された側と同じLv（normalizeFilter が state.lastBattleDestroyedLevel を level 軸へ解決する。記録が無ければ対象なし）
     sameFamilyAsBattleLoser?: true // 直前のバトルで破壊された側と同じ系統（normalizeFilter が state.lastBattleDestroyedFamilies を family 軸へ解決する。記録が無ければ対象なし。BS04ニーベルングリング）
     sameFamilyAsDestroyed?: true // 直近に破壊された相手のスピリットと同じ系統（state.lastOpponentSpiritDestroyedFamilies。記録が無ければ対象なし）
@@ -286,20 +286,18 @@ export type Keyword =
     | "clash" // 激突（将来弾用に予約）
     | "armor" // 装甲（将来弾用に予約）
     | "heavyArmor" // 重装甲：指定色の相手の**スピリット/ブレイヴ/ネクサス/マジック**の効果を受けない（BS12初出）。
-    // ⚠️ 【装甲】の上位だが**別枠**（KEYWORD_INCLUDES に足さない。2026-09-03 ユーザー確認）。
-    // 「【装甲】を持つ自分のスピリットすべて」（BS12-067 Lv2）に重装甲持ちは含まれない
-    // （BS12-068 が「【装甲】/【重装甲】」と両方を併記しているのが根拠）。
+    // ⚠️ 【装甲】の上位だが**別枠**（KEYWORD_INCLUDES に足さない。2026-09-03 ユーザー確認。「【装甲】を持つ〜」は拾わない）。
     // 装甲との差は**ブレイヴの効果も防ぐ**ことだけ（shared/rules.ts の boardResistanceAgainst）
     | "jugeki" // 呪撃：アタック時、ブロックした相手スピリット1体をバトル終了時に破壊
     | "funsai" // 粉砕：アタック時、相手のデッキを上からこのスピリットのLvと同じ枚数破棄する
     | "kobo" // 光芒：アタック時、バトル終了時に自分がこのバトルで使用したマジックカードすべてを手札に戻す
+    | "makobo" // 魔光芒：【光芒】＋マジック再発揮の合成（BS17初出）。専用kindは作らずkobo.tsのヘルパーで合流させる
     | "tensho" // 転召：召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所（トラッシュ/ボイド）に置く
     | "bofu" // 暴風：ブロックされたとき、**相手が**相手自身のスピリットを指定数だけ疲労させる（BS06初出）
     | "seimei" // 聖命：このスピリットのアタックで相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く（BS07初出）
     | "kyoshu" // 強襲：アタック時、ターン中に指定数まで、自分のネクサス1つを疲労させることで自身を回復できる（BS07初出）
     | "hyoheki" // 氷壁：相手が指定色のマジックの効果を使用したとき、このスピリットを疲労させることでその効果を無効にする（BS08初出）
-    | "jumetsugeki" // 呪滅撃：効果文に全文が書かれる（相手のライフのコア1個を相手のトラッシュに置くことで、
-    // このスピリットは回復状態でフィールドに残る等）ため、**キーワード固有の処理は無く名前の登録だけ**（BS14初出）
+    | "jumetsugeki" // 呪滅撃：効果文に全文が書かれるため、**キーワード固有の処理は無く名前の登録だけ**（BS14初出）
     | "daifunsai" // 大粉砕：**このキーワードを持つカードはプールに存在しない**（BS14時点）。
     // 「【粉砕】/【大粉砕】を持つ自分のスピリットすべて」のように**参照する側**にのみ使う（BS14-062）
     | "fushi" // 不死：トラッシュにあるこのスピリットカードは、指定コストの自分のスピリットが破壊されたとき、

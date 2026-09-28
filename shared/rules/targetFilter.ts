@@ -58,8 +58,17 @@ export function matchesTarget(
     // 合体中のブレイヴは field.combinedBraves にいて field.spirits の走査に入らないので、
     // ここへ来る時点で「スピリット状態」だが、braveCombined でも二重に確かめておく
     if (filter.braveInSpiritState === true && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) return false
-    if (filter.keyword !== undefined && !spiritHasKeyword(board, ownerPid, inst, filter.keyword)) return false
-    if (filter.keywordCount !== undefined && (filter.keyword === undefined || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
+    if (filter.keyword !== undefined) {
+        const wanted = Array.isArray(filter.keyword) ? filter.keyword : [filter.keyword]
+        if (!wanted.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
+    }
+    // keywordCountはkeywordが単数のときのみ対応（配列との組は不一致扱い）
+    if (
+        filter.keywordCount !== undefined &&
+        (typeof filter.keyword !== "string" || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)
+    ) {
+        return false
+    }
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
     // 継続的な制約（unblockableBy）と期間つき効果の両方を見る。どちらも「◯◯の相手から」の条件つきでも数える

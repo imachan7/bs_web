@@ -232,7 +232,7 @@ export function bpBuffTargetPasses(
     owner: PlayerId,
     inst: CardInstance,
     minSymbols?: number,
-    keywordFilter?: Keyword,
+    keywordFilter?: Keyword | Keyword[],
     nameContains?: string | string[],
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,
@@ -240,7 +240,10 @@ export function bpBuffTargetPasses(
     vanillaFilter?: boolean,
 ): boolean {
     if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
-    if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
+    if (keywordFilter !== undefined) {
+        const wanted = Array.isArray(keywordFilter) ? keywordFilter : [keywordFilter]
+        if (!wanted.some((k) => spiritHasKeyword(state, owner, inst, k))) return false
+    }
     if (nameContains !== undefined) {
         const names = Array.isArray(nameContains) ? nameContains : [nameContains]
         if (!names.some((n) => cardNameContains(inst, n))) return false
@@ -264,7 +267,7 @@ export function pickBpBuffTarget(
     owner: PlayerId,
     targetInstanceId?: string,
     minSymbols?: number,
-    keywordFilter?: Keyword,
+    keywordFilter?: Keyword | Keyword[],
     nameContains?: string | string[],
     attackingOnly?: boolean,
     familyFilter?: FamilyFilter,

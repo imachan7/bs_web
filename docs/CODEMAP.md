@@ -152,7 +152,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `KeywordInfo`（型）：キーワードの存在と表示名を一元管理する（挙動は GameEngine / RuleValidator が hasKeyword で参照する）
 - `KEYWORDS`（const）：キーワード効果のレジストリ。カードデータには名前だけを持たせ、挙動はエンジン側で解決する
 - `keywordMatches`（fn）
-- `hasKeyword`（fn）：カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
+- `hasKeyword`（fn）：カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）。配列＝いずれかでOR
 - `instHasTriggerEffect`（fn）：指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
 - `staticKeywordCount`（fn）：効果の levels 指定が現在のレベルで有効か（null = レベル不問）
 - `effectActiveAtLevel`（fn）
@@ -493,6 +493,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/keywords/kobo.ts
 
+- `hasKeywordAtLevel`（fn）：静的キーワード（レベル判定つき）‖ 一時付与 ‖ 継続付与のいずれかで keyword を持つか。
 - `hasKoboOnBlock`（fn）：士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を
 - `resolveKoboOnBattleEnd`（fn）：【光芒】: バトル終了時、アタッカーがレベル有効で光芒を持つなら、
 

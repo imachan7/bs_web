@@ -1,5 +1,5 @@
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
-import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
+import { currentLevel, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
 import { effectActiveAtLevel, effectSources } from "../../../../shared/rules"
@@ -8,6 +8,7 @@ import { fireFieldEventTriggers } from "../triggers"
 import { setTargetRedirect } from "./redirect"
 import type { ActionHandler } from "../actions/types"
 import { resolveMagic } from "./cast"
+import { hasKeywordAtLevel } from "../keywords/kobo"
 
 // マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
 // usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
@@ -76,6 +77,12 @@ export function findMagicRepeatGrantSource(state: GameState, pid: PlayerId): Car
             }
             return source
         }
+    }
+    // 【魔光芒】：発生源が見つからないときだけ、バトル中のアタッカー自身を発生源にする
+    // （「このスピリットのアタック時」＝pid側のアタッカーである間だけ。ブロッカー側では発揮しない）
+    if (state.battle) {
+        const attacker = findSpirit(state.players[pid], state.battle.attackerInstanceId)
+        if (attacker && hasKeywordAtLevel(state, pid, attacker, "makobo")) return attacker
     }
     return null
 }
