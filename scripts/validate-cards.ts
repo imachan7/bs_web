@@ -606,11 +606,13 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
     ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
     ["revealRest", "revealで選ばれなかった残りをrest先へ送る内部専用（revealApplyOne/revealの内側から積む）"],
+    ["burstMagicFreeOrThenPay", "burstMagicFreeEffect の4択（払う／無償メイン／無償フラッシュ／やめる）の再開用の内部専用"],
     ["revealFinishSummon", "revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き"],
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst"])
+// atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
 
 // declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
 export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {

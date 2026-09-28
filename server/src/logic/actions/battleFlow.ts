@@ -54,6 +54,7 @@ import {
     instIsCombined,
     instMinLevelCores,
     isInBattle,
+    isTrashCardProtected,
     lifeDamagePerSpiritRemaining,
     lifeFloorByEffect,
     lifeImmuneThisTurn,
@@ -694,6 +695,108 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
         // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
         if (action.count !== undefined) {
+            // alsoFrom:"trash"：手札とトラッシュの合計でcount枚まで、1枚ずつどちらの場所かを選べる（X05）
+            if (action.alsoFrom === "trash") {
+                const matchesTrashId = (candidateId: string): boolean =>
+                    !isTrashCardProtected(candidateId) && matchesCardId(candidateId)
+                const requestZone = (zone: "hand" | "trash", remaining: number): void => {
+                    const idxs: number[] = []
+                    if (zone === "hand") {
+                        for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) idxs.push(i)
+                    } else {
+                        for (let i = 0; i < player.trashCards.length; i++) {
+                            const id = player.trashCards[i]
+                            if (id !== undefined && matchesTrashId(id)) idxs.push(i)
+                        }
+                    }
+                    if (idxs.length === 0) {
+                        askPick(remaining)
+                        return
+                    }
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚する${zone === "hand" ? "手札" : "トラッシュ"}のカードを選んでください（あと${remaining}枚まで）`,
+                        zone,
+                        idxs,
+                        true,
+                        { ...action, count: remaining, pendingZone: zone },
+                        self,
+                        true,
+                    )
+                }
+                function askPick(remaining: number): void {
+                    if (remaining <= 0) return
+                    if (!state.interactiveTargets) {
+                        let left = remaining
+                        while (left > 0) {
+                            let bestZone: "hand" | "trash" | null = null
+                            let bestIdx = -1
+                            let bestCost = -1
+                            for (let i = 0; i < player.hand.length; i++) {
+                                if (!matchesCardId(player.hand[i]!)) continue
+                                const cost = getCard(player.hand[i]!).cost
+                                if (cost > bestCost) {
+                                    bestCost = cost
+                                    bestIdx = i
+                                    bestZone = "hand"
+                                }
+                            }
+                            for (let i = 0; i < player.trashCards.length; i++) {
+                                const id = player.trashCards[i]
+                                if (id === undefined || !matchesTrashId(id)) continue
+                                const cost = getCard(id).cost
+                                if (cost > bestCost) {
+                                    bestCost = cost
+                                    bestIdx = i
+                                    bestZone = "trash"
+                                }
+                            }
+                            if (bestZone === null) break
+                            if (bestZone === "hand") summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho, summonOpts)
+                            else summonFreeFromTrashIndex(state, owner, sourceName, bestIdx, summonOpts)
+                            left--
+                            if (state.winner) return
+                        }
+                        return
+                    }
+                    const handIdxs: number[] = []
+                    for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) handIdxs.push(i)
+                    const trashIdxs: number[] = []
+                    for (let i = 0; i < player.trashCards.length; i++) {
+                        const id = player.trashCards[i]
+                        if (id !== undefined && matchesTrashId(id)) trashIdxs.push(i)
+                    }
+                    if (handIdxs.length === 0 && trashIdxs.length === 0) return
+                    if (handIdxs.length > 0 && trashIdxs.length > 0) {
+                        suspend(state, {
+                            pid: owner,
+                            kind: "option",
+                            prompt: `${sourceName}：召喚するカードを手札／トラッシュのどちらから選びますか（あと${remaining}枚まで。選ばない場合は終了します）`,
+                            candidates: [],
+                            options: ["手札から選ぶ", "トラッシュから選ぶ"],
+                            optional: true,
+                            action: { ...action, count: remaining },
+                            selfInstanceId: self ? self.instanceId : null,
+                        })
+                        return
+                    }
+                    requestZone(handIdxs.length > 0 ? "hand" : "trash", remaining)
+                }
+                if (chosenCardIndex !== undefined) {
+                    if (action.pendingZone === "trash") summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, summonOpts)
+                    else summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                    askPick(action.count - 1)
+                    return
+                }
+                if (chosenOption !== undefined) {
+                    requestZone(chosenOption === "トラッシュから選ぶ" ? "trash" : "hand", action.count)
+                    return
+                }
+                askPick(action.count)
+                return
+            }
             // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
             if (action.upTo && state.interactiveTargets) {
                 if (chosenCardIndex !== undefined) {

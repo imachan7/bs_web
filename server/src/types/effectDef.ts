@@ -553,6 +553,11 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "burstMagicFreeEffect" // 発生源が場にありレベル有効の間、自分のバーストがマジックカードで発動したとき、バースト効果の解決後にコストを支払わずメイン/フラッシュのどちらか1つを発揮できる（任意。BS16-070）
+          levels: number[] | null
+      }
+    | {
+          id: string
           kind: "awakenFromReserve" // 発生源が場にありレベル有効の間、持ち主のスピリットすべての【覚醒】は「自分のスピリット上」に加え自分のリザーブからもコアを置けるようになる
           levels: number[] | null
           target: "ownAll"

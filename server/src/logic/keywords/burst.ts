@@ -1,11 +1,16 @@
 // 【バースト】のセットと発動
 import { requestActivationConfirm } from "../targeting"
-import { resolveAction } from "../EffectModules"
+import { hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, suspend } from "../GameState"
 import { burstConditionMet, fireFieldEventTriggers, notifyHandGained } from "../triggers"
 import { effectActiveAtLevel, effectSources, timedContentsFor } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
+
+// burstMagicFreeEffect（BS16-070）の選択肢ラベル。actions/control.tsのburstMagicFreeOrThenPayHandlerと
+// 一致させること（circular import回避のためここでは定数を共有せず複製）
+export const BURST_MAGIC_FREE_MAIN_LABEL = "コストを支払わずにメイン効果を発揮する"
+export const BURST_MAGIC_FREE_FLASH_LABEL = "コストを支払わずにフラッシュ効果を発揮する"
 
 // バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
 // 手札からの取り出し・ターン1回制限の消費は呼び出し側（GameEngine.doSetBurst / setBurstFromHandハンドラ）が行う
@@ -70,9 +75,14 @@ function tryBurstThenPay(
     cardId: string,
     thenPay: "main" | "flash" | undefined,
 ): void {
-    if (thenPay === undefined) return
     if (state.winner) return
     const card = getCard(cardId)
+    // burstMagicFreeEffect持ちがいれば、こちらの分岐（無償選択肢つき）に委ねる（BS16-070）
+    if (card.type === "magic" && hasBurstMagicFreeEffect(state, pid)) {
+        tryBurstMagicFreeOrThenPay(state, pid, cardId, thenPay)
+        return
+    }
+    if (thenPay === undefined) return
     const entry = card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === thenPay)
     if (!entry) return
     const cost = effectiveCost(state, pid, card)
@@ -94,6 +104,56 @@ function tryBurstThenPay(
     log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
     // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
     resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+}
+
+// burstMagicFreeEffect持ち（BS16-070）の分岐：「コストを払ってthenPay」「無償でメイン」「無償でフラッシュ」
+// 「発揮しない」の中から選ぶ。thenPayを持たないバーストマジックでも無償の2択は出せる
+function tryBurstMagicFreeOrThenPay(
+    state: GameState,
+    pid: PlayerId,
+    cardId: string,
+    thenPay: "main" | "flash" | undefined,
+): void {
+    const card = getCard(cardId)
+    const player = state.players[pid]
+    const magicEntry = (timing: "main" | "flash") =>
+        card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === timing)
+    const mainEntry = magicEntry("main")
+    const flashEntry = magicEntry("flash")
+    const payEntry = thenPay !== undefined ? magicEntry(thenPay) : undefined
+    const payCost = payEntry ? effectiveCost(state, pid, card) : 0
+    const canPay = payEntry !== undefined && player.reserve >= payCost
+    const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
+        if (!entry) return
+        // マジックの「使用」ではないのでresolveMagicは通さない（Q22399。docs/design/BURST.md §7.1）
+        resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+    }
+    if (!state.interactiveTargets) {
+        // 非対話の既定：無償でフラッシュがあればそれ、無ければ無償でメイン（2026-09-28ユーザー決定）
+        if (flashEntry) return resolveFree(flashEntry)
+        if (mainEntry) return resolveFree(mainEntry)
+        if (canPay && payEntry) {
+            player.reserve -= payCost
+            log(state, `${player.name}は${card.name}のコスト${payCost}を支払った。`)
+            resolveFree(payEntry)
+        }
+        return
+    }
+    const options: string[] = []
+    if (canPay) options.push(`コスト${payCost}を支払って${thenPay === "main" ? "メイン" : "フラッシュ"}効果を発揮する`)
+    if (mainEntry) options.push(BURST_MAGIC_FREE_MAIN_LABEL)
+    if (flashEntry) options.push(BURST_MAGIC_FREE_FLASH_LABEL)
+    if (options.length === 0) return
+    suspend(state, {
+        pid,
+        kind: "option",
+        prompt: `${card.name}：コストを支払わずに効果を発揮しますか？`,
+        candidates: [],
+        options,
+        optional: true,
+        action: { type: "burstMagicFreeOrThenPay", cardId, ...(payEntry && thenPay !== undefined ? { payTiming: thenPay, payCost } : {}) },
+        selfInstanceId: null,
+    })
 }
 
 // バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
