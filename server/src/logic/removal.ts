@@ -1356,7 +1356,7 @@ export function removeCores(
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const floor = coreFloorFor(state, inst, ownerPid)
+    const floor = coreFloorFor(state, inst, ownerPid, actorPid)
     const removed = Math.min(count + bonus, Math.max(0, inst.cores - floor))
     inst.cores -= removed
     // coresToOpponentReserveGoToTrash（BS12-X02）：本来リザーブへ置かれるはずのコアを、
@@ -1407,7 +1407,7 @@ export function removeCoresToTrash(
         log(state, `トラッシュに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count + bonus, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count + bonus, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
     inst.cores -= removed
     player.trashCores += removed
     log(
@@ -1439,7 +1439,7 @@ export function takeCoresFromSpirit(
         log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
         return 0
     }
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
     inst.cores -= removed
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (inst.cores < instMinLevelCores(inst)) {
@@ -1466,7 +1466,7 @@ export function removeCoresToVoid(
     }
     const player = state.players[ownerPid]
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid)))
+    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
     inst.cores -= removed
     log(
         state,
@@ -1489,7 +1489,7 @@ export function removeCoresToVoid(
 // 書き方なので、取り除く効果だけでなく**移動・入れ替え**でも下回れない。
 // 取り除く系は removeCores/removeCoresToTrash/removeCoresToVoid が、
 // 移動・入れ替え系（moveCoresLeavingOne／swapOpponentCores）は各ハンドラがこの関数を直接見る。
-export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId): number {
+export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     if (getCard(inst.cardId).type !== "spirit") return 0
     // ownOnly（BS09-059翡翠の社Lv2）は発生源の持ち主のスピリットだけを守るので、
     // 「どちらの発生源から来た制約か」を見る必要がある
@@ -1505,6 +1505,8 @@ export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: Pl
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
+                // byOpponentOnly（BS16-039）：減らす側がactorPidで、pid（守る側）と同じなら自分自身の減少なので床を張らない
+                if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
                 // colorFilter（BS12-065大樹茂る天守閣：「自分の緑のスピリットすべて」）：この色を持たなければ守らない
                 if (effect.constraint.colorFilter !== undefined && !instHasColor(inst, effect.constraint.colorFilter)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。

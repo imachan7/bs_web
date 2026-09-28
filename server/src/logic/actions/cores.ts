@@ -543,7 +543,7 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         return
     }
     // コア下限（BS08聖なる柱状彫刻）は移動にも効くので、残す数は「1個」と下限の大きい方
-    const keep = Math.max(1, coreFloorFor(state, inst, pid))
+    const keep = Math.max(1, coreFloorFor(state, inst, pid, owner))
     const moved = inst.cores - keep
     if (moved <= 0) {
         log(state, `${sourceName}：${getCard(inst.cardId).name}のコアは下限より少なくできない。`)
@@ -579,7 +579,7 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, actio
         }
         // コア下限（BS08聖なる柱状彫刻）は入れ替えにも効く。入れ替えは同時に起きる1つの動きなので、
         // どちらかが下限を割るなら**入れ替え自体を行わない**（片側だけ動かすとコアが増減してしまう）
-        if (beforeB < coreFloorFor(state, a, opp) || beforeA < coreFloorFor(state, b, opp)) {
+        if (beforeB < coreFloorFor(state, a, opp, owner) || beforeA < coreFloorFor(state, b, opp, owner)) {
             log(state, `${sourceName}：コアの下限を下回るため入れ替えられなかった。`)
             return
         }

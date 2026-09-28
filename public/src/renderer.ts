@@ -54,6 +54,7 @@ import {
     burstSetCoresRequired,
     shinsokuAssistCandidates,
     timedFlashLocked,
+    timedMagicLocked,
 } from "../../shared/rules"
 export { activeConstraints, cantActByTimed, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
@@ -1508,13 +1509,15 @@ function renderHand(view: GameView, ui: UiState): void {
             m.type === "magic" &&
             hasMagicRestriction(view, view.you, "colorLockOpponent") &&
             !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
+        // battleLock "magic"（BS16-X06）：メイン・フラッシュとも使用不可（バースト発動は別経路なので掛からない）
+        const magicBattleLocked = m.type === "magic" && timedMagicLocked(view, view.you)
 
         const fieldCores = payableFieldCores(view, cardId)
         const isTimingValid =
             (myMainFree) ||
             (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable || resshinsokuReady))
 
-        const isUsableState = !view.pendingChoice && !magicColorLocked && isTimingValid
+        const isUsableState = !view.pendingChoice && !magicColorLocked && !magicBattleLocked && isTimingValid
         const usable = isUsableState && (resshinsokuReady || reserve >= need)
         const usableField = isUsableState && !usable && (reserve + fieldCores >= need)
         const unusable = !usable && !usableField

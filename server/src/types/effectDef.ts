@@ -1067,6 +1067,8 @@ export type EffectDef =
           kind: "nexusEffectsDisabled" // 発生源が場にありレベル有効の間、ネクサスすべての効果を発揮させない
           levels: number[] | null
           target: "opponentAll" | "bothAll" // opponentAll=相手ネクサスのみ／bothAll=両陣営のネクサス（白1色縛りは両陣営に効く。2026-09-17確認）
+          targetLevels?: number[] // 指定時、止まるのは現在このLvのネクサスだけ（BS16-041）。levelsは発生源自身の有効Lv、こちらは止める側の対象ネクサスのLv
+          phase?: Phase // 指定時はこのステップの間のみ有効（ターンプレイヤー不問＝『お互いの〜ステップ』）
           condition?: { ownFieldOnlyColor: Color; spiritsOnly?: true } // target:"bothAll"用の発揮条件
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
       }
