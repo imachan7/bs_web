@@ -3,11 +3,12 @@
 // 各ハンドラはここを呼ぶだけにして、EffectCounter の判定式を個別実装しない。
 import type { CardInstance, CardType, EffectCounter, GameState, PlayerId } from "../type"
 import { countEffectCounter } from "./EffectModules"
-import { instFamilies, instanceSymbolCount, spiritHasFamily } from "../../../shared/rules"
+import { bofuCountFor, instFamilies, instanceSymbolCount, spiritHasFamily } from "../../../shared/rules"
 
 // 対象に依存するカウンタ。countEffectCounter は対象を知らないので、対象を選んだ後にここで数える
 function countForTarget(state: GameState, owner: PlayerId, counter: EffectCounter, target: CardInstance): number | undefined {
     if (counter === "targetSymbols") return instanceSymbolCount(target)
+    if (counter === "targetBofuCount") return bofuCountFor(state, state.players.p1.field.spirits.includes(target) ? "p1" : "p2", target)
     if (counter === "targetSameFamilyOwn") {
         const families = instFamilies(target)
         return state.players[owner].field.spirits.filter((s) => families.some((f) => spiritHasFamily(state, owner, s, f))).length

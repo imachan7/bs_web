@@ -10,7 +10,7 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, targetArmorColorCount } from "./keywordState"
+import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, targetArmorColorCount } from "./keywordState"
 import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownFieldOnlyColor } from "./level"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
@@ -118,6 +118,7 @@ export function countAuraCounter(
         const families = instFamilies(targetInst)
         return board.players[sourcePid].field.spirits.filter((s) => families.some((f) => spiritHasFamily(board, sourcePid, s, f))).length
     }
+    if (counter === "targetBofuCount") return targetInst ? bofuCountFor(board, board.players.p1.field.spirits.includes(targetInst) ? "p1" : "p2", targetInst) : 0
     if (counter === "targetArmorColors") {
         return targetInst ? targetArmorColorCount(board, targetInst) : 0
     }

@@ -1,41 +1,8 @@
-import type { CardInstance, GameState, PlayerId } from "../../type"
+import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
-import { effectActiveAtLevel, effectSources, isVirtualSource, bravesOf } from "../../../../shared/rules"
+import { effectActiveAtLevel, effectSources, isVirtualSource } from "../../../../shared/rules"
 
-// 持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
-// funsaiBonusTotal と同じ考え方（effectSources経由でlendSelfThisTurnによる貸与にも対応）
-export function bofuCountBonusFor(state: GameState, ownerPid: PlayerId): number {
-    let total = 0
-    for (const source of effectSources(state, ownerPid)) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "bofuCountBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            total += effect.amount
-        }
-    }
-    return total
-}
-
-// このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
-// 暴風を持たない（base=0）スピリットにはボーナスを加算しない。GameEngine.resolveBattleの
-// hasBofuOnBlock分岐と、action:"bpBuffAllByBofuCount"の両方から参照する（BS08ゲラン准将／スナイピングブラスト）
-// 【暴風】はホスト自身だけでなく、合体しているブレイヴの keyword エントリも見る
-// （BS10千刀鳥カクレイン：ホストのカードには【暴風】が無く、ブレイヴ側にのみ書かれている）
-export function bofuCountFor(state: GameState, ownerPid: PlayerId, inst: CardInstance): number {
-    let base = 0
-    for (const src of [inst, ...bravesOf(state.players[ownerPid], inst)]) {
-        const level = currentLevel(src).level
-        for (const effect of getCard(src.cardId).effects) {
-            if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            base = effect.count ?? 1
-            break
-        }
-    }
-    if (base === 0) return 0
-    return base + bofuCountBonusFor(state, ownerPid)
-}
+export { bofuCountFor } from "../../../../shared/rules"
 
 // 持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
 // hasKyoshuOnBlock と同型で、こちらは phase に加えて turn 条件も持つ
