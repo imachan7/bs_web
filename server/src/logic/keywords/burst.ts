@@ -1,8 +1,8 @@
 // 【バースト】のセットと発動
 import { requestActivationConfirm } from "../targeting"
-import { hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
-import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId } from "../../type"
-import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, suspend } from "../GameState"
+import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
+import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
+import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { burstConditionMet, fireFieldEventTriggers, notifyHandGained } from "../triggers"
 import { effectActiveAtLevel, effectSources, timedContentsFor } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -30,6 +30,35 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
     log(state, `${player.name}はバーストをセットした。`)
     fireFieldEventTriggers(state, pid, "ownBurstSet")
     fireFieldEventTriggers(state, opponentOf(pid), "opponentBurstSet")
+}
+
+// 発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
+export function announceBurstActivation(state: GameState, pid: PlayerId, cardId: string): void {
+    const name = getCard(cardId).name
+    log(state, `${state.players[pid].name}はバースト（${name}）を発動した。`)
+    emitEvent(state, { type: "burst", pid, cardName: name })
+}
+
+// バースト効果の解決から後（トラッシュ行き → thenPay の確認 → 「自分のバースト発動後」の誘発）を進める。
+// バースト効果が対象選択などで中断していたら、その場では何もせず再開スタックに積む。
+// 積まないと、選択の解決後に誰も後始末をせず、カードがバーストエリアに残り thenPay も聞かれない（2026-09-28 発覚）
+type BurstFinishFrame = Extract<ResumeFrame, { kind: "burstFinish" }>
+export function continueBurstActivation(state: GameState, frame: BurstFinishFrame): void {
+    if (state.winner) return
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [frame])
+        return
+    }
+    if (frame.stage === "finish") {
+        if (frame.alsoDraw) resolveAction(state, frame.pid, null, { type: "draw", count: 1 })
+        finishBurstActivation(state, frame.pid, frame.cardId, frame.actionType, frame.thenPay, frame.toHand ? { toHand: true } : undefined)
+        if (state.winner) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ ...frame, stage: "notify" }])
+            return
+        }
+    }
+    fireOwnBurstActivated(state, frame.pid, new Set(frame.before), frame.cardId)
 }
 
 // バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
@@ -307,6 +336,7 @@ export function fireBurstOnEvent(
             }
             return
         }
+        announceBurstActivation(state, holderPid, burstCardId)
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
@@ -334,10 +364,18 @@ export function fireBurstOnEvent(
             burstCardId,
         )
         delete state.resolvingBurstPid
-        if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
-        finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
+        continueBurstActivation(state, {
+            kind: "burstFinish",
+            stage: "finish",
+            pid: holderPid,
+            cardId: burstCardId,
+            actionType: actionToRun.type,
+            ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+            ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+            ...(alsoDraw ? { alsoDraw: true as const } : {}),
+            before: [...before],
+        })
         if (state.pendingChoice) return
-        fireOwnBurstActivated(state, holderPid, before, burstCardId)
     }
 }
 
@@ -353,13 +391,20 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     }
     player.burst = cardId
     player.burstSet = true
-    log(state, `${player.name}は${card.name}をバーストとして発動させた。`)
+    announceBurstActivation(state, owner, cardId)
     const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" }
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
     delete state.resolvingBurstPid
-    finishBurstActivation(state, owner, cardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
-    if (state.pendingChoice || state.winner) return
-    fireOwnBurstActivated(state, owner, before, cardId)
+    continueBurstActivation(state, {
+        kind: "burstFinish",
+        stage: "finish",
+        pid: owner,
+        cardId,
+        actionType: actionToRun.type,
+        ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+        ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+        before: [...before],
+    })
 }

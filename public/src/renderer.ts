@@ -446,8 +446,8 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
             return `✨ ${ev.cardName} 召喚`
         case "destroy":
             return `💥 ${ev.cardName} 破壊`
-        case "magic":
-            return `📜 ${ev.cardName} 使用`
+        case "magic": return `📜 ${ev.cardName} 使用`
+        case "burst": return `⚡ ${ev.cardName} バースト発動`
         case "draw":
             // 自分のドローは手札の増加で分かるため表示しない。相手のドローのみ通知する
             return ev.pid === you ? null : `🃏 相手が${ev.count}枚ドロー`
