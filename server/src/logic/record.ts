@@ -16,6 +16,16 @@ export function recordMoved(state: GameState, cardIds: string[], scope: string =
     state.lastMoved = { ...(state.lastMoved ?? {}), [scope]: cardIds }
 }
 
+// 場を離れるときのコスト。合体スピリットはブレイヴを残すならホストだけ、残さないなら合計
+// （Wiki「ブレイヴ」合体スピリットがフィールドを離れた場合の※。2026-09-28 ユーザー提供）
+export function recordLeftCost(state: GameState, cardId: string, cost: number, scope: string = currentRecordScope(state)): void {
+    state.lastLeftCosts = { ...(state.lastLeftCosts ?? {}), [scope]: { ...(state.lastLeftCosts?.[scope] ?? {}), [cardId]: cost } }
+}
+
+export function lastLeftCostOf(state: GameState, cardId: string, scope: string = currentRecordScope(state)): number | undefined {
+    return state.lastLeftCosts?.[scope]?.[cardId]
+}
+
 export function lastMovedOf(state: GameState): string[] {
     return state.lastMoved?.[currentRecordScope(state)] ?? []
 }
