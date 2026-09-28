@@ -1952,11 +1952,31 @@
     "optional": false,
     "oncePerTurn": true,
     "action": {
-     "type": "returnOneThenRefreshIfMaxCost",
-     "maxCost": 4,
-     "refreshFamilyFilter": [
-      "光導",
-      "神星"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "returnToHand",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cost": {
+          "max": 4
+         }
+        }
+       },
+       "then": {
+        "type": "refreshOne",
+        "filter": {
+         "family": [
+          "光導",
+          "神星"
+         ]
+        }
+       }
+      }
      ]
     }
    }

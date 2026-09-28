@@ -20,6 +20,7 @@ import { fireFieldEventTriggers, notifyHandGained, notifySpiritCoresRemovedByOpp
 import type { FieldEventExtraItem } from "./triggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave } from "./brave"
+import { recordLeftCost } from "./record"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, wouldAskReviveConfirm } from "./revive"
 
 export type { KeywordInfo }
@@ -50,6 +51,7 @@ import {
     hasKeyword,
     instanceSymbolCount,
     instAllCosts,
+    instBaseCost,
     instColors,
     instHasColor,
     instHasCost,
@@ -1173,6 +1175,7 @@ export function markBounce(
     // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
     // 「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
+    recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
 }
 

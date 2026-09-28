@@ -2,7 +2,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
 import { countedAmount } from "../counted"
@@ -52,47 +52,6 @@ export function returnToDeckTopCandidateCountForPay(
         ? pickAnySideCandidates(state, owner, matches, srcColors, srcType, "bounce").length
         : pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
 }
-
-// 相手のスピリット1体を手札に戻し、戻したコストが条件を満たしたときだけ味方1体を回復させる
-// （BS11-032 天王神獣スレイ・ウラノスLv2-3）
-const returnOneThenRefreshIfMaxCostHandler: ActionHandler<"returnOneThenRefreshIfMaxCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType } = ctx
-    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce")
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：手札に戻せる相手のスピリットがいなかった。`)
-        return
-    }
-    if (
-        ctx.targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：手札に戻す相手のスピリットを選んでください`,
-            candidates,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    const target =
-        (ctx.targetInstanceId !== undefined
-            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
-            : undefined) ??
-        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
-    const returnedCost = instBaseCost(target)
-    returnSpiritToHand(state, opp, target, sourceName)
-    if (returnedCost > action.maxCost) {
-        log(state, `${sourceName}：戻したスピリットのコストが${String(action.maxCost)}を超えるため回復しない。`)
-        return
-    }
-    ctx.resolve(
-        { type: "refreshOne", filter: { family: action.refreshFamilyFilter } },
-        { sourceColors: srcColors, sourceType: srcType },
-    )
-}
-
 
 const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
@@ -249,6 +208,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             // **まとめて待機させてから一度に戻す**（Wiki「バウンスについて」）。
             // 1体ずつ戻すと、1体目の「戻ったとき」の誘発が2体目以降の対象を変えてしまう
+            const moved: string[] = []
             for (let i = 0; i < resolvedCount; i++) {
                 const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType, "bounce")
                 if (!target) {
@@ -256,8 +216,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     break
                 }
                 markBounce(state, target.pid, target.inst, "hand", sourceName)
+                moved.push(target.inst.cardId)
             }
             flushBounces(state)
+            recordMoved(state, moved)
             return
         }
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
@@ -279,6 +241,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
         }
         // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
+        const moved: string[] = []
         for (let i = 0; i < resolvedCount; i++) {
             const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
             if (!target) {
@@ -286,7 +249,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 break
             }
             returnSpiritToHand(state, opp, target, sourceName)
+            moved.push(target.cardId)
         }
+        recordMoved(state, moved)
         return
 }
 
@@ -568,7 +533,6 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 }
 
 const handlers = {
-    returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToDeckTop: returnToDeckTopHandler,
