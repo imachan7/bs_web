@@ -410,6 +410,10 @@ export function giveBp(state: GameState, inst: CardInstance, amount: number): vo
 export function giveTimed(state: GameState, inst: CardInstance, content: TimedContent, until: "turn" | "battle" = "turn", ownerPid: PlayerId = "p1"): void {
     recordTimed(state, { content: [content], target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid })
 }
+// テスト用：プレイヤーに期間つき効果を記録する（battleLock等、対象が個体でないもの用）
+export function giveTimedToPlayer(state: GameState, pid: PlayerId, content: TimedContent, until: "turn" | "battle" = "battle"): void {
+    recordTimed(state, { content: [content], target: { kind: "player", pid }, until, ownerPid: pid })
+}
 // テスト用：1体に掛かっている一定量の BP+ の記録を消す
 export function clearBp(state: GameState, inst: CardInstance): void {
     state.timedEffects = state.timedEffects.filter(
@@ -426,7 +430,7 @@ export function playerHas(state: GameState, pid: PlayerId, type: string): boolea
     return timedPlayerRules(state, pid).some((c) => c.type === type)
 }
 // pid がこのバトルの間、フラッシュで手札を使えない／バーストを発動できないか
-export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burst"): boolean {
+export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burst" | "magic"): boolean {
     return timedContentsFor(state, pid).some((c) => c.type === "battleLock" && c.lock === lock)
 }
 export type { GameAction, GameState, PlayerId }

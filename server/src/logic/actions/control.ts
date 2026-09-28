@@ -379,6 +379,38 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     return
 }
 
+// burstMagicFreeEffect（BS16-070）の選択肢の解決（keywords/burst.tsのtryBurstMagicFreeOrThenPayが積む）。
+// chosenOptionの文言で「無償でメイン／無償でフラッシュ／コストを払ってthenPay」を判定する。
+// ラベル文字列はkeywords/burst.tsのBURST_MAGIC_FREE_MAIN_LABEL／_FLASH_LABELと一致させること
+// （circular import回避のため定数を共有せず、ここに複製してある）
+const BURST_MAGIC_FREE_MAIN_LABEL = "コストを支払わずにメイン効果を発揮する"
+const BURST_MAGIC_FREE_FLASH_LABEL = "コストを支払わずにフラッシュ効果を発揮する"
+const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> = (ctx, action) => {
+    const { state, owner, chosenOption } = ctx
+    if (chosenOption === undefined) return
+    const card = getCard(action.cardId)
+    const magicEntry = (timing: "main" | "flash") =>
+        card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === timing)
+    const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
+        if (!entry) return
+        resolveAction(state, owner, null, entry.action, undefined, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, action.cardId)
+    }
+    if (chosenOption === BURST_MAGIC_FREE_MAIN_LABEL) {
+        resolveFree(magicEntry("main"))
+        return
+    }
+    if (chosenOption === BURST_MAGIC_FREE_FLASH_LABEL) {
+        resolveFree(magicEntry("flash"))
+        return
+    }
+    if (action.payTiming === undefined || action.payCost === undefined) return
+    const player = state.players[owner]
+    if (player.reserve < action.payCost) return
+    player.reserve -= action.payCost
+    log(state, `${player.name}は${card.name}のコスト${action.payCost}を支払った。`)
+    resolveFree(magicEntry(action.payTiming))
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
@@ -391,6 +423,7 @@ const handlers = {
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     setBurstFromHand: setBurstFromHandHandler,
     payNegateDecide: payNegateDecideHandler,
+    burstMagicFreeOrThenPay: burstMagicFreeOrThenPayHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

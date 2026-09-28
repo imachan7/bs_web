@@ -1,5 +1,5 @@
 // smoke パート358（数え上げの統一：countCounter は (count ?? 1)×値で countMax が上限、amountCounter は amount×値）
-import { assert, createGame, createInstance, getCard, resolveAction } from "./helpers"
+import { assert, bpBuffOf, createGame, createInstance, getCard, resolveAction } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import type { CardInstance } from "../../server/src/type"
 
@@ -60,7 +60,7 @@ console.log("=== 2. 量の規則：(count ?? 1) × 値、countMax で頭打ち =
     assert(r3.s.players.p1.hand.length === hand + 4, "draw count:2 × 相手の疲労2体＝4枚")
     const r4 = board("rule4")
     resolveAction(r4.s, "p1", r4.self, { type: "timedEffect", content: [{ type: "bp", amount: 1000, amountCounter: "opponentHand" }], duration: "turn", target: "self" }, undefined, undefined, "spirit")
-    assert(r4.self.tempBpBuff === 4000, "amount:1000 × 相手の手札4枚＝BP+4000")
+    assert(bpBuffOf(r4.s, r4.self) === 4000, "amount:1000 × 相手の手札4枚＝BP+4000（相手の手札は数え直すカウンタ）")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part358）")

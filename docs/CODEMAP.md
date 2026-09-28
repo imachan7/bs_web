@@ -128,6 +128,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedPlayerRules`（fn）：このプレイヤーに掛かっている「このターンの間」の制約
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
+- `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 
 ## shared/rules/keywordState.ts
@@ -265,6 +266,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `lifeCostBlockedByFloor`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
 - `tryOwnLifeFloorByCost`（fn）
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
+- `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
 - `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
 - `hasAttackTriggersAsBlock`（fn）
 - `hasLifeDamageNegate`（fn）：硝子の女神フレイア：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の
@@ -468,6 +470,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/keywords/burst.ts
 
+- `BURST_MAGIC_FREE_MAIN_LABEL`（const）：burstMagicFreeEffect（BS16-070）の選択肢ラベル。actions/control.tsのburstMagicFreeOrThenPayHandlerと
+- `BURST_MAGIC_FREE_FLASH_LABEL`（const）
 - `placeBurst`（fn）：バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
 - `finishBurstActivation`（fn）：バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**

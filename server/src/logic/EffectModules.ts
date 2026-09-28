@@ -567,6 +567,20 @@ export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): b
     return false
 }
 
+// kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
+// 発動したときコストを支払わずメイン/フラッシュを発揮できる、を持つ発生源が有効か
+export function hasBurstMagicFreeEffect(state: GameState, ownerPid: PlayerId): boolean {
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "burstMagicFreeEffect") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            return true
+        }
+    }
+    return false
+}
+
 // kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
 // 対象スピリットの『アタック時』効果が『ブロック時』へ**移し替え**られているか。
 // target:"anyAll" は両陣営のスピリットが対象になりうるので、**両プレイヤーの発生源**を走査する。

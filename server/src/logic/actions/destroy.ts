@@ -603,7 +603,11 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
             }
-            destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            // 破壊したネクサスを lastMoved に書く（「破壊したネクサスのコストと同じ枚数」＝カウンタlastCostが読む。060）
+            const scope = currentRecordScope(state)
+            if (destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                recordMoved(state, [victim.cardId], scope)
+            }
             return
         }
         // upTo（0〜count の好きな数を選べる）：既存の自動選択ループは聞かずに先頭から決め打ちするため、
@@ -816,12 +820,16 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
 
 
 const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcColors, srcType, destroyContext } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
         // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する。
         // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲＝残り予算内でコスト最大から。
         // 同コストは実効BP最大を優先）
-        if (budgetToggleDestroy(ctx, action, action.budget, "コスト", (sp) => getCard(sp.cardId).cost)) return
-        let remaining = action.budget
+        // budgetCounter指定時（083）：実際の予算はbudget×counter値（burstEventCost等）で算出する
+        const budget = action.budgetCounter !== undefined
+            ? countedAmount(state, owner, self, action.budget, action.budgetCounter, srcType)
+            : action.budget
+        if (budgetToggleDestroy(ctx, action, budget, "コスト", (sp) => getCard(sp.cardId).cost)) return
+        let remaining = budget
         let destroyedCount = 0
         const destroyedNames: string[] = []
         // 先に選び切ってからまとめて破壊する（destroyByBpBudget と同じ理由）
@@ -856,7 +864,7 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
         }
         log(
             state,
-            `${sourceName}：コスト合計${action.budget}まで「${destroyedNames.join("、")}」を破壊した。`,
+            `${sourceName}：コスト合計${budget}まで「${destroyedNames.join("、")}」を破壊した。`,
         )
         return
 }

@@ -1,6 +1,6 @@
 // ターン進行・フェーズ遷移の制御
 import type { GameState, PlayerId, TimedRecord } from "../type"
-import { currentLevel, draw, getCard, log, pushResumeFrames, suspend } from "./GameState"
+import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
@@ -409,6 +409,22 @@ export function endTurn(state: GameState): void {
             field.nexuses.push(inst)
             detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
             log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
+        }
+    }
+    // atTurnEnd（BS16-068）：エンドステップの誘発の後・このターンの期間つき効果を消す前に、
+    // 記録した順で解決する（発生源が場を離れていても解決する。Q22394〜Q22396）
+    if (state.turnEndActions && state.turnEndActions.length > 0) {
+        const items = state.turnEndActions
+        state.turnEndActions = []
+        resolveInOrder(state, items, {
+            resolve: (item) =>
+                resolveAction(state, item.ownerPid, null, item.action, undefined, undefined, undefined, undefined, undefined, item.sourceCardId),
+            frame: (item) => ({ kind: "action", selfInstanceId: null, actorPid: item.ownerPid, action: item.action }),
+        })
+        if (state.winner) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "endTurn" }])
+            return
         }
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット

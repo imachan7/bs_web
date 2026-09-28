@@ -89,7 +89,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
-    "bpEqualizeFamily", "destroyBpThresholdBonus",
+    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect",
 ])
 
 export interface ValidationIssue {
@@ -290,6 +290,7 @@ const VALID_FILTER_KEYS = new Set([
     "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
     "bofuExhausted", // このバトル中に【暴風】で疲労した相手のスピリット（R5。"self"=発生源の【暴風】限定）
     "damagedOwnLife", // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（R5）
+    "familyExclude", // familyの否定：並べた系統をどれも持たない（BS16-052）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
@@ -605,11 +606,13 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["resolveFushiSummon", "同じ列の【不死】1枚分。【不死】はカードデータ側では keyword として書くので、この action 名はカードデータに現れない"],
     ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
     ["revealRest", "revealで選ばれなかった残りをrest先へ送る内部専用（revealApplyOne/revealの内側から積む）"],
+    ["burstMagicFreeOrThenPay", "burstMagicFreeEffect の4択（払う／無償メイン／無償フラッシュ／やめる）の再開用の内部専用"],
     ["revealFinishSummon", "revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き"],
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst"])
+// atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
 
 // declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
 export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {

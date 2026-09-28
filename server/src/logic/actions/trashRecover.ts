@@ -2,7 +2,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { EffectAction } from "../../type"
 import { getCard, log, suspend } from "../GameState"
 import { summonFreeFromTrashIndex, destroySpirit, payCost, notifyHandGained, requestCardChoice, resolveMagic, tryInteractiveCardChoice } from "../EffectModules"
-import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, isTrashCardProtected, isVanillaCard, trashCardNameMatches } from "../../../../shared/rules"
+import { KEYWORDS, cardHasColor, effectiveBp, spiritHasKeyword, hasGlobalConstraint, hasKeyword, opponentCantReturnFromTrashToHand, isTrashCardProtected, isVanillaCard, trashCardNameMatches, timedMagicLocked } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { countedAmount } from "../counted"
 import { lastMovedOf } from "../record"
@@ -348,6 +348,11 @@ const castMagicFromTrashByColorHandler: ActionHandler<"castMagicFromTrashByColor
             const cardId = player.trashCards[idx]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
+                return
+            }
+            // battleLock "magic"（BS16-X06）：トラッシュからの使用も「使用」に含む
+            if (timedMagicLocked(state, owner)) {
+                log(state, `${sourceName}：効果によりマジックを使用できなかった。`)
                 return
             }
             const card = getCard(cardId)

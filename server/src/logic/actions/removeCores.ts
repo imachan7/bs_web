@@ -140,7 +140,7 @@ export function removeCoresAchievableCountForPay(
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
                 if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
                 if (isBattlingCoreProtected(state, s)) continue
-                const keep = Math.max(action.leaveAtLeast ?? 0, coreFloorFor(state, s, pid))
+                const keep = Math.max(action.leaveAtLeast ?? 0, coreFloorFor(state, s, pid, owner))
                 perInst.push(Math.max(0, s.cores - keep))
             }
         }

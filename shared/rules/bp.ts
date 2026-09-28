@@ -90,6 +90,7 @@ export function countAuraCounter(
     if (counter === "ownReserve") return board.players[sourcePid].reserve
     if (counter === "ownLife") return board.players[sourcePid].life
     if (counter === "ownHand") return handSizeOf(board.players[sourcePid])
+    if (counter === "opponentHand") return handSizeOf(board.players[sourcePid === "p1" ? "p2" : "p1"])
     if (counter === "ownNexuses") return board.players[sourcePid].field.nexuses.length
     if (counter === "allNexuses") {
         return (

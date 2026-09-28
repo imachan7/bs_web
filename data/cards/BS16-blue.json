@@ -1,0 +1,995 @@
+[
+  {
+    "cardId": "BS16-046",
+    "name": "サケビバード",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 1,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "戦獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS16-047",
+    "name": "警備兵パグ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2･Lv3\n自分のネクサスが破壊されたとき、このスピリットのコア1個を自分のトラッシュに置くことで、破壊されたネクサス1つを同じ状態で自分のフィールドに残す。",
+    "effects": [
+      {
+        "id": "BS16-047-e1",
+        "kind": "fieldEvent",
+        "event": "ownNexusDestroyed",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "reviveLastDestroyedNexus",
+          "coreCost": 1
+        },
+        "optional": true
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-048",
+    "name": "グガランナー",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2『このスピリットのアタック時』\nコスト3以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS16-048-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-049",
+    "name": "フンババー",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手の手札1枚につき、このスピリットをBP+1000する。",
+    "effects": [
+      {
+        "id": "BS16-049-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 1000,
+              "amountCounter": "opponentHand"
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-050",
+    "name": "ガイメイル・ヒドラ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "海首"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のメインステップ』\n相手がバーストをセットしたとき、自分のトラッシュにあるネクサスカード1枚を、コストを支払わずに配置できる。\nLv2『自分のエンドステップ』\n自分のネクサス1つを破壊することで、ボイドからコア1個を自分のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS16-050-e1",
+        "kind": "fieldEvent",
+        "event": "opponentBurstSet",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "main",
+        "turn": "opponent",
+        "action": {
+          "type": "deployNexus",
+          "from": "trash",
+          "optional": true
+        },
+        "optional": true
+      },
+      {
+        "id": "BS16-050-e2",
+        "kind": "step",
+        "step": "end",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroyNexus",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "reserve",
+            "count": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-051",
+    "name": "シュドーメル",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のデッキを上から4枚オープンできる。\nその中のネクサスカード1枚を手札に加える。\n残ったカードは破棄する。",
+    "effects": [
+      {
+        "id": "BS16-051-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "reveal",
+          "from": "ownDeck",
+          "count": 4,
+          "pick": {
+            "cardType": "nexus"
+          },
+          "dest": "hand",
+          "rest": "trash",
+          "optional": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-052",
+    "name": "エンキドゥ・ゴレム",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、系統：「覇皇」/「雄将」を持たない相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS16-052-e1",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "BS16-052-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "refreshSelfByExhaustNexus"
+        }
+      },
+      {
+        "id": "BS16-052-e3",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "familyExclude": [
+              "覇皇",
+              "雄将"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-053",
+    "name": "イルルヤンカッシュ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "海首"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "blue",
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS16-054",
+    "name": "古の獣王ギルガメシュ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 7,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "覇皇",
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【バースト：自分のライフ減少後】\n自分のライフが3以下のとき、このスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「覇皇」を持つ相手のスピリット1体を破壊する。\nLv2･Lv3『自分のアタックステップ』\n系統：「覇皇」/「雄将」を持つ自分のスピリットがアタックしたとき、相手は、相手のリザーブのコア2個を相手のトラッシュに置かなければブロックできない。",
+    "effects": [
+      {
+        "id": "BS16-054-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "condition": {
+          "ownLifeAtMost": 3
+        },
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS16-054-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "family": "覇皇"
+          }
+        }
+      },
+      {
+        "id": "BS16-054-e3",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          2,
+          3
+        ],
+        "ownOnly": true,
+        "familyFilter": [
+          "覇皇",
+          "雄将"
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "action": {
+          "type": "timedEffect",
+          "target": "self",
+          "duration": "battle",
+          "content": [
+            {
+              "type": "blockCost",
+              "cost": "reserveCoreToTrash",
+              "count": 2
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-060",
+    "name": "テクノヒュード",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 7,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "海首"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のデッキを上から5枚破棄する。\nその後、自分のトラッシュにあるネクサスカード1枚を、コストを支払わずに配置できる。\n合体条件：覇皇/雄将\n【合体時】『このスピリットの合体アタック時』\n自分のネクサス1つを破壊することで、相手のデッキを上から、破壊したネクサスのコストと同じ枚数破棄する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "覇皇/雄将",
+    "effects": [
+      {
+        "id": "BS16-060-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "mill",
+              "count": 5,
+              "side": "own"
+            },
+            {
+              "type": "deployNexus",
+              "from": "trash",
+              "optional": true
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS16-060-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroyNexus",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "mill",
+            "count": 1,
+            "countCounter": "lastCost"
+          }
+        }
+      }
+    ],
+    "braveCondition": [
+      {
+        "family": "覇皇"
+      },
+      {
+        "family": "雄将"
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-071",
+    "name": "海の主を祭る島",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このネクサスの破壊時』\n自分のトラッシュにあるネクサスカード1枚を、コストを支払わずに配置できる。\nLv2『お互いのアタックステップ』\n系統：「海首」を持つ自分のスピリットすべてのLvを、1つ上のものとして扱う。",
+    "effects": [
+      {
+        "id": "BS16-071-e1",
+        "kind": "fieldEvent",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "deployNexus",
+          "from": "trash",
+          "optional": true
+        },
+        "event": "ownNexusDestroyed",
+        "selfMode": "source"
+      },
+      {
+        "id": "BS16-071-e2",
+        "kind": "levelAs",
+        "levels": null,
+        "target": "ownSpiritsByFamily",
+        "familyFilter": "海首",
+        "treatAs": {
+          "plus": 1
+        },
+        "phase": "attack"
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-072",
+    "name": "二つの川に挟まれた王国",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このネクサスの配置時』\n手札から配置したとき、自分のネクサス1つを指定できる。\nそのネクサスと同じコストの相手のスピリット1体を破壊する。\nLv2『お互いのアタックステップ』\nスピリットすべては、ネクサス/マジックの効果で回復しない。",
+    "effects": [
+      {
+        "id": "BS16-072-e1",
+        "kind": "triggered",
+        "trigger": "onDeploy",
+        "levels": [
+          1,
+          2
+        ],
+        "fromHandOnly": true,
+        "optional": true,
+        "action": {
+          "type": "declare",
+          "what": "cost",
+          "from": "nexuses",
+          "then": {
+            "type": "destroy",
+            "count": 1,
+            "filter": {
+              "declared": "match"
+            }
+          }
+        }
+      },
+      {
+        "id": "BS16-072-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "constraint": {
+          "type": "noRefreshByNexusOrMagic"
+        },
+        "phase": "attack",
+        "turn": "both"
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-083",
+    "name": "クラッシュ・ザ・バビロン",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "【バースト：相手による自分のスピリット破壊後】\nコスト合計(このバースト発動時に破壊された自分のスピリットのコスト)まで、相手のスピリットを好きなだけ破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nこのターンの間、系統：「覇皇」/「雄将」を持つ自分のスピリットすべてをBP+4000する。",
+    "effects": [
+      {
+        "id": "BS16-083-e1",
+        "kind": "burst",
+        "event": "ownSpiritDestroyed",
+        "subjectSide": "own",
+        "byOpponentEffectOnly": true,
+        "action": {
+          "type": "destroyByCostBudget",
+          "budget": 1,
+          "budgetCounter": "burstEventCost"
+        },
+        "thenPay": "flash"
+      },
+      {
+        "id": "BS16-083-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "duration": "turn",
+          "side": "own",
+          "all": true,
+          "filter": {
+            "family": [
+              "覇皇",
+              "雄将"
+            ]
+          },
+          "content": [
+            {
+              "type": "bp",
+              "amount": 4000
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-084",
+    "name": "エグゾーステッドガード",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、シンボル2つ以上を持つ自分のスピリットすべては疲労状態でブロックできる。",
+    "effects": [
+      {
+        "id": "BS16-084-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "duration": "turn",
+          "side": "own",
+          "all": true,
+          "filter": {
+            "minSymbols": 2
+          },
+          "content": [
+            {
+              "type": "canBlockWhileRested"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS16-X06",
+    "name": "霊峰魔龍ヤマタノヒドラ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 8,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "海首"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 8000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 11000
+      },
+      {
+        "level": 3,
+        "cores": 8,
+        "bp": 16000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【強襲：8】『このスピリットのアタック時』\nこのスピリットは、ターンに8回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2･Lv3『このスピリットのアタック時』\nバトル終了時、自分のトラッシュにあるネクサスカード1枚を、コストを支払わずに配置できる。\nLv3『このスピリットのアタック時』\n相手はマジックを使用できない。",
+    "effects": [
+      {
+        "id": "BS16-X06-e1",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 8,
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS16-X06-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "refreshSelfByExhaustNexus"
+        }
+      },
+      {
+        "id": "BS16-X06-e3",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "battleRole": "attacker",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "deployNexus",
+          "from": "trash",
+          "optional": true
+        }
+      },
+      {
+        "id": "BS16-X06-e4",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "battleLock",
+              "lock": "magic"
+            }
+          ],
+          "duration": "battle",
+          "side": "opponent"
+        }
+      }
+    ]
+  }
+]

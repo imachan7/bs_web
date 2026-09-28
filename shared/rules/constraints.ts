@@ -1111,6 +1111,11 @@ export function timedFlashLocked(board: Board, pid: PlayerId): boolean {
     return timedContentsFor(board, pid).some((c) => c.type === "battleLock" && c.lock === "flash")
 }
 
+// 期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
+export function timedMagicLocked(board: Board, pid: PlayerId): boolean {
+    return timedContentsFor(board, pid).some((c) => c.type === "battleLock" && c.lock === "magic")
+}
+
 // 期間つき効果でアタック／ブロックできないか
 export function cantActByTimed(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
     const needed = act === "attack" ? "cantAttack" : "cantBlock"

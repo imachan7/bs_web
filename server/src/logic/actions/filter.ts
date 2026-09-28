@@ -201,6 +201,13 @@ export function normalizeFilter(
             ? instanceIds
             : resolved.instanceIn.filter((id) => instanceIds.includes(id))
     }
+    if (resolved.lastBpBuffTarget !== undefined) {
+        delete resolved.lastBpBuffTarget
+        const instanceIds = ctx.state.lastBpBuffTargetId !== undefined ? [ctx.state.lastBpBuffTargetId] : []
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
     if (resolved.instanceIn !== undefined && resolved.instanceIn.length === 0) return SELF_REQUIRED
 
     return resolved

@@ -28,7 +28,7 @@ import {
     ownFieldSymbolColors,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition } from "../../../shared/rules"
+import { boardResistanceAgainst, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -622,6 +622,8 @@ export function validateCastMagic(
     const bannedMagic = fromTegamoto ? null : handCardBanned(state, pid, cardId)
     if (bannedMagic) return bannedMagic
     if (card.type !== "magic") return "マジックカードではありません"
+    // battleLock "magic"（BS16-X06）：手札・手元どちらの経路でも「使用」自体を止める。バースト発動は別経路なので掛からない
+    if (timedMagicLocked(state, pid)) return "効果により、このバトルの間マジックを使用できません"
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
     // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）

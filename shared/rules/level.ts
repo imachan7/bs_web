@@ -183,13 +183,12 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         // フィールドに実在するスピリット。「持つ効果すべては発揮されない」を受けている個体は外す
         // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
         ...player.field.spirits.filter((s) => !instEffectsSuppressed(s)),
-        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は丸ごと外す。
+        // フィールドに実在するネクサス。相手が「相手のネクサスすべての効果は発揮されない」を出している間は外す
+        // （targetLevels指定時はそのLvのネクサスだけ。BS16-041）。
         // さらに「**疲労状態の**ネクサスすべての効果は発揮されない」（BS10-074 きぐるみクマッター）は両陣営に効く
-        ...(nexusEffectsDisabledFor(board, pid)
-            ? []
-            : restedNexusEffectsDisabled(board)
-              ? player.field.nexuses.filter((n) => !n.isRested)
-              : player.field.nexuses),
+        ...player.field.nexuses.filter(
+            (n) => !nexusEffectsDisabledFor(board, pid, n) && !(restedNexusEffectsDisabled(board) && n.isRested),
+        ),
         // **合体中のブレイヴ**（BRAVE.md §4）。これで aura / constraint / keywordGrant / fieldEvent /
         // reviveOnDestroy / mustBlockGrant など走査すべてが【合体中】効果に対応する。
         // ⚠️ ホストが「持つ効果すべては発揮されない」を受けていたら、**合体中ブレイヴの効果も止まる**
@@ -229,7 +228,9 @@ function restedNexusEffectsDisabled(board: Board): boolean {
 // ⚠️ ここで effectSources を呼ぶと無限再帰するので、相手側の配列を**直接**走査する。
 // ネクサスが自分自身を無効化する形は現データに無いが、仮に書かれても
 // 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
-function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
+// nexus指定時：targetLevels／phase指定を持つ効果は、その条件がnexusの現在Lv・現在stateと一致するときだけ止める。
+// 引数省略時（呼び出し互換用）はtargetLevels／phase指定の効果を無条件に無視する（判定できないので止めない側に倒す）
+function nexusEffectsDisabledFor(board: Board, pid: PlayerId, nexus?: CardInstance): boolean {
     if (timedPlayerRules(board, pid).some((c) => c.type === "nexusEffectsDisabledForPid")) return true
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const sources = [
@@ -245,6 +246,8 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             return true
         }
     }
@@ -262,6 +265,8 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId): boolean {
             if (effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             return true
         }

@@ -25,7 +25,7 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：count×EffectCounterの値を枚数とする
         const count =
             action.countCounter !== undefined
-                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType, action.countMax)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
             log(state, `${sourceName}：カウントが0のためドローしなかった。`)
@@ -392,6 +392,7 @@ export const discardSelfChooseEligible = (cardId: string, action: Extract<Effect
         if (!wanted.some((kw) => hasKeyword(cardId, kw))) return false
     }
     if (action.cardName !== undefined && getCard(cardId).name !== action.cardName) return false
+    if (action.colorFilter !== undefined && !getCard(cardId).colors.includes(action.colorFilter)) return false
     return true
 }
 

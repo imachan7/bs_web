@@ -42,6 +42,7 @@ export function matchesTarget(
     if (filter.colorNotIn !== undefined && !instColors(inst).some((c) => !filter.colorNotIn!.includes(c))) return false
     if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
+    if (filter.familyExclude !== undefined && matchesFamilyFilter(board, ownerPid, inst, filter.familyExclude)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     if (filter.familyAll !== undefined && !filter.familyAll.every((f) => spiritHasFamily(board, ownerPid, inst, f))) return false
     // 場のスピリット/ネクサスのコストを条件にする判定なので、道化師クランの付与コストも見る

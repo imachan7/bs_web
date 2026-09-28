@@ -541,12 +541,16 @@ export const __covEid = (e: unknown): string =>
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             return true`,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
             if (effect.target !== "opponentAll" && effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             __covRec2("cont\\t" + __covEid(effect))
             return true`,
     )
@@ -557,12 +561,16 @@ export const __covEid = (e: unknown): string =>
             if (effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             return true`,
         `            if (effect.kind !== "nexusEffectsDisabled") continue
             if (effect.target !== "bothAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             __covRec2("cont\\t" + __covEid(effect))
             return true`,

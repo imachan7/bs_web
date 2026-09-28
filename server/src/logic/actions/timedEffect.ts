@@ -64,6 +64,7 @@ function contentLabel(action: TimedEffect): string {
 const RULE_COUNTERS = [
     "ownExhausted",
     "ownLife",
+    "opponentHand",
     "exhaustedEnemies",
     "targetSymbols",
     "targetBofuCount",
@@ -855,8 +856,20 @@ function placeAny(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Time
     for (const id of chosen) log(state, apply(state, owner, candidates.find((s) => s.instanceId === id)!, action))
 }
 
+// atTurnEnd（BS16-068）：解決した時点ではactionを実行せず、state.turnEndActionsへ記録するだけ。
+// 実際の解決はPhaseManager.endTurnが「エンドステップの誘発の後・timedEffectsのuntil:"turn"を消す前」で行う
+const atTurnEndHandler: ActionHandler<"atTurnEnd"> = (ctx, action) => {
+    const { state, owner, sourceName, sourceCardId } = ctx
+    state.turnEndActions = [
+        ...(state.turnEndActions ?? []),
+        { ownerPid: owner, action: action.action, ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+    ]
+    log(state, `${sourceName}：このターン終了時に効果を発揮する。`)
+}
+
 const handlers = {
     timedEffect: timedEffectHandler,
+    atTurnEnd: atTurnEndHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

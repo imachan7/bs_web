@@ -25,7 +25,7 @@ import { matchesPick } from "./revealAction"
 export const PAYABLE_TYPES = [
     "discardSelfChoose", "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
     "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf", "nexusCoresToTrash",
-    "exhaust", "mill", "discardBurst",
+    "exhaust", "mill", "discardBurst", "discardHandAll",
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree", "summonFromTrashFree",
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
@@ -148,6 +148,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const pid = action.side === "own" ? owner : opponentOf(owner)
         return state.players[pid].burst !== null
     },
+    // discardHandAll：手札が1枚以上あるか（COST_MODEL §1。081。0枚なら不発）
+    discardHandAll: (state, owner) => state.players[owner].hand.length >= 1 && canDiscardHand(state, owner),
     // bpBuff：anySide指定時は両陣営から、それ以外はfilterに合う自分のスピリットから1体以上
     // （buff.ts の bpBuffHandler と同じ pickAnySideCandidates／pickBpBuffTarget を使う）
     bpBuff: (state, owner, _self, action, srcColors, srcType) => {
