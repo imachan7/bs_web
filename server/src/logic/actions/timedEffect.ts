@@ -64,6 +64,7 @@ function contentLabel(action: TimedEffect): string {
 const RULE_COUNTERS = [
     "ownExhausted",
     "ownLife",
+    "opponentHand",
     "exhaustedEnemies",
     "targetSymbols",
     "targetBofuCount",

@@ -3,6 +3,25 @@ import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { fireFieldEventTriggers, fireTrigger } from "../triggers"
 import { effectActiveAtLevel, effectSources, hasGlobalConstraint, instAllCosts, instColors, instHasColor } from "../../../../shared/rules"
 
+// hasGlobalConstraintは汎用関数のためphase/turnを見ない（removal.tsのallSpiritsCantBounceActiveと同じ理由で専用関数にする）。
+// BS16-072 Lv2：『お互いのアタックステップ』限定。phase/turn未指定のBS09-047は従来どおり常時有効のまま
+function noRefreshByNexusOrMagicActive(state: GameState): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noRefreshByNexusOrMagic") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                return true
+            }
+        }
+    }
+    return false
+}
+
 export function checkExhaustOnCoreChange(
     state: GameState,
     affectedPid: PlayerId,
@@ -89,7 +108,7 @@ export function refreshSpirit(
     // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
     if (
         (sourceType === "nexus" || sourceType === "magic") &&
-        hasGlobalConstraint(state, "noRefreshByNexusOrMagic")
+        noRefreshByNexusOrMagicActive(state)
     ) {
         return
     }

@@ -889,15 +889,29 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "timedEffect",
-     "content": [
+     "type": "sequence",
+     "actions": [
       {
-       "type": "bp",
-       "amount": 2000
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "bp",
+         "amount": 2000
+        }
+       ],
+       "duration": "turn",
+       "side": "both"
+      },
+      {
+       "type": "refreshOne",
+       "all": true,
+       "anySide": true,
+       "filter": {
+        "lastBpBuffTarget": true,
+        "minBp": 10000
+       }
       }
-     ],
-     "duration": "turn",
-     "side": "both"
+     ]
     }
    }
   ]

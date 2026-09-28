@@ -82,7 +82,8 @@
           3
         ],
         "action": {
-          "type": "reviveLastDestroyedNexus"
+          "type": "reviveLastDestroyedNexus",
+          "coreCost": 1
         },
         "optional": true
       }
@@ -190,10 +191,16 @@
         ],
         "optional": false,
         "action": {
-          "type": "bpBuff",
-          "amount": 1000,
-          "amountCounter": "opponentHand",
-          "scope": "battle"
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 1000,
+              "amountCounter": "opponentHand"
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
         }
       }
     ]
@@ -392,6 +399,25 @@
         "optional": true,
         "action": {
           "type": "refreshSelfByExhaustNexus"
+        }
+      },
+      {
+        "id": "BS16-052-e3",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "familyExclude": [
+              "覇皇",
+              "雄将"
+            ]
+          }
         }
       }
     ]
@@ -594,6 +620,27 @@
             }
           ]
         }
+      },
+      {
+        "id": "BS16-060-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroyNexus",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "mill",
+            "count": 1,
+            "countCounter": "lastCost"
+          }
+        }
       }
     ],
     "braveCondition": [
@@ -731,7 +778,9 @@
         ],
         "constraint": {
           "type": "noRefreshByNexusOrMagic"
-        }
+        },
+        "phase": "attack",
+        "turn": "both"
       }
     ]
   },
@@ -762,8 +811,9 @@
         "subjectSide": "own",
         "byOpponentEffectOnly": true,
         "action": {
-          "type": "destroy",
-          "count": 1
+          "type": "destroyByCostBudget",
+          "budget": 1,
+          "budgetCounter": "burstEventCost"
         },
         "thenPay": "flash"
       },

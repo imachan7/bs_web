@@ -133,7 +133,7 @@ function collectMigrated(): { cardId: string; cardName: string; action: BpBuffAc
 
 const candidates = collectMigrated()
 const noEid = (k: string, v: unknown): unknown => (k === "__eid" ? undefined : v)
-assert(candidates.length === 148, `移行したカードデータの1体指定 BP は148件（フェネボラック・キマイラ・デブリは「このスピリット」へ移した）（実際: ${candidates.length}）`)
+assert(candidates.length === 150, `移行したカードデータの1体指定 BP は150件（BS16-077・081 で+2）（フェネボラック・キマイラ・デブリは「このスピリット」へ移した）（実際: ${candidates.length}）`)
 assert(
     // __eid は coverage:effects がカードデータに付け足す計測用の印なので比べない
     candidates.every(({ action, now }) => JSON.stringify(toTimedEffect(action), noEid) === JSON.stringify(now, noEid)),

@@ -318,6 +318,17 @@ console.log("=== 15. BS16-X05 召喚時：四道6体以上いるとき、相手�
     fireTrigger(s, "p1", self, "onSummon")
     assert(s.players.p2.field.spirits.length === 1, "四道6体未満なら発揮しない")
 }
+console.log("=== 15c. returnToDeckTop の all 軸：filter に合う候補すべてがデッキの上に戻る（軸自体の確認） ===")
+{
+    const s = game("case15c")
+    put(s, "p2", VANILLA, 1)
+    put(s, "p2", "BS16-038", 1)
+    const deckBefore = s.players.p2.deck.length
+    resolveAction(s, "p1", null, { type: "returnToDeckTop", all: true })
+    assert(s.players.p2.field.spirits.length === 0, "対象すべてが場から離れた")
+    assert(s.players.p2.deck.length === deckBefore + 2, "戻した2枚ぶんデッキが増えた")
+    assert(s.players.p2.deck.slice(0, 2).sort().join(",") === [VANILLA, "BS16-038"].sort().join(","), "戻した2枚がデッキの上に来ている")
+}
 
 console.log("=== 16. BS16-X05 Lv2-3：相手によって破壊されたとき、手札/トラッシュの[アルカナマスター・オズ]以外の黄スピリット3枚まで無償召喚 ===")
 {
@@ -362,6 +373,22 @@ console.log("=== 18. BS16-026 バトル時：BP比較で相手だけ破壊した
     resolveAction(s, "p1", self, actionOf("BS16-026", "BS16-026-e2").action)
     assert(s.players.p1.hand.includes("BS16-026") && s.players.p1.field.spirits.length === fieldBefore - 1, "【神速】持ち1体（自身を含む候補から選ばれる）が手札に戻った")
     assert(s.players.p1.reserve === reserveBefore + 2, "リザーブにコア2個増えた")
+}
+
+console.log("=== 19. BS16-077 フラッシュ：BP+2000した対象がBP10000以上なら回復させる ===")
+{
+    const s = game("case19a")
+    const target = put(s, "p1", "BS01-008", 8) // Lv3到達（BP8000）
+    target.isRested = true
+    resolveAction(s, "p1", null, actionOf("BS16-077", "BS16-077-e1").action)
+    assert(!target.isRested, "BP+2000で10000以上になったので回復した")
+}
+{
+    const s = game("case19b")
+    const target = put(s, "p1", VANILLA, 1) // Lv1（BP1000）
+    target.isRested = true
+    resolveAction(s, "p1", null, actionOf("BS16-077", "BS16-077-e1").action)
+    assert(target.isRested, "BP+2000でも10000未満なら回復しない")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part440）")

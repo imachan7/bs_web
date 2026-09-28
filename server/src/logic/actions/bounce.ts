@@ -329,11 +329,13 @@ function returnAllTargetsToHand(
 
 // 戻す順番は持ち主が選ぶ（2026-08-24）。選び終えてから markBounce→flushBounces でまとめて戻すのは、1体ずつ即座に戻すと
 // 誘発（「戻ったとき」等）が後続の対象選びに割り込んでしまうため（flushBouncesのコメント参照）
-function returnAllMatchingToDeckBottom(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToDeckBottom" }>): void {
+// all版の本体。returnToDeckTop/returnToDeckBottom共通（positionだけが違う）
+function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+        const posLabel = position === "top" ? "上" : "下"
         const resolvedFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
         if (resolvedFilter === SELF_REQUIRED) {
-            log(state, `${sourceName}：デッキの下に戻す対象がいなかった。`)
+            log(state, `${sourceName}：デッキの${posLabel}に戻す対象がいなかった。`)
             return
         }
         const targetPid = action.side === "own" ? owner : opp
@@ -369,7 +371,7 @@ function returnAllMatchingToDeckBottom(ctx: ActionCtx, action: Extract<EffectAct
             requestChoice(
                 state,
                 owner,
-                `${sourceName}：デッキの下に戻す順番を選んでください（残り${remaining.length}体）`,
+                `${sourceName}：デッキの${posLabel}に戻す順番を選んでください（残り${remaining.length}体）`,
                 remaining.map((s) => s.instanceId),
                 false,
                 { ...action, orderedIds: ordered },
@@ -382,22 +384,23 @@ function returnAllMatchingToDeckBottom(ctx: ActionCtx, action: Extract<EffectAct
         for (const id of finalOrder) {
             const found = findSpiritAny(state, id)
             if (!found) continue
-            markBounce(state, found.pid, found.inst, "deckBottom", sourceName)
+            markBounce(state, found.pid, found.inst, position === "top" ? "deckTop" : "deckBottom", sourceName)
             returned += 1
         }
         // 全部を待機させてから、選ばれた順に一度に戻す
         flushBounces(state, finalOrder)
         if (returned === 0) {
-            log(state, `${sourceName}：デッキの下に戻せるスピリットがいなかった。`)
+            log(state, `${sourceName}：デッキの${posLabel}に戻せるスピリットがいなかった。`)
         }
         return
 }
 
 type DeckReturnAction = Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>
 
-const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) => returnToDeck(ctx, action, "top")
+const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =>
+    action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
 const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) =>
-    action.all ? returnAllMatchingToDeckBottom(ctx, action) : returnToDeck(ctx, action, "bottom")
+    action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
 
 function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx

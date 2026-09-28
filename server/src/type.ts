@@ -331,6 +331,7 @@ export type AuraCounter =
     | { ownNameIncludes: string } // 自分フィールドでカード名にこの文字列を含むスピリット数（発生源自身も含む。アルカナプリンス・オベロ）
     | { ownCost: number } // 自分フィールドの指定コストのスピリット数（発生源自身も含む。instHasCostで判定＝付与コストも考慮。BS06細剣の猫騎士ケット・シー）
     | "ownHand" // 自分の手札枚数（BS10-049妖精神官アンドロメダ：「自分の手札1枚につき、このスピリットをBP+1000する」）
+    | "opponentHand" // 相手の手札枚数
     | "opponentSpirits" // 相手フィールドのスピリット数（BS14-080神代の森Lv1：「相手のスピリット1体につき」）
     | { ownColor: Color } // 自分フィールドの指定色スピリット数（発生源自身も含む。AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定。BS14-041バスター・フェンリルキャノン：「自分の白のスピリット1体につき」）
     | "opponentFieldColors" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（shared/rules.opponentFieldColorCount。BS15共通器）

@@ -939,7 +939,7 @@
      },
      "then": {
       "type": "returnToDeckTop",
-      "count": 10
+      "all": true
      }
     }
    },
