@@ -53,47 +53,6 @@ export function returnToDeckTopCandidateCountForPay(
         : pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
 }
 
-// 相手のスピリット1体を手札に戻し、戻したコストが条件を満たしたときだけ味方1体を回復させる
-// （BS11-032 天王神獣スレイ・ウラノスLv2-3）
-const returnOneThenRefreshIfMaxCostHandler: ActionHandler<"returnOneThenRefreshIfMaxCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType } = ctx
-    const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce")
-    if (candidates.length === 0) {
-        log(state, `${sourceName}：手札に戻せる相手のスピリットがいなかった。`)
-        return
-    }
-    if (
-        ctx.targetInstanceId === undefined &&
-        tryInteractiveTargetChoice(
-            state,
-            owner,
-            self,
-            `${sourceName}：手札に戻す相手のスピリットを選んでください`,
-            candidates,
-            action,
-            null,
-        )
-    ) {
-        return
-    }
-    const target =
-        (ctx.targetInstanceId !== undefined
-            ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
-            : undefined) ??
-        candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
-    const returnedCost = instBaseCost(target)
-    returnSpiritToHand(state, opp, target, sourceName)
-    if (returnedCost > action.maxCost) {
-        log(state, `${sourceName}：戻したスピリットのコストが${String(action.maxCost)}を超えるため回復しない。`)
-        return
-    }
-    ctx.resolve(
-        { type: "refreshOne", filter: { family: action.refreshFamilyFilter } },
-        { sourceColors: srcColors, sourceType: srcType },
-    )
-}
-
-
 const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
 
@@ -568,7 +527,6 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
 }
 
 const handlers = {
-    returnOneThenRefreshIfMaxCost: returnOneThenRefreshIfMaxCostHandler,
     returnToHand: returnToHandHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToDeckTop: returnToDeckTopHandler,

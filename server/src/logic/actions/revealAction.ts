@@ -23,7 +23,7 @@ function takeOwnBurst(player: PlayerState): string[] {
     return [cardId]
 }
 
-// costOverride＝場を離れるときのコスト（記録があるとき。if の cond.last）
+// costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
 export function matchesPick(id: string, pick: RevealPick | undefined, costOverride?: number): boolean {
     if (!pick) return true
     const card = getCard(id)

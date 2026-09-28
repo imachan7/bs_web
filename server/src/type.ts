@@ -1362,7 +1362,7 @@ export interface GameState {
     // 場のどのゾーンにも属さない一時的な置き場で、flushBraveKeeps が1体ずつ決着させる
     // （残す＝コアを置いて field.spirits へ／残さない＝トラッシュへ）。
     // **答えが返るまでエントリを消さない**ので、確認が別の中断に上書きされても保険の flush で拾い直せる
-    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; hostCardId?: string; scope?: string }[]
+    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean }[]
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。
@@ -1398,7 +1398,7 @@ export interface GameState {
     // ローカル変数で持ち回っているのと同じ考え方）。clearBattle で消す
     lastFunsai?: { total: number; spirits: number; nexuses: number; magics: number; costAtLeast4: number } // 直前の【粉砕】で破棄した内容（resolveFunsaiが記録）。アタック宣言のたびにクリアする（doAttack冒頭）。EffectCounter "lastFunsaiTotal"/"lastFunsaiSpirits"とtriggered.condition {lastFunsaiHasNexus}が参照する（BS03巨人王ランドルフ／BS04二刀流のアムブローズ／BS04伝説巨人ジュード）。costAtLeast4はBS15共通器：破棄したカードのうちコスト4以上の枚数（BS15-053コジロンド・ゴレムLv2-3：「コスト4以上のカードを破棄したとき」）
     lastMoved?: Record<string, string[]> // 枠ごとの直前に動いたカード（logic/record.ts）
-    lastLeftCosts?: Record<string, Record<string, number>> // 枠ごと・cardId ごとの場を離れるときのコスト
+    lastLeftCosts?: Record<string, Record<string, number>> // 枠ごと・cardId ごとの、待機状態に入ったときのコスト（logic/record.ts）
     lastCores?: Record<string, number>
     lastTargets?: Record<string, string[]>
     recordScope?: string

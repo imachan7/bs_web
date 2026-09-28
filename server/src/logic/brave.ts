@@ -12,9 +12,7 @@ import {
     cantSpiritStateBrave,
     coresCantBeRemoved,
     bravesOf,
-    instBaseCost,
 } from "../../../shared/rules"
-import { currentRecordScope, lastLeftCostOf, recordLeftCost } from "./record"
 
 import {
     emitEvent,
@@ -204,7 +202,6 @@ export function detachBravesOnLeaveFree(state: GameState, ownerPid: PlayerId, ho
 
 export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
     const player = state.players[ownerPid]
-    recordLeftCost(state, host.cardId, instBaseCost(host))
     const braves = bravesOf(player, host)
     if (braves.length === 0) return
     // 先に参照を切る。異魔神ブレイヴ（実体1つ・参照2本）は、
@@ -220,7 +217,7 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         if (at !== -1) player.field.combinedBraves.splice(at, 1)
         // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
         brave.isRested = host.isRested
-        state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker, wasBlocker, hostCardId: host.cardId, scope: currentRecordScope(state) }]
+        state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker, wasBlocker }]
     }
     refreshLevelAsOverrides(state)
     flushBraveKeeps(state)
@@ -285,15 +282,10 @@ export function flushBraveKeeps(state: GameState): void {
 // コアを置いたブレイヴを、スピリット状態でフィールドへ戻す（支払いは呼び出し元が済ませてある）
 function keepBrave(
     state: GameState,
-    entry: NonNullable<GameState["pendingBraveKeeps"]>[number],
+    entry: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean },
     need: number,
 ): void {
     const player = state.players[entry.pid]
-    // 残したブレイヴは合体元と一緒に移らないので、離れるときのコストから外す
-    if (entry.hostCardId !== undefined && entry.scope !== undefined) {
-        const left = lastLeftCostOf(state, entry.hostCardId, entry.scope)
-        if (left !== undefined) recordLeftCost(state, entry.hostCardId, Math.max(0, left - getCard(entry.brave.cardId).cost), entry.scope)
-    }
     entry.brave.cores = need
     player.field.spirits.push(entry.brave)
     log(state, `${player.name}の${getCard(entry.brave.cardId).name}は、コア${need}個を置いてスピリット状態でフィールドに残った。`)
