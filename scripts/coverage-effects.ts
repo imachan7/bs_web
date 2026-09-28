@@ -1030,15 +1030,16 @@ process.on("exit", () => {
         patch(
             em,
             `    if (!hasKobo) return
-    const player = state.players[attackerPid]`,
+    const keywordLabel = hasMakobo ? "魔光芒" : "光芒"`,
             `    if (!hasKobo) return
-    if (hasStaticKobo) {
+    {
+        const __attackerLevel = currentLevel(attacker).level
         const __koboEntry = getCard(attacker.cardId).effects.find(
-            (e) => e.kind === "keyword" && e.keyword === "kobo" && effectActiveAtLevel(e.levels, attackerLevel),
+            (e) => e.kind === "keyword" && (e.keyword === "kobo" || e.keyword === "makobo") && effectActiveAtLevel(e.levels, __attackerLevel),
         )
         if (__koboEntry) __covRecord("cont\\t" + String((__koboEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
     }
-    const player = state.players[attackerPid]`,
+    const keywordLabel = hasMakobo ? "魔光芒" : "光芒"`,
         )
         // keyword「転召」: resolveTensho の解決時点（effect が既に対象の keyword エントリそのもの）
         patch(
