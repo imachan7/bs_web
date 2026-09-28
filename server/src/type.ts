@@ -22,6 +22,7 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
+export type ImmuneSource = "spirit" | "brave" | "magic" // immuneToOpponentEffects/immune の against が絞る発生源種別
 
 // **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
 // ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
@@ -446,7 +447,7 @@ export type ConstraintDef =
     | { type: "protectOwnLifeByBpUpToSelf" } // ブロックされなかったアタッカーの実効BPが**この発生源自身の実効BP以下**のとき、そのアタックでは発生源の持ち主のライフは減らされない（片側のみ。ライフダメージ直前に activeConstraints から発生源ごとのBPを引き直して比較する。BS08空帝竜騎プラチナム）
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）
     | { type: "immuneToOpponentSummonEffects" } // このスピリットは、相手のスピリットの『このスピリットの召喚時』効果を受けない（isEffectBlockedがGameState.resolvingSummonTriggerPidを見て判定する。BS05リトルナイト・ランスロットLv3）
-    | { type: "immuneToOpponentEffects"; against?: "spirit" | "brave" | "magic"; whileOwnNexusCount?: number } // このスピリットは、相手のスピリット/マジックの効果を受けない（untargetableByOpponentと異なり範囲効果にも有効。ネクサスの効果・自分の効果は通る。BS04ワルキューレ・ヒルド）。against:"spirit"指定時は相手の**スピリットの**効果のみ（マジックは通る。BS10-091シャボンの湖畔Lv2＝「相手のスピリットの効果を受けない」）。whileOwnNexusCount指定時は「持ち主のフィールドのネクサス数がちょうどこの数の間」だけ有効（BS11-027 海戦機ニヨルド）。against:"brave"指定時は相手の**ブレイヴの**効果のみ（BS11-055 ジャノメ・シールダーの【合体時】＝「相手のブレイヴの効果を受けない」。合体中のブレイヴが発生源のとき srcType は "brave" になる）。against:"magic"指定時は相手の**マジックの**効果のみ（スピリットの効果は通る。BS15共通器：BS15-060バンディット・アームズ【合体時】：「相手がバーストをセットしている間、このスピリットは相手のマジックの効果を受けない」）
+    | { type: "immuneToOpponentEffects"; against?: ImmuneSource | ImmuneSource[]; whileOwnNexusCount?: number } // このスピリットは、相手のスピリット/マジックの効果を受けない（untargetableByOpponentと異なり範囲効果にも有効。ネクサス・自分の効果は通る。BS04ワルキューレ・ヒルド）。against省略時は従来どおりspirit/magicのみ止める（braveは止めない）。against指定時はそのsrcTypeのみ絞る。配列はOR（BS17-072：spirit/braveの2種＝「相手のスピリット/ブレイヴの効果を受けない」）。単発の例はBS10-091（spirit）／BS11-055（brave）／BS15-060（magic）。whileOwnNexusCount指定時はネクサス数がちょうどこの数の間だけ有効（BS11-027）
     | { type: "canDirectAttack"; targetFilter: "rested" | "singleCore" | "recovered" | "any"; targetMinBp?: number; targetMinCost?: number; targetCombinedOnly?: true; targetHighestBp?: true } // targetCombinedOnly指定時は相手の**合体スピリット**しか指定できない（instIsCombinedで判定。BS11-X02 滅神星龍ダークヴルム・ノヴァ）。// targetMinCost指定時は相手スピリットのコストがこれ以上のもののみ指定できる（instMatchesCostFilterで判定＝道化師クランの付与コストも見る。BS05天焦がす大聖火Lv2：コスト5以上） // 相手スピリット1体を指定してアタックできる（targetFilter: rested=疲労状態のみ、singleCore=コア1個のみ、recovered=回復状態のみ、any=状態条件なし。イリュージョナ／牛霊スモゥグ／オルカリア）。targetMinBp指定時は相手スピリットの実効BPがこれ以上のものだけ指定できる（BS05シンクロニシティ：BP4000以上。BP条件だけで絞りたい場合はtargetFilter:"any"と組み合わせる）
     | { type: "cantCombine" } // このスピリットにはブレイヴを合体できない（BS11-X02 滅神星龍ダークヴルム・ノヴァ＝「このスピリットは合体できない」）。判定は shared/summon.ts の braveCombineCandidates（合体先の候補から外す）
     | { type: "combineLimit"; limit: number } // このスピリットに合体できるブレイヴの上限数（既定1）。判定はshared/summon.tsのcombineLimitFor（braveCombineCandidates／RuleValidatorのダイレクトブレイヴ判定が共通で読む。器P。BS13-X01光龍騎神サジット・アポロドラゴン：「ブレイヴ2つまでと合体できる」）
@@ -629,7 +630,8 @@ export interface CardInstance {
     destroyAsMaxLevel?: true // 破壊処理中、このスピリットのLvを一時的に「そのカードのレベル表の最大Lv」として扱う（levelOf/currentLevelが読む）。destroyAsMaxLevelGrant（器N）によるコア0破壊のときだけdestroySpiritが立てる。すぐトラッシュへ移るインスタンスなので後始末は不要
     // 効果テキストが「このバトルの間、BP+」と明示しているものだけがこちら（BS07ニードルショット）。無記述のBP+はターン終了時まで＝tempBpBuff
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
-    immuneToOpponentThisTurn: boolean // 期間つき効果の一覧（immune）から作り直す写し
+    immuneToOpponentThisTurn: boolean // 期間つき効果の一覧（immune、against省略時）から作り直す写し
+    immuneAgainstThisTurn?: ImmuneSource[] // 期間つき効果の一覧（immune、against指定時）から作り直す写し。対象選択可否には効かない（immuneToOpponentThisTurnとは別枠）
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     destroyAtBattleEnd?: true // 器BS16：バトル参加者としてonBattleEndまで生き残ったら、そこで破壊される（GameEngine.runBattleStep case8/9が判定）。summonFromTrashFree.destroyAtBattleEndが召喚時に立てる（BS16-075スケープゴート：「バトル終了時、この効果で召喚されたスピリットは破壊される」＝チャンプブロック用の一時召喚）
     countAsThisTurn?: { pid: PlayerId; count: number; sourceTypes?: CardType[] } // 期間つき効果の一覧（countAs）から作り直す写し。pid＝記録を出した側
@@ -1443,7 +1445,7 @@ export type TimedContent =
     | { type: "level"; set?: number; up?: number; max?: true; requireLevelExists?: true }
     | { type: "bpAs"; levels: number[]; amount: number } // Lv◯BP を amount として扱う（ブレイヴの合体時BP+ は含めて置き換わり、BP+ は上に乗る。RULES_BATSPI_WIKI §5.1）
     | { type: "countAs"; count: number; sourceTypes?: CardType[] } // 記録を出した側の効果で数えるとき count 体分として数える。sourceTypes＝数える側の発生源の種別の限定
-    | { type: "immune" } // 相手のカードの効果を受けない（範囲効果も含む）
+    | { type: "immune"; against?: ImmuneSource[] } // 相手のカードの効果を受けない（範囲効果も含む）。against省略時は全面。指定時はそのsrcTypeのみ（BS17-058：spirit限定）
     | { type: "noLifeDamage" } // このスピリットのアタックでは、記録を出した側のライフが減らない
     | { type: "colorless" } // 色とシンボルを無いものとして扱う
     | { type: "destroyedCoresTo"; to: "void" | "trash" } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）

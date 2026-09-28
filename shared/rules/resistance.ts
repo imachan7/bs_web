@@ -83,6 +83,15 @@ export function boardResistanceAgainst(
     if (target.immuneToOpponentThisTurn && attempt.actorPid !== targetOwnerPid) {
         return { category: "fullImmune", label: "相手の効果を受けない状態" }
     }
+    // against指定の一時免疫（BS17-058：スピリットの効果だけ受けない。マジックは通す）
+    if (
+        attempt.actorPid !== targetOwnerPid &&
+        attempt.sourceType !== undefined &&
+        attempt.sourceType !== "nexus" &&
+        target.immuneAgainstThisTurn?.includes(attempt.sourceType)
+    ) {
+        return { category: "fullImmune", label: "相手の効果を受けない状態" }
+    }
     // バトル中の効果免疫だけは**自分の効果も止める**（既存の isEffectBlocked と同じ範囲を保つ）
     if (
         (attempt.sourceType === "spirit" || attempt.sourceType === "magic") &&

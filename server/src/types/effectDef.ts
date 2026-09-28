@@ -1107,11 +1107,13 @@ export type EffectDef =
           vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
           minSymbols?: number // 指定時はシンボル数がこれ以上のスピリットのみ
+          symbolCount?: number // 指定時は対象のシンボル数がこれと完全一致のスピリットのみ（minSymbolsとは別軸。BS17-036）
           nameIncludes?: string[] // 指定時はカード名にいずれかの文字列を含むスピリットのみ
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は持ち主基準でこのステップ・turn条件のときのみ有効
           costFilter?: number // 指定時は対象スピリットのコストがこれと一致するときのみ有効
           turn?: "own" | "opponent" | "both" // 指定時はフェーズを問わずこのturn条件の間だけ有効
           combinedFilter?: true // 指定時は合体スピリットのみ対象
+          combinedBraveColors?: Color[] // 指定時は発生源自身がこの色いずれかを持つブレイヴと合体している間だけ有効（triggeredのcombinedBraveColorsOkと同じ判定。BS17-036）
           constraint: ConstraintDef
       }
     | {

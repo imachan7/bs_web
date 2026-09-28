@@ -6,6 +6,7 @@ import type {
     GlobalConstraintDef,
     CardInstance,
     CardType,
+    ImmuneSource,
     Color,
     Keyword,
     PlayerId,
@@ -17,7 +18,7 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { bravesOf, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { hasUntargetableConstraint } from "./resistance"
 import { instanceSymbolCount } from "./symbols"
 import { cardNameContains, matchesTarget } from "./targetFilter"
@@ -146,6 +147,8 @@ export function activeConstraintsWithSource(
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             // BS10-093時刻む花時計Lv2：合体スピリットのみ（AuraDef.combinedFilterと同じ意味）
             if (effect.combinedFilter && !instIsCombined(inst)) continue
+            if (effect.symbolCount !== undefined && instanceSymbolCount(inst) !== effect.symbolCount) continue
+            if (!combinedBraveColorsOk(board.players[pid], source, effect.combinedBraveColors)) continue
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
     }
@@ -212,15 +215,21 @@ export function hasFullEffectImmunity(
     // （既存カードの範囲を広げないため）。ブレイヴを止めるのは against:"brave" を書いたときだけ
     if (srcType === "brave") {
         return activeConstraints(board, pid, inst).some(
-            (c) => c.type === "immuneToOpponentEffects" && c.against === "brave",
+            (c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "brave"),
         )
     }
     if (srcType !== "spirit" && srcType !== "magic") return false
     // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
     // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
     return activeConstraints(board, pid, inst).some(
-        (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || c.against === srcType),
+        (c) => c.type === "immuneToOpponentEffects" && (c.against === undefined || againstIncludes(c.against, srcType)),
     )
+}
+
+// against が単発／配列どちらでも書けることの吸収（BS17-072：spirit/braveの2種指定）
+function againstIncludes(against: ImmuneSource | ImmuneSource[] | undefined, srcType: ImmuneSource): boolean {
+    if (against === undefined) return false
+    return Array.isArray(against) ? against.includes(srcType) : against === srcType
 }
 // ⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
 // （【呪撃】を装甲で防ぐ判定と、reviveOnDestroy の byBattleVsArmorColor＝「装甲の色の相手に

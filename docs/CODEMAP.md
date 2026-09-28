@@ -720,6 +720,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `Phase`（型）
 - `Color`（型）
 - `CardType`（型）：ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
+- `ImmuneSource`（型）
 - `DeckSpec`（型）：デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
 - `LevelDef`（型）：スピリット/ネクサスのレベル定義（ネクサスは bp: 0）
 - `BraveConditionTerm`（型）：ブレイヴの合体条件（docs/design/BRAVE.md §2.2）。読点区切りの複数条件は配列＝OR。

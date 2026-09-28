@@ -48,6 +48,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.battleBpAs
             delete inst.colorlessThisBattle
             inst.immuneToOpponentThisTurn = false
+            delete inst.immuneAgainstThisTurn
             delete inst.countAsThisTurn
             delete inst.lifeDamageNegatedFor
             delete inst.timedLevel
@@ -89,7 +90,11 @@ function applyTimedCopies(state: GameState): void {
             // 記録を出した側（ownerPid）が意味を持つ内容はここで写す（timedContentsOn では誰が出したかが消えるため）
             if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
             if (c.type === "colorless") inst.colorlessThisBattle = true
-            if (c.type === "immune") inst.immuneToOpponentThisTurn = true
+            if (c.type === "immune") {
+                // against省略時は従来どおり全面免疫のboolean。against指定時は種別限定の側だけに積む（対象選択可否は崩さない）
+                if (c.against === undefined) inst.immuneToOpponentThisTurn = true
+                else inst.immuneAgainstThisTurn = [...(inst.immuneAgainstThisTurn ?? []), ...c.against]
+            }
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
             if (c.type === "noLifeDamage") inst.lifeDamageNegatedFor = r.ownerPid
         }
