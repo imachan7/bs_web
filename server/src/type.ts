@@ -131,6 +131,7 @@ export interface TargetFilter {
     hasBurst?: boolean // カードの effects に kind:"burst" を持つものだけ（docs/design/BURST.md）。false指定時は**持たない**ものだけ（BS15-034ミブロック・ジーナス：「バースト効果を持たない相手のスピリット」）
     bofuExhausted?: "any" | "self" // このバトル中に【暴風】で疲労した相手のスピリット（GameState.bofuExhaustedThisBattle）。"self"は発生源（self）の【暴風】で疲労したものに限る
     damagedOwnLife?: true // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（このバトル中の全員と、バースト発動時の1体の和集合）
+    lastBpBuffTarget?: true // 直前のBP増加対象1体
 }
 
 // normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。
