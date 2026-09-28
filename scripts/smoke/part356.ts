@@ -162,7 +162,7 @@ console.log("=== 6. 判定表に無いtypeを書いたら何も動かない ==="
     const s = game("case6")
     s.players.p1.hand = [VANILLA, VANILLA]
     const deckBefore = s.players.p1.deck.length
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "sequence", actions: [] }, then: { type: "draw", count: 1 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "endBattle" }, then: { type: "draw", count: 1 } })
     assert(s.players.p1.hand.length === 2, "判定表に無いcost typeなので何もしない")
     assert(s.players.p1.deck.length === deckBefore, "ドローも起きない")
 }

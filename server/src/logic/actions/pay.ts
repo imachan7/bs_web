@@ -30,6 +30,7 @@ export const PAYABLE_TYPES = [
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
+    "peekOpponentHand", "sequence",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -63,6 +64,13 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return action.count === "any" || state.players[owner].hand.filter((id) => matchesPick(id, action.pick)).length >= action.count
     },
     lendSelfThisTurn: () => true,
+    // peekOpponentHand：相手の手札が1枚以上あるか
+    peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
+    // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
+    sequence: (state, owner, self, action, srcColors, srcType) => {
+        if (action.type !== "sequence") return false
+        return action.actions.every((a) => canPayResolve(state, owner, self, a, srcColors, srcType))
+    },
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },

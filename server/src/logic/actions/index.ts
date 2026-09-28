@@ -16,6 +16,7 @@ import grant from "./grant"
 import life from "./life"
 import mill from "./mill"
 import pay from "./pay"
+import peekHand from "./peekHand"
 import placeCores from "./placeCores"
 import removeCores from "./removeCores"
 import reveal from "./reveal"
@@ -43,6 +44,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     magicMirrorRepeat: magicMirrorRepeatHandler,
     ...mill,
     ...pay,
+    ...peekHand,
     ...placeCores,
     ...removeCores,
     ...reveal,

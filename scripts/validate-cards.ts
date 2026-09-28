@@ -609,7 +609,9 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst"])
+// lifeCharge：2026-09-28にBS13-058がpay+placeCoresへ移り、カードデータからは全滅した。
+// smoke 6パートが直接呼ぶため型・ハンドラは残す（新カードで単純な「void→ライフ」が出たら使い、ここから消す）
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "lifeCharge"])
 
 // declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
 export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {

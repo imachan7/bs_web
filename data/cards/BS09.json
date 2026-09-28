@@ -2620,8 +2620,15 @@
         ],
         "optional": true,
         "action": {
-          "type": "costDiscardNamedThenPeek",
-          "cardName": "キャラクターロスト"
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 1,
+            "cardName": "キャラクターロスト"
+          },
+          "then": {
+            "type": "peekOpponentHand"
+          }
         }
       },
       {

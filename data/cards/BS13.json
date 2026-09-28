@@ -5168,14 +5168,39 @@
     "oncePerTurn": true,
     "optional": true,
     "action": {
-     "type": "lifeCharge",
-     "from": "void",
-     "count": 1,
-     "costMillSelfCount": 5,
-     "thenUnblockableByLevelThisBattle": [
-      1,
-      2
-     ]
+     "type": "pay",
+     "cost": {
+      "type": "mill",
+      "side": "own",
+      "count": 5
+     },
+     "then": {
+      "type": "sequence",
+      "actions": [
+       {
+        "type": "placeCores",
+        "from": "void",
+        "to": "life",
+        "count": 1
+       },
+       {
+        "type": "timedEffect",
+        "duration": "battle",
+        "target": "self",
+        "content": [
+         {
+          "type": "unblockable",
+          "from": {
+           "level": [
+            1,
+            2
+           ]
+          }
+         }
+        ]
+       }
+      ]
+     }
     }
    }
   ],

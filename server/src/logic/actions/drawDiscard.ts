@@ -391,6 +391,7 @@ export const discardSelfChooseEligible = (cardId: string, action: Extract<Effect
         const wanted = Array.isArray(action.keyword) ? action.keyword : [action.keyword]
         if (!wanted.some((kw) => hasKeyword(cardId, kw))) return false
     }
+    if (action.cardName !== undefined && getCard(cardId).name !== action.cardName) return false
     return true
 }
 
@@ -544,40 +545,6 @@ const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, actio
 
 
 
-// BS09-039探偵ペンタンLv1-2：自分の手札の指定カード名1枚を破棄することで、相手の手札1枚を
-// 「内容を見ないで選び」その内容だけを見る。盤面は動かない。
-// **どの1枚を選ぶかは今のところ先頭で固定**（裏向きの相手手札を選ぶUIが未実装のため。
-// 選び方が情報を持たない＝どれを選んでも公平なので、決定的にしても不利益はない）
-const costDiscardNamedThenPeekHandler: ActionHandler<"costDiscardNamedThenPeek"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    const player = state.players[owner]
-    const index = player.hand.findIndex((id) => getCard(id).name === action.cardName)
-    if (index === -1) {
-        log(state, `${sourceName}：手札に[${action.cardName}]がなく、発動しなかった。`)
-        return
-    }
-    const target = state.players[opp]
-    if (target.hand.length === 0) {
-        log(state, `${sourceName}：${target.name}の手札がなく、発動しなかった。`)
-        return
-    }
-    const paid = player.hand.splice(index, 1)[0]!
-    player.trashCards.push(paid)
-    log(state, `${player.name}はコストとして${getCard(paid).name}を破棄した。`)
-    // 「内容を見ないで選ぶ」は**ランダム**（SEMANTICS_AUDIT.md §3.14。
-    // 先頭固定にすると、見る側が並び順から内容を推測できてしまう）
-    const peeked = target.hand[Math.floor(Math.random() * target.hand.length)]!
-    if (!player.peekedOpponentCardIds) player.peekedOpponentCardIds = []
-    player.peekedOpponentCardIds.push(peeked)
-    // ログには**カード名を出さない**（両者が読むため。見た本人は PlayerView から知る）
-    log(state, `${player.name}は${target.name}の手札1枚の内容を見た。`)
-}
-
 // BS09-055転生の谷Lv1-2：自分の手札にある【転召】持ちスピリットカード1枚を破棄することで、
 // ドローの枚数を+1する。手札に該当が無ければ**何も起きない**（払えないコストは発揮できない。COST_MODEL.md §1）
 
@@ -592,7 +559,6 @@ const handlers = {
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
     discardSelfChoose: discardSelfChooseHandler,
-    costDiscardNamedThenPeek: costDiscardNamedThenPeekHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

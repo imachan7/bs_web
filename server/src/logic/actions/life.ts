@@ -1,7 +1,7 @@
 // ライフを増やす・減らすアクション
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log, suspend } from "../GameState"
-import { fireFieldEventTriggers, recordTimed } from "../EffectModules"
+import { fireFieldEventTriggers } from "../EffectModules"
 import { spiritHasKeyword, isEndStepLocked, hasGlobalConstraint } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 
@@ -9,21 +9,6 @@ import { countedAmount } from "../counted"
 const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         const player = state.players[owner]
-        // 器BF：costMillSelfCount（BS13-058シユウ）「デッキを上からN枚破棄することで」。
-        // 一般則（COST_MODEL.md §1）どおり、デッキがN枚未満なら払わず発揮もしない
-        // （2026-09-26修正：以前はあるだけ破棄して成立させていた）
-        if (action.costMillSelfCount !== undefined) {
-            const n = action.costMillSelfCount
-            if (player.deck.length < n) {
-                log(state, `${sourceName}：デッキが足りないため発動しなかった。`)
-                return
-            }
-            for (let i = 0; i < n; i++) {
-                const cardId = player.deck.shift()!
-                player.trashCards.push(cardId)
-            }
-            log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
-        }
         // 「お互い、ボイド/リザーブからライフにコアを置けない」（BS10-108 ルナティックシール）。
         // このハンドラの置き元はボイドかリザーブのみ（スピリット上のコアから置く経路は別ハンドラ）
         if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) {
@@ -47,15 +32,6 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
             player.life += need
             log(state, `${player.name}はボイドからライフにコア${String(need)}個を置いた。（現在ライフ${String(player.life)}）`)
             return
-        }
-        // 器BF：thenUnblockableByLevelThisBattle（BS13-058）：置いた後に発生源自身へブロック不可の印を付ける
-        const grantThenUnblockable = (): void => {
-            if (action.thenUnblockableByLevelThisBattle === undefined || !self) return
-            recordTimed(state, { content: [{ type: "unblockable", from: { level: action.thenUnblockableByLevelThisBattle } }], target: { kind: "instance", instanceId: self.instanceId }, until: "battle", ownerPid: owner })
-            log(
-                state,
-                `${sourceName}：このバトルの間、Lv${action.thenUnblockableByLevelThisBattle.join("/")}のスピリットからブロックされない。`,
-            )
         }
         // from:"void"（【聖命】）はボイドから置くのでリザーブを消費せず、必ず count 個置ける
         if (action.from === "void") {
@@ -97,7 +73,6 @@ const lifeChargeHandler: ActionHandler<"lifeCharge"> = (ctx, action) => {
             if (self && spiritHasKeyword(state, owner, self, "seimei")) {
                 fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
             }
-            grantThenUnblockable()
             return
         }
         const amount = Math.min(action.count, player.reserve)

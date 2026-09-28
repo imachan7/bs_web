@@ -2,7 +2,7 @@
 //
 // 新しく足した器の確認:
 //   対象の付け替え（magicTargetRedirect）を**スピリットの効果にも**効かせた（2026-08-14 ユーザー確認）/
-//   costDiscardNamedThenPeek（探偵ペンタン）/ timedEffect（妖精騎士ピーター）/
+//   pay(discardSelfChoose.cardName→peekOpponentHand)（探偵ペンタン）/ timedEffect（妖精騎士ピーター）/
 //   treatAsUnblockedIfBlockerLevel1（ハマ・ドリュアス）/ reviveOnDestroy.cost.oneCoreToTrash（花の宮殿）/
 //   opponentNexusesUnexhaustable（花の宮殿Lv2）/ ownSeimeiLifeCharged（天駆ける方舟）/
 //   familySuppression.target:"opponentAll"（キャラクターロスト）/ EffectCounter restedEnemyNexuses
@@ -66,11 +66,12 @@ console.log("=== BS09-039 探偵ペンタン：[キャラクターロスト]を�
     runTurnStart(s)
     s.players.p1.hand = [PLAIN]
     s.players.p2.hand = ["BS09-041"]
-    resolveAction(s, "p1", null, { type: "costDiscardNamedThenPeek", cardName: "キャラクターロスト" })
+    const action = { type: "pay" as const, cost: { type: "discardSelfChoose" as const, count: 1, cardName: "キャラクターロスト" }, then: { type: "peekOpponentHand" as const } }
+    resolveAction(s, "p1", null, action)
     assert(s.players.p1.peekedOpponentCardIds === undefined, "手札に[キャラクターロスト]が無ければ発動しない")
     s.players.p1.hand = [PLAIN, "BS09-079"] // BS09-079＝キャラクターロスト
     assert(getCard("BS09-079").name === "キャラクターロスト", "前提：BS09-079 はキャラクターロスト")
-    resolveAction(s, "p1", null, { type: "costDiscardNamedThenPeek", cardName: "キャラクターロスト" })
+    resolveAction(s, "p1", null, action)
     assert(!s.players.p1.hand.includes("BS09-079"), "コストとして破棄される")
     assert(s.players.p1.peekedOpponentCardIds?.[0] === "BS09-041", "相手の手札1枚の内容が記録される")
     assert(s.players.p2.hand.length === 1, "相手の手札は動かない（盤面を変えない）")
