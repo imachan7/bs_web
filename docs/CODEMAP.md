@@ -764,6 +764,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `EffectDef`（型）
 - `MagicCondition`（型）：マジックの条件（判定は shared/magicCondition.ts）
 
+## public/src/effectText.ts
+
+- `EffectSegment`（型）
+- `effectLineSegments`（fn）：バースト効果の「召喚する／配置する」は、「コストを支払わずに」と書かれていなくても無償
+
 ## public/src/renderer.ts
 
 - `setCardDb`（fn）

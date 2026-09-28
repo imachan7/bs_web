@@ -16,6 +16,7 @@ import type {
 } from "../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
+import { effectLineSegments } from "./effectText"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
@@ -1914,10 +1915,12 @@ export function setupEffectTooltip(): void {
         if (m.effect) {
             // 行頭が「Lv1」「Lv2」「Lv3」「フラッシュ」の行は強調表示する（innerHTMLのためエスケープ必須）
             const eff = document.createElement("div")
-            eff.innerHTML = m.effect
-                .split("\n")
-                .map((line) => {
-                    const escaped = escapeHtml(line)
+            eff.innerHTML = effectLineSegments(m.effect)
+                .map((segments) => {
+                    const line = segments.map((s) => s.text).join("")
+                    const escaped = segments
+                        .map((s) => (s.note ? `<span class="effect-note" title="補足：バースト効果の召喚・配置はコストを支払わない（カードには書かれていない）">${escapeHtml(s.text)}</span>` : escapeHtml(s.text)))
+                        .join("")
                     const isHighlight = /^(Lv[123]|フラッシュ)/.test(line)
                     return `<div class="tooltip-effect-line${isHighlight ? " tooltip-effect-highlight" : ""}">${escaped}</div>`
                 })
