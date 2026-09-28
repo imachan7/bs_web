@@ -770,7 +770,7 @@ export function voidCoreToOwnTrash(state: GameState, ownerPid: PlayerId, count: 
 
 // globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
 // お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない。ライフ・トラッシュへは対象外
-// （voidCoreToOwnTrash / lifeCharge の from:"void" はこれを呼ばない）。
+// （voidCoreToOwnTrash / placeCores の void→life はこれを呼ばない）。
 // ボイドから直接置く各アクション（coreGain系／voidCoreToSelf系／voidCoreToOther系／
 // voidCoreToAllOwnByFamily／voidCoreToOwnNexuses／voidCoreToTarget／voidCoreToOwnByKeyword／
 // voidCoresToNexusLevel／coreDrainAllOthers／destroyのvoidCoreToSelfPerDestroyed）が冒頭で呼ぶ
