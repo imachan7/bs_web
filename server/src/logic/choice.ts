@@ -6,8 +6,8 @@ import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } fro
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
-    finishBurstActivation,
-    fireOwnBurstActivated,
+    continueBurstActivation,
+    announceBurstActivation,
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
     applyMagicSideChoice,
@@ -403,6 +403,7 @@ export function doResolveChoice(
                     // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
+                    announceBurstActivation(state, info.pid, info.cardId)
                     // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
                     state.resolvingBurstPid = info.pid
                     // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
@@ -425,11 +426,17 @@ export function doResolveChoice(
                     const burstCard = getCard(info.cardId)
                     resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId)
                     delete state.resolvingBurstPid
-                    if (info.alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, info.pid, null, { type: "draw", count: 1 })
-                    if (!state.pendingChoice) {
-                        finishBurstActivation(state, info.pid, info.cardId, pending.action.type, info.thenPay, info.toHand ? { toHand: true } : undefined)
-                        if (!state.pendingChoice) fireOwnBurstActivated(state, info.pid, before, info.cardId)
-                    }
+                    continueBurstActivation(state, {
+                        kind: "burstFinish",
+                        stage: "finish",
+                        pid: info.pid,
+                        cardId: info.cardId,
+                        actionType: pending.action.type,
+                        ...(info.thenPay !== undefined ? { thenPay: info.thenPay } : {}),
+                        ...(info.toHand ? { toHand: true as const } : {}),
+                        ...(info.alsoDraw ? { alsoDraw: true as const } : {}),
+                        before: [...before],
+                    })
                 } else {
                     delete state.effectFizzled
                     resolveAction(state, actor, self, pending.action)
@@ -565,6 +572,10 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         }
         if (frame.kind === "triggerBatch") {
             resumeTriggerBatch(state, frame)
+            continue
+        }
+        if (frame.kind === "burstFinish") {
+            continueBurstActivation(state, frame)
             continue
         }
         // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で

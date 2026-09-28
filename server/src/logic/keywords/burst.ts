@@ -1,8 +1,8 @@
 // 【バースト】のセットと発動
 import { requestActivationConfirm } from "../targeting"
-import { hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
-import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId } from "../../type"
-import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, suspend } from "../GameState"
+import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
+import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
+import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { burstConditionMet, fireFieldEventTriggers, notifyHandGained } from "../triggers"
 import { effectActiveAtLevel, effectSources, timedContentsFor } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -32,9 +32,42 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
     fireFieldEventTriggers(state, opponentOf(pid), "opponentBurstSet")
 }
 
-// バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
-// バーストエリアを空にするだけ、それ以外（マジック相当）は解決後にトラッシュへ送る。
-// 続けて thenPay（「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」）を確認する。
+// 発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
+export function announceBurstActivation(state: GameState, pid: PlayerId, cardId: string): void {
+    const name = getCard(cardId).name
+    log(state, `${state.players[pid].name}はバースト（${name}）を発動した。`)
+    emitEvent(state, { type: "burst", pid, cardName: name })
+}
+
+// バースト効果の解決から後を進める：thenPay（その後コストを支払うことで〜）→ カードをトラッシュへ → 「自分のバースト発動後」。
+// 発動したバーストは、効果を発揮し終わるまでバーストエリアに残り「セット状態」として扱う（2026-09-28 ユーザー確認。
+// 爆烈十紋刃のメイン効果が、発揮中の自分自身をトラッシュから手札に戻せてしまっていた）。
+// どの段で選択待ちになっても、残りは再開スタックに積む。積まないと、選択の解決後に後始末をする処理が無く、
+// カードがバーストエリアに残ったままになる（2026-09-28 発覚）
+type BurstFinishFrame = Extract<ResumeFrame, { kind: "burstFinish" }>
+export function continueBurstActivation(state: GameState, frame: BurstFinishFrame): void {
+    if (state.winner) return
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [frame])
+        return
+    }
+    if (frame.stage === "finish") {
+        if (frame.alsoDraw) resolveAction(state, frame.pid, null, { type: "draw", count: 1 })
+        tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay)
+        if (state.winner) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ ...frame, stage: "settle" }])
+            return
+        }
+    }
+    if (frame.stage !== "notify") {
+        finishBurstActivation(state, frame.pid, frame.cardId, frame.actionType, frame.toHand ? { toHand: true } : undefined)
+    }
+    fireOwnBurstActivated(state, frame.pid, new Set(frame.before), frame.cardId)
+}
+
+// 発揮し終えたバーストの行き先（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+// バーストエリアを空にするだけ、それ以外（マジック相当）はトラッシュへ送る。
 // **resolveMagicは経由しない**（マジックバーストは「バースト発動」であって「マジックの使用」ではないため。
 // state.magicUsedThisTurn / ownMagicUsed・opponentMagicUsedの誤発火を避ける）
 export function finishBurstActivation(
@@ -42,7 +75,6 @@ export function finishBurstActivation(
     pid: PlayerId,
     cardId: string,
     actionType: EffectAction["type"],
-    thenPay: "main" | "flash" | undefined,
     opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
@@ -66,7 +98,6 @@ export function finishBurstActivation(
         player.burst = null
         player.burstSet = false
     }
-    tryBurstThenPay(state, pid, cardId, thenPay)
 }
 
 function tryBurstThenPay(
@@ -307,6 +338,7 @@ export function fireBurstOnEvent(
             }
             return
         }
+        announceBurstActivation(state, holderPid, burstCardId)
         const before = fieldInstanceIdsOf(state, holderPid)
         // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
         state.resolvingBurstPid = holderPid
@@ -334,10 +366,18 @@ export function fireBurstOnEvent(
             burstCardId,
         )
         delete state.resolvingBurstPid
-        if (alsoDraw && !state.winner && !state.pendingChoice) resolveAction(state, holderPid, null, { type: "draw", count: 1 })
-        finishBurstActivation(state, holderPid, burstCardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
+        continueBurstActivation(state, {
+            kind: "burstFinish",
+            stage: "finish",
+            pid: holderPid,
+            cardId: burstCardId,
+            actionType: actionToRun.type,
+            ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+            ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+            ...(alsoDraw ? { alsoDraw: true as const } : {}),
+            before: [...before],
+        })
         if (state.pendingChoice) return
-        fireOwnBurstActivated(state, holderPid, before, burstCardId)
     }
 }
 
@@ -353,13 +393,20 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     }
     player.burst = cardId
     player.burstSet = true
-    log(state, `${player.name}は${card.name}をバーストとして発動させた。`)
+    announceBurstActivation(state, owner, cardId)
     const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" }
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
     delete state.resolvingBurstPid
-    finishBurstActivation(state, owner, cardId, actionToRun.type, effect.thenPay, effect.returnSelfToHandAfter ? { toHand: true } : undefined)
-    if (state.pendingChoice || state.winner) return
-    fireOwnBurstActivated(state, owner, before, cardId)
+    continueBurstActivation(state, {
+        kind: "burstFinish",
+        stage: "finish",
+        pid: owner,
+        cardId,
+        actionType: actionToRun.type,
+        ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+        ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
+        before: [...before],
+    })
 }
