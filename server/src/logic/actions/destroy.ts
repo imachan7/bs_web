@@ -381,22 +381,17 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         return
 }
 
-// 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
-function destroyAllTargets(
-    ctx: ActionCtx,
-    action: { filter?: TargetFilter; anySide?: boolean; drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true },
-): void {
-    const { state, owner, opp, self, sourceName, srcType, destroyContext } = ctx
-        // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
-        // 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
-        // 絞り込み（maxBp / colorExclude）は共通の TargetFilter に一本化。
-        // anySide は「どちらのフィールドを見るか」＝対象プールの選択なので filter には含めない
+type AllTargetsSpec = { filter?: TargetFilter; anySide?: boolean; side?: "own" }
+
+// destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
+// 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
+// 全効果免疫（フェザーバリア）・装甲該当・マジック効果耐性該当のスピリットは除外する。
+// anySide／side は「どちらのフィールドを見るか」＝対象プールの選択なので filter には含めない
+export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { pid: PlayerId; instanceId: string }[] | typeof SELF_REQUIRED {
+    const { state, owner, opp, self, srcType } = ctx
         const areaFilter = normalizeFilter(ctx, action)
-        if (areaFilter === SELF_REQUIRED) {
-            log(state, `${sourceName}：BP参照元がいなかった。`)
-            return
-        }
-        const oppTargets = state.players[opp].field.spirits
+        if (areaFilter === SELF_REQUIRED) return SELF_REQUIRED
+        const oppTargets = action.side === "own" ? [] : state.players[opp].field.spirits
             .filter(
                 (s) =>
                     matchesTarget(state, opp, s, areaFilter, self?.instanceId) &&
@@ -405,7 +400,7 @@ function destroyAllTargets(
             .map((s) => ({ pid: opp, inst: s }))
         // anySide 指定時は自分側も対象に含める（装甲・マジック効果耐性は既存のanySide系アクションと
         // 同様に自分側には適用しない非対称ルール。BS04魔龍帝ジークフリードLv3）
-        const ownTargets = action.anySide
+        const ownTargets = action.anySide || action.side === "own"
             ? state.players[owner].field.spirits
                   .filter(
                       (s) =>
@@ -417,8 +412,33 @@ function destroyAllTargets(
         // 封印された魔導書Lv1：マジックで「スピリットすべて」を対象にしたとき、
         // 片側だけに変更する選択が済んでいればその側に絞る（anySide の単体対象と同じ扱い）
         const keepPid = bothSidesRedirectKeepPid(state, srcType)
-        const targets = [...oppTargets, ...ownTargets].filter((t) => keepPid === null || t.pid === keepPid)
-        if (targets.length === 0) {
+        return [...oppTargets, ...ownTargets]
+            .filter((t) => keepPid === null || t.pid === keepPid)
+            .map((t) => ({ pid: t.pid, instanceId: t.inst.instanceId }))
+}
+
+// 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
+function destroyAllTargets(
+    ctx: ActionCtx,
+    action: AllTargetsSpec & { drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true },
+): void {
+    const { state, sourceName } = ctx
+        const list = destroyAllTargetList(ctx, action)
+        if (list === SELF_REQUIRED) {
+            log(state, `${sourceName}：BP参照元がいなかった。`)
+            return
+        }
+        destroyTargetList(ctx, list, action)
+}
+
+// まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
+export function destroyTargetList(
+    ctx: ActionCtx,
+    batchTargets: { pid: PlayerId; instanceId: string }[],
+    action: { drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true } = {},
+): void {
+    const { state, owner, self, sourceName, destroyContext } = ctx
+        if (batchTargets.length === 0) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
@@ -428,7 +448,6 @@ function destroyAllTargets(
         //
         // バッチ経由なので、1体ごとに「復活しますか」の確認で**その場で中断できる**。
         // 中断したら destroyBatch フレームを積んで抜け、残りは drainResumeStack が続きを回す
-        const batchTargets = targets.map((t) => ({ pid: t.pid, instanceId: t.inst.instanceId }))
         const after = {
             ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
             ...(action.voidCoreToSelfPerDestroyed ? { voidCoreToSelfPerDestroyed: true as const } : {}),
@@ -499,42 +518,6 @@ const destroyByOwnFamilyCostSetHandler: ActionHandler<"destroyByOwnFamilyCostSet
     if (state.winner) return
     applyDestroyBatchAfter(state, owner, destroyed, {})
     return
-}
-
-// ストレートフラッシュ：指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する。
-// 自分側と相手側で絞り込みが違う（自分＝系統一致のみ／相手＝すべて）ため destroy{all} では表現できない。
-// 免疫まわりの扱いは destroy{all} と揃える（自分側には装甲・マジック効果耐性を適用しない非対称ルール）
-const destroyOwnByFamilyThenWipeEnemyHandler: ActionHandler<"destroyOwnByFamilyThenWipeEnemy"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-    const ownTargets = state.players[owner].field.spirits
-        .filter(
-            (s) =>
-                matchesFamilyFilter(state, owner, s, action.family) &&
-                !isResisted(state, owner, s, attemptOf(ctx, "destroy", "area")),
-        )
-        .map((s) => s.instanceId)
-    // **対象は解決の開始時に確定させる**（自分側→相手側の順に1つのバッチで処理する）。
-    // 復活の確認で中断しても、再開フレームが残りを同じ順で処理できるようにするため
-    const oppTargets = state.players[opp].field.spirits
-        .filter(
-            (s) =>
-                !isResisted(state, opp, s, attemptOf(ctx, "destroy", "area")),
-        )
-        .map((s) => s.instanceId)
-    if (ownTargets.length === 0 && oppTargets.length === 0) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    destroyTargetsBatch(
-        state,
-        owner,
-        [
-            ...ownTargets.map((instanceId) => ({ pid: owner, instanceId })),
-            ...oppTargets.map((instanceId) => ({ pid: opp, instanceId })),
-        ],
-        destroyContext,
-    )
-    void self
 }
 
 // マインドフレア：相手のフィールドに同じカード名のスピリットが2体以上いるとき、
@@ -1479,7 +1462,6 @@ const handlers = {
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyByOwnFamilyCostSet: destroyByOwnFamilyCostSetHandler,
-    destroyOwnByFamilyThenWipeEnemy: destroyOwnByFamilyThenWipeEnemyHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     destroyNexus: destroyNexusEntryHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,

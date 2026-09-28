@@ -6190,8 +6190,23 @@
      }
     },
     "action": {
-     "type": "destroyOwnByFamilyThenWipeEnemy",
-     "family": "四道"
+     "type": "simultaneous",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "all": true,
+       "side": "own",
+       "filter": {
+        "family": "四道"
+       }
+      },
+      {
+       "type": "destroy",
+       "count": 1,
+       "all": true
+      }
+     ]
     }
    },
    {

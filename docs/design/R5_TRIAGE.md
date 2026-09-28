@@ -42,6 +42,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | feat/recover-from-trash | トラッシュ→手札 | 単純なアクション `toHand{from trash, count, pick}` を新設。`recoverNexusFromTrash` → `toHand{pick nexus}`、`recoverAllMagicFromTrashByColorChoice` → `declare{autoFrom}`＋`toHand{count all}` |
 | feat/treat-as-unblocked | ブロックされなかった扱い | `treatAsUnblockedIfBlockerLevel1`・`treatAsUnblockedIfLevelAtLeastBlocker`・`unblockedByVoidSelfCore` → `treatAsUnblocked{when}`（スフィン・クロスは `pay`＋`removeCores{self→void}`） |
 | feat/bofu-count-bp | 【暴風】の数ぶんの BP | `bpBuffAllByBofuCount` → `timedEffect{all, own, bp × カウンタ targetBofuCount}`（あとから出たスピリットにも効く。09-28 ユーザー了承）。`bofuCountFor` は shared/rules/keywordState.ts へ |
+| feat/destroy-together | G-sequence | `destroyOwnByFamilyThenWipeEnemy` → 組み合わせ方の部品 `simultaneous`＋`destroy{all, side own, family}`＋`destroy{all}` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）

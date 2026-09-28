@@ -628,6 +628,27 @@ export function findStrayDeclared(cards: CardData[]): { cardId: string; message:
     return out
 }
 
+// simultaneous の中は destroy{all} だけ（それ以外はハンドラが発揮しない）
+export function findBadSimultaneous(cards: CardData[]): { cardId: string; message: string }[] {
+    const out: { cardId: string; message: string }[] = []
+    const walk = (o: unknown, cardId: string): void => {
+        if (Array.isArray(o)) {
+            for (const x of o) walk(x, cardId)
+            return
+        }
+        if (o === null || typeof o !== "object") return
+        const r = o as Record<string, unknown>
+        if (r["type"] === "simultaneous") {
+            for (const a of (r["actions"] as Record<string, unknown>[] | undefined) ?? []) {
+                if (a["type"] !== "destroy" || a["all"] !== true) out.push({ cardId, message: "simultaneous の中には destroy{all} だけ書ける" })
+            }
+        }
+        for (const v of Object.values(r)) walk(v, cardId)
+    }
+    for (const c of cards) walk(c.effects, c.cardId)
+    return out
+}
+
 export function findUnusedActions(cards: CardData[]): string[] {
     const used = new Set<string>()
     const walk = (o: unknown): void => {
@@ -700,6 +721,7 @@ function main(): void {
 
     issues.push(...findUndeclaredEffectKeys(cards))
     issues.push(...findStrayDeclared(cards))
+    issues.push(...findBadSimultaneous(cards))
 
     for (const a of findUnusedActions(cards)) {
         issues.push({
