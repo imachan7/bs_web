@@ -52,7 +52,9 @@
    type.ts は残り約300バイトなので、同じ区画の「カード名の引用」コメントを削って場所を作る（✅ 45df5ed・part442）
    **部品バッチ2（免疫。確定スキーマ）**：054 は既存（constraintGrant nameIncludes＋immuneToOpponentEffects against:"magic"）。
    ConstraintDef `immuneToOpponentEffects.against` に配列も許す（072 Lv2＝["spirit","brave"]）。constraintGrant に `combinedBraveColors?: Color[]`（発生源がその色のブレイヴと合体している間。triggered と同じ意味）と `symbolCount?: number`（対象のシンボル数が完全一致。036）。
-   TimedContent `{type:"immune"}` に `against?: ("spirit"|"brave"|"magic")[]`（058。省略時は従来どおり全部）
+   TimedContent `{type:"immune"}` に `against?: ("spirit"|"brave"|"magic")[]`（058。省略時は従来どおり全部）（✅ ab6056c・part443）
+   **部品バッチ3（確定スキーマ）**：`reviveOnDestroy` に `cost.exhaustSelf?: true`（発生源＝ネクサスを疲労。疲労済みなら不発。069）と `blockingOnly?: true`（ownAll 用。現在のバトルのブロッカーだけ。079 は magic の lendSelfThisTurn＋lentOnly＋blockingOnly で「このバトルの間」を表す）。
+   `triggered.burstSummonOnly?: true`（onSummon。その召喚がバースト効果の解決中に行われたときだけ。044）。`reveal.countCounter?: EffectCounter`（destroy.countCounter と同名。041）と EffectCounter `ownKeyword` に配列（OR・1体1回）
 7. R3 の残り（`validate:size` の据え置き1本：type.ts（**残りは約300バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
