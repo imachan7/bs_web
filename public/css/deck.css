@@ -1012,3 +1012,10 @@ input[type="text"] {
 .row-note.unimplemented { background: #d44a4a; }
 .row-note.partial { background: #d48a4a; }
 .row-note.simplified { background: #d4c44a; color: #333; }
+
+/* 印刷されていない補足（effectText.ts）。本文と区別できるよう色と下線を変える */
+.effect-note {
+    color: #8fd3ff;
+    text-decoration: underline dotted;
+    cursor: help;
+}

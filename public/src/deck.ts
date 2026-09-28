@@ -3,6 +3,7 @@
 import type { CardData, CardType, Color, Keyword, BraveCondition } from "../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../data/constants"
 import { KEYWORDS } from "../../shared/rules"
+import { effectLineSegments } from "./effectText"
 
 // ---- 定数 ----
 
@@ -454,7 +455,23 @@ function renderDetail(card: CardData, anchor?: HTMLElement): void {
 
     const effect = document.createElement("div")
     effect.className = "detail-effect"
-    effect.textContent = card.effect !== "" ? card.effect : "（効果なし）"
+    if (card.effect === "") effect.textContent = "（効果なし）"
+    else {
+        effectLineSegments(card.effect).forEach((segments, i) => {
+            if (i > 0) effect.appendChild(document.createTextNode("\n"))
+            for (const s of segments) {
+                if (!s.note) {
+                    effect.appendChild(document.createTextNode(s.text))
+                    continue
+                }
+                const span = document.createElement("span")
+                span.className = "effect-note"
+                span.title = "補足：バースト効果の召喚・配置はコストを支払わない（カードには書かれていない）"
+                span.textContent = s.text
+                effect.appendChild(span)
+            }
+        })
+    }
     panel.appendChild(effect)
 
     const note = cardNotes[card.cardId]
