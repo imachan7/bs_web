@@ -46,7 +46,10 @@
    R5 の終わりの基準のもう1つ（M2・M3・M4 の残り）は REFACTOR_PLAN §2.2 の表で確かめてから、BS16 の黄・青（手順5）へ
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
 5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装（`feat/bs16-yellow-blue`）。測定は REFACTOR_PLAN §0.1。残りは 045 Lv3（何が足りないかは BS16_BATCH3 の効果節の段落）と、「効果で複数体を同時に召喚したら召喚は1回」（BS16_PLAN §2.4 の ⚠️。009・044・X05）
-6. **進行中：BS17「剣舞う世界」**（`feat/bs17-import`。staging 取り込み済み）。計画と進め方は [BS17_PLAN.md](./docs/design/BS17_PLAN.md)。いまは調査役3体の結果待ち
+6. **進行中：BS17「剣舞う世界」**（`feat/bs17-import`。staging 取り込み済み）。計画と進め方は [BS17_PLAN.md](./docs/design/BS17_PLAN.md)。解釈は §2 で確定済み、部品は §3。
+   **部品バッチ1（確定スキーマ）**：`AuraCondition` に `{ maxOwnSpirits: number }`（047・048）と `{ battleOpponentHasKeyword: Keyword[] }`（現在のバトルで持ち主から見た相手側の個体がいずれかを持つ。014 は battlingOnly と併用、["armor","heavyArmor"]）。
+   `AuraDef.levelFilter?: number[]`（対象の現在Lv。065）。GlobalConstraint `{ type: "cantBlockByCost"; costs: number[] }`（`instCantAttackByCost` の隣に `instCantBlockByCost`、ブロック可否の判定箇所すべてに。071。`cantAttackByCost` に act 軸を足すと名前と中身がずれるので兄弟 type にした）。
+   type.ts は残り約300バイトなので、同じ区画の「カード名の引用」コメントを削って場所を作る
 7. R3 の残り（`validate:size` の据え置き1本：type.ts（**残りは約300バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
