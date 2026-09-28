@@ -1310,7 +1310,7 @@ export interface GameState {
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
     currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[]; instanceId?: string } // instanceIdはresolveActionのself（発生源インスタンス）が確定しているときだけ載る（BS15共通器：BS15-042オリンピアの天使アラトロンLv2「そのスピリットを相手のデッキの下に戻す」＝デッキ破棄を起こしたスピリット自身を特定するために使う）
-    resolvingBurstPid?: PlayerId // バースト効果を解決している間だけ、その持ち主を載せる（coreReturnBonus.ownBurstOnly が読む。BS14-019シュテン・ドーガ）
+    resolvingBurstPid?: PlayerId // バースト効果を解決している間だけ、その持ち主を載せる
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
