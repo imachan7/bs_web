@@ -107,6 +107,7 @@ export function resolveLifeDamage(state: GameState): void {
         // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コスト（このネクサスをトラッシュに置く）で0を回避できる
         if (tryOwnLifeFloorByCost(state, defenderPid)) {
             fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+            fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
             tryHandFreeSummonOnLifeDamaged(state, defenderPid)
         } else {
             state.winner = attackerPid
@@ -117,6 +118,7 @@ export function resolveLifeDamage(state: GameState): void {
         // ライフ0で敗北が決まった場合は発火しない。targetInstanceIdにアタッカーを渡す
         // （BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
         fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+        fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
         // 手札のカード自身が持つ「ライフが減ったとき無償召喚できる」（BS08猫娘アニー）。
         // 場・トラッシュではなく**手札**が発生源なので、フィールド誘発の走査では拾えない
         tryHandFreeSummonOnLifeDamaged(state, defenderPid)

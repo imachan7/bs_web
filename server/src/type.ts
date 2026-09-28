@@ -225,6 +225,7 @@ export type TriggerEvent =
 export type FieldEvent =
     | "ownSeimeiLifeCharged" // 持ち主の【聖命】の効果でライフにコアが置かれたとき（placeCores の void→life が、【聖命】持ちの発生源から解決されたときだけ発火。BS09-064天駆ける方舟）
     | "ownLifeDamaged" // 相手によって自分のライフが減らされたとき
+    | "opponentLifeDamaged" // 相手のライフが減ったとき（原因を問わない）。ownLifeDamagedの鏡で、減らした側のフィールドから発火する（BS16-042）
     | "ownSpiritDestroyed" // 自分のスピリットが破壊されたとき
     | "opponentSpiritDestroyed" // **相手の**スピリットが破壊されたとき、持ち主から見た相手側のフィールドから発火（手段を問わない＝バトル・効果のどちらでも。BS04-X14 魔界七将パンデミウムLv1-3：『お互いのアタックステップ』「相手のスピリットを破壊したとき」。2026-09-12 ユーザー確認）
     | "anySpiritAttacked" // 両陣営どちらかのスピリットがアタックを宣言したとき（self はアタックしたスピリット。魔帝の墓標Lv2）
@@ -243,6 +244,7 @@ export type FieldEvent =
     | "ownSpiritCoresRemovedByOpponent" // 自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき（eventCount=影響を受けた自分のスピリット数。極光の大地）
     | "ownSpiritSummoned" // 自分のフィールドにスピリットが召喚されたとき（doSummonの召喚時効果・転召の解決後に発火）。**self には召喚されたスピリットが渡る**（selfOverride）ため、maxBpFromSelf で「召喚されたスピリットのBP以下」を表現できる（BS04七龍帝の玉座Lv2／鋼葉の樹林Lv2）
     | "opponentDeckMilled" // 相手のデッキがトラッシュへ送られたとき（millDeckから発火。eventCount=実破棄枚数。minEventCountで「一度に◯枚以上」を表現。BS04アリゲイド）
+    | "ownDeckMilled" // 自分のデッキがトラッシュへ送られたとき、持ち主のフィールド発生源から発火（opponentDeckMilledの鏡。millDeckから。eventCount=実破棄枚数。相手のスピリットの効果限定はbyOpponentSpiritEffectOnlyで絞る。BS16-039）
     | "ownNexusDeployed" // 自分のフィールドにネクサスが配置されたとき（通常の配置・効果による配置・復活のいずれからも発火。BS04栄光の表彰台）
     | "opponentMagicUsed" // 相手がマジックの効果を使用したとき（resolveMagicから発火。eventInfoにcost/timingを載せ、magicCostEquals・magicTimingで絞る。BS04氷の女神フリッグ）
     | "anySpiritReturnedToHand" // 両陣営どちらかのスピリットがフィールドから手札に戻ったとき、**両者の**フィールド発生源から発火する（`subjectSide` で主体の陣営を絞る。anySpiritAttacked と同じ形）。ownSpiritReturnedToHand が持ち主側にしか発火しないため、「**相手の**スピリットが手札に戻ったとき」を書くにはこちらが要る（BS12-040 天王神龍スレイ・カエルス【合体時】）
@@ -263,6 +265,7 @@ export type FieldEvent =
     | "anySpiritRefreshed" // 両陣営どちらかのスピリットが回復したとき、**両者の**フィールド発生源から発火する（anySpiritAttackedと同じ形。subjectSideで主体の陣営を絞る。selfには回復したスピリットが渡る。eventInfo.refreshSourceTypeで回復元の効果種別が分かる＝refreshSourceTypeFilterの判定に使う。BS14-085賛美するパイプオルガンLv2：「スピリット/マジックの効果で回復した〜すべてを破壊する」）
     | "opponentSummonEffectResolved" // 相手の『このスピリット/ブレイヴの召喚時』効果が**実際に解決された**後（単なる召喚では発火しない。kind:"triggered" trigger:"onSummon" が現在のレベルで有効な状態で1件でもあるときに発火する簡略化。任意発動の未発動・条件不一致まではここでは見分けない。BURST.md）
     | "ownBurstSet" // 自分がバーストをセットしたとき（効果によるセットも含む。setBurst / setBurstFromHand の両方から発火）
+    | "opponentBurstSet" // 相手がバーストをセットしたとき（ownBurstSetの鏡。placeBurstから、自分側フィールドの発生源へ発火。BS16-050）
     | "ownBurstActivated" // 自分のバーストの解決がすべて終わった後。eventInfo.burstCost に発動したカードのコストを載せる
 // ※ 疲労イベントは EffectModules.exhaustSpirit（疲労の唯一の入口）から発火する。アタック宣言・ブロック宣言・
 //    効果による疲労のいずれも通る。すでに疲労している個体を疲労させ直しても発火しない
@@ -1336,6 +1339,7 @@ export interface GameState {
     }[]
     burstEventColors?: Color[] // 破壊後バースト発動時、破壊された全メンバーの色の和集合（burstEventCostと同じ寿命）。条件{burstDestroyedColor}が読む
     burstEventLifeDamagerId?: string // event:"ownLifeDamaged"のバースト発動時、ライフを減らしたスピリットのinstanceId（burstEventCostと同じ寿命。取れなければundefined）
+    lastDeckMill?: { pid: PlayerId; cardIds: string[] } // millDeckが直近に破棄したカードID（millDeckが呼ばれるたび上書き）。toDeck.fromEventが「その回に破棄された中からだけ」を絞るのに読む（BS16-039）
     // 直前の「破壊される代わりに復活できる」の確認で、**結局その個体が破壊されたか**。
     // 破壊バッチ（destroyBatch フレーム）が中断から再開したときに、中断の原因になった1体を
     // 「破壊できた数」に算入するかの判定に使う（断って破壊された＝算入する。RESUME_STACK.md §7 ①）。

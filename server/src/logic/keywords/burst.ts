@@ -24,6 +24,7 @@ export function placeBurst(state: GameState, pid: PlayerId, cardId: string): voi
     // 画面にも同じログが配信されるため。GameState.viewFor は log を両者に同じ内容で配る）
     log(state, `${player.name}はバーストをセットした。`)
     fireFieldEventTriggers(state, pid, "ownBurstSet")
+    fireFieldEventTriggers(state, opponentOf(pid), "opponentBurstSet")
 }
 
 // バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
