@@ -700,8 +700,13 @@
     "perDestroyed": true,
     "optional": true,
     "action": {
-     "type": "returnToDeckTop",
-     "count": 1
+     "type": "toDeck",
+     "from": "trash",
+     "position": "top",
+     "count": 1,
+     "pick": {
+      "family": "四道"
+     }
     }
    }
   ]
@@ -789,23 +794,16 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "if",
-     "cond": {
-      "count": "ownHand",
-      "atLeast": 1
-     },
-     "then": {
-      "type": "sequence",
-      "actions": [
-       {
-        "type": "discardHandAll"
-       },
-       {
-        "type": "draw",
-        "count": 3
-       }
-      ]
-     }
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discardHandAll"
+      },
+      {
+       "type": "draw",
+       "count": 3
+      }
+     ]
     }
    },
    {
@@ -936,15 +934,20 @@
      3
     ],
     "optional": false,
-    "condition": {
-     "ownFamilyCountAtLeast": {
-      "family": "四道",
-      "count": 6
-     }
-    },
     "action": {
-     "type": "returnToDeckTop",
-     "count": 10
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownSpirits": {
+        "family": "四道"
+       }
+      },
+      "atLeast": 6
+     },
+     "then": {
+      "type": "returnToDeckTop",
+      "count": 10
+     }
     }
    },
    {
