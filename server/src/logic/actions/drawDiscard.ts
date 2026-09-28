@@ -25,7 +25,7 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：count×EffectCounterの値を枚数とする
         const count =
             action.countCounter !== undefined
-                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType, action.countMax)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
             log(state, `${sourceName}：カウントが0のためドローしなかった。`)
