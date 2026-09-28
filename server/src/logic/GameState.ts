@@ -630,8 +630,10 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
 // 空にし、表示用promptを種別に応じた汎用メッセージに差し替える（内容が漏れないようにする）
 function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]>): NonNullable<GameState["pendingChoice"]> {
     const isCard = pc.kind === "card"
+    // 発動確認の時点ではバーストはまだ非公開（断れば公開されない）ので、カードIDを相手に渡さない
+    const { burstActivate: _hidden, ...rest } = pc
     return {
-        ...pc,
+        ...rest,
         candidates: [],
         ...(isCard ? { cardIndices: [] } : {}),
         ...(pc.selectedIds ? { selectedIds: [] } : {}),
