@@ -138,7 +138,8 @@ console.log("=== 3. battleLock \"magic\"：ロック中は使用できず、解�
 
     const afterErr = act(s, pid, { type: "castMagic", handIndex: 0 })
     assert(afterErr === null, "解除後はマジックを使用できる")
-    assert(s.players[pid].hand.length === 0, "使用できたので手札から無くなった")
+    // MAGICのメイン効果は「デッキから2枚ドロー」なので、使用後の手札はマジック自身が抜けてドロー2枚分になる
+    assert(!s.players[pid].hand.includes(MAGIC), "使用できたのでマジック自身は手札から無くなった")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part438）")

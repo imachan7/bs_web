@@ -16,7 +16,7 @@
 | B | FieldEvent `opponentBurstSet` | 条件の軸（出来事） | 相手がバーストをセットしたとき（効果によるセットも含む） | 050 | 相手のセットを見る出来事が無い |
 | B | FieldEvent `ownDeckMilled` ＋ `toDeck.fromEvent` | 出来事＋軸 | 自分のデッキが破棄されたとき（fieldEvent に `milledAtLeast`・`byOpponentSpiritEffect`）。出来事が破棄したカードを渡し、`toDeck{from trash, fromEvent: true, upTo, count 5, position top}` はその中からだけ選ぶ | 039 | 自分のデッキが破棄された出来事と、その回に破棄されたカードだけを選ぶ軸が無い |
 | C | `coreFloorByCost` に `byOpponentOnly` | 軸 | 「相手によって」減るときだけ床を張る | 039 | 既存は誰の減少でも床を張る |
-| C | `nexusEffectsDisabled` に `levels` | 軸 | 指定Lvのネクサスだけ効果を止める（今のLvで判定） | 041 | Lvで絞れない |
+| C | `nexusEffectsDisabled` に `targetLevels`・`phase` | 軸 | 指定Lvのネクサスだけ効果を止める（今のLvで判定。`levels` は効果自身のLv見出しとぶつかるので `targetLevels`） | 041 | Lvで絞れない |
 | C | `battleLock` に `"magic"` | 内容の値 | このバトルの間、マジックを使用できない | X06 | `"flash"`・`"burst"` しか無い |
 | D | タイミング `atTurnEnd` | タイミング | `{ type: "atTurnEnd"; action }`：このターン終了時に action を解決する（記録して、ターン終了処理で持ち主の順に解決） | 068 | 「このターン終了時に〜する」を書く器が無い |
 | D | kind `burstMagicFreeEffect` | 継続効果（kind） | `{ kind: "burstMagicFreeEffect"; levels }`：自分のバーストがマジックなら、バースト効果の解決後（`thenPay` の段と同じ場所）に「メイン／フラッシュのどちらか1つを無償で発揮」を選べる（任意）。`resolveMagic` を通さない＝マジックの「使用」ではない（Q22399。BURST.md §7.1）。`thenPay` を持たないバーストマジックでも選べる | 070 | 発動したバーストのカードの効果を、使用ではなく無償で発揮する器が無い |
@@ -36,6 +36,7 @@
 | 調査役 | 89 | 68 | ―（メモ1つ） |
 | 実装役 A | 79 | 51 | 13回目 |
 | 実装役 B | 103 | 65 | 39回目 |
+| 実装役 C | 157 | 114 | 42回目 |（途中で自動許可の判定が止まり、同じ体を再開。クライアントとサーバーの二重判定・コア除去4経路への配線で探索が多い）
 
 **測定**（REFACTOR_PLAN §0・§2.3）：実装役ごとに呼び出し数・grep＋sed の数・最初の Edit が何回目か（メインループが transcript を集計）。
 データ役のあとに「新しい部品なしで JSON だけで書けた効果節の割合」を数える。
