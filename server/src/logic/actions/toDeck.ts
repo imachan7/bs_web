@@ -5,6 +5,19 @@ import { isTrashCardProtected } from "../../../../shared/rules"
 import { matchesPick } from "./revealAction"
 import { recordMoved } from "../record"
 
+function millEventIndices(zone: string[], ids: string[]): Set<number> {
+    const left = new Map<string, number>()
+    for (const id of ids) left.set(id, (left.get(id) ?? 0) + 1)
+    const out = new Set<number>()
+    for (let j = zone.length - 1; j >= 0; j--) {
+        const n = left.get(zone[j]!) ?? 0
+        if (n === 0) continue
+        left.set(zone[j]!, n - 1)
+        out.add(j)
+    }
+    return out
+}
+
 // 「count枚まで」（BS15-082）でも途中でやめられず、候補が尽きるか count 枚まで選ばせる（途中でやめる UI は見送った）。
 // upTo指定時は0〜count枚を選べる（2026-09-28ユーザー決定。途中で1枚も選ばずに終えられる）
 // ⚠️ 選び終わるまでゾーンから抜かない（インデックスで控える）。途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる
@@ -15,14 +28,8 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
     const zone = action.from === "hand" ? player.hand : player.trashCards
     const picked = action.picked ?? []
     const chooser = action.chooserIsTarget ? zonePid : owner
-    // fromEvent：state.lastDeckMillが記録した直近の破棄ぶんだけを候補にする（BS16-039）。
-    // 破棄は末尾へ連続してpushされるので、簡略化として**トラッシュ末尾のうち破棄枚数ぶん**を対象にする
-    // （破棄からこのアクションまでの間に他の効果がトラッシュへ何も足していない前提。限界：割り込みで
-    // 別のカードがトラッシュへ積まれた場合はずれうる）
-    const eventTailStart =
-        action.fromEvent && state.lastDeckMill?.pid === zonePid
-            ? Math.max(0, zone.length - state.lastDeckMill.cardIds.length)
-            : undefined
+    // fromEvent：その回に破棄されたカード（state.lastDeckMill）だけ。同じ cardId が複数あるときは新しい方から枚数ぶん当てる
+    const fromEventIdx = action.fromEvent ? millEventIndices(zone, state.lastDeckMill?.pid === zonePid ? state.lastDeckMill.cardIds : []) : undefined
     const choosable = (exclude: number[]): number[] =>
         zone
             .map((id, j) => ({ id, j }))
@@ -31,7 +38,7 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
                     !exclude.includes(j) &&
                     matchesPick(id, action.pick) &&
                     (action.from === "hand" || !isTrashCardProtected(id)) &&
-                    (eventTailStart === undefined || j >= eventTailStart),
+                    (fromEventIdx === undefined || fromEventIdx.has(j)),
             )
             .map(({ j }) => j)
 

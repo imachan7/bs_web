@@ -26,6 +26,7 @@
 
 **残した制限（組 A）**
 - `reveal` の「N枚まで」も既存の「すべて」も、召喚先（`dest:"summon"`）では1枚ずつ召喚する。「効果で複数体を同時に召喚したら召喚は1回」（BS16_PLAN §2.4 の ⚠️。009・044・X05）は全体としてまだ入っていない
+- 組 B：`ownDeckMilled` の絞り込みは新しい軸を作らず、既存の汎用軸 `minEventCount`（破棄枚数）・`byOpponentSpiritEffectOnly` を使う（`milledAtLeast` 等は作らなかった）。その回のカードは `state.lastDeckMill`（次の破棄で上書き）
 - 「N枚まで」の選択中の再入は `state.revealedCards` が残っていることを目印にしている（`reveal` が入れ子になる経路は今は無い）
 
 **測定の結果**（transcript の集計。search は grep／sed／Read の数）
@@ -34,6 +35,7 @@
 | :-- | --: | --: | --: |
 | 調査役 | 89 | 68 | ―（メモ1つ） |
 | 実装役 A | 79 | 51 | 13回目 |
+| 実装役 B | 103 | 65 | 39回目 |
 
 **測定**（REFACTOR_PLAN §0・§2.3）：実装役ごとに呼び出し数・grep＋sed の数・最初の Edit が何回目か（メインループが transcript を集計）。
 データ役のあとに「新しい部品なしで JSON だけで書けた効果節の割合」を数える。

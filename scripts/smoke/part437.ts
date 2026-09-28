@@ -31,7 +31,7 @@ const OTHER_CARD = "BS01-003" // テラノセイバー（VANILLAと別cardId。�
 console.log("=== 前提: カードの機械確認 ===")
 {
     assert(getCard(VANILLA).name === "ロクケラトプス" && getCard(VANILLA).cost === 1, "VANILLAはコスト1のバニラ")
-    assert(getCard(OTHER_CARD).name === "テラノセイバー" && OTHER_CARD !== VANILLA, "OTHER_CARDはVANILLAと別カード")
+    assert(getCard(OTHER_CARD).name === "テラノセイバー", "OTHER_CARDはVANILLAと別カード")
 }
 
 function game(seed: string): GameState {
@@ -121,6 +121,18 @@ console.log("=== 4. toDeck.fromEvent：その回に破棄されたカードだ�
     // 破棄より前からあった1枚（OTHER_CARD）は、今回の破棄対象（トラッシュ末尾側の10枚）に含まれないため、
     // fromEventの候補にならず必ず残っているはず
     assert(s.players.p1.trashCards.includes(OTHER_CARD), "破棄より前からトラッシュにあったカードはfromEventの候補にならず残っている")
+}
+
+console.log("=== 4b. toDeck.fromEvent：破棄のあとにトラッシュへ入ったカードは候補にならない ===")
+{
+    const s = game("case4b")
+    s.players.p1.deck = s.players.p1.deck.filter((id) => id !== OTHER_CARD)
+    millDeck(s, "p1", 10, "p2", { sourceType: "spirit" })
+    s.players.p1.trashCards.push(OTHER_CARD) // 破棄の後に別の効果で入ったカード
+    const deckBefore = s.players.p1.deck.length
+    resolveAction(s, "p1", null, { type: "toDeck", from: "trash", position: "top", count: 11, upTo: true, fromEvent: true }, undefined, undefined, "magic")
+    assert(s.players.p1.deck.length === deckBefore + 10, `戻るのはその回の10枚だけ（${s.players.p1.deck.length - deckBefore}枚）`)
+    assert(s.players.p1.trashCards.includes(OTHER_CARD), "あとから入ったカードはトラッシュに残る")
 }
 
 console.log("=== 5. toDeck.fromEvent：fromEvent無指定なら従来どおりトラッシュ全体が候補になる（回帰確認） ===")
