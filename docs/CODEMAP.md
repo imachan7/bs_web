@@ -99,6 +99,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instCostCantAct`（fn）：フィールド上のインスタンスに対する「全体制約による行動不可」判定。実コストに加えて、道化師クランの
 - `instCantAttackByOpponentCost`（fn）：BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主から見た**相手**のスピリットのうち、コストが
 - `instCantAttackByCost`（fn）：器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
+- `instCantBlockByCost`（fn）：globalConstraint "cantBlockByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 - `instAttackRequiresCoreToll`（fn）：器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
 - `instCantAttackByFewOwnSpirits`（fn）：器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：
 - `opponentCantReturnFromTrashToHand`（fn）：器BO：globalConstraint "opponentCantReturnFromTrashToHand"。pid は「トラッシュから手札に戻そうとしている本人」。

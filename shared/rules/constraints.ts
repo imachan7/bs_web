@@ -530,6 +530,25 @@ export function instCantAttackByCost(board: Board, inst: CardInstance): boolean 
     return false
 }
 
+// globalConstraint "cantBlockByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
+// 持ち主を問わずブロックできない（アタックは可能。instCantAttackByCostのブロック版。BS17-071）
+export function instCantBlockByCost(board: Board, inst: CardInstance): boolean {
+    const costsOfBlocker = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint") continue
+                const constraint = effect.constraint
+                if (constraint.type !== "cantBlockByCost") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (costsOfBlocker.some((cost) => constraint.costs.includes(cost))) return true
+            }
+        }
+    }
+    return false
+}
+
 // 器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
 // アタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない。
 // instCantAttackByCostと同じ両陣営走査だが、こちらは「不可」でなく「要求」を返す判定なので専用関数にする

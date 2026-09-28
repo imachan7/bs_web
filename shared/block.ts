@@ -19,6 +19,7 @@ import {
     currentLevel,
     effectiveBp,
     instAllCosts,
+    instCantBlockByCost,
     instHasColor,
     instHasCost,
     instColors,
@@ -94,6 +95,9 @@ export function canBlock(
     // 効果で直接掛けたものなので blockConstraintNegatedThisTurn（制約の無効化）では消えない
     if (cantActByTimed(board, blockerInst, "block")) {
         return "このスピリットは効果によりブロックできません"
+    }
+    if (instCantBlockByCost(board, blockerInst)) {
+        return "このスピリットはコストによりブロックできません"
     }
     if (!blockerInst.blockConstraintNegatedThisTurn) {
         if (blockerConstraints.some((c) => c.type === "cantBlock")) {

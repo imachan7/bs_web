@@ -358,13 +358,15 @@ export type AuraCondition =
     | { hasOwnFamily: FamilyFilter } // 自分フィールドに指定系統のスピリットがいる（自身を含んでよい。配列＝いずれかの系統でOR。BS05黄道の虚空）
     | "ownReserveNotEmpty" // 自分のリザーブが1個以上
     | { ownHasKeyword: Keyword } // 自分フィールドに指定キーワードを持つスピリットがいる（spiritHasKeywordで判定、付与キーワードも考慮。ブロントライデント）
-    | { ownLifeAtMost: number } // 自分のライフ（コア数）がこの値以下（BS06鉄拳のカクタスガルー：ライフ3以下の間BP+3000）
-    | { opponentHandAtLeast: number } // 相手の手札枚数がこれ以上（PlayerView.handCountと同じ「非公開だが枚数だけは見える」情報。BoardPlayer.handCountがあればそれを、無ければhand.length（サーバー内部は常に実配列）を使う。BS08ブラックウガルルムLv2：相手の手札5枚以上
+    | { ownLifeAtMost: number } // 自分のライフ（コア数）がこの値以下（BS06鉄拳のカクタスガルー）
+    | { opponentHandAtLeast: number } // 相手の手札枚数がこれ以上（PlayerView.handCountと同じ「非公開だが枚数だけは見える」情報。BoardPlayer.handCountがあればそれを、無ければhand.length（サーバー内部は常に実配列）を使う。BS08ブラックウガルルム）
     | "hasOwnBurstSet" // 自分がバーストエリアにカードをセットしている間（docs/design/BURST.md）
-    | { ownTrashOnlyColor: Color } // 自分のトラッシュにあるカードがこの色のカードだけの間（トラッシュ0枚なら該当色以外のカードが無いので成立＝空虚な真。BS14-003スカートゥース：「自分のトラッシュにあるカードが赤のカードだけの間」）
+    | { ownTrashOnlyColor: Color } // 自分のトラッシュにあるカードがこの色のカードだけの間（トラッシュ0枚なら該当色以外のカードが無いので成立＝空虚な真。BS14-003スカートゥース）
     | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 持ち主から見た相手フィールドの色の種類数がこれ以上（shared/rules.opponentFieldColorCount。BS15共通器）
     | { ownFieldOnlyColor: Color; spiritsOnly?: true } // 自分フィールドのスピリット/ネクサスがすべてこの色1色だけの間（多色混在・0枚は不成立。shared/rules.ownFieldOnlyColor。BS15共通器）
-    | { opponentBurstSet: boolean } // 発生源の持ち主から見た**相手**がバーストをセットしている間（false指定時はセットしていない間）だけ有効（triggered.conditionの同名軸と同じ判定。BS15共通器：kind:"constraint"のcondition用。BS15-060バンディット・アームズ【合体時】：「相手がバーストをセットしている間」）
+    | { opponentBurstSet: boolean } // 発生源の持ち主から見た**相手**がバーストをセットしている間（false指定時はセットしていない間）だけ有効（triggered.conditionの同名軸と同じ判定。BS15共通器：kind:"constraint"のcondition用。BS15-060バンディット・アームズ）
+    | { maxOwnSpirits: number } // 発生源含む自分のスピリット数以下の間（BS17-047）
+    | { battleOpponentHasKeyword: Keyword[] } // バトル中の相手側当事者がこのキーワードを持つ間（BS17-014）
 
 // 常時BP修正の定義
 export interface AuraDef {
@@ -383,6 +385,7 @@ export interface AuraDef {
     minCores?: number // ownAll 用: 対象スピリットのコア数がこれ以上のときのみ有効（エメラルドに輝く鍾乳洞）
     coresExact?: number // ownAll 用: 対象スピリットのコア数がちょうどこの数のときのみ有効（BS03竜騎将ディライダロス：コア1個だけ）
     costFilter?: number // ownAll 用: 対象スピリットのコストがこれと一致するときのみ有効（太古の断層）
+    levelFilter?: number[] // ownAll用: 対象の現在Lvがこの配列内の間のみ（BS17-065）
     costMinFilter?: number // ownAll 用: 対象スピリットのコストがこれ以上のときのみ有効（costFilter＝完全一致とは別軸。BS07造兵工房Lv2：コスト3以上）
     familyFilter?: FamilyFilter // ownAll 用: 指定系統（静的付与・familyGrant による付与を含む。matchesFamilyFilter で判定）を持つスピリットのみ。配列＝いずれかの系統でOR（ポム／BS04翼持つ者の空域）
     familyAllFilter?: string[] // ownAll 用: 指定した系統をすべて持つスピリットのみ（AND。familyFilter の配列は OR）
@@ -479,7 +482,8 @@ export type GlobalConstraintDef =
     | { type: "singleCoreCantAct" } // コア1個しか置いていないスピリットは、アタックとブロックができない（両陣営。魔帝の墓標）
     | { type: "singleCoreCantAttack" } // コア1個しか置いていないスピリットは、アタックができない（ブロックは可能。singleCoreCantActのアタック限定版。両陣営。BS08赤き砂の座）
     | { type: "opponentCantAttackByCost"; costs: number[] } // **発生源の持ち主から見た相手**のスピリットのうち、コストが配列のいずれかと完全一致するものはアタックできない（ブロックは可能。片側限定＝costCantActの「両陣営・アタックもブロックも不可」とは別枠。BS12-X05戦神乙女ヴィエルジェ：コスト2/3/5/7/11）
-    | { type: "cantAttackByCost"; costs: number[] } // 器AW：opponentCantAttackByCostの**両陣営版**。コストが配列のいずれかと完全一致するスピリットは、持ち主を問わずアタックできない（ブロックは可能。BS13-035オリンピアの天使オク：コスト0/1/4）
+    | { type: "cantAttackByCost"; costs: number[] } // 器AW：opponentCantAttackByCostの**両陣営版**。コストが配列のいずれかと完全一致するスピリットは、持ち主を問わずアタックできない（ブロックは可能。BS13-035オリンピアの天使オク）
+    | { type: "cantBlockByCost"; costs: number[] } // 両陣営：コスト一致でブロック不可（cantAttackByCostのブロック版。BS17-071）
     | { type: "allSpiritsCantBounce" } // 器BS16：両陣営とも、あらゆる原因（効果・コスト支払い等）でスピリットが**フィールドから手札に戻らない**（markBounceが冒頭で止める＝戻すはずのスピリットは場に残る）。kind:"globalConstraint"のphase/turnフィールドと組み合わせて使う（allSpiritsCantBounceActiveが判定。BS16-012金狐角：「Lv1･Lv2･Lv3『自分のアタックステップ』スピリットすべては、フィールドから手札に戻らない」＝主語なしでお互いに効く）
     | { type: "noLifeDamageByCost"; maxCost?: number; costs?: number[]; keywordExclude?: Keyword; maxBp?: number; symbolCount?: number; combinedOnly?: true; ownOnly?: true; attackerLevel?: number } // symbolCount+combinedOnly指定時は「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックでのみ保護する（両条件を優先し、maxCost等とは併用しない。BS12-020一番槍のシベルザ：「シンボル2つを持つ合体スピリットのアタックでは」） // maxBp指定時は実効BPがこれ以下のスピリットのアタックで判定する（コストでなくBPで縛る形。BS09-031守護巨獣ガラパーゾ＝BP3000以下）。// コストがmaxCost以下のスピリットのアタックでは、お互いのライフは減らされない（両陣営。BS07の「勇傑」各色に共通）。costs指定時はmaxCostの代わりに**コスト完全一致**（配列＝いずれかに一致。instAllCostsのいずれかが含まれればよい。BS08守護機獣スノパルド：コスト3/4）。keywordExclude指定時は、アタッカーがそのキーワードを持つときは保護しない（spiritHasKeyword判定。同カード：【転召】を持たない） symbolCount指定時（combinedOnlyなし）はシンボル数がちょうど一致するアタックのみ保護。ownOnly指定時は**発生源の持ち主だけ**を守る（両陣営でなく片側。BS12-069定規山脈Lv2：「シンボル2つを持つ相手のスピリットのアタックでは、自分のライフは減らない」） attackerLevel指定時はmaxCostと**両方満たすとき**だけ保護する（AND。器BA。BS13-070星宿の障壁：コスト3以下かつLv1のアタック）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た**相手**のネクサスは疲労させられない（【強襲】の疲労元や、ネクサスを疲労させる支払いを止める）。phase指定時はそのステップ中のみ（BS09-063花の宮殿Lv2＝『お互いのアタックステップ』）
