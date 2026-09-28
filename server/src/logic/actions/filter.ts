@@ -12,7 +12,7 @@
 // 無言で無視されてしまうため、データ側の検査が必要）。
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
 import type { EffectAttempt } from "../../../../shared/rules"
-import { effectiveBp, iceWallColorsOf } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter } from "../../../../shared/rules"
 import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
 import { lastMovedOf } from "../record"
@@ -57,7 +57,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, maxCostAsSelf, maxLv1BpOfSelf, sameIceWallColorAs, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, sameIceWallColorAs, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -113,6 +113,14 @@ export function normalizeFilter(
         if (first === undefined) return SELF_REQUIRED
         const cost = getCard(first).cost
         resolved.cost = { min: cost, max: cost }
+    }
+
+    if (costSameAsOwn !== undefined) {
+        const costs = ctx.state.players[ctx.owner].field.spirits
+            .filter((s) => matchesFamilyFilter(ctx.state, ctx.owner, s, costSameAsOwn))
+            .flatMap((s) => instAllCosts(s))
+        if (costs.length === 0) return SELF_REQUIRED
+        resolved.cost = { in: [...new Set(costs)] }
     }
 
     // self と同じコスト（BS09-060緑翼の大樹：召喚された【暴風】持ちと同じコストの相手）。
