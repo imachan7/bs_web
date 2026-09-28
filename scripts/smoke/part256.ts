@@ -1,7 +1,7 @@
 // smoke パート256（BS10青バッチ2：未完成の古代戦艦：竜骨／ネクサスエクステンション／
 // オリオンパワー／エリダヌスフラッドの4枚を新規構造化。2026-08-28）
 //
-// 新設した機構: recoverMagicFromTrashのネクサス版アクション「recoverNexusFromTrash」
+// 新設した機構: トラッシュのネクサス1枚を手札に加える（2026-09-28 から toHand{pick nexus}）
 // （server/src/logic/actions/trashRecover.ts）。それ以外はすべて既存の器
 // （constraintGrant canBlockWhileRested targetMaxCost／levelAs treatAs:{plus:1}／
 // deployNexus from:"trash"／lendSelfThisTurn + fieldEvent ownSpiritDealtLife familyFilter／
