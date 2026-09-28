@@ -66,6 +66,7 @@ const RULE_COUNTERS = [
     "ownLife",
     "exhaustedEnemies",
     "targetSymbols",
+    "targetBofuCount",
     "ownRestedNexuses",
     "targetSameFamilyOwn",
     "readyEnemies",

@@ -5,7 +5,6 @@ import type { CardInstance } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import {
     applyMagicBuffBonus,
-    bofuCountFor,
     bpBuffTargetPasses,
     countEffectCounter,
     effectActiveAtLevel,
@@ -330,26 +329,6 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
 // （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
-const bpBuffAllByBofuCount: ActionHandler<"bpBuffAllByBofuCount"> = (ctx, action) => {
-    const { state, owner } = ctx
-        let count = 0
-        for (const s of state.players[owner].field.spirits) {
-            const bofu = bofuCountFor(state, owner, s)
-            if (bofu === 0) continue
-            recordBp(state, owner, s, action.amountPer * bofu, "turn")
-            count++
-        }
-        if (count === 0) {
-            log(state, `${state.players[owner].name}：【暴風】を持つスピリットがいなかった。`)
-            return
-        }
-        log(
-            state,
-            `${state.players[owner].name}の【暴風】を持つスピリット${count}体が、指定数に応じてBP増加（ターン終了時まで）。`,
-        )
-        return
-}
-
 const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
         // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体を疲労させ、
@@ -432,7 +411,6 @@ const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     colorlessSelfThisBattle,
     bpBuff,
-    bpBuffAllByBofuCount,
     selfBuffByExhaustFamily,
 } satisfies Partial<ActionRegistry>
 

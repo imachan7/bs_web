@@ -4851,8 +4851,17 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "bpBuffAllByBofuCount",
-     "amountPer": 2000
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000,
+       "amountCounter": "targetBofuCount"
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own"
     }
    },
    {
