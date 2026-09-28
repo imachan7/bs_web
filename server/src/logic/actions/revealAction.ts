@@ -281,12 +281,53 @@ function runSteps(ctx: ActionCtx, action: RevealActionT, srcPid: PlayerId, steps
     })
 }
 
+// pickCountが数値（2以上）のときの1ラウンド分：候補が尽きた／remainingが0ならrestへ、
+// それ以外は対話なら1枚選ぶ選択（resolveOnSkip＝選ばず終えたらrestへ）を出し、
+// 非対話ならmatchesPickに合うものを前からremaining枚まで自動で選ぶ
+function requestRevealPickRound(ctx: ActionCtx, action: RevealActionT, srcPid: PlayerId, remaining: number): void {
+    const { state, owner, sourceName, self } = ctx
+    const zone = state.revealedCards
+    const pool = zone ? zone.cardIds : []
+    const indices = pool.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick)).map((x) => x.i)
+    if (remaining <= 0 || indices.length === 0) {
+        runSteps(ctx, action, srcPid, [{ kind: "rest" }])
+        return
+    }
+    if (!state.interactiveTargets) {
+        const zoneNow = state.revealedCards!
+        const picks = [...indices.slice(0, remaining)].sort((a, b) => b - a).map((i) => zoneNow.cardIds.splice(i, 1)[0]!).reverse()
+        const steps: RevealStep[] = picks.map((cardId) => ({ kind: "pick" as const, cardId }))
+        steps.push({ kind: "rest" })
+        runSteps(ctx, action, srcPid, steps)
+        return
+    }
+    requestCardChoice(
+        state,
+        owner,
+        `${sourceName}：カードを選んでください（あと${remaining}枚まで。選ばずに終えることもできる）`,
+        "reveal",
+        indices,
+        true,
+        { ...action, pickCount: remaining },
+        self,
+        true,
+        true,
+    )
+}
+
 const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
     const from = action.from ?? "ownDeck"
     const srcPid: PlayerId = from === "opponentDeck" ? opp : owner
     const srcPlayer = state.players[srcPid]
     const pickCount = action.pickCount ?? 1
+
+    // pickCountがN（2以上）のラウンド中に「選ばず終える」を選んだ再入（requestRevealPickRoundの
+    // resolveOnSkipで、chosenCardIndexなしのままここへ戻ってくる。state.revealedCardsが残っているのが目印）
+    if (chosenCardIndex === undefined && typeof pickCount === "number" && state.revealedCards) {
+        runSteps(ctx, action, srcPid, [{ kind: "rest" }])
+        return
+    }
 
     // 再入：候補から1枚選ばれた（pickだけを解決する。「残り」はここでは触らない）。
     // スキップは resolveOnSkip を使わないためここへは来ない（PendingChoiceが黙って解消するだけ）。
@@ -307,6 +348,9 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
         if (pickedId !== undefined && zone) {
             zone.cardIds.splice(chosenCardIndex, 1)
             runSteps(ctx, action, srcPid, [{ kind: "pick", cardId: pickedId }])
+            if (typeof pickCount === "number" && pickCount >= 2) {
+                requestRevealPickRound(ctx, action, srcPid, pickCount - 1)
+            }
         }
         return
     }
@@ -350,6 +394,11 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
     }
     log(state, `${srcPlayer.name}は${from === "burst" ? "バースト" : `デッキ上${revealed.length}枚`}（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`)
     state.revealedCards = { pid: srcPid, cardIds: revealed }
+
+    if (typeof pickCount === "number" && pickCount >= 2) {
+        requestRevealPickRound(ctx, action, srcPid, pickCount)
+        return
+    }
 
     if (pickCount === 0) {
         runSteps(ctx, action, srcPid, [{ kind: "rest" }])

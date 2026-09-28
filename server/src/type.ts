@@ -84,6 +84,7 @@ export interface TargetFilter {
     colorNotIn?: Color[] // 並べた色以外の色を1つでも持つ（「指定されなかった色のスピリット」）
     declared?: "match" | "except" // declare の then の中だけで書く。解決前に color／family／cost／colorNotIn へ置き換わる（DECLARE_UNIFY §1）
     family?: FamilyFilter // 系統（配列＝いずれかでOR。付与系統も考慮）
+    familyExclude?: FamilyFilter // 並べた系統をどれも持たない（family の否定。付与系統も考慮。matchesFamilyFilterで判定。BS16-052）
     familyAll?: string[] // 指定した系統すべてを持つ（AND。familyのOR配列とは別軸。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     cost?: { max?: number; min?: number; in?: number[] } // in＝いずれかのコストと一致
     level?: number[] // currentLevel がこれに含まれる

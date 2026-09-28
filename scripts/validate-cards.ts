@@ -290,6 +290,7 @@ const VALID_FILTER_KEYS = new Set([
     "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
     "bofuExhausted", // このバトル中に【暴風】で疲労した相手のスピリット（R5。"self"=発生源の【暴風】限定）
     "damagedOwnLife", // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（R5）
+    "familyExclude", // familyの否定：並べた系統をどれも持たない（BS16-052）
 ])
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
