@@ -692,6 +692,32 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
         // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
         if (action.count !== undefined) {
+            // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
+            if (action.upTo && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.hand.length; i++) {
+                    if (matchesCardId(player.hand[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚まで。選ばない場合は終了します）`,
+                        "hand",
+                        indices,
+                        true,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                }
+                return
+            }
             let summonedCount = 0
             for (let n = 0; n < action.count; n++) {
                 let bestIdx = -1
@@ -1096,6 +1122,32 @@ const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, a
         // 決定的簡略化、count枚に満たなければ可能な分だけ。対象選択を伴わないため
         // choseCardIndex / interactiveTargets 分岐は不要）
         if (action.count !== undefined) {
+            // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
+            if (action.upTo && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.trashCards.length; i++) {
+                    if (matchesCardId(player.trashCards[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚まで。選ばない場合は終了します）`,
+                        "trash",
+                        indices,
+                        true,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                }
+                return
+            }
             let remaining = action.count
             const summonedNames: string[] = []
             while (remaining > 0) {

@@ -2,7 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
-import { currentLevel, getCard, log, minLevelCores, suspend } from "../GameState"
+import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import { recordTargets } from "../record"
 import {
     canExhaustNexus,
@@ -19,6 +19,7 @@ import {
     pickEnemyByBp,
     pickEnemyCandidates,
     requestChoice,
+    requestUpToChoice,
     returnSpiritToDeckTop,
     returnSpiritToHand,
     tryInteractiveTargetChoice,
@@ -162,6 +163,9 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         }
         const matchesLevel = (s: CardInstance) =>
             s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
+        // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
+        // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
+        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
         if (targetInstanceId && !action.excludeTarget) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -195,11 +199,33 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 found.inst.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
                 log(state, `${getCard(found.inst.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
             }
+            // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
+            if (action.upTo) {
+                recordTargets(state, [found.inst.instanceId])
+                const remaining = action.count - 1
+                if (remaining > 0) {
+                    const nextCandidates = (
+                        action.anySide
+                            ? pickAnySideCandidates(state, owner, (sp) => !sp.isRested && matchesLevel(sp), srcColors, srcType, "exhaust")
+                            : pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+                    ).map((s) => s.instanceId)
+                    requestUpToChoice(
+                        state,
+                        owner,
+                        action.anySide
+                            ? `${sourceName}：疲労させるスピリットを選んでください（あと${remaining}体まで）`
+                            : action.chooserIsTarget
+                              ? `${sourceName}：疲労させる自分のスピリットを選んでください（あと${remaining}体まで）`
+                              : `${sourceName}の疲労付与：対象を選んでください（あと${remaining}体まで）`,
+                        nextCandidates,
+                        { ...action, count: remaining },
+                        self,
+                        action.chooserIsTarget ? opp : undefined,
+                    )
+                }
+            }
             return
         }
-        // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
-        // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
-        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
         // interactive の選択後に再入するときは excludeTarget を落とす。
         // 残したままだと、プレイヤーが選んだ instanceId を「除外する対象」と誤読して自動選択に落ちてしまう
         const { excludeTarget: _excludeTarget, ...actionForChoice } = action
@@ -214,6 +240,17 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 srcType,
                 "exhaust",
             )
+            if (action.upTo && state.interactiveTargets) {
+                requestUpToChoice(
+                    state,
+                    owner,
+                    `${sourceName}：疲労させるスピリットを選んでください（あと${action.count}体まで）`,
+                    candidates.map((sp) => sp.instanceId),
+                    actionForChoice,
+                    self,
+                )
+                return
+            }
             if (
                 state.interactiveTargets &&
                 tryInteractiveTargetChoice(
@@ -257,6 +294,20 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         }
         if (state.interactiveTargets) {
             const candidates = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+            if (action.upTo) {
+                requestUpToChoice(
+                    state,
+                    owner,
+                    action.chooserIsTarget
+                        ? `${sourceName}：疲労させる自分のスピリットを選んでください（あと${action.count}体まで）`
+                        : `${sourceName}の疲労付与：対象を選んでください（あと${action.count}体まで）`,
+                    candidates.map((s) => s.instanceId),
+                    actionForChoice,
+                    self,
+                    action.chooserIsTarget ? opp : undefined,
+                )
+                return
+            }
             // chooserIsTarget（【暴風】）：疲労させられる側が自分で対象を選ぶ。
             // 解決は発生源の持ち主の効果として行う（tryInteractiveTargetChoice が actorPid を立てる）
             if (
@@ -350,20 +401,16 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
         return
     }
 
-    // 「◯つまで」は0〜count の好きな数（2026-09-28 ユーザー確認）。対話時は1つ選ぶたびに残りの数で聞き直し、
-    // 選ばずに終えたら残りも疲労させない（再開スタックに残りを積むと、スキップ後にまた聞いてしまう）
     const askNext = (remaining: number): void => {
-        const candidates = [...spiritCandidates(), ...nexusCandidates()]
-        if (remaining <= 0 || candidates.length === 0) return
-        suspend(state, {
-            pid: owner,
-            kind: "target",
-            prompt: `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
-            candidates: candidates.map((c) => c.instanceId),
-            optional: true,
-            action: { ...action, count: remaining },
-            selfInstanceId: self ? self.instanceId : null,
-        })
+        if (remaining <= 0) return
+        requestUpToChoice(
+            state,
+            owner,
+            `${sourceName}：疲労させる相手の${label}を選んでください（あと${remaining}つまで）`,
+            [...spiritCandidates(), ...nexusCandidates()].map((c) => c.instanceId),
+            { ...action, count: remaining },
+            self,
+        )
     }
 
     if (targetInstanceId !== undefined) {
@@ -383,7 +430,7 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
     }
 
     const count = action.count
-    if (state.interactiveTargets) {
+    if (state.interactiveTargets && action.upTo) {
         askNext(count)
         return
     }
@@ -510,6 +557,34 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             refreshSpirit(state, owner, chosen, srcType)
             if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, chosen)
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
+            // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
+            if (action.upTo) {
+                const remaining = (action.count ?? 1) - 1
+                if (remaining > 0) {
+                    const nextCandidates = refreshOneOwnCandidates(state, owner, self, filter).map((s) => s.instanceId)
+                    requestUpToChoice(
+                        state,
+                        owner,
+                        `${sourceName}：回復させるスピリットを選んでください（あと${remaining}体まで）`,
+                        nextCandidates,
+                        { ...action, count: remaining },
+                        self,
+                    )
+                }
+            }
+            return
+        }
+        // upTo（0〜count の好きな数を選べる）：既存の tryInteractiveTargetChoice（強制count体選択）とは
+        // 分けて、聞くたびに「選ばない」を残す requestUpToChoice を使う
+        if (action.upTo && state.interactiveTargets) {
+            requestUpToChoice(
+                state,
+                owner,
+                `${sourceName}：回復させるスピリットを選んでください（あと${action.count ?? 1}体まで）`,
+                candidates.map((s) => s.instanceId),
+                { ...action, chosenByPlayer: true },
+                self,
+            )
             return
         }
         // 実対戦では**どれを回復させるかはプレイヤーが選ぶ**（2026-08-23）。
