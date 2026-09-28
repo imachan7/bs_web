@@ -43,7 +43,13 @@
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
 3. **次の一手**：R5_TRIAGE §4 の要相談7種は 09-28 に3本の PR で実装（「残す」2種は据え置き）。残りは R5_TRIAGE §1 の「まとめる」グループの未着手分。
-   その後にまとめる残り（スフィン・クロス・スクルディア）
+   その後にまとめる残り（下の3本。スクルディア・ヘッジボルグ・クロノ・ハデスは固有として残す＝09-28 ユーザー了承）
+   **09-28 に決めた残りの書き方**（1本ずつ別 PR）
+   - `feat/treat-as-unblocked`：単純なアクション `treatAsUnblocked{ when?: "blockerLevel1" | "levelAtLeastBlocker" }`（バトルの解決で条件を見て BP を比べずライフに通す。印は `battle.treatAsUnblocked` の配列1つ）。旧3種（`treatAsUnblockedIfBlockerLevel1`・`…IfLevelAtLeastBlocker`・`unblockedByVoidSelfCore`）を移す。スフィン・クロスは `pay{removeCores{own, target self, 1, void}}`＋`treatAsUnblocked`
+   - スナイピングブラスト：`timedEffect{all, own, bp 2000 × カウンタ targetBofuCount}`（あとから出たスピリットにも効き、数え直す）
+   - レヴィアダン：絞り込みの軸 `costSameAsOwn: FamilyFilter`（自分の◯◯のスピリットのいずれかと同じコスト）
+   - ストレートフラッシュ：組み合わせ方の部品「同時に」（中の破壊の対象をまとめて1回で破壊待機に入れる）を足す（09-28 ユーザー了承 2a）
+   - スレイ・ウラノス：戻す直前の場のコストで判定（09-28 ユーザー了承 1a）。記録に「場を離れる直前のコスト」を足す。**合体スピリットのとき、合計コストかホストだけか未決**（今は合計）
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
 5. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 6. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
