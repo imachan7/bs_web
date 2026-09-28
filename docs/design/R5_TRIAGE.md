@@ -40,6 +40,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | chore/remove-life-charge | 使われなくなった旧 type | `lifeCharge` → smoke を `placeCores{to life}` へ書き換えて削除 |
 | feat/timed-next-refresh | G-refreshBlock の2種 | `markSkipNextRefresh`・`capOpponentTrashCoreReturnNextRefresh` → `timedEffect{duration nextRefresh}`（`markNoRefreshTarget` は期間が違うので残す） |
 | feat/recover-from-trash | トラッシュ→手札 | 単純なアクション `toHand{from trash, count, pick}` を新設。`recoverNexusFromTrash` → `toHand{pick nexus}`、`recoverAllMagicFromTrashByColorChoice` → `declare{autoFrom}`＋`toHand{count all}` |
+| feat/cost-same-as-own | G-delegate | `destroyByOwnFamilyCostSet` → `destroy{all, filter{costSameAsOwn: 系統}}`（normalizeFilter が cost.in に畳む） |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）
