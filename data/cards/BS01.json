@@ -1781,7 +1781,8 @@
     "action": {
      "type": "exhaust",
      "count": 2,
-     "anySide": true
+     "anySide": true,
+     "upTo": true
     },
     "optional": false
    }
@@ -5388,7 +5389,8 @@
      "type": "placeCores",
      "from": "reserve",
      "to": "spirit",
-     "count": 3
+     "count": 3,
+     "upTo": true
     }
    },
    {

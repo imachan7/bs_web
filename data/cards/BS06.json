@@ -3311,7 +3311,8 @@
     "action": {
      "type": "summonFromHandFree",
      "nameIncludes": "アルカナ",
-     "count": 4
+     "count": 4,
+     "upTo": true
     },
     "optional": true
    },
