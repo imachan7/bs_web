@@ -745,8 +745,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
 - `PlayerState`（型）：プレイヤーの状態
 - `BattleState`（型）：バトル（アタック〜解決まで）の状態
-- `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
-- `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
 - `GameState`（型）：ゲーム全体の状態（サーバーで一元管理）
 - `TimedContent`（型）：期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
 - `TimedRecord`（型）：期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
@@ -754,6 +752,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `PlayerView`（型）
 - `GameView`（型）
 - `GameAction`（型）
+
+## server/src/types/choice.ts
+
+- `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
+- `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
 
 ## server/src/types/effectAction.ts
 

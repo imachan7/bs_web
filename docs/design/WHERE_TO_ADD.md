@@ -29,7 +29,7 @@
 
 | 変更の種類 | 触るところ | 手本 | 罠 |
 | :-- | :-- | :-- | :-- |
-| 新しい `PendingChoice` の応答 | `doResolveChoice` に `if (pending.<印>)` の分岐を1つ足す（型は `type.ts`、UI は `public/src`） | `pending.blockBattlePick` | 分岐の最後は必ず `finishChoiceResolution` を返す（返さないと再開スタックが消化されず、後続の誘発が放置される）。**分岐の順番に意味がある**：`kind === "option"`／`"card"` の汎用分岐より前に置く |
+| 新しい `PendingChoice` の応答 | `doResolveChoice` に `if (pending.<印>)` の分岐を1つ足す（型は `types/choice.ts`、UI は `public/src`） | `pending.blockBattlePick` | 分岐の最後は必ず `finishChoiceResolution` を返す（返さないと再開スタックが消化されず、後続の誘発が放置される）。**分岐の順番に意味がある**：`kind === "option"`／`"card"` の汎用分岐より前に置く |
 | 新しい再開フレーム（`ResumeFrame` の kind） | `drainResumeStack` に `frame.kind === "…"` の分岐 | `battleResolve`（→ `resumeBattleResolution`） | 積むのは `pushResumeFrames`。挿入順の規則は RESUME_STACK.md |
 | 「やめた」ときに「ターンに1回」を戻す | `PendingChoice.revertActivated`／`revertTriggered` を立てる（戻すのは `revertActivatedIfSkipped`） | `GameEngine.doActivateAbility` | — |
 
