@@ -6603,7 +6603,12 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "recoverNexusFromTrash"
+          "type": "toHand",
+          "from": "trash",
+          "count": 1,
+          "pick": {
+            "cardType": "nexus"
+          }
         }
       },
       {

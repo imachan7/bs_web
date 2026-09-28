@@ -64,6 +64,7 @@ export type EffectAction =
  | { type: "returnToHand"; count: number; all?: true; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true; side?: "own"; filter?: TargetFilter; costSacrificeChosen?: true; costBudget?: EffectCounter; budgetLeft?: number } // costBudget＝好きなだけ・コストの合計がカウンタの値まで（count は使わない。budgetLeft は内部用）。side:"own"指定時は自分側のスピリットが対象。対象スピリットを持ち主の手札に戻す（破壊ではないためonDestroyは誘発しない）。maxBpFromSelf指定時はselfの実効BP以下の相手のみ。countPerOpponentNexus指定時は相手のネクサス数を対象数にする。anySide指定時は自分/相手どちらも対象にできる（自動選択は実効BP最大。同値は相手側優先）。filter指定時は対象自動選択・明示ターゲット両方に絞り込みを適用する
  // picked は選択の再開用（選び終わるまでゾーンから抜かない）。chooserIsTarget＝戻すカードの持ち主が選ぶ（「相手は手札1枚を選んで」）
  | { type: "toDeck"; from: "hand" | "trash"; side?: "opponent"; position: "top" | "bottom"; count: number; pick?: CardPick; chooserIsTarget?: true; picked?: number[]; upTo?: true } // upTo：countは上限。0〜count枚の好きな数を選べる（2026-09-28ユーザー決定）
+ | { type: "toHand"; from: "trash"; count: number | "all"; pick?: CardPick; picked?: number[] } // 自分のトラッシュのカードを手札に加える。picked は選択の再開用
  | { type: "returnToDeckTop"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter } // side:"own"指定時は自分側のスピリットが対象。filter指定時は対象の絞り込みに使う。count指定時はその体数ぶん繰り返す（1体ずつ選ぶので最後に選んだものがデッキの一番上＝「好きな順番で戻す」を表現。中断時は残り体数を再開スタックへ積む）。chooserIsTarget指定時は戻される側（相手）が対象を選ぶ（解決は発生源の持ち主の効果として行う）。対象スピリットを持ち主のデッキの一番上に戻す。anySide指定時は自分/相手どちらも対象にできる
  | { type: "returnToDeckBottom"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[] } // 対象スピリットを持ち主のデッキの一番下に戻す。軸の意味は returnToDeckTop と同じ（1体ずつ選ぶので「好きな順番で」を表す）。all指定時はfilterの候補すべてを対象にし、選んだ順に戻す（count/anySide/sideは無視。旧returnBofuExhaustedToDeckBottomの器。orderedIdsは内部専用＝選んだ順を再入で持ち回る）
  | { type: "setTargetBpAsThisBattle"; levels: number[]; amount: number } // targetInstanceId の1体に、このバトルの間「Lv◯BPを amount として扱う」（setOpponentBpAsThisBattle の、対象がイベントから渡る版）
@@ -140,7 +141,6 @@ export type EffectAction =
  | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版：二段階choiceパターンは同じだが、各自は**自分の**フィールドから1体を指定する（mutualDestroyChoiceは相手フィールドも選べるのに対しこちらは自陣のみ）。破壊待機中の発生源自身（self）は指定候補に含めない。指定された2体を除く両陣営のスピリットすべてを破壊する。自動選択は各自が自分のフィールドの実効BP最大（決定的簡略化）
  | { type: "summonSequence"; byFushi?: true } // byFushi指定時は【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnlyの判定に使う）。召喚が済んだ後の処理（召喚時効果→「召喚されたとき」誘発→天使長ファニムの疲労付与）をselfに対して行う。**内部専用**：【転召】の対象選択で中断したときに、GameEngineがpendingChoice.queueへ積んで選択の解決後に合流させるためだけに使う
  | { type: "recoverMagicFromTrash"; colors?: Color[]; anyCardType?: true; hasBurst?: true; onlyBurstDestroyedCard?: true } // onlyBurstDestroyedCard指定時は、**そのバースト発動のきっかけになった破壊で落ちたカード**だけが対象（burst.destroyedAsTargetがtargetInstanceIdの枠に入れたcardIdと一致するもの）。colors指定時は、そのいずれかの色を持つマジックカードだけを対象にする（カード静的なcolorsで判定）。anyCardType指定時はマジック限定を外し、カード種別を問わず対象にする。hasBurst指定時はkind:"burst"エントリを持つカードだけが対象。自分のトラッシュにあるマジックカード1枚（末尾＝新しい方）を手札に戻す
- | { type: "recoverNexusFromTrash"; colors?: Color[] } // recoverMagicFromTrashのネクサス版。自分のトラッシュにあるネクサスカード1枚（末尾＝新しい方）を手札に戻す（colors指定時はそのいずれかの色を持つネクサスカードだけを対象）
  | { type: "castMagicFromTrashByColor"; colorFilter?: Color } // 自分のトラッシュにある指定色（省略時は色不問）のマジックカード1枚を、手札にあるときと同様にコストを支払って使用する（自動時はコストが払える中で最もコストが高いものを自動選択。該当・支払い可能なカードがなければ不発）。この効果ではフィールドのコアは使えずリザーブのみで支払う簡略化。発動タイミングはこの効果自体の発火位置で決まる（バトル中ならflash、それ以外はメイン優先）
  | { type: "magicMirrorRepeat" } // このフラッシュタイミングで相手が直前に使用したマジックカードの効果を、自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCastを参照し、相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止）
  | { type: "magicFreeUseFromHandOrTegamoto"; colorFilter?: Color; handOnly?: true } // 自分の手札/手元(tegamoto。要tegamotoPlayable)にあるマジックカード1枚を選び、コストを支払わずに使用する（任意。候補0なら不発）。自動選択は手札→手元の順でコスト最大（決定的簡略化）。resolveMagicへpaidCost=falseを渡すため、この使用からownMagicUsedのpaidCostOnlyは連鎖しない。カード側でoptional:trueと併用する。colorFilter指定時はこの色を持つマジックカードのみ候補にする。handOnly指定時は手元(tegamoto)を候補から外し、手札のみにする
@@ -196,7 +196,7 @@ export type EffectAction =
  | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
  // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。from＝選ぶ人の場の spirits／nexuses から候補を取る。picked は再開用
  | { type: "fireEffect"; trigger: "onSummon" | "onDestroy"; all?: true; filter?: TargetFilter; oneEffect?: true; chosenId?: string; instanceIds?: string[] } // chosenId・instanceIds は再開用
- | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
+ | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number; until?: CardPick } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
  | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）
@@ -231,7 +231,6 @@ export type EffectAction =
  | { type: "drawUpTo"; size: number } // 自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op。デッキ切れ判定はdrawへ委譲）
  | { type: "moveCoresLeavingOne"; anySide?: true; selfTarget?: true; allowNexusDest?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（フィールドの先頭側＝決定的簡略化）へ移す。移動先がいなければ不発。selfTarget指定時は対象を発生源自身に固定し、allowNexusDest指定時は移し先のスピリットがいなければ自分のネクサス（先頭側）へ移す
  | { type: "swapOpponentCores"; choosing?: true; firstChosen?: string } // 効果文が「相手のスピリット2体を**指定する**」なので、実対戦では2体とも持ち主が選ぶ（2026-08-24。自動選択は実効BP上位2体）。choosing/firstChosenは選択の進み具合を持ち回る内部専用（choosingが無いtargetInstanceIdは誘発が渡すイベント対象なので取り違えない）。相手のスピリット2体の上のコアをすべて入れ替える。相手のスピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する
- | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（。候補1色以下・自動選択は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
  | {
  type: "summonRepeatFromHand"
  mode: "free" | "paid" // free=summonFromHandFreeと同じくコストを支払わず維持コアのみリザーブから払う（extraReserveCostPerSummon指定時は1体ごとにさらにリザーブのコアをその数だけ自分のトラッシュへ）。paid=effectiveCostで通常のコストを計算し、維持コア+コストをリザーブから支払う（コスト分はtrashCoresへ。field由来の支払いは非対応）

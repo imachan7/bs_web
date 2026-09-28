@@ -26,6 +26,7 @@ import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
 import toDeck from "./toDeck"
+import toHand from "./toHand"
 import declare from "./declare"
 import fireEffect from "./fireEffect"
 
@@ -54,6 +55,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...timedEffect,
     ...trashRecover,
     ...toDeck,
+    ...toHand,
     ...declare,
     ...fireEffect,
 }
