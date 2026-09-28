@@ -1742,52 +1742,21 @@ const detachBraveHandler: ActionHandler<"detachBrave"> = (ctx, action) => {
     }
 }
 
-// 強者統べる大地Lv2：実効BPがminBp以上の自分のスピリット1体に「このターン1回だけブロックされない」印を付ける。
-// 「1体を指定する」は実効BP最大の1体に固定した決定的簡略化（同BPならフィールドの先頭側）
-// BS09-044妖精の姫巫女ハマ・ドリュアス：このバトルに「ブロッカーがLv1なら
-// BPを比べずブロックされなかった扱いにする」印を立てる（判定はバトル解決側）
-const treatAsUnblockedIfBlockerLevel1Handler: ActionHandler<"treatAsUnblockedIfBlockerLevel1"> = (ctx) => {
+const TREAT_AS_UNBLOCKED_LABEL = {
+    always: "BPを比べずブロックされなかったものとして扱う。",
+    blockerLevel1: "Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。",
+    levelAtLeastBlocker: "ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。",
+} as const
+
+const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action) => {
     const { state, sourceName } = ctx
     if (!state.battle) {
         log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
         return
     }
-    state.battle.treatAsUnblockedIfBlockerLevel1 = true
-    log(state, `${sourceName}：Lv1のスピリットにブロックされても、ブロックされなかったものとして扱う。`)
-}
-
-// BS15-045虚獣帝スフィン・クロス：trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。
-// selfが現在のバトルのアタッカーで、ブロッカーがいて、コアが1個以上あるときだけ、
-// selfのコア1個をボイドに置いてBPを比べずブロックされなかった扱いにする（判定はバトル解決側）
-const unblockedByVoidSelfCoreHandler: ActionHandler<"unblockedByVoidSelfCore"> = (ctx) => {
-    const { state, self, sourceName } = ctx
-    if (!state.battle || !state.battle.blockerInstanceId) {
-        log(state, `${sourceName}：発動しなかった。`)
-        return
-    }
-    if (!self || self.instanceId !== state.battle.attackerInstanceId) {
-        log(state, `${sourceName}：発動しなかった。`)
-        return
-    }
-    if (self.cores <= 0) {
-        log(state, `${sourceName}：コアが無いため発動しなかった。`)
-        return
-    }
-    self.cores -= 1
-    state.battle.treatAsUnblockedByCost = true
-    log(state, `${sourceName}：コア1個をボイドに置き、BPを比べずブロックされなかったものとして扱う。`)
-}
-
-// SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら、BPを比べずに
-// 「ブロックされなかった」ものとして扱う（treatAsUnblockedIfBlockerLevel1 の一般化版）
-const treatAsUnblockedIfLevelAtLeastBlockerHandler: ActionHandler<"treatAsUnblockedIfLevelAtLeastBlocker"> = (ctx) => {
-    const { state, sourceName } = ctx
-    if (!state.battle) {
-        log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
-        return
-    }
-    state.battle.treatAsUnblockedIfLevelAtLeastBlocker = true
-    log(state, `${sourceName}：ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。`)
+    const when = action.when ?? "always"
+    state.battle.treatAsUnblocked = [...(state.battle.treatAsUnblocked ?? []), when]
+    log(state, `${sourceName}：${TREAT_AS_UNBLOCKED_LABEL[when]}`)
 }
 
 
@@ -1854,9 +1823,7 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 
 const handlers = {
     endBattle: endBattleHandler,
-    treatAsUnblockedIfBlockerLevel1: treatAsUnblockedIfBlockerLevel1Handler,
-    unblockedByVoidSelfCore: unblockedByVoidSelfCoreHandler,
-    treatAsUnblockedIfLevelAtLeastBlocker: treatAsUnblockedIfLevelAtLeastBlockerHandler,
+    treatAsUnblocked: treatAsUnblockedHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,

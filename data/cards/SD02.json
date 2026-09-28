@@ -1034,7 +1034,8 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "treatAsUnblockedIfLevelAtLeastBlocker"
+          "type": "treatAsUnblocked",
+          "when": "levelAtLeastBlocker"
         }
       }
     ]
