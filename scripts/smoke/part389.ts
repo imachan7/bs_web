@@ -18,7 +18,7 @@ console.log("=== ジャノメ・シールダー：指定した相手のスピリ
     other.isRested = true
     s.players.p2.field.spirits = [target, other]
     refreshLevelAsOverrides(s)
-    const effect = getCard("BS11-055").effects.find((e) => JSON.stringify(e).includes("markSkipNextRefresh")) as { action: Parameters<typeof resolveAction>[3] }
+    const effect = getCard("BS11-055").effects.find((e) => JSON.stringify(e).includes("skipRefresh")) as { action: Parameters<typeof resolveAction>[3] }
     resolveAction(s, "p1", null, effect.action, target.instanceId)
     assert(timedHas(s, target, "skipRefresh"), "指定したスピリットに記録が付く")
 

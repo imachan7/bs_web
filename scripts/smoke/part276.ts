@@ -99,7 +99,7 @@ console.log("=== §E BS11-055：指定されたスピリットは次のリフレ
     // 相手（p2）のジャノメ・シールダーが、疲労状態のスピリット1体を指定する
     void JANOME
     other.isRested = false // 候補を1体に絞る（自動選択の対象を固定する）
-    resolveAction(s, "p2", null, { type: "markSkipNextRefresh", filter: { rested: true } })
+    resolveAction(s, "p2", null, { type: "timedEffect", content: [{ type: "skipRefresh" }], duration: "nextRefresh", filter: { rested: true } })
     assert(timedHas(s, target, "skipRefresh"), "指定された側に「次のリフレッシュで回復しない」が掛かる")
     other.isRested = true
     runRefreshStep(s)

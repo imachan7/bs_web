@@ -37,6 +37,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | feat/filter-recorded-sets | 要相談（記録の絞り込み） | `returnBofuExhaustedToDeckBottom`・`returnBofuExhaustedToHand`・`destroyLifeDamager` → 絞り込み `bofuExhausted`・`damagedOwnLife`（内部軸 `instanceIn`）＋`returnToDeckBottom{all}`／`returnToHand{all}`／`destroy` |
 | feat/exhaust-nexus-family | 要相談（疲労） | `exhaustOpponentSameFamilyAll`・`exhaustAllOpponentNexuses`・`exhaustSpiritsAndNexusesUpTo` → `exhaust`＋絞り込み `sameFamilyAsDestroyed`／`nexus: "only"｜"also"` |
 | feat/pay-peek-mill-color | 要相談（pay・継続効果の色） | `costDiscardNamedThenPeek` → `pay`＋`discardSelfChoose{cardName}`＋`peekOpponentHand`、`millOpponentThenReact` → `sequence`＋`timedEffect{playerRule battle, bannedColors "last"}`、`lifeCharge` の埋め込みコスト → `pay{mill own}`＋`sequence`（`lifeCharge` 本体はカード0枚・smoke だけが使う） |
+| feat/timed-next-refresh | G-refreshBlock の2種 | `markSkipNextRefresh`・`capOpponentTrashCoreReturnNextRefresh` → `timedEffect{duration nextRefresh}`（`markNoRefreshTarget` は期間が違うので残す） |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
 - 「指定する」部品（色・コスト・系統を1つ指定して後ろで使う）へ：`destroyAllByChosenCost`・`recoverAllMagicFromTrashByColorChoice`・`grantFamilyChoiceAll`（G-exceptColor・G-familyChoice と一緒に）

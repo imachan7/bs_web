@@ -5,7 +5,7 @@
 // BA/BC=immunityGrant vanillaFilter+phaseTurn／H=magicRestriction noSpiritCoresOpponent・whileCombined／
 // BH=destroyByOwnFamilyCostSet／BI=refreshSelf costDestroyOwnVanillaSpirit／BG=destroy lowestCost／
 // BF=discardOpponent revealAllHandIfNone／G=globalConstraint noSummonByEffect／
-// F=capOpponentTrashCoreReturnNextRefresh／BE=handReductionColorAsThisTurn／colorAs ownNexusesAll／
+// F=timedEffect{trashCoreReturnCap}／BE=handReductionColorAsThisTurn／colorAs ownNexusesAll／
 // 083=revealAndPlaceNexusFree・bpBuff vanillaFilter
 import {
     assert,
@@ -237,11 +237,11 @@ console.log("=== G: 072Lv1 globalConstraint noSummonByEffect（両陣営・メ�
     assert(s.players.p1.hand.length === 1, "手札のカードも消費されない")
 }
 
-console.log("=== F: 047召喚時 capOpponentTrashCoreReturnNextRefresh（次の相手のリフレッシュステップだけ制限） ===")
+console.log("=== F: 047召喚時 timedEffect{trashCoreReturnCap}（次の相手のリフレッシュステップだけ制限） ===")
 {
     const s = game("f-caprefresh")
     s.players.p2.trashCores = 10
-    resolveAction(s, "p1", null, { type: "capOpponentTrashCoreReturnNextRefresh", max: 3 })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "trashCoreReturnCap", max: 3 }], duration: "nextRefresh" })
     assert(s.timedEffects.some((r) => r.target.kind === "player" && r.target.pid === "p2" && r.content.some((c) => c.type === "trashCoreReturnCap" && c.max === 3)), "相手の次のリフレッシュステップ用の上限が記録される")
     const reserveBefore = s.players.p2.reserve
     endTurn(s) // p1 -> p2 のターン開始（p2のリフレッシュステップを実行）
