@@ -182,6 +182,12 @@ export function millDeck(
     // eventCount には実破棄枚数を渡し、minEventCount で閾値判定する
     if (actual > 0 && !state.winner) {
         fireFieldEventTriggers(state, opponentOf(pid), "opponentDeckMilled", undefined, undefined, undefined, actual)
+        // ownDeckMilledの鏡：破棄された側（pid）のフィールドから発火。byOpponentSpiritEffectOnlyの判定は
+        // 既存のbySpiritEffect（相手のスピリットの効果による破棄か）をそのまま使う（BS16-039）
+        state.lastDeckMill = { pid, cardIds: [...milled] }
+        fireFieldEventTriggers(state, pid, "ownDeckMilled", undefined, undefined, undefined, actual, {
+            bySpiritEffect: byOpponent && cause?.sourceType === "spirit",
+        })
     }
     // 破棄されたカード自身の『デッキから破棄されたとき』（kind:"onMilledFromDeck"）。
     // 上のフィールド誘発の**後**に処理する（破棄そのものは先に確定させる）

@@ -15,10 +15,24 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
     const zone = action.from === "hand" ? player.hand : player.trashCards
     const picked = action.picked ?? []
     const chooser = action.chooserIsTarget ? zonePid : owner
+    // fromEvent：state.lastDeckMillが記録した直近の破棄ぶんだけを候補にする（BS16-039）。
+    // 破棄は末尾へ連続してpushされるので、簡略化として**トラッシュ末尾のうち破棄枚数ぶん**を対象にする
+    // （破棄からこのアクションまでの間に他の効果がトラッシュへ何も足していない前提。限界：割り込みで
+    // 別のカードがトラッシュへ積まれた場合はずれうる）
+    const eventTailStart =
+        action.fromEvent && state.lastDeckMill?.pid === zonePid
+            ? Math.max(0, zone.length - state.lastDeckMill.cardIds.length)
+            : undefined
     const choosable = (exclude: number[]): number[] =>
         zone
             .map((id, j) => ({ id, j }))
-            .filter(({ id, j }) => !exclude.includes(j) && matchesPick(id, action.pick) && (action.from === "hand" || !isTrashCardProtected(id)))
+            .filter(
+                ({ id, j }) =>
+                    !exclude.includes(j) &&
+                    matchesPick(id, action.pick) &&
+                    (action.from === "hand" || !isTrashCardProtected(id)) &&
+                    (eventTailStart === undefined || j >= eventTailStart),
+            )
             .map(({ j }) => j)
 
     const finish = (order: number[]): void => {
