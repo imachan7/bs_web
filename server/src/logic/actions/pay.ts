@@ -30,7 +30,7 @@ export const PAYABLE_TYPES = [
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence",
+    "peekOpponentHand", "sequence", "treatAsUnblocked",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
@@ -111,6 +111,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return achievable >= need
     },
     refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
+    treatAsUnblocked: (state) => (state.battle?.blockerInstanceId ?? null) !== null,
     nexusCoresToTrash: (state, owner, _self, action, _srcColors, srcType) => {
         if (action.type !== "nexusCoresToTrash") return false
         return nexusHasCoresForPay(state, owner, action, srcType)

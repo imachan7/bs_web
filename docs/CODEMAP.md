@@ -142,6 +142,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasHandKeywordGrant`（fn）：緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
 - `spiritHasFamily`（fn）
 - `matchesFamilyFilter`（fn）：FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
+- `bofuCountBonusFor`（fn）：持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
+- `bofuCountFor`（fn）：このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
 
 ## shared/rules/level.ts
 
@@ -459,8 +461,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/keywords/bofu.ts
 
-- `bofuCountBonusFor`（fn）：持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
-- `bofuCountFor`（fn）：このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
 - `hasBofuOnBlock`（fn）：持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
 - `hasBofuChooserSelf`（fn）：持ち主のフィールドに bofuChooserSelf（BS07ワールウィンド）が有効な発生源があるか。
 
