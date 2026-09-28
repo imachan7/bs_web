@@ -2993,7 +2993,8 @@
         "granted": {
           "trigger": "onAttack",
           "action": {
-            "type": "treatAsUnblockedIfBlockerLevel1"
+            "type": "treatAsUnblocked",
+              "when": "blockerLevel1"
           }
         }
       }
