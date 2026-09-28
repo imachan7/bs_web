@@ -45,6 +45,7 @@
 3. **次の一手**：R5_TRIAGE §4 の要相談7種は 09-28 に3本の PR で実装（「残す」2種は据え置き）。残りは R5_TRIAGE §1 の「まとめる」グループの未着手分。
    `lifeCharge` はカード0枚で smoke だけが使う（`validate-cards.ts` の AWAITING_MIGRATION）。smoke を `placeCores{to life}` へ書き換えたら消せる
    その後にまとめる残り（スフィン・クロス・次のリフレッシュステップまでの3種・トラッシュ→手札の2種）
+   **G-refreshBlock（`feat/timed-next-refresh`）**：`timedEffect.duration` に `"nextRefresh"` を足す。`markSkipNextRefresh`→`timedEffect{content:[skipRefresh], duration nextRefresh, filter}`（相手1体・非対話は BP 最大）、`capOpponentTrashCoreReturnNextRefresh`→`timedEffect{content:[trashCoreReturnCap], duration nextRefresh}`（相手プレイヤーに掛ける）。`markNoRefreshTarget`（スクルディア）は期間が「発生源が疲労状態で場にいる間」なので残す
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
 5. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 6. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
