@@ -6072,8 +6072,12 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyByOwnFamilyCostSet",
-          "familyFilter": "獣頭"
+          "type": "destroy",
+          "count": 1,
+          "all": true,
+          "filter": {
+            "costSameAsOwn": "獣頭"
+          }
         }
       },
       {

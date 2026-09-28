@@ -43,6 +43,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | feat/treat-as-unblocked | ブロックされなかった扱い | `treatAsUnblockedIfBlockerLevel1`・`treatAsUnblockedIfLevelAtLeastBlocker`・`unblockedByVoidSelfCore` → `treatAsUnblocked{when}`（スフィン・クロスは `pay`＋`removeCores{self→void}`） |
 | feat/bofu-count-bp | 【暴風】の数ぶんの BP | `bpBuffAllByBofuCount` → `timedEffect{all, own, bp × カウンタ targetBofuCount}`（あとから出たスピリットにも効く。09-28 ユーザー了承）。`bofuCountFor` は shared/rules/keywordState.ts へ |
 | feat/return-then-refresh-cost | G-sequence | `returnOneThenRefreshIfMaxCost` → `sequence`＋`returnToHand{1}`＋`if{last cost max 4}`＋`refreshOne`（待機状態に入ったときのコストを記録） |
+| feat/cost-same-as-own | G-delegate | `destroyByOwnFamilyCostSet` → `destroy{all, filter{costSameAsOwn: 系統}}`（normalizeFilter が cost.in に畳む） |
 | feat/destroy-together | G-sequence | `destroyOwnByFamilyThenWipeEnemy` → 組み合わせ方の部品 `simultaneous`＋`destroy{all, side own, family}`＋`destroy{all}` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
