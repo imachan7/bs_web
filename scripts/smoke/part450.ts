@@ -53,14 +53,41 @@ console.log("=== §B 対象選択のあと、トラッシュへ置かれ thenPay
     assert((s.pendingChoice?.candidates ?? []).length === 2, "破壊する対象を選ぶ")
     act(s, "p1", { type: "resolveChoice", instanceId: ids[0]! })
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === ids[0]), "選んだスピリットが破壊される")
-    assert(s.players.p1.burst === null && s.players.p1.burstSet === false, "バーストエリアが空になる")
-    assert(s.players.p1.trashCards.includes("BS14-096"), "バーストのカードはトラッシュへ")
     assert(s.pendingChoice?.burstThenPay !== undefined, "フラッシュ効果を発揮するかの確認が出る")
+    assert(s.players.p1.burst === "BS14-096" && !s.players.p1.trashCards.includes("BS14-096"), "フラッシュ効果もバースト効果の一部なので、確認中はまだバーストエリアにある")
     const reserve = s.players.p1.reserve
     act(s, "p1", { type: "resolveChoice" })
     assert(s.pendingChoice === null, "断れば選択待ちは残らない")
     assert(s.players.p1.reserve === reserve, "断ればコストは払わない")
-    assert(s.players.p1.trashCards.includes("BS14-096") && s.players.p1.burst === null, "断ってもカードはトラッシュのまま")
+    assert(s.players.p1.trashCards.includes("BS14-096") && s.players.p1.burst === null && s.players.p1.burstSet === false, "断ったらトラッシュへ置かれる")
+}
+
+console.log("=== §C 発揮中のバーストは自分自身をトラッシュから回収できない（爆烈十紋刃。2026-09-28 ユーザー確認） ===")
+{
+    const c = getCard("SD06-014")
+    assert(c.name === "爆烈十紋刃" && c.effects.some((e) => e.kind === "burst" && e.thenPay === "main"), "SD06-014 は爆烈十紋刃（メインの thenPay）")
+    const s = createGame("p450-c", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "white" })
+    s.interactiveTargets = true
+    runTurnStart(s)
+    s.players.p1.reserve = 20
+    s.players.p2.field.spirits = []
+    s.players.p1.burst = "SD06-014"
+    s.players.p1.burstSet = true
+    s.players.p1.trashCards = []
+    const inst = createInstance("BS06-037", s.turn, 1)
+    s.players.p2.field.spirits.push(inst)
+    fireFieldEventTriggers(s, "p1", "opponentSummonEffectResolved", undefined, undefined, undefined, undefined, { costs: [getCard("BS06-037").cost] })
+    let guard = 0
+    while (s.pendingChoice && guard++ < 10) {
+        const pc = s.pendingChoice
+        if (pc.burstActivate || pc.burstThenPay) act(s, pc.pid, { type: "resolveChoice", option: pc.options?.[0] ?? "発動する" })
+        else if ((pc.candidates ?? []).length) act(s, pc.pid, { type: "resolveChoice", instanceId: pc.candidates[0]! })
+        else if ((pc.cardIndices ?? []).length) act(s, pc.pid, { type: "resolveChoice", cardIndex: pc.cardIndices![0]! })
+        else act(s, pc.pid, { type: "resolveChoice" })
+    }
+    assert(s.players.p1.reserve < 20, "コストを支払ってメイン効果を発揮した")
+    assert(!s.players.p1.hand.includes("SD06-014"), "メイン効果で自分自身は手札に戻らない")
+    assert(s.players.p1.trashCards.includes("SD06-014") && s.players.p1.burst === null, "発揮し終えてからトラッシュへ置かれる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part450）")

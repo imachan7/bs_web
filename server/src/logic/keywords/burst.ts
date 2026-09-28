@@ -39,9 +39,11 @@ export function announceBurstActivation(state: GameState, pid: PlayerId, cardId:
     emitEvent(state, { type: "burst", pid, cardName: name })
 }
 
-// バースト効果の解決から後（トラッシュ行き → thenPay の確認 → 「自分のバースト発動後」の誘発）を進める。
-// バースト効果が対象選択などで中断していたら、その場では何もせず再開スタックに積む。
-// 積まないと、選択の解決後に誰も後始末をせず、カードがバーストエリアに残り thenPay も聞かれない（2026-09-28 発覚）
+// バースト効果の解決から後を進める：thenPay（その後コストを支払うことで〜）→ カードをトラッシュへ → 「自分のバースト発動後」。
+// 発動したバーストは、効果を発揮し終わるまでバーストエリアに残り「セット状態」として扱う（2026-09-28 ユーザー確認。
+// 爆烈十紋刃のメイン効果が、発揮中の自分自身をトラッシュから手札に戻せてしまっていた）。
+// どの段で選択待ちになっても、残りは再開スタックに積む。積まないと、選択の解決後に後始末をする処理が無く、
+// カードがバーストエリアに残ったままになる（2026-09-28 発覚）
 type BurstFinishFrame = Extract<ResumeFrame, { kind: "burstFinish" }>
 export function continueBurstActivation(state: GameState, frame: BurstFinishFrame): void {
     if (state.winner) return
@@ -51,19 +53,21 @@ export function continueBurstActivation(state: GameState, frame: BurstFinishFram
     }
     if (frame.stage === "finish") {
         if (frame.alsoDraw) resolveAction(state, frame.pid, null, { type: "draw", count: 1 })
-        finishBurstActivation(state, frame.pid, frame.cardId, frame.actionType, frame.thenPay, frame.toHand ? { toHand: true } : undefined)
+        tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay)
         if (state.winner) return
         if (state.pendingChoice) {
-            pushResumeFrames(state, [{ ...frame, stage: "notify" }])
+            pushResumeFrames(state, [{ ...frame, stage: "settle" }])
             return
         }
+    }
+    if (frame.stage !== "notify") {
+        finishBurstActivation(state, frame.pid, frame.cardId, frame.actionType, frame.toHand ? { toHand: true } : undefined)
     }
     fireOwnBurstActivated(state, frame.pid, new Set(frame.before), frame.cardId)
 }
 
-// バースト発動の後処理（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
-// バーストエリアを空にするだけ、それ以外（マジック相当）は解決後にトラッシュへ送る。
-// 続けて thenPay（「その後コストを支払うことで、このカードのメイン/フラッシュ効果を発揮する」）を確認する。
+// 発揮し終えたバーストの行き先（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+// バーストエリアを空にするだけ、それ以外（マジック相当）はトラッシュへ送る。
 // **resolveMagicは経由しない**（マジックバーストは「バースト発動」であって「マジックの使用」ではないため。
 // state.magicUsedThisTurn / ownMagicUsed・opponentMagicUsedの誤発火を避ける）
 export function finishBurstActivation(
@@ -71,7 +75,6 @@ export function finishBurstActivation(
     pid: PlayerId,
     cardId: string,
     actionType: EffectAction["type"],
-    thenPay: "main" | "flash" | undefined,
     opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
@@ -95,7 +98,6 @@ export function finishBurstActivation(
         player.burst = null
         player.burstSet = false
     }
-    tryBurstThenPay(state, pid, cardId, thenPay)
 }
 
 function tryBurstThenPay(

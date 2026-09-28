@@ -11,7 +11,7 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { endTurn } from "../../server/src/logic/PhaseManager"
-import { finishBurstActivation } from "../../server/src/logic/EffectModules"
+import { continueBurstActivation } from "../../server/src/logic/EffectModules"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
 const BURST_MAGIC_MAIN = "BS14-092" // 烈光閃刃（メイン効果のみ持つバーストマジック。thenPay:"main"）
@@ -71,7 +71,7 @@ console.log("=== 2. burstMagicFreeEffect：持ち主がいれば、バースト�
         s.players.p1.burst = BURST_MAGIC_MAIN
         s.players.p1.burstSet = true
         const reserveBefore = s.players.p1.reserve
-        finishBurstActivation(s, "p1", BURST_MAGIC_MAIN, "draw", "main")
+        continueBurstActivation(s, { kind: "burstFinish", stage: "finish", pid: "p1", cardId: BURST_MAGIC_MAIN, actionType: "draw", thenPay: "main", before: [] })
         assert(s.pendingChoice?.kind === "option" && s.pendingChoice.confirm !== true, "コスト払い/無償の選択肢が立つ（発動確認confirmではない）")
         const options = s.pendingChoice?.options ?? []
         assert(options.some((o) => o.includes("コストを支払わずにメイン")), "無償でメイン効果の選択肢がある")
@@ -91,7 +91,7 @@ console.log("=== 3. burstMagicFreeEffectを持たなければ、従来どおり�
     const s = game("p439-burstfree-none", true)
     s.players.p1.burst = BURST_MAGIC_MAIN
     s.players.p1.burstSet = true
-    finishBurstActivation(s, "p1", BURST_MAGIC_MAIN, "draw", "main")
+    continueBurstActivation(s, { kind: "burstFinish", stage: "finish", pid: "p1", cardId: BURST_MAGIC_MAIN, actionType: "draw", thenPay: "main", before: [] })
     assert(s.pendingChoice?.confirm === true, "burstMagicFreeEffectが無ければ従来どおりの発動確認（confirm）になる")
 }
 

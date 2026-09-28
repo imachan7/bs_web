@@ -116,6 +116,8 @@ console.log("=== C. 任意の召喚時効果を「使わない」なら発動し
     }
     // 相手のバーストは相手に発動確認が出る（対話モード）。出ていれば承認する
     if (s.pendingChoice?.pid === "p2") act(s, "p2", { type: "resolveChoice", option: s.pendingChoice.options?.[0] ?? "発動する" })
+    // thenPay もバースト効果の一部なので、断るまではバーストエリアに残る（BURST.md §5.5）
+    if (s.pendingChoice?.burstThenPay) act(s, "p2", { type: "resolveChoice" })
     assert(s.players.p2.burst === null, "召喚時効果を解決しきった後に相手のバーストが発動する")
 }
 
