@@ -214,7 +214,6 @@ export type EffectAction =
  | { type: "discardOpponentTegamoto" } // 相手の手元をすべてトラッシュへ。破棄したカードを GameState.lastMoved に書く（IF_UNIFY.md §5）
  // **破棄をすべて済ませてからまとめてドローする**。1枚破棄するたびにドローすると、引いたカードをまた破棄できてデッキが尽きるまで回せてしまう（2026-08-10 に実対戦で発覚）。
  // discardedSoFar / awaitingSkip は解決の途中経過を持ち回るための内部フィールドで、cards.json には書かない（awaitingSkip は「スキップされて戻ってきた＝破棄終了」の目印）
- | { type: "bpBuffAllByBofuCount"; amountPer: number } // 自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数（静的keywordのcount。bofuCountBonusの加算を含む）×amountPerだけBP+（ターン終了時まで。【暴風】を持たない個体は対象外。bpBuffAllByArmorColorsの暴風版）
  | { type: "lendSelfThisTurn" } // このマジック自身を、このターンの間だけ自分の仮想発生源（PlayerState.turnVirtualInstances）として場に置いたものとして扱う。
  | { type: "targetChoiceLendThisTurn" } // 「スピリット1体は」（どちらの陣営でもよい）を選び、このターンの間その1体だけへ効果を貸す。colorChoiceLendThisTurnの対象インスタンス版（sourceCardId経由でlendSelfThisTurnと同じ仮想発生源を積み、CardInstance.lentChoiceInstanceIdに選んだインスタンスIDを載せる）メロディアスハープ
  // 同じカードの他の効果エントリ（levels:null必須）が effectSources() 経由で継続効果として一斉に有効になる（TURN_EFFECT_SOURCES.md §3）

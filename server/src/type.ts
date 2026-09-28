@@ -174,6 +174,7 @@ export type EffectCounter =
     // 効果文が「このスピリット以外の」と書いていないため。SD02-015 フレンドリーパワー）。
     // targetSymbols と同じく、対象を選んだ後に logic/counted.ts が数える（countEffectCounter には来ない）
     | "targetSymbols" // **対象スピリット自身**（bpBuffが解決するtargetInstanceId等）が持つシンボル数。selfSymbolsと異なりself（発生源）ではなく対象基準。マジックはself=nullのためselfSymbolsが使えない場合に使う（対象を選んだ後に logic/counted.ts が数える。BS06サベージパワー）
+    | "targetBofuCount" // 対象自身が持つ【暴風】の指定数（bofuCountFor）
     | "lastFunsaiTotal" // 直前の【粉砕】で破棄した総枚数（GameState.lastFunsai。次のアタック宣言でリセット。BS03巨人王ランドルフ）
     | "lastFunsaiSpirits" // 直前の【粉砕】で破棄したカードのうちスピリットカードの枚数（GameState.lastFunsai。BS04二刀流のアムブローズ）
     | "ownCombinedSpirits" // 自分のフィールドの合体スピリット数（braveRefsを持つホストの数。instIsCombinedで判定。BS10-029木星神龍ノブナガード・ゼウシスLv2-3＝「自分の合体スピリット1体につき」）
@@ -318,6 +319,7 @@ export type AuraCounter =
     | "allNexuses" // 両者のネクサス数の合計
     | "ownExhausted" // 自分の疲労スピリット数
     | "targetArmorColors" // **対象自身**（発生源ではない）が持つ【装甲】の指定色数。静的・一時付与・継続付与を合算・重複除く（BS05アイシクルアサルト）
+    | "targetBofuCount" // 対象自身が持つ【暴風】の指定数（bofuCountFor）
     | "targetReductionSymbols" // **対象自身**の軽減シンボルの数（カード静的な reduction の個数。SD01-038 エメラルドブースト＝軽減シンボル1つにつきBP+1000）
     | { ownFamily: string | string[] } // 自分フィールドの指定系統を持つスピリット数（発生源自身も含む）。配列＝いずれかの系統でOR（EffectCounterの同名軸と同じ）
     | { ownNameIncludes: string } // 自分フィールドでカード名にこの文字列を含むスピリット数（発生源自身も含む。アルカナプリンス・オベロ）

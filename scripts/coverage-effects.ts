@@ -325,6 +325,17 @@ export const __covEid = (e: unknown): string =>
                 __covRec2("cont\\t" + __covEid(effect))
                 total += amount`,
     )
+    // bofuCountBonus（BS08ゲラン准将Lv2）。2026-09-28 に bofuCountFor ごと shared/rules/keywordState.ts へ移した
+    patch(
+        ruleTargets,
+        `            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount`,
+        `            if (effect.kind !== "bofuCountBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            total += effect.amount`,
+    )
     // exhaustImmunityGrant: isExhaustImmuneOnBoard が true を返す時点。
     // ※ 2026-08-10 の耐性一本化で、判定本体が EffectModules.isExhaustImmune から
     //    shared/rules.isExhaustImmuneOnBoard へ移った（差し込み先もこちらへ移設）
@@ -1346,17 +1357,6 @@ process.on("exit", () => {
             total += effect.amount`,
         )
 
-        // bofuCountBonus（BS08ゲラン准将Lv2）
-        patch(
-            em,
-            `            if (effect.kind !== "bofuCountBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            total += effect.amount`,
-            `            if (effect.kind !== "bofuCountBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
-            total += effect.amount`,
-        )
         // kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）
         patch(
             em,

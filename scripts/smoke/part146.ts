@@ -2,7 +2,7 @@
 //
 // BS08の緑15枚取り込みで追加したエンジン拡張を実カード経由で1回ずつ通す:
 //   kind"bofuCountBonus"＋bofuCountFor（自分のスピリットすべての【暴風】の指定数+1。BS08-023）／
-//   action"bpBuffAllByBofuCount"（【暴風】の指定体数1につきBP+2000。BS08-074）／
+//   timedEffect のカウンタ targetBofuCount（【暴風】の指定体数1につきBP+2000。BS08-074）／
 //   action"bpBuffAll"（amountCounter）＋filter.nameContains配列OR（「ダーク」/「ブラック」。BS08-075）／
 //   action"grantKeywordToHandCard".all（手札の該当カードすべてに【神速】。BS08-073）／
 //   action"refreshSelf".costSelfCoresToVoid（自身のコアを払って回復。BS08-X31）／
@@ -115,16 +115,16 @@ console.log("=== BS08ゲラン准将：kind bofuCountBonus（自分の【暴風�
     )
 }
 
-console.log("=== BS08スナイピングブラスト：bpBuffAllByBofuCount（【暴風】の指定体数1につきBP+2000） ===")
+console.log("=== BS08スナイピングブラスト：timedEffect{all, own, bp × targetBofuCount}（【暴風】の指定体数1につきBP+2000） ===")
 {
     const sniping = findByEffect(
         (e) =>
             e["kind"] === "magic" &&
             e["timing"] === "main" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuffAllByBofuCount",
+            JSON.stringify(e["action"] ?? {}).includes('"targetBofuCount"'),
     )
     const entry = entryOf(sniping, (e) => e["kind"] === "magic" && e["timing"] === "main")
-    const amountPer = Number((entry["action"] as Record<string, unknown>)["amountPer"])
+    const amountPer = Number(((entry["action"] as Record<string, unknown>)["content"] as { amount: number }[])[0]!.amount)
     const bofuCard = findByEffect((e) => e["kind"] === "keyword" && e["keyword"] === "bofu")
     const bofuEntry = entryOf(bofuCard, (e) => e["kind"] === "keyword" && e["keyword"] === "bofu")
     const bofuLevel = (bofuEntry["levels"] as number[])[0]!
@@ -146,7 +146,7 @@ console.log("=== BS08ダークパワー：すべてをBP+（1体につき）+ fi
 {
     const isDarkPower = (e: Record<string, unknown>) => {
         const a = e["action"] as { type?: string; all?: true; content?: { type: string; amountCounter?: unknown }[] } | undefined
-        return a?.type === "timedEffect" && a.all === true && a.content?.some((c) => c.type === "bp" && c.amountCounter !== undefined) === true
+        return a?.type === "timedEffect" && a.all === true && JSON.stringify(a).includes("nameContains") && a.content?.some((c) => c.type === "bp" && c.amountCounter !== undefined) === true
     }
     const darkpower = findByEffect(isDarkPower)
     const entry = entryOf(darkpower, isDarkPower)
