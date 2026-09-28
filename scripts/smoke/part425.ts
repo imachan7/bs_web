@@ -90,7 +90,7 @@ console.log("=== 4. BS10-018：nexus:\"also\" 非対話（スピリットを実�
     const spLow = put(s, "p2", VANILLA, 1) // BP 4000
     const spHigh = put(s, "p2", OTHER_FAMILY.cardId, 1) // BP7000で実効BP最大
     const nx1 = putNexus(s, "p2", byName("六分儀天文台").cardId, 0)
-    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also" })
+    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also", upTo: true })
     assert(spLow.isRested && spHigh.isRested && nx1.isRested, "スピリット2体・ネクサス1つがすべて疲労した（合計3＝候補ちょうど）")
 }
 console.log("=== 5. BS10-018：nexus:\"also\" 候補が3未満（できるだけ疲労させる） ===")
@@ -98,7 +98,7 @@ console.log("=== 5. BS10-018：nexus:\"also\" 候補が3未満（できるだけ
     const s = game("018-also-short", false)
     const me = put(s, "p1", KRAKEN.cardId, 1)
     const spOnly = put(s, "p2", VANILLA, 1)
-    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also" })
+    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also", upTo: true })
     assert(spOnly.isRested === true, "候補が1件しかなくても、その1件は疲労した")
 }
 console.log("=== 6. BS10-018：nexus:\"also\" 対話時はスピリット/ネクサスを混ぜて1つずつ選べる ===")
@@ -108,7 +108,7 @@ console.log("=== 6. BS10-018：nexus:\"also\" 対話時はスピリット/ネク
     const sp1 = put(s, "p2", VANILLA, 1)
     const sp2 = put(s, "p2", VANILLA, 1)
     const nx1 = putNexus(s, "p2", byName("六分儀天文台").cardId, 0)
-    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also" })
+    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also", upTo: true })
     assert(s.pendingChoice !== null && s.pendingChoice?.kind === "target", "候補が2件以上あるので選択を待つ")
     assert(
         (s.pendingChoice?.candidates.length ?? 0) === 3 &&
@@ -131,7 +131,7 @@ console.log("=== 7. BS10-018：「3つまで」は0〜3（途中で選ばずに�
     const sp1 = put(s, "p2", VANILLA, 1)
     const sp2 = put(s, "p2", VANILLA, 1)
     const nx1 = putNexus(s, "p2", byName("六分儀天文台").cardId, 0)
-    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also" })
+    resolveAction(s, "p1", me, { type: "exhaust", count: 3, nexus: "also", upTo: true })
     act(s, "p1", { type: "resolveChoice", instanceId: sp1.instanceId })
     act(s, "p1", { type: "resolveChoice" })
     assert(s.pendingChoice === null, "選ばずに終えたら選択は続かない")
@@ -140,7 +140,7 @@ console.log("=== 7. BS10-018：「3つまで」は0〜3（途中で選ばずに�
     const s2 = game("018-also-zero", true)
     const me2 = put(s2, "p1", KRAKEN.cardId, 1)
     const only = put(s2, "p2", VANILLA, 1)
-    resolveAction(s2, "p1", me2, { type: "exhaust", count: 3, nexus: "also" })
+    resolveAction(s2, "p1", me2, { type: "exhaust", count: 3, nexus: "also", upTo: true })
     assert(s2.pendingChoice?.optional === true, "候補が1体だけでも聞く")
     act(s2, "p1", { type: "resolveChoice" })
     assert(!only.isRested && s2.pendingChoice === null, "0個を選べる")

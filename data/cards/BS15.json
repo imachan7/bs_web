@@ -5425,7 +5425,7 @@
      "type": "sequence",
      "actions": [
       {"type": "toDeck", "from": "trash", "position": "top", "count": 1, "pick": {"cardType": "magic"}},
-      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10}
+      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10, "upTo": true}
      ]
     },
     "thenPay": "flash"

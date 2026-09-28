@@ -1,4 +1,4 @@
-// smoke パート391（コアを「置く」器 placeCores：from5種・to6種・target各種・upTo/upToLevel/orReserve・BS10-056ガード）
+// smoke パート391（コアを「置く」器 placeCores：from5種・to6種・target各種・fillTo/upToLevel/orReserve・BS10-056ガード）
 import {
     act,
     assert,
@@ -163,9 +163,9 @@ console.log("=== 8. upTo（ライフが5になるように不足分だけ置く�
     const s = game("upto-life")
     const p1 = s.players.p1
     p1.life = 3
-    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", upTo: 5, count: 0 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", fillTo: 5, count: 0 })
     assert(p1.life === 5, "不足分の2個だけ置かれてライフ5になる")
-    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", upTo: 5, count: 0 })
+    resolveAction(s, "p1", null, { type: "placeCores", from: "void", to: "life", fillTo: 5, count: 0 })
     assert(p1.life === 5, "すでに5以上なら置かれない")
 }
 

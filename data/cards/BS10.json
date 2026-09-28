@@ -2661,7 +2661,8 @@
         "action": {
           "type": "exhaust",
           "count": 3,
-          "nexus": "also"
+          "nexus": "also",
+          "upTo": true
         }
       }
     ]

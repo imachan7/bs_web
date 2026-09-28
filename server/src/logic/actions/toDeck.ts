@@ -6,6 +6,7 @@ import { matchesPick } from "./revealAction"
 import { recordMoved } from "../record"
 
 // 「count枚まで」（BS15-082）でも途中でやめられず、候補が尽きるか count 枚まで選ばせる（途中でやめる UI は見送った）。
+// upTo指定時は0〜count枚を選べる（2026-09-28ユーザー決定。途中で1枚も選ばずに終えられる）
 // ⚠️ 選び終わるまでゾーンから抜かない（インデックスで控える）。途中で抜くと「どのゾーンにも無いカード」ができ、保存則の検査に引っかかる
 const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, chosenCardIndex } = ctx
@@ -13,6 +14,7 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
     const player = state.players[zonePid]
     const zone = action.from === "hand" ? player.hand : player.trashCards
     const picked = action.picked ?? []
+    const chooser = action.chooserIsTarget ? zonePid : owner
     const choosable = (exclude: number[]): number[] =>
         zone
             .map((id, j) => ({ id, j }))
@@ -37,15 +39,58 @@ const toDeckHandler: ActionHandler<"toDeck"> = (ctx, action) => {
         log(state, `${player.name}は${what}をデッキの${where}に戻した。`)
     }
 
+    // upTo：候補があるかぎり1枚ずつ聞き直し、スキップ（resolveOnSkip）でその時点の枚数を確定する。
+    // action.picked が既に定義されているかどうかで「初回の呼び出し」と「スキップで戻ってきた」を区別する
+    // （どちらも picked=[] であり得るため、配列の中身では区別できない）
+    const askUpTo = (soFar: number[]): void => {
+        const candidates = choosable(soFar)
+        if (candidates.length === 0) {
+            finish(soFar)
+            return
+        }
+        suspend(state, {
+            pid: chooser,
+            kind: "card",
+            prompt: `${sourceName}：デッキの${action.position === "top" ? "上" : "下"}に戻すカードを選んでください（最大${action.count}枚。${soFar.length}枚選択済み）`,
+            candidates: [],
+            cardZone: action.from,
+            cardOwner: zonePid,
+            cardIndices: candidates,
+            optional: true,
+            resolveOnSkip: true,
+            action: { ...action, picked: soFar },
+            selfInstanceId: self ? self.instanceId : null,
+            ...(chooser !== owner ? { actorPid: owner } : {}),
+        })
+    }
+
     if (chosenCardIndex !== undefined) {
         const next = [...picked, chosenCardIndex]
+        if (action.upTo && state.interactiveTargets) {
+            if (next.length >= action.count) {
+                finish(next)
+                return
+            }
+            askUpTo(next)
+            return
+        }
         if (next.length < action.count && choosable(next).length > 0) ctx.resolve({ ...action, picked: next })
         else finish(next)
         return
     }
+
+    if (action.upTo && state.interactiveTargets) {
+        // action.picked が定義済み＝askUpToのスキップから戻ってきた（もう聞かず確定する）
+        if (action.picked !== undefined) {
+            finish(picked)
+            return
+        }
+        askUpTo(picked)
+        return
+    }
+
     const candidates = choosable(picked)
     if (state.interactiveTargets && candidates.length >= 2) {
-        const chooser = action.chooserIsTarget ? zonePid : owner
         suspend(state, {
             pid: chooser,
             kind: "card",
