@@ -6,6 +6,8 @@ import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, 
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
 import { matchesPick } from "./revealAction"
+import { destroyAllTargetList, destroyTargetList } from "./destroy"
+import { SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -93,6 +95,23 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
             }),
         })
         return
+}
+
+// 「Aして、B」＝同時に解決する（CONJUNCTION.md。BS04-108。2026-09-27 ユーザー確認）。
+// 対象はすべて解決の開始時に決め、1回の破壊にまとめる（片方の破壊時の誘発がもう片方の対象を変えないように）
+const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
+    const { state, sourceName } = ctx
+    const targets: { pid: PlayerId; instanceId: string }[] = []
+    for (const a of action.actions) {
+        if (a.type !== "destroy" || !a.all) {
+            log(state, `${sourceName}：同時に解決できない効果が含まれているため発揮しなかった。`)
+            return
+        }
+        const list = destroyAllTargetList(ctx, a)
+        if (list === SELF_REQUIRED) continue
+        for (const t of list) if (!targets.some((x) => x.instanceId === t.instanceId)) targets.push(t)
+    }
+    destroyTargetList(ctx, targets)
 }
 
 // 「〜とき／〜なら B（他のときは C）」。条件は解決する時点の盤面・記録で判定する
@@ -363,6 +382,7 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
+    simultaneous: simultaneousHandler,
     if: ifHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,

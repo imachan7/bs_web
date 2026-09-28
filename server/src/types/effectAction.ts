@@ -37,7 +37,6 @@ export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true; countCounter?: EffectCounter; costSacrificeChosen?: true } // countCounter指定時はEffectCounterの値を枚数として使う（0ならログのみ）。自分がデッキから引く（side:"both"は自分→相手の順で両者。省略時は自分のみ）。costSkipCoreStep指定時は「ボイドからコアを置かないことで」がコスト＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）
  | { type: "destroy"; filter?: TargetFilter; count: number | "any"; suppressOnDestroy?: true; chosenIds?: string[]; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: true; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true } // side:"own"指定時は自分側のスピリットが対象（選ぶのは持ち主。pay { cost: destroy{side:"own"} } の器）。thenDrawFixed指定時は破壊処理後（「その後」＝0体でも発火）に固定枚数ドローする。countCounter指定時はEffectCounterの値を破壊数として使う（0ならログのみ）。lowestCost指定時は自動選択の基準をBP最大でなくコスト最小にする（同コストはBP最大）。drawPerDestroyed指定時は実際に破壊できた1体につき1枚ドローする（「残る」で残った個体は数えない）。chooserIsTarget指定時は破壊される側（相手）が対象を選ぶ（実行は発生源の持ち主の効果として解決）。相手スピリットを破壊（filterで絞り込み。省略時はBP不問）。countPerOpponentTrashMagicColors指定時は相手のトラッシュのマジックカードの色種類数（重複除く）を対象数にする。anySide指定時は自分/相手どちらも対象にできる（自動選択は実効BP最大。同値は相手側優先）。excludeTarget指定時はtargetInstanceIdを除外対象として扱う（誘発が渡す対象を避ける）
 
- | { type: "destroyOwnByFamilyThenWipeEnemy"; family: FamilyFilter } // 指定系統を持つ自分のスピリットすべてを破壊してから、相手のスピリットすべてを破壊する
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // 相手のフィールドに同じカード名のスピリットが2体以上いるとき、カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文「カード名1つにつきスピリット1体ずつを残し」に主語が無いので発生源の持ち主。2026-08-24。自動選択はフィールドの先頭側）。choosing / keptIds は重複するカード名を1つずつ聞くための内部フィールド
  | { type: "summonBurstCardFree"; payCost?: true; thenBuffSelf?: number } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
 
@@ -175,6 +174,7 @@ export type EffectAction =
  // **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
  // interactiveTargets 時は kind:"option" で系統を選ばせ、非対話では**引ける枚数が多い方**を選ぶ決定的簡略化
  | { type: "sequence"; actions: EffectAction[] } // 効果文の「Aする。その後、Bする。」（CONJUNCTION.md）。actionsを常に順番どおり全部解決する（chooseActionModeの「選ばせない」全実行版）。Aが不完全にしか解決できなくてもBは解決する（例：疲労させる対象がいなくてもその後の回復は行う）。選択で中断したら残りはresolveInOrderが再開スタックへ積む
+ | { type: "simultaneous"; actions: EffectAction[] } // 「Aして、B」＝同時（CONJUNCTION.md）。中の destroy{all} の対象をすべて集めて1回で破壊待機に入れる（今は destroy{all} だけ書ける）
  | { type: "chooseActionMode"; modes: { label: string; actions: EffectAction[] }[] } // 効果文の「〜する。**または**、〜する」。使用者が modes からどれか1つを選び、その actions を順に解決する
  // 。
  // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する
