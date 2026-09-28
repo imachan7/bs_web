@@ -3685,8 +3685,26 @@
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "millOpponentThenReact",
-     "react": "banHandColorThisBattle"
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "mill",
+       "count": 1
+      },
+      {
+       "type": "timedEffect",
+       "duration": "battle",
+       "content": [
+        {
+         "type": "playerRule",
+         "rule": {
+          "type": "cantUseHandCardsForPid",
+          "bannedColors": "last"
+         }
+        }
+       ]
+      }
+     ]
     }
    }
   ],

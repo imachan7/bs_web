@@ -8,6 +8,7 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { lastMovedOf } from "../record"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 type Content = TimedEffect["content"][number]
@@ -376,17 +377,31 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     if (target) askColor(target)
 }
 
+// bannedColors:"last" を、直前に動いたカード（lastMovedOf）の色の和集合へ解決する
+// （多色なら全色＝どれか1色でも一致すれば「同じ色」。記録が空なら null）
+function resolvePlayerRuleContent(state: GameState, c: Extract<Content, { type: "playerRule" }>): Extract<Content, { type: "playerRule" }> | null {
+    if (c.rule.type !== "cantUseHandCardsForPid" || c.rule.bannedColors !== "last") return c
+    const colors = [...new Set(lastMovedOf(state).flatMap((id) => getCard(id).colors))]
+    if (colors.length === 0) return null
+    return { ...c, rule: { ...c.rule, bannedColors: colors } }
+}
+
 // プレイヤーに掛かる制約を置く（ライフが減らない・手札を使えない など）。効くプレイヤーは side（既定は相手）
 function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
-    if (action.duration !== "turn") {
-        log(state, `${sourceName}：「このバトルの間」の制約は未対応のため発揮しなかった。`)
+    if (action.duration !== "turn" && action.duration !== "battle") {
+        log(state, `${sourceName}：この期間の制約は未対応のため発揮しなかった。`)
         return
     }
     const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
-    const rules = action.content.filter((c) => c.type === "playerRule")
-    for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: "turn", ownerPid: owner })
-    log(state, `${sourceName}：このターンの間、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
+    const rules = action.content
+        .filter((c): c is Extract<Content, { type: "playerRule" }> => c.type === "playerRule")
+        .map((c) => resolvePlayerRuleContent(state, c))
+        .filter((c): c is Extract<Content, { type: "playerRule" }> => c !== null)
+    if (rules.length === 0) return
+    for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
+    const period = action.duration === "battle" ? "このバトルの間" : "このターンの間"
+    log(state, `${sourceName}：${period}、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
 
 // 「ブロックされない」を置く。期間 battle で from なしは強者統べる大地の「ターンに1回」＝そのスピリットのアタックの終了で消える（until:"attack"）。
