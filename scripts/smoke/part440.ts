@@ -119,7 +119,7 @@ console.log("=== 4. BS16-042 Lv2-3：自分のアタックステップに相手�
     const self = put(s, "p1", "BS16-042", 2) // Lv2到達
     s.players.p1.trashCards = ["BS16-081"] // 黄のマジック
     s.phase = "attack"
-    fireFieldEventTriggers(s, "p1", "ownSpiritDealtLife", { pid: "p1", inst: self }, undefined, undefined, undefined, {})
+    fireFieldEventTriggers(s, "p1", "opponentLifeDamaged", undefined, undefined, undefined, undefined, {})
     assert(s.players.p1.hand.includes("BS16-081"), "トラッシュのマジックが手札に戻る")
 }
 
@@ -214,14 +214,14 @@ console.log("=== 10. BS16-068 symbolFix：メインステップに召喚する�
     assert(hasFix, "symbolFixエントリがLv2に存在する")
 }
 
-console.log("=== 11. BS16-069 ドローステップ：スピリット1枚破棄でドロー+1 ===")
+console.log("=== 11. BS16-069 ドローステップ：黄のスピリット1枚破棄でドロー+1 ===")
 {
     const s = game("case11")
     put(s, "p1", "BS16-069", 1) // Lv2到達
-    s.players.p1.hand = [VANILLA]
+    s.players.p1.hand = ["BS16-038"] // 黄のスピリット
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, actionOf("BS16-069", "BS16-069-e1").action)
-    assert(s.players.p1.trashCards.includes(VANILLA), "手札のスピリット1枚を破棄した")
+    assert(s.players.p1.trashCards.includes("BS16-038"), "手札の黄スピリット1枚を破棄した")
     assert(deckBefore - s.players.p1.deck.length === 1, "デッキから1枚ドローした（破棄+ドローで手札の枚数は元のまま）")
 }
 {
@@ -231,6 +231,14 @@ console.log("=== 11. BS16-069 ドローステップ：スピリット1枚破棄�
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, actionOf("BS16-069", "BS16-069-e1").action)
     assert(deckBefore - s.players.p1.deck.length === 0, "破棄できるスピリットが無ければドローしない")
+}
+{
+    const s = game("case11c")
+    put(s, "p1", "BS16-069", 1)
+    s.players.p1.hand = [VANILLA] // 黄でないスピリット
+    const deckBefore = s.players.p1.deck.length
+    resolveAction(s, "p1", null, actionOf("BS16-069", "BS16-069-e1").action)
+    assert(deckBefore - s.players.p1.deck.length === 0, "黄でないカードでは払えず不発")
 }
 
 console.log("=== 12. BS16-069 Lv2：四道が破壊されたとき、その1体をデッキの上に戻せる ===")
@@ -242,6 +250,20 @@ console.log("=== 12. BS16-069 Lv2：四道が破壊されたとき、その1体�
     const deckBefore = s.players.p1.deck.slice()
     fireFieldEventTriggers(s, "p1", "ownSpiritDestroyed", { pid: "p1", inst: destroyed }, undefined, undefined, 1)
     assert(s.players.p1.deck[0] === "BS16-038" && s.players.p1.deck.length === deckBefore.length + 1, "破壊された四道（トラッシュの四道）がデッキの上に戻る")
+}
+console.log("=== 12b. BS16-069 Lv2：破壊待機状態（pendingDestruction）の個体自身を、同名の別インスタンスと混同せずデッキの上に戻す ===")
+{
+    const s = game("case12b")
+    put(s, "p1", "BS16-069", 3) // Lv2到達
+    const destroyed = put(s, "p1", "BS16-038", 2) // 破壊される個体（コア2）
+    destroyed.pendingDestruction = true
+    const decoy = createInstance("BS16-038", s.turn, 9) // 同名の別インスタンス（コアで区別）。場には出さない
+    s.players.p1.trashCards = [decoy.cardId]
+    const reserveBefore = s.players.p1.reserve
+    fireFieldEventTriggers(s, "p1", "ownSpiritDestroyed", { pid: "p1", inst: destroyed }, undefined, undefined, 1)
+    assert(!s.players.p1.field.spirits.includes(destroyed), "破壊待機中の個体自身が場から離れた")
+    assert(s.players.p1.deck[0] === "BS16-038", "破壊されたその個体がデッキの上に戻った")
+    assert(s.players.p1.reserve === reserveBefore + 2, "乗っていたコア2個がリザーブへ戻った（同名の別インスタンスのコア9個ではない）")
 }
 
 console.log("=== 13. BS16-070 kind burstMagicFreeEffect：Lv2に存在する ===")
@@ -268,6 +290,14 @@ console.log("=== 14. BS16-081 メイン：手札すべてを破棄して3ドロ�
     resolveAction(s, "p1", null, actionOf("BS16-081", "BS16-081-e1").action)
     assert(s.players.p1.hand.length === 3 && deckBefore - s.players.p1.deck.length === 3, "手札を全破棄してデッキから3枚ドローした")
     assert(s.players.p1.trashCards.filter((id) => id === VANILLA).length === 2, "破棄した2枚はトラッシュにある")
+}
+console.log("=== 14b. BS16-081：手札0枚のときはコストを払えず不発（COST_MODEL §1） ===")
+{
+    const s = game("case14b")
+    s.players.p1.hand = []
+    const deckBefore = s.players.p1.deck.length
+    resolveAction(s, "p1", null, actionOf("BS16-081", "BS16-081-e1").action)
+    assert(deckBefore - s.players.p1.deck.length === 0, "手札0枚ならドローしない")
 }
 
 console.log("=== 15. BS16-X05 召喚時：四道6体以上いるとき、相手の全スピリットをデッキの上に戻す ===")

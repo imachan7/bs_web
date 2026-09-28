@@ -392,6 +392,7 @@ export const discardSelfChooseEligible = (cardId: string, action: Extract<Effect
         if (!wanted.some((kw) => hasKeyword(cardId, kw))) return false
     }
     if (action.cardName !== undefined && getCard(cardId).name !== action.cardName) return false
+    if (action.colorFilter !== undefined && !getCard(cardId).colors.includes(action.colorFilter)) return false
     return true
 }
 

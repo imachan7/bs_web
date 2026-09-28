@@ -341,7 +341,7 @@
    {
     "id": "BS16-042-e2",
     "kind": "fieldEvent",
-    "event": "ownSpiritDealtLife",
+    "event": "opponentLifeDamaged",
     "levels": [
      2,
      3
@@ -681,7 +681,8 @@
      "cost": {
       "type": "discardSelfChoose",
       "count": 1,
-      "cardType": "spirit"
+      "cardType": "spirit",
+      "colorFilter": "yellow"
      },
      "then": {
       "type": "draw",
@@ -700,13 +701,7 @@
     "perDestroyed": true,
     "optional": true,
     "action": {
-     "type": "toDeck",
-     "from": "trash",
-     "position": "top",
-     "count": 1,
-     "pick": {
-      "family": "四道"
-     }
+     "type": "returnSelfToDeckTop"
     }
    }
   ]
@@ -794,16 +789,14 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "sequence",
-     "actions": [
-      {
-       "type": "discardHandAll"
-      },
-      {
-       "type": "draw",
-       "count": 3
-      }
-     ]
+     "type": "pay",
+     "cost": {
+      "type": "discardHandAll"
+     },
+     "then": {
+      "type": "draw",
+      "count": 3
+     }
     }
    },
    {

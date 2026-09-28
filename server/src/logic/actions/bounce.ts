@@ -532,12 +532,39 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
         return
 }
 
+const returnSelfToDeckTopHandler: ActionHandler<"returnSelfToDeckTop"> = (ctx) => {
+    const { state, owner, self } = ctx
+        if (!self) return
+        const player = state.players[owner]
+        // returnSelfToHandHandler と同じ形：破壊待機状態ならそこからデッキトップへ、既にトラッシュならそこから
+        if (self.pendingDestruction) {
+            const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
+            if (fieldIdx >= 0) {
+                player.field.spirits.splice(fieldIdx, 1)
+                player.reserve += self.cores
+                detachBravesOnLeave(state, owner, self)
+            }
+            delete self.pendingDestruction
+            player.deck.unshift(self.cardId)
+            log(state, `${getCard(self.cardId).name}はデッキの一番上に戻った。`)
+            return
+        }
+        const idx = player.trashCards.lastIndexOf(self.cardId)
+        if (idx >= 0) {
+            player.trashCards.splice(idx, 1)
+            player.deck.unshift(self.cardId)
+            log(state, `${getCard(self.cardId).name}はデッキの一番上に戻った。`)
+        }
+        return
+}
+
 const handlers = {
     returnToHand: returnToHandHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToDeckTop: returnToDeckTopHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
+    returnSelfToDeckTop: returnSelfToDeckTopHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

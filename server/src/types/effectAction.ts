@@ -50,6 +50,7 @@ export type EffectAction =
 
  // chooserIsTarget指定時（count:1・side省略時のみ対応）は破壊される側（相手）が対象を選ぶ（解決は発生源の持ち主の効果＝PendingChoice.actorPid）。colorFilter指定時はその色を持つネクサスのみ対象（多色はOR）。chooseColor指定時は使用者が先に色1色を指定し、その色をcolorFilterへ載せて解決し直す（自動選択は破壊できる数が最大になる色。同数はred/purple/green/white/yellow/blueの順）。discardOpponentPerDestroyed指定時は実際に破壊できたネクサス1つにつき相手の手札をその数だけ破棄させる
  | { type: "returnSelfToHand" } // このスピリットを持ち主の手札に戻す
+ | { type: "returnSelfToDeckTop" } // このスピリットを持ち主のデッキの一番上に戻す（returnSelfToHandのデッキトップ版。069：破壊された「その個体」を名指しで戻す）
  | { type: "colorlessSelfThisBattle" }
  // 発揮した個体自身（self）を、このバトルの間だけ色とシンボルを無いものとして扱う（CardInstance.colorlessThisBattle。clearBattleでリセット）
  | { type: "coreRemove"; count: number; dest?: "void" | "trash"; anySide?: true; side?: "own"; spread?: true; chooserIsTarget?: true; spreadRemaining?: number; countCounter?: EffectCounter; leaveAtLeast?: number; filter?: TargetFilter; drawIfEmptied?: true; all?: true } // side:"own"指定時は自分側のスピリットが対象。spread指定時はcount個を複数のスピリットから1個ずつ選んで取り除く（2026-09-24ユーザー確認：「コアN個を置く」は合計N個を1個ずつ選ぶ。自動選択はコアの多い個体から）。chooserIsTarget指定時は対象側の持ち主が選ぶ（解決は発生源の持ち主の効果のまま）
@@ -109,7 +110,7 @@ export type EffectAction =
  // target:"self" は「このスピリット自身をBP+」（旧 selfBuff 相当）：対象は常に発生源自身で、filter/side/count/targetInstanceIdは見ない
  | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle" | "nextRefresh"; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" }
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、そのスピリットが持つ【氷壁】の色（iceWallColorsOfで判定）と同じ色の相手のスピリットからブロックされないようにする（期間つき効果の一覧に指定時点の色で記録する。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）。複数なら選ぶ
- | { type: "discardSelfChoose"; count: number | "any"; downTo?: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; cardName?: string; discarded?: string[]; awaitingSkip?: true; anyMax?: number } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。cardName指定時はそのカード名だけが対象。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
+ | { type: "discardSelfChoose"; count: number | "any"; downTo?: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; cardName?: string; colorFilter?: Color; discarded?: string[]; awaitingSkip?: true; anyMax?: number } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。cardName指定時はそのカード名だけが対象。colorFilter指定時はその色を持つカードのみ対象（多色はOR）。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
  | { type: "pay"; cost: EffectAction; then: EffectAction } // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに解決できるときだけ発揮する（片方でも欠けたら何もしない）。対応type一覧・判定はactions/pay.tsのPAYABLE_TYPES
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない。ログのみ）。破棄するカードはCOST_MODEL.md §2どおりinteractiveTargets時は1枚ずつ持ち主が選び、自動選択は手札末尾から機械的に選ぶ（discardSelfChooseと同じ選び方）。
  // discardCountは選択の再入をまたいで「残り破棄枚数」を持ち回る内部利用も兼ねる（1枚選ぶたびに-1して再入し、0になった時点でdrawCount枚ドローする）土星神龍クロノ・ボロス
