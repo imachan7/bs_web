@@ -235,31 +235,15 @@ export function resolveBattle(state: GameState): void {
         clearBattle(state)
         return
     }
-    // BS09-044妖精の姫巫女ハマ・ドリュアス：ブロッカーがLv1なら、**BPを比べずに**
-    // 「ブロックされなかった」ものとして扱う（＝ライフに通る。どちらも破壊されず、
-    // ブロッカーは疲労したまま場に残る。BS09_PLAN.md §4。2026-08-14 ユーザー確認）
-    if (state.battle.treatAsUnblockedIfBlockerLevel1 && currentLevel(blocker).level === 1) {
-        log(
-            state,
-            `${getCard(blocker.cardId).name}はLv1のため、BPを比べずブロックされなかったものとして扱う。`,
-        )
-        resolveLifeDamage(state)
-        return
-    }
-    // SD02-016 ウィングブーツ：アタッカーのLvがブロッカーのLv以上なら同じ扱い（判定だけが違う一般化版）
-    if (
-        state.battle.treatAsUnblockedIfLevelAtLeastBlocker &&
-        currentLevel(attacker).level >= currentLevel(blocker).level
-    ) {
-        log(
-            state,
-            `${getCard(attacker.cardId).name}は${getCard(blocker.cardId).name}と同じLv以上のため、BPを比べずブロックされなかったものとして扱う。`,
-        )
-        resolveLifeDamage(state)
-        return
-    }
-    // BS15-045虚獣帝スフィン・クロス：action:"unblockedByVoidSelfCore" がonBlocked時に立てる印
-    if (state.battle.treatAsUnblockedByCost) {
+    // 「BPを比べずブロックされなかったものとして扱う」＝ライフに通る。どちらも破壊されず、
+    // ブロッカーは疲労したまま場に残る（BS09_PLAN.md §4。2026-08-14 ユーザー確認）
+    const unblocked = (state.battle.treatAsUnblocked ?? []).find(
+        (when) =>
+            when === "always" ||
+            (when === "blockerLevel1" && currentLevel(blocker).level === 1) ||
+            (when === "levelAtLeastBlocker" && currentLevel(attacker).level >= currentLevel(blocker).level),
+    )
+    if (unblocked !== undefined) {
         log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)
         resolveLifeDamage(state)
         return

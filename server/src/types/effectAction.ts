@@ -105,15 +105,12 @@ export type EffectAction =
  | { type: "discardBothHands"; count: number; countCounter?: EffectCounter; all?: true } // お互いが手札からcount枚を破棄する（自分→相手の順。**破棄するカードは各自が自分で選ぶ**＝1人ぶんを discardSelfChoose に委譲し、相手側は actorPid で相手の効果として解決する。自動選択は従来どおり手札の末尾から。手札が足りなければある分だけ）
  // all指定時はcountを無視し、各自の手札すべて（枚数は各自バラバラ）を破棄する（returnNexusToHandのallと同じ意味論。count自体は0を置く）
  // countCounter指定時はcountを無視し、EffectCounterの値を破棄枚数として使う（0ならログのみ）
- | { type: "treatAsUnblockedIfLevelAtLeastBlocker" } // このバトルに「アタッカーのLvがブロッカーのLv以上ならBPを比べずブロックされなかった扱いにする」印を立てる
- // （BattleState.treatAsUnblockedIfLevelAtLeastBlocker。treatAsUnblockedIfBlockerLevel1 の一般化版）
- | { type: "treatAsUnblockedIfBlockerLevel1" } // このバトルに「ブロッカーがLv1ならBPを比べずブロックされなかった扱いにする」印を立てる（BattleState.treatAsUnblockedIfBlockerLevel1）
+ | { type: "treatAsUnblocked"; when?: "blockerLevel1" | "levelAtLeastBlocker" } // このバトルの解決で、when を満たせば BP を比べずブロックされなかったものとして扱う（when を省くと無条件）
  // 継続効果を期間つきで置く（ACTION_VOCABULARY §3）。対象は相手のスピリット、選ぶのは発生源の持ち主。
  // 内容をすべて既に持つ個体は候補にしない。all:true は個体を選ばず「条件に合うものすべて」をルールとして置く
  // （解決後に場に出たスピリットにも効く。いまは期間 turn だけ）。side と内容 bp は all のときだけ
  // target:"self" は「このスピリット自身をBP+」（旧 selfBuff 相当）：対象は常に発生源自身で、filter/side/count/targetInstanceIdは見ない
  | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle" | "nextRefresh"; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" }
- | { type: "unblockedByVoidSelfCore" } // trigger:"onBlocked"（self=ブロックされたアタッカー自身）専用。selfが現在のバトルのアタッカーで、かつブロッカーがいるときだけ、selfのコア1個をボイドに置くことでBPを比べずに「ブロックされなかった」ものとして扱う（その場でresolveLifeDamageする＝ライフに通る。ブロッカーは疲労状態のまま残り回復しない）。「〜することで」は任意コストなので、カード側でoptional:trueを立てて確認を出す。自身がアタッカーでない・ブロッカーがいない・コアが無いときは何も起きない
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、そのスピリットが持つ【氷壁】の色（iceWallColorsOfで判定）と同じ色の相手のスピリットからブロックされないようにする（期間つき効果の一覧に指定時点の色で記録する。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）。複数なら選ぶ
  | { type: "discardSelfChoose"; count: number | "any"; downTo?: number; cardType?: CardType | CardType[]; keyword?: Keyword | Keyword[]; cardName?: string; discarded?: string[]; awaitingSkip?: true; anyMax?: number } // 自分の手札からcount枚を破棄する。interactiveTargets時は1枚ずつ選ばせ、非interactive時は末尾から機械的に破棄。cardType/keyword指定時はそのカードだけを対象にする（両方指定時はAND、配列指定時は配列内OR。costDiscardHandKeywordThenDrawと同じ意味）。cardName指定時はそのカード名だけが対象。count:"any"＝好きなだけ（破棄し終えたら lastMoved に書く。discarded／awaitingSkip は再開用）
  | { type: "pay"; cost: EffectAction; then: EffectAction } // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに解決できるときだけ発揮する（片方でも欠けたら何もしない）。対応type一覧・判定はactions/pay.tsのPAYABLE_TYPES
