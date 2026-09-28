@@ -2,7 +2,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instBaseCost, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
 import { countedAmount } from "../counted"
@@ -208,6 +208,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             // **まとめて待機させてから一度に戻す**（Wiki「バウンスについて」）。
             // 1体ずつ戻すと、1体目の「戻ったとき」の誘発が2体目以降の対象を変えてしまう
+            const moved: string[] = []
             for (let i = 0; i < resolvedCount; i++) {
                 const target = pickAnySideByBp(state, owner, limitBp, matchesBp, srcColors, srcType, "bounce")
                 if (!target) {
@@ -215,8 +216,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                     break
                 }
                 markBounce(state, target.pid, target.inst, "hand", sourceName)
+                moved.push(target.inst.cardId)
             }
             flushBounces(state)
+            recordMoved(state, moved)
             return
         }
         // バウンス耐性（against:"bounce"。BS06恐竜姫ジュラ）は、候補列挙へ op:"bounce" を渡すことで効く
@@ -238,6 +241,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
         }
         // 未指定時は相手フィールドのBP最大をresolvedCount回自動選択
+        const moved: string[] = []
         for (let i = 0; i < resolvedCount; i++) {
             const target = pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType, "bounce")
             if (!target) {
@@ -245,7 +249,9 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
                 break
             }
             returnSpiritToHand(state, opp, target, sourceName)
+            moved.push(target.cardId)
         }
+        recordMoved(state, moved)
         return
 }
 
