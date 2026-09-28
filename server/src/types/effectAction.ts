@@ -196,7 +196,7 @@ export type EffectAction =
  | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
  // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。from＝選ぶ人の場の spirits／nexuses から候補を取る。picked は再開用
  | { type: "fireEffect"; trigger: "onSummon" | "onDestroy"; all?: true; filter?: TargetFilter; oneEffect?: true; chosenId?: string; instanceIds?: string[] } // chosenId・instanceIds は再開用
- | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
+ | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number; until?: CardPick } // 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
  | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）
@@ -231,7 +231,6 @@ export type EffectAction =
  | { type: "drawUpTo"; size: number } // 自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op。デッキ切れ判定はdrawへ委譲）
  | { type: "moveCoresLeavingOne"; anySide?: true; selfTarget?: true; allowNexusDest?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（フィールドの先頭側＝決定的簡略化）へ移す。移動先がいなければ不発。selfTarget指定時は対象を発生源自身に固定し、allowNexusDest指定時は移し先のスピリットがいなければ自分のネクサス（先頭側）へ移す
  | { type: "swapOpponentCores"; choosing?: true; firstChosen?: string } // 効果文が「相手のスピリット2体を**指定する**」なので、実対戦では2体とも持ち主が選ぶ（2026-08-24。自動選択は実効BP上位2体）。choosing/firstChosenは選択の進み具合を持ち回る内部専用（choosingが無いtargetInstanceIdは誘発が渡すイベント対象なので取り違えない）。相手のスピリット2体の上のコアをすべて入れ替える。相手のスピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する
- | { type: "recoverAllMagicFromTrashByColorChoice"; colors: Color[] } // colors候補から1色を指定し（。候補1色以下・自動選択は該当枚数最多の色を自動選択＝同数はcolors配列の先頭）、自分のトラッシュにある指定色のマジックカードすべてを手札に戻す
  | {
  type: "summonRepeatFromHand"
  mode: "free" | "paid" // free=summonFromHandFreeと同じくコストを支払わず維持コアのみリザーブから払う（extraReserveCostPerSummon指定時は1体ごとにさらにリザーブのコアをその数だけ自分のトラッシュへ）。paid=effectiveCostで通常のコストを計算し、維持コア+コストをリザーブから支払う（コスト分はtrashCoresへ。field由来の支払いは非対応）

@@ -10,7 +10,7 @@
 //   - EffectDef kind:"trashImmunity" + isTrashCardProtected（shared/rules.ts）：
 //     トラッシュにある間、このカード自身が一切の効果を受けない共通述語。
 //     recoverSpiritFromTrash/recoverMagicFromTrash/toHand/castMagicFromTrashByColor/
-//     recoverAllMagicFromTrashByColorChoice/summonFromTrashFree/trashSpiritsToDeckBottomの
+//     declare→toHand/summonFromTrashFree/trashSpiritsToDeckBottomの
 //     候補フィルタから1つずつ呼ぶ
 //
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・コストを機械検証してから使う。
