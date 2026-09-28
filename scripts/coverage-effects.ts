@@ -807,10 +807,10 @@ process.on("exit", () => {
         )
         // 聖命：【聖命】持ちがボイドからライフにコアを置いた時点
         patch(
-            path.join(tree, "server/src/logic/actions/life.ts"),
-            `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {`,
-            `            if (self && spiritHasKeyword(state, owner, self, "seimei")) {
-                __covRecord("cont\t" + ${kwEid("self.cardId", "seimei")})`,
+            path.join(tree, "server/src/logic/actions/placeCores.ts"),
+            `    if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {`,
+            `    if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
+        __covRecord("cont\t" + ${kwEid("self.cardId", "seimei")})`,
         )
         // 氷壁：【氷壁】を持つ発生源が無効化元として確定した時点
         patch(
