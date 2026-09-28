@@ -1,7 +1,7 @@
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
-import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
+import { bothSidesPids, askPayToNegateIfNeeded, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
@@ -89,6 +89,10 @@ function returnToHandByBudget(ctx: ActionCtx, action: Extract<EffectAction, { ty
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.nexus) {
+            returnToHandNexusOrSpirit(ctx, action)
+            return
+        }
         if (action.all) {
             returnAllTargetsToHand(ctx, { side: action.anySide ? "both" : "opponent", ...(action.filter ? { filter: action.filter } : {}) })
             return
@@ -253,6 +257,82 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         }
         recordMoved(state, moved)
         return
+}
+
+// nexus:"only"/"also" 版：対話時は候補（ネクサス/スピリット）を1つの一覧から選ぶ、非対話は
+// 実効BP最大のスピリット優先→残り枠を場の並び順のネクサスへ（exhaustNexusOrSpiritと同じ選び方に揃える）
+function returnToHandNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToHand" }>): void {
+    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) {
+        log(state, `${sourceName}の手札戻し：BP参照元がいなかった。`)
+        return
+    }
+    const oppField = state.players[opp].field
+    const spiritCandidates = () =>
+        action.nexus === "also"
+            ? oppField.spirits.filter((s) => !s.pendingBounce && matchesTarget(state, opp, s, filter, self?.instanceId))
+            : []
+    const nexusCandidates = () => oppField.nexuses
+    const label = action.nexus === "also" ? "スピリット/ネクサス" : "ネクサス"
+
+    const askNext = (remaining: number): void => {
+        if (remaining <= 0) return
+        requestUpToChoice(
+            state,
+            owner,
+            `${sourceName}：手札に戻す相手の${label}を選んでください（あと${remaining}つまで）`,
+            [...spiritCandidates(), ...nexusCandidates()].map((c) => c.instanceId),
+            { ...action, count: remaining },
+            self,
+        )
+    }
+
+    if (targetInstanceId !== undefined) {
+        const nexus = nexusCandidates().find((n) => n.instanceId === targetInstanceId)
+        const spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === targetInstanceId)
+        if (nexus) {
+            returnNexusToHand(state, opp, nexus.instanceId)
+        } else if (spirit) {
+            returnSpiritToHand(state, opp, spirit, sourceName)
+        } else {
+            log(state, `${sourceName}の手札戻し：対象がいなかった。`)
+            return
+        }
+        recordMoved(state, [(nexus ?? spirit)!.cardId])
+        askNext(action.count - 1)
+        return
+    }
+
+    const count = action.count
+    if (state.interactiveTargets) {
+        askNext(count)
+        return
+    }
+    // 非対話：スピリットを実効BP最大から優先し、残り枠をネクサスへ場の並び順で充てる
+    let remaining = count
+    const moved: string[] = []
+    while (remaining > 0) {
+        const target = spiritCandidates().reduce<CardInstance | undefined>(
+            (best, s) => (!best || effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best),
+            undefined,
+        )
+        if (!target) break
+        returnSpiritToHand(state, opp, target, sourceName)
+        moved.push(target.cardId)
+        remaining--
+    }
+    for (const n of [...nexusCandidates()]) {
+        if (remaining <= 0) break
+        returnNexusToHand(state, opp, n.instanceId)
+        moved.push(n.cardId)
+        remaining--
+    }
+    if (moved.length === 0) {
+        log(state, `${sourceName}の手札戻し：対象がいなかった。`)
+        return
+    }
+    recordMoved(state, moved)
 }
 
 // 器AJ：BS13-030リーサルウェポンドラゴン【合体時】Lv2「このスピリットが持つ【重装甲】と同じ色の相手のスピリット1体ずつを手札に戻す」。

@@ -341,8 +341,9 @@ export type EffectDef =
           id: string
           kind: "battleBpAsLevel" // 発生源が場にありレベル有効の間、持ち主のfromLevelのスピリットはバトルのBP比較のときだけuseLevelのBPを使う
           levels: number[] | null
-          fromLevel: number
-          useLevel: number
+          fromLevel?: number // 省略時はどのLvのスピリットにも効く（BS17-023）
+          useLevel: number | "max" // "max"＝対象スピリットが持つ最高LvのBP
+          maxCost?: number // 指定時は対象スピリットの（印刷）コストがこれ以下のときのみ効く
           side?: "both" // 指定時は持ち主だけでなく両陣営のスピリットが対象
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           keywordFilter?: Keyword // 指定時はこのキーワードを持つスピリットのみ対象

@@ -1842,7 +1842,8 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
             // 相手側の発生源は side:"both" のエントリだけが効く
             if (sourcePid !== pid && effect.side !== "both") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
-            if (effect.fromLevel !== level) continue
+            if (effect.fromLevel !== undefined && effect.fromLevel !== level) continue
+            if (effect.maxCost !== undefined && getCard(inst.cardId).cost > effect.maxCost) continue
             // keywordFilter（BS06神葉樹の森Lv2）：指定キーワードを持つスピリットのみ対象
             if (effect.keywordFilter && !spiritHasKeyword(state, pid, inst, effect.keywordFilter)) continue
             if (effect.phaseTurn) {
@@ -1851,8 +1852,11 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
                 if (effect.phaseTurn.turn === "opponent" && sourcePid === state.turnPlayer) continue
             }
             const levels = getCard(inst.cardId).levels
-            const from = levels.find((l) => l.level === effect.fromLevel)
-            const use = levels.find((l) => l.level === effect.useLevel)
+            const from = levels.find((l) => l.level === level)
+            const use =
+                effect.useLevel === "max"
+                    ? levels.reduce((best, l) => (l.level > best.level ? l : best), levels[0]!)
+                    : levels.find((l) => l.level === effect.useLevel)
             if (!from || !use) continue
             return base + (use.bp - from.bp)
         }
