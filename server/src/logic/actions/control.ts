@@ -11,7 +11,7 @@ import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveBp, iceWallColorsOf, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { lastMovedOf, newRecordScope } from "../record"
+import { lastLeftCostOf, lastMovedOf, newRecordScope } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -101,7 +101,7 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     const cond = action.cond
     const met = "last" in cond
-        ? lastMovedOf(state).some((id) => matchesPick(id, cond.last))
+        ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
         : "event" in cond
           ? "destroyedColor" in cond.event
               ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)

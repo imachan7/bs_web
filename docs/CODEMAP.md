@@ -400,7 +400,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/revealAction.ts
 
-- `matchesPick`（fn）
+- `matchesPick`（fn）：costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
 
 ## server/src/logic/actions/timedEffect.ts
 
@@ -563,6 +563,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `newRecordScope`（fn）
 - `currentRecordScope`（fn）
 - `recordMoved`（fn）：scope は書く側が**開始時に控えた**枠を渡す（途中の誘発が recordScope を変えても自分の枠に書くため）
+- `recordLeftCost`（fn）：効果で場から移すスピリットの、待機状態に入ったときのコスト（「この効果で〜を戻したとき」の続きは待機中に解決するので、
+- `lastLeftCostOf`（fn）
 - `lastMovedOf`（fn）
 - `withMovedProbe`（fn）
 - `lastMovedCount`（fn）
