@@ -11,10 +11,14 @@ import { COLOR_LABELS } from "../../../../data/constants"
 import { lastMovedOf } from "../record"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
+
+// 期間 nextRefresh は ONLY_NEXT_REFRESH の内容にしか書けない（ハンドラの入口で落とす）
+const ONLY_NEXT_REFRESH = ["skipRefresh", "trashCoreReturnCap"] as const
+const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration === "battle" ? "battle" : "turn")
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp", "blockCost", "bpAs"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -36,6 +40,7 @@ function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean
 function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect): string {
     const recorded = action.content.filter(isRecorded)
     if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
+    if (action.duration === "nextRefresh") return `${getCard(inst.cardId).name}は、次のリフレッシュステップで${contentLabel(action)}。`
     const period = action.duration === "turn" ? "このターン" : "このバトル"
     return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
@@ -50,7 +55,8 @@ function contentLabel(action: TimedEffect): string {
     const keywords = action.content.flatMap((c) => (c.type === "keyword" ? [`【${KEYWORDS[c.keyword].label}】を持つ`] : []))
     const bpAs = action.content.flatMap((c) => (c.type === "bpAs" ? [`Lv${c.levels.join("/")}のBPを${c.amount}として扱う`] : []))
     const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords, ...bpAs, ...blockCost].join("、")
+    const skipRefresh = action.content.some((c) => c.type === "skipRefresh") ? ["回復できない"] : []
+    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -149,7 +155,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
     state.lastBpBuffTargetId = target.instanceId
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
     if (content.amountCounter === undefined) {
-        recordBp(state, owner, target, content.amount, action.duration)
+        recordBp(state, owner, target, content.amount, bpUntil(action))
         log(state, `${getCard(target.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
@@ -161,7 +167,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Timed
             log(state, `${sourceName}：カウントが0のため増加しなかった。`)
             return
         }
-        recordBp(state, owner, target, amount, action.duration)
+        recordBp(state, owner, target, amount, bpUntil(action))
         log(state, `${getCard(target.cardId).name}はBP+${amount}（${untilLabel}）。`)
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
@@ -183,7 +189,7 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         return
     }
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
-    const addBp = (amount: number) => recordBp(state, owner, self, amount, action.duration)
+    const addBp = (amount: number) => recordBp(state, owner, self, amount, bpUntil(action))
     if (content.amountCounter === undefined) {
         addBp(content.amount)
         log(state, `${getCard(self.cardId).name}はBP+${content.amount}（${untilLabel}）。`)
@@ -663,8 +669,32 @@ function placeTriggerSwap(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
     log(state, `${sourceName}：このターンの間、${getCard(target.cardId).name}の『${fromLabel}』効果は『${toLabel}』に発揮される。`)
 }
 
+// 「次の相手のリフレッシュステップで、トラッシュのコアを◯個しか戻せない」：そのプレイヤーに掛かる記録
+function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, sourceName } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "trashCoreReturnCap" }> => c.type === "trashCoreReturnCap")
+    if (!content) return
+    if (action.duration !== "nextRefresh") {
+        log(state, `${sourceName}：この期間の指定は未対応のため発揮しなかった。`)
+        return
+    }
+    const pids: PlayerId[] = action.side === "both" ? bothSidesPids(state, ctx.srcType) : [action.side === "own" ? owner : opp]
+    for (const pid of pids) {
+        recordTimed(state, { content: [content], target: { kind: "player", pid }, until: "nextRefresh", ownerPid: owner })
+        log(state, `${sourceName}：次の${state.players[pid].name}のリフレッシュステップでは、トラッシュのコアは${content.max}個までしかリザーブに戻せない。`)
+    }
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if ((action.duration === "nextRefresh") !== action.content.every((c) => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type))) {
+        log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
+        return
+    }
+    if (action.content.some((c) => c.type === "trashCoreReturnCap")) {
+        placeTrashCoreReturnCap(ctx, action)
+        return
+    }
     if (action.content.some((c) => c.type === "triggerSwap")) {
         placeTriggerSwap(ctx, action)
         return

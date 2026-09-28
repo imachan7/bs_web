@@ -250,13 +250,6 @@ const protectBlockerCoresThisBattleHandler: ActionHandler<"protectBlockerCoresTh
     log(state, `${sourceName}：このバトルの間、ブロックしたスピリット上のコアは取り除けない。`)
 }
 
-const capOpponentTrashCoreReturnNextRefreshHandler: ActionHandler<"capOpponentTrashCoreReturnNextRefresh"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
-    recordTimed(state, { content: [{ type: "trashCoreReturnCap", max: action.max }], target: { kind: "player", pid: opp }, until: "nextRefresh", ownerPid: owner })
-    log(state, `${sourceName}：次の${state.players[opp].name}のリフレッシュステップでは、トラッシュのコアは${action.max}個までしかリザーブに戻せない。`)
-    return
-}
-
 // bothSidesCoreToTrashHandlerと同じ「コアの多い個体から順に合計count個をトラッシュへ」の
 // 単一プレイヤー版（維持コア割れの消滅処理を含む）。実際に移した枚数を返す
 function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: number): number {
@@ -673,7 +666,6 @@ const handlers = {
     swapOpponentCores: swapOpponentCoresHandler,
     coreRemove: coreRemoveHandler,
     protectBlockerCoresThisBattle: protectBlockerCoresThisBattleHandler,
-    capOpponentTrashCoreReturnNextRefresh: capOpponentTrashCoreReturnNextRefreshHandler,
     coreDrainAllOthers: coreDrainAllOthersHandler,
     linkNexusCoresChoice: linkNexusCoresChoiceHandler,
 } satisfies Partial<ActionRegistry>
