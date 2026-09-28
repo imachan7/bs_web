@@ -57,6 +57,9 @@
    `triggered.burstSummonOnly?: true`（onSummon。その召喚がバースト効果の解決中に行われたときだけ。044）。`reveal.countCounter?: EffectCounter`（destroy.countCounter と同名。041）と EffectCounter `ownKeyword` に配列（OR・1体1回）（✅ dadb506・part444）
    **部品バッチ4（【魔光芒】。確定スキーマ）**：Keyword `"makobo"`。挙動は既存2つの合成で、専用の kind を作らない：`resolveKoboOnBattleEnd` は makobo も kobo と同じく回収、`findMagicRepeatGrantSource` はバトル中の自分のアタッカーが makobo を持てばそれを再発揮の発生源として返す（確認式・マジック1枚ごと・oncePerBattle なし）。
    「【光芒】/【魔光芒】を持つ」用に TargetFilter.keyword と reviveOnDestroy.keywordFilter を `Keyword | Keyword[]`（OR）に広げる。【光芒】だけを見るフィルタに makobo は当てはまらない（✅ 63bea12・part445）
+   **部品バッチ5（type.ts を触らない。確定スキーマ）**：`exhaust.untilRefreshedCount?: number`（対象側の回復状態のスピリットがこの数になるまで疲労。選ぶのは chooserIsTarget の規則どおり。072）。`returnToHand.nexus?: "only" | "also"`（exhaust と同じ意味。X04）。
+   `battleBpAsLevel` の `fromLevel` を省略可（省くとどのLvでも）・`useLevel: number | "max"`（そのスピリットのカードが持つ最高Lv）・`maxCost?: number`（023）。
+   type.ts を触る部品（034 の破壊されたカード記録・declare の what:"name"/"level"・EffectCounter の BP差）は #226（types/choice.ts 切り出し）のマージ後
 7. R3 の残り（`validate:size` の据え置き1本：type.ts（**残りは約300バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
