@@ -43,8 +43,8 @@
    旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
    支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
 3. **次の一手**：R5_TRIAGE §4 の要相談7種は 09-28 に3本の PR で実装（「残す」2種は据え置き）。残りは R5_TRIAGE §1 の「まとめる」グループの未着手分。
-   その後にまとめる残り（スフィン・クロス・次のリフレッシュステップまでの3種・ヴァリエル）
-   **ヴァリエル（`recoverAllMagicFromTrashByColorChoice`）はユーザー確認待ち**：`declare{color, options[緑,黄]}`→`toHand{count all, pick{magic, declared}}` で書くと、①トラッシュに無い色も指定できる ②非対話の自動選択が「相手の場に多い色」になる（今はトラッシュに多い色）
+   その後にまとめる残り（スフィン・クロス・スクルディア・ヴァリエル）
+   **ヴァリエル（`feat/recover-from-trash`。09-28 ユーザー了承）**：`declare{color, options[緑,黄], autoFrom{ownTrash: {cardType magic}}}`→`toHand{from trash, count all, pick{cardType magic, declared match}}`。トラッシュに無い色も指定できる（効果文どおり）。非対話の自動選択は今と同じ「トラッシュの該当カードに多い色」で、そのために `declare.autoFrom`（自動選択の基準）を足す
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
 5. BS16 の黄・青（バッチ3）を新しい書き方で実装し、実装役の呼び出し数を測る
 6. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。

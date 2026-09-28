@@ -3369,7 +3369,13 @@
     ],
     "optional": false,
     "action": {
-     "type": "markSkipNextRefresh",
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "skipRefresh"
+      }
+     ],
+     "duration": "nextRefresh",
      "filter": {
       "rested": true
      }

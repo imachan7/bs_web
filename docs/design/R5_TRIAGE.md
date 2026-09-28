@@ -38,6 +38,7 @@ R5（器の統合）の終わりを決めるための表。終わりの基準は
 | feat/exhaust-nexus-family | 要相談（疲労） | `exhaustOpponentSameFamilyAll`・`exhaustAllOpponentNexuses`・`exhaustSpiritsAndNexusesUpTo` → `exhaust`＋絞り込み `sameFamilyAsDestroyed`／`nexus: "only"｜"also"` |
 | feat/pay-peek-mill-color | 要相談（pay・継続効果の色） | `costDiscardNamedThenPeek` → `pay`＋`discardSelfChoose{cardName}`＋`peekOpponentHand`、`millOpponentThenReact` → `sequence`＋`timedEffect{playerRule battle, bannedColors "last"}`、`lifeCharge` の埋め込みコスト → `pay{mill own}`＋`sequence` |
 | chore/remove-life-charge | 使われなくなった旧 type | `lifeCharge` → smoke を `placeCores{to life}` へ書き換えて削除 |
+| feat/timed-next-refresh | G-refreshBlock の2種 | `markSkipNextRefresh`・`capOpponentTrashCoreReturnNextRefresh` → `timedEffect{duration nextRefresh}`（`markNoRefreshTarget` は期間が違うので残す） |
 | feat/recover-from-trash | トラッシュ→手札 | 単純なアクション `toHand{from trash, count, pick}` を新設。`recoverNexusFromTrash` → `toHand{pick nexus}` |
 
 **G-delegate・G-sequence・G-compose の残りの振り分け**（09-27 にハンドラを読んで直した）
