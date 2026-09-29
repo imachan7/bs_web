@@ -72,9 +72,27 @@ effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**そ
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### 未決：「〜することで、フィールドに残る」を任意として持ち主に確認するか（2026-09-27 発見）
+### 次の一手：「〜することで」を1つの確認関門に通す（2026-09-29 ユーザー決定。規則は COST_MODEL §10）
 
-BS07-042 パオ・ペイール等の reviveOnDestroy は `optional` が無いと、コストを自動で払って残る（持ち主に確認が出ない）。COST_MODEL の「ことで＝任意」に合わせるならデータか既定を変える。**ユーザー確認待ち**（影響枚数は未集計）。
+調べた事実（コード未変更）：
+- **円卓＋賢者の樹の実で【装甲：赤】のアタッカーが破壊される**。`findInstanceAnywhere`（GameState.ts）がスピリットしか探さず、
+  順番選択・選択待ちからの再開で発生源がネクサスだと self が null になり、色が落ちて装甲判定が素通りする（呼び出し元19箇所）
+- **`pay` は自分で確認を出さない**（EffectDef の `optional` 頼み）。確認なしで払う `pay` が30件（クロノ・ハデス BS12-015 は `optional:false`、
+  メガロ・ザウル・スネイクスレイヴ・モクバオー・ディルガン・ショカツリョー等）。「ことで」を含む256枚のうち `pay` は77枚、残り179枚は専用 kind
+- **円卓 Lv2（`targetNegateByHandDiscard`）**：確認は destroy/bounce/exhaust/cores/removeCores の「対象指定で再入」経路だけ。
+  exhaust `nexus:"also"`・returnToDeckTop/Bottom・markNoRefreshTarget は確認なしで払う。候補1体で自動決定の経路は払う機会が出ない
+
+PR の順番（1本ずつ別ブランチ）：
+1. `fix/`：`findInstanceAnywhere` にネクサス・合体中ブレイヴを含める。`magic/cast.ts:159` の持ち主判定もスピリットだけで見ているので直す。
+   smoke：円卓＋樹の実＋装甲／ネクサス効果の対象選択後の装甲／ネクサス発生源の誘発2つを順番選択に通す総当たり
+2. `fix/`：関門 `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
+   (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
+   `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、
+   自動決定・デッキ戻し・nexus:"also"・markNoRefreshTarget にも入れる。解決中の効果に「確認済み」の印を持たせ、`pay` はそれを見て二重に聞かない。
+   対話中に関門を経ずに支払いまで来たら払わずに smoke で落とす。総当たり：相手の効果がスピリットを対象に取る全アクション×（対象指定／自動決定）で確認が出る
+3. 残り179枚：「コストを支払うことで」33件はバーストの既存確認で済んでいるか確かめるだけ、キーワード説明文15件は対象外、
+   残り136件（reviveOnDestroy・magicNegate・deckMillNegate・cost* 軸等）を監査で一覧にして `pay` へ移すか関門を呼ぶ器へ。
+   移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す
 
 ### M2 `if`（2026-09-27〜）
 
