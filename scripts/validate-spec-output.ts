@@ -8,7 +8,7 @@ const vocab = JSON.parse(readFileSync("data/spec/vocab.json", "utf8")) as Vocab
 const args = process.argv.slice(2)
 const inputIdx = args.indexOf("--input")
 const inputPath = inputIdx >= 0 ? args[inputIdx + 1] : undefined
-const files = args.filter((a, i) => a !== "--input" && i !== inputIdx + 1)
+const files = args.filter((a, i) => inputIdx < 0 || (i !== inputIdx && i !== inputIdx + 1))
 
 const problems: string[] = []
 const bad = (where: string, msg: string): void => {
