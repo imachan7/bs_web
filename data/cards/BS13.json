@@ -4382,6 +4382,7 @@
      "星魂"
     ],
     "excludeSelfAsEventTarget": true,
+    "selfMode": "source",
     "action": {
      "type": "refreshSelf"
     }
