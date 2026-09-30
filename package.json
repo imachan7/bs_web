@@ -30,7 +30,8 @@
     "audit:shared": "tsx scripts/audit-shared-actions.ts",
     "audit:choices": "tsx scripts/audit-auto-choices.ts",
     "audit:parity": "tsx scripts/audit-client-server-parity.ts",
-    "audit:spec": "tsx scripts/audit-spec-vs-data.ts"
+    "audit:spec": "tsx scripts/audit-spec-vs-data.ts",
+    "audit:spec-dynamic": "tsx scripts/audit-spec-dynamic.ts"
   },
   "engines": {
     "node": ">=20"
