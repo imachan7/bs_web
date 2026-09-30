@@ -19,7 +19,7 @@ const EVENTS_WITH_SWAPPING_ACTOR = new Set([
 ])
 const EVENT_ALIASES: Record<string, string[]> = {
     "疲労した": ["ownSpiritExhausted", "anySpiritExhausted"],
-    "召喚された": ["ownSpiritSummoned"],
+    "召喚された": ["ownSpiritSummoned", "anyBraveSummoned"],
     "破壊された": ["ownSpiritDestroyed", "opponentSpiritDestroyed"],
     "アタックした": ["anySpiritAttacked"],
     "ブロックされた": ["ownSpiritBlocked"],
@@ -27,12 +27,13 @@ const EVENT_ALIASES: Record<string, string[]> = {
     "合体した": ["anySpiritCombined"],
     "回復した": ["ownSpiritRefreshed", "anySpiritRefreshed"],
     "手札に戻った": ["ownSpiritReturnedToHand", "anySpiritReturnedToHand"],
-    "ライフが減った": ["ownLifeDamaged", "opponentLifeDamaged"],
+    "ライフが減った": ["ownLifeDamaged", "opponentLifeDamaged", "ownSpiritDealtLife"],
     "デッキが破棄された": ["opponentDeckMilled", "ownDeckMilled", "ownFunsaiMilled"],
     "ドローした": ["opponentDrew", "opponentDrewByEffect"],
     "マジックを使用した": ["ownMagicUsed", "opponentMagicUsed"],
+    "バーストをセットした": ["ownBurstSet", "opponentBurstSet"],
+    "バトルが終わった": ["ownCombinedSpiritBattleEnded"],
 }
-const SELF_ACTION_OF_OP: Record<string, string> = { "回復させる": "refreshSelf", "疲労させる": "exhaustSelf", "破壊": "destroySelf" }
 
 type Clause = {
     text: string
@@ -42,13 +43,22 @@ type Clause = {
     target?: { ref?: string | null }
     unclassified?: string | null
 }
-type FieldEvent = { id: string; kind: string; event: string; selfMode?: string; ownOnly?: boolean; subjectSide?: string; action?: { type: string } }
+type FieldEvent = { id: string; kind: string; event: string; selfMode?: string; ownOnly?: boolean; subjectSide?: string; action?: { type: string; target?: string; chooserIsTarget?: boolean } }
+
+// op → データ側のアクション名の前置き。一致するものを優先して対応付ける
+const OP_PREFIX: Record<string, string[]> = {
+    "破壊": ["destroy"], "疲労させる": ["exhaust"], "回復させる": ["refresh"], "ドロー": ["draw"],
+    "コアを取り除く": ["removeCores", "coreRemove"], "手札に戻す": ["bounce", "returnToHand"],
+    "ライフを減らす": ["lifeDamage", "damageLife"],
+}
 
 function resolvedSelf(e: FieldEvent): "source" | "eventSubject" {
     if (e.selfMode === "source") return "source"
     return EVENTS_WITH_TARGET_SELF.has(e.event) ? "eventSubject" : "source"
 }
 function resolvedActor(e: FieldEvent): "owner" | "eventSubjectOwner" {
+    // destroySelf／exhaustSelf は fix/self-action-cause-context 以降、常に発生源の持ち主が実行者
+    if (e.action?.type === "destroySelf" || e.action?.type === "exhaustSelf") return "owner"
     if (e.selfMode === "source" || e.ownOnly || e.subjectSide === "own") return "owner"
     return EVENTS_WITH_SWAPPING_ACTOR.has(e.event) ? "eventSubjectOwner" : "owner"
 }
@@ -65,12 +75,10 @@ for (const file of process.argv.slice(2)) {
         const used = new Set<string>()
         for (const c of spec.clauses) {
             if (c.unclassified || c.trigger?.kind !== "field" || !c.trigger.event) continue
-            const wantType = c.op === "ドロー" ? "draw" : SELF_ACTION_OF_OP[c.op ?? ""]
-            if (!wantType) continue
-            // 「〜Self」系は、対象が発生源／イベント対象のときだけ照合する（「相手のスピリット1体を破壊」等は別のアクション）
-            if (wantType !== "draw" && c.target?.ref !== "source" && c.target?.ref !== "prevClause") continue
             const events = EVENT_ALIASES[c.trigger.event] ?? []
-            const eff = card.effects.find((e) => e.kind === "fieldEvent" && !used.has(e.id) && events.includes(e.event) && e.action?.type === wantType)
+            const candidates = card.effects.filter((e) => e.kind === "fieldEvent" && !used.has(e.id) && events.includes(e.event))
+            const prefixes = OP_PREFIX[c.op ?? ""] ?? []
+            const eff = candidates.find((e) => prefixes.some((pre) => e.action?.type.startsWith(pre))) ?? (candidates.length === 1 ? candidates[0] : undefined)
             if (!eff) {
                 unmatched++
                 if (process.env.VERBOSE) console.log(`未照合: ${spec.id}「${c.text.slice(0, 40)}」event=${c.trigger.event} op=${c.op} / データ: ${card.effects.filter((e) => e.kind === "fieldEvent").map((e) => `${e.event}:${e.action?.type}`).join(",") || "fieldEventなし"}`)
@@ -79,12 +87,14 @@ for (const file of process.argv.slice(2)) {
             used.add(eff.id)
             checked++
             const where = `${spec.id} ${eff.id}（${eff.event}）「${c.text.slice(0, 32)}」`
-            if (wantType !== "draw") {
+            // 〜Self 系は、発生源かイベント対象かも照合する（「相手のスピリット1体を破壊」等の対象選択は別のアクション）
+            if (eff.action?.type.endsWith("Self")) {
                 const expected = c.target?.ref === "source" ? "source" : c.target?.ref === "prevClause" ? "eventSubject" : null
                 if (expected && expected !== resolvedSelf(eff)) problems.push(`${where}: 効果文は${expected === "source" ? "発生源（このスピリット）" : "イベント対象（そのスピリット）"}を指すが、実装は${resolvedSelf(eff) === "source" ? "発生源" : "イベント対象"}に作用する`)
             }
-            const expectedActor = c.actor === "owner" ? "owner" : null
-            if (expectedActor && expectedActor !== resolvedActor(eff)) problems.push(`${where}: 効果文の実行者は持ち主だが、実装はイベント対象の持ち主が実行する`)
+            // イベント対象自身が行う処理（target:"self"・chooserIsTarget）は、実行者がイベント対象の持ち主であることが意図
+            const actsAsSubject = eff.action?.target === "self" || eff.action?.chooserIsTarget === true
+            if (c.actor === "owner" && !actsAsSubject && resolvedActor(eff) !== "owner") problems.push(`${where}: 効果文の実行者は持ち主だが、実装はイベント対象の持ち主が実行する（${eff.action?.type}）`)
         }
     }
 }
