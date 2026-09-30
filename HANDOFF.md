@@ -175,6 +175,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 先に変換規則を確定する：[EFFECT_SPEC_RULES.md](./docs/design/EFFECT_SPEC_RULES.md)（下書き。⚠️印と §5 の未決をユーザー確認 → §2 の表に1行ずつ足す）。
 試験運用の結果（2026-09-30。50枚×2回、狙いの3欄＝誘発の主体・実行者・対象の一致）：Sonnet自由記述94%／Haiku自由記述46%／**Haiku選択式（下ごしらえ＋一覧から選ぶ）84%**。未分類は選択式で6〜14%。既知バグ3枚は全モデルで正しい期待値。
 道具：`data/spec/vocab.json`（一覧）・`scripts/spec-skeleton.ts`（下ごしらえ＝skeleton／合成＝merge）・`scripts/validate-spec-output.ts`（機械検査）。**次**：①実装データとの突き合わせ（期待値の3欄 vs 実装の解決先）を作る ②既知バグを戻して検出できるか確認 ③50枚→全カード。
+**全体への突き合わせ（2026-09-30。データ側で自己参照/ドローを持つ fieldEvent 71枚・Haiku選択式1回）**：`npm run audit:spec -- <期待値.json>`。実バグ2件は修正済み（別ブランチ）、**未修正の候補が1系統**：`fieldEvent` の `anySpiritCombined`/`anySpiritAttacked` 等で「そのスピリットを疲労／破壊」すると、**実行者がイベント対象の持ち主（＝相手）**で解決され、`exhaustSelf`/`destroySelf` が原因情報（causePid/causeType）を渡さないため、【装甲】等の耐性と「相手の効果で〜されたとき」が効かない。該当：BS11-064・BS13-006・BS13-061（BS13-063も同型の可能性）。**ルール解釈の確認待ち**（装甲は「そのスピリットを破壊する」も防ぐ、でよいか）。未照合6件はイベント名の対応不足（audit-spec-vs-data.ts の EVENT_ALIASES に足す）。
 関連：fix/field-event-self-mode-source に part452（selfMode 書き漏れの静的検査＋レオ・ハーキュリーの動作テスト）。
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
