@@ -41,6 +41,7 @@ type Clause = {
     actor?: string | null
     op?: string | null
     target?: { ref?: string | null }
+    amount?: number | string | null
     unclassified?: string | null
 }
 type FieldEvent = { id: string; kind: string; event: string; selfMode?: string; ownOnly?: boolean; subjectSide?: string; action?: { type: string; target?: string; chooserIsTarget?: boolean } }
@@ -92,6 +93,11 @@ for (const file of process.argv.slice(2)) {
                 const expected = c.target?.ref === "source" ? "source" : c.target?.ref === "prevClause" ? "eventSubject" : null
                 if (expected && expected !== resolvedSelf(eff)) problems.push(`${where}: 効果文は${expected === "source" ? "発生源（このスピリット）" : "イベント対象（そのスピリット）"}を指すが、実装は${resolvedSelf(eff) === "source" ? "発生源" : "イベント対象"}に作用する`)
             }
+            // 数量：効果文の数値と、データの count／amount が一致するか（どちらかが数値でないときは見ない）
+            const specAmount = typeof c.amount === "number" ? c.amount : typeof c.amount === "string" ? (/^\d+$/.test(c.amount.replace(/[^\d]/g, "")) && c.amount.replace(/\D/g, "") !== "" ? Number(c.amount.replace(/\D/g, "")) : null) : null
+            const dataAction = eff.action as { count?: unknown; amount?: unknown } | undefined
+            const dataAmount = typeof dataAction?.count === "number" ? dataAction.count : typeof dataAction?.amount === "number" ? dataAction.amount : null
+            if (specAmount !== null && dataAmount !== null && specAmount !== dataAmount && !/[\d０-９]+.*?(以下|以上|まで)/.test(c.text)) problems.push(`${where}: 効果文の数量は${specAmount}だが、データは${dataAmount}（${eff.action?.type}）`)
             // イベント対象自身が行う処理（target:"self"・chooserIsTarget）は、実行者がイベント対象の持ち主であることが意図
             const actsAsSubject = eff.action?.target === "self" || eff.action?.chooserIsTarget === true
             if (c.actor === "owner" && !actsAsSubject && resolvedActor(eff) !== "owner") problems.push(`${where}: 効果文の実行者は持ち主だが、実装はイベント対象の持ち主が実行する（${eff.action?.type}）`)
