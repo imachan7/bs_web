@@ -27,6 +27,10 @@ const EVENT_ALIASES: Record<string, string[]> = {
     "合体した": ["anySpiritCombined"],
     "回復した": ["ownSpiritRefreshed", "anySpiritRefreshed"],
     "手札に戻った": ["ownSpiritReturnedToHand", "anySpiritReturnedToHand"],
+    "ライフが減った": ["ownLifeDamaged", "opponentLifeDamaged"],
+    "デッキが破棄された": ["opponentDeckMilled", "ownDeckMilled", "ownFunsaiMilled"],
+    "ドローした": ["opponentDrew", "opponentDrewByEffect"],
+    "マジックを使用した": ["ownMagicUsed", "opponentMagicUsed"],
 }
 const SELF_ACTION_OF_OP: Record<string, string> = { "回復させる": "refreshSelf", "疲労させる": "exhaustSelf", "破壊": "destroySelf" }
 
@@ -63,9 +67,15 @@ for (const file of process.argv.slice(2)) {
             if (c.unclassified || c.trigger?.kind !== "field" || !c.trigger.event) continue
             const wantType = c.op === "ドロー" ? "draw" : SELF_ACTION_OF_OP[c.op ?? ""]
             if (!wantType) continue
+            // 「〜Self」系は、対象が発生源／イベント対象のときだけ照合する（「相手のスピリット1体を破壊」等は別のアクション）
+            if (wantType !== "draw" && c.target?.ref !== "source" && c.target?.ref !== "prevClause") continue
             const events = EVENT_ALIASES[c.trigger.event] ?? []
             const eff = card.effects.find((e) => e.kind === "fieldEvent" && !used.has(e.id) && events.includes(e.event) && e.action?.type === wantType)
-            if (!eff) { unmatched++; continue }
+            if (!eff) {
+                unmatched++
+                if (process.env.VERBOSE) console.log(`未照合: ${spec.id}「${c.text.slice(0, 40)}」event=${c.trigger.event} op=${c.op} / データ: ${card.effects.filter((e) => e.kind === "fieldEvent").map((e) => `${e.event}:${e.action?.type}`).join(",") || "fieldEventなし"}`)
+                continue
+            }
             used.add(eff.id)
             checked++
             const where = `${spec.id} ${eff.id}（${eff.event}）「${c.text.slice(0, 32)}」`
