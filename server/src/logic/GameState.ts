@@ -572,10 +572,32 @@ export function findInstanceAnywhere(
     state: GameState,
     instanceId: string,
 ): CardInstance | undefined {
-    return (
-        findSpirit(state.players.p1, instanceId) ??
-        findSpirit(state.players.p2, instanceId)
-    )
+    const found = findSpirit(state.players.p1, instanceId) ?? findSpirit(state.players.p2, instanceId)
+    if (DEBUG_CHECKS && found === undefined) noteLostLookup(state, instanceId)
+    return found
+}
+
+// ── 見失いの検査（検査用。BS_DEBUG_CHECKS=1 のときだけ働く）──────────────
+// フィールドに実在する個体を instanceId で引いて見つからなかったら記録する。
+// 選択待ちからの再開・順番選択では発生源を instanceId で引き直すので、ここで見失うと
+// 発生源の色や持ち主が落ち、耐性判定が素通りする（竜騎集う円卓＋賢者の樹の実で【装甲：赤】が抜けた件。HANDOFF §1）。
+// 1枚の効果文から書く場面テストでは、効果が2つ同時に誘発して順番選択を挟む場面がまず出てこないため、不変条件として全経路で見る
+let lostLookups: string[] = []
+
+function noteLostLookup(state: GameState, instanceId: string): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const f = state.players[pid].field
+        for (const [zone, list] of [["ネクサス", f.nexuses], ["合体中のブレイヴ", f.combinedBraves]] as const) {
+            const inst = list.find((x) => x.instanceId === instanceId)
+            if (inst) lostLookups.push(`${pid}の${zone}「${getCard(inst.cardId).name}」を instanceId で引いたが見つからなかった`)
+        }
+    }
+}
+
+export function takeLostLookups(): string[] {
+    const found = lostLookups
+    lostLookups = []
+    return found
 }
 
 // ---- クライアントへ送る公開ビュー ----
