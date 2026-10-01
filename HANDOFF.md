@@ -84,6 +84,9 @@ PR の順番（1本ずつ別ブランチ）：
 1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
 2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。断ったとき「ターンに1回」を戻す分も済み（#237）
 2c. ✅ 「この効果はターンに1回しか使えない」をカード名ごとに数える（`fix/once-per-turn-by-name`。規則と実装は RULES_BATSPI_WIKI「ターンに1回の数え方」）
+2b-前. **進行中（`fix/block-trigger-target`。2026-10-01 確定。2b＝`fix/pay-negate-gate` の part460 がこれ待ち）**：ブロック時などの誘発が、イベント対象（ブロック時ならアタッカー）を「選んだ対象」として行動に渡すため、「相手のスピリットN体を〜」が対象を選ばずアタッカー1体にだけ効く（銀狼皇ガグンラーズ Lv2 は疲労済みのアタッカーに当たって何もしない）
+   - triggered の EffectDef に軸 `eventTarget?: "use" | "ignore"`。"ignore" なら fireTrigger は行動に targetInstanceId を渡さない（条件の判定には渡す）。"use" は従来どおり
+   - `validate:cards`：trigger が onBlock／onBlocked／onBattleStart／onBattleEnd で、行動の木に対象を取る型があるのに `eventTarget` が無ければ落とす（新しいデータで同じ罠を踏まないため）。対象117エントリを効果文で分類して付ける（調査役の表は docs/design/EVENT_TARGET_AUDIT.md）
 2b. `fix/`：払って受けない耐性を同じ関門に通す `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
    (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
    `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、
