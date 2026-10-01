@@ -8,6 +8,7 @@
 // あちらは fireTrigger / resolveMagic 等を使う）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { markPays } from "./actions/pay"
 import type {
     AuraCondition,
     AuraCounter,
@@ -578,7 +579,9 @@ export function fireTrigger(
             // ブレイヴの効果も「合体スピリット＝スピリットの効果」として扱う（BRAVE.md §12.1）
             const redirecting = card.type === "spirit" || entry.src !== selfInstance
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
-            resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
+            // 中の pay が確認で止まると、下の effectFizzled による巻き戻しは再開前に通り過ぎる。断った／不発のときに戻せるよう pay に渡す
+            const action = effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action
+            resolveAction(state, owner, selfInstance, action, targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
         }
         // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す
@@ -1695,7 +1698,9 @@ export function fireFieldEventTriggers(
                 )
             } else {
                 delete state.effectFizzled
-                resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
+                // 中の pay が確認で止まったとき、断った／不発で消費を戻せるよう渡す（triggered と同じ）
+                const action = markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
+                resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
                     if (e.effect.oncePerTurn) revertOncePerTurn(e.inst, e.effect.id)

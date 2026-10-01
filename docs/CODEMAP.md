@@ -393,7 +393,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `PAYABLE_TYPES`（const）：判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 - `canPayResolve`（const）：判定表に無い type、または判定に落ちた場合は false
-- `markPayConfirmed`（fn）：確認済みの印（pay.confirmed）を木の中の pay すべてに付けた写しを返す。
+- `markPays`（fn）：木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
+- `markPayConfirmed`（fn）
 
 ## server/src/logic/actions/placeCores.ts
 
