@@ -580,7 +580,7 @@ export function fireTrigger(
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
             // 中の pay が確認で止まると、下の effectFizzled による巻き戻しは再開前に通り過ぎる。断った／不発のときに戻せるよう pay に渡す
             const action = effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action
-            resolveAction(state, owner, selfInstance, action, targetInstanceId)
+            resolveAction(state, owner, selfInstance, action, effect.eventTarget === "ignore" ? undefined : targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
         }
         // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す

@@ -958,6 +958,7 @@
         "id": "BS16-X06-e3",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "use",
         "battleRole": "attacker",
         "levels": [
           2,

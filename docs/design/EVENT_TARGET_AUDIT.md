@@ -2,6 +2,11 @@
 
 目的：誘発エントリごとに、効果文がイベント対象を指すか(use)・新たに対象を選ぶか(ignore)を分類し、`eventTarget` フラグ付与の元表にする。全117件。
 内訳：use 9 ／ ignore 45 ／ none 62 ／ 要判断 1。★＝ignore で count 型の対象取り行動なのに excludeTarget も all も無いもの（17件）。
+
+**規則（2026-10-01）**：onBlock／onBlocked／onBattleStart／onBattleEnd の triggered は、`eventTarget: "use" | "ignore"` を必ず書く（`validate:cards` が落とす）。
+効果文がイベント対象を指す（「ブロックした」「バトルしている」「アタックしている」相手のスピリット）なら `"use"`、新たに選ぶなら `"ignore"`、対象を取らないなら `"use"`（従来の挙動のまま）。
+`"ignore"` は行動に targetInstanceId を渡さないだけで、`condition` などの判定には渡す（triggers.ts の fireTrigger）。既知の限界：付与された誘発（grantedAction）には軸を伝える手段が無い
+
 注：none は対象を取らない(自身BP+・ドロー・コア追加等)。節は効果文から自動抽出(60字で切り詰め)のため、見出しの取り違えがありうる。
 
 | エントリID | カード名 | trigger | 行動のtype | 節 | 分類 | 根拠の語句 |

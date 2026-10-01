@@ -1851,6 +1851,7 @@
     "id": "BS14-032-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -2155,6 +2156,7 @@
     "id": "BS14-037-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -3371,6 +3373,7 @@
     "id": "BS14-055-e3",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -7103,6 +7106,7 @@
     "id": "BS14-X03-e4",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,

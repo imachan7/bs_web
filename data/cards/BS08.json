@@ -1450,6 +1450,7 @@
     "id": "BS08-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1681,6 +1682,7 @@
     "id": "BS08-026-e2",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -1756,6 +1758,7 @@
     "id": "BS08-027-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -2312,6 +2315,7 @@
     "id": "BS08-035-e3",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      2,
      3
