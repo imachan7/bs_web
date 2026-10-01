@@ -15,7 +15,7 @@ import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches, summonFromTrashFreeCandidateMatches } from "../summon"
 import { recoverSpiritFromTrashCandidateOk, recoverMagicFromTrashCandidateOk } from "./trashRecover"
 import { findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
-import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses } from "../targeting"
+import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses, requestActivationConfirm } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { newRecordScope, withMovedProbe } from "../record"
@@ -317,8 +317,28 @@ export const canPayResolve = (
     return checker(state, owner, self, action, srcColors, srcType)
 }
 
+// 確認済みの印（pay.confirmed）を木の中の pay すべてに付けた写しを返す。
+// 発動の確認（マジック使用・起動・バースト・任意効果）を済ませた経路から入る action に掛け、二重に聞かないようにする（COST_MODEL.md §10）
+export function markPayConfirmed(action: EffectAction): EffectAction {
+    const walk = (v: unknown): unknown => {
+        if (Array.isArray(v)) return v.map(walk)
+        if (v !== null && typeof v === "object") {
+            const out: Record<string, unknown> = {}
+            for (const [k, x] of Object.entries(v)) out[k] = walk(x)
+            if (out.type === "pay") out.confirmed = true
+            return out
+        }
+        return v
+    }
+    return walk(action) as EffectAction
+}
+
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
+    if (state.interactiveTargets && !action.confirmed) {
+        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, action, self)
+        return
+    }
     let cost = action.cost
     const capacity = anyCapacity(state, owner, self, cost)
     const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType)

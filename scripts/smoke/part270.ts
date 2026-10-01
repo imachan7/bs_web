@@ -3,7 +3,7 @@
 // docs/design/PROCEDURES_AUDIT.md §5 の一般則（2026-09-02 ユーザー確定）に沿って、
 // 実装が勝手に決めていた4か所を選択式にしたぶんの検査。非対話は従来の自動選択のまま。
 // ⚠️ cardId はハードコードせず、名前でカードデータから引いて機械検証する。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, resolveAction, runTurnStart, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import type { EffectAction } from "../../server/src/type"
@@ -118,6 +118,7 @@ console.log("=== §C 機織のハーフェレシテ：破棄する手札のネ�
     s.players.p1.hand = [anyNexus[0]!.cardId, anySpirit[0]!.cardId, anyNexus[1]!.cardId]
     const coresBefore = source.cores
     resolveAction(s, "p1", source, action)
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.kind === "card", "破棄するネクサスカードの選択待ちが立つ")
     assert((s.pendingChoice?.cardIndices ?? []).length === 2, "候補は手札のネクサス2枚だけ（スピリットは出ない）")
     assert(act(s, "p1", { type: "resolveChoice", cardIndex: 2 }) === null, "2枚目のネクサスを選ぶ")

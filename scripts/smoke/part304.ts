@@ -15,6 +15,7 @@ import {
     resolveAction,
     runTurnStart,
     takeLifeAndResolve,
+    answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
@@ -328,6 +329,7 @@ console.log("=== 器AO：「〜を手札に戻すことで」のコスト支払�
     const deckLenBefore = s.players.p1.deck.length
 
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "returnToHand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "returnToHand", count: 1} }, target.instanceId)
+    answerPayConfirm(s, "p1")
 
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === cost.instanceId), "コストのスピリットは場を離れた")
     assert(!s.players.p1.hand.includes("BS13-021"), "コストのスピリットは手札に加わっていない")

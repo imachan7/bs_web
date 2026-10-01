@@ -19,6 +19,7 @@ import {
     runTurnStart,
     takeLifeAndResolve,
     timedHas,
+    answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { destroySpiritsFrom } from "../../server/src/logic/removal"
@@ -224,6 +225,7 @@ console.log("=== 器BF：BS13-058【合体時】（このバトルの間、Lv1/L
             ],
         },
     })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.deck.length === deckBefore - 5, "デッキ上5枚を破棄した")
     assert(s.players.p1.life === lifeBefore + 1, "ボイドからライフにコア1個")
     assert(timedHas(s, host, "unblockable"), "このバトルの間Lv1/2からブロックされない効果が掛かる")

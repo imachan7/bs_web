@@ -446,3 +446,12 @@ export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burs
     return timedContentsFor(state, pid).some((c) => c.type === "battleLock" && c.lock === lock)
 }
 export type { GameAction, GameState, PlayerId }
+
+// 「〜することで〜する」(pay)の払う確認が出ていたら「発動する」で答える（出ていなければ何もしない）
+export function answerPayConfirm(state: GameState, pid: PlayerId): void {
+    const pc = state.pendingChoice
+    if (pc && pc.kind === "option" && (pc.options ?? []).includes("発動する")) {
+        const err = act(state, pid, { type: "resolveChoice", option: "発動する" })
+        if (err) throw new Error(`払う確認への応答に失敗: ${err}`)
+    }
+}

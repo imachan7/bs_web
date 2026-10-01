@@ -20,6 +20,7 @@ import {
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
 import { finishSummonEffect } from "./keywords/burst"
+import { markPayConfirmed } from "./actions/pay"
 import { blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
@@ -809,7 +810,7 @@ function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, ef
         log(state, `${player.name}は手札の${card.name}を破棄して効果を発動した。`)
     }
 
-    resolveAction(state, pid, null, effect.action, undefined, card.colors, "spirit", undefined, undefined, cardId)
+    resolveAction(state, pid, null, markPayConfirmed(effect.action), undefined, card.colors, "spirit", undefined, undefined, cardId)
     // バトル中のフラッシュで使用したら優先権を相手へ移す（フラッシュマジック・神速召喚・覚醒と共通。passFlashPriority）
     passFlashPriority(state, pid)
     return null
@@ -1450,7 +1451,7 @@ function doActivateAbility(
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
     delete state.effectFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
-    resolveAction(state, pid, host, effect.action)
+    resolveAction(state, pid, host, markPayConfirmed(effect.action))
     if (effect.oncePerTurn && cancelable) {
         if (state.effectFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする

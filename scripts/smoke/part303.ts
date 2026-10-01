@@ -10,7 +10,9 @@ import {
     refreshLevelAsOverrides,
     refreshSpirit,
     resolveAction,
-    runTurnStart, bpBuffOf } from "./helpers"
+    runTurnStart, bpBuffOf,
+    answerPayConfirm,
+} from "./helpers"
 import type { GameState } from "./helpers"
 
 function game(seed: string): GameState {
@@ -133,6 +135,7 @@ console.log("=== 器AE：refreshSelf.costReturnOwnSpiritKeyword（BS13-019コロ
     refreshLevelAsOverrides(s)
 
     resolveAction(s, "p1", kolokon, { type: "pay", cost: { type: "returnToHand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "refreshSelf"} })
+    answerPayConfirm(s, "p1")
     assert(!kolokon.isRested, "コストを払って回復した")
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === soku.instanceId), "コストにしたスピリットは手札に戻った")
     assert(s.players.p1.hand.includes("BS01-053"), "手札に戻っている")

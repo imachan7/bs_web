@@ -3,6 +3,7 @@ import { findSpiritAny, isResisted, resolveAction } from "./EffectModules"
 import type { CardInstance, CardType, Color, EffectAction, FamilyFilter, GameState, Keyword, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
 import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./triggers"
+import { markPayConfirmed } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
 import {
     effectiveBp,
@@ -339,7 +340,7 @@ export function requestActivationConfirm(
         options: ["発動する"],
         optional: true,
         confirm: true,
-        action,
+        action: markPayConfirmed(action),
         selfInstanceId: self ? self.instanceId : null,
         ...(revertTriggered ? { revertTriggered } : {}),
     })

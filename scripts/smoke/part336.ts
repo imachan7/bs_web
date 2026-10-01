@@ -2,7 +2,7 @@
 // Lv1-2の既存実装の簡略化（手札末尾の自動破棄）を直す＝手札破棄選択を使う）
 //
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械確認してから使う。
-import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, runTurnStart, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fushiCandidates, fushiSummonOrConfirm } from "../../server/src/logic/revive"
 import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
@@ -134,6 +134,7 @@ console.log("=== §D Lv1-2の手札破棄は持ち主が選ぶ（末尾の自動
     const attacker = put(s, "p1", "BS15-011", 1) // 紫のスピリット（アタックする本人）
     s.players.p1.hand = ["BS01-001", "BS02-040"] // 破棄候補2枚（末尾=BS02-040が旧実装での自動選択先）
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p1", inst: attacker }, getCard(attacker.cardId).colors)
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.kind === "card" && s.pendingChoice.cardZone === "hand", "破棄する手札の選択待ちになる（自動で決め打ちしない）")
     const cardIndices = s.pendingChoice?.cardIndices ?? []
     assert(cardIndices.length === 2, "手札2枚とも候補に出る")
