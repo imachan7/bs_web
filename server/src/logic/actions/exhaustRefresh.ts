@@ -850,7 +850,17 @@ const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
             log(state, `${getCard(self.cardId).name}はすでに疲労状態のため何もしなかった。`)
             return
         }
-        exhaustSpirit(state, owner, self)
+        // fieldEvent で相手側のスピリットがイベント対象のとき、self の持ち主は実行者（owner）と異なる
+        const selfPid = findSpiritAny(state, self.instanceId)?.pid ?? owner
+        if (selfPid !== owner) {
+            if (isResisted(state, selfPid, self, attemptOf(ctx, "exhaust", "area"))) {
+                log(state, `${getCard(self.cardId).name}は${sourceName}の効果を受けないため疲労しなかった。`)
+                return
+            }
+            exhaustSpirit(state, selfPid, self, undefined, owner, srcType)
+        } else {
+            exhaustSpirit(state, owner, self)
+        }
         log(state, `${getCard(self.cardId).name}は疲労した。`)
         return
 }

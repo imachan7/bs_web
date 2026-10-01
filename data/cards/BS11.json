@@ -5297,6 +5297,7 @@
     ],
     "whileCombined": true,
     "keywordFilter": "soku",
+    "selfMode": "source",
     "action": {
      "type": "refreshSelf"
     }
