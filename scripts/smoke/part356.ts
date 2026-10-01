@@ -1,5 +1,5 @@
 // smoke パート356（pay：「〜することで〜する」の汎用の器＋discardSelfChooseのcardType/keyword絞り込み。COST_MODEL §1）
-import { assert, createGame, createInstance, getCard, resolveAction, act } from "./helpers"
+import { assert, createGame, createInstance, getCard, resolveAction, act, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・スピリット・コスト1）
@@ -39,6 +39,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
     s.players.p1.hand = [VANILLA, VANILLA, VANILLA]
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 3 } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 4, "手札2枚を破棄し3枚ドロー（3-2+3=4）")
     assert(s.players.p1.deck.length === deckBefore - 3, "デッキから3枚引かれた")
     assert(s.players.p1.trashCards.length === 2, "破棄した2枚がトラッシュにある")
@@ -53,6 +54,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
         cost: { type: "discardSelfChoose", count: 1 },
         then: { type: "discardOpponent", count: 1, cardTypeFilter: "magic" },
     })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 0, "自分の手札1枚を破棄した")
     assert(!s.players.p2.hand.includes(MAGIC_BURST), "相手のマジックが破棄された")
 }
@@ -62,6 +64,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
     s.players.p1.hand = [MAGIC_BURST]
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "setBurstFromHand" }, then: { type: "draw", count: 1 } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 1, "セットした1枚が引いた1枚に入れ替わった")
     assert(s.players.p1.deck.length === deckBefore - 1, "1枚ドローした")
 }
@@ -71,6 +74,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
     const me = put(s, "p1", ARMOR, 1)
     s.players.p1.hand = [NEXUS, VANILLA]
     resolveAction(s, "p1", me, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: "nexus" }, then: { type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", target: "self" } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 1 && s.players.p1.hand[0] === VANILLA, "ネクサスだけが破棄された")
     assert(me.tempBpBuff === 2000, "自身がBP+2000された")
 }
@@ -80,6 +84,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
     s.players.p1.hand = [ARMOR, VANILLA]
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1, keyword: "armor" }, then: { type: "draw", count: 2 } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 3 && !s.players.p1.hand.includes(ARMOR), "【装甲】持ちだけが破棄され、2枚ドローした（1-1+2=2、元のVANILLA込みで3）")
 }
 
@@ -89,6 +94,7 @@ console.log("=== 2. costが数どおりそろわないと何も動かない ==="
     s.players.p1.hand = [VANILLA]
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 3 } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 1, "手札が2枚に満たないため破棄しなかった")
     assert(s.players.p1.deck.length === deckBefore, "コストを払えないのでドローもしない")
     assert(s.players.p1.trashCards.length === 0, "トラッシュも増えない")
@@ -100,6 +106,7 @@ console.log("=== 3. thenが数どおりそろわないとcostも払わない ===
     s.players.p1.hand = [VANILLA, VANILLA, VANILLA]
     s.players.p1.deck = [VANILLA] // 1枚しかない
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 2 } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 3, "デッキが足りないので手札は減らない（コストも払わない）")
     assert(s.players.p1.deck.length === 1, "デッキも減らない")
 }
@@ -131,6 +138,7 @@ console.log("=== 5. 対話モード：costの選択で中断し、選んだあ�
     s.players.p1.hand = [VANILLA, VANILLA]
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1 }, then: { type: "draw", count: 1 } })
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice !== null, "cost側の選択で止まっている")
     assert(s.pendingChoice?.kind === "card", "手札選択の中断")
     const idx = s.pendingChoice?.cardIndices?.[0]
@@ -149,6 +157,7 @@ console.log("=== 5b. 対話モード：2枚破棄のcostは2枚目の選択を�
     const s = game("case5b", true)
     s.players.p1.hand = [VANILLA, VANILLA, VANILLA]
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 3 } })
+    answerPayConfirm(s, "p1")
     act(s, "p1", { type: "resolveChoice", cardIndex: s.pendingChoice?.cardIndices?.[0] ?? 0 })
     assert(s.pendingChoice?.kind === "card", "2枚目の選択で止まっている")
     assert(s.players.p1.deck.length === 40, "2枚目を選ぶ前にはドローしていない")
@@ -163,6 +172,7 @@ console.log("=== 6. 判定表に無いtypeを書いたら何も動かない ==="
     s.players.p1.hand = [VANILLA, VANILLA]
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "endBattle" }, then: { type: "draw", count: 1 } })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 2, "判定表に無いcost typeなので何もしない")
     assert(s.players.p1.deck.length === deckBefore, "ドローも起きない")
 }

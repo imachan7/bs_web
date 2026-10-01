@@ -17,7 +17,9 @@ import {
     hasKeyword,
     refreshLevelAsOverrides,
     resolveAction,
-    runTurnStart, timedHas } from "./helpers"
+    runTurnStart, timedHas,
+    answerPayConfirm,
+} from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst, hasBlockTriggersAsAttack } from "../../server/src/logic/EffectModules"
 import { fireFieldEventTriggers, fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
@@ -349,6 +351,7 @@ console.log("=== BS14-X04 氷の覇王ミブロック・バラガン：バース
     put(s4, "p2", "SD01-001", 1) // コスト0
     put(s4, "p2", "BS01-001", 1) // コスト0（予算1で2体とも候補に入る）
     resolveAction(s4, "p1", src4, (getCard("BS14-X04").effects.find((e) => e.id === "BS14-X04-e3") as { action: EffectAction }).action)
+    answerPayConfirm(s4, "p1")
     assert(s4.pendingChoice !== null, "コストにする自分のスピリットを対戦者に選ばせる")
     assert(
         s4.pendingChoice?.candidates.includes(own4a.instanceId) === true &&

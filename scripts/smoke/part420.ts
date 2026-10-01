@@ -1,5 +1,5 @@
 // smoke パート420（王蛇ケツァルカトル：手札を好きなだけ破棄し、破棄した枚数と同じ数の相手のスピリットから1個ずつ。removeCores の targetsCounter）
-import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart, answerPayConfirm } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
 
 const KETSU = "BS04-022" // 王蛇ケツァルカトル
@@ -22,6 +22,7 @@ console.log("=== 手札を2枚選んで破棄し、別々の相手のスピリ�
     s.players.p2.field.spirits.push(...foes)
     const trash = s.players.p2.trashCores
     resolveAction(s, "p1", k, (getCard(KETSU).effects.find((e) => e.id === "BS04-022-e2") as { action: EffectAction }).action)
+    answerPayConfirm(s, "p1")
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     act(s, "p1", { type: "resolveChoice" }) // これで破棄を終える
