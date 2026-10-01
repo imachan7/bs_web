@@ -9,6 +9,7 @@ import { fireFieldEventTriggers } from "../triggers"
 import { setTargetRedirect } from "./redirect"
 import type { ActionHandler } from "../actions/types"
 import { resolveMagic } from "./cast"
+import { isOnceNameUsed, markOnceNameUsed } from "../oncePerTurn"
 
 // マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
 // usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
@@ -136,16 +137,15 @@ export function runMagicActions(
             log(state, `${card.name}：${failure}ため発動しなかった。`)
             continue
         }
-        // 「(この効果はターンに1回しか使えない)」＝使用者ごと・cardIdごとにそのターン1回だけ発揮する。
+        // 「(この効果はターンに1回しか使えない)」＝使用者ごと・カード名ごとにそのターン1回だけ発揮する。
         // 判定はエントリ単位（同じカードの他の timing のエントリには影響させない）。
         // 2枚目は使用自体はできる（コストは払う）が、このエントリの効果だけが発揮されない（BS03-133 ハイエリクサー）
         if (effect.oncePerTurn) {
-            const usedTurn = state.players[owner].magicOncePerTurnUsed?.[cardId]
-            if (usedTurn === state.turn) {
+            if (isOnceNameUsed(state, owner, cardId, effect.id)) {
                 log(state, `${card.name}：この効果はターンに1回しか使えないため、発揮されなかった。`)
                 continue
             }
-            ;(state.players[owner].magicOncePerTurnUsed ??= {})[cardId] = state.turn
+            markOnceNameUsed(state, owner, cardId, effect.id)
         }
         // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）

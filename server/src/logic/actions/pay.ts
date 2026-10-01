@@ -364,7 +364,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         // 確認を挟んで再開した後の不発は、誘発側の effectFizzled の巻き戻しが既に通り過ぎているのでここで戻す
         if (action.onceRevert) {
             const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
-            if (src) revertOncePerTurn(src, action.onceRevert.effectId)
+            if (src) revertOncePerTurn(state, src, action.onceRevert.effectId)
             revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
         }
         return

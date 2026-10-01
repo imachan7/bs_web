@@ -743,6 +743,7 @@
      2
     ],
     "oncePerTurn": true,
+    "onceScope": "name",
     "action": {
      "type": "draw",
      "count": 1

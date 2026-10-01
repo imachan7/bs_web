@@ -4823,7 +4823,8 @@
     "cost": {
      "selfCoresToVoid": 2
     },
-    "oncePerTurn": true
+    "oncePerTurn": true,
+    "onceScope": "name"
    }
   ]
  },

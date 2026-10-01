@@ -300,6 +300,7 @@
      3
     ],
     "oncePerTurn": true,
+    "onceScope": "name",
     "condition": {
      "noAttacksThisTurn": true
     },

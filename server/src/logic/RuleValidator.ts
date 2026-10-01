@@ -47,6 +47,7 @@ import {
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 import { magicConditionFailure } from "../../../shared/magicCondition"
+import { isOnceUsed } from "./oncePerTurn"
 
 
 
@@ -965,8 +966,8 @@ export function validateActivateAbility(
     if (effect.timing !== "main" && pid !== state.priorityPlayer) {
         return "現在フラッシュの優先権がありません"
     }
-    // 「ターンに1回」：発生源1体につきターン1回（同名が2体いればそれぞれ1回使える）
-    if (effect.oncePerTurn && inst.activatedUsedTurn?.[effectId] === state.turn) {
+    // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回
+    if (effect.oncePerTurn && isOnceUsed(state, pid, inst, effect, "activatedUsedTurn")) {
         return "この効果はこのターンすでに使いました"
     }
     // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない。

@@ -5,6 +5,7 @@ import { effectActiveAtLevel, effectSources, hasKeyword, isVirtualSource } from 
 import { canExhaustNexus, exhaustSpirit } from "../EffectModules"
 import { fireFieldEventTriggers } from "../triggers"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
+import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
 
 // マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。
 // 見つからない条件（レベル・色・ステップ・ターン・ターン1回・コストが払えない）はすべてここで弾くので、
@@ -81,7 +82,7 @@ export function findMagicNegateSource(
                 !effect.colors.some((c) => magicEffectiveColors(state, casterPid, card).includes(c))
             )
                 continue
-            if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
+            if (effect.oncePerTurn && isOnceUsed(state, defenderPid, inst, effect, "magicNegateUsedTurn")) continue
             // コストを払えないなら発動できない。
             // 【氷壁】はネクサスの疲労で肩代わりできる（ノルンの泉）。**代替できるときはそちらを優先**して
             // スピリットを回復状態のまま残す（プレイヤー選択の決定的簡略化）
@@ -133,7 +134,7 @@ export function payMagicNegate(
             `${getCard(inst.cardId).name}：コア${effect.cost.selfCoresToVoid}個をボイドに置いた。`,
         )
     }
-    if (effect.oncePerTurn) inst.magicNegateUsedTurn = state.turn
+    if (effect.oncePerTurn) markOnceUsed(state, pid, inst, effect, "magicNegateUsedTurn")
     log(state, `${getCard(inst.cardId).name}の効果で、${card.name}の効果は無効になった。`)
     // afterNegate:"selfToDeckBottom"（SD02-014 魔法監視塔Lv2）：無効にした**後**、発生源をデッキの下へ。
     // 「その後」＝前後関係なので支払いではない（無効にしなければ戻らない）。2026-08-16 ユーザー確認

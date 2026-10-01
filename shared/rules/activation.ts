@@ -308,8 +308,14 @@ function activatableAbilityOf(
             if (!turnOk) continue
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
-        // 「ターンに1回」：発生源1体につきターン1回
-        if (e.oncePerTurn && source.activatedUsedTurn?.[e.id] === board.turn) continue
+        // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
+        if (e.oncePerTurn) {
+            const used =
+                e.onceScope === "name"
+                    ? board.players[pid].onceByNameUsed?.[card(source.cardId).name + e.id.slice(e.id.lastIndexOf("-e"))]
+                    : source.activatedUsedTurn?.[e.id]
+            if (used === board.turn) continue
+        }
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {

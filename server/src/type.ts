@@ -812,7 +812,7 @@ export interface PlayerState {
 
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
-    magicOncePerTurnUsed?: Record<string, number> // oncePerTurn 指定のマジックを最後に発揮したターン番号（cardId -> GameState.turn）
+    onceByNameUsed?: Record<string, number> // 「同名で1回」。キー=名前+効果ID末尾
     burst: string | null // バーストエリアに伏せているカードのcardId（非公開。docs/design/BURST.md）
     // 「セットしているか」の公開情報版（burst !== null と常に一致するよう mutation 側で同期する）。
     // shared/board.ts の BoardPlayer が持つのはこちらだけ（burstはGameViewで相手はnullに隠されるため、
@@ -1123,6 +1123,7 @@ export interface PlayerView {
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
+    onceByNameUsed?: Record<string, number>
     burstSetThisTurn: boolean // 両者に見える公開情報（このターンにセット済みか。クライアントがセットボタンのグレーアウトに使う）
 }
 

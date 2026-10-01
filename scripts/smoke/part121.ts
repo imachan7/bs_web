@@ -16,6 +16,7 @@
 import { act, assert, createGame, createInstance, currentLevel, getCard, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
+import { onceNameKey } from "../../server/src/logic/oncePerTurn"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)
@@ -65,7 +66,7 @@ console.log("=== BS02-083 鏡の回廊 Lv2：相手のマジックの効果を�
     resolveMagic(s, "p2", "BS03-120", "flash")
     assert(alive(s, "p1", victim.instanceId), "マジックの効果が無効になり、ゴラドンは破壊されない")
     assert(nexus.cores === 1, `コスト2個をボイドへ置く（実際: 残り${String(nexus.cores)}個）`)
-    assert(nexus.magicNegateUsedTurn === s.turn, "このターンの使用済みが記録される")
+    assert(s.players.p1.onceByNameUsed?.[onceNameKey(nexus.cardId, "BS02-083-e2")] === s.turn, "このターンの使用済みが記録される")
 }
 
 console.log("=== BS02-083 鏡の回廊：Lv1では無効にしない／メインステップでは無効にしない ===")
@@ -96,7 +97,7 @@ console.log("=== BS02-083 鏡の回廊：ターンに1回だけ（コアを戻�
 
     // ターンが変われば再び使える
     const { s: s2, nexus: nexus2, victim: victim2 } = setup("t121-mirror-5", 3)
-    nexus2.magicNegateUsedTurn = s2.turn - 1 // 前のターンに使った状態
+    s2.players.p1.onceByNameUsed = { [onceNameKey(nexus2.cardId, "BS02-083-e2")]: s2.turn - 1 } // 前のターンに使った状態
     resolveMagic(s2, "p2", "BS03-120", "flash")
     assert(alive(s2, "p1", victim2.instanceId), "ターンが変われば再び無効にできる")
 }
@@ -136,5 +137,5 @@ console.log("=== BS02-083 鏡の回廊：確認をスキップすると中断し
     assert(s.pendingChoice === null, "選択待ちが解消される")
     assert(!alive(s, "p1", victim.instanceId), "マジックの効果が解決されてゴラドンが破壊される")
     assert(nexus.cores === 3, `無効にしなければコストも払わない（実際: ${String(nexus.cores)}個）`)
-    assert(nexus.magicNegateUsedTurn === undefined, "ターン1回の枠も消費しない")
+    assert(s.players.p1.onceByNameUsed?.[onceNameKey(nexus.cardId, "BS02-083-e2")] === undefined, "ターン1回の枠も消費しない")
 }
