@@ -82,7 +82,7 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 
 PR の順番（1本ずつ別ブランチ）：
 1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
-2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。**未決**：断ったとき「ターンに1回」の消費を戻すか
+2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。断ったとき「ターンに1回」を戻す分は `fix/pay-decline-revert-once`（進行中）
 2b. `fix/`：払って受けない耐性を同じ関門に通す `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
    (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
    `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、
