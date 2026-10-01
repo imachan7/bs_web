@@ -570,6 +570,17 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
 
+## server/src/logic/oncePerTurn.ts
+
+- `OnceSlot`（型）
+- `onceNameKey`（fn）：同じカードの別個体・再召喚・別版でも同名なら同じ枠になるよう、cardId でなく名前で引く
+- `isOnceNameUsed`（fn）：個体を持たないマジック用。常に名前で数える
+- `markOnceNameUsed`（fn）
+- `ownerPidOfInstance`（fn）
+- `isOnceUsed`（fn）
+- `markOnceUsed`（fn）
+- `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
+
 ## server/src/logic/record.ts
 
 - `newRecordScope`（fn）

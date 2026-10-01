@@ -5,6 +5,7 @@
 // 以前は条件に合致した時点で使用済みにしていたため、不発でも1回を失っていた。
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
+import { onceNameKey } from "../../server/src/logic/oncePerTurn"
 import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
 import { requestActivationConfirm } from "../../server/src/logic/EffectModules"
 
@@ -35,13 +36,13 @@ console.log("=== 星宿の障壁 Lv2：疲労していて払えなかった回�
     barrier.isRested = true // コスト（このネクサスを疲労させる）を払えない
     fireFieldEventTriggers(s, "p1", "ownLifeDamaged")
     assert(s.players.p1.life === 3, "払えないのでライフは増えない")
-    assert(barrier.triggeredUsedTurn?.["BS13-070-e2"] === undefined, "不発なので「ターンに1回」は消費されていない")
+    assert(s.players.p1.onceByNameUsed?.[onceNameKey(barrier.cardId, "BS13-070-e2")] === undefined, "不発なので「ターンに1回」は消費されていない")
 
     barrier.isRested = false // 回復した
     fireFieldEventTriggers(s, "p1", "ownLifeDamaged")
     assert(s.players.p1.life === 4, "同じターンの2回目は払えて、ボイドからライフに1個置く")
     assert((barrier.isRested as boolean) === true, "コストとして疲労した")
-    assert(barrier.triggeredUsedTurn?.["BS13-070-e2"] === s.turn, "発揮したので消費された")
+    assert(s.players.p1.onceByNameUsed?.[onceNameKey(barrier.cardId, "BS13-070-e2")] === s.turn, "発揮したので消費された")
 
     barrier.isRested = false
     fireFieldEventTriggers(s, "p1", "ownLifeDamaged")

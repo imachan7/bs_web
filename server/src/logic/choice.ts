@@ -41,12 +41,12 @@ function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): voi
     const r = pending.revertActivated
     if (r) {
         const inst = findInstanceAnywhere(state, r.instanceId)
-        if (inst) revertActivatedUse(inst, r.effectId)
+        if (inst) revertActivatedUse(state, inst, r.effectId)
     }
     const t = pending.revertTriggered
     if (t) {
         const inst = findInstanceAnywhere(state, t.instanceId)
-        if (inst) revertOncePerTurn(inst, t.effectId)
+        if (inst) revertOncePerTurn(state, inst, t.effectId)
         // 同時破壊グループの仮消費も戻す（キーが無ければ何もしない。fix/destroyed-trigger-once）
         revertDestroyGroupUsage(state, t.instanceId, t.effectId)
     }

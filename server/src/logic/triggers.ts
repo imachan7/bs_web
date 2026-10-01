@@ -177,6 +177,7 @@ export { resolveMagic } from "./magic/cast"
 export { findMagicNegateSource, applyMagicNegateChoice, declineMagicNegateChoice } from "./magic/negate"
 export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice, applyMagicRedirectChoice } from "./magic/redirect"
 import { setTargetRedirect } from "./magic/redirect"
+import { isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { finishSummonEffect, fireBurstOnEvent } from "./keywords/burst"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
@@ -247,10 +248,8 @@ export function fireSummonTrigger(
 
 
 // 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
-export function revertOncePerTurn(inst: CardInstance, effectId: string): void {
-    if (!inst.triggeredUsedTurn) return
-    const { [effectId]: _removed, ...rest } = inst.triggeredUsedTurn
-    inst.triggeredUsedTurn = rest
+export function revertOncePerTurn(state: GameState, inst: CardInstance, effectId: string): void {
+    revertOnceUsed(state, inst, effectId, "triggeredUsedTurn")
 }
 
 // 同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
@@ -354,7 +353,7 @@ export function fireTrigger(
         if (effect.turn === "own" && owner !== state.turnPlayer) return false
         if (effect.turn === "opponent" && owner === state.turnPlayer) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
-        if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
+        if (effect.oncePerTurn === true && isOnceUsed(state, owner, src, effect, "triggeredUsedTurn")) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
                 // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
@@ -558,7 +557,7 @@ export function fireTrigger(
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
         // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
         if (effect.oncePerTurn === true) {
-            entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            markOnceUsed(state, owner, entry.src, effect, "triggeredUsedTurn")
             delete state.effectFizzled
         }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
@@ -586,7 +585,7 @@ export function fireTrigger(
         }
         // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す
         if (effect.oncePerTurn === true && state.effectFizzled) {
-            revertOncePerTurn(entry.src, effect.id)
+            revertOncePerTurn(state, entry.src, effect.id)
             delete state.effectFizzled
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
@@ -937,7 +936,7 @@ export function fireStepTriggers(
                 // 【合体時】のゲート＋レベル判定（BS10-008 火星神龍アレス・ドラグーン）
                 if (!effectActiveOn(inst, effect, level)) continue
                 // 「ターンに1回」（BS10-008：この効果自身が追加のエンドステップを生むため、無いと無限ループになる）
-                if (effect.oncePerTurn === true && inst.stepUsedTurn?.[effect.id] === state.turn) continue
+                if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "stepUsedTurn")) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
                 if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
                 if (effect.condition && typeof effect.condition === "object" && "ownSymbolColorAtLeast" in effect.condition) {
@@ -1046,7 +1045,7 @@ export function fireStepTriggers(
         resolve: (e) => {
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
             if (e.effect.oncePerTurn === true) {
-                e.inst.stepUsedTurn = { ...(e.inst.stepUsedTurn ?? {}), [e.effect.id]: state.turn }
+                markOnceUsed(state, e.pid, e.inst, e.effect, "stepUsedTurn")
             }
             // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
             // interactiveTargetsの確認を断った場合も疲労する簡略化）
@@ -1316,7 +1315,7 @@ export function fireFieldEventTriggers(
             // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
             // 既存の kind:"triggered" の oncePerTurn と同じ挙動（下の firing.push 手前で同様に記録している）。
             // ルール上は払えなければ発揮していないので消費すべきでない＝既知のズレ（HANDOFF §2）
-            if (effect.oncePerTurn === true && inst.triggeredUsedTurn?.[effect.id] === state.turn) continue
+            if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")) continue
             // 【合体時】の色条件（X008）
             if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -1604,7 +1603,7 @@ export function fireFieldEventTriggers(
                 state.destroyGroup.used.push(groupKey)
             }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
-            if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            if (effect.oncePerTurn) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             firing.push({ inst, effect, repeatTimes })
         }
     }
@@ -1703,7 +1702,7 @@ export function fireFieldEventTriggers(
                 resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
-                    if (e.effect.oncePerTurn) revertOncePerTurn(e.inst, e.effect.id)
+                    if (e.effect.oncePerTurn) revertOncePerTurn(state, e.inst, e.effect.id)
                     revertDestroyGroupUsage(state, e.inst.instanceId, e.effect.id)
                 }
                 delete state.effectFizzled

@@ -96,6 +96,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
+import { markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -1300,11 +1301,8 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
 // 起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
 // 記録が消えるので、同じターンにもう一度起動ボタンを押せる（2026-08-21 ユーザー確定）
-export function revertActivatedUse(inst: CardInstance, effectId: string): void {
-    if (!inst.activatedUsedTurn) return
-    const rest = { ...inst.activatedUsedTurn }
-    delete rest[effectId]
-    inst.activatedUsedTurn = rest
+export function revertActivatedUse(state: GameState, inst: CardInstance, effectId: string): void {
+    revertOnceUsed(state, inst, effectId, "activatedUsedTurn")
 }
 
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
@@ -1444,7 +1442,7 @@ function doActivateAbility(
     // 「ターンに1回」の消費を、**コスト支払い後・効果解決前**に記録する。
     // 効果の解決中に中断（pendingChoice）が入ってもこのターンの再発動を防ぐため
     if (effect.oncePerTurn) {
-        inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
+        markOnceUsed(state, pid, inst, effect, "activatedUsedTurn")
     }
 
     // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
@@ -1455,7 +1453,7 @@ function doActivateAbility(
     if (effect.oncePerTurn && cancelable) {
         if (state.effectFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
-            revertActivatedUse(inst, effectId)
+            revertActivatedUse(state, inst, effectId)
         } else if (state.pendingChoice) {
             // 選択待ちに入った：**やめたら**戻す（doResolveChoice が見る）
             state.pendingChoice.revertActivated = { instanceId, effectId }

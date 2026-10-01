@@ -66,6 +66,7 @@ export type EffectDef =
           action: EffectAction
           optional: boolean // 「〜できる」= 任意。interactiveTargetsではpendingChoice（option/confirm）で発動確認、選ばなければ発動しない
           oncePerTurn?: true // 「ターンに1回」。発生源1体につきターン1回
+          onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
           battleRole?: "attacker" | "blocker" // onBattleWin/onBattleEnd：勝利/生存時の自分の役割がこれと一致する場合のみ発火。省略時は常に発火
           fromHandOnly?: true // trigger:"onDeploy"限定：手札から配置されたときのみ発火
           turn?: "own" | "opponent" // 指定時、発生源の持ち主基準のturn条件のときのみ発火
@@ -108,7 +109,7 @@ export type EffectDef =
           mainForbidden?: boolean // trueならこのエントリがtimingとして採用されるメインステップでの使用そのものを拒否
           ownTurnForbidden?: true // trueなら発生源の持ち主のターン中は使用不可
           usableAtOpponentMainEnd?: true // timing:"flash"限定：相手がメインステップ終了を宣言した瞬間にも使用できる
-          oncePerTurn?: true // 使用者ごと・cardIdごとにそのターン1回だけ発揮。2枚目は使用はできるが効果は発揮されない
+          oncePerTurn?: true // 使用者ごと・カード名ごとにそのターン1回だけ発揮。2枚目は使用はできるが効果は発揮されない
           condition?: MagicCondition // 「〜とき、〜する」：使うことはでき、解決の時点で満たさなければこのエントリは発揮しない
           useCondition?: MagicCondition // 「この効果は〜ないと使えない」：使う前に見て、満たさなければ使用できない（解決の時点でも見る。2026-09-26 ユーザー確認）
       }
@@ -164,6 +165,7 @@ export type EffectDef =
           timing?: "end" // 指定時は「そのステップの終了時」に発火（省略時＝開始時）。いまはattackのみ発火点あり
           whileCombined?: true
           oncePerTurn?: true // 「ターンに1回」。発生源1体につきターン1回（同名複数体はそれぞれ1回）。
+          onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
           // BS10-008のようにこの効果自身が追加のエンドステップを生む場合、無いと無限ループになる
           levels: number[] | null
           action: EffectAction
@@ -265,6 +267,7 @@ export type EffectDef =
           turn?: "own" | "opponent" // own=持ち主がturnPlayerのときのみ／opponent=でないときのみ（【氷壁】＝『相手のターン』）
           afterNegate?: "selfToDeckBottom" // 無効にした後、発生源自身をデッキの下へ戻す（「その後」＝結果であり支払いではない。無効にしなければ戻らない。2026-08-16確認。SD02-014 Lv2）
           oncePerTurn?: true // 発生源1つにつきターン1回だけ
+          onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
       }
     | {
           id: string
@@ -400,6 +403,7 @@ export type EffectDef =
           levels: number[] | null
           perDestroyed?: true // event: "ownSpiritDestroyed" | "opponentSpiritDestroyed" 限定：同時破壊でも破壊された体数ぶん発火する（「1体につき」「すべて」用。省略時は同時破壊グループにつき1回＝Q22359）
           oncePerTurn?: true // 「ターンに1回」。kind:"triggered".oncePerTurnと同じ形
+          onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
           whileCombined?: true
           combinedBraveColors?: Color[] // 【合体時】併用：合体しているブレイヴのいずれか1つがこの色を持つときだけ発火
           action: EffectAction
@@ -632,6 +636,7 @@ export type EffectDef =
           // discardHandFamily=手札にある指定系統（配列＝OR）のスピリットカード1枚を破棄。exhaustOwnFamilyOne=フィールドの指定系統（配列＝OR）の回復状態スピリット1体を疲労。
           // { discardHandOne; exhaustSelf }=手札1枚（末尾。決定的簡略化）を破棄しこのスピリット自身を疲労。{ discardHandKeyword }=指定キーワードを静的に持つ手札のスピリットカード1枚を破棄
           oncePerTurn?: true // 「ターンに1回」。発生源のスピリット1体につきターン1回
+          onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
           condition?: "selfInBattle" // 発動条件（selfが現在のバトルの当事者＝attacker/blocker）
           action: EffectAction // 発動時の効果
       }

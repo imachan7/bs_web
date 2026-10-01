@@ -641,6 +641,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         // バーストの内容は自分にだけ見せる（相手は常にnull＝伏せている）。セット済みか否かは公開情報
         burst: isSelf ? player.burst : null,
         burstSet: player.burstSet,
+        ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
         burstSetThisTurn: player.burstSetThisTurn,
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }

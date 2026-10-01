@@ -791,6 +791,7 @@
      2
     ],
     "oncePerTurn": true,
+    "onceScope": "name",
     "cost": {
      "discardHandFamily": [
       "神星",
@@ -5322,6 +5323,7 @@
     "phase": "attack",
     "turn": "opponent",
     "oncePerTurn": true,
+    "onceScope": "name",
     "action": {
      "type": "pay",
      "cost": {

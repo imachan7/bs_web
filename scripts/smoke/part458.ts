@@ -62,7 +62,7 @@ console.log("=== 3. 障壁2枚：ライフを減らされても回復は1回だ�
             t.act("me", { type: "takeLife" })
             const rested = ["障壁A", "障壁B"].filter((l) => t.inst(l).isRested)
             assert(rested.length === 1, `疲労した障壁はちょうど1枚（実際 ${rested.length} 枚）`)
-            expect.push("相手.アタッカー.疲労: false → true")
+            expect.push("相手.アタッカー.疲労: false → true", "自分.リザーブ: 10 → 11") // 減ったライフのコアがリザーブへ。障壁はボイドから置くのでリザーブは減らない
             for (const l of rested) expect.push(`自分.${l}.疲労: false → true`)
         },
         expect,

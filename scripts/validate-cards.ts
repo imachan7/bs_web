@@ -495,6 +495,8 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             keyword?: string
             trigger?: string
             granted?: { trigger?: string }
+            oncePerTurn?: boolean
+            onceScope?: string
         }[]) {
             // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
             if (
@@ -502,6 +504,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 (!e.trigger || !VALID_TRIGGERS.has(e.trigger))
             ) {
                 add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
+            }
+            if (e.onceScope !== undefined && (e.onceScope !== "name" || e.oncePerTurn !== true)) {
+                add(id, `onceScope は oncePerTurn: true と併用する "name" のみ（${String(e.id)}）`)
             }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)

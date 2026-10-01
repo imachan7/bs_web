@@ -1611,6 +1611,7 @@
         ],
         "whileCombined": true,
         "oncePerTurn": true,
+        "onceScope": "name",
         "action": {
           "type": "refreshOne",
           "all": true,
@@ -1629,6 +1630,7 @@
         ],
         "whileCombined": true,
         "oncePerTurn": true,
+        "onceScope": "name",
         "action": {
           "type": "extraAttackStep"
         }
