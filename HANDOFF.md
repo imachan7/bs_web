@@ -83,10 +83,7 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 PR の順番（1本ずつ別ブランチ）：
 1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
 2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。断ったとき「ターンに1回」を戻す分は `fix/pay-decline-revert-once`（進行中）
-2c. **進行中（`fix/once-per-turn-by-name`。2026-10-01 確定。#237 の上に積む）**：「この効果はターンに1回しか使えない」を**プレイヤーごと・カード名ごと**に数える（規則は RULES_BATSPI_WIKI「ターンに1回の数え方」）
-   - EffectDef に軸 `onceScope?: "name"`（`oncePerTurn: true` と併用。無ければ従来の個体ごと）。対象8エントリ：BS02-083-e2・BS10-008-e2/e3・BS11-032-e2・BS13-062-e2・BS13-070-e2・BS16-X04-e2・SD06-011-e1
-   - 置き場は PlayerState の `magicOncePerTurnUsed` を `onceByNameUsed` に改名して共用（キー＝カード名＋効果IDの末尾 `-e2` 等。値＝ターン番号）。マジックの oncePerTurn も cardId ではなく名前で数える。type.ts は残り約20バイトなので欄を増やさない
-   - 判定・記録・巻き戻しは新ファイル `server/src/logic/oncePerTurn.ts` に集め、triggered／fieldEvent／step／activated／magicNegate／magic の6か所から呼ぶ。`revertOncePerTurn` は state と持ち主を受け取る形に変える
+2c. ✅ 「この効果はターンに1回しか使えない」をカード名ごとに数える（`fix/once-per-turn-by-name`。規則と実装は RULES_BATSPI_WIKI「ターンに1回の数え方」）
 2b. `fix/`：払って受けない耐性を同じ関門に通す `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
    (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
    `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、

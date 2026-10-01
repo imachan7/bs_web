@@ -579,6 +579,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownerPidOfInstance`（fn）
 - `isOnceUsed`（fn）
 - `markOnceUsed`（fn）
+- `claimOnce`（fn）：解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
 - `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
 
 ## server/src/logic/record.ts

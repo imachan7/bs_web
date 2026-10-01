@@ -1,6 +1,7 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
+import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
@@ -591,6 +592,13 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
             if (target == null || target.pendingDestruction !== true) continue
         }
+        if (frame.onceClaim !== undefined) {
+            const src = findInstanceAnywhere(state, frame.onceClaim.instanceId)
+            const eff = src && getCard(src.cardId).effects.find((x) => x.id === frame.onceClaim!.effectId)
+            const owner = src && ownerPidOfInstance(state, src)
+            const slot = eff?.kind === "step" ? "stepUsedTurn" : "triggeredUsedTurn"
+            if (!src || !eff || !owner || !claimOnce(state, owner, src, eff as { id: string; onceScope?: "name" }, slot)) continue
+        }
         // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
         if (frame.logText !== undefined) log(state, frame.logText)
         const frameSelf = frame.selfInstanceId
@@ -598,7 +606,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             : null
         // optional な誘発の残りは、解決ではなく**発動確認から**再開する
         if (frame.confirmPrompt !== undefined) {
-            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf)
+            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf, frame.onceClaim)
             continue
         }
         // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る

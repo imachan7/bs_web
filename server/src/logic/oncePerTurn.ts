@@ -47,6 +47,14 @@ export function markOnceUsed(state: GameState, pid: PlayerId, inst: CardInstance
     }
 }
 
+// 解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
+// （同名の1体目が払えず不発なら枠を戻し、2体目が使えるようにするため）
+export function claimOnce(state: GameState, pid: PlayerId, inst: CardInstance, effect: OnceEffect, slot: OnceSlot): boolean {
+    if (isOnceUsed(state, pid, inst, effect, slot)) return false
+    markOnceUsed(state, pid, inst, effect, slot)
+    return true
+}
+
 // 発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
 export function revertOnceUsed(state: GameState, inst: CardInstance, effectId: string, slot: OnceSlot): void {
     const effect = getCard(inst.cardId).effects.find((e) => e.id === effectId)

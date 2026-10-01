@@ -177,7 +177,7 @@ export { resolveMagic } from "./magic/cast"
 export { findMagicNegateSource, applyMagicNegateChoice, declineMagicNegateChoice } from "./magic/negate"
 export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice, applyMagicRedirectChoice } from "./magic/redirect"
 import { setTargetRedirect } from "./magic/redirect"
-import { isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
+import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { finishSummonEffect, fireBurstOnEvent } from "./keywords/burst"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
@@ -1044,7 +1044,10 @@ export function fireStepTriggers(
         skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
         resolve: (e) => {
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
-            if (e.effect.oncePerTurn === true) {
+            const byName = e.effect.onceScope === "name"
+            if (byName) {
+                if (!claimOnce(state, e.pid, e.inst, e.effect, "stepUsedTurn")) return
+            } else if (e.effect.oncePerTurn === true) {
                 markOnceUsed(state, e.pid, e.inst, e.effect, "stepUsedTurn")
             }
             // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
@@ -1083,7 +1086,7 @@ export function fireStepTriggers(
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
-                requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst)
+                requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst, byName ? { instanceId: e.inst.instanceId, effectId: e.effect.id } : undefined)
                 return
             }
             // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
@@ -1093,13 +1096,21 @@ export function fireStepTriggers(
                 state,
                 `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             )
-            resolveAction(state, e.pid, e.inst, e.effect.action)
+            if (!byName) {
+                resolveAction(state, e.pid, e.inst, e.effect.action)
+                return
+            }
+            delete state.effectFizzled
+            resolveAction(state, e.pid, e.inst, markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }))
+            if (state.effectFizzled) revertOnceUsed(state, e.inst, e.effect.id, "stepUsedTurn")
+            delete state.effectFizzled
         },
         frame: (e) => ({
             kind: "action" as const,
             selfInstanceId: e.inst.instanceId,
-            action: e.effect.action,
+            action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
             actorPid: e.pid,
+            ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
             logText: `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
         }),
@@ -1311,10 +1322,7 @@ export function fireFieldEventTriggers(
             // excludeSelfSubject（BS15-009虚龍帝カタストロフドラゴン）：イベントの主体が発生源自身のときは発火しない
             if (effect.excludeSelfSubject && inst.instanceId === selfOverride?.inst.instanceId) continue
             if (!effectActiveOn(inst, effect, level)) continue
-            // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
-            // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
-            // 既存の kind:"triggered" の oncePerTurn と同じ挙動（下の firing.push 手前で同様に記録している）。
-            // ルール上は払えなければ発揮していないので消費すべきでない＝既知のズレ（HANDOFF §2）
+            // 個体ごとの枠は集める時点で取る。名前スコープの枠は resolve の直前に取る（同名の1体目が不発なら2体目が使える）
             if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")) continue
             // 【合体時】の色条件（X008）
             if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
@@ -1603,7 +1611,7 @@ export function fireFieldEventTriggers(
                 state.destroyGroup.used.push(groupKey)
             }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
-            if (effect.oncePerTurn) markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
+            if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             firing.push({ inst, effect, repeatTimes })
         }
     }
@@ -1681,6 +1689,7 @@ export function fireFieldEventTriggers(
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
                 return
             }
+            if (e.effect.onceScope === "name" && !claimOnce(state, pid, e.inst, e.effect, "triggeredUsedTurn")) return
             const c = contextOf(e.inst, e.effect)
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
@@ -1724,8 +1733,9 @@ export function fireFieldEventTriggers(
             return {
                 kind: "action" as const,
                 selfInstanceId: c.actionSelf.instanceId,
-                action: e.effect.action,
+                action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
                 actorPid: c.actionPid,
+                ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),
