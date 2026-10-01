@@ -2,6 +2,7 @@ import type { CardData, GameState, PlayerId, EffectAction, PaySource, PendingCho
 import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
 import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost } from "../../../../shared/cost"
 import { emitEvent, payCost, resolveAction } from "../EffectModules"
+import { markPayConfirmed } from "../actions/pay"
 import { isRedirectOptional, askBothSidesRedirect, findMagicRedirectSourceForCard } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
@@ -327,5 +328,5 @@ export function applyProvocationUse(state: GameState, entry: NonNullable<Pending
     const effect = card.effects.find(
         (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
     )
-    if (effect) resolveAction(state, entry.pid, null, effect.action)
+    if (effect) resolveAction(state, entry.pid, null, markPayConfirmed(effect.action))
 }

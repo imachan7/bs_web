@@ -4,6 +4,7 @@ import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
 import { effectActiveAtLevel, effectSources } from "../../../../shared/rules"
 import { resolveAction } from "../EffectModules"
+import { markPayConfirmed } from "../actions/pay"
 import { fireFieldEventTriggers } from "../triggers"
 import { setTargetRedirect } from "./redirect"
 import type { ActionHandler } from "../actions/types"
@@ -156,7 +157,7 @@ export function runMagicActions(
             state,
             owner,
             null,
-            effect.action,
+            markPayConfirmed(effect.action),
             targetInstanceId,
             magicEffectiveColors(state, owner, card),
             "magic",
