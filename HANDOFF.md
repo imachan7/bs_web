@@ -178,6 +178,12 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 **全体への突き合わせ（2026-09-30。データ側で自己参照/ドローを持つ fieldEvent 71枚・Haiku選択式1回）**：`npm run audit:spec -- <期待値.json>`（道具は PR「chore/spec-audit-tools」）。実バグ2系統は修正済み（データ＝fix/field-event-self-mode-source、実行者＝fix/self-action-cause-context。解釈は SEMANTICS_AUDIT §3.18）。**次**：色・コスト・系統の指定の突き合わせ（偽陽性が増える見込み）／`audit:spec` のイベント名の対応不足（未照合の偽陽性）を減らす。
 関連：fix/field-event-self-mode-source に part452（selfMode 書き漏れの静的検査＋レオ・ハーキュリーの動作テスト）。
 
+### 場面テストと3役の流れ（2026-10-01 ユーザー決定。TEST_STRATEGY.md 案Aの具体化）
+
+**道具** `scripts/smoke/scenario.ts` の `scenario({ name, start, steps, expect, mirror })`：組むのは開始盤面だけ（`start.me`/`start.opp`、個体はラベルで呼ぶ）、
+`steps` は `act(me|opp, …)`＝handleAction のみ。**盤面の写像（自分/相手のライフ・リザーブ・手札・トラッシュ・各個体の場所・疲労・コア・Lv・BP）の差分が `expect` と完全一致**しなければ落ちる（書いていない変化も落とす）。`mirror` 既定 true で p1/p2 を入れ替えて再実行。
+**受け入れ条件**：#229 前のレオのデータ（`selfMode` 無し）で落ちること。**流れ**：①期待値役（効果文だけ見て場面テストを先に書く）→②実装役（テスト変更禁止・簡略化欄必須）→③見直し役（①を再開、効果節ごとの表と未申告の簡略化）。
+
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
 
@@ -188,7 +194,6 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 
 **バーストの既知の不具合3件（未修正）**：相手のライフ減少で「自分のライフ減少後」が発動する／「相手の召喚時発揮後」が発動しない等。REFACTOR_PLAN の完了後に直す → [BURST.md](./docs/design/BURST.md) §10。
-**テストの方針（検討中・未決定）**：場面テスト（本物の操作だけで進めて左右反転も見る）と、AI対戦＋Haiku 審判。**もう少し検討してから決める** → [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md)。
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
 
