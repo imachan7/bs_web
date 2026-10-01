@@ -4,8 +4,23 @@
 //   merge:    npx tsx scripts/spec-skeleton.ts merge <骨組み.json> <AIの選択.json> <最終.json>
 import { readFileSync, writeFileSync } from "node:fs"
 
+// 効果文の条件から機械的に取れる軸。動的検証が「1軸だけ破った場面」を作るのに使う
+export type Conds = {
+    side: "own" | "opponent" | "any" | null
+    families: string[]
+    colors: string[]
+    costMax: number | null
+    costMin: number | null
+    bpMax: number | null
+    keyword: string | null
+    excludeSelf: boolean
+    turn: "own" | "opponent" | null
+    phase: string | null
+}
+
 type Skeleton = {
     text: string
+    conds: Conds | null
     levels: number[] | null
     whileCombined: boolean
     header: string | null
@@ -25,6 +40,37 @@ const EVENT_PATTERNS: [RegExp, string][] = [
     [/コアが置かれた/, "コアが置かれた"], [/コアが取り除かれた/, "コアが取り除かれた"],
 ]
 
+const COLOR_OF: Record<string, string> = { 赤: "red", 紫: "purple", 緑: "green", 白: "white", 黄: "yellow", 青: "blue" }
+const KEYWORD_OF: Record<string, string> = {
+    神速: "soku", 激突: "clash", 装甲: "armor", 重装甲: "heavyArmor", 呪撃: "jugeki", 粉砕: "funsai", 光芒: "kobo",
+    転召: "tensho", 暴風: "bofu", 聖命: "seimei", 強襲: "kyoshu", 氷壁: "hyoheki", 不死: "fushi", 覚醒: "awaken",
+}
+const PHASE_OF: Record<string, string> = { ドロー: "draw", リフレッシュ: "refresh", コア: "core", メイン: "main", アタック: "attack", エンド: "end" }
+
+export function extractConds(cond: string, header: string | null): Conds {
+    const fam = cond.match(/系統：((?:「[^」]+」\/?)+)/)
+    const col = cond.match(/([赤紫緑白黄青](?:\/[赤紫緑白黄青])*)の(?:スピリット|ネクサス|ブレイヴ)/)
+    const num = (re: RegExp): number | null => {
+        const m = cond.match(re)
+        return m ? Number(m[1]) : null
+    }
+    const kw = cond.match(/【([^】：]+)】を持つ/)
+    const hd = header?.match(/『(自分の|相手の|お互いの)?(?:([ドロリフレッシュコアメインアタックエンド]+)ステップ|ターン)』/)
+    const phaseKey = hd?.[2] ? hd[2].replace(/ステップ/, "") : null
+    return {
+        side: /お互い/.test(cond) ? "any" : /相手の/.test(cond) ? "opponent" : /自分の|このスピリット/.test(cond) ? "own" : null,
+        families: fam ? [...fam[1]!.matchAll(/「([^」]+)」/g)].map((m) => m[1]!) : [],
+        colors: col ? col[1]!.split("/").map((c) => COLOR_OF[c]!).filter(Boolean) : [],
+        costMax: num(/コスト(\d+)以下/),
+        costMin: num(/コスト(\d+)以上/),
+        bpMax: num(/BP(\d+)以下/),
+        keyword: kw ? (KEYWORD_OF[kw[1]!] ?? null) : null,
+        excludeSelf: /このスピリット以外/.test(cond),
+        turn: hd?.[1] === "自分の" ? "own" : hd?.[1] === "相手の" ? "opponent" : null,
+        phase: phaseKey ? (PHASE_OF[phaseKey] ?? null) : null,
+    }
+}
+
 function parseHeader(line: string): { levels: number[] | null; whileCombined: boolean } {
     const lv = [...line.matchAll(/Lv(\d)/g)].map((m) => Number(m[1]))
     return { levels: lv.length ? lv : null, whileCombined: /【合体(時|中)】/.test(line) }
@@ -41,7 +87,7 @@ function skeletonOf(text: string): Skeleton[] {
         if (!line) continue
         if (isKeywordLine(line)) {
             const h = parseHeader(line)
-            out.push({ text: line, levels: h.levels, whileCombined: h.whileCombined, header: null, actor: "owner", optional: false, keywordOnly: true, trigger: { kind: "keyword", event: null, subject: null } })
+            out.push({ text: line, conds: null, levels: h.levels, whileCombined: h.whileCombined, header: null, actor: "owner", optional: false, keywordOnly: true, trigger: { kind: "keyword", event: null, subject: null } })
             continue
         }
         const hdr = line.match(/^((?:【合体(?:時|中)】)?(?:Lv\d[･・]?)*)(『[^』]*』)?(.*)$/)
@@ -80,40 +126,44 @@ function sentenceSkeleton(sent: string, ctx: { levels: number[] | null; whileCom
     else if (ctx.header && /アタック時/.test(ctx.header)) kind = "onAttack"
     else if (!cond && /できる。?$/.test(sent) && /ターンに1回|フラッシュ|アタックステップ/.test(sent + (ctx.header ?? ""))) kind = "activated"
     const actor = /^お互い/.test(rest) ? "turnPlayer" : /^相手は/.test(rest) ? "opponent" : "owner"
-    return { text: sent, levels: ctx.levels, whileCombined: ctx.whileCombined, header: ctx.header, actor, optional: /できる。?$/.test(sent), keywordOnly: false, trigger: { kind, event, subject } }
+    return { text: sent, conds: cond ? extractConds(cond, ctx.header) : null, levels: ctx.levels, whileCombined: ctx.whileCombined, header: ctx.header, actor, optional: /できる。?$/.test(sent), keywordOnly: false, trigger: { kind, event, subject } }
 }
 
-const [cmd, a, b, c] = process.argv.slice(2)
-if (cmd === "skeleton") {
-    const cards = JSON.parse(readFileSync(a!, "utf8")) as { id: string; text: string }[]
-    writeFileSync(b!, JSON.stringify(cards.map((x) => ({ id: x.id, clauses: skeletonOf(x.text).map((s, i) => ({ i, ...s })) })), null, 1))
-    console.log(`骨組み: ${cards.length}枚 / ${cards.reduce((n, x) => n + skeletonOf(x.text).length, 0)}節`)
-} else if (cmd === "merge") {
-    const sk = JSON.parse(readFileSync(a!, "utf8")) as { id: string; clauses: (Skeleton & { i: number })[] }[]
-    const ai = JSON.parse(readFileSync(b!, "utf8")) as { id: string; clauses: Record<string, any>[] }[]
-    const result = sk.map((card) => {
-        const chosen = ai.find((x) => x.id === card.id)?.clauses ?? []
-        return {
-            id: card.id,
-            clauses: card.clauses.map((s) => {
-                const p = chosen.find((x) => x.i === s.i) ?? {}
-                const unc = p.unclassified ?? null
-                return {
-                    text: s.text, levels: s.levels, whileCombined: s.whileCombined,
-                    trigger: { kind: s.trigger.kind, event: p.event ?? s.trigger.event, subject: p.subject ?? s.trigger.subject, subjectFilter: p.subjectFilter ?? null },
-                    window: s.header, actor: p.actor ?? s.actor,
-                    op: s.keywordOnly ? "なし" : (p.op ?? null),
-                    exception: p.exception ?? null, restriction: p.restriction ?? null,
-                    target: { ref: s.keywordOnly ? "none" : (p.ref ?? null), filter: p.filter ?? null },
-                    amount: p.amount ?? null, cond: p.cond ?? null, link: p.link ?? "none", optional: s.optional,
-                    unclassified: unc,
-                }
-            }),
-        }
-    })
-    writeFileSync(c!, JSON.stringify(result, null, 1))
-    console.log(`合成: ${result.length}枚`)
-} else {
-    console.log("使い方: skeleton <入力> <骨組み> / merge <骨組み> <選択> <最終>")
-    process.exit(1)
+function main(): void {
+    const [cmd, a, b, c] = process.argv.slice(2)
+    if (cmd === "skeleton") {
+        const cards = JSON.parse(readFileSync(a!, "utf8")) as { id: string; text: string }[]
+        writeFileSync(b!, JSON.stringify(cards.map((x) => ({ id: x.id, clauses: skeletonOf(x.text).map((s, i) => ({ i, ...s })) })), null, 1))
+        console.log(`骨組み: ${cards.length}枚 / ${cards.reduce((n, x) => n + skeletonOf(x.text).length, 0)}節`)
+    } else if (cmd === "merge") {
+        const sk = JSON.parse(readFileSync(a!, "utf8")) as { id: string; clauses: (Skeleton & { i: number })[] }[]
+        const ai = JSON.parse(readFileSync(b!, "utf8")) as { id: string; clauses: Record<string, any>[] }[]
+        const result = sk.map((card) => {
+            const chosen = ai.find((x) => x.id === card.id)?.clauses ?? []
+            return {
+                id: card.id,
+                clauses: card.clauses.map((s) => {
+                    const p = chosen.find((x) => x.i === s.i) ?? {}
+                    const unc = p.unclassified ?? null
+                    return {
+                        text: s.text, conds: s.conds, levels: s.levels, whileCombined: s.whileCombined,
+                        trigger: { kind: s.trigger.kind, event: p.event ?? s.trigger.event, subject: p.subject ?? s.trigger.subject, subjectFilter: p.subjectFilter ?? null },
+                        window: s.header, actor: p.actor ?? s.actor,
+                        op: s.keywordOnly ? "なし" : (p.op ?? null),
+                        exception: p.exception ?? null, restriction: p.restriction ?? null,
+                        target: { ref: s.keywordOnly ? "none" : (p.ref ?? null), filter: p.filter ?? null },
+                        amount: p.amount ?? null, cond: p.cond ?? null, link: p.link ?? "none", optional: s.optional,
+                        unclassified: unc,
+                    }
+                }),
+            }
+        })
+        writeFileSync(c!, JSON.stringify(result, null, 1))
+        console.log(`合成: ${result.length}枚`)
+    } else {
+        console.log("使い方: skeleton <入力> <骨組み> / merge <骨組み> <選択> <最終>")
+        process.exit(1)
+    }
 }
+
+if (require.main === module) main()
