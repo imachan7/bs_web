@@ -17,6 +17,9 @@ const EVENTS_WITH_SWAPPING_ACTOR = new Set([
     "ownBofuExhausted", "anySpiritExhausted", "anySpiritAttacked", "anySpiritDeclaredBlock", "anySpiritCombined",
     "anySpiritReturnedToHand", "anySpiritRefreshed", "anyBraveSummoned",
 ])
+// 実行者がイベント対象の持ち主になるが、ハンドラが実行者を参照しないため実害が無いと確認済みのエントリ
+const ACTOR_VERIFIED_BENIGN = new Set(["BS12-037-e1"]) // setTargetBpAsThisBattle は owner を使わない（2026-10-01 確認）
+
 const EVENT_ALIASES: Record<string, string[]> = {
     "疲労した": ["ownSpiritExhausted", "anySpiritExhausted"],
     "召喚された": ["ownSpiritSummoned", "anyBraveSummoned"],
@@ -44,7 +47,7 @@ type Clause = {
     amount?: number | string | null
     unclassified?: string | null
 }
-type FieldEvent = { id: string; kind: string; event: string; selfMode?: string; ownOnly?: boolean; subjectSide?: string; action?: { type: string; target?: string; chooserIsTarget?: boolean } }
+type FieldEvent = { id: string; kind: string; event: string; turn?: string; selfMode?: string; ownOnly?: boolean; subjectSide?: string; action?: { type: string; target?: string; chooserIsTarget?: boolean } }
 
 // op → データ側のアクション名の前置き。一致するものを優先して対応付ける
 const OP_PREFIX: Record<string, string[]> = {
@@ -60,6 +63,8 @@ function resolvedSelf(e: FieldEvent): "source" | "eventSubject" {
 function resolvedActor(e: FieldEvent): "owner" | "eventSubjectOwner" {
     // destroySelf／exhaustSelf は fix/self-action-cause-context 以降、常に発生源の持ち主が実行者
     if (e.action?.type === "destroySelf" || e.action?.type === "exhaustSelf") return "owner"
+    // 自分のターンのアタックは自分のスピリットだけ（SEMANTICS_AUDIT.md §3.4。疲労は自分のターンでも相手側に起きるので除く）
+    if (e.event === "anySpiritAttacked" && e.turn === "own") return "owner"
     if (e.selfMode === "source" || e.ownOnly || e.subjectSide === "own") return "owner"
     return EVENTS_WITH_SWAPPING_ACTOR.has(e.event) ? "eventSubjectOwner" : "owner"
 }
@@ -100,7 +105,7 @@ for (const file of process.argv.slice(2)) {
             if (specAmount !== null && dataAmount !== null && specAmount !== dataAmount && !/[\d０-９]+.*?(以下|以上|まで)/.test(c.text)) problems.push(`${where}: 効果文の数量は${specAmount}だが、データは${dataAmount}（${eff.action?.type}）`)
             // イベント対象自身が行う処理（target:"self"・chooserIsTarget）は、実行者がイベント対象の持ち主であることが意図
             const actsAsSubject = eff.action?.target === "self" || eff.action?.chooserIsTarget === true
-            if (c.actor === "owner" && !actsAsSubject && resolvedActor(eff) !== "owner") problems.push(`${where}: 効果文の実行者は持ち主だが、実装はイベント対象の持ち主が実行する（${eff.action?.type}）`)
+            if (c.actor === "owner" && !actsAsSubject && !ACTOR_VERIFIED_BENIGN.has(eff.id) && resolvedActor(eff) !== "owner") problems.push(`${where}: 効果文の実行者は持ち主だが、実装はイベント対象の持ち主が実行する（${eff.action?.type}）`)
         }
     }
 }

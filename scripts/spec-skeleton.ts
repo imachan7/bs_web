@@ -18,8 +18,26 @@ export type Conds = {
     phase: string | null
 }
 
+// 動詞と指示語だけで決まる op／対象／数量の推定（AI を使わない）。自信が無ければ null
+export type Guess = { op: string; ref: "source" | "prevClause" | "none"; amount: number | null }
+
+export function guessAction(rest: string): Guess | null {
+    const ref = /^(?:[^、]*?)(?=このスピリット)/.test(rest) && /(?:^|、)このスピリット(?:は|を)/.test(rest) ? "source"
+        : /(?:^|、)その(?:合体)?スピリット(?:は|を)/.test(rest) ? "prevClause" : null
+    const body = rest.replace(/。$/, "")
+    if (/^自分はデッキから(\d+)枚ドローする$/.test(body)) return { op: "ドロー", ref: "none", amount: Number(body.match(/(\d+)枚/)![1]) }
+    if (/^自分はデッキから(\d+)枚ドローできる$/.test(body)) return { op: "ドロー", ref: "none", amount: Number(body.match(/(\d+)枚/)![1]) }
+    if (/^自分はドローする$/.test(body)) return { op: "ドロー", ref: "none", amount: 1 }
+    if (ref === null) return null
+    if (/(?:は回復する|を回復させる)$/.test(body)) return { op: "回復させる", ref, amount: null }
+    if (/(?:は疲労する|を疲労させる)$/.test(body)) return { op: "疲労させる", ref, amount: null }
+    if (/(?:を破壊する|は破壊される)$/.test(body)) return { op: "破壊", ref, amount: null }
+    return null
+}
+
 type Skeleton = {
     text: string
+    guess: Guess | null
     conds: Conds | null
     levels: number[] | null
     whileCombined: boolean
@@ -87,7 +105,7 @@ function skeletonOf(text: string): Skeleton[] {
         if (!line) continue
         if (isKeywordLine(line)) {
             const h = parseHeader(line)
-            out.push({ text: line, conds: null, levels: h.levels, whileCombined: h.whileCombined, header: null, actor: "owner", optional: false, keywordOnly: true, trigger: { kind: "keyword", event: null, subject: null } })
+            out.push({ text: line, guess: null, conds: null, levels: h.levels, whileCombined: h.whileCombined, header: null, actor: "owner", optional: false, keywordOnly: true, trigger: { kind: "keyword", event: null, subject: null } })
             continue
         }
         const hdr = line.match(/^((?:【合体(?:時|中)】)?(?:Lv\d[･・]?)*)(『[^』]*』)?(.*)$/)
@@ -126,7 +144,7 @@ function sentenceSkeleton(sent: string, ctx: { levels: number[] | null; whileCom
     else if (ctx.header && /アタック時/.test(ctx.header)) kind = "onAttack"
     else if (!cond && /できる。?$/.test(sent) && /ターンに1回|フラッシュ|アタックステップ/.test(sent + (ctx.header ?? ""))) kind = "activated"
     const actor = /^お互い/.test(rest) ? "turnPlayer" : /^相手は/.test(rest) ? "opponent" : "owner"
-    return { text: sent, conds: cond ? extractConds(cond, ctx.header) : null, levels: ctx.levels, whileCombined: ctx.whileCombined, header: ctx.header, actor, optional: /できる。?$/.test(sent), keywordOnly: false, trigger: { kind, event, subject } }
+    return { text: sent, guess: cond ? guessAction(rest) : null, conds: cond ? extractConds(cond, ctx.header) : null, levels: ctx.levels, whileCombined: ctx.whileCombined, header: ctx.header, actor, optional: /できる。?$/.test(sent), keywordOnly: false, trigger: { kind, event, subject } }
 }
 
 function main(): void {
@@ -149,10 +167,10 @@ function main(): void {
                         text: s.text, conds: s.conds, levels: s.levels, whileCombined: s.whileCombined,
                         trigger: { kind: s.trigger.kind, event: p.event ?? s.trigger.event, subject: p.subject ?? s.trigger.subject, subjectFilter: p.subjectFilter ?? null },
                         window: s.header, actor: p.actor ?? s.actor,
-                        op: s.keywordOnly ? "なし" : (p.op ?? null),
+                        op: s.keywordOnly ? "なし" : (p.op ?? s.guess?.op ?? null),
                         exception: p.exception ?? null, restriction: p.restriction ?? null,
-                        target: { ref: s.keywordOnly ? "none" : (p.ref ?? null), filter: p.filter ?? null },
-                        amount: p.amount ?? null, cond: p.cond ?? null, link: p.link ?? "none", optional: s.optional,
+                        target: { ref: s.keywordOnly ? "none" : (p.ref ?? s.guess?.ref ?? null), filter: p.filter ?? null },
+                        amount: p.amount ?? s.guess?.amount ?? null, cond: p.cond ?? null, link: p.link ?? "none", optional: s.optional,
                         unclassified: unc,
                     }
                 }),
