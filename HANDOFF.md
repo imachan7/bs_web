@@ -75,16 +75,13 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 ### 次の一手：「〜することで」を1つの確認関門に通す（2026-09-29 ユーザー決定。規則は COST_MODEL §10）
 
 調べた事実（コード未変更）：
-- **円卓＋賢者の樹の実で【装甲：赤】のアタッカーが破壊される**。`findInstanceAnywhere`（GameState.ts）がスピリットしか探さず、
-  順番選択・選択待ちからの再開で発生源がネクサスだと self が null になり、色が落ちて装甲判定が素通りする（呼び出し元19箇所）
 - **`pay` は自分で確認を出さない**（EffectDef の `optional` 頼み）。確認なしで払う `pay` が30件（クロノ・ハデス BS12-015 は `optional:false`、
   メガロ・ザウル・スネイクスレイヴ・モクバオー・ディルガン・ショカツリョー等）。「ことで」を含む256枚のうち `pay` は77枚、残り179枚は専用 kind
 - **円卓 Lv2（`targetNegateByHandDiscard`）**：確認は destroy/bounce/exhaust/cores/removeCores の「対象指定で再入」経路だけ。
   exhaust `nexus:"also"`・returnToDeckTop/Bottom・markNoRefreshTarget は確認なしで払う。候補1体で自動決定の経路は払う機会が出ない
 
 PR の順番（1本ずつ別ブランチ）：
-1. `fix/`：`findInstanceAnywhere` にネクサス・合体中ブレイヴを含める。`magic/cast.ts:159` の持ち主判定もスピリットだけで見ているので直す。
-   smoke：円卓＋樹の実＋装甲／ネクサス効果の対象選択後の装甲／ネクサス発生源の誘発2つを順番選択に通す総当たり
+1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
 2. `fix/`：関門 `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
    (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
    `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、
@@ -180,7 +177,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ### 場面テストと3役の流れ（2026-10-01 決定）
 
-道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。**次**：BS16 黄・青で初めて3役で回し、呼び出し数と①が見つけた件数を測る。
+道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。**次**：次にカード効果を実装するバッチを最初に3役で回し、呼び出し数と①が見つけた件数を測る（BS16 黄・青は実装済み。PR 1 はエンジンの修正なので3役を使わずに直した）。
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 

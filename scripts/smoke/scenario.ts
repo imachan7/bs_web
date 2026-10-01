@@ -44,7 +44,8 @@ export interface ScenarioCtx {
 
 export interface ScenarioSpec {
     name: string
-    start: { turn?: Side; phase?: "main" | "attack"; me?: SideSpec; opp?: SideSpec }
+    // interactive：選択を PendingChoice で止める（順番選択・対象選択を steps で答える）。既定は自動で選ぶ
+    start: { turn?: Side; phase?: "main" | "attack"; interactive?: boolean; me?: SideSpec; opp?: SideSpec }
     steps: (t: ScenarioCtx) => void
     // 1行＝「キー: 前 → 後」。キーは写像のもの（例「自分.レオ.疲労」）。並びは問わない
     expect: string[]
@@ -154,6 +155,7 @@ function runOnce(spec: ScenarioSpec, me: PlayerId): void {
     s.turnPlayer = pidOf(spec.start.turn ?? "me")
     s.priorityPlayer = s.turnPlayer
     s.phase = spec.start.phase ?? "main"
+    s.interactiveTargets = spec.start.interactive ?? false
     const labels: Labels = new Map()
     setupSide(s, me, "me", spec.start.me ?? {}, labels)
     setupSide(s, opp, "opp", spec.start.opp ?? {}, labels)
