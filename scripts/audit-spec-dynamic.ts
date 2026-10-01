@@ -6,9 +6,10 @@
 // 否定の軸は、データではなく**効果文**（期待値の conds）から取る。データから取ると「データどおりに動く」ことしか確かめられない。
 // 肯定の場面で発火しなかった効果（合体中のみ・条件が合わない等）は、否定も含めて「判定不能」にする。
 import { readFileSync } from "node:fs"
-import { createGame, createInstance, fireFieldEventTriggers, refreshLevelAsOverrides, runTurnStart } from "./smoke/helpers"
+import { createGame, createInstance, destroySpirit, fireFieldEventTriggers, refreshLevelAsOverrides, runTurnStart } from "./smoke/helpers"
 import type { GameState, PlayerId } from "./smoke/helpers"
 import { instColors } from "../server/src/logic/EffectModules"
+import { attachBrave } from "../server/src/logic/brave"
 import { loadAllCards } from "../data/loadCards"
 import type { Conds } from "./spec-skeleton"
 
@@ -70,29 +71,33 @@ type Scene = { s: GameState; source: ReturnType<typeof createInstance>; subject:
 
 function build(specId: string, c: Clause, e: Data, cd: Conds, violate: Axis | null): Scene | null {
     const src = cards.get(specId)!
-    if (src.type !== "spirit" && src.type !== "nexus") return null
+    if (src.type !== "spirit" && src.type !== "nexus" && src.type !== "brave") return null
     const s = createGame("dyn-" + e.id, { p1: "A", p2: "B" }, { p1: "red", p2: "blue" })
     runTurnStart(s)
     s.turn = 3
     const lv = e.levels?.[0] ?? 1
-    const source = createInstance(specId, s.turn, Math.max(1, src.levels.find((l) => l.level === lv)?.cores ?? 1))
+    const own = createInstance(specId, s.turn, Math.max(1, src.levels.find((l) => l.level === lv)?.cores ?? 1))
+    // ブレイヴは、ホストのスピリットに合体させる。効果が作用する「発生源」は合体スピリット（ホスト）
+    const host = src.type === "brave" ? createInstance("BS01-001", s.turn, 3) : null
+    const source = host ?? own
     const wantOpp = (cd.side === "opponent" || e.subjectSide === "opponent") && !e.event.startsWith("own")
     const oppSide = violate === "side" ? !wantOpp : wantOpp
     if (violate === "side" && e.event.startsWith("own")) return null
     const subjectPid: PlayerId = oppSide ? "p2" : "p1"
     let subject: ReturnType<typeof createInstance>
     if (violate === "excludeSelf") {
-        if (src.type !== "spirit") return null
+        if (src.type === "nexus") return null
         subject = source
     } else {
         const id = pickSubject(cd, specId, violate && !["side", "excludeSelf", "turn", "phase"].includes(violate) ? violate : null)
         if (id === null) return null
         subject = createInstance(id, s.turn, 3)
     }
-    if (src.type === "spirit") s.players.p1.field.spirits.push(source)
-    else s.players.p1.field.nexuses.push(source)
+    if (src.type === "nexus") s.players.p1.field.nexuses.push(source)
+    else s.players.p1.field.spirits.push(source)
     if (subject !== source) s.players[subjectPid].field.spirits.push(subject)
     refreshLevelAsOverrides(s)
+    if (host) attachBrave(s, "p1", host, own)
     const turn = e.turn ?? cd.turn
     const phase = e.phase ?? cd.phase
     s.turnPlayer = turn === "opponent" ? "p2" : "p1"
@@ -104,7 +109,7 @@ function build(specId: string, c: Clause, e: Data, cd: Conds, violate: Axis | nu
     const rested = c.op === "回復させる"
     source.isRested = rested
     subject.isRested = rested
-    return { s, source, subject, subjectPid, srcType: src.type }
+    return { s, source, subject, subjectPid, srcType: src.type === "nexus" ? "nexus" : "spirit" }
 }
 
 type Result = { fired: boolean; srcChanged: boolean; subChanged: boolean; d1: number; d2: number }
@@ -113,7 +118,9 @@ function fire(sc: Scene, c: Clause, e: Data): Result | null {
     const { s, source, subject, subjectPid } = sc
     const hand = { p1: s.players.p1.hand.length, p2: s.players.p2.hand.length }
     try {
-        fireFieldEventTriggers(s, "p1", e.event as never, EVENTS_WITH_SUBJECT.has(e.event) ? { pid: subjectPid, inst: subject } : undefined, instColors(subject))
+        // 破壊のイベントは、実際に破壊して起こす（破壊待機・破壊後の誘発の順序を本物の経路に任せる）
+        if (e.event === "ownSpiritDestroyed" && subject !== source) destroySpirit(s, subjectPid, subject.instanceId, "destroy")
+        else fireFieldEventTriggers(s, "p1", e.event as never, EVENTS_WITH_SUBJECT.has(e.event) ? { pid: subjectPid, inst: subject } : undefined, instColors(subject))
     } catch {
         return null
     }
