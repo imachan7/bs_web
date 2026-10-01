@@ -82,11 +82,7 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 
 PR の順番（1本ずつ別ブランチ）：
 1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
-2a. **進行中（`fix/pay-confirm-gate`。2026-10-01 確定）**：`pay` が自分で確認を出す。(c) 払って受けない耐性は 2b に分けた。
-   - 対話中（`interactiveTargets`）で `action.confirmed` が無ければ、成立判定**より前に** `requestActivationConfirm(state, owner, "${sourceName}：コストを支払って効果を発揮しますか？", 続き, self)` で止める。非対話は従来どおり払えるなら払う
-   - 「確認済み」は `pay` の内部欄 `confirmed?: true`（カードデータには書かない。`validate:cards` で弾く）。`markPayConfirmed(action)`（actions/pay.ts）が木の中の pay すべてに付けた写しを返す。
-     **`requestActivationConfirm` は運ぶ action に必ずこれを掛ける**（任意効果の確認・再開フレームの確認を1か所で塞ぐ）。マジックの解決・起動効果・バーストの発動は入口で掛ける
-   - 3役で回す（①期待値役＝場面テスト part456 → ②実装役 → ③見直し）。題材：BS13-068 遥かなる衛星砲（相手ターンに持ち主が答える）／BS03-088 デニス（任意＝確認1回）／BS02-091 セブンスクリムゾン（マジック＝聞き直さない）
+2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。**未決**：断ったとき「ターンに1回」の消費を戻すか
 2b. `fix/`：払って受けない耐性を同じ関門に通す `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
    (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
    `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、
