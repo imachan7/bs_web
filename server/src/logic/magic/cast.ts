@@ -157,9 +157,8 @@ export function usableMagicTarget(
     if (action.filter === undefined) return targetInstanceId
     const found = findInstanceAnywhere(state, targetInstanceId)
     if (!found) return targetInstanceId // 見つからない対象は validateCastMagic 側の判定に任せる
-    const ownerPid = state.players.p1.field.spirits.some((sp) => sp.instanceId === targetInstanceId)
-        ? "p1"
-        : "p2"
+    const p1 = state.players.p1.field
+    const ownerPid = [...p1.spirits, ...p1.nexuses, ...p1.combinedBraves].includes(found) ? "p1" : "p2"
     // filter は self 相対の軸（"selfBp" 等）を持たない前提（マジックには発生源スピリットがいない）。
     // 判定できない軸が来た場合も matchesTarget が false を返すので、捨てる側に倒れる
     return matchesTarget(state, ownerPid, found, action.filter as never) ? targetInstanceId : undefined

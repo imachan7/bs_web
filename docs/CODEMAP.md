@@ -319,6 +319,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `findNexus`（fn）
 - `fieldInstanceIdsOf`（fn）：pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
 - `findInstanceAnywhere`（fn）：両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
+- `takeLostLookups`（fn）
 - `viewFor`（fn）
 
 ## server/src/logic/PhaseManager.ts

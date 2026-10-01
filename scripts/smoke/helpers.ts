@@ -8,6 +8,7 @@ import {
     getCard,
     minLevelCores,
     takeMutationAfterSuspend,
+    takeLostLookups,
     validateDeckCards,
     viewFor,
 } from "../../server/src/logic/GameState"
@@ -235,12 +236,22 @@ function checkCoreSanity(state: GameState): string | null {
 // 保存則の違反件数（アサーション失敗とは別に数え、対話・非対話どちらでも落とす）
 let invariantViolations = 0
 
+// 発生源の見失い（エンジン側 GameState.findInstanceAnywhere が記録したもの）。
+// act を通らないテスト（発火関数の直接呼び出し）のぶんは、次の act か最終集計で拾う
+function reportLostLookups(label: string): void {
+    for (const problem of new Set(takeLostLookups())) {
+        invariantViolations++
+        console.error(`  ❌ [見失い] ${problem}（${label}）`)
+    }
+}
+
 function checkInvariants(state: GameState, before: number, label: string): void {
     // 中断中の盤面変更ガード（エンジン側 GameState.checkNoMutationAfterSuspend が記録したもの）
     for (const problem of takeMutationAfterSuspend()) {
         invariantViolations++
         console.error(`  ❌ [中断ガード] ${problem}（${label}）`)
     }
+    reportLostLookups(label)
     const after = countCards(state)
     if (after !== before) {
         invariantViolations++
@@ -321,6 +332,7 @@ export function noteHarnessError(partName: string, e: Error): void {
 // 全パート実行後にランナー（scripts/smoke.ts）から呼ぶ最終集計。
 // 対話モードでは合否の基準が変わる（アサーション失敗は想定内。異常だけを落とす）
 export function summary(): void {
+    reportLostLookups("最終集計")
     console.log("")
     if (INTERACTIVE) {
         console.log(
