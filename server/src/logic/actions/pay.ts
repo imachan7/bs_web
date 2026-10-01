@@ -3,7 +3,8 @@
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { getCard, log, opponentOf, resolveInOrder } from "../GameState"
+import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "../GameState"
+import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
@@ -317,15 +318,16 @@ export const canPayResolve = (
     return checker(state, owner, self, action, srcColors, srcType)
 }
 
-// 確認済みの印（pay.confirmed）を木の中の pay すべてに付けた写しを返す。
-// 発動の確認（マジック使用・起動・バースト・任意効果）を済ませた経路から入る action に掛け、二重に聞かないようにする（COST_MODEL.md §10）
-export function markPayConfirmed(action: EffectAction): EffectAction {
+// 木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
+// confirmed：発動の確認（マジック使用・起動・バースト・任意効果）を済ませた経路から入る action に掛け、二重に聞かないようにする（COST_MODEL.md §10）
+// onceRevert：確認を断った／押したが不発のとき「ターンに1回」の消費を戻す先（2026-10-01 ユーザー確認）。消費した側（誘発の解決）が付ける
+export function markPays(action: EffectAction, fields: { confirmed?: true; onceRevert?: { instanceId: string; effectId: string } }): EffectAction {
     const walk = (v: unknown): unknown => {
         if (Array.isArray(v)) return v.map(walk)
         if (v !== null && typeof v === "object") {
             const out: Record<string, unknown> = {}
             for (const [k, x] of Object.entries(v)) out[k] = walk(x)
-            if (out.type === "pay") out.confirmed = true
+            if (out.type === "pay") Object.assign(out, fields)
             return out
         }
         return v
@@ -333,10 +335,14 @@ export function markPayConfirmed(action: EffectAction): EffectAction {
     return walk(action) as EffectAction
 }
 
+export function markPayConfirmed(action: EffectAction): EffectAction {
+    return markPays(action, { confirmed: true })
+}
+
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     if (state.interactiveTargets && !action.confirmed) {
-        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, action, self)
+        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, action, self, action.onceRevert)
         return
     }
     let cost = action.cost
@@ -355,6 +361,12 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     if (!ok) {
         log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
         state.effectFizzled = true
+        // 確認を挟んで再開した後の不発は、誘発側の effectFizzled の巻き戻しが既に通り過ぎているのでここで戻す
+        if (action.onceRevert) {
+            const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
+            if (src) revertOncePerTurn(src, action.onceRevert.effectId)
+            revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
+        }
         return
     }
     const scope = newRecordScope()
