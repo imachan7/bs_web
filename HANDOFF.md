@@ -169,6 +169,15 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ---
 
+### 効果の動作検証（2026-09-30 設計。ユーザー発案）
+
+「効果を発動させて結果が効果文どおりにならない」を落とす。**効果文だけを AI に読ませて期待値を作り、実装と突き合わせる**（実装・データは見せない）。
+先に変換規則を確定する：[EFFECT_SPEC_RULES.md](./docs/design/EFFECT_SPEC_RULES.md)（下書き。⚠️印と §5 の未決をユーザー確認 → §2 の表に1行ずつ足す）。
+試験運用の結果（2026-09-30。50枚×2回、狙いの3欄＝誘発の主体・実行者・対象の一致）：Sonnet自由記述94%／Haiku自由記述46%／**Haiku選択式（下ごしらえ＋一覧から選ぶ）84%**。未分類は選択式で6〜14%。既知バグ3枚は全モデルで正しい期待値。
+道具：`data/spec/vocab.json`（一覧）・`scripts/spec-skeleton.ts`（下ごしらえ＝skeleton／合成＝merge）・`scripts/validate-spec-output.ts`（機械検査）。**次**：①実装データとの突き合わせ（期待値の3欄 vs 実装の解決先）を作る ②既知バグを戻して検出できるか確認 ③50枚→全カード。
+**全体への突き合わせ（2026-09-30。データ側で自己参照/ドローを持つ fieldEvent 71枚・Haiku選択式1回）**：`npm run audit:spec -- <期待値.json>`（道具は PR「chore/spec-audit-tools」）。実バグ2系統は修正済み（データ＝fix/field-event-self-mode-source、実行者＝fix/self-action-cause-context。解釈は SEMANTICS_AUDIT §3.18）。**次**：色・コスト・系統の指定の突き合わせ（偽陽性が増える見込み）／`audit:spec` のイベント名の対応不足（未照合の偽陽性）を減らす。
+関連：fix/field-event-self-mode-source に part452（selfMode 書き漏れの静的検査＋レオ・ハーキュリーの動作テスト）。
+
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
 
