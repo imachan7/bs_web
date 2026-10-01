@@ -1635,8 +1635,11 @@ export function fireFieldEventTriggers(
             // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
             // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
             // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
+            // 「そのスピリットを破壊する／疲労させる」は発生源の持ち主の効果（2026-09-30 ユーザー確認）。
+            // イベント対象が相手側でも実行者は発生源の持ち主にする（装甲などの耐性と「相手の効果で〜」の判定に効く）
+            const actsOnEventSubject = effect.action.type === "destroySelf" || effect.action.type === "exhaustSelf"
             return {
-                actionPid: selfOverride.pid,
+                actionPid: actsOnEventSubject ? pid : selfOverride.pid,
                 actionSelf: selfOverride.inst,
                 actionTargetId,
                 srcColors: instColors(inst),

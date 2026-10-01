@@ -938,7 +938,13 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
             log(state, `${sourceName}：selfが不在のため何も起こらなかった。`)
             return
         }
-        destroySpirit(state, owner, self.instanceId, "destroy", undefined, { allowSuspend: true })
+        // fieldEvent で相手側のスピリットがイベント対象のとき、self の持ち主は実行者（owner）と異なる
+        const selfPid = findSpiritAny(state, self.instanceId)?.pid ?? owner
+        if (selfPid !== owner && isResisted(state, selfPid, self, attemptOf(ctx, "destroy", "area"))) {
+            log(state, `${getCard(self.cardId).name}は${sourceName}の効果を受けないため破壊されなかった。`)
+            return
+        }
+        destroySpirit(state, selfPid, self.instanceId, "destroy", selfPid !== owner ? destroyContext : undefined, { allowSuspend: true })
         return
 }
 
