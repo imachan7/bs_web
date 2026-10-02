@@ -65,6 +65,7 @@ export type EffectDef =
           combinedBraveColors?: Color[] // 【合体時】併用：合体しているブレイヴのいずれか1つがこの色を持つときのみ発揮（多色は1色でも該当。2026-09-07確認。X008）
           action: EffectAction
           optional: boolean // 「〜できる」= 任意。interactiveTargetsではpendingChoice（option/confirm）で発動確認、選ばなければ発動しない
+          eventTarget?: "use" | "ignore" // onBlock/onBlocked/onBattleStart/onBattleEnd では必須（validate-cards）。"ignore"＝行動に渡さない（行動が新たに対象を選ぶ）。condition 等の判定には常に渡す
           oncePerTurn?: true // 「ターンに1回」。発生源1体につきターン1回
           onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
           battleRole?: "attacker" | "blocker" // onBattleWin/onBattleEnd：勝利/生存時の自分の役割がこれと一致する場合のみ発火。省略時は常に発火

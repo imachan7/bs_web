@@ -285,6 +285,7 @@
         "id": "BS16-014-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2,

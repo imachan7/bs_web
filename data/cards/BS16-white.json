@@ -907,6 +907,7 @@
     "id": "BS16-034-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2

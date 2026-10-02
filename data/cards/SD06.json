@@ -468,6 +468,7 @@
     "id": "SD06-007-e3",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "levels": [
      2,
      3
