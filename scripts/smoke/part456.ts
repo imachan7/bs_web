@@ -1,5 +1,5 @@
 // smoke パート456（「〜することで〜する」の払う確認。ユーザー確定 2026-09-29）
-// 規則：①対話中は払うかを持ち主に必ず確認 ②二重に聞かない ③払えなくても確認は出し、押しても何も起きない ④非対話は確認なしで払えるなら払う
+// 規則：①対話中は払うかを持ち主に必ず確認 ②二重に聞かない ③聞く前に払えないなら確認は出さず何も起きない（2026-10-02 改訂） ④非対話は確認なしで払えるなら払う
 import { assert, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
@@ -84,11 +84,11 @@ scenario({
     ],
 })
 
-console.log("=== 3. 衛星砲・対話：疲労済み（払えない）でも確認は出る。押しても何も起きない ===")
+console.log("=== 3. 衛星砲・対話：疲労済み（払えない）なら確認は出ない。何も起きない ===")
 scenario({
     name: "sat-cannot-pay",
     start: { turn: "opp", interactive: true, me: cannonMe(true), opp: { spirits: [{ card: VANILLA }] } },
-    steps: (t) => oppAttack(t, "press", 1),
+    steps: (t) => oppAttack(t, "press", 0),
     expect: [
         "相手.ロクケラトプス.疲労: false → true",
         "自分.ライフ: 5 → 4",

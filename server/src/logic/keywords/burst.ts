@@ -1,6 +1,6 @@
 // 【バースト】のセットと発動
 import { requestActivationConfirm } from "../targeting"
-import { markPayConfirmed } from "../actions/pay"
+import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -119,8 +119,12 @@ function tryBurstThenPay(
     if (!entry) return
     const cost = effectiveCost(state, pid, card)
     const player = state.players[pid]
-    // 対話中は払えなくても確認を出し、押したときに払えるか判定する（COST_MODEL.md §10）。非対話は払えなければ飛ばす
-    if (!state.interactiveTargets && player.reserve < cost) return
+    // 払えないなら払う確認は出さず不発（2026-10-02 ユーザー確認。バースト自体の発動確認は済んでいる）。
+    // 簡略化：判定するのはコストのコアだけで、効果本体（entry.action）が解決できるかは見ない
+    if (player.reserve < cost) {
+        log(state, unpayableLine(card.name, "コストのコアが足りない"))
+        return
+    }
     if (state.interactiveTargets) {
         requestActivationConfirm(
             state,

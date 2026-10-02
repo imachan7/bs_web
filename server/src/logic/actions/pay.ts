@@ -7,7 +7,7 @@ import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { canExhaustNexus } from "../EffectModules"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
-import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
+import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
@@ -363,6 +363,103 @@ export const canPayResolve = (
     return checker(state, owner, self, action, srcColors, srcType, eventTarget)
 }
 
+// 成立しなかった cost／then の種類ごとの理由（不発ログ用。表に無い type は汎用文）。revive.ts・burst.ts からも使う
+const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
+    discardSelfChoose: "手札に破棄できるカードがない",
+    toTegamoto: "手札に手元へ置けるカードがない",
+    discardHandAll: "手札に破棄できるカードがない",
+    draw: "ドローできるデッキの枚数がない",
+    mill: "デッキの枚数が足りない",
+    discardOpponent: "相手の手札が足りない",
+    discardBurst: "破棄できるバーストがセットされていない",
+    setBurstFromHand: "手札にセットできるバーストがない",
+    peekOpponentHand: "相手の手札がない",
+    timedEffect: "指定できるスピリットがいない",
+    destroy: "破壊するスピリットがいない",
+    simultaneous: "破壊するスピリットがいない",
+    destroySelf: "このスピリットがフィールドにいない",
+    destroyByBpBudget: "破壊できる相手のスピリットがいない",
+    destroyNexus: "破壊するネクサスがない",
+    destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
+    returnToHand: "手札に戻すスピリットがいない",
+    returnToDeckTop: "デッキに戻すカードがない",
+    returnToDeckBottom: "デッキに戻すカードがない",
+    coreRemove: "取り除けるコアが足りない",
+    removeCores: "移せるコアが足りない",
+    nexusCoresToTrash: "ネクサスにトラッシュへ送れるコアがない",
+    placeCores: "置けるコアが足りない",
+    refreshSelf: "回復させる対象がいない",
+    refreshOne: "回復させる対象がいない",
+    bpBuff: "BP+する対象がいない",
+    summonFromHandFree: "手札に召喚できるカードがない",
+    summonFromTrashFree: "トラッシュに召喚できるカードがない",
+    recoverSpiritFromTrash: "トラッシュに回収できるカードがない",
+    recoverMagicFromTrash: "トラッシュに回収できるカードがない",
+    lifeCrush: "相手のライフを減らせない",
+    treatAsUnblocked: "ブロックしたスピリットがいない",
+}
+
+// 成立しない最初の cost／then の理由を「〜ため」に続く形で返す。全部成立するなら null
+export function unpayableReason(
+    state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction,
+    srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string,
+): string | null {
+    if (canPayResolve(state, owner, self, action, srcColors, srcType, eventTarget)) return null
+    if (action.type === "sequence" || (action.type === "simultaneous" && !action.actions.some((a) => a.type === "destroySelf"))) {
+        for (const a of action.actions) {
+            const r = unpayableReason(state, owner, self, a, srcColors, srcType, eventTarget)
+            if (r !== null) return r
+        }
+    }
+    if (action.type === "exhaust") {
+        if (action.target === "self") return "このスピリットが疲労している"
+        return action.nexusOnly ? "疲労させられる自分のネクサスがない" : "疲労させられる自分のスピリットがいない"
+    }
+    return UNPAYABLE_REASONS[action.type] ?? "条件を満たさない"
+}
+
+export const unpayableLine = (sourceName: string, reason: string): string => `${sourceName}：${reason}ため発動しなかった。`
+
+// pay の成立判定の本体（payHandler と skipUnpayablePay が共有する）。好きなだけ払う cost は then を解決しきれる最大数までしか選べない
+// （2026-09-27 ユーザー確認）。skipThen：then を見ない（イベント対象が呼び出し側で分からないとき）
+function judgePay(
+    state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>,
+    srcColors: Color[] | undefined, srcType: CardType | undefined, eventTargetId?: string, skipThen = false,
+): { cost: EffectAction; reason: string | null } {
+    let c = action.cost
+    const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
+    if (costReason !== null) return { cost: c, reason: costReason }
+    const thenReason = (): string | null => skipThen ? null : unpayableReason(state, owner, self, action.then, srcColors, srcType, eventTargetId)
+    const capacity = anyCapacity(state, owner, self, c)
+    if (capacity === undefined) return { cost: c, reason: thenReason() }
+    if (skipThen) return { cost: c, reason: null }
+    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)
+    let max = capacity
+    while (max >= 0 && !withMovedProbe(max, thenOk)) max--
+    if (max < 0) return { cost: c, reason: thenReason() ?? "条件を満たさない" }
+    c = { ...c, anyMax: max } as EffectAction
+    return { cost: c, reason: null }
+}
+
+// 任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
+// （2026-10-02 ユーザー確認）。イベント対象を then に使う書き方は対象がここでは分からないので、cost だけを見る
+export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, sourceName: string): boolean {
+    if (action.type !== "pay" || action.confirmed) return false
+    const skipThen = JSON.stringify(action.then).includes('"eventTargetOnly"')
+    const srcColors = self ? instColors(self) : undefined
+    const srcType = self ? getCard(self.cardId).type : undefined
+    const reason = judgePay(state, owner, self, action, srcColors, srcType, undefined, skipThen).reason
+    if (reason === null) return false
+    log(state, unpayableLine(sourceName, reason))
+    state.effectFizzled = true
+    if (action.onceRevert) {
+        const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
+        if (src) revertOncePerTurn(state, src, action.onceRevert.effectId)
+        revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
+    }
+    return true
+}
+
 // 木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
 // confirmed：発動の確認（マジック使用・起動・バースト・任意効果）を済ませた経路から入る action に掛け、二重に聞かないようにする（COST_MODEL.md §10）
 // onceRevert：確認を断った／押したが不発のとき「ターンに1回」の消費を戻す先（2026-10-01 ユーザー確認）。消費した側（誘発の解決）が付ける
@@ -398,39 +495,36 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
         }
     }
-    // 【強襲】：発動できないときは確認も出さずに終える（2026-10-02 ユーザー決定。§10「払えなくても確認は出る」の例外）。
-    // 他の pay は払えなくても確認を出す
+    // 【強襲】：回数切れは確認も出さず何も起きない。払えない場合は一般則（下の judge）で確認の前に不発にする
     let kyoshuUsed = 0
     if (action.limitByKeyword === "kyoshu") {
         const limit = self ? kyoshuLimitOf(state, owner, self) : 0
         kyoshuUsed = self ? kyoshuUsedOf(state, self) : 0
-        if (!self || kyoshuUsed >= limit || !canPayResolve(state, owner, self, action.cost, srcColors, srcType) || !canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)) {
+        if (!self || kyoshuUsed >= limit) {
             log(state, `${sourceName}：【強襲】を発動できる状態でないため何もしなかった。`)
             return
         }
     }
+    let cost = action.cost
+    const judge = () => judgePay(state, owner, self, action, srcColors, srcType, eventTargetId)
+    // 聞く前に成立しないなら確認を出さずに不発（2026-10-02 ユーザー確認。COST_MODEL §10 の「払えなくても確認は出る」を改訂）。
+    // confirmed は発動の確認を済ませた経路なので、ここでは不発にしても確認の後の不発として扱う
     if (state.interactiveTargets && !action.confirmed) {
+        const pre = judge()
+        if (pre.reason !== null) {
+            fizzle(unpayableLine(sourceName, pre.reason))
+            return
+        }
         const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action
         requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, resume, self, action.onceRevert)
         return
     }
-    let cost = action.cost
-    const capacity = anyCapacity(state, owner, self, cost)
-    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)
-    let ok = canPayResolve(state, owner, self, cost, srcColors, srcType)
-    if (ok && capacity !== undefined) {
-        // 好きなだけ払う：then を解決しきれる最大数までしか選べない（2026-09-27 ユーザー確認）
-        let max = capacity
-        while (max >= 0 && !withMovedProbe(max, thenOk)) max--
-        ok = max >= 0
-        if (ok) cost = { ...cost, anyMax: max } as EffectAction
-    } else if (ok) {
-        ok = thenOk()
-    }
-    if (!ok) {
-        fizzle(`${sourceName}：条件を満たさないため発動しなかった。`)
+    const verdict = judge()
+    if (verdict.reason !== null) {
+        fizzle(unpayableLine(sourceName, verdict.reason))
         return
     }
+    cost = verdict.cost
     if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }
     const scope = newRecordScope()
     resolveInOrder(state, [cost, action.then], {

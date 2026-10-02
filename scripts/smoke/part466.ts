@@ -111,12 +111,12 @@ scenario({
     expect: [...paidAndDrew, ...oppTurnStart],
 })
 
-console.log("=== 3. 対話・Lv2・手札に無魔のスピリットがない：確認は出るが、押しても払えず何も起きない ===")
+console.log("=== 3. 対話・Lv2・手札に無魔のスピリットがない：確認は出ず、何も起きない ===")
 scenario({
     name: "tsuri-cannot-pay",
     start: { interactive: true, me: { nexuses: [{ card: TSURI, cores: 1 }], hand: [VANILLA] } },
     steps(t) {
-        assert(endTurn(t).confirms === 1, "払えなくても確認は1回出る")
+        assert(endTurn(t).confirms === 0, "払えないので確認は出ない")
     },
     expect: [...oppTurnStart],
 })
@@ -393,14 +393,14 @@ scenario({
     expect: [...crystalBase, "自分.ライフ: 5 → 4", "自分.トラッシュのコア: 0 → 2"],
 })
 
-console.log("=== 21. 対話・リザーブ0でコストが払えない：確認は出て、押しても不発（手札に戻るところまでは起きる）。Bのアタックでライフが減る ===")
+console.log("=== 21. 対話・リザーブ0でコストが払えない：払う確認は出ず不発（手札に戻るところまでは起きる）。Bのアタックでライフが減る ===")
 scenario({
     name: "crystal-cannot-pay",
     start: { turn: "opp", interactive: true, me: crystalMe(0), opp: crystalOpp },
     steps(t) {
         const rec = crystalRun(t, {})
         assert(rec.targets.length === 0, "対象選択は出ない")
-        assert(rec.confirms === 2, `払えなくても確認は出る（実際 ${rec.confirms} 回）`)
+        assert(rec.confirms === 1, `確認はバースト発動の1回だけで、コストを払う確認は出ない（実際 ${rec.confirms} 回）`)
     },
     // V のコア1個がリザーブへ、Bのアタックのライフ1個もリザーブへ
     expect: [...crystalBase, "自分.ライフ: 5 → 4", "自分.リザーブ: 0 → 2"],

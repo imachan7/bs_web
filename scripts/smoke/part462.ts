@@ -1,5 +1,5 @@
 // smoke パート462（「〜することで」の払う確認：【破壊時】の残留とバーストの「その後コストを支払うことで」。ユーザー確定 2026-09-29）
-// 規則：①対話中は払うかを持ち主に必ず確認 ②払えなくても確認は出し、押しても何も起きない ③非対話は確認なしで払えるなら払う
+// 規則：①対話中は払うかを持ち主に必ず確認 ②聞く前に払えないなら確認は出さず何も起きない（2026-10-02 改訂） ③非対話は確認なしで払えるなら払う
 import { assert, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
@@ -90,11 +90,11 @@ scenario({
     expect: paoDies,
 })
 
-console.log("=== 3. パオ・ペイール・対話：想獣が疲労済み（払えない）でも確認は出る。押しても破壊される ===")
+console.log("=== 3. パオ・ペイール・対話：想獣が疲労済み（払えない）なら確認は出ない。そのまま破壊される ===")
 scenario({
     name: "pao-cannot-pay",
     start: { turn: "opp", interactive: true, me: { spirits: [{ card: PAO }, { card: BEAST, rested: true }] }, opp: bigOpp },
-    steps: (t) => blockAndLose(t, "パオ・ペイール", "press", 1),
+    steps: (t) => blockAndLose(t, "パオ・ペイール", "press", 0),
     expect: paoDies,
 })
 
@@ -106,11 +106,11 @@ scenario({
     expect: ["自分.エアレイ.疲労: false → true", ...stays],
 })
 
-console.log("=== 5. 吊られた古城Lv2・対話：手札0枚（払えない）でも確認は出る。押しても破壊される ===")
+console.log("=== 5. 吊られた古城Lv2・対話：手札0枚（払えない）なら確認は出ない。そのまま破壊される ===")
 scenario({
     name: "castle-cannot-pay",
     start: { turn: "opp", interactive: true, me: { spirits: [{ card: NIGHT }], nexuses: [{ card: CASTLE, cores: 1 }] }, opp: bigOpp },
-    steps: (t) => blockAndLose(t, "コウモリブレラ", "press", 1),
+    steps: (t) => blockAndLose(t, "コウモリブレラ", "press", 0),
     expect: [
         "自分.コウモリブレラ.場所: フィールド → なし",
         "自分.トラッシュ: なし → コウモリブレラ",
@@ -119,7 +119,7 @@ scenario({
     ],
 })
 
-console.log("=== 6. 烈光閃刃・対話：バースト後の「その後コストを支払うことで」はコスト不足でも確認が出る。押してもメイン効果は出ない ===")
+console.log("=== 6. 烈光閃刃・対話：バースト後の「その後コストを支払うことで」はコスト不足なら払う確認が出ない。メイン効果も出ない ===")
 {
     const prompts: string[] = []
     scenario({
@@ -144,7 +144,7 @@ console.log("=== 6. 烈光閃刃・対話：バースト後の「その後コス
             console.log("  確認の文面:", JSON.stringify(prompts))
             // バースト自体の発動確認が出る実装でも、払う確認とは文面で区別して数える
             const pay = prompts.filter((p) => !p.includes("バーストを発動"))
-            assert(pay.length === 1, `「コストを支払う」確認はちょうど1回（実際 ${pay.length} 回）`)
+            assert(pay.length === 0, `「コストを支払う」確認は出ない（実際 ${pay.length} 回）`)
         },
         expect: [
             "自分.ライフ: 5 → 4",

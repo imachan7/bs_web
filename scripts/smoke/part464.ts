@@ -162,14 +162,14 @@ scenario({
     expect: ["相手.B.疲労: false → true", "自分.ライフ: 5 → 4", "自分.リザーブ: 10 → 11"],
 })
 
-console.log("=== S6. 対話：リザーブ0でも確認は出る。押しても払えず不発（指定の選択待ちは出ない） ===")
+console.log("=== S6. 対話：リザーブ0なら確認は出ない。不発（指定の選択待ちは出ない） ===")
 scenario({
     name: "snow-interactive-nopay",
     start: { turn: "opp", interactive: true, me: snowMe(2, 0), opp: snowOpp },
     steps: (t) => {
         t.act("opp", { type: "nextPhase" })
         const n = drive(t, [true])
-        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
         assert(t.state.pendingChoice === null, "不発なので選択待ちは残らない")
         attackAndTakeLife(t, "opp", "B")
     },
@@ -243,14 +243,14 @@ scenario({
     expect: [...pyHits, ...pyDraw],
 })
 
-console.log("=== M6. 対話・マーニがすでに疲労：確認は出るが押しても払えず、Pはドローする ===")
+console.log("=== M6. 対話・マーニがすでに疲労：確認は出ず、Pはドローする ===")
 scenario({
     name: "marni-interactive-rested",
     start: { turn: "opp", interactive: true, me: { spirits: [{ card: MARNI, cores: 2, rested: true }] }, opp: marniOpp },
     steps: (t) => {
         t.act("opp", { type: "nextPhase" })
         const n = drive(t, [true]) + attackAndTakeLife(t, "opp", "P", [true])
-        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
     },
     expect: [...pyHits, ...pyDraw],
 })
@@ -449,13 +449,13 @@ scenario({
     expect: [...winOnly, "自分.フォボス・ドラグーン.疲労: false → true"],
 })
 
-console.log("=== F7. 対話・味方がコスト1：確認は出るが押しても払えず不発 ===")
+console.log("=== F7. 対話・味方がコスト1：確認は出ず不発 ===")
 scenario({
     name: "fobos-interactive-cost1",
     start: { turn: "me", phase: "attack", interactive: true, me: fobosMe(4, VANILLA), opp: fobosOpp },
     steps: (t) => {
         const n = fobosFight(t, [true])
-        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
     },
     expect: [...winOnly, "自分.フォボス・ドラグーン.疲労: false → true"],
 })
