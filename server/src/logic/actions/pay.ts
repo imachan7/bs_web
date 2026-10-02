@@ -7,7 +7,7 @@ import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { canExhaustNexus } from "../EffectModules"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
-import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
+import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
@@ -374,10 +374,10 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     discardBurst: "破棄できるバーストがセットされていない",
     setBurstFromHand: "手札にセットできるバーストがない",
     peekOpponentHand: "相手の手札がない",
-    timedEffect: "指定する相手のスピリットがいない",
+    timedEffect: "指定できるスピリットがいない",
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
-    destroySelf: "破壊するスピリットがいない",
+    destroySelf: "このスピリットがフィールドにいない",
     destroyByBpBudget: "破壊できる相手のスピリットがいない",
     destroyNexus: "破壊するネクサスがない",
     destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
@@ -385,7 +385,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     returnToDeckTop: "デッキに戻すカードがない",
     returnToDeckBottom: "デッキに戻すカードがない",
     coreRemove: "取り除けるコアが足りない",
-    removeCores: "置けるコアが足りない",
+    removeCores: "移せるコアが足りない",
     nexusCoresToTrash: "ネクサスにトラッシュへ送れるコアがない",
     placeCores: "置けるコアが足りない",
     refreshSelf: "回復させる対象がいない",
@@ -420,13 +420,35 @@ export function unpayableReason(
 
 export const unpayableLine = (sourceName: string, reason: string): string => `${sourceName}：${reason}ため発動しなかった。`
 
+// pay の成立判定の本体（payHandler と skipUnpayablePay が共有する）。好きなだけ払う cost は then を解決しきれる最大数までしか選べない
+// （2026-09-27 ユーザー確認）。skipThen：then を見ない（イベント対象が呼び出し側で分からないとき）
+function judgePay(
+    state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>,
+    srcColors: Color[] | undefined, srcType: CardType | undefined, eventTargetId?: string, skipThen = false,
+): { cost: EffectAction; reason: string | null } {
+    let c = action.cost
+    const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
+    if (costReason !== null) return { cost: c, reason: costReason }
+    const thenReason = (): string | null => skipThen ? null : unpayableReason(state, owner, self, action.then, srcColors, srcType, eventTargetId)
+    const capacity = anyCapacity(state, owner, self, c)
+    if (capacity === undefined) return { cost: c, reason: thenReason() }
+    if (skipThen) return { cost: c, reason: null }
+    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)
+    let max = capacity
+    while (max >= 0 && !withMovedProbe(max, thenOk)) max--
+    if (max < 0) return { cost: c, reason: thenReason() ?? "条件を満たさない" }
+    c = { ...c, anyMax: max } as EffectAction
+    return { cost: c, reason: null }
+}
+
 // 任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
 // （2026-10-02 ユーザー確認）。イベント対象を then に使う書き方は対象がここでは分からないので、cost だけを見る
 export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, sourceName: string): boolean {
     if (action.type !== "pay" || action.confirmed) return false
-    const thenNeedsEventTarget = JSON.stringify(action.then).includes('"eventTargetOnly"')
-    const reason = unpayableReason(state, owner, self, action.cost, undefined, undefined)
-        ?? (thenNeedsEventTarget || anyCapacity(state, owner, self, action.cost) !== undefined ? null : unpayableReason(state, owner, self, action.then, undefined, undefined))
+    const skipThen = JSON.stringify(action.then).includes('"eventTargetOnly"')
+    const srcColors = self ? instColors(self) : undefined
+    const srcType = self ? getCard(self.cardId).type : undefined
+    const reason = judgePay(state, owner, self, action, srcColors, srcType, undefined, skipThen).reason
     if (reason === null) return false
     log(state, unpayableLine(sourceName, reason))
     state.effectFizzled = true
@@ -484,23 +506,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         }
     }
     let cost = action.cost
-    const capacity = anyCapacity(state, owner, self, cost)
-    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)
-    // 成立するか（好きなだけ払う cost は then を解決しきれる最大数まで）。不成立なら理由を返す
-    const judge = (): { cost: EffectAction; reason: string | null } => {
-        let c = action.cost
-        const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
-        if (costReason !== null) return { cost: c, reason: costReason }
-        if (capacity !== undefined) {
-            // 好きなだけ払う：then を解決しきれる最大数までしか選べない（2026-09-27 ユーザー確認）
-            let max = capacity
-            while (max >= 0 && !withMovedProbe(max, thenOk)) max--
-            if (max < 0) return { cost: c, reason: unpayableReason(state, owner, self, action.then, srcColors, srcType, eventTargetId) ?? "条件を満たさない" }
-            c = { ...c, anyMax: max } as EffectAction
-            return { cost: c, reason: null }
-        }
-        return { cost: c, reason: unpayableReason(state, owner, self, action.then, srcColors, srcType, eventTargetId) }
-    }
+    const judge = () => judgePay(state, owner, self, action, srcColors, srcType, eventTargetId)
     // 聞く前に成立しないなら確認を出さずに不発（2026-10-02 ユーザー確認。COST_MODEL §10 の「払えなくても確認は出る」を改訂）。
     // confirmed は発動の確認を済ませた経路なので、ここでは不発にしても確認の後の不発として扱う
     if (state.interactiveTargets && !action.confirmed) {
