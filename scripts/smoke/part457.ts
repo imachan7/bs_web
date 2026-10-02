@@ -84,11 +84,11 @@ scenario({
     ],
 })
 
-console.log("=== C. 最初から疲労（払えない）：押しても不発、2回目でもまた確認が出る（ルール3・5） ===")
+console.log("=== C. 最初から疲労（払えない）：1回目も2回目も確認は出ない（2026-10-02 改訂） ===")
 scenario({
     name: "barrier-cannot-pay-twice",
     start: start(true),
-    steps: (t) => twoAttacks(t, ["press", "press"], [1, 1]),
+    steps: (t) => twoAttacks(t, ["press", "press"], [0, 0]),
     expect: [
         "自分.ライフ: 5 → 3",
         "自分.リザーブ: 10 → 12",

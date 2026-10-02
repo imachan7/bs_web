@@ -126,13 +126,13 @@ scenario({
     expect: [...turnPass],
 })
 
-console.log("=== K8. 対話・回復させる対象がいない：確認は出るが、押してもコアは払わない ===")
+console.log("=== K8. 対話・回復させる対象がいない：確認は出ず、コアも払わない ===")
 scenario({
     name: "saiger-interactive-nothing",
     start: { turn: "me", interactive: true, me: saigerMe(4, false) },
     steps: (t) => {
         const n = endTurn(t, [true])
-        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
     },
     expect: [...turnPass],
 })

@@ -231,13 +231,13 @@ scenario({
     expect: [...yukiBase, "自分.パイナッポ.疲労: false → true"],
 })
 
-console.log("=== 10. 対話・遊精が他にいない：確認は出るが、押しても払えずBPは5000のまま ===")
+console.log("=== 10. 対話・遊精が他にいない：確認は出ず、BPは5000のまま ===")
 scenario({
     name: "yuki-cannot-pay",
     start: { interactive: true, me: yukiSide(1, [ROKU_A]) },
     steps(t) {
         const { rec, midBp } = yukiRun(t)
-        assert(rec.confirms === 1, "払えなくても確認は1回出る")
+        assert(rec.confirms === 0, "払えないので確認は出ない")
         assert(midBp === 5000, `BPは5000のまま（実際 ${midBp}）`)
     },
     expect: [...yukiBase],
@@ -353,13 +353,13 @@ scenario({
     expect: [...rubyBase("白")],
 })
 
-console.log("=== 18. 対話・Lv2・他に疲労させられる地竜がいない：確認は出るが、押しても払えずBPは1000のまま ===")
+console.log("=== 18. 対話・Lv2・他に疲労させられる地竜がいない：確認は出ず、BPは1000のまま ===")
 scenario({
     name: "ruby-cannot-pay",
     start: { interactive: true, me: rubySide(2, [ROKU_ATK]) },
     steps(t) {
         const { rec, midBp } = rubyRun(t, "アタッカー")
-        assert(rec.confirms === 1, "払えなくても確認は1回出る")
+        assert(rec.confirms === 0, "払えないので確認は出ない")
         assert(midBp === 1000, `BPは1000のまま（実際 ${midBp}）`)
     },
     expect: [...rubyBase("アタッカー")],

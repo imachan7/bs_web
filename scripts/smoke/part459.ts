@@ -68,8 +68,8 @@ scenario({
         drive()
         if (t.state.battle && !t.state.pendingChoice) t.act("me", { type: "takeLife" })
         drive()
-        // 払えない方が先なら確認が2回（押しても不発。まだ発揮していない）、払える方が先なら1回（発揮済みなので2枚目は確認が出ない）
-        assert(confirms >= 1 && confirms <= 2, `確認は1〜2回（実際 ${confirms} 回）`)
+        // 疲労中の方は聞く前に払えないので確認が出ない（2026-10-02 改訂）。払える方の1回だけ。発揮済みなので2枚目は出ない
+        assert(confirms === 1, `確認は払える方の1回だけ（実際 ${confirms} 回）`)
     },
     expect: barrierExpect,
 })

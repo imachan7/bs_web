@@ -120,18 +120,18 @@ for (const interactive of [true, false]) {
         ],
     })
 }
-console.log("--- 払えない（他に武装がいない）：対話では確認が出るが、押してもBPは増えない ---")
+console.log("--- 払えない（他に武装がいない）：対話でも確認は出ず、BPは増えない ---")
 scenario({
     name: "thor-nopay-no-armed",
     start: thorMid(true, { spirits: [THOR_ME, { card: VANILLA, label: "地竜" }] }),
-    steps: (t) => nConfirm(t, 1, myAttack(t, "巨神機トール")),
+    steps: (t) => nConfirm(t, 0, myAttack(t, "巨神機トール")),
     expect: ["自分.巨神機トール.疲労: false → true"],
 })
 console.log("--- 払えない（武装が既に疲労）：BPは増えない ---")
 scenario({
     name: "thor-nopay-rested",
     start: thorMid(true, { spirits: [THOR_ME, GATLING2({ rested: true })] }),
-    steps: (t) => nConfirm(t, 1, myAttack(t, "巨神機トール")),
+    steps: (t) => nConfirm(t, 0, myAttack(t, "巨神機トール")),
     expect: ["自分.巨神機トール.疲労: false → true"],
 })
 console.log("--- 非対話で払えない：何も起きずBPは増えない ---")
@@ -145,7 +145,7 @@ console.log("--- 相手の武装は払えない（自分のスピリットだけ
 scenario({
     name: "thor-opp-armed",
     start: { ...thorMid(true, { spirits: [THOR_ME] }), opp: { spirits: [{ card: GATLING, cores: 2, label: "相手武装" }] } },
-    steps: (t) => nConfirm(t, 1, myAttack(t, "巨神機トール")),
+    steps: (t) => nConfirm(t, 0, myAttack(t, "巨神機トール")),
     expect: ["自分.巨神機トール.疲労: false → true"],
 })
 console.log("--- 相手のアタック時には発揮しない（ブロック側のトールは『このスピリットのアタック時』ではない） ---")
@@ -200,11 +200,11 @@ for (const interactive of [true, false]) {
         ],
     })
 }
-console.log("--- ブロックした側：宣言の時点でヴァルハランスは疲労済みなので自分は候補外。他の武装も疲労済みなら、確認は出るが払えずBPは増えない ---")
+console.log("--- ブロックした側：宣言の時点でヴァルハランスは疲労済みなので自分は候補外。他の武装も疲労済みなら、確認は出ずBPは増えない ---")
 scenario({
     name: "valh-block-mid",
     start: { turn: "opp", phase: "attack", interactive: true, me: { spirits: [VALH_ME, GATLING2({ rested: true })] }, opp: bigWall },
-    steps: (t) => nConfirm(t, 1, oppAttack(t, "壁", "鎧神機ヴァルハランス")),
+    steps: (t) => nConfirm(t, 0, oppAttack(t, "壁", "鎧神機ヴァルハランス")),
     expect: ["自分.鎧神機ヴァルハランス.疲労: false → true", "相手.壁.疲労: false → true"],
 })
 console.log("--- Lv1では発揮しない（確認も出ず、武装は疲労しない） ---")
@@ -228,11 +228,11 @@ scenario({
     },
     expect: ["自分.ガトリングスタンド.疲労: false → true", "自分.鎧神機ヴァルハランス.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
 })
-console.log("--- 払えない（他に武装がいない）：対話では確認が出るが、押してもBPは増えない ---")
+console.log("--- 払えない（他に武装がいない）：対話でも確認は出ず、BPは増えない ---")
 scenario({
     name: "valh-nopay",
     start: { ...thorMid(true, { spirits: [VALH_ME, { card: VANILLA, label: "地竜" }] }), opp: bigWall },
-    steps: (t) => nConfirm(t, 1, myAttack(t, "鎧神機ヴァルハランス", "壁")),
+    steps: (t) => nConfirm(t, 0, myAttack(t, "鎧神機ヴァルハランス", "壁")),
     expect: ["自分.鎧神機ヴァルハランス.疲労: false → true", "相手.壁.疲労: false → true"],
 })
 console.log("--- 非対話で払えない：何も起きない ---")
@@ -361,11 +361,11 @@ for (const interactive of [true, false]) {
         ],
     })
 }
-console.log("--- 他に自分のスピリットがいない：払わない（手札に戻らない）。確認は出る ---")
+console.log("--- 他に自分のスピリットがいない：払わない（手札に戻らない）。確認は出ない ---")
 scenario({
     name: "ushi-alone",
     start: { ...thorMid(true, { spirits: [USHI_ME] }), opp: wall(VANILLA, 1) },
-    steps: (t) => nConfirm(t, 1, myAttack(t, "風の覇王ドルクス・ウシワカ", "壁") + finishBattle(t)),
+    steps: (t) => nConfirm(t, 0, myAttack(t, "風の覇王ドルクス・ウシワカ", "壁") + finishBattle(t)),
     expect: [
         "自分.風の覇王ドルクス・ウシワカ.疲労: false → true",
         "相手.壁.場所: フィールド → なし",
