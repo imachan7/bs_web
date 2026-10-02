@@ -86,8 +86,11 @@ PR の順番（1本ずつ別ブランチ）：
 2c. ✅ 「この効果はターンに1回しか使えない」をカード名ごとに数える（`fix/once-per-turn-by-name`。規則と実装は RULES_BATSPI_WIKI「ターンに1回の数え方」）
 2b-前. ✅ ブロック時などの誘発でイベント対象を行動に渡すかを `eventTarget` で書く（`fix/block-trigger-target`。規則と分類表は docs/design/EVENT_TARGET_AUDIT.md）。2b（`fix/pay-negate-gate`）はこのマージ後に main を取り込んで再開
 2b. ✅ 払って受けない耐性も対象ごとに聞いてから払う（`fix/pay-negate-gate`。規則と実装は COST_MODEL §10 末尾）
-3. 残り179枚：「コストを支払うことで」33件はバーストの既存確認で済んでいるか確かめるだけ、キーワード説明文15件は対象外、
-   残り136件（reviveOnDestroy・magicNegate・deckMillNegate・cost* 軸等）を監査で一覧にして `pay` へ移すか関門を呼ぶ器へ。
+3. 残り：一覧は docs/design/PAY_MIGRATION_AUDIT.md（2026-10-02 調査役。要対応21エントリ＋バーストの食い違い1件）。3つに分けて出す
+   - **3a 進行中（`fix/pay-confirm-revive-burst`）**：(1) コストのある `reviveOnDestroy`（8件。効果文はどれも「〜することで…残る」）は、`optional` が無くても対話中は確認を出す（COST_MODEL §10 の「ことではすべて聞く」の適用）。払えなくても確認は出し、押すと不発で破壊はそのまま進む。判定は revive.ts で `effect.optional || effect.cost があること`。データは変えない
+     (2) バーストの「その後コストを支払うことで」（burst.ts 124行）が払えないとき確認を出さずに飛ばしているのを、確認を出して押すと不発、に直す
+   - 3b：`pay` へ移せる9件と、effectGrant／triggered の3件（BS06-074・BS08-084・BS13-024）
+   - 3c：永久凍土の王都（BS14-084 ownLifeFloor）は自動で払う簡略化のまま。ユーザーに確認してから
    移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す
 
 ### M2 `if`（2026-09-27〜）
