@@ -2791,11 +2791,28 @@
     ],
     "optional": false,
     "action": {
-     "type": "bpBuff",
-     "amount": 0,
-     "costExhaustFamily": "遊精",
-     "amountFromExhaustedCost": true,
-     "scope": "battle"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "遊精"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
     }
    },
    {

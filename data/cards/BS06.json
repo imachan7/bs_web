@@ -4355,8 +4355,28 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "selfBuffByExhaustFamily",
-      "familyFilter": "地竜"
+      "type": "pay",
+      "cost": {
+       "type": "exhaust",
+       "side": "own",
+       "count": 1,
+       "filter": {
+        "family": "地竜"
+       }
+      },
+      "then": {
+       "type": "timedEffect",
+       "target": "self",
+       "duration": "battle",
+       "content": [
+        {
+         "type": "bp",
+         "amount": 1,
+         "amountCounter": "lastBp",
+         "countOnce": true
+        }
+       ]
+      }
      }
     }
    }

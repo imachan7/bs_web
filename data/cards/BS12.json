@@ -2942,23 +2942,28 @@
           2
         ],
         "optional": true,
-        "cost": {
-          "exhaustSelf": true
-        },
         "action": {
-          "type": "timedEffect",
-          "content": [
-            {
-              "type": "playerRule",
-              "rule": {
-                "type": "noLifeDamageByCostForPid",
-                "symbolCount": 2,
-                "combinedOnly": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "target": "self",
+            "count": 1
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "playerRule",
+                "rule": {
+                  "type": "noLifeDamageByCostForPid",
+                  "symbolCount": 2,
+                  "combinedOnly": true
+                }
               }
-            }
-          ],
-          "duration": "turn",
-          "side": "own"
+            ],
+            "duration": "turn",
+            "side": "own"
+          }
         }
       },
       {
