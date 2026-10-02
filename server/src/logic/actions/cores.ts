@@ -6,6 +6,7 @@ import { draw, getCard, instMinLevelCores, log, opponentOf } from "../GameState"
 import {
     isResisted,
     askPayToNegateIfNeeded,
+    gateTargetedApply,
     resistanceAgainst,
     checkExhaustOnCoreChange,
     destroySpirit,
@@ -93,7 +94,17 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                     .map((inst) => ({ pid: owner, inst }))
                 return [...oppList, ...ownList]
             }
-            const removeOne = (pid: PlayerId, inst: CardInstance): number => {
+            // 相手側の対象には適用の直前に耐性（手札を破棄して受けない、を含む）を通す。
+            // 1個ごとに「対象になる」ので、同じスピリットを選び直せば改めて聞く。"asked" は聞いて中断した印
+            const removeOne = (pid: PlayerId, inst: CardInstance): number | "asked" => {
+                if (pid !== owner) {
+                    const resisted = gateTargetedApply(state, pid, inst, attemptOf(ctx, "coreRemove", "targeted"), action, self, sourceName)
+                    if (resisted === "asked") return "asked"
+                    if (resisted) {
+                        log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                        return 0
+                    }
+                }
                 if (action.dest === "void") return removeCoresToVoid(state, pid, inst, 1, owner)
                 if (action.dest === "trash") return removeCoresToTrash(state, pid, inst, 1, owner)
                 return removeCores(state, pid, inst, 1, owner, srcType)
@@ -124,7 +135,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             // 対話時の再入：選ばれた1体から1個取り除いて続きを解決する
             if (action.spreadRemaining !== undefined && targetInstanceId !== undefined) {
                 const chosen = spreadCandidates().find((c) => c.inst.instanceId === targetInstanceId)
-                if (chosen) removeOne(chosen.pid, chosen.inst)
+                if (chosen && removeOne(chosen.pid, chosen.inst) === "asked") return
                 resolveSpread(action.spreadRemaining - 1)
                 return
             }
@@ -529,6 +540,14 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         return
     }
     const { pid, inst } = found
+    if (pid !== owner) {
+        const resisted = gateTargetedApply(state, pid, inst, attemptOf(ctx, "coreRemove", "targeted"), action, self, sourceName)
+        if (resisted === "asked") return
+        if (resisted) {
+            log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+            return
+        }
+    }
     if (inst.cores <= 1) {
         log(state, `${sourceName}：${getCard(inst.cardId).name}のコアは1個以下で移せなかった。`)
         return

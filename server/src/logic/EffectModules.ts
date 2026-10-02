@@ -21,7 +21,7 @@ import type {
     PlayerId,
     ResolvedTargetFilter,
 } from "../type"
-import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, opponentOf } from "./GameState"
+import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, noteMissedPayAsk, opponentOf } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
@@ -267,6 +267,12 @@ function tryPayableTargetNegate(
             // 支払えないなら受ける（手札が足りないときは耐性が成立しない）。
             // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
             if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
+            // 対話中に答え無しで来た＝この経路が askPayToNegateIfNeeded を通していない。
+            // 守る側に聞かずに手札を取らないので、払わず効果を受けさせて検査に記録する
+            if (state.interactiveTargets) {
+                noteMissedPayAsk(`${getCard(source.cardId).name}：${getCard(target.cardId).name}を対象にする効果（${attempt.op}）が払う確認を通らず適用された`)
+                continue
+            }
             const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)
             player.trashCards.push(...discarded)
             log(
@@ -347,6 +353,24 @@ export function askPayToNegateIfNeeded(
         }
     }
     return false
+}
+
+// 自動で（または複数体のうちの1体として）決めた対象に、効果を当てる直前の関門。
+// 聞いて中断したなら "asked"（呼び出し元はその対象を適用せず、残りを再開スタックへ積んで return する）、
+// 受けないなら理由、通すなら null。resume は「この1体だけに当てる」アクション
+// （payNegateDecide が targetInstanceId を渡し直して解決する）。
+// 非対話では聞かず resistanceAgainst が払える限り払う
+export function gateTargetedApply(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+    resume: EffectAction,
+    self: CardInstance | null,
+    sourceName: string,
+): Resistance | "asked" | null {
+    if (askPayToNegateIfNeeded(state, targetOwnerPid, target, attempt, resume, self, sourceName)) return "asked"
+    return resistanceAgainst(state, targetOwnerPid, target, attempt)
 }
 
 // resistanceAgainst の真偽値版（理由を使わない呼び出し側用）

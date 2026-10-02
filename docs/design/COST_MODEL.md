@@ -249,4 +249,8 @@ BS14-084 永久凍土の王都は**原因を限定せず**「自分のライフ�
 - **実装（2026-10-01、smoke part456）**：対話中、`pay` は成立判定より前に `requestActivationConfirm` で確認する。「確認済み」は `pay` の内部欄 `confirmed`（カードデータに書くと `validate:cards` が落とす）で、`markPayConfirmed` が木の中の pay すべてに付ける。
   付ける場所は `requestActivationConfirm`（任意効果の確認・再開フレーム）と、マジック・起動効果・手札の能力・バーストの入口。
   既知の限界：印は木全体に付くので、`atTurnEnd` の中の pay も聞かない（該当カードは0枚）／確認の文面は固定で、何を払うかは出ない／**確認を断ったとき・押したが払えず不発のときは「ターンに1回」の消費を戻す**（2026-10-01 ユーザー確認。2026-09-16 の「発揮しなかったら戻す」と同じ）
+- **払って受けない耐性の実装（2026-10-01、smoke part460）**：相手のスピリットに効果を当てる直前に `gateTargetedApply`（`askPayToNegateIfNeeded` → `resistanceAgainst`）を通す。候補の列挙は `probing`（数えるだけ・払わない）。
+  自動で決まった対象・複数体の各々にも通す（exhaust・destroy・bounce・returnToDeck・coreRemove・moveCoresLeavingOne・removeCores・exhaust の nexus:"also"・markNoRefreshTarget）。
+  対話中に答えなしで `tryPayableTargetNegate` まで来たら払わずに効果を受け、`BS_DEBUG_CHECKS` では「払う確認の聞き漏れ」として smoke を落とす（handleAction を通った経路だけ）。
+  既知の限界：nexus:"also" と markNoRefreshTarget は専用の場面テストが無い（コードと全 smoke で確認）
 

@@ -9,6 +9,7 @@ import {
     minLevelCores,
     takeMutationAfterSuspend,
     takeLostLookups,
+    takeMissedPayAsks,
     validateDeckCards,
     viewFor,
 } from "../../server/src/logic/GameState"
@@ -245,6 +246,13 @@ function reportLostLookups(label: string): void {
     }
 }
 
+function reportMissedPayAsks(label: string): void {
+    for (const problem of new Set(takeMissedPayAsks())) {
+        invariantViolations++
+        console.error(`  ❌ [払う確認の聞き漏れ] ${problem}（${label}）`)
+    }
+}
+
 function checkInvariants(state: GameState, before: number, label: string): void {
     // 中断中の盤面変更ガード（エンジン側 GameState.checkNoMutationAfterSuspend が記録したもの）
     for (const problem of takeMutationAfterSuspend()) {
@@ -252,6 +260,7 @@ function checkInvariants(state: GameState, before: number, label: string): void 
         console.error(`  ❌ [中断ガード] ${problem}（${label}）`)
     }
     reportLostLookups(label)
+    reportMissedPayAsks(label)
     const after = countCards(state)
     if (after !== before) {
         invariantViolations++
@@ -269,6 +278,8 @@ function checkInvariants(state: GameState, before: number, label: string): void 
 function act(state: GameState, pid: PlayerId, action: GameAction): string | null {
     const label = `${pid}: ${action.type}`
     const before = countCards(state)
+    // 聞き漏れの検査は handleAction を通った経路だけを見る。耐性の述語を直接呼ぶ単体テストの記録はここで捨てる
+    takeMissedPayAsks()
     if (INTERACTIVE) {
         // 対話モードでは例外で走行を止めない（1件の異常で残り全パートが走らなくなるため）。
         // 例外そのものを異常として数え、次のアクションへ進む
@@ -333,6 +344,7 @@ export function noteHarnessError(partName: string, e: Error): void {
 // 対話モードでは合否の基準が変わる（アサーション失敗は想定内。異常だけを落とす）
 export function summary(): void {
     reportLostLookups("最終集計")
+    takeMissedPayAsks() // act を通らない直接呼び出しの記録（実際の経路ではない）
     console.log("")
     if (INTERACTIVE) {
         console.log(
