@@ -539,8 +539,15 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         return
 }
 
-const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, action) => {
+const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, rawAction) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // countCounter は最初の1回だけ枚数に解く。中断からの再開ではカウンタの記録が変わりうるので、解いた count を持ち回る
+    const action: typeof rawAction = (() => {
+        if (rawAction.countCounter === undefined) return rawAction
+        const { countCounter, ...rest } = rawAction
+        return { ...rest, count: countedAmount(state, owner, self, rawAction.count ?? 1, countCounter, srcType), chooseEach: true }
+    })()
+    if (rawAction.countCounter !== undefined && action.count === 0) return
         // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
         // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
         // （同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。
@@ -795,6 +802,34 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                     return
                 }
                 askPick(action.count)
+                return
+            }
+            // chooseEach（countCounter）：払った数ぶんを1枚ずつ必ず選ばせる。上限は pay のチェッカーが保証する
+            if (action.chooseEach && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.hand.length; i++) {
+                    if (matchesCardId(player.hand[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚）`,
+                        "hand",
+                        indices,
+                        false,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                } else if (remaining > 0) {
+                    log(state, `${sourceName}：召喚できるスピリットが手札に無くなったため、残り${remaining}枚は召喚しなかった。`)
+                }
                 return
             }
             // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）

@@ -3,7 +3,7 @@
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "../GameState"
+import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { canExhaustNexus } from "../EffectModules"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
@@ -251,9 +251,16 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return true
     },
     // summonFromHandFree：条件に合い実際に召喚できる（payCost指定時は支払い可否も含む）手札のスピリットが1枚以上
-    summonFromHandFree: (state, owner, self, action) => {
+    summonFromHandFree: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "summonFromHandFree") return false
-        return state.players[owner].hand.some((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
+        const candidates = state.players[owner].hand.filter((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
+        if (action.countCounter === undefined) return candidates.length > 0
+        // 払ったコアの数ぶん召喚できるか。召喚先に置くコアは、払った後に残るリザーブから出す（記録は pay の探索中の仮の値）
+        const n = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+        if (n === 0) return false
+        if (candidates.length < n) return false
+        const maintain = candidates.map((id) => minLevelCores(getCard(id))).sort((a, b) => a - b).slice(0, n).reduce((a, b) => a + b, 0)
+        return state.players[owner].reserve - n >= maintain
     },
     // summonFromTrashFree：同上のトラッシュ版
     summonFromTrashFree: (state, owner, _self, action) => {

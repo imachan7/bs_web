@@ -815,8 +815,8 @@ process.on("exit", () => {
         // 強襲：ネクサスを疲労させて回復すると決まった時点（pay の limitByKeyword が回数を数える行）
         patch(
             path.join(tree, "server/src/logic/actions/pay.ts"),
-            `import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "../GameState"`,
-            `import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder, __covRecord } from "../GameState"`,
+            `import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"`,
+            `import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder, __covRecord } from "../GameState"`,
         )
         patch(
             path.join(tree, "server/src/logic/actions/pay.ts"),

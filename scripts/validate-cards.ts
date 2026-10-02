@@ -351,6 +351,7 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
         return
     }
     const obj = node as Record<string, unknown>
+    if (obj["type"] === "summonFromHandFree" && "chooseEach" in obj) add(cardId, "summonFromHandFree に実行時専用の内部欄 chooseEach が書かれている（カードデータには書かない）")
     if (obj["type"] === "simultaneous") {
         for (const k of ["choosing", "chosenIds"]) if (k in obj) add(cardId, `simultaneous に実行時専用の内部欄 ${k} が書かれている（カードデータには書かない）`)
     }
