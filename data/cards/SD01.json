@@ -913,6 +913,7 @@
         "id": "SD01-018-e2",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "use",
         "levels": [
           2,
           3
@@ -1012,6 +1013,7 @@
         "id": "SD01-020-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           2
         ],
@@ -1219,6 +1221,7 @@
         "id": "SD01-024-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -1240,6 +1243,7 @@
         "id": "SD01-024-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           2
         ],

@@ -91,6 +91,7 @@
         "id": "SD02-002-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -153,6 +154,7 @@
         "id": "SD02-003-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2,

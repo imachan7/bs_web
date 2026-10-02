@@ -1298,6 +1298,7 @@
     "id": "BS15-020-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1515,6 +1516,7 @@
     "id": "BS15-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1600,6 +1602,7 @@
     "id": "BS15-024-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1936,6 +1939,7 @@
     "id": "BS15-028-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2269,6 +2273,7 @@
     "id": "BS15-033-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2291,6 +2296,7 @@
     "id": "BS15-033-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -2374,6 +2380,7 @@
     "id": "BS15-034-e3",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      2,
      3
@@ -5807,6 +5814,7 @@
     "id": "BS15-X03-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      1,
      2

@@ -1371,6 +1371,7 @@
     "id": "BS07-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1432,6 +1433,7 @@
     "id": "BS07-024-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,
@@ -1506,6 +1508,7 @@
     "id": "BS07-025-e1",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -1649,6 +1652,7 @@
     "id": "BS07-027-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1941,6 +1945,7 @@
     "id": "BS07-032-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2240,6 +2245,7 @@
     "id": "BS07-036-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2536,6 +2542,7 @@
     "id": "BS07-041-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -2556,6 +2563,7 @@
     "id": "BS07-041-e3",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -2924,6 +2932,7 @@
     "id": "BS07-045-e4",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -5453,6 +5462,7 @@
     "id": "BS07-X26-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2

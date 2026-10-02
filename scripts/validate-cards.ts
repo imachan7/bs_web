@@ -497,6 +497,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             granted?: { trigger?: string }
             oncePerTurn?: boolean
             onceScope?: string
+            eventTarget?: string
         }[]) {
             // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
             if (
@@ -521,6 +522,15 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
             if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
                 add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            // イベント対象を行動に渡すか（triggers.ts）。書き忘れると「新たに選ぶ」行動がアタッカー等に当たる
+            if (
+                e.kind === "triggered" &&
+                (e.trigger === "onBlock" || e.trigger === "onBlocked" || e.trigger === "onBattleStart" || e.trigger === "onBattleEnd") &&
+                e.eventTarget !== "use" &&
+                e.eventTarget !== "ignore"
+            ) {
+                add(id, `eventTarget（"use" | "ignore"）が未指定: ${String(e.id)}`)
             }
             // 『』カテゴリと trigger の一致（SEMANTICS_AUDIT.md §3.17）
             if (e.kind === "triggered" && e.trigger && !QUOTE_MISMATCH_KNOWN.has(e.id ?? "")) {

@@ -84,6 +84,7 @@ PR の順番（1本ずつ別ブランチ）：
 1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
 2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。断ったとき「ターンに1回」を戻す分も済み（#237）
 2c. ✅ 「この効果はターンに1回しか使えない」をカード名ごとに数える（`fix/once-per-turn-by-name`。規則と実装は RULES_BATSPI_WIKI「ターンに1回の数え方」）
+2b-前. ✅ ブロック時などの誘発でイベント対象を行動に渡すかを `eventTarget` で書く（`fix/block-trigger-target`。規則と分類表は docs/design/EVENT_TARGET_AUDIT.md）。2b（`fix/pay-negate-gate`）はこのマージ後に main を取り込んで再開
 2b. **進行中（`fix/pay-negate-gate`。2026-10-01 確定）**：払って受けない耐性（`targetNegateByHandDiscard`。該当は竜騎集う円卓 BS08-055 だけ）を、対話中は**必ず守る側に聞いてから**払う
    - いまは destroy・bounce・exhaust・cores・removeCores の「対象指定で再入」経路だけが `askPayToNegateIfNeeded` で聞き、それ以外（候補1体で自動決定・デッキ戻し・exhaust の nexus:"also"・markNoRefreshTarget 等）は `tryPayableTargetNegate` が**聞かずに手札の末尾を払う**
    - 対話中に答え（`payNegateDecision`）なしで `tryPayableTargetNegate` まで来たら、**払わずに効果を受け**、`BS_DEBUG_CHECKS=1` では異常として記録して smoke を落とす（見失いの検査と同じ形）。これで聞き漏れの経路を smoke が全部指す → 各経路に `askPayToNegateIfNeeded` を足す。非対話は従来どおり払えるなら払う

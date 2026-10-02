@@ -1447,6 +1447,7 @@
     "id": "BS05-025-e2",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2027,6 +2028,7 @@
     "id": "BS05-035-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -3109,6 +3111,7 @@
     "id": "BS05-053-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -5065,6 +5068,7 @@
     "id": "BS05-X18-e4",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      3
     ],

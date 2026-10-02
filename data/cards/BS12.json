@@ -1546,6 +1546,7 @@
         "id": "BS12-023-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -2408,6 +2409,7 @@
         "id": "BS12-036-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2,
@@ -2674,6 +2676,7 @@
         "id": "BS12-039-e3",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           2
         ],
@@ -3734,6 +3737,7 @@
         "id": "BS12-054-e2",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
         "optional": false,
@@ -3872,6 +3876,7 @@
         "id": "BS12-056-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           1
         ],
@@ -5600,6 +5605,7 @@
         "id": "BS12-X01-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "use",
         "levels": [
           2,
           3
@@ -5902,6 +5908,7 @@
         "id": "BS12-X04-e4",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           2,
           3
@@ -6084,6 +6091,7 @@
         "id": "BS12-X06-e2",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "ignore",
         "levels": [
           2,
           3
