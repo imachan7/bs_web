@@ -393,11 +393,15 @@ export function doResolveChoice(
                 if (pending.burstThenPay) {
                     // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
                     const info = pending.burstThenPay
-                    state.players[info.pid].reserve -= info.cost
-                    log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
-                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
-                    resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
+                    if (state.players[info.pid].reserve < info.cost) {
+                        log(state, `${getCard(info.cardId).name}：条件を満たさないため発動しなかった。`)
+                    } else {
+                        state.players[info.pid].reserve -= info.cost
+                        log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
+                        // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
+                        // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
+                        resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
+                    }
                 } else if (pending.burstActivate) {
                     // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
                     // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで

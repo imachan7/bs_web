@@ -138,7 +138,7 @@ export function collectReviveEntries(
 }
 
 // 集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
-// optional（「〜できる」）なら従来どおり持ち主に確認を出す。断れば破壊はそのまま進み、
+// optional（「〜できる」）またはコストありなら持ち主に確認を出す（払えなくても出す。COST_MODEL.md §10）。断れば破壊はそのまま進み、
 // 列に残っている項目も解決される（pendingDestruction が消えないため）
 export function applyReviveEntry(
     state: GameState,
@@ -437,6 +437,7 @@ export function applyReviveConfirm(
     // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
     if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true })) {
+        log(state, `${getCard(inst.cardId).name}：条件を満たさないため発動しなかった。`)
         declineReviveConfirm(state, entry)
         return
     }
@@ -872,7 +873,7 @@ function tryReviveOnDestroy(
             collect.push({ effectId: effect.id, sourceName })
             return false
         }
-        if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
+        if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
             if (probe) return true // 下見：ここで確認が出る
             if (allowSuspend) {
                 suspendReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
@@ -968,7 +969,7 @@ function tryReviveOnDestroy(
             }
             // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
             // allowSuspend が渡っていれば**その場で**確認を出す（渡っていなければ従来どおり保留へ）
-            if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
+            if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
                 if (probe) return true // 下見：ここで確認が出る
                 if (allowSuspend) {
                     suspendReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)

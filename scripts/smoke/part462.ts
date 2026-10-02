@@ -23,10 +23,14 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(getCard(VANILLA).effects.length === 0 && getCard(BIG).effects.length === 0, "VANILLAとBIGは効果なし")
 }
 
-const isConfirm = (t: ScenarioCtx) => {
+// 押す側の選択肢の文言は「発動する」か（残留の確認では）「復活させる」。文言は UI の都合でルールの違いではない
+const CONFIRM_LABELS = ["発動する", "復活させる"]
+const confirmLabel = (t: ScenarioCtx): string | undefined => {
     const pc = t.state.pendingChoice
-    return pc !== null && pc.kind === "option" && (pc.options ?? []).includes("発動する")
+    if (pc === null || pc.kind !== "option") return undefined
+    return CONFIRM_LABELS.find((l) => (pc.options ?? []).includes(l))
 }
+const isConfirm = (t: ScenarioCtx) => confirmLabel(t) !== undefined
 
 // 選択待ちを答え切る。確認が出たら prompts に控えて answer で答える。確認以外は先頭の候補で答える
 function drive(t: ScenarioCtx, answer: "press" | "decline", prompts: string[]): number {
@@ -37,7 +41,7 @@ function drive(t: ScenarioCtx, answer: "press" | "decline", prompts: string[]): 
         if (isConfirm(t)) {
             confirms++
             prompts.push(pc.prompt)
-            t.act(side, answer === "press" ? { type: "resolveChoice", option: "発動する" } : { type: "resolveChoice" })
+            t.act(side, answer === "press" ? { type: "resolveChoice", option: confirmLabel(t)! } : { type: "resolveChoice" })
         } else {
             t.act(side, pc.kind === "option" ? { type: "resolveChoice", option: pc.options![0]! } : { type: "resolveChoice", instanceId: pc.candidates[0]! })
         }
