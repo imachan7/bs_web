@@ -705,17 +705,17 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 destroyed++
             }
         }
-        // 実際に破壊できたネクサス1つにつきdrawPerDestroyed枚ドロー（バスタースピア）
-        if (action.drawPerDestroyed && destroyed > 0) {
-            draw(state, owner, destroyed * action.drawPerDestroyed)
+        // 実際に破壊できたネクサス1つにつき、ドロー（バスタースピア）／相手の手札を破棄（BS05鉄槌のオズワルドLv2）。
+        // 破壊で誘発した効果が選択待ちを立てたら、後半はその解決の後に回す（2026-10-02。中断ガードで見つかった）
+        const after: EffectAction[] = []
+        if (action.drawPerDestroyed && destroyed > 0) after.push({ type: "draw", count: destroyed * action.drawPerDestroyed })
+        if (action.discardOpponentPerDestroyed && destroyed > 0) after.push({ type: "discardOpponent", count: destroyed * action.discardOpponentPerDestroyed })
+        if (after.length === 0) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, after.map((a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a })))
+            return
         }
-        // 実際に破壊できたネクサス1つにつき相手の手札を破棄させる（BS05鉄槌のオズワルドLv2）
-        if (action.discardOpponentPerDestroyed && destroyed > 0) {
-            ctx.resolve({
-                type: "discardOpponent",
-                count: destroyed * action.discardOpponentPerDestroyed,
-            })
-        }
+        for (const a of after) ctx.resolve(a)
         return
 }
 

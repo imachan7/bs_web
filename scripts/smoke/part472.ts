@@ -62,7 +62,6 @@ for (const interactive of [true, false]) {
     })
 }
 
-// 対話の払える場面は、バスタージャベリンの後半（ドロー）が確認の選択待ちより先に解決される既存の問題（HANDOFF §2）に当たるので非対話で見る
 console.log("=== 非対話：リザーブにコアがあれば払って戻る ===")
 scenario({
     name: "tower-payable",
@@ -74,6 +73,34 @@ scenario({
     steps(t) {
         const { confirms } = destroyOther(t)
         assert(confirms === 0, `非対話なので確認は出ない（実際 ${confirms} 回）`)
+    },
+    expect: [
+        "自分.リザーブ: 1 → 0",
+        "自分.トラッシュのコア: 0 → 1",
+        "相手.手札: バスタージャベリン → ロクケラトプス",
+        "相手.デッキ枚数: 40 → 39",
+        "相手.トラッシュ: なし → バスタージャベリン",
+        "相手.リザーブ: 10 → 7",
+        "相手.トラッシュのコア: 0 → 3",
+    ],
+})
+
+console.log("=== 対話：リザーブにコアがあれば確認が出て、押すと戻る。ジャベリンのドローは確認の後 ===")
+scenario({
+    name: "tower-payable-interactive",
+    start: {
+        turn: "opp",
+        interactive: true,
+        me: { reserve: 1, nexuses: [{ card: OTHER, cores: 0 }, { card: TOWER, cores: 0 }] },
+        opp: { hand: [JAVELIN] },
+    },
+    steps(t) {
+        t.act("opp", { type: "castMagic", handIndex: 0 })
+        // 確認待ちの間は、相手（ジャベリンの使用者）はまだドローしていない
+        assert(t.state.pendingChoice?.confirm === true, "魔法監視塔の確認が出る")
+        assert(t.state.players[t.opp].hand.length === 0, "確認の解決前にドローしない")
+        t.act("me", { type: "resolveChoice", option: t.state.pendingChoice!.options![0]! })
+        assert(t.state.pendingChoice === null, "確認は1回で終わる")
     },
     expect: [
         "自分.リザーブ: 1 → 0",
