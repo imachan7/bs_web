@@ -606,6 +606,21 @@ export function takeLostLookups(): string[] {
     return found
 }
 
+// 「手札を破棄して効果を受けない」の聞き漏れの検査（検査用。BS_DEBUG_CHECKS=1 のときだけ働く）。
+// 対話中は対象ごとに守る側へ聞いてから適用する規則（COST_MODEL.md §10）。答えが無いまま払いに来たら、
+// その経路が askPayToNegateIfNeeded を通していない。払わずに効果を受けさせ、ここへ記録して smoke を落とす
+let missedPayAsks: string[] = []
+
+export function noteMissedPayAsk(message: string): void {
+    if (DEBUG_CHECKS) missedPayAsks.push(message)
+}
+
+export function takeMissedPayAsks(): string[] {
+    const found = missedPayAsks
+    missedPayAsks = []
+    return found
+}
+
 // ---- クライアントへ送る公開ビュー ----
 
 // ビューへ渡す1個体。**効果の発揮判定にだけ効くレベル置き換え**（levelAsEffectsOnly。

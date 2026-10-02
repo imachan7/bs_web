@@ -3,6 +3,7 @@
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
+import { resolveInOrder } from "../GameState"
 import { recordTargets } from "../record"
 import {
     canExhaustNexus,
@@ -14,6 +15,7 @@ import {
     findSpiritAny,
     isResisted,
     askPayToNegateIfNeeded,
+    gateTargetedApply,
     resistanceAgainst,
     pickAnySideCandidates,
     pickEnemyByBp,
@@ -165,7 +167,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             s.instanceId !== excludedId && matchesTarget(state, opp, s, filter, self?.instanceId)
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
         // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
-        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s)
+        const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s) && !action.excludeIds?.includes(s.instanceId)
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
         if (targetInstanceId && !action.excludeTarget) {
             const found = findSpiritAny(state, targetInstanceId)
@@ -174,15 +176,22 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 return
             }
             const exhaustAttempt = attemptOf(ctx, "exhaust", "targeted")
+            // excludeIds 付き＝count 体を1体ずつ選んでいる途中。この1体の処理が済んだら（受けなかった場合も含め）残りを選び直す
+            const chainNext = (): void => {
+                if (action.excludeIds === undefined || action.count <= 1) return
+                ctx.resolve({ ...action, count: action.count - 1, excludeIds: [...action.excludeIds, found.inst.instanceId] }, { sourceColors: srcColors, sourceType: srcType })
+            }
             // 「手札を破棄することで効果を受けない」は払うかを守る側に聞いてから判定する（BS08竜騎集う円卓Lv2）
             if (askPayToNegateIfNeeded(state, found.pid, found.inst, exhaustAttempt, action, self, sourceName)) return
             const resisted = resistanceAgainst(state, found.pid, found.inst, exhaustAttempt)
             if (resisted) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                chainNext()
                 return
             }
             if (!matchesLevel(found.inst)) {
                 log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象条件を満たさない。`)
+                chainNext()
                 return
             }
             if (found.inst.isRested) {
@@ -190,6 +199,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                     state,
                     `${getCard(found.inst.cardId).name}はすでに疲労している。`,
                 )
+                chainNext()
                 return
             }
             exhaustSpirit(state, found.pid, found.inst, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
@@ -199,6 +209,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                 found.inst.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
                 log(state, `${getCard(found.inst.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
             }
+            chainNext()
             // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
             if (action.upTo) {
                 recordTargets(state, [found.inst.instanceId])
@@ -319,37 +330,56 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
                         ? `${sourceName}：疲労させる自分のスピリットを選んでください`
                         : `${sourceName}の疲労付与：対象を選んでください`,
                     candidates,
-                    { ...actionForChoice, count: 1 },
-                    action.count > 1 ? { ...actionForChoice, count: action.count - 1 } : null,
+                    action.count > 1 ? { ...actionForChoice, excludeIds: action.excludeIds ?? [] } : { ...actionForChoice, count: 1 },
+                    null,
                     action.chooserIsTarget ? opp : undefined,
                 )
             ) {
                 return
             }
         }
-        // 未指定時は相手フィールドの回復状態（かつlevelFilter一致）スピリットからBP最大をcount回自動選択
-        for (let i = 0; i < action.count; i++) {
-            const target = pickEnemyByBp(
-                state,
-                opp,
-                Infinity,
-                matchesCandidate,
-                srcColors,
-                srcType,
-                "exhaust",
-            )
-            if (!target) {
-                log(state, `${sourceName}の疲労付与：対象がいなかった。`)
-                break
-            }
-            exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
-            log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
-            // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
-            if (action.noRefreshUntilOwnEndSteps !== undefined) {
-                target.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
-                log(state, `${getCard(target.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
-            }
-        }
+        // 未指定時は相手フィールドの回復状態（かつlevelFilter一致）スピリットからBP最大をcount回自動選択。
+        // 1体ごとに適用の直前で耐性（手札を破棄して受けない、を含む）を通す。
+        // 受けなかった対象は回復状態のままなので、次の回で同じ対象を選び直さないよう除く。
+        // 対話中にここへ来るのは候補が0〜1体のときだけ（2体以上は上の選択に回る）なので、
+        // 聞いて中断しても再開スタックに積む残りは無い
+        const handled = new Set<string>()
+        let noTarget = false
+        const oneAction = { ...actionForChoice, count: 1 }
+        resolveInOrder(state, Array.from({ length: state.interactiveTargets ? Math.min(action.count, 1) : action.count }, (_, i) => i), {
+            frame: () => ({ kind: "action", selfInstanceId: self ? self.instanceId : null, action: oneAction }),
+            resolve: () => {
+                const target = pickEnemyByBp(
+                    state,
+                    opp,
+                    Infinity,
+                    (s) => matchesCandidate(s) && !handled.has(s.instanceId),
+                    srcColors,
+                    srcType,
+                    "exhaust",
+                )
+                if (!target) {
+                    log(state, `${sourceName}の疲労付与：対象がいなかった。`)
+                    noTarget = true
+                    return
+                }
+                handled.add(target.instanceId)
+                const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "exhaust", "targeted"), oneAction, self, sourceName)
+                if (resisted === "asked") return
+                if (resisted) {
+                    log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                    return
+                }
+                exhaustSpirit(state, opp, target, action.bofuSourcePid, action.bofuSourcePid ?? owner, action.bofuSourcePid !== undefined ? "spirit" : srcType, self?.instanceId)
+                log(state, exhaustLog(sourceName, getCard(target.cardId).name, action.bofuSourcePid !== undefined))
+                // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：疲労させた「そのスピリット」に立てる
+                if (action.noRefreshUntilOwnEndSteps !== undefined) {
+                    target.noRefreshUntilOwnEndSteps = action.noRefreshUntilOwnEndSteps
+                    log(state, `${getCard(target.cardId).name}：『自分のエンドステップ』を${action.noRefreshUntilOwnEndSteps}回行うまで回復できない。`)
+                }
+            },
+            skip: () => noTarget,
+        })
         return
 }
 

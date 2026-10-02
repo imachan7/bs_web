@@ -20,6 +20,7 @@ import {
     findSpiritAny,
     isResisted,
     askPayToNegateIfNeeded,
+    gateTargetedApply,
     resistanceAgainst,
     matchesFamilyFilter,
     notifyNexusDeployed,
@@ -280,11 +281,22 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             ) {
                 return
             }
+            const handledAny = new Set<string>()
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, matchesFilter, srcColors, srcType)
+                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesFilter(s) && !handledAny.has(s.instanceId), srcColors, srcType)
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
+                }
+                handledAny.add(target.inst.instanceId)
+                // 自分側の対象には耐性を挟まない（このアクションの anySide の非対称ルール）
+                const resisted = target.pid === owner
+                    ? null
+                    : gateTargetedApply(state, target.pid, target.inst, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
+                if (resisted === "asked") return
+                if (resisted) {
+                    log(state, `${getCard(target.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                    continue
                 }
                 destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
                 // 復活の確認で中断した。**残りの体数ぶん**を再開フレームに積んで抜ける
@@ -330,9 +342,19 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         // （数え方と中断の扱いを destroyTargetsBatch に任せる）
         if (action.drawPerDestroyed || action.thenDrawFixed) {
             const picked: { pid: PlayerId; instanceId: string }[] = []
+            // 受けなかった対象は picked に入らないので、選び直さないよう別に覚える。
+            // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
+            const handled = new Set<string>()
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !picked.some((p) => p.instanceId === s.instanceId), srcColors, srcType)
+                const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !handled.has(s.instanceId), srcColors, srcType)
                 if (!target) break
+                handled.add(target.instanceId)
+                const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
+                if (resisted === "asked") return
+                if (resisted) {
+                    log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                    continue
+                }
                 picked.push({ pid: opp, instanceId: target.instanceId })
             }
             if (picked.length === 0) {
@@ -348,19 +370,30 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             })
             return
         }
+        // 1体ごとに適用の直前で耐性（手札を破棄して受けない、を含む）を通す。受けなかった対象は場に残るので、
+        // 次の回で選び直さないよう除く。対話中にここへ来るのは候補が0〜1体のときだけ（2体以上は上の選択に回る）
+        const handled = new Set<string>()
+        const matchesUnhandled = (s: CardInstance) => matchesFilter(s) && !handled.has(s.instanceId)
         for (let i = 0; i < resolvedCount; i++) {
             // 相手が選ぶ（chooserIsTarget）なら、相手が差し出すであろう実効BP最小から（CHOOSER_RULES.md §2）
             const target = action.lowestCost
-                ? pickEnemyLowestCost(state, opp, matchesFilter, srcColors, srcType)
+                ? pickEnemyLowestCost(state, opp, matchesUnhandled, srcColors, srcType)
                 : action.chooserIsTarget
-                  ? pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType).reduce<CardInstance | null>(
+                  ? pickEnemyCandidates(state, opp, limitBp, matchesUnhandled, srcColors, srcType).reduce<CardInstance | null>(
                         (min, s) => (min === null || effectiveBp(state, opp, s) < effectiveBp(state, opp, min) ? s : min),
                         null,
                     )
-                  : pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
+                  : pickEnemyByBp(state, opp, limitBp, matchesUnhandled, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
+            }
+            handled.add(target.instanceId)
+            const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
+            if (resisted === "asked") return
+            if (resisted) {
+                log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                continue
             }
             destroySpirit(state, opp, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
             // 復活の確認で中断した。残りの体数ぶんを再開フレームに積んで抜ける

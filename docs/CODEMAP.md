@@ -257,6 +257,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `emitEvent`（fn）：state.events にイベントを1件積む（seqはstate.eventSeqをインクリメントして自動採番）。
 - `resistanceAgainst`（fn）：このインスタンスが、いま解決中の効果を「受けない」状態か。
 - `askPayToNegateIfNeeded`（fn）：「手札を破棄することで効果を受けない」を**払うかどうか、守る側に聞く**。
+- `gateTargetedApply`（fn）：自動で（または複数体のうちの1体として）決めた対象に、効果を当てる直前の関門。
 - `isResisted`（fn）：resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
 - `destroyedCoresGoToTrash`（fn）：スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
 - `consumeSummonHandDiscardPay`（fn）：BS08ビクティム（kind:"summonCostHandDiscardPay"）：「スピリットカード**1枚**の召喚に」なので、
@@ -320,6 +321,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fieldInstanceIdsOf`（fn）：pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
 - `findInstanceAnywhere`（fn）：両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
 - `takeLostLookups`（fn）
+- `noteMissedPayAsk`（fn）
+- `takeMissedPayAsks`（fn）
 - `viewFor`（fn）
 
 ## server/src/logic/PhaseManager.ts

@@ -479,7 +479,7 @@ export function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
+        return finishChoiceResolution(state, pending.actorPid ?? pending.pid)
     }
 
     if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
@@ -502,7 +502,7 @@ export function doResolveChoice(
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
     if (state.winner) return null
-    return finishChoiceResolution(state, pending.pid)
+    return finishChoiceResolution(state, pending.actorPid ?? pending.pid)
 }
 
 // 選択解決後の共通後処理：queue を消化し、消化しきって新たな選択待ちも無く勝敗も未決なら、
