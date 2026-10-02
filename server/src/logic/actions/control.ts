@@ -1,13 +1,13 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { EffectDef, GameState, PlayerId } from "../../type"
+import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
 import { burstConditionMet } from "../triggers"
 import { matchesPick } from "./revealAction"
-import { destroyAllTargetList, destroyTargetList } from "./destroy"
-import { SELF_REQUIRED } from "./filter"
+import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -98,18 +98,51 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
 }
 
 // 「Aして、B」＝同時に解決する（CONJUNCTION.md。BS04-108。2026-09-27 ユーザー確認）。
-// 対象はすべて解決の開始時に決め、1回の破壊にまとめる（片方の破壊時の誘発がもう片方の対象を変えないように）
+// 対象はすべて解決の開始時に決め、1回の破壊にまとめる（片方の破壊時の誘発がもう片方の対象を変えないように）。
+// 「このスピリットと自分の〜1体を破壊することで」（BS13-004）の2体も同時（2026-10-02 ユーザー確認）。
+// 選ぶ分（destroy{side:"own"}）は持ち主が先に全部決め、途中経過は choosing／chosenIds で持ち回る
 const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
-    const { state, sourceName } = ctx
+    const { state, owner, self, sourceName } = ctx
+    const supported = (a: EffectAction): boolean =>
+        a.type === "destroySelf" || (a.type === "destroy" && (a.all === true || (a.side === "own" && typeof a.count === "number")))
+    if (!action.actions.every(supported)) {
+        log(state, `${sourceName}：同時に解決できない効果が含まれているため発揮しなかった。`)
+        return
+    }
+    const picked = [...(action.chosenIds ?? [])]
+    if (action.choosing && ctx.targetInstanceId !== undefined) picked.push(ctx.targetInstanceId)
     const targets: { pid: PlayerId; instanceId: string }[] = []
+    const add = (pid: PlayerId, instanceId: string): void => {
+        if (!targets.some((x) => x.instanceId === instanceId)) targets.push({ pid, instanceId })
+    }
+    if (self && action.actions.some((a) => a.type === "destroySelf")) add(findSpiritAny(state, self.instanceId)?.pid ?? owner, self.instanceId)
+    let pickIdx = 0
     for (const a of action.actions) {
-        if (a.type !== "destroy" || !a.all) {
-            log(state, `${sourceName}：同時に解決できない効果が含まれているため発揮しなかった。`)
-            return
+        if (a.type !== "destroy") continue
+        if (a.all) {
+            const list = destroyAllTargetList(ctx, a)
+            if (list === SELF_REQUIRED) continue
+            for (const t of list) add(t.pid, t.instanceId)
+            continue
         }
-        const list = destroyAllTargetList(ctx, a)
-        if (list === SELF_REQUIRED) continue
-        for (const t of list) if (!targets.some((x) => x.instanceId === t.instanceId)) targets.push(t)
+        const filter = normalizeFilter(ctx, a)
+        if (filter === SELF_REQUIRED) continue
+        for (let i = 0; i < (a.count as number); i++) {
+            const candidates = ownSideDestroyCandidates(state, owner, self?.instanceId, filter).filter((s) => !targets.some((x) => x.instanceId === s.instanceId))
+            let id = picked[pickIdx++]
+            if (id === undefined) {
+                if (candidates.length === 0) {
+                    log(state, `${sourceName}の破壊効果：対象がいなかった。`)
+                    break
+                }
+                if (state.interactiveTargets && candidates.length >= 2) {
+                    requestChoice(state, owner, `${sourceName}の破壊効果：破壊する自分のスピリットを選んでください`, candidates.map((s) => s.instanceId), false, { ...action, choosing: true, chosenIds: picked }, self)
+                    return
+                }
+                id = candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best)).instanceId
+            }
+            add(owner, id)
+        }
     }
     destroyTargetList(ctx, targets)
 }

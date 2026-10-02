@@ -31,10 +31,10 @@ export const PAYABLE_TYPES = [
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence", "treatAsUnblocked",
+    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "treatAsUnblocked",
 ] as const
 
-type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
+type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
 
 const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     discardSelfChoose: (state, owner, _self, action) => {
@@ -68,16 +68,37 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
-    sequence: (state, owner, self, action, srcColors, srcType) => {
+    sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "sequence") return false
-        return action.actions.every((a) => canPayResolve(state, owner, self, a, srcColors, srcType))
+        return action.actions.every((a) => canPayResolve(state, owner, self, a, srcColors, srcType, eventTarget))
     },
+    // simultaneous：中の全部が成立するとき。自分自身を壊す組では、同じ個体を相手方の destroy の候補に数えない
+    simultaneous: (state, owner, self, action, srcColors, srcType, eventTarget) => {
+        if (action.type !== "simultaneous") return false
+        const withSelf = action.actions.some((a) => a.type === "destroySelf")
+        return action.actions.every((a) => {
+            if (withSelf && a.type === "destroy" && a.side === "own" && a.count !== "any" && self) {
+                const filter = { ...(a.filter ?? {}) } as unknown as ResolvedTargetFilter
+                const n = state.players[owner].field.spirits.filter((s) => s.instanceId !== self.instanceId && matchesTarget(state, owner, s, filter, self.instanceId)).length
+                return n >= a.count
+            }
+            return canPayResolve(state, owner, self, a, srcColors, srcType, eventTarget)
+        })
+    },
+    destroySelf: (state, owner, self) => self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId),
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
     // 自分自身に置くものは自分が場にいること。プレイヤーに掛ける制約（playerRule）は対象を要らないので常に成立
-    timedEffect: (_state, _owner, self, action) =>
-        action.type === "timedEffect" && ((action.target === "self" && self !== null) || action.content.every((c) => c.type === "playerRule")),
+    // target 未指定（相手のスピリットを1体指定する書き方）は、filter に合う相手のスピリットが1体以上いること
+    timedEffect: (state, owner, self, action) => {
+        if (action.type !== "timedEffect") return false
+        if (action.target === "self") return self !== null
+        if (action.content.every((c) => c.type === "playerRule")) return true
+        const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
+        const pids = action.side === "own" ? [owner] : action.side === "both" ? [owner, opponentOf(owner)] : [opponentOf(owner)]
+        return pids.some((pid) => state.players[pid].field.spirits.some((s) => matchesTarget(state, pid, s, filter, self?.instanceId)))
+    },
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
         return action.count === "any" || destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
@@ -172,9 +193,12 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     // refreshOne：条件に合う疲労状態の自分のスピリットが1体以上（exhaustRefresh.ts の既定経路のみ。
     // eventTargetOnly／all／anySide を pay の then に書くケースは想定しない）
-    refreshOne: (state, owner, self, action) => {
+    refreshOne: (state, owner, self, action, _srcColors, _srcType, eventTarget) => {
         if (action.type !== "refreshOne") return false
-        if (action.eventTargetOnly || action.all) return false
+        if (action.eventTargetOnly) {
+            return eventTarget !== undefined && state.players[owner].field.spirits.some((s) => s.instanceId === eventTarget && s.isRested)
+        }
+        if (action.all) return false
         const ctx = { state, owner, self, targetInstanceId: undefined } as ActionCtx
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return false
@@ -312,10 +336,11 @@ export const canPayResolve = (
     action: EffectAction,
     srcColors: Color[] | undefined,
     srcType: CardType | undefined,
+    eventTarget?: string,
 ): boolean => {
     const checker = CHECKERS[action.type]
     if (!checker) return false
-    return checker(state, owner, self, action, srcColors, srcType)
+    return checker(state, owner, self, action, srcColors, srcType, eventTarget)
 }
 
 // 木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
@@ -350,7 +375,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     }
     let cost = action.cost
     const capacity = anyCapacity(state, owner, self, cost)
-    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType)
+    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)
     let ok = canPayResolve(state, owner, self, cost, srcColors, srcType)
     if (ok && capacity !== undefined) {
         // 好きなだけ払う：then を解決しきれる最大数までしか選べない（2026-09-27 ユーザー確認）

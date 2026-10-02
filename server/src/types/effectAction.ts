@@ -177,7 +177,7 @@ export type EffectAction =
  // **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
  // interactiveTargets 時は kind:"option" で系統を選ばせ、非対話では**引ける枚数が多い方**を選ぶ決定的簡略化
  | { type: "sequence"; actions: EffectAction[] } // 効果文の「Aする。その後、Bする。」（CONJUNCTION.md）。actionsを常に順番どおり全部解決する（chooseActionModeの「選ばせない」全実行版）。Aが不完全にしか解決できなくてもBは解決する（例：疲労させる対象がいなくてもその後の回復は行う）。選択で中断したら残りはresolveInOrderが再開スタックへ積む
- | { type: "simultaneous"; actions: EffectAction[] } // 「Aして、B」＝同時（CONJUNCTION.md）。中の destroy{all} の対象をすべて集めて1回で破壊待機に入れる（今は destroy{all} だけ書ける）
+ | { type: "simultaneous"; actions: EffectAction[]; choosing?: true; chosenIds?: string[] } // 「Aして、B」＝同時（CONJUNCTION.md）。対象をすべて集めて1回で破壊待機に入れる。書けるのは destroy{all}・destroySelf・destroy{side:"own", count:数}。choosing／chosenIds は選択の途中経過（カードには書かない）
  | { type: "chooseActionMode"; modes: { label: string; actions: EffectAction[] }[] } // 効果文の「〜する。**または**、〜する」。使用者が modes からどれか1つを選び、その actions を順に解決する
  // 。
  // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する

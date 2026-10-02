@@ -4673,9 +4673,18 @@
     "selfMode": "source",
     "attackerAsTarget": true,
     "action": {
-     "type": "refreshOne",
-     "eventTargetOnly": true,
-     "costSelfCoresToTrash": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshOne",
+      "eventTargetOnly": true
+     }
     }
    }
   ]

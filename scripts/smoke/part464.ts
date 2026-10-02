@@ -38,7 +38,8 @@ console.log("=== 前提: カードの機械確認 ===")
 
 const isConfirm = (t: ScenarioCtx) => {
     const pc = t.state.pendingChoice
-    return pc !== null && pc.kind === "option" && (pc.options ?? []).includes("発動する")
+    // 確認の選択肢は「発動する」「無効にする」（氷壁）など。confirm:true の単一選択肢を確認として数える
+    return pc !== null && pc.kind === "option" && pc.confirm === true
 }
 
 // 確認が出たら answers[i]（既定 true）で答える。確認の回数を返す。確認以外は pick（候補にいれば）か先頭で答える
@@ -52,7 +53,7 @@ function drive(t: ScenarioCtx, answers: boolean[] = [], pick?: string): number {
         if (isConfirm(t)) {
             const yes = answers[confirms] ?? true
             confirms++
-            t.act(side, yes ? { type: "resolveChoice", option: "発動する" } : { type: "resolveChoice" })
+            t.act(side, yes ? { type: "resolveChoice", option: pc.options![0]! } : { type: "resolveChoice" })
         } else if (pc.kind === "option") {
             t.act(side, { type: "resolveChoice", option: pc.options![0]! })
         } else {

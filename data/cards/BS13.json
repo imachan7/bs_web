@@ -214,12 +214,31 @@
     ],
     "optional": false,
     "action": {
-     "type": "summonFromHandFree",
-     "familyFilter": [
-      "神星"
-     ],
-     "costDestroySelfAndCostFilter": {
-      "min": 3
+     "type": "pay",
+     "cost": {
+      "type": "simultaneous",
+      "actions": [
+       {
+        "type": "destroySelf"
+       },
+       {
+        "type": "destroy",
+        "side": "own",
+        "count": 1,
+        "filter": {
+         "cost": {
+          "min": 3
+         },
+         "excludeSelf": true
+        }
+       }
+      ]
+     },
+     "then": {
+      "type": "summonFromHandFree",
+      "familyFilter": [
+       "神星"
+      ]
      }
     }
    }

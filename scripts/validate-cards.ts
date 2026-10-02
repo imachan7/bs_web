@@ -350,6 +350,9 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
         return
     }
     const obj = node as Record<string, unknown>
+    if (obj["type"] === "simultaneous") {
+        for (const k of ["choosing", "chosenIds"]) if (k in obj) add(cardId, `simultaneous に実行時専用の内部欄 ${k} が書かれている（カードデータには書かない）`)
+    }
     if (obj["type"] === "pay") {
         if ("confirmed" in obj) add(cardId, "pay に実行時専用の内部欄 confirmed が書かれている（カードデータには書かない）")
         if ("onceRevert" in obj) add(cardId, "pay に実行時専用の内部欄 onceRevert が書かれている（カードデータには書かない）")
@@ -649,7 +652,7 @@ export function findStrayDeclared(cards: CardData[]): { cardId: string; message:
     return out
 }
 
-// simultaneous の中は destroy{all} だけ（それ以外はハンドラが発揮しない）
+// simultaneous の中は destroy{all}・destroySelf・destroy{side:"own", count:数} だけ（それ以外はハンドラが発揮しない）
 export function findBadSimultaneous(cards: CardData[]): { cardId: string; message: string }[] {
     const out: { cardId: string; message: string }[] = []
     const walk = (o: unknown, cardId: string): void => {
@@ -661,7 +664,8 @@ export function findBadSimultaneous(cards: CardData[]): { cardId: string; messag
         const r = o as Record<string, unknown>
         if (r["type"] === "simultaneous") {
             for (const a of (r["actions"] as Record<string, unknown>[] | undefined) ?? []) {
-                if (a["type"] !== "destroy" || a["all"] !== true) out.push({ cardId, message: "simultaneous の中には destroy{all} だけ書ける" })
+                const ok = a["type"] === "destroySelf" || (a["type"] === "destroy" && (a["all"] === true || (a["side"] === "own" && typeof a["count"] === "number")))
+                if (!ok) out.push({ cardId, message: "simultaneous の中には destroy{all}・destroySelf・destroy{side:own,count:数} だけ書ける" })
             }
         }
         for (const v of Object.values(r)) walk(v, cardId)
