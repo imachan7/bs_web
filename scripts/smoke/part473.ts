@@ -54,7 +54,7 @@ function drive(t: ScenarioCtx, count: number, picks: string[]): Drive {
         if (guard++ > 20) throw new Error(`選択が終わらない: ${out.log.join(" / ")}`)
         const pc = t.state.pendingChoice
         const side = pc.pid === t.me ? "me" : "opp"
-        out.log.push(`${pc.kind}:${pc.prompt}:${JSON.stringify(pc.kind === "option" ? pc.options : pc.candidates)}`)
+        out.log.push(`${pc.kind}:${pc.prompt}:${JSON.stringify(pc.kind === "option" ? pc.options : (pc as unknown as { cardIndices?: number[] }).cardIndices)}`)
         if (pc.kind === "option") {
             const opts = pc.options ?? []
             if (opts.includes("発動する")) {
@@ -67,9 +67,11 @@ function drive(t: ScenarioCtx, count: number, picks: string[]): Drive {
             t.act(side, { type: "resolveChoice", option: hit })
         } else {
             const want = queue.shift()
-            const hit = want === undefined ? pc.candidates[0]! : pc.candidates.find((c) => c === want || c.includes(want))
-            if (hit === undefined) throw new Error(`カード選択に ${want} が無い: ${JSON.stringify(pc.candidates)}`)
-            t.act(side, { type: "resolveChoice", instanceId: hit })
+            const hand = t.state.players[pc.pid].hand
+            const idxs = (pc as unknown as { cardIndices?: number[] }).cardIndices ?? []
+            const hit = want === undefined ? idxs[0] : idxs.find((i) => getCard(hand[i]!).name === want)
+            if (hit === undefined) throw new Error(`カード選択に ${want} が無い: ${JSON.stringify(idxs)}`)
+            t.act(side, { type: "resolveChoice", cardIndex: hit })
         }
     }
     return out
