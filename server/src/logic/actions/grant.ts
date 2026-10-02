@@ -286,9 +286,8 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
             ctx.resolve({ ...action, costPaid: true }, targetInstanceId !== undefined ? { targetInstanceId } : undefined)
             return
         }
-        // costReturnSelfToHand持ちは「相手のスピリット1体を指定する」＝プレイヤーが選ぶ（BS13-027）。
-        // 既存のBS04ミストカーテン（costReturnSelfToHand無し）は従来どおり自動選択のまま変えない
-        if (action.costReturnSelfToHand && targetInstanceId === undefined && state.interactiveTargets) {
+        // 「相手のスピリット1体を指定する」＝対話中は常に持ち主が選ぶ（非対話は従来どおり自動。2026-10-02 ユーザー確認）
+        if (targetInstanceId === undefined && state.interactiveTargets && state.players[opp].field.spirits.length > 0) {
             requestChoice(
                 state,
                 owner,

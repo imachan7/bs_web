@@ -106,6 +106,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     returnToHand: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "returnToHand") return false
         if (action.costBudget !== undefined) return true
+        if (action.target === "self") return self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)
+        if (action.target === "selfBrave") return self !== null && (self.braveRefs?.length ?? 0) >= 1
         return returnToHandCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
     returnToDeckTop: (state, owner, self, action, srcColors, srcType) => {

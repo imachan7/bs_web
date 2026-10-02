@@ -2714,8 +2714,15 @@
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "refreshSelf",
-     "costReturnOwnBrave": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "selfBrave",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    }
   ]
@@ -3519,8 +3526,15 @@
      2
     ],
     "action": {
-     "type": "negateLifeDamageFromTarget",
-     "costReturnSelfToHand": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "negateLifeDamageFromTarget"
+     }
     }
    },
    {
