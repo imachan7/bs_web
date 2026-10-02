@@ -31,14 +31,15 @@ const isConfirm = (t: ScenarioCtx) => {
 }
 
 // 確認が出たら押す。出た回数を返す。確認以外は先頭の候補で答える
-function drive(t: ScenarioCtx): number {
+function drive(t: ScenarioCtx, decline = false): number {
     let confirms = 0
     while (t.state.pendingChoice) {
         const pc = t.state.pendingChoice
         const side = pc.pid === t.me ? "me" : "opp"
         if (isConfirm(t)) {
             confirms++
-            t.act(side, { type: "resolveChoice", option: "発動する" })
+            if (decline) assert(pc.optional, "確認はスキップ（断る）できる")
+            t.act(side, decline ? { type: "resolveChoice" } : { type: "resolveChoice", option: "発動する" })
         } else {
             t.act(side, pc.kind === "option" ? { type: "resolveChoice", option: pc.options![0]! } : { type: "resolveChoice", instanceId: pc.candidates[0]! })
         }
@@ -48,22 +49,22 @@ function drive(t: ScenarioCtx): number {
 }
 
 // 自分のアタック。blocker を渡すと相手がブロックし、バトルを最後まで進める。stopAtBattle なら BP比較の前で止める
-function myAttack(t: ScenarioCtx, who: string, blocker?: string): number {
+function myAttack(t: ScenarioCtx, who: string, blocker?: string, decline = false): number {
     t.act("me", { type: "attack", instanceId: t.id(who) })
-    let n = drive(t)
+    let n = drive(t, decline)
     t.closeFlash()
-    n += drive(t)
+    n += drive(t, decline)
     if (blocker) {
         t.act("opp", { type: "block", instanceId: t.id(blocker) })
-        n += drive(t)
+        n += drive(t, decline)
     }
     return n
 }
-function finishBattle(t: ScenarioCtx): number {
+function finishBattle(t: ScenarioCtx, decline = false): number {
     let n = 0
     for (let i = 0; i < 6 && t.state.battle; i++) {
         t.closeFlash()
-        n += drive(t)
+        n += drive(t, decline)
     }
     return n
 }
@@ -402,6 +403,34 @@ scenario({
     start: thorMid(true, { spirits: [USHI_ME, GAT1] }),
     steps: (t) => nConfirm(t, 0, myAttack(t, "風の覇王ドルクス・ウシワカ")),
     expect: ["自分.風の覇王ドルクス・ウシワカ.疲労: false → true"],
+})
+
+console.log("=== 確認を断る（対話）：払わず、BP+も起きない ===")
+console.log("--- トール：断るとガトリングは疲労せずBPも増えない ---")
+scenario({
+    name: "thor-decline",
+    start: thorMid(true, { spirits: [THOR_ME, GATLING2()] }),
+    steps: (t) => nConfirm(t, 1, myAttack(t, "巨神機トール", undefined, true)),
+    expect: ["自分.巨神機トール.疲労: false → true"],
+})
+console.log("--- ヴァルハランス：自分のアタックでブロックされて断ると、ガトリングは疲労せずBPも増えない ---")
+scenario({
+    name: "valh-decline",
+    start: { ...thorMid(true, { spirits: [VALH_ME, GATLING2()] }), opp: bigWall },
+    steps: (t) => nConfirm(t, 1, myAttack(t, "鎧神機ヴァルハランス", "壁", true)),
+    expect: ["自分.鎧神機ヴァルハランス.疲労: false → true", "相手.壁.疲労: false → true"],
+})
+console.log("--- ウシワカ：バトル終了時に断ると、手札に戻らずガトリングのBPも増えない ---")
+scenario({
+    name: "ushi-decline",
+    start: { ...thorMid(true, { spirits: [USHI_ME, GAT1] }), opp: wall(VANILLA, 1) },
+    steps: (t) => nConfirm(t, 1, myAttack(t, "風の覇王ドルクス・ウシワカ", "壁", true) + finishBattle(t, true)),
+    expect: [
+        "自分.風の覇王ドルクス・ウシワカ.疲労: false → true",
+        "相手.壁.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ロクケラトプス",
+        "相手.リザーブ: 10 → 11",
+    ],
 })
 
 console.log("すべてのチェックに合格しました 🎉（part468）")
