@@ -1088,42 +1088,43 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
         return
 }
 
+// 払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
+export function reviveLastDestroyedNexusBlockReason(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    action: Extract<EffectAction, { type: "reviveLastDestroyedNexus" }>,
+): string | null {
+    const last = state.lastDestroyedNexus
+    const requiredCost = action.coreCost
+    const fromFieldOrReserve = action.costFrom === "ownFieldOrReserve"
+    if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) return "支払えるコアがない"
+    if (!last || last.pid !== owner) return "戻せるネクサスがない"
+    const player = state.players[owner]
+    if (!player.field.nexuses.some((n) => n.pendingDestruction) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
+    if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0) < (requiredCost ?? 1)) return "支払えるコアがない"
+    return null
+}
+
 const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 戦闘獣ジャッカー：self上のコアすべてをトラッシュに置くことで、直近に破壊された自分のネクサスを戻す
-        // BS05ブロンズ・ゴレム：coreCost指定時はその数だけを支払う（不足なら不発）
-        const last = state.lastDestroyedNexus
-        const requiredCost = action.coreCost
+    const { state, owner, self, sourceName } = ctx
+        // coreCost 省略時は self 上のコアすべてを払う（戦闘獣ジャッカー）
         // costFrom:"ownFieldOrReserve"（SD02-014 魔法監視塔Lv1）：コストを self 上ではなく
         // 自分のフィールド/リザーブのコアから払う。**リザーブを優先**して場のスピリットを崩さない
+        const reason = reviveLastDestroyedNexusBlockReason(state, owner, self, action)
+        if (reason !== null) {
+            log(state, `${sourceName}：${reason}ため発動しなかった。`)
+            return
+        }
+        const last = state.lastDestroyedNexus!
+        const requiredCost = action.coreCost
         const fromFieldOrReserve = action.costFrom === "ownFieldOrReserve"
-        if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) {
-            log(state, `${sourceName}：支払えるコアがなかった。`)
-            return
-        }
-        if (!last || last.pid !== owner) {
-            log(state, `${sourceName}：戻せるネクサスがなかった。`)
-            return
-        }
         const player = state.players[owner]
         // 「フィールドに戻す」は**破壊待機状態から戻す**という意味で、トラッシュからの回収ではない
         // （docs/design/TIMING_CHART.md §1.5）。したがって破壊待機状態のネクサスを探し、
         // 待機を解除する。コアも乗ったまま・レベルもそのままでフィールドにとどまる
         const pending = player.field.nexuses.find((n) => n.pendingDestruction)
         const trashIndex = pending ? -1 : player.trashCards.lastIndexOf(last.cardId)
-        if (!pending && trashIndex === -1) {
-            log(state, `${sourceName}：戻せるネクサスがなかった。`)
-            return
-        }
-        // 支払える総量を先に確かめる（払えないなら何も起こさない。「〜することで」は任意コスト）
-        if (fromFieldOrReserve) {
-            const need = requiredCost ?? 1
-            const available = player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
-            if (available < need) {
-                log(state, `${sourceName}：支払えるコアがなかった。`)
-                return
-            }
-        }
         // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
         let paid: number
         if (fromFieldOrReserve) {
