@@ -9,7 +9,7 @@ import { canExhaustNexus } from "../EffectModules"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
 import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
-import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
+import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay } from "./removeCores"
@@ -444,6 +444,20 @@ function judgePay(
 // 任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
 // （2026-10-02 ユーザー確認）。イベント対象を then に使う書き方は対象がここでは分からないので、cost だけを見る
 export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, sourceName: string): boolean {
+    // コストを中で払う action（pay に移していないもの）も、払えないなら確認を出さない
+    if (action.type === "reviveLastDestroyedNexus") {
+        const reason = reviveLastDestroyedNexusBlockReason(state, owner, self, action)
+        if (reason === null) return false
+        log(state, unpayableLine(sourceName, reason))
+        state.effectFizzled = true
+        const once = (action as { onceRevert?: { instanceId: string; effectId: string } }).onceRevert
+        if (once) {
+            const src = findInstanceAnywhere(state, once.instanceId)
+            if (src) revertOncePerTurn(state, src, once.effectId)
+            revertDestroyGroupUsage(state, once.instanceId, once.effectId)
+        }
+        return true
+    }
     if (action.type !== "pay" || action.confirmed) return false
     const skipThen = JSON.stringify(action.then).includes('"eventTargetOnly"')
     const srcColors = self ? instColors(self) : undefined
