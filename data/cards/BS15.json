@@ -207,8 +207,7 @@
        }
       },
       {
-       "type": "summonBurstCardFree",
-       "payCost": true
+       "type": "summonBurstCardFree"
       }
      ]
     }
@@ -1102,8 +1101,7 @@
      "ownHandAtLeast": 5
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -1766,8 +1764,7 @@
      "bothFieldsRestedSpiritsAtLeast": 3
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -2372,8 +2369,7 @@
     "byOpponentEffectOnly": true,
     "destroyedMinBp": 5000,
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -3006,8 +3002,7 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -3751,8 +3746,7 @@
      ]
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -6038,8 +6032,7 @@
        "orReserve": true
       },
       {
-       "type": "summonBurstCardFree",
-       "payCost": true
+       "type": "summonBurstCardFree"
       }
      ]
     }
