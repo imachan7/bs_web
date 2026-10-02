@@ -353,6 +353,7 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
     if (obj["type"] === "pay") {
         if ("confirmed" in obj) add(cardId, "pay に実行時専用の内部欄 confirmed が書かれている（カードデータには書かない）")
         if ("onceRevert" in obj) add(cardId, "pay に実行時専用の内部欄 onceRevert が書かれている（カードデータには書かない）")
+        if ("eventTargetId" in obj) add(cardId, "pay に実行時専用の内部欄 eventTargetId が書かれている（カードデータには書かない）")
         for (const side of ["cost", "then"] as const) {
             const t = (obj[side] as { type?: unknown } | undefined)?.type
             if (typeof t !== "string" || !VALID_PAY_TYPES.has(t)) {
