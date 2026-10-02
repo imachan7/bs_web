@@ -397,6 +397,7 @@ export function doResolveChoice(
                         log(state, `${getCard(info.cardId).name}：条件を満たさないため発動しなかった。`)
                     } else {
                         state.players[info.pid].reserve -= info.cost
+                        state.players[info.pid].trashCores += info.cost
                         log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
                         // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
                         // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）

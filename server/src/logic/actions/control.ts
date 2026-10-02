@@ -440,6 +440,7 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
     const player = state.players[owner]
     if (player.reserve < action.payCost) return
     player.reserve -= action.payCost
+    player.trashCores += action.payCost
     log(state, `${player.name}は${card.name}のコスト${action.payCost}を支払った。`)
     resolveFree(magicEntry(action.payTiming))
 }
