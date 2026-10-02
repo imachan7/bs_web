@@ -827,6 +827,8 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, raw
                         self,
                         true,
                     )
+                } else if (remaining > 0) {
+                    log(state, `${sourceName}：召喚できるスピリットが手札に無くなったため、残り${remaining}枚は召喚しなかった。`)
                 }
                 return
             }
