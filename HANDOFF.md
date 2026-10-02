@@ -55,8 +55,6 @@
 `scripts/coverage-effects.ts` の差し込み先を移した先へ直す（part160 が壊れた差し込み先を検出する）→ `npm run codemap`・据え置き一覧の更新。
 罠：`patch()` に `f.replace("rules.ts", ...)` のようにパス文字列を組み立てている箇所がある／import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
 
-**マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
-
 **「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
 `toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）
 
@@ -72,32 +70,14 @@ effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**そ
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### 次の一手：「〜することで」を1つの確認関門に通す（2026-09-29 ユーザー決定。規則は COST_MODEL §10）
+### 「〜することで」の確認関門は一区切り（2026-10-02。#230〜#246）
 
-調べた事実（コード未変更）：
-- **`pay` は自分で確認を出さない**（EffectDef の `optional` 頼み）。確認なしで払う `pay` が30件（クロノ・ハデス BS12-015 は `optional:false`、
-  メガロ・ザウル・スネイクスレイヴ・モクバオー・ディルガン・ショカツリョー等）。「ことで」を含む256枚のうち `pay` は77枚、残り179枚は専用 kind
-- **円卓 Lv2（`targetNegateByHandDiscard`）**：確認は destroy/bounce/exhaust/cores/removeCores の「対象指定で再入」経路だけ。
-  exhaust `nexus:"also"`・returnToDeckTop/Bottom・markNoRefreshTarget は確認なしで払う。候補1体で自動決定の経路は払う機会が出ない
+規則・実装・既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10 末尾。移行の手順表は PAY_MIGRATION_RECIPES、残した例外は COST_MODEL §10。
+**残り**：`validate:cards` に「効果文に『ことで』がある節は pay か確認関門を通す器に対応している」の検査を足す（未着手）
 
-PR の順番（1本ずつ別ブランチ）：
-1. ✅ `findInstanceAnywhere` のネクサス・合体中ブレイヴ対応（`fix/find-instance-nexus`。見失いの検査は RESUME_STACK §5）
-2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。断ったとき「ターンに1回」を戻す分も済み（#237）
-2c. ✅ 「この効果はターンに1回しか使えない」をカード名ごとに数える（`fix/once-per-turn-by-name`。規則と実装は RULES_BATSPI_WIKI「ターンに1回の数え方」）
-2b-前. ✅ ブロック時などの誘発でイベント対象を行動に渡すかを `eventTarget` で書く（`fix/block-trigger-target`。規則と分類表は docs/design/EVENT_TARGET_AUDIT.md）。2b（`fix/pay-negate-gate`）はこのマージ後に main を取り込んで再開
-2b. ✅ 払って受けない耐性も対象ごとに聞いてから払う（`fix/pay-negate-gate`。規則と実装は COST_MODEL §10 末尾）
-3. 残り：一覧は docs/design/PAY_MIGRATION_AUDIT.md（2026-10-02 調査役。要対応21エントリ＋バーストの食い違い1件）。3つに分けて出す
-   - 3a ✅ コストのある「フィールドに残る」とバーストの「その後コストを支払うことで」も、払えなくても確認を出す（`fix/pay-confirm-revive-burst`。COST_MODEL §10 末尾）
-   - 3b ✅ 12エントリを pay に移し、ステップのコスト欄と旧い軸5つを消した（`fix/pay-migrate-rest`。規則は COST_MODEL §10 末尾）
-   - 3e ✅ 【強襲】20エントリを pay に移し、`refreshSelfByExhaustNexus` を消した（`fix/pay-kyoshu`。規則は COST_MODEL §10 末尾）
-   - 3f ✅ 「発動できないなら確認を出さない」を全体に広げ、不発の理由をログに出す（`fix/pay-skip-unpayable`。COST_MODEL §10）
-   - 3d ✅ §4 の4エントリを pay に移し、`selfBuffByExhaustFamily`・`costReturnSelfToHand` を消した（`fix/pay-migrate-self-buff`）
-   - 3c ✅ 永久凍土の王都（BS14-084 ownLifeFloor）は自動で払うまま（2026-10-02 ユーザー決定。COST_MODEL §10）
-   移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す
+### M2 `if` は器 PR 1〜5 まで済み
 
-### M2 `if`（2026-09-27〜）
-
-答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（名前を変えない）**。#178・#179（移行11件）・#180（BURST.md §10 A〜C）はマージ済み。**いまは器 PR 2（`feat/if-last-more`）**、その次が器 PR 3（同 §5）。
+答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3、器のスキーマは同 §5。残した2枚（BS15-X01・BS11-060）は同 §5「残す」の行。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
@@ -181,7 +161,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ### 場面テストと3役の流れ（2026-10-01 決定）
 
-道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。**次**：次にカード効果を実装するバッチを最初に3役で回し、呼び出し数と①が見つけた件数を測る（BS16 黄・青は実装済み。PR 1 はエンジンの修正なので3役を使わずに直した）。
+道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。「〜することで」の移行（#241〜#246）で5バッチ回した。①の推測が手順書の規則と食い違うことがあるので、①の報告の「決められなかった点」は手順書と突き合わせてから②に渡す
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
@@ -203,7 +183,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 - **再開スタック方式を採る**（ジェネレータ化はしない）。理由は [RESUME_STACK.md](./docs/design/RESUME_STACK.md) §8
 - **`allowSuspend` と `pendingReviveConfirms` は消さない。** この2つは「その場で聞く」と
   「恩恵の後に聞く」の使い分けそのもの（RESUME_STACK.md §7）
-- **発動確認の抑止はやらない。** 成立しない任意コスト効果でも確認は出る
+- **「〜することで」は聞く前に成立しないなら確認を出さない**（2026-10-02 ユーザー決定で、以前の「確認の抑止はやらない」を改めた）。理由はログに出す。COST_MODEL §10
 - **破壊待機状態の導入で挙動が変わった既存16枚は、そのまま受け入れる**（2026-09-09 ユーザー合意）。
   多くが強くなる方向だが仕様の帰結。中身は [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.5 とテストにある
 
