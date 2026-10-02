@@ -1019,22 +1019,6 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
-                // cost:{exhaustSelf}（BS12-043大地の狩人コンドラッドLv1）：既に疲労状態なら払えないので発火しない
-                if (effect.cost && "exhaustSelf" in effect.cost && inst.isRested) continue
-                // cost:{reserveToTrash}（BS15-032スノーフレイクンLv1）：リザーブが足りなければ払えないので発火しない
-                if (effect.cost && "reserveToTrash" in effect.cost && state.players[pid].reserve < effect.cost.reserveToTrash) continue
-                // cost:{selfCoresToTrash}（BS15-023タケノ・サイガーLv2）：発生源自身のコアが足りなければ発火しない
-                if (effect.cost && "selfCoresToTrash" in effect.cost && inst.cores < effect.cost.selfCoresToTrash) continue
-                // 器BS16：cost:{discardHandFamily}（BS16-063釣魂台Lv2）：手札に指定系統のスピリットカードが無ければ発火しない
-                if (effect.cost && "discardHandFamily" in effect.cost) {
-                    const wanted = Array.isArray(effect.cost.discardHandFamily)
-                        ? effect.cost.discardHandFamily
-                        : [effect.cost.discardHandFamily]
-                    const hasCard = state.players[pid].hand.some(
-                        (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
-                    )
-                    if (!hasCard) continue
-                }
                 firing.push({ pid, inst, effect })
             }
         }
@@ -1049,40 +1033,6 @@ export function fireStepTriggers(
                 if (!claimOnce(state, e.pid, e.inst, e.effect, "stepUsedTurn")) return
             } else if (e.effect.oncePerTurn === true) {
                 markOnceUsed(state, e.pid, e.inst, e.effect, "stepUsedTurn")
-            }
-            // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
-            // interactiveTargetsの確認を断った場合も疲労する簡略化）
-            if (e.effect.cost && "exhaustSelf" in e.effect.cost) {
-                exhaustSpirit(state, e.pid, e.inst)
-            }
-            if (e.effect.cost && "reserveToTrash" in e.effect.cost) {
-                const player = state.players[e.pid]
-                const paid = e.effect.cost.reserveToTrash
-                player.reserve -= paid
-                player.trashCores += paid
-            }
-            if (e.effect.cost && "selfCoresToTrash" in e.effect.cost) {
-                const paid = e.effect.cost.selfCoresToTrash
-                e.inst.cores -= paid
-                state.players[e.pid].trashCores += paid
-            }
-            // 器BS16：cost:{discardHandFamily}（BS16-063釣魂台Lv2）。候補2枚以上ならコスト最大を自動選択する簡略化
-            if (e.effect.cost && "discardHandFamily" in e.effect.cost) {
-                const player = state.players[e.pid]
-                const wanted = Array.isArray(e.effect.cost.discardHandFamily)
-                    ? e.effect.cost.discardHandFamily
-                    : [e.effect.cost.discardHandFamily]
-                const indices = player.hand
-                    .map((_, i) => i)
-                    .filter((i) => getCard(player.hand[i]!).type === "spirit" && wanted.some((f) => getCard(player.hand[i]!).family.includes(f)))
-                let bestIdx = indices[0]!
-                for (const i of indices) {
-                    if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
-                }
-                const cardId = player.hand[bestIdx]!
-                player.hand.splice(bestIdx, 1)
-                player.trashCards.push(cardId)
-                log(state, `${player.name}は${getCard(e.inst.cardId).name}のコストとして手札の${getCard(cardId).name}を破棄した。`)
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {

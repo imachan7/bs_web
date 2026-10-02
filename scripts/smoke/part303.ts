@@ -153,7 +153,7 @@ console.log("=== 器AE：候補がいなければ不発（COST_MODEL.md §1） =
     assert(kolokon.isRested, "【神速】持ちがいないので発動しなかった")
 }
 
-console.log("=== 器AF：bpBuff.costExhaustFamily+amountFromExhaustedCost（BS13-024アタック時） ===")
+console.log("=== 器AF：pay(exhaust)→timedEffect lastBp（BS13-024アタック時） ===")
 {
     const s = game("af-bpbuff-cost")
     const yukimura = createInstance("BS13-024", s.turn, 1)
@@ -164,13 +164,13 @@ console.log("=== 器AF：bpBuff.costExhaustFamily+amountFromExhaustedCost（BS13
     refreshLevelAsOverrides(s)
 
     resolveAction(s, "p1", yukimura, {
-        type: "bpBuff",
-        amount: 0,
-        costExhaustFamily: "遊精",
-        amountFromExhaustedCost: true,
+        type: "pay",
+        cost: { type: "exhaust", side: "own", count: 1, filter: { family: "遊精" } },
+        then: { type: "timedEffect", target: "self", duration: "battle", content: [{ type: "bp", amount: 1, amountCounter: "lastBp" }] },
     })
+    answerPayConfirm(s, "p1")
     assert(anaguma.isRested, "コストとして疲労した")
-    assert(yukimura.tempBpBuff === 1000, "疲労させたスピリットのBPぶんBP+された")
+    assert(bpBuffOf(s, yukimura) === 1000, "疲労させたスピリットのBPぶんBP+された")
 }
 
 console.log("=== 器AF：候補（回復状態の系統一致）がいなければ不発 ===")
@@ -181,12 +181,12 @@ console.log("=== 器AF：候補（回復状態の系統一致）がいなけれ�
     s.players.p1.field.spirits.push(yukimura)
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", yukimura, {
-        type: "bpBuff",
-        amount: 0,
-        costExhaustFamily: "遊精",
-        amountFromExhaustedCost: true,
+        type: "pay",
+        cost: { type: "exhaust", side: "own", count: 1, filter: { family: "遊精" } },
+        then: { type: "timedEffect", target: "self", duration: "battle", content: [{ type: "bp", amount: 1, amountCounter: "lastBp" }] },
     })
-    assert(yukimura.tempBpBuff === 0, "系統「遊精」の候補がいないので発動しなかった")
+    answerPayConfirm(s, "p1")
+    assert(bpBuffOf(s, yukimura) === 0, "系統「遊精」の候補がいないので発動しなかった")
 }
 
 console.log("=== 器AG：refreshSelfBraveThenCombine（BS13-053モクバオー）。回復と合体はセット（#16） ===")
