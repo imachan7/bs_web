@@ -85,15 +85,7 @@ PR の順番（1本ずつ別ブランチ）：
 2a. ✅ `pay` が自分で確認を出す（`fix/pay-confirm-gate`。規則と既知の限界は COST_MODEL §10 末尾）。断ったとき「ターンに1回」を戻す分も済み（#237）
 2c. ✅ 「この効果はターンに1回しか使えない」をカード名ごとに数える（`fix/once-per-turn-by-name`。規則と実装は RULES_BATSPI_WIKI「ターンに1回の数え方」）
 2b-前. ✅ ブロック時などの誘発でイベント対象を行動に渡すかを `eventTarget` で書く（`fix/block-trigger-target`。規則と分類表は docs/design/EVENT_TARGET_AUDIT.md）。2b（`fix/pay-negate-gate`）はこのマージ後に main を取り込んで再開
-2b. **進行中（`fix/pay-negate-gate`。2026-10-01 確定）**：払って受けない耐性（`targetNegateByHandDiscard`。該当は竜騎集う円卓 BS08-055 だけ）を、対話中は**必ず守る側に聞いてから**払う
-   - いまは destroy・bounce・exhaust・cores・removeCores の「対象指定で再入」経路だけが `askPayToNegateIfNeeded` で聞き、それ以外（候補1体で自動決定・デッキ戻し・exhaust の nexus:"also"・markNoRefreshTarget 等）は `tryPayableTargetNegate` が**聞かずに手札の末尾を払う**
-   - 対話中に答え（`payNegateDecision`）なしで `tryPayableTargetNegate` まで来たら、**払わずに効果を受け**、`BS_DEBUG_CHECKS=1` では異常として記録して smoke を落とす（見失いの検査と同じ形）。これで聞き漏れの経路を smoke が全部指す → 各経路に `askPayToNegateIfNeeded` を足す。非対話は従来どおり払えるなら払う
-   - 複数体を同時に対象に取られたら、対象ごとに聞く（COST_MODEL §10）
-   旧案（参考）：`fix/`：払って受けない耐性を同じ関門に通す `confirmOptional(state, 選ぶ人, 文言, 続き)`（`requestActivationConfirm` を広げる）を作り、
-   (a) `optional` の誘発 (b) `pay` の中で**必ず** (c) 払って受けない耐性 の3か所から通す。(c) は「相手のスピリットに効果を当てる直前に必ず通す」
-   `gateTargetedEffect(ctx, 対象, op)`（盤面耐性→関門→結果）にまとめ、既存5か所の「askPayToNegateIfNeeded＋resistanceAgainst」を置き換え、
-   自動決定・デッキ戻し・nexus:"also"・markNoRefreshTarget にも入れる。解決中の効果に「確認済み」の印を持たせ、`pay` はそれを見て二重に聞かない。
-   対話中に関門を経ずに支払いまで来たら払わずに smoke で落とす。総当たり：相手の効果がスピリットを対象に取る全アクション×（対象指定／自動決定）で確認が出る
+2b. ✅ 払って受けない耐性も対象ごとに聞いてから払う（`fix/pay-negate-gate`。規則と実装は COST_MODEL §10 末尾）
 3. 残り179枚：「コストを支払うことで」33件はバーストの既存確認で済んでいるか確かめるだけ、キーワード説明文15件は対象外、
    残り136件（reviveOnDestroy・magicNegate・deckMillNegate・cost* 軸等）を監査で一覧にして `pay` へ移すか関門を呼ぶ器へ。
    移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す

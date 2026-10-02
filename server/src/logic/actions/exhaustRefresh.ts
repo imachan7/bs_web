@@ -413,7 +413,7 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
     const nexusCandidates = () => oppField.nexuses.filter((n) => !n.isRested)
     const spiritCandidates = () =>
         action.nexus === "also"
-            ? oppField.spirits.filter((s) => !s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "exhaust", action.all ? "area" : "targeted")))
+            ? oppField.spirits.filter((s) => !s.isRested && !isResisted(state, opp, s, { ...attemptOf(ctx, "exhaust", action.all ? "area" : "targeted"), probing: true }))
             : []
     const label = action.nexus === "also" ? "スピリット/ネクサス" : "ネクサス"
 
@@ -446,6 +446,16 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
     if (targetInstanceId !== undefined) {
         const nexus = nexusCandidates().find((n) => n.instanceId === targetInstanceId)
         const spirit = nexus ? undefined : spiritCandidates().find((s) => s.instanceId === targetInstanceId)
+        if (spirit) {
+            // 候補の列挙は数えるだけ（probing）。払う耐性の確認と判定は、適用するこの1体で行う
+            const gate = gateTargetedApply(state, opp, spirit, attemptOf(ctx, "exhaust", "targeted"), action, self, sourceName)
+            if (gate === "asked") return
+            if (gate) {
+                log(state, `${getCard(spirit.cardId).name}は${sourceName}の効果を受けなかった（${gate.label}）。`)
+                askNext(action.count - 1)
+                return
+            }
+        }
         if (nexus) nexus.isRested = true
         else if (spirit) exhaustSpirit(state, opp, spirit, undefined, owner, srcType)
         else {
@@ -467,12 +477,22 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
     // 非対話：スピリットを実効BP最大から優先し、残り枠をネクサスへ場の並び順で充てる
     let remaining = count
     let exhausted = 0
+    const handled = new Set<string>()
     while (remaining > 0) {
-        const target = spiritCandidates().reduce<CardInstance | undefined>(
+        const target = spiritCandidates().filter((s) => !handled.has(s.instanceId)).reduce<CardInstance | undefined>(
             (best, s) => (!best || effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best),
             undefined,
         )
         if (!target) break
+        handled.add(target.instanceId)
+        // 非対話では聞かない（払えるなら払う）ので "asked" は返らない
+        const gate = gateTargetedApply(state, opp, target, attemptOf(ctx, "exhaust", "targeted"), action, self, sourceName)
+        if (gate === "asked") return
+        if (gate) {
+            log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${gate.label}）。`)
+            remaining--
+            continue
+        }
         exhaustSpirit(state, opp, target, undefined, owner, srcType)
         exhausted++
         remaining--
@@ -701,7 +721,7 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         // 非対話（テスト・AI）と候補1体のときは実効BP最大を自動選択する
         if (!self) return
         const candidates = state.players[opp].field.spirits.filter(
-            (s) => s.isRested && !isResisted(state, opp, s, attemptOf(ctx, "other", "targeted")),
+            (s) => s.isRested && !isResisted(state, opp, s, { ...attemptOf(ctx, "other", "targeted"), probing: true }),
         )
         if (candidates.length === 0) {
             log(state, `${sourceName}：相手に疲労状態のスピリットがいなかった。`)
@@ -726,6 +746,12 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
                 ? candidates.find((s) => s.instanceId === ctx.targetInstanceId)
                 : undefined) ??
             candidates.reduce((best, s) => (effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best))
+        const gate = gateTargetedApply(state, opp, target, attemptOf(ctx, "other", "targeted"), action, self, sourceName)
+        if (gate === "asked") return
+        if (gate) {
+            log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${gate.label}）。`)
+            return
+        }
         self.noRefreshTargetInstanceId = target.instanceId
         log(
             state,
