@@ -2795,6 +2795,7 @@
      "cost": {
       "type": "exhaust",
       "side": "own",
+      "autoPickMaxBp": true,
       "count": 1,
       "filter": {
        "family": "遊精"

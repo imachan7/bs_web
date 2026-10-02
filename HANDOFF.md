@@ -89,7 +89,8 @@ PR の順番（1本ずつ別ブランチ）：
 3. 残り：一覧は docs/design/PAY_MIGRATION_AUDIT.md（2026-10-02 調査役。要対応21エントリ＋バーストの食い違い1件）。3つに分けて出す
    - 3a ✅ コストのある「フィールドに残る」とバーストの「その後コストを支払うことで」も、払えなくても確認を出す（`fix/pay-confirm-revive-burst`。COST_MODEL §10 末尾）
    - 3b ✅ 12エントリを pay に移し、ステップのコスト欄と旧い軸5つを消した（`fix/pay-migrate-rest`。規則は COST_MODEL §10 末尾）
-   - 残り：【強襲】（BS08-084 ほか25エントリ）と PAY_MIGRATION_RECIPES §4 の5件（`selfBuffByExhaustFamily`・`costReturnSelfToHand` が消せる）は別バッチ
+   - 残り：【強襲】（BS08-084 ほか25エントリ。PAY_MIGRATION_RECIPES §3）は別バッチ
+   - 3d ✅ §4 の4エントリを pay に移し、`selfBuffByExhaustFamily`・`costReturnSelfToHand` を消した（`fix/pay-migrate-self-buff`）
    - 3c ✅ 永久凍土の王都（BS14-084 ownLifeFloor）は自動で払うまま（2026-10-02 ユーザー決定。COST_MODEL §10）
    移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す
 

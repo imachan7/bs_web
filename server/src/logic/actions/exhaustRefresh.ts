@@ -96,14 +96,16 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
             ) {
                 return
             }
-            // 自動選択は実効BP最小（コストとして失う損が小さい方）
+            // 自動選択は実効BP最小（コストとして失う損が小さい方）。autoPickMaxBp は疲労させた個体のBPが
+            // そのまま得になる効果（BP+(疲労させたスピリットのBP)）用で、BP最大を選ぶ
             const exhausted: string[] = []
+            const better = (a: number, b: number) => (action.autoPickMaxBp ? a > b : a < b)
             for (let i = 0; i < action.count; i++) {
                 const target = state.players[owner].field.spirits
                     .filter(matchesOwn)
                     .reduce<CardInstance | undefined>(
                         (worst, s) =>
-                            !worst || effectiveBp(state, owner, s) < effectiveBp(state, owner, worst) ? s : worst,
+                            !worst || better(effectiveBp(state, owner, s), effectiveBp(state, owner, worst)) ? s : worst,
                         undefined,
                     )
                 if (!target) {

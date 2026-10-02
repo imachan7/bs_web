@@ -208,7 +208,7 @@ console.log("=== 1. 新旧一致：selfBuff を持つ全カード（変換後の
         for (const a of found) entries.push({ cardId: c.cardId, action: a })
     }
     // BS16-024 は『自分のアタックステップ』見出しの継続効果としてオーラへ移したので 82-1
-    assert(entries.length === 86, `移行した「このスピリットをBP+」は86件（フェネボラック・キマイラ・デブリを含む。BS16-049 で+1、pay へ移した BS13-024・BS06-074 で+2）（実際:${entries.length}）`)
+    assert(entries.length === 89, `移行した「このスピリットをBP+」は89件（フェネボラック・キマイラ・デブリを含む。BS16-049 で+1、pay へ移した BS13-024・BS06-074・BS02-X07・BS12-050・BS06-X24 で+4）（実際:${entries.length}）`)
     assert(!JSON.stringify(ALL_CARDS.map((c) => c.effects)).includes('"type":"selfBuff"'), "カードデータに旧 selfBuff は残っていない")
 
     let mismatches = 0

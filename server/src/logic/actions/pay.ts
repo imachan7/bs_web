@@ -176,8 +176,21 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     discardHandAll: (state, owner) => state.players[owner].hand.length >= 1 && canDiscardHand(state, owner),
     // bpBuff：anySide指定時は両陣営から、それ以外はfilterに合う自分のスピリットから1体以上
     // （buff.ts の bpBuffHandler と同じ pickAnySideCandidates／pickBpBuffTarget を使う）
-    bpBuff: (state, owner, _self, action, srcColors, srcType) => {
+    bpBuff: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "bpBuff") return false
+        // excludeSelf は判定専用（支払い後の解決時には発生源は既に場にいないため）。BS14-X03 の
+        // 「自分を戻したあとに BP+ できる他のスピリットがいる」を、支払い前の判定で見るためのもの
+        if (action.filter?.excludeSelf && !action.anySide) {
+            return state.players[owner].field.spirits.some(
+                (s) =>
+                    s.instanceId !== self?.instanceId &&
+                    bpBuffTargetPasses(
+                        state, owner, s,
+                        action.filter?.minSymbols, action.filter?.keyword, action.filter?.nameContains,
+                        action.filter?.attackingOnly, action.filter?.family, action.filter?.combined, action.filter?.vanilla,
+                    ),
+            )
+        }
         if (action.anySide) {
             const passes = (s: CardInstance) =>
                 bpBuffTargetPasses(
