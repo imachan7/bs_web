@@ -7119,9 +7119,19 @@
     ],
     "optional": true,
     "action": {
-     "type": "bpBuff",
-     "amount": 3000,
-     "costReturnSelfToHand": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "bpBuff",
+      "amount": 3000,
+      "filter": {
+       "excludeSelf": true
+      }
+     }
     }
    }
   ]

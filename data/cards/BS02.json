@@ -6348,8 +6348,28 @@
     ],
     "optional": true,
     "action": {
-     "type": "selfBuffByExhaustFamily",
-     "familyFilter": "武装"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "武装"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
     }
    },
    {
