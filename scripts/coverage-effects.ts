@@ -812,17 +812,17 @@ process.on("exit", () => {
         //     **そのキーワードでなければ通らない解決点**に置く
         const kwEid = (expr: string, keyword: string): string =>
             `String(((getCard(${expr}).effects as unknown as Record<string, unknown>[]).find((e) => e["kind"] === "keyword" && e["keyword"] === "${keyword}")?.["__eid"]) ?? "?")`
-        // 強襲：ネクサスを疲労させて実際に回復した時点
+        // 強襲：ネクサスを疲労させて回復すると決まった時点（pay の limitByKeyword が回数を数える行）
         patch(
-            path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
-            `import { currentLevel, getCard, log, minLevelCores } from "../GameState"`,
-            `import { currentLevel, getCard, log, minLevelCores, __covRecord } from "../GameState"`,
+            path.join(tree, "server/src/logic/actions/pay.ts"),
+            `import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "../GameState"`,
+            `import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder, __covRecord } from "../GameState"`,
         )
         patch(
-            path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
-            `    self.kyoshuUsed = { turn: state.turn, count: used + 1 }`,
-            `    __covRecord("cont\t" + ${kwEid("self.cardId", "kyoshu")})
-    self.kyoshuUsed = { turn: state.turn, count: used + 1 }`,
+            path.join(tree, "server/src/logic/actions/pay.ts"),
+            `    if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }`,
+            `    if (action.limitByKeyword === "kyoshu" && self) __covRecord("cont\t" + ${kwEid("self.cardId", "kyoshu")})
+    if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }`,
         )
         // 聖命：【聖命】持ちがボイドからライフにコアを置いた時点
         patch(

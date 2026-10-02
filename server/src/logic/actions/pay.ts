@@ -5,6 +5,8 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { findInstanceAnywhere, getCard, log, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
+import { canExhaustNexus } from "../EffectModules"
+import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
 import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
@@ -144,6 +146,9 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     exhaust: (state, owner, self, action) => {
         if (action.type !== "exhaust") return false
         if (action.target === "self") return self !== null && !self.isRested
+        if (action.nexusOnly) {
+            return canExhaustNexus(state, owner) && state.players[owner].field.nexuses.filter((n) => !n.isRested).length >= action.count
+        }
         if (action.side === "own") {
             const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
             const count = state.players[owner].field.spirits.filter(
@@ -383,6 +388,27 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     // 「そのスピリット」＝イベント対象は then にだけ渡す（cost は自分の場から払うもの）。確認で止まると ctx から落ちるので行動に持たせる
     const eventTargetId = action.eventTargetId ?? ctx.targetInstanceId
+    const fizzle = (message: string): void => {
+        log(state, message)
+        state.effectFizzled = true
+        // 確認を挟んで再開した後の不発は、誘発側の effectFizzled の巻き戻しが既に通り過ぎているのでここで戻す
+        if (action.onceRevert) {
+            const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
+            if (src) revertOncePerTurn(state, src, action.onceRevert.effectId)
+            revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
+        }
+    }
+    // 【強襲】：発動できないときは確認も出さずに終える（2026-10-02 ユーザー決定。§10「払えなくても確認は出る」の例外）。
+    // 他の pay は払えなくても確認を出す
+    let kyoshuUsed = 0
+    if (action.limitByKeyword === "kyoshu") {
+        const limit = self ? kyoshuLimitOf(state, owner, self) : 0
+        kyoshuUsed = self ? kyoshuUsedOf(state, self) : 0
+        if (!self || kyoshuUsed >= limit || !canPayResolve(state, owner, self, action.cost, srcColors, srcType) || !canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)) {
+            log(state, `${sourceName}：【強襲】を発動できる状態でないため何もしなかった。`)
+            return
+        }
+    }
     if (state.interactiveTargets && !action.confirmed) {
         const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action
         requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, resume, self, action.onceRevert)
@@ -402,16 +428,10 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         ok = thenOk()
     }
     if (!ok) {
-        log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
-        state.effectFizzled = true
-        // 確認を挟んで再開した後の不発は、誘発側の effectFizzled の巻き戻しが既に通り過ぎているのでここで戻す
-        if (action.onceRevert) {
-            const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
-            if (src) revertOncePerTurn(state, src, action.onceRevert.effectId)
-            revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
-        }
+        fizzle(`${sourceName}：条件を満たさないため発動しなかった。`)
         return
     }
+    if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }
     const scope = newRecordScope()
     resolveInOrder(state, [cost, action.then], {
         resolve: (a) => {
