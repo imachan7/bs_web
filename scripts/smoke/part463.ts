@@ -89,4 +89,12 @@ scenario({
     expect: returned("待機"),
 })
 
+console.log("=== 4. 対話：逆の個体でアタックしても確認は1回で、その個体が戻る ===")
+scenario({
+    name: "sat-other-interactive",
+    start: { turn: "opp", interactive: true, me: meSide, opp: oppSide },
+    steps: (t) => oppAttack(t, "待機", 1),
+    expect: returned("待機"),
+})
+
 console.log("すべてのチェックに合格しました 🎉（part463）")
