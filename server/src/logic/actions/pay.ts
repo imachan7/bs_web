@@ -341,8 +341,11 @@ export function markPayConfirmed(action: EffectAction): EffectAction {
 
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
+    // 「そのスピリット」＝イベント対象は then にだけ渡す（cost は自分の場から払うもの）。確認で止まると ctx から落ちるので行動に持たせる
+    const eventTargetId = action.eventTargetId ?? ctx.targetInstanceId
     if (state.interactiveTargets && !action.confirmed) {
-        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, action, self, action.onceRevert)
+        const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action
+        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, resume, self, action.onceRevert)
         return
     }
     let cost = action.cost
@@ -373,7 +376,8 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     resolveInOrder(state, [cost, action.then], {
         resolve: (a) => {
             state.recordScope = scope
-            ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType })
+            const target = a === action.then ? eventTargetId : undefined
+            ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType, ...(target !== undefined ? { targetInstanceId: target } : {}) })
         },
         frame: (a) => ({
             kind: "action" as const,
@@ -381,6 +385,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             action: a,
             actorPid: owner,
             recordScope: scope,
+            ...(a === action.then && eventTargetId !== undefined ? { targetInstanceId: eventTargetId } : {}),
             ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
             ...(srcType !== undefined ? { sourceType: srcType } : {}),
         }),
