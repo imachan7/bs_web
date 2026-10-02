@@ -89,6 +89,9 @@ PR の順番（1本ずつ別ブランチ）：
 3. 残り：一覧は docs/design/PAY_MIGRATION_AUDIT.md（2026-10-02 調査役。要対応21エントリ＋バーストの食い違い1件）。3つに分けて出す
    - 3a ✅ コストのある「フィールドに残る」とバーストの「その後コストを支払うことで」も、払えなくても確認を出す（`fix/pay-confirm-revive-burst`。COST_MODEL §10 末尾）
    - 3b：手順表は docs/design/PAY_MIGRATION_RECIPES.md（§7 の1・4は回答済み）。`pay` へ移せる9件と、effectGrant／triggered の3件（BS06-074・BS08-084・BS13-024）
+     段取り（2026-10-02 決定）：①期待値役 Sonnet×2 が part464〜467 を先に書く → ②a Sonnet（P2・P5・P6）→ ②b Sonnet（P3・P4・P7）→ Haiku が §1 の残りの JSON → ③見直し → 最後に triggers.ts の step cost 分岐と旧い軸を消す。BS08-084（【強襲】）と §4 は別バッチ
+     P5 は同時破壊（§7-1）なので `sequence` でなく `simultaneous` を destroySelf と count 指定の destroy に広げる。選ぶ方を先に決め、全員を1回の `destroyTargetList` で破壊する。pay の PAYABLE_TYPES／CHECKERS に simultaneous と destroySelf を足す
+     ②は部品ごとに代表1エントリだけ JSON を移して①の part で確かめる（P2=BS15-067、P3=BS16-063、P4・P7=BS13-027、P5=BS13-004、P6=BS14-043）。部品なしの5件と BS15-032・BS13-023 は Haiku
    - 3c ✅ 永久凍土の王都（BS14-084 ownLifeFloor）は自動で払うまま（2026-10-02 ユーザー決定。COST_MODEL §10）
    移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す
 
