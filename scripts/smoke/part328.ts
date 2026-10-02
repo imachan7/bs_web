@@ -74,18 +74,19 @@ console.log("=== 「〜できる」の確認を断ったら消費しない／承
     const effectId = "BS13-039-e3"
     const action = { type: "pay" as const, cost: { type: "removeCores" as const, side: "own" as const, from: ["life" as const], to: "reserve" as const, count: 1 }, then: { type: "refreshSelf" as const } }
 
-    // 断る
+    // 断る（回復の対象になるよう疲労させておく。回復状態だと聞く前に不発になる）
+    src.isRested = true
     src.triggeredUsedTurn = { [effectId]: s.turn }
     requestActivationConfirm(s, "p1", "発動しますか？", action, src, { instanceId: src.instanceId, effectId })
     assert(act(s, "p1", { type: "resolveChoice" }) === null, "確認を断る")
     assert(src.triggeredUsedTurn?.[effectId] === undefined, "断ったので「ターンに1回」は消費されていない")
 
-    // 承認したがコストを払えない（ライフ0）
+    // コストを払えない（ライフ0）：聞く前に不発になり、確認は出ず消費も戻る（2026-10-02 ユーザー確認）
     s.players.p1.life = 0
     src.isRested = true // 回復の対象にはなる状態で、コストだけ払えないようにする
     src.triggeredUsedTurn = { [effectId]: s.turn }
     requestActivationConfirm(s, "p1", "発動しますか？", action, src, { instanceId: src.instanceId, effectId })
-    assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を選ぶ")
+    assert(s.pendingChoice === null, "払えないので確認は出ない")
     assert(src.triggeredUsedTurn?.[effectId] === undefined, "払えず不発だったので消費されていない")
 
     // 承認して払えた

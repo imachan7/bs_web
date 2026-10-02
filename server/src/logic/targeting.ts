@@ -3,7 +3,7 @@ import { findSpiritAny, isResisted, resolveAction } from "./EffectModules"
 import type { CardInstance, CardType, Color, EffectAction, FamilyFilter, GameState, Keyword, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
 import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./triggers"
-import { markPays } from "./actions/pay"
+import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
 import {
     effectiveBp,
@@ -332,6 +332,8 @@ export function requestActivationConfirm(
     // 断ったときに「ターンに1回」の消費を戻す対象（oncePerTurn を持つ triggered / fieldEvent。2026-09-16）
     revertTriggered?: { instanceId: string; effectId: string },
 ): void {
+    // 発生源が分からない呼び出し（マジック・バースト）は名前を出せないので従来どおり確認する
+    if (self && skipUnpayablePay(state, pid, self, revertTriggered ? { ...action, onceRevert: revertTriggered } as EffectAction : action, getCard(self.cardId).name)) return
     suspend(state, {
         pid,
         kind: "option",

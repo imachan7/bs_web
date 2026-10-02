@@ -396,6 +396,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `PAYABLE_TYPES`（const）：判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 - `canPayResolve`（const）：判定表に無い type、または判定に落ちた場合は false
+- `unpayableReason`（fn）：成立しない最初の cost／then の理由を「〜ため」に続く形で返す。全部成立するなら null
+- `unpayableLine`（const）
+- `skipUnpayablePay`（fn）：任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
 - `markPays`（fn）：木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
 - `markPayConfirmed`（fn）
 
