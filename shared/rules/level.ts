@@ -203,6 +203,13 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
     ]
 }
 
+// 場のネクサス1つの効果が止められているか。常在効果は effectSources が外すが、誘発・ステップ効果は
+// 場の配列を直接走査するので、その入口はこちらで止める（BS15-034 の雪の結晶樹のステップ効果など）
+export function nexusEffectsStopped(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    if (!board.players[pid].field.nexuses.includes(inst)) return false
+    return nexusEffectsDisabledFor(board, pid, inst) || (restedNexusEffectsDisabled(board) && inst.isRested)
+}
+
 // 「疲労状態のネクサスすべての効果は発揮されない」（globalConstraint。BS10-074 きぐるみクマッター）。
 // ⚠️ ここで effectSources を呼ぶと無限再帰するので、両陣営の配列を**直接**走査する
 // （nexusEffectsDisabledFor と同じ理由・同じ書き方）。

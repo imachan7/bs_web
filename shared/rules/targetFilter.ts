@@ -10,7 +10,7 @@ import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { activeConstraints, hasTimedUnblockable } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { currentLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
+import { currentLevel, effectActiveAtLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
 
 // ---- 対象選択の絞り込み（TargetFilter） ----
@@ -70,10 +70,10 @@ export function matchesTarget(
         if (!hasUnblockable) return false
     }
     // BS15共通器：BS15-051虚海獣エメヒドラルLv2。カード自身の効果文に「ブロックされない」（constraint宣言）を
-    // 持てば条件成否を問わず対象。加えて、他の効果で今ブロックされなくなっているスピリットも対象（OR）
+    // 持てば条件成否を問わず対象（現在のレベルで有効な宣言だけ。Lv1のシェイロンは対象外）。加えて、他の効果で今ブロックされなくなっているスピリットも対象（OR）
     if (filter.hasUnblockableEffectOrActive) {
         const declaresUnblockable = card(inst.cardId).effects.some(
-            (e) => e.kind === "constraint" && e.constraint.type === "unblockableBy",
+            (e) => e.kind === "constraint" && e.constraint.type === "unblockableBy" && effectActiveAtLevel(e.levels, currentLevel(inst).level),
         )
         const activelyUnblockable =
             hasTimedUnblockable(board, inst) ||

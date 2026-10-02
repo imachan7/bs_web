@@ -573,21 +573,10 @@
           3
         ],
         "condition": "selfInBattle",
-        "cost": {
-          "discardHandFamily": [
-            "覇皇",
-            "雄将"
-          ]
-        },
         "action": {
-          "type": "destroy",
-          "count": 1,
-          "filter": {
-            "rested": true,
-            "cost": {
-              "max": 6
-            }
-          }
+          "type": "pay",
+          "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "spirit", "family": ["覇皇", "雄将"]},
+          "then": {"type": "destroy", "count": 1, "filter": {"rested": true, "cost": {"max": 6}}}
         }
       }
     ]

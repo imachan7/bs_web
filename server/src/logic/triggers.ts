@@ -93,6 +93,7 @@ import {
     instAllCosts,
     instColors,
     instEffectsSuppressed,
+    nexusEffectsStopped,
     instHasColor,
     instHasCost,
     instHasTriggerEffect,
@@ -290,7 +291,7 @@ export function fireTrigger(
     }
     // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
     // スピリット化されたネクサス）は誘発も出さない
-    if (instEffectsSuppressed(selfInstance)) {
+    if (instEffectsSuppressed(selfInstance) || nexusEffectsStopped(state, owner, selfInstance)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
@@ -925,6 +926,7 @@ export function fireStepTriggers(
         for (const inst of instances) {
             const card = getCard(inst.cardId)
             const level = currentLevel(inst).level
+            if (nexusEffectsStopped(state, pid, inst)) continue
             for (const effect of card.effects) {
                 if (effect.kind !== "step") continue
                 if (effect.step !== step) continue

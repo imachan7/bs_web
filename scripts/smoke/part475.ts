@@ -87,7 +87,8 @@ function tryAct(t: ScenarioCtx, side: Side, action: GameAction): string | null {
 
 const isConfirm = (t: ScenarioCtx) => {
     const pc = t.state.pendingChoice
-    return pc !== null && pc.kind === "option" && (pc.options ?? []).includes("発動する")
+    // 確認の文言は効果ごとに違う（【氷壁】やデッキ破棄の無効は「無効にする」）ので confirm で見分ける
+    return pc !== null && pc.kind === "option" && pc.confirm === true
 }
 // 選択待ちがなくなるまで答える。確認が出たら押して回数を返す。それ以外は先頭の候補
 function drive(t: ScenarioCtx): number {
@@ -99,7 +100,7 @@ function drive(t: ScenarioCtx): number {
         const side: Side = pc.pid === t.me ? "me" : "opp"
         if (isConfirm(t)) {
             confirms++
-            t.act(side, { type: "resolveChoice", option: "発動する" })
+            t.act(side, { type: "resolveChoice", option: pc.options![0]! })
         } else if (pc.kind === "option") {
             t.act(side, { type: "resolveChoice", option: pc.options![0]! })
         } else {
