@@ -3446,8 +3446,23 @@
         "timing": "flash",
         "levels": null,
         "action": {
-          "type": "selfBuffByExhaustFamily",
-          "amount": 3000
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "timedEffect",
+            "target": "self",
+            "duration": "turn",
+            "content": [
+              {
+                "type": "bp",
+                "amount": 3000
+              }
+            ]
+          }
         }
       }
     ]
