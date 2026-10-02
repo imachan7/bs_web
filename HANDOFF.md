@@ -183,6 +183,13 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。**次**：次にカード効果を実装するバッチを最初に3役で回し、呼び出し数と①が見つけた件数を測る（BS16 黄・青は実装済み。PR 1 はエンジンの修正なので3役を使わずに直した）。
 
+### 天使長セラフィー（`fix/seraphy-choose`。2026-10-02 設計）
+
+効果文は「リザーブのコアを好きなだけトラッシュに置くことで、置いたコア1個につき、手札の天霊コスト6以下1枚を無償で召喚」と読み替える（ユーザー確認）。
+形：`pay{ cost: removeCores{side own, from [reserve], to trash, count "any"}, then: summonFromHandFree{familyFilter 天霊, costFilter{max 6}, count 1, countCounter "lastCores", skipOnSummon} }`。
+足りない部品は `summonFromHandFree` の `countCounter`（払った数だけ、対話中は1枚ずつ持ち主が選ぶ。非対話はコスト最大から）と、その pay の判定（払える上限＝候補の枚数とリザーブ）。
+召喚は1体ずつのまま（「同時に召喚したら1回」は BS16_PLAN §2.4 の別作業）。兵隊アントマン（`summonRepeatFromHand` mode paid）は別の書き方なので触らない
+
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
 
