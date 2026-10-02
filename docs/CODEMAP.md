@@ -507,6 +507,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/kyoshu.ts
 
 - `hasKyoshuOnBlock`（fn）：持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
+- `kyoshuLimitOf`（fn）：【強襲：N】の上限回数。合体しているブレイヴ側にだけ書かれている場合（BS10バズーカ・アームズ）と、
+- `kyoshuUsedOf`（fn）
 
 ## server/src/logic/keywords/tensho.ts
 

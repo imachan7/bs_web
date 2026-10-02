@@ -519,9 +519,18 @@
           2
         ],
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },

@@ -5995,9 +5995,18 @@
     "levels": [
      2
     ],
-    "optional": true,
     "action": {
-     "type": "refreshSelfByExhaustNexus"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     },
+     "limitByKeyword": "kyoshu"
     }
    }
   ]
@@ -6721,9 +6730,18 @@
      2
     ],
     "whileCombined": true,
-    "optional": true,
     "action": {
-     "type": "refreshSelfByExhaustNexus"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     },
+     "limitByKeyword": "kyoshu"
     }
    }
   ]

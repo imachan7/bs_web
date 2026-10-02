@@ -298,7 +298,7 @@ console.log("=== BS13-X06：アタック時コスト4以下を破壊／【合体
     const kyoshu = card.effects.find((e) => e.kind === "keyword" && e.keyword === "kyoshu")
     assert(kyoshu !== undefined && kyoshu.kind === "keyword" && kyoshu.count === 3 && kyoshu.whileCombined === true && JSON.stringify(kyoshu.levels) === JSON.stringify([2]), "【合体時】Lv2【強襲：3】が正しく宣言されている")
     const kyoshuTrigger = card.effects.find((e) => e.kind === "triggered" && e.trigger === "onAttack" && e.whileCombined === true)
-    assert(kyoshuTrigger !== undefined, "強襲の相方（refreshSelfByExhaustNexus）が対になっている")
+    assert(kyoshuTrigger !== undefined, "強襲の相方（pay limitByKeyword）が対になっている")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part307）")
