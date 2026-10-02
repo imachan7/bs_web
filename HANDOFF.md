@@ -88,8 +88,8 @@ PR の順番（1本ずつ別ブランチ）：
 2b. ✅ 払って受けない耐性も対象ごとに聞いてから払う（`fix/pay-negate-gate`。規則と実装は COST_MODEL §10 末尾）
 3. 残り：一覧は docs/design/PAY_MIGRATION_AUDIT.md（2026-10-02 調査役。要対応21エントリ＋バーストの食い違い1件）。3つに分けて出す
    - 3a ✅ コストのある「フィールドに残る」とバーストの「その後コストを支払うことで」も、払えなくても確認を出す（`fix/pay-confirm-revive-burst`。COST_MODEL §10 末尾）
-   - 3b：`pay` へ移せる9件と、effectGrant／triggered の3件（BS06-074・BS08-084・BS13-024）
-   - 3c：永久凍土の王都（BS14-084 ownLifeFloor）は自動で払う簡略化のまま。ユーザーに確認してから
+   - 3b：手順表は docs/design/PAY_MIGRATION_RECIPES.md（§7 の1・4は回答済み）。`pay` へ移せる9件と、effectGrant／triggered の3件（BS06-074・BS08-084・BS13-024）
+   - 3c ✅ 永久凍土の王都（BS14-084 ownLifeFloor）は自動で払うまま（2026-10-02 ユーザー決定。COST_MODEL §10）
    移行後 `validate:cards` に「ことでの節が pay か関門を呼ぶ器に対応」の検査を足す
 
 ### M2 `if`（2026-09-27〜）
