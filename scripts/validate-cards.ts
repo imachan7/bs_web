@@ -20,6 +20,7 @@ import { COLOR_LABELS } from "../data/constants"
 import type { CardData, EffectCounter } from "../server/src/type"
 import { isAllowedRuleCounter } from "../server/src/logic/actions/timedEffect"
 import { loadAllCards } from "../data/loadCards"
+import { checkPayGates } from "./payGateCheck"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_PAY_TYPES = new Set<string>(PAYABLE_TYPES)
@@ -597,6 +598,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
+        checkPayGates(c, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }
