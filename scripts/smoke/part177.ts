@@ -7,7 +7,7 @@
 //   BS07-015 ブリュナグオン   costDestroyOwnKeyword（【呪撃】持ちを破壊）
 //   BS02-098 キャストオフ     costDestroyOwnFamily（「怪虫」を破壊）
 //   BS06-111 リクラメーション costDestroyOwnNexus（自分のネクサスを破壊）
-//   BS07-063 秘密の花園       costExhaustFamily（「楽族」を疲労）
+//   BS07-063 秘密の花園       「楽族」を疲労
 //
 // 実装は「選ばせたら、そのコスト軸を落とした action で入り直す」形
 // （exhaust の chooserIsTarget と同じ、解決済みの軸を落として再入する書き方）。

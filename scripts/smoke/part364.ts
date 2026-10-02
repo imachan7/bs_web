@@ -175,7 +175,7 @@ function toTimedEffect(action: OldSelfBuff): EffectAction {
                 type: "bp",
                 amount: action.amount,
                 ...(action.amountCounter !== undefined ? { amountCounter: action.amountCounter } : {}),
-                ...(action.amountCounter === "lastFunsaiSpirits" ? { countOnce: true } : {}),
+                ...(action.amountCounter === "lastFunsaiSpirits" || action.amountCounter === "lastBp" ? { countOnce: true } : {}),
             },
         ],
     }
@@ -208,7 +208,7 @@ console.log("=== 1. 新旧一致：selfBuff を持つ全カード（変換後の
         for (const a of found) entries.push({ cardId: c.cardId, action: a })
     }
     // BS16-024 は『自分のアタックステップ』見出しの継続効果としてオーラへ移したので 82-1
-    assert(entries.length === 84, `移行した「このスピリットをBP+」は84件（フェネボラック・キマイラ・デブリを含む。BS16-049 で+1）（実際:${entries.length}）`)
+    assert(entries.length === 86, `移行した「このスピリットをBP+」は86件（フェネボラック・キマイラ・デブリを含む。BS16-049 で+1、pay へ移した BS13-024・BS06-074 で+2）（実際:${entries.length}）`)
     assert(!JSON.stringify(ALL_CARDS.map((c) => c.effects)).includes('"type":"selfBuff"'), "カードデータに旧 selfBuff は残っていない")
 
     let mismatches = 0

@@ -214,12 +214,31 @@
     ],
     "optional": false,
     "action": {
-     "type": "summonFromHandFree",
-     "familyFilter": [
-      "神星"
-     ],
-     "costDestroySelfAndCostFilter": {
-      "min": 3
+     "type": "pay",
+     "cost": {
+      "type": "simultaneous",
+      "actions": [
+       {
+        "type": "destroySelf"
+       },
+       {
+        "type": "destroy",
+        "side": "own",
+        "count": 1,
+        "filter": {
+         "cost": {
+          "min": 3
+         },
+         "excludeSelf": true
+        }
+       }
+      ]
+     },
+     "then": {
+      "type": "summonFromHandFree",
+      "familyFilter": [
+       "神星"
+      ]
      }
     }
    }
@@ -2695,8 +2714,15 @@
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "refreshSelf",
-     "costReturnOwnBrave": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "selfBrave",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    }
   ]
@@ -2765,11 +2791,28 @@
     ],
     "optional": false,
     "action": {
-     "type": "bpBuff",
-     "amount": 0,
-     "costExhaustFamily": "遊精",
-     "amountFromExhaustedCost": true,
-     "scope": "battle"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "遊精"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
     }
    },
    {
@@ -3500,8 +3543,15 @@
      2
     ],
     "action": {
-     "type": "negateLifeDamageFromTarget",
-     "costReturnSelfToHand": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "negateLifeDamageFromTarget"
+     }
     }
    },
    {

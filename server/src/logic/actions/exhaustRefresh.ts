@@ -556,14 +556,6 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
                 log(state, `${sourceName}の回復：対象がいなかった。`)
                 return
             }
-            if (action.costSelfCoresToTrash !== undefined) {
-                if (!self || self.cores < action.costSelfCoresToTrash) {
-                    log(state, `${sourceName}：コアが足りず発動しなかった。`)
-                    return
-                }
-                self.cores -= action.costSelfCoresToTrash
-                state.players[owner].trashCores += action.costSelfCoresToTrash
-            }
             refreshSpirit(state, owner, chosen, srcType)
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
             return
@@ -770,45 +762,6 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
         if (!self.isRested) {
             log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
             return
-        }
-        // 器AE：costReturnOwnBrave指定時は、自身に合体しているブレイヴ1つを手札に戻すことがコスト
-        // （回復と合体はセット＝BS13_PLAN.md §1 #16と同じ考え方で、合体していなければ不発）。
-        // 候補2体以上（複数のブレイヴが合体している）ならプレイヤーが選ぶ
-        if (action.costReturnOwnBrave) {
-            const refs = self.braveRefs ?? []
-            if (refs.length === 0) {
-                log(state, `${sourceName}：コストにできるブレイヴがいないため発動しなかった。`)
-                return
-            }
-            let chosenId: string | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                chosenId = refs.find((r) => r.instanceId === targetInstanceId)?.instanceId
-                if (!chosenId) {
-                    log(state, `${sourceName}：指定されたブレイヴはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && refs.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして手札に戻すブレイヴを選んでください`,
-                    refs.map((r) => r.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                chosenId = refs[0]!.instanceId
-            }
-            const brave = state.players[owner].field.combinedBraves.find((b) => b.instanceId === chosenId)
-            if (!brave) {
-                log(state, `${sourceName}：コストにできるブレイヴがいなかった。`)
-                return
-            }
-            detachBraveByEffect(state, owner, self, brave)
-            returnSpiritToHand(state, owner, brave, sourceName)
-            if (state.winner) return
         }
         refreshSpirit(state, owner, self, srcType)
         log(state, `${getCard(self.cardId).name}は回復した。`)

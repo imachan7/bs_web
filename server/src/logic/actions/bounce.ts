@@ -5,6 +5,7 @@ import { bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAga
 import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
+import { detachBraveByEffect } from "../brave"
 import { countedAmount } from "../counted"
 
 // side:"own"（returnToHand/returnToDeckTopの自分側対象）の候補列挙。ハンドラ本体とpayの判定表
@@ -87,6 +88,43 @@ function returnToHandByBudget(ctx: ActionCtx, action: Extract<EffectAction, { ty
     ctx.resolve({ ...action, budgetLeft: remaining - getCard(picked.cardId).cost })
 }
 
+// target:"self"／"selfBrave"：自分のコストとして戻すので、耐性・装甲は見ない。
+// selfBrave は合体中のブレイヴを外してから手札へ（2体以上なら持ち主が選ぶ。再入は costSacrificeChosen＋targetInstanceId）
+function returnOwnAsCost(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToHand" }>, target: "self" | "selfBrave"): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (!self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)) {
+        log(state, `${sourceName}：手札に戻す自分のスピリットがいなかった。`)
+        return
+    }
+    if (target === "self") {
+        returnSpiritToHand(state, owner, self, sourceName)
+        recordMoved(state, [self.cardId])
+        return
+    }
+    const refs = self.braveRefs ?? []
+    if (refs.length === 0) {
+        log(state, `${sourceName}：手札に戻せるブレイヴがいなかった。`)
+        return
+    }
+    let chosenId: string | undefined
+    if (action.costSacrificeChosen && targetInstanceId !== undefined) {
+        chosenId = refs.find((r) => r.instanceId === targetInstanceId)?.instanceId
+    } else if (state.interactiveTargets && refs.length >= 2) {
+        requestChoice(state, owner, `${sourceName}：手札に戻すブレイヴを選んでください`, refs.map((r) => r.instanceId), false, { ...action, costSacrificeChosen: true }, self)
+        return
+    } else {
+        chosenId = refs[0]!.instanceId
+    }
+    const brave = state.players[owner].field.combinedBraves.find((b) => b.instanceId === chosenId)
+    if (!brave) {
+        log(state, `${sourceName}：指定されたブレイヴは戻せなかった。`)
+        return
+    }
+    detachBraveByEffect(state, owner, self, brave)
+    returnSpiritToHand(state, owner, brave, sourceName)
+    recordMoved(state, [brave.cardId])
+}
+
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (action.all) {
@@ -101,6 +139,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         }
         if (action.costBudget !== undefined) {
             returnToHandByBudget(ctx, action)
+            return
+        }
+        if (action.target !== undefined) {
+            returnOwnAsCost(ctx, action, action.target)
             return
         }
         // filter指定時は対象自動選択・明示ターゲット（誘発が渡すtargetInstanceId）の両方に絞り込みを適用する

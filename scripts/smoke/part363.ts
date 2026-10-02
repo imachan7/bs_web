@@ -59,9 +59,7 @@ type BpBuffAction = Extract<EffectAction, { type: "bpBuff" }>
 const EXCLUDED_KEYS = [
     "costReturnSelfToHand",
     "costMillSelfCount",
-    "costExhaustFamily",
     "thenRefreshIfMilledFamily",
-    "amountFromExhaustedCost",
     "costSacrificeChosen",
     "amountFromSelfBp",
     "extraPerCoreToTrash",

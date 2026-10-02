@@ -723,12 +723,18 @@
         "levels": [
           2
         ],
-        "cost": {
-          "discardHandFamily": "無魔"
-        },
         "action": {
-          "type": "draw",
-          "count": 1
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 1,
+            "cardType": "spirit",
+            "family": "無魔"
+          },
+          "then": {
+            "type": "draw",
+            "count": 1
+          }
         }
       }
     ]

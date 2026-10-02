@@ -1538,15 +1538,22 @@
     "levels": [
      2
     ],
-    "cost": {
-     "selfCoresToTrash": 1
-    },
     "action": {
-     "type": "refreshOne",
-     "filter": {
-      "keywords": [
-       "bofu"
-      ]
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshOne",
+      "filter": {
+       "keywords": [
+        "bofu"
+       ]
+      }
      }
     }
    }
@@ -2195,18 +2202,25 @@
      1,
      2
     ],
-    "cost": {
-     "reserveToTrash": 1
-    },
     "action": {
-     "type": "timedEffect",
-     "content": [
-      {
-       "type": "mustAttack"
-      }
-     ],
-     "duration": "turn",
-     "count": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": ["reserve"],
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "mustAttack"
+       }
+      ],
+      "duration": "turn",
+      "count": 1
+     }
     }
    },
    {
@@ -3335,11 +3349,18 @@
      1,
      2
     ],
-    "cost": {
-     "selfCoresToTrash": 1
-    },
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "lendSelfThisTurn"
+     }
     }
    },
    {
@@ -4673,9 +4694,18 @@
     "selfMode": "source",
     "attackerAsTarget": true,
     "action": {
-     "type": "refreshOne",
-     "eventTargetOnly": true,
-     "costSelfCoresToTrash": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshOne",
+      "eventTargetOnly": true
+     }
     }
    }
   ]

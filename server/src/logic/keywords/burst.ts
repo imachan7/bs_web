@@ -133,6 +133,7 @@ function tryBurstThenPay(
         return
     }
     player.reserve -= cost
+    player.trashCores += cost
     log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
     // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
     resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
@@ -166,6 +167,7 @@ function tryBurstMagicFreeOrThenPay(
         if (mainEntry) return resolveFree(mainEntry)
         if (canPay && payEntry) {
             player.reserve -= payCost
+            player.trashCores += payCost
             log(state, `${player.name}は${card.name}のコスト${payCost}を支払った。`)
             resolveFree(payEntry)
         }

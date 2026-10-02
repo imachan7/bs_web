@@ -322,6 +322,7 @@ export function applyProvocationUse(state: GameState, entry: NonNullable<Pending
     const cost = effectiveCost(state, entry.pid, card)
     if (player.reserve < cost) return
     player.reserve -= cost
+    player.trashCores += cost
     player.hand.splice(handIndex, 1)
     player.trashCards.push(entry.cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)

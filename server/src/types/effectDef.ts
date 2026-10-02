@@ -171,9 +171,6 @@ export type EffectDef =
           levels: number[] | null
           action: EffectAction
           optional?: true // 「〜できる」= 任意。triggered.optionalと同じく発動確認を出す
-          cost?: { exhaustSelf: true } | { reserveToTrash: number } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } // 疲労させることで発火（COST_MODEL.md）。既に疲労なら不発。fireStepTriggersが発火確定時に疲労させる
-          // reserveToTrash=リザーブのコアをこの数だけトラッシュへ。selfCoresToTrash=発生源自身の上のコアをこの数だけトラッシュへ。
-          // discardHandFamily=手札にある指定系統（配列＝OR）を1枚破棄
           beforeStepAction?: true // step:"draw" | "core" 限定：そのステップの本体の動き（ドロー／コア配置）より前に発火する。「ドローしないことで〜」「コアを置かないことで〜」用。
           // 指定が無ければ本体の後（2026-08-27）
           condition?:
