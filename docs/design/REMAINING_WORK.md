@@ -57,6 +57,11 @@ BS08-062 もこのネクサスの素のシンボルが白1つ固定なので加�
 新しく入れたデータを smoke が一度も通していない層で、**ここでしか見つからないバグがある**
 （実績: `returnSelfToHand` の実行実績0、【激突】と `turnStartResumeStep` の実バグ）。
 
+**2026-10-02 再測（計測点の無い kind を0種にし、TimedContent の type を action と数える誤検出を直した後）**：
+action を持つ効果 1760件中 1643件（93.4%）、継続効果 1236件中 1099件（88.9%）、**場に出ているのに一度も適用されていない効果 202件**、
+一度も実行されていない action は `negateContinuousMagicByName`（BS12-049）の1種、カードデータ経由が未検証3種（mutualKeepChoice・refreshSelfBraveThenCombine・returnToHandEachHeavyArmorColor）。
+次は202件を種類・弾ごとに分け、期待値役が効果文から場面テストを書く（落ちたら実バグ）。
+
 | 層 | 件数 | 中身 |
 | :-- | --: | :-- |
 | 場に出ているのに一度も適用されていない効果 | **80件** | triggered 18 / fieldEvent 16 / keyword 13 / ほか |
