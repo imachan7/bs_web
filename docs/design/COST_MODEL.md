@@ -253,4 +253,6 @@ BS14-084 永久凍土の王都は**原因を限定せず**「自分のライフ�
   自動で決まった対象・複数体の各々にも通す（exhaust・destroy・bounce・returnToDeck・coreRemove・moveCoresLeavingOne・removeCores・exhaust の nexus:"also"・markNoRefreshTarget）。
   対話中に答えなしで `tryPayableTargetNegate` まで来たら払わずに効果を受け、`BS_DEBUG_CHECKS` では「払う確認の聞き漏れ」として smoke を落とす（handleAction を通った経路だけ）。
   既知の限界：nexus:"also" と markNoRefreshTarget は専用の場面テストが無い（コードと全 smoke で確認）
+- **残りの適用（2026-10-02、smoke part462）**：コストのある `reviveOnDestroy` は `optional` が無くても対話中は確認を出す（効果文はどれも「〜することで…残る」。判定は revive.ts の `effect.optional || effect.cost !== undefined`）。
+  バーストの「その後コストを支払うことで」も対話中は払えなくても確認を出し、押して払えなければ不発。確認の選択肢の文言は既存の流れのまま（残る＝「復活させる」、ほか＝「発動する」）
 

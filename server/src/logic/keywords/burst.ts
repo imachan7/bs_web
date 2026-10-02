@@ -119,8 +119,8 @@ function tryBurstThenPay(
     if (!entry) return
     const cost = effectiveCost(state, pid, card)
     const player = state.players[pid]
-    // 「コストを支払えるときだけ発揮できる」＝COST_MODEL.md §1。払えないなら確認自体を出さずスキップ
-    if (player.reserve < cost) return
+    // 対話中は払えなくても確認を出し、押したときに払えるか判定する（COST_MODEL.md §10）。非対話は払えなければ飛ばす
+    if (!state.interactiveTargets && player.reserve < cost) return
     if (state.interactiveTargets) {
         requestActivationConfirm(
             state,
