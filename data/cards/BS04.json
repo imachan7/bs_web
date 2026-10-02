@@ -3372,15 +3372,27 @@
      2,
      3
     ],
-    "optional": true,
     "action": {
-     "type": "summonRepeatFromHand",
-     "mode": "free",
-     "familyFilter": "天霊",
-     "costFilter": {
-      "max": 6
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "trash",
+      "count": "any"
      },
-     "extraReserveCostPerSummon": 1
+     "then": {
+      "type": "summonFromHandFree",
+      "familyFilter": "天霊",
+      "costFilter": {
+       "max": 6
+      },
+      "count": 1,
+      "countCounter": "lastCores",
+      "skipOnSummon": true
+     }
     }
    }
   ]
