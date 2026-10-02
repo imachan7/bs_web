@@ -35,6 +35,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../brave"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
 
 // 疲労させたときのログ。**どのカードの効果で疲労したのか**が対戦者に分かるように発生源を前に置く
 // （2026-08-10 ユーザー要望。【暴風】由来のときはキーワード名まで出す＝颶風高原がどれを戻すのか追えるように）
@@ -44,6 +45,10 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.nexusOnly) {
+            exhaustOwnNexus(ctx, action)
+            return
+        }
         if (action.nexus) {
             exhaustNexusOrSpirit(ctx, action)
             return
@@ -409,6 +414,32 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
 
 // 対話時はスピリットとネクサスを同じ候補一覧に並べて使用者が1つずつ選ぶ（2026-09-27 ユーザー決定）。
 // ネクサスには疲労の耐性を持つカードが無いので耐性判定をしない
+// 自分のネクサス1つを疲労させるコスト（pay の cost 用。count は 1 のみ対応）。
+// 2つ以上あるとき対話中は持ち主が選ぶ。非対話はコア数最少（同数はフィールドの先頭側）
+function exhaustOwnNexus(ctx: ActionCtx, action: Extract<EffectAction, { type: "exhaust" }>): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (!canExhaustNexus(state, owner)) {
+        log(state, `${sourceName}：ネクサスを疲労させられないため発動しなかった。`)
+        return
+    }
+    const candidates = state.players[owner].field.nexuses.filter((n) => !n.isRested)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：疲労させられる自分のネクサスがなかった。`)
+        return
+    }
+    let nexus = candidates.length === 1 ? candidates[0] : undefined
+    if (nexus === undefined && targetInstanceId !== undefined) nexus = candidates.find((n) => n.instanceId === targetInstanceId)
+    if (nexus === undefined && state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：疲労させる自分のネクサスを選んでください`, candidates.map((n) => n.instanceId), false, action, self)
+        return
+    }
+    if (nexus === undefined) nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
+    if (!nexus) return
+    nexus.isRested = true
+    log(state, exhaustLog(sourceName, getCard(nexus.cardId).name, false))
+    recordTargets(state, [nexus.instanceId])
+}
+
 function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { type: "exhaust" }>): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const oppField = state.players[opp].field
@@ -787,25 +818,12 @@ const refreshSelfByExhaustNexusHandler: ActionHandler<"refreshSelfByExhaustNexus
         log(state, `${getCard(self.cardId).name}はすでに回復状態のため何もしなかった。`)
         return
     }
-    // 【強襲】はホスト自身だけでなく、合体しているブレイヴの keyword エントリも見る
-    // （BS10バズーカ・アームズ：ホストのカードには【強襲】が無く、ブレイヴ側にのみ書かれている）
-    let staticLimit = 0
-    for (const src of [self, ...bravesOf(state.players[owner], self)]) {
-        const srcLevel = currentLevel(src).level
-        const entry = getCard(src.cardId).effects.find(
-            (e) => e.kind === "keyword" && e.keyword === "kyoshu" && effectActiveAtLevel(e.levels, srcLevel),
-        )
-        if (entry && entry.kind === "keyword") staticLimit = Math.max(staticLimit, entry.count ?? 1)
-    }
-    // 継続付与された【強襲】（kind:"keywordGrant"。BS08キマイラアサルト）も上限として見る。
-    // 静的な【強襲】と両方持つことは通常無いが、念のため大きい方を採用する
-    const grantedLimit = continuousKeywordGrantCount(state, owner, self, "kyoshu")
-    const limit = Math.max(staticLimit, grantedLimit)
+    const limit = kyoshuLimitOf(state, owner, self)
     if (limit === 0) {
         log(state, `${getCard(self.cardId).name}は【強襲】を持たないため回復しなかった。`)
         return
     }
-    const used = self.kyoshuUsed?.turn === state.turn ? self.kyoshuUsed.count : 0
+    const used = kyoshuUsedOf(state, self)
     if (used >= limit) {
         log(state, `${getCard(self.cardId).name}の【強襲】はこのターンの上限（${limit}回）に達している。`)
         return

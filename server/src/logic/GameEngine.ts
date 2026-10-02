@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -1158,8 +1158,15 @@ function exhaustDeclaredBlocker(
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
     // **疲労の直後に置く**（回復状態のままだと【強襲】が空振りする）。バトルしない側のブロッカーには発揮しない
     if (withKyoshu && hasKyoshuOnBlock(state, defenderPid)) {
-        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+        resolveAction(state, defenderPid, blocker, KYOSHU_PAY)
     }
+}
+
+const KYOSHU_PAY: EffectAction = {
+    type: "pay",
+    cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 },
+    then: { type: "refreshSelf" },
+    limitByKeyword: "kyoshu",
 }
 
 export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
