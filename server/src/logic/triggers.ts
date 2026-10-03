@@ -263,12 +263,6 @@ export function revertDestroyGroupUsage(state: GameState, instanceId: string, ef
     if (at !== -1) g.used.splice(at, 1)
 }
 
-// 【相手の『召喚時』発揮後】は、召喚時効果が誘発した時点で満たす。払えない・確認を断った・対象がいないときも含む
-// （2026-10-03 ユーザー決定。2026-09-27 の「任意の召喚時効果を使わなかったら発動しない」を改めた）
-function markSummonEffectFired(state: GameState, selfInstance: CardInstance, event: TriggerEvent): void {
-    if (event === "onSummon" && state.summonEffectSource?.instanceId === selfInstance.instanceId) state.summonEffectSource.resolved = true
-}
-
 export function fireTrigger(
     state: GameState,
     owner: PlayerId,
@@ -559,7 +553,6 @@ export function fireTrigger(
         const entry = entries[i]
         const effect = entry?.effect
         if (!entry || !effect || !matches(effect, entry.src)) continue
-        markSummonEffectFired(state, selfInstance, event)
         // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
         // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
@@ -608,7 +601,6 @@ export function fireTrigger(
     for (let i = 0; i < grantedActions.length; i++) {
         const grantedAction = grantedActions[i]
         if (!grantedAction) continue
-        markSummonEffectFired(state, selfInstance, event)
         resolveAction(state, owner, selfInstance, grantedAction, targetInstanceId)
         if (state.pendingChoice) {
             const remaining = grantedActions.slice(i + 1)
