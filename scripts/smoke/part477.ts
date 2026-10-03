@@ -159,7 +159,7 @@ function settle(s: GameState, d: Drv): void {
                 d.confirms++
                 if (d.confirm) must(s, pc.pid, { type: "resolveChoice", option: opts[0]! }, `確認に ${opts[0]}`)
                 else must(s, pc.pid, { type: "resolveChoice" }, "確認を断る（スキップ）")
-            } else must(s, pc.pid, { type: "resolveChoice", option: opts[0]! }, "option選択")
+            } else must(s, pc.pid, { type: "resolveChoice", option: d.confirm ? opts[0]! : opts[opts.length - 1]! }, "option選択（断る側は最後の選択肢）")
         } else if (pc.kind === "card") {
             const idx = pc.cardIndices?.[0] ?? 0
             const err = act(s, pc.pid, { type: "resolveChoice", cardIndex: idx })
@@ -239,7 +239,6 @@ console.log("=== 1. ユニゴーント e1：相手に破壊されたら、手札
         const { s, vic, atk } = mk([SHOGO], 1, true)
         const d = drv(false)
         attackFlow(s, "p2", atk.instanceId, d, vic.instanceId)
-        if (process.env.DBG) console.log("DBG1-2", d.asked, s.players.p1.hand, s.players.p1.field.spirits.map((x) => x.cardId))
         assert(d.confirms === 1, `1-2 確認は1回（実際 ${d.confirms}）`)
         assert(s.players.p1.hand.length === 1 && !s.players.p1.field.spirits.some((x) => x.cardId === SHOGO), "1-2 断ったので手札のまま")
     }
@@ -247,7 +246,6 @@ console.log("=== 1. ユニゴーント e1：相手に破壊されたら、手札
         const { s, vic, atk } = mk([VAN], 1, true)
         const d = drv(true)
         attackFlow(s, "p2", atk.instanceId, d, vic.instanceId)
-        if (process.env.DBG) console.log("DBG1-3", d.asked)
         assert(d.confirms === 0, `1-3 手札にブレイヴが無いなら確認を出さない（実際 ${d.confirms}）`)
         assert(s.players.p1.hand.length === 1, "1-3 手札は変わらない")
     }
@@ -487,7 +485,6 @@ console.log("=== 10. マサムネ e3：【合体時】Lv2『自分のアタッ�
         attackFlow(s, "p1", unit.instanceId, drv(), foe.instanceId)
         return s
     }
-    if (process.env.DBG) { const x = run(4, false, MIRAGE); console.log("DBG10-2", x.players.p2.life, x.players.p2.reserve, x.players.p2.field.combinedBraves.length) }
     const ok = run(4, true, MIRAGE)
     assert(ok.players.p2.life === 4 && ok.players.p2.reserve === 12, `10-1 殻虫が勝つ：相手ライフ5→4、相手リザーブは破壊されたロクケラトプスのコア分+1に加えてライフのコア分+1で12（実際 ${ok.players.p2.life}/${ok.players.p2.reserve}）`)
     const noComb = run(4, false, MIRAGE)
@@ -552,7 +549,6 @@ console.log("=== 13. スノトラ e2：【氷壁：緑/黄】相手が緑/黄の
         return { s, sno, d, err, caster }
     }
     const ok = run(GREEN_DRAW, true)
-    if (process.env.DBG) console.log("DBG13", ok.d.asked, ok.sno.isRested, ok.s.players.p2.deck.length, ok.s.log?.slice?.(-6))
     assert(ok.err === null && ok.d.confirms === 1, `13-1 緑マジックに確認が1回出る（実際 ${ok.d.confirms}／拒否: ${ok.err}）`)
     assert(ok.sno.isRested === true && ok.s.players.p2.deck.length === 40, "13-1 スノトラが疲労し、ドローは起きない（無効）")
     assert(ok.s.players.p2.trashCards.includes(GREEN_DRAW), "13-1 無効にされたマジックはトラッシュへ")
@@ -701,15 +697,9 @@ console.log("=== 18. ハイドランディア e2：【合体時】相手の効�
         const { s, ga, foeA } = run(w)
         const d = drv(true)
         const err = act(s, "p2", { type: "castMagic", handIndex: 0, targetInstanceId: ga.instanceId })
-        for (let g = 0; s.pendingChoice && g < 12; g++) {
-            const pc = s.pendingChoice
-            if (process.env.DBG) console.log("DBG18", w, pc.pid, pc.kind, pc.prompt, JSON.stringify(pc.options), pc.candidates?.length, pc.cardIndices)
-            if (pc.kind === "option") must(s, pc.pid, { type: "resolveChoice", option: (pc.options ?? []).includes("発動する") ? "発動する" : pc.options![pc.options!.length - 1]! }, "option")
-            else must(s, pc.pid, { type: "resolveChoice", instanceId: pc.candidates[0]! }, "対象/カード")
-        }
+        settle(s, d)
         void d
         void err
-        if (process.env.DBG) console.log("DBG18 end", w, ga.cores, s.players.p1.hand.length, s.players.p2.hand.length, s.log?.slice?.(-5))
         const destroyed = !onField(s, "p1", ga)
         console.log(`  （参考 18-${w ? "A" : "B"}: 破壊=${destroyed} 相手疲労=${foeA.isRested} 拒否=${err}）`)
         if (w) assert(destroyed && foeA.isRested === true, "18-1 ハイドランディアと合体：0コアで破壊され、最高Lv(Lv2)の『破壊時』で相手スピリットが疲労する")
@@ -729,6 +719,7 @@ console.log("=== 19. 【転召】時にネクサスを疲労させて、星魂�
             s.players.p1.reserve = 12
             return { s, nex, soul }
         }
+        const asks = (d: Drv) => d.asked.filter((x) => x.includes(getCard(nexusId).name)).length
         {
             const { s, nex, soul } = mk({})
             const d = drv(true)
@@ -736,28 +727,29 @@ console.log("=== 19. 【転召】時にネクサスを疲労させて、星魂�
             settle(s, d)
             assert(err === null && s.players.p1.field.spirits.some((x) => x.cardId === shoukanId), `19-${label}-1 転召するスピリットが召喚できる（拒否: ${err}）`)
             assert(nex.isRested === true && onField(s, "p1", soul) && soul.cores === 2, `19-${label}-1 ネクサスを疲労させ、星魂スピリットはコアを動かさず残る（疲労 ${nex.isRested}／コア ${soul.cores}）`)
-            assert(d.confirms >= 1, `19-${label}-1 使うかの確認が出る（${d.confirms}回）`)
+            assert(asks(d) === 1, `19-${label}-1 ネクサスを使うかの確認が1回出る（${asks(d)}回）`)
         }
         {
             const { s, nex, soul } = mk({})
             const d = drv(false)
             act(s, "p1", { type: "summon", handIndex: 0 })
             settle(s, d)
-            assert(nex.isRested === false && (!onField(s, "p1", soul) || soul.cores === 0), `19-${label}-2 断ればネクサスは疲労せず、通常の転召（コアをボイドへ）になる（疲労 ${nex.isRested}／コア ${soul.cores}）`)
+            assert(asks(d) === 1, `19-${label}-2 確認は1回（${asks(d)}回）`)
+            assert(nex.isRested === false && (!onField(s, "p1", soul) || soul.cores === 0), `19-${label}-2 断ればネクサスは疲労せず、通常の転召（星魂のコアはボイドへ）になる（疲労 ${nex.isRested}／コア ${soul.cores}）`)
         }
         {
             const { s, nex } = mk({ nexusRested: true })
             const d = drv(true)
             act(s, "p1", { type: "summon", handIndex: 0 })
             settle(s, d)
-            assert(nex.isRested === true && d.confirms === 0, `19-${label}-3 疲労済みのネクサスは使えず確認も出ない（確認 ${d.confirms}）`)
+            assert(nex.isRested === true && asks(d) === 0, `19-${label}-3 疲労済みのネクサスは使えず確認も出ない（確認 ${asks(d)}）`)
         }
         {
             const { s, nex } = mk({ soul: UNI }) // コスト4の星魂：対象外
             const d = drv(true)
             act(s, "p1", { type: "summon", handIndex: 0 })
             settle(s, d)
-            assert(nex.isRested === false && d.confirms === 0, `19-${label}-4 星魂でもコスト3でないスピリットは対象外で確認も出ない（確認 ${d.confirms}）`)
+            assert(nex.isRested === false && asks(d) === 0, `19-${label}-4 星魂でもコスト3でないスピリットは対象外で確認も出ない（確認 ${asks(d)}）`)
         }
     }
     sc(N061, MARS, "061")
@@ -787,7 +779,7 @@ console.log("=== 20. 白煙の大山脈 e2：Lv2『お互いのアタックス�
     const d = mk({ phase: "main" })
     assert(lvOf(d.dragon) === 1, "20-4 メインステップでは発揮しない")
     const e = mk({ nexusCores: 0 })
-    assert(lvOf(e.dragon) === 1, "20-5 ネクサスがLv1なら発揮しない")
+    assert(lvOf(e.dragon) === 1, `20-5 ネクサスがLv1(コア0)なら発揮しない（古竜のLv ${lvOf(e.dragon)}）`)
 }
 
 console.log("すべてのチェックに合格しました 🎉（part477）")

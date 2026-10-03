@@ -26,7 +26,7 @@ console.log("=== 前提: カードの機械確認 ===")
 
 const isConfirm = (t: ScenarioCtx) => {
     const pc = t.state.pendingChoice
-    return pc !== null && pc.kind === "option" && (pc.options ?? []).includes("発動する")
+    return pc !== null && pc.kind === "option" && (pc.options ?? []).some((o) => o === "発動する" || o === "無効にする")
 }
 
 // 選択待ちを答え切る。確認（「発動する」）は押して回数を返す。確認以外は先頭の候補
@@ -37,8 +37,10 @@ function drive(t: ScenarioCtx, decline = false): number {
         const side = pc.pid === t.me ? "me" : "opp"
         if (isConfirm(t)) {
             confirms++
-            const no = (pc.options ?? []).find((o) => o !== "発動する")
-            t.act(side, { type: "resolveChoice", option: decline && no ? no : "発動する" })
+            const yes = (pc.options ?? []).find((o) => o === "発動する" || o === "無効にする")!
+            const no = (pc.options ?? []).find((o) => o !== yes)
+            // 断る選択肢が文面にあればそれを、無ければ何も選ばずに答える（任意の選択のスキップ）
+            t.act(side, decline ? (no ? { type: "resolveChoice", option: no } : { type: "resolveChoice" }) : { type: "resolveChoice", option: yes })
         } else {
             t.act(side, pc.kind === "option" ? { type: "resolveChoice", option: pc.options![0]! } : { type: "resolveChoice", instanceId: pc.candidates[0]! })
         }
@@ -561,5 +563,285 @@ scenario({
         "相手.ライフ: 5 → 4",
         "相手.リザーブ: 10 → 11",
     ],
+})
+
+// ===== BS11-062 オールトの竜巣 =====
+const OORT = "BS11-062"
+const VOLGAMES = "BS11-001" // 系統「星竜」・赤・コスト1・軽減シンボルなし
+const SALAMANDERT = "BS03-001" // 赤・コスト1・軽減シンボルなし・系統は「空牙」
+
+console.log("=== オールト1-a. 手札の系統「星竜」のスピリットに軽減シンボル[赤]が付き、ネクサスの赤シンボルで軽減できる ===")
+scenario({
+    name: "oort-reduction",
+    start: { me: { hand: [VOLGAMES], nexuses: [{ card: OORT, cores: 0 }] } },
+    steps: (t) => t.act("me", { type: "summon", handIndex: 0 }),
+    expect: [
+        "自分.手札: ボルガメス → なし",
+        "自分.リザーブ: 10 → 9",
+        "自分.ボルガメス.BP: なし → 1000",
+        "自分.ボルガメス.Lv: なし → 1",
+        "自分.ボルガメス.コア: なし → 1",
+        "自分.ボルガメス.場所: なし → フィールド",
+        "自分.ボルガメス.疲労: なし → false",
+    ],
+})
+
+console.log("=== オールト1-b. 系統「星竜」を持たないスピリットには付かない ===")
+scenario({
+    name: "oort-reduction-other-family",
+    start: { me: { hand: [SALAMANDERT], nexuses: [{ card: OORT, cores: 0 }] } },
+    steps: (t) => t.act("me", { type: "summon", handIndex: 0 }),
+    expect: [
+        "自分.手札: 火精サラマンダート → なし",
+        "自分.リザーブ: 10 → 8",
+        "自分.トラッシュのコア: 0 → 1",
+        "自分.火精サラマンダート.BP: なし → 2000",
+        "自分.火精サラマンダート.Lv: なし → 1",
+        "自分.火精サラマンダート.コア: なし → 1",
+        "自分.火精サラマンダート.場所: なし → フィールド",
+        "自分.火精サラマンダート.疲労: なし → false",
+    ],
+})
+
+const oortMe = (oortCores: number, combined: boolean) => ({
+    trash: [WINGAL],
+    nexuses: [{ card: OORT, cores: oortCores }],
+    spirits: [{ card: HAMP, label: "ホスト" }, ...(combined ? [{ card: BRAVE, label: "ブレイヴ" }] : [])],
+})
+const oortRun = (combined: boolean) => (t: ScenarioCtx) => {
+    if (combined) t.act("me", { type: "combineBrave", braveInstanceId: t.id("ブレイヴ"), hostInstanceId: t.id("ホスト") })
+    fight(t, "me", "ホスト", "ブロッカー")
+}
+const oortOpp = { spirits: [{ card: VANILLA, label: "ブロッカー" }] }
+const oortBattle = ["自分.ホスト.疲労: false → true", "相手.ブロッカー.場所: フィールド → なし", "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 11"]
+const oortCombine = ["自分.ブレイヴ.BP: 3000 → なし", "自分.ブレイヴ.コア: 1 → 0", "自分.ブレイヴ.場所: フィールド → 合体", "自分.ホスト.BP: 3000 → 6000", "自分.リザーブ: 10 → 11"]
+
+console.log("=== オールト2-a. Lv2：合体スピリットがBPを比べスピリットだけを破壊したら、トラッシュのスピリット1枚が手札に戻る ===")
+scenario({
+    name: "oort-battlewon",
+    start: { me: oortMe(1, true), opp: oortOpp },
+    steps: oortRun(true),
+    expect: [...oortCombine, ...oortBattle, "自分.トラッシュ: ウィンガル → なし", "自分.手札: なし → ウィンガル"],
+})
+
+console.log("=== オールト2-b. Lv1 では戻らない ===")
+scenario({
+    name: "oort-battlewon-lv1",
+    start: { me: oortMe(0, true), opp: oortOpp },
+    steps: oortRun(true),
+    expect: [...oortCombine, ...oortBattle],
+})
+
+console.log("=== オールト2-c. 合体していないスピリットでは戻らない ===")
+scenario({
+    name: "oort-battlewon-not-combined",
+    start: { me: oortMe(1, false), opp: oortOpp },
+    steps: oortRun(false),
+    expect: oortBattle,
+})
+
+// ===== BS11-013 グラシャハウンド：自分のトラッシュにある【不死】を持つスピリットカードすべてに軽減シンボル[紫]を与える =====
+const GAHERIS = "BS11-010" // 闇騎士ガヘリス（紫・コスト2・軽減シンボルなし・【不死：コスト3】）
+const LOM = "BS02-059" // ロム（黄・コスト3・バニラ）
+
+const grashaMe = (fieldCard: string) => ({ trash: [GAHERIS], spirits: [{ card: fieldCard, label: "紫の源" }, { card: LOM, label: "ブロッカー" }] })
+const grashaOpp = { spirits: [{ card: WINGAL, label: "アタッカー", cores: 4 }] }
+const gahDrop = ["自分.ブロッカー.場所: フィールド → なし", "自分.トラッシュ: ガヘリス → ロム".replace("ガヘリス", "闇騎士ガヘリス"), "相手.アタッカー.疲労: false → true"]
+const gahSummoned = ["自分.闇騎士ガヘリス.BP: なし → 1000", "自分.闇騎士ガヘリス.Lv: なし → 1", "自分.闇騎士ガヘリス.コア: なし → 1", "自分.闇騎士ガヘリス.場所: なし → フィールド", "自分.闇騎士ガヘリス.疲労: なし → false"]
+
+console.log("=== グラシャハウンド1. 場にいる間、トラッシュの不死スピリットは紫のシンボルで1だけ軽減して召喚できる ===")
+scenario({
+    name: "grasha-grant",
+    start: { turn: "opp", me: grashaMe(GRASHA), opp: grashaOpp },
+    steps: (t) => fight(t, "opp", "アタッカー", "ブロッカー"),
+    expect: [...gahDrop, ...gahSummoned, "自分.リザーブ: 10 → 9", "自分.トラッシュのコア: 0 → 1"],
+})
+
+console.log("=== グラシャハウンド2. 同じ紫シンボル1つでも、グラシャハウンドがいなければ軽減されない ===")
+scenario({
+    name: "grasha-none",
+    start: { turn: "opp", me: grashaMe(HAMP), opp: grashaOpp },
+    steps: (t) => fight(t, "opp", "アタッカー", "ブロッカー"),
+    expect: [...gahDrop, ...gahSummoned, "自分.リザーブ: 10 → 8", "自分.トラッシュのコア: 0 → 2"],
+})
+
+// ===== BS11-049 ジャンビ・オレピス：【合体時】フラッシュ【覚醒】 =====
+console.log("=== ジャンビ1. 合体していれば、自分のスピリット上のコアを合体スピリット上に置ける ===")
+scenario({
+    name: "jambi-awaken",
+    start: { me: { spirits: [{ card: HAMP, label: "ホスト" }, { card: JAMBI, label: "ジャンビ" }, { card: VANILLA, label: "供給元", cores: 3 }] } },
+    steps: (t) => {
+        t.act("me", { type: "combineBrave", braveInstanceId: t.id("ジャンビ"), hostInstanceId: t.id("ホスト") })
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("ホスト") })
+        takePriority(t, "me")
+        t.act("me", { type: "awaken", instanceId: t.id("ホスト"), fromInstanceId: t.id("供給元"), count: 2 })
+        t.closeFlash()
+        t.act("opp", { type: "takeLife" })
+    },
+    expect: [
+        "自分.ホスト.疲労: false → true",
+        "相手.ライフ: 5 → 4",
+        "相手.リザーブ: 10 → 11",
+        "自分.ジャンビ.BP: 2000 → なし",
+        "自分.ジャンビ.コア: 1 → 0",
+        "自分.ジャンビ.場所: フィールド → 合体",
+        "自分.リザーブ: 10 → 11",
+        "自分.ホスト.コア: 1 → 3",
+        "自分.ホスト.Lv: 1 → 2",
+        "自分.ホスト.BP: 3000 → 6000",
+        "自分.供給元.コア: 3 → 1",
+        "自分.供給元.Lv: 3 → 1",
+        "自分.供給元.BP: 4000 → 1000",
+    ],
+})
+
+console.log("=== ジャンビ2. 合体していなければ覚醒できない ===")
+scenario({
+    name: "jambi-not-combined",
+    start: { me: { spirits: [{ card: HAMP, label: "ホスト" }, { card: JAMBI, label: "ジャンビ" }, { card: VANILLA, label: "供給元", cores: 3 }] } },
+    steps: (t) => {
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("ホスト") })
+        takePriority(t, "me")
+        t.actRejected("me", { type: "awaken", instanceId: t.id("ホスト"), fromInstanceId: t.id("供給元"), count: 2 })
+    },
+    expect: ["自分.ホスト.疲労: false → true"],
+})
+
+// ===== BS11-047 海王神獣トライ・ポセイドス：『自分のアタックステップ』自分のコスト7以上のスピリットすべてを最高Lvとして扱う（Lv2 はさらに BP+3000） =====
+const POSEIDOS = "BS11-047"
+const DWAFFU = "BS05-045" // ドワッフー・セブン（黄・コスト7・バニラ。Lv1 BP5000 → Lv3 BP7000）
+const TORNEDRA = "BS10-009" // トルネードラ（赤・コスト6・バニラ）
+
+const poseidosField = (cores: number) => ({
+    spirits: [{ card: POSEIDOS, cores }, { card: DWAFFU, label: "コスト7" }, { card: TORNEDRA, label: "コスト6" }],
+})
+const poseidosOpp = { spirits: [{ card: DWAFFU, label: "相手のコスト7" }] }
+
+console.log("=== ポセイドス1. Lv1：アタックステップに入ると、コスト7のスピリットだけが最高Lv（Lv3）として扱われる ===")
+scenario({
+    name: "poseidos-lv1",
+    start: { me: poseidosField(1), opp: poseidosOpp },
+    steps: (t) => t.act("me", { type: "nextPhase" }),
+    expect: ["自分.コスト7.BP: 5000 → 7000", "自分.コスト7.Lv: 1 → 3"],
+})
+
+console.log("=== ポセイドス2. Lv2：さらにコスト7以上のスピリットがBP+3000される ===")
+scenario({
+    name: "poseidos-lv2",
+    start: { me: poseidosField(4), opp: poseidosOpp },
+    steps: (t) => t.act("me", { type: "nextPhase" }),
+    expect: ["自分.コスト7.BP: 5000 → 10000", "自分.コスト7.Lv: 1 → 3"],
+})
+
+console.log("=== ポセイドス3. 相手のアタックステップでは働かない ===")
+scenario({
+    name: "poseidos-opp-turn",
+    start: { turn: "opp", me: poseidosField(4), opp: poseidosOpp },
+    steps: (t) => t.act("opp", { type: "nextPhase" }),
+    expect: [],
+})
+
+// ===== BS11-X03 星騎士ハーキュリーΩ：自分のライフが3以下の間、手札にあるこのスピリットカードのコストを4にする =====
+const HERCULES = "BS11-X03" // 緑・コスト7
+
+const hercSummon = (life: number, reserve: number, spent: number) => ({
+    start: { me: { life, reserve, hand: [HERCULES] } },
+    steps: (t: ScenarioCtx) => t.act("me", { type: "summon", handIndex: 0 }),
+    expect: [
+        "自分.手札: 星騎士ハーキュリーΩ → なし",
+        `自分.リザーブ: ${reserve} → ${reserve - spent - 1}`,
+        `自分.トラッシュのコア: 0 → ${spent}`,
+        "自分.星騎士ハーキュリーΩ.BP: なし → 6000",
+        "自分.星騎士ハーキュリーΩ.Lv: なし → 1",
+        "自分.星騎士ハーキュリーΩ.コア: なし → 1",
+        "自分.星騎士ハーキュリーΩ.場所: なし → フィールド",
+        "自分.星騎士ハーキュリーΩ.疲労: なし → false",
+    ],
+})
+
+console.log("=== ハーキュリー1. ライフ3：コスト4で召喚できる ===")
+scenario({ name: "hercules-life3", ...hercSummon(3, 5, 4) })
+
+console.log("=== ハーキュリー2. ライフ4：コストは7のまま（リザーブ5では召喚できない） ===")
+scenario({
+    name: "hercules-life4",
+    start: { me: { life: 4, reserve: 5, hand: [HERCULES] } },
+    steps: (t) => t.actRejected("me", { type: "summon", handIndex: 0 }),
+    expect: [],
+})
+
+console.log("=== ハーキュリー3. ライフ4：リザーブ8ならコスト7を払って召喚できる ===")
+scenario({ name: "hercules-life4-full", ...hercSummon(4, 8, 7) })
+
+// ===== BS11-028 鳥人機フレスヴェルガー：【氷壁：白】『相手のターン』相手が白のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする =====
+const FRES = "BS11-028"
+const ELIXIR = "BS01-142" // ピュアエリクサー（白マジック・コスト3・フラッシュ：自分の疲労状態のすべてのスピリットを回復する）
+
+const fresOpp = { hand: [ELIXIR], spirits: [{ card: VANILLA, label: "疲労者", rested: true }] }
+const fresCast = (decline = false) => (t: ScenarioCtx) => {
+    t.act("opp", { type: "castMagic", handIndex: 0 })
+    return drive(t, decline)
+}
+const elixirPaid = ["相手.手札: ピュアエリクサー → なし", "相手.トラッシュ: なし → ピュアエリクサー", "相手.トラッシュのコア: 0 → 3", "相手.リザーブ: 10 → 7"]
+
+console.log("=== フレスヴェルガー1. 非対話：相手の白マジックを、疲労して無効にする ===")
+scenario({
+    name: "fres-negate",
+    start: { turn: "opp", me: { spirits: [{ card: FRES }] }, opp: fresOpp },
+    steps: (t) => {
+        fresCast()(t)
+    },
+    expect: [...elixirPaid, "自分.鳥人機フレスヴェルガー.疲労: false → true"],
+})
+
+console.log("=== フレスヴェルガー2. 対話：確認は1回。押すと無効になり、断ると効果が通る ===")
+scenario({
+    name: "fres-negate-interactive",
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: FRES }] }, opp: fresOpp },
+    steps: (t) => {
+        const n = fresCast()(t)
+        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+    },
+    expect: [...elixirPaid, "自分.鳥人機フレスヴェルガー.疲労: false → true"],
+})
+scenario({
+    name: "fres-decline-interactive",
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: FRES }] }, opp: fresOpp },
+    steps: (t) => {
+        const n = fresCast(true)(t)
+        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+    },
+    expect: [...elixirPaid, "相手.疲労者.疲労: true → false"],
+})
+
+console.log("=== フレスヴェルガー3. 白以外のマジックは無効にしない ===")
+scenario({
+    name: "fres-not-white",
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: FRES }] }, opp: { hand: [METEOR], spirits: [{ card: VANILLA, label: "疲労者", rested: true }] } },
+    steps: (t) => {
+        t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("疲労者") })
+        const n = drive(t)
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
+    },
+    expect: [
+        "相手.手札: メテオフォール → なし",
+        "相手.トラッシュ: なし → メテオフォール",
+        "相手.トラッシュのコア: 0 → 1",
+        "相手.リザーブ: 10 → 9",
+        "相手.疲労者.BP: 1000 → 3000",
+    ],
+})
+
+console.log("=== フレスヴェルガー4. すでに疲労していれば疲労できないので無効にできない ===")
+scenario({
+    name: "fres-rested",
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: FRES, rested: true }] }, opp: fresOpp },
+    steps: (t) => {
+        const n = fresCast()(t)
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
+    },
+    expect: [...elixirPaid, "相手.疲労者.疲労: true → false"],
 })
 console.log("すべてのチェックに合格しました 🎉（part478）")
