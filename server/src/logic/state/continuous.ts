@@ -626,10 +626,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 ) {
                     continue
                 }
-                // ネクサスは levels が発生源のLv条件（BS12-062 の Lv1 では Lv2 の効果は出ない）。
-                // スピリットの levelAs は levels を見ない既存挙動のまま（BS08-039 の smoke part148 が Lv1 でも効くと固定している。未確認）
+                // 発生源自身の Lv（levelAs を受ける前の Lv）が効果の Lv に届かなければ発揮しない（2026-10-03 ユーザー確認）
                 if (
-                    source.cardId && getCard(source.cardId).type === "nexus" &&
                     effect.sourceMinLevel === undefined && effect.sourceLevels === undefined &&
                     !effectActiveAtLevel(effect.levels, rawLevel(source))
                 ) {
