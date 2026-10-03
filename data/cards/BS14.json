@@ -4312,6 +4312,7 @@
    {
     "id": "BS14-070-e1",
     "kind": "constraint",
+    "whileSpirit": true,
     "levels": [
      1
     ],

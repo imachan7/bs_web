@@ -193,8 +193,9 @@ console.log("=== §E 新しく足した器を実カードで通す ===")
         assert(effectSources(s, "p2").some((x) => x.instanceId === nexus.instanceId),
             "回復状態のネクサスは発生源のまま")
         nexus.isRested = true
-        assert(!effectSources(s, "p2").some((x) => x.instanceId === nexus.instanceId),
-            "疲労状態のネクサスは効果を発揮しない")
+        // 止まるのは『バトル時』に発揮したそのバトルの間だけ（2026-10-03 ユーザー確認。バトル中は part479）
+        assert(effectSources(s, "p2").some((x) => x.instanceId === nexus.instanceId),
+            "バトル外では合体中でも疲労状態のネクサスは発生源のまま")
         // 分離したら元に戻る
         delete host.braveRefs
         refreshLevelAsOverrides(s)

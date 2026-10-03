@@ -61,6 +61,7 @@ export function activeConstraintsWithSource(
                     (e) =>
                         e.kind === "constraint" &&
                         effectActiveOn(inst, e, src === inst ? level : currentLevel(src).level) &&
+                        (e.whileSpirit !== true || src === inst) &&
                         // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                         (e.whileOwnBurstSet !== true || board.players[pid].burstSet) &&
                         // BS15共通器：condition／phaseTurn（aura.condition／aura.phaseTurnと同じ判定式。BS15-060バンディット・アームズ）

@@ -204,6 +204,7 @@ export type EffectDef =
           kind: "constraint"
           levels: number[] | null
           whileCombined?: true
+          whileSpirit?: true // ブレイヴがスピリット状態（単独）のときだけ。合体してホストの制約に合流する側では外す（whileCombined の逆）
           whileOwnBurstSet?: true // バーストをセットしている間だけ発揮
           condition?: AuraCondition // aura.conditionと同じ判定式を流用
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // aura.phaseTurnと同義
@@ -522,7 +523,7 @@ export type EffectDef =
           // destroyMillSource=破棄を引き起こした相手のスピリットを破壊（発生源はトラッシュに残る）。最初の1枚で打ち切る（2026-09-21）
           // voidOpponentLife=resolveActionへlifeCrush count:1 dest:"void"を委譲し、相手のライフのコア1個をボイドに置く
           optional?: true // 「〜できる」＝任意。interactiveTargetsでは確認を出す（非対話は自動召喚）。summonThisSpiritFree専用
-          thenProtectDeckThisTurn?: true // この召喚が成立したときだけ、このターンの間デッキは（相手の効果では）破棄されなくなる
+          thenProtectDeckThisTurn?: true // 破棄された時点で（召喚の成否・確認より先に）このターンの間デッキは相手の効果では破棄されなくなり、その回の残りの破棄も止まる
           thenBlockAllDeckMillThisTurn?: true // then:"destroyMillSource"専用：破壊解決後、このターンの間自分の効果も含めデッキは破棄されなくなる
       }
     | {

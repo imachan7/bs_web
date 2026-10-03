@@ -12,7 +12,7 @@ import type {
 import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
 import { minLevelCoresOf } from "./activation"
-import { activeConstraints, hasGlobalConstraint, timedPlayerRules } from "./constraints"
+import { activeConstraints, hasGlobalConstraint, timedBattleContents, timedPlayerRules } from "./constraints"
 import { spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { cardNameContains } from "./targetFilter"
 
@@ -210,24 +210,10 @@ export function nexusEffectsStopped(board: Board, pid: PlayerId, inst: CardInsta
     return nexusEffectsDisabledFor(board, pid, inst) || (restedNexusEffectsDisabled(board) && inst.isRested)
 }
 
-// 「疲労状態のネクサスすべての効果は発揮されない」（globalConstraint。BS10-074 きぐるみクマッター）。
-// ⚠️ ここで effectSources を呼ぶと無限再帰するので、両陣営の配列を**直接**走査する
-// （nexusEffectsDisabledFor と同じ理由・同じ書き方）。
-// 判定する側のネクサスが疲労していれば、そのネクサス自身の効果も止まる（両陣営に効く常在効果なので一貫する）
+// 「このバトルの間、疲労状態のネクサスすべての効果は発揮されない」（期間つき効果。BS10-074 きぐるみクマッター）。
+// 判定する側のネクサスが疲労していれば、そのネクサス自身の効果も止まる（両陣営に効く）
 function restedNexusEffectsDisabled(board: Board): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const p = board.players[pid]
-        for (const source of [...p.field.spirits, ...p.field.nexuses, ...p.field.combinedBraves, ...p.turnVirtualInstances, ...p.battleVirtualInstances]) {
-            for (const effect of card(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== "restedNexusEffectsDisabled") continue
-                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
-                if (effect.whileCombined === true && !instIsCombined(source)) continue
-                return true
-            }
-        }
-    }
-    return false
+    return timedBattleContents(board).some((c) => c.type === "restedNexusEffectsDisabled")
 }
 
 // pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か
