@@ -240,6 +240,13 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
+    // 合体しているブレイヴの【合体時】【覚醒】はホストが持つ（spiritHasKeyword と同じ合流。BS11-049）
+    const braveAwaken = bravesOf(board.players[ownerPid], inst).some((b) =>
+        card(b.cardId).effects.some(
+            (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
+        ),
+    )
+    if (braveAwaken) return true
     return timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
