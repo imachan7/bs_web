@@ -30,6 +30,8 @@ export function isSummonableCardType(type: CardData["type"]): type is "spirit" |
 export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId: string): string[] {
     if (card(braveCardId).type !== "brave") return []
     return board.players[pid].field.spirits
+        // スピリット状態のブレイヴにはブレイヴを合体できない（2026-10-03 ユーザー指摘。例外はイリテバン自身の効果＝combineOwnBrave hostSelf）
+        .filter((host) => card(host.cardId).type !== "brave")
         .filter((host) => (host.braveRefs ?? []).length < combineLimitFor(board, pid, host))
         // 「このスピリットは合体できない」（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
         .filter((host) => !activeConstraints(board, pid, host).some((c) => c.type === "cantCombine"))

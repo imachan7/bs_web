@@ -155,6 +155,7 @@ export function validateSummon(
         if (card.type !== "brave") return "ブレイヴカードではありません"
         const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
+        if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
         if ((host.braveRefs ?? []).length >= combineLimitFor(state, pid, host)) return "そのスピリットには既にブレイヴが合体しています"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
