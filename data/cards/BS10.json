@@ -945,12 +945,21 @@
       },
       {
         "id": "BS10-074-e2",
-        "kind": "globalConstraint",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
-        "constraint": {
-          "type": "restedNexusEffectsDisabled"
-        }
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "restedNexusEffectsDisabled"
+            }
+          ],
+          "duration": "battle"
+        },
+        "optional": false
       }
     ]
   },

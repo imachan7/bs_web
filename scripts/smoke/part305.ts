@@ -118,7 +118,7 @@ console.log("=== §1 #27：BS13-034（相手のデッキ破棄効果で破棄さ
     const milledAfter = millDeck(s, "p1", 3, "p2") // 相手の効果でもう一度破棄しようとする
     assert(milledAfter === 0, "このターンの間、自分のデッキは相手の効果で破棄されない")
 
-    console.log("--- 召喚しない：デッキ破棄防止は付かず、あとから召喚もできない ---")
+    console.log("--- 召喚しない：デッキ破棄防止は付き、あとから召喚はできない ---")
     const s2 = game("034-summon-no")
     s2.players.p1.deck.unshift("BS13-034")
     millDeck(s2, "p1", 1, "p2")
@@ -129,7 +129,7 @@ console.log("=== §1 #27：BS13-034（相手のデッキ破棄効果で破棄さ
         "召喚されていない",
     )
     const milledAfter2 = millDeck(s2, "p1", 3, "p2")
-    assert(milledAfter2 === 3, "召喚しなかったので、デッキ破棄防止は付かない（通常どおり破棄される）")
+    assert(milledAfter2 === 0, "召喚しなくても、このターンの間デッキは破棄されない（2026-10-03 ユーザー確認）")
 }
 
 console.log("=== BS13-034 召喚時：デッキ上1枚オープンし、コスト2のスピリットなら手札、それ以外はデッキの上に戻す ===")

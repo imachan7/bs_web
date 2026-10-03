@@ -408,12 +408,12 @@ export function applySpiritMillFreeSummon(
     if (index === -1) return
     const card = getCard(info.cardId)
     player.trashCards.splice(index, 1)
-    const inst = createInstance(info.cardId, state.turn, minLevelCores(card))
+    // 召喚コストは無料だが、Lv1 に要るコアは通常の召喚と同じくリザーブから置く
+    const cores = Math.min(minLevelCores(card), player.reserve)
+    player.reserve -= cores
+    const inst = createInstance(info.cardId, state.turn, cores)
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
-    // 「さらに、このターンの間、自分のデッキは破棄されない」＝**この召喚が成立したときだけ**付く（§1 #27）
-    recordPlayerRule(state, info.pid, { type: "noDeckMillByOpponentForPid" })
-    log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
     if (!state.winner) resolveTensho(state, info.pid, inst)
     if (state.winner) return
     if (state.pendingChoice) {

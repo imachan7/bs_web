@@ -32,6 +32,7 @@ import {
     refreshSpirit,
     requestCardChoice,
     requestChoice,
+    requestActivationConfirm,
     resolveAction,
     resolveKoboOnBattleEnd,
     resolveTensho,
@@ -1502,7 +1503,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 // 1つ選んで、発生源自身（self＝合体スピリット）の効果として発揮する（BS13-049イリテバン【合体時】）。
 // 「このスピリット」は発揮する側（self）を指すため、借りた効果はselfのレベルで判定しselfへ渡す
 // （docs/design/BRAVE.md §12。2026-09-07/08 ユーザー確認）
-const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx) => {
+const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     if (!self) {
         log(state, `${sourceName}：発揮する対象がいなかった。`)
@@ -1540,11 +1541,18 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         log(state, `${sourceName}：借りられる『合体アタック時』効果がなかった。`)
         return
     }
+    // 「発揮できる」は確認式（SEMANTICS_AUDIT §3 の一般則）。借りる元があるときだけ、選ぶ前に1回聞く
+    // 自身しか候補が無い（借りても何も起きない）ときは聞かない
+    if (state.interactiveTargets && !action.confirmed && effectiveCandidates.some((c) => !isSelfBorrow(c))) {
+        requestActivationConfirm(state, owner, `${sourceName}：『合体アタック時』効果を借りて発揮しますか？`, { type: "borrowCombinedAttackEffect", confirmed: true }, self)
+        return
+    }
     const fire = (chosen: Candidate): void => {
         log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の効果を借りて発揮した。`)
         const wasSelfBorrow = isSelfBorrow(chosen)
         if (wasSelfBorrow) self.borrowedAttackEffectOnce = true
-        resolveAction(state, owner, self, chosen.effect.action)
+        // 自身を選んだ2回目は同じ発揮の連鎖なので、確認は聞き直さない
+        resolveAction(state, owner, self, wasSelfBorrow ? { type: "borrowCombinedAttackEffect", confirmed: true } : chosen.effect.action)
         if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
     }
     if (targetInstanceId !== undefined) {
@@ -1561,7 +1569,7 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
             `${sourceName}：借りる『合体アタック時』効果を選んでください`,
             uniqueIds,
             false,
-            { type: "borrowCombinedAttackEffect" },
+            { type: "borrowCombinedAttackEffect", confirmed: true },
             self,
         )
         return

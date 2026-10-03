@@ -167,6 +167,19 @@ export function millDeck(
                     (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
             )
             if (stops) break
+            // thenProtectDeckThisTurn（ミノガメン・執事ペンタン）は召喚の成否・確認より先、破棄された瞬間に効く。
+            // 残りの破棄はその場で止まる（2026-10-03 ユーザー確認 SEMANTICS_AUDIT §3.22）
+            const protects = getCard(cardId).effects.some(
+                (e) =>
+                    e.kind === "onMilledFromDeck" &&
+                    e.thenProtectDeckThisTurn === true &&
+                    (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
+            )
+            if (protects) {
+                recordPlayerRule(state, pid, { type: "noDeckMillByOpponentForPid" })
+                log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
+                break
+            }
         }
     }
     const actual = milled.length
