@@ -465,6 +465,14 @@ export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardIn
         }
         return true
     }
+    // 「〜できる」のトラッシュ召喚は、召喚できるカードが1枚もないなら聞いても意味がない（ユーザー未確認の狭い適用。
+    // 他の「〜できる」へ広げるかは未決。報告参照）
+    if (action.type === "summonFromTrashFree") {
+        if (canPayResolve(state, owner, self, action, undefined, undefined)) return false
+        log(state, unpayableLine(sourceName, UNPAYABLE_REASONS.summonFromTrashFree!))
+        state.effectFizzled = true
+        return true
+    }
     if (action.type !== "pay" || action.confirmed) return false
     const skipThen = JSON.stringify(action.then).includes('"eventTargetOnly"')
     const srcColors = self ? instColors(self) : undefined

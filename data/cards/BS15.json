@@ -139,13 +139,16 @@
      1,
      2
     ],
-    "cost": {
-     "discardHandOne": true,
-     "exhaustSelf": true
-    },
     "action": {
-     "type": "destroyNexus",
-     "count": 1
+     "type": "pay",
+     "cost": {
+      "type": "sequence",
+      "actions": [
+       {"type": "discardSelfChoose", "count": 1},
+       {"type": "exhaust", "target": "self", "count": 1}
+      ]
+     },
+     "then": {"type": "destroyNexus", "count": 1}
     }
    }
   ]
@@ -207,8 +210,7 @@
        }
       },
       {
-       "type": "summonBurstCardFree",
-       "payCost": true
+       "type": "summonBurstCardFree"
       }
      ]
     }
@@ -1102,8 +1104,7 @@
      "ownHandAtLeast": 5
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -1122,22 +1123,16 @@
    },
    {
     "id": "BS15-017-e3",
-    "kind": "activated",
-    "timing": "flash",
+    "kind": "step",
+    "step": "end",
+    "turn": "opponent",
     "levels": [
      2
     ],
-    "phaseTurn": {
-     "phase": "end",
-     "turn": "opponent"
-    },
-    "cost": {
-     "discardHandKeyword": "fushi"
-    },
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1,
-     "colorFilter": "purple"
+     "type": "pay",
+     "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "spirit", "keyword": "fushi"},
+     "then": {"type": "recoverSpiritFromTrash", "count": 1, "colorFilter": "purple"}
     }
    }
   ]
@@ -1766,8 +1761,7 @@
      "bothFieldsRestedSpiritsAtLeast": 3
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -2372,8 +2366,7 @@
     "byOpponentEffectOnly": true,
     "destroyedMinBp": 5000,
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -3006,8 +2999,7 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -3596,15 +3588,10 @@
     "levels": [
      2
     ],
-    "cost": {
-     "selfCoresToTrash": 1
-    },
     "action": {
-     "type": "destroy",
-     "count": 1,
-     "filter": {
-      "hasUnblockableEffectOrActive": true
-     }
+     "type": "pay",
+     "cost": {"type": "removeCores", "side": "own", "target": "self", "to": "trash", "count": 1},
+     "then": {"type": "destroy", "count": 1, "filter": {"hasUnblockableEffectOrActive": true}}
     }
    }
   ]
@@ -3751,8 +3738,7 @@
      ]
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -6038,8 +6024,7 @@
        "orReserve": true
       },
       {
-       "type": "summonBurstCardFree",
-       "payCost": true
+       "type": "summonBurstCardFree"
       }
      ]
     }
