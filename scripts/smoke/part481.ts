@@ -519,36 +519,49 @@ scenario({
     ],
 })
 
-// 【合体時】フラッシュ：起動能力ではなく、合体した時点で誘発して「疲労させることで」を聞く解釈（質問事項）
+// 【合体時】フラッシュは起動能力（BS12-050-e3。確認済み）
+const ARCH_ID_TARGET = "brave" as "brave" | "host" // ホストでは「起動能力が見つかりません」で拒否された。ブレイヴ実体なら通る
 const archFlash = (spare: boolean) => ({
     name: spare ? "arch-flash" : "arch-flash-nopay",
     start: {
         interactive: true,
         me: {
             spirits: [
-                { card: SHIBERUZA, cores: 1, rested: !spare },
+                { card: SHIBERUZA, cores: 1 },
                 { card: ARCH, cores: 0 },
                 { card: V, label: "コスト", rested: !spare },
             ],
         },
+        opp: { spirits: [{ card: V, label: "相手V" }] },
     },
     steps: (t: ScenarioCtx) => {
         t.act("me", { type: "combineBrave", braveInstanceId: t.id("突機竜アーケランサー"), hostInstanceId: t.id("一番槍のシベルザ") })
-        const n = drive(t, { prefer: "コスト" })
-        assert(n === (spare ? 1 : 0), `確認は${spare ? 1 : 0}回（実際 ${n} 回）`)
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("一番槍のシベルザ") })
+        drive(t)
+        let g = 0
+        while (t.state.priorityPlayer !== t.me && g++ < 3) t.act("opp", { type: "pass" })
+        const instanceId = ARCH_ID_TARGET === "brave" ? t.id("突機竜アーケランサー") : t.id("一番槍のシベルザ")
+        const ability = { type: "activateAbility" as const, instanceId, effectId: "BS12-050-e3" }
+        if (spare) {
+            t.act("me", ability)
+            drive(t, { prefer: "コスト" })
+        } else {
+            t.actRejected("me", ability)
+        }
     },
 })
 const archBrave = ["自分.突機竜アーケランサー.場所: フィールド → 合体", "自分.突機竜アーケランサー.BP: 0 → なし", "自分.突機竜アーケランサー.Lv: 0 → 1"]
 console.log("=== 22. アーケランサー合体時フラッシュ：スピリット1体を疲労させて、BP+3000 ===")
 scenario({
     ...archFlash(true),
-    expect: ["自分.一番槍のシベルザ.BP: 3000 → 9000", "自分.コスト.疲労: false → true", ...archBrave],
+    expect: ["自分.一番槍のシベルザ.疲労: false → true", "自分.一番槍のシベルザ.BP: 3000 → 9000", "自分.コスト.疲労: false → true", ...archBrave],
 })
 
 console.log("=== 23. アーケランサー合体時フラッシュ：疲労させられるスピリットがいなければ確認も出ず、BPも上がらない ===")
 scenario({
     ...archFlash(false),
-    expect: ["自分.一番槍のシベルザ.BP: 3000 → 6000", ...archBrave],
+    expect: ["自分.一番槍のシベルザ.疲労: false → true", "自分.一番槍のシベルザ.BP: 3000 → 6000", ...archBrave],
 })
 
 // ───────────────────────── BS12-057 ハイドランディア
