@@ -1,5 +1,5 @@
 // smoke パート484（未発火だった効果節の場面テスト：効果文だけから書いた期待値）
-import { assert, getCard } from "./helpers"
+import { act, assert, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
 
@@ -665,5 +665,150 @@ need("P069", "ロード・ブレイバン", "brave")
             t.closeFlash()
         },
         expect: [...merged, "相手.守り.場所: フィールド → なし", "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 11"],
+    })
+}
+
+// ===== BS16-006 アーチャー・ドラゴン =====
+console.log("=== BS16-006 Lv2･Lv3 フラッシュ：コア2個をトラッシュへ置いて BP4000以下の相手のスピリットを破壊 ===")
+need("BS16-006", "アーチャー・ドラゴン", "spirit")
+{
+    const attackThenFlash = (t: ScenarioCtx) => {
+        t.act("opp", { type: "nextPhase" })
+        t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+    }
+    const oppSide = { spirits: [{ card: VANILLA, label: "攻撃役" }, { card: "X007", label: "強い" }] }
+    scenario({
+        name: "archer-flash-lv2",
+        start: { turn: "opp", me: { spirits: [{ card: "BS16-006", cores: 3 }] }, opp: oppSide },
+        steps: (t) => {
+            attackThenFlash(t)
+            t.act("me", { type: "activateAbility", instanceId: t.id("アーチャー・ドラゴン"), effectId: "BS16-006-e2" })
+            t.closeFlash()
+        },
+        expect: [
+            "自分.アーチャー・ドラゴン.コア: 3 → 1", "自分.アーチャー・ドラゴン.Lv: 2 → 1", "自分.アーチャー・ドラゴン.BP: 6000 → 4000",
+            "自分.トラッシュのコア: 0 → 2",
+            "相手.攻撃役.場所: フィールド → なし", "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 11",
+        ],
+    })
+    scenario({
+        name: "archer-flash-lv1",
+        start: { turn: "opp", me: { spirits: [{ card: "BS16-006", cores: 1 }] }, opp: oppSide },
+        steps: (t) => {
+            attackThenFlash(t)
+            t.actRejected("me", { type: "activateAbility", instanceId: t.id("アーチャー・ドラゴン"), effectId: "BS16-006-e2" })
+        },
+        expect: ["相手.攻撃役.疲労: false → true"],
+    })
+    scenario({
+        name: "archer-flash-no-target",
+        start: { turn: "opp", me: { spirits: [{ card: "BS16-006", cores: 3 }] }, opp: { spirits: [{ card: "X007", label: "攻撃役" }] } },
+        steps: (t) => {
+            t.act("opp", { type: "nextPhase" })
+            t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+            // 対象がいない（BP4000以下がいない）ので、コアを払っても何も起きない／そもそも使えない、のどちらでもよい
+            act(t.state, t.me, { type: "activateAbility", instanceId: t.id("アーチャー・ドラゴン"), effectId: "BS16-006-e2" })
+        },
+        expect: ["相手.攻撃役.疲労: false → true"],
+    })
+}
+
+// ===== X005A/E/D/T/S 北斗七星龍ジーク・アポロドラゴン =====
+console.log("=== X005 合体時 Lv3 アタック時：BPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を破壊 ===")
+for (const id of ["X005A", "X005E", "X005D", "X005T", "X005S"]) {
+    need(id, "北斗七星龍ジーク・アポロドラゴン", "spirit")
+    const attack = (t: ScenarioCtx, combined: boolean) => {
+        if (combined) combine(t, "トランプン", "主役")
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("主役") })
+        t.closeFlash()
+        t.act("opp", { type: "block", instanceId: t.id("守り") })
+        t.closeFlash()
+    }
+    const oppSide = { spirits: [{ card: VANILLA, label: "守り" }, { card: VANILLA, label: "とばっちり" }] }
+    const mine = (cores: number, withBrave: boolean) => ({ spirits: [{ card: id, label: "主役", cores }, ...(withBrave ? [{ card: "BS14-071", cores: 0 }] : [])] })
+    const braveRows = (bp: number) => ["自分.トランプン.場所: フィールド → 合体", "自分.トランプン.BP: 0 → なし", "自分.トランプン.Lv: 0 → 1", `自分.主役.BP: ${bp} → ${bp + 3000}`]
+    const blockerDies = ["相手.守り.場所: フィールド → なし", "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 11"]
+    scenario({
+        name: `${id}-lv3-combined`,
+        start: { me: mine(5, true), opp: oppSide },
+        steps: (t) => attack(t, true),
+        expect: [
+            "自分.主役.疲労: false → true", ...braveRows(11000),
+            "相手.守り.場所: フィールド → なし", "相手.とばっちり.場所: フィールド → なし",
+            "相手.トラッシュ: なし → ロクケラトプス、ロクケラトプス", "相手.リザーブ: 10 → 12",
+        ],
+    })
+    scenario({
+        name: `${id}-lv2-combined`,
+        start: { me: mine(3, true), opp: oppSide },
+        steps: (t) => attack(t, true),
+        expect: ["自分.主役.疲労: false → true", ...braveRows(8000), ...blockerDies],
+    })
+    scenario({
+        name: `${id}-lv3-alone`,
+        start: { me: mine(5, false), opp: oppSide },
+        steps: (t) => attack(t, false),
+        expect: ["自分.主役.疲労: false → true", ...blockerDies],
+    })
+}
+
+// ===== BS16-X03 烈の覇王セイリュービ =====
+console.log("=== BS16-X03 フラッシュ【烈神速】：トラッシュのコア5個以上を置き直して、コストなしで召喚 ===")
+need("BS16-X03", "烈の覇王セイリュービ", "spirit")
+{
+    // 自分のコスト5のネクサスを配置してトラッシュのコアを5個にしてから、アタックステップのフラッシュで使う
+    const prep = (t: ScenarioCtx, withTrash: boolean) => {
+        if (withTrash) t.act("me", { type: "setNexus", handIndex: 0 })
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("攻撃役") })
+        t.act("opp", { type: "pass" })
+    }
+    const nexusRows = ["自分.手札: 宙吊りの五行山、烈の覇王セイリュービ → なし", ...nexusIn("宙吊りの五行山"), "自分.攻撃役.疲労: false → true"]
+    const born = (cores: number, lv: number, bp: number) => [
+        `自分.烈の覇王セイリュービ.Lv: なし → ${lv}`, `自分.烈の覇王セイリュービ.BP: なし → ${bp}`, `自分.烈の覇王セイリュービ.コア: なし → ${cores}`,
+        "自分.烈の覇王セイリュービ.場所: なし → フィールド", "自分.烈の覇王セイリュービ.疲労: なし → false",
+    ]
+    const start = (hand: string[]) => ({ interactive: true, me: { hand, spirits: [{ card: VANILLA, label: "攻撃役" }] } })
+    scenario({
+        name: "resshinsoku-all-onto-self",
+        start: start(["BS16-064", "BS16-X03"]),
+        steps: (t) => {
+            prep(t, true)
+            t.act("me", { type: "resshinsokuSummon", handIndex: 0 })
+            t.act("me", { type: "resolveChoice", option: "残り全部をこのスピリットに置く" })
+            assert(t.state.pendingChoice === null, "置き先の選択はこれで終わる")
+        },
+        expect: [...nexusRows, ...born(5, 2, 10000), "自分.リザーブ: 10 → 5"],
+    })
+    scenario({
+        name: "resshinsoku-all-to-reserve",
+        start: start(["BS16-064", "BS16-X03"]),
+        steps: (t) => {
+            prep(t, true)
+            t.act("me", { type: "resshinsokuSummon", handIndex: 0 })
+            t.act("me", { type: "resolveChoice", option: "残り全部をリザーブに置く" })
+            // スピリットにコアが1個も無いと場に残れないので、最低1個は自分に置かれる
+            while (t.state.pendingChoice) t.act("me", { type: "resolveChoice", option: t.state.pendingChoice.options![0]! })
+        },
+        expect: [...nexusRows, ...born(1, 1, 5000), "自分.リザーブ: 10 → 9"],
+    })
+    scenario({
+        name: "resshinsoku-trash-cores-4",
+        start: { interactive: true, me: { hand: ["BS16-X03"], spirits: [{ card: VANILLA, label: "攻撃役" }] } },
+        steps: (t) => {
+            prep(t, false)
+            t.actRejected("me", { type: "resshinsokuSummon", handIndex: 0 })
+        },
+        expect: ["自分.攻撃役.疲労: false → true"],
+    })
+    scenario({
+        name: "resshinsoku-main-step",
+        start: start(["BS16-064", "BS16-X03"]),
+        steps: (t) => {
+            t.act("me", { type: "setNexus", handIndex: 0 })
+            t.actRejected("me", { type: "resshinsokuSummon", handIndex: 0 })
+        },
+        expect: ["自分.手札: 宙吊りの五行山 → なし", "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 5", ...nexusIn("宙吊りの五行山")],
     })
 }
