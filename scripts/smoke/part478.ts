@@ -1,5 +1,5 @@
 // smoke パート478（BS11 の未発火エントリ：効果文だけから書いた場面テスト）
-import { assert, getCard } from "./helpers"
+import { assert, effectiveBp, getCard } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
 
@@ -843,5 +843,148 @@ scenario({
         assert(n === 0, `確認は出ない（実際 ${n} 回）`)
     },
     expect: [...elixirPaid, "相手.疲労者.疲労: true → false"],
+})
+
+// ===== BS11-033 ニジノコ：Lv1 は赤のスピリットとしても、Lv2 は紫のスピリットとしても扱う =====
+const NIJI = "BS11-033"
+const RED_NEXUS = "BS14-073" // 赤き前方後円墳：『自分のアタックステップ』自分の赤のスピリットすべてをBP+1000
+const nijiMe = (cores: number, nexus: string) => ({ spirits: [{ card: NIJI, cores }], nexuses: [{ card: nexus, cores: 0 }] })
+
+console.log("=== ニジノコ1. Lv1：赤のスピリットとして、赤のスピリットへのBP+1000を受ける ===")
+scenario({
+    name: "niji-red",
+    start: { me: nijiMe(1, RED_NEXUS) },
+    steps: (t) => t.act("me", { type: "nextPhase" }),
+    expect: ["自分.ニジノコ.BP: 1000 → 2000"],
+})
+
+console.log("=== ニジノコ2. Lv2：赤としては扱わない（紫として扱う） ===")
+scenario({
+    name: "niji-lv2-not-red",
+    start: { me: nijiMe(2, RED_NEXUS) },
+    steps: (t) => t.act("me", { type: "nextPhase" }),
+    expect: [],
+})
+
+console.log("=== ニジノコ3. Lv2：紫のスピリットとして、紫のスピリットへのBP+1000を受ける（Lv1 は受けない） ===")
+for (const [cores, bp] of [[2, 3000], [1, 1000]] as const) {
+    scenario({
+        name: `niji-purple-lv${cores}`,
+        start: { me: nijiMe(cores, CASTLE) },
+        steps: (t) => assert(effectiveBp(t.state, t.me, t.inst("ニジノコ")) === bp, `Lv${cores} のニジノコのBPは${bp}`),
+        expect: [],
+    })
+}
+
+// ===== BS11-039 天使ティアエル：手札にあるこのカードは、自分のトラッシュにあるカードのシンボルでも召喚コストを軽減できる =====
+const TIAEL = "BS11-039" // 黄・コスト5・軽減シンボル黄4つ
+const CHUNPOPO = "BS02-051" // チュンポポ（黄・コスト1・バニラ・シンボル黄1つ）
+
+const tiaelSummon = (trash: string[], spent: number) => ({
+    start: { me: { hand: [TIAEL], trash } },
+    steps: (t: ScenarioCtx) => t.act("me", { type: "summon", handIndex: 0 }),
+    expect: [
+        "自分.手札: 天使ティアエル → なし",
+        `自分.リザーブ: 10 → ${10 - spent - 1}`,
+        `自分.トラッシュのコア: 0 → ${spent}`,
+        "自分.天使ティアエル.BP: なし → 3000",
+        "自分.天使ティアエル.Lv: なし → 1",
+        "自分.天使ティアエル.コア: なし → 1",
+        "自分.天使ティアエル.場所: なし → フィールド",
+        "自分.天使ティアエル.疲労: なし → false",
+    ],
+})
+
+console.log("=== ティアエル1. トラッシュの黄のカード2枚のシンボルで、コスト5が3になる ===")
+scenario({ name: "tiael-trash-symbols", ...tiaelSummon([CHUNPOPO, CHUNPOPO], 3) })
+
+console.log("=== ティアエル2. トラッシュのカードが黄でなければ軽減されない ===")
+scenario({ name: "tiael-trash-other-color", ...tiaelSummon([VANILLA, VANILLA], 5) })
+
+// ===== BS11-045 MCギンガー：お互い、ターンに1回しかマジックの効果を使えない =====
+const GINGA = "BS11-045"
+const twoMagics = { hand: [METEOR, METEOR], spirits: [{ card: VANILLA, label: "標的" }] }
+const castOnce = (side: "me" | "opp") => (t: ScenarioCtx) => t.act(side, { type: "castMagic", handIndex: 0, targetInstanceId: t.id(side === "me" ? "自分.標的" : "相手.標的") })
+const afterOneCast = (k: string) => [`${k}.手札: メテオフォール、メテオフォール → メテオフォール`, `${k}.トラッシュ: なし → メテオフォール`, `${k}.トラッシュのコア: 0 → 1`, `${k}.リザーブ: 10 → 9`, `${k}.標的.BP: 1000 → 3000`]
+
+console.log("=== ギンガー1. 自分のターン：1回目は使えて、2回目は使えない ===")
+scenario({
+    name: "ginga-me",
+    start: { me: { ...twoMagics, spirits: [...twoMagics.spirits, { card: GINGA }] } },
+    steps: (t) => {
+        castOnce("me")(t)
+        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("自分.標的") })
+    },
+    expect: afterOneCast("自分"),
+})
+
+console.log("=== ギンガー2. 相手のターンも同じ（お互い）：相手の2回目は使えない ===")
+scenario({
+    name: "ginga-opp",
+    start: { turn: "opp", me: { spirits: [{ card: GINGA }] }, opp: twoMagics },
+    steps: (t) => {
+        castOnce("opp")(t)
+        t.actRejected("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("相手.標的") })
+    },
+    expect: afterOneCast("相手"),
+})
+
+console.log("=== ギンガー3. ギンガーがいなければ2回使える ===")
+scenario({
+    name: "ginga-none",
+    start: { me: twoMagics },
+    steps: (t) => {
+        castOnce("me")(t)
+        castOnce("me")(t)
+    },
+    expect: [
+        "自分.手札: メテオフォール、メテオフォール → なし",
+        "自分.トラッシュ: なし → メテオフォール、メテオフォール",
+        "自分.トラッシュのコア: 0 → 2",
+        "自分.リザーブ: 10 → 8",
+        "自分.標的.BP: 1000 → 5000",
+    ],
+})
+
+// ===== BS11-064 闇の聖剣：自分のスピリットが破壊されたとき、そのスピリットをコスト3/4のスピリットとしても扱う =====
+const SWORD = "BS11-064"
+
+const swordMe = (withSword: boolean) => ({
+    trash: [GAHERIS], // 【不死：コスト3】
+    spirits: [{ card: DWAFFU, label: "ブロッカー" }], // コスト7
+    nexuses: withSword ? [{ card: SWORD, cores: 0 }] : [],
+})
+const swordOpp = { spirits: [{ card: WINGAL, label: "アタッカー", cores: 4 }] }
+
+console.log("=== 闇の聖剣1. コスト7のスピリットが破壊されても、コスト3としても扱われ、コスト3用の不死が使える ===")
+scenario({
+    name: "sword-also-cost",
+    start: { turn: "opp", me: swordMe(true), opp: swordOpp },
+    steps: (t) => fight(t, "opp", "アタッカー", "ブロッカー"),
+    expect: [
+        "自分.ブロッカー.場所: フィールド → なし",
+        "自分.トラッシュ: 闇騎士ガヘリス → ドワッフー・セブン",
+        "自分.リザーブ: 10 → 8",
+        "自分.トラッシュのコア: 0 → 2",
+        "自分.闇騎士ガヘリス.BP: なし → 1000",
+        "自分.闇騎士ガヘリス.Lv: なし → 1",
+        "自分.闇騎士ガヘリス.コア: なし → 1",
+        "自分.闇騎士ガヘリス.場所: なし → フィールド",
+        "自分.闇騎士ガヘリス.疲労: なし → false",
+        "相手.アタッカー.疲労: false → true",
+    ],
+})
+
+console.log("=== 闇の聖剣2. 聖剣が無ければ、コスト7のスピリットの破壊では不死は使えない ===")
+scenario({
+    name: "sword-none",
+    start: { turn: "opp", me: swordMe(false), opp: swordOpp },
+    steps: (t) => fight(t, "opp", "アタッカー", "ブロッカー"),
+    expect: [
+        "自分.ブロッカー.場所: フィールド → なし",
+        "自分.トラッシュ: 闇騎士ガヘリス → ドワッフー・セブン、闇騎士ガヘリス",
+        "自分.リザーブ: 10 → 11",
+        "相手.アタッカー.疲労: false → true",
+    ],
 })
 console.log("すべてのチェックに合格しました 🎉（part478）")
