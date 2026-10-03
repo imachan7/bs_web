@@ -670,8 +670,9 @@ const MINO = "BS13-034"
 const PENTAN = "BS14-049"
 is(MINO, "ミノガメン", "spirit", (c) => c.cost === 2)
 is(PENTAN, "執事ペンタン", "spirit", (c) => c.cost === 3)
-// 山札の先頭がどちら側か分からないので、両端に置いて「5枚破棄に含まれる」場面にする
-const milledDeck = (c: string) => [c, ...Array.from({ length: 38 }, () => V), c]
+// 山札の先頭は配列の添字0。pos 番目（0始まり）に c を置く。破棄の途中で c が破棄されると、残りの破棄はその場で止まる
+const deckWith = (c: string, pos: number) => Array.from({ length: 40 }, (_, i) => (i === pos ? c : V))
+const milledDeck = (c: string) => deckWith(c, 4) // 5枚目なので5枚すべて破棄される
 const notMilledDeck = (c: string) => Array.from({ length: 40 }, (_, i) => (i === 20 ? c : V))
 const millFlow = (secondCast: boolean, decline = false) => (t: ScenarioCtx) => {
     t.act("opp", { type: "castMagic", handIndex: 0 })
@@ -717,6 +718,44 @@ for (const [id, nm, label, bp] of [[MINO, "mino", "ミノガメン", 1000], [PEN
         start: { interactive: true, turn: "opp", me: { deck: notMilledDeck(id) }, opp: { hand: [HAMMER] } },
         steps: (t) => assert(millFlow(false)(t) === 0, "確認は出ない"),
         expect: [...millCommon, "相手.トラッシュ: なし → マジックハンマー", `自分.トラッシュ: なし → ${fourV}、ロクケラトプス`],
+    })
+    const bpHere = bp
+    const summoned = [
+        `自分.${name}.BP: なし → ${bpHere}`,
+        `自分.${name}.Lv: なし → 1`,
+        `自分.${name}.コア: なし → 1`,
+        `自分.${name}.場所: なし → フィールド`,
+        `自分.${name}.疲労: なし → false`,
+        "自分.リザーブ: 10 → 9",
+    ]
+    const oneCast = ["相手.トラッシュのコア: 0 → 4", "相手.リザーブ: 10 → 6", "相手.手札: マジックハンマー → なし", "相手.トラッシュ: なし → マジックハンマー"]
+    console.log(`=== 14-${nm}-4. ${label}：上から2枚目なら破棄は2枚で止まる。召喚を受ければ手前の1枚だけがトラッシュに残る ===`)
+    scenario({
+        name: `${nm}-stop-yes`,
+        start: { interactive: true, turn: "opp", me: { deck: deckWith(id, 1) }, opp: { hand: [HAMMER] } },
+        steps: (t) => assert(millFlow(false)(t) === 1, "確認は1回"),
+        expect: [...oneCast, "自分.デッキ枚数: 40 → 38", "自分.トラッシュ: なし → ロクケラトプス", ...summoned],
+    })
+    console.log(`=== 14-${nm}-5. ${label}：2枚目で止まる場面で召喚を断っても、破棄は2枚で止まる ===`)
+    scenario({
+        name: `${nm}-stop-decline`,
+        start: { interactive: true, turn: "opp", me: { deck: deckWith(id, 1) }, opp: { hand: [HAMMER] } },
+        steps: (t) => assert(millFlow(false, true)(t) === 1, "確認は1回"),
+        expect: [...oneCast, "自分.デッキ枚数: 40 → 38", `自分.トラッシュ: なし → ${[name, "ロクケラトプス"].sort().join("、")}`],
+    })
+    console.log(`=== 14-${nm}-6. ${label}：召喚を断っても、同じターンの2回目の破棄は起きない ===`)
+    scenario({
+        name: `${nm}-decline-second`,
+        start: { interactive: true, turn: "opp", me: { deck: milledDeck(id) }, opp: { hand: [HAMMER, HAMMER] } },
+        steps: (t) => assert(millFlow(true, true)(t) === 1, "確認は1回"),
+        expect: [
+            "相手.トラッシュのコア: 0 → 8",
+            "相手.リザーブ: 10 → 2",
+            "相手.手札: マジックハンマー、マジックハンマー → なし",
+            "相手.トラッシュ: なし → マジックハンマー、マジックハンマー",
+            "自分.デッキ枚数: 40 → 35",
+            `自分.トラッシュ: なし → ${[name, ...Array(4).fill("ロクケラトプス")].sort().join("、")}`,
+        ],
     })
 }
 
