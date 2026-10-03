@@ -573,4 +573,141 @@ scenario({
         "相手.ロクケラトプス.疲労: false → true",
     ],
 })
+
+// ---- K シユウ ----
+const SHIYU = "BS13-058"
+console.log("=== 前提K: カードの機械確認 ===")
+{
+    assert(getCard(SHIYU).name === "シユウ" && getCard(SHIYU).type === "brave", "SHIYUはシユウ")
+}
+const isConfirm = (t: ScenarioCtx) => {
+    const pc = t.state.pendingChoice
+    return pc !== null && pc.kind === "option" && (pc.options ?? []).includes("発動する")
+}
+const SHIYU_ON_WINGAL = [
+    "自分.シユウ.BP: 0 → なし",
+    "自分.シユウ.Lv: 0 → 1",
+    "自分.シユウ.場所: フィールド → 合体",
+    `自分.ウィンガル.BP: 5000 → ${5000 + braveBp(SHIYU)}`,
+    "自分.ウィンガル.疲労: false → true",
+]
+const FIVE_MILLED = ["自分.デッキ枚数: 40 → 35", "自分.トラッシュ: なし → ロクケラトプス、ロクケラトプス、ロクケラトプス、ロクケラトプス、ロクケラトプス", "自分.ライフ: 5 → 6"]
+function shiyuAttack(t: ScenarioCtx, answer: "confirm" | "decline" | "none"): number {
+    t.act("me", { type: "combineBrave", braveInstanceId: t.id("シユウ"), hostInstanceId: t.id("ウィンガル") })
+    t.act("me", { type: "nextPhase" })
+    t.act("me", { type: "attack", instanceId: t.id("ウィンガル") })
+    let confirms = 0
+    if (isConfirm(t)) {
+        confirms++
+        if (answer === "confirm") t.act("me", { type: "resolveChoice", option: "発動する" })
+        else t.act("me", { type: "resolveChoice", option: t.state.pendingChoice!.options!.find((o) => o !== "発動する")! })
+    }
+    t.closeFlash()
+    return confirms
+}
+console.log("=== K1. シユウ（非対話）：アタック時にデッキを5枚破棄してライフ+1。Lv1の相手はブロックできない ===")
+scenario({
+    name: "shiyu-auto",
+    start: { turn: "me", me: { spirits: [{ card: WINGAL, cores: 1 }, { card: SHIYU, cores: 0 }] }, opp: { spirits: [{ card: VANILLA }] } },
+    steps: (t) => {
+        shiyuAttack(t, "none")
+        t.actRejected("opp", { type: "block", instanceId: t.id("相手.ロクケラトプス") })
+    },
+    expect: [...SHIYU_ON_WINGAL, ...FIVE_MILLED],
+})
+
+console.log("=== K2. シユウ（対話）：確認は1回。押すと同じ結果 ===")
+scenario({
+    name: "shiyu-confirm",
+    start: { turn: "me", interactive: true, me: { spirits: [{ card: WINGAL, cores: 1 }, { card: SHIYU, cores: 0 }] }, opp: { spirits: [{ card: VANILLA }] } },
+    steps: (t) => {
+        const n = shiyuAttack(t, "confirm")
+        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+        t.actRejected("opp", { type: "block", instanceId: t.id("相手.ロクケラトプス") })
+    },
+    expect: [...SHIYU_ON_WINGAL, ...FIVE_MILLED],
+})
+
+console.log("=== K3. シユウ（対話）：断るとデッキもライフも動かず、Lv1の相手もブロックできる ===")
+scenario({
+    name: "shiyu-decline",
+    start: { turn: "me", interactive: true, me: { spirits: [{ card: WINGAL, cores: 1 }, { card: SHIYU, cores: 0 }] }, opp: { spirits: [{ card: VANILLA }] } },
+    steps: (t) => {
+        const n = shiyuAttack(t, "decline")
+        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+        t.act("opp", { type: "block", instanceId: t.id("相手.ロクケラトプス") })
+    },
+    expect: [...SHIYU_ON_WINGAL, "相手.ロクケラトプス.疲労: false → true"],
+})
+
+console.log("=== K4. シユウ（対話）：デッキが4枚しかなければ払えないので確認は出ず、何も起きない ===")
+scenario({
+    name: "shiyu-short-deck",
+    start: { turn: "me", interactive: true, me: { deck: [VANILLA, VANILLA, VANILLA, VANILLA], spirits: [{ card: WINGAL, cores: 1 }, { card: SHIYU, cores: 0 }] }, opp: { spirits: [{ card: VANILLA }] } },
+    steps: (t) => {
+        const n = shiyuAttack(t, "confirm")
+        assert(n === 0, `確認は出ない（実際 ${n} 回）`)
+        t.act("opp", { type: "block", instanceId: t.id("相手.ロクケラトプス") })
+    },
+    expect: [...SHIYU_ON_WINGAL, "相手.ロクケラトプス.疲労: false → true"],
+})
+
+console.log("=== K5. シユウ：相手のスピリットがLv3ならブロックできる ===")
+scenario({
+    name: "shiyu-lv3-blocker",
+    start: { turn: "me", me: { spirits: [{ card: WINGAL, cores: 1 }, { card: SHIYU, cores: 0 }] }, opp: { spirits: [{ card: VANILLA, cores: 3 }] } },
+    steps: (t) => {
+        shiyuAttack(t, "none")
+        t.act("opp", { type: "block", instanceId: t.id("相手.ロクケラトプス") })
+    },
+    expect: [...SHIYU_ON_WINGAL, ...FIVE_MILLED, "相手.ロクケラトプス.疲労: false → true"],
+})
+
+// ---- L フォビッド・バルチャー ----
+const VULTURE = "BS13-059"
+const NX_BLUE = "BS03-113" // 力奪う凱旋門（青）
+const NX_PURPLE = "BS04-079" // 王蛇の住処（紫）
+const NX_GREEN = "BS04-080" // 旋風渦巻く渓谷（緑）
+const NX_YELLOW = "BS02-085" // トパーズの流星（黄）
+console.log("=== 前提L: カードの機械確認 ===")
+{
+    assert(getCard(VULTURE).name === "フォビッド・バルチャー" && getCard(VULTURE).type === "brave" && getCard(VULTURE).cost === 5, "VULTUREはコスト5のブレイヴ")
+    const nx = (id: string, name: string, color: string) => assert(getCard(id).name === name && getCard(id).type === "nexus" && getCard(id).colors[0] === color, `${id}は${name}（${color}のネクサス）`)
+    nx(NX_BLUE, "力奪う凱旋門", "blue")
+    nx(NX_PURPLE, "王蛇の住処", "purple")
+    nx(NX_GREEN, "旋風渦巻く渓谷", "green")
+    nx(NX_YELLOW, "トパーズの流星", "yellow")
+}
+const SUMMON_VULTURE = [
+    "自分.手札: フォビッド・バルチャー → なし",
+    "自分.リザーブ: 10 → 4",
+    "自分.トラッシュのコア: 0 → 5",
+    "自分.フォビッド・バルチャー.場所: なし → フィールド",
+    "自分.フォビッド・バルチャー.疲労: なし → false",
+    "自分.フォビッド・バルチャー.コア: なし → 1",
+    "自分.フォビッド・バルチャー.Lv: なし → 1",
+    "自分.フォビッド・バルチャー.BP: なし → 4000",
+]
+const placed = (name: string) => [`自分.${name}.場所: なし → ネクサス`, `自分.${name}.疲労: なし → false`, `自分.${name}.コア: なし → 0`, `自分.${name}.Lv: なし → 1`]
+console.log("=== L1. バルチャー：召喚時、トラッシュの紫/緑/青のネクサスすべてをコスト無しで配置する（黄は置かない） ===")
+scenario({
+    name: "vulture-nexuses",
+    start: { turn: "me", me: { hand: [VULTURE], trash: [NX_BLUE, NX_PURPLE, NX_GREEN, NX_YELLOW, VANILLA] } },
+    steps: (t) => { t.act("me", { type: "summon", handIndex: 0 }) },
+    expect: [
+        ...SUMMON_VULTURE,
+        `自分.トラッシュ: ${nameList(NX_BLUE, NX_PURPLE, NX_GREEN, NX_YELLOW, VANILLA)} → ${nameList(NX_YELLOW, VANILLA)}`,
+        ...placed("力奪う凱旋門"),
+        ...placed("王蛇の住処"),
+        ...placed("旋風渦巻く渓谷"),
+    ],
+})
+
+console.log("=== L2. バルチャー：トラッシュに紫/緑/青のネクサスが無ければ何も置かない ===")
+scenario({
+    name: "vulture-no-nexus",
+    start: { turn: "me", me: { hand: [VULTURE], trash: [NX_YELLOW, VANILLA] } },
+    steps: (t) => { t.act("me", { type: "summon", handIndex: 0 }) },
+    expect: SUMMON_VULTURE,
+})
 console.log("すべてのチェックに合格しました 🎉（part482）")

@@ -639,7 +639,7 @@ console.log("=== P069 合体アタック時：アタックで相手のライフ�
 need("P069", "ロード・ブレイバン", "brave")
 {
     const HOST = "ダークレイス"
-    const merged = ["自分.ロード・ブレイバン.場所: フィールド → 合体", "自分.ロード・ブレイバン.BP: 0 → なし", "自分.ロード・ブレイバン.Lv: 0 → 1", `自分.${HOST}.BP: 2000 → 5000`, `自分.${HOST}.疲労: false → true`]
+    const merged = ["自分.ロード・ブレイバン.場所: フィールド → 合体", "自分.ロード・ブレイバン.BP: 0 → なし", "自分.ロード・ブレイバン.Lv: 0 → 1", `自分.${HOST}.BP: 2000 → 7000`, `自分.${HOST}.疲労: false → true`]
     const mine = { spirits: [{ card: "BS03-018", label: HOST }, { card: "P069", cores: 0 }] }
     scenario({
         name: "braban-life-core",
