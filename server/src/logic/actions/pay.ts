@@ -534,6 +534,8 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             return
         }
     }
+    // 確認で「発動する」を押した後の不発は、発動した扱い（【相手の『召喚時』発揮後】が反応する。2026-10-03 ユーザー確認）
+    if (action.confirmed && self && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
     let cost = action.cost
     const judge = () => judgePay(state, owner, self, action, srcColors, srcType, eventTargetId)
     // 聞く前に成立しないなら確認を出さずに不発（2026-10-02 ユーザー確認。COST_MODEL §10 の「払えなくても確認は出る」を改訂）。
