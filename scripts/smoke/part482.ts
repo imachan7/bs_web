@@ -710,4 +710,281 @@ scenario({
     steps: (t) => { t.act("me", { type: "summon", handIndex: 0 }) },
     expect: SUMMON_VULTURE,
 })
+
+// ---- M トレス・ベルーガ ----
+const BELUGA = "BS13-060"
+console.log("=== 前提M: カードの機械確認 ===")
+{
+    assert(getCard(BELUGA).name === "トレス・ベルーガ" && getCard(BELUGA).type === "brave", "BELUGAはトレス・ベルーガ")
+    assert(getCard(SAGIT).family.includes("光導") && getCard(LEO).family.includes("光導"), "サジットとレオは光導")
+}
+// デッキの上から index 0。top の並びを指定して残りはバニラ
+const deckOf = (top: string[]) => [...top, ...Array.from({ length: 40 - top.length }, () => VANILLA)]
+const SIX_VANILLA = ["ロクケラトプス", "ロクケラトプス", "ロクケラトプス", "ロクケラトプス", "ロクケラトプス", "ロクケラトプス"].join("、")
+const belugaAttack = (t: ScenarioCtx) => {
+    t.act("me", { type: "combineBrave", braveInstanceId: t.id("トレス・ベルーガ"), hostInstanceId: t.id(SAGIT_NAME) })
+    t.act("me", { type: "nextPhase" })
+    t.act("me", { type: "attack", instanceId: t.id(SAGIT_NAME) })
+}
+const BELUGA_ON_SAGIT = [
+    "自分.トレス・ベルーガ.BP: 0 → なし",
+    "自分.トレス・ベルーガ.Lv: 0 → 1",
+    "自分.トレス・ベルーガ.場所: フィールド → 合体",
+]
+const belugaBp = 6000 + braveBp(BELUGA) + 6000
+console.log("=== M1. ベルーガ：合体アタック時にデッキを6枚破棄してBP+6000（光導が落ちなければ疲労したまま） ===")
+scenario({
+    name: "beluga-plain",
+    start: { turn: "me", me: { spirits: [{ card: SAGIT, cores: 1 }, { card: BELUGA, cores: 0 }] } },
+    steps: belugaAttack,
+    expect: [
+        ...BELUGA_ON_SAGIT,
+        "自分.デッキ枚数: 40 → 34",
+        `自分.トラッシュ: なし → ${SIX_VANILLA}`,
+        `自分.${SAGIT_NAME}.BP: 6000 → ${belugaBp}`,
+        `自分.${SAGIT_NAME}.疲労: false → true`,
+    ],
+})
+
+console.log("=== M2. ベルーガ：破棄したカードに光導のスピリットが含まれたら、このスピリットは回復する（アタックで疲労したあと回復） ===")
+scenario({
+    name: "beluga-recover",
+    start: { turn: "me", me: { deck: deckOf([LEO]), spirits: [{ card: SAGIT, cores: 1 }, { card: BELUGA, cores: 0 }] } },
+    steps: belugaAttack,
+    expect: [
+        ...BELUGA_ON_SAGIT,
+        "自分.デッキ枚数: 40 → 34",
+        `自分.トラッシュ: なし → ${nameList(LEO, VANILLA, VANILLA, VANILLA, VANILLA, VANILLA)}`,
+        `自分.${SAGIT_NAME}.BP: 6000 → ${belugaBp}`,
+    ],
+})
+
+console.log("=== M3. ベルーガ：光導のカードが7枚目なら破棄されないので回復しない ===")
+scenario({
+    name: "beluga-seventh",
+    start: { turn: "me", me: { deck: deckOf([VANILLA, VANILLA, VANILLA, VANILLA, VANILLA, VANILLA, LEO]), spirits: [{ card: SAGIT, cores: 1 }, { card: BELUGA, cores: 0 }] } },
+    steps: belugaAttack,
+    expect: [
+        ...BELUGA_ON_SAGIT,
+        "自分.デッキ枚数: 40 → 34",
+        `自分.トラッシュ: なし → ${SIX_VANILLA}`,
+        `自分.${SAGIT_NAME}.BP: 6000 → ${belugaBp}`,
+        `自分.${SAGIT_NAME}.疲労: false → true`,
+    ],
+})
+
+console.log("=== M4. ベルーガ（対話）：確認は1回。断るとデッキもBPも動かない ===")
+scenario({
+    name: "beluga-decline",
+    start: { turn: "me", interactive: true, me: { spirits: [{ card: SAGIT, cores: 1 }, { card: BELUGA, cores: 0 }] } },
+    steps: (t) => {
+        belugaAttack(t)
+        assert(isConfirm(t), "発動確認が出る")
+        const pc = t.state.pendingChoice!
+        t.act("me", { type: "resolveChoice", option: pc.options!.find((o) => o !== "発動する")! })
+        assert(t.state.pendingChoice === null, "確認は1回だけ")
+    },
+    expect: [
+        ...BELUGA_ON_SAGIT,
+        `自分.${SAGIT_NAME}.BP: 6000 → ${6000 + braveBp(BELUGA)}`,
+        `自分.${SAGIT_NAME}.疲労: false → true`,
+    ],
+})
+
+// ---- N レッサー・ドラグサウルス ----
+const DRAGSAURUS = "BS14-004"
+const SEIMEI = "BS14-X02"
+console.log("=== 前提N: カードの機械確認 ===")
+{
+    assert(getCard(DRAGSAURUS).name === "レッサー・ドラグサウルス" && getCard(DRAGSAURUS).levels.find((l) => l.level === 2)?.cores === 3, "DRAGSAURUSはコア3でLv2")
+    assert(getCard(SEIMEI).name === "呪の覇王カオティック・セイメイ" && getCard(SEIMEI).type === "spirit", "SEIMEIはセイメイ")
+}
+const dragAttack = (t: ScenarioCtx) => {
+    t.act("me", { type: "nextPhase" })
+    t.act("me", { type: "attack", instanceId: t.id("レッサー・ドラグサウルス") })
+}
+const dragExpect = (destroyed: boolean) => [
+    "自分.レッサー・ドラグサウルス.疲労: false → true",
+    ...(destroyed ? ["相手.力奪う凱旋門.場所: ネクサス → なし", `相手.トラッシュ: なし → ${nameList(NX_BLUE)}`] : []),
+]
+console.log("=== N1. ドラグサウルス Lv2：バーストをセットしているとき、アタック時に相手のネクサス1つを破壊する ===")
+scenario({
+    name: "drag-burst",
+    start: { turn: "me", me: { burst: SEIMEI, spirits: [{ card: DRAGSAURUS, cores: 3 }] }, opp: { nexuses: [{ card: NX_BLUE, cores: 0 }] } },
+    steps: dragAttack,
+    expect: dragExpect(true),
+})
+
+console.log("=== N2. ドラグサウルス Lv2：バーストをセットしていなければ破壊しない ===")
+scenario({
+    name: "drag-no-burst",
+    start: { turn: "me", me: { spirits: [{ card: DRAGSAURUS, cores: 3 }] }, opp: { nexuses: [{ card: NX_BLUE, cores: 0 }] } },
+    steps: dragAttack,
+    expect: dragExpect(false),
+})
+
+console.log("=== N3. ドラグサウルス Lv1：バーストをセットしていてもLv2の効果なので破壊しない ===")
+scenario({
+    name: "drag-lv1",
+    start: { turn: "me", me: { burst: SEIMEI, spirits: [{ card: DRAGSAURUS, cores: 1 }] }, opp: { nexuses: [{ card: NX_BLUE, cores: 0 }] } },
+    steps: dragAttack,
+    expect: dragExpect(false),
+})
+
+console.log("=== N4. ドラグサウルス Lv2：自分のネクサスは破壊しない（相手のネクサスが無ければ何も起きない） ===")
+scenario({
+    name: "drag-own-nexus",
+    start: { turn: "me", me: { burst: SEIMEI, spirits: [{ card: DRAGSAURUS, cores: 3 }], nexuses: [{ card: NX_BLUE, cores: 0 }] } },
+    steps: dragAttack,
+    expect: dragExpect(false),
+})
+
+// ---- O ムシャ・エイプウィップ ----
+const MUSHA = "BS14-031"
+console.log("=== 前提O: カードの機械確認 ===")
+{
+    assert(getCard(MUSHA).name === "ムシャ・エイプウィップ" && getCard(MUSHA).cost === 5, "MUSHAはコスト5")
+}
+const summonMusha = (reserve: number) => [
+    "自分.手札: ムシャ・エイプウィップ → なし",
+    `自分.リザーブ: 10 → ${reserve}`,
+    "自分.トラッシュのコア: 0 → 5",
+    "自分.ムシャ・エイプウィップ.場所: なし → フィールド",
+    "自分.ムシャ・エイプウィップ.疲労: なし → false",
+    "自分.ムシャ・エイプウィップ.コア: なし → 1",
+    "自分.ムシャ・エイプウィップ.Lv: なし → 1",
+    "自分.ムシャ・エイプウィップ.BP: なし → 3000",
+]
+console.log("=== O1. ムシャ：バーストをセットして召喚すると、ボイドからコア2個がリザーブに増える ===")
+scenario({
+    name: "musha-burst",
+    start: { turn: "me", me: { hand: [MUSHA], burst: SEIMEI } },
+    steps: (t) => { t.act("me", { type: "summon", handIndex: 0 }) },
+    expect: summonMusha(6),
+})
+
+console.log("=== O2. ムシャ：バーストをセットしていなければ増えない ===")
+scenario({
+    name: "musha-no-burst",
+    start: { turn: "me", me: { hand: [MUSHA] } },
+    steps: (t) => { t.act("me", { type: "summon", handIndex: 0 }) },
+    expect: summonMusha(4),
+})
+
+// ---- P 【重装甲】（レオ・ラクーンガード・モージ）----
+const RACCOON = "BS14-035"
+const MOJI = "BS14-042"
+const BUILDUP = "BS03-141" // ビルドアップ（青・コスト3・フラッシュ：自分か相手のスピリット1体のLvを1つ上のものとして扱う）
+const MIST = "BS04-101" // ミストカーテン（白・コスト2・フラッシュ：相手のスピリット1体を指定する）
+console.log("=== 前提P: カードの機械確認 ===")
+{
+    assert(getCard(RACCOON).name === "ラクーンガード" && getCard(MOJI).name === "鉄の機人モージ", "RACCOONとMOJIの名前")
+    assert(getCard(BUILDUP).name === "ビルドアップ" && getCard(BUILDUP).colors[0] === "blue" && getCard(BUILDUP).type === "magic", "BUILDUPは青のマジック")
+    assert(getCard(MIST).name === "ミストカーテン" && getCard(MIST).colors[0] === "white" && getCard(MIST).type === "magic", "MISTは白のマジック")
+}
+const LEO_NAME = "獅機龍神ストライクヴルム・レオ"
+const castOn = (target: string) => (t: ScenarioCtx) => t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id(target) })
+const rejectOn = (target: string) => (t: ScenarioCtx) => t.actRejected("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id(target) })
+const casted = (name: string, cost: number) => [`相手.手札: ${name} → なし`, `相手.トラッシュ: なし → ${name}`, `相手.トラッシュのコア: 0 → ${cost}`, `相手.リザーブ: 10 → ${10 - cost}`]
+
+console.log("=== P1. レオ：相手の緑のマジックは対象にできない（【重装甲：紫/緑/白/黄】） ===")
+scenario({ name: "leo-green", start: { turn: "opp", me: { spirits: [{ card: LEO, cores: 2 }] }, opp: { hand: [THORN] } }, steps: rejectOn(LEO_NAME), expect: [] })
+console.log("=== P2. レオ：相手の紫のマジックも対象にできない ===")
+scenario({ name: "leo-purple", start: { turn: "opp", me: { spirits: [{ card: LEO, cores: 2 }] }, opp: { hand: [DRAIN] } }, steps: rejectOn(LEO_NAME), expect: [] })
+console.log("=== P3. レオ：重装甲の色ではない青のマジックは受ける（Lvが1つ上がる） ===")
+scenario({
+    name: "leo-blue",
+    start: { turn: "opp", me: { spirits: [{ card: LEO, cores: 2 }] }, opp: { hand: [BUILDUP] } },
+    steps: castOn(LEO_NAME),
+    expect: [...casted("ビルドアップ", 3), `自分.${LEO_NAME}.Lv: 2 → 3`, `自分.${LEO_NAME}.BP: 9000 → 12000`],
+})
+
+console.log("=== P4. ラクーンガード Lv2：相手の白のマジックは対象にできない（【重装甲：白】はLv2） ===")
+scenario({ name: "raccoon-lv2", start: { turn: "opp", me: { spirits: [{ card: RACCOON, cores: 2 }] }, opp: { hand: [MIST] } }, steps: rejectOn("ラクーンガード"), expect: [] })
+console.log("=== P5. ラクーンガード Lv1：重装甲はLv2からなので白のマジックを対象にできる ===")
+scenario({ name: "raccoon-lv1", start: { turn: "opp", me: { spirits: [{ card: RACCOON, cores: 1 }] }, opp: { hand: [MIST] } }, steps: castOn("ラクーンガード"), expect: casted("ミストカーテン", 2) })
+
+console.log("=== P6. モージ Lv1：相手の緑のマジックは対象にできない（【重装甲：緑/青】） ===")
+scenario({ name: "moji-green", start: { turn: "opp", me: { spirits: [{ card: MOJI, cores: 1 }] }, opp: { hand: [THORN] } }, steps: rejectOn("鉄の機人モージ"), expect: [] })
+console.log("=== P7. モージ Lv1：相手の青のマジックも対象にできない ===")
+scenario({ name: "moji-blue", start: { turn: "opp", me: { spirits: [{ card: MOJI, cores: 1 }] }, opp: { hand: [BUILDUP] } }, steps: rejectOn("鉄の機人モージ"), expect: [] })
+console.log("=== P8. モージ Lv1：重装甲の色ではない白のマジックは対象にできる ===")
+scenario({ name: "moji-white", start: { turn: "opp", me: { spirits: [{ card: MOJI, cores: 1 }] }, opp: { hand: [MIST] } }, steps: castOn("鉄の機人モージ"), expect: casted("ミストカーテン", 2) })
+
+// ---- Q セイメイ（呪滅撃）----
+const HYDRAM = "BS02-023" // 双蛇ヒュドラム（紫・コスト6・バニラ・Lv3 コア6 BP10000）
+const WILD_POWER = "BS01-133" // ワイルドパワー（緑・コスト2・フラッシュ：このターンの間、スピリット1体をBP+2000）
+const SEIMEI_NAME = "呪の覇王カオティック・セイメイ"
+console.log("=== 前提Q: カードの機械確認 ===")
+{
+    const h = getCard(HYDRAM)
+    assert(h.name === "双蛇ヒュドラム" && h.effects.length === 0 && h.levels.find((l) => l.level === 3)?.bp === 10000 && h.levels.find((l) => l.level === 3)?.cores === 6, "HYDRAMはLv3 BP10000のバニラ")
+    assert(getCard(WILD_POWER).name === "ワイルドパワー" && getCard(WILD_POWER).type === "magic", "WILD_POWERはマジック")
+    assert(getCard(SEIMEI).levels.find((l) => l.level === 3)?.bp === 11000 && getCard(SEIMEI).levels.find((l) => l.level === 3)?.cores === 4, "SEIMEIはコア4でLv3 BP11000")
+}
+// 相手がBP12000にしたヒュドラムでアタックし、セイメイ（Lv3は11000）でブロックして負ける
+function seimeiLoses(t: ScenarioCtx) {
+    t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("相手.双蛇ヒュドラム") })
+    t.act("opp", { type: "nextPhase" })
+    t.act("opp", { type: "attack", instanceId: t.id("相手.双蛇ヒュドラム") })
+    t.closeFlash()
+    t.act("me", { type: "block", instanceId: t.id(SEIMEI_NAME) })
+    t.closeFlash()
+}
+const oppSide = { hand: [WILD_POWER], spirits: [{ card: HYDRAM, cores: 6 }] }
+const HYDRA_ATTACKED = ["相手.双蛇ヒュドラム.BP: 10000 → 12000", "相手.双蛇ヒュドラム.疲労: false → true"]
+const WILD_CASTED = ["相手.手札: ワイルドパワー → なし", "相手.トラッシュ: なし → ワイルドパワー"]
+
+console.log("=== Q1. セイメイ Lv3（非対話）：相手に破壊されるとき、相手のライフのコア1個をトラッシュに置いて回復状態で残る ===")
+scenario({
+    name: "seimei-survives",
+    start: { turn: "opp", me: { spirits: [{ card: SEIMEI, cores: 4 }] }, opp: oppSide },
+    steps: seimeiLoses,
+    expect: [...WILD_CASTED, ...HYDRA_ATTACKED, "相手.トラッシュのコア: 0 → 3", "相手.リザーブ: 10 → 8", "相手.ライフ: 5 → 4"],
+})
+
+console.log("=== Q2. セイメイ Lv3（対話）：確認は1回。押すと同じ結果 ===")
+scenario({
+    name: "seimei-survives-interactive",
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: SEIMEI, cores: 4 }] }, opp: oppSide },
+    steps: (t) => {
+        seimeiLoses(t)
+        let n = 0
+        while (t.state.pendingChoice) {
+            const pc = t.state.pendingChoice
+            assert(pc.pid === t.me && pc.kind === "option" && (pc.options ?? []).includes("復活させる"), "出るのは自分への「復活させる」確認")
+            n++
+            t.act("me", { type: "resolveChoice", option: "復活させる" })
+            if (n > 3) break
+        }
+        assert(n === 1, `確認は1回（実際 ${n} 回）`)
+    },
+    expect: [...WILD_CASTED, ...HYDRA_ATTACKED, "相手.トラッシュのコア: 0 → 3", "相手.リザーブ: 10 → 8", "相手.ライフ: 5 → 4"],
+})
+
+console.log("=== Q3. セイメイ Lv3（対話）：断ると破壊される ===")
+scenario({
+    name: "seimei-declined",
+    start: { turn: "opp", interactive: true, me: { spirits: [{ card: SEIMEI, cores: 4 }] }, opp: oppSide },
+    steps: (t) => {
+        seimeiLoses(t)
+        assert(t.state.pendingChoice?.kind === "option" && (t.state.pendingChoice.options ?? []).includes("復活させる"), "復活の確認が出る")
+        t.act("me", { type: "resolveChoice" })
+    },
+    expect: [
+        ...WILD_CASTED, ...HYDRA_ATTACKED, "相手.トラッシュのコア: 0 → 2", "相手.リザーブ: 10 → 8",
+        `自分.${SEIMEI_NAME}.場所: フィールド → なし`, `自分.トラッシュ: なし → ${SEIMEI_NAME}`, "自分.リザーブ: 10 → 14",
+    ],
+})
+
+console.log("=== Q4. セイメイ Lv2：呪滅撃はLv3だけなので、破壊されたらそのまま破壊される ===")
+scenario({
+    name: "seimei-lv2",
+    start: { turn: "opp", me: { spirits: [{ card: SEIMEI, cores: 3 }] }, opp: oppSide },
+    steps: seimeiLoses,
+    expect: [
+        ...WILD_CASTED, ...HYDRA_ATTACKED, "相手.トラッシュのコア: 0 → 2", "相手.リザーブ: 10 → 8",
+        `自分.${SEIMEI_NAME}.場所: フィールド → なし`, `自分.トラッシュ: なし → ${SEIMEI_NAME}`, "自分.リザーブ: 10 → 13",
+    ],
+})
 console.log("すべてのチェックに合格しました 🎉（part482）")
