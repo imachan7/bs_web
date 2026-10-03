@@ -122,7 +122,7 @@ export function millDeck(
         return 0
     }
     // 器BS16：「このターンの間、自分のデッキは破棄されない」（**自分の効果も含め**）。
-    // noDeckMillByOpponentForPid と違い byOpponent を問わず止める（BS16-002パイルドラコ）
+    // 相手の効果による破棄だけを止める isDeckMillBlocked と違い、byOpponent を問わず止める
     if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillForPid")) {
         log(state, `${state.players[pid].name}のデッキは、このターンの間破棄されない。`)
         return 0
@@ -176,8 +176,9 @@ export function millDeck(
                     (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
             )
             if (protects) {
-                recordPlayerRule(state, pid, { type: "noDeckMillByOpponentForPid" })
-                log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
+                // 「自分のデッキは破棄されない」は自分の効果による破棄も止める（2026-10-03 ユーザー確認）
+                recordPlayerRule(state, pid, { type: "noDeckMillForPid" })
+                log(state, `${player.name}：このターンの間、デッキは破棄されない。`)
                 break
             }
         }
@@ -246,8 +247,6 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
 // 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
 // millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
 export function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
-    // 器AR：ターン限定版（BS13-034ミノガメン。無償召喚したときだけ付く）
-    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillByOpponentForPid")) return true
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {

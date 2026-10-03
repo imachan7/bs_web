@@ -1090,7 +1090,6 @@ export type PlayerRuleDef =
     | { type: "nexusEffectsDisabledForPid" } // ネクサスすべての効果が発揮されない
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; symbolCount?: number; combinedOnly?: true } // maxCost 以下のスピリット（symbolCount 指定時はシンボル数ちょうど、combinedOnly なら合体スピリット）のアタックではライフが減らない
     | { type: "handReductionColorAsForPid"; color: Color; cardType: CardType } // 手札にある cardType のカードすべての軽減シンボルを color 一色として扱う（件数は変えない）
-    | { type: "noDeckMillByOpponentForPid" } // デッキは相手の効果では破棄されない
     | { type: "noDeckMillForPid" } // デッキは自分の効果も含めて破棄されない
     | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる

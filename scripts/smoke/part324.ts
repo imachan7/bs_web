@@ -88,9 +88,12 @@ console.log("=== BS13-034-e1 ミノガメン：相手のデッキ破棄効果で
     assert(s.players.p1.reserve === reserveBefore - 1, "召喚コストは払わないが、Lv1のコア1個はリザーブから置く")
     assert(!s.players.p1.trashCards.includes("BS13-034"), "トラッシュには残らない")
     assert(
-        playerHas(s, "p1", "noDeckMillByOpponentForPid"),
-        "召喚成立時だけ、このターンの間デッキが相手の効果で破棄されなくなる",
+        playerHas(s, "p1", "noDeckMillForPid"),
+        "破棄された時点で、このターンの間デッキが破棄されなくなる",
     )
+    // 「自分のデッキは破棄されない」は自分の効果による破棄も止める（2026-10-03 ユーザー確認）
+    const deckBefore = s.players.p1.deck.length
+    assert(millDeck(s, "p1", 2, "p1") === 0 && s.players.p1.deck.length === deckBefore, "自分の効果による破棄も止まる")
 }
 
 console.log("--- 対照：自分の効果で破棄されても発揮しない（byの限定） ---")
@@ -220,9 +223,12 @@ console.log("=== BS14-049-e1 執事ペンタン：相手のデッキ破棄効果
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-049"), "コストを支払わず場に出る")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された分だけ場が増える")
     assert(
-        playerHas(s, "p1", "noDeckMillByOpponentForPid"),
-        "召喚成立時だけ、このターンの間デッキが相手の効果で破棄されなくなる",
+        playerHas(s, "p1", "noDeckMillForPid"),
+        "破棄された時点で、このターンの間デッキが破棄されなくなる",
     )
+    // 「自分のデッキは破棄されない」は自分の効果による破棄も止める（2026-10-03 ユーザー確認）
+    const deckBefore = s.players.p1.deck.length
+    assert(millDeck(s, "p1", 2, "p1") === 0 && s.players.p1.deck.length === deckBefore, "自分の効果による破棄も止まる")
 }
 
 console.log("=== BS14-077-e1 骸の斜塔：スピリット等の効果以外でコアを置いた相手のスピリットを疲労させる ===")

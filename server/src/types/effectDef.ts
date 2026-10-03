@@ -523,7 +523,7 @@ export type EffectDef =
           // destroyMillSource=破棄を引き起こした相手のスピリットを破壊（発生源はトラッシュに残る）。最初の1枚で打ち切る（2026-09-21）
           // voidOpponentLife=resolveActionへlifeCrush count:1 dest:"void"を委譲し、相手のライフのコア1個をボイドに置く
           optional?: true // 「〜できる」＝任意。interactiveTargetsでは確認を出す（非対話は自動召喚）。summonThisSpiritFree専用
-          thenProtectDeckThisTurn?: true // 破棄された時点で（召喚の成否・確認より先に）このターンの間デッキは相手の効果では破棄されなくなり、その回の残りの破棄も止まる
+          thenProtectDeckThisTurn?: true // 破棄された時点で（召喚の成否・確認より先に）このターンの間デッキは（自分の効果でも）破棄されなくなり、その回の残りの破棄も止まる
           thenBlockAllDeckMillThisTurn?: true // then:"destroyMillSource"専用：破壊解決後、このターンの間自分の効果も含めデッキは破棄されなくなる
       }
     | {
