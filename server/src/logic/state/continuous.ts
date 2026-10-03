@@ -626,6 +626,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 ) {
                     continue
                 }
+                // 発生源自身の Lv（levelAs を受ける前の Lv）が効果の Lv に届かなければ発揮しない（2026-10-03 ユーザー確認）
+                if (
+                    effect.sourceMinLevel === undefined && effect.sourceLevels === undefined &&
+                    !effectActiveAtLevel(effect.levels, rawLevel(source))
+                ) {
+                    continue
+                }
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue

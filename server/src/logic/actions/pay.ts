@@ -465,11 +465,12 @@ export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardIn
         }
         return true
     }
-    // 「〜できる」のトラッシュ召喚は、召喚できるカードが1枚もないなら聞いても意味がない（ユーザー未確認の狭い適用。
-    // 他の「〜できる」へ広げるかは未決。報告参照）
-    if (action.type === "summonFromTrashFree") {
-        if (canPayResolve(state, owner, self, action, undefined, undefined)) return false
-        log(state, unpayableLine(sourceName, UNPAYABLE_REASONS.summonFromTrashFree!))
+    // 「〜できる」の召喚は、召喚できるカードが1枚もないなら確認を出さない（2026-10-02 ユーザー決定の「発動できないなら聞かない」。
+    // 判定を書いたのはこの2種と pay だけ）
+    if (action.type === "summonFromTrashFree" || action.type === "summonFromHandFree") {
+        const srcType = self ? getCard(self.cardId).type : undefined
+        if (canPayResolve(state, owner, self, action, undefined, srcType)) return false
+        log(state, unpayableLine(sourceName, UNPAYABLE_REASONS[action.type]!))
         state.effectFizzled = true
         return true
     }
