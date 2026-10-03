@@ -191,10 +191,9 @@ console.log("=== BS16-064 Lv2：『召喚時』効果を持つコスト5以下�
         t.closeFlash()
         t.act("me", { type: "block", instanceId: t.id(blocker) })
         t.closeFlash()
-        if (t.state.pendingChoice) console.log("DEBUG", JSON.stringify(t.state.pendingChoice).slice(0, 300))
         return answer === null ? 0 : drive(t, answer)
     }
-    const me = (card: string) => ({ nexuses: [{ card: "BS16-064", cores: 1 }], spirits: [{ card, label: "守り", cores: 1 }] })
+    const me = (card: string, nexusCores = 1) => ({ nexuses: [{ card: "BS16-064", cores: nexusCores }], spirits: [{ card, label: "守り", cores: 1 }] })
     const opp = { spirits: [{ card: "X007", label: "攻撃役" }] }
     scenario({
         name: "gokyou-lv2-return",
@@ -204,5 +203,33 @@ console.log("=== BS16-064 Lv2：『召喚時』効果を持つコスト5以下�
             assert(n === 1, `確認は1回（実際 ${n}）`)
         },
         expect: ["自分.守り.場所: フィールド → なし", "自分.手札: なし → ノデッポ", "自分.リザーブ: 10 → 11", "相手.攻撃役.疲労: false → true"],
+    })
+    const stays = ["自分.守り.場所: フィールド → なし", "自分.リザーブ: 10 → 11", "相手.攻撃役.疲労: false → true"]
+    scenario({
+        name: "gokyou-lv2-decline",
+        start: { turn: "opp", interactive: true, me: me("BS16-001"), opp },
+        steps: (t) => {
+            const n = lose(t, "守り", false)
+            assert(n === 1, `確認は1回（実際 ${n}）`)
+        },
+        expect: [...stays, "自分.トラッシュ: なし → ノデッポ"],
+    })
+    scenario({
+        name: "gokyou-lv1",
+        start: { turn: "opp", interactive: true, me: me("BS16-001", 0), opp },
+        steps: (t) => assert(lose(t, "守り", true) === 0, "Lv1 では確認は出ない"),
+        expect: [...stays, "自分.トラッシュ: なし → ノデッポ"],
+    })
+    scenario({
+        name: "gokyou-lv2-no-summon-effect",
+        start: { turn: "opp", interactive: true, me: me(VANILLA), opp },
+        steps: (t) => assert(lose(t, "守り", true) === 0, "『召喚時』効果を持たないスピリットでは確認は出ない"),
+        expect: [...stays, "自分.トラッシュ: なし → ロクケラトプス"],
+    })
+    scenario({
+        name: "gokyou-lv2-cost6",
+        start: { turn: "opp", interactive: true, me: me("X005A"), opp },
+        steps: (t) => assert(lose(t, "守り", true) === 0, "コスト6では確認は出ない"),
+        expect: [...stays, "自分.トラッシュ: なし → 北斗七星龍ジーク・アポロドラゴン"],
     })
 }
