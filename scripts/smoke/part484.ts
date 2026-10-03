@@ -787,9 +787,11 @@ need("BS16-X03", "烈の覇王セイリュービ", "spirit")
         steps: (t) => {
             prep(t, true)
             t.act("me", { type: "resshinsokuSummon", handIndex: 0 })
-            t.act("me", { type: "resolveChoice", option: "残り全部をリザーブに置く" })
-            // スピリットにコアが1個も無いと場に残れないので、最低1個は自分に置かれる
-            while (t.state.pendingChoice) t.act("me", { type: "resolveChoice", option: t.state.pendingChoice.options![0]! })
+            // 1個ずつリザーブへ置く。最後の1個は選択肢が「このスピリット」だけになる（コア0のスピリットは場に残れない）
+            while (t.state.pendingChoice) {
+                const opts = t.state.pendingChoice.options ?? []
+                t.act("me", { type: "resolveChoice", option: opts.includes("リザーブに置く") ? "リザーブに置く" : opts[0]! })
+            }
         },
         expect: [...nexusRows, ...born(1, 1, 5000), "自分.リザーブ: 10 → 9"],
     })
@@ -809,6 +811,271 @@ need("BS16-X03", "烈の覇王セイリュービ", "spirit")
             t.act("me", { type: "setNexus", handIndex: 0 })
             t.actRejected("me", { type: "resshinsokuSummon", handIndex: 0 })
         },
-        expect: ["自分.手札: 宙吊りの五行山 → なし", "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 5", ...nexusIn("宙吊りの五行山")],
+        expect: ["自分.手札: 宙吊りの五行山、烈の覇王セイリュービ → 烈の覇王セイリュービ", "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 5", ...nexusIn("宙吊りの五行山")],
     })
 }
+
+// ===== BS16-033 ミブロック・ザ・ワン =====
+console.log("=== BS16-033 合体時 Lv2･Lv3【重装甲：赤/白/黄】：相手の赤/白/黄の効果を受けない ===")
+need("BS16-033", "ミブロック・ザ・ワン", "spirit")
+need("BS10-070", "鎧馬アルファズル", "brave")
+{
+    // 自分のターンに合体して終了 → 相手のターンに相手が効果を使う
+    const braved = (cores: number, withBrave: boolean) => ({
+        spirits: [{ card: "BS16-033", cores, label: "ミブロック" }, ...(withBrave ? [{ card: "BS14-071", cores: 0 }] : [])],
+    })
+    const turnStart = ["相手.デッキ枚数: 40 → 39"]
+    const merged = (bp: number) => ["自分.トランプン.場所: フィールド → 合体", "自分.トランプン.BP: 0 → なし", "自分.トランプン.Lv: 0 → 1", `自分.ミブロック.BP: ${bp} → ${bp + 3000}`]
+    scenario({
+        name: "mibrock-immune-white",
+        start: { turn: "me", interactive: true, me: braved(3, true), opp: { hand: ["BS10-070"] } },
+        steps: (t) => {
+            combine(t, "トランプン", "ミブロック")
+            t.act("me", { type: "endTurn" })
+            t.act("opp", { type: "summon", handIndex: 0 })
+            while (t.state.pendingChoice) {
+                const pc = t.state.pendingChoice
+                t.act(pc.pid === t.me ? "me" : "opp", pc.kind === "option" ? { type: "resolveChoice", option: pc.options![0]! } : { type: "resolveChoice", instanceId: pc.candidates[0]! })
+            }
+        },
+        expect: [
+            ...merged(7000), ...turnStart,
+            "相手.手札: 鎧馬アルファズル → ロクケラトプス", // 引いた1枚。召喚したのはアルファズル
+            "相手.鎧馬アルファズル.BP: なし → 2000", "相手.鎧馬アルファズル.Lv: なし → 1", "相手.鎧馬アルファズル.コア: なし → 1",
+            "相手.鎧馬アルファズル.場所: なし → フィールド", "相手.鎧馬アルファズル.疲労: なし → false",
+            "相手.トラッシュのコア: 0 → 3", "相手.リザーブ: 10 → 7",
+        ],
+    })
+    scenario({
+        name: "mibrock-not-immune-purple",
+        start: { turn: "me", me: { spirits: [...braved(3, true).spirits, { card: VANILLA, cores: 2, label: "もう1体" }] }, opp: { hand: ["BS16-064"] } },
+        steps: (t) => {
+            combine(t, "トランプン", "ミブロック")
+            t.act("me", { type: "endTurn" })
+            t.act("opp", { type: "setNexus", handIndex: 0 })
+        },
+        expect: [
+            ...merged(7000).slice(0, 3), ...turnStart, // Lv1 に下がるので BP は 4000+3000 で変わらない
+            "相手.手札: 宙吊りの五行山 → ロクケラトプス",
+            ...nexusIn("宙吊りの五行山", 1, 0, "相手"),
+            "相手.トラッシュのコア: 0 → 5", "相手.リザーブ: 10 → 6",
+            "自分.ミブロック.コア: 3 → 1", "自分.ミブロック.Lv: 2 → 1",
+            "自分.もう1体.コア: 2 → 1", "自分.もう1体.BP: 3000 → 1000", "自分.もう1体.Lv: 2 → 1",
+            "自分.リザーブ: 10 → 13",
+        ],
+    })
+}
+
+// ===== SD06-010 海皇龍シーマ・クリーク =====
+console.log("=== SD06-010 【バースト】相手の『このスピリットの召喚時』発揮後に召喚 ===")
+need("SD06-010", "海皇龍シーマ・クリーク", "spirit")
+need("BS01-030", "グリプ・ハンズ", "spirit")
+{
+    const oppSummon = (t: ScenarioCtx, answer: boolean | null) => {
+        t.act("opp", { type: "summon", handIndex: 0 })
+        return answer === null ? 0 : drive(t, answer)
+    }
+    scenario({
+        name: "seema-burst",
+        start: { turn: "opp", interactive: true, me: { burst: "SD06-010" }, opp: { hand: ["BS01-030"] } },
+        steps: (t) => assert(oppSummon(t, true) === 1, "バーストの確認は1回"),
+        expect: [
+            "相手.手札: グリプ・ハンズ → ロクケラトプス", "相手.デッキ枚数: 40 → 39", "相手.リザーブ: 10 → 6", "相手.トラッシュのコア: 0 → 3",
+            "相手.グリプ・ハンズ.BP: なし → 2000", "相手.グリプ・ハンズ.Lv: なし → 1", "相手.グリプ・ハンズ.コア: なし → 1",
+            "相手.グリプ・ハンズ.場所: なし → フィールド", "相手.グリプ・ハンズ.疲労: なし → false",
+            "自分.バースト: 海皇龍シーマ・クリーク → なし",
+            "自分.リザーブ: 10 → 9",
+            "自分.海皇龍シーマ・クリーク.BP: なし → 4000", "自分.海皇龍シーマ・クリーク.Lv: なし → 1", "自分.海皇龍シーマ・クリーク.コア: なし → 1",
+            "自分.海皇龍シーマ・クリーク.場所: なし → フィールド", "自分.海皇龍シーマ・クリーク.疲労: なし → false",
+        ],
+    })
+    scenario({
+        name: "seema-burst-declined",
+        start: { turn: "opp", interactive: true, me: { burst: "SD06-010" }, opp: { hand: ["BS01-030"] } },
+        steps: (t) => assert(oppSummon(t, false) === 1, "バーストの確認は1回"),
+        expect: [
+            "相手.手札: グリプ・ハンズ → ロクケラトプス", "相手.デッキ枚数: 40 → 39", "相手.リザーブ: 10 → 6", "相手.トラッシュのコア: 0 → 3",
+            "相手.グリプ・ハンズ.BP: なし → 2000", "相手.グリプ・ハンズ.Lv: なし → 1", "相手.グリプ・ハンズ.コア: なし → 1",
+            "相手.グリプ・ハンズ.場所: なし → フィールド", "相手.グリプ・ハンズ.疲労: なし → false",
+        ],
+    })
+    scenario({
+        name: "seema-burst-no-summon-effect",
+        start: { turn: "opp", interactive: true, me: { burst: "SD06-010" }, opp: { hand: [VANILLA] } },
+        steps: (t) => assert(oppSummon(t, true) === 0, "『召喚時』効果が無ければ確認は出ない"),
+        expect: [
+            "相手.手札: ロクケラトプス → なし", "相手.リザーブ: 10 → 8", "相手.トラッシュのコア: 0 → 1",
+            "相手.ロクケラトプス.BP: なし → 1000", "相手.ロクケラトプス.Lv: なし → 1", "相手.ロクケラトプス.コア: なし → 1",
+            "相手.ロクケラトプス.場所: なし → フィールド", "相手.ロクケラトプス.疲労: なし → false",
+        ],
+    })
+}
+
+console.log("=== SD06-010 Lv1･Lv2：このスピリットとコスト2以下のスピリットはアタックできない ===")
+{
+    const attacked = ["自分.攻撃役.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"]
+    const go = (t: ScenarioCtx, who: string) => {
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id(who) })
+        t.closeFlash()
+        t.act("opp", { type: "takeLife" })
+    }
+    const nope = (t: ScenarioCtx, who: string, side: "me" | "opp" = "me") => {
+        t.act(side, { type: "nextPhase" })
+        t.actRejected(side, { type: "attack", instanceId: t.id(who) })
+    }
+    scenario({
+        name: "seema-self-lv2-cant-attack",
+        start: { me: { spirits: [{ card: "SD06-010", cores: 3, label: "シーマ" }] } },
+        steps: (t) => nope(t, "シーマ"),
+        expect: [],
+    })
+    scenario({
+        name: "seema-cost1-cant-attack",
+        start: { me: { spirits: [{ card: "SD06-010", cores: 3, label: "シーマ" }, { card: VANILLA, label: "攻撃役" }] } },
+        steps: (t) => nope(t, "攻撃役"),
+        expect: [],
+    })
+    scenario({
+        name: "seema-cost3-can-attack",
+        start: { me: { spirits: [{ card: "SD06-010", cores: 3, label: "シーマ" }, { card: "BS16-013", label: "攻撃役" }] } },
+        steps: (t) => go(t, "攻撃役"),
+        expect: attacked,
+    })
+    scenario({
+        name: "seema-lv3-self-can-attack",
+        start: { me: { spirits: [{ card: "SD06-010", cores: 5, label: "攻撃役" }] } },
+        steps: (t) => go(t, "攻撃役"),
+        expect: attacked,
+    })
+    scenario({
+        name: "seema-lv3-cost1-can-attack",
+        start: { me: { spirits: [{ card: "SD06-010", cores: 5, label: "シーマ" }, { card: VANILLA, label: "攻撃役" }] } },
+        steps: (t) => go(t, "攻撃役"),
+        expect: attacked,
+    })
+    scenario({
+        name: "seema-opp-cost1-cant-attack",
+        start: { turn: "opp", me: { spirits: [{ card: "SD06-010", cores: 3, label: "シーマ" }] }, opp: { spirits: [{ card: VANILLA, label: "攻撃役" }] } },
+        steps: (t) => nope(t, "攻撃役", "opp"),
+        expect: [],
+    })
+    scenario({
+        name: "seema-no-seema-control",
+        start: { me: { spirits: [{ card: VANILLA, label: "攻撃役" }] } },
+        steps: (t) => go(t, "攻撃役"),
+        expect: attacked,
+    })
+}
+
+// ===== P070 カオティック・リクゴー / P071 サイゴード・アームズ（バースト：自分のライフ減少後） =====
+console.log("=== P070･P071 【バースト：自分のライフ減少後】このブレイヴカードを召喚する ===")
+need("P070", "カオティック・リクゴー", "brave")
+need("P071", "サイゴード・アームズ", "brave")
+for (const [id, name] of [["P070", "カオティック・リクゴー"], ["P071", "サイゴード・アームズ"]] as const) {
+    const attackRows = ["相手.攻撃役.疲労: false → true"]
+    const hit = (t: ScenarioCtx, answer: boolean) => {
+        t.act("opp", { type: "nextPhase" })
+        t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+        t.closeFlash()
+        t.act("me", { type: "takeLife" })
+        return drive(t, answer)
+    }
+    const oppSide = { spirits: [{ card: VANILLA, label: "攻撃役" }] }
+    scenario({
+        name: `${id}-burst`,
+        start: { turn: "opp", interactive: true, me: { burst: id }, opp: oppSide },
+        steps: (t) => assert(hit(t, true) === 1, "バーストの確認は1回"),
+        expect: [
+            ...attackRows, "自分.ライフ: 5 → 4", "自分.バースト: " + name + " → なし",
+            `自分.${name}.BP: なし → 3000`, `自分.${name}.Lv: なし → 1`, `自分.${name}.コア: なし → 1`,
+            `自分.${name}.場所: なし → フィールド`, `自分.${name}.疲労: なし → false`,
+        ],
+    })
+    scenario({
+        name: `${id}-burst-declined`,
+        start: { turn: "opp", interactive: true, me: { burst: id }, opp: oppSide },
+        steps: (t) => assert(hit(t, false) === 1, "バーストの確認は1回"),
+        expect: [...attackRows, "自分.ライフ: 5 → 4", "自分.リザーブ: 10 → 11"],
+    })
+    scenario({
+        name: `${id}-burst-blocked-no-trigger`,
+        start: { turn: "opp", interactive: true, me: { burst: id, spirits: [{ card: VANILLA, label: "守り" }] }, opp: oppSide },
+        steps: (t) => {
+            t.act("opp", { type: "nextPhase" })
+            t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+            t.closeFlash()
+            t.act("me", { type: "block", instanceId: t.id("守り") })
+            t.closeFlash()
+            assert(drive(t, true) === 0, "ライフが減っていないので確認は出ない")
+        },
+        // BPが同じなのでお互いに破壊される。ライフは減らない
+        expect: [
+            "相手.攻撃役.場所: フィールド → なし", "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 11",
+            "自分.守り.場所: フィールド → なし", "自分.トラッシュ: なし → ロクケラトプス", "自分.リザーブ: 10 → 11",
+        ],
+    })
+}
+
+// ===== X007 天地神龍ガイ・アスラ =====
+console.log("=== X007 合体時 フラッシュ【超覚醒】：自分のスピリット上のコアをこのスピリットに置き、置かれるたび回復 ===")
+{
+    const flashStart = (t: ScenarioCtx, brave: boolean) => {
+        if (brave) combine(t, "トランプン", "ガイ")
+        t.act("me", { type: "endTurn" })
+        t.act("opp", { type: "nextPhase" })
+        t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+    }
+    const mine = (brave: boolean) => ({
+        spirits: [
+            { card: "X007", cores: 1, label: "ガイ", rested: true },
+            { card: VANILLA, cores: 3, label: "供給役" },
+            ...(brave ? [{ card: "BS14-071", cores: 0 }] : []),
+        ],
+    })
+    const oppSide = { spirits: [{ card: VANILLA, label: "攻撃役" }] }
+    const common = ["相手.攻撃役.疲労: false → true", "相手.手札: なし → ロクケラトプス", "相手.デッキ枚数: 40 → 39", "相手.リザーブ: 10 → 11"]
+    const merged = ["自分.トランプン.場所: フィールド → 合体", "自分.トランプン.BP: 0 → なし", "自分.トランプン.Lv: 0 → 1"]
+    scenario({
+        name: "chouKakusei-combined",
+        start: { turn: "me", me: mine(true), opp: oppSide },
+        steps: (t) => {
+            flashStart(t, true)
+            t.act("me", { type: "awaken", instanceId: t.id("ガイ"), fromInstanceId: t.id("供給役"), count: 2 })
+        },
+        expect: [
+            ...common, ...merged,
+            "自分.ガイ.コア: 1 → 3", "自分.ガイ.Lv: 1 → 2", "自分.ガイ.BP: 8000 → 15000", "自分.ガイ.疲労: true → false",
+            "自分.供給役.コア: 3 → 1", "自分.供給役.Lv: 3 → 1", "自分.供給役.BP: 4000 → 1000",
+        ],
+    })
+    scenario({
+        name: "chouKakusei-not-combined",
+        start: { turn: "me", me: mine(false), opp: oppSide },
+        steps: (t) => {
+            flashStart(t, false)
+            t.actRejected("me", { type: "awaken", instanceId: t.id("ガイ"), fromInstanceId: t.id("供給役"), count: 2 })
+        },
+        expect: common,
+    })
+}
+
+console.log("=== X007 お互い、このスピリット上に置いてあるコアは取り除くことはできない ===")
+{
+    const opp = { turn: "opp" as const, opp: { hand: ["BS16-064"] } }
+    const nexusRows = ["相手.手札: 宙吊りの五行山 → なし", "相手.リザーブ: 10 → 5", "相手.トラッシュのコア: 0 → 5", ...nexusIn("宙吊りの五行山", 1, 0, "相手")]
+    scenario({
+        name: "gai-core-lock-opp-effect",
+        start: { ...opp, me: { spirits: [{ card: "X007", cores: 3, label: "ガイ" }, { card: VANILLA, cores: 2, label: "もう1体" }] } },
+        steps: (t) => t.act("opp", { type: "setNexus", handIndex: 0 }),
+        expect: [...nexusRows, "自分.もう1体.コア: 2 → 1", "自分.もう1体.BP: 3000 → 1000", "自分.もう1体.Lv: 2 → 1", "自分.リザーブ: 10 → 11"],
+    })
+    scenario({
+        name: "gai-core-lock-own-move",
+        start: { me: { spirits: [{ card: "X007", cores: 3, label: "ガイ" }] } },
+        steps: (t) => t.actRejected("me", { type: "moveCore", instanceId: t.id("ガイ"), direction: "remove" }),
+        expect: [],
+    })
+}
+
+console.log("すべてのチェックに合格しました 🎉（part484）")
