@@ -380,7 +380,7 @@ scenario({
 const fenMe = { spirits: [{ card: ESPADA, cores: 3, label: "ホスト" }, { card: FENRIR, cores: 0, label: "ブレイヴ" }] }
 const stealer = { reserve: 10, hand: [CORESTEAL] }
 
-console.log("=== フェンリル1. 合体中は相手の紫マジック（コアスティール）の効果を受けない ===")
+console.log("=== フェンリル1. 合体中は相手の紫マジック（コアスティール）の対象にできない（2026-10-03 ユーザー確認）：castMagic は拒否される ===")
 scenario({
     name: "fenrir-armor",
     start: { me: fenMe, opp: stealer },
@@ -388,17 +388,14 @@ scenario({
         combine(t, "ブレイヴ", "ホスト")
         attackAs(t, "me", "ホスト")
         takePriority(t, "opp")
-        t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ホスト") })
+        t.actRejected("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ホスト") })
         takeLife(t, "opp")
     },
     expect: [
         ...combined("自分", "ブレイヴ", "ホスト", 7000, 3000),
         "自分.ホスト.疲労: false → true",
-        "相手.手札: コアスティール → なし",
-        "相手.トラッシュ: なし → コアスティール",
-        "相手.トラッシュのコア: 0 → 4",
         "相手.ライフ: 5 → 3",
-        "相手.リザーブ: 10 → 8",
+        "相手.リザーブ: 10 → 12",
     ],
 })
 
@@ -727,7 +724,7 @@ scenario({
     ],
 })
 
-console.log("=== 机山群3. Lv1 では守られず、合体スピリットのホストが手札に戻る（ブレイヴはフィールドに残る前提） ===")
+console.log("=== 机山群3. Lv1 では守られず、ホストが手札に戻る（ブレイヴは維持コスト1個をリザーブから置いて残る。BRAVE.md §6） ===")
 scenario({
     name: "desk-lv1-combined",
     start: { me: deskMe(false), opp: ribbon },
@@ -741,7 +738,11 @@ scenario({
     expect: [
         "自分.ホスト.場所: フィールド → なし",
         "自分.手札: なし → メタルバーン",
-        "自分.リザーブ: 10 → 11",
+        // BRAVE.md §6.2/6.3.1：ホストのコアがリザーブに入ってからブレイヴの維持コスト1個を置く（差し引き0）。ブレイヴは疲労状態のホストと同じ疲労で残る
+        "自分.ブレイヴ.コア: 0 → 1",
+        "自分.ブレイヴ.Lv: 0 → 1",
+        "自分.ブレイヴ.BP: 1000 → 4000",
+        "自分.ブレイヴ.疲労: false → true",
         ...ribbonPaid,
         "相手.リザーブ: 10 → 6",
     ],
