@@ -177,6 +177,13 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
 
+**「【X】を持つ」がレベルを見ていない（2026-10-04 調査・未修正。ユーザー指摘）**：ユーザーの解釈は「持つ＝**現在のレベルで発揮できる状態**のとき」。例：Lv2から【強襲】を持つスピリットは、Lv1では「【強襲】を持つスピリット」を対象にする効果の対象にならない。
+現状は `shared/rules/keywordState.ts` の `spiritHasKeyword` が `effects` に `kind:"keyword"` があるかだけを見て、`levels` を見ない（コメントに「従来の挙動を保つため」とある）。BPバフ対象（`targeting.ts bpBuffTargetPasses`）・継続効果（`state/continuous.ts`）・ブロック制限（`shared/block.ts`）・`triggers.ts:1461` が共有。
+レベルを見ているのは `iceWallColorsOf`（【氷壁】）と `keywords/kobo.ts` だけ。
+影響の目安：keyword エントリが levels つきで、かつ Lv1 を含まないスピリットが61枚（全レベル共通の keyword エントリを別に持つカードは除く）。
+直すなら `spiritHasKeyword` の静的分岐に `effectActiveAtLevel(e.levels, currentLevel(src).level)` を足す。ブレイヴ合流分は各ブレイヴ自身のレベルで見る。手札・トラッシュ用の `hasKeyword(cardId, …)` はレベルが無いので別扱い（`summon.ts`・`trashRecover.ts`・`revive.ts`・`cost.ts` ほか）。
+実装前に決めること：①手札・トラッシュのカードは何Lvとして見るか ②`tempKeywords`／`keywordGrant` は常に有効でよいか ③上の「印刷だけで見ている kind」の項と同じ一般則として手順書（ACTION_VOCABULARY）へ書く。CLAUDE.md の方針により、実装前に解釈一覧をユーザーへ出すこと。
+
 ## 3. 決着済み（蒸し返さないこと）
 
 - **再開スタック方式を採る**（ジェネレータ化はしない）。理由は [RESUME_STACK.md](./docs/design/RESUME_STACK.md) §8
