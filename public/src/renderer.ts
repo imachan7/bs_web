@@ -445,7 +445,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
         case "summon":
             return `✨ ${ev.cardName} 召喚`
         case "destroy":
-            return `💥 ${ev.cardName} 破壊`
+            return ev.vanish ? `🌫 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
         case "magic": return `📜 ${ev.cardName} 使用`
         case "burst": return `⚡ ${ev.cardName} バースト発動`
         case "draw":

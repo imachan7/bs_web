@@ -408,7 +408,7 @@ export interface AuraDef {
 // クライアントは前回処理済みの seq より大きいものだけをアニメーション再生する。
 export type GameEvent =
     | { seq: number; type: "summon"; pid: PlayerId; cardName: string } // 召喚（神速召喚含む）
-    | { seq: number; type: "destroy"; pid: PlayerId; cardName: string } // 破壊・消滅（cause問わず）
+    | { seq: number; type: "destroy"; pid: PlayerId; cardName: string; vanish?: true } // 破壊・消滅。vanish は維持コア割れの消滅（バナーを「破壊」と出さない）
     | { seq: number; type: "draw"; pid: PlayerId; count: number } // ドロー
     | { seq: number; type: "lifeDamage"; pid: PlayerId; amount: number } // ライフのコアが減った（このpidが被弾した側）
     | { seq: number; type: "magic"; pid: PlayerId; cardName: string } // マジック使用

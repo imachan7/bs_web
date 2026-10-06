@@ -249,7 +249,7 @@ export function destroySpirit(
         state,
         `${player.name}の${master.name}は${cause === "destroy" ? "破壊" : "消滅"}された。`,
     )
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name })
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name, ...(cause === "deplete" ? { vanish: true as const } : {}) })
 
     // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
     // （clearBattle 後には判定できない。attackerOnly の判定に使う）
