@@ -285,6 +285,7 @@
         "id": "BS16-014-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2,
@@ -572,21 +573,10 @@
           3
         ],
         "condition": "selfInBattle",
-        "cost": {
-          "discardHandFamily": [
-            "覇皇",
-            "雄将"
-          ]
-        },
         "action": {
-          "type": "destroy",
-          "count": 1,
-          "filter": {
-            "rested": true,
-            "cost": {
-              "max": 6
-            }
-          }
+          "type": "pay",
+          "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "spirit", "family": ["覇皇", "雄将"]},
+          "then": {"type": "destroy", "count": 1, "filter": {"rested": true, "cost": {"max": 6}}}
         }
       }
     ]
@@ -722,12 +712,18 @@
         "levels": [
           2
         ],
-        "cost": {
-          "discardHandFamily": "無魔"
-        },
         "action": {
-          "type": "draw",
-          "count": 1
+          "type": "pay",
+          "cost": {
+            "type": "discardSelfChoose",
+            "count": 1,
+            "cardType": "spirit",
+            "family": "無魔"
+          },
+          "then": {
+            "type": "draw",
+            "count": 1
+          }
         }
       }
     ]

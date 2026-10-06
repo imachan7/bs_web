@@ -13,6 +13,7 @@ import {
     handleAction,
     resolveAction,
     runTurnStart,
+    answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/brave"
@@ -166,6 +167,7 @@ console.log("=== §H 戦車皇ディルガン（pay＋removeCores any／lastCore
     refreshLevelAsOverrides(s)
     const trashBefore = s.players.p1.trashCores
     resolveAction(s, "p1", dilgan, (getCard(DILGAN).effects[0] as { action: EffectAction }).action)
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.kind === "option" && s.pendingChoice.stepper === true, "支払う数を増減式で選ばせる")
     const err = handleAction(s, "p1", { type: "resolveChoice", option: "2" })
     assert(err === null, "2個払う選択に応答できる")

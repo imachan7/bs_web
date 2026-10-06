@@ -530,8 +530,6 @@ export type GlobalConstraintDef =
       // 発生源がどちらの陣営のフィールドにあっても、**その持ち主から見た相手だけでなく、その相手のさらに相手（＝発生源の持ち主自身）のデッキも**
       // 同じmaxCountで守る＝実質「お互いのデッキが、相手の効果では1ターンにmaxCount枚までしか破棄されない」。
       // millCapPerTurnRemainingがperTurnとあわせて両陣営のeffectSourcesを走査する（BS15-069太陰の宮廷：「お互いのデッキは、相手の…効果では、1ターンに3枚までしか破棄されない」）
-    | { type: "restedNexusEffectsDisabled" } // **疲労状態のネクサスすべての効果は発揮されない**（両陣営。BS10-074 きぐるみクマッター）。
-    // nexusEffectsDisabled（相手のネクサスを丸ごと止める）の疲労限定版。effectSources が疲労したネクサスを外す
     | { type: "battlingCoresProtected" } // 現在バトルをしている両陣営のスピリット上のコアは、効果（コア除去アクション）によって取り除かれない
     | { type: "battlingEffectImmune" } // 現在バトルをしている両陣営のスピリットは、お互いのスピリット/マジックの効果を受けない（ネクサスの効果は通る。EffectModules.isEffectBlocked が破壊・コア除去・疲労・バウンス等のガードから参照。BS05茨の決戦地Lv2）
     | { type: "coresToOpponentReserveGoToTrash" } // 発生源の持ち主から見た**相手**のリザーブへ、スピリット/ブレイヴ/マジックの効果で置かれるコアはその相手のトラッシュへ振り替えられる（両陣営の発生源が効く＝主語なし。ネクサスの効果・ルール処理（バトル敗北・場を離れるとき等）は対象外＝効果によるコア移動だけ。removeCores〈removal.ts〉の共通フックで判定。coreSqueezeAll等の直接操作系はこの経路を通らないため対象外＝簡略化。BS12-X02魔羯邪神シュタイン・ボルグLv2-3）
@@ -812,7 +810,7 @@ export interface PlayerState {
 
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
-    magicOncePerTurnUsed?: Record<string, number> // oncePerTurn 指定のマジックを最後に発揮したターン番号（cardId -> GameState.turn）
+    onceByNameUsed?: Record<string, number> // 「同名で1回」。キー=名前+効果ID末尾
     burst: string | null // バーストエリアに伏せているカードのcardId（非公開。docs/design/BURST.md）
     // 「セットしているか」の公開情報版（burst !== null と常に一致するよう mutation 側で同期する）。
     // shared/board.ts の BoardPlayer が持つのはこちらだけ（burstはGameViewで相手はnullに隠されるため、
@@ -1046,6 +1044,7 @@ export type TimedContent =
     | { type: "unblockable"; from?: ResolvedTargetFilter } // 相手のスピリットにブロックされない。from に合う相手からだけ（省くとどの相手からも）。条件つきでも「ブロックされない効果を持つ」に数える（2026-09-25 ユーザー決定）
     | { type: "battleLock"; lock: "flash" | "burst" | "magic" } // マジック追加＝使用不可（バースト発動は含まない。Q22399）
     | { type: "compareBy"; by: "level" | "cores" | "cost" } // このバトルの解決で BP の代わりに比べるもの（期間は battle のみ。複数重なったら level→cores→cost の順で優先）
+    | { type: "restedNexusEffectsDisabled" } // 疲労状態のネクサスすべて（両陣営）の効果が発揮されない（期間は battle のみ、target.kind:"battle"）。ネクサスの疲労は元から効果を止めないので、止める側を内容として持つ
     | { type: "invertBattleWinner" } // このバトルの解決で値が高い方が破壊される（期間は battle のみ。装甲では防げない）
     | { type: "symbolAdd" } // 持っているシンボルと同じ色のシンボルを1つ追加する
     | { type: "symbolSet"; color: Color; count: number } // シンボルを◯色◯つとして扱う
@@ -1123,6 +1122,7 @@ export interface PlayerView {
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
+    onceByNameUsed?: Record<string, number>
     burstSetThisTurn: boolean // 両者に見える公開情報（このターンにセット済みか。クライアントがセットボタンのグレーアウトに使う）
 }
 

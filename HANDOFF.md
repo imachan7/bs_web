@@ -55,8 +55,6 @@
 `scripts/coverage-effects.ts` の差し込み先を移した先へ直す（part160 が壊れた差し込み先を検出する）→ `npm run codemap`・据え置き一覧の更新。
 罠：`patch()` に `f.replace("rules.ts", ...)` のようにパス文字列を組み立てている箇所がある／import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
 
-**マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
-
 **「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
 `toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）
 
@@ -72,13 +70,14 @@ effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**そ
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### 未決：「〜することで、フィールドに残る」を任意として持ち主に確認するか（2026-09-27 発見）
+### 「〜することで」の確認関門は一区切り（2026-10-02。#230〜#246）
 
-BS07-042 パオ・ペイール等の reviveOnDestroy は `optional` が無いと、コストを自動で払って残る（持ち主に確認が出ない）。COST_MODEL の「ことで＝任意」に合わせるならデータか既定を変える。**ユーザー確認待ち**（影響枚数は未集計）。
+規則・実装・既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10 末尾。移行の手順表は PAY_MIGRATION_RECIPES、残した例外は COST_MODEL §10。
+**残り**：`validate:cards` に「効果文に『ことで』がある節は pay か確認関門を通す器に対応している」の検査を足す（未着手）
 
-### M2 `if`（2026-09-27〜）
+### M2 `if` は器 PR 1〜5 まで済み
 
-答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（名前を変えない）**。#178・#179（移行11件）・#180（BURST.md §10 A〜C）はマージ済み。**いまは器 PR 2（`feat/if-last-more`）**、その次が器 PR 3（同 §5）。
+答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3、器のスキーマは同 §5。残した2枚（BS15-X01・BS11-060）は同 §5「残す」の行。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
@@ -151,7 +150,21 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ---
 
+### 効果の動作検証（2026-09-30 設計。ユーザー発案）
+
+「効果を発動させて結果が効果文どおりにならない」を落とす。**効果文だけを AI に読ませて期待値を作り、実装と突き合わせる**（実装・データは見せない）。
+先に変換規則を確定する：[EFFECT_SPEC_RULES.md](./docs/design/EFFECT_SPEC_RULES.md)（下書き。⚠️印と §5 の未決をユーザー確認 → §2 の表に1行ずつ足す）。
+試験運用の結果（2026-09-30。50枚×2回、狙いの3欄＝誘発の主体・実行者・対象の一致）：Sonnet自由記述94%／Haiku自由記述46%／**Haiku選択式（下ごしらえ＋一覧から選ぶ）84%**。未分類は選択式で6〜14%。既知バグ3枚は全モデルで正しい期待値。
+道具：`data/spec/vocab.json`（一覧）・`scripts/spec-skeleton.ts`（下ごしらえ＝skeleton／合成＝merge）・`scripts/validate-spec-output.ts`（機械検査）。**次**：①実装データとの突き合わせ（期待値の3欄 vs 実装の解決先）を作る ②既知バグを戻して検出できるか確認 ③50枚→全カード。
+**全体への突き合わせ（2026-09-30。データ側で自己参照/ドローを持つ fieldEvent 71枚・Haiku選択式1回）**：`npm run audit:spec -- <期待値.json>`（道具は PR「chore/spec-audit-tools」）。実バグ2系統は修正済み（データ＝fix/field-event-self-mode-source、実行者＝fix/self-action-cause-context。解釈は SEMANTICS_AUDIT §3.18）。**次**：色・コスト・系統の指定の突き合わせ（偽陽性が増える見込み）／`audit:spec` のイベント名の対応不足（未照合の偽陽性）を減らす。
+関連：fix/field-event-self-mode-source に part452（selfMode 書き漏れの静的検査＋レオ・ハーキュリーの動作テスト）。
+
+### 場面テストと3役の流れ（2026-10-01 決定）
+
+道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。「〜することで」の移行（#241〜#246）で5バッチ回した。①の推測が手順書の規則と食い違うことがあるので、①の報告の「決められなかった点」は手順書と突き合わせてから②に渡す
+
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
+
 
 
 **「この効果で破壊した／戻したスピリットのコスト」を待機時のコストで見るか**：`if` の `cond.last` は待機に入ったときのコスト（バウンスのみ記録。CONJUNCTION 27行目）を見るが、カウンタ `lastCost`・絞り込み `sameCostAsLast` と破壊の記録は印刷コストのまま。揃えると他のカードの結果が変わるので未着手（2026-09-28）。
@@ -161,16 +174,22 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 
 **バーストの既知の不具合3件（未修正）**：相手のライフ減少で「自分のライフ減少後」が発動する／「相手の召喚時発揮後」が発動しない等。REFACTOR_PLAN の完了後に直す → [BURST.md](./docs/design/BURST.md) §10。
-**テストの方針（検討中・未決定）**：場面テスト（本物の操作だけで進めて左右反転も見る）と、AI対戦＋Haiku 審判。**もう少し検討してから決める** → [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md)。
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
+
+**「【X】を持つ」がレベルを見ていない（2026-10-04 調査・未修正。ユーザー指摘）**：ユーザーの解釈は「持つ＝**現在のレベルで発揮できる状態**のとき」。例：Lv2から【強襲】を持つスピリットは、Lv1では「【強襲】を持つスピリット」を対象にする効果の対象にならない。
+現状は `shared/rules/keywordState.ts` の `spiritHasKeyword` が `effects` に `kind:"keyword"` があるかだけを見て、`levels` を見ない（コメントに「従来の挙動を保つため」とある）。BPバフ対象（`targeting.ts bpBuffTargetPasses`）・継続効果（`state/continuous.ts`）・ブロック制限（`shared/block.ts`）・`triggers.ts:1461` が共有。
+レベルを見ているのは `iceWallColorsOf`（【氷壁】）と `keywords/kobo.ts` だけ。
+影響の目安：keyword エントリが levels つきで、かつ Lv1 を含まないスピリットが61枚（全レベル共通の keyword エントリを別に持つカードは除く）。
+直すなら `spiritHasKeyword` の静的分岐に `effectActiveAtLevel(e.levels, currentLevel(src).level)` を足す。ブレイヴ合流分は各ブレイヴ自身のレベルで見る。手札・トラッシュ用の `hasKeyword(cardId, …)` はレベルが無いので別扱い（`summon.ts`・`trashRecover.ts`・`revive.ts`・`cost.ts` ほか）。
+実装前に決めること：①手札・トラッシュのカードは何Lvとして見るか ②`tempKeywords`／`keywordGrant` は常に有効でよいか ③上の「印刷だけで見ている kind」の項と同じ一般則として手順書（ACTION_VOCABULARY）へ書く。CLAUDE.md の方針により、実装前に解釈一覧をユーザーへ出すこと。
 
 ## 3. 決着済み（蒸し返さないこと）
 
 - **再開スタック方式を採る**（ジェネレータ化はしない）。理由は [RESUME_STACK.md](./docs/design/RESUME_STACK.md) §8
 - **`allowSuspend` と `pendingReviveConfirms` は消さない。** この2つは「その場で聞く」と
   「恩恵の後に聞く」の使い分けそのもの（RESUME_STACK.md §7）
-- **発動確認の抑止はやらない。** 成立しない任意コスト効果でも確認は出る
+- **「〜することで」は聞く前に成立しないなら確認を出さない**（2026-10-02 ユーザー決定で、以前の「確認の抑止はやらない」を改めた）。理由はログに出す。COST_MODEL §10
 - **破壊待機状態の導入で挙動が変わった既存16枚は、そのまま受け入れる**（2026-09-09 ユーザー合意）。
   多くが強くなる方向だが仕様の帰結。中身は [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.5 とテストにある
 

@@ -240,6 +240,13 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
+    // 合体しているブレイヴの【合体時】【覚醒】はホストが持つ（spiritHasKeyword と同じ合流。BS11-049）
+    const braveAwaken = bravesOf(board.players[ownerPid], inst).some((b) =>
+        card(b.cardId).effects.some(
+            (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
+        ),
+    )
+    if (braveAwaken) return true
     return timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
@@ -308,8 +315,14 @@ function activatableAbilityOf(
             if (!turnOk) continue
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
-        // 「ターンに1回」：発生源1体につきターン1回
-        if (e.oncePerTurn && source.activatedUsedTurn?.[e.id] === board.turn) continue
+        // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
+        if (e.oncePerTurn) {
+            const used =
+                e.onceScope === "name"
+                    ? board.players[pid].onceByNameUsed?.[card(source.cardId).name + e.id.slice(e.id.lastIndexOf("-e"))]
+                    : source.activatedUsedTurn?.[e.id]
+            if (used === board.turn) continue
+        }
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {

@@ -15,6 +15,7 @@ import {
     resolveAction,
     runTurnStart,
     takeLifeAndResolve,
+    answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
@@ -255,34 +256,6 @@ console.log("=== 器AM：BS13-026Lv1「お互いのデッキは、効果では�
     assert(s.players.p1.trashCards.length === 3, "器AM：自分の効果によるミルでも、ターンに3枚までしか破棄されない")
 }
 
-console.log("=== 器AN・BS13-027Lv1-2：このスピリットを手札に戻すことで、相手のスピリット1体を指定する。ブロックされなかったそのアタックでは自分のライフは減らない ===")
-{
-    const s = game("an-negate-life-cost")
-    const source027 = createInstance("BS13-027", s.turn, getCard("BS13-027").levels[0]!.cores)
-    s.players.p1.field.spirits.push(source027)
-    const enemy = createInstance(ALL_CARDS.find((c) => c.type === "spirit")!.cardId, s.turn, 1)
-    s.players.p2.field.spirits.push(enemy)
-    refreshLevelAsOverrides(s)
-
-    resolveAction(s, "p1", source027, { type: "negateLifeDamageFromTarget", costReturnSelfToHand: true }, enemy.instanceId)
-
-    assert(!s.players.p1.field.spirits.some((x) => x.instanceId === source027.instanceId), "コストとして自身が手札に戻った")
-    assert(s.players.p1.hand.includes("BS13-027"), "手札にBS13-027が加わった")
-    assert(enemy.lifeDamageNegatedFor === "p1", "指定した相手のアタックでは自分のライフが減らない印がついた")
-}
-
-console.log("=== 器AN：対象がいなければコストを払わず不発（COST_MODEL.md §1） ===")
-{
-    const s = game("an-negate-life-noTarget")
-    const source027 = createInstance("BS13-027", s.turn, getCard("BS13-027").levels[0]!.cores)
-    s.players.p1.field.spirits.push(source027)
-    refreshLevelAsOverrides(s)
-
-    resolveAction(s, "p1", source027, { type: "negateLifeDamageFromTarget", costReturnSelfToHand: true })
-
-    assert(s.players.p1.field.spirits.some((x) => x.instanceId === source027.instanceId), "対象がいないので自身は手札に戻らなかった（コスト不払い）")
-}
-
 console.log("=== 器AN：BS13-027Lv2「相手のスピリットの効果では、自分のライフは減らされない」 ===")
 {
     const s = game("an-life-immune-spirit-effect")
@@ -328,6 +301,7 @@ console.log("=== 器AO：「〜を手札に戻すことで」のコスト支払�
     const deckLenBefore = s.players.p1.deck.length
 
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "returnToHand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "returnToHand", count: 1} }, target.instanceId)
+    answerPayConfirm(s, "p1")
 
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === cost.instanceId), "コストのスピリットは場を離れた")
     assert(!s.players.p1.hand.includes("BS13-021"), "コストのスピリットは手札に加わっていない")

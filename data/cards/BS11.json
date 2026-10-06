@@ -384,6 +384,7 @@
     "id": "BS11-007-e1",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -1461,6 +1462,7 @@
     "id": "BS11-025-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -1482,6 +1484,7 @@
     "id": "BS11-025-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -1951,6 +1954,7 @@
     ],
     "optional": false,
     "oncePerTurn": true,
+    "onceScope": "name",
     "action": {
      "type": "sequence",
      "actions": [
@@ -2813,9 +2817,18 @@
      2
     ],
     "action": {
-     "type": "refreshSelfByExhaustNexus"
-    },
-    "optional": true
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     },
+     "limitByKeyword": "kyoshu"
+    }
    },
    {
     "id": "BS11-046-e3",
@@ -3087,6 +3100,7 @@
     "id": "BS11-050-e1",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": null,
     "whileCombined": true,
     "action": {
@@ -5203,6 +5217,7 @@
     "id": "BS11-X02-e3",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      2,
      3
@@ -5297,6 +5312,7 @@
     ],
     "whileCombined": true,
     "keywordFilter": "soku",
+    "selfMode": "source",
     "action": {
      "type": "refreshSelf"
     }

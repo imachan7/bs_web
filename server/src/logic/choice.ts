@@ -1,6 +1,7 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
+import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
@@ -41,12 +42,12 @@ function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): voi
     const r = pending.revertActivated
     if (r) {
         const inst = findInstanceAnywhere(state, r.instanceId)
-        if (inst) revertActivatedUse(inst, r.effectId)
+        if (inst) revertActivatedUse(state, inst, r.effectId)
     }
     const t = pending.revertTriggered
     if (t) {
         const inst = findInstanceAnywhere(state, t.instanceId)
-        if (inst) revertOncePerTurn(inst, t.effectId)
+        if (inst) revertOncePerTurn(state, inst, t.effectId)
         // 同時破壊グループの仮消費も戻す（キーが無ければ何もしない。fix/destroyed-trigger-once）
         revertDestroyGroupUsage(state, t.instanceId, t.effectId)
     }
@@ -392,11 +393,16 @@ export function doResolveChoice(
                 if (pending.burstThenPay) {
                     // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
                     const info = pending.burstThenPay
-                    state.players[info.pid].reserve -= info.cost
-                    log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                    // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
-                    // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
-                    resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
+                    if (state.players[info.pid].reserve < info.cost) {
+                        log(state, `${getCard(info.cardId).name}：条件を満たさないため発動しなかった。`)
+                    } else {
+                        state.players[info.pid].reserve -= info.cost
+                        state.players[info.pid].trashCores += info.cost
+                        log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
+                        // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
+                        // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
+                        resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
+                    }
                 } else if (pending.burstActivate) {
                     // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
                     // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで
@@ -478,7 +484,7 @@ export function doResolveChoice(
             log(state, `${self ? getCard(self.cardId).name : "効果"}：選択しなかった。`)
         }
         if (state.winner) return null
-        return finishChoiceResolution(state, pending.pid)
+        return finishChoiceResolution(state, pending.actorPid ?? pending.pid)
     }
 
     if (instanceId !== undefined && !pending.candidates.includes(instanceId)) {
@@ -501,7 +507,7 @@ export function doResolveChoice(
         log(state, `${self ? getCard(self.cardId).name : "効果"}：対象を選ばなかった。`)
     }
     if (state.winner) return null
-    return finishChoiceResolution(state, pending.pid)
+    return finishChoiceResolution(state, pending.actorPid ?? pending.pid)
 }
 
 // 選択解決後の共通後処理：queue を消化し、消化しきって新たな選択待ちも無く勝敗も未決なら、
@@ -591,6 +597,13 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             const target = findInstanceAnywhere(state, frame.requiresPendingDestructionOf)
             if (target == null || target.pendingDestruction !== true) continue
         }
+        if (frame.onceClaim !== undefined) {
+            const src = findInstanceAnywhere(state, frame.onceClaim.instanceId)
+            const eff = src && getCard(src.cardId).effects.find((x) => x.id === frame.onceClaim!.effectId)
+            const owner = src && ownerPidOfInstance(state, src)
+            const slot = eff?.kind === "step" ? "stepUsedTurn" : "triggeredUsedTurn"
+            if (!src || !eff || !owner || !claimOnce(state, owner, src, eff as { id: string; onceScope?: "name" }, slot)) continue
+        }
         // logText：ステップ誘発の「〜の効果が発動した」を、再開経路でも同じ位置に残す
         if (frame.logText !== undefined) log(state, frame.logText)
         const frameSelf = frame.selfInstanceId
@@ -598,7 +611,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             : null
         // optional な誘発の残りは、解決ではなく**発動確認から**再開する
         if (frame.confirmPrompt !== undefined) {
-            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf)
+            requestActivationConfirm(state, frame.actorPid ?? pid, frame.confirmPrompt, frame.action, frameSelf, frame.onceClaim)
             continue
         }
         // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る

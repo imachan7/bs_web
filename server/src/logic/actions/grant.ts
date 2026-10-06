@@ -271,24 +271,8 @@ const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint">
 
 const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-        // 器AN：costReturnSelfToHand指定時は、このスピリット自身を手札に戻すことがコスト
-        // （COST_MODEL.md §1：対象になれる相手のスピリットが1体もいなければ不発）。BS13-027ムーンショウウオ。
-        // costPaidは支払い済みの再入を示す内部専用フラグ（cards.jsonには書かない。costSacrificeChosenと同型）
-        if (action.costReturnSelfToHand && !action.costPaid) {
-            if (!self || state.players[opp].field.spirits.length === 0) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            returnSpiritToHand(state, owner, self, sourceName)
-            if (state.winner) return
-            // 呼び出し元が明示的にtargetInstanceIdを渡していた場合（誘発・テスト等）はそのまま引き継ぐ。
-            // 渡していなければ後続のinteractiveTargets分岐でプレイヤーに選ばせる
-            ctx.resolve({ ...action, costPaid: true }, targetInstanceId !== undefined ? { targetInstanceId } : undefined)
-            return
-        }
-        // costReturnSelfToHand持ちは「相手のスピリット1体を指定する」＝プレイヤーが選ぶ（BS13-027）。
-        // 既存のBS04ミストカーテン（costReturnSelfToHand無し）は従来どおり自動選択のまま変えない
-        if (action.costReturnSelfToHand && targetInstanceId === undefined && state.interactiveTargets) {
+        // 「相手のスピリット1体を指定する」＝対話中は常に持ち主が選ぶ（非対話は従来どおり自動。2026-10-02 ユーザー確認）
+        if (targetInstanceId === undefined && state.interactiveTargets && state.players[opp].field.spirits.length > 0) {
             requestChoice(
                 state,
                 owner,

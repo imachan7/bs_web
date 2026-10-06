@@ -110,6 +110,7 @@
         "id": "P070-e2",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "use",
         "levels": null,
         "whileCombined": true,
         "optional": false,

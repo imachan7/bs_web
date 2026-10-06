@@ -7,6 +7,7 @@ import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevel
 import { notifyHandGained, revertDestroyGroupUsage } from "./triggers"
 import { destroySpirit } from "./removal"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
+import { unpayableLine } from "./actions/pay"
 
 import {
     effectiveCost,
@@ -138,7 +139,7 @@ export function collectReviveEntries(
 }
 
 // 集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
-// optional（「〜できる」）なら従来どおり持ち主に確認を出す。断れば破壊はそのまま進み、
+// optional（「〜できる」）またはコストありなら持ち主に確認を出す（払えなくても出す。COST_MODEL.md §10）。断れば破壊はそのまま進み、
 // 列に残っている項目も解決される（pendingDestruction が消えないため）
 export function applyReviveEntry(
     state: GameState,
@@ -407,12 +408,12 @@ export function applySpiritMillFreeSummon(
     if (index === -1) return
     const card = getCard(info.cardId)
     player.trashCards.splice(index, 1)
-    const inst = createInstance(info.cardId, state.turn, minLevelCores(card))
+    // 召喚コストは無料だが、Lv1 に要るコアは通常の召喚と同じくリザーブから置く
+    const cores = Math.min(minLevelCores(card), player.reserve)
+    player.reserve -= cores
+    const inst = createInstance(info.cardId, state.turn, cores)
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
-    // 「さらに、このターンの間、自分のデッキは破棄されない」＝**この召喚が成立したときだけ**付く（§1 #27）
-    recordPlayerRule(state, info.pid, { type: "noDeckMillByOpponentForPid" })
-    log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
     if (!state.winner) resolveTensho(state, info.pid, inst)
     if (state.winner) return
     if (state.pendingChoice) {
@@ -437,6 +438,7 @@ export function applyReviveConfirm(
     // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
     if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true })) {
+        log(state, `${getCard(inst.cardId).name}：条件を満たさないため発動しなかった。`)
         declineReviveConfirm(state, entry)
         return
     }
@@ -779,6 +781,49 @@ function tryReviveOnDestroy(
         return true
     }
 
+    // 確認を出す前の成立判定（副作用なし）。払えない理由を返し、払えるか判定できない（デッキの上の結果次第など）なら null。
+    // applyCost の不成立条件と揃えること（2026-10-02 ユーザー確認：聞く前に払えないなら確認を出さない）
+    const reviveCostReason = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        source?: CardInstance,
+    ): string | null => {
+        const cost = effect.cost
+        if (!cost) return null
+        if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
+        if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null
+        if (cost.oneCoreToTrash) return inst.cores <= 0 ? "コアが足りない" : null
+        if (cost.reserveOneToTrash) return player.reserve <= 0 ? "リザーブにコアがない" : null
+        if (cost.fieldOrReserveOneToTrash) {
+            const any = player.reserve > 0 || [...player.field.spirits, ...player.field.nexuses].some((i) => i.instanceId !== inst.instanceId && i.cores > 0)
+            return any ? null : "トラッシュへ置けるコアがない"
+        }
+        if (cost.handDiscardOne) {
+            if (!canDiscardHand(state, ownerPid)) return "手札を破棄できない"
+            const type = cost.handDiscardCardType
+            const has = type !== undefined ? player.hand.some((id) => getCard(id).type === type) : player.hand.length > 0
+            return has ? null : "手札に破棄できるカードがない"
+        }
+        if (cost.millSelfOneMatching) return player.deck.length === 0 ? "デッキがない" : null
+        if (cost.exhaustOwnFamilyOne || cost.exhaustOwnSameFamilyOne) {
+            const family = cost.exhaustOwnFamilyOne ?? getCard(inst.cardId).family
+            const has = player.field.spirits.some((x) => x.instanceId !== inst.instanceId && !x.isRested && matchesFamilyFilter(state, ownerPid, x, family))
+            return has ? null : "疲労させられる自分のスピリットがいない"
+        }
+        if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || lifeCostBlockedByFloor(state, ownerPid) ? "ライフを減らせない" : null
+        if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || lifeDamagePerSpiritRemaining(state, inst) <= 0 ? "相手のライフを減らせない" : null
+        if (cost.discardOwnBurst) return player.burst === null ? "破棄できるバーストがセットされていない" : null
+        if (cost.exhaustOwnNexusOne) return !canExhaustNexus(state, ownerPid) || player.field.nexuses.every((n) => n.isRested) ? "疲労させられる自分のネクサスがない" : null
+        return null
+    }
+    // 払えないなら確認を出さず不発にする。下見（probe）ではログを出さない。true＝不発として扱う
+    const skipUnpayable = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, source: CardInstance, sourceName: string): boolean => {
+        if (effect.cost === undefined) return false
+        const reason = reviveCostReason(effect, source)
+        if (reason === null) return false
+        if (!probe) log(state, unpayableLine(sourceName, reason))
+        return true
+    }
+
     // oncePerTurn（BS06暴かれた墓石Lv2）：発生源（sourceInst）が同一ターンに既に復活を成立させていたら不発
     const oncePerTurnBlocked = (
         effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
@@ -872,7 +917,8 @@ function tryReviveOnDestroy(
             collect.push({ effectId: effect.id, sourceName })
             return false
         }
-        if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
+        if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
+            if (skipUnpayable(effect, inst, sourceName)) return false
             if (probe) return true // 下見：ここで確認が出る
             if (allowSuspend) {
                 suspendReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
@@ -968,7 +1014,8 @@ function tryReviveOnDestroy(
             }
             // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
             // allowSuspend が渡っていれば**その場で**確認を出す（渡っていなければ従来どおり保留へ）
-            if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
+            if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
+                if (skipUnpayable(effect, source, getCard(source.cardId).name)) continue
                 if (probe) return true // 下見：ここで確認が出る
                 if (allowSuspend) {
                     suspendReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)

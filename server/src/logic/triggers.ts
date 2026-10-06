@@ -8,6 +8,7 @@
 // あちらは fireTrigger / resolveMagic 等を使う）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { markPays } from "./actions/pay"
 import type {
     AuraCondition,
     AuraCounter,
@@ -92,6 +93,7 @@ import {
     instAllCosts,
     instColors,
     instEffectsSuppressed,
+    nexusEffectsStopped,
     instHasColor,
     instHasCost,
     instHasTriggerEffect,
@@ -176,6 +178,7 @@ export { resolveMagic } from "./magic/cast"
 export { findMagicNegateSource, applyMagicNegateChoice, declineMagicNegateChoice } from "./magic/negate"
 export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, applyBothSidesRedirectToCandidates, BOTH_SIDES_REDIRECT_OPTIONS, applyMagicSideChoice, applyMagicRedirectChoice } from "./magic/redirect"
 import { setTargetRedirect } from "./magic/redirect"
+import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { finishSummonEffect, fireBurstOnEvent } from "./keywords/burst"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
@@ -246,10 +249,8 @@ export function fireSummonTrigger(
 
 
 // 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
-export function revertOncePerTurn(inst: CardInstance, effectId: string): void {
-    if (!inst.triggeredUsedTurn) return
-    const { [effectId]: _removed, ...rest } = inst.triggeredUsedTurn
-    inst.triggeredUsedTurn = rest
+export function revertOncePerTurn(state: GameState, inst: CardInstance, effectId: string): void {
+    revertOnceUsed(state, inst, effectId, "triggeredUsedTurn")
 }
 
 // 同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
@@ -290,7 +291,7 @@ export function fireTrigger(
     }
     // 「持つ効果すべては発揮されない」を受けている個体（BS07ルナースラッシュ／BS03ゴーレムクラフトで
     // スピリット化されたネクサス）は誘発も出さない
-    if (instEffectsSuppressed(selfInstance)) {
+    if (instEffectsSuppressed(selfInstance) || nexusEffectsStopped(state, owner, selfInstance)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
@@ -353,7 +354,7 @@ export function fireTrigger(
         if (effect.turn === "own" && owner !== state.turnPlayer) return false
         if (effect.turn === "opponent" && owner === state.turnPlayer) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
-        if (effect.oncePerTurn === true && src.triggeredUsedTurn?.[effect.id] === state.turn) return false
+        if (effect.oncePerTurn === true && isOnceUsed(state, owner, src, effect, "triggeredUsedTurn")) return false
         if (effect.condition) {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
                 // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
@@ -557,7 +558,7 @@ export function fireTrigger(
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
         // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
         if (effect.oncePerTurn === true) {
-            entry.src.triggeredUsedTurn = { ...(entry.src.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            markOnceUsed(state, owner, entry.src, effect, "triggeredUsedTurn")
             delete state.effectFizzled
         }
         // 「〜できる」（optional）は実対戦では発動可否をプレイヤーに確認する。
@@ -578,12 +579,14 @@ export function fireTrigger(
             // ブレイヴの効果も「合体スピリット＝スピリットの効果」として扱う（BRAVE.md §12.1）
             const redirecting = card.type === "spirit" || entry.src !== selfInstance
             if (redirecting) setTargetRedirect(state, owner, targetInstanceId, effect.action)
-            resolveAction(state, owner, selfInstance, effect.action, targetInstanceId)
+            // 中の pay が確認で止まると、下の effectFizzled による巻き戻しは再開前に通り過ぎる。断った／不発のときに戻せるよう pay に渡す
+            const action = effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action
+            resolveAction(state, owner, selfInstance, action, effect.eventTarget === "ignore" ? undefined : targetInstanceId)
             if (redirecting) delete state.magicRedirectTo
         }
         // コストを払えないなどで何も起きなかったら、「ターンに1回」の消費を戻す
         if (effect.oncePerTurn === true && state.effectFizzled) {
-            revertOncePerTurn(entry.src, effect.id)
+            revertOncePerTurn(state, entry.src, effect.id)
             delete state.effectFizzled
         }
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
@@ -923,6 +926,7 @@ export function fireStepTriggers(
         for (const inst of instances) {
             const card = getCard(inst.cardId)
             const level = currentLevel(inst).level
+            if (nexusEffectsStopped(state, pid, inst)) continue
             for (const effect of card.effects) {
                 if (effect.kind !== "step") continue
                 if (effect.step !== step) continue
@@ -934,7 +938,7 @@ export function fireStepTriggers(
                 // 【合体時】のゲート＋レベル判定（BS10-008 火星神龍アレス・ドラグーン）
                 if (!effectActiveOn(inst, effect, level)) continue
                 // 「ターンに1回」（BS10-008：この効果自身が追加のエンドステップを生むため、無いと無限ループになる）
-                if (effect.oncePerTurn === true && inst.stepUsedTurn?.[effect.id] === state.turn) continue
+                if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "stepUsedTurn")) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
                 if (effect.condition === "selfWasRefreshedThisStep" && !refreshedInstanceIds?.has(inst.instanceId)) continue
                 if (effect.condition && typeof effect.condition === "object" && "ownSymbolColorAtLeast" in effect.condition) {
@@ -1017,22 +1021,6 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
-                // cost:{exhaustSelf}（BS12-043大地の狩人コンドラッドLv1）：既に疲労状態なら払えないので発火しない
-                if (effect.cost && "exhaustSelf" in effect.cost && inst.isRested) continue
-                // cost:{reserveToTrash}（BS15-032スノーフレイクンLv1）：リザーブが足りなければ払えないので発火しない
-                if (effect.cost && "reserveToTrash" in effect.cost && state.players[pid].reserve < effect.cost.reserveToTrash) continue
-                // cost:{selfCoresToTrash}（BS15-023タケノ・サイガーLv2）：発生源自身のコアが足りなければ発火しない
-                if (effect.cost && "selfCoresToTrash" in effect.cost && inst.cores < effect.cost.selfCoresToTrash) continue
-                // 器BS16：cost:{discardHandFamily}（BS16-063釣魂台Lv2）：手札に指定系統のスピリットカードが無ければ発火しない
-                if (effect.cost && "discardHandFamily" in effect.cost) {
-                    const wanted = Array.isArray(effect.cost.discardHandFamily)
-                        ? effect.cost.discardHandFamily
-                        : [effect.cost.discardHandFamily]
-                    const hasCard = state.players[pid].hand.some(
-                        (cardId) => getCard(cardId).type === "spirit" && wanted.some((f) => getCard(cardId).family.includes(f)),
-                    )
-                    if (!hasCard) continue
-                }
                 firing.push({ pid, inst, effect })
             }
         }
@@ -1042,46 +1030,15 @@ export function fireStepTriggers(
         skip: (e) => !isStillOnField(state, e.pid, e.inst.instanceId),
         resolve: (e) => {
             // 「ターンに1回」の消費を記録する（BS10-008：発火が確定した時点で記録し、再入で二重発火しない）
-            if (e.effect.oncePerTurn === true) {
-                e.inst.stepUsedTurn = { ...(e.inst.stepUsedTurn ?? {}), [e.effect.id]: state.turn }
-            }
-            // cost:{exhaustSelf}：発火が確定した時点で疲労させる（COST_MODEL.md。
-            // interactiveTargetsの確認を断った場合も疲労する簡略化）
-            if (e.effect.cost && "exhaustSelf" in e.effect.cost) {
-                exhaustSpirit(state, e.pid, e.inst)
-            }
-            if (e.effect.cost && "reserveToTrash" in e.effect.cost) {
-                const player = state.players[e.pid]
-                const paid = e.effect.cost.reserveToTrash
-                player.reserve -= paid
-                player.trashCores += paid
-            }
-            if (e.effect.cost && "selfCoresToTrash" in e.effect.cost) {
-                const paid = e.effect.cost.selfCoresToTrash
-                e.inst.cores -= paid
-                state.players[e.pid].trashCores += paid
-            }
-            // 器BS16：cost:{discardHandFamily}（BS16-063釣魂台Lv2）。候補2枚以上ならコスト最大を自動選択する簡略化
-            if (e.effect.cost && "discardHandFamily" in e.effect.cost) {
-                const player = state.players[e.pid]
-                const wanted = Array.isArray(e.effect.cost.discardHandFamily)
-                    ? e.effect.cost.discardHandFamily
-                    : [e.effect.cost.discardHandFamily]
-                const indices = player.hand
-                    .map((_, i) => i)
-                    .filter((i) => getCard(player.hand[i]!).type === "spirit" && wanted.some((f) => getCard(player.hand[i]!).family.includes(f)))
-                let bestIdx = indices[0]!
-                for (const i of indices) {
-                    if (getCard(player.hand[i]!).cost > getCard(player.hand[bestIdx]!).cost) bestIdx = i
-                }
-                const cardId = player.hand[bestIdx]!
-                player.hand.splice(bestIdx, 1)
-                player.trashCards.push(cardId)
-                log(state, `${player.name}は${getCard(e.inst.cardId).name}のコストとして手札の${getCard(cardId).name}を破棄した。`)
+            const byName = e.effect.onceScope === "name"
+            if (byName) {
+                if (!claimOnce(state, e.pid, e.inst, e.effect, "stepUsedTurn")) return
+            } else if (e.effect.oncePerTurn === true) {
+                markOnceUsed(state, e.pid, e.inst, e.effect, "stepUsedTurn")
             }
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
-                requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst)
+                requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst, byName ? { instanceId: e.inst.instanceId, effectId: e.effect.id } : undefined)
                 return
             }
             // 効果の発生源をログに残す（2026-08-02 UI担当からの指摘）。
@@ -1091,13 +1048,21 @@ export function fireStepTriggers(
                 state,
                 `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             )
-            resolveAction(state, e.pid, e.inst, e.effect.action)
+            if (!byName) {
+                resolveAction(state, e.pid, e.inst, e.effect.action)
+                return
+            }
+            delete state.effectFizzled
+            resolveAction(state, e.pid, e.inst, markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }))
+            if (state.effectFizzled) revertOnceUsed(state, e.inst, e.effect.id, "stepUsedTurn")
+            delete state.effectFizzled
         },
         frame: (e) => ({
             kind: "action" as const,
             selfInstanceId: e.inst.instanceId,
-            action: e.effect.action,
+            action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
             actorPid: e.pid,
+            ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
             logText: `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             ...confirmPromptIfOptional(state, e.inst, e.effect.optional),
         }),
@@ -1309,11 +1274,8 @@ export function fireFieldEventTriggers(
             // excludeSelfSubject（BS15-009虚龍帝カタストロフドラゴン）：イベントの主体が発生源自身のときは発火しない
             if (effect.excludeSelfSubject && inst.instanceId === selfOverride?.inst.instanceId) continue
             if (!effectActiveOn(inst, effect, level)) continue
-            // ターンに1回（BS13-070星宿の障壁Lv2）。kind:"triggered".oncePerTurnと同じ記録先を共有する
-            // **マッチ時点で消費する**（コストが後で不発でも1回ぶん消費される）。これは新しい簡略化ではなく、
-            // 既存の kind:"triggered" の oncePerTurn と同じ挙動（下の firing.push 手前で同様に記録している）。
-            // ルール上は払えなければ発揮していないので消費すべきでない＝既知のズレ（HANDOFF §2）
-            if (effect.oncePerTurn === true && inst.triggeredUsedTurn?.[effect.id] === state.turn) continue
+            // 個体ごとの枠は集める時点で取る。名前スコープの枠は resolve の直前に取る（同名の1体目が不発なら2体目が使える）
+            if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")) continue
             // 【合体時】の色条件（X008）
             if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -1601,7 +1563,7 @@ export function fireFieldEventTriggers(
                 state.destroyGroup.used.push(groupKey)
             }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
-            if (effect.oncePerTurn) inst.triggeredUsedTurn = { ...(inst.triggeredUsedTurn ?? {}), [effect.id]: state.turn }
+            if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             firing.push({ inst, effect, repeatTimes })
         }
     }
@@ -1635,8 +1597,11 @@ export function fireFieldEventTriggers(
             // **効果の発生源はこのエントリを持つカード（inst）**。装甲・マジック効果耐性の判定に使う
             // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
             // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
+            // 「そのスピリットを破壊する／疲労させる」は発生源の持ち主の効果（2026-09-30 ユーザー確認）。
+            // イベント対象が相手側でも実行者は発生源の持ち主にする（装甲などの耐性と「相手の効果で〜」の判定に効く）
+            const actsOnEventSubject = effect.action.type === "destroySelf" || effect.action.type === "exhaustSelf"
             return {
-                actionPid: selfOverride.pid,
+                actionPid: actsOnEventSubject ? pid : selfOverride.pid,
                 actionSelf: selfOverride.inst,
                 actionTargetId,
                 srcColors: instColors(inst),
@@ -1676,6 +1641,7 @@ export function fireFieldEventTriggers(
                 resolveAction(state, e.extra.actorPid, e.extra.selfInstanceId ? findInstanceAnywhere(state, e.extra.selfInstanceId) ?? null : null, e.extra.action)
                 return
             }
+            if (e.effect.onceScope === "name" && !claimOnce(state, pid, e.inst, e.effect, "triggeredUsedTurn")) return
             const c = contextOf(e.inst, e.effect)
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered/step/battleWonと同じ扱い。
             // interactiveTargets=false（テスト）では従来どおり常に発動する。BS08聖なる柱状彫刻Lv2）
@@ -1692,10 +1658,12 @@ export function fireFieldEventTriggers(
                 )
             } else {
                 delete state.effectFizzled
-                resolveAction(state, c.actionPid, c.actionSelf, e.effect.action, c.actionTargetId, c.srcColors, c.srcType)
+                // 中の pay が確認で止まったとき、断った／不発で消費を戻せるよう渡す（triggered と同じ）
+                const action = markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } })
+                resolveAction(state, c.actionPid, c.actionSelf, action, c.actionTargetId, c.srcColors, c.srcType)
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
-                    if (e.effect.oncePerTurn) revertOncePerTurn(e.inst, e.effect.id)
+                    if (e.effect.oncePerTurn) revertOncePerTurn(state, e.inst, e.effect.id)
                     revertDestroyGroupUsage(state, e.inst.instanceId, e.effect.id)
                 }
                 delete state.effectFizzled
@@ -1717,8 +1685,9 @@ export function fireFieldEventTriggers(
             return {
                 kind: "action" as const,
                 selfInstanceId: c.actionSelf.instanceId,
-                action: e.effect.action,
+                action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
                 actorPid: c.actionPid,
+                ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
                 ...(destroyGuard !== undefined ? { requiresPendingDestructionOf: destroyGuard } : {}),
                 ...(c.actionTargetId !== undefined ? { targetInstanceId: c.actionTargetId } : {}),
                 ...(c.srcColors !== undefined ? { sourceColors: c.srcColors } : {}),

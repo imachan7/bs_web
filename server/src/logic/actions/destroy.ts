@@ -20,6 +20,7 @@ import {
     findSpiritAny,
     isResisted,
     askPayToNegateIfNeeded,
+    gateTargetedApply,
     resistanceAgainst,
     matchesFamilyFilter,
     notifyNexusDeployed,
@@ -280,11 +281,22 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             ) {
                 return
             }
+            const handledAny = new Set<string>()
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, matchesFilter, srcColors, srcType)
+                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesFilter(s) && !handledAny.has(s.instanceId), srcColors, srcType)
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
+                }
+                handledAny.add(target.inst.instanceId)
+                // 自分側の対象には耐性を挟まない（このアクションの anySide の非対称ルール）
+                const resisted = target.pid === owner
+                    ? null
+                    : gateTargetedApply(state, target.pid, target.inst, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
+                if (resisted === "asked") return
+                if (resisted) {
+                    log(state, `${getCard(target.inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                    continue
                 }
                 destroySpirit(state, target.pid, target.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
                 // 復活の確認で中断した。**残りの体数ぶん**を再開フレームに積んで抜ける
@@ -330,9 +342,19 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         // （数え方と中断の扱いを destroyTargetsBatch に任せる）
         if (action.drawPerDestroyed || action.thenDrawFixed) {
             const picked: { pid: PlayerId; instanceId: string }[] = []
+            // 受けなかった対象は picked に入らないので、選び直さないよう別に覚える。
+            // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
+            const handled = new Set<string>()
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !picked.some((p) => p.instanceId === s.instanceId), srcColors, srcType)
+                const target = pickEnemyByBp(state, opp, limitBp, (s) => matchesFilter(s) && !handled.has(s.instanceId), srcColors, srcType)
                 if (!target) break
+                handled.add(target.instanceId)
+                const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
+                if (resisted === "asked") return
+                if (resisted) {
+                    log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                    continue
+                }
                 picked.push({ pid: opp, instanceId: target.instanceId })
             }
             if (picked.length === 0) {
@@ -348,19 +370,30 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             })
             return
         }
+        // 1体ごとに適用の直前で耐性（手札を破棄して受けない、を含む）を通す。受けなかった対象は場に残るので、
+        // 次の回で選び直さないよう除く。対話中にここへ来るのは候補が0〜1体のときだけ（2体以上は上の選択に回る）
+        const handled = new Set<string>()
+        const matchesUnhandled = (s: CardInstance) => matchesFilter(s) && !handled.has(s.instanceId)
         for (let i = 0; i < resolvedCount; i++) {
             // 相手が選ぶ（chooserIsTarget）なら、相手が差し出すであろう実効BP最小から（CHOOSER_RULES.md §2）
             const target = action.lowestCost
-                ? pickEnemyLowestCost(state, opp, matchesFilter, srcColors, srcType)
+                ? pickEnemyLowestCost(state, opp, matchesUnhandled, srcColors, srcType)
                 : action.chooserIsTarget
-                  ? pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType).reduce<CardInstance | null>(
+                  ? pickEnemyCandidates(state, opp, limitBp, matchesUnhandled, srcColors, srcType).reduce<CardInstance | null>(
                         (min, s) => (min === null || effectiveBp(state, opp, s) < effectiveBp(state, opp, min) ? s : min),
                         null,
                     )
-                  : pickEnemyByBp(state, opp, limitBp, matchesFilter, srcColors, srcType)
+                  : pickEnemyByBp(state, opp, limitBp, matchesUnhandled, srcColors, srcType)
             if (!target) {
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 break
+            }
+            handled.add(target.instanceId)
+            const resisted = gateTargetedApply(state, opp, target, attemptOf(ctx, "destroy", "targeted"), fixedCount(actionForChoice, 1), self, sourceName)
+            if (resisted === "asked") return
+            if (resisted) {
+                log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                continue
             }
             destroySpirit(state, opp, target.instanceId, "destroy", destroyContext, { allowSuspend: true })
             // 復活の確認で中断した。残りの体数ぶんを再開フレームに積んで抜ける
@@ -672,17 +705,17 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 destroyed++
             }
         }
-        // 実際に破壊できたネクサス1つにつきdrawPerDestroyed枚ドロー（バスタースピア）
-        if (action.drawPerDestroyed && destroyed > 0) {
-            draw(state, owner, destroyed * action.drawPerDestroyed)
+        // 実際に破壊できたネクサス1つにつき、ドロー（バスタースピア）／相手の手札を破棄（BS05鉄槌のオズワルドLv2）。
+        // 破壊で誘発した効果が選択待ちを立てたら、後半はその解決の後に回す（2026-10-02。中断ガードで見つかった）
+        const after: EffectAction[] = []
+        if (action.drawPerDestroyed && destroyed > 0) after.push({ type: "draw", count: destroyed * action.drawPerDestroyed })
+        if (action.discardOpponentPerDestroyed && destroyed > 0) after.push({ type: "discardOpponent", count: destroyed * action.discardOpponentPerDestroyed })
+        if (after.length === 0) return
+        if (state.pendingChoice) {
+            pushResumeFrames(state, after.map((a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a })))
+            return
         }
-        // 実際に破壊できたネクサス1つにつき相手の手札を破棄させる（BS05鉄槌のオズワルドLv2）
-        if (action.discardOpponentPerDestroyed && destroyed > 0) {
-            ctx.resolve({
-                type: "discardOpponent",
-                count: destroyed * action.discardOpponentPerDestroyed,
-            })
-        }
+        for (const a of after) ctx.resolve(a)
         return
 }
 
@@ -938,7 +971,13 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
             log(state, `${sourceName}：selfが不在のため何も起こらなかった。`)
             return
         }
-        destroySpirit(state, owner, self.instanceId, "destroy", undefined, { allowSuspend: true })
+        // fieldEvent で相手側のスピリットがイベント対象のとき、self の持ち主は実行者（owner）と異なる
+        const selfPid = findSpiritAny(state, self.instanceId)?.pid ?? owner
+        if (selfPid !== owner && isResisted(state, selfPid, self, attemptOf(ctx, "destroy", "area"))) {
+            log(state, `${getCard(self.cardId).name}は${sourceName}の効果を受けないため破壊されなかった。`)
+            return
+        }
+        destroySpirit(state, selfPid, self.instanceId, "destroy", selfPid !== owner ? destroyContext : undefined, { allowSuspend: true })
         return
 }
 
@@ -1049,42 +1088,43 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
         return
 }
 
+// 払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
+export function reviveLastDestroyedNexusBlockReason(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    action: Extract<EffectAction, { type: "reviveLastDestroyedNexus" }>,
+): string | null {
+    const last = state.lastDestroyedNexus
+    const requiredCost = action.coreCost
+    const fromFieldOrReserve = action.costFrom === "ownFieldOrReserve"
+    if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) return "支払えるコアがない"
+    if (!last || last.pid !== owner) return "戻せるネクサスがない"
+    const player = state.players[owner]
+    if (!player.field.nexuses.some((n) => n.pendingDestruction) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
+    if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0) < (requiredCost ?? 1)) return "支払えるコアがない"
+    return null
+}
+
 const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 戦闘獣ジャッカー：self上のコアすべてをトラッシュに置くことで、直近に破壊された自分のネクサスを戻す
-        // BS05ブロンズ・ゴレム：coreCost指定時はその数だけを支払う（不足なら不発）
-        const last = state.lastDestroyedNexus
-        const requiredCost = action.coreCost
+    const { state, owner, self, sourceName } = ctx
+        // coreCost 省略時は self 上のコアすべてを払う（戦闘獣ジャッカー）
         // costFrom:"ownFieldOrReserve"（SD02-014 魔法監視塔Lv1）：コストを self 上ではなく
         // 自分のフィールド/リザーブのコアから払う。**リザーブを優先**して場のスピリットを崩さない
+        const reason = reviveLastDestroyedNexusBlockReason(state, owner, self, action)
+        if (reason !== null) {
+            log(state, `${sourceName}：${reason}ため発動しなかった。`)
+            return
+        }
+        const last = state.lastDestroyedNexus!
+        const requiredCost = action.coreCost
         const fromFieldOrReserve = action.costFrom === "ownFieldOrReserve"
-        if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) {
-            log(state, `${sourceName}：支払えるコアがなかった。`)
-            return
-        }
-        if (!last || last.pid !== owner) {
-            log(state, `${sourceName}：戻せるネクサスがなかった。`)
-            return
-        }
         const player = state.players[owner]
         // 「フィールドに戻す」は**破壊待機状態から戻す**という意味で、トラッシュからの回収ではない
         // （docs/design/TIMING_CHART.md §1.5）。したがって破壊待機状態のネクサスを探し、
         // 待機を解除する。コアも乗ったまま・レベルもそのままでフィールドにとどまる
         const pending = player.field.nexuses.find((n) => n.pendingDestruction)
         const trashIndex = pending ? -1 : player.trashCards.lastIndexOf(last.cardId)
-        if (!pending && trashIndex === -1) {
-            log(state, `${sourceName}：戻せるネクサスがなかった。`)
-            return
-        }
-        // 支払える総量を先に確かめる（払えないなら何も起こさない。「〜することで」は任意コスト）
-        if (fromFieldOrReserve) {
-            const need = requiredCost ?? 1
-            const available = player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0)
-            if (available < need) {
-                log(state, `${sourceName}：支払えるコアがなかった。`)
-                return
-            }
-        }
         // コストの支払い：coreCost指定時はその数、省略時はself上のコアすべてを自分のトラッシュへ（維持コア割れで消滅する）
         let paid: number
         if (fromFieldOrReserve) {

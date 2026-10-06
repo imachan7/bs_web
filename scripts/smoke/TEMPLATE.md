@@ -76,6 +76,30 @@ console.log("すべてのチェックに合格しました 🎉（partN）")
 | 読む | `getCard` `effectiveBp` `effectiveCost` `currentLevel` `minLevelCores` `hasKeyword` `spiritHasKeyword` `spiritHasFamily` `cardHasColor` `hasArmorAgainst` `canAwaken` `costCantAct` `viewFor` `effectSources` |
 | 判定 | `assert` |
 
+## 場面テスト（カード効果は原則こちら。docs/design/TEST_STRATEGY.md §5）
+
+盤面の変化を丸ごと照合する。**書いていない変化が起きても落ちる**。左右反転は自動。例は part454。
+
+```ts
+import { scenario } from "./scenario"
+
+scenario({
+    name: "▼短い英字名",
+    start: { me: { spirits: [{ card: TARGET, label: "▼呼び名", rested: true }, { card: ALLY }] } },
+    steps(t) {
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("▼カード名かラベル") })
+        t.closeFlash()
+        t.act("opp", { type: "takeLife" })
+    },
+    expect: ["自分.▼呼び名.疲労: true → false", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+})
+```
+
+- 効果節ごとに「起きる場面」と「起きない場面（条件を1つ外す／相手側で同じことをする）」を書く
+- 期待値は**効果文から**書く。実行して出た差分を写さない（それをすると実装の写しになる）
+- 発火関数の直接呼び出し・`s.players` の書き換えは `start` の外でしない
+
 ## よくある形
 
 - **選択を挟む**：`game(seed, true)` にして操作 → `s.pendingChoice` を見る → `handleAction` で答える

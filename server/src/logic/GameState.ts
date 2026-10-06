@@ -572,10 +572,53 @@ export function findInstanceAnywhere(
     state: GameState,
     instanceId: string,
 ): CardInstance | undefined {
-    return (
-        findSpirit(state.players.p1, instanceId) ??
-        findSpirit(state.players.p2, instanceId)
-    )
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const f = state.players[pid].field
+        const hit =
+            f.spirits.find((x) => x.instanceId === instanceId) ??
+            f.nexuses.find((x) => x.instanceId === instanceId) ??
+            f.combinedBraves.find((x) => x.instanceId === instanceId)
+        if (hit) return hit
+    }
+    if (DEBUG_CHECKS) noteLostLookup(state, instanceId)
+    return undefined
+}
+
+// ── 見失いの検査（検査用。BS_DEBUG_CHECKS=1 のときだけ働く）──────────────
+// 選択待ちからの再開・順番選択では発生源を instanceId で引き直す。ここで見失うと発生源の色や持ち主が落ち、
+// 耐性判定が素通りする（2026-10-01 に竜騎集う円卓＋賢者の樹の実で【装甲：赤】が抜けた。当時はスピリットしか探しておらず、既存 smoke で14種のネクサスが23件見失っていた）。
+// field の配列は上の探索とは独立に**全部**なめる。field に新しい置き場を足して探索に足し忘れたら、ここで落ちる
+let lostLookups: string[] = []
+
+function noteLostLookup(state: GameState, instanceId: string): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const [zone, list] of Object.entries(state.players[pid].field)) {
+            if (!Array.isArray(list)) continue
+            const inst = (list as CardInstance[]).find((x) => x.instanceId === instanceId)
+            if (inst) lostLookups.push(`${pid}の field.${zone}「${getCard(inst.cardId).name}」を instanceId で引いたが見つからなかった`)
+        }
+    }
+}
+
+export function takeLostLookups(): string[] {
+    const found = lostLookups
+    lostLookups = []
+    return found
+}
+
+// 「手札を破棄して効果を受けない」の聞き漏れの検査（検査用。BS_DEBUG_CHECKS=1 のときだけ働く）。
+// 対話中は対象ごとに守る側へ聞いてから適用する規則（COST_MODEL.md §10）。答えが無いまま払いに来たら、
+// その経路が askPayToNegateIfNeeded を通していない。払わずに効果を受けさせ、ここへ記録して smoke を落とす
+let missedPayAsks: string[] = []
+
+export function noteMissedPayAsk(message: string): void {
+    if (DEBUG_CHECKS) missedPayAsks.push(message)
+}
+
+export function takeMissedPayAsks(): string[] {
+    const found = missedPayAsks
+    missedPayAsks = []
+    return found
 }
 
 // ---- クライアントへ送る公開ビュー ----
@@ -613,6 +656,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         // バーストの内容は自分にだけ見せる（相手は常にnull＝伏せている）。セット済みか否かは公開情報
         burst: isSelf ? player.burst : null,
         burstSet: player.burstSet,
+        ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
         burstSetThisTurn: player.burstSetThisTurn,
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }

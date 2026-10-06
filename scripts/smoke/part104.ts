@@ -11,6 +11,7 @@
 //   - BS05-032 珊瑚蟹シオマネキッド Lv2：自分の緑のスピリットすべてに装甲：赤/白を付与
 //   - BS02-X07 巨神機トール Lv1-3：アタック時＋Lv3バトル終了時、武装を疲労/破壊してBP増加/回復
 import {
+    effectiveBp,
     act,
     assert,
     createGame,
@@ -187,7 +188,7 @@ console.log("=== BS02-X07 巨神機トール：アタック時BP増加＋Lv3バ�
 
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "トールでアタック宣言")
     assert(buddy.isRested === true, "系統「武装」の自分のスピリットが疲労する（BP増加のコスト）")
-    assert(attacker.tempBpBuff === 4000, "疲労させたスピリットの実効BP分だけBP+する")
+    assert(effectiveBp(s, "p1", attacker) === 12000, `疲労させたスピリットの実効BP分だけBP+する（8000+4000。実際 ${effectiveBp(s, "p1", attacker)}）`)
 
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "フラッシュ①を閉じてからブロック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")

@@ -32,6 +32,7 @@ import {
     refreshSpirit,
     requestCardChoice,
     requestChoice,
+    requestActivationConfirm,
     resolveAction,
     resolveKoboOnBattleEnd,
     resolveTensho,
@@ -539,8 +540,15 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         return
 }
 
-const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, action) => {
+const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, rawAction) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // countCounter は最初の1回だけ枚数に解く。中断からの再開ではカウンタの記録が変わりうるので、解いた count を持ち回る
+    const action: typeof rawAction = (() => {
+        if (rawAction.countCounter === undefined) return rawAction
+        const { countCounter, ...rest } = rawAction
+        return { ...rest, count: countedAmount(state, owner, self, rawAction.count ?? 1, countCounter, srcType), chooseEach: true }
+    })()
+    if (rawAction.countCounter !== undefined && action.count === 0) return
         // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
         // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
         // （同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。
@@ -797,6 +805,34 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 askPick(action.count)
                 return
             }
+            // chooseEach（countCounter）：払った数ぶんを1枚ずつ必ず選ばせる。上限は pay のチェッカーが保証する
+            if (action.chooseEach && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.hand.length; i++) {
+                    if (matchesCardId(player.hand[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚）`,
+                        "hand",
+                        indices,
+                        false,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                } else if (remaining > 0) {
+                    log(state, `${sourceName}：召喚できるスピリットが手札に無くなったため、残り${remaining}枚は召喚しなかった。`)
+                }
+                return
+            }
             // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
             if (action.upTo && state.interactiveTargets) {
                 if (chosenCardIndex !== undefined) {
@@ -847,73 +883,6 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 log(state, `${sourceName}：召喚できるスピリットがいなかった。`)
             }
             return
-        }
-        // costDestroySelfAndCostFilter：**このスピリット自身**と、コストがmin以上の自分のスピリット1体の
-        // 両方を破壊することがコスト（BS13-004フォボス・ドラグーンLv3：バトル終了時、自身とコスト3以上の
-        // 自分のスピリット1体を破壊することで系統「神星」を手札から無償召喚）。
-        // COST_MODEL.md §1：AとBの両方が完全に解決できる組み合わせだけを候補にする（破壊できる相手がいない／
-        // 召喚できる手札が無ければどちらも発動しない＝selfも破壊されない）
-        if (
-            action.costDestroySelfAndCostFilter !== undefined &&
-            chosenCardIndex === undefined &&
-            !action.costSacrificeChosen
-        ) {
-            if (!self) {
-                log(state, `${sourceName}：コストとして破壊する自分自身がいなかった。`)
-                return
-            }
-            if (!player.hand.some(matchesCardId)) {
-                log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
-                return
-            }
-            const min = action.costDestroySelfAndCostFilter.min
-            const sacrifices = player.field.spirits.filter(
-                (s) => s.instanceId !== self.instanceId && instBaseCost(s) >= min,
-            )
-            if (sacrifices.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            const { costDestroySelfAndCostFilter: _paidSac, costSacrificeChosen: _flagSac, ...restSac } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                log(
-                    state,
-                    `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(chosen.cardId).name}を破壊した。`,
-                )
-                destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
-                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
-                ctx.resolve(restSac)
-                return
-            }
-            // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
-            if (state.interactiveTargets && sacrifices.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    sacrifices.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            // 非対話・候補1体：コスト最小を自動選択（決定的簡略化）
-            let victim = sacrifices[0]!
-            for (const s of sacrifices) {
-                if (instBaseCost(s) < instBaseCost(victim)) victim = s
-            }
-            log(
-                state,
-                `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(victim.cardId).name}を破壊した。`,
-            )
-            destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
-            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
         }
         // costDestroyOwnSpiritSameCost：自分のスピリット1体を破壊することがコストで、
         // 破壊したスピリットと**同じコスト**のブレイヴカードだけが召喚候補になる（BS10-096最後の優勝旗）。
@@ -1534,7 +1503,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 // 1つ選んで、発生源自身（self＝合体スピリット）の効果として発揮する（BS13-049イリテバン【合体時】）。
 // 「このスピリット」は発揮する側（self）を指すため、借りた効果はselfのレベルで判定しselfへ渡す
 // （docs/design/BRAVE.md §12。2026-09-07/08 ユーザー確認）
-const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx) => {
+const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     if (!self) {
         log(state, `${sourceName}：発揮する対象がいなかった。`)
@@ -1572,11 +1541,18 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         log(state, `${sourceName}：借りられる『合体アタック時』効果がなかった。`)
         return
     }
+    // 「発揮できる」は確認式（SEMANTICS_AUDIT §3 の一般則）。借りる元があるときだけ、選ぶ前に1回聞く
+    // 自身しか候補が無い（借りても何も起きない）ときは聞かない
+    if (state.interactiveTargets && !action.confirmed && effectiveCandidates.some((c) => !isSelfBorrow(c))) {
+        requestActivationConfirm(state, owner, `${sourceName}：『合体アタック時』効果を借りて発揮しますか？`, { type: "borrowCombinedAttackEffect", confirmed: true }, self)
+        return
+    }
     const fire = (chosen: Candidate): void => {
         log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の効果を借りて発揮した。`)
         const wasSelfBorrow = isSelfBorrow(chosen)
         if (wasSelfBorrow) self.borrowedAttackEffectOnce = true
-        resolveAction(state, owner, self, chosen.effect.action)
+        // 自身を選んだ2回目は同じ発揮の連鎖なので、確認は聞き直さない
+        resolveAction(state, owner, self, wasSelfBorrow ? { type: "borrowCombinedAttackEffect", confirmed: true } : chosen.effect.action)
         if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
     }
     if (targetInstanceId !== undefined) {
@@ -1593,7 +1569,7 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
             `${sourceName}：借りる『合体アタック時』効果を選んでください`,
             uniqueIds,
             false,
-            { type: "borrowCombinedAttackEffect" },
+            { type: "borrowCombinedAttackEffect", confirmed: true },
             self,
         )
         return

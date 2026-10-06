@@ -468,6 +468,7 @@
     "id": "SD06-007-e3",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "levels": [
      2,
      3
@@ -743,6 +744,7 @@
      2
     ],
     "oncePerTurn": true,
+    "onceScope": "name",
     "action": {
      "type": "draw",
      "count": 1

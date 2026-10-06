@@ -3,10 +3,13 @@
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { getCard, log, opponentOf, resolveInOrder } from "../GameState"
-import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
+import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
+import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
+import { canExhaustNexus } from "../EffectModules"
+import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
+import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { discardSelfChooseEligible } from "./drawDiscard"
-import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay } from "./destroy"
+import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay } from "./removeCores"
@@ -15,7 +18,7 @@ import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches, summonFromTrashFreeCandidateMatches } from "../summon"
 import { recoverSpiritFromTrashCandidateOk, recoverMagicFromTrashCandidateOk } from "./trashRecover"
 import { findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
-import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses } from "../targeting"
+import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses, requestActivationConfirm } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { newRecordScope, withMovedProbe } from "../record"
@@ -30,10 +33,10 @@ export const PAYABLE_TYPES = [
     "recoverSpiritFromTrash", "recoverMagicFromTrash", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence", "treatAsUnblocked",
+    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "treatAsUnblocked",
 ] as const
 
-type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined) => boolean
+type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
 
 const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     discardSelfChoose: (state, owner, _self, action) => {
@@ -67,16 +70,37 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
-    sequence: (state, owner, self, action, srcColors, srcType) => {
+    sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "sequence") return false
-        return action.actions.every((a) => canPayResolve(state, owner, self, a, srcColors, srcType))
+        return action.actions.every((a) => canPayResolve(state, owner, self, a, srcColors, srcType, eventTarget))
     },
+    // simultaneous：中の全部が成立するとき。自分自身を壊す組では、同じ個体を相手方の destroy の候補に数えない
+    simultaneous: (state, owner, self, action, srcColors, srcType, eventTarget) => {
+        if (action.type !== "simultaneous") return false
+        const withSelf = action.actions.some((a) => a.type === "destroySelf")
+        return action.actions.every((a) => {
+            if (withSelf && a.type === "destroy" && a.side === "own" && a.count !== "any" && self) {
+                const filter = { ...(a.filter ?? {}) } as unknown as ResolvedTargetFilter
+                const n = state.players[owner].field.spirits.filter((s) => s.instanceId !== self.instanceId && matchesTarget(state, owner, s, filter, self.instanceId)).length
+                return n >= a.count
+            }
+            return canPayResolve(state, owner, self, a, srcColors, srcType, eventTarget)
+        })
+    },
+    destroySelf: (state, owner, self) => self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId),
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
     // 自分自身に置くものは自分が場にいること。プレイヤーに掛ける制約（playerRule）は対象を要らないので常に成立
-    timedEffect: (_state, _owner, self, action) =>
-        action.type === "timedEffect" && ((action.target === "self" && self !== null) || action.content.every((c) => c.type === "playerRule")),
+    // target 未指定（相手のスピリットを1体指定する書き方）は、filter に合う相手のスピリットが1体以上いること
+    timedEffect: (state, owner, self, action) => {
+        if (action.type !== "timedEffect") return false
+        if (action.target === "self") return self !== null
+        if (action.content.every((c) => c.type === "playerRule")) return true
+        const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
+        const pids = action.side === "own" ? [owner] : action.side === "both" ? [owner, opponentOf(owner)] : [opponentOf(owner)]
+        return pids.some((pid) => state.players[pid].field.spirits.some((s) => matchesTarget(state, pid, s, filter, self?.instanceId)))
+    },
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
         return action.count === "any" || destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
@@ -84,6 +108,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     returnToHand: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "returnToHand") return false
         if (action.costBudget !== undefined) return true
+        if (action.target === "self") return self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)
+        if (action.target === "selfBrave") return self !== null && (self.braveRefs?.length ?? 0) >= 1
         return returnToHandCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
     returnToDeckTop: (state, owner, self, action, srcColors, srcType) => {
@@ -120,6 +146,9 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     exhaust: (state, owner, self, action) => {
         if (action.type !== "exhaust") return false
         if (action.target === "self") return self !== null && !self.isRested
+        if (action.nexusOnly) {
+            return canExhaustNexus(state, owner) && state.players[owner].field.nexuses.filter((n) => !n.isRested).length >= action.count
+        }
         if (action.side === "own") {
             const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
             const count = state.players[owner].field.spirits.filter(
@@ -152,8 +181,21 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     discardHandAll: (state, owner) => state.players[owner].hand.length >= 1 && canDiscardHand(state, owner),
     // bpBuff：anySide指定時は両陣営から、それ以外はfilterに合う自分のスピリットから1体以上
     // （buff.ts の bpBuffHandler と同じ pickAnySideCandidates／pickBpBuffTarget を使う）
-    bpBuff: (state, owner, _self, action, srcColors, srcType) => {
+    bpBuff: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "bpBuff") return false
+        // excludeSelf は判定専用（支払い後の解決時には発生源は既に場にいないため）。BS14-X03 の
+        // 「自分を戻したあとに BP+ できる他のスピリットがいる」を、支払い前の判定で見るためのもの
+        if (action.filter?.excludeSelf && !action.anySide) {
+            return state.players[owner].field.spirits.some(
+                (s) =>
+                    s.instanceId !== self?.instanceId &&
+                    bpBuffTargetPasses(
+                        state, owner, s,
+                        action.filter?.minSymbols, action.filter?.keyword, action.filter?.nameContains,
+                        action.filter?.attackingOnly, action.filter?.family, action.filter?.combined, action.filter?.vanilla,
+                    ),
+            )
+        }
         if (action.anySide) {
             const passes = (s: CardInstance) =>
                 bpBuffTargetPasses(
@@ -171,9 +213,12 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     // refreshOne：条件に合う疲労状態の自分のスピリットが1体以上（exhaustRefresh.ts の既定経路のみ。
     // eventTargetOnly／all／anySide を pay の then に書くケースは想定しない）
-    refreshOne: (state, owner, self, action) => {
+    refreshOne: (state, owner, self, action, _srcColors, _srcType, eventTarget) => {
         if (action.type !== "refreshOne") return false
-        if (action.eventTargetOnly || action.all) return false
+        if (action.eventTargetOnly) {
+            return eventTarget !== undefined && state.players[owner].field.spirits.some((s) => s.instanceId === eventTarget && s.isRested)
+        }
+        if (action.all) return false
         const ctx = { state, owner, self, targetInstanceId: undefined } as ActionCtx
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return false
@@ -206,9 +251,16 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return true
     },
     // summonFromHandFree：条件に合い実際に召喚できる（payCost指定時は支払い可否も含む）手札のスピリットが1枚以上
-    summonFromHandFree: (state, owner, self, action) => {
+    summonFromHandFree: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "summonFromHandFree") return false
-        return state.players[owner].hand.some((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
+        const candidates = state.players[owner].hand.filter((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
+        if (action.countCounter === undefined) return candidates.length > 0
+        // 払ったコアの数ぶん召喚できるか。召喚先に置くコアは、払った後に残るリザーブから出す（記録は pay の探索中の仮の値）
+        const n = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+        if (n === 0) return false
+        if (candidates.length < n) return false
+        const maintain = candidates.map((id) => minLevelCores(getCard(id))).sort((a, b) => a - b).slice(0, n).reduce((a, b) => a + b, 0)
+        return state.players[owner].reserve - n >= maintain
     },
     // summonFromTrashFree：同上のトラッシュ版
     summonFromTrashFree: (state, owner, _self, action) => {
@@ -311,37 +363,207 @@ export const canPayResolve = (
     action: EffectAction,
     srcColors: Color[] | undefined,
     srcType: CardType | undefined,
+    eventTarget?: string,
 ): boolean => {
     const checker = CHECKERS[action.type]
     if (!checker) return false
-    return checker(state, owner, self, action, srcColors, srcType)
+    return checker(state, owner, self, action, srcColors, srcType, eventTarget)
+}
+
+// 成立しなかった cost／then の種類ごとの理由（不発ログ用。表に無い type は汎用文）。revive.ts・burst.ts からも使う
+const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
+    discardSelfChoose: "手札に破棄できるカードがない",
+    toTegamoto: "手札に手元へ置けるカードがない",
+    discardHandAll: "手札に破棄できるカードがない",
+    draw: "ドローできるデッキの枚数がない",
+    mill: "デッキの枚数が足りない",
+    discardOpponent: "相手の手札が足りない",
+    discardBurst: "破棄できるバーストがセットされていない",
+    setBurstFromHand: "手札にセットできるバーストがない",
+    peekOpponentHand: "相手の手札がない",
+    timedEffect: "指定できるスピリットがいない",
+    destroy: "破壊するスピリットがいない",
+    simultaneous: "破壊するスピリットがいない",
+    destroySelf: "このスピリットがフィールドにいない",
+    destroyByBpBudget: "破壊できる相手のスピリットがいない",
+    destroyNexus: "破壊するネクサスがない",
+    destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
+    returnToHand: "手札に戻すスピリットがいない",
+    returnToDeckTop: "デッキに戻すカードがない",
+    returnToDeckBottom: "デッキに戻すカードがない",
+    coreRemove: "取り除けるコアが足りない",
+    removeCores: "移せるコアが足りない",
+    nexusCoresToTrash: "ネクサスにトラッシュへ送れるコアがない",
+    placeCores: "置けるコアが足りない",
+    refreshSelf: "回復させる対象がいない",
+    refreshOne: "回復させる対象がいない",
+    bpBuff: "BP+する対象がいない",
+    summonFromHandFree: "手札に召喚できるカードがない",
+    summonFromTrashFree: "トラッシュに召喚できるカードがない",
+    recoverSpiritFromTrash: "トラッシュに回収できるカードがない",
+    recoverMagicFromTrash: "トラッシュに回収できるカードがない",
+    lifeCrush: "相手のライフを減らせない",
+    treatAsUnblocked: "ブロックしたスピリットがいない",
+}
+
+// 成立しない最初の cost／then の理由を「〜ため」に続く形で返す。全部成立するなら null
+export function unpayableReason(
+    state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction,
+    srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string,
+): string | null {
+    if (canPayResolve(state, owner, self, action, srcColors, srcType, eventTarget)) return null
+    if (action.type === "sequence" || (action.type === "simultaneous" && !action.actions.some((a) => a.type === "destroySelf"))) {
+        for (const a of action.actions) {
+            const r = unpayableReason(state, owner, self, a, srcColors, srcType, eventTarget)
+            if (r !== null) return r
+        }
+    }
+    if (action.type === "exhaust") {
+        if (action.target === "self") return "このスピリットが疲労している"
+        return action.nexusOnly ? "疲労させられる自分のネクサスがない" : "疲労させられる自分のスピリットがいない"
+    }
+    return UNPAYABLE_REASONS[action.type] ?? "条件を満たさない"
+}
+
+export const unpayableLine = (sourceName: string, reason: string): string => `${sourceName}：${reason}ため発動しなかった。`
+
+// pay の成立判定の本体（payHandler と skipUnpayablePay が共有する）。好きなだけ払う cost は then を解決しきれる最大数までしか選べない
+// （2026-09-27 ユーザー確認）。skipThen：then を見ない（イベント対象が呼び出し側で分からないとき）
+function judgePay(
+    state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>,
+    srcColors: Color[] | undefined, srcType: CardType | undefined, eventTargetId?: string, skipThen = false,
+): { cost: EffectAction; reason: string | null } {
+    let c = action.cost
+    const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
+    if (costReason !== null) return { cost: c, reason: costReason }
+    const thenReason = (): string | null => skipThen ? null : unpayableReason(state, owner, self, action.then, srcColors, srcType, eventTargetId)
+    const capacity = anyCapacity(state, owner, self, c)
+    if (capacity === undefined) return { cost: c, reason: thenReason() }
+    if (skipThen) return { cost: c, reason: null }
+    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType, eventTargetId)
+    let max = capacity
+    while (max >= 0 && !withMovedProbe(max, thenOk)) max--
+    if (max < 0) return { cost: c, reason: thenReason() ?? "条件を満たさない" }
+    c = { ...c, anyMax: max } as EffectAction
+    return { cost: c, reason: null }
+}
+
+// 任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
+// （2026-10-02 ユーザー確認）。イベント対象を then に使う書き方は対象がここでは分からないので、cost だけを見る
+export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, sourceName: string): boolean {
+    // コストを中で払う action（pay に移していないもの）も、払えないなら確認を出さない
+    if (action.type === "reviveLastDestroyedNexus") {
+        const reason = reviveLastDestroyedNexusBlockReason(state, owner, self, action)
+        if (reason === null) return false
+        log(state, unpayableLine(sourceName, reason))
+        state.effectFizzled = true
+        const once = (action as { onceRevert?: { instanceId: string; effectId: string } }).onceRevert
+        if (once) {
+            const src = findInstanceAnywhere(state, once.instanceId)
+            if (src) revertOncePerTurn(state, src, once.effectId)
+            revertDestroyGroupUsage(state, once.instanceId, once.effectId)
+        }
+        return true
+    }
+    // 「〜できる」の召喚は、召喚できるカードが1枚もないなら確認を出さない（2026-10-02 ユーザー決定の「発動できないなら聞かない」。
+    // 判定を書いたのはこの2種と pay だけ）
+    if (action.type === "summonFromTrashFree" || action.type === "summonFromHandFree") {
+        const srcType = self ? getCard(self.cardId).type : undefined
+        if (canPayResolve(state, owner, self, action, undefined, srcType)) return false
+        log(state, unpayableLine(sourceName, UNPAYABLE_REASONS[action.type]!))
+        state.effectFizzled = true
+        return true
+    }
+    if (action.type !== "pay" || action.confirmed) return false
+    const skipThen = JSON.stringify(action.then).includes('"eventTargetOnly"')
+    const srcColors = self ? instColors(self) : undefined
+    const srcType = self ? getCard(self.cardId).type : undefined
+    const reason = judgePay(state, owner, self, action, srcColors, srcType, undefined, skipThen).reason
+    if (reason === null) return false
+    log(state, unpayableLine(sourceName, reason))
+    state.effectFizzled = true
+    if (action.onceRevert) {
+        const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
+        if (src) revertOncePerTurn(state, src, action.onceRevert.effectId)
+        revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
+    }
+    return true
+}
+
+// 木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
+// confirmed：発動の確認（マジック使用・起動・バースト・任意効果）を済ませた経路から入る action に掛け、二重に聞かないようにする（COST_MODEL.md §10）
+// onceRevert：確認を断った／押したが不発のとき「ターンに1回」の消費を戻す先（2026-10-01 ユーザー確認）。消費した側（誘発の解決）が付ける
+export function markPays(action: EffectAction, fields: { confirmed?: true; onceRevert?: { instanceId: string; effectId: string } }): EffectAction {
+    const walk = (v: unknown): unknown => {
+        if (Array.isArray(v)) return v.map(walk)
+        if (v !== null && typeof v === "object") {
+            const out: Record<string, unknown> = {}
+            for (const [k, x] of Object.entries(v)) out[k] = walk(x)
+            if (out.type === "pay") Object.assign(out, fields)
+            return out
+        }
+        return v
+    }
+    return walk(action) as EffectAction
+}
+
+export function markPayConfirmed(action: EffectAction): EffectAction {
+    return markPays(action, { confirmed: true })
 }
 
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
-    let cost = action.cost
-    const capacity = anyCapacity(state, owner, self, cost)
-    const thenOk = (): boolean => canPayResolve(state, owner, self, action.then, srcColors, srcType)
-    let ok = canPayResolve(state, owner, self, cost, srcColors, srcType)
-    if (ok && capacity !== undefined) {
-        // 好きなだけ払う：then を解決しきれる最大数までしか選べない（2026-09-27 ユーザー確認）
-        let max = capacity
-        while (max >= 0 && !withMovedProbe(max, thenOk)) max--
-        ok = max >= 0
-        if (ok) cost = { ...cost, anyMax: max } as EffectAction
-    } else if (ok) {
-        ok = thenOk()
-    }
-    if (!ok) {
-        log(state, `${sourceName}：条件を満たさないため発動しなかった。`)
+    // 「そのスピリット」＝イベント対象は then にだけ渡す（cost は自分の場から払うもの）。確認で止まると ctx から落ちるので行動に持たせる
+    const eventTargetId = action.eventTargetId ?? ctx.targetInstanceId
+    const fizzle = (message: string): void => {
+        log(state, message)
         state.effectFizzled = true
+        // 確認を挟んで再開した後の不発は、誘発側の effectFizzled の巻き戻しが既に通り過ぎているのでここで戻す
+        if (action.onceRevert) {
+            const src = findInstanceAnywhere(state, action.onceRevert.instanceId)
+            if (src) revertOncePerTurn(state, src, action.onceRevert.effectId)
+            revertDestroyGroupUsage(state, action.onceRevert.instanceId, action.onceRevert.effectId)
+        }
+    }
+    // 【強襲】：回数切れは確認も出さず何も起きない。払えない場合は一般則（下の judge）で確認の前に不発にする
+    let kyoshuUsed = 0
+    if (action.limitByKeyword === "kyoshu") {
+        const limit = self ? kyoshuLimitOf(state, owner, self) : 0
+        kyoshuUsed = self ? kyoshuUsedOf(state, self) : 0
+        if (!self || kyoshuUsed >= limit) {
+            log(state, `${sourceName}：【強襲】を発動できる状態でないため何もしなかった。`)
+            return
+        }
+    }
+    // 確認で「発動する」を押した後の不発は、発動した扱い（【相手の『召喚時』発揮後】が反応する。2026-10-03 ユーザー確認）
+    if (action.confirmed && self && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
+    let cost = action.cost
+    const judge = () => judgePay(state, owner, self, action, srcColors, srcType, eventTargetId)
+    // 聞く前に成立しないなら確認を出さずに不発（2026-10-02 ユーザー確認。COST_MODEL §10 の「払えなくても確認は出る」を改訂）。
+    // confirmed は発動の確認を済ませた経路なので、ここでは不発にしても確認の後の不発として扱う
+    if (state.interactiveTargets && !action.confirmed) {
+        const pre = judge()
+        if (pre.reason !== null) {
+            fizzle(unpayableLine(sourceName, pre.reason))
+            return
+        }
+        const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action
+        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, resume, self, action.onceRevert)
         return
     }
+    const verdict = judge()
+    if (verdict.reason !== null) {
+        fizzle(unpayableLine(sourceName, verdict.reason))
+        return
+    }
+    cost = verdict.cost
+    if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }
     const scope = newRecordScope()
     resolveInOrder(state, [cost, action.then], {
         resolve: (a) => {
             state.recordScope = scope
-            ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType })
+            const target = a === action.then ? eventTargetId : undefined
+            ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType, ...(target !== undefined ? { targetInstanceId: target } : {}) })
         },
         frame: (a) => ({
             kind: "action" as const,
@@ -349,6 +571,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             action: a,
             actorPid: owner,
             recordScope: scope,
+            ...(a === action.then && eventTargetId !== undefined ? { targetInstanceId: eventTargetId } : {}),
             ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
             ...(srcType !== undefined ? { sourceType: srcType } : {}),
         }),

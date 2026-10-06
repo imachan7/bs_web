@@ -396,9 +396,18 @@
           1,
           2
         ],
-        "optional": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
         }
       },
       {
@@ -949,15 +958,25 @@
           2,
           3
         ],
-        "optional": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
         }
       },
       {
         "id": "BS16-X06-e3",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "use",
         "battleRole": "attacker",
         "levels": [
           2,

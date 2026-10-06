@@ -2413,6 +2413,7 @@
     "id": "BS04-041-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -3371,15 +3372,27 @@
      2,
      3
     ],
-    "optional": true,
     "action": {
-     "type": "summonRepeatFromHand",
-     "mode": "free",
-     "familyFilter": "天霊",
-     "costFilter": {
-      "max": 6
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "trash",
+      "count": "any"
      },
-     "extraReserveCostPerSummon": 1
+     "then": {
+      "type": "summonFromHandFree",
+      "familyFilter": "天霊",
+      "costFilter": {
+       "max": 6
+      },
+      "count": 1,
+      "countCounter": "lastCores",
+      "skipOnSummon": true
+     }
     }
    }
   ]
@@ -3909,6 +3922,7 @@
     "id": "BS04-068-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -4345,6 +4359,7 @@
     "id": "BS04-075-e2",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "levels": [
      2,
      3

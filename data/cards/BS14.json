@@ -1851,6 +1851,7 @@
     "id": "BS14-032-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -2155,6 +2156,7 @@
     "id": "BS14-037-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -2565,19 +2567,24 @@
     "levels": [
      2
     ],
-    "cost": {
-     "exhaustSelf": true
-    },
     "action": {
-     "type": "timedEffect",
-     "content": [
-      {
-       "type": "suppressTrigger",
-       "trigger": "onAttack"
-      }
-     ],
-     "duration": "turn",
-     "count": 1
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "suppressTrigger",
+        "trigger": "onAttack"
+       }
+      ],
+      "duration": "turn",
+      "count": 1
+     }
     }
    }
   ]
@@ -3371,6 +3378,7 @@
     "id": "BS14-055-e3",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -4066,9 +4074,18 @@
      2,
      3
     ],
-    "optional": true,
     "action": {
-     "type": "refreshSelfByExhaustNexus"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     },
+     "limitByKeyword": "kyoshu"
     }
    },
    {
@@ -4295,6 +4312,7 @@
    {
     "id": "BS14-070-e1",
     "kind": "constraint",
+    "whileSpirit": true,
     "levels": [
      1
     ],
@@ -7103,6 +7121,7 @@
     "id": "BS14-X03-e4",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,
@@ -7110,9 +7129,19 @@
     ],
     "optional": true,
     "action": {
-     "type": "bpBuff",
-     "amount": 3000,
-     "costReturnSelfToHand": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "bpBuff",
+      "amount": 3000,
+      "filter": {
+       "excludeSelf": true
+      }
+     }
     }
    }
   ]

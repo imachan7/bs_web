@@ -164,6 +164,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instIsVanilla`（fn）：インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 - `instEffectsSuppressed`（fn）：この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
 - `effectSources`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+- `nexusEffectsStopped`（fn）：場のネクサス1つの効果が止められているか。常在効果は effectSources が外すが、誘発・ステップ効果は
 - `isVirtualSource`（fn）：このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
 - `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
 - `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
@@ -257,6 +258,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `emitEvent`（fn）：state.events にイベントを1件積む（seqはstate.eventSeqをインクリメントして自動採番）。
 - `resistanceAgainst`（fn）：このインスタンスが、いま解決中の効果を「受けない」状態か。
 - `askPayToNegateIfNeeded`（fn）：「手札を破棄することで効果を受けない」を**払うかどうか、守る側に聞く**。
+- `gateTargetedApply`（fn）：自動で（または複数体のうちの1体として）決めた対象に、効果を当てる直前の関門。
 - `isResisted`（fn）：resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
 - `destroyedCoresGoToTrash`（fn）：スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
 - `consumeSummonHandDiscardPay`（fn）：BS08ビクティム（kind:"summonCostHandDiscardPay"）：「スピリットカード**1枚**の召喚に」なので、
@@ -319,6 +321,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `findNexus`（fn）
 - `fieldInstanceIdsOf`（fn）：pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
 - `findInstanceAnywhere`（fn）：両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
+- `takeLostLookups`（fn）
+- `noteMissedPayAsk`（fn）
+- `takeMissedPayAsks`（fn）
 - `viewFor`（fn）
 
 ## server/src/logic/PhaseManager.ts
@@ -372,6 +377,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `nexusHasCoresForPay`（fn）：pay の判定表（nexusCoresToTrash）：対象側のネクサスのどれかにコアが1個以上あるか
 - `destroyAllTargetList`（fn）：destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
 - `destroyTargetList`（fn）：まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
+- `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 
 ## server/src/logic/actions/drawDiscard.ts
 
@@ -392,6 +398,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `PAYABLE_TYPES`（const）：判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 - `canPayResolve`（const）：判定表に無い type、または判定に落ちた場合は false
+- `unpayableReason`（fn）：成立しない最初の cost／then の理由を「〜ため」に続く形で返す。全部成立するなら null
+- `unpayableLine`（const）
+- `skipUnpayablePay`（fn）：任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
+- `markPays`（fn）：木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
+- `markPayConfirmed`（fn）
 
 ## server/src/logic/actions/placeCores.ts
 
@@ -501,6 +512,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/kyoshu.ts
 
 - `hasKyoshuOnBlock`（fn）：持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
+- `kyoshuLimitOf`（fn）：【強襲：N】の上限回数。合体しているブレイヴ側にだけ書かれている場合（BS10バズーカ・アームズ）と、
+- `kyoshuUsedOf`（fn）
 
 ## server/src/logic/keywords/tensho.ts
 
@@ -566,6 +579,18 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
+
+## server/src/logic/oncePerTurn.ts
+
+- `OnceSlot`（型）
+- `onceNameKey`（fn）：同じカードの別個体・再召喚・別版でも同名なら同じ枠になるよう、cardId でなく名前で引く
+- `isOnceNameUsed`（fn）：個体を持たないマジック用。常に名前で数える
+- `markOnceNameUsed`（fn）
+- `ownerPidOfInstance`（fn）
+- `isOnceUsed`（fn）
+- `markOnceUsed`（fn）
+- `claimOnce`（fn）：解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
+- `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
 
 ## server/src/logic/record.ts
 

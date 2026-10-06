@@ -137,6 +137,31 @@ const MEASURED_CONTINUOUS_KINDS = new Set([
     "jugekiOnBlockReplace", // hasJugekiOnBlockReplace の true 判定
     "tenshoSelfCostBonus", // 【転召】のコストへ加算した時点（自身版・ownAll版の2経路）
     "battleSwapSummon", // 入れ替え召喚が成立した時点
+    // ここから 2026-10-02 追加。効いた時点（対象へ書き込む／判定が true になる／実行に入る）に置いた
+    "braveImmuneGrant", // 個体の braveImmuneAll／braveImmuneMatchArmorColors への代入点
+    "effectEntryGrant", // grantedMagicNegate への積み込み点
+    "braveStatsAs", // braveStatsAsContinuous の代入点
+    "bpAs", // bpAsContinuous の代入点
+    "bpEqualizeFamily", // bpEqualizeContinuous の代入点
+    "symbolAddGrant", // symbolsAddedContinuous への積み込み点
+    "armorEffectiveGrant", // armorColorsGranted への配布点
+    "burstMagicFreeEffect", // hasBurstMagicFreeEffect の true 判定
+    "destroyBpThresholdBonus", // destroyBpThresholdBonusFor の加算点
+    "nexusAsSpiritDuringAttackStep", // ネクサスをスピリット扱いに変換する直前
+    "extraStepAfterAttackStep", // 追加ステップを行うと確定した時点
+    "trashReturnAtEndStep", // エンドステップにトラッシュから手札へ戻した時点
+    "freeSummonFromHandOnOwnNexusDeployed", // 条件を満たして召喚へ進んだ時点
+    "fushiFreeByExhaust", // 発生源が見つかった時点（fushiFreeExhaustSource の hit）
+    "handActivated", // doUseHandAbility が効果の実行に入った時点
+    "altSummonFromHand", // 代替召喚のコスト（ネクサスをデッキ下へ）を実行した時点
+    "shinsokuPayAssist", // 疲労させて召喚コストを肩代わりした時点
+    "burstSetCost", // burstSetCoresRequired の加算点
+    "destroyAsMaxLevelGrant", // 判定が true になる2経路（self／ownAll）
+    "ownMagicColorless", // magicEffectiveColors が [] を返す時点
+    "trashSymbolReduction", // hasTrashSymbolReduction の true 判定（self／ownHand）
+    "trashImmunity", // isTrashCardProtected の true 判定
+    "trashNameAs", // trashCardNameMatches が別名で一致した時点
+    "burst", // バーストの発動（activateBurst 相当）で効果が resolveAction へ渡る直前
 ])
 
 type Measurability = "action" | "continuous" | "unmeasured"
@@ -150,6 +175,15 @@ interface EffectEntry {
     actionTypes: string[]
 }
 
+// EffectAction の type 一覧。timedEffect.content の要素（bp・keyword・mustAttack 等の TimedContent）や
+// playerRule の中身も `type` を持つが、resolveAction を通らないので action としては数えない
+// （数えると「一度も実行されていない action.type」に常に載る誤検出になる）
+const ACTION_TYPES: Set<string> = new Set(
+    [...fs.readFileSync(path.join(REPO, "server/src/types/effectAction.ts"), "utf-8").matchAll(/\btype: "([a-zA-Z0-9_]+)"/g)].map(
+        (m) => m[1]!,
+    ),
+)
+
 function collectActionTypes(node: unknown, out: string[]): void {
     if (Array.isArray(node)) {
         for (const v of node) collectActionTypes(v, out)
@@ -157,7 +191,7 @@ function collectActionTypes(node: unknown, out: string[]): void {
     }
     if (node === null || typeof node !== "object") return
     const obj = node as Record<string, unknown>
-    if (typeof obj["type"] === "string") out.push(obj["type"])
+    if (typeof obj["type"] === "string" && ACTION_TYPES.has(obj["type"])) out.push(obj["type"])
     for (const v of Object.values(obj)) collectActionTypes(v, out)
 }
 
@@ -312,6 +346,75 @@ export const __covEid = (e: unknown): string =>
         .replace(/__covEid/g, "__covEid2C")
         .replace(JSON.stringify(out + ".shared"), JSON.stringify(out + ".cost"))
     if (!DRY_RUN) fs.writeFileSync(fc, headerC + fs.readFileSync(fc, "utf-8"))
+
+    // 2026-10-02 追加の24 kind のうち shared 側（判定関数の true／加算点）
+    patch(
+        ruleTargets,
+        `            total += effect.reserveToTrash`,
+        `            __covRec2("cont\\t" + __covEid(effect))
+            total += effect.reserveToTrash`,
+    )
+    patch(
+        ruleTargets,
+        `            if (effect.whileCombined === true && !instIsCombined(inst)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(src).level)) continue
+            return true`,
+        `            if (effect.whileCombined === true && !instIsCombined(inst)) continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(src).level)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
+    )
+    patch(
+        ruleTargets,
+        `            if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            return true`,
+        `            if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "ownAll") continue
+            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            __covRec2("cont\\t" + __covEid(effect))
+            return true`,
+    )
+    // トラッシュのカード自身が持つ静的な効果。判定が true になる＝そのカードに効いた時点
+    patch(
+        ruleTargets,
+        `    return card(cardId).effects.some((e) => e.kind === "trashImmunity")`,
+        `    const __e = card(cardId).effects.find((e) => e.kind === "trashImmunity")
+    if (__e) __covRec2("cont\\t" + __covEid(__e))
+    return __e !== undefined`,
+    )
+    patch(
+        ruleTargets,
+        `    return c.effects.some((e) => e.kind === "trashNameAs" && e.name.includes(needle))`,
+        `    const __e = c.effects.find((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+    if (__e) __covRec2("cont\\t" + __covEid(__e))
+    return __e !== undefined`,
+    )
+    // cost.ts 側（別の記録器 __covRec2C を使う）
+    patch(
+        fc,
+        `            if (effect.whileBattling && !isSelfInBattle(board, source.instanceId)) continue
+            return []`,
+        `            if (effect.whileBattling && !isSelfInBattle(board, source.instanceId)) continue
+            __covRec2C("cont\\t" + __covEid2C(effect))
+            return []`,
+    )
+    patch(
+        fc,
+        `    if (cardData.effects.some((e) => e.kind === "trashSymbolReduction" && e.scope === "self")) return true`,
+        `    const __self = cardData.effects.find((e) => e.kind === "trashSymbolReduction" && e.scope === "self")
+    if (__self) {
+        __covRec2C("cont\\t" + __covEid2C(__self))
+        return true
+    }`,
+    )
+    patch(
+        fc,
+        `            if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
+            return true`,
+        `            if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
+            __covRec2C("cont\\t" + __covEid2C(effect))
+            return true`,
+    )
 
     // aura: effectiveBp が実際に加算する時点（全フィルタ通過後）
     patch(
@@ -812,17 +915,17 @@ process.on("exit", () => {
         //     **そのキーワードでなければ通らない解決点**に置く
         const kwEid = (expr: string, keyword: string): string =>
             `String(((getCard(${expr}).effects as unknown as Record<string, unknown>[]).find((e) => e["kind"] === "keyword" && e["keyword"] === "${keyword}")?.["__eid"]) ?? "?")`
-        // 強襲：ネクサスを疲労させて実際に回復した時点
+        // 強襲：ネクサスを疲労させて回復すると決まった時点（pay の limitByKeyword が回数を数える行）
         patch(
-            path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
-            `import { currentLevel, getCard, log, minLevelCores } from "../GameState"`,
-            `import { currentLevel, getCard, log, minLevelCores, __covRecord } from "../GameState"`,
+            path.join(tree, "server/src/logic/actions/pay.ts"),
+            `import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"`,
+            `import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder, __covRecord } from "../GameState"`,
         )
         patch(
-            path.join(tree, "server/src/logic/actions/exhaustRefresh.ts"),
-            `    self.kyoshuUsed = { turn: state.turn, count: used + 1 }`,
-            `    __covRecord("cont\t" + ${kwEid("self.cardId", "kyoshu")})
-    self.kyoshuUsed = { turn: state.turn, count: used + 1 }`,
+            path.join(tree, "server/src/logic/actions/pay.ts"),
+            `    if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }`,
+            `    if (action.limitByKeyword === "kyoshu" && self) __covRecord("cont\t" + ${kwEid("self.cardId", "kyoshu")})
+    if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }`,
         )
         // 聖命：【聖命】持ちがボイドからライフにコアを置いた時点
         patch(
@@ -1284,6 +1387,118 @@ process.on("exit", () => {
             `                        const fixed = new Array<Color>(effect.count).fill(baseColor)`,
             `                        __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))
                         const fixed = new Array<Color>(effect.count).fill(baseColor)`,
+        )
+
+        // (5a-2b) 2026-10-02 追加。それまで未計測だった24 kind。置き場所の基準は同じ
+        //     「その効果固有の条件をすべて通過して挙動に反映される時点」
+        const recAt = (indent: string, expr = "effect"): string =>
+            `${indent}__covRecord("cont\\t" + String((${expr} as unknown as Record<string, unknown> | undefined)?.["__eid"] ?? "?"))\n`
+        const lg = path.join(tree, "server/src/logic")
+        const prepend = (files: string | string[], needle: string, indent: string, expr?: string): void =>
+            patch(files, needle, recAt(indent, expr) + needle)
+        // state/continuous.ts の再構築ループ（対象への書き込み直前）
+        prepend(em, `                        if (effect.scope === "all") spirit.braveImmuneAll = true`, "                        ")
+        prepend(em, `                        ;(spirit.grantedMagicNegate ??= []).push(effect.granted)`, "                        ")
+        prepend(em, `                        spirit.braveStatsAsContinuous = {`, "                        ")
+        prepend(em, `                        spirit.bpAsContinuous = effect.amount`, "                        ")
+        prepend(em, `                        spirit.bpEqualizeContinuous = sourceBp`, "                        ")
+        prepend(em, `                        if (!target.symbolsAddedContinuous) target.symbolsAddedContinuous = []`, "                        ")
+        prepend(em, `                    const granted = (spirit.armorColorsGranted ??= [])`, "                    ")
+        // EffectModules.ts の判定関数
+        patch(
+            em,
+            `            if (effect.kind !== "burstMagicFreeEffect") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            return true`,
+            `            if (effect.kind !== "burstMagicFreeEffect") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+${recAt("            ")}            return true`,
+        )
+        patch(
+            em,
+            `            if (effect.kind !== "destroyBpThresholdBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            total += effect.amount`,
+            `            if (effect.kind !== "destroyBpThresholdBonus") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+${recAt("            ")}            total += effect.amount`,
+        )
+        // PhaseManager.ts
+        const pm = path.join(lg, "PhaseManager.ts")
+        prepend(
+            pm,
+            `                for (const nexus of targets) {
+                    player.field.nexuses.splice(player.field.nexuses.indexOf(nexus), 1)`,
+            "                ",
+        )
+        prepend(
+            pm,
+            `            state.extraStepAfterAttackUsed = true
+            if (!state.interactiveTargets) {`,
+            "            ",
+            `getCard(source.cardId).effects.find((e) => e.kind === "extraStepAfterAttackStep")`,
+        )
+        prepend(
+            pm,
+            `            p.trashCards.splice(i, 1)
+            p.hand.push(cardId)
+            returnedCounts.set(cardId, already + 1)`,
+            "            ",
+            `getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep")`,
+        )
+        // triggers.ts / revive.ts
+        patch(
+            path.join(lg, "triggers.ts"),
+            `e.kind === "freeSummonFromHandOnOwnNexusDeployed")
+        if (!effect) continue
+        if (player.reserve < minLevelCores(getCard(cardId))) continue`,
+            `e.kind === "freeSummonFromHandOnOwnNexusDeployed")
+        if (!effect) continue
+        if (player.reserve < minLevelCores(getCard(cardId))) continue
+${recAt("        ")}`.trimEnd(),
+        )
+        patch(
+            path.join(lg, "revive.ts"),
+            `        if (hit) return nexus.instanceId`,
+            `        if (hit) {
+${recAt("            ", `getCard(nexus.cardId).effects.find((e) => e.kind === "fushiFreeByExhaust")`)}        }
+        if (hit) return nexus.instanceId`,
+        )
+        prepend(
+            path.join(lg, "keywords/burst.ts"),
+            `    player.burst = cardId
+    player.burstSet = true
+    announceBurstActivation(state, owner, cardId)`,
+            "    ",
+        )
+        // 対話時は確認で断られうるが、「宣言できる状態になった」時点で数える（断る分岐は手前では分からない）
+        prepend(
+            path.join(lg, "keywords/burst.ts"),
+            `        // 発動は常に任意（バーストは宣言制。`,
+            "        ",
+        )
+        // GameEngine.ts
+        const gEng = path.join(lg, "GameEngine.ts")
+        patch(
+            gEng,
+            `    if (!effect) return "効果が見つかりません"
+
+    // コスト：手札にあるこのカード自身を破棄する`,
+            `    if (!effect) return "効果が見つかりません"
+${recAt("    ")}
+    // コスト：手札にあるこのカード自身を破棄する`,
+        )
+        prepend(
+            gEng,
+            `        for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)`,
+            "        ",
+            `card.effects.find((e) => e.kind === "altSummonFromHand")`,
+        )
+        prepend(
+            gEng,
+            `            shinsokuDiscount += candidates.get(id) ?? 0`,
+            "            ",
+            `inst ? getCard(inst.cardId).effects.find((e) => e.kind === "shinsokuPayAssist") : undefined`,
         )
 
         // (5a-3) triggers.ts の継続 kind（2026-08-24 に計測点を追加）

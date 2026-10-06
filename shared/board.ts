@@ -36,6 +36,7 @@ export interface BoardPlayer {
     // バーストをセットしているか（docs/design/BURST.md）。**公開情報**（伏せてあるか否かは両者に見える）。
     // カードの中身（PlayerState.burst / PlayerView.burst）は隠匿情報のためここには置かない
     burstSet: boolean
+    onceByNameUsed?: Record<string, number>
 }
 
 export interface Board {

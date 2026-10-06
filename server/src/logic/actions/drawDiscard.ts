@@ -387,6 +387,10 @@ export const discardSelfChooseEligible = (cardId: string, action: Extract<Effect
         const wanted = Array.isArray(action.cardType) ? action.cardType : [action.cardType]
         if (!wanted.includes(getCard(cardId).type)) return false
     }
+    if (action.family !== undefined) {
+        const wanted = Array.isArray(action.family) ? action.family : [action.family]
+        if (!wanted.some((f) => getCard(cardId).family.includes(f))) return false
+    }
     if (action.keyword !== undefined) {
         const wanted = Array.isArray(action.keyword) ? action.keyword : [action.keyword]
         if (!wanted.some((kw) => hasKeyword(cardId, kw))) return false

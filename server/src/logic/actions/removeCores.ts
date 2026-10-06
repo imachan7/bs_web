@@ -301,24 +301,26 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         return list
     }
 
-    const applyOne = (pid: PlayerId, inst: CardInstance): void => {
+    // 払う確認で中断したら true。resume は「この1体の続きから」解決し直すアクション
+    const applyOne = (pid: PlayerId, inst: CardInstance, resume: typeof action = action): boolean => {
         if (pid !== owner) {
             const attempt = attemptOf(ctx, "coreRemove", "targeted")
-            if (askPayToNegateIfNeeded(state, pid, inst, attempt, action, self, sourceName)) return
+            if (askPayToNegateIfNeeded(state, pid, inst, attempt, resume, self, sourceName)) return true
             const resisted = resistanceAgainst(state, pid, inst, attempt)
             if (resisted) {
                 log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-                return
+                return false
             }
         }
         const amount = amountFor(inst, count, action.leaveAtLeast)
         if (amount <= 0) {
             log(state, `${sourceName}のコア除去：${getCard(inst.cardId).name}のコアは取り除けなかった。`)
-            return
+            return false
         }
         // 「そのスピリットのコスト」を後ろで読むため、コアを取り除いた個体を書く（カード自体は動かない）
         recordMoved(state, [inst.cardId])
         applyToIndividual(ctx, pid, inst, amount, to)
+        return false
     }
 
     const picks = action.targets ?? 1
@@ -329,7 +331,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
             log(state, `${sourceName}のコア除去：指定された対象は条件を満たさなかった。`)
             return
         }
-        applyOne(found.pid, found.inst)
+        if (applyOne(found.pid, found.inst)) return
         if (picks > 1) {
             ctx.resolve({ ...action, targets: picks - 1, excludeIds: [...excludeIds, found.inst.instanceId] })
         }
@@ -364,13 +366,18 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     const oppOnly = open.filter((c) => c.pid !== owner)
     const remainingPool = favorHigh && action.side === "any" && oppOnly.length > 0 ? oppOnly : [...open]
     const n = Math.min(picks, remainingPool.length)
+    const processed: string[] = []
     for (let i = 0; i < n; i++) {
         const best = remainingPool.reduce((b, c) => {
             const d = effectiveBp(state, c.pid, c.inst) - effectiveBp(state, b.pid, b.inst)
             return (favorHigh ? d > 0 : d < 0) ? c : b
         })
         remainingPool.splice(remainingPool.indexOf(best), 1)
-        applyOne(best.pid, best.inst)
+        // 聞いて中断したら、この1体の続きと残りの体数は再開側（targetInstanceId の経路）が引き継ぐ。
+        // 先に処理した個体は excludeIds で持ち越して選び直さない
+        processed.push(best.inst.instanceId)
+        const resume = { ...action, targets: picks - i, excludeIds: [...excludeIds, ...processed.slice(0, -1)] }
+        if (applyOne(best.pid, best.inst, resume)) return
     }
 }
 

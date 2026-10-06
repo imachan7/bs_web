@@ -271,6 +271,8 @@ export type ResumeFrame =
           // ⚠️ 再開スタックからフレームを**消さない**のが要点。resolveInOrder の「残りは必ず積む」保証は
           // 積み忘れで実バグ4件を出して作られたものなので穴を開けず、消化時に無効化する
           requiresPendingDestructionOf?: string
+          // 名前スコープの「ターンに1回」（onceScope:"name"）の効果。消化時に枠を取り、取れなければ何もしない
+          onceClaim?: { instanceId: string; effectId: string }
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceType?: CardType // 発生源の種別（同上）

@@ -594,6 +594,7 @@
         "id": "BS10-069-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -931,6 +932,7 @@
         "id": "BS10-074-e1",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -943,12 +945,21 @@
       },
       {
         "id": "BS10-074-e2",
-        "kind": "globalConstraint",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
-        "constraint": {
-          "type": "restedNexusEffectsDisabled"
-        }
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "restedNexusEffectsDisabled"
+            }
+          ],
+          "duration": "battle"
+        },
+        "optional": false
       }
     ]
   },
@@ -1087,9 +1098,11 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {"type": "exhaust", "side": "own", "nexusOnly": true, "count": 1},
+          "then": {"type": "refreshSelf"},
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },
@@ -1611,6 +1624,7 @@
         ],
         "whileCombined": true,
         "oncePerTurn": true,
+        "onceScope": "name",
         "action": {
           "type": "refreshOne",
           "all": true,
@@ -1629,6 +1643,7 @@
         ],
         "whileCombined": true,
         "oncePerTurn": true,
+        "onceScope": "name",
         "action": {
           "type": "extraAttackStep"
         }
@@ -3347,6 +3362,7 @@
         "id": "BS10-023-e1",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -3514,6 +3530,7 @@
         "id": "BS10-026-e3",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -4048,6 +4065,7 @@
         "id": "BS10-032-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -4118,6 +4136,7 @@
         "id": "BS10-033-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -4374,6 +4393,7 @@
         "id": "BS10-037-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           2
         ],
@@ -5480,6 +5500,7 @@
         "id": "BS10-041-e1",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -6230,9 +6251,18 @@
           3
         ],
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },
@@ -6448,9 +6478,18 @@
           2
         ],
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },
@@ -6915,6 +6954,7 @@
         "id": "BS10-027-e1",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2

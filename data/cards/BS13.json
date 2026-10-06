@@ -207,18 +207,38 @@
     "id": "BS13-004-e2",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "ignore",
     "battleRole": "attacker",
     "levels": [
      3
     ],
     "optional": false,
     "action": {
-     "type": "summonFromHandFree",
-     "familyFilter": [
-      "神星"
-     ],
-     "costDestroySelfAndCostFilter": {
-      "min": 3
+     "type": "pay",
+     "cost": {
+      "type": "simultaneous",
+      "actions": [
+       {
+        "type": "destroySelf"
+       },
+       {
+        "type": "destroy",
+        "side": "own",
+        "count": 1,
+        "filter": {
+         "cost": {
+          "min": 3
+         },
+         "excludeSelf": true
+        }
+       }
+      ]
+     },
+     "then": {
+      "type": "summonFromHandFree",
+      "familyFilter": [
+       "神星"
+      ]
      }
     }
    }
@@ -444,6 +464,7 @@
     "id": "BS13-007-e2",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      3
     ],
@@ -516,6 +537,7 @@
     "id": "BS13-008-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -791,6 +813,7 @@
      2
     ],
     "oncePerTurn": true,
+    "onceScope": "name",
     "cost": {
      "discardHandFamily": [
       "神星",
@@ -2185,6 +2208,7 @@
     "id": "BS13-X02-e3",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -2683,14 +2707,22 @@
     "id": "BS13-023-e2",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "levels": [
      3
     ],
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "refreshSelf",
-     "costReturnOwnBrave": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "selfBrave",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     }
     }
    }
   ]
@@ -2759,11 +2791,29 @@
     ],
     "optional": false,
     "action": {
-     "type": "bpBuff",
-     "amount": 0,
-     "costExhaustFamily": "遊精",
-     "amountFromExhaustedCost": true,
-     "scope": "battle"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "autoPickMaxBp": true,
+      "count": 1,
+      "filter": {
+       "family": "遊精"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
     }
    },
    {
@@ -3494,8 +3544,15 @@
      2
     ],
     "action": {
-     "type": "negateLifeDamageFromTarget",
-     "costReturnSelfToHand": true
+     "type": "pay",
+     "cost": {
+      "type": "returnToHand",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "negateLifeDamageFromTarget"
+     }
     }
    },
    {
@@ -3742,6 +3799,7 @@
     "id": "BS13-030-e2",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -3811,6 +3869,7 @@
     "id": "BS13-031-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -4048,6 +4107,7 @@
     "id": "BS13-056-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1
     ],
@@ -4382,6 +4442,7 @@
      "星魂"
     ],
     "excludeSelfAsEventTarget": true,
+    "selfMode": "source",
     "action": {
      "type": "refreshSelf"
     }
@@ -4947,6 +5008,7 @@
     "id": "BS13-039-e3",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "whileCombined": true,
     "levels": [
      3
@@ -5043,6 +5105,7 @@
     "id": "BS13-040-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "whileCombined": true,
     "levels": [
      3
@@ -5321,6 +5384,7 @@
     "phase": "attack",
     "turn": "opponent",
     "oncePerTurn": true,
+    "onceScope": "name",
     "action": {
      "type": "pay",
      "cost": {
@@ -5931,9 +5995,18 @@
     "levels": [
      2
     ],
-    "optional": true,
     "action": {
-     "type": "refreshSelfByExhaustNexus"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     },
+     "limitByKeyword": "kyoshu"
     }
    }
   ]
@@ -6657,9 +6730,18 @@
      2
     ],
     "whileCombined": true,
-    "optional": true,
     "action": {
-     "type": "refreshSelfByExhaustNexus"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refreshSelf"
+     },
+     "limitByKeyword": "kyoshu"
     }
    }
   ]

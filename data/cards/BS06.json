@@ -626,6 +626,7 @@
     "id": "BS06-011-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -1145,6 +1146,7 @@
     "id": "BS06-021-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -1584,6 +1586,7 @@
     "id": "BS06-028-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1854,6 +1857,7 @@
     "id": "BS06-033-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -2092,6 +2096,7 @@
     "id": "BS06-036-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,
@@ -2343,6 +2348,7 @@
     "id": "BS06-041-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2476,6 +2482,7 @@
     "id": "BS06-043-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2547,6 +2554,7 @@
     "id": "BS06-044-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2669,6 +2677,7 @@
     "id": "BS06-046-e3",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2727,6 +2736,7 @@
     "id": "BS06-047-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -2745,6 +2755,7 @@
     "id": "BS06-047-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2,
      3
@@ -2805,6 +2816,7 @@
     "id": "BS06-048-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2829,6 +2841,7 @@
     "id": "BS06-048-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -4342,8 +4355,29 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "selfBuffByExhaustFamily",
-      "familyFilter": "地竜"
+      "type": "pay",
+      "cost": {
+       "type": "exhaust",
+       "side": "own",
+       "autoPickMaxBp": true,
+       "count": 1,
+       "filter": {
+        "family": "地竜"
+       }
+      },
+      "then": {
+       "type": "timedEffect",
+       "target": "self",
+       "duration": "battle",
+       "content": [
+        {
+         "type": "bp",
+         "amount": 1,
+         "amountCounter": "lastBp",
+         "countOnce": true
+        }
+       ]
+      }
      }
     }
    }
@@ -6530,6 +6564,7 @@
     "id": "BS06-X21-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -6679,6 +6714,7 @@
     "id": "BS06-X23-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,
@@ -6776,13 +6812,35 @@
     "id": "BS06-X24-e2",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      2,
      3
     ],
     "action": {
-     "type": "selfBuffByExhaustFamily",
-     "familyFilter": "武装"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "autoPickMaxBp": true,
+      "count": 1,
+      "filter": {
+       "family": "武装"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
     },
     "optional": true
    },

@@ -8,6 +8,8 @@ import {
     getCard,
     minLevelCores,
     takeMutationAfterSuspend,
+    takeLostLookups,
+    takeMissedPayAsks,
     validateDeckCards,
     viewFor,
 } from "../../server/src/logic/GameState"
@@ -235,12 +237,30 @@ function checkCoreSanity(state: GameState): string | null {
 // 保存則の違反件数（アサーション失敗とは別に数え、対話・非対話どちらでも落とす）
 let invariantViolations = 0
 
+// 発生源の見失い（エンジン側 GameState.findInstanceAnywhere が記録したもの）。
+// act を通らないテスト（発火関数の直接呼び出し）のぶんは、次の act か最終集計で拾う
+function reportLostLookups(label: string): void {
+    for (const problem of new Set(takeLostLookups())) {
+        invariantViolations++
+        console.error(`  ❌ [見失い] ${problem}（${label}）`)
+    }
+}
+
+function reportMissedPayAsks(label: string): void {
+    for (const problem of new Set(takeMissedPayAsks())) {
+        invariantViolations++
+        console.error(`  ❌ [払う確認の聞き漏れ] ${problem}（${label}）`)
+    }
+}
+
 function checkInvariants(state: GameState, before: number, label: string): void {
     // 中断中の盤面変更ガード（エンジン側 GameState.checkNoMutationAfterSuspend が記録したもの）
     for (const problem of takeMutationAfterSuspend()) {
         invariantViolations++
         console.error(`  ❌ [中断ガード] ${problem}（${label}）`)
     }
+    reportLostLookups(label)
+    reportMissedPayAsks(label)
     const after = countCards(state)
     if (after !== before) {
         invariantViolations++
@@ -258,6 +278,8 @@ function checkInvariants(state: GameState, before: number, label: string): void 
 function act(state: GameState, pid: PlayerId, action: GameAction): string | null {
     const label = `${pid}: ${action.type}`
     const before = countCards(state)
+    // 聞き漏れの検査は handleAction を通った経路だけを見る。耐性の述語を直接呼ぶ単体テストの記録はここで捨てる
+    takeMissedPayAsks()
     if (INTERACTIVE) {
         // 対話モードでは例外で走行を止めない（1件の異常で残り全パートが走らなくなるため）。
         // 例外そのものを異常として数え、次のアクションへ進む
@@ -321,6 +343,8 @@ export function noteHarnessError(partName: string, e: Error): void {
 // 全パート実行後にランナー（scripts/smoke.ts）から呼ぶ最終集計。
 // 対話モードでは合否の基準が変わる（アサーション失敗は想定内。異常だけを落とす）
 export function summary(): void {
+    reportLostLookups("最終集計")
+    takeMissedPayAsks() // act を通らない直接呼び出しの記録（実際の経路ではない）
     console.log("")
     if (INTERACTIVE) {
         console.log(
@@ -434,3 +458,12 @@ export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burs
     return timedContentsFor(state, pid).some((c) => c.type === "battleLock" && c.lock === lock)
 }
 export type { GameAction, GameState, PlayerId }
+
+// 「〜することで〜する」(pay)の払う確認が出ていたら「発動する」で答える（出ていなければ何もしない）
+export function answerPayConfirm(state: GameState, pid: PlayerId): void {
+    const pc = state.pendingChoice
+    if (pc && pc.kind === "option" && (pc.options ?? []).includes("発動する")) {
+        const err = act(state, pid, { type: "resolveChoice", option: "発動する" })
+        if (err) throw new Error(`払う確認への応答に失敗: ${err}`)
+    }
+}

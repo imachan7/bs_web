@@ -20,6 +20,7 @@ import { COLOR_LABELS } from "../data/constants"
 import type { CardData, EffectCounter } from "../server/src/type"
 import { isAllowedRuleCounter } from "../server/src/logic/actions/timedEffect"
 import { loadAllCards } from "../data/loadCards"
+import { checkPayGates } from "./payGateCheck"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_PAY_TYPES = new Set<string>(PAYABLE_TYPES)
@@ -350,7 +351,15 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
         return
     }
     const obj = node as Record<string, unknown>
+    if (obj["type"] === "summonFromHandFree" && "chooseEach" in obj) add(cardId, "summonFromHandFree に実行時専用の内部欄 chooseEach が書かれている（カードデータには書かない）")
+    if (obj["type"] === "simultaneous") {
+        for (const k of ["choosing", "chosenIds"]) if (k in obj) add(cardId, `simultaneous に実行時専用の内部欄 ${k} が書かれている（カードデータには書かない）`)
+    }
+    if (obj["kind"] === "step" && "cost" in obj) add(cardId, "step に cost が書かれている（廃止済み。「〜することで」は pay で書く）")
     if (obj["type"] === "pay") {
+        if ("confirmed" in obj) add(cardId, "pay に実行時専用の内部欄 confirmed が書かれている（カードデータには書かない）")
+        if ("onceRevert" in obj) add(cardId, "pay に実行時専用の内部欄 onceRevert が書かれている（カードデータには書かない）")
+        if ("eventTargetId" in obj) add(cardId, "pay に実行時専用の内部欄 eventTargetId が書かれている（カードデータには書かない）")
         for (const side of ["cost", "then"] as const) {
             const t = (obj[side] as { type?: unknown } | undefined)?.type
             if (typeof t !== "string" || !VALID_PAY_TYPES.has(t)) {
@@ -493,6 +502,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             keyword?: string
             trigger?: string
             granted?: { trigger?: string }
+            oncePerTurn?: boolean
+            onceScope?: string
+            eventTarget?: string
         }[]) {
             // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
             if (
@@ -500,6 +512,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 (!e.trigger || !VALID_TRIGGERS.has(e.trigger))
             ) {
                 add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
+            }
+            if (e.onceScope !== undefined && (e.onceScope !== "name" || e.oncePerTurn !== true)) {
+                add(id, `onceScope は oncePerTurn: true と併用する "name" のみ（${String(e.id)}）`)
             }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
@@ -514,6 +529,15 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
             if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
                 add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            // イベント対象を行動に渡すか（triggers.ts）。書き忘れると「新たに選ぶ」行動がアタッカー等に当たる
+            if (
+                e.kind === "triggered" &&
+                (e.trigger === "onBlock" || e.trigger === "onBlocked" || e.trigger === "onBattleStart" || e.trigger === "onBattleEnd") &&
+                e.eventTarget !== "use" &&
+                e.eventTarget !== "ignore"
+            ) {
+                add(id, `eventTarget（"use" | "ignore"）が未指定: ${String(e.id)}`)
             }
             // 『』カテゴリと trigger の一致（SEMANTICS_AUDIT.md §3.17）
             if (e.kind === "triggered" && e.trigger && !QUOTE_MISMATCH_KNOWN.has(e.id ?? "")) {
@@ -574,6 +598,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
+        checkPayGates(c, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }
@@ -631,7 +656,7 @@ export function findStrayDeclared(cards: CardData[]): { cardId: string; message:
     return out
 }
 
-// simultaneous の中は destroy{all} だけ（それ以外はハンドラが発揮しない）
+// simultaneous の中は destroy{all}・destroySelf・destroy{side:"own", count:数} だけ（それ以外はハンドラが発揮しない）
 export function findBadSimultaneous(cards: CardData[]): { cardId: string; message: string }[] {
     const out: { cardId: string; message: string }[] = []
     const walk = (o: unknown, cardId: string): void => {
@@ -643,7 +668,8 @@ export function findBadSimultaneous(cards: CardData[]): { cardId: string; messag
         const r = o as Record<string, unknown>
         if (r["type"] === "simultaneous") {
             for (const a of (r["actions"] as Record<string, unknown>[] | undefined) ?? []) {
-                if (a["type"] !== "destroy" || a["all"] !== true) out.push({ cardId, message: "simultaneous の中には destroy{all} だけ書ける" })
+                const ok = a["type"] === "destroySelf" || (a["type"] === "destroy" && (a["all"] === true || (a["side"] === "own" && typeof a["count"] === "number")))
+                if (!ok) out.push({ cardId, message: "simultaneous の中には destroy{all}・destroySelf・destroy{side:own,count:数} だけ書ける" })
             }
         }
         for (const v of Object.values(r)) walk(v, cardId)

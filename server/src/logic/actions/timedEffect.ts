@@ -529,12 +529,14 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
-    const contents = action.content.filter((c) => c.type === "compareBy" || c.type === "invertBattleWinner")
+    const contents = action.content.filter((c) => c.type === "compareBy" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")
     recordTimed(state, { content: contents, target: { kind: "battle" }, until: "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
     for (const c of contents) {
         if (c.type === "compareBy") {
             log(state, `${sourceName}：バトル解決時、BPの代わりに${label[c.by]}を比較する。`)
+        } else if (c.type === "restedNexusEffectsDisabled") {
+            log(state, `${sourceName}：このバトルの間、疲労状態のネクサスすべての効果は発揮されない。`)
         } else {
             log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
         }
@@ -723,7 +725,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeTriggerSuppressionRule(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner")) {
+    if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")) {
         placeBattleCompare(ctx, action)
         return
     }

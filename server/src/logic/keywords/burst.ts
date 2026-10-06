@@ -1,5 +1,6 @@
 // 【バースト】のセットと発動
 import { requestActivationConfirm } from "../targeting"
+import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -118,8 +119,12 @@ function tryBurstThenPay(
     if (!entry) return
     const cost = effectiveCost(state, pid, card)
     const player = state.players[pid]
-    // 「コストを支払えるときだけ発揮できる」＝COST_MODEL.md §1。払えないなら確認自体を出さずスキップ
-    if (player.reserve < cost) return
+    // 払えないなら払う確認は出さず不発（2026-10-02 ユーザー確認。バースト自体の発動確認は済んでいる）。
+    // 簡略化：判定するのはコストのコアだけで、効果本体（entry.action）が解決できるかは見ない
+    if (player.reserve < cost) {
+        log(state, unpayableLine(card.name, "コストのコアが足りない"))
+        return
+    }
     if (state.interactiveTargets) {
         requestActivationConfirm(
             state,
@@ -132,9 +137,10 @@ function tryBurstThenPay(
         return
     }
     player.reserve -= cost
+    player.trashCores += cost
     log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
     // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
-    resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+    resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
 }
 
 // burstMagicFreeEffect持ち（BS16-070）の分岐：「コストを払ってthenPay」「無償でメイン」「無償でフラッシュ」
@@ -157,7 +163,7 @@ function tryBurstMagicFreeOrThenPay(
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
         // マジックの「使用」ではないのでresolveMagicは通さない（Q22399。docs/design/BURST.md §7.1）
-        resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+        resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
     }
     if (!state.interactiveTargets) {
         // 非対話の既定：無償でフラッシュがあればそれ、無ければ無償でメイン（2026-09-28ユーザー決定）
@@ -165,6 +171,7 @@ function tryBurstMagicFreeOrThenPay(
         if (mainEntry) return resolveFree(mainEntry)
         if (canPay && payEntry) {
             player.reserve -= payCost
+            player.trashCores += payCost
             log(state, `${player.name}は${card.name}のコスト${payCost}を支払った。`)
             resolveFree(payEntry)
         }
@@ -282,7 +289,7 @@ export function fireBurstOnEvent(
         if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
-        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
+        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? markPayConfirmed(effect.action) : { type: "noop" }
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
         const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
@@ -394,7 +401,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     player.burst = cardId
     player.burstSet = true
     announceBurstActivation(state, owner, cardId)
-    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" }
+    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? markPayConfirmed(effect.action) : { type: "noop" }
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)

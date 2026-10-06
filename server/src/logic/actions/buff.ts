@@ -74,18 +74,6 @@ const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, 
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // costReturnSelfToHand（BS14-X03風の覇王ドルクス・ウシワカ）：このスピリット自身を手札に戻すことがコスト。
-        // 対象になれる自分の他のスピリットが1体もいなければ不発（COST_MODEL.md §1）
-        if (action.costReturnSelfToHand && !action.costPaid) {
-            if (!self || state.players[owner].field.spirits.filter((s) => s.instanceId !== self.instanceId).length === 0) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            returnSpiritToHand(state, owner, self, sourceName)
-            if (state.winner) return
-            ctx.resolve({ ...action, costPaid: true }, { sourceColors: srcColors, sourceType: srcType })
-            return
-        }
         // 器：costMillSelfCount指定時は自分のデッキを上からこの枚数だけ破棄することがコスト
         // （対象は常にself固定「このスピリットをBP+」）。一般則（COST_MODEL.md §1）どおり、
         // デッキがこの枚数未満なら払わず発揮もしない（2026-09-26修正：以前はあるだけ破棄して成立させていた）。
@@ -130,53 +118,6 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                     log(state, `${getCard(self.cardId).name}は回復した。`)
                 }
             }
-            return
-        }
-        // 器AF：costExhaustFamily+amountFromExhaustedCost指定時は、指定系統の自分のスピリット1体を
-        // 疲労させることがコストで、amountの代わりに疲労させたそのスピリットの実効BPを加算量として使う。
-        // 対象は常にself固定（「このスピリットをBP+」）。該当がなければ不発（COST_MODEL.md §1）。
-        // 候補2体以上ならプレイヤーが選ぶ（§2）。非対話・自動選択は実効BP最大（加算量を最大化する側）
-        if (action.costExhaustFamily !== undefined && action.amountFromExhaustedCost) {
-            if (!self) {
-                log(state, `${sourceName}：発揮する対象がいなかった。`)
-                return
-            }
-            const candidates = state.players[owner].field.spirits.filter(
-                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
-            )
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            let victim: CardInstance | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                victim = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!victim) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                victim = candidates.reduce((best, s) =>
-                    effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-                )
-            }
-            const amount = effectiveBp(state, owner, victim)
-            exhaustSpirit(state, owner, victim)
-            recordBp(state, owner, self, amount, action.scope === "battle" ? "battle" : "turn")
-            log(state, `${state.players[owner].name}は${sourceName}のコストとして${getCard(victim.cardId).name}を疲労させた。`)
-            log(state, `${getCard(self.cardId).name}はBP+${amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
-            applyMagicBuffBonus(state, self, srcType, srcColors)
             return
         }
         // extraPerCoreToTrash の第2段（コア数を選び終わって戻ってきた経路）。
@@ -329,89 +270,11 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
 // （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
-const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-        // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体を疲労させ、
-        // self自身をその実効BP分だけBP+する。
-        // **どれを疲労させるかはプレイヤーが選ぶ**（2026-08-23 ユーザー要望。COST_MODEL.md §2
-        // 「何を犠牲にするかは候補2つ以上なら選ばせる」）。非対話は従来どおり実効BP最大＝バフ量を最大化。
-        // **発生源自身も候補に含む**（2026-08-20 ユーザー確認）。効果文が「系統：「武装」を持つ
-        // 自分のスピリット1体を疲労させることで」であって「このスピリット以外の」と書いていないため
-        // （SEMANTICS_AUDIT.md §3.8）。BS06-X24 鎧神機ヴァルハランスは自身が「武装」持ちなので、
-        // 回復状態でアタックしている間は自分を疲労させてBPを倍にできる。
-        // なお『このスピリットのアタック時』に発火する場合、通常 self はアタック宣言で既に疲労しており
-        // !s.isRested で自然に候補から外れる（【神速】等で回復状態のままなら候補になる）
-        if (!self) {
-            log(state, `${sourceName}：バフ対象がいなかった。`)
-            return
-        }
-        // familyFilter 省略時は系統を問わない（BS12-050 突機竜アーケランサー＝「自分のスピリット1体」）
-        const candidates = state.players[owner].field.spirits.filter(
-            (s) =>
-                !s.isRested &&
-                (action.familyFilter === undefined ||
-                    matchesFamilyFilter(state, owner, s, action.familyFilter)),
-        )
-        if (candidates.length === 0) {
-            log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
-            return
-        }
-        const applyTo = (target: CardInstance): void => {
-            // amount 指定時は固定値（BS12-050＝BP+3000）。省略時は疲労させた個体の実効BP（巨神機トール）
-            const amount = action.amount ?? effectiveBp(state, owner, target)
-            exhaustSpirit(state, owner, target)
-            recordBp(state, owner, self, amount, "turn")
-            log(
-                state,
-                `${getCard(target.cardId).name}は疲労し、${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-            )
-        }
-        // 犠牲を選び終えて再入した経路。sacrificeChosen が無い targetInstanceId は
-        // 誘発が渡すイベント対象なので、犠牲と取り違えないようフラグで区別する
-        if (action.sacrificeChosen && targetInstanceId !== undefined) {
-            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
-            if (!chosen) {
-                log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
-                return
-            }
-            applyTo(chosen)
-            return
-        }
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：コストとして疲労させるスピリットを選んでください`,
-                candidates,
-                { ...action, sacrificeChosen: true },
-                null,
-            )
-        ) {
-            return
-        }
-        // 非対話の自動選択：バフ量が疲労させた個体のBPに比例するならBP最大、
-        // 固定値なら犠牲が最小になるようBP最小を選ぶ
-        applyTo(
-            candidates.reduce((best, s) =>
-                action.amount === undefined
-                    ? effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                        ? s
-                        : best
-                    : effectiveBp(state, owner, s) < effectiveBp(state, owner, best)
-                      ? s
-                      : best,
-            ),
-        )
-        return
-}
-
 
 const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     colorlessSelfThisBattle,
     bpBuff,
-    selfBuffByExhaustFamily,
 } satisfies Partial<ActionRegistry>
 
 // 古代闘技場Lv1（kind:"bpBuffSuppression"）：相手の「BPを+する」効果は発揮されない。

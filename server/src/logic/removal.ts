@@ -257,7 +257,8 @@ export function destroySpirit(
     const byBattle = context?.battle !== undefined
     // 「相手のスピリットの効果で破壊されたとき」（byOpponentSpiritEffectOnly）の判定材料。
     // BS10-012アントイーター/BS10-014闇騎士マリス
-    const bySpiritEffect = context?.sourceType === "spirit" && context?.sourcePid !== undefined && context.sourcePid !== ownerPid
+    // バトルの BP 比較は sourceType:"spirit" で記録されるが、スピリットの効果ではない
+    const bySpiritEffect = !byBattle && context?.sourceType === "spirit" && context?.sourcePid !== undefined && context.sourcePid !== ownerPid
     const sourceInstanceId = context?.sourceInstanceId
     // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
     // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める

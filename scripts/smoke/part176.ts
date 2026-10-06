@@ -8,7 +8,7 @@
 //   BS08-069 ジャッジメントフレア    実効BP最大から破壊 → 相手が1体ずつ選ぶ
 //   BS08-072 マインドブレイク        コア最多から5個    → 前半は支払う本人、後半は相手が選ぶ
 //   BS04-114 タイダルタイド          実効BP最小から破壊 → 相手が1体ずつ選ぶ（ほぼ等価だが選択は本人へ）
-import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -140,6 +140,7 @@ console.log("=== マインドブレイク：前半は支払う本人、後半は
     put(s, "p2", "BS01-003", 3)
 
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "coreRemove", side: "own", spread: true, count: 2, dest: "trash" }, then: { type: "coreRemove", spread: true, count: 2, dest: "trash", chooserIsTarget: true } })
+    answerPayConfirm(s, "p1")
     // 前半：コストなので支払う本人（p1）が選ぶ
     assert(s.pendingChoice?.pid === "p1", "前半（コストの支払い）は自分が選ぶ")
     assert(s.pendingChoice?.actorPid === undefined, "自分の効果なので actorPid は入らない")
@@ -168,6 +169,7 @@ console.log("=== マインドブレイク：自分のコアが足りなければ
     put(s, "p2", "BS01-020", 3)
     const oppTrashBefore = s.players.p2.trashCores
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "coreRemove", side: "own", spread: true, count: 5, dest: "trash" }, then: { type: "coreRemove", spread: true, count: 5, dest: "trash", chooserIsTarget: true } })
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p1.trashCores === 0, "自分のコアは減らない")
     assert(s.players.p2.trashCores === oppTrashBefore, "相手のコアも減らない")

@@ -1469,6 +1469,7 @@
         "id": "BS09-022-eB",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -1738,6 +1739,7 @@
         "id": "BS09-026-eB",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -2688,6 +2690,7 @@
         "id": "BS09-040-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -2757,6 +2760,7 @@
         "id": "BS09-041-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -3298,6 +3302,7 @@
         "id": "BS09-049-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           3
         ],
@@ -3481,9 +3486,18 @@
         "levels": [
           2
         ],
-        "optional": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
         }
       }
     ]
@@ -3630,9 +3644,18 @@
           2,
           3
         ],
-        "optional": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
         }
       }
     ]
@@ -5492,6 +5515,7 @@
         "id": "BS09-X37-e4",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": [
           3
         ],

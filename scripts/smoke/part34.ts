@@ -16,6 +16,7 @@ import {
     fireStepTriggers,
     resolveAction,
     runTurnStart,
+    answerPayConfirm,
 } from "./helpers"
 
 console.log("=== BS03-047 硝子の女神フレイア：アタッカーBP<=フレイアBPならライフは減らない ===")
@@ -174,6 +175,7 @@ console.log("=== BS03-131 ユナイテッドパワー：interactiveTargets時は
     const high = createInstance("BS03-054", s.turn, 3) // BP4000
     s.players.p1.field.spirits.push(low, high)
     resolveAction(s, "p1", null, (getCard("BS03-131").effects[0] as { action: EffectAction }).action)
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.kind === "target" && s.pendingChoice.candidates.length === 2, "疲労させる対象の選択待ちになった")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: high.instanceId }) === null, "highを疲労対象に選ぶ")
     assert(high.isRested, "選んだhighが疲労した")

@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
+import type { CardInstance, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -20,6 +20,7 @@ import {
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
 import { finishSummonEffect } from "./keywords/burst"
+import { markPayConfirmed } from "./actions/pay"
 import { blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
@@ -95,6 +96,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
+import { markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -809,7 +811,7 @@ function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, ef
         log(state, `${player.name}は手札の${card.name}を破棄して効果を発動した。`)
     }
 
-    resolveAction(state, pid, null, effect.action, undefined, card.colors, "spirit", undefined, undefined, cardId)
+    resolveAction(state, pid, null, markPayConfirmed(effect.action), undefined, card.colors, "spirit", undefined, undefined, cardId)
     // バトル中のフラッシュで使用したら優先権を相手へ移す（フラッシュマジック・神速召喚・覚醒と共通。passFlashPriority）
     passFlashPriority(state, pid)
     return null
@@ -1156,8 +1158,15 @@ function exhaustDeclaredBlocker(
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
     // **疲労の直後に置く**（回復状態のままだと【強襲】が空振りする）。バトルしない側のブロッカーには発揮しない
     if (withKyoshu && hasKyoshuOnBlock(state, defenderPid)) {
-        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+        resolveAction(state, defenderPid, blocker, KYOSHU_PAY)
     }
+}
+
+const KYOSHU_PAY: EffectAction = {
+    type: "pay",
+    cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 },
+    then: { type: "refreshSelf" },
+    limitByKeyword: "kyoshu",
 }
 
 export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
@@ -1299,11 +1308,8 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
 // 起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
 // 記録が消えるので、同じターンにもう一度起動ボタンを押せる（2026-08-21 ユーザー確定）
-export function revertActivatedUse(inst: CardInstance, effectId: string): void {
-    if (!inst.activatedUsedTurn) return
-    const rest = { ...inst.activatedUsedTurn }
-    delete rest[effectId]
-    inst.activatedUsedTurn = rest
+export function revertActivatedUse(state: GameState, inst: CardInstance, effectId: string): void {
+    revertOnceUsed(state, inst, effectId, "activatedUsedTurn")
 }
 
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
@@ -1443,18 +1449,18 @@ function doActivateAbility(
     // 「ターンに1回」の消費を、**コスト支払い後・効果解決前**に記録する。
     // 効果の解決中に中断（pendingChoice）が入ってもこのターンの再発動を防ぐため
     if (effect.oncePerTurn) {
-        inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
+        markOnceUsed(state, pid, inst, effect, "activatedUsedTurn")
     }
 
     // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
     delete state.effectFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
-    resolveAction(state, pid, host, effect.action)
+    resolveAction(state, pid, host, markPayConfirmed(effect.action))
     if (effect.oncePerTurn && cancelable) {
         if (state.effectFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
-            revertActivatedUse(inst, effectId)
+            revertActivatedUse(state, inst, effectId)
         } else if (state.pendingChoice) {
             // 選択待ちに入った：**やめたら**戻す（doResolveChoice が見る）
             state.pendingChoice.revertActivated = { instanceId, effectId }
