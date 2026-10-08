@@ -73,7 +73,7 @@ import {
     instIsCombined,
     opponentFieldColorCount,
 } from "../../../shared/rules"
-import { lastCoresCount, lastMovedCount, lastMovedOf, lastTargetsOf } from "./record"
+import { lastCoresCount, lastLeftCostOf, lastMovedCount, lastMovedOf, lastTargetsOf } from "./record"
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
 export { millCapBonusFor, hasFunsaiOnBlock, resolveFunsai } from "./keywords/funsai"
 export { hasJugekiOnBlockReplace } from "./keywords/jugeki"
@@ -1066,7 +1066,8 @@ export function countEffectCounter(
         }, 0)
     }
     if (counter === "bothNexusColors") return new Set([...state.players.p1.field.nexuses, ...state.players.p2.field.nexuses].flatMap(instColors)).size
-    if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + getCard(id).cost, 0)
+    // 場から離れたカードは離れたときのコスト（増減込み。2026-10-08 ユーザー確認）
+    if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + (lastLeftCostOf(state, id) ?? getCard(id).cost), 0)
     if (typeof counter === "object" && "minus" in counter) {
         const [a, b] = counter.minus
         return Math.max(0, countEffectCounter(state, owner, self, a, sourceType) - countEffectCounter(state, owner, self, b, sourceType))

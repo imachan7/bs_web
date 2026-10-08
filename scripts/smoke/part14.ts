@@ -39,7 +39,7 @@ console.log("=== BS02-028 クロスシザース：スタートステップでネ
 
     assert(s.pendingChoice !== null, "pendingChoiceが立つ")
     assert(s.pendingChoice?.kind === "target", "kind:targetの選択")
-    assert(s.pendingChoice?.optional === true, "任意（スキップ可）")
+    assert(s.pendingChoice?.optional === false, "指定は必須（2026-10-08 ユーザー確認）")
     assert(
         [...(s.pendingChoice?.candidates ?? [])].sort().join(",") ===
             [antNest.instanceId, sageTree.instanceId].sort().join(","),
@@ -59,11 +59,12 @@ console.log("=== BS02-028 クロスシザース：スタートステップでネ
     endTurn(s) // p2 → p1：自分のスタートステップで一度外れ、指定し直しの選択が立つ
     assert(antNest.coresLinkedTo === undefined && antNest.coresOverride === undefined, "次の自分のスタートステップでリンクが外れる")
     assert(s.pendingChoice?.kind === "target", "指定し直しの選択が立つ")
-    assert(act(s, "p1", { type: "resolveChoice" }) === null, "指定し直さない")
-    assert(currentLevel(antNest).level === 1, "指定し直さなければ実コア数(0)基準のLv1に戻る")
+    assert(act(s, "p1", { type: "resolveChoice", instanceId: sageTree.instanceId }) === null, "賢者の樹を指定し直す")
+    assert(antNest.coresLinkedTo === undefined && currentLevel(antNest).level === 1, "指定から外れた蟻塚は実コア数(0)基準のLv1に戻る")
+    assert(sageTree.coresLinkedTo === shears.instanceId, "指定し直したネクサスにリンクが移る")
 }
 
-console.log("--- スキップも可能 ---")
+console.log("--- スキップはできない ---")
 {
     const s = createGame(
         "crossshears-skip-test",
@@ -83,8 +84,8 @@ console.log("--- スキップも可能 ---")
     endTurn(s)
 
     assert(s.pendingChoice !== null, "pendingChoiceが立つ")
-    assert(act(s, "p1", { type: "resolveChoice" }) === null, "何も選ばずスキップ")
-    assert(s.pendingChoice === null, "スキップ後pendingChoiceは解消される")
+    assert(act(s, "p1", { type: "resolveChoice" }) !== null, "何も選ばずには確定できない")
+    assert(s.pendingChoice !== null, "選択待ちのまま")
     assert(
         antNest.coresLinkedTo === undefined && sageTree.coresLinkedTo === undefined,
         "どちらのネクサスもリンクされない",

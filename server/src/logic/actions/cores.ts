@@ -364,7 +364,8 @@ const linkNexusCoresChoiceHandler: ActionHandler<"linkNexusCoresChoice"> = (ctx,
         if (!self) return
         if (targetInstanceId === undefined) {
             const candidates = state.players[owner].field.nexuses.map((n) => n.instanceId)
-            requestChoice(state, owner, "コア数をリンクするネクサスを選んでください", candidates, true, action, self)
+            // 指定は必須（2026-10-08 ユーザー確認）
+            requestChoice(state, owner, "コア数をリンクするネクサスを選んでください", candidates, false, action, self)
             return
         }
         const nexus = state.players[owner].field.nexuses.find((n) => n.instanceId === targetInstanceId)

@@ -38,13 +38,13 @@ import {
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { displayLevel, effectiveBp, instBaseCost, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { recordDestroysOf } from "../removal"
-import { currentRecordScope, recordMoved } from "../record"
+import { currentRecordScope, recordLeftCost, recordMoved } from "../record"
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
 type DestroyNexusAction = Extract<EffectAction, { type: "destroyNexus" }>
@@ -638,8 +638,10 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             }
             // 破壊したネクサスを lastMoved に書く（「破壊したネクサスのコストと同じ枚数」＝カウンタlastCostが読む。060）
             const scope = currentRecordScope(state)
+            const leftCost = instBaseCost(victim)
             if (destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
                 recordMoved(state, [victim.cardId], scope)
+                recordLeftCost(state, victim.cardId, leftCost, scope)
             }
             return
         }

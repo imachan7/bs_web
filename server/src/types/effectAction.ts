@@ -189,7 +189,7 @@ export type EffectAction =
  | { type: "revealRest"; destPid: PlayerId; rest?: "trash" | "deckTop" | "deckBottom" | "hand"; pool?: string[]; placed?: number } // 内部専用：revealで選ばれなかった残り（GameState.revealedCards、またはpool）をrest先へ送る。デッキへ戻すときは1枚ずつ順番を選ばせる（destPidが持ち主。相手のデッキでも選ぶのはctx.owner）
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統をCardInstance.lentChoiceFamilyに載せた仮想発生源を積む（＝lendSelfThisTurnと同じ貸与。以後はkind:"familyGrant"のfamilyFromChoiceエントリが継続付与する）
- | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（optional=スキップ可）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
+ | { type: "linkNexusCoresChoice" } // 自分のネクサス1つを指定するtarget choice（指定は必須）。指定されたネクサスのcoresLinkedToにselfのinstanceIdを設定する（selfがnullなら不発。クロスシザース）
  // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。from＝選ぶ人の場の spirits／nexuses から候補を取る。picked は再開用
  | { type: "fireEffect"; trigger: "onSummon" | "onDestroy"; all?: true; filter?: TargetFilter; oneEffect?: true; chosenId?: string; instanceIds?: string[] } // chosenId・instanceIds は再開用
  | { type: "declare"; what: "color" | "family" | "cost"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }

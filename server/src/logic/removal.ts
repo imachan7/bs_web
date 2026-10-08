@@ -235,7 +235,10 @@ export function destroySpirit(
     // （2026-09-08 ユーザー確認。TIMING_CHART.md「『フィールドに残る／戻る』と『破壊時』」）。
     // 中断・再開の経路もすべて commitPendingDestruction を通るので、そこ1か所で拾える
     if (cause === "destroy" && !options?.skipRevive) {
-        if (destroyRecorder !== null && context !== undefined && destroyRecorder.context === context) destroyRecorder.cardIds.push(inst.cardId)
+        if (destroyRecorder !== null && context !== undefined && destroyRecorder.context === context) {
+            destroyRecorder.cardIds.push(inst.cardId)
+            recordLeftCost(state, inst.cardId, instBaseCost(inst))
+        }
         if (context !== undefined) inst.pendingDestroyContext = context
         if (options?.allowSuspend === true) inst.pendingDestroyAllowSuspend = true
     } else {
