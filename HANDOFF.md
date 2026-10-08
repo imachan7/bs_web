@@ -58,11 +58,17 @@
 **「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
 `toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）
 
+### ブロック宣言時の同時発揮（ブランチ `fix/block-trigger-order`・smoke part489。2026-10-08 ユーザー確認）
+
+`doBlock`（GameEngine.ts）がブロック宣言後に順に発火している8種（onBlock・ownSpiritDeclaredBlock・anySpiritDeclaredBlock×2・ブロッカーの onBattleStart・ブロック時【粉砕】・onBlocked・ownSpiritBlocked）を**1つの同時発揮**にし、解決順はターンプレイヤーが選ぶ（TIMING_CHART ＞３-2B・§0-3）。
+作り：`fireTrigger`／`fireFieldEventTriggers` に「解決せず `{ key, label, frame }` を集めるだけ」の収集モードを足し、doBlock で集めて `resolveInOrder`（askOrder: turnPlayer、key は `${pid}:${cardId}`）に1回渡す。非対話（テスト・AI）での解決順は今の並びを保つ。バーストは集めずに一括解決の後で従来どおり。
+
 ### M8（期間つき効果）は一区切り（2026-09-26）
 
 一覧 `timedEffects` に全内容を移した（[TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) §3.2）。期間つき効果を置くだけの旧 action 19種は入口として残し、周りを触るときに書き直す（REFACTOR_PLAN §2.2 の6行目）。
 未着手の決定済み事項：②破壊直前の発生源を控える（ユーザー決定 a）。
-回答待ち：④セイ・ドリガンの「このステップの最初に」の義務が消える条件／クロスシザースの「指定する」は必須か任意か／ブロック時効果と『ブロックされたとき』効果を同時発揮にしてターンプレイヤーに解決順を選ばせるか（今は決まった順。TIMING_CHART ＞３）／ベトール・サンダ・バードの「Lv◯BP を2000として扱う」は相手の【装甲】等で防げるか（今は防げない）。
+回答待ち：④セイ・ドリガンの「このステップの最初に」（今は「そのターンの間、可能ならアタック」。案＝義務がある間は他のスピリットでアタックできず、最初のアタック宣言で消える。直すかを確認中）。
+クロスシザース（指定は必須）・ベトール等の【装甲】・コストの時点は 2026-10-08 に決着（#261）
 
 ### R4 の残り（type.ts 211KB）
 
@@ -167,11 +173,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 
 
-**「この効果で破壊した／戻したスピリットのコスト」を待機時のコストで見るか**：`if` の `cond.last` は待機に入ったときのコスト（バウンスのみ記録。CONJUNCTION 27行目）を見るが、カウンタ `lastCost`・絞り込み `sameCostAsLast` と破壊の記録は印刷コストのまま。揃えると他のカードの結果が変わるので未着手（2026-09-28）。
 
-
-
-**バーストの既知の不具合3件（未修正）**：相手のライフ減少で「自分のライフ減少後」が発動する／「相手の召喚時発揮後」が発動しない等。REFACTOR_PLAN の完了後に直す → [BURST.md](./docs/design/BURST.md) §10。
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
 
