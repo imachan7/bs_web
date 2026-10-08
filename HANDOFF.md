@@ -58,11 +58,6 @@
 **「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
 `toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）
 
-### ブロック宣言時の同時発揮（ブランチ `fix/block-trigger-order`・smoke part489。2026-10-08 ユーザー確認）
-
-`doBlock`（GameEngine.ts）がブロック宣言後に順に発火している8種（onBlock・ownSpiritDeclaredBlock・anySpiritDeclaredBlock×2・ブロッカーの onBattleStart・ブロック時【粉砕】・onBlocked・ownSpiritBlocked）を**1つの同時発揮**にし、解決順はターンプレイヤーが選ぶ（TIMING_CHART ＞３-2B・§0-3）。
-作り：`fireTrigger`／`fireFieldEventTriggers` に「解決せず `{ key, label, frame }` を集めるだけ」の収集モードを足し、doBlock で集めて `resolveInOrder`（askOrder: turnPlayer、key は `${pid}:${cardId}`）に1回渡す。非対話（テスト・AI）での解決順は今の並びを保つ。バーストは集めずに一括解決の後で従来どおり。
-
 ### M8（期間つき効果）は一区切り（2026-09-26）
 
 一覧 `timedEffects` に全内容を移した（[TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) §3.2）。期間つき効果を置くだけの旧 action 19種は入口として残し、周りを触るときに書き直す（REFACTOR_PLAN §2.2 の6行目）。
