@@ -2,7 +2,7 @@ import type { CardData, CardInstance, EffectDef, FamilyFilter, GameState, Player
 import { currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, pushResumeFrames } from "../GameState"
 import { destroySpirit, returnSpiritToHand } from "../removal"
 import { fireFieldEventTriggers, fireTrigger } from "../triggers"
-import { activeConstraintsWithSource, effectActiveAtLevel, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
+import { activeConstraintsWithSource, coresCantBeRemoved, effectActiveAtLevel, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { requestChoice } from "../EffectModules"
 
@@ -51,6 +51,8 @@ export function tenshoCandidates(
 ): CardInstance[] {
     return state.players[ownerPid].field.spirits.filter((s) => {
         if (s.instanceId === excludeInstanceId) return false
+        // コアをすべて動かせない個体は対象にできない（SOULCORE.md §2。2026-10-06 ユーザー確認）
+        if (coresCantBeRemoved(state, ownerPid, s)) return false
         if (familyFilter) return matchesFamilyFilter(state, ownerPid, s, familyFilter)
         return (
             instMatchesCostFilter(s, { min: minCost }) ||
