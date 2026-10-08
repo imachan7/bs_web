@@ -2,6 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { summonFromHandFreeCandidateMatches, summonFromTrashFreeCandidateMatches } from "../summon"
 import type { ActionHandler, ActionRegistry } from "./types"
+import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
@@ -67,6 +68,11 @@ import {
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 import { countedAmount } from "../counted"
+
+const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
+    const { state, owner, self } = ctx
+    if (self) resolveFunsai(state, owner, self)
+}
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -1913,6 +1919,7 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 
 const handlers = {
     endBattle: endBattleHandler,
+    funsaiOnBlock: funsaiOnBlockHandler,
     treatAsUnblocked: treatAsUnblockedHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     discardBothHands: discardBothHandsHandler,

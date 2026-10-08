@@ -19,6 +19,7 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
+import { resolveBlockDeclared } from "./blockDeclared"
 import { finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
 import { blockRequiredCount } from "../../../shared/block"
@@ -1205,81 +1206,8 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
-    // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
-    if (blocker) fireTrigger(state, pid, blocker, "onBlock", undefined, state.battle.attackerInstanceId)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // フィールドイベント誘発「自分のスピリットがブロックしたとき」（BS10-088天貫く塔の城）。
-    // self にはブロックしたスピリット自身（blocker）を渡す。vanillaOnly はこの self で判定する
-    if (blocker) {
-        fireFieldEventTriggers(
-            state,
-            pid,
-            "ownSpiritDeclaredBlock",
-            { pid, inst: blocker },
-            instColors(blocker),
-            state.battle.attackerInstanceId,
-        )
-    }
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // フィールドイベント誘発「スピリットがブロックを宣言したとき」（BS14-083氷結した瀑布）。
-    // 発生源の持ち主に関わらずブロッカーに作用させるため、両プレイヤーのフィールドから
-    // selfOverride（ブロッカー）付きで発火する（anySpiritAttacked と同じ作り）
-    if (blocker && !state.winner) {
-        fireFieldEventTriggers(state, pid, "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
-    }
-    if (blocker && !state.winner) {
-        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
-    }
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // 『このスピリットのバトル時』：バトルが成立した時点（ブロック宣言時）で発火する。勝敗を問わない
-    if (blocker) fireTrigger(state, pid, blocker, "onBattleStart", undefined, state.battle.attackerInstanceId)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // 【粉砕】をこのスピリットのブロック時にも発揮させる継続付与（士気高き大本営）
-    if (blocker && hasFunsaiOnBlock(state, pid)) resolveFunsai(state, pid, blocker)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // 攻撃側の「ブロックされたとき」誘発（バット・バット、暗黒将軍ブラッディ・シーザー）。
-    // self=アタッカー、targetInstanceId=ブロッカー（coreRemoveの対象に使う）
-    const attackerPid = opponentOf(pid)
-    const attackerInstanceId = state.battle?.attackerInstanceId
-    const attacker = attackerInstanceId
-        ? findSpirit(state.players[attackerPid], attackerInstanceId)
-        : undefined
-    if (attacker) fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // フィールドイベント誘発「自分のスピリットがブロック宣言を受けたとき」（花の子リップ）。
-    // 持ち主（attackerPid）のフィールドから発火。colorFilterはブロックされた自分スピリット（attacker）の色、
-    // targetInstanceIdはブロッカー（instanceId）
-    // self にはブロックされた自分のスピリット（attacker）を渡す。refreshSelf が
-    // 「ブロックされたこのスピリットを回復させる」として機能する（BS05ペンタン帝国Lv2）。
-    // 花の子リップの levelOverrideTarget は targetInstanceId しか見ないので影響を受けない
-    if (attacker) {
-        fireFieldEventTriggers(
-            state,
-            attackerPid,
-            "ownSpiritBlocked",
-            { pid: attackerPid, inst: attacker },
-            instColors(attacker),
-            instanceId,
-        )
-    }
+    // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
+    resolveBlockDeclared(state, pid, blocker, instanceId)
     if (state.winner) {
         state.battle = null
         return null
