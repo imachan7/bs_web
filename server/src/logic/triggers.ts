@@ -88,7 +88,6 @@ import {
     hasGlobalConstraint,
     hasMagicImmunity,
     hasBounceImmunity,
-    hasKeyword,
     instanceSymbolCount,
     instAllCosts,
     instColors,
@@ -111,6 +110,7 @@ import {
     noOpponentTriggerByColor,
     noSummonTriggerByCost,
     spiritHasFamily,
+    instHasStaticKeyword,
     spiritHasKeyword,
     effectActiveOn,
     isOnFieldAnyZone,
@@ -142,7 +142,6 @@ export {
     hasGlobalConstraint,
     hasMagicImmunity,
     hasBounceImmunity,
-    hasKeyword,
     instanceSymbolCount,
     instColors,
     instHasColor,
@@ -1455,14 +1454,13 @@ export function fireFieldEventTriggers(
                 const usedSoFar = inst.magicFreeUseTurn === state.turn ? (inst.magicFreeUseCount ?? 0) : 0
                 if (usedSoFar >= effect.magicFreeUseMaxPerTurn) continue
             }
-            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
-            // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
-            // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）
+            // イベント対象（召喚された／アタックしたスピリットなど）がこのキーワードを持つときのみ。
+            // 「持つ」には効果で得たものも含む（2026-09-25 ユーザー確認）
             if (effect.keywordFilter !== undefined) {
                 const hasKw =
-                    (event === "anySpiritAttacked" || event === "ownSpiritDealtLife") && selfOverride !== undefined
+                    selfOverride !== undefined
                         ? spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, effect.keywordFilter)
-                        : hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
+                        : instHasStaticKeyword(inst, effect.keywordFilter)
                 if (!hasKw) continue
             }
             if (effect.condition) {

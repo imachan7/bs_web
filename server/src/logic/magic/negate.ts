@@ -1,7 +1,7 @@
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
-import { effectActiveAtLevel, effectSources, hasKeyword, isVirtualSource } from "../../../../shared/rules"
+import { effectActiveAtLevel, effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
 import { canExhaustNexus, exhaustSpirit } from "../EffectModules"
 import { fireFieldEventTriggers } from "../triggers"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
@@ -58,7 +58,7 @@ export function findMagicNegateSource(
     const turnOverride = magicNegateTurnOverride(state, defenderPid)
     for (const inst of effectSources(state, defenderPid)) {
         const level = currentLevel(inst).level
-        const isHyoheki = hasKeyword(inst.cardId, "hyoheki")
+        const isHyoheki = instHasStaticKeyword(inst, "hyoheki")
         // grantedMagicNegate（kind:"effectEntryGrant"。BS12-068光の聖剣Lv1）：継続付与された
         // magicNegateエントリもcard自身のeffectsと合わせて走査する（levelsは常に有効扱い）
         const entries: Extract<EffectDef, { kind: "magicNegate" }>[] = [
@@ -122,7 +122,7 @@ export function payMagicNegate(
             exhaustSpirit(state, pid, inst)
             // ownHyohekiUsed（BS12-032蹴激皇ヴィーザル）：【氷壁】を発揮して自身を疲労させた時点で発火する。
             // 無効化が実際に成功したかは問わない（2026-09-07 ユーザー確認）
-            if (hasKeyword(inst.cardId, "hyoheki")) {
+            if (instHasStaticKeyword(inst, "hyoheki")) {
                 fireFieldEventTriggers(state, pid, "ownHyohekiUsed", { pid, inst })
             }
         }

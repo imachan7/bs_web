@@ -169,20 +169,11 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 **「この効果で破壊した／戻したスピリットのコスト」を待機時のコストで見るか**：`if` の `cond.last` は待機に入ったときのコスト（バウンスのみ記録。CONJUNCTION 27行目）を見るが、カウンタ `lastCost`・絞り込み `sameCostAsLast` と破壊の記録は印刷コストのまま。揃えると他のカードの結果が変わるので未着手（2026-09-28）。
 
-**「【X】を持つ」を印刷だけで見ている kind が残っている**：規則は「効果で得たものも含む」に確定（2026-09-25、ACTION_VOCABULARY）。`effectGrant` だけ揃えた。`effectDef.ts` で `keywordFilter` に「静的に持つ」と注記のある kind（fieldEvent の召喚・costMod・手札付与など）と `triggers.ts` の `hasKeyword(cardId…)` を洗い、挙動が変わるカードを一覧にしてから揃える。
-
 
 
 **バーストの既知の不具合3件（未修正）**：相手のライフ減少で「自分のライフ減少後」が発動する／「相手の召喚時発揮後」が発動しない等。REFACTOR_PLAN の完了後に直す → [BURST.md](./docs/design/BURST.md) §10。
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
-
-**「【X】を持つ」がレベルを見ていない（2026-10-04 調査・未修正。ユーザー指摘）**：ユーザーの解釈は「持つ＝**現在のレベルで発揮できる状態**のとき」。例：Lv2から【強襲】を持つスピリットは、Lv1では「【強襲】を持つスピリット」を対象にする効果の対象にならない。
-現状は `shared/rules/keywordState.ts` の `spiritHasKeyword` が `effects` に `kind:"keyword"` があるかだけを見て、`levels` を見ない（コメントに「従来の挙動を保つため」とある）。BPバフ対象（`targeting.ts bpBuffTargetPasses`）・継続効果（`state/continuous.ts`）・ブロック制限（`shared/block.ts`）・`triggers.ts:1461` が共有。
-レベルを見ているのは `iceWallColorsOf`（【氷壁】）と `keywords/kobo.ts` だけ。
-影響の目安：keyword エントリが levels つきで、かつ Lv1 を含まないスピリットが61枚（全レベル共通の keyword エントリを別に持つカードは除く）。
-直すなら `spiritHasKeyword` の静的分岐に `effectActiveAtLevel(e.levels, currentLevel(src).level)` を足す。ブレイヴ合流分は各ブレイヴ自身のレベルで見る。手札・トラッシュ用の `hasKeyword(cardId, …)` はレベルが無いので別扱い（`summon.ts`・`trashRecover.ts`・`revive.ts`・`cost.ts` ほか）。
-実装前に決めること：①手札・トラッシュのカードは何Lvとして見るか ②`tempKeywords`／`keywordGrant` は常に有効でよいか ③上の「印刷だけで見ている kind」の項と同じ一般則として手順書（ACTION_VOCABULARY）へ書く。CLAUDE.md の方針により、実装前に解釈一覧をユーザーへ出すこと。
 
 ## 3. 決着済み（蒸し返さないこと）
 
