@@ -1556,7 +1556,7 @@
     "action": {
      "type": "linkNexusCoresChoice"
     },
-    "optional": true
+    "optional": false
    }
   ]
  },

@@ -17,10 +17,10 @@ import {
     resistanceAgainst,
 } from "../EffectModules"
 import { coreFloorFor, isBattlingCoreProtected } from "../removal"
-import { coreZoneChoiceId, currentLevel, effectiveBp, matchesTarget } from "../../../../shared/rules"
+import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
-import { recordCores, recordMoved } from "../record"
+import { recordCores, recordLeftCost, recordMoved } from "../record"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
@@ -319,6 +319,7 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         }
         // 「そのスピリットのコスト」を後ろで読むため、コアを取り除いた個体を書く（カード自体は動かない）
         recordMoved(state, [inst.cardId])
+        recordLeftCost(state, inst.cardId, instBaseCost(inst))
         applyToIndividual(ctx, pid, inst, amount, to)
         return false
     }

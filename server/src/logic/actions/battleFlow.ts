@@ -20,6 +20,7 @@ import {
     destroySpirit,
     emitEvent,
     findSpiritAny,
+    resistanceAgainst,
     matchesFamilyFilter,
     fireCombinedAttackTrigger,
     fireFieldEventTriggers,
@@ -1843,15 +1844,23 @@ const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action)
 
 // 対象はフィールドイベントが渡す targetInstanceId（BS12-037 はアタックしたスピリット、BS12-058 はブロックしている相手）
 const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-    const inst =
-        targetInstanceId === undefined
-            ? undefined
-            : [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].find(
-                  (s) => s.instanceId === targetInstanceId,
-              )
-    if (!inst) {
+    const { state, owner, sourceName, targetInstanceId, srcColors, srcType } = ctx
+    const found = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
+    if (!found) {
         log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const inst = found.inst
+    // 「そのスピリット」は指定ではないので範囲扱い。【装甲】などで防げる（2026-10-08 ユーザー確認）
+    const resisted = resistanceAgainst(state, found.pid, inst, {
+        op: "other",
+        scope: "area",
+        actorPid: owner,
+        ...(srcType ? { sourceType: srcType } : {}),
+        ...(srcColors ? { sourceColors: srcColors } : {}),
+    })
+    if (resisted) {
+        log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
         return
     }
     recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: inst.instanceId }, until: "battle", ownerPid: owner })
