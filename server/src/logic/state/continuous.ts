@@ -8,7 +8,7 @@ import {
     effectActiveOn,
     effectiveBp,
     effectSources,
-    hasKeyword,
+    instHasStaticKeyword,
     instAllCosts,
     instColors,
     instHasColor,
@@ -401,7 +401,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         //   「無効化したせいでキーワードが消え、次の再構築でも無効化され続ける」自己参照になる）
                         if (
                             effect.keywordExclude !== undefined &&
-                            hasKeyword(spirit.cardId, effect.keywordExclude)
+                            instHasStaticKeyword(spirit, effect.keywordExclude)
                         ) {
                             continue
                         }

@@ -114,6 +114,7 @@
 - 「このターンの間、疲労状態でもブロックできる」は `timedEffect` の内容 `{ type: "canBlockWhileRested" }`（期間 `turn`・`side: "own"`）。1体は自分のスピリットから選んで個体の印 `canBlockWhileRestedThisTurn`、`all: true` は `timedRule`。判定は `shared/rules.ts` の `canBlockWhileRestedThisTurn`（2026-09-25）
 - 「このターンの間、自分のスピリットに“誘発効果”を与える」は `timedEffect` の内容 `{ type: "grantTrigger"; trigger; action; battleRole? }`（期間 `turn`・`side: "own"`）。1体は自分のスピリットから選んで個体の `tempGrantedTriggers`（`triggers.ts` の `fireTrigger` が静的な効果と合わせて読む）。「すべてに与える」はステップの見出しを期間とする継続効果 `effectGrant`（`phaseTurn`）で書き、`timedEffect` の `all` は未対応（2026-09-25）
 - 「【X】を持つ」には、効果で得たキーワードも含める（印刷されたものに限らない。2026-09-25 ユーザー確認）。判定は `spiritHasKeyword`。`effectGrant` の `keywordFilter` はこれに揃えた
+- 場のスピリットが「【X】を持つ」のは、**現在のレベルで発揮できるとき**（Lv表記の無いキーワードは常に持つ。合体中のブレイヴのキーワードは合体していれば持つ）。手札・トラッシュ・デッキのカードは全レベルぶんを持つ扱い（`hasKeyword`）。付与を見ると自己参照になる箇所は `instHasStaticKeyword`（2026-10-08 ユーザー確認）
 - 破壊された後に誘発する効果（『バトル時』破壊されたとき等）は、場を離れた直前の状態を見る。`effectGrant` は誘発している個体自身も発生源に含める（ヤツノカンゾウ自身が負けたときも付与が効く。2026-09-25）
 - `timedEffect` の `all: true` は個体を選ばず `turnConstraints` に `timedRule`（内容・陣営・解決済みの `filter`）を積み、宣言のたびに `shared/rules.ts` の `cantActByTimedRule` が `matchesTarget` で照合する。陣営は `side`（相手＝既定／`own`／`both`）。いまは期間 `turn` だけ（2026-09-24）
 - 「このターンの間、〜のスピリットすべては〜できない」は、効果の解決後に場に出たスピリットや、後から条件に合うようになったスピリットにも効く（判定のたびに条件を照合する全体ルール。2026-09-24 ユーザー確認）。「〜1体を指定し」は解決時に選んだ個体にだけ効く
