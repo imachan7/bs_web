@@ -284,6 +284,10 @@ export function validateSummon(
     if (tensho) {
         const candidates = tenshoCandidates(state, pid, tensho.minCost, undefined, tensho.familyFilter)
         if (candidates.length === 0) {
+            const locked = state.players[pid].field.spirits.find((s) => coresCantBeRemoved(state, pid, s))
+            if (locked) {
+                return `【転召】の対象がいません（${getCard(locked.cardId).name}はコアを取り除けないため対象にできません）`
+            }
             if (tensho.familyFilter) {
                 const families = [tensho.familyFilter].flat().join("/")
                 return `【転召】でコアを置く、系統：「${families}」を持つ自分のスピリットがいません`
