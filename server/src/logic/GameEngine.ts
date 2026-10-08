@@ -960,6 +960,8 @@ function doAttack(
     const card = getCard(inst.cardId)
 
     inst.isRested = true
+    // 「このステップの最初に」の義務は、最初のアタック宣言で（誰が宣言しても）消える（2026-10-08 ユーザー確認）
+    state.timedEffects = state.timedEffects.filter((r) => r.until !== "firstAttack")
     // BS10-047：『自分の合体スピリットの次にアタックしたとき』用に、直前のアタック宣言を1つだけ覚える。
     // prev = 1つ前のアタッカーが合体スピリットだったときその持ち主／それ以外はundefined。
     // state.battle を作る前に必ずスライドさせる（047自身のアタック時トリガーが読むのは「1つ前」なので順序が重要）
