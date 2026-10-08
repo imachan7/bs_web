@@ -134,6 +134,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/keywordState.ts
 
 - `spiritHasKeyword`（fn）：状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
+- `instHasStaticKeyword`（fn）：場の個体がカード静的にキーワードを持つか（付与は見ない）。Lv表記のあるキーワードは現在のレベルのときだけ。
 - `iceWallColorsOf`（fn）：【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので
 - `hasDestroyAsMaxLevelGrant`（fn）：器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
 - `hasContinuousKeywordGrant`（fn）：継続付与（kind: "keywordGrant"）によるキーワード保持判定（暴双龍ディラノス）

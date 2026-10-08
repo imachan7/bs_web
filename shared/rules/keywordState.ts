@@ -29,12 +29,14 @@ export function spiritHasKeyword(
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
     if (instEffectsSuppressed(inst)) return false
     // カード静的なキーワード。**【合体時】のキーワードは合体しているときだけ**（BS10のブレイヴ：
-    // 【合体時】【激突】など）。levels を見ないのは hasKeyword の従来どおりの挙動を保つため。
+    // 【合体時】【激突】など）。
     // **合体しているブレイヴのキーワードもホスト側でここに合流させる**（合体スピリットは1体として
-    // 振る舞う。bravesOf(inst) は inst がホストでないとき空配列を返すので安全）
-    const cards = [inst, ...bravesOf(board.players[ownerPid], inst)]
+    // 振る舞う。bravesOf(inst) は inst がホストでないとき空配列を返すので安全）。
+    // 「持つ」＝現在のレベルで発揮できる状態（Lv表記のあるキーワードはそのLvのときだけ）。
+    // 合体中のブレイヴのキーワードはレベルを見ず、合体していれば持つ（2026-10-08 ユーザー確認）
+    if (instHasStaticKeyword(inst, keyword)) return true
     if (
-        cards.some((src) =>
+        bravesOf(board.players[ownerPid], inst).some((src) =>
             card(src.cardId).effects.some(
                 (e) =>
                     e.kind === "keyword" &&
@@ -47,6 +49,19 @@ export function spiritHasKeyword(
     }
     if (timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
+}
+
+// 場の個体がカード静的にキーワードを持つか（付与は見ない）。Lv表記のあるキーワードは現在のレベルのときだけ。
+// 付与を見ると自己参照になる箇所（継続効果の再構築中など）と、【氷壁】の発揮の判定が使う
+export function instHasStaticKeyword(inst: CardInstance, keyword: Keyword): boolean {
+    const level = currentLevel(inst).level
+    return card(inst.cardId).effects.some(
+        (e) =>
+            e.kind === "keyword" &&
+            keywordMatches(e.keyword, keyword) &&
+            (e.whileCombined !== true || instIsCombined(inst)) &&
+            effectActiveAtLevel(e.levels, level),
+    )
 }
 
 // 【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので

@@ -21,7 +21,7 @@ import {
     effectSources,
     hasArmorAgainst,
     hasHeavyArmorAgainst,
-    hasKeyword,
+    spiritHasKeyword,
     instHasColor,
     instIsCombined,
     instIsVanilla,
@@ -985,7 +985,7 @@ function tryReviveOnDestroy(
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
+            if (effect.keywordFilter && !spiritHasKeyword(state, ownerPid, inst, effect.keywordFilter)) continue
             // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）

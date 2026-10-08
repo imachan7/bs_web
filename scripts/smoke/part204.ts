@@ -163,7 +163,7 @@ console.log("--- SD02-005 天使ヘルヴィム：黄シンボル数ぶん公開
     const s = base("helvim-levelas")
     s.phase = "attack"
     put(s, "p1", HELVIM, coresFor(HELVIM, 2))
-    const attacker = put(s, "p1", kobo, coresFor(kobo, 3))
+    const attacker = put(s, "p1", kobo, coresFor(kobo, kobo.levels!.length))
     const blockerCard = vanillaCost(3)
     const blocker = put(s, "p2", blockerCard, coresFor(blockerCard, 2))
     refreshLevelAsOverrides(s)
