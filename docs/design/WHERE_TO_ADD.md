@@ -40,6 +40,7 @@
 | BP 比較後の破壊・バトル終了時の処理 | `runBattleStep` の `case` に足す。ステップを増やしたら `BATTLE_LAST_STEP` も上げる | case 5（【呪撃】） | **1ステップ＝中断しうる呼び出し1つ**（選択待ちが立つとその次のステップから再開する）。順序は TIMING_CHART.md の ＞６〜＞７。`coverage-effects.ts` が case 5 の文字列に差し込んでいる |
 | ライフで受けたときのライフ減少 | `resolveLifeDamage` | — | 宣言した時点の盤面を読む（フラッシュ①で変わりうる） |
 | 指定アタックのブロック確定 | `resolveDirectedBlock` | — | 疲労状態でもブロックさせる（`validateBlock` を通さない） |
+| ブロック宣言で誘発する効果 | `blockDeclared.ts` の `resolveBlockDeclared` に収集を1行足す（`fireTrigger`／`fireFieldEventTriggers` の `collect` 引数） | 【粉砕】の `funsaiOnBlock` | すべて同時発揮で、解決順はターンプレイヤーが選ぶ（2026-10-08）。バーストは列を解決し終えてから判定し、列の途中で選択待ちが立つとバーストは判定しない |
 
 アクションの実行（召喚・アタック・ブロック宣言・起動能力・【烈神速】）は `GameEngine.ts` に残した。
 

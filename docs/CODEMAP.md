@@ -443,6 +443,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `resolveBattle`（fn）：ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）
 - `resumeBattleResolution`（fn）：中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
 
+## server/src/logic/blockDeclared.ts
+
+- `CollectedTrigger`（型）：収集モードで fireTrigger／fireFieldEventTriggers が積む1件。run は非対話時にその場で解決する用、
+- `resolveBlockDeclared`（fn）：非対話（テスト・AI）では収集順＝従来の発火順で解決する。
+
 ## server/src/logic/brave.ts
 
 - `attachBrave`（fn）：**合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、
