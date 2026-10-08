@@ -12,7 +12,7 @@ import {
     minLevelCores,
     opponentOf,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackFirst, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -1033,6 +1033,10 @@ export function validateAttack(
     if (inst.isRested) return "疲労しているためアタックできません"
     if (cantActByTimed(state, inst)) return "このターンの間、このスピリットはアタックできません"
     if (currentLevel(inst).level < 1) return "レベル1未満のためアタックできません"
+    const first = state.players[pid].field.spirits.find(
+        (s) => s.instanceId !== instanceId && mustAttackFirst(state, s) && mustAttackNow(state, pid, s),
+    )
+    if (first) return `${getCard(first.cardId).name}がこのステップの最初にアタックしなければなりません`
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
@@ -1171,6 +1175,27 @@ export function validatePass(state: GameState, pid: PlayerId): string | null {
     return null
 }
 
+// 「必ずアタック」を受けていて、いまアタックできる個体か
+function mustAttackNow(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
+    if (inst.isRested) return false
+    if (cantActByTimed(state, inst)) return false
+    if (currentLevel(inst).level < 1) return false
+    // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
+    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) return false
+    // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
+    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) return false
+    // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
+    if (instCostCantAct(state, inst)) return false
+    // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
+    if (instCantAttackByOpponentCost(state, pid, inst)) return false
+    // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
+    if (instCantAttackByCost(state, inst)) return false
+    const constraints = activeConstraints(state, pid, inst)
+    // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
+    if (constraints.some((c) => c.type === "cantAttack")) return false
+    return constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)
+}
+
 // ターン終了（endTurn）の妥当性を検証する。
 // 「必ずアタック」制約（mustAttack）を持ち、かつ現在アタック可能な自分のスピリットが1体でもいる場合は
 // エンドターンを拒否し、アタックを強制する（メインからの endTurn／アタックステップからの endTurn 両方）。
@@ -1186,27 +1211,8 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
     if (state.turn === 1) return null
 
-    const player = state.players[pid]
-    for (const inst of player.field.spirits) {
-        if (inst.isRested) continue
-        if (cantActByTimed(state, inst)) continue
-        if (currentLevel(inst).level < 1) continue
-        // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
-        if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
-        // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
-        if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) continue
-        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
-        if (instCostCantAct(state, inst)) continue
-        // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
-        if (instCantAttackByOpponentCost(state, pid, inst)) continue
-        // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
-        if (instCantAttackByCost(state, inst)) continue
-        const constraints = activeConstraints(state, pid, inst)
-        // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
-        if (constraints.some((c) => c.type === "cantAttack")) continue
-        if (constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)) {
-            return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
-        }
+    for (const inst of state.players[pid].field.spirits) {
+        if (mustAttackNow(state, pid, inst)) return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
     }
     return null
 }

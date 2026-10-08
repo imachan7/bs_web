@@ -862,6 +862,17 @@ export function mustAttackThisTurn(board: Board, _pid: PlayerId, inst: CardInsta
     return timedContentsOn(board, inst).some((c) => c.type === "mustAttack")
 }
 
+// 「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
+export function mustAttackFirst(board: Board, inst: CardInstance): boolean {
+    return board.timedEffects.some(
+        (r) =>
+            r.until === "firstAttack" &&
+            r.target.kind === "instance" &&
+            r.target.instanceId === inst.instanceId &&
+            r.content.some((c) => c.type === "mustAttack"),
+    )
+}
+
 // このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のターン付与版）
 export function canBlockWhileRestedThisTurn(board: Board, _pid: PlayerId, inst: CardInstance): boolean {
     return timedContentsOn(board, inst).some((c) => c.type === "canBlockWhileRested")

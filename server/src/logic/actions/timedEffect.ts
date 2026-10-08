@@ -41,6 +41,7 @@ function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: Ti
     const recorded = action.content.filter(isRecorded)
     if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
     if (action.duration === "nextRefresh") return `${getCard(inst.cardId).name}は、次のリフレッシュステップで${contentLabel(action)}。`
+    if (action.duration === "firstAttack") return `${getCard(inst.cardId).name}は、このステップの最初に${contentLabel(action)}。`
     const period = action.duration === "turn" ? "このターン" : "このバトル"
     return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
