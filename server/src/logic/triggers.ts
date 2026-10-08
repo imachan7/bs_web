@@ -179,6 +179,7 @@ export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, a
 import { setTargetRedirect } from "./magic/redirect"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { finishSummonEffect, fireBurstOnEvent } from "./keywords/burst"
+import type { CollectedTrigger } from "./blockDeclared"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
 // ---- イベント発火 ----
@@ -274,6 +275,7 @@ export function fireTrigger(
     byOpponent?: boolean, // 相手によって破壊されたか（onDestroy限定。condition.selfDestroyedByOpponent の判定に使う。reviveOnDestroy.when.byOpponentと同じ判定＝相手の効果 または バトルのBP比較。BS13-010スカルザード）
     fromHand?: boolean, // 器BS16：onDeploy限定：手札から配置されたか（effect.fromHandOnly の判定に使う。BS16-062天下眺める絶景門）
     onlyEffectIds?: string[], // fireSummonTrigger と同じ
+    collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -549,10 +551,8 @@ export function fireTrigger(
             getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
         ),
     ]
-    for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i]
-        const effect = entry?.effect
-        if (!entry || !effect || !matches(effect, entry.src)) continue
+    const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => {
+        const effect = entry.effect as Extract<EffectDef, { kind: "triggered" }>
         // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
         // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
@@ -588,6 +588,51 @@ export function fireTrigger(
             revertOncePerTurn(state, entry.src, effect.id)
             delete state.effectFizzled
         }
+    }
+    if (collect !== undefined) {
+        const label = `${state.players[owner].name}の${card.name}`
+        const key = `${owner}:${selfInstance.cardId}`
+        for (const entry of entries) {
+            const effect = entry.effect
+            if (!matches(effect, entry.src)) continue
+            // frame 経由で解決される経路でも「ターンに1回」を消費済みにする（run 経由の markOnceUsed は冪等）
+            if (effect.oncePerTurn === true) markOnceUsed(state, owner, entry.src, effect, "triggeredUsedTurn")
+            const target = effect.eventTarget === "ignore" ? undefined : targetInstanceId
+            collect.push({
+                key,
+                label,
+                run: () => resolveEntry(entry),
+                frame: {
+                    kind: "action",
+                    selfInstanceId: selfInstance.instanceId,
+                    action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
+                    actorPid: owner,
+                    ...(target !== undefined ? { targetInstanceId: target } : {}),
+                    ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
+                },
+            })
+        }
+        for (const a of grantedActions) {
+            collect.push({
+                key,
+                label,
+                run: () => resolveAction(state, owner, selfInstance, a, targetInstanceId),
+                frame: {
+                    kind: "action",
+                    selfInstanceId: selfInstance.instanceId,
+                    action: a,
+                    actorPid: owner,
+                    ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
+                },
+            })
+        }
+        return
+    }
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        const effect = entry?.effect
+        if (!entry || !effect || !matches(effect, entry.src)) continue
+        resolveEntry(entry)
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
             const remaining = entries.slice(i + 1).filter((x) => matches(x.effect, x.src))
@@ -1238,6 +1283,8 @@ export function fireFieldEventTriggers(
     // 判定しない（トラッシュ行き確定の後に fireQueuedDestroyBursts が1回だけ判定する。TIMING_CHART.md ＞６）。
     // trueのときはこの関数末尾のバースト走査を丸ごと飛ばす
     skipBurst?: true,
+    // 渡されたら解決せずに各件を積んで返る。末尾のバースト判定も呼ばない（呼び出し側が解決後に行う）
+    collect?: CollectedTrigger[],
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -1628,7 +1675,7 @@ export function fireFieldEventTriggers(
         (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride?.inst.pendingDestruction === true
             ? selfOverride.inst.instanceId
             : undefined
-    resolveInOrder(state, pool, {
+    const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
@@ -1701,7 +1748,22 @@ export function fireFieldEventTriggers(
             // （step 版と同じ形。2026-09-08 に効果エントリ単位＋pid無しから直した）
             key: (e) => (e.extra !== undefined ? e.extra.key : `${pid}:${e.inst.cardId}`),
         },
-    })
+    }
+    if (collect !== undefined) {
+        const ask = handlers.askOrder
+        if (ask === undefined) return
+        for (const e of pool) {
+            collect.push({
+                key: ask.key(e),
+                label: ask.label(e),
+                frame: handlers.frame(e),
+                skip: () => handlers.skip?.(e) === true,
+                run: () => handlers.resolve(e),
+            })
+        }
+        return
+    }
+    resolveInOrder(state, pool, handlers)
 
     // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
     // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。
