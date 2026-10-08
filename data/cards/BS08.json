@@ -2307,7 +2307,7 @@
        "type": "mustAttack"
       }
      ],
-     "duration": "turn",
+     "duration": "firstAttack",
      "count": 1
     }
    },

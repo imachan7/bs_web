@@ -113,6 +113,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownLifeFloorContinuous`（fn）：BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
 - `lifeProtectedByCostThisTurn`（fn）
 - `mustAttackThisTurn`（fn）：このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
+- `mustAttackFirst`（fn）：「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
 - `canBlockWhileRestedThisTurn`（fn）：このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のタ…
 - `protectedByBpUpToSelf`（fn）：constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの
 - `noOpponentTriggerByColor`（fn）：フィールド全体制約 noOpponentTriggerByColor（片側のみ）：発生源の持ち主から見た**相手**の、
