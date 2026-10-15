@@ -24,7 +24,7 @@
 ### 進行中：無償召喚の余分コストと 045 Lv3（ブランチ `fix/free-summon-surcharge`。#267 の上。2026-10-15 ユーザー確認）
 
 - **「コストを支払わずに」召喚でも、転召の祭壇の「1コスト余分に」は払う。同時に複数体召喚するなら1回だけ。払えなければその召喚はできない**（Q3657・Q3718・Q3753・ベルゼビートの Q&A）。
-  余分の額は `shared/cost.ts` の `opponentSummonCostIncrease` を `summonSurcharge` として export。新ファイル `server/src/logic/summonSurcharge.ts` に `canPayFreeSummonSurcharge`／`payFreeSummonSurcharge`（同時の単位＝効果の記録スコープ `currentRecordScope` と pid。払ったら `state.summonSurchargePaid` に控える）。無償召喚の全経路（summon.ts の手札/トラッシュ・revealAction・revive・removal の破棄/ライフ・triggers の手札から・【烈神速】・altSummon）から呼ぶ。**バースト効果の召喚は対象外**（コストを支払わない。BURST.md §85・2026-09-28 ユーザー確認）
+  余分の額は `shared/cost.ts` の `opponentSummonCostIncrease` を `summonSurcharge` として export。新ファイル `server/src/logic/summonSurcharge.ts` に `canPayFreeSummonSurcharge`／`payFreeSummonSurcharge`（同時の単位＝効果の記録スコープ `currentRecordScope` と pid。払ったら `state.summonSurchargePaid` に控える）。無償召喚の全経路（summon.ts の手札/トラッシュ・revealAction・revive・removal の破棄/ライフ・triggers の手札から・バースト・【烈神速】・altSummon）から呼ぶ。**バースト効果の召喚も余分は払う**（通常のコストは払わない＝BURST.md §85 とは別の話。2026-10-15 ユーザー確認）。余分の払い元は自動支払いと同じ（リザーブ優先・維持コアは残す）、払う順はコストの支払い→コアの配置
 - **『バトル時』は既存どおりアタック時／ブロック時**（`onBattleStart`）。045 Lv3＝`effectGrant{nameIncludes:"オリンピア", granted:{trigger:"onBattleStart", action:{timedEffect all:true content:[{type:"level",set:1}] duration:"battle"}}}`。
   足す部品は「全体のLvの置き換え記録の期間を duration に従わせる」だけ（`timedEffect.ts` の rule の level が `until:"turn"` 固定）
 - smoke：①期待値役が part589（045）・part590（余分コスト）を書く → ②実装役
