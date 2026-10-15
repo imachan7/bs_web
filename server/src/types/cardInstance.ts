@@ -19,6 +19,8 @@ export interface CardInstance {
     // この個体がどう召喚されたかの永続フラグ（26系【Fチェンジ】参照用）。
     // "summon"=通常GameAction召喚／"fchange"=【Fチェンジ】／"freeEffect"=その他の効果による無償召喚。未指定=記録なし
     summonedBy?: string
+    // 召喚時効果を発揮しない召喚で出た。『〜で【転召】したとき』（ownTensho）は効果文で召喚時の一部なので、これも起こさない（2026-10-15）
+    noOnSummon?: true
     tempBpBuff: number // ターン終了時まで有効なBP増減
     battleBpBuff?: number // このバトルの間だけ有効なBP増減（bpBuff の scope:"battle"）。clearBattle でリセットする。
     colorlessThisBattle?: true // 期間つき効果の一覧（colorless）から作り直す写し。色とシンボルを無いものとして扱う

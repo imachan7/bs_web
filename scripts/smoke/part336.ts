@@ -123,6 +123,8 @@ console.log("=== 対照: 通常どおりコストを支払って召喚すると�
     const handBefore = s.players.p1.hand.length
     fushiSummonOrConfirm(s, "p1", 0)
     assert(act(s, "p1", { type: "resolveChoice", option: "コストを支払って召喚する" }) === null, "コストを支払って召喚するを選ぶ")
+    // 魔門のコアも支払いに使えるので支払い元を聞かれる（2026-10-15）。リザーブから払う
+    assert(s.pendingChoice?.effectCostPay !== undefined && act(s, "p1", { type: "resolveChoice", option: "支払う" }) === null, "支払い元を聞かれ、リザーブから払う")
     assert(!meimon.isRested, "対照：通常召喚では魔門は疲労しない")
     assert(s.players.p1.hand.length === handBefore + 1, "対照：『召喚時』効果（Lv1ぶん1枚ドロー）が発揮される")
 }

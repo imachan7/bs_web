@@ -739,6 +739,7 @@ function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]
         candidates: [],
         ...(isCard ? { cardIndices: [] } : {}),
         ...(pc.selectedIds ? { selectedIds: [] } : {}),
+        ...(pc.selectedCardIndices ? { selectedCardIndices: [] } : {}),
         prompt: isCard ? "相手がカードを選択中…" : "相手が対象を選択中…",
     }
 }

@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { resolveSummonRepeatPaid } from "./summonRepeat"
 import { summonSurcharge } from "../../../../shared/cost"
 import { recordLifeLost } from "../record"
 import { summonFromHandFreeCandidateMatches } from "../summon"
@@ -979,6 +980,10 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
             }
             if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
+        }
+        if (action.mode === "paid") {
+            resolveSummonRepeatPaid(ctx, action, matchesCardId)
+            return
         }
         let summonedCount = 0
         const summonedNames: string[] = []

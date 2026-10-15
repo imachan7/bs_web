@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import { payFreeSummonSurcharge } from "./summonSurcharge"
+import { askSurchargePay, payFreeSummonSurcharge } from "./summonSurcharge"
 import { exSymbolsOfTrashCard, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
@@ -661,7 +661,7 @@ function doSummon(
 }
 
 // 【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
-type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
+export type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
 
 // 【烈神速】：トラッシュのコアをすべて自分のフィールド/リザーブに好きに置くことで、
 // コストを支払わずに手札から召喚する（BS16-X03）。置き先は1個ずつ選ばせる（docs/design/INTERRUPTION_POINTS.md パターンA）
@@ -675,8 +675,6 @@ function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number)
     if (soulCoreInTrash(player)) moveSoulCore(player, { zone: "reserve" })
     const total = player.trashCores
     player.trashCores = 0
-    // 無償でも相手の転召の祭壇などの余分は払う。配り直すコアに混ざらないよう、トラッシュを空にした後にリザーブから（払えるかは validate 済み）
-    payFreeSummonSurcharge(state, pid, getCard(cardId))
     const info: ResshinsokuInfo = { handIndex, cardId, remaining: total, selfCores: 0 }
     // 非対話（AI・自動応答）は全部このスピリットに置く（2026-09-22 ユーザー確定）
     if (!state.interactiveTargets) {
@@ -773,10 +771,18 @@ export function applyResshinsokuDestination(
 // コアの配置がすべて終わったところで、実際にスピリットを場に出す。
 // 通常の doSummon と違い、コストも維持コアの支払いも発生しない
 // （維持コアぶんは distributeCores で「このスピリット」に置かれたコアがそのまま兼ねる）
-function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: ResshinsokuInfo): string | null {
+// 無償でも相手の転召の祭壇などの余分は払う。割り振りの後に、割り振ったコアも含めたリザーブとフィールドから払う（2026-10-15 ユーザー確認）。
+// 払えるかは割り振りの前に validate 済み（割り振りは場の外のコアを減らさない）。
+// ponytail: トラッシュのコアを割り振ってはじめて払える場合も validate で弾く。要るなら割り振りの選択肢に「場の外に残す数」の下限を足す
+export function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: ResshinsokuInfo, surchargePaid = false): string | null {
     const player = state.players[pid]
     const at = player.hand[info.handIndex] === info.cardId ? info.handIndex : player.hand.lastIndexOf(info.cardId)
     if (at === -1) return null
+    if (!surchargePaid) {
+        const resume = { type: "resshinsokuFinishInternal", handIndex: info.handIndex, cardId: info.cardId, selfCores: info.selfCores } as const
+        if (askSurchargePay(state, pid, getCard(info.cardId), false, 0, resume)) return null
+        payFreeSummonSurcharge(state, pid, getCard(info.cardId))
+    }
     player.hand.splice(at, 1)
     const card = getCard(info.cardId)
     const inst = createInstance(info.cardId, state.turn, info.selfCores)

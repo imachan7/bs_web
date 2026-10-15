@@ -1,6 +1,6 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
-import { canPayFreeSummonSurcharge, payFreeSummonSurcharge } from "../summonSurcharge"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
@@ -151,14 +151,16 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             }
             const maintain = minLevelCores(card)
             const cost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
-            if (player.reserve < maintain + cost || (action.pay !== "cost" && !canPayFreeSummonSurcharge(state, owner, card, maintain, true))) {
+            if (action.surchargePrepaid) state.summonSurchargePaid = owner
+            if (action.pay === "cost" ? player.reserve < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId)
                 return
             }
-            if (action.pay !== "cost") payFreeSummonSurcharge(state, owner, card, true)
+            if (action.pay !== "cost" && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
+            const placedFromField = action.pay !== "cost" ? payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0 : 0
             payCost(state, owner, cost, undefined, maintain)
-            player.reserve -= maintain
+            player.reserve -= maintain - placedFromField
             const inst = createInstance(cardId, state.turn, maintain)
             if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
             if (action.destroyAtBattleEnd) inst.destroyAtBattleEnd = true

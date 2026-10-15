@@ -26,6 +26,7 @@ import tegamoto from "./tegamoto"
 import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
+import surchargePay from "./surchargePay"
 import moveCards from "./moveCards"
 import designate from "./designate"
 import token from "./token"
@@ -57,6 +58,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...tensho,
     ...timedEffect,
     ...trashRecover,
+    ...surchargePay,
     ...moveCards,
     ...designate,
     ...token,

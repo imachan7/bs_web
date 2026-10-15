@@ -9,7 +9,7 @@ import { effectiveCost } from "../../../shared/cost"
 import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter, summonByEffectBlocked } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
-import { canPayFreeSummonSurcharge, payFreeSummonSurcharge } from "./summonSurcharge"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -156,18 +156,28 @@ export function summonFreeFromHandIndex(
     // 盤面のコアでなら払えるカードが候補にすら出なかった＝利用者報告）
     const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (player.reserve + fromField < maintain + cost || (!opts?.payCost && !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true))) {
+    if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
+    // 余分の支払い元を選ばせる待ち。払ったあと同じ召喚を再開する（呼び出し側からは「召喚されなかった」ように見えるが、待ちが立っている）
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, {
+        type: "summonFreeIndexInternal",
+        zone: "hand",
+        index: handIndex,
+        ...(skipTensho ? { skipTensho } : {}),
+        ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
+        ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
+        ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
+    })) return
     player.hand.splice(handIndex, 1)
-    if (!opts?.payCost) payFreeSummonSurcharge(state, owner, card, opts?.surchargeBatch === true)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
-    // 支払い元が維持コア割れしたらそこで消滅する）
-    const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
+    // 支払い元が維持コア割れしたらそこで消滅する）。無償のときは余分をここで払う
+    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
+    if (opts?.skipOnSummon) inst.noOnSummon = true
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
     const braveHost =
@@ -240,16 +250,24 @@ export function summonFreeFromTrashIndex(
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
     const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo") : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (player.reserve + fromField < maintain + cost || (!opts?.payCost && !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true))) {
+    if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, {
+        type: "summonFreeIndexInternal",
+        zone: "trash",
+        index: trashIndex,
+        ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
+        ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
+        ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
+    })) return
     player.trashCards.splice(trashIndex, 1)
-    if (!opts?.payCost) payFreeSummonSurcharge(state, owner, card, opts?.surchargeBatch === true)
-    // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）
-    const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
+    // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
+    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
+    if (opts?.skipOnSummon) inst.noOnSummon = true
     player.field.spirits.push(inst)
     // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
     if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true

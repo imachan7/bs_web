@@ -124,7 +124,7 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
 export function fieldCoresSpendable(player: PlayerState): { inst: CardInstance; max: number }[] {
     return [
         ...player.field.nexuses.map((n) => ({ inst: n, max: normalCoresOn(player, n) })),
-        ...player.field.spirits.map((sp) => ({ inst: sp, max: Math.max(0, sp.cores - instMinLevelCores(sp)) })),
+        ...player.field.spirits.map((sp) => ({ inst: sp, max: sp.pendingDestruction ? sp.cores : Math.max(0, sp.cores - instMinLevelCores(sp)) })),
     ].filter((x) => x.max > 0)
 }
 
@@ -259,7 +259,8 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     }
     const deliver = (j: number): void => {
         const cardId = zone[j]!
-        if (!sendOne(ctx, action, pid, j)) {
+        // 召喚の余分の支払い待ちで止まったときは、払ったあとの再開で召喚される（待ちが立っていれば失敗ではない）
+        if (!sendOne(ctx, action, pid, j) && !state.pendingChoice) {
             end()
             return
         }
