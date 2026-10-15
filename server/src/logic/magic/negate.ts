@@ -4,7 +4,7 @@ import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
 import { effectActiveAtLevel, effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
 import { canExhaustNexus, exhaustNexus, exhaustSpirit } from "../EffectModules"
-import { fireFieldEventTriggers } from "../triggers"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
 import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
 

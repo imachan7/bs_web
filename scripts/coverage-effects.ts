@@ -242,7 +242,7 @@ function effectModulesFiles(tree: string): string[] {
         const dir = path.join(logic, d)
         return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".ts")).map((f) => path.join(dir, f)) : []
     })
-    const rootSplit = ["targeting.ts", "summon.ts"].map((f) => path.join(logic, f)).filter((f) => fs.existsSync(f))
+    const rootSplit = ["targeting.ts", "summon.ts", "fieldEventTriggers.ts", "stepTriggers.ts"].map((f) => path.join(logic, f)).filter((f) => fs.existsSync(f))
     return [path.join(logic, "EffectModules.ts"), ...split, ...rootSplit]
 }
 
@@ -951,14 +951,6 @@ process.on("exit", () => {
         found.push(i)`,
         )
 
-        // (4.0) triggers.ts 側で __covRecord を使うための import 追記。
-        //     triggerSuppression 等の計測点がここにあるので、無いと ReferenceError で落ちる
-        //     （2026-08-14: 移設時に入れ忘れていたぶんを補った）
-        patch(
-            path.join(tree, "server/src/logic/triggers.ts"),
-            `    rawLevel,\n    pushResumeFrames,`,
-            `    rawLevel,\n    pushResumeFrames,\n    __covRecord,`,
-        )
 
         // (4.1) removal.ts・revive.ts 側で __covRecord を使うための import 追記。
         //     (4) の applyRevived・【不死】の計測は revive.ts、除去の計測は removal.ts にあり、無いと ReferenceError で落ちる

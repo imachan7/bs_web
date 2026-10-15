@@ -9,7 +9,7 @@ import { canDiscardHand, hasGlobalConstraint, instMinLevelCores, isTrashCardProt
 import { effectiveCost } from "../RuleValidator"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
-import { fireNexusDeployed } from "../triggers"
+import { fireNexusDeployed } from "../fieldEventTriggers"
 import { recordMagicUsed } from "../record"
 import { countedAmount } from "../counted"
 import { matchesPick } from "./revealAction"

@@ -21,7 +21,7 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { canBlock } from "../../shared/block"
 import { refreshSpirit } from "../../server/src/logic/EffectModules"
-import { battleBp } from "../../server/src/logic/triggers"
+import { battleBp } from "../../server/src/logic/stepTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)

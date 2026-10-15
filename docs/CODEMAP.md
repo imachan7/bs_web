@@ -530,6 +530,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `applyDeckPolicy`（fn）：カードデータの limited / limitCount を、上のポリシーに沿って上書きしたコピーを返す。
 
+## server/src/logic/fieldEventTriggers.ts
+
+- `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
+- `fireFieldEventTriggers`（fn）
+- `notifyHandGained`（fn）：フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
+- `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
+- `tryHandFreeSummonOnOwnNexusDeployed`（fn）：手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
+- `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
+
 ## server/src/logic/keywords/bofu.ts
 
 - `hasBofuOnBlock`（fn）：持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
@@ -547,6 +556,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
+- `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
 
 ## server/src/logic/keywords/chimei.ts
 
@@ -563,6 +573,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/jugeki.ts
 
 - `hasJugekiOnBlockReplace`（fn）：持ち主のスピリットの【呪撃】が『ブロック時』へ差し替えられているか（BS06カウンターカース）。
+- `applyJugekiCoreToVoid`（fn）：魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
 
 ## server/src/logic/keywords/kobo.ts
 
@@ -762,6 +773,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isRefreshBlockedByMark`（fn）：スクルディア：相手のスピリットから「回復できない」と指定されていて、
 - `canExhaustNexus`（fn）：BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
 
+## server/src/logic/stepTriggers.ts
+
+- `fireBattleWonTriggers`（fn）：バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
+- `checkStepCondition`（fn）：ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する
+- `STEP_LABELS`（const）：ステップ誘発のログに出すステップ名。「どのステップの効果として発動したか」を示す
+- `fireStepTriggers`（fn）：指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
+- `fireBpReachedTriggers`（fn）：「BPがN以上になった時」（event: "ownSpiritBpReached"）：handleAction が1操作を解決しきった地点で呼ぶ。
+- `battleBp`（fn）：果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
+
 ## server/src/logic/summon.ts
 
 - `fireSummonSequence`（fn）
@@ -805,17 +825,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `revertDestroyGroupUsage`（fn）：同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
 - `fireTrigger`（fn）
 - `fireCombinedAttackTrigger`（fn）：BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
-- `fireBattleWonTriggers`（fn）：バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
-- `fireStepTriggers`（fn）：指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
-- `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
-- `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
-- `fireBpReachedTriggers`（fn）：「BPがN以上になった時」（event: "ownSpiritBpReached"）：handleAction が1操作を解決しきった地点で呼ぶ。
-- `fireFieldEventTriggers`（fn）
-- `notifyHandGained`（fn）：フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
-- `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
-- `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
-- `battleBp`（fn）：果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
-- `applyJugekiCoreToVoid`（fn）：魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
+- `activationPrompt`（fn）：発動確認の文面（3種の誘発で同じ形を使う）
+- `confirmPromptIfOptional`（fn）：optional な誘発の残りは、再開時も**発動確認から**始める（確認なしの自動発動を防ぐ）。
+- `isStillOnField`（fn）：発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
 - `notifySpiritCoresRemovedByOpponent`（fn）：フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
 
 ## server/src/logic/zones/mill.ts

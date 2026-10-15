@@ -26,7 +26,7 @@ import {
 import type { GameState, PlayerId } from "./helpers"
 import { applyFushiSummon } from "../../server/src/logic/revive"
 import { sweepLevelCostDepletion } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {
     const inst = createInstance(cardId, s.turn, cores)

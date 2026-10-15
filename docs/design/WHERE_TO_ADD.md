@@ -76,6 +76,15 @@
 | 自動で選ぶ規則（AI・非対話） | `pickEnemyCandidates`・`pickEnemyByBp`・`pickEnemyLowestCost` など | — | 対戦者が選ぶべき場面を自動にしていないかは `npm run audit:choices` |
 | 「〜することで」の発動確認 | `requestActivationConfirm` | — | — |
 
+## 誘発（`server/src/logic/triggers.ts`・`fieldEventTriggers.ts`・`stepTriggers.ts`。2026-10-16 に分割）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| 自分のカードの事象（召喚時・アタック時・破壊時など `TriggerEvent`）で起きる誘発 | `triggers.ts` の `fireTrigger` |
+| 盤面の出来事（`FieldEvent`）で起きる誘発、手札を得た・ネクサスを配置したときの通知 | `fieldEventTriggers.ts` の `fireFieldEventTriggers`・`notifyHandGained`・`fireNexusDeployed` |
+| ステップの開始・終了、バトルに勝ったとき、BP が達したとき | `stepTriggers.ts` の `fireStepTriggers`・`fireBattleWonTriggers`・`fireBpReachedTriggers` |
+| 【バースト】の発動条件 | `keywords/burst.ts` の `burstConditionMet` |
+
 ## 【バースト】（`server/src/logic/keywords/burst.ts`）
 
 セットは `placeBurst`、発動後の後始末は `finishBurstActivation`、「自分のバーストを発動したとき」の誘発は `fireOwnBurstActivated`。発動条件の走査は `fireBurstOnEvent`（持ち主から見た事象だけ拾う）、【相手の『召喚時』発揮後】の発火は `finishSummonEffect`（2026-09-27 に triggers.ts から移した）。バーストの条件と解決順は BURST.md。

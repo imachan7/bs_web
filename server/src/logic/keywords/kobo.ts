@@ -1,7 +1,7 @@
 // 【光芒】の判定と解決
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
-import { notifyHandGained } from "../triggers"
+import { notifyHandGained } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, timedKeywords } from "../../../../shared/rules"
 
 // 士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を

@@ -16,7 +16,8 @@ import {
     runTurnStart,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/triggers"
+import { fireTrigger } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { exhaustSpirit } from "../../server/src/logic/EffectModules"
 
 function game(seed: string): GameState {

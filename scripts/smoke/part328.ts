@@ -6,7 +6,7 @@
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
 import { onceNameKey } from "../../server/src/logic/oncePerTurn"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { requestActivationConfirm } from "../../server/src/logic/EffectModules"
 
 function base(seed: string): GameState {

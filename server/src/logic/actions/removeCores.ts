@@ -1,7 +1,7 @@
 // コアを「取り除く」器（R5。旧 coreRemove 系28種の統合先。旧ハンドラは data 移行が済むまで cores.ts に残す）。
 // スキーマは docs/design/CORE_UNIFY_REMOVE.md §3。
 import type { ActionHandler, ActionRegistry } from "./types"
-import { fireFieldEventTriggers } from "../triggers"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import type { ActionCtx } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"

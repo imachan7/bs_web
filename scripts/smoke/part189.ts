@@ -9,16 +9,14 @@ import {
     createGame,
     createInstance,
     currentLevel,
-    destroySpirit,
-    getCard,
-    refreshLevelAsOverrides,
+    destroySpirit, refreshLevelAsOverrides,
     fireStepTriggers,
     runTurnStart,
-    battleHas,
+    battleHas
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/EffectModules"
-import { fireBattleWonTriggers } from "../../server/src/logic/triggers"
+import { fireBattleWonTriggers } from "../../server/src/logic/stepTriggers"
 import { instHasColor, cantActByTimed } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {

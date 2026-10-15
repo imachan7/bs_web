@@ -6,12 +6,13 @@
 //   - 009 クジャルタが手札に戻るとき、上のコアは**リザーブ**へ（指定場所には行かない）
 //   - 007 バーナルドの「疲労状態で」の主語は**このスピリット**（自分が疲労中でもブロックできる）
 //   - 014 魔法監視塔 Lv2 は、無効にしたら**必ず**デッキの下へ戻る
-import { act, assert, createGame, createInstance, currentLevel, declareBlock, destroyNexus, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, currentLevel, declareBlock, destroyNexus, effectiveBp, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { effectiveCost, hasMagicRestriction } from "../../shared/cost"
 import { instHasCost } from "../../shared/rules"
 import { dumpAllCoresTensho } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/triggers"
+import { fireTrigger } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { loadAllCards } from "../../data/loadCards"
 
 interface CardRow {

@@ -22,7 +22,8 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst, hasBlockTriggersAsAttack } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers, fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
+import { fireTrigger, resolveMagic } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { destroySpirit } from "../../server/src/logic/removal"
 import { activeConstraints, hasHeavyArmorAgainst, cantActByTimed } from "../../shared/rules"
 

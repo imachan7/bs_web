@@ -18,16 +18,15 @@ import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } f
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 import { fireBurstOnEvent } from "./keywords/burst"
-import { fireFieldEventTriggers, notifyHandGained, notifySpiritCoresRemovedByOpponent } from "./triggers"
-import type { FieldEventExtraItem } from "./triggers"
+import { notifySpiritCoresRemovedByOpponent } from "./triggers"
+import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
+import type { FieldEventExtraItem } from "./fieldEventTriggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave } from "./brave"
 import { recordLeftCost } from "./record"
-import { isOnceNameUsed, markOnceNameUsed } from "./oncePerTurn"
+import { isOnceNameUsed } from "./oncePerTurn"
 import { isTokenCard } from "../../../shared/cardDb"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, wouldAskReviveConfirm } from "./revive"
-
-export type { KeywordInfo }
 import {
     activeConstraints,
     auraAmount,
@@ -73,6 +72,8 @@ import {
     timedBattleContents,
     timedContentsFor,
 } from "../../../shared/rules"
+
+export type { KeywordInfo }
 export {
     activeConstraints,
     auraAmount,
@@ -112,7 +113,7 @@ export {
 
 import {
     summonFreeFromTrashIndex,
-checkExhaustOnCoreChange,
+    checkExhaustOnCoreChange,
     destroyedCoresGoToTrash,
     emitEvent,
     isResisted,

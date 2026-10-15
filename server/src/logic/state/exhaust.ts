@@ -1,7 +1,8 @@
 // スピリット・ネクサスの疲労処理
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
-import { fireFieldEventTriggers, fireTrigger, notifyHandGained } from "../triggers"
+import { fireTrigger } from "../triggers"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
 
 // hasGlobalConstraintは汎用関数のためphase/turnを見ない（removal.tsのallSpiritsCantBounceActiveと同じ理由で専用関数にする）。

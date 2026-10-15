@@ -5,7 +5,7 @@
 import { act, assert, createGame, createInstance, getCard, runTurnStart, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fushiCandidates, fushiSummonOrConfirm } from "../../server/src/logic/revive"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)

@@ -215,8 +215,9 @@ function main(): number {
     const contents = new Map<string, string>([[src, applyEdits(srcText, srcEdits)], [dst, newDst]])
     const consumerFiles: string[] = []
     for (const f of reexport ? [] : ROOTS.flatMap(walk).map((p) => resolve(p))) {
-        if (f === src || f === dst) continue
-        const text = readFileSync(f, "utf8")
+        // 先ファイルが元から移す名前を import していたら、その import は消す（先で宣言されるので）
+        if (f === src || (f === dst && !dstExists)) continue
+        const text = f === dst ? newDst : readFileSync(f, "utf8")
         if (!text.includes(basename(stripExt(src)))) continue
         const fsf = parse(f, text)
         const edits: Edit[] = []
@@ -240,12 +241,12 @@ function main(): number {
             const def = isImp ? st.importClause?.name?.text : undefined
             const lines: string[] = []
             if (keep.length > 0 || def) lines.push(def && keep.length === 0 ? `import ${typeOnly}${def} from ${q}${specNode.text}${q}` : mk(keep, specNode.text, def))
-            lines.push(mk(mv, newSpec))
+            if (f !== dst) lines.push(mk(mv, newSpec))
             edits.push({ pos: st.getStart(), end: st.end, text: lines.join("\n") })
         }
         if (edits.length > 0) {
             contents.set(f, applyEdits(text, edits))
-            consumerFiles.push(f)
+            if (f !== dst) consumerFiles.push(f)
         }
     }
 

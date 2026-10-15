@@ -4,9 +4,11 @@ import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
-import { burstConditionMet, fireFieldEventTriggers, notifyHandGained } from "../triggers"
+import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, timedContentsFor } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
+
+import { instHasColor, matchesFamilyFilter, spiritHasKeyword } from "../../../../shared/rules"
 
 // burstMagicFreeEffect（BS16-070）の選択肢ラベル。actions/control.tsのburstMagicFreeOrThenPayHandlerと
 // 一致させること（circular import回避のためここでは定数を共有せず複製）
@@ -416,4 +418,67 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
         before: [...before],
     })
+}
+
+// kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
+export function burstConditionMet(
+    state: GameState,
+    pid: PlayerId,
+    condition: Extract<EffectDef, { kind: "burst" }>["condition"],
+): boolean {
+    if (condition === undefined) return true
+    const player = state.players[pid]
+    if ("ownLifeAtMost" in condition) return player.life <= condition.ownLifeAtMost
+    if ("ownNexusAtLeast" in condition) return player.field.nexuses.length >= condition.ownNexusAtLeast
+    if ("ownTrashColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownTrashColorCountAtLeast
+        return player.trashCards.filter((id) => getCard(id).colors.includes(color)).length >= count
+    }
+    if ("ownTrashCardTypeCountAtLeast" in condition) {
+        const { cardType, count } = condition.ownTrashCardTypeCountAtLeast
+        return player.trashCards.filter((id) => getCard(id).type === cardType).length >= count
+    }
+    // BS15-017エンプレス・ヨウクィーン：自分の手札が5枚以上のとき
+    if ("ownHandAtLeast" in condition) return player.hand.length >= condition.ownHandAtLeast
+    // BS15-026軍師鳥ショカツリョー：自分と相手のフィールドに疲労状態のスピリットが合計でこれ以上いるとき
+    if ("bothFieldsRestedSpiritsAtLeast" in condition) {
+        const restedCount = (p: typeof player) => p.field.spirits.filter((s) => s.isRested).length
+        return restedCount(player) + restedCount(state.players[opponentOf(pid)]) >= condition.bothFieldsRestedSpiritsAtLeast
+    }
+    // BS15共通器：BS15-043ショーグンペンタン「自分の黄のスピリットが3体以上いるとき」
+    if ("ownColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownColorCountAtLeast
+        return player.field.spirits.filter((s) => instHasColor(s, color)).length >= count
+    }
+    // BS15共通器：BS15-053コジロンド・ゴレム「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」
+    if ("ownFieldHasKeywordAny" in condition) {
+        return player.field.spirits.some((s) => condition.ownFieldHasKeywordAny.some((k) => spiritHasKeyword(state, pid, s, k)))
+    }
+    // BS15共通器：BS15-083秘剣燕返「相手の手札が5枚以上のとき」
+    if ("opponentHandAtLeast" in condition) {
+        return state.players[opponentOf(pid)].hand.length >= condition.opponentHandAtLeast
+    }
+    // BS16共通器：このバースト発動時に破壊された（同時破壊なら全メンバーの）色にこの色が含まれるか
+    if ("burstDestroyedColor" in condition) {
+        return (state.burstEventColors ?? []).includes(condition.burstDestroyedColor)
+    }
+    // 器BS16：発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるか
+    // （BS16-005ゴエモン・シーフ・ドラゴン：「系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき」）
+    if ("ownFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.ownFamilyCountAtLeast
+        return player.field.spirits.filter((s) => matchesFamilyFilter(state, pid, s, family)).length >= count
+    }
+    // ownFamilyCountAtLeastの相手版（BS16-027：「系統：『覇皇』/『雄将』を持つ相手のスピリットがいるとき」）
+    if ("opponentFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.opponentFamilyCountAtLeast
+        const oppPlayer = state.players[opponentOf(pid)]
+        return oppPlayer.field.spirits.filter((s) => matchesFamilyFilter(state, opponentOf(pid), s, family)).length >= count
+    }
+    // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
+    // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
+    const fieldCores =
+        player.field.spirits.reduce((n, i) => n + i.cores, 0) +
+        player.field.nexuses.reduce((n, i) => n + i.cores, 0) +
+        player.field.combinedBraves.reduce((n, i) => n + i.cores, 0)
+    return fieldCores + player.reserve + player.trashCores >= condition.ownCoresTotalAtLeast
 }

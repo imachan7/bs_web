@@ -31,12 +31,11 @@ import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLeve
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
 import { destroySpirit, flushBounces } from "./removal"
 import { wouldDeplete, soulCoreLeavesField, soulCoreInReserve, moveSoulCore, soulCoreOnInstance, normalReserveOf, normalCoresOn } from "./soulCore"
-import { fireFieldEventTriggers, notifyHandGained } from "./triggers"
+import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
-export type { KeywordInfo }
 import {
     activeConstraints,
     auraAmount,
@@ -80,6 +79,8 @@ import {
     coresCantBeRemoved,
 } from "../../../shared/rules"
 import { lastCoresCount, lastDrawnCount, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
+import { checkExhaustOnCoreChange } from "./state/exhaust"
+export type { KeywordInfo }
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
 export { millCapBonusFor, hasFunsaiOnBlock, resolveFunsai } from "./keywords/funsai"
 export { hasJugekiOnBlockReplace } from "./keywords/jugeki"
@@ -88,7 +89,6 @@ export { bofuCountFor, hasBofuOnBlock, hasBofuChooserSelf } from "./keywords/bof
 export { hasKoboOnBlock, resolveKoboOnBattleEnd } from "./keywords/kobo"
 export { millDeck, applyDeckMillNegate, declineDeckMillNegate } from "./zones/mill"
 export { checkExhaustOnCoreChange, exhaustSpirit, exhaustNexus, heavyExhaustSpirit, refreshSpirit, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
-import { checkExhaustOnCoreChange } from "./state/exhaust"
 export { offerOpponentMainEndMagic, applyProvocationUse } from "./magic/cast"
 export {
     activeConstraints,
@@ -1603,34 +1603,10 @@ export function resolveAction(
 // 4640行まで肥大化したため「イベント発火」セクションを triggers.ts へ移した。
 // **呼び出し側（57ファイル）を変えずに済むよう、ここから再エクスポートする。**
 // 相互 import になるが、GameState.ts ↔ EffectModules.ts と同じ CommonJS の循環requireで安全に動く
-export {
-    isTriggerSuppressed,
-    fireSummonTrigger,
-    fireTrigger,
-    fireCombinedAttackTrigger,
-    fireBattleWonTriggers,
-    fireStepTriggers,
-    fireFieldEventTriggers,
-    fireBpReachedTriggers,
-    notifyHandGained,
-    notifyNexusDeployed,
-    fireNexusDeployed,
-    applyBothSidesRedirectToCandidates,
-    bothSidesPids,
-    bothSidesRedirectKeepPid,
-    battleBp,
-    applyJugekiCoreToVoid,
-    notifySpiritCoresRemovedByOpponent,
-    findMagicNegateSource,
-    resolveMagic,
-    applyMagicRedirectChoice,
-    applyMagicSideChoice,
-    applyMagicRepeatChoice,
-    applyMagicNegateChoice,
-    declineMagicNegateChoice,
-    revertOncePerTurn,
-    revertDestroyGroupUsage,
-} from "./triggers"
+export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicRedirectChoice, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
+export { applyJugekiCoreToVoid } from "./keywords/jugeki"
+export { fireBattleWonTriggers, fireStepTriggers, fireBpReachedTriggers, battleBp } from "./stepTriggers"
+export { fireFieldEventTriggers, notifyHandGained, notifyNexusDeployed, fireNexusDeployed } from "./fieldEventTriggers"
 
 // ---- スピリット／ネクサスの除去・ブレイヴ・復活（removal.ts・brave.ts・revive.ts へ分割）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
