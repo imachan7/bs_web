@@ -1,3 +1,4 @@
+// 【蹴撃】の判定
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
 import { bravesOf, effectActiveAtLevel } from "../../../../shared/rules"

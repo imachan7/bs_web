@@ -1,3 +1,4 @@
+// 相手の手札を見るアクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log } from "../GameState"
 

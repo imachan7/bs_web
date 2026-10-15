@@ -1,3 +1,4 @@
+// バグ報告フォームの送信
 function initBugReport() {
     const form = document.getElementById("bug-report-form") as HTMLFormElement
     const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement

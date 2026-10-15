@@ -1,3 +1,4 @@
+// デッキ破棄（mill）の上限とデッキ破棄の実行
 import { recordLifeLost, recordMoved } from "../record"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"

@@ -1,3 +1,4 @@
+// 両陣営を対象にするマジックの対象の付け替え
 import type { CardData, CardInstance, CardType, PendingChoice, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, suspend } from "../GameState"
 import { effectActiveAtLevel, effectSources, instHasColor, instHasCost, matchesTarget, matchesFamilyFilter } from "../../../../shared/rules"

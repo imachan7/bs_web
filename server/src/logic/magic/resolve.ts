@@ -1,3 +1,4 @@
+// マジック効果の解決と再発揮の付与
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"

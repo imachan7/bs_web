@@ -1,3 +1,4 @@
+// デッキ破棄からトラッシュ回収・召喚へつなぐアクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log, requestTrashReturn, returnTrashCardToHand } from "../GameState"
 import { summonFreeFromTrashIndex, payCost, notifyHandGained, requestCardChoice, resolveMagic } from "../EffectModules"

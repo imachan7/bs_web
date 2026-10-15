@@ -1,3 +1,4 @@
+// 【呪撃】の判定
 import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
 import { effectActiveAtLevel, effectSources, isVirtualSource } from "../../../../shared/rules"

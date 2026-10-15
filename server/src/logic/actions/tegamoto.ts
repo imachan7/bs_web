@@ -1,3 +1,4 @@
+// 手元（tegamoto）のマジックを使うアクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log } from "../GameState"
 import { requestCardChoice, requestChoice, resolveMagic } from "../EffectModules"

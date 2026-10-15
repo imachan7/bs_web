@@ -1,3 +1,4 @@
+// 【転召】置換の選択肢ラベル
 import type { CardData, CardInstance, EffectDef, FamilyFilter, GameState, PlayerId } from "../../type"
 import { currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, pushResumeFrames } from "../GameState"
 import { destroySpirit, returnSpiritToHand } from "../removal"

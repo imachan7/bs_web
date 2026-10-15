@@ -1,3 +1,4 @@
+// ドローと手札破棄アクションのハンドラ（noop を含む）
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { EffectAction } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"

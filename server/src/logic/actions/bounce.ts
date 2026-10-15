@@ -1,3 +1,4 @@
+// バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
