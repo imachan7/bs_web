@@ -21,6 +21,14 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15 ユーザー決定）
+
+手順は `~/develop/bs_web_standard` の `docs/legacy-port` ブランチの `docs/design/LEGACY_PORT.md` §2（`git -C ~/develop/bs_web_standard show docs/legacy-port:docs/design/LEGACY_PORT.md`）。
+standard の `server/src`・`shared`・`public/src`・`scripts/smoke` と `data/cards-archive`→`data/cards` を上書きし、旧版の #260〜#265 を当て直す（smoke part486〜491 は standard の番号と衝突するので 583〜 に振り直す）。
+- **ソウルコアは旧版の対戦では当面常に無効**（`soulCore: null`）。デッキで判定する案は、場にあるだけで他の旧カードの裁定が変わる問題が未解決なので見送り（2026-10-15）
+- 第2メインステップは入れない。カードプールの切り替え（`cardPool.ts`）と検索よけは持ち込まない
+- 効果の召喚が無償の旧カード3枚（BS08-013・BS10-084・BS08-059）は直さず、報告のみ（LEGACY_PORT §4-2）
+
 **BS14「覇王編 第1弾：英雄龍の伝説」121種は完了**（2026-09-13。gaps 0件・smoke part313〜323）。
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
