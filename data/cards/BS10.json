@@ -3055,6 +3055,7 @@
         "type": "moveCards",
         "from": "trash",
         "dest": "summon",
+        "pay": "cost",
         "pick": {
          "cardType": "spirit",
          "hasWhileCombined": true

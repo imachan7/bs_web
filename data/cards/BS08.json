@@ -831,6 +831,7 @@
      "type": "moveCards",
      "from": "trash",
      "dest": "summon",
+     "pay": "cost",
      "pick": {
       "cardType": "spirit",
       "nameIncludes": "勇者"
@@ -4084,7 +4085,9 @@
     "action": {
      "type": "summonFromHandFree",
      "keywordFilter": "tensho",
-     "skipTensho": true
+     "skipTensho": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    }
   ]
