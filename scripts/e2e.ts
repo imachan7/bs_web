@@ -204,8 +204,14 @@ async function main(): Promise<void> {
     assert(v2b.players.p2.handCount === 5, "p2はドローして手札5枚")
 
     act(c2, { type: "endTurn" })
+    {
+        // アタックステップの後には第2メインステップが来る（2026-10-06 ルール改訂。先攻1ターン目を除く）
+        const [vb1] = await Promise.all([c1.nextState(), c2.nextState()])
+        assert(vb1.turnPlayer === "p2" && vb1.phase === "main" && vb1.secondMainStep === true, "p2は第2メインステップに入る")
+    }
+    act(c2, { type: "endTurn" })
     const [v1c] = await Promise.all([c1.nextState(), c2.nextState()])
-    assert(v1c.turnPlayer === "p1" && v1c.turn === 3, "ターン3でp1に戻る")
+    assert(v1c.turnPlayer === "p1" && v1c.turn === 3, "第2メインを終了しターン3でp1に戻る")
 
     c1.socket.disconnect()
     c2.socket.disconnect()

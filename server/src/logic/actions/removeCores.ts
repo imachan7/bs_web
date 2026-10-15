@@ -1,6 +1,8 @@
 // コアを「取り除く」器（R5。旧 coreRemove 系28種の統合先。旧ハンドラは data 移行が済むまで cores.ts に残す）。
 // スキーマは docs/design/CORE_UNIFY_REMOVE.md §3。
 import type { ActionHandler, ActionRegistry } from "./types"
+import { fireFieldEventTriggers } from "../triggers"
+import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import type { ActionCtx } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { coresForLevel, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -17,14 +19,14 @@ import {
     resistanceAgainst,
 } from "../EffectModules"
 import { coreFloorFor, isBattlingCoreProtected } from "../removal"
-import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
+import { coreZoneChoiceId, currentLevel, effectiveBp, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
-import { recordCores, recordLeftCost, recordMoved } from "../record"
+import { recordCores, recordLifeLost, recordMoved } from "../record"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
-type Dest = "reserve" | "trash" | "void"
+type Dest = "reserve" | "trash" | "void" | "life"
 type CountSpec = number | "all" | "toLowerLevel"
 
 // countCounter を解決した後の count（typeof action.count === "number" のときだけ EffectCounter を適用）
@@ -61,6 +63,11 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
         log(state, `${player.name}の${label}のコア${amount}個をトラッシュに置いた。`)
         return
     }
+    if (to === "life") {
+        player.life += amount
+        log(state, `${player.name}の${label}のコア${amount}個をライフに置いた。`)
+        return
+    }
     player.reserve += amount
     log(state, `${player.name}の${label}のコア${amount}個をリザーブに置いた。`)
 }
@@ -72,6 +79,16 @@ function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, am
     if (state.players[pid].field.spirits.includes(inst)) {
         if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner)
         else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner)
+        else if (to === "life") {
+            // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
+            const taken = removeCores(state, pid, inst, amount, owner, srcType)
+            if (taken > 0) {
+                const moved = Math.min(taken, state.players[pid].reserve)
+                state.players[pid].reserve -= moved
+                state.players[pid].life += moved
+                log(state, `${state.players[pid].name}は${getCard(inst.cardId).name}から取り除いたコア${moved}個をライフに置いた。`)
+            }
+        }
         else removeCores(state, pid, inst, amount, owner, srcType)
         return
     }
@@ -319,7 +336,6 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         }
         // 「そのスピリットのコスト」を後ろで読むため、コアを取り除いた個体を書く（カード自体は動かない）
         recordMoved(state, [inst.cardId])
-        recordLeftCost(state, inst.cardId, instBaseCost(inst))
         applyToIndividual(ctx, pid, inst, amount, to)
         return false
     }
@@ -457,21 +473,22 @@ function spreadCandidatesFor(
 function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     const { state, owner, srcType } = ctx
     const player = state.players[s.pid]
+    // 案B-inside: [ソウルコア]は明示的な指定でだけ動く。ここでは通常コアだけ移す
     if (s.kind === "reserve") {
-        if (player.reserve <= 0) return 0
+        if (normalReserveOf(player) <= 0) return 0
         player.reserve -= 1
         depositTo(state, s.pid, to, 1, "リザーブ")
         return 1
     }
     if (s.kind === "trash") {
-        if (player.trashCores <= 0) return 0
+        if (normalTrashOf(player) <= 0) return 0
         player.trashCores -= 1
         depositTo(state, s.pid, to, 1, "トラッシュ")
         return 1
     }
     if (s.kind === "nexus") {
         const nx = player.field.nexuses.find((n) => n.instanceId === s.inst!.instanceId)
-        if (!nx || nx.cores <= 0) return 0
+        if (!nx || normalCoresOn(player, nx) <= 0) return 0
         nx.cores -= 1
         depositTo(state, s.pid, to, 1, `${getCard(nx.cardId).name}（ネクサス）`)
         return 1
@@ -480,6 +497,15 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     if (!sp) return 0
     if (to === "void") return removeCoresToVoid(state, s.pid, sp, 1, owner)
     if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner)
+    if (to === "life") {
+        const taken = removeCores(state, s.pid, sp, 1, owner, srcType)
+        if (taken > 0) {
+            const moved = Math.min(taken, state.players[s.pid].reserve)
+            state.players[s.pid].reserve -= moved
+            state.players[s.pid].life += moved
+        }
+        return taken
+    }
     return removeCores(state, s.pid, sp, 1, owner, srcType)
 }
 
@@ -670,10 +696,13 @@ function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
         return
     }
     player.life -= count
+    recordLifeLost(state, owner, count)
     depositTo(state, owner, action.to ?? "trash", count, "ライフ")
     if (player.life <= 0 && !state.winner) {
         state.winner = opp
         log(state, `${state.players[opp].name}の勝利！`)
+    } else if (count > 0) {
+        fireFieldEventTriggers(state, owner, "ownLifeLost")
     }
 }
 

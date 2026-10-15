@@ -1896,18 +1896,35 @@
         }
       },
       {
-        "id": "SD01-034-e2",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "reveal",
+       "id": "SD01-034-e2",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
+          "count": 1
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
           "count": 1,
+          "dest": "hand",
           "pick": {
-            "cardType": "spirit",
-            "color": "red"
-          },
-          "rest": "deckTop"
-        }
+           "cardType": "spirit",
+           "color": "red"
+          }
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "deckTop"
+         }
+        ]
+       }
       },
       {
         "id": "SD01-034-e3",

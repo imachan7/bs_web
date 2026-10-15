@@ -1,6 +1,6 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
-import { fieldInstanceIdsOf, findInstanceAnywhere, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
+import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
@@ -28,11 +28,13 @@ import {
     applyBraveKeep,
     declineBraveKeep,
     requestActivationConfirm,
+    autoPayPlan,
+    payCost,
 } from "./EffectModules"
 import { validatePaySources } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
-import { applyResshinsokuDestination, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
+import { applyResshinsokuDestination, continueBlockDeclaration, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 
@@ -59,6 +61,20 @@ function revertActivatedIfSkipped(state: GameState, pending: PendingChoice): voi
 // 途中で新たな pendingChoice が立てば、残りの queue をそちらへ引き継いで中断する。
 export function doResolveChoice(
     state: GameState,
+    ...rest: Parameters<typeof resolveChoiceInner> extends [GameState, ...infer R] ? R : never
+): string | null {
+    const prev = state.flashEffect
+    if (state.pendingChoice?.flashEffect) state.flashEffect = true
+    try {
+        return resolveChoiceInner(state, ...rest)
+    } finally {
+        if (prev) state.flashEffect = true
+        else delete state.flashEffect
+    }
+}
+
+function resolveChoiceInner(
+    state: GameState,
     pid: PlayerId,
     instanceId?: string,
     option?: string,
@@ -66,6 +82,8 @@ export function doResolveChoice(
     // 「コストを支払って召喚できる」起動効果（summonFromHandFree の payCost）で、
     // リザーブの不足分をフィールドのコアから払うための指定。通常の召喚と同じ支払いUIから届く
     paySources?: PaySource[],
+    // リザーブの[ソウルコア]を支払いに使うか（【迷彩】の支払い。2026-10-08 ユーザー確定: 払うかを選ばせる）
+    paySoulCoreFromReserve?: boolean,
 ): string | null {
     const pending = state.pendingChoice
     if (!pending) return "選択待ちの効果がありません"
@@ -101,6 +119,19 @@ export function doResolveChoice(
         if (!state.battle) return null
         state.battle.extraBlockerIds = pending.candidates.filter((id) => id !== instanceId)
         finishBlockDeclaration(state, blockerPid, instanceId)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // ブロックのコスト（blockExhaustSpirit）で疲労させるスピリットの選択待ち。action は解決しない
+    if (pending.blockExhaustPick) {
+        if (instanceId === undefined || !pending.candidates.includes(instanceId)) return "選択できない対象です"
+        const { blockerPid, blockerInstanceId } = pending.blockExhaustPick
+        const chosen = findSpirit(state.players[blockerPid], instanceId)
+        state.pendingChoice = null
+        if (!state.battle || !chosen) return null
+        exhaustBlockToll(state, blockerPid, chosen)
+        continueBlockDeclaration(state, blockerPid, blockerInstanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -153,6 +184,44 @@ export function doResolveChoice(
         } else {
             declineReviveConfirm(state, entry)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 【迷彩：N】の支払い（26系）。払ってから指定を含む元の効果を解決し直す。
+    // 支払い元の指定が無いとき（AI・自動応答）は autoPayPlan で払う
+    if (pending.meisaiPay) {
+        if (option === undefined || !(pending.options ?? []).includes(option)) return "支払ってください"
+        const info = pending.meisaiPay
+        const soul = paySoulCoreFromReserve === true
+        const plan = paySources === undefined && !soul ? autoPayPlan(state, info.pid, info.need) : { paySources: paySources ?? [], soulFromReserve: soul }
+        if (plan === null) return "コアが足りません"
+        const invalid = validatePaySources(state, info.pid, info.need, plan.paySources, plan.soulFromReserve)
+        if (invalid) return invalid
+        state.pendingChoice = null
+        payCost(state, info.pid, info.need, plan.paySources, 0, plan.soulFromReserve)
+        log(state, `${getCard(info.targetCardId).name}の【迷彩】：${state.players[info.pid].name}は${info.need}コストを支払った。`)
+        state.meisaiPaidFor = info.targetInstanceId
+        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, undefined, pending.effectSource?.colors, pending.effectSource?.type)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 効果の「Nコスト支払う」の支払い。払ってから pay の then を解決する。支払い元の指定が無いとき（AI・自動応答）は autoPayPlan で払う
+    if (pending.effectCostPay) {
+        if (option === undefined || !(pending.options ?? []).includes(option)) return "支払ってください"
+        const info = pending.effectCostPay
+        const soul = paySoulCoreFromReserve === true
+        const plan = paySources === undefined && !soul ? autoPayPlan(state, info.pid, info.need, true) : { paySources: paySources ?? [], soulFromReserve: soul }
+        if (plan === null) return "コアが足りません"
+        const invalid = validatePaySources(state, info.pid, info.need, plan.paySources, plan.soulFromReserve)
+        if (invalid) return invalid
+        state.pendingChoice = null
+        payCost(state, info.pid, info.need, plan.paySources, 0, plan.soulFromReserve)
+        log(state, `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
+        const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
+        resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -331,6 +400,8 @@ export function doResolveChoice(
             info.paySources,
             info.fromTegamoto,
             index === 0, // 0=コストを支払わずに使用する
+            info.exReductionTrashIndices, // 《継召》：確認をはさんでも選択を引き継ぐ
+            info.paySoulCoreFromReserve, // リザーブの[ソウルコア]支払いも同じく引き継ぐ
         )
         if (error) return error
         if (state.winner) return null
@@ -538,7 +609,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         if (!frame) continue
         if (frame.kind === "placeSummon") {
             // 【転召】の対象選択で中断していた召喚の続き。維持コアを置いて場に出し、召喚時効果へ進む
-            placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId)
+            placeSummonedSpirit(state, frame.pid, frame.inst, frame.reserveDelta, frame.logText, frame.cardName, frame.braveTargetInstanceId, frame.placeSoul === true ? true : undefined)
             continue
         }
         if (frame.kind === "endTurn") {

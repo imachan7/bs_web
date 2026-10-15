@@ -1,7 +1,7 @@
 // smoke パート295（BS11-065 満天の牧草地：メインステップの手札破棄禁止）
 // 「お互い、手札を破棄できない」の破棄側（ドロー側は part283 で検証済み）。
 // 関門は shared/rules.ts の canDiscardHand。メインステップだけ止まり、コストとしての破棄も止まる。
-import { assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, refreshLevelAsOverrides, resolveAction, runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 
@@ -52,7 +52,7 @@ console.log("=== §D コストとしての破棄も止まり、効果自体が�
     s.players.p1.hand = [vanilla[0]!.cardId, vanilla[1]!.cardId]
     const deckBefore = s.players.p1.deck.length
     s.phase = "main"
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1 }, then: { type: "draw", count: 2 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: legacy({ type: "discardSelfChoose", count: 1 }), then: { type: "draw", count: 2 } })
     assert(s.players.p1.hand.length === 2, "コストの破棄が止まるので手札は減らない")
     assert(s.players.p1.deck.length === deckBefore, "コストが払えないので本体のドローも発揮しない")
 }

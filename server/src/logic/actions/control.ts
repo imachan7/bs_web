@@ -1,6 +1,7 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
 import type { ActionHandler, ActionRegistry } from "./types"
+import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, draw, fieldInstanceIdsOf, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireOwnBurstActivated, fireSummonSequence, finishBurstActivation, placeBurst, requestChoice, resistanceAgainst, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
@@ -11,9 +12,9 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { effectiveBp, iceWallColorsOf, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { lastLeftCostOf, lastMovedOf, newRecordScope } from "../record"
+import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -78,7 +79,7 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
 const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType } = ctx
         // 自分の枠を作る。前半を選ばなかった（「〜できる」）とき後ろの if が前の効果の記録を見ない・途中に挟まった別の効果の記録と混ざらない（IF_UNIFY.md §6）
-        const scope = newRecordScope()
+        const scope = action.keepScope ? currentRecordScope(state) : newRecordScope()
         resolveInOrder(state, action.actions, {
             resolve: (a) => {
                 state.recordScope = scope
@@ -147,6 +148,13 @@ const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
     destroyTargetList(ctx, targets)
 }
 
+// 【Re覚醒】覚醒モードを開く印（26系）。pendingChoiceを立てずログのみのno-op。
+// 覚醒そのものはクライアントが覚醒UIから GameAction "awaken" を個別に送る（2026-10-08ユーザー確認）
+const openAwakenModeHandler: ActionHandler<"openAwakenMode"> = (ctx) => {
+    const { state, sourceName } = ctx
+    log(state, `${sourceName}：覚醒モードを開いた。（覚醒は覚醒UIから個別に宣言してください）`)
+}
+
 // 「〜とき／〜なら B（他のときは C）」。条件は解決する時点の盤面・記録で判定する
 // （中断して再開スタックから来た場合も、前のアクションを解決した後に判定される＝IF_UNIFY.md Q3）
 const ifHandler: ActionHandler<"if"> = (ctx, action) => {
@@ -154,7 +162,71 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const cond = action.cond
     const met = "last" in cond
         ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
-        : "event" in cond
+        : "lastAll" in cond
+          ? lastMovedOf(state).length > 0 && lastMovedOf(state).every((id) => matchesPick(id, cond.lastAll, lastLeftCostOf(state, id))) // 0枚は不成立
+          : "ownAllHaveTeam" in cond
+          ? ownAllHaveTeam(state, owner, cond.ownAllHaveTeam)
+          : "ownAllHaveFamily" in cond
+          ? ownAllHaveFamily(state, owner, cond.ownAllHaveFamily)
+          : "ownTeamAtLeast" in cond
+          ? ownTeamAtLeast(state, owner, cond.ownTeamAtLeast)
+          : "soulCoreInReserve" in cond
+          ? soulCoreInReserve(state.players[owner])
+          : "ownKeishoExcludedTeamAtLeast" in cond
+          ? keishoExcludedTeamAtLeast(state, cond.ownKeishoExcludedTeamAtLeast)
+          : "ownAttackStepNow" in cond
+          ? state.phase === "attack" && state.turnPlayer === owner
+          : "keishoUsedForSummon" in cond
+          ? (state.keishoExcludedCardIds?.length ?? 0) > 0
+          : "selfBpAtLeast" in cond
+          ? self !== null && effectiveBp(state, owner, self) >= cond.selfBpAtLeast
+          : "summonPaidWithSoulCore" in cond
+          ? state.summonPaidWithSoulCore === true
+          : "soulCoreInTrash" in cond
+          ? state.players[owner].soulCore?.zone === "trash"
+          : "ownAllSpiritsHaveFamily" in cond
+          ? ownAllSpiritsHaveFamily(state, owner, cond.ownAllSpiritsHaveFamily, cond.costIn)
+          : "ownAllNexusesHaveFamily" in cond
+          ? ownAllNexusesHaveFamily(state, owner, cond.ownAllNexusesHaveFamily)
+          : "ownSpiritDestroyedThisTurn" in cond
+          ? state.ownSpiritDestroyedThisTurn?.[owner] === true
+          : "ownEffectDestroyedOwnSpirit" in cond
+          ? state.ownSpiritDestroyedByOwnEffectColors?.[owner]?.includes(cond.ownEffectDestroyedOwnSpirit.color) === true
+          : "ownEffectRemovedOpponentSpirit" in cond
+          ? cond.ownEffectRemovedOpponentSpirit.kinds.some((k) => state.oppSpiritRemovedByEffectThisTurn?.[owner]?.includes(cond.ownEffectRemovedOpponentSpirit.spiritMagicOnly ? `sm:${k}` : k) === true)
+          : "ownEffectDestroyedOwnOnDestroySpirit" in cond
+          ? state.ownSpiritWithOnDestroyDestroyedByOwnEffect?.[owner] === true
+          : "selfRested" in cond
+          ? self !== null && self.isRested === cond.selfRested
+          : "blockedAttacker" in cond
+          ? ((t, f) => t !== null && f !== SELF_REQUIRED && matchesTarget(state, t.pid, t.inst, f, self?.instanceId))(
+                state.battle?.attackerInstanceId && state.battle.blockerInstanceId === self?.instanceId ? findSpiritAny(state, state.battle.attackerInstanceId) : null,
+                normalizeFilter(ctx, { filter: cond.blockedAttacker }),
+            )
+          : "selfBlocked" in cond
+          ? state.battle !== undefined && state.battle !== null && state.battle.attackerInstanceId === self?.instanceId && state.battle.blockerInstanceId !== null
+          : "opponentTurn" in cond
+          ? state.turnPlayer !== owner
+          : "opponentAttackStepNow" in cond
+          ? state.phase === "attack" && state.turnPlayer !== owner
+          : "magicUsedVia" in cond
+          ? state.magicUsedVia === cond.magicUsedVia
+          : "firstBattleOfTurn" in cond
+          ? state.attacksThisTurn === 1
+          : "ownLifeLostThisTurn" in cond
+          ? state.lifeLostThisTurn?.[owner] === true
+          : "opponentLifeNotLostThisTurn" in cond
+          ? state.lifeLostThisTurn?.[owner === "p1" ? "p2" : "p1"] !== true
+          : "ownMagicUsedThisTurn" in cond
+          ? (state.magicIdsUsedThisTurn?.[owner] ?? []).some((id) => matchesPick(id, cond.ownMagicUsedThisTurn))
+          : "selfSummonedBy" in cond
+          ? self?.summonedBy === cond.selfSummonedBy
+          : "lastBuffed" in cond
+          ? ((t, f) => t !== null && f !== SELF_REQUIRED && matchesTarget(state, t.pid, t.inst, f, self?.instanceId))(
+                state.lastBpBuffTargetId !== undefined ? findSpiritAny(state, state.lastBpBuffTargetId) : null,
+                normalizeFilter(ctx, { filter: cond.lastBuffed }),
+            )
+          : "event" in cond
           ? "destroyedColor" in cond.event
               ? (state.burstEventColors ?? []).includes(cond.event.destroyedColor)
               : ((t) => t !== undefined && effectiveBp(state, t.pid, t.inst) >= (cond.event as { targetBpAtLeast: number }).targetBpAtLeast)(
@@ -178,6 +250,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
 const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
     if (state.phase !== "main") return
+    // 第2メインステップはアタックステップの後なので、終了させてもアタックステップへは進めない。何もしない
+    if (state.secondMainStep === true) return
     if ((action.who ?? "opponent") === "opponent") {
         const opp = opponentOf(owner)
         if (state.turnPlayer !== opp) return
@@ -233,7 +307,7 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     // payCost（BS15-004ハンゾウ・シノビ・ドラゴン）：通常の召喚コストも支払う（効果文に「コストを支払わずに」が
     // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
     const cost = action.payCost ? effectiveCost(state, owner, card) : 0
-    if (player.reserve < maintain + cost) {
+    if (normalReserveOf(player) < maintain + cost) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
@@ -438,7 +512,7 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
     }
     if (action.payTiming === undefined || action.payCost === undefined) return
     const player = state.players[owner]
-    if (player.reserve < action.payCost) return
+    if (normalReserveOf(player) < action.payCost) return
     player.reserve -= action.payCost
     player.trashCores += action.payCost
     log(state, `${player.name}は${card.name}のコスト${action.payCost}を支払った。`)
@@ -450,6 +524,7 @@ const handlers = {
     sequence: sequenceHandler,
     simultaneous: simultaneousHandler,
     if: ifHandler,
+    openAwakenMode: openAwakenModeHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
     discardOpponentBurst: discardOpponentBurstHandler,

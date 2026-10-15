@@ -13,10 +13,10 @@ import {
     effectiveBp,
     resolveAction,
     timedHas,
+    endTurn,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger } from "../../server/src/logic/EffectModules"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 function setup(seed: string, p1Color: string, p2Color: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: p1Color, p2: p2Color })

@@ -9,8 +9,7 @@ import {
     getCard,
     resolveAction,
     refreshLevelAsOverrides,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, legacy } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const RED = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ・BP1000）
@@ -123,14 +122,14 @@ console.log("=== 5. summonFromTrashFree：条件に合うトラッシュがあ�
     const s = game("case5a")
     s.players.p1.trashCards.push(RED)
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "summonFromTrashFree", colorFilter: "red" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: legacy({ type: "summonFromTrashFree", colorFilter: "red" }) })
     // 召喚された個体の維持コア1個もリザーブから払われる（pay自体のコスト1個とは別。summonFreeFromTrashIndex）
     assert(s.players.p1.reserve === 3, "リザーブ1個（pay）＋1個（維持コア）を払った")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された")
 }
 {
     const s = game("case5b")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "summonFromTrashFree", colorFilter: "red" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: legacy({ type: "summonFromTrashFree", colorFilter: "red" }) })
     assert(s.players.p1.reserve === 5, "条件に合うトラッシュがないため払わなかった")
 }
 
@@ -139,13 +138,13 @@ console.log("=== 6. recoverSpiritFromTrash：条件に合うトラッシュが�
     const s = game("case6a")
     s.players.p1.trashCards.push(RED)
     const before = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "recoverSpiritFromTrash", count: 1 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: legacy({ type: "recoverSpiritFromTrash", count: 1 }) })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
     assert(s.players.p1.hand.length === before + 1, "回収された")
 }
 {
     const s = game("case6b")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "recoverSpiritFromTrash", count: 1 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: legacy({ type: "recoverSpiritFromTrash", count: 1 }) })
     assert(s.players.p1.reserve === 5, "トラッシュにスピリットカードがないため払わなかった")
 }
 
@@ -154,13 +153,13 @@ console.log("=== 7. recoverMagicFromTrash：条件に合うトラッシュがあ
     const s = game("case7a")
     s.players.p1.trashCards.push(MAGIC)
     const before = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "recoverMagicFromTrash" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: legacy({ type: "recoverMagicFromTrash" }) })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
     assert(s.players.p1.hand.length === before + 1, "回収された")
 }
 {
     const s = game("case7b")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "recoverMagicFromTrash" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: legacy({ type: "recoverMagicFromTrash" }) })
     assert(s.players.p1.reserve === 5, "トラッシュにマジックカードがないため払わなかった")
 }
 

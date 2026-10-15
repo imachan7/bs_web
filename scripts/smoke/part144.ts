@@ -509,15 +509,15 @@ console.log("=== BS08ジャッジメントフレア：magic condition ownSpiritC
 console.log("=== BS08魔帝龍騎ダーク・クリムゾン：reveal（旧revealAndSummonAllByFamily） ===")
 {
     // 2026-09-26 の統合で revealAndSummonAllByFamily は reveal（dest summon・pickCount all・noSummonEffects）へ移った
-    const isCrimsonReveal = (e: Record<string, unknown>) => {
-        const a = e["action"] as Record<string, unknown> | undefined
-        return a?.["type"] === "reveal" && a?.["dest"] === "summon" && a?.["pickCount"] === "all" && a?.["noSummonEffects"] === true
-    }
+    // さらに reveal は sequence [revealOpen, moveCards from:"revealed", 残り] に分かれた
+    type Step = { type?: string; from?: string; dest?: string; count?: unknown; noSummonEffects?: boolean; pick?: { family?: string[] } }
+    const stepsOf = (e: Record<string, unknown>): Step[] => ((e["action"] as { actions?: Step[] } | undefined)?.actions ?? [])
+    const isCrimsonReveal = (e: Record<string, unknown>) =>
+        stepsOf(e).some((a) => a.type === "moveCards" && a.from === "revealed" && a.dest === "summon" && a.count === "all" && a.noSummonEffects === true)
     const crimson = findByEffect(isCrimsonReveal)
-    const entry = entryOf(crimson, isCrimsonReveal)
-    const revealAction = entry["action"] as Record<string, unknown>
-    const count = Number(revealAction["count"])
-    const families = (revealAction["pick"] as Record<string, unknown>)["family"] as string[]
+    const steps = stepsOf(entryOf(crimson, isCrimsonReveal))
+    const count = Number(steps.find((a) => a.type === "revealOpen")!.count)
+    const families = steps.find((a) => a.type === "moveCards" && a.dest === "summon")!.pick!.family!
     const matchCard = CARDS.find((c) => c.type === "spirit" && c.cardId !== crimson.cardId && families.some((f) => (c.family ?? []).includes(f)))!
     const nonMatchCard = FILLER
 

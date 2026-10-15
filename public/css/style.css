@@ -6,10 +6,11 @@
     --text-muted: #9ca3af;
     --accent: #3b82f6;
     --accent-hover: #60a5fa;
-    /* button の白文字との組み合わせは #3b82f6 だと 4.5:1 未満（PageSpeed a11y 指摘対応）。--accent 自体は
-       境界線・光彩など他の用途で使われているのでそちらは変えず、button 専用の色を分ける */
-    --btn-bg: #2563eb;
-    --btn-bg-hover: #1d4ed8;
+    /* button の白文字との組み合わせは #3b82f6/#2563eb だと視認性が悪い（2026-10-06 ユーザー指摘）。
+       暗めの青にして白文字とのコントラストを上げる（#1d4ed8 vs #fff ≈ 6.7:1）。--accent 自体は
+       境界線・光彩など他の用途で使われているのでそちらは変えず、button 専用の色にする */
+    --btn-bg: #1d4ed8;
+    --btn-bg-hover: #1e40af;
     --danger: #ef4444;
     --warning: #f59e0b;
     --success: #10b981;
@@ -259,6 +260,8 @@ button:active {
     top: 50%;
     transform: translateY(-50%);
     pointer-events: auto;
+    /* カードのコストバッジ・シンボル（z-index: 10）より手前。無いとバッジがボタンの上に出る */
+    z-index: 120;
 }
 
 #action-buttons {
@@ -871,7 +874,7 @@ button:active {
 .card::before { background: linear-gradient(135deg, var(--c-main, var(--c-red)), var(--c-sub, var(--c-red))); }
 
 .card.rested {
-    transform: rotate(10deg);
+    transform: rotate(90deg);
     opacity: 0.7;
 }
 
@@ -886,7 +889,7 @@ button:active {
 }
 
 .card.rested.clickable:hover {
-    transform: rotate(10deg) translateY(-6px);
+    transform: rotate(90deg) translateX(-6px);
 }
 
 .card.usable {
@@ -1268,7 +1271,7 @@ button:active {
 
 /* ネクサスは六角形 */
 .nexus-zone .card {
-    width: 70px;
+    width: 68px; /* 高さ78pxに対する正六角形の幅（√3/2） */
     height: 78px;
     border-radius: 0;
     box-shadow: none; /* clip-path hides box-shadow */
@@ -1335,6 +1338,12 @@ button:active {
 .sym-icon.bg-blue { background-image: url('/imgs/symbols/blue_symbol.png'); }
 
 /* ---- 手札のコストバッジ ---- */
+/* コストバッジの配色（全種別の形がこの2色を使う）。枠はオレンジ・中は黒・数字は白。軽減されているときは数字だけ明るい緑 */
+.cost-badge { --cost-frame: #f97316; --cost-fill: #111827; }
+.cost-badge.discounted {
+    color: #4ade80;
+    text-shadow: none;
+}
 .cost-badge {
     position: absolute;
     top: -8px;
@@ -1342,9 +1351,10 @@ button:active {
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: #1e293b;
-    border: 2px solid #475569;
+    background: var(--cost-fill);
+    border: 2px solid var(--cost-frame);
     color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1353,24 +1363,6 @@ button:active {
     box-shadow: 0 2px 6px rgba(0,0,0,0.5);
     z-index: 10;
 }
-.cost-badge.discounted {
-    width: auto;
-    border-radius: 13px;
-    padding: 0 8px;
-    background: #064e3b;
-    border-color: var(--success);
-    color: var(--success);
-}
-.original-cost {
-    text-decoration: line-through;
-    color: #94a3b8;
-    font-size: 11px;
-    margin-right: 4px;
-}
-.current-cost {
-    color: #34d399; /* light green */
-}
-
 /* ---- まとまった枚数の表示（手札・トラッシュ用） ---- */
 .count-badge {
     position: absolute;
@@ -1460,7 +1452,7 @@ button:active {
         max-width: 54px;
     }
     .nexus-zone .card {
-        width: 58px;
+        width: 55px;
         height: 64px;
     }
     .burst-slot {
@@ -1803,4 +1795,306 @@ button:active {
     color: #8fd3ff;
     text-decoration: underline dotted;
     cursor: help;
+}
+
+/* ---- 盤面のカードを画像表示にする ----
+   画像が読み込めたときだけ .has-art が付く（無ければ従来のテキスト表示）。
+   スピリットは縦横比を画像（675x985）に合わせた縦長、ネクサスは六角形のまま画像を切り抜く。
+   幅は上の .spirit-zone .card / .nexus-zone .card の指定をそのまま使う */
+.spirit-zone .card.has-art {
+    height: auto;
+    aspect-ratio: 675 / 985;
+    padding: 0;
+    background: #111;
+}
+.spirit-zone .card.has-art > .card-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    pointer-events: none;
+}
+.nexus-zone .card.has-art > .card-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top; /* 縦長の画像を中央ではなく上端から切り取る */
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    pointer-events: none;
+}
+.spirit-zone .card.has-art::before { display: none; }
+.spirit-zone .card.has-art .name,
+.nexus-zone .card.has-art .name { display: none; }
+/* 画像の半分から下に Lv・BP・コア数を重ねる（Lv と BP は別の行に分ける） */
+.card-overlay { display: contents; }
+.card.has-art > .card-overlay {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    bottom: 0;
+    padding: 2px 3px 3px;
+    background: linear-gradient(to bottom, transparent, rgba(10, 12, 18, 0.8) 35%);
+    color: #fff;
+    text-align: center;
+    font-weight: 700;
+    text-shadow: 0 1px 2px #000;
+    pointer-events: none;
+    z-index: 1;
+}
+.card.has-art > .card-overlay .stats,
+.card.has-art > .card-overlay .cores {
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.25;
+    color: inherit;
+}
+.card.has-art > .card-overlay .stat-lv,
+.card.has-art > .card-overlay .stat-bp { display: block; }
+.card.has-art > .card-overlay .stat-bp { font-size: 14px; }
+.card.has-art > .card-overlay .cores { color: var(--accent-hover); }
+/* 疲労で90度回すときは、この枠だけ逆回転して文字を正位置のままにする。
+   回したあとの見た目（横長）に合わせて、枠の幅と高さを入れ替え、カード中心に置く */
+.spirit-zone .card.has-art.rested > .card-overlay {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    width: calc(100% * 985 / 675);
+    height: calc(100% * 675 / 985);
+    transform: translate(-50%, -50%) rotate(-90deg);
+    padding: 2px 4px 3px;
+}
+.spirit-zone .card.has-art.rested > .card-overlay .stat-lv,
+.spirit-zone .card.has-art.rested > .card-overlay .stat-bp { display: inline; }
+.nexus-zone .card.has-art.rested > .card-overlay { transform: rotate(-90deg); }
+
+/* ---- 手札を画像表示にする ----
+   名前・色/種別・BP などは画像に入っているので文字は隠す。コストバッジ（軽減後のコスト）と
+   各種バッジはそのまま重ねる。効果全文はホバーのツールチップで読める */
+#hand .card.has-art {
+    height: auto;
+    aspect-ratio: 675 / 985;
+    padding: 0;
+    background: #111;
+}
+#hand .card.has-art > .card-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    pointer-events: none;
+}
+#hand .card.has-art::before { display: none; }
+#hand .card.has-art .name,
+#hand .card.has-art .stats { display: none; }
+
+/* 画像カードは縦に引き伸ばさない。flex の既定（stretch）だと aspect-ratio が効かず、
+   高さだけ伸びて画像の左右が切れる */
+.spirit-zone .card.has-art,
+#hand .card.has-art {
+    align-self: flex-start;
+    flex: 0 0 auto;
+}
+
+/* ---- 疲労したスピリットは右へ90度 ----
+   回転は見た目だけで場所を取らないので、縦長カードが隣と重ならないよう左右に余白を足す */
+.spirit-zone .card.has-art.rested {
+    margin-left: 18px;
+    margin-right: 40px;
+}
+.spirit-zone .card.rested.clickable:hover {
+    transform: rotate(90deg) translateX(-4px);
+}
+
+/* ---- 重疲労（26系）は逆さ＝180度 ----
+   疲労の90度より後に書いて上書きする。縦長のまま回るので余白は足さず、能力値の枠は逆回転で正位置に戻す */
+.card.rested.heavy-rested { transform: rotate(180deg); }
+.card.rested.heavy-rested.clickable:hover { transform: rotate(180deg) translateY(6px); }
+.spirit-zone .card.has-art.rested.heavy-rested { margin-left: 0; margin-right: 0; }
+.spirit-zone .card.has-art.rested.heavy-rested > .card-overlay {
+    top: 50%;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    padding: 2px 3px 3px;
+    transform: rotate(180deg);
+}
+.spirit-zone .card.has-art.rested.heavy-rested > .card-overlay .stat-lv,
+.spirit-zone .card.has-art.rested.heavy-rested > .card-overlay .stat-bp { display: block; }
+
+/* ---- コストバッジを種別ごとの形にする（デッキビルダーと同じ形。deck.css から移植） ----
+   スピリットは丸（既定）、ネクサスは六角形、ブレイヴは八角形、マジックは0度と45度のひし形を重ねる */
+.cost-badge.cost-nexus,
+.cost-badge.cost-brave,
+.cost-badge.cost-magic {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+.cost-badge.cost-nexus,
+.cost-badge.cost-brave {
+    background: var(--cost-frame);
+}
+.cost-badge.cost-magic { background: transparent; }
+
+.cost-badge.cost-nexus { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+.cost-badge.cost-brave { clip-path: polygon(38% 3%, 62% 3%, 97% 38%, 97% 62%, 62% 97%, 38% 97%, 3% 62%, 3% 38%); }
+.cost-badge.cost-nexus::before,
+.cost-badge.cost-brave::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: var(--cost-fill);
+    z-index: -1;
+}
+.cost-badge.cost-nexus::before { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+.cost-badge.cost-brave::before { clip-path: polygon(38% 3%, 62% 3%, 97% 38%, 97% 62%, 62% 97%, 38% 97%, 3% 62%, 3% 38%); }
+
+.cost-badge.cost-nexus { width: 26px; height: 30px; top: -8px; left: -6px; } /* 正六角形（幅:高さ=√3:2） */
+.cost-badge.cost-brave { width: 32px; height: 32px; top: -9px; left: -9px; }
+.cost-badge.cost-magic { width: 30px; height: 30px; top: -8px; left: -8px; }
+
+.cost-badge.cost-magic::before,
+.cost-badge.cost-magic::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 17px;
+    height: 17px;
+    background: var(--cost-fill);
+    border: 1.5px solid var(--cost-frame);
+    z-index: -1;
+}
+.cost-badge.cost-magic::before { transform: translate(-50%, -50%) rotate(45deg); }
+.cost-badge.cost-magic::after { transform: translate(-50%, -50%) rotate(0deg); }
+/* 手前の菱形は半透明にして、奥の45度の菱形を透かす */
+.cost-badge.cost-magic::after {
+    background: color-mix(in srgb, var(--cost-fill) 55%, transparent);
+    border-color: color-mix(in srgb, var(--cost-frame) 70%, transparent);
+}
+
+/* トラッシュボタン右下のEXシンボル枚数バッジ（手札の枚数バッジと同じ黄色） */
+#btn-toggle-trash { position: relative; }
+#btn-toggle-trash .count-badge.ex-badge {
+    bottom: -6px;
+    right: -4px;
+    font-size: 10px;
+    padding: 1px 5px;
+}
+
+/* 《継召》対象選択ボタンの枚数表示（選択枚数/トラッシュ内枚数。手札の枚数バッジと同じ黄色） */
+.ex-trash-count {
+    background: #eab308;
+    color: #000;
+    font-weight: 800;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* トラッシュEXバッジの色別内訳（EX合計＋シンボルアイコンと枚数のチップ） */
+#btn-toggle-trash .count-badge.ex-badge {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    bottom: -8px;
+    padding: 1px 5px;
+}
+.count-badge.ex-badge .ex-total { font-size: 10px; }
+.count-badge.ex-badge .ex-color-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 800;
+}
+.count-badge.ex-badge .ex-color-chip .sym-icon { width: 11px; height: 11px; }
+
+/* [ソウルコア]が載っている個体のバッジと1:1交換ボタン（docs/design/SOULCORE.md 段7） */
+.soul-core-badge {
+    position: absolute;
+    left: 2px;
+    bottom: 34px;
+    width: 22px;
+    height: 22px;
+    background: url("/imgs/soulcore.png") center / contain no-repeat;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+    z-index: 6;
+}
+/* 支払いUIの[ソウルコア]の使い方3択（使わない/コスト/維持コア）の選択中ボタン */
+#targeting-info button.souluse-selected {
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+}
+
+/* 支払いモード中: 対象カードの[ソウルコア]をコスト支払いに使うボタン */
+.soul-pay-badge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    padding: 1px 4px;
+    font-size: 10px;
+    border: 1px solid #eab308;
+    border-radius: 3px;
+    background: rgba(15, 17, 21, 0.85);
+    color: #fbbf24;
+    cursor: pointer;
+    z-index: 8;
+}
+/* 選択中は手札の選択ハイライト（.card.selected）と同じ青グローで強調 */
+.soul-pay-badge.active {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(59, 130, 246, 0.8);
+    filter: brightness(1.2);
+    opacity: 1;
+}
+.soul-pay-badge.active {
+    background: #eab308;
+    color: #000;
+}
+.soul-pay-badge.active.maintain {
+    background: #10b981;
+    border-color: #10b981;
+    color: #000;
+}
+
+/* info パネルの[ソウルコア]所在項目のインライン画像 */
+.soul-core-inline {
+    height: 12px;
+    vertical-align: -1px;
+}
+
+.soul-swap-badge {
+    position: absolute;
+    right: 1px;
+    top: 1px;
+    padding: 1px 4px;
+    font-size: 9px;
+    border: none;
+    border-radius: 3px;
+    background: #eab308;
+    color: #000;
+    cursor: pointer;
+    z-index: 7;
+}
+.soul-swap-badge:hover {
+    filter: brightness(1.2);
 }

@@ -70,3 +70,18 @@ export function revertOnceUsed(state: GameState, inst: CardInstance, effectId: s
         inst[slot] = rest
     }
 }
+
+// 〔バトル1回〕（kind:"activated" の oncePerBattle）。上のターン単位の枠とは別にバトル単位で数え、
+// clearBattle で消える（バトルが終われば次のバトルでもう一度使える）
+export function isOncePerBattleUsed(state: GameState, inst: CardInstance, effectId: string): boolean {
+    return state.activatedUsedBattle?.[`${inst.instanceId}/${effectId}`] === true
+}
+
+export function markOncePerBattleUsed(state: GameState, inst: CardInstance, effectId: string): void {
+    ;(state.activatedUsedBattle ??= {})[`${inst.instanceId}/${effectId}`] = true
+}
+
+export function revertOncePerBattleUsed(state: GameState, inst: CardInstance, effectId: string): void {
+    if (!state.activatedUsedBattle) return
+    delete state.activatedUsedBattle[`${inst.instanceId}/${effectId}`]
+}

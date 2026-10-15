@@ -189,12 +189,18 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "colorFilter": "purple",
-     "costFilter": {
-      "min": 5,
-      "max": 7
-     }
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "color": "purple",
+      "cost": {
+       "min": 5,
+       "max": 7
+      }
+     },
+     "count": 1
     }
    }
   ]
@@ -3993,13 +3999,30 @@
     "turn": "own",
     "colorFilter": "blue",
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": "spirit",
-      "nameIncludes": "巨人"
-     },
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "nameIncludes": "巨人"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     },
     "optional": true
    },
@@ -4165,17 +4188,33 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "reveal",
-     "count": 3,
-     "pick": {
-      "cardType": "spirit",
-      "keyword": "tensho"
-     },
-     "optional": true,
-     "dest": "summon",
-     "tensho": "asIfDone",
-     "rest": "trash",
-     "returnToDeckBottomAtEndStep": true
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 3
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "keyword": "tensho"
+       },
+       "optional": true,
+       "tensho": "asIfDone",
+       "returnToDeckBottomAtEndStep": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -4675,9 +4714,14 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 3,
-     "familyFilter": "歌鳥"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "歌鳥"
+     }
     }
    },
    {

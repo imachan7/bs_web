@@ -29,6 +29,7 @@ function symbolsOf(inst: CardInstance, forSummon = false): { symbols: Color[]; f
         ...(inst.symbolsAddedContinuous ?? []),
         ...(inst.extraSymbolsPermanent ?? []),
         ...(inst.battleSymbolsAdded ?? []),
+        ...(inst.timedSymbolsAdded ?? []),
     ]
     for (const c of inst.timedSymbolLoss ?? []) {
         const idx = symbols.indexOf(c)

@@ -34,7 +34,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
     "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
-    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onLifeReduced", "onRefreshed", "onTenshoTarget",
 ])
 
 // 『』で囲まれた効果は**カテゴリ**で、効果を借りる／発揮させない器は『』付きしか対象にできない
@@ -107,8 +107,12 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
         return
     }
     for (const [key, value] of Object.entries(node)) {
-        if (key === "action" && value && typeof value === "object" && !Array.isArray(value)) {
+        // action だけでなく if の then/else・pay の cost・sequence の actions の中も集める（入れ子の取りこぼし防止）
+        if ((key === "action" || key === "then" || key === "else" || key === "cost") && value && typeof value === "object" && !Array.isArray(value) && typeof (value as { type?: unknown }).type === "string") {
             out.push(value as { type?: unknown })
+        }
+        if (key === "actions" && Array.isArray(value)) {
+            for (const x of value) if (x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string") out.push(x as { type?: unknown })
         }
         collectActions(value, out)
     }
@@ -280,25 +284,19 @@ const FILTER_ACTIONS = new Set([
 ])
 
 // TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
-const VALID_FILTER_KEYS = new Set([
-    "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "minCores", "maxCores", "rested", "refreshed",
-    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameFamilyAsDestroyed", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
-    "sameCostAsEventTarget", "sameCostAsLast", "sameCostAsSelf", "costSameAsOwn", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
-    "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
-    "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
-    "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
-    "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
-    "bofuExhausted", // このバトル中に【暴風】で疲労した相手のスピリット（R5。"self"=発生源の【暴風】限定）
-    "damagedOwnLife", // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（R5）
-    "familyExclude", // familyの否定：並べた系統をどれも持たない（BS16-052）
-])
+// server/src/type.ts の TargetFilter の宣言から軸名を読む（手で並べると軸の追加に追従できない）
+const VALID_FILTER_KEYS = (() => {
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "server", "src", "type.ts"), "utf-8")
+    const body = src.slice(src.indexOf("export interface TargetFilter {"))
+    const block = body.slice(0, body.indexOf("\n}"))
+    return new Set([...block.matchAll(/^ {4}(\w+)\??:/gm)].map((m) => m[1]!))
+})()
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
 const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
     // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
     // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
-    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla"],
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla", "cost", "team", "shinkaiho", "lastTarget"],
 }
 
 function checkTargetFilters(
@@ -331,7 +329,8 @@ function checkTargetFilters(
         for (const key of Object.keys(filter)) {
             if (!VALID_FILTER_KEYS.has(key)) {
                 add(cardId, `${a.type} の filter に未知の軸 "${key}" がある（TargetFilter に無いキーは無言で無視される）`)
-            } else if (allowed && !allowed.includes(key)) {
+            } else if (allowed && !allowed.includes(key) && cardId.startsWith("26")) {
+                // 旧カード（26系以外）は対象外（2026-10-07 ユーザー指示。入れ子の検査を広げた際に BS14-X03 が出たが触らない）
                 add(
                     cardId,
                     `${a.type} の filter の軸 "${key}" はこのアクションが見ない（対応は ${allowed.join(" / ")} のみ）`,
@@ -617,7 +616,6 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 // ここに載せた action.type がカードデータに書かれていたら validate:cards で落とす（2026-09-25）。
 // 「先に仕組みだけ入れる」用途でここに載せない（カードが入った時点で落ちて気づけるが、載せっぱなしの原因になる）
 const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
-    ["funsaiOnBlock", "ブロック宣言時の同時発揮で【粉砕】を他の誘発と同じ列に並べるための再開フレーム（blockDeclared.ts）"],
     ["revealDiscardRest", "revealAndSummonKeyword が選択待ちの queue に積む後始末"],
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
@@ -625,6 +623,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+    ["trashReturnToHandInternal", "kind:\"trashReturnOnOwnSpiritDestroyed\"／\"trashReturnOnOwnHeavyExhaust\" の「手札に戻しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。26RSD05-012・26RBS02-032）"],
     ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
@@ -639,6 +638,12 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
 // atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
 const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
+// standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
+const STANDARD_POOL_ONLY = new Set<string>([
+    "bpBuffAll", "bpMinus", "designate", "exhaustOwnNexuses", "fireSoryoSelf", "grantKeywordThisTurn", "heavyExhaust",
+    "levelAsSelfThisBattle", "nexusAsSpiritThisStep", "openAwakenMode", "placeSoulCore", "refreshOwnNexus",
+    "returnLastUsedMagicToHand", "returnOwnNexusToDeckBottom", "soulCoreToTrash", "spawnToken",
+])
 
 // declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
 export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {
@@ -694,7 +699,7 @@ export function findUnusedActions(cards: CardData[]): string[] {
     }
     for (const c of cards) walk(c.effects)
     return [...VALID_ACTIONS]
-        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a) && !AWAITING_MIGRATION.has(a))
+        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a) && !AWAITING_MIGRATION.has(a) && !STANDARD_POOL_ONLY.has(a))
         .sort()
 }
 

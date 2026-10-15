@@ -14,7 +14,7 @@ import { card } from "../cardDb"
 import { minLevelCoresOf } from "./activation"
 import { activeConstraints, hasGlobalConstraint, timedBattleContents, timedPlayerRules } from "./constraints"
 import { spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { cardNameContains } from "./targetFilter"
+import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
 
 // ---- キーワード ----
 
@@ -44,6 +44,16 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     hyoheki: { id: "hyoheki", label: "氷壁" },
     fushi: { id: "fushi", label: "不死" },
     jumetsugeki: { id: "jumetsugeki", label: "呪滅撃" },
+    zofuku: { id: "zofuku", label: "増幅" },
+    suiryu: { id: "suiryu", label: "水流" },
+    chimei: { id: "chimei", label: "地鳴" },
+    soryo: { id: "soryo", label: "操霊" },
+    majutsu: { id: "majutsu", label: "魔述" },
+    kyoso: { id: "kyoso", label: "響走" },
+    reawaken: { id: "reawaken", label: "Re覚醒" },
+    fchange: { id: "fchange", label: "Fチェンジ" },
+    meisai: { id: "meisai", label: "迷彩" },
+    levelup: { id: "levelup", label: "レベルアップ" },
 }
 
 // キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。
@@ -122,6 +132,11 @@ export function combinedBraveColorsOk(
 ): boolean {
     if (colors === undefined) return true
     return bravesOf(player, host).some((b) => colors.some((c) => instHasColor(b, c)))
+}
+
+// カードが指定チームを持つか（kind:"allTeams"＝「すべてのチームを持つ」は全チームに当たる。カード単体で見る場所用）
+export function cardHasTeam(cardData: CardData, team: string): boolean {
+    return (cardData.team ?? []).includes(team) || cardData.effects.some((e) => e.kind === "allTeams")
 }
 
 // カードに効果の記述を持たない（バニラ）か
@@ -383,6 +398,49 @@ export function ownFieldOnlyColor(board: Board, pid: PlayerId, color: Color, spi
     })
 }
 
+// 自分フィールドに指定チーム（CardData.team）所属のスピリットがcount体以上いるか。
+// 26系「【X】を持つ自分のスピリットがN体以上いるなら」。restedOnly指定時は疲労状態の個体だけを数える。
+// AuraCondition.ownTeamAtLeast（オーラの発動条件）と、triggered/if/step/activated の
+// 効果レベル条件がこの判定を共有する（片側だけ挙動が変わらないように一本化する）
+export function ownTeamAtLeast(board: Board, pid: PlayerId, spec: { team: string; count: number; restedOnly?: true }): boolean {
+    const n = board.players[pid].field.spirits.filter(
+        (s) => (card(s.cardId).team ?? []).includes(spec.team) && (spec.restedOnly !== true || s.isRested),
+    ).length
+    return n >= spec.count
+}
+
+// 自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属するか。
+// 26系「自分のスピリット/ネクサスすべてが【X】を持つなら」。0体では不成立とする簡略化
+// （正式ルールでは空欄場で「すべてが〜」は空虚な真で成立するが、1体以上要求のほうが文言の趣旨に沿う）。
+// 破壊待機（pendingDestruction）の個体は「破壊された」側なので判定から除く
+// （破壊時効果の解決時点ではカードがフィールドに残っているが、残り場で判定する。part506が捕捉）
+export function ownAllHaveTeam(board: Board, pid: PlayerId, team: string): boolean {
+    const own = board.players[pid]
+    const insts = [...own.field.spirits, ...own.field.nexuses].filter((inst) => inst.pendingDestruction !== true)
+    if (insts.length === 0) return false
+    return insts.every((inst) => (card(inst.cardId).team ?? []).includes(team))
+}
+
+export function ownAllHaveFamily(board: Board, pid: PlayerId, family: string): boolean {
+    const own = board.players[pid]
+    const insts = [...own.field.spirits, ...own.field.nexuses].filter((inst) => inst.pendingDestruction !== true)
+    if (insts.length === 0) return false
+    return insts.every((inst) => instFamilies(inst).includes(family))
+}
+
+export function ownAllSpiritsHaveFamily(board: Board, pid: PlayerId, family: string | string[], costIn?: number[]): boolean {
+    const insts = board.players[pid].field.spirits.filter((inst) => inst.pendingDestruction !== true)
+    if (insts.length === 0) return false
+    const families = Array.isArray(family) ? family : [family]
+    return insts.every((inst) => instFamilies(inst).some((f) => families.includes(f)) && (costIn === undefined || instMatchesCostFilter(inst, { in: costIn })))
+}
+
+export function ownAllNexusesHaveFamily(board: Board, pid: PlayerId, family: string): boolean {
+    const insts = board.players[pid].field.nexuses
+    if (insts.length === 0) return false
+    return insts.every((inst) => instFamilies(inst).includes(family))
+}
+
 // 現在のレベルとBP。timedLevel（このターンの上書き）または levelAsContinuous（継続置換）が
 // あればそちらを優先し、無ければコア数（coresOverride があればそれ）から判定する。
 // BP には tempBpBuff と battleBpBuff を加算する（レベル0＝維持コア割れの場合は加算しない）。
@@ -428,11 +486,24 @@ function levelOf(inst: CardInstance, forEffects: boolean): { level: number; bp: 
     const coreCount = inst.coresOverride ?? inst.cores
     let result = { level: 0, bp: 0 }
     for (const lv of levels) {
-        if (coreCount >= lv.cores && lv.level > result.level) {
+        // 《真界放》のLv（soulCoreRequired）は印刷コア数を満たさなくても[ソウルコア]1個で維持できる
+        // （2026-10-07 ユーザー裁定。通常コアのみでも印刷数を満たせば通常どおりそのLvになる）
+        const maintained = coreCount >= lv.cores || (lv.soulCoreRequired === true && inst.soulCoreOn === true)
+        if (maintained && lv.level > result.level) {
             result = { level: lv.level, bp: lv.bp }
         }
     }
     return { level: result.level, bp: result.bp + (result.level > 0 ? buff : 0) }
+}
+
+// 真界放状態（26系《真界放》）: soulCoreRequired のLv（常にLv2）に現在いること。
+// コアの内訳（[ソウルコア]か通常コアか）は問わない（2026-10-07 ユーザー裁定）。
+// 「真界放状態の〜」「真界放していない〜」の対象絞り込み（TargetFilter.shinkaiho）が使う
+export function instInShinkaihoState(inst: CardInstance): boolean {
+    const levels = instLevels(inst)
+    const marked = levels.find((l) => l.soulCoreRequired === true)
+    if (marked === undefined) return false
+    return currentLevel(inst).level >= marked.level
 }
 
 // ---- ブレイヴ（docs/design/BRAVE.md §2.3）----

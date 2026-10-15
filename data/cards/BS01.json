@@ -672,8 +672,13 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     },
     "optional": false
    }
@@ -3269,11 +3274,29 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "count": 5,
-     "pick": {
-      "cardType": "nexus"
-     }
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 5
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "nexus"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
+      }
+     ]
     },
     "optional": false
    }
@@ -5538,8 +5561,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     }
    }
   ]
@@ -6054,7 +6082,9 @@
        "count": 3
       },
       {
-       "type": "discardSelfChoose",
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
        "count": 2
       }
      ]

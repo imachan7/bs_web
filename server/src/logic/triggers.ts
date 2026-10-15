@@ -9,6 +9,7 @@
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
 import { markPays } from "./actions/pay"
+import { matchesPick } from "./actions/revealAction"
 import type {
     AuraCondition,
     AuraCounter,
@@ -79,6 +80,7 @@ import {
     countSymbols,
     effectActiveAtLevel,
     effectiveBp,
+    receivesBpPlus,
     effectSources,
     hasArmorAgainst,
     hasContinuousKeywordGrant,
@@ -88,6 +90,7 @@ import {
     hasGlobalConstraint,
     hasMagicImmunity,
     hasBounceImmunity,
+    hasKeyword,
     instanceSymbolCount,
     instAllCosts,
     instColors,
@@ -110,8 +113,8 @@ import {
     noOpponentTriggerByColor,
     noSummonTriggerByCost,
     spiritHasFamily,
-    instHasStaticKeyword,
     spiritHasKeyword,
+    spiritHasKeywordOrLabel,
     effectActiveOn,
     isOnFieldAnyZone,
     instIsCombined,
@@ -121,6 +124,9 @@ import {
     cardHasColor,
     opponentFieldColorCount,
     ownFieldOnlyColor,
+    ownAllHaveFamily,
+    ownAllHaveTeam,
+    ownTeamAtLeast,
 } from "../../../shared/rules"
 export {
     activeConstraints,
@@ -142,6 +148,7 @@ export {
     hasGlobalConstraint,
     hasMagicImmunity,
     hasBounceImmunity,
+    hasKeyword,
     instanceSymbolCount,
     instColors,
     instHasColor,
@@ -166,6 +173,7 @@ import {
     findSpiritAny,
     hasAttackTriggersAsBlock,
     hasBlockTriggersAsAttack,
+    blockTriggersAlsoOnAttack,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -179,7 +187,7 @@ export { bothSidesPids, findBothSidesRedirectSource, bothSidesRedirectKeepPid, a
 import { setTargetRedirect } from "./magic/redirect"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { finishSummonEffect, fireBurstOnEvent } from "./keywords/burst"
-import type { CollectedTrigger } from "./blockDeclared"
+import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
 export { resolveMagicEffects, MAGIC_REPEAT_OPTIONS, applyMagicRepeatChoice } from "./magic/resolve"
 
 // ---- イベント発火 ----
@@ -275,7 +283,6 @@ export function fireTrigger(
     byOpponent?: boolean, // 相手によって破壊されたか（onDestroy限定。condition.selfDestroyedByOpponent の判定に使う。reviveOnDestroy.when.byOpponentと同じ判定＝相手の効果 または バトルのBP比較。BS13-010スカルザード）
     fromHand?: boolean, // 器BS16：onDeploy限定：手札から配置されたか（effect.fromHandOnly の判定に使う。BS16-062天下眺める絶景門）
     onlyEffectIds?: string[], // fireSummonTrigger と同じ
-    collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -327,7 +334,7 @@ export function fireTrigger(
     const firedEvents: TriggerEvent[] =
         movedToBlock && event === "onBlock"
             ? ["onBlock", "onAttack"]
-            : movedToAttack && event === "onAttack"
+            : (movedToAttack || blockTriggersAlsoOnAttack(state, owner, selfInstance)) && event === "onAttack"
               ? ["onAttack", "onBlock"]
               : [event]
     // src は**その効果エントリを持っているカードの個体**。ホスト自身のこともあれば、
@@ -356,7 +363,11 @@ export function fireTrigger(
         if (effect.turn === "opponent" && owner === state.turnPlayer) return false
         // 「この効果はターンに1回しか使えない」（発生源1体につき。BS11-032 天王神獣スレイ・ウラノス）
         if (effect.oncePerTurn === true && isOnceUsed(state, owner, src, effect, "triggeredUsedTurn")) return false
-        if (effect.condition) {
+        if (effect.condition === "selfWasAttacker") {
+            // 26系【地鳴】の『アタック中』窓: selfがこのバトルのアタッカーのときだけ発火
+            if (state.battle?.attackerInstanceId !== selfInstance.instanceId) return false
+        }
+        if (effect.condition && typeof effect.condition === "object") {
             if ("opponentNexusColorsAtLeast" in effect.condition) {
                 // 溶海竜プレシオスLv3：持ち主から見て相手フィールドのネクサスの色数（重複除く）が
                 // opponentNexusColorsAtLeast 以上のときのみ発火
@@ -400,7 +411,7 @@ export function fireTrigger(
                 const kw = effect.condition.ownFieldHasKeyword
                 if (
                     !state.players[owner].field.spirits.some((s) =>
-                        spiritHasKeyword(state, owner, s, kw),
+                        spiritHasKeywordOrLabel(state, owner, s, kw),
                     )
                 ) {
                     return false
@@ -482,6 +493,11 @@ export function fireTrigger(
             } else if ("selfSummonedByFushi" in effect.condition) {
                 // BS13-014闇騎士アグラヴェイン：その召喚が【不死】によるものだったときのみ発火
                 if (byFushi !== true) return false
+            } else if ("selfDestroyedByOwnEffect" in effect.condition) {
+                const dc = selfInstance.pendingDestroyContext
+                const want = effect.condition.selfDestroyedByOwnEffect.sourceFamily
+                const fams = dc?.sourceCardId !== undefined ? getCard(dc.sourceCardId).family : []
+                if (dc === undefined || dc.battle !== undefined || dc.sourcePid !== owner || !(Array.isArray(want) ? want : [want]).some((f) => fams.includes(f))) return false
             } else if ("selfDestroyedByOpponent" in effect.condition) {
                 // BS13-010スカルザード：相手によって破壊されたときのみ発火
                 if (byOpponent !== true) return false
@@ -514,6 +530,26 @@ export function fireTrigger(
                 // BS15共通器：発生源の持ち主のフィールドが指定色1色だけのときのみ発火
                 const { ownFieldOnlyColor: color, spiritsOnly } = effect.condition
                 if (!ownFieldOnlyColor(state, owner, color, spiritsOnly === true)) return false
+            } else if ("ownAllHaveTeam" in effect.condition) {
+                // 26系「自分のスピリット/ネクサスすべてが【X】を持つなら」：
+                // 1体以上いて全員が指定チーム（CardData.team）所属のときのみ発火。0体では不成立
+                if (!ownAllHaveTeam(state, owner, effect.condition.ownAllHaveTeam)) return false
+            } else if ("ownAllHaveFamily" in effect.condition) {
+                if (!ownAllHaveFamily(state, owner, effect.condition.ownAllHaveFamily)) return false
+            } else if ("ownTeamAtLeast" in effect.condition) {
+                // 26系「【X】を持つ自分のスピリットがN体以上いるなら」：
+                // AuraCondition.ownTeamAtLeastと同じ判定（restedOnly指定時は疲労状態の個体だけを数える）
+                if (!ownTeamAtLeast(state, owner, effect.condition.ownTeamAtLeast)) return false
+            } else if ("soulCoreInReserve" in effect.condition) {
+                // 26系「自分のリザーブに[ソウルコア]があるなら」
+                if (!soulCoreInReserve(state.players[owner])) return false
+            } else if ("ownKeishoExcludedTeamAtLeast" in effect.condition) {
+                // 26系「この継召で【X】を持つカードをN枚以上除外していたなら」：
+                // 直近の《継召》で除外したカード（keishoExcludedCardIds）で判定する
+                if (!keishoExcludedTeamAtLeast(state, effect.condition.ownKeishoExcludedTeamAtLeast)) return false
+            } else if ("summonedBy" in effect.condition) {
+                // 26系「【Fチェンジ】で召喚していたなら」：発生源自身（src）の召喚経路が一致するときのみ発火
+                if (src.summonedBy !== effect.condition.summonedBy) return false
             }
         }
         return true
@@ -551,8 +587,10 @@ export function fireTrigger(
             getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
         ),
     ]
-    const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => {
-        const effect = entry.effect as Extract<EffectDef, { kind: "triggered" }>
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]
+        const effect = entry?.effect
+        if (!entry || !effect || !matches(effect, entry.src)) continue
         // ターン1回の消費は**発揮する直前**に記録する（解決中に中断が入っても再発揮させない）。
         // 実際には発揮しなかったとき（コストを払えず不発／確認を断った）は下で巻き戻す
         // （RULES_BATSPI_WIKI.md。2026-09-16 ユーザー確定）
@@ -588,51 +626,6 @@ export function fireTrigger(
             revertOncePerTurn(state, entry.src, effect.id)
             delete state.effectFizzled
         }
-    }
-    if (collect !== undefined) {
-        const label = `${state.players[owner].name}の${card.name}`
-        const key = `${owner}:${selfInstance.cardId}`
-        for (const entry of entries) {
-            const effect = entry.effect
-            if (!matches(effect, entry.src)) continue
-            // frame 経由で解決される経路でも「ターンに1回」を消費済みにする（run 経由の markOnceUsed は冪等）
-            if (effect.oncePerTurn === true) markOnceUsed(state, owner, entry.src, effect, "triggeredUsedTurn")
-            const target = effect.eventTarget === "ignore" ? undefined : targetInstanceId
-            collect.push({
-                key,
-                label,
-                run: () => resolveEntry(entry),
-                frame: {
-                    kind: "action",
-                    selfInstanceId: selfInstance.instanceId,
-                    action: effect.oncePerTurn === true ? markPays(effect.action, { onceRevert: { instanceId: entry.src.instanceId, effectId: effect.id } }) : effect.action,
-                    actorPid: owner,
-                    ...(target !== undefined ? { targetInstanceId: target } : {}),
-                    ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
-                },
-            })
-        }
-        for (const a of grantedActions) {
-            collect.push({
-                key,
-                label,
-                run: () => resolveAction(state, owner, selfInstance, a, targetInstanceId),
-                frame: {
-                    kind: "action",
-                    selfInstanceId: selfInstance.instanceId,
-                    action: a,
-                    actorPid: owner,
-                    ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
-                },
-            })
-        }
-        return
-    }
-    for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i]
-        const effect = entry?.effect
-        if (!entry || !effect || !matches(effect, entry.src)) continue
-        resolveEntry(entry)
         // 選択待ちが立ったら、残りの一致エントリ＋付与分をqueueに積んで中断する
         if (state.pendingChoice) {
             const remaining = entries.slice(i + 1).filter((x) => matches(x.effect, x.src))
@@ -1065,6 +1058,30 @@ export function fireStepTriggers(
                     )
                     if (total < count) continue
                 }
+                if (effect.condition && typeof effect.condition === "object" && "ownAllHaveTeam" in effect.condition) {
+                    // 26系「自分のスピリット/ネクサスすべてが【X】を持つなら」（step軸。triggeredの条件判定と同じ）
+                    if (!ownAllHaveTeam(state, pid, effect.condition.ownAllHaveTeam)) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownAllHaveFamily" in effect.condition) {
+                    if (!ownAllHaveFamily(state, pid, effect.condition.ownAllHaveFamily)) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownTeamAtLeast" in effect.condition) {
+                    // 26系「【X】を持つ自分のスピリットがN体以上いるなら」：
+                    // AuraCondition.ownTeamAtLeastと同じ判定（発火元インスタンス自身も数に入る）
+                    if (!ownTeamAtLeast(state, pid, effect.condition.ownTeamAtLeast)) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "soulCoreInReserve" in effect.condition) {
+                    // 26系「自分のリザーブに[ソウルコア]があるなら」（step軸。triggeredの条件判定と同じ）
+                    if (!soulCoreInReserve(state.players[pid])) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "ownKeishoExcludedTeamAtLeast" in effect.condition) {
+                    // 26系「この継召で【X】を持つカードをN枚以上除外していたなら」（step軸。triggeredの条件判定と同じ）
+                    if (!keishoExcludedTeamAtLeast(state, effect.condition.ownKeishoExcludedTeamAtLeast)) continue
+                }
+                if (effect.condition && typeof effect.condition === "object" && "summonedBy" in effect.condition) {
+                    // 26系「【Fチェンジ】で召喚されているか」など（step軸。triggeredの条件判定と同じ。発生源自身の召喚経路と突合）
+                    if (inst.summonedBy !== effect.condition.summonedBy) continue
+                }
                 firing.push({ pid, inst, effect })
             }
         }
@@ -1216,6 +1233,39 @@ export function burstConditionMet(
     return fieldCores + player.reserve + player.trashCores >= condition.ownCoresTotalAtLeast
 }
 
+// 「BPがN以上になった時」（event: "ownSpiritBpReached"）：handleAction が1操作を解決しきった地点で呼ぶ。
+// 各スピリットの前回の実効BP（state.bpSeen）と今回を比べ、増減があったものだけ発火する（2026-10-11 ユーザー確認）。
+// 新しく場に出た個体は前回値が無いので記録するだけ。発火は届いた個体を集めてから順に行い、選択待ちが立ったら残りは捨てる（同時に複数体が届くのは稀なので簡略化）
+export function fireBpReachedTriggers(state: GameState): void {
+    const pids = ["p1", "p2"] as PlayerId[]
+    const watched = pids.some((pid) => effectSources(state, pid).some((inst) => getCard(inst.cardId).effects.some((e) => e.kind === "fieldEvent" && e.event === "ownSpiritBpReached")))
+    if (!watched) {
+        delete state.bpSeen
+        return
+    }
+    const prev = state.bpSeen ?? {}
+    const next: Record<string, number> = {}
+    const reached: { pid: PlayerId; inst: CardInstance; from: number; to: number }[] = []
+    for (const pid of pids) {
+        for (const inst of state.players[pid].field.spirits) {
+            const to = effectiveBp(state, pid, inst)
+            next[inst.instanceId] = to
+            const from = prev[inst.instanceId]
+            if (from !== undefined && from !== to) reached.push({ pid, inst, from, to })
+        }
+    }
+    state.bpSeen = next
+    for (const [i, r] of reached.entries()) {
+        if (state.winner) return
+        // 選択待ちで止まったら、残りは前回の値に戻しておき、次の操作の事後処理で拾い直す
+        if (state.pendingChoice) {
+            for (const rest of reached.slice(i)) next[rest.inst.instanceId] = rest.from
+            return
+        }
+        fireFieldEventTriggers(state, r.pid, "ownSpiritBpReached", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, { bpFrom: r.from, bpTo: r.to })
+    }
+}
+
 export function fireFieldEventTriggers(
     state: GameState,
     pid: PlayerId,
@@ -1236,6 +1286,12 @@ export function fireFieldEventTriggers(
         // event: "ownSpiritExhausted" 限定：**相手の**スピリット/ブレイヴ/マジックの効果による疲労か
         // （ネクサスの効果による疲労は含まない。fireExhaustedTriggers が計算する。BS12-062白煙の大山脈）
         byOpponentEffect?: boolean
+        // 疲労イベント限定：疲労させた効果の実行者と発生源種別（効果によらない疲労＝アタック宣言等では undefined。causedByOwnEffect の判定に使う）
+        causePid?: PlayerId
+        causeType?: CardType
+        // event: "opponentSpiritDestroyed" 限定：破壊した側（発火する側）の効果による破壊のときの、その発生源の種別とカードID（destroyedByOwnEffect の判定に使う）
+        ownEffectSourceType?: CardType
+        ownEffectSourceCardId?: string
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean
         // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）。
@@ -1257,15 +1313,26 @@ export function fireFieldEventTriggers(
         byFushi?: boolean
         // 同上：その召喚が【神速】によるものだったか（sokuSummonOnly の判定に使う。BS11-065 満天の牧草地Lv2）
         bySoku?: boolean
+        // 同上：《継召》で召喚されたか（keishoSummonOnly の判定に使う。26RBS02-079）
+        byKeisho?: boolean
+        // event: "ownSpiritDestroyed" 限定：消滅（維持コア割れ）で、その原因が相手の効果だったか（byOpponentVanishOnly の判定に使う。26RBS02-079）
+        vanishedByOpponent?: boolean
         // 同上：手札からの召喚だったか（fromHandOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ）
         fromHand?: boolean
         // event: "ownMagicUsed" 限定：そのマジックが「コストを支払って」使用されたか（paidCostOnly の判定に使う。BS11-X05 魔導双神ジェミナイズ Lv2-3）
         paidCost?: boolean
+        // 同上：使用したマジックの cardId（magicPick の判定に使う）
+        magicCardId?: string
         // event: "ownBurstActivated" 限定：発動したバーストのカードのコスト（docs/design/BURST.md）
         burstCost?: number
         // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別（refreshSpiritのsourceType引数をそのまま渡す。
         // undefined＝リフレッシュステップ・ネクサスの効果由来。refreshSourceTypeFilterの判定に使う。BS14-085賛美するパイプオルガン）
         refreshSourceType?: CardType
+        // event: "ownKeywordActivated" 限定：発揮されたキーワード（【増幅】/【水流】等のラベルID）
+        keyword?: Keyword
+        // event: "ownSpiritBpReached" 限定：前回観測したBPと今回のBP（bpReachedAt の判定に使う）
+        bpFrom?: number
+        bpTo?: number
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -1283,8 +1350,6 @@ export function fireFieldEventTriggers(
     // 判定しない（トラッシュ行き確定の後に fireQueuedDestroyBursts が1回だけ判定する。TIMING_CHART.md ＞６）。
     // trueのときはこの関数末尾のバースト走査を丸ごと飛ばす
     skipBurst?: true,
-    // 渡されたら解決せずに各件を積んで返る。末尾のバースト判定も呼ばない（呼び出し側が解決後に行う）
-    collect?: CollectedTrigger[],
 ): void {
     const player = state.players[pid]
     // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。lendSelfThisTurn。
@@ -1385,16 +1450,43 @@ export function fireFieldEventTriggers(
                 const needs = Array.isArray(effect.subjectKeywordFilter)
                     ? effect.subjectKeywordFilter
                     : [effect.subjectKeywordFilter]
-                if (!needs.some((kw) => spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, kw))) continue
+                if (!needs.some((kw) => spiritHasKeywordOrLabel(state, selfOverride.pid, selfOverride.inst, kw))) continue
             }
             // 器BS16：subjectMaxCost / subjectHasTrigger（BS16-064宙吊りの五行山Lv2）。
             // 主体の実体（selfOverride）で判定する＝subjectKeywordFilterと同じ考え方
             if (effect.subjectMaxCost !== undefined) {
                 if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { max: effect.subjectMaxCost })) continue
             }
+            if (effect.subjectMinCost !== undefined) {
+                if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { min: effect.subjectMinCost })) continue
+            }
+            if (effect.subjectReceivesBpPlus && (selfOverride === undefined || !receivesBpPlus(state, selfOverride.pid, selfOverride.inst))) continue
+            if (effect.bpReachedAt !== undefined && !(eventInfo?.bpFrom !== undefined && eventInfo.bpTo !== undefined && eventInfo.bpFrom < effect.bpReachedAt && effect.bpReachedAt <= eventInfo.bpTo)) continue
+            if (effect.blockerMaxBp !== undefined) {
+                const blocker = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
+                if (!blocker || effectiveBp(state, blocker.pid, blocker.inst) > effect.blockerMaxBp) continue
+            }
+            if (effect.subjectMinBp !== undefined && (selfOverride === undefined || effectiveBp(state, selfOverride.pid, selfOverride.inst) < effect.subjectMinBp)) continue
+            if (effect.subjectRefreshed && (selfOverride === undefined || selfOverride.inst.isRested)) continue
+            if (effect.subjectMinSymbols !== undefined && (selfOverride === undefined || instanceSymbolCount(selfOverride.inst) < effect.subjectMinSymbols)) continue
+            // 本来はネクサスの主体（スピリットとして扱われているネクサス。26RBS02-X16）
+            if (effect.subjectOriginalNexus && (selfOverride === undefined || getCard(selfOverride.inst.cardId).type !== "nexus")) continue
+            if (effect.subjectDifferentNameFromSelf && (selfOverride === undefined || getCard(selfOverride.inst.cardId).name === getCard(inst.cardId).name)) continue
+            if (effect.subjectTeamFilter !== undefined) {
+                if (selfOverride === undefined || !(getCard(selfOverride.inst.cardId).team ?? []).includes(effect.subjectTeamFilter)) continue
+            }
             if (effect.subjectHasTrigger !== undefined) {
                 if (selfOverride === undefined || !instHasTriggerEffect(selfOverride.inst, effect.subjectHasTrigger)) continue
             }
+            if (effect.destroyedByOwnEffect) {
+                const want = effect.destroyedByOwnEffect
+                if (eventInfo?.ownEffectSourceType !== want.sourceType) continue
+                if (want.sourceFamily !== undefined) {
+                    const fams = eventInfo.ownEffectSourceCardId !== undefined ? getCard(eventInfo.ownEffectSourceCardId).family : []
+                    if (!(Array.isArray(want.sourceFamily) ? want.sourceFamily : [want.sourceFamily]).some((f) => fams.includes(f))) continue
+                }
+            }
+            if (effect.destroyedMaxBp !== undefined && !(eventInfo?.destroyedBp !== undefined && eventInfo.destroyedBp <= effect.destroyedMaxBp)) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
@@ -1404,6 +1496,11 @@ export function fireFieldEventTriggers(
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
             // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
             if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+            if (effect.causedByOpponent && !(eventInfo?.causePid !== undefined && eventInfo.causePid !== pid)) continue
+            if (effect.causedByOwnEffect !== undefined) {
+                if (eventInfo?.causePid !== pid || eventInfo.causeType === undefined) continue
+                if (effect.causedByOwnEffect === "spirit" && eventInfo.causeType !== "spirit") continue
+            }
             // 「相手によって破壊されたとき」（BS15-061幼竜の揺り籠Lv2）：相手の効果による破壊 **または**
             // バトルのBP比較による破壊（reviveOnDestroy.when.byOpponentと同じ判定。byOpponentEffectOnlyより広い）
             if (effect.byOpponentOnly && !(eventInfo?.byOpponentEffect || eventInfo?.byBattle)) continue
@@ -1416,6 +1513,11 @@ export function fireFieldEventTriggers(
                 (eventInfo?.refreshSourceType === undefined ||
                     !effect.refreshSourceTypeFilter.includes(eventInfo.refreshSourceType))
             ) {
+                continue
+            }
+            // event: "ownKeywordActivated" 限定：発揮されたキーワードで絞る（「自分のスピリットが【増幅】を
+            // 発揮した時」＝keywordActivatedFilter:"zofuku"。イベントpayloadのkeywordと突合）
+            if (effect.keywordActivatedFilter !== undefined && eventInfo?.keyword !== effect.keywordActivatedFilter) {
                 continue
             }
             // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
@@ -1492,28 +1594,35 @@ export function fireFieldEventTriggers(
             // 【不死】の効果で召喚されたときのみ（BS09-013ミミズクロ）。通常の召喚では発火しない
             if (effect.fushiSummonOnly && eventInfo?.byFushi !== true) continue
             if (effect.sokuSummonOnly && eventInfo?.bySoku !== true) continue
+            if (effect.subjectNotInBattle && (selfOverride === undefined || selfOverride.inst.instanceId === state.battle?.attackerInstanceId || selfOverride.inst.instanceId === state.battle?.blockerInstanceId)) continue
+            if (effect.keishoSummonOnly && eventInfo?.byKeisho !== true) continue
+            if (effect.byOpponentVanishOnly && eventInfo?.vanishedByOpponent !== true) continue
             if (effect.fromHandOnly && eventInfo?.fromHand !== true) continue
             // 「コストを支払って」使用されたときのみ（BS11-X05 魔導双神ジェミナイズLv2-3）。
             // このカード自身の無償使用（paidCost:false）からは連鎖しない
             if (effect.paidCostOnly && eventInfo?.paidCost !== true) continue
+            if (effect.magicPick && !(eventInfo?.magicCardId && matchesPick(eventInfo.magicCardId, effect.magicPick))) continue
             // 「ターンに2回しか使えない」：実際に無償使用した回数（confirmで断った・候補が無かった場合は含まない）で絞る
             if (effect.magicFreeUseMaxPerTurn !== undefined) {
                 const usedSoFar = inst.magicFreeUseTurn === state.turn ? (inst.magicFreeUseCount ?? 0) : 0
                 if (usedSoFar >= effect.magicFreeUseMaxPerTurn) continue
             }
-            // イベント対象（召喚された／アタックしたスピリットなど）がこのキーワードを持つときのみ。
-            // 「持つ」には効果で得たものも含む（2026-09-25 ユーザー確認）
+            // 召喚されたスピリットがこのキーワードを静的に持つときのみ（BS05最古龍の顎：転召持ちが召喚されたとき）。
+            // anySpiritAttacked / ownSpiritDealtLife 限定：イベント対象（アタックした／ライフを減らしたスピリット）の
+            // 状態を考慮したキーワード判定（静的・一時付与・継続付与。冥府の深淵の継続付与でも発火させるため。BS06）
             if (effect.keywordFilter !== undefined) {
                 const hasKw =
-                    selfOverride !== undefined
-                        ? spiritHasKeyword(state, selfOverride.pid, selfOverride.inst, effect.keywordFilter)
-                        : instHasStaticKeyword(inst, effect.keywordFilter)
+                    (event === "anySpiritAttacked" || event === "ownSpiritDealtLife") && selfOverride !== undefined
+                        ? spiritHasKeywordOrLabel(state, selfOverride.pid, selfOverride.inst, effect.keywordFilter)
+                        : hasKeyword((selfOverride?.inst ?? inst).cardId, effect.keywordFilter)
                 if (!hasKw) continue
             }
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {
                     // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
                     if (!state.battle || state.battle.attackerInstanceId !== inst.instanceId) continue
+                } else if ("attacksThisTurnAtLeast" in effect.condition) {
+                    if (state.attacksThisTurn < effect.condition.attacksThisTurnAtLeast) continue
                 } else if ("firstAttackOfTurn" in effect.condition) {
                     // 神鳴る霊峰Lv2：そのターンの最初のアタックのときのみ（triggered.conditionの同名軸と同じ判定）
                     if (state.attacksThisTurn !== 1) continue
@@ -1552,6 +1661,8 @@ export function fireFieldEventTriggers(
                     const found = findSpiritAny(state, targetInstanceId)
                     if (!found) continue
                     if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCostOfEventTarget })) continue
+                } else if ("lastMilledHasEx" in effect.condition) {
+                    if (!(state.lastDeckMill?.cardIds ?? []).some((id) => getCard(id).symbolEx === true)) continue
                 } else if ("lastFunsaiHasSpirit" in effect.condition) {
                     // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
                     // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）
@@ -1675,7 +1786,7 @@ export function fireFieldEventTriggers(
         (event === "ownSpiritDestroyed" || event === "opponentSpiritDestroyed") && selfOverride?.inst.pendingDestruction === true
             ? selfOverride.inst.instanceId
             : undefined
-    const handlers: Parameters<typeof resolveInOrder<PoolItem>>[2] = {
+    resolveInOrder(state, pool, {
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
@@ -1748,22 +1859,7 @@ export function fireFieldEventTriggers(
             // （step 版と同じ形。2026-09-08 に効果エントリ単位＋pid無しから直した）
             key: (e) => (e.extra !== undefined ? e.extra.key : `${pid}:${e.inst.cardId}`),
         },
-    }
-    if (collect !== undefined) {
-        const ask = handlers.askOrder
-        if (ask === undefined) return
-        for (const e of pool) {
-            collect.push({
-                key: ask.key(e),
-                label: ask.label(e),
-                frame: handlers.frame(e),
-                skip: () => handlers.skip?.(e) === true,
-                run: () => handlers.resolve(e),
-            })
-        }
-        return
-    }
-    resolveInOrder(state, pool, handlers)
+    })
 
     // バースト（docs/design/BURST.md）：effectSources() には入れないため、上のフィールド発生源の
     // 走査とは別に、ここで両プレイヤーのバーストエリアを見る。上の解決で選択待ちが残っている間は割り込まない。

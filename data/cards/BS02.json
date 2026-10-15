@@ -1556,7 +1556,7 @@
     "action": {
      "type": "linkNexusCoresChoice"
     },
-    "optional": false
+    "optional": true
    }
   ]
  },
@@ -4101,7 +4101,13 @@
      2
     ],
     "action": {
-     "type": "recoverMagicFromTrash"
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "magic"
+     }
     },
     "optional": false
    }
@@ -6445,14 +6451,31 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "countPer": {
-      "ownColorTotal": "yellow"
-     },
-     "pick": {
-      "cardType": "magic"
-     },
-     "pickCount": "all"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "countPer": {
+        "ownColorTotal": "yellow"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "hand",
+       "pick": {
+        "cardType": "magic"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
+      }
+     ]
     },
     "optional": false
    },

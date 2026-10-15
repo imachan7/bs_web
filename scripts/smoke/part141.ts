@@ -75,9 +75,9 @@ const FILLER = CARDS.find(
 console.log("=== BS07 紫：破壊時に相手の手札1枚をデッキの上へ戻させる（魔札の占い師ディーシャ） ===")
 {
     const seer = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["chooserIsTarget"] === true && (e["action"] as Record<string, unknown>)["type"] === "toDeck",
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["chooserIsTarget"] === true && (e["action"] as Record<string, unknown>)["type"] === "moveCards",
     )
-    const entry = entryOf(seer, (e) => (e["action"] as Record<string, unknown> | undefined)?.["chooserIsTarget"] === true && (e["action"] as Record<string, unknown>)["type"] === "toDeck")
+    const entry = entryOf(seer, (e) => (e["action"] as Record<string, unknown> | undefined)?.["chooserIsTarget"] === true && (e["action"] as Record<string, unknown>)["type"] === "moveCards")
     const level = (entry["levels"] as number[])[0]!
 
     const s = base("hand-to-deck")
@@ -191,18 +191,16 @@ console.log("=== BS07 紫：【呪撃】持ちを破壊してトラッシュか�
         const cost = a?.["cost"] as Record<string, unknown> | undefined
         return a?.["type"] === "pay" && cost?.["type"] === "destroy" &&
             (cost["filter"] as Record<string, unknown> | undefined)?.["keyword"] !== undefined &&
-            (a["then"] as Record<string, unknown>)["type"] === "recoverSpiritFromTrash"
+            (a["then"] as Record<string, unknown>)["type"] === "moveCards"
     }
     const bruna = findByEffect(isBruna)
     const payAction = entryOf(bruna, isBruna)["action"] as Record<string, unknown>
     const kw = String(((payAction["cost"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["keyword"])
-    const families = (payAction["then"] as Record<string, unknown>)["familyFilter"] as string[]
+    const families = (payAction["then"] as { pick: { family: string[] } }).pick.family
     const jugekiSpirit = CARDS.find(
         (c) =>
             c.type === "spirit" &&
-            (c.effects ?? []).some(
-                (e) => e["kind"] === "keyword" && e["keyword"] === kw && ((e["levels"] as number[] | null) ?? [1]).includes(1),
-            ) &&
+            (c.effects ?? []).some((e) => e["kind"] === "keyword" && e["keyword"] === kw) &&
             (c.levels?.[0]?.cores ?? 99) === 1,
     )!
     const recoverable = CARDS.find(
@@ -319,16 +317,15 @@ console.log("=== BS07 紫：相手の効果で破壊されたとき、破壊時�
 
 console.log("=== BS07 紫：エンドステップにトラッシュの「夜族」を召喚する（常闇の聖堂） ===")
 {
-    const cathedral = findByEffect(
-        (e) =>
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "summonFromTrashFree" &&
-            (e["action"] as Record<string, unknown>)["familyFilter"] !== undefined,
-    )
-    const action = entryOf(cathedral, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "summonFromTrashFree")[
-        "action"
-    ] as Record<string, unknown>
-    const family = String(action["familyFilter"])
-    const maxCost = Number((action["costFilter"] as Record<string, unknown>)["max"])
+    // 旧 summonFromTrashFree.payCost は moveCards（dest:"summon"・pay:"cost"）に移った
+    const isPaySummon = (e: Record<string, unknown>): boolean => {
+        const a = e["action"] as { type?: string; dest?: string; pay?: string; pick?: { family?: unknown } } | undefined
+        return a?.type === "moveCards" && a.dest === "summon" && a.pay === "cost" && a.pick?.family !== undefined
+    }
+    const cathedral = findByEffect(isPaySummon)
+    const pick = (entryOf(cathedral, isPaySummon)["action"] as { pick: { family: string; cost: { max: number } } }).pick
+    const family = String(pick.family)
+    const maxCost = Number(pick.cost.max)
     const target = CARDS.find(
         (c) => c.type === "spirit" && (c.family ?? []).includes(family) && (c.cost ?? 99) <= maxCost,
     )!

@@ -15,8 +15,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
-    spiritHasFamily,
-} from "./helpers"
+    spiritHasFamily, legacy } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { canBlock } from "../../shared/block"
 import { fireTrigger } from "../../server/src/logic/EffectModules"
@@ -66,7 +65,7 @@ console.log("=== BS09-039 探偵ペンタン：[キャラクターロスト]を�
     runTurnStart(s)
     s.players.p1.hand = [PLAIN]
     s.players.p2.hand = ["BS09-041"]
-    const action = { type: "pay" as const, cost: { type: "discardSelfChoose" as const, count: 1, cardName: "キャラクターロスト" }, then: { type: "peekOpponentHand" as const } }
+    const action = { type: "pay" as const, cost: legacy({ type: "discardSelfChoose" as const, count: 1, cardName: "キャラクターロスト" }), then: { type: "peekOpponentHand" as const } }
     resolveAction(s, "p1", null, action)
     assert(s.players.p1.peekedOpponentCardIds === undefined, "手札に[キャラクターロスト]が無ければ発動しない")
     s.players.p1.hand = [PLAIN, "BS09-079"] // BS09-079＝キャラクターロスト

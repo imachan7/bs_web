@@ -33,18 +33,20 @@ import {
     requestChoice,
     requestUpToChoice,
     returnNexusToHand,
+    returnNexusToDeckBottom,
     returnNexusToDeckTop,
     tryInteractiveTargetChoice,
     voidCoreToOwnTrash,
     placeCoresOnSpirit,
 } from "../EffectModules"
-import { displayLevel, effectiveBp, instBaseCost, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
+import { displayLevel, effectiveBp, instColors, instHasColor, instMatchesCostFilter, matchesTarget, spiritHasKeyword } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { recordDestroysOf } from "../removal"
-import { currentRecordScope, recordLeftCost, recordMoved } from "../record"
+import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
+import { currentRecordScope, lastMovedOf, recordMoved, recordNexusCost } from "../record"
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
 type DestroyNexusAction = Extract<EffectAction, { type: "destroyNexus" }>
@@ -89,7 +91,7 @@ export function destroyNexusCandidateCountForPay(
     srcType: CardType | undefined,
 ): number {
     const opp = opponentOf(owner)
-    const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.side === "own" ? [owner] : [opp]
+    const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.side === "either" ? [owner, opp] : action.side === "own" ? [owner] : [opp]
     const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
         (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
         matchesTarget(state, pid, n, (action.filter ?? {}) as unknown as ResolvedTargetFilter)
@@ -129,7 +131,9 @@ function fixedCount(a: DestroyAction, count: number): DestroyAction {
 }
 
 const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption } = ctx
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId, chosenOption } = ctx
+    // 後続の動作へ印を持ち越さないよう、この破壊だけのコピーに付ける
+    const destroyContext = action.suppressOnDestroy ? { ...ctx.destroyContext, suppressOnDestroy: true as const } : ctx.destroyContext
         if (action.all) {
             destroyAllTargets(ctx, action)
             return
@@ -199,6 +203,18 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 return
             }
             destroySpirit(state, found.pid, found.inst.instanceId, "destroy", destroyContext, { allowSuspend: true })
+            // upTo：1体破壊するたびに残数で聞き直す（exhaust の upTo と同じ形）
+            if (action.upTo && !state.pendingChoice && !state.winner && action.count > 1) {
+                const remaining = action.count - 1
+                requestUpToChoice(
+                    state,
+                    owner,
+                    `${sourceName}の破壊効果：破壊するスピリットを選んでください（あと${remaining}体まで）`,
+                    pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType).map((s) => s.instanceId),
+                    { ...action, count: remaining },
+                    self,
+                )
+            }
             return
         }
         // interactive の選択後に再入するときは excludeTarget を落とす。
@@ -315,6 +331,17 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 }
                 if (state.winner) return
             }
+            return
+        }
+        if (state.interactiveTargets && action.upTo && !action.chooserIsTarget) {
+            requestUpToChoice(
+                state,
+                owner,
+                `${sourceName}の破壊効果：破壊するスピリットを選んでください（${resolvedCount}体まで）`,
+                pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType).map((s) => s.instanceId),
+                { ...actionForChoice, count: resolvedCount },
+                self,
+            )
             return
         }
         if (state.interactiveTargets) {
@@ -587,6 +614,23 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
             matchesTarget(state, pid, n, filter, self?.instanceId)
+        // either：自分か相手のネクサスから1つ。破壊したネクサスは lastMoved に書く（「そうしたなら」が読む）
+        if (action.side === "either") {
+            const cands = [owner, opp].flatMap((pid) => state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => ({ pid, n })))
+            const picked = targetInstanceId !== undefined ? cands.find((c) => c.n.instanceId === targetInstanceId) : undefined
+            if (picked === undefined && targetInstanceId === undefined && state.interactiveTargets && cands.length >= 2) {
+                requestChoice(state, owner, `${sourceName}：破壊するネクサスを選んでください`, cands.map((c) => c.n.instanceId), false, action, self)
+                return
+            }
+            const victim = picked ?? cands.find((c) => c.pid === opp) ?? cands[0]
+            if (!victim) {
+                log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                return
+            }
+            const scope = currentRecordScope(state)
+            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) recordMoved(state, [victim.n.cardId], scope)
+            return
+        }
         // chooserIsTarget（BS14-111エクスキューションデストロイ＝「相手は、相手のネクサス1つを破壊する」）：
         // 破壊される側（opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
         if (action.chooserIsTarget && action.count === 1) {
@@ -624,6 +668,37 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         // side:"own" の1つ破壊は持ち主が選ぶ。非対話は旧サクリファイスと同じくコア最少（同数は先頭）
         if (action.side === "own" && action.count === 1 && !action.all) {
             const candidates = state.players[owner].field.nexuses.filter(matchesIn(owner))
+            // upTo（「指定できる」）：対話時は選ばずに終えられる。スキップでも awaiting 付きで戻ってくる（targetInstanceId なし＝選ばなかった）
+            if (action.upTo && state.interactiveTargets) {
+                const picked = action.awaiting ? candidates.find((n) => n.instanceId === targetInstanceId) : undefined
+                if (!action.awaiting) {
+                    if (candidates.length === 0) {
+                        log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
+                        return
+                    }
+                    suspend(state, {
+                        pid: owner,
+                        kind: "target",
+                        prompt: `${sourceName}：破壊する自分のネクサスを選んでください（選ばずに終えることもできる）`,
+                        candidates: candidates.map((n) => n.instanceId),
+                        optional: true,
+                        resolveOnSkip: true,
+                        action: { ...action, awaiting: true },
+                        selfInstanceId: self ? self.instanceId : null,
+                    })
+                    return
+                }
+                if (!picked) {
+                    log(state, `${sourceName}：自分のネクサスは破壊しなかった。`)
+                    return
+                }
+                const scope = currentRecordScope(state)
+                if (destroyNexus(state, owner, picked.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                    recordMoved(state, [picked.cardId], scope)
+                    recordNexusCost(state, getCard(picked.cardId).cost, scope)
+                }
+                return
+            }
             const chosen = targetInstanceId !== undefined
                 ? candidates.find((n) => n.instanceId === targetInstanceId)
                 : undefined
@@ -638,10 +713,8 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             }
             // 破壊したネクサスを lastMoved に書く（「破壊したネクサスのコストと同じ枚数」＝カウンタlastCostが読む。060）
             const scope = currentRecordScope(state)
-            const leftCost = instBaseCost(victim)
             if (destroyNexus(state, owner, victim.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
                 recordMoved(state, [victim.cardId], scope)
-                recordLeftCost(state, victim.cardId, leftCost, scope)
             }
             return
         }
@@ -746,6 +819,7 @@ function budgetToggleDestroy(
     budget: number,
     unitLabel: string, // 「コスト」／「BP」
     weightOf: (s: CardInstance) => number,
+    maxCount?: number,
 ): boolean {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
     if (!action.choosing && !state.interactiveTargets) return false
@@ -769,7 +843,7 @@ function budgetToggleDestroy(
             state,
             opp,
             Infinity,
-            (sp) => chosen.includes(sp.instanceId) || weightOf(sp) <= left,
+            (sp) => chosen.includes(sp.instanceId) || (weightOf(sp) <= left && (maxCount === undefined || chosen.length < maxCount)),
             srcColors,
             srcType,
         )
@@ -814,14 +888,14 @@ const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, actio
                 : (action.budget ?? 0)
         const budgetForLog = remaining
         // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲へ落ちる）
-        if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp))) return
+        if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp), action.maxCount)) return
         let destroyedCount = 0
         const destroyedNames: string[] = []
         // **先に選び切ってから、まとめて破壊する**。貪欲な選び方（残り予算内でBP最大から）は
         // 破壊そのものに依存しないので事前に確定でき、こうしておくと
         // 復活の確認で中断してもバッチ（destroyBatch フレーム）が続きを回せる
         const chosenIds: string[] = []
-        while (remaining > 0) {
+        while (remaining > 0 && (action.maxCount === undefined || chosenIds.length < action.maxCount)) {
             const candidates = pickEnemyCandidates(
                 state,
                 opp,
@@ -973,6 +1047,11 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
             log(state, `${sourceName}：selfが不在のため何も起こらなかった。`)
             return
         }
+        // 自分のネクサス自身（26RSD02-010「このネクサスを破壊する▶」）
+        if (state.players[owner].field.nexuses.some((n) => n.instanceId === self.instanceId)) {
+            destroyNexus(state, owner, self.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+            return
+        }
         // fieldEvent で相手側のスピリットがイベント対象のとき、self の持ち主は実行者（owner）と異なる
         const selfPid = findSpiritAny(state, self.instanceId)?.pid ?? owner
         if (selfPid !== owner && isResisted(state, selfPid, self, attemptOf(ctx, "destroy", "area"))) {
@@ -994,6 +1073,8 @@ const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, actio
             const player = state.players[pid]
             for (const nexus of player.field.nexuses) {
                 if (nexus.cores <= 0) continue
+                // 案B-inside: [ソウルコア]が載っていたら先にリザーブへ退避させる
+                soulCoreLeavesField(player, nexus)
                 total += nexus.cores
                 player.trashCores += nexus.cores
                 nexus.cores = 0
@@ -1010,9 +1091,11 @@ const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, actio
 
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+        recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
         // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
         // 相手のものだったときのみボイドからその数のコアを自分のトラッシュへ（BS03メビウスリング）
         const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
+            recordMoved(state, [...lastMovedOf(state), nexus.cardId])
             if (action.dest === "deckTop") {
                 returnNexusToDeckTop(state, pid, nexus.instanceId)
             } else {
@@ -1090,6 +1173,23 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
         return
 }
 
+const returnOwnNexusToDeckBottomHandler: ActionHandler<"returnOwnNexusToDeckBottom"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const filter = normalizeFilter(ctx, action)
+    const candidates = filter === SELF_REQUIRED ? [] : state.players[owner].field.nexuses.filter((n) => matchesTarget(state, owner, n, filter, self?.instanceId))
+    const chosen = candidates.find((n) => n.instanceId === targetInstanceId)
+    if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && candidates.length >= 2) {
+        requestChoice(state, owner, `${sourceName}：デッキの下に戻す自分のネクサスを選んでください`, candidates.map((n) => n.instanceId), false, action, self)
+        return
+    }
+    const victim = chosen ?? candidates[0]
+    if (!victim) {
+        log(state, `${sourceName}：デッキの下に戻せるネクサスがなかった。`)
+        return
+    }
+    returnNexusToDeckBottom(state, owner, victim.instanceId)
+}
+
 // 払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 export function reviveLastDestroyedNexusBlockReason(
     state: GameState,
@@ -1157,9 +1257,9 @@ const reviveLastDestroyedNexusHandler: ActionHandler<"reviveLastDestroyedNexus">
         if (fromFieldOrReserve) {
             // 場から取った結果、維持コア割れになったスピリットを消滅させる
             for (const sp of [...player.field.spirits]) {
-                if (sp.cores < instMinLevelCores(sp)) destroySpirit(state, owner, sp.instanceId, "deplete")
+                if (wouldDeplete(state, owner, sp)) destroySpirit(state, owner, sp.instanceId, "deplete")
             }
-        } else if (self && self.cores < instMinLevelCores(self)) {
+        } else if (self && wouldDeplete(state, owner, self)) {
             destroySpirit(state, owner, self.instanceId, "deplete")
         }
         return
@@ -1476,6 +1576,7 @@ const handlers = {
     destroySelf: destroySelfHandler,
     nexusCoresToTrash: nexusCoresToTrashHandler,
     returnNexusToHand: returnNexusToHandHandler,
+    returnOwnNexusToDeckBottom: returnOwnNexusToDeckBottomHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,
 } satisfies Partial<ActionRegistry>
 

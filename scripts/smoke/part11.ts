@@ -13,8 +13,8 @@ import {
     createInstance,
     runTurnStart,
     viewFor,
+    endTurn,
 } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 console.log("=== BS02-022 魔界侯爵コキュートス e1：自分のリフレッシュステップで回復時、相手候補2体以上ならpendingChoiceが立つ ===")
 {

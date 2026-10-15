@@ -38,10 +38,12 @@ function effectGroupsWithLabel(state: GameState, owner: PlayerId, inst: CardInst
 const fireEffectHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId, chosenOption } = ctx
     const player = state.players[owner]
+    const soryoIds = (inst: CardInstance): string[] => getCard(inst.cardId).effects.filter((e) => e.kind === "triggered" && e.keyword === "soryo").map((e) => e.id)
     const fire = (inst: CardInstance, ids?: string[]): void => {
-        log(state, `${sourceName}：${getCard(inst.cardId).name}の${action.trigger === "onSummon" ? "『召喚時』" : "『破壊時』"}効果を発揮させる。`)
+        if (action.soryoOnly) ids = soryoIds(inst)
+        log(state, `${sourceName}：${getCard(inst.cardId).name}の${{ onSummon: "『召喚時』", onDestroy: "『破壊時』", onBlock: "『ブロック時』" }[action.trigger]}効果を発揮させる。`)
         if (action.trigger === "onSummon") fireSummonTrigger(state, owner, inst, false, ids)
-        else fireTrigger(state, owner, inst, "onDestroy", undefined, undefined, undefined, undefined, undefined, ids)
+        else fireTrigger(state, owner, inst, action.trigger, undefined, undefined, undefined, undefined, undefined, ids)
     }
 
     // すべて：開始時点の個体を順に。途中で場を離れた個体は飛ばし、選択で中断したら残りを積む
@@ -64,10 +66,11 @@ const fireEffectHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
         return
     }
 
-    const filter = normalizeFilter(ctx, action)
+    // 『ブロック時』は「このスピリットの」＝与えられた個体自身だけ（選ばない）
+    const filter = action.trigger === "onBlock" ? {} : normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) return
-    const candidates = player.field.spirits.filter(
-        (s) => matchesTarget(state, owner, s, filter, self?.instanceId) && effectGroups(state, owner, s, action.trigger).length > 0,
+    const candidates = action.trigger === "onBlock" ? (self && effectGroups(state, owner, self, "onBlock").length > 0 ? [self] : []) : player.field.spirits.filter(
+        (s) => matchesTarget(state, owner, s, filter, self?.instanceId) && effectGroups(state, owner, s, action.trigger).length > 0 && (!action.soryoOnly || soryoIds(s).length > 0),
     )
     const chosenId = action.chosenId ?? targetInstanceId
     const inst = chosenId !== undefined ? candidates.find((s) => s.instanceId === chosenId) : candidates.length === 1 || !state.interactiveTargets ? candidates[0] : undefined
@@ -94,8 +97,23 @@ const fireEffectHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
     fire(inst, picked)
 }
 
+// Lv は見ない（「破壊時」から呼ぶと個体のコアはもう外れている。発揮するかは呼び出し側の効果の Lv で決まっている）
+const fireSoryoSelfHandler: ActionHandler<"fireSoryoSelf"> = (ctx) => {
+    const { state, self, sourceName } = ctx
+    const soryo = self
+        ? getCard(self.cardId).effects.find((e): e is Triggered => e.kind === "triggered" && e.keyword === "soryo")
+        : undefined
+    if (!soryo) {
+        log(state, `${sourceName}：発揮できる【操霊】がなかった。`)
+        return
+    }
+    log(state, `${sourceName}：【操霊】を発揮する。`)
+    ctx.resolve(soryo.action)
+}
+
 const handlers = {
     fireEffect: fireEffectHandler,
+    fireSoryoSelf: fireSoryoSelfHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

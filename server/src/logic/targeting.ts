@@ -7,6 +7,8 @@ import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
 import {
     effectiveBp,
+    instMatchesCostFilter,
+    instInShinkaihoState,
     instanceSymbolCount,
     instIsVanilla,
     cardNameContains,
@@ -239,6 +241,9 @@ export function bpBuffTargetPasses(
     familyFilter?: FamilyFilter,
     combinedFilter?: boolean,
     vanillaFilter?: boolean,
+    costFilter?: { max?: number; min?: number; in?: number[] },
+    teamFilter?: string,
+    shinkaihoFilter?: boolean,
 ): boolean {
     if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
     if (keywordFilter !== undefined && !spiritHasKeyword(state, owner, inst, keywordFilter)) return false
@@ -251,6 +256,11 @@ export function bpBuffTargetPasses(
     if (combinedFilter !== undefined && instIsCombined(inst) !== combinedFilter) return false
     // vanillaFilter（BS12-083マジックランプ「効果の記述を持たないスピリット1体をBP+」）
     if (vanillaFilter === true && !instIsVanilla(inst)) return false
+    // cost（26系水流「コスト8以上で系統：海緑」）。道化師クランの付与コストも見るため instMatchesCostFilter を通す
+    if (costFilter !== undefined && !instMatchesCostFilter(inst, costFilter)) return false
+    // team（26系【チーム：X】所属）・shinkaiho（26系《真界放》のLvにいるか。TargetFilterの同名軸と同じ判定）
+    if (teamFilter !== undefined && !getCard(inst.cardId).team?.includes(teamFilter)) return false
+    if (shinkaihoFilter !== undefined && instInShinkaihoState(inst) !== shinkaihoFilter) return false
     return true
 }
 
@@ -260,10 +270,22 @@ export function bpBuffTargetPasses(
 // minSymbols指定時、対象（明示指定・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効
 // （ライトニングバリスタ等。BS04エンジン拡張バッチ1）
 // actions/* の分割モジュールから参照するため export している
+// bpBuff の自分側候補一覧（pickBpBuffTarget の自動選択と、対話時の選択肢で共有）
+export function ownBpBuffCandidates(
+    state: GameState,
+    owner: PlayerId,
+    ...rest: DropFirst3<Parameters<typeof bpBuffTargetPasses>>
+): CardInstance[] {
+    return state.players[owner].field.spirits.filter((s) => bpBuffTargetPasses(state, owner, s, ...rest))
+}
+type DropFirst3<T extends unknown[]> = T extends [unknown, unknown, unknown, ...infer R] ? R : never
+
 export function pickBpBuffTarget(
     state: GameState,
     owner: PlayerId,
-    targetInstanceId?: string,
+    targetInstanceId: string | undefined,
+    // 呼び出し側の絞り込み全体（色など、下の個別の軸に無いもの）
+    extra: (inst: CardInstance) => boolean,
     minSymbols?: number,
     keywordFilter?: Keyword,
     nameContains?: string | string[],
@@ -271,16 +293,19 @@ export function pickBpBuffTarget(
     familyFilter?: FamilyFilter,
     combinedFilter?: boolean,
     vanillaFilter?: boolean,
+    costFilter?: { max?: number; min?: number; in?: number[] },
+    teamFilter?: string,
+    shinkaihoFilter?: boolean,
 ): CardInstance | null {
     const passes = (inst: CardInstance): boolean =>
-        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter)
+        extra(inst) && bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter, costFilter, teamFilter, shinkaihoFilter)
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null
         if (!passes(found.inst)) return null
         return found.inst
     }
-    const mine = state.players[owner].field.spirits.filter(passes)
+    const mine = ownBpBuffCandidates(state, owner, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter, costFilter, teamFilter, shinkaihoFilter).filter(extra)
     let target: CardInstance | null = null
     if (state.battle) {
         target =

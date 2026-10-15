@@ -251,9 +251,23 @@
     ],
     "optional": false,
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "costAtMostOrHasBurst": 4
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "anyOf": [
+       {
+        "cost": {
+         "max": 4
+        }
+       },
+       {
+        "hasBurst": true
+       }
+      ]
+     }
     }
    }
   ]
@@ -1046,11 +1060,17 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "familyFilter": "魔影",
-     "costFilter": {
-      "max": 3
-     }
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "family": "魔影",
+      "cost": {
+       "max": 3
+      }
+     },
+     "count": 1
     }
    },
    {
@@ -3004,10 +3024,20 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "count": 4,
-     "pickCount": 0,
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 4
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    },
    {
@@ -3174,13 +3204,29 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "from": "burst",
-     "pick": {
-      "cardType": "magic"
-     },
-     "dest": "hand",
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "from": "burst"
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "magic"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -5008,15 +5054,31 @@
      1
     ],
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": "spirit",
-      "color": "green"
-     },
-     "optional": true,
-     "dest": "summon",
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "color": "green"
+       },
+       "optional": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    }
   ]
@@ -5372,10 +5434,21 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "reveal",
-       "count": 1,
-       "pickCount": "all",
-       "dest": "hand"
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "hand",
+       "pick": {}
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
       },
       {
        "type": "if",
@@ -5402,10 +5475,20 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "count": 3,
-     "pickCount": 0,
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 3
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    }
   ]
@@ -5569,7 +5652,13 @@
      1,
      2
     ],
-    "action": {"type": "discardSelfChoose", "count": 0, "downTo": 4}
+    "action": {
+     "type": "moveCards",
+     "from": "hand",
+     "dest": "trash",
+     "count": 0,
+     "downTo": 4
+    }
    },
    {
     "id": "BS14-089-e2",
@@ -5735,9 +5824,21 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "bravesAnyOrSpiritColorFilter": "red"
+     "dest": "hand",
+     "pick": {
+      "anyOf": [
+       {
+        "cardType": "brave"
+       },
+       {
+        "cardType": "spirit",
+        "color": "red"
+       }
+      ]
+     }
     }
    }
   ]
@@ -5987,10 +6088,16 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "summonFromTrashFree",
-     "costFilter": {
-      "max": 4
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "cost": {
+       "max": 4
+      }
      },
+     "count": 1,
      "skipOnSummon": true
     }
    }
@@ -6257,9 +6364,11 @@
     "byOpponentEffectOnly": true,
     "destroyedAsTarget": true,
     "action": {
-     "type": "recoverMagicFromTrash",
-     "anyCardType": true,
-     "onlyBurstDestroyedCard": true
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "onlyEventCard": true
     },
     "thenPay": "flash"
    },
@@ -6491,12 +6600,29 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "reveal",
-     "count": 4,
-     "pick": {
-      "cardType": "magic"
-     },
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 4
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "magic"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -6797,7 +6923,13 @@
     "id": "BS14-113-e2",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "toDeck", "from": "trash", "side": "opponent", "position": "bottom", "count": 1}
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "deckBottom",
+     "side": "opponent"
+    }
    }
   ]
  },
@@ -7383,11 +7515,28 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "from": "opponentDeck",
-     "count": 5,
-     "dest": "deckBottom",
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "from": "opponentDeck",
+       "count": 5
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "deckBottom",
+       "pick": {}
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    },
    {

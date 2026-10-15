@@ -920,9 +920,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverMagicFromTrash",
-     "anyCardType": true,
-     "hasBurst": true
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "hasBurst": true
+     }
     }
    }
   ]

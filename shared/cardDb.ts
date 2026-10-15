@@ -15,3 +15,8 @@ export function card(cardId: string): CardData {
     if (!lookup) throw new Error("カードマスタが未設定です（setCardLookup を先に呼ぶこと）")
     return lookup(cardId)
 }
+
+// トークンのカード（26RSD10-T001 等。「このカードはデッキに入れられない」）。場を離れるとトークン置き場へ戻り、どこのゾーンにも残らない
+export function isTokenCard(cardId: string): boolean {
+    return /-T\d+$/.test(cardId)
+}

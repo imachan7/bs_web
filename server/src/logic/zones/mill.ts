@@ -1,3 +1,4 @@
+import { recordLifeLost, recordMoved } from "../record"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
 import { returnSpiritToDeckBottom } from "../removal"
@@ -111,6 +112,8 @@ export function millDeck(
     // until：このカードを破棄したところで止める（「〜が出るまで破棄する」）
     options?: { skipNegate?: true; until?: (cardId: string) => boolean },
 ): number {
+    // 破棄できずに抜ける経路でも「破棄したなら」が前の効果の記録を拾わないよう、先に空にする
+    recordMoved(state, [])
     // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
     if (isEndStepLocked(state, "deckMill")) {
         log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
@@ -183,6 +186,7 @@ export function millDeck(
         }
     }
     const actual = milled.length
+    recordMoved(state, milled)
     // mutual版の累計は誰が引き起こしたかを問わず加算する（既存millCountThisTurnはbyOpponent限定のまま別集計）
     if (actual > 0) {
         state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + actual
@@ -358,11 +362,13 @@ export function payDeckMillNegateCost(
     if ("ownLifeToReserve" in effect.cost) {
         const paid = effect.cost.ownLifeToReserve
         player.life -= paid
+        recordLifeLost(state, pid, paid)
         player.reserve += paid
         log(
             state,
             `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
         )
+        if (paid > 0 && !state.winner) fireFieldEventTriggers(state, pid, "ownLifeLost")
     } else {
         exhaustSpirit(state, pid, source)
         log(state, `${getCard(source.cardId).name}：${player.name}はこのスピリットを疲労させ、デッキの破棄を無効にした。`)

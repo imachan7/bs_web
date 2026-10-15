@@ -309,24 +309,42 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の黄のシンボル1つにつき、自分のデッキを上から1枚オープンする。\nその中のマジックカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3『自分のアタックステップ』\n【光芒】を持つ自分のスピリットをブロックしている相手のスピリットすべてはLv1として扱う。\nLv3【光芒】『このスピリットのアタック時』\nバトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
     "effects": [
       {
-        "id": "SD02-005-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "action": {
-          "type": "reveal",
+       "id": "SD02-005-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
           "countPer": {
-            "ownSymbols": "yellow"
-          },
-          "pick": {
-            "cardType": "magic"
+           "ownSymbols": "yellow"
           }
-        },
-        "optional": false
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+           "cardType": "magic"
+          }
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "deckBottom"
+         }
+        ]
+       },
+       "optional": false
       },
       {
         "id": "SD02-005-e2",
@@ -1083,13 +1101,15 @@
         }
       },
       {
-        "id": "SD02-017-e2",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "discardSelfChoose",
-          "count": 2
-        }
+       "id": "SD02-017-e2",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "moveCards",
+        "from": "hand",
+        "dest": "trash",
+        "count": 2
+       }
       },
       {
         "id": "SD02-017-e3",

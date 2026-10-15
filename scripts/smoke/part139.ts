@@ -175,12 +175,16 @@ console.log("=== BS07 赤：BP合計まで相手を好きなだけ破壊する�
 
 console.log("=== BS07 赤：トラッシュ回収したカードが「勇傑」なら続けて相手を破壊する（ドラグロン占術師） ===")
 {
-    const oracle = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["thenDestroyIfFamily"] !== undefined,
-    )
-    const spec = (entryOf(oracle, (e) => (e["action"] as Record<string, unknown> | undefined)?.["thenDestroyIfFamily"] !== undefined)[
-        "action"
-    ] as Record<string, unknown>)["thenDestroyIfFamily"] as { family: string; maxBp: number }
+    // 旧 recoverSpiritFromTrash.thenDestroyIfFamily は sequence [moveCards, if {last:{family}} then destroy] に移った
+    type Follow = { cond?: { last?: { family?: string } }; then?: { type?: string; filter?: { maxBp?: number } } }
+    const followOf = (e: Record<string, unknown>): Follow | undefined => {
+        const a = e["action"] as { type?: string; actions?: Follow[] } | undefined
+        const f = a?.type === "sequence" ? a.actions?.[1] : undefined
+        return f?.cond?.last?.family !== undefined && f.then?.type === "destroy" ? f : undefined
+    }
+    const oracle = findByEffect((e) => followOf(e) !== undefined)
+    const follow = followOf(entryOf(oracle, (e) => followOf(e) !== undefined))!
+    const spec = { family: follow.cond!.last!.family!, maxBp: follow.then!.filter!.maxBp! }
     const yuketsu = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(spec.family))
     const notYuketsu = CARDS.find(
         (c) => c.type === "spirit" && !(c.family ?? []).includes(spec.family) && (c.effects ?? []).length === 0,

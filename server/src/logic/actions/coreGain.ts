@@ -1,5 +1,6 @@
 // コアを置くアクション（ボイド・トラッシュから自分のスピリット・ネクサス・リザーブ・トラッシュへ、コアチャージ）
 import type { ActionHandler, ActionRegistry } from "./types"
+import { normalCoresOn, normalReserveOf } from "../soulCore"
 import type { CardInstance } from "../../type"
 import { getCard, log, suspend } from "../GameState"
 import { placeCoresOnSpirit, voidCorePlacementBlocked } from "../EffectModules"
@@ -34,13 +35,14 @@ const destructionCoresToOwnSpiritHandler: ActionHandler<"destructionCoresToOwnSp
         }
         let moveCount: number
         let from: string
-        if (self && self.pendingDestruction && self.cores > 0) {
-            moveCount = Math.min(coreCount, self.cores)
+        // 案B-inside: [ソウルコア]は明示的な指定でだけ動く。移すのは通常コアだけ
+        if (self && self.pendingDestruction && normalCoresOn(player, self) > 0) {
+            moveCount = Math.min(coreCount, normalCoresOn(player, self))
             self.cores -= moveCount
             from = "破壊されたスピリットのコア"
         } else {
             // 破壊が確定した後（コアが既にリザーブへ移っている）経路への保険
-            moveCount = Math.min(coreCount, player.reserve)
+            moveCount = Math.min(coreCount, normalReserveOf(player))
             player.reserve -= moveCount
             from = "リザーブのコア"
         }

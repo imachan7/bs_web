@@ -1,19 +1,26 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { matchesPick } from "./revealAction"
-import type { GameState, PlayerId } from "../../type"
+import type { CardInstance, EffectCounter, GameState, PlayerId } from "../../type"
 import { getCard, log, opponentOf } from "../GameState"
 import { summonFreeFromTrashIndex, countEffectCounter, millCapBonusFor, millDeck, notifyHandGained, requestCardChoice } from "../EffectModules"
-import { resolveMagicEffects } from "../triggers"
+import { resolveMagicEffects, fireFieldEventTriggers } from "../triggers"
 import { countedAmount } from "../counted"
 import { currentRecordScope, recordMoved } from "../record"
+import { chimeiBonus } from "../keywords/chimei"
 
 const millHandler: ActionHandler<"mill"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 【地鳴】の破棄（キーワードの定型文が chimei:true を付ける）。ほかの効果が【地鳴】の枚数を参照して破棄しても【地鳴】の破棄ではない
+        const chimei = action.chimei === true
+        const bonus = chimei ? chimeiBonus(state, owner) : 0
+        const counter = bonus > 0 && typeof action.countCounter === "object" && "minus" in action.countCounter && typeof action.countCounter.minus[0] === "object" && "const" in action.countCounter.minus[0]
+            ? { minus: [{ const: action.countCounter.minus[0].const + bonus }, action.countCounter.minus[1]] as [EffectCounter, EffectCounter] }
+            : action.countCounter
         // 【粉砕】：相手（side:"own"指定時は自分）のデッキ上からcount枚をトラッシュへ送る
         // countMax にはマキシマムブレイク（kind:"millCapBonus"）の加算が乗る
         const count =
-            action.countCounter !== undefined
-                ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType,
+            counter !== undefined
+                ? countedAmount(state, owner, self, action.count ?? 1, counter, srcType,
                       action.countMax !== undefined ? action.countMax + millCapBonusFor(state, owner) : undefined)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
@@ -27,6 +34,7 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
         const until = action.until
         const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined, until ? { until: (id) => matchesPick(id, until) } : undefined)
         recordMoved(state, state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual), scope)
+        if (chimei && actual > 0 && self) fireFieldEventTriggers(state, owner, "ownChimeiMilled", { pid: owner, inst: self }, undefined, undefined, actual)
         return
 }
 
@@ -58,6 +66,7 @@ function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName
         return
     }
     log(state, `${sourceName}：${getCard(found).name}のフラッシュ効果をコストを支払わずに発揮した。`)
+    state.keishoExcludedCardIds = []
     resolveMagicEffects(state, owner, found, "flash", undefined)
 }
 

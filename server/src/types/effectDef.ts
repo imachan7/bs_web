@@ -3,6 +3,7 @@
 import type {
     AuraCondition,
     AuraDef,
+    CardPick,
     BattleState,
     CardInstance,
     CardType,
@@ -59,6 +60,7 @@ export type EffectDef =
     | {
           id: string
           kind: "triggered"
+          keyword?: Keyword // 【増幅】等のキーワード能力を持つことを示すラベル（spiritHasLabeledKeyword が判定。UI文言にはまだ使わない）
           trigger: TriggerEvent
           levels: number[] | null
           whileCombined?: true
@@ -80,6 +82,7 @@ export type EffectDef =
               | { ownFieldHasCombinedSpirit: true } // 自分のフィールドに合体スピリットがいるときのみ発火
               | { firstAttackOfTurn: true } // そのターンの最初のアタックのときのみ発火
               | { lastFunsaiHasNexus: true } // 直前の【粉砕】で破棄した中にネクサスがあったときのみ発火
+              | { lastMilledHasEx: true } // event: "ownChimeiMilled" 限定：直近の破棄（state.lastDeckMill）にEXシンボルを持つカードがあったときのみ発火
               | { lastFunsaiHasSpirit: true } // 直前の【粉砕】で破棄した中にスピリットがあったときのみ発火
               | { targetMinBp: number } // targetInstanceIdの実効BPがこれ以上のときのみ発火（onBlock用）
               | { targetBlockedMaxBp: number } // targetMinBpの鏡。実効BPがこれ以下のときのみ発火（onBlock用）。
@@ -95,11 +98,19 @@ export type EffectDef =
               | { requirePrevAttackerCombined: true } // 直前のアタック宣言が自分の合体スピリットによるものだったときのみ発火（ターン開始でリセット）
               | { ownLifeAtMost: number } // 自分のライフがこの数以下のときのみ発火
               | { selfSummonedByFushi: true } // trigger:"onSummon"限定：自分自身の召喚が【不死】によるものだったときのみ発火
+              | { selfDestroyedByOwnEffect: { sourceFamily: string | string[] } } // trigger:"onDestroy"限定：自分の効果（発生源のカードが静的に持つ系統。配列＝OR。バトルは含まない）で破壊されたときのみ発火。pendingDestroyContext を読む（26RBS03-013）
               | { selfDestroyedByOpponent: true } // trigger:"onDestroy"限定：相手によって破壊されたときのみ発火（バトルのBP比較も含む）
               | { ownNexusNameKindsAtLeast: { nameContains: string; count: number } } // nameContainsを含む自分のネクサスの異なるカード名の種類数（枚数でない）がcount以上のときのみ発火
               | { ownBurstSet: boolean } // 自分がバーストエリアにセットしている間だけ発火。false指定時はセットしていない間だけ発火
               | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 相手フィールドの色の種類数がこれ以上のときのみ発火
               | { ownFieldOnlyColor: Color; spiritsOnly?: true } // 自分のフィールドが指定色1色だけのときのみ発火
+              | "selfWasAttacker" // selfが現在のバトルのアタッカーのときのみ発火（『アタック中』窓。state.battle.attackerInstanceId と突合。26系【地鳴】）
+              | { ownAllHaveTeam: string } // 自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属するときのみ発火（26系「自分のスピリット/ネクサスすべてが【X】を持つなら」。0体では不成立とする簡略化）
+              | { ownAllHaveFamily: string }
+              | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } // 【X】を持つ自分のスピリットがcount体以上いるときのみ発火（AuraCondition.ownTeamAtLeastと同じ判定。restedOnly指定時は疲労状態の個体だけを数える。26系「【X】を持つ自分のスピリットがN体以上いるなら」）
+              | { soulCoreInReserve: true } // 自分のリザーブに[ソウルコア]があるときのみ発火（26系「自分のリザーブに[ソウルコア]があるなら」）
+              | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } // 直近の《継召》で除外したカードのうち指定チーム所属がcount枚以上のときのみ発火（26系「この継召で【X】を持つカードをN枚以上除外していたなら」）
+              | { summonedBy: string } // 発生源自身（src）の召喚経路が一致するときのみ発火（CardInstance.summonedByと突合。26系「【Fチェンジ】で召喚していたなら」）
       }
     | {
           id: string
@@ -110,6 +121,7 @@ export type EffectDef =
           mainForbidden?: boolean // trueならこのエントリがtimingとして採用されるメインステップでの使用そのものを拒否
           ownTurnForbidden?: true // trueなら発生源の持ち主のターン中は使用不可
           usableAtOpponentMainEnd?: true // timing:"flash"限定：相手がメインステップ終了を宣言した瞬間にも使用できる
+          oncePerTurnByName?: true // 「自身は同じカード名のこの効果をターンに1回しか使えない」：プレイヤーごとに、そのカード名のその効果（timing）をターンに1回。2回目は使用できない（2026-10-08 ユーザー確定）
           oncePerTurn?: true // 使用者ごと・カード名ごとにそのターン1回だけ発揮。2枚目は使用はできるが効果は発揮されない
           condition?: MagicCondition // 「〜とき、〜する」：使うことはでき、解決の時点で満たさなければこのエントリは発揮しない
           useCondition?: MagicCondition // 「この効果は〜ないと使えない」：使う前に見て、満たさなければ使用できない（解決の時点でも見る。2026-09-26 ユーザー確認）
@@ -189,6 +201,12 @@ export type EffectDef =
               | { ownBurstSet: boolean } // バーストをセットしている間（false指定時はしていない間）だけ発火
               | { noAttacksThisTurn: true } // このターン未アタックのときのみ発火
               | { opponentBurstSet: boolean } // 相手がバーストをセットしている間（false指定時はしていない間）だけ発火
+              | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } // 【X】を持つ自分のスピリットがcount体以上いるときのみ発火（AuraCondition.ownTeamAtLeastと同じ判定。restedOnly指定時は疲労状態の個体だけを数える。26系「【X】を持つ自分のスピリットがN体以上いるなら」）
+              | { ownAllHaveTeam: string } // 自分のスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属するときのみ発火（triggered/activatedの条件系と同じ判定。26系セフィ・アリエス『相手のアタックステップ開始時』）
+              | { ownAllHaveFamily: string }
+              | { soulCoreInReserve: true } // 自分のリザーブに[ソウルコア]があるときのみ発火（triggeredの条件系と同じ判定。26系「自分のリザーブに[ソウルコア]があるなら」）
+              | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } // 直近の《継召》で除外したカードのうち指定チーム所属がcount枚以上のときのみ発火（triggeredの条件系と同じ判定。26系「この継召で【X】を持つカードをN枚以上除外していたなら」）
+              | { summonedBy: string } // 発生源インスタンス自身の召喚経路が一致するときのみ発火（CardInstance.summonedByと突合。triggeredの条件系と同じ判定）
       }
     | {
           id: string
@@ -198,6 +216,42 @@ export type EffectDef =
           aura: AuraDef
           lentOnly?: boolean // lendSelfThisTurn で貸した効果（仮想発生源）からだけ有効（2026-08-24）
           whileOwnBurstSet?: true // バーストをセットしている間だけ発揮
+          uniqueByName?: true // 〔重複不可〕：同じカード名の発生源は、対象1体につき1回分だけ効く（drawStepBonus と同じ考え方）
+      }
+    | {
+          id: string
+          kind: "flashSummonFromHand" // 手札のこのカードは phaseTurn の間、フラッシュで【神速】と同じく召喚できる（支払いはリザーブ。shared の flashSummonFromHandNow）
+          levels: null
+          phaseTurn: { phase: Phase; turn: "own" | "opponent" | "both" }
+          condition?: { ownLifeLostThisTurn?: true; ownTrashAllColor?: Color; ownTrashHasFamily?: string; ownAllHaveTeam?: string; soulCoreInReserve?: true } // 書いたものをすべて満たすときだけ召喚できる。ownTrashAllColor＝自分のトラッシュのカードすべてがその色（0枚は成立。ownTrashOnlyColor と同じ空虚な真）／ownAllHaveTeam＝自分のスピリット/ネクサスすべてがそのチーム
+          oncePerTurn?: true
+          onceScope?: "name" // 「自身は同じカード名のこの効果をターンに1回しか使えない」。この許可で召喚した時に枠を消費する（GameEngine.summon）
+      }
+    | {
+          id: string
+          kind: "symbolWhenSummoning" // 自分が team／minCost に合うスピリットカードを召喚する時、このカードに color のシンボルを count 個（省略時1）追加する（shared/cost.ts の軽減計算で足す）
+          levels: number[] | null
+          color: Color
+          count?: number
+          team?: string
+          minCost?: number
+          pick?: CardPick // 召喚するカードの絞り込み（cardType/family/cost/color/nameIncludes/team。shared/cost.ts の cardMatchesSummonPick）
+          ownMainStepOnly?: true
+          opponentSpiritVanishedThisTurn?: true // このターンに相手のスピリットが消滅（維持コア割れ）していたときだけ有効（state.spiritVanishedThisTurn）
+          toOwnSpiritsCost?: number // 追加先を「コストNの自分のスピリットすべて」にする。該当する個体ごとに count 個ぶん足す（召喚中の軽減計算にだけ効く）
+      }
+    | {
+          id: string
+          kind: "castRestriction" // 《ソウルマジック》の「このカードはメインステップでは使用できない。」: メインステップ中の使用だけを禁止（フラッシュでもメインステップ中なら不可。2026-10-08 ユーザー確定）
+          levels: null
+          notInMainStep: true
+      }
+    | {
+          id: string
+          kind: "fchangeCostAs" // 手札のこのカードは、自分の【Fチェンジ】の召喚候補を判定する時、自分か相手のライフが anyLifeAtMost 以下なら cost としても扱う（summon.ts の候補判定）
+          levels: null
+          cost: number
+          anyLifeAtMost: number
       }
     | {
           id: string
@@ -217,6 +271,13 @@ export type EffectDef =
           scope: "anyField" | "self" // anyField=フィールドのスピリット/ネクサスすべて／self=発生源自身の上のみ
           phase?: Phase // 指定時はこのステップ中のみ有効
           turn?: "own" // 指定時、持ち主がturnPlayerのときのみ有効（『自分のアタックステップ』）
+      }
+    | {
+          id: string
+          kind: "effectCostExhaustDiscount" // 発生源が場にありレベル有効の間、持ち主の「team を持つカードの効果」の「Nコスト支払う」（pay の removeCores／起動の reserveToTrash）で、発生源を疲労させて amount コスト払ったものとして扱える（任意。〔重複不可〕＝1回の支払いにつき1つだけ）。カードの召喚・使用コストは対象外。効果による召喚の支払いは未対応
+          levels: number[] | null
+          team: string // 払う効果の発生源が持つチーム
+          amount: number
       }
     | {
           id: string
@@ -419,19 +480,34 @@ export type EffectDef =
           vanillaOnly?: true // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "anySpiritAttacked" | "ownSpiritDeclaredBlock" 限定：主体が効果の記述を持たない（バニラ）ときのみ発火。
           // 破壊・召喚は主体が既にフィールドを離れているためeventInfo.vanillaで、アタック/ブロックは場に残るためinstIsVanillaで判定
           subjectKeywordFilter?: Keyword | Keyword[] // イベントの主体がこのキーワードを持つときのみ発火
+          bpReachedAt?: number // event: "ownSpiritBpReached" 限定：eventInfo の前回BP < この値 <= 今回BP のときだけ発火（26RBS01-055/X10/X11「BPがN以上になった時」）
+          blockerMaxBp?: number // event: "ownSpiritBlocked" 限定：ブロックしたスピリット（targetInstanceId）の実効BPがブロック宣言の時点でこれ以下のときのみ発火（26RDB01-X01）
+          subjectMinBp?: number // イベントの主体の実効BPがこれ以上のときのみ発火（26RBS03-005「BP10000以上の自分のスピリットのバトル終了時」）
+          subjectRefreshed?: true // イベントの主体が回復状態のときのみ発火（そのイベントの時点の状態。26RBS03-X11「回復状態の自分の白のスピリットのバトル終了時」）
+          subjectMinSymbols?: number // イベントの主体のシンボル数（付与込み）がこれ以上のときのみ発火（26RBS02-X08「シンボル2つ以上の自分のスピリットがブロックされた時」）
           subjectMaxCost?: number // イベントの主体のコストがこれ以下のときのみ発火
+          subjectReceivesBpPlus?: true // イベントの主体が「BPを+する」効果を受けているときのみ発火（期間つき・常時・自身の効果を問わない。receivesBpPlus。26RBS02-007）
+          subjectMinCost?: number // イベントの主体のコストがこれ以上のときのみ発火（26RSD04-010）
+          subjectOriginalNexus?: true // イベントの主体が本来はネクサスのカード（スピリットとして扱われているネクサス）のときのみ発火（26RBS02-X16「本来はネクサスの自分のスピリットが疲労した時」・26RBS02-085「…がアタックした時」）
+          subjectDifferentNameFromSelf?: true // イベントの主体が発生源と異なるカード名のときのみ発火（26RCB01-046）
+          subjectTeamFilter?: string // イベントの主体が指定チーム（CardData.team）に所属するときのみ発火（26RDB01-008「【レッドステラ】を持つ自分のスピリットがアタックした時」）
           subjectHasTrigger?: TriggerEvent // イベントの主体が指定トリガーの誘発効果を現在のレベルで静的に持つときのみ発火
+          destroyedByOwnEffect?: { sourceType: CardType; sourceFamily?: string | string[] } // event: "opponentSpiritDestroyed" 限定：自分の（sourceType 種別の）効果で破壊したときのみ発火（バトルは含まない）。sourceFamily＝その発生源のカードが持つ系統（静的な系統。配列＝OR）。26RBS02-055・26RBS03-051・26RBS01-105
+          destroyedMaxBp?: number // event: "opponentSpiritDestroyed" 限定：破壊されたスピリットの破壊直前の実効BPがこれ以下のときのみ発火（26RBS03-051「BP0の相手のスピリット」）
           byBattleOnly?: true // event: "ownSpiritDestroyed" 限定：バトルのBP比較による破壊のときのみ発火
           attackerOnly?: true // event: "ownSpiritDestroyed" 限定：破壊されたスピリットがそのバトルのアタッカーだったときのみ発火
           duringSelfAttack?: true // event: "opponentSpiritDestroyed" 限定：発生源自身が現在のバトルのアタッカーのときだけ発火
           excludeSelfSubject?: true // 主体が発生源自身なら発火しない
-          selfOnly?: true // event: "ownSpiritDestroyed" 限定：発生源自身が破壊されたときだけ発火
+          selfOnly?: true // 発生源自身が主体のときだけ発火（ownSpiritDestroyed / ownSpiritExhausted / ownSpiritReducedLife。26RBS02-001）
+          causedByOpponent?: true // 疲労イベント限定：相手の効果（ネクサスの効果も含む。byOpponentEffectOnly はネクサスを除く）で疲労したときのみ発火（26RBS02-050）
           byOpponentOnly?: true // event: "ownSpiritDestroyed" 限定：相手によって破壊されたとき
           byOpponentEffectOnly?: true // event: "ownNexusDestroyed" | "ownSpiritDestroyed" | "ownSpiritExhausted" 限定：相手のスピリット/ネクサス/マジックの効果で破壊/疲労したときのみ発火。
           // ownSpiritDestroyedはバトルのBP比較で敗れた場合も含む。ownSpiritExhaustedはネクサスの効果を含まない。
           // destroyNexusに渡されたDestroyContextで判定し、発生源不明のときは発火しない側に倒す（文脈不明時に限定を緩める方が誤りが大きいため）
+          causedByOwnEffect?: true | "spirit" // 疲労イベント限定：発生源の持ち主の効果（"spirit"＝スピリットの効果）で疲労したときのみ発火（26系「自分の効果で自分か相手のスピリットが疲労した時」）
           byOpponentSpiritEffectOnly?: true // event: "ownSpiritDestroyed" 限定：相手のスピリットの効果で破壊されたときのみ発火（DestroyContext.sourceType==="spirit"かつsourcePidが持ち主と異なるときのみ）
           refreshSourceTypeFilter?: CardType[] // event: "anySpiritRefreshed" 限定：回復させた効果の発生源種別（配列＝OR）で絞る
+          keywordActivatedFilter?: Keyword // event: "ownKeywordActivated" 限定：発揮されたキーワードが一致するときのみ発火（「自分のスピリットが【増幅】を発揮した時」＝zofuku限定。26RBS02-041アージェントール。レビュー修正: 発揮イベントは文言がキーワードを限定している）
           summonedSpiritAsTarget?: true // event: "ownSpiritSummoned" 限定：selfMode:"source"と併用し、actionTargetIdを召喚されたスピリット自身にする
           attackerAsTarget?: true // selfOverrideを渡すイベント全般で使える（summonedSpiritAsTargetの同型）。selfMode:"source"と併用し、actionTargetIdをイベントの主体自身にする
           // 指定時、resolveActionへ渡す対象は通常のイベント対象ではなく、その効果を発揮したスピリット自身（DestroyContext.sourceInstanceId）になる（既存の経路とは独立）
@@ -442,6 +518,7 @@ export type EffectDef =
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // フィールドに指定系統（配列＝OR）のスピリットがcount体以上のときのみ発火
               | "selfIsAttacking" // 発生源自身が現在のバトルのアタッカーであるときのみ発火
               | { firstAttackOfTurn: true } // event: "anySpiritAttacked" 限定：そのターンの最初のアタックのときのみ発火
+              | { attacksThisTurnAtLeast: number } // event: "anySpiritAttacked" 限定：そのターンのN回目以降のアタックのときのみ発火（26RBS02-082）
               | { targetMaxBp: number } // event: "ownLifeDamaged" 限定：ライフを減らしたスピリット（アタッカー）の実効BPがこれ以下のときのみ発火
               | { targetMaxCostOfEventTarget: number } // targetInstanceIdのスピリットのコストがこれ以下のときのみ発火。
               // event:"ownSpiritBlocked" ではブロッカー。targetMaxBpのコスト版
@@ -458,12 +535,16 @@ export type EffectDef =
           minEventCount?: number // eventCountがこの値以上のときのみ発火
           magicCostEquals?: number // event: "opponentMagicUsed" 限定：使用されたマジックのコストが一致するときのみ発火
           magicTiming?: "main" | "flash" // event: "opponentMagicUsed" 限定：使用タイミングが一致するときのみ発火
+          magicPick?: CardPick // event: "ownMagicUsed" 限定：使用したマジックのカードがこの条件に合うときのみ発火（eventInfo.magicCardId で判定）
           paidCostOnly?: true // event: "ownMagicUsed" 限定：「コストを支払って」使用されたときのみ発火。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認。BS11-X05 Lv2-3）
           magicFreeUseMaxPerTurn?: number // event: "ownMagicUsed" 限定：発生源が実際に無償使用を行った回数（CardInstance.magicFreeUseCount）がこの値未満のときのみ発火。
           // 発動確認で「使わない」を選んだ・候補が無く不発だったときは消費しない（2026-09-07確認。BS11-X05 Lv2-3）
-          familyFilter?: FamilyFilter // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "ownSpiritExhausted" | "anySpiritExhausted" 限定：主体の系統がこれを含むときのみ発火
+          familyFilter?: FamilyFilter // event: "ownSpiritDestroyed" | "ownSpiritSummoned" | "ownSpiritExhausted" | "anySpiritExhausted" | "anySpiritAttacked" 限定：主体の系統がこれを含むときのみ発火
           // 破壊/召喚はeventInfo.families（カード静的な系統）で判定。疲労イベントはfamiliesを渡さないためselfOverrideをmatchesFamilyFilterで判定
           fromHandOnly?: true // event: "ownSpiritSummoned" 限定：手札から召喚されたときのみ発火
+          subjectNotInBattle?: true // イベントの主体が今のバトルのアタッカーでもブロッカーでもないときのみ発火（26RBS02-083「アタック/ブロックしていない〜が相手によって破壊された時」）
+          keishoSummonOnly?: true // event: "ownSpiritSummoned" 限定：その召喚が《継召》（トラッシュのEXシンボル持ちを除外してコストを軽減）によるものだったときのみ発火（26RBS02-079）
+          byOpponentVanishOnly?: true // event: "ownSpiritDestroyed" 限定：消滅（維持コア割れ。破壊ではない）で、その原因が相手の効果のときのみ発火（26RBS02-079）
           sokuSummonOnly?: true // event: "ownSpiritSummoned" 限定：その召喚が【神速】によるものだったときのみ発火。⚠️ keywordFilter:"soku"（召喚されたカードが【神速】を持つ）とは別物
           fushiSummonOnly?: true // event: "ownSpiritSummoned" 限定：その召喚が【不死】によるものだったときのみ発火。【不死】召喚も通常と同じくこのイベントを起こすので限定したいときだけ指定
           subjectCombined?: boolean // 指定時、イベントの主体が合体しているかで絞る
@@ -532,8 +613,9 @@ export type EffectDef =
           levels: number[] | null
           whileCombined?: true
           whileOwnBurstSet?: true // バーストをセットしている間だけ発揮
+          whileSelfAttacking?: true // 発生源自身が現在のバトルのアタッカーの間だけ発揮（『アタック中』窓。hasGlobalConstraint が見る。26RBS02-054）
           constraint: GlobalConstraintDef // フィールド発生源から全スピリット／全ネクサスに効く制約（発生源の持ち主を問わない。ただしownNexusIndestructibleは持ち主自身のみに効く）
-          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number } } // ownNexusCountExactly＝ネクサス数がちょうどこの数のときだけ有効。
+          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number } } // ownNexusCountExactly＝ネクサス数がちょうどこの数のときだけ有効。
           // constraint:"ownNexusIndestructible"用の発揮条件。ownVanillaSpiritsAtLeast＝バニラスピリット数がこれ以上。allOwnNexusesHaveColor＝ネクサスすべてがその色。ownFamilyCountAtLeast＝指定系統がcount体以上
           phase?: Phase // constraint: "battlingCoresProtected" | "opponentCantAttackByCost" 用：指定時はこのステップ中のみ有効
           turn?: "own" | "opponent" | "both" // 同上用：own=持ち主がturnPlayerのとき。opponentCantAttackByCostのopponentは「相手のアタックステップ」
@@ -615,19 +697,22 @@ export type EffectDef =
           nameContains?: string // 対象カードのカード名にこの文字列を含むもののみ
           cardTypeFilter?: CardType // 対象カードの種別
           scope?: "self" // 指定時は「手札にあるこのカード自身」の効果
-          condition?: { ownNexusAtLeast: number } | { ownLifeAtMost: number } | { ownTrashFamilyCountAtLeast: { family: FamilyFilter; count: number } } | { ownBurstSet: boolean } // ownLifeAtMost＝ライフがこれ以下のときのみ有効。
+          condition?: { ownNexusAtLeast: number } | { ownLifeAtMost: number } | { ownTrashFamilyCountAtLeast: { family: FamilyFilter; count: number } } | { ownBurstSet: boolean } | { opponentSpiritCostAtMost: number } | { ownNoSpirit: true } // opponentSpiritCostAtMost＝相手のフィールドにコストがこれ以下のスピリットがいるときのみ有効／ownNoSpirit＝自分のスピリットがいないときのみ有効（26RBS03-017/037）。ownLifeAtMost＝ライフがこれ以下のときのみ有効。
           // scope:"self"用：発生源の持ち主のネクサス数がこれ以上のときのみ有効。ownBurstSet＝バーストセット中(true)／未セット(false)のみ有効
           // ownTrashFamilyCountAtLeast＝トラッシュにある指定系統（配列＝OR）のスピリットカード枚数がcount以上のときのみ有効
       }
     | {
           id: string
           kind: "activated"
+          keyword?: Keyword // 【増幅】等のキーワード能力を持つことを示すラベル（triggered と同型。spiritHasLabeledKeyword が判定）
+          oncePerBattle?: true // 〔バトル1回〕。同バトルで発動済みなら拒否（使用済み記録は activatedUsedTurn と別のバトル単位で持ち、clearBattle で消える）
           whileCombined?: true
           // 起動の対象は合体中のブレイヴ自身のinstanceIdだが、効果のselfにはホスト（合体スピリット）が渡る
           timing: "flashBattle" | "flash" | "main" // flashBattle＝フラッシュ中のバトルのみ／flash＝フラッシュで使えるタイミング全般／
           // main＝自分のメインステップ中の任意のタイミング（バトル中は不可、フラッシュ優先権も見ない）。
           // 『自分のメインステップ』としか書かれておらず「ステップ開始時」の指定が無い効果はこちら
           levels: number[] | null
+          ownTurnOnly?: true // 『自分のターン』：ステップを絞らず自分のターンだけ（26RBS02-X07）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 『自分のアタックステップ』等の絞り込み（AuraDef.phaseTurnと同型）。
           // timingだけでは「フラッシュで使えるタイミング全般」になり相手ターンにも撃ててしまうため、ステップを明示しているカードには必ず付ける
           cost?: { reserveToTrash: number } | { exhaustSelf: true } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } | { exhaustOwnFamilyOne: FamilyFilter } | { discardHandOne: true; exhaustSelf: true } | { discardHandKeyword: Keyword } | { discardHandColor: Color } // 発動コスト。reserveToTrash=リザーブから／exhaustSelf=自身を疲労。省略時は追加コストなし
@@ -636,7 +721,7 @@ export type EffectDef =
           // { discardHandOne; exhaustSelf }=手札1枚（末尾。決定的簡略化）を破棄しこのスピリット自身を疲労。{ discardHandKeyword }=指定キーワードを静的に持つ手札のスピリットカード1枚を破棄
           oncePerTurn?: true // 「ターンに1回」。発生源のスピリット1体につきターン1回
           onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
-          condition?: "selfInBattle" // 発動条件（selfが現在のバトルの当事者＝attacker/blocker）
+          condition?: "selfInBattle" | "selfAttacking" | "selfBlocking" | { ownAllHaveTeam: string } | { ownAllHaveFamily: string } | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } | { soulCoreInReserve: true } | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } | { selfRested: true } | { summonedBy: string } // 発動条件（selfが現在のバトルの当事者＝attacker/blocker／selfが現在のバトルのブロッカー＝『ブロック中』窓／selfが現在のバトルのアタッカー＝『アタック中』窓（26系【魔述】。地鳴のtriggered selfWasAttackerと同じ判定／自分のスピリット/ネクサスすべてが指定チーム所属。0体では不成立／【X】を持つ自分のスピリットがcount体以上いる。AuraCondition.ownTeamAtLeastと同じ判定／自分のリザーブに[ソウルコア]がある／直近の《継召》で除外した指定チーム所属カードがcount枚以上／発生源自身が疲労状態のときのみ発動できる（26系【Fチェンジ】「疲労状態のこのスピリットを手札に戻し」）／発生源自身の召喚経路が一致するときのみ発動できる（CardInstance.summonedByと突合）
           action: EffectAction // 発動時の効果
       }
     | {
@@ -670,6 +755,13 @@ export type EffectDef =
           targetSide?: "opponent" // 相手のスピリットから取り除くときだけ効く
           includeTrash?: true // リザーブ行きに加えトラッシュ行きにも効かせる
           ownBurstOnly?: true // 発生源の持ち主のバースト効果を解決している間だけ効く
+      }
+    | {
+          id: string
+          kind: "drawStepBonus" // 持ち主のドローステップのドロー枚数を+amountする（26系「ドローの枚数を+1枚する」）
+          levels: number[] | null
+          amount: number
+          uniqueByName?: true // 〔重複不可〕：同じカード名の発生源は何枚あっても1回分だけ数える
       }
     | {
           id: string
@@ -857,6 +949,49 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "exTrashReduction" // 《継召》等：トラッシュのEXシンボル持ちカードを除外することで、そのカードのシンボル数ぶん召喚コストを軽減できる。効果は「召喚しようとするこのカード自身」が持っているかで判定（手札以外＝トラッシュ等からコストを支払う召喚でも効く）。除外するカードはプレイヤーが召喚時に選ぶ（summon アクションの exReductionTrashIndices）。軽減の合計はこのカードの軽減シンボル数を超えない
+          levels: number[] | null
+      }
+    | {
+          id: string
+          kind: "chimeiBonus" // 自分の【地鳴】で指定された枚数（【地鳴：N】のN）を amount 枚増やす（mill ハンドラが【地鳴】の破棄枚数を求めるとき、発生源のレベルが合い phaseTurn に合うものの合計を N に足す）
+          levels: number[] | null
+          amount: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
+          // 手札のこのカード自身の召喚コストの注記（shared/cost.ts の effectiveCost が読む）。
+          // fullReduction＝軽減シンボルすべてを満たす（軽減シンボルの数だけ軽減。軽減できない状況では効かない）／
+          // trashSymbols＝自分のトラッシュのシンボルでも軽減できる／
+          // perOppReserveCore＝相手のリザーブのコア1個につき軽減シンボル1つを（色を問わず）満たせる（軽減シンボルの数が上限）／
+          // perOwnFamilySpirit＝family を持つ自分のスピリット1体につきコストを per ずつ増減する（maxTotal が累計の上限。軽減の前に総コストへ足す）
+          kind: "selfSummonCost"
+          levels: null
+          // setCost＝総コストを setTo にする（そこから軽減できる）。oncePerTurnName＝同じカード名でターンに1回（この注記で setTo になった状態で召喚したら1回。2026-10-10 ユーザー確認）
+          mode: "fullReduction" | "trashSymbols" | "perOppReserveCore" | "perOwnFamilySpirit" | "setCost"
+          viaSoryo?: true // 【操霊】で召喚する時だけ有効
+          condition?: { ownAttacksAtLeast: number } | { ownMagicUsedThisTurn: CardPick } | { ownTrashAllColor: Color } | { ownEffectDestroyedOwnSpirit: true }
+          setTo?: number
+          oncePerTurnName?: true
+          family?: FamilyFilter
+          per?: number
+          maxTotal?: number
+      }
+    | {
+          id: string
+          kind: "soulCoreOnlyCast" // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」（26系マジック32枚。2026-10-05ユーザー確定）: 自分のフィールドに color のシンボルが1つ以上あるなら、使用コスト全額をリザーブの[ソウルコア]1個だけで支払って使用できる（軽減シンボルは無関係。ソウルコアは支払いとしてトラッシュへ。リザーブに[ソウルコア]がなければこの道は使えない）。castMagic の useSoulCoreOnly で指定
+          levels: null // 使用コストの性質でレベルの概念が無いため常にnull
+          color: Color // 「自分の◯シンボル」の色
+          symbolAs?: { family: string; color: Color } // 指定系統を持つ自分のスピリット/ネクサスのシンボルを color としても数える（このマジックをソウルマジックで使用できるかの判定のときだけ。26RDB01-060）
+      }
+    | {
+          id: string
+          kind: "allTeams" // このカードはすべてのチームを持つ（チームを見る判定 cardHasTeam が全チームに当たる。カード単体で見る場所だけ：オープン・トラッシュの絞り込み、軽減シンボル等）
+          levels: null
+      }
+    | {
+          id: string
           kind: "immunityGrant" // 持ち主のfamilyFilter一致スピリットすべては、相手のマジックの効果を受けない。target:"self"は発生源自身だけが受けない
           levels: number[] | null
           target: "ownAll" | "self"
@@ -881,6 +1016,20 @@ export type EffectDef =
       }
     | {
           id: string
+          kind: "trashReturnOnOwnHeavyExhaust" // トラッシュにあるこのカード自身の効果：『自分のターン』に自分の効果で相手のスピリットが重疲労した時、
+          // familyFilter の系統を持つ自分のスピリット/ネクサスがあれば手札に戻る（26RBS02-032。heavyExhaustSpirit が走査する）
+          levels: null
+          familyFilter: string
+      }
+    | {
+          id: string
+          kind: "trashReturnOnOwnSpiritDestroyed" // トラッシュにあるこのカード自身の効果：familyFilter の系統を持つ自分のスピリットが破壊された時、手札に戻せる（26RSD05-012）。
+          // 同じカード名のこの効果はターンに1回（onceByNameUsed）。removal.fireOwnSpiritDestroyed が持ち主のトラッシュを走査する
+          levels: null
+          familyFilter: string
+      }
+    | {
+          id: string
           kind: "trashSummonOnNameSummoned" // トラッシュにあるこのカード自身の効果：持ち主のフィールドにnameIncludesを含むスピリットが召喚されたとき、このカードを無償召喚できる（任意）。
           // 【不死】と同じくトラッシュのカードが発生源なのでeffectSourcesでは拾えず、fireSummonSequenceが持ち主のトラッシュを走査する。維持コアはリザーブから払う
           levels: null
@@ -891,6 +1040,7 @@ export type EffectDef =
           kind: "levelAs" // 継続的な「Lv◯として扱う」置換
           levels: null
           whileCombined?: true
+          whileAttacking?: true // 発生源自身が現在のバトルのアタッカーの間だけ有効（『アタック中』）
           target: "self" | "ownNexusesAll" | "opponentNexusesAll" | "ownSpiritsAll" | "ownSpiritsByKeyword" | "ownSpiritsByFamily" | "ownSpiritsVanilla" | "opponentSpiritsAll" | "opponentBlockersOfOwnKeyword" // ByKeyword=keywordFilter一致（Lv不問）／ByFamily=familyFilterのOR／Vanilla=無地スピリット／allSpiritsByChosenColor=貸与時に選んだ色の両陣営
           treatAs: number | "max" | "coresScaled" | { plus: number } // 扱うレベル。
           // 数値=そのレベル固定／"max"=対象カード自身が持つ最高Lv（対象ごとに算出）／"coresScaled"=対象のコア数で換算／
@@ -914,6 +1064,8 @@ export type EffectDef =
               | { ownFieldHasCombinedSpirit: true } // フィールドに合体スピリットがいる間有効
               | { ownBurstSet: true } // バーストをセットしている間有効
               | { ownLifeAtLeast: number } // ライフがこの数以上の間有効
+              | { opponentTrashAtLeast: number } // 相手のトラッシュのカードがこの枚数以上の間有効
+              | { ownAllSpiritsHaveFamily: string[] } // 自分のスピリットすべてが、配列のどれかの系統を持つ間有効（0体では不成立）
               | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 相手フィールドの色の種類数がこれ以上の間有効
           sourceMinLevel?: number // 発生源の素のレベル（コア数基準。上書き無視）がこれ以上のときのみ有効
           sourceLevels?: number[] // 発生源の素のレベル（コア数基準。上書き無視）がこの配列に完全一致で含まれるときのみ有効
@@ -973,8 +1125,8 @@ export type EffectDef =
           color: Color
           count?: number // 省略時1
           counter?: EffectCounter // 指定時はcountを無視し、カウント値ぶん追加する（0なら追加しない）
-          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
-          condition?: { ownFieldHasBraveInSpiritState: true } | { ownBurstSet: true } // 指定時はフィールドにスピリット状態のブレイヴがいる間だけ有効。ownBurstSet＝バーストをセットしている間だけ有効
+          phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // phase 省略＝そのターンの間ずっと（『自分のターン』）
+          condition?: { ownFieldHasBraveInSpiritState: true } | { ownBurstSet: true } | { ownMagicUsedThisTurn: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number } // ownMagicUsedThisTurn＝このターンに自分が pick に合うマジックを使用している間。指定時はフィールドにスピリット状態のブレイヴがいる間だけ有効。ownBurstSet＝バーストをセットしている間だけ有効
       }
     | {
           id: string
@@ -1105,6 +1257,7 @@ export type EffectDef =
           whileCombined?: true
           target: "ownAll"
           minLevel?: number // 対象のcurrentLevelがこれ以上のときのみ付与
+          condition?: AuraCondition // 発生源の持ち主基準で満たすときだけ付与する（26RBS03-060）
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ
           colorFilter?: Color // 指定時はこの色を持つスピリットのみ
           keywordFilter?: Keyword // 指定時はこのキーワード（静的・一時/継続付与を考慮）を持つスピリットのみ
@@ -1116,6 +1269,10 @@ export type EffectDef =
           costFilter?: number // 指定時は対象スピリットのコストがこれと一致するときのみ有効
           turn?: "own" | "opponent" | "both" // 指定時はフェーズを問わずこのturn条件の間だけ有効
           combinedFilter?: true // 指定時は合体スピリットのみ対象
+          teamFilter?: string // 指定時は指定チーム（CardData.team）所属のスピリットのみ
+          restedOnly?: true // 指定時は疲労状態のスピリットのみ
+          summonedBy?: string // 指定時は召喚経路（CardInstance.summonedBy。"soryo" 等）が一致するスピリットのみ
+          summonedThisTurnOnly?: true // 指定時は今のターンに召喚されたスピリットのみ
           constraint: ConstraintDef
       }
     | {
@@ -1192,6 +1349,7 @@ export type EffectDef =
           familyFilter?: FamilyFilter // 指定時はこの系統（配列＝OR）を持つスピリットのみ
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 持ち主基準でこのステップ・turn条件のときのみ有効
           whileOwnBurstSet?: true // バーストをセットしている間だけ有効
+          alsoBlock?: true // 付け替えず、『ブロック時』のままアタック時にも発揮する（26RBS02-X10）
       }
     | {
           id: string
@@ -1280,6 +1438,17 @@ export type EffectDef =
           // 無償召喚を選んだ場合、召喚時効果は発揮されない（BS15_PLAN.md §7.4）
           levels: number[] | null
           maxCost: number
+      }
+    | {
+          id: string
+          kind: "meisai" // 【迷彩：N】「対戦相手は、スピリットの効果でこのスピリットを指定する時、Nコスト支払わなければ指定できない」。
+          // 指定する側（対戦相手）がリザーブからコアN個をトラッシュへ支払わなければこのスピリットを対象に取れず、
+          // 払えなければ候補から除外される。マジック/ネクサスの効果・持ち主自身の効果には支払い不要。
+          // 範囲効果（「すべてに」等）は「指定」ではないので対象外。判定は EffectModules.resistanceAgainst
+          // の tryMeisaiToll（サーバー側のみ。候補列挙では払わず、実適用の1点だけで払う）
+          keyword?: Keyword // 【迷彩】を持つ参照（spiritHasLabeledKeyword）用のラベル
+          levels: number[] | null
+          cost: number // 指定時に要求するコア数（リザーブ→トラッシュ）
       }
 
 // カードマスターデータ（不変）。data.md 4 / 6.1 に対応

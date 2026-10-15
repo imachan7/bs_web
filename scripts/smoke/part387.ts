@@ -1,7 +1,6 @@
 // smoke パート387（アタック時⇔ブロック時の付け替えを一覧へ移した後：「すべて」は後から出たスピリットにも効き、陣営を守る）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas } from "./helpers"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas , endTurn } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 function swapAction(cardId: string): EffectAction {
     const e = getCard(cardId).effects.find((x) => JSON.stringify(x).includes('"triggerSwap"')) as { action: EffectAction } | undefined

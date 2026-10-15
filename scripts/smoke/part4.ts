@@ -790,7 +790,8 @@ console.log("=== 先攻1ターン目はアタック不可 ===")
     assert(s.turn === 1, "開始直後はターン1")
     const sp = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(sp)
-    assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへは移行できる")
+    // 先攻1ターン目にはアタックステップ自体が存在しない（2026-10-06 ルール改訂。nextPhaseは拒否される）
+    assert(act(s, "p1", { type: "nextPhase" }) !== null, "先攻1ターン目はアタックステップへは移行できない")
     assert(
         act(s, "p1", { type: "attack", instanceId: sp.instanceId }) !== null,
         "先攻1ターン目のアタックは拒否される",

@@ -7,12 +7,13 @@ import type {
     CardInstance,
     CardType,
     PlayerId,
+    ResolvedTargetFilter,
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, targetArmorColorCount } from "./keywordState"
-import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownFieldOnlyColor } from "./level"
-import { handSizeOf, instanceSymbolCount } from "./symbols"
+import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrLabel, targetArmorColorCount } from "./keywordState"
+import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
+import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- 常時BP修正（オーラ）と実効BP ----
@@ -134,7 +135,7 @@ export function countAuraCounter(
     if (counter === "ownBraveSpirits") {
         return board.players[sourcePid].field.spirits.filter((s) => card(s.cardId).type === "brave").length
     }
-    // selfCores／battlingOpponent* は timedEffect の target:"self" 経由でのみ使うため、targetInst は常に発生源自身
+    // selfCores／battlingOpponent* は timedEffect／aura の target:"self" 経由でのみ使うため、targetInst は常に発生源自身
     if (counter === "selfCores") return targetInst?.cores ?? 0
     if (counter === "battlingOpponentSymbols" || counter === "battlingOpponentCombinedSymbols") {
         if (!board.battle || !targetInst) return 0
@@ -153,6 +154,15 @@ export function countAuraCounter(
     // targetArmorColors と同じく発生源ではなく対象基準
     if (counter === "targetReductionSymbols") {
         return targetInst ? card(targetInst.cardId).reduction.length : 0
+    }
+    if (counter === "ownExTrashReductionSpirits") {
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => card(s.cardId).effects.some((e) => e.kind === "exTrashReduction"),
+            countingSourceType,
+        )
     }
     // { ownNameIncludes: string }：発生源自身を含む自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
@@ -201,21 +211,36 @@ export function countAuraCounter(
             board,
             sourcePid,
             sourcePid,
-            (s) => spiritHasKeyword(board, sourcePid, s, counter.ownKeyword),
+            (s) => spiritHasKeywordOrLabel(board, sourcePid, s, counter.ownKeyword),
             countingSourceType,
         )
+    }
+    if ("ownSpiritsMatching" in counter) {
+        const filter = counter.ownSpiritsMatching as unknown as ResolvedTargetFilter
+        return countSpiritsWeighted(board, sourcePid, sourcePid, (s) => matchesTarget(board, sourcePid, s, filter), countingSourceType)
     }
     // { enemyCost: {max,min} }：相手フィールドのコスト条件を満たすスピリット数
     if ("enemyCost" in counter) {
         const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
         return countSpiritsWeighted(board, sourcePid, opp, (s) => instMatchesCostFilter(s, counter.enemyCost), countingSourceType)
     }
+    // { ownTeam: string }：発生源自身を含む自分フィールドの指定チーム（CardData.team）所属スピリット数。
+    // 数え方は level.ts の ownTeamAtLeast と同じ（TeamGrant的な付与は無く、カード静的な team 配列だけを見る）
+    if ("ownTeam" in counter) {
+        return countSpiritsWeighted(
+            board,
+            sourcePid,
+            sourcePid,
+            (s) => (card(s.cardId).team ?? []).includes(counter.ownTeam),
+            countingSourceType,
+        )
+    }
     // { ownFamily: FamilyFilter }：発生源自身を含む自分フィールドのスピリット数（familyGrant による付与も含む。配列＝いずれかの系統でOR）
     return countSpiritsWeighted(
         board,
         sourcePid,
         sourcePid,
-        (s) => matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
+        (s) => !(counter.otherThanTarget && s === targetInst) && matchesFamilyFilter(board, sourcePid, s, counter.ownFamily),
         countingSourceType,
     )
 }
@@ -224,12 +249,27 @@ export function checkAuraCondition(
     board: Board,
     sourcePid: PlayerId,
     condition: AuraCondition,
+    sourceInst?: CardInstance,
 ): boolean {
     const player = board.players[sourcePid]
+    if (typeof condition === "object" && "selfRested" in condition) return sourceInst !== undefined && sourceInst.isRested === condition.selfRested
+    if (typeof condition === "object" && "selfBpAtMost" in condition) return sourceInst !== undefined && effectiveBp(board, sourcePid, sourceInst) <= condition.selfBpAtMost
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1
+    if (condition === "ownSoulCoreInTrash") {
+        return player.soulCore?.zone === "trash"
+    }
+    if (typeof condition === "object" && "ownAttacksAtLeast" in condition) return board.turnPlayer === sourcePid && board.attacksThisTurn >= condition.ownAttacksAtLeast
+    if (condition === "opponentAttackerRefreshed") {
+        const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        const atk = board.players[oppPid].field.spirits.find((s) => s.instanceId === board.battle?.attackerInstanceId)
+        return !!atk && !atk.isRested
+    }
     // "hasOwnBurstSet"：自分がバーストエリアにカードをセットしている間（docs/design/BURST.md）。
     // 文字列リテラル判定は "in" 演算子より前に置く（プリミティブに in を使うと例外になる）
     if (condition === "hasOwnBurstSet") return player.burstSet
+    if ("ownTrashAllColor" in condition) {
+        return player.trashCards.length > 0 && player.trashCards.every((cardId) => card(cardId).colors.includes(condition.ownTrashAllColor))
+    }
     // { ownTrashOnlyColor: Color }：自分のトラッシュにあるカードがこの色だけの間（トラッシュ0枚は空虚な真で成立。BS14-003スカートゥース）
     if ("ownTrashOnlyColor" in condition) {
         return player.trashCards.every((cardId) => card(cardId).colors.includes(condition.ownTrashOnlyColor))
@@ -247,6 +287,41 @@ export function checkAuraCondition(
         const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
         return board.players[oppPid].burstSet === condition.opponentBurstSet
     }
+    // { ownTeamAtLeast: { team, count, restedOnly } }：自分フィールドに指定チーム（CardData.team）所属の
+    // スピリットがcount体以上いる間（26系ジェーン・ボゥ）。restedOnly指定時は疲労状態の個体だけを数える。
+    // 判定は level.ts の ownTeamAtLeast に一本化（triggered/if/step/activated の条件系と共有）
+    if ("ownTeamAtLeast" in condition) {
+        return ownTeamAtLeast(board, sourcePid, condition.ownTeamAtLeast)
+    }
+    // { ownAllHaveTeam: string }：自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが
+    // 指定チーム（CardData.team）に所属する間（26系「自分のスピリット/ネクサスすべてが【X】を持つなら」）。
+    // 条件系（triggered等）のownAllHaveTeamと同じ判定
+    if ("ownAllHaveTeam" in condition) {
+        return ownAllHaveTeam(board, sourcePid, condition.ownAllHaveTeam)
+    }
+    if ("ownSpiritMatches" in condition) {
+        const filter = condition.ownSpiritMatches as unknown as ResolvedTargetFilter
+        return player.field.spirits.some((s) => matchesTarget(board, sourcePid, s, filter))
+    }
+    if ("ownEffectVanishedOpponentSpirit" in condition) {
+        return board.oppSpiritRemovedByEffectThisTurn?.[sourcePid]?.includes("vanish") === true
+    }
+    if ("ownNexusAtLeast" in condition) {
+        return player.field.nexuses.length >= condition.ownNexusAtLeast
+    }
+    if ("ownNexusColorAtLeast" in condition) {
+        const { color, count } = condition.ownNexusColorAtLeast
+        return player.field.nexuses.filter((n) => instHasColor(n, color)).length >= count
+    }
+    if ("ownColorSymbolsAtLeast" in condition) {
+        return countSymbols(player, [condition.ownColorSymbolsAtLeast.color]) >= condition.ownColorSymbolsAtLeast.count
+    }
+    if ("ownAllSpiritsHaveFamily" in condition) {
+        return ownAllSpiritsHaveFamily(board, sourcePid, condition.ownAllSpiritsHaveFamily, condition.costIn)
+    }
+    if ("ownAllHaveFamily" in condition) {
+        return ownAllHaveFamily(board, sourcePid, condition.ownAllHaveFamily)
+    }
     if ("hasOwnColor" in condition) {
         // 「自分の場に◯色のカードがあるか」＝**盤面の存在**を問う判定（分類B）なので、
         // effectSources ではなく field を直接見る。仮想発生源（マジックが貸した継続効果）を
@@ -261,7 +336,7 @@ export function checkAuraCondition(
     // { ownHasKeyword: Keyword }：自分フィールドに指定キーワード持ちのスピリットがいる（一時付与・継続付与も考慮）
     if ("ownHasKeyword" in condition) {
         return player.field.spirits.some((s) =>
-            spiritHasKeyword(board, sourcePid, s, condition.ownHasKeyword),
+            spiritHasKeywordOrLabel(board, sourcePid, s, condition.ownHasKeyword),
         )
     }
     // { ownLifeAtMost: number }：自分のライフ（コア数）がこの値以下（BS06鉄拳のカクタスガルー）
@@ -340,7 +415,11 @@ export function auraAppliesTo(
     if (aura.braveOnly === true && card(targetInst.cardId).type !== "brave") {
         return false
     }
+    if (aura.refreshedOnly === true && targetInst.isRested) return false
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
+        return false
+    }
+    if (aura.summonedByFilter !== undefined && targetInst.summonedBy !== aura.summonedByFilter) {
         return false
     }
     if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
@@ -354,14 +433,14 @@ export function auraAppliesTo(
     }
     if (
         aura.keywordFilter &&
-        !spiritHasKeyword(board, targetOwnerPid, targetInst, aura.keywordFilter)
+        !spiritHasKeywordOrLabel(board, targetOwnerPid, targetInst, aura.keywordFilter)
     ) {
         return false
     }
     // keywordsFilter（OR。BS11-081 ライトニングデリバリー＝【光芒】/【聖命】）
     if (
         aura.keywordsFilter &&
-        !aura.keywordsFilter.some((k) => spiritHasKeyword(board, targetOwnerPid, targetInst, k))
+        !aura.keywordsFilter.some((k) => spiritHasKeywordOrLabel(board, targetOwnerPid, targetInst, k))
     ) {
         return false
     }
@@ -380,6 +459,10 @@ export function auraAppliesTo(
     if (costMin !== undefined && !instAllCosts(targetInst).some((cost) => cost >= costMin)) {
         return false
     }
+    const costMax = aura.costMaxFilter
+    if (costMax !== undefined && !instAllCosts(targetInst).some((cost) => cost <= costMax)) {
+        return false
+    }
     if (
         aura.familyFilter &&
         !matchesFamilyFilter(board, targetOwnerPid, targetInst, aura.familyFilter)
@@ -389,9 +472,16 @@ export function auraAppliesTo(
     if (aura.familyAllFilter !== undefined && !aura.familyAllFilter.every((f) => spiritHasFamily(board, targetOwnerPid, targetInst, f))) {
         return false
     }
-    if (aura.nameIncludesFilter !== undefined && !cardNameContains(targetInst, aura.nameIncludesFilter)) {
+    // nameIncludesFilter（配列＝いずれかを含むOR。26系スピッツ・ドラコニー：「ノア・フルール」/「ディアナ・フルール」）
+    if (aura.nameIncludesFilter !== undefined) {
+        const names = Array.isArray(aura.nameIncludesFilter) ? aura.nameIncludesFilter : [aura.nameIncludesFilter]
+        if (!names.some((n) => cardNameContains(targetInst, n))) return false
+    }
+    // teamFilter（26系グリーンウェーブステージ：指定チーム（CardData.team）所属のスピリットのみ）
+    if (aura.teamFilter !== undefined && !(card(targetInst.cardId).team ?? []).includes(aura.teamFilter)) {
         return false
     }
+    if (aura.keishoFilter && !card(targetInst.cardId).effects.some((e) => e.kind === "exTrashReduction")) return false
     if (aura.vanillaFilter && !instIsVanilla(targetInst)) {
         return false
     }
@@ -405,13 +495,14 @@ export function auraAmount(
     aura: AuraDef,
     targetInst?: CardInstance,
     sourceType?: CardType, // オーラの発生源の種別（数え上げの限定に使う。呼び出し元が発生源インスタンスから求めて渡す）
+    sourceInst?: CardInstance,
 ): number {
     let amount = 0
     if (aura.amountPer !== undefined && aura.counter !== undefined) {
         amount += aura.amountPer * countAuraCounter(board, sourcePid, aura.counter, targetInst, sourceType)
     }
     if (aura.amount !== undefined) {
-        if (!aura.condition || checkAuraCondition(board, sourcePid, aura.condition)) {
+        if (!aura.condition || checkAuraCondition(board, sourcePid, aura.condition, sourceInst)) {
             amount += aura.amount
         }
     }
@@ -438,23 +529,9 @@ export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): bool
     return false
 }
 
-// 実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
-// 戦闘のBP比較・BPを条件にした対象選択はすべてこの値を使う（レベル判定・維持コアは対象外）。
-export function effectiveBp(
-    board: Board,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): number {
-    // 「Lv◯BPを◯として扱う」は Lv の BP を置き換える：ブレイヴの合体時BP+ は含めて置き換わり（足さない）、
-    // 効果による BP+ とオーラは掛かった前後を問わず上に乗る（Q3630・Q3632・Q18859。2026-09-25 ユーザー確認）。
-    // 重なったら このバトル限定＞継続の同値化（百地ダイル）＞継続（X011）の順で1つだけ見る
-    const battleBpAs = inst.battleBpAs !== undefined && inst.battleBpAs.levels.includes(currentLevel(inst).level) ? inst.battleBpAs.amount : undefined
-    const lvBpAs = battleBpAs ?? inst.bpEqualizeContinuous ?? inst.bpAsContinuous
-    // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるときはそれを足し直す
-    let total =
-        lvBpAs !== undefined
-            ? lvBpAs + inst.tempBpBuff + (inst.battleBpBuff ?? 0)
-            : currentLevel(inst).bp + braveBpBonus(board, board.players[ownerPid], inst)
+// 常時のBP増減（オーラ）を1つずつ onAmount へ渡す。effectiveBp の合算と receivesBpPlus が同じ判定を通る
+function eachBpAura(board: Board, ownerPid: PlayerId, inst: CardInstance, onAmount: (amount: number) => void): void {
+    const uniqueSeen = new Set<string>()
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // 古代闘技場Lv1：この陣営の「BPを+する」効果は発揮されない。オーラは1体ぶんずつ加算されるため、
         // 加算値が正のものだけを落とす（BP-のオーラは抑止の対象外。現データに負のBPオーラは無い）
@@ -476,13 +553,61 @@ export function effectiveBp(
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }
-                const amount = auraAmount(board, pid, effect.aura, inst, card(source.cardId).type)
+                if (effect.uniqueByName) {
+                    const key = `${pid}|${card(source.cardId).name}|${effect.id}`
+                    if (uniqueSeen.has(key)) continue
+                    uniqueSeen.add(key)
+                }
+                const amount = auraAmount(board, pid, effect.aura, inst, card(source.cardId).type, source)
                 if (bpBuffSuppressed && amount > 0) continue
-                total += amount
+                onAmount(amount)
             }
         }
     }
+}
+
+// 実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
+// 戦闘のBP比較・BPを条件にした対象選択はすべてこの値を使う（レベル判定・維持コアは対象外）。
+export function effectiveBp(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): number {
+    // 「Lv◯BPを◯として扱う」は Lv の BP を置き換える：ブレイヴの合体時BP+ は含めて置き換わり（足さない）、
+    // 効果による BP+ とオーラは掛かった前後を問わず上に乗る（Q3630・Q3632・Q18859。2026-09-25 ユーザー確認）。
+    // 重なったら このバトル限定＞継続の同値化（百地ダイル）＞継続（X011）の順で1つだけ見る
+    const battleBpAs = inst.battleBpAs !== undefined && inst.battleBpAs.levels.includes(currentLevel(inst).level) ? inst.battleBpAs.amount : undefined
+    const lvBpAs = battleBpAs ?? inst.bpEqualizeContinuous ?? inst.bpAsContinuous
+    // currentLevel(...).bp は tempBpBuff/battleBpBuff を加算済みなので、置き換えるときはそれを足し直す
+    let total =
+        lvBpAs !== undefined
+            ? lvBpAs + inst.tempBpBuff + (inst.battleBpBuff ?? 0)
+            : currentLevel(inst).bp + braveBpBonus(board, board.players[ownerPid], inst)
+    eachBpAura(board, ownerPid, inst, (amount) => {
+        total += amount
+    })
     return total + timedRuleBp(board, ownerPid, inst)
+}
+
+// 「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。
+// BP-で打ち消されて実効BPが上がっていなくても、正のBP+を1つでも受けていれば真（2026-10-11 ユーザー確認）。
+// 古代闘技場で発揮されないBP+は受けていない扱い（eachBpAura が落とす）。ブレイヴの合体時BP+は含めない
+export function receivesBpPlus(board: Board, ownerPid: PlayerId, inst: CardInstance): boolean {
+    let plus = false
+    eachBpAura(board, ownerPid, inst, (amount) => {
+        if (amount > 0) plus = true
+    })
+    if (plus) return true
+    for (const r of board.timedEffects) {
+        const t = r.target
+        const hit = (t.kind === "instance" && t.instanceId === inst.instanceId) || (t.kind === "rule" && (t.pid === undefined || t.pid === ownerPid) && matchesTarget(board, ownerPid, inst, t.filter, t.selfInstanceId))
+        if (!hit) continue
+        for (const x of r.content) {
+            if (x.type !== "bp") continue
+            if (x.amountCounter === undefined ? x.amount > 0 : x.amount * countAuraCounter(board, r.ownerPid, x.amountCounter as AuraCounter, inst) > 0) return true
+        }
+    }
+    return false
 }
 
 // 全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
@@ -491,6 +616,8 @@ export function effectiveBp(
 export function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance): number {
     let total = 0
     for (const r of board.timedEffects) {
+        // BP を扱わない記録は照合しない（照合は実効BPを読むので、BP の条件つきのルール（シンボル喪失など）があると堂々巡りになる）
+        if (!r.content.some((x) => x.type === "bp")) continue
         const t = r.target
         // 1体への一定量は写し（tempBpBuff・battleBpBuff）に入っているので、ここでは「1体につき」の量だけ
         const onInstance = t.kind === "instance" && t.instanceId === inst.instanceId

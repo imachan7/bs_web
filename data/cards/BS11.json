@@ -392,23 +392,38 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "countFromSelfLevel": true,
-     "pick": {
-      "cardType": "spirit",
-      "family": [
-       "星竜"
-      ],
-      "cost": {
-       "max": 7
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1,
+       "countFromSelfLevel": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": [
+         "星竜"
+        ],
+        "cost": {
+         "max": 7
+        }
+       },
+       "tensho": "none",
+       "noSummonEffects": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
       }
-     },
-     "pickCount": "all",
-     "dest": "summon",
-     "tensho": "none",
-     "noSummonEffects": true,
-     "rest": "trash"
+     ]
     }
    }
   ]
@@ -3161,9 +3176,27 @@
      1
     ],
     "action": {
-     "type": "reveal",
-     "count": 2,
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 2
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {}
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     },
     "optional": false
    },
@@ -3174,10 +3207,15 @@
     "levels": null,
     "whileCombined": true,
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "costFilter": {
-      "max": 6
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "cost": {
+       "max": 6
+      }
      }
     },
     "optional": false
@@ -3601,15 +3639,31 @@
     "whileCombined": true,
     "optional": true,
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": "magic"
-     },
-     "optional": true,
-     "dest": "cast",
-     "orHand": true,
-     "rest": "hand"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "cast",
+       "pick": {
+        "cardType": "magic"
+       },
+       "optional": true,
+       "orHand": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "hand"
+      }
+     ]
     }
    }
   ],
@@ -3889,8 +3943,13 @@
     "turn": "own",
     "winnerCombinedOnly": true,
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     }
    }
   ]
@@ -4703,12 +4762,16 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": [
-       "spirit",
-       "brave"
-      ]
+      "pick": {
+       "cardType": [
+        "spirit",
+        "brave"
+       ]
+      }
      },
      "then": {
       "type": "removeCores",
@@ -5489,17 +5552,33 @@
     ],
     "fromHandOnly": true,
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": [
-       "spirit",
-       "brave"
-      ]
-     },
-     "dest": "summon",
-     "orHand": true,
-     "rest": "hand"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": [
+         "spirit",
+         "brave"
+        ]
+       },
+       "orHand": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "hand"
+      }
+     ]
     }
    },
    {
