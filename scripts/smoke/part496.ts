@@ -1,8 +1,7 @@
-// smoke パート496（第2メインステップ: アタックステップの後にもう一度メインステップを行う。2026-10-06）
+// smoke パート496（旧カードの対戦には第2メインステップが無い。2026-10-15 ユーザー決定）
 //
-// 公式ルール: 通常ターンは start → core → draw → refresh → main → attack → 第2main → end の順。
-// 先攻1ターン目はコアステップ・アタックステップ・第2メインステップが存在しない（メイン→エンド直行）。
-// BS15-X04 の追加ステップはアタックステップ終了後・第2メインステップの前に行う。
+// standard 版（26系ルール）は main → attack → 第2main → end だが、旧版は main → attack → end のまま。
+// 先攻1ターン目はアタックステップも無い（メイン→エンド直行）。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
 import { assert, createGame, createInstance, engineRunTurnStart, getCard, handleAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
@@ -33,36 +32,16 @@ console.log("=== §A 先攻1ターン目: アタックステップも第2メイ�
     assert(!s.log.some((l) => l.includes("第2メインステップに移行")), "第2メインステップのログが出ない")
 }
 
-console.log("=== §B アタックステップ終了後、第2メインステップへ移行する ===")
+console.log("=== §B アタックステップ終了後は第2メインを経ずに相手のターンへ ===")
 {
     const s = game("p496-b")
     assert(handleAction(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
-    assert(s.phase === "attack", "アタックステップ")
     assert(handleAction(s, "p1", { type: "endTurn" }) === null, "アタックステップを終了する")
-    assert(s.turnPlayer === "p1" && s.phase === "main" && s.secondMainStep === true, "第2メインステップに入っている")
-    assert(s.log.some((l) => l.includes("第2メインステップに移行")), "移行ログが出る")
-    // 第2メインからはアタックステップへ進めない（アタックの機会はもう無い）
-    assert(handleAction(s, "p1", { type: "nextPhase" }) !== null, "第2メインからアタックステップへは進めない")
-    // 第2メインでも通常どおりメインステップの行動ができる
-    const before = s.players.p1.field.spirits.length
-    assert(handleAction(s, "p1", { type: "summon", handIndex: 0 }) === null, "第2メインでも召喚できる")
-    assert(s.players.p1.field.spirits.length === before + 1, "フィールドにスピリットが増えている")
-    assert(handleAction(s, "p1", { type: "endTurn" }) === null, "第2メインを終了する")
-    assert(s.turnPlayer === "p2" && s.phase === "main", "エンドステップを経て相手のターンへ")
-    assert(s.secondMainStep === undefined, "ターン終了で第2メインのフラグは消える")
+    assert(s.turnPlayer === "p2" && s.phase === "main" && s.secondMainStep === undefined, "第2メインに入らず相手のターンへ")
+    assert(!s.log.some((l) => l.includes("第2メインステップに移行")), "第2メインステップのログが出ない")
 }
 
-console.log("=== §C メインステップから直接ターン終了してもアタックステップ→第2メインを経る ===")
-{
-    const s = game("p496-c")
-    assert(handleAction(s, "p1", { type: "endTurn" }) === null, "メインステップから直接ターンを終了する")
-    assert(s.secondMainStep === true && s.phase === "main", "アタックステップを経由して第2メインに入っている")
-    assert(s.log.some((l) => l.includes("アタックステップに移行")), "アタックステップを経由した")
-    assert(handleAction(s, "p1", { type: "endTurn" }) === null, "第2メインを終了する")
-    assert(s.turnPlayer === "p2", "相手のターンへ")
-}
-
-console.log("=== §D BS15-X04 の追加ステップの後にも第2メインステップが来る ===")
+console.log("=== §C BS15-X04 の追加ステップの後も第2メインは来ない ===")
 {
     const s = createGame("p496-d", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "red" })
     s.interactiveTargets = true
@@ -73,9 +52,7 @@ console.log("=== §D BS15-X04 の追加ステップの後にも第2メインス�
     assert(!!s.pendingChoice?.extraStepChoice, "追加ステップの選択が出る")
     assert(handleAction(s, "p1", { type: "resolveChoice", option: "ドローステップ" }) === null, "ドローステップを選ぶ")
     assert(s.players.p1.hand.length === hand + 1, `1枚ドローした（${s.players.p1.hand.length - hand}枚）`)
-    assert(s.secondMainStep === true && s.phase === "main", "追加ステップの後に第2メインステップへ入る")
-    assert(handleAction(s, "p1", { type: "endTurn" }) === null, "第2メインを終了する")
-    assert(s.turnPlayer === "p2", "相手のターンへ")
+    assert(s.turnPlayer === "p2" && s.secondMainStep === undefined, "追加ステップの後は相手のターンへ")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part496）")

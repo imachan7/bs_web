@@ -5,6 +5,8 @@ import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, sus
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
+const SECOND_MAIN_STEP = false
+
 // 器BJ：カード名条件・コア条件に合う自分のネクサスを、アタックステップの間だけスピリットとして扱う
 // （BS13-048古代戦艦アルゴ・ゴレムLv2）。treatOwnNexusesAsSpiritsThisTurnHandler（BS03ゴーレムクラフト）と
 // 同じ「同じインスタンスのままfield.nexuses→field.spiritsへ移す」手口だが、asSpiritThisTurnそのものを
@@ -268,8 +270,9 @@ export function toAttackPhase(state: GameState): void {
         return
     }
     // アタックステップを経由した＝このターンには第2メインステップがまだ残っている（endTurn が消費する）。
-    // 既に第2メインを行った後の再アタックステップ（BS10-008 アレス・ドラグーン）の後には第2メインを挟まない
-    if (state.secondMainDone !== true) state.oweSecondMain = true
+    // 既に第2メインを行った後の再アタックステップ（BS10-008 アレス・ドラグーン）の後には第2メインを挟まない。
+    // 旧カードの対戦には第2メインステップが無いので立てない（2026-10-15 ユーザー決定。standard 版から持ち込んだ仕組みは入口だけ閉じる）
+    if (SECOND_MAIN_STEP && state.secondMainDone !== true) state.oweSecondMain = true
     endStepScoped(state)
     state.phase = "attack"
     log(state, `${state.players[state.turnPlayer].name}はアタックステップに移行した。`)
