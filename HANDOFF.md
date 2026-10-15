@@ -21,6 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
+### 次：余分コストの支払い元を選ばせる（ブランチ `feat/surcharge-pay-sources`。2026-10-15 ユーザー決定）
+
+- **支払いモードのボタンと同期**：「自動」でリザーブだけで足りる → 選ばせずリザーブから。「自動」で足りない、または「手動」 → 支払い元（リザーブ＋フィールド）を選ばせる。UI は効果のコストの支払い（PendingChoice `effectCostPay`、choice.ts）を流用。非対話（AI）は `autoPayPlan`
+- 経路ごとの再開：moveCards／revealApplyOne／summonFromHandFree／summonBurstCardFree は「余分を前払い済み」の印を付けた同じ action を `effectCostPay` の続きに渡す。確認を出す経路（【不死】・デッキ破棄・破棄されたとき・ライフ減少・ネクサス配置・同名召喚）は「召喚する」と答えた後に支払いを聞く。【烈神速】・altSummon はプレイヤーの操作なので、召喚と同じく操作に `paySources` を付けて送る
+- **兵隊アントマン（BS02-030、`summonRepeatFromHand`）は同時の召喚**：余分は1回。**この効果で召喚したスピリットのシンボルは、同じ効果で召喚する別のスピリットの軽減に使えない**（ユーザー確認）。コストを払って複数体を同時に召喚する効果の一般則として、軽減のシンボルを数えるときに同じ効果で出た個体を除く（いま該当するのはこの1枚）
+
 ### 進行中：分割の道具（ブランチ `chore/split-file-tool`。2026-10-15 ユーザー決定）
 
 ルールは WHERE_TO_ADD §0。道具 `scripts/split-file.ts` の確定仕様：TypeScript の API（typescript 6.0.3）で元ファイルの最上位の宣言（function／const／type／interface／class／enum）を名前で探し、直前に付いたコメントごと先ファイルへ移す（先が無ければ作る）。
