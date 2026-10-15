@@ -21,14 +21,11 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：分割の道具（ブランチ `chore/split-file-tool`。2026-10-15 ユーザー決定）
+### 進行中：基準超えの4本を切る（ブランチ `chore/split-oversized-files`。2026-10-16 ユーザー決定）
 
-ルールは WHERE_TO_ADD §0。道具 `scripts/split-file.ts` の確定仕様：TypeScript の API（typescript 6.0.3）で元ファイルの最上位の宣言（function／const／type／interface／class／enum）を名前で探し、直前に付いたコメントごと先ファイルへ移す（先が無ければ作る）。
-移したものは export にする。先ファイルの import は、移したコードが参照する名前を元ファイルの import／宣言から引いて付ける（元に残る宣言を使うなら元に export を付けて import）。
-元ファイルで移したものをまだ使うなら先から import。**リポジトリ内で元ファイルからその名前を import しているファイルは、先ファイルからの import に書き換える**（再輸出はしない）。不要になった import は言語サービスの organizeImports（RemoveUnused）で消す。
-最後に「移した宣言の本体が元と1文字も一致するか」を検査して、違えば変更を書き戻して失敗する。`tsc --noEmit` と `npm run codemap` を走らせる。`--dry-run` で書かずに移す計画だけ出す。
-あわせて `validate:size` に「1行目が `//` コメントでないファイルを落とす」を足し、いま無い19ファイルに1行目を足す。
-次：道具ができたら基準超えの5本（type.ts・types/effectDef.ts・triggers.ts・public/src/main.ts・renderer.ts）を §0 の表に従って切る。そのあと 7（カバレッジの計測を1行呼び出しの方式にする）
+triggers.ts → `logic/fieldEventTriggers.ts`・`logic/stepTriggers.ts`・`burstConditionMet` は `keywords/burst.ts`。renderer.ts → `public/src/ui/` の fieldCard・hand・tooltip・infoPanels・paying。main.ts → `ui/payInput.ts`・`ui/play.ts`・`ui/lobby.ts`（`init` 1関数が772行あるので main は約1300行で止める＝ユーザー決定 a）。
+effectDef.ts は1回きりのスクリプトで `EffectDef` を `EffectDefTrigger | EffectDefContinuous | …残り` に組み替え（メンバー集合の一致を検査）、`split-file.ts --reexport` で `types/effectDefTrigger.ts`・`types/effectDefContinuous.ts` へ。1本ずつコミット、PR は1本。
+次：そのあと 7（カバレッジの計測を1行呼び出しの方式にする）
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
