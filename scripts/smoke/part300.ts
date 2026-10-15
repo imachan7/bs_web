@@ -6,7 +6,7 @@ import { assert, createGame, createInstance, endTurn, getCard, refreshLevelAsOve
 import type { GameState } from "./helpers"
 import { instColors, instHasColor, countSymbols, activeConstraints } from "../../shared/rules"
 import { clearBattle } from "../../server/src/logic/GameState"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { fushiCandidates, applyFushiSummon } from "../../server/src/logic/revive"
 import { fireSummonSequence } from "../../server/src/logic/EffectModules"
 

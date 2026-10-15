@@ -7,7 +7,8 @@ import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, Effe
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
-import { fireFieldEventTriggers, notifyHandGained, revertDestroyGroupUsage } from "./triggers"
+import { revertDestroyGroupUsage } from "./triggers"
+import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import { destroySpirit } from "./removal"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
@@ -45,8 +46,7 @@ import {
     fireSummonSequence,
     resolveTensho,
     lifeCostBlockedByFloor,
-    tryOwnLifeFloorByCost,
-    recordPlayerRule,
+    tryOwnLifeFloorByCost
 } from "./EffectModules"
 
 // 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。

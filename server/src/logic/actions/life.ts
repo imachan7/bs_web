@@ -2,7 +2,8 @@
 import { recordLifeLost } from "../record"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log } from "../GameState"
-import { fireFieldEventTriggers, fireTrigger } from "../triggers"
+import { fireTrigger } from "../triggers"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 
 // BS15-X01刀の覇王ムサシード・アシュライガーLv3：相手のライフのコアをcount個、相手のリザーブへ置く
 // （相手のライフがcountに満たなければあるだけ移す。0枚なら不発）

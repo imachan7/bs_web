@@ -7,7 +7,7 @@
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function game(seed: string, interactive: boolean): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "white" })

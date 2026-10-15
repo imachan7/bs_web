@@ -8,17 +8,16 @@ import {
     createGame,
     createInstance,
     currentLevel,
-    destroySpirit,
-    effectiveBp,
-    getCard,
+    destroySpirit, getCard,
     minLevelCores,
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart, timedHas,
-    lockedFor,
+    lockedFor
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireFieldEventTriggers, fireStepTriggers } from "../../server/src/logic/triggers"
+import { fireStepTriggers } from "../../server/src/logic/stepTriggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { effectiveCost } from "../../shared/cost"
 import { spiritHasKeyword } from "../../shared/rules"
 

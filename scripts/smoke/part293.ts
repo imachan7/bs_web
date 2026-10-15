@@ -23,7 +23,7 @@ import {
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/brave"
 import { summonFreeFromHandIndex } from "../../server/src/logic/EffectModules"
-import { fireStepTriggers } from "../../server/src/logic/triggers"
+import { fireStepTriggers } from "../../server/src/logic/stepTriggers"
 import {
     effectSources,
     hasMagicImmunity,

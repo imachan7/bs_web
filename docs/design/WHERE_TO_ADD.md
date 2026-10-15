@@ -76,6 +76,28 @@
 | 自動で選ぶ規則（AI・非対話） | `pickEnemyCandidates`・`pickEnemyByBp`・`pickEnemyLowestCost` など | — | 対戦者が選ぶべき場面を自動にしていないかは `npm run audit:choices` |
 | 「〜することで」の発動確認 | `requestActivationConfirm` | — | — |
 
+## 効果の定義の型（`server/src/types/effectDef*.ts`。2026-10-16 に分割）
+
+`EffectDef` は `effectDef.ts` の union で、中身を分類ごとの union に分けてある。新しい kind はどれか1つに足す（利用側は従来どおり `type.ts` から `EffectDef` を import する）。
+
+| 分類 | ファイル |
+| :-- | :-- |
+| 事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活・デッキから破棄されたとき…） | `effectDefTrigger.ts` |
+| 場にある間効く継続効果と付与（〜Grant・〜As・抑制・制約） | `effectDefContinuous.ts` |
+| コスト・軽減・支払い方を変えるもの | `effectDefCost.ts` |
+| キーワード・マジック・起動能力・ブロック時のキーワードの置き換え | `effectDef.ts` |
+
+- `validate:cards` の「型に無いキー」の検査は `types/effectDef*.ts` を全部読む。分類のファイルを足すときは名前を `effectDef` で始める
+
+## 誘発（`server/src/logic/triggers.ts`・`fieldEventTriggers.ts`・`stepTriggers.ts`。2026-10-16 に分割）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| 自分のカードの事象（召喚時・アタック時・破壊時など `TriggerEvent`）で起きる誘発 | `triggers.ts` の `fireTrigger` |
+| 盤面の出来事（`FieldEvent`）で起きる誘発、手札を得た・ネクサスを配置したときの通知 | `fieldEventTriggers.ts` の `fireFieldEventTriggers`・`notifyHandGained`・`fireNexusDeployed` |
+| ステップの開始・終了、バトルに勝ったとき、BP が達したとき | `stepTriggers.ts` の `fireStepTriggers`・`fireBattleWonTriggers`・`fireBpReachedTriggers` |
+| 【バースト】の発動条件 | `keywords/burst.ts` の `burstConditionMet` |
+
 ## 【バースト】（`server/src/logic/keywords/burst.ts`）
 
 セットは `placeBurst`、発動後の後始末は `finishBurstActivation`、「自分のバーストを発動したとき」の誘発は `fireOwnBurstActivated`。発動条件の走査は `fireBurstOnEvent`（持ち主から見た事象だけ拾う）、【相手の『召喚時』発揮後】の発火は `finishSummonEffect`（2026-09-27 に triggers.ts から移した）。バーストの条件と解決順は BURST.md。
@@ -102,6 +124,23 @@
 | ボイド・トラッシュからコアを置く、コアチャージ | `coreGain.ts` |
 | ライフを増やす・減らす | `life.ts`（【聖命】の計測点が `coverage-effects.ts` から差し込まれている） |
 | 【転召】のコアの置き先・再開・代わりの支払い | `tensho.ts`（判定の本体は `keywords/tensho.ts`） |
+
+## 画面（`public/src/`。2026-10-16 に main.ts・renderer.ts から `ui/` へ分割）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| 描画の入口・全体の再描画 | `renderer.ts` の `render` |
+| フィールドのカード1枚（コア・レベル・ボタン） | `ui/fieldCard.ts` の `fieldCardEl`・`coreButtonsEl` |
+| 手札 | `ui/hand.ts` の `renderHand` |
+| 情報欄・バースト欄・バトル欄 | `ui/infoPanels.ts` |
+| 効果のツールチップ | `ui/tooltip.ts` |
+| 支払いモードの状態と残りコストの計算 | `ui/paying.ts`（`PayingState`・`payingNeed`） |
+| 支払いの入力と送信（自動／手動の切り替え） | `ui/payInput.ts` |
+| 手札・スピリットのクリック、召喚・アタック・選択の応答 | `ui/play.ts` |
+| デッキの一覧・お知らせ | `ui/lobby.ts` |
+| 接続と `init`（イベントの登録） | `main.ts` |
+
+- `ui/` から `main.ts`・`renderer.ts` の `let` を書き換えることはできない（import した変数は代入不可）。書き換えが要るときは持ち主のファイルに `setXxx` を置く（`setCardDb`・`setDeckRecipes`・`suppressEffectTooltip`）
 
 ## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
 

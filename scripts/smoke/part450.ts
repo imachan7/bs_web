@@ -3,10 +3,10 @@
 // 対話モードでバースト効果が対象を選ばせると、選択の解決後に誰も後始末をせず、
 // カードがバーストエリアに残ったまま thenPay（その後コストを支払うことで〜）も聞かれなかった。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
-import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
-import type { GameState } from "./helpers"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
-import { viewFor } from "../../server/src/logic/GameState"
+import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers";
+import type { GameState } from "./helpers";
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers";
+import { viewFor } from "../../server/src/logic/GameState";
 
 function setup(seed: string): { s: GameState; ids: string[] } {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "white" })

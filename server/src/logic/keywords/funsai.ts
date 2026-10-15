@@ -1,7 +1,7 @@
 // 【粉砕】の判定と解決
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, opponentOf } from "../GameState"
-import { fireFieldEventTriggers } from "../triggers"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, spiritHasKeyword } from "../../../../shared/rules"
 import { millDeck } from "../zones/mill"
 

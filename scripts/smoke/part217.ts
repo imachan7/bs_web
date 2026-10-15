@@ -11,7 +11,7 @@
 //   - 同名カードを2枚以上並べた場合（順序を入れ替えても結果が同じ＝対称）
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireStepTriggers } from "../../server/src/logic/triggers"
+import { fireStepTriggers } from "../../server/src/logic/stepTriggers"
 
 const VALLEY = "BS06-073" // 灼熱の谷（ドローステップ：ドロー+1 と 手札1枚破棄）
 const TRANSMIGRATION = "BS09-055" // 転生の谷（ドローステップの誘発を持つ別のネクサス）

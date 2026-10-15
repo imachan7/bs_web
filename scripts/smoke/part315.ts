@@ -21,7 +21,8 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/triggers"
+import { fireTrigger } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)

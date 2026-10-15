@@ -11,7 +11,7 @@
 // 灼熱の谷に限らず「ステップ誘発が2つ以上あって、先のものが選択を出す」全ケースが該当する。
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireStepTriggers } from "../../server/src/logic/triggers"
+import { fireStepTriggers } from "../../server/src/logic/stepTriggers"
 
 const VALLEY = "BS06-073" // 灼熱の谷
 

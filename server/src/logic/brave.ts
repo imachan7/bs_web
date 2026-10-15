@@ -4,7 +4,8 @@ import type { CardInstance, DestroyContext, GameState, PaySource, PlayerId } fro
 import { getCard, log, instMinLevelCores, opponentOf, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
-import { fireFieldEventTriggers, fireTrigger } from "./triggers"
+import { fireTrigger } from "./triggers"
+import { fireFieldEventTriggers } from "./fieldEventTriggers"
 
 import {
     activeConstraints,

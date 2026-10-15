@@ -19,7 +19,7 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function game(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "white" })

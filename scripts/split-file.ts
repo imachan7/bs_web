@@ -147,6 +147,7 @@ function main(): number {
     const identsMoved = identsOf(moved)
     const remaining = sf.statements.filter((s) => !moved.includes(s))
     const exportedNow: string[] = []
+    const typeNamesInSrc = new Set(remaining.filter((s) => ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s)).flatMap(declNames))
     for (const s of remaining) {
         const ns = declNames(s)
         if (ns.some((n) => identsMoved.has(n)) && !hasModifier(s, ts.SyntaxKind.ExportKeyword)) srcEdits.push({ pos: s.getStart(), end: s.getStart(), text: "export " })
@@ -176,7 +177,7 @@ function main(): number {
         dstImports.push(`import ${typeOnly}${[def, named].filter(Boolean).join(", ")} from "${newSpec}"`)
     }
     const fromSrc = [...new Set(exportedNow)].filter((n) => !dstHave.has(n))
-    if (fromSrc.length > 0) dstImports.push(`import { ${fromSrc.join(", ")} } from "${specFor(dst, src, srcStyle)}"`)
+    if (fromSrc.length > 0) dstImports.push(`import ${fromSrc.every((n) => typeNamesInSrc.has(n)) ? "type " : ""}{ ${fromSrc.join(", ")} } from "${specFor(dst, src, srcStyle)}"`)
 
     if (reexport) {
         const ip = importInsertPos(srcText, sf)
@@ -191,7 +192,8 @@ function main(): number {
     }
     if (stillUsed.length > 0) {
         const ip = importInsertPos(srcText, sf)
-        srcEdits.push({ pos: ip.pos, end: ip.pos, text: `${ip.prefix}import { ${stillUsed.join(", ")} } from "${specFor(src, dst, srcStyle)}"` })
+        const typeOnlyUse = moved.filter((s) => declNames(s).some((n) => stillUsed.includes(n))).every((s) => ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s))
+        srcEdits.push({ pos: ip.pos, end: ip.pos, text: `${ip.prefix}import ${typeOnlyUse ? "type " : ""}{ ${stillUsed.join(", ")} } from "${specFor(src, dst, srcStyle)}"` })
     }
 
     // 移すコード（export 付き）
@@ -215,8 +217,9 @@ function main(): number {
     const contents = new Map<string, string>([[src, applyEdits(srcText, srcEdits)], [dst, newDst]])
     const consumerFiles: string[] = []
     for (const f of reexport ? [] : ROOTS.flatMap(walk).map((p) => resolve(p))) {
-        if (f === src || f === dst) continue
-        const text = readFileSync(f, "utf8")
+        // 先ファイルが元から移す名前を import していたら、その import は消す（先で宣言されるので）
+        if (f === src || (f === dst && !dstExists)) continue
+        const text = f === dst ? newDst : readFileSync(f, "utf8")
         if (!text.includes(basename(stripExt(src)))) continue
         const fsf = parse(f, text)
         const edits: Edit[] = []
@@ -240,12 +243,12 @@ function main(): number {
             const def = isImp ? st.importClause?.name?.text : undefined
             const lines: string[] = []
             if (keep.length > 0 || def) lines.push(def && keep.length === 0 ? `import ${typeOnly}${def} from ${q}${specNode.text}${q}` : mk(keep, specNode.text, def))
-            lines.push(mk(mv, newSpec))
+            if (f !== dst) lines.push(mk(mv, newSpec))
             edits.push({ pos: st.getStart(), end: st.end, text: lines.join("\n") })
         }
         if (edits.length > 0) {
             contents.set(f, applyEdits(text, edits))
-            consumerFiles.push(f)
+            if (f !== dst) consumerFiles.push(f)
         }
     }
 
