@@ -1,4 +1,5 @@
 // 受け取った状態をDOMへ反映する描画処理
+import { handToggleTarget, markSelected } from "./handToggleChoice"
 import type {
     AuraCondition,
     AuraCounter,
@@ -1935,12 +1936,10 @@ function renderHand(view: GameView, ui: UiState): void {
 
         let targetable = false
         let activeIndex = index
-        if (handChoiceIndices) {
-            const tIdx = g.indices.find(idx => handChoiceIndices.has(idx))
-            if (tIdx !== undefined) {
-                targetable = true
-                activeIndex = tIdx
-            }
+        const toggle = handChoiceIndices ? handToggleTarget(g.indices, handChoiceIndices, view) : null
+        if (toggle?.target !== undefined) {
+            targetable = true
+            activeIndex = toggle.target
         }
 
         const el = document.createElement("div")
@@ -1965,6 +1964,7 @@ function renderHand(view: GameView, ui: UiState): void {
             el.classList.add("targetable", "clickable")
             el.classList.remove("unusable")
         }
+        markSelected(el, toggle?.selected ?? 0)
 
         // 召喚・配置・マジック使用のために選択されたカードをハイライト
         const selectedHandIndex =

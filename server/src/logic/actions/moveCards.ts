@@ -259,7 +259,8 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     }
     const deliver = (j: number): void => {
         const cardId = zone[j]!
-        if (!sendOne(ctx, action, pid, j)) {
+        // 召喚の余分の支払い待ちで止まったときは、払ったあとの再開で召喚される（待ちが立っていれば失敗ではない）
+        if (!sendOne(ctx, action, pid, j) && !state.pendingChoice) {
             end()
             return
         }

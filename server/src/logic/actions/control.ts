@@ -10,7 +10,8 @@ import { matchesPick } from "./revealAction"
 import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
-import { effectiveCost, magicEffectiveColors, summonSurcharge } from "../../../../shared/cost"
+import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -307,14 +308,17 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     // payCost（BS15-004ハンゾウ・シノビ・ドラゴン）：通常の召喚コストも支払う（効果文に「コストを支払わずに」が
     // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
     // payCost でなくても、相手の転召の祭壇などの余分は払う（2026-10-15）
-    const cost = action.payCost ? effectiveCost(state, owner, card) : summonSurcharge(state, owner, card)
-    if (normalReserveOf(player) < maintain + cost) {
+    if (action.surchargePrepaid) state.summonSurchargePaid = owner
+    const cost = action.payCost ? effectiveCost(state, owner, card) : 0
+    if (action.payCost ? normalReserveOf(player) < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
+    if (!action.payCost && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
     player.burst = null
     player.burstSet = false
-    player.reserve -= maintain + cost
+    const placedFromField = action.payCost ? 0 : payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0
+    player.reserve -= maintain + cost - placedFromField
     player.trashCores += cost
     const inst = createInstance(cardId, state.turn, maintain)
     const combineHost = combineHostId !== undefined ? findSpiritAny(state, combineHostId)?.inst : undefined

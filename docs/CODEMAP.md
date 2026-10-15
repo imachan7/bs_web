@@ -466,6 +466,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `matchesPick`（fn）：costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
 
+## server/src/logic/actions/summonRepeat.ts
+
+- `resolveSummonRepeatPaid`（fn）
+
 ## server/src/logic/actions/timedEffect.ts
 
 - `isAllowedRuleCounter`（fn）
@@ -766,8 +770,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/summonSurcharge.ts
 
-- `canPayFreeSummonSurcharge`（fn）：余分に加えて、続けて置くコア（extraNeeded）もリザーブで賄えるか。支払い元はリザーブのみ（簡略化。2026-10-15）
-- `payFreeSummonSurcharge`（fn）：払えたら true（余分が無い・同じ召喚で払済みも true）。払えないときは何も動かさず false
+- `surchargeOwed`（fn）：batch＝1つの効果で複数体を同時に召喚している（召喚は1回なので余分も1回）。単発の召喚は毎回払う。
+- `canPayFreeSummonSurcharge`（fn）：余分に加えて、続けて置くコア（extraNeeded）も賄えるか。余分が無いときは従来どおりリザーブだけで見る
+- `payFreeSummonSurchargeKeeping`（fn）：余分を払い、置くコア（maintain）のうちフィールドのコアで賄えた数を返す（呼び出し側はリザーブから maintain - 戻り値 を引く）。
+- `payFreeSummonSurcharge`（fn）：払えたら true（置くコアは考えない。余分が無い・同じ召喚で払済みも true）。払えないときは何も動かさず false
+- `askCostPay`（fn）：対話中で支払い元を選べる場面なら、コストの支払い待ち（effectCostPay）を立てて true を返す。
+- `askSurchargePay`（fn）：無償召喚の余分の支払い待ち。resume には余分を払い済みとして扱う続きを渡す
 
 ## server/src/logic/targeting.ts
 
@@ -937,6 +945,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `EffectSegment`（型）
 - `effectLineSegments`（fn）：バースト効果の「召喚する／配置する」は、「コストを支払わずに」と書かれていなくても無償
+
+## public/src/handToggleChoice.ts
+
+- `handToggleTarget`（fn）：同じカードの束（indices）のうち、クリックで送るインデックスと選択済みの枚数。
+- `markSelected`（fn）：選択中の束に付ける印（「選択中 ×2」）
 
 ## public/src/renderer.ts
 

@@ -52,7 +52,7 @@ export type EffectAction =
  | { type: "destroy"; filter?: TargetFilter; count: number | "any"; suppressOnDestroy?: true; chosenIds?: string[]; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: true; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true; upTo?: true } // upTo＝count は上限で0〜count の好きな数（対話時は1体ずつ聞き直す。非対話は count 体まで破壊）。side:"own"指定時は自分側のスピリットが対象（選ぶのは持ち主。pay { cost: destroy{side:"own"} } の器）。thenDrawFixed指定時は破壊処理後（「その後」＝0体でも発火）に固定枚数ドローする。countCounter指定時はEffectCounterの値を破壊数として使う（0ならログのみ）。lowestCost指定時は自動選択の基準をBP最大でなくコスト最小にする（同コストはBP最大）。drawPerDestroyed指定時は実際に破壊できた1体につき1枚ドローする（「残る」で残った個体は数えない）。chooserIsTarget指定時は破壊される側（相手）が対象を選ぶ（実行は発生源の持ち主の効果として解決）。相手スピリットを破壊（filterで絞り込み。省略時はBP不問）。countPerOpponentTrashMagicColors指定時は相手のトラッシュのマジックカードの色種類数（重複除く）を対象数にする。anySide指定時は自分/相手どちらも対象にできる（自動選択は実効BP最大。同値は相手側優先）。excludeTarget指定時はtargetInstanceIdを除外対象として扱う（誘発が渡す対象を避ける）
 
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // 相手のフィールドに同じカード名のスピリットが2体以上いるとき、カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文「カード名1つにつきスピリット1体ずつを残し」に主語が無いので発生源の持ち主。2026-08-24。自動選択はフィールドの先頭側）。choosing / keptIds は重複するカード名を1つずつ聞くための内部フィールド
- | { type: "summonBurstCardFree"; payCost?: true; thenBuffSelf?: number } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
+ | { type: "summonBurstCardFree"; payCost?: true; thenBuffSelf?: number; surchargePrepaid?: true } // payCost指定時は通常の召喚コストも支払う（支払いはリザーブのみ。effectiveCostで軽減後コストを算出する）。バースト専用：発動中のバーストのカード自身をコストを支払わずに召喚する（スピリット/ネクサスのみ）。維持コアはリザーブから置き、不足なら不発。召喚できたらバーストエリアは空になる
 
 
 
@@ -210,7 +210,7 @@ export type EffectAction =
  | { type: "skipDrawStep" } // このドローステップのドローを行わない（「ドローしないことで」の支払い。step.beforeDraw から呼ぶ）
  | { type: "designate"; side?: "own" | "opponent"; filter?: TargetFilter; count?: number; upTo?: true; add?: true; chosen?: string[]; awaiting?: true } // 「〜N体を指定する」だけ。選んだ個体を直前の対象（recordTargets）に書き、後ろの効果は filter.lastTarget で使う。相手側は装甲などの「指定されない」を通す。add は直前の指定を消さずに足す（「コストAとコストBの相手のスピリット1体ずつを指定する」。26RBS03-084）。chosen／awaiting は選択途中の控え（内部用）
  | { type: "revealOpen"; from?: "ownDeck" | "opponentDeck" | "burst"; count?: number; countPer?: { ownColorTotal: Color } | { ownNexuses: true } | { ownSymbols: Color } | { keishoExcluded: true }; countFromSelfLevel?: true; destroySelfIf?: CardPick } // デッキの上からオープンする（バーストならバーストをオープンする）だけ。オープンしたカードは公開ゾーン（GameState.revealedCards）に置き、記録（lastMoved）に書く。選ぶ・残りを送るのは moveCards from:"revealed"
- | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "summonOrPlace" | "cast" | "placeNexus" | "tegamoto" | "deckBottom" | "activateBurst" | "trash"; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true; destroyAtBattleEnd?: true; pay?: "cost" } // pay:"cost"＝dest:"summon" で通常の召喚コストも支払う（リザーブだけで払う。moveCards.pay の引き継ぎ）。内部専用：revealで選ばれた1枚（すでに元のゾーンから取り除き済み）を dest へ送る。中断（【転召】の対象選択）から再開する経路もここを通る
+ | { type: "revealApplyOne"; cardId: string; srcPid: PlayerId; dest?: "hand" | "summon" | "summonOrPlace" | "cast" | "placeNexus" | "tegamoto" | "deckBottom" | "activateBurst" | "trash"; tensho?: "asIfDone" | "none"; noSummonEffects?: true; orHand?: true; returnToDeckBottomAtEndStep?: true; destroyAtBattleEnd?: true; pay?: "cost"; surchargePrepaid?: true } // surchargePrepaid＝召喚の余分（転召の祭壇など）を支払い待ちで払い済み（内部用。カードデータには書かない）。pay:"cost"＝dest:"summon" で通常の召喚コストも支払う（リザーブだけで払う。moveCards.pay の引き継ぎ）。内部専用：revealで選ばれた1枚（すでに元のゾーンから取り除き済み）を dest へ送る。中断（【転召】の対象選択）から再開する経路もここを通る
  | { type: "revealRest"; destPid: PlayerId; rest?: "trash" | "deckTop" | "deckBottom" | "deckTopOrBottom" | "hand"; pool?: string[]; placed?: number } // 内部専用：revealで選ばれなかった残り（GameState.revealedCards、またはpool）をrest先へ送る。デッキへ戻すときは1枚ずつ順番を選ばせる（destPidが持ち主。相手のデッキでも選ぶのはctx.owner）
  | { type: "revealFinishSummon"; noSummonEffects?: true } // 内部専用：revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き。selfが召喚済みのインスタンス
  | { type: "grantFamilyChoiceAll"; targetFamily: string } // targetFamily持ちが自分のフィールドにも手札にも1枚もなければ不発。あれば全系統からのoption choiceを経て、選ばれた系統をCardInstance.lentChoiceFamilyに載せた仮想発生源を積む（＝lendSelfThisTurnと同じ貸与。以後はkind:"familyGrant"のfamilyFromChoiceエントリが継続付与する）
@@ -245,6 +245,7 @@ export type EffectAction =
  // clearBattle でリセットされるため、同じターンの2回目のバトルには持ち越さない。効果テキストが「このバトルの間」のマジックはこちらを使うこと
  | { type: "trashReturnToHandInternal"; cardId: string; onceEffectId?: string; ask?: true } // **内部専用**：トラッシュの自分のカード（cardId）を手札に戻す。ask＝持ち主に「戻しますか？」を聞く（非対話なら戻す）。kind:"trashReturnOnOwnSpiritDestroyed"／"trashReturnOnOwnHeavyExhaust" の「手札に戻せる」（任意。2026-10-11 ユーザー確認）。onceEffectId＝同名ターン1回の枠（戻したときに取る）
  | { type: "summonFreeFromTrashIndexInternal"; trashIndex: number } // **内部専用**：トラッシュの指定位置のカードを、コストを支払わずに召喚する。kind:"trashSummonOnNameSummoned" の確認（「召喚しますか？」）に答えたときの解決に使う
+ | { type: "summonFreeIndexInternal"; zone: "hand" | "trash"; index: number; skipTensho?: true; skipOnSummon?: true; summonedBy?: string; destroyAtBattleEnd?: true; braveTargetInstanceId?: string } // **内部専用**：召喚の余分（転召の祭壇など）の支払い待ちを挟んだ無償召喚の続き。払い済みとして手札／トラッシュの指定位置を召喚する（summonSurcharge.ts）
  // count指定時はcostBudgetの代わりに**枚数指定**で複数枚を召喚する（costFilterはcostBudget指定時と違い有効に効く。コスト最大から貪欲に選ぶ決定的簡略化、count枚に満たなければ可能な分だけ）
  // skipOnSummon指定時は召喚時効果を発揮させない
  // whileCombinedFilter指定時は【合体時】効果（`effects`のいずれかがwhileCombined:trueを持つ）を持つスピリットカードのみ対象（カード静的に判定）。payCost指定時は**通常の召喚コストを支払う**（支払い元はリザーブ＋フィールドのコア＝paySources。払えないカードは候補にも出さない。summonFromHandFree.payCostと同型）。nameIncludes指定時はカード名にこの文字列を含むもののみ。familyFilter指定時はその系統（配列＝OR）を持つカードのみ。自分のトラッシュにあるcolorFilter色（省略時は色不問）・costFilter範囲のスピリットカード1枚（コスト最大、同コストは末尾＝新しい方から自動選択。決定的簡略化）を、コストを支払わずに召喚する。維持コアはリザーブから置き、不足なら不発。この効果で召喚されたスピリットのonSummon効果は発揮されない。keywordFilter指定時はこのキーワードエントリを静的に持つカードのみ対象。costBudget指定時はcostFilterを省略でき、コスト合計がbudget以下になる範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった時点で打ち切り）
@@ -254,10 +255,14 @@ export type EffectAction =
  | { type: "swapOpponentCores"; choosing?: true; firstChosen?: string } // 効果文が「相手のスピリット2体を**指定する**」なので、実対戦では2体とも持ち主が選ぶ（2026-08-24。自動選択は実効BP上位2体）。choosing/firstChosenは選択の進み具合を持ち回る内部専用（choosingが無いtargetInstanceIdは誘発が渡すイベント対象なので取り違えない）。相手のスピリット2体の上のコアをすべて入れ替える。相手のスピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する
  | {
  type: "summonRepeatFromHand"
- mode: "free" | "paid" // free=summonFromHandFreeと同じくコストを支払わず維持コアのみリザーブから払う（extraReserveCostPerSummon指定時は1体ごとにさらにリザーブのコアをその数だけ自分のトラッシュへ）。paid=effectiveCostで通常のコストを計算し、維持コア+コストをリザーブから支払う（コスト分はtrashCoresへ。field由来の支払いは非対応）
+ mode: "free" | "paid" // free=summonFromHandFreeと同じくコストを支払わず維持コアのみリザーブから払う（extraReserveCostPerSummon指定時は1体ごとにさらにリザーブのコアをその数だけ自分のトラッシュへ）。paid=effectiveCostで通常のコストを計算し、手札をまとめて選び（対話時）、合計コスト＋祭壇の余分1回を1回で払って一括召喚する（支払い元はリザーブ＋フィールドのコア。summonRepeat.ts）
  familyFilter?: FamilyFilter
  costFilter?: { max?: number; min?: number }
  extraReserveCostPerSummon?: number
+ // choosing/chosenIdx/prepaid は paid の選択の途中経過を持ち回る内部専用（cards.json には書かない）。chosenIdx＝選択中の手札インデックス、prepaid＝合計コストを支払い待ちで払い済み
+ choosing?: true
+ chosenIdx?: number[]
+ prepaid?: true
  } // 自分の手札にある条件（familyFilter・costFilterはカード静的判定）を満たすスピリットカードを、リザーブが続く限り好きなだけ召喚する（1体あたりの必要リザーブが小さいものから貪欲に選び、召喚数を最大化する決定的簡略化）。いずれもこの効果で召喚されたスピリットのonSummon効果は発揮されない
  | { type: "destroyByBpBudget"; budget?: number; maxCount?: number; budgetFromSelfBp?: true; budgetFromFamilyBpSum?: FamilyFilter; choosing?: true; chosenIds?: string[] }
  // 相手スピリットを、**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。budgetFromSelfBp指定時はbudgetを無視し、selfの実効BPを予算にする。budgetFromFamilyBpSum指定時はbudgetを無視し、指定系統（配列＝OR）を持つ**自分の**スピリットの実効BP合計を予算にする。choosing/chosenIdsはトグル選択の途中経過を持ち回る内部専用（destroyByCostBudgetと同じ仕組み＝budgetToggleDestroy）

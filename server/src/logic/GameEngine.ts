@@ -100,6 +100,7 @@ import {
     validateSummon,
     validateTakeLife,
     validateUseHandAbility,
+    validatePaySources,
 } from "./RuleValidator"
 import { doCastMagic } from "./magic/cast"
 import { doResolveChoice } from "./choice"
@@ -272,7 +273,7 @@ function dispatchAction(
         case "summon":
             return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve)
         case "resshinsokuSummon":
-            return doResshinsokuSummon(state, pid, action.handIndex)
+            return doResshinsokuSummon(state, pid, action.handIndex, action.paySources)
         case "setBurst":
             return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
@@ -665,18 +666,25 @@ type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; s
 
 // 【烈神速】：トラッシュのコアをすべて自分のフィールド/リザーブに好きに置くことで、
 // コストを支払わずに手札から召喚する（BS16-X03）。置き先は1個ずつ選ばせる（docs/design/INTERRUPTION_POINTS.md パターンA）
-function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number): string | null {
+function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number, paySources?: PaySource[]): string | null {
     const error = validateResshinsokuSummon(state, pid, handIndex)
     if (error) return error
     const player = state.players[pid]
     const cardId = player.hand[handIndex]!
+    // 余分の支払い元の指定（無ければ自動で払う）。トラッシュを動かす前に検証する
+    const surcharge = summonSurcharge(state, pid, getCard(cardId))
+    if (paySources !== undefined && paySources.length > 0) {
+        const invalid = validatePaySources(state, pid, surcharge, paySources)
+        if (invalid) return invalid
+    }
     // 案B-inside: trashCoresには[ソウルコア]が含まれる。トラッシュを空にするときは
     // [ソウルコア]をリザーブへ退避させる（ボイドと同じく配分の対象にしない。2026-10-06 簡易化）
     if (soulCoreInTrash(player)) moveSoulCore(player, { zone: "reserve" })
     const total = player.trashCores
     player.trashCores = 0
     // 無償でも相手の転召の祭壇などの余分は払う。配り直すコアに混ざらないよう、トラッシュを空にした後にリザーブから（払えるかは validate 済み）
-    payFreeSummonSurcharge(state, pid, getCard(cardId))
+    if (paySources !== undefined && paySources.length > 0) payCost(state, pid, surcharge, paySources)
+    else payFreeSummonSurcharge(state, pid, getCard(cardId))
     const info: ResshinsokuInfo = { handIndex, cardId, remaining: total, selfCores: 0 }
     // 非対話（AI・自動応答）は全部このスピリットに置く（2026-09-22 ユーザー確定）
     if (!state.interactiveTargets) {

@@ -1,7 +1,7 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
 import { summonSurcharge } from "../../../shared/cost"
-import { canPayFreeSummonSurcharge, payFreeSummonSurcharge } from "./summonSurcharge"
+import { canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
 import { recordLifeLost } from "./record"
 import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
@@ -227,7 +227,7 @@ export function fushiCandidates(
         // 通常どおりコスト+維持コアを払えるか。払えなくても、未疲労のLv2魔門があり
         // コストがmaxCost以下なら、維持コアだけで無償召喚の候補になる（BS15-064）
         const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
-        const canPayFree = player.reserve >= maintain + summonSurcharge(state, ownerPid, card) && fushiFreeExhaustSource(state, ownerPid, card) !== null
+        const canPayFree = canPayFreeSummonSurcharge(state, ownerPid, card, maintain) && fushiFreeExhaustSource(state, ownerPid, card) !== null
         if (!canPayNormally && !canPayFree) continue
         found.push(i)
     }
@@ -242,7 +242,7 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     const maintain = minLevelCores(card)
     const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
     const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
-    const canPayFree = freeSource !== null && player.reserve >= maintain + summonSurcharge(state, ownerPid, card)
+    const canPayFree = freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)
     // 払える側だけ選択肢に出す（COST_MODEL.md §1：払えない道は提示しない）。
     // 魔門（BS15-064 Lv2）で無償召喚できないときは、従来どおり「召喚する」1つだけの確認にする
     const options: string[] = []
@@ -324,17 +324,17 @@ export function applyFushiSummon(
         log(state, `${player.name}は魔門を疲労させて【不死】を無償で召喚できなかった。`)
         return
     }
-    const cost = freeNexus ? summonSurcharge(state, info.pid, card) : fushiCostOf(state, info.pid, card)
-    if (player.reserve < cost + maintain) {
+    const cost = freeNexus ? 0 : fushiCostOf(state, info.pid, card)
+    if (freeNexus ? !canPayFreeSummonSurcharge(state, info.pid, card, maintain) : player.reserve < cost + maintain) {
         log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(index, 1)
+    let placedFromField = 0
     if (freeNexus) {
         exhaustSpirit(state, info.pid, freeNexus)
-        // 無償でも相手の転召の祭壇などの余分は払う（2026-10-15）
-        player.reserve -= cost
-        player.trashCores += cost
+        // 無償でも相手の転召の祭壇などの余分は払う（2026-10-15）。維持コアのうちフィールドのコアで賄えたぶんは下で引かない
+        placedFromField = payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain) ?? 0
     } else {
         // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
         const freeIndex = state.timedEffects.findIndex(
@@ -346,7 +346,7 @@ export function applyFushiSummon(
         player.trashCores += cost
     }
     // 維持コアはリザーブからスピリットの上へ（無償召喚でも通常どおり要る）
-    player.reserve -= maintain
+    player.reserve -= maintain - placedFromField
     const inst = createInstance(info.cardId, state.turn, maintain)
     player.field.spirits.push(inst)
     log(
@@ -418,14 +418,16 @@ export function applySpiritMillFreeSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
-    if (!payFreeSummonSurcharge(state, info.pid, card)) {
+    const maintain = minLevelCores(card)
+    const placed = payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain)
+    if (placed === null) {
         log(state, `${card.name}：転召の祭壇などの余分のコストを払えず、召喚できなかった。`)
         return
     }
     player.trashCards.splice(index, 1)
-    // 召喚コストは無料だが、Lv1 に要るコアは通常の召喚と同じくリザーブから置く
-    const cores = Math.min(minLevelCores(card), player.reserve)
-    player.reserve -= cores
+    // 召喚コストは無料だが、Lv1 に要るコアは通常の召喚と同じくリザーブから置く（フィールドのコアで賄えたぶんは除く）
+    const cores = Math.min(maintain - placed, player.reserve) + placed
+    player.reserve -= cores - placed
     const inst = createInstance(info.cardId, state.turn, cores)
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)

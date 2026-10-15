@@ -21,6 +21,7 @@ export interface PendingChoice {
     cardIndices?: number[] // kind:"card" のとき必須：cardZone配列内の選択可能インデックス
     // （cardZone:"reveal" のときは GameState.revealedCards.cardIds のインデックス）
     optional: boolean // true ならスキップ（選ばない）可
+    selectedCardIndices?: number[] // kind:"card" のトグル選択で「いま選ばれている」手札のインデックス（cardIndices にも入れておき、もう一度選ぶと外れる。相手視点ではマスクする）
     selectedIds?: string[] // kind:"target" のトグル選択で「いま選ばれている」候補（クライアントが選択済みとして描く）。
     // 候補（candidates）には選択済みのものも入れておき、もう一度クリックすると選択が外れる。
     // 相手視点ではマスクする（maskPendingChoiceForOpponent）
@@ -87,6 +88,8 @@ export interface PendingChoice {
         need: number
         sourceCardId: string
         targetInstanceId?: string // then に渡すイベント対象（「そのスピリット」）
+        keep?: number // 払ったあとリザーブに残さなければならない数（余分のあと召喚で置くコア）。支払いはこれを割り込めない
+        surcharge?: true // 召喚の余分（転召の祭壇など。logic/summonSurcharge.ts）の支払い。ログの文面だけが変わる
     }
     braveKeep?: {
         // 合体スピリットが場を離れたとき、「ブレイヴをスピリット状態で残しますか？」の確認待ち
