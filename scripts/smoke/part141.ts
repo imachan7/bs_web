@@ -200,7 +200,9 @@ console.log("=== BS07 紫：【呪撃】持ちを破壊してトラッシュか�
     const jugekiSpirit = CARDS.find(
         (c) =>
             c.type === "spirit" &&
-            (c.effects ?? []).some((e) => e["kind"] === "keyword" && e["keyword"] === kw) &&
+            (c.effects ?? []).some(
+                (e) => e["kind"] === "keyword" && e["keyword"] === kw && ((e["levels"] as number[] | null) ?? [1]).includes(1),
+            ) &&
             (c.levels?.[0]?.cores ?? 99) === 1,
     )!
     const recoverable = CARDS.find(

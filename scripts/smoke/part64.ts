@@ -51,7 +51,7 @@ console.log("=== BS05-071 リアニメイト：使用時は【呪撃】持ちが
     const s = createGame("bs05-071-revive", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "purple" })
     runTurnStart(s)
     const attacker = putSpirit(s, "p1", "BS01-025", 1) // 要塞龍ギガ Lv1 BP5000
-    const jugeki = putSpirit(s, "p2", "BS02-015", 1) // ハンプダンプ Lv1 BP1000・【呪撃】
+    const jugeki = putSpirit(s, "p2", "BS02-015", 3) // ハンプダンプ Lv2 BP4000・【呪撃】（Lv1は【呪撃】を持たない）
     s.players.p2.hand = ["BS05-071"]
     s.players.p2.reserve = 20
 

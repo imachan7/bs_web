@@ -176,12 +176,12 @@ console.log("=== 8. BS16-066 エンドステップ：神速を手札に戻すこ
 {
     const s = game("case8")
     put(s, "p1", "BS16-066", 1) // Lv2到達
-    const sokuSpirit = put(s, "p1", "BS16-022", 0) // 神速持ち（コア0で作り、戻り値の増分を分離して確認する）
+    const sokuSpirit = put(s, "p1", "BS16-022", 1) // 神速持ち（Lv0では【神速】を持たないのでLv1で置く。維持コア1個も戻る）
     const reserveBefore = s.players.p1.reserve
     resolveAction(s, "p1", null, actionOf("BS16-066", "BS16-066-e2").action)
     assert(s.players.p1.hand.includes("BS16-022"), "神速持ちが手札に戻った")
     assert(!s.players.p1.field.spirits.includes(sokuSpirit), "場から離れた")
-    assert(s.players.p1.reserve === reserveBefore + 1, "リザーブにコア1個増えた")
+    assert(s.players.p1.reserve === reserveBefore + 2, "リザーブにコア1個増えた（維持コア1個の戻りを除く）")
 }
 {
     const s = game("case8b")
@@ -367,12 +367,11 @@ console.log("=== 18. BS16-026 バトル時：BP比較で相手だけ破壊した
 {
     const s = game("case18")
     const self = put(s, "p1", "BS16-026", 4) // Lv2到達（自身も【神速】持ちなので候補になりうる）
-    self.cores = 0 // 手札に戻る際に自身の維持コアがリザーブへ戻る分を切り離して確認する
     const fieldBefore = s.players.p1.field.spirits.length
     const reserveBefore = s.players.p1.reserve
     resolveAction(s, "p1", self, actionOf("BS16-026", "BS16-026-e2").action)
     assert(s.players.p1.hand.includes("BS16-026") && s.players.p1.field.spirits.length === fieldBefore - 1, "【神速】持ち1体（自身を含む候補から選ばれる）が手札に戻った")
-    assert(s.players.p1.reserve === reserveBefore + 2, "リザーブにコア2個増えた")
+    assert(s.players.p1.reserve === reserveBefore + 2 + 4, "リザーブにコア2個増えた（維持コア4個の戻りを除く）")
 }
 
 console.log("=== 19. BS16-077 フラッシュ：BP+2000した対象がBP10000以上なら回復させる ===")
