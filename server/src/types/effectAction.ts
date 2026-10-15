@@ -245,6 +245,7 @@ export type EffectAction =
  // clearBattle でリセットされるため、同じターンの2回目のバトルには持ち越さない。効果テキストが「このバトルの間」のマジックはこちらを使うこと
  | { type: "trashReturnToHandInternal"; cardId: string; onceEffectId?: string; ask?: true } // **内部専用**：トラッシュの自分のカード（cardId）を手札に戻す。ask＝持ち主に「戻しますか？」を聞く（非対話なら戻す）。kind:"trashReturnOnOwnSpiritDestroyed"／"trashReturnOnOwnHeavyExhaust" の「手札に戻せる」（任意。2026-10-11 ユーザー確認）。onceEffectId＝同名ターン1回の枠（戻したときに取る）
  | { type: "summonFreeFromTrashIndexInternal"; trashIndex: number } // **内部専用**：トラッシュの指定位置のカードを、コストを支払わずに召喚する。kind:"trashSummonOnNameSummoned" の確認（「召喚しますか？」）に答えたときの解決に使う
+ | { type: "trashSummonPaidInternal"; via: "fushi" | "fushiFree" | "mill"; cardId: string; trashIndex: number; freeNexusInstanceId?: string } // 【不死】（fushiFree＝魔門で無償）・ミノガメンの支払い待ち（effectCostPay）から、払い済みとして召喚を再開する内部専用
  | { type: "summonFreeIndexInternal"; zone: "hand" | "trash"; index: number; skipTensho?: true; skipOnSummon?: true; summonedBy?: string; destroyAtBattleEnd?: true; braveTargetInstanceId?: string } // **内部専用**：召喚の余分（転召の祭壇など）の支払い待ちを挟んだ無償召喚の続き。払い済みとして手札／トラッシュの指定位置を召喚する（summonSurcharge.ts）
  // count指定時はcostBudgetの代わりに**枚数指定**で複数枚を召喚する（costFilterはcostBudget指定時と違い有効に効く。コスト最大から貪欲に選ぶ決定的簡略化、count枚に満たなければ可能な分だけ）
  // skipOnSummon指定時は召喚時効果を発揮させない
@@ -263,6 +264,10 @@ export type EffectAction =
  choosing?: true
  chosenIdx?: number[]
  prepaid?: true
+ // 【転召】の対象は決定のあと・支払いの前に選ぶ（2026-10-15 ユーザー確認）。confirmed＝決定済み、tenshoPicks＝chosenIdx と同じ並びの対象（null＝転召なし・対象なし）、tenshoRest＝召喚後に残っている転召
+ confirmed?: true
+ tenshoPicks?: (string | null)[]
+ tenshoRest?: { name: string; targetId: string; dest: "trash" | "void" }[]
  } // 自分の手札にある条件（familyFilter・costFilterはカード静的判定）を満たすスピリットカードを、リザーブが続く限り好きなだけ召喚する（1体あたりの必要リザーブが小さいものから貪欲に選び、召喚数を最大化する決定的簡略化）。いずれもこの効果で召喚されたスピリットのonSummon効果は発揮されない
  | { type: "destroyByBpBudget"; budget?: number; maxCount?: number; budgetFromSelfBp?: true; budgetFromFamilyBpSum?: FamilyFilter; choosing?: true; chosenIds?: string[] }
  // 相手スピリットを、**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。budgetFromSelfBp指定時はbudgetを無視し、selfの実効BPを予算にする。budgetFromFamilyBpSum指定時はbudgetを無視し、指定系統（配列＝OR）を持つ**自分の**スピリットの実効BP合計を予算にする。choosing/chosenIdsはトグル選択の途中経過を持ち回る内部専用（destroyByCostBudgetと同じ仕組み＝budgetToggleDestroy）

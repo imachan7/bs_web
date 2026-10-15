@@ -129,10 +129,10 @@ console.log("=== 【不死】：『お互いのアタックステップ』なの
 
 console.log("=== 【不死】：コストを払えないなら確認自体が出ない ===")
 {
-    // 必要なのは「召喚コスト＋維持コア」。破壊された生贄のコア1個がリザーブへ戻るぶんも見込んで、
-    // 戻ってきてもなお足りない量にしておく
+    // 必要なのは「召喚コスト＋維持コア」。破壊待機の生贄のコア1個も支払いに使える（2026-10-15）ので、
+    // それを足してもなお足りない量にしておく
     const need = (FUSHI.cost ?? 0) + (FUSHI.levels?.[0]?.cores ?? 1)
-    const s = setup("fushi-no-cores", true, need - 2)
+    const s = setup("fushi-no-cores", true, need - 3)
     const victim = put(s, "p1", findVictim(FUSHI_COSTS[0]!).cardId, 1)
     destroyByEffect(s, "p1", victim.instanceId)
     assert(s.pendingChoice === null, "リザーブが足りなければ確認は立たない")
@@ -159,6 +159,8 @@ console.log("=== 【不死】：確認で「召喚する」を選ぶとコスト
     destroyByEffect(s, "p1", victim.instanceId)
     assert(s.pendingChoice?.fushiSummon !== undefined, "【不死】の召喚確認が立つ")
     assert(act(s, "p1", { type: "resolveChoice", option: "召喚する" }) === null, "召喚するを選ぶ")
+    // 破壊待機の生贄のコアも支払いに使えるので支払い元を聞かれる（2026-10-15）。リザーブから払う
+    assert(s.pendingChoice?.effectCostPay !== undefined && act(s, "p1", { type: "resolveChoice", option: "支払う" }) === null, "支払い元を聞かれ、リザーブから払う")
     assert(ON_FIELD(s, "p1", FUSHI.cardId), "トラッシュから召喚されている")
 }
 

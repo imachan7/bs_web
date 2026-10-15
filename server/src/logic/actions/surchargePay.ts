@@ -1,6 +1,7 @@
 // 召喚の余分（転召の祭壇など）の支払い待ちから、払い済みとして無償召喚を再開する内部専用アクション
 import type { ActionHandler, ActionRegistry } from "./types"
 import { summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../summon"
+import { applyFushiSummon, applySpiritMillFreeSummon } from "../revive"
 
 const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
@@ -24,8 +25,15 @@ const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> =
     }
 }
 
+const trashSummonPaidInternalHandler: ActionHandler<"trashSummonPaidInternal"> = (ctx, action) => {
+    const info = { pid: ctx.owner, cardId: action.cardId, trashIndex: action.trashIndex }
+    if (action.via === "mill") applySpiritMillFreeSummon(ctx.state, info, true)
+    else applyFushiSummon(ctx.state, { ...info, ...(action.freeNexusInstanceId !== undefined ? { freeNexusInstanceId: action.freeNexusInstanceId } : {}) }, action.via === "fushiFree" ? true : undefined, true)
+}
+
 const handlers = {
     summonFreeIndexInternal: summonFreeIndexInternalHandler,
+    trashSummonPaidInternal: trashSummonPaidInternalHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

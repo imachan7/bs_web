@@ -43,13 +43,12 @@ export function payFreeSummonSurcharge(state: GameState, pid: PlayerId, cardData
 
 // 対話中で支払い元を選べる場面なら、コストの支払い待ち（effectCostPay）を立てて true を返す。
 // resume は払ったあとに解決する続き。立てる条件は効果のコストの支払い（pay.ts）と同じ。
-// 後で置くコア（keep）はリザーブから出すので、リザーブがそれに満たないときは待ちを立てず（false）、呼び出し側が自動で払う
+// 後で置くコア（keep）も支払い元から選べる（フィールドから選んだぶんはリザーブ経由で置く。choice.ts）
 export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: number, prompt: string, sourceCardId: string, resume: EffectAction, surcharge = false): boolean {
     if (need <= 0 || !state.interactiveTargets) return false
     const player = state.players[pid]
     const soulSelectable = player.soulCore != null && player.soulCore.zone !== "trash"
-    if (normalReserveOf(player) < keep) return false
-    if (!(soulSelectable || fieldCoresSpendable(player).length > 0 || normalReserveOf(player) < need)) return false
+    if (!(soulSelectable || fieldCoresSpendable(player).length > 0 || normalReserveOf(player) < need + keep)) return false
     suspend(state, {
         pid,
         kind: "option",

@@ -1,7 +1,7 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
 import { summonSurcharge } from "../../../shared/cost"
-import { canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
+import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
 import { recordLifeLost } from "./record"
 import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
@@ -38,6 +38,8 @@ import {
 } from "../../../shared/rules"
 
 import {
+    autoPayPlan,
+    payCost,
     canExhaustNexus,
     exhaustSpirit,
     fireSummonSequence,
@@ -182,6 +184,11 @@ function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): numb
     return effectiveCost(state, ownerPid, card)
 }
 
+// 通常のコスト＋維持コアを、リザーブとフィールドのコアで払えるか（支払い元はフィールドも含む。2026-10-15 ユーザー確認）
+function fushiPayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
+    return autoPayPlan(state, ownerPid, fushiCostOf(state, ownerPid, card) + minLevelCores(card), true) !== null
+}
+
 // kind:"fushiFreeByExhaust"（BS15-064冥府へ続く魔門Lv2）：未疲労のこのネクサスがあれば、
 // カード記載コストが effect.maxCost 以下の【不死】スピリットを、このネクサスを疲労させることで
 // コストを支払わずに召喚できる（維持コアは通常どおり要る）。該当する発生源のinstanceIdを返す
@@ -226,7 +233,7 @@ export function fushiCandidates(
         const maintain = minLevelCores(card)
         // 通常どおりコスト+維持コアを払えるか。払えなくても、未疲労のLv2魔門があり
         // コストがmaxCost以下なら、維持コアだけで無償召喚の候補になる（BS15-064）
-        const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+        const canPayNormally = fushiPayable(state, ownerPid, card)
         const canPayFree = canPayFreeSummonSurcharge(state, ownerPid, card, maintain) && fushiFreeExhaustSource(state, ownerPid, card) !== null
         if (!canPayNormally && !canPayFree) continue
         found.push(i)
@@ -240,7 +247,7 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     const card = getCard(cardId)
     const player = state.players[ownerPid]
     const maintain = minLevelCores(card)
-    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+    const canPayNormally = fushiPayable(state, ownerPid, card)
     const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
     const canPayFree = freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)
     // 払える側だけ選択肢に出す（COST_MODEL.md §1：払えない道は提示しない）。
@@ -289,10 +296,9 @@ export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trash
     const maintain = minLevelCores(card)
     // 非対話（AI・テスト）の既定：通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
     // 払えないときだけ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）
-    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
-    if (!canPayNormally) {
+    if (!fushiPayable(state, ownerPid, card)) {
         const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
-        if (freeSource !== null && player.reserve >= maintain) {
+        if (freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)) {
             applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex, freeNexusInstanceId: freeSource }, true)
             return
         }
@@ -306,6 +312,8 @@ export function applyFushiSummon(
     // true指定時：info.freeNexusInstanceId のネクサスを疲労させ、コストを支払わずに召喚する
     // （維持コアは通常どおり要る）。召喚時効果は発揮されない（skipOnSummonと同じ印。BS15-064冥府へ続く魔門Lv2）
     useFree?: true,
+    // 支払い待ち（effectCostPay）で払い済み。維持コアだけリザーブから置く
+    prepaid?: true,
 ): void {
     const player = state.players[info.pid]
     // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばカードIDで取り直す
@@ -324,26 +332,33 @@ export function applyFushiSummon(
         log(state, `${player.name}は魔門を疲労させて【不死】を無償で召喚できなかった。`)
         return
     }
-    const cost = freeNexus ? 0 : fushiCostOf(state, info.pid, card)
-    if (freeNexus ? !canPayFreeSummonSurcharge(state, info.pid, card, maintain) : player.reserve < cost + maintain) {
-        log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
-        return
+    // 無償（魔門）でも相手の転召の祭壇などの余分は払う（2026-10-15）
+    const cost = freeNexus ? surchargeOwed(state, info.pid, card, false) : fushiCostOf(state, info.pid, card)
+    if (!prepaid) {
+        if (autoPayPlan(state, info.pid, cost + maintain, true) === null) {
+            log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
+            return
+        }
+        const resume = { type: "trashSummonPaidInternal", via: freeNexus ? "fushiFree" : "fushi", cardId: info.cardId, trashIndex: index, ...(freeNexus ? { freeNexusInstanceId: freeNexus.instanceId } : {}) } as const
+        const asked = freeNexus
+            ? askSurchargePay(state, info.pid, card, false, maintain, resume)
+            : askCostPay(state, info.pid, cost, maintain, `【不死】${card.name}：${cost}コストを支払ってください`, info.cardId, resume)
+        if (asked) return
     }
     player.trashCards.splice(index, 1)
     let placedFromField = 0
+    if (!prepaid) {
+        const plan = autoPayPlan(state, info.pid, cost + maintain, true)!
+        placedFromField = payCost(state, info.pid, cost, plan.paySources, maintain, plan.soulFromReserve)
+    }
     if (freeNexus) {
         exhaustSpirit(state, info.pid, freeNexus)
-        // 無償でも相手の転召の祭壇などの余分は払う（2026-10-15）。維持コアのうちフィールドのコアで賄えたぶんは下で引かない
-        placedFromField = payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain) ?? 0
     } else {
         // コスト0になる制約は**このターン最初の1回だけ**なので、使ったらここで取り除く（BS14-098）
         const freeIndex = state.timedEffects.findIndex(
             (r) => r.target.kind === "player" && r.target.pid === info.pid && r.content.some((c) => c.type === "playerRule" && c.rule.type === "freeFushiSummonForPid"),
         )
         if (freeIndex !== -1) state.timedEffects.splice(freeIndex, 1)
-        // 召喚コストはリザーブからトラッシュへ（通常の召喚と同じ）
-        player.reserve -= cost
-        player.trashCores += cost
     }
     // 維持コアはリザーブからスピリットの上へ（無償召喚でも通常どおり要る）
     player.reserve -= maintain - placedFromField
@@ -410,6 +425,8 @@ export function declineSpiritMillFreeSummon(state: GameState, info: NonNullable<
 export function applySpiritMillFreeSummon(
     state: GameState,
     info: NonNullable<PendingChoice["spiritMillFreeSummon"]>,
+    // 余分を支払い待ち（effectCostPay）で払い済み
+    prepaid?: true,
 ): void {
     const player = state.players[info.pid]
     const index =
@@ -419,7 +436,8 @@ export function applySpiritMillFreeSummon(
     if (index === -1) return
     const card = getCard(info.cardId)
     const maintain = minLevelCores(card)
-    const placed = payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain)
+    if (!prepaid && askSurchargePay(state, info.pid, card, false, maintain, { type: "trashSummonPaidInternal", via: "mill", cardId: info.cardId, trashIndex: index })) return
+    const placed = prepaid ? 0 : payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain)
     if (placed === null) {
         log(state, `${card.name}：転召の祭壇などの余分のコストを払えず、召喚できなかった。`)
         return

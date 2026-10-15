@@ -214,16 +214,15 @@ function resolveChoiceInner(
         const info = pending.effectCostPay
         const soul = paySoulCoreFromReserve === true
         const keep = info.keep ?? 0
-        // 後で置くコア（keep）はリザーブに残す。指定が無いときは keep ぶんを先に確保した計画で払う（余分より多く取らない）
+        // 後で置くコア（keep）もフィールドから払える。フィールドから置くコアに回したぶんはいったんリザーブへ戻し、続きがリザーブから置く
         const auto = paySources === undefined && !soul ? autoPayPlan(state, info.pid, info.need + keep, true) : null
         if (paySources === undefined && !soul && auto === null) return "コアが足りません"
         const plan = auto ?? { paySources: paySources ?? [], soulFromReserve: soul }
-        const invalid = validatePaySources(state, info.pid, info.need, plan.paySources, plan.soulFromReserve)
+        const invalid = validatePaySources(state, info.pid, info.need + keep, plan.paySources, plan.soulFromReserve)
         if (invalid) return invalid
-        const fromField = plan.paySources.reduce((sum, x) => sum + x.count, 0)
-        if (keep > 0 && state.players[info.pid].reserve - (info.need - fromField) < keep) return "このあと召喚で置くコアが足りなくなります"
         state.pendingChoice = null
-        payCost(state, info.pid, info.need, plan.paySources, 0, plan.soulFromReserve)
+        const placed = payCost(state, info.pid, info.need, plan.paySources, keep, plan.soulFromReserve)
+        state.players[info.pid].reserve += placed
         log(state, info.surcharge ? `${state.players[info.pid].name}：転召の祭壇により${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)

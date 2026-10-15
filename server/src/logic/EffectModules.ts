@@ -296,7 +296,8 @@ export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepL
     for (const inst of fieldInsts) {
         if (rest <= 0) break
         if (coresCantBeRemoved(state, pid, inst)) continue
-        const spare = keepLevel1 && player.field.spirits.includes(inst) ? inst.cores - instMinLevelCores(inst) : Infinity
+        // 破壊待機の個体は場を離れるので維持コアも払える（2026-10-15 ユーザー確認）
+        const spare = keepLevel1 && player.field.spirits.includes(inst) && !inst.pendingDestruction ? inst.cores - instMinLevelCores(inst) : Infinity
         const take = Math.min(rest, normalCoresOn(player, inst), spare)
         if (take <= 0) continue
         paySources.push({ instanceId: inst.instanceId, count: take })
@@ -1087,7 +1088,7 @@ export function payCost(
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)
-            if (inst && wouldDeplete(state, pid, inst)) {
+            if (inst && !inst.pendingDestruction && wouldDeplete(state, pid, inst)) {
                 destroySpirit(state, pid, inst.instanceId, "deplete")
             }
         }
