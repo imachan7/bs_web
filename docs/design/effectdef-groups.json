@@ -1,0 +1,161 @@
+{
+  "trigger.ts": {
+    "type": "TriggerDef",
+    "kinds": [
+      "triggered",
+      "step",
+      "fieldEvent",
+      "battleWon",
+      "burst",
+      "onMilledFromDeck",
+      "reviveOnDestroy",
+      "extraStepAfterAttackStep",
+      "milledMagicToTegamoto",
+      "trashReturnAtEndStep",
+      "trashReturnOnOwnHeavyExhaust",
+      "trashReturnOnOwnSpiritDestroyed",
+      "trashSummonOnNameSummoned",
+      "freeSummonFromHandOnLifeDamaged",
+      "freeSummonFromHandOnDiscardedByOpponent",
+      "freeSummonFromHandOnOwnNexusDeployed"
+    ]
+  },
+  "activation.ts": {
+    "type": "ActivationDef",
+    "kinds": [
+      "activated",
+      "magic",
+      "handActivated",
+      "flashSummonFromHand",
+      "altSummonFromHand",
+      "battleSwapSummon",
+      "awakenFromReserve"
+    ]
+  },
+  "continuous.ts": {
+    "type": "ContinuousDef",
+    "kinds": [
+      "aura",
+      "keyword",
+      "keywordGrant",
+      "effectGrant",
+      "effectEntryGrant",
+      "familyGrant",
+      "nameAsGrant",
+      "trashNameAs",
+      "vanillaAsGrant",
+      "levelAs",
+      "bpAs",
+      "colorAs",
+      "symbolAddGrant",
+      "symbolFix",
+      "braveStatsAs",
+      "allTeams",
+      "bpEqualizeFamily",
+      "nexusAsSpiritDuringAttackStep",
+      "countAsMultiple",
+      "handKeywordGrant",
+      "battleBpAsLevel",
+      "destroyAsMaxLevelGrant",
+      "spiritEffectsDisabledGrant",
+      "nexusEffectsDisabled",
+      "braveImmuneGrant",
+      "armorEffectiveGrant",
+      "immunityGrant",
+      "trashImmunity",
+      "exhaustImmunityGrant",
+      "ownMagicColorless"
+    ]
+  },
+  "constraint.ts": {
+    "type": "ConstraintEffectDef",
+    "kinds": [
+      "constraint",
+      "globalConstraint",
+      "constraintGrant",
+      "constraintSuppression",
+      "mustBlockGrant",
+      "summonedExhaustGrant",
+      "castRestriction",
+      "magicRestriction",
+      "familySuppression",
+      "triggerSuppression",
+      "bpBuffSuppression",
+      "flashLockWhileAttackingFamily",
+      "exhaustOnManualCoreAdd"
+    ]
+  },
+  "cost.ts": {
+    "type": "CostDef",
+    "kinds": [
+      "costMod",
+      "costDelta",
+      "levelCostMod",
+      "alsoCostGrant",
+      "reductionGrant",
+      "trashSymbolReduction",
+      "exTrashReduction",
+      "selfSummonCost",
+      "fchangeCostAs",
+      "symbolWhenSummoning",
+      "soulCoreOnlyCast",
+      "sokuPaySourceGrant",
+      "effectCostExhaustDiscount",
+      "shinsokuPayAssist",
+      "burstSetCost",
+      "nexusCostMillPay",
+      "summonCostHandDiscardPay",
+      "tenshoSelfCostBonus",
+      "magicFreeGrant",
+      "magicRepeatGrant",
+      "burstMagicFreeEffect",
+      "fushiFreeByExhaust"
+    ]
+  },
+  "negate.ts": {
+    "type": "NegateDef",
+    "kinds": [
+      "magicNegate",
+      "magicNegatePayByNexusGrant",
+      "magicNegateTurnOverrideGrant",
+      "magicTargetRedirect",
+      "bothSidesTargetRedirect",
+      "targetNegateByHandDiscard",
+      "deckMillNegate",
+      "lifeDamageNegate",
+      "lifeDamageMillGuard"
+    ]
+  },
+  "bonus.ts": {
+    "type": "BonusDef",
+    "kinds": [
+      "coreBonus",
+      "coreReturnBonus",
+      "drawStepBonus",
+      "coreStepBonus",
+      "chimeiBonus",
+      "destroyBpThresholdBonus",
+      "magicBuffBonus",
+      "drawDouble",
+      "funsaiBonus",
+      "millCapBonus",
+      "bofuCountBonus",
+      "destroyedCoresToTrash"
+    ]
+  },
+  "keywordTiming.ts": {
+    "type": "KeywordTimingDef",
+    "kinds": [
+      "jugekiCoreToVoid",
+      "funsaiOnBlock",
+      "jugekiOnBlockReplace",
+      "bofuOnBlock",
+      "bofuChooserSelf",
+      "kyoshuOnBlock",
+      "koboOnBlock",
+      "blockTriggersAsAttackGrant",
+      "attackTriggersAsBlockGrant",
+      "meisai"
+    ]
+  }
+}
