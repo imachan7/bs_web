@@ -16,8 +16,8 @@ import {
     destroySpirit,
     resolveAction,
     runTurnStart,
+    endTurn,
 } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 import { instHasColor } from "../../server/src/logic/EffectModules"
 import { spiritHasFamily } from "../../shared/rules"
 

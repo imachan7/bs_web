@@ -10,6 +10,7 @@ import type { EffectAction } from "./effectAction"
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
     recordScope?: string
+    flashEffect?: true // 中断した効果がフラッシュ効果だったか（再開時に GameState.flashEffect へ戻す）
     effectSource?: { type?: CardType; colors?: Color[] } // 中断した効果の発生源の種別・色。再開時に渡し直す（渡さないとマジックの効果が種別なしで続き、耐性や封印された魔導書が効かない）
     kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
     prompt: string // クライアント表示用の説明文（日本語）
@@ -69,6 +70,24 @@ export interface PendingChoice {
         sourceInstanceId: string
         context?: DestroyContext
     }
+    meisaiPay?: {
+        // 【迷彩：N】の支払い待ち（26系。2026-10-08 ユーザー確定: 支払い元はリザーブ＋フィールドのコア、[ソウルコア]を使うかは選ぶ）。
+        // 選ぶのは指定する側。options の1つを選び paySources／paySoulCoreFromReserve を付けて答えると
+        // need コストを払ってから action（指定を含む元の効果）を解決し直す。支払いは必須（払える場合だけ聞く）
+        pid: PlayerId
+        targetInstanceId: string
+        targetCardId: string
+        need: number
+    }
+    effectCostPay?: {
+        // 効果の「Nコスト支払う」（pay の cost）の支払い待ち。支払い元はリザーブ＋フィールドのコア、[ソウルコア]を使うかは選ぶ。
+        // options の1つを選び paySources／paySoulCoreFromReserve を付けて答えると need コストを払ってから action（pay の then）を解決する。
+        // 肩代わり（effectCostExhaustDiscount）を済ませた後の残りが need。リザーブだけで払えて選ぶものが無いときは立てない
+        pid: PlayerId
+        need: number
+        sourceCardId: string
+        targetInstanceId?: string // then に渡すイベント対象（「そのスピリット」）
+    }
     braveKeep?: {
         // 合体スピリットが場を離れたとき、「ブレイヴをスピリット状態で残しますか？」の確認待ち
         // （docs/design/BRAVE.md §6.3）。**action は解決しない**。
@@ -85,6 +104,12 @@ export interface PendingChoice {
         // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。
         // 選ばれなかったブロッカーは BattleState.extraBlockerIds に入り、バトルには参加しない
         blockerPid: PlayerId
+    }
+    blockExhaustPick?: {
+        // 制約 blockExhaustSpirit：ブロック宣言のコストとして、ブロックする側が疲労させる自分のスピリットを選ぶ待ち。
+        // **action は解決しない**。選ばれたら疲労させて宣言の続き（continueBlockDeclaration）へ進む
+        blockerPid: PlayerId
+        blockerInstanceId: string
     }
     fushiSummon?: {
         // 【不死】：トラッシュにあるこのカードを、コストを支払って召喚するかの確認待ち。
@@ -197,6 +222,10 @@ export interface PendingChoice {
         targetInstanceId?: string
         paySources?: PaySource[]
         fromTegamoto?: boolean
+        // 《継召》：確認をはさんでも選択が消えないよう、やり直しの doCastMagic へ運ぶ
+        exReductionTrashIndices?: number[]
+        // リザーブの[ソウルコア]での支払いも同じく引き継ぐ
+        paySoulCoreFromReserve?: boolean
     }
     burstActivate?: {
         // バーストの発動確認待ち（docs/design/BURST.md）。**action は self=null で解決する**（マジックと同じ扱い。
@@ -302,6 +331,7 @@ export type ResumeFrame =
           logText: string // 「〜を召喚した」のログ（場に出た時点で出す）
           cardName: string // クライアント演出用イベントに載せる名前
           braveTargetInstanceId?: string // ダイレクトブレイヴのとき、合体先スピリットの instanceId（BRAVE.md §5.2）
+          placeSoul?: true // [ソウルコア]を維持コアとして置く（doSummon の placeSoulCoreFromReserve。2026-10-06）
       }
     | {
           kind: "endTurn" // メインステップから直接ターンを終了し、経由したアタックステップの開始時誘発が選択待ちになったときの続き（PhaseManager.endTurn をやり直す）

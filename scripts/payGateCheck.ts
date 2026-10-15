@@ -11,7 +11,7 @@ const GATE_TYPES = new Set([
     "summonRepeatFromHand",
     "millUntilMagicCastFree",
     "detachBrave",
-    "deployNexusFromTrashByFieldCores",
+    "skipDrawStep",
     "magicNegate",
 ])
 // EffectDef の kind
@@ -46,6 +46,8 @@ function countGates(node: unknown): number {
     const obj = node as Record<string, unknown>
     let n = 0
     if (typeof obj["type"] === "string" && GATE_TYPES.has(obj["type"])) n++
+    // moveCards の pay（コストを支払う召喚・使用、フィールドのコアだけで払う配置）
+    if (obj["type"] === "moveCards" && obj["pay"] !== undefined) n++
     if (typeof obj["kind"] === "string") {
         if (GATE_KINDS.has(obj["kind"])) n++
         if (GATE_KINDS_WITH_COST.has(obj["kind"]) && obj["cost"] !== undefined) n++

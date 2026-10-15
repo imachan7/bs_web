@@ -17,7 +17,7 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { bravesOf, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { bravesOf, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { hasUntargetableConstraint } from "./resistance"
 import { instanceSymbolCount } from "./symbols"
 import { cardNameContains, matchesTarget } from "./targetFilter"
@@ -65,7 +65,7 @@ export function activeConstraintsWithSource(
                         // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                         (e.whileOwnBurstSet !== true || board.players[pid].burstSet) &&
                         // BS15共通器：condition／phaseTurn（aura.condition／aura.phaseTurnと同じ判定式。BS15-060バンディット・アームズ）
-                        (e.condition === undefined || checkAuraCondition(board, pid, e.condition)) &&
+                        (e.condition === undefined || checkAuraCondition(board, pid, e.condition, inst)) &&
                         (e.phaseTurn === undefined ||
                             (board.phase === e.phaseTurn.phase &&
                                 (e.phaseTurn.turn === "both" ||
@@ -82,6 +82,16 @@ export function activeConstraintsWithSource(
                 (c.type === "cantAttack" || c.type === "immuneToOpponentEffects") ? c.whileOwnNexusCount : undefined
             if (whileCount === undefined) return true
             return board.players[pid].field.nexuses.length === whileCount
+        })
+        // 26RSD09-001：自身に[ソウルコア]が置かれていない間だけ／26RBS03-046：自分のフィールドに指定系統のスピリットがいない間だけ（自身も数える）
+        .filter((c) => {
+            if (c.type !== "cantAttack") return true
+            if (c.whileNoOwnSoulCore && inst.soulCoreOn === true) return false
+            if (c.whileNoOwnFamilySpirit !== undefined) {
+                const fam = c.whileNoOwnFamilySpirit
+                if (board.players[pid].field.spirits.some((s) => spiritHasFamily(board, pid, s, fam))) return false
+            }
+            return true
         })
         .filter((c) => {
             if (c.type !== "cantAttack" || c.unlessOpponentHasColorSpirit === undefined) return true
@@ -117,6 +127,7 @@ export function activeConstraintsWithSource(
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
+            if (effect.condition !== undefined && !checkAuraCondition(board, pid, effect.condition)) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
             if (effect.familyFilter && !matchesFamilyFilter(board, pid, inst, effect.familyFilter)) continue
             // BS13-029剣馬グラニム：この色を持つスピリットのみに付与
@@ -147,6 +158,10 @@ export function activeConstraintsWithSource(
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             // BS10-093時刻む花時計Lv2：合体スピリットのみ（AuraDef.combinedFilterと同じ意味）
             if (effect.combinedFilter && !instIsCombined(inst)) continue
+            if (effect.restedOnly === true && !inst.isRested) continue
+            if (effect.summonedBy !== undefined && inst.summonedBy !== effect.summonedBy) continue
+            if (effect.summonedThisTurnOnly === true && inst.summonedTurn !== board.turn) continue
+            if (effect.teamFilter !== undefined && !(card(inst.cardId).team ?? []).includes(effect.teamFilter)) continue
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
     }
@@ -317,6 +332,7 @@ export function hasGlobalConstraint(
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
                 return true
             }
         }
@@ -356,6 +372,29 @@ export function attackOncePerTurnByCostLimitApplies(board: Board, inst: CardInst
                 if (constraint.type !== "attackOncePerTurnByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (instAllCosts(inst).some((cost) => cost <= constraint.maxCost)) return true
+            }
+        }
+    }
+    return false
+}
+
+// attackOncePerTurnByCostLimitApplies の「合計」版（26RBS02-085）。attackerPid のコストがmaxCost以下のスピリットが
+// すでにこのターンにアタックしていれば、同じ区分のスピリットはもうアタックできない。
+// 制約の発生源は両陣営どちらでもよく、条件（自分のネクサスすべてが系統〜）は発生源の持ち主で判定する
+export function attackTotalOncePerTurnLimitApplies(board: Board, attackerPid: PlayerId, inst: CardInstance): boolean {
+    const used = board.players[attackerPid].minAttackCostThisTurn
+    if (used === undefined) return false
+    const costs = instAllCosts(inst)
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackOncePerTurnTotalByCost") continue
+                const maxCost = effect.constraint.maxCost
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const family = effect.condition?.allOwnNexusesHaveFamily
+                if (family !== undefined && !ownAllNexusesHaveFamily(board, pid, family)) continue
+                if (used <= maxCost && costs.some((c) => c <= maxCost)) return true
             }
         }
     }
@@ -496,7 +535,7 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             const constraint = effect.constraint
-            if (constraint.type !== "opponentCantAttackByCost") continue
+            if (constraint.type !== "opponentCantAttackByCost" && constraint.type !== "opponentCantAttackByCores") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             // phase/turn指定時は発生源の持ち主(opp)基準でのステップ限定（BS14-053オリンピアの天使ハギトLv2：『相手のアタックステップ』＝opp視点では"opponent"）
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
@@ -506,7 +545,7 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
                 (effect.turn === "own") !== (board.turnPlayer === opp)
             )
                 continue
-            if (attackerCosts.some((cost) => constraint.costs.includes(cost))) return true
+            if (constraint.type === "opponentCantAttackByCores" ? inst.cores === constraint.cores : attackerCosts.some((cost) => constraint.costs.includes(cost))) return true
         }
     }
     return false
@@ -550,6 +589,38 @@ export function instAttackRequiresCoreToll(board: Board, inst: CardInstance): bo
         }
     }
     return false
+}
+
+// attackPayToll（26RSD06-011）：発生源の持ち主から見た相手のスピリットが、アタックのためにリザーブからトラッシュへ置くコア数。
+// 〔重複不可〕は同じカード名の発生源を1回分に数える
+export function attackPayTollCount(board: Board, attackerPid: PlayerId, inst: CardInstance): number {
+    const sourcePid: PlayerId = attackerPid === "p1" ? "p2" : "p1"
+    const level = currentLevel(inst).level
+    const counted = new Set<string>()
+    let total = 0
+    for (const source of effectSources(board, sourcePid)) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackPayToll") continue
+            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "opponent" && board.turnPlayer === sourcePid) continue
+            if (effect.turn === "own" && board.turnPlayer !== sourcePid) continue
+            if (effect.constraint.attackerLevel !== level) continue
+            if (effect.constraint.noStack) {
+                const key = card(source.cardId).name
+                if (counted.has(key)) continue
+                counted.add(key)
+            }
+            total += effect.constraint.count
+        }
+    }
+    return total
+}
+
+// アタックの宣言でリザーブからトラッシュへ置くコアの合計（attackRequiresCoreToll の1個と attackPayToll）
+export function attackTollTotal(board: Board, attackerPid: PlayerId, inst: CardInstance): number {
+    return (instAttackRequiresCoreToll(board, inst) ? 1 : 0) + attackPayTollCount(board, attackerPid, inst)
 }
 
 // 器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：
@@ -777,7 +848,9 @@ export function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker:
 // whileOwnBurstSet は効果本体（kind:"globalConstraint"）の既存フィールドをそのまま使う
 // （発生源の持ち主がバーストをセットしている間だけ有効）。該当する制約が無ければInfinity
 export function lifeDamagePerSpiritRemaining(board: Board, spirit: CardInstance): number {
-    let remaining = Number.POSITIVE_INFINITY
+    // 期間つきの「自分のライフはそれから N しか減らされない」（26RBS03-079）。ほかの制約と同じ lifeDealtThisTurn で数える
+    let remaining =
+        spirit.lifeCapThisTurn === undefined ? Number.POSITIVE_INFINITY : Math.max(0, spirit.lifeCapThisTurn - (spirit.lifeDealtThisTurn ?? 0))
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, pid)) {
             for (const effect of card(source.cardId).effects) {
@@ -846,6 +919,7 @@ export function lifeProtectedByCostThisTurn(
 ): boolean {
     return timedPlayerRules(board, defenderPid).some((c) => {
         if (c.type !== "noLifeDamageByCostForPid") return false
+        if (c.cores !== undefined) return attacker.cores === c.cores
         // symbolCount+combinedOnly（BS12-043大地の狩人コンドラッドLv1）：maxCostの代わりに
         // 「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックだけを保護する
         if (c.symbolCount !== undefined) {

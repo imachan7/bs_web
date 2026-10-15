@@ -3,7 +3,9 @@
 import type { CardData, CardType, Color, Keyword, BraveCondition } from "../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../data/constants"
 import { KEYWORDS } from "../../shared/rules"
+import { isTokenCard } from "../../shared/cardDb"
 import { effectLineSegments } from "./effectText"
+import { attachCardArt } from "./cardArt"
 
 // ---- 定数 ----
 
@@ -213,6 +215,7 @@ function renderPool(): void {
         el.style.setProperty("--c-main", `var(--c-${card.colors[0]})`)
         el.style.setProperty("--c-sub", `var(--c-${card.colors[card.colors.length > 1 ? 1 : 0]})`)
         if (card.limited) el.classList.add("limited")
+        attachCardArt(el, card.cardId, card.name)
 
         const note = cardNotes[card.cardId]
         if (note) {
@@ -893,6 +896,9 @@ function renderSavedDecks(): void {
             const target = currentDecks.find(d => d.name === saved.name)
             if (target) {
                 target.name = newName
+                // 編集中のデッキなら名前欄も追従させる（古い名前のまま保存すると別のデッキができてしまう）
+                const nameInput = $("deck-name-input") as HTMLInputElement
+                if (nameInput.value.trim() === saved.name) nameInput.value = newName
                 persistSavedDecks(currentDecks)
                 renderSavedDecks()
                 showToast("名前を変更しました")
@@ -1310,14 +1316,17 @@ async function init(): Promise<void> {
             console.warn("Failed to fetch card-notes.json", e)
         })
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
-    const cardsPromise = fetch("/api/cards")
+    // ?staging=1 のときは取り込み途中のカード（data/staging）を出す確認用
+    const useStaging = new URLSearchParams(location.search).has("staging")
+    const cardsPromise = fetch(useStaging ? "/api/staging-cards" : "/api/cards")
 
     const [, res] = await Promise.all([notesPromise, cardsPromise])
     if (!res.ok) {
         showToast("カードデータの取得に失敗しました")
         return
     }
-    cards = (await res.json()) as CardData[]
+    // トークンはデッキに入れられないので一覧に出さない
+    cards = ((await res.json()) as CardData[]).filter((c) => !isTokenCard(c.cardId))
     cards.sort((a, b) => a.cardId.localeCompare(b.cardId))
     db = new Map(cards.map((c) => [c.cardId, c]))
 

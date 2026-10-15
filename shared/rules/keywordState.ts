@@ -12,7 +12,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { timedKeywords } from "./constraints"
-import { bravesOf, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
+import { bravesOf, cardHasColor, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
 import { instMatchesCostFilter } from "./targetFilter"
 
 // ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
@@ -49,6 +49,44 @@ export function spiritHasKeyword(
     }
     if (timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
+}
+
+// ラベルキーワード（kind:"keyword" の宣言エントリを持たず、triggered/activated の keyword ラベル
+// だけで「持つ」を判定する26系キーワード）。TargetFilter.keyword はこの集合のキーワードを
+// spiritHasLabeledKeyword（Lv条件を尊重）で解決し、旧キーワードは従来どおり spiritHasKeyword を使う。
+// 26系キーワードを増やすときはここへ足すだけで参照側（matchesTarget）が追従する
+export const LABELED_KEYWORDS: ReadonlySet<Keyword> = new Set(["zofuku", "suiryu", "chimei", "soryo", "majutsu", "kyoso", "clash", "meisai", "levelup", "fchange"])
+
+// 効果レコードの keyword ラベル（triggered/activated の effect.keyword、kind:"keyword" の宣言レコード）に
+// よるキーワード保持判定。【増幅】/【水流】のように挙動が起動効果そのもので kind:"keyword" の宣言
+// エントリを持たない26系キーワード用（【激突】は宣言レコードを持つが、Lv条件を尊重するためこちらで判定）。
+// spiritHasKeyword と違い**現在Lvを尊重する**（Lv2書きの【増幅】/【激突】はLv1では「持たない」）。
+// 合体ブレイヴのラベルもホスト側へ合流させる（spiritHasKeyword と同じホスト合流パターン）。
+// そのうえで一時付与（timedEffect の keyword＝「このターンの間【激突】を与える」等）も見る。
+// 呼び出し側は LABELED_KEYWORDS のキーワードだけなので、旧キーワード（soku等）の挙動は不変
+export function spiritHasLabeledKeyword(
+    board: Board,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    keyword: Keyword,
+): boolean {
+    if (instEffectsSuppressed(inst)) return false
+    for (const src of [inst, ...bravesOf(board.players[ownerPid], inst)]) {
+        const level = currentLevel(src).level
+        for (const effect of card(src.cardId).effects) {
+            // kind:"keyword" の宣言レコードも levels 付きで拾う（Lv2書きの宣言はLv1では「持たない」）
+            if ((effect as { keyword?: Keyword }).keyword !== keyword) continue
+            if (!effectActiveAtLevel((effect as { levels?: number[] | null }).levels ?? null, level)) continue
+            return true
+        }
+    }
+    if (timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, keyword))) return true
+    return false
+}
+
+// キーワードを「持つ」かの共通判定：26系ラベルキーワードは spiritHasLabeledKeyword、旧キーワードは spiritHasKeyword
+export function spiritHasKeywordOrLabel(board: Board, ownerPid: PlayerId, inst: CardInstance, keyword: Keyword): boolean {
+    return LABELED_KEYWORDS.has(keyword) ? spiritHasLabeledKeyword(board, ownerPid, inst, keyword) : spiritHasKeyword(board, ownerPid, inst, keyword)
 }
 
 // 場の個体がカード静的にキーワードを持つか（付与は見ない）。Lv表記のあるキーワードは現在のレベルのときだけ。
@@ -248,6 +286,28 @@ export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
         }
     }
     return false
+}
+
+// kind:"flashSummonFromHand"（26RDB01-021「フラッシュ『相手のアタックステップ』手札のこのカードは、
+// 召喚コストの支払いと上に置くコアをリザーブから使用して召喚できる」）：いまがそのステップなら、
+// 【神速】と同じ扱い（フラッシュで手札から召喚・支払いはリザーブ）で召喚できる
+export function flashSummonFromHandNow(board: Board, pid: PlayerId, cardId: string): boolean {
+    const me = board.players[pid]
+    return card(cardId).effects.some((e) => {
+        if (e.kind !== "flashSummonFromHand") return false
+        if (board.phase !== e.phaseTurn.phase || !(e.phaseTurn.turn === "both" || (e.phaseTurn.turn === "own") === (pid === board.turnPlayer))) return false
+        if (e.onceScope === "name" && me.onceByNameUsed?.[card(cardId).name + e.id.slice(e.id.lastIndexOf("-e"))] === board.turn) return false
+        const c = e.condition
+        if (c === undefined) return true
+        if (c.ownLifeLostThisTurn && board.lifeLostThisTurn?.[pid] !== true) return false
+        const color = c.ownTrashAllColor
+        if (color !== undefined && (!me.trashCards.every((id) => cardHasColor(card(id), color)))) return false
+        const family = c.ownTrashHasFamily
+        if (family !== undefined && !me.trashCards.some((id) => (card(id).family ?? []).includes(family))) return false
+        if (c.ownAllHaveTeam !== undefined && !ownAllHaveTeam(board, pid, c.ownAllHaveTeam)) return false
+        if (c.soulCoreInReserve && me.soulCore?.zone !== "reserve") return false
+        return true
+    })
 }
 
 // 緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが

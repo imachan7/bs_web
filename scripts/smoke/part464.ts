@@ -122,10 +122,10 @@ scenario({
     expect: [...snowPaid, ...aHits],
 })
 
-console.log("=== S3. 非対話・リザーブ0：払えないので何も起きず、指定もされない（Bが先にアタックしてよい） ===")
+console.log("=== S3. 非対話・リザーブ0でフィールドの余りのコアも無い（Lv1の1個）：払えないので何も起きず、指定もされない（Bが先にアタックしてよい） ===")
 scenario({
     name: "snow-nopay",
-    start: { turn: "opp", me: snowMe(2, 0), opp: snowOpp },
+    start: { turn: "opp", me: snowMe(1, 0), opp: snowOpp },
     steps: (t) => {
         t.act("opp", { type: "nextPhase" })
         attackAndTakeLife(t, "opp", "B")
@@ -162,10 +162,10 @@ scenario({
     expect: ["相手.B.疲労: false → true", "自分.ライフ: 5 → 4", "自分.リザーブ: 10 → 11"],
 })
 
-console.log("=== S6. 対話：リザーブ0なら確認は出ない。不発（指定の選択待ちは出ない） ===")
+console.log("=== S6. 対話：リザーブ0でフィールドの余りのコアも無いなら確認は出ない。不発（指定の選択待ちは出ない） ===")
 scenario({
     name: "snow-interactive-nopay",
-    start: { turn: "opp", interactive: true, me: snowMe(2, 0), opp: snowOpp },
+    start: { turn: "opp", interactive: true, me: snowMe(1, 0), opp: snowOpp },
     steps: (t) => {
         t.act("opp", { type: "nextPhase" })
         const n = drive(t, [true])

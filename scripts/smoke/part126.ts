@@ -22,10 +22,10 @@ import {
     hasKeyword,
     runTurnStart,
     takeLifeAndResolve,
+    endTurn,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)

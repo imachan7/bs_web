@@ -15,8 +15,8 @@ import {
     createInstance,
     currentLevel,
     runTurnStart,
+    endTurn,
 } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 console.log("=== BS02-028 クロスシザース：スタートステップでネクサスのコア数をリンクする choice ===")
 {

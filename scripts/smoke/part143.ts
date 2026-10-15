@@ -193,10 +193,11 @@ console.log("=== BS07：ドローステップにトラッシュの「夜族」�
         (e) =>
             e["kind"] === "step" &&
             e["step"] === "draw" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "recoverSpiritFromTrash",
+            // 旧 recoverSpiritFromTrash.costSkipDraw は sequence [moveCards, if 動かせたなら skipDrawStep] に移った
+            JSON.stringify(e["action"]).includes('"skipDrawStep"'),
     )
     const entry = entryOf(cathedral, (e) => e["kind"] === "step" && e["step"] === "draw")
-    const family = String((entry["action"] as Record<string, unknown>)["familyFilter"])
+    const family = String((entry["action"] as { actions: { pick: { family: string } }[] }).actions[0]!.pick.family)
     const level = (entry["levels"] as number[])[0]!
     const target = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(family))!
     const outsider = CARDS.find(

@@ -1382,7 +1382,24 @@
      2,
      3
     ],
-    "action": {"type": "pay", "cost": {"type": "discardSelfChoose", "count": "any"}, "then": {"type": "removeCores", "side": "opponent", "to": "trash", "target": "one", "count": 1, "targetsCounter": "lastMoved"}},
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
+      "count": "all",
+      "upTo": true
+     },
+     "then": {
+      "type": "removeCores",
+      "side": "opponent",
+      "to": "trash",
+      "target": "one",
+      "count": 1,
+      "targetsCounter": "lastMoved"
+     }
+    },
     "optional": true
    }
   ]
@@ -3770,7 +3787,7 @@
      2
     ],
     "optional": true,
-    "action": {"type": "pay", "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "nexus"}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}},
+    "action": {"type": "pay", "cost": {"type": "moveCards", "from": "hand", "dest": "trash", "count": 1, "pick": {"cardType": "nexus"}}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}},
     "id": "BS04-065-e1"
    },
    {
@@ -3930,9 +3947,13 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "nexus"
+      "pick": {
+       "cardType": "nexus"
+      }
      },
      "then": {
       "type": "timedEffect",
@@ -3958,9 +3979,13 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "nexus"
+      "pick": {
+       "cardType": "nexus"
+      }
      },
      "then": {
       "type": "timedEffect",
@@ -4888,9 +4913,14 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "familyFilter": "甲獣"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "甲獣"
+     }
     }
    },
    {
@@ -5512,15 +5542,20 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardSelfChoose",
-       "count": "any"
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
+       "count": "all",
+       "upTo": true
       },
       {
        "type": "removeCores",
        "from": [
         "spirit"
        ],
-       "to": "trash", "count": 1, "countCounter": "lastMoved"
+       "to": "trash",
+       "count": 1,
+       "countCounter": "lastMoved"
       }
      ]
     }
@@ -6049,7 +6084,15 @@
     "id": "BS04-105-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {"type": "toDeck", "from": "trash", "position": "bottom", "count": 5, "pick": {"cardType": "spirit"}}
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 5,
+     "dest": "deckBottom",
+     "pick": {
+      "cardType": "spirit"
+     }
+    }
    }
   ]
  },

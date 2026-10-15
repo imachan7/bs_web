@@ -1,5 +1,5 @@
 // smoke パート407（toDeck：手札・トラッシュのカードをデッキの上下へ。実カードデータで解決する）
-import { act, assert, createGame, createInstance, destroySpirit, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, destroySpirit, getCard, resolveAction, runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
 
@@ -26,7 +26,7 @@ function game(seed: string): GameState {
     return s
 }
 function actionOf(cardId: string, kind: string): EffectAction {
-    const e = getCard(cardId).effects!.find((x) => x.kind === kind && "action" in x && JSON.stringify(x.action).includes("toDeck"))
+    const e = getCard(cardId).effects!.find((x) => x.kind === kind && "action" in x && JSON.stringify(x.action).includes("moveCards"))
     return (e as { action: EffectAction }).action
 }
 
@@ -88,7 +88,7 @@ console.log("=== 5. 戻したカードを記録し、同じ効果の後ろのス
     const hand = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "sequence",
-        actions: [{ type: "toDeck", from: "trash", position: "bottom", count: 5 }, { type: "draw", count: 1, countCounter: "lastMoved" }],
+        actions: [legacy({ type: "toDeck", from: "trash", position: "bottom", count: 5 }), { type: "draw", count: 1, countCounter: "lastMoved" }],
     })
     assert(s.players.p1.hand.length === hand + 2, "戻した2枚ぶん引く")
 }

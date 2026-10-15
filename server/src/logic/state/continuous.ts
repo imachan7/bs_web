@@ -1,8 +1,9 @@
 // 継続効果を個体へ書き戻す再計算（refreshLevelAsOverrides）と、期間つき効果の記録
-import { countEffectCounter } from "../EffectModules"
+import { countEffectCounter, fireFieldEventTriggers } from "../EffectModules"
 import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, TimedRecord, PlayerRuleDef } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } from "../GameState"
 import { ownFieldSymbolColors } from "../../../../shared/cost"
+import { matchesPick } from "../actions/revealAction"
 import {
     effectActiveAtLevel,
     effectActiveOn,
@@ -26,6 +27,7 @@ import {
     hostsOf,
     instIsCombined,
     opponentFieldColorCount,
+    ownAllSpiritsHaveFamily,
 } from "../../../../shared/rules"
 
 // 期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
@@ -48,10 +50,13 @@ function applyTimedCopies(state: GameState): void {
             delete inst.battleBpAs
             delete inst.colorlessThisBattle
             inst.immuneToOpponentThisTurn = false
+            delete inst.untargetableByOpponentMagicTimed
             delete inst.countAsThisTurn
             delete inst.lifeDamageNegatedFor
+            delete inst.lifeCapThisTurn
             delete inst.timedLevel
             delete inst.timedExtraSymbols
+            delete inst.timedSymbolsAdded
             delete inst.timedCostDelta
             delete inst.timedSymbolsOverride
             delete inst.timedSymbolLoss
@@ -70,10 +75,10 @@ function applyTimedCopies(state: GameState): void {
                 const to = c.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : c.set
                 if (to !== undefined) inst.timedLevel = to
             }
-            if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
+            if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
+            else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
-            if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color)
-            if (c.type === "symbolLoss" && c.color !== undefined) (inst.timedSymbolLoss ??= []).push(c.color)
+            if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
         }
     }
     // 1体に掛けた記録を写す。BP+ は一定量だけ（「すべて」と「1体につき」の量は effectiveBp が読むたびに数え直す＝timedRuleBp）
@@ -90,9 +95,16 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
             if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "immune") inst.immuneToOpponentThisTurn = true
+            if (c.type === "untargetableByOpponentMagic") inst.untargetableByOpponentMagicTimed = true
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
             if (c.type === "noLifeDamage") inst.lifeDamageNegatedFor = r.ownerPid
+            if (c.type === "lifeCap") inst.lifeCapThisTurn = Math.min(inst.lifeCapThisTurn ?? Number.POSITIVE_INFINITY, c.max)
         }
+    }
+    // シンボル喪失は、BP の写しができたあとにもう一度照合する（「BP1000以下の相手のスピリットすべては〜」が、このターンのBP増減でも入れ替わるように。
+    // 他の「すべて」は写しを空にして照合するので BP の増減は見えない。2026-10-11 ユーザー確認）
+    for (const inst of all) {
+        for (const c of timedContentsOn(state, inst)) if (c.type === "symbolLoss" && c.color !== undefined) (inst.timedSymbolLoss ??= []).push(c.color)
     }
 }
 
@@ -104,6 +116,10 @@ export function recordPlayerRule(state: GameState, pid: PlayerId, rule: PlayerRu
 // 1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
 export function recordBp(state: GameState, ownerPid: PlayerId, inst: CardInstance, amount: number, until: "turn" | "battle"): void {
     recordTimed(state, { content: [{ type: "bp", amount }], target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid })
+    // 自分のスピリットがフラッシュ効果のBP+で増えた（相手のスピリットへの+は「自分の」にならないので対象外）
+    if (state.flashEffect && amount > 0 && state.players[ownerPid].field.spirits.some((x) => x.instanceId === inst.instanceId)) {
+        fireFieldEventTriggers(state, ownerPid, "ownSpiritBpUpByFlash", { pid: ownerPid, inst }, instColors(inst))
+    }
 }
 
 export function refreshLevelAsOverrides(state: GameState): void {
@@ -472,8 +488,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.condition && "ownBurstSet" in effect.condition && !player.burstSet) {
                         continue
                     }
+                    if (effect.condition && "ownMagicUsedThisTurn" in effect.condition) {
+                        const pick = effect.condition.ownMagicUsedThisTurn
+                        if (!(state.magicIdsUsedThisTurn?.[pid] ?? []).some((id) => matchesPick(id, pick))) continue
+                    }
+                    if (effect.condition && "count" in effect.condition) {
+                        const v = countEffectCounter(state, pid, source, effect.condition.count, undefined)
+                        if (effect.condition.atLeast !== undefined && v < effect.condition.atLeast) continue
+                        if (effect.condition.atMost !== undefined && v > effect.condition.atMost) continue
+                    }
                     if (effect.phaseTurn) {
-                        if (state.phase !== effect.phaseTurn.phase) continue
+                        if (effect.phaseTurn.phase !== undefined && state.phase !== effect.phaseTurn.phase) continue // phase 省略＝ステップを問わない（『自分のターン』）
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
                         if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
                     }
@@ -612,6 +637,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind !== "levelAs") continue
                 if (effect.lentOnly && !isVirtualSource(source)) continue
+                if (effect.whileAttacking === true && state.battle?.attackerInstanceId !== source.instanceId) continue
                 // 【合体時】：発生源が合体しているときだけ（BS10-078 聖鎧獣アメミード）
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
                 if (
@@ -656,6 +682,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     } else if ("ownLifeAtLeast" in effect.condition) {
                         // BS15-016闇騎士ガウェイン：自分のライフが3以上の間だけ有効
                         if (player.life < effect.condition.ownLifeAtLeast) continue
+                    } else if ("opponentTrashAtLeast" in effect.condition) {
+                        if (state.players[opponentOf(pid)].trashCards.length < effect.condition.opponentTrashAtLeast) continue
+                    } else if ("ownAllSpiritsHaveFamily" in effect.condition) {
+                        if (!ownAllSpiritsHaveFamily(state, pid, effect.condition.ownAllSpiritsHaveFamily)) continue
                     } else if ("opponentFieldColorsAtLeast" in effect.condition) {
                         // BS15共通器：BS15-047パンクマウス
                         if (

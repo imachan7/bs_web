@@ -41,4 +41,4 @@ console.log("=== 1. コスト-2されたコスト6を破壊したら、4枚破�
     assert(s.players.p2.deck.length === deckBefore - 4, `デッキを4枚破棄する（実際 ${deckBefore - s.players.p2.deck.length}枚）`)
 }
 
-console.log("すべてのチェックに合格しました 🎉（part487）")
+console.log("すべてのチェックに合格しました 🎉（part584）")

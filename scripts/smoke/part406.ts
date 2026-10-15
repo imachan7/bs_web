@@ -1,5 +1,5 @@
 // smoke パート406（記録の枠：ステップの間に別の効果が挟まっても、同じ効果の後ろのステップは自分の記録を読む。IF_UNIFY.md §6）
-import { act, assert, createGame, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, getCard, resolveAction, runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import type { EffectAction } from "../../server/src/type"
 import { pushResumeFrames } from "../../server/src/logic/GameState"
@@ -24,7 +24,7 @@ function game(seed: string): GameState {
 
 const discardThenDraw: EffectAction = {
     type: "sequence",
-    actions: [{ type: "discardSelfChoose", count: "any" }, { type: "draw", count: 1, countCounter: "lastMoved" }],
+    actions: [legacy({ type: "discardSelfChoose", count: "any" }), { type: "draw", count: 1, countCounter: "lastMoved" }],
 }
 
 console.log("=== 1. 破棄の途中で別の効果（デッキを3枚破棄）が挟まっても、ドローは自分が破棄した1枚ぶん ===")

@@ -8,9 +8,9 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    endTurn,
 } from "./helpers"
 import type { GameState } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 import { continueBurstActivation } from "../../server/src/logic/EffectModules"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）

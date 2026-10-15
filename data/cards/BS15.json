@@ -144,11 +144,23 @@
      "cost": {
       "type": "sequence",
       "actions": [
-       {"type": "discardSelfChoose", "count": 1},
-       {"type": "exhaust", "target": "self", "count": 1}
+       {
+        "type": "moveCards",
+        "from": "hand",
+        "dest": "trash",
+        "count": 1
+       },
+       {
+        "type": "exhaust",
+        "target": "self",
+        "count": 1
+       }
       ]
      },
-     "then": {"type": "destroyNexus", "count": 1}
+     "then": {
+      "type": "destroyNexus",
+      "count": 1
+     }
     }
    }
   ]
@@ -431,7 +443,9 @@
       {
        "type": "pay",
        "cost": {
-        "type": "discardSelfChoose",
+        "type": "moveCards",
+        "from": "hand",
+        "dest": "trash",
         "count": 1
        },
        "then": {
@@ -582,15 +596,30 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "count": 2,
-     "pick": {
-      "cardType": "spirit",
-      "keyword": "clash"
-     },
-     "pickCount": "all",
-     "dest": "summon",
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 2
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "keyword": "clash"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -898,7 +927,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {
@@ -1117,8 +1148,14 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "keywordFilter": "fushi"
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "fushi"
+     },
+     "count": 1
     }
    },
    {
@@ -1131,8 +1168,26 @@
     ],
     "action": {
      "type": "pay",
-     "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "spirit", "keyword": "fushi"},
-     "then": {"type": "recoverSpiritFromTrash", "count": 1, "colorFilter": "purple"}
+     "cost": {
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
+      "count": 1,
+      "pick": {
+       "cardType": "spirit",
+       "keyword": "fushi"
+      }
+     },
+     "then": {
+      "type": "moveCards",
+      "from": "trash",
+      "count": 1,
+      "dest": "hand",
+      "pick": {
+       "cardType": "spirit",
+       "color": "purple"
+      }
+     }
     }
    }
   ]
@@ -1184,11 +1239,17 @@
      2
     ],
     "action": {
-     "type": "summonFromTrashFree",
-     "costFilter": {
-      "max": 4
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "color": "purple",
+      "cost": {
+       "max": 4
+      }
      },
-     "colorFilter": "purple",
+     "count": 1,
      "countCounter": "opponentFieldColors"
     }
    },
@@ -2788,7 +2849,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {
@@ -3082,11 +3145,17 @@
       "side": "own"
      },
      "then": {
-      "type": "recoverMagicFromTrash",
-      "colors": [
-       "yellow"
-      ],
-      "hasBurst": true
+      "type": "moveCards",
+      "from": "trash",
+      "count": 1,
+      "dest": "hand",
+      "pick": {
+       "cardType": "magic",
+       "color": [
+        "yellow"
+       ],
+       "hasBurst": true
+      }
      }
     }
    },
@@ -3208,11 +3277,15 @@
      3
     ],
     "action": {
-     "type": "recoverMagicFromTrash",
-     "anyCardType": true,
-     "colors": [
-      "yellow"
-     ]
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "color": [
+       "yellow"
+      ]
+     }
     }
    }
   ]
@@ -4468,7 +4541,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {
@@ -5040,10 +5115,16 @@
     "byOpponentEffectOnly": true,
     "destroyedAsTarget": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "familyFilter": "覇皇",
-     "onlyBurstDestroyedCard": true,
-     "skipOnSummon": true
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "family": "覇皇"
+     },
+     "count": 1,
+     "skipOnSummon": true,
+     "onlyEventCard": true
     },
     "thenPay": "flash"
    },
@@ -5101,13 +5182,24 @@
        "count": 2
       },
       {
-       "type": "reveal",
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
        "count": 1,
+       "dest": "hand",
        "pick": {
         "cardType": "spirit",
         "color": "red"
-       },
-       "rest": "deckTop"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
       }
      ]
     }
@@ -5208,15 +5300,20 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardSelfChoose",
-       "count": "any"
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
+       "count": "all",
+       "upTo": true
       },
       {
        "type": "removeCores",
        "from": [
         "spirit"
        ],
-       "to": "trash", "count": 1, "countCounter": "lastMoved"
+       "to": "trash",
+       "count": 1,
+       "countCounter": "lastMoved"
       }
      ]
     }
@@ -5467,8 +5564,22 @@
     "action": {
      "type": "sequence",
      "actions": [
-      {"type": "toDeck", "from": "trash", "position": "top", "count": 1, "pick": {"cardType": "magic"}},
-      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10, "upTo": true}
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 1,
+       "dest": "deckTop",
+       "pick": {
+        "cardType": "magic"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 10,
+       "dest": "deckBottom",
+       "upTo": true
+      }
      ]
     },
     "thenPay": "flash"

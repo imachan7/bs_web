@@ -1,9 +1,11 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
-import type { DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
+import { recordLifeLost } from "./record"
+import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
+import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { timedBattleContents, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit } from "../../../shared/rules"
+import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -52,6 +54,10 @@ export function resolveLifeDamage(state: GameState): void {
         return
     }
 
+    // このバトルはブロックされていないため、【地鳴】の減算記録（lastBattleBlockerTrashCost）は
+    // 前のバトルの値を持ち越さず0にリセットする
+    state.lastBattleBlockerTrashCost = 0
+
     // ライフが減る量の上限を**1回で求める**（shared/rules.lifeDamageLimit）。
     // 「減るか／減らないか」だった5つの門番（ダメージ打ち消し・コスト条件2種・BP条件・ターン上限）を
     // ここに集約してある。0 なら従来どおり「受けなかった」扱い（2026-08-16 ユーザー提案）
@@ -62,8 +68,7 @@ export function resolveLifeDamage(state: GameState): void {
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
         )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
+        finishUnblockedBattle(state, attackerPid, attacker)
         return
     }
 
@@ -73,8 +78,7 @@ export function resolveLifeDamage(state: GameState): void {
             state,
             `${defender.name}は${getCard(attacker.cardId).name}のアタックによるライフダメージを受けなかった（効果）。`,
         )
-        resolveKoboOnBattleEnd(state, attackerPid, attacker)
-        clearBattle(state)
+        finishUnblockedBattle(state, attackerPid, attacker)
         return
     }
 
@@ -82,15 +86,24 @@ export function resolveLifeDamage(state: GameState): void {
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
     // ダメージはアタッカーのシンボル数。**上限があればそこで切り下げる**
     //（ブリザードウォール＝1しか減らない）。ライフの残りも超えられない
-    const damage = Math.min(instanceSymbolCount(attacker), limit.max)
+    const bonus = activeConstraints(state, attackerPid, attacker).reduce((n, c) => n + (c.type === "lifeDamageBonus" && (!c.ifOwnEffectVanishedOpponentSpirit || state.oppSpiritRemovedByEffectThisTurn?.[attackerPid]?.includes("vanish")) && (!c.ifOwnTrashAtLeast || state.players[attackerPid].trashCards.filter((id) => matchesPick(id, c.ifOwnTrashAtLeast!.pick)).length >= c.ifOwnTrashAtLeast.count) ? c.amount : 0), 0)
+    const damage = Math.min(instanceSymbolCount(attacker) + bonus, limit.max)
     const dealt = Math.min(damage, defender.life)
     attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
     const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
+    const toTrash = !toVoid && lifeDamageToTrashByOwnerSource(state, attackerPid, attacker)
     defender.life -= dealt
+    recordLifeLost(state, defenderPid, dealt)
     if (toVoid) {
         log(
             state,
             `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）。コアはボイドへ消えた。`,
+        )
+    } else if (toTrash) {
+        defender.trashCores += dealt
+        log(
+            state,
+            `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）。コアはトラッシュに置かれた。`,
         )
     } else {
         defender.reserve += dealt
@@ -125,10 +138,25 @@ export function resolveLifeDamage(state: GameState): void {
     })
 }
 
+// 発生源の持ち主（アタッカー側）の globalConstraint "ownLifeDamageToTrashByKeyword" が、このアタッカーに効くか
+function lifeDamageToTrashByOwnerSource(state: GameState, attackerPid: PlayerId, attacker: CardInstance): boolean {
+    for (const source of effectSources(state, attackerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageToTrashByKeyword") continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            if (spiritHasKeywordOrLabel(state, attackerPid, attacker, effect.constraint.keyword)) return true
+        }
+    }
+    return false
+}
+
 type LifeDamageResolveFrame = Extract<ResumeFrame, { kind: "lifeDamageResolve" }>
 
 // ライフが減ったあとの手順。1ステップ＝中断しうる呼び出し1つ（battleResolve と同じ形）
-const LIFE_DAMAGE_LAST_STEP = 5
+// 5=『バトル終了時』誘発（onBattleEnd）／6=【光芒】／7=バトルの片付け
+const LIFE_DAMAGE_LAST_STEP = 7
 function driveLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
     for (let step = frame.step; step <= LIFE_DAMAGE_LAST_STEP; step++) {
         runLifeDamageStep(state, frame, step)
@@ -152,6 +180,7 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）とライフ減少後バースト。
         // targetInstanceIdにアタッカーを渡す（BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
         if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+        if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeLost")
     } else if (step === 1) {
         if (f.lifeTriggers) fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
     } else if (step === 2) {
@@ -167,11 +196,33 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
         // （BS06-X22魔界七将ベルゼビート）。selfにはライフを減らしたスピリット（アタッカー）を渡す
         if (f.dealt > 0 && !state.winner) {
             fireFieldEventTriggers(state, attackerPid, "ownSpiritDealtLife", { pid: attackerPid, inst: attacker }, instColors(attacker))
+            if (!state.winner) fireFieldEventTriggers(state, attackerPid, "ownSpiritReducedLife", { pid: attackerPid, inst: attacker }, instColors(attacker))
+            if (!state.winner) fireTrigger(state, attackerPid, attacker, "onLifeReduced")
         }
-    } else {
+    } else if (step === 5) {
+        // 『バトル終了時』誘発: ブロックされずライフで受けたバトルも「バトル終了時」に含まれるため、
+        // 生存しているアタッカーに発火する（26系【地鳴】。減算記録はブロックが無いので0）
+        const surviving = findSpirit(state.players[attackerPid], f.attackerSnapshot.instanceId)
+        if (surviving) fireTrigger(state, attackerPid, surviving, "onBattleEnd", "attacker")
+    } else if (step === 6) {
         resolveKoboOnBattleEnd(state, attackerPid, attacker)
+    } else {
         clearBattle(state)
     }
+}
+
+// ブロックされなかったバトル（ライフ受け・ライフダメージ無効化）の終了処理。
+// driveLifeDamageResolution の step5以降を流用する（『バトル終了時』誘発→【光芒】→片付け。
+// 選択待ちが入っても続きが動くようにフレームで回す）
+function finishUnblockedBattle(state: GameState, attackerPid: PlayerId, attacker: CardInstance): void {
+    driveLifeDamageResolution(state, {
+        kind: "lifeDamageResolve",
+        step: 5,
+        attackerPid,
+        attackerSnapshot: { ...attacker },
+        dealt: 0,
+        lifeTriggers: false,
+    })
 }
 
 // 指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
@@ -210,6 +261,20 @@ export function resolveDirectedBlock(state: GameState): void {
     }
 }
 
+// 26系【地鳴】の減算記録: このバトルでブロックを宣言したカード（ブロック宣言時に
+// GameEngine.finishBlockDeclaration が lastBattleBlockerCardId へ記録。スワップがあれば最後の
+// ブロッカー）のうちスピリットカードのみを参照し、バトル終了時点で防御側のトラッシュに
+// あればその印刷コストを lastBattleBlockerTrashCost へ置く（無ければ0）。
+// トラッシュ内の同名カードは区別しない簡略化（先行して落ちている同名カードがあれば過大評価しうる）
+function recordBlockerTrashCost(state: GameState, defenderPid: PlayerId): void {
+    state.lastBattleBlockerTrashCost = 0
+    const cardId = state.lastBattleBlockerCardId
+    if (cardId === undefined) return
+    const card = getCard(cardId)
+    if (card.type !== "spirit") return
+    if (state.players[defenderPid].trashCards.includes(cardId)) state.lastBattleBlockerTrashCost = card.cost
+}
+
 // ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）
 export function resolveBattle(state: GameState): void {
     if (!state.battle) return
@@ -224,6 +289,13 @@ export function resolveBattle(state: GameState): void {
         : undefined
 
     if (!attacker || !blocker) {
+        // フラッシュ②の間にブロッカーが場を離れてバトルが不成立になった場合も、このバトルは
+        // ここで終わる。生存しているアタッカーの『バトル終了時』誘発は発火する（26系【地鳴】。
+        // 減算記録はこの時点で確定させる＝ブロッカーがトラッシュに無ければ減らない）
+        if (attacker) {
+            recordBlockerTrashCost(state, defenderPid)
+            fireTrigger(state, attackerPid, attacker, "onBattleEnd", "attacker", state.battle.blockerInstanceId ?? undefined)
+        }
         clearBattle(state)
         return
     }
@@ -239,6 +311,8 @@ export function resolveBattle(state: GameState): void {
     state.lastBattleDestroyedFamilies = []
     state.lastBattleDestroyedBp = 0
     state.lastBattleDestroyedCost = 0
+    // 【地鳴】の減算記録も次のバトルに持ち越さない（onBattleEnd 発火の直前に値を確定させる）
+    state.lastBattleBlockerTrashCost = 0
 
     // ブロッカーの疲労（と「ブロックしても疲労しない」の判定）はブロック宣言時に済んでいる（exhaustDeclaredBlocker）
     const attackerColors = instColors(attacker)
@@ -394,7 +468,7 @@ type BattleOutcome = "attackerWins" | "blockerWins" | "mutual" | "none"
 type BattleResolveFrame = Extract<ResumeFrame, { kind: "battleResolve" }>
 
 // バトル解決の最終ステップ番号（runBattleStep の switch と対応）
-const BATTLE_LAST_STEP = 12
+const BATTLE_LAST_STEP = 13
 
 // ＞６（破壊処理）〜＞７（バトル終了宣言）を1ステップずつ進める。
 // **1ステップ＝中断しうる呼び出し1つ**にしてあるので、選択待ちが立ったら
@@ -457,6 +531,14 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // 破壊元は対象ごとに違う（ブロッカーを破壊したのはアタッカー、その逆も同様）ため context も対象ごとに渡す
         case 1: {
             if (f.outcome === "none") return
+            // 26RBS03-036：BP比べでは破壊されない個体はバッチから外す（相打ちなら相手側だけ破壊）
+            const allGuarded = hasGlobalConstraint(state, "noBpCompareDestroy")
+            const guarded = (pid: PlayerId, id: string): boolean => {
+                const s = findSpirit(state.players[pid], id)
+                return s !== undefined && (allGuarded || timedContentsOn(state, s).some((c) => c.type === "noBpCompareDestroy"))
+            }
+            if (f.outcome === "attackerWins" && guarded(defenderPid, f.blockerInstanceId)) return
+            if (f.outcome === "blockerWins" && guarded(attackerPid, f.attackerInstanceId)) return
             if (f.outcome === "attackerWins") {
                 destroyTargetsBatch(state, attackerPid, [
                     { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },
@@ -466,10 +548,11 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                     { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
                 ])
             } else {
-                destroyTargetsBatch(state, attackerPid, [
+                const batch = [
                     { pid: defenderPid, instanceId: f.blockerInstanceId, context: attackerContext },
                     { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
-                ])
+                ].filter((t) => !guarded(t.pid, t.instanceId))
+                if (batch.length > 0) destroyTargetsBatch(state, attackerPid, batch)
             }
             return
         }
@@ -610,9 +693,14 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // onBattleEnd 誘発：バトル参加者（アタッカー・ブロッカー）のうち、まだフィールドに
         // 生存している個体それぞれに発火する（コリスタル：ブロックされても生き残れば自壊する）
         case 8: {
+            // 【地鳴】の減算記録を『バトル終了時』誘発の発火直前に確定させる（この時点で
+            // ブロッカーのカードが防御側のトラッシュにあればそのコスト。破壊後に手札へ
+            // 戻されていたら減らない＝トラッシュに無ければ0）
+            recordBlockerTrashCost(state, defenderPid)
             const survivingAttacker = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (survivingAttacker) {
                 fireTrigger(state, attackerPid, survivingAttacker, "onBattleEnd", "attacker", f.blockerInstanceId)
+                fireFieldEventTriggers(state, attackerPid, "ownSpiritBattleEnded", { pid: attackerPid, inst: survivingAttacker }, instColors(survivingAttacker))
                 // fieldEvent "ownCombinedSpiritBattleEnded"：ネクサス等から見る誘発なので、
                 // バトル参加者にしか発火しないonBattleEndとは別に呼ぶ必要がある（BS10-086巨星望む大樹Lv2）
                 if (instIsCombined(survivingAttacker)) {
@@ -637,6 +725,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             const survivingBlocker = findSpirit(state.players[defenderPid], f.blockerInstanceId)
             if (survivingBlocker) {
                 fireTrigger(state, defenderPid, survivingBlocker, "onBattleEnd", "blocker", f.attackerInstanceId)
+                fireFieldEventTriggers(state, defenderPid, "ownSpiritBattleEnded", { pid: defenderPid, inst: survivingBlocker }, instColors(survivingBlocker))
                 if (instIsCombined(survivingBlocker)) {
                     fireFieldEventTriggers(
                         state,
@@ -655,6 +744,12 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             return
         }
         case 10: {
+            // バトルに参加しなかった個体の destroyAtBattleEnd（26RBS01-113「このバトル終了時、召喚したそれを破壊する」）。参加者は case 8/9 で破壊済み
+            for (const pid of [attackerPid, defenderPid]) {
+                for (const sp of [...state.players[pid].field.spirits]) {
+                    if (!state.winner && sp.destroyAtBattleEnd) destroySpirit(state, pid, sp.instanceId)
+                }
+            }
             resolveKoboOnBattleEnd(state, attackerPid, attacker)
             return
         }
@@ -666,7 +761,15 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             }
             return
         }
+        // 勝ったスピリットのフィールドイベント（battleWon 誘発と違い発生源の持ち主の全フィールド発生源が対象）
         case 12: {
+            if (state.winner) return
+            const winnerPid = f.outcome === "attackerWins" ? attackerPid : f.outcome === "blockerWins" ? defenderPid : null
+            const winnerInst = f.outcome === "attackerWins" ? attacker : blocker
+            if (winnerPid !== null) fireFieldEventTriggers(state, winnerPid, "ownSpiritBattleWon", { pid: winnerPid, inst: winnerInst }, instColors(winnerInst))
+            return
+        }
+        case 13: {
             clearBattle(state)
             return
         }

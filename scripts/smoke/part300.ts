@@ -2,7 +2,7 @@
 // S=無色化（色とシンボルを無いものとして扱う。バトル寿命）／V=破壊時効果の借用（借り元自身が発揮・現在Lv限定）／
 // X=コア数での絞り込み（両陣営に効く）／Y=ドロー枚数の追加／Z=ライフ減少先の置換／T=不死の系統指定／
 // U=不死経由限定の召喚時／trashReturnAtEndStep／costDestroyOwnSpirit（destroy）／countAttackerSymbols（discardOpponent）
-import { assert, createGame, createInstance, endTurn, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, endTurn, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import { instColors, instHasColor, countSymbols, activeConstraints } from "../../shared/rules"
 import { clearBattle } from "../../server/src/logic/GameState"
@@ -127,7 +127,7 @@ console.log("=== Y: ドロー枚数の追加（keyword配列でOR。BS13-063 Lv2
     const jugeki = createInstance("BS13-011", s.turn, 1)
     p1.hand.push(jugeki.cardId)
     const before = p1.deck.length
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 1, cardType: "spirit", keyword: ["jugeki", "fushi"] }, then: { type: "draw", count: 2 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: legacy({ type: "discardSelfChoose", count: 1, cardType: "spirit", keyword: ["jugeki", "fushi"] }), then: { type: "draw", count: 2 } })
     assert(p1.deck.length === before - 2, "【呪撃】/【不死】いずれかの手札を破棄してドロー+2できた（OR判定）")
     assert(!p1.hand.includes("BS13-011"), "コストとして手札の該当カードが破棄された")
 }

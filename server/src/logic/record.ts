@@ -1,7 +1,7 @@
 // 「直前のアクションで動いたカード」の記録（if の cond.last・カウンタ lastMoved/lastCost・sameCostAsLast が読む）。
 // 効果ごとの枠（recordScope）に分けて持つ。中断しても、ステップの間に別の効果が挟まっても混ざらないため（IF_UNIFY.md §6）
 import { randomUUID } from "node:crypto"
-import type { GameState } from "../type"
+import type { GameState, PlayerId } from "../type"
 
 export function newRecordScope(): string {
     return randomUUID()
@@ -49,6 +49,22 @@ export function recordCores(state: GameState, n: number, scope: string = current
     state.lastCores = { ...(state.lastCores ?? {}), [scope]: n }
 }
 
+export function recordDrawn(state: GameState, n: number, scope: string = currentRecordScope(state)): void {
+    state.lastDrawn = { ...(state.lastDrawn ?? {}), [scope]: n }
+}
+
+export function recordNexusCost(state: GameState, cost: number, scope: string = currentRecordScope(state)): void {
+    state.lastNexusCost = { ...(state.lastNexusCost ?? {}), [scope]: cost }
+}
+
+export function lastNexusCostOf(state: GameState): number {
+    return state.lastNexusCost?.[currentRecordScope(state)] ?? 0
+}
+
+export function lastDrawnCount(state: GameState): number {
+    return probe ?? state.lastDrawn?.[currentRecordScope(state)] ?? 0
+}
+
 export function lastCoresCount(state: GameState): number {
     return probe ?? state.lastCores?.[currentRecordScope(state)] ?? 0
 }
@@ -58,6 +74,16 @@ export function recordTargets(state: GameState, instanceIds: string[], scope: st
     state.lastTargets = { ...(state.lastTargets ?? {}), [scope]: instanceIds }
 }
 
+// このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
+export function recordMagicUsed(state: GameState, pid: PlayerId, cardId: string): void {
+    state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
+    state.magicIdsUsedThisTurn = { ...(state.magicIdsUsedThisTurn ?? {}), [pid]: [...(state.magicIdsUsedThisTurn?.[pid] ?? []), cardId] }
+}
+
 export function lastTargetsOf(state: GameState): string[] {
     return state.lastTargets?.[currentRecordScope(state)] ?? []
+}
+
+export function recordLifeLost(state: GameState, pid: PlayerId, amount: number): void {
+    if (amount > 0) state.lifeLostThisTurn = { ...(state.lifeLostThisTurn ?? {}), [pid]: true }
 }

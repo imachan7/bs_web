@@ -3,6 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardType, CardInstance, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { draw, getCard, instMinLevelCores, log, opponentOf } from "../GameState"
+import { normalCoresOn, normalReserveOf, normalTrashOf, soulCoreInclusionDecision, wouldDeplete } from "../soulCore"
 import {
     isResisted,
     askPayToNegateIfNeeded,
@@ -86,7 +87,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                         .filter((s) => s.cores > 0 && matchesTarget(state, owner, s, filter, self?.instanceId))
                         .map((inst) => ({ pid: owner, inst }))
                 }
-                const oppList = pickEnemyCandidates(state, opp, Infinity, (s) => s.cores > 0 && matchesFilter(s), srcColors, srcType)
+                const oppList = pickEnemyCandidates(state, opp, Infinity, (s) => s.cores > 0 && matchesFilter(s) && !(action.spreadChosen ?? []).includes(s.instanceId), srcColors, srcType)
                     .map((inst) => ({ pid: opp, inst }))
                 if (!action.anySide) return oppList
                 const ownList = state.players[owner].field.spirits
@@ -106,8 +107,19 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                     }
                 }
                 if (action.dest === "void") return removeCoresToVoid(state, pid, inst, 1, owner)
-                if (action.dest === "trash") return removeCoresToTrash(state, pid, inst, 1, owner)
-                return removeCores(state, pid, inst, 1, owner, srcType)
+                // distinct（置くコアは相手が選ぶ）のときだけ、相手は[ソウルコア]を選べる（2026-10-08 ユーザー確定）
+                const soul = action.distinct && !action.excludeSoulCore
+                    ? soulCoreInclusionDecision(state, owner, pid, inst, action.dest === "trash" ? "trash" : "reserve", action, self, sourceName, chosenOption)
+                    : false
+                if (soul === "asked") return "asked"
+                const removed = action.dest === "trash" ? removeCoresToTrash(state, pid, inst, 1, owner, soul) : removeCores(state, pid, inst, 1, owner, srcType, soul)
+                // 複数体にまたがっても「消滅したなら、1枚ドロー」は1回だけ（spreadDrew で再入をまたいで覚える。26RBS03-019）
+                if (action.drawIfEmptied && !action.spreadDrew && removed > 0 && inst.cores === 0) {
+                    action = { ...action, spreadDrew: true }
+                    draw(state, owner, 1)
+                    log(state, `${sourceName}：コアが0個になったので${state.players[owner].name}は1枚引いた。`)
+                }
+                return removed
             }
             const resolveSpread = (remaining: number): void => {
                 if (state.winner || remaining <= 0) return
@@ -130,13 +142,17 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                 }
                 const richest = candidates.reduce((best, c) => (c.inst.cores > best.inst.cores ? c : best))
                 removeOne(richest.pid, richest.inst)
+                if (action.distinct) action = { ...action, spreadChosen: [...(action.spreadChosen ?? []), richest.inst.instanceId] }
                 resolveSpread(remaining - 1)
             }
             // 対話時の再入：選ばれた1体から1個取り除いて続きを解決する
-            if (action.spreadRemaining !== undefined && targetInstanceId !== undefined) {
-                const chosen = spreadCandidates().find((c) => c.inst.instanceId === targetInstanceId)
+            const reTarget = targetInstanceId ?? (chosenOption !== undefined ? action.soulChoiceTarget : undefined)
+            if (action.spreadRemaining !== undefined && reTarget !== undefined) {
+                const chosen = spreadCandidates().find((c) => c.inst.instanceId === reTarget)
+                const left = action.spreadRemaining - 1
                 if (chosen && removeOne(chosen.pid, chosen.inst) === "asked") return
-                resolveSpread(action.spreadRemaining - 1)
+                if (action.distinct) action = { ...action, spreadChosen: [...(action.spreadChosen ?? []), reTarget] }
+                resolveSpread(left)
                 return
             }
             // 数が足りないときに発揮しないのは pay の事前判定の役目。単独の効果としてはあるだけ取り除く
@@ -178,7 +194,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
         // 相手側候補には装甲・マジック効果耐性を尊重し、自分側には適用しない）
-        if (targetInstanceId === undefined && state.interactiveTargets) {
+        if (targetInstanceId === undefined && action.soulChoiceTarget === undefined && state.interactiveTargets) {
             const candidates = action.anySide
                 ? pickAnySideCandidates(state, owner, matchesFilter, srcColors, srcType)
                 : pickEnemyCandidates(state, opp, Infinity, matchesFilter, srcColors, srcType)
@@ -199,7 +215,10 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         // BP最大スピリットを自動選択
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
-            : action.anySide
+            : // §1.3の[ソウルコア]選択の答えが戻った再送: 対象は soulChoiceTarget で確定済み
+              action.soulChoiceTarget !== undefined && chosenOption !== undefined
+              ? findSpiritAny(state, action.soulChoiceTarget)
+              : action.anySide
               ? pickAnySideByBp(state, owner, Infinity, matchesFilter, srcColors, srcType)
               : (() => {
                     const t = pickEnemyByBp(state, opp, Infinity, matchesFilter, srcColors, srcType)
@@ -234,12 +253,27 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         }
         // 維持コア割れの消滅処理はremoveCores/removeCoresToVoidが担う。
         // dest:"void"指定時はリザーブでなくボイドへ（BS04ヴェノムショット）。dest:"trash"指定時はトラッシュへ（BS12-012戦車皇ディルガン）
-        if (action.dest === "void") {
-            removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
-        } else if (action.dest === "trash") {
-            removeCoresToTrash(state, found.pid, found.inst, removeCount, owner)
+        // §1.3の持ち主選択（2026-10-05 ユーザー確定: 一律に聞く）。ボイド行きは選択なし
+        if (action.dest !== "void") {
+            const soulDecision = action.excludeSoulCore ? false : soulCoreInclusionDecision(
+                state,
+                owner,
+                found.pid,
+                found.inst,
+                action.dest === "trash" ? "trash" : "reserve",
+                action,
+                self,
+                sourceName,
+                chosenOption,
+            )
+            if (soulDecision === "asked") return
+            if (action.dest === "trash") {
+                removeCoresToTrash(state, found.pid, found.inst, removeCount, owner, soulDecision === true)
+            } else {
+                removeCores(state, found.pid, found.inst, removeCount, owner, srcType, soulDecision === true)
+            }
         } else {
-            removeCores(state, found.pid, found.inst, removeCount, owner, srcType)
+            removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
         }
         // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
         // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
@@ -280,7 +314,7 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
         player.trashCores += take
         remaining -= take
         moved += take
-        if (richest.cores < instMinLevelCores(richest)) {
+        if (wouldDeplete(state, pid, richest)) {
             destroySpirit(state, pid, richest.instanceId, "deplete")
         }
     }
@@ -424,12 +458,15 @@ function coreSourcesOf(
 // 選ばれた取り先から1個だけボイドへ置く。維持コア割れの消滅処理は removeCoresToVoid が担う
 function takeOneCoreToVoid(state: GameState, targetPid: PlayerId, picked: CoreSource, actorPid: PlayerId): void {
     const player = state.players[targetPid]
+    // 案B-inside: [ソウルコア]はボイドへ行けないため、取り出しは通常コアに限る
     if (picked.kind === "reserve") {
+        if (normalReserveOf(player) < 1) return
         player.reserve -= 1
         log(state, `${player.name}はリザーブのコア1個をボイドに置いた。`)
         return
     }
     if (picked.kind === "trash") {
+        if (normalTrashOf(player) < 1) return
         player.trashCores -= 1
         log(state, `${player.name}はトラッシュのコア1個をボイドに置いた。`)
         return
@@ -441,7 +478,7 @@ function takeOneCoreToVoid(state: GameState, targetPid: PlayerId, picked: CoreSo
         return
     }
     const nx = player.field.nexuses.find((x) => x.instanceId === picked.instanceId)
-    if (!nx) return
+    if (!nx || normalCoresOn(player, nx) < 1) return
     nx.cores -= 1
     log(state, `${getCard(nx.cardId).name}の上のコア1個をボイドに置いた。`)
 }
@@ -459,10 +496,11 @@ function autoTakeCoresToVoid(
 ): { fromReserve: number; fromTrash: number; fromField: number; remaining: number } {
     const player = state.players[targetPid]
     let remaining = count
-    const fromReserve = Math.min(remaining, player.reserve)
+    // 案B-inside: [ソウルコア]はボイドへ行けないため、リザーブ/トラッシュからは通常コアだけ取る
+    const fromReserve = Math.min(remaining, normalReserveOf(player))
     player.reserve -= fromReserve
     remaining -= fromReserve
-    const fromTrash = Math.min(remaining, player.trashCores)
+    const fromTrash = Math.min(remaining, normalTrashOf(player))
     player.trashCores -= fromTrash
     remaining -= fromTrash
     let fromField = 0
@@ -616,7 +654,7 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, actio
         ] as const) {
             if (inst.cores >= before) continue
             checkExhaustOnCoreChange(state, opp, inst, { viaEffect: true, isRemoval: true })
-            if (inst.cores < instMinLevelCores(inst)) {
+            if (wouldDeplete(state, opp, inst)) {
                 destroySpirit(state, opp, inst.instanceId, "deplete")
             }
             notifySpiritCoresRemovedByOpponent(state, opp, 1)

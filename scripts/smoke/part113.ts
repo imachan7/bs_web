@@ -14,10 +14,9 @@
 //    このカードでは転召を解決しない（コアも失わず、犠牲になるスピリットも出ない）。
 //    通常の効果による召喚では転召を必ず行う（公式Q&A 2024-10-31）ので、これが唯一の例外。
 //    その一般側の検証は part114。
-import { assert, act, createGame, createInstance, getCard, runTurnStart } from "./helpers"
+import { assert, act, createGame, createInstance, getCard, runTurnStart , endTurn } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 import { hasKeyword } from "../../shared/rules"
 
 function putSpirit(s: GameState, pid: PlayerId, cardId: string, cores: number) {

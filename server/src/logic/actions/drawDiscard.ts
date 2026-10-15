@@ -4,7 +4,7 @@ import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
 import { KEYWORDS, canDiscardHand, instanceSymbolCount, hasGlobalConstraint, hasKeyword } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
-import { recordMoved } from "../record"
+import { recordDrawn, recordMoved } from "../record"
 
 const noopHandler: ActionHandler<"noop"> = () => {
     // 何もしない（PendingChoice.magicNegate のプレースホルダ）
@@ -31,6 +31,7 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
             log(state, `${sourceName}：カウントが0のためドローしなかった。`)
             return
         }
+        const handBefore = state.players[owner].hand.length
         // side:"both"指定時は自分→相手の順で両者が引く（BS03巨猫ブリンクス：お互いドロー）。
         // 封印された魔導書Lv1が働くと片側だけになる（ドローは受ける側の利得なので相手が外れる）
         if (action.side === "both") {
@@ -42,6 +43,8 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         } else {
             draw(state, owner, count * drawDoubleMultiplier(state, owner))
         }
+        // 「ドローしたカード1枚につき」が読む（自分が引いたカードだけ）
+        recordDrawn(state, state.players[owner].hand.length - handBefore)
         return
 }
 
@@ -71,8 +74,10 @@ const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => 
         // 手札が0枚（＝破棄が起きない）なら発揮しない。「そうしたとき」＝破棄を完全に解決した後に数える
         if (count === 0) {
             log(state, `${sourceName}：手札がないため破棄しなかった。`)
+            recordMoved(state, [])
             return
         }
+        recordMoved(state, [...player.hand])
         player.trashCards.push(...player.hand)
         player.hand = []
         log(state, `${player.name}は手札${count}枚をすべて破棄した。`)
@@ -382,164 +387,6 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
 }
 
 // pay.ts の判定表からも使う
-export const discardSelfChooseEligible = (cardId: string, action: Extract<EffectAction, { type: "discardSelfChoose" }>): boolean => {
-    if (action.cardType !== undefined) {
-        const wanted = Array.isArray(action.cardType) ? action.cardType : [action.cardType]
-        if (!wanted.includes(getCard(cardId).type)) return false
-    }
-    if (action.family !== undefined) {
-        const wanted = Array.isArray(action.family) ? action.family : [action.family]
-        if (!wanted.some((f) => getCard(cardId).family.includes(f))) return false
-    }
-    if (action.keyword !== undefined) {
-        const wanted = Array.isArray(action.keyword) ? action.keyword : [action.keyword]
-        if (!wanted.some((kw) => hasKeyword(cardId, kw))) return false
-    }
-    if (action.cardName !== undefined && getCard(cardId).name !== action.cardName) return false
-    if (action.colorFilter !== undefined && !getCard(cardId).colors.includes(action.colorFilter)) return false
-    return true
-}
-
-// 実対戦（interactiveTargets）では1枚ずつ選ばせ、残りぶんを queue に積んで同じアクションへ戻ってくる。
-// 非interactive時は条件に合う候補の末尾から破棄する（決定的簡略化）
-// count:"any"（好きなだけ。0枚も可）：対話は1枚ずつ任意で選び、スキップで終える。非対話は条件に合う手札をすべて破棄。
-// 破棄し終えたら lastMoved に書く（「その破棄したカード1枚につき」。IF_UNIFY.md §5）
-function discardSelfAny(ctx: ActionCtx, action: Extract<EffectAction, { type: "discardSelfChoose" }>): void {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    const discarded = action.discarded ?? []
-    const finish = (ids: string[]): void => {
-        recordMoved(state, ids)
-        if (ids.length === 0) log(state, `${sourceName}：手札を破棄しなかった。`)
-    }
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined || !discardSelfChooseEligible(cardId, action)) {
-            finish(discarded)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
-        const next = [...discarded, cardId]
-        if (next.length >= (action.anyMax ?? Infinity)) {
-            finish(next)
-            return
-        }
-        const { awaitingSkip: _dropped, ...rest } = action
-        ctx.resolve({ ...rest, discarded: next })
-        return
-    }
-    if (action.awaitingSkip || discarded.length >= (action.anyMax ?? Infinity)) {
-        finish(discarded)
-        return
-    }
-    const indices = player.hand.map((_, i) => i).filter((i) => discardSelfChooseEligible(player.hand[i]!, action))
-    if (indices.length === 0) {
-        finish(discarded)
-        return
-    }
-    if (state.interactiveTargets) {
-        requestCardChoice(
-            state,
-            owner,
-            `${sourceName}：破棄する手札を選んでください（選ばなければ終了します）`,
-            "hand",
-            indices,
-            true,
-            { ...action, discarded, awaitingSkip: true },
-            self,
-            true,
-            true,
-        )
-        return
-    }
-    const take = indices.slice(-Math.min(indices.length, (action.anyMax ?? Infinity) - discarded.length))
-    const ids = take.map((i) => player.hand[i]!)
-    player.hand = player.hand.filter((_, i) => !take.includes(i))
-    player.trashCards.push(...ids)
-    log(state, `${player.name}は手札「${ids.map((id) => getCard(id).name).join("、")}」を破棄した。`)
-    finish([...discarded, ...ids])
-}
-
-const discardSelfChooseHandler: ActionHandler<"discardSelfChoose"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    if (action.downTo !== undefined) {
-        const count = player.hand.length - action.downTo
-        if (count <= 0) log(state, `${sourceName}：自分の手札は${action.downTo}枚以下のため発動しなかった。`)
-        else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count }) }
-        return
-    }
-    if (action.count === "any") {
-        if (!canDiscardHand(state, owner)) {
-            log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-            recordMoved(state, [])
-            return
-        }
-        discardSelfAny(ctx, action)
-        return
-    }
-    if (action.count <= 0) return
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-    // 選択の解決から戻ってきた場合：選ばれた1枚を破棄する（残りは queue 側が処理する）
-    if (chosenCardIndex !== undefined) {
-        const cardId = player.hand[chosenCardIndex]
-        if (cardId === undefined || !discardSelfChooseEligible(cardId, action)) {
-            log(state, `${sourceName}の手札破棄：対象がいなかった。`)
-            return
-        }
-        player.hand.splice(chosenCardIndex, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
-        return
-    }
-    const indices = player.hand.map((_, i) => i).filter((i) => discardSelfChooseEligible(player.hand[i]!, action))
-    if (indices.length === 0) {
-        log(state, `${sourceName}の手札破棄：手札がなかった。`)
-        return
-    }
-    if (state.interactiveTargets) {
-        if (
-            tryInteractiveCardChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}の手札破棄：破棄するカードを選んでください（残り${action.count}枚）`,
-                "hand",
-                indices,
-                { type: "discardSelfChoose", count: 1, ...(action.cardType !== undefined ? { cardType: action.cardType } : {}), ...(action.keyword !== undefined ? { keyword: action.keyword } : {}) },
-                action.count > 1
-                    ? {
-                          type: "discardSelfChoose",
-                          count: action.count - 1,
-                          ...(action.cardType !== undefined ? { cardType: action.cardType } : {}),
-                          ...(action.keyword !== undefined ? { keyword: action.keyword } : {}),
-                      }
-                    : null,
-            )
-        ) {
-            return
-        }
-    }
-    // 決定的自動選択（テスト等）：条件に合う候補の末尾から count 枚を破棄する
-    for (let i = 0; i < action.count; i++) {
-        const at = indices.pop()
-        if (at === undefined) {
-            log(state, `${sourceName}の手札破棄：手札がなかった。`)
-            return
-        }
-        const cardId = player.hand[at]!
-        player.hand.splice(at, 1)
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
-    }
-}
-
 // 「自分の手札discardCount枚を破棄することで、自分はデッキからdrawCount枚ドローする」
 // （BS10-019土星神龍クロノ・ボロス）。COST_MODEL.md §1：コストと効果の両方が完全に解決できる
 // ときだけ発揮できる＝手札がdiscardCount枚未満なら不発（部分的に破棄しない）。
@@ -563,7 +410,6 @@ const handlers = {
     randomOpponentHandMagicDiscard: randomOpponentHandMagicDiscardHandler,
     noop: noopHandler,
     discardSelfOne: discardSelfOneHandler,
-    discardSelfChoose: discardSelfChooseHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

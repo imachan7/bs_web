@@ -18,9 +18,10 @@ import {
     destroySpirit,
     refreshLevelAsOverrides,
     spiritHasFamily,
+    endTurn,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { endTurn, runTurnStart } from "../../server/src/logic/PhaseManager"
+import { runTurnStart } from "../../server/src/logic/PhaseManager"
 import { fireTrigger } from "../../server/src/logic/EffectModules"
 import { instHasColor, instHasCost } from "../../shared/rules"
 

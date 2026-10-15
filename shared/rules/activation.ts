@@ -427,6 +427,26 @@ export function minLevelCoresOf(levels: LevelDef[]): number {
     return min ? min.cores : 0
 }
 
+// 召喚/配置で置く維持コア数。サーバー（validateSummon/doSummon/validateSetNexus/doSetNexus）と
+// クライアント（レベル選択・支払いモードの見せ方）の両方がこの1本で計算してズレないようにする
+//
+// 《真界放》のwaiver配置（2026-10-07 ユーザー裁定）: マーカー付き（soulCoreRequired）カードに
+// [ソウルコア]を維持コアとして置く指定のときは「[ソウルコア]1個のみ」の置き方になる。
+// レベル指定ではなく1コアを置き、levelOfがLv2を導出する。Lv1:0のマーカー付きネクサスでも
+// この指定なら1コア置ける。マーカーなしのカードは従来どおり指定レベル（省略時は最小Lv）のコア数
+export function placedCoresForSummon(
+    cardData: CardData,
+    level: number | undefined,
+    opts?: { braveTarget?: boolean | undefined; placeSoulCoreFromReserve?: boolean | undefined },
+): number {
+    if (opts?.braveTarget === true) return 0
+    if (opts?.placeSoulCoreFromReserve === true && cardData.levels.some((l) => l.soulCoreRequired === true)) {
+        return 1
+    }
+    if (level === undefined) return minLevelCores(cardData)
+    return cardData.levels.find((l) => l.level === level)?.cores ?? minLevelCores(cardData)
+}
+
 // ---- フラッシュのロック ----
 
 // pid がいま「フラッシュで手札のカードを使えない」状態か。

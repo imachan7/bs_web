@@ -61,6 +61,10 @@ app.get("/api/cards", (_req, res) => {
 app.get("/data/cards.json", (_req, res) => {
     res.json(ALL_CARDS)
 })
+// おまかせデッキの一覧。ロビーのデッキ選択が使う
+app.get("/api/deck-recipes", (_req, res) => {
+    res.json(DECK_RECIPES)
+})
 
 // ---- お知らせ ----
 // トップ画面の「お知らせ」欄が読む。実体は data/announcements.json。

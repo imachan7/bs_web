@@ -1,7 +1,7 @@
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
-import { currentLevel, getCard, log, opponentOf } from "../GameState"
-import { fireFieldEventTriggers, fireTrigger } from "../triggers"
-import { effectActiveAtLevel, effectSources, hasGlobalConstraint, instAllCosts, instColors, instHasColor } from "../../../../shared/rules"
+import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
+import { fireFieldEventTriggers, fireTrigger, notifyHandGained } from "../triggers"
+import { effectActiveAtLevel, effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
 
 // hasGlobalConstraintは汎用関数のためphase/turnを見ない（removal.tsのallSpiritsCantBounceActiveと同じ理由で専用関数にする）。
 // BS16-072 Lv2：『お互いのアタックステップ』限定。phase/turn未指定のBS09-047は従来どおり常時有効のまま
@@ -89,6 +89,46 @@ export function exhaustSpirit(
     fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
 }
 
+// ネクサスを疲労させる入口（スピリットの exhaustSpirit に対応）。ネクサスの疲労は経路が散っていたので、
+// 発火点（ownNexusExhausted。26RBS01-108「このネクサスが疲労した時」）をここに集めた
+export function exhaustNexus(state: GameState, ownerPid: PlayerId, nexus: CardInstance, causePid?: PlayerId, causeType?: CardType): void {
+    if (nexus.isRested) return
+    nexus.isRested = true
+    fireExhaustedTriggers(state, ownerPid, nexus, causePid, causeType)
+}
+
+// 重疲労させる唯一の入口。回復状態からでも直接重疲労になる（疲労を経由するので「疲労したとき」の誘発は起きる。
+// 2026-10-08 ユーザー確定）。すでに重疲労なら何もしない
+export function heavyExhaustSpirit(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    causePid?: PlayerId,
+    causeType?: CardType,
+): void {
+    if (inst.pendingDestruction || inst.heavyRested) return
+    if (!inst.isRested) exhaustSpirit(state, ownerPid, inst, undefined, causePid, causeType)
+    if (!inst.isRested) return
+    inst.heavyRested = true
+    if (causePid !== undefined && causeType !== undefined && causePid !== ownerPid) returnTrashOnHeavyExhaust(state, causePid)
+}
+
+// kind:"trashReturnOnOwnHeavyExhaust"（26RBS02-032）。〔重複不可〕なので1回の重疲労で戻るのは1枚だけ。
+// 「手札に戻せる」は任意なので持ち主に確認する（2026-10-11 ユーザー確認）
+function returnTrashOnHeavyExhaust(state: GameState, pid: PlayerId): void {
+    if (state.turnPlayer !== pid) return
+    const player = state.players[pid]
+    const index = player.trashCards.findIndex((cardId) =>
+        getCard(cardId).effects.some(
+            (e) =>
+                e.kind === "trashReturnOnOwnHeavyExhaust" &&
+                [...player.field.spirits, ...player.field.nexuses].some((i) => instFamilies(i).includes(e.familyFilter)),
+        ),
+    )
+    if (index === -1) return
+    requestTrashReturn(state, pid, player.trashCards[index]!)
+}
+
 // スピリットを回復させる唯一の入口。すでに回復状態なら何もしない（誘発も起きない）。
 // 実際に回復したときだけ「このスピリットが回復したとき」（onRefreshed）を発火する。
 // リフレッシュステップ・効果による回復・【強襲】のいずれもここを通す
@@ -118,6 +158,12 @@ export function refreshSpirit(
         return
     }
     if (!inst.isRested) return
+    // 重疲労は疲労状態へ1段戻るだけ（回復したことにはならないので誘発もしない）
+    if (inst.heavyRested) {
+        delete inst.heavyRested
+        log(state, `${getCard(inst.cardId).name}は重疲労状態から疲労状態になった。`)
+        return
+    }
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
     // フィールドイベント「自分のスピリットが回復したとき」（ownSpiritExhaustedの対。BS13-024武神獣ディアル・ユキムラLv2）
@@ -160,9 +206,17 @@ export function fireExhaustedTriggers(
         costs: instAllCosts(inst),
         byOpponentEffect:
             causeType !== undefined && causeType !== "nexus" && causePid !== undefined && causePid !== ownerPid,
+        ...(causePid !== undefined ? { causePid } : {}),
+        ...(causeType !== undefined ? { causeType } : {}),
     }
     const colors = instColors(inst)
     if (state.winner) return
+    // ネクサスの【起動】コスト・効果の疲労も exhaustSpirit を通るので、ここで種別を見て足す。
+    // スピリットとして扱われているネクサス（nexusAsSpiritThisStep）の ownSpiritExhausted は従来どおり発火させる
+    if (getCard(inst.cardId).type === "nexus") {
+        fireFieldEventTriggers(state, ownerPid, "ownNexusExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
+        if (state.winner) return
+    }
     fireFieldEventTriggers(state, ownerPid, "ownSpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
     if (state.winner) return
     fireFieldEventTriggers(state, ownerPid, "anySpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)

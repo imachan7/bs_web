@@ -394,12 +394,33 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1,
-     "thenDestroyIfFamily": {
-      "family": "勇傑",
-      "maxBp": 3000
-     }
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit"
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "family": "勇傑"
+        }
+       },
+       "then": {
+        "type": "destroy",
+        "filter": {
+         "maxBp": 3000
+        },
+        "count": 1
+       }
+      }
+     ]
     },
     "optional": false
    }
@@ -730,7 +751,14 @@
     "levels": [
      2
     ],
-    "action": {"type": "toDeck", "from": "hand", "side": "opponent", "position": "top", "count": 1, "chooserIsTarget": true},
+    "action": {
+     "type": "moveCards",
+     "from": "hand",
+     "count": 1,
+     "dest": "deckTop",
+     "side": "opponent",
+     "chooserIsTarget": true
+    },
     "optional": false
    }
   ]
@@ -867,12 +895,17 @@
       }
      },
      "then": {
-      "type": "recoverSpiritFromTrash",
+      "type": "moveCards",
+      "from": "trash",
       "count": 1,
-      "familyFilter": [
-       "虚神",
-       "神将"
-      ]
+      "dest": "hand",
+      "pick": {
+       "cardType": "spirit",
+       "family": [
+        "虚神",
+        "神将"
+       ]
+      }
      }
     },
     "optional": true
@@ -3828,12 +3861,18 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "familyFilter": "夜族",
-     "costFilter": {
-      "max": 3
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "family": "夜族",
+      "cost": {
+       "max": 3
+      }
      },
-     "payCost": true
+     "count": 1,
+     "pay": "cost"
     }
    },
    {
@@ -3846,10 +3885,29 @@
     ],
     "optional": true,
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1,
-     "familyFilter": "夜族",
-     "costSkipDraw": true
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "family": "夜族"
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": "lastMoved",
+        "atLeast": 1
+       },
+       "then": {
+        "type": "skipDrawStep"
+       }
+      }
+     ]
     },
     "beforeStepAction": true
    }
@@ -4544,8 +4602,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     }
    },
    {

@@ -1,6 +1,5 @@
 // smoke パート389（寿命 nextRefresh：自分のターンに掛けた「次の相手のリフレッシュステップで」の記録は、ターン終了をまたいで相手のリフレッシュで使い切る）
-import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart, timedHas , endTurn } from "./helpers"
 
 console.log("=== 前提: カードの機械確認 ===")
 {

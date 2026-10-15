@@ -2,7 +2,7 @@ import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, Playe
 import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
 import { effectActiveAtLevel, effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
-import { canExhaustNexus, exhaustSpirit } from "../EffectModules"
+import { canExhaustNexus, exhaustNexus, exhaustSpirit } from "../EffectModules"
 import { fireFieldEventTriggers } from "../triggers"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
 import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
@@ -116,7 +116,7 @@ export function payMagicNegate(
     if ("exhaustSelf" in effect.cost) {
         if (found.nexusPayer) {
             // ノルンの泉：スピリットの代わりにネクサス1つを疲労させる
-            found.nexusPayer.isRested = true
+            exhaustNexus(state, pid, found.nexusPayer)
             log(state, `${getCard(found.nexusPayer.cardId).name}（ネクサス）を代わりに疲労させた。`)
         } else {
             exhaustSpirit(state, pid, inst)

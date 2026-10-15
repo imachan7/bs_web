@@ -191,8 +191,9 @@ export function fireMagicUsedTriggers(
 ): void {
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
     // （opponentDrewの実装を踏襲。緑芽吹く原野）。paidCost はBS11-X05のpaidCostOnly判定用
+    state.lastMagicUsed = { pid: owner, cardId: card.cardId }
     if (!state.winner) {
-        fireFieldEventTriggers(state, owner, "ownMagicUsed", undefined, undefined, undefined, undefined, { paidCost })
+        fireFieldEventTriggers(state, owner, "ownMagicUsed", undefined, undefined, undefined, undefined, { paidCost, magicCardId: card.cardId })
     }
     // 「相手がマジックの効果を使用したとき」：使用者の相手側のフィールドから発火する（氷の女神フリッグ）。
     // コスト（軽減前の素のコスト）と使用タイミングを eventInfo で渡し、fieldEvent 側で絞り込む

@@ -423,10 +423,10 @@ export const __covEid = (e: unknown): string =>
         //    「auraAmount を求める行」と「加算する行」が分かれた。
         //    計測点は**抑止を通過して実際に加算する時点**に置く
         `                if (bpBuffSuppressed && amount > 0) continue
-                total += amount`,
+                onAmount(amount)`,
         `                if (bpBuffSuppressed && amount > 0) continue
                 __covRec2("cont\\t" + __covEid(effect))
-                total += amount`,
+                onAmount(amount)`,
     )
     // bofuCountBonus（BS08ゲラン准将Lv2）。2026-09-28 に bofuCountFor ごと shared/rules/keywordState.ts へ移した
     patch(
@@ -786,6 +786,7 @@ export const __covEid = (e: unknown): string =>
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
                 return true
             }`,
         `            for (const effect of card(inst.cardId).effects) {
@@ -794,6 +795,7 @@ export const __covEid = (e: unknown): string =>
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
                 __covRec2("cont\\t" + __covEid(effect))
                 return true
             }`,
@@ -1865,8 +1867,8 @@ ${recAt("    ")}
         const rv = path.join(tree, "server/src/logic/RuleValidator.ts")
         patch(
             rv,
-            `    getCard,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n} from "./GameState"`,
-            `    getCard,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    __covRecord,\n} from "./GameState"`,
+            `    getCard,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    placedCoresForSummon,\n} from "./GameState"`,
+            `    getCard,\n    instMinLevelCores,\n    minLevelCores,\n    opponentOf,\n    placedCoresForSummon,\n    __covRecord,\n} from "./GameState"`,
         )
         // globalConstraint「maxSpiritsOnField」: 値の集計点
         patch(
@@ -1880,14 +1882,15 @@ ${recAt("    ")}
         // keyword「神速」: フラッシュタイミングで静的神速により召喚が許可される分岐
         patch(
             rv,
+            // ※ 2026-10-08: flashSummonFromHandNow（26RDB01-021）が加わった
             // ※ 2026-08-08: hasFieldSoku（緑芽吹く原野Lv2＝手札のカードへの継続付与）が加わった
-            `    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku)`,
+            `    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku || flashSummonFromHandNow(state, pid, cardId))`,
             `    const __staticSoku = hasKeyword(cardId, "soku")
     if (state.isFlashTiming && __staticSoku) {
         const __sokuEntry = getCard(cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "soku")
         if (__sokuEntry) __covRecord("cont\\t" + String((__sokuEntry as unknown as Record<string, unknown>)["__eid"] ?? "?"))
     }
-    const flashSummon = state.isFlashTiming && (__staticSoku || hasTempSoku || hasFieldSoku)`,
+    const flashSummon = state.isFlashTiming && (__staticSoku || hasTempSoku || hasFieldSoku || flashSummonFromHandNow(state, pid, cardId))`,
         )
         // mustBlockGrant: hasMustBlockAgainst が true を返す時点
         patch(

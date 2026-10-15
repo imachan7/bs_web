@@ -4,8 +4,7 @@ import {
     createGame,
     getCard,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import { lastMovedOf } from "../../server/src/logic/record"
 
@@ -70,7 +69,7 @@ console.log("=== 4. reveal → if last：オープンしたカードで判定す
     const hand = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "sequence",
-        actions: [{ type: "reveal", count: 1, pickCount: 0, rest: "deckBottom" }, ifMilledMagicDraw],
+        actions: [legacy({ type: "reveal", count: 1, pickCount: 0, rest: "deckBottom" }), ifMilledMagicDraw],
     })
     assert(s.players.p1.hand.length === hand + 1, "オープンしたマジックで条件成立")
 }

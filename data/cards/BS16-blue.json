@@ -319,25 +319,41 @@
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のデッキを上から4枚オープンできる。\nその中のネクサスカード1枚を手札に加える。\n残ったカードは破棄する。",
     "effects": [
       {
-        "id": "BS16-051-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": true,
-        "action": {
-          "type": "reveal",
+       "id": "BS16-051-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2
+       ],
+       "optional": true,
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
           "from": "ownDeck",
-          "count": 4,
-          "pick": {
-            "cardType": "nexus"
-          },
+          "count": 4
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": 1,
           "dest": "hand",
-          "rest": "trash",
+          "pick": {
+           "cardType": "nexus"
+          },
           "optional": true
-        }
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "trash"
+         }
+        ]
+       }
       }
     ]
   },

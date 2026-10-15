@@ -358,13 +358,30 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": "spirit",
-      "family": "地竜"
-     },
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "family": "地竜"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     },
     "optional": false
    },
@@ -1217,9 +1234,14 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "familyFilter": "無魔"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "無魔"
+     }
     },
     "optional": false
    },
@@ -5480,9 +5502,14 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 3,
-     "familyFilter": "地竜"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "地竜"
+     }
     }
    },
    {
@@ -6146,10 +6173,20 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "reveal",
-     "count": 3,
-     "pickCount": 0,
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 3
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    },
    {
@@ -6630,9 +6667,16 @@
      3
     ],
     "action": {
-     "type": "summonFromTrashFree",
-     "keywordFilter": "jugeki",
-     "costBudget": 13
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "jugeki"
+     },
+     "count": "all",
+     "costBudget": 13,
+     "skipOnSummon": true
     },
     "optional": true
    },

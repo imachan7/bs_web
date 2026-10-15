@@ -1,13 +1,15 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { recordLifeLost } from "./record"
 import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
-import { notifyHandGained, revertDestroyGroupUsage } from "./triggers"
+import { fireFieldEventTriggers, notifyHandGained, revertDestroyGroupUsage } from "./triggers"
 import { destroySpirit } from "./removal"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
+import { soulCoreLeavesField } from "./soulCore"
 
 import {
     effectiveCost,
@@ -686,10 +688,13 @@ function tryReviveOnDestroy(
             if (player.life <= 0) return false
             if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
+            recordLifeLost(state, ownerPid, 1)
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
                 state.winner = opponentOf(ownerPid)
                 log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
+            } else {
+                fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
             }
             return true
         }
@@ -698,11 +703,14 @@ function tryReviveOnDestroy(
             if (player.life <= 0) return false
             if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
+            recordLifeLost(state, ownerPid, 1)
             player.reserve += 1
             log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
                 state.winner = opponentOf(ownerPid)
                 log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
+            } else {
+                fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
             }
             return true
         }
@@ -744,6 +752,7 @@ function tryReviveOnDestroy(
             // このスピリット（inst）による今ターンぶんの許容がすでに0なら、コストとして払えない
             if (lifeDamagePerSpiritRemaining(state, inst) <= 0) return false
             oppPlayer.life -= 1
+            recordLifeLost(state, oppPid, 1)
             oppPlayer.trashCores += 1
             inst.lifeDealtThisTurn = (inst.lifeDealtThisTurn ?? 0) + 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
@@ -756,6 +765,7 @@ function tryReviveOnDestroy(
                     log(state, `${player.name}の勝利！`)
                 }
             }
+            if (!state.winner) fireFieldEventTriggers(state, oppPid, "ownLifeLost")
             return true
         }
         // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」。
@@ -848,6 +858,7 @@ function tryReviveOnDestroy(
             // EffectModulesからのimportは循環参照になるためここでは直接書く）
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
+            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
             detachBravesOnLeave(state, ownerPid, inst)
             if (player.burst !== null) {
@@ -858,6 +869,7 @@ function tryReviveOnDestroy(
         } else if ("toHand" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
+            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
             player.hand.push(inst.cardId)
             notifyHandGained(state, ownerPid, 1)

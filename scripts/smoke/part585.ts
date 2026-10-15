@@ -43,4 +43,4 @@ console.log("=== 2. 【装甲】が無ければ受ける ===")
     assert(effectiveBp(s, "p2", v) === 2000, `BPは2000（実際 ${effectiveBp(s, "p2", v)}）`)
 }
 
-console.log("すべてのチェックに合格しました 🎉（part488）")
+console.log("すべてのチェックに合格しました 🎉（part585）")

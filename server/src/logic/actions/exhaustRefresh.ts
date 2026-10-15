@@ -4,13 +4,15 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import { resolveInOrder } from "../GameState"
-import { recordTargets } from "../record"
+import { lastTargetsOf, recordTargets } from "../record"
 import {
     canExhaustNexus,
     bothSidesPids,
     countEffectCounter,
     destroySpirit,
     exhaustSpirit,
+    exhaustNexus,
+    heavyExhaustSpirit,
     refreshSpirit,
     findSpiritAny,
     isResisted,
@@ -417,7 +419,7 @@ function exhaustAllTargets(ctx: ActionCtx, action: { filter?: TargetFilter; anyS
 // 自分のネクサス1つを疲労させるコスト（pay の cost 用。count は 1 のみ対応）。
 // 2つ以上あるとき対話中は持ち主が選ぶ。非対話はコア数最少（同数はフィールドの先頭側）
 function exhaustOwnNexus(ctx: ActionCtx, action: Extract<EffectAction, { type: "exhaust" }>): void {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, srcType, targetInstanceId } = ctx
     if (!canExhaustNexus(state, owner)) {
         log(state, `${sourceName}：ネクサスを疲労させられないため発動しなかった。`)
         return
@@ -435,7 +437,7 @@ function exhaustOwnNexus(ctx: ActionCtx, action: Extract<EffectAction, { type: "
     }
     if (nexus === undefined) nexus = [...candidates].sort((a, b) => a.cores - b.cores)[0]
     if (!nexus) return
-    nexus.isRested = true
+    exhaustNexus(state, owner, nexus, owner, srcType)
     log(state, exhaustLog(sourceName, getCard(nexus.cardId).name, false))
     recordTargets(state, [nexus.instanceId])
 }
@@ -457,7 +459,7 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
             exhausted++
         }
         for (const n of nexusCandidates()) {
-            n.isRested = true
+            exhaustNexus(state, opp, n, owner, srcType)
             exhausted++
         }
         log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
@@ -489,7 +491,7 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
                 return
             }
         }
-        if (nexus) nexus.isRested = true
+        if (nexus) exhaustNexus(state, opp, nexus, owner, srcType)
         else if (spirit) exhaustSpirit(state, opp, spirit, undefined, owner, srcType)
         else {
             log(state, `${sourceName}の疲労付与：対象がいなかった。`)
@@ -532,7 +534,7 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { ty
     }
     for (const n of nexusCandidates()) {
         if (remaining <= 0) break
-        n.isRested = true
+        exhaustNexus(state, opp, n, owner, srcType)
         exhausted++
         remaining--
     }
@@ -577,8 +579,102 @@ export function refreshOneOwnCandidates(
     )
 }
 
+const refreshOwnNexusHandler: ActionHandler<"refreshOwnNexus"> = (ctx, action) => {
+    const { state, owner, self, sourceName, srcType, targetInstanceId } = ctx
+    const candidates = state.players[owner].field.nexuses.filter((n) => n.isRested && !n.pendingDestruction)
+    if (candidates.length === 0) {
+        log(state, `${sourceName}の回復：回復できる自分のネクサスがなかった。`)
+        return
+    }
+    let nexus: CardInstance | undefined
+    if (action.chosenByPlayer && targetInstanceId !== undefined) nexus = candidates.find((n) => n.instanceId === targetInstanceId)
+    else if (state.interactiveTargets) {
+        const prompt = `${sourceName}：回復させる自分のネクサスを選んでください`
+        const ids = candidates.map((n) => n.instanceId)
+        if (action.upTo) requestUpToChoice(state, owner, prompt, ids, { ...action, chosenByPlayer: true }, self)
+        else requestChoice(state, owner, prompt, ids, false, { ...action, chosenByPlayer: true }, self)
+        return
+    } else nexus = [...candidates].sort((a, b) => b.cores - a.cores)[0]
+    if (!nexus) return
+    nexus.isRested = false
+    log(state, `${getCard(nexus.cardId).name}は回復した。`)
+    recordTargets(state, [nexus.instanceId])
+}
+
+const heavyExhaustHandler: ActionHandler<"heavyExhaust"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    if (action.countCounter !== undefined) {
+        const { countCounter, ...rest } = action
+        const n = countEffectCounter(state, owner, self, countCounter, srcType)
+        if (n <= 0) {
+            log(state, `${sourceName}の重疲労：指定できる数が0だった。`)
+            return
+        }
+        heavyExhaustHandler(ctx, { ...rest, count: n })
+        return
+    }
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) return
+    const count = action.count ?? 1
+    const candidates = (): CardInstance[] =>
+        pickEnemyCandidates(state, opp, Infinity, (s) => !s.heavyRested && matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "exhaust")
+    const apply = (target: CardInstance): void => {
+        const resisted = resistanceAgainst(state, opp, target, attemptOf(ctx, "exhaust", "targeted"))
+        if (resisted) {
+            log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+            return
+        }
+        if (action.escalate && !target.isRested) {
+            exhaustSpirit(state, opp, target, undefined, owner, srcType)
+            log(state, exhaustLog(sourceName, getCard(target.cardId).name, false))
+            return
+        }
+        heavyExhaustSpirit(state, opp, target, owner, srcType)
+        if (target.heavyRested) log(state, `${sourceName}の効果で、${getCard(target.cardId).name}は重疲労した。`)
+    }
+    const prompt = (n: number): string =>
+        `${sourceName}：重疲労させる${action.chooserIsTarget ? "自分" : "相手"}のスピリットを選んでください（あと${n}体${action.upTo ? "まで" : ""}）`
+    const chooser = action.chooserIsTarget ? opp : undefined
+    // 選択の解決として再入した（upTo は1体ずつ残数で聞き直す。それ以外の残りは resume スタックが持つ）
+    if (action.chosenByPlayer && targetInstanceId !== undefined) {
+        const chosen = candidates().find((s) => s.instanceId === targetInstanceId)
+        if (chosen) apply(chosen)
+        if (action.upTo && count > 1) {
+            requestUpToChoice(state, owner, prompt(count - 1), candidates().map((s) => s.instanceId), { ...action, count: count - 1 }, self, chooser)
+        }
+        return
+    }
+    const list = candidates()
+    if (list.length === 0) {
+        log(state, `${sourceName}の重疲労：対象がいなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        if (action.upTo) {
+            requestUpToChoice(state, owner, prompt(count), list.map((s) => s.instanceId), { ...action, chosenByPlayer: true }, self, chooser)
+            return
+        }
+        if (tryInteractiveTargetChoice(state, owner, self, prompt(count), list, { ...action, count: 1, chosenByPlayer: true }, count > 1 ? { ...action, count: count - 1 } : null, chooser)) return
+    }
+    // 非対話（と候補1体）：実効BP最大から count 体（相手が選ぶときは最小から）
+    const sign = action.chooserIsTarget ? -1 : 1
+    const ordered = [...list].sort((a, b) => sign * (effectiveBp(state, opp, b) - effectiveBp(state, opp, a)))
+    for (const target of ordered.slice(0, count)) apply(target)
+}
+
 const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
     const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
+        // countCounter：解決時点の数で count を決める（0体なら何もしない）
+        if (action.countCounter !== undefined) {
+            const { countCounter, ...rest } = action
+            const n = countEffectCounter(state, owner, self, countCounter, srcType)
+            if (n <= 0) {
+                log(state, `${sourceName}の回復：回復できる数が0だった。`)
+                return
+            }
+            refreshOneHandler(ctx, { ...rest, count: n })
+            return
+        }
         // eventTargetOnly（BS15-067雪の結晶樹Lv2）：誘発が渡すtargetInstanceIdだけを対象にする
         // （selfMode:"source"＋attackerAsTarget等でtargetを固定するfieldEvent用。選択の余地なし）
         if (action.eventTargetOnly) {
@@ -631,6 +727,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             }
             refreshSpirit(state, owner, chosen, srcType)
             if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, chosen)
+            if (action.thenCantAttackThisTurn) recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
             // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
             if (action.upTo) {
@@ -694,6 +791,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         )
         refreshSpirit(state, owner, target, srcType)
         if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, target)
+        if (action.thenCantAttackThisTurn) recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
 }
@@ -844,9 +942,37 @@ function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): 
 }
 
 // 相手のスピリット1体を指定し、次の相手のリフレッシュステップで回復できなくする（BS11-055 ジャノメ・シールダー）。
+// 「自分のネクサスを好きなだけ指定する。それらを疲労させる」。対話時は1つずつ選び直し（選ばずに終えられる）、非対話は回復状態のすべて
+const exhaustOwnNexusesHandler: ActionHandler<"exhaustOwnNexuses"> = (ctx, action) => {
+    const { state, owner, self, sourceName, srcType, targetInstanceId } = ctx
+    if (!action.started) recordTargets(state, [])
+    if (targetInstanceId !== undefined) {
+        const picked = state.players[owner].field.nexuses.find((n) => n.instanceId === targetInstanceId && !n.isRested)
+        if (picked) {
+            exhaustNexus(state, owner, picked, owner, srcType)
+            log(state, exhaustLog(sourceName, getCard(picked.cardId).name, false))
+            recordTargets(state, [...lastTargetsOf(state), picked.instanceId])
+        }
+    }
+    if (!canExhaustNexus(state, owner)) return
+    const open = state.players[owner].field.nexuses.filter((n) => !n.isRested)
+    if (state.interactiveTargets) {
+        if (open.length > 0) requestUpToChoice(state, owner, `${sourceName}：疲労させる自分のネクサスを選んでください`, open.map((n) => n.instanceId), { ...action, started: true }, self)
+        return
+    }
+    for (const n of open) {
+        exhaustNexus(state, owner, n, owner, srcType)
+        log(state, exhaustLog(sourceName, getCard(n.cardId).name, false))
+    }
+    recordTargets(state, [...lastTargetsOf(state), ...open.map((n) => n.instanceId)])
+}
+
 const handlers = {
+    exhaustOwnNexuses: exhaustOwnNexusesHandler,
     exhaust: exhaustHandler,
     refreshOne: refreshOneHandler,
+    refreshOwnNexus: refreshOwnNexusHandler,
+    heavyExhaust: heavyExhaustHandler,
     refreshAllOwn: refreshAllOwnHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,

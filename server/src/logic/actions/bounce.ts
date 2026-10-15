@@ -1,12 +1,13 @@
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
-import { bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
+import { bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
 import { detachBraveByEffect } from "../brave"
 import { countedAmount } from "../counted"
+import { soulCoreLeavesField } from "../soulCore"
 
 // side:"own"（returnToHand/returnToDeckTopの自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 // （CHECKERS）の両方から呼び、判定と実際の対象がずれないようにする
@@ -462,10 +463,20 @@ function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, posit
 
 type DeckReturnAction = Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>
 
+function returnSelfToDeckBottomAsCost(ctx: ActionCtx): void {
+    const { state, owner, self, sourceName } = ctx
+    if (!self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)) {
+        log(state, `${sourceName}：デッキの下に戻す自分のスピリットがいなかった。`)
+        return
+    }
+    returnSpiritToDeckBottom(state, owner, self, sourceName)
+    recordMoved(state, [self.cardId])
+}
+
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =>
     action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
 const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) =>
-    action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
+    action.target === "self" ? returnSelfToDeckBottomAsCost(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
 
 function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -563,6 +574,10 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
 const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
+        if (action.optional && !action.confirmed && state.interactiveTargets) {
+            requestActivationConfirm(state, owner, `${sourceName}：このスピリットを手札に戻しますか？`, { type: "returnSelfToHand", confirmed: true }, self)
+            return
+        }
         const player = state.players[owner]
         // 破壊時に呼ばれる。このとき自分のカードは**破壊待機状態でまだフィールドにいる**ので、
         // そこから手札へ移す（TIMING_CHART.md §1.5。乗っていたコアはリザーブへ）。
@@ -571,6 +586,7 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
                 player.field.spirits.splice(fieldIdx, 1)
+                soulCoreLeavesField(player, self) // 案B-inside: 先に[ソウルコア]退避
                 player.reserve += self.cores
                 detachBravesOnLeave(state, owner, self) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
             }
@@ -600,6 +616,7 @@ const returnSelfToDeckTopHandler: ActionHandler<"returnSelfToDeckTop"> = (ctx) =
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
                 player.field.spirits.splice(fieldIdx, 1)
+                soulCoreLeavesField(player, self) // 案B-inside: 先に[ソウルコア]退避
                 player.reserve += self.cores
                 detachBravesOnLeave(state, owner, self)
             }

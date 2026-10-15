@@ -12,7 +12,7 @@
 //   BS02-073 皇帝アンプルール          相手にネクサスが無くてもコアを失う
 //
 // 体数のしきい値は書いてある数どおり（「2体戻す」で1体しかいなければ払わない。2026-09-24 確定、#174）。
-import { assert, createGame, createInstance, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, resolveAction, runTurnStart, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -73,11 +73,11 @@ console.log("=== ブリュナグオン：トラッシュに戻せるカードが
     const s = base("bryunaguon-no-recover")
     s.players.p1.field.spirits.push(createInstance(jugeki.cardId, s.turn, 3))
     s.players.p1.trashCards = [] // 戻せるカードが無い
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { keyword: "jugeki" } }, then: {
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { keyword: "jugeki" } }, then: legacy({
         type: "recoverSpiritFromTrash",
         count: 1,
         familyFilter: ["虚神", "神将"],
-    } })
+    }) })
     assert(s.players.p1.field.spirits.length === 1, "自分のスピリットは破壊されない")
 }
 

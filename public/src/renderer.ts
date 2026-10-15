@@ -17,10 +17,11 @@ import type {
 import { CARD_TYPE_LABELS, COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
 import { effectLineSegments } from "./effectText"
-import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
+import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, exSymbolsOfTrashCard, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
 import { braveCombineCandidates } from "../../shared/summon"
+import { attachCardArt } from "./cardArt"
 import {
     activeConstraints,
     cantActByTimed,
@@ -30,12 +31,14 @@ import {
     hasArmorAgainst,
     hasGlobalConstraint,
     hasHandKeywordGrant,
+    flashSummonFromHandNow,
     hasKeyword,
     hasMagicImmunity,
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
     canAwaken as sharedCanAwaken,
     minLevelCores,
+    placedCoresForSummon,
     sokuPayableInstanceIds,
     coreZoneChoiceId,
     canAwakenFromReserve,
@@ -158,29 +161,38 @@ export { effectiveCost }
 export function payableFieldCores(view: GameView, cardId: string): number {
     const player = view.players[view.you]
     const card = master(cardId)
-    const isSoku = view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")
+    const isSoku = view.isFlashTiming && card.type === "spirit" && (hasKeyword(cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))
     const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
     return [...player.field.spirits, ...player.field.nexuses]
         .filter((i) => allowed === null || allowed.has(i.instanceId))
         .reduce((sum, i) => sum + i.cores, 0)
 }
 
+// コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
+export function payingIsCostOnly(paying: PayingState): boolean {
+    return paying.forBlock !== undefined || paying.forMeisai !== undefined || paying.forAttack !== undefined
+}
+
 // 支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
 export function payingNeed(view: GameView, paying: PayingState): number {
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return 0
+    if (paying.forBlock !== undefined) return paying.forBlock.need
+    if (paying.forAttack !== undefined) return paying.forAttack.need
+    if (paying.forMeisai !== undefined) return paying.forMeisai.need
     const card = master(cardId)
     // ブレイヴの分離（§6.3・§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
     if (paying.forDetachBraveInstanceId !== undefined || paying.forBraveKeep !== undefined) {
         return minLevelCores(card)
     }
     // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
-    const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
-    const targetLevel = paying.level || 1
-    const lv = card.levels.find((l) => l.level === targetLevel)
-    // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア。BRAVE.md §5）
+    const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, paying.exReductionTrashIndices))
+    // 置くコア数。サーバー（placedCoresForSummon）と同じ計算。《真界放》マーカー付きで
+    // [ソウルコア]を維持コアに使う選択ならwaiver配置（1コア）になる
     const maintain =
-        card.type === "magic" || paying.braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
+        card.type === "magic" || paying.braveTargetInstanceId !== undefined
+            ? 0
+            : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true })
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
     // kind:"shinsokuPayAssist"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
@@ -195,8 +207,16 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
     if (payingCardId(view, paying) === undefined) return 0
     const need = payingNeed(view, paying)
     const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
-    const reserve = view.players[view.you].reserve
-    return Math.max(need - reserve - assignedTotal, 0)
+    // 案B-inside: reserve の数値には[ソウルコア]が含まれる。使う選択ならそのまま、使わないなら通常コアぶんを差し引く
+    const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
+    // [ソウルコア]をコストか維持コアに使う選択なら総コア、使わないなら通常コアで支払い力を見る
+    const soulUsed = paying.useSoulCore === true || paying.placeSoulCore === true
+    const reserve = soulUsed
+        ? view.players[view.you].reserve
+        : view.players[view.you].reserve - (soulInReserve ? 1 : 0)
+    // フィールドの個体から[ソウルコア]を支払うとき（soulPayInstanceId）も1個ぶん支払い力に数える
+    const soulFromField = paying.soulPayInstanceId !== undefined ? 1 : 0
+    return Math.max(need - reserve - assignedTotal - soulFromField, 0)
 }
 
 // マジックが対象を必要とするか（"opponent" = 相手スピリット、"self" = 自分スピリット）
@@ -295,6 +315,14 @@ export interface PayingState {
     // 起点は場のどこにも無い（脇に置かれている）ので、カードと必要数を選択待ちから受け取って持つ。
     // 立っているときは resolveChoice（option＋paySources）を送る
     forBraveKeep?: { option: string; cardId: string; need: number }
+    // 支払いの5つ目の起点：**ブロックの追加コスト**（制約 blockPayCost。26RDB01-X06）。
+    // 起点はブロックするスピリット。block（instanceId＋paySources）を送る
+    forBlock?: { instanceId: string; need: number }
+    // 支払いの7つ目の起点：**アタックの追加コスト**（制約 attackPayToll。26RSD06-011）。起点はアタックするスピリット。attack（instanceId＋paySources）を送る
+    forAttack?: { instanceId: string; need: number; targetSpiritInstanceId?: string }
+    // 支払いの6つ目の起点：**【迷彩：N】のコスト**（PendingChoice.meisaiPay）。起点は指定しようとしている相手のスピリット。
+    // resolveChoice（option＋paySources＋paySoulCoreFromReserve）を送る
+    forMeisai?: { option: string; cardId: string; need: number; effectCost?: true } // effectCost：効果の「Nコスト支払う」（PendingChoice.effectCostPay）。表示文言だけ違う
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
@@ -302,6 +330,20 @@ export interface PayingState {
     // kind:"shinsokuPayAssist"（BS16-021）：疲労させて召喚コストの一部を肩代わりする自分のスピリット
     // （【神速】召喚のみ。任意で選ぶ。省略/空配列＝使わない）
     shinsokuAssistInstanceIds?: string[]
+    // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う（docs/design/SOULCORE.md 部品3）。
+    // 支払いでプレイヤーが選ぶ（2026-10-05 ユーザー確認）。置くコアだけの支払いでは使わない
+    useSoulCore?: boolean
+    // [ソウルコア]を維持コアとして召喚/配置した個体に置く（2026-10-06。useSoulCoreとの排他）
+    placeSoulCore?: boolean
+    // フィールドの個体の上の[ソウルコア]をコスト支払いに使うときの支払い元（2026-10-06。
+    // クリック回数ではなく対象カード上の専用ボタンで明示的に選ぶ。assignedとは独立に+1個）
+    soulPayInstanceId?: string | undefined
+    // [ソウルコア]の使い方: "cost"=コストとして支払う（→トラッシュ）/"maintain"=維持コアとして置く
+    // （→召喚/配置した個体の上。2026-10-06 ユーザー確認。soulPayInstanceIdとセットで使う）
+    soulPayMode?: "cost" | "maintain" | undefined
+    // 《継召》(kind:"exTrashReduction")：除外して軽減するトラッシュのインデックス（trashCards内）。
+    // summon アクションと一緒に送る（省略/空配列＝使わない）
+    exReductionTrashIndices?: number[]
 }
 
 // この支払いで使える代替コストの種類と上限。
@@ -312,6 +354,40 @@ export interface AltPayInfo {
     max: number
 }
 
+// 《継召》(kind:"exTrashReduction")：除外するトラッシュカードのシンボル列（effectiveCost の第5引数へ渡す）。
+// サーバー（RuleValidator.doValidateSummon）と同じ「除外カードのシンボル列」の作り方にすること
+export function exReductionSymbolsFor(view: GameView, indices: number[] | undefined): Color[] {
+    return (indices ?? []).flatMap((i) => exSymbolsOfTrashCard(view, view.you, i))
+}
+
+// 《継召》：同一カードごとの除外候補グループ。同一カードは1ボタンにまとめ、count で枚数を選ぶ
+export interface ExReductionGroup {
+    trashCardId: string // 除外候補のカード（trashCards の cardId）
+    indices: number[] // そのカードの候補インデックス（trashCards 内・出現順）
+    count: number // 選んだ枚数
+}
+
+// 《継召》：選ばれた除外カードが軽減に効く個数（色ごとに軽減シンボル数で頭打ち）。
+// 軽減に効かない枚は対象外（ユーザー確定 2026-10-05）
+export function exReductionEffectiveCount(card: CardData, symbols: Color[]): number {
+    const budget = new Map<string, number>()
+    for (const c of card.reduction) budget.set(c, (budget.get(c) ?? 0) + 1)
+    let used = 0
+    for (const c of symbols) {
+        const b = budget.get(c) ?? 0
+        if (b > 0) {
+            budget.set(c, b - 1)
+            used++
+        }
+    }
+    return used
+}
+
+// 《継召》：各グループの選択枚数から、実際に除外する trashCards 内インデックスを返す
+export function exReductionPickedIndices(groups: ExReductionGroup[]): number[] {
+    return groups.flatMap((g) => g.indices.slice(0, g.count))
+}
+
 // 支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
 // （RuleValidator.summonHandDiscardPayAmount / nexusMillPayAmount。ズレると
 //  「UIで選べるのにサーバーが弾く」形の食い違いになる）
@@ -320,6 +396,15 @@ export interface AltPayInfo {
 export function payingCardId(view: GameView, paying: PayingState): string | undefined {
     const player = view.players[view.you]
     if (paying.forBraveKeep !== undefined) return paying.forBraveKeep.cardId
+    if (paying.forMeisai !== undefined) return paying.forMeisai.cardId
+    if (paying.forBlock !== undefined) {
+        const blockerId = paying.forBlock.instanceId
+        return player.field.spirits.find((s) => s.instanceId === blockerId)?.cardId
+    }
+    if (paying.forAttack !== undefined) {
+        const attackerId = paying.forAttack.instanceId
+        return player.field.spirits.find((s) => s.instanceId === attackerId)?.cardId
+    }
     if (paying.forDetachBraveInstanceId !== undefined) {
         return player.field.combinedBraves.find((b) => b.instanceId === paying.forDetachBraveInstanceId)?.cardId
     }
@@ -332,7 +417,7 @@ export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
     const cardId = payingCardId(view, paying)
     if (cardId === undefined) return { kind: null, used: 0, max: 0 }
     const card = master(cardId)
-    const cost = effectiveCost(view, view.you, card)
+    const cost = effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, paying.exReductionTrashIndices))
     if (card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)) {
         // 召喚するカード自身は破棄に使えないので手札枚数から1枚引く
         const max = Math.min(cost, Math.max(0, handSizeOf(player) - 1))
@@ -370,7 +455,16 @@ export interface UiState {
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
-    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[] } | null
+    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[]; exReductionTrashIndices?: number[] } | null
+    // 《継召》(kind:"exTrashReduction")の除外カード選択モード。手札のスピリット/ブレイヴが効果を持ち、
+    // トラッシュにEXシンボル持ちカードがあるとき、コストを支払う通常の召喚の前に開く。
+    // candidateIndices/selected はどちらも自分の trashCards 内インデックス
+    exReductionSelect: { handIndex: number; cardId: string; targetInstanceId?: string; phase: "ask" | "select"; groups: ExReductionGroup[] } | null // 《継召》の「する／しない」→ 対象選択（同一カードはグループまとめ）
+    // 《ソウルマジック》（kind:"soulCoreOnlyCast"）の選択モード:「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」
+    soulCoreOnlySelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    // [ソウルコア]の1:1交換モード（メインステップ・§1.4）: fromInstanceId＝[ソウルコア]が載った自分の個体。
+    // 次にクリックした通常コア1個以上の自分の個体と交換する
+    soulSwapSelect: { fromInstanceId: string } | null
     // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
     battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
     // ブレイヴの召喚方法を選択中。ブレイヴは「スピリット状態で単体召喚」と
@@ -487,6 +581,8 @@ function processNewEvents(view: GameView): Set<PlayerId> {
 }
 
 export function render(view: GameView, ui: UiState): void {
+    // 支払いモード中はホバーの効果ツールチップを抑制する（上の effectTooltipSuppressed）
+    effectTooltipSuppressed = ui.paying !== null
     const lifeDamagedPids = processNewEvents(view)
     show("lobby", false)
     show("game", true)
@@ -531,6 +627,12 @@ export function render(view: GameView, ui: UiState): void {
             el.classList.add("active")
         }
     })
+    // 第2メインステップはアタックの後の専用チップで示す（phaseは"main"を使い回すため、
+    // activeだけをメインチップから第2メインチップへ付け替える）
+    if (view.secondMainStep) {
+        document.querySelector('.phase-step[data-phase="main"]')?.classList.remove("active")
+        document.querySelector('.phase-step[data-phase="second-main"]')?.classList.add("active")
+    }
 
     // フラッシュ状態の表示（ボーダーとパルス）
     const board = $("board")
@@ -554,14 +656,15 @@ export function render(view: GameView, ui: UiState): void {
     const pendingChoiceActive = !!view.pendingChoice
     // 「ブレイヴを残す」を押して支払いモードへ入っている間は、選択肢ボタンを出さない
     // （出したままだと押し直して二重に入れてしまう。戻り道は「対象選択をやめる」）
-    const payingForChoice = ui.paying?.forBraveKeep !== undefined
+    const payingForChoice = ui.paying?.forBraveKeep !== undefined || ui.paying?.forMeisai !== undefined
     const myPendingChoice =
         view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice ? view.pendingChoice : null
     const oppPendingChoice =
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
     // 「お互い、アタックステップは行えず」（ルナティックシール）。サーバーも同じ判定で弾く
-    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep)
+    // 先攻1ターン目と第2メインステップにはアタックステップが無い
+    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep && !view.secondMainStep && view.turn > 1)
     show(
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
@@ -572,7 +675,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.burstResetConfirm !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
@@ -643,10 +746,57 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (ui.soulCoreOnlySelect) {
+        // 《ソウルマジック》: [ソウルコア]だけで使用するか、通常どおり支払うかの2択
+        const card = master(ui.soulCoreOnlySelect.cardId)
+        const cost = effectiveCost(view, view.you, card)
+        const yes = document.createElement("button")
+        yes.dataset.soulonly = "yes"
+        yes.textContent = "[ソウルコア]だけで使用する"
+        const no = document.createElement("button")
+        no.dataset.soulonly = "no"
+        no.textContent = `通常どおり支払う（コスト${String(cost)}）`
+        choiceOptionsEl.append(yes, no)
+        show("choice-options", true)
+    } else if (ui.exReductionSelect) {
+        // 《継召》：まず「する／しない」の2択。するなら対象をカード単位で選ぶ。
+        // 同一カードは1ボタンにまとめ、クリックで選ぶ枚数を 0→1→2→…→0 と回す
+        const card = master(ui.exReductionSelect.cardId)
+        const base = effectiveCost(view, view.you, card)
+        if (ui.exReductionSelect.phase === "ask") {
+            const yes = document.createElement("button")
+            yes.dataset.exAsk = "yes"
+            yes.textContent = "《継召》で軽減する"
+            const no = document.createElement("button")
+            no.dataset.exAsk = "no"
+            no.textContent = `使わない（通常どおりコスト${String(base)}）`
+            choiceOptionsEl.append(yes, no)
+        } else {
+            const picked = exReductionPickedIndices(ui.exReductionSelect.groups)
+            const reduced = effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, picked))
+            for (const [i, g] of ui.exReductionSelect.groups.entries()) {
+                const b = document.createElement("button")
+                b.dataset.exGroup = String(i)
+                b.textContent = `${master(g.trashCardId).name} `
+                // 選択枚数/トラッシュ内の枚数（手札の枚数バッジと同じ黄色の数字）
+                const countSpan = document.createElement("span")
+                countSpan.className = "ex-trash-count"
+                countSpan.textContent = `${String(g.count)}/${String(g.indices.length)}`
+                b.appendChild(countSpan)
+                if (g.count > 0) b.classList.add("selected")
+                choiceOptionsEl.appendChild(b)
+            }
+            const confirmEx = document.createElement("button")
+            confirmEx.dataset.exConfirm = "1"
+            confirmEx.textContent =
+                picked.length > 0 ? `決定（コスト${String(base)}→${String(reduced)}）` : `使わない（コスト${String(base)}）`
+            choiceOptionsEl.appendChild(confirmEx)
+        }
+        show("choice-options", true)
     } else if (ui.summonLevelSelect) {
         const card = master(ui.summonLevelSelect.cardId)
         // 代替召喚（ネクサスをデッキの下に戻して払う）では召喚コストが0になる
-        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
+        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, ui.summonLevelSelect.exReductionTrashIndices))
         const reserve = view.players[view.you].reserve
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
         // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
@@ -659,6 +809,20 @@ export function render(view: GameView, ui: UiState): void {
             b.textContent = needsField
                 ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
                 : `Lv${l.level} (${l.cores}コア)`
+            if (needsField) b.classList.add("needs-field-cores")
+            choiceOptionsEl.appendChild(b)
+        }
+        // 《真界放》のwaiver配置: [ソウルコア]1個だけでLv2にする置き方（2026-10-07 ユーザー裁定。
+        // レベル選択の3パターン「Lv1分置く/Lv2分置く/Lv2を[ソウルコア]で置く」の3つ目）
+        const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
+        const marked = card.levels.some((l) => l.soulCoreRequired === true)
+        if (marked && soulInReserve && reserve + fieldCores >= cost + 1) {
+            const b = document.createElement("button")
+            b.dataset.soulWaiver = "1"
+            const needsField = reserve < cost + 1
+            b.textContent = needsField
+                ? "Lv2を[ソウルコア]で置く (1コア・フィールドから取得)"
+                : "Lv2を[ソウルコア]で置く (1コア)"
             if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
@@ -720,6 +884,12 @@ export function render(view: GameView, ui: UiState): void {
         const base =
             ui.paying.forBraveKeep !== undefined
                 ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forMeisai !== undefined
+                ? `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forAttack !== undefined
+                ? `💎 アタックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forBlock !== undefined
+                ? `💎 ブロックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forDetachBraveInstanceId !== undefined
                 ? `💎 分離するブレイヴに置くコア: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください`
                 : `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
@@ -736,6 +906,39 @@ export function render(view: GameView, ui: UiState): void {
                 (on ? "（コアは置くコアぶんだけ必要です）" : "")
         } else {
             $("targeting-info").textContent = base
+        }
+        // リザーブの[ソウルコア]をコスト支払いに使うかの選択（2026-10-05 ユーザー確認: 支払いでプレイヤーが選ぶ）。
+        // 置くコアだけの支払い（ブレイヴを残す/分離）と選択待ちの解決では出さない
+        const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
+        const soulApplies =
+            soulInReserve &&
+            ui.paying.forBraveKeep === undefined &&
+            ui.paying.forDetachBraveInstanceId === undefined &&
+            ui.paying.forChoiceCardIndex === undefined
+        if (soulApplies) {
+            const useCost = ui.paying.useSoulCore === true
+            const useMaintain = ui.paying.placeSoulCore === true
+            const need = payingNeed(view, ui.paying)
+            const assignedTotal = Object.values(ui.paying.assigned).reduce((a, b) => a + b, 0)
+            const reserve = view.players[view.you].reserve
+            // 案B-inside: reserveには[ソウルコア]が含まれる。通常コア（reserve-1）だけで足りるかを見る
+            const soulRequired = reserve - 1 + assignedTotal < need && reserve + assignedTotal >= need
+            // 維持コアを置く支払い（マジック・ダイレクトブレイヴ以外）だけ「維持コアとして置く」を出す
+            const payingId = payingCardId(view, ui.paying)
+            const placesCores = !payingIsCostOnly(ui.paying) && ui.paying.braveTargetInstanceId === undefined && payingId !== undefined && master(payingId).type !== "magic"
+            // 選択中のボタンは青い縁でハイライトする（2026-10-06 ユーザー要望）
+            const sel = (on: boolean) => (on ? ' class="souluse-selected"' : "")
+            const costBtn = `<button data-souluse="cost"${sel(useCost)}>${useCost ? "☑" : "☐"} コスト支払いに使う（トラッシュへ）</button>`
+            const maintainBtn = placesCores ? `<button data-souluse="maintain"${sel(useMaintain)}>${useMaintain ? "☑" : "☐"} 維持コアとして置く（場のカードの上）</button>` : ""
+            const noneBtn = `<button data-souluse="none"${sel(!useCost && !useMaintain)}>${!useCost && !useMaintain ? "☑" : "☐"} [ソウルコア]を使わない</button>`
+            if (soulRequired) {
+                // [ソウルコア]なしでは支払いが成立しないので「使いますか」とは聞かない。
+                // 使う前提の注意表示にして、行き先（コスト/維持コア）だけ選ばせる（2026-10-06 ユーザー確認）
+                $("targeting-info").innerHTML +=
+                    `<br><b>[ソウルコア]を使います（通常コアだけでは足りません）:</b>` + costBtn + maintainBtn
+            } else {
+                $("targeting-info").innerHTML += `<br>` + noneBtn + costBtn + maintainBtn
+            }
         }
         // kind:"shinsokuPayAssist"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
         const shinsokuCandidates = payingShinsokuAssistCandidates(view, ui.paying)
@@ -767,6 +970,15 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+    } else if (ui.soulSwapSelect !== null) {
+        $("targeting-info").textContent = "🔄 [ソウルコア]交換: 交換相手の自分のスピリット/ネクサスを選んでください（通常コア1個以上が必要）"
+    } else if (ui.soulCoreOnlySelect) {
+        $("targeting-info").textContent = "《ソウルマジック》：自分のフィールドに該当色のシンボルがあれば、[ソウルコア]1個だけで使用できます（リザーブ・自分のスピリット/ネクサスの上のどちらでも）"
+    } else if (ui.exReductionSelect) {
+        $("targeting-info").textContent =
+            ui.exReductionSelect.phase === "ask"
+                ? `《継召》：トラッシュのEXシンボルを除外して、コスト${String(effectiveCost(view, view.you, master(ui.exReductionSelect.cardId)))}を軽減できます`
+                : `《継召》：除外するトラッシュのカードを選んでください（同じカードはまとめて1枚のボタンです）`
     } else if (ui.summonLevelSelect) {
         $("targeting-info").textContent =
             `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
@@ -815,6 +1027,41 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-my-tegamoto", myTegamotoCount > 0)
     $("btn-opp-tegamoto").textContent = `相手の手元(${oppTegamotoCount})`
     show("btn-opp-tegamoto", oppTegamotoCount > 0)
+
+    // 自分のトラッシュのEXシンボル枚数（《継召》の素材）。黄色バッジでボタン右下に、色ごとの内訳も並べる
+    const myTrashExCount = view.players[you].trashCards.filter((id) => master(id).symbolEx === true).length
+    const trashBtn = $("btn-toggle-trash")
+    const exBadge = trashBtn.querySelector<HTMLDivElement>(".count-badge.ex-badge")
+    if (myTrashExCount > 0) {
+        const badge = exBadge ?? document.createElement("div")
+        badge.className = "count-badge ex-badge"
+        badge.textContent = ""
+        const total = document.createElement("span")
+        total.className = "ex-total"
+        total.textContent = `EX${String(myTrashExCount)}`
+        badge.appendChild(total)
+        // 色別の内訳: 赤紫緑白黄青の順。その色のシンボルを持つEXカードの枚数
+        const exByColor = new Map<string, number>()
+        for (const id of view.players[you].trashCards) {
+            const m = master(id)
+            if (m.symbolEx !== true) continue
+            for (const c of new Set(m.symbol)) exByColor.set(c, (exByColor.get(c) ?? 0) + 1)
+        }
+        for (const color of ["red", "purple", "green", "white", "yellow", "blue"]) {
+            const count = exByColor.get(color)
+            if (count === undefined) continue
+            const chip = document.createElement("span")
+            chip.className = "ex-color-chip"
+            const icon = document.createElement("span")
+            icon.className = `sym-icon bg-${color}`
+            chip.appendChild(icon)
+            chip.appendChild(document.createTextNode(String(count)))
+            badge.appendChild(chip)
+        }
+        if (!exBadge) trashBtn.appendChild(badge)
+    } else if (exBadge) {
+        exBadge.remove()
+    }
 
     // バトル情報
     renderBattle(view)
@@ -868,6 +1115,18 @@ export function render(view: GameView, ui: UiState): void {
     if (currentHoverCard !== null && !document.body.contains(currentHoverCard)) hideEffectTooltip()
 }
 
+// [ソウルコア]の所在を info パネルの「魂: …」項目用の文字列にする（docs/design/SOULCORE.md 案A-outside。
+// コア数値には含まれないため、リザーブ/トラッシュの数値と別に所在だけで示す。2026-10-06 ユーザー確認）
+function soulCoreWhereText(view: GameView, pid: PlayerId): string | null {
+    const soul = view.players[pid].soulCore
+    if (!soul) return null
+    if (soul.zone === "reserve") return "リザーブ"
+    if (soul.zone === "trash") return "トラッシュ"
+    const p = view.players[pid]
+    const inst = [...p.field.spirits, ...p.field.nexuses].find((s) => s.instanceId === soul.instanceId)
+    return inst ? master(inst.cardId).name : "フィールド"
+}
+
 function renderInfo(
     id: string,
     view: GameView,
@@ -895,8 +1154,13 @@ function renderInfo(
     const items: [string, string][] = [
         ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
         ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
+        // ソウルコアはコア数値に含まれない（docs/design/SOULCORE.md 案A-outside）。
+        // 案B-inside: 数値には最初から[ソウルコア]が含まれる（2026-10-06 ユーザー確定）。所在は別項目で特定する
         ["reserve", `🔵 リザーブ ${p.reserve}`],
         ["trash-cores", `トラッシュコア ${p.trashCores}`],
+        ...((soulCoreWhereText(view, pid)
+            ? [["soul-core", `${soulCoreWhereText(view, pid)}`]]
+            : []) as [string, string][]),
         // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
         ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
         // バーストのセット状況（公開情報）。中身は出さない。自分側だけターン1回制限の消化を添える
@@ -928,7 +1192,12 @@ function renderInfo(
             span.dataset.corezone = choiceId
             span.classList.add("targetable", "clickable")
         }
-        span.textContent = text
+        // 所在項目はソウルコア画像で示す（2026-10-06 ユーザー要望）
+        if (cls === "soul-core") {
+            span.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]"> ソウルコア ${text}`
+        } else {
+            span.textContent = text
+        }
         el.appendChild(span)
     }
 }
@@ -1000,16 +1269,32 @@ function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: boolean)
 }
 
 // コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
-function coreButtonsEl(instanceId: string, currentCores: number, levels: { level: number, cores: number }[]): HTMLElement {
+function coreButtonsEl(
+    instanceId: string,
+    currentCores: number,
+    levels: { level: number, cores: number }[],
+    // [ソウルコア]の置き/戻しボタンを出すか（メインステップの自分フィールドのみ渡す）
+    soulOpts?: { soulHere: boolean; soulInReserve: boolean },
+): HTMLElement {
     const btns = document.createElement("div")
     btns.className = "core-buttons"
-    
+
     const removeBtn = document.createElement("button")
     removeBtn.dataset.core = "remove"
     removeBtn.dataset.instanceId = instanceId
     removeBtn.textContent = "−"
     removeBtn.title = "コアを1個リザーブへ戻す"
     btns.appendChild(removeBtn)
+
+    // この個体の[ソウルコア]をリザーブへ戻す
+    if (soulOpts?.soulHere) {
+        const soulRemoveBtn = document.createElement("button")
+        soulRemoveBtn.dataset.core = "remove-soul"
+        soulRemoveBtn.dataset.instanceId = instanceId
+        soulRemoveBtn.textContent = "魂−"
+        soulRemoveBtn.title = "[ソウルコア]をリザーブへ戻す"
+        btns.appendChild(soulRemoveBtn)
+    }
 
     // レベルごとのショートカットボタン
     for (const lv of levels) {
@@ -1034,6 +1319,16 @@ function coreButtonsEl(instanceId: string, currentCores: number, levels: { level
     addBtn.textContent = "＋"
     addBtn.title = "リザーブからコアを1個置く"
     btns.appendChild(addBtn)
+
+    // リザーブの[ソウルコア]をこの個体に置く（docs/design/SOULCORE.md §1.4の自由なコア移動）
+    if (soulOpts?.soulInReserve) {
+        const soulAddBtn = document.createElement("button")
+        soulAddBtn.dataset.core = "add-soul"
+        soulAddBtn.dataset.instanceId = instanceId
+        soulAddBtn.textContent = "魂＋"
+        soulAddBtn.title = "リザーブの[ソウルコア]をこの個体に置く"
+        btns.appendChild(soulAddBtn)
+    }
 
     return btns
 }
@@ -1066,6 +1361,7 @@ function fieldCardEl(
     el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
     el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
     if (inst.isRested) el.classList.add("rested")
+    if (inst.heavyRested) el.classList.add("heavy-rested")
     el.dataset.instanceId = inst.instanceId
     el.dataset.cardId = inst.cardId
     el.dataset.side = isMine ? "mine" : "opp"
@@ -1168,17 +1464,30 @@ function fieldCardEl(
         el.appendChild(badge)
     }
 
+    attachCardArt(el, inst.cardId, m.name)
+
     const name = document.createElement("div")
     name.className = "name"
     name.textContent = m.name
     el.appendChild(name)
 
+    // Lv・BP・コア数は .card-overlay にまとめる。画像表示のときは疲労で回転しても
+    // 正位置のまま読めるよう、この枠だけ逆回転させる（CSS）。画像なしなら display:contents で素通し
+    const overlay = document.createElement("div")
+    overlay.className = "card-overlay"
     const stats = document.createElement("div")
     stats.className = "stats"
-    stats.textContent = isNexus
-        ? `Lv${level}`
-        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
-    el.appendChild(stats)
+    const lvEl = document.createElement("span")
+    lvEl.className = "stat-lv"
+    lvEl.textContent = `Lv${level}`
+    stats.appendChild(lvEl)
+    if (!isNexus) {
+        const bpEl = document.createElement("span")
+        bpEl.className = "stat-bp"
+        bpEl.textContent = `BP${bp}${inst.tempBpBuff ? "↑" : ""}`
+        stats.append(" ", bpEl)
+    }
+    overlay.appendChild(stats)
 
     // コストバッジを左上に表示
     const costBadge = document.createElement("div")
@@ -1188,8 +1497,24 @@ function fieldCardEl(
 
     const cores = document.createElement("div")
     cores.className = "cores"
-    cores.textContent = `◉ コア ${inst.cores}`
-    el.appendChild(cores)
+    // [ソウルコア]が載っている個体には画像バッジ（soulcore.png）で示すため、コア数値は通常コアのみ（2026-10-06 ユーザー確認）
+    const soulOnThis =
+        view.players[ownerPid].soulCore?.zone === "instance" &&
+        view.players[ownerPid].soulCore.instanceId === inst.instanceId
+    // 支払いモード中は支払い後のコア数を並記する（例: ◉ コア 4→2。2026-10-06 ユーザー要望）
+    const payAssigned = ui.paying?.assigned[inst.instanceId] ?? 0
+    const paySoulHere = ui.paying?.soulPayInstanceId === inst.instanceId ? 1 : 0
+    const afterPay = inst.cores - payAssigned - paySoulHere
+    cores.textContent = `◉ コア ${inst.cores}${afterPay !== inst.cores ? `→${afterPay}` : ""}`
+    overlay.appendChild(cores)
+    el.appendChild(overlay)
+    // [ソウルコア]が載っている個体には画像バッジを重ねる（公開情報。docs/design/SOULCORE.md）
+    if (soulOnThis) {
+        const soulBadge = document.createElement("div")
+        soulBadge.className = "soul-core-badge"
+        soulBadge.title = "[ソウルコア]"
+        el.appendChild(soulBadge)
+    }
 
     const symbolsDiv = document.createElement("div")
     symbolsDiv.className = "symbols"
@@ -1246,14 +1571,47 @@ function fieldCardEl(
         // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
         if (isMine && ui.paying !== null) {
             const assigned = ui.paying.assigned[inst.instanceId] ?? 0
-            if (assigned > 0) {
+            const soulPayHere = ui.paying.soulPayInstanceId === inst.instanceId
+            // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]は専用ボタンで支払うため、
+            // クリック割り当ての上限は通常コア数にする（2026-10-06）
+            const normals = inst.cores - (soulOnThis ? 1 : 0)
+            if (assigned > 0 || soulPayHere) {
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
-                badge.textContent = `支払${assigned}`
+                badge.textContent = soulPayHere ? `支払${assigned}＋魂` : `支払${assigned}`
                 el.appendChild(badge)
             }
-            if (assigned < inst.cores) {
+            if (assigned < normals) {
                 el.classList.add("targetable", "clickable")
+            }
+            // [ソウルコア]が載っているときは[ソウルコア]の使い方を選ぶ専用ボタンを出す（2026-10-06）。
+            // クリックで 使わない→コスト→維持コア→使わない のサイクル
+            if (soulOnThis && ui.paying.forDetachBraveInstanceId === undefined && ui.paying.forBraveKeep === undefined) {
+                const soulBtn = document.createElement("button")
+                soulBtn.className = "soul-pay-badge"
+                soulBtn.dataset.soulpay = inst.instanceId
+                const payMode = soulPayHere ? (ui.paying.soulPayMode ?? "cost") : "none"
+                const placesCores =
+                    ui.paying.braveTargetInstanceId === undefined &&
+                    payingCardId(view, ui.paying) !== undefined &&
+                    master(payingCardId(view, ui.paying)!).type !== "magic"
+                if (payMode === "cost") {
+                    soulBtn.classList.add("active")
+                    soulBtn.title = "この個体の[ソウルコア]をコスト支払いに使う（→トラッシュ）"
+                    soulBtn.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]">コスト`
+                } else if (payMode === "maintain") {
+                    soulBtn.classList.add("active", "maintain")
+                    soulBtn.title = "この個体の[ソウルコア]を維持コアとして場のカードに置く"
+                    soulBtn.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]">維持`
+                } else {
+                    soulBtn.title = "この個体の[ソウルコア]を支払いに使う（クリックで切り替え）"
+                    soulBtn.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]">使わない`
+                }
+                if (payMode === "none" && !placesCores) {
+                    // コアを置かない支払い（マジック等）では維持コアの選択肢が無いことを明記
+                    soulBtn.title = "この個体の[ソウルコア]をコスト支払いに使う"
+                }
+                el.appendChild(soulBtn)
             }
             return el
         }
@@ -1296,14 +1654,47 @@ function fieldCardEl(
         // （他の操作（コア移動・アタック・覚醒等）と競合しないよう、ここで処理を打ち切る）
         if (ui.paying !== null) {
             const assigned = ui.paying.assigned[inst.instanceId] ?? 0
-            if (assigned > 0) {
+            const soulPayHere = ui.paying.soulPayInstanceId === inst.instanceId
+            // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]は専用ボタンで支払うため、
+            // クリック割り当ての上限は通常コア数にする（2026-10-06）
+            const normals = inst.cores - (soulOnThis ? 1 : 0)
+            if (assigned > 0 || soulPayHere) {
                 const badge = document.createElement("div")
                 badge.className = "pay-badge"
-                badge.textContent = `支払${assigned}`
+                badge.textContent = soulPayHere ? `支払${assigned}＋魂` : `支払${assigned}`
                 el.appendChild(badge)
             }
-            if (assigned < inst.cores) {
+            if (assigned < normals) {
                 el.classList.add("targetable", "clickable")
+            }
+            // [ソウルコア]が載っているときは[ソウルコア]の使い方を選ぶ専用ボタンを出す（2026-10-06）。
+            // クリックで 使わない→コスト→維持コア→使わない のサイクル
+            if (soulOnThis && ui.paying.forDetachBraveInstanceId === undefined && ui.paying.forBraveKeep === undefined) {
+                const soulBtn = document.createElement("button")
+                soulBtn.className = "soul-pay-badge"
+                soulBtn.dataset.soulpay = inst.instanceId
+                const payMode = soulPayHere ? (ui.paying.soulPayMode ?? "cost") : "none"
+                const placesCores =
+                    ui.paying.braveTargetInstanceId === undefined &&
+                    payingCardId(view, ui.paying) !== undefined &&
+                    master(payingCardId(view, ui.paying)!).type !== "magic"
+                if (payMode === "cost") {
+                    soulBtn.classList.add("active")
+                    soulBtn.title = "この個体の[ソウルコア]をコスト支払いに使う（→トラッシュ）"
+                    soulBtn.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]">コスト`
+                } else if (payMode === "maintain") {
+                    soulBtn.classList.add("active", "maintain")
+                    soulBtn.title = "この個体の[ソウルコア]を維持コアとして場のカードに置く"
+                    soulBtn.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]">維持`
+                } else {
+                    soulBtn.title = "この個体の[ソウルコア]を支払いに使う（クリックで切り替え）"
+                    soulBtn.innerHTML = `<img src="/imgs/soulcore.png" class="soul-core-inline" alt="[ソウルコア]">使わない`
+                }
+                if (payMode === "none" && !placesCores) {
+                    // コアを置かない支払い（マジック等）では維持コアの選択肢が無いことを明記
+                    soulBtn.title = "この個体の[ソウルコア]をコスト支払いに使う"
+                }
+                el.appendChild(soulBtn)
             }
             return el
         }
@@ -1407,10 +1798,28 @@ function fieldCardEl(
         ) {
             el.classList.add("clickable", "usable")
         }
-        // コア移動ボタン（メインステップのみ）
+        // [ソウルコア]の1:1交換モード中: 交換相手（通常コア1個以上の自分の個体）をハイライト
+        if (ui.soulSwapSelect !== null && ui.soulSwapSelect.fromInstanceId !== inst.instanceId && inst.cores >= 1) {
+            el.classList.add("targetable", "clickable")
+        }
+        // コア移動ボタン（メインステップのみ）＋[ソウルコア]の置き/戻し
         if (myMainFree) {
             const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
+            el.appendChild(
+                coreButtonsEl(inst.instanceId, inst.cores, levelsToUse, {
+                    soulHere: soulOnThis,
+                    soulInReserve: view.players[view.you].soulCore?.zone === "reserve",
+                }),
+            )
+        }
+        // [ソウルコア]の1:1交換（§1.4・メインステップのみ）: [ソウルコア]が載った個体に出す
+        if (myMainFree && view.pendingChoice === null && soulOnThis && ui.paying === null) { // 支払いモード中は[ソウルコア]支払いボタンと被るため出さない
+            const btn = document.createElement("button")
+            btn.className = "soul-swap-badge"
+            btn.dataset.soulswap = inst.instanceId
+            btn.textContent = "魂交換"
+            btn.title = "この個体の[ソウルコア]と、他の個体の通常コア1個を同時に交換する"
+            el.appendChild(btn)
         }
     } else {
         // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
@@ -1495,7 +1904,8 @@ function renderHand(view: GameView, ui: UiState): void {
             m.type === "spirit" &&
             (hasKeyword(cardId, "soku") ||
                 tempSokuCardIds.has(cardId) ||
-                hasHandKeywordGrant(view, view.you, m, "soku"))
+                hasHandKeywordGrant(view, view.you, m, "soku") ||
+                flashSummonFromHandNow(view, view.you, cardId))
 
         // 【烈神速】：トラッシュのコア5個以上ならコストを支払わず召喚できる（BS16-X03）。
         // コストはトラッシュのコアから賄うので、reserve >= need の判定は通さない
@@ -1539,6 +1949,7 @@ function renderHand(view: GameView, ui: UiState): void {
         el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
         el.dataset.handIndex = String(activeIndex)
         el.dataset.cardId = cardId
+        attachCardArt(el, cardId, m.name)
         
         if (usable) el.classList.add("usable", "clickable")
         else if (usableField) {
@@ -1558,6 +1969,8 @@ function renderHand(view: GameView, ui: UiState): void {
         // 召喚・配置・マジック使用のために選択されたカードをハイライト
         const selectedHandIndex =
             ui.paying?.handIndex ??
+            ui.soulCoreOnlySelect?.handIndex ??
+            ui.exReductionSelect?.handIndex ??
             ui.summonLevelSelect?.handIndex ??
             ui.targeting?.handIndex ?? null
         if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
@@ -1583,13 +1996,10 @@ function renderHand(view: GameView, ui: UiState): void {
         }
 
         const costBadge = document.createElement("div")
-        costBadge.className = "cost-badge"
-        if (cost < m.cost) {
-            costBadge.classList.add("discounted")
-            costBadge.innerHTML = `<span class="original-cost">${m.cost}</span><span class="current-cost">${cost}</span>`
-        } else {
-            costBadge.textContent = String(cost)
-        }
+        costBadge.className = `cost-badge cost-${m.type}`
+        // 軽減前のコストは出さず、軽減されているときだけバッジを緑にする（2026-10-04 ユーザー指示）
+        if (cost < m.cost) costBadge.classList.add("discounted")
+        costBadge.textContent = String(cost)
         el.appendChild(costBadge)
 
         const typeLabel =
@@ -1802,6 +2212,9 @@ export function showToast(message: string): void {
 // カードは再描画のたびに作り直されるため、document への委譲で拾う。
 
 let currentHoverCard: HTMLElement | null = null
+// 支払いモード中はホバーの効果ツールチップを出さない（2026-10-06 ユーザー要望。
+// コスト支払いでフィールドをクリックするときにチラつくため）
+let effectTooltipSuppressed = false
 
 /** ツールチップを非表示にし、ホバー追跡をリセットする */
 export function hideEffectTooltip(): void {
@@ -1892,6 +2305,18 @@ export function setupEffectTooltip(): void {
             symbolEl.textContent += "なし"
         }
         costArea.appendChild(symbolEl)
+        // EXシンボル（26系。《継召》でトラッシュから除外して召喚コストの軽減に使える）
+        if (m.symbolEx === true) {
+            const exEl = document.createElement("div")
+            exEl.textContent = "EXシンボル"
+            exEl.style.background = "#eab308"
+            exEl.style.color = "#000"
+            exEl.style.fontWeight = "700"
+            exEl.style.fontSize = "10px"
+            exEl.style.padding = "1px 6px"
+            exEl.style.borderRadius = "8px"
+            costArea.appendChild(exEl)
+        }
         tip.appendChild(costArea)
         
         if (m.levels && m.levels.length > 0) {
@@ -1948,6 +2373,7 @@ export function setupEffectTooltip(): void {
 
     // PC: ホバーで表示・カードから離れたら消す
     document.addEventListener("mouseover", (e) => {
+        if (effectTooltipSuppressed) return // 支払いモード中は出さない
         const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
         if (card && card !== currentHoverCard) {
             currentHoverCard = card

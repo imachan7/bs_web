@@ -11,7 +11,7 @@
 //
 // 実装は「選ばせたら、そのコスト軸を落とした action で入り直す」形
 // （exhaust の chooserIsTarget と同じ、解決済みの軸を落として再入する書き方）。
-import { act, assert, createGame, createInstance, resolveAction, runTurnStart, playerHas, answerPayConfirm } from "./helpers"
+import { act, assert, createGame, createInstance, resolveAction, runTurnStart, playerHas, answerPayConfirm, legacy } from "./helpers"
 import type { GameState } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 
@@ -57,11 +57,11 @@ console.log("=== ブリュナグオン：コストで破壊する【呪撃】持
     const give = put(s, jugeki[1]!.cardId, 3)
     s.players.p1.trashCards = [recoverable.cardId]
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { keyword: "jugeki" } }, then: {
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { keyword: "jugeki" } }, then: legacy({
         type: "recoverSpiritFromTrash",
         count: 1,
         familyFilter: ["虚神", "神将"],
-    } })
+    }) })
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(s.pendingChoice?.candidates.length === 2, "【呪撃】持ち2体が候補")

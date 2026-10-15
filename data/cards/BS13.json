@@ -896,15 +896,31 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "reveal",
-     "count": 4,
-     "pick": {
-      "cardType": "spirit",
-      "family": "光導"
-     },
-     "optional": true,
-     "dest": "summon",
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 4
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": "光導"
+       },
+       "optional": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -1148,20 +1164,35 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "count": 12,
-     "pick": {
-      "cardType": "spirit",
-      "family": [
-       "神星",
-       "光導"
-      ]
-     },
-     "pickCount": "all",
-     "dest": "summon",
-     "tensho": "none",
-     "noSummonEffects": true,
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 12
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": [
+         "神星",
+         "光導"
+        ]
+       },
+       "tensho": "none",
+       "noSummonEffects": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -1264,11 +1295,16 @@
     "byOpponentEffectOnly": true,
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "count": 2,
-     "costFilter": {
-      "max": 1
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "cost": {
+       "max": 1
+      }
      },
+     "count": 2,
      "upTo": true
     }
    }
@@ -1530,11 +1566,16 @@
      "selfSummonedByFushi": true
     },
     "action": {
-     "type": "summonFromTrashFree",
-     "count": 1,
-     "costFilter": {
-      "min": 7
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "cost": {
+       "min": 7
+      }
      },
+     "count": 1,
      "skipOnSummon": true
     }
    }
@@ -1590,12 +1631,21 @@
     ],
     "optional": false,
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "keywordFilterAny": [
-      "jugeki",
-      "fushi"
-     ]
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "anyOf": [
+       {
+        "keyword": "jugeki"
+       },
+       {
+        "keyword": "fushi"
+       }
+      ]
+     }
     }
    },
    {
@@ -1701,10 +1751,14 @@
     ],
     "optional": false,
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 0,
-     "all": true,
-     "nameIncludes": "ドラゴナーガ"
+     "type": "moveCards",
+     "from": "trash",
+     "count": "all",
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "ドラゴナーガ"
+     }
     }
    }
   ]
@@ -1899,13 +1953,21 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "spirit",
-      "keyword": [
-       "jugeki",
-       "fushi"
-      ]
+      "pick": {
+       "cardType": "spirit",
+       "anyOf": [
+        {
+         "keyword": "jugeki"
+        },
+        {
+         "keyword": "fushi"
+        }
+       ]
+      }
      },
      "then": {
       "type": "draw",
@@ -2025,9 +2087,14 @@
       "count": 1
      },
      "then": {
-      "type": "summonFromTrashFree",
+      "type": "moveCards",
+      "from": "trash",
+      "dest": "summon",
+      "pick": {
+       "cardType": "spirit",
+       "family": "妖蛇"
+      },
       "count": 1,
-      "familyFilter": "妖蛇",
       "skipOnSummon": true
      }
     }
@@ -4627,13 +4694,30 @@
     ],
     "optional": false,
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": "spirit",
-      "cost": 2
-     },
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "cost": 2
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    }
   ]
@@ -5847,7 +5931,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {

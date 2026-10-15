@@ -150,7 +150,8 @@ function mainStepMoves(state: GameState, pid: PlayerId): AiMove[] {
         ...abilityMoves(state, pid),
         ...coreMoves(state, pid),
     ]
-    if (!state.extraMainStep) moves.push({ action: { type: "nextPhase" }, reason: "アタックステップへ進む" })
+    // 第2メインステップ中と先攻1ターン目にはアタックステップが無い（サーバーに弾られるので候補に出さない）
+    if (!state.extraMainStep && state.secondMainStep !== true && state.turn !== 1) moves.push({ action: { type: "nextPhase" }, reason: "アタックステップへ進む" })
     if (validateEndTurn(state, pid) === null) {
         moves.push({ action: { type: "endTurn" }, reason: "ターンを終了する" })
     }

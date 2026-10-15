@@ -264,15 +264,33 @@
      3
     ],
     "action": {
-     "type": "reveal",
-     "count": 2,
-     "pick": {
-      "cardType": "spirit",
-      "family": [
-       "虚神",
-       "神将"
-      ]
-     }
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 2
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "family": [
+         "虚神",
+         "神将"
+        ]
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
+      }
+     ]
     },
     "optional": true
    },
@@ -810,8 +828,14 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "nameIncludes": "勇者"
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "勇者"
+     },
+     "count": 1
     }
    }
   ]
@@ -1168,9 +1192,14 @@
      3
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "familyFilter": "魔影"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "魔影"
+     }
     },
     "optional": false
    },
@@ -2944,9 +2973,14 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 3,
-     "nameIncludes": "アルカナ"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "アルカナ"
+     }
     },
     "optional": false
    },
@@ -3389,17 +3423,35 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "countPer": {
-      "ownNexuses": true
-     },
-     "pick": {
-      "cardType": "spirit",
-      "family": [
-       "虚神",
-       "神将"
-      ]
-     }
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "countPer": {
+        "ownNexuses": true
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "family": [
+         "虚神",
+         "神将"
+        ]
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
+      }
+     ]
     },
     "optional": true
    },
@@ -3575,9 +3627,14 @@
      3
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "nameIncludes": "猿人モンゴクウ"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "猿人モンゴクウ"
+     }
     },
     "optional": false
    },
@@ -3591,9 +3648,14 @@
      3
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "nameIncludes": "豚人チョウハッカイ"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "豚人チョウハッカイ"
+     }
     },
     "optional": false
    },
@@ -3607,9 +3669,14 @@
      3
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "nameIncludes": "鮫人サンゴジョー"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "鮫人サンゴジョー"
+     }
     },
     "optional": false
    },
@@ -4665,9 +4732,14 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "keywordFilter": "tensho"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "tensho"
+     }
     }
    },
    {
@@ -5463,20 +5535,35 @@
      3
     ],
     "action": {
-     "type": "reveal",
-     "count": 7,
-     "pick": {
-      "cardType": "spirit",
-      "family": [
-       "龍帝",
-       "竜騎"
-      ]
-     },
-     "pickCount": "all",
-     "dest": "summon",
-     "tensho": "none",
-     "noSummonEffects": true,
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 7
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": [
+         "龍帝",
+         "竜騎"
+        ]
+       },
+       "tensho": "none",
+       "noSummonEffects": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     },
     "optional": false
    },
@@ -5866,8 +5953,11 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardSelfChoose",
-       "count": "any"
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
+       "count": "all",
+       "upTo": true
       },
       {
        "type": "draw",
@@ -5887,8 +5977,15 @@
      3
     ],
     "action": {
-     "type": "castMagicFromTrashByColor",
-     "colorFilter": "yellow"
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "cast",
+     "pay": "cost",
+     "pick": {
+      "cardType": "magic",
+      "color": "yellow"
+     }
     },
     "optional": false
    },
