@@ -21,6 +21,21 @@ const app = express()
 // アクセスログは express.static より前（static は該当ファイルを返した時点で後段へ進まない）
 app.use(accessLogMiddleware)
 app.use(compression())
+// 環境変数 REDIRECTS（JSON: {"/パス":"転送先URL"}）にあるパスだけを転送する。転送先はリポジトリに置かず、
+// デプロイ先の環境変数で設定する。読めない値なら転送なしで起動する（本番を落とさない）
+const REDIRECTS: Record<string, string> = (() => {
+    try {
+        return JSON.parse(process.env.REDIRECTS ?? "{}")
+    } catch {
+        console.error("REDIRECTS が JSON として読めないので無視します")
+        return {}
+    }
+})()
+app.use((req, res, next) => {
+    const to = REDIRECTS[req.path]
+    if (to) res.redirect(302, to)
+    else next()
+})
 app.use(express.static(path.resolve(__dirname, "../../public")))
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 
