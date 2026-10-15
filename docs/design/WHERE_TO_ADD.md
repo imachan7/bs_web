@@ -112,6 +112,23 @@
 | ライフを増やす・減らす | `life.ts`（【聖命】の計測点が `coverage-effects.ts` から差し込まれている） |
 | 【転召】のコアの置き先・再開・代わりの支払い | `tensho.ts`（判定の本体は `keywords/tensho.ts`） |
 
+## 画面（`public/src/`。2026-10-16 に main.ts・renderer.ts から `ui/` へ分割）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| 描画の入口・全体の再描画 | `renderer.ts` の `render` |
+| フィールドのカード1枚（コア・レベル・ボタン） | `ui/fieldCard.ts` の `fieldCardEl`・`coreButtonsEl` |
+| 手札 | `ui/hand.ts` の `renderHand` |
+| 情報欄・バースト欄・バトル欄 | `ui/infoPanels.ts` |
+| 効果のツールチップ | `ui/tooltip.ts` |
+| 支払いモードの状態と残りコストの計算 | `ui/paying.ts`（`PayingState`・`payingNeed`） |
+| 支払いの入力と送信（自動／手動の切り替え） | `ui/payInput.ts` |
+| 手札・スピリットのクリック、召喚・アタック・選択の応答 | `ui/play.ts` |
+| デッキの一覧・お知らせ | `ui/lobby.ts` |
+| 接続と `init`（イベントの登録） | `main.ts` |
+
+- `ui/` から `main.ts`・`renderer.ts` の `let` を書き換えることはできない（import した変数は代入不可）。書き換えが要るときは持ち主のファイルに `setXxx` を置く（`setCardDb`・`setDeckRecipes`・`suppressEffectTooltip`）
+
 ## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
 
 | 変更の種類 | 触るところ |

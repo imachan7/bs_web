@@ -13,7 +13,8 @@
 import { act, assert, createGame, createInstance, currentLevel, effectiveCost, getCard, runTurnStart, viewFor } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 // クライアントの支払いUIがサーバーと同じ選択肢を出すかを見る（ズレると「UIで選べるのに弾かれる」）
-import { payingAltPay, setCardDb } from "../../public/src/renderer"
+import { setCardDb } from "../../public/src/renderer"
+import { payingAltPay } from "../../public/src/ui/paying"
 import { setCardLookup } from "../../shared/cardDb"
 import { loadAllCards } from "../../data/loadCards"
 

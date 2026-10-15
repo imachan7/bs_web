@@ -965,24 +965,96 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `handToggleTarget`（fn）：同じカードの束（indices）のうち、クリックで送るインデックスと選択済みの枚数。
 - `markSelected`（fn）：選択中の束に付ける印（「選択中 ×2」）
 
+## public/src/main.ts
+
+- `view`（let）
+- `ui`（const）
+- `send`（fn）
+- `rerender`（fn）
+- `opponentOf`（fn）
+- `byId`（fn）
+
 ## public/src/renderer.ts
 
 - `setCardDb`（fn）
 - `master`（fn）
+- `COLOR_SYMBOLS`（const）
 - `levelOf`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.currentLevel）
 - `spiritHasKeywordView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasKeyword）
 - `instHasColorView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.instHasColor）
 - `spiritHasFamilyView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasFamily）
 - `canBlockAttacker`（fn）：ブロック可能ハイライト用: blocker が attacker をブロックできるか。
 - `hasMagicImmunityView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）
-- `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
-- `payingIsCostOnly`（fn）：コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
-- `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
-- `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
 - `TargetSide`（型）：マジックが対象を必要とするか（"opponent" = 相手スピリット、"self" = 自分スピリット）
 - `magicTargetSide`（fn）：timing: メイン効果とフラッシュ効果で対象側が異なるカード（例: BS01-131）があるため、
 - `canAwaken`（fn）：【覚醒】を現在レベルで持っているか（判定はサーバー validateAwaken と同一の共有実装）
 - `activatableAbility`（fn）：起動能力が今このスピリットで発動可能なら {effectId, costLabel} を返す
+- `UiState`（型）
+- `canDirectAttack`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
+- `matchesDirectedAttackFilter`（fn）：指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
+- `escapeHtml`（fn）：innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
+- `render`（fn）
+- `showWaiting`（fn）：ロビー側の表示制御
+- `hideWaiting`（fn）
+- `showToast`（fn）
+
+## public/src/ui/fieldCard.ts
+
+- `renderField`（fn）
+- `coreButtonsEl`（fn）：コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
+- `fieldCardEl`（fn）
+
+## public/src/ui/hand.ts
+
+- `renderHand`（fn）
+
+## public/src/ui/infoPanels.ts
+
+- `soulCoreWhereText`（fn）：[ソウルコア]の所在を info パネルの「魂: …」項目用の文字列にする（docs/design/SOULCORE.md 案A-outside。
+- `renderInfo`（fn）
+- `renderBurst`（fn）：バーストエリア（docs/design/BURST.md）。セットされているか否かは公開情報（burstSet）だが、
+- `renderBattle`（fn）
+
+## public/src/ui/lobby.ts
+
+- `DECK_STORAGE_KEY`（const）
+- `CUSTOM_DECK_PREFIX`（const）
+- `SavedDeck`（型）：デッキビルダー（deck.ts）と同じ保存フォーマット
+- `customDecks`（const）：デッキ名 → カードリスト（cardId -> 枚数）。ページ表示時に読み込む
+- `loadSavedDecks`（fn）
+- `deckRecipes`（let）：deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
+- `setDeckRecipes`（fn）
+- `populateBuiltinDecks`（fn）
+- `populateCustomDecks`（fn）
+- `ALL_DECK_SELECT_IDS`（const）：ロビー・AI対戦用の全デッキセレクトを一括で構築する
+- `populateAllBuiltinDecks`（fn）
+- `populateAllCustomDecks`（fn）
+- `ChangelogEntry`（型）
+- `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する
+- `parseReleaseMessage`（fn）
+- `loadChangelog`（fn）
+
+## public/src/ui/payInput.ts
+
+- `PAY_MODE_KEY`（const）：コアの支払い方式はブラウザごとに覚える。保存できない環境（プライベートモード等）では毎回「自動」に戻る
+- `loadPayMode`（fn）
+- `savePayMode`（fn）
+- `payModeLabel`（fn）
+- `payModeHint`（fn）
+- `buildPaySources`（fn）：支払いモードの内容を確定して送信する。代替コスト（手札破棄／デッキ破棄）も一緒に送る
+- `submitPaying`（fn）
+- `changeAltPay`（fn）：支払いモード中に、代替コストの支払い量を変える。
+- `toggleDiscardPay`（fn）：支払いモード中に、手札1枚を「破棄して払う」対象として選ぶ／外す（BS08ビクティム）
+- `startChoicePaying`（fn）：選択待ちで選んだカードのコストがリザーブだけでは足りないとき、通常の召喚と同じ
+- `assignPayCore`（fn）：支払いモード中、指定スピリットにコアを1個割り当てる。合計が必要数に達したら自動送信する。
+- `assignOneCore`（fn）：支払い元1つにコアを1個割り当て、必要数に達したら送信する。
+
+## public/src/ui/paying.ts
+
+- `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+- `payingIsCostOnly`（fn）：コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
+- `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
+- `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
 - `PayingState`（型）：支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
 - `AltPayInfo`（型）：この支払いで使える代替コストの種類と上限。
 - `exReductionSymbolsFor`（fn）：《継召》(kind:"exTrashReduction")：除外するトラッシュカードのシンボル列（effectiveCost の第5引数へ渡す）。
@@ -993,12 +1065,26 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `payingAltPay`（fn）
 - `payingShinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
 - `payingShinsokuAssistDiscount`（fn）：選択済みの肩代わり候補ぶんの合計割引
-- `UiState`（型）
-- `canDirectAttack`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
-- `matchesDirectedAttackFilter`（fn）：指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
-- `render`（fn）
-- `showWaiting`（fn）：ロビー側の表示制御
-- `hideWaiting`（fn）
-- `showToast`（fn）
+
+## public/src/ui/play.ts
+
+- `confirmExtraCost`（fn）：器BM（BS13-043 鳥人イカロッシュ）／器BU（BS13-047 深海大帝ノーグ・デンス）：
+- `sendCoreRemove`（fn）：スピリット／ネクサスからコアを1個取り除く。
+- `sendSoulCoreRemove`（fn）：[ソウルコア]をリザーブへ戻す。取り除くと維持コアを割るなら確認を取る（通常コアと同じ流れ）
+- `sendPlay`（fn）：カード種別に応じたアクションを送信する（paySources/targetInstanceId/levelは値がある場合のみキーを含める）
+- `tryPlay`（fn）：軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
+- `tryResolveCardChoice`（fn）：pendingChoiceが自分宛かつkind:"card"・cardZone:"hand"、クリックしたhandIndexが候補内なら
+- `onBurstSetClick`（fn）：バーストセットボタン（docs/design/BURST.md）。すでにバーストがセットされている場合は
+- `onHandAbilityClick`（fn）：手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
+- `onHandClick`（fn）
+- `tryResolveChoice`（fn）：pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
+- `onMySpiritClick`（fn）
+- `sendAttack`（fn）：アタックの追加コスト（attackPayToll）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る（ブロックと同じ。2026-10-11 ユーザー確認）
+- `onOppSpiritClick`（fn）
+
+## public/src/ui/tooltip.ts
+
+- `currentHoverCard`（let）
+- `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）

@@ -12,8 +12,6 @@ const MAX_TYPE_KB = 120
 // type.ts 以外は 2026-10-15 に bs_web_standard から持ち込んだ時点の値（持ち込み元で既に超えていた）
 const BASELINE: Record<string, number> = {
     "server/src/types/effectDef.ts": 139,
-    "public/src/main.ts": 2179,
-    "public/src/renderer.ts": 2426,
 }
 
 function walk(dir: string): string[] {
