@@ -300,11 +300,12 @@ app.get("/api/bug-reports", (req, res) => {
 })
 
 // デバッグ用の盤面差し替えを有効にするか（2026-08-16 ユーザー判断：**ローカル実行時だけ**）。
-// Azure App Service では WEBSITE_SITE_NAME が必ず設定されるので、それが無いときだけ受け付ける。
+// Azure App Service は WEBSITE_SITE_NAME、Cloud Run は K_SERVICE を必ず設定するので、どちらも無いときだけ受け付ける
+// （Cloud Run へ移った後も WEBSITE_SITE_NAME だけを見ていて、本番で有効になっていた）。
 // 明示的に切り替えたいときは BS_DEBUG_TOOLS=1 / 0
 const DEBUG_TOOLS =
     process.env.BS_DEBUG_TOOLS === "1" ||
-    (process.env.BS_DEBUG_TOOLS !== "0" && !process.env.WEBSITE_SITE_NAME)
+    (process.env.BS_DEBUG_TOOLS !== "0" && !process.env.WEBSITE_SITE_NAME && !process.env.K_SERVICE)
 
 // クライアントが「デバッグ機能を出してよいか」を判定するために叩く
 app.get("/api/debug/enabled", (_req, res) => {
