@@ -1,3 +1,4 @@
+// 【光芒】の判定と解決
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { notifyHandGained } from "../triggers"

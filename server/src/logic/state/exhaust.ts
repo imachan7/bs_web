@@ -1,3 +1,4 @@
+// スピリット・ネクサスの疲労処理
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
 import { fireFieldEventTriggers, fireTrigger, notifyHandGained } from "../triggers"

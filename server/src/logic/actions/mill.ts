@@ -1,3 +1,4 @@
+// デッキ破棄（mill）アクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
 import { matchesPick } from "./revealAction"
 import type { CardInstance, EffectCounter, GameState, PlayerId } from "../../type"

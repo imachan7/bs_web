@@ -4,6 +4,23 @@
 **R3 の分割1つごとに、その概念の行を足す**（2026-09-26 から書き始めた。まだ全部の種類はそろっていない）。
 関数の置き場は [CODEMAP.md](../CODEMAP.md) を名前で grep する。
 
+## 0. ファイルの置き場と分割のルール（2026-10-15 ユーザー決定。機械的に決めるため）
+
+**置き場は下の表で決まる。** 判断が要らないように、足すものの種類から置き場を引く。表に無い種類が出たら、先に表へ1行足す。
+
+| 足すもの | 置き場 |
+| :-- | :-- |
+| キーワード能力1つ | `server/src/logic/keywords/<名前>.ts` |
+| ゾーン（デッキ・トラッシュ・手札・ライフ…）の操作 | `server/src/logic/zones/<名前>.ts` |
+| EffectAction の type | ACTION_VOCABULARY の分類ごとに `server/src/logic/actions/<分類>.ts` |
+| 型の union／interface 1つ（TargetFilter・TimedContent・PendingChoice…） | `server/src/types/<名前>.ts`（利用側は従来どおり `type.ts` から import。type.ts が再輸出する） |
+| 画面の部品1つ（フェーズ帯・支払いUI・選択ダイアログ…） | `public/src/ui/<部品>.ts` |
+
+- **各ファイルの1行目は、そのファイルの概念を述べるコメント**（`// 〜`）。無いファイルは `validate:size` が落とす。CODEMAP がこの行を索引に載せる
+- 上限は従来どおり 2000行（型ファイルは 120KB）。**分割するときは、切った後の各ファイルを1000行（型は60KB）以下にする**（ぎりぎりで切るとすぐ次の分割が要る）
+- **分割は `scripts/split-file.ts` で行う**（`npx tsx scripts/split-file.ts <元> <先> <名前…>`）。関数・型の移動、import の付け直し（元を import している側も書き換える）、移したものの本体が1文字も変わっていないかの検査、CODEMAP の作り直しまでを1回で行う。手で切らない
+- 分割1つごとに、この文書に移した先の節を足す
+
 ## ブレイヴ（`server/src/logic/brave.ts`）
 
 | 変更の種類 | 触るところ | 手本 | 罠 |

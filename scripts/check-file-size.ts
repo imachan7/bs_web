@@ -28,8 +28,10 @@ function walk(dir: string): string[] {
 const isTypeFile = (p: string): boolean => p === "server/src/type.ts" || p.startsWith("server/src/types/")
 const errors: string[] = []
 const shrunk: string[] = []
+const noConcept: string[] = []
 for (const p of ROOTS.flatMap(walk)) {
     const text = readFileSync(p, "utf8")
+    if (!text.startsWith("//")) noConcept.push(p)
     const size = isTypeFile(p) ? Math.round(Buffer.byteLength(text) / 1024) : text.split("\n").length - (text.endsWith("\n") ? 1 : 0)
     const unit = isTypeFile(p) ? "KB" : "行"
     const limit = isTypeFile(p) ? MAX_TYPE_KB : MAX_LINES
@@ -47,6 +49,8 @@ for (const p of Object.keys(BASELINE)) {
 }
 
 if (shrunk.length > 0) console.log(shrunk.join("\n"))
+// 1行目はそのファイルの概念を述べるコメント（「【転召】の処理はどこか」をファイルを開かずに分かるようにする。設計の2原則の2）
+if (noConcept.length > 0) errors.push(`1行目が // のコメントでないファイル（概念を述べる1行を足すこと）:\n  ${noConcept.join("\n  ")}`)
 if (errors.length > 0) {
     console.error(errors.join("\n"))
     process.exit(1)

@@ -21,13 +21,21 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：分割の道具（ブランチ `chore/split-file-tool`。2026-10-15 ユーザー決定）
+
+ルールは WHERE_TO_ADD §0。道具 `scripts/split-file.ts` の確定仕様：TypeScript の API（typescript 6.0.3）で元ファイルの最上位の宣言（function／const／type／interface／class／enum）を名前で探し、直前に付いたコメントごと先ファイルへ移す（先が無ければ作る）。
+移したものは export にする。先ファイルの import は、移したコードが参照する名前を元ファイルの import／宣言から引いて付ける（元に残る宣言を使うなら元に export を付けて import）。
+元ファイルで移したものをまだ使うなら先から import。**リポジトリ内で元ファイルからその名前を import しているファイルは、先ファイルからの import に書き換える**（再輸出はしない）。不要になった import は言語サービスの organizeImports（RemoveUnused）で消す。
+最後に「移した宣言の本体が元と1文字も一致するか」を検査して、違えば変更を書き戻して失敗する。`tsc --noEmit` と `npm run codemap` を走らせる。`--dry-run` で書かずに移す計画だけ出す。
+あわせて `validate:size` に「1行目が `//` コメントでないファイルを落とす」を足し、いま無い19ファイルに1行目を足す。
+次：道具ができたら基準超えの5本（type.ts・types/effectDef.ts・triggers.ts・public/src/main.ts・renderer.ts）を §0 の表に従って切る。そのあと 7（カバレッジの計測を1行呼び出しの方式にする）
+
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
 `~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。
 索引は standard の `docs/legacy-port` ブランチの `docs/design/LEGACY_PORT.md`（`git -C ~/develop/bs_web_standard show docs/legacy-port:docs/design/LEGACY_PORT.md`）。
 - **ソウルコアは常に無効**（`createGame` で `soulCore: null`）。有効にする条件は未決：場にあるだけで旧カードの裁定（ボイド行き・【転召】の対象など）が変わるため、烈火伝などを取り込むときに決める
 - **第2メインステップは入口だけ閉じた**（`PhaseManager.ts` の `SECOND_MAIN_STEP = false`）。周りのコードは残っている
-- 効果の召喚が無償の旧カード3枚（BS08-013・BS10-084・BS08-059。「支払わずに」と書いていない）は直していない。旧カードの時代の裁定を確認してから
 - 26系カードのデータを読む smoke 76パートは持ち込んでいない（データが非公開）。26系だけの action 16種は `validate:cards` の `STANDARD_POOL_ONLY`
 - **この先の standard 側のエンジン修正は自動では入らない**。旧カードにも効く直しは、そのつど持ち込む
 
@@ -84,7 +92,7 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 ### 「〜することで」の確認関門は一区切り（2026-10-02。#230〜#246）
 
 規則・実装・既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10 末尾。移行の手順表は PAY_MIGRATION_RECIPES、残した例外は COST_MODEL §10。
-**残り**：`validate:cards` に「効果文に『ことで』がある節は pay か確認関門を通す器に対応している」の検査を足す（未着手）
+「ことで」の数だけ関門があるかの検査は #248 で `validate:cards` に入っている（`scripts/payGateCheck.ts`）
 
 ### M2 `if` は器 PR 1〜5 まで済み
 

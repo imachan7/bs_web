@@ -1,3 +1,4 @@
+// マジックの使用（コスト支払いから解決まで）
 import type { CardData, Color, GameState, PlayerId, EffectAction, PaySource, PendingChoice, EffectDef } from "../../type"
 import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
 import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard } from "../../../../shared/cost"
