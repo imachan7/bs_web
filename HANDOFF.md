@@ -21,13 +21,15 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15 ユーザー決定）
+### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
-手順は `~/develop/bs_web_standard` の `docs/legacy-port` ブランチの `docs/design/LEGACY_PORT.md` §2（`git -C ~/develop/bs_web_standard show docs/legacy-port:docs/design/LEGACY_PORT.md`）。
-standard の `server/src`・`shared`・`public/src`・`scripts/smoke` と `data/cards-archive`→`data/cards` を上書きし、旧版の #260〜#265 を当て直す（smoke part486〜491 は standard の番号と衝突するので 583〜 に振り直す）。
-- **ソウルコアは旧版の対戦では当面常に無効**（`soulCore: null`）。デッキで判定する案は、場にあるだけで他の旧カードの裁定が変わる問題が未解決なので見送り（2026-10-15）
-- 第2メインステップは入れない。カードプールの切り替え（`cardPool.ts`）と検索よけは持ち込まない
-- 効果の召喚が無償の旧カード3枚（BS08-013・BS10-084・BS08-059）は直さず、報告のみ（LEGACY_PORT §4-2）
+`~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。
+索引は standard の `docs/legacy-port` ブランチの `docs/design/LEGACY_PORT.md`（`git -C ~/develop/bs_web_standard show docs/legacy-port:docs/design/LEGACY_PORT.md`）。
+- **ソウルコアは常に無効**（`createGame` で `soulCore: null`）。有効にする条件は未決：場にあるだけで旧カードの裁定（ボイド行き・【転召】の対象など）が変わるため、烈火伝などを取り込むときに決める
+- **第2メインステップは入口だけ閉じた**（`PhaseManager.ts` の `SECOND_MAIN_STEP = false`）。周りのコードは残っている
+- 効果の召喚が無償の旧カード3枚（BS08-013・BS10-084・BS08-059。「支払わずに」と書いていない）は直していない。旧カードの時代の裁定を確認してから
+- 26系カードのデータを読む smoke 76パートは持ち込んでいない（データが非公開）。26系だけの action 16種は `validate:cards` の `STANDARD_POOL_ONLY`
+- **この先の standard 側のエンジン修正は自動では入らない**。旧カードにも効く直しは、そのつど持ち込む
 
 **BS14「覇王編 第1弾：英雄龍の伝説」121種は完了**（2026-09-13。gaps 0件・smoke part313〜323）。
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
@@ -54,7 +56,7 @@ standard の `server/src`・`shared`・`public/src`・`scripts/smoke` と `data/
    R5 の終わりの基準のもう1つ（M2・M3・M4 の残り）は REFACTOR_PLAN §2.2 の表で確かめてから、BS16 の黄・青（手順5）へ
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
 5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装（`feat/bs16-yellow-blue`）。測定は REFACTOR_PLAN §0.1。残りは 045 Lv3（何が足りないかは BS16_BATCH3 の効果節の段落）と、「効果で複数体を同時に召喚したら召喚は1回」（BS16_PLAN §2.4 の ⚠️。009・044・X05）
-6. R3 の残り（`validate:size` の据え置き1本：type.ts（**残り14バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
+6. R3 の残り（`validate:size` の据え置き5本。持ち込みで type.ts 222KB・effectDef.ts・triggers.ts・main.ts・renderer.ts が基準超え）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
@@ -73,7 +75,7 @@ standard の `server/src`・`shared`・`public/src`・`scripts/smoke` と `data/
 回答待ち：④セイ・ドリガンの「このステップの最初に」（今は「そのターンの間、可能ならアタック」。案＝義務がある間は他のスピリットでアタックできず、最初のアタック宣言で消える。直すかを確認中）。
 クロスシザース（指定は必須）・ベトール等の【装甲】・コストの時点は 2026-10-08 に決着（#261）
 
-### R4 の残り（type.ts 211KB）
+### R4 の残り（type.ts 222KB）
 
 effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**その委譲1体で5時間枠を約25ポイント使った**（「分けて sed で読め」と指示したのに Read で大きな範囲を読み、文脈29万トークン）。
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
