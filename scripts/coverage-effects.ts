@@ -1453,10 +1453,10 @@ ${recAt("            ")}            total += effect.amount`,
             path.join(lg, "triggers.ts"),
             `e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
-        if (player.reserve < minLevelCores(getCard(cardId))) continue`,
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue`,
             `e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
-        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
 ${recAt("        ")}`.trimEnd(),
         )
         patch(
@@ -1751,9 +1751,9 @@ ${recAt("    ")}
         patch(
             path.join(tree, "server/src/logic/removal.ts"),
             `        // 維持コアを置けないなら召喚できないので、確認自体を出さない
-        if (player.reserve < minLevelCores(getCard(cardId))) continue`,
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue`,
             `        // 維持コアを置けないなら召喚できないので、確認自体を出さない
-        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
         __covRecord("cont\\t" + String((effect as unknown as Record<string, unknown>)["__eid"] ?? "?"))`,
         )
         // jugekiCoreToVoid（BS04魔影街Lv1）：実際にコアをボイドへ置いた時点

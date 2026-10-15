@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { summonSurcharge } from "../../../../shared/cost"
 import { recordLifeLost } from "../record"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
@@ -509,6 +510,7 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, raw
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」
             summonedBy: action.summonedBy ?? "freeEffect",
+            surchargeBatch: true as const,
         }
         // bravesOnly召喚の合体先選択（ダイレクトブレイヴ／スピリット状態）。2026-08-28 ユーザー指示：
         // 効果からのブレイヴ召喚は常にこの選択方式にする。候補はshared/summon.tsのbraveCombineCandidates
@@ -990,7 +992,7 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
                 const maintain = minLevelCores(candidate)
                 const need =
                     action.mode === "free"
-                        ? maintain + (action.extraReserveCostPerSummon ?? 0)
+                        ? maintain + (action.extraReserveCostPerSummon ?? 0) + summonSurcharge(state, owner, candidate)
                         : maintain + effectiveCost(state, owner, candidate)
                 if (need < bestReserveNeed) {
                     bestReserveNeed = need
@@ -1005,10 +1007,10 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
             player.hand.splice(bestIndex, 1)
             if (action.mode === "free") {
                 player.reserve -= maintain
-                if (action.extraReserveCostPerSummon) {
-                    player.reserve -= action.extraReserveCostPerSummon
-                    player.trashCores += action.extraReserveCostPerSummon
-                }
+                // 1体ずつ別々の召喚なので、転召の祭壇などの余分も1体ごとに払う（2026-10-15）
+                const extra = (action.extraReserveCostPerSummon ?? 0) + summonSurcharge(state, owner, card)
+                player.reserve -= extra
+                player.trashCores += extra
             } else {
                 const cost = effectiveCost(state, owner, card)
                 player.reserve -= cost + maintain

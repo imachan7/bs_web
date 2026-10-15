@@ -42,6 +42,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `exSymbolsOfTrashCard`（fn）：除外するトラッシュのカードのEXシンボルの色。もともとEXなら全シンボル、指定で扱うだけなら指定した1つ
 - `selfSetCost`（fn）：「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
 - `effectiveCost`（fn）
+- `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
 
 ## shared/magicCondition.ts
 
@@ -762,6 +763,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 - `summonFromHandFreeCandidateMatches`（fn）
+
+## server/src/logic/summonSurcharge.ts
+
+- `canPayFreeSummonSurcharge`（fn）：余分に加えて、続けて置くコア（extraNeeded）もリザーブで賄えるか。支払い元はリザーブのみ（簡略化。2026-10-15）
+- `payFreeSummonSurcharge`（fn）：払えたら true（余分が無い・同じ召喚で払済みも true）。払えないときは何も動かさず false
 
 ## server/src/logic/targeting.ts
 

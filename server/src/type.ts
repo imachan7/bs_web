@@ -1054,6 +1054,7 @@ export interface GameState {
     // **非対話（テスト・自動解決）ではセットされず、従来どおり払える限り自動で払う**
     payNegateDecision?: { targetInstanceId: string; paid: boolean }
     meisaiPaidFor?: string // 【迷彩】の支払いを選択で済ませた対象（tryMeisaiToll が1回だけ読んで消す）
+    summonSurchargePaid?: string // 無償召喚で転召の祭壇などの余分を払った「効果の記録枠:召喚者」（同時召喚は1回。logic/summonSurcharge.ts）
     // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の答え。
     // **keepPid が対象として残る側**（null＝変更しない＝両陣営のまま）。魔導書の持ち主とマジックの使用者は
     // 別人でありうる（『自分のターン』中に相手がフラッシュで使った場合）ので、

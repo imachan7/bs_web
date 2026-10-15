@@ -591,6 +591,29 @@
       "fillTo": 5
      }
     }
+   },
+   {
+    "id": "BS16-045-e2",
+    "kind": "effectGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "オリンピア",
+    "granted": {
+     "trigger": "onBattleStart",
+     "action": {
+      "type": "timedEffect",
+      "all": true,
+      "content": [
+       {
+        "type": "level",
+        "set": 1
+       }
+      ],
+      "duration": "battle"
+     }
+    }
    }
   ]
  },

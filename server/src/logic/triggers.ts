@@ -8,6 +8,7 @@
 // あちらは fireTrigger / resolveMagic 等を使う）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type {
@@ -254,7 +255,6 @@ export function fireSummonTrigger(
         if (outer !== undefined && state.summonEffectSource === undefined) state.summonEffectSource = outer
     }
 }
-
 
 // 「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
 export function revertOncePerTurn(state: GameState, inst: CardInstance, effectId: string): void {
@@ -1966,7 +1966,7 @@ function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: PlayerId): v
         if (cardId === undefined) continue
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
-        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,

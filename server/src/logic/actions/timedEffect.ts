@@ -247,7 +247,8 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
 function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName } = ctx
-    if (action.duration !== "turn") {
+    // バトル期間のルールとして置けるのは Lv の置き換えだけ（ほかの content は期間切れの扱いを確かめていない）
+    if (action.duration !== "turn" && !action.content.some((c) => c.type === "level")) {
         log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)
         return
     }
@@ -273,12 +274,12 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         recordTimed(state, {
             content: action.content,
             target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
-            until: "turn",
+            until: bpUntil(action),
             ownerPid: owner,
         })
         const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
         const lv = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")!
-        log(state, `${sourceName}：このターンの間、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
+        log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
         return
     }
     recordTimed(state, {

@@ -1,5 +1,6 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import { exSymbolsOfTrashCard, selfSetCost } from "../../../shared/cost"
+import { payFreeSummonSurcharge } from "./summonSurcharge"
+import { exSymbolsOfTrashCard, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
@@ -133,6 +134,7 @@ export function handleAction(
     // 【迷彩】の「支払い済み」の目印は、払った効果の解決が（対象選択などの中断も含めて）終わるまで持つ。
     // 支払いで候補が変わって別の対象を選んだ場合も、ここで消えるので次の効果に持ち越さない
     if (!state.pendingChoice) delete state.meisaiPaidFor
+    if (!state.pendingChoice) delete state.summonSurchargePaid
     // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
     // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
     flushRevealedCardsIfIdle(state)
@@ -553,7 +555,7 @@ function doSummon(
     }
     const cost = Math.max(
         0,
-        (altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card, false, exReductionSymbols)) -
+        (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
             shinsokuDiscount,
     )
     // 「〜ならコストNにする。同じカード名でターンに1回」：この注記のコストで召喚したら1回と数える
@@ -673,6 +675,8 @@ function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number)
     if (soulCoreInTrash(player)) moveSoulCore(player, { zone: "reserve" })
     const total = player.trashCores
     player.trashCores = 0
+    // 無償でも相手の転召の祭壇などの余分は払う。配り直すコアに混ざらないよう、トラッシュを空にした後にリザーブから（払えるかは validate 済み）
+    payFreeSummonSurcharge(state, pid, getCard(cardId))
     const info: ResshinsokuInfo = { handIndex, cardId, remaining: total, selfCores: 0 }
     // 非対話（AI・自動応答）は全部このスピリットに置く（2026-09-22 ユーザー確定）
     if (!state.interactiveTargets) {
