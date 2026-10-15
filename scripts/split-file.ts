@@ -1,5 +1,6 @@
 // ファイル分割の道具（設計の2原則の2）。最上位の宣言を名前で指定して別ファイルへ移し、import を直す。
-// 使い方: npx tsx scripts/split-file.ts <元ファイル> <先ファイル> <名前…> [--dry-run]
+// 使い方: npx tsx scripts/split-file.ts <元ファイル> <先ファイル> <名前…> [--dry-run] [--reexport]
+// --reexport：利用側の import は書き換えず、元ファイルから再輸出する（型を types/ へ出すとき。利用側は type.ts から import する約束のため）
 // 限界: default export・`export { X }` 形の別置き・動的 import／import() 型・名前空間 import 経由の参照は扱わない（tsc が落ちるので手で直す）。
 //       同名の関数オーバーロードはまとめて移す。移したコードの参照解決は識別子の文字列一致（影に隠れた名前は余分な import になり、organizeImports が消す）。
 import { spawnSync } from "node:child_process"
@@ -104,7 +105,8 @@ function importInsertPos(text: string, sf: ts.SourceFile): { pos: number; prefix
 function main(): number {
     const args = process.argv.slice(2)
     const dry = args.includes("--dry-run")
-    const [srcArg, dstArg, ...names] = args.filter((a) => a !== "--dry-run")
+    const reexport = args.includes("--reexport")
+    const [srcArg, dstArg, ...names] = args.filter((a) => a !== "--dry-run" && a !== "--reexport")
     if (!srcArg || !dstArg || names.length === 0) {
         console.error("使い方: npx tsx scripts/split-file.ts <元ファイル> <先ファイル> <名前…> [--dry-run]")
         return 1
@@ -176,6 +178,17 @@ function main(): number {
     const fromSrc = [...new Set(exportedNow)].filter((n) => !dstHave.has(n))
     if (fromSrc.length > 0) dstImports.push(`import { ${fromSrc.join(", ")} } from "${specFor(dst, src, srcStyle)}"`)
 
+    if (reexport) {
+        const ip = importInsertPos(srcText, sf)
+        const isType = (s: ts.Statement) => ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s)
+        const typeNames = moved.filter(isType).flatMap(declNames)
+        const valueNames = moved.filter((s) => !isType(s)).flatMap(declNames)
+        const lines = [
+            ...(typeNames.length > 0 ? [`export type { ${typeNames.join(", ")} } from "${specFor(src, dst, srcStyle)}"`] : []),
+            ...(valueNames.length > 0 ? [`export { ${valueNames.join(", ")} } from "${specFor(src, dst, srcStyle)}"`] : []),
+        ]
+        srcEdits.push({ pos: ip.pos, end: ip.pos, text: ip.prefix + lines.join("\n") })
+    }
     if (stillUsed.length > 0) {
         const ip = importInsertPos(srcText, sf)
         srcEdits.push({ pos: ip.pos, end: ip.pos, text: `${ip.prefix}import { ${stillUsed.join(", ")} } from "${specFor(src, dst, srcStyle)}"` })
@@ -201,7 +214,7 @@ function main(): number {
     // 利用側の import を先へ向ける
     const contents = new Map<string, string>([[src, applyEdits(srcText, srcEdits)], [dst, newDst]])
     const consumerFiles: string[] = []
-    for (const f of ROOTS.flatMap(walk).map((p) => resolve(p))) {
+    for (const f of reexport ? [] : ROOTS.flatMap(walk).map((p) => resolve(p))) {
         if (f === src || f === dst) continue
         const text = readFileSync(f, "utf8")
         if (!text.includes(basename(stripExt(src)))) continue

@@ -283,11 +283,12 @@ const FILTER_ACTIONS = new Set([
     "destroy", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "timedEffect",
 ])
 
-// TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
-// server/src/type.ts の TargetFilter の宣言から軸名を読む（手で並べると軸の追加に追従できない）
+// TargetFilter の宣言から軸名を読む（手で並べると軸の追加に追従できない）。宣言が見つからなければ落とす（ファイルを移したときに黙って空にならないため）
 const VALID_FILTER_KEYS = (() => {
-    const src = fs.readFileSync(path.resolve(__dirname, "..", "server", "src", "type.ts"), "utf-8")
-    const body = src.slice(src.indexOf("export interface TargetFilter {"))
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "server", "src", "types", "targetFilter.ts"), "utf-8")
+    const at = src.indexOf("export interface TargetFilter {")
+    if (at === -1) throw new Error("validate-cards: types/targetFilter.ts に TargetFilter の宣言が見つかりません")
+    const body = src.slice(at)
     const block = body.slice(0, body.indexOf("\n}"))
     return new Set([...block.matchAll(/^ {4}(\w+)\??:/gm)].map((m) => m[1]!))
 })()

@@ -13,7 +13,7 @@
 | キーワード能力1つ | `server/src/logic/keywords/<名前>.ts` |
 | ゾーン（デッキ・トラッシュ・手札・ライフ…）の操作 | `server/src/logic/zones/<名前>.ts` |
 | EffectAction の type | ACTION_VOCABULARY の分類ごとに `server/src/logic/actions/<分類>.ts` |
-| 型の union／interface 1つ（TargetFilter・TimedContent・PendingChoice…） | `server/src/types/<名前>.ts`（利用側は従来どおり `type.ts` から import。type.ts が再輸出する） |
+| 型の union／interface 1つ（TargetFilter・TimedContent・PendingChoice…）。**5KB 以上のもの** | `server/src/types/<名前>.ts`（利用側は従来どおり `type.ts` から import。type.ts が再輸出する＝`split-file.ts --reexport`）。5KB 未満は type.ts に置く |
 | 画面の部品1つ（フェーズ帯・支払いUI・選択ダイアログ…） | `public/src/ui/<部品>.ts` |
 
 - **各ファイルの1行目は、そのファイルの概念を述べるコメント**（`// 〜`）。無いファイルは `validate:size` が落とす。CODEMAP がこの行を索引に載せる
