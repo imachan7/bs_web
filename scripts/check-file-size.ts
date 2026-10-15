@@ -11,7 +11,6 @@ const MAX_TYPE_KB = 120
 // 基準を超えていたもの（行数、型ファイルは KB）。分割して基準を下回ったら、ここから消す。
 // type.ts 以外は 2026-10-15 に bs_web_standard から持ち込んだ時点の値（持ち込み元で既に超えていた）
 const BASELINE: Record<string, number> = {
-    "server/src/type.ts": 222,
     "server/src/types/effectDef.ts": 139,
     "server/src/logic/triggers.ts": 2094,
     "public/src/main.ts": 2179,

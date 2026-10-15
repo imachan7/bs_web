@@ -843,37 +843,43 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BraveCondition`（型）
 - `PaySource`（型）：コスト支払い時に使うコアの割り当て（自分のスピリット上またはネクサス上のコア）
 - `FamilyFilter`（型）：系統フィルタ：単一文字列 or 配列（配列＝いずれかの系統を持てばよいOR条件）。
-- `TargetFilter`（型）：---- 対象選択の絞り込み軸（TargetFilter） ----
 - `ResolvedTargetFilter`（型）：normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。
-- `EffectCounter`（型）：効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
 - `TriggerEvent`（型）：誘発イベント（data.md 5.1 のイベント層）。
-- `FieldEvent`（型）：フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
-- `Keyword`（型）：キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
-- `AuraCounter`（型）：常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
-- `AuraCondition`（型）：常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
-- `AuraDef`（型）：常時BP修正の定義
 - `GameEvent`（型）：クライアント演出用のゲームイベント（アクション単位の一時データ）。
 - `EndStepLock`（型）：ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
-- `ConstraintDef`（型）
-- `GlobalConstraintDef`（型）：フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 - `DestroyContext`（型）：破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 - `CardData`（型）：効果定義（kind による判別ユニオン）。
-- `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
 - `SoulCoreLocation`（型）：ソウルコアの居場所（docs/design/SOULCORE.md）。**コアの数値（reserve/trashCores/inst.cores）には含めない**
-- `PlayerState`（型）：プレイヤーの状態
 - `BattleState`（型）：バトル（アタック〜解決まで）の状態
-- `GameState`（型）：ゲーム全体の状態（サーバーで一元管理）
-- `TimedContent`（型）：期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
 - `TimedRecord`（型）：期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
 - `PlayerRuleDef`（型）：プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）
 - `PlayerView`（型）
 - `GameView`（型）
-- `GameAction`（型）
+
+## server/src/types/auraCondition.ts
+
+- `AuraCondition`（型）：常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
+
+## server/src/types/auraCounter.ts
+
+- `AuraCounter`（型）：常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
+
+## server/src/types/auraDef.ts
+
+- `AuraDef`（型）：常時BP修正の定義
+
+## server/src/types/cardInstance.ts
+
+- `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
 
 ## server/src/types/choice.ts
 
 - `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 - `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
+
+## server/src/types/constraintDef.ts
+
+- `ConstraintDef`（型）
 
 ## server/src/types/effectAction.ts
 
@@ -881,10 +887,46 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
 - `EffectAction`（型）
 
+## server/src/types/effectCounter.ts
+
+- `EffectCounter`（型）：効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
+
 ## server/src/types/effectDef.ts
 
 - `EffectDef`（型）
 - `MagicCondition`（型）：マジックの条件（判定は shared/magicCondition.ts）
+
+## server/src/types/fieldEvent.ts
+
+- `FieldEvent`（型）：フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
+
+## server/src/types/gameAction.ts
+
+- `GameAction`（型）
+
+## server/src/types/gameState.ts
+
+- `GameState`（型）：ゲーム全体の状態（サーバーで一元管理）
+
+## server/src/types/globalConstraint.ts
+
+- `GlobalConstraintDef`（型）：フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
+
+## server/src/types/keyword.ts
+
+- `Keyword`（型）：キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
+
+## server/src/types/playerState.ts
+
+- `PlayerState`（型）：プレイヤーの状態
+
+## server/src/types/targetFilter.ts
+
+- `TargetFilter`（型）：---- 対象選択の絞り込み軸（TargetFilter） ----
+
+## server/src/types/timedContent.ts
+
+- `TimedContent`（型）：期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
 
 ## public/src/cardArt.ts
 
