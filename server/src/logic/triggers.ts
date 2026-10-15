@@ -1423,7 +1423,7 @@ export function fireFieldEventTriggers(
         const level = currentLevel(inst).level
         for (const effect of card.effects) {
             if (effect.kind !== "fieldEvent") continue
-            if (effect.event !== event) continue
+            if (effect.event !== event || (event === "ownTensho" && inst.noOnSummon)) continue
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             // selfOnly：発生源自身が破壊されたときだけ（ownSpiritDestroyed 限定。BS13-010 スカルザード）

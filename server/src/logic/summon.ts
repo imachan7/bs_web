@@ -177,6 +177,7 @@ export function summonFreeFromHandIndex(
     player.reserve -= maintain - placedFromField
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
+    if (opts?.skipOnSummon) inst.noOnSummon = true
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
     const braveHost =
@@ -266,6 +267,7 @@ export function summonFreeFromTrashIndex(
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
+    if (opts?.skipOnSummon) inst.noOnSummon = true
     player.field.spirits.push(inst)
     // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
     if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true

@@ -363,6 +363,7 @@ export function applyFushiSummon(
     // 維持コアはリザーブからスピリットの上へ（無償召喚でも通常どおり要る）
     player.reserve -= maintain - placedFromField
     const inst = createInstance(info.cardId, state.turn, maintain)
+    if (freeNexus) inst.noOnSummon = true
     player.field.spirits.push(inst)
     log(
         state,

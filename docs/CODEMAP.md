@@ -319,7 +319,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
 - `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
 - `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す。
+- `ResshinsokuInfo`（型）：【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
 - `applyResshinsokuDestination`（fn）：distributeCores の選択を1件適用し、残りがあれば続けて聞く
+- `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで、実際にスピリットを場に出す。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 - `COUNT_IS_BODIES`（const）：count が「対象の**体数**」を表すアクション。ここに挙げたものだけを
 - `exhaustBlockToll`（fn）

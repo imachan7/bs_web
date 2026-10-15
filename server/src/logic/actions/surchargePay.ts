@@ -2,6 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../summon"
 import { applyFushiSummon, applySpiritMillFreeSummon } from "../revive"
+import { finishResshinsokuSummon } from "../GameEngine"
 
 const summonFreeIndexInternalHandler: ActionHandler<"summonFreeIndexInternal"> = (ctx, action) => {
     const { state, owner, sourceName } = ctx
@@ -31,7 +32,12 @@ const trashSummonPaidInternalHandler: ActionHandler<"trashSummonPaidInternal"> =
     else applyFushiSummon(ctx.state, { ...info, ...(action.freeNexusInstanceId !== undefined ? { freeNexusInstanceId: action.freeNexusInstanceId } : {}) }, action.via === "fushiFree" ? true : undefined, true)
 }
 
+const resshinsokuFinishInternalHandler: ActionHandler<"resshinsokuFinishInternal"> = (ctx, action) => {
+    finishResshinsokuSummon(ctx.state, ctx.owner, { handIndex: action.handIndex, cardId: action.cardId, remaining: 0, selfCores: action.selfCores }, true)
+}
+
 const handlers = {
+    resshinsokuFinishInternal: resshinsokuFinishInternalHandler,
     summonFreeIndexInternal: summonFreeIndexInternalHandler,
     trashSummonPaidInternal: trashSummonPaidInternalHandler,
 } satisfies Partial<ActionRegistry>

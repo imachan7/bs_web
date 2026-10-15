@@ -66,7 +66,7 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         }
         for (const i of [...idx].sort((a, b) => b - a)) player.hand.splice(i, 1)
         player.reserve -= t.keep - placed
-        const insts = cards.map((id) => createInstance(id, state.turn, minLevelCores(getCard(id))))
+        const insts = cards.map((id) => ({ ...createInstance(id, state.turn, minLevelCores(getCard(id))), noOnSummon: true as const }))
         player.field.spirits.push(...insts)
         log(state, `${player.name}は${sourceName}の効果で「${cards.map((id) => getCard(id).name).join("、")}」をコスト${t.cost}を支払い召喚した。（このスピリットの召喚時効果は発揮されない）`)
         // 【転召】は無償召喚でも必ず行う（公式Q&A 2024-10-31）。対象は支払いの前に選んである
@@ -81,12 +81,12 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         runTensho(rest)
     }
 
-    // 【転召】の候補（召喚前の場から。破壊待機の個体と、同じ効果で先に選んだ対象は除く）
+    // 【転召】の候補（召喚前の場から。同じ効果で先に選んだ対象は除く。破壊待機の個体も対象にできる＝TIMING_CHART「【転召】との相互作用」）
     const tenshoCands = (cardId: string, taken: (string | null)[]): string[] | null => {
         const spec = tenshoSpecOf(getCard(cardId), 1)
         if (!spec) return null
         return tenshoCandidates(state, owner, spec.minCost, undefined, spec.familyFilter)
-            .filter((s) => !s.pendingDestruction && !taken.includes(s.instanceId))
+            .filter((s) => !taken.includes(s.instanceId))
             .map((s) => s.instanceId)
     }
     // 次に対象を選ぶカードまで自動で埋める（転召なし・候補0〜1・非対話）。全部埋まったら true

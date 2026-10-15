@@ -98,7 +98,7 @@ scenario({
     expect: [...BATTLE_ANT, "自分.トラッシュ: なし → 兵隊アントマン", ...arrives("マッハフライ", 2000), "自分.手札: マッハフライ → なし", "自分.リザーブ: 1 → 0", "自分.トラッシュのコア: 0 → 2"],
 })
 
-console.log("=== B. 【転召】持ちの怪虫 → 決定の後・支払いの前に転召で使うスピリットを選ぶ（候補はFLYとSRCの2体。アントマンは候補外） ===")
+console.log("=== B. 【転召】持ちの怪虫 → 決定の後・支払いの前に転召で使うスピリットを選ぶ（破壊待機のアントマンも候補＝TIMING_CHART「【転召】との相互作用」） ===")
 // QUEENのコスト 5-3(アントマン・FLY・SRCの緑)=2。リザーブ 10+2-2-1=9。FLYを選ぶと1コアすべてトラッシュへ→維持コアを割って消滅
 scenario({
     name: "ant-tensho-choose",
@@ -114,8 +114,8 @@ scenario({
         chooseHand(t, [0])
         const pc = t.state.pendingChoice as any
         assert(pc?.pid === t.me && pc.kind === "target" && !pc.effectCostPay, "「決定」の直後は支払いでなく転召の対象を選ぶ待ちが出る")
-        assert(pc.candidates.length === 2 && pc.candidates.includes(t.id("マッハフライ")) && pc.candidates.includes(t.id("エメアント")), "候補はFLYとSRCの2体")
-        assert(!pc.candidates.includes(t.id("兵隊アントマン")), "破壊待機のアントマンは候補に入らない")
+        assert(pc.candidates.length === 3 && pc.candidates.includes(t.id("マッハフライ")) && pc.candidates.includes(t.id("エメアント")), "候補はFLY・SRC・アントマンの3体")
+        assert(pc.candidates.includes(t.id("兵隊アントマン")), "破壊待機のアントマンも候補に入る")
         t.act("me", { type: "resolveChoice", instanceId: t.id("マッハフライ") })
         const r = drive(t, null)
         assert(r.sawCostPay, "転召の対象を選んだあとに支払い待ちが出る")
@@ -131,13 +131,13 @@ scenario({
     ],
 })
 
-console.log("=== B2. 転召の候補が1体だけなら選ばせず自動 ===")
+console.log("=== B2. 転召の候補が破壊待機のアントマン1体だけ → 選ばせず自動。アントマンのコアがトラッシュへ置かれ、破壊待機のままトラッシュへ ===")
 scenario({
     name: "ant-tensho-auto",
     mirror: false,
     start: {
         turn: "opp", phase: "attack", interactive: true,
-        me: { reserve: 10, hand: [QUEEN], spirits: [{ card: ANT, cores: 2 }, { card: FLY, cores: 1 }] },
+        me: { reserve: 10, hand: [QUEEN], spirits: [{ card: ANT, cores: 2 }] },
         opp: { spirits: [{ card: BOSS, cores: 1 }] },
     },
     steps(t) {
@@ -148,15 +148,15 @@ scenario({
         assert(!(pc?.kind === "target"), "候補が1体なら転召の対象を選ばせない")
         drive(t, null)
     },
-    // QUEENのコスト 5-2(アントマン・FLY)=3。リザーブ 10+2-3-1=8
+    // QUEENのコスト 5-1(アントマン)=4。リザーブ 10-4-1=5。アントマンの2コアは転召でトラッシュへ（リザーブには戻らない）。
+    // QUEENの「アントマンで転召したとき」は『召喚時』の一部なので、召喚時効果が発揮されないこの召喚では起きない
     expect: [
         ...BATTLE_ANT,
         ...arrives("女王アントレーヌ", 4000),
         "自分.手札: 女王アントレーヌ → なし",
-        "自分.マッハフライ.場所: フィールド → なし",
-        "自分.トラッシュ: なし → マッハフライ、兵隊アントマン",
-        "自分.リザーブ: 10 → 8",
-        "自分.トラッシュのコア: 0 → 4",
+        "自分.トラッシュ: なし → 兵隊アントマン",
+        "自分.リザーブ: 10 → 5",
+        "自分.トラッシュのコア: 0 → 6",
     ],
 })
 
