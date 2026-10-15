@@ -719,15 +719,18 @@ export function findUnusedActions(cards: CardData[]): string[] {
 //     → 『自分のアタックステップ』限定が効かず常時発揮（テストもその状態を固定していた）
 // type.ts を正として読むので、型を直せば検査も自動で追随する（陳腐化しない）。
 export function findUndeclaredEffectKeys(cards: CardData[]): { cardId: string; message: string }[] {
-    // EffectDef は 2026-09-12 に type.ts から types/effectDef.ts へ切り出した（type.ts の肥大化対策）
-    const typeSrc = fs.readFileSync(path.resolve(__dirname, "../server/src/types/effectDef.ts"), "utf-8")
-    const start = typeSrc.indexOf("export type EffectDef =")
-    const end = typeSrc.length
-    if (start === -1) {
+    // EffectDef の union は types/effectDef.ts と、2026-10-16 に分けた types/effectDef<分類>.ts にまたがる。全部を読む
+    const typesDir = path.resolve(__dirname, "../server/src/types")
+    const typeSrc = fs
+        .readdirSync(typesDir)
+        .filter((f) => /^effectDef\w*\.ts$/.test(f))
+        .map((f) => fs.readFileSync(path.join(typesDir, f), "utf-8"))
+        .join("\n")
+    if (!typeSrc.includes("export type EffectDef =")) {
         return [{ cardId: "(全体)", message: "types/effectDef.ts の EffectDef を読み取れませんでした（検査を追随させてください）" }]
     }
     const declared = new Map<string, Set<string>>()
-    for (const block of typeSrc.slice(start, end).split("\n    | {")) {
+    for (const block of typeSrc.split("\n    | {")) {
         const kindLine = /kind:\s*("[^"]+"(?:\s*\|\s*"[^"]+")*)/.exec(block)
         if (!kindLine?.[1]) continue
         const keys = new Set<string>()

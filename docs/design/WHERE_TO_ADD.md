@@ -76,6 +76,19 @@
 | 自動で選ぶ規則（AI・非対話） | `pickEnemyCandidates`・`pickEnemyByBp`・`pickEnemyLowestCost` など | — | 対戦者が選ぶべき場面を自動にしていないかは `npm run audit:choices` |
 | 「〜することで」の発動確認 | `requestActivationConfirm` | — | — |
 
+## 効果の定義の型（`server/src/types/effectDef*.ts`。2026-10-16 に分割）
+
+`EffectDef` は `effectDef.ts` の union で、中身を分類ごとの union に分けてある。新しい kind はどれか1つに足す（利用側は従来どおり `type.ts` から `EffectDef` を import する）。
+
+| 分類 | ファイル |
+| :-- | :-- |
+| 事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活・デッキから破棄されたとき…） | `effectDefTrigger.ts` |
+| 場にある間効く継続効果と付与（〜Grant・〜As・抑制・制約） | `effectDefContinuous.ts` |
+| コスト・軽減・支払い方を変えるもの | `effectDefCost.ts` |
+| キーワード・マジック・起動能力・ブロック時のキーワードの置き換え | `effectDef.ts` |
+
+- `validate:cards` の「型に無いキー」の検査は `types/effectDef*.ts` を全部読む。分類のファイルを足すときは名前を `effectDef` で始める
+
 ## 誘発（`server/src/logic/triggers.ts`・`fieldEventTriggers.ts`・`stepTriggers.ts`。2026-10-16 に分割）
 
 | 変更の種類 | 触るところ |

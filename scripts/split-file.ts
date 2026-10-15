@@ -147,6 +147,7 @@ function main(): number {
     const identsMoved = identsOf(moved)
     const remaining = sf.statements.filter((s) => !moved.includes(s))
     const exportedNow: string[] = []
+    const typeNamesInSrc = new Set(remaining.filter((s) => ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s)).flatMap(declNames))
     for (const s of remaining) {
         const ns = declNames(s)
         if (ns.some((n) => identsMoved.has(n)) && !hasModifier(s, ts.SyntaxKind.ExportKeyword)) srcEdits.push({ pos: s.getStart(), end: s.getStart(), text: "export " })
@@ -176,7 +177,7 @@ function main(): number {
         dstImports.push(`import ${typeOnly}${[def, named].filter(Boolean).join(", ")} from "${newSpec}"`)
     }
     const fromSrc = [...new Set(exportedNow)].filter((n) => !dstHave.has(n))
-    if (fromSrc.length > 0) dstImports.push(`import { ${fromSrc.join(", ")} } from "${specFor(dst, src, srcStyle)}"`)
+    if (fromSrc.length > 0) dstImports.push(`import ${fromSrc.every((n) => typeNamesInSrc.has(n)) ? "type " : ""}{ ${fromSrc.join(", ")} } from "${specFor(dst, src, srcStyle)}"`)
 
     if (reexport) {
         const ip = importInsertPos(srcText, sf)
@@ -191,7 +192,8 @@ function main(): number {
     }
     if (stillUsed.length > 0) {
         const ip = importInsertPos(srcText, sf)
-        srcEdits.push({ pos: ip.pos, end: ip.pos, text: `${ip.prefix}import { ${stillUsed.join(", ")} } from "${specFor(src, dst, srcStyle)}"` })
+        const typeOnlyUse = moved.filter((s) => declNames(s).some((n) => stillUsed.includes(n))).every((s) => ts.isTypeAliasDeclaration(s) || ts.isInterfaceDeclaration(s))
+        srcEdits.push({ pos: ip.pos, end: ip.pos, text: `${ip.prefix}import ${typeOnlyUse ? "type " : ""}{ ${stillUsed.join(", ")} } from "${specFor(src, dst, srcStyle)}"` })
     }
 
     // 移すコード（export 付き）

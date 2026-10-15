@@ -21,11 +21,7 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：基準超えの4本を切る（ブランチ `chore/split-oversized-files`。2026-10-16 ユーザー決定）
-
-triggers.ts → `logic/fieldEventTriggers.ts`・`logic/stepTriggers.ts`・`burstConditionMet` は `keywords/burst.ts`。renderer.ts → `public/src/ui/` の fieldCard・hand・tooltip・infoPanels・paying。main.ts → `ui/payInput.ts`・`ui/play.ts`・`ui/lobby.ts`（`init` 1関数が772行あるので main は約1300行で止める＝ユーザー決定 a）。
-effectDef.ts は1回きりのスクリプトで `EffectDef` を `EffectDefTrigger | EffectDefContinuous | …残り` に組み替え（メンバー集合の一致を検査）、`split-file.ts --reexport` で `types/effectDefTrigger.ts`・`types/effectDefContinuous.ts` へ。1本ずつコミット、PR は1本。
-次：そのあと 7（カバレッジの計測を1行呼び出しの方式にする）
+### 次の一手：7（カバレッジの計測を1行呼び出しの方式にする）
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 

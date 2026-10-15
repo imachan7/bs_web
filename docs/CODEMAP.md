@@ -918,6 +918,18 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `EffectDef`（型）
 - `MagicCondition`（型）：マジックの条件（判定は shared/magicCondition.ts）
 
+## server/src/types/effectDefContinuous.ts
+
+- `EffectDefContinuous`（型）
+
+## server/src/types/effectDefCost.ts
+
+- `EffectDefCost`（型）
+
+## server/src/types/effectDefTrigger.ts
+
+- `EffectDefTrigger`（型）
+
 ## server/src/types/fieldEvent.ts
 
 - `FieldEvent`（型）：フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
