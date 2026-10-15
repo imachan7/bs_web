@@ -21,14 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：無償召喚の余分コストと 045 Lv3（ブランチ `fix/free-summon-surcharge`。#267 の上。2026-10-15 ユーザー確認）
-
-- **「コストを支払わずに」召喚でも、転召の祭壇の「1コスト余分に」は払う。同時に複数体召喚するなら1回だけ。払えなければその召喚はできない**（Q3657・Q3718・Q3753・ベルゼビートの Q&A）。
-  余分の額は `shared/cost.ts` の `opponentSummonCostIncrease` を `summonSurcharge` として export。新ファイル `server/src/logic/summonSurcharge.ts` に `canPayFreeSummonSurcharge`／`payFreeSummonSurcharge`（同時の単位＝効果の記録スコープ `currentRecordScope` と pid。払ったら `state.summonSurchargePaid` に控える）。無償召喚の全経路（summon.ts の手札/トラッシュ・revealAction・revive・removal の破棄/ライフ・triggers の手札から・バースト・【烈神速】・altSummon）から呼ぶ。**バースト効果の召喚も余分は払う**（通常のコストは払わない＝BURST.md §85 とは別の話。2026-10-15 ユーザー確認）。余分の払い元は自動支払いと同じ（リザーブ優先・維持コアは残す）、払う順はコストの支払い→コアの配置
-- **『バトル時』は既存どおりアタック時／ブロック時**（`onBattleStart`）。045 Lv3＝`effectGrant{nameIncludes:"オリンピア", granted:{trigger:"onBattleStart", action:{timedEffect all:true content:[{type:"level",set:1}] duration:"battle"}}}`。
-  足す部品は「全体のLvの置き換え記録の期間を duration に従わせる」だけ（`timedEffect.ts` の rule の level が `until:"turn"` 固定）
-- smoke：①期待値役が part589（045）・part590（余分コスト）を書く → ②実装役
-
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
 `~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。
@@ -63,7 +55,7 @@
 3. **次の一手**：R5_TRIAGE §1「まとめる」と §4「要相談」は 09-28 で一区切り（進み具合の表。残したものは §3「固有」と、M8 の決定で入口として残す G-existingContent・イリテバン・`millUntilMagicCastFree`・音鳥クルーク）。
    R5 の終わりの基準のもう1つ（M2・M3・M4 の残り）は REFACTOR_PLAN §2.2 の表で確かめてから、BS16 の黄・青（手順5）へ
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
-5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装（`feat/bs16-yellow-blue`）。測定は REFACTOR_PLAN §0.1。残りは 045 Lv3（何が足りないかは BS16_BATCH3 の効果節の段落）と、「効果で複数体を同時に召喚したら召喚は1回」（BS16_PLAN §2.4 の ⚠️。009・044・X05）
+5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装。045 Lv3 と「効果で複数体を同時に召喚したら召喚は1回」は 10-15 に済み（COST_MODEL §11）
 6. R3 の残り（`validate:size` の据え置き5本。持ち込みで type.ts 222KB・effectDef.ts・triggers.ts・main.ts・renderer.ts が基準超え）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 

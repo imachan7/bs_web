@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
 import type { CardInstance, CardType, Color, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
@@ -637,7 +638,7 @@ export function tryFreeSummonOnHandDiscard(
     if (!effect) return false
     const player = state.players[targetPid]
     // 維持コアを置けないなら召喚できない
-    if (player.reserve < minLevelCores(getCard(cardId))) return false
+    if (!canPayFreeSummonSurcharge(state, targetPid, getCard(cardId), minLevelCores(getCard(cardId)))) return false
     const index = player.trashCards.lastIndexOf(cardId)
     if (index === -1) return false
     if (state.interactiveTargets) {
@@ -679,7 +680,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
         // この関数はライフが減った**後**に呼ばれるので、減った後のライフで判定される
         if (effect.condition && player.life > effect.condition.ownLifeAtMost) continue
         // 維持コアを置けないなら召喚できないので、確認自体を出さない
-        if (player.reserve < minLevelCores(getCard(cardId))) continue
+        if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,

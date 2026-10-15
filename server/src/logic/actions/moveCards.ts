@@ -3,6 +3,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./ty
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
 import { fchangeCostAs } from "../summon"
+import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { canDiscardHand, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
@@ -113,7 +114,7 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const player = state.players[pid]
     const card = getCard(cardId)
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo) : player.reserve >= minLevelCores(card)
+    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo) : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
     if (action.dest === "cast") return action.pay === "cost" ? player.reserve >= effectiveCost(state, pid, card) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(player).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
     return player.reserve >= minLevelCores(card)
@@ -147,6 +148,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
             ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             summonedBy: action.summonedBy ?? "freeEffect",
+            surchargeBatch: true,
         })
         return zone.length < before
     }
@@ -158,6 +160,7 @@ function sendOne(ctx: ActionCtx, action: MoveCards, pid: PlayerId, j: number): b
             ...(action.pay === "cost" ? { payCost: true as const, ...(ctx.paySources ? { paySources: ctx.paySources } : {}) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: true as const } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
+            surchargeBatch: true,
         })
         return zone.length < before
     }
@@ -248,6 +251,8 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     const player = state.players[pid]
     const zone = action.from === "hand" ? player.hand : player.trashCards
     const done = action.done ?? []
+    // 1回の効果で続けて召喚するあいだだけ余分の支払い済みを持つ
+    if (done.length === 0 && action.dest === "summon") delete state.summonSurchargePaid
     const end = (): void => {
         recordMoved(state, done)
         if (done.length === 0) log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象がなかった。`)
@@ -281,7 +286,7 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     const choosable = cands.filter(
         (j) =>
             (action.costBudget === undefined || getCard(zone[j]!).cost <= action.costBudget) &&
-            (action.dest !== "summon" || action.pay !== "cost" || affordable(state, pid, action, zone[j]!, viaSoryo(action))),
+            (action.dest !== "summon" || (action.pay !== "cost" ? canPayFreeSummonSurcharge(state, pid, getCard(zone[j]!), 0, true) : affordable(state, pid, action, zone[j]!, viaSoryo(action)))),
     )
     if ((action.count !== "all" && action.count <= 0) || choosable.length === 0) {
         end()

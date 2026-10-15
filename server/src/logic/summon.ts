@@ -9,6 +9,7 @@ import { effectiveCost } from "../../../shared/cost"
 import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter, summonByEffectBlocked } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
+import { canPayFreeSummonSurcharge, payFreeSummonSurcharge } from "./summonSurcharge"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -33,7 +34,7 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
         )
         if (!hit) continue
         // 維持コアを払えないなら確認自体を出さない（【不死】と同じ方針）
-        if (player.reserve < minLevelCores(card)) continue
+        if (!canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card))) continue
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,
@@ -126,6 +127,7 @@ export function summonFreeFromHandIndex(
         payCost?: true
         skipOnSummon?: true
         paySources?: PaySource[]
+        surchargeBatch?: true // 複数体を同時に召喚する効果の1体（余分は1回だけ。summonSurcharge.ts）
         // 召喚経路の記録（CardInstance.summonedBy）。
         // summonFromHandFreeアクションからは action.summonedBy ?? "freeEffect" が渡る（26系【Fチェンジ】は"fchange"）
         summonedBy?: string
@@ -154,11 +156,12 @@ export function summonFreeFromHandIndex(
     // 盤面のコアでなら払えるカードが候補にすら出なかった＝利用者報告）
     const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (player.reserve + fromField < maintain + cost) {
+    if (player.reserve + fromField < maintain + cost || (!opts?.payCost && !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true))) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.hand.splice(handIndex, 1)
+    if (!opts?.payCost) payFreeSummonSurcharge(state, owner, card, opts?.surchargeBatch === true)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
     // 支払い元が維持コア割れしたらそこで消滅する）
     const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
@@ -217,7 +220,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true },
 ): void {
     const player = state.players[owner]
     // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
@@ -237,11 +240,12 @@ export function summonFreeFromTrashIndex(
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
     const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo") : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (player.reserve + fromField < maintain + cost) {
+    if (player.reserve + fromField < maintain + cost || (!opts?.payCost && !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true))) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     player.trashCards.splice(trashIndex, 1)
+    if (!opts?.payCost) payFreeSummonSurcharge(state, owner, card, opts?.surchargeBatch === true)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）
     const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
     player.reserve -= maintain - placedFromField

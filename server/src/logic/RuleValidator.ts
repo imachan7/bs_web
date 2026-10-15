@@ -1,5 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { moveCardCandidates } from "./actions/moveCards"
 import type { CardData, CardInstance, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import { summonFromHandFreeCandidateMatches } from "./summon"
@@ -32,6 +33,7 @@ import {
     hasMagicCostLock,
     hasMagicRestriction,
     ownFieldSymbolColors,
+    summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
 import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword } from "../../../shared/rules"
@@ -318,7 +320,7 @@ export function validateSummon(
     }
     const cost = Math.max(
         0,
-        (altSummon !== null ? 0 : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
+        (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
     )
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
@@ -477,6 +479,7 @@ export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handI
     // 【烈神速】の「トラッシュのコア」にソウルコアも含めて数える（配置は段5まで通常コアのみ）
     // 案B-inside: trashCores には[ソウルコア]が含まれるため、烈神速の閾値は数値だけで見てよい
     if (player.trashCores < 5) return "自分のトラッシュのコアが5個以上必要です"
+    if (!canPayFreeSummonSurcharge(state, pid, card)) return "相手の効果による召喚の追加コストを払えません"
     const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
     if (summonLimitError) return summonLimitError
     const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)

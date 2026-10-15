@@ -266,3 +266,9 @@ BS14-084 永久凍土の王都は**原因を限定せず**「自分のライフ�
 - **検査**：`validate:cards` が「効果文の『ことで』の数 ≦ 確認関門を通る器の数」を見る（`scripts/payGateCheck.ts`・smoke part471。関門の一覧の根拠は PAY_GATE_AUDIT.md）。数で見るので、関門が別の節のぶんで足りていると漏れは拾えない。§10 とずれが残る3点は PAY_GATE_AUDIT.md 末尾
 - **「〜1枚につき、〜することで、好きなだけ召喚」は「好きなだけ払い、払った数だけ召喚」と読む**（2026-10-02 ユーザー確認。BS04-057 天使長セラフィー。smoke part473）。`pay{cost: removeCores count any, then: summonFromHandFree countCounter lastCores}`
 
+
+## 11. 「コストを支払わずに」召喚しても、余分のコストは払う（2026-10-15 ユーザー確認。公式Q&A Q3657・Q3718・Q3753）
+
+- 相手の転召の祭壇（SD02-013）の「1コスト余分に」は、効果による無償召喚・バースト効果の召喚・【烈神速】・altSummon でも払う。払えなければその召喚はできない（候補に出さない）
+- **効果で複数体を同時に召喚したら召喚は1回なので、余分も1回**。同時と数えるのは `moveCards` の召喚・オープンからの召喚・`summonFromHandFree` だけで、単発の召喚は毎回払う（`server/src/logic/summonSurcharge.ts`。smoke part590・591）
+- 簡略化：余分の払い元はリザーブだけ（フィールドのコアを選ぶ場を作っていない）。BS02-030 兵隊アントマン（`summonRepeatFromHand`）は1体ずつ別の召喚として毎回払う
