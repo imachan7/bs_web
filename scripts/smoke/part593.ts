@@ -62,9 +62,9 @@ function answerAll(t: Parameters<Parameters<typeof scenario>[0]["steps"]>[0], pa
         const side = pc.pid === t.me ? "me" : "opp"
         if (pc.effectCostPay) {
             sawCostPay = true
-            t.act(side, { type: "resolveChoice", option: pc.options?.[0], paySources: pay ? [{ instanceId: t.id(pay.label), count: pay.count }] : undefined })
+            t.act(side, { type: "resolveChoice", option: pc.options?.[0], ...(pay ? { paySources: [{ instanceId: t.id(pay.label), count: pay.count }] } : {}) })
         } else {
-            t.act(side, { type: "resolveChoice", option: pc.options?.[0], instanceId: pc.candidates?.[0], cardIndex: pc.candidates ? undefined : 0 })
+            t.act(side, { type: "resolveChoice", option: pc.options?.[0], ...(pc.candidates ? { instanceId: pc.candidates[0] } : { cardIndex: 0 }) })
         }
     }
     return { sawCostPay }

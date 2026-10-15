@@ -20,12 +20,12 @@ const ROKU = "BS01-002" // ロクケラトプス（相手の手札。捨てら�
 
 console.log("=== 前提: カードの機械確認 ===")
 {
-    assert(getCard(ANT).name === "兵隊アントマン" && getCard(ANT).levels[1].cores === 2 && getCard(ANT).levels[1].bp === 4000, "ANTはLv2が2コア・BP4000")
-    for (const c of [FLY, MAT, SRC]) assert(getCard(c).family.includes("怪虫") && getCard(c).symbol.join() === "green", `${c}は緑シンボルの怪虫`)
-    assert(getCard(FLY).cost === 3 && getCard(FLY).reduction.join() === "green,green", "FLYはコスト3・軽減 緑2")
-    assert(getCard(MAT).cost === 3 && getCard(MAT).reduction.join() === "green", "MATはコスト3・軽減 緑1")
+    assert(getCard(ANT).name === "兵隊アントマン" && getCard(ANT).levels[1]?.cores === 2 && getCard(ANT).levels[1]?.bp === 4000, "ANTはLv2が2コア・BP4000")
+    for (const c of [FLY, MAT, SRC]) assert((getCard(c).family ?? []).includes("怪虫") && (getCard(c).symbol ?? []).join() === "green", `${c}は緑シンボルの怪虫`)
+    assert(getCard(FLY).cost === 3 && (getCard(FLY).reduction ?? []).join() === "green,green", "FLYはコスト3・軽減 緑2")
+    assert(getCard(MAT).cost === 3 && (getCard(MAT).reduction ?? []).join() === "green", "MATはコスト3・軽減 緑1")
     assert(getCard(SRC).name === "エメアント", "SRCはエメアント")
-    assert(getCard(BOSS).name === "マタンゴル" && getCard(BOSS).levels[0].bp === 6000, "BOSSはBP6000")
+    assert(getCard(BOSS).name === "マタンゴル" && getCard(BOSS).levels[0]?.bp === 6000, "BOSSはBP6000")
     assert(getCard(ALTAR).name === "転召の祭壇", "ALTARは転召の祭壇")
 }
 
