@@ -1,4 +1,5 @@
 // 効果耐性（装甲・効果を受けない・対象にならない）の一本化（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage } from "../coverage"
 
 import type {
     CardInstance,
@@ -9,7 +10,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { coresCantBeRemoved, coresCantBeRemovedByOpponent } from "./activation"
-import { hasArmorAgainst, hasBounceImmunity, hasBraveImmuneAgainst, hasFullEffectImmunity, hasGlobalConstraint, hasHeavyArmorAgainst, hasMagicImmunity, timedPlayerRules } from "./constraints"
+import { activeConstraints, hasArmorAgainst, hasBounceImmunity, hasBraveImmuneAgainst, hasFullEffectImmunity, hasGlobalConstraint, hasHeavyArmorAgainst, hasMagicImmunity, timedPlayerRules } from "./constraints"
 import { spiritHasFamily } from "./keywordState"
 import { KEYWORDS, currentLevel, effectActiveAtLevel } from "./level"
 
@@ -40,6 +41,7 @@ export type ResistanceCategory =
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
     | "summonEffectImmune" // 相手のスピリットの『召喚時』効果を受けない（サーバー側で判定）
     | "magicRedirect" // 対象の絞り込みで、この個体が対象から外れた（耐性ではないが同じ入口で弾く。サーバー側で判定）
+    | "meisai" // 【迷彩：N】＝スピリットの効果で指定する時のコスト要求（サーバー側で判定。払えなければ指定できない）
 
 export interface Resistance {
     category: ResistanceCategory
@@ -109,6 +111,9 @@ export function boardResistanceAgainst(
     if (attempt.actorPid === targetOwnerPid) return null
     // 「相手のスピリット/ブレイヴ/マジックの効果で、カード名に◯◯と入っている自分のスピリット上の
     // コアは取り除くことができない」（BS12-022太陽武者ゲンジ・ボルタ）。coresCantBeRemovedと違い片側限定
+    if (attempt.op === "coreRemove" && activeConstraints(board, targetOwnerPid, target).some((c) => c.type === "coresImmovableByOpponent")) {
+        return { category: "coresLocked", label: "相手の効果ではコアを移動できない" }
+    }
     if (
         attempt.op === "coreRemove" &&
         coresCantBeRemovedByOpponent(board, targetOwnerPid, target, attempt.sourceType)
@@ -150,6 +155,13 @@ export function boardResistanceAgainst(
         return { category: "exhaustImmune", label: "相手の効果で疲労しない" }
     }
     // 「対象にならない」は**対象指定の効果だけ**を防ぐ（範囲効果はすり抜ける）
+    if (
+        attempt.scope === "targeted" &&
+        attempt.sourceType === "magic" &&
+        (target.untargetableByOpponentMagicTimed === true || activeConstraints(board, targetOwnerPid, target).some((c) => c.type === "untargetableByOpponentMagic"))
+    ) {
+        return { category: "untargetable", label: "相手のマジックの効果では指定されない" }
+    }
     if (attempt.scope === "targeted" && hasUntargetableConstraint(target)) {
         return { category: "untargetable", label: "相手の効果の対象にならない" }
     }
@@ -160,12 +172,17 @@ export function boardResistanceAgainst(
 // 既存の isUntargetableByOpponent は両方を見る合成なので、そちらはクライアントの既存呼び出しのために残してある
 export function hasUntargetableConstraint(inst: CardInstance): boolean {
     const level = currentLevel(inst).level
-    return card(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "constraint" &&
-            e.constraint.type === "untargetableByOpponent" &&
-            effectActiveAtLevel(e.levels, level),
-    )
+    return card(inst.cardId).effects.some((e) => {
+        if (
+            e.kind !== "constraint" ||
+            e.constraint.type !== "untargetableByOpponent" ||
+            !effectActiveAtLevel(e.levels, level)
+        ) {
+            return false
+        }
+        noteCoverage(e, "constraint")
+        return true
+    })
 }
 
 // 現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
@@ -197,6 +214,7 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
                 if (effect.phaseTurn.turn === "own" && targetOwnerPid !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === board.turnPlayer) continue
             }
+            noteCoverage(effect, "exhaustImmunityGrant")
             return true
         }
     }

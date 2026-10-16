@@ -1,19 +1,20 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { EffectAction, PlayerId, PlayerState } from "../../type"
-import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames, resolveInOrder } from "../GameState"
-import { fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, resolveTensho } from "../EffectModules"
-import { notifyNexusDeployed, resolveMagicEffects } from "../triggers"
+import type { CardPick, EffectAction, PlayerId, PlayerState } from "../../type"
+import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
+import { payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
+import { resolveMagicEffects } from "../triggers"
+import { notifyNexusDeployed } from "../fieldEventTriggers"
+import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
 import { hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from "../../../../shared/rules"
+import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
 import { recordMoved } from "../record"
 import { countedAmount } from "../counted"
 
-type RevealActionT = Extract<EffectAction, { type: "reveal" }>
-type RevealPick = NonNullable<RevealActionT["pick"]>
-type RevealDest = NonNullable<RevealActionT["dest"]>
-type RevealStep = { kind: "pick"; cardId: string } | { kind: "rest" }
+type RevealDest = NonNullable<Extract<EffectAction, { type: "revealApplyOne" }>["dest"]>
 
 export // バーストエリアのカードを外して返す（オープンしたら元のバーストではなくなる）
 function takeOwnBurst(player: PlayerState): string[] {
@@ -25,9 +26,13 @@ function takeOwnBurst(player: PlayerState): string[] {
 }
 
 // costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
-export function matchesPick(id: string, pick: RevealPick | undefined, costOverride?: number): boolean {
+// selfCardId＝発生源のカード（differentNameFromSelf の比較相手）
+export function matchesPick(id: string, pick: CardPick | undefined, costOverride?: number, selfCardId?: string): boolean {
     if (!pick) return true
     const card = getCard(id)
+    if (pick.differentNameFromSelf === true && selfCardId !== undefined && card.name === getCard(selfCardId).name) return false
+    if (pick.nameExcludes !== undefined && card.name === pick.nameExcludes) return false
+    if (pick.name !== undefined && card.name !== pick.name) return false
     if (pick.cardType !== undefined) {
         const wanted = Array.isArray(pick.cardType) ? pick.cardType : [pick.cardType]
         if (!wanted.includes(card.type)) return false
@@ -36,9 +41,16 @@ export function matchesPick(id: string, pick: RevealPick | undefined, costOverri
         const wanted = Array.isArray(pick.family) ? pick.family : [pick.family]
         if (!wanted.some((f) => card.family.includes(f))) return false
     }
-    if (pick.color !== undefined && !card.colors.includes(pick.color)) return false
+    if (pick.familyAll !== undefined && !pick.familyAll.every((f) => card.family.includes(f))) return false
+    if (pick.color !== undefined && !(Array.isArray(pick.color) ? pick.color : [pick.color]).some((c) => card.colors.includes(c))) return false
+    if (pick.anyOf !== undefined && !pick.anyOf.some((p) => matchesPick(id, p, costOverride, selfCardId))) return false
+    if (pick.noBurst === true && card.effects.some((e) => e.kind === "burst")) return false
+    if (pick.hasWhileCombined === true && !card.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) return false
+    if (pick.hasTrigger !== undefined && !card.effects.some((e) => e.kind === "triggered" && e.trigger === pick.hasTrigger)) return false
     if (pick.keyword !== undefined && !hasKeyword(id, pick.keyword)) return false
+    if (pick.hasEx === true && card.symbolEx !== true) return false
     if (pick.nameIncludes !== undefined && !card.name.includes(pick.nameIncludes)) return false
+    if (pick.team !== undefined && !cardHasTeam(card, pick.team)) return false
     if (pick.cost !== undefined) {
         const cost = costOverride ?? card.cost
         if (typeof pick.cost === "number") {
@@ -48,6 +60,9 @@ export function matchesPick(id: string, pick: RevealPick | undefined, costOverri
             if (pick.cost.max !== undefined && cost > pick.cost.max) return false
         }
     }
+    if (pick.costIn !== undefined && !pick.costIn.includes(costOverride ?? card.cost)) return false
+    if (pick.vanilla === true && !isVanillaCard(card)) return false
+    if (pick.keisho === true && !card.effects.some((e) => e.kind === "exTrashReduction")) return false
     if (pick.hasBurst === true && !card.effects.some((e) => e.kind === "burst")) return false
     if (pick.burstEvent !== undefined && !card.effects.some((e) => e.kind === "burst" && e.event === pick.burstEvent)) return false
     return true
@@ -72,12 +87,17 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     const player = state.players[owner]
     const cardId = action.cardId
     const card = getCard(cardId)
-    const dest: RevealDest = action.dest ?? "hand"
+    // 「召喚/配置できる」：ネクサスは配置、それ以外は召喚
+    const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
         case "hand":
             player.hand.push(cardId)
             notifyHandGained(state, owner, 1)
             log(state, `${player.name}は${sourceName}の効果で、${card.name}を手札に加えた。`)
+            return
+        case "trash":
+            player.trashCards.push(cardId)
+            log(state, `${player.name}は${sourceName}の効果で、${card.name}を破棄した。`)
             return
         case "deckBottom":
             state.players[action.srcPid].deck.push(cardId)
@@ -96,15 +116,17 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             const maintain = minLevelCores(card)
-            if (player.reserve < maintain) {
+            const cost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
+            if (player.reserve < maintain + cost) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を配置できなかった。`)
                 player.trashCards.push(cardId)
                 return
             }
+            payCost(state, owner, cost, undefined, maintain)
             player.reserve -= maintain
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
-            log(state, `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに配置した。`)
+            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${cost}を支払って` : "コストを支払わずに"}配置した。`)
             notifyNexusDeployed(state, owner)
             return
         }
@@ -114,6 +136,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             log(state, `${sourceName}：${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
+            state.keishoExcludedCardIds = []
             resolveMagicEffects(state, owner, cardId, "flash", undefined)
             return
         }
@@ -129,16 +152,22 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             const maintain = minLevelCores(card)
-            if (player.reserve < maintain) {
+            const cost = action.pay === "cost" ? effectiveCost(state, owner, card, false, [], false, false) : 0
+            if (action.surchargePrepaid) state.summonSurchargePaid = owner
+            if (action.pay === "cost" ? player.reserve < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId)
                 return
             }
-            player.reserve -= maintain
+            if (action.pay !== "cost" && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
+            const placedFromField = action.pay !== "cost" ? payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0 : 0
+            payCost(state, owner, cost, undefined, maintain)
+            player.reserve -= maintain - placedFromField
             const inst = createInstance(cardId, state.turn, maintain)
             if (action.returnToDeckBottomAtEndStep) inst.returnToDeckBottomAtEndStep = true
+            if (action.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
             player.field.spirits.push(inst)
-            log(state, `${player.name}は${sourceName}の効果で、${card.name}をコストを支払わずに召喚した。`)
+            log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${cost}を支払って` : "コストを支払わずに"}召喚した。`)
             if (action.tensho === undefined) {
                 if (!state.winner) resolveTensho(state, owner, inst)
                 if (state.pendingChoice) {
@@ -188,9 +217,21 @@ const revealFinishSummonHandler: ActionHandler<"revealFinishSummon"> = (ctx, act
 }
 
 const revealRestHandler: ActionHandler<"revealRest"> = (ctx, action) => {
-    const { state, owner, sourceName, self, chosenCardIndex } = ctx
+    const { state, owner, sourceName, self, chosenCardIndex, chosenOption } = ctx
     const destPlayer = state.players[action.destPid]
-    const rest = action.rest ?? "deckBottom"
+    let rest = action.rest ?? "deckBottom"
+    // 「デッキの上か下に戻す」：上下は残り全体でまとめて1回選ぶ。非対話（自動解決）は下
+    if (rest === "deckTopOrBottom") {
+        if ((state.revealedCards?.cardIds.length ?? 0) === 0) {
+            delete state.revealedCards
+            return
+        }
+        if (chosenOption === undefined && state.interactiveTargets) {
+            requestChoice(state, owner, `${sourceName}：残りをデッキの上と下のどちらに戻しますか`, [], false, action, self, "option", ["デッキの上", "デッキの下"])
+            return
+        }
+        rest = chosenOption === "デッキの上" ? "deckTop" : "deckBottom"
+    }
     if (rest === "trash" || rest === "hand") {
         const zone = state.revealedCards
         const ids = zone ? zone.cardIds : []
@@ -246,144 +287,21 @@ const revealRestHandler: ActionHandler<"revealRest"> = (ctx, action) => {
     else destPlayer.deck.push(...pool)
 }
 
-function stepToFrame(ctx: ActionCtx, action: RevealActionT, srcPid: PlayerId, step: RevealStep): { kind: "action"; selfInstanceId: string | null; actorPid: PlayerId; action: EffectAction } {
-    const base = { kind: "action" as const, selfInstanceId: ctx.self ? ctx.self.instanceId : null, actorPid: ctx.owner }
-    if (step.kind === "pick") {
-        return {
-            ...base,
-            action: {
-                type: "revealApplyOne",
-                cardId: step.cardId,
-                srcPid,
-                ...(action.dest !== undefined ? { dest: action.dest } : {}),
-                ...(action.tensho !== undefined ? { tensho: action.tensho } : {}),
-                ...(action.noSummonEffects ? { noSummonEffects: true as const } : {}),
-                ...(action.orHand ? { orHand: true as const } : {}),
-                ...(action.returnToDeckBottomAtEndStep ? { returnToDeckBottomAtEndStep: true as const } : {}),
-            },
-        }
-    }
-    return { ...base, action: { type: "revealRest", destPid: srcPid, ...(action.rest !== undefined ? { rest: action.rest } : {}) } }
-}
-
-// pick済み（あれば）→ rest の順で解決する。resolveInOrder が中断（【転召】の対象選択等）の
-// 残りを再開スタックへ積むので、ここでは自分でループやフラグ管理をしない（RESUME_STACK.md §9）
-function runSteps(ctx: ActionCtx, action: RevealActionT, srcPid: PlayerId, steps: RevealStep[]): void {
-    resolveInOrder(ctx.state, steps, {
-        resolve: (step) => {
-            if (step.kind === "pick") {
-                const frame = stepToFrame(ctx, action, srcPid, step)
-                applyPicked(ctx, frame.action as Extract<EffectAction, { type: "revealApplyOne" }>)
-            } else {
-                revealRestHandler(ctx, { type: "revealRest", destPid: srcPid, ...(action.rest !== undefined ? { rest: action.rest } : {}) })
-            }
-        },
-        frame: (step) => stepToFrame(ctx, action, srcPid, step),
-    })
-}
-
-// pickCountが数値（2以上）のときの1ラウンド分：候補が尽きた／remainingが0ならrestへ、
-// それ以外は対話なら1枚選ぶ選択（resolveOnSkip＝選ばず終えたらrestへ）を出し、
-// 非対話ならmatchesPickに合うものを前からremaining枚まで自動で選ぶ
-function requestRevealPickRound(ctx: ActionCtx, action: RevealActionT, srcPid: PlayerId, remaining: number): void {
-    const { state, owner, sourceName, self } = ctx
-    const zone = state.revealedCards
-    const pool = zone ? zone.cardIds : []
-    const indices = pool.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick)).map((x) => x.i)
-    if (remaining <= 0 || indices.length === 0) {
-        runSteps(ctx, action, srcPid, [{ kind: "rest" }])
-        return
-    }
-    if (!state.interactiveTargets) {
-        const zoneNow = state.revealedCards!
-        const picks = [...indices.slice(0, remaining)].sort((a, b) => b - a).map((i) => zoneNow.cardIds.splice(i, 1)[0]!).reverse()
-        const steps: RevealStep[] = picks.map((cardId) => ({ kind: "pick" as const, cardId }))
-        steps.push({ kind: "rest" })
-        runSteps(ctx, action, srcPid, steps)
-        return
-    }
-    requestCardChoice(
-        state,
-        owner,
-        `${sourceName}：カードを選んでください（あと${remaining}枚まで。選ばずに終えることもできる）`,
-        "reveal",
-        indices,
-        true,
-        { ...action, pickCount: remaining },
-        self,
-        true,
-        true,
-    )
-}
-
-const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, chosenCardIndex, srcType } = ctx
+// オープンするだけ（選ぶ・残りを送るのは moveCards from:"revealed"）
+const revealOpenHandler: ActionHandler<"revealOpen"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcType } = ctx
     const from = action.from ?? "ownDeck"
     const srcPid: PlayerId = from === "opponentDeck" ? opp : owner
     const srcPlayer = state.players[srcPid]
-    const pickCount = action.pickCount ?? 1
-
-    // pickCountがN（2以上）のラウンド中に「選ばず終える」を選んだ再入（requestRevealPickRoundの
-    // resolveOnSkipで、chosenCardIndexなしのままここへ戻ってくる。state.revealedCardsが残っているのが目印）
-    if (chosenCardIndex === undefined && typeof pickCount === "number" && state.revealedCards) {
-        runSteps(ctx, action, srcPid, [{ kind: "rest" }])
-        return
-    }
-
-    // 再入：候補から1枚選ばれた（pickだけを解決する。「残り」はここでは触らない）。
-    // スキップは resolveOnSkip を使わないためここへは来ない（PendingChoiceが黙って解消するだけ）。
-    // 「残り」の処理は呼び出し元（下のinteractive分岐）が選んでもスキップしても必ず走るように
-    // pushResumeFrames で別途キューへ積む（revealDiscardRest と同じ考え方）
-    if (chosenCardIndex !== undefined) {
-        if (from === "hand") {
-            const pickedId = srcPlayer.hand[chosenCardIndex]
-            if (pickedId !== undefined) {
-                srcPlayer.hand.splice(chosenCardIndex, 1)
-                recordMoved(state, [pickedId])
-                runSteps(ctx, action, srcPid, [{ kind: "pick", cardId: pickedId }])
-            }
-            return
-        }
-        const zone = state.revealedCards
-        const pickedId = zone ? zone.cardIds[chosenCardIndex] : undefined
-        if (pickedId !== undefined && zone) {
-            zone.cardIds.splice(chosenCardIndex, 1)
-            runSteps(ctx, action, srcPid, [{ kind: "pick", cardId: pickedId }])
-            if (typeof pickCount === "number" && pickCount >= 2) {
-                requestRevealPickRound(ctx, action, srcPid, pickCount - 1)
-            }
-        }
-        return
-    }
-
-    if (from === "hand") {
-        const indices = srcPlayer.hand.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick)).map((x) => x.i)
-        if (indices.length === 0) {
-            recordMoved(state, [])
-            log(state, `${sourceName}：対象がなかった。`)
-            return
-        }
-        if (state.interactiveTargets && (indices.length >= 2 || action.optional === true)) {
-            requestCardChoice(state, owner, `${sourceName}：カードを選んでください`, "hand", indices, action.optional === true, action, self, action.optional === true)
-            return
-        }
-        let best = indices[0]!
-        for (const i of indices) if (getCard(srcPlayer.hand[i]!).cost > getCard(srcPlayer.hand[best]!).cost) best = i
-        const cardId = srcPlayer.hand[best]!
-        srcPlayer.hand.splice(best, 1)
-        recordMoved(state, [cardId])
-        runSteps(ctx, action, srcPid, [{ kind: "pick", cardId }])
-        return
-    }
-
-    // ownDeck／opponentDeck：count 枚（またはcountPer・countFromSelfLevel）をオープンする
     const countPer = action.countPer
     const count = action.countFromSelfLevel && self
         ? currentLevel(self).level
         : countPer
           ? "ownColorTotal" in countPer
               ? [...state.players[owner].field.spirits, ...state.players[owner].field.nexuses].filter((s) => instHasColor(s, countPer.ownColorTotal)).length
-              : "ownSymbols" in countPer
+              : "keishoExcluded" in countPer
+                ? state.keishoExcludedCardIds?.length ?? 0
+                : "ownSymbols" in countPer
                 ? countSymbols(state.players[owner], [countPer.ownSymbols])
                 : state.players[owner].field.nexuses.length
           : action.countCounter !== undefined
@@ -397,61 +315,11 @@ const revealHandler: ActionHandler<"reveal"> = (ctx, action) => {
     }
     log(state, `${srcPlayer.name}は${from === "burst" ? "バースト" : `デッキ上${revealed.length}枚`}（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`)
     state.revealedCards = { pid: srcPid, cardIds: revealed }
-
-    if (typeof pickCount === "number" && pickCount >= 2) {
-        requestRevealPickRound(ctx, action, srcPid, pickCount)
-        return
-    }
-
-    if (pickCount === 0) {
-        runSteps(ctx, action, srcPid, [{ kind: "rest" }])
-        return
-    }
-
-    if (pickCount === "all") {
-        const matched = revealed.filter((id) => matchesPick(id, action.pick))
-        // 選んだものは公開中から外す（残すと「残り」の後始末で同じカードがもう一度送られる）
-        state.revealedCards = { pid: srcPid, cardIds: revealed.filter((id) => !matchesPick(id, action.pick)) }
-        const steps: RevealStep[] = matched.map((cardId) => ({ kind: "pick" as const, cardId }))
-        steps.push({ kind: "rest" })
-        runSteps(ctx, action, srcPid, steps)
-        return
-    }
-
-    // pickCount 1
-    const indices = revealed.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick)).map((x) => x.i)
-    if (indices.length === 0) {
-        runSteps(ctx, action, srcPid, [{ kind: "rest" }])
-        return
-    }
-    // 候補が1枚なら選ぶ余地が無い（任意＝「〜できる」なら使うかどうかを聞くので1枚でも出す）
-    if (state.interactiveTargets && (indices.length >= 2 || action.optional === true)) {
-        requestCardChoice(state, owner, `${sourceName}：カードを選んでください`, "reveal", indices, action.optional === true, action, self, action.optional === true)
-        // 「残り」は選んでもスキップしても必ず走る必要がある。同期解決済み（pendingChoiceが立っていない）なら
-        // ここで直接、まだ選択待ちならキューに積んで pick の続き（【転召】の選択など）の後に回す
-        if (state.pendingChoice) {
-            pushResumeFrames(state, [
-                {
-                    kind: "action",
-                    selfInstanceId: self ? self.instanceId : null,
-                    actorPid: owner,
-                    action: { type: "revealRest", destPid: srcPid, ...(action.rest !== undefined ? { rest: action.rest } : {}) },
-                },
-            ])
-        } else {
-            runSteps(ctx, action, srcPid, [{ kind: "rest" }])
-        }
-        return
-    }
-    let best = indices[0]!
-    for (const i of indices) if (getCard(revealed[i]!).cost > getCard(revealed[best]!).cost) best = i
-    const zone = state.revealedCards
-    const [pickedId] = zone.cardIds.splice(best, 1)
-    runSteps(ctx, action, srcPid, [{ kind: "pick", cardId: pickedId! }, { kind: "rest" }])
+    if (action.destroySelfIf && revealed.some((id) => matchesPick(id, action.destroySelfIf, undefined, ctx.sourceCardId))) ctx.resolve({ type: "destroySelf" })
 }
 
 const handlers = {
-    reveal: revealHandler,
+    revealOpen: revealOpenHandler,
     revealApplyOne: revealApplyOneHandler,
     revealRest: revealRestHandler,
     revealFinishSummon: revealFinishSummonHandler,

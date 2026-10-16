@@ -10,6 +10,7 @@ import { card } from "./cardDb"
 import { COLOR_LABELS } from "../data/constants"
 import {
     activeConstraints,
+    activeConstraintsWithSource,
     boardResistanceAgainst,
     cantActByTimed,
     matchesTarget,
@@ -47,6 +48,39 @@ export function blockRequiredCount(
         if (c.type === "blockRequiresCount" && c.count > required) required = c.count
     }
     return required
+}
+
+// このアタッカーをブロックするのに払うコスト（制約 blockPayCost の合計）。
+// 〔重複不可〕は noStackId ごとに1回分だけ数える
+export function blockPayCost(
+    board: Board,
+    attackerPid: PlayerId,
+    attackerInst: CardInstance | undefined,
+): number {
+    if (!attackerInst) return 0
+    const counted = new Set<string>()
+    let total = 0
+    for (const { constraint: c } of activeConstraintsWithSource(board, attackerPid, attackerInst)) {
+        if (c.type !== "blockPayCost") continue
+        if (c.noStackId !== undefined) {
+            if (counted.has(c.noStackId)) continue
+            counted.add(c.noStackId)
+        }
+        total += c.count
+    }
+    return total
+}
+
+// このアタッカーをブロックするのにトラッシュへ置くリザーブのコアの数（制約 blockReserveToTrash の合計）
+export function blockReserveToTrashCount(board: Board, attackerPid: PlayerId, attackerInst: CardInstance | undefined): number {
+    if (!attackerInst) return 0
+    return activeConstraints(board, attackerPid, attackerInst).reduce((n, c) => n + (c.type === "blockReserveToTrash" ? c.count : 0), 0)
+}
+
+// このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
+export function blockExhaustSpiritRequired(board: Board, attackerPid: PlayerId, attackerInst: CardInstance | undefined): boolean {
+    if (!attackerInst) return false
+    return activeConstraints(board, attackerPid, attackerInst).some((c) => c.type === "blockExhaustSpirit")
 }
 
 export function canBlock(
@@ -126,6 +160,7 @@ export function canBlock(
         }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
+            if (c.noSoulCore && blockerInst.soulCoreOn !== true) return "このスピリットは[ソウルコア]が置かれていないスピリットにブロックされません"
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {
                 return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
             }

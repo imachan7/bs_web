@@ -6,12 +6,13 @@
 //   - 009 クジャルタが手札に戻るとき、上のコアは**リザーブ**へ（指定場所には行かない）
 //   - 007 バーナルドの「疲労状態で」の主語は**このスピリット**（自分が疲労中でもブロックできる）
 //   - 014 魔法監視塔 Lv2 は、無効にしたら**必ず**デッキの下へ戻る
-import { act, assert, createGame, createInstance, currentLevel, declareBlock, destroyNexus, effectiveBp, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, currentLevel, declareBlock, destroyNexus, effectiveBp, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { effectiveCost, hasMagicRestriction } from "../../shared/cost"
 import { instHasCost } from "../../shared/rules"
 import { dumpAllCoresTensho } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/triggers"
+import { fireTrigger } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { loadAllCards } from "../../data/loadCards"
 
 interface CardRow {
@@ -163,7 +164,7 @@ console.log("--- SD02-005 天使ヘルヴィム：黄シンボル数ぶん公開
     const s = base("helvim-levelas")
     s.phase = "attack"
     put(s, "p1", HELVIM, coresFor(HELVIM, 2))
-    const attacker = put(s, "p1", kobo, coresFor(kobo, 3))
+    const attacker = put(s, "p1", kobo, coresFor(kobo, kobo.levels!.length))
     const blockerCard = vanillaCost(3)
     const blocker = put(s, "p2", blockerCard, coresFor(blockerCard, 2))
     refreshLevelAsOverrides(s)

@@ -1,7 +1,13 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import { summonFromHandFreeCandidateMatches, summonFromTrashFreeCandidateMatches } from "../summon"
+import { flushSummonBatch } from "../summon"
+import { resolveSummonRepeatPaid } from "./summonRepeat"
+import { summonSurcharge } from "../../../../shared/cost"
+import { recordLifeLost } from "../record"
+import { summonFromHandFreeCandidateMatches } from "../summon"
+import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionHandler, ActionRegistry } from "./types"
+import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
@@ -20,6 +26,7 @@ import {
     destroySpirit,
     emitEvent,
     findSpiritAny,
+    resistanceAgainst,
     matchesFamilyFilter,
     fireCombinedAttackTrigger,
     fireFieldEventTriggers,
@@ -32,6 +39,7 @@ import {
     refreshSpirit,
     requestCardChoice,
     requestChoice,
+    requestActivationConfirm,
     resolveAction,
     resolveKoboOnBattleEnd,
     resolveTensho,
@@ -52,7 +60,6 @@ import {
     effectiveBp,
     instBaseCost,
     instIsCombined,
-    instMinLevelCores,
     isInBattle,
     isTrashCardProtected,
     lifeDamagePerSpiritRemaining,
@@ -61,10 +68,16 @@ import {
     matchesBraveCondition,
     matchesCostFilter,
     ownLifeImmuneToOpponentSpiritEffects,
+    braveCombineOntoSelfCandidates,
 } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 import { countedAmount } from "../counted"
+
+const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
+    const { state, owner, self } = ctx
+    if (self) resolveFunsai(state, owner, self)
+}
 
 const endBattleHandler: ActionHandler<"endBattle"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -96,10 +109,13 @@ const battleLoserCoresToVoidHandler: ActionHandler<"battleLoserCoresToVoid"> = (
         if (!inst) continue
         if (inst.cores === 0) return
         log(state, `${sourceName}：${getCard(inst.cardId).name}の上のコア${inst.cores}個はボイドに置かれた。`)
+        // 案B-inside: [ソウルコア]はボイドへ行けないためリザーブへ退避させてから通常コアをボイドへ
+        soulCoreLeavesField(state.players[pid], inst)
         inst.cores = 0
         return
     }
-    const cores = Math.min(state.lastBattleDestroyedCores, state.players[opp].reserve)
+    // 案B-inside: リザーブの[ソウルコア]はボイドへ行けないため、取り除けるのは通常コアぶんまで
+    const cores = Math.min(state.lastBattleDestroyedCores, normalReserveOf(state.players[opp]))
     if (cores === 0) return
     state.players[opp].reserve -= cores
     log(state, `${sourceName}：破壊されたスピリット上のコア${cores}個はリザーブへ戻らずボイドに置かれた。`)
@@ -329,6 +345,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             return
         }
         player.life -= dealt
+        recordLifeLost(state, opp, dealt)
         if (srcType === "spirit" && self) self.lifeDealtThisTurn = (self.lifeDealtThisTurn ?? 0) + dealt
         // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
         // dest:"void" はボイド行き（ゲームから完全に取り除く。BS15-027虚天帝ホウオウガ）
@@ -344,6 +361,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             if (tryOwnLifeFloorByCost(state, opp)) {
                 fireFieldEventTriggers(state, opp, "ownLifeDamaged")
                 fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
+                fireFieldEventTriggers(state, opp, "ownLifeLost")
             } else {
                 state.winner = owner
                 log(state, `${state.players[owner].name}の勝利！`)
@@ -352,80 +370,11 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             // 相手（opp）から見て「相手（owner）によって自分のライフが減らされたとき」に該当（命の果実）
             fireFieldEventTriggers(state, opp, "ownLifeDamaged")
             fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
+            fireFieldEventTriggers(state, opp, "ownLifeLost")
+            if (srcType === "spirit" && self) fireFieldEventTriggers(state, owner, "ownSpiritReducedLife", { pid: owner, inst: self })
+            if (srcType === "spirit" && self && !state.winner) fireTrigger(state, owner, self, "onLifeReduced")
         }
         return
-}
-
-// BS09-065名工集いし大工房Lv2：自分のトラッシュにある指定色のネクサスカード1枚を、
-// **自分のフィールドのコアだけ**を使ってコストを支払って配置する（リザーブは使わない。2026-08-14 ユーザー確認）。
-// 取るのはネクサス上→コアの多いスピリットの順で、**維持コアを割る個体からは取らない**（決定的簡略化）
-const deployNexusFromTrashByFieldCoresHandler: ActionHandler<"deployNexusFromTrashByFieldCores"> = (ctx, action) => {
-    const { state, owner, sourceName, chosenCardIndex } = ctx
-    const player = state.players[owner]
-    const isMatch = (cardId: string): boolean => {
-        const c = getCard(cardId)
-        return c.type === "nexus" && action.colors.some((col) => cardHasColor(c, col))
-    }
-    // フィールドから取り出せるコアの総量（維持コアぶんは残す）
-    const spendable = (): { inst: CardInstance; max: number }[] => [
-        ...player.field.nexuses.map((n) => ({ inst: n, max: n.cores })),
-        ...player.field.spirits.map((sp) => ({ inst: sp, max: Math.max(0, sp.cores - instMinLevelCores(sp)) })),
-    ].filter((x) => x.max > 0)
-    const indices = player.trashCards.map((_, i) => i).filter((i) => isMatch(player.trashCards[i]!))
-    if (indices.length === 0) {
-        log(state, `${sourceName}：トラッシュに対象のネクサスがなかった。`)
-        return
-    }
-    const deploy = (idx: number): void => {
-        const cardId = player.trashCards[idx]
-        if (cardId === undefined) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        const cost = effectiveCost(state, owner, getCard(cardId))
-        const pool = spendable()
-        const total = pool.reduce((sum, x) => sum + x.max, 0)
-        if (total < cost) {
-            log(state, `${sourceName}：フィールドのコアが足りないため配置できなかった。`)
-            return
-        }
-        // コアの多い順に取る（決定的簡略化）
-        let remaining = cost
-        for (const x of [...pool].sort((a, b) => b.max - a.max)) {
-            if (remaining <= 0) break
-            const take = Math.min(remaining, x.max)
-            x.inst.cores -= take
-            player.trashCores += take
-            remaining -= take
-        }
-        player.trashCards.splice(idx, 1)
-        const maintain = minLevelCores(getCard(cardId))
-        const inst = createInstance(cardId, state.turn, maintain)
-        player.field.nexuses.push(inst)
-        log(
-            state,
-            `${player.name}はフィールドのコア${String(cost)}個を支払い、トラッシュから${getCard(cardId).name}を配置した。`,
-        )
-        fireNexusDeployed(state, owner, inst)
-    }
-    if (chosenCardIndex !== undefined) {
-        deploy(chosenCardIndex)
-        return
-    }
-    if (state.interactiveTargets && indices.length >= 2) {
-        requestCardChoice(
-            state,
-            owner,
-            `${sourceName}：配置するネクサスを選んでください`,
-            "trash",
-            indices,
-            false,
-            action,
-            null,
-        )
-        return
-    }
-    deploy(indices[0]!)
 }
 
 const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
@@ -539,8 +488,15 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         return
 }
 
-const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, action) => {
+const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, rawAction) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+    // countCounter は最初の1回だけ枚数に解く。中断からの再開ではカウンタの記録が変わりうるので、解いた count を持ち回る
+    const action: typeof rawAction = (() => {
+        if (rawAction.countCounter === undefined) return rawAction
+        const { countCounter, ...rest } = rawAction
+        return { ...rest, count: countedAmount(state, owner, self, rawAction.count ?? 1, countCounter, srcType), chooseEach: true }
+    })()
+    if (rawAction.countCounter !== undefined && action.count === 0) return
         // 老賢樹トレントン／竜戦車アースガルド：自分の手札にある条件（colorFilter一致／
         // sameFamilyAsSelf=selfと系統1つ以上共通）を満たすスピリットカードのうちコスト最大の1枚
         // （同コストは手札の先頭側）を、コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。
@@ -555,6 +511,9 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
+            // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」
+            summonedBy: action.summonedBy ?? "freeEffect",
+            surchargeBatch: true as const,
         }
         // bravesOnly召喚の合体先選択（ダイレクトブレイヴ／スピリット状態）。2026-08-28 ユーザー指示：
         // 効果からのブレイヴ召喚は常にこの選択方式にする。候補はshared/summon.tsのbraveCombineCandidates
@@ -797,6 +756,34 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 askPick(action.count)
                 return
             }
+            // chooseEach（countCounter）：払った数ぶんを1枚ずつ必ず選ばせる。上限は pay のチェッカーが保証する
+            if (action.chooseEach && state.interactiveTargets) {
+                if (chosenCardIndex !== undefined) {
+                    summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    if (state.winner) return
+                }
+                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
+                const indices: number[] = []
+                for (let i = 0; i < player.hand.length; i++) {
+                    if (matchesCardId(player.hand[i]!)) indices.push(i)
+                }
+                if (remaining > 0 && indices.length > 0) {
+                    requestCardChoice(
+                        state,
+                        owner,
+                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚）`,
+                        "hand",
+                        indices,
+                        false,
+                        { ...action, count: remaining },
+                        self,
+                        true,
+                    )
+                } else if (remaining > 0) {
+                    log(state, `${sourceName}：召喚できるスピリットが手札に無くなったため、残り${remaining}枚は召喚しなかった。`)
+                }
+                return
+            }
             // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
             if (action.upTo && state.interactiveTargets) {
                 if (chosenCardIndex !== undefined) {
@@ -847,73 +834,6 @@ const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, act
                 log(state, `${sourceName}：召喚できるスピリットがいなかった。`)
             }
             return
-        }
-        // costDestroySelfAndCostFilter：**このスピリット自身**と、コストがmin以上の自分のスピリット1体の
-        // 両方を破壊することがコスト（BS13-004フォボス・ドラグーンLv3：バトル終了時、自身とコスト3以上の
-        // 自分のスピリット1体を破壊することで系統「神星」を手札から無償召喚）。
-        // COST_MODEL.md §1：AとBの両方が完全に解決できる組み合わせだけを候補にする（破壊できる相手がいない／
-        // 召喚できる手札が無ければどちらも発動しない＝selfも破壊されない）
-        if (
-            action.costDestroySelfAndCostFilter !== undefined &&
-            chosenCardIndex === undefined &&
-            !action.costSacrificeChosen
-        ) {
-            if (!self) {
-                log(state, `${sourceName}：コストとして破壊する自分自身がいなかった。`)
-                return
-            }
-            if (!player.hand.some(matchesCardId)) {
-                log(state, `${sourceName}：召喚できるスピリットカードが手札にないため発動しなかった。`)
-                return
-            }
-            const min = action.costDestroySelfAndCostFilter.min
-            const sacrifices = player.field.spirits.filter(
-                (s) => s.instanceId !== self.instanceId && instBaseCost(s) >= min,
-            )
-            if (sacrifices.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            const { costDestroySelfAndCostFilter: _paidSac, costSacrificeChosen: _flagSac, ...restSac } = action
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                const chosen = sacrifices.find((s) => s.instanceId === targetInstanceId)
-                if (!chosen) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-                log(
-                    state,
-                    `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(chosen.cardId).name}を破壊した。`,
-                )
-                destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
-                destroySpirit(state, owner, chosen.instanceId, "destroy", destroyContext)
-                ctx.resolve(restSac)
-                return
-            }
-            // **何を犠牲にするかは候補2体以上ならプレイヤーが選ぶ**（COST_MODEL.md §2）
-            if (state.interactiveTargets && sacrifices.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして破壊する自分のスピリットを選んでください`,
-                    sacrifices.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            }
-            // 非対話・候補1体：コスト最小を自動選択（決定的簡略化）
-            let victim = sacrifices[0]!
-            for (const s of sacrifices) {
-                if (instBaseCost(s) < instBaseCost(victim)) victim = s
-            }
-            log(
-                state,
-                `${player.name}は${sourceName}のコストとして${getCard(self.cardId).name}と${getCard(victim.cardId).name}を破壊した。`,
-            )
-            destroySpirit(state, owner, self.instanceId, "destroy", destroyContext)
-            destroySpirit(state, owner, victim.instanceId, "destroy", destroyContext)
         }
         // costDestroyOwnSpiritSameCost：自分のスピリット1体を破壊することがコストで、
         // 破壊したスピリットと**同じコスト**のブレイヴカードだけが召喚候補になる（BS10-096最後の優勝旗）。
@@ -1063,6 +983,10 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
             if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
             return true
         }
+        if (action.mode === "paid") {
+            resolveSummonRepeatPaid(ctx, action, matchesCardId)
+            return
+        }
         let summonedCount = 0
         const summonedNames: string[] = []
         while (true) {
@@ -1075,24 +999,25 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
                 const maintain = minLevelCores(candidate)
                 const need =
                     action.mode === "free"
-                        ? maintain + (action.extraReserveCostPerSummon ?? 0)
+                        ? maintain + (action.extraReserveCostPerSummon ?? 0) + summonSurcharge(state, owner, candidate)
                         : maintain + effectiveCost(state, owner, candidate)
                 if (need < bestReserveNeed) {
                     bestReserveNeed = need
                     bestIndex = i
                 }
             }
-            if (bestIndex === -1 || player.reserve < bestReserveNeed) break
+            // 案B-inside: リザーブの[ソウルコア]は通常コアの支払いに使わない
+            if (bestIndex === -1 || normalReserveOf(player) < bestReserveNeed) break
             const cardId = player.hand[bestIndex]!
             const card = getCard(cardId)
             const maintain = minLevelCores(card)
             player.hand.splice(bestIndex, 1)
             if (action.mode === "free") {
                 player.reserve -= maintain
-                if (action.extraReserveCostPerSummon) {
-                    player.reserve -= action.extraReserveCostPerSummon
-                    player.trashCores += action.extraReserveCostPerSummon
-                }
+                // 1体ずつ別々の召喚なので、転召の祭壇などの余分も1体ごとに払う（2026-10-15）
+                const extra = (action.extraReserveCostPerSummon ?? 0) + summonSurcharge(state, owner, card)
+                player.reserve -= extra
+                player.trashCores += extra
             } else {
                 const cost = effectiveCost(state, owner, card)
                 player.reserve -= cost + maintain
@@ -1120,230 +1045,16 @@ const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx,
         return
 }
 
-const summonFromTrashFreeHandler: ActionHandler<"summonFromTrashFree"> = (ctx, action) => {
-    const { state, owner, self, sourceName, chosenCardIndex } = ctx
-        // 妖狐キュービック：自分のトラッシュにある条件（colorFilter一致・costFilter範囲）を満たす
-        // スピリットカードのうちコスト最大の1枚（同コストは末尾＝新しい方から自動選択）を、
-        // コストを支払わずに召喚する（プレイヤー選択の決定的簡略化）。interactiveTargets時は選択式
-        // （選択者=使用者。cardZone:"trash"）。summonFromHandFreeHandlerのトラッシュ版
-        const player = state.players[owner]
-        const matchesCardId = (candidateId: string): boolean =>
-            summonFromTrashFreeCandidateMatches(state, owner, action, candidateId, ctx.targetInstanceId)
-        // summonFreeFromTrashIndex へ渡す追加指定（コストを支払う／フィールドのコアからの支払い指定／召喚時効果の抑止）
-        const trashSummonOpts = {
-            ...(action.payCost ? { payCost: action.payCost } : {}),
-            ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
-            ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
-            ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: action.destroyAtBattleEnd } : {}),
-        }
-        // BS06-X22魔界七将ベルゼビート：costBudget指定時はcostFilterを使わず、コスト合計がbudget以下になる
-        // 範囲で複数枚を召喚する（コスト最大から貪欲に選ぶ決定的簡略化。維持コアがリザーブから払えなくなった
-        // 時点で打ち切り。プレイヤー選択・対象選択は伴わないため choseCardIndex / interactiveTargets 分岐は不要）
-        if (action.costBudget !== undefined) {
-            let remainingBudget = action.costBudget
-            const summonedNames: string[] = []
-            while (true) {
-                let bestIndex = -1
-                let bestCost = -1
-                for (let i = 0; i < player.trashCards.length; i++) {
-                    const candidateId = player.trashCards[i]!
-                    if (!matchesCardId(candidateId)) continue
-                    const candidate = getCard(candidateId)
-                    if (candidate.cost > remainingBudget) continue
-                    if (minLevelCores(candidate) > player.reserve) continue
-                    if (candidate.cost > bestCost) {
-                        bestCost = candidate.cost
-                        bestIndex = i
-                    }
-                }
-                if (bestIndex === -1) break
-                const cardId = player.trashCards[bestIndex]!
-                const card = getCard(cardId)
-                const maintain = minLevelCores(card)
-                player.trashCards.splice(bestIndex, 1)
-                player.reserve -= maintain
-                remainingBudget -= card.cost
-                const inst = createInstance(cardId, state.turn, maintain)
-                player.field.spirits.push(inst)
-                summonedNames.push(card.name)
-                if (!state.winner) resolveTensho(state, owner, inst)
-                if (state.pendingChoice) break
-            }
-            if (summonedNames.length === 0) {
-                log(state, `${sourceName}：召喚できる対象がいなかった。`)
-                return
-            }
-            log(
-                state,
-                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
-            )
-            return
-        }
-        // BS15-018霊獣皇テン・クー：countCounter指定時はcount(??1)×EffectCounterの値を召喚できる
-        // 最大枚数として使う（0なら不発）。count分岐と異なり、この効果は「発揮されない」の記載が無いため
-        // 召喚時効果を通常どおり発揮する（fireSummonSequenceを呼ぶ）。コスト最大から貪欲に選ぶ決定的簡略化
-        if (action.countCounter !== undefined) {
-            let remaining = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, undefined)
-            const summonedNames: string[] = []
-            while (remaining > 0) {
-                let bestIndex = -1
-                let bestCost = -1
-                for (let i = 0; i < player.trashCards.length; i++) {
-                    const candidateId = player.trashCards[i]!
-                    if (!matchesCardId(candidateId)) continue
-                    const candidate = getCard(candidateId)
-                    if (minLevelCores(candidate) > player.reserve) continue
-                    if (candidate.cost > bestCost) {
-                        bestCost = candidate.cost
-                        bestIndex = i
-                    }
-                }
-                if (bestIndex === -1) break
-                const cardId = player.trashCards[bestIndex]!
-                const cardData = getCard(cardId)
-                const maintain = minLevelCores(cardData)
-                player.trashCards.splice(bestIndex, 1)
-                player.reserve -= maintain
-                const inst = createInstance(cardId, state.turn, maintain)
-                player.field.spirits.push(inst)
-                summonedNames.push(cardData.name)
-                remaining -= 1
-                if (!state.winner) resolveTensho(state, owner, inst)
-                if (!state.winner && !state.pendingChoice) fireSummonSequence(state, owner, inst)
-                if (state.pendingChoice || state.winner) break
-            }
-            if (summonedNames.length === 0) {
-                log(state, `${sourceName}：召喚できる対象がいなかった。`)
-                return
-            }
-            log(
-                state,
-                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。`,
-            )
-            return
-        }
-        // BS12-057ハイドランディア：count指定時は「コスト2のスピリットカード3枚」のような
-        // 枚数指定で複数枚を召喚する（costBudgetと違いcostFilterが有効。コスト最大から貪欲に選ぶ
-        // 決定的簡略化、count枚に満たなければ可能な分だけ。対象選択を伴わないため
-        // choseCardIndex / interactiveTargets 分岐は不要）
-        if (action.count !== undefined) {
-            // upTo：0〜count枚を1枚ずつ選ばせ、選ばなくなったら終わる（2026-09-28ユーザー決定）
-            if (action.upTo && state.interactiveTargets) {
-                if (chosenCardIndex !== undefined) {
-                    summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
-                    if (state.winner) return
-                }
-                const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
-                const indices: number[] = []
-                for (let i = 0; i < player.trashCards.length; i++) {
-                    if (matchesCardId(player.trashCards[i]!)) indices.push(i)
-                }
-                if (remaining > 0 && indices.length > 0) {
-                    requestCardChoice(
-                        state,
-                        owner,
-                        `${sourceName}：召喚するスピリットを選んでください（あと${remaining}枚まで。選ばない場合は終了します）`,
-                        "trash",
-                        indices,
-                        true,
-                        { ...action, count: remaining },
-                        self,
-                        true,
-                    )
-                }
-                return
-            }
-            let remaining = action.count
-            const summonedNames: string[] = []
-            while (remaining > 0) {
-                let bestIndex = -1
-                let bestCost = -1
-                for (let i = 0; i < player.trashCards.length; i++) {
-                    const candidateId = player.trashCards[i]!
-                    if (!matchesCardId(candidateId)) continue
-                    const candidate = getCard(candidateId)
-                    if (minLevelCores(candidate) > player.reserve) continue
-                    if (candidate.cost > bestCost) {
-                        bestCost = candidate.cost
-                        bestIndex = i
-                    }
-                }
-                if (bestIndex === -1) break
-                const cardId = player.trashCards[bestIndex]!
-                const cardData = getCard(cardId)
-                const maintain = minLevelCores(cardData)
-                player.trashCards.splice(bestIndex, 1)
-                player.reserve -= maintain
-                const inst = createInstance(cardId, state.turn, maintain)
-                player.field.spirits.push(inst)
-                summonedNames.push(cardData.name)
-                remaining -= 1
-                if (!state.winner) resolveTensho(state, owner, inst)
-                if (state.pendingChoice) break
-            }
-            if (summonedNames.length === 0) {
-                log(state, `${sourceName}：召喚できる対象がいなかった。`)
-                return
-            }
-            log(
-                state,
-                `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」をコストを支払わずに召喚した。（このスピリットの召喚時効果は発揮されない）`,
-            )
-            return
-        }
-        if (chosenCardIndex !== undefined) {
-            summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, trashSummonOpts)
-            return
-        }
-        if (state.interactiveTargets) {
-            const indices: number[] = []
-            for (let i = 0; i < player.trashCards.length; i++) {
-                if (matchesCardId(player.trashCards[i]!)) indices.push(i)
-            }
-            // payCost（BS07常闇の聖堂＝「コストとして使うことで〜召喚できる」）は
-            // **候補が1枚でも必ず聞く**。「できる」＝任意なので断れる必要があり、
-            // さらに支払い元（フィールドのコア）を選ぶ機会がここでしか作れない（2026-08-24）
-            if (indices.length >= 2 || action.payCost) {
-                requestCardChoice(
-                    state,
-                    owner,
-                    `${sourceName}：召喚するスピリットを選んでください`,
-                    "trash",
-                    indices,
-                    action.payCost === true,
-                    action,
-                    self,
-                    action.payCost === true,
-                )
-                return
-            }
-        }
-        // 決定的自動選択：コスト最大、同コストは末尾（新しい方）
-        let bestIndex = -1
-        let bestCost = -1
-        for (let i = 0; i < player.trashCards.length; i++) {
-            const candidateId = player.trashCards[i]!
-            if (!matchesCardId(candidateId)) continue
-            const cost = getCard(candidateId).cost
-            if (cost >= bestCost) {
-                bestCost = cost
-                bestIndex = i
-            }
-        }
-        if (bestIndex === -1) {
-            log(state, `${sourceName}：トラッシュに対象のスピリットがなかった。`)
-            return
-        }
-        summonFreeFromTrashIndex(state, owner, sourceName, bestIndex, trashSummonOpts)
-        return
-}
-
 // 【転召】の対象選択で中断した召喚の続き（cards.jsonには書かない内部専用）。
 // GameEngine が pendingChoice.queue へ積み、選択の解決後にここで召喚時効果以降へ合流する
 const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => {
     const { state, owner, self } = ctx
     if (!self) return
     fireSummonSequence(state, owner, self, action.byFushi === true)
+}
+
+const summonBatchFlushHandler: ActionHandler<"summonBatchFlush"> = (ctx) => {
+    flushSummonBatch(ctx.state, ctx.owner)
 }
 
 
@@ -1428,23 +1139,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
             log(state, `${sourceName}：合体先がいなかった。`)
             return
         }
-        if (
-            (self.braveRefs ?? []).length > 0 ||
-            activeConstraints(state, owner, self).some((c) => c.type === "cantCombine")
-        ) {
-            log(state, `${sourceName}：合体できないため発動しなかった。`)
-            return
-        }
-        const braves = player.field.spirits.filter(
-            (sp) =>
-                getCard(sp.cardId).type === "brave" &&
-                // 発生源自身は合体先であって合体するブレイヴではない（自分自身とは合体できない）
-                sp.instanceId !== self.instanceId &&
-                // 既に他のブレイヴが合体している「塊」は、さらに別のブレイヴを合体させられない
-                // （実体の入れ子を2段で止める。docs/design/BRAVE.md §12。2026-09-08ユーザー確認）
-                (sp.braveRefs ?? []).length === 0 &&
-                matchesBraveCondition(state, owner, self, sp.cardId),
-        )
+        const braves = braveCombineOntoSelfCandidates(state, owner, self)
         if (braves.length === 0) {
             log(state, `${sourceName}：合体できるスピリット状態のブレイヴがいなかった。`)
             return
@@ -1534,7 +1229,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
 // 1つ選んで、発生源自身（self＝合体スピリット）の効果として発揮する（BS13-049イリテバン【合体時】）。
 // 「このスピリット」は発揮する側（self）を指すため、借りた効果はselfのレベルで判定しselfへ渡す
 // （docs/design/BRAVE.md §12。2026-09-07/08 ユーザー確認）
-const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx) => {
+const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffect"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     if (!self) {
         log(state, `${sourceName}：発揮する対象がいなかった。`)
@@ -1572,11 +1267,18 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
         log(state, `${sourceName}：借りられる『合体アタック時』効果がなかった。`)
         return
     }
+    // 「発揮できる」は確認式（SEMANTICS_AUDIT §3 の一般則）。借りる元があるときだけ、選ぶ前に1回聞く
+    // 自身しか候補が無い（借りても何も起きない）ときは聞かない
+    if (state.interactiveTargets && !action.confirmed && effectiveCandidates.some((c) => !isSelfBorrow(c))) {
+        requestActivationConfirm(state, owner, `${sourceName}：『合体アタック時』効果を借りて発揮しますか？`, { type: "borrowCombinedAttackEffect", confirmed: true }, self)
+        return
+    }
     const fire = (chosen: Candidate): void => {
         log(state, `${player.name}は${sourceName}の効果として、${getCard(chosen.inst.cardId).name}の効果を借りて発揮した。`)
         const wasSelfBorrow = isSelfBorrow(chosen)
         if (wasSelfBorrow) self.borrowedAttackEffectOnce = true
-        resolveAction(state, owner, self, chosen.effect.action)
+        // 自身を選んだ2回目は同じ発揮の連鎖なので、確認は聞き直さない
+        resolveAction(state, owner, self, wasSelfBorrow ? { type: "borrowCombinedAttackEffect", confirmed: true } : chosen.effect.action)
         if (wasSelfBorrow) delete self.borrowedAttackEffectOnce
     }
     if (targetInstanceId !== undefined) {
@@ -1593,7 +1295,7 @@ const borrowCombinedAttackEffectHandler: ActionHandler<"borrowCombinedAttackEffe
             `${sourceName}：借りる『合体アタック時』効果を選んでください`,
             uniqueIds,
             false,
-            { type: "borrowCombinedAttackEffect" },
+            { type: "borrowCombinedAttackEffect", confirmed: true },
             self,
         )
         return
@@ -1867,15 +1569,23 @@ const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action)
 
 // 対象はフィールドイベントが渡す targetInstanceId（BS12-037 はアタックしたスピリット、BS12-058 はブロックしている相手）
 const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId } = ctx
-    const inst =
-        targetInstanceId === undefined
-            ? undefined
-            : [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].find(
-                  (s) => s.instanceId === targetInstanceId,
-              )
-    if (!inst) {
+    const { state, owner, sourceName, targetInstanceId, srcColors, srcType } = ctx
+    const found = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
+    if (!found) {
         log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const inst = found.inst
+    // 「そのスピリット」は指定ではないので範囲扱い。【装甲】などで防げる（2026-10-08 ユーザー確認）
+    const resisted = resistanceAgainst(state, found.pid, inst, {
+        op: "other",
+        scope: "area",
+        actorPid: owner,
+        ...(srcType ? { sourceType: srcType } : {}),
+        ...(srcColors ? { sourceColors: srcColors } : {}),
+    })
+    if (resisted) {
+        log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
         return
     }
     recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: inst.instanceId }, until: "battle", ownerPid: owner })
@@ -1884,7 +1594,7 @@ const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> =
 
 // 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
 // **破棄するカードは各自が自分で選ぶ**（2026-08-24。それまでは手札の末尾からの決定的簡略化だった）。
-// 1人ぶんの破棄は discardSelfChoose に委譲する（1枚ずつ選ばせる／非対話では末尾から）。
+// 1人ぶんの破棄は moveCards（手札→トラッシュ）に委譲する（1枚ずつ選ばせる／非対話では末尾から）。
 // 相手側は actorPid で「相手の効果として」解決させるので、選択者も相手本人になる
 const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
     const { state, owner, self, srcType } = ctx
@@ -1908,7 +1618,7 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
         if (!pids.includes(pid)) continue
         const thisCount = action.all ? state.players[pid].hand.length : count
         if (thisCount <= 0) continue
-        const discardOne: EffectAction = { type: "discardSelfChoose", count: thisCount }
+        const discardOne: EffectAction = { type: "moveCards", from: "hand", dest: "trash", count: thisCount }
         // 自分側が選択待ちに入ったら、相手側の破棄は再開スタックへ回す。
         // 外側から積むので、自分の残り枚数のフレーム（内側）より後に実行される
         if (state.pendingChoice) {
@@ -1928,6 +1638,7 @@ const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action)
 
 const handlers = {
     endBattle: endBattleHandler,
+    funsaiOnBlock: funsaiOnBlockHandler,
     treatAsUnblocked: treatAsUnblockedHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     discardBothHands: discardBothHandsHandler,
@@ -1940,7 +1651,6 @@ const handlers = {
     swapBattler: swapBattlerHandler,
     battleOpponentDestroyedCoresTo: battleOpponentDestroyedCoresToHandler,
     lifeCrush: lifeCrushHandler,
-    deployNexusFromTrashByFieldCores: deployNexusFromTrashByFieldCoresHandler,
     deployNexus: deployNexusHandler,
     destroyBrave: destroyBraveHandler,
     combineOwnBrave: combineOwnBraveHandler,
@@ -1953,8 +1663,8 @@ const handlers = {
     detachOpponentBrave: detachOpponentBraveHandler,
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
-    summonFromTrashFree: summonFromTrashFreeHandler,
     summonSequence: summonSequenceHandler,
+    summonBatchFlush: summonBatchFlushHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

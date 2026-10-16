@@ -11,6 +11,7 @@
 //   - BS05-032 珊瑚蟹シオマネキッド Lv2：自分の緑のスピリットすべてに装甲：赤/白を付与
 //   - BS02-X07 巨神機トール Lv1-3：アタック時＋Lv3バトル終了時、武装を疲労/破壊してBP増加/回復
 import {
+    effectiveBp,
     act,
     assert,
     createGame,
@@ -105,17 +106,17 @@ console.log("=== BS02-030 兵隊アントマン Lv2：破壊時、手札の怪�
     //    **アントマンはまだフィールドにいて、コア2個も乗ったまま**（TIMING_CHART.md §1.5）。
     //    したがって (a) リザーブは5のまま（コアはまだ戻らない）、
     //    (b) アントマンの緑シンボルが軽減に数えられる。
-    //    マッハジー（軽減なし・維持コア1+コスト1=2）で5→3・トラッシュのコア+1。
-    //    続くエメアント（軽減：緑2）は、アントマン＋マッハジーの緑2つで**コスト0**になり、
-    //    維持コア1だけで3→2。最後に破壊が確定してアントマンのコア2個がリザーブへ戻り 2→4。
+    //    2026-10-15 から同時の召喚（まとめて選んで合計を1回で払う）。同じ効果で出すマッハジーの緑は
+    //    エメアントの軽減に使えない（ユーザー確認）。マッハジー（軽減なし）コスト1、エメアント（軽減：緑2）は
+    //    アントマンの緑1つだけでコスト1。合計コスト2＋維持コア2で5→1、破壊が確定してアントマンのコア2個が戻り 1→3。
     //    テラノセイバーは系統「怪虫」でないため対象外
     assert(!s.players.p1.hand.includes("BS02-026"), "マッハジーは手札から召喚される")
     assert(!s.players.p1.hand.includes("BS01-055"), "エメアントも手札から召喚される（複数体の召喚）")
     assert(s.players.p1.hand.includes("BS01-003"), "系統「怪虫」でないテラノセイバーは対象外")
-    assert(s.players.p1.reserve === 4, "破壊待機中はコアが乗ったままで、確定後にリザーブへ戻る")
+    assert(s.players.p1.reserve === 3, `破壊待機中はコアが乗ったままで、確定後にリザーブへ戻る（${s.players.p1.reserve}）`)
     assert(
-        s.players.p1.trashCores === 1,
-        "破壊待機中のアントマンのシンボルも軽減に数えるので、エメアントはコスト0になる",
+        s.players.p1.trashCores === 2,
+        `破壊待機中のアントマンの緑は軽減に数え、同じ効果で出したマッハジーの緑は数えない（エメアントはコスト1。${s.players.p1.trashCores}）`,
     )
 }
 
@@ -187,7 +188,7 @@ console.log("=== BS02-X07 巨神機トール：アタック時BP増加＋Lv3バ�
 
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "トールでアタック宣言")
     assert(buddy.isRested === true, "系統「武装」の自分のスピリットが疲労する（BP増加のコスト）")
-    assert(attacker.tempBpBuff === 4000, "疲労させたスピリットの実効BP分だけBP+する")
+    assert(effectiveBp(s, "p1", attacker) === 12000, `疲労させたスピリットの実効BP分だけBP+する（8000+4000。実際 ${effectiveBp(s, "p1", attacker)}）`)
 
     assert(declareBlock(s, "p2", blocker.instanceId) === null, "フラッシュ①を閉じてからブロック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")

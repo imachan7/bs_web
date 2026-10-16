@@ -269,7 +269,7 @@
         "levels": [
           1
         ],
-        "byOpponentEffectOnly": true,
+        "byOpponentOnly": true,
         "optional": true,
         "action": {
           "type": "summonFromHandFree",
@@ -285,7 +285,7 @@
           2,
           3
         ],
-        "byOpponentEffectOnly": true,
+        "byOpponentOnly": true,
         "optional": true,
         "action": {
           "type": "summonFromHandFree",
@@ -1102,19 +1102,24 @@
         }
       },
       {
-        "id": "BS12-016-e2",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "costBudget": 13,
-          "familyFilter": "無魔"
-        }
+       "id": "BS12-016-e2",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "family": "無魔"
+        },
+        "costBudget": 13
+       }
       },
       {
         "id": "BS12-016-e3",
@@ -1546,6 +1551,7 @@
         "id": "BS12-023-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -2408,6 +2414,7 @@
         "id": "BS12-036-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2,
@@ -2656,24 +2663,27 @@
         }
       },
       {
-        "id": "BS12-039-e2",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "anyCardType": true
-        }
+       "id": "BS12-039-e2",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {}
+       }
       },
       {
         "id": "BS12-039-e3",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           2
         ],
@@ -2939,23 +2949,28 @@
           2
         ],
         "optional": true,
-        "cost": {
-          "exhaustSelf": true
-        },
         "action": {
-          "type": "timedEffect",
-          "content": [
-            {
-              "type": "playerRule",
-              "rule": {
-                "type": "noLifeDamageByCostForPid",
-                "symbolCount": 2,
-                "combinedOnly": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "target": "self",
+            "count": 1
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "playerRule",
+                "rule": {
+                  "type": "noLifeDamageByCostForPid",
+                  "symbolCount": 2,
+                  "combinedOnly": true
+                }
               }
-            }
-          ],
-          "duration": "turn",
-          "side": "own"
+            ],
+            "duration": "turn",
+            "side": "own"
+          }
         }
       },
       {
@@ -3438,8 +3453,23 @@
         "timing": "flash",
         "levels": null,
         "action": {
-          "type": "selfBuffByExhaustFamily",
-          "amount": 3000
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "timedEffect",
+            "target": "self",
+            "duration": "turn",
+            "content": [
+              {
+                "type": "bp",
+                "amount": 3000
+              }
+            ]
+          }
         }
       }
     ]
@@ -3494,22 +3524,27 @@
     ],
     "effects": [
       {
-        "id": "BS12-051-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "familyFilter": [
-            "神星",
-            "光導",
-            "星魂"
-          ]
+       "id": "BS12-051-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "family": [
+          "神星",
+          "光導",
+          "星魂"
+         ]
         }
+       }
       }
     ]
   },
@@ -3646,6 +3681,9 @@
           1
         ],
         "optional": true,
+        "condition": {
+          "ownHandAtLeast": 1
+        },
         "action": {
           "type": "discardHandAll",
           "thenDrawOpponentHand": true
@@ -3734,6 +3772,7 @@
         "id": "BS12-054-e2",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
         "optional": false,
@@ -3872,6 +3911,7 @@
         "id": "BS12-056-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           1
         ],
@@ -3921,21 +3961,26 @@
     },
     "effects": [
       {
-        "id": "BS12-057-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1
-        ],
-        "optional": false,
-        "action": {
-          "type": "summonFromTrashFree",
-          "costFilter": {
-            "max": 2,
-            "min": 2
-          },
-          "count": 3
-        }
+       "id": "BS12-057-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pick": {
+         "cardType": "spirit",
+         "cost": {
+          "max": 2,
+          "min": 2
+         }
+        },
+        "count": 3
+       }
       },
       {
         "id": "BS12-057-e2",
@@ -3996,16 +4041,22 @@
     ],
     "effects": [
       {
-        "id": "BS12-058-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverMagicFromTrash"
+       "id": "BS12-058-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "magic"
         }
+       }
       },
       {
         "id": "BS12-058-e2",
@@ -4013,14 +4064,25 @@
         "event": "ownMagicUsed",
         "levels": null,
         "whileCombined": true,
+        "condition": "selfIsAttacking",
         "action": {
-          "type": "setTargetBpAsThisBattle",
-          "levels": [
-            1,
-            2,
-            3
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bpAs",
+              "levels": [
+                1,
+                2,
+                3
+              ],
+              "amount": 2000
+            }
           ],
-          "amount": 2000
+          "duration": "battle",
+          "count": 1,
+          "filter": {
+            "blocking": true
+          }
         }
       }
     ]
@@ -4140,17 +4202,19 @@
         }
       },
       {
-        "id": "BS12-060-e2",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1
-        ],
-        "optional": false,
-        "action": {
-          "type": "discardSelfChoose",
-          "count": 2
-        }
+       "id": "BS12-060-e2",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "hand",
+        "dest": "trash",
+        "count": 2
+       }
       }
     ]
   },
@@ -4461,32 +4525,48 @@
         }
       },
       {
-        "id": "BS12-065-e2",
-        "kind": "fieldEvent",
-        "event": "anySpiritAttacked",
-        "levels": [
-          2
-        ],
-        "subjectSide": "opponent",
-        "selfMode": "source",
-        "phase": "attack",
-        "turn": "opponent",
-        "optional": true,
-        "action": {
-          "type": "reveal",
+       "id": "BS12-065-e2",
+       "kind": "fieldEvent",
+       "event": "anySpiritAttacked",
+       "levels": [
+        2
+       ],
+       "subjectSide": "opponent",
+       "selfMode": "source",
+       "phase": "attack",
+       "turn": "opponent",
+       "optional": true,
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
+          "count": 1
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
           "count": 1,
-          "pick": {
-            "cardType": "spirit",
-            "family": [
-              "怪虫",
-              "殻虫",
-              "殻人"
-            ]
-          },
-          "optional": true,
           "dest": "summon",
-          "rest": "trash"
-        }
+          "pick": {
+           "cardType": "spirit",
+           "family": [
+            "怪虫",
+            "殻虫",
+            "殻人"
+           ]
+          },
+          "optional": true
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "trash"
+         }
+        ]
+       }
       }
     ]
   },
@@ -4789,26 +4869,31 @@
     "effect": "Lv1･Lv2\n系統：「天霊」を持つ自分のスピリットが召喚されたとき、自分のトラッシュにある系統：「天霊」を持つコスト4以下のスピリットカード1枚を手札に戻す。\nLv2\n自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、自分のライフは0にならない。",
     "effects": [
       {
-        "id": "BS12-070-e1",
-        "kind": "fieldEvent",
-        "event": "ownSpiritSummoned",
-        "levels": [
-          1,
-          2
-        ],
-        "familyFilter": [
+       "id": "BS12-070-e1",
+       "kind": "fieldEvent",
+       "event": "ownSpiritSummoned",
+       "levels": [
+        1,
+        2
+       ],
+       "familyFilter": [
+        "天霊"
+       ],
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "family": [
           "天霊"
-        ],
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "familyFilter": [
-            "天霊"
-          ],
-          "costFilter": {
-            "max": 4
-          }
+         ],
+         "cost": {
+          "max": 4
+         }
         }
+       }
       },
       {
         "id": "BS12-070-e2",
@@ -5029,26 +5114,42 @@
     "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中の系統：「光導」/「星魂」/「星竜」を持つスピリットカード/ブレイヴカードすべてを手札に加える。\n残ったカードは破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
     "effects": [
       {
-        "id": "BS12-074-e1",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "reveal",
-          "count": 3,
+       "id": "BS12-074-e1",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
+          "count": 3
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "hand",
           "pick": {
-            "cardType": [
-              "spirit",
-              "brave"
-            ],
-            "family": [
-              "光導",
-              "星魂",
-              "星竜"
-            ]
-          },
-          "pickCount": "all",
-          "rest": "trash"
-        }
+           "cardType": [
+            "spirit",
+            "brave"
+           ],
+           "family": [
+            "光導",
+            "星魂",
+            "星竜"
+           ]
+          }
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "trash"
+         }
+        ]
+       }
       },
       {
         "id": "BS12-074-e2",
@@ -5090,14 +5191,20 @@
     "effect": "フラッシュ：\n召喚コストの支払いと上に置くコアをリザーブから使用することで、自分のトラッシュにある【不死】を持つスピリットカード1枚を召喚する。",
     "effects": [
       {
-        "id": "BS12-075-e1",
-        "kind": "magic",
-        "timing": "flash",
-        "action": {
-          "type": "summonFromTrashFree",
-          "keywordFilter": "fushi",
-          "payCost": true
-        }
+       "id": "BS12-075-e1",
+       "kind": "magic",
+       "timing": "flash",
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pick": {
+         "cardType": "spirit",
+         "keyword": "fushi"
+        },
+        "count": 1,
+        "pay": "cost"
+       }
       }
     ]
   },
@@ -5475,19 +5582,35 @@
     "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中のネクサスカード1枚をコストを支払わずに配置できる。残ったカードは破棄する。\nフラッシュ：\nこのターンの間、効果の記述を持たないスピリット1体をBP+5000する。",
     "effects": [
       {
-        "id": "BS12-083-e1",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "reveal",
-          "count": 3,
-          "pick": {
-            "cardType": "nexus"
-          },
-          "optional": true,
+       "id": "BS12-083-e1",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
+          "count": 3
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": 1,
           "dest": "placeNexus",
-          "rest": "trash"
-        }
+          "pick": {
+           "cardType": "nexus"
+          },
+          "optional": true
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "trash"
+         }
+        ]
+       }
       },
       {
         "id": "BS12-083-e2",
@@ -5600,6 +5723,7 @@
         "id": "BS12-X01-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "use",
         "levels": [
           2,
           3
@@ -5669,26 +5793,29 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n系統：「光導」/「星魂」を持つ自分のスピリット1体につき、自分のトラッシュにある紫のカード1枚を手札に戻す。\nLv1･Lv2･Lv3『自分のアタックステップ』\n系統：「光導」/「星魂」を持つ自分のスピリットがアタックしたとき、相手のスピリットのコア1個を相手のリザーブに置く。\nLv2･Lv3\nスピリット/ブレイヴ/マジックの効果で相手のリザーブに置かれるコアすべては相手のトラッシュに置かれる。",
     "effects": [
       {
-        "id": "BS12-X02-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "countCounter": {
-            "ownFamily": [
-              "光導",
-              "星魂"
-            ]
-          },
-          "colorFilter": "purple",
-          "anyCardType": true
+       "id": "BS12-X02-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "hand",
+        "pick": {
+         "color": "purple"
+        },
+        "countCounter": {
+         "ownFamily": [
+          "光導",
+          "星魂"
+         ]
         }
+       }
       },
       {
         "id": "BS12-X02-e2",
@@ -5902,6 +6029,7 @@
         "id": "BS12-X04-e4",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           2,
           3
@@ -6084,6 +6212,7 @@
         "id": "BS12-X06-e2",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "ignore",
         "levels": [
           2,
           3

@@ -79,8 +79,8 @@ console.log("=== BS03-136 フォーカスライト：メイン＝【光芒】1�
 {
     const s = setupMain("focuslight-main")
     s.players.p1.hand = ["BS03-136"]
-    put(s, "p1", "BS03-054", 1) // アルカナドール・トリア（光芒）
-    put(s, "p1", "BS03-059", 1) // アルカナビースト・ペイラ（光芒）
+    put(s, "p1", "BS03-054", 3) // アルカナドール・トリア（Lv2【光芒】）
+    put(s, "p1", "BS03-059", 3) // アルカナビースト・ペイラ（Lv2【光芒】）
     const handBefore = s.players.p1.hand.length
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "使用できる")
     // 使用したカード自身が手札から抜けた分(-1)＋光芒2体ぶんドロー(+2)

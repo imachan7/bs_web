@@ -1,12 +1,19 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { noteCoverage, noteKeyword } from "../../../shared/coverage"
+import { summonSurcharge } from "../../../shared/cost"
+import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
+import { recordLifeLost } from "./record"
 import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
-import { notifyHandGained, revertDestroyGroupUsage } from "./triggers"
+import { revertDestroyGroupUsage } from "./triggers"
+import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import { destroySpirit } from "./removal"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
+import { unpayableLine } from "./actions/pay"
+import { soulCoreLeavesField } from "./soulCore"
 
 import {
     effectiveCost,
@@ -20,7 +27,7 @@ import {
     effectSources,
     hasArmorAgainst,
     hasHeavyArmorAgainst,
-    hasKeyword,
+    spiritHasKeyword,
     instHasColor,
     instIsCombined,
     instIsVanilla,
@@ -33,13 +40,14 @@ import {
 } from "../../../shared/rules"
 
 import {
+    autoPayPlan,
+    payCost,
     canExhaustNexus,
     exhaustSpirit,
     fireSummonSequence,
     resolveTensho,
     lifeCostBlockedByFloor,
-    tryOwnLifeFloorByCost,
-    recordPlayerRule,
+    tryOwnLifeFloorByCost
 } from "./EffectModules"
 
 // 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。
@@ -138,7 +146,7 @@ export function collectReviveEntries(
 }
 
 // 集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
-// optional（「〜できる」）なら従来どおり持ち主に確認を出す。断れば破壊はそのまま進み、
+// optional（「〜できる」）またはコストありなら持ち主に確認を出す（払えなくても出す。COST_MODEL.md §10）。断れば破壊はそのまま進み、
 // 列に残っている項目も解決される（pendingDestruction が消えないため）
 export function applyReviveEntry(
     state: GameState,
@@ -173,8 +181,13 @@ export function destroyedFamiliesOf(inst: CardInstance): string[] {
 // 【不死】召喚で実際に払うコスト。このターン最初の1回だけ0になる制約があれば0
 // （BS14-098ダークリボーン。維持コアはここに含まない＝通常どおり要る）
 function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): number {
-    if (timedPlayerRules(state, ownerPid).some((c) => c.type === "freeFushiSummonForPid")) return 0
-    return effectiveCost(state, ownerPid, card)
+    if (timedPlayerRules(state, ownerPid).some((c) => c.type === "freeFushiSummonForPid")) return summonSurcharge(state, ownerPid, card)
+    return effectiveCost(state, ownerPid, card, false, [], false, false)
+}
+
+// 通常のコスト＋維持コアを、リザーブとフィールドのコアで払えるか（支払い元はフィールドも含む。2026-10-15 ユーザー確認）
+function fushiPayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
+    return autoPayPlan(state, ownerPid, fushiCostOf(state, ownerPid, card) + minLevelCores(card), true) !== null
 }
 
 // kind:"fushiFreeByExhaust"（BS15-064冥府へ続く魔門Lv2）：未疲労のこのネクサスがあれば、
@@ -189,6 +202,9 @@ function fushiFreeExhaustSource(state: GameState, ownerPid: PlayerId, card: Card
         const hit = getCard(nexus.cardId).effects.some(
             (e) => e.kind === "fushiFreeByExhaust" && effectActiveAtLevel(e.levels, level) && card.cost <= e.maxCost,
         )
+        if (hit) {
+            noteCoverage(getCard(nexus.cardId).effects.find((e) => e.kind === "fushiFreeByExhaust"), "fushiFreeByExhaust")
+        }
         if (hit) return nexus.instanceId
     }
     return null
@@ -221,9 +237,10 @@ export function fushiCandidates(
         const maintain = minLevelCores(card)
         // 通常どおりコスト+維持コアを払えるか。払えなくても、未疲労のLv2魔門があり
         // コストがmaxCost以下なら、維持コアだけで無償召喚の候補になる（BS15-064）
-        const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
-        const canPayFree = player.reserve >= maintain && fushiFreeExhaustSource(state, ownerPid, card) !== null
+        const canPayNormally = fushiPayable(state, ownerPid, card)
+        const canPayFree = canPayFreeSummonSurcharge(state, ownerPid, card, maintain) && fushiFreeExhaustSource(state, ownerPid, card) !== null
         if (!canPayNormally && !canPayFree) continue
+        noteKeyword(getCard(cardId).effects, "fushi")
         found.push(i)
     }
     return found
@@ -235,9 +252,9 @@ function suspendFushiSummon(state: GameState, ownerPid: PlayerId, trashIndex: nu
     const card = getCard(cardId)
     const player = state.players[ownerPid]
     const maintain = minLevelCores(card)
-    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
+    const canPayNormally = fushiPayable(state, ownerPid, card)
     const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
-    const canPayFree = freeSource !== null && player.reserve >= maintain
+    const canPayFree = freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)
     // 払える側だけ選択肢に出す（COST_MODEL.md §1：払えない道は提示しない）。
     // 魔門（BS15-064 Lv2）で無償召喚できないときは、従来どおり「召喚する」1つだけの確認にする
     const options: string[] = []
@@ -284,10 +301,9 @@ export function fushiSummonOrConfirm(state: GameState, ownerPid: PlayerId, trash
     const maintain = minLevelCores(card)
     // 非対話（AI・テスト）の既定：通常どおり払えるならそちらを優先する（召喚時効果も発揮できて得なため）。
     // 払えないときだけ、未疲労のLv2魔門があれば無償召喚を使う（BS15-064冥府へ続く魔門）
-    const canPayNormally = player.reserve >= fushiCostOf(state, ownerPid, card) + maintain
-    if (!canPayNormally) {
+    if (!fushiPayable(state, ownerPid, card)) {
         const freeSource = fushiFreeExhaustSource(state, ownerPid, card)
-        if (freeSource !== null && player.reserve >= maintain) {
+        if (freeSource !== null && canPayFreeSummonSurcharge(state, ownerPid, card, maintain)) {
             applyFushiSummon(state, { pid: ownerPid, cardId, trashIndex, freeNexusInstanceId: freeSource }, true)
             return
         }
@@ -301,6 +317,8 @@ export function applyFushiSummon(
     // true指定時：info.freeNexusInstanceId のネクサスを疲労させ、コストを支払わずに召喚する
     // （維持コアは通常どおり要る）。召喚時効果は発揮されない（skipOnSummonと同じ印。BS15-064冥府へ続く魔門Lv2）
     useFree?: true,
+    // 支払い待ち（effectCostPay）で払い済み。維持コアだけリザーブから置く
+    prepaid?: true,
 ): void {
     const player = state.players[info.pid]
     // 確認を出したあとにトラッシュが動いている可能性があるので、位置が食い違えばカードIDで取り直す
@@ -319,12 +337,25 @@ export function applyFushiSummon(
         log(state, `${player.name}は魔門を疲労させて【不死】を無償で召喚できなかった。`)
         return
     }
-    const cost = freeNexus ? 0 : fushiCostOf(state, info.pid, card)
-    if (player.reserve < cost + maintain) {
-        log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
-        return
+    // 無償（魔門）でも相手の転召の祭壇などの余分は払う（2026-10-15）
+    const cost = freeNexus ? surchargeOwed(state, info.pid, card, false) : fushiCostOf(state, info.pid, card)
+    if (!prepaid) {
+        if (autoPayPlan(state, info.pid, cost + maintain, true) === null) {
+            log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
+            return
+        }
+        const resume = { type: "trashSummonPaidInternal", via: freeNexus ? "fushiFree" : "fushi", cardId: info.cardId, trashIndex: index, ...(freeNexus ? { freeNexusInstanceId: freeNexus.instanceId } : {}) } as const
+        const asked = freeNexus
+            ? askSurchargePay(state, info.pid, card, false, maintain, resume)
+            : askCostPay(state, info.pid, cost, maintain, `【不死】${card.name}：${cost}コストを支払ってください`, info.cardId, resume)
+        if (asked) return
     }
     player.trashCards.splice(index, 1)
+    let placedFromField = 0
+    if (!prepaid) {
+        const plan = autoPayPlan(state, info.pid, cost + maintain, true)!
+        placedFromField = payCost(state, info.pid, cost, plan.paySources, maintain, plan.soulFromReserve)
+    }
     if (freeNexus) {
         exhaustSpirit(state, info.pid, freeNexus)
     } else {
@@ -333,13 +364,11 @@ export function applyFushiSummon(
             (r) => r.target.kind === "player" && r.target.pid === info.pid && r.content.some((c) => c.type === "playerRule" && c.rule.type === "freeFushiSummonForPid"),
         )
         if (freeIndex !== -1) state.timedEffects.splice(freeIndex, 1)
-        // 召喚コストはリザーブからトラッシュへ（通常の召喚と同じ）
-        player.reserve -= cost
-        player.trashCores += cost
     }
     // 維持コアはリザーブからスピリットの上へ（無償召喚でも通常どおり要る）
-    player.reserve -= maintain
+    player.reserve -= maintain - placedFromField
     const inst = createInstance(info.cardId, state.turn, maintain)
+    if (freeNexus) inst.noOnSummon = true
     player.field.spirits.push(inst)
     log(
         state,
@@ -373,6 +402,10 @@ export function applyFushiSummon(
 export function spiritMillFreeSummonOrConfirm(state: GameState, ownerPid: PlayerId, trashIndex: number): void {
     const cardId = state.players[ownerPid].trashCards[trashIndex]
     if (cardId === undefined) return
+    if (!canPayFreeSummonSurcharge(state, ownerPid, getCard(cardId))) {
+        log(state, `${getCard(cardId).name}：転召の祭壇などの余分のコストを払えず、召喚できなかった。`)
+        return
+    }
     if (!state.interactiveTargets) {
         applySpiritMillFreeSummon(state, { pid: ownerPid, cardId, trashIndex })
         return
@@ -398,6 +431,8 @@ export function declineSpiritMillFreeSummon(state: GameState, info: NonNullable<
 export function applySpiritMillFreeSummon(
     state: GameState,
     info: NonNullable<PendingChoice["spiritMillFreeSummon"]>,
+    // 余分を支払い待ち（effectCostPay）で払い済み
+    prepaid?: true,
 ): void {
     const player = state.players[info.pid]
     const index =
@@ -406,13 +441,20 @@ export function applySpiritMillFreeSummon(
             : player.trashCards.indexOf(info.cardId)
     if (index === -1) return
     const card = getCard(info.cardId)
+    const maintain = minLevelCores(card)
+    if (!prepaid && askSurchargePay(state, info.pid, card, false, maintain, { type: "trashSummonPaidInternal", via: "mill", cardId: info.cardId, trashIndex: index })) return
+    const placed = prepaid ? 0 : payFreeSummonSurchargeKeeping(state, info.pid, card, false, maintain)
+    if (placed === null) {
+        log(state, `${card.name}：転召の祭壇などの余分のコストを払えず、召喚できなかった。`)
+        return
+    }
     player.trashCards.splice(index, 1)
-    const inst = createInstance(info.cardId, state.turn, minLevelCores(card))
+    // 召喚コストは無料だが、Lv1 に要るコアは通常の召喚と同じくリザーブから置く（フィールドのコアで賄えたぶんは除く）
+    const cores = Math.min(maintain - placed, player.reserve) + placed
+    player.reserve -= cores - placed
+    const inst = createInstance(info.cardId, state.turn, cores)
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
-    // 「さらに、このターンの間、自分のデッキは破棄されない」＝**この召喚が成立したときだけ**付く（§1 #27）
-    recordPlayerRule(state, info.pid, { type: "noDeckMillByOpponentForPid" })
-    log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
     if (!state.winner) resolveTensho(state, info.pid, inst)
     if (state.winner) return
     if (state.pendingChoice) {
@@ -437,6 +479,7 @@ export function applyReviveConfirm(
     // 保留したときと同じ判定経路を、対象のエントリだけに絞って**確定モード**で通す
     // （forced 指定時は optional の保留分岐に入らない）。コストが払えない等で成立しなければ破壊する
     if (!tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true })) {
+        log(state, `${getCard(inst.cardId).name}：条件を満たさないため発動しなかった。`)
         declineReviveConfirm(state, entry)
         return
     }
@@ -690,10 +733,13 @@ function tryReviveOnDestroy(
             if (player.life <= 0) return false
             if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
+            recordLifeLost(state, ownerPid, 1)
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
                 state.winner = opponentOf(ownerPid)
                 log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
+            } else {
+                fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
             }
             return true
         }
@@ -702,11 +748,14 @@ function tryReviveOnDestroy(
             if (player.life <= 0) return false
             if (lifeCostBlockedByFloor(state, ownerPid)) return false
             player.life -= 1
+            recordLifeLost(state, ownerPid, 1)
             player.reserve += 1
             log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
                 state.winner = opponentOf(ownerPid)
                 log(state, `${state.players[opponentOf(ownerPid)].name}の勝利！`)
+            } else {
+                fireFieldEventTriggers(state, ownerPid, "ownLifeLost")
             }
             return true
         }
@@ -748,6 +797,7 @@ function tryReviveOnDestroy(
             // このスピリット（inst）による今ターンぶんの許容がすでに0なら、コストとして払えない
             if (lifeDamagePerSpiritRemaining(state, inst) <= 0) return false
             oppPlayer.life -= 1
+            recordLifeLost(state, oppPid, 1)
             oppPlayer.trashCores += 1
             inst.lifeDealtThisTurn = (inst.lifeDealtThisTurn ?? 0) + 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
@@ -760,6 +810,7 @@ function tryReviveOnDestroy(
                     log(state, `${player.name}の勝利！`)
                 }
             }
+            if (!state.winner) fireFieldEventTriggers(state, oppPid, "ownLifeLost")
             return true
         }
         // BS14-X05神獣鳥アン・ズール：「自分のバースト1つを破棄することで」。
@@ -782,6 +833,49 @@ function tryReviveOnDestroy(
             chosen.isRested = true
             return true
         }
+        return true
+    }
+
+    // 確認を出す前の成立判定（副作用なし）。払えない理由を返し、払えるか判定できない（デッキの上の結果次第など）なら null。
+    // applyCost の不成立条件と揃えること（2026-10-02 ユーザー確認：聞く前に払えないなら確認を出さない）
+    const reviveCostReason = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        source?: CardInstance,
+    ): string | null => {
+        const cost = effect.cost
+        if (!cost) return null
+        if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
+        if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null
+        if (cost.oneCoreToTrash) return inst.cores <= 0 ? "コアが足りない" : null
+        if (cost.reserveOneToTrash) return player.reserve <= 0 ? "リザーブにコアがない" : null
+        if (cost.fieldOrReserveOneToTrash) {
+            const any = player.reserve > 0 || [...player.field.spirits, ...player.field.nexuses].some((i) => i.instanceId !== inst.instanceId && i.cores > 0)
+            return any ? null : "トラッシュへ置けるコアがない"
+        }
+        if (cost.handDiscardOne) {
+            if (!canDiscardHand(state, ownerPid)) return "手札を破棄できない"
+            const type = cost.handDiscardCardType
+            const has = type !== undefined ? player.hand.some((id) => getCard(id).type === type) : player.hand.length > 0
+            return has ? null : "手札に破棄できるカードがない"
+        }
+        if (cost.millSelfOneMatching) return player.deck.length === 0 ? "デッキがない" : null
+        if (cost.exhaustOwnFamilyOne || cost.exhaustOwnSameFamilyOne) {
+            const family = cost.exhaustOwnFamilyOne ?? getCard(inst.cardId).family
+            const has = player.field.spirits.some((x) => x.instanceId !== inst.instanceId && !x.isRested && matchesFamilyFilter(state, ownerPid, x, family))
+            return has ? null : "疲労させられる自分のスピリットがいない"
+        }
+        if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || lifeCostBlockedByFloor(state, ownerPid) ? "ライフを減らせない" : null
+        if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || lifeDamagePerSpiritRemaining(state, inst) <= 0 ? "相手のライフを減らせない" : null
+        if (cost.discardOwnBurst) return player.burst === null ? "破棄できるバーストがセットされていない" : null
+        if (cost.exhaustOwnNexusOne) return !canExhaustNexus(state, ownerPid) || player.field.nexuses.every((n) => n.isRested) ? "疲労させられる自分のネクサスがない" : null
+        return null
+    }
+    // 払えないなら確認を出さず不発にする。下見（probe）ではログを出さない。true＝不発として扱う
+    const skipUnpayable = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, source: CardInstance, sourceName: string): boolean => {
+        if (effect.cost === undefined) return false
+        const reason = reviveCostReason(effect, source)
+        if (reason === null) return false
+        if (!probe) log(state, unpayableLine(sourceName, reason))
         return true
     }
 
@@ -809,6 +903,7 @@ function tryReviveOnDestroy(
             // EffectModulesからのimportは循環参照になるためここでは直接書く）
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
+            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
             detachBravesOnLeave(state, ownerPid, inst)
             if (player.burst !== null) {
@@ -819,6 +914,7 @@ function tryReviveOnDestroy(
         } else if ("toHand" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
+            soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
             player.hand.push(inst.cardId)
             notifyHandGained(state, ownerPid, 1)
@@ -878,7 +974,8 @@ function tryReviveOnDestroy(
             collect.push({ effectId: effect.id, sourceName })
             return false
         }
-        if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
+        if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
+            if (skipUnpayable(effect, inst, sourceName)) return false
             if (probe) return true // 下見：ここで確認が出る
             if (allowSuspend) {
                 suspendReviveConfirm(state, ownerPid, inst, effect.id, inst.instanceId, context)
@@ -900,6 +997,7 @@ function tryReviveOnDestroy(
         }
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
+        noteCoverage(effect, "reviveOnDestroy")
         applyRevived(effect.revived)
         log(
             state,
@@ -945,7 +1043,7 @@ function tryReviveOnDestroy(
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            if (effect.keywordFilter && !hasKeyword(inst.cardId, effect.keywordFilter)) continue
+            if (effect.keywordFilter && ![effect.keywordFilter].flat().some((k) => spiritHasKeyword(state, ownerPid, inst, k))) continue
             // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
@@ -976,7 +1074,8 @@ function tryReviveOnDestroy(
             }
             // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
             // allowSuspend が渡っていれば**その場で**確認を出す（渡っていなければ従来どおり保留へ）
-            if (effect.optional && state.interactiveTargets && !forced?.skipConfirm) {
+            if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
+                if (skipUnpayable(effect, source, getCard(source.cardId).name)) continue
                 if (probe) return true // 下見：ここで確認が出る
                 if (allowSuspend) {
                     suspendReviveConfirm(state, ownerPid, inst, effect.id, source.instanceId, context)
@@ -996,6 +1095,7 @@ function tryReviveOnDestroy(
                 log(state, `${getCard(source.cardId).name}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
             }
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
+            noteCoverage(effect, "reviveOnDestroy")
             applyRevived(effect.revived)
             log(
                 state,

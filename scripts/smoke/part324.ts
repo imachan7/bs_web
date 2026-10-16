@@ -85,7 +85,7 @@ console.log("=== BS13-034-e1 ミノガメン：相手のデッキ破棄効果で
     millDeck(s, "p1", 1, "p2")
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS13-034"), "コストを支払わず場に出る")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された分だけ場が増える")
-    assert(s.players.p1.reserve === reserveBefore, "コストは支払っていない（リザーブは減らない）")
+    assert(s.players.p1.reserve === reserveBefore - 1, "召喚コストは払わないが、Lv1のコア1個はリザーブから置く")
     assert(!s.players.p1.trashCards.includes("BS13-034"), "トラッシュには残らない")
     assert(
         playerHas(s, "p1", "noDeckMillByOpponentForPid"),

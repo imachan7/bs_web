@@ -4,7 +4,7 @@
 // 新設した機構: costMod mode:"set" の scope:"self"（手札にあるこのカード自身の効果）と
 // condition:{ ownNexusAtLeast } を costSetOverride に追加（BS10-059フォート・ゴレム）。
 // 既存機構の踏襲: colorAs（BS10-051）／globalConstraint ownNexusIndestructible（BS10-053）／
-// keyword funsai・kyoshu＋refreshSelfByExhaustNexus（BS10-054／059）／triggered onSummon mill（BS10-060）。
+// keyword funsai・kyoshu＋pay（limitByKeyword）（BS10-054／059）／triggered onSummon mill（BS10-060）。
 // ⚠️ cardId はハードコードせず、名前をカードデータで機械検証してから使う。
 import {
     act,
@@ -103,11 +103,11 @@ function testKyoshu(cardId: string, cores: number, label: string) {
     spirit.isRested = true
     const light = putNexus(s, "p1", PLAIN_NEXUS, 0) // コア0＝最少
     const heavy = putNexus(s, "p1", PLAIN_NEXUS, 3) // コア3＝残しておく
-    resolveAction(s, "p1", spirit, { type: "refreshSelfByExhaustNexus" })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
     assert(!spirit.isRested, `${label}：ネクサスを疲労させて回復した`)
     assert(light.isRested && !heavy.isRested, "疲労するのはコア数最少のネクサス1つだけ")
     spirit.isRested = true // 再び疲労させて2回目を試す（疲労していないネクサスはまだ残っている）
-    resolveAction(s, "p1", spirit, { type: "refreshSelfByExhaustNexus" })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
     assert(spirit.isRested, `${label}：ターン中2回目は発動できない（回復しないまま）`)
     assert(!heavy.isRested, "上限に達しているので残っていたネクサスも消費されない")
 }

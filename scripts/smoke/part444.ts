@@ -217,7 +217,13 @@ console.log("=== reveal.countCounter + EffectCounter.ownKeyword配列：OR判定
         s,
         "p1",
         null,
-        { type: "reveal", from: "ownDeck", countCounter: { ownKeyword: ["kobo", "seimei"] }, pickCount: "all", dest: "hand" },
+        {
+            type: "sequence",
+            actions: [
+                { type: "revealOpen", from: "ownDeck", countCounter: { ownKeyword: ["kobo", "seimei"] } },
+                { type: "moveCards", from: "revealed", count: "all", dest: "hand", pick: {} },
+            ],
+        },
     )
     assert(s.players.p1.deck.length === beforeDeck - 3, "【光芒】/【聖命】持ち3体ぶん（重複1体は1回）だけオープンした")
     assert(s.players.p1.hand.length === beforeHand + 3, "オープンした3枚は手札へ（pickCount:allですべて選んだ）")

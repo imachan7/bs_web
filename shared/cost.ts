@@ -1,11 +1,13 @@
 // サーバー／クライアント共有のコスト計算層。
+import { noteCoverage } from "./coverage"
 // 軽減シンボル・コスト修正・マジック使用制約・無償化の判定を一本化する。
 // クライアントは「軽減後のコスト表示」と「使用可能ハイライト」にこれを使うため、
 // サーバーと実装がズレると『使えるのに使えないように見える』表示バグになる（旧 renderer のミラーで実在した）。
 import type { CardData, Color, PlayerId } from "../server/src/type"
+import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, isVanillaCard } from "./rules"
+import { cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -62,6 +64,7 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
                         : effect.amountCounter === "opponentFieldColors"
                           ? effect.amount * opponentFieldColorCount(board, pid)
                           : 0
+                noteCoverage(effect, "costMod")
                 total += amt
             }
         }
@@ -144,6 +147,7 @@ export function reductionGrantSymbols(
             if (effect.replace) {
                 replace = repeated
             } else {
+                noteCoverage(effect, "reductionGrant")
                 extra.push(...repeated)
             }
         }
@@ -204,6 +208,7 @@ export function hasMagicRestriction(
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                noteCoverage(effect, "magicRestriction")
                 return true
             }
         }
@@ -237,6 +242,7 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
                 ) {
                     continue
                 }
+                noteCoverage(effect, "magicRestriction")
                 return true
             }
         }
@@ -254,6 +260,7 @@ export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "nexusCostMillPay") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "nexusCostMillPay")
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
@@ -276,6 +283,7 @@ export function canPaySummonCostByHandDiscard(board: Board, pid: PlayerId): bool
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "summonCostHandDiscardPay") continue
+            noteCoverage(effect, "summonCostHandDiscardPay")
             return true
         }
     }
@@ -332,6 +340,7 @@ export function findMagicFreeGrantSource(
             }
             // 『このスピリットのバトル時』（BS07大天使イスフィール）：発生源自身がバトルの当事者のときだけ
             if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
+            noteCoverage(effect, "magicFreeGrant")
             return source.instanceId
         }
     }
@@ -363,6 +372,7 @@ export function magicEffectiveColors(board: Board, pid: PlayerId, cardData: Card
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (!cardData.colors.includes(effect.color)) continue
             if (effect.whileBattling && !isSelfInBattle(board, source.instanceId)) continue
+            noteCoverage(effect, "ownMagicColorless")
             return []
         }
     }
@@ -371,7 +381,8 @@ export function magicEffectiveColors(board: Board, pid: PlayerId, cardData: Card
 
 // pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
 // 軽減シンボルと同じシンボル集計対象を色の集合として求める）
-export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {
+// symbolAs：指定系統を持つ個体のシンボルを color としても数える（ソウルマジックの使用可否の判定でだけ渡す）
+export function ownFieldSymbolColors(board: Board, pid: PlayerId, symbolAs?: { family: string; color: Color }): Set<Color> {
     const colors = new Set<Color>()
     const all = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
     for (const inst of all) {
@@ -384,6 +395,7 @@ export function ownFieldSymbolColors(board: Board, pid: PlayerId): Set<Color> {
         const symbols = inst.symbolsOverrideContinuous ?? card(inst.cardId).symbol
         if (symbols.length === 0) continue
         for (const sym of symbols) colors.add(sym)
+        if (symbolAs && matchesFamilyFilter(board, pid, inst, symbolAs.family)) colors.add(symbolAs.color)
         for (const c of inst.timedColors) colors.add(c)
         for (const c of inst.colorsAsContinuous ?? []) colors.add(c)
     }
@@ -397,12 +409,15 @@ export function costSetOverride(
     board: Board,
     pid: PlayerId,
     cardData: CardData,
+    fromHand = true,
 ): number | undefined {
     let result: number | undefined
     // BS10-059：手札にあるこのスピリットカード自身の効果（scope:"self"）。effectSourcesでは拾えないため
     // cardData.effects を直接見る（hasTrashSymbolReductionと同じ形）
     for (const effect of cardData.effects) {
         if (effect.kind !== "costMod" || effect.mode !== "set" || effect.scope !== "self") continue
+        // scope:"self" の効果文はすべて「手札にあるこのカード」。トラッシュ・デッキ・バーストからの召喚には効かない
+        if (!fromHand) continue
         if (effect.condition !== undefined && "ownNexusAtLeast" in effect.condition) {
             if (board.players[pid].field.nexuses.length < effect.condition.ownNexusAtLeast) continue
         }
@@ -423,6 +438,14 @@ export function costSetOverride(
         // BS15共通器：虚神。発生源の持ち主が自分のバーストをセットしている間（true）／していない間（false）だけ
         if (effect.condition !== undefined && "ownBurstSet" in effect.condition) {
             if (board.players[pid].burstSet !== effect.condition.ownBurstSet) continue
+        }
+        if (effect.condition !== undefined && "opponentSpiritCostAtMost" in effect.condition) {
+            const max = effect.condition.opponentSpiritCostAtMost
+            const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+            if (!board.players[oppPid].field.spirits.some((s) => instMatchesCostFilter(s, { max }))) continue
+        }
+        if (effect.condition !== undefined && "ownNoSpirit" in effect.condition) {
+            if (board.players[pid].field.spirits.length > 0) continue
         }
         if (result === undefined || effect.setTo < result) result = effect.setTo
     }
@@ -455,6 +478,7 @@ export function costSetOverride(
             const setTo =
                 effect.setToCounter === "ownLife" ? board.players[pid].life : effect.setTo
             // 複数の置換が同時に効く場合は最も小さい値を採る（決定的にするため。現状そのカードは無い）
+            noteCoverage(effect, "costMod")
             if (result === undefined || setTo < result) result = setTo
         }
     }
@@ -464,8 +488,75 @@ export function costSetOverride(
 // BS10-092／BS10-X05：この cardData がトラッシュのシンボルでも軽減できるか。
 // self（X05：手札にあるカード自身の効果）は effectSources では拾えないので cardData.effects を直接見る。
 // ownHand（092：ネクサス）は発生源側の走査で cardType/cardColor の絞り込みを効かせる
-function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData): boolean {
-    if (cardData.effects.some((e) => e.kind === "trashSymbolReduction" && e.scope === "self")) return true
+// 《継召》(kind:"exTrashReduction")：この cardData がトラッシュのEXシンボルで軽減できるか。
+// 効果は「召喚しようとするカード自身」が持っているかで判定する（手札以外＝トラッシュ等から
+// コストを支払う召喚でも効く）。手札のカードは effectSources では拾えないため cardData.effects を直接見る
+function hasExTrashReduction(cardData: CardData): boolean {
+    return cardData.effects.some((e) => e.kind === "exTrashReduction")
+}
+
+// トラッシュのEXシンボル持ちカード（軽減に使える候補）のインデックス一覧。
+// 除外で消えるため trashCards から除いた分は数えない
+export function exTrashReductionCandidateIndices(board: Board, pid: PlayerId, cardData: CardData): number[] {
+    if (!hasExTrashReduction(cardData)) return []
+    const result: number[] = []
+    const trash = board.players[pid].trashCards
+    for (let i = 0; i < trash.length; i++) {
+        if (card(trash[i]!).symbolEx === true || trashCardAsEx(board, pid, i) !== undefined) result.push(i)
+    }
+    return result
+}
+
+// 効果で「シンボル1つをEXシンボルとして扱う」と指定されたトラッシュのカード（26RBS03-X04）。
+// 位置ではなく cardId で覚える（指定のあとトラッシュの途中が抜けても外れない）。同じ cardId の写しは区別できないので、
+// トラッシュでその cardId の最初の1枚を指定したカードとみなす（記録1件につき1枚）
+function trashCardAsEx(board: Board, pid: PlayerId, index: number): Color | undefined {
+    const trash = board.players[pid].trashCards
+    const id = trash[index]
+    const rules = timedPlayerRules(board, pid).filter((r): r is Extract<typeof r, { type: "trashCardAsEx" }> => r.type === "trashCardAsEx" && r.cardId === id)
+    const nth = trash.slice(0, index).filter((x) => x === id).length
+    return rules[nth]?.color
+}
+
+// 除外するトラッシュのカードのEXシンボルの色。もともとEXなら全シンボル、指定で扱うだけなら指定した1つ
+export function exSymbolsOfTrashCard(board: Board, pid: PlayerId, index: number): Color[] {
+    const data = card(board.players[pid].trashCards[index]!)
+    if (data.symbolEx === true) return data.symbol
+    const as = trashCardAsEx(board, pid, index)
+    return as === undefined ? [] : [as]
+}
+
+// kind:"selfSummonCost"（手札のこのカードの召喚コスト注記）のうち、条件を満たす mode のもの。
+// viaSoryo 付きは【操霊】での召喚（effectiveCost の viaSoryo 引数）のときだけ有効
+function selfSummonCostNotes(board: Board, pid: PlayerId, cardData: CardData, mode: string, viaSoryo: boolean) {
+    const me = board.players[pid]
+    return cardData.effects.flatMap((e) => {
+        if (e.kind !== "selfSummonCost" || e.mode !== mode) return []
+        if (e.viaSoryo && !viaSoryo) return []
+        const c = e.condition
+        if (c !== undefined) {
+            if ("ownAttacksAtLeast" in c && !(board.turnPlayer === pid && board.attacksThisTurn >= c.ownAttacksAtLeast)) return []
+            if ("ownMagicUsedThisTurn" in c && !(board.magicIdsUsedThisTurn?.[pid] ?? []).some((id) => cardMatchesSummonPick(card(id), c.ownMagicUsedThisTurn))) return []
+            if ("ownTrashAllColor" in c && !me.trashCards.every((id) => cardHasColor(card(id), c.ownTrashAllColor))) return []
+            if ("ownEffectDestroyedOwnSpirit" in c && !(board.ownSpiritDestroyedByOwnEffectColors?.[pid]?.length)) return []
+        }
+        if (e.oncePerTurnName && (board.selfSummonCostUsedNames?.[pid] ?? []).includes(cardData.name)) return []
+        return [e]
+    })
+}
+
+// 「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
+export function selfSetCost(board: Board, pid: PlayerId, cardData: CardData, viaSoryo = false): number | undefined {
+    return selfSummonCostNotes(board, pid, cardData, "setCost", viaSoryo)[0]?.setTo
+}
+
+function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData, viaSoryo = false): boolean {
+    const selfEntry = cardData.effects.find((e) => e.kind === "trashSymbolReduction" && e.scope === "self")
+    if (selfEntry) {
+        noteCoverage(selfEntry, "trashSymbolReduction")
+        return true
+    }
+    if (selfSummonCostNotes(board, pid, cardData, "trashSymbols", viaSoryo).length > 0) return true
     for (const source of effectSources(board, pid)) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -473,6 +564,7 @@ function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
+            noteCoverage(effect, "trashSymbolReduction")
             return true
         }
     }
@@ -483,11 +575,63 @@ function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData
 // costMod（例: ルビーの太陽の白カード+1コスト）を加算した実コスト。
 // reductionGrant（ペンタン／天使バーチュ）で付与された軽減シンボルは cardData.reduction に連結してから計算する。
 // noReductionOpponent（イワトビペンタン）が有効なマジックは軽減シンボルによる軽減自体ができない
+// kind:"symbolWhenSummoning"（26系RDB01-030「自分がコスト7以上で【イエローライズ】を持つスピリットカードを召喚する時、
+// このスピリットに黄シンボル1つを追加する」）。召喚するカードによって変わるので、盤面のシンボルでなく軽減計算で足す
+function cardMatchesSummonPick(c: CardData, pick: CardPick): boolean {
+    if (pick.cardType !== undefined && !([] as string[]).concat(pick.cardType).includes(c.type)) return false
+    if (pick.family !== undefined && !([] as string[]).concat(pick.family as string | string[]).some((f) => (c.family ?? []).includes(f))) return false
+    if (pick.cost !== undefined && !matchesCostFilter(c.cost, typeof pick.cost === "number" ? { min: pick.cost, max: pick.cost } : pick.cost)) return false
+    if (pick.color !== undefined && !([] as Color[]).concat(pick.color).some((col) => cardHasColor(c, col))) return false
+    if (pick.nameIncludes !== undefined && !c.name.includes(pick.nameIncludes)) return false
+    if (pick.team !== undefined && !cardHasTeam(c, pick.team)) return false
+    if (pick.vanilla && !isVanillaCard(c)) return false
+    if (pick.costIn !== undefined && !pick.costIn.includes(c.cost)) return false
+    return true
+}
+
+function summoningSymbolBonus(board: Board, pid: PlayerId, cardData: CardData, color: Color): number {
+    if (cardData.type !== "spirit") return 0
+    let n = 0
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "symbolWhenSummoning" || effect.color !== color) continue
+            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.ownMainStepOnly && (board.phase !== "main" || board.turnPlayer !== pid)) continue
+            if (effect.team !== undefined && !cardHasTeam(cardData, effect.team)) continue
+            if (effect.minCost !== undefined && cardData.cost < effect.minCost) continue
+            if (effect.pick && !cardMatchesSummonPick(cardData, effect.pick)) continue
+            if (effect.opponentSpiritVanishedThisTurn && board.spiritVanishedThisTurn?.[pid === "p1" ? "p2" : "p1"] !== true) continue
+            const toCost = effect.toOwnSpiritsCost
+            const targets = toCost === undefined ? 1 : board.players[pid].field.spirits.filter((s) => instMatchesCostFilter(s, { in: [toCost] })).length
+            n += (effect.count ?? 1) * targets
+        }
+    }
+    return n
+}
+
+function ownFamilySpiritCostAdjust(board: Board, pid: PlayerId, cardData: CardData, viaSoryo: boolean): number {
+    let total = 0
+    for (const e of selfSummonCostNotes(board, pid, cardData, "perOwnFamilySpirit", viaSoryo)) {
+        const n = board.players[pid].field.spirits.filter((s) => matchesFamilyFilter(board, pid, s, e.family!)).length
+        const raw = (e.per ?? 0) * n
+        total += e.maxTotal === undefined ? raw : Math.sign(raw) * Math.min(Math.abs(raw), e.maxTotal)
+    }
+    return total
+}
+
 export function effectiveCost(
     board: Board,
     pid: PlayerId,
     cardData: CardData,
     ignoreFreeGrant = false,
+    // 《継召》(kind:"exTrashReduction")：除外したトラッシュのEXシンボル持ちカードのシンボル列。
+    // 呼び出し側（summon アクション）が検証済みの値を渡す。軽減シンボルと同じ色だけが軽減に使え、
+    // 軽減シンボル数の上限内で有効（赤軽減なら赤のEXシンボルでしか軽減できない）
+    exReductionSymbols: Color[] = [],
+    viaSoryo = false, // 【操霊】による召喚か（kind:"selfSummonCost" の viaSoryo 用）
+    // 手札以外（トラッシュの【不死】・デッキ・バースト等）から出すときは false。既定は手札
+    fromHand = true,
 ): number {
     // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
     // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）。
@@ -505,7 +649,7 @@ export function effectiveCost(
     // コスト置換（BS05パントマイスター／ゴッドスピード等「コストを◯にする」）は①で総コストを決めるだけなので、
     // **置換したコストからさらに軽減できる**（2026-09-16 ユーザー確定。以前は置換すると軽減を一切適用しなかった）
     // 軽減の前に足すコスト増（beforeReduction:true。「コスト+1する」＝軽減で打ち消せる。BS15共通器：虚神）
-    const totalCost = (costSetOverride(board, pid, cardData) ?? cardData.cost) + costModTotal(board, pid, cardData, true)
+    const totalCost = (selfSetCost(board, pid, cardData, viaSoryo) ?? costSetOverride(board, pid, cardData, fromHand) ?? cardData.cost) + costModTotal(board, pid, cardData, true) + ownFamilySpiritCostAdjust(board, pid, cardData, viaSoryo)
     let base: number
     {
         // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の
@@ -538,23 +682,31 @@ export function effectiveCost(
         if (!reductionBlocked && !reductionBlockedBySummonCost) {
             // BS10-092／BS10-X05：フィールドのシンボルに加え、自分のトラッシュにあるカードのシンボルでも
             // 軽減できる（ループの外で1回だけ判定し、色ごとには呼ばない）
-            const withTrash = hasTrashSymbolReduction(board, pid, cardData)
+            const withTrash = hasTrashSymbolReduction(board, pid, cardData, viaSoryo)
+            const fullReduction = selfSummonCostNotes(board, pid, cardData, "fullReduction", viaSoryo).length > 0
             for (const color of new Set(reductionColors)) {
                 const need = reductionColors.filter((c) => c === color).length
                 const have =
                     countSymbols(board.players[pid], [color], cardData.type === "spirit") +
-                    (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0)
-                reduction += Math.min(need, have)
+                    (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0) +
+                    // 《継召》：除外したカードのシンボルのうち、この色に一致するものだけ軽減に加算する
+                    exReductionSymbols.filter((c) => c === color).length +
+                    summoningSymbolBonus(board, pid, cardData, color)
+                reduction += Math.min(need, fullReduction ? need : have)
+            }
+            // 相手のリザーブのコア1個につき、色を問わず軽減シンボル1つを満たせる（満たしていない分が上限）
+            if (!fullReduction && selfSummonCostNotes(board, pid, cardData, "perOppReserveCore", viaSoryo).length > 0) {
+                reduction += Math.min(reductionColors.length - reduction, board.players[pid === "p1" ? "p2" : "p1"].reserve)
             }
         }
-        base = Math.max(totalCost - reduction, 0)
+base = Math.max(totalCost - reduction, 0)
     }
     // SD02-013 転召の祭壇Lv1-2：相手フィールドの発生源が、条件を満たすスピリットカードの召喚に
     // 追加コストを課す（「1コスト余分に支払わなければならない」）。軽減の後に足す
     return Math.max(
         base +
             costModTotal(board, pid, cardData) +
-            opponentSummonCostIncrease(board, pid, cardData) +
+            summonSurcharge(board, pid, cardData) +
             opponentMagicCostIncrease(board, pid, cardData),
         0,
     )
@@ -585,7 +737,7 @@ function opponentMagicCostIncrease(board: Board, usingPid: PlayerId, cardData: C
 // globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
 // スピリットカードを召喚するときに増える追加コストの合計（SD02-013 転召の祭壇Lv1-2）。
 // 条件は**カード静的な**コストとキーワードで見る（場に出る前の判定のため）
-function opponentSummonCostIncrease(board: Board, usingPid: PlayerId, cardData: CardData): number {
+export function summonSurcharge(board: Board, usingPid: PlayerId, cardData: CardData): number {
     if (cardData.type !== "spirit") return 0
     let total = 0
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
@@ -596,6 +748,10 @@ function opponentSummonCostIncrease(board: Board, usingPid: PlayerId, cardData: 
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "opponentSummonCostIncrease") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                // phase／turn は発生源の持ち主基準（turn:"opponent"＝持ち主のターンでないとき。26RDB01-053『相手のメインステップ』）
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 const { amount, maxCost, keywordExclude } = effect.constraint
                 if (maxCost !== undefined && cardData.cost > maxCost) continue
                 if (keywordExclude !== undefined && hasKeyword(cardData.cardId, keywordExclude)) continue

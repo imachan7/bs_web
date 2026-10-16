@@ -87,6 +87,7 @@
 - 「〜すべて」は元のアクションに `all: true`（対象すべて）を付けて書き、`destroyAll` のような専用 type は作らない。`all: true` は範囲の効果として耐性を判定する（1体を対象に取る場合と違う）。両陣営は `anySide`。`coreRemove` の `all` だけは「そのスピリットのコアすべて」の意味（2026-09-24）
 - 「〜1体につき」の量は `countCounter`（量＝`(count ?? 1) × 値`、`countMax` で上限）か `amountCounter`（量＝`amount × 値`）で書き、`*Per` のような専用 type は作らない。計算は `server/src/logic/counted.ts` の1か所（対象に依存する数え方もここ）。2026-09-24
 - 期間つきの継続効果は `timedEffect { content, duration, count／countCounter, filter }` で書く。対象は相手のスピリット、選ぶのは発生源の持ち主、**内容をすべて既に持つ個体は候補にしない**（「1体につき1体を指定」で同じ個体を重ねない）。いまの内容は `cantAttack`・`cantBlock`、期間は `turn`・`battle` で、置き場は既存の印（2026-09-24）
+- 期間 `firstAttack`＝「このステップの最初に」。その陣営の次のアタック宣言（誰が宣言しても）かターン終了で消える。`mustAttack` と組むと、義務がある間は他のスピリットでアタックできない（セイ・ドリガン。2026-10-08 ユーザー確認）
 - 「このターンの間、〜のスピリットすべてをBP+」も、解決後に場に出たスピリットに効く（「〜すべてはアタックできない」と同じ全体ルール。2026-09-24 ユーザー確認）。`timedEffect` の `all: true` は内容を問わずこの意味で、即時のアクション（破壊・疲労）の `all: true`＝解決時にいたものすべて、とは別
 - 内容 `{ type: "bp"; amount; amountCounter? }`（いまは `all: true` のときだけ）は、`effectiveBp` が計算のたびに `timedRule` を照合して足す。「1体につき」の量も計算のたびに `countAuraCounter` で数え直す（BS08-075 ダークパワーの Q&A。2026-09-24 ユーザー確認）。BP を条件にした絞り込みは循環するので使えない
 - 「〜の効果は発揮されない」（古代闘技場など）は、**発揮し続けている効果**（場にいる間のオーラ）は止めるが、**発揮し終わって効果が続いているもの**（マジック・誘発の「このターンの間BP+」）は止めない。後者は発揮する時点でだけ判定する（2026-09-24 ユーザー確認）
@@ -114,6 +115,7 @@
 - 「このターンの間、疲労状態でもブロックできる」は `timedEffect` の内容 `{ type: "canBlockWhileRested" }`（期間 `turn`・`side: "own"`）。1体は自分のスピリットから選んで個体の印 `canBlockWhileRestedThisTurn`、`all: true` は `timedRule`。判定は `shared/rules.ts` の `canBlockWhileRestedThisTurn`（2026-09-25）
 - 「このターンの間、自分のスピリットに“誘発効果”を与える」は `timedEffect` の内容 `{ type: "grantTrigger"; trigger; action; battleRole? }`（期間 `turn`・`side: "own"`）。1体は自分のスピリットから選んで個体の `tempGrantedTriggers`（`triggers.ts` の `fireTrigger` が静的な効果と合わせて読む）。「すべてに与える」はステップの見出しを期間とする継続効果 `effectGrant`（`phaseTurn`）で書き、`timedEffect` の `all` は未対応（2026-09-25）
 - 「【X】を持つ」には、効果で得たキーワードも含める（印刷されたものに限らない。2026-09-25 ユーザー確認）。判定は `spiritHasKeyword`。`effectGrant` の `keywordFilter` はこれに揃えた
+- 場のスピリットが「【X】を持つ」のは、**現在のレベルで発揮できるとき**（Lv表記の無いキーワードは常に持つ。合体中のブレイヴのキーワードは合体していれば持つ）。手札・トラッシュ・デッキのカードは全レベルぶんを持つ扱い（`hasKeyword`）。付与を見ると自己参照になる箇所は `instHasStaticKeyword`（2026-10-08 ユーザー確認）
 - 破壊された後に誘発する効果（『バトル時』破壊されたとき等）は、場を離れた直前の状態を見る。`effectGrant` は誘発している個体自身も発生源に含める（ヤツノカンゾウ自身が負けたときも付与が効く。2026-09-25）
 - `timedEffect` の `all: true` は個体を選ばず `turnConstraints` に `timedRule`（内容・陣営・解決済みの `filter`）を積み、宣言のたびに `shared/rules.ts` の `cantActByTimedRule` が `matchesTarget` で照合する。陣営は `side`（相手＝既定／`own`／`both`）。いまは期間 `turn` だけ（2026-09-24）
 - 「このターンの間、〜のスピリットすべては〜できない」は、効果の解決後に場に出たスピリットや、後から条件に合うようになったスピリットにも効く（判定のたびに条件を照合する全体ルール。2026-09-24 ユーザー確認）。「〜1体を指定し」は解決時に選んだ個体にだけ効く

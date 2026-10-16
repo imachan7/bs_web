@@ -219,17 +219,15 @@ console.log("=== BS08闇帝竜騎サブナ・ルーク：removeCores target:all 
 
 console.log("=== BS08アンドレアルファス：summonFromTrashFree.nameIncludes（カード名に「勇者」） ===")
 {
-    const andre = findByEffect(
-        (e) =>
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "summonFromTrashFree" &&
-            (e["action"] as Record<string, unknown>)["nameIncludes"] !== undefined,
-    )
-    const entry = entryOf(
-        andre,
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "summonFromTrashFree",
-    )
+    // 旧 summonFromTrashFree は moveCards（dest:"summon"）に移った
+    const isNameSummon = (e: Record<string, unknown>): boolean => {
+        const a = e["action"] as { type?: string; dest?: string; pick?: { nameIncludes?: string } } | undefined
+        return a?.type === "moveCards" && a.dest === "summon" && a.pick?.nameIncludes !== undefined
+    }
+    const andre = findByEffect(isNameSummon)
+    const entry = entryOf(andre, isNameSummon)
     const level = (entry["levels"] as number[])[0]!
-    const nameIncludes = String((entry["action"] as Record<string, unknown>)["nameIncludes"])
+    const nameIncludes = String((entry["action"] as { pick: { nameIncludes: string } }).pick.nameIncludes)
     const target = CARDS.find((c) => c.type === "spirit" && c.name.includes(nameIncludes))!
     const outsider = FILLER
 
@@ -254,11 +252,11 @@ console.log("=== BS08ターンインフェルノ：recoverSpiritFromTrash.keywor
         (e) =>
             e["kind"] === "magic" &&
             e["timing"] === "main" &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "recoverSpiritFromTrash" &&
-            (e["action"] as Record<string, unknown>)["keywordFilter"] !== undefined,
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "moveCards" &&
+            (e["action"] as { pick?: { keyword?: string } }).pick?.keyword !== undefined,
     )
     const entry = entryOf(inferno, (e) => e["kind"] === "magic" && e["timing"] === "main")
-    const kw = String((entry["action"] as Record<string, unknown>)["keywordFilter"])
+    const kw = String((entry["action"] as { pick: { keyword: string } }).pick.keyword)
     const withKw = CARDS.find((c) => c.type === "spirit" && hasKeyword(c.cardId, kw as never))!
     const withoutKw = FILLER
 

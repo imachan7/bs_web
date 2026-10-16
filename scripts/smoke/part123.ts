@@ -13,11 +13,10 @@
 //
 // ※「スピリットの効果か・ネクサスの効果か・マジックの効果か」の区別は簡略化して見ていない
 //    （シーサーズはネクサス除外、スリーカードはマジック除外が原作の条件。card-notes に記載）
-import { assert, createGame, createInstance, currentLevel, getCard, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, currentLevel, getCard, runTurnStart , endTurn } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { countSpiritsWeighted, spiritCountWeight } from "../../shared/rules"
 import { resolveMagic } from "../../server/src/logic/EffectModules"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)

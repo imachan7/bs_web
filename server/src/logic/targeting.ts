@@ -3,9 +3,12 @@ import { findSpiritAny, isResisted, resolveAction } from "./EffectModules"
 import type { CardInstance, CardType, Color, EffectAction, FamilyFilter, GameState, Keyword, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
 import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./triggers"
+import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
 import {
     effectiveBp,
+    instMatchesCostFilter,
+    instInShinkaihoState,
     instanceSymbolCount,
     instIsVanilla,
     cardNameContains,
@@ -238,6 +241,9 @@ export function bpBuffTargetPasses(
     familyFilter?: FamilyFilter,
     combinedFilter?: boolean,
     vanillaFilter?: boolean,
+    costFilter?: { max?: number; min?: number; in?: number[] },
+    teamFilter?: string,
+    shinkaihoFilter?: boolean,
 ): boolean {
     if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
     if (keywordFilter !== undefined) {
@@ -253,6 +259,11 @@ export function bpBuffTargetPasses(
     if (combinedFilter !== undefined && instIsCombined(inst) !== combinedFilter) return false
     // vanillaFilter（BS12-083マジックランプ「効果の記述を持たないスピリット1体をBP+」）
     if (vanillaFilter === true && !instIsVanilla(inst)) return false
+    // cost（26系水流「コスト8以上で系統：海緑」）。道化師クランの付与コストも見るため instMatchesCostFilter を通す
+    if (costFilter !== undefined && !instMatchesCostFilter(inst, costFilter)) return false
+    // team（26系【チーム：X】所属）・shinkaiho（26系《真界放》のLvにいるか。TargetFilterの同名軸と同じ判定）
+    if (teamFilter !== undefined && !getCard(inst.cardId).team?.includes(teamFilter)) return false
+    if (shinkaihoFilter !== undefined && instInShinkaihoState(inst) !== shinkaihoFilter) return false
     return true
 }
 
@@ -262,10 +273,22 @@ export function bpBuffTargetPasses(
 // minSymbols指定時、対象（明示指定・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効
 // （ライトニングバリスタ等。BS04エンジン拡張バッチ1）
 // actions/* の分割モジュールから参照するため export している
+// bpBuff の自分側候補一覧（pickBpBuffTarget の自動選択と、対話時の選択肢で共有）
+export function ownBpBuffCandidates(
+    state: GameState,
+    owner: PlayerId,
+    ...rest: DropFirst3<Parameters<typeof bpBuffTargetPasses>>
+): CardInstance[] {
+    return state.players[owner].field.spirits.filter((s) => bpBuffTargetPasses(state, owner, s, ...rest))
+}
+type DropFirst3<T extends unknown[]> = T extends [unknown, unknown, unknown, ...infer R] ? R : never
+
 export function pickBpBuffTarget(
     state: GameState,
     owner: PlayerId,
-    targetInstanceId?: string,
+    targetInstanceId: string | undefined,
+    // 呼び出し側の絞り込み全体（色など、下の個別の軸に無いもの）
+    extra: (inst: CardInstance) => boolean,
     minSymbols?: number,
     keywordFilter?: Keyword | Keyword[],
     nameContains?: string | string[],
@@ -273,16 +296,19 @@ export function pickBpBuffTarget(
     familyFilter?: FamilyFilter,
     combinedFilter?: boolean,
     vanillaFilter?: boolean,
+    costFilter?: { max?: number; min?: number; in?: number[] },
+    teamFilter?: string,
+    shinkaihoFilter?: boolean,
 ): CardInstance | null {
     const passes = (inst: CardInstance): boolean =>
-        bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter)
+        extra(inst) && bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter, costFilter, teamFilter, shinkaihoFilter)
     if (targetInstanceId) {
         const found = findSpiritAny(state, targetInstanceId)
         if (!found) return null
         if (!passes(found.inst)) return null
         return found.inst
     }
-    const mine = state.players[owner].field.spirits.filter(passes)
+    const mine = ownBpBuffCandidates(state, owner, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter, costFilter, teamFilter, shinkaihoFilter).filter(extra)
     let target: CardInstance | null = null
     if (state.battle) {
         target =
@@ -333,7 +359,11 @@ export function requestActivationConfirm(
     self: CardInstance | null,
     // 断ったときに「ターンに1回」の消費を戻す対象（oncePerTurn を持つ triggered / fieldEvent。2026-09-16）
     revertTriggered?: { instanceId: string; effectId: string },
+    // 承認後の解決に渡す対象と発生源（確認を挟むと失われるため。BS13-053 モクバオー）
+    carry?: { targetInstanceId?: string | undefined; sourceColors?: Color[] | undefined; sourceType?: CardType | undefined },
 ): void {
+    // 発生源が分からない呼び出し（マジック・バースト）は名前を出せないので従来どおり確認する
+    if (self && skipUnpayablePay(state, pid, self, revertTriggered ? { ...action, onceRevert: revertTriggered } as EffectAction : action, getCard(self.cardId).name)) return
     suspend(state, {
         pid,
         kind: "option",
@@ -342,9 +372,13 @@ export function requestActivationConfirm(
         options: ["発動する"],
         optional: true,
         confirm: true,
-        action,
+        action: markPays(action, { confirmed: true, ...(revertTriggered ? { onceRevert: revertTriggered } : {}) }),
         selfInstanceId: self ? self.instanceId : null,
         ...(revertTriggered ? { revertTriggered } : {}),
+        ...(carry?.targetInstanceId !== undefined ? { confirmTargetInstanceId: carry.targetInstanceId } : {}),
+        ...(carry?.sourceColors !== undefined || carry?.sourceType !== undefined
+            ? { effectSource: { ...(carry.sourceType !== undefined ? { type: carry.sourceType } : {}), ...(carry.sourceColors !== undefined ? { colors: carry.sourceColors } : {}) } }
+            : {}),
     })
 }
 

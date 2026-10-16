@@ -7,7 +7,7 @@
 // discardBothHands.countCounter / EffectCounter.ownFamily の配列OR）は既存 smoke のどのパートも
 // 通らないため、ここで最低限の発火を確認する。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
-import { act, assert, createGame, createInstance, destroySpirit, refreshLevelAsOverrides, resolveAction, runTurnStart, spiritHasKeyword } from "./helpers"
+import { act, assert, createGame, createInstance, destroySpirit, refreshLevelAsOverrides, resolveAction, runTurnStart, spiritHasKeyword, legacy } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { countEffectCounter } from "../../server/src/logic/EffectModules"
@@ -68,13 +68,13 @@ console.log("=== §C 土星神龍クロノ・ボロス：costDiscardHandThenDraw
     const s = setup("bs10-chronoboros")
     s.players.p1.hand = ["BS01-001"]
     const deckBefore = s.players.p1.deck.length
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 3 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: legacy({ type: "discardSelfChoose", count: 2 }), then: { type: "draw", count: 3 } })
     assert(s.players.p1.hand.length === 1, "手札が2枚に満たないため発動せず、手札は減らない")
     assert(s.players.p1.deck.length === deckBefore, "コストを払えないのでドローもしない")
 
     s.players.p1.hand = ["BS01-001", "BS01-001", "BS01-001"]
     const deckBefore2 = s.players.p1.deck.length
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "discardSelfChoose", count: 2 }, then: { type: "draw", count: 3 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: legacy({ type: "discardSelfChoose", count: 2 }), then: { type: "draw", count: 3 } })
     assert(s.players.p1.hand.length === 4, "手札2枚を破棄し、デッキから3枚ドローした（3-2+3=4）")
     assert(s.players.p1.deck.length === deckBefore2 - 3, "デッキから3枚引かれた")
     assert(s.players.p1.trashCards.length === 2, "破棄した2枚がトラッシュにある")

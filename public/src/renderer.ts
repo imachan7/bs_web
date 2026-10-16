@@ -1,62 +1,35 @@
 // 受け取った状態をDOMへ反映する描画処理
 import type {
-    AuraCondition,
-    AuraCounter,
-    AuraDef,
     CardData,
-    CardInstance,
-    Color,
-    ConstraintDef,
-    FamilyFilter,
-    GameEvent,
-    GameView,
-    GlobalConstraintDef,
-    Keyword,
-    PlayerId,
+    CardInstance, GameEvent,
+    GameView, PlayerId
 } from "../../server/src/type"
-import { CARD_TYPE_LABELS, COLOR_LABELS, PHASE_LABELS } from "../../data/constants"
+import { CARD_TYPE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
-import { effectLineSegments } from "./effectText"
-import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../shared/cost"
+import { effectiveCost } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
-import { braveCombineCandidates } from "../../shared/summon"
 import {
     activeConstraints,
     cantActByTimed,
-    currentLevel,
-    instCostCantAct,
-    effectiveBp,
+    currentLevel, effectiveBp,
     hasArmorAgainst,
-    hasGlobalConstraint,
-    hasHandKeywordGrant,
-    hasKeyword,
+    hasGlobalConstraint, hasKeyword,
     hasMagicImmunity,
     isUntargetableByOpponent,
     activatableAbility as sharedActivatableAbility,
-    canAwaken as sharedCanAwaken,
-    minLevelCores,
-    sokuPayableInstanceIds,
-    coreZoneChoiceId,
-    canAwakenFromReserve,
+    canAwaken as sharedCanAwaken, canAwakenFromReserve,
     directAttackFilter,
     instHasColor,
-    instHasCost,
-    isVanillaCard,
-    matchesFamilyFilter,
+    instHasCost, matchesFamilyFilter,
     spiritHasFamily,
-    spiritHasKeyword,
-    effectActiveAtLevel,
-    handSizeOf,
-    type DirectAttackFilter,
-    boardResistanceAgainst,
-    isEndStepLocked,
-    bravesOf,
-    burstSetCoresRequired,
-    shinsokuAssistCandidates,
-    timedFlashLocked,
-    timedMagicLocked,
+    spiritHasKeyword, type DirectAttackFilter, isEndStepLocked
 } from "../../shared/rules"
+import { currentHoverCard, hideEffectTooltip, suppressEffectTooltip } from "./ui/tooltip"
+import { payableFieldCores, payingIsCostOnly, payingNeed, payingRemaining, PayingState, exReductionSymbolsFor, ExReductionGroup, exReductionPickedIndices, payingCardId, payingAltPay, payingShinsokuAssistCandidates } from "./ui/paying"
+import { renderField } from "./ui/fieldCard"
+import { renderHand } from "./ui/hand"
+import { renderInfo, renderBurst, renderBattle } from "./ui/infoPanels"
 export { activeConstraints, cantActByTimed, hasArmorAgainst, hasGlobalConstraint, hasKeyword, instHasCost, instHasColor, isUntargetableByOpponent }
 
 // ---- カードマスターデータ（起動時に /api/cards から取得。実体は data/cards/BS0N.json） ----
@@ -95,7 +68,7 @@ export function master(cardId: string): CardData {
     return card
 }
 
-const COLOR_SYMBOLS: Record<string, string> = {
+export const COLOR_SYMBOLS: Record<string, string> = {
     red: "🔥",
     purple: "💀",
     green: "🌿",
@@ -151,53 +124,6 @@ export const hasMagicImmunityView = hasMagicImmunity
 // コスト計算はサーバーと同一の共有実装（shared/cost）を使う。
 // main.ts が effectiveCost を import しているため、ここから再エクスポートする
 export { effectiveCost }
-
-// 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
-// 【神速】召喚のときは基礎ルールでリザーブのみのため、sokuPaySourceGrant が許可した対象だけ数える
-// （判定はサーバー validateSummon と同一の共有実装）
-export function payableFieldCores(view: GameView, cardId: string): number {
-    const player = view.players[view.you]
-    const card = master(cardId)
-    const isSoku = view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")
-    const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
-    return [...player.field.spirits, ...player.field.nexuses]
-        .filter((i) => allowed === null || allowed.has(i.instanceId))
-        .reduce((sum, i) => sum + i.cores, 0)
-}
-
-// 支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
-export function payingNeed(view: GameView, paying: PayingState): number {
-    const cardId = payingCardId(view, paying)
-    if (cardId === undefined) return 0
-    const card = master(cardId)
-    // ブレイヴの分離（§6.3・§6.4）はコストが無く、必要なのは置くコア（スピリット状態のLv1維持コスト）だけ
-    if (paying.forDetachBraveInstanceId !== undefined || paying.forBraveKeep !== undefined) {
-        return minLevelCores(card)
-    }
-    // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
-    const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
-    const targetLevel = paying.level || 1
-    const lv = card.levels.find((l) => l.level === targetLevel)
-    // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア。BRAVE.md §5）
-    const maintain =
-        card.type === "magic" || paying.braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
-    // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
-    const alt = payingAltPay(view, paying)
-    // kind:"shinsokuPayAssist"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
-    // 召喚コストを肩代わりする（置くコアには使えない）
-    const shinsokuDiscount = payingShinsokuAssistDiscount(view, paying)
-    const costAfterDiscounts = Math.max(0, cost - Math.min(alt.used, cost) - shinsokuDiscount)
-    return costAfterDiscounts + maintain
-}
-
-// 支払いモードでの残り不足コア数（0なら送信可能）
-export function payingRemaining(view: GameView, paying: PayingState): number {
-    if (payingCardId(view, paying) === undefined) return 0
-    const need = payingNeed(view, paying)
-    const assignedTotal = Object.values(paying.assigned).reduce((a, b) => a + b, 0)
-    const reserve = view.players[view.you].reserve
-    return Math.max(need - reserve - assignedTotal, 0)
-}
 
 // マジックが対象を必要とするか（"opponent" = 相手スピリット、"self" = 自分スピリット）
 export type TargetSide = "self" | "opponent"
@@ -269,97 +195,6 @@ export function activatableAbility(
     return sharedActivatableAbility(view, you, inst)
 }
 
-// 支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
-export interface PayingState {
-    handIndex: number
-    // 選択待ち（pendingChoice）の解決として送る場合の手札インデックス。
-    // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル＝summonFromHandFree の payCost）で、
-    // リザーブだけでは払えないときに通常の召喚と同じ支払いUIを流用するためのもの。
-    // 立っているときは summon ではなく resolveChoice を送る（2026-08-23）
-    forChoiceCardIndex?: number
-    // 選択待ちの解決として支払うとき、選んだカードがどのゾーンにあるか（既定は手札）。
-    // "trash" のときは handIndex を trashCards の添字として読む
-    // （BS07常闇の聖堂＝トラッシュから召喚／BS08-X33ミカファール＝トラッシュのマジックを使用。2026-08-24）
-    choiceZone?: "hand" | "trash"
-    targetInstanceId?: string // マジックで対象選択済みの場合のみ
-    level?: number // 召喚レベル指定用
-    substituteInstanceId?: string // 入れ替え召喚の入れ替え元
-    braveTargetInstanceId?: string // ダイレクトブレイヴの合体先スピリット（維持コアは置かない）
-    altSummonNexusInstanceIds?: string[] // 代替召喚でデッキの下に戻すネクサス（召喚コストは0になる）
-    // 支払いの3つ目の起点（BRAVE.md §6.4）：**メインステップの任意分離**。
-    // 手札／トラッシュのカードではなく**場の合体中ブレイヴ**が起点で、必要数はそのブレイヴの
-    // スピリット状態のLv1維持コスト。立っているときは summon ではなく detachBrave を送る。
-    // リザーブだけで払えるときは支払いモードに入らず、そのまま detachBrave を送っている
-    forDetachBraveInstanceId?: string
-    // 支払いの4つ目の起点（BRAVE.md §6.3）：**場を離れるときにブレイヴを残す**ときのコア。
-    // 起点は場のどこにも無い（脇に置かれている）ので、カードと必要数を選択待ちから受け取って持つ。
-    // 立っているときは resolveChoice（option＋paySources）を送る
-    forBraveKeep?: { option: string; cardId: string; need: number }
-    assigned: Record<string, number> // instanceId -> 割り当てたコア数
-    // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
-    discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
-    millPay: number // デッキ破棄で払う枚数（BS04栄光の表彰台。ネクサス配置のみ）
-    // kind:"shinsokuPayAssist"（BS16-021）：疲労させて召喚コストの一部を肩代わりする自分のスピリット
-    // （【神速】召喚のみ。任意で選ぶ。省略/空配列＝使わない）
-    shinsokuAssistInstanceIds?: string[]
-}
-
-// この支払いで使える代替コストの種類と上限。
-// kind が null なら代替コストは使えない（＝従来どおりコアだけで払う）
-export interface AltPayInfo {
-    kind: "handDiscard" | "mill" | null
-    used: number
-    max: number
-}
-
-// 支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
-// （RuleValidator.summonHandDiscardPayAmount / nexusMillPayAmount。ズレると
-//  「UIで選べるのにサーバーが弾く」形の食い違いになる）
-// 支払い中のカードを取り出す（選択待ちの解決ならトラッシュを見ることもある）。
-// **payingAltPay と payingRemaining は必ずこれを通す**（ゾーンの読み違いで別のカードを見ないように）
-export function payingCardId(view: GameView, paying: PayingState): string | undefined {
-    const player = view.players[view.you]
-    if (paying.forBraveKeep !== undefined) return paying.forBraveKeep.cardId
-    if (paying.forDetachBraveInstanceId !== undefined) {
-        return player.field.combinedBraves.find((b) => b.instanceId === paying.forDetachBraveInstanceId)?.cardId
-    }
-    if (paying.choiceZone === "trash") return player.trashCards[paying.handIndex]
-    return player.hand?.[paying.handIndex]
-}
-
-export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
-    const player = view.players[view.you]
-    const cardId = payingCardId(view, paying)
-    if (cardId === undefined) return { kind: null, used: 0, max: 0 }
-    const card = master(cardId)
-    const cost = effectiveCost(view, view.you, card)
-    if (card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)) {
-        // 召喚するカード自身は破棄に使えないので手札枚数から1枚引く
-        const max = Math.min(cost, Math.max(0, handSizeOf(player) - 1))
-        return { kind: "handDiscard", used: paying.discardHandIndices.length, max }
-    }
-    if (card.type === "nexus" && canPayNexusCostByMill(view, view.you)) {
-        // 配置コストは**コア払いと併用できない**ので、選べるのは「全額デッキ破棄」か「使わない」の二択。
-        // デッキが実効コストに足りなければ全額払えない＝この支払い方法自体が使えない
-        if (player.deckCount < cost) return { kind: null, used: 0, max: 0 }
-        return { kind: "mill", used: paying.millPay, max: cost }
-    }
-    return { kind: null, used: 0, max: 0 }
-}
-
-// kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
-export function payingShinsokuAssistCandidates(view: GameView, paying: PayingState): { instanceId: string; discount: number }[] {
-    const card = payingCardId(view, paying)
-    if (card === undefined || master(card).type !== "spirit" || !view.isFlashTiming) return []
-    return shinsokuAssistCandidates(view, view.you)
-}
-
-// 選択済みの肩代わり候補ぶんの合計割引
-export function payingShinsokuAssistDiscount(view: GameView, paying: PayingState): number {
-    const candidates = new Map(payingShinsokuAssistCandidates(view, paying).map((c) => [c.instanceId, c.discount]))
-    return (paying.shinsokuAssistInstanceIds ?? []).reduce((sum, id) => sum + (candidates.get(id) ?? 0), 0)
-}
-
 export interface UiState {
     // コアの支払い方式。"manual" だとリザーブで足りても支払いモードへ入り、確定ボタンを押すまで送信しない
     payMode: "auto" | "manual"
@@ -370,7 +205,16 @@ export interface UiState {
     // 指定アタックモード：対象選択中のアタッカーと、選べる相手の条件
     directedAttack: { attackerInstanceId: string; filter: DirectAttackFilter } | null
     // 召喚・配置レベル選択モード
-    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[] } | null
+    summonLevelSelect: { handIndex: number; cardId: string; targetInstanceId?: string; altSummonNexusInstanceIds?: string[]; exReductionTrashIndices?: number[] } | null
+    // 《継召》(kind:"exTrashReduction")の除外カード選択モード。手札のスピリット/ブレイヴが効果を持ち、
+    // トラッシュにEXシンボル持ちカードがあるとき、コストを支払う通常の召喚の前に開く。
+    // candidateIndices/selected はどちらも自分の trashCards 内インデックス
+    exReductionSelect: { handIndex: number; cardId: string; targetInstanceId?: string; phase: "ask" | "select"; groups: ExReductionGroup[] } | null // 《継召》の「する／しない」→ 対象選択（同一カードはグループまとめ）
+    // 《ソウルマジック》（kind:"soulCoreOnlyCast"）の選択モード:「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」
+    soulCoreOnlySelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    // [ソウルコア]の1:1交換モード（メインステップ・§1.4）: fromInstanceId＝[ソウルコア]が載った自分の個体。
+    // 次にクリックした通常コア1個以上の自分の個体と交換する
+    soulSwapSelect: { fromInstanceId: string } | null
     // 入れ替え召喚モード：手札に戻す対象（自分のスピリット）を選択中
     battleSwapSummon: { handIndex: number; substituteInstanceIds: string[] } | null
     // ブレイヴの召喚方法を選択中。ブレイヴは「スピリット状態で単体召喚」と
@@ -412,7 +256,7 @@ export function matchesDirectedAttackFilter(
 
 // ---- DOM ヘルパー ----
 
-function $(id: string): HTMLElement {
+export function $(id: string): HTMLElement {
     const el = document.getElementById(id)
     if (!el) throw new Error(`要素が見つかりません: #${id}`)
     return el
@@ -423,7 +267,7 @@ function show(id: string, visible: boolean): void {
 }
 
 // innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
     return str
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -445,7 +289,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
         case "summon":
             return `✨ ${ev.cardName} 召喚`
         case "destroy":
-            return `💥 ${ev.cardName} 破壊`
+            return ev.vanish ? `💨 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
         case "magic": return `📜 ${ev.cardName} 使用`
         case "burst": return `⚡ ${ev.cardName} バースト発動`
         case "draw":
@@ -487,6 +331,8 @@ function processNewEvents(view: GameView): Set<PlayerId> {
 }
 
 export function render(view: GameView, ui: UiState): void {
+    // 支払いモード中はホバーの効果ツールチップを抑制する（上の effectTooltipSuppressed）
+    suppressEffectTooltip(ui.paying !== null)
     const lifeDamagedPids = processNewEvents(view)
     show("lobby", false)
     show("game", true)
@@ -531,6 +377,12 @@ export function render(view: GameView, ui: UiState): void {
             el.classList.add("active")
         }
     })
+    // 第2メインステップはアタックの後の専用チップで示す（phaseは"main"を使い回すため、
+    // activeだけをメインチップから第2メインチップへ付け替える）
+    if (view.secondMainStep) {
+        document.querySelector('.phase-step[data-phase="main"]')?.classList.remove("active")
+        document.querySelector('.phase-step[data-phase="second-main"]')?.classList.add("active")
+    }
 
     // フラッシュ状態の表示（ボーダーとパルス）
     const board = $("board")
@@ -554,14 +406,15 @@ export function render(view: GameView, ui: UiState): void {
     const pendingChoiceActive = !!view.pendingChoice
     // 「ブレイヴを残す」を押して支払いモードへ入っている間は、選択肢ボタンを出さない
     // （出したままだと押し直して二重に入れてしまう。戻り道は「対象選択をやめる」）
-    const payingForChoice = ui.paying?.forBraveKeep !== undefined
+    const payingForChoice = ui.paying?.forBraveKeep !== undefined || ui.paying?.forMeisai !== undefined
     const myPendingChoice =
         view.pendingChoice && view.pendingChoice.pid === view.you && !payingForChoice ? view.pendingChoice : null
     const oppPendingChoice =
         view.pendingChoice && view.pendingChoice.pid !== view.you ? view.pendingChoice : null
 
     // 「お互い、アタックステップは行えず」（ルナティックシール）。サーバーも同じ判定で弾く
-    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep)
+    // 先攻1ターン目と第2メインステップにはアタックステップが無い
+    show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep && !view.secondMainStep && view.turn > 1)
     show(
         "btn-end-turn",
         myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
@@ -572,7 +425,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.burstResetConfirm !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
@@ -643,10 +496,57 @@ export function render(view: GameView, ui: UiState): void {
             choiceOptionsEl.appendChild(b)
         }
         show("choice-options", true)
+    } else if (ui.soulCoreOnlySelect) {
+        // 《ソウルマジック》: [ソウルコア]だけで使用するか、通常どおり支払うかの2択
+        const card = master(ui.soulCoreOnlySelect.cardId)
+        const cost = effectiveCost(view, view.you, card)
+        const yes = document.createElement("button")
+        yes.dataset.soulonly = "yes"
+        yes.textContent = "[ソウルコア]だけで使用する"
+        const no = document.createElement("button")
+        no.dataset.soulonly = "no"
+        no.textContent = `通常どおり支払う（コスト${String(cost)}）`
+        choiceOptionsEl.append(yes, no)
+        show("choice-options", true)
+    } else if (ui.exReductionSelect) {
+        // 《継召》：まず「する／しない」の2択。するなら対象をカード単位で選ぶ。
+        // 同一カードは1ボタンにまとめ、クリックで選ぶ枚数を 0→1→2→…→0 と回す
+        const card = master(ui.exReductionSelect.cardId)
+        const base = effectiveCost(view, view.you, card)
+        if (ui.exReductionSelect.phase === "ask") {
+            const yes = document.createElement("button")
+            yes.dataset.exAsk = "yes"
+            yes.textContent = "《継召》で軽減する"
+            const no = document.createElement("button")
+            no.dataset.exAsk = "no"
+            no.textContent = `使わない（通常どおりコスト${String(base)}）`
+            choiceOptionsEl.append(yes, no)
+        } else {
+            const picked = exReductionPickedIndices(ui.exReductionSelect.groups)
+            const reduced = effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, picked))
+            for (const [i, g] of ui.exReductionSelect.groups.entries()) {
+                const b = document.createElement("button")
+                b.dataset.exGroup = String(i)
+                b.textContent = `${master(g.trashCardId).name} `
+                // 選択枚数/トラッシュ内の枚数（手札の枚数バッジと同じ黄色の数字）
+                const countSpan = document.createElement("span")
+                countSpan.className = "ex-trash-count"
+                countSpan.textContent = `${String(g.count)}/${String(g.indices.length)}`
+                b.appendChild(countSpan)
+                if (g.count > 0) b.classList.add("selected")
+                choiceOptionsEl.appendChild(b)
+            }
+            const confirmEx = document.createElement("button")
+            confirmEx.dataset.exConfirm = "1"
+            confirmEx.textContent =
+                picked.length > 0 ? `決定（コスト${String(base)}→${String(reduced)}）` : `使わない（コスト${String(base)}）`
+            choiceOptionsEl.appendChild(confirmEx)
+        }
+        show("choice-options", true)
     } else if (ui.summonLevelSelect) {
         const card = master(ui.summonLevelSelect.cardId)
         // 代替召喚（ネクサスをデッキの下に戻して払う）では召喚コストが0になる
-        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
+        const cost = ui.summonLevelSelect.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, ui.summonLevelSelect.exReductionTrashIndices))
         const reserve = view.players[view.you].reserve
         // コストも置くコアも、リザーブに加えてフィールドのコアで賄える。
         // リザーブだけでは足りないレベルは「フィールドから取得」と明示する
@@ -659,6 +559,20 @@ export function render(view: GameView, ui: UiState): void {
             b.textContent = needsField
                 ? `Lv${l.level} (${l.cores}コア・フィールドから取得)`
                 : `Lv${l.level} (${l.cores}コア)`
+            if (needsField) b.classList.add("needs-field-cores")
+            choiceOptionsEl.appendChild(b)
+        }
+        // 《真界放》のwaiver配置: [ソウルコア]1個だけでLv2にする置き方（2026-10-07 ユーザー裁定。
+        // レベル選択の3パターン「Lv1分置く/Lv2分置く/Lv2を[ソウルコア]で置く」の3つ目）
+        const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
+        const marked = card.levels.some((l) => l.soulCoreRequired === true)
+        if (marked && soulInReserve && reserve + fieldCores >= cost + 1) {
+            const b = document.createElement("button")
+            b.dataset.soulWaiver = "1"
+            const needsField = reserve < cost + 1
+            b.textContent = needsField
+                ? "Lv2を[ソウルコア]で置く (1コア・フィールドから取得)"
+                : "Lv2を[ソウルコア]で置く (1コア)"
             if (needsField) b.classList.add("needs-field-cores")
             choiceOptionsEl.appendChild(b)
         }
@@ -720,6 +634,12 @@ export function render(view: GameView, ui: UiState): void {
         const base =
             ui.paying.forBraveKeep !== undefined
                 ? `💎 残すブレイヴに置くコア: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forMeisai !== undefined
+                ? `💎 ${ui.paying.forMeisai.effectCost ? "効果" : "【迷彩】"}のコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forAttack !== undefined
+                ? `💎 アタックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
+                : ui.paying.forBlock !== undefined
+                ? `💎 ブロックのコスト: 残り ${remaining} コア。フィールドのコアを割り当てられます（そのまま確定すればリザーブから払います）`
                 : ui.paying.forDetachBraveInstanceId !== undefined
                 ? `💎 分離するブレイヴに置くコア: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください`
                 : `💎 コアの支払い: 残り ${remaining} コア。フィールドのスピリット/ネクサス上のコアを割り当ててください（コストと置くコアのどちらにも使えます）`
@@ -736,6 +656,39 @@ export function render(view: GameView, ui: UiState): void {
                 (on ? "（コアは置くコアぶんだけ必要です）" : "")
         } else {
             $("targeting-info").textContent = base
+        }
+        // リザーブの[ソウルコア]をコスト支払いに使うかの選択（2026-10-05 ユーザー確認: 支払いでプレイヤーが選ぶ）。
+        // 置くコアだけの支払い（ブレイヴを残す/分離）と選択待ちの解決では出さない
+        const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"
+        const soulApplies =
+            soulInReserve &&
+            ui.paying.forBraveKeep === undefined &&
+            ui.paying.forDetachBraveInstanceId === undefined &&
+            ui.paying.forChoiceCardIndex === undefined
+        if (soulApplies) {
+            const useCost = ui.paying.useSoulCore === true
+            const useMaintain = ui.paying.placeSoulCore === true
+            const need = payingNeed(view, ui.paying)
+            const assignedTotal = Object.values(ui.paying.assigned).reduce((a, b) => a + b, 0)
+            const reserve = view.players[view.you].reserve
+            // 案B-inside: reserveには[ソウルコア]が含まれる。通常コア（reserve-1）だけで足りるかを見る
+            const soulRequired = reserve - 1 + assignedTotal < need && reserve + assignedTotal >= need
+            // 維持コアを置く支払い（マジック・ダイレクトブレイヴ以外）だけ「維持コアとして置く」を出す
+            const payingId = payingCardId(view, ui.paying)
+            const placesCores = !payingIsCostOnly(ui.paying) && ui.paying.braveTargetInstanceId === undefined && payingId !== undefined && master(payingId).type !== "magic"
+            // 選択中のボタンは青い縁でハイライトする（2026-10-06 ユーザー要望）
+            const sel = (on: boolean) => (on ? ' class="souluse-selected"' : "")
+            const costBtn = `<button data-souluse="cost"${sel(useCost)}>${useCost ? "☑" : "☐"} コスト支払いに使う（トラッシュへ）</button>`
+            const maintainBtn = placesCores ? `<button data-souluse="maintain"${sel(useMaintain)}>${useMaintain ? "☑" : "☐"} 維持コアとして置く（場のカードの上）</button>` : ""
+            const noneBtn = `<button data-souluse="none"${sel(!useCost && !useMaintain)}>${!useCost && !useMaintain ? "☑" : "☐"} [ソウルコア]を使わない</button>`
+            if (soulRequired) {
+                // [ソウルコア]なしでは支払いが成立しないので「使いますか」とは聞かない。
+                // 使う前提の注意表示にして、行き先（コスト/維持コア）だけ選ばせる（2026-10-06 ユーザー確認）
+                $("targeting-info").innerHTML +=
+                    `<br><b>[ソウルコア]を使います（通常コアだけでは足りません）:</b>` + costBtn + maintainBtn
+            } else {
+                $("targeting-info").innerHTML += `<br>` + noneBtn + costBtn + maintainBtn
+            }
         }
         // kind:"shinsokuPayAssist"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
         const shinsokuCandidates = payingShinsokuAssistCandidates(view, ui.paying)
@@ -767,6 +720,15 @@ export function render(view: GameView, ui: UiState): void {
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+    } else if (ui.soulSwapSelect !== null) {
+        $("targeting-info").textContent = "🔄 [ソウルコア]交換: 交換相手の自分のスピリット/ネクサスを選んでください（通常コア1個以上が必要）"
+    } else if (ui.soulCoreOnlySelect) {
+        $("targeting-info").textContent = "《ソウルマジック》：自分のフィールドに該当色のシンボルがあれば、[ソウルコア]1個だけで使用できます（リザーブ・自分のスピリット/ネクサスの上のどちらでも）"
+    } else if (ui.exReductionSelect) {
+        $("targeting-info").textContent =
+            ui.exReductionSelect.phase === "ask"
+                ? `《継召》：トラッシュのEXシンボルを除外して、コスト${String(effectiveCost(view, view.you, master(ui.exReductionSelect.cardId)))}を軽減できます`
+                : `《継召》：除外するトラッシュのカードを選んでください（同じカードはまとめて1枚のボタンです）`
     } else if (ui.summonLevelSelect) {
         $("targeting-info").textContent =
             `🌟 召喚/配置レベルを選択してください (リザーブからコアを置きます)`
@@ -816,6 +778,41 @@ export function render(view: GameView, ui: UiState): void {
     $("btn-opp-tegamoto").textContent = `相手の手元(${oppTegamotoCount})`
     show("btn-opp-tegamoto", oppTegamotoCount > 0)
 
+    // 自分のトラッシュのEXシンボル枚数（《継召》の素材）。黄色バッジでボタン右下に、色ごとの内訳も並べる
+    const myTrashExCount = view.players[you].trashCards.filter((id) => master(id).symbolEx === true).length
+    const trashBtn = $("btn-toggle-trash")
+    const exBadge = trashBtn.querySelector<HTMLDivElement>(".count-badge.ex-badge")
+    if (myTrashExCount > 0) {
+        const badge = exBadge ?? document.createElement("div")
+        badge.className = "count-badge ex-badge"
+        badge.textContent = ""
+        const total = document.createElement("span")
+        total.className = "ex-total"
+        total.textContent = `EX${String(myTrashExCount)}`
+        badge.appendChild(total)
+        // 色別の内訳: 赤紫緑白黄青の順。その色のシンボルを持つEXカードの枚数
+        const exByColor = new Map<string, number>()
+        for (const id of view.players[you].trashCards) {
+            const m = master(id)
+            if (m.symbolEx !== true) continue
+            for (const c of new Set(m.symbol)) exByColor.set(c, (exByColor.get(c) ?? 0) + 1)
+        }
+        for (const color of ["red", "purple", "green", "white", "yellow", "blue"]) {
+            const count = exByColor.get(color)
+            if (count === undefined) continue
+            const chip = document.createElement("span")
+            chip.className = "ex-color-chip"
+            const icon = document.createElement("span")
+            icon.className = `sym-icon bg-${color}`
+            chip.appendChild(icon)
+            chip.appendChild(document.createTextNode(String(count)))
+            badge.appendChild(chip)
+        }
+        if (!exBadge) trashBtn.appendChild(badge)
+    } else if (exBadge) {
+        exBadge.remove()
+    }
+
     // バトル情報
     renderBattle(view)
 
@@ -846,7 +843,7 @@ export function render(view: GameView, ui: UiState): void {
             div.className = "log-turn"
         } else if (line.includes("ステップ")) {
             div.className = "log-phase"
-        } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
+        } else if (line.includes("破壊") || line.includes("消滅") || line.includes("ダメージ") || line.includes("ライフ")) {
             div.className = "log-important"
         } else if (line.includes("：")) {
             div.className = "log-effect"
@@ -866,906 +863,6 @@ export function render(view: GameView, ui: UiState): void {
 
     // 再描画でホバー中のカードがDOMから外れた場合、ツールチップを消す
     if (currentHoverCard !== null && !document.body.contains(currentHoverCard)) hideEffectTooltip()
-}
-
-function renderInfo(
-    id: string,
-    view: GameView,
-    ui: UiState,
-    pid: PlayerId,
-    isSelf: boolean,
-    lifeDamaged: boolean,
-): void {
-    const p = view.players[pid]
-    const el = $(id)
-    el.innerHTML = ""
-    // 覚醒モード中にリザーブからコアを移せるか（ディノゾールLv2の効果）
-    const awakenInstForHighlight = ui.awakenTarget !== null
-        ? view.players[view.you].field.spirits.find((s) => s.instanceId === ui.awakenTarget)
-        : undefined
-    const reserveHighlight = isSelf
-        && ui.awakenTarget !== null
-        && canAwakenFromReserve(view, view.you, awakenInstForHighlight)
-        && p.reserve >= 1
-    // 効果解決の選択待ちで、このプレイヤーのリザーブ／トラッシュのコアが候補になっているか（取り先を1個ずつ選ぶ removeCores）
-    const myChoiceCandidates = view.pendingChoice?.pid === view.you ? (view.pendingChoice.candidates ?? []) : []
-    const zoneChoice = (zone: "reserve" | "trash"): string | undefined =>
-        myChoiceCandidates.includes(coreZoneChoiceId(zone, pid)) ? coreZoneChoiceId(zone, pid) : undefined
-    // ライフダメージのGameEventがあれば演出用クラスを付与（一過性のアニメーションなので毎描画で再生されるだけでよい）
-    const items: [string, string][] = [
-        ["", (isSelf ? "あなた: " : "相手: ") + p.name + (view.turnPlayer === pid ? " ⏵ターン中" : "")],
-        ["life" + (lifeDamaged ? " life-changed" : ""), `❤ ${p.life}`],
-        ["reserve", `🔵 リザーブ ${p.reserve}`],
-        ["trash-cores", `トラッシュコア ${p.trashCores}`],
-        // デッキの横に置かれたコア（BS12-078 カシオペアシール）。置かれているときだけ出す
-        ...((p.deckSideCores > 0 ? [["", `デッキ横のコア ${p.deckSideCores}`]] : []) as [string, string][]),
-        // バーストのセット状況（公開情報）。中身は出さない。自分側だけターン1回制限の消化を添える
-        ...((p.burstSet
-            ? [["", `バースト セット中${isSelf && p.burstSetThisTurn ? "（このターンはセット済み）" : ""}`]]
-            : []) as [string, string][]),
-        ["", `デッキ ${p.deckCount}枚`],
-        ["", isSelf ? `手札 ${p.handCount}枚` : `相手手札 ${p.handCount}枚`],
-        ["", `トラッシュ ${p.trashCards.length}枚`],
-    ]
-
-    if (!isSelf && view.players[view.you].peekedOpponentCardIds?.length) {
-        const peeked = view.players[view.you].peekedOpponentCardIds!.map(id => master(id).name).join(" / ")
-        items.push(["", `(判明: ${peeked})`])
-    }
-    for (const [cls, text] of items) {
-        const span = document.createElement("span")
-        if (cls) span.className = cls
-        const isReserve = cls.includes("reserve")
-        // 覚醒モードでリザーブをコアの移動元にできるカード（ディノゾールLv2）のため、
-        // 自分のリザーブ表示をクリック対象として識別できるようにする
-        if (isSelf && isReserve) {
-            span.dataset.reserve = "self"
-            if (reserveHighlight) span.classList.add("targetable", "clickable")
-        }
-        // リザーブ／トラッシュのコアは、選択待ちの候補になっているときだけクリック対象にする
-        const choiceId = isReserve ? zoneChoice("reserve") : cls === "trash-cores" ? zoneChoice("trash") : undefined
-        if (choiceId !== undefined) {
-            span.dataset.corezone = choiceId
-            span.classList.add("targetable", "clickable")
-        }
-        span.textContent = text
-        el.appendChild(span)
-    }
-}
-
-function renderField(
-    spiritZoneId: string,
-    nexusZoneId: string,
-    view: GameView,
-    ui: UiState,
-    pid: PlayerId,
-    isMine: boolean,
-): void {
-    const player = view.players[pid]
-    const spiritZone = $(spiritZoneId)
-    const nexusZone = $(nexusZoneId)
-    spiritZone.innerHTML = ""
-    nexusZone.innerHTML = ""
-
-    for (const inst of player.field.spirits) {
-        spiritZone.appendChild(fieldCardEl(view, ui, inst, isMine, pid))
-    }
-    for (const inst of player.field.nexuses) {
-        nexusZone.appendChild(fieldCardEl(view, ui, inst, isMine, pid, true))
-    }
-}
-
-// バーストエリア（docs/design/BURST.md）。セットされているか否かは公開情報（burstSet）だが、
-// 中身のcardIdは自分にしか来ない（相手側は view.players[相手].burst が常にnull）。
-// ⚠️ 相手側の分岐では cardId・カード名を一切 DOM に入れないこと
-function renderBurst(id: string, view: GameView, pid: PlayerId, isMine: boolean): void {
-    const player = view.players[pid]
-    const zone = $(id)
-    zone.innerHTML = ""
-
-    if (!player.burstSet) {
-        const empty = document.createElement("div")
-        empty.className = "burst-slot burst-empty"
-        empty.textContent = "バースト"
-        zone.appendChild(empty)
-        return
-    }
-
-    const el = document.createElement("div")
-    el.className = "burst-slot"
-
-    if (isMine && player.burst) {
-        // 自分のバースト：裏向き（相手には見えない）だが、自分にはカード名を出し、
-        // 既存の効果ツールチップ（.card + data-cardId）に乗せてホバーで効果を読めるようにする
-        const m = master(player.burst)
-        el.classList.add("card", "burst-mine")
-        el.dataset.cardId = player.burst
-        el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
-        el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
-        const lock = document.createElement("div")
-        lock.className = "burst-hidden-icon"
-        lock.textContent = "🔒"
-        lock.title = "相手には見えません（裏向き）"
-        el.appendChild(lock)
-        const name = document.createElement("div")
-        name.className = "name"
-        name.textContent = m.name
-        el.appendChild(name)
-    } else {
-        // 相手のバースト：伏せてあることだけが公開情報。中身は絶対に出さない
-        el.classList.add("burst-back")
-    }
-
-    zone.appendChild(el)
-}
-
-// コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
-function coreButtonsEl(instanceId: string, currentCores: number, levels: { level: number, cores: number }[]): HTMLElement {
-    const btns = document.createElement("div")
-    btns.className = "core-buttons"
-    
-    const removeBtn = document.createElement("button")
-    removeBtn.dataset.core = "remove"
-    removeBtn.dataset.instanceId = instanceId
-    removeBtn.textContent = "−"
-    removeBtn.title = "コアを1個リザーブへ戻す"
-    btns.appendChild(removeBtn)
-
-    // レベルごとのショートカットボタン
-    for (const lv of levels) {
-        if (lv.cores <= 0) continue // コア0個のレベル（基本ないが念のため）はスキップ
-        const isCurrentLv = currentCores >= lv.cores && (levels.find(l => l.level === lv.level + 1)?.cores || Infinity) > currentCores
-        if (isCurrentLv) {
-            continue // 現在のレベルのボタンは表示しない
-        }
-        
-        const lvBtn = document.createElement("button")
-        lvBtn.dataset.core = `set-${lv.cores}`
-        lvBtn.dataset.currentCores = String(currentCores)
-        lvBtn.dataset.instanceId = instanceId
-        lvBtn.textContent = `Lv${lv.level}`
-        lvBtn.title = `コアを${lv.cores}個（Lv${lv.level}）にする`
-        btns.appendChild(lvBtn)
-    }
-
-    const addBtn = document.createElement("button")
-    addBtn.dataset.core = "add"
-    addBtn.dataset.instanceId = instanceId
-    addBtn.textContent = "＋"
-    addBtn.title = "リザーブからコアを1個置く"
-    btns.appendChild(addBtn)
-
-    return btns
-}
-
-function fieldCardEl(
-    view: GameView,
-    ui: UiState,
-    inst: CardInstance,
-    isMine: boolean,
-    ownerPid: PlayerId,
-    isNexus = false,
-): HTMLElement {
-    const m = master(inst.cardId)
-    const { level } = levelOf(inst)
-    const bp = effectiveBp(view, ownerPid, inst)
-    const myTurn = view.turnPlayer === view.you
-    const myMainFree = myTurn && view.phase === "main" && !view.battle
-    const isDefender = !!view.battle && !myTurn
-    // 防御側の応答（ブロック）が可能か：フラッシュタイミングの外（フラッシュ①終了後）でのみ行える
-    const canDefend = isDefender && !view.isFlashTiming
-    // ブロック判定用：現在のバトルのアタッカー（攻撃側は常にターンプレイヤー）
-    const attacker = view.battle
-        ? view.players[view.turnPlayer].field.spirits.find(
-              (s) => s.instanceId === view.battle?.attackerInstanceId,
-          )
-        : undefined
-
-    const el = document.createElement("div")
-    el.className = "card"
-    el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
-    el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
-    if (inst.isRested) el.classList.add("rested")
-    el.dataset.instanceId = inst.instanceId
-    el.dataset.cardId = inst.cardId
-    el.dataset.side = isMine ? "mine" : "opp"
-
-    // 現在のフェーズで発動しているステップ効果があるか
-    const hasActiveStepEffect = m.effects.some((e) => {
-        if (e.kind !== "step") return false
-        if (e.step !== view.phase) return false
-        const isOwnerTurn = view.turnPlayer === ownerPid
-        if (e.turn === "own" && !isOwnerTurn) return false
-        if (e.turn === "opponent" && isOwnerTurn) return false
-        return effectActiveAtLevel(e.levels, level)
-    })
-    if (hasActiveStepEffect) {
-        el.classList.add("step-active")
-        const badge = document.createElement("div")
-        badge.className = "step-active-badge"
-        badge.textContent = "発動中"
-        el.appendChild(badge)
-    }
-
-    if (inst.asSpiritThisTurn) {
-        const badge = document.createElement("div")
-        badge.className = "as-spirit-badge"
-        badge.textContent = "スピリット化中"
-        el.appendChild(badge)
-    }
-
-    // 合体しているブレイヴ。実体は field.combinedBraves にいて braveRefs で参照されており、
-    // 単独のカードとして場に並ばない（BRAVE.md §2.3）ので、ホストのカードの中に名前とLvを出す。
-    // BP・シンボル・コストは既に合体後の値が effectiveBp などから出ている
-    if (!isNexus) {
-        const braves = bravesOf(view.players[ownerPid], inst)
-        if (braves.length > 0) {
-            // ホストの**右へ半分ずらして重ねる**（BRAVE.md §6.4。実物の合体の見た目に寄せる）。
-            // ずらしたぶんの幅は has-brave の margin-right で確保する（隣のカードと重ならないように）
-            el.classList.add("has-brave")
-            const box = document.createElement("div")
-            box.className = "brave-combined-box"
-            for (const brave of braves) {
-                const row = document.createElement("div")
-                row.className = "brave-combined"
-                row.dataset.instanceId = brave.instanceId
-                row.dataset.cardId = brave.cardId
-                const braveName = master(brave.cardId).name
-                // はみ出す幅は40pxしかないので、名前は**縦書き**で出す（日本語はこの向きで読める）。
-                // 収まらない分は省略されるので、フル名は title 属性で見せる。
-                // レベルは出さない（合体中のブレイヴのレベルはホストのコア数で決まるので、
-                // ホストのカードが出している Lv 表示と二重になる。2026-09-02 ユーザー指示）
-                const nameEl = document.createElement("span")
-                nameEl.className = "brave-name"
-                nameEl.textContent = braveName
-                row.appendChild(nameEl)
-                row.title = `合体中: ${braveName}`
-                // メインステップの任意分離（§6.4）。自分のブレイヴだけ、自分のメインステップに出す
-                if (isMine && myTurn && view.phase === "main" && !view.battle && view.pendingChoice === null) {
-                    const need = minLevelCores(master(brave.cardId))
-                    const btn = document.createElement("button")
-                    btn.className = "detach-badge"
-                    btn.dataset.detach = brave.instanceId
-                    btn.textContent = "分離"
-                    btn.title = `分離してスピリット状態にする（コア${need}個が必要）`
-                    row.appendChild(btn)
-                }
-                box.appendChild(row)
-            }
-            el.appendChild(box)
-        }
-    }
-
-    let unexhaustable = false
-    if (isNexus && view.phase === "attack") {
-        const otherPid = Object.keys(view.players).find(id => id !== ownerPid) as PlayerId
-        if (otherPid) {
-            const otherNexuses = view.players[otherPid].field.nexuses
-            for (const n of otherNexuses) {
-                if (n.cardId === "BS09-063" && levelOf(n).level >= 2) {
-                    unexhaustable = true
-                    break
-                }
-            }
-        }
-    }
-    if (unexhaustable) {
-        el.classList.add("unexhaustable")
-        const badge = document.createElement("div")
-        badge.className = "unexhaustable-badge"
-        badge.textContent = "疲労不可"
-        badge.style.position = "absolute"
-        badge.style.top = "-6px"
-        badge.style.right = "-6px"
-        badge.style.background = "#d32f2f"
-        badge.style.color = "white"
-        badge.style.fontSize = "10px"
-        badge.style.padding = "2px 6px"
-        badge.style.borderRadius = "4px"
-        badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.5)"
-        badge.style.zIndex = "2"
-        badge.style.pointerEvents = "none"
-        el.appendChild(badge)
-    }
-
-    const name = document.createElement("div")
-    name.className = "name"
-    name.textContent = m.name
-    el.appendChild(name)
-
-    const stats = document.createElement("div")
-    stats.className = "stats"
-    stats.textContent = isNexus
-        ? `Lv${level}`
-        : `Lv${level} BP${bp}${inst.tempBpBuff ? "↑" : ""}`
-    el.appendChild(stats)
-
-    // コストバッジを左上に表示
-    const costBadge = document.createElement("div")
-    costBadge.className = `cost-badge cost-${m.type}`
-    costBadge.textContent = String(m.cost)
-    el.appendChild(costBadge)
-
-    const cores = document.createElement("div")
-    cores.className = "cores"
-    cores.textContent = `◉ コア ${inst.cores}`
-    el.appendChild(cores)
-
-    const symbolsDiv = document.createElement("div")
-    symbolsDiv.className = "symbols"
-    if (m.symbol.length === 0) {
-        symbolsDiv.textContent = "無"
-        symbolsDiv.style.color = "var(--text-muted)"
-        symbolsDiv.style.fontSize = "10px"
-    } else {
-        m.symbol.forEach(symColor => {
-            const sym = document.createElement("span")
-            sym.className = `sym-icon bg-${symColor}`
-            sym.dataset.colorLabel = COLOR_SYMBOLS[symColor] || ""
-            symbolsDiv.appendChild(sym)
-        })
-    }
-    el.appendChild(symbolsDiv)
-
-
-
-    if (view.battle?.attackerInstanceId === inst.instanceId) {
-        el.classList.add("attacker-mark")
-    }
-
-    // 効果解決中の選択待ち（自分宛）：候補なら最優先でハイライトし、他の操作モードは無視する。
-    // ただし**選択の解決として支払い中**（起動効果の召喚コストをフィールドのコアから払う）のときは、
-    // コアの割り当てを続けられるよう下の支払いモードへ通す（2026-08-23）
-    if (view.pendingChoice && view.pendingChoice.pid === view.you && ui.paying?.forChoiceCardIndex === undefined) {
-        if (view.pendingChoice.candidates.includes(inst.instanceId)) {
-            el.classList.add("targetable", "clickable")
-            // トグル選択（予算内で好きなだけ破壊する）で、いま選ばれているもの。
-            // 候補のまま残っているので、もう一度押すと選択が外れる
-            if (view.pendingChoice.selectedIds?.includes(inst.instanceId)) {
-                el.classList.add("choice-selected")
-            }
-        }
-        return el
-    }
-
-    if (isNexus) {
-        // ネクサスの起動能力（BS11-067 白き楯の長城Lv2＝コアを払ってバトル終了）。
-        // 判定はスピリットと同じ共有層（activatableAbility）に任せる
-        if (isMine) {
-            const nexusActivatable = activatableAbility(view, view.you, inst)
-            if (nexusActivatable) {
-                const badge = document.createElement("button")
-                badge.className = "activate-badge"
-                badge.dataset.activate = inst.instanceId
-                badge.dataset.effect = nexusActivatable.effectId
-                badge.textContent = "起動"
-                badge.title = nexusActivatable.costLabel
-                el.appendChild(badge)
-            }
-        }
-        // 支払いモード中：自分のネクサス上のコアも支払いに割り当てられる
-        if (isMine && ui.paying !== null) {
-            const assigned = ui.paying.assigned[inst.instanceId] ?? 0
-            if (assigned > 0) {
-                const badge = document.createElement("div")
-                badge.className = "pay-badge"
-                badge.textContent = `支払${assigned}`
-                el.appendChild(badge)
-            }
-            if (assigned < inst.cores) {
-                el.classList.add("targetable", "clickable")
-            }
-            return el
-        }
-        // コア移動ボタン（メインステップのみ）。ネクサスもコアを置いてレベルを上げ下げできる。
-        // ⚠️ ネクサスは clip-path で六角形に切り抜いているため、カード要素の**子**に置くと
-        // ボタンごとクリップされて消える（「−」が見えない・「+」が押しにくい原因）。
-        // クリップされないラッパーの直下へ、カードと**兄弟**として置く
-        if (isMine && myMainFree && !view.pendingChoice) {
-            const slot = document.createElement("div")
-            slot.className = "nexus-slot"
-            slot.appendChild(el)
-            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            slot.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
-            return slot
-        }
-        return el
-    }
-
-    // 期間つき効果でアタック不可（ピュアエリクサー等で回復した個体・「〜すべてはアタックできない」）
-    if (!isNexus && cantActByTimed(view, inst)) {
-        const badge = document.createElement("div")
-        badge.className = "cant-attack-badge"
-        badge.textContent = "アタック不可"
-        el.appendChild(badge)
-    }
-
-    // フラッシュ中で自分が優先権を持つか（覚醒可否の判定に使用）
-    const inFlash =
-        !!view.battle && view.isFlashTiming && view.priorityPlayer === view.you
-
-    if (isMine) {
-        // 選択待ち中（自分・相手いずれか宛）は自分側の操作UIをすべて抑止する
-        // （自分宛のときはこの関数はここに到達する前に既にreturn済み。ここに来るのは
-        // 「相手宛のpendingChoice」または「pendingChoiceなし」のケースのみ）。
-        // 選択の解決として支払い中のときだけは、下の支払いモードへ通す（2026-08-23）
-        if (view.pendingChoice && ui.paying?.forChoiceCardIndex === undefined) {
-            return el
-        }
-        // 支払いモード中：割り当て済みコア数をバッジ表示し、割り当て可能なら強調表示のみ行う
-        // （他の操作（コア移動・アタック・覚醒等）と競合しないよう、ここで処理を打ち切る）
-        if (ui.paying !== null) {
-            const assigned = ui.paying.assigned[inst.instanceId] ?? 0
-            if (assigned > 0) {
-                const badge = document.createElement("div")
-                badge.className = "pay-badge"
-                badge.textContent = `支払${assigned}`
-                el.appendChild(badge)
-            }
-            if (assigned < inst.cores) {
-                el.classList.add("targetable", "clickable")
-            }
-            return el
-        }
-        // 覚醒モード中：移動先を強調し、他の自分スピリットを移動元候補として表示
-        if (ui.awakenTarget !== null) {
-            if (inst.instanceId === ui.awakenTarget) {
-                el.classList.add("awaken-target", "clickable")
-            } else if (inst.cores >= 1) {
-                el.classList.add("targetable", "clickable")
-            }
-            return el
-        }
-        // 指定アタックの対象選択モード中：他の操作（ブロック・対象選択・覚醒等）を抑止する
-        if (ui.directedAttack !== null) {
-            if (inst.instanceId === ui.directedAttack.attackerInstanceId) {
-                el.classList.add("directed-attacker")
-            }
-            return el
-        }
-        // 入れ替え召喚の対象選択中
-        if (ui.battleSwapSummon !== null) {
-            if (ui.battleSwapSummon.substituteInstanceIds.includes(inst.instanceId)) {
-                el.classList.add("targetable", "clickable")
-            }
-            return el
-        }
-        // 対象選択中（自分側）
-        if (ui.targeting?.side === "self") el.classList.add("targetable", "clickable")
-        // 覚醒可能（フラッシュ中で優先権あり）：バッジのクリックで覚醒モード開始
-        if (inFlash && canAwaken(view, inst)) {
-            const badge = document.createElement("button")
-            badge.className = "awaken-badge"
-            badge.dataset.awaken = inst.instanceId
-            badge.textContent = "覚醒可能"
-            badge.title = "クリックしてコアの移動元を選ぶ"
-            el.appendChild(badge)
-        }
-        // メインステップの任意合体（BRAVE.md §6.4）：スピリット状態のブレイヴにだけ「合体」を出す。
-        // 候補の列挙は braveCombineCandidates に一本化する（サーバーの受理条件と同じ実装）
-        if (myTurn && view.phase === "main" && !view.battle && master(inst.cardId).type === "brave") {
-            const candidates = braveCombineCandidates(view, view.you, inst.cardId)
-            if (candidates.length > 0) {
-                const badge = document.createElement("button")
-                badge.className = "combine-badge"
-                badge.dataset.combine = inst.instanceId
-                badge.textContent = "合体"
-                badge.title = "クリックして合体先のスピリットを選ぶ（このブレイヴのコアはリザーブへ戻る）"
-                el.appendChild(badge)
-            }
-        }
-        // 任意合体モード中：合体先に選べるスピリットを強調する
-        if (ui.combineBrave !== null && ui.combineBrave.candidateIds.includes(inst.instanceId)) {
-            el.classList.add("targetable", "clickable")
-        }
-        // 起動能力（フラッシュ中のバトル／自分のメインステップで任意発動）：バッジのクリックで発動。
-        // 出す条件は共有層の activatableAbility が一手に判定する（サーバーの受理条件と同じ実装）
-        const activatable = activatableAbility(view, view.you, inst)
-        if (activatable) {
-            const badge = document.createElement("button")
-            badge.className = "activate-badge"
-            // 【合体時】の起動能力はブレイヴが持つので、起動対象はそのブレイヴの instanceId になる
-            badge.dataset.activate = activatable.instanceId ?? inst.instanceId
-            badge.dataset.effect = activatable.effectId
-            badge.textContent = "起動"
-            badge.title = activatable.costLabel
-            el.appendChild(badge)
-        }
-        // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタック/ブロック不可
-        const singleCoreLocked =
-            inst.cores === 1 && hasGlobalConstraint(view, "singleCoreCantAct")
-        // このスピリットはアタックできない（カイザレオン大帝Lv1）
-        const cantAttack = activeConstraints(view, ownerPid, inst).some((c) => c.type === "cantAttack")
-        // このターンの間だけの全体制約（ヘビィゲート）：コストがmaxCost以下のスピリットはアタック/ブロック不可
-        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空／BS02グレートウォール）：コスト条件に合うスピリットはアタック/ブロック不可
-        // （道化師クランの付与コストも考慮する instCostCantAct を使う）
-        const costLocked = cantActByTimed(view, inst) || instCostCantAct(view, inst)
-        // アタック可能（先攻1ターン目はアタック禁止）
-        if (
-            myTurn &&
-            view.phase === "attack" &&
-            view.turn !== 1 &&
-            !view.battle &&
-            !inst.isRested &&
-            !singleCoreLocked &&
-            !cantAttack &&
-            !costLocked &&
-            level >= 1
-        ) {
-            el.classList.add("clickable", "usable")
-        }
-        // ブロック可能（cantBlock / cantBlockLowerBp / unblockableBy / singleCoreCantAct の制約を反映）。
-        // 疲労状態でも canBlockWhileRested（BS06計画された場外乱闘）を持てばブロックできるため、
-        // isRestedでの早期除外はせず canBlockAttacker（shared/block.canBlock）にまとめて判定させる
-        if (
-            canDefend &&
-            !view.battle?.blockerInstanceId &&
-            !singleCoreLocked &&
-            !costLocked &&
-            level >= 1 &&
-            (!attacker || canBlockAttacker(view, ownerPid, inst, view.turnPlayer, attacker))
-        ) {
-            el.classList.add("clickable", "usable")
-        }
-        // コア移動ボタン（メインステップのみ）
-        if (myMainFree) {
-            const levelsToUse = inst.asSpiritThisTurn?.levels ?? m.levels
-            el.appendChild(coreButtonsEl(inst.instanceId, inst.cores, levelsToUse))
-        }
-    } else {
-        // 指定アタックの対象選択モード中：フィルタに合う相手スピリットのみ選択可能
-        if (ui.directedAttack !== null) {
-            const attackerInst = view.players[view.you].field.spirits.find(
-                (s) => s.instanceId === ui.directedAttack?.attackerInstanceId,
-            )
-            const attacker = attackerInst ? { pid: view.you, inst: attackerInst } : undefined
-            if (matchesDirectedAttackFilter(ui.directedAttack.filter, inst, view, ownerPid, attacker)) {
-                el.classList.add("targetable", "clickable")
-            }
-            return el
-        }
-        // 対象選択中（相手側）。耐性の判定は共有層に一本化されている（サーバーとまったく同じ表を通る）
-        if (ui.targeting?.side === "opponent") {
-            const usingCardId = view.players[view.you].hand?.[ui.targeting.handIndex]
-            const usingColors = usingCardId ? master(usingCardId).colors : undefined
-            const resisted = boardResistanceAgainst(view, ownerPid, inst, {
-                op: "other",
-                scope: "targeted",
-                actorPid: view.you,
-                sourceType: "magic",
-                ...(usingColors ? { sourceColors: usingColors } : {}),
-            })
-            if (!resisted) el.classList.add("targetable", "clickable")
-        }
-    }
-
-    return el
-}
-
-function renderHand(view: GameView, ui: UiState): void {
-    const handEl = $("hand")
-    handEl.innerHTML = ""
-    const hand = view.players[view.you].hand
-    if (!hand) return
-
-    const myTurn = view.turnPlayer === view.you
-    const myMainFree = myTurn && view.phase === "main" && !view.battle
-    // フラッシュ中で自分が優先権を持つとき（攻撃側・防御側どちらでも使用可）
-    const inFlash =
-        !!view.battle && view.isFlashTiming && view.priorityPlayer === view.you
-    // ディバインチェイン等でこのバトルの間フラッシュの手札使用を封じられているか
-    const flashLocked = timedFlashLocked(view, view.you)
-    const reserve = view.players[view.you].reserve
-
-    // 効果解決中の選択待ち（自分宛・kind:"card"・cardZone:"hand"）：候補インデックスをハイライトする
-    const handChoiceIndices =
-        view.pendingChoice &&
-        view.pendingChoice.pid === view.you &&
-        view.pendingChoice.kind === "card" &&
-        view.pendingChoice.cardZone === "hand"
-            ? new Set(view.pendingChoice.cardIndices ?? [])
-            : null
-
-    // grantKeywordToHandCard（ビートプリースト等）で一時的に神速を付与された手札カードのcardId一覧
-    const tempSokuCardIds = new Set(
-        (view.players[view.you].tempHandKeywordGrants ?? [])
-            .filter((g) => g.keyword === "soku")
-            .map((g) => g.cardId),
-    )
-
-    const groupedHand = new Map<string, { count: number, indices: number[] }>()
-    hand.forEach((cardId, index) => {
-        if (!groupedHand.has(cardId)) {
-            groupedHand.set(cardId, { count: 0, indices: [] })
-        }
-        const g = groupedHand.get(cardId)!
-        g.count++
-        g.indices.push(index)
-    })
-
-    groupedHand.forEach((g, cardId) => {
-        const index = g.indices[0]
-        const m = master(cardId)
-        const cost = effectiveCost(view, view.you, m)
-        const lv1 = m.levels.find((l) => l.level === 1)
-        const need = cost + (lv1 ? lv1.cores : 0)
-        // 神速：静的に持つか、grantKeywordToHandCardで一時付与されているか、
-        // 場の発生源から継続的に与えられているか（緑芽吹く原野Lv2。判定はサーバーと同一の共有実装）
-        const flashSummonable =
-            m.type === "spirit" &&
-            (hasKeyword(cardId, "soku") ||
-                tempSokuCardIds.has(cardId) ||
-                hasHandKeywordGrant(view, view.you, m, "soku"))
-
-        // 【烈神速】：トラッシュのコア5個以上ならコストを支払わず召喚できる（BS16-X03）。
-        // コストはトラッシュのコアから賄うので、reserve >= need の判定は通さない
-        const resshinsokuReady =
-            m.type === "spirit" &&
-            hasKeyword(cardId, "resshinsoku") &&
-            view.players[view.you].trashCores >= 5
-
-        // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
-        // 色のマジックは使用不可（クリック自体は可能だが usable ハイライトからは除外する）
-        const magicColorLocked =
-            m.type === "magic" &&
-            hasMagicRestriction(view, view.you, "colorLockOpponent") &&
-            !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
-        // battleLock "magic"（BS16-X06）：メイン・フラッシュとも使用不可（バースト発動は別経路なので掛からない）
-        const magicBattleLocked = m.type === "magic" && timedMagicLocked(view, view.you)
-
-        const fieldCores = payableFieldCores(view, cardId)
-        const isTimingValid =
-            (myMainFree) ||
-            (inFlash && !flashLocked && ((m.type === "magic" && m.flash) || flashSummonable || resshinsokuReady))
-
-        const isUsableState = !view.pendingChoice && !magicColorLocked && !magicBattleLocked && isTimingValid
-        const usable = isUsableState && (resshinsokuReady || reserve >= need)
-        const usableField = isUsableState && !usable && (reserve + fieldCores >= need)
-        const unusable = !usable && !usableField
-
-        let targetable = false
-        let activeIndex = index
-        if (handChoiceIndices) {
-            const tIdx = g.indices.find(idx => handChoiceIndices.has(idx))
-            if (tIdx !== undefined) {
-                targetable = true
-                activeIndex = tIdx
-            }
-        }
-
-        const el = document.createElement("div")
-        el.className = "card"
-        el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
-        el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
-        el.dataset.handIndex = String(activeIndex)
-        el.dataset.cardId = cardId
-        
-        if (usable) el.classList.add("usable", "clickable")
-        else if (usableField) {
-            el.classList.add("usable-field", "clickable")
-            const badge = document.createElement("div")
-            badge.className = "field-req-badge"
-            badge.textContent = "盤面コア必要"
-            el.appendChild(badge)
-        }
-        else el.classList.add("unusable")
-
-        if (targetable) {
-            el.classList.add("targetable", "clickable")
-            el.classList.remove("unusable")
-        }
-
-        // 召喚・配置・マジック使用のために選択されたカードをハイライト
-        const selectedHandIndex =
-            ui.paying?.handIndex ??
-            ui.summonLevelSelect?.handIndex ??
-            ui.targeting?.handIndex ?? null
-        if (selectedHandIndex !== null && g.indices.includes(selectedHandIndex)) {
-            el.classList.add("selected")
-        }
-
-        // 支払いモードで「破棄してコストに充てる」ために選んだ手札（BS08ビクティム）。
-        // 手札は同名カードをまとめて表示しているので、この束から何枚選ばれているかを出す
-        if (ui.paying !== null) {
-            const picked = g.indices.filter((i) => ui.paying!.discardHandIndices.includes(i)).length
-            if (picked > 0) {
-                el.classList.add("pay-discard")
-                const badge = document.createElement("div")
-                badge.className = "pay-discard-badge"
-                badge.textContent = `🗑${picked}`
-                el.appendChild(badge)
-            }
-            // 破棄に選べる手札（＝召喚するカード自身以外）はクリックできると分かるようにする
-            if (payingAltPay(view, ui.paying).kind === "handDiscard" && !g.indices.includes(ui.paying.handIndex)) {
-                el.classList.add("clickable")
-                el.classList.remove("unusable")
-            }
-        }
-
-        const costBadge = document.createElement("div")
-        costBadge.className = "cost-badge"
-        if (cost < m.cost) {
-            costBadge.classList.add("discounted")
-            costBadge.innerHTML = `<span class="original-cost">${m.cost}</span><span class="current-cost">${cost}</span>`
-        } else {
-            costBadge.textContent = String(cost)
-        }
-        el.appendChild(costBadge)
-
-        const typeLabel =
-            CARD_TYPE_LABELS[m.type]
-
-        const name = document.createElement("div")
-        name.className = "name"
-        name.textContent = m.name
-        el.appendChild(name)
-
-        const reductionCounts: Record<string, number> = {}
-        for (const c of m.reduction) {
-            reductionCounts[c] = (reductionCounts[c] || 0) + 1
-        }
-        const reductionText = Object.entries(reductionCounts)
-            .map(([c, count]) => `${COLOR_LABELS[c as keyof typeof COLOR_LABELS]}${count}`)
-            .join("")
-
-        const stats = document.createElement("div")
-        stats.className = "stats"
-        stats.textContent = `${m.colors.map((c) => COLOR_LABELS[c]).join("・")}/${typeLabel}`
-        el.appendChild(stats)
-
-        if (reductionText) {
-            const reductionEl = document.createElement("div")
-            reductionEl.className = "stats"
-            reductionEl.textContent = `軽減:${reductionText}`
-            el.appendChild(reductionEl)
-        }
-
-        if (m.levels.length > 0) {
-            const bp = document.createElement("div")
-            bp.className = "stats"
-            bp.innerHTML = m.levels
-                .filter((l) => l.bp > 0)
-                .map((l) => `Lv${l.level}(${l.cores}):${l.bp}`)
-                .join("<br>")
-            el.appendChild(bp)
-        }
-
-        if (!m.effect) {
-            const vanilla = document.createElement("div")
-            vanilla.className = "stats"
-            vanilla.style.fontStyle = "italic"
-            vanilla.style.color = "var(--text-muted)"
-            vanilla.textContent = "（効果なし）"
-            el.appendChild(vanilla)
-        }
-
-        if (g.count > 1) {
-            const badge = document.createElement("div")
-            badge.className = "count-badge"
-            badge.textContent = `x${g.count}`
-            el.appendChild(badge)
-        }
-
-        // バーストセットボタン（docs/design/BURST.md）：kind:"burst"を持つカードにだけ出す。
-        // 通常のカード種別ごとの使い方（召喚・配置・使用）とは別枠の操作なので、
-        // カード本体のクリックとは独立したバッジボタンとして重ねる
-        if (m.effects.some((e) => e.kind === "burst")) {
-            const burstSetThisTurn = view.players[view.you].burstSetThisTurn
-            // BS16-067氷聖女の塔Lv2：相手の効果でリザーブのコアが足りなければセットできない
-            const burstCoresRequired = burstSetCoresRequired(view, view.you)
-            const burstCoresShort = burstCoresRequired > 0 && view.players[view.you].reserve < burstCoresRequired
-            const canSetBurst = myMainFree && !view.pendingChoice && !burstSetThisTurn && !burstCoresShort
-            const badge = document.createElement("button")
-            badge.className = "burst-set-badge" + (canSetBurst ? "" : " disabled")
-            badge.dataset.burstSet = String(index)
-            badge.textContent = "バーストセット"
-            badge.title = burstSetThisTurn
-                ? "このターンはすでにバーストをセットしています"
-                : burstCoresShort
-                  ? `相手の効果により、セットにはリザーブのコアが${burstCoresRequired}個必要です`
-                  : "バーストエリアに伏せてセットする"
-            badge.disabled = !canSetBurst
-            el.appendChild(badge)
-        }
-
-        // 手札から使う効果ボタン（kind:"handActivated"。BS15-011ミーアバット）。
-        // 神速召喚の召喚ボタンと同じ並びで、カード本体のクリックとは独立したバッジボタンにする
-        // （マジックではないので castMagic の対象選択UIには乗せない。サーバーは useHandAbility を送る）
-        const handAbility = m.effects.find((e) => e.kind === "handActivated")
-        if (handAbility && handAbility.kind === "handActivated") {
-            const phaseOk = handAbility.phase === undefined || view.phase === handAbility.phase
-            const canUseAbility = inFlash && !flashLocked && phaseOk && !view.pendingChoice
-            const badge = document.createElement("button")
-            badge.className = "hand-ability-badge" + (canUseAbility ? "" : " disabled")
-            badge.dataset.handAbility = String(index)
-            badge.dataset.handAbilityEffectId = handAbility.id
-            badge.textContent = "効果を使う"
-            badge.title = "手札のこのカードを破棄して効果を発動する"
-            badge.disabled = !canUseAbility
-            el.appendChild(badge)
-        }
-
-        handEl.appendChild(el)
-    })
-}
-
-function renderBattle(view: GameView): void {
-    const el = $("battle-info")
-    if (!view.battle) {
-        el.classList.add("hidden")
-        return
-    }
-    el.classList.remove("hidden")
-
-    const attackerPid = view.turnPlayer
-    const attacker = view.players[attackerPid].field.spirits.find(
-        (s) => s.instanceId === view.battle?.attackerInstanceId,
-    )
-    if (!attacker) {
-        el.textContent = "バトル解決中…"
-        return
-    }
-    const m = master(attacker.cardId)
-    const bp = effectiveBp(view, attackerPid, attacker)
-    const isDefender = view.you !== attackerPid
-    const hasPriority = view.priorityPlayer === view.you
-    // ブロック宣言済みか（宣言後はフラッシュが再オープンされる）
-    const blocked = !!view.battle.blockerInstanceId
-
-    // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
-    let blockerText = ""
-    if (blocked) {
-        const defenderPid: PlayerId = attackerPid === "p1" ? "p2" : "p1"
-        const blocker = view.players[defenderPid].field.spirits.find(
-            (s) => s.instanceId === view.battle?.blockerInstanceId,
-        )
-        if (blocker) {
-            const bm = master(blocker.cardId)
-            const blockerBp = effectiveBp(view, defenderPid, blocker)
-            blockerText = ` ブロッカー: ${bm.name}（BP${blockerBp}）。`
-        }
-    }
-
-    let message: string
-    if (blocked) {
-        // ブロック宣言後の追加フラッシュ
-        if (isDefender) {
-            if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}追加でフラッシュマジックを使うか「パス」してください。`
-            } else {
-                message = `⚔ ${m.name}（BP${bp}）をブロック宣言中。${blockerText}相手の対応を待っています…`
-            }
-        } else {
-            if (view.isFlashTiming && hasPriority) {
-                message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}フラッシュマジックを使うか「パス」してください。`
-            } else {
-                message = `⚔ ${m.name}（BP${bp}）はブロックされました。${blockerText}相手の対応を待っています…`
-            }
-        }
-    } else if (isDefender) {
-        if (view.isFlashTiming && !hasPriority) {
-            message = `⚔ ${m.name}（BP${bp}）がアタック中。相手がフラッシュの優先権を持っています…`
-        } else if (view.isFlashTiming) {
-            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュマジックを使うか「パス」してください。パス後にブロック／「ライフで受ける」を選べます。`
-        } else {
-            message = `⚔ ${m.name}（BP${bp}）がアタック！ フラッシュ終了。ブロックするスピリットを選ぶか「ライフで受ける」を押してください。`
-        }
-    } else {
-        if (view.isFlashTiming && hasPriority) {
-            message = `⚔ ${m.name}（BP${bp}）でアタック中。フラッシュの優先権があります。マジックを使うか「パス」してください。`
-        } else {
-            message = `⚔ ${m.name}（BP${bp}）でアタック中。相手の対応を待っています…`
-        }
-    }
-
-    // ディバインチェイン等でフラッシュ封印中の場合、封じられている側の視点で追記
-    if (timedFlashLocked(view, view.you)) {
-        message += " あなたはフラッシュ封印中（手札のカードを使用できない）。"
-    } else if (timedFlashLocked(view, view.you === "p1" ? "p2" : "p1")) {
-        message += " 相手はフラッシュ封印中（手札のカードを使用できない）。"
-    }
-
-    el.textContent = message
 }
 
 // ロビー側の表示制御
@@ -1801,200 +898,4 @@ export function showToast(message: string): void {
 // カード名＋効果全文をカードの上（入らなければ下）に重ねて表示する。
 // カードは再描画のたびに作り直されるため、document への委譲で拾う。
 
-let currentHoverCard: HTMLElement | null = null
 
-/** ツールチップを非表示にし、ホバー追跡をリセットする */
-export function hideEffectTooltip(): void {
-    const tip = document.getElementById("effect-tooltip")
-    if (tip) tip.classList.add("hidden")
-    currentHoverCard = null
-}
-
-export function setupEffectTooltip(): void {
-    const tip = document.createElement("div")
-    tip.id = "effect-tooltip"
-    tip.classList.add("hidden")
-    document.body.appendChild(tip)
-
-    const showFor = (card: HTMLElement): void => {
-        const cardId = card.dataset.cardId
-        if (!cardId) return
-        const m = master(cardId)
-        
-        tip.innerHTML = ""
-        const titleArea = document.createElement("div")
-        titleArea.style.display = "flex"
-        titleArea.style.alignItems = "center"
-        titleArea.style.gap = "8px"
-        titleArea.style.marginBottom = "6px"
-        titleArea.style.borderBottom = "1px solid #333"
-        titleArea.style.paddingBottom = "4px"
-
-        const title = document.createElement("div")
-        title.className = "tooltip-name"
-        title.textContent = m.name
-        title.style.margin = "0"
-        title.style.borderBottom = "none"
-        title.style.paddingBottom = "0"
-        titleArea.appendChild(title)
-        tip.appendChild(titleArea)
-        
-        if (m.family && m.family.length > 0) {
-            const fam = document.createElement("div")
-            fam.className = "tooltip-family"
-            fam.textContent = "系統: " + m.family.join(" / ")
-            fam.style.fontSize = "11px"
-            fam.style.color = "var(--text-muted)"
-            fam.style.marginBottom = "6px"
-            tip.appendChild(fam)
-        }
-        
-        const costArea = document.createElement("div")
-        costArea.style.display = "flex"
-        costArea.style.gap = "8px"
-        costArea.style.alignItems = "center"
-        costArea.style.marginBottom = "8px"
-        costArea.style.fontSize = "12px"
-        
-        const costEl = document.createElement("div")
-        costEl.textContent = `コスト: ${m.cost}`
-        costArea.appendChild(costEl)
-
-        const redEl = document.createElement("div")
-        redEl.style.display = "flex"
-        redEl.style.alignItems = "center"
-        redEl.style.gap = "2px"
-        redEl.textContent = `軽減: `
-        if (m.reduction.length === 0) {
-            redEl.textContent += "なし"
-        } else {
-            m.reduction.forEach(r => {
-                const icon = document.createElement("span")
-                icon.className = `sym-icon bg-${r}`
-                icon.dataset.colorLabel = COLOR_SYMBOLS[r] || ""
-                redEl.appendChild(icon)
-            })
-        }
-        costArea.appendChild(redEl)
-
-        const symbolEl = document.createElement("div")
-        symbolEl.style.display = "flex"
-        symbolEl.style.alignItems = "center"
-        symbolEl.style.gap = "2px"
-        symbolEl.textContent = `シンボル: `
-        if (m.symbol && m.symbol.length > 0) {
-            m.symbol.forEach(symColor => {
-                const icon = document.createElement("span")
-                icon.className = `sym-icon bg-${symColor}`
-                symbolEl.appendChild(icon)
-            })
-        } else {
-            symbolEl.textContent += "なし"
-        }
-        costArea.appendChild(symbolEl)
-        tip.appendChild(costArea)
-        
-        if (m.levels && m.levels.length > 0) {
-            const lvArea = document.createElement("div")
-            lvArea.style.marginBottom = "8px"
-            lvArea.style.fontSize = "11px"
-            lvArea.style.color = "#94a3b8"
-            
-            m.levels.forEach(lv => {
-                const lvLine = document.createElement("div")
-                let text = `Lv${lv.level} (維持コア${lv.cores})`
-                if (m.type === "spirit" && lv.bp !== undefined) {
-                    text += ` BP ${lv.bp}`
-                }
-                lvLine.textContent = text
-                lvArea.appendChild(lvLine)
-            })
-            tip.appendChild(lvArea)
-        }
-        
-        if (m.effect) {
-            // 行頭が「Lv1」「Lv2」「Lv3」「フラッシュ」の行は強調表示する（innerHTMLのためエスケープ必須）
-            const eff = document.createElement("div")
-            eff.innerHTML = effectLineSegments(m.effect)
-                .map((segments) => {
-                    const line = segments.map((s) => s.text).join("")
-                    const escaped = segments
-                        .map((s) => (s.note ? `<span class="effect-note" title="補足：バースト効果の召喚・配置はコストを支払わない（カードには書かれていない）">${escapeHtml(s.text)}</span>` : escapeHtml(s.text)))
-                        .join("")
-                    const isHighlight = /^(Lv[123]|フラッシュ)/.test(line)
-                    return `<div class="tooltip-effect-line${isHighlight ? " tooltip-effect-highlight" : ""}">${escaped}</div>`
-                })
-                .join("")
-            tip.appendChild(eff)
-        } else {
-            const vanilla = document.createElement("div")
-            vanilla.textContent = "（効果なし）"
-            vanilla.style.fontStyle = "italic"
-            vanilla.style.color = "var(--text-muted)"
-            tip.appendChild(vanilla)
-        }
-        
-        tip.classList.remove("hidden")
-        // 位置決め: カードの上に出し、画面上端にかかるならカードの下へ。左右は画面内へクランプ
-        const rect = card.getBoundingClientRect()
-        const tipRect = tip.getBoundingClientRect()
-        let top = rect.top - tipRect.height - 8
-        if (top < 4) top = rect.bottom + 8
-        let left = rect.left + rect.width / 2 - tipRect.width / 2
-        left = Math.max(4, Math.min(left, window.innerWidth - tipRect.width - 4))
-        tip.style.top = `${top}px`
-        tip.style.left = `${left}px`
-    }
-
-    // PC: ホバーで表示・カードから離れたら消す
-    document.addEventListener("mouseover", (e) => {
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
-        if (card && card !== currentHoverCard) {
-            currentHoverCard = card
-            showFor(card)
-        }
-    })
-    document.addEventListener("mouseout", (e) => {
-        // セレクタは合体ブレイヴを足した側（このブランチ）、関数名は hideEffectTooltip へ
-        // 改名された側（origin/main の再描画時クリア）を採る。**どちらも必要**
-        const from = (e.target as HTMLElement).closest(".card, .brave-combined, .log-card-name")
-        const to = (e.relatedTarget as HTMLElement | null)?.closest?.(".card, .brave-combined, .log-card-name")
-        if (from && from !== to) hideEffectTooltip()
-    })
-
-    // スマホ: 長押し（500ms）で表示。指を離しても表示は残し、次のタップで消す。
-    // 長押し後のタップがカードの操作（アタック等）として誤発火しないよう、直後のクリックを1回握りつぶす
-    let pressTimer = 0
-    let longPressed = false
-    document.addEventListener("pointerdown", (e) => {
-        if (e.pointerType !== "touch") return
-        const card = (e.target as HTMLElement).closest<HTMLElement>(".card, .brave-combined, .log-card-name")
-        window.clearTimeout(pressTimer)
-        if (!card) {
-            hideEffectTooltip()
-            return
-        }
-        pressTimer = window.setTimeout(() => {
-            longPressed = true
-            showFor(card)
-        }, 500)
-    })
-    const cancelPress = (): void => window.clearTimeout(pressTimer)
-    document.addEventListener("pointermove", cancelPress)
-    document.addEventListener("pointercancel", cancelPress)
-    document.addEventListener("pointerup", cancelPress)
-    document.addEventListener(
-        "click",
-        (e) => {
-            if (!longPressed) return
-            longPressed = false
-            e.preventDefault()
-            e.stopPropagation()
-        },
-        true,
-    )
-    // 長押しでOSのコンテキストメニュー（テキスト選択等）が出るのを抑止
-    document.addEventListener("contextmenu", (e) => {
-        if (longPressed) e.preventDefault()
-    })
-}

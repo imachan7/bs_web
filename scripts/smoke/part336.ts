@@ -2,10 +2,10 @@
 // Lv1-2の既存実装の簡略化（手札末尾の自動破棄）を直す＝手札破棄選択を使う）
 //
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械確認してから使う。
-import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, runTurnStart, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fushiCandidates, fushiSummonOrConfirm } from "../../server/src/logic/revive"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)
@@ -123,6 +123,8 @@ console.log("=== 対照: 通常どおりコストを支払って召喚すると�
     const handBefore = s.players.p1.hand.length
     fushiSummonOrConfirm(s, "p1", 0)
     assert(act(s, "p1", { type: "resolveChoice", option: "コストを支払って召喚する" }) === null, "コストを支払って召喚するを選ぶ")
+    // 魔門のコアも支払いに使えるので支払い元を聞かれる（2026-10-15）。リザーブから払う
+    assert(s.pendingChoice?.effectCostPay !== undefined && act(s, "p1", { type: "resolveChoice", option: "支払う" }) === null, "支払い元を聞かれ、リザーブから払う")
     assert(!meimon.isRested, "対照：通常召喚では魔門は疲労しない")
     assert(s.players.p1.hand.length === handBefore + 1, "対照：『召喚時』効果（Lv1ぶん1枚ドロー）が発揮される")
 }
@@ -134,6 +136,7 @@ console.log("=== §D Lv1-2の手札破棄は持ち主が選ぶ（末尾の自動
     const attacker = put(s, "p1", "BS15-011", 1) // 紫のスピリット（アタックする本人）
     s.players.p1.hand = ["BS01-001", "BS02-040"] // 破棄候補2枚（末尾=BS02-040が旧実装での自動選択先）
     fireFieldEventTriggers(s, "p1", "anySpiritAttacked", { pid: "p1", inst: attacker }, getCard(attacker.cardId).colors)
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.kind === "card" && s.pendingChoice.cardZone === "hand", "破棄する手札の選択待ちになる（自動で決め打ちしない）")
     const cardIndices = s.pendingChoice?.cardIndices ?? []
     assert(cardIndices.length === 2, "手札2枚とも候補に出る")

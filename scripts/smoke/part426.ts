@@ -9,8 +9,7 @@ import {
     getCard,
     refreshLevelAsOverrides,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, legacy } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { validateSummon } from "../../server/src/logic/RuleValidator"
 import { ALL_CARDS, clearBattle } from "../../server/src/logic/GameState"
@@ -47,7 +46,7 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores = 1): ReturnType
 
 const PENTAN_ACTION = {
     type: "pay" as const,
-    cost: { type: "discardSelfChoose" as const, count: 1, cardName: "キャラクターロスト" },
+    cost: legacy({ type: "discardSelfChoose" as const, count: 1, cardName: "キャラクターロスト" }),
     then: { type: "peekOpponentHand" as const },
 }
 

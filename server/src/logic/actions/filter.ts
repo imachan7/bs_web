@@ -12,10 +12,11 @@
 // 無言で無視されてしまうため、データ側の検査が必要）。
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
 import type { EffectAttempt } from "../../../../shared/rules"
-import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter } from "../../../../shared/rules"
+import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
 import { findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
-import { lastMovedOf } from "../record"
+import { countEffectCounter } from "../EffectModules"
+import { lastMovedOf, lastTargetsOf } from "../record"
 
 // 耐性判定（EffectModules.resistanceAgainst / isResisted）へ渡す「何をしようとしているか」を
 // ActionCtx から組み立てる。**発生源の色と種別を渡し忘れると装甲やマジック耐性が無言で効かなくなる**ため、
@@ -57,7 +58,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, sameIceWallColorAs, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -157,6 +158,13 @@ export function normalizeFilter(
         resolved.maxBp = lv1.bp
     }
 
+    if (maxLv1BpOfLastTarget) {
+        const last = ctx.state.players[ctx.owner].field.spirits.find((s) => s.instanceId === lastTargetsOf(ctx.state)[0])
+        const lv1 = last ? getCard(last.cardId).levels.find((l) => l.level === 1) : undefined
+        if (!lv1) return SELF_REQUIRED
+        resolved.maxBp = lv1.bp
+    }
+
     // self の実効BP。発生源が場にいない文脈（マジック等）では self が null になりうる
     const selfBp = ctx.self ? effectiveBp(ctx.state, ctx.owner, ctx.self) : undefined
 
@@ -165,6 +173,27 @@ export function normalizeFilter(
         resolved.maxBp = selfBp
     } else if (maxBp !== undefined) {
         resolved.maxBp = maxBp
+    }
+
+    if (maxBpPerOwn && resolved.maxBp !== undefined) {
+        const per = maxBpPerOwn.per as unknown as ResolvedTargetFilter
+        const n = ctx.state.players[ctx.owner].field.spirits.filter((s) => matchesTarget(ctx.state, ctx.owner, s, per, ctx.self?.instanceId)).length
+        resolved.maxBp += maxBpPerOwn.amount * n
+    }
+
+    if (maxBpPer && resolved.maxBp !== undefined) {
+        resolved.maxBp += maxBpPer.amount * countEffectCounter(ctx.state, ctx.owner, ctx.self, maxBpPer.counter, ctx.srcType)
+    }
+
+    if (maxCostPer && resolved.cost?.max !== undefined) {
+        resolved.cost = { ...resolved.cost, max: resolved.cost.max + maxCostPer.amount * countEffectCounter(ctx.state, ctx.owner, ctx.self, maxCostPer.counter, ctx.srcType) }
+    }
+
+    if (maxCostPerOwn && resolved.cost?.max !== undefined) {
+        const per = maxCostPerOwn.per as unknown as ResolvedTargetFilter
+        const f = ctx.state.players[ctx.owner].field
+        const n = (maxCostPerOwn.includeNexus ? [...f.spirits, ...f.nexuses] : f.spirits).filter((s) => matchesTarget(ctx.state, ctx.owner, s, per, ctx.self?.instanceId)).length
+        resolved.cost = { ...resolved.cost, max: resolved.cost.max + maxCostPerOwn.amount * n }
     }
 
     if (minBp === "selfBp") {
@@ -204,6 +233,13 @@ export function normalizeFilter(
     if (resolved.lastBpBuffTarget !== undefined) {
         delete resolved.lastBpBuffTarget
         const instanceIds = ctx.state.lastBpBuffTargetId !== undefined ? [ctx.state.lastBpBuffTargetId] : []
+        resolved.instanceIn = resolved.instanceIn === undefined
+            ? instanceIds
+            : resolved.instanceIn.filter((id) => instanceIds.includes(id))
+    }
+    if (resolved.lastTarget !== undefined) {
+        delete resolved.lastTarget
+        const instanceIds = lastTargetsOf(ctx.state)
         resolved.instanceIn = resolved.instanceIn === undefined
             ? instanceIds
             : resolved.instanceIn.filter((id) => instanceIds.includes(id))

@@ -5,7 +5,7 @@
 //
 // どちらも従来は決定的な自動選択（コスト最大／コア数最小）だった。
 // interactiveTargets（実対戦）ではプレイヤーが選び、テスト既定（false）では従来どおり自動選択。
-import { act, assert, createGame, createInstance, resolveAction } from "./helpers"
+import { act, assert, createGame, createInstance, resolveAction, answerPayConfirm } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 function setup(seed: string): GameState {
@@ -80,6 +80,7 @@ console.log("=== BS02-095 サクリファイス：破壊する自分のネクサ
     s.players.p2.field.nexuses.push(enemyNexus)
 
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "nexusCoresToTrash", side: "opponent" } }, undefined, undefined, "magic")
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice !== null, "破壊する自分のネクサスの選択待ちが立つ")
     const cands = s.pendingChoice?.candidates ?? []
     assert(cands.includes(few.instanceId) && cands.includes(many.instanceId), "自分のネクサスが候補になる")

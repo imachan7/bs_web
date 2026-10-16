@@ -1,6 +1,8 @@
 // 覚醒・起動能力・指定アタック・維持コア・フラッシュのロック・代替召喚（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage } from "../coverage"
 
 import type {
+    EffectAction,
     CardData,
     CardInstance,
     CardType,
@@ -12,7 +14,8 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { activeConstraints, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
-import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches } from "./level"
+import { matchesTarget } from "./targetFilter"
+import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches, matchesBraveCondition } from "./level"
 
 // ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----
 
@@ -34,6 +37,7 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            noteCoverage(effect, "sokuPaySourceGrant")
             if (effect.scope === "self") {
                 allowed.add(source.instanceId)
                 continue
@@ -83,6 +87,7 @@ export function burstSetCoresRequired(board: Board, pid: PlayerId): number {
                 if (effect.phaseTurn.turn === "own" && opp !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && opp === board.turnPlayer) continue
             }
+            noteCoverage(effect, "burstSetCost")
             total += effect.reserveToTrash
         }
     }
@@ -111,6 +116,7 @@ export function canAwakenFromReserve(board: Board, ownerPid: PlayerId, inst?: Ca
             // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
             // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
             if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
+            noteCoverage(effect, "awakenFromReserve")
             return true
         }
     }
@@ -240,6 +246,13 @@ export function canAwaken(board: Board, ownerPid: PlayerId, inst: CardInstance):
         (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
     )
     if (staticAwaken) return true
+    // 合体しているブレイヴの【合体時】【覚醒】はホストが持つ（spiritHasKeyword と同じ合流。BS11-049）
+    const braveAwaken = bravesOf(board.players[ownerPid], inst).some((b) =>
+        card(b.cardId).effects.some(
+            (e) => e.kind === "keyword" && keywordMatches(e.keyword, "awaken") && effectActiveOn(inst, e, level),
+        ),
+    )
+    if (braveAwaken) return true
     return timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, "awaken"))
         || hasContinuousKeywordGrant(board, ownerPid, inst, "awaken")
 }
@@ -271,6 +284,38 @@ export function activatableAbility(
 
 // activatableAbility の実体。source＝効果を持つカード、host＝レベル/バトル判定に使うカード
 // （合体中のブレイヴは、レベルもバトル参加もホストのものを見る）
+// 発生源（スピリット状態のイリテバン）に合体させられる自分のスピリット状態のブレイヴ。
+// 合体条件は発生源をスピリットとして見る（コスト4。2026-10-16 ユーザー確認）
+export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self: CardInstance): CardInstance[] {
+    if ((self.braveRefs ?? []).length > 0 || activeConstraints(board, pid, self).some((c) => c.type === "cantCombine")) return []
+    return board.players[pid].field.spirits.filter(
+        (sp) =>
+            card(sp.cardId).type === "brave" &&
+            sp.instanceId !== self.instanceId &&
+            // 既に他のブレイヴが合体している「塊」は、さらに別のブレイヴを合体させられない（BRAVE.md §12）
+            (sp.braveRefs ?? []).length === 0 &&
+            matchesBraveCondition(board, pid, self, sp.cardId),
+    )
+}
+
+// 起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
+// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy（トップレベルのみ）だけで、
+// 装甲・免疫などの耐性は見ない＝対象が耐性持ちだけのときは「起動できる」側に倒れる。ほかの action は常に true
+export function activatedActionResolvable(board: Board, pid: PlayerId, source: CardInstance, action: EffectAction): boolean {
+    if (action.type !== "destroy" || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
+    const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
+    if ([filter.maxBp, filter.minBp, filter.exactBp].some((v) => typeof v === "string")) return true
+    if (filter.maxBp !== undefined && card(source.cardId).type === "spirit") {
+        for (const s of effectSources(board, pid)) {
+            const lv = currentLevel(s).level
+            for (const e of card(s.cardId).effects) if (e.kind === "destroyBpThresholdBonus" && effectActiveAtLevel(e.levels, lv)) filter.maxBp += e.amount
+        }
+    }
+    const opp: PlayerId = pid === "p1" ? "p2" : "p1"
+    const n = board.players[opp].field.spirits.filter((s) => matchesTarget(board, opp, s, filter, source.instanceId)).length
+    return n >= (action.upTo || action.count === "any" ? 1 : action.count)
+}
+
 function activatableAbilityOf(
     board: Board,
     pid: PlayerId,
@@ -308,8 +353,16 @@ function activatableAbilityOf(
             if (!turnOk) continue
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
-        // 「ターンに1回」：発生源1体につきターン1回
-        if (e.oncePerTurn && source.activatedUsedTurn?.[e.id] === board.turn) continue
+        if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
+        if (e.cost !== undefined && !activatedActionResolvable(board, pid, source, e.action)) continue
+        // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
+        if (e.oncePerTurn) {
+            const used =
+                e.onceScope === "name"
+                    ? board.players[pid].onceByNameUsed?.[card(source.cardId).name + e.id.slice(e.id.lastIndexOf("-e"))]
+                    : source.activatedUsedTurn?.[e.id]
+            if (used === board.turn) continue
+        }
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {
@@ -414,6 +467,26 @@ export function minLevelCoresOf(levels: LevelDef[]): number {
     return min ? min.cores : 0
 }
 
+// 召喚/配置で置く維持コア数。サーバー（validateSummon/doSummon/validateSetNexus/doSetNexus）と
+// クライアント（レベル選択・支払いモードの見せ方）の両方がこの1本で計算してズレないようにする
+//
+// 《真界放》のwaiver配置（2026-10-07 ユーザー裁定）: マーカー付き（soulCoreRequired）カードに
+// [ソウルコア]を維持コアとして置く指定のときは「[ソウルコア]1個のみ」の置き方になる。
+// レベル指定ではなく1コアを置き、levelOfがLv2を導出する。Lv1:0のマーカー付きネクサスでも
+// この指定なら1コア置ける。マーカーなしのカードは従来どおり指定レベル（省略時は最小Lv）のコア数
+export function placedCoresForSummon(
+    cardData: CardData,
+    level: number | undefined,
+    opts?: { braveTarget?: boolean | undefined; placeSoulCoreFromReserve?: boolean | undefined },
+): number {
+    if (opts?.braveTarget === true) return 0
+    if (opts?.placeSoulCoreFromReserve === true && cardData.levels.some((l) => l.soulCoreRequired === true)) {
+        return 1
+    }
+    if (level === undefined) return minLevelCores(cardData)
+    return cardData.levels.find((l) => l.level === level)?.cores ?? minLevelCores(cardData)
+}
+
 // ---- フラッシュのロック ----
 
 // pid がいま「フラッシュで手札のカードを使えない」状態か。
@@ -432,7 +505,10 @@ export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "flashLockWhileAttackingFamily") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) return true
+            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) {
+                noteCoverage(effect, "flashLockWhileAttackingFamily")
+                return true
+            }
         }
     }
     return false

@@ -81,20 +81,25 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにある[金狐角]1枚を、コストを支払わずに召喚できる。",
     "effects": [
       {
-        "id": "BS16-011-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "optional": true,
-        "action": {
-          "type": "summonFromTrashFree",
-          "count": 1,
-          "nameIncludes": "金狐角"
-        }
+       "id": "BS16-011-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "optional": true,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pick": {
+         "cardType": "spirit",
+         "nameIncludes": "金狐角"
+        },
+        "count": 1
+       }
       }
     ]
   },
@@ -140,20 +145,25 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにある[銀狼角]1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『自分のアタックステップ』\nスピリットすべては、フィールドから手札に戻らない。",
     "effects": [
       {
-        "id": "BS16-012-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "optional": true,
-        "action": {
-          "type": "summonFromTrashFree",
-          "count": 1,
-          "nameIncludes": "銀狼角"
-        }
+       "id": "BS16-012-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "optional": true,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pick": {
+         "cardType": "spirit",
+         "nameIncludes": "銀狼角"
+        },
+        "count": 1
+       }
       },
       {
         "id": "BS16-012-e2",
@@ -285,6 +295,7 @@
         "id": "BS16-014-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2,
@@ -349,21 +360,26 @@
         }
       },
       {
-        "id": "BS16-015-e2",
-        "kind": "triggered",
-        "trigger": "onDestroy",
-        "levels": [
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "familyFilter": [
-            "雄将",
-            "無魔"
-          ]
+       "id": "BS16-015-e2",
+       "kind": "triggered",
+       "trigger": "onDestroy",
+       "levels": [
+        2
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "family": [
+          "雄将",
+          "無魔"
+         ]
         }
+       }
       }
     ]
   },
@@ -563,31 +579,41 @@
         }
       },
       {
-        "id": "BS16-018-e2",
-        "kind": "activated",
-        "timing": "flashBattle",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "condition": "selfInBattle",
+       "id": "BS16-018-e2",
+       "kind": "activated",
+       "timing": "flashBattle",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "condition": "selfInBattle",
+       "action": {
+        "type": "pay",
         "cost": {
-          "discardHandFamily": [
-            "覇皇",
-            "雄将"
+         "type": "moveCards",
+         "from": "hand",
+         "dest": "trash",
+         "count": 1,
+         "pick": {
+          "cardType": "spirit",
+          "family": [
+           "覇皇",
+           "雄将"
           ]
+         }
         },
-        "action": {
-          "type": "destroy",
-          "count": 1,
-          "filter": {
-            "rested": true,
-            "cost": {
-              "max": 6
-            }
+        "then": {
+         "type": "destroy",
+         "count": 1,
+         "filter": {
+          "rested": true,
+          "cost": {
+           "max": 6
           }
+         }
         }
+       }
       }
     ]
   },
@@ -715,20 +741,30 @@
         }
       },
       {
-        "id": "BS16-063-e2",
-        "kind": "step",
-        "step": "end",
-        "turn": "own",
-        "levels": [
-          2
-        ],
+       "id": "BS16-063-e2",
+       "kind": "step",
+       "step": "end",
+       "turn": "own",
+       "levels": [
+        2
+       ],
+       "action": {
+        "type": "pay",
         "cost": {
-          "discardHandFamily": "無魔"
+         "type": "moveCards",
+         "from": "hand",
+         "dest": "trash",
+         "count": 1,
+         "pick": {
+          "cardType": "spirit",
+          "family": "無魔"
+         }
         },
-        "action": {
-          "type": "draw",
-          "count": 1
+        "then": {
+         "type": "draw",
+         "count": 1
         }
+       }
       }
     ]
   },
@@ -792,6 +828,8 @@
         "optional": true,
         "subjectMaxCost": 5,
         "subjectHasTrigger": "onSummon",
+        "selfMode": "source",
+        "attackerAsTarget": true,
         "action": {
           "type": "returnToHand",
           "count": 1
@@ -821,16 +859,22 @@
     "effect": "フラッシュ：\n自分のトラッシュにある紫のスピリットカード1枚をコストを支払わずに召喚する。\nただし、『このスピリットの召喚時』効果は発揮されない。\nバトル終了時、この効果で召喚されたスピリットは破壊される。\nこの効果は、『相手のターン』でしか使えない。",
     "effects": [
       {
-        "id": "BS16-075-e1",
-        "kind": "magic",
-        "timing": "flash",
-        "ownTurnForbidden": true,
-        "action": {
-          "type": "summonFromTrashFree",
-          "colorFilter": "purple",
-          "skipOnSummon": true,
-          "destroyAtBattleEnd": true
-        }
+       "id": "BS16-075-e1",
+       "kind": "magic",
+       "timing": "flash",
+       "ownTurnForbidden": true,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pick": {
+         "cardType": "spirit",
+         "color": "purple"
+        },
+        "count": 1,
+        "skipOnSummon": true,
+        "destroyAtBattleEnd": true
+       }
       }
     ]
   },

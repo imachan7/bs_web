@@ -1,6 +1,8 @@
+// 【光芒】の判定と解決
+import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, Keyword, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
-import { notifyHandGained } from "../triggers"
+import { notifyHandGained } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, timedKeywords } from "../../../../shared/rules"
 
 // 静的キーワード（レベル判定つき）‖ 一時付与 ‖ 継続付与のいずれかで keyword を持つか。
@@ -26,7 +28,10 @@ export function hasKoboOnBlock(state: GameState, ownerPid: PlayerId): boolean {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "koboOnBlock") continue
-            if (effectActiveAtLevel(effect.levels, level)) return true
+            if (effectActiveAtLevel(effect.levels, level)) {
+                noteCoverage(effect, "koboOnBlock")
+                return true
+            }
         }
     }
     return false
@@ -49,6 +54,11 @@ export function resolveKoboOnBattleEnd(
     const hasKobo = hasMakobo || hasKeywordAtLevel(state, attackerPid, attacker, "kobo")
     if (!hasKobo) return
     const keywordLabel = hasMakobo ? "魔光芒" : "光芒"
+    const attackerLevel = currentLevel(attacker).level
+    const koboEntry = getCard(attacker.cardId).effects.find(
+        (e) => e.kind === "keyword" && (e.keyword === "kobo" || e.keyword === "makobo") && effectActiveAtLevel(e.levels, attackerLevel),
+    )
+    if (koboEntry) noteCoverage(koboEntry, "keyword")
     const player = state.players[attackerPid]
     let recovered = 0
     for (const cardId of usedMagicCardIds) {

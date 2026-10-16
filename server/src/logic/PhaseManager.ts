@@ -1,8 +1,12 @@
 // ターン進行・フェーズ遷移の制御
+import { noteCoverage } from "../../../shared/coverage"
 import type { GameState, PlayerId, TimedRecord } from "../type"
+import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
-import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
+
+const SECOND_MAIN_STEP = false
 
 // 器BJ：カード名条件・コア条件に合う自分のネクサスを、アタックステップの間だけスピリットとして扱う
 // （BS13-048古代戦艦アルゴ・ゴレムLv2）。treatOwnNexusesAsSpiritsThisTurnHandler（BS03ゴーレムクラフト）と
@@ -25,6 +29,7 @@ function applyAttackStepNexusAsSpirit(state: GameState): void {
                         (effect.nameContains === undefined || cardNameContains(n, effect.nameContains)),
                 )
                 if (targets.length === 0) continue
+                noteCoverage(effect, "nexusAsSpiritDuringAttackStep")
                 for (const nexus of targets) {
                     player.field.nexuses.splice(player.field.nexuses.indexOf(nexus), 1)
                     nexus.asSpiritThisTurn = {
@@ -46,19 +51,31 @@ function applyAttackStepNexusAsSpirit(state: GameState): void {
 
 // applyAttackStepNexusAsSpirit の戻し。asSpiritAttackStepScoped が付いた個体だけを field.nexuses へ戻す
 // （通常のasSpiritThisTurn＝ターン限定はこの目印が無いのでここでは戻らず、endTurn側の既存ループが担当する）
-function revertAttackStepNexusAsSpirit(state: GameState): void {
+// battleOnly＝バトルの終わり（clearBattle）の呼び出し。「このバトル中」の印（asSpiritBattleScoped）が付いた個体だけ戻す
+export function revertAttackStepNexusAsSpirit(state: GameState, battleOnly = false): void {
     for (const pid of ["p1", "p2"] as const) {
         const field = state.players[pid].field
         for (const inst of [...field.spirits]) {
             if (inst.asSpiritAttackStepScoped !== true) continue
+            if (battleOnly && inst.asSpiritBattleScoped !== true) continue
             delete inst.asSpiritThisTurn
             delete inst.asSpiritAttackStepScoped
+            delete inst.asSpiritBattleScoped
             field.spirits.splice(field.spirits.indexOf(inst), 1)
             field.nexuses.push(inst)
             detachBravesOnLeave(state, pid, inst)
             log(state, `${state.players[pid].name}の${getCard(inst.cardId).name}はネクサスに戻った。`)
         }
     }
+}
+
+// ステップの終わりの掃除。「このステップ中」の期間つき効果（until:"step"）を消し、ステップ限りでスピリット扱いにしたネクサスを戻す
+// （効果で「このステップ中スピリットとして扱う」にしたもの。2026-10-11 ユーザー確認）。ステップが変わる箇所（toAttackPhase・endTurn）から呼ぶ
+function endStepScoped(state: GameState): void {
+    revertAttackStepNexusAsSpirit(state)
+    if (!state.timedEffects.some((r) => r.until === "step")) return
+    state.timedEffects = state.timedEffects.filter((r) => r.until !== "step")
+    refreshLevelAsOverrides(state)
 }
 
 // ターン開始処理のステップ列（start → core → draw → refresh → main）。
@@ -124,7 +141,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
             if (state.drawStepSkipped) {
                 log(state, `${player.name}は効果のコストとしてドローしなかった。`)
             } else {
-                draw(state, pid, 1, true)
+                draw(state, pid, 1 + drawStepBonusFor(state, pid), true)
             }
             if (state.winner) return // デッキ切れ敗北時はステップ誘発を発火させない
             fireStepTriggers(state, "draw", undefined, "enter", "after")
@@ -137,6 +154,11 @@ function turnStartSegments(state: GameState): (() => void)[] {
             if (player.trashCores > 0) {
                 const caps = nextRefresh.flatMap((r) => r.content.flatMap((c) => (c.type === "trashCoreReturnCap" ? [c.max] : [])))
                 const cap = caps.length > 0 ? Math.min(...caps) : undefined
+                // 案B-inside: トラッシュに[ソウルコア]があるときは、コアと一緒にリザーブへ戻す。
+                // これを忘れると数値だけ戻って[ソウルコア]がただの通常コアに化けて消える（2026-10-06 修正）
+                if (soulCoreInTrash(player) && (cap === undefined || cap >= 1)) {
+                    moveSoulCore(player, { zone: "reserve" })
+                }
                 const moved = cap !== undefined ? Math.min(player.trashCores, cap) : player.trashCores
                 player.reserve += moved
                 player.trashCores -= moved
@@ -241,6 +263,19 @@ export function runTurnStart(state: GameState): void {
 
 // メインステップ → アタックステップ
 export function toAttackPhase(state: GameState): void {
+    // 先攻1ターン目はアタックステップが存在しない（公式ルール。2026-10-06 ユーザー指定）。
+    // nextPhase / endTurn の通常経路ではここへ来ないが、forceEndMainStep 等の効果経由で来た場合は
+    // メインステップの終了としてターン終了処理へ流す（endTurn 側もターン1を除外しているので再帰しない）
+    if (state.turn === 1) {
+        log(state, `先攻1ターン目のため、アタックステップは存在しない。`)
+        endTurn(state)
+        return
+    }
+    // アタックステップを経由した＝このターンには第2メインステップがまだ残っている（endTurn が消費する）。
+    // 既に第2メインを行った後の再アタックステップ（BS10-008 アレス・ドラグーン）の後には第2メインを挟まない。
+    // 旧カードの対戦には第2メインステップが無いので立てない（2026-10-15 ユーザー決定。standard 版から持ち込んだ仕組みは入口だけ閉じる）
+    if (SECOND_MAIN_STEP && state.secondMainDone !== true) state.oweSecondMain = true
+    endStepScoped(state)
     state.phase = "attack"
     log(state, `${state.players[state.turnPlayer].name}はアタックステップに移行した。`)
     // 器BJ：アタックステップ開始時に、対象のネクサスをスピリットとして扱う（BS13-048古代戦艦アルゴ・ゴレムLv2）
@@ -254,7 +289,8 @@ export function endTurn(state: GameState): void {
     // メインステップから直接ターンを終了したときも、ここでアタックステップへ入って開始時の誘発を出してから
     // 終了時の誘発へ進む。「アタックステップは行えず」（BS10-108 ルナティックシール）のときだけ経由しない。
     // 開始時の誘発が選択待ちになったら、選択の解決後にこの関数をやり直す（そのときは phase が "attack"）
-    if (state.phase === "main" && !state.extraMainStep && !isEndStepLocked(state, "attackStep")) {
+    // 第2メインステップ中と先攻1ターン目はアタックステップを経由しない（第2メイン→エンド、1ターン目はメイン→エンド）
+    if (state.phase === "main" && !state.extraMainStep && state.secondMainStep !== true && state.turn !== 1 && !isEndStepLocked(state, "attackStep")) {
         toAttackPhase(state)
         if (state.winner) return
         if (state.pendingChoice) {
@@ -269,7 +305,7 @@ export function endTurn(state: GameState): void {
     // 器BJ：アタックステップ終了時に、applyAttackStepNexusAsSpiritで変換したネクサスを元へ戻す
     // （extraAttackStepPendingでもう1回アタックステップへ戻る場合も、いったんここで戻してから
     // toAttackPhaseが改めて変換し直すので問題ない）
-    revertAttackStepNexusAsSpirit(state)
+    endStepScoped(state)
     if (state.winner) return
 
     // BS15-X04 Lv2：アタックステップ終了後・エンドステップの前に、ステップを1つ行う（ターンに1回・断れない）。
@@ -277,6 +313,7 @@ export function endTurn(state: GameState): void {
     if (state.phase === "attack" && !state.extraStepAfterAttackUsed) {
         const source = extraStepSource(state)
         if (source) {
+            noteCoverage(getCard(source.cardId).effects.find((e) => e.kind === "extraStepAfterAttackStep"), "extraStepAfterAttackStep")
             state.extraStepAfterAttackUsed = true
             if (!state.interactiveTargets) {
                 runExtraStep(state, "ドローステップ")
@@ -295,6 +332,23 @@ export function endTurn(state: GameState): void {
             })
             return
         }
+    }
+
+    // 第2メインステップ（公式ルール。2026-10-06）: アタックステップの後にもう一度メインステップを行う。
+    // toAttackPhase を通ったターンだけ（oweSecondMain）。先攻1ターン目はアタックステップ自体が無いため来ない。
+    // BS15-X04 の追加ステップはこの前に終わる。移行したらターンプレイヤーへ返し、
+    // 「ターン終了」で endTurn をやり直す（secondMainStep が立っているのでアタック経由はしない）
+    if (state.oweSecondMain === true) {
+        delete state.oweSecondMain
+        state.secondMainStep = true
+        state.secondMainDone = true
+        state.phase = "main"
+        state.priorityPlayer = state.turnPlayer
+        state.isFlashTiming = false
+        state.flashCount = 0
+        log(state, `${state.players[state.turnPlayer].name}は第2メインステップに移行した。`)
+        fireStepTriggers(state, "main")
+        return
     }
 
     state.phase = "end"
@@ -336,6 +390,8 @@ export function endTurn(state: GameState): void {
     // ターンプレイヤーは交代せず、アタックステップへ戻して return する
     if (state.extraAttackStepPending === true) {
         delete state.extraAttackStepPending
+        // 第2メインステップから移行してきた場合はフラグを片付ける（ここはクリーンアップより前で return するため）
+        delete state.secondMainStep
         // 前のアタックステップで立った「バトル終了時に畳む」フラグは役目を終えているので落とす
         // （残すと追加ステップの最初のバトルで即座に終了してしまう）
         state.endAttackStepAfterBattle = false
@@ -368,6 +424,7 @@ export function endTurn(state: GameState): void {
             if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
+            noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)
             returnedCounts.set(cardId, already + 1)
@@ -378,6 +435,7 @@ export function endTurn(state: GameState): void {
     // ターン終了時までのBP増減と、このターン限りのアタック不可状態をリセット
     for (const pid of ["p1", "p2"] as const) {
         state.players[pid].tempHandKeywordGrants = []
+        delete state.players[pid].minAttackCostThisTurn
         // このターンだけの仮想発生源（マジックが貸した継続効果）もリセット（BS05リアニメイト。TURN_EFFECT_SOURCES.md §4.2）
         state.players[pid].turnVirtualInstances = []
         // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
@@ -405,6 +463,7 @@ export function endTurn(state: GameState): void {
         for (const inst of [...field.spirits]) {
             if (inst.asSpiritThisTurn === undefined) continue
             delete inst.asSpiritThisTurn
+            delete inst.asSpiritAttackStepScoped
             field.spirits.splice(field.spirits.indexOf(inst), 1)
             field.nexuses.push(inst)
             detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（BRAVE.md §6.1.1）
@@ -436,6 +495,9 @@ export function endTurn(state: GameState): void {
     refreshLevelAsOverrides(state)
     delete state.extraStepAfterAttackUsed
     delete state.extraMainStep
+    delete state.secondMainStep
+    delete state.oweSecondMain
+    delete state.secondMainDone
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット
     // このターンのアタック回数（「最初のアタック」判定用）もリセット
     state.attacksThisTurn = 0
@@ -446,6 +508,15 @@ export function endTurn(state: GameState): void {
     // このターンの「ブロック時→アタック時」移し替え（アタックシフト）もリセット
     // このターンのマジック使用回数（作戦参謀フォクシンのoncePerTurnAll用）もリセット
     state.magicUsedThisTurn = { p1: 0, p2: 0 }
+    delete state.magicIdsUsedThisTurn
+    delete state.lifeLostThisTurn
+    delete state.magicEffectsUsedByName
+    delete state.ownSpiritDestroyedThisTurn
+    delete state.spiritVanishedThisTurn
+    delete state.oppSpiritRemovedByEffectThisTurn
+    delete state.ownSpiritDestroyedByOwnEffectColors
+    delete state.ownSpiritWithOnDestroyDestroyedByOwnEffect
+    delete state.selfSummonCostUsedNames
     // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
     state.millCountThisTurn = { p1: 0, p2: 0 }
     state.millCountThisTurnMutual = { p1: 0, p2: 0 }

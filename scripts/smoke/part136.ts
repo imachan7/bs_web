@@ -4,7 +4,7 @@
 //   1. 【聖命】＝アタックで相手のライフを減らしたとき、**ボイドから**コア1個を自分のライフに置く
 //      （lifeCharge の from:"void"。リザーブを消費しないのが従来の lifeCharge との違い）
 //   2. 【強襲】＝アタック時、ターン中に指定回数まで、自分のネクサス1つを疲労させて自身を回復する
-//      （refreshSelfByExhaustNexus。上限回数は keyword エントリの count から読む）
+//      （pay の limitByKeyword。上限回数は keyword エントリの count から読む）
 //   3. globalConstraint "noLifeDamageByCost" ＝ コストが指定以下のスピリットのアタックでは
 //      お互いのライフが減らない（BS07の「勇傑」各色に共通）
 //
@@ -74,7 +74,7 @@ console.log("=== 【強襲】の器：ネクサス1つを疲労させて自身�
     const spirit = put(s, "p1", "BS06-036", 1)
     const nexus = putNexus(s, "p1", "BS06-080", 0)
     spirit.isRested = true
-    resolveAction(s, "p1", spirit, { type: "refreshSelfByExhaustNexus" })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
     assert(spirit.isRested === true, "【強襲】を持たないスピリットは回復しない")
     assert(nexus.isRested === false, "ネクサスも疲労しない")
 }

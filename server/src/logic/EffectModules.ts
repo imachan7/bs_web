@@ -6,6 +6,8 @@
 //   - ハンドラ層: キーワードはレジストリ、アクションは resolveAction で解決
 // キーワードごとの処理は keywords/（【バースト】は keywords/burst.ts）、デッキ破棄は zones/mill.ts、疲労・回復は state/exhaust.ts、
 // 継続効果の再計算は state/continuous.ts、対象の選び方と選択待ちの発行は targeting.ts、召喚時の誘発と無償召喚は summon.ts に分けてある。
+import { noteAction, noteCoverage } from "../../../shared/coverage"
+import { chimeiBase, chimeiBonus } from "./keywords/chimei"
 import { recordBp, refreshLevelAsOverrides } from "./state/continuous"
 import { requestCardChoice } from "./targeting"
 import type {
@@ -15,24 +17,26 @@ import type {
     DestroyContext,
     EffectAction,
     EffectCounter,
+    EffectDef,
     GameEvent,
     GameState,
     PaySource,
     PlayerId,
     ResolvedTargetFilter,
 } from "../type"
-import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, opponentOf } from "./GameState"
+import { CARD_DB, currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, noteMissedPayAsk, opponentOf, suspend } from "./GameState"
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 // 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
 // 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 // 分割した removal.ts の関数を内部でも使う（再エクスポートとは別に import が要る）
 import { destroySpirit, flushBounces } from "./removal"
-import { fireFieldEventTriggers, notifyHandGained } from "./triggers"
+import { wouldDeplete, soulCoreLeavesField, soulCoreInReserve, moveSoulCore, soulCoreOnInstance, normalReserveOf, normalCoresOn } from "./soulCore"
+import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
+import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
-export type { KeywordInfo }
 import {
     activeConstraints,
     auraAmount,
@@ -70,10 +74,14 @@ import {
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
+    spiritHasKeywordOrLabel,
     instIsCombined,
     opponentFieldColorCount,
+    coresCantBeRemoved,
 } from "../../../shared/rules"
-import { lastCoresCount, lastMovedCount, lastMovedOf, lastTargetsOf } from "./record"
+import { lastCoresCount, lastDrawnCount, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
+import { checkExhaustOnCoreChange } from "./state/exhaust"
+export type { KeywordInfo }
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
 export { millCapBonusFor, hasFunsaiOnBlock, resolveFunsai } from "./keywords/funsai"
 export { hasJugekiOnBlockReplace } from "./keywords/jugeki"
@@ -81,8 +89,7 @@ export { hasKyoshuOnBlock } from "./keywords/kyoshu"
 export { bofuCountFor, hasBofuOnBlock, hasBofuChooserSelf } from "./keywords/bofu"
 export { hasKoboOnBlock, resolveKoboOnBattleEnd } from "./keywords/kobo"
 export { millDeck, applyDeckMillNegate, declineDeckMillNegate } from "./zones/mill"
-export { checkExhaustOnCoreChange, exhaustSpirit, refreshSpirit, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
-import { checkExhaustOnCoreChange } from "./state/exhaust"
+export { checkExhaustOnCoreChange, exhaustSpirit, exhaustNexus, heavyExhaustSpirit, refreshSpirit, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
 export { offerOpponentMainEndMagic, applyProvocationUse } from "./magic/cast"
 export {
     activeConstraints,
@@ -188,6 +195,9 @@ export function emitEvent(state: GameState, event: WithoutSeq<GameEvent>): void 
 // ここが上乗せするのは、盤面ではなく**効果解決中の一時状態**で決まる2軸だけ:
 //   ① 対象の絞り込み（kind:"magicTargetRedirect"。state.magicRedirectTo）
 //   ② 相手のスピリットの『召喚時』効果を受けない（state.resolvingSummonTriggerPid）
+// それに加えて、**コストを支払わせる2軸**（③【迷彩】＝指定コスト要求／④円卓＝手札破棄で受けない）も
+// ここで判定する（shared/rules は純粋な述語の層で、支払いの副作用を置けないため。クライアントの
+// 対象ハイライトにこれらが出ないのは正しい：【迷彩】は払えれば対象になり、円卓は対象にはなってよい）
 export function resistanceAgainst(
     state: GameState,
     targetOwnerPid: PlayerId,
@@ -219,9 +229,87 @@ export function resistanceAgainst(
     }
     const boardResisted = boardResistanceAgainst(state, targetOwnerPid, target, attempt)
     if (boardResisted) return boardResisted
-    // ③ コストを払って受けない耐性（BS08竜騎集う円卓Lv2）。**盤面だけで決まる耐性を全部見たあと**に判定する
-    // （先に払うと、装甲などで元々防げていた対象化にまで手札を使ってしまう）
+    // ③ 【迷彩：N】＝指定する側へのコスト要求（26系）。円卓と同じく**盤面だけで決まる耐性を
+    // 全部見たあと**に判定する（装甲などで元々対象に取れない個体にコストを請求しない）
+    const meisaiToll = tryMeisaiToll(state, targetOwnerPid, target, attempt)
+    if (meisaiToll) return meisaiToll
+    // ④ コストを払って受けない耐性（BS08竜騎集う円卓Lv2）。**盤面だけで決まる耐性を全部見たあと**に判定する
+    // （先に払うと、装甲などで元々防げていた対象化にまで手札を使ってしまう。迷彩のコストは先に払わせる）
     return tryPayableTargetNegate(state, targetOwnerPid, target, attempt)
+}
+
+// kind:"meisai"（【迷彩：N】。26系）：対戦相手がスピリットの効果でこのスピリットを指定するとき、
+// 指定する側（actor）へリザーブからコアN個のトラッシュ支払いを要求する。支払えなければ指定できない
+// ＝候補列挙では除外され、実際に適用する1点でも効果は適用されない。持ち主自身の効果・
+// マジック/ネクサスの効果には支払い不要。範囲効果は「指定」ではないので何もしない。
+//
+// **probing（候補列挙）では払わない**（tryPayableTargetNegate と同じ規約。払うのは実際に適用する
+// 1点だけで、そこでしか呼ばれないので1回の対象化につき1回だけ支払う）
+function tryMeisaiToll(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+): Resistance | null {
+    // 「指定する」効果限定（範囲効果は対象外）・スピリットの効果限定・持ち主自身の効果には支払い不要
+    if (attempt.scope !== "targeted") return null
+    if (attempt.sourceType !== "spirit") return null
+    if (attempt.actorPid === targetOwnerPid) return null
+    // 対象はスピリット本体のみ（合体ブレイヴのレコードは見ない）
+    const level = currentLevel(target).level
+    const toll = getCard(target.cardId).effects.find(
+        (e): e is Extract<EffectDef, { kind: "meisai" }> =>
+            e.kind === "meisai" && effectActiveAtLevel(e.levels, level),
+    )
+    if (toll === undefined) return null
+    // 対話では指定する側が支払い元を選んで払い済み（askMeisaiPayIfNeeded → resolveChoice）
+    if (!attempt.probing && state.meisaiPaidFor === target.instanceId) {
+        delete state.meisaiPaidFor
+        return null
+    }
+    const plan = autoPayPlan(state, attempt.actorPid, toll.cost)
+    if (plan === null) return { category: "meisai", label: "【迷彩】のコストが払えない" }
+    // 払えるなら候補に入る。probingでは払わない
+    if (attempt.probing) return null
+    // 非対話（テスト・AI）は通常コアのリザーブ→フィールドの順に自動で払い、足りなければ[ソウルコア]も使う
+    payCost(state, attempt.actorPid, toll.cost, plan.paySources, 0, plan.soulFromReserve)
+    log(state, `${getCard(target.cardId).name}の【迷彩】：${state.players[attempt.actorPid].name}は${toll.cost}コストを支払った。`)
+    return null
+}
+
+// kind:"meisai" で対象 target に掛かるコスト（無ければ undefined）
+export function meisaiTollOf(target: CardInstance): number | undefined {
+    const level = currentLevel(target).level
+    return getCard(target.cardId).effects.find(
+        (e): e is Extract<EffectDef, { kind: "meisai" }> => e.kind === "meisai" && effectActiveAtLevel(e.levels, level),
+    )?.cost
+}
+
+// 「Nコスト支払う」をリザーブ＋フィールドのコアから自動で払う計画（2026-10-08 ユーザー確定: 支払い元はフィールドも含む）。
+// 通常コアのリザーブ → ネクサス → コアの多いスピリット の順、最後にリザーブの[ソウルコア]。払えなければ null。
+// ponytail: 支払い元スピリットの維持コア割れ（消滅）も避けない単純な貪欲法。AI が賢く払う必要が出たら見直す
+// keepLevel1：スピリットの維持コア（Lv1）は残す（効果のコスト用。消滅させてまで払わない）
+export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepLevel1 = false): { paySources: PaySource[]; soulFromReserve: boolean } | null {
+    const player = state.players[pid]
+    let rest = need - Math.max(0, normalReserveOf(player))
+    const paySources: PaySource[] = []
+    const fieldInsts = [...player.field.nexuses, ...[...player.field.spirits].sort((a, b) => b.cores - a.cores)]
+    for (const inst of fieldInsts) {
+        if (rest <= 0) break
+        if (coresCantBeRemoved(state, pid, inst)) continue
+        // 破壊待機の個体は場を離れるので維持コアも払える（2026-10-15 ユーザー確認）
+        const spare = keepLevel1 && player.field.spirits.includes(inst) && !inst.pendingDestruction ? inst.cores - instMinLevelCores(inst) : Infinity
+        const take = Math.min(rest, normalCoresOn(player, inst), spare)
+        if (take <= 0) continue
+        paySources.push({ instanceId: inst.instanceId, count: take })
+        rest -= take
+    }
+    let soulFromReserve = false
+    if (rest > 0 && soulCoreInReserve(player)) {
+        soulFromReserve = true
+        rest -= 1
+    }
+    return rest > 0 ? null : { paySources, soulFromReserve }
 }
 
 // kind:"targetNegateByHandDiscard"（BS08竜騎集う円卓Lv2）：
@@ -267,6 +355,13 @@ function tryPayableTargetNegate(
             // 支払えないなら受ける（手札が足りないときは耐性が成立しない）。
             // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
             if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
+            // 対話中に答え無しで来た＝この経路が askPayToNegateIfNeeded を通していない。
+            // 守る側に聞かずに手札を取らないので、払わず効果を受けさせて検査に記録する
+            if (state.interactiveTargets) {
+                noteMissedPayAsk(`${getCard(source.cardId).name}：${getCard(target.cardId).name}を対象にする効果（${attempt.op}）が払う確認を通らず適用された`)
+                continue
+            }
+            noteCoverage(effect, "targetNegateByHandDiscard")
             const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)
             player.trashCards.push(...discarded)
             log(
@@ -285,6 +380,40 @@ function tryPayableTargetNegate(
 // 呼ぶ場所は **resistanceAgainst の直前**（対象が確定してから適用するまでの間）。
 // 効果の内容（どのカードの効果で、どのスピリットが対象か）が分かった状態で聞けるのはここだけで、
 // 判定そのものは装甲と同じ同期の述語のままにしておける。
+// 【迷彩：N】（26系）：対話では指定する側に支払い元（リザーブ＋フィールドのコア、[ソウルコア]を使うか）を選ばせる。
+// 払えないときは聞かない（tryMeisaiToll が対象から外す）。支払いは必須なので「支払う」1択
+function askMeisaiPayIfNeeded(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+    resume: EffectAction,
+    self: CardInstance | null,
+    sourceName: string,
+): boolean {
+    if (state.meisaiPaidFor === target.instanceId) return false
+    const need = meisaiTollOf(target)
+    if (need === undefined) return false
+    if (boardResistanceAgainst(state, targetOwnerPid, target, attempt)) return false
+    if (autoPayPlan(state, attempt.actorPid, need) === null) return false
+    suspend(state, {
+        pid: attempt.actorPid,
+        kind: "option",
+        candidates: [],
+        prompt: `${sourceName}：${getCard(target.cardId).name}の【迷彩：${need}】のコストを支払ってください`,
+        options: ["支払う"],
+        optional: false,
+        action: resume,
+        selfInstanceId: self ? self.instanceId : null,
+        effectSource: {
+            ...(attempt.sourceType !== undefined ? { type: attempt.sourceType } : {}),
+            ...(attempt.sourceColors !== undefined ? { colors: [...attempt.sourceColors] } : {}),
+        },
+        meisaiPay: { pid: attempt.actorPid, targetInstanceId: target.instanceId, targetCardId: target.cardId, need },
+    })
+    return true
+}
+
 export function askPayToNegateIfNeeded(
     state: GameState,
     targetOwnerPid: PlayerId,
@@ -300,6 +429,7 @@ export function askPayToNegateIfNeeded(
     if (attempt.scope !== "targeted") return false
     if (attempt.actorPid === targetOwnerPid) return false
     if (attempt.sourceType !== "spirit") return false
+    if (askMeisaiPayIfNeeded(state, targetOwnerPid, target, attempt, resume, self, sourceName)) return true
     // すでに答えが出ている（＝この中断から戻ってきた）なら聞き直さない
     if (state.payNegateDecision?.targetInstanceId === target.instanceId) return false
     // 盤面だけで決まる耐性で既に防げているなら、手札を使わせない（tryPayableTargetNegate と同じ順序）
@@ -349,6 +479,24 @@ export function askPayToNegateIfNeeded(
     return false
 }
 
+// 自動で（または複数体のうちの1体として）決めた対象に、効果を当てる直前の関門。
+// 聞いて中断したなら "asked"（呼び出し元はその対象を適用せず、残りを再開スタックへ積んで return する）、
+// 受けないなら理由、通すなら null。resume は「この1体だけに当てる」アクション
+// （payNegateDecide が targetInstanceId を渡し直して解決する）。
+// 非対話では聞かず resistanceAgainst が払える限り払う
+export function gateTargetedApply(
+    state: GameState,
+    targetOwnerPid: PlayerId,
+    target: CardInstance,
+    attempt: EffectAttempt,
+    resume: EffectAction,
+    self: CardInstance | null,
+    sourceName: string,
+): Resistance | "asked" | null {
+    if (askPayToNegateIfNeeded(state, targetOwnerPid, target, attempt, resume, self, sourceName)) return "asked"
+    return resistanceAgainst(state, targetOwnerPid, target, attempt)
+}
+
 // resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
 export function isResisted(
     state: GameState,
@@ -385,6 +533,7 @@ export function destroyedCoresGoToTrash(state: GameState): boolean {
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                noteCoverage(effect, "destroyedCoresToTrash")
                 return true
             }
         }
@@ -415,6 +564,7 @@ export function destroyBpThresholdBonusFor(state: GameState, ownerPid: PlayerId)
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "destroyBpThresholdBonus") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "destroyBpThresholdBonus")
             total += effect.amount
         }
     }
@@ -470,6 +620,7 @@ export function tryLifeDamageMillGuard(
                     continue
                 }
             }
+            noteCoverage(effect, "lifeDamageMillGuard")
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
@@ -536,6 +687,7 @@ export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean 
             if (!effectActiveAtLevel(effect.levels, level)) continue
             player.field.nexuses.splice(index, 1)
             player.trashCards.push(source.cardId)
+            soulCoreLeavesField(player, source) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += source.cores
             player.life = effect.constraint.floor
             log(
@@ -561,6 +713,7 @@ export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): b
             if (effect.kind !== "summonedExhaustGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.condition?.selfRested && !source.isRested) continue
+            noteCoverage(effect, "summonedExhaustGrant")
             return true
         }
     }
@@ -575,6 +728,7 @@ export function hasBurstMagicFreeEffect(state: GameState, ownerPid: PlayerId): b
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "burstMagicFreeEffect") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "burstMagicFreeEffect")
             return true
         }
     }
@@ -588,15 +742,21 @@ export function hasBurstMagicFreeEffect(state: GameState, ownerPid: PlayerId): b
 // kind:"blockTriggersAsAttackGrant"（BS07大械獣ギガ・テリウム）：
 // 対象スピリットの『ブロック時』効果を『アタック時』へ移す継続付与が有効か。
 // hasAttackTriggersAsBlock の逆向きで、判定の形はそろえてある
-export function hasBlockTriggersAsAttack(
-    state: GameState,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): boolean {
+export function hasBlockTriggersAsAttack(state: GameState, ownerPid: PlayerId, inst: CardInstance): boolean {
+    return blockTriggersGrant(state, ownerPid, inst, false)
+}
+
+// 付け替えず両方で発揮する版（alsoBlock。26RBS02-X10）。発揮の判定のたびに読む
+export function blockTriggersAlsoOnAttack(state: GameState, ownerPid: PlayerId, inst: CardInstance): boolean {
+    return blockTriggersGrant(state, ownerPid, inst, true)
+}
+
+function blockTriggersGrant(state: GameState, ownerPid: PlayerId, inst: CardInstance, both: boolean): boolean {
     for (const source of effectSources(state, ownerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "blockTriggersAsAttackGrant") continue
+            if ((effect.alsoBlock === true) !== both) continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.whileOwnBurstSet === true && !state.players[ownerPid].burstSet) continue
             if (effect.phaseTurn) {
@@ -608,6 +768,7 @@ export function hasBlockTriggersAsAttack(
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) {
                 continue
             }
+            noteCoverage(effect, "blockTriggersAsAttackGrant")
             return true
         }
     }
@@ -640,6 +801,7 @@ export function hasAttackTriggersAsBlock(
                 ) {
                     continue
                 }
+                noteCoverage(effect, "attackTriggersAsBlockGrant")
                 if (effect.keywordFilter && !spiritHasKeyword(state, ownerPid, inst, effect.keywordFilter)) {
                     continue
                 }
@@ -707,7 +869,10 @@ export function hasLifeDamageNegate(
                 if (effect.phaseTurn.turn === "own" && defenderPid !== state.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && defenderPid === state.turnPlayer) continue
             }
-            if (attackerBp <= effectiveBp(state, defenderPid, source)) return true
+            if (attackerBp <= effectiveBp(state, defenderPid, source)) {
+                noteCoverage(effect, "lifeDamageNegate")
+                return true
+            }
         }
     }
     return false
@@ -721,7 +886,28 @@ function coreBonusFor(inst: CardInstance): number {
     for (const e of getCard(inst.cardId).effects) {
         if (e.kind !== "coreBonus") continue
         if (!effectActiveAtLevel(e.levels, level)) continue
+        noteCoverage(e, "coreBonus")
         bonus += e.amount
+    }
+    return bonus
+}
+
+// 持ち主のドローステップで引く枚数の追加数（kind: "drawStepBonus"）。uniqueByName は同名の発生源を1回だけ数える
+export function drawStepBonusFor(state: GameState, pid: PlayerId): number {
+    const player = state.players[pid]
+    const counted = new Set<string>()
+    let bonus = 0
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "drawStepBonus" || !effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.uniqueByName) {
+                const name = getCard(inst.cardId).name
+                if (counted.has(name)) continue
+                counted.add(name)
+            }
+            bonus += effect.amount
+        }
     }
     return bonus
 }
@@ -749,6 +935,7 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
                         : player.field.spirits.some((s) => spiritHasFamily(state, pid, s, cond.ownFieldHasFamily))
                 if (!ok) continue
             }
+            noteCoverage(effect, "coreStepBonus")
             bonus += effect.amount
         }
     }
@@ -815,7 +1002,7 @@ export function sweepLevelCostDepletion(state: GameState): void {
         for (const pid of ["p1", "p2"] as PlayerId[]) {
             for (const inst of [...state.players[pid].field.spirits]) {
                 if ((inst.levelCostBonusContinuous ?? 0) === 0) continue
-                if (inst.cores >= instMinLevelCores(inst)) continue
+                if (!wouldDeplete(state, pid, inst)) continue
                 destroySpirit(state, pid, inst.instanceId, "deplete")
                 destroyed = true
                 if (state.winner || state.pendingChoice) return
@@ -850,25 +1037,58 @@ export function payCost(
     cost: number,
     paySources?: PaySource[],
     maintain = 0,
+    // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う（行き先はトラッシュ。docs/design/SOULCORE.md 部品3）。
+    // リザーブから支払いが1個以上あるときだけ消費される（フィールドで全額賄えたなら使われない）
+    paySoulCoreFromReserve?: boolean,
 ): number {
     const player = state.players[pid]
     let takenFromField = 0
+    let soulPaidFromField = 0 // フィールドの[ソウルコア]をコスト（→トラッシュ）に使った個数
+    let soulPlacedFromField = 0 // フィールドの[ソウルコア]を維持コア（→新しい個体）に使った個数
     if (paySources && paySources.length > 0) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
             if (!inst) continue
+            // [ソウルコア]の使い分け（2026-10-06 ユーザー確認）:
+            //  - includeSoulCore → コストとしてトラッシュへ
+            //  - soulCoreToMaintain → 維持コア（置くコア）として新しい個体の上へ。
+            //    ここでは一旦リザーブへ移し、placeSummonedSpirit が placeSoulCoreOnSummoned で
+            //    新しい個体へ移す（転召で中断しても不変条件が保たれる）
+            const soulOnSrc = soulCoreOnInstance(player, src.instanceId)
+            const soulToCost = soulPaidFromField === 0 && soulPlacedFromField === 0 && src.includeSoulCore === true && soulOnSrc && cost >= 1 ? 1 : 0
+            const soulToMaintain = soulPaidFromField === 0 && soulPlacedFromField === 0 && src.soulCoreToMaintain === true && soulOnSrc && maintain >= 1 && !soulToCost ? 1 : 0
+            const soulUnit = soulToCost + soulToMaintain
             const paid = Math.min(src.count, inst.cores)
-            inst.cores -= paid
+            inst.cores -= paid - soulUnit
+            if (soulToCost > 0) {
+                moveSoulCore(player, { zone: "trash" }, inst)
+                log(state, `${player.name}は${getCard(inst.cardId).name}の[ソウルコア]をコストの支払いに使った。`)
+            }
+            if (soulToMaintain > 0) {
+                moveSoulCore(player, { zone: "reserve" }, inst)
+                log(state, `${player.name}は${getCard(inst.cardId).name}の[ソウルコア]を置くコアに使う。`)
+            }
+            soulPaidFromField += soulToCost
+            soulPlacedFromField += soulToMaintain
             takenFromField += paid
         }
     }
-    // フィールドから取ったコアはコスト優先で充当し、余りを置くコアへ（上限は maintain）
-    const costFromField = Math.min(takenFromField, cost)
+    // フィールドから取ったコアはコスト優先で充当し、余りを置くコアへ（上限は maintain）。
+    // 維持コア行きの[ソウルコア]（soulPlacedFromField）はコストに充当しない
+    const costFromField = Math.min(takenFromField - soulPlacedFromField, cost)
     const placedFromField = Math.min(takenFromField - costFromField, maintain)
     // コスト充当分（フィールド由来＋リザーブ由来）はトラッシュへ
     const costFromReserve = cost - costFromField
-    player.reserve -= costFromReserve
-    player.trashCores += costFromField + costFromReserve
+    // リザーブの[ソウルコア]を使う: moveSoulCore が reserve-1/trash+1（コスト1個ぶん）を担当する（案B-inside）。
+    // 下の2行はソウルコアぶんを差し引いた通常コアの支払いとしている
+    const useSoulFromReserve = paySoulCoreFromReserve === true && costFromReserve >= 1 && soulCoreInReserve(player)
+    if (useSoulFromReserve) {
+        moveSoulCore(player, { zone: "trash" })
+        log(state, `${player.name}はリザーブの[ソウルコア]をコストの支払いに使った。`)
+    }
+    player.reserve -= costFromReserve - (useSoulFromReserve ? 1 : 0)
+    // [ソウルコア]（リザーブ由来・フィールド由来のどちらも）のぶんは moveSoulCore が trashCores に足しているため引く
+    player.trashCores += costFromField + costFromReserve - (useSoulFromReserve ? 1 : 0) - soulPaidFromField
     // 置くコアに回りきらなかった余剰はリザーブへ戻す（validate 側で弾いているので通常は0）
     const surplus = takenFromField - costFromField - placedFromField
     if (surplus > 0) player.reserve += surplus
@@ -882,7 +1102,7 @@ export function payCost(
     if (paySources) {
         for (const src of paySources) {
             const inst = findSpirit(player, src.instanceId)
-            if (inst && inst.cores < instMinLevelCores(inst)) {
+            if (inst && !inst.pendingDestruction && wouldDeplete(state, pid, inst)) {
                 destroySpirit(state, pid, inst.instanceId, "deplete")
             }
         }
@@ -941,6 +1161,7 @@ export function applyMagicBuffBonus(
                 if (source.instanceId === target.instanceId) continue
                 if (!instHasColor(target, "green")) continue
             }
+            noteCoverage(effect, "magicBuffBonus")
             recordBp(state, targetOwner, target, effect.amountBonus, "turn")
             log(
                 state,
@@ -971,15 +1192,24 @@ export function countEffectCounter(
     sourceType?: CardType,
 ): number {
     const opp = opponentOf(owner)
+    if (counter === "ownAttacksThisTurn") return state.turnPlayer === owner ? state.attacksThisTurn : 0
     if (counter === "readyEnemies") {
         return countSpiritsWeighted(state, owner, opp, (s) => !s.isRested, sourceType)
     }
     if (counter === "exhaustedEnemies") return countExhaustedEnemies(state, owner, opp, sourceType)
     if (counter === "opponentHand") return state.players[opp].hand.length
+    if (counter === "ownHand") return state.players[owner].hand.length
+    if (counter === "lastDestroyedChimei") return lastMovedOf(state).filter((id) => chimeiBase(id) > 0).reduce((n, id) => n + chimeiBase(id) + chimeiBonus(state, owner), 0)
     if (counter === "ownOtherSpirits") {
         return countSpiritsWeighted(state, owner, owner, (s) => s.instanceId !== self?.instanceId, sourceType)
     }
     if (counter === "ownReserve") return state.players[owner].reserve
+    if (counter === "keishoExcludedCount") return state.keishoExcludedCardIds?.length ?? 0
+    if (counter === "selfBp") return self ? effectiveBp(state, owner, self) : 0
+    if (typeof counter === "object" && "keishoExcludedFamily" in counter) {
+        return (state.keishoExcludedCardIds ?? []).filter((id) => getCard(id).family.some((f) => counter.keishoExcludedFamily.includes(f))).length
+    }
+    if (counter === "opponentReserve") return state.players[opponentOf(owner)].reserve
     if (counter === "ownLife") return state.players[owner].life
     if (counter === "opponentFieldColors") return opponentFieldColorCount(state, owner)
     if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(state, owner, true)
@@ -1003,6 +1233,11 @@ export function countEffectCounter(
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
     if (counter === "lastBattleDestroyedCost") return state.lastBattleDestroyedCost
+    // 26系【地鳴】の減算: このバトルでブロックした相手のスピリットカードのうち、バトル終了時点で
+    // 防御側のトラッシュにあったカードのコスト合計（ブロックされていなければ0）
+    if (counter === "lastBattleBlockerTrashCost") return state.lastBattleBlockerTrashCost
+    // 減算算術の被減数になる定数（【地鳴：N】のN）
+    if (typeof counter === "object" && "const" in counter) return counter.const
     // selfBofuCount：selfの【暴風】静的keywordの指定数のみ（ボーナス・ブレイヴ合流は見ない。
     // 旧voidCoreToSelfPerBofuCountHandlerと同じ値に揃える。bofuCountFor（実効指定数）とは別軸）
     if (counter === "selfBofuCount") {
@@ -1011,7 +1246,9 @@ export function countEffectCounter(
         const entry = getCard(self.cardId).effects.find(
             (e) => e.kind === "keyword" && e.keyword === "bofu" && effectActiveAtLevel(e.levels, level),
         )
-        return entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        const bofuCount = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        if (entry && bofuCount > 0) noteCoverage(entry, "keyword")
+        return bofuCount
     }
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
@@ -1034,7 +1271,10 @@ export function countEffectCounter(
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     if (counter === "lastMoved") return lastMovedCount(state)
+    if (counter === "lastTargetCount") return lastTargetsOf(state).length
     if (counter === "lastCores") return lastCoresCount(state)
+    if (counter === "lastDrawn") return lastDrawnCount(state)
+    if (counter === "lastNexusCost") return lastNexusCostOf(state)
     if (counter === "lastBp") {
         return lastTargetsOf(state).reduce((n, id) => {
             const f = findSpiritAny(state, id)
@@ -1042,7 +1282,16 @@ export function countEffectCounter(
         }, 0)
     }
     if (counter === "bothNexusColors") return new Set([...state.players.p1.field.nexuses, ...state.players.p2.field.nexuses].flatMap(instColors)).size
-    if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + getCard(id).cost, 0)
+    // 場から離れたカードは離れたときのコスト（増減込み。2026-10-08 ユーザー確認）
+    if (counter === "lastCost") return lastMovedOf(state).reduce((n, id) => n + (lastLeftCostOf(state, id) ?? getCard(id).cost), 0)
+    if (typeof counter === "object" && "div" in counter) {
+        const [a, d] = counter.div
+        return Math.floor(countEffectCounter(state, owner, self, a, sourceType) / d)
+    }
+    if (typeof counter === "object" && "plus" in counter) {
+        const [a, n] = counter.plus
+        return countEffectCounter(state, owner, self, a, sourceType) + n
+    }
     if (typeof counter === "object" && "minus" in counter) {
         const [a, b] = counter.minus
         return Math.max(0, countEffectCounter(state, owner, self, a, sourceType) - countEffectCounter(state, owner, self, b, sourceType))
@@ -1108,7 +1357,7 @@ export function countEffectCounter(
             state,
             owner,
             owner,
-            (s) => keywords.some((k) => spiritHasKeyword(state, owner, s, k)),
+            (s) => keywords.some((k) => spiritHasKeywordOrLabel(state, owner, s, k)),
             sourceType,
         )
     }
@@ -1116,9 +1365,18 @@ export function countEffectCounter(
         const filter = counter.opponentSpirits as unknown as ResolvedTargetFilter
         return countSpiritsWeighted(state, owner, opp, (s) => matchesTarget(state, opp, s, filter), sourceType)
     }
+    if ("ownTrashCards" in counter) {
+        const pick = counter.ownTrashCards
+        return state.players[owner].trashCards.filter((id) => matchesPick(id, pick)).length
+    }
+    if ("ownFieldCards" in counter) {
+        const filter = counter.ownFieldCards as unknown as ResolvedTargetFilter
+        const f = state.players[owner].field
+        return [...f.spirits, ...f.nexuses].filter((x) => matchesTarget(state, owner, x, filter, self?.instanceId)).length
+    }
     if ("ownSpirits" in counter) {
         const filter = counter.ownSpirits as unknown as ResolvedTargetFilter
-        return countSpiritsWeighted(state, owner, owner, (s) => matchesTarget(state, owner, s, filter), sourceType)
+        return countSpiritsWeighted(state, owner, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), sourceType)
     }
     // { ownNameIncludes: string }：自分フィールドで、カード名に指定文字列を含むスピリット数
     if ("ownNameIncludes" in counter) {
@@ -1196,6 +1454,7 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (state.phase !== effect.phaseTurn.phase) continue
             if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue
+            noteCoverage(effect, "drawDouble")
             return 2
         }
     }
@@ -1275,14 +1534,16 @@ export function resolveAction(
     sourceCardId?: string,
     paySources?: PaySource[],
 ): void {
-    if (self !== null && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
+    // 召喚時効果を発揮した印。pay は払えないと発動していないので、確認を済ませたか払った時点で付ける（pay.ts）
+    if (self !== null && state.summonEffectSource?.instanceId === self.instanceId && action.type !== "pay") state.summonEffectSource.resolved = true
     const opp = opponentOf(owner)
     const sourceName = self ? getCard(self.cardId).name : "効果"
     const srcColors = sourceColors ?? (self ? instColors(self) : undefined)
     // マジック効果耐性（ポークン）判定用。self があればそのカード種別（マジックはself=nullなので
     // 呼び出し側=resolveMagicが明示的に"magic"を渡す）
     const srcType = sourceType ?? (self ? getCard(self.cardId).type : undefined)
-    const srcCardId = sourceCardId ?? (self ? self.cardId : undefined)
+    // マジックの効果を入れ子で解くとき sourceCardId は渡らないので、同じ持ち主の外側の効果の発生源カードを引き継ぐ
+    const srcCardId = sourceCardId ?? (self ? self.cardId : state.currentEffectSource?.pid === owner ? state.currentEffectSource.cardId : undefined)
     // 相手スピリットを破壊する際に渡す破壊コンテキスト（reviveOnDestroy判定用）。
     // exactOptionalPropertyTypes対応：srcTypeがundefinedのときはプロパティ自体を省略する
     const destroyContext: DestroyContext = {
@@ -1292,6 +1553,7 @@ export function resolveAction(
         ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
         // 発生源インスタンス（「その効果を発揮したスピリット」を対象にする軸用。BS10-012アントイーター/BS10-014闇騎士マリス）
         ...(self ? { sourceInstanceId: self.instanceId } : {}),
+        ...(srcCardId !== undefined ? { sourceCardId: srcCardId } : {}),
     }
 
     // アクション本体は server/src/logic/actions/ のドメイン別モジュールに分割されている。
@@ -1324,6 +1586,7 @@ export function resolveAction(
                 opts?.chosenCardIndex,
             ),
     }
+    noteAction(action)
     const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void
     // いま解決中の効果の発生源を state に載せる（docs/design/EFFECT_SOURCE_CONTEXT.md）。
     // 「**相手の〈色〉の効果で**〜されたとき」（fieldEvent.sourceColorFilter）が読む。
@@ -1336,6 +1599,7 @@ export function resolveAction(
         ...(srcColors !== undefined ? { colors: srcColors } : {}),
         // BS15共通器：selfが確定しているときだけ発生源インスタンスを載せる（BS15-042オリンピアの天使アラトロンLv2）
         ...(self !== null && self !== undefined ? { instanceId: self.instanceId } : {}),
+        ...(srcCardId !== undefined ? { cardId: srcCardId } : {}),
     }
     // 「効果でコアが置かれた」の検出用スナップショット。**一番外側の効果でだけ**取る
     // （ネストで取ると同じ配置を二重に数える）。監視するカードが場に無ければ何もしない
@@ -1359,33 +1623,10 @@ export function resolveAction(
 // 4640行まで肥大化したため「イベント発火」セクションを triggers.ts へ移した。
 // **呼び出し側（57ファイル）を変えずに済むよう、ここから再エクスポートする。**
 // 相互 import になるが、GameState.ts ↔ EffectModules.ts と同じ CommonJS の循環requireで安全に動く
-export {
-    isTriggerSuppressed,
-    fireSummonTrigger,
-    fireTrigger,
-    fireCombinedAttackTrigger,
-    fireBattleWonTriggers,
-    fireStepTriggers,
-    fireFieldEventTriggers,
-    notifyHandGained,
-    notifyNexusDeployed,
-    fireNexusDeployed,
-    applyBothSidesRedirectToCandidates,
-    bothSidesPids,
-    bothSidesRedirectKeepPid,
-    battleBp,
-    applyJugekiCoreToVoid,
-    notifySpiritCoresRemovedByOpponent,
-    findMagicNegateSource,
-    resolveMagic,
-    applyMagicRedirectChoice,
-    applyMagicSideChoice,
-    applyMagicRepeatChoice,
-    applyMagicNegateChoice,
-    declineMagicNegateChoice,
-    revertOncePerTurn,
-    revertDestroyGroupUsage,
-} from "./triggers"
+export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicRedirectChoice, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
+export { applyJugekiCoreToVoid } from "./keywords/jugeki"
+export { fireBattleWonTriggers, fireStepTriggers, fireBpReachedTriggers, battleBp } from "./stepTriggers"
+export { fireFieldEventTriggers, notifyHandGained, notifyNexusDeployed, fireNexusDeployed } from "./fieldEventTriggers"
 
 // ---- スピリット／ネクサスの除去・ブレイヴ・復活（removal.ts・brave.ts・revive.ts へ分割）----
 // 呼び出し側を変えずに済むよう、ここから再エクスポートする
@@ -1429,6 +1670,7 @@ export {
     tryInteractiveTargetChoice,
     tryInteractiveCardChoice,
     bpBuffTargetPasses,
+    ownBpBuffCandidates,
     pickBpBuffTarget,
     pickOwnKeywordTarget,
     requestActivationConfirm,

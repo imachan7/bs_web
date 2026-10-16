@@ -8,10 +8,12 @@ import {
     getCard,
     minLevelCores,
     takeMutationAfterSuspend,
+    takeLostLookups,
+    takeMissedPayAsks,
     validateDeckCards,
     viewFor,
 } from "../../server/src/logic/GameState"
-import { runTurnStart as engineRunTurnStart, endTurn } from "../../server/src/logic/PhaseManager"
+import { runTurnStart as engineRunTurnStart, endTurn as engineEndTurn } from "../../server/src/logic/PhaseManager"
 // 色判定は必ず述語経由にする（多色カード対応。MULTICOLOR.md）
 import { canAwaken, cardHasColor, costCantAct, effectSources, hasArmorAgainst, instHasCost, instMinLevelCores, timedBattleContents, timedContentsFor, timedContentsOn, timedPlayerRules, timedRuleBp } from "../../shared/rules"
 
@@ -46,13 +48,30 @@ import {
     recordTimed,
     refreshLevelAsOverrides,
     refreshSpirit,
-    resolveAction,
+    resolveAction as engineResolveAction,
     resolveFunsai,
     spiritHasFamily,
     spiritHasKeyword,
 } from "../../server/src/logic/EffectModules"
+import { migrateMoves, type LegacyMoveAction } from "../../server/src/logic/actions/legacyMoves"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
-import type { CardInstance, GameAction, GameState, PlayerId, TimedContent } from "../../server/src/type"
+
+// 旧「選ぶ＋送る」の形で書いた action を新しい形にする（入れ子の中に書くとき用）
+export function legacy(a: EffectAction | LegacyMoveAction): EffectAction {
+    return migrateMoves(a) as EffectAction
+}
+
+// テストは旧「選ぶ＋送る」の形（toHand・reveal など）でも書ける。データと同じ変換を通してからエンジンへ渡す
+export function resolveAction(
+    state: GameState,
+    owner: PlayerId,
+    self: CardInstance | null,
+    action: EffectAction | LegacyMoveAction,
+    ...rest: Parameters<typeof engineResolveAction> extends [unknown, unknown, unknown, unknown, ...infer R] ? R : never
+): void {
+    engineResolveAction(state, owner, self, migrateMoves(action) as EffectAction, ...rest)
+}
+import type { CardInstance, EffectAction, GameAction, GameState, PlayerId, TimedContent } from "../../server/src/type"
 import { DECK_RECIPES, DECK_MIN_SIZE, DECK_SIZE } from "../../data/constants"
 
 let failed = 0
@@ -102,8 +121,41 @@ const MAX_CHOICES_PER_ACTION = 200
 // createGame のラッパー: 対話モードでは実サーバーと同じ interactiveTargets = true で開始する
 function createGame(...args: Parameters<typeof engineCreateGame>): GameState {
     const state = engineCreateGame(...args)
+    // 旧プール（ソウルコア0枚）時代の挙動を保存するため、smokeではソウルコアを外して
+    // 初期リザーブを「通常4（ソウルなし）」に戻す（docs/design/SOULCORE.md 案A-outsideのため
+    // 数値側の意味は「通常コアのみ」で不変。ソウルコアを試すテストは enableSoulCore で戻す）
+    disableSoulCore(state)
     if (INTERACTIVE) state.interactiveTargets = true
     return state
+}
+
+// smokeのゲームを旧構成（ソウルコアなし・通常4コア）にする。createGameが自動で呼ぶ
+function disableSoulCore(state: GameState): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = state.players[pid]
+        if (p.soulCore === null) continue
+        p.soulCore = null
+        // 案B-inside: 数値に[ソウルコア]が含まれているため、外すときは読み替え（±0）でよい。
+        // （通常4コアの従来前提はそのまま。初期リザーブ4のうち1個がただのコアになる）
+    }
+}
+
+// ソウルコアありの構成に戻す（26系のルールどおり: 通常3＋ソウル1＝数値4）。loc指定時はそこへ置く
+// enable後は assertSoulCoreConsistent が自動で掛かる（checkInvariants 経由）
+export function enableSoulCore(state: GameState, loc?: { zone: "reserve" } | { zone: "trash" }): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = state.players[pid]
+        if (p.soulCore !== null) continue
+        if (loc && loc.zone === "trash") {
+            // trash指定: リザーブから1個持ってトラッシュへ（案B-inside: 数値も動かす）
+            p.soulCore = { zone: "trash" }
+            p.reserve = Math.max(0, p.reserve - 1)
+            p.trashCores += 1
+        } else {
+            // reserve指定（既定）: 数値は不変。リザーブの通常コアのうち1個を[ソウルコア]とする
+            p.soulCore = { zone: "reserve" }
+        }
+    }
 }
 
 // 立っている pendingChoice に「候補の先頭」で自動応答し、解消するまで繰り返す。
@@ -189,6 +241,8 @@ function countCards(state: GameState): number {
             p.deck.length +
             p.hand.length +
             p.trashCards.length +
+            // 《継召》(exTrashReduction)で除外されたカードも盤上のカードの一部なので保存則に数える
+            p.excludedCards.length +
             p.tegamoto.length +
             p.field.spirits.length +
             p.field.nexuses.length +
@@ -235,12 +289,30 @@ function checkCoreSanity(state: GameState): string | null {
 // 保存則の違反件数（アサーション失敗とは別に数え、対話・非対話どちらでも落とす）
 let invariantViolations = 0
 
+// 発生源の見失い（エンジン側 GameState.findInstanceAnywhere が記録したもの）。
+// act を通らないテスト（発火関数の直接呼び出し）のぶんは、次の act か最終集計で拾う
+function reportLostLookups(label: string): void {
+    for (const problem of new Set(takeLostLookups())) {
+        invariantViolations++
+        console.error(`  ❌ [見失い] ${problem}（${label}）`)
+    }
+}
+
+function reportMissedPayAsks(label: string): void {
+    for (const problem of new Set(takeMissedPayAsks())) {
+        invariantViolations++
+        console.error(`  ❌ [払う確認の聞き漏れ] ${problem}（${label}）`)
+    }
+}
+
 function checkInvariants(state: GameState, before: number, label: string): void {
     // 中断中の盤面変更ガード（エンジン側 GameState.checkNoMutationAfterSuspend が記録したもの）
     for (const problem of takeMutationAfterSuspend()) {
         invariantViolations++
         console.error(`  ❌ [中断ガード] ${problem}（${label}）`)
     }
+    reportLostLookups(label)
+    reportMissedPayAsks(label)
     const after = countCards(state)
     if (after !== before) {
         invariantViolations++
@@ -253,16 +325,67 @@ function checkInvariants(state: GameState, before: number, label: string): void 
         invariantViolations++
         console.error(`  ❌ [保存則] ${coreProblem}（${label}）`)
     }
+    const soulProblem = assertSoulCoreConsistent(state)
+    if (soulProblem) {
+        invariantViolations++
+        console.error(`  ❌ [ソウルコア] ${soulProblem}（${label}）`)
+    }
+}
+
+// ソウルコアの不変条件（docs/design/SOULCORE.md 案B-inside）:
+// 数値には[ソウルコア]が含まれるため、ポインタが指す場所の数値が1以上であること＋
+// 個体の実在を検査する。
+export function assertSoulCoreConsistent(state: GameState): string | null {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const p = state.players[pid]
+        const soul = p.soulCore
+        if (soul === null) continue
+        if (soul.zone === "reserve") {
+            if (p.reserve < 1) return `${pid}の[ソウルコア]がリザーブを指しているのにリザーブが空`
+            continue
+        }
+        if (soul.zone === "trash") {
+            if (p.trashCores < 1) return `${pid}の[ソウルコア]がトラッシュを指しているのにトラッシュコアが空`
+            continue
+        }
+        const insts = p.field
+        const inst =
+            insts.spirits.find((s) => s.instanceId === soul.instanceId) ??
+            insts.nexuses.find((n) => n.instanceId === soul.instanceId) ??
+            insts.combinedBraves.find((b) => b.instanceId === soul.instanceId)
+        if (!inst) return `${pid}のソウルコアが場にいない個体 ${soul.instanceId} を指している`
+        if (inst.cores < 1) return `${pid}の[ソウルコア]が載った ${soul.instanceId} のコア数が0`
+        // 個体ミラーの写し（soulCoreOn）はポインタと一致していなければならない（levelOfの真界放免除が読む）。
+        // 逆方向（写しだけ立っている）は確認しない: 相手の[ソウルコア]が自分の個体に載る場合があるため
+        if (inst.soulCoreOn !== true) return `${pid}の[ソウルコア]が載った ${soul.instanceId} に soulCoreOn が立っていない`
+    }
+    return null
+}
+
+// アクションの結果 第2メインステップに入っていたら（endTurn 直接・サイレントウォールの強制終了・
+// BS15-X04 の追加ステップ後など）自動で抜けてターンを完走させる。テストはカード効果の検証が主で、
+// 第2メインであえて止まりたいテストは engineEndTurn（PhaseManager から直接）を使う。
+// （2026-10-06 ルール改訂。第2メインであえて止まりたいテストは engineEndTurn / handleAction を直接使う。
+//  中間で pendingChoice が立ったら従来どおり呼び出し側で解決する）
+function throughSecondMain(state: GameState): void {
+    while (state.secondMainStep === true && state.pendingChoice === null && !state.winner) {
+        // 強制終了は対戦相手のアクションから起きることもあるため、第2メインを抜けるのはターンプレイヤー。
+        // 万が一エラーが出たら無限ループにならないよう抜ける
+        if (handleAction(state, state.turnPlayer, { type: "endTurn" }) !== null) break
+    }
 }
 
 function act(state: GameState, pid: PlayerId, action: GameAction): string | null {
     const label = `${pid}: ${action.type}`
     const before = countCards(state)
+    // 聞き漏れの検査は handleAction を通った経路だけを見る。耐性の述語を直接呼ぶ単体テストの記録はここで捨てる
+    takeMissedPayAsks()
     if (INTERACTIVE) {
         // 対話モードでは例外で走行を止めない（1件の異常で残り全パートが走らなくなるため）。
         // 例外そのものを異常として数え、次のアクションへ進む
         try {
             const error = handleAction(state, pid, action)
+            throughSecondMain(state)
             if (error) console.log(`  （${label} → ${error}）`)
             drainPendingChoices(state, label)
             checkInvariants(state, before, label)
@@ -275,6 +398,7 @@ function act(state: GameState, pid: PlayerId, action: GameAction): string | null
         }
     }
     const error = handleAction(state, pid, action)
+    throughSecondMain(state)
     if (error) console.log(`  （${label} → ${error}）`)
     checkInvariants(state, before, label)
     return error
@@ -321,6 +445,8 @@ export function noteHarnessError(partName: string, e: Error): void {
 // 全パート実行後にランナー（scripts/smoke.ts）から呼ぶ最終集計。
 // 対話モードでは合否の基準が変わる（アサーション失敗は想定内。異常だけを落とす）
 export function summary(): void {
+    reportLostLookups("最終集計")
+    takeMissedPayAsks() // act を通らない直接呼び出しの記録（実際の経路ではない）
     console.log("")
     if (INTERACTIVE) {
         console.log(
@@ -349,6 +475,15 @@ export function summary(): void {
     console.log(`すべてのチェックに合格しました 🎉（${passed}件）`)
 }
 
+// ターンを完走させる endTurn（2026-10-06 第2メインステップ導入にともなうラップ）。
+// エンジンの endTurn はアタックステップ終了後、第2メインステップでプレイヤーへ返す。
+// テストはカード効果の検証が主で、第2メインであえて止まる必要がある場合は engineEndTurn（PhaseManager から直接）を使う。
+// 第2メイン開始のステップ誘発は通常どおり発火する（pendingChoice が立ったら従来どおり呼び出し側で解決する）
+export function endTurn(state: GameState): void {
+    engineEndTurn(state)
+    while (state.secondMainStep === true && state.pendingChoice === null && !state.winner) engineEndTurn(state)
+}
+
 export {
     createGame,
     createInstance,
@@ -359,7 +494,6 @@ export {
     validateDeckCards,
     viewFor,
     engineRunTurnStart,
-    endTurn,
     effectSources,
     instHasCost,
     instMinLevelCores,
@@ -375,7 +509,6 @@ export {
     placeBurst,
     refreshLevelAsOverrides,
     refreshSpirit,
-    resolveAction,
     resolveFunsai,
     spiritHasFamily,
     spiritHasKeyword,
@@ -434,3 +567,12 @@ export function lockedFor(state: GameState, pid: PlayerId, lock: "flash" | "burs
     return timedContentsFor(state, pid).some((c) => c.type === "battleLock" && c.lock === lock)
 }
 export type { GameAction, GameState, PlayerId }
+
+// 「〜することで〜する」(pay)の払う確認が出ていたら「発動する」で答える（出ていなければ何もしない）
+export function answerPayConfirm(state: GameState, pid: PlayerId): void {
+    const pc = state.pendingChoice
+    if (pc && pc.kind === "option" && (pc.options ?? []).includes("発動する")) {
+        const err = act(state, pid, { type: "resolveChoice", option: "発動する" })
+        if (err) throw new Error(`払う確認への応答に失敗: ${err}`)
+    }
+}

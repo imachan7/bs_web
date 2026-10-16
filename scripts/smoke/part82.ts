@@ -11,10 +11,10 @@ import {
     assert,
     createGame,
     createInstance,
+    endTurn,
 } from "./helpers"
 import { activeConstraints } from "../../shared/rules"
 import type { GameState, PlayerId } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 function setup(seed: string, p1Color: string, p2Color: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: p1Color, p2: p2Color })

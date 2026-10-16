@@ -1,3 +1,5 @@
+// 【暴風】の判定
+import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
 import { effectActiveAtLevel, effectSources, isVirtualSource } from "../../../../shared/rules"
@@ -17,6 +19,7 @@ export function hasBofuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            noteCoverage(effect, "bofuOnBlock")
             return true
         }
     }
@@ -35,6 +38,7 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
             // phase（BS09-060緑翼の大樹Lv2＝『お互いのアタックステップ』）。
             // データには書いてあったのに型と実装が読んでおらず、メインステップでも効いていた（2026-08-24 修正）
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
+            noteCoverage(effect, "bofuChooserSelf")
             return true
         }
     }

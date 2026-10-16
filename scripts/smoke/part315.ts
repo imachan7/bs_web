@@ -1,7 +1,7 @@
 // smoke パート315（BS14 緑バッチ20枚：BS14-023〜033/069/079〜081/099〜102/X03）
 // 新設した器: kind:"burst" の granted.condition.targetMaxBp（effectGrant onBattleEnd用）／
 // timedEffect の grantTrigger（all）／action:"returnBofuExhaustedToHand"（bofuSourceInstanceId限定）／
-// action:"revealTopSummonFreeOrReturnToDeck"／action:"sequence"／action:"bpBuff.costReturnSelfToHand"／
+// action:"revealTopSummonFreeOrReturnToDeck"／action:"sequence"／action:"bpBuff.costReturnSelfToHand"（のち pay に統合）／
 // action:"grantCanBlockWhileRestedThisTurn.singleTarget"／action:"summonBurstCardFreeIfCoresAtLeast"／
 // AuraCounter "opponentSpirits"／step.condition.ownTrashOnlyColor
 import {
@@ -21,7 +21,8 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { placeBurst } from "../../server/src/logic/EffectModules"
-import { fireFieldEventTriggers, fireTrigger } from "../../server/src/logic/triggers"
+import { fireTrigger } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {
     const inst = createInstance(cardId, s.turn, cores)

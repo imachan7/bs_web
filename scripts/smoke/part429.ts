@@ -1,7 +1,6 @@
 // smoke パート429（R5 G-refreshBlock：timedEffect の期間 nextRefresh。BS12-047 をカードデータのまま解決する）
-import { assert, createGame, getCard, resolveAction, runTurnStart } from "./helpers"
+import { assert, createGame, getCard, resolveAction, runTurnStart , endTurn } from "./helpers"
 import type { GameState } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 const TRI = "BS12-047" // 海王神龍トライ・メルクリウス
 

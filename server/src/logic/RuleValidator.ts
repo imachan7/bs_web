@@ -1,6 +1,11 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
-import type { CardData, CardInstance, Color, EffectDef, GameState, PaySource, PlayerId } from "../type"
+import { noteCoverage } from "../../../shared/coverage"
+import { canPayFreeSummonSurcharge } from "./summonSurcharge"
+import { moveCardCandidates } from "./actions/moveCards"
+import type { CardData, CardInstance, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
+import { summonFromHandFreeCandidateMatches } from "./summon"
+import { normalReserveOf, soulCoreInReserve, soulCoreOnInstance, keishoExcludedTeamAtLeast } from "./soulCore"
 import {
     coresForLevel,
     countSymbols,
@@ -11,24 +16,28 @@ import {
     instMinLevelCores,
     minLevelCores,
     opponentOf,
+    placedCoresForSummon,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, instAttackRequiresCoreToll, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
-import { blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
+import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
 import {
     canPayNexusCostByMill,
     canPaySummonCostByHandDiscard,
     effectiveCost,
+    exTrashReductionCandidateIndices,
+    exSymbolsOfTrashCard,
     hasMagicFreeGrant,
     hasMagicCostLock,
     hasMagicRestriction,
     ownFieldSymbolColors,
+    summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked } from "../../../shared/rules"
+import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -41,12 +50,14 @@ import {
     isResisted,
     KEYWORDS,
     matchesFamilyFilter,
-    spiritHasKeyword,
     tenshoCandidates,
     tenshoSpecOf,
+    autoPayPlan,
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 import { magicConditionFailure } from "../../../shared/magicCondition"
+import { isOnceUsed, isOncePerBattleUsed } from "./oncePerTurn"
+import { effectCostDiscountNexus } from "./actions/pay"
 
 
 
@@ -71,27 +82,47 @@ export function validatePaySources(
     pid: PlayerId,
     need: number,
     paySources: PaySource[] | undefined,
+    // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う（行き先はトラッシュなので移動可）
+    paySoulCoreFromReserve?: boolean,
 ): string | null {
     const player = state.players[pid]
+    const soulFromReserve = paySoulCoreFromReserve === true
+    if (soulFromReserve && !soulCoreInReserve(player)) return "リザーブに[ソウルコア]がありません"
+    // 案B-inside: reserve の数値には[ソウルコア]が含まれる。使わないなら通常コアぶんを差し引く
+    const usableReserve = soulFromReserve ? player.reserve : normalReserveOf(player)
     if (!paySources || paySources.length === 0) {
-        if (player.reserve < need) return "コアが足りません"
+        if (usableReserve < need) return "コアが足りません"
         return null
     }
     const seen = new Set<string>()
     let total = 0
+    let soulIncluded = false
     for (const src of paySources) {
         if (seen.has(src.instanceId)) return "支払い元が重複しています"
         seen.add(src.instanceId)
+        // [ソウルコア]込みの支払い（2026-10-06 ユーザー確認: 個体の上の[ソウルコア]もコストとして使える）。
+        // [ソウルコア]は1個なので、含める指定ができる支払い元は1か所まで
+        if (src.includeSoulCore === true || src.soulCoreToMaintain === true) {
+            if (src.includeSoulCore === true && src.soulCoreToMaintain === true) {
+                return "[ソウルコア]をコストと維持コアの両方に使うことはできません"
+            }
+            if (soulIncluded) return "[ソウルコア]を含める支払い元は1か所までです"
+            if (!soulCoreOnInstance(player, src.instanceId)) return "その支払い元に[ソウルコア]が載っていません"
+            soulIncluded = true
+        }
         const inst = findSpirit(player, src.instanceId) ?? findNexus(player, src.instanceId)
         if (!inst) return "支払い元が見つかりません"
         if (src.count < 1) return "支払うコア数が不正です"
-        if (src.count > inst.cores) return "支払い元のコアが足りません"
+        // 案B-inside: coresには[ソウルコア]が含まれる。[ソウルコア]込みの指定なら全コア、
+        // そうでなければ[ソウルコア]を差し引いた通常コア数が支払い上限
+        const capacity = src.includeSoulCore === true ? inst.cores : inst.cores - (soulCoreOnInstance(player, src.instanceId) ? 1 : 0)
+        if (src.count > capacity) return "支払い元のコアが足りません"
         // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**
         if (coresCantBeRemoved(state, pid, inst)) return "そのカードのコアは支払いに使えません"
         total += src.count
     }
     if (total > need) return "必要数を超えてコアを支払うことはできません"
-    if (player.reserve < need - total) return "コアが足りません"
+    if (usableReserve < need - total) return "コアが足りません"
     return null
 }
 
@@ -133,6 +164,11 @@ export function validateSummon(
     // 指定時は kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：疲労させることを追加コストに、
     // 召喚コストのうち一部を支払ったものとして扱う。【神速】召喚以外では使えない（任意）
     shinsokuAssistInstanceIds?: string[],
+    // 《継召》(kind:"exTrashReduction")：トラッシュのEXシンボル持ちカードを除外して軽減する
+    // trashCards 内のインデックス配列（プレイヤーが召喚時に選ぶ）
+    exReductionTrashIndices?: number[],
+    paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
+    placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -154,6 +190,7 @@ export function validateSummon(
         if (card.type !== "brave") return "ブレイヴカードではありません"
         const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
+        if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
         if ((host.braveRefs ?? []).length >= combineLimitFor(state, pid, host)) return "そのスピリットには既にブレイヴが合体しています"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
@@ -190,7 +227,12 @@ export function validateSummon(
     )
     // 緑芽吹く原野Lv2：場の発生源が手札のカードに継続的に【神速】を与えている（手札には書き込まない）
     const hasFieldSoku = hasHandKeywordGrant(state, pid, card, "soku")
-    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku)
+    const staticSoku = hasKeyword(cardId, "soku")
+    if (state.isFlashTiming && staticSoku) {
+        const sokuEntry = getCard(cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "soku")
+        if (sokuEntry) noteCoverage(sokuEntry, "keyword")
+    }
+    const flashSummon = state.isFlashTiming && (staticSoku || hasTempSoku || hasFieldSoku || flashSummonFromHandNow(state, pid, cardId))
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
@@ -268,7 +310,24 @@ export function validateSummon(
         }
         altSummon = result
     }
-    const cost = Math.max(0, (altSummon !== null ? 0 : effectiveCost(state, pid, card)) - shinsokuDiscount)
+    // 《継召》のEXシンボル除外軽減：候補はトラッシュのEXシンボル持ちカードに限る。
+    // 無効な指定（候補外・重複）はエラー。除外したカードのシンボル列を effectiveCost に渡し、
+    // 軽減シンボルと同じ色だけが軽減に使われる（赤軽減なら赤のEXシンボルのみ）
+    let exReductionSymbols: Color[] = []
+    if (exReductionTrashIndices && exReductionTrashIndices.length > 0) {
+        const candidates = exTrashReductionCandidateIndices(state, pid, card)
+        const seen = new Set<number>()
+        for (const idx of exReductionTrashIndices) {
+            if (!candidates.includes(idx)) return "指定したトラッシュのカードは《継召》の軽減に使えません"
+            if (seen.has(idx)) return "同じカードを重複して指定しています"
+            seen.add(idx)
+        }
+        exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
+    }
+    const cost = Math.max(
+        0,
+        (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
+    )
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {
@@ -282,6 +341,10 @@ export function validateSummon(
     if (tensho) {
         const candidates = tenshoCandidates(state, pid, tensho.minCost, undefined, tensho.familyFilter)
         if (candidates.length === 0) {
+            const locked = state.players[pid].field.spirits.find((s) => coresCantBeRemoved(state, pid, s))
+            if (locked) {
+                return `【転召】の対象がいません（${getCard(locked.cardId).name}はコアを取り除けないため対象にできません）`
+            }
             if (tensho.familyFilter) {
                 const families = [tensho.familyFilter].flat().join("/")
                 return `【転召】でコアを置く、系統：「${families}」を持つ自分のスピリットがいません`
@@ -303,19 +366,30 @@ export function validateSummon(
             return "その支払いでは、【転召】でコアを置く自分のスピリットがいなくなります"
         }
     }
-    const maintain =
-        braveTargetInstanceId !== undefined
-            ? 0 // ダイレクトブレイヴは維持コアを置かない
-            : level === undefined
-              ? minLevelCores(card)
-              : (coresForLevel(card, level) ?? 0)
+    const maintain = placedCoresForSummon(card, level, {
+        braveTarget: braveTargetInstanceId !== undefined,
+        placeSoulCoreFromReserve,
+    })
+    // [ソウルコア]の使い方の排他と維持コアとして置けるか（2026-10-06 ユーザー確定）
+    if (paySoulCoreFromReserve === true && placeSoulCoreFromReserve === true) {
+        return "[ソウルコア]をコストと維持コアの両方に使うことはできません"
+    }
+    if (placeSoulCoreFromReserve === true) {
+        if (!soulCoreInReserve(player)) return "リザーブに[ソウルコア]がありません"
+        if (maintain < 1) return "このカードはコアを置かないため[ソウルコア]を維持コアにできません"
+    }
+    // フィールドの[ソウルコア]を維持コアとして使う指定も、コアを置かない召喚では不可
+    if (paySources?.some((s) => s.soulCoreToMaintain === true) && maintain < 1) {
+        return "このカードはコアを置かないため[ソウルコア]を維持コアにできません"
+    }
     // BS08ビクティム：召喚コストの一部・全部を手札破棄で支払える（置くコアは対象外）。
     // doSummon と同じ関数で枚数を出すので、検証と実行がズレない
     const discardError = validateSummonHandDiscard(state, pid, handIndex, cost, discardHandIndices)
     if (discardError) return discardError
     const discardPaid = summonHandDiscardPayAmount(state, pid, cost, maintain, paySources, discardHandIndices)
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
-    const payError = validatePaySources(state, pid, cost - discardPaid + maintain, paySources)
+    // 維持コアとして置くときもリザーブの[ソウルコア]は支払いに使える（使い方が違うだけ）
+    const payError = validatePaySources(state, pid, cost - discardPaid + maintain, paySources, paySoulCoreFromReserve === true || placeSoulCoreFromReserve === true)
     if (payError) {
         return payError === "コアが足りません"
             ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
@@ -336,6 +410,7 @@ function maxSpiritsOnField(state: GameState): number | null {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "maxSpiritsOnField") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                noteCoverage(effect, "globalConstraint")
                 const max = effect.constraint.max
                 cap = cap === null ? max : Math.min(cap, max)
             }
@@ -408,11 +483,33 @@ export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handI
     }
     const flashError = validateHandFlash(state, pid)
     if (flashError) return flashError
+    // 【烈神速】の「トラッシュのコア」にソウルコアも含めて数える（配置は段5まで通常コアのみ）
+    // 案B-inside: trashCores には[ソウルコア]が含まれるため、烈神速の閾値は数値だけで見てよい
     if (player.trashCores < 5) return "自分のトラッシュのコアが5個以上必要です"
+    if (!canPayFreeSummonSurcharge(state, pid, card)) return "相手の効果による召喚の追加コストを払えません"
     const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
     if (summonLimitError) return summonLimitError
     const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
     if (summonLimitByEffectError) return summonLimitByEffectError
+    return null
+}
+
+// メインステップの1:1交換（docs/design/SOULCORE.md §1.4）: [ソウルコア]1個と通常コア1個を同時に交換する
+export function validateSwapSoulCore(state: GameState, pid: PlayerId, fromInstanceId: string, toInstanceId: string): string | null {
+    if (state.battle || state.phase !== "main" || state.turnPlayer !== pid) {
+        return "メインステップの自分のターンにしか交換できません"
+    }
+    const player = state.players[pid]
+    if (fromInstanceId === toInstanceId) return "同じ個体同士では交換できません"
+    const from = findSpirit(player, fromInstanceId) ?? findNexus(player, fromInstanceId)
+    const to = findSpirit(player, toInstanceId) ?? findNexus(player, toInstanceId)
+    if (!from || !to) return "自分のスピリット/ネクサスが見つかりません"
+    if (!soulCoreOnInstance(player, fromInstanceId)) return "[ソウルコア]が載った個体を選んでください"
+    if (to.cores - (soulCoreOnInstance(player, toInstanceId) ? 1 : 0) < 1) return "通常コア1個以上が置かれた個体と交換できます"
+    // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、プレイヤーの操作でも取り除けない。交換にも効く
+    if (coresCantBeRemoved(state, pid, from) || coresCantBeRemoved(state, pid, to)) {
+        return "コアを取り除けない個体とは交換できません"
+    }
     return null
 }
 
@@ -433,6 +530,8 @@ export function validateSetNexus(
     paySources?: PaySource[],
     level?: number,
     millPay?: number,
+    paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を配置コスト支払い1個ぶんとして使う
+    placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして配置したネクサスに置く
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -447,7 +546,7 @@ export function validateSetNexus(
     const cost = effectiveCost(state, pid, card)
     const placeError = validateSummonLevel(card, level)
     if (placeError) return placeError
-    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? 0)
+    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve })
     // 栄光の表彰台Lv1：配置コストを「コスト1につきデッキ1枚破棄」で払える（置くコアは不可）。
     // **コア払いとの併用はできない**ので、配置の時点でどちらか一方に決める（millPay は 0 か実効コスト）
     if (millPay !== undefined && millPay > 0 && !canPayNexusCostByMill(state, pid)) {
@@ -458,8 +557,20 @@ export function validateSetNexus(
     }
     if (millPay !== undefined && millPay > player.deck.length) return "デッキの残り枚数が足りません"
     const millPaid = nexusMillPayAmount(state, pid, cost, maintain, paySources, millPay)
+    // [ソウルコア]の使い方の排他と維持コアとして置けるか（2026-10-06）
+    if (paySoulCoreFromReserve === true && placeSoulCoreFromReserve === true) {
+        return "[ソウルコア]をコストと維持コアの両方に使うことはできません"
+    }
+    if (placeSoulCoreFromReserve === true) {
+        if (!soulCoreInReserve(player)) return "リザーブに[ソウルコア]がありません"
+        if (maintain < 1) return "このネクサスはコアを置かないため[ソウルコア]を維持コアにできません"
+    }
+    // フィールドの[ソウルコア]を維持コアとして使う指定も、コアを置かない配置では不可
+    if (paySources?.some((s) => s.soulCoreToMaintain === true) && maintain < 1) {
+        return "このネクサスはコアを置かないため[ソウルコア]を維持コアにできません"
+    }
     // フィールドのコアはコストにも「置くコア」にも充当できる（need = cost + maintain）
-    const payError = validatePaySources(state, pid, cost + maintain - millPaid, paySources)
+    const payError = validatePaySources(state, pid, cost + maintain - millPaid, paySources, paySoulCoreFromReserve === true || placeSoulCoreFromReserve === true)
     if (payError) {
         // 配置コストをデッキ破棄で払う場合、コアで要るのは置くコアだけ
         const label = millPaid > 0 ? "置くコア" : "コスト+置くコア"
@@ -613,6 +724,10 @@ export function validateCastMagic(
     targetInstanceId?: string,
     paySources?: PaySource[],
     fromTegamoto?: boolean,
+    exReductionTrashIndices?: number[], // 《継召》(kind:"exTrashReduction")：マジックの使用コスト軽減（summonと同じ仕様）
+    paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を使用コスト支払い1個ぶんとして使う
+    // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」（kind:"soulCoreOnlyCast"）で使用する
+    useSoulCoreOnly?: boolean,
 ): string | null {
     const player = state.players[pid]
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
@@ -730,6 +845,16 @@ export function validateCastMagic(
         const failure = magicConditionFailure(state, pid, e.useCondition)
         if (failure) return `${failure}ため、このマジックは使用できません`
     }
+    if (state.phase === "main" && card.effects.some((e) => e.kind === "castRestriction" && e.notInMainStep)) {
+        return "このカードはメインステップでは使用できない"
+    }
+    const usedKey = `${card.name}|${useTiming}`
+    if (
+        card.effects.some((e) => e.kind === "magic" && e.timing === useTiming && e.oncePerTurnByName) &&
+        state.magicEffectsUsedByName?.[pid]?.includes(usedKey)
+    ) {
+        return "このカードの効果はこのターンすでに使用しています"
+    }
     if (state.battle) {
         // バトル中のフラッシュ：優先権・lockFlash の判定は validateHandFlash に共有する
         // （011ミーアバットの useHandAbility・神速召喚と同じ判定。BS15_PLAN.md §7.2）
@@ -770,7 +895,35 @@ export function validateCastMagic(
         }
     }
 
-    const payError = validatePaySources(state, pid, effectiveCost(state, pid, card), paySources)
+    // 《継召》のEXシンボル除外軽減（validateSummon と同じ検証）：候補はトラッシュのEXシンボル持ちカードに限り、
+    // 候補外・重複はエラー。除外カードのシンボル列を effectiveCost に渡し、軽減シンボルと同じ色だけが軽減に使われる
+    let exReductionSymbols: Color[] = []
+    if (exReductionTrashIndices && exReductionTrashIndices.length > 0) {
+        const candidates = exTrashReductionCandidateIndices(state, pid, card)
+        const seen = new Set<number>()
+        for (const idx of exReductionTrashIndices) {
+            if (!candidates.includes(idx)) return "指定したトラッシュのカードは《継召》の軽減に使えません"
+            if (seen.has(idx)) return "同じカードを重複して指定しています"
+            seen.add(idx)
+        }
+        exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
+    }
+    // [ソウルコア]だけで使用する: フィールドに該当色シンボル＋リザーブの[ソウルコア]。通常コア・paySourcesは使わない
+    if (useSoulCoreOnly) {
+        const soulOnly = card.effects.find((e): e is Extract<EffectDef, { kind: "soulCoreOnlyCast" }> => e.kind === "soulCoreOnlyCast")
+        if (!soulOnly) return "このマジックは[ソウルコア]だけで使用できません"
+        if (!ownFieldSymbolColors(state, pid, soulOnly.symbolAs).has(soulOnly.color)) return "自分のフィールドに指定色のシンボルがありません"
+        // [ソウルコア]の所在は文言上限定されない。リザーブでも自分のスピリット/ネクサスの上でも使える
+        // （2026-10-06 ユーザー確認。トラッシュの[ソウルコア]は支払いに使えないものとする）
+        if (player.soulCore === null || player.soulCore.zone === "trash") return "[ソウルコア]がありません"
+        if (paySources && paySources.some((s) => s.soulCoreToMaintain === true)) {
+            return "マジックはコアを置かないため[ソウルコア]を維持コアにできません"
+        }
+        if (paySources && paySources.length > 0) return "[ソウルコア]だけで使用する場合は他のコアを支払えません"
+    }
+    const payError = useSoulCoreOnly
+        ? null // [ソウルコア]だけで使用するとき通常コアの支払い検証は不要（コスト0として扱う）
+        : validatePaySources(state, pid, effectiveCost(state, pid, card, false, exReductionSymbols), paySources, paySoulCoreFromReserve)
     if (payError) return payError
     return null
 }
@@ -820,6 +973,8 @@ export function validateDetachBrave(
     }
     // BS11-X02 Lv3：相手はブレイヴをスピリット状態にできない（分離した先がスピリット状態になる）
     if (cantSpiritStateBrave(state, pid)) return "相手の効果により、ブレイヴをスピリット状態にできません"
+    // 分離は「置くコア」だけの支払い。[ソウルコア]はコスト（→トラッシュ）としてのみ使えるため含められない
+    if (paySources?.some((s) => s.includeSoulCore === true)) return "[ソウルコア]はコストとしてのみ支払えます"
     return validatePaySources(state, pid, braveKeepCores(brave), paySources)
 }
 
@@ -829,6 +984,9 @@ export function validateMoveCore(
     instanceId: string,
     direction: "add" | "remove",
     confirmDeplete?: true,
+    // [ソウルコア]を動かすメインステップ操作（docs/design/SOULCORE.md §1.4の自由なコア移動の一部。
+    // add=リザーブの[ソウルコア]をこの個体へ、remove=この個体の[ソウルコア]をリザーブへ）
+    soulCore?: boolean,
 ): string | null {
     const timing = checkMainTiming(state, pid)
     if (timing) return timing
@@ -837,10 +995,27 @@ export function validateMoveCore(
     // ネクサスの Lv1 は全カード0コアのため、下の維持コア判定でそのまま0まで戻せる
     const inst = findSpirit(player, instanceId) ?? findNexus(player, instanceId)
     if (!inst) return "対象のカードが見つかりません"
+    if (soulCore) {
+        // [ソウルコア]の移動検証: 通常コアの数値は不動のため reserve/cores の検証は不要。
+        // 取り除くと維持コアを割るときは通常コアと同じ confirmDeplete の確認が要る
+        if (direction === "add") {
+            if (!soulCoreInReserve(player)) return "リザーブに[ソウルコア]がありません"
+        } else {
+            if (!soulCoreOnInstance(player, instanceId)) return "この個体に[ソウルコア]がありません"
+            if (coresCantBeRemoved(state, pid, inst)) return "このカードのコアは取り除けません"
+            if (inst.cores - 1 < instMinLevelCores(inst) && !confirmDeplete) {
+                return "維持コア（Lv1）を下回るため[ソウルコア]を取り除けません"
+            }
+        }
+        return null
+    }
     if (direction === "add") {
         if (player.reserve < 1) return "リザーブにコアがありません"
+        // 案B-inside: リザーブに[ソウルコア]しか無いなら通常の＋では動かせない（魂＋を使う）
+        if (normalReserveOf(player) < 1) return "リザーブに[ソウルコア]しかありません"
     } else {
         if (inst.cores < 1) return "コアが置かれていません"
+        if (inst.cores - (soulCoreOnInstance(player, instanceId) ? 1 : 0) < 1) return "このカードには[ソウルコア]しか置かれていません"
         // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**（constraint:"coresCantBeRemoved"。2026-08-25 ユーザー確認）
         if (coresCantBeRemoved(state, pid, inst)) return "このカードのコアは取り除けません"
         const need = instMinLevelCores(inst)
@@ -920,6 +1095,7 @@ export function validateActivateAbility(
     if (!effectActiveAtLevel(effect.levels, level)) {
         return "現在のレベルでは発動できません"
     }
+    if (effect.ownTurnOnly && state.turnPlayer !== pid) return "このターンでは発動できません"
     // 発動可能タイミング
     if (effect.timing === "flashBattle") {
         if (!state.isFlashTiming || !state.battle) {
@@ -950,7 +1126,10 @@ export function validateActivateAbility(
             (effect.phaseTurn.turn === "own") === (state.turnPlayer === pid)
         if (!turnOk) return "このターンでは発動できません"
     }
-    // 発動条件: self が現在のバトルの当事者
+    if (effect.action.type === "combineOwnBrave" && effect.action.hostSelf && braveCombineOntoSelfCandidates(state, pid, inst).length === 0) {
+        return "合体させられるブレイヴがいません"
+    }
+    // 発動条件: self が現在のバトルの当事者／自分のスピリット/ネクサスすべてが指定チーム所属
     if (effect.condition === "selfInBattle") {
         if (
             !state.battle ||
@@ -960,18 +1139,77 @@ export function validateActivateAbility(
             return "このスピリットはバトルに参加していません"
         }
     }
+    // 26系『アタック中』窓（【魔述】）: self が現在のバトルのアタッカーのときだけ発動できる。
+    // triggered の selfWasAttacker（26系【地鳴】）と同じ判定で、ブロッカーは含まない
+    if (effect.condition === "selfAttacking") {
+        if (!state.battle || state.battle.attackerInstanceId !== instanceId) {
+            return "このスピリットのアタック中しか発動できません"
+        }
+    }
+    if (effect.condition === "selfBlocking") {
+        if (!state.battle || state.battle.blockerInstanceId !== instanceId) {
+            return "このスピリットのブロック中しか発動できません"
+        }
+    }
+    // 26系「自分のスピリット/ネクサスすべてが【X】を持つなら」：1体以上いて全員が指定チーム
+    // （CardData.team）所属のときだけ発動できる。0体では不成立
+    if (typeof effect.condition === "object" && "ownAllHaveTeam" in effect.condition) {
+        if (!ownAllHaveTeam(state, pid, effect.condition.ownAllHaveTeam)) {
+            return "自分のスピリット/ネクサスすべてが指定チームを持っていません"
+        }
+    }
+    if (typeof effect.condition === "object" && "ownAllHaveFamily" in effect.condition) {
+        if (!ownAllHaveFamily(state, pid, effect.condition.ownAllHaveFamily)) {
+            return "自分のスピリット/ネクサスすべてが指定系統を持っていません"
+        }
+    }
+    // 26系「【X】を持つ自分のスピリットがN体以上いるなら」：AuraCondition.ownTeamAtLeastと同じ判定
+    if (typeof effect.condition === "object" && "ownTeamAtLeast" in effect.condition) {
+        if (!ownTeamAtLeast(state, pid, effect.condition.ownTeamAtLeast)) {
+            return "条件となるチーム所属の自分のスピリットが足りません"
+        }
+    }
+    // 26系「自分のリザーブに[ソウルコア]があるなら」
+    if (typeof effect.condition === "object" && "soulCoreInReserve" in effect.condition) {
+        if (!soulCoreInReserve(state.players[pid])) {
+            return "リザーブに[ソウルコア]がありません"
+        }
+    }
+    // 26系「この継召で【X】を持つカードをN枚以上除外していたなら」
+    if (typeof effect.condition === "object" && "ownKeishoExcludedTeamAtLeast" in effect.condition) {
+        if (!keishoExcludedTeamAtLeast(state, effect.condition.ownKeishoExcludedTeamAtLeast)) {
+            return "この継召で除外したチーム所属カードが条件に足りません"
+        }
+    }
+    // 26系【Fチェンジ】「疲労状態のこのスピリットを手札に戻し」：発生源自身が疲労状態のときのみ発動できる
+    if (typeof effect.condition === "object" && "selfRested" in effect.condition) {
+        if (!inst.isRested) {
+            return "この効果は疲労状態のときしか使えません"
+        }
+    }
+    // 26系「【Fチェンジ】で召喚されているか」など：発生源自身の召喚経路が一致するときのみ発動できる
+    if (typeof effect.condition === "object" && "summonedBy" in effect.condition) {
+        if (inst.summonedBy !== effect.condition.summonedBy) {
+            return "このスピリットはこの効果が要求する経路で召喚されていません"
+        }
+    }
     // フラッシュ優先権（手札のカードではなくスピリットの能力なので lockFlash は適用しない）。
     // timing:"main" はフラッシュの窓ではないので優先権を見ない
     if (effect.timing !== "main" && pid !== state.priorityPlayer) {
         return "現在フラッシュの優先権がありません"
     }
-    // 「ターンに1回」：発生源1体につきターン1回（同名が2体いればそれぞれ1回使える）
-    if (effect.oncePerTurn && inst.activatedUsedTurn?.[effectId] === state.turn) {
+    // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回
+    if (effect.oncePerTurn && isOnceUsed(state, pid, inst, effect, "activatedUsedTurn")) {
         return "この効果はこのターンすでに使いました"
+    }
+    // 〔バトル1回〕（oncePerBattle）：このバトルで発動済みなら拒否（バトル終了で枠は戻る）
+    if (effect.oncePerBattle && isOncePerBattleUsed(state, inst, effect.id)) {
+        return "この効果はバトルに1回しか使えません"
     }
     // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない。
     // cost 省略時は追加コストなし（BS08帝竜騎サイクル）
     if (effect.cost !== undefined) {
+        if (!activatedActionResolvable(state, pid, inst, effect.action)) return "効果の対象がいません"
         if ("exhaustSelf" in effect.cost) {
             if (host.isRested) return "すでに疲労しています"
         } else if ("selfCoresToTrash" in effect.cost) {
@@ -1009,11 +1247,38 @@ export function validateActivateAbility(
                 (cardId) => getCard(cardId).type === "spirit" && hasKeyword(cardId, keyword),
             )
             if (!hasCard) return "破棄できるカードが手札にありません"
-        } else if (state.players[pid].reserve < effect.cost.reserveToTrash) {
+        } else if (autoPayPlan(state, pid, Math.max(0, effect.cost.reserveToTrash - (effectCostDiscountNexus(state, pid, inst.cardId)?.amount ?? 0)), true) === null) {
             return "コアが足りません"
         }
     }
+    // 26系【Fチェンジ】「1枚をコストを支払わずに召喚しなければならない」: summonFromHandFree に
+    // requireCandidate があるとき、手札に候補が1枚もなければ起動自体を拒否する
+    // （受理すると「バウンスだけ起きて必須の召喚が不発」が起きるため。sequence/if の中も走査）
+    for (const action of effectActionsDeep(effect.action)) {
+        if (action.type === "moveCards" && action.requireCandidate === true) {
+            if (moveCardCandidates(state, pid, action, undefined, inst.cardId).length === 0) return "手札に召喚できる対象がありません"
+        }
+        if (action.type === "summonFromHandFree" && action.requireCandidate === true) {
+            const hasCandidate = state.players[pid].hand.some((cardId) =>
+                summonFromHandFreeCandidateMatches(state, pid, inst, action, cardId),
+            )
+            if (!hasCandidate) return "手札に召喚できる対象がありません"
+        }
+    }
     return null
+}
+
+// 起動効果の action ツリーから summonFromHandFree 等を再帰的に収集する
+// （sequence の actions 配列と if/then/else の分岐を辿る。他の容器型は候補事前判定に不要なので無視）
+function effectActionsDeep(action: EffectAction, acc: EffectAction[] = []): EffectAction[] {
+    acc.push(action)
+    if (action.type === "sequence") {
+        for (const a of action.actions) effectActionsDeep(a, acc)
+    } else if (action.type === "if") {
+        effectActionsDeep(action.then, acc)
+        if (action.else) effectActionsDeep(action.else, acc)
+    }
+    return acc
 }
 
 export function validateAttack(
@@ -1021,6 +1286,8 @@ export function validateAttack(
     pid: PlayerId,
     instanceId: string,
     targetSpiritInstanceId?: string,
+    paySources?: PaySource[],
+    paySoulCoreFromReserve?: boolean,
 ): string | null {
     if (state.turnPlayer !== pid) return "自分のターンではありません"
     if (state.phase !== "attack") return "アタックステップではありません"
@@ -1031,6 +1298,10 @@ export function validateAttack(
     if (inst.isRested) return "疲労しているためアタックできません"
     if (cantActByTimed(state, inst)) return "このターンの間、このスピリットはアタックできません"
     if (currentLevel(inst).level < 1) return "レベル1未満のためアタックできません"
+    const first = state.players[pid].field.spirits.find(
+        (s) => s.instanceId !== instanceId && mustAttackFirst(state, s) && mustAttackNow(state, pid, s),
+    )
+    if (first) return `${getCard(first.cardId).name}がこのステップの最初にアタックしなければなりません`
     // フィールド全体制約（魔帝の墓標）：コア1個しか置いていないスピリットはアタックできない
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
@@ -1057,8 +1328,26 @@ export function validateAttack(
     }
     // 器BM：フィールド全体制約（BS13-043鳥人イカロッシュ）：アタックにはリザーブのコア1個の支払いが要る。
     // リザーブが空ならそもそもアタック不可（払えるかぎり払う＝支払い自体はGameEngine.doAttackが自動で行う）
-    if (instAttackRequiresCoreToll(state, inst) && state.players[pid].reserve < 1) {
-        return "リザーブにコアがないためアタックできません"
+    const toll = attackTollTotal(state, pid, inst)
+    const payToll = attackPayTollCount(state, pid, inst)
+    if (toll > 0 && state.players[pid].reserve < toll - payToll) {
+        return `リザーブのコアが${String(toll - payToll)}個ないためアタックできません`
+    }
+    // attackPayToll（26RSD06-011）はフィールドのコアも含めて払える（2026-10-11 ユーザー確認）。
+    // paySources 省略時はリザーブだけで払う（AI・旧クライアント）
+    if (payToll > 0) {
+        if (!paySources || paySources.length === 0) {
+            if (state.players[pid].reserve < toll) return `リザーブのコアが${String(toll)}個ないためアタックできません`
+        } else {
+            const payError = validatePaySources(state, pid, payToll, paySources, paySoulCoreFromReserve)
+            if (payError) return `アタックするには${String(payToll)}コスト必要です（${payError}）`
+            const fromSelf = paySources.find((s) => s.instanceId === instanceId)
+            if (fromSelf && inst.cores - fromSelf.count < minLevelCores(getCard(inst.cardId))) {
+                return "アタックするスピリットの維持コアを支払いに使うことはできません"
+            }
+        }
+    } else if (paySources && paySources.length > 0) {
+        return "このアタックにコストは要りません"
     }
     // このスピリットはアタックできない（カイザレオン大帝Lv1）
     if (activeConstraints(state, pid, inst).some((c) => c.type === "cantAttack")) {
@@ -1067,6 +1356,10 @@ export function validateAttack(
     // フィールド全体制約（BS13-068遥かなる衛星砲。器AQ）：シンボル数がちょうど一致するスピリットはターンに1回しかアタックできない
     if (attackOncePerTurnLimitApplies(state, inst)) {
         return "このスピリットは既にこのターンアタックしています"
+    }
+    // フィールド全体制約（26RBS02-085）：コストがmaxCost以下のスピリットは、プレイヤーごとにターンに合計1回しかアタックできない
+    if (attackTotalOncePerTurnLimitApplies(state, pid, inst)) {
+        return "このターンはコストの低いスピリットがすでにアタックしています"
     }
     // フィールド全体制約（BS14-088青玉の巨大迷宮）：コストがmaxCost以下のスピリットはターンに1回しかアタックできない
     if (attackOncePerTurnByCostLimitApplies(state, inst)) {
@@ -1092,10 +1385,24 @@ export function validateAttack(
     return null
 }
 
+// 効果で「可能ならブロックしなければならない」と指定され、いまブロックできる自分のスピリット（26RSD03-007）。
+// 支払いが要るブロックは任意なので強制しない（hasLegalBlocker と同じ）
+function forcedBlockers(state: GameState, pid: PlayerId): CardInstance[] {
+    if (!state.battle) return []
+    const attackerPid = opponentOf(pid)
+    const attacker = findSpirit(state.players[attackerPid], state.battle.attackerInstanceId)
+    if (blockPayCost(state, attackerPid, attacker) > 0 || blockReserveToTrashCount(state, attackerPid, attacker) > 0 || blockExhaustSpiritRequired(state, attackerPid, attacker)) return []
+    return state.players[pid].field.spirits.filter(
+        (s) => timedContentsOn(state, s).some((c) => c.type === "mustBlock") && currentLevel(s).level >= 1 && !instCostCantAct(state, s) && canBlock(state, pid, s, attackerPid, attacker) === null,
+    )
+}
+
 export function validateBlock(
     state: GameState,
     pid: PlayerId,
     instanceId: string,
+    paySources?: PaySource[],
+    paySoulCoreFromReserve?: boolean,
 ): string | null {
     if (!state.battle) return "バトルが発生していません"
     if (pid !== opponentOf(state.turnPlayer)) return "防御側ではありません"
@@ -1127,10 +1434,31 @@ export function validateBlock(
     const costAttacker = state.battle ? findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
-        if (c.cost === "reserveCoreToTrash" && state.players[pid].reserve < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
+        if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"
         }
+    }
+    const reserveToll = blockReserveToTrashCount(state, opponentOf(pid), costAttacker)
+    if (reserveToll > 0 && normalReserveOf(state.players[pid]) < reserveToll) return `リザーブのコアが${String(reserveToll)}個ないためブロックできません`
+    if (blockExhaustSpiritRequired(state, opponentOf(pid), costAttacker) && !state.players[pid].field.spirits.some((sp) => sp.instanceId !== instanceId && !sp.isRested)) {
+        return "疲労させるスピリットがいないためブロックできません"
+    }
+    // 指定された個体（mustBlock）がブロックできるなら、ほかの個体ではブロックできない
+    const forced = forcedBlockers(state, pid)
+    if (forced.length > 0 && !forced.some((s) => s.instanceId === instanceId)) return "相手の効果により、指定されたスピリットでブロックしなければなりません"
+    // 制約 blockPayCost（26RDB01-X06）。払えなければブロックできない
+    const payNeed = blockPayCost(state, opponentOf(pid), costAttacker)
+    if (payNeed > 0) {
+        const payError = validatePaySources(state, pid, payNeed, paySources, paySoulCoreFromReserve)
+        if (payError) return `ブロックするには${String(payNeed)}コスト必要です（${payError}）`
+        // ブロックするスピリット自身から払って維持コアを割ると、宣言と同時に消滅してしまう
+        const fromSelf = paySources?.find((s) => s.instanceId === instanceId)
+        if (fromSelf && inst.cores - fromSelf.count < minLevelCores(getCard(inst.cardId))) {
+            return "ブロックするスピリットの維持コアを支払いに使うことはできません"
+        }
+    } else if (paySources && paySources.length > 0) {
+        return "このブロックにコストは要りません"
     }
 
     const attackerPid = opponentOf(pid)
@@ -1169,6 +1497,27 @@ export function validatePass(state: GameState, pid: PlayerId): string | null {
     return null
 }
 
+// 「必ずアタック」を受けていて、いまアタックできる個体か
+function mustAttackNow(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
+    if (inst.isRested) return false
+    if (cantActByTimed(state, inst)) return false
+    if (currentLevel(inst).level < 1) return false
+    // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
+    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) return false
+    // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
+    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) return false
+    // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
+    if (instCostCantAct(state, inst)) return false
+    // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
+    if (instCantAttackByOpponentCost(state, pid, inst)) return false
+    // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
+    if (instCantAttackByCost(state, inst)) return false
+    const constraints = activeConstraints(state, pid, inst)
+    // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
+    if (constraints.some((c) => c.type === "cantAttack")) return false
+    return constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)
+}
+
 // ターン終了（endTurn）の妥当性を検証する。
 // 「必ずアタック」制約（mustAttack）を持ち、かつ現在アタック可能な自分のスピリットが1体でもいる場合は
 // エンドターンを拒否し、アタックを強制する（メインからの endTurn／アタックステップからの endTurn 両方）。
@@ -1180,31 +1529,14 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     if (state.battle) return "バトルの解決中です"
     // BS15-X04 の追加メインステップの後にアタックステップは無い
     if (state.extraMainStep) return null
+    // 第2メインステップの後にもアタックステップは無いため、mustAttack はターン終了を妨げない
+    if (state.secondMainStep) return null
 
     // 先攻1ターン目はアタック自体が禁止のため、mustAttack はターン終了を妨げない
     if (state.turn === 1) return null
 
-    const player = state.players[pid]
-    for (const inst of player.field.spirits) {
-        if (inst.isRested) continue
-        if (cantActByTimed(state, inst)) continue
-        if (currentLevel(inst).level < 1) continue
-        // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
-        if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) continue
-        // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
-        if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) continue
-        // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
-        if (instCostCantAct(state, inst)) continue
-        // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
-        if (instCantAttackByOpponentCost(state, pid, inst)) continue
-        // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
-        if (instCantAttackByCost(state, inst)) continue
-        const constraints = activeConstraints(state, pid, inst)
-        // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
-        if (constraints.some((c) => c.type === "cantAttack")) continue
-        if (constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)) {
-            return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
-        }
+    for (const inst of state.players[pid].field.spirits) {
+        if (mustAttackNow(state, pid, inst)) return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
     }
     return null
 }
@@ -1235,6 +1567,7 @@ function hasMustBlockAgainst(
             ) {
                 continue
             }
+            noteCoverage(effect, "mustBlockGrant")
             return effect.blockerMaxBp === undefined
                 ? { source: inst }
                 : { blockerMaxBp: effect.blockerMaxBp, source: inst }
@@ -1261,6 +1594,11 @@ function hasLegalBlocker(
     return state.players[pid].field.spirits.some((s) => {
         if (maxBp !== undefined && effectiveBp(state, pid, s) > maxBp) return false
         if (validateBlock(state, pid, s.instanceId) !== null) return false
+        // コストの支払いは任意なので、支払いが要るブロックは強制できない
+        if (state.battle) {
+            const atk = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+            if (blockPayCost(state, opponentOf(pid), atk) > 0 || blockReserveToTrashCount(state, opponentOf(pid), atk) > 0 || blockExhaustSpiritRequired(state, opponentOf(pid), atk)) return false
+        }
         if (forcedBy && blockForceResisted(state, pid, s, forcedBy)) return false
         return true
     })
@@ -1305,18 +1643,25 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         state.players[state.turnPlayer],
         state.battle.attackerInstanceId,
     )
-    // 【激突】持ちのアタック時はブロック強制。
+    // 【激突】持ちのアタック時はブロック強制。判定は kind:"keyword" 宣言の levels を尊重
+    // （Lv2書きの【激突】はLv1アタックでは強制しない。【激突】は LABELED_KEYWORDS なので
+    // spiritHasLabeledKeyword で見る＝一時付与（このターンの間【激突】を与える）も拾う）。
     // 判定は hasLegalBlocker（validateBlock を実際に通る個体がいるか）で行う。
     // hasBlocker（疲労とレベルしか見ない）だと、cantBlock 等で実際にはブロックできない個体を
     // 「ブロックできる」と誤判定し、防御側がブロックもライフ受けもできない詰みになる（part65 §C）。
     // 強制ブロック（mustBlockGrant）と同じ「可能ならば」の解釈に揃えてある
     if (
         attacker &&
-        spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
+        spiritHasLabeledKeyword(state, state.turnPlayer, attacker, "clash") &&
         hasLegalBlocker(state, pid, undefined, { pid: state.turnPlayer, inst: attacker })
     ) {
+        if (hasKeyword(attacker.cardId, "clash")) {
+            const clashEntry = getCard(attacker.cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "clash")
+            if (clashEntry) noteCoverage(clashEntry, "keyword")
+        }
         return "【激突】によりブロックしなければなりません"
     }
+    if (forcedBlockers(state, pid).length > 0) return "相手の効果により、指定されたスピリットでブロックしなければなりません"
     // 強制ブロック（燃えさかる戦場Lv2＝ターン最初のアタック／BS04翼持つ者の空域Lv2＝翼竜・空牙のアタック／
     // BS05ワーニングアタック＝BP3000以下限定）。ブロック宣言が実際に通るスピリットがいるときのみ強制する（「可能ならば」）
     const mustBlock = attacker && hasMustBlockAgainst(state, state.turnPlayer, attacker)

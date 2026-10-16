@@ -19,7 +19,7 @@ import {
     spiritHasKeyword,
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { instanceSymbolCount } from "../../shared/rules"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {

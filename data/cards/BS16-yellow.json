@@ -160,10 +160,10 @@
     "byOpponentSpiritEffectOnly": true,
     "minEventCount": 10,
     "action": {
-     "type": "toDeck",
+     "type": "moveCards",
      "from": "trash",
-     "position": "top",
      "count": 5,
+     "dest": "deckTop",
      "upTo": true,
      "fromEvent": true
     }
@@ -349,7 +349,13 @@
     "phase": "attack",
     "turn": "own",
     "action": {
-     "type": "recoverMagicFromTrash"
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "magic"
+     }
     }
    },
    {
@@ -476,17 +482,32 @@
     ],
     "optional": false,
     "action": {
-     "type": "reveal",
-     "from": "ownDeck",
-     "count": 6,
-     "pick": {
-      "cardType": "spirit",
-      "family": "四道"
-     },
-     "pickCount": 2,
-     "dest": "summon",
-     "noSummonEffects": true,
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "from": "ownDeck",
+       "count": 6
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 2,
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": "四道"
+       },
+       "noSummonEffects": true
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -568,6 +589,29 @@
       "to": "life",
       "count": 0,
       "fillTo": 5
+     }
+    }
+   },
+   {
+    "id": "BS16-045-e2",
+    "kind": "effectGrant",
+    "levels": [
+     3
+    ],
+    "target": "ownAll",
+    "nameIncludes": "オリンピア",
+    "granted": {
+     "trigger": "onBattleStart",
+     "action": {
+      "type": "timedEffect",
+      "all": true,
+      "content": [
+       {
+        "type": "level",
+        "set": 1
+       }
+      ],
+      "duration": "battle"
      }
     }
    }
@@ -679,10 +723,14 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "spirit",
-      "colorFilter": "yellow"
+      "pick": {
+       "cardType": "spirit",
+       "color": "yellow"
+      }
      },
      "then": {
       "type": "draw",
@@ -750,10 +798,16 @@
     "fromHandOnly": true,
     "optional": false,
     "action": {
-     "type": "recoverMagicFromTrash",
-     "colors": [
-      "yellow"
-     ]
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "magic",
+      "color": [
+       "yellow"
+      ]
+     }
     }
    },
    {
@@ -955,6 +1009,7 @@
     "byOpponentOnly": true,
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "colorFilter": "yellow",
      "nameExcludes": "アルカナマスター・オズ",
      "count": 3,

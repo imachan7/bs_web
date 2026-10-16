@@ -139,13 +139,28 @@
      1,
      2
     ],
-    "cost": {
-     "discardHandOne": true,
-     "exhaustSelf": true
-    },
     "action": {
-     "type": "destroyNexus",
-     "count": 1
+     "type": "pay",
+     "cost": {
+      "type": "sequence",
+      "actions": [
+       {
+        "type": "moveCards",
+        "from": "hand",
+        "dest": "trash",
+        "count": 1
+       },
+       {
+        "type": "exhaust",
+        "target": "self",
+        "count": 1
+       }
+      ]
+     },
+     "then": {
+      "type": "destroyNexus",
+      "count": 1
+     }
     }
    }
   ]
@@ -207,8 +222,7 @@
        }
       },
       {
-       "type": "summonBurstCardFree",
-       "payCost": true
+       "type": "summonBurstCardFree"
       }
      ]
     }
@@ -429,7 +443,9 @@
       {
        "type": "pay",
        "cost": {
-        "type": "discardSelfChoose",
+        "type": "moveCards",
+        "from": "hand",
+        "dest": "trash",
         "count": 1
        },
        "then": {
@@ -580,15 +596,30 @@
     ],
     "optional": true,
     "action": {
-     "type": "reveal",
-     "count": 2,
-     "pick": {
-      "cardType": "spirit",
-      "keyword": "clash"
-     },
-     "pickCount": "all",
-     "dest": "summon",
-     "rest": "trash"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 2
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "keyword": "clash"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
     }
    },
    {
@@ -896,7 +927,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {
@@ -1102,8 +1135,7 @@
      "ownHandAtLeast": 5
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -1116,28 +1148,46 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "keywordFilter": "fushi"
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "fushi"
+     },
+     "count": 1
     }
    },
    {
     "id": "BS15-017-e3",
-    "kind": "activated",
-    "timing": "flash",
+    "kind": "step",
+    "step": "end",
+    "turn": "opponent",
     "levels": [
      2
     ],
-    "phaseTurn": {
-     "phase": "end",
-     "turn": "opponent"
-    },
-    "cost": {
-     "discardHandKeyword": "fushi"
-    },
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1,
-     "colorFilter": "purple"
+     "type": "pay",
+     "cost": {
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
+      "count": 1,
+      "pick": {
+       "cardType": "spirit",
+       "keyword": "fushi"
+      }
+     },
+     "then": {
+      "type": "moveCards",
+      "from": "trash",
+      "count": 1,
+      "dest": "hand",
+      "pick": {
+       "cardType": "spirit",
+       "color": "purple"
+      }
+     }
     }
    }
   ]
@@ -1189,11 +1239,17 @@
      2
     ],
     "action": {
-     "type": "summonFromTrashFree",
-     "costFilter": {
-      "max": 4
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "color": "purple",
+      "cost": {
+       "max": 4
+      }
      },
-     "colorFilter": "purple",
+     "count": 1,
      "countCounter": "opponentFieldColors"
     }
    },
@@ -1298,6 +1354,7 @@
     "id": "BS15-020-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1515,6 +1572,7 @@
     "id": "BS15-023-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1536,15 +1594,22 @@
     "levels": [
      2
     ],
-    "cost": {
-     "selfCoresToTrash": 1
-    },
     "action": {
-     "type": "refreshOne",
-     "filter": {
-      "keywords": [
-       "bofu"
-      ]
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshOne",
+      "filter": {
+       "keywords": [
+        "bofu"
+       ]
+      }
      }
     }
    }
@@ -1600,6 +1665,7 @@
     "id": "BS15-024-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1756,8 +1822,7 @@
      "bothFieldsRestedSpiritsAtLeast": 3
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -1936,6 +2001,7 @@
     "id": "BS15-028-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2191,18 +2257,25 @@
      1,
      2
     ],
-    "cost": {
-     "reserveToTrash": 1
-    },
     "action": {
-     "type": "timedEffect",
-     "content": [
-      {
-       "type": "mustAttack"
-      }
-     ],
-     "duration": "turn",
-     "count": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": ["reserve"],
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "mustAttack"
+       }
+      ],
+      "duration": "turn",
+      "count": 1
+     }
     }
    },
    {
@@ -2269,6 +2342,7 @@
     "id": "BS15-033-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2291,6 +2365,7 @@
     "id": "BS15-033-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -2352,8 +2427,7 @@
     "byOpponentEffectOnly": true,
     "destroyedMinBp": 5000,
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -2374,6 +2448,7 @@
     "id": "BS15-034-e3",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      2,
      3
@@ -2774,7 +2849,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {
@@ -2985,8 +3062,7 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -3069,11 +3145,17 @@
       "side": "own"
      },
      "then": {
-      "type": "recoverMagicFromTrash",
-      "colors": [
-       "yellow"
-      ],
-      "hasBurst": true
+      "type": "moveCards",
+      "from": "trash",
+      "count": 1,
+      "dest": "hand",
+      "pick": {
+       "cardType": "magic",
+       "color": [
+        "yellow"
+       ],
+       "hasBurst": true
+      }
      }
     }
    },
@@ -3195,11 +3277,15 @@
      3
     ],
     "action": {
-     "type": "recoverMagicFromTrash",
-     "anyCardType": true,
-     "colors": [
-      "yellow"
-     ]
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "color": [
+       "yellow"
+      ]
+     }
     }
    }
   ]
@@ -3328,11 +3414,18 @@
      1,
      2
     ],
-    "cost": {
-     "selfCoresToTrash": 1
-    },
     "action": {
-     "type": "lendSelfThisTurn"
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "lendSelfThisTurn"
+     }
     }
    },
    {
@@ -3568,15 +3661,10 @@
     "levels": [
      2
     ],
-    "cost": {
-     "selfCoresToTrash": 1
-    },
     "action": {
-     "type": "destroy",
-     "count": 1,
-     "filter": {
-      "hasUnblockableEffectOrActive": true
-     }
+     "type": "pay",
+     "cost": {"type": "removeCores", "side": "own", "target": "self", "to": "trash", "count": 1},
+     "then": {"type": "destroy", "count": 1, "filter": {"hasUnblockableEffectOrActive": true}}
     }
    }
   ]
@@ -3723,8 +3811,7 @@
      ]
     },
     "action": {
-     "type": "summonBurstCardFree",
-     "payCost": true
+     "type": "summonBurstCardFree"
     }
    },
    {
@@ -4454,7 +4541,9 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1
      },
      "then": {
@@ -4666,9 +4755,18 @@
     "selfMode": "source",
     "attackerAsTarget": true,
     "action": {
-     "type": "refreshOne",
-     "eventTargetOnly": true,
-     "costSelfCoresToTrash": 1
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "target": "self",
+      "to": "trash",
+      "count": 1
+     },
+     "then": {
+      "type": "refreshOne",
+      "eventTargetOnly": true
+     }
     }
    }
   ]
@@ -5017,10 +5115,16 @@
     "byOpponentEffectOnly": true,
     "destroyedAsTarget": true,
     "action": {
-     "type": "summonFromTrashFree",
-     "familyFilter": "覇皇",
-     "onlyBurstDestroyedCard": true,
-     "skipOnSummon": true
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "family": "覇皇"
+     },
+     "count": 1,
+     "skipOnSummon": true,
+     "onlyEventCard": true
     },
     "thenPay": "flash"
    },
@@ -5078,13 +5182,24 @@
        "count": 2
       },
       {
-       "type": "reveal",
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
        "count": 1,
+       "dest": "hand",
        "pick": {
         "cardType": "spirit",
         "color": "red"
-       },
-       "rest": "deckTop"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
       }
      ]
     }
@@ -5185,15 +5300,20 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardSelfChoose",
-       "count": "any"
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
+       "count": "all",
+       "upTo": true
       },
       {
        "type": "removeCores",
        "from": [
         "spirit"
        ],
-       "to": "trash", "count": 1, "countCounter": "lastMoved"
+       "to": "trash",
+       "count": 1,
+       "countCounter": "lastMoved"
       }
      ]
     }
@@ -5444,8 +5564,22 @@
     "action": {
      "type": "sequence",
      "actions": [
-      {"type": "toDeck", "from": "trash", "position": "top", "count": 1, "pick": {"cardType": "magic"}},
-      {"type": "toDeck", "from": "trash", "position": "bottom", "count": 10, "upTo": true}
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 1,
+       "dest": "deckTop",
+       "pick": {
+        "cardType": "magic"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 10,
+       "dest": "deckBottom",
+       "upTo": true
+      }
      ]
     },
     "thenPay": "flash"
@@ -5807,6 +5941,7 @@
     "id": "BS15-X03-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -6000,8 +6135,7 @@
        "orReserve": true
       },
       {
-       "type": "summonBurstCardFree",
-       "payCost": true
+       "type": "summonBurstCardFree"
       }
      ]
     }

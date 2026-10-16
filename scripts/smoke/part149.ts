@@ -232,8 +232,9 @@ console.log("=== BS08ボクルガー：triggered.condition{opponentHandAtLeast}�
 
 console.log("=== BS08海底に眠りし古代都市Lv2：kind symbolFix（シンボル数の固定はコスト軽減にも効く） ===")
 {
-    const city = findByEffect((e) => e["kind"] === "symbolFix")
-    const entry = entryOf(city, (e) => e["kind"] === "symbolFix")
+    // 系統で絞る symbolFix（超時空重力炉の「このネクサス自身」の symbolFix と区別する）
+    const city = findByEffect((e) => e["kind"] === "symbolFix" && e["familyFilter"] !== undefined)
+    const entry = entryOf(city, (e) => e["kind"] === "symbolFix" && e["familyFilter"] !== undefined)
     const family = String(entry["familyFilter"])
     const fixed = Number(entry["count"])
     const activeLevel = (entry["levels"] as number[])[0]!
@@ -367,14 +368,13 @@ console.log("=== BS08神造巨兵オリハルコン・ゴレム：funsaiBonus.am
 
 console.log("=== BS08古将ドグウ・ゴレム：deckReveal.countPer{ownNexuses}（自分のネクサス数ぶんオープン） ===")
 {
-    const dogu = findByEffect(
-        (e) => (actionOf(e)?.["countPer"] as Record<string, unknown> | undefined)?.["ownNexuses"] === true,
-    )
-    const entry = entryOf(
-        dogu,
-        (e) => (actionOf(e)?.["countPer"] as Record<string, unknown> | undefined)?.["ownNexuses"] === true,
-    )
-    const families = (actionOf(entry)["pick"] as Record<string, unknown>)["family"] as string[]
+    // reveal は sequence [revealOpen（countPer はここ）, moveCards from:"revealed"（pick はここ）, 残り] に分かれた
+    type Step = { type?: string; countPer?: { ownNexuses?: boolean }; pick?: { family?: string[] } }
+    const stepsOf = (e: Record<string, unknown>): Step[] => ((actionOf(e) as { actions?: Step[] } | undefined)?.actions ?? [])
+    const isDogu = (e: Record<string, unknown>) => stepsOf(e).some((a) => a.type === "revealOpen" && a.countPer?.ownNexuses === true)
+    const dogu = findByEffect(isDogu)
+    const entry = entryOf(dogu, isDogu)
+    const families = stepsOf(entry).find((a) => a.type === "moveCards" && a.pick !== undefined)!.pick!.family!
     const pick = CARDS.find(
         (c) => c.type === "spirit" && families.some((f) => (c.family ?? []).includes(f)),
     )!

@@ -9,6 +9,7 @@ import { act, assert, createGame, createInstance, effectiveBp, getCard, resolveA
 import { countSymbols } from "../../shared/rules"
 import { ownFieldSymbolColors } from "../../shared/cost"
 import { refreshLevelAsOverrides } from "../../server/src/logic/EffectModules"
+import type { EffectAction } from "../../server/src/type"
 
 const CASTLE = "BS04-X16" // 機動要塞キャッスル・ゴレム（青／シンボル青1／Lv2は6コア）
 const BLUE_NEXUS = "BS03-113" // 力奪う凱旋門（青／シンボル青1）
@@ -147,7 +148,7 @@ console.log("=== ownFieldSymbolColors：シンボルの色の種類数も同じ�
     assert(ownFieldSymbolColors(s, "p1").size === 3, "ネクサスのシンボルの色も数える")
 }
 
-console.log("=== selfBuffByExhaustFamily：発生源自身も疲労させる対象に含む ===")
+console.log("=== pay（疲労コスト）：発生源自身も疲労させる対象に含む ===")
 {
     // BS06-X24 鎧神機ヴァルハランス（系統：武装・戦騎）：
     // 「系統：「武装」を持つ自分のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する」
@@ -159,7 +160,9 @@ console.log("=== selfBuffByExhaustFamily：発生源自身も疲労させる対�
     const bpBefore = effectiveBp(s, "p1", valhalans)
     assert(!valhalans.isRested, "まだ回復状態（アタック宣言前）")
 
-    resolveAction(s, "p1", valhalans, { type: "selfBuffByExhaustFamily", familyFilter: "武装" })
+    const paid = (getCard("BS06-X24").effects.find((e) => e.id === "BS06-X24-e2") as { action: EffectAction }).action
+    assert(paid.type === "pay", "BS06-X24-e2はpayで書かれている")
+    resolveAction(s, "p1", valhalans, paid)
     assert(valhalans.isRested, "自分自身を疲労させた")
     assert(
         effectiveBp(s, "p1", valhalans) === bpBefore * 2,

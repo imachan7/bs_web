@@ -8,9 +8,9 @@ const ROOTS = ["server/src", "shared", "public/src"]
 const MAX_LINES = 2000
 const MAX_TYPE_KB = 120
 
-// 2026-09-26 時点で基準を超えていたもの（行数、型ファイルは KB）。分割して基準を下回ったら、ここから消す
+// 基準を超えていたもの（行数、型ファイルは KB）。分割して基準を下回ったら、ここから消す。
+// type.ts 以外は 2026-10-15 に bs_web_standard から持ち込んだ時点の値（持ち込み元で既に超えていた）
 const BASELINE: Record<string, number> = {
-    "server/src/type.ts": 211,
 }
 
 function walk(dir: string): string[] {
@@ -23,8 +23,10 @@ function walk(dir: string): string[] {
 const isTypeFile = (p: string): boolean => p === "server/src/type.ts" || p.startsWith("server/src/types/")
 const errors: string[] = []
 const shrunk: string[] = []
+const noConcept: string[] = []
 for (const p of ROOTS.flatMap(walk)) {
     const text = readFileSync(p, "utf8")
+    if (!text.startsWith("//")) noConcept.push(p)
     const size = isTypeFile(p) ? Math.round(Buffer.byteLength(text) / 1024) : text.split("\n").length - (text.endsWith("\n") ? 1 : 0)
     const unit = isTypeFile(p) ? "KB" : "行"
     const limit = isTypeFile(p) ? MAX_TYPE_KB : MAX_LINES
@@ -42,6 +44,8 @@ for (const p of Object.keys(BASELINE)) {
 }
 
 if (shrunk.length > 0) console.log(shrunk.join("\n"))
+// 1行目はそのファイルの概念を述べるコメント（「【転召】の処理はどこか」をファイルを開かずに分かるようにする。設計の2原則の2）
+if (noConcept.length > 0) errors.push(`1行目が // のコメントでないファイル（概念を述べる1行を足すこと）:\n  ${noConcept.join("\n  ")}`)
 if (errors.length > 0) {
     console.error(errors.join("\n"))
     process.exit(1)

@@ -672,8 +672,13 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     },
     "optional": false
    }
@@ -3269,11 +3274,29 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "count": 5,
-     "pick": {
-      "cardType": "nexus"
-     }
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 5
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "nexus"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
+      }
+     ]
     },
     "optional": false
    }
@@ -3713,6 +3736,7 @@
     "id": "BS01-077-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -3822,6 +3846,7 @@
     "id": "BS01-081-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -4311,6 +4336,7 @@
     "id": "BS01-093-e1",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -4496,6 +4522,7 @@
     "id": "BS01-097-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -5534,8 +5561,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     }
    }
   ]
@@ -6050,7 +6082,9 @@
        "count": 3
       },
       {
-       "type": "discardSelfChoose",
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
        "count": 2
       }
      ]

@@ -1,7 +1,8 @@
+// 手元（tegamoto）のマジックを使うアクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log } from "../GameState"
 import { requestCardChoice, requestChoice, resolveMagic } from "../EffectModules"
-import { recordMoved } from "../record"
+import { recordMagicUsed, recordMoved } from "../record"
 import { matchesPick } from "./revealAction"
 
 // BS11-X05 魔導双神ジェミナイズLv2-3：自分の手札/手元(tegamoto)にあるマジックカード1枚を選び、
@@ -13,7 +14,12 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
     if (!self) return
     const player = state.players[owner]
     const matchesFilter = (id: string): boolean =>
-        getCard(id).type === "magic" && (action.colorFilter === undefined || getCard(id).colors.includes(action.colorFilter))
+        getCard(id).type === "magic" &&
+        (action.colorFilter === undefined || getCard(id).colors.includes(action.colorFilter)) &&
+        (action.familyFilter === undefined ||
+            (Array.isArray(action.familyFilter)
+                ? action.familyFilter.some((f) => getCard(id).family.includes(f))
+                : getCard(id).family.includes(action.familyFilter)))
     const handCandidates = player.hand
         .map((id, i) => ({ id, i, zone: "hand" as const }))
         .filter(({ id }) => matchesFilter(id))
@@ -47,12 +53,15 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
             state,
             `${player.name}は${sourceName}の効果で、${zone === "hand" ? "手札" : "手元"}の${cardData.name}をコストを支払わずに使用した。`,
         )
-        state.magicUsedThisTurn[owner] = (state.magicUsedThisTurn[owner] ?? 0) + 1
+        recordMagicUsed(state, owner, cardId)
         const hasMain = cardData.effects.some((e) => e.kind === "magic" && e.timing === "main")
         const timing: "main" | "flash" = state.battle ? "flash" : hasMain ? "main" : "flash"
         const beforeLastMagicCast = state.lastMagicCast
-        // paidCost=false：BS11-X05自身のpaidCostOnlyから連鎖しない
-        resolveMagic(state, owner, cardId, timing, undefined, false)
+        // paidCost=false：BS11-X05自身のpaidCostOnlyから連鎖しない。
+        // usedVia="majutsu"：発生源が【魔述】の起動効果を持つ場合だけ（26系「【魔述】でこのカードを使用していたなら」）。
+        // 同じアクションをBS11-X05も使うため、魔述持ちか静的に判定してから渡す
+        const viaMajutsu = getCard(self.cardId).effects.some((e) => e.kind === "activated" && e.keyword === "majutsu")
+        resolveMagic(state, owner, cardId, timing, undefined, false, viaMajutsu ? "majutsu" : undefined)
         if (state.lastMagicCast === beforeLastMagicCast) {
             state.lastMagicCast = { pid: owner, cardId, timing }
         }

@@ -1,7 +1,12 @@
-import type { CardData, GameState, PlayerId, EffectAction, PaySource, PendingChoice, EffectDef } from "../../type"
+// マジックの使用（コスト支払いから解決まで）
+import type { CardData, Color, GameState, PlayerId, EffectAction, PaySource, PendingChoice, EffectDef } from "../../type"
 import { getCard, opponentOf, suspend, findInstanceAnywhere, log } from "../GameState"
-import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost } from "../../../../shared/cost"
+import { findMagicFreeGrantSource, hasMagicRestriction, effectiveCost, exSymbolsOfTrashCard } from "../../../../shared/cost"
+import { moveSoulCore, normalReserveOf, wouldDepleteOf } from "../soulCore"
+import { recordMagicUsed } from "../record"
 import { emitEvent, payCost, resolveAction } from "../EffectModules"
+import { destroySpirit } from "../removal"
+import { markPayConfirmed } from "../actions/pay"
 import { isRedirectOptional, askBothSidesRedirect, findMagicRedirectSourceForCard } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
@@ -11,6 +16,20 @@ import { passFlashPriority, MAGIC_FREE_OPTIONS, COUNT_IS_BODIES } from "../GameE
 
 export function resolveMagic(
     state: GameState,
+    ...rest: Parameters<typeof resolveMagicInner> extends [GameState, ...infer R] ? R : never
+): void {
+    const prev = state.flashEffect
+    if (rest[2] === "flash") state.flashEffect = true
+    try {
+        resolveMagicInner(state, ...rest)
+    } finally {
+        if (prev) state.flashEffect = true
+        else delete state.flashEffect
+    }
+}
+
+function resolveMagicInner(
+    state: GameState,
     owner: PlayerId,
     cardId: string,
     timing: "main" | "flash",
@@ -18,7 +37,13 @@ export function resolveMagic(
     // 「コストを支払って」使用されたか（BS11-X05 魔導双神ジェミナイズ用。既定はtrue＝通常の使用手続き。
     // 軽減で実質0コストでも支払った扱い。「コストを支払わずに使用」の経路だけがfalseを渡す）
     paidCost = true,
+    // 使用経路（26系。【魔述】による無償使用は"majutsu"。action "if" の magicUsedVia 条件が読む。
+    // 通常の使用はundefinedを渡し、前の使用の記録を上書きして消す）
+    usedVia?: string,
 ): void {
+    // 解決中のマジック効果（action "if" の magicUsedVia）から読めるように、いまの使用経路を記録する
+    if (usedVia !== undefined) state.magicUsedVia = usedVia
+    else delete state.magicUsedVia
     // 【光芒】用: バトル中の使用ならアタッカー側の usedMagicCardIds に記録する
     // （バトル終了時にこの中からトラッシュ→手札へ戻す）
     if (state.battle) {
@@ -157,9 +182,8 @@ export function usableMagicTarget(
     if (action.filter === undefined) return targetInstanceId
     const found = findInstanceAnywhere(state, targetInstanceId)
     if (!found) return targetInstanceId // 見つからない対象は validateCastMagic 側の判定に任せる
-    const ownerPid = state.players.p1.field.spirits.some((sp) => sp.instanceId === targetInstanceId)
-        ? "p1"
-        : "p2"
+    const p1 = state.players.p1.field
+    const ownerPid = [...p1.spirits, ...p1.nexuses, ...p1.combinedBraves].includes(found) ? "p1" : "p2"
     // filter は self 相対の軸（"selfBp" 等）を持たない前提（マジックには発生源スピリットがいない）。
     // 判定できない軸が来た場合も matchesTarget が false を返すので、捨てる側に倒れる
     return matchesTarget(state, ownerPid, found, action.filter as never) ? targetInstanceId : undefined
@@ -175,8 +199,14 @@ export function doCastMagic(
     // undefined＝まだ聞いていない / true＝無償で使う / false＝あえてコストを払う。
     // 確認から戻ってきたときだけ true/false が入る
     freeChoice?: boolean,
+    // 《継召》(kind:"exTrashReduction")：除外して使用コストを軽減するトラッシュ内インデックス（summonと同じ仕様）
+    exReductionTrashIndices?: number[],
+    // リザーブの[ソウルコア]を使用コスト支払い1個ぶんとして使う（トラッシュへ）
+    paySoulCoreFromReserve?: boolean,
+    // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」で使用する（コスト全額を[ソウルコア]1個で支払う）
+    useSoulCoreOnly?: boolean,
 ): string | null {
-    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto)
+    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto, exReductionTrashIndices, paySoulCoreFromReserve, useSoulCoreOnly)
     if (error) return error
 
     const player = state.players[pid]
@@ -184,15 +214,21 @@ export function doCastMagic(
     if (cardId === undefined) return fromTegamoto ? "手元にカードがありません" : "手札にカードがありません"
     const card = getCard(cardId)
 
+    // 《継召》：除外するトラッシュカードのシンボル列（除外の実移動は payCost の直前。validate済み）
+    let exReductionSymbols: Color[] = []
+    if (exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0) {
+        exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
+    }
+
     // マジック無償化（kind:"magicFreeGrant"）の使用時確認（2026-08-15 ユーザー確認）。
     // 無償化を持つカードすべてで毎回聞く。**あえてコストを払う**道を残すのは、
     // 無償化の枠が1枚きりのカード（大天使イスフィール）で枠を温存できるようにするため。
     // **払える見込みがあるときだけ**聞く（払えないなら無償で使う以外に道がなく、聞いても意味がない）。
     // 見込みはリザーブだけで見る簡略化（フィールドのコアで払う場合は確認が出ないが、
     // その場合も無償で使えることに変わりはないので不利益にならない）
-    const paidCost = effectiveCost(state, pid, card, true)
-    const isFree = paidCost > 0 && effectiveCost(state, pid, card) === 0
-    if (freeChoice === undefined && state.interactiveTargets && isFree && player.reserve >= paidCost) {
+    const paidCost = effectiveCost(state, pid, card, true, exReductionSymbols)
+    const isFree = paidCost > 0 && effectiveCost(state, pid, card, false, exReductionSymbols) === 0
+    if (freeChoice === undefined && !useSoulCoreOnly && state.interactiveTargets && isFree && player.reserve >= paidCost) {
         suspend(state, {
             pid,
             kind: "option",
@@ -205,6 +241,12 @@ export function doCastMagic(
                 ...(targetInstanceId !== undefined ? { targetInstanceId } : {}),
                 ...(paySources !== undefined ? { paySources } : {}),
                 ...(fromTegamoto !== undefined ? { fromTegamoto } : {}),
+                ...(exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0
+                    ? { exReductionTrashIndices }
+                    : {}),
+                ...(paySoulCoreFromReserve !== undefined && paySoulCoreFromReserve
+                    ? { paySoulCoreFromReserve }
+                    : {}),
             },
             action: { type: "noop" },
             selfInstanceId: null,
@@ -214,10 +256,52 @@ export function doCastMagic(
     // あえて払うことを選んだ場合だけ無償化を無視する。
     // resolveMagic は magicFreeDeclined を見て oncePerBattle の枠を消費しない
     const declinedFree = isFree && freeChoice === false
-    const cost = effectiveCost(state, pid, card, declinedFree)
     if (declinedFree) state.magicFreeDeclined = true
+    // 召喚（doSummon）と共通の記録。使用のたびにリセットする
+    delete state.summonPaidWithSoulCore
+    if (useSoulCoreOnly || paySoulCoreFromReserve === true || paySources?.some((src) => src.includeSoulCore === true)) state.summonPaidWithSoulCore = true
+    if (useSoulCoreOnly) {
+        // [ソウルコア]だけで使用: コスト全額を[ソウルコア]1個で支払う（validate済み＝該当色シンボル＋[ソウルコア]の存在）。
+        // 案B-inside: moveSoulCore がリザーブ・個体のどちらからでも数値ごとトラッシュへ動かす。
+        // 個体から払って維持コア（Lv1）を割ったら消滅させる（2026-10-06 ユーザー確認: 所在不問で使用可）
+        const soulFrom = player.soulCore
+        const carrier = soulFrom !== null && soulFrom.zone === "instance"
+            ? player.field.spirits.find((s) => s.instanceId === soulFrom.instanceId) ?? player.field.nexuses.find((n) => n.instanceId === soulFrom.instanceId)
+            : undefined
+        moveSoulCore(player, { zone: "trash" }, carrier)
+        const whereNote = carrier !== undefined ? `${getCard(carrier.cardId).name}の` : "リザーブの"
+        log(state, `${player.name}は${whereNote}[ソウルコア]だけで${card.name}を使用した。`)
+        if (carrier !== undefined && wouldDepleteOf(player, carrier)) {
+            log(state, `${player.name}の${getCard(carrier.cardId).name}は維持コアを下回ったため消滅した。`)
+            destroySpirit(state, pid, carrier.instanceId, "deplete")
+        }
+        // 無償化の枠は消費しない（[ソウルコア]で払ったため。「あえて払う」のと同じ扱い）
+        state.magicFreeDeclined = true
+    }
 
-    payCost(state, pid, cost, paySources)
+    // 《継召》：指定されたトラッシュのEXシンボル持ちカードを除外し、そのシンボル列で使用コストを軽減する
+    // （検証は validateCastMagic 済み＝候補・重複チェック込み）
+    // 条件{keishoUsedForSummon}が直近の使用の《継召》だけを見るよう、毎回の使用で上書きする
+    state.keishoExcludedCardIds = []
+    if (exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0) {
+        const excluded: string[] = []
+        for (const idx of [...exReductionTrashIndices].sort((a, b) => b - a)) {
+            const [id] = player.trashCards.splice(idx, 1)
+            if (id !== undefined) excluded.unshift(id)
+        }
+        player.excludedCards.push(...excluded)
+        state.keishoExcludedCardIds = excluded
+        log(
+            state,
+            `${player.name}はトラッシュのEXシンボル${excluded.length}枚を除外し、《継召》でマジックのコストを軽減した。`,
+        )
+    }
+    // [ソウルコア]だけで使用するときは通常の支払い（payCost）を行わない。通常コアの消費は0
+    const cost = useSoulCoreOnly ? 0 : effectiveCost(state, pid, card, declinedFree, exReductionSymbols)
+
+    if (!useSoulCoreOnly) {
+        payCost(state, pid, cost, paySources, 0, paySoulCoreFromReserve)
+    }
     if (fromTegamoto) {
         player.tegamoto.splice(handIndex, 1)
         // 手元の使用権（BS06混迷する魔法実験場Lv2）も1件ぶん消費する。
@@ -230,7 +314,12 @@ export function doCastMagic(
     player.trashCards.push(cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
     // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
-    state.magicUsedThisTurn[pid] = (state.magicUsedThisTurn[pid] ?? 0) + 1
+    recordMagicUsed(state, pid, cardId)
+    const usedTiming = state.battle || !card.effects.some((e) => e.kind === "magic" && e.timing === "main") ? "flash" : "main"
+    if (card.effects.some((e) => e.kind === "magic" && e.timing === usedTiming && e.oncePerTurnByName)) {
+        const used = ((state.magicEffectsUsedByName ??= {})[pid] ??= [])
+        used.push(`${card.name}|${usedTiming}`)
+    }
 
     // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
     // マジックミラー用：このフラッシュタイミングで直前に使用したマジックとして記録する
@@ -320,13 +409,14 @@ export function applyProvocationUse(state: GameState, entry: NonNullable<Pending
     if (handIndex === -1) return
     const card = getCard(entry.cardId)
     const cost = effectiveCost(state, entry.pid, card)
-    if (player.reserve < cost) return
+    if (normalReserveOf(player) < cost) return // 案B-inside: [ソウルコア]は通常コアの支払いに使わない
     player.reserve -= cost
+    player.trashCores += cost
     player.hand.splice(handIndex, 1)
     player.trashCards.push(entry.cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
     const effect = card.effects.find(
         (e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === "flash" && e.usableAtOpponentMainEnd === true,
     )
-    if (effect) resolveAction(state, entry.pid, null, effect.action)
+    if (effect) resolveAction(state, entry.pid, null, markPayConfirmed(effect.action))
 }

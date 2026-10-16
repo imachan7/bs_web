@@ -12,7 +12,8 @@
 //      → 両方を持つ X004 龍星神ジーク・メテオヴルムだと2枚引いてしまっていた
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
-import { fireBattleWonTriggers, fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireBattleWonTriggers } from "../../server/src/logic/stepTriggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { resolveAction } from "../../server/src/logic/EffectModules"
 
 const TUNING_TOWER = "BS08-061" // 共鳴する音叉の塔

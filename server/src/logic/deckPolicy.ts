@@ -7,6 +7,7 @@
 //
 // ここに載っていないカードは、データが禁止・制限を持っていても通常どおり同名3枚まで入る。
 import type { CardData } from "../type"
+import { isTokenCard } from "../../../shared/cardDb"
 
 // 禁止カードとして実際に適用する cardId
 const BANNED_CARD_IDS = new Set<string>([
@@ -22,7 +23,8 @@ const RESTRICTED_LIMITS: Record<string, number> = {}
 // ALL_CARDS を組む時点で通すので、デッキ検証（validateDeckCards）も
 // クライアントへ配る GET /api/cards も同じ値を見る（＝UIの禁止マークもここで決まる）
 export function applyDeckPolicy(card: CardData): CardData {
-    const limited = BANNED_CARD_IDS.has(card.cardId)
+    // トークンはデッキに入れられない（禁止カードと同じ扱いで弾く）
+    const limited = BANNED_CARD_IDS.has(card.cardId) || isTokenCard(card.cardId)
     const limitCount = RESTRICTED_LIMITS[card.cardId]
     if (limited === card.limited && limitCount === card.limitCount) return card
     const applied: CardData = { ...card, limited }

@@ -1,4 +1,5 @@
 // GameState / PlayerState の状態生成・更新の土台
+import { noteInstance } from "../../../shared/coverage"
 import type {
     CardData,
     CardInstance,
@@ -13,22 +14,25 @@ import type {
     ResumeFrame,
 } from "../type"
 import {
-    DECK_RECIPES,
     DECK_MIN_SIZE,
     INITIAL_HAND,
     INITIAL_LIFE,
     INITIAL_RESERVE,
 } from "../../../data/constants"
 import { loadAllCards } from "../../../data/loadCards"
+import { DECK_RECIPES } from "../../../data/constants"
 // 注意（循環importについて）: EffectModules.ts は本ファイルの関数を多数importしているため、
 // ここで EffectModules.ts から import すると相互参照になる。ただし双方とも関数宣言のみで
 // トップレベルで呼び出し合うことはなく（呼び出しは対戦処理中＝両モジュールの読み込み完了後）、
 // CommonJS の循環require（関数宣言はホイストされ、モジュール読み込み完了時点で exports に
 // 反映されている）で安全に動作する。fireFieldEventTriggers（相手ドロー時の誘発）を draw() から
 // 呼ぶために必要
+import { revertAttackStepNexusAsSpirit } from "./PhaseManager"
 import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
 import { setCardLookup } from "../../../shared/cardDb"
+import { startCoverageIfRequested } from "./coverageRecorder"
 import { applyDeckPolicy } from "./deckPolicy"
+import { isOnceNameUsed, markOnceNameUsed } from "./oncePerTurn"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
 import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
@@ -44,6 +48,7 @@ export const ALL_CARDS: CardData[] = loadAllCards().map(applyDeckPolicy)
 export const CARD_DB: Map<string, CardData> = new Map(
     ALL_CARDS.map((c) => [c.cardId, c]),
 )
+startCoverageIfRequested(CARD_DB)
 
 export function getCard(cardId: string): CardData {
     const card = CARD_DB.get(cardId)
@@ -63,7 +68,11 @@ export function createInstance(
     cardId: string,
     turn: number,
     cores: number,
+    // この個体の召喚経路（CardInstance.summonedBy。"summon"=通常GameAction召喚／"fchange"=【Fチェンジ】／
+    // "freeEffect"=その他の効果による無償召喚。未指定=記録なし）
+    summonedBy?: string,
 ): CardInstance {
+    noteInstance(cardId)
     instanceSeq += 1
     return {
         instanceId: `inst-${String(instanceSeq).padStart(6, "0")}`,
@@ -71,6 +80,7 @@ export function createInstance(
         cores,
         isRested: false,
         summonedTurn: turn,
+        ...(summonedBy !== undefined ? { summonedBy } : {}),
         tempBpBuff: 0,
         immuneToOpponentThisTurn: false,
         blockConstraintNegatedThisTurn: false,
@@ -163,6 +173,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         deck,
         hand,
         trashCards: [],
+        excludedCards: [],
         tegamoto: [],
         tegamotoPlayable: [],
         field: { spirits: [], nexuses: [], combinedBraves: [] },
@@ -171,6 +182,9 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         burst: null,
         burstSet: false,
         burstSetThisTurn: false,
+        // 旧カードの対戦ではソウルコアを使わない（2026-10-15 ユーザー決定。場にあるだけで旧カードの裁定が変わるため。
+        // 有効にするなら INITIAL_RESERVE を通常コアだけの数にして { zone: "reserve" } を置く：案B-inside）
+        soulCore: null,
     }
 }
 
@@ -200,6 +214,7 @@ export function createGame(
         attacksThisTurn: 0,
         lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
+        lastBattleBlockerTrashCost: 0,
         lastBattleDestroyedLevel: 0,
         lastBattleDestroyedColors: [],
         lastBattleDestroyedFamilies: [],
@@ -244,7 +259,8 @@ export function suspend(state: GameState, choice: PendingChoice): void {
         src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined)
             ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}) } }
             : choice
-    state.pendingChoice = state.recordScope !== undefined && withSource.recordScope === undefined ? { ...withSource, recordScope: state.recordScope } : withSource
+    const withScope = state.recordScope !== undefined && withSource.recordScope === undefined ? { ...withSource, recordScope: state.recordScope } : withSource
+    state.pendingChoice = state.flashEffect && withScope.flashEffect === undefined ? { ...withScope, flashEffect: true } : withScope
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
     state.resumeInsertAt = 0
     if (DEBUG_CHECKS) suspendFingerprint = boardFingerprint(state)
@@ -312,6 +328,46 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
     for (const frame of frames) {
         state.resumeStack.splice(state.resumeInsertAt++, 0, frame)
     }
+}
+
+// トラッシュのカードを「手札に戻せる」（任意）。持ち主に確認する（非対話なら戻す）。
+// すでに別の選択待ちが立っているときは、その後に確認が来るよう再開スタックへ積む
+export function requestTrashReturn(state: GameState, pid: PlayerId, cardId: string, onceEffectId?: string): void {
+    const base = { type: "trashReturnToHandInternal", cardId, ...(onceEffectId !== undefined ? { onceEffectId } : {}) } as const
+    if (!state.interactiveTargets) {
+        returnTrashCardToHand(state, pid, cardId, onceEffectId)
+        return
+    }
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "action", selfInstanceId: null, action: { ...base, ask: true }, actorPid: pid }])
+        return
+    }
+    suspend(state, {
+        pid,
+        kind: "option",
+        prompt: `トラッシュの${getCard(cardId).name}を手札に戻しますか？`,
+        candidates: [],
+        options: ["戻す"],
+        optional: true,
+        confirm: true,
+        action: base,
+        selfInstanceId: null,
+    })
+}
+
+// 選択待ちをはさむ間にトラッシュから無くなっていたら何もしない
+export function returnTrashCardToHand(state: GameState, pid: PlayerId, cardId: string, onceEffectId?: string): void {
+    const player = state.players[pid]
+    const index = player.trashCards.indexOf(cardId)
+    if (index === -1) return
+    if (onceEffectId !== undefined) {
+        if (isOnceNameUsed(state, pid, cardId, onceEffectId)) return
+        markOnceNameUsed(state, pid, cardId, onceEffectId)
+    }
+    player.trashCards.splice(index, 1)
+    player.hand.push(cardId)
+    log(state, `${getCard(cardId).name}はトラッシュから手札に戻った。`)
+    notifyHandGained(state, pid, 1)
 }
 
 // 複数の効果／アクションを**順に解決する**共通形（docs/design/RESUME_STACK.md §9）。
@@ -437,6 +493,7 @@ export function clearBattle(state: GameState): void {
     state.timedEffects = state.timedEffects.filter(
         (r) => r.until !== "battle" && !(r.until === "attack" && r.target.kind === "instance" && r.target.instanceId === attackerId),
     )
+    revertAttackStepNexusAsSpirit(state, true)
     refreshLevelAsOverrides(state)
     // 「このバトルの間」の貸与（lendSelfThisBattle）はここで切れる。同じターンの2回目のバトルには持ち越さない
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -455,6 +512,8 @@ export function clearBattle(state: GameState): void {
     }
     // 【暴風】で疲労させた相手の記録はバトル単位（BS06颶風高原Lv2）。次のバトルへ持ち越さない
     state.bofuExhaustedThisBattle = []
+    // 〔バトル1回〕の発動済み記録も同じ寿命（activatedUsedBattle）
+    state.activatedUsedBattle = {}
     state.isFlashTiming = false
     state.flashCount = 0
     state.priorityPlayer = state.turnPlayer
@@ -530,7 +589,7 @@ export function rawLevel(inst: CardInstance): number {
 // 維持コア数。実体は共有層（shared/rules.ts）にある——クライアント側の召喚可否判定
 // （canBattleSwapSummon）が同じ値を必要とするため。ここからの re-export は、
 // サーバー側の既存 import（GameEngine / RuleValidator / battleFlow）をそのまま使い続けるためのもの
-export { instMinLevelCores, minLevelCores } from "../../../shared/rules"
+export { instMinLevelCores, minLevelCores, placedCoresForSummon } from "../../../shared/rules"
 
 // 召喚／配置でそのレベルにするために置くコア数。存在しないレベルを指定された場合は null を返す
 // （呼び出し側＝RuleValidator が「そのカードに無いレベル」として弾く）
@@ -572,10 +631,53 @@ export function findInstanceAnywhere(
     state: GameState,
     instanceId: string,
 ): CardInstance | undefined {
-    return (
-        findSpirit(state.players.p1, instanceId) ??
-        findSpirit(state.players.p2, instanceId)
-    )
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const f = state.players[pid].field
+        const hit =
+            f.spirits.find((x) => x.instanceId === instanceId) ??
+            f.nexuses.find((x) => x.instanceId === instanceId) ??
+            f.combinedBraves.find((x) => x.instanceId === instanceId)
+        if (hit) return hit
+    }
+    if (DEBUG_CHECKS) noteLostLookup(state, instanceId)
+    return undefined
+}
+
+// ── 見失いの検査（検査用。BS_DEBUG_CHECKS=1 のときだけ働く）──────────────
+// 選択待ちからの再開・順番選択では発生源を instanceId で引き直す。ここで見失うと発生源の色や持ち主が落ち、
+// 耐性判定が素通りする（2026-10-01 に竜騎集う円卓＋賢者の樹の実で【装甲：赤】が抜けた。当時はスピリットしか探しておらず、既存 smoke で14種のネクサスが23件見失っていた）。
+// field の配列は上の探索とは独立に**全部**なめる。field に新しい置き場を足して探索に足し忘れたら、ここで落ちる
+let lostLookups: string[] = []
+
+function noteLostLookup(state: GameState, instanceId: string): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const [zone, list] of Object.entries(state.players[pid].field)) {
+            if (!Array.isArray(list)) continue
+            const inst = (list as CardInstance[]).find((x) => x.instanceId === instanceId)
+            if (inst) lostLookups.push(`${pid}の field.${zone}「${getCard(inst.cardId).name}」を instanceId で引いたが見つからなかった`)
+        }
+    }
+}
+
+export function takeLostLookups(): string[] {
+    const found = lostLookups
+    lostLookups = []
+    return found
+}
+
+// 「手札を破棄して効果を受けない」の聞き漏れの検査（検査用。BS_DEBUG_CHECKS=1 のときだけ働く）。
+// 対話中は対象ごとに守る側へ聞いてから適用する規則（COST_MODEL.md §10）。答えが無いまま払いに来たら、
+// その経路が askPayToNegateIfNeeded を通していない。払わずに効果を受けさせ、ここへ記録して smoke を落とす
+let missedPayAsks: string[] = []
+
+export function noteMissedPayAsk(message: string): void {
+    if (DEBUG_CHECKS) missedPayAsks.push(message)
+}
+
+export function takeMissedPayAsks(): string[] {
+    const found = missedPayAsks
+    missedPayAsks = []
+    return found
 }
 
 // ---- クライアントへ送る公開ビュー ----
@@ -602,6 +704,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         hand: isSelf ? [...player.hand] : null,
         handCount: player.hand.length,
         trashCards: [...player.trashCards],
+        excludedCards: [...player.excludedCards],
         tegamoto: [...player.tegamoto],
         field: {
             spirits: player.field.spirits.map(forView),
@@ -613,7 +716,10 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         // バーストの内容は自分にだけ見せる（相手は常にnull＝伏せている）。セット済みか否かは公開情報
         burst: isSelf ? player.burst : null,
         burstSet: player.burstSet,
+        ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
         burstSetThisTurn: player.burstSetThisTurn,
+        // ソウルコアの居場所は公開情報（盤上で区別できる形で置かれる）
+        soulCore: player.soulCore,
         ...(isSelf && player.tempHandKeywordGrants
             ? { tempHandKeywordGrants: [...player.tempHandKeywordGrants] }
             : {}),
@@ -637,6 +743,7 @@ function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]
         candidates: [],
         ...(isCard ? { cardIndices: [] } : {}),
         ...(pc.selectedIds ? { selectedIds: [] } : {}),
+        ...(pc.selectedCardIndices ? { selectedCardIndices: [] } : {}),
         prompt: isCard ? "相手がカードを選択中…" : "相手が対象を選択中…",
     }
 }
@@ -659,8 +766,16 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         you: viewer,
         timedEffects: [...state.timedEffects],
         ...(state.extraMainStep ? { extraMainStep: true as const } : {}),
+        ...(state.secondMainStep ? { secondMainStep: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
+        attacksThisTurn: state.attacksThisTurn,
         magicUsedThisTurn: { ...state.magicUsedThisTurn },
+        ...(state.lifeLostThisTurn ? { lifeLostThisTurn: state.lifeLostThisTurn } : {}),
+        ...(state.spiritVanishedThisTurn ? { spiritVanishedThisTurn: state.spiritVanishedThisTurn } : {}),
+        ...(state.magicIdsUsedThisTurn ? { magicIdsUsedThisTurn: state.magicIdsUsedThisTurn } : {}),
+        ...(state.oppSpiritRemovedByEffectThisTurn ? { oppSpiritRemovedByEffectThisTurn: state.oppSpiritRemovedByEffectThisTurn } : {}),
+        ...(state.ownSpiritDestroyedByOwnEffectColors ? { ownSpiritDestroyedByOwnEffectColors: state.ownSpiritDestroyedByOwnEffectColors } : {}),
+        ...(state.selfSummonCostUsedNames ? { selfSummonCostUsedNames: state.selfSummonCostUsedNames } : {}),
         pendingChoice: state.pendingChoice
             ? viewer === state.pendingChoice.pid
                 ? { ...state.pendingChoice }

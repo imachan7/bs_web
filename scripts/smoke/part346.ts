@@ -14,8 +14,7 @@ import {
     getCard,
     refreshLevelAsOverrides,
     resolveAction,
-    runTurnStart,
-} from "./helpers"
+    runTurnStart, legacy } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { millDeck } from "../../server/src/logic/EffectModules"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
@@ -352,8 +351,8 @@ console.log("=== 082 神閃月下：バーストでトラッシュ整理、フ�
     resolveAction(s, "p1", null, {
         type: "sequence",
         actions: [
-            { type: "toDeck", from: "trash", position: "top", count: 1, pick: { cardType: "magic" } },
-            { type: "toDeck", from: "trash", position: "bottom", count: 10 },
+            legacy({ type: "toDeck", from: "trash", position: "top", count: 1, pick: { cardType: "magic" } }),
+            legacy({ type: "toDeck", from: "trash", position: "bottom", count: 10 }),
         ],
     })
     assert(s.players.p1.deck[0] === "BS15-081", "マジックがデッキの上に戻った")

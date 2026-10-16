@@ -5,6 +5,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/block.ts
 
 - `blockRequiredCount`（fn）：このアタッカーをブロックするのに必要なブロッカーの体数（blockRequiresCount）。
+- `blockPayCost`（fn）：このアタッカーをブロックするのに払うコスト（制約 blockPayCost の合計）。
+- `blockReserveToTrashCount`（fn）：このアタッカーをブロックするのにトラッシュへ置くリザーブのコアの数（制約 blockReserveToTrash の合計）
+- `blockExhaustSpiritRequired`（fn）：このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
 - `canBlock`（fn）
 - `matchesDirectedAttackFilter`（fn）：指定アタック（canDirectAttack）の対象条件に、指定された相手スピリットが合致するか。
 
@@ -19,6 +22,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `setCardLookup`（fn）：サーバーは GameState.getCard、クライアントは renderer.setCardDb 内の master を注入する
 - `card`（fn）
+- `isTokenCard`（fn）：トークンのカード（26RSD10-T001 等。「このカードはデッキに入れられない」）。場を離れるとトークン置き場へ戻り、どこのゾーンにも残らない
 
 ## shared/cost.ts
 
@@ -34,7 +38,21 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicEffectiveColors`（fn）：kind:"ownMagicColorless"（BS15-015吸血令嬢エサルフリーダ Lv1-3）：発生源自身が現在のバトルの当事者
 - `ownFieldSymbolColors`（fn）：pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
 - `costSetOverride`（fn）：コスト置換（kind:"costMod"のmode:"set"）を求める。pid自身のeffectSources（フィールド＋
-- `effectiveCost`（fn）：軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
+- `exTrashReductionCandidateIndices`（fn）：トラッシュのEXシンボル持ちカード（軽減に使える候補）のインデックス一覧。
+- `exSymbolsOfTrashCard`（fn）：除外するトラッシュのカードのEXシンボルの色。もともとEXなら全シンボル、指定で扱うだけなら指定した1つ
+- `selfSetCost`（fn）：「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
+- `effectiveCost`（fn）
+- `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
+
+## shared/coverage.ts
+
+- `setCoverageSink`（fn）
+- `noteCoverage`（fn）：effect は __eid が刻まれたカードデータの効果エントリ（undefined なら記録しない）。
+- `noteKeyword`（fn）：cardId の持つ【keyword】のエントリを記録する（level を渡すと、そのレベルで有効なエントリを選ぶ）
+- `noteAction`（fn）
+- `noteInstance`（fn）
+- `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
+- `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
 ## shared/magicCondition.ts
 
@@ -55,10 +73,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `coresCantBeRemovedByOpponent`（fn）：globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：
 - `canAwaken`（fn）
 - `activatableAbility`（fn）：起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
+- `braveCombineOntoSelfCandidates`（fn）：activatableAbility の実体。source＝効果を持つカード、host＝レベル/バトル判定に使うカード
+- `activatedActionResolvable`（fn）：起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
 - `DirectAttackFilter`（型）：指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
 - `directAttackFilter`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
 - `minLevelCores`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。
 - `minLevelCoresOf`（fn）：レベル表から最小レベルの必要コア数を求める素の計算（minLevelCores / instMinLevelCores の共通実体）
+- `placedCoresForSummon`（fn）：召喚/配置で置く維持コア数。サーバー（validateSummon/doSummon/validateSetNexus/doSetNexus）と
 - `isFlashLockedFor`（fn）：pid がいま「フラッシュで手札のカードを使えない」状態か。
 - `AltSummonFromHandOption`（型）
 - `altSummonFromHandCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**
@@ -74,6 +95,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `auraAmount`（fn）：オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）。
 - `isBpBuffSuppressed`（fn）：「BPを+する」効果が、effectOwnerPid（効果を出す側）にとって発揮されない状態か
 - `effectiveBp`（fn）：実効BP：基礎BP（tempBpBuff加算済み）に、両陣営の常時BP修正（オーラ）を加算した値。
+- `receivesBpPlus`（fn）：「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。
 - `timedRuleBp`（fn）：全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
 
 ## shared/rules/constraints.ts
@@ -90,6 +112,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasGlobalConstraint`（fn）
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
+- `attackTotalOncePerTurnLimitApplies`（fn）：attackOncePerTurnByCostLimitApplies の「合計」版（26RBS02-085）。attackerPid のコストがmaxCost以下のスピリットが
 - `ownLifeImmuneToOpponentSpiritEffects`（fn）：globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
 - `canDiscardHand`（fn）：手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
 - `cantSpiritStateBrave`（fn）：pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
@@ -101,6 +124,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instCantAttackByCost`（fn）：器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 - `instCantBlockByCost`（fn）：globalConstraint "cantBlockByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 - `instAttackRequiresCoreToll`（fn）：器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
+- `attackPayTollCount`（fn）：attackPayToll（26RSD06-011）：発生源の持ち主から見た相手のスピリットが、アタックのためにリザーブからトラッシュへ置くコア数。
+- `attackTollTotal`（fn）：アタックの宣言でリザーブからトラッシュへ置くコアの合計（attackRequiresCoreToll の1個と attackPayToll）
 - `instCantAttackByFewOwnSpirits`（fn）：器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：
 - `opponentCantReturnFromTrashToHand`（fn）：器BO：globalConstraint "opponentCantReturnFromTrashToHand"。pid は「トラッシュから手札に戻そうとしている本人」。
 - `levelCantAct`（fn）：フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
@@ -114,6 +139,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownLifeFloorContinuous`（fn）：BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
 - `lifeProtectedByCostThisTurn`（fn）
 - `mustAttackThisTurn`（fn）：このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
+- `mustAttackFirst`（fn）：「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
 - `canBlockWhileRestedThisTurn`（fn）：このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のタ…
 - `protectedByBpUpToSelf`（fn）：constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの
 - `noOpponentTriggerByColor`（fn）：フィールド全体制約 noOpponentTriggerByColor（片側のみ）：発生源の持ち主から見た**相手**の、
@@ -135,12 +161,17 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/keywordState.ts
 
 - `spiritHasKeyword`（fn）：状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
+- `LABELED_KEYWORDS`（const）：ラベルキーワード（kind:"keyword" の宣言エントリを持たず、triggered/activated の keyword ラベル
+- `spiritHasLabeledKeyword`（fn）：効果レコードの keyword ラベル（triggered/activated の effect.keyword、kind:"keyword" の宣言レコード）に
+- `spiritHasKeywordOrLabel`（fn）：キーワードを「持つ」かの共通判定：26系ラベルキーワードは spiritHasLabeledKeyword、旧キーワードは spiritHasKeyword
+- `instHasStaticKeyword`（fn）：場の個体がカード静的にキーワードを持つか（付与は見ない）。Lv表記のあるキーワードは現在のレベルのときだけ。
 - `iceWallColorsOf`（fn）：【氷壁】の色（kind:"magicNegate"のcolors。BS08-032等）。同じカードの複数レベルに分かれていることがあるので
 - `hasDestroyAsMaxLevelGrant`（fn）：器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
 - `hasContinuousKeywordGrant`（fn）：継続付与（kind: "keywordGrant"）によるキーワード保持判定（暴双龍ディラノス）
 - `continuousKeywordGrantCount`（fn）：継続付与（kind: "keywordGrant"）で持つキーワードの指定数（【強襲】等、数値を伴うキーワード用。
 - `targetArmorColorCount`（fn）：対象インスタンス自身が持つ【装甲】の指定色数（静的keyword・期間つきの付与・継続付与armorColorsGrantedを
 - `familiesSuppressed`（fn）：状態を考慮した系統判定：カード静的 ‖ 継続付与（kind: "familyGrant"。ポム／尖兵／音鳥クルーク）。
+- `flashSummonFromHandNow`（fn）：kind:"flashSummonFromHand"（26RDB01-021「フラッシュ『相手のアタックステップ』手札のこのカードは、
 - `hasHandKeywordGrant`（fn）：緑芽吹く原野Lv2（kind:"handKeywordGrant"）：持ち主の手札にある条件一致のカードが
 - `spiritHasFamily`（fn）
 - `matchesFamilyFilter`（fn）：FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
@@ -159,12 +190,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instIsCombined`（fn）：このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
 - `effectActiveOn`（fn）：効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
 - `combinedBraveColorsOk`（fn）：【合体時】の色条件（X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」）。
+- `cardHasTeam`（fn）：カードが指定チームを持つか（kind:"allTeams"＝「すべてのチームを持つ」は全チームに当たる。カード単体で見る場所用）
 - `isVanillaCard`（fn）：カードに効果の記述を持たない（バニラ）か
 - `isTrashCardProtected`（fn）：トラッシュにあるこのカードが、一切の効果を受けない（kind:"trashImmunity"）か。
 - `isTrashReturnAtEndStep`（fn）：トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
 - `instIsVanilla`（fn）：インスタンス単位のバニラ判定：カード静的（効果テキストが空）‖ 継続付与された「バニラとしても扱う」
 - `instEffectsSuppressed`（fn）：この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
 - `effectSources`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
+- `nexusEffectsStopped`（fn）：場のネクサス1つの効果が止められているか。常在効果は effectSources が外すが、誘発・ステップ効果は
 - `isVirtualSource`（fn）：このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
 - `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
 - `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
@@ -176,8 +209,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instColors`（fn）：状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
 - `opponentFieldColorCount`（fn）：持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く）。
 - `ownFieldOnlyColor`（fn）：自分のフィールド（スピリット+ネクサス）のカードがすべて指定色1色だけか。
+- `ownTeamAtLeast`（fn）：自分フィールドに指定チーム（CardData.team）所属のスピリットがcount体以上いるか。
+- `ownAllHaveTeam`（fn）：自分のフィールドのスピリット/ネクサスが1体以上あり、そのすべてが指定チーム（CardData.team）に所属するか。
+- `ownAllHaveFamily`（fn）
+- `ownAllSpiritsHaveFamily`（fn）
+- `ownAllNexusesHaveFamily`（fn）
 - `currentLevel`（fn）：現在のレベルとBP。timedLevel（このターンの上書き）または levelAsContinuous（継続置換）が
 - `displayLevel`（fn）：「見た目・他のカードから見えるレベル」。**効果の発揮判定にだけ効く置き換え**
+- `instInShinkaihoState`（fn）：真界放状態（26系《真界放》）: soulCoreRequired のLv（常にLv2）に現在いること。
 - `bravesOf`（fn）：ホストに合体しているブレイヴの実体。参照が切れている（実体が既に無い）ぶんは黙って落とす
 - `hostsOf`（fn）：ブレイヴが合体しているホスト。**異魔神ブレイヴは2体returnsする**（実体1つ・参照2本）
 - `braveLevelOf`（fn）：合体状態のブレイヴのレベル。**合体スピリット上のコア数**（＝ホストのコア数）を
@@ -201,6 +240,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## shared/rules/symbols.ts
 
+- `instanceSymbolColors`（fn）：画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
 - `instanceSymbolCount`（fn）：インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
 - `countSymbols`（fn）：軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
 - `countTrashSymbols`（fn）：軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
@@ -257,7 +297,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `getAllFamilies`（fn）
 - `emitEvent`（fn）：state.events にイベントを1件積む（seqはstate.eventSeqをインクリメントして自動採番）。
 - `resistanceAgainst`（fn）：このインスタンスが、いま解決中の効果を「受けない」状態か。
-- `askPayToNegateIfNeeded`（fn）：「手札を破棄することで効果を受けない」を**払うかどうか、守る側に聞く**。
+- `meisaiTollOf`（fn）：kind:"meisai" で対象 target に掛かるコスト（無ければ undefined）
+- `autoPayPlan`（fn）：「Nコスト支払う」をリザーブ＋フィールドのコアから自動で払う計画（2026-10-08 ユーザー確定: 支払い元はフィールドも含む）。
+- `askPayToNegateIfNeeded`（fn）
+- `gateTargetedApply`（fn）：自動で（または複数体のうちの1体として）決めた対象に、効果を当てる直前の関門。
 - `isResisted`（fn）：resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
 - `destroyedCoresGoToTrash`（fn）：スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
 - `consumeSummonHandDiscardPay`（fn）：BS08ビクティム（kind:"summonCostHandDiscardPay"）：「スピリットカード**1枚**の召喚に」なので、
@@ -269,8 +312,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 - `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
 - `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
+- `blockTriggersAlsoOnAttack`（fn）：付け替えず両方で発揮する版（alsoBlock。26RBS02-X10）。発揮の判定のたびに読む
 - `hasAttackTriggersAsBlock`（fn）
 - `hasLifeDamageNegate`（fn）：硝子の女神フレイア：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の
+- `drawStepBonusFor`（fn）：持ち主のドローステップで引く枚数の追加数（kind: "drawStepBonus"）。uniqueByName は同名の発生源を1回だけ数える
 - `coreStepBonusFor`（fn）：持ち主のコアステップで得られるコアの追加数（kind: "coreStepBonus"）を集計する。
 - `placeCoresOnSpirit`（fn）：対象スピリットへ「効果で」コアを置く共通処理。coreBonus（グラーバ）ぶんをボイドから追加する。
 - `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く（無限に湧くボイドが原資。
@@ -288,9 +333,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
 - `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
 - `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す。
+- `ResshinsokuInfo`（型）：【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
 - `applyResshinsokuDestination`（fn）：distributeCores の選択を1件適用し、残りがあれば続けて聞く
+- `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで、実際にスピリットを場に出す。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 - `COUNT_IS_BODIES`（const）：count が「対象の**体数**」を表すアクション。ここに挙げたものだけを
+- `exhaustBlockToll`（fn）
+- `continueBlockDeclaration`（fn）：ブロックのコストを払ったあとの宣言処理（blockExhaustSpirit の選択待ちからも再開する）
 - `finishBlockDeclaration`（fn）
 - `revertActivatedUse`（fn）：フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
 
@@ -310,6 +359,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `checkNoMutationAfterSuspend`（fn）：handleAction の出口から呼ぶ。中断中に盤面が変わっていたら記録する
 - `takeMutationAfterSuspend`（fn）：検査結果の取り出し（smoke のハーネスが集計に使う）
 - `pushResumeFrames`（fn）：中断した残りの処理を再開スタックへ積む。
+- `requestTrashReturn`（fn）：トラッシュのカードを「手札に戻せる」（任意）。持ち主に確認する（非対話なら戻す）。
+- `returnTrashCardToHand`（fn）：選択待ちをはさむ間にトラッシュから無くなっていたら何もしない
 - `resolveInOrder`（fn）：複数の効果／アクションを**順に解決する**共通形（docs/design/RESUME_STACK.md §9）。
 - `resumeTriggerBatch`（fn）：誘発バッチの再開：残りが2件以上ならターンプレイヤーに解決順を聞き、
 - `clearBattle`（fn）：バトル状態を終了させる（GameEngine の通常解決・endBattle アクションの双方から使う共有ヘルパー）
@@ -320,10 +371,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `findNexus`（fn）
 - `fieldInstanceIdsOf`（fn）：pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
 - `findInstanceAnywhere`（fn）：両プレイヤーのスピリット（ネクサスは含まない）から instanceId を検索する。
+- `takeLostLookups`（fn）
+- `noteMissedPayAsk`（fn）
+- `takeMissedPayAsks`（fn）
 - `viewFor`（fn）
 
 ## server/src/logic/PhaseManager.ts
 
+- `revertAttackStepNexusAsSpirit`（fn）：applyAttackStepNexusAsSpirit の戻し。asSpiritAttackStepScoped が付いた個体だけを field.nexuses へ戻す
 - `driveTurnStart`（fn）：ターン開始処理のステップ列を fromIndex から順に実行する。
 - `EXTRA_STEP_OPTIONS`（const）
 - `runExtraStep`（fn）：BS15-X04 Lv2：選んだステップを通常どおり丸ごと行う（そのステップの効果もすべて発揮する）
@@ -336,6 +391,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `validatePaySources`（fn）：コスト支払いの妥当性を検証する（スピリット上のコアを併用する場合）。
 - `validateSummon`（fn）
 - `validateResshinsokuSummon`（fn）：【烈神速】：お互いのアタックステップのフラッシュタイミングで、トラッシュのコア5個以上を
+- `validateSwapSoulCore`（fn）：メインステップの1:1交換（docs/design/SOULCORE.md §1.4）: [ソウルコア]1個と通常コア1個を同時に交換する
 - `validateSetNexus`（fn）
 - `validateSetBurst`（fn）：バーストのセット（docs/design/BURST.md）：自分のターンのメインステップ限定・ターン1回。
 - `nexusMillPayAmount`（fn）：ネクサスの配置コストをデッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
@@ -373,10 +429,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `nexusHasCoresForPay`（fn）：pay の判定表（nexusCoresToTrash）：対象側のネクサスのどれかにコアが1個以上あるか
 - `destroyAllTargetList`（fn）：destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
 - `destroyTargetList`（fn）：まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
-
-## server/src/logic/actions/drawDiscard.ts
-
-- `discardSelfChooseEligible`（const）：pay.ts の判定表からも使う
+- `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 
 ## server/src/logic/actions/exhaustRefresh.ts
 
@@ -389,10 +442,32 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `SELF_REQUIRED`（const）：self 相対のBP指定が必要なのに self が不在だったことを表す。
 - `normalizeFilter`（fn）：action.filter を ResolvedTargetFilter へ解決する。
 
+## server/src/logic/actions/legacyMoves.ts
+
+- `LegacyMoveAction`（型）：移行前の型（データには残っていない。旧データ・テストの期待値を読むためだけに残す）
+- `legacyRecoverToMoveCards`（fn）：旧 type → moveCards（と if）への読み替え。データの機械移行（scripts）からも使う
+- `legacyTrashPlayToMoveCards`（fn）：旧 summonFromTrashFree を moveCards に読み替える。召喚時効果は skipOnSummon が無ければ発揮する（RESUME_STACK §6.2）
+- `legacyRevealToSteps`（fn）：旧 type は moveCards への読み替えだけ（データを移し終えたら消す）
+- `legacyHandDeckToMoveCards`（fn）：旧 toHand／toDeck → moveCards
+- `legacyDiscardToMoveCards`（fn）：旧 discardSelfChoose → moveCards（手札→トラッシュ）。「好きなだけ」は count:"all"（anyMax があればその数）＋upTo
+- `migrateMoves`（fn）：旧「選ぶ＋送る」の type を入れ子ごと新しい形へ（データの移行と、変換ツールの出力の後処理で使う）。
+
+## server/src/logic/actions/moveCards.ts
+
+- `moveCardCandidates`（fn）：候補（ゾーンのインデックス）。選び終わるまでゾーンは変わらないので、選択の途中でも同じ値になる
+- `moveCardsPayable`（fn）：pay の then に置けるか（「書いてある数どおり」動かせるか）。upTo は0枚でも成り立つので扱わない
+- `fieldCoresSpendable`（fn）：フィールドから取り出せるコア（維持コアぶんは残す。案B-inside：[ソウルコア]は動かさない）
+
 ## server/src/logic/actions/pay.ts
 
 - `PAYABLE_TYPES`（const）：判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 - `canPayResolve`（const）：判定表に無い type、または判定に落ちた場合は false
+- `unpayableReason`（fn）：成立しない最初の cost／then の理由を「〜ため」に続く形で返す。全部成立するなら null
+- `unpayableLine`（const）
+- `skipUnpayablePay`（fn）：任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す
+- `markPays`（fn）：木の中の pay すべてに内部欄を付けた写しを返す（元は変えない）。
+- `markPayConfirmed`（fn）
+- `effectCostDiscountNexus`（fn）：発生源（sourceCardId）が team を持つ効果の「Nコスト支払う」を、疲労して肩代わりできるネクサス（〔重複不可〕なので回復状態の先頭の1つだけ）
 
 ## server/src/logic/actions/placeCores.ts
 
@@ -407,14 +482,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `matchesPick`（fn）：costOverride＝待機状態に入ったときのコスト（記録があるとき。if の cond.last）
 
+## server/src/logic/actions/summonRepeat.ts
+
+- `resolveSummonRepeatPaid`（fn）
+
 ## server/src/logic/actions/timedEffect.ts
 
 - `isAllowedRuleCounter`（fn）
-
-## server/src/logic/actions/trashRecover.ts
-
-- `recoverSpiritFromTrashCandidateOk`（fn）：recoverSpiritFromTrash の対象判定（カード種別・色・系統・キーワード・名前・コスト等の絞り込み）。
-- `recoverMagicFromTrashCandidateOk`（fn）：recoverMagicFromTrash の対象判定（カード種別・色・バースト有無・onlyBurstDestroyedCard）。
 
 ## server/src/logic/actions/types.ts
 
@@ -426,9 +500,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/battleResolve.ts
 
 - `resolveLifeDamage`（fn）：ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
+- `resumeLifeDamageResolution`（fn）：中断されていたライフ受けの続き（drainResumeStack から呼ぶ）
 - `resolveDirectedBlock`（fn）：指定アタック（canDirectAttack）で指定された相手スピリットを、正規のブロック宣言として
 - `resolveBattle`（fn）：ブロック成立後のバトル解決：BP比較で敗者を破壊（同値は相打ち）
 - `resumeBattleResolution`（fn）：中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
+
+## server/src/logic/blockDeclared.ts
+
+- `CollectedTrigger`（型）：収集モードで fireTrigger／fireFieldEventTriggers が積む1件。run は非対話時にその場で解決する用、
+- `resolveBlockDeclared`（fn）：非対話（テスト・AI）では収集順＝従来の発火順で解決する。
 
 ## server/src/logic/brave.ts
 
@@ -453,6 +533,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `countedAmount`（fn）
 
+## server/src/logic/coverageRecorder.ts
+
+- `startCoverageIfRequested`（fn）
+
 ## server/src/logic/debugBoard.ts
 
 - `DebugInstance`（型）：場に置く1体の指定。cores を省略するとLv1に必要なコア数（最低でも1個）
@@ -463,6 +547,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/deckPolicy.ts
 
 - `applyDeckPolicy`（fn）：カードデータの limited / limitCount を、上のポリシーに沿って上書きしたコピーを返す。
+
+## server/src/logic/fieldEventTriggers.ts
+
+- `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
+- `fireFieldEventTriggers`（fn）
+- `notifyHandGained`（fn）：フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
+- `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
+- `tryHandFreeSummonOnOwnNexusDeployed`（fn）：手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
+- `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
 
 ## server/src/logic/keywords/bofu.ts
 
@@ -481,6 +574,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
+- `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
+
+## server/src/logic/keywords/chimei.ts
+
+- `chimeiBase`（fn）：カードに書かれた【地鳴：N】の N（持たなければ 0）
+- `chimeiBonus`（fn）：【地鳴：N】の N に足す枚数（kind:"chimeiBonus"）
 
 ## server/src/logic/keywords/funsai.ts
 
@@ -492,6 +591,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/jugeki.ts
 
 - `hasJugekiOnBlockReplace`（fn）：持ち主のスピリットの【呪撃】が『ブロック時』へ差し替えられているか（BS06カウンターカース）。
+- `applyJugekiCoreToVoid`（fn）：魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
 
 ## server/src/logic/keywords/kobo.ts
 
@@ -502,6 +602,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/kyoshu.ts
 
 - `hasKyoshuOnBlock`（fn）：持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
+- `kyoshuLimitOf`（fn）：【強襲：N】の上限回数。合体しているブレイヴ側にだけ書かれている場合（BS10バズーカ・アームズ）と、
+- `kyoshuUsedOf`（fn）
 
 ## server/src/logic/keywords/tensho.ts
 
@@ -568,6 +670,21 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
 
+## server/src/logic/oncePerTurn.ts
+
+- `OnceSlot`（型）
+- `onceNameKey`（fn）：同じカードの別個体・再召喚・別版でも同名なら同じ枠になるよう、cardId でなく名前で引く
+- `isOnceNameUsed`（fn）：個体を持たないマジック用。常に名前で数える
+- `markOnceNameUsed`（fn）
+- `ownerPidOfInstance`（fn）
+- `isOnceUsed`（fn）
+- `markOnceUsed`（fn）
+- `claimOnce`（fn）：解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
+- `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
+- `isOncePerBattleUsed`（fn）：〔バトル1回〕（kind:"activated" の oncePerBattle）。上のターン単位の枠とは別にバトル単位で数え、
+- `markOncePerBattleUsed`（fn）
+- `revertOncePerBattleUsed`（fn）
+
 ## server/src/logic/record.ts
 
 - `newRecordScope`（fn）
@@ -579,9 +696,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `withMovedProbe`（fn）
 - `lastMovedCount`（fn）
 - `recordCores`（fn）
+- `recordDrawn`（fn）
+- `recordNexusCost`（fn）
+- `lastNexusCostOf`（fn）
+- `lastDrawnCount`（fn）
 - `lastCoresCount`（fn）
 - `recordTargets`（fn）：直前に疲労させた個体（カードは動かないので lastMoved とは別に instanceId で持つ）
+- `recordMagicUsed`（fn）：このターンのマジック使用（回数は magicRestriction 用、カードIDは26系「このターンに【X】を持つマジックカードを使用していたなら」用）
 - `lastTargetsOf`（fn）
+- `recordLifeLost`（fn）
 
 ## server/src/logic/removal.ts
 
@@ -633,6 +756,24 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyReviveConfirm`（fn）：保留していた復活の確認で「復活させる」が選ばれたときの後処理。
 - `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 
+## server/src/logic/soulCore.ts
+
+- `soulCoreIsAt`（fn）：ソウルコアが loc にいるか。soulCore === null（この対戦でソウルコアなし）なら常に false
+- `soulCoreOnInstance`（fn）：instanceId の個体（スピリット/ネクサス）の上にソウルコアが載っているか
+- `soulCoreInReserve`（fn）：リザーブにソウルコアがあるか（支払い・「リザーブの[ソウルコア]」効果の判定用）
+- `soulCoreToTrashPossible`（fn）：[ソウルコア]がトラッシュ以外（リザーブ・場の個体）にあるか（soulCoreToTrash が成立するか）
+- `soulCoreInTrash`（fn）：トラッシュにソウルコアがあるか（「トラッシュの[ソウルコア]」効果・支払いの判定用）
+- `keishoExcludedTeamAtLeast`（fn）：直近の《継召》（exTrashReduction）で除外したカードのうち、指定チーム（CardData.team）所属が
+- `moveSoulCore`（fn）：ソウルコアを to へ移す。**ポインタと数値の両方を書き換えてよい唯一の関数**（案B-inside）。
+- `normalReserveOf`（fn）：リザーブの通常コア数（「リザーブからコアを置く」等の候補数・通常コアだけの支払い能力の検証で使う）
+- `normalTrashOf`（fn）：トラッシュの通常コア数（「トラッシュのコアを〜へ置く」効果の取り出し上限で使う）
+- `normalCoresOn`（fn）：個体の通常コア数（覚醒等「通常コアを移す」操作の取り出し上限で使う）
+- `placeSoulCoreOnSummoned`（fn）：召喚/配置した個体の維持コアとして[ソウルコア]を置く（2026-10-06 ユーザー確定）。
+- `wouldDepleteOf`（fn）：維持コア（Lv1）を下回っているか（消滅判定）。数値にソウルコアが含まれるため inst.cores と直接比較する。
+- `wouldDeplete`（fn）：上の state + ownerPid 版（呼び出し側が pid しか持っていない場面で使う）
+- `soulCoreLeavesField`（fn）：個体が場を離れるときのソウルコア退避（破壊・消滅・手札/デッキへ戻る・バーストへ）。
+- `soulCoreInclusionDecision`（fn）：段4（§1.3・2026-10-05 ユーザー確定「文言の有無にかかわらず一律に聞く」）:
+
 ## server/src/logic/state/continuous.ts
 
 - `recordTimed`（fn）：期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
@@ -644,18 +785,40 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `checkExhaustOnCoreChange`（fn）
 - `exhaustSpirit`（fn）：スピリットを疲労させる唯一の入口。すでに疲労していれば何もしない（誘発も起きない）。
+- `exhaustNexus`（fn）：ネクサスを疲労させる入口（スピリットの exhaustSpirit に対応）。ネクサスの疲労は経路が散っていたので、
+- `heavyExhaustSpirit`（fn）：重疲労させる唯一の入口。回復状態からでも直接重疲労になる（疲労を経由するので「疲労したとき」の誘発は起きる。
 - `refreshSpirit`（fn）：スピリットを回復させる唯一の入口。すでに回復状態なら何もしない（誘発も起きない）。
 - `fireExhaustedTriggers`（fn）：「スピリットが疲労したとき」のフィールドイベント発火。
 - `isRefreshBlockedByMark`（fn）：スクルディア：相手のスピリットから「回復できない」と指定されていて、
 - `canExhaustNexus`（fn）：BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
 
+## server/src/logic/stepTriggers.ts
+
+- `fireBattleWonTriggers`（fn）：バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
+- `checkStepCondition`（fn）：ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する
+- `STEP_LABELS`（const）：ステップ誘発のログに出すステップ名。「どのステップの効果として発動したか」を示す
+- `fireStepTriggers`（fn）：指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
+- `fireBpReachedTriggers`（fn）：「BPがN以上になった時」（event: "ownSpiritBpReached"）：handleAction が1操作を解決しきった地点で呼ぶ。
+- `battleBp`（fn）：果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
+
 ## server/src/logic/summon.ts
 
+- `startSummonBatch`（fn）：効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
+- `flushSummonBatch`（fn）：全員を場に出し終えたら、それぞれの召喚時効果をターンプレイヤーが選んだ順に発揮する
 - `fireSummonSequence`（fn）
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
-- `summonFromHandFreeCandidateMatches`（fn）：summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
-- `summonFromTrashFreeCandidateMatches`（fn）：summonFromTrashFree の候補判定。summonFromHandFreeCandidateMatches のトラッシュ版。
+- `fchangeCostAs`（fn）：summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
+- `summonFromHandFreeCandidateMatches`（fn）
+
+## server/src/logic/summonSurcharge.ts
+
+- `surchargeOwed`（fn）：batch＝1つの効果で複数体を同時に召喚している（召喚は1回なので余分も1回）。単発の召喚は毎回払う。
+- `canPayFreeSummonSurcharge`（fn）：余分に加えて、続けて置くコア（extraNeeded）も賄えるか。余分が無いときは従来どおりリザーブだけで見る
+- `payFreeSummonSurchargeKeeping`（fn）：余分を払い、置くコア（maintain）のうちフィールドのコアで賄えた数を返す（呼び出し側はリザーブから maintain - 戻り値 を引く）。
+- `payFreeSummonSurcharge`（fn）：払えたら true（置くコアは考えない。余分が無い・同じ召喚で払済みも true）。払えないときは何も動かさず false
+- `askCostPay`（fn）：対話中で支払い元を選べる場面なら、コストの支払い待ち（effectCostPay）を立てて true を返す。
+- `askSurchargePay`（fn）：無償召喚の余分の支払い待ち。resume には余分を払い済みとして扱う続きを渡す
 
 ## server/src/logic/targeting.ts
 
@@ -667,7 +830,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryInteractiveTargetChoice`（fn）：interactiveTargets 有効時、count で複数体を処理するアクション（destroy/exhaust/destroyExhausted/
 - `tryInteractiveCardChoice`（fn）：tryInteractiveTargetChoice のカード版：interactiveTargets有効時、count等で複数回に分けて
 - `bpBuffTargetPasses`（fn）：bpBuff の「対象になれるか」の判定。
-- `pickBpBuffTarget`（fn）：bpBuff の対象選択：
+- `ownBpBuffCandidates`（fn）：bpBuff の対象選択：
+- `pickBpBuffTarget`（fn）
 - `pickOwnKeywordTarget`（fn）：grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
 - `requestActivationConfirm`（fn）：「〜できる」（EffectDef.triggered.optional）の発動確認。
 - `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
@@ -682,16 +846,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `revertDestroyGroupUsage`（fn）：同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
 - `fireTrigger`（fn）
 - `fireCombinedAttackTrigger`（fn）：BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
-- `fireBattleWonTriggers`（fn）：バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
-- `fireStepTriggers`（fn）：指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
-- `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
-- `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
-- `fireFieldEventTriggers`（fn）
-- `notifyHandGained`（fn）：フィールドイベント誘発「持ち主から見て相手の手札にカードが加えられたとき」：
-- `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
-- `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
-- `battleBp`（fn）：果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
-- `applyJugekiCoreToVoid`（fn）：魔影街Lv1（kind:"jugekiCoreToVoid"）：アタッカー側のフィールドに発生源がある間、
+- `activationPrompt`（fn）：発動確認の文面（3種の誘発で同じ形を使う）
+- `confirmPromptIfOptional`（fn）：optional な誘発の残りは、再開時も**発動確認から**始める（確認なしの自動発動を防ぐ）。
+- `isStillOnField`（fn）：発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
 - `notifySpiritCoresRemovedByOpponent`（fn）：フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
 
 ## server/src/logic/zones/mill.ts
@@ -730,33 +887,43 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BraveCondition`（型）
 - `PaySource`（型）：コスト支払い時に使うコアの割り当て（自分のスピリット上またはネクサス上のコア）
 - `FamilyFilter`（型）：系統フィルタ：単一文字列 or 配列（配列＝いずれかの系統を持てばよいOR条件）。
-- `TargetFilter`（型）：---- 対象選択の絞り込み軸（TargetFilter） ----
 - `ResolvedTargetFilter`（型）：normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。
-- `EffectCounter`（型）：効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
 - `TriggerEvent`（型）：誘発イベント（data.md 5.1 のイベント層）。
-- `FieldEvent`（型）：フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
-- `Keyword`（型）：キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
-- `AuraCounter`（型）：常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
-- `AuraCondition`（型）：常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
-- `AuraDef`（型）：常時BP修正の定義
 - `GameEvent`（型）：クライアント演出用のゲームイベント（アクション単位の一時データ）。
 - `EndStepLock`（型）：ブロック可否などの制約定義（RuleValidator が参照する宣言的ルール）
-- `ConstraintDef`（型）
-- `GlobalConstraintDef`（型）：フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
 - `DestroyContext`（型）：破壊の発生源コンテキスト（省略可）。復活系効果（reviveOnDestroy）が参照する。
 - `CardData`（型）：効果定義（kind による判別ユニオン）。
-- `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
-- `PlayerState`（型）：プレイヤーの状態
+- `SoulCoreLocation`（型）：ソウルコアの居場所（docs/design/SOULCORE.md）。**コアの数値（reserve/trashCores/inst.cores）には含めない**
 - `BattleState`（型）：バトル（アタック〜解決まで）の状態
-- `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
-- `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
-- `GameState`（型）：ゲーム全体の状態（サーバーで一元管理）
-- `TimedContent`（型）：期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
 - `TimedRecord`（型）：期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。追加順に意味がある（後から掛けた方が勝つもの）
 - `PlayerRuleDef`（型）：プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）
 - `PlayerView`（型）
 - `GameView`（型）
-- `GameAction`（型）
+
+## server/src/types/auraCondition.ts
+
+- `AuraCondition`（型）：常時BP修正（オーラ）の発動条件。満たすときのみ amount を適用する。
+
+## server/src/types/auraCounter.ts
+
+- `AuraCounter`（型）：常時BP修正（オーラ）のカウンタ。発生源の持ち主基準で数える。
+
+## server/src/types/auraDef.ts
+
+- `AuraDef`（型）：常時BP修正の定義
+
+## server/src/types/cardInstance.ts
+
+- `CardInstance`（型）：盤面インスタンス（可変）。data.md 6.2 に対応
+
+## server/src/types/choice.ts
+
+- `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
+- `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
+
+## server/src/types/constraintDef.ts
+
+- `ConstraintDef`（型）
 
 ## server/src/types/effectAction.ts
 
@@ -764,45 +931,194 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
 - `EffectAction`（型）
 
+## server/src/types/effectCounter.ts
+
+- `EffectCounter`（型）：効果の実行内容。EffectModules のアクションハンドラと 1:1 で対応する。
+
 ## server/src/types/effectDef.ts
 
 - `EffectDef`（型）
 - `MagicCondition`（型）：マジックの条件（判定は shared/magicCondition.ts）
+
+## server/src/types/effectDefContinuous.ts
+
+- `EffectDefContinuous`（型）
+
+## server/src/types/effectDefCost.ts
+
+- `EffectDefCost`（型）
+
+## server/src/types/effectDefTrigger.ts
+
+- `EffectDefTrigger`（型）
+
+## server/src/types/fieldEvent.ts
+
+- `FieldEvent`（型）：フィールドイベント誘発（data.md 5.1 のイベント層の追加分）。
+
+## server/src/types/gameAction.ts
+
+- `GameAction`（型）
+
+## server/src/types/gameState.ts
+
+- `GameState`（型）：ゲーム全体の状態（サーバーで一元管理）
+
+## server/src/types/globalConstraint.ts
+
+- `GlobalConstraintDef`（型）：フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
+
+## server/src/types/keyword.ts
+
+- `Keyword`（型）：キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
+
+## server/src/types/playerState.ts
+
+- `PlayerState`（型）：プレイヤーの状態
+
+## server/src/types/targetFilter.ts
+
+- `TargetFilter`（型）：---- 対象選択の絞り込み軸（TargetFilter） ----
+
+## server/src/types/timedContent.ts
+
+- `TimedContent`（型）：期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
+
+## public/src/cardArt.ts
+
+- `cardImageUrl`（fn）：カード画像の URL と、カード要素へ画像を重ねる処理（対戦画面とデッキビルダーで共用）
+- `attachCardArt`（fn）
 
 ## public/src/effectText.ts
 
 - `EffectSegment`（型）
 - `effectLineSegments`（fn）：バースト効果の「召喚する／配置する」は、「コストを支払わずに」と書かれていなくても無償
 
+## public/src/handToggleChoice.ts
+
+- `handToggleTarget`（fn）：同じカードの束（indices）のうち、クリックで送るインデックスと選択済みの枚数。
+- `markSelected`（fn）：選択中の束に付ける印（「選択中 ×2」）
+
+## public/src/main.ts
+
+- `view`（let）
+- `ui`（const）
+- `send`（fn）
+- `rerender`（fn）
+- `opponentOf`（fn）
+- `byId`（fn）
+
 ## public/src/renderer.ts
 
 - `setCardDb`（fn）
 - `master`（fn）
+- `COLOR_SYMBOLS`（const）
 - `levelOf`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.currentLevel）
 - `spiritHasKeywordView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasKeyword）
 - `instHasColorView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.instHasColor）
 - `spiritHasFamilyView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.spiritHasFamily）
 - `canBlockAttacker`（fn）：ブロック可能ハイライト用: blocker が attacker をブロックできるか。
 - `hasMagicImmunityView`（const）：main.ts など既存の呼び出しを壊さないための別名（実体は shared/rules.hasMagicImmunity）
-- `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
-- `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
-- `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
 - `TargetSide`（型）：マジックが対象を必要とするか（"opponent" = 相手スピリット、"self" = 自分スピリット）
 - `magicTargetSide`（fn）：timing: メイン効果とフラッシュ効果で対象側が異なるカード（例: BS01-131）があるため、
 - `canAwaken`（fn）：【覚醒】を現在レベルで持っているか（判定はサーバー validateAwaken と同一の共有実装）
 - `activatableAbility`（fn）：起動能力が今このスピリットで発動可能なら {effectId, costLabel} を返す
-- `PayingState`（型）：支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
-- `AltPayInfo`（型）：この支払いで使える代替コストの種類と上限。
-- `payingCardId`（fn）：支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
-- `payingAltPay`（fn）
-- `payingShinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
-- `payingShinsokuAssistDiscount`（fn）：選択済みの肩代わり候補ぶんの合計割引
 - `UiState`（型）
 - `canDirectAttack`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば対象条件を返す（共有実装）
 - `matchesDirectedAttackFilter`（fn）：指定アタックの対象条件に相手スピリットが合致するか（判定はサーバーと同一の共有実装）。
+- `escapeHtml`（fn）：innerHTML に差し込む文字列のエスケープ（ツールチップの効果テキスト強調表示で使用）
 - `render`（fn）
 - `showWaiting`（fn）：ロビー側の表示制御
 - `hideWaiting`（fn）
 - `showToast`（fn）
+
+## public/src/ui/fieldCard.ts
+
+- `renderField`（fn）
+- `coreButtonsEl`（fn）：コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
+- `fieldCardEl`（fn）
+
+## public/src/ui/hand.ts
+
+- `renderHand`（fn）
+
+## public/src/ui/infoPanels.ts
+
+- `soulCoreWhereText`（fn）：[ソウルコア]の所在を info パネルの「魂: …」項目用の文字列にする（docs/design/SOULCORE.md 案A-outside。
+- `renderInfo`（fn）
+- `renderBurst`（fn）：バーストエリア（docs/design/BURST.md）。セットされているか否かは公開情報（burstSet）だが、
+- `renderBattle`（fn）
+
+## public/src/ui/lobby.ts
+
+- `DECK_STORAGE_KEY`（const）
+- `CUSTOM_DECK_PREFIX`（const）
+- `SavedDeck`（型）：デッキビルダー（deck.ts）と同じ保存フォーマット
+- `customDecks`（const）：デッキ名 → カードリスト（cardId -> 枚数）。ページ表示時に読み込む
+- `loadSavedDecks`（fn）
+- `deckRecipes`（let）：deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
+- `setDeckRecipes`（fn）
+- `populateBuiltinDecks`（fn）
+- `populateCustomDecks`（fn）
+- `ALL_DECK_SELECT_IDS`（const）：ロビー・AI対戦用の全デッキセレクトを一括で構築する
+- `populateAllBuiltinDecks`（fn）
+- `populateAllCustomDecks`（fn）
+- `ChangelogEntry`（型）
+- `CATEGORY_MAP`（const）：コミットメッセージからカテゴリと表示テキストを抽出する
+- `parseReleaseMessage`（fn）
+- `loadChangelog`（fn）
+
+## public/src/ui/payInput.ts
+
+- `PAY_MODE_KEY`（const）：コアの支払い方式はブラウザごとに覚える。保存できない環境（プライベートモード等）では毎回「自動」に戻る
+- `loadPayMode`（fn）
+- `savePayMode`（fn）
+- `payModeLabel`（fn）
+- `payModeHint`（fn）
+- `buildPaySources`（fn）：支払いモードの内容を確定して送信する。代替コスト（手札破棄／デッキ破棄）も一緒に送る
+- `submitPaying`（fn）
+- `changeAltPay`（fn）：支払いモード中に、代替コストの支払い量を変える。
+- `toggleDiscardPay`（fn）：支払いモード中に、手札1枚を「破棄して払う」対象として選ぶ／外す（BS08ビクティム）
+- `startChoicePaying`（fn）：選択待ちで選んだカードのコストがリザーブだけでは足りないとき、通常の召喚と同じ
+- `assignPayCore`（fn）：支払いモード中、指定スピリットにコアを1個割り当てる。合計が必要数に達したら自動送信する。
+- `assignOneCore`（fn）：支払い元1つにコアを1個割り当て、必要数に達したら送信する。
+
+## public/src/ui/paying.ts
+
+- `payableFieldCores`（fn）：支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
+- `payingIsCostOnly`（fn）：コストだけの支払い（ブロックの追加コスト・【迷彩】）。置くコアが無いので[ソウルコア]は「コストに使う」だけ選べる
+- `payingNeed`（fn）：支払いモードで満たすべき合計コア数（フィールド割り当て＋リザーブの合計がこれに達すれば送信可能）
+- `payingRemaining`（fn）：支払いモードでの残り不足コア数（0なら送信可能）
+- `PayingState`（型）：支払いモード：コストをフィールドのコア／代替コストで賄うための一時状態
+- `AltPayInfo`（型）：この支払いで使える代替コストの種類と上限。
+- `exReductionSymbolsFor`（fn）：《継召》(kind:"exTrashReduction")：除外するトラッシュカードのシンボル列（effectiveCost の第5引数へ渡す）。
+- `ExReductionGroup`（型）：《継召》：同一カードごとの除外候補グループ。同一カードは1ボタンにまとめ、count で枚数を選ぶ
+- `exReductionEffectiveCount`（fn）：《継召》：選ばれた除外カードが軽減に効く個数（色ごとに軽減シンボル数で頭打ち）。
+- `exReductionPickedIndices`（fn）：《継召》：各グループの選択枚数から、実際に除外する trashCards 内インデックスを返す
+- `payingCardId`（fn）：支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
+- `payingAltPay`（fn）
+- `payingShinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
+- `payingShinsokuAssistDiscount`（fn）：選択済みの肩代わり候補ぶんの合計割引
+
+## public/src/ui/play.ts
+
+- `confirmExtraCost`（fn）：器BM（BS13-043 鳥人イカロッシュ）／器BU（BS13-047 深海大帝ノーグ・デンス）：
+- `sendCoreRemove`（fn）：スピリット／ネクサスからコアを1個取り除く。
+- `sendSoulCoreRemove`（fn）：[ソウルコア]をリザーブへ戻す。取り除くと維持コアを割るなら確認を取る（通常コアと同じ流れ）
+- `sendPlay`（fn）：カード種別に応じたアクションを送信する（paySources/targetInstanceId/levelは値がある場合のみキーを含める）
+- `tryPlay`（fn）：軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
+- `tryResolveCardChoice`（fn）：pendingChoiceが自分宛かつkind:"card"・cardZone:"hand"、クリックしたhandIndexが候補内なら
+- `onBurstSetClick`（fn）：バーストセットボタン（docs/design/BURST.md）。すでにバーストがセットされている場合は
+- `onHandAbilityClick`（fn）：手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
+- `onHandClick`（fn）
+- `tryResolveChoice`（fn）：pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
+- `onMySpiritClick`（fn）
+- `sendAttack`（fn）：アタックの追加コスト（attackPayToll）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る（ブロックと同じ。2026-10-11 ユーザー確認）
+- `onOppSpiritClick`（fn）
+
+## public/src/ui/tooltip.ts
+
+- `currentHoverCard`（let）
+- `suppressEffectTooltip`（fn）
 - `hideEffectTooltip`（fn）
 - `setupEffectTooltip`（fn）

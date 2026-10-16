@@ -14,9 +14,9 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    endTurn,
 } from "./helpers"
 import { fireTrigger, instHasColor } from "../../server/src/logic/EffectModules"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 
 console.log("=== BS03-053 百面相のフラットフェイス：Lv2は白、Lv3は紫として扱われる ===")
 {

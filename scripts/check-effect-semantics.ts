@@ -175,7 +175,6 @@ function hasOncePerTurnEvidence(effects: Record<string, unknown>[]): boolean {
 //     tenshoCoreSubstitute（ダークスカルデーモン＝疲労することでコアを置いたものとして扱う）
 // これらは cost で始まる**キー名**を持たないため、type の**値**を別途チェックする
 const COST_BAKED_ACTION_TYPES = new Set([
-    "selfBuffByExhaustFamily",
     "targetNegateByHandDiscard",
     "summonCostHandDiscardPay",
     "nexusCostMillPay",
@@ -184,7 +183,7 @@ const COST_BAKED_ACTION_TYPES = new Set([
 ])
 
 // S2: 「〜することで」等の実装側の印。cost で始まるキーはすべて対象
-// （cost / costSelfCoresToTrash / costReturnSelfToHand 等）。
+// （cost / costMillSelfCount 等）。
 // action.type の値が cost で始まる（costDiscardHandKeywordThenDraw 等）か、上記の焼き込み型一覧に
 // 含まれる場合も等価表現として認める。
 // ※ TargetFilter.cost（対象のコスト制限= 「コストN以下」の指定）も同じキー名 "cost" を使うため、

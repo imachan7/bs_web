@@ -1,11 +1,15 @@
 // 【バースト】のセットと発動
+import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
+import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
-import { burstConditionMet, fireFieldEventTriggers, notifyHandGained } from "../triggers"
+import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, timedContentsFor } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
+
+import { instHasColor, matchesFamilyFilter, spiritHasKeyword } from "../../../../shared/rules"
 
 // burstMagicFreeEffect（BS16-070）の選択肢ラベル。actions/control.tsのburstMagicFreeOrThenPayHandlerと
 // 一致させること（circular import回避のためここでは定数を共有せず複製）
@@ -118,8 +122,12 @@ function tryBurstThenPay(
     if (!entry) return
     const cost = effectiveCost(state, pid, card)
     const player = state.players[pid]
-    // 「コストを支払えるときだけ発揮できる」＝COST_MODEL.md §1。払えないなら確認自体を出さずスキップ
-    if (player.reserve < cost) return
+    // 払えないなら払う確認は出さず不発（2026-10-02 ユーザー確認。バースト自体の発動確認は済んでいる）。
+    // 簡略化：判定するのはコストのコアだけで、効果本体（entry.action）が解決できるかは見ない
+    if (player.reserve < cost) {
+        log(state, unpayableLine(card.name, "コストのコアが足りない"))
+        return
+    }
     if (state.interactiveTargets) {
         requestActivationConfirm(
             state,
@@ -132,9 +140,10 @@ function tryBurstThenPay(
         return
     }
     player.reserve -= cost
+    player.trashCores += cost
     log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
     // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
-    resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+    resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
 }
 
 // burstMagicFreeEffect持ち（BS16-070）の分岐：「コストを払ってthenPay」「無償でメイン」「無償でフラッシュ」
@@ -157,7 +166,7 @@ function tryBurstMagicFreeOrThenPay(
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
         // マジックの「使用」ではないのでresolveMagicは通さない（Q22399。docs/design/BURST.md §7.1）
-        resolveAction(state, pid, null, entry.action, undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+        resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
     }
     if (!state.interactiveTargets) {
         // 非対話の既定：無償でフラッシュがあればそれ、無ければ無償でメイン（2026-09-28ユーザー決定）
@@ -165,6 +174,7 @@ function tryBurstMagicFreeOrThenPay(
         if (mainEntry) return resolveFree(mainEntry)
         if (canPay && payEntry) {
             player.reserve -= payCost
+            player.trashCores += payCost
             log(state, `${player.name}は${card.name}のコスト${payCost}を支払った。`)
             resolveFree(payEntry)
         }
@@ -282,7 +292,7 @@ export function fireBurstOnEvent(
         if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
-        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? effect.action : { type: "noop" }
+        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? markPayConfirmed(effect.action) : { type: "noop" }
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
         const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
@@ -294,6 +304,7 @@ export function fireBurstOnEvent(
         const distinctCosts = [...new Set(costs)]
         // event:"ownLifeDamaged"限定：ライフを減らしたスピリットのinstanceId（EffectCounter等が読む先はstate.burstEventLifeDamagerId）
         const lifeDamagerId = event === "ownLifeDamaged" ? (targetInstanceId ?? state.battle?.lifeDamagers?.at(-1)) : undefined
+        noteCoverage(effect, "burst")
         // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
         // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
         if (state.interactiveTargets) {
@@ -391,10 +402,11 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         player.trashCards.push(cardId)
         return
     }
+    noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true
     announceBurstActivation(state, owner, cardId)
-    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? effect.action : { type: "noop" }
+    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? markPayConfirmed(effect.action) : { type: "noop" }
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
@@ -409,4 +421,67 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
         before: [...before],
     })
+}
+
+// kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
+export function burstConditionMet(
+    state: GameState,
+    pid: PlayerId,
+    condition: Extract<EffectDef, { kind: "burst" }>["condition"],
+): boolean {
+    if (condition === undefined) return true
+    const player = state.players[pid]
+    if ("ownLifeAtMost" in condition) return player.life <= condition.ownLifeAtMost
+    if ("ownNexusAtLeast" in condition) return player.field.nexuses.length >= condition.ownNexusAtLeast
+    if ("ownTrashColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownTrashColorCountAtLeast
+        return player.trashCards.filter((id) => getCard(id).colors.includes(color)).length >= count
+    }
+    if ("ownTrashCardTypeCountAtLeast" in condition) {
+        const { cardType, count } = condition.ownTrashCardTypeCountAtLeast
+        return player.trashCards.filter((id) => getCard(id).type === cardType).length >= count
+    }
+    // BS15-017エンプレス・ヨウクィーン：自分の手札が5枚以上のとき
+    if ("ownHandAtLeast" in condition) return player.hand.length >= condition.ownHandAtLeast
+    // BS15-026軍師鳥ショカツリョー：自分と相手のフィールドに疲労状態のスピリットが合計でこれ以上いるとき
+    if ("bothFieldsRestedSpiritsAtLeast" in condition) {
+        const restedCount = (p: typeof player) => p.field.spirits.filter((s) => s.isRested).length
+        return restedCount(player) + restedCount(state.players[opponentOf(pid)]) >= condition.bothFieldsRestedSpiritsAtLeast
+    }
+    // BS15共通器：BS15-043ショーグンペンタン「自分の黄のスピリットが3体以上いるとき」
+    if ("ownColorCountAtLeast" in condition) {
+        const { color, count } = condition.ownColorCountAtLeast
+        return player.field.spirits.filter((s) => instHasColor(s, color)).length >= count
+    }
+    // BS15共通器：BS15-053コジロンド・ゴレム「自分のフィールドに【粉砕】/【大粉砕】を持つスピリットが1体以上いるとき」
+    if ("ownFieldHasKeywordAny" in condition) {
+        return player.field.spirits.some((s) => condition.ownFieldHasKeywordAny.some((k) => spiritHasKeyword(state, pid, s, k)))
+    }
+    // BS15共通器：BS15-083秘剣燕返「相手の手札が5枚以上のとき」
+    if ("opponentHandAtLeast" in condition) {
+        return state.players[opponentOf(pid)].hand.length >= condition.opponentHandAtLeast
+    }
+    // BS16共通器：このバースト発動時に破壊された（同時破壊なら全メンバーの）色にこの色が含まれるか
+    if ("burstDestroyedColor" in condition) {
+        return (state.burstEventColors ?? []).includes(condition.burstDestroyedColor)
+    }
+    // 器BS16：発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるか
+    // （BS16-005ゴエモン・シーフ・ドラゴン：「系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき」）
+    if ("ownFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.ownFamilyCountAtLeast
+        return player.field.spirits.filter((s) => matchesFamilyFilter(state, pid, s, family)).length >= count
+    }
+    // ownFamilyCountAtLeastの相手版（BS16-027：「系統：『覇皇』/『雄将』を持つ相手のスピリットがいるとき」）
+    if ("opponentFamilyCountAtLeast" in condition) {
+        const { family, count } = condition.opponentFamilyCountAtLeast
+        const oppPlayer = state.players[opponentOf(pid)]
+        return oppPlayer.field.spirits.filter((s) => matchesFamilyFilter(state, opponentOf(pid), s, family)).length >= count
+    }
+    // フィールド（スピリット・ネクサス・合体中のブレイヴの上）＋リザーブ＋トラッシュのコアの合計。
+    // ライフとソウルコアは数えない（効果文が挙げている3つのゾーンだけ。BS14-X03）
+    const fieldCores =
+        player.field.spirits.reduce((n, i) => n + i.cores, 0) +
+        player.field.nexuses.reduce((n, i) => n + i.cores, 0) +
+        player.field.combinedBraves.reduce((n, i) => n + i.cores, 0)
+    return fieldCores + player.reserve + player.trashCores >= condition.ownCoresTotalAtLeast
 }

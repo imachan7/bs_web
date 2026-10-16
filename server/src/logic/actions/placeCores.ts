@@ -1,10 +1,13 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
 // 旧 lifeCharge 等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
+import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { coresForLevel, getCard, log } from "../GameState"
 import {
+    countEffectCounter,
     fireFieldEventTriggers,
     placeCoresOnSpirit,
     requestChoice,
@@ -16,6 +19,7 @@ import { takeCoresFromSpirit } from "../removal"
 import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { recordTargets } from "../record"
 
 type PlaceCoresAction = Extract<EffectAction, { type: "placeCores" }>
 
@@ -55,20 +59,21 @@ function takeFromSource(
     switch (from) {
         case "void":
             return amount
+        // 案B-inside: [ソウルコア]は明示的な指定でだけ動く。取り出し上限は通常コア数
         case "reserve": {
-            const taken = Math.min(amount, player.reserve)
+            const taken = Math.min(amount, normalReserveOf(player))
             player.reserve -= taken
             return taken
         }
         case "trash": {
-            const taken = Math.min(amount, player.trashCores)
+            const taken = Math.min(amount, normalTrashOf(player))
             player.trashCores -= taken
             return taken
         }
         case "self": {
             if (!self) return 0
             if (player.field.spirits.includes(self)) return takeCoresFromSpirit(state, owner, self, amount)
-            const taken = Math.min(amount, self.cores)
+            const taken = Math.min(amount, normalCoresOn(player, self))
             self.cores -= taken
             return taken
         }
@@ -108,13 +113,69 @@ export function placeCoresPoolCandidates(
 ): CardInstance[] | typeof SELF_REQUIRED {
     const { state, owner, self } = ctx
     const player = state.players[owner]
-    const pool = action.to === "spirit" ? player.field.spirits : player.field.nexuses
+    const pool = action.anyField ? [...player.field.spirits, ...player.field.nexuses] : action.to === "spirit" ? player.field.spirits : player.field.nexuses
     const resolvedFilter = normalizeFilter(ctx, action)
     if (resolvedFilter === SELF_REQUIRED) return SELF_REQUIRED
     return pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId))
 }
 
-const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
+// spread：トラッシュなどから count 個まで（取り元にあるだけ）を、targets 体までの別々の置き先へ1個ずつ振り分ける。
+// 「N体までを指定する。コア合計N個までをそれらに置く」は指定を先に取らず、1個ずつ置き先を選ぶ形に畳む
+// （選んだ体数が targets を超えない範囲なら、先に指定した場合と同じ結果）。非対話は先に選んだ個体から順
+function placeCoresSpread(ctx: ActionCtx, action: PlaceCoresAction): void {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    if (typeof action.count !== "number") return
+    let left = action.spreadRemaining ?? Math.min(action.count, availableFromSource(state, owner, action.from, self))
+    let chosen = action.spreadChosen ?? []
+    let pick = targetInstanceId
+    while (left > 0 && availableFromSource(state, owner, action.from, self) > 0) {
+        const pool = placeCoresPoolCandidates(ctx, action)
+        if (pool === SELF_REQUIRED) break
+        const full = action.targets !== undefined && chosen.length >= action.targets
+        const candidates = full ? pool.filter((c) => chosen.includes(c.instanceId)) : pool
+        if (candidates.length === 0) break
+        let t: CardInstance | undefined
+        if (pick !== undefined) {
+            t = candidates.find((c) => c.instanceId === pick)
+            pick = undefined
+            if (!t) return
+        } else if (state.interactiveTargets && candidates.length > 1) {
+            requestChoice(
+                state,
+                owner,
+                `${sourceName}：コアを置くスピリットを選んでください（あと${left}個まで）`,
+                candidates.map((c) => c.instanceId),
+                true,
+                { ...action, spreadRemaining: left, spreadChosen: chosen },
+                self,
+            )
+            return
+        } else {
+            t = candidates.find((c) => chosen.includes(c.instanceId)) ?? candidates[0]!
+        }
+        const taken = takeFromSource(state, owner, action.from, self, 1)
+        if (taken <= 0) break
+        placeCoresOnSpirit(state, t, taken, owner)
+        recordTargets(state, [t.instanceId])
+        log(state, `${sourceName}：${action.from === "trash" ? "トラッシュから" : ""}コア${taken}個を${getCard(t.cardId).name}に置いた。`)
+        if (!chosen.includes(t.instanceId)) chosen = [...chosen, t.instanceId]
+        left--
+    }
+}
+
+const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
+    // targetsCounter：置き先の数を効果の解決時に数える（0なら何もしない）。以降は targets と同じ
+    let action = inAction
+    if (action.targetsCounter !== undefined) {
+        const n = countEffectCounter(ctx.state, ctx.owner, ctx.self, action.targetsCounter, ctx.srcType)
+        if (n <= 0) {
+            log(ctx.state, `${ctx.sourceName}：対象がいなかった。`)
+            return
+        }
+        const { targetsCounter: _t, ...rest } = action
+        action = { ...rest, targets: n }
+    }
+    if (action.spread) return placeCoresSpread(ctx, action)
     const { state, owner, self, sourceName, srcType, targetInstanceId, chosenOption } = ctx
     const player = state.players[owner]
 
@@ -189,7 +250,8 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
             // "one"（既定）。targets 体は別々の個体（「白のスピリット2体に」）。対話では1体ずつ選ばせ、
             // 選んだ個体を excludeIds に積んで残りを選び直す
             const picks = action.targets ?? 1
-            const open = action.excludeIds ? candidates.filter((c) => !action.excludeIds!.includes(c.instanceId)) : candidates
+            // 自身のコアを動かす（from:"self"）ときは、自身への移動は何も起こらないので候補から外す
+            const open = candidates.filter((c) => !action.excludeIds?.includes(c.instanceId) && !(action.from === "self" && c === self))
             if (targetInstanceId) {
                 const found = open.find((c) => c.instanceId === targetInstanceId)
                 if (!found) {
@@ -265,12 +327,13 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
     } else if (action.upTo === true) {
         // 「count個まで」＝0〜count個の好きな数（2026-09-28ユーザー決定）。対象は上の「対象の決定」で確定済み
         // （複数対象・all指定は今回の対象カードには無いため未対応。来たら相談する）
-        if (action.count === "all" || typeof action.count !== "number") {
+        // count:"all"＋upTo＝「好きなだけ」（取り元にあるだけが上限）
+        if (typeof action.count !== "number" && action.count !== "all") {
             log(state, `${sourceName}：置ける個数を決められなかった。`)
             return
         }
         const capacity = availableFromSource(state, owner, action.from, self)
-        const n = Math.min(action.count, capacity)
+        const n = action.count === "all" ? capacity : Math.min(action.count, capacity)
         if (n <= 0) {
             log(state, `${sourceName}：置けるコアがなかった。`)
             return
@@ -369,6 +432,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
         log(state, `${sourceName}：${fromLabel}コア${taken}個を${t ? `${getCard(t.cardId).name}に` : TO_LABEL[action.to]}置いた。`)
         if (t) {
             placeCoresOnSpirit(state, t, taken, owner)
+            recordTargets(state, [t.instanceId])
         } else {
             switch (action.to) {
                 case "reserve":
@@ -393,6 +457,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, action) => {
 
     // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。旧 lifeCharge と同じ絞り）
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
+        noteKeyword(getCard(self.cardId).effects, "seimei")
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }
     if (nextPick && !state.pendingChoice) placeCoresHandler({ ...ctx, targetInstanceId: undefined }, nextPick)

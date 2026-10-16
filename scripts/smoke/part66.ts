@@ -43,7 +43,7 @@ console.log("=== BS05-004 妖狐キュービック：破壊時にトラッシュ
     const s = createGame("bs05-004", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "purple" })
     runTurnStart(s)
     const kyubikku = putSpirit(s, "p1", "BS05-004", 1)
-    // onSummon(coreSqueezeAll＝場の全スピリットのコアを1個化)を持つデコイを、コア3個のまま観測できるようにする
+    // 召喚時効果が発揮されていないことを、コア3個の傍観者で観測する（シェイロンの onSummon は全スピリットのコアを1個にする）
     const bystander = putSpirit(s, "p1", "BS01-005", 3)
     // コスト5紫（ミストウィゼル）・コスト6紫（幻龍シェイロン。onSummonでcoreSqueezeAllを持つ）・
     // コスト7赤（デコイ・原始鳥フェニキオス、colorFilterで除外されるはず）
@@ -62,10 +62,10 @@ console.log("=== BS05-004 妖狐キュービック：破壊時にトラッシュ
     assert(summoned.cores === 1, "維持コア1個のみリザーブから払われる（幻龍シェイロンLv1）")
     const bystanderAfter = s.players.p1.field.spirits.find((x) => x.instanceId === bystander)!
     assert(
-        // 2026-08-17：コストを支払わない召喚でも**召喚時効果は発揮される**ように直した（part215）。
-        // 幻龍シェイロンの onSummon（coreSqueezeAll）が働き、他のスピリットのコアも1個だけ残る
-        bystanderAfter.cores === 1,
-        "召喚された幻龍シェイロンのonSummon(coreSqueezeAll)が発揮され、他のスピリットのコアが1個になる",
+        // キュービックの効果文「ただし、『このスピリットの召喚時』効果は発揮されない」どおり、
+        // 幻龍シェイロンの onSummon（coreSqueezeAll）は発揮されない（2026-10-16。RESUME_STACK §6.2）
+        bystanderAfter.cores === 3,
+        "召喚された幻龍シェイロンのonSummon(coreSqueezeAll)は発揮されず、他のスピリットのコアは3個のまま",
     )
 }
 

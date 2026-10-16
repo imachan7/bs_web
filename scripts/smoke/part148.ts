@@ -96,11 +96,11 @@ console.log("=== BS08ダークチュンポポLv2：levelAs.condition ownSpiritCo
     put(s, "p2", "BS01-001", 1)
     put(s, "p2", "BS01-002", 1)
     refreshLevelAsOverrides(s)
-    assert(currentLevel(chunpopo).level === 2, "自分1体<相手2体：raw Lv1でも最高Lv（2）まで引き上げられる")
+    assert(currentLevel(chunpopo).level === 1, "自分1体<相手2体でも、チュンポポ自身が Lv1 なら Lv2 の効果は発揮しない（2026-10-03 ユーザー確認）")
 
     put(s, "p1", "BS01-003", 1) // 自分2体目
     refreshLevelAsOverrides(s)
-    assert(currentLevel(chunpopo).level === 1, "自分2体＝相手2体（未満でなくなる）と、通常のLv（コア基準＝1）に戻る")
+    assert(currentLevel(chunpopo).level === 1, "自分2体＝相手2体でも Lv1 のまま")
 }
 {
     const s = base("chunpopo-wrong-turn")

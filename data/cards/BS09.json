@@ -339,22 +339,40 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分のデッキを上から2枚オープンできる。\nその中に系統：「星竜」を持つスピリットカードがあれば1枚手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2･Lv3\nこのスピリットは青のスピリットとしても扱う。",
     "effects": [
       {
-        "id": "BS09-005-e1",
-        "kind": "triggered",
-        "trigger": "onAttack",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "optional": true,
-        "action": {
-          "type": "reveal",
-          "count": 2,
+       "id": "BS09-005-e1",
+       "kind": "triggered",
+       "trigger": "onAttack",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "optional": true,
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
+          "count": 2
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": 1,
+          "dest": "hand",
           "pick": {
-            "family": "星竜"
+           "family": "星竜"
           }
-        }
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "deckBottom"
+         }
+        ]
+       }
       },
       {
         "id": "BS09-005-e2",
@@ -995,18 +1013,23 @@
         }
       },
       {
-        "id": "BS09-015-e2",
-        "kind": "triggered",
-        "trigger": "onDestroy",
-        "levels": [
-          3
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "colorFilter": "yellow"
+       "id": "BS09-015-e2",
+       "kind": "triggered",
+       "trigger": "onDestroy",
+       "levels": [
+        3
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "color": "yellow"
         }
+       }
       }
     ]
   },
@@ -1469,6 +1492,7 @@
         "id": "BS09-022-eB",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -1738,6 +1762,7 @@
         "id": "BS09-026-eB",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -2610,41 +2635,51 @@
     "effect": "Lv1･Lv2『自分のスタートステップ』\n自分の手札の[キャラクターロスト]を破棄することで、自分は、相手の手札1枚を内容を見ないで選び、そのカードの内容を見る。\nLv2『このスピリットの破壊時』\n自分のトラッシュにある紫のマジックカード1枚を手札に戻す。",
     "effects": [
       {
-        "id": "BS09-039-e1",
-        "kind": "step",
-        "step": "start",
-        "turn": "own",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": true,
-        "action": {
-          "type": "pay",
-          "cost": {
-            "type": "discardSelfChoose",
-            "count": 1,
-            "cardName": "キャラクターロスト"
-          },
-          "then": {
-            "type": "peekOpponentHand"
-          }
+       "id": "BS09-039-e1",
+       "kind": "step",
+       "step": "start",
+       "turn": "own",
+       "levels": [
+        1,
+        2
+       ],
+       "optional": true,
+       "action": {
+        "type": "pay",
+        "cost": {
+         "type": "moveCards",
+         "from": "hand",
+         "dest": "trash",
+         "count": 1,
+         "pick": {
+          "name": "キャラクターロスト"
+         }
+        },
+        "then": {
+         "type": "peekOpponentHand"
         }
+       }
       },
       {
-        "id": "BS09-039-e2",
-        "kind": "triggered",
-        "trigger": "onDestroy",
-        "levels": [
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverMagicFromTrash",
-          "colors": [
-            "purple"
-          ]
+       "id": "BS09-039-e2",
+       "kind": "triggered",
+       "trigger": "onDestroy",
+       "levels": [
+        2
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "magic",
+         "color": [
+          "purple"
+         ]
         }
+       }
       }
     ]
   },
@@ -2688,6 +2723,7 @@
         "id": "BS09-040-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -2757,6 +2793,7 @@
         "id": "BS09-041-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -2923,20 +2960,26 @@
         }
       },
       {
-        "id": "BS09-043-e2",
-        "kind": "triggered",
-        "trigger": "onDestroy",
-        "levels": [
-          3
-        ],
-        "optional": false,
-        "action": {
-          "type": "recoverMagicFromTrash",
-          "colors": [
-            "purple",
-            "yellow"
-          ]
+       "id": "BS09-043-e2",
+       "kind": "triggered",
+       "trigger": "onDestroy",
+       "levels": [
+        3
+       ],
+       "optional": false,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "magic",
+         "color": [
+          "purple",
+          "yellow"
+         ]
         }
+       }
       }
     ]
   },
@@ -3298,6 +3341,7 @@
         "id": "BS09-049-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "ignore",
         "levels": [
           3
         ],
@@ -3481,9 +3525,18 @@
         "levels": [
           2
         ],
-        "optional": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
         }
       }
     ]
@@ -3630,9 +3683,18 @@
           2,
           3
         ],
-        "optional": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
         }
       }
     ]
@@ -3671,28 +3733,32 @@
     "effect": "Lv1･Lv2『自分のドローステップ』\nステップ開始時、自分の手札にある【転召】を持つスピリットカード1枚を破棄することで、ドローの枚数を+1枚する。\nLv2\n【転召】を持つ自分のスピリットすべては、相手のスピリット/ネクサス/マジックの効果では、自分のフィールドから手札に戻らない。",
     "effects": [
       {
-        "id": "BS09-055-e1",
-        "kind": "step",
-        "step": "draw",
-        "turn": "own",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": true,
-        "action": {
-          "type": "pay",
-          "cost": {
-            "type": "discardSelfChoose",
-            "count": 1,
-            "cardType": "spirit",
-            "keyword": "tensho"
-          },
-          "then": {
-            "type": "draw",
-            "count": 1
-          }
+       "id": "BS09-055-e1",
+       "kind": "step",
+       "step": "draw",
+       "turn": "own",
+       "levels": [
+        1,
+        2
+       ],
+       "optional": true,
+       "action": {
+        "type": "pay",
+        "cost": {
+         "type": "moveCards",
+         "from": "hand",
+         "dest": "trash",
+         "count": 1,
+         "pick": {
+          "cardType": "spirit",
+          "keyword": "tensho"
+         }
+        },
+        "then": {
+         "type": "draw",
+         "count": 1
         }
+       }
       },
       {
         "id": "BS09-055-e2",
@@ -3751,17 +3817,22 @@
         "minBp": 8000
       },
       {
-        "id": "BS09-056-e2",
-        "kind": "battleWon",
-        "role": "any",
-        "levels": [
-          2
-        ],
-        "winnerFamilyFilter": "星竜",
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1
+       "id": "BS09-056-e2",
+       "kind": "battleWon",
+       "role": "any",
+       "levels": [
+        2
+       ],
+       "winnerFamilyFilter": "星竜",
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit"
         }
+       }
       }
     ]
   },
@@ -3872,18 +3943,23 @@
         }
       },
       {
-        "id": "BS09-058-e2",
-        "kind": "step",
-        "step": "end",
-        "turn": "opponent",
-        "levels": [
-          2
-        ],
-        "optional": true,
-        "condition": {
-          "opponentDeckNotEmpty": true
-        },
-        "action": {"type": "toDeck", "from": "hand", "position": "top", "count": 1}
+       "id": "BS09-058-e2",
+       "kind": "step",
+       "step": "end",
+       "turn": "opponent",
+       "levels": [
+        2
+       ],
+       "optional": true,
+       "condition": {
+        "opponentDeckNotEmpty": true
+       },
+       "action": {
+        "type": "moveCards",
+        "from": "hand",
+        "count": 1,
+        "dest": "deckTop"
+       }
       }
     ]
   },
@@ -4247,23 +4323,41 @@
     "effect": "Lv1･Lv2『自分のアタックステップ』\n【聖命】の効果で自分のライフにコアが置かれたとき、自分のデッキを上から2枚オープンできる。\nその中にマジックカードがあれば1枚手札に加える。\n残ったカードは好きな順番でデッキの下に戻す。\nLv2『お互いのアタックステップ』\n自分のマジックカードすべてに軽減シンボル[黄]を与える。",
     "effects": [
       {
-        "id": "BS09-064-e1",
-        "kind": "fieldEvent",
-        "event": "ownSeimeiLifeCharged",
-        "levels": [
-          1,
-          2
-        ],
-        "phase": "attack",
-        "turn": "own",
-        "optional": true,
-        "action": {
-          "type": "reveal",
-          "count": 2,
+       "id": "BS09-064-e1",
+       "kind": "fieldEvent",
+       "event": "ownSeimeiLifeCharged",
+       "levels": [
+        1,
+        2
+       ],
+       "phase": "attack",
+       "turn": "own",
+       "optional": true,
+       "action": {
+        "type": "sequence",
+        "keepScope": true,
+        "actions": [
+         {
+          "type": "revealOpen",
+          "count": 2
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": 1,
+          "dest": "hand",
           "pick": {
-            "cardType": "magic"
+           "cardType": "magic"
           }
-        }
+         },
+         {
+          "type": "moveCards",
+          "from": "revealed",
+          "count": "all",
+          "dest": "deckBottom"
+         }
+        ]
+       }
       },
       {
         "id": "BS09-064-e2",
@@ -4332,21 +4426,28 @@
         }
       },
       {
-        "id": "BS09-065-e2",
-        "kind": "step",
-        "step": "end",
-        "turn": "own",
-        "levels": [
-          2
-        ],
-        "optional": true,
-        "action": {
-          "type": "deployNexusFromTrashByFieldCores",
-          "colors": [
-            "green",
-            "blue"
-          ]
+       "id": "BS09-065-e2",
+       "kind": "step",
+       "step": "end",
+       "turn": "own",
+       "levels": [
+        2
+       ],
+       "optional": true,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "placeNexus",
+        "pay": "fieldCoresOnly",
+        "pick": {
+         "cardType": "nexus",
+         "color": [
+          "green",
+          "blue"
+         ]
         }
+       }
       }
     ]
   },
@@ -4395,6 +4496,7 @@
         "optional": true,
         "action": {
           "type": "summonFromHandFree",
+          "skipOnSummon": true,
           "colorFilter": "blue",
           "costFilter": {
             "max": 4
@@ -4402,26 +4504,30 @@
         }
       },
       {
-        "id": "BS09-066-e2",
-        "kind": "step",
-        "step": "draw",
-        "turn": "own",
-        "levels": [
-          2
-        ],
-        "optional": true,
-        "action": {
-          "type": "pay",
-          "cost": {
-            "type": "discardSelfChoose",
-            "count": 1,
-            "cardType": "nexus"
-          },
-          "then": {
-            "type": "draw",
-            "count": 1
-          }
+       "id": "BS09-066-e2",
+       "kind": "step",
+       "step": "draw",
+       "turn": "own",
+       "levels": [
+        2
+       ],
+       "optional": true,
+       "action": {
+        "type": "pay",
+        "cost": {
+         "type": "moveCards",
+         "from": "hand",
+         "dest": "trash",
+         "count": 1,
+         "pick": {
+          "cardType": "nexus"
+         }
+        },
+        "then": {
+         "type": "draw",
+         "count": 1
         }
+       }
       }
     ]
   },
@@ -5492,6 +5598,7 @@
         "id": "BS09-X37-e4",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": [
           3
         ],
@@ -5631,20 +5738,26 @@
     "effect": "Lv1･Lv2･Lv3\n相手のスピリットによって自分のライフが減ったとき、自分のトラッシュにある黄のマジックカード1枚を手札に戻す。\nLv2･Lv3\n自分か相手がマジックカードを使用したとき、このスピリットは回復する。\nLv3『お互いのアタックステップ』\n自分の手札/手元にある黄のマジックカードすべてを、コストを支払わずに使用できる。",
     "effects": [
       {
-        "id": "BS09-X39-e1",
-        "kind": "fieldEvent",
-        "event": "ownLifeDamaged",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "action": {
-          "type": "recoverMagicFromTrash",
-          "colors": [
-            "yellow"
-          ]
+       "id": "BS09-X39-e1",
+       "kind": "fieldEvent",
+       "event": "ownLifeDamaged",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "magic",
+         "color": [
+          "yellow"
+         ]
         }
+       }
       },
       {
         "id": "BS09-X39-e2",

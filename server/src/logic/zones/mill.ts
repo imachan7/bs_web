@@ -1,8 +1,12 @@
+// デッキ破棄（mill）の上限とデッキ破棄の実行
+import { noteCoverage } from "../../../../shared/coverage"
+import { recordLifeLost, recordMoved } from "../record"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
 import { returnSpiritToDeckBottom } from "../removal"
 import { spiritMillFreeSummonOrConfirm } from "../revive"
-import { fireFieldEventTriggers, fireNexusDeployed, resolveMagicEffects } from "../triggers"
+import { resolveMagicEffects } from "../triggers"
+import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { lifeCostBlockedByFloor, recordPlayerRule, resolveAction } from "../EffectModules"
@@ -22,6 +26,7 @@ export function millCapFor(state: GameState, pid: PlayerId): number {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "globalConstraint")
             cap = Math.min(cap, effect.constraint.maxCount)
         }
     }
@@ -111,6 +116,8 @@ export function millDeck(
     // until：このカードを破棄したところで止める（「〜が出るまで破棄する」）
     options?: { skipNegate?: true; until?: (cardId: string) => boolean },
 ): number {
+    // 破棄できずに抜ける経路でも「破棄したなら」が前の効果の記録を拾わないよう、先に空にする
+    recordMoved(state, [])
     // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
     if (isEndStepLocked(state, "deckMill")) {
         log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
@@ -167,9 +174,23 @@ export function millDeck(
                     (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
             )
             if (stops) break
+            // thenProtectDeckThisTurn（ミノガメン・執事ペンタン）は召喚の成否・確認より先、破棄された瞬間に効く。
+            // 残りの破棄はその場で止まる（2026-10-03 ユーザー確認 SEMANTICS_AUDIT §3.22）
+            const protects = getCard(cardId).effects.some(
+                (e) =>
+                    e.kind === "onMilledFromDeck" &&
+                    e.thenProtectDeckThisTurn === true &&
+                    (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
+            )
+            if (protects) {
+                recordPlayerRule(state, pid, { type: "noDeckMillByOpponentForPid" })
+                log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
+                break
+            }
         }
     }
     const actual = milled.length
+    recordMoved(state, milled)
     // mutual版の累計は誰が引き起こしたかを問わず加算する（既存millCountThisTurnはbyOpponent限定のまま別集計）
     if (actual > 0) {
         state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + actual
@@ -218,6 +239,7 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
         const idx = player.trashCards.lastIndexOf(cardId)
         if (idx === -1) continue // onMilledFromDeck が先に取り除いたカード
         player.trashCards.splice(idx, 1)
+        noteCoverage(effectSources(state, pid).flatMap((s) => getCard(s.cardId).effects).find((e) => e.kind === "milledMagicToTegamoto"), "milledMagicToTegamoto")
         player.tegamoto.push(cardId)
         player.tegamotoPlayable.push(cardId)
         moved.push(getCard(cardId).name)
@@ -274,6 +296,7 @@ export function findDeckMillNegate(
             } else {
                 if (source.isRested) continue
             }
+            noteCoverage(effect, "deckMillNegate")
             return { source, effect }
         }
     }
@@ -345,11 +368,13 @@ export function payDeckMillNegateCost(
     if ("ownLifeToReserve" in effect.cost) {
         const paid = effect.cost.ownLifeToReserve
         player.life -= paid
+        recordLifeLost(state, pid, paid)
         player.reserve += paid
         log(
             state,
             `${getCard(source.cardId).name}：${player.name}はライフのコア${paid}個をリザーブに置き、デッキの破棄を無効にした。（残りライフ${player.life}）`,
         )
+        if (paid > 0 && !state.winner) fireFieldEventTriggers(state, pid, "ownLifeLost")
     } else {
         exhaustSpirit(state, pid, source)
         log(state, `${getCard(source.cardId).name}：${player.name}はこのスピリットを疲労させ、デッキの破棄を無効にした。`)
@@ -454,6 +479,7 @@ export function resolveMilledFromDeck(
                 break
             }
             player.trashCards.splice(idx, 1)
+            noteCoverage(effect, "onMilledFromDeck")
             const name = getCard(cardId).name
             if (effect.then === "deployThisNexusFree") {
                 const inst = createInstance(cardId, state.turn, 0)

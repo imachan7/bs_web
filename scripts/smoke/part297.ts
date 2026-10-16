@@ -113,20 +113,6 @@ console.log("=== #2 条件を書いていない他カードは lastFunsai の記
     assert((s.lastFunsai?.spirits ?? 0) === 0, "今回はスピリットカードが0枚だった")
 }
 
-console.log("=== #4 BS08-062 超時空重力炉：軽減シンボルは白3つに置換される（加算ではない） ===")
-{
-    const s = createGame("juryokuro-replace", { p1: "アキラ", p2: "ユウキ" }, { p1: "white", p2: "white" })
-    runTurnStart(s)
-    const nexus = createInstance("BS08-062", s.turn, 4) // Lv2（cores足りることを確認する必要はなく現在レベルの判定のみ使う）
-    s.players.p1.field.nexuses.push(nexus)
-    const granted = reductionGrantSymbols(s, "p1", getCard("BS01-001"))
-    assert(granted.replace !== null, "replace指定のエントリなのでreplaceが立つ")
-    assert(
-        JSON.stringify(granted.replace) === JSON.stringify(["white", "white", "white"]),
-        "置換後は白3つ（素の軽減シンボルとは無関係の値）",
-    )
-}
-
 console.log("=== #4 置換を指定しない既存カード（天使バーチュ等）は従来どおり加算 ===")
 {
     // BS02-030（兵隊アントマン）は素のreductionが空。BS06-079神葉樹の森（既存の加算型reductionGrant、

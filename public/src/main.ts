@@ -1,26 +1,13 @@
 // サーバー通信、ユーザー操作の受付、状態購読
-import type { CardData, GameAction, GameView, PaySource, PlayerId } from "../../server/src/type"
-import { DECK_RECIPES, DECK_MIN_SIZE } from "../../data/constants"
-import {
-    canDirectAttack,
-    effectiveCost,
-    hasKeyword,
-    magicTargetSide,
-    master,
-    matchesDirectedAttackFilter,
-    payableFieldCores,
-    payingAltPay,
-    render,
-    setCardDb,
-    setupEffectTooltip,
-    showToast,
-    showWaiting,
-    hideWaiting,
-    type UiState,
-} from "./renderer"
-import { AWAKEN_FROM_RESERVE, canAltSummonFromHand, canAwakenFromReserve, instAttackRequiresCoreToll, instMinLevelCores, minLevelCores, sokuPayableInstanceIds, timedContentsOn } from "../../shared/rules"
-import { canPayNexusCostByMill, canPaySummonCostByHandDiscard } from "../../shared/cost"
-import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../shared/summon"
+import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
+import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
+import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
+import { setupEffectTooltip } from "./ui/tooltip"
+import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
+import { braveCombineCandidates } from "../../shared/summon"
+import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, populateAllBuiltinDecks, populateAllCustomDecks, loadChangelog } from "./ui/lobby"
+import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
+import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandClick, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -90,83 +77,18 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
     socket.connect()
 }
 
-// コアの支払い方式はブラウザごとに覚える。保存できない環境（プライベートモード等）では毎回「自動」に戻る
-const PAY_MODE_KEY = "bs_pay_mode"
-function loadPayMode(): "auto" | "manual" {
-    try {
-        return localStorage.getItem(PAY_MODE_KEY) === "manual" ? "manual" : "auto"
-    } catch {
-        return "auto"
-    }
-}
-function savePayMode(mode: "auto" | "manual"): void {
-    try {
-        localStorage.setItem(PAY_MODE_KEY, mode)
-    } catch {
-        // 保存できなくても、このタブの間は切り替えた方式で動く
-    }
-}
-function payModeLabel(mode: "auto" | "manual"): string {
-    return mode === "manual" ? "🪙 支払い：手動" : "🪙 支払い：自動"
-}
 
-let view: GameView | null = null
-const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, stepper: null, burstResetConfirm: null }
+export let view: GameView | null = null
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
 // joined の種別を区別する（"room" = 合言葉ルーム、"random" / "ai" = 即対戦）
 let joinMode: "room" | "random" | "ai" = "room"
 
-function send(action: GameAction): void {
+export function send(action: GameAction): void {
     if (!confirmExtraCost(action)) return
     socket.emit("action", action)
-}
-
-// 器BM（BS13-043 鳥人イカロッシュ）／器BU（BS13-047 深海大帝ノーグ・デンス）：
-// アタック・ブロックの宣言そのものに追加コストが要る場面で、押し間違いでコアやマジックを
-// 失わないよう確認をはさむ（2026-09-10 ユーザー確認：断ればアタック／ブロックしない）。
-// サーバーは宣言が成立したら自動で支払う（払えないときは validateAttack / validateBlock が弾く）ので、
-// 「断る＝そもそも宣言しない」をクライアント側で表現する。
-// アタックの送信口が3か所（通常・指定アタックの対象選択・相手プレイヤーへの指定）あるため send() に1つ置く
-function confirmExtraCost(action: GameAction): boolean {
-    if (!view) return true
-    if (action.type === "attack") {
-        const inst = view.players[view.you].field.spirits.find((s) => s.instanceId === action.instanceId)
-        if (!inst || !instAttackRequiresCoreToll(view, inst)) return true
-        return window.confirm(
-            `${master(inst.cardId).name}のアタックには、リザーブのコア1個をトラッシュに置く必要があります。\n\n` +
-                "支払ってアタックしますか？",
-        )
-    }
-    if (action.type === "block") {
-        const battle = view.battle
-        const attacker = battle ? view.players[view.you === "p1" ? "p2" : "p1"].field.spirits.find((s) => s.instanceId === battle.attackerInstanceId) : undefined
-        if (!attacker || !timedContentsOn(view, attacker).some((c) => c.type === "blockCost" && c.cost === "discardMagic")) return true
-        return window.confirm(
-            "ブロックするには、手札のマジックカード1枚を破棄する必要があります。\n\n破棄してブロックしますか？",
-        )
-    }
-    return true
-}
-
-// スピリット／ネクサスからコアを1個取り除く。
-// 自分のスピリットが**維持コア（Lv1）を下回る**ときは、消滅することを断ってから送る
-// （コアをリザーブへ引き上げて他の召喚や別のスピリットへ回すために、あえて退かせる操作。
-// 2026-08-23 ユーザー要望）。ネクサスは Lv1 が0コアなのでこの確認は出ない
-function sendCoreRemove(instanceId: string): void {
-    const inst = view?.players[view.you].field.spirits.find((s) => s.instanceId === instanceId)
-    if (inst && inst.cores - 1 < instMinLevelCores(inst)) {
-        const name = master(inst.cardId).name
-        const ok = window.confirm(
-            `${name}のコアを取り除くと維持コア（Lv1）を下回るため、${name}は消滅します。\n` +
-                `残っているコアはリザーブに戻ります。\n\nよろしいですか？`,
-        )
-        if (!ok) return
-        send({ type: "moveCore", instanceId, direction: "remove", confirmDeplete: true })
-        return
-    }
-    send({ type: "moveCore", instanceId, direction: "remove" })
 }
 
 function renderTrashPanel(view: GameView, tab: "mine" | "opp"): void {
@@ -242,244 +164,12 @@ function renderTegamotoPanel(view: GameView, tab: "mine" | "opp"): void {
     })
 }
 
-function rerender(): void {
+export function rerender(): void {
     if (view) {
         render(view, ui)
         renderTrashPanel(view, activeTrashTab)
         renderTegamotoPanel(view, activeTegamotoTab)
     }
-}
-
-// カード種別に応じたアクションを送信する（paySources/targetInstanceId/levelは値がある場合のみキーを含める）
-function sendPlay(
-    cardType: CardData["type"],
-    handIndex: number,
-    targetInstanceId?: string,
-    paySources?: PaySource[],
-    level?: number,
-    substituteInstanceId?: string,
-    discardHandIndices?: number[],
-    millPay?: number,
-    braveTargetInstanceId?: string,
-    altSummonNexusInstanceIds?: string[],
-    shinsokuAssistInstanceIds?: string[],
-): void {
-    // ブレイヴは単体で場に出すとスピリットとして扱われるので、召喚はこちらを通る（BRAVE.md §1.1）
-    if (isSummonableCardType(cardType)) {
-        send({
-            type: "summon",
-            handIndex,
-            ...(paySources ? { paySources } : {}),
-            ...(level !== undefined ? { level } : {}),
-            ...(substituteInstanceId ? { substituteInstanceId } : {}),
-            ...(discardHandIndices ? { discardHandIndices } : {}),
-            ...(braveTargetInstanceId ? { braveTargetInstanceId } : {}),
-            ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {}),
-            ...(shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0 ? { shinsokuAssistInstanceIds } : {})
-        })
-    } else if (cardType === "nexus") {
-        send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}), ...(millPay !== undefined ? { millPay } : {}) })
-    } else if (cardType === "magic") {
-        // **マジックのときだけ** castMagic を送る。かつてここは「それ以外はすべて castMagic」
-        // という取りこぼしの受け皿になっており、ブレイヴが追加されたときに
-        // 手札のブレイヴが castMagic として送られて場に出せなくなっていた（2026-08-28 修正）。
-        // 今後カード種別が増えたときも、ここに書き足すまでは黙って誤送信されない
-        send({
-            type: "castMagic",
-            handIndex,
-            ...(targetInstanceId ? { targetInstanceId } : {}),
-            ...(paySources ? { paySources } : {}),
-        })
-    } else {
-        // カード種別の網羅チェック。**新しい種別が増えるとここで typecheck が落ちる**ので、
-        // 出し方を決めないまま既存のアクションへ紛れ込むことがない（2026-08-28 ユーザー指示）
-        const unknown: never = cardType
-        console.error(`このカード種別の出し方が未実装です: ${String(unknown)}`)
-    }
-}
-
-// 軽減後コスト（+維持コア）がリザーブで足りるなら即送信、足りなければ支払いモードを開始する
-function tryPlay(handIndex: number, card: CardData, targetInstanceId: string | undefined, level?: number, substituteInstanceId?: string, braveTargetInstanceId?: string, altSummonNexusInstanceIds?: string[]): void {
-    if (!view) return
-    // 代替召喚（kind:"altSummonFromHand"）は召喚コストを支払わない。維持コアは通常どおり必要
-    const cost = altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
-    
-    // 入れ替え召喚（substituteInstanceId あり）の場合は強制Lv1（維持コア=minLevelCores）になるためレベル選択をスキップする
-    // ダイレクトブレイヴ（braveTargetInstanceId あり）は合体状態のLv1固定でコアを置かないため、
-    // 入れ替え召喚と同じくレベル選択をスキップする（サーバーもレベル指定を受け付けない）
-    if (level === undefined && substituteInstanceId === undefined && braveTargetInstanceId === undefined && (card.type === "spirit" || card.type === "nexus")) {
-        const reserve = view.players[view.you].reserve
-        const cardIdForField = view.players[view.you].hand?.[handIndex]
-        // コストも置くコアも、リザーブに加えてフィールドのコアで賄える（2026-08-01）ため、
-        // 選択肢に出すレベルの判定にもフィールドのコアを含める
-        const fieldCores = cardIdForField ? payableFieldCores(view, cardIdForField) : 0
-        const affordableLevels = card.levels.filter((l) => reserve + fieldCores >= cost + l.cores)
-        
-        // If they can afford Lv2 or higher, show level selection
-        if (affordableLevels.length > 1) {
-            const cardId = view.players[view.you].hand?.[handIndex]
-            if (!cardId) return
-            ui.targeting = null
-            ui.awakenTarget = null
-            ui.paying = null
-            ui.directedAttack = null
-            ui.summonLevelSelect = { handIndex, cardId, ...(targetInstanceId ? { targetInstanceId } : {}), ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {}) }
-            rerender()
-            return
-        }
-        
-        // If they can't even afford Lv1 from reserve, affordableLevels.length is 0. 
-        // We just fall through and it will enter paying mode for Lv1.
-        // If they can afford exactly Lv1, it falls through and sends instantly.
-    }
-    
-    const targetLevel = level || 1
-    const lv = card.levels.find((l) => l.level === targetLevel)
-    // ダイレクトブレイヴは維持コアを置かない（合体状態のLv1は0コア。BRAVE.md §5）
-    const maintain = card.type === "magic" || braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
-    const reserve = view.players[view.you].reserve
-
-    // 栄光の表彰台Lv1：ネクサスの配置コストを、コアの代わりにデッキ破棄で払える。
-    // **コア払いとの併用はできない**ので全額（＝実効コスト）払えるときだけ選択肢になる
-    // （判定を揃えないと、サーバーが受け付ける配置をクライアントが支払いモードに入れてしまう）
-    const millPayable =
-        card.type === "nexus" &&
-        canPayNexusCostByMill(view, view.you) &&
-        view.players[view.you].deckCount >= cost
-            ? cost
-            : 0
-
-    // BS08ビクティム：スピリットの召喚コストは、コアで足りない分を手札破棄で払える。
-    // **召喚するカード自身は破棄に使えない**ので手札枚数から1枚引く
-    const handDiscardPayable =
-        card.type === "spirit" && canPaySummonCostByHandDiscard(view, view.you)
-            ? Math.min(cost, Math.max(0, view.players[view.you].handCount - 1))
-            : 0
-
-    // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
-    // 手札破棄はどこまで代替で払うか、デッキ破棄はコアで払うかデッキで払うかをプレイヤーが選ぶ
-    // （そのまま確定すれば従来どおり全額コア払いになる）
-    const altAvailable = millPayable > 0 || handDiscardPayable > 0
-    if (ui.payMode === "auto" && !altAvailable && reserve >= cost + maintain) {
-        sendPlay(card.type, handIndex, targetInstanceId, undefined, level, substituteInstanceId, undefined, undefined, braveTargetInstanceId, altSummonNexusInstanceIds)
-        return
-    }
-    // コアが足りない、または代替コストを選べる → 支払いモードを開始（他のモードは排他的に解除する）
-    ui.targeting = null
-    ui.awakenTarget = null
-    ui.summonLevelSelect = null
-    ui.battleSwapSummon = null
-    ui.braveSummonSelect = null
-    ui.altSummonSelect = null
-    ui.combineBrave = null
-    ui.paying = { 
-        handIndex, 
-        ...(targetInstanceId ? { targetInstanceId } : {}), 
-        assigned: {}, 
-        discardHandIndices: [],
-        millPay: 0,
-        shinsokuAssistInstanceIds: [],
-        ...(level !== undefined ? { level } : {}),
-        ...(substituteInstanceId ? { substituteInstanceId } : {}),
-        ...(braveTargetInstanceId ? { braveTargetInstanceId } : {}),
-        ...(altSummonNexusInstanceIds ? { altSummonNexusInstanceIds } : {})
-    }
-    rerender()
-}
-
-// 支払いモードの内容を確定して送信する。代替コスト（手札破棄／デッキ破棄）も一緒に送る
-function submitPaying(): void {
-    if (!view || !ui.paying) return
-    const pay = ui.paying
-    // 場を離れるときにブレイヴを残す（BRAVE.md §6.3）：選択待ちの解決として支払う
-    if (pay.forBraveKeep !== undefined) {
-        send({
-            type: "resolveChoice",
-            option: pay.forBraveKeep.option,
-            ...(Object.keys(pay.assigned).length > 0
-                ? { paySources: Object.entries(pay.assigned).map(([id, count]) => ({ instanceId: id, count })) }
-                : {}),
-        })
-        ui.paying = null
-        return
-    }
-    // 任意分離（BRAVE.md §6.4）：手札ではなく場の合体中ブレイヴが起点なので、ここで先に分岐する
-    if (pay.forDetachBraveInstanceId !== undefined) {
-        send({
-            type: "detachBrave",
-            braveInstanceId: pay.forDetachBraveInstanceId,
-            ...(Object.keys(pay.assigned).length > 0
-                ? { paySources: Object.entries(pay.assigned).map(([id, count]) => ({ instanceId: id, count })) }
-                : {}),
-        })
-        ui.paying = null
-        return
-    }
-    const cardId = view.players[view.you].hand?.[pay.handIndex]
-    if (cardId === undefined) {
-        ui.paying = null
-        rerender()
-        return
-    }
-    const card = master(cardId)
-    const paySources: PaySource[] = Object.entries(pay.assigned).map(
-        ([id, count]) => ({ instanceId: id, count }),
-    )
-    // 選択待ちの解決として支払う場合（「コストを支払って召喚できる」起動効果）は
-    // summon ではなく resolveChoice を送る
-    if (pay.forChoiceCardIndex !== undefined) {
-        send({
-            type: "resolveChoice",
-            cardIndex: pay.forChoiceCardIndex,
-            ...(paySources.length > 0 ? { paySources } : {}),
-        })
-        ui.paying = null
-        return
-    }
-    sendPlay(
-        card.type,
-        pay.handIndex,
-        pay.targetInstanceId,
-        paySources.length > 0 ? paySources : undefined,
-        pay.level,
-        pay.substituteInstanceId,
-        pay.discardHandIndices.length > 0 ? pay.discardHandIndices : undefined,
-        pay.millPay > 0 ? pay.millPay : undefined,
-        pay.braveTargetInstanceId,
-        pay.altSummonNexusInstanceIds,
-        pay.shinsokuAssistInstanceIds,
-    )
-    ui.paying = null
-}
-
-// 支払いモード中に、代替コストの支払い量を変える。
-// 手札破棄（ビクティム）は「すべて、または一部」なので1枚ずつ増減し、どの手札かは手札クリック側で選ぶ。
-// デッキ破棄（栄光の表彰台）は**コア払いと併用できない**ので、全額払う／払わないのトグル（delta は見ない）
-function changeAltPay(delta: number): void {
-    if (!view || !ui.paying) return
-    const alt = payingAltPay(view, ui.paying)
-    if (alt.kind === "mill") {
-        ui.paying.millPay = ui.paying.millPay > 0 ? 0 : alt.max
-    } else if (alt.kind === "handDiscard" && delta < 0) {
-        ui.paying.discardHandIndices.pop()
-    }
-    rerender()
-}
-
-// 支払いモード中に、手札1枚を「破棄して払う」対象として選ぶ／外す（BS08ビクティム）
-function toggleDiscardPay(handIndex: number): void {
-    if (!view || !ui.paying) return
-    const pay = ui.paying
-    if (handIndex === pay.handIndex) return // 召喚するカード自身は破棄に使えない
-    const alt = payingAltPay(view, pay)
-    if (alt.kind !== "handDiscard") return
-    const at = pay.discardHandIndices.indexOf(handIndex)
-    if (at !== -1) {
-        pay.discardHandIndices.splice(at, 1)
-    } else if (pay.discardHandIndices.length < alt.max) {
-        pay.discardHandIndices.push(handIndex)
-    }
-    rerender()
 }
 
 // ---- サーバーからのイベント ----
@@ -533,10 +223,19 @@ socket.on("state", (v: GameView) => {
     ui.paying = null // 支払いモードもリセット
     ui.directedAttack = null // 指定アタックの対象選択モードもリセット
     ui.summonLevelSelect = null // レベル選択もリセット
+    ui.exReductionSelect = null // 《継召》の除外カード選択もリセット
+    ui.soulCoreOnlySelect = null // 《ソウルマジック》の選択もリセット
+    ui.soulSwapSelect = null // [ソウルコア]の交換モードもリセット
     ui.braveSummonSelect = null // ブレイヴの召喚方法選択もリセット
     ui.altSummonSelect = null // 代替召喚の方法選択もリセット
     ui.battleSwapSummon = null // 入れ替え召喚の対象選択もリセット
     rerender()
+    // 支払い「自動」なら、効果のコストを[ソウルコア]以外のリザーブだけで払えるときは聞かずに払う（「手動」なら毎回支払い元を選ぶ）
+    const costPay = v.pendingChoice?.pid === v.you ? v.pendingChoice.effectCostPay : undefined
+    const me = v.players[v.you]
+    if (costPay && ui.payMode === "auto" && me.reserve - (me.soulCore?.zone === "reserve" ? 1 : 0) >= costPay.need + (costPay.keep ?? 0)) {
+        send({ type: "resolveChoice", option: "支払う" })
+    }
 })
 
 socket.on("errorMessage", (message: string) => {
@@ -550,499 +249,14 @@ socket.on("opponentLeft", () => {
 
 // ---- 手札クリック ----
 
-// pendingChoiceが自分宛かつkind:"card"・cardZone:"hand"、クリックしたhandIndexが候補内なら
-// resolveChoice を送信する。送信したら true を返す（呼び出し側はそこで処理を打ち切る）
-function tryResolveCardChoice(handIndex: number): boolean {
-    if (!view || !view.pendingChoice) return false
-    if (view.pendingChoice.pid !== view.you) return false
-    if (view.pendingChoice.kind !== "card" || view.pendingChoice.cardZone !== "hand") return false
-    if (!(view.pendingChoice.cardIndices ?? []).includes(handIndex)) return false
-    // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル）で、リザーブだけでは
-    // 払えないときは支払いモードへ入る（フィールドのコアの割り当てを決めてから送る）
-    if (startChoicePaying(handIndex)) return true
-    send({ type: "resolveChoice", cardIndex: handIndex })
-    return true
-}
-
-// 選択待ちで選んだカードのコストがリザーブだけでは足りないとき、通常の召喚と同じ
-// 支払いモードを開始する（開始したら true）。フィールドのコアでも足りないカードは
-// そもそもサーバーが候補に入れないので、ここでは不足＝フィールドから払う場面とみなす。
-// 対象は「コストを支払う」3種：
-//   summonFromHandFree.payCost   手札から召喚（BS08帝竜騎サイクル）
-//   summonFromTrashFree.payCost  トラッシュから召喚（BS07常闇の聖堂）
-//   castMagicFromTrashByColor    トラッシュのマジックを使用（BS08-X33ミカファール）
-function startChoicePaying(cardIndex: number): boolean {
-    if (!view || !view.pendingChoice) return false
-    // 既にこの選択の支払い中なら、クリックでは何もしない（割り当てをリセットさせない）
-    if (ui.paying?.forChoiceCardIndex !== undefined) return true
-    const action = view.pendingChoice.action as { type?: string; payCost?: true } | undefined
-    const zone = view.pendingChoice.cardZone === "trash" ? "trash" : "hand"
-    const paysCost =
-        action?.type === "castMagicFromTrashByColor" ||
-        ((action?.type === "summonFromHandFree" || action?.type === "summonFromTrashFree") && action.payCost === true)
-    if (!paysCost) return false
-    const player = view.players[view.you]
-    const cardId = zone === "trash" ? player.trashCards[cardIndex] : player.hand?.[cardIndex]
-    if (cardId === undefined) return false
-    const card = master(cardId)
-    // マジックには「置くコア」が無いのでコストだけ
-    const need = effectiveCost(view, view.you, card) + (card.type === "magic" ? 0 : minLevelCores(card))
-    if (ui.payMode === "auto" && player.reserve >= need) return false
-    ui.paying = {
-        handIndex: cardIndex,
-        forChoiceCardIndex: cardIndex,
-        ...(zone === "trash" ? { choiceZone: zone } : {}),
-        assigned: {},
-        discardHandIndices: [],
-        millPay: 0,
-        shinsokuAssistInstanceIds: [],
-    }
-    rerender()
-    return true
-}
-
-// バーストセットボタン（docs/design/BURST.md）。すでにバーストがセットされている場合は
-// 上書き（旧カードがトラッシュへ送られる）ことになるので、押し間違い防止に確認をはさむ
-function onBurstSetClick(handIndex: number): void {
-    if (!view) return
-    if (view.players[view.you].burstSet) {
-        ui.burstResetConfirm = { handIndex }
-        rerender()
-        return
-    }
-    send({ type: "setBurst", handIndex })
-}
-
-// 手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
-// 対象選択はサーバー側の bpBuff.anySide の既存経路（対話ならPendingChoice）に任せるので、
-// クライアントは useHandAbility を送るだけでよい
-function onHandAbilityClick(handIndex: number, effectId: string): void {
-    if (!view) return
-    send({ type: "useHandAbility", handIndex, effectId })
-}
-
-function onHandClick(handIndex: number): void {
-    if (!view) return
-    // 選択待ち中は通常の手札操作（召喚等）をすべて抑止する。自分宛のkind:"card"・cardZone:"hand"
-    // なら選択を送信し、それ以外（相手宛や別kind）は何もしない
-    if (view.pendingChoice) {
-        tryResolveCardChoice(handIndex)
-        return
-    }
-    if (ui.awakenTarget !== null) return // 覚醒モード中は手札操作を抑止
-    if (ui.paying !== null) {
-        // 支払いモード中は新規の手札操作を抑止するが、
-        // 代替コストで「破棄する手札を選ぶ」場合だけはクリックを受け付ける（BS08ビクティム）
-        toggleDiscardPay(handIndex)
-        return
-    }
-    if (ui.directedAttack !== null) return // 指定アタックの対象選択モード中は手札操作を抑止
-    const hand = view.players[view.you].hand
-    const cardId = hand?.[handIndex]
-    if (cardId === undefined) return
-    const card: CardData = master(cardId)
-
-    const myTurn = view.turnPlayer === view.you
-    const myMainFree = myTurn && view.phase === "main" && !view.battle
-    // フラッシュ中で自分が優先権を持つとき（攻撃側・防御側どちらでも使用可）
-    const inFlash =
-        !!view.battle && view.isFlashTiming && view.priorityPlayer === view.you
-
-    if (myMainFree) {
-        // ブレイヴは「スピリット状態で召喚」と「合体した状態で召喚」を毎回選ばせる
-        // （2026-08-28 ユーザー指示。合体先が無くても選択は出す＝何が起きるか分かるように）
-        if (card.type === "brave") {
-            ui.targeting = null
-            ui.awakenTarget = null
-            ui.paying = null
-            ui.directedAttack = null
-            ui.summonLevelSelect = null
-            ui.battleSwapSummon = null
-            ui.altSummonSelect = null
-            ui.braveSummonSelect = {
-                handIndex,
-                cardId,
-                candidateIds: braveCombineCandidates(view, view.you, cardId),
-            }
-            rerender()
-            return
-        }
-        if (card.type === "spirit") {
-            // 代替召喚（BS10-058）を持つカードは、通常召喚と代替召喚のどちらで出すか選ばせる
-            const alt = canAltSummonFromHand(view, view.you, handIndex)
-            if (alt.ok) {
-                ui.targeting = null
-                ui.awakenTarget = null
-                ui.paying = null
-                ui.directedAttack = null
-                ui.summonLevelSelect = null
-                ui.battleSwapSummon = null
-                ui.braveSummonSelect = null
-                ui.altSummonSelect = { handIndex, cardId, candidateNexusIds: alt.candidateNexusIds }
-                rerender()
-                return
-            }
-            tryPlay(handIndex, card, undefined)
-            return
-        }
-        if (card.type === "nexus") {
-            tryPlay(handIndex, card, undefined)
-            return
-        }
-    }
-
-    // 神速召喚または入れ替え召喚（フラッシュで手札のスピリットを使用）
-    if (card.type === "spirit" && inFlash) {
-        const swapOpt = canBattleSwapSummon(view, view.you, handIndex)
-        const tempSoku = (view.players[view.you].tempHandKeywordGrants ?? []).some(
-            (g) => g.cardId === cardId && g.keyword === "soku",
-        )
-        const canSoku = hasKeyword(cardId, "soku") || tempSoku
-
-        // 現在「神速」と「入れ替え召喚」を両方持つカードは存在しないため、排他的に処理する
-        if (swapOpt) {
-            ui.battleSwapSummon = { handIndex, substituteInstanceIds: swapOpt.substituteInstanceIds }
-            rerender()
-            return
-        }
-
-        if (canSoku) {
-            tryPlay(handIndex, card, undefined)
-            return
-        }
-
-        // 【烈神速】：お互いのアタックステップ、トラッシュのコア5個以上でコストを支払わず召喚する
-        // （置き先はサーバーが立てる distributeCores の選択で1個ずつ聞かれる。BS16-X03）
-        if (hasKeyword(cardId, "resshinsoku") && view.players[view.you].trashCores >= 5) {
-            send({ type: "resshinsokuSummon", handIndex })
-            return
-        }
-    }
-
-    if (card.type === "magic" && (myMainFree || (inFlash && card.flash))) {
-        // メイン効果がなければフラッシュ効果を使う（doCastMagic と同じ判定）
-        const hasMain = card.effects.some(
-            (e) => e.kind === "magic" && e.timing === "main",
-        )
-        const timing: "main" | "flash" =
-            inFlash || !hasMain ? "flash" : "main"
-        const side = magicTargetSide(card, timing)
-        if (side) {
-            ui.targeting = { handIndex, side }
-            rerender()
-        } else {
-            tryPlay(handIndex, card, undefined)
-        }
-    }
-}
-
 // ---- フィールドクリック ----
 
-// pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
-// 送信したら true を返す（呼び出し側はそこで処理を打ち切る）
-function tryResolveChoice(instanceId: string): boolean {
-    if (!view || !view.pendingChoice) return false
-    if (view.pendingChoice.pid !== view.you) return false
-    if (!view.pendingChoice.candidates.includes(instanceId)) return false
-    send({ type: "resolveChoice", instanceId })
-    return true
-}
-
-function onMySpiritClick(instanceId: string): void {
-    if (!view) return
-    if (tryResolveChoice(instanceId)) return
-
-    // 指定アタックの対象選択モード中：自分のスピリットのクリックは無視する
-    // （対象は相手スピリット。プレイヤーへアタックは専用ボタン、キャンセルは対象選択をやめるボタン）
-    if (ui.directedAttack !== null) return
-
-    // 支払いモード中：クリックしたスピリットに1個割り当てる
-    if (ui.paying !== null) {
-        assignPayCore(instanceId)
-        return
-    }
-
-    // 覚醒モード中：クリックしたスピリットからコアを1個移す（移動先の再クリックでキャンセル）
-    if (ui.awakenTarget !== null) {
-        if (instanceId === ui.awakenTarget) {
-            ui.awakenTarget = null
-            rerender()
-            return
-        }
-        send({
-            type: "awaken",
-            instanceId: ui.awakenTarget,
-            fromInstanceId: instanceId,
-            count: 1,
-        })
-        ui.awakenTarget = null
-        return
-    }
-
-    // 入れ替え召喚の対象選択モード中
-    if (ui.battleSwapSummon !== null) {
-        if (ui.battleSwapSummon.substituteInstanceIds.includes(instanceId)) {
-            const handIndex = ui.battleSwapSummon.handIndex
-            const cardId = view.players[view.you].hand?.[handIndex]
-            ui.battleSwapSummon = null
-            if (cardId !== undefined) {
-                tryPlay(handIndex, master(cardId), undefined, undefined, instanceId)
-            }
-        }
-        return
-    }
-
-    if (ui.targeting?.side === "self") {
-        const handIndex = ui.targeting.handIndex
-        const cardId = view.players[view.you].hand?.[handIndex]
-        ui.targeting = null
-        if (cardId !== undefined) {
-            tryPlay(handIndex, master(cardId), instanceId)
-        }
-        return
-    }
-
-    const myTurn = view.turnPlayer === view.you
-    const isDefender = !!view.battle && !myTurn
-    // ブロック宣言はフラッシュタイミングの外（フラッシュ①終了後）でのみ行える
-    const canDefend = isDefender && !view.isFlashTiming
-
-    if (canDefend && !view.battle?.blockerInstanceId) {
-        send({ type: "block", instanceId })
-        return
-    }
-
-    if (myTurn && view.phase === "attack" && !view.battle) {
-        const inst = view.players[view.you].field.spirits.find(
-            (s) => s.instanceId === instanceId,
-        )
-        const filter = inst ? canDirectAttack(view, view.you, inst) : null
-        const oppPid = opponentOf(view.you)
-        const oppSpirits = view.players[oppPid].field.spirits
-        const currentView = view
-        const hasValidTarget =
-            filter !== null &&
-            inst !== undefined &&
-            oppSpirits.some((s) =>
-                matchesDirectedAttackFilter(filter, s, currentView, oppPid, { pid: currentView.you, inst }),
-            )
-        if (filter !== null && hasValidTarget) {
-            // 指定アタック可能で、条件に合う相手がいる：対象選択モードを開始する
-            ui.directedAttack = { attackerInstanceId: instanceId, filter }
-            rerender()
-            return
-        }
-        send({ type: "attack", instanceId })
-    }
-}
-
-function opponentOf(pid: PlayerId): PlayerId {
+export function opponentOf(pid: PlayerId): PlayerId {
     return pid === "p1" ? "p2" : "p1"
-}
-
-// 支払いモード中、指定スピリットにコアを1個割り当てる。合計が必要数に達したら自動送信する。
-function assignPayCore(instanceId: string): void {
-    if (!view || !ui.paying) return
-    const pay = ui.paying
-    const player = view.players[view.you]
-    const inst =
-        player.field.spirits.find((s) => s.instanceId === instanceId) ??
-        player.field.nexuses.find((n) => n.instanceId === instanceId)
-    if (!inst) return
-    // 残すブレイヴに置くコア（BRAVE.md §6.3）。起点は場のどこにも無いので必要数は選択待ちから来る
-    if (pay.forBraveKeep !== undefined) {
-        assignOneCore(pay, instanceId, inst.cores, pay.forBraveKeep.need, player.reserve)
-        return
-    }
-    // 任意分離（BRAVE.md §6.4）は**手札が起点ではない**ので、先にここで分岐する。
-    // コストは無く、必要なのは置くコア（そのブレイヴのスピリット状態のLv1維持コスト）だけ
-    if (pay.forDetachBraveInstanceId !== undefined) {
-        const brave = player.field.combinedBraves.find((b) => b.instanceId === pay.forDetachBraveInstanceId)
-        if (!brave) {
-            ui.paying = null
-            rerender()
-            return
-        }
-        assignOneCore(pay, instanceId, inst.cores, minLevelCores(master(brave.cardId)), player.reserve)
-        return
-    }
-    const cardId = player.hand?.[pay.handIndex]
-    if (cardId === undefined) {
-        ui.paying = null
-        rerender()
-        return
-    }
-    const card = master(cardId)
-    // 【神速】召喚は基礎ルールではリザーブからのみ支払える。
-    // sokuPaySourceGrant（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が許可した対象のみ例外
-    // （判定はサーバー validateSummon と同一の共有実装）
-    if (view.isFlashTiming && card.type === "spirit" && hasKeyword(cardId, "soku")) {
-        if (!sokuPayableInstanceIds(view, view.you).has(instanceId)) return
-    }
-    // payingRemaining（renderer）と同じ計算にすること。
-    // 代替召喚は召喚コスト0、ダイレクトブレイヴは維持コアを置かない
-    const cost = pay.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card)
-    const targetLevel = pay.level || 1
-    const lv = card.levels.find((l) => l.level === targetLevel)
-    const maintain =
-        card.type === "magic" || pay.braveTargetInstanceId !== undefined ? 0 : (lv ? lv.cores : 0)
-    const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
-    const already = pay.assigned[instanceId] ?? 0
-    // 代替コスト（手札破棄／デッキ破棄）で肩代わりしたぶん、コアで払う額が減る
-    const alt = payingAltPay(view, pay)
-    const need = cost + maintain - Math.min(alt.used, cost)
-    // フィールドのコアはコストにも置くコアにも充当できるため、上限は need
-    assignOneCore(pay, instanceId, inst.cores, need, player.reserve)
-}
-
-// 支払い元1つにコアを1個割り当て、必要数に達したら送信する。
-// 召喚・配置と任意分離で共通（need の求め方だけが呼び出し側で違う）
-function assignOneCore(
-    pay: { assigned: Record<string, number> },
-    instanceId: string,
-    instCores: number,
-    need: number,
-    reserve: number,
-): void {
-    const assignedTotal = Object.values(pay.assigned).reduce((a, b) => a + b, 0)
-    const already = pay.assigned[instanceId] ?? 0
-    if (assignedTotal >= need) return // 必要数に到達済み（過払い防止）
-    if (already >= instCores) return // このスピリットのコアを使い切った
-    pay.assigned[instanceId] = already + 1
-    if (ui.payMode === "auto" && reserve + assignedTotal + 1 >= need) {
-        // 必要数に達したので送信する（代替コストの選択も submitPaying が一緒に送る）
-        submitPaying()
-        return
-    }
-    rerender()
-}
-
-function onOppSpiritClick(instanceId: string): void {
-    if (!view) return
-    if (tryResolveChoice(instanceId)) return
-    if (ui.paying !== null) return // v1はスピリット上のコアのみ対応、自分のスピリットのみが支払い元
-    if (ui.awakenTarget !== null) return // 覚醒モード中は相手側の操作を抑止
-    // 指定アタックの対象選択モード中：フィルタに合う相手スピリットをクリックしたら指定アタックを送信する
-    if (ui.directedAttack !== null) {
-        const filter = ui.directedAttack.filter
-        const oppPid = opponentOf(view.you)
-        const target = view.players[oppPid].field.spirits.find(
-            (s) => s.instanceId === instanceId,
-        )
-        const attackerInst = view.players[view.you].field.spirits.find(
-            (s) => s.instanceId === ui.directedAttack?.attackerInstanceId,
-        )
-        if (
-            target &&
-            attackerInst &&
-            matchesDirectedAttackFilter(filter, target, view, oppPid, { pid: view.you, inst: attackerInst })
-        ) {
-            send({
-                type: "attack",
-                instanceId: ui.directedAttack.attackerInstanceId,
-                targetSpiritInstanceId: instanceId,
-            })
-            ui.directedAttack = null
-        }
-        return
-    }
-    if (ui.targeting?.side === "opponent") {
-        const handIndex = ui.targeting.handIndex
-        const cardId = view.players[view.you].hand?.[handIndex]
-        ui.targeting = null
-        if (cardId !== undefined) {
-            tryPlay(handIndex, master(cardId), instanceId)
-        }
-    }
 }
 
 // ---- カスタムデッキ（デッキビルダーの localStorage 保存分） ----
 
-const DECK_STORAGE_KEY = "bsweb:decks"
-const CUSTOM_DECK_PREFIX = "custom:"
-
-// デッキビルダー（deck.ts）と同じ保存フォーマット
-interface SavedDeck {
-    name: string
-    cards: Record<string, number>
-    updatedAt: string
-}
-
-// デッキ名 → カードリスト（cardId -> 枚数）。ページ表示時に読み込む
-const customDecks = new Map<string, Record<string, number>>()
-
-function loadSavedDecks(): SavedDeck[] {
-    try {
-        const raw = localStorage.getItem(DECK_STORAGE_KEY)
-        if (!raw) return []
-        const parsed = JSON.parse(raw)
-        if (!Array.isArray(parsed)) return []
-        return parsed.filter(
-            (d): d is SavedDeck =>
-                typeof d === "object" &&
-                d !== null &&
-                typeof d.name === "string" &&
-                typeof d.cards === "object" &&
-                d.cards !== null,
-        )
-    } catch {
-        return []
-    }
-}
-
-// deck-select に保存済みデッキを「カスタム: <デッキ名>」として追加する（4色プリセットの後ろ）
-function populateBuiltinDecks(selectId = "deck-select"): void {
-    const select = byId(selectId) as HTMLSelectElement
-    for (const [key, recipe] of Object.entries(DECK_RECIPES)) {
-        const option = document.createElement("option")
-        option.value = key
-        option.textContent = recipe.label
-        select.appendChild(option)
-    }
-}
-
-function populateCustomDecks(selectId = "deck-select"): void {
-    const select = byId(selectId) as HTMLSelectElement
-    // 既存のカスタムデッキをクリア
-    const options = Array.from(select.options)
-    for (const opt of options) {
-        if (opt.value.startsWith(CUSTOM_DECK_PREFIX)) {
-            select.removeChild(opt)
-        }
-    }
-    if (selectId === "deck-select") {
-        customDecks.clear()
-    }
-
-    for (const saved of loadSavedDecks()) {
-        if (selectId === "deck-select") {
-            customDecks.set(saved.name, saved.cards)
-        }
-        let total = 0
-        for (const count of Object.values(saved.cards)) total += count
-
-        const option = document.createElement("option")
-        option.value = `${CUSTOM_DECK_PREFIX}${saved.name}`
-        if (total >= DECK_MIN_SIZE) {
-            option.textContent = `カスタム: ${saved.name}（${total}枚）`
-        } else {
-            option.textContent = `カスタム: ${saved.name}（${total}枚のため使用不可）`
-            option.disabled = true
-        }
-        select.appendChild(option)
-    }
-}
-
-// ロビー・AI対戦用の全デッキセレクトを一括で構築する
-const ALL_DECK_SELECT_IDS = ["deck-select", "ai-my-deck-select", "ai-opp-deck-select"]
-
-function populateAllBuiltinDecks(): void {
-    for (const id of ALL_DECK_SELECT_IDS) populateBuiltinDecks(id)
-}
-
-function populateAllCustomDecks(): void {
-    for (const id of ALL_DECK_SELECT_IDS) populateCustomDecks(id)
-}
 
 window.addEventListener("storage", (e) => {
     if (e.key === DECK_STORAGE_KEY) {
@@ -1052,7 +266,7 @@ window.addEventListener("storage", (e) => {
 
 // ---- DOM イベント登録 ----
 
-function byId(id: string): HTMLElement {
+export function byId(id: string): HTMLElement {
     const el = document.getElementById(id)
     if (!el) throw new Error(`要素が見つかりません: #${id}`)
     return el
@@ -1067,96 +281,11 @@ function closestData(
 
 // ---- お知らせ（Gitコミット履歴から自動取得） ----
 
-interface ChangelogEntry {
-    date: string    // "2026-08-09"（--date=short）
-    message: string // "[release:fix] ○○を直した"（プレフィックス込みの生メッセージ）
-    hash: string    // "9170e7c"（短縮ハッシュ）
-}
-
-// コミットメッセージからカテゴリと表示テキストを抽出する
-// 例: "[release:fix] ○○を修正" → { category: "fix", text: "○○を修正" }
-//     "[release] ○○を追加"     → { category: "update", text: "○○を追加" }
-const CATEGORY_MAP: Record<string, { label: string; cssClass: string }> = {
-    fix:    { label: "バグ修正",  cssClass: "badge fix" },
-    ui:     { label: "UI改善",    cssClass: "badge update" },
-    new:    { label: "機能追加",  cssClass: "badge new" },
-    info:   { label: "お知らせ",  cssClass: "badge info" },
-    update: { label: "更新",      cssClass: "badge update" },
-}
-
-function parseReleaseMessage(message: string): { category: string; text: string } {
-    // [release:カテゴリ] テキスト
-    const match = message.match(/^\[release(?::(\w+))?\]\s*(.*)$/)
-    if (!match) return { category: "update", text: message }
-    const category = match[1] ?? "update"
-    const text = match[2] ?? ""
-    return { category, text }
-}
-
-function loadChangelog(): void {
-    const container = document.getElementById("announcement-list")
-    if (!container) return
-
-    fetch("/api/changelog")
-        .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            return res.json() as Promise<ChangelogEntry[]>
-        })
-        .then(entries => {
-            container.textContent = ""
-
-            if (entries.length === 0) {
-                const empty = document.createElement("div")
-                empty.className = "announcement-loading"
-                empty.textContent = "更新情報はありません"
-                container.appendChild(empty)
-                return
-            }
-
-            for (const entry of entries) {
-                const item = document.createElement("div")
-                item.className = "announcement-item"
-
-                const meta = document.createElement("div")
-                meta.className = "announcement-meta"
-
-                const dateEl = document.createElement("span")
-                dateEl.className = "date"
-                dateEl.textContent = entry.date.replace(/-/g, ".")
-                meta.appendChild(dateEl)
-
-                const parsed = parseReleaseMessage(entry.message)
-                const catInfo = CATEGORY_MAP[parsed.category] ?? CATEGORY_MAP.update!
-
-                const badge = document.createElement("span")
-                badge.className = catInfo.cssClass
-                badge.textContent = catInfo.label
-                meta.appendChild(badge)
-
-                item.appendChild(meta)
-
-                const text = document.createElement("p")
-                text.className = "announcement-text"
-                text.textContent = parsed.text
-                item.appendChild(text)
-
-                container.appendChild(item)
-            }
-        })
-        .catch(() => {
-            if (!container) return
-            container.textContent = ""
-            const err = document.createElement("div")
-            err.className = "announcement-loading"
-            err.textContent = "更新情報の取得に失敗しました"
-            container.appendChild(err)
-        })
-}
-
 async function init(): Promise<void> {
     // カードデータは弾ごとに分割されているため、結合済みを返すサーバーのAPIから取る
     const cards = (await (await fetch("/api/cards")).json()) as CardData[]
     setCardDb(cards)
+    setDeckRecipes(await (await fetch("/api/deck-recipes")).json())
     populateAllBuiltinDecks()
     populateAllCustomDecks()
     setupEffectTooltip()
@@ -1253,7 +382,7 @@ async function init(): Promise<void> {
         if (oppDeck.startsWith(CUSTOM_DECK_PREFIX)) {
             oppLabel = `AI（${oppDeck.slice(CUSTOM_DECK_PREFIX.length)}）`
         } else {
-            const recipeLabel = DECK_RECIPES[oppDeck]?.label
+            const recipeLabel = deckRecipes[oppDeck]?.label
             const colorMatch = recipeLabel?.match(/^(.+?)デッキ/)
             if (colorMatch) {
                 oppLabel = `AI（${colorMatch[1]}）`
@@ -1303,6 +432,15 @@ async function init(): Promise<void> {
     })
 
     byId("my-spirits").addEventListener("click", (e) => {
+        // [ソウルコア]の1:1交換バッジ（§1.4）が先（カードクリックと区別する）
+        const soulSwapBtn = closestData(e, "data-soulswap")
+        if (soulSwapBtn) {
+            ui.soulSwapSelect = { fromInstanceId: String(soulSwapBtn.dataset.soulswap) }
+            ui.targeting = null
+            ui.paying = null
+            rerender()
+            return
+        }
         // 覚醒バッジが先（カードクリックと区別する）
         const awakenBtn = closestData(e, "data-awaken")
         if (awakenBtn) {
@@ -1338,7 +476,7 @@ async function init(): Promise<void> {
             const brave = view.players[view.you].field.combinedBraves.find((b) => b.instanceId === braveInstanceId)
             if (!brave) return
             const need = minLevelCores(master(brave.cardId))
-            if (ui.payMode === "auto" && view.players[view.you].reserve >= need) {
+            if (ui.payMode === "auto" && view.players[view.you].reserve - (view.players[view.you].soulCore?.zone === "reserve" ? 1 : 0) >= need) {
                 send({ type: "detachBrave", braveInstanceId })
             } else {
                 ui.targeting = null
@@ -1375,7 +513,11 @@ async function init(): Promise<void> {
         if (coreBtn) {
             const direction = String(coreBtn.dataset.core)
             const instanceId = String(coreBtn.dataset.instanceId)
-            if (direction === "add") {
+            if (direction === "add-soul") {
+                send({ type: "moveCore", instanceId, direction: "add", soulCore: true })
+            } else if (direction === "remove-soul") {
+                sendSoulCoreRemove(instanceId)
+            } else if (direction === "add") {
                 send({ type: "moveCore", instanceId, direction })
             } else if (direction === "remove") {
                 sendCoreRemove(instanceId)
@@ -1383,14 +525,56 @@ async function init(): Promise<void> {
                 const targetCores = parseInt(direction.split("-")[1] || "0", 10)
                 const currentCores = parseInt(coreBtn.dataset.currentCores || "0", 10)
                 if (targetCores > currentCores) {
-                    for (let i = 0; i < targetCores - currentCores; i++) {
+                    // 案B-inside: 不足ぶんは通常コアで置き、足りなければリザーブの[ソウルコア]を1個引く（2026-10-06）
+                    const soulInReserve = view?.players[view.you].soulCore?.zone === "reserve"
+                    const normalReserve = (view?.players[view.you].reserve ?? 0) - (soulInReserve ? 1 : 0)
+                    const need = targetCores - currentCores
+                    const normalAdds = Math.min(need, normalReserve)
+                    for (let i = 0; i < normalAdds; i++) {
                         send({ type: "moveCore", instanceId, direction: "add" })
+                    }
+                    if (need - normalAdds === 1 && soulInReserve) {
+                        send({ type: "moveCore", instanceId, direction: "add", soulCore: true })
                     }
                 } else if (currentCores > targetCores) {
                     for (let i = 0; i < currentCores - targetCores; i++) {
                         send({ type: "moveCore", instanceId, direction: "remove" })
                     }
                 }
+            }
+            return
+        }
+        // 支払いモード中: 対象カードの[ソウルコア]の使い方を選ぶボタン（2026-10-06）。
+        // クリックで 使わない→コスト→維持コア→使わない のサイクル
+        const soulPayBtn = closestData(e, "data-soulpay")
+        if (soulPayBtn) {
+            if (!ui.paying || !view) return
+            const id = String(soulPayBtn.dataset.soulpay)
+            const payingId = payingCardId(view, ui.paying)
+            const placesCores =
+                !payingIsCostOnly(ui.paying) &&
+                ui.paying.braveTargetInstanceId === undefined &&
+                payingId !== undefined &&
+                master(payingId).type !== "magic"
+            if (ui.paying.soulPayInstanceId !== id) {
+                // 必要数が既に満たされているときは[ソウルコア]を足すと超過するため選ばせない
+                if (payingRemaining(view, ui.paying) <= 0) {
+                    showToast("必要数に達しているため[ソウルコア]は使えません")
+                    return
+                }
+                ui.paying.soulPayInstanceId = id
+                ui.paying.soulPayMode = "cost"
+            } else if (ui.paying.soulPayMode === "cost") {
+                ui.paying.soulPayMode = placesCores ? "maintain" : undefined
+                if (!placesCores) ui.paying.soulPayInstanceId = undefined
+            } else {
+                ui.paying.soulPayInstanceId = undefined
+                ui.paying.soulPayMode = undefined
+            }
+            if (ui.payMode === "auto" && payingRemaining(view, ui.paying) === 0) {
+                submitPaying()
+            } else {
+                rerender()
             }
             return
         }
@@ -1405,12 +589,24 @@ async function init(): Promise<void> {
 
     // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合と支払いモード中はコア割り当て対象になる
     byId("my-nexuses").addEventListener("click", (e) => {
+        // [ソウルコア]の1:1交換バッジ（§1.4）が先（カードクリックと区別する）
+        const soulSwapBtn = closestData(e, "data-soulswap")
+        if (soulSwapBtn) {
+            ui.soulSwapSelect = { fromInstanceId: String(soulSwapBtn.dataset.soulswap) }
+            ui.paying = null
+            rerender()
+            return
+        }
         // コア移動ボタンが先（カードクリックと区別する）。ネクサスもコアでレベルを上げ下げできる
         const coreBtn = closestData(e, "data-core")
         if (coreBtn) {
             const direction = String(coreBtn.dataset.core)
             const instanceId = String(coreBtn.dataset.instanceId)
-            if (direction === "add") {
+            if (direction === "add-soul") {
+                send({ type: "moveCore", instanceId, direction: "add", soulCore: true })
+            } else if (direction === "remove-soul") {
+                sendSoulCoreRemove(instanceId)
+            } else if (direction === "add") {
                 send({ type: "moveCore", instanceId, direction })
             } else if (direction === "remove") {
                 sendCoreRemove(instanceId)
@@ -1418,8 +614,16 @@ async function init(): Promise<void> {
                 const targetCores = parseInt(direction.split("-")[1] || "0", 10)
                 const currentCores = parseInt(coreBtn.dataset.currentCores || "0", 10)
                 if (targetCores > currentCores) {
-                    for (let i = 0; i < targetCores - currentCores; i++) {
+                    // 案B-inside: 不足ぶんは通常コアで置き、足りなければリザーブの[ソウルコア]を1個引く（2026-10-06）
+                    const soulInReserve = view?.players[view.you].soulCore?.zone === "reserve"
+                    const normalReserve = (view?.players[view.you].reserve ?? 0) - (soulInReserve ? 1 : 0)
+                    const need = targetCores - currentCores
+                    const normalAdds = Math.min(need, normalReserve)
+                    for (let i = 0; i < normalAdds; i++) {
                         send({ type: "moveCore", instanceId, direction: "add" })
+                    }
+                    if (need - normalAdds === 1 && soulInReserve) {
+                        send({ type: "moveCore", instanceId, direction: "add", soulCore: true })
                     }
                 } else if (currentCores > targetCores) {
                     for (let i = 0; i < currentCores - targetCores; i++) {
@@ -1429,12 +633,56 @@ async function init(): Promise<void> {
             }
             return
         }
+        // 支払いモード中: 対象カードの[ソウルコア]の使い方を選ぶボタン（2026-10-06）。
+        // クリックで 使わない→コスト→維持コア→使わない のサイクル
+        const soulPayBtn = closestData(e, "data-soulpay")
+        if (soulPayBtn) {
+            if (!ui.paying || !view) return
+            const id = String(soulPayBtn.dataset.soulpay)
+            const payingId = payingCardId(view, ui.paying)
+            const placesCores =
+                !payingIsCostOnly(ui.paying) &&
+                ui.paying.braveTargetInstanceId === undefined &&
+                payingId !== undefined &&
+                master(payingId).type !== "magic"
+            if (ui.paying.soulPayInstanceId !== id) {
+                // 必要数が既に満たされているときは[ソウルコア]を足すと超過するため選ばせない
+                if (payingRemaining(view, ui.paying) <= 0) {
+                    showToast("必要数に達しているため[ソウルコア]は使えません")
+                    return
+                }
+                ui.paying.soulPayInstanceId = id
+                ui.paying.soulPayMode = "cost"
+            } else if (ui.paying.soulPayMode === "cost") {
+                ui.paying.soulPayMode = placesCores ? "maintain" : undefined
+                if (!placesCores) ui.paying.soulPayInstanceId = undefined
+            } else {
+                ui.paying.soulPayInstanceId = undefined
+                ui.paying.soulPayMode = undefined
+            }
+            if (ui.payMode === "auto" && payingRemaining(view, ui.paying) === 0) {
+                submitPaying()
+            } else {
+                rerender()
+            }
+            return
+        }
         const el = closestData(e, "data-instance-id")
         if (!el) return
         const instanceId = String(el.dataset.instanceId)
         if (tryResolveChoice(instanceId)) return
         if (ui.paying !== null) {
             assignPayCore(instanceId)
+            return
+        }
+        // [ソウルコア]の1:1交換モード中: クリックしたネクサスと交換する（通常コア1個以上必要）
+        if (ui.soulSwapSelect !== null && view) {
+            const from = ui.soulSwapSelect.fromInstanceId
+            const target = view.players[view.you].field.nexuses.find((n) => n.instanceId === instanceId)
+            if (target && target.cores >= 1) {
+                ui.soulSwapSelect = null
+                send({ type: "swapSoulCore", fromInstanceId: from, toInstanceId: instanceId })
+            }
             return
         }
     })
@@ -1469,10 +717,12 @@ async function init(): Promise<void> {
     })
     const payModeBtn = byId("btn-pay-mode")
     payModeBtn.textContent = payModeLabel(ui.payMode)
+    payModeBtn.title = payModeHint(ui.payMode)
     payModeBtn.addEventListener("click", () => {
         ui.payMode = ui.payMode === "auto" ? "manual" : "auto"
         savePayMode(ui.payMode)
         payModeBtn.textContent = payModeLabel(ui.payMode)
+        payModeBtn.title = payModeHint(ui.payMode)
         if (view) rerender()
     })
     byId("chk-pay-to-negate").addEventListener("change", (e) => {
@@ -1481,7 +731,7 @@ async function init(): Promise<void> {
     })
     byId("btn-attack-player").addEventListener("click", () => {
         if (!ui.directedAttack) return
-        send({ type: "attack", instanceId: ui.directedAttack.attackerInstanceId })
+        sendAttack(ui.directedAttack.attackerInstanceId)
         ui.directedAttack = null
     })
     byId("btn-confirm-pay").addEventListener("click", () => {
@@ -1494,6 +744,15 @@ async function init(): Promise<void> {
         const btn = closestData(e, "data-altpay")
         if (!btn) return
         changeAltPay(String(btn.dataset.altpay) === "dec" ? -1 : 1)
+    })
+    // リザーブの[ソウルコア]の使い方（使わない/コスト支払い/維持コア。2026-10-06 3択化）
+    byId("targeting-info").addEventListener("click", (e) => {
+        const btn = closestData(e, "data-souluse")
+        if (!btn || !ui.paying) return
+        const mode = String(btn.dataset.souluse)
+        ui.paying.useSoulCore = mode === "cost"
+        ui.paying.placeSoulCore = mode === "maintain"
+        rerender()
     })
     byId("targeting-info").addEventListener("click", (e) => {
         if (!closestData(e, "data-payreset") || !ui.paying) return
@@ -1520,6 +779,9 @@ async function init(): Promise<void> {
         ui.battleSwapSummon = null
         ui.braveSummonSelect = null
         ui.altSummonSelect = null
+        ui.exReductionSelect = null
+        ui.soulCoreOnlySelect = null
+        ui.soulSwapSelect = null
         ui.burstResetConfirm = null
         rerender()
     })
@@ -1555,6 +817,23 @@ async function init(): Promise<void> {
             const option = String(optionEl.dataset.option)
             // 「ブレイヴを残す」（BRAVE.md §6.3）は、置くコアをフィールドからも選べるので支払いモードへ入る。
             // そのまま確定すればリザーブから払われる
+            // 【迷彩】・効果のコスト。リザーブだけで払えて[ソウルコア]の選択も無いなら、そのまま送る（サーバーが自動で払う）
+            const pc = view?.pendingChoice
+            const meisai = pc?.meisaiPay ? { cardId: pc.meisaiPay.targetCardId, need: pc.meisaiPay.need, effectCost: false } : pc?.effectCostPay ? { cardId: pc.effectCostPay.sourceCardId, need: pc.effectCostPay.need + (pc.effectCostPay.keep ?? 0), effectCost: true } : undefined
+            if (meisai && view) {
+                const me = view.players[view.you]
+                const soulSelectable = me.soulCore !== null && me.soulCore.zone !== "trash"
+                if (!soulSelectable && ui.payMode === "auto" && me.reserve >= meisai.need) {
+                    send({ type: "resolveChoice", option })
+                    return
+                }
+                ui.targeting = null
+                ui.awakenTarget = null
+                ui.combineBrave = null
+                ui.paying = { handIndex: -1, forMeisai: { option, cardId: meisai.cardId, need: meisai.need, ...(meisai.effectCost ? { effectCost: true as const } : {}) }, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+                rerender()
+                return
+            }
             const keep = view?.pendingChoice?.braveKeep
             if (keep) {
                 ui.targeting = null
@@ -1604,12 +883,76 @@ async function init(): Promise<void> {
                 choice === "single" ? undefined : choice)
             return
         }
+        const soulOnlyEl = closestData(e, "data-soulonly")
+        if (soulOnlyEl && ui.soulCoreOnlySelect) {
+            const { handIndex, cardId, targetInstanceId } = ui.soulCoreOnlySelect
+            ui.soulCoreOnlySelect = null
+            if (soulOnlyEl.dataset.soulonly === "yes") {
+                send({ type: "castMagic", handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), useSoulCoreOnly: true })
+            } else {
+                // 「通常どおり」を選んだ済み（再入しない）。継召を持つカードならここから選択モードへ入る
+                tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, undefined, true)
+            }
+            return
+        }
+        const exAskEl = closestData(e, "data-ex-ask")
+        if (exAskEl && ui.exReductionSelect) {
+            if (exAskEl.dataset.exAsk === "yes") {
+                ui.exReductionSelect.phase = "select"
+                rerender()
+            } else {
+                const { handIndex, cardId, targetInstanceId } = ui.exReductionSelect
+                ui.exReductionSelect = null
+                // 空配列＝「使わない」を選んだ済み（選択モードへ再入しない）
+                tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, [])
+            }
+            return
+        }
+        const exGroupEl = closestData(e, "data-ex-group")
+        if (exGroupEl && ui.exReductionSelect && view) {
+            const sel = ui.exReductionSelect
+            const group = sel.groups[Number(exGroupEl.dataset.exGroup)]
+            if (group) {
+                // 1枚増やしても軽減が増えない（軽減シンボル数の上限超え）なら0枚に戻す。
+                // 軽減に効かない枚は対象外のため、上限に達したら次のクリックで選択解除になる
+                const card = master(sel.cardId)
+                const othersPicked = exReductionPickedIndices(sel.groups.filter((g) => g !== group))
+                const current = exReductionEffectiveCount(
+                    card,
+                    exReductionSymbolsFor(view, [...othersPicked, ...group.indices.slice(0, group.count)]),
+                )
+                const trial = exReductionEffectiveCount(
+                    card,
+                    exReductionSymbolsFor(view, [...othersPicked, ...group.indices.slice(0, group.count + 1)]),
+                )
+                group.count = trial > current ? group.count + 1 : 0
+            }
+            rerender()
+            return
+        }
+        const exConfirmEl = closestData(e, "data-ex-confirm")
+        if (exConfirmEl && ui.exReductionSelect) {
+            const { handIndex, cardId, targetInstanceId, groups } = ui.exReductionSelect
+            const picked = exReductionPickedIndices(groups)
+            ui.exReductionSelect = null
+            // 空配列＝「使わない」を選んだ済み（選択モードへ再入しない）
+            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, picked.length > 0 ? picked : [])
+            return
+        }
         const levelEl = closestData(e, "data-summon-level")
         if (levelEl && ui.summonLevelSelect) {
             const level = Number(levelEl.dataset.summonLevel)
-            const { handIndex, cardId, targetInstanceId, altSummonNexusInstanceIds } = ui.summonLevelSelect
+            const { handIndex, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
             ui.summonLevelSelect = null
-            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds)
+            tryPlay(handIndex, master(cardId), targetInstanceId, level, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices)
+            return
+        }
+        // 《真界放》のwaiver配置ボタン（[ソウルコア]1個のみでLv2。2026-10-07）
+        const waiverEl = closestData(e, "data-soul-waiver")
+        if (waiverEl && ui.summonLevelSelect) {
+            const { handIndex, cardId, targetInstanceId, altSummonNexusInstanceIds, exReductionTrashIndices } = ui.summonLevelSelect
+            ui.summonLevelSelect = null
+            tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, altSummonNexusInstanceIds, exReductionTrashIndices, undefined, true)
             return
         }
     })
@@ -1629,6 +972,7 @@ async function init(): Promise<void> {
                            : ui.awakenTarget ? "awakenTarget" 
                            : ui.paying ? "paying" 
                            : ui.directedAttack ? "directedAttack" 
+                           : ui.exReductionSelect ? "exReductionSelect" 
                            : ui.summonLevelSelect ? "summonLevelSelect" 
                            : "normal"
             const clientContext = {

@@ -1,10 +1,13 @@
+// マジックの無効化（magicNegate）
+import { noteCoverage, noteKeyword } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
-import { effectActiveAtLevel, effectSources, hasKeyword, isVirtualSource } from "../../../../shared/rules"
-import { canExhaustNexus, exhaustSpirit } from "../EffectModules"
-import { fireFieldEventTriggers } from "../triggers"
+import { effectActiveAtLevel, effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
+import { canExhaustNexus, exhaustNexus, exhaustSpirit } from "../EffectModules"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
+import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
 
 // マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。
 // 見つからない条件（レベル・色・ステップ・ターン・ターン1回・コストが払えない）はすべてここで弾くので、
@@ -19,6 +22,7 @@ export function magicNegateNexusPayer(state: GameState, ownerPid: PlayerId): Car
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            noteCoverage(effect, "magicNegatePayByNexusGrant")
             granted = true
         }
     }
@@ -35,6 +39,7 @@ export function magicNegateTurnOverride(state: GameState, ownerPid: PlayerId): "
             if (effect.kind !== "magicNegateTurnOverrideGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            noteCoverage(effect, "magicNegateTurnOverrideGrant")
             return effect.turn
         }
     }
@@ -57,7 +62,7 @@ export function findMagicNegateSource(
     const turnOverride = magicNegateTurnOverride(state, defenderPid)
     for (const inst of effectSources(state, defenderPid)) {
         const level = currentLevel(inst).level
-        const isHyoheki = hasKeyword(inst.cardId, "hyoheki")
+        const isHyoheki = instHasStaticKeyword(inst, "hyoheki")
         // grantedMagicNegate（kind:"effectEntryGrant"。BS12-068光の聖剣Lv1）：継続付与された
         // magicNegateエントリもcard自身のeffectsと合わせて走査する（levelsは常に有効扱い）
         const entries: Extract<EffectDef, { kind: "magicNegate" }>[] = [
@@ -81,7 +86,7 @@ export function findMagicNegateSource(
                 !effect.colors.some((c) => magicEffectiveColors(state, casterPid, card).includes(c))
             )
                 continue
-            if (effect.oncePerTurn && inst.magicNegateUsedTurn === state.turn) continue
+            if (effect.oncePerTurn && isOnceUsed(state, defenderPid, inst, effect, "magicNegateUsedTurn")) continue
             // コストを払えないなら発動できない。
             // 【氷壁】はネクサスの疲労で肩代わりできる（ノルンの泉）。**代替できるときはそちらを優先**して
             // スピリットを回復状態のまま残す（プレイヤー選択の決定的簡略化）
@@ -92,6 +97,7 @@ export function findMagicNegateSource(
                 if (inst.cores < effect.cost.selfCoresToVoid) continue
             }
             // cost:{none} は支払い無し（SD02-014 魔法監視塔Lv2）。そのまま発動できる
+            if (isHyoheki) noteKeyword(getCard(inst.cardId).effects, "hyoheki")
             return payer && "exhaustSelf" in effect.cost
                 ? { pid: defenderPid, inst, effect, nexusPayer: payer }
                 : { pid: defenderPid, inst, effect }
@@ -112,16 +118,17 @@ export function payMagicNegate(
     card: CardData,
 ): void {
     const { pid, inst, effect } = found
+    noteCoverage(effect, "magicNegate")
     if ("exhaustSelf" in effect.cost) {
         if (found.nexusPayer) {
             // ノルンの泉：スピリットの代わりにネクサス1つを疲労させる
-            found.nexusPayer.isRested = true
+            exhaustNexus(state, pid, found.nexusPayer)
             log(state, `${getCard(found.nexusPayer.cardId).name}（ネクサス）を代わりに疲労させた。`)
         } else {
             exhaustSpirit(state, pid, inst)
             // ownHyohekiUsed（BS12-032蹴激皇ヴィーザル）：【氷壁】を発揮して自身を疲労させた時点で発火する。
             // 無効化が実際に成功したかは問わない（2026-09-07 ユーザー確認）
-            if (hasKeyword(inst.cardId, "hyoheki")) {
+            if (instHasStaticKeyword(inst, "hyoheki")) {
                 fireFieldEventTriggers(state, pid, "ownHyohekiUsed", { pid, inst })
             }
         }
@@ -133,7 +140,7 @@ export function payMagicNegate(
             `${getCard(inst.cardId).name}：コア${effect.cost.selfCoresToVoid}個をボイドに置いた。`,
         )
     }
-    if (effect.oncePerTurn) inst.magicNegateUsedTurn = state.turn
+    if (effect.oncePerTurn) markOnceUsed(state, pid, inst, effect, "magicNegateUsedTurn")
     log(state, `${getCard(inst.cardId).name}の効果で、${card.name}の効果は無効になった。`)
     // afterNegate:"selfToDeckBottom"（SD02-014 魔法監視塔Lv2）：無効にした**後**、発生源をデッキの下へ。
     // 「その後」＝前後関係なので支払いではない（無効にしなければ戻らない）。2026-08-16 ユーザー確認

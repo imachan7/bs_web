@@ -1,14 +1,18 @@
+// マジック効果の解決と再発揮の付与
+import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
 import { effectActiveAtLevel, effectSources } from "../../../../shared/rules"
 import { resolveAction } from "../EffectModules"
-import { fireFieldEventTriggers } from "../triggers"
+import { markPayConfirmed } from "../actions/pay"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { setTargetRedirect } from "./redirect"
 import type { ActionHandler } from "../actions/types"
 import { resolveMagic } from "./cast"
 import { hasKeywordAtLevel } from "../keywords/kobo"
+import { isOnceNameUsed, markOnceNameUsed } from "../oncePerTurn"
 
 // マジックの効果本体の解決。resolveMagic から（無効化されなかったときに）呼ぶ。
 // usedMagicCardIds への記録と emitEvent は resolveMagic 側で済ませてあるので、ここでは行わない
@@ -75,6 +79,7 @@ export function findMagicRepeatGrantSource(state: GameState, pid: PlayerId): Car
                 if (!state.battle) continue // バトル外では消費を記録できないので成立させない
                 if ((state.battle.oncePerBattleMagicRepeatUsed ?? []).includes(source.instanceId)) continue
             }
+            noteCoverage(effect, "magicRepeatGrant")
             return source
         }
     }
@@ -142,16 +147,15 @@ export function runMagicActions(
             log(state, `${card.name}：${failure}ため発動しなかった。`)
             continue
         }
-        // 「(この効果はターンに1回しか使えない)」＝使用者ごと・cardIdごとにそのターン1回だけ発揮する。
+        // 「(この効果はターンに1回しか使えない)」＝使用者ごと・カード名ごとにそのターン1回だけ発揮する。
         // 判定はエントリ単位（同じカードの他の timing のエントリには影響させない）。
         // 2枚目は使用自体はできる（コストは払う）が、このエントリの効果だけが発揮されない（BS03-133 ハイエリクサー）
         if (effect.oncePerTurn) {
-            const usedTurn = state.players[owner].magicOncePerTurnUsed?.[cardId]
-            if (usedTurn === state.turn) {
+            if (isOnceNameUsed(state, owner, cardId, effect.id)) {
                 log(state, `${card.name}：この効果はターンに1回しか使えないため、発揮されなかった。`)
                 continue
             }
-            ;(state.players[owner].magicOncePerTurnUsed ??= {})[cardId] = state.turn
+            markOnceNameUsed(state, owner, cardId, effect.id)
         }
         // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
@@ -163,7 +167,7 @@ export function runMagicActions(
             state,
             owner,
             null,
-            effect.action,
+            markPayConfirmed(effect.action),
             targetInstanceId,
             magicEffectiveColors(state, owner, card),
             "magic",
@@ -197,8 +201,9 @@ export function fireMagicUsedTriggers(
 ): void {
     // フィールドイベント誘発「自分がマジックの効果を使用したとき」：使用者側のフィールドから発火
     // （opponentDrewの実装を踏襲。緑芽吹く原野）。paidCost はBS11-X05のpaidCostOnly判定用
+    state.lastMagicUsed = { pid: owner, cardId: card.cardId }
     if (!state.winner) {
-        fireFieldEventTriggers(state, owner, "ownMagicUsed", undefined, undefined, undefined, undefined, { paidCost })
+        fireFieldEventTriggers(state, owner, "ownMagicUsed", undefined, undefined, undefined, undefined, { paidCost, magicCardId: card.cardId })
     }
     // 「相手がマジックの効果を使用したとき」：使用者の相手側のフィールドから発火する（氷の女神フリッグ）。
     // コスト（軽減前の素のコスト）と使用タイミングを eventInfo で渡し、fieldEvent 側で絞り込む

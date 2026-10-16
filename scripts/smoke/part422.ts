@@ -1,5 +1,5 @@
 // smoke パート422（removeCores の count:"any" とカウンタ lastCores。「〜1つにつき、相手のスピリット1体のコア1個」は1体に N 回。HANDOFF §1 R5 pay の残り②）
-import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, getCard, resolveAction, runTurnStart, answerPayConfirm } from "./helpers"
 import type { EffectAction, GameState } from "../../server/src/type"
 import { attachBrave } from "../../server/src/logic/brave"
 import { refreshLevelAsOverrides } from "../../server/src/logic/EffectModules"
@@ -35,6 +35,7 @@ console.log("=== ポイズンミスト：相手のリザーブが2個なら、�
     s.players.p1.reserve = 5
     s.players.p2.reserve = 2
     resolveAction(s, "p1", null, actionOf(MIST, "BS03-124-e1"))
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.options?.join(",") === "0,1,2", "選べるのは0〜2")
     act(s, "p1", { type: "resolveChoice", option: "2" })
     assert(s.players.p1.reserve === 3 && s.players.p1.trashCores === 2, "自分のリザーブから2個")
@@ -53,6 +54,7 @@ console.log("=== ディルガン：置ける数は相手の1体から取れる�
     attachBrave(s, "p2", b, createInstance(NO_SYMBOL_BRAVE, s.turn, 0))
     refreshLevelAsOverrides(s)
     resolveAction(s, "p1", dilgan, actionOf(DILGAN, "BS12-012-e1"))
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.options?.join(",") === "0,1,2,3", "選べるのは0〜3（1体の最大コア数）")
     act(s, "p1", { type: "resolveChoice", option: "2" })
     assert(dilgan.cores === 3, "自分のコアを2個トラッシュへ")
@@ -69,6 +71,7 @@ console.log("=== 妖華吸血爪：破棄した2枚ぶん、選んだ1体から2
     const b = createInstance(VANILLA, s.turn, 3)
     s.players.p2.field.spirits.push(a, b)
     resolveAction(s, "p1", null, actionOf(YOKA, "BS15-076-e2"))
+    answerPayConfirm(s, "p1")
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     act(s, "p1", { type: "resolveChoice" })
@@ -84,6 +87,7 @@ console.log("=== 王蛇ケツァルカトル：相手のスピリットが1体�
     s.players.p1.hand = [VANILLA, VANILLA, VANILLA]
     s.players.p2.field.spirits.push(createInstance(VANILLA, s.turn, 3))
     resolveAction(s, "p1", k, actionOf(KETSU, "BS04-022-e2"))
+    answerPayConfirm(s, "p1")
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     assert(s.players.p1.hand.length === 2, "1枚破棄した")
     assert(s.pendingChoice?.kind !== "card", "2枚目は選ばせない")

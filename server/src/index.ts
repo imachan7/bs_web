@@ -21,6 +21,21 @@ const app = express()
 // アクセスログは express.static より前（static は該当ファイルを返した時点で後段へ進まない）
 app.use(accessLogMiddleware)
 app.use(compression())
+// 環境変数 REDIRECTS（JSON: {"/パス":"転送先URL"}）にあるパスだけを転送する。転送先はリポジトリに置かず、
+// デプロイ先の環境変数で設定する。読めない値なら転送なしで起動する（本番を落とさない）
+const REDIRECTS: Record<string, string> = (() => {
+    try {
+        return JSON.parse(process.env.REDIRECTS ?? "{}")
+    } catch {
+        console.error("REDIRECTS が JSON として読めないので無視します")
+        return {}
+    }
+})()
+app.use((req, res, next) => {
+    const to = REDIRECTS[req.path]
+    if (to) res.redirect(302, to)
+    else next()
+})
 app.use(express.static(path.resolve(__dirname, "../../public")))
 app.use("/data", express.static(path.resolve(__dirname, "../../data")))
 
@@ -45,6 +60,10 @@ app.get("/api/cards", (_req, res) => {
 // data/cards.json は既に存在せず、上の express.static は next() で素通りするのでここへ届く
 app.get("/data/cards.json", (_req, res) => {
     res.json(ALL_CARDS)
+})
+// おまかせデッキの一覧。ロビーのデッキ選択が使う
+app.get("/api/deck-recipes", (_req, res) => {
+    res.json(DECK_RECIPES)
 })
 
 // ---- お知らせ ----
@@ -285,11 +304,12 @@ app.get("/api/bug-reports", (req, res) => {
 })
 
 // デバッグ用の盤面差し替えを有効にするか（2026-08-16 ユーザー判断：**ローカル実行時だけ**）。
-// Azure App Service では WEBSITE_SITE_NAME が必ず設定されるので、それが無いときだけ受け付ける。
+// Azure App Service は WEBSITE_SITE_NAME、Cloud Run は K_SERVICE を必ず設定するので、どちらも無いときだけ受け付ける
+// （Cloud Run へ移った後も WEBSITE_SITE_NAME だけを見ていて、本番で有効になっていた）。
 // 明示的に切り替えたいときは BS_DEBUG_TOOLS=1 / 0
 const DEBUG_TOOLS =
     process.env.BS_DEBUG_TOOLS === "1" ||
-    (process.env.BS_DEBUG_TOOLS !== "0" && !process.env.WEBSITE_SITE_NAME)
+    (process.env.BS_DEBUG_TOOLS !== "0" && !process.env.WEBSITE_SITE_NAME && !process.env.K_SERVICE)
 
 // クライアントが「デバッグ機能を出してよいか」を判定するために叩く
 app.get("/api/debug/enabled", (_req, res) => {

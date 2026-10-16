@@ -18,6 +18,7 @@ import mill from "./mill"
 import pay from "./pay"
 import peekHand from "./peekHand"
 import placeCores from "./placeCores"
+import soulCoreEffects from "./soulCoreEffects"
 import removeCores from "./removeCores"
 import reveal from "./reveal"
 import revealAction from "./revealAction"
@@ -25,8 +26,10 @@ import tegamoto from "./tegamoto"
 import tensho from "./tensho"
 import timedEffect from "./timedEffect"
 import trashRecover from "./trashRecover"
-import toDeck from "./toDeck"
-import toHand from "./toHand"
+import surchargePay from "./surchargePay"
+import moveCards from "./moveCards"
+import designate from "./designate"
+import token from "./token"
 import declare from "./declare"
 import fireEffect from "./fireEffect"
 
@@ -47,6 +50,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...pay,
     ...peekHand,
     ...placeCores,
+    ...soulCoreEffects,
     ...removeCores,
     ...reveal,
     ...revealAction,
@@ -54,8 +58,10 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...tensho,
     ...timedEffect,
     ...trashRecover,
-    ...toDeck,
-    ...toHand,
+    ...surchargePay,
+    ...moveCards,
+    ...designate,
+    ...token,
     ...declare,
     ...fireEffect,
 }

@@ -7,6 +7,8 @@
 import type {
     BattleState,
     CardInstance,
+    Color,
+    SoulCoreLocation,
     EndStepLock,
     GameState,
     GameView,
@@ -22,6 +24,8 @@ export interface BoardPlayer {
     trashCores: number
     deckSideCores: number // デッキの横に置かれたコア（BS12-078）。公開情報
     trashCards: string[]
+    minAttackCostThisTurn?: number // このターンにアタックしたスピリットのコストの最小（attackOncePerTurnTotalByCost が読む）
+    excludedCards: string[] // 除外ゾーン（ゲーム外）。トラッシュとは別管理で、原則どのゾーンにも戻れない
     // 手札。**相手の手札は隠匿情報なので GameView では null になる**（PlayerView.hand と同じ形）。
     // 共有層でこれを読む関数は「自分の手札についてだけ答える」ものに限り、null は
     // 「判定できない」として扱うこと（canBattleSwapSummon が該当）
@@ -36,6 +40,9 @@ export interface BoardPlayer {
     // バーストをセットしているか（docs/design/BURST.md）。**公開情報**（伏せてあるか否かは両者に見える）。
     // カードの中身（PlayerState.burst / PlayerView.burst）は隠匿情報のためここには置かない
     burstSet: boolean
+    onceByNameUsed?: Record<string, number>
+    // ソウルコアの居場所（26系。公開情報。コア数値には含まれない。docs/design/SOULCORE.md）
+    soulCore?: SoulCoreLocation | null
 }
 
 export interface Board {
@@ -47,7 +54,14 @@ export interface Board {
     priorityPlayer: PlayerId
     timedEffects: TimedRecord[] // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。両陣営に効く
+    attacksThisTurn: number
     magicUsedThisTurn: Record<PlayerId, number>
+    lifeLostThisTurn?: Partial<Record<PlayerId, true>> // 手札からの召喚条件（flashSummonFromHand.condition）をクライアントも読む
+    oppSpiritRemovedByEffectThisTurn?: Partial<Record<PlayerId, string[]>> // AuraCondition.ownEffectVanishedOpponentSpirit（公開情報。GameState と同じ）
+    ownSpiritDestroyedByOwnEffectColors?: Partial<Record<PlayerId, Color[]>> // selfSummonCost.condition.ownEffectDestroyedOwnSpirit（破壊は公開情報）
+    selfSummonCostUsedNames?: Partial<Record<PlayerId, string[]>> // selfSummonCost.oncePerTurnName：このターンに注記のコストで召喚したカード名
+    magicIdsUsedThisTurn?: Partial<Record<PlayerId, string[]>> // selfSummonCost.condition.ownMagicUsedThisTurn をクライアントの軽減計算も読む（使用済みマジックは公開情報）
+    spiritVanishedThisTurn?: Partial<Record<PlayerId, true>> // symbolWhenSummoning.opponentSpiritVanishedThisTurn をクライアントの軽減計算も読む
     players: Record<PlayerId, BoardPlayer>
 }
 

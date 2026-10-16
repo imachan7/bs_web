@@ -87,6 +87,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ※ CLAUDE.md 上部の「タスクキューが空になったら自動的に着手する」は**次に何をやるかの選択**の話で、
 ルールの解釈には適用しない。
 
+### ⚠️ カード効果は「期待値役 → 実装役 → 見直し役」の3役で進める（2026-10-01 ユーザー決定）
+
+**実装した本人にテストを書かせない**（実装の写しになり、BS13-X04 レオの「発生源でなくイベント対象が回復する」が残った）。
+①期待値役（Sonnet）が**効果文だけ**を見て場面テスト（`scripts/smoke/scenario.ts`）を先に書く →
+②実装役（Sonnet）は①の part を**変更禁止**で通し、報告に「簡略化」欄を必ず書く →
+③見直し役（①を SendMessage で再開）が差分を読み、効果節ごとの表と未申告の簡略化を出す。
+②が①に異を唱えたら解釈の割れ目なので、ユーザーに確認する。詳細は [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6。
+**①②のプロンプトには TEST_STRATEGY §6 の「そのまま貼る注意点」も入れる**（「このターンの間、〜すべて」は後から出たスピリットにも効く、など）。
+下の3項目は②③のプロンプトにそのまま入れる。
+
 ### ⚠️ カード効果を実装させるときの必須項目（2026-08-02 の実装漏れ多発を受けて）
 
 **「実装せよ」だけでは不十分**。それだと typecheck と smoke が通った時点で完了と見なされ、
@@ -166,27 +176,30 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 ### 実行時カバレッジ（`npm run coverage:effects`）— 弾の取り込みが一段落したら回す
 
-上の定型に**は入れない**（HEAD の使い捨て worktree を作って smoke を丸ごと1回走らせるので遅い）。
-代わりに**1つの弾・大きなバッチを入れ終えたタイミングで回す**。
+上の定型に**は入れない**（smoke をもう1回まるごと走らせるため）。
+代わりに**1つの弾・大きなバッチを入れ終えたタイミングで回す**。作業ツリーをそのまま測るので、未コミットの変更も入る。
+
+計測点はエンジンのソースに1行ずつ書いてある（`shared/coverage.ts` の `noteCoverage(effect, "kind")`。普段は何もしない）。
+**新しい継続効果の kind を足したら、効果が値・挙動に反映される所に `noteCoverage` を1行書く**（書き忘れは smoke の part160 が落とす）。
 
 `validate:gaps` が「**書かれていない効果**」を静的に探すのに対し、これは
 「**書かれているのに一度も発火していない効果エントリ**」を実測で洗い出す。
 
 **2026-08-24 に全 kind へ計測点を入れ、未計測0件・実行率100%（1694件）にした。**
 「継続効果（未計測の kind）」が0でなくなったら、その kind に計測点が無い＝
-その効果は発火したか分からない状態なので、`scripts/coverage-effects.ts` に差し込み先を足すこと。
+その効果は発火したか分からない状態なので、`noteCoverage` を足すこと。
 カードデータを大量に足した直後は「データは書いたが smoke が一度も通していない」経路が積み上がるため、
 ここでしか見つからない層がある（実績: `returnSelfToHand` の実行実績0、【激突】と turnStartResumeStep の実バグ）。
 実行実績0の行が出たら smoke の穴なので、テストを足して潰す。
 
 **⚠️ 例外：ブレイヴ（合体スピリット）経由のキーワード／globalConstraintは、実際に動いていても
-「未実行」と出続けることがある**（2026-08-26発覚）。`scripts/coverage-effects.ts` の計測点の一部
-（【暴風】以外の【装甲】【聖命】等・`hasGlobalConstraint`の一部type）は `self.cardId`／`inst.cardId`
-を直接見る前提でパターン注入されており、ブレイヴが合体しているホスト経由では計測コードそのものを
-通らない設計になっている（実装側は正しく `bravesOf` で合流させてあり、動作自体は smoke/part241・242
-で確認済み）。「未実行」が出たら、まず smoke で実際に効果を発火させて確認し、それでも消えないなら
-計測ツール側の既知の限界と判断してよい（`scripts/coverage-effects.ts` の該当パッチを直すのは
-正規表現ベースのコード注入に触るため費用対効果が低く、通常は見送ってよい）。
+「未実行」と出続けることがある**（2026-08-26発覚）。計測点の一部（【暴風】以外の【装甲】【聖命】等・
+`hasGlobalConstraint`の一部type）は `self.cardId`／`inst.cardId` のエントリを記録するので、
+ブレイヴが合体しているホスト経由では記録されない（実装側は `bravesOf` で合流させてあり、動作は smoke/part241・242 で確認済み）。
+「未実行」が出たら、まず smoke で実際に効果を発火させて確認する。消したければ `noteCoverage` を合流後の効果を見る位置へ移す。
+
+**part190（全カードの火入れ）は手札をシャッフルで決めるので、手札のカードに効く継続効果は回ごとに記録が揺れる**
+（例: BS14-074 千識の渓谷の軽減付与。2026-10-16 の移行の突き合わせで確認）。1件だけの増減はまず再実行する。
 
 ## 重要な罠
 
@@ -224,7 +237,7 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 ## 設計ドキュメント
 
 仕様・実装状況・課題は [SPEC.md](./SPEC.md) に集約。効果の追加は3層設計（型 → `server/src/logic/EffectModules.ts` にハンドラ → `data/cards/BS0N.json` にデータ）に従う。
-型の置き場は2026-09-12に分割した: **アクションは `server/src/types/effectAction.ts`、効果定義は `server/src/types/effectDef.ts`、それ以外は `server/src/type.ts`**。利用側は従来どおり `type.ts` から import すればよい（re-export 済み）。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
+型の置き場は2026-09-12に分割した: **アクションは `server/src/types/effectAction.ts`、効果定義は `server/src/types/effectDef.ts`（誘発は `effectDefTrigger.ts`、継続・付与は `effectDefContinuous.ts`、コストは `effectDefCost.ts`。2026-10-16）、選択待ちと再開スタック（`PendingChoice`／`ResumeFrame`）は `server/src/types/choice.ts`（09-28）、それ以外は `server/src/type.ts`**。利用側は従来どおり `type.ts` から import すればよい（re-export 済み）。変更履歴は CHANGELOG.md（サブエージェントは読まなくてよい）。
 
 **SPEC.md を全読みしないこと（86KB ≈ 2.5万トークン）。** 必要な章だけ読む:
 
@@ -330,7 +343,7 @@ git に載せていた頃に起きたこと:
   | ファイル | サイズ | 丸読みの概算 |
   | :-- | --: | --: |
   | `server/src/types/effectAction.ts`（`EffectAction`） | 179KB / 370行 | ≈5.4万 tok |
-  | `server/src/types/effectDef.ts`（`EffectDef`） | 169KB / 1301行 | ≈5.1万 tok |
+  | `server/src/types/effectDef*.ts`（`EffectDef`。4ファイル） | 17〜56KB | ≈0.5〜1.7万 tok |
   | `server/src/type.ts`（残り全部） | 182KB / 1327行 | ≈5.5万 tok |
   | `server/src/logic/EffectModules.ts` | 218KB | ≈6.3万 tok |
 
@@ -338,7 +351,7 @@ git に載せていた頃に起きたこと:
 
   > 上記4ファイルは **原則 Read 禁止**。触る型が入っている1ファイルだけ Read してよい
   > （アクションを足すなら `types/effectAction.ts` だけ、`EffectDef` の kind を足すなら
-  > `types/effectDef.ts` だけ。**3つとも開かない**）。
+  > `types/effectDef*.ts` のうち、その kind がある1ファイルだけ。**3つとも開かない**）。
   > まず次の1行で既存の器の索引を作り、それを見て使う器を決めること:
   >
   > ```

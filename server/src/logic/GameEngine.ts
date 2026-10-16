@@ -1,5 +1,8 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import type { CardInstance, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
+import { noteCoverage } from "../../../shared/coverage"
+import { askSurchargePay, payFreeSummonSurcharge } from "./summonSurcharge"
+import { exSymbolsOfTrashCard, selfSetCost, summonSurcharge } from "../../../shared/cost"
+import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
     coresForLevel,
@@ -12,6 +15,7 @@ import {
     instMinLevelCores,
     minLevelCores,
     opponentOf,
+    placedCoresForSummon,
     checkNoMutationAfterSuspend,
     noteHandleActionEntry,
     pushResumeFrames,
@@ -19,8 +23,11 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
+import { wouldDepleteOf, moveSoulCore, placeSoulCoreOnSummoned, soulCoreInReserve, soulCoreInTrash } from "./soulCore"
+import { resolveBlockDeclared } from "./blockDeclared"
 import { finishSummonEffect } from "./keywords/burst"
-import { blockRequiredCount } from "../../../shared/block"
+import { markPayConfirmed } from "./actions/pay"
+import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
     timedContentsOn,
@@ -29,7 +36,8 @@ import {
     hostsOf,
     hasKeyword,
     instAllCosts,
-    instAttackRequiresCoreToll,
+    attackTollTotal,
+    attackPayTollCount,
     instIsCombined,
     matchesFamilyFilter,
     spiritHasKeyword,
@@ -54,6 +62,7 @@ import {
     fireSummonSequence,
     flushPendingTenshoEvent,
     fireFieldEventTriggers,
+    fireBpReachedTriggers,
     fireTrigger,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
@@ -82,6 +91,7 @@ import {
     validateCombineBrave,
     validateDetachBrave,
     validateMoveCore,
+    validateSwapSoulCore,
     nexusMillPayAmount,
     summonHandDiscardPayAmount,
     validatePass,
@@ -93,8 +103,10 @@ import {
     validateUseHandAbility,
 } from "./RuleValidator"
 import { doCastMagic } from "./magic/cast"
+import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
+import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed } from "./oncePerTurn"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -121,6 +133,10 @@ export function handleAction(
     // 通常は効果の解決ごとに resolveAction が移すが、そこを通らない経路
     // （エンドステップの「デッキ下に戻る」、召喚時の入れ替えなど）でも盤面に居座らせないための安全網
     if (!state.pendingChoice) flushBounces(state)
+    // 【迷彩】の「支払い済み」の目印は、払った効果の解決が（対象選択などの中断も含めて）終わるまで持つ。
+    // 支払いで候補が変わって別の対象を選んだ場合も、ここで消えるので次の効果に持ち越さない
+    if (!state.pendingChoice) delete state.meisaiPaidFor
+    if (!state.pendingChoice) delete state.summonSurchargePaid
     // 公開ゾーン（「デッキを上からN枚オープンする」）は、選択待ちが無くなった時点で必ず片付ける。
     // 戻す順番の選択をスキップした場合や、途中で中断した場合でもカードが宙に浮かないようにする不変条件
     flushRevealedCardsIfIdle(state)
@@ -133,6 +149,7 @@ export function handleAction(
     if (!state.pendingChoice && state.resumeStack.length === 0) {
         delete state.lastMoved
         delete state.lastCores
+        delete state.lastDrawn
         delete state.lastTargets
         delete state.recordScope
     }
@@ -146,6 +163,8 @@ export function handleAction(
     // 【光芒】等のバトル終了処理まで**すべて決着した**この地点でまとめて発火する
     // （TIMING_CHART.md ＞６：破壊時効果・破壊されたとき効果 → 破壊後バースト。BS16バッチ0）
     if (!state.pendingChoice) fireQueuedDestroyBursts(state)
+    // 「BPがN以上になった時」：誘発効果は今の効果の処理が終わってから発揮されるので、解決しきったここで判定する
+    if (!state.pendingChoice && state.resumeStack.length === 0 && !state.winner) fireBpReachedTriggers(state)
     // 中断したのに処理を続けていないかの検査（BS_DEBUG_CHECKS=1 のときだけ働く）
     checkNoMutationAfterSuspend(state)
     return result
@@ -253,13 +272,13 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve)
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
             return doSetBurst(state, pid, action.handIndex)
         case "setNexus":
-            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay)
+            return doSetNexus(state, pid, action.handIndex, action.paySources, action.level, action.millPay, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve)
         case "castMagic":
             return doCastMagic(
                 state,
@@ -268,11 +287,17 @@ function dispatchAction(
                 action.targetInstanceId,
                 action.paySources,
                 action.fromTegamoto,
+                undefined,
+                action.exReductionTrashIndices,
+                action.paySoulCoreFromReserve,
+                action.useSoulCoreOnly,
             )
         case "useHandAbility":
             return doUseHandAbility(state, pid, action.handIndex, action.effectId)
+        case "swapSoulCore":
+            return doSwapSoulCore(state, pid, action.fromInstanceId, action.toInstanceId)
         case "moveCore":
-            return doMoveCore(state, pid, action.instanceId, action.direction, action.confirmDeplete)
+            return doMoveCore(state, pid, action.instanceId, action.direction, action.confirmDeplete, action.soulCore)
         case "combineBrave":
             return doCombineBrave(state, pid, action.braveInstanceId, action.hostInstanceId)
         case "detachBrave":
@@ -280,9 +305,9 @@ function dispatchAction(
         case "awaken":
             return doAwaken(state, pid, action.instanceId, action.fromInstanceId, action.count)
         case "attack":
-            return doAttack(state, pid, action.instanceId, action.targetSpiritInstanceId)
+            return doAttack(state, pid, action.instanceId, action.targetSpiritInstanceId, action.paySources, action.paySoulCoreFromReserve)
         case "block":
-            return doBlock(state, pid, action.instanceId)
+            return doBlock(state, pid, action.instanceId, action.paySources, action.paySoulCoreFromReserve)
         case "takeLife":
             return doTakeLife(state, pid)
         case "pass":
@@ -290,10 +315,12 @@ function dispatchAction(
         case "activateAbility":
             return doActivateAbility(state, pid, action.instanceId, action.effectId)
         case "resolveChoice":
-            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex, action.paySources)
+            return doResolveChoice(state, pid, action.instanceId, action.option, action.cardIndex, action.paySources, action.paySoulCoreFromReserve)
         case "nextPhase": {
             if (state.turnPlayer !== pid) return "自分のターンではありません"
             if (state.phase !== "main") return "メインステップではありません"
+            if (state.secondMainStep) return "第2メインステップの後は、エンドステップに進みます"
+            if (state.turn === 1) return "先攻1ターン目はアタックステップがありません"
             if (state.battle) return "バトル中です"
             // 「お互い、アタックステップは行えず」（BS10-108 ルナティックシール）
             if (isEndStepLocked(state, "attackStep")) return "効果により、アタックステップは行えません"
@@ -308,7 +335,8 @@ function dispatchAction(
             if (error) return error
             // メインから直接ターン終了しても「相手のメインステップ終了時」は来る（BS15-079プロボケイション）。
             // 使われたらアタックステップで止め、ターンプレイヤーへ返す
-            if (state.phase === "main" && !state.extraMainStep && !isEndStepLocked(state, "attackStep")) {
+            // 第2メインステップと先攻1ターン目の終了はアタックステップへ繋がらないため確認しない
+            if (state.phase === "main" && !state.extraMainStep && state.secondMainStep !== true && state.turn !== 1 && !isEndStepLocked(state, "attackStep")) {
                 const offered = offerOpponentMainEndMagic(state, pid, true)
                 if (offered === "suspended") return null
                 if (offered === "used") {
@@ -373,13 +401,14 @@ function doBattleSwapSummon(
     // **コストは入れ替え元を手札に戻す前に確定させる**：軽減シンボルは召喚を宣言した時点、
     // つまり入れ替え元がまだ場にいる時点で数える。後で計算すると validateSummon が通した額より
     // 高くなり、検証を通ったのに払えないという食い違いが起きる
+    noteCoverage(card.effects.find((e) => e.kind === "battleSwapSummon"), "battleSwapSummon")
     const cost = effectiveCost(state, pid, card)
     returnSpiritToHand(state, pid, substitute)
     const maintain = minLevelCores(card)
     const placedFromField = payCost(state, pid, cost, paySources, maintain)
     player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
-    const inst = createInstance(cardId, state.turn, maintain)
+    const inst = createInstance(cardId, state.turn, maintain, "summon")
     inst.isRested = true
     player.field.spirits.push(inst)
     log(
@@ -424,9 +453,15 @@ export function placeSummonedSpirit(
     // 指定時、実体は field.spirits ではなく **field.combinedBraves** へ入り、
     // ホストが braveRefs で参照する（参照方式。§2.3）
     braveTargetInstanceId?: string,
+    // [ソウルコア]を維持コアとして置く（2026-10-06）。cores は createInstance に既に含まれているため
+    // リザーブの取り崩しとポインタだけ動かす（placeSoulCoreOnSummoned）
+    placeSoulOnSummoned?: boolean,
 ): void {
     const player = state.players[pid]
     player.reserve -= reserveDelta
+    if (placeSoulOnSummoned === true && placeSoulCoreOnSummoned(player, inst)) {
+        log(state, `${player.name}はリザーブの[ソウルコア]を${getCard(inst.cardId).name}の維持コアとして置いた。`)
+    }
     const host =
         braveTargetInstanceId === undefined
             ? undefined
@@ -463,14 +498,21 @@ function doSummon(
     braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
     altSummonNexusInstanceIds?: string[], // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058。docs/design/COST_MODEL.md）
     shinsokuAssistInstanceIds?: string[], // 指定時は kind:"shinsokuPayAssist"（BS16-021）：疲労させることで召喚コストの一部を肩代わりする
+    exReductionTrashIndices?: number[], // 《継召》(kind:"exTrashReduction")：除外して軽減するトラッシュ内インデックス
+    paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
+    placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve)
     if (error) return error
 
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
+
+    // 《継召》の除外記録は「直近の召喚」ぶんだけ残る（毎回の召喚で空配列に上書きする）
+    state.keishoExcludedCardIds = []
+    delete state.summonPaidWithSoulCore
 
     // kind:"battleSwapSummon"（BS07ブラックカラカロッサム）：バトル中の自分のスピリット1体を
     // 手札に戻し（追加コスト）、その代わりに疲労状態で召喚してバトルを引き継ぐ。
@@ -482,6 +524,7 @@ function doSummon(
     // kind:"altSummonFromHand"（BS10-058）：指定した自分の青ネクサスをデッキの下に戻すことがコストで、
     // 召喚コストは支払わない（維持コアは通常どおりリザーブから。COST_MODEL.md §1＝検証済みのA・Bを実行するだけ）
     if (altSummonNexusInstanceIds !== undefined) {
+        noteCoverage(card.effects.find((e) => e.kind === "altSummonFromHand"), "altSummonFromHand")
         for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
     }
     // kind:"shinsokuPayAssist"（BS16-021）：指定したスピリットを疲労させ、召喚コストの一部を肩代わりする
@@ -492,20 +535,47 @@ function doSummon(
         for (const id of shinsokuAssistInstanceIds) {
             const inst = player.field.spirits.find((s) => s.instanceId === id)
             if (inst) inst.isRested = true
+            noteCoverage(inst ? getCard(inst.cardId).effects.find((e) => e.kind === "shinsokuPayAssist") : undefined, "shinsokuPayAssist")
             shinsokuDiscount += candidates.get(id) ?? 0
         }
         log(state, `${player.name}は自分のスピリットを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
     }
-    const cost = Math.max(0, (altSummonNexusInstanceIds !== undefined ? 0 : effectiveCost(state, pid, card)) - shinsokuDiscount)
+    // 《継召》(kind:"exTrashReduction")：指定されたトラッシュのEXシンボル持ちカードを除外し、
+    // そのシンボル列を召喚コストの軽減に使う（検証は validateSummon 済み＝候補・重複チェック込み。
+    // 軽減シンボルと同じ色だけが軽減に使われ、枚数×シンボル数とは限らない）
+    let exReductionSymbols: Color[] = []
+    if (exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0) {
+        const excluded: string[] = []
+        exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
+        for (const idx of [...exReductionTrashIndices].sort((a, b) => b - a)) {
+            const [id] = player.trashCards.splice(idx, 1)
+            if (id !== undefined) excluded.unshift(id)
+        }
+        player.excludedCards.push(...excluded)
+        state.keishoExcludedCardIds = excluded
+        log(
+            state,
+            `${player.name}はトラッシュのEXシンボル${excluded.length}枚を除外し、《継召》で召喚コストを軽減した。`,
+        )
+    }
+    const cost = Math.max(
+        0,
+        (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
+            shinsokuDiscount,
+    )
+    // 「〜ならコストNにする。同じカード名でターンに1回」：この注記のコストで召喚したら1回と数える
+    if (altSummonNexusInstanceIds === undefined && card.effects.some((e) => e.kind === "selfSummonCost" && e.oncePerTurnName) && selfSetCost(state, pid, card) !== undefined) {
+        state.selfSummonCostUsedNames = { ...(state.selfSummonCostUsedNames ?? {}), [pid]: [...(state.selfSummonCostUsedNames?.[pid] ?? []), card.name] }
+    }
     // レベル指定があればそのレベルぶんのコアを置いて召喚する（省略時はLv1）。
     // 召喚時効果はコア配置後に発火するため、Lv2以上を指定すればそのレベルの効果が発揮される
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。それがこの召喚の利点そのもの。§5.2）
-    const maintain =
-        braveTargetInstanceId !== undefined
-            ? 0
-            : level === undefined
-              ? minLevelCores(card)
-              : (coresForLevel(card, level) ?? minLevelCores(card))
+    // 《真界放》マーカー付きカード＋placeSoulCoreFromReserve は「[ソウルコア]1個のみ」のwaiver配置
+    // （placedCoresForSummon。levelOfが真界放Lv2を導出する）
+    const maintain = placedCoresForSummon(card, level, {
+        braveTarget: braveTargetInstanceId !== undefined,
+        placeSoulCoreFromReserve,
+    })
 
     // BS08ビクティム：コアで足りない分の召喚コストを手札破棄で支払う
     // （validateSummon と同じ関数で枚数を出すので、検証と実行がズレない）
@@ -530,25 +600,37 @@ function doSummon(
         consumeSummonHandDiscardPay(state, pid)
     }
     // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
-    const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain)
+    if (paySoulCoreFromReserve === true || paySources?.some((src) => src.includeSoulCore === true)) state.summonPaidWithSoulCore = true
+    const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain, paySoulCoreFromReserve)
     // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
-    const inst = createInstance(cardId, state.turn, maintain)
+    const inst = createInstance(cardId, state.turn, maintain, "summon")
     // 器AB（globalConstraint "summonExhausted"）：条件を満たすカードは疲労状態で召喚する。
     // 「疲労する」であって「疲労状態になる」ではないため exhaustSpirit を経由しない＝ownSpiritExhaustedは発火しない
     // （BS13_PLAN.md §1 #24）。ダイレクトブレイヴはこの後 attachBrave の疲労合成（host.isRested||brave.isRested）
     // が拾うため、召喚するインスタンス自身をここで疲労させれば合体先へ自然に伝播する（同 #14）
     if (summonExhausted(state, card)) inst.isRested = true
     const flashNote = state.isFlashTiming ? "【神速】で" : ""
-    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
+    // waiver配置のときはレベル表のコア数を置いていないため、ログに《真界放》と出す
+    const soulWaiverNote = placeSoulCoreFromReserve === true && maintain === 1 && card.levels.some((l) => l.soulCoreRequired === true) ? "《真界放》で" : ""
+    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : soulWaiverNote
     const braveNote =
         braveTargetInstanceId === undefined
             ? ""
             : `${getCard(player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)?.cardId ?? cardId).name}に合体させて`
     const altSummonNote = altSummonNexusInstanceIds !== undefined ? "、ネクサスをデッキの下に戻すことでコストを支払わずに" : ""
     const logText = `${player.name}は${flashNote}${braveNote}${altSummonNote}${card.name}を${levelNote}召喚した。（コスト${cost}）`
-    const reserveDelta = maintain - placedFromField
+    // [ソウルコア]を維持コアとして置く（2026-10-06）。通常コアのリザーブ引きは1個減らす
+    // [ソウルコア]を維持コアとして置く: リザーブの[ソウルコア]（placeSoulCoreFromReserve）でも、
+    // フィールドの[ソウルコア]を維持コアに使う指定（paySources の soulCoreToMaintain。payCost が
+    // 一旦リザーブへ移している）でも、同じく placeSoulCoreOnSummoned で新しい個体へ置く
+    const soulFromFieldToMaintain = paySources?.some((s) => s.soulCoreToMaintain === true) === true
+    const placeSoulOnSummon = (placeSoulCoreFromReserve === true || soulFromFieldToMaintain) && maintain >= 1 && soulCoreInReserve(player)
+    // -1調整（placeSoulCoreOnSummoned がリザーブから[ソウルコア]ぶんを引く）は
+    // リザーブ由来のときだけ。フィールド由来（soulCoreToMaintain）の[ソウルコア]は
+    // placedFromField に既に含まれており、payCost が一旦リザーブへ移しているため引かない
+    const reserveDelta = maintain - placedFromField - (placeSoulOnSummon && placeSoulCoreFromReserve === true ? 1 : 0)
 
     // 【転召】は「コストを支払う → **転召** → 維持コアを置く → 召喚完了」の順に解決する
     // （docs/design/RESUME_STACK.md §6。2026-08-13 ユーザー確認の手順）。
@@ -558,7 +640,11 @@ function doSummon(
     state.summoningInstanceId = inst.instanceId
     // 【神速】による召喚か（fieldEvent.sokuSummonOnly。BS11-065 満天の牧草地Lv2）。
     // フラッシュタイミングで手札から召喚できるのは神速だけなので、ここで判定できる
-    if (state.isFlashTiming) state.summoningBySoku = true
+    if (state.isFlashTiming) {
+        state.summoningBySoku = true
+        // 「同じカード名のこの効果をターンに1回」＝手札からのフラッシュ召喚の許可を使った時点で枠を取る
+        if (!hasKeyword(cardId, "soku")) for (const e of card.effects) if (e.kind === "flashSummonFromHand" && e.onceScope === "name") markOnceNameUsed(state, pid, cardId, e.id)
+    }
     state.summoningFromHand = true // 通常召喚は手札から（fieldEvent.fromHandOnly。BS11-X05）
     if (!state.winner) resolveTensho(state, pid, inst)
     if (state.pendingChoice) {
@@ -566,12 +652,13 @@ function doSummon(
         pushResumeFrames(state, [
             {
                 kind: "placeSummon", pid, inst, reserveDelta, logText, cardName: card.name,
+                ...(placeSoulOnSummon ? { placeSoul: true } : {}),
                 ...(braveTargetInstanceId !== undefined ? { braveTargetInstanceId } : {}),
             },
         ])
         return null
     }
-    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name, braveTargetInstanceId)
+    placeSummonedSpirit(state, pid, inst, reserveDelta, logText, card.name, braveTargetInstanceId, placeSoulOnSummon)
     // フラッシュ中（神速召喚）は優先権を相手へ移す
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
@@ -579,7 +666,7 @@ function doSummon(
 }
 
 // 【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
-type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
+export type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
 
 // 【烈神速】：トラッシュのコアをすべて自分のフィールド/リザーブに好きに置くことで、
 // コストを支払わずに手札から召喚する（BS16-X03）。置き先は1個ずつ選ばせる（docs/design/INTERRUPTION_POINTS.md パターンA）
@@ -588,6 +675,9 @@ function doResshinsokuSummon(state: GameState, pid: PlayerId, handIndex: number)
     if (error) return error
     const player = state.players[pid]
     const cardId = player.hand[handIndex]!
+    // 案B-inside: trashCoresには[ソウルコア]が含まれる。トラッシュを空にするときは
+    // [ソウルコア]をリザーブへ退避させる（ボイドと同じく配分の対象にしない。2026-10-06 簡易化）
+    if (soulCoreInTrash(player)) moveSoulCore(player, { zone: "reserve" })
     const total = player.trashCores
     player.trashCores = 0
     const info: ResshinsokuInfo = { handIndex, cardId, remaining: total, selfCores: 0 }
@@ -686,10 +776,18 @@ export function applyResshinsokuDestination(
 // コアの配置がすべて終わったところで、実際にスピリットを場に出す。
 // 通常の doSummon と違い、コストも維持コアの支払いも発生しない
 // （維持コアぶんは distributeCores で「このスピリット」に置かれたコアがそのまま兼ねる）
-function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: ResshinsokuInfo): string | null {
+// 無償でも相手の転召の祭壇などの余分は払う。割り振りの後に、割り振ったコアも含めたリザーブとフィールドから払う（2026-10-15 ユーザー確認）。
+// 払えるかは割り振りの前に validate 済み（割り振りは場の外のコアを減らさない）。
+// ponytail: トラッシュのコアを割り振ってはじめて払える場合も validate で弾く。要るなら割り振りの選択肢に「場の外に残す数」の下限を足す
+export function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: ResshinsokuInfo, surchargePaid = false): string | null {
     const player = state.players[pid]
     const at = player.hand[info.handIndex] === info.cardId ? info.handIndex : player.hand.lastIndexOf(info.cardId)
     if (at === -1) return null
+    if (!surchargePaid) {
+        const resume = { type: "resshinsokuFinishInternal", handIndex: info.handIndex, cardId: info.cardId, selfCores: info.selfCores } as const
+        if (askSurchargePay(state, pid, getCard(info.cardId), false, 0, resume)) return null
+        payFreeSummonSurcharge(state, pid, getCard(info.cardId))
+    }
     player.hand.splice(at, 1)
     const card = getCard(info.cardId)
     const inst = createInstance(info.cardId, state.turn, info.selfCores)
@@ -736,8 +834,10 @@ function doSetNexus(
     paySources?: PaySource[],
     level?: number,
     millPay?: number,
+    paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を配置コスト支払い1個ぶんとして使う
+    placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして配置したネクサスに置く
 ): string | null {
-    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay)
+    const error = validateSetNexus(state, pid, handIndex, paySources, level, millPay, paySoulCoreFromReserve, placeSoulCoreFromReserve)
     if (error) return error
 
     const player = state.players[pid]
@@ -745,8 +845,9 @@ function doSetNexus(
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
     const cost = effectiveCost(state, pid, card)
-    // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）
-    const maintain = level === undefined ? minLevelCores(card) : (coresForLevel(card, level) ?? minLevelCores(card))
+    // レベル指定があればそのレベルぶんのコアを置いて配置する（省略時はLv1。ネクサスのLv1は0コアが多い）。
+    // 《真界放》マーカー付き＋placeSoulCoreFromReserve は「[ソウルコア]1個のみ」のwaiver配置（placedCoresForSummon）
+    const maintain = placedCoresForSummon(card, level, { placeSoulCoreFromReserve })
 
     // 栄光の表彰台Lv1：配置コストをデッキ破棄で支払う（コア払いとの併用はできないので全額かゼロ）
     // （validateSetNexus と同じ関数で枚数を出すので、検証と実行がズレない）
@@ -756,13 +857,22 @@ function doSetNexus(
         log(state, `${player.name}は配置コスト${millPaid}を、デッキ${millPaid}枚の破棄で支払った。`)
     }
     // 置くコアもフィールドのコアで賄える（賄えなかった分だけリザーブから出す）
-    const placedFromField = payCost(state, pid, cost - millPaid, paySources, maintain)
-    player.reserve -= maintain - placedFromField
+    const placedFromField = payCost(state, pid, cost - millPaid, paySources, maintain, paySoulCoreFromReserve)
+    // [ソウルコア]を維持コアとして置く（2026-10-06）。通常コアの引きは1個減らし、ソウルコアを個体へ
+    const soulFromFieldToMaintainNexus = paySources?.some((s) => s.soulCoreToMaintain === true) === true
+    const placeSoulOnNexus = (placeSoulCoreFromReserve === true || soulFromFieldToMaintainNexus) && maintain >= 1 && soulCoreInReserve(player)
+    // -1調整はリザーブ由来のときだけ（doSummonと同じ理由）
+    player.reserve -= maintain - placedFromField - (placeSoulOnNexus && placeSoulCoreFromReserve === true ? 1 : 0)
     player.hand.splice(handIndex, 1)
 
     const nexusInst = createInstance(cardId, state.turn, maintain)
     player.field.nexuses.push(nexusInst)
-    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : ""
+    if (placeSoulOnNexus && placeSoulCoreOnSummoned(player, nexusInst)) {
+        log(state, `${player.name}はリザーブの[ソウルコア]を${card.name}の維持コアとして置いた。`)
+    }
+    // waiver配置のときはレベル表のコア数を置いていないため、ログに《真界放》と出す
+    const soulWaiverNote = placeSoulCoreFromReserve === true && maintain === 1 && card.levels.some((l) => l.soulCoreRequired === true) ? "《真界放》で" : ""
+    const levelNote = level !== undefined && level > 1 ? `Lv${level}で` : soulWaiverNote
     log(state, `${player.name}は${card.name}を${levelNote}配置した。（コスト${cost}）`)
     // 『このネクサスの配置時』と「自分のネクサスが配置されたとき」を発火する（triggers.ts）。
     // ⚠️ 2026-08-28 発覚：以前はここでonSummonを発火しておらず、BS09-066目覚める要塞城の
@@ -801,6 +911,7 @@ function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, ef
         (e): e is Extract<EffectDef, { kind: "handActivated" }> => e.kind === "handActivated" && e.id === effectId,
     )
     if (!effect) return "効果が見つかりません"
+    noteCoverage(effect, "handActivated")
 
     // コスト：手札にあるこのカード自身を破棄する（現状これのみ対応）
     if (effect.cost.discardSelf) {
@@ -809,14 +920,13 @@ function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, ef
         log(state, `${player.name}は手札の${card.name}を破棄して効果を発動した。`)
     }
 
-    resolveAction(state, pid, null, effect.action, undefined, card.colors, "spirit", undefined, undefined, cardId)
+    resolveAction(state, pid, null, markPayConfirmed(effect.action), undefined, card.colors, "spirit", undefined, undefined, cardId)
     // バトル中のフラッシュで使用したら優先権を相手へ移す（フラッシュマジック・神速召喚・覚醒と共通。passFlashPriority）
     passFlashPriority(state, pid)
     return null
 }
 
-// メインステップの任意合体（docs/design/BRAVE.md §6.4）。
-// ブレイヴが載せていたコアは**リザーブへ戻す**（分離でリザーブから払うことと対称。§6.4 の注記）
+// メインステップの任意合体（docs/design/BRAVE.md §6.4）。ブレイヴのコアは attachBrave がホストへ移す
 function doCombineBrave(state: GameState, pid: PlayerId, braveInstanceId: string, hostInstanceId: string): string | null {
     const error = validateCombineBrave(state, pid, braveInstanceId, hostInstanceId)
     if (error) return error
@@ -824,9 +934,10 @@ function doCombineBrave(state: GameState, pid: PlayerId, braveInstanceId: string
     const brave = findSpirit(player, braveInstanceId)
     const host = findSpirit(player, hostInstanceId)
     if (!brave || !host) return "対象のカードが見つかりません"
-    player.reserve += brave.cores
-    brave.cores = 0
+    const moved = brave.cores
     attachBrave(state, pid, host, brave)
+    // 効果以外でホストのコアが増えたので、相手の魔帝の寝所などで疲労する（ブレイヴQ&A Q7）
+    if (moved > 0) checkExhaustOnCoreChange(state, pid, host)
     log(state, `${player.name}は${getCard(brave.cardId).name}を${getCard(host.cardId).name}に合体させた。`)
     return null
 }
@@ -843,20 +954,70 @@ function doDetachBrave(state: GameState, pid: PlayerId, braveInstanceId: string,
     return null
 }
 
+// メインステップの1:1交換（docs/design/SOULCORE.md §1.4）: [ソウルコア]1個と通常コア1個を同時に交換する。
+// 「同時に移動している」ため消滅判定は挟まない。コア増加の誘発（夢魔の寝所）は両方の個体に発火
+function doSwapSoulCore(
+    state: GameState,
+    pid: PlayerId,
+    fromInstanceId: string,
+    toInstanceId: string,
+): string | null {
+    const error = validateSwapSoulCore(state, pid, fromInstanceId, toInstanceId)
+    if (error) return error
+    const player = state.players[pid]
+    const from = findSpirit(player, fromInstanceId) ?? findNexus(player, fromInstanceId)
+    const to = findSpirit(player, toInstanceId) ?? findNexus(player, toInstanceId)
+    if (!from || !to) return "自分のスピリット/ネクサスが見つかりません"
+    to.cores -= 1
+    from.cores += 1
+    // 案B-inside: moveSoulCore が from.cores-1/to.cores+1 を担当。上の2行は通常コア1個の逆方向の移動
+    moveSoulCore(player, { zone: "instance", instanceId: toInstanceId }, from)
+    log(
+        state,
+        `${player.name}は${getCard(from.cardId).name}の[ソウルコア]と${getCard(to.cardId).name}の通常コア1個を交換した。`,
+    )
+    checkExhaustOnCoreChange(state, pid, from)
+    checkExhaustOnCoreChange(state, pid, to)
+    return null
+}
+
 function doMoveCore(
     state: GameState,
     pid: PlayerId,
     instanceId: string,
     direction: "add" | "remove",
     confirmDeplete?: true,
+    soulCore?: boolean, // [ソウルコア]を動かす（通常コアの数値は不変でポインタだけ移る）
 ): string | null {
-    const error = validateMoveCore(state, pid, instanceId, direction, confirmDeplete)
+    const error = validateMoveCore(state, pid, instanceId, direction, confirmDeplete, soulCore)
     if (error) return error
 
     const player = state.players[pid]
     const spirit = findSpirit(player, instanceId)
     const inst = spirit ?? findNexus(player, instanceId)
     if (!inst) return "対象のカードが見つかりません"
+
+    if (soulCore) {
+        // [ソウルコア]の移動: moveSoulCore がポインタと数値（cores/reserve）の両方を動かす（案B-inside）
+        if (direction === "add") {
+            moveSoulCore(player, { zone: "instance", instanceId })
+            log(state, `${player.name}はリザーブの[ソウルコア]を${getCard(inst.cardId).name}に置いた。`)
+            // 夢魔の寝所等の「コアを増やした」誘発はソウルコアでも発火（コアとして置かれたため）
+            if (spirit) checkExhaustOnCoreChange(state, pid, spirit)
+        } else {
+            moveSoulCore(player, { zone: "reserve" })
+            log(state, `${player.name}は${getCard(inst.cardId).name}の[ソウルコア]をリザーブへ戻した。`)
+            // 維持コア（Lv1）を下回ったら消滅する（confirmDeplete で承知のうえ取り除いた場合のみ来る）
+            if (spirit && wouldDepleteOf(player, spirit)) {
+                log(
+                    state,
+                    `${player.name}は${getCard(spirit.cardId).name}の[ソウルコア]を取り除いた。維持コアを下回ったため消滅した。`,
+                )
+                destroySpirit(state, pid, spirit.instanceId, "deplete")
+            }
+        }
+        return null
+    }
 
     if (direction === "add") {
         player.reserve -= 1
@@ -870,7 +1031,7 @@ function doMoveCore(
         // 維持コア（Lv1）を下回ったら消滅する（confirmDeplete で承知のうえ取り除いた場合のみここへ来る。
         // 残ったコアは destroySpirit がリザーブへ戻す）。**疲労の誘発より先に消滅させる**：
         // 場を離れたスピリットが「コアを取り除かれて疲労した」ことにならないように
-        if (spirit && spirit.cores < instMinLevelCores(spirit)) {
+        if (spirit && wouldDepleteOf(player, spirit)) {
             log(
                 state,
                 `${player.name}は${getCard(spirit.cardId).name}のコアを取り除いた。維持コアを下回ったため消滅した。`,
@@ -908,8 +1069,16 @@ function doAwaken(
     const target = findSpirit(player, instanceId)
     if (!target) return "対象のスピリットが見つかりません"
 
+    const noteAwaken = () => {
+        const awakenLevel = currentLevel(target).level
+        const awakenEntry = getCard(target.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, awakenLevel),
+        )
+        if (awakenEntry) noteCoverage(awakenEntry, "keyword")
+    }
     // リザーブからの【覚醒】（ディノゾールLv2で書き換えられた場合）。移動元スピリットの消滅判定は不要
     if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        noteAwaken()
         player.reserve -= count
         target.cores += count
         checkExhaustOnCoreChange(state, pid, target)
@@ -925,6 +1094,7 @@ function doAwaken(
     const from = findSpirit(player, fromInstanceId)
     if (!from) return "対象のスピリットが見つかりません"
 
+    noteAwaken()
     from.cores -= count
     target.cores += count
     checkExhaustOnCoreChange(state, pid, target)
@@ -934,7 +1104,7 @@ function doAwaken(
     )
     refreshOnSuperAwaken(state, pid, target)
     // 移動元が維持コア（Lv1）を下回ったら消滅
-    if (from.cores < instMinLevelCores(from)) {
+    if (wouldDepleteOf(player, from)) {
         destroySpirit(state, pid, from.instanceId, "deplete")
     }
     // バトル中のフラッシュで覚醒したら優先権を相手へ移す（フラッシュマジックと同じ扱い）
@@ -947,8 +1117,10 @@ function doAttack(
     pid: PlayerId,
     instanceId: string,
     targetSpiritInstanceId?: string,
+    paySources?: PaySource[],
+    paySoulCoreFromReserve?: boolean,
 ): string | null {
-    const error = validateAttack(state, pid, instanceId, targetSpiritInstanceId)
+    const error = validateAttack(state, pid, instanceId, targetSpiritInstanceId, paySources, paySoulCoreFromReserve)
     if (error) return error
 
     const player = state.players[pid]
@@ -957,6 +1129,8 @@ function doAttack(
     const card = getCard(inst.cardId)
 
     inst.isRested = true
+    // 「このステップの最初に」の義務は、最初のアタック宣言で（誰が宣言しても）消える（2026-10-08 ユーザー確認）
+    state.timedEffects = state.timedEffects.filter((r) => r.until !== "firstAttack")
     // BS10-047：『自分の合体スピリットの次にアタックしたとき』用に、直前のアタック宣言を1つだけ覚える。
     // prev = 1つ前のアタッカーが合体スピリットだったときその持ち主／それ以外はundefined。
     // state.battle を作る前に必ずスライドさせる（047自身のアタック時トリガーが読むのは「1つ前」なので順序が重要）
@@ -986,10 +1160,17 @@ function doAttack(
     state.battleAttackerRef = inst
     // 器BM（BS13-043鳥人イカロッシュ）：コスト以下のアタックはリザーブのコア1個をトラッシュに置くことが要る。
     // validateAttackで払えることは確認済みなので、ここで自動的に支払う（非対話・AIも同じ経路で払う）
-    if (instAttackRequiresCoreToll(state, inst) && player.reserve >= 1) {
-        player.reserve -= 1
-        player.trashCores += 1
-        log(state, `${player.name}はアタックのためリザーブのコア1個をトラッシュに置いた。`)
+    const toll = attackTollTotal(state, pid, inst) - attackPayTollCount(state, pid, inst)
+    if (toll > 0 && player.reserve >= toll) {
+        player.reserve -= toll
+        player.trashCores += toll
+        log(state, `${player.name}はアタックのためリザーブのコア${toll}個をトラッシュに置いた。`)
+    }
+    // attackPayToll（26RSD06-011）は、フィールドのコアも含めて払える（2026-10-11 ユーザー確認）
+    const payToll = attackPayTollCount(state, pid, inst)
+    if (payToll > 0) {
+        payCost(state, pid, payToll, paySources, 0, paySoulCoreFromReserve)
+        log(state, `${player.name}はアタックのため${String(payToll)}コストを支払った。`)
     }
     state.isFlashTiming = true
     state.priorityPlayer = opponentOf(pid)
@@ -1005,6 +1186,7 @@ function doAttack(
     state.attacksThisTurn += 1
     // 器AQ：globalConstraint "attackOncePerTurnBySymbolCount" が見る「このターン既にアタックしたか」の印
     inst.attackedThisTurn = true
+    player.minAttackCostThisTurn = Math.min(player.minAttackCostThisTurn ?? Infinity, ...instAllCosts(inst))
 
     // 直前の【粉砕】の記録をクリアする（アタック宣言のたびに。粉砕を持たないスピリットのアタック時に
     // 前回の値を拾わないようにするため。GameState.lastFunsai）
@@ -1054,11 +1236,46 @@ function doAttack(
     return null
 }
 
-function doBlock(state: GameState, pid: PlayerId, instanceId: string): string | null {
-    const error = validateBlock(state, pid, instanceId)
+function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources?: PaySource[], paySoulCoreFromReserve?: boolean): string | null {
+    const error = validateBlock(state, pid, instanceId, paySources, paySoulCoreFromReserve)
     if (error) return error
     if (!state.battle) return "バトルが発生していません"
+    const payNeed = blockPayCost(state, opponentOf(pid), findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))
+    if (payNeed > 0) {
+        payCost(state, pid, payNeed, paySources, 0, paySoulCoreFromReserve)
+        log(state, `${state.players[pid].name}はブロックのため${String(payNeed)}コストを支払った。`)
+    }
 
+    // 制約 blockExhaustSpirit：ブロックするスピリット以外の回復状態のスピリット1体を疲労させる（検証で1体以上いることは確認済み）。
+    // 対話時は候補が2体以上ならブロックする側が選ぶ。非対話は先頭
+    if (blockExhaustSpiritRequired(state, opponentOf(pid), findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))) {
+        const candidates = state.players[pid].field.spirits.filter((sp) => sp.instanceId !== instanceId && !sp.isRested)
+        if (state.interactiveTargets && candidates.length > 1) {
+            state.pendingChoice = {
+                pid,
+                kind: "target",
+                prompt: "ブロックのコストとして疲労させるスピリットを選んでください",
+                candidates: candidates.map((sp) => sp.instanceId),
+                optional: false,
+                action: { type: "noop" },
+                selfInstanceId: instanceId,
+                blockExhaustPick: { blockerPid: pid, blockerInstanceId: instanceId },
+            }
+            return null
+        }
+        exhaustBlockToll(state, pid, candidates[0]!)
+    }
+    return continueBlockDeclaration(state, pid, instanceId)
+}
+
+export function exhaustBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {
+    exhaustSpirit(state, pid, sp)
+    log(state, `${state.players[pid].name}はブロックのため${getCard(sp.cardId).name}を疲労させた。`)
+}
+
+// ブロックのコストを払ったあとの宣言処理（blockExhaustSpirit の選択待ちからも再開する）
+export function continueBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
+    if (!state.battle) return "バトルが発生していません"
     // 複数体ブロック（blockRequiresCount。BS10-X03巨蟹武神キャンサード＝スピリット2体）：
     // 必要数がそろうまでは宣言を貯めるだけで、誘発もフラッシュの再オープンもしない
     const attackerPidForCount = opponentOf(pid)
@@ -1156,17 +1373,33 @@ function exhaustDeclaredBlocker(
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与（BS07蹴撃の戦場跡Lv2）。
     // **疲労の直後に置く**（回復状態のままだと【強襲】が空振りする）。バトルしない側のブロッカーには発揮しない
     if (withKyoshu && hasKyoshuOnBlock(state, defenderPid)) {
-        resolveAction(state, defenderPid, blocker, { type: "refreshSelfByExhaustNexus" })
+        resolveAction(state, defenderPid, blocker, KYOSHU_PAY)
     }
+}
+
+const KYOSHU_PAY: EffectAction = {
+    type: "pay",
+    cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 },
+    then: { type: "refreshSelf" },
+    limitByKeyword: "kyoshu",
 }
 
 export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
     if (!state.battle) return "バトルが発生していません"
     state.battle.blockerInstanceId = instanceId
     const blocker = findSpirit(state.players[pid], instanceId)
+    // 26系【地鳴】の減算材料: ブロックを宣言したスピリットのカードを宣言時点で記録する
+    // （スワップで複数回宣言された場合は最後のブロッカーで上書き）
+    if (blocker) state.lastBattleBlockerCardId = blocker.cardId
     // ブロックの追加コスト（アタッカーに掛かっている blockCost）。検証（validateBlock）で払えることは確認済み。
     // マジックの破棄は自動選択（最初に見つかったマジック）
     const costAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    const reserveToll = blockReserveToTrashCount(state, opponentOf(pid), costAttacker)
+    if (reserveToll > 0) {
+        state.players[pid].reserve -= reserveToll
+        state.players[pid].trashCores += reserveToll
+        log(state, `${state.players[pid].name}はブロックのためリザーブのコア${reserveToll}個をトラッシュに置いた。`)
+    }
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         const blockerPlayer = state.players[pid]
@@ -1196,81 +1429,8 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
-    // ブロック時効果（targetInstanceId=アタッカー。targetSameLevelAsSelf 等の対象条件が参照する）
-    if (blocker) fireTrigger(state, pid, blocker, "onBlock", undefined, state.battle.attackerInstanceId)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // フィールドイベント誘発「自分のスピリットがブロックしたとき」（BS10-088天貫く塔の城）。
-    // self にはブロックしたスピリット自身（blocker）を渡す。vanillaOnly はこの self で判定する
-    if (blocker) {
-        fireFieldEventTriggers(
-            state,
-            pid,
-            "ownSpiritDeclaredBlock",
-            { pid, inst: blocker },
-            instColors(blocker),
-            state.battle.attackerInstanceId,
-        )
-    }
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // フィールドイベント誘発「スピリットがブロックを宣言したとき」（BS14-083氷結した瀑布）。
-    // 発生源の持ち主に関わらずブロッカーに作用させるため、両プレイヤーのフィールドから
-    // selfOverride（ブロッカー）付きで発火する（anySpiritAttacked と同じ作り）
-    if (blocker && !state.winner) {
-        fireFieldEventTriggers(state, pid, "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
-    }
-    if (blocker && !state.winner) {
-        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritDeclaredBlock", { pid, inst: blocker }, instColors(blocker), state.battle.attackerInstanceId)
-    }
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // 『このスピリットのバトル時』：バトルが成立した時点（ブロック宣言時）で発火する。勝敗を問わない
-    if (blocker) fireTrigger(state, pid, blocker, "onBattleStart", undefined, state.battle.attackerInstanceId)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // 【粉砕】をこのスピリットのブロック時にも発揮させる継続付与（士気高き大本営）
-    if (blocker && hasFunsaiOnBlock(state, pid)) resolveFunsai(state, pid, blocker)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // 攻撃側の「ブロックされたとき」誘発（バット・バット、暗黒将軍ブラッディ・シーザー）。
-    // self=アタッカー、targetInstanceId=ブロッカー（coreRemoveの対象に使う）
-    const attackerPid = opponentOf(pid)
-    const attackerInstanceId = state.battle?.attackerInstanceId
-    const attacker = attackerInstanceId
-        ? findSpirit(state.players[attackerPid], attackerInstanceId)
-        : undefined
-    if (attacker) fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId)
-    if (state.winner) {
-        state.battle = null
-        return null
-    }
-    // フィールドイベント誘発「自分のスピリットがブロック宣言を受けたとき」（花の子リップ）。
-    // 持ち主（attackerPid）のフィールドから発火。colorFilterはブロックされた自分スピリット（attacker）の色、
-    // targetInstanceIdはブロッカー（instanceId）
-    // self にはブロックされた自分のスピリット（attacker）を渡す。refreshSelf が
-    // 「ブロックされたこのスピリットを回復させる」として機能する（BS05ペンタン帝国Lv2）。
-    // 花の子リップの levelOverrideTarget は targetInstanceId しか見ないので影響を受けない
-    if (attacker) {
-        fireFieldEventTriggers(
-            state,
-            attackerPid,
-            "ownSpiritBlocked",
-            { pid: attackerPid, inst: attacker },
-            instColors(attacker),
-            instanceId,
-        )
-    }
+    // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
+    resolveBlockDeclared(state, pid, blocker, instanceId)
     if (state.winner) {
         state.battle = null
         return null
@@ -1299,11 +1459,9 @@ function doTakeLife(state: GameState, pid: PlayerId): string | null {
 // フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
 // 起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
 // 記録が消えるので、同じターンにもう一度起動ボタンを押せる（2026-08-21 ユーザー確定）
-export function revertActivatedUse(inst: CardInstance, effectId: string): void {
-    if (!inst.activatedUsedTurn) return
-    const rest = { ...inst.activatedUsedTurn }
-    delete rest[effectId]
-    inst.activatedUsedTurn = rest
+export function revertActivatedUse(state: GameState, inst: CardInstance, effectId: string): void {
+    revertOnceUsed(state, inst, effectId, "activatedUsedTurn")
+    revertOncePerBattleUsed(state, inst, effectId)
 }
 
 // 起動能力（kind: "activated"）: コストを払って任意発動する能力。
@@ -1334,6 +1492,8 @@ function doActivateAbility(
     )
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
 
+    // 「Nコスト支払う」は常に pay に任せる（フィールドのコアからも払える・疲労で肩代わりできるネクサスがあれば聞く）
+    const reserveTollViaPay = effect.cost !== undefined && "reserveToTrash" in effect.cost
     // コスト支払い（リザーブからトラッシュへ／自身を疲労させる）。
     // cost 省略時は追加コストなし（BS08帝竜騎サイクル＝「ターンに1回、〜できる」だけの効果）
     if (effect.cost === undefined) {
@@ -1431,34 +1591,48 @@ function doActivateAbility(
             `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（手札の${getCard(cardId).name}を破棄）`,
         )
     } else {
-        const n = effect.cost.reserveToTrash
-        player.reserve -= n
-        player.trashCores += n
-        log(
-            state,
-            `${player.name}の${getCard(inst.cardId).name}の効果を発動した。（リザーブのコア${n}個をトラッシュ）`,
-        )
+        // 払いは pay に任せる（持ち主に聞く・非対話は自動で払う。resolveAction 側）
+        log(state, `${player.name}の${getCard(inst.cardId).name}の効果を発動した。`)
     }
 
     // 「ターンに1回」の消費を、**コスト支払い後・効果解決前**に記録する。
     // 効果の解決中に中断（pendingChoice）が入ってもこのターンの再発動を防ぐため
     if (effect.oncePerTurn) {
-        inst.activatedUsedTurn = { ...(inst.activatedUsedTurn ?? {}), [effectId]: state.turn }
+        markOnceUsed(state, pid, inst, effect, "activatedUsedTurn")
+    }
+    // 〔バトル1回〕も同じ位置で記録する（バトル単位。clearBattle で消える）
+    if (effect.oncePerBattle) {
+        markOncePerBattleUsed(state, inst, effect.id)
     }
 
     // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
     delete state.effectFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する
-    resolveAction(state, pid, host, effect.action)
+    const prevFlash = state.flashEffect
+    if (effect.timing === "flash" || effect.timing === "flashBattle") state.flashEffect = true
+    try {
+        resolveAction(state, pid, host, markPayConfirmed(reserveTollViaPay ? { type: "pay", cost: { type: "removeCores", side: "own", from: ["reserve"], to: "trash", count: (effect.cost as { reserveToTrash: number }).reserveToTrash }, then: effect.action, costOnly: true } : effect.action))
+    } finally {
+        if (prevFlash) state.flashEffect = true
+        else delete state.flashEffect
+    }
     if (effect.oncePerTurn && cancelable) {
         if (state.effectFizzled) {
             // 対象がいなくてその場で終わった＝発揮しなかったので、消費を戻して再度起動できるようにする
-            revertActivatedUse(inst, effectId)
+            revertActivatedUse(state, inst, effectId)
         } else if (state.pendingChoice) {
             // 選択待ちに入った：**やめたら**戻す（doResolveChoice が見る）
             state.pendingChoice.revertActivated = { instanceId, effectId }
         }
+    }
+    // キーワードラベルを持つ起動効果（【増幅】/【水流】等）の解決後に発火（FieldEvent "ownKeywordActivated"）。
+    // コスト支払い・効果解決が済んだ後だけ。不発（effectFizzled）・対象選択などで選択待ち（pendingChoice）に
+    // 入った場合は発火しない（選択待ちから再開した解決では発火しない簡略化。キャンセル経路も同様）
+    if (effect.keyword !== undefined && !state.effectFizzled && !state.pendingChoice) {
+        fireFieldEventTriggers(state, pid, "ownKeywordActivated", { pid, inst: host }, undefined, undefined, undefined, {
+            keyword: effect.keyword,
+        })
     }
     delete state.effectFizzled
     // 効果でバトルが終了していなければ、フラッシュの優先権を相手へ移す

@@ -4,6 +4,23 @@
 **R3 の分割1つごとに、その概念の行を足す**（2026-09-26 から書き始めた。まだ全部の種類はそろっていない）。
 関数の置き場は [CODEMAP.md](../CODEMAP.md) を名前で grep する。
 
+## 0. ファイルの置き場と分割のルール（2026-10-15 ユーザー決定。機械的に決めるため）
+
+**置き場は下の表で決まる。** 判断が要らないように、足すものの種類から置き場を引く。表に無い種類が出たら、先に表へ1行足す。
+
+| 足すもの | 置き場 |
+| :-- | :-- |
+| キーワード能力1つ | `server/src/logic/keywords/<名前>.ts` |
+| ゾーン（デッキ・トラッシュ・手札・ライフ…）の操作 | `server/src/logic/zones/<名前>.ts` |
+| EffectAction の type | ACTION_VOCABULARY の分類ごとに `server/src/logic/actions/<分類>.ts` |
+| 型の union／interface 1つ（TargetFilter・TimedContent・PendingChoice…）。**5KB 以上のもの** | `server/src/types/<名前>.ts`（利用側は従来どおり `type.ts` から import。type.ts が再輸出する＝`split-file.ts --reexport`）。5KB 未満は type.ts に置く |
+| 画面の部品1つ（フェーズ帯・支払いUI・選択ダイアログ…） | `public/src/ui/<部品>.ts` |
+
+- **各ファイルの1行目は、そのファイルの概念を述べるコメント**（`// 〜`）。無いファイルは `validate:size` が落とす。CODEMAP がこの行を索引に載せる
+- 上限は従来どおり 2000行（型ファイルは 120KB）。**分割するときは、切った後の各ファイルを1000行（型は60KB）以下にする**（ぎりぎりで切るとすぐ次の分割が要る）
+- **分割は `scripts/split-file.ts` で行う**（`npx tsx scripts/split-file.ts <元> <先> <名前…>`）。関数・型の移動、import の付け直し（元を import している側も書き換える）、移したものの本体が1文字も変わっていないかの検査、CODEMAP の作り直しまでを1回で行う。手で切らない
+- 分割1つごとに、この文書に移した先の節を足す
+
 ## ブレイヴ（`server/src/logic/brave.ts`）
 
 | 変更の種類 | 触るところ | 手本 | 罠 |
@@ -29,7 +46,7 @@
 
 | 変更の種類 | 触るところ | 手本 | 罠 |
 | :-- | :-- | :-- | :-- |
-| 新しい `PendingChoice` の応答 | `doResolveChoice` に `if (pending.<印>)` の分岐を1つ足す（型は `type.ts`、UI は `public/src`） | `pending.blockBattlePick` | 分岐の最後は必ず `finishChoiceResolution` を返す（返さないと再開スタックが消化されず、後続の誘発が放置される）。**分岐の順番に意味がある**：`kind === "option"`／`"card"` の汎用分岐より前に置く |
+| 新しい `PendingChoice` の応答 | `doResolveChoice` に `if (pending.<印>)` の分岐を1つ足す（型は `types/choice.ts`、UI は `public/src`） | `pending.blockBattlePick` | 分岐の最後は必ず `finishChoiceResolution` を返す（返さないと再開スタックが消化されず、後続の誘発が放置される）。**分岐の順番に意味がある**：`kind === "option"`／`"card"` の汎用分岐より前に置く |
 | 新しい再開フレーム（`ResumeFrame` の kind） | `drainResumeStack` に `frame.kind === "…"` の分岐 | `battleResolve`（→ `resumeBattleResolution`） | 積むのは `pushResumeFrames`。挿入順の規則は RESUME_STACK.md |
 | 「やめた」ときに「ターンに1回」を戻す | `PendingChoice.revertActivated`／`revertTriggered` を立てる（戻すのは `revertActivatedIfSkipped`） | `GameEngine.doActivateAbility` | — |
 
@@ -37,9 +54,10 @@
 
 | 変更の種類 | 触るところ | 手本 | 罠 |
 | :-- | :-- | :-- | :-- |
-| BP 比較後の破壊・バトル終了時の処理 | `runBattleStep` の `case` に足す。ステップを増やしたら `BATTLE_LAST_STEP` も上げる | case 5（【呪撃】） | **1ステップ＝中断しうる呼び出し1つ**（選択待ちが立つとその次のステップから再開する）。順序は TIMING_CHART.md の ＞６〜＞７。`coverage-effects.ts` が case 5 の文字列に差し込んでいる |
+| BP 比較後の破壊・バトル終了時の処理 | `runBattleStep` の `case` に足す。ステップを増やしたら `BATTLE_LAST_STEP` も上げる | case 5（【呪撃】） | **1ステップ＝中断しうる呼び出し1つ**（選択待ちが立つとその次のステップから再開する）。順序は TIMING_CHART.md の ＞６〜＞７ |
 | ライフで受けたときのライフ減少 | `resolveLifeDamage` | — | 宣言した時点の盤面を読む（フラッシュ①で変わりうる） |
 | 指定アタックのブロック確定 | `resolveDirectedBlock` | — | 疲労状態でもブロックさせる（`validateBlock` を通さない） |
+| ブロック宣言で誘発する効果 | `blockDeclared.ts` の `resolveBlockDeclared` に収集を1行足す（`fireTrigger`／`fireFieldEventTriggers` の `collect` 引数） | 【粉砕】の `funsaiOnBlock` | すべて同時発揮で、解決順はターンプレイヤーが選ぶ（2026-10-08）。バーストは列を解決し終えてから判定し、列の途中で選択待ちが立つとバーストは判定しない |
 
 アクションの実行（召喚・アタック・ブロック宣言・起動能力・【烈神速】）は `GameEngine.ts` に残した。
 
@@ -57,6 +75,28 @@
 | 対象を選ぶアクション | 候補を作って `requestChoice`（カードなら `requestCardChoice`）。複数体を1体ずつ選ばせるなら `tryInteractiveTargetChoice` | — | 候補0件は不発、1件は即解決、2件以上で選択待ち。応答側は `choice.ts` |
 | 自動で選ぶ規則（AI・非対話） | `pickEnemyCandidates`・`pickEnemyByBp`・`pickEnemyLowestCost` など | — | 対戦者が選ぶべき場面を自動にしていないかは `npm run audit:choices` |
 | 「〜することで」の発動確認 | `requestActivationConfirm` | — | — |
+
+## 効果の定義の型（`server/src/types/effectDef*.ts`。2026-10-16 に分割）
+
+`EffectDef` は `effectDef.ts` の union で、中身を分類ごとの union に分けてある。新しい kind はどれか1つに足す（利用側は従来どおり `type.ts` から `EffectDef` を import する）。
+
+| 分類 | ファイル |
+| :-- | :-- |
+| 事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活・デッキから破棄されたとき…） | `effectDefTrigger.ts` |
+| 場にある間効く継続効果と付与（〜Grant・〜As・抑制・制約） | `effectDefContinuous.ts` |
+| コスト・軽減・支払い方を変えるもの | `effectDefCost.ts` |
+| キーワード・マジック・起動能力・ブロック時のキーワードの置き換え | `effectDef.ts` |
+
+- `validate:cards` の「型に無いキー」の検査は `types/effectDef*.ts` を全部読む。分類のファイルを足すときは名前を `effectDef` で始める
+
+## 誘発（`server/src/logic/triggers.ts`・`fieldEventTriggers.ts`・`stepTriggers.ts`。2026-10-16 に分割）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| 自分のカードの事象（召喚時・アタック時・破壊時など `TriggerEvent`）で起きる誘発 | `triggers.ts` の `fireTrigger` |
+| 盤面の出来事（`FieldEvent`）で起きる誘発、手札を得た・ネクサスを配置したときの通知 | `fieldEventTriggers.ts` の `fireFieldEventTriggers`・`notifyHandGained`・`fireNexusDeployed` |
+| ステップの開始・終了、バトルに勝ったとき、BP が達したとき | `stepTriggers.ts` の `fireStepTriggers`・`fireBattleWonTriggers`・`fireBpReachedTriggers` |
+| 【バースト】の発動条件 | `keywords/burst.ts` の `burstConditionMet` |
 
 ## 【バースト】（`server/src/logic/keywords/burst.ts`）
 
@@ -82,8 +122,25 @@
 | :-- | :-- |
 | 相手のコアを取り除く・自分のコアを払う／動かす | `cores.ts` |
 | ボイド・トラッシュからコアを置く、コアチャージ | `coreGain.ts` |
-| ライフを増やす・減らす | `life.ts`（【聖命】の計測点が `coverage-effects.ts` から差し込まれている） |
+| ライフを増やす・減らす | `life.ts` |
 | 【転召】のコアの置き先・再開・代わりの支払い | `tensho.ts`（判定の本体は `keywords/tensho.ts`） |
+
+## 画面（`public/src/`。2026-10-16 に main.ts・renderer.ts から `ui/` へ分割）
+
+| 変更の種類 | 触るところ |
+| :-- | :-- |
+| 描画の入口・全体の再描画 | `renderer.ts` の `render` |
+| フィールドのカード1枚（コア・レベル・ボタン） | `ui/fieldCard.ts` の `fieldCardEl`・`coreButtonsEl` |
+| 手札 | `ui/hand.ts` の `renderHand` |
+| 情報欄・バースト欄・バトル欄 | `ui/infoPanels.ts` |
+| 効果のツールチップ | `ui/tooltip.ts` |
+| 支払いモードの状態と残りコストの計算 | `ui/paying.ts`（`PayingState`・`payingNeed`） |
+| 支払いの入力と送信（自動／手動の切り替え） | `ui/payInput.ts` |
+| 手札・スピリットのクリック、召喚・アタック・選択の応答 | `ui/play.ts` |
+| デッキの一覧・お知らせ | `ui/lobby.ts` |
+| 接続と `init`（イベントの登録） | `main.ts` |
+
+- `ui/` から `main.ts`・`renderer.ts` の `let` を書き換えることはできない（import した変数は代入不可）。書き換えが要るときは持ち主のファイルに `setXxx` を置く（`setCardDb`・`setDeckRecipes`・`suppressEffectTooltip`）
 
 ## 共有の判定（`shared/rules/`。import は従来どおり `shared/rules` から）
 

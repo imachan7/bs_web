@@ -417,6 +417,7 @@
     "id": "e1",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -683,8 +684,13 @@
     ],
     "battleRole": "attacker",
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 1
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit"
+     }
     },
     "optional": false
    }
@@ -2102,6 +2108,7 @@
     "id": "BS03-039-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2163,6 +2170,7 @@
     "id": "BS03-040-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      2,
      3
@@ -2421,6 +2429,7 @@
     "id": "BS03-045-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2480,6 +2489,7 @@
     "id": "BS03-046-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2598,6 +2608,7 @@
     "id": "BS03-048-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -3525,6 +3536,7 @@
     "id": "e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -4757,9 +4769,13 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "nexus"
+      "pick": {
+       "cardType": "nexus"
+      }
      },
      "then": {
       "type": "timedEffect",
@@ -4945,6 +4961,7 @@
     "id": "BS03-092-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -4952,9 +4969,13 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "nexus"
+      "pick": {
+       "cardType": "nexus"
+      }
      },
      "then": {
       "type": "timedEffect",
@@ -6860,10 +6881,14 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
-     "count": 0,
-     "all": true,
-     "familyFilter": "無魔"
+     "type": "moveCards",
+     "from": "trash",
+     "count": "all",
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "無魔"
+     }
     }
    }
   ]
@@ -7589,7 +7614,13 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverMagicFromTrash"
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "magic"
+     }
     }
    },
    {
@@ -7673,11 +7704,29 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "reveal",
-     "count": 5,
-     "pick": {
-      "cardType": "nexus"
-     }
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 5
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "nexus"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckBottom"
+      }
+     ]
     }
    },
    {
@@ -7894,9 +7943,14 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardSelfChoose",
-       "count": "any",
-       "cardType": "nexus"
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
+       "count": "all",
+       "upTo": true,
+       "pick": {
+        "cardType": "nexus"
+       }
       },
       {
        "type": "draw",
@@ -8314,9 +8368,10 @@
       }
      },
      "then": {
-      "type": "toHand",
+      "type": "moveCards",
       "from": "trash",
       "count": "all",
+      "dest": "hand",
       "pick": {
        "cardType": "magic",
        "declared": "match"

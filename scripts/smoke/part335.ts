@@ -6,7 +6,7 @@
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械確認してから使う。
 import { act, assert, createGame, createInstance, getCard, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { fireFieldEventTriggers } from "../../server/src/logic/triggers"
+import { fireFieldEventTriggers } from "../../server/src/logic/fieldEventTriggers"
 import { magicEffectiveColors } from "../../shared/cost"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number) {

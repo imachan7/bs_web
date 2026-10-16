@@ -1,3 +1,5 @@
+// 両陣営を対象にするマジックの対象の付け替え
+import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, CardType, PendingChoice, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, suspend } from "../GameState"
 import { effectActiveAtLevel, effectSources, instHasColor, instHasCost, matchesTarget, matchesFamilyFilter } from "../../../../shared/rules"
@@ -53,6 +55,7 @@ export function findBothSidesRedirectSource(
                 if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                 if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+                noteCoverage(effect, "bothSidesTargetRedirect")
                 return { pid: ownerPid, inst: source }
             }
         }
@@ -114,6 +117,7 @@ export function setTargetRedirect(
     // 決定が無い＝非対話（テスト・自動解決）なので、従来どおり自動で絞り込む
     const decision = state.magicRedirectDecision
     if (decision && decision.sourceInstanceId === found.instanceId && !decision.approved) return
+    noteCoverage(getCard(found.cardId).effects.find((e) => e.kind === "magicTargetRedirect"), "magicTargetRedirect")
     state.magicRedirectTo = { pid: opponentOf(casterPid), instanceId: found.instanceId }
     log(
         state,

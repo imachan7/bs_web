@@ -20,6 +20,7 @@ import { COLOR_LABELS } from "../data/constants"
 import type { CardData, EffectCounter } from "../server/src/type"
 import { isAllowedRuleCounter } from "../server/src/logic/actions/timedEffect"
 import { loadAllCards } from "../data/loadCards"
+import { checkPayGates } from "./payGateCheck"
 
 const VALID_ACTIONS = new Set(Object.keys(ACTION_HANDLERS))
 const VALID_PAY_TYPES = new Set<string>(PAYABLE_TYPES)
@@ -33,7 +34,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
     "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
-    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onRefreshed", "onTenshoTarget",
+    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onLifeReduced", "onRefreshed", "onTenshoTarget",
 ])
 
 // 『』で囲まれた効果は**カテゴリ**で、効果を借りる／発揮させない器は『』付きしか対象にできない
@@ -106,8 +107,12 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
         return
     }
     for (const [key, value] of Object.entries(node)) {
-        if (key === "action" && value && typeof value === "object" && !Array.isArray(value)) {
+        // action だけでなく if の then/else・pay の cost・sequence の actions の中も集める（入れ子の取りこぼし防止）
+        if ((key === "action" || key === "then" || key === "else" || key === "cost") && value && typeof value === "object" && !Array.isArray(value) && typeof (value as { type?: unknown }).type === "string") {
             out.push(value as { type?: unknown })
+        }
+        if (key === "actions" && Array.isArray(value)) {
+            for (const x of value) if (x && typeof x === "object" && typeof (x as { type?: unknown }).type === "string") out.push(x as { type?: unknown })
         }
         collectActions(value, out)
     }
@@ -125,8 +130,7 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "markNoRefreshTarget",
 ])
 
-// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind。
-// coverage-effects.ts の同名の集合と同じ分類
+// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind
 const ACTION_BEARING_KINDS = new Set([
     "triggered",
     "magic",
@@ -278,26 +282,21 @@ const FILTER_ACTIONS = new Set([
     "destroy", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "timedEffect",
 ])
 
-// TargetFilter の軸（server/src/type.ts の TargetFilter に対応。軸を足したらここにも追記する）
-const VALID_FILTER_KEYS = new Set([
-    "maxBp", "minBp", "exactBp", "color", "colorExclude", "family", "cost",
-    "level", "minLevel", "keyword", "vanilla", "minSymbols", "symbolCount", "excludeSelf", "cores", "minCores", "maxCores", "rested", "refreshed",
-    "nameContains", "sameColorAsBattleLoser", "sameFamilyAsBattleLoser", "sameFamilyAsDestroyed", "sameBpAsBattleLoser", "lowerBpThanBattleLoser", "sameLevelAsBattleLoser", "keywordCount",
-    "sameCostAsEventTarget", "sameCostAsLast", "sameCostAsSelf", "costSameAsOwn", "maxCostAsSelf", "maxLv1BpOfSelf", "attackingOnly", "keywords", "keywordExclude", "unblockableOnly", "hasUnblockableEffectOrActive", "hasTrigger",
-    "combined", "braveInSpiritState", // ブレイヴ（BS10。docs/design/BRAVE.md）
-    "familyAll", // 系統AND（BS13-061。familyのOR配列とは別軸）
-    "hasBurst", // カードのeffectsにkind:"burst"を持つか（BS15共通器。false=持たない）
-    "sameIceWallColorAs", // selfが持つ【氷壁】と同じ色（OR。BS16-036氷聖女ジャンヌダルク）
-    "bofuExhausted", // このバトル中に【暴風】で疲労した相手のスピリット（R5。"self"=発生源の【暴風】限定）
-    "damagedOwnLife", // このバトル中に発生源の持ち主のライフを減らした相手のスピリット（R5）
-    "familyExclude", // familyの否定：並べた系統をどれも持たない（BS16-052）
-])
+// TargetFilter の宣言から軸名を読む（手で並べると軸の追加に追従できない）。宣言が見つからなければ落とす（ファイルを移したときに黙って空にならないため）
+const VALID_FILTER_KEYS = (() => {
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "server", "src", "types", "targetFilter.ts"), "utf-8")
+    const at = src.indexOf("export interface TargetFilter {")
+    if (at === -1) throw new Error("validate-cards: types/targetFilter.ts に TargetFilter の宣言が見つかりません")
+    const body = src.slice(at)
+    const block = body.slice(0, body.indexOf("\n}"))
+    return new Set([...block.matchAll(/^ {4}(\w+)\??:/gm)].map((m) => m[1]!))
+})()
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
 const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
     // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
     // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
-    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla"],
+    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla", "cost", "team", "shinkaiho", "lastTarget"],
 }
 
 function checkTargetFilters(
@@ -330,7 +329,8 @@ function checkTargetFilters(
         for (const key of Object.keys(filter)) {
             if (!VALID_FILTER_KEYS.has(key)) {
                 add(cardId, `${a.type} の filter に未知の軸 "${key}" がある（TargetFilter に無いキーは無言で無視される）`)
-            } else if (allowed && !allowed.includes(key)) {
+            } else if (allowed && !allowed.includes(key) && cardId.startsWith("26")) {
+                // 旧カード（26系以外）は対象外（2026-10-07 ユーザー指示。入れ子の検査を広げた際に BS14-X03 が出たが触らない）
                 add(
                     cardId,
                     `${a.type} の filter の軸 "${key}" はこのアクションが見ない（対応は ${allowed.join(" / ")} のみ）`,
@@ -350,7 +350,15 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
         return
     }
     const obj = node as Record<string, unknown>
+    if (obj["type"] === "summonFromHandFree" && "chooseEach" in obj) add(cardId, "summonFromHandFree に実行時専用の内部欄 chooseEach が書かれている（カードデータには書かない）")
+    if (obj["type"] === "simultaneous") {
+        for (const k of ["choosing", "chosenIds"]) if (k in obj) add(cardId, `simultaneous に実行時専用の内部欄 ${k} が書かれている（カードデータには書かない）`)
+    }
+    if (obj["kind"] === "step" && "cost" in obj) add(cardId, "step に cost が書かれている（廃止済み。「〜することで」は pay で書く）")
     if (obj["type"] === "pay") {
+        if ("confirmed" in obj) add(cardId, "pay に実行時専用の内部欄 confirmed が書かれている（カードデータには書かない）")
+        if ("onceRevert" in obj) add(cardId, "pay に実行時専用の内部欄 onceRevert が書かれている（カードデータには書かない）")
+        if ("eventTargetId" in obj) add(cardId, "pay に実行時専用の内部欄 eventTargetId が書かれている（カードデータには書かない）")
         for (const side of ["cost", "then"] as const) {
             const t = (obj[side] as { type?: unknown } | undefined)?.type
             if (typeof t !== "string" || !VALID_PAY_TYPES.has(t)) {
@@ -493,6 +501,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             keyword?: string
             trigger?: string
             granted?: { trigger?: string }
+            oncePerTurn?: boolean
+            onceScope?: string
+            eventTarget?: string
         }[]) {
             // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
             if (
@@ -500,6 +511,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 (!e.trigger || !VALID_TRIGGERS.has(e.trigger))
             ) {
                 add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
+            }
+            if (e.onceScope !== undefined && (e.onceScope !== "name" || e.oncePerTurn !== true)) {
+                add(id, `onceScope は oncePerTurn: true と併用する "name" のみ（${String(e.id)}）`)
             }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
@@ -514,6 +528,15 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             // trigger 名の検証（TriggerEvent と突き合わせ。未登録なら一度も発火しない）
             if (e.kind === "triggered" && (!e.trigger || !VALID_TRIGGERS.has(e.trigger))) {
                 add(id, `未知の trigger: ${String(e.trigger)}`)
+            }
+            // イベント対象を行動に渡すか（triggers.ts）。書き忘れると「新たに選ぶ」行動がアタッカー等に当たる
+            if (
+                e.kind === "triggered" &&
+                (e.trigger === "onBlock" || e.trigger === "onBlocked" || e.trigger === "onBattleStart" || e.trigger === "onBattleEnd") &&
+                e.eventTarget !== "use" &&
+                e.eventTarget !== "ignore"
+            ) {
+                add(id, `eventTarget（"use" | "ignore"）が未指定: ${String(e.id)}`)
             }
             // 『』カテゴリと trigger の一致（SEMANTICS_AUDIT.md §3.17）
             if (e.kind === "triggered" && e.trigger && !QUOTE_MISMATCH_KNOWN.has(e.id ?? "")) {
@@ -574,6 +597,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
+        checkPayGates(c, add)
 
         // 効果テキストがあるのに effects が空 = 未構造化（エラーではないので数えない）
     }
@@ -592,6 +616,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 // ここに載せた action.type がカードデータに書かれていたら validate:cards で落とす（2026-09-25）。
 // 「先に仕組みだけ入れる」用途でここに載せない（カードが入った時点で落ちて気づけるが、載せっぱなしの原因になる）
 const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["funsaiOnBlock", "ブロック宣言時の同時発揮で【粉砕】を他の誘発と同じ列に並べるための再開フレーム（blockDeclared.ts）"],
     ["revealDiscardRest", "revealAndSummonKeyword が選択待ちの queue に積む後始末"],
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
@@ -599,7 +624,11 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+    ["trashReturnToHandInternal", "kind:\"trashReturnOnOwnSpiritDestroyed\"／\"trashReturnOnOwnHeavyExhaust\" の「手札に戻しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。26RSD05-012・26RBS02-032）"],
     ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
+    ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],
+    ["resshinsokuFinishInternal", "【烈神速】の余分の支払い待ちから再開する内部専用（カードデータには書かない）"],
+    ["trashSummonPaidInternal", "【不死】・ミノガメンの支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],
@@ -607,12 +636,19 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
     ["revealRest", "revealで選ばれなかった残りをrest先へ送る内部専用（revealApplyOne/revealの内側から積む）"],
     ["burstMagicFreeOrThenPay", "burstMagicFreeEffect の4択（払う／無償メイン／無償フラッシュ／やめる）の再開用の内部専用"],
+    ["summonBatchFlush", "オープンから複数体を同時に召喚し終えたあと、後回しにした召喚時効果をまとめて発揮する（moveRevealed が積む）"],
     ["revealFinishSummon", "revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き"],
 ])
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
 // atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
 const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
+// standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
+const STANDARD_POOL_ONLY = new Set<string>([
+    "bpBuffAll", "bpMinus", "designate", "exhaustOwnNexuses", "fireSoryoSelf", "grantKeywordThisTurn", "heavyExhaust",
+    "levelAsSelfThisBattle", "nexusAsSpiritThisStep", "openAwakenMode", "placeSoulCore", "refreshOwnNexus",
+    "returnLastUsedMagicToHand", "returnOwnNexusToDeckBottom", "soulCoreToTrash", "spawnToken",
+])
 
 // declared は declare の then の中でだけ置き換わる。外に書くと絞り込みが何も絞らずに通る（DECLARE_UNIFY §1）
 export function findStrayDeclared(cards: CardData[]): { cardId: string; message: string }[] {
@@ -631,7 +667,7 @@ export function findStrayDeclared(cards: CardData[]): { cardId: string; message:
     return out
 }
 
-// simultaneous の中は destroy{all} だけ（それ以外はハンドラが発揮しない）
+// simultaneous の中は destroy{all}・destroySelf・destroy{side:"own", count:数} だけ（それ以外はハンドラが発揮しない）
 export function findBadSimultaneous(cards: CardData[]): { cardId: string; message: string }[] {
     const out: { cardId: string; message: string }[] = []
     const walk = (o: unknown, cardId: string): void => {
@@ -643,7 +679,8 @@ export function findBadSimultaneous(cards: CardData[]): { cardId: string; messag
         const r = o as Record<string, unknown>
         if (r["type"] === "simultaneous") {
             for (const a of (r["actions"] as Record<string, unknown>[] | undefined) ?? []) {
-                if (a["type"] !== "destroy" || a["all"] !== true) out.push({ cardId, message: "simultaneous の中には destroy{all} だけ書ける" })
+                const ok = a["type"] === "destroySelf" || (a["type"] === "destroy" && (a["all"] === true || (a["side"] === "own" && typeof a["count"] === "number")))
+                if (!ok) out.push({ cardId, message: "simultaneous の中には destroy{all}・destroySelf・destroy{side:own,count:数} だけ書ける" })
             }
         }
         for (const v of Object.values(r)) walk(v, cardId)
@@ -667,7 +704,7 @@ export function findUnusedActions(cards: CardData[]): string[] {
     }
     for (const c of cards) walk(c.effects)
     return [...VALID_ACTIONS]
-        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a) && !AWAITING_MIGRATION.has(a))
+        .filter((a) => !used.has(a) && !INTERNAL_ONLY_ACTIONS.has(a) && !AWAITING_MIGRATION.has(a) && !STANDARD_POOL_ONLY.has(a))
         .sort()
 }
 
@@ -682,15 +719,18 @@ export function findUnusedActions(cards: CardData[]): string[] {
 //     → 『自分のアタックステップ』限定が効かず常時発揮（テストもその状態を固定していた）
 // type.ts を正として読むので、型を直せば検査も自動で追随する（陳腐化しない）。
 export function findUndeclaredEffectKeys(cards: CardData[]): { cardId: string; message: string }[] {
-    // EffectDef は 2026-09-12 に type.ts から types/effectDef.ts へ切り出した（type.ts の肥大化対策）
-    const typeSrc = fs.readFileSync(path.resolve(__dirname, "../server/src/types/effectDef.ts"), "utf-8")
-    const start = typeSrc.indexOf("export type EffectDef =")
-    const end = typeSrc.length
-    if (start === -1) {
+    // EffectDef の union は types/effectDef.ts と、2026-10-16 に分けた types/effectDef<分類>.ts にまたがる。全部を読む
+    const typesDir = path.resolve(__dirname, "../server/src/types")
+    const typeSrc = fs
+        .readdirSync(typesDir)
+        .filter((f) => /^effectDef\w*\.ts$/.test(f))
+        .map((f) => fs.readFileSync(path.join(typesDir, f), "utf-8"))
+        .join("\n")
+    if (!typeSrc.includes("export type EffectDef =")) {
         return [{ cardId: "(全体)", message: "types/effectDef.ts の EffectDef を読み取れませんでした（検査を追随させてください）" }]
     }
     const declared = new Map<string, Set<string>>()
-    for (const block of typeSrc.slice(start, end).split("\n    | {")) {
+    for (const block of typeSrc.split("\n    | {")) {
         const kindLine = /kind:\s*("[^"]+"(?:\s*\|\s*"[^"]+")*)/.exec(block)
         if (!kindLine?.[1]) continue
         const keys = new Set<string>()

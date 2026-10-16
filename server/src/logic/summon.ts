@@ -1,14 +1,17 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
+import { noteCoverage } from "../../../shared/coverage"
 import { hasSummonedExhaustGrant, payCost } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
-import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
+import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
-import { fireFieldEventTriggers, fireSummonTrigger } from "./triggers"
+import { fireSummonTrigger } from "./triggers"
+import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { effectiveCost } from "../../../shared/cost"
-import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, isTrashCardProtected, matchesCostFilter, summonByEffectBlocked, trashCardNameMatches } from "../../../shared/rules"
+import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter, summonByEffectBlocked } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -32,8 +35,9 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
             (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
         )
         if (!hit) continue
+        noteCoverage(hit, "trashSummonOnNameSummoned")
         // 維持コアを払えないなら確認自体を出さない（【不死】と同じ方針）
-        if (player.reserve < minLevelCores(card)) continue
+        if (!canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card))) continue
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,
@@ -53,8 +57,34 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     }
 }
 
+// 効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
+export function startSummonBatch(state: GameState): void {
+    if (state.summonBatch === undefined) state.summonBatch = []
+}
+
+// 全員を場に出し終えたら、それぞれの召喚時効果をターンプレイヤーが選んだ順に発揮する
+export function flushSummonBatch(state: GameState, pid: PlayerId): void {
+    const ids = state.summonBatch
+    delete state.summonBatch
+    if (!ids || ids.length === 0) return
+    const cardIdOf = (id: string): string => findInstanceAnywhere(state, id)?.cardId ?? id
+    resolveInOrder(state, ids, {
+        skip: (id) => !isOnFieldAnyZone(state.players[pid], id),
+        resolve: (id) => {
+            const inst = findInstanceAnywhere(state, id)
+            if (inst) fireSummonSequence(state, pid, inst)
+        },
+        frame: (id) => ({ kind: "action", selfInstanceId: id, actorPid: pid, action: { type: "summonSequence" } }),
+        askOrder: { pid: state.turnPlayer, label: (id) => getCard(cardIdOf(id)).name, key: cardIdOf },
+    })
+}
+
 export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
+    if (state.summonBatch) {
+        state.summonBatch.push(inst.instanceId)
+        return
+    }
     // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
     // refreshLevelAsOverrides は handleAction の事後フックでしか走らないため、
     // 召喚直後は「場に出たばかりの個体が自分に掛けている継続効果」がまだ反映されていない。
@@ -86,6 +116,8 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             byFushi,
             // 【神速】による召喚か（doSummon が立てる。BS11-065 満天の牧草地Lv2）
             bySoku: state.summoningBySoku === true,
+            // 《継召》での召喚か。keishoExcludedCardIds は手札からの通常召喚のたびに上書きされるので、手札からの召喚に限って読む
+            byKeisho: state.summoningFromHand === true && (state.keishoExcludedCardIds?.length ?? 0) > 0,
             // 手札からの召喚か（doSummon / summonFreeFromHandIndex が立てる。BS11-X05 魔導双神ジェミナイズ）
             fromHand: state.summoningFromHand === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
@@ -124,6 +156,10 @@ export function summonFreeFromHandIndex(
         payCost?: true
         skipOnSummon?: true
         paySources?: PaySource[]
+        surchargeBatch?: true // 複数体を同時に召喚する効果の1体（余分は1回だけ。summonSurcharge.ts）
+        // 召喚経路の記録（CardInstance.summonedBy）。
+        // summonFromHandFreeアクションからは action.summonedBy ?? "freeEffect" が渡る（26系【Fチェンジ】は"fchange"）
+        summonedBy?: string
         // 指定時は**ダイレクトブレイヴ**（doSummonのbraveTargetInstanceIdと同じ結果になるようにする。
         // 維持コアを置かない・field.combinedBravesへ入れる・host.braveRefsで参照する。BS10-096最後の優勝旗）
         braveTargetInstanceId?: string
@@ -149,17 +185,28 @@ export function summonFreeFromHandIndex(
     // 盤面のコアでなら払えるカードが候補にすら出なかった＝利用者報告）
     const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (player.reserve + fromField < maintain + cost) {
+    if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
+    // 余分の支払い元を選ばせる待ち。払ったあと同じ召喚を再開する（呼び出し側からは「召喚されなかった」ように見えるが、待ちが立っている）
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, {
+        type: "summonFreeIndexInternal",
+        zone: "hand",
+        index: handIndex,
+        ...(skipTensho ? { skipTensho } : {}),
+        ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
+        ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
+        ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
+    })) return
     player.hand.splice(handIndex, 1)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
-    // 支払い元が維持コア割れしたらそこで消滅する）
-    const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
+    // 支払い元が維持コア割れしたらそこで消滅する）。無償のときは余分をここで払う
+    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
-    const inst = createInstance(cardId, state.turn, maintain)
+    const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
+    if (opts?.skipOnSummon) inst.noOnSummon = true
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
     const braveHost =
@@ -212,7 +259,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true },
 ): void {
     const player = state.players[owner]
     // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
@@ -230,17 +277,26 @@ export function summonFreeFromTrashIndex(
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS07常闇の聖堂＝「自分のフィールドのコアをコストとして使うことで〜召喚できる」）。
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
-    const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
+    const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo", false) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (player.reserve + fromField < maintain + cost) {
+    if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, {
+        type: "summonFreeIndexInternal",
+        zone: "trash",
+        index: trashIndex,
+        ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
+        ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
+        ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
+    })) return
     player.trashCards.splice(trashIndex, 1)
-    // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）
-    const placedFromField = payCost(state, owner, cost, opts?.paySources, maintain)
+    // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
+    const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
-    const inst = createInstance(cardId, state.turn, maintain)
+    const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
+    if (opts?.skipOnSummon) inst.noOnSummon = true
     player.field.spirits.push(inst)
     // 器BS16：destroyAtBattleEnd（BS16-075スケープゴート）
     if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
@@ -267,6 +323,16 @@ export function summonFreeFromTrashIndex(
 
 // summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 // pay の checker（pay.ts）とこのハンドラで共有する（候補のずれ防止）
+// 26系X06「手札のこのカードは、自分が【Fチェンジ】を発揮する時、自分か相手のライフがN以下なら、コストMにできる」
+export function fchangeCostAs(state: GameState, owner: PlayerId, cardId: string): number | undefined {
+    for (const e of getCard(cardId).effects) {
+        if (e.kind !== "fchangeCostAs") continue
+        const opp = owner === "p1" ? "p2" : "p1"
+        if (Math.min(state.players[owner].life, state.players[opp].life) <= e.anyLifeAtMost) return e.cost
+    }
+    return undefined
+}
+
 export function summonFromHandFreeCandidateMatches(
     state: GameState,
     owner: PlayerId,
@@ -297,15 +363,17 @@ export function summonFromHandFreeCandidateMatches(
     // costFilter：数値指定時はコストが完全一致するもののみ（BS05シーサーズ：コスト2）。
     // {max,min}指定時は範囲一致（BS06リクラメーション：コスト4以下）
     if (action.costFilter !== undefined) {
-        if (typeof action.costFilter === "number") {
-            if (candidate.cost !== action.costFilter) return false
-        } else if (!matchesCostFilter(candidate.cost, action.costFilter)) {
-            return false
-        }
+        const costFilter = action.costFilter
+        const ok = (cost: number): boolean => (typeof costFilter === "number" ? cost === costFilter : matchesCostFilter(cost, costFilter))
+        // 26系X06「手札のこのカードは、自分が【Fチェンジ】を発揮する時、自分か相手のライフがN以下なら、コストMにできる」
+        const asCost = action.summonedBy === "fchange" ? fchangeCostAs(state, owner, candidateId) : undefined
+        if (!ok(candidate.cost) && (asCost === undefined || !ok(asCost))) return false
     }
     // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
     if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
     if (action.nameExcludes !== undefined && candidate.name.includes(action.nameExcludes)) return false
+    // nameExcludesSelf（26系【Fチェンジ】の「異なるカード名」）：発生源自身のカード名を含む＝同じカード名のものを候補から外す
+    if (action.nameExcludesSelf === true && self && candidate.name.includes(getCard(self.cardId).name)) return false
     // maxCostFromOwnTrashCores：コスト上限が「自分のトラッシュにあるコアの数」（BS02ディバインウィンド）
     if (action.maxCostFromOwnTrashCores && candidate.cost > player.trashCores) return false
     // keywordFilter：このキーワードエントリを静的に持つカードのみ（summonFromTrashFreeと同型。BS08雷帝竜騎レイブリッツ＝転召持ち）
@@ -327,52 +395,3 @@ export function summonFromHandFreeCandidateMatches(
     return true
 }
 
-// summonFromTrashFree の候補判定。summonFromHandFreeCandidateMatches のトラッシュ版。
-// pay の checker（pay.ts）とこのハンドラで共有する
-export function summonFromTrashFreeCandidateMatches(
-    state: GameState,
-    owner: PlayerId,
-    action: Extract<EffectAction, { type: "summonFromTrashFree" }>,
-    candidateId: string,
-    targetInstanceId?: string,
-): boolean {
-    const player = state.players[owner]
-    const candidate = getCard(candidateId)
-    if (candidate.type !== "spirit") return false
-    if (action.colorFilter !== undefined) {
-        const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
-        if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false
-    }
-    if (action.keywordFilter !== undefined && !hasKeyword(candidateId, action.keywordFilter)) return false
-    // familyFilter（BS07常闇の聖堂＝「夜族」）：トラッシュのカードが対象なので
-    // カード静的な family で判定する（配列＝OR）
-    if (action.familyFilter !== undefined) {
-        const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
-        if (!wanted.some((f) => candidate.family.includes(f))) return false
-    }
-    // nameIncludes（BS08アンドレアルファス＝「勇者」）：トラッシュのカードが対象なので
-    // カード静的な名前（trashNameAsによる別名も一致する）で判定する
-    if (action.nameIncludes !== undefined && !trashCardNameMatches(candidateId, action.nameIncludes)) return false
-    // whileCombinedFilter（BS10-084虚実の口Lv2＝「【合体時】効果を持つスピリットカード」）：
-    // トラッシュのカードが対象なので、カード静的な effects に whileCombined:true のエントリがあるかで判定する
-    if (action.whileCombinedFilter === true && !candidate.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) {
-        return false
-    }
-    if (action.costBudget === undefined && !matchesCostFilter(candidate.cost, action.costFilter)) return false
-    if (isTrashCardProtected(candidateId)) return false
-    // onlyBurstDestroyedCard（BS15-073五輪転生炎）：そのバースト発動のきっかけになった破壊で
-    // 落ちたカードだけが対象（burst.destroyedAsTargetがtargetInstanceIdの枠に入れたcardIdと一致）
-    if (action.onlyBurstDestroyedCard && candidateId !== targetInstanceId) return false
-    // payCost：通常の召喚コストを支払う効果では、払えないカードは最初から候補にしない
-    // （手札版と同じ理由・同じ判定。リザーブだけでなくフィールドのコアも支払いに使える）
-    if (action.payCost) {
-        const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce(
-            (sum, i) => sum + i.cores,
-            0,
-        )
-        if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
-            return false
-        }
-    }
-    return true
-}

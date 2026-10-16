@@ -1,8 +1,11 @@
+// 【転召】置換の選択肢ラベル
+import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, EffectDef, FamilyFilter, GameState, PlayerId } from "../../type"
 import { currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, pushResumeFrames } from "../GameState"
 import { destroySpirit, returnSpiritToHand } from "../removal"
-import { fireFieldEventTriggers, fireTrigger } from "../triggers"
-import { activeConstraintsWithSource, effectActiveAtLevel, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
+import { fireTrigger } from "../triggers"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
+import { activeConstraintsWithSource, coresCantBeRemoved, effectActiveAtLevel, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { requestChoice } from "../EffectModules"
 
@@ -51,6 +54,8 @@ export function tenshoCandidates(
 ): CardInstance[] {
     return state.players[ownerPid].field.spirits.filter((s) => {
         if (s.instanceId === excludeInstanceId) return false
+        // コアをすべて動かせない個体は対象にできない（SOULCORE.md §2。2026-10-06 ユーザー確認）
+        if (coresCantBeRemoved(state, ownerPid, s)) return false
         if (familyFilter) return matchesFamilyFilter(state, ownerPid, s, familyFilter)
         return (
             instMatchesCostFilter(s, { min: minCost }) ||
@@ -67,6 +72,7 @@ export function resolveTensho(
     const level = currentLevel(spirit).level
     const spec = tenshoSpecOf(getCard(spirit.cardId), level)
     if (!spec) return
+    noteCoverage(spec.entry, "keyword")
     const { minCost, familyFilter, dest } = spec
     const candidates = tenshoCandidates(state, ownerPid, minCost, spirit.instanceId, familyFilter)
     if (candidates.length === 0) {
@@ -117,6 +123,7 @@ export function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: 
         if (effect.kind !== "tenshoSelfCostBonus") continue
         if (effect.target === "ownAll") continue // 自身のエントリでも ownAll 版は②で数える
         if (!effectActiveAtLevel(effect.levels, instLevel)) continue
+        noteCoverage(effect, "tenshoSelfCostBonus")
         bonus += effect.amount
     }
     for (const source of effectSources(state, ownerPid)) {
@@ -126,6 +133,7 @@ export function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: 
             if (effect.target !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
+            noteCoverage(effect, "tenshoSelfCostBonus")
             bonus += effect.amount
         }
     }

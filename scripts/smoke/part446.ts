@@ -10,7 +10,7 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
-import { battleBp } from "../../server/src/logic/triggers"
+import { battleBp } from "../../server/src/logic/stepTriggers"
 import type { CardData } from "../../server/src/type"
 
 const BASE_SPIRIT = "BS01-001" // ゴラドン（赤・コスト0）

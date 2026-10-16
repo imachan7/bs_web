@@ -1382,7 +1382,24 @@
      2,
      3
     ],
-    "action": {"type": "pay", "cost": {"type": "discardSelfChoose", "count": "any"}, "then": {"type": "removeCores", "side": "opponent", "to": "trash", "target": "one", "count": 1, "targetsCounter": "lastMoved"}},
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
+      "count": "all",
+      "upTo": true
+     },
+     "then": {
+      "type": "removeCores",
+      "side": "opponent",
+      "to": "trash",
+      "target": "one",
+      "count": 1,
+      "targetsCounter": "lastMoved"
+     }
+    },
     "optional": true
    }
   ]
@@ -2413,6 +2430,7 @@
     "id": "BS04-041-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -3371,15 +3389,27 @@
      2,
      3
     ],
-    "optional": true,
     "action": {
-     "type": "summonRepeatFromHand",
-     "mode": "free",
-     "familyFilter": "天霊",
-     "costFilter": {
-      "max": 6
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "trash",
+      "count": "any"
      },
-     "extraReserveCostPerSummon": 1
+     "then": {
+      "type": "summonFromHandFree",
+      "familyFilter": "天霊",
+      "costFilter": {
+       "max": 6
+      },
+      "count": 1,
+      "countCounter": "lastCores",
+      "skipOnSummon": true
+     }
     }
    }
   ]
@@ -3757,7 +3787,7 @@
      2
     ],
     "optional": true,
-    "action": {"type": "pay", "cost": {"type": "discardSelfChoose", "count": 1, "cardType": "nexus"}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}},
+    "action": {"type": "pay", "cost": {"type": "moveCards", "from": "hand", "dest": "trash", "count": 1, "pick": {"cardType": "nexus"}}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}},
     "id": "BS04-065-e1"
    },
    {
@@ -3909,6 +3939,7 @@
     "id": "BS04-068-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -3916,9 +3947,13 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "nexus"
+      "pick": {
+       "cardType": "nexus"
+      }
      },
      "then": {
       "type": "timedEffect",
@@ -3944,9 +3979,13 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardSelfChoose",
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
       "count": 1,
-      "cardType": "nexus"
+      "pick": {
+       "cardType": "nexus"
+      }
      },
      "then": {
       "type": "timedEffect",
@@ -4345,6 +4384,7 @@
     "id": "BS04-075-e2",
     "kind": "triggered",
     "trigger": "onBattleEnd",
+    "eventTarget": "use",
     "levels": [
      2,
      3
@@ -4873,9 +4913,14 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "familyFilter": "甲獣"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "甲獣"
+     }
     }
    },
    {
@@ -5497,15 +5542,20 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardSelfChoose",
-       "count": "any"
+       "type": "moveCards",
+       "from": "hand",
+       "dest": "trash",
+       "count": "all",
+       "upTo": true
       },
       {
        "type": "removeCores",
        "from": [
         "spirit"
        ],
-       "to": "trash", "count": 1, "countCounter": "lastMoved"
+       "to": "trash",
+       "count": 1,
+       "countCounter": "lastMoved"
       }
      ]
     }
@@ -6034,7 +6084,15 @@
     "id": "BS04-105-e2",
     "kind": "magic",
     "timing": "main",
-    "action": {"type": "toDeck", "from": "trash", "position": "bottom", "count": 5, "pick": {"cardType": "spirit"}}
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 5,
+     "dest": "deckBottom",
+     "pick": {
+      "cardType": "spirit"
+     }
+    }
    }
   ]
  },

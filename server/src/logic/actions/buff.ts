@@ -1,8 +1,9 @@
 // BP修正系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance } from "../../type"
+import type { CardInstance, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
+import { lastTargetsOf, recordTargets } from "../record"
 import {
     applyMagicBuffBonus,
     bpBuffTargetPasses,
@@ -17,7 +18,11 @@ import {
     pickAnySideByBp,
     pickAnySideCandidates,
     pickBpBuffTarget,
+    ownBpBuffCandidates,
     pickEnemyByBp,
+    pickEnemyCandidates,
+    askPayToNegateIfNeeded,
+    resistanceAgainst,
     refreshSpirit,
     requestCardChoice,
     requestChoice,
@@ -30,7 +35,7 @@ import {
 } from "../EffectModules"
 import { instFamilies, instIsCombined, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
 import { countedAmount } from "../counted"
 
@@ -74,18 +79,6 @@ const colorlessSelfThisBattle: ActionHandler<"colorlessSelfThisBattle"> = (ctx, 
 
 const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // costReturnSelfToHand（BS14-X03風の覇王ドルクス・ウシワカ）：このスピリット自身を手札に戻すことがコスト。
-        // 対象になれる自分の他のスピリットが1体もいなければ不発（COST_MODEL.md §1）
-        if (action.costReturnSelfToHand && !action.costPaid) {
-            if (!self || state.players[owner].field.spirits.filter((s) => s.instanceId !== self.instanceId).length === 0) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            returnSpiritToHand(state, owner, self, sourceName)
-            if (state.winner) return
-            ctx.resolve({ ...action, costPaid: true }, { sourceColors: srcColors, sourceType: srcType })
-            return
-        }
         // 器：costMillSelfCount指定時は自分のデッキを上からこの枚数だけ破棄することがコスト
         // （対象は常にself固定「このスピリットをBP+」）。一般則（COST_MODEL.md §1）どおり、
         // デッキがこの枚数未満なら払わず発揮もしない（2026-09-26修正：以前はあるだけ破棄して成立させていた）。
@@ -132,53 +125,6 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             }
             return
         }
-        // 器AF：costExhaustFamily+amountFromExhaustedCost指定時は、指定系統の自分のスピリット1体を
-        // 疲労させることがコストで、amountの代わりに疲労させたそのスピリットの実効BPを加算量として使う。
-        // 対象は常にself固定（「このスピリットをBP+」）。該当がなければ不発（COST_MODEL.md §1）。
-        // 候補2体以上ならプレイヤーが選ぶ（§2）。非対話・自動選択は実効BP最大（加算量を最大化する側）
-        if (action.costExhaustFamily !== undefined && action.amountFromExhaustedCost) {
-            if (!self) {
-                log(state, `${sourceName}：発揮する対象がいなかった。`)
-                return
-            }
-            const candidates = state.players[owner].field.spirits.filter(
-                (s) => !s.isRested && matchesFamilyFilter(state, owner, s, action.costExhaustFamily!),
-            )
-            if (candidates.length === 0) {
-                log(state, `${sourceName}：コストにできるスピリットがいないため発動しなかった。`)
-                return
-            }
-            let victim: CardInstance | undefined
-            if (action.costSacrificeChosen && targetInstanceId !== undefined) {
-                victim = candidates.find((s) => s.instanceId === targetInstanceId)
-                if (!victim) {
-                    log(state, `${sourceName}：指定されたスピリットはコストにできなかった。`)
-                    return
-                }
-            } else if (state.interactiveTargets && candidates.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：コストとして疲労させる自分のスピリットを選んでください`,
-                    candidates.map((s) => s.instanceId),
-                    false,
-                    { ...action, costSacrificeChosen: true },
-                    self,
-                )
-                return
-            } else {
-                victim = candidates.reduce((best, s) =>
-                    effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best,
-                )
-            }
-            const amount = effectiveBp(state, owner, victim)
-            exhaustSpirit(state, owner, victim)
-            recordBp(state, owner, self, amount, action.scope === "battle" ? "battle" : "turn")
-            log(state, `${state.players[owner].name}は${sourceName}のコストとして${getCard(victim.cardId).name}を疲労させた。`)
-            log(state, `${getCard(self.cardId).name}はBP+${amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
-            applyMagicBuffBonus(state, self, srcType, srcColors)
-            return
-        }
         // extraPerCoreToTrash の第2段（コア数を選び終わって戻ってきた経路）。
         // boostTargetInstanceId が入っている＝amount の適用は済んでいるので、追加ぶんだけ乗せる
         if (action.boostTargetInstanceId !== undefined) {
@@ -194,6 +140,33 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             if (!stillThere) return
             recordBp(state, owner, stillThere.inst, extra, action.scope === "battle" ? "battle" : "turn")
             log(state, `${getCard(stillThere.inst.cardId).name}はさらにBP+${extra}。`)
+            return
+        }
+        // target:"self"＝「このスピリットをBP+」。自動選択に任せず発生源自身に固定する
+        if (action.target === "self") {
+            delete state.lastBpBuffTargetId
+            if (!self) {
+                log(state, `${sourceName}：発揮する対象がいなかった。`)
+                return
+            }
+            // 「◯1体につき」（amountCounter）も自身への BP+ で効かせる（【増幅】・ネクサス数など）
+            const selfAmount =
+                action.amountCounter !== undefined
+                    ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType, undefined, self)
+                    : action.amount
+            if (action.amountCounter !== undefined && selfAmount === 0) {
+                log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
+                return
+            }
+            recordBp(state, owner, self, selfAmount, action.scope === "battle" ? "battle" : "turn")
+            log(state, `${getCard(self.cardId).name}はBP+${selfAmount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+            if (action.thenAddSymbolThisBattle) {
+                const { color, count } = action.thenAddSymbolThisBattle
+                if (!self.battleSymbolsAdded) self.battleSymbolsAdded = []
+                for (let i = 0; i < count; i++) self.battleSymbolsAdded.push(color)
+                log(state, `${getCard(self.cardId).name}は${COLOR_LABELS[color]}のシンボルを${count}つ追加した（このバトルの間）。`)
+            }
+            applyMagicBuffBonus(state, self, srcType, srcColors)
             return
         }
         // 「そのスピリットが」の控えは**このBP増加の結果**でなければならない。
@@ -220,6 +193,9 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                         action.filter?.family,
                         action.filter?.combined,
                         action.filter?.vanilla,
+                        action.filter?.cost,
+                        action.filter?.team,
+                        action.filter?.shinkaiho,
                     ),
                 srcColors,
                 srcType,
@@ -237,14 +213,36 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
                 return
             }
         }
+        // 自分のスピリットを選ぶ文面（誘発・起動）：候補が2体以上なら選ばせる。
+        // lastTarget／lastBpBuffTarget 付きは対象が1体に決まるので選択しない
+        // 1体の経路は下の個別の軸しか見ないので、色などそれ以外の軸も matchesTarget で重ねて見る（以前は色が素通りしていた）
+        const full = normalizeFilter(ctx, action)
+        const fullOk = (s: CardInstance): boolean => full !== SELF_REQUIRED && matchesTarget(state, owner, s, full, self?.instanceId)
+        if (targetInstanceId === undefined && !action.anySide && state.interactiveTargets && !action.filter?.lastTarget && !action.filter?.lastBpBuffTarget) {
+            const f = action.filter
+            const candidates = ownBpBuffCandidates(state, owner, f?.minSymbols, f?.keyword, f?.nameContains, f?.attackingOnly, f?.family, f?.combined, f?.vanilla, f?.cost, f?.team, f?.shinkaiho).filter(fullOk)
+            if (candidates.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：BPを増加するスピリットを選んでください`,
+                    candidates.map((s) => s.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
         // 対象1体の経路は matchesTarget を通らないため、この経路が扱える軸を filter から取り出して渡す
         // （minSymbols＝ライトニングバリスタ等／nameContains＝BS07ウィリアンスラッシュ「勇者」／
         //   keyword・attackingOnly＝BS07桜の妖精オウカ「アタックしている【聖命】持ち」／
-        //   family＝BS07ニードルショット「系統：剣獣」）
+        //   family＝BS07ニードルショット「系統：剣獣」／cost＝26系水流「コスト8以上の海緑」）
         const target = pickBpBuffTarget(
             state,
             owner,
-            targetInstanceId,
+            targetInstanceId ?? (action.filter?.lastTarget ? lastTargetsOf(state)[0] ?? "" : undefined),
+            fullOk,
             action.filter?.minSymbols,
             action.filter?.keyword,
             action.filter?.nameContains,
@@ -252,6 +250,9 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             action.filter?.family,
             action.filter?.combined,
             action.filter?.vanilla,
+            action.filter?.cost,
+            action.filter?.team,
+            action.filter?.shinkaiho,
         )
         if (!target) {
             log(state, `${sourceName}のBP増加：対象がいなかった。`)
@@ -283,7 +284,9 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
         const amount =
             action.amountCounter !== undefined
                 ? countedAmount(state, owner, self, action.amount, action.amountCounter, srcType, undefined, target)
-                : action.amount
+                : action.amountIfTarget && matchesTarget(state, owner, target, action.amountIfTarget.filter as unknown as ResolvedTargetFilter, self?.instanceId)
+                  ? action.amountIfTarget.amount
+                  : action.amount
         if (action.amountCounter !== undefined && amount === 0) {
             log(state, `${sourceName}のBP増加：カウントが0のため増加しなかった。`)
             return
@@ -329,89 +332,86 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
 // （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
-const selfBuffByExhaustFamily: ActionHandler<"selfBuffByExhaustFamily"> = (ctx, action) => {
-    const { state, owner, self, sourceName, targetInstanceId } = ctx
-        // 巨神機トールLv1-3：familyFilter一致・回復状態の自分のスピリット1体を疲労させ、
-        // self自身をその実効BP分だけBP+する。
-        // **どれを疲労させるかはプレイヤーが選ぶ**（2026-08-23 ユーザー要望。COST_MODEL.md §2
-        // 「何を犠牲にするかは候補2つ以上なら選ばせる」）。非対話は従来どおり実効BP最大＝バフ量を最大化。
-        // **発生源自身も候補に含む**（2026-08-20 ユーザー確認）。効果文が「系統：「武装」を持つ
-        // 自分のスピリット1体を疲労させることで」であって「このスピリット以外の」と書いていないため
-        // （SEMANTICS_AUDIT.md §3.8）。BS06-X24 鎧神機ヴァルハランスは自身が「武装」持ちなので、
-        // 回復状態でアタックしている間は自分を疲労させてBPを倍にできる。
-        // なお『このスピリットのアタック時』に発火する場合、通常 self はアタック宣言で既に疲労しており
-        // !s.isRested で自然に候補から外れる（【神速】等で回復状態のままなら候補になる）
-        if (!self) {
-            log(state, `${sourceName}：バフ対象がいなかった。`)
-            return
-        }
-        // familyFilter 省略時は系統を問わない（BS12-050 突機竜アーケランサー＝「自分のスピリット1体」）
-        const candidates = state.players[owner].field.spirits.filter(
-            (s) =>
-                !s.isRested &&
-                (action.familyFilter === undefined ||
-                    matchesFamilyFilter(state, owner, s, action.familyFilter)),
-        )
-        if (candidates.length === 0) {
-            log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
-            return
-        }
-        const applyTo = (target: CardInstance): void => {
-            // amount 指定時は固定値（BS12-050＝BP+3000）。省略時は疲労させた個体の実効BP（巨神機トール）
-            const amount = action.amount ?? effectiveBp(state, owner, target)
-            exhaustSpirit(state, owner, target)
-            recordBp(state, owner, self, amount, "turn")
-            log(
-                state,
-                `${getCard(target.cardId).name}は疲労し、${getCard(self.cardId).name}はBP+${amount}（ターン終了時まで）。`,
-            )
-        }
-        // 犠牲を選び終えて再入した経路。sacrificeChosen が無い targetInstanceId は
-        // 誘発が渡すイベント対象なので、犠牲と取り違えないようフラグで区別する
-        if (action.sacrificeChosen && targetInstanceId !== undefined) {
-            const chosen = candidates.find((s) => s.instanceId === targetInstanceId)
-            if (!chosen) {
-                log(state, `${sourceName}：疲労させる対象がいなかったため発動しなかった。`)
-                return
-            }
-            applyTo(chosen)
-            return
-        }
-        if (
-            tryInteractiveTargetChoice(
-                state,
-                owner,
-                self,
-                `${sourceName}：コストとして疲労させるスピリットを選んでください`,
-                candidates,
-                { ...action, sacrificeChosen: true },
-                null,
-            )
-        ) {
-            return
-        }
-        // 非対話の自動選択：バフ量が疲労させた個体のBPに比例するならBP最大、
-        // 固定値なら犠牲が最小になるようBP最小を選ぶ
-        applyTo(
-            candidates.reduce((best, s) =>
-                action.amount === undefined
-                    ? effectiveBp(state, owner, s) > effectiveBp(state, owner, best)
-                        ? s
-                        : best
-                    : effectiveBp(state, owner, s) < effectiveBp(state, owner, best)
-                      ? s
-                      : best,
-            ),
-        )
+
+// bpBuffAll（26系Re覚醒）：指定系統（familyFilter省略時は系統不問）を持つ自分のスピリットすべてを
+// ターン終了時までBP+Nする（「このターン中、系統：「紅雲」を持つ自分のスピリットすべてをBP+1000する」）
+const bpBuffAll: ActionHandler<"bpBuffAll"> = (ctx, action) => {
+    const { state, owner, sourceName } = ctx
+    const targets = state.players[owner].field.spirits.filter(
+        (s) => (action.familyFilter === undefined || matchesFamilyFilter(state, owner, s, action.familyFilter)) && (action.teamFilter === undefined || (getCard(s.cardId).team ?? []).includes(action.teamFilter)),
+    )
+    if (targets.length === 0) {
+        log(state, `${sourceName}のBP増加：対象がいなかった。`)
         return
+    }
+    for (const s of targets) recordBp(state, owner, s, action.amount, "turn")
+    log(state, `${sourceName}：${targets.map((s) => getCard(s.cardId).name).join("、")}をBP+${action.amount}（ターン終了時まで）。`)
 }
 
+// 26系「相手のスピリット1体を指定する。このターン中、それをBP-2000する」。
+// 非対話の自動選択は、この効果でBP0以下になる中で実効BP最大（続く「BP0なら破壊」を活かす）、いなければ実効BP最大
+const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    delete state.lastBpBuffTargetId
+    // 絞り込み（filter.lastTarget＝designate で指定した個体）を先に解いてから控えを空にする
+    const filter = normalizeFilter(ctx, action)
+    // 複数体のとき「それらがBP0なら」が読む控え。count 回の再帰の初回で空に戻し、BP-できた個体を足していく
+    if (action.excludeIds === undefined) recordTargets(state, [])
+    if (filter === SELF_REQUIRED) return
+    const amount = action.amount + (action.per ? countEffectCounter(state, owner, self, action.per.counter, srcType) * action.per.amount : 0)
+    if (action.all) {
+        const hit = state.players[opp].field.spirits.filter((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
+        for (const t of hit) {
+            const resisted = resistanceAgainst(state, opp, t, attemptOf(ctx, "other", "area"))
+            if (resisted) {
+                log(state, `${getCard(t.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                continue
+            }
+            recordTargets(state, [...lastTargetsOf(state), t.instanceId])
+            recordBp(state, opp, t, -amount, action.scope === "battle" ? "battle" : "turn")
+            log(state, `${sourceName}：${getCard(t.cardId).name}はBP-${amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+        }
+        return
+    }
+    const excluded = action.excludeIds ?? []
+    const list = pickEnemyCandidates(state, opp, Infinity, (s) => !excluded.includes(s.instanceId) && matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType)
+    // count 体を1体ずつ、選んだ個体を除いて繰り返す（exhaust と同じ形）
+    const next = (t: CardInstance): void => {
+        const { chosenByPlayer: _c, ...rest } = action
+        if ((action.count ?? 1) > 1) ctx.resolve({ ...rest, count: action.count! - 1, excludeIds: [...excluded, t.instanceId] }, { sourceColors: srcColors, sourceType: srcType })
+    }
+    let target = action.chosenByPlayer && targetInstanceId !== undefined ? list.find((s) => s.instanceId === targetInstanceId) : undefined
+    if (target === undefined) {
+        if (list.length === 0) {
+            log(state, `${sourceName}のBP-：対象がいなかった。`)
+            return
+        }
+        if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：BP-${amount}する相手のスピリットを選んでください`, list, { ...action, chosenByPlayer: true }, null)) return
+        const bp = (s: CardInstance): number => effectiveBp(state, opp, s)
+        const lethal = list.filter((s) => bp(s) <= amount)
+        target = (lethal.length > 0 ? lethal : list).reduce((best, s) => (bp(s) > bp(best) ? s : best))
+    }
+    const attempt = attemptOf(ctx, "other", "targeted")
+    if (askPayToNegateIfNeeded(state, opp, target, attempt, action, self, sourceName)) return
+    const resisted = resistanceAgainst(state, opp, target, attempt)
+    if (resisted) {
+        log(state, `${getCard(target.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+        next(target)
+        return
+    }
+    state.lastBpBuffTargetId = target.instanceId
+    recordTargets(state, [...lastTargetsOf(state), target.instanceId])
+    recordBp(state, opp, target, -amount, action.scope === "battle" ? "battle" : "turn")
+    log(state, `${sourceName}：${getCard(target.cardId).name}はBP-${amount}（${action.scope === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+    next(target)
+}
 
 const handlers = {
     countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     colorlessSelfThisBattle,
     bpBuff,
-    selfBuffByExhaustFamily,
+    bpBuffAll,
+    bpMinus,
 } satisfies Partial<ActionRegistry>
 
 // 古代闘技場Lv1（kind:"bpBuffSuppression"）：相手の「BPを+する」効果は発揮されない。

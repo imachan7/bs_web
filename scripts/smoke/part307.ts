@@ -15,6 +15,7 @@ import {
     refreshLevelAsOverrides,
     resolveAction,
     runTurnStart,
+    answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { toAttackPhase } from "../../server/src/logic/PhaseManager"
@@ -53,6 +54,7 @@ console.log("=== BS13-045：召喚時、自分のネクサス1つを破壊する
     s.players.p1.field.nexuses.push(ownNex)
     s.players.p2.field.nexuses.push(oppNex)
     resolveAction(s, "p1", iason, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "destroyNexus", count: 1} })
+    answerPayConfirm(s, "p1")
     assert(s.players.p1.field.nexuses.length === 0, "自分のネクサスが破壊された（コスト）")
     assert(s.players.p2.field.nexuses.length === 0, "相手のネクサスが破壊された")
 }
@@ -296,7 +298,7 @@ console.log("=== BS13-X06：アタック時コスト4以下を破壊／【合体
     const kyoshu = card.effects.find((e) => e.kind === "keyword" && e.keyword === "kyoshu")
     assert(kyoshu !== undefined && kyoshu.kind === "keyword" && kyoshu.count === 3 && kyoshu.whileCombined === true && JSON.stringify(kyoshu.levels) === JSON.stringify([2]), "【合体時】Lv2【強襲：3】が正しく宣言されている")
     const kyoshuTrigger = card.effects.find((e) => e.kind === "triggered" && e.trigger === "onAttack" && e.whileCombined === true)
-    assert(kyoshuTrigger !== undefined, "強襲の相方（refreshSelfByExhaustNexus）が対になっている")
+    assert(kyoshuTrigger !== undefined, "強襲の相方（pay limitByKeyword）が対になっている")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part307）")

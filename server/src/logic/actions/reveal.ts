@@ -1,3 +1,4 @@
+// デッキの公開と、公開ゾーンの残りの処理アクション
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { GameState, PlayerId } from "../../type"
 import { getCard, log } from "../GameState"

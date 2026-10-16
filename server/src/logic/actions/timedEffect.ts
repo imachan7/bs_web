@@ -18,7 +18,7 @@ const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration ===
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh", "untargetableByOpponentMagic"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -41,6 +41,7 @@ function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: Ti
     const recorded = action.content.filter(isRecorded)
     if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
     if (action.duration === "nextRefresh") return `${getCard(inst.cardId).name}は、次のリフレッシュステップで${contentLabel(action)}。`
+    if (action.duration === "firstAttack") return `${getCard(inst.cardId).name}は、このステップの最初に${contentLabel(action)}。`
     const period = action.duration === "turn" ? "このターン" : "このバトル"
     return `${getCard(inst.cardId).name}は、${period}の間${contentLabel(action)}。`
 }
@@ -51,12 +52,14 @@ function contentLabel(action: TimedEffect): string {
     const must = action.content.some((c) => c.type === "mustAttack") ? ["可能ならば必ずアタックする"] : []
     const suppress = action.content.some((c) => c.type === "suppressTrigger") ? ["効果が発揮されない"] : []
     const rested = action.content.some((c) => c.type === "canBlockWhileRested") ? ["疲労状態でもブロックできる"] : []
+    const mustBlock = action.content.some((c) => c.type === "mustBlock") ? ["可能ならばブロックしなければならない"] : []
     const granted = action.content.some((c) => c.type === "grantTrigger") ? ["効果を持つ"] : []
     const keywords = action.content.flatMap((c) => (c.type === "keyword" ? [`【${KEYWORDS[c.keyword].label}】を持つ`] : []))
     const bpAs = action.content.flatMap((c) => (c.type === "bpAs" ? [`Lv${c.levels.join("/")}のBPを${c.amount}として扱う`] : []))
     const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
     const skipRefresh = action.content.some((c) => c.type === "skipRefresh") ? ["回復できない"] : []
-    return [...bp, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh].join("、")
+    const untargetable = action.content.some((c) => c.type === "untargetableByOpponentMagic") ? ["相手のマジックの効果では指定されない"] : []
+    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -113,13 +116,40 @@ function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTarg
 
 // 1体を指定するBP変更（旧 bpBuff の単純形を置き換える経路）。対象選択の優先順は旧 bpBuff と同じ：
 // 1.targetInstanceId指定 2.side:"both"かつ対話ならプレイヤーが選ぶ 3.それ以外は自動選択（既定=相手は実効BP最大、own/bothの非対話フォールバックは自分の場から）
-function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
+function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    // countCounter＝指定する体数を解決時に数える（「指定する体数を+1体する」26RBS02-012）。以降は count の固定値として扱う
+    let action = inAction
+    if (action.countCounter !== undefined) {
+        const { countCounter, ...rest } = action
+        const n = countedAmount(state, owner, self, 1, countCounter, srcType)
+        action = { ...rest, count: n }
+        if (n <= 0) {
+            log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+    }
     const content = action.content.find((c): c is Extract<Content, { type: "bp" }> => c.type === "bp")
     if (!content) return
     // 「BPを+する効果は発揮されない」（古代闘技場）は発揮する時点でだけ見る（2026-09-24 ユーザー確認）。全体ルール版と同じ判定
     if (content.amount > 0 && isBpBuffSuppressed(state, owner)) {
         log(state, `${sourceName}：BPを+する効果は発揮されなかった。`)
+        return
+    }
+    // 「自分のスピリットN体（まで）を指定する。それらをBP+」：1体ずつ選ぶ（選んだ個体は chosenIds で除く）。
+    // ponytail: 「まで」も常に N 体まで選ぶ（BP+ は減らす理由が無い）。途中で止めさせるなら skip 付きの選択にする
+    if (action.side === "own" && typeof action.count === "number" && action.count > 1 && content.amountCounter === undefined) {
+        const chosen = action.chosenIds ?? []
+        const candidates = state.players[owner].field.spirits.filter((s) => !chosen.includes(s.instanceId) && matchesTarget(state, owner, s, filter, self?.instanceId))
+        if (targetInstanceId === undefined && tryInteractiveTargetChoice(state, owner, self, `${sourceName}：BPを増加するスピリットを選んでください（残り${action.count - chosen.length}体）`, candidates, action, null)) return
+        const t = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))[0]
+        if (!t) {
+            if (chosen.length === 0) log(state, `${sourceName}：対象がいなかった。`)
+            return
+        }
+        recordBp(state, owner, t, content.amount, bpUntil(action))
+        log(state, `${getCard(t.cardId).name}はBP+${content.amount}（${action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+        if (chosen.length + 1 < action.count) ctx.resolve({ ...action, chosenIds: [...chosen, t.instanceId] })
         return
     }
     // 「そのスピリットが」の控えは今回のBP増加の結果でなければならない（旧 bpBuff と同じ）
@@ -217,7 +247,8 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
 function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName } = ctx
-    if (action.duration !== "turn") {
+    // バトル期間のルールとして置けるのは Lv の置き換えだけ（ほかの content は期間切れの扱いを確かめていない）
+    if (action.duration !== "turn" && !action.content.some((c) => c.type === "level")) {
         log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)
         return
     }
@@ -243,12 +274,12 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         recordTimed(state, {
             content: action.content,
             target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
-            until: "turn",
+            until: bpUntil(action),
             ownerPid: owner,
         })
         const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
         const lv = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")!
-        log(state, `${sourceName}：このターンの間、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
+        log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${who}スピリットすべてを${lv.max ? "最高Lv" : `Lv${lv.set}`}として扱う。`)
         return
     }
     recordTimed(state, {
@@ -284,21 +315,24 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const content = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")
     if (!content) return
-    if (action.duration !== "turn") {
+    // 「このバトル中、Lv◯として扱う」(set) は期間を battle で記録する。上げる(up)はターン限定
+    if (action.duration !== "turn" && !(action.duration === "battle" && (content.set !== undefined || content.max === true))) {
         log(state, `${sourceName}：「このバトルの間」Lvを変える効果は未対応のため発揮しなかった。`)
         return
     }
+    const until = action.duration === "battle" ? "battle" : "turn"
     const maxLevelOf = (s: CardInstance) => getCard(s.cardId).levels.reduce((m, l) => Math.max(m, l.level), 1)
-    if (content.set !== undefined) {
-        const level = content.set
+    if (content.set !== undefined || content.max === true) {
+        // max＝そのスピリットのカードの最高Lv（個体ごとに違うので、選んだ個体で決める）
+        const levelOf = (s: CardInstance) => content.max ? maxLevelOf(s) : content.set!
         const pid = action.side === "own" ? owner : opp
         const passes = (s: CardInstance, sPid: PlayerId) =>
             matchesTarget(state, sPid, s, filter, self?.instanceId) &&
-            (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === level))
+            (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === levelOf(s)))
         const candidates = state.players[pid].field.spirits.filter((s) => passes(s, pid))
         if (
             targetInstanceId === undefined &&
-            tryInteractiveTargetChoice(state, owner, self, `${sourceName}：Lv${level}として扱うスピリットを選んでください`, candidates, action, null)
+            tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${content.max ? "最高Lv" : `Lv${content.set}`}として扱うスピリットを選んでください`, candidates, action, null)
         ) {
             return
         }
@@ -311,8 +345,9 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
             log(state, `${sourceName}：対象が条件を満たさなかった。`)
             return
         }
-        recordTimed(state, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
-        log(state, `${sourceName}：${getCard(found.inst.cardId).name}はこのターンの間Lv${level}として扱われる。`)
+        const level = levelOf(found.inst)
+        recordTimed(state, { content: [{ type: "level", set: level }], target: { kind: "instance", instanceId: found.inst.instanceId }, until, ownerPid: owner })
+        log(state, `${sourceName}：${getCard(found.inst.cardId).name}はこの${until === "battle" ? "バトル" : "ターン"}の間Lv${level}として扱われる。`)
         return
     }
     let target: CardInstance | undefined
@@ -416,8 +451,11 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
 // すべて（all）は自分のスピリットすべてに掛かる記録。1体は自分のスピリットから選び、非対話は実効BP最大
 function placeUnblockable(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
-    const content = action.content.find((c): c is Extract<Content, { type: "unblockable" }> => c.type === "unblockable")
-    if (!content) return
+    const found = action.content.find((c): c is Extract<Content, { type: "unblockable" }> => c.type === "unblockable")
+    if (!found) return
+    const { fromMaxBpSelf, ...rest } = found
+    if (fromMaxBpSelf && !self) return
+    const content: typeof found = fromMaxBpSelf && self ? { ...rest, from: { ...rest.from, maxBp: effectiveBp(state, owner, self) } } : rest
     const until = action.duration === "battle" && content.from === undefined ? "attack" : action.duration
     const period = until === "attack" ? "このターン1回だけ" : action.duration === "turn" ? "このターンの間" : "このバトルの間"
     const fromLabel = content.from === undefined ? "相手のスピリット" : "条件に合う相手のスピリット"
@@ -482,16 +520,21 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         log(state, `${sourceName}：このターンの間、${getCard(self.cardId).name}に効果を付与した。`)
         return
     }
-    if (action.duration !== "turn" || action.side !== "own") {
+    // 相手のスピリット1体を「このバトル中、疲労状態でもブロックできる」にする（26RBS01-109/X01）。相手側は耐性を通す
+    const enemy = action.side === undefined && action.content.every((c) => c.type === "canBlockWhileRested" || c.type === "mustBlock")
+    const okDuration = action.duration === "turn" || (action.duration === "battle" && (enemy || action.content.some((c) => c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic")))
+    if (!okDuration || (action.side !== "own" && !enemy)) {
         log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
         return
     }
-    const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+    const candidates = enemy
+        ? pickEnemyCandidates(state, ctx.opp, Infinity, (s) => matchesTarget(state, ctx.opp, s, filter, self?.instanceId), ctx.srcColors, ctx.srcType)
+        : state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
     if (candidates.length === 0) {
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
     }
-    const prompt = action.content.some((c) => c.type === "grantTrigger") ? "効果を付与する" : "疲労状態でブロックできるようにする"
+    const prompt = action.content.some((c) => c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "noBpCompareDestroy") ? "効果を付与する" : "疲労状態でブロックできるようにする"
     if (
         targetInstanceId === undefined &&
         tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${prompt}スピリットを選んでください`, candidates, action, null)
@@ -504,8 +547,9 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
     const name = getCard(target.cardId).name
     pushInstanceRecord(state, owner, target, action.content.filter(isRecorded), action.duration)
     for (const c of action.content) {
-        if (c.type === "canBlockWhileRested") log(state, `${sourceName}：このターンの間、${name}は疲労状態でもブロックできる。`)
-        else if (c.type === "grantTrigger") log(state, `${sourceName}：このターンの間、${name}に効果を付与した。`)
+        if (c.type === "canBlockWhileRested") log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${name}は疲労状態でもブロックできる。`)
+        else if (c.type === "mustBlock") log(state, `${sourceName}：このバトルの間、${name}は可能ならばブロックしなければならない。`)
+        else if (c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "noBpCompareDestroy") log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${name}に効果を付与した。`)
     }
 }
 
@@ -529,12 +573,14 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
-    const contents = action.content.filter((c) => c.type === "compareBy" || c.type === "invertBattleWinner")
+    const contents = action.content.filter((c) => c.type === "compareBy" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")
     recordTimed(state, { content: contents, target: { kind: "battle" }, until: "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
     for (const c of contents) {
         if (c.type === "compareBy") {
             log(state, `${sourceName}：バトル解決時、BPの代わりに${label[c.by]}を比較する。`)
+        } else if (c.type === "restedNexusEffectsDisabled") {
+            log(state, `${sourceName}：このバトルの間、疲労状態のネクサスすべての効果は発揮されない。`)
         } else {
             log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
         }
@@ -548,6 +594,32 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
     const content = action.content.find((c): c is Extract<Content, { type: "symbolAdd" | "symbolSet" | "cost" }> =>
         c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost")
     if (!content) return
+    if (content.type === "symbolAdd" && content.color && action.target === "self") {
+        // 発生源自身（ネクサスでもよい。26RBS01-105「このターン中、このネクサスに黄シンボル1つを追加する」）
+        if (!self) {
+            log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
+            return
+        }
+        recordTimed(state, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: "turn", ownerPid: owner })
+        log(state, `${sourceName}：${getCard(self.cardId).name}に、このターンの間${content.color}シンボル${content.count ?? 1}つを追加した。`)
+        return
+    }
+    if (content.type === "symbolAdd" && content.color) {
+        // count 体に1体ずつ（選んだ個体は chosenIds で除く）
+        const total = typeof action.count === "number" ? action.count : 1
+        const chosen = action.chosenIds ?? []
+        const candidates = state.players[owner].field.spirits.filter((s) => !chosen.includes(s.instanceId) && matchesTarget(state, owner, s, filter, self?.instanceId))
+        if (targetInstanceId === undefined && tryInteractiveTargetChoice(state, owner, self, `${sourceName}：シンボルを追加するスピリットを選んでください`, candidates, action, null)) return
+        const target = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
+        if (!target) {
+            log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
+            return
+        }
+        recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+        log(state, `${sourceName}：${getCard(target.cardId).name}に、このターンの間${content.color}シンボル${content.count ?? 1}つを追加した。`)
+        if (chosen.length + 1 < total) ctx.resolve({ ...action, chosenIds: [...chosen, target.instanceId] })
+        return
+    }
     if (content.type === "symbolAdd") {
         let target: CardInstance | undefined
         if (targetInstanceId !== undefined) target = findSpiritAny(state, targetInstanceId)?.inst
@@ -594,8 +666,11 @@ function placeSymbolOrCost(ctx: Parameters<ActionHandler<"timedEffect">>[0], act
         return
     }
     recordTimed(state, { content: [content], target: { kind: "instance", instanceId: target.instanceId }, until: "battle", ownerPid: owner })
-    log(state, `${getCard(target.cardId).name}は、このバトルの間シンボルを${COLOR_LABELS[content.color]}${content.count}つとして扱う。`)
+    log(state, `${getCard(target.cardId).name}は、このバトルの間シンボルを${content.color ? COLOR_LABELS[content.color] : ""}${content.count}つとして扱う。`)
 }
+
+// 「色1色を指定できる」＝色を選ばずに終えられる（2026-10-11 ユーザー確認）。選ばなければ何もしない
+const NO_COLOR = "指定しない"
 
 // 「このターンの間、〜のスピリットすべては指定した色のシンボル1つを失う」。色を使う人が選ぶときは選んでからルールを置く。
 // 非対話は相手のフィールドに最も多い色（旧 grantSymbolLossThisTurn と同じ）
@@ -608,11 +683,14 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
     if (color === undefined) {
         if (state.interactiveTargets) {
             if (chosenOption === undefined) {
-                requestChoice(state, owner, "指定する色を選んでください", [], false, action, null, "option", ALL_COLORS.map((c) => COLOR_LABELS[c]))
+                requestChoice(state, owner, "指定する色を選んでください", [], false, action, null, "option", [...ALL_COLORS.map((c) => COLOR_LABELS[c]), ...(action.colorOptional ? [NO_COLOR] : [])])
                 return
             }
             color = ALL_COLORS.find((c) => COLOR_LABELS[c] === chosenOption)
-            if (color === undefined) return
+            if (color === undefined) {
+                if (chosenOption === NO_COLOR) log(state, `${sourceName}：色を指定しなかった。`)
+                return
+            }
         } else {
             const targets = pid === undefined ? [...state.players.p1.field.spirits, ...state.players.p2.field.spirits] : state.players[pid].field.spirits
             const counts = ALL_COLORS.map((c) => [c, targets.filter((sp) => instHasColor(sp, c)).length] as const)
@@ -622,11 +700,11 @@ function placeSymbolLossRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], a
     recordTimed(state, {
         content: [{ type: "symbolLoss", color }],
         target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
-        until: "turn",
+        until: action.duration === "step" ? "step" : "turn",
         ownerPid: owner,
     })
     const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
-    log(state, `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。このターンの間、${who}スピリットすべてはそのシンボル1つを失う。`)
+    log(state, `${sourceName}：色「${COLOR_LABELS[color]}」を指定した。${action.duration === "step" ? "このステップ" : "このターン"}の間、${who}スピリットすべてはそのシンボル1つを失う。`)
 }
 
 // アタック時⇔ブロック時の効果の付け替え。「すべて」は置き場が判定のたびに見られるので後から出たスピリットにも効く
@@ -693,6 +771,11 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
         return
     }
+    // 「このステップ中」はシンボル喪失のルールだけ対応（2026-10-11 ユーザー確認）
+    if (action.duration === "step" && !action.content.every((c) => c.type === "symbolLoss")) {
+        log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
+        return
+    }
     if (action.content.some((c) => c.type === "trashCoreReturnCap")) {
         placeTrashCoreReturnCap(ctx, action)
         return
@@ -708,12 +791,20 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         else placeSymbolOrCost(ctx, action, filter)
         return
     }
-    // 「〜すべてに誘発効果を与える」は見出しのステップ限定を持つ継続効果（effectGrant）で書く。ここでは1体だけ
+    // 「このターン中、〜のスピリットすべてに“誘発”を与える」＝rule 記録（誘発の側が判定のたびに照合するので、後から出たスピリットにも付く）。
+    // 見出しのステップ限定を持つ付与は effectGrant で書く
     if (action.all && action.content.some((c) => c.type === "grantTrigger")) {
-        log(state, `${sourceName}：「すべてに効果を与える」は未対応のため発揮しなかった。`)
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) return
+        if (action.duration !== "turn" || action.side !== "own") {
+            log(state, `${sourceName}：この期間・陣営の指定は未対応のため発揮しなかった。`)
+            return
+        }
+        recordTimed(state, { content: action.content.filter((c) => c.type === "grantTrigger"), target: { kind: "rule", pid: owner, filter, ...(self ? { selfInstanceId: self.instanceId } : {}) }, until: "turn", ownerPid: owner })
+        log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
         return
     }
-    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger")) {
+    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         placeOwnOne(ctx, action, filter)
@@ -723,7 +814,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeTriggerSuppressionRule(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner")) {
+    if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")) {
         placeBattleCompare(ctx, action)
         return
     }

@@ -65,7 +65,7 @@
 `GameState` の一時フィールド（「直前の〜」を橋渡しするもの）／代替コスト（【神速】の支払い補助など）／
 継続制約（`constraint`・`turnConstraints`）。
 
-各行に書くのは次の4つだけ：**触るファイル:関数、既存の手本（1つ）、`validate-cards.ts`・`coverage-effects.ts` への追記要否、罠**。
+各行に書くのは次の4つだけ：**触るファイル:関数、既存の手本（1つ）、`validate-cards.ts` への追記・`noteCoverage` の要否、罠**。
 
 ## 2. 器の統合（R5）
 

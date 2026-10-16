@@ -1,4 +1,5 @@
 // 対象選択の絞り込み（TargetFilter）（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage, noteGrantedFrom } from "../coverage"
 
 import type {
     CardInstance,
@@ -9,8 +10,8 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { activeConstraints, hasTimedUnblockable } from "./constraints"
-import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { currentLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
+import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, spiritHasKeywordOrLabel } from "./keywordState"
+import { currentLevel, effectActiveAtLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
 
 // ---- 対象選択の絞り込み（TargetFilter） ----
@@ -33,18 +34,22 @@ export function matchesTarget(
     selfInstanceId?: string,
 ): boolean {
     if (!filter) return true
-    if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp) return false
+    if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp && !(filter.orMinBp !== undefined && effectiveBp(board, ownerPid, inst) >= filter.orMinBp)) return false
     if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
     if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
     if (filter.minCores !== undefined && inst.cores < filter.minCores) return false
+    if (filter.originallyNexus && card(inst.cardId).type !== "nexus") return false
     if (filter.colorNotIn !== undefined && !instColors(inst).some((c) => !filter.colorNotIn!.includes(c))) return false
     if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
     if (filter.familyExclude !== undefined && matchesFamilyFilter(board, ownerPid, inst, filter.familyExclude)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     if (filter.familyAll !== undefined && !filter.familyAll.every((f) => spiritHasFamily(board, ownerPid, inst, f))) return false
+    // チーム所属（26系【チーム：X】）。カード静的な team 配列のみを見る（ゾーンを問わない。付与系チームは未対応）
+    if (filter.exSymbol !== undefined && !(card(inst.cardId).symbolEx === true && card(inst.cardId).symbol.includes(filter.exSymbol))) return false
+    if (filter.team !== undefined && !(card(inst.cardId).team ?? []).includes(filter.team)) return false
     // 場のスピリット/ネクサスのコストを条件にする判定なので、道化師クランの付与コストも見る
     // （instMatchesCostFilter。以前はcard本来のコストのみを見ており、汎用ターゲットフィルタ経由の
     // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
@@ -58,17 +63,16 @@ export function matchesTarget(
     // 合体中のブレイヴは field.combinedBraves にいて field.spirits の走査に入らないので、
     // ここへ来る時点で「スピリット状態」だが、braveCombined でも二重に確かめておく
     if (filter.braveInSpiritState === true && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) return false
+    // keyword（参照判定）: ラベルキーワード（LABELED_KEYWORDS＝【増幅】/【水流】/【地鳴】/【操霊】）は
+    // spiritHasLabeledKeyword で判定する（Lv2書きの【地鳴】はLv1では「持たない」＝Lv条件を尊重。
+    // kind:"keyword" の宣言を持たないため spiritHasKeyword では引っかからない）。
+    // 旧キーワード（kyoshu/soku等）は従来の spiritHasKeyword のまま
     if (filter.keyword !== undefined) {
         const wanted = Array.isArray(filter.keyword) ? filter.keyword : [filter.keyword]
-        if (!wanted.some((k) => spiritHasKeyword(board, ownerPid, inst, k))) return false
+        if (!wanted.some((k) => spiritHasKeywordOrLabel(board, ownerPid, inst, k))) return false
     }
-    // keywordCountはkeywordが単数のときのみ対応（配列との組は不一致扱い）
-    if (
-        filter.keywordCount !== undefined &&
-        (typeof filter.keyword !== "string" || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)
-    ) {
-        return false
-    }
+    // 配列の keyword との組み合わせは不一致扱い
+    if (filter.keywordCount !== undefined && (typeof filter.keyword !== "string" || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
     // 継続的な制約（unblockableBy）と期間つき効果の両方を見る。どちらも「◯◯の相手から」の条件つきでも数える
@@ -79,10 +83,10 @@ export function matchesTarget(
         if (!hasUnblockable) return false
     }
     // BS15共通器：BS15-051虚海獣エメヒドラルLv2。カード自身の効果文に「ブロックされない」（constraint宣言）を
-    // 持てば条件成否を問わず対象。加えて、他の効果で今ブロックされなくなっているスピリットも対象（OR）
+    // 持てば条件成否を問わず対象（現在のレベルで有効な宣言だけ。Lv1のシェイロンは対象外）。加えて、他の効果で今ブロックされなくなっているスピリットも対象（OR）
     if (filter.hasUnblockableEffectOrActive) {
         const declaresUnblockable = card(inst.cardId).effects.some(
-            (e) => e.kind === "constraint" && e.constraint.type === "unblockableBy",
+            (e) => e.kind === "constraint" && e.constraint.type === "unblockableBy" && effectActiveAtLevel(e.levels, currentLevel(inst).level),
         )
         const activelyUnblockable =
             hasTimedUnblockable(board, inst) ||
@@ -103,6 +107,19 @@ export function matchesTarget(
     if (filter.excludeSelf && selfInstanceId !== undefined && inst.instanceId === selfInstanceId) return false
     if (filter.cores !== undefined && inst.cores !== filter.cores) return false
     if (filter.maxCores !== undefined && inst.cores > filter.maxCores) return false
+    // [ソウルコア]が載っている/載っていない（26系）。ソウルコアの居場所は公開情報で、
+    // 両プレイヤーのポインタを見る＝対象がどちらの側でも判定できる（コア数値には含まれないため inst.cores と独立）
+    if (filter.soulCore !== undefined) {
+        const hasSoul =
+            (board.players.p1.soulCore?.zone === "instance" && board.players.p1.soulCore.instanceId === inst.instanceId) ||
+            (board.players.p2.soulCore?.zone === "instance" && board.players.p2.soulCore.instanceId === inst.instanceId)
+        if (filter.soulCore === "present" ? !hasSoul : hasSoul) return false
+    }
+    // 真界放状態（26系《真界放》のLv2に現在いるか。コアの内訳は問わない）
+    if (filter.shinkaiho !== undefined && instInShinkaihoState(inst) !== filter.shinkaiho) return false
+    // 召喚経路（26系「【Fチェンジ】で召喚されているか」等。CardInstance.summonedByと突合。未記録の個体はどの値とも一致しない）
+    if (filter.summonedBy !== undefined && inst.summonedBy !== filter.summonedBy) return false
+    if (filter.summonedThisTurn === true && inst.summonedTurn !== board.turn) return false
     if (filter.rested !== undefined && inst.isRested !== filter.rested) return false
     if (filter.refreshed !== undefined && inst.isRested === filter.refreshed) return false
     // BS11-X04：合体していないスピリットだけ（合体中のブレイヴ自身も「合体している」側）
@@ -116,6 +133,10 @@ export function matchesTarget(
     }
     // 「アタックしている」（BS07桜の妖精オウカ）：現在のバトルのアタッカーだけ。バトル外では対象なし
     if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
+    if (filter.notHeavyRested && inst.heavyRested) return false
+    if (filter.notAttacking && board.battle?.attackerInstanceId === inst.instanceId) return false
+    if (filter.blocking && board.battle?.blockerInstanceId !== inst.instanceId) return false
+    if (filter.inBattle && board.battle?.attackerInstanceId !== inst.instanceId && board.battle?.blockerInstanceId !== inst.instanceId) return false
     // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
     if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
     if (filter.instanceIn !== undefined && !filter.instanceIn.includes(inst.instanceId)) return false
@@ -137,7 +158,9 @@ export function cardNameContains(inst: CardInstance, text: string): boolean {
 export function trashCardNameMatches(cardId: string, needle: string): boolean {
     const c = card(cardId)
     if (c.name.includes(needle)) return true
-    return c.effects.some((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+    const found = c.effects.find((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+    if (found) noteCoverage(found, "trashNameAs")
+    return found !== undefined
 }
 
 // コスト範囲の判定（TargetFilter.cost）。
@@ -163,5 +186,7 @@ export function instMatchesCostFilter(
     // 実コストは instBaseCost 経由で見る（asSpiritThisTurn の置き換えと instCostDelta の増減を含む）
     if (matchesCostFilter(instBaseCost(inst), costFilter)) return true
     if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
-    return (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
+    const hit = (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
+    if (hit) noteGrantedFrom(inst, "alsoCostGrant")
+    return hit
 }

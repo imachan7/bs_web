@@ -21,6 +21,42 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：BS17「剣舞う世界」（`feat/bs17-import`）
+
+staging 取り込み済み。計画と進め方は [BS17_PLAN.md](./docs/design/BS17_PLAN.md)。解釈は §2 で確定済み、部品は §3。
+
+**部品バッチ1（確定スキーマ）**：`AuraCondition` に `{ maxOwnSpirits: number }`（047・048）と `{ battleOpponentHasKeyword: Keyword[] }`（現在のバトルで持ち主から見た相手側の個体がいずれかを持つ。014 は battlingOnly と併用、["armor","heavyArmor"]）。
+`AuraDef.levelFilter?: number[]`（対象の現在Lv。065）。GlobalConstraint `{ type: "cantBlockByCost"; costs: number[] }`（`instCantAttackByCost` の隣に `instCantBlockByCost`、ブロック可否の判定箇所すべてに。071。`cantAttackByCost` に act 軸を足すと名前と中身がずれるので兄弟 type にした）。
+type.ts は残り約300バイトなので、同じ区画の「カード名の引用」コメントを削って場所を作る（✅ 45df5ed・part442）
+**部品バッチ2（免疫。確定スキーマ）**：054 は既存（constraintGrant nameIncludes＋immuneToOpponentEffects against:"magic"）。
+ConstraintDef `immuneToOpponentEffects.against` に配列も許す（072 Lv2＝["spirit","brave"]）。constraintGrant に `combinedBraveColors?: Color[]`（発生源がその色のブレイヴと合体している間。triggered と同じ意味）と `symbolCount?: number`（対象のシンボル数が完全一致。036）。
+TimedContent `{type:"immune"}` に `against?: ("spirit"|"brave"|"magic")[]`（058。省略時は従来どおり全部）（✅ ab6056c・part443）
+**部品バッチ3（確定スキーマ）**：`reviveOnDestroy` に `cost.exhaustSelf?: true`（発生源＝ネクサスを疲労。疲労済みなら不発。069）と `blockingOnly?: true`（ownAll 用。現在のバトルのブロッカーだけ。079 は magic の lendSelfThisTurn＋lentOnly＋blockingOnly で「このバトルの間」を表す）。
+`triggered.burstSummonOnly?: true`（onSummon。その召喚がバースト効果の解決中に行われたときだけ。044）。`reveal.countCounter?: EffectCounter`（destroy.countCounter と同名。041）と EffectCounter `ownKeyword` に配列（OR・1体1回）（✅ dadb506・part444）
+**部品バッチ4（【魔光芒】。確定スキーマ）**：Keyword `"makobo"`。挙動は既存2つの合成で、専用の kind を作らない：`resolveKoboOnBattleEnd` は makobo も kobo と同じく回収、`findMagicRepeatGrantSource` はバトル中の自分のアタッカーが makobo を持てばそれを再発揮の発生源として返す（確認式・マジック1枚ごと・oncePerBattle なし）。
+「【光芒】/【魔光芒】を持つ」用に TargetFilter.keyword と reviveOnDestroy.keywordFilter を `Keyword | Keyword[]`（OR）に広げる。【光芒】だけを見るフィルタに makobo は当てはまらない（✅ 63bea12・part445）
+**部品バッチ5（type.ts を触らない。確定スキーマ）**：`exhaust.untilRefreshedCount?: number`（対象側の回復状態のスピリットがこの数になるまで疲労。選ぶのは chooserIsTarget の規則どおり。072）。`returnToHand.nexus?: "only" | "also"`（exhaust と同じ意味。X04）。
+`battleBpAsLevel` の `fromLevel` を省略可（省くとどのLvでも）・`useLevel: number | "max"`（そのスピリットのカードが持つ最高Lv）・`maxCost?: number`（023）。
+（✅ 4d4dde0・part446）
+type.ts を触る部品（034 の破壊されたカード記録・declare の what:"name"/"level"・EffectCounter の BP差・081 の TimedContent「効果を失う」）は未着手（#226 はマージ済み）。
+残り：returnToHand.countCounter（X04「ブレイヴ1つにつき」）。**聞く前に PROCEDURES_AUDIT §2 の索引を見る**（081 で既存の一般則を聞き直した）
+10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
+
+### 次の一手：後片付け2つ（10-16）
+
+- 使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
+- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
+- 古い長いコメントの整理（ファイル単位の chore。どのファイルから削るかの一覧をユーザーに出す）
+
+### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
+
+`~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。
+索引は standard の `docs/legacy-port` ブランチの `docs/design/LEGACY_PORT.md`（`git -C ~/develop/bs_web_standard show docs/legacy-port:docs/design/LEGACY_PORT.md`）。
+- **ソウルコアは常に無効**（`createGame` で `soulCore: null`）。有効にする条件は未決：場にあるだけで旧カードの裁定（ボイド行き・【転召】の対象など）が変わるため、烈火伝などを取り込むときに決める
+- **第2メインステップは入口だけ閉じた**（`PhaseManager.ts` の `SECOND_MAIN_STEP = false`）。周りのコードは残っている
+- 26系カードのデータを読む smoke 76パートは持ち込んでいない（データが非公開）。26系だけの action 16種は `validate:cards` の `STANDARD_POOL_ONLY`
+- **この先の standard 側のエンジン修正は自動では入らない**。旧カードにも効く直しは、そのつど持ち込む
+
 **BS14「覇王編 第1弾：英雄龍の伝説」121種は完了**（2026-09-13。gaps 0件・smoke part313〜323）。
 確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
 
@@ -45,33 +81,15 @@
 3. **次の一手**：R5_TRIAGE §1「まとめる」と §4「要相談」は 09-28 で一区切り（進み具合の表。残したものは §3「固有」と、M8 の決定で入口として残す G-existingContent・イリテバン・`millUntilMagicCastFree`・音鳥クルーク）。
    R5 の終わりの基準のもう1つ（M2・M3・M4 の残り）は REFACTOR_PLAN §2.2 の表で確かめてから、BS16 の黄・青（手順5）へ
 4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
-5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装（`feat/bs16-yellow-blue`）。測定は REFACTOR_PLAN §0.1。残りは 045 Lv3（何が足りないかは BS16_BATCH3 の効果節の段落）と、「効果で複数体を同時に召喚したら召喚は1回」（BS16_PLAN §2.4 の ⚠️。009・044・X05）
-6. **進行中：BS17「剣舞う世界」**（`feat/bs17-import`。staging 取り込み済み）。計画と進め方は [BS17_PLAN.md](./docs/design/BS17_PLAN.md)。解釈は §2 で確定済み、部品は §3。
-   **部品バッチ1（確定スキーマ）**：`AuraCondition` に `{ maxOwnSpirits: number }`（047・048）と `{ battleOpponentHasKeyword: Keyword[] }`（現在のバトルで持ち主から見た相手側の個体がいずれかを持つ。014 は battlingOnly と併用、["armor","heavyArmor"]）。
-   `AuraDef.levelFilter?: number[]`（対象の現在Lv。065）。GlobalConstraint `{ type: "cantBlockByCost"; costs: number[] }`（`instCantAttackByCost` の隣に `instCantBlockByCost`、ブロック可否の判定箇所すべてに。071。`cantAttackByCost` に act 軸を足すと名前と中身がずれるので兄弟 type にした）。
-   type.ts は残り約300バイトなので、同じ区画の「カード名の引用」コメントを削って場所を作る（✅ 45df5ed・part442）
-   **部品バッチ2（免疫。確定スキーマ）**：054 は既存（constraintGrant nameIncludes＋immuneToOpponentEffects against:"magic"）。
-   ConstraintDef `immuneToOpponentEffects.against` に配列も許す（072 Lv2＝["spirit","brave"]）。constraintGrant に `combinedBraveColors?: Color[]`（発生源がその色のブレイヴと合体している間。triggered と同じ意味）と `symbolCount?: number`（対象のシンボル数が完全一致。036）。
-   TimedContent `{type:"immune"}` に `against?: ("spirit"|"brave"|"magic")[]`（058。省略時は従来どおり全部）（✅ ab6056c・part443）
-   **部品バッチ3（確定スキーマ）**：`reviveOnDestroy` に `cost.exhaustSelf?: true`（発生源＝ネクサスを疲労。疲労済みなら不発。069）と `blockingOnly?: true`（ownAll 用。現在のバトルのブロッカーだけ。079 は magic の lendSelfThisTurn＋lentOnly＋blockingOnly で「このバトルの間」を表す）。
-   `triggered.burstSummonOnly?: true`（onSummon。その召喚がバースト効果の解決中に行われたときだけ。044）。`reveal.countCounter?: EffectCounter`（destroy.countCounter と同名。041）と EffectCounter `ownKeyword` に配列（OR・1体1回）（✅ dadb506・part444）
-   **部品バッチ4（【魔光芒】。確定スキーマ）**：Keyword `"makobo"`。挙動は既存2つの合成で、専用の kind を作らない：`resolveKoboOnBattleEnd` は makobo も kobo と同じく回収、`findMagicRepeatGrantSource` はバトル中の自分のアタッカーが makobo を持てばそれを再発揮の発生源として返す（確認式・マジック1枚ごと・oncePerBattle なし）。
-   「【光芒】/【魔光芒】を持つ」用に TargetFilter.keyword と reviveOnDestroy.keywordFilter を `Keyword | Keyword[]`（OR）に広げる。【光芒】だけを見るフィルタに makobo は当てはまらない（✅ 63bea12・part445）
-   **部品バッチ5（type.ts を触らない。確定スキーマ）**：`exhaust.untilRefreshedCount?: number`（対象側の回復状態のスピリットがこの数になるまで疲労。選ぶのは chooserIsTarget の規則どおり。072）。`returnToHand.nexus?: "only" | "also"`（exhaust と同じ意味。X04）。
-   `battleBpAsLevel` の `fromLevel` を省略可（省くとどのLvでも）・`useLevel: number | "max"`（そのスピリットのカードが持つ最高Lv）・`maxCost?: number`（023）。
-   （✅ 4d4dde0・part446）
-   type.ts を触る部品（034 の破壊されたカード記録・declare の what:"name"/"level"・EffectCounter の BP差・081 の TimedContent「効果を失う」）は #226（types/choice.ts 切り出し）のマージ後。
-   残り：returnToHand.countCounter（X04「ブレイヴ1つにつき」）。**聞く前に PROCEDURES_AUDIT §2 の索引を見る**（081 で既存の一般則を聞き直した）
-7. R3 の残り（`validate:size` の据え置き1本：type.ts（**残りは約300バイト**。次に足す前に R4 のコメント削減））と R6・R7 は随時。
+5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装。045 Lv3 と「効果で複数体を同時に召喚したら召喚は1回」は 10-15 に済み（COST_MODEL §11）
+6. R3 の残り（`validate:size` の据え置き5本。持ち込みで type.ts 222KB・effectDef.ts・triggers.ts・main.ts・renderer.ts が基準超え）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
 関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
 `tsc --noUnusedLocals` の報告で写った不要な import を消す → **元の関数本体が1文字も変わらず残っているかをスクリプトで確かめる** →
-`scripts/coverage-effects.ts` の差し込み先を移した先へ直す（part160 が壊れた差し込み先を検出する）→ `npm run codemap`・据え置き一覧の更新。
-罠：`patch()` に `f.replace("rules.ts", ...)` のようにパス文字列を組み立てている箇所がある／import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
-
-**マージ待ち**：#157（shared/rules の分割。クライアントのバンドルが +2KB。**マージ後にブラウザで対戦画面を開いて動作確認する**）、#158（part363・364 がカバレッジの `__eid` で落ちていたのを直す。修正後の `coverage:effects` の再実行はまだ）。
+`npm run codemap`・据え置き一覧の更新。
+罠：import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
 
 **「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
 `toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）
@@ -80,21 +98,23 @@
 
 一覧 `timedEffects` に全内容を移した（[TIMED_EFFECTS.md](./docs/design/TIMED_EFFECTS.md) §3.2）。期間つき効果を置くだけの旧 action 19種は入口として残し、周りを触るときに書き直す（REFACTOR_PLAN §2.2 の6行目）。
 未着手の決定済み事項：②破壊直前の発生源を控える（ユーザー決定 a）。
-回答待ち：④セイ・ドリガンの「このステップの最初に」の義務が消える条件／クロスシザースの「指定する」は必須か任意か／ブロック時効果と『ブロックされたとき』効果を同時発揮にしてターンプレイヤーに解決順を選ばせるか（今は決まった順。TIMING_CHART ＞３）／ベトール・サンダ・バードの「Lv◯BP を2000として扱う」は相手の【装甲】等で防げるか（今は防げない）。
+回答待ち：④セイ・ドリガンの「このステップの最初に」（今は「そのターンの間、可能ならアタック」。案＝義務がある間は他のスピリットでアタックできず、最初のアタック宣言で消える。直すかを確認中）。
+クロスシザース（指定は必須）・ベトール等の【装甲】・コストの時点は 2026-10-08 に決着（#261）
 
-### R4 の残り（type.ts 211KB）
+### R4 の残り（type.ts 222KB）
 
 effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**その委譲1体で5時間枠を約25ポイント使った**（「分けて sed で読め」と指示したのに Read で大きな範囲を読み、文脈29万トークン）。
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### 未決：「〜することで、フィールドに残る」を任意として持ち主に確認するか（2026-09-27 発見）
+### 「〜することで」の確認関門は一区切り（2026-10-02。#230〜#246）
 
-BS07-042 パオ・ペイール等の reviveOnDestroy は `optional` が無いと、コストを自動で払って残る（持ち主に確認が出ない）。COST_MODEL の「ことで＝任意」に合わせるならデータか既定を変える。**ユーザー確認待ち**（影響枚数は未集計）。
+規則・実装・既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10 末尾。移行の手順表は PAY_MIGRATION_RECIPES、残した例外は COST_MODEL §10。
+「ことで」の数だけ関門があるかの検査は #248 で `validate:cards` に入っている（`scripts/payGateCheck.ts`）
 
-### M2 `if`（2026-09-27〜）
+### M2 `if` は器 PR 1〜5 まで済み
 
-答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・一般則は CONJUNCTION 早見表の下。**器のスキーマは同 §5（名前を変えない）**。#178・#179（移行11件）・#180（BURST.md §10 A〜C）はマージ済み。**いまは器 PR 2（`feat/if-last-more`）**、その次が器 PR 3（同 §5）。
+答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3、器のスキーマは同 §5。残した2枚（BS15-X01・BS11-060）は同 §5「残す」の行。
 
 ### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
 
@@ -167,17 +187,24 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ---
 
+### 効果の動作検証（2026-09-30 設計。ユーザー発案）
+
+「効果を発動させて結果が効果文どおりにならない」を落とす。**効果文だけを AI に読ませて期待値を作り、実装と突き合わせる**（実装・データは見せない）。
+先に変換規則を確定する：[EFFECT_SPEC_RULES.md](./docs/design/EFFECT_SPEC_RULES.md)（下書き。⚠️印と §5 の未決をユーザー確認 → §2 の表に1行ずつ足す）。
+試験運用の結果（2026-09-30。50枚×2回、狙いの3欄＝誘発の主体・実行者・対象の一致）：Sonnet自由記述94%／Haiku自由記述46%／**Haiku選択式（下ごしらえ＋一覧から選ぶ）84%**。未分類は選択式で6〜14%。既知バグ3枚は全モデルで正しい期待値。
+道具：`data/spec/vocab.json`（一覧）・`scripts/spec-skeleton.ts`（下ごしらえ＝skeleton／合成＝merge）・`scripts/validate-spec-output.ts`（機械検査）。**次**：①実装データとの突き合わせ（期待値の3欄 vs 実装の解決先）を作る ②既知バグを戻して検出できるか確認 ③50枚→全カード。
+**全体への突き合わせ（2026-09-30。データ側で自己参照/ドローを持つ fieldEvent 71枚・Haiku選択式1回）**：`npm run audit:spec -- <期待値.json>`（道具は PR「chore/spec-audit-tools」）。実バグ2系統は修正済み（データ＝fix/field-event-self-mode-source、実行者＝fix/self-action-cause-context。解釈は SEMANTICS_AUDIT §3.18）。**次**：色・コスト・系統の指定の突き合わせ（偽陽性が増える見込み）／`audit:spec` のイベント名の対応不足（未照合の偽陽性）を減らす。
+関連：fix/field-event-self-mode-source に part452（selfMode 書き漏れの静的検査＋レオ・ハーキュリーの動作テスト）。
+
+### 場面テストと3役の流れ（2026-10-01 決定）
+
+道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。「〜することで」の移行（#241〜#246）で5バッチ回した。①の推測が手順書の規則と食い違うことがあるので、①の報告の「決められなかった点」は手順書と突き合わせてから②に渡す
+
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
 
-**「この効果で破壊した／戻したスピリットのコスト」を待機時のコストで見るか**：`if` の `cond.last` は待機に入ったときのコスト（バウンスのみ記録。CONJUNCTION 27行目）を見るが、カウンタ `lastCost`・絞り込み `sameCostAsLast` と破壊の記録は印刷コストのまま。揃えると他のカードの結果が変わるので未着手（2026-09-28）。
-
-**「【X】を持つ」を印刷だけで見ている kind が残っている**：規則は「効果で得たものも含む」に確定（2026-09-25、ACTION_VOCABULARY）。`effectGrant` だけ揃えた。`effectDef.ts` で `keywordFilter` に「静的に持つ」と注記のある kind（fieldEvent の召喚・costMod・手札付与など）と `triggers.ts` の `hasKeyword(cardId…)` を洗い、挙動が変わるカードを一覧にしてから揃える。
 
 
-
-**バーストの既知の不具合3件（未修正）**：相手のライフ減少で「自分のライフ減少後」が発動する／「相手の召喚時発揮後」が発動しない等。REFACTOR_PLAN の完了後に直す → [BURST.md](./docs/design/BURST.md) §10。
-**テストの方針（検討中・未決定）**：場面テスト（本物の操作だけで進めて左右反転も見る）と、AI対戦＋Haiku 審判。**もう少し検討してから決める** → [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md)。
 
 （なし。「破壊されたときは1回」は 2026-09-18 に決着・実装 → TIMING_CHART.md。コスト固定が複数あるときは「使う側が好きな方を選ぶ」（Q3570・Q3597）で、最小値の実装と結果は同じ）
 
@@ -186,7 +213,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 - **再開スタック方式を採る**（ジェネレータ化はしない）。理由は [RESUME_STACK.md](./docs/design/RESUME_STACK.md) §8
 - **`allowSuspend` と `pendingReviveConfirms` は消さない。** この2つは「その場で聞く」と
   「恩恵の後に聞く」の使い分けそのもの（RESUME_STACK.md §7）
-- **発動確認の抑止はやらない。** 成立しない任意コスト効果でも確認は出る
+- **「〜することで」は聞く前に成立しないなら確認を出さない**（2026-10-02 ユーザー決定で、以前の「確認の抑止はやらない」を改めた）。理由はログに出す。COST_MODEL §10
 - **破壊待機状態の導入で挙動が変わった既存16枚は、そのまま受け入れる**（2026-09-09 ユーザー合意）。
   多くが強くなる方向だが仕様の帰結。中身は [TIMING_CHART.md](./docs/design/TIMING_CHART.md) §1.5 とテストにある
 

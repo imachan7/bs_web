@@ -594,6 +594,7 @@
         "id": "BS10-069-e2",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -931,6 +932,7 @@
         "id": "BS10-074-e1",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
         "action": {
@@ -943,12 +945,21 @@
       },
       {
         "id": "BS10-074-e2",
-        "kind": "globalConstraint",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "eventTarget": "ignore",
         "levels": null,
         "whileCombined": true,
-        "constraint": {
-          "type": "restedNexusEffectsDisabled"
-        }
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "restedNexusEffectsDisabled"
+            }
+          ],
+          "duration": "battle"
+        },
+        "optional": false
       }
     ]
   },
@@ -1087,9 +1098,11 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {"type": "exhaust", "side": "own", "nexusOnly": true, "count": 1},
+          "then": {"type": "refreshSelf"},
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },
@@ -1501,18 +1514,25 @@
     "limitCount": 1,
     "effects": [
       {
-        "id": "BS10-006-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2
-        ],
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "includeBraves": true
+       "id": "BS10-006-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2
+       ],
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": [
+          "spirit",
+          "brave"
+         ]
         }
+       }
       }
     ]
   },
@@ -1611,6 +1631,7 @@
         ],
         "whileCombined": true,
         "oncePerTurn": true,
+        "onceScope": "name",
         "action": {
           "type": "refreshOne",
           "all": true,
@@ -1629,6 +1650,7 @@
         ],
         "whileCombined": true,
         "oncePerTurn": true,
+        "onceScope": "name",
         "action": {
           "type": "extraAttackStep"
         }
@@ -2078,32 +2100,37 @@
     "effect": "メイン：\n自分はデッキから2枚ドローする。\nまたは、自分のトラッシュにあるスピリットカード1枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
     "effects": [
       {
-        "id": "BS10-098-e1",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "chooseActionMode",
-          "modes": [
-            {
-              "label": "デッキから2枚ドロー",
-              "actions": [
-                {
-                  "type": "draw",
-                  "count": 2
-                }
-              ]
-            },
-            {
-              "label": "トラッシュのスピリットを手札に戻す",
-              "actions": [
-                {
-                  "type": "recoverSpiritFromTrash",
-                  "count": 1
-                }
-              ]
-            }
+       "id": "BS10-098-e1",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "chooseActionMode",
+        "modes": [
+         {
+          "label": "デッキから2枚ドロー",
+          "actions": [
+           {
+            "type": "draw",
+            "count": 2
+           }
           ]
-        }
+         },
+         {
+          "label": "トラッシュのスピリットを手札に戻す",
+          "actions": [
+           {
+            "type": "moveCards",
+            "from": "trash",
+            "count": 1,
+            "dest": "hand",
+            "pick": {
+             "cardType": "spirit"
+            }
+           }
+          ]
+         }
+        ]
+       }
       },
       {
         "id": "BS10-098-e2",
@@ -2710,26 +2737,28 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札2枚を破棄することで、自分はデッキから3枚ドローする。\n【合体時】Lv2･Lv3『このスピリットの破壊時』\n相手は、相手のフィールド/リザーブ/トラッシュに残るコアを合計5個以下になるようにボイドに置く。\nその後、自分は、自分のフィールド/リザーブ/トラッシュに残るコアを合計5個以下になるようにボイドに置く。",
     "effects": [
       {
-        "id": "BS10-019-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "optional": true,
-        "action": {
-          "type": "pay",
-          "cost": {
-            "type": "discardSelfChoose",
-            "count": 2
-          },
-          "then": {
-            "type": "draw",
-            "count": 3
-          }
+       "id": "BS10-019-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "optional": true,
+       "action": {
+        "type": "pay",
+        "cost": {
+         "type": "moveCards",
+         "from": "hand",
+         "dest": "trash",
+         "count": 2
+        },
+        "then": {
+         "type": "draw",
+         "count": 3
         }
+       }
       },
       {
         "id": "BS10-019-e2",
@@ -2868,19 +2897,24 @@
     "effect": "Lv1･Lv2『自分のエンドステップ』\n自分のトラッシュにある効果の記述を持たないスピリットカード1枚を手札に戻す。\nLv2\n系統：「魔影」を持つ自分のスピリットが召喚されたとき、相手のスピリット1体のコアを、1個になるように相手のリザーブに置く。",
     "effects": [
       {
-        "id": "BS10-082-e1",
-        "kind": "step",
-        "step": "end",
-        "turn": "own",
-        "levels": [
-          1,
-          2
-        ],
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "vanillaFilter": true
+       "id": "BS10-082-e1",
+       "kind": "step",
+       "step": "end",
+       "turn": "own",
+       "levels": [
+        1,
+        2
+       ],
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "vanilla": true
         }
+       }
       },
       {
         "id": "BS10-082-e2",
@@ -3009,18 +3043,25 @@
         }
       },
       {
-        "id": "BS10-084-e2",
-        "kind": "step",
-        "step": "end",
-        "turn": "own",
-        "levels": [
-          2
-        ],
-        "optional": true,
-        "action": {
-          "type": "summonFromTrashFree",
-          "whileCombinedFilter": true
-        }
+       "id": "BS10-084-e2",
+       "kind": "step",
+       "step": "end",
+       "turn": "own",
+       "levels": [
+        2
+       ],
+       "optional": true,
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pay": "cost",
+        "pick": {
+         "cardType": "spirit",
+         "hasWhileCombined": true
+        },
+        "count": 1
+       }
       }
     ]
   },
@@ -3044,14 +3085,18 @@
     "effect": "メイン：\n自分のトラッシュにあるブレイヴカード1枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
     "effects": [
       {
-        "id": "BS10-100-e1",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "bravesOnly": true
+       "id": "BS10-100-e1",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "brave"
         }
+       }
       },
       {
         "id": "BS10-100-e2",
@@ -3347,6 +3392,7 @@
         "id": "BS10-023-e1",
         "kind": "triggered",
         "trigger": "onBattleStart",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -3514,6 +3560,7 @@
         "id": "BS10-026-e3",
         "kind": "triggered",
         "trigger": "onBlocked",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2
@@ -4048,6 +4095,7 @@
         "id": "BS10-032-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -4118,6 +4166,7 @@
         "id": "BS10-033-e1",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -4374,6 +4423,7 @@
         "id": "BS10-037-e2",
         "kind": "triggered",
         "trigger": "onBlock",
+        "eventTarget": "use",
         "levels": [
           2
         ],
@@ -5246,18 +5296,24 @@
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるマジックカード1枚を手札に戻す。\nLv1･Lv2･Lv3\n自分の手札1枚につき、このスピリットをBP+1000する。",
     "effects": [
       {
-        "id": "BS10-049-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "action": {
-          "type": "recoverMagicFromTrash"
-        },
-        "optional": false
+       "id": "BS10-049-e1",
+       "kind": "triggered",
+       "trigger": "onSummon",
+       "levels": [
+        1,
+        2,
+        3
+       ],
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "magic"
+        }
+       },
+       "optional": false
       },
       {
         "id": "BS10-049-e2",
@@ -5358,14 +5414,19 @@
     "effect": "メイン：\n自分のトラッシュにある【聖命】を持つスピリットカード1枚を手札に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
     "effects": [
       {
-        "id": "BS10-109-e1",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "recoverSpiritFromTrash",
-          "count": 1,
-          "keywordFilter": "seimei"
+       "id": "BS10-109-e1",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "spirit",
+         "keyword": "seimei"
         }
+       }
       },
       {
         "id": "BS10-109-e2",
@@ -5480,6 +5541,7 @@
         "id": "BS10-041-e1",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "use",
         "levels": [
           1,
           2
@@ -5879,17 +5941,24 @@
         }
       },
       {
-        "id": "BS10-046-e2",
-        "kind": "triggered",
-        "trigger": "onAttack",
-        "levels": [
-          2
-        ],
-        "action": {
-          "type": "castMagicFromTrashByColor",
-          "colorFilter": "yellow"
-        },
-        "optional": true
+       "id": "BS10-046-e2",
+       "kind": "triggered",
+       "trigger": "onAttack",
+       "levels": [
+        2
+       ],
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "cast",
+        "pay": "cost",
+        "pick": {
+         "cardType": "magic",
+         "color": "yellow"
+        }
+       },
+       "optional": true
       }
     ]
   },
@@ -6230,9 +6299,18 @@
           3
         ],
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },
@@ -6448,9 +6526,18 @@
           2
         ],
         "action": {
-          "type": "refreshSelfByExhaustNexus"
-        },
-        "optional": true
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refreshSelf"
+          },
+          "limitByKeyword": "kyoshu"
+        }
       }
     ]
   },
@@ -6599,17 +6686,18 @@
         }
       },
       {
-        "id": "BS10-112-e2",
-        "kind": "magic",
-        "timing": "main",
-        "action": {
-          "type": "toHand",
-          "from": "trash",
-          "count": 1,
-          "pick": {
-            "cardType": "nexus"
-          }
+       "id": "BS10-112-e2",
+       "kind": "magic",
+       "timing": "main",
+       "action": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "nexus"
         }
+       }
       },
       {
         "id": "BS10-112-e3",
@@ -6915,6 +7003,7 @@
         "id": "BS10-027-e1",
         "kind": "triggered",
         "trigger": "onBattleEnd",
+        "eventTarget": "ignore",
         "levels": [
           1,
           2

@@ -12,7 +12,7 @@
 //   W6: refreshAllOwn に exemptFamily を追加
 //   W7: returnNexusToHand に all/side を追加
 //   W8: 【装甲：∞】= keyword.colorsFrom:"opponentFieldSymbols"
-//   W9（不要）: BS06-X24 Lv2-3 は既存の selfBuffByExhaustFamily でそのまま書けたため拡張なし
+//   W9（不要）: BS06-X24 Lv2-3 は既存の器でそのまま書けたため拡張なし（のち pay に統合）
 //   W10: returnAllToHand に filter を追加
 import { cantActByTimed } from "../../shared/rules"
 import {

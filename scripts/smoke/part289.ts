@@ -13,6 +13,7 @@ import {
     handleAction,
     resolveAction,
     runTurnStart,
+    answerPayConfirm,
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/brave"
@@ -166,12 +167,13 @@ console.log("=== §H 戦車皇ディルガン（pay＋removeCores any／lastCore
     refreshLevelAsOverrides(s)
     const trashBefore = s.players.p1.trashCores
     resolveAction(s, "p1", dilgan, (getCard(DILGAN).effects[0] as { action: EffectAction }).action)
+    answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.kind === "option" && s.pendingChoice.stepper === true, "支払う数を増減式で選ばせる")
     const err = handleAction(s, "p1", { type: "resolveChoice", option: "2" })
     assert(err === null, "2個払う選択に応答できる")
     assert(dilgan.cores === 3, "selfのコアを2個トラッシュに置いた")
     assert(s.players.p1.trashCores === trashBefore + 2, "自分のトラッシュにコア2個が置かれた")
-    assert(target.cores === 1, "支払った2個ぶん、対象（シンボル2つの合体スピリット）のコアがトラッシュへ")
+    assert(target.cores === 3 + 1 - 2, "支払った2個ぶん、対象（合体で載ったブレイヴのコア1個を含む）のコアがトラッシュへ")
 }
 
 console.log("=== §おまけ recoverSpiritFromTrash：countCounter / anyCardType（BS12-X02）===")

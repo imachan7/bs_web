@@ -358,13 +358,30 @@
      2
     ],
     "action": {
-     "type": "reveal",
-     "count": 1,
-     "pick": {
-      "cardType": "spirit",
-      "family": "地竜"
-     },
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "family": "地竜"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     },
     "optional": false
    },
@@ -626,6 +643,7 @@
     "id": "BS06-011-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -1145,6 +1163,7 @@
     "id": "BS06-021-e1",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -1215,9 +1234,14 @@
      2
     ],
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 1,
-     "familyFilter": "無魔"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "無魔"
+     }
     },
     "optional": false
    },
@@ -1584,6 +1608,7 @@
     "id": "BS06-028-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -1854,6 +1879,7 @@
     "id": "BS06-033-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2
@@ -2092,6 +2118,7 @@
     "id": "BS06-036-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,
@@ -2343,6 +2370,7 @@
     "id": "BS06-041-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2476,6 +2504,7 @@
     "id": "BS06-043-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2547,6 +2576,7 @@
     "id": "BS06-044-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2669,6 +2699,7 @@
     "id": "BS06-046-e3",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2
     ],
@@ -2727,6 +2758,7 @@
     "id": "BS06-047-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2,
@@ -2745,6 +2777,7 @@
     "id": "BS06-047-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      2,
      3
@@ -2805,6 +2838,7 @@
     "id": "BS06-048-e1",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "use",
     "levels": [
      1,
      2
@@ -2829,6 +2863,7 @@
     "id": "BS06-048-e2",
     "kind": "triggered",
     "trigger": "onBlock",
+    "eventTarget": "ignore",
     "levels": [
      2
     ],
@@ -3310,6 +3345,7 @@
     ],
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "nameIncludes": "アルカナ",
      "count": 4,
      "upTo": true
@@ -4342,8 +4378,29 @@
     "granted": {
      "trigger": "onAttack",
      "action": {
-      "type": "selfBuffByExhaustFamily",
-      "familyFilter": "地竜"
+      "type": "pay",
+      "cost": {
+       "type": "exhaust",
+       "side": "own",
+       "autoPickMaxBp": true,
+       "count": 1,
+       "filter": {
+        "family": "地竜"
+       }
+      },
+      "then": {
+       "type": "timedEffect",
+       "target": "self",
+       "duration": "battle",
+       "content": [
+        {
+         "type": "bp",
+         "amount": 1,
+         "amountCounter": "lastBp",
+         "countOnce": true
+        }
+       ]
+      }
      }
     }
    }
@@ -5446,9 +5503,14 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "recoverSpiritFromTrash",
+     "type": "moveCards",
+     "from": "trash",
      "count": 3,
-     "familyFilter": "地竜"
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": "地竜"
+     }
     }
    },
    {
@@ -6112,10 +6174,20 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "reveal",
-     "count": 3,
-     "pickCount": 0,
-     "rest": "deckTop"
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 3
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
     }
    },
    {
@@ -6530,6 +6602,7 @@
     "id": "BS06-X21-e3",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "use",
     "levels": [
      3
     ],
@@ -6595,8 +6668,14 @@
      3
     ],
     "action": {
-     "type": "summonFromTrashFree",
-     "keywordFilter": "jugeki",
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "keyword": "jugeki"
+     },
+     "count": "all",
      "costBudget": 13
     },
     "optional": true
@@ -6679,6 +6758,7 @@
     "id": "BS06-X23-e2",
     "kind": "triggered",
     "trigger": "onBlocked",
+    "eventTarget": "ignore",
     "levels": [
      1,
      2,
@@ -6776,13 +6856,35 @@
     "id": "BS06-X24-e2",
     "kind": "triggered",
     "trigger": "onBattleStart",
+    "eventTarget": "ignore",
     "levels": [
      2,
      3
     ],
     "action": {
-     "type": "selfBuffByExhaustFamily",
-     "familyFilter": "武装"
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "autoPickMaxBp": true,
+      "count": 1,
+      "filter": {
+       "family": "武装"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
     },
     "optional": true
    },

@@ -11,7 +11,7 @@
 //
 // 仕組みは既存の optional（requestActivationConfirm＝kind:"option" / confirm:true）に載せる。
 // 発動確認は handleAction を直接呼んで応答する（helpers.act は対話モードで先に消化してしまうため）
-import { assert, createGame, createInstance, getCard, handleAction, runTurnStart } from "./helpers"
+import { assert, createGame, createInstance, effectiveBp, getCard, handleAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 
 const HERO = "BS08-045" // 勇者フェニックスペンタン：Lv2『アタック時』ペンタン1体をデッキの上に戻すことで回復
@@ -141,7 +141,8 @@ console.log("=== 疲労させるスピリットを選べる（選んだ方のBP�
     assert(handleAction(s, "p1", { type: "resolveChoice", instanceId: small }) === null, "BPの低い方を選ぶ")
     assert(s.players.p1.field.spirits.find((sp) => sp.instanceId === small)!.isRested, "選んだ方が疲労した")
     assert(!s.players.p1.field.spirits.find((sp) => sp.instanceId === big)!.isRested, "選ばなかった方は回復状態のまま")
-    const buffed = s.players.p1.field.spirits.find((sp) => sp.instanceId === thor)!.tempBpBuff
+    const thorInst = s.players.p1.field.spirits.find((sp) => sp.instanceId === thor)!
+    const buffed = effectiveBp(s, "p1", thorInst) - getCard(THOR).levels[0]!.bp
     assert(buffed === 2000, `選んだスピリットのBP分だけ増える（実際は${buffed}）`)
 }
 

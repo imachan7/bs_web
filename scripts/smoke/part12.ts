@@ -19,8 +19,8 @@ import {
     runTurnStart,
     spiritHasKeyword, bpBuffOf,
     battleHas,
+    endTurn,
 } from "./helpers"
-import { endTurn } from "../../server/src/logic/PhaseManager"
 import { instHasCost, cantActByTimed } from "../../shared/rules"
 
 console.log("=== BS02-109 エンジェルボイス：フラッシュでバトル解決の比較をBPからLvへ切り替える ===")

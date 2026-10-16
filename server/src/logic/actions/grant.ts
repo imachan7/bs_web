@@ -15,6 +15,7 @@ import {
     pickOwnKeywordTarget,
     requestCardChoice,
     requestChoice,
+    requestUpToChoice,
     returnSpiritToHand,
     tryInteractiveTargetChoice,
     recordTimed,
@@ -23,6 +24,10 @@ import {
 import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { normalReserveOf, wouldDeplete } from "../soulCore"
+import { destroySpirit } from "../removal"
+import { notifyHandGained, placeCoresOnSpirit } from "../EffectModules"
+import { recordTargets } from "../record"
 
 const grantKeywordToHandCardHandler: ActionHandler<"grantKeywordToHandCard"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -140,6 +145,28 @@ const levelOverrideOpponentNexusesHandler: ActionHandler<"levelOverrideOpponentN
         return
 }
 
+// 26系【レベルアップ】『アタック/ブロック時』: このバトル中、発生源個体（self）を指定レベルとして扱う。
+// BPもそのレベルの表になる（currentLevel は timedLevel を読むので timed への書き込みで自然に効く）。
+// until:"battle" の記録はバトル終了で自動的に消える
+const levelAsSelfThisBattleHandler: ActionHandler<"levelAsSelfThisBattle"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+        if (!self) return
+        recordTimed(
+            state,
+            {
+                content: [{ type: "level", set: action.level, requireLevelExists: true }],
+                target: { kind: "instance", instanceId: self.instanceId },
+                until: "battle",
+                ownerPid: owner,
+            },
+        )
+        log(
+            state,
+            `${sourceName}は、このバトルの間Lv${action.level}として扱う。`,
+        )
+        return
+}
+
 // 「自分か相手のスピリット1体を指定する」系の対象決定（ダブルハート／ビルドアップ）。
 // targetInstanceId 指定時はそれを使う。未指定なら anySide のとき両陣営から、
 // そうでなければ自分側だけから候補を作り、interactiveTargets ならプレイヤーに選ばせる。
@@ -226,6 +253,56 @@ const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx,
         return
 }
 
+// 26系【激突】付与（飛兵コーンヒーロ『召喚時』／浮岩城塞『配置時』）: 自分のスピリット1体
+// （filterで絞り込み）に、このターンの間キーワードを与える。候補0体なら不発。
+// 発生源自身も候補に含む（原文に自己除外はなく、『召喚時』のコーンヒーロ自身も赤スピリット。
+// 除外したい場合はデータレコードの filter.excludeSelf を使う。2026-10-08 レビュー修正）。
+// 対話時は候補2体以上でプレイヤーが選ぶ（選択の再入は targetInstanceId で戻る）。
+// 非対話・候補1体は自動選択（先頭＝最も場に出たのが古い個体）
+const grantKeywordThisTurnHandler: ActionHandler<"grantKeywordThisTurn"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const filter = normalizeFilter(ctx, action)
+    if (filter === SELF_REQUIRED) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    const candidates = state.players[owner].field.spirits.filter(
+        (s) => matchesTarget(state, owner, s, filter, self?.instanceId),
+    )
+    if (candidates.length === 0) {
+        log(state, `${sourceName}：対象のスピリットがいなかった。`)
+        return
+    }
+    if (
+        targetInstanceId === undefined &&
+        tryInteractiveTargetChoice(
+            state,
+            owner,
+            self,
+            `${sourceName}：【${KEYWORDS[action.keyword].label}】を与えるスピリットを選んでください`,
+            candidates,
+            action,
+            null,
+        )
+    ) {
+        return
+    }
+    const target =
+        (targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : undefined) ??
+        candidates[0]!
+    recordTimed(state, {
+        content: [{ type: "keyword", keyword: action.keyword }],
+        target: { kind: "instance", instanceId: target.instanceId },
+        until: "turn",
+        ownerPid: owner,
+    })
+    log(
+        state,
+        `${getCard(target.cardId).name}は、このターンの間【${KEYWORDS[action.keyword].label}】を持つ。`,
+    )
+    return
+}
+
 const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // バーストファイア：『ブロックできない』を受けている自分のスピリットが候補。
@@ -271,29 +348,15 @@ const negateOwnBlockConstraintHandler: ActionHandler<"negateOwnBlockConstraint">
 
 const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarget"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-        // 器AN：costReturnSelfToHand指定時は、このスピリット自身を手札に戻すことがコスト
-        // （COST_MODEL.md §1：対象になれる相手のスピリットが1体もいなければ不発）。BS13-027ムーンショウウオ。
-        // costPaidは支払い済みの再入を示す内部専用フラグ（cards.jsonには書かない。costSacrificeChosenと同型）
-        if (action.costReturnSelfToHand && !action.costPaid) {
-            if (!self || state.players[opp].field.spirits.length === 0) {
-                log(state, `${sourceName}：対象がいないため発動しなかった。`)
-                return
-            }
-            returnSpiritToHand(state, owner, self, sourceName)
-            if (state.winner) return
-            // 呼び出し元が明示的にtargetInstanceIdを渡していた場合（誘発・テスト等）はそのまま引き継ぐ。
-            // 渡していなければ後続のinteractiveTargets分岐でプレイヤーに選ばせる
-            ctx.resolve({ ...action, costPaid: true }, targetInstanceId !== undefined ? { targetInstanceId } : undefined)
-            return
-        }
-        // costReturnSelfToHand持ちは「相手のスピリット1体を指定する」＝プレイヤーが選ぶ（BS13-027）。
-        // 既存のBS04ミストカーテン（costReturnSelfToHand無し）は従来どおり自動選択のまま変えない
-        if (action.costReturnSelfToHand && targetInstanceId === undefined && state.interactiveTargets) {
+        // 「相手のスピリット1体を指定する」＝対話中は常に持ち主が選ぶ（非対話は従来どおり自動。2026-10-02 ユーザー確認）
+        const filter = normalizeFilter(ctx, action)
+        const pool = filter === SELF_REQUIRED ? [] : state.players[opp].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        if (targetInstanceId === undefined && state.interactiveTargets && pool.length > 0) {
             requestChoice(
                 state,
                 owner,
                 `${sourceName}：ライフを守る相手のスピリットを選んでください`,
-                state.players[opp].field.spirits.map((s) => s.instanceId),
+                pool.map((s) => s.instanceId),
                 false,
                 action,
                 self,
@@ -304,17 +367,19 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
         const found = targetInstanceId
             ? findSpiritAny(state, targetInstanceId)
             : (() => {
-                  const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
+                  const t = action.filter === undefined ? pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType) : pool[0]
                   return t ? { pid: opp, inst: t } : null
               })()
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        recordTimed(state, { content: [{ type: "noLifeDamage" }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
+        recordTimed(state, { content: [action.cap !== undefined ? { type: "lifeCap", max: action.cap } : { type: "noLifeDamage" }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
         log(
             state,
-            `${sourceName}：このターン、${getCard(found.inst.cardId).name}のアタックでは${state.players[owner].name}のライフは減らない。`,
+            action.cap !== undefined
+                ? `${sourceName}：このターン、${state.players[owner].name}のライフは${getCard(found.inst.cardId).name}から${action.cap}しか減らされない。`
+                : `${sourceName}：このターン、${getCard(found.inst.cardId).name}のアタックでは${state.players[owner].name}のライフは減らない。`,
         )
         return
 }
@@ -479,14 +544,93 @@ const treatOwnNexusesAsSpiritsThisTurnHandler: ActionHandler<"treatOwnNexusesAsS
     return
 }
 
+// 「自分のネクサス1つを、このステップ中スピリットとして扱う」（26RBS02-066/068/069/086。2026-10-11 ユーザー確認）。
+// スピリット扱いの間のコスト・系統はネクサスカードのまま。Lv表は原文の「<コア>Lv BP」。置いたコアも元からあるコアもLvに数える。
+// 戻すのはステップの終わり（PhaseManager.endStepScoped）。置く数は選べる（フィールド/リザーブの合計まで）
+const nexusAsSpiritThisStepHandler: ActionHandler<"nexusAsSpiritThisStep"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId, chosenOption } = ctx
+    const player = state.players[owner]
+    let nexus: CardInstance | undefined
+    if (action.chosenId !== undefined) nexus = player.field.nexuses.find((n) => n.instanceId === action.chosenId)
+    else if (action.target === "self") nexus = self && player.field.nexuses.includes(self) ? self : undefined
+    else {
+        const filter = normalizeFilter(ctx, action)
+        if (filter === SELF_REQUIRED) return
+        const open = player.field.nexuses.filter((n) => matchesTarget(state, owner, n, filter, self?.instanceId))
+        if (targetInstanceId) nexus = open.find((n) => n.instanceId === targetInstanceId)
+        else if ((open.length > 1 || (action.upTo && open.length > 0)) && state.interactiveTargets) {
+            const prompt = `${sourceName}：スピリットとして扱うネクサスを選んでください`
+            if (action.upTo) requestUpToChoice(state, owner, prompt, open.map((n) => n.instanceId), action, self)
+            else requestChoice(state, owner, prompt, open.map((n) => n.instanceId), false, action, self)
+            return
+        } else nexus = open[0]
+    }
+    if (!nexus) {
+        log(state, `${sourceName}：対象のネクサスがいなかった。`)
+        return
+    }
+    if (action.placeCores) {
+        const max = normalReserveOf(player) + player.field.spirits.reduce((k, sp) => k + sp.cores, 0)
+        if (max <= 0) {
+            log(state, `${sourceName}：置けるコアがなかった。`)
+            return
+        }
+        let n = 1
+        if (chosenOption !== undefined) n = Math.max(1, Math.min(max, Number(chosenOption) || 1))
+        else if (state.interactiveTargets && max > 1) {
+            requestChoice(state, owner, `${sourceName}：${getCard(nexus.cardId).name}に置くコアの数を選んでください`, [], false, { ...action, chosenId: nexus.instanceId }, self, "option", Array.from({ length: max }, (_, i) => String(i + 1)), undefined, true)
+            return
+        }
+        // ponytail: どこから取るかは選ばせず、リザーブ優先→コアの多いスピリットから（payCoresFromFieldOrReserveToTrash と同じ方針）。取り元の選択UIが要るなら足す
+        const fromReserve = Math.min(n, normalReserveOf(player))
+        player.reserve -= fromReserve
+        for (let rest = n - fromReserve; rest > 0; rest--) {
+            const richest = player.field.spirits.filter((sp) => sp.cores > 0).reduce<CardInstance | undefined>((b, sp) => (b === undefined || sp.cores > b.cores ? sp : b), undefined)
+            if (!richest) break
+            richest.cores -= 1
+            if (wouldDeplete(state, owner, richest)) destroySpirit(state, owner, richest.instanceId, "deplete")
+        }
+        placeCoresOnSpirit(state, nexus, n, owner)
+        log(state, `${sourceName}：フィールド/リザーブのコア${n}個を${getCard(nexus.cardId).name}に置いた。`)
+    }
+    const card = getCard(nexus.cardId)
+    player.field.nexuses.splice(player.field.nexuses.indexOf(nexus), 1)
+    nexus.asSpiritThisTurn = { cost: card.cost, family: [...card.family], levels: action.levels.map((l) => ({ ...l })) }
+    nexus.asSpiritAttackStepScoped = true
+    if (action.until === "battle" && state.battle) nexus.asSpiritBattleScoped = true
+    player.field.spirits.push(nexus)
+    recordTargets(state, [nexus.instanceId])
+    log(state, `${sourceName}：${card.name}は、${action.until === "battle" ? "このバトル中" : "このステップ中"}スピリットとして扱われる。`)
+}
+
+// 使ったマジックを効果発揮後に手札へ戻す（旧【光芒】と同じ戻し方。ただしバトル終了時ではなく、使用した直後）
+const returnLastUsedMagicToHandHandler: ActionHandler<"returnLastUsedMagicToHand"> = (ctx) => {
+    const { state, owner, sourceName } = ctx
+    const used = state.lastMagicUsed
+    const player = state.players[owner]
+    const idx = used?.pid === owner ? player.trashCards.lastIndexOf(used.cardId) : -1
+    if (!used || idx === -1) {
+        log(state, `${sourceName}：手札に戻せるマジックがトラッシュになかった。`)
+        return
+    }
+    player.trashCards.splice(idx, 1)
+    player.hand.push(used.cardId)
+    notifyHandGained(state, owner, 1)
+    log(state, `${sourceName}：${getCard(used.cardId).name}をトラッシュから手札に戻した。`)
+}
+
 const handlers = {
+    returnLastUsedMagicToHand: returnLastUsedMagicToHandHandler,
+    nexusAsSpiritThisStep: nexusAsSpiritThisStepHandler,
     treatOwnNexusesAsSpiritsThisTurn: treatOwnNexusesAsSpiritsThisTurnHandler,
     grantKeywordToHandCard: grantKeywordToHandCardHandler,
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
+    levelAsSelfThisBattle: levelAsSelfThisBattleHandler,
     addSymbolPermanent: addSymbolPermanentHandler,
     requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
     grantBlockerImmunity: grantBlockerImmunityHandler,
+    grantKeywordThisTurn: grantKeywordThisTurnHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,
     lendSelfThisTurn: lendSelfThisTurnHandler,
