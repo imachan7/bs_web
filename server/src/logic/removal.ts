@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
@@ -904,10 +905,15 @@ export function applyDestroyBatchAfter(
         if (self && voidCorePlacementBlocked(state)) {
             log(state, `${getCard(self.cardId).name}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
         } else if (self) {
-            placeCoresOnSpirit(state, self, destroyed, ownerPid)
+            const placed = takeCoreGainAllowance(state, ownerPid, getCard(self.cardId).type, "void", "field", destroyed)
+            if (placed <= 0) {
+                log(state, `${getCard(self.cardId).name}：効果により、これ以上コアを置けなかった。`)
+                return
+            }
+            placeCoresOnSpirit(state, self, placed, ownerPid)
             log(
                 state,
-                `${getCard(self.cardId).name}は、破壊した${destroyed}体につきボイドからコア${destroyed}個を自身の上に置いた。`,
+                `${getCard(self.cardId).name}は、破壊した${destroyed}体につきボイドからコア${placed}個を自身の上に置いた。`,
             )
         }
     }

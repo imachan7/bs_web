@@ -532,6 +532,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
 
+## server/src/logic/coreGainCap.ts
+
+- `CoreGainFrom`（型）
+- `CoreGainTo`（型）
+- `coreGainAllowance`（fn）：pid が自分の from から自分の to へ、srcType の効果で置けるコアの残り個数（制限が無ければ Infinity）。
+- `recordCoreGain`（fn）：実際に置けた個数を累計へ足す（制限が掛かる配置だけ呼べばよいが、掛からない配置で呼んでも無害ではないので
+- `takeCoreGainAllowance`（fn）：配置1回ぶんの入口：requested のうち置いてよい個数を返し、累計に加える
+
 ## server/src/logic/counted.ts
 
 - `countedAmount`（fn）

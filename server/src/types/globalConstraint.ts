@@ -81,6 +81,7 @@ export type GlobalConstraintDef =
     // （maxCost=カード記載コストがこれ以下のもの限定／keywordExclude=そのキーワードを持たないもの限定）。
     // SD02-013 転召の祭壇Lv1-2＝「【転召】を持たないコスト3以下のスピリットカードを召喚するとき、1コスト余分に」
     | { type: "noSummonTriggerByCost"; maxCost?: number; side?: "opponent" } // お互い、コストがmaxCost以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす。BS08共鳴する音叉の塔：コスト4以下）。**maxCost省略時はコストを問わずすべて**（BS11-072 未完成の古代戦艦：船尾Lv2＝「『このスピリットの召喚時』効果と『このブレイヴの召喚時』効果は発揮されない」）。エントリの phase / turn を書けばその区間だけ有効になる。// side:"opponent"指定時は**発生源の持ち主から見た相手**のスピリット/ブレイヴだけを対象にする（既定は両陣営。BS14-088青玉の巨大迷宮Lv2：「相手のスピリットすべての『このスピリットの召喚時』効果と、相手のブレイヴすべての『このブレイヴの召喚時』効果は発揮されない」）
+    | { type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[] } // 発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）
     | { type: "noVoidToLife" } // お互い、ボイドからライフにコアを置けない（placeCores の void→life を落とす。【聖命】も止まる。BS11-072 未完成の古代戦艦：船尾Lv1-2）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストがmaxCost以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（**カード静的なコスト**で判定＝軽減前の値。使用コスト計算の共通経路で軽減分を0にする。BS08超時空重力炉：コスト3以下）
     | { type: "bp0DestroyedToDeckBottom"; maxCost: number } // 発生源の持ち主の**相手**のスピリットが、破壊直前の実効BPが0でコストがmaxCost以下のまま破壊されたとき、トラッシュに置くかわりに持ち主のデッキの下へ戻す（commitPendingDestruction が読む。複数体の「好きな順」は選ばせず破壊順。26RBS02-083）

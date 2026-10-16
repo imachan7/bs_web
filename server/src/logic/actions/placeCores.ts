@@ -1,6 +1,7 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
 // 旧 lifeCharge 等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
+import { coreGainAllowance, recordCoreGain } from "../coreGainCap"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
@@ -105,6 +106,19 @@ function takeFromSource(
     }
 }
 
+// coreGainCap（黒き聖杯）の上限を掛けて取り元から取る。上限で置けなければ0（ログは出す）
+function takeCapped(ctx: ActionCtx, action: PlaceCoresAction, to: string, want: number): number {
+    const { state, owner, self, srcType, sourceName } = ctx
+    const allowed = coreGainAllowance(state, owner, srcType, action.from, to)
+    if (allowed <= 0) {
+        log(state, `${sourceName}：効果により、これ以上コアを置けなかった。`)
+        return 0
+    }
+    const taken = takeFromSource(state, owner, action.from, self, Math.min(want, allowed))
+    if (allowed !== Infinity) recordCoreGain(state, owner, taken)
+    return taken
+}
+
 // to:"spirit"/"nexus" の置き先候補（filter一致分のみ。target:"self"/"all"/"one" の絞り込みは
 // 呼び出し側が行う）。pay の checker（pay.ts）とこのファイルのハンドラで共有する
 export function placeCoresPoolCandidates(
@@ -153,7 +167,7 @@ function placeCoresSpread(ctx: ActionCtx, action: PlaceCoresAction): void {
         } else {
             t = candidates.find((c) => chosen.includes(c.instanceId)) ?? candidates[0]!
         }
-        const taken = takeFromSource(state, owner, action.from, self, 1)
+        const taken = takeCapped(ctx, action, "field", 1)
         if (taken <= 0) break
         placeCoresOnSpirit(state, t, taken, owner)
         recordTargets(state, [t.instanceId])
@@ -389,7 +403,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
     if (action.orReserve && action.to !== "reserve") {
         const destLabel = action.to === "life" ? "自分のライフに置く" : "対象の上に置く"
         if (chosenOption === "リザーブに置く") {
-            const taken = takeFromSource(state, owner, action.from, self, perTarget)
+            const taken = takeCapped(ctx, action, "reserve", perTarget)
             player.reserve += taken
             log(state, `${player.name}は${sourceName}のコア${taken}個をリザーブに置いた。（リザーブ${player.reserve}）`)
             return
@@ -410,7 +424,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
                 return
             }
             if (action.to !== "life") {
-                const taken = takeFromSource(state, owner, action.from, self, perTarget)
+                const taken = takeCapped(ctx, action, "reserve", perTarget)
                 player.reserve += taken
                 log(state, `${player.name}は${sourceName}のコア${taken}個をリザーブに置いた。（リザーブ${player.reserve}）`)
                 return
@@ -425,7 +439,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
     const TO_LABEL = { reserve: "自分のリザーブに", trash: "自分のトラッシュに", life: "自分のライフに", deckSide: "デッキの横に", spirit: "", nexus: "" }
     let totalMoved = 0
     for (const t of targetsFinal) {
-        const taken = takeFromSource(state, owner, action.from, self, perTarget)
+        const taken = takeCapped(ctx, action, t ? "field" : action.to, perTarget)
         if (taken <= 0) continue
         totalMoved += taken
         const fromLabel = action.from === "self" && self ? `${getCard(self.cardId).name}の` : FROM_LABEL[action.from]

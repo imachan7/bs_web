@@ -62,7 +62,10 @@ kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデ
 060 の「使用したマジックカード以上のコストの手札1枚」は CardPick `atLeastTaxedCost?: true`（税を課されているカードの印刷コスト以上）（✅ part613。税は `pay{tax}` で包む。断ったバーストは thenPay も止める）
 **部品バッチ13（確定スキーマ）**：継続の kind `{ kind: "lifeDamageReplace"; levels; target: "self" | "ownAll"; familyFilter?: FamilyFilter; phaseTurn?; action: EffectAction }`（effectDefContinuous.ts）。対象のスピリットの**アタック**が相手のライフを減らすとき、持ち主は代わりに action を解決してよい（確認式。非対話は減る数が多いほうを選ぶ）。置換でもライフの減少として扱い `ownLifeDamaged` を誘発させる（2026-10-17 ユーザー確認）。
 段階表は `if{cond:{count:"opponentLife",atLeast:7},then:removeCores{side:"opponent",from:["life"],to:"reserve",downTo:4},else:if…}` の入れ子で書く。足すのは EffectCounter の葉 `"opponentLife"` と、removeCores `from:["life"]`＋`downTo` が動くこと。ライフ3以下は置換を出さない（051・X06）（✅ part614。複数の置換が当たるときは減る数が最も多い1つだけを出す）
-**部品バッチ14（確定スキーマ）**：GlobalConstraint `{ type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[] }`（発生源の持ち主の**相手**に掛かる。相手の、sourceTypes の効果で、相手のボイド/トラッシュから相手のライフ/フィールド/リザーブへ置くコアを、ターンに合計 max 個まで。マジックの効果・コアステップ・コストの支払いは数えない。累計は GameState にプレイヤーごと・ターンごとに持つ。063）
+**部品バッチ14（確定スキーマ）**：GlobalConstraint `{ type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[] }`（発生源の持ち主の**相手**に掛かる。相手の、sourceTypes の効果で、相手のボイド/トラッシュから相手のライフ/フィールド/リザーブへ置くコアを、ターンに合計 max 個まで。マジックの効果・コアステップ・コストの支払いは数えない。累計は GameState にプレイヤーごと・ターンごとに持つ。063）（✅ part615。聖杯が場に出る前に置いたぶんは数えない）
+**部品バッチ15（確定スキーマ・未着手）**：継続の kind `{ kind: "handBurstEffectGrant"; levels; attackerKeyword: Keyword[] }`（持ち主の、いずれかのキーワードを持つスピリットがアタックしている間）と GameAction `{ type: "useHandBurstEffect"; handIndex: number }`（フラッシュタイミング。手札のバースト持ちマジックのコストを軽減込みで払い、kind:"burst" の action を thenPay も含めて解決し、カードはトラッシュ。043）。
+マジックの「使用」でもバーストの「発動」でもない＝【光芒】の回収・`ownBurstActivated`・068 の税は起きない。084 の `noBurstEffectForPid` は効く（バースト効果の発揮なので）。クライアントは手札のカードに「バースト効果を使う」を別ボタンで出し、判定は shared に置いて audit:parity を通す
+**その後**：色ごとのデータ（3役）。077・033 は既存の器（BS17_SURVEY_remaining #7・#22）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）

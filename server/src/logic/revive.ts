@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
@@ -992,8 +993,9 @@ function tryReviveOnDestroy(
         const name = getCard(inst.cardId).name
         // BS15-030愛の女神ロヴンLv2：復活成立とセットで、場を離れる前にボイドからコアをリザーブへ置く
         if (effect.alsoVoidCoreToReserve) {
-            player.reserve += effect.alsoVoidCoreToReserve
-            log(state, `${sourceName}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+            const placed = takeCoreGainAllowance(state, ownerPid, getCard(inst.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
+            player.reserve += placed
+            log(state, `${sourceName}：ボイドからコア${placed}個を${player.name}のリザーブに置いた。`)
         }
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
@@ -1091,8 +1093,9 @@ function tryReviveOnDestroy(
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             if (effect.alsoVoidCoreToReserve) {
-                player.reserve += effect.alsoVoidCoreToReserve
-                log(state, `${getCard(source.cardId).name}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+                const placed = takeCoreGainAllowance(state, ownerPid, getCard(source.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
+                player.reserve += placed
+                log(state, `${getCard(source.cardId).name}：ボイドからコア${placed}個を${player.name}のリザーブに置いた。`)
             }
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
             noteCoverage(effect, "reviveOnDestroy")

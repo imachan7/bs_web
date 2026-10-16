@@ -1,5 +1,6 @@
 // コアを「取り除く」器（R5。旧 coreRemove 系28種の統合先。旧ハンドラは data 移行が済むまで cores.ts に残す）。
 // スキーマは docs/design/CORE_UNIFY_REMOVE.md §3。
+import { takeCoreGainAllowance } from "../coreGainCap"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
@@ -483,6 +484,7 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     }
     if (s.kind === "trash") {
         if (normalTrashOf(player) <= 0) return 0
+        if (s.pid === owner && (to === "reserve" || to === "life") && takeCoreGainAllowance(state, owner, srcType, "trash", to, 1) <= 0) return 0
         player.trashCores -= 1
         depositTo(state, s.pid, to, 1, "トラッシュ")
         return 1

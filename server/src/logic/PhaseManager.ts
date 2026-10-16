@@ -520,6 +520,7 @@ export function endTurn(state: GameState): void {
     delete state.selfSummonCostUsedNames
     // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
     state.millCountThisTurn = { p1: 0, p2: 0 }
+    state.coreGainCountThisTurn = { p1: 0, p2: 0 }
     state.millCountThisTurnMutual = { p1: 0, p2: 0 }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
