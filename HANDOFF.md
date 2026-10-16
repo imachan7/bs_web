@@ -21,7 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：7（カバレッジの計測を1行呼び出しの方式にする）
+### 次の一手：7（カバレッジの計測を1行呼び出しの方式にする。ブランチ `chore/coverage-note-calls`。10-16 確定）
+
+- エンジンに `noteCoverage(effect, "kind")`・`noteKeyword`・`noteAction`・`noteInstance` を直接書く（`shared/coverage.ts`。記録先が null なら即 return）。kind は `EffectDef["kind"]` 型
+- 計測は worktree と正規表現の差し込みをやめ、**作業ツリーで** `COV_OUT` 付き smoke を流す（未コミットの変更も測る。ユーザー了承）
+- `MEASURED_CONTINUOUS_KINDS` と `checkPatchTargets`（part160）は、ソースを grep した計測点の集合と「カードデータの kind に計測点があるか」の静的検査に置き換える
+- 移行は今の patch を本物のツリーに一度当てて機械的に呼び出しへ直す。**移行前後で「発火した効果エントリの集合」が完全一致**することを確かめる
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
