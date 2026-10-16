@@ -1,5 +1,6 @@
 // バトル進行・配置系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { flushSummonBatch } from "../summon"
 import { resolveSummonRepeatPaid } from "./summonRepeat"
 import { summonSurcharge } from "../../../../shared/cost"
 import { recordLifeLost } from "../record"
@@ -1051,6 +1052,10 @@ const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => 
     fireSummonSequence(state, owner, self, action.byFushi === true)
 }
 
+const summonBatchFlushHandler: ActionHandler<"summonBatchFlush"> = (ctx) => {
+    flushSummonBatch(ctx.state, ctx.owner)
+}
+
 
 // 相手の合体スピリットの**ブレイヴだけ**を破壊する（BRAVE.md §6.5。BS11-014／BS11-016）。
 // ホストは無傷で場に残る。どのホストのブレイヴを壊すかは**効果の使用者**が選ぶ
@@ -1674,6 +1679,7 @@ const handlers = {
     summonFromHandFree: summonFromHandFreeHandler,
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonSequence: summonSequenceHandler,
+    summonBatchFlush: summonBatchFlushHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

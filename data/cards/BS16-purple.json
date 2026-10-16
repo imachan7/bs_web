@@ -98,8 +98,7 @@
          "cardType": "spirit",
          "nameIncludes": "金狐角"
         },
-        "count": 1,
-        "skipOnSummon": true
+        "count": 1
        }
       }
     ]
@@ -163,8 +162,7 @@
          "cardType": "spirit",
          "nameIncludes": "銀狼角"
         },
-        "count": 1,
-        "skipOnSummon": true
+        "count": 1
        }
       },
       {

@@ -636,6 +636,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["revealApplyOne", "revealで選ばれた1枚をdestへ送る内部専用（resolveInOrderの再開フレームがこの名前で積む）"],
     ["revealRest", "revealで選ばれなかった残りをrest先へ送る内部専用（revealApplyOne/revealの内側から積む）"],
     ["burstMagicFreeOrThenPay", "burstMagicFreeEffect の4択（払う／無償メイン／無償フラッシュ／やめる）の再開用の内部専用"],
+    ["summonBatchFlush", "オープンから複数体を同時に召喚し終えたあと、後回しにした召喚時効果をまとめて発揮する（moveRevealed が積む）"],
     ["revealFinishSummon", "revealApplyOneのdest:summon（tensho既定）で【転召】の対象選択から中断したときの続き"],
 ])
 

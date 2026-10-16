@@ -2,7 +2,7 @@
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
-import { fchangeCostAs } from "../summon"
+import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { canDiscardHand, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, trashCardNameMatches } from "../../../../shared/rules"
@@ -252,9 +252,13 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     const zone = action.from === "hand" ? player.hand : player.trashCards
     const done = action.done ?? []
     // 1回の効果で続けて召喚するあいだだけ余分の支払い済みを持つ
-    if (done.length === 0 && action.dest === "summon") delete state.summonSurchargePaid
+    if (done.length === 0 && action.dest === "summon") {
+        delete state.summonSurchargePaid
+        if (action.count === "all" || action.count >= 2 || action.costBudget !== undefined) startSummonBatch(state)
+    }
     const end = (): void => {
         recordMoved(state, done)
+        if (action.dest === "summon") flushSummonBatch(state, pid)
         if (done.length === 0) log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象がなかった。`)
     }
     const deliver = (j: number): void => {
@@ -351,7 +355,9 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     })
     // 取り出した順に送る（途中で選択待ちになったら残りは再開スタックへ）
     const sendAll = (ids: string[], after?: EffectAction): void => {
-        const frames = [...ids.map(applyOne), ...(after ? [after] : [])]
+        const together = ids.length >= 2 && (dest === "summon" || dest === "summonOrPlace")
+        if (together) startSummonBatch(state)
+        const frames = [...ids.map(applyOne), ...(after ? [after] : []), ...(together ? [{ type: "summonBatchFlush" } as const] : [])]
         resolveInOrder(state, frames, {
             resolve: (a) => ctx.resolve(a, { sourceColors: ctx.srcColors, sourceType: ctx.srcType }),
             frame: (a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a }),
