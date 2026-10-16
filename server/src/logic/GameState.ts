@@ -1,4 +1,5 @@
 // GameState / PlayerState の状態生成・更新の土台
+import { noteInstance } from "../../../shared/coverage"
 import type {
     CardData,
     CardInstance,
@@ -29,6 +30,7 @@ import { DECK_RECIPES } from "../../../data/constants"
 import { revertAttackStepNexusAsSpirit } from "./PhaseManager"
 import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOverrides } from "./EffectModules"
 import { setCardLookup } from "../../../shared/cardDb"
+import { startCoverageIfRequested } from "./coverageRecorder"
 import { applyDeckPolicy } from "./deckPolicy"
 import { isOnceNameUsed, markOnceNameUsed } from "./oncePerTurn"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
@@ -46,6 +48,7 @@ export const ALL_CARDS: CardData[] = loadAllCards().map(applyDeckPolicy)
 export const CARD_DB: Map<string, CardData> = new Map(
     ALL_CARDS.map((c) => [c.cardId, c]),
 )
+startCoverageIfRequested(CARD_DB)
 
 export function getCard(cardId: string): CardData {
     const card = CARD_DB.get(cardId)
@@ -69,6 +72,7 @@ export function createInstance(
     // "freeEffect"=その他の効果による無償召喚。未指定=記録なし）
     summonedBy?: string,
 ): CardInstance {
+    noteInstance(cardId)
     instanceSeq += 1
     return {
         instanceId: `inst-${String(instanceSeq).padStart(6, "0")}`,

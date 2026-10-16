@@ -1,4 +1,5 @@
 // 覚醒・起動能力・指定アタック・維持コア・フラッシュのロック・代替召喚（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage } from "../coverage"
 
 import type {
     CardData,
@@ -34,6 +35,7 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            noteCoverage(effect, "sokuPaySourceGrant")
             if (effect.scope === "self") {
                 allowed.add(source.instanceId)
                 continue
@@ -83,6 +85,7 @@ export function burstSetCoresRequired(board: Board, pid: PlayerId): number {
                 if (effect.phaseTurn.turn === "own" && opp !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && opp === board.turnPlayer) continue
             }
+            noteCoverage(effect, "burstSetCost")
             total += effect.reserveToTrash
         }
     }
@@ -111,6 +114,7 @@ export function canAwakenFromReserve(board: Board, ownerPid: PlayerId, inst?: Ca
             // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
             // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
             if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
+            noteCoverage(effect, "awakenFromReserve")
             return true
         }
     }
@@ -465,7 +469,10 @@ export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "flashLockWhileAttackingFamily") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) return true
+            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) {
+                noteCoverage(effect, "flashLockWhileAttackingFamily")
+                return true
+            }
         }
     }
     return false

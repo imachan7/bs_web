@@ -1,4 +1,5 @@
 // 【バースト】のセットと発動
+import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
@@ -303,6 +304,7 @@ export function fireBurstOnEvent(
         const distinctCosts = [...new Set(costs)]
         // event:"ownLifeDamaged"限定：ライフを減らしたスピリットのinstanceId（EffectCounter等が読む先はstate.burstEventLifeDamagerId）
         const lifeDamagerId = event === "ownLifeDamaged" ? (targetInstanceId ?? state.battle?.lifeDamagers?.at(-1)) : undefined
+        noteCoverage(effect, "burst")
         // 発動は常に任意（バーストは宣言制。空打ち＝条件未達での宣言は不可なので、ここに来た時点で条件は満たしている）。
         // 実対戦では発動確認を出し、非対話（テスト）では従来どおり自動で発動する
         if (state.interactiveTargets) {
@@ -400,6 +402,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         player.trashCards.push(cardId)
         return
     }
+    noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true
     announceBurstActivation(state, owner, cardId)

@@ -1,5 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { moveCardCandidates } from "./actions/moveCards"
 import type { CardData, CardInstance, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
@@ -226,7 +227,12 @@ export function validateSummon(
     )
     // 緑芽吹く原野Lv2：場の発生源が手札のカードに継続的に【神速】を与えている（手札には書き込まない）
     const hasFieldSoku = hasHandKeywordGrant(state, pid, card, "soku")
-    const flashSummon = state.isFlashTiming && (hasKeyword(cardId, "soku") || hasTempSoku || hasFieldSoku || flashSummonFromHandNow(state, pid, cardId))
+    const staticSoku = hasKeyword(cardId, "soku")
+    if (state.isFlashTiming && staticSoku) {
+        const sokuEntry = getCard(cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "soku")
+        if (sokuEntry) noteCoverage(sokuEntry, "keyword")
+    }
+    const flashSummon = state.isFlashTiming && (staticSoku || hasTempSoku || hasFieldSoku || flashSummonFromHandNow(state, pid, cardId))
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
@@ -404,6 +410,7 @@ function maxSpiritsOnField(state: GameState): number | null {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "maxSpiritsOnField") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
+                noteCoverage(effect, "globalConstraint")
                 const max = effect.constraint.max
                 cap = cap === null ? max : Math.min(cap, max)
             }
@@ -1556,6 +1563,7 @@ function hasMustBlockAgainst(
             ) {
                 continue
             }
+            noteCoverage(effect, "mustBlockGrant")
             return effect.blockerMaxBp === undefined
                 ? { source: inst }
                 : { blockerMaxBp: effect.blockerMaxBp, source: inst }
@@ -1643,6 +1651,10 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         spiritHasLabeledKeyword(state, state.turnPlayer, attacker, "clash") &&
         hasLegalBlocker(state, pid, undefined, { pid: state.turnPlayer, inst: attacker })
     ) {
+        if (hasKeyword(attacker.cardId, "clash")) {
+            const clashEntry = getCard(attacker.cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "clash")
+            if (clashEntry) noteCoverage(clashEntry, "keyword")
+        }
         return "【激突】によりブロックしなければなりません"
     }
     if (forcedBlockers(state, pid).length > 0) return "相手の効果により、指定されたスピリットでブロックしなければなりません"

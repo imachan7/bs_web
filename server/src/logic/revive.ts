@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
 import { recordLifeLost } from "./record"
@@ -201,6 +202,9 @@ function fushiFreeExhaustSource(state: GameState, ownerPid: PlayerId, card: Card
         const hit = getCard(nexus.cardId).effects.some(
             (e) => e.kind === "fushiFreeByExhaust" && effectActiveAtLevel(e.levels, level) && card.cost <= e.maxCost,
         )
+        if (hit) {
+            noteCoverage(getCard(nexus.cardId).effects.find((e) => e.kind === "fushiFreeByExhaust"), "fushiFreeByExhaust")
+        }
         if (hit) return nexus.instanceId
     }
     return null
@@ -236,6 +240,7 @@ export function fushiCandidates(
         const canPayNormally = fushiPayable(state, ownerPid, card)
         const canPayFree = canPayFreeSummonSurcharge(state, ownerPid, card, maintain) && fushiFreeExhaustSource(state, ownerPid, card) !== null
         if (!canPayNormally && !canPayFree) continue
+        noteKeyword(getCard(cardId).effects, "fushi")
         found.push(i)
     }
     return found
@@ -986,6 +991,7 @@ function tryReviveOnDestroy(
         }
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
+        noteCoverage(effect, "reviveOnDestroy")
         applyRevived(effect.revived)
         log(
             state,
@@ -1081,6 +1087,7 @@ function tryReviveOnDestroy(
                 log(state, `${getCard(source.cardId).name}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
             }
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
+            noteCoverage(effect, "reviveOnDestroy")
             applyRevived(effect.revived)
             log(
                 state,

@@ -6,6 +6,7 @@
 //   - ハンドラ層: キーワードはレジストリ、アクションは resolveAction で解決
 // キーワードごとの処理は keywords/（【バースト】は keywords/burst.ts）、デッキ破棄は zones/mill.ts、疲労・回復は state/exhaust.ts、
 // 継続効果の再計算は state/continuous.ts、対象の選び方と選択待ちの発行は targeting.ts、召喚時の誘発と無償召喚は summon.ts に分けてある。
+import { noteAction, noteCoverage } from "../../../shared/coverage"
 import { chimeiBase, chimeiBonus } from "./keywords/chimei"
 import { recordBp, refreshLevelAsOverrides } from "./state/continuous"
 import { requestCardChoice } from "./targeting"
@@ -360,6 +361,7 @@ function tryPayableTargetNegate(
                 noteMissedPayAsk(`${getCard(source.cardId).name}：${getCard(target.cardId).name}を対象にする効果（${attempt.op}）が払う確認を通らず適用された`)
                 continue
             }
+            noteCoverage(effect, "targetNegateByHandDiscard")
             const discarded = player.hand.splice(player.hand.length - effect.discardCount, effect.discardCount)
             player.trashCards.push(...discarded)
             log(
@@ -531,6 +533,7 @@ export function destroyedCoresGoToTrash(state: GameState): boolean {
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                noteCoverage(effect, "destroyedCoresToTrash")
                 return true
             }
         }
@@ -561,6 +564,7 @@ export function destroyBpThresholdBonusFor(state: GameState, ownerPid: PlayerId)
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "destroyBpThresholdBonus") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "destroyBpThresholdBonus")
             total += effect.amount
         }
     }
@@ -616,6 +620,7 @@ export function tryLifeDamageMillGuard(
                     continue
                 }
             }
+            noteCoverage(effect, "lifeDamageMillGuard")
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
@@ -708,6 +713,7 @@ export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): b
             if (effect.kind !== "summonedExhaustGrant") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.condition?.selfRested && !source.isRested) continue
+            noteCoverage(effect, "summonedExhaustGrant")
             return true
         }
     }
@@ -722,6 +728,7 @@ export function hasBurstMagicFreeEffect(state: GameState, ownerPid: PlayerId): b
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "burstMagicFreeEffect") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "burstMagicFreeEffect")
             return true
         }
     }
@@ -761,6 +768,7 @@ function blockTriggersGrant(state: GameState, ownerPid: PlayerId, inst: CardInst
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) {
                 continue
             }
+            noteCoverage(effect, "blockTriggersAsAttackGrant")
             return true
         }
     }
@@ -793,6 +801,7 @@ export function hasAttackTriggersAsBlock(
                 ) {
                     continue
                 }
+                noteCoverage(effect, "attackTriggersAsBlockGrant")
                 if (effect.keywordFilter && !spiritHasKeyword(state, ownerPid, inst, effect.keywordFilter)) {
                     continue
                 }
@@ -860,7 +869,10 @@ export function hasLifeDamageNegate(
                 if (effect.phaseTurn.turn === "own" && defenderPid !== state.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && defenderPid === state.turnPlayer) continue
             }
-            if (attackerBp <= effectiveBp(state, defenderPid, source)) return true
+            if (attackerBp <= effectiveBp(state, defenderPid, source)) {
+                noteCoverage(effect, "lifeDamageNegate")
+                return true
+            }
         }
     }
     return false
@@ -874,6 +886,7 @@ function coreBonusFor(inst: CardInstance): number {
     for (const e of getCard(inst.cardId).effects) {
         if (e.kind !== "coreBonus") continue
         if (!effectActiveAtLevel(e.levels, level)) continue
+        noteCoverage(e, "coreBonus")
         bonus += e.amount
     }
     return bonus
@@ -922,6 +935,7 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
                         : player.field.spirits.some((s) => spiritHasFamily(state, pid, s, cond.ownFieldHasFamily))
                 if (!ok) continue
             }
+            noteCoverage(effect, "coreStepBonus")
             bonus += effect.amount
         }
     }
@@ -1147,6 +1161,7 @@ export function applyMagicBuffBonus(
                 if (source.instanceId === target.instanceId) continue
                 if (!instHasColor(target, "green")) continue
             }
+            noteCoverage(effect, "magicBuffBonus")
             recordBp(state, targetOwner, target, effect.amountBonus, "turn")
             log(
                 state,
@@ -1231,7 +1246,9 @@ export function countEffectCounter(
         const entry = getCard(self.cardId).effects.find(
             (e) => e.kind === "keyword" && e.keyword === "bofu" && effectActiveAtLevel(e.levels, level),
         )
-        return entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        const bofuCount = entry && entry.kind === "keyword" ? (entry.count ?? 1) : 0
+        if (entry && bofuCount > 0) noteCoverage(entry, "keyword")
+        return bofuCount
     }
     if (counter === "opponentTrashCores") return state.players[opp].trashCores
     // selfSymbols：このスピリット（self）自身が持つシンボル数（BS05碧緑の竜使いグリューン）
@@ -1436,6 +1453,7 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (state.phase !== effect.phaseTurn.phase) continue
             if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue
+            noteCoverage(effect, "drawDouble")
             return 2
         }
     }
@@ -1567,6 +1585,7 @@ export function resolveAction(
                 opts?.chosenCardIndex,
             ),
     }
+    noteAction(action)
     const handler = ACTION_HANDLERS[action.type] as (c: ActionCtx, a: EffectAction) => void
     // いま解決中の効果の発生源を state に載せる（docs/design/EFFECT_SOURCE_CONTEXT.md）。
     // 「**相手の〈色〉の効果で**〜されたとき」（fieldEvent.sourceColorFilter）が読む。

@@ -1,4 +1,5 @@
 // 対象選択の絞り込み（TargetFilter）（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage, noteGrantedFrom } from "../coverage"
 
 import type {
     CardInstance,
@@ -155,7 +156,9 @@ export function cardNameContains(inst: CardInstance, text: string): boolean {
 export function trashCardNameMatches(cardId: string, needle: string): boolean {
     const c = card(cardId)
     if (c.name.includes(needle)) return true
-    return c.effects.some((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+    const found = c.effects.find((e) => e.kind === "trashNameAs" && e.name.includes(needle))
+    if (found) noteCoverage(found, "trashNameAs")
+    return found !== undefined
 }
 
 // コスト範囲の判定（TargetFilter.cost）。
@@ -181,5 +184,7 @@ export function instMatchesCostFilter(
     // 実コストは instBaseCost 経由で見る（asSpiritThisTurn の置き換えと instCostDelta の増減を含む）
     if (matchesCostFilter(instBaseCost(inst), costFilter)) return true
     if (inst.tempAlsoCosts.some((c) => matchesCostFilter(c, costFilter))) return true
-    return (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
+    const hit = (inst.alsoCostsContinuous ?? []).some((c) => matchesCostFilter(c, costFilter))
+    if (hit) noteGrantedFrom(inst, "alsoCostGrant")
+    return hit
 }

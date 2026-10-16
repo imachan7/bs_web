@@ -1,4 +1,5 @@
 // 【光芒】の判定と解決
+import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { notifyHandGained } from "../fieldEventTriggers"
@@ -12,7 +13,10 @@ export function hasKoboOnBlock(state: GameState, ownerPid: PlayerId): boolean {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "koboOnBlock") continue
-            if (effectActiveAtLevel(effect.levels, level)) return true
+            if (effectActiveAtLevel(effect.levels, level)) {
+                noteCoverage(effect, "koboOnBlock")
+                return true
+            }
         }
     }
     return false
@@ -42,6 +46,12 @@ export function resolveKoboOnBattleEnd(
         timedKeywords(state, attacker).some((k) => k.keyword === "kobo") ||
         hasContinuousKeywordGrant(state, attackerPid, attacker, "kobo")
     if (!hasKobo) return
+    if (hasStaticKobo) {
+        const koboEntry = getCard(attacker.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "kobo" && effectActiveAtLevel(e.levels, attackerLevel),
+        )
+        if (koboEntry) noteCoverage(koboEntry, "keyword")
+    }
     const player = state.players[attackerPid]
     let recovered = 0
     for (const cardId of usedMagicCardIds) {

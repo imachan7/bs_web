@@ -237,7 +237,7 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[]
 `npm run coverage:effects` は**継続効果が一度でも発火したか**を実測する。
 2026-08-24 に全 kind へ計測点を入れ、いまは**未計測0件・実行率100%**を維持している。
 
-**ブレイヴで新しい `kind` を足したら、`scripts/coverage-effects.ts` に計測点も足すこと。**
+**ブレイヴで新しい `kind` を足したら、効いた所に `noteCoverage(effect, "kind")` も書くこと**（書き忘れは smoke の part160 が落とす）。
 足さないと「未計測の kind」に落ち、**書いたのに一度も発火していない効果が見えなくなる**
 （2026-08-24 に45種72件がこの状態で、実際に12件が未発火だった）。
 

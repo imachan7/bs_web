@@ -1,4 +1,5 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
+import { noteCoverage } from "../../../shared/coverage"
 import { hasSummonedExhaustGrant, payCost } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
@@ -34,6 +35,7 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
             (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
         )
         if (!hit) continue
+        noteCoverage(hit, "trashSummonOnNameSummoned")
         // 維持コアを払えないなら確認自体を出さない（【不死】と同じ方針）
         if (!canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card))) continue
         if (state.interactiveTargets) {

@@ -1,4 +1,5 @@
 // キーワードの定義・レベルと BP・ブレイヴの合成・盤面の位置（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage, noteGrantedFrom } from "../coverage"
 
 import type {
     CardData,
@@ -151,7 +152,9 @@ export function isVanillaCard(cardData: CardData): boolean {
 // （noTrashRecoveryのように各ハンドラ冒頭へ個別に書くと、書き忘れの経路が残る。
 // BS10-108ルナティックシール：「トラッシュにあるこのマジックカードは、一切の効果を受けない」＝自分の効果からも守られる）
 export function isTrashCardProtected(cardId: string): boolean {
-    return card(cardId).effects.some((e) => e.kind === "trashImmunity")
+    const found = card(cardId).effects.find((e) => e.kind === "trashImmunity")
+    if (found) noteCoverage(found, "trashImmunity")
+    return found !== undefined
 }
 
 // トラッシュにあるこのカードが、持ち主の『自分のエンドステップ』に手札へ戻るか（kind:"trashReturnAtEndStep"）。
@@ -256,6 +259,7 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId, nexus?: CardInstan
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
             if (effect.phase !== undefined && effect.phase !== board.phase) continue
+            noteCoverage(effect, "nexusEffectsDisabled")
             return true
         }
     }
@@ -276,6 +280,7 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId, nexus?: CardInstan
             if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
             if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
+            noteCoverage(effect, "nexusEffectsDisabled")
             return true
         }
     }
@@ -294,7 +299,9 @@ export function isVirtualSource(inst: CardInstance): boolean {
 export function instHasCost(inst: CardInstance, cost: number): boolean {
     if (instBaseCost(inst) === cost) return true
     if (inst.tempAlsoCosts.includes(cost)) return true
-    return (inst.alsoCostsContinuous ?? []).includes(cost)
+    const hit = (inst.alsoCostsContinuous ?? []).includes(cost)
+    if (hit) noteGrantedFrom(inst, "alsoCostGrant")
+    return hit
 }
 
 // このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。

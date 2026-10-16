@@ -1,4 +1,5 @@
 // ターン進行・フェーズ遷移の制御
+import { noteCoverage } from "../../../shared/coverage"
 import type { GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
@@ -28,6 +29,7 @@ function applyAttackStepNexusAsSpirit(state: GameState): void {
                         (effect.nameContains === undefined || cardNameContains(n, effect.nameContains)),
                 )
                 if (targets.length === 0) continue
+                noteCoverage(effect, "nexusAsSpiritDuringAttackStep")
                 for (const nexus of targets) {
                     player.field.nexuses.splice(player.field.nexuses.indexOf(nexus), 1)
                     nexus.asSpiritThisTurn = {
@@ -311,6 +313,7 @@ export function endTurn(state: GameState): void {
     if (state.phase === "attack" && !state.extraStepAfterAttackUsed) {
         const source = extraStepSource(state)
         if (source) {
+            noteCoverage(getCard(source.cardId).effects.find((e) => e.kind === "extraStepAfterAttackStep"), "extraStepAfterAttackStep")
             state.extraStepAfterAttackUsed = true
             if (!state.interactiveTargets) {
                 runExtraStep(state, "ドローステップ")
@@ -421,6 +424,7 @@ export function endTurn(state: GameState): void {
             if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
+            noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)
             returnedCounts.set(cardId, already + 1)

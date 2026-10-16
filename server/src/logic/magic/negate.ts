@@ -1,4 +1,5 @@
 // マジックの無効化（magicNegate）
+import { noteCoverage, noteKeyword } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
@@ -21,6 +22,7 @@ export function magicNegateNexusPayer(state: GameState, ownerPid: PlayerId): Car
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
+            noteCoverage(effect, "magicNegatePayByNexusGrant")
             granted = true
         }
     }
@@ -37,6 +39,7 @@ export function magicNegateTurnOverride(state: GameState, ownerPid: PlayerId): "
             if (effect.kind !== "magicNegateTurnOverrideGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            noteCoverage(effect, "magicNegateTurnOverrideGrant")
             return effect.turn
         }
     }
@@ -94,6 +97,7 @@ export function findMagicNegateSource(
                 if (inst.cores < effect.cost.selfCoresToVoid) continue
             }
             // cost:{none} は支払い無し（SD02-014 魔法監視塔Lv2）。そのまま発動できる
+            if (isHyoheki) noteKeyword(getCard(inst.cardId).effects, "hyoheki")
             return payer && "exhaustSelf" in effect.cost
                 ? { pid: defenderPid, inst, effect, nexusPayer: payer }
                 : { pid: defenderPid, inst, effect }
@@ -114,6 +118,7 @@ export function payMagicNegate(
     card: CardData,
 ): void {
     const { pid, inst, effect } = found
+    noteCoverage(effect, "magicNegate")
     if ("exhaustSelf" in effect.cost) {
         if (found.nexusPayer) {
             // ノルンの泉：スピリットの代わりにネクサス1つを疲労させる

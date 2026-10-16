@@ -1,4 +1,5 @@
 // 制約・免疫・期間つき効果の読み取り（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage, noteKeyword } from "../coverage"
 
 import type {
     ConstraintDef,
@@ -71,7 +72,7 @@ export function activeConstraintsWithSource(
                                 (e.phaseTurn.turn === "both" ||
                                     (e.phaseTurn.turn === "own") === (pid === board.turnPlayer)))),
                 )
-                .map((e) => (e as { constraint: ConstraintDef }).constraint),
+                .map((e) => { noteCoverage(e, "constraint"); return (e as { constraint: ConstraintDef }).constraint }),
         )
         // cantAttack の条件つき（BS04鎧装獣ヘイズ・ルーン：相手のフィールドに赤のスピリットが
         // **いない間**だけアタックできない）。条件を満たさなくなったら制約自体を外す
@@ -162,6 +163,7 @@ export function activeConstraintsWithSource(
             if (effect.summonedBy !== undefined && inst.summonedBy !== effect.summonedBy) continue
             if (effect.summonedThisTurnOnly === true && inst.summonedTurn !== board.turn) continue
             if (effect.teamFilter !== undefined && !(card(inst.cardId).team ?? []).includes(effect.teamFilter)) continue
+            noteCoverage(effect, "constraintGrant")
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
     }
@@ -195,6 +197,7 @@ export function activeConstraintsWithSource(
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             if (effect.nameContains !== undefined && !cardNameContains(inst, effect.nameContains)) continue
+            noteCoverage(effect, "constraintSuppression")
             suppressed.add(effect.constraintType)
         }
     }
@@ -251,7 +254,10 @@ export function hasArmorAgainst(board: Board, inst: CardInstance, sourceColors: 
             effectActiveOn(inst, e, level) &&
             (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
-    if (staticArmor) return true
+    if (staticArmor) {
+        noteKeyword(card(inst.cardId).effects, "armor", level)
+        return true
+    }
     // 一時付与の装甲（インビンシブルシールド）
     if (
         timedKeywords(board, inst).some(
@@ -333,6 +339,7 @@ export function hasGlobalConstraint(
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
+                noteCoverage(effect, "globalConstraint")
                 return true
             }
         }
@@ -506,6 +513,7 @@ export function costCantAct(board: Board, cost: number): boolean {
                 if (!effectActiveAtLevel(effect.levels, level)) continue
                 const { maxCost, costs } = effect.constraint
                 if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
+                    noteCoverage(effect, "globalConstraint")
                     return true
                 }
             }
@@ -1143,6 +1151,7 @@ function hasImmunityAgainst(
                 )
                 if (matchCount < count) continue
             }
+            noteCoverage(effect, "immunityGrant")
             return true
         }
     }
