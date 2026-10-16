@@ -54,6 +54,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
 - `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
+## shared/handBurstEffect.ts
+
+- `handBurstEffectDenial`（fn）：使えない理由（使えるなら null）。コストを払えるかは含まない。
+- `noteHandBurstEffectUsed`（fn）：計測点（サーバーが実際に発揮したときだけ呼ぶ。判定関数はクライアントからも呼ばれるため noteCoverage をここに置かない）
+
 ## shared/magicCondition.ts
 
 - `magicConditionFailure`（fn）：満たしていれば null、満たしていなければ理由の文を返す
@@ -573,6 +578,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryHandFreeSummonOnOwnNexusDeployed`（fn）：手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
 - `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
 
+## server/src/logic/handBurstEffect.ts
+
+- `doUseHandBurstEffect`（fn）：発動でも使用でもないので、効果税（on:"burst"）・usedMagicCardIds・【光芒】の回収・ownBurstActivated は通らない。
+
 ## server/src/logic/keywords/bofu.ts
 
 - `hasBofuOnBlock`（fn）：持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
@@ -586,6 +595,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `announceBurstActivation`（fn）：発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
 - `continueBurstActivation`（fn）
 - `finishBurstActivation`（fn）：発揮し終えたバーストの行き先（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+- `burstEffectBlocked`（fn）：noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
@@ -1130,6 +1140,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryResolveCardChoice`（fn）：pendingChoiceが自分宛かつkind:"card"・cardZone:"hand"、クリックしたhandIndexが候補内なら
 - `onBurstSetClick`（fn）：バーストセットボタン（docs/design/BURST.md）。すでにバーストがセットされている場合は
 - `onHandAbilityClick`（fn）：手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
+- `onHandBurstEffectClick`（fn）：手札のマジックのバースト効果を発揮する（handBurstEffectGrant）。通常のマジック使用（onHandClick）とは別操作
 - `onHandClick`（fn）
 - `tryResolveChoice`（fn）：pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
 - `onMySpiritClick`（fn）

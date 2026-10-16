@@ -27,6 +27,7 @@ import { wouldDepleteOf, moveSoulCore, placeSoulCoreOnSummoned, soulCoreInReserv
 import { resolveBlockDeclared } from "./blockDeclared"
 import { finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
+import { doUseHandBurstEffect } from "./handBurstEffect"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
@@ -292,6 +293,11 @@ function dispatchAction(
                 action.paySoulCoreFromReserve,
                 action.useSoulCoreOnly,
             )
+        case "useHandBurstEffect": {
+            const error = doUseHandBurstEffect(state, pid, action.handIndex, action.paySources, action.paySoulCoreFromReserve)
+            if (error === null) passFlashPriority(state, pid)
+            return error
+        }
         case "useHandAbility":
             return doUseHandAbility(state, pid, action.handIndex, action.effectId)
         case "swapSoulCore":

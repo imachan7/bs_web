@@ -349,6 +349,33 @@ export function onHandAbilityClick(handIndex: number, effectId: string): void {
     send({ type: "useHandAbility", handIndex, effectId })
 }
 
+// 手札のマジックのバースト効果を発揮する（handBurstEffectGrant）。通常のマジック使用（onHandClick）とは別操作
+export function onHandBurstEffectClick(handIndex: number): void {
+    if (!view) return
+    const cardId = view.players[view.you].hand?.[handIndex]
+    if (cardId === undefined) return
+    const cost = effectiveCost(view, view.you, master(cardId))
+    const player = view.players[view.you]
+    const soulInReserve = player.soulCore?.zone === "reserve"
+    if (ui.payMode === "auto" && player.reserve - (soulInReserve ? 1 : 0) >= cost) {
+        send({ type: "useHandBurstEffect", handIndex })
+        return
+    }
+    ui.targeting = null
+    ui.awakenTarget = null
+    ui.summonLevelSelect = null
+    ui.battleSwapSummon = null
+    ui.braveSummonSelect = null
+    ui.altSummonSelect = null
+    ui.exReductionSelect = null
+    ui.soulCoreOnlySelect = null
+    ui.soulSwapSelect = null
+    ui.combineBrave = null
+    ui.paying = { handIndex, forHandBurst: true, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
+    if (soulInReserve && player.reserve - 1 === cost - 1) ui.paying.useSoulCore = true
+    rerender()
+}
+
 export function onHandClick(handIndex: number): void {
     if (!view) return
     // 選択待ち中は通常の手札操作（召喚等）をすべて抑止する。自分宛のkind:"card"・cardZone:"hand"

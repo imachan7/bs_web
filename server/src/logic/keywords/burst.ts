@@ -61,13 +61,15 @@ export function continueBurstActivation(state: GameState, frame: BurstFinishFram
         // 税を断った・払えなかったバーストは効果全体が発揮できないので、その後の thenPay も出さない
         const taxUnpaid = (state.burstTaxUnpaid ?? 0) > 0
         delete state.burstTaxUnpaid
-        if (!taxUnpaid) tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay)
+        if (!taxUnpaid) tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay, frame.handUse)
         if (state.winner) return
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ ...frame, stage: "settle" }])
             return
         }
     }
+    // handUse（手札からの発揮）はバーストエリアを経由せず、発動でもないので後始末と「バースト発動後」の誘発を飛ばす
+    if (frame.handUse) return
     if (frame.stage !== "notify") {
         finishBurstActivation(state, frame.pid, frame.cardId, frame.actionType, frame.toHand ? { toHand: true } : undefined)
     }
@@ -113,11 +115,12 @@ function tryBurstThenPay(
     pid: PlayerId,
     cardId: string,
     thenPay: "main" | "flash" | undefined,
+    handUse?: true,
 ): void {
     if (state.winner) return
     const card = getCard(cardId)
     // burstMagicFreeEffect持ちがいれば、こちらの分岐（無償選択肢つき）に委ねる（BS16-070）
-    if (card.type === "magic" && hasBurstMagicFreeEffect(state, pid)) {
+    if (card.type === "magic" && !handUse && hasBurstMagicFreeEffect(state, pid)) {
         tryBurstMagicFreeOrThenPay(state, pid, cardId, thenPay)
         return
     }
@@ -202,7 +205,7 @@ function tryBurstMagicFreeOrThenPay(
 }
 
 // noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
-function burstEffectBlocked(state: GameState, pid: PlayerId, cardId: string): boolean {
+export function burstEffectBlocked(state: GameState, pid: PlayerId, cardId: string): boolean {
     const card = getCard(cardId)
     const hit = timedPlayerRules(state, pid).some((r) => r.type === "noBurstEffectForPid" && (r.cost === undefined || (card.cost >= r.cost.min && card.cost <= r.cost.max)))
     if (hit) log(state, `${card.name}：効果によりバースト効果を発揮できなかった。`)

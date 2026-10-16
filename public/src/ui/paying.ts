@@ -102,6 +102,8 @@ export interface PayingState {
     // 支払いの6つ目の起点：**【迷彩：N】のコスト**（PendingChoice.meisaiPay）。起点は指定しようとしている相手のスピリット。
     // resolveChoice（option＋paySources＋paySoulCoreFromReserve）を送る
     forMeisai?: { option: string; cardId: string; need: number; effectCost?: true } // effectCost：効果の「Nコスト支払う」（PendingChoice.effectCostPay）。表示文言だけ違う
+    // 手札のマジックのバースト効果を発揮する支払い（handBurstEffectGrant）。マジックの使用ではないので castMagic ではなく useHandBurstEffect を送る
+    forHandBurst?: true
     assigned: Record<string, number> // instanceId -> 割り当てたコア数
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）

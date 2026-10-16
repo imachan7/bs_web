@@ -185,6 +185,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          // 発揮であって【バースト】の発動でもマジックの使用でもない（ユーザー確認 2026-10-17）。操作は GameAction "useHandBurstEffect"
+          kind: "handBurstEffectGrant"
+          levels: number[] | null
+          attackerKeyword: Keyword[]
+      }
+    | {
+          id: string
           kind: "bpBuffSuppression" // 発生源が場にありレベル有効の間、相手のスピリット/ネクサス/マジックによる「BPを+する」効果を発揮させない。BPを-する効果は対象外
           levels: number[] | null
           phase?: Phase // 指定時はこのステップの間のみ有効

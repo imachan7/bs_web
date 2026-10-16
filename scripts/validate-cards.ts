@@ -90,7 +90,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
-    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect",
+    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant",
 ])
 
 export interface ValidationIssue {

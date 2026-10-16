@@ -110,6 +110,16 @@ export function submitPaying(): void {
         ui.paying = null
         return
     }
+    if (pay.forHandBurst === true) {
+        send({
+            type: "useHandBurstEffect",
+            handIndex: pay.handIndex,
+            ...(paySources.length > 0 ? { paySources } : {}),
+            ...(pay.useSoulCore === true ? { paySoulCoreFromReserve: true } : {}),
+        })
+        ui.paying = null
+        return
+    }
     sendPlay(
         card.type,
         pay.handIndex,

@@ -5,6 +5,7 @@ import { CARD_TYPE_LABELS, COLOR_LABELS } from "../../../data/constants"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../../shared/cost"
 import { attachCardArt } from "../cardArt"
 import { hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned } from "../../../shared/rules"
+import { handBurstEffectDenial } from "../../../shared/handBurstEffect"
 import { payableFieldCores, payingAltPay } from "./paying"
 import { master, UiState, $ } from "../renderer"
 
@@ -248,6 +249,18 @@ export function renderHand(view: GameView, ui: UiState): void {
             badge.textContent = "効果を使う"
             badge.title = "手札のこのカードを破棄して効果を発動する"
             badge.disabled = !canUseAbility
+            el.appendChild(badge)
+        }
+
+        // 手札のバースト効果を使うボタン（handBurstEffectGrant）。通常の使用とは別操作で、使える場面でだけ出す
+        if (handBurstEffectDenial(view, view.you, cardId) === null) {
+            const canUse = !view.pendingChoice && reserve + fieldCores >= cost
+            const badge = document.createElement("button")
+            badge.className = "hand-ability-badge" + (canUse ? "" : " disabled")
+            badge.dataset.handBurstEffect = String(index)
+            badge.textContent = "バースト効果を使う"
+            badge.title = `コスト${cost}を支払い、バースト条件を無視してバースト効果を発揮する`
+            badge.disabled = !canUse
             el.appendChild(badge)
         }
 
