@@ -94,6 +94,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ②実装役（Sonnet）は①の part を**変更禁止**で通し、報告に「簡略化」欄を必ず書く →
 ③見直し役（①を SendMessage で再開）が差分を読み、効果節ごとの表と未申告の簡略化を出す。
 ②が①に異を唱えたら解釈の割れ目なので、ユーザーに確認する。詳細は [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6。
+**①②のプロンプトには TEST_STRATEGY §6 の「そのまま貼る注意点」も入れる**（「このターンの間、〜すべて」は後から出たスピリットにも効く、など）。
 下の3項目は②③のプロンプトにそのまま入れる。
 
 ### ⚠️ カード効果を実装させるときの必須項目（2026-08-02 の実装漏れ多発を受けて）
