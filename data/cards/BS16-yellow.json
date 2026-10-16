@@ -1009,6 +1009,7 @@
     "byOpponentOnly": true,
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "colorFilter": "yellow",
      "nameExcludes": "アルカナマスター・オズ",
      "count": 3,

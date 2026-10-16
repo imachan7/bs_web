@@ -4496,6 +4496,7 @@
         "optional": true,
         "action": {
           "type": "summonFromHandFree",
+          "skipOnSummon": true,
           "colorFilter": "blue",
           "costFilter": {
             "max": 4

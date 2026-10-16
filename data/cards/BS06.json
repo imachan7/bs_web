@@ -3345,6 +3345,7 @@
     ],
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "nameIncludes": "アルカナ",
      "count": 4,
      "upTo": true
