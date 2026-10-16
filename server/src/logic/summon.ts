@@ -3,7 +3,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import { hasSummonedExhaustGrant, payCost } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
-import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
+import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
 import { fireSummonTrigger } from "./triggers"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
@@ -57,8 +57,34 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     }
 }
 
+// 効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
+export function startSummonBatch(state: GameState): void {
+    if (state.summonBatch === undefined) state.summonBatch = []
+}
+
+// 全員を場に出し終えたら、それぞれの召喚時効果をターンプレイヤーが選んだ順に発揮する
+export function flushSummonBatch(state: GameState, pid: PlayerId): void {
+    const ids = state.summonBatch
+    delete state.summonBatch
+    if (!ids || ids.length === 0) return
+    const cardIdOf = (id: string): string => findInstanceAnywhere(state, id)?.cardId ?? id
+    resolveInOrder(state, ids, {
+        skip: (id) => !isOnFieldAnyZone(state.players[pid], id),
+        resolve: (id) => {
+            const inst = findInstanceAnywhere(state, id)
+            if (inst) fireSummonSequence(state, pid, inst)
+        },
+        frame: (id) => ({ kind: "action", selfInstanceId: id, actorPid: pid, action: { type: "summonSequence" } }),
+        askOrder: { pid: state.turnPlayer, label: (id) => getCard(cardIdOf(id)).name, key: cardIdOf },
+    })
+}
+
 export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardInstance, byFushi = false): void {
     if (state.winner) return
+    if (state.summonBatch) {
+        state.summonBatch.push(inst.instanceId)
+        return
+    }
     // **召喚時効果を解決する前に継続効果を組み直す**（2026-08-20 修正）。
     // refreshLevelAsOverrides は handleAction の事後フックでしか走らないため、
     // 召喚直後は「場に出たばかりの個体が自分に掛けている継続効果」がまだ反映されていない。

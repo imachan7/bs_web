@@ -66,8 +66,7 @@ export function legacyRecoverToMoveCards(a: Extract<LegacyMoveAction, { type: "r
     return move
 }
 
-// 旧 summonFromTrashFree の道筋ごとの違いをそのまま写す：
-// count・costBudget の道筋は召喚時効果を発揮させていなかった（skipOnSummon を明示する）。countCounter と1枚の道筋は発揮する
+// 旧 summonFromTrashFree を moveCards に読み替える。召喚時効果は skipOnSummon が無ければ発揮する（RESUME_STACK §6.2）
 export function legacyTrashPlayToMoveCards(a: Extract<LegacyMoveAction, { type: "summonFromTrashFree" | "castMagicFromTrashByColor" | "deployNexusFromTrashByFieldCores" }>): MoveCards {
     if (a.type === "castMagicFromTrashByColor") return { type: "moveCards", from: "trash", count: 1, dest: "cast", pay: "cost", pick: { cardType: "magic", ...(a.colorFilter ? { color: a.colorFilter } : {}) } }
     if (a.type === "deployNexusFromTrashByFieldCores") return { type: "moveCards", from: "trash", count: 1, dest: "placeNexus", pay: "fieldCoresOnly", pick: { cardType: "nexus", color: a.colors } }
@@ -80,7 +79,6 @@ export function legacyTrashPlayToMoveCards(a: Extract<LegacyMoveAction, { type: 
         ...(a.whileCombinedFilter ? { hasWhileCombined: true as const } : {}),
         ...(a.costFilter && a.costBudget === undefined ? { cost: a.costFilter } : {}),
     }
-    const legacySkip = a.countCounter === undefined && !a.upTo && (a.costBudget !== undefined || a.count !== undefined)
     return {
         type: "moveCards",
         from: "trash",
@@ -91,7 +89,7 @@ export function legacyTrashPlayToMoveCards(a: Extract<LegacyMoveAction, { type: 
         ...(a.costBudget !== undefined ? { costBudget: a.costBudget } : {}),
         ...(a.upTo ? { upTo: true as const } : {}),
         ...(a.payCost ? { pay: "cost" as const } : {}),
-        ...(a.skipOnSummon || legacySkip ? { skipOnSummon: true as const } : {}),
+        ...(a.skipOnSummon ? { skipOnSummon: true as const } : {}),
         ...(a.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(a.onlyBurstDestroyedCard ? { onlyEventCard: true as const } : {}),
     }
