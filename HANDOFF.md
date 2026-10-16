@@ -53,7 +53,10 @@ GlobalConstraint `summonExhausted` に `self?: true`（召喚されるカード�
 `declare.fromSide?: "opponent"`（`from` の候補を選ぶ人の相手の場から取る）と `declare.minSameName?: number`（同じカード名がその場にこの数以上いるものだけが候補。いなければ不発）。074＝バースト部 `from:"nexuses"`、フラッシュ部 `from:"spirits"`・`minSameName:2`（✅ part610）
 **部品バッチ10（確定スキーマ）**：PlayerRuleDef `{ type: "noBurstEffectForPid"; cost?: { min: number; max: number } }`（バーストの発動とトラッシュ送りは成立し、効果の解決だけ飛ばす。スピリットのバーストも対象。cost はバーストカードの印刷コスト。084＝`declare{what:"cost",options:[0..10]}` の then に置き `declared` で cost を埋める）。
 PlayerRuleDef `{ type: "cantUseMagicForPid"; colors: Color[] | "event" }`（どのゾーンからでもその色を持つマジックを使用できない。"event" は置く時点で、きっかけの召喚時効果を発揮したカードの色すべてに解く。083）。
-FieldEvent `"opponentLifeCoreFromVoid"`（相手のライフにボイドからコアが置かれたとき。原因を問わない。`eventCount`＝置かれた個数、`repeatPerCount` 対応。014）
+FieldEvent `"opponentLifeCoreFromVoid"`（相手のライフにボイドからコアが置かれたとき。原因を問わない。`eventCount`＝置かれた個数、`repeatPerCount` 対応。014）（✅ part611。083 の色は召喚時効果を発揮した時点の実際の色）
+**部品バッチ11（確定スキーマ）**：action `{ type: "returnToBurst"; side?: "own"; count?: number; filter?: TargetFilter }`（returnToDeckTop の兄弟。場を離れる手順を通り、コアはリザーブ、カードはバーストとしてセットされ `ownBurstSet` が誘発。004）。
+action `{ type: "peekOpponentBurst" }`（相手のバーストの内容を持ち主だけが見る。PlayerView に見えたカードを返し、そのバーストが入れ替わる・無くなるまで表示する。049）。
+kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデータも直す）、`via?: "shinsoku" | "any"`（省略＝【神速】のみ）・`minBaseCost?: number`（印刷コスト）・`oncePerTurn?: true` を足す。対象はスピリットカードだけ。軽減後の残りから最大 cost まで肩代わり（062）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）

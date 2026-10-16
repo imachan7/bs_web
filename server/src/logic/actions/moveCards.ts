@@ -5,7 +5,7 @@ import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFram
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
-import { canDiscardHand, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, trashCardNameMatches } from "../../../../shared/rules"
+import { canDiscardHand, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
@@ -222,6 +222,10 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
         return false
     }
     const card = getCard(cardId)
+    if (magicColorBanned(state, pid, card.colors)) {
+        log(state, `${sourceName}：効果によりこの色のマジックを使用できなかった。`)
+        return false
+    }
     const cost = effectiveCost(state, pid, card)
     const fromField = (ctx.paySources ?? []).reduce((sum, src) => {
         const inst = player.field.spirits.find((i) => i.instanceId === src.instanceId) ?? player.field.nexuses.find((i) => i.instanceId === src.instanceId)

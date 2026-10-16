@@ -4,7 +4,7 @@ import type { GameView } from "../../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS } from "../../../data/constants"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../../shared/cost"
 import { attachCardArt } from "../cardArt"
-import { hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked } from "../../../shared/rules"
+import { hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned } from "../../../shared/rules"
 import { payableFieldCores, payingAltPay } from "./paying"
 import { master, UiState, $ } from "../renderer"
 
@@ -78,7 +78,7 @@ export function renderHand(view: GameView, ui: UiState): void {
             hasMagicRestriction(view, view.you, "colorLockOpponent") &&
             !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
         // battleLock "magic"（BS16-X06）：メイン・フラッシュとも使用不可（バースト発動は別経路なので掛からない）
-        const magicBattleLocked = m.type === "magic" && timedMagicLocked(view, view.you)
+        const magicBattleLocked = m.type === "magic" && (timedMagicLocked(view, view.you) || magicColorBanned(view, view.you, m.colors))
 
         const fieldCores = payableFieldCores(view, cardId)
         const isTimingValid =

@@ -155,6 +155,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedPlayerRules`（fn）：このプレイヤーに掛かっている「このターンの間」の制約
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
+- `magicColorBanned`（fn）：期間つき効果で、このマジックの色が使用禁止か（cantUseMagicForPid。手札・手元・トラッシュなど使用元は問わない）
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 

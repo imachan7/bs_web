@@ -42,6 +42,7 @@ export type FieldEvent =
     | "ownSpiritBpUpByFlash" // 自分のスピリットのBPが、自分のフラッシュ効果の「BPを+する」で増加したとき（recordBp から発火。GameState.flashEffect で判定。**self には増えたスピリットが渡る**）。26RCB01-057
     | "ownSpiritReducedLife" // 自分のスピリットが相手のライフを減らしたとき（アタックでも、そのスピリットの効果でも）。**self にはライフを減らしたスピリットが渡る**（26RBS02-X01「スピリットが相手のライフを減らした時」）
     | "ownSpiritDealtLife" // 自分のスピリットのアタックによって相手のライフを減らしたとき、持ち主のフィールド発生源から発火（**self にはライフを減らしたスピリットが渡る**。onLifeDealtの直後。BS06-X22魔界七将ベルゼビート）
+    | "opponentLifeCoreFromVoid" // 持ち主から見て相手のライフに、ボイドからコアが置かれたとき（原因は問わない）。eventCount＝置かれた個数。repeatPerCount で個数ぶん繰り返せる
     | "opponentCorePlaced" // 持ち主から見て相手のフィールド（スピリット/ネクサス上）かリザーブに、**効果によって**コアが置かれたとき。
     // eventCount=置かれたコアの個数。resolveAction が効果1つの前後でコアの居場所を突き合わせ、
     // **増えた側だけ**を合計して発火する（出所は問わない＝リザーブからスピリットへ移したものも1個と数える）。

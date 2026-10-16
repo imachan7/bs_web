@@ -261,7 +261,7 @@ export type EffectDefTrigger =
               | { opponentMagicUsedAtLeast: number } // event: "opponentMagicUsed" 限定：相手がこのターンにマジックの効果を使用した回数がこれ以上のときのみ発火
               | { burstCostAtMost: number } // event: "ownBurstActivated" 限定：発動したバーストのコストがこれ以下のときのみ発火
               | { ownBurstSet: boolean } // バーストをセットしている間だけ発火
-          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" 用：実カウント数ぶんアクションを繰り返す
+          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" | "opponentLifeCoreFromVoid" 用：実カウント数ぶんアクションを繰り返す
           countMode?: "cores" | "funsaiSpirits" // event: "ownSpiritCoresRemovedByOpponent" 限定：repeatPerCountの回数を「取り除かれたコア数」にする。
           // "funsaiSpirits"：event: "ownFunsaiMilled" 限定：回数を実破棄枚数でなく直前の【粉砕】で破棄したスピリット枚数にする
           minEventCount?: number // eventCountがこの値以上のときのみ発火

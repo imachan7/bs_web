@@ -5,7 +5,7 @@ import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
-import { coresForLevel, getCard, log } from "../GameState"
+import { coresForLevel, getCard, log, opponentOf } from "../GameState"
 import {
     countEffectCounter,
     fireFieldEventTriggers,
@@ -460,6 +460,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
         noteKeyword(getCard(self.cardId).effects, "seimei")
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }
+    if (action.to === "life" && action.from === "void") fireFieldEventTriggers(state, opponentOf(owner), "opponentLifeCoreFromVoid", undefined, undefined, undefined, totalMoved)
     if (nextPick && !state.pendingChoice) placeCoresHandler({ ...ctx, targetInstanceId: undefined }, nextPick)
 }
 

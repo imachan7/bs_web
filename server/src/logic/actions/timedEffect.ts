@@ -423,6 +423,10 @@ function placeColor(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
 // bannedColors:"last" を、直前に動いたカード（lastMovedOf）の色の和集合へ解決する
 // （多色なら全色＝どれか1色でも一致すれば「同じ色」。記録が空なら null）
 function resolvePlayerRuleContent(state: GameState, c: Extract<Content, { type: "playerRule" }>): Extract<Content, { type: "playerRule" }> | null {
+    if (c.rule.type === "cantUseMagicForPid" && c.rule.colors === "event") {
+        const colors = [...new Set(state.burstEventColors ?? [])]
+        return colors.length === 0 ? null : { ...c, rule: { ...c.rule, colors } }
+    }
     if (c.rule.type !== "cantUseHandCardsForPid" || c.rule.bannedColors !== "last") return c
     const colors = [...new Set(lastMovedOf(state).flatMap((id) => getCard(id).colors))]
     if (colors.length === 0) return null

@@ -178,7 +178,7 @@ export function fireSummonTrigger(
     }
     // ponytail: 召喚時効果の中で別のスピリットが召喚されたら、内側の分を発火した後に外側へ戻す。内側が選択で中断したときは外側の分が落ちる
     const outer = state.summonEffectSource
-    state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cost: getCard(selfInstance.cardId).cost }
+    state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cost: getCard(selfInstance.cardId).cost, colors: instColors(selfInstance) }
     state.resolvingSummonTriggerPid = owner
     fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi, undefined, undefined, onlyEffectIds)
     if (!state.pendingChoice) {
