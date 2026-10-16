@@ -25,7 +25,7 @@ const GATE_KINDS = new Set([
     "summonCostHandDiscardPay",
     "fushiFreeByExhaust",
     "magicNegatePayByNexusGrant",
-    "shinsokuPayAssist",
+    "payAssistByExhaust",
 ])
 // cost 欄があるときだけ関門になる kind
 const GATE_KINDS_WITH_COST = new Set(["reviveOnDestroy", "activated", "handActivated"])

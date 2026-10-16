@@ -73,7 +73,7 @@ export interface CardInstance {
     //   - 「手札／デッキに戻ることに関する効果」以外は**発揮できず、その対象にもならない**
     //   - 発揮できるのは「フィールドを離れるとき」「手札／デッキに戻るとき」だけ
     // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
-    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" }
+    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" | "burst" }
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     // 破壊待機状態の間だけ持つ、その破壊のコンテキストと確認の出し方（destroySpiritが記録し、
     // commitPendingDestruction が「フィールドに残る」の判定に使う。cards.jsonには書かない内部専用）。

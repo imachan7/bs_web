@@ -759,7 +759,7 @@ async function init(): Promise<void> {
         ui.paying.assigned = {}
         rerender()
     })
-    // kind:"shinsokuPayAssist"（BS16-021）：疲労させて肩代わりする候補のオン/オフ切り替え
+    // kind:"payAssistByExhaust"（BS16-021）：疲労させて肩代わりする候補のオン/オフ切り替え
     byId("targeting-info").addEventListener("click", (e) => {
         const btn = closestData(e, "data-shinsokuassist")
         if (!btn || !ui.paying) return

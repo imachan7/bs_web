@@ -19,7 +19,19 @@ const peekOpponentHandHandler: ActionHandler<"peekOpponentHand"> = (ctx) => {
     log(state, `${player.name}は${target.name}の手札1枚の内容を見た。`)
 }
 
+const peekOpponentBurstHandler: ActionHandler<"peekOpponentBurst"> = (ctx) => {
+    const { state, owner, opp, sourceName } = ctx
+    const target = state.players[opp]
+    if (target.burst === null) {
+        log(state, `${sourceName}：${target.name}はバーストをセットしておらず、発動しなかった。`)
+        return
+    }
+    state.players[owner].peekedOpponentBurstCardId = target.burst
+    log(state, `${state.players[owner].name}は${target.name}のバーストの内容を見た。`)
+}
+
 const handlers = {
+    peekOpponentBurst: peekOpponentBurstHandler,
     peekOpponentHand: peekOpponentHandHandler,
 } satisfies Partial<ActionRegistry>
 

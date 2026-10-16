@@ -61,7 +61,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/activation.ts
 
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
-- `shinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
+- `payAssistCandidates`（fn）：kind:"payAssistByExhaust" を持つ、pidの自分フィールド（スピリット・ネクサス）の回復状態の発生源。
 - `burstSetCoresRequired`（fn）：kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
 - `coreZoneChoiceId`（fn）：pendingChoice の候補に混ぜる「そのプレイヤーのリザーブ／トラッシュのコア」の番兵（removeCores で取り先を1個ずつ選ぶとき）。
 - `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
@@ -1100,7 +1100,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `exReductionPickedIndices`（fn）：《継召》：各グループの選択枚数から、実際に除外する trashCards 内インデックスを返す
 - `payingCardId`（fn）：支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
 - `payingAltPay`（fn）
-- `payingShinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
+- `payingShinsokuAssistCandidates`（fn）：kind:"payAssistByExhaust"：この支払いで選べる肩代わり候補
 - `payingShinsokuAssistDiscount`（fn）：選択済みの肩代わり候補ぶんの合計割引
 
 ## public/src/ui/play.ts

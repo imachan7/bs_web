@@ -45,7 +45,7 @@ import {
     isEndStepLocked,
     summonExhausted,
     burstSetCoresRequired,
-    shinsokuAssistCandidates,
+    payAssistCandidates,
 } from "../../../shared/rules"
 import {
     placeBurst,
@@ -497,7 +497,7 @@ function doSummon(
     discardHandIndices?: number[],
     braveTargetInstanceId?: string, // 指定時はダイレクトブレイヴ（docs/design/BRAVE.md §5）
     altSummonNexusInstanceIds?: string[], // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058。docs/design/COST_MODEL.md）
-    shinsokuAssistInstanceIds?: string[], // 指定時は kind:"shinsokuPayAssist"（BS16-021）：疲労させることで召喚コストの一部を肩代わりする
+    shinsokuAssistInstanceIds?: string[], // 指定時は kind:"payAssistByExhaust"（BS16-021）：疲労させることで召喚コストの一部を肩代わりする
     exReductionTrashIndices?: number[], // 《継召》(kind:"exTrashReduction")：除外して軽減するトラッシュ内インデックス
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
@@ -527,18 +527,21 @@ function doSummon(
         noteCoverage(card.effects.find((e) => e.kind === "altSummonFromHand"), "altSummonFromHand")
         for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
     }
-    // kind:"shinsokuPayAssist"（BS16-021）：指定したスピリットを疲労させ、召喚コストの一部を肩代わりする
+    // kind:"payAssistByExhaust"：指定した発生源を疲労させ、召喚コストの一部を肩代わりする
     // （検証済み＝validateSummonがcandidatesと重複を確認済み）
     let shinsokuDiscount = 0
     if (shinsokuAssistInstanceIds !== undefined && shinsokuAssistInstanceIds.length > 0) {
-        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        // 【神速】かどうかの条件は validateSummon で確認済み。ここは割引額と消費記録を引くだけなので flash は見ない
+        const candidates = new Map(payAssistCandidates(state, pid, { cardId: player.hand[handIndex]!, flash: true }).map((c) => [c.instanceId, c]))
         for (const id of shinsokuAssistInstanceIds) {
-            const inst = player.field.spirits.find((s) => s.instanceId === id)
+            const inst = [...player.field.spirits, ...player.field.nexuses].find((s) => s.instanceId === id)
             if (inst) inst.isRested = true
-            noteCoverage(inst ? getCard(inst.cardId).effects.find((e) => e.kind === "shinsokuPayAssist") : undefined, "shinsokuPayAssist")
-            shinsokuDiscount += candidates.get(id) ?? 0
+            noteCoverage(inst ? getCard(inst.cardId).effects.find((e) => e.kind === "payAssistByExhaust") : undefined, "payAssistByExhaust")
+            const c = candidates.get(id)
+            if (c?.oncePerTurn) player.payAssistUsedThisTurn = [...(player.payAssistUsedThisTurn ?? []), id]
+            shinsokuDiscount += c?.discount ?? 0
         }
-        log(state, `${player.name}は自分のスピリットを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
+        log(state, `${player.name}は自分のカードを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
     }
     // 《継召》(kind:"exTrashReduction")：指定されたトラッシュのEXシンボル持ちカードを除外し、
     // そのシンボル列を召喚コストの軽減に使う（検証は validateSummon 済み＝候補・重複チェック込み。

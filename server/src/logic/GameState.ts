@@ -695,7 +695,7 @@ function forView(inst: CardInstance): CardInstance {
     return rest
 }
 
-function playerView(player: PlayerState, isSelf: boolean): PlayerView {
+function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState): PlayerView {
     return {
         id: player.id,
         name: player.name,
@@ -720,6 +720,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         burst: isSelf ? player.burst : null,
         burstSet: player.burstSet,
         ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
+        ...(player.payAssistUsedThisTurn ? { payAssistUsedThisTurn: player.payAssistUsedThisTurn } : {}),
         burstSetThisTurn: player.burstSetThisTurn,
         // ソウルコアの居場所は公開情報（盤上で区別できる形で置かれる）
         soulCore: player.soulCore,
@@ -728,6 +729,9 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             : {}),
         // 「手札を破棄して効果を受けない」の方針は自分にだけ返す（UIのトグルの現在値）
         ...(isSelf && player.payToNegate !== undefined ? { payToNegate: player.payToNegate } : {}),
+        ...(isSelf && player.peekedOpponentBurstCardId !== undefined && opponent.burst === player.peekedOpponentBurstCardId
+            ? { peekedOpponentBurstCardId: player.peekedOpponentBurstCardId }
+            : {}),
         // 「相手の手札の内容を見た」記録は持ち主にだけ返す（BS09-039探偵ペンタン）
         ...(isSelf && player.peekedOpponentCardIds !== undefined
             ? { peekedOpponentCardIds: player.peekedOpponentCardIds }
@@ -761,8 +765,8 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         isFlashTiming: state.isFlashTiming,
         battle: state.battle ? { ...state.battle } : null,
         players: {
-            p1: playerView(state.players.p1, viewer === "p1"),
-            p2: playerView(state.players.p2, viewer === "p2"),
+            p1: playerView(state.players.p1, viewer === "p1", state.players.p2),
+            p2: playerView(state.players.p2, viewer === "p2", state.players.p1),
         },
         log: state.log.slice(-60),
         winner: state.winner,

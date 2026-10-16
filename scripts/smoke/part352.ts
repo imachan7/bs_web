@@ -1,5 +1,5 @@
 // smoke パート352（BS16-021ノウゼンサーバル・065誓いの桃園・058サテライド・バード・067氷聖女の塔：
-// shinsokuPayAssist／sokuPaySourceGrant再利用／effectGrant再利用／noBurstSpiritSummonThisTurn／burstSetCost）
+// payAssistByExhaust／sokuPaySourceGrant再利用／effectGrant再利用／noBurstSpiritSummonThisTurn／burstSetCost）
 import {
     assert,
     createGame,
@@ -54,7 +54,7 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores: number): Return
     return inst
 }
 
-console.log("=== 1. shinsokuPayAssist：疲労させて2コスト肩代わりすれば、リザーブ0でも【神速】召喚できる ===")
+console.log("=== 1. payAssistByExhaust：疲労させて2コスト肩代わりすれば、リザーブ0でも【神速】召喚できる ===")
 {
     const s = game("case1")
     s.phase = "attack"
@@ -70,7 +70,7 @@ console.log("=== 1. shinsokuPayAssist：疲労させて2コスト肩代わりす
     assert(s.players.p1.reserve === 0, "リザーブは置くコアの1個だけ減る（召喚コスト2は肩代わりされた）")
 }
 
-console.log("=== 2. shinsokuPayAssist：すでに疲労しているノウゼンサーバルは指定できない ===")
+console.log("=== 2. payAssistByExhaust：すでに疲労しているノウゼンサーバルは指定できない ===")
 {
     const s = game("case2")
     s.phase = "attack"

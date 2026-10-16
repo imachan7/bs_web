@@ -51,20 +51,31 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
     return allowed
 }
 
-// kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
-// 【神速】召喚時、疲労させることで召喚コストのうち effect.cost 分を支払ったものとして扱える（任意）。
+// kind:"payAssistByExhaust" を持つ、pidの自分フィールド（スピリット・ネクサス）の回復状態の発生源。
+// summoning＝いま召喚しようとしているカードの cardId と、それが【神速】召喚かどうか。
+// スピリットカードの召喚だけが対象（ブレイヴ・ネクサス・マジックは対象外）。
 // サーバー validateSummon/doSummon とクライアントの支払いUIが共用する
-export function shinsokuAssistCandidates(board: Board, pid: PlayerId): { instanceId: string; discount: number }[] {
-    const result: { instanceId: string; discount: number }[] = []
+export function payAssistCandidates(
+    board: Board,
+    pid: PlayerId,
+    summoning: { cardId: string; flash: boolean },
+): { instanceId: string; discount: number; oncePerTurn: boolean }[] {
+    const result: { instanceId: string; discount: number; oncePerTurn: boolean }[] = []
     const player = board.players[pid]
-    for (const inst of player.field.spirits) {
+    const summoned = card(summoning.cardId)
+    if (summoned.type !== "spirit") return result
+    const used = player.payAssistUsedThisTurn ?? []
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
         if (inst.isRested) continue
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
-            if (effect.kind !== "shinsokuPayAssist") continue
+            if (effect.kind !== "payAssistByExhaust") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
-            result.push({ instanceId: inst.instanceId, discount: effect.cost })
+            if ((effect.via ?? "shinsoku") === "shinsoku" && !summoning.flash) continue
+            if (effect.minBaseCost !== undefined && summoned.cost < effect.minBaseCost) continue
+            if (effect.oncePerTurn && used.includes(inst.instanceId)) continue
+            result.push({ instanceId: inst.instanceId, discount: effect.cost, oncePerTurn: effect.oncePerTurn === true })
             break
         }
     }

@@ -1,7 +1,7 @@
 // コスト支払いモードの状態と、残りコスト・軽減の計算
 import type { CardData, Color, GameView } from "../../../server/src/type"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, exSymbolsOfTrashCard } from "../../../shared/cost"
-import { flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, shinsokuAssistCandidates } from "../../../shared/rules"
+import { flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
 import { master } from "../renderer"
 
 // 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
@@ -44,7 +44,7 @@ export function payingNeed(view: GameView, paying: PayingState): number {
             : placedCoresForSummon(card, paying.level, { placeSoulCoreFromReserve: paying.placeSoulCore === true })
     // 代替コスト（手札破棄／デッキ破棄）は**コスト側だけ**を肩代わりする（置くコアには使えない）
     const alt = payingAltPay(view, paying)
-    // kind:"shinsokuPayAssist"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
+    // kind:"payAssistByExhaust"（BS16-021）：疲労させたスピリット1体につきeffect.cost分、
     // 召喚コストを肩代わりする（置くコアには使えない）
     const shinsokuDiscount = payingShinsokuAssistDiscount(view, paying)
     const costAfterDiscounts = Math.max(0, cost - Math.min(alt.used, cost) - shinsokuDiscount)
@@ -106,7 +106,7 @@ export interface PayingState {
     // 代替コスト（コア以外での支払い）。1つにつきコスト1が減る
     discardHandIndices: number[] // 破棄する手札のindex（BS08ビクティム。スピリット召喚のみ）
     millPay: number // デッキ破棄で払う枚数（BS04栄光の表彰台。ネクサス配置のみ）
-    // kind:"shinsokuPayAssist"（BS16-021）：疲労させて召喚コストの一部を肩代わりする自分のスピリット
+    // kind:"payAssistByExhaust"（BS16-021）：疲労させて召喚コストの一部を肩代わりする自分のスピリット
     // （【神速】召喚のみ。任意で選ぶ。省略/空配列＝使わない）
     shinsokuAssistInstanceIds?: string[]
     // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う（docs/design/SOULCORE.md 部品3）。
@@ -211,11 +211,11 @@ export function payingAltPay(view: GameView, paying: PayingState): AltPayInfo {
     return { kind: null, used: 0, max: 0 }
 }
 
-// kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
+// kind:"payAssistByExhaust"：この支払いで選べる肩代わり候補
 export function payingShinsokuAssistCandidates(view: GameView, paying: PayingState): { instanceId: string; discount: number }[] {
     const card = payingCardId(view, paying)
-    if (card === undefined || master(card).type !== "spirit" || !view.isFlashTiming) return []
-    return shinsokuAssistCandidates(view, view.you)
+    if (card === undefined) return []
+    return payAssistCandidates(view, view.you, { cardId: card, flash: view.isFlashTiming })
 }
 
 // 選択済みの肩代わり候補ぶんの合計割引

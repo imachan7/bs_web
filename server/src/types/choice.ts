@@ -391,7 +391,7 @@ export type ResumeFrame =
           // バウンス待機状態の続き。**移動はすでに済んでいて、残りの誘発だけ**を後へ送る。
           // 戻ったカードはもうフィールドに無いので、誘発に渡すインスタンスをそのまま持ち回る
           kind: "bounceFlush"
-          moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[]
+          moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[]
           index: number
       }
     | {

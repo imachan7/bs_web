@@ -661,6 +661,32 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
         return
 }
 
+// 場を離れる手順はバウンスと同じ（markBounce → flushBounces）。持ち主のバーストエリアへ置く点だけが違う
+const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
+    const { state, owner, self, sourceName, targetInstanceId } = ctx
+    const player = state.players[owner]
+    if (player.burstSet) {
+        log(state, `${sourceName}：バーストが既にセットされているため、発動しなかった。`)
+        return
+    }
+    const filter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+    const candidates = player.field.spirits.filter(
+        (s) => !s.pendingBounce && (filter === undefined || (filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, self?.instanceId))),
+    )
+    const picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : candidates[0]
+    if (!picked) {
+        log(state, `${sourceName}：バーストとしてセットするスピリットがいなかった。`)
+        return
+    }
+    if (targetInstanceId === undefined && candidates.length >= 2 && state.interactiveTargets) {
+        requestChoice(state, owner, `${sourceName}：バーストとしてセットするスピリットを選んでください`, candidates.map((s) => s.instanceId), false, action, self, "target")
+        return
+    }
+    markBounce(state, owner, picked, "burst", sourceName)
+    flushBounces(state)
+    recordMoved(state, [picked.cardId])
+}
+
 const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         if (!self) return
@@ -728,6 +754,7 @@ const handlers = {
     returnToHand: returnToHandHandler,
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToDeckTop: returnToDeckTopHandler,
+    returnToBurst: returnToBurstHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
     returnSelfToHand: returnSelfToHandHandler,
     returnSelfToDeckTop: returnSelfToDeckTopHandler,

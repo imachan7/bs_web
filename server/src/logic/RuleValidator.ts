@@ -18,7 +18,7 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -161,8 +161,7 @@ export function validateSummon(
     // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058）：召喚コストを支払わず、
     // 指定したネクサスをデッキの下に戻すことがコストになる
     altSummonNexusInstanceIds?: string[],
-    // 指定時は kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：疲労させることを追加コストに、
-    // 召喚コストのうち一部を支払ったものとして扱う。【神速】召喚以外では使えない（任意）
+    // 指定時は kind:"payAssistByExhaust"：疲労させることを追加コストに、召喚コストのうち一部を支払ったものとして扱う（任意）
     shinsokuAssistInstanceIds?: string[],
     // 《継召》(kind:"exTrashReduction")：トラッシュのEXシンボル持ちカードを除外して軽減する
     // trashCards 内のインデックス配列（プレイヤーが召喚時に選ぶ）
@@ -273,12 +272,9 @@ export function validateSummon(
         }
     }
 
-    // kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：【神速】召喚時のみ、疲労させることを
-    // 追加コストに召喚コストの一部を肩代わりできる（任意）
     let shinsokuDiscount = 0
     if (shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0) {
-        if (!flashSummon) return "【神速】での召喚以外では使えません"
-        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        const candidates = new Map(payAssistCandidates(state, pid, { cardId, flash: flashSummon }).map((c) => [c.instanceId, c.discount]))
         const seen = new Set<string>()
         for (const id of shinsokuAssistInstanceIds) {
             if (seen.has(id)) return "同じスピリットを重複して指定しています"

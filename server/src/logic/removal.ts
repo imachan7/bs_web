@@ -1249,7 +1249,7 @@ export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    to: "hand" | "deckTop" | "deckBottom",
+    to: "hand" | "deckTop" | "deckBottom" | "burst",
     sourceName?: string,
 ): void {
     const player = state.players[ownerPid]
@@ -1280,7 +1280,7 @@ const bounceSourceNames = new Map<string, string>()
 // （BS06颶風高原Lv2）のように、プレイヤーが決めた順番がデッキの並びに出る効果で使う。
 // 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
-    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[] = []
+    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[] = []
     const rank = (inst: CardInstance): number => {
         if (!order) return 0
         const i = order.indexOf(inst.instanceId)
@@ -1311,6 +1311,11 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     cardName: name,
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })
+            } else if (pb.to === "burst") {
+                // 呼び出し側が「バーストが未セット」を確認済み。セット通知（ownBurstSet）は移動を全部済ませたあと fireBounceTriggers で出す
+                player.burst = inst.cardId
+                player.burstSet = true
+                log(state, `${prefix}${player.name}はスピリットをバーストとしてセットした。`)
             } else {
                 const top = pb.to === "deckTop"
                 // トークンはデッキに入らずトークン置き場へ戻る
@@ -1342,7 +1347,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
 // （割り込まれる側の作法。docs/design/RESUME_STACK.md）
 export function fireBounceTriggers(
     state: GameState,
-    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[],
+    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[],
     from: number,
 ): void {
     for (let i = from; i < moved.length; i++) {
@@ -1357,6 +1362,10 @@ export function fireBounceTriggers(
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
             }
+        }
+        if (m.to === "burst") {
+            fireFieldEventTriggers(state, m.pid, "ownBurstSet")
+            fireFieldEventTriggers(state, opponentOf(m.pid), "opponentBurstSet")
         }
         if (state.pendingChoice) {
             if (i + 1 < moved.length) {

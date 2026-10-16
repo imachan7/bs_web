@@ -440,6 +440,7 @@ export function endTurn(state: GameState): void {
         state.players[pid].turnVirtualInstances = []
         // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
         state.players[pid].noRestWhenBlockingUsedThisTurn = []
+        state.players[pid].payAssistUsedThisTurn = []
         // バーストのセットはターン1回（docs/design/BURST.md。setBurstFromHandはこの制限を受けない）
         state.players[pid].burstSetThisTurn = false
         // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま

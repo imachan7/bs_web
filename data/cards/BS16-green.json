@@ -96,7 +96,7 @@
   "effects": [
    {
     "id": "BS16-021-e1",
-    "kind": "shinsokuPayAssist",
+    "kind": "payAssistByExhaust",
     "levels": [
      1,
      2

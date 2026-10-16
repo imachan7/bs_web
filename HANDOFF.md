@@ -56,7 +56,10 @@ PlayerRuleDef `{ type: "cantUseMagicForPid"; colors: Color[] | "event" }`（ど�
 FieldEvent `"opponentLifeCoreFromVoid"`（相手のライフにボイドからコアが置かれたとき。原因を問わない。`eventCount`＝置かれた個数、`repeatPerCount` 対応。014）（✅ part611。083 の色は召喚時効果を発揮した時点の実際の色）
 **部品バッチ11（確定スキーマ）**：action `{ type: "returnToBurst"; side?: "own"; count?: number; filter?: TargetFilter }`（returnToDeckTop の兄弟。場を離れる手順を通り、コアはリザーブ、カードはバーストとしてセットされ `ownBurstSet` が誘発。004）。
 action `{ type: "peekOpponentBurst" }`（相手のバーストの内容を持ち主だけが見る。PlayerView に見えたカードを返し、そのバーストが入れ替わる・無くなるまで表示する。049）。
-kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデータも直す）、`via?: "shinsoku" | "any"`（省略＝【神速】のみ）・`minBaseCost?: number`（印刷コスト）・`oncePerTurn?: true` を足す。対象はスピリットカードだけ。軽減後の残りから最大 cost まで肩代わり（062）
+kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデータも直す）、`via?: "shinsoku" | "any"`（省略＝【神速】のみ）・`minBaseCost?: number`（印刷コスト）・`oncePerTurn?: true` を足す。対象はスピリットカードだけ。軽減後の残りから最大 cost まで肩代わり（062）（✅ part612。returnToBurst・peekOpponentBurst は AWAITING_MIGRATION に登録済み＝データを書いたら外す）
+**部品バッチ12（確定スキーマ）**：「〜しなければ、その効果を発揮できない」の関門を新しいファイル `server/src/logic/effectTax.ts` に1つ置く。マジックの効果・バースト効果の解決の直前に、その使用者へ課された税をすべて集め、1つずつ使用者に払うかを聞く（`pay` の支払い可否判定を使う。払えない・払わないなら効果だけ飛ばし、カードは通常どおりトラッシュ）。
+税の出どころは2つ：期間つき PlayerRuleDef `{ type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction }`（060。timedEffect の side で課す相手を決める）と、継続の kind `{ kind: "effectTax"; levels; on; cost; phaseTurn? }`（effectDefContinuous.ts。発生源の持ち主の相手に課す。068）。
+060 の「使用したマジックカード以上のコストの手札1枚」は CardPick `atLeastTaxedCost?: true`（税を課されているカードの印刷コスト以上）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
