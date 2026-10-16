@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-10-16",
+   "category": "fix",
+   "text": "「この効果で召喚されたスピリットの『このスピリットの召喚時』効果は発揮されない」と書かれた13枚の効果で召喚したとき、召喚時効果が発揮されていた不具合を直しました"
+  },
+  {
    "date": "2026-09-28",
    "category": "new",
    "text": "第十六弾「爆烈の覇道」のカード90枚と、プロモーションカード3枚を追加しました"

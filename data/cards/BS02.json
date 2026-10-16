@@ -1912,6 +1912,7 @@
     ],
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "colorFilter": "green"
     },
     "optional": true
@@ -2719,6 +2720,7 @@
     ],
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "sameFamilyAsSelf": true
     },
     "optional": true
@@ -5492,6 +5494,7 @@
     "timing": "main",
     "action": {
      "type": "summonFromHandFree",
+     "skipOnSummon": true,
      "maxCostFromOwnTrashCores": true
     }
    },
