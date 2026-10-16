@@ -684,3 +684,12 @@ export type EffectDefContinuous =
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
+    | {
+          id: string
+          kind: "lifeDamageReplace" // アタックが相手のライフを減らすとき、持ち主の任意で通常のライフ減少の代わりに action を解決する。減ったライフは「ライフの減少」として後続（ownLifeDamaged等）を通す
+          levels: number[] | null
+          target: "self" | "ownAll"
+          familyFilter?: FamilyFilter
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+          action: EffectAction
+      }

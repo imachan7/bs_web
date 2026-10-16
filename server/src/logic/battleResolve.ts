@@ -34,6 +34,7 @@ import {
     resolveKoboOnBattleEnd,
 } from "./EffectModules"
 import { finishBlockDeclaration } from "./GameEngine"
+import { startLifeDamageReplace } from "./lifeDamageReplace"
 
 // ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
 // フラッシュ①中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
@@ -83,14 +84,25 @@ export function resolveLifeDamage(state: GameState): void {
         return
     }
 
+    // 持ち主の任意で、通常のライフ減少の代わりにコアを動かす（BS17-051・X06）。確認や解決が済んだら settle で続きを行う
+    const replace = startLifeDamageReplace(state, attackerPid, attacker)
+    if (replace) {
+        if (replace.immediate) resumeLifeDamageResolution(state, replace.frame)
+        return
+    }
+    applyNormalLifeDamage(state, attackerPid, attacker, limit.max)
+}
+
+function applyNormalLifeDamage(state: GameState, attackerPid: PlayerId, attacker: CardInstance, max: number): void {
+    const defenderPid = opponentOf(attackerPid)
+    const defender = state.players[defenderPid]
     // ダメージ = アタックスピリットのシンボル数（instanceSymbolCount。tempExtraSymbols＝ダブルハート等も加味）。
     // ライフのコアは通常リザーブへ、ただしアタッカーが lifeDamageToVoid をレベル有効で持つ場合はボイドへ（スライミーLv3）
     // ダメージはアタッカーのシンボル数。**上限があればそこで切り下げる**
     //（ブリザードウォール＝1しか減らない）。ライフの残りも超えられない
     const bonus = activeConstraints(state, attackerPid, attacker).reduce((n, c) => n + (c.type === "lifeDamageBonus" && (!c.ifOwnEffectVanishedOpponentSpirit || state.oppSpiritRemovedByEffectThisTurn?.[attackerPid]?.includes("vanish")) && (!c.ifOwnTrashAtLeast || state.players[attackerPid].trashCards.filter((id) => matchesPick(id, c.ifOwnTrashAtLeast!.pick)).length >= c.ifOwnTrashAtLeast.count) ? c.amount : 0), 0)
-    const damage = Math.min(instanceSymbolCount(attacker) + bonus, limit.max)
+    const damage = Math.min(instanceSymbolCount(attacker) + bonus, max)
     const dealt = Math.min(damage, defender.life)
-    attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
     const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     const toTrash = !toVoid && lifeDamageToTrashByOwnerSource(state, attackerPid, attacker)
     defender.life -= dealt
@@ -113,6 +125,14 @@ export function resolveLifeDamage(state: GameState): void {
             `${defender.name}はライフで受けた。ライフ-${dealt}（残り${defender.life}）`,
         )
     }
+    afterLifeDamage(state, attackerPid, attacker, dealt)
+}
+
+// ライフが dealt だけ減ったあとの共通処理（通常のライフ減少・置換のどちらも通る）
+function afterLifeDamage(state: GameState, attackerPid: PlayerId, attacker: CardInstance, dealt: number): void {
+    const defenderPid = opponentOf(attackerPid)
+    const defender = state.players[defenderPid]
+    attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
     if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
     // event:"ownLifeDamaged"のバースト用の器（080）：このバトルでライフを減らしたスピリットを記録する
     if (dealt > 0 && state.battle) (state.battle.lifeDamagers ??= []).push(attacker.instanceId)
@@ -170,7 +190,29 @@ function driveLifeDamageResolution(state: GameState, frame: LifeDamageResolveFra
 
 // 中断されていたライフ受けの続き（drainResumeStack から呼ぶ）
 export function resumeLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
+    if (frame.settle) {
+        settleLifeDamageReplace(state, frame)
+        return
+    }
     driveLifeDamageResolution(state, frame)
+}
+
+// ライフ置換の確認・解決のあと：コアが動いていれば「ライフの減少」として後続へ、断った／効かなかったなら通常の減少
+function settleLifeDamageReplace(state: GameState, frame: LifeDamageResolveFrame): void {
+    const attackerPid = frame.attackerPid
+    const defender = state.players[opponentOf(attackerPid)]
+    const attacker = findSpirit(state.players[attackerPid], frame.attackerSnapshot.instanceId)
+    if (!attacker) {
+        log(state, "アタッカーが場を離れたため、ライフダメージは発生しなかった。")
+        clearBattle(state)
+        return
+    }
+    const reduced = frame.settle!.lifeBefore - defender.life
+    if (reduced <= 0) {
+        applyNormalLifeDamage(state, attackerPid, attacker, lifeDamageLimit(state, opponentOf(attackerPid), attacker).max)
+        return
+    }
+    afterLifeDamage(state, attackerPid, attacker, reduced)
 }
 
 function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: number): void {

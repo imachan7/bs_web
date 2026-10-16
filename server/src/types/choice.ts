@@ -436,4 +436,6 @@ export type ResumeFrame =
           attackerSnapshot: CardInstance
           dealt: number
           lifeTriggers: boolean // 「ライフが減ったとき」系を発火するか（ライフ0で敗北が決まったときは発火しない）
+          // lifeDamageReplace の確認・解決の続き。ライフが lifeBefore より減っていれば置換が成立、減っていなければ通常のライフ減少をする
+          settle?: { lifeBefore: number }
       }

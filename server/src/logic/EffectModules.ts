@@ -1211,6 +1211,7 @@ export function countEffectCounter(
     }
     if (counter === "opponentReserve") return state.players[opponentOf(owner)].reserve
     if (counter === "ownLife") return state.players[owner].life
+    if (counter === "opponentLife") return state.players[opponentOf(owner)].life
     if (counter === "opponentFieldColors") return opponentFieldColorCount(state, owner)
     if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(state, owner, true)
     if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
