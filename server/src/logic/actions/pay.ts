@@ -527,7 +527,7 @@ export function markPays(action: EffectAction, fields: { confirmed?: true; onceR
         if (v !== null && typeof v === "object") {
             const out: Record<string, unknown> = {}
             for (const [k, x] of Object.entries(v)) out[k] = walk(x)
-            if (out.type === "pay") Object.assign(out, fields)
+            if (out.type === "pay" && (out.tax === undefined || out.confirmed === true)) Object.assign(out, fields)
             return out
         }
         return v
@@ -555,7 +555,7 @@ export function effectCostDiscountNexus(state: GameState, owner: PlayerId, sourc
 
 // 「Nコスト支払う」の形（リザーブからトラッシュへ決まった数）だけが肩代わりの対象
 const isReserveToll = (a: EffectAction): a is Extract<EffectAction, { type: "removeCores" }> & { count: number } =>
-    a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined
+    a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined && a.chooser === undefined
 
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
@@ -583,6 +583,9 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     }
     // 確認で「発動する」を押した後の不発は、発動した扱い（【相手の『召喚時』発揮後】が反応する。2026-10-03 ユーザー確認）
     if (action.confirmed && self && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
+    // 税（effectTax.ts）の確認文・不発ログは、税の発生源と、効果を止められるカードの名前で出す
+    const unpaidLine = (reason: string): string =>
+        action.tax ? `${action.tax.source}：${reason}ため、${action.tax.target}の効果を発揮できなかった。` : unpayableLine(sourceName, reason)
     let cost = action.cost
     const judge = () => judgePay(state, owner, self, action, srcColors, srcType, eventTargetId)
     // 聞く前に成立しないなら確認を出さずに不発（2026-10-02 ユーザー確認。COST_MODEL §10 の「払えなくても確認は出る」を改訂）。
@@ -590,16 +593,19 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     if (state.interactiveTargets && !action.confirmed) {
         const pre = judge()
         if (pre.reason !== null) {
-            fizzle(unpayableLine(sourceName, pre.reason))
+            fizzle(unpaidLine(pre.reason))
             return
         }
-        const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action
-        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, resume, self, action.onceRevert)
+        const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action.tax ? { ...action, confirmed: true as const } : action
+        const prompt = action.tax
+            ? `${action.tax.source}：${action.tax.phrase}なければ、${action.tax.target}の効果を発揮できません。${action.tax.verb}ますか？`
+            : `${sourceName}：コストを支払って効果を発揮しますか？`
+        requestActivationConfirm(state, owner, prompt, resume, self, action.onceRevert)
         return
     }
     const verdict = judge()
     if (verdict.reason !== null) {
-        fizzle(unpayableLine(sourceName, verdict.reason))
+        fizzle(unpaidLine(verdict.reason))
         return
     }
     cost = verdict.cost
@@ -654,6 +660,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             tollCovered = true
         }
     }
+    if (action.tax && state.burstTaxUnpaid) state.burstTaxUnpaid--
     const scope = newRecordScope()
     resolveInOrder(state, tollCovered ? [action.then] : [cost, action.then], {
         resolve: (a) => {

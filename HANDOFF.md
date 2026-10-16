@@ -59,7 +59,9 @@ action `{ type: "peekOpponentBurst" }`（相手のバーストの内容を持ち
 kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデータも直す）、`via?: "shinsoku" | "any"`（省略＝【神速】のみ）・`minBaseCost?: number`（印刷コスト）・`oncePerTurn?: true` を足す。対象はスピリットカードだけ。軽減後の残りから最大 cost まで肩代わり（062）（✅ part612。returnToBurst・peekOpponentBurst は AWAITING_MIGRATION に登録済み＝データを書いたら外す）
 **部品バッチ12（確定スキーマ）**：「〜しなければ、その効果を発揮できない」の関門を新しいファイル `server/src/logic/effectTax.ts` に1つ置く。マジックの効果・バースト効果の解決の直前に、その使用者へ課された税をすべて集め、1つずつ使用者に払うかを聞く（`pay` の支払い可否判定を使う。払えない・払わないなら効果だけ飛ばし、カードは通常どおりトラッシュ）。
 税の出どころは2つ：期間つき PlayerRuleDef `{ type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction }`（060。timedEffect の side で課す相手を決める）と、継続の kind `{ kind: "effectTax"; levels; on; cost; phaseTurn? }`（effectDefContinuous.ts。発生源の持ち主の相手に課す。068）。
-060 の「使用したマジックカード以上のコストの手札1枚」は CardPick `atLeastTaxedCost?: true`（税を課されているカードの印刷コスト以上）
+060 の「使用したマジックカード以上のコストの手札1枚」は CardPick `atLeastTaxedCost?: true`（税を課されているカードの印刷コスト以上）（✅ part613。税は `pay{tax}` で包む。断ったバーストは thenPay も止める）
+**部品バッチ13（確定スキーマ）**：継続の kind `{ kind: "lifeDamageReplace"; levels; target: "self" | "ownAll"; familyFilter?: FamilyFilter; phaseTurn?; action: EffectAction }`（effectDefContinuous.ts）。対象のスピリットの**アタック**が相手のライフを減らすとき、持ち主は代わりに action を解決してよい（確認式。非対話は減る数が多いほうを選ぶ）。置換でもライフの減少として扱い `ownLifeDamaged` を誘発させる（2026-10-17 ユーザー確認）。
+段階表は `if{cond:{count:"opponentLife",atLeast:7},then:removeCores{side:"opponent",from:["life"],to:"reserve",downTo:4},else:if…}` の入れ子で書く。足すのは EffectCounter の葉 `"opponentLife"` と、removeCores `from:["life"]`＋`downTo` が動くこと。ライフ3以下は置換を出さない（051・X06）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）

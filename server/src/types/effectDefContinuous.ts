@@ -672,6 +672,14 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "effectTax" // 発生源の持ち主の相手が使うマジック／発動するバーストは、cost（相手視点で解決する）を支払わなければ効果を発揮できない
+          levels: number[] | null
+          on: "magic" | "burst"
+          cost: EffectAction
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // turn は発生源の持ち主から見る
+      }
+    | {
+          id: string
           kind: "lifeDamageNegate" // ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、発生源の持ち主のライフは減らない
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }

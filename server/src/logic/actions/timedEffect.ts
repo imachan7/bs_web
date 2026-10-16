@@ -445,6 +445,7 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         .filter((c): c is Extract<Content, { type: "playerRule" }> => c.type === "playerRule")
         .map((c) => resolvePlayerRuleContent(state, c))
         .filter((c): c is Extract<Content, { type: "playerRule" }> => c !== null)
+        .map((c) => (c.rule.type === "effectTaxForPid" && c.rule.source === undefined ? { ...c, rule: { ...c.rule, source: sourceName } } : c))
     if (rules.length === 0) return
     for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
     const period = action.duration === "battle" ? "このバトルの間" : "このターンの間"

@@ -119,6 +119,7 @@ export interface GameState {
         destroyedBp: number
     }[]
     burstEventColors?: Color[] // 破壊後バースト発動時、破壊された全メンバーの色の和集合（burstEventCostと同じ寿命）。条件{burstDestroyedColor}が読む
+    burstTaxUnpaid?: number // 発動中のバーストに掛かった税のうち、まだ払われていない数。0でなければ thenPay も止める（effectTax.ts）
     burstEventLifeDamagerId?: string // event:"ownLifeDamaged"のバースト発動時、ライフを減らしたスピリットのinstanceId（burstEventCostと同じ寿命。取れなければundefined）
     lastDeckMill?: { pid: PlayerId; cardIds: string[] } // 直近の破棄（toDeck.fromEvent が読む。次の破棄で上書き）
     summonPaidWithSoulCore?: true // 直近の召喚・マジック使用のコストの支払いに[ソウルコア]を使ったか

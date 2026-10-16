@@ -551,6 +551,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `applyDeckPolicy`（fn）：カードデータの limited / limitCount を、上のポリシーに沿って上書きしたコピーを返す。
 
+## server/src/logic/effectTax.ts
+
+- `hasEffectTax`（const）
+- `withEffectTax`（fn）：払わせる必要がある税の分だけ pay で包んだ action を返す（無ければ元のまま）。
+
 ## server/src/logic/fieldEventTriggers.ts
 
 - `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。

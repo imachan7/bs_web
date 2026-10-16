@@ -5,6 +5,7 @@ export * from "./types/effectDef"
 export * from "./types/choice"
 // re-export は利用側に届くが、このファイル自身のスコープには入らないので明示的に読む
 import type { EffectDef } from "./types/effectDef"
+import type { EffectAction } from "./types/effectAction"
 import type { PendingChoice } from "./types/choice"
 import { TargetFilter } from "./types/targetFilter"
 import { CardInstance } from "./types/cardInstance"
@@ -299,6 +300,7 @@ export type PlayerRuleDef =
     | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
     | { type: "noBurstEffectForPid"; cost?: { min: number; max: number }; declared?: "match" } // バースト効果の解決だけが飛ぶ（発動は成立し、カードはトラッシュへ行く。誘発も起きる）。cost は印刷コストで比べ、省略時はすべてのバースト。declared は declare の then の中だけ（cost に置き換わる）
     | { type: "cantUseMagicForPid"; colors: Color[] | "event" } // 手札・手元・トラッシュなどどこからでも、その色をいずれか持つマジックを使用できない。"event"は置く時点で、直前に召喚時効果を発揮したカードの色すべてに解く（timedEffect.ts）
+    | { type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction; source?: string } // 課された側が使うマジック／発動するバーストの効果は、cost を支払わなければ発揮できない（使用・発動は成立する。effectTax.ts）。source は確認文に出す税の発生源名で、timedEffect が置くときに埋める（カードデータには書かない）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）
 

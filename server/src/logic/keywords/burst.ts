@@ -2,6 +2,7 @@
 import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
+import { withEffectTax } from "../effectTax"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -57,7 +58,10 @@ export function continueBurstActivation(state: GameState, frame: BurstFinishFram
     }
     if (frame.stage === "finish") {
         if (frame.alsoDraw) resolveAction(state, frame.pid, null, { type: "draw", count: 1 })
-        tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay)
+        // 税を断った・払えなかったバーストは効果全体が発揮できないので、その後の thenPay も出さない
+        const taxUnpaid = (state.burstTaxUnpaid ?? 0) > 0
+        delete state.burstTaxUnpaid
+        if (!taxUnpaid) tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay)
         if (state.winner) return
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ ...frame, stage: "settle" }])
@@ -301,7 +305,8 @@ export function fireBurstOnEvent(
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
         const blocked = burstEffectBlocked(state, holderPid, burstCardId)
-        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+        const baseAction: EffectAction = burstConditionMet(state, holderPid, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+        const actionToRun = withEffectTax(state, holderPid, "burst", burstCardId, baseAction)
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
         const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
@@ -391,7 +396,7 @@ export function fireBurstOnEvent(
             stage: "finish",
             pid: holderPid,
             cardId: burstCardId,
-            actionType: actionToRun.type,
+            actionType: baseAction.type,
             ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
             ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
             ...(alsoDraw ? { alsoDraw: true as const } : {}),
@@ -416,7 +421,8 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     player.burstSet = true
     announceBurstActivation(state, owner, cardId)
     const blocked = burstEffectBlocked(state, owner, cardId)
-    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    const baseAction: EffectAction = burstConditionMet(state, owner, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    const actionToRun = withEffectTax(state, owner, "burst", cardId, baseAction)
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
@@ -426,7 +432,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         stage: "finish",
         pid: owner,
         cardId,
-        actionType: actionToRun.type,
+        actionType: baseAction.type,
         ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
         ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
         before: [...before],
