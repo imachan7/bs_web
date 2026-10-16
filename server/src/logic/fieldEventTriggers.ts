@@ -399,7 +399,9 @@ export function fireFieldEventTriggers(
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {
                     // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
-                    if (!state.battle || state.battle.attackerInstanceId !== inst.instanceId) continue
+                    // 合体中のブレイヴが発生源なら、アタッカーはホスト（合体スピリットは1体）
+                    const selfAttacker = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                    if (!state.battle || state.battle.attackerInstanceId !== selfAttacker.instanceId) continue
                 } else if ("attacksThisTurnAtLeast" in effect.condition) {
                     if (state.attacksThisTurn < effect.condition.attacksThisTurnAtLeast) continue
                 } else if ("firstAttackOfTurn" in effect.condition) {

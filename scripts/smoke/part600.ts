@@ -263,6 +263,14 @@ scenario({
 })
 
 // 「最低1枚以上」：召喚で手札が0枚になるなら破棄もドローも起きない
+scenario({
+    name: "nana-summon-empty-hand",
+    start: { interactive: true, me: { hand: [NANA] }, opp: { hand: [ABYS, ABYS, ABYS] } },
+    steps(t) {
+        t.act("me", { type: "summon", handIndex: 0 })
+    },
+    expect: [...NANA_SUMMON, "自分.手札: オオヅツナナフシ → なし"],
+})
 
 const NANA_COMBINE = [
     "自分.オオヅツナナフシ.BP: 2000 → なし",
@@ -401,6 +409,22 @@ function sandaBattle(name: string, opts: { combine: boolean; caster: "me" | "opp
         expect,
     })
 }
+// ブレイヴのコアはホストへ（BRAVE.md §6 末尾）。場を離れたブロッカーの疲労は差分に出ない
+sandaBattle("sanda-combined-attack-own-magic", { combine: true, caster: "me" }, [
+    "自分.神聖鳥サンダ・バード.BP: 3000 → なし",
+    "自分.神聖鳥サンダ・バード.コア: 1 → 0",
+    "自分.神聖鳥サンダ・バード.場所: フィールド → 合体",
+    "自分.リザーブ: 10 → 7",
+    "自分.コグマル.コア: 1 → 2",
+    "自分.コグマル.BP: 2000 → 5000",
+    "自分.コグマル.疲労: false → true",
+    "自分.手札: ディバインチェイン → なし",
+    "自分.トラッシュ: なし → ディバインチェイン",
+    "自分.トラッシュのコア: 0 → 3",
+    "相手.猫人アビシニア.場所: フィールド → なし",
+    "相手.トラッシュ: なし → 猫人アビシニア",
+    "相手.リザーブ: 10 → 14",
+])
 // 相手がマジックを使っても効かない。ブロッカー(BP6000)のほうが合体スピリット(BP5000)より高いまま、合体スピリットが破壊される
 sandaBattle("sanda-combined-attack-opp-magic", { combine: true, caster: "opp" }, [
     "自分.コグマル.場所: フィールド → なし",

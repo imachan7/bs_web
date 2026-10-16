@@ -409,12 +409,15 @@ export function costSetOverride(
     board: Board,
     pid: PlayerId,
     cardData: CardData,
+    fromHand = true,
 ): number | undefined {
     let result: number | undefined
     // BS10-059：手札にあるこのスピリットカード自身の効果（scope:"self"）。effectSourcesでは拾えないため
     // cardData.effects を直接見る（hasTrashSymbolReductionと同じ形）
     for (const effect of cardData.effects) {
         if (effect.kind !== "costMod" || effect.mode !== "set" || effect.scope !== "self") continue
+        // scope:"self" の効果文はすべて「手札にあるこのカード」。トラッシュ・デッキ・バーストからの召喚には効かない
+        if (!fromHand) continue
         if (effect.condition !== undefined && "ownNexusAtLeast" in effect.condition) {
             if (board.players[pid].field.nexuses.length < effect.condition.ownNexusAtLeast) continue
         }
@@ -627,6 +630,8 @@ export function effectiveCost(
     // 軽減シンボル数の上限内で有効（赤軽減なら赤のEXシンボルでしか軽減できない）
     exReductionSymbols: Color[] = [],
     viaSoryo = false, // 【操霊】による召喚か（kind:"selfSummonCost" の viaSoryo 用）
+    // 手札以外（トラッシュの【不死】・デッキ・バースト等）から出すときは false。既定は手札
+    fromHand = true,
 ): number {
     // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
     // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）。
@@ -644,7 +649,7 @@ export function effectiveCost(
     // コスト置換（BS05パントマイスター／ゴッドスピード等「コストを◯にする」）は①で総コストを決めるだけなので、
     // **置換したコストからさらに軽減できる**（2026-09-16 ユーザー確定。以前は置換すると軽減を一切適用しなかった）
     // 軽減の前に足すコスト増（beforeReduction:true。「コスト+1する」＝軽減で打ち消せる。BS15共通器：虚神）
-    const totalCost = (selfSetCost(board, pid, cardData, viaSoryo) ?? costSetOverride(board, pid, cardData) ?? cardData.cost) + costModTotal(board, pid, cardData, true) + ownFamilySpiritCostAdjust(board, pid, cardData, viaSoryo)
+    const totalCost = (selfSetCost(board, pid, cardData, viaSoryo) ?? costSetOverride(board, pid, cardData, fromHand) ?? cardData.cost) + costModTotal(board, pid, cardData, true) + ownFamilySpiritCostAdjust(board, pid, cardData, viaSoryo)
     let base: number
     {
         // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の

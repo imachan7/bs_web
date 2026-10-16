@@ -277,7 +277,7 @@ export function summonFreeFromTrashIndex(
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS07常闇の聖堂＝「自分のフィールドのコアをコストとして使うことで〜召喚できる」）。
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
-    const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo") : 0
+    const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo", false) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
     if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)

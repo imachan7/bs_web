@@ -21,18 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：場面テストで見つかったカード効果の食い違いを3役の流れで直す（10-16。場面テストは part600〜604・PR `test/silent-effects`）
+### 次の一手：UI の2点（ブランチは main から新しく切る。10-16 ユーザー依頼）
 
-外した場面はコミット `d53efb2` の part600〜604 にある（`git show d53efb2:scripts/smoke/part60N.ts` から名前で拾って戻す）。どれもデータが効果文を書き切れていないので、足りない部品を決めてから実装する。
-- サンダ・バード BS12-058-e2（`sanda-combined-attack-own-magic`）：「合体アタック時」限定・対象＝ブロックしている相手・「その効果発揮後」。setTargetBpAsThisBattle に対象の指定が無い
-- 超時空重力炉 BS08-062-e2（`gravity-self`）：「このネクサスのシンボルを白3つ」を、召喚するカードの軽減の置き換え（reductionGrant replace）で書いている。自分のメインステップ・スピリットの召喚時だけの条件つきシンボル変更が要る
-- 軍師鳥ショカツリョー BS15-026-e2（`shoka-storm1/2`）：払う数が selfBofuCount（発生源の暴風）。アタックしたスピリットの【暴風】の数を数えるカウンタが要る
-- 渦巻く大海峡 BS15-072-e2（`uzu-lv2-burst`・`uzu-opp-spirit`）：色前提の noOpponentTriggerByColor に色なしで書いている
-- 虚皇帝ネザード・バァラル BS15-X02-e1（part603 の fushiCase の accept/decline を外してある）：「手札にある」コスト11が【不死】のトラッシュからの召喚にも効く
-- 宙吊りの五行山 BS16-064-e2（`gogyosan-return-yes`）：「その破壊されたスピリット」を戻す指定が無い
-- アーチャー・ドラゴン BS16-006-e2（`archer-no-target`）：起動能力の「〜することで」が後半を解決できなくても使える（起動能力全般。COST_MODEL §1）
-- オオヅツナナフシ BS12-053-e1（`nana-summon-empty-hand`）：手札0枚でも確認が出る（pay の CHECKERS をそのまま確認の前に使うと exhaust 等で誤って消える）
-- 未確認：【不死】がマジックでの破壊で誘発しない疑い（C 組の期待値役の報告。part602 には入れていない）
+- スピリットのシンボルを、効果の増減・合体込みの今の値で表示する（`public/src/ui/fieldCard.ts` が `m.symbol`＝カード本来の値を描いている。`shared/rules/symbols.ts` の `symbolsOf` を公開して使う）
+- 消滅を「破壊」と表示している（`removal.ts` の emitEvent が cause を問わず `type: "destroy"`。通知に cause を足し、`renderer.ts` の eventBannerText で「消滅」と出し分ける）
+- 後片付け：使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
+- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 

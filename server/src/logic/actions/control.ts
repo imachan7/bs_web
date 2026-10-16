@@ -308,7 +308,7 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     // 無いカード）。バースト確認では paySources を渡せないため、支払い元はリザーブのみ（決定的簡略化）
     // payCost でなくても、相手の転召の祭壇などの余分は払う（2026-10-15）
     if (action.surchargePrepaid) state.summonSurchargePaid = owner
-    const cost = action.payCost ? effectiveCost(state, owner, card) : 0
+    const cost = action.payCost ? effectiveCost(state, owner, card, false, [], false, false) : 0
     if (action.payCost ? normalReserveOf(player) < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return

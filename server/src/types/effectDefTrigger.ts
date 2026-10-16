@@ -48,6 +48,7 @@ export type EffectDefTrigger =
               | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 自分のフィールドにnamesいずれかを含むスピリットがcount体以上いるときのみ発火
               | { battleLoserMaxCost: number } // onBattleWin専用：直前バトルで破壊した相手のコストがこれ以下のときのみ発火
               | { opponentHandAtLeast: number } // 相手の手札枚数がこれ以上のときのみ発火
+              | { ownHandAtLeast: number } // 自分の手札枚数がこれ以上のときのみ発火（発火しないので確認も出ない）
               | { bothFieldsHaveMinBpSpirit: number } // 両陣営のフィールドに実効BPがこの値以上のスピリットがそれぞれいるときのみ発火
               | { battleOpponentCombined: true } // 現在のバトルの相手側個体が合体スピリットのときのみ発火（onBattleStart用）
               | { requirePrevAttackerCombined: true } // 直前のアタック宣言が自分の合体スピリットによるものだったときのみ発火（ターン開始でリセット）

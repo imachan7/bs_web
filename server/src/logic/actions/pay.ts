@@ -21,7 +21,7 @@ import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { fieldCoresSpendable, moveCardCandidates, moveCardsPayable } from "./moveCards"
 import { normalReserveOf } from "../soulCore"
-import { findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
+import { bofuCountFor, findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
 import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses, requestActivationConfirm, requestChoice } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -149,7 +149,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return nexusHasCoresForPay(state, owner, action, srcType)
     },
     // exhaust：target:"self"（発生源自身が回復状態か）／side:"own"（自分の場に条件に合う回復状態の個体がcount体以上いるか）
-    exhaust: (state, owner, self, action) => {
+    exhaust: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "exhaust") return false
         if (action.target === "self") return self !== null && !self.isRested
         if (action.nexusOnly) {
@@ -162,7 +162,17 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
             ).length
             return count >= action.count
         }
-        return false // 既存の書き方（相手を疲労）はpayのcostに使う想定が無いため今回は判定を足さない
+        // 相手を疲労させる（then に置く書き方）：回復状態の相手が数どおりいなければ発揮しない（COST_MODEL §1）。
+        // 疲労耐性は見ない（耐性で減る分は解決時に任せる）
+        const need = action.countFromBofu
+            ? (self ? bofuCountFor(state, owner, self) : 0)
+            : action.countCounter !== undefined
+              ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+              : action.count
+        if (need <= 0) return false
+        const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
+        const opp = opponentOf(owner)
+        return state.players[opp].field.spirits.filter((s) => !s.isRested && matchesTarget(state, opp, s, filter, self?.instanceId)).length >= need
     },
     // mill：side（既定opponent）側のデッキがcount枚（countCounterがあれば数えた値）以上あるか
     mill: (state, owner, self, action, _srcColors, srcType) => {
@@ -419,7 +429,8 @@ export function unpayableReason(
     }
     if (action.type === "exhaust") {
         if (action.target === "self") return "このスピリットが疲労している"
-        return action.nexusOnly ? "疲労させられる自分のネクサスがない" : "疲労させられる自分のスピリットがいない"
+        if (action.nexusOnly) return "疲労させられる自分のネクサスがない"
+        return action.side === "own" ? "疲労させられる自分のスピリットがいない" : "疲労させられる相手のスピリットが指定数いない"
     }
     if (action.type === "moveCards") return moveCardsUnpayableReason(action)
     return UNPAYABLE_REASONS[action.type] ?? "条件を満たさない"

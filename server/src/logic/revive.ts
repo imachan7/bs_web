@@ -182,7 +182,7 @@ export function destroyedFamiliesOf(inst: CardInstance): string[] {
 // （BS14-098ダークリボーン。維持コアはここに含まない＝通常どおり要る）
 function fushiCostOf(state: GameState, ownerPid: PlayerId, card: CardData): number {
     if (timedPlayerRules(state, ownerPid).some((c) => c.type === "freeFushiSummonForPid")) return summonSurcharge(state, ownerPid, card)
-    return effectiveCost(state, ownerPid, card)
+    return effectiveCost(state, ownerPid, card, false, [], false, false)
 }
 
 // 通常のコスト＋維持コアを、リザーブとフィールドのコアで払えるか（支払い元はフィールドも含む。2026-10-15 ユーザー確認）

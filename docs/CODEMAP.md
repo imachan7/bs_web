@@ -74,6 +74,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `canAwaken`（fn）
 - `activatableAbility`（fn）：起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
 - `braveCombineOntoSelfCandidates`（fn）：activatableAbility の実体。source＝効果を持つカード、host＝レベル/バトル判定に使うカード
+- `activatedActionResolvable`（fn）：起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
 - `DirectAttackFilter`（型）：指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
 - `directAttackFilter`（fn）：指定アタック（canDirectAttack）を現在レベルで持っていれば、その対象条件を返す
 - `minLevelCores`（fn）：維持コア数＝そのカードが持つ**最小レベル**の必要コア数。

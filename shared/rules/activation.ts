@@ -2,6 +2,7 @@
 import { noteCoverage } from "../coverage"
 
 import type {
+    EffectAction,
     CardData,
     CardInstance,
     CardType,
@@ -13,6 +14,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { activeConstraints, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
+import { matchesTarget } from "./targetFilter"
 import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches, matchesBraveCondition } from "./level"
 
 // ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----
@@ -296,6 +298,24 @@ export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self
     )
 }
 
+// 起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
+// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy（トップレベルのみ）だけで、
+// 装甲・免疫などの耐性は見ない＝対象が耐性持ちだけのときは「起動できる」側に倒れる。ほかの action は常に true
+export function activatedActionResolvable(board: Board, pid: PlayerId, source: CardInstance, action: EffectAction): boolean {
+    if (action.type !== "destroy" || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
+    const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
+    if ([filter.maxBp, filter.minBp, filter.exactBp].some((v) => typeof v === "string")) return true
+    if (filter.maxBp !== undefined && card(source.cardId).type === "spirit") {
+        for (const s of effectSources(board, pid)) {
+            const lv = currentLevel(s).level
+            for (const e of card(s.cardId).effects) if (e.kind === "destroyBpThresholdBonus" && effectActiveAtLevel(e.levels, lv)) filter.maxBp += e.amount
+        }
+    }
+    const opp: PlayerId = pid === "p1" ? "p2" : "p1"
+    const n = board.players[opp].field.spirits.filter((s) => matchesTarget(board, opp, s, filter, source.instanceId)).length
+    return n >= (action.upTo || action.count === "any" ? 1 : action.count)
+}
+
 function activatableAbilityOf(
     board: Board,
     pid: PlayerId,
@@ -334,6 +354,7 @@ function activatableAbilityOf(
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
         if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
+        if (e.cost !== undefined && !activatedActionResolvable(board, pid, source, e.action)) continue
         // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
         if (e.oncePerTurn) {
             const used =
