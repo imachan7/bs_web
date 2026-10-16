@@ -442,7 +442,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `LegacyMoveAction`（型）：移行前の型（データには残っていない。旧データ・テストの期待値を読むためだけに残す）
 - `legacyRecoverToMoveCards`（fn）：旧 type → moveCards（と if）への読み替え。データの機械移行（scripts）からも使う
-- `legacyTrashPlayToMoveCards`（fn）：旧 summonFromTrashFree の道筋ごとの違いをそのまま写す：
+- `legacyTrashPlayToMoveCards`（fn）：旧 summonFromTrashFree を moveCards に読み替える。召喚時効果は skipOnSummon が無ければ発揮する（RESUME_STACK §6.2）
 - `legacyRevealToSteps`（fn）：旧 type は moveCards への読み替えだけ（データを移し終えたら消す）
 - `legacyHandDeckToMoveCards`（fn）：旧 toHand／toDeck → moveCards
 - `legacyDiscardToMoveCards`（fn）：旧 discardSelfChoose → moveCards（手札→トラッシュ）。「好きなだけ」は count:"all"（anyMax があればその数）＋upTo
@@ -798,6 +798,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/summon.ts
 
+- `startSummonBatch`（fn）：効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
+- `flushSummonBatch`（fn）：全員を場に出し終えたら、それぞれの召喚時効果をターンプレイヤーが選んだ順に発揮する
 - `fireSummonSequence`（fn）
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
