@@ -40,6 +40,7 @@ TimedContent `{type:"immune"}` に `against?: ("spirit"|"brave"|"magic")[]`（05
 （✅ 4d4dde0・part446）
 type.ts を触る部品（034 の破壊されたカード記録・declare の what:"name"/"level"・EffectCounter の BP差・081 の TimedContent「効果を失う」）は未着手（#226 はマージ済み）。
 残り：returnToHand.countCounter（X04「ブレイヴ1つにつき」）。**聞く前に PROCEDURES_AUDIT §2 の索引を見る**（081 で既存の一般則を聞き直した）
+**次の一手（10-16）**：残りの部品22個（BS17_PLAN §3 の A・B のうち ✅ でないもの）を、持ち込み後の語彙（`moveCards`・26系）で書けるか調査役1体が仕分ける → `docs/design/BS17_SURVEY_REMAINING.md`。それを見て部品バッチ6以降を組む。
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
