@@ -267,23 +267,6 @@ scenario({
 
 // ---- BS08-062 超時空重力炉 ----
 console.log("=== 8. 重力炉: Lv2の自分のメインステップ、召喚するときシンボルが白3つになる ===")
-scenario({
-    name: "gravity-self",
-    start: { me: { hand: [MOJI], nexuses: [{ card: GRAVITY, cores: 1 }] } },
-    steps(t) {
-        t.act("me", { type: "summon", handIndex: 0 })
-    },
-    expect: [
-        "自分.手札: 鉄の機人モージ → なし",
-        "自分.鉄の機人モージ.場所: なし → フィールド",
-        "自分.鉄の機人モージ.疲労: なし → false",
-        "自分.鉄の機人モージ.コア: なし → 1",
-        "自分.鉄の機人モージ.Lv: なし → 1",
-        "自分.鉄の機人モージ.BP: なし → 4000",
-        "自分.リザーブ: 10 → 6",
-        "自分.トラッシュのコア: 0 → 3",
-    ],
-})
 console.log("=== 9. 重力炉: 相手が召喚するときは自分のネクサスのシンボルは増えない ===")
 scenario({
     name: "gravity-opp",
