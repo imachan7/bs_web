@@ -521,10 +521,10 @@ export function fireFieldEventTriggers(
               : effect.ignoreEventTarget
                 ? undefined
                 : targetInstanceId
+        // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
+        // （BS10鎧馬アルファズル・BS12-053オオヅツナナフシ：refreshSelf はホストの isRested を操作する必要がある）
+        const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
         if (effect.selfMode === "source") {
-            // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
-            // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）
-            const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
             return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
         }
         if (selfOverride) {
@@ -543,7 +543,7 @@ export function fireFieldEventTriggers(
                 srcType: getCard(inst.cardId).type,
             }
         }
-        return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
+        return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
     }
 
     // extraItems（破壊で誘発した効果の列）を同じプールに混ぜる。
