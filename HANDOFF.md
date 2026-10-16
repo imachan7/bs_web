@@ -21,12 +21,11 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：UI の2点（ブランチは main から新しく切る。10-16 ユーザー依頼）
+### 次の一手：後片付け2つ（10-16）
 
-- スピリットのシンボルを、効果の増減・合体込みの今の値で表示する（`public/src/ui/fieldCard.ts` が `m.symbol`＝カード本来の値を描いている。`shared/rules/symbols.ts` の `symbolsOf` を公開して使う）
-- 消滅を「破壊」と表示している（`removal.ts` の emitEvent が cause を問わず `type: "destroy"`。通知に cause を足し、`renderer.ts` の eventBannerText で「消滅」と出し分ける）
-- 後片付け：使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
+- 使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
 - 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
+- 古い長いコメントの整理（ファイル単位の chore。どのファイルから削るかの一覧をユーザーに出す）
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
