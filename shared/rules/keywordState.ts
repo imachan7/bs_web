@@ -1,4 +1,5 @@
 // 盤面の付与効果を考慮したキーワード・系統の判定（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage } from "../coverage"
 
 import type {
     CardData,
@@ -136,6 +137,7 @@ export function hasDestroyAsMaxLevelGrant(
             if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "self") continue
             if (effect.whileCombined === true && !instIsCombined(inst)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(src).level)) continue
+            noteCoverage(effect, "destroyAsMaxLevelGrant")
             return true
         }
     }
@@ -144,6 +146,7 @@ export function hasDestroyAsMaxLevelGrant(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            noteCoverage(effect, "destroyAsMaxLevelGrant")
             return true
         }
     }
@@ -229,6 +232,7 @@ export function continuousKeywordGrantCount(
             // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
             // 実効BPで見るので、BPバフで届いた個体にも付く
             if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) continue
+            noteCoverage(effect, "keywordGrant")
             return effect.count ?? 1
         }
     }
@@ -278,6 +282,7 @@ export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
+                noteCoverage(effect, "familySuppression")
                 // 「相手のスピリットすべて」＝発生源の持ち主のスピリットには効かない。
                 // 対象の持ち主が分からないとき（場にいない個体）は効かせない側に倒す
                 if (effect.target === "opponentAll" && (instPid === undefined || instPid === ownerPid)) continue
@@ -324,6 +329,7 @@ export function hasHandKeywordGrant(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "handKeywordGrant") continue
             if (effect.keyword !== keyword) continue
+            noteCoverage(effect, "handKeywordGrant")
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (cardData.type !== (effect.cardType ?? "spirit")) continue
             if (effect.familyFilter !== undefined && !cardData.family.includes(effect.familyFilter)) continue
@@ -402,6 +408,7 @@ export function spiritHasFamily(
                 const total = onField.filter((s) => instHasColor(s, color)).length
                 if (total < count) continue
             }
+            noteCoverage(effect, "familyGrant")
             return true
         }
     }
@@ -430,6 +437,7 @@ export function bofuCountBonusFor(board: Board, ownerPid: PlayerId): number {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "bofuCountBonus") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "bofuCountBonus")
             total += effect.amount
         }
     }

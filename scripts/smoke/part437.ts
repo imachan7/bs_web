@@ -4,7 +4,6 @@
 // 実在カードがまだ無い（このバッチはエンジン側のみ）。fireFieldEventTriggers はESMの読み取り専用
 // バインディングとしてrequireされるため、この実行環境ではスパイ（差し替え）ができない
 // （Object.definePropertyがconfigurable:falseで拒否される）。そのため発火の配線は
-// scripts/coverage-effects.ts の checkPatchTargets / smoke/part160 と同じ考え方＝
 // 呼び出し元ソースの文字列一致で確かめ、実際の状態変化（ライフ・バースト・破棄枚数）は
 // 生産コードをそのまま実行して確かめる
 import * as fs from "fs"

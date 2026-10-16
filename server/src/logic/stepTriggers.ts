@@ -1,4 +1,5 @@
 // ステップの開始・終了、バトルに勝ったとき、BP が達したときの誘発
+import { noteCoverage } from "../../../shared/coverage"
 import { markPays } from "./actions/pay"
 import type { CardInstance, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { currentLevel, getCard, log, opponentOf, resolveInOrder } from "./GameState"
@@ -440,6 +441,7 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
             const from = levels.find((l) => l.level === effect.fromLevel)
             const use = levels.find((l) => l.level === effect.useLevel)
             if (!from || !use) continue
+            noteCoverage(effect, "battleBpAsLevel")
             return base + (use.bp - from.bp)
         }
     }

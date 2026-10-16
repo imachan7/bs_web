@@ -1,4 +1,5 @@
 // 継続効果を個体へ書き戻す再計算（refreshLevelAsOverrides）と、期間つき効果の記録
+import { noteCoverage, noteGrantSource } from "../../../../shared/coverage"
 import { countEffectCounter, fireFieldEventTriggers } from "../EffectModules"
 import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, TimedRecord, PlayerRuleDef } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } from "../GameState"
@@ -261,6 +262,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             }
                             continue
                         }
+                        noteCoverage(effect, "keywordGrant")
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
                         for (const c of effect.colors ?? []) {
                             if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)
@@ -275,6 +277,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     const oppColors = ownFieldSymbolColors(state, opponentOf(pid))
                     if (oppColors.size > 0) {
+                        noteCoverage(effect, "keyword")
                         if (!source.armorColorsGranted) source.armorColorsGranted = []
                         for (const c of oppColors) {
                             if (!source.armorColorsGranted.includes(c)) source.armorColorsGranted.push(c)
@@ -293,6 +296,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of targets) {
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        noteCoverage(effect, "braveImmuneGrant")
                         if (effect.scope === "all") spirit.braveImmuneAll = true
                         else spirit.braveImmuneMatchArmorColors = true
                     }
@@ -312,6 +316,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) {
                             continue
                         }
+                        noteCoverage(effect, "effectEntryGrant")
                         ;(spirit.grantedMagicNegate ??= []).push(effect.granted)
                     }
                     continue
@@ -363,6 +368,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             continue
                         }
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
+                        noteCoverage(effect, "vanillaAsGrant")
                         spirit.treatedAsVanillaContinuous = true
                     }
                     continue
@@ -381,6 +387,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
                     for (const spirit of state.players[targetPid].field.spirits) {
+                        noteCoverage(effect, "levelCostMod")
                         spirit.levelCostBonusContinuous =
                             (spirit.levelCostBonusContinuous ?? 0) + effect.amount
                     }
@@ -423,6 +430,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         // 「自分のスピリットをブロックした相手のスピリット」＝現在のバトルのブロッカーのみ
                         if (effect.blockingOnly && state.battle?.blockerInstanceId !== spirit.instanceId) continue
+                        noteCoverage(effect, "spiritEffectsDisabledGrant")
                         spirit.effectsDisabledContinuous = true
                     }
                     continue
@@ -441,6 +449,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.costFilter !== undefined && !instHasCost(spirit, effect.costFilter)) continue
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
                         if (!spirit.namesAsContinuous) spirit.namesAsContinuous = []
+                        noteCoverage(effect, "nameAsGrant")
                         if (!spirit.namesAsContinuous.includes(effect.nameIncludes)) {
                             spirit.namesAsContinuous.push(effect.nameIncludes)
                         }
@@ -452,6 +461,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // （継続。百面相のフラットフェイス／妖精ティングリー）
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    noteCoverage(effect, "colorAs")
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
                     const targets =
                         effect.target === "ownAll"
@@ -512,6 +522,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             ? player.field.spirits.filter((sp) => matchesTarget(state, pid, sp, effect.filter as ResolvedTargetFilter | undefined))
                             : [source]
                     for (const target of targets) {
+                        noteCoverage(effect, "symbolAddGrant")
                         if (!target.symbolsAddedContinuous) target.symbolsAddedContinuous = []
                         for (let i = 0; i < count; i++) target.symbolsAddedContinuous.push(effect.color)
                     }
@@ -526,6 +537,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
                     }
                     for (const spirit of effect.target === "self" ? [source] : player.field.spirits) {
+                        noteCoverage(effect, "costDelta")
                         spirit.costDeltaContinuous = (spirit.costDeltaContinuous ?? 0) + effect.amount
                     }
                     continue
@@ -547,6 +559,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // color 指定時はその色に固定する（省略時は対象が元々持つシンボルの1色目）
                         const baseColor = effect.color ?? getCard(spirit.cardId).symbol[0]
                         if (!baseColor) continue
+                        noteCoverage(effect, "symbolFix")
                         const fixed = new Array<Color>(effect.count).fill(baseColor)
                         // summonReductionOnly：スピリット召喚の軽減計算のあいだだけ使う置き場へ入れる
                         if (effect.summonReductionOnly) spirit.symbolsForSummonReduction = fixed
@@ -563,6 +576,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         if (getCard(spirit.cardId).type !== "brave") continue
+                        noteCoverage(effect, "braveStatsAs")
                         spirit.braveStatsAsContinuous = {
                             cost: effect.cost,
                             family: effect.family,
@@ -597,6 +611,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             ? getCard(spirit.cardId).cost + effect.plus
                             : effect.cost
                         // costs（複数値。BS11-064 闇の聖剣＝コスト3/4）と cost/plus（単一値）を1本にまとめる
+                        noteGrantSource(spirit, effect)
                         const values = effect.costs ?? (value !== undefined ? [value] : [])
                         if (values.length === 0) continue
                         // whenDestroyedOnly：破壊されたときの判定にだけ効く（置き場を分ける）
@@ -614,6 +629,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        noteCoverage(effect, "bpAs")
                         spirit.bpAsContinuous = effect.amount
                     }
                     continue
@@ -631,6 +647,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         if (spirit.instanceId === source.instanceId) continue
                         if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        noteCoverage(effect, "bpEqualizeFamily")
                         spirit.bpEqualizeContinuous = sourceBp
                     }
                     continue
@@ -705,11 +722,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                 }
                 if (effect.target === "self") {
+                    noteCoverage(effect, "levelAs")
                     source.levelAsContinuous = resolveTreatAs(effect.treatAs, source)
                 } else if (effect.target === "ownNexusesAll") {
                     // nameContains指定時はカード名にこの文字列を含む自分のネクサスのみ（BS13-072未完成の古代戦艦：羅針盤Lv2）
                     for (const nexus of player.field.nexuses) {
                         if (effect.nameContains !== undefined && !cardNameContains(nexus, effect.nameContains)) continue
+                        noteCoverage(effect, "levelAs")
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                     }
                 } else if (effect.target === "opponentNexusesAll") {
@@ -717,6 +736,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // effectsOnly 指定時は**効果の発揮判定にだけ効く**置き換えなので、
                     // 表示や「Lv1のネクサスを破壊する」の判定には当たらない（displayLevel が無視する）
                     for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
+                        noteCoverage(effect, "levelAs")
                         nexus.levelAsContinuous = resolveTreatAs(effect.treatAs, nexus)
                         if (effect.effectsOnly) nexus.levelAsEffectsOnly = true
                     }
@@ -732,6 +752,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         ) {
                             continue
                         }
+                        noteCoverage(effect, "levelAs")
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
@@ -742,6 +763,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             (e) => e.kind === "keyword" && e.keyword === effect.keywordFilter,
                         )
                         if (!hasStaticKeyword) continue
+                        noteCoverage(effect, "levelAs")
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsByFamily") {
@@ -749,6 +771,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // それぞれの最高Lvとして扱う（BS06。matchesFamilyFilterはtempKeywords等の付与も考慮する）
                     for (const spirit of player.field.spirits) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        noteCoverage(effect, "levelAs")
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "ownSpiritsVanilla") {
@@ -757,11 +780,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         if (!instIsVanilla(spirit)) continue
                         if (effect.summonedThisTurnOnly && spirit.summonedTurn !== state.turn) continue
+                        noteCoverage(effect, "levelAs")
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "opponentSpiritsAll") {
                     // 発生源の持ち主の相手のスピリットすべて（BS03フォーカード／BS04ジャッジメントライツ）
                     for (const spirit of state.players[opponentOf(pid)].field.spirits) {
+                        noteCoverage(effect, "levelAs")
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)
                     }
                 } else if (effect.target === "opponentBlockersOfOwnKeyword") {
@@ -778,7 +803,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             const blocker = state.players[opponentOf(pid)].field.spirits.find(
                                 (sp) => sp.instanceId === battle.blockerInstanceId,
                             )
-                            if (blocker) blocker.levelAsContinuous = resolveTreatAs(effect.treatAs, blocker)
+                            if (blocker) {
+                                noteCoverage(effect, "levelAs")
+                                blocker.levelAsContinuous = resolveTreatAs(effect.treatAs, blocker)
+                            }
                         }
                     }
                 }
@@ -806,6 +834,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 for (const c of source.armorColorsGranted ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)
                 if (ownArmorColors.length === 0) continue
                 for (const spirit of player.field.spirits) {
+                    noteCoverage(effect, "armorEffectiveGrant")
                     const granted = (spirit.armorColorsGranted ??= [])
                     for (const c of ownArmorColors) if (!granted.includes(c)) granted.push(c)
                 }

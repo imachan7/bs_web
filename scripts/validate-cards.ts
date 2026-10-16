@@ -130,8 +130,7 @@ const SELF_REFERENCING_ACTIONS = new Set([
     "markNoRefreshTarget",
 ])
 
-// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind。
-// coverage-effects.ts の同名の集合と同じ分類
+// action を持つ（＝それ自体が発動側で、貸与の対象にはならない）効果 kind
 const ACTION_BEARING_KINDS = new Set([
     "triggered",
     "magic",

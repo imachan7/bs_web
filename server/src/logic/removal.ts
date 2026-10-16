@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
 import type { CardInstance, CardType, Color, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
@@ -146,6 +147,7 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                noteCoverage(effect, "globalConstraint")
                 return true
             }
         }
@@ -642,6 +644,7 @@ export function tryFreeSummonOnHandDiscard(
     if (!canPayFreeSummonSurcharge(state, targetPid, getCard(cardId), minLevelCores(getCard(cardId)))) return false
     const index = player.trashCards.lastIndexOf(cardId)
     if (index === -1) return false
+    noteCoverage(effect, "freeSummonFromHandOnDiscardedByOpponent")
     if (state.interactiveTargets) {
         suspend(state, {
             pid: targetPid,
@@ -682,6 +685,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
         if (effect.condition && player.life > effect.condition.ownLifeAtMost) continue
         // 維持コアを置けないなら召喚できないので、確認自体を出さない
         if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+        noteCoverage(effect, "freeSummonFromHandOnLifeDamaged")
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,
@@ -971,6 +975,7 @@ function hasOwnNexusIndestructible(
             if (effect.condition?.ownNexusCountExactly !== undefined) {
                 if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
             }
+            noteCoverage(effect, "globalConstraint")
             return true
         }
     }
@@ -1680,6 +1685,7 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
                 if (e.targetSide === "opponent" && targetOwnerPid === pid) continue
                 // ownBurstOnly＝発生源の持ち主のバースト効果を解決している間だけ
                 if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
+                noteCoverage(e, "coreReturnBonus")
                 bonus += e.amount
             }
         }

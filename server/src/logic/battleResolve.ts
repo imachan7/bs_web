@@ -1,4 +1,5 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
+import { noteCoverage } from "../../../shared/coverage"
 import { recordLifeLost } from "./record"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
@@ -603,6 +604,10 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                 state,
                 `${getCard(attacker.cardId).name}の【呪撃】：${getCard(blocker.cardId).name}を破壊した。`,
             )
+            const jugekiEntry = getCard(attacker.cardId).effects.find(
+                (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, f.attackerLevel),
+            )
+            if (jugekiEntry) noteCoverage(jugekiEntry, "keyword")
             // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
             applyJugekiCoreToVoid(state, attackerPid, defenderPid, stillOnField)
             destroyTargetsBatch(state, attackerPid, [

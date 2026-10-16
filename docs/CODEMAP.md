@@ -44,6 +44,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `effectiveCost`（fn）
 - `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
 
+## shared/coverage.ts
+
+- `setCoverageSink`（fn）
+- `noteCoverage`（fn）：effect は __eid が刻まれたカードデータの効果エントリ（undefined なら記録しない）。
+- `noteKeyword`（fn）：cardId の持つ【keyword】のエントリを記録する（level を渡すと、そのレベルで有効なエントリを選ぶ）
+- `noteAction`（fn）
+- `noteInstance`（fn）
+- `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
+- `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
+
 ## shared/magicCondition.ts
 
 - `magicConditionFailure`（fn）：満たしていれば null、満たしていなければ理由の文を返す
@@ -518,6 +528,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/counted.ts
 
 - `countedAmount`（fn）
+
+## server/src/logic/coverageRecorder.ts
+
+- `startCoverageIfRequested`（fn）
 
 ## server/src/logic/debugBoard.ts
 

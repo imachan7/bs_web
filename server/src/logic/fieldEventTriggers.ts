@@ -1,4 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
+import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
@@ -700,6 +701,7 @@ export function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: Playe
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
         if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+        noteCoverage(effect, "freeSummonFromHandOnOwnNexusDeployed")
         if (state.interactiveTargets) {
             suspend(state, {
                 pid,

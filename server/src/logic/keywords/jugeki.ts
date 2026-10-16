@@ -1,4 +1,5 @@
 // 【呪撃】の判定
+import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
 import { effectActiveAtLevel, effectSources, isVirtualSource } from "../../../../shared/rules"
@@ -15,7 +16,10 @@ export function hasJugekiOnBlockReplace(state: GameState, ownerPid: PlayerId): b
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "jugekiOnBlockReplace") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (effectActiveAtLevel(effect.levels, level)) return true
+            if (effectActiveAtLevel(effect.levels, level)) {
+                noteCoverage(effect, "jugekiOnBlockReplace")
+                return true
+            }
         }
     }
     return false
@@ -38,6 +42,7 @@ export function applyJugekiCoreToVoid(
             if (!effectActiveAtLevel(effect.levels, level)) continue
             const removed = Math.min(effect.count, victim.cores)
             if (removed === 0) continue
+            noteCoverage(effect, "jugekiCoreToVoid")
             victim.cores -= removed
             log(
                 state,

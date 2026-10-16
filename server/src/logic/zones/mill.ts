@@ -1,4 +1,5 @@
 // デッキ破棄（mill）の上限とデッキ破棄の実行
+import { noteCoverage } from "../../../../shared/coverage"
 import { recordLifeLost, recordMoved } from "../record"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
@@ -25,6 +26,7 @@ export function millCapFor(state: GameState, pid: PlayerId): number {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "globalConstraint")
             cap = Math.min(cap, effect.constraint.maxCount)
         }
     }
@@ -237,6 +239,7 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
         const idx = player.trashCards.lastIndexOf(cardId)
         if (idx === -1) continue // onMilledFromDeck が先に取り除いたカード
         player.trashCards.splice(idx, 1)
+        noteCoverage(effectSources(state, pid).flatMap((s) => getCard(s.cardId).effects).find((e) => e.kind === "milledMagicToTegamoto"), "milledMagicToTegamoto")
         player.tegamoto.push(cardId)
         player.tegamotoPlayable.push(cardId)
         moved.push(getCard(cardId).name)
@@ -293,6 +296,7 @@ export function findDeckMillNegate(
             } else {
                 if (source.isRested) continue
             }
+            noteCoverage(effect, "deckMillNegate")
             return { source, effect }
         }
     }
@@ -475,6 +479,7 @@ export function resolveMilledFromDeck(
                 break
             }
             player.trashCards.splice(idx, 1)
+            noteCoverage(effect, "onMilledFromDeck")
             const name = getCard(cardId).name
             if (effect.then === "deployThisNexusFree") {
                 const inst = createInstance(cardId, state.turn, 0)

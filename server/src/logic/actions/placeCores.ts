@@ -1,6 +1,7 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
 // 旧 lifeCharge 等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
+import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import type { CardInstance, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
@@ -456,6 +457,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
 
     // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。旧 lifeCharge と同じ絞り）
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
+        noteKeyword(getCard(self.cardId).effects, "seimei")
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }
     if (nextPick && !state.pendingChoice) placeCoresHandler({ ...ctx, targetInstanceId: undefined }, nextPick)

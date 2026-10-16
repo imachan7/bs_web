@@ -1,4 +1,5 @@
 // サーバー／クライアント共有のコスト計算層。
+import { noteCoverage } from "./coverage"
 // 軽減シンボル・コスト修正・マジック使用制約・無償化の判定を一本化する。
 // クライアントは「軽減後のコスト表示」と「使用可能ハイライト」にこれを使うため、
 // サーバーと実装がズレると『使えるのに使えないように見える』表示バグになる（旧 renderer のミラーで実在した）。
@@ -63,6 +64,7 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
                         : effect.amountCounter === "opponentFieldColors"
                           ? effect.amount * opponentFieldColorCount(board, pid)
                           : 0
+                noteCoverage(effect, "costMod")
                 total += amt
             }
         }
@@ -145,6 +147,7 @@ export function reductionGrantSymbols(
             if (effect.replace) {
                 replace = repeated
             } else {
+                noteCoverage(effect, "reductionGrant")
                 extra.push(...repeated)
             }
         }
@@ -205,6 +208,7 @@ export function hasMagicRestriction(
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                noteCoverage(effect, "magicRestriction")
                 return true
             }
         }
@@ -238,6 +242,7 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
                 ) {
                     continue
                 }
+                noteCoverage(effect, "magicRestriction")
                 return true
             }
         }
@@ -255,6 +260,7 @@ export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "nexusCostMillPay") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
+            noteCoverage(effect, "nexusCostMillPay")
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
@@ -277,6 +283,7 @@ export function canPaySummonCostByHandDiscard(board: Board, pid: PlayerId): bool
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "summonCostHandDiscardPay") continue
+            noteCoverage(effect, "summonCostHandDiscardPay")
             return true
         }
     }
@@ -333,6 +340,7 @@ export function findMagicFreeGrantSource(
             }
             // 『このスピリットのバトル時』（BS07大天使イスフィール）：発生源自身がバトルの当事者のときだけ
             if (effect.condition === "selfInBattle" && !isSelfInBattle(board, source.instanceId)) continue
+            noteCoverage(effect, "magicFreeGrant")
             return source.instanceId
         }
     }
@@ -364,6 +372,7 @@ export function magicEffectiveColors(board: Board, pid: PlayerId, cardData: Card
             if (!effectActiveAtLevel(effect.levels, level)) continue
             if (!cardData.colors.includes(effect.color)) continue
             if (effect.whileBattling && !isSelfInBattle(board, source.instanceId)) continue
+            noteCoverage(effect, "ownMagicColorless")
             return []
         }
     }
@@ -466,6 +475,7 @@ export function costSetOverride(
             const setTo =
                 effect.setToCounter === "ownLife" ? board.players[pid].life : effect.setTo
             // 複数の置換が同時に効く場合は最も小さい値を採る（決定的にするため。現状そのカードは無い）
+            noteCoverage(effect, "costMod")
             if (result === undefined || setTo < result) result = setTo
         }
     }
@@ -538,7 +548,11 @@ export function selfSetCost(board: Board, pid: PlayerId, cardData: CardData, via
 }
 
 function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData, viaSoryo = false): boolean {
-    if (cardData.effects.some((e) => e.kind === "trashSymbolReduction" && e.scope === "self")) return true
+    const selfEntry = cardData.effects.find((e) => e.kind === "trashSymbolReduction" && e.scope === "self")
+    if (selfEntry) {
+        noteCoverage(selfEntry, "trashSymbolReduction")
+        return true
+    }
     if (selfSummonCostNotes(board, pid, cardData, "trashSymbols", viaSoryo).length > 0) return true
     for (const source of effectSources(board, pid)) {
         const sourceLevel = currentLevel(source).level
@@ -547,6 +561,7 @@ function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
+            noteCoverage(effect, "trashSymbolReduction")
             return true
         }
     }

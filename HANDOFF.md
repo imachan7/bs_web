@@ -21,13 +21,6 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：7（カバレッジの計測を1行呼び出しの方式にする。ブランチ `chore/coverage-note-calls`。10-16 確定）
-
-- エンジンに `noteCoverage(effect, "kind")`・`noteKeyword`・`noteAction`・`noteInstance` を直接書く（`shared/coverage.ts`。記録先が null なら即 return）。kind は `EffectDef["kind"]` 型
-- 計測は worktree と正規表現の差し込みをやめ、**作業ツリーで** `COV_OUT` 付き smoke を流す（未コミットの変更も測る。ユーザー了承）
-- `MEASURED_CONTINUOUS_KINDS` と `checkPatchTargets`（part160）は、ソースを grep した計測点の集合と「カードデータの kind に計測点があるか」の静的検査に置き換える
-- 移行は今の patch を本物のツリーに一度当てて機械的に呼び出しへ直す。**移行前後で「発火した効果エントリの集合」が完全一致**することを確かめる
-
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
 `~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。
@@ -68,8 +61,8 @@
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
 関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
 `tsc --noUnusedLocals` の報告で写った不要な import を消す → **元の関数本体が1文字も変わらず残っているかをスクリプトで確かめる** →
-`scripts/coverage-effects.ts` の差し込み先を移した先へ直す（part160 が壊れた差し込み先を検出する）→ `npm run codemap`・据え置き一覧の更新。
-罠：`patch()` に `f.replace("rules.ts", ...)` のようにパス文字列を組み立てている箇所がある／import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
+`npm run codemap`・据え置き一覧の更新。
+罠：import 元が2つに分かれると行が増えて `validate:size` に掛かる（据え置きの上限を上げるなら PR に理由を書く）。
 
 **「N まで」＝0〜N は軸 `upTo: true`**（09-28。対象は `requestUpToChoice`、カードは `requestCardChoice(optional, alwaysAsk)`、コアの個数は stepper）。placeCores の旧 `upTo: number`（その数になるまで置く）は `fillTo` に改名。
 `toTegamoto.upTo`・`lifeCharge.upTo`（数値）は別の意味のまま残っている（使っているのはそれぞれ1枚・smoke だけ）

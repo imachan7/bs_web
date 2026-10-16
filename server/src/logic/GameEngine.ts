@@ -1,4 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
+import { noteCoverage } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge } from "./summonSurcharge"
 import { exSymbolsOfTrashCard, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
@@ -102,6 +103,7 @@ import {
     validateUseHandAbility,
 } from "./RuleValidator"
 import { doCastMagic } from "./magic/cast"
+import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed } from "./oncePerTurn"
@@ -399,6 +401,7 @@ function doBattleSwapSummon(
     // **コストは入れ替え元を手札に戻す前に確定させる**：軽減シンボルは召喚を宣言した時点、
     // つまり入れ替え元がまだ場にいる時点で数える。後で計算すると validateSummon が通した額より
     // 高くなり、検証を通ったのに払えないという食い違いが起きる
+    noteCoverage(card.effects.find((e) => e.kind === "battleSwapSummon"), "battleSwapSummon")
     const cost = effectiveCost(state, pid, card)
     returnSpiritToHand(state, pid, substitute)
     const maintain = minLevelCores(card)
@@ -521,6 +524,7 @@ function doSummon(
     // kind:"altSummonFromHand"（BS10-058）：指定した自分の青ネクサスをデッキの下に戻すことがコストで、
     // 召喚コストは支払わない（維持コアは通常どおりリザーブから。COST_MODEL.md §1＝検証済みのA・Bを実行するだけ）
     if (altSummonNexusInstanceIds !== undefined) {
+        noteCoverage(card.effects.find((e) => e.kind === "altSummonFromHand"), "altSummonFromHand")
         for (const id of altSummonNexusInstanceIds) returnNexusToDeckBottom(state, pid, id)
     }
     // kind:"shinsokuPayAssist"（BS16-021）：指定したスピリットを疲労させ、召喚コストの一部を肩代わりする
@@ -531,6 +535,7 @@ function doSummon(
         for (const id of shinsokuAssistInstanceIds) {
             const inst = player.field.spirits.find((s) => s.instanceId === id)
             if (inst) inst.isRested = true
+            noteCoverage(inst ? getCard(inst.cardId).effects.find((e) => e.kind === "shinsokuPayAssist") : undefined, "shinsokuPayAssist")
             shinsokuDiscount += candidates.get(id) ?? 0
         }
         log(state, `${player.name}は自分のスピリットを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
@@ -906,6 +911,7 @@ function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, ef
         (e): e is Extract<EffectDef, { kind: "handActivated" }> => e.kind === "handActivated" && e.id === effectId,
     )
     if (!effect) return "効果が見つかりません"
+    noteCoverage(effect, "handActivated")
 
     // コスト：手札にあるこのカード自身を破棄する（現状これのみ対応）
     if (effect.cost.discardSelf) {
@@ -1063,8 +1069,16 @@ function doAwaken(
     const target = findSpirit(player, instanceId)
     if (!target) return "対象のスピリットが見つかりません"
 
+    const noteAwaken = () => {
+        const awakenLevel = currentLevel(target).level
+        const awakenEntry = getCard(target.cardId).effects.find(
+            (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, awakenLevel),
+        )
+        if (awakenEntry) noteCoverage(awakenEntry, "keyword")
+    }
     // リザーブからの【覚醒】（ディノゾールLv2で書き換えられた場合）。移動元スピリットの消滅判定は不要
     if (fromInstanceId === AWAKEN_FROM_RESERVE) {
+        noteAwaken()
         player.reserve -= count
         target.cores += count
         checkExhaustOnCoreChange(state, pid, target)
@@ -1080,6 +1094,7 @@ function doAwaken(
     const from = findSpirit(player, fromInstanceId)
     if (!from) return "対象のスピリットが見つかりません"
 
+    noteAwaken()
     from.cores -= count
     target.cores += count
     checkExhaustOnCoreChange(state, pid, target)

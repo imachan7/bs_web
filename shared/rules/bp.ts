@@ -1,4 +1,5 @@
 // 常時BP修正（オーラ）と実効BP、数を数えるときの重み（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage } from "../coverage"
 
 import type {
     AuraCondition,
@@ -49,6 +50,7 @@ export function spiritCountWeight(
             if (effect.kind !== "countAsMultiple") continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(inst).level)) continue
             if (!typeAllowed(effect.sourceTypes)) continue
+            noteCoverage(effect, "countAsMultiple")
             weight = Math.max(weight, effect.count)
         }
     }
@@ -523,6 +525,7 @@ export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): bool
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
+            noteCoverage(effect, "bpBuffSuppression")
             return true
         }
     }
@@ -560,6 +563,7 @@ function eachBpAura(board: Board, ownerPid: PlayerId, inst: CardInstance, onAmou
                 }
                 const amount = auraAmount(board, pid, effect.aura, inst, card(source.cardId).type, source)
                 if (bpBuffSuppressed && amount > 0) continue
+                noteCoverage(effect, "aura")
                 onAmount(amount)
             }
         }

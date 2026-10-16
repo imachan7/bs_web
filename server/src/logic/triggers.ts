@@ -8,6 +8,7 @@
 // あちらは fireTrigger / resolveMagic 等を使う）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { noteCoverage } from "../../../shared/coverage"
 import { markPays } from "./actions/pay"
 import type {
     CardInstance, EffectAction, EffectDef, GameState, PlayerId,
@@ -150,6 +151,7 @@ export function isTriggerSuppressed(
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && sourcePid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === state.turnPlayer) continue
+                noteCoverage(effect, "triggerSuppression")
                 return true
             }
         }

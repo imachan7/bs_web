@@ -1,4 +1,5 @@
 // スピリット・ネクサスの疲労処理
+import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
 import { fireTrigger } from "../triggers"
@@ -50,6 +51,7 @@ export function checkExhaustOnCoreChange(
                     state,
                     `${getCard(source.cardId).name}の効果で、${getCard(affectedInst.cardId).name}は疲労した。`,
                 )
+                noteCoverage(effect, "exhaustOnManualCoreAdd")
                 exhaustSpirit(state, affectedPid, affectedInst, undefined, sourcePid, getCard(source.cardId).type)
                 return
             }

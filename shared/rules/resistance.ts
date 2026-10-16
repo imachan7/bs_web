@@ -1,4 +1,5 @@
 // 効果耐性（装甲・効果を受けない・対象にならない）の一本化（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { noteCoverage } from "../coverage"
 
 import type {
     CardInstance,
@@ -162,12 +163,17 @@ export function boardResistanceAgainst(
 // 既存の isUntargetableByOpponent は両方を見る合成なので、そちらはクライアントの既存呼び出しのために残してある
 export function hasUntargetableConstraint(inst: CardInstance): boolean {
     const level = currentLevel(inst).level
-    return card(inst.cardId).effects.some(
-        (e) =>
-            e.kind === "constraint" &&
-            e.constraint.type === "untargetableByOpponent" &&
-            effectActiveAtLevel(e.levels, level),
-    )
+    return card(inst.cardId).effects.some((e) => {
+        if (
+            e.kind !== "constraint" ||
+            e.constraint.type !== "untargetableByOpponent" ||
+            !effectActiveAtLevel(e.levels, level)
+        ) {
+            return false
+        }
+        noteCoverage(e, "constraint")
+        return true
+    })
 }
 
 // 現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
@@ -199,6 +205,7 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
                 if (effect.phaseTurn.turn === "own" && targetOwnerPid !== board.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === board.turnPlayer) continue
             }
+            noteCoverage(effect, "exhaustImmunityGrant")
             return true
         }
     }

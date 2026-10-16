@@ -54,7 +54,7 @@
 
 | 変更の種類 | 触るところ | 手本 | 罠 |
 | :-- | :-- | :-- | :-- |
-| BP 比較後の破壊・バトル終了時の処理 | `runBattleStep` の `case` に足す。ステップを増やしたら `BATTLE_LAST_STEP` も上げる | case 5（【呪撃】） | **1ステップ＝中断しうる呼び出し1つ**（選択待ちが立つとその次のステップから再開する）。順序は TIMING_CHART.md の ＞６〜＞７。`coverage-effects.ts` が case 5 の文字列に差し込んでいる |
+| BP 比較後の破壊・バトル終了時の処理 | `runBattleStep` の `case` に足す。ステップを増やしたら `BATTLE_LAST_STEP` も上げる | case 5（【呪撃】） | **1ステップ＝中断しうる呼び出し1つ**（選択待ちが立つとその次のステップから再開する）。順序は TIMING_CHART.md の ＞６〜＞７ |
 | ライフで受けたときのライフ減少 | `resolveLifeDamage` | — | 宣言した時点の盤面を読む（フラッシュ①で変わりうる） |
 | 指定アタックのブロック確定 | `resolveDirectedBlock` | — | 疲労状態でもブロックさせる（`validateBlock` を通さない） |
 | ブロック宣言で誘発する効果 | `blockDeclared.ts` の `resolveBlockDeclared` に収集を1行足す（`fireTrigger`／`fireFieldEventTriggers` の `collect` 引数） | 【粉砕】の `funsaiOnBlock` | すべて同時発揮で、解決順はターンプレイヤーが選ぶ（2026-10-08）。バーストは列を解決し終えてから判定し、列の途中で選択待ちが立つとバーストは判定しない |
@@ -122,7 +122,7 @@
 | :-- | :-- |
 | 相手のコアを取り除く・自分のコアを払う／動かす | `cores.ts` |
 | ボイド・トラッシュからコアを置く、コアチャージ | `coreGain.ts` |
-| ライフを増やす・減らす | `life.ts`（【聖命】の計測点が `coverage-effects.ts` から差し込まれている） |
+| ライフを増やす・減らす | `life.ts` |
 | 【転召】のコアの置き先・再開・代わりの支払い | `tensho.ts`（判定の本体は `keywords/tensho.ts`） |
 
 ## 画面（`public/src/`。2026-10-16 に main.ts・renderer.ts から `ui/` へ分割）

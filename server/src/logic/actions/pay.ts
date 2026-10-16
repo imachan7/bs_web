@@ -1,6 +1,7 @@
 // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに
 // 解決できるときだけ発揮する。判定を通すのはこのファイルだけの責務で、実際の解決は
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
+import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
@@ -607,6 +608,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             else cost = { ...cost, count: left }
         }
     }
+    if (action.limitByKeyword === "kyoshu" && self) noteKeyword(getCard(self.cardId).effects, "kyoshu")
     if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }
     // 「Nコスト支払う」はフィールドのコアからも払える（リザーブだけでは足りないとき・対話で選べるとき）
     if (!tollCovered && isReserveToll(cost) && cost.count > 0) {
