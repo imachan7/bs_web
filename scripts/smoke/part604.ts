@@ -111,6 +111,15 @@ const returnStart = (spirit: string, nexusCores = 1) => ({
 const returned = (label: string) => [`自分.${label}.場所: フィールド → なし`, "自分.リザーブ: 10 → 11", "相手.虎拳士タイガ.疲労: false → true"]
 const answerYes = (t: ScenarioCtx) => t.act("me", { type: "resolveChoice", option: "発動する" })
 scenario({
+    name: "gogyosan-return-yes",
+    start: returnStart("BS16-001"),
+    steps(t) {
+        oppAttackBlocked(t, "虎拳士タイガ", "ノデッポ")
+        answerYes(t)
+    },
+    expect: [...returned("ノデッポ"), "自分.手札: なし → ノデッポ"],
+})
+scenario({
     name: "gogyosan-return-decline",
     start: returnStart("BS16-001"),
     steps(t) {
@@ -369,6 +378,16 @@ scenario({
     // 見出しはLv2・Lv3。Lv1（コア2個）では使えない
     name: "archer-lv1",
     start: { turn: "opp", phase: "attack", me: { spirits: [{ card: "BS16-006", cores: 2 }] }, opp: { spirits: [{ card: MONGOKU, cores: 1, label: "攻撃役" }] } },
+    steps(t) {
+        t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+        archerUseRejected(t)
+    },
+    expect: ["相手.攻撃役.疲労: false → true"],
+})
+scenario({
+    // BP4000を超える相手しかいなければ、コアだけ払う形では使えない
+    name: "archer-no-target",
+    start: { turn: "opp", phase: "attack", me: { spirits: [{ card: "BS16-006", cores: 3 }] }, opp: { spirits: [{ card: MONGOKU, cores: 4, label: "攻撃役" }] } },
     steps(t) {
         t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
         archerUseRejected(t)
