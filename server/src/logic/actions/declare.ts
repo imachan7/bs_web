@@ -51,6 +51,7 @@ function substitute(node: unknown, what: DeclareAction["what"], values: Value[])
         const v = values[0]!
         if (what === "color") out["color"] = v
         else if (what === "family") out["family"] = v
+        else if (what === "level") out["level"] = [v]
         else out["cost"] = { min: v, max: v }
     }
     return out

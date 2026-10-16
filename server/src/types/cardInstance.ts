@@ -52,6 +52,7 @@ export interface CardInstance {
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
+    timedEffectsDisabled?: true // TimedContent effectsDisabled の写し（applyTimedCopies だけが作り直す）
     timedCostDelta?: number // このターンの間のコストの増減（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。shared/rules.ts の instCostDelta が読む
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）

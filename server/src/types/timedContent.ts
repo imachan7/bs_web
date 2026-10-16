@@ -9,6 +9,7 @@ import { Color, CardType, ResolvedTargetFilter, TriggerEvent, PlayerRuleDef, Imm
 // countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
 export type TimedContent =
     | { type: "cantAttack" }
+    | { type: "effectsDisabled" } // 効果を失い、新たに得ることもない（付与されたキーワードも。instEffectsSuppressed が読む）
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
     | { type: "mustBlock" } // 可能ならばブロックしなければならない（期間は battle。その個体でブロックできるなら、ライフで受ける・ほかの個体でブロックは検証で拒否する。26RSD03-007）

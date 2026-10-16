@@ -182,7 +182,7 @@ export function instIsVanilla(inst: CardInstance): boolean {
 // **発揮を止める箇所は必ずこの述語を通すこと**（effectSources / activeConstraints / spiritHasKeyword /
 // EffectModules.fireTrigger の4か所。片方だけを直接見ると、もう一方の軸が無言ですり抜ける）
 export function instEffectsSuppressed(inst: CardInstance): boolean {
-    return inst.effectsDisabledContinuous === true || inst.asSpiritThisTurn !== undefined
+    return inst.effectsDisabledContinuous === true || inst.timedEffectsDisabled === true || inst.asSpiritThisTurn !== undefined
 }
 
 // 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。

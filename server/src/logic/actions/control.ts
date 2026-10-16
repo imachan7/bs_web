@@ -207,6 +207,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? state.battle !== undefined && state.battle !== null && state.battle.attackerInstanceId === self?.instanceId && state.battle.blockerInstanceId !== null
           : "opponentTurn" in cond
           ? state.turnPlayer !== owner
+          : "opponentMainStepNow" in cond
+          ? state.phase === "main" && state.turnPlayer !== owner
           : "opponentAttackStepNow" in cond
           ? state.phase === "attack" && state.turnPlayer !== owner
           : "magicUsedVia" in cond

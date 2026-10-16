@@ -42,7 +42,7 @@ type.ts を触る部品（034 の破壊されたカード記録・declare の wh
 残り：returnToHand.countCounter（X04「ブレイヴ1つにつき」）。**聞く前に PROCEDURES_AUDIT §2 の索引を見る**（081 で既存の一般則を聞き直した）
 **部品バッチ6〜15の組み方（10-17 確定）**：仕分けは [BS17_SURVEY_remaining.md](./docs/design/BS17_SURVEY_remaining.md)（# は表の行番号）。直列で 6:#1・#4・#6 → 7:#10・#11・#8 → 8:#2・#3・#5 → 9:#9 → 10:#13・#18・#20 → 11:#16・#17・#21 → 12:#12 → 13:#15 → 14:#19 → 15:#14。#7・#22 は既存（データ役が書く）。その後に色ごとのデータ（3役）。
 **部品バッチ6（確定スキーマ）**：`declare.what` に `"level"`（`declared` を `filter.level=[v]` へ置き換える。081）。TimedContent `{ type: "effectsDisabled" }`（`effectsDisabledContinuous` の期間つき版。後から得た効果も止める＝「新たに得ることもない」。081 は `timedEffect all`＋`filter:{declared:"match"}`）。
-IfCond `{ opponentMainStepNow: true }`（`opponentAttackStepNow` の兄弟。032）。`symbolWhenSummoning` をブレイヴの召喚にも効かせ、`pick.cardType` で絞る（`shared/cost.ts` の `summoningSymbolBonus` の spirit 限定を外す。067）
+IfCond `{ opponentMainStepNow: true }`（`opponentAttackStepNow` の兄弟。032）。`symbolWhenSummoning` をブレイヴの召喚にも効かせ、`pick.cardType` で絞る（`pick.cardType` を書かないエントリは従来どおりスピリットだけ。067）（✅ part607）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
