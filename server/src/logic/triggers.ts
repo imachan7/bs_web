@@ -539,6 +539,7 @@ export function fireTrigger(
                 effect.action,
                 selfInstance,
                 effect.oncePerTurn === true ? { instanceId: entry.src.instanceId, effectId: effect.id } : undefined,
+                { targetInstanceId: effect.eventTarget === "ignore" ? undefined : targetInstanceId },
             )
         } else {
             // 対象の付け替え（kind:"magicTargetRedirect"）は**マジックに限らず、対象を選ぶ効果全般**に効く

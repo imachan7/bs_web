@@ -249,8 +249,8 @@ const lancerBase = (extra: InstanceSpec[] = [], hostRested = false) => ({
     turn: "me" as const,
     me: { spirits: [{ card: LANCER, cores: 1 }, { card: GATLING, cores: 1, rested: hostRested }, ...extra] },
 })
-// 合体そのものの盤面変化（効果と無関係）
-const COMBINED = ["自分.リザーブ: 10 → 11", "自分.突機竜アーケランサー.BP: 3000 → なし", "自分.突機竜アーケランサー.コア: 1 → 0", "自分.突機竜アーケランサー.場所: フィールド → 合体"]
+// 合体そのものの盤面変化（効果と無関係）。ブレイヴのコア1個が載ってホストはLv2（BP5000）になる
+const COMBINED = ["自分.ガトリングスタンド.コア: 1 → 2", "自分.ガトリングスタンド.Lv: 1 → 2", "自分.突機竜アーケランサー.BP: 3000 → なし", "自分.突機竜アーケランサー.コア: 1 → 0", "自分.突機竜アーケランサー.場所: フィールド → 合体"]
 const activate = (t: ScenarioCtx, pick?: string): number => {
     t.act("me", { type: "activateAbility", instanceId: t.id("突機竜アーケランサー"), effectId: "BS12-050-e3" })
     let n = 0
@@ -274,7 +274,7 @@ for (const interactive of [true, false]) {
             combine(t)
             nConfirm(t, 0, activate(t))
         },
-        expect: [...COMBINED, "自分.ガトリングスタンド.疲労: false → true", "自分.ガトリングスタンド.BP: 3000 → 9000"],
+        expect: [...COMBINED, "自分.ガトリングスタンド.疲労: false → true", "自分.ガトリングスタンド.BP: 3000 → 11000"],
     })
 }
 console.log("--- 対話：他のスピリットを選んで疲労させる。合体先は疲労しない ---")
@@ -285,7 +285,7 @@ scenario({
         combine(t)
         nConfirm(t, 0, activate(t, "ウィンガル"))
     },
-    expect: [...COMBINED, "自分.ウィンガル.疲労: false → true", "自分.ガトリングスタンド.BP: 3000 → 9000"],
+    expect: [...COMBINED, "自分.ウィンガル.疲労: false → true", "自分.ガトリングスタンド.BP: 3000 → 11000"],
 })
 console.log("--- 払えない（疲労させられるスピリットがいない）：BPは増えない ---")
 for (const interactive of [true, false]) {
@@ -296,7 +296,7 @@ for (const interactive of [true, false]) {
             combine(t)
             activate(t)
         },
-        expect: [...COMBINED, "自分.ガトリングスタンド.BP: 3000 → 6000"],
+        expect: [...COMBINED, "自分.ガトリングスタンド.BP: 3000 → 8000"],
     })
 }
 console.log("--- このターンの間：バトルが終わってもBP+3000は残る ---")
@@ -317,7 +317,7 @@ scenario({
         ...COMBINED,
         "自分.ウィンガル.疲労: false → true",
         "自分.ガトリングスタンド.疲労: false → true",
-        "自分.ガトリングスタンド.BP: 3000 → 9000",
+        "自分.ガトリングスタンド.BP: 3000 → 11000",
         "相手.壁.場所: フィールド → なし",
         "相手.トラッシュ: なし → ロクケラトプス",
         "相手.リザーブ: 10 → 11",

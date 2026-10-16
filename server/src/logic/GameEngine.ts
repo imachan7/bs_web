@@ -926,8 +926,7 @@ function doUseHandAbility(state: GameState, pid: PlayerId, handIndex: number, ef
     return null
 }
 
-// メインステップの任意合体（docs/design/BRAVE.md §6.4）。
-// ブレイヴが載せていたコアは**リザーブへ戻す**（分離でリザーブから払うことと対称。§6.4 の注記）
+// メインステップの任意合体（docs/design/BRAVE.md §6.4）。ブレイヴのコアは attachBrave がホストへ移す
 function doCombineBrave(state: GameState, pid: PlayerId, braveInstanceId: string, hostInstanceId: string): string | null {
     const error = validateCombineBrave(state, pid, braveInstanceId, hostInstanceId)
     if (error) return error
@@ -935,9 +934,10 @@ function doCombineBrave(state: GameState, pid: PlayerId, braveInstanceId: string
     const brave = findSpirit(player, braveInstanceId)
     const host = findSpirit(player, hostInstanceId)
     if (!brave || !host) return "対象のカードが見つかりません"
-    player.reserve += brave.cores
-    brave.cores = 0
+    const moved = brave.cores
     attachBrave(state, pid, host, brave)
+    // 効果以外でホストのコアが増えたので、相手の魔帝の寝所などで疲労する（ブレイヴQ&A Q7）
+    if (moved > 0) checkExhaustOnCoreChange(state, pid, host)
     log(state, `${player.name}は${getCard(brave.cardId).name}を${getCard(host.cardId).name}に合体させた。`)
     return null
 }

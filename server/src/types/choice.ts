@@ -11,6 +11,7 @@ export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
     recordScope?: string
     flashEffect?: true // 中断した効果がフラッシュ効果だったか（再開時に GameState.flashEffect へ戻す）
+    confirmTargetInstanceId?: string // confirm を承認したら resolveAction に渡す効果の対象（イベント対象）
     effectSource?: { type?: CardType; colors?: Color[] } // 中断した効果の発生源の種別・色。再開時に渡し直す（渡さないとマジックの効果が種別なしで続き、耐性や封印された魔導書が効かない）
     kind: "target" | "option" | "card" // target=フィールド上のインスタンスから選択／option=固定の選択肢ラベルから選択／card=自分の手札かトラッシュのカードから選択
     prompt: string // クライアント表示用の説明文（日本語）

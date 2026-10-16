@@ -269,7 +269,7 @@
         "levels": [
           1
         ],
-        "byOpponentEffectOnly": true,
+        "byOpponentOnly": true,
         "optional": true,
         "action": {
           "type": "summonFromHandFree",
@@ -285,7 +285,7 @@
           2,
           3
         ],
-        "byOpponentEffectOnly": true,
+        "byOpponentOnly": true,
         "optional": true,
         "action": {
           "type": "summonFromHandFree",

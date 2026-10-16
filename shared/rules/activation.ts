@@ -13,7 +13,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { activeConstraints, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
-import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches } from "./level"
+import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches, matchesBraveCondition } from "./level"
 
 // ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----
 
@@ -282,6 +282,20 @@ export function activatableAbility(
 
 // activatableAbility の実体。source＝効果を持つカード、host＝レベル/バトル判定に使うカード
 // （合体中のブレイヴは、レベルもバトル参加もホストのものを見る）
+// 発生源（スピリット状態のイリテバン）に合体させられる自分のスピリット状態のブレイヴ。
+// 合体条件は発生源をスピリットとして見る（コスト4。2026-10-16 ユーザー確認）
+export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self: CardInstance): CardInstance[] {
+    if ((self.braveRefs ?? []).length > 0 || activeConstraints(board, pid, self).some((c) => c.type === "cantCombine")) return []
+    return board.players[pid].field.spirits.filter(
+        (sp) =>
+            card(sp.cardId).type === "brave" &&
+            sp.instanceId !== self.instanceId &&
+            // 既に他のブレイヴが合体している「塊」は、さらに別のブレイヴを合体させられない（BRAVE.md §12）
+            (sp.braveRefs ?? []).length === 0 &&
+            matchesBraveCondition(board, pid, self, sp.cardId),
+    )
+}
+
 function activatableAbilityOf(
     board: Board,
     pid: PlayerId,
@@ -319,6 +333,7 @@ function activatableAbilityOf(
             if (!turnOk) continue
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
+        if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
         // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
         if (e.oncePerTurn) {
             const used =

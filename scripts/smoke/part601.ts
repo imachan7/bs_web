@@ -38,7 +38,7 @@ function sc(spec: ScenarioSpec): void {
 
 // 自分のターン終了→相手のターン開始（ドロー1枚・リザーブ+1）で盤面に出る変化
 const OPP_TURN_START = ["相手.デッキ枚数: 40 → 39", "相手.リザーブ: 10 → 11", "相手.手札: なし → ロクケラトプス"]
-// ブレイヴ合体（ブレイヴのコアはリザーブへ戻り、ホストにブレイヴのBPが加わる）
+// ブレイヴ合体（ブレイヴのコアはホストの上に載り、ホストにブレイヴのBPが加わる。2026-10-16 ユーザー確定）
 // gain：ホストに加わるBP（合体状態のBP表の値で、スピリット状態のBPと違うブレイヴがある）
 const comb = (host: string, hostBp: number, brave: string, braveBp: number, gain = braveBp, cores = 1) => [
     `自分.${brave}.BP: ${braveBp} → なし`,
@@ -46,6 +46,8 @@ const comb = (host: string, hostBp: number, brave: string, braveBp: number, gain
     `自分.${brave}.場所: フィールド → 合体`,
     `自分.${host}.BP: ${hostBp} → ${hostBp + gain}`,
 ]
+// 合体でホストの上に載るブレイヴのコア
+const hc = (host: string, from: number, n = 1) => `自分.${host}.コア: ${from} → ${from + n}`
 const sorted = (...ids: string[]) => ids.map((i) => getCard(i).name).sort().join("、")
 
 console.log("=== X008 神星皇ストライク・アポロドラゴン ===")
@@ -69,7 +71,7 @@ console.log("=== X008 神星皇ストライク・アポロドラゴン ===")
             t.act("me", { type: "combineBrave", braveInstanceId: t.id("ブレイヴ"), hostInstanceId: t.id("アポロ") })
             oppAttack(t)
         },
-        expect: [...comb("アポロ", 10000, "ブレイヴ", 3000), ...OPP_TURN_START, "自分.リザーブ: 10 → 12", "自分.ライフ: 5 → 4", "自分.アポロ.疲労: true → false", "相手.敵.疲労: false → true"],
+        expect: [...comb("アポロ", 10000, "ブレイヴ", 3000), ...OPP_TURN_START, hc("アポロ", 2), "自分.リザーブ: 10 → 11", "自分.ライフ: 5 → 4", "自分.アポロ.疲労: true → false", "相手.敵.疲労: false → true"],
     })
     sc({
         name: "x008-no-recover-red",
@@ -78,7 +80,7 @@ console.log("=== X008 神星皇ストライク・アポロドラゴン ===")
             t.act("me", { type: "combineBrave", braveInstanceId: t.id("ブレイヴ"), hostInstanceId: t.id("アポロ") })
             oppAttack(t)
         },
-        expect: [...comb("アポロ", 10000, "ブレイヴ", 4000), ...OPP_TURN_START, "自分.リザーブ: 10 → 12", "自分.ライフ: 5 → 4", "相手.敵.疲労: false → true"],
+        expect: [...comb("アポロ", 10000, "ブレイヴ", 4000), ...OPP_TURN_START, hc("アポロ", 2), "自分.リザーブ: 10 → 11", "自分.ライフ: 5 → 4", "相手.敵.疲労: false → true"],
     })
     // 相手のスピリットのアタックに限る：自分のアタックでは回復しない
     sc({
@@ -91,7 +93,7 @@ console.log("=== X008 神星皇ストライク・アポロドラゴン ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: [...comb("アポロ", 10000, "ブレイヴ", 3000), "自分.リザーブ: 10 → 11", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
+        expect: [...comb("アポロ", 10000, "ブレイヴ", 3000), hc("アポロ", 2), "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
     })
     // B: 赤/紫/青のブレイヴとの合体アタック時、BP10000以下の相手のスピリット1体を破壊する（Lv2・Lv3）
     const atk = (t: Parameters<ScenarioSpec["steps"]>[0]) => {
@@ -106,31 +108,32 @@ console.log("=== X008 神星皇ストライク・アポロドラゴン ===")
         name: "x008-destroy-red-lv2",
         start: { me: mine(2, REDBRAVE), opp: { spirits: [{ card: BULL, label: "敵" }] } },
         steps: atk,
-        expect: [...comb("アポロ", 10000, "ブレイヴ", 4000), "自分.リザーブ: 10 → 11", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 14", "相手.敵.場所: フィールド → なし", "相手.トラッシュ: なし → 戦闘獣ブルトップ"],
+        expect: [...comb("アポロ", 10000, "ブレイヴ", 4000), hc("アポロ", 2), "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 14", "相手.敵.場所: フィールド → なし", "相手.トラッシュ: なし → 戦闘獣ブルトップ"],
     })
     sc({
         name: "x008-destroy-red-lv3",
         start: { me: mine(5, REDBRAVE), opp: { spirits: [{ card: BULL, label: "敵" }] } },
         steps: atk,
-        expect: [...comb("アポロ", 13000, "ブレイヴ", 4000), "自分.リザーブ: 10 → 11", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 14", "相手.敵.場所: フィールド → なし", "相手.トラッシュ: なし → 戦闘獣ブルトップ"],
+        expect: [...comb("アポロ", 13000, "ブレイヴ", 4000), hc("アポロ", 5), "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 14", "相手.敵.場所: フィールド → なし", "相手.トラッシュ: なし → 戦闘獣ブルトップ"],
     })
     sc({
         name: "x008-nodestroy-green",
         start: { me: mine(2, HYO), opp: { spirits: [{ card: BULL, label: "敵" }] } },
         steps: atk,
-        expect: [...comb("アポロ", 10000, "ブレイヴ", 3000), "自分.リザーブ: 10 → 11", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
+        expect: [...comb("アポロ", 10000, "ブレイヴ", 3000), hc("アポロ", 2), "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
     })
     sc({
         name: "x008-nodestroy-over10000",
         start: { me: mine(2, REDBRAVE), opp: { spirits: [{ card: "X007", label: "敵", cores: 3 }] } },
         steps: atk,
-        expect: [...comb("アポロ", 10000, "ブレイヴ", 4000), "自分.リザーブ: 10 → 11", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
+        expect: [...comb("アポロ", 10000, "ブレイヴ", 4000), hc("アポロ", 2), "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
     })
     sc({
-        name: "x008-nodestroy-lv1",
+        // Lv1（コア1）のホストでも、ブレイヴのコア1個が載ってLv2になるので、合体した時点でLv2の効果が働く
+        name: "x008-lv1-host-becomes-lv2-by-brave-core-and-destroys",
         start: { me: mine(1, REDBRAVE), opp: { spirits: [{ card: BULL, label: "敵" }] } },
         steps: atk,
-        expect: [...comb("アポロ", 6000, "ブレイヴ", 4000), "自分.リザーブ: 10 → 11", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 13"],
+        expect: [...comb("アポロ", 6000, "ブレイヴ", 4000).slice(0, 3), hc("アポロ", 1), "自分.アポロ.Lv: 1 → 2", "自分.アポロ.BP: 6000 → 14000", "自分.アポロ.疲労: false → true", "相手.ライフ: 5 → 2", "相手.リザーブ: 10 → 14", "相手.敵.場所: フィールド → なし", "相手.トラッシュ: なし → 戦闘獣ブルトップ"],
     })
 }
 
@@ -216,10 +219,11 @@ console.log("=== BS13-X01 サジット・アポロドラゴン ===")
         ctx.act("opp", { type: "takeLife" })
     }
     // ブレイヴ2つ：BP13000+3000+4000。シンボルは赤+緑+赤の3つなので相手のライフは3減る
+    // Lv2の場面はコア1個から始める（ブレイヴ2つのコアが載ってコア3＝Lv2）。コア3から始めるとコア5でLv3になる
     const two = (lv3: boolean) => [
         "自分.ブレイヴ1.BP: 3000 → なし", "自分.ブレイヴ1.コア: 1 → 0", "自分.ブレイヴ1.場所: フィールド → 合体",
         "自分.ブレイヴ2.BP: 4000 → なし", "自分.ブレイヴ2.コア: 1 → 0", "自分.ブレイヴ2.場所: フィールド → 合体",
-        `自分.サジット.BP: ${lv3 ? 13000 : 10000} → ${lv3 ? 20000 : 17000}`, "自分.リザーブ: 10 → 12", "自分.サジット.疲労: false → true", "相手.ライフ: 5 → 2",
+        ...(lv3 ? [hc("サジット", 5, 2), "自分.サジット.BP: 13000 → 20000"] : [hc("サジット", 1, 2), "自分.サジット.Lv: 1 → 2", "自分.サジット.BP: 6000 → 17000"]), "自分.サジット.疲労: false → true", "相手.ライフ: 5 → 2",
     ]
     sc({
         name: "sagit-two-braves-destroy-two",
@@ -242,7 +246,7 @@ console.log("=== BS13-X01 サジット・アポロドラゴン ===")
         },
         expect: [
             "自分.ブレイヴ1.BP: 3000 → なし", "自分.ブレイヴ1.コア: 1 → 0", "自分.ブレイヴ1.場所: フィールド → 合体",
-            "自分.サジット.BP: 13000 → 16000", "自分.リザーブ: 10 → 11", "自分.サジット.疲労: false → true", "相手.ライフ: 5 → 3",
+            hc("サジット", 5), "自分.サジット.BP: 13000 → 16000", "自分.サジット.疲労: false → true", "相手.ライフ: 5 → 3",
             dead("敵A"), `相手.トラッシュ: なし → ${getCard(BULL).name}`, "相手.リザーブ: 10 → 13",
         ],
     })
@@ -256,7 +260,7 @@ console.log("=== BS13-X01 サジット・アポロドラゴン ===")
     // Lv2では誘発しない
     sc({
         name: "sagit-lv2-no-destroy",
-        start: { me: mine(3, [HYO, REDBRAVE]), opp: { spirits: [{ card: BULL, label: "敵A" }] } },
+        start: { me: mine(1, [HYO, REDBRAVE]), opp: { spirits: [{ card: BULL, label: "敵A" }] } },
         steps: (t) => run(2, t),
         expect: [...two(false), "相手.リザーブ: 10 → 13"],
     })
@@ -281,7 +285,7 @@ console.log("=== BS13-053 モクバオー ===")
         t.act("opp", { type: "takeLife" })
     }
     const common = ["自分.トラッシュのコア: 0 → 4", "自分.リザーブ: 10 → 5", "自分.手札: 老兵ノーガン → なし", "自分.攻.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"]
-    // 合体時にブレイヴのコアがホストへ集約される（BRAVE.md）。効果文にコアの行き先は書かれていない
+    // 効果で合体したブレイヴのコアはホストの上に置く（ブレイヴQ&A Q6。BRAVE.md §1.2）
     sc({
         name: "mokubao-recover-and-combine",
         start: mine,
@@ -291,12 +295,12 @@ console.log("=== BS13-053 モクバオー ===")
             "自分.老兵ノーガン.BP: なし → 9000", "自分.老兵ノーガン.Lv: なし → 2", "自分.老兵ノーガン.コア: なし → 2", "自分.老兵ノーガン.場所: なし → フィールド", "自分.老兵ノーガン.疲労: なし → false",
         ],
     })
-    // 回復は「できる」の前にあるので、合体を断っても回復はする（読み1）
+    // 「回復させ、合体できる」は両方か、どちらもしないか（CONJUNCTION。2026-10-16 ユーザー確認）
     sc({
-        name: "mokubao-recover-only-when-declined",
+        name: "mokubao-declined-no-recover",
         start: mine,
         steps: steps("decline"),
-        expect: [...common, "自分.モクバオー.疲労: true → false", ...nogan("老兵ノーガン", "自分")],
+        expect: [...common, ...nogan("老兵ノーガン", "自分")],
     })
     // 相手の【神速】スピリットでは反応しない
     sc({
@@ -330,7 +334,7 @@ console.log("=== BS13-052 イビルグライダー ===")
                 t.act("opp", { type: "takeLife" })
             },
             expect: [
-                ...(withBrave ? comb("ホスト", 3000, "ブレイヴ", 4000).concat(["自分.リザーブ: 10 → 11"]) : []),
+                ...(withBrave ? comb("ホスト", 3000, "ブレイヴ", 4000).concat([hc("ホスト", 1)]) : []),
                 "自分.ホスト.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11",
             ],
         })
@@ -418,7 +422,7 @@ console.log("=== BS13-030 リーサルウェポンドラゴン ===")
                 answerPicks(t, ["青A"])
             },
             expect: [
-                ...(combined ? [...comb("リーサル", cores === 3 ? 7000 : 4000, "ブレイヴ", 3000), "自分.リザーブ: 10 → 11"] : []),
+                ...(combined ? [...comb("リーサル", cores === 3 ? 7000 : 4000, "ブレイヴ", 3000), hc("リーサル", cores)] : []),
                 "自分.リーサル.疲労: false → true",
                 "相手.緑.場所: フィールド → なし", `相手.トラッシュ: なし → ${getCard(GREEN_BLOCKER).name}`,
                 ...(bounced
@@ -445,7 +449,7 @@ console.log("=== BS13-056 ホーク・ブレイカー ===")
             t.act("me", { type: "combineBrave", braveInstanceId: t.id("ホーク"), hostInstanceId: t.id("味方") })
             assert(!hasHeavyArmorAgainst(t.inst("味方"), ["red"]), "合体するとスピリット状態ではないので与えない")
         },
-        expect: [...comb("味方", 5000, "ホーク", 7000, 3000), "自分.リザーブ: 10 → 11"],
+        expect: [...comb("味方", 5000, "ホーク", 7000, 3000), hc("味方", 1)],
     })
     // 【合体時】ブロック時：バトルしている相手のスピリットのシンボル1つにつきBP+5000
     const block = (name: string, attacker: string, symbols: number, combined: boolean) =>
@@ -461,7 +465,7 @@ console.log("=== BS13-056 ホーク・ブレイカー ===")
                 t.act("me", { type: "block", instanceId: t.id("ホスト") })
             },
             expect: [
-                ...(combined ? [...comb("ホスト", 5000, "ホーク", 7000, 3000).slice(0, 3), "自分.リザーブ: 10 → 11"] : []),
+                ...(combined ? [...comb("ホスト", 5000, "ホーク", 7000, 3000).slice(0, 3), hc("ホスト", 1)] : []),
                 ...OPP_TURN_START, "相手.攻.疲労: false → true", "自分.ホスト.疲労: false → true",
                 ...(combined ? [`自分.ホスト.BP: 5000 → ${8000 + 5000 * symbols}`] : []),
             ],
@@ -488,7 +492,7 @@ console.log("=== BS13-040 金星神龍ヴィーナ・フェーザー ===")
                 t.closeFlash()
             },
             expect: [
-                ...(combined ? [...comb("ヴィーナ", cores === 4 ? 8000 : 6000, "ブレイヴ", 7000, 3000), "自分.リザーブ: 10 → 11"] : []),
+                ...(combined ? [...comb("ヴィーナ", cores === 4 ? 8000 : 6000, "ブレイヴ", 7000, 3000), hc("ヴィーナ", cores)] : []),
                 "自分.ヴィーナ.疲労: false → true",
                 ...(blocked
                     ? ["相手.敵.場所: フィールド → なし", `相手.トラッシュ: なし → ${getCard(BULL).name}`, "相手.リザーブ: 10 → 11", ...(combined && cores === 4 ? ["自分.ライフ: 5 → 6"] : [])]
@@ -505,7 +509,7 @@ console.log("=== BS13-058 シユウ ===")
 {
     const HOST = "BS11-044" // シェル・ゴレム（青・コスト4・Lv1 BP4000・シンボル青）
     const TRASH5 = Array(5).fill(getCard(V).name).join("、")
-    const baseLines = (extra: string[]) => [...comb("ホスト", 4000, "ブレイヴ", 5000), "自分.リザーブ: 10 → 11", "自分.ホスト.疲労: false → true", ...extra]
+    const baseLines = (extra: string[]) => [...comb("ホスト", 4000, "ブレイヴ", 5000), hc("ホスト", 1), "自分.ホスト.疲労: false → true", ...extra]
     const milled = ["自分.デッキ枚数: 40 → 35", `自分.トラッシュ: なし → ${TRASH5}`, "自分.ライフ: 5 → 6"]
     const start = (oppCard: string, oppCores: number, deckSize = 40) => ({
         me: { spirits: [{ card: HOST, label: "ホスト" }, { card: "BS13-058", label: "ブレイヴ" }], deck: Array(deckSize).fill(V) },
@@ -598,7 +602,7 @@ console.log("=== BS13-060 トレス・ベルーガ ===")
                 t.closeFlash() // 相手のブロック宣言を待つ状態で止める（BP+はこの間の値を見る）
             },
             expect: [
-                ...comb("ホスト", 5000, "ブレイヴ", 6000).slice(0, 3), `自分.ホスト.BP: 5000 → ${11000 + (paid ? 6000 : 0)}`, "自分.リザーブ: 10 → 11",
+                ...comb("ホスト", 5000, "ブレイヴ", 6000).slice(0, 3), `自分.ホスト.BP: 5000 → ${11000 + (paid ? 6000 : 0)}`, hc("ホスト", 1),
                 ...(recovered ? [] : ["自分.ホスト.疲労: false → true"]),
                 ...(paid ? ["自分.デッキ枚数: " + deck.length + " → " + (deck.length - 6), `自分.トラッシュ: なし → ${sorted(...deck.slice(0, 6))}`] : []),
             ],
@@ -615,7 +619,14 @@ console.log("=== BS13-049 イリテバン ===")
         name: "iriteban-combines-another-brave",
         start: ready(true),
         steps: (t) => t.act("me", { type: "activateAbility", instanceId: t.id("イリテバン"), effectId: "BS13-049-e1" }),
-        expect: [...comb("イリテバン", 4000, "ヒョウ", 3000), "自分.リザーブ: 10 → 11"],
+        expect: [...comb("イリテバン", 4000, "ヒョウ", 3000), "自分.イリテバン.コア: 1 → 2"],
+    })
+    // スピリット状態のイリテバンはコスト4のスピリットとして扱う（2026-10-16 ユーザー確認）。合体条件コスト5以上は合体できない
+    sc({
+        name: "iriteban-cost4-condition",
+        start: { me: { spirits: [{ card: "BS13-049", label: "イリテバン" }, { card: "BS11-054", label: "ハヤト" }] } },
+        steps: (t) => t.actRejected("me", { type: "activateAbility", instanceId: t.id("イリテバン"), effectId: "BS13-049-e1" }),
+        expect: [],
     })
     sc({
         name: "iriteban-needs-another-brave",
@@ -632,7 +643,7 @@ console.log("=== BS13-049 イリテバン ===")
             t.actRejected("me", { type: "activateAbility", instanceId: t.id("イリテバン"), effectId: "BS13-049-e1" })
         },
         expect: [
-            "自分.イリテバン.BP: 4000 → なし", "自分.イリテバン.コア: 1 → 0", "自分.イリテバン.場所: フィールド → 合体", "自分.ホスト.BP: 5000 → 7000", "自分.リザーブ: 10 → 11",
+            "自分.イリテバン.BP: 4000 → なし", "自分.イリテバン.コア: 1 → 0", "自分.イリテバン.場所: フィールド → 合体", "自分.ホスト.BP: 5000 → 7000", hc("ホスト", 1),
         ],
     })
 }
@@ -657,7 +668,7 @@ console.log("=== X005A/E/D/T/S 北斗七星龍ジーク・アポロドラゴン 
                 t.closeFlash()
             },
             expect: [
-                ...(combined ? [...comb("ジーク", cores === 5 ? 11000 : 8000, "ブレイヴ", 3000), "自分.リザーブ: 10 → 11"] : []),
+                ...(combined ? [...comb("ジーク", cores === 5 ? 11000 : 8000, "ブレイヴ", 3000), hc("ジーク", cores)] : []),
                 "自分.ジーク.疲労: false → true",
                 ...(blocked
                     ? ["相手.敵A.場所: フィールド → なし", ...(combined && cores === 5 ? ["相手.敵B.場所: フィールド → なし", `相手.トラッシュ: なし → ${sorted(BULL, DOLFINO)}`, "相手.リザーブ: 10 → 12"]
@@ -736,9 +747,9 @@ console.log("=== X007 天地神龍ガイ・アスラ ===")
             },
             expect: [
                 ...(combined ? comb("ガイ", 12000, "ブレイヴ", 7000, 3000).slice(0, 3) : []),
-                ...OPP_TURN_START, "相手.敵.疲労: false → true", "自分.ライフ: 5 → 4", `自分.リザーブ: 10 → ${combined ? 12 : 11}`,
+                ...OPP_TURN_START, "相手.敵.疲労: false → true", "自分.ライフ: 5 → 4", "自分.リザーブ: 10 → 11",
                 ...(combined
-                    ? ["自分.ガイ.コア: 3 → 5", "自分.ガイ.Lv: 2 → 3", "自分.ガイ.BP: 12000 → 19000", "自分.ガイ.疲労: true → false", "自分.味方.コア: 3 → 1", "自分.味方.Lv: 3 → 1", "自分.味方.BP: 4000 → 1000"]
+                    ? ["自分.ガイ.コア: 3 → 6", "自分.ガイ.Lv: 2 → 3", "自分.ガイ.BP: 12000 → 19000", "自分.ガイ.疲労: true → false", "自分.味方.コア: 3 → 1", "自分.味方.Lv: 3 → 1", "自分.味方.BP: 4000 → 1000"]
                     : []),
             ],
         })
@@ -825,7 +836,7 @@ console.log("=== BS13-034 ミノガメン ===")
             assert(!t.state.pendingChoice, "自分の効果で破棄しても召喚の確認は出ない")
         },
         expect: [
-            ...comb("ホスト", 5000, "ブレイヴ", 6000).slice(0, 3), "自分.ホスト.BP: 5000 → 17000", "自分.リザーブ: 10 → 11", "自分.ホスト.疲労: false → true",
+            ...comb("ホスト", 5000, "ブレイヴ", 6000).slice(0, 3), "自分.ホスト.BP: 5000 → 17000", hc("ホスト", 1), "自分.ホスト.疲労: false → true",
             "自分.デッキ枚数: 40 → 34", `自分.トラッシュ: なし → ${sorted(MINO, ...Array(5).fill(V))}`,
         ],
         mirror: false,

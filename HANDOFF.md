@@ -27,7 +27,8 @@
 - 5組：A=BS12（part600）・B=BS13＋X00x（601）・C=BS14＋BS08/10/11（602）・D=BS15（603）・E=BS16＋P0xx/SD06（604）。まず A だけ流して消費を測ってから残りを並行にする
 - 落ちた場面はメインループが仕分ける（実装の誤り／テストの読み違い／解釈の割れ目→ユーザーに確認）。実装の直しは別 PR
 - **A・B の結果**（part600・601。期待値役の報告から仕分け済み）。実装の誤り：ウドウ（バトルでの破壊も「相手の効果」に数える＝removal.ts の byOpponentEffect）／合体中ブレイヴの fieldEvent の self がブレイヴのまま（ナナフシ・サンダ・アルファズル・フォビッド・ストラスト）／ハープ後の【装甲】（hasArmorAgainst に instEffectsSuppressed が無い）／ナナフシの手札0枚の確認／モクバオーの対話で「発動する」が空振り／効果で合体したブレイヴにコアが残る（ホストの上に置く。メインステップの合体もリザーブ行きをやめてホストへ＝BRAVE.md §6 末尾。10-16 確定）／イリテバンが合体できるブレイヴ無しでも起動できる
-- 直し済み（未 PR）：合体中ブレイヴの fieldEvent の self→ホスト（fieldEventTriggers.ts contextOf）／ハープ後の【装甲】・【重装甲】（constraints.ts）
+- 直し済み（未 PR）：合体中ブレイヴの fieldEvent の self→ホスト／ハープ後の【装甲】・【重装甲】／ウドウ（fieldEvent の byOpponentEffectOnly はバトルでの破壊を除く。「相手によって」の4エントリは byOpponentOnly へ）／任意の確認（requestActivationConfirm）が対象と発生源を捨てていた（モクバオー）／イリテバンの起動条件（shared の braveCombineOntoSelfCandidates）／合体でブレイヴのコアをホストへ（attachBrave。メインステップは魔帝の寝所の判定も）
+- 残す：ナナフシの手札0枚でも確認が出る（pay の CHECKERS を確認の前に使うと exhaust 等で誤って確認が消えるので、別に考える）
 - **サンダ・バード（BS12-058-e2）はデータが効果文を書き切れていない**：「合体アタック時」限定・対象＝ブロックしている相手のスピリット（setTargetBpAsThisBattle に対象の指定が無い）・「その効果発揮後」。足りない部品があるので3役の流れで別に実装する
 - テストの直し待ち：モクバオーを断ったら回復もしない（CONJUNCTION 10-16）／イリテバンの候補はコスト4として合体条件を見る（BRAVE.md §1.2）
 - 一度も実行されていない action の `negateContinuousMagicByName`（BS12-049）は A に入れた。カードデータ経由が未検証の2種（BS13-053・BS13-030）は B に入っている
