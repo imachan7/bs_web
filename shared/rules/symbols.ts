@@ -38,6 +38,13 @@ function symbolsOf(inst: CardInstance, forSummon = false): { symbols: Color[]; f
     return { symbols, fixed: false }
 }
 
+// 画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
+export function instanceSymbolColors(inst: CardInstance): Color[] {
+    const { symbols, fixed } = symbolsOf(inst)
+    const extra = fixed ? 0 : inst.timedExtraSymbols ?? 0
+    return extra > 0 && symbols[0] !== undefined ? [...symbols, ...new Array<Color>(extra).fill(symbols[0])] : symbols
+}
+
 // インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
 export function instanceSymbolCount(inst: CardInstance): number {
     const { symbols, fixed } = symbolsOf(inst)

@@ -2,7 +2,7 @@
 import type { CardInstance, GameView, PlayerId } from "../../../server/src/type"
 import { braveCombineCandidates } from "../../../shared/summon"
 import { attachCardArt } from "../cardArt"
-import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf } from "../../../shared/rules"
+import { activeConstraints, cantActByTimed, instCostCantAct, effectiveBp, hasGlobalConstraint, minLevelCores, effectActiveAtLevel, boardResistanceAgainst, bravesOf, instanceSymbolColors } from "../../../shared/rules"
 import { payingCardId } from "./paying"
 import { master, COLOR_SYMBOLS, levelOf, canBlockAttacker, canAwaken, activatableAbility, UiState, matchesDirectedAttackFilter, $ } from "../renderer"
 
@@ -278,12 +278,13 @@ export function fieldCardEl(
 
     const symbolsDiv = document.createElement("div")
     symbolsDiv.className = "symbols"
-    if (m.symbol.length === 0) {
+    const symbols = instanceSymbolColors(inst)
+    if (symbols.length === 0) {
         symbolsDiv.textContent = "無"
         symbolsDiv.style.color = "var(--text-muted)"
         symbolsDiv.style.fontSize = "10px"
     } else {
-        m.symbol.forEach(symColor => {
+        symbols.forEach(symColor => {
             const sym = document.createElement("span")
             sym.className = `sym-icon bg-${symColor}`
             sym.dataset.colorLabel = COLOR_SYMBOLS[symColor] || ""

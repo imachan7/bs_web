@@ -289,7 +289,7 @@ function eventBannerText(ev: GameEvent, you: PlayerId): string | null {
         case "summon":
             return `✨ ${ev.cardName} 召喚`
         case "destroy":
-            return `💥 ${ev.cardName} 破壊`
+            return ev.vanish ? `💨 ${ev.cardName} 消滅` : `💥 ${ev.cardName} 破壊`
         case "magic": return `📜 ${ev.cardName} 使用`
         case "burst": return `⚡ ${ev.cardName} バースト発動`
         case "draw":
@@ -843,7 +843,7 @@ export function render(view: GameView, ui: UiState): void {
             div.className = "log-turn"
         } else if (line.includes("ステップ")) {
             div.className = "log-phase"
-        } else if (line.includes("破壊") || line.includes("ダメージ") || line.includes("ライフ")) {
+        } else if (line.includes("破壊") || line.includes("消滅") || line.includes("ダメージ") || line.includes("ライフ")) {
             div.className = "log-important"
         } else if (line.includes("：")) {
             div.className = "log-effect"

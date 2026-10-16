@@ -275,7 +275,7 @@ export function destroySpirit(
         state.ownSpiritDestroyedByOwnEffectColors = { ...(state.ownSpiritDestroyedByOwnEffectColors ?? {}), [ownerPid]: [...(state.ownSpiritDestroyedByOwnEffectColors?.[ownerPid] ?? []), ...instColors(inst)] }
         if (getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")) state.ownSpiritWithOnDestroyDestroyedByOwnEffect = { ...(state.ownSpiritWithOnDestroyDestroyedByOwnEffect ?? {}), [ownerPid]: true }
     }
-    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name })
+    emitEvent(state, { type: "destroy", pid: ownerPid, cardName: master.name, ...(cause === "deplete" ? { vanish: true as const } : {}) })
 
     // 破壊された時点でまだバトルが生きているので、アタッカー側だったかをここで確定させる
     // （clearBattle 後には判定できない。attackerOnly の判定に使う）

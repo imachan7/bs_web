@@ -239,6 +239,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## shared/rules/symbols.ts
 
+- `instanceSymbolColors`（fn）：画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
 - `instanceSymbolCount`（fn）：インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
 - `countSymbols`（fn）：軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
 - `countTrashSymbols`（fn）：軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
