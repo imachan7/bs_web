@@ -520,7 +520,7 @@ function resolveChoiceInner(
                     })
                 } else {
                     delete state.effectFizzled
-                    resolveAction(state, actor, self, pending.action)
+                    resolveAction(state, actor, self, pending.action, pending.confirmTargetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)
                     // 発動を選んだがコストを払えず不発だった＝発揮していないので「ターンに1回」を戻す（2026-09-16）
                     if (state.effectFizzled) revertActivatedIfSkipped(state, pending)
                     delete state.effectFizzled

@@ -1292,7 +1292,7 @@
     ],
     "turn": "opponent",
     "selfOnly": true,
-    "byOpponentEffectOnly": true,
+    "byOpponentOnly": true,
     "optional": true,
     "action": {
      "type": "moveCards",
@@ -3149,7 +3149,7 @@
      1,
      2
     ],
-    "byOpponentEffectOnly": true,
+    "byOpponentOnly": true,
     "action": {
      "type": "placeCores",
      "from": "void",

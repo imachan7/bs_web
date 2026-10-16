@@ -18,7 +18,7 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
@@ -1125,6 +1125,9 @@ export function validateActivateAbility(
             effect.phaseTurn.turn === "both" ||
             (effect.phaseTurn.turn === "own") === (state.turnPlayer === pid)
         if (!turnOk) return "このターンでは発動できません"
+    }
+    if (effect.action.type === "combineOwnBrave" && effect.action.hostSelf && braveCombineOntoSelfCandidates(state, pid, inst).length === 0) {
+        return "合体させられるブレイヴがいません"
     }
     // 発動条件: self が現在のバトルの当事者／自分のスピリット/ネクサスすべてが指定チーム所属
     if (effect.condition === "selfInBattle") {

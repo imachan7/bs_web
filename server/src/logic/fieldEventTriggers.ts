@@ -273,9 +273,9 @@ export function fireFieldEventTriggers(
             if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
             // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ
             if (effect.duringSelfAttack && state.battle?.attackerInstanceId !== inst.instanceId) continue
-            // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚）：
-            // 自分の効果で自分のネクサスを壊した場合や、発生源が不明な破壊では発火しない
-            if (effect.byOpponentEffectOnly && !eventInfo?.byOpponentEffect) continue
+            // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚・BS12-023ウドウ）：
+            // 自分の効果による破壊・発生源が不明な破壊・バトルでの破壊では発火しない（「相手によって」は byOpponentOnly）
+            if (effect.byOpponentEffectOnly && !(eventInfo?.byOpponentEffect && !eventInfo.byBattle)) continue
             if (effect.causedByOpponent && !(eventInfo?.causePid !== undefined && eventInfo.causePid !== pid)) continue
             if (effect.causedByOwnEffect !== undefined) {
                 if (eventInfo?.causePid !== pid || eventInfo.causeType === undefined) continue
@@ -521,10 +521,10 @@ export function fireFieldEventTriggers(
               : effect.ignoreEventTarget
                 ? undefined
                 : targetInstanceId
+        // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
+        // （BS10鎧馬アルファズル・BS12-053オオヅツナナフシ：refreshSelf はホストの isRested を操作する必要がある）
+        const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
         if (effect.selfMode === "source") {
-            // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
-            // （BS10鎧馬アルファズル：refreshSelf はホストの isRested を操作する必要がある）
-            const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
             return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
         }
         if (selfOverride) {
@@ -543,7 +543,7 @@ export function fireFieldEventTriggers(
                 srcType: getCard(inst.cardId).type,
             }
         }
-        return { actionPid: pid, actionSelf: inst, actionTargetId, srcColors: undefined, srcType: undefined }
+        return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }
     }
 
     // extraItems（破壊で誘発した効果の列）を同じプールに混ぜる。
@@ -590,6 +590,7 @@ export function fireFieldEventTriggers(
                     // oncePerTurn／同時破壊グループの仮消費どちらも、断ったときにここで戻す
                     // （revertDestroyGroupUsageは対象キーが無ければ何もしないので常に渡してよい）
                     { instanceId: e.inst.instanceId, effectId: e.effect.id },
+                    { targetInstanceId: c.actionTargetId, sourceColors: c.srcColors, sourceType: c.srcType },
                 )
             } else {
                 delete state.effectFizzled

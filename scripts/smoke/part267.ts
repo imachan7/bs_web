@@ -2,8 +2,7 @@
 //
 // 確定した規則（2026-09-02 ユーザー確定）:
 //   - 自分のメインステップには、合体も分離も任意で何度でも行える
-//   - 合体：ブレイヴが載せていたコアは**リザーブへ戻す**（§1.1 の出典とは異なる。
-//     分離でリザーブから払うことと対称にするための決定）
+//   - 合体：ブレイヴが載せていたコアは**一度ホストの上に置く**（2026-10-16 ユーザー確定。09-02 の「リザーブへ戻す」を撤回）
 //   - 分離：braveKeepCores（スピリット状態のLv1維持コスト）以上のコアを置く。
 //     paySources 省略時はリザーブから自動。リザーブが足りなければ**拒否**する
 //     （クライアントが支払いUIへ入って paySources を付けて再送する）
@@ -43,7 +42,7 @@ function setup(seed: string, opts: { braveCores?: number; reserve?: number } = {
     return s
 }
 
-console.log("=== 合体：ブレイヴのコアはリザーブへ戻る ===")
+console.log("=== 合体：ブレイヴのコアはホストの上に載る ===")
 {
     const s = setup("combine-basic")
     const p = s.players.p1
@@ -57,9 +56,9 @@ console.log("=== 合体：ブレイヴのコアはリザーブへ戻る ===")
     assert(p.field.spirits.length === 1, "ブレイヴは field.spirits から抜ける")
     assert(p.field.combinedBraves.some((b) => b.instanceId === brave.instanceId), "実体は combinedBraves へ入る（参照方式 §2.3）")
     assert((host.braveRefs ?? []).some((r) => r.instanceId === brave.instanceId), "ホストが braveRefs で参照する")
-    assert(p.reserve === reserveBefore + 2, "ブレイヴが載せていたコア2個はリザーブへ戻る（§6.4）")
+    assert(p.reserve === reserveBefore, "リザーブは増えない")
     assert(brave.cores === 0, "合体中のブレイヴはコアを持たない")
-    assert(host.cores === 3, "ホストのコアは増えない（出典 §1.1 とは違う決定）")
+    assert(host.cores === 3 + 2, "ブレイヴが載せていたコア2個がホストの上に載る（§6.4）")
 }
 
 console.log("=== 合体：疲労はどちらかが疲労なら合体スピリットも疲労（§1.3） ===")

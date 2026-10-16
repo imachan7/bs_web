@@ -246,6 +246,8 @@ export function hasFullEffectImmunity(
 // バトルで破壊されたとき」。どちらも『効果が届くか』ではなく装甲の色そのものを問う判定）
 export function hasArmorAgainst(board: Board, inst: CardInstance, sourceColors: Color[] | undefined): boolean {
     if (sourceColors === undefined || sourceColors.length === 0) return false
+    // 「効果すべてを失い、新たに得ることもない」（BS12-081 メロディアスハープ）は、付与された装甲も持たない
+    if (instEffectsSuppressed(inst)) return false
     const level = currentLevel(inst).level
     const staticArmor = card(inst.cardId).effects.some(
         (e) =>
@@ -276,6 +278,8 @@ export function hasArmorAgainst(board: Board, inst: CardInstance, sourceColors: 
 // 一時付与の重装甲は BS12 に無いので tempKeywords は見ない（必要になったら足す）
 export function hasHeavyArmorAgainst(inst: CardInstance, sourceColors: Color[] | undefined): boolean {
     if (sourceColors === undefined || sourceColors.length === 0) return false
+    // 「効果すべてを失い、新たに得ることもない」（BS12-081 メロディアスハープ）は、付与された装甲も持たない
+    if (instEffectsSuppressed(inst)) return false
     const level = currentLevel(inst).level
     const staticHeavyArmor = card(inst.cardId).effects.some(
         (e) =>

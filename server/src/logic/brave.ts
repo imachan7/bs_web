@@ -35,6 +35,9 @@ export function attachBrave(state: GameState, pid: PlayerId, host: CardInstance,
     const at = player.field.spirits.findIndex((sp) => sp.instanceId === brave.instanceId)
     if (at !== -1) player.field.spirits.splice(at, 1)
     player.field.combinedBraves.push(brave)
+    // ブレイヴが載せていたコアは必ず一度ホストの上に置く（ブレイヴQ&A Q6。BRAVE.md §6 末尾）
+    host.cores += brave.cores
+    brave.cores = 0
     host.braveRefs = [...(host.braveRefs ?? []), { slot: "single", instanceId: brave.instanceId }]
     // 合体時の疲労合成：どちらかが疲労状態なら合体スピリットは疲労状態（§1.3）
     host.isRested = host.isRested || brave.isRested

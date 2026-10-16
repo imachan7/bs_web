@@ -68,6 +68,7 @@ import {
     matchesBraveCondition,
     matchesCostFilter,
     ownLifeImmuneToOpponentSpiritEffects,
+    braveCombineOntoSelfCandidates,
 } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
@@ -1138,23 +1139,7 @@ const combineOwnBraveHandler: ActionHandler<"combineOwnBrave"> = (ctx, action) =
             log(state, `${sourceName}：合体先がいなかった。`)
             return
         }
-        if (
-            (self.braveRefs ?? []).length > 0 ||
-            activeConstraints(state, owner, self).some((c) => c.type === "cantCombine")
-        ) {
-            log(state, `${sourceName}：合体できないため発動しなかった。`)
-            return
-        }
-        const braves = player.field.spirits.filter(
-            (sp) =>
-                getCard(sp.cardId).type === "brave" &&
-                // 発生源自身は合体先であって合体するブレイヴではない（自分自身とは合体できない）
-                sp.instanceId !== self.instanceId &&
-                // 既に他のブレイヴが合体している「塊」は、さらに別のブレイヴを合体させられない
-                // （実体の入れ子を2段で止める。docs/design/BRAVE.md §12。2026-09-08ユーザー確認）
-                (sp.braveRefs ?? []).length === 0 &&
-                matchesBraveCondition(state, owner, self, sp.cardId),
-        )
+        const braves = braveCombineOntoSelfCandidates(state, owner, self)
         if (braves.length === 0) {
             log(state, `${sourceName}：合体できるスピリット状態のブレイヴがいなかった。`)
             return

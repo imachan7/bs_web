@@ -93,15 +93,15 @@ const blockerDies = ["相手.ブロッカー.場所: フィールド → なし"
 const braveReturned = [
     "自分.ブレイヴ.場所: フィールド → なし",
     "自分.手札: なし → ヒョウ・カッチュー",
-    "自分.リザーブ: 10 → 11", // 合体でブレイヴのコアがリザーブに戻る分
+    "自分.セイカイ.コア: 7 → 8", // 合体でブレイヴのコア1個がホストへ載り、手札へ戻ってもホストに残る
 ]
-const braveStays = (hostBp: [number, number]) => [
+const braveStays = (hostBp: [number, number], cores: [number, number]) => [
+    `自分.セイカイ.コア: ${cores[0]} → ${cores[1]}`,
     "自分.セイカイ.疲労: false → true",
     `自分.セイカイ.BP: ${hostBp[0]} → ${hostBp[1]}`,
     "自分.ブレイヴ.BP: 3000 → なし",
     "自分.ブレイヴ.コア: 1 → 0",
     "自分.ブレイヴ.場所: フィールド → 合体",
-    "自分.リザーブ: 10 → 11",
 ]
 
 console.log("=== 1. 対話・Lv3・ブレイヴ合体中：確認は1回、押すとブレイヴが手札に戻り、セイカイが回復する ===")
@@ -132,7 +132,7 @@ scenario({
     steps(t) {
         assert(seikaiRun(t, true, { confirm: false }).confirms === 1, "確認は1回")
     },
-    expect: [...braveStays([12000, 15000]), ...blockerDies],
+    expect: [...braveStays([12000, 15000], [7, 8]), ...blockerDies],
 })
 
 console.log("=== 4. 対話・Lv2（コア3個）：Lv3の効果なので確認も出ず、疲労したまま ===")
@@ -142,7 +142,7 @@ scenario({
     steps(t) {
         assert(seikaiRun(t, true).confirms === 0, "Lv2は確認なし")
     },
-    expect: [...braveStays([6000, 9000]), ...blockerDies],
+    expect: [...braveStays([6000, 9000], [3, 4]), ...blockerDies],
 })
 
 console.log("=== 5. 対話・Lv3だがブレイヴが合体していない：確認も出ず、疲労したまま ===")
