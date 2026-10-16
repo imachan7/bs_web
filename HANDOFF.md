@@ -21,6 +21,11 @@
 
 ## 1. いまの本線と次の一手
 
+### 次の一手：効果で召喚したスピリットの召喚時効果を効果文どおりにする（10-16 確定。規則は RESUME_STACK §6.2）
+
+- ① `fix/skip-on-summon-data`：効果文で止めているのにデータに `skipOnSummon` が無い13枚に足す（smoke part598）
+- ② 次の PR：複数体の同時召喚は全員を出してから召喚時効果を選んだ順に発揮する。あわせて、文に制限が無いのに止めている5枚（BS06-X22・BS12-057・BS16-009・BS16-011・BS16-012）の `skipOnSummon` を外す。複数体のほうは `legacyMoves.ts` の `legacySkip` が原因
+
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
 `~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。
