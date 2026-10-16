@@ -47,6 +47,7 @@ export interface TargetFilter {
     inBattle?: true // 現在のバトルのアタッカーかブロッカー（26RBS02-019「アタック/ブロックしている相手のスピリット」）
     rested?: true // 疲労状態（isRested）のものだけ（BS05吸血女王カーミラ：範囲破壊の疲労限定）
     refreshed?: true // 回復状態（!isRested）のものだけ（restedの逆。BS12-039導化姫トリックスターLv2＝「回復状態の相手のスピリット」）
+    nameIs?: string // カード名の完全一致（「〜として扱う」名も一致。declare what:"name" が declared:"match" から置き換える）
     nameContains?: string | string[] // カード名にこの文字列を含むものだけ（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。配列＝いずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
     sameColorAsBattleLoser?: true // 直前のバトルで破壊された側と同じ色（normalizeFilter が state.lastBattleDestroyedColors を color 軸へ解決する。記録が無ければ対象なし。BS04獣使いドヴェルグ）
     keywordCount?: number // keyword（単数のときだけ）と併用。カードに静的に書かれた指定数が一致するもの（【暴風：1】限定。付与された暴風は対象外）

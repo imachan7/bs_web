@@ -127,6 +127,7 @@ export function matchesTarget(
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
     // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
+    if (filter.nameIs !== undefined && !cardNameIs(inst, filter.nameIs)) return false
     if (filter.nameContains !== undefined) {
         const names = Array.isArray(filter.nameContains) ? filter.nameContains : [filter.nameContains]
         if (!names.some((n) => cardNameContains(inst, n))) return false
@@ -149,6 +150,11 @@ export function matchesTarget(
 export function cardNameContains(inst: CardInstance, text: string): boolean {
     if (card(inst.cardId).name.includes(text)) return true
     return (inst.namesAsContinuous ?? []).includes(text)
+}
+
+// カード名の完全一致（部分一致しない）。「〜として扱う」名も一致とみなす
+export function cardNameIs(inst: CardInstance, name: string): boolean {
+    return card(inst.cardId).name === name || (inst.namesAsContinuous ?? []).includes(name)
 }
 
 // トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。

@@ -50,7 +50,10 @@ GlobalConstraint `summonExhausted` に `self?: true`（召喚されるカード�
 バトルで破壊されたカードの cardId を `state.lastBattleDestroyedCardId` に記録し、moveCards に `onlyLastBattleDestroyed?: true`（トラッシュのそのカードだけが候補。無ければ不発。034）（✅ part609。026 の self は全召喚経路が通る `createInstance` で見る）
 **見つけた既存の不具合（10-17・未着手）**：場の発生源の `summonExhausted`（BS13-065 八分儀の祠・BS13-X03 セフィロ・アリエス）は `GameEngine.ts` の手札からの召喚2か所でしか判定しておらず、効果・バーストでの召喚では効かない。BS17 とは別の `fix/` ブランチで直す
 **部品バッチ9（確定スキーマ）**：`declare.what` に `"name"`（`declared` を TargetFilter の新しい軸 `nameIs?: string`＝カード名の完全一致へ置き換える。「〜として扱う」名も一致とみなす）。
-`declare.fromSide?: "opponent"`（`from` の候補を選ぶ人の相手の場から取る）と `declare.minSameName?: number`（同じカード名がその場にこの数以上いるものだけが候補。いなければ不発）。074＝バースト部 `from:"nexuses"`、フラッシュ部 `from:"spirits"`・`minSameName:2`
+`declare.fromSide?: "opponent"`（`from` の候補を選ぶ人の相手の場から取る）と `declare.minSameName?: number`（同じカード名がその場にこの数以上いるものだけが候補。いなければ不発）。074＝バースト部 `from:"nexuses"`、フラッシュ部 `from:"spirits"`・`minSameName:2`（✅ part610）
+**部品バッチ10（確定スキーマ）**：PlayerRuleDef `{ type: "noBurstEffectForPid"; cost?: { min: number; max: number } }`（バーストの発動とトラッシュ送りは成立し、効果の解決だけ飛ばす。スピリットのバーストも対象。cost はバーストカードの印刷コスト。084＝`declare{what:"cost",options:[0..10]}` の then に置き `declared` で cost を埋める）。
+PlayerRuleDef `{ type: "cantUseMagicForPid"; colors: Color[] | "event" }`（どのゾーンからでもその色を持つマジックを使用できない。"event" は置く時点で、きっかけの召喚時効果を発揮したカードの色すべてに解く。083）。
+FieldEvent `"opponentLifeCoreFromVoid"`（相手のライフにボイドからコアが置かれたとき。原因を問わない。`eventCount`＝置かれた個数、`repeatPerCount` 対応。014）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）

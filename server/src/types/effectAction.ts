@@ -219,7 +219,7 @@ export type EffectAction =
  // what の値を1つ指定し、then の中の declared を実際の値に置き換えて解決する（DECLARE_UNIFY）。from＝選ぶ人の場の spirits／nexuses から候補を取る。picked は再開用
  | { type: "fireSoryoSelf" } // このスピリット自身の【操霊】（keyword:"soryo" の召喚時効果）の中身をそのまま発揮する（26RBS02-023。レベルが合うものだけ）
  | { type: "fireEffect"; trigger: "onSummon" | "onDestroy" | "onBlock"; all?: true; filter?: TargetFilter; oneEffect?: true; soryoOnly?: true; chosenId?: string; instanceIds?: string[] } // chosenId・instanceIds は再開用
- | { type: "declare"; what: "color" | "family" | "cost" | "level"; options?: (string | number)[]; from?: "spirits" | "nexuses"; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
+ | { type: "declare"; what: "color" | "family" | "cost" | "level" | "name"; options?: (string | number)[]; from?: "spirits" | "nexuses"; fromSide?: "opponent"; minSameName?: number; chooser?: "opponent" | "each"; autoFrom?: { ownTrash: CardPick }; then: EffectAction; picked?: Partial<Record<PlayerId, string | number>> }
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "mill"; count: number; side?: "own"; countCounter?: EffectCounter; countMax?: number; until?: CardPick; chimei?: true } // chimei＝【地鳴】の破棄（【地鳴】の枚数+N が乗り、「【地鳴】で破棄した時」が起きる）。 相手（side:"own"指定時は自分）のデッキを上からcount枚トラッシュへ送る（【粉砕】。不足時は可能な分だけ）
  | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）

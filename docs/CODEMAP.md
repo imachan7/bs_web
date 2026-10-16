@@ -250,6 +250,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `matchesTarget`（fn）：対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
 - `cardNameContains`（fn）：カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
+- `cardNameIs`（fn）：カード名の完全一致（部分一致しない）。「〜として扱う」名も一致とみなす
 - `trashCardNameMatches`（fn）：トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。
 - `matchesCostFilter`（fn）：コスト範囲の判定（TargetFilter.cost）。
 - `instMatchesCostFilter`（fn）：フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて

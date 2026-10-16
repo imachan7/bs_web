@@ -3,7 +3,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, PlayerId } from "../../type"
 import { getCard, log } from "../GameState"
 import { requestChoice } from "../EffectModules"
-import { instBaseCost, instColors } from "../../../../shared/rules"
+import { cardNameIs, instBaseCost, instColors } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { matchesPick } from "./revealAction"
 
@@ -16,6 +16,7 @@ const ALL_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"
 function valuesOf(what: DeclareAction["what"], inst: CardInstance): Value[] {
     if (what === "color") return instColors(inst)
     if (what === "family") return getCard(inst.cardId).family
+    if (what === "name") return [...new Set([getCard(inst.cardId).name, ...(inst.namesAsContinuous ?? [])])]
     return [instBaseCost(inst)]
 }
 
@@ -29,6 +30,7 @@ function cardValuesOf(what: DeclareAction["what"], cardId: string): Value[] {
     const card = getCard(cardId)
     if (what === "color") return card.colors
     if (what === "family") return card.family
+    if (what === "name") return [card.name]
     return [card.cost]
 }
 
@@ -52,6 +54,7 @@ function substitute(node: unknown, what: DeclareAction["what"], values: Value[])
         if (what === "color") out["color"] = v
         else if (what === "family") out["family"] = v
         else if (what === "level") out["level"] = [v]
+        else if (what === "name") out["nameIs"] = v
         else out["cost"] = { min: v, max: v }
     }
     return out
@@ -61,12 +64,17 @@ const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, chosenOption, srcColors, srcType } = ctx
     const src = { sourceColors: srcColors, sourceType: srcType }
     const choosers: PlayerId[] = action.chooser === "opponent" ? [opp] : action.chooser === "each" ? [owner, opp] : [owner]
-    const zoneOf = (pid: PlayerId): CardInstance[] =>
-        action.from === "nexuses" ? state.players[pid].field.nexuses : state.players[pid].field.spirits
+    const zoneOf = (pid: PlayerId): CardInstance[] => {
+        const side = action.fromSide === "opponent" ? (pid === "p1" ? "p2" : "p1") : pid
+        return action.from === "nexuses" ? state.players[side].field.nexuses : state.players[side].field.spirits
+    }
     const candidatesFor = (pid: PlayerId): Value[] => {
         if (action.options) return action.options
         if (action.from) {
-            const seen = zoneOf(pid).flatMap((i) => valuesOf(action.what, i))
+            const zone = zoneOf(pid)
+            const seen = zone
+                .flatMap((i) => valuesOf(action.what, i))
+                .filter((v) => action.minSameName === undefined || zone.filter((i) => valuesOf(action.what, i).includes(v)).length >= action.minSameName)
             const order: Value[] = action.what === "color" ? ALL_COLORS : [...new Set(seen)]
             return order.filter((v) => seen.includes(v))
         }
@@ -97,7 +105,7 @@ const declareHandler: ActionHandler<"declare"> = (ctx, action) => {
                 picked[next] = mostFrequent(candidates, pool.map((i) => valuesOf(action.what, i)))
             }
         } else {
-            const what = action.what === "color" ? "色" : action.what === "family" ? "系統" : "コスト"
+            const what = { color: "色", family: "系統", name: "カード名", level: "Lv" }[action.what as string] ?? "コスト"
             requestChoice(
                 state,
                 owner,
