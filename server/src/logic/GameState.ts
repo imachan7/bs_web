@@ -74,11 +74,14 @@ export function createInstance(
 ): CardInstance {
     noteInstance(cardId)
     instanceSeq += 1
+    // self:true の summonExhausted はどの召喚経路でも効かせたいので、全経路が通るここで見る。
+    // ⚠️ 召喚以外の createInstance（デバッグ配置等）でも疲労状態になる
+    const exhaustedOnSummon = getCard(cardId).effects.some((e) => e.kind === "globalConstraint" && e.constraint.type === "summonExhausted" && e.constraint.self === true)
     return {
         instanceId: `inst-${String(instanceSeq).padStart(6, "0")}`,
         cardId,
         cores,
-        isRested: false,
+        isRested: exhaustedOnSummon,
         summonedTurn: turn,
         ...(summonedBy !== undefined ? { summonedBy } : {}),
         tempBpBuff: 0,

@@ -309,6 +309,7 @@ export function resolveBattle(state: GameState): void {
     // （TargetFilter.sameColorAsBattleLoser / sameFamilyAsBattleLoser。ドヴェルグ／ニーベルングリング）
     state.lastBattleDestroyedColors = []
     delete state.lastBattleDestroyedInstanceId
+    delete state.lastBattleDestroyedCardId
     state.lastBattleDestroyedFamilies = []
     state.lastBattleDestroyedBp = 0
     state.lastBattleDestroyedCost = 0
@@ -428,6 +429,7 @@ export function resolveBattle(state: GameState): void {
         // BPを比べ相手のスピリットだけを破壊：破壊直前のブロッカーのコア数・Lvを記録（魔界七将デストロードLv2／魔界伯爵ヴィールLv3）
         state.lastBattleDestroyedCores = blocker.cores
         state.lastBattleDestroyedInstanceId = blocker.instanceId
+        state.lastBattleDestroyedCardId = blocker.cardId
         state.lastBattleDestroyedLevel = blockerLevel
         state.lastBattleDestroyedColors = instColors(blocker)
         state.lastBattleDestroyedFamilies = [...getCard(blocker.cardId).family]
@@ -439,6 +441,7 @@ export function resolveBattle(state: GameState): void {
         // 破壊直前のアタッカーのコア数も同様に記録する（BS10ヘッジボルグ：role制限なしでattacker/blocker両方から発火する）
         state.lastBattleDestroyedCores = attacker.cores
         state.lastBattleDestroyedInstanceId = attacker.instanceId
+        state.lastBattleDestroyedCardId = attacker.cardId
         state.lastBattleDestroyedColors = instColors(attacker)
         state.lastBattleDestroyedFamilies = [...getCard(attacker.cardId).family]
         state.lastBattleDestroyedBp = attackerBp

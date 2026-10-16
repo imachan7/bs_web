@@ -65,6 +65,8 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
     const zone = action.from === "hand" ? player.hand : player.trashCards
     // fromEvent：その回に破棄されたカード（state.lastDeckMill）だけ。同じ cardId が複数あるときは新しい方から枚数ぶん当てる
     const fromEventIdx = action.fromEvent ? millEventIndices(zone, state.lastDeckMill?.pid === zonePid ? state.lastDeckMill.cardIds : []) : undefined
+    // 同名が複数あるときは最後に置かれた1枚（直前にバトルで破壊されたカード）だけ
+    const battleLoserIdx = action.onlyLastBattleDestroyed && state.lastBattleDestroyedCardId !== undefined ? zone.lastIndexOf(state.lastBattleDestroyedCardId) : undefined
     const lastMoved = action.lastMovedOnly ? lastMovedOf(state) : undefined
     // トラッシュのカード名は trashNameAs の別名でも一致する
     const { nameIncludes, ...pickRest } = action.pick ?? {}
@@ -78,6 +80,7 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
                 (!action.onlyEventCard || id === targetInstanceId) &&
                 (action.from === "hand" || !isTrashCardProtected(id)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
+                (!action.onlyLastBattleDestroyed || (battleLoserIdx !== undefined && battleLoserIdx === j)) &&
                 (lastMoved === undefined || lastMoved.includes(id)),
         )
         .map(({ j }) => j)

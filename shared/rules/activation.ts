@@ -202,6 +202,7 @@ export function summonExhausted(
                 if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
                 const { cardTypes, familyExclude, costFilter } = effect.constraint
+                if (effect.constraint.self || cardTypes === undefined) continue
                 if (!cardTypes.includes(summonedCard.type)) continue
                 if (familyExclude && summonedCard.family.some((f) => (Array.isArray(familyExclude) ? familyExclude.includes(f) : f === familyExclude))) continue
                 if (costFilter?.max !== undefined && summonedCard.cost > costFilter.max) continue

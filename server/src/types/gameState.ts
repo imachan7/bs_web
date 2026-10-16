@@ -40,6 +40,7 @@ export interface GameState {
     lastBattleBlockerTrashCost: number // 上記のうちスピリットカードのみを対象に、バトル終了時点で防御側のトラッシュにあったカードの印刷コストの合計
     // （EffectCounter "lastBattleBlockerTrashCost"。0=ブロックされていない／ブロッカーがトラッシュに無い）
     lastBattleDestroyedLevel: number // 直前のバトル解決でBP比較により破壊されたブロッカーのcurrentLevel（次のバトル解決の冒頭でリセット。0=まだ発生していない。魔界伯爵ヴィール）
+    lastBattleDestroyedCardId?: string // トラッシュから探す用（インスタンスは破壊後に消える）
     lastBattleDestroyedInstanceId?: string // 直前のバトル解決でBP比較により破壊された側の instanceId
     // （action:"battleLoserCoresToVoid" が読む。破壊待機中＝コアがまだ乗っている間に呼ぶ前提。BS10-065 ヘッジボルグ）
     revealedCards?: { pid: PlayerId; cardIds: string[] } // 「デッキを上からN枚オープンする」の公開ゾーン（両者に見える一時領域）。
