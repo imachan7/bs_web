@@ -90,7 +90,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
-    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant",
+    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant", "lifeDamageReplace", "symbolWhenSummoning", "effectTax",
 ])
 
 export interface ValidationIssue {
@@ -643,7 +643,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
 // atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
 // returnToBurst／peekOpponentBurst：BS17-004／049 のデータを書いたら外す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd", "returnToBurst", "peekOpponentBurst"])
+const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
 // standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
 const STANDARD_POOL_ONLY = new Set<string>([
     "bpBuffAll", "bpMinus", "designate", "exhaustOwnNexuses", "fireSoryoSelf", "grantKeywordThisTurn", "heavyExhaust",

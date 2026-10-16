@@ -1,0 +1,1089 @@
+[
+  {
+    "cardId": "BS17-046",
+    "name": "オリクス盗賊団",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 1,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS17-047",
+    "name": "戦獣キャメルーン",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "戦獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分のスピリットが3体以下の間、このスピリットをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS17-047-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amount": 2000,
+          "condition": {
+            "maxOwnSpirits": 3
+          },
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-048",
+    "name": "熊人ラーテシード",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nお互い、ボイドからライフにコアを置けない。\nLv2『相手のアタックステップ』\n自分のスピリットが3体以下の間、自分のスピリットすべてをBP+2000する。",
+    "effects": [
+      {
+        "id": "BS17-048-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noVoidToLife"
+        }
+      },
+      {
+        "id": "BS17-048-e2",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 2000,
+          "condition": {
+            "maxOwnSpirits": 3
+          },
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-049",
+    "name": "ロック・アラディン",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "覇皇",
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv1･Lv2『このスピリットの召喚時』\n自分の手札にあるネクサスカード1枚を、コストを支払わずに配置できる。\nLv2『相手のスタートステップ』\n自分のネクサス1つを疲労させることで、相手のバースト1つの内容を見る。",
+    "effects": [
+      {
+        "id": "BS17-049-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "action": {
+          "type": "summonBurstCardFree"
+        }
+      },
+      {
+        "id": "BS17-049-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "deployNexus",
+          "from": "hand",
+          "colors": [
+            "red",
+            "purple",
+            "green",
+            "white",
+            "yellow",
+            "blue"
+          ]
+        },
+        "optional": true
+      },
+      {
+        "id": "BS17-049-e3",
+        "kind": "step",
+        "step": "start",
+        "turn": "opponent",
+        "levels": [
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "peekOpponentBurst"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-050",
+    "name": "ランテゴス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n相手がバーストをセットしたとき、ボイドからコア1個を自分のスピリット/ネクサスに置く。",
+    "effects": [
+      {
+        "id": "BS17-050-e1",
+        "kind": "fieldEvent",
+        "event": "opponentBurstSet",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "anyField": true,
+          "target": "one",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-051",
+    "name": "豹人アリババ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv2･Lv3『このスピリットのアタック時』\nこのスピリットが相手のライフを減らすとき、そのかわりに、相手のライフのコアが7個以上のとき4個、6個/5個のとき3個、4個のとき2個になるように、相手のライフのコアを相手のリザーブに置くことができる。",
+    "effects": [
+      {
+        "id": "BS17-051-e1",
+        "kind": "lifeDamageReplace",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "self",
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": "opponentLife",
+            "atLeast": 7
+          },
+          "then": {
+            "type": "removeCores",
+            "side": "opponent",
+            "from": [
+              "life"
+            ],
+            "to": "reserve",
+            "downTo": 4,
+            "count": 0
+          },
+          "else": {
+            "type": "if",
+            "cond": {
+              "count": "opponentLife",
+              "atLeast": 5
+            },
+            "then": {
+              "type": "removeCores",
+              "side": "opponent",
+              "from": [
+                "life"
+              ],
+              "to": "reserve",
+              "downTo": 3,
+              "count": 0
+            },
+            "else": {
+              "type": "if",
+              "cond": {
+                "count": "opponentLife",
+                "atLeast": 4
+              },
+              "then": {
+                "type": "removeCores",
+                "side": "opponent",
+                "from": [
+                  "life"
+                ],
+                "to": "reserve",
+                "downTo": 2,
+                "count": 0
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-052",
+    "name": "アラビアン騎士シンド・バード",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "獣頭"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n系統：「雄将」を持つ自分のスピリットが破壊されたとき、自分のデッキを上から5枚破棄することで、破壊されたスピリット1体を回復状態で自分のフィールドに残す。\nLv2\n相手がバーストをセットしたとき、コスト6以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS17-052-e1",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "ownAll",
+        "familyFilter": "雄将",
+        "when": {},
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "opponent"
+        },
+        "revived": {
+          "rested": false
+        },
+        "cost": {
+          "millSelfCount": 5
+        },
+        "optional": true
+      },
+      {
+        "id": "BS17-052-e2",
+        "kind": "fieldEvent",
+        "event": "opponentBurstSet",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 6
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-053",
+    "name": "青玉の海竜シュトロドーム",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 7,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "海首"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "blue",
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+    "effects": [
+      {
+        "id": "BS17-053-e1",
+        "kind": "keyword",
+        "keyword": "funsai",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-054",
+    "name": "マジン・ゴレム",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 7,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "blue",
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\n自分の[ロック・アラディン]すべては、相手のマジックの効果を受けない。\nLv2『このスピリットの破壊時』\n自分のフィールドに[ロック・アラディン]がいる間、このスピリットは、疲労状態で自分のフィールドに残る。",
+    "effects": [
+      {
+        "id": "BS17-054-e1",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": [
+          "ロック・アラディン"
+        ],
+        "constraint": {
+          "type": "immuneToOpponentEffects",
+          "against": "magic"
+        }
+      },
+      {
+        "id": "BS17-054-e2",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2
+        ],
+        "scope": "self",
+        "requireOwnFieldHasName": "ロック・アラディン",
+        "when": {},
+        "revived": {
+          "rested": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-060",
+    "name": "ジン・アームズ",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "造兵"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、相手が、マジックカードを使用したとき、相手は、相手の手札にある使用したマジックカード以上のコストのカード1枚を破棄しなければ、その効果を発揮できない。\n合体条件：覇皇/雄将/創手",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "覇皇/雄将/創手",
+    "braveCondition": [
+      {
+        "family": "覇皇"
+      },
+      {
+        "family": "雄将"
+      },
+      {
+        "family": "創手"
+      }
+    ],
+    "effects": [
+      {
+        "id": "BS17-060-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "effectTaxForPid",
+                "on": "magic",
+                "cost": {
+                  "type": "moveCards",
+                  "from": "hand",
+                  "dest": "trash",
+                  "count": 1,
+                  "pick": {
+                    "atLeastTaxedCost": true
+                  }
+                }
+              }
+            }
+          ],
+          "duration": "turn"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-071",
+    "name": "開かれた岩扉",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト0/3/6のスピリットはブロックできない。\nLv2『お互いのアタックステップ』\n系統：「雄将」を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個をこのネクサスに置く。",
+    "effects": [
+      {
+        "id": "BS17-071-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "cantBlockByCost",
+          "costs": [
+            0,
+            3,
+            6
+          ]
+        }
+      },
+      {
+        "id": "BS17-071-e2",
+        "kind": "battleWon",
+        "role": "any",
+        "levels": [
+          2
+        ],
+        "winnerFamilyFilter": "雄将",
+        "selfMode": "source",
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "nexus",
+          "target": "self",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-072",
+    "name": "願い叶えるランプ",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、自分のスピリットが2体以下のとき、相手は、回復状態の相手のスピリットが3体になるように相手のスピリットを疲労させる。\nLv2\n自分の[ロック・アラディン]すべては、相手のスピリット/ブレイヴの効果を受けない。",
+    "effects": [
+      {
+        "id": "BS17-072-e1",
+        "kind": "step",
+        "step": "attack",
+        "turn": "opponent",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownSpirits": {}
+            },
+            "atMost": 2
+          },
+          "then": {
+            "type": "exhaust",
+            "count": 0,
+            "chooserIsTarget": true,
+            "untilRefreshedCount": 3
+          }
+        }
+      },
+      {
+        "id": "BS17-072-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "nameIncludes": [
+          "ロック・アラディン"
+        ],
+        "constraint": {
+          "type": "immuneToOpponentEffects",
+          "against": [
+            "spirit",
+            "brave"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-083",
+    "name": "アブラカダブラ",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nこのターンの間、相手は、召喚時効果を発揮したスピリット/ブレイヴの色と同じ色のマジックカードは使用できない。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n『このスピリットの召喚時』効果を持つスピリットすべてを疲労させる。",
+    "effects": [
+      {
+        "id": "BS17-083-e1",
+        "kind": "burst",
+        "event": "opponentSummonEffectResolved",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "cantUseMagicForPid",
+                "colors": "event"
+              }
+            }
+          ],
+          "duration": "turn"
+        },
+        "thenPay": "flash"
+      },
+      {
+        "id": "BS17-083-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "anySide": true,
+          "filter": {
+            "hasTrigger": "onSummon"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-084",
+    "name": "トライアングルバン",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\nコスト1つを指定する。\nこのターンの間、相手は、指定したコストのバースト効果を発揮できない。",
+    "effects": [
+      {
+        "id": "BS17-084-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "declare",
+          "what": "cost",
+          "options": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "playerRule",
+                "rule": {
+                  "type": "noBurstEffectForPid",
+                  "declared": "match"
+                }
+              }
+            ],
+            "duration": "turn"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS17-X06",
+    "name": "千夜一夜物語の女帝シェハラザード",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "雄将",
+      "創手"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「雄将」を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nLv2･Lv3『自分のアタックステップ』\n系統：「覇皇」/「雄将」を持つ自分のスピリットが相手のライフを減らすとき、そのかわりに、相手のライフのコアが7個以上のとき4個、6個/5個のとき3個、4個のとき2個になるように、相手のライフのコアを相手のリザーブに置くことができる。",
+    "effects": [
+      {
+        "id": "BS17-X06-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "summonFromHandFree",
+          "familyFilter": "雄将"
+        }
+      },
+      {
+        "id": "BS17-X06-e2",
+        "kind": "lifeDamageReplace",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "familyFilter": [
+          "覇皇",
+          "雄将"
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": "opponentLife",
+            "atLeast": 7
+          },
+          "then": {
+            "type": "removeCores",
+            "side": "opponent",
+            "from": [
+              "life"
+            ],
+            "to": "reserve",
+            "downTo": 4,
+            "count": 0
+          },
+          "else": {
+            "type": "if",
+            "cond": {
+              "count": "opponentLife",
+              "atLeast": 5
+            },
+            "then": {
+              "type": "removeCores",
+              "side": "opponent",
+              "from": [
+                "life"
+              ],
+              "to": "reserve",
+              "downTo": 3,
+              "count": 0
+            },
+            "else": {
+              "type": "if",
+              "cond": {
+                "count": "opponentLife",
+                "atLeast": 4
+              },
+              "then": {
+                "type": "removeCores",
+                "side": "opponent",
+                "from": [
+                  "life"
+                ],
+                "to": "reserve",
+                "downTo": 2,
+                "count": 0
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+]
