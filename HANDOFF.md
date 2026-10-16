@@ -45,6 +45,9 @@ type.ts を触る部品（034 の破壊されたカード記録・declare の wh
 IfCond `{ opponentMainStepNow: true }`（`opponentAttackStepNow` の兄弟。032）。`symbolWhenSummoning` をブレイヴの召喚にも効かせ、`pick.cardType` で絞る（`pick.cardType` を書かないエントリは従来どおりスピリットだけ。067）（✅ part607）
 **部品バッチ7（確定スキーマ）**：EffectCounter の葉 `"lastBattleDestroyedBp"`（`state.lastBattleDestroyedBp` を読む。`lastBattleDestroyedCost` の兄弟）と `lifeCrush.countMax?: number`（009＝`countCounter:{div:[{minus:["selfBp","lastBattleDestroyedBp"]},3000]}`・`countMax:3`）。
 `returnToHand.countCounter?: EffectCounter`（`countedAmount` で count を置き換える。X04＝`selfBraveCount`）。ConstraintDef `combineLimit.extraSlotSymbolless?: true`（2体目以降に合体できるのはシンボル0のブレイヴだけ。合体条件は別に満たす。X04）（✅ part608）
+**部品バッチ8（確定スキーマ）**：`ownDeckMilled` の eventInfo に `byOpponentEffect` を載せ、既存の `byOpponentEffectOnly` を効かせる（070。手札へは `moveCards{from:"trash",fromEvent:true,pick:{hasBurst:true}}`、その後は `timedEffect playerRule noDeckMillForPid`。`milledMagicToTegamoto` は広げない）。
+GlobalConstraint `summonExhausted` に `self?: true`（召喚されるカード自身の effects に書く「このスピリットカードは疲労状態で召喚する」。召喚の判定が召喚するカード自身の effects も見る。026）。
+バトルで破壊されたカードの cardId を `state.lastBattleDestroyedCardId` に記録し、moveCards に `onlyLastBattleDestroyed?: true`（トラッシュのそのカードだけが候補。無ければ不発。034）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
