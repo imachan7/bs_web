@@ -20,7 +20,7 @@ import {
 } from "./GameState"
 import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
+import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -191,7 +191,7 @@ export function validateSummon(
         const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
         if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
-        if ((host.braveRefs ?? []).length >= combineLimitFor(state, pid, host)) return "そのスピリットには既にブレイヴが合体しています"
+        if (!canCombineBraveCount(state, pid, host, cardId)) return "そのスピリットには既にブレイヴが合体しています"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
         if (level !== undefined && level !== 1) return "ダイレクトブレイヴではレベルを指定できません"

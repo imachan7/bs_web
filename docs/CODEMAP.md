@@ -258,7 +258,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
 - `braveCombineCandidates`（fn）：合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
-- `combineLimitFor`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
+- `canCombineBraveCount`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
+- `combineLimitFor`（fn）
 - `BattleSwapSummonOption`（型）：手札のこのスピリットカードを、フラッシュ中のバトルで
 - `battleSwapSummonCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**。
 - `canBattleSwapSummon`（fn）：UI向け：手札の handIndex 枚目がいま入れ替え召喚できるなら、その選択肢を返す（できなければ null）。

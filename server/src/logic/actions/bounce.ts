@@ -129,6 +129,15 @@ function returnOwnAsCost(ctx: ActionCtx, action: Extract<EffectAction, { type: "
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        if (action.countCounter !== undefined) {
+            const n = countedAmount(state, owner, self, action.count, action.countCounter, srcType)
+            if (n <= 0) {
+                log(state, `${sourceName}：カウントが0のため手札に戻さなかった。`)
+                return
+            }
+            const { countCounter: _cc, ...rest } = action
+            action = { ...rest, count: n }
+        }
         if (action.nexus) {
             returnToHandNexusOrSpirit(ctx, action)
             return

@@ -1232,6 +1232,7 @@ export function countEffectCounter(
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
+    if (counter === "lastBattleDestroyedBp") return state.lastBattleDestroyedBp
     if (counter === "lastBattleDestroyedCost") return state.lastBattleDestroyedCost
     // 26系【地鳴】の減算: このバトルでブロックした相手のスピリットカードのうち、バトル終了時点で
     // 防御側のトラッシュにあったカードのコスト合計（ブロックされていなければ0）

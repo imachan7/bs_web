@@ -44,7 +44,7 @@ type.ts を触る部品（034 の破壊されたカード記録・declare の wh
 **部品バッチ6（確定スキーマ）**：`declare.what` に `"level"`（`declared` を `filter.level=[v]` へ置き換える。081）。TimedContent `{ type: "effectsDisabled" }`（`effectsDisabledContinuous` の期間つき版。後から得た効果も止める＝「新たに得ることもない」。081 は `timedEffect all`＋`filter:{declared:"match"}`）。
 IfCond `{ opponentMainStepNow: true }`（`opponentAttackStepNow` の兄弟。032）。`symbolWhenSummoning` をブレイヴの召喚にも効かせ、`pick.cardType` で絞る（`pick.cardType` を書かないエントリは従来どおりスピリットだけ。067）（✅ part607）
 **部品バッチ7（確定スキーマ）**：EffectCounter の葉 `"lastBattleDestroyedBp"`（`state.lastBattleDestroyedBp` を読む。`lastBattleDestroyedCost` の兄弟）と `lifeCrush.countMax?: number`（009＝`countCounter:{div:[{minus:["selfBp","lastBattleDestroyedBp"]},3000]}`・`countMax:3`）。
-`returnToHand.countCounter?: EffectCounter`（`countedAmount` で count を置き換える。X04＝`selfBraveCount`）。ConstraintDef `combineLimit.extraSlotSymbolless?: true`（2体目以降に合体できるのはシンボル0のブレイヴだけ。合体条件は別に満たす。X04）
+`returnToHand.countCounter?: EffectCounter`（`countedAmount` で count を置き換える。X04＝`selfBraveCount`）。ConstraintDef `combineLimit.extraSlotSymbolless?: true`（2体目以降に合体できるのはシンボル0のブレイヴだけ。合体条件は別に満たす。X04）（✅ part608）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
