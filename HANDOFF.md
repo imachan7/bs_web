@@ -21,12 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：場面テストで見つかった9件を直す（ブランチ `fix/silent-effects-data`。10-16 設計確定）
+### 次の一手：UI の2点（ブランチは main から新しく切る。10-16 ユーザー依頼）
 
-テストは `git show d53efb2:scripts/smoke/part60N.ts` の外した場面を戻す（期待値役が書いたもの＝変更禁止。大海峡だけ Lv2 のコア数の誤りを直す）。調査メモの要点：
-- データだけ：サンダ BS12-058-e2＝timedEffect{bpAs・battle・all・filter blocking}＋condition selfIsAttacking（前例 BS11-040）／重力炉 BS08-062-e2＝symbolFix{self・white・3・summonReductionOnly}（前例 BS16-068）／五行山 BS16-064-e2＝selfMode source＋attackerAsTarget（前例 BS13-068）／ナナフシ BS12-053-e1＝条件 手札1枚以上（「そうしたとき」なので引けるだけ引く。pay にしない）
-- エンジン：【不死】＝actions/destroy.ts の destroySpirit 5か所にも includeFushi（コスト破壊は allowSuspend も。消滅は対象外）／ショカツリョー＝pay.ts CHECKERS.exhaust に相手側の分岐（回復状態の相手が数どおりいるか）／バァラル＝effectiveCost にカードの置き場所を渡し、costMod の「手札にある」はそのときだけ（scope:self の7枚と、トラッシュ・デッキから出す呼び出し元を監査）／アーチャー＝起動能力の cost＋action の合成判定を shared に置き、activatableAbilityOf と validateActivateAbility の両方で使う（同形8枚も対象）
-- 次の PR（UI）：スピリットのシンボルを効果の増減・合体込みの今の値で表示／消滅を「破壊」と表示している箇所を「消滅」に
+- スピリットのシンボルを、効果の増減・合体込みの今の値で表示する（`public/src/ui/fieldCard.ts` が `m.symbol`＝カード本来の値を描いている。`shared/rules/symbols.ts` の `symbolsOf` を公開して使う）
+- 消滅を「破壊」と表示している（`removal.ts` の emitEvent が cause を問わず `type: "destroy"`。通知に cause を足し、`renderer.ts` の eventBannerText で「消滅」と出し分ける）
+- 後片付け：使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
+- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 

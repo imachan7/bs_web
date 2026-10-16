@@ -4278,17 +4278,18 @@
    },
    {
     "id": "BS08-062-e2",
-    "kind": "reductionGrant",
+    "kind": "symbolFix",
     "levels": [
      2
     ],
-    "cardType": "spirit",
-    "symbols": [
-     "white",
-     "white",
-     "white"
-    ],
-    "replace": true
+    "target": "self",
+    "count": 3,
+    "color": "white",
+    "summonReductionOnly": true,
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
    }
   ]
  },

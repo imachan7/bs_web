@@ -788,7 +788,10 @@ function fushiCase(card: string, cost: number, lv: number, bp: number, mode: "ac
             }
         },
         expect: [
-            "相手.虎拳士タイガ.疲労: false → true",
+            // 【不死】で出たバァラルの「相手のスピリットすべての Lv コスト+1」で、コア1個のタイガは消滅する
+            ...(mode === "accept" && card === BAARAL
+                ? ["相手.虎拳士タイガ.場所: フィールド → なし", "相手.トラッシュ: なし → 虎拳士タイガ", "相手.リザーブ: 10 → 11"]
+                : ["相手.虎拳士タイガ.疲労: false → true"]),
             `自分.${bName}.場所: フィールド → なし`,
             ...(mode === "accept"
                 ? [

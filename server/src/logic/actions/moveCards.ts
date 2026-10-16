@@ -114,7 +114,7 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const player = state.players[pid]
     const card = getCard(cardId)
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo) : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
+    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
     if (action.dest === "cast") return action.pay === "cost" ? player.reserve >= effectiveCost(state, pid, card) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(player).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
     return player.reserve >= minLevelCores(card)
@@ -365,7 +365,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     }
     // 通常のコストを支払う召喚は、リザーブだけで払えるカードに限る（オープン中の選択に支払い元を選ぶ場が無い）
     const reserve = state.players[owner].reserve
-    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || reserve >= minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id))
+    const payable = (id: string): boolean => action.pay !== "cost" || (dest !== "summon" && dest !== "summonOrPlace") || reserve >= minLevelCores(getCard(id)) + effectiveCost(state, owner, getCard(id), false, [], false, false)
     const candidates = (): number[] => zone.cardIds.map((id, i) => ({ id, i })).filter((x) => matchesPick(x.id, action.pick, undefined, ctx.sourceCardId) && payable(x.id)).map((x) => x.i)
     if (chosenCardIndex !== undefined) {
         const [id] = zone.cardIds.splice(chosenCardIndex, 1)

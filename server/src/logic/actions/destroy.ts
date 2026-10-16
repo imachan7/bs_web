@@ -1023,7 +1023,7 @@ const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action)
             )
         const targetCost = getCard(target.cardId).cost
         const targetName = getCard(target.cardId).name
-        destroySpirit(state, owner, target.instanceId)
+        destroySpirit(state, owner, target.instanceId, "destroy", undefined, { allowSuspend: true })
         if (action.gainCoresEqualCost) {
             const player = state.players[owner]
             player.reserve += targetCost

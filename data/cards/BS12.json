@@ -3681,6 +3681,9 @@
           1
         ],
         "optional": true,
+        "condition": {
+          "ownHandAtLeast": 1
+        },
         "action": {
           "type": "discardHandAll",
           "thenDrawOpponentHand": true
@@ -4061,14 +4064,25 @@
         "event": "ownMagicUsed",
         "levels": null,
         "whileCombined": true,
+        "condition": "selfIsAttacking",
         "action": {
-          "type": "setTargetBpAsThisBattle",
-          "levels": [
-            1,
-            2,
-            3
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bpAs",
+              "levels": [
+                1,
+                2,
+                3
+              ],
+              "amount": 2000
+            }
           ],
-          "amount": 2000
+          "duration": "battle",
+          "count": 1,
+          "filter": {
+            "blocking": true
+          }
         }
       }
     ]

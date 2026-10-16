@@ -151,7 +151,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
                 return
             }
             const maintain = minLevelCores(card)
-            const cost = action.pay === "cost" ? effectiveCost(state, owner, card) : 0
+            const cost = action.pay === "cost" ? effectiveCost(state, owner, card, false, [], false, false) : 0
             if (action.surchargePrepaid) state.summonSurchargePaid = owner
             if (action.pay === "cost" ? player.reserve < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
                 log(state, `${sourceName}：リザーブが足りず${card.name}を召喚できなかった。`)

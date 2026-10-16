@@ -232,8 +232,9 @@ console.log("=== BS08ボクルガー：triggered.condition{opponentHandAtLeast}�
 
 console.log("=== BS08海底に眠りし古代都市Lv2：kind symbolFix（シンボル数の固定はコスト軽減にも効く） ===")
 {
-    const city = findByEffect((e) => e["kind"] === "symbolFix")
-    const entry = entryOf(city, (e) => e["kind"] === "symbolFix")
+    // 系統で絞る symbolFix（超時空重力炉の「このネクサス自身」の symbolFix と区別する）
+    const city = findByEffect((e) => e["kind"] === "symbolFix" && e["familyFilter"] !== undefined)
+    const entry = entryOf(city, (e) => e["kind"] === "symbolFix" && e["familyFilter"] !== undefined)
     const family = String(entry["familyFilter"])
     const fixed = Number(entry["count"])
     const activeLevel = (entry["levels"] as number[])[0]!

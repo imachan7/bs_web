@@ -196,8 +196,8 @@ export function destroySpirit(
     // （効果文が名指ししているのは「このスピリットの破壊時」だけなので、他カードが見る一般則イベントは止めない。
     // BS12-052デス・ヘイズ：召喚時に自分のスピリットを好きなだけ破壊するがそれらの破壊時効果は出さない）
     // includeFushi: この破壊で誘発する【不死】も**同じ列**に並べる（docs/design/TIMING_CHART.md）。
-    // 破壊のバッチ経由（destroySpiritsFrom）だけが立てる。従来は破壊の外側で別に2択を出していた
-    options?: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: true },
+    // 既定は有効（2026-10-16 ユーザー確認：【不死】は破壊なら手段・体数を問わず誘発する）。消滅は cause で除かれる
+    options?: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: boolean },
     // 戻り値：**実際に破壊できたか**。false は「場にいなかった」か
     // 「破壊されるかわりにフィールドに残った（復活）」。
     // 「この効果で破壊したスピリット1体につき」を数える効果が参照する（RESUME_STACK.md §7）
@@ -330,7 +330,7 @@ export function destroySpirit(
     // 【不死】：トラッシュの【不死】持ちも**同じ列**に並べる。先に「フィールドに残る」が解決すると
     // 破壊が無かったことになるので、requiresPendingDestructionOf のガードで自動的に空振りする
     // （＝「残るを先に解決したら【不死】は撃てない」。従来は破壊の外側の2択で表していた）
-    if (cause === "destroy" && options?.includeFushi) {
+    if (cause === "destroy" && options?.includeFushi !== false) {
         for (const trashIndex of fushiCandidates(state, ownerPid, destroyedCostsOf(inst), destroyedFamiliesOf(inst))) {
             const cardId = player.trashCards[trashIndex]
             if (cardId === undefined) continue
