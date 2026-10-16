@@ -24,7 +24,12 @@
 ### 次の一手：効果で召喚したスピリットの召喚時効果を効果文どおりにする（10-16 確定。規則は RESUME_STACK §6.2）
 
 - ① `fix/skip-on-summon-data`：効果文で止めているのにデータに `skipOnSummon` が無い13枚に足す（smoke part598）
-- ② 次の PR：複数体の同時召喚は全員を出してから召喚時効果を選んだ順に発揮する。あわせて、文に制限が無いのに止めている5枚（BS06-X22・BS12-057・BS16-009・BS16-011・BS16-012）の `skipOnSummon` を外す。複数体のほうは `legacyMoves.ts` の `legacySkip` が原因
+- ② `fix/simultaneous-summon-triggers`（#275 の上に積む）：複数体の同時召喚は全員を出してから召喚時効果を選んだ順に発揮する。文に制限が無いのに止めている5枚（BS06-X22・BS12-057・BS16-009・BS16-011・BS16-012）の `skipOnSummon` を外し、`legacyMoves.ts` の `legacySkip` も消す
+  - `GameState.summonBatch?: string[]`（instanceId）。`summonSurchargePaid` と同じく「1回の効果で続けて召喚するあいだ」だけ持つ
+  - `fireSummonSequence` の入口で `summonBatch` があれば instanceId を積んで返す（手札・トラッシュ・オープンのどの経路も、再開フレーム `summonSequence`・`revealFinishSummon` も、ここを通る）
+  - 開始：`moveOneAtATime` で `dest:"summon"` かつ複数（count が2以上・"all"・costBudget）の1枚目／`moveRevealed` の `sendAll` で召喚が2枚以上。終了：`moveOneAtATime` の `end()`、`moveRevealed` は `sendAll` の最後に内部アクション `summonBatchFlush` を積む
+  - 終了時：一覧を消してから `resolveInOrder`（askOrder：ターンプレイヤー・ラベルはカード名・key は cardId）で各 `fireSummonSequence`。frame は `{ type: "summonSequence" }`
+  - オープンから1枚ずつ選ぶ複数召喚（count が2以上の対話）はスキップで終わる道に終了点が無いので対象外。該当はドロシー（召喚時効果を止めるカード）だけ
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
