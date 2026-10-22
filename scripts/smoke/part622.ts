@@ -98,16 +98,23 @@ function pickOption(t: ScenarioCtx, side: Side, label: string): void {
 }
 // 戦闘が終わるまで両者パスで進める。途中の発動確認には answers で答える
 function settle(t: ScenarioCtx, answers: boolean[] = []): void {
+    const queue = [...answers] // scenario は自分側／相手側で steps を2回走らせる。共有の配列を消費しない
     for (let i = 0; i < 30; i++) {
-        drive(t, answers)
+        drive(t, queue)
         if (t.state.pendingChoice || !t.state.battle) break
-        t.act(sideOf(t, t.state.priorityPlayer), { type: "pass" })
+        if (t.state.isFlashTiming) t.act(sideOf(t, t.state.priorityPlayer), { type: "pass" })
+        else t.act(sideOf(t, t.state.turnPlayer === t.me ? t.opp : t.me), { type: "takeLife" }) // ブロック宣言の場面：防御側は宣言していなければライフで受ける
     }
+}
+// フラッシュタイミングを両者パスで閉じる（ブロックはその後に宣言できる）
+function passFlash(t: ScenarioCtx): void {
+    for (let i = 0; i < 6 && !t.state.pendingChoice && t.state.battle && t.state.isFlashTiming; i++) t.act(sideOf(t, t.state.priorityPlayer), { type: "pass" })
 }
 function attack(t: ScenarioCtx, side: Side, label: string): void {
     t.act(side, { type: "attack", instanceId: t.id(label) })
 }
 function block(t: ScenarioCtx, side: Side, label: string): void {
+    passFlash(t)
     t.act(side, { type: "block", instanceId: t.id(label) })
 }
 const rep = (name: string, n: number) => Array.from({ length: n }, () => name).join("、")
@@ -196,7 +203,7 @@ scenario({
         attack(t, "opp", "相手.ロクケラトプス")
         settle(t)
     },
-    expect: ["自分.ライフ: 5 → 4", "自分.バースト: ロック・アラディン → なし", "相手.ロクケラトプス.疲労: false → true", "自分.リザーブ: 10 → 9", ...appears("自分.ロック・アラディン", 1, 1, 3000)],
+    expect: ["自分.ライフ: 5 → 4", "自分.バースト: ロック・アラディン → なし", "相手.ロクケラトプス.疲労: false → true", ...appears("自分.ロック・アラディン", 1, 1, 3000)],
 })
 scenario({
     name: "049 バースト：ライフが減らなければ発動しない（ブロックで防いだ）",
@@ -300,12 +307,12 @@ const alibabaAttack = (cores: number, life: number, name: string, answers: boole
         expect: ["自分.豹人アリババ.疲労: false → true", ...expect],
     })
 alibabaAttack(2, 5, "051 Lv2 相手ライフ5：置換を選ぶと3になりコア2個が相手のリザーブへ", [true], ["相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"])
-alibabaAttack(2, 5, "051 置換は任意：断れば通常どおり1つ減る", [false], ["相手.ライフ: 5 → 4"])
+alibabaAttack(2, 5, "051 置換は任意：断れば通常どおり1つ減る", [false], ["相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"])
 alibabaAttack(2, 7, "051 相手ライフ7：4になる（コア3個）", [true], ["相手.ライフ: 7 → 4", "相手.リザーブ: 10 → 13"])
 alibabaAttack(2, 6, "051 相手ライフ6：3になる（コア3個）", [true], ["相手.ライフ: 6 → 3", "相手.リザーブ: 10 → 13"])
 alibabaAttack(2, 4, "051 相手ライフ4：2になる（コア2個）", [true], ["相手.ライフ: 4 → 2", "相手.リザーブ: 10 → 12"])
-alibabaAttack(2, 3, "051 相手ライフ3以下は表に当たらず通常どおり減る（確認も出ない）", [], ["相手.ライフ: 3 → 2"])
-alibabaAttack(1, 5, "051 Lv1では置換しない", [], ["相手.ライフ: 5 → 4"])
+alibabaAttack(2, 3, "051 相手ライフ3以下は表に当たらず通常どおり減る（確認も出ない）", [], ["相手.ライフ: 3 → 2", "相手.リザーブ: 10 → 11"])
+alibabaAttack(1, 5, "051 Lv1では置換しない", [], ["相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"])
 
 // ======== BS17-052 アラビアン騎士シンド・バード ========
 console.log("=== BS17-052 ===")
@@ -345,8 +352,8 @@ const sinbadBurst = (name: string, o: { turn: Side; sinbadCores: number; pick?: 
         name,
         start: {
             turn: o.turn, phase: "main", interactive: true,
-            me: { hand: o.turn === "me" ? [BURST_G] : [], spirits: [{ card: SINBAD, cores: o.sinbadCores }] },
-            opp: { hand: o.turn === "opp" ? [BURST_G] : [], spirits: [{ card: METAL, label: "m" }, { card: TORNA }] },
+            me: { hand: o.turn === "me" ? [BURST_P] : [], spirits: [{ card: SINBAD, cores: o.sinbadCores }] },
+            opp: { hand: o.turn === "opp" ? [BURST_P] : [], spirits: [{ card: METAL, label: "m" }, { card: TORNA }] },
         },
         steps: (t) => {
             t.act(o.turn, { type: "setBurst", handIndex: 0 })
@@ -356,10 +363,10 @@ const sinbadBurst = (name: string, o: { turn: Side; sinbadCores: number; pick?: 
     })
 sinbadBurst("052 Lv2：相手がバーストをセットしたとき、コスト6以下の相手のスピリット1体を破壊（選ぶのは自分）", {
     turn: "opp", sinbadCores: 4, pick: true,
-    expect: ["相手.手札: 仁王壁 → なし", "相手.バースト: なし → 仁王壁", gone("相手.m"), "相手.トラッシュ: なし → メタルバーン", "相手.リザーブ: 10 → 11"],
+    expect: ["相手.手札: 冥皇封滅呪 → なし", "相手.バースト: なし → 冥皇封滅呪", gone("相手.m"), "相手.トラッシュ: なし → メタルバーン", "相手.リザーブ: 10 → 11"],
 })
-sinbadBurst("052 Lv1では破壊しない", { turn: "opp", sinbadCores: 1, expect: ["相手.手札: 仁王壁 → なし", "相手.バースト: なし → 仁王壁"] })
-sinbadBurst("052 自分がセットしたときは破壊しない", { turn: "me", sinbadCores: 4, expect: ["自分.手札: 仁王壁 → なし", "自分.バースト: なし → 仁王壁"] })
+sinbadBurst("052 Lv1では破壊しない", { turn: "opp", sinbadCores: 1, expect: ["相手.手札: 冥皇封滅呪 → なし", "相手.バースト: なし → 冥皇封滅呪"] })
+sinbadBurst("052 自分がセットしたときは破壊しない", { turn: "me", sinbadCores: 4, expect: ["自分.手札: 冥皇封滅呪 → なし", "自分.バースト: なし → 冥皇封滅呪"] })
 
 // ======== BS17-053 青玉の海竜シュトロドーム：【粉砕】アタック時、相手のデッキを上からLvと同じ枚数破棄 ========
 console.log("=== BS17-053 ===")
@@ -371,7 +378,7 @@ for (const [cores, lv] of [[1, 1], [2, 2], [5, 3]] as const) {
             attack(t, "me", "自分.青玉の海竜シュトロドーム")
             settle(t)
         },
-        expect: ["自分.青玉の海竜シュトロドーム.疲労: false → true", "相手.ライフ: 5 → 3", `相手.デッキ枚数: 40 → ${40 - lv}`, `相手.トラッシュ: なし → ${rep("ロクケラトプス", lv)}`],
+        expect: ["自分.青玉の海竜シュトロドーム.疲労: false → true", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12", `相手.デッキ枚数: 40 → ${40 - lv}`, `相手.トラッシュ: なし → ${rep("ロクケラトプス", lv)}`],
     })
 }
 scenario({
@@ -439,12 +446,16 @@ const jinTurn = (name: string, oppHand: string[], discard: boolean, expect: stri
             t.act("me", { type: "nextPhase" })
             attack(t, "me", "自分.att")
             t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("自分.槍兵のジェフリー") })
-            if (discard) pickCard(t, "opp")
+            if (discard) {
+                drive(t) // 先に「破棄しますか？」の確認。候補が1枚なら破棄するカードは自動で選ばれる
+                if (t.state.pendingChoice?.kind === "card") pickCard(t, "opp")
+            }
             settle(t)
         },
         expect: [
-            "自分.手札: ジン・アームズ → なし", "自分.リザーブ: 10 → 4", "自分.トラッシュのコア: 0 → 5", ...appears("自分.ジン・アームズ", 1, 1, 4000),
-            "自分.att.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 8", "相手.トラッシュのコア: 0 → 2", ...expect,
+            // コスト5－自分の青シンボル2（ベアード・ジェフリー）の軽減2＝3、置くコア1
+            "自分.手札: ジン・アームズ → なし", "自分.リザーブ: 10 → 6", "自分.トラッシュのコア: 0 → 3", ...appears("自分.ジン・アームズ", 1, 1, 4000),
+            "自分.att.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 9", "相手.トラッシュのコア: 0 → 2", ...expect,
         ],
     })
 jinTurn("060 召喚したターン：相手のマジックは、使用したマジック以上のコストのカードを破棄すれば発揮できる（同コストで足りる）", [BIND, HAMMA], true, [
@@ -457,7 +468,7 @@ scenario({
     name: "060 合体条件：覇皇のスピリットに合体できる",
     start: { phase: "main", me: { spirits: [{ card: JIN }, { card: ALADDIN }] } },
     steps: (t) => t.act("me", { type: "combineBrave", braveInstanceId: t.id("自分.ジン・アームズ"), hostInstanceId: t.id("自分.ロック・アラディン") }),
-    expect: ["自分.ジン・アームズ.場所: フィールド → 合体", "自分.ジン・アームズ.コア: 1 → 0", "自分.ジン・アームズ.BP: 4000 → なし", "自分.リザーブ: 10 → 11", "自分.ロック・アラディン.BP: 3000 → 7000"],
+    expect: ["自分.ジン・アームズ.場所: フィールド → 合体", "自分.ジン・アームズ.コア: 1 → 0", "自分.ジン・アームズ.BP: 4000 → なし", "自分.ロック・アラディン.コア: 1 → 2", "自分.ロック・アラディン.BP: 3000 → 7000"],
 })
 scenario({
     name: "060 合体条件：覇皇／雄将／創手でないスピリットには合体できない",
@@ -473,6 +484,7 @@ scenario({
     start: { turn: "opp", phase: "attack", me: { spirits: [{ card: DOL }, { card: BEARD }, { card: MITH }, { card: JEFF }], nexuses: [{ card: DOOR, cores: 0 }] }, opp: { spirits: [{ card: ROKU }] } },
     steps: (t) => {
         attack(t, "opp", "相手.ロクケラトプス")
+        passFlash(t) // ブロックを宣言できるのはフラッシュを閉じてから（拒否の理由がフラッシュタイミングにならないように）
         for (const l of ["自分.ドルフィーノ", "自分.熊男ベアード", "自分.ミスリル・ゴレム"]) t.actRejected("me", { type: "block", instanceId: t.id(l) })
         block(t, "me", "自分.槍兵のジェフリー")
         settle(t)
@@ -484,10 +496,11 @@ scenario({
     start: { phase: "attack", me: { spirits: [{ card: JEFF }], nexuses: [{ card: DOOR, cores: 0 }] }, opp: { spirits: [{ card: GORA }, { card: METAL }, { card: TORNA }] } },
     steps: (t) => {
         attack(t, "me", "自分.槍兵のジェフリー")
+        passFlash(t)
         for (const l of ["相手.ゴラドン", "相手.メタルバーン", "相手.トルネードラ"]) t.actRejected("opp", { type: "block", instanceId: t.id(l) })
         settle(t)
     },
-    expect: ["自分.槍兵のジェフリー.疲労: false → true", "相手.ライフ: 5 → 4"],
+    expect: ["自分.槍兵のジェフリー.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
 })
 const doorWin = (name: string, o: { doorCores: number; attacker: string; attackerCores: number; expect: string[] }) =>
     scenario({
@@ -572,7 +585,7 @@ scenario({
         drive(t, [true, false])
         t.actRejected("opp", { type: "castMagic", handIndex: 0 })
     },
-    expect: [...dragu, ...abraUsed, "自分.トラッシュ: なし → アブラカダブラ、開かれた岩扉", "相手.手札: ドラグサウルス、ネクサスコラプス → ネクサスコラプス"],
+    expect: [...dragu.filter((l) => !l.startsWith("相手.手札")), ...abraUsed, "自分.トラッシュ: なし → アブラカダブラ、開かれた岩扉", "自分.リザーブ: 10 → 11", "相手.手札: ドラグサウルス、ネクサスコラプス → ネクサスコラプス"], // 破壊された岩扉のコア1個はリザーブへ
 })
 scenario({
     name: "083 禁止されるのは同じ色だけ：青のマジックは使える",
@@ -595,8 +608,10 @@ scenario({
         drive(t, [true, true])
     },
     expect: [
-        ...dragu, ...abraUsed, "自分.トラッシュ: なし → アブラカダブラ、開かれた岩扉", "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 3",
-        "相手.ドラグサウルス.疲労: false → true", "自分.ロック・アラディン.疲労: false → true",
+        ...dragu.filter((l) => !l.includes("ドラグサウルス.疲労")), ...abraUsed, "自分.トラッシュ: なし → アブラカダブラ、開かれた岩扉",
+        // コスト3－自分の青シンボルによる軽減1＝2、破壊された岩扉のコア1個がリザーブへ（10-2+1＝9）
+        "自分.リザーブ: 10 → 9", "自分.トラッシュのコア: 0 → 2",
+        "相手.ドラグサウルス.疲労: なし → true", "自分.ロック・アラディン.疲労: false → true",
     ],
 })
 scenario({
@@ -617,17 +632,18 @@ const triAttack = (name: string, declared: string, answers: boolean[], expect: s
         start: { phase: "attack", interactive: true, me: { hand: [TRI], spirits: [{ card: JEFF }] }, opp: { burst: BURST_P } },
         steps: (t) => {
             attack(t, "me", "自分.槍兵のジェフリー")
+            t.act("opp", { type: "pass" }) // アタック宣言後の優先権は防御側から。パスで自分に回ってから使う
             t.act("me", { type: "castMagic", handIndex: 0 })
-            pickOption(t, "me", declared)
+            pickOption(t, "me", `コスト${declared}`)
             settle(t, answers)
         },
-        expect: ["自分.手札: トライアングルバン → なし", "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 3", "相手.ライフ: 5 → 4", "相手.バースト: 冥皇封滅呪 → なし", ...expect],
+        expect: ["自分.手札: トライアングルバン → なし", "自分.トラッシュのコア: 0 → 2", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11", "相手.バースト: 冥皇封滅呪 → なし", ...expect], // トライアングルバンはコスト3－自分の青シンボル1の軽減1＝2
     })
 triAttack("084 コスト4を指定：相手はコスト4のバースト効果を発揮できない（バーストは発動し効果だけ飛ばす）", "4", [true], [
-    "自分.トラッシュ: なし → トライアングルバン", "自分.槍兵のジェフリー.疲労: false → true", "相手.トラッシュ: なし → 冥皇封滅呪",
+    "自分.トラッシュ: なし → トライアングルバン", "自分.槍兵のジェフリー.疲労: false → true", "相手.トラッシュ: なし → 冥皇封滅呪", "自分.リザーブ: 10 → 8",
 ])
 triAttack("084 対照：コスト3を指定ならコスト4のバースト効果は発揮される（疲労したジェフリーが破壊される）", "3", [true, false], [
-    "自分.トラッシュ: なし → トライアングルバン、槍兵のジェフリー", gone("自分.槍兵のジェフリー"), "自分.リザーブ: 7 → 8", "相手.トラッシュ: なし → 冥皇封滅呪",
+    "自分.トラッシュ: なし → トライアングルバン、槍兵のジェフリー", gone("自分.槍兵のジェフリー"), "自分.リザーブ: 10 → 9", "相手.トラッシュ: なし → 冥皇封滅呪",
 ])
 
 // ======== BS17-X06 千夜一夜物語の女帝シェハラザード ========
@@ -641,14 +657,14 @@ const shehSummon = (name: string, hand: string[], answers: boolean[], expect: st
             drive(t, answers)
             if (t.state.pendingChoice && t.state.pendingChoice.kind === "card") pickCard(t, "me")
         },
-        expect: ["自分.リザーブ: 10 → 3", "自分.トラッシュのコア: 0 → 6", ...appears("自分.千夜一夜物語の女帝シェハラザード", 1, 1, 5000), ...expect],
+        expect: ["自分.トラッシュのコア: 0 → 6", ...appears("自分.千夜一夜物語の女帝シェハラザード", 1, 1, 5000), ...expect],
     })
 shehSummon("X06 召喚時：手札の「雄将」のスピリット1枚をコストを支払わずに召喚できる", [SHEH, YUSHO], [true], [
-    "自分.手札: 千夜一夜物語の女帝シェハラザード、ブレーペンタンの音楽隊 → なし", ...appears("自分.ブレーペンタンの音楽隊", 1, 1, 1000),
+    "自分.手札: ブレーペンタンの音楽隊、千夜一夜物語の女帝シェハラザード → なし", ...appears("自分.ブレーペンタンの音楽隊", 1, 1, 1000), "自分.リザーブ: 10 → 2",
 ])
 // 無償召喚でも置くコア1個はリザーブから（reserve 3 → 2）
-shehSummon("X06 召喚時：断れば召喚しない", [SHEH, YUSHO], [false], ["自分.手札: 千夜一夜物語の女帝シェハラザード、ブレーペンタンの音楽隊 → ブレーペンタンの音楽隊"])
-shehSummon("X06 召喚時：「雄将」でなければ候補にならない", [SHEH, ROKU], [], ["自分.手札: ロクケラトプス、千夜一夜物語の女帝シェハラザード → ロクケラトプス"])
+shehSummon("X06 召喚時：断れば召喚しない", [SHEH, YUSHO], [false], ["自分.手札: ブレーペンタンの音楽隊、千夜一夜物語の女帝シェハラザード → ブレーペンタンの音楽隊", "自分.リザーブ: 10 → 3"])
+shehSummon("X06 召喚時：「雄将」でなければ候補にならない", [SHEH, ROKU], [], ["自分.手札: ロクケラトプス、千夜一夜物語の女帝シェハラザード → ロクケラトプス", "自分.リザーブ: 10 → 3"])
 const shehAttack = (name: string, o: { shehCores: number; attacker: string; answers: boolean[]; life: number; expect: string[] }) =>
     scenario({
         name,

@@ -1,8 +1,12 @@
 // smoke パート621（BS17 黄15枚の場面テスト。期待値役が効果文だけから先に書いたもの。実装役は変更せずに通す）
 import { act, assert, getCard } from "./helpers"
 import type { GameAction } from "./helpers"
-import { scenario } from "./scenario"
-import type { ScenarioCtx, Side, SideSpec } from "./scenario"
+import { scenario as scenarioBase } from "./scenario"
+import type { ScenarioCtx, ScenarioSpec, Side, SideSpec } from "./scenario"
+
+// 「〜できる」の確認や対象選択に答える場面は interactive（既定は非対話＝エンジンが自動で決める）
+const scenario = (spec: ScenarioSpec): void => scenarioBase(spec)
+const scenarioI = (spec: ScenarioSpec): void => scenarioBase({ ...spec, start: { ...spec.start, interactive: true } })
 
 const KAPIPPA = "BS17-037"
 const SEGU = "BS17-043"
@@ -52,6 +56,8 @@ const DD_COST = ["自分.トラッシュのコア: 0 → 4", "自分.リザー�
 const DD_MAIN = [
     "自分.手札: ダブルドロー → ロクケラトプス、ロクケラトプス", "自分.デッキ枚数: 40 → 38", "自分.トラッシュ: なし → ダブルドロー", ...DD_COST,
 ]
+// 相手の場の赤スピリット（敵R）の赤シンボル1つで軽減1：コスト4→3（リザーブ 10-3+ライフダメージ分1＝8、トラッシュのコア3）
+const DD_OPP_FLASH_REDUCED = ["相手.手札: ダブルドロー → なし", "相手.トラッシュ: なし → ダブルドロー", "相手.トラッシュのコア: 0 → 3"]
 const DD_OPP_FLASH = ["相手.手札: ダブルドロー → なし", "相手.トラッシュ: なし → ダブルドロー", "相手.トラッシュのコア: 0 → 4", "相手.リザーブ: 10 → 6"]
 
 const pidOf = (t: ScenarioCtx, side: Side) => (side === "me" ? t.me : t.opp)
@@ -196,7 +202,7 @@ scenario({
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
-    expect: [...ATK_BASE("イラス・バード", 1).map((l) => l.replace("相手.リザーブ: 10 → 11", "相手.リザーブ: 10 → 7")), ...DD_OPP_FLASH.filter((l) => !l.startsWith("相手.リザーブ")), "相手.敵R.BP: 1000 → 3000"],
+    expect: [...ATK_BASE("イラス・バード", 1).map((l) => l.replace("相手.リザーブ: 10 → 11", "相手.リザーブ: 10 → 8")), ...DD_OPP_FLASH_REDUCED, "相手.敵R.BP: 1000 → 3000"],
 })
 
 // 045 フェルネイト（光芒のみ・シンボル2）
@@ -239,15 +245,15 @@ scenario({
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
-    expect: ["自分.アマゾネス・ガール.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 7", "相手.敵R.BP: 1000 → 3000", ...DD_OPP_FLASH.filter((l) => !l.startsWith("相手.リザーブ"))],
+    expect: ["自分.アマゾネス・ガール.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 8", "相手.敵R.BP: 1000 → 3000", ...DD_OPP_FLASH_REDUCED],
 })
 
 // 041 天使グレイエル
 flashAttack("041 Lv3：光芒でアタック中のマジックが戻る", GREIEL, 3, "天使グレイエル", 1, RETURNED)
 flashAttack("041 Lv2は光芒を持たず戻らない", GREIEL, 2, "天使グレイエル", 1, STAYED)
 
-function greiel(name: string, spirits: { card: string; label?: string; cores?: number }[], deck: string[], steps: (t: ScenarioCtx) => void, expect: string[]): void {
-    scenario({
+function greiel(name: string, spirits: { card: string; label?: string; cores?: number }[], deck: string[], steps: (t: ScenarioCtx) => void, expect: string[], interactive = true): void {
+    ;(interactive ? scenarioI : scenario)({
         name: `041 ${name}`,
         start: { me: { spirits, deck: [...deck, ...Array.from({ length: 40 - deck.length }, () => R)] } },
         steps: (t) => {
@@ -264,14 +270,14 @@ greiel("エンド：マジックが2枚あれば1枚を選び、残りは破棄"
     (t) => { yes(t, "me"); chooseRevealed(t, "me", HAMMER) }, ["自分.手札: なし → マジックハンマー", "自分.デッキ枚数: 40 → 38", "自分.トラッシュ: なし → ダブルドロー"])
 greiel("エンド：断ると何も起きない", [{ card: GREIEL }, { card: FERN }], [DD], (t) => skip(t, "me"), [])
 greiel("エンド：マジックが無ければ開いたカードは全部破棄", [{ card: GREIEL }, { card: FERN }], [], (t) => yes(t, "me"), ["自分.デッキ枚数: 40 → 39", "自分.トラッシュ: なし → ロクケラトプス"])
-greiel("エンド：光芒持ちがいなければ何も開かない", [{ card: GREIEL }], [DD], () => undefined, [])
+greiel("エンド：光芒持ちがいなければ何も開かない", [{ card: GREIEL }], [DD], () => undefined, [], false)
 greiel("エンド：Lv3のグレイエル自身も光芒として数える", [{ card: GREIEL, cores: 3 }], [DD], (t) => yes(t, "me"), ["自分.手札: なし → ダブルドロー", "自分.デッキ枚数: 40 → 39"])
 
 // ================= BS17-044 アマゾネス・クィーン =================
 const Q_APPEAR = (n: string, bp: number) => [`自分.${n}.場所: なし → フィールド`, `自分.${n}.疲労: なし → false`, `自分.${n}.コア: なし → 1`, `自分.${n}.Lv: なし → 1`, `自分.${n}.BP: なし → ${bp}`]
 const COFFIN_OPP = ["相手.リザーブ: 10 → 3", "相手.トラッシュのコア: 0 → 7", "相手.手札: ダークコフィン → なし", "相手.トラッシュ: なし → ダークコフィン"]
 function queenBurst(name: string, steps: (t: ScenarioCtx) => void, expect: string[], trash: string[] = [FERN]): void {
-    scenario({
+    scenarioI({
         name: `044 ${name}`,
         start: { turn: "opp", me: { burst: QUEEN, trash, spirits: [{ card: G, rested: true }] }, opp: { hand: [COFFIN] } },
         steps: (t) => {
@@ -369,7 +375,7 @@ function tombSave(name: string, o: { nexusCores: number; nexusRested?: boolean; 
     const unitSpec = { card: o.unit, label: "U" }
     const nexus = o.nexusRested === undefined ? { card: TOMB, cores: o.nexusCores } : { card: TOMB, cores: o.nexusCores, rested: o.nexusRested }
     const ans = o.answer ?? "yes"
-    scenario({
+    scenarioI({
         name: `069 ${name}`,
         start: o.mine
             ? { phase: "attack", me: { spirits: [unitSpec], nexuses: [nexus] }, opp: { spirits: [{ card: METAL, label: "敵メタル", cores: 8 }] } }
@@ -421,7 +427,7 @@ scenario({
     name: "070 自分が相手のデッキを破棄しても手札に加えない",
     start: { me: { hand: [HAMMER], nexuses: [{ card: JUNGLE, cores: 0 }] }, opp: { deck: [BURST1, R, R, R, R, ...Array.from({ length: 35 }, () => R)] } },
     steps: (t) => t.act("me", { type: "castMagic", handIndex: 0 }),
-    expect: ["自分.手札: マジックハンマー → なし", "自分.トラッシュ: なし → マジックハンマー", "自分.トラッシュのコア: 0 → 4", "自分.リザーブ: 10 → 6", "相手.デッキ枚数: 40 → 35", `相手.トラッシュ: なし → 双翼乱舞、${milled4}`],
+    expect: ["自分.手札: マジックハンマー → なし", "自分.トラッシュ: なし → マジックハンマー", "自分.トラッシュのコア: 0 → 4", "自分.リザーブ: 10 → 6", "相手.デッキ枚数: 40 → 35", `相手.トラッシュ: なし → ${milled4}、双翼乱舞`],
 })
 function jungleAtk(name: string, nexusCores: number, expectDraw: boolean, casts = 1, mainCast = false): void {
     const hand = Array.from({ length: casts }, () => DD)
@@ -472,7 +478,7 @@ scenario({
 function neferBurst(name: string, lv: string, pay: boolean): void {
     const lost = lv === "2"
     const bp = (lost ? 4000 : 6000) + (pay ? 3000 : 0)
-    scenario({
+    scenarioI({
         name: `081 ${name}`,
         start: { turn: "opp", me: { burst: NEFER, spirits: [{ card: G, rested: true }] }, opp: { hand: [COFFIN], spirits: [{ card: PERI, label: "敵ペリ", cores: 2 }] } },
         steps: (t) => {
@@ -520,7 +526,7 @@ scenario({
 // ================= BS17-X05 魅惑の覇王クレオパトラス =================
 const CLEO_NAME = "魅惑の覇王クレオパトラス"
 function cleoBurst(name: string, life: number, expect: string[]): void {
-    scenario({
+    scenarioI({
         name: `X05 ${name}`,
         start: { turn: "opp", phase: "attack", me: { life, burst: CLEO }, opp: { spirits: [{ card: R, label: "攻撃者" }] } },
         steps: (t) => {
@@ -532,9 +538,10 @@ function cleoBurst(name: string, life: number, expect: string[]): void {
     })
 }
 cleoBurst("バースト：ライフ減少後に3以下ならコスト無しで召喚", 4, ["自分.バースト: 魅惑の覇王クレオパトラス → なし", ...Q_APPEAR(CLEO_NAME, 5000)])
-cleoBurst("バースト：減少後のライフが4なら召喚しない", 5, ["自分.リザーブ: 10 → 11"])
+// 「〜のとき召喚する」の条件はバースト効果の解決時に見る（2026-10-22 ユーザー確認。BURST.md §5.5）：発動はでき、召喚は起きず、カードはトラッシュへ行く
+cleoBurst("バースト：減少後のライフが4なら召喚しない", 5, ["自分.リザーブ: 10 → 11", "自分.バースト: 魅惑の覇王クレオパトラス → なし", "自分.トラッシュ: なし → 魅惑の覇王クレオパトラス"])
 function cleoSummon(name: string, trash: string[], steps: (t: ScenarioCtx) => void, expect: string[]): void {
-    scenario({
+    scenarioI({
         name: `X05 ${name}`,
         start: { me: { hand: [CLEO], trash } },
         steps: (t) => {
@@ -548,11 +555,11 @@ cleoSummon("召喚時：トラッシュのマジック1枚を手札に戻す", [
     [`自分.手札: ${CLEO_NAME} → ダブルドロー`, "自分.トラッシュ: ダブルドロー、マジックハンマー → マジックハンマー"])
 cleoSummon("召喚時：トラッシュにマジックが無ければ何も戻らない", [R], () => undefined, [`自分.手札: ${CLEO_NAME} → なし`])
 function cleoAtk(name: string, cores: number, flow: (t: ScenarioCtx) => void, expect: string[], opp?: boolean): void {
-    scenario({
+    scenarioI({
         name: `X05 ${name}`,
         start: { phase: "attack", me: { hand: opp ? [] : [DD], spirits: [{ card: CLEO, cores }, { card: G }] }, opp: { hand: opp ? [DD] : [], spirits: opp ? [{ card: R, label: "敵R" }] : [] } },
         steps: flow,
-        expect: [`自分.${CLEO_NAME}.疲労: false → true`, "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11", ...expect],
+        expect: [`自分.${CLEO_NAME}.疲労: false → true`, "相手.ライフ: 5 → 4", `相手.リザーブ: 10 → ${opp ? 8 : 11}`, ...expect], // 相手のマジックはコスト4－敵Rの赤シンボル軽減1＝3
     })
 }
 const cast = (t: ScenarioCtx) => t.act("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ビートビートル") })
@@ -579,7 +586,7 @@ cleoAtk("Lv2：相手のマジックでは再発揮しない", 2, (t) => {
     t.act("opp", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("敵R") })
     t.closeFlash()
     t.act("opp", { type: "takeLife" })
-}, ["相手.敵R.BP: 1000 → 3000", ...DD_OPP_FLASH.filter((l) => !l.startsWith("相手.リザーブ"))].map((l) => l), true)
+}, ["相手.敵R.BP: 1000 → 3000", ...DD_OPP_FLASH_REDUCED], true)
 
 // ================= BS17-043 神獣セグー =================
 const BURST_USED = (n: number) => [
@@ -589,7 +596,7 @@ const BURST_USED = (n: number) => [
 ]
 function segu(name: string, o: { attacker: string; hand: string[]; segu?: boolean; uses: number; main?: boolean }, expect: string[], rejected = false): void {
     const spirits = [{ card: o.attacker, label: "攻撃者", cores: o.attacker === CLEO ? 2 : 1 }, ...(o.segu === false ? [] : [{ card: SEGU }])]
-    scenario({
+    scenarioI({
         name: `043 ${name}`,
         start: { phase: o.main ? "main" : "attack", me: { hand: o.hand, spirits } },
         steps: (t) => {

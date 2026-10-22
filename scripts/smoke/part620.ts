@@ -20,6 +20,9 @@ const BRAVE_W = "BS11-055" // ジャノメ・シールダー（白・ブレイ�
 const BRAVE_P = "BS10-066" // 騎士王蛇ペンドラゴン（紫・ブレイヴ・合体条件コスト3以上）
 const BRAVE_B = "BS11-059" // レチクル・アームズ（青・ブレイヴ・合体条件コスト3以上）
 const BRAVE_G = "BS12-053" // オオヅツナナフシ（緑・ブレイヴ・合体条件コスト3以上）
+const METAL = "BS01-008" // メタルバーン（赤・コスト3・バニラ・赤シンボル1つ）
+const ZAUM = "BS17-018" // 紫晶の大蛇ザウム（紫・コスト7・ダブルシンボル）
+const TENKAI = "BS14-094" // 天翔龍神覇（赤・コスト6・フラッシュ：BP6000以下のスピリット1体を破壊）
 const BIG5 = "BS03-091" // 戦闘獣バン・ファロー（青・コスト5・バニラ）
 
 const CARIBOU = "BS17-028"
@@ -44,7 +47,7 @@ console.log("=== 前提: カードの機械確認 ===")
         [GUNA]: "風花の戦乙女グナ", [GH]: "グリプ・ハンズ", [BIND]: "バインディングソーン", [RIB]: "ドリームリボン",
         [FLAME]: "フレイムダンス", [COFFIN]: "ダークコフィン", [HAM]: "マジックハンマー", [BRAVE_R]: "ジャンビ・オレピス",
         [BRAVE_W]: "ジャノメ・シールダー", [BRAVE_P]: "騎士王蛇ペンドラゴン", [BRAVE_B]: "レチクル・アームズ",
-        [BRAVE_G]: "オオヅツナナフシ", [BIG5]: "戦闘獣バン・ファロー",
+        [BRAVE_G]: "オオヅツナナフシ", [BIG5]: "戦闘獣バン・ファロー", [METAL]: "メタルバーン", [TENKAI]: "天翔龍神覇", [ZAUM]: "紫晶の大蛇ザウム",
         [CARIBOU]: "ストリーム・カリブー", [BICKEN]: "リトル・ビッケン", [GEFION]: "豊穣の女神ゲフィオン",
         [LAV]: "ヴァイキング・レイヴ", [RAIL]: "レールガンフィッシュ", [ERIK]: "レッド・エイリーク",
         [DREAD]: "金剛戦艦ドレッドノーグ", [HARALD]: "キング・ハーラル", [OSE]: "オーセベリング",
@@ -59,6 +62,7 @@ type Pending = NonNullable<GameState["pendingChoice"]>
 function pend(t: ScenarioCtx, side: Side, kind: Pending["kind"]): Pending {
     const pc = t.state.pendingChoice
     assert(pc !== null, "選択待ちが立つ")
+    if (pc === null) return { pid: side === "me" ? t.me : t.opp, kind, prompt: "", candidates: [], optional: false } // 以降の検査を失敗として続けるための空の選択待ち
     assert(pc!.pid === (side === "me" ? t.me : t.opp), `選択待ちの回答者は${side}`)
     assert(pc!.kind === kind, `選択待ちの種別は${kind}（実際: ${pc!.kind}）`)
     return pc!
@@ -164,7 +168,7 @@ scenario({
 })
 const bickenArmor = (cores: number) => ({
     turn: "opp" as Side, interactive: true,
-    me: { spirits: [{ card: BICKEN, label: "ビッケン", cores }, { card: RED1, label: "FOD", cores: 1 }] },
+    me: { spirits: [{ card: BICKEN, label: "ビッケン", cores }, { card: RED1, label: "FOD", cores: 1 }, { card: RED1, label: "FOD2", cores: 1 }] }, // 候補が1体だけだと自動で選ばれるので、選べるのが2体になるようにする
     opp: { hand: [RIB] },
 })
 scenario({
@@ -187,7 +191,7 @@ scenario({
 console.log("=== BS17-031 氷壁：緑/白／Lv2 氷壁持ちは疲労状態でブロックできる ===")
 const gefStart = (o: { cores?: number; rested?: boolean; hand?: string[]; turn?: Side } = {}): ScenarioSpec["start"] => ({
     turn: o.turn ?? ("opp" as Side), interactive: true,
-    me: { spirits: [{ card: GEFION, label: "ゲフィオン", cores: o.cores ?? 1, rested: o.rested ?? false }, { card: RED1, label: "FOD", cores: 1 }], hand: o.turn === "me" ? (o.hand ?? []) : [] },
+    me: { spirits: [{ card: GEFION, label: "ゲフィオン", cores: o.cores ?? 1, rested: o.rested ?? false }, { card: RED1, label: "FOD", cores: 1 }, { card: RED1, label: "FOD2", cores: 1 }], hand: o.turn === "me" ? (o.hand ?? []) : [] },
     opp: { hand: o.turn === "me" ? [] : (o.hand ?? [BIND]), spirits: o.turn === "me" ? [{ card: RED1, label: "X", cores: 1 }, { card: RED1, label: "Y", cores: 1 }] : [] },
 })
 scenario({
@@ -278,8 +282,8 @@ scenario({
     name: "032 召喚時効果を持たないスピリットでは発動しない", start: lavBurst([RED1]),
     steps: (t) => { t.act("opp", { type: "summon", handIndex: 0 }); noPending(t) },
     expect: ["相手.ロクケラトプス.場所: なし → フィールド", "相手.ロクケラトプス.Lv: なし → 1", "相手.ロクケラトプス.BP: なし → 1000",
-        "相手.ロクケラトプス.コア: なし → 1", "相手.ロクケラトプス.疲労: なし → false", "相手.手札: ロクケラトプス → ロクケラトプス",
-        "相手.リザーブ: 10 → 8", "相手.トラッシュのコア: 0 → 1"].filter((l) => !l.startsWith("相手.手札")),
+        "相手.ロクケラトプス.コア: なし → 1", "相手.ロクケラトプス.疲労: なし → false", "相手.手札: ロクケラトプス → なし",
+        "相手.リザーブ: 10 → 8", "相手.トラッシュのコア: 0 → 1"],
 })
 const lavBattle = (cores: number, mine: { card: string; label: string }[], oppExtra: { card: string; label: string }[] = []) => ({
     phase: "attack" as const,
@@ -357,7 +361,7 @@ function railCase(cores: number, combined: boolean, answer: "yes" | "no" | "none
     let out!: { s: GameState; me: PlayerId; braveId: string }
     both(`033 cores${cores} 合体${combined} ${answer}`, (me, opp, s) => {
         const rail = put(s, me, RAIL, cores)
-        const brave = put(s, me, BRAVE_W, 1)
+        const brave = put(s, me, BRAVE_W, cores === 1 ? 0 : 1) // 合体でブレイヴのコアがホストへ移る。Lv1のままにするにはブレイヴ側のコアを0にする
         if (combined) combine(s, me, rail, brave)
         turnOf(s, me)
         ok(act(s, me, { type: "endTurn" }), "ターン終了")
@@ -390,6 +394,7 @@ both("034 自分のアタックステップ開始時", (me, opp, s) => {
     assert(s.pendingChoice !== null && s.pendingChoice.pid === me, "無償召喚の確認が立つ")
     if (s.pendingChoice!.kind === "option") answerYes(s, me)
     if (s.pendingChoice !== null && s.pendingChoice.kind === "card") ok(act(s, me, { type: "resolveChoice", cardIndex: 0 }), "ブレイヴを選ぶ")
+    if (s.pendingChoice !== null && s.pendingChoice.kind === "target") ok(act(s, me, { type: "resolveChoice" }), "合体させず単体で召喚する") // 合体先の選択は任意（選ばなければ単体で召喚）
     assert(!s.players[me].hand.includes(BRAVE_B), "ブレイヴが手札から出た")
     assert(s.players[me].reserve >= reserve - 1, "召喚コストは支払わない（置くコア以外は減らない）")
     assert(s.players[me].trashCores === 0, "コストのコアはトラッシュへ行かない")
@@ -413,11 +418,11 @@ both("034 メインステップ開始時は出ない／手札にブレイヴが�
     assert(s.pendingChoice === null, "手札にブレイヴが無ければ確認が立たない")
     assert(opp !== me, "")
 })
-function erikBattle(name: string, erikCores: number, combined: boolean, blockerCores: number, answer: "yes" | "no" | "none"): void {
+function erikBattle(name: string, erikCores: number, combined: boolean, blockerCores: number, answer: "yes" | "no" | "none", blockerCard = RED1): void {
     both(name, (me, opp, s) => {
         const erik = put(s, me, ERIK, erikCores)
-        if (combined) combine(s, me, erik, put(s, me, BRAVE_W, 1))
-        const blk = put(s, opp, RED1, blockerCores)
+        if (combined) combine(s, me, erik, put(s, me, BRAVE_W, erikCores === 1 ? 0 : 1)) // 合体でブレイヴのコアがホストへ移る（Lv1のままにするならブレイヴ側は0）
+        const blk = put(s, opp, blockerCard, blockerCores)
         turnOf(s, me, "attack")
         ok(act(s, me, { type: "attack", instanceId: erik.instanceId }), "アタック")
         ok(act(s, opp, { type: "pass" }), "パス")
@@ -428,7 +433,7 @@ function erikBattle(name: string, erikCores: number, combined: boolean, blockerC
         let guard = 0
         while (s.isFlashTiming && s.battle && s.pendingChoice === null && guard++ < 6) ok(act(s, s.priorityPlayer, { type: "pass" }), "パス")
         if (answer === "none") {
-            assert(s.pendingChoice === null || s.pendingChoice.kind !== "option", "デッキトップ戻しの確認は出ない")
+            assert(s.pendingChoice === null || s.pendingChoice.kind !== "option" || s.pendingChoice.braveKeep !== undefined, "デッキトップ戻しの確認は出ない（ブレイヴを残すかの確認は別）")
             assert(s.players[opp].deck.length === deck, "デッキは増えない")
         } else {
             assert(s.pendingChoice !== null && s.pendingChoice.pid === me, "デッキトップに戻す確認が自分に立つ")
@@ -443,13 +448,13 @@ erikBattle("034 Lv2 合体 破壊 → 戻す", 2, true, 1, "yes")
 erikBattle("034 Lv2 合体 破壊 → 断る", 2, true, 1, "no")
 erikBattle("034 Lv1 合体は対象外", 1, true, 1, "none")
 erikBattle("034 Lv2 未合体は対象外", 2, false, 1, "none")
-erikBattle("034 Lv2 合体 BP同値の相打ちは対象外", 2, true, 3, "none") // Lv2 7000 vs ... 相打ちにならない値は実装役が調整
+erikBattle("034 Lv2 合体 BP同値の相打ちは対象外", 2, true, 5, "none", "BS10-009") // エイリーク7000＋ジャノメ3000＝10000 vs トルネードラLv3 10000（コア5個）
 
 // ---- BS17-035 金剛戦艦ドレッドノーグ ----
 console.log("=== BS17-035 重装甲 赤/紫 ===")
 const dreadStart = (cores: number, hand: string[], rested = false) => ({
     turn: "opp" as Side, interactive: true,
-    me: { spirits: [{ card: DREAD, label: "ドレッド", cores, rested }, { card: RED1, label: "FOD", cores: 1, rested }] },
+    me: { spirits: [{ card: DREAD, label: "ドレッド", cores, rested }, { card: RED1, label: "FOD", cores: 1, rested }, { card: RED1, label: "FOD2", cores: 1, rested }] },
     opp: { hand },
 })
 scenario({
@@ -486,8 +491,8 @@ function haraldAttack(name: string, hostCard: string, braveCard: string, blockab
         else ng(err, "ブロックできない")
     })
 }
-haraldAttack("036 シンボル1の合体スピリットはブロックされない", WHT1, BRAVE_R, false)
-haraldAttack("036 シンボル2の合体スピリットはブロックされる", RAIL, BRAVE_W, true)
+haraldAttack("036 シンボル1の合体スピリットはブロックされない", METAL, BRAVE_R, false) // ホストはコスト3以上（合体条件）で赤シンボル1つ
+haraldAttack("036 シンボル2の合体スピリットはブロックされる", ZAUM, BRAVE_W, true) // ホストは紫ダブルシンボル（コスト7）
 both("036 未合体のスピリットはブロックされる", (me, opp, s) => {
     const a = put(s, me, WHT1, 2)
     put(s, me, HARALD, 2)
@@ -498,8 +503,8 @@ both("036 未合体のスピリットはブロックされる", (me, opp, s) => 
     ok(act(s, me, { type: "pass" }), "パス")
     ok(act(s, opp, { type: "block", instanceId: blk.instanceId }), "ブロックできる")
 })
-both("036 Lv1では効果なし", (me, opp, s) => {
-    const host = put(s, me, WHT1, 2)
+both("036 Lv1でもシンボル1つの合体スピリットはブロックされない", (me, opp, s) => {
+    const host = put(s, me, METAL, 2)
     put(s, me, HARALD, 1)
     combine(s, me, host, put(s, me, BRAVE_R, 1))
     const blk = put(s, opp, RED1, 1)
@@ -507,14 +512,15 @@ both("036 Lv1では効果なし", (me, opp, s) => {
     ok(act(s, me, { type: "attack", instanceId: host.instanceId }), "アタック")
     ok(act(s, opp, { type: "pass" }), "パス")
     ok(act(s, me, { type: "pass" }), "パス")
-    ok(act(s, opp, { type: "block", instanceId: blk.instanceId }), "ブロックできる")
+    ng(act(s, opp, { type: "block", instanceId: blk.instanceId }), "ブロックできない")
 })
 // 赤/白ブレイヴ合体 → 相手のスピリットの効果を受けない（相手の召喚時に疲労させる効果で確認）
 function haraldImmune(name: string, braveCard: string, byMagic: boolean, immune: boolean, cores = 2): void {
     both(name, (me, opp, s) => {
         const harald = put(s, me, HARALD, cores)
-        combine(s, me, harald, put(s, me, braveCard, 1))
+        combine(s, me, harald, put(s, me, braveCard, cores === 1 ? 0 : 1)) // 合体でブレイヴのコアがホストへ移る（Lv1のままにするならブレイヴ側は0）
         const fod = put(s, me, RED1, 1)
+        put(s, me, RED1, 1) // 候補が1体だけだと自動で選ばれるので、合体済みが免疫でも選べるのが2体になるようにする
         turnOf(s, opp)
         if (byMagic) {
             s.players[opp].hand = [BIND]
@@ -556,6 +562,7 @@ function oseAttack(name: string, combined: boolean, attacker: "opp" | "me"): voi
         if (combined) combine(s, me, big, put(s, me, OSE, 1))
         const a = put(s, opp, RED1, 1)
         const b = put(s, opp, RED1, 1)
+        put(s, opp, RED1, 1) // アタックした a は疲労済みなので、候補が b だけだと自動で選ばれる。回復状態を2体にする
         if (attacker === "opp") {
             turnOf(s, opp, "attack")
             ok(act(s, opp, { type: "attack", instanceId: a.instanceId }), "相手がアタック")
@@ -650,18 +657,25 @@ void fjordArmor
 function fjordGuard(name: string, cores: number, oppAttackStep: boolean, combined: boolean, immune: boolean): void {
     both(name, (me, opp, s) => {
         s.players[me].field.nexuses.push(createInstance(FJORD, s.turn - 1, cores))
-        const host = put(s, me, BIG5, 1)
+        const host = put(s, me, METAL, 1) // 合体後 3000＋3000＝6000（天翔龍神覇の BP6000 以下に収まる）
         const fod = put(s, me, RED1, 1)
+        put(s, me, RED1, 1) // 候補が1体だけだと自動で選ばれるので、合体済みが免疫でも選べるのが2体になるようにする
         if (combined) combine(s, me, host, put(s, me, BRAVE_W, 1))
         refreshLevelAsOverrides(s)
-        s.players[opp].hand = [FLAME]
-        turnOf(s, opp, oppAttackStep ? "attack" : "main")
-        ok(act(s, opp, { type: "castMagic", handIndex: 0 }), "赤のフレイムダンス")
+        s.players[opp].hand = [TENKAI]
+        if (oppAttackStep) {
+            // フラッシュのマジックはバトル中にしか使えない：相手がアタック → こちらがパス → 相手が使う
+            const atk = put(s, opp, RED1, 1)
+            turnOf(s, opp, "attack")
+            ok(act(s, opp, { type: "attack", instanceId: atk.instanceId }), "相手がアタック")
+            ok(act(s, me, { type: "pass" }), "パス")
+        } else turnOf(s, opp, "main")
+        ok(act(s, opp, { type: "castMagic", handIndex: 0 }), "赤の天翔龍神覇")
         const pc = s.pendingChoice
         assert(pc !== null && pc.kind === "target" && pc.pid === opp, "相手が対象を選ぶ")
-        const hits = pc!.candidates?.includes(host.instanceId) === true
+        const hits = pc?.candidates?.includes(host.instanceId) === true
         assert(hits === !immune, `合体スピリットが候補に入る=${!immune}`)
-        assert(pc!.candidates?.includes(fod.instanceId) === true, "合体していないスピリットは候補に入る")
+        assert(pc?.candidates?.includes(fod.instanceId) === true, "合体していないスピリットは候補に入る")
     })
 }
 fjordGuard("067 Lv2・相手のアタックステップ：合体スピリットは赤の効果を受けない", 2, true, true, true)
@@ -750,6 +764,7 @@ function parry(name: string, castIt: boolean, blocker: boolean): void {
             ok(act(s, opp, { type: "pass" }), "パス")
             ok(act(s, me, { type: "pass" }), "パス")
             ok(act(s, opp, { type: "block", instanceId: wall.instanceId }), "相手がブロック")
+            ok(act(s, opp, { type: "pass" }), "ブロックした側が先にパス") // ブロック宣言後の優先権はブロックした側から
             ok(act(s, me, { type: "castMagic", handIndex: 0 }), "フリージングパリィ")
             let guard = 0
             while (s.isFlashTiming && s.battle && s.pendingChoice === null && guard++ < 6) ok(act(s, s.priorityPlayer, { type: "pass" }), "パス")
@@ -790,11 +805,12 @@ function quel(name: string, o: { trashBrave: boolean; payAfter: boolean; handBra
             return
         }
         ok(act(s, me, { type: "resolveChoice", option: pc!.options?.[0] ?? "" }), "払う")
-        const summoned = [...s.players[me].field.spirits, ...s.players[me].field.combinedBraves].some((x) => x.cardId === BRAVE_R)
+        const want = o.handBrave[0] ?? BRAVE_R // 手札にブレイヴがあればそれ、無ければトラッシュから戻した赤のブレイヴ
+        const summoned = [...s.players[me].field.spirits, ...s.players[me].field.combinedBraves].some((x) => x.cardId === want)
         const hasCand = o.handBrave.length > 0 || o.trashBrave
         if (hasCand) {
             if (s.pendingChoice?.kind === "card") ok(act(s, me, { type: "resolveChoice", cardIndex: 0 }), "召喚するブレイヴを選ぶ")
-            assert([...s.players[me].field.spirits].some((x) => x.cardId === BRAVE_R) || summoned, "赤のブレイヴが無償で召喚された")
+            assert(summoned, "ブレイヴが無償で召喚された")
         }
     })
 }

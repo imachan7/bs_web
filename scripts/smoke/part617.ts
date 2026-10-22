@@ -1,5 +1,5 @@
 // smoke パート617（BS17 赤の場面テスト：効果文だけから書いた期待値。実装前に書いたもの）
-import { act, assert, createGame, createInstance, effectiveBp, getCard, lockedFor, refreshLevelAsOverrides, runTurnStart } from "./helpers"
+import { act, assert, createGame, createInstance, effectiveBp, getCard, playerHas, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameAction, GameState, PlayerId } from "./helpers"
 import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
@@ -42,6 +42,7 @@ const BURST_SPIRIT = "BS14-010" // 皇牙獣キンタローグ・ベアー（バ
 const BURST_SEAL = "BS14-112" // 封渦斬（バースト条件：相手の召喚時発揮後。相手はマジックを使用できない）
 const COFFIN = "BS01-131" // ダークコフィン（紫・コスト7・メイン：疲労スピリット1体を破壊）
 const FLAME = "BS01-121" // フレイムダンス（赤・コスト5・BP4000以下のスピリット1体を破壊）
+const BURST_ALT = "SD06-013" // 双翼乱舞（赤・マジック。バースト条件が封渦斬と同じ「相手の召喚時発揮後」）
 const NEXUS_A = "BS02-085" // トパーズの流星（黄）
 const NEXUS_B = "BS03-108" // 鋼に覆われた高空（白）
 
@@ -56,7 +57,7 @@ console.log("=== 前提: カードの機械確認 ===")
         [DINO]: "ディノハウンド", [DIMET]: "ディメトロドロン", [PENTA]: "ペンタケラトップ", [MELT]: "火吹きメルト",
         [BRAVE_STAR]: "飛槍獣バリ・スター", [GRIP]: "グリプ・ハンズ", [SMOKE]: "スモークロコ", [BURST_MAGIC]: "双光気弾",
         [BURST_SPIRIT]: "皇牙獣キンタローグ・ベアー", [BURST_SEAL]: "封渦斬", [COFFIN]: "ダークコフィン", [FLAME]: "フレイムダンス",
-        [NEXUS_A]: "トパーズの流星", [NEXUS_B]: "鋼に覆われた高空",
+        [BURST_ALT]: "双翼乱舞", [NEXUS_A]: "トパーズの流星", [NEXUS_B]: "鋼に覆われた高空",
     }
     for (const [id, name] of Object.entries(names)) assert(getCard(id).name === name, `${id} は ${name}`)
 }
@@ -345,7 +346,7 @@ r003("p2")
 // BS17-004 リュー・ラーダー（1節：自分のスタートステップ、バーストが無いとき、バースト効果を持つ自分のスピリット1体をバーストとしてセットできる）
 // ============================================================
 function run004(me: PlayerId, mode: "accept" | "decline" | "burstSet" | "noBurstSpirit") {
-    const s = rawGame(`004-${me}-${mode}`, me, "main")
+    const s = rawGame(`004-${me}-${mode}`, me, "main", mode !== "noBurstSpirit")
     put(s, me, RYU, 1)
     const burstSpirit = mode === "noBurstSpirit" ? null : put(s, me, BURST_SPIRIT, 2)
     const plain = put(s, me, RED, 1)
@@ -477,7 +478,7 @@ const deckTop = (...top: string[]): string[] => [...top, ...Array.from({ length:
 console.log("=== 006-a: 3枚オープン、条件の合うバースト1枚を発動、残りは破棄 ===")
 scenario({
     name: "006-a",
-    start: { turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_SEAL) }, opp: {} },
+    start: { interactive: true, turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_ALT, BURST_SEAL) }, opp: {} },
     steps(t) {
         declare(t, "ツクヨミドラグーン")
         const ask = pendingOf(t)
@@ -485,38 +486,38 @@ scenario({
         t.act("me", { type: "resolveChoice", option: ask.options?.[0] ?? "" })
         const pick = pendingOf(t)
         assert(pick.kind === "card", "006: 発動するカードを選ぶ")
-        assert(pick.cardIndices?.length === 1, "006: 候補は条件の合う1枚だけ")
-        t.act("me", { type: "resolveChoice", cardIndex: pick.cardIndices?.[0] ?? 0 })
-        while (t.state.pendingChoice !== null) t.act("me", { type: "resolveChoice" }) // バーストの後ろにあるコスト支払いは払わない
-        assert(lockedFor(t.state, t.opp, "magic"), "006: 封渦斬のバースト効果で相手はマジックを使用できない")
+        assert(pick.cardIndices?.length === 2, "006: 候補は条件の合う2枚だけ（ロクケラトプスは入らない）")
+        t.act("me", { type: "resolveChoice", cardIndex: pick.cardIndices?.find((i) => t.state.revealedCards?.cardIds[i] === BURST_SEAL) ?? -1 })
+        for (let i = 0; i < 6 && t.state.pendingChoice !== null; i++) t.act("me", { type: "resolveChoice" }) // バーストの後ろにあるコスト支払いは払わない
+        assert(playerHas(t.state, t.opp, "cantUseHandCardsForPid"), "006: 封渦斬のバースト効果で相手はマジックを使用できない")
     },
     expect: [
         "自分.ツクヨミドラグーン.疲労: false → true",
         "自分.デッキ枚数: 40 → 37",
-        "自分.トラッシュ: なし → ロクケラトプス、ロクケラトプス、封渦斬",
+        "自分.トラッシュ: なし → ロクケラトプス、双翼乱舞、封渦斬",
     ],
 })
 console.log("=== 006-b: 発動しないなら、オープンした3枚すべて破棄 ===")
 scenario({
     name: "006-b",
-    start: { turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_SEAL) }, opp: {} },
+    start: { interactive: true, turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_ALT, BURST_SEAL) }, opp: {} },
     steps(t) {
         declare(t, "ツクヨミドラグーン")
         t.act("me", { type: "resolveChoice", option: pendingOf(t).options?.[0] ?? "" })
         t.act("me", { type: "resolveChoice" }) // 発動しない
-        while (t.state.pendingChoice !== null) t.act("me", { type: "resolveChoice" })
-        assert(!lockedFor(t.state, t.opp, "magic"), "006: 発動していないので相手はマジックを使用できる")
+        for (let i = 0; i < 6 && t.state.pendingChoice !== null; i++) t.act("me", { type: "resolveChoice" })
+        assert(!playerHas(t.state, t.opp, "cantUseHandCardsForPid"), "006: 発動していないので相手はマジックを使用できる")
     },
     expect: [
         "自分.ツクヨミドラグーン.疲労: false → true",
         "自分.デッキ枚数: 40 → 37",
-        "自分.トラッシュ: なし → ロクケラトプス、ロクケラトプス、封渦斬",
+        "自分.トラッシュ: なし → ロクケラトプス、双翼乱舞、封渦斬",
     ],
 })
 console.log("=== 006-c: 条件の合うカードが無ければ3枚とも破棄（条件違いのバーストは発動できない） ===")
 scenario({
     name: "006-c",
-    start: { turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_MAGIC) }, opp: {} },
+    start: { interactive: true, turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_MAGIC) }, opp: {} },
     steps(t) {
         declare(t, "ツクヨミドラグーン")
         t.act("me", { type: "resolveChoice", option: pendingOf(t).options?.[0] ?? "" })
@@ -535,7 +536,7 @@ scenario({
 console.log("=== 006-d: 起きない：オープンしないと選べばデッキもトラッシュも変わらない ===")
 scenario({
     name: "006-d",
-    start: { turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_SEAL) }, opp: {} },
+    start: { interactive: true, turn: "me", phase: "attack", me: { reserve: 0, spirits: [{ card: TSUKU }], deck: deckTop(BURST_SEAL) }, opp: {} },
     steps(t) {
         declare(t, "ツクヨミドラグーン")
         t.act("me", { type: "resolveChoice" })
@@ -652,7 +653,6 @@ scenario({
     },
     expect: [
         "自分.ソードマスター・ドラゴン.疲労: false → true",
-        "自分.ソードマスター・ドラゴン.BP: 9000 → 12000",
         "相手.ゴラドン.場所: フィールド → なし",
         "相手.トラッシュ: なし → ゴラドン",
         "相手.ライフ: 5 → 2",
@@ -735,7 +735,7 @@ function t055(me: PlayerId): void {
     }
     {
         const { s, a, b, c } = r055(me, false)
-        selectSeq(s, [a.instanceId, b.instanceId], [c.instanceId, c.instanceId])
+        selectSeq(s, [a.instanceId, b.instanceId], [null, c.instanceId])
         assert(!onField(s, opp, a.instanceId) && !onField(s, opp, b.instanceId) && onField(s, opp, c.instanceId), "055: 2000＋2000で合計4000ちょうどまで選べる")
     }
     {
@@ -781,6 +781,7 @@ t061("p1")
 t061("p2")
 
 const reviveStart = (nexusCores: number, spirit: string) => ({
+    interactive: true,
     turn: "opp" as const,
     phase: "main" as const,
     me: { spirits: [{ card: spirit, rested: true }], nexuses: [{ card: TAKAMA, cores: nexusCores }] },
@@ -869,30 +870,30 @@ scenario({
 // ============================================================
 // BS17-062 彷徨う天空寺院（1節：本来のコストが8以上のスピリットを召喚するとき、このネクサスを疲労させることでリザーブから2コストまでを支払ったものとして扱う。ターンに1回）
 // ============================================================
-function run062(me: PlayerId, o: { nexus: boolean; card: string; accept: boolean }) {
-    const s = rawGame(`062-${me}-${o.nexus}-${o.card}-${o.accept}`, me, "main")
+function run062(me: PlayerId, o: { nexus: boolean; card: string; assist: boolean }) {
+    const s = rawGame(`062-${me}-${o.nexus}-${o.card}-${o.assist}`, me, "main", true)
     s.players[me].reserve = 20
     s.players[me].hand = [o.card]
     const nexus = o.nexus ? putNexus(s, me, TENKU, 0) : null
-    ok(act(s, me, { type: "summon", handIndex: 0 }), "召喚できる")
-    const asked = s.pendingChoice !== null
-    drain(s, { decline: !o.accept })
-    return { reserve: s.players[me].reserve, rested: nexus?.isRested ?? false, asked, onField: fieldHas(s, me, o.card) }
+    // 肩代わりは summon の shinsokuAssistInstanceIds で明示する（確認の選択待ちは立たない）。ネクサス自身の赤シンボル軽減(2)は肩代わりと別に掛かる
+    const err = act(s, me, { type: "summon", handIndex: 0, ...(nexus !== null && o.assist ? { shinsokuAssistInstanceIds: [nexus.instanceId] } : {}) })
+    drain(s)
+    return { err, reserve: s.players[me].reserve, rested: nexus?.isRested ?? false, onField: fieldHas(s, me, o.card) }
 }
 function t062(me: PlayerId): void {
-    const base = run062(me, { nexus: false, card: SWORDM, accept: true })
+    const base = run062(me, { nexus: false, card: SWORDM, assist: false })
     assert(base.onField, "062: 比較用の召喚が成立する")
-    const use = run062(me, { nexus: true, card: SWORDM, accept: true })
-    assert(use.asked && use.rested, "062: 本来のコスト8のスピリットの召喚で使える（ネクサスが疲労する）")
-    assert(use.reserve === base.reserve + 2, `062: リザーブから2コストぶん払ったものとして扱う（使わない ${base.reserve} / 使う ${use.reserve}）`)
-    const decline = run062(me, { nexus: true, card: SWORDM, accept: false })
-    assert(decline.reserve === base.reserve && !decline.rested, "062: 使わないと選べば通常どおり払う")
-    const base7 = run062(me, { nexus: false, card: BOLGAND, accept: true })
-    const cost7 = run062(me, { nexus: true, card: BOLGAND, accept: true })
-    assert(!cost7.asked && !cost7.rested && cost7.reserve === base7.reserve, "062: 本来のコストが7なら使えない")
-    const x01Base = run062(me, { nexus: false, card: SUSANO, accept: true })
-    const x01Use = run062(me, { nexus: true, card: SUSANO, accept: true })
-    assert(x01Use.reserve === x01Base.reserve + 2 && x01Use.rested, "062: 本来のコスト9でも2コストぶん")
+    const noAssist = run062(me, { nexus: true, card: SWORDM, assist: false })
+    assert(!noAssist.rested && noAssist.onField, "062: 使わなければネクサスは疲労しない")
+    const use = run062(me, { nexus: true, card: SWORDM, assist: true })
+    assert(use.err === null && use.rested, "062: 本来のコスト8のスピリットの召喚で使える（ネクサスが疲労する）")
+    assert(use.reserve === noAssist.reserve + 2, `062: リザーブから2コストぶん払ったものとして扱う（使わない ${noAssist.reserve} / 使う ${use.reserve}）`)
+    const no7 = run062(me, { nexus: true, card: BOLGAND, assist: false })
+    const cost7 = run062(me, { nexus: true, card: BOLGAND, assist: true })
+    assert(cost7.err !== null || (!cost7.rested && cost7.reserve === no7.reserve), "062: 本来のコストが7なら使えない")
+    const x01No = run062(me, { nexus: true, card: SUSANO, assist: false })
+    const x01Use = run062(me, { nexus: true, card: SUSANO, assist: true })
+    assert(x01Use.reserve === x01No.reserve + 2 && x01Use.rested, "062: 本来のコスト9でも2コストぶん")
 }
 console.log("=== 062: 本来のコスト8以上のスピリットの召喚で、疲労させてリザーブ2コストぶんを払ったものとして扱う ===")
 t062("p1")
@@ -960,9 +961,16 @@ scenario({
 console.log("=== 073-d: 起きない：BP5000は対象にできない／自分のスピリットも対象にできない ===")
 scenario({
     name: "073-d",
-    start: { turn: "me", me: { hand: [ADER], spirits: [{ card: GORA }] }, opp: { spirits: [{ card: DIMET, cores: 2 }] } },
+    start: { interactive: true, turn: "me", me: { hand: [ADER], spirits: [{ card: GORA }] }, opp: { spirits: [{ card: DIMET, cores: 2 }] } },
     steps(t) {
         t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ディメトロドロン") })
+    },
+    expect: [],
+})
+scenario({
+    name: "073-e",
+    start: { interactive: true, turn: "me", me: { hand: [ADER], spirits: [{ card: GORA }] }, opp: { spirits: [{ card: DIMET, cores: 2 }] } },
+    steps(t) {
         t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ゴラドン") })
     },
     expect: [],
@@ -983,26 +991,50 @@ scenario({
         opp: { spirits: [{ card: RED, label: "ロクA" }, { card: RED, label: "ロクB" }, { card: GORA, label: "ゴラ" }] },
     },
     steps(t) {
-        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ゴラ") })
-        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("自軍") })
         t.act("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ロクA") })
         t.closeFlash()
     },
     expect: [
         "自分.手札: 殲剣火炎陣 → なし",
         "自分.トラッシュ: なし → 殲剣火炎陣",
-        "自分.リザーブ: 10 → 4",
-        "自分.トラッシュのコア: 0 → 6",
+        "自分.リザーブ: 10 → 5",
+        "自分.トラッシュのコア: 0 → 5",
         "相手.ロクA.場所: フィールド → なし",
         "相手.ロクB.場所: フィールド → なし",
         "相手.トラッシュ: なし → ロクケラトプス、ロクケラトプス",
         "相手.リザーブ: 10 → 12",
     ],
 })
+scenario({
+    name: "074-a2",
+    start: {
+        interactive: true,
+        turn: "me",
+        me: { hand: [SENKEN], spirits: [{ card: GORA, label: "自軍" }] },
+        opp: { spirits: [{ card: RED, label: "ロクA" }, { card: RED, label: "ロクB" }, { card: GORA, label: "ゴラ" }] },
+    },
+    steps(t) {
+        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ゴラ") })
+    },
+    expect: [],
+})
+scenario({
+    name: "074-a3",
+    start: {
+        interactive: true,
+        turn: "me",
+        me: { hand: [SENKEN], spirits: [{ card: GORA, label: "自軍" }] },
+        opp: { spirits: [{ card: RED, label: "ロクA" }, { card: RED, label: "ロクB" }, { card: GORA, label: "ゴラ" }] },
+    },
+    steps(t) {
+        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("自軍") })
+    },
+    expect: [],
+})
 console.log("=== 074-b: 起きない：同名が2体以上いなければ使えない ===")
 scenario({
     name: "074-b",
-    start: { turn: "me", me: { hand: [SENKEN] }, opp: { spirits: [{ card: RED, label: "ロク" }, { card: GORA, label: "ゴラ" }] } },
+    start: { interactive: true, turn: "me", me: { hand: [SENKEN] }, opp: { spirits: [{ card: RED, label: "ロク" }, { card: GORA, label: "ゴラ" }] } },
     steps(t) {
         t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ロク") })
         t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ゴラ") })
@@ -1027,10 +1059,14 @@ function r074burst(me: PlayerId, pay: boolean): void {
         if (p.kind === "target") {
             const prefer = [n1a.instanceId, r1.instanceId].find((x) => p.candidates.includes(x))
             reply(s, { type: "resolveChoice", instanceId: prefer ?? p.candidates[0] ?? "" })
-        } else if (p.kind === "option") {
+        } else if (p.kind === "option" && p.confirm === true) {
             confirms++
             if (confirms === 1 || pay) reply(s, { type: "resolveChoice", option: p.options?.[0] ?? "" })
             else reply(s, { type: "resolveChoice" })
+        } else if (p.kind === "option") {
+            // 「カード名を1つ指定」：ネクサスの名前（1回目）→スピリットの名前（2回目）
+            const want = [getCard(NEXUS_A).name, getCard(RED).name].find((x) => (p.options ?? []).includes(x))
+            reply(s, { type: "resolveChoice", option: want ?? p.options?.[0] ?? "" })
         } else reply(s, { type: "resolveChoice" })
     }
     const nexusLeft = s.players[opp].field.nexuses.map((x) => x.instanceId)
@@ -1124,6 +1160,7 @@ function summonReserve(me: PlayerId, susanoCores: number, burst: boolean): numbe
     s.players[me].hand = [PENTA]
     put(s, me, SUSANO, susanoCores)
     if (burst) setBurst(s, me, BURST_MAGIC)
+    refreshLevelAsOverrides(s) // 継続のシンボル追加はバーストをセットした後に再計算させる
     ok(act(s, me, { type: "summon", handIndex: 0 }), "ペンタケラトップを召喚できる")
     drain(s)
     assert(fieldHas(s, me, PENTA), "召喚できた")

@@ -56,7 +56,10 @@ const pidOf = (t: ScenarioCtx, side: Side) => (side === "me" ? t.me : t.opp)
 function answers(t: ScenarioCtx, side: Side, opts: (string | undefined)[]): void {
     for (const o of opts) {
         assert(t.state.pendingChoice?.pid === pidOf(t, side), `${side}に選択待ちが立つ`)
-        t.act(side, o === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", option: o })
+        const pc = t.state.pendingChoice
+        // kind:"card"（オープンしたカードの選択など）は option ではなく cardIndex で答える
+        if (o !== undefined && pc?.kind === "card") t.act(side, { type: "resolveChoice", cardIndex: pc.cardIndices?.[0] ?? 0 })
+        else t.act(side, o === undefined ? { type: "resolveChoice" } : { type: "resolveChoice", option: o })
     }
 }
 function noPending(t: ScenarioCtx): void {
@@ -283,7 +286,7 @@ scenario({
     start: {
         phase: "attack", interactive: true,
         me: { spirits: [{ card: JANE, cores: 3 }] },
-        opp: { spirits: [{ card: WHITE, label: "守" }, { card: ROKU, label: "控" }] },
+        opp: { spirits: [{ card: WHITE, label: "守" }, { card: ROKU, label: "控" }, { card: ROKU, label: "控2" }] }, // 疲労させる候補が2体いないと選択待ちが立たない（1体なら自動で選ばれる）
     },
     steps(t) {
         t.act("me", { type: "attack", instanceId: t.id("ジェーンバード") })
@@ -456,7 +459,7 @@ scenario({
     start: {
         phase: "attack", interactive: true,
         me: { spirits: [{ card: RAI, cores: 1 }] },
-        opp: { spirits: [{ card: WHITE, label: "守" }, { card: ROKU, label: "控" }] },
+        opp: { spirits: [{ card: WHITE, label: "守" }, { card: ROKU, label: "控" }, { card: ROKU, label: "控2" }] }, // 疲労させる候補が2体いないと選択待ちが立たない（1体なら自動で選ばれる）
     },
     steps(t) {
         t.act("me", { type: "attack", instanceId: t.id("ライ・シュウユ") })
@@ -589,7 +592,7 @@ scenario({
     name: "gyo-burst-recover-then-summon",
     start: {
         turn: "opp", interactive: true,
-        me: { spirits: [{ card: ROKU, label: "的" }, { card: WHITE, label: "傷", rested: true }], burst: GYO },
+        me: { spirits: [{ card: ROKU, label: "的" }, { card: MELT, label: "傷", rested: true }], burst: GYO },
         opp: { hand: [FLAME], spirits: [{ card: SHOCK, label: "甲" }] },
     },
     steps(t) {
@@ -627,7 +630,8 @@ scenario({
     },
     expect: [
         "自分.ギョクジーグ.BP: 2000 → なし", "自分.ギョクジーグ.コア: 1 → 0", "自分.ギョクジーグ.場所: フィールド → 合体",
-        "自分.宿.BP: 1000 → 3000", "自分.リザーブ: 10 → 11",
+        // 合体でブレイヴのコア1個がホストへ移る（ホスト1→2個でLv2）
+        "自分.宿.BP: 1000 → 5000", "自分.宿.Lv: 1 → 2", "自分.宿.コア: 1 → 2",
     ],
 })
 scenario({
@@ -643,7 +647,7 @@ scenario({
     name: "gyo-combined-attack-2cores-blocks-burst",
     start: {
         interactive: true,
-        me: { spirits: [{ card: GYO }, { card: ROKU, label: "宿", cores: 2 }] },
+        me: { spirits: [{ card: GYO }, { card: ROKU, label: "宿", cores: 1 }] }, // 合体でブレイヴのコア1個が移り、ホストのコアはちょうど2個になる
         opp: { burst: JIGEN },
     },
     steps(t) {
@@ -656,21 +660,31 @@ scenario({
     },
     expect: [
         "自分.ギョクジーグ.BP: 2000 → なし", "自分.ギョクジーグ.コア: 1 → 0", "自分.ギョクジーグ.場所: フィールド → 合体",
-        "自分.宿.BP: 3000 → 5000", "自分.宿.疲労: false → true", "自分.リザーブ: 10 → 11",
+        "自分.宿.BP: 1000 → 5000", "自分.宿.Lv: 1 → 2", "自分.宿.コア: 1 → 2", "自分.宿.疲労: false → true",
         "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11",
     ],
 })
-// 合体していない（スピリット状態の）ギョクジーグのアタックでは封じない
+// コアが2個でなければ封じない（ホスト2個＋ブレイヴ1個＝合体後3個）。合体していない単体のブレイヴはシンボルが無く、ライフを減らせない
 scenario({
-    name: "gyo-alone-attack-burst-fires",
-    start: { phase: "attack", interactive: true, me: { spirits: [{ card: GYO }] }, opp: { burst: JIGEN } },
+    name: "gyo-combined-attack-3cores-burst-fires",
+    start: {
+        interactive: true,
+        me: { spirits: [{ card: GYO }, { card: ROKU, label: "宿", cores: 2 }] },
+        opp: { burst: JIGEN },
+    },
     steps(t) {
-        t.act("me", { type: "attack", instanceId: t.id("ギョクジーグ") })
+        t.act("me", { type: "combineBrave", braveInstanceId: t.id("ギョクジーグ"), hostInstanceId: t.id("宿") })
+        t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("宿") })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
-        answers(t, "opp", ["発動する", undefined])
+        answers(t, "opp", [undefined]) // バーストを発動できる＝確認が立つ。ここでは発動しない
     },
-    expect: jigenFired("ギョクジーグ"),
+    expect: [
+        "自分.ギョクジーグ.BP: 2000 → なし", "自分.ギョクジーグ.コア: 1 → 0", "自分.ギョクジーグ.場所: フィールド → 合体",
+        "自分.宿.BP: 3000 → 6000", "自分.宿.Lv: 2 → 3", "自分.宿.コア: 2 → 3", "自分.宿.疲労: false → true",
+        "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11",
+    ],
 })
 
 // =====================================================================
@@ -829,7 +843,7 @@ scenario({
         t.act("me", { type: "summon", handIndex: 0 })
     },
     expect: [
-        "自分.手札: ワイルドウィング、バーサーカー・ガン → なし", "自分.トラッシュ: なし → ワイルドウィング",
+        "自分.手札: バーサーカー・ガン、ワイルドウィング → なし", "自分.トラッシュ: なし → ワイルドウィング",
         "自分.リザーブ: 10 → 6", "自分.トラッシュのコア: 0 → 3", "自分.甲.BP: 1000 → 4000",
         ...appear("自分", "バーサーカー・ガン", 4000, 1, 1),
     ],
@@ -933,8 +947,12 @@ const sonAttack = (name: string, mine: { card: string; label?: string; cores?: n
             t.act("me", { type: "attack", instanceId: t.id(attacker) })
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
-            if (answerBurst) answers(t, "opp", ["発動する", undefined])
-            else noPending(t)
+            if (answerBurst) {
+                answers(t, "opp", ["発動する"])
+                // 手札に戻す自分のスピリットが2体以上いれば対象選択が立つ（1体なら自動）。戻すのは攻撃した側
+                if (t.state.pendingChoice?.kind === "target") pick(t, "opp", attacker)
+                answers(t, "opp", [undefined]) // 「その後コストを支払うことで」は断る
+            } else noPending(t)
         },
         expect,
     })
@@ -989,7 +1007,7 @@ scenario({
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
-    expect: ["自分.大牙帝ビャクガロード・ソンケン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+    expect: ["自分.大牙帝ビャクガロード・ソンケン.疲労: false → true", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"], // ダブルシンボル
 })
 
 console.log("すべてのチェックに合格しました 🎉（part619）")

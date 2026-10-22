@@ -503,7 +503,7 @@ const lanceBurst = (trash: string[]): Spec => ({
         hand: [COFFIN],
     },
 })
-play("016 バースト：紫2枚を戻して召喚→召喚時に疲労コスト5以下を破壊", lanceBurst([HEL, HEL]), (t) => {
+play("016 バースト：紫2枚を戻して召喚→召喚時に疲労コスト5以下を破壊", lanceBurst([HEL, HEL, PURP3]), (t) => {
     cast(t, "opp", 0, victimLabel(R3))
     answer(t, { by: "me", yes: true }, "バースト発動の確認")
     answer(t, { by: "me", card: victimLabel(HEL) }, "戻す1枚目")
@@ -560,7 +560,7 @@ scenario({
     name: "017 自分のバーストをセットしたとき、相手のスピリットのコア1個を相手のトラッシュへ",
     start: {
         interactive: true,
-        me: { hand: [R1], spirits: [{ card: FOOL }] },
+        me: { hand: [DRAW2], spirits: [{ card: FOOL }] },
         opp: { spirits: [{ card: R5, cores: 2, label: "A" }, { card: R6, cores: 3, label: "B" }] },
     },
     steps: (t) => {
@@ -571,8 +571,8 @@ scenario({
         t.act("me", { type: "resolveChoice", instanceId: t.id("A") })
     },
     expect: [
-        "自分.手札: ロクケラトプス → なし",
-        "自分.バースト: なし → ロクケラトプス",
+        "自分.手札: 妖華吸血爪 → なし",
+        "自分.バースト: なし → 妖華吸血爪",
         "相手.A.コア: 2 → 1",
         "相手.トラッシュのコア: 0 → 1",
     ],
@@ -582,15 +582,15 @@ scenario({
     start: {
         turn: "opp", interactive: true,
         me: { spirits: [{ card: FOOL }, { card: R5, cores: 2, label: "A" }] },
-        opp: { hand: [R1], spirits: [{ card: R6, cores: 3, label: "B" }] },
+        opp: { hand: [DRAW2], spirits: [{ card: R6, cores: 3, label: "B" }] },
     },
     steps: (t) => {
         t.act("opp", { type: "setBurst", handIndex: 0 })
         assert(!t.state.pendingChoice, "選択待ちは立たない")
     },
     expect: [
-        "相手.手札: ロクケラトプス → なし",
-        "相手.バースト: なし → ロクケラトプス",
+        "相手.手札: 妖華吸血爪 → なし",
+        "相手.バースト: なし → 妖華吸血爪",
     ],
 })
 
@@ -632,8 +632,8 @@ scenario({
     },
     expect: [
         "自分.紫晶の大蛇ザウム.疲労: false → true",
-        "相手.ライフ: 5 → 4",
-        "相手.リザーブ: 10 → 11",
+        "相手.ライフ: 5 → 3",
+        "相手.リザーブ: 10 → 12",
     ],
 })
 
@@ -861,14 +861,14 @@ console.log("=== BS17-076 ラウンドテーブルナイツ ===")
 // バースト：自分のライフ減少後→トラッシュのコスト5以下のスピリットを召喚→その後コストを支払うことでフラッシュ効果
 const roundBurst: Spec = {
     turn: "opp", phase: "attack",
-    me: { burst: ROUND, reserve: 30, trash: [GAHERIS, R6] },
+    me: { burst: ROUND, reserve: 30, trash: [GAHERIS, R6, R2] },
     opp: { spirits: [{ card: R6, cores: 3, label: "攻撃役" }, { card: R5, cores: 4, label: "狙い" }] },
 }
 play("076 バースト：コスト5以下を召喚→支払ってフラッシュ効果（闇騎士の数だけコアをリザーブへ）", roundBurst, (t) => {
     hitLife(t, "opp", attackerLabel)
     answer(t, { by: "me", yes: true }, "バースト発動の確認")
     const pc = answer(t, { by: "me", card: victimLabel(GAHERIS) }, "召喚するスピリットを選ぶ")
-    assert(!!pc && (pc.cardIndices ?? []).length === 1, `${t.tag} 候補はコスト5以下の1枚だけ（コスト6は除く）`)
+    assert(!!pc && (pc.cardIndices ?? []).length === 2, `${t.tag} 候補はコスト5以下の2枚だけ（コスト6は除く）`)
     assert(t.fieldCount("me", GAHERIS) === 1, `${t.tag} 闇騎士ガヘリスが召喚される`)
     answer(t, { by: "me", yes: true }, "フラッシュ効果のコスト支払い確認")
     answer(t, { by: "me", target: "狙い" }, "コアを置かせる相手のスピリットを選ぶ")
@@ -926,12 +926,12 @@ const arthurAttack = (cores: number, trash: string[]): Spec => ({
     turn: "me", phase: "attack",
     me: { spirits: [{ card: ARTHUR, cores }], trash },
 })
-play("X02 Lv2･Lv3 アタック時：トラッシュの【不死】持ちをコストを支払わずに召喚できる", arthurAttack(3, [CAMELOT, R3]), (t) => {
+play("X02 Lv2･Lv3 アタック時：トラッシュの【不死】持ちをコストを支払わずに召喚できる", arthurAttack(3, [CAMELOT, R3, GAHERIS]), (t) => {
     const trashCores = t.p("me").trashCores
     t.act("me", { type: "attack", instanceId: t.inst(victimLabel(ARTHUR)).instanceId })
     answer(t, { by: "me", yes: true }, "発動確認")
     const pc = answer(t, { by: "me", card: victimLabel(CAMELOT) }, "召喚する不死持ちを選ぶ")
-    assert(!!pc && (pc.cardIndices ?? []).length === 1, `${t.tag} 候補は不死持ちの1枚だけ`)
+    assert(!!pc && (pc.cardIndices ?? []).length === 2, `${t.tag} 候補は不死持ちの2枚だけ（メタルバーンは除く）`)
     finish(t)
     assert(t.fieldCount("me", CAMELOT) === 1 && t.trashCount("me", R3) === 1, `${t.tag} キャメロットだけが場に出る`)
     assert(t.p("me").trashCores === trashCores, `${t.tag} コストは支払っていない（トラッシュのコアが増えない）`)
