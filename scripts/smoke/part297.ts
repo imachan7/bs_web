@@ -1,7 +1,7 @@
 // smoke パート297（簡略化5件を原作どおりにする。2026-09-07 ユーザー指示）
 //   #1 BS11-036 冥土の魔女ヘレン: handMagicToTegamotoDraw に max:3 の上限を足す（既存カードは無制限のまま）
 //   #2 BS11-042 海賊ラッコルセア: fieldEvent ownFunsaiMilled に lastFunsaiHasSpirit 条件を足す（既存カードは条件なしのまま）
-//   #4 BS08-062 超時空重力炉: reductionGrant に replace 軸を足す（既存カードは加算のまま）
+//   #4 既存の加算型 reductionGrant が加算のまま（重力炉は #279 で symbolFix に移り、replace 軸は消した）
 //   #3 BS12-078 カシオペアシール: デッキ横のコアを実際に持つ（voidCoreToDeckSide／エンドステップに1個ずつ戻す）
 import { act, assert, createGame, createInstance, effectiveCost, endTurn, getCard, resolveAction, runTurnStart } from "./helpers"
 import type { GameState } from "./helpers"
@@ -117,13 +117,12 @@ console.log("=== #4 置換を指定しない既存カード（天使バーチュ
 {
     // BS02-030（兵隊アントマン）は素のreductionが空。BS06-079神葉樹の森（既存の加算型reductionGrant、
     // 【神速】持ちに緑1つ付与）で確認する。ここではエンジンの共通関数レベルで
-    // 「replace未指定ならreplace:null、extraに積まれる」ことだけを直接確認する
+    // 加算ぶんが extra に積まれることだけを直接確認する
     const s = createGame("shinyoku-still-additive", { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "red" })
     runTurnStart(s)
     const nexus = createInstance("BS06-079", s.turn, 0)
     s.players.p1.field.nexuses.push(nexus)
     const granted = reductionGrantSymbols(s, "p1", getCard("BS02-030"))
-    assert(granted.replace === null, "置換を指定しないカードはreplaceがnullのまま")
     assert(JSON.stringify(granted.extra) === JSON.stringify(["green"]), "従来どおり加算ぶんがextraに積まれる")
 }
 
