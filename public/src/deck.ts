@@ -302,13 +302,12 @@ function renderPool(): void {
             addBtn.title = "デッキに追加"
             el.appendChild(addBtn)
         }
-        if (inDeck > 0) {
-            const removeBtn = document.createElement("button")
-            removeBtn.className = "remove-btn"
-            removeBtn.textContent = "−"
-            removeBtn.title = "デッキから1枚減らす"
-            el.appendChild(removeBtn)
-        }
+        const removeBtn = document.createElement("button")
+        removeBtn.className = "remove-btn"
+        removeBtn.textContent = "−"
+        removeBtn.title = "デッキから1枚減らす"
+        removeBtn.disabled = inDeck === 0
+        el.appendChild(removeBtn)
 
         grid.appendChild(el)
     }

@@ -367,7 +367,7 @@ input[type="text"] {
     border-radius: 50%;
 }
 
-/* ＋ボタンの左隣。＋ボタンが無い禁止カードでも位置は同じ */
+/* ＋ボタンの左隣。＋ボタンが無い禁止カードでも位置は同じ。0枚のときは押せない */
 .remove-btn {
     position: absolute;
     bottom: 4px;
