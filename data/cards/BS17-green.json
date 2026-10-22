@@ -658,8 +658,7 @@
               "count": 1
             },
             {
-              "type": "summonBurstCardFree",
-              "payCost": true
+              "type": "summonBurstCardFree"
             }
           ]
         }

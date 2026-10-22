@@ -72,6 +72,8 @@ export function fireFieldEventTriggers(
         ownEffectSourceCardId?: string
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean
+        // event: "ownSpiritDestroyed" 限定：破壊した効果の発生源の種別（opponentEffectSourceTypes の判定に使う）
+        destroySourceType?: CardType
         // 同上：その効果を発揮したスピリットのインスタンスID（byOpponentSpiritEffectOnly 指定時の対象決定に使う。BS10-012/BS10-014）。
         // event: "ownSpiritSummoned" 限定：**召喚されたスピリット自身**のインスタンスID（summonedSpiritAsTarget が読む。BS13-053モクバオー）
         sourceInstanceId?: string
@@ -276,6 +278,7 @@ export function fireFieldEventTriggers(
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚・BS12-023ウドウ）：
             // 自分の効果による破壊・発生源が不明な破壊・バトルでの破壊では発火しない（「相手によって」は byOpponentOnly）
             if (effect.byOpponentEffectOnly && !(eventInfo?.byOpponentEffect && !eventInfo.byBattle)) continue
+            if (effect.opponentEffectSourceTypes && !(eventInfo?.destroySourceType !== undefined && effect.opponentEffectSourceTypes.includes(eventInfo.destroySourceType))) continue
             if (effect.causedByOpponent && !(eventInfo?.causePid !== undefined && eventInfo.causePid !== pid)) continue
             if (effect.causedByOwnEffect !== undefined) {
                 if (eventInfo?.causePid !== pid || eventInfo.causeType === undefined) continue

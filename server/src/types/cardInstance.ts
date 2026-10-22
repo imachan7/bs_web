@@ -85,7 +85,7 @@ export interface CardInstance {
     // 破壊待機状態の間だけ持つ、破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）用の控え。
     // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
     // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
-    pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
+    pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number; sourceType?: CardType }
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）

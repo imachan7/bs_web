@@ -726,7 +726,11 @@
           "type": "destroy",
           "count": 1,
           "chooserIsTarget": true
-        }
+        },
+        "opponentEffectSourceTypes": [
+          "spirit",
+          "magic"
+        ]
       }
     ]
   },
@@ -835,8 +839,18 @@
               "cond": {
                 "count": {
                   "minus": [
-                    { "plus": ["opponentCoresTotal", "opponentLife"] },
-                    { "plus": ["ownCoresTotal", "ownLife"] }
+                    {
+                      "plus": [
+                        "opponentCoresTotal",
+                        "opponentLife"
+                      ]
+                    },
+                    {
+                      "plus": [
+                        "ownCoresTotal",
+                        "ownLife"
+                      ]
+                    }
                   ]
                 },
                 "atLeast": 3

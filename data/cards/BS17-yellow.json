@@ -807,17 +807,25 @@
               "dest": "hand"
             },
             {
-              "type": "timedEffect",
-              "content": [
-                {
-                  "type": "playerRule",
-                  "rule": {
-                    "type": "noDeckMillForPid"
-                  }
+              "type": "if",
+              "cond": {
+                "last": {
+                  "hasBurst": true
                 }
-              ],
-              "duration": "turn",
-              "side": "own"
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "playerRule",
+                    "rule": {
+                      "type": "noDeckMillForPid"
+                    }
+                  }
+                ],
+                "duration": "turn",
+                "side": "own"
+              }
             }
           ]
         }

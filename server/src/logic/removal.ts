@@ -292,7 +292,7 @@ export function destroySpirit(
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
     // 破壊後バースト用の控え（commitPendingDestructionが読む。BS16バッチ0）。
     // BPは破壊直前（まだ場にいる・コアも乗ったまま）のこの時点で確定させる
-    inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst) }
+    inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）。
@@ -441,6 +441,7 @@ function fireOwnSpiritDestroyed(
         bySpiritEffect,
         // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
         byOpponentEffect,
+        ...(inst.pendingDestroyBurstInfo?.sourceType !== undefined ? { destroySourceType: inst.pendingDestroyBurstInfo.sourceType } : {}),
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める

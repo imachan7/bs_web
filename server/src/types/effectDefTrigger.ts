@@ -233,6 +233,7 @@ export type EffectDefTrigger =
           selfOnly?: true // 発生源自身が主体のときだけ発火（ownSpiritDestroyed / ownSpiritExhausted / ownSpiritReducedLife。26RBS02-001）
           causedByOpponent?: true // 疲労イベント限定：相手の効果（ネクサスの効果も含む。byOpponentEffectOnly はネクサスを除く）で疲労したときのみ発火（26RBS02-050）
           byOpponentOnly?: true // event: "ownSpiritDestroyed" 限定：相手によって破壊されたとき
+          opponentEffectSourceTypes?: CardType[] // byOpponentEffectOnly の発生源をさらに種別で絞る（「相手のスピリット/マジックの効果で」はネクサスを含まない。BS17-063）
           byOpponentEffectOnly?: true // event: "ownNexusDestroyed" | "ownSpiritDestroyed" | "ownSpiritExhausted" 限定：相手のスピリット/ネクサス/マジックの効果で破壊/疲労したときのみ発火。
           // ownSpiritDestroyedはバトルのBP比較で敗れた場合も含む。ownSpiritExhaustedはネクサスの効果を含まない。
           // destroyNexusに渡されたDestroyContextで判定し、発生源不明のときは発火しない側に倒す（文脈不明時に限定を緩める方が誤りが大きいため）
