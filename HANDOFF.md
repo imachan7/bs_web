@@ -22,9 +22,8 @@
 ## 1. いまの本線と次の一手
 
 
-### 次の一手：後片付け2つ（10-16）
+### 次の一手：後片付け（10-16）
 
-- 使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
 - 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
 - 古い長いコメントの整理（ファイル単位の chore。どのファイルから削るかの一覧をユーザーに出す）
 
