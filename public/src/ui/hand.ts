@@ -61,8 +61,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         const flashSummonable =
             m.type === "spirit" &&
             (ownHandKeyword(view, cardId, "soku") ||
-                tempSokuCardIds.has(cardId) ||
-                hasHandKeywordGrant(view, view.you, m, "soku") ||
+                ((tempSokuCardIds.has(cardId) || hasHandKeywordGrant(view, view.you, m, "soku")) && !zoneSpiritEffectsDisabled(view, cardId)) ||
                 flashSummonFromHandNow(view, view.you, cardId))
 
         // 【烈神速】：トラッシュのコア5個以上ならコストを支払わず召喚できる（BS16-X03）。

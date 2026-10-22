@@ -111,6 +111,20 @@ try {
         assert(!zoneSpiritEffectsDisabled(t, BRAVE) && getCard(BRAVE).type === "brave", "ブレイヴカードは対象外")
         assert(!zoneSpiritEffectsDisabled(t, MAGIC) && getCard(MAGIC).type === "magic", "スピリット以外のカードは対象外")
     }
+
+    console.log("=== 6. 他の効果で与えられた【神速】も止まる（2026-10-23 ユーザー確認） ===")
+    {
+        assert(getCard("BS01-005").name === "アイバーン" && !hasKeyword("BS01-005", "soku"), "アイバーンは神速を持たない")
+        for (const on of [false, true]) {
+            const s = game(on ? "t650-grant-on" : "t650-grant-off")
+            if (on) withConstraint(s)
+            flash(s)
+            s.players.p1.hand = ["BS01-005"]
+            s.players.p1.tempHandKeywordGrants = [{ cardId: "BS01-005", keyword: "soku" }]
+            const err = act(s, "p1", { type: "summon", handIndex: 0 })
+            assert(on ? err !== null : err === null, on ? `発生源があると与えられた神速でも召喚できない（${String(err)}）` : "発生源が無ければ与えられた神速で召喚できる")
+        }
+    }
 } finally {
     sourceEffects.length = 0
     costSetEffects.length = costSetOriginalLength

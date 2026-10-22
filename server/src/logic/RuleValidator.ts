@@ -218,7 +218,9 @@ export function validateSummon(
         const sokuEntry = getCard(cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "soku")
         if (sokuEntry) noteCoverage(sokuEntry, "keyword")
     }
-    const flashSummon = state.isFlashTiming && (staticSoku || hasTempSoku || hasFieldSoku || flashSummonFromHandNow(state, pid, cardId))
+    // 付与された【神速】も手札のスピリットの効果として止まる（2026-10-23 ユーザー確認。BS18-052）
+    const grantedSoku = (hasTempSoku || hasFieldSoku) && !zoneSpiritEffectsDisabled(state, cardId)
+    const flashSummon = state.isFlashTiming && (staticSoku || grantedSoku || flashSummonFromHandNow(state, pid, cardId))
     if (!flashSummon) {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
