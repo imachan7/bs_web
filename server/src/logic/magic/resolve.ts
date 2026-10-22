@@ -42,7 +42,7 @@ export function resolveMagicEffects(
                 prompt: `${getCard(repeatSource.cardId).name}：${getCard(cardId).name}の効果をもう1度発揮しますか？`,
                 candidates: [],
                 options: MAGIC_REPEAT_OPTIONS,
-                optional: false,
+                optional: true,
                 magicRepeat: {
                     casterPid: owner,
                     cardId,

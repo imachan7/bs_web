@@ -604,6 +604,7 @@ function summoningSymbolBonus(board: Board, pid: PlayerId, cardData: CardData, c
             if (cardData.type === "brave" && !(effect.pick?.cardType !== undefined)) continue
             if (effect.pick && !cardMatchesSummonPick(cardData, effect.pick)) continue
             if (effect.opponentSpiritVanishedThisTurn && board.spiritVanishedThisTurn?.[pid === "p1" ? "p2" : "p1"] !== true) continue
+            noteCoverage(effect, "symbolWhenSummoning")
             const toCost = effect.toOwnSpiritsCost
             const targets = toCost === undefined ? 1 : board.players[pid].field.spirits.filter((s) => instMatchesCostFilter(s, { in: [toCost] })).length
             n += (effect.count ?? 1) * targets

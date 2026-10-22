@@ -921,7 +921,22 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\nこのバトルの間、BPを比べるとき、バトルしている自分のスピリットと相手のスピリットのBPを入れ替える。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS17-082-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "swapBattleBp"
+            }
+          ],
+          "duration": "battle"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS17-X05",
@@ -969,11 +984,15 @@
         "id": "BS17-X05-e1",
         "kind": "burst",
         "event": "ownLifeDamaged",
-        "condition": {
-          "ownLifeAtMost": 3
-        },
         "action": {
-          "type": "summonBurstCardFree"
+          "type": "if",
+          "cond": {
+            "count": "ownLife",
+            "atMost": 3
+          },
+          "then": {
+            "type": "summonBurstCardFree"
+          }
         }
       },
       {

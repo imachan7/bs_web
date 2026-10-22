@@ -377,8 +377,8 @@ function resolveChoiceInner(
     // 選べば効果の並びをもう1周し、選ばなければマジック使用時の誘発へ進む
     if (pending.magicRepeat) {
         const options = pending.options ?? []
-        if (option === undefined) return "もう1度発揮するかどうか選んでください"
-        const index = options.indexOf(option)
+        // 選ばずに閉じる（スキップ）は「発揮しない」と同じ（「〜できる」の確認式。BS17-X05【魔光芒】）
+        const index = option === undefined ? 1 : options.indexOf(option)
         if (index < 0) return "選択できない候補です"
         const info = pending.magicRepeat
         state.pendingChoice = null

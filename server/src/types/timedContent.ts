@@ -24,6 +24,7 @@ export type TimedContent =
     | { type: "compareBy"; by: "level" | "cores" | "cost" } // このバトルの解決で BP の代わりに比べるもの（期間は battle のみ。複数重なったら level→cores→cost の順で優先）
     | { type: "restedNexusEffectsDisabled" } // 疲労状態のネクサスすべて（両陣営）の効果が発揮されない（期間は battle のみ、target.kind:"battle"）。ネクサスの疲労は元から効果を止めないので、止める側を内容として持つ
     | { type: "noBpCompareDestroy" } // BP比べでは破壊されない（期間は battle。バトルは成立し、相手側の破壊判定は通常どおり。26RBS03-036）
+    | { type: "swapBattleBp" } // このバトルのBP比較で、バトルしている2体のBPを入れ替える（期間は battle のみ。使用者がバトルに参加していないと不発。compareBy があればそちらが優先）
     | { type: "invertBattleWinner" } // このバトルの解決で値が高い方が破壊される（期間は battle のみ。装甲では防げない）
     | { type: "symbolAdd"; color?: Color; count?: number } // 持っているシンボルと同じ色のシンボルを1つ追加する。color 指定時は、その色を count 個（既定1）追加する（自分のスピリット1体を filter で選ぶ。26RBS03-X08）
     | { type: "symbolSet"; color?: Color; count: number } // シンボルを◯色◯つとして扱う。color 省略時は対象が元々持つシンボルの1色目（kind:"symbolFix" と同じ読み）

@@ -565,8 +565,7 @@
           "turn": "own"
         },
         "constraint": {
-          "type": "unblockableBy",
-          "maxCost": 99
+          "type": "unblockableBy"
         }
       },
       {

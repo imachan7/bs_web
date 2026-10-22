@@ -428,20 +428,26 @@ export function resolveBattle(state: GameState): void {
     if (compareByCost) {
         log(state, "バトル解決：BPの代わりにコストを比較する。")
     }
+    // swapBattleBp（BS17-082）：BPを比べるときだけ入れ替える。ログ・破壊記録の BP は実際の値のまま
+    const swapBp = !compareByLevel && !compareByCores && !compareByCost && battleContents.some((c) => c.type === "swapBattleBp")
     const attackerValue = compareByLevel
         ? currentLevel(attacker).level
         : compareByCores
           ? attacker.cores
           : compareByCost
             ? getCard(attacker.cardId).cost
-            : attackerBp
+            : swapBp
+              ? blockerBp
+              : attackerBp
     const blockerValue = compareByLevel
         ? currentLevel(blocker).level
         : compareByCores
           ? blocker.cores
           : compareByCost
             ? getCard(blocker.cardId).cost
-            : blockerBp
+            : swapBp
+              ? attackerBp
+              : blockerBp
 
     // ＞５：BP比較で勝敗（＝どちらが破壊されるか）が確定する。
     // 以後の＞６（破壊処理）で「フィールドに残る」が使われても、この判定は覆らない

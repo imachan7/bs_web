@@ -18,7 +18,7 @@ const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration ===
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh", "untargetableByOpponentMagic"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh", "untargetableByOpponentMagic"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -247,8 +247,9 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
 function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName } = ctx
+    const skipOnly = action.duration === "nextRefresh" && action.content.every((c) => c.type === "skipRefresh")
     // バトル期間のルールとして置けるのは Lv の置き換えだけ（ほかの content は期間切れの扱いを確かめていない）
-    if (action.duration !== "turn" && !action.content.some((c) => c.type === "level")) {
+    if (action.duration !== "turn" && !skipOnly && !action.content.some((c) => c.type === "level")) {
         log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)
         return
     }
@@ -270,6 +271,11 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         return
     }
     const pid = rulePid(ctx, action.side)
+    // 寿命 nextRefresh の記録はプレイヤーごとのリフレッシュで使い切るので、お互いに掛けるものは置けない
+    if (skipOnly && pid === undefined) {
+        log(state, `${sourceName}：お互いの「次のリフレッシュステップで回復できない」は未対応のため発揮しなかった。`)
+        return
+    }
     if (action.content.some((c) => c.type === "level")) {
         recordTimed(state, {
             content: action.content,
@@ -289,6 +295,10 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         ownerPid: owner,
     })
     const who = pid === undefined ? "" : `${state.players[pid].name}の`
+    if (skipOnly) {
+        log(state, `${sourceName}：${who}スピリットすべては、次のリフレッシュステップで回復できない。`)
+        return
+    }
     log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
 }
 
@@ -578,12 +588,15 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
-    const contents = action.content.filter((c) => c.type === "compareBy" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")
+    const usedInBattle = [state.battle.attackerInstanceId, state.battle.blockerInstanceId].some((id) => id !== null && state.players[owner].field.spirits.some((sp) => sp.instanceId === id))
+    const contents = action.content.filter((c) => c.type !== "swapBattleBp" || usedInBattle).filter((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")
     recordTimed(state, { content: contents, target: { kind: "battle" }, until: "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
     for (const c of contents) {
         if (c.type === "compareBy") {
             log(state, `${sourceName}：バトル解決時、BPの代わりに${label[c.by]}を比較する。`)
+        } else if (c.type === "swapBattleBp") {
+            log(state, `${sourceName}：このバトルの間、BPを比べるとき、バトルしている2体のBPを入れ替える。`)
         } else if (c.type === "restedNexusEffectsDisabled") {
             log(state, `${sourceName}：このバトルの間、疲労状態のネクサスすべての効果は発揮されない。`)
         } else {
@@ -819,7 +832,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeTriggerSuppressionRule(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "compareBy" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")) {
+    if (action.content.some((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled")) {
         placeBattleCompare(ctx, action)
         return
     }

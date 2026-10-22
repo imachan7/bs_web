@@ -20,6 +20,7 @@ import { availableFromSource, placeCoresPoolCandidates } from "./placeCores"
 import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { fieldCoresSpendable, moveCardCandidates, moveCardsPayable } from "./moveCards"
+import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { normalReserveOf } from "../soulCore"
 import { bofuCountFor, findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
 import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses, requestActivationConfirm, requestChoice } from "../targeting"
@@ -38,7 +39,7 @@ export const PAYABLE_TYPES = [
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust",
+    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -68,6 +69,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     lendSelfThisTurn: () => true,
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
+    peekOpponentBurst: (state, owner) => state.players[opponentOf(owner)].burst !== null,
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
     sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "sequence") return false
@@ -278,6 +280,17 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return true
     },
     // summonFromHandFree：条件に合い実際に召喚できる（payCost指定時は支払い可否も含む）手札のスピリットが1枚以上
+    // summonBurstCardFree：発動中のバーストが召喚できる種類で、召喚に必要なコアがある。バースト以外の文脈では常に偽
+    // （payCost 付きの追加コストはここでは見ない簡略化）
+    summonBurstCardFree: (state, owner, _self, action) => {
+        if (action.type !== "summonBurstCardFree") return false
+        const cardId = state.players[owner].burst
+        if (cardId === null) return false
+        const card = getCard(cardId)
+        if (card.type === "nexus") return true
+        if (card.type !== "spirit" && card.type !== "brave") return false
+        return canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
+    },
     summonFromHandFree: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "summonFromHandFree") return false
         const candidates = state.players[owner].hand.filter((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
@@ -391,6 +404,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     discardBurst: "破棄できるバーストがセットされていない",
     setBurstFromHand: "手札にセットできるバーストがない",
     peekOpponentHand: "相手の手札がない",
+    peekOpponentBurst: "相手がバーストをセットしていない",
     timedEffect: "指定できるスピリットがいない",
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
@@ -411,6 +425,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     heavyExhaust: "重疲労させる対象がいない",
     bpBuff: "BP+する対象がいない",
     summonFromHandFree: "手札に召喚できるカードがない",
+    summonBurstCardFree: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",
     treatAsUnblocked: "ブロックしたスピリットがいない",
 }

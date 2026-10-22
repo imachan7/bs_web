@@ -88,12 +88,12 @@ export function finishBurstActivation(
     opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
-    // sequence／if の中で召喚した場合は、summonBurstCardFree がバーストエリアを空にしているので下の分岐に入らない
-    if (actionType !== "summonBurstCardFree") {
-        if (player.burst === cardId) {
-            player.burst = null
-            player.burstSet = false
-        }
+    // 召喚が成功していれば summonBurstCardFree がバーストエリアを空にしているので、エリアに残っているときだけ行き先へ送る
+    // （sequence／if／pay の中で召喚した場合に場とトラッシュへ二重に現れていた）。召喚の条件を満たさない・コア不足で不発のときも
+    // エリアに残るので、召喚せずトラッシュへ置かれる（2026-10-22 ユーザー確認。BURST.md §5.5）
+    if (player.burst === cardId) {
+        player.burst = null
+        player.burstSet = false
         if (opts?.toHand) {
             player.hand.push(cardId)
             log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、手札に戻った。`)
@@ -102,11 +102,6 @@ export function finishBurstActivation(
             player.trashCards.push(cardId)
             log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、トラッシュに置かれた。`)
         }
-    } else if (player.burst === cardId) {
-        // 通常はハンドラ自身（summonBurstCardFree）が空にしているはずだが、
-        // 不発（コア不足等）だった場合に備えて念のため空にしておく
-        player.burst = null
-        player.burstSet = false
     }
 }
 

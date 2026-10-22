@@ -1292,7 +1292,7 @@ export function countEffectCounter(
     }
     if (typeof counter === "object" && "plus" in counter) {
         const [a, n] = counter.plus
-        return countEffectCounter(state, owner, self, a, sourceType) + n
+        return countEffectCounter(state, owner, self, a, sourceType) + (typeof n === "number" ? n : countEffectCounter(state, owner, self, n, sourceType))
     }
     if (typeof counter === "object" && "minus" in counter) {
         const [a, b] = counter.minus

@@ -835,8 +835,8 @@
               "cond": {
                 "count": {
                   "minus": [
-                    "opponentCoresTotal",
-                    "ownCoresTotal"
+                    { "plus": ["opponentCoresTotal", "opponentLife"] },
+                    { "plus": ["ownCoresTotal", "ownLife"] }
                   ]
                 },
                 "atLeast": 3

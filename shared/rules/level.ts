@@ -602,6 +602,7 @@ export function matchesBraveCondition(
     return terms.some((t) => {
         if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
         if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
+        if (t.maxCost !== undefined && instBaseCost(host) > t.maxCost) return false
         if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
         // 「合体条件：効果の記述を持たない」（BS10 の18枚中6枚）。
         // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る instIsVanilla を通す

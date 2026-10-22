@@ -314,7 +314,14 @@
               "type": "summonBurstCardFree"
             },
             {
-              "type": "setBurstFromHand"
+              "type": "if",
+              "cond": {
+                "ownBurstSet": false
+              },
+              "then": {
+                "type": "setBurstFromHand",
+                "ask": true
+              }
             }
           ]
         }

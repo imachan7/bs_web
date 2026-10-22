@@ -14,7 +14,7 @@ export type EffectCounter =
     | "lastDestroyedChimei" // 直前に破壊したカードの【地鳴】で指定された枚数（効果で増えたぶん込み。26RBS01-125）
     | "opponentCoresTotal" // 相手のフィールド・リザーブ・トラッシュのコアの合計（ownCoresTotal の相手版）
     | { div: [EffectCounter, number] } // 1つ目 ÷ 2つ目（切り捨て）。「◯2体につき1体」（26RDB01-052）
-    | { plus: [EffectCounter, number] } // 1つ目 + 定数。「置くコアを+1個する」のように基本量に数えた量を足す形（count=1 と組む。26RBS01-028）
+    | { plus: [EffectCounter, number | EffectCounter] } // 1つ目 + 定数（または2つ目のカウンタ。BS17-075 の総コア＋ライフ）。「置くコアを+1個する」のように基本量に数えた量を足す形（count=1 と組む。26RBS01-028）
     | { minus: [EffectCounter, EffectCounter] } // 1つ目 − 2つ目（負なら0）。「〜と同じ数になるように」
     | "bothNexusColors" // お互いのフィールドのネクサスの色の種類数（重複を除く）
     | "ownOtherSpirits" // self以外の自分フィールドのスピリット数

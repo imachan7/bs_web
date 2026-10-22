@@ -4,7 +4,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
-import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice } from "../EffectModules"
+import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
 import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -215,6 +215,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? state.magicUsedVia === cond.magicUsedVia
           : "firstBattleOfTurn" in cond
           ? state.attacksThisTurn === 1
+          : "ownBurstSet" in cond
+          ? state.players[owner].burstSet === cond.ownBurstSet
           : "ownLifeLostThisTurn" in cond
           ? state.lifeLostThisTurn?.[owner] === true
           : "opponentLifeNotLostThisTurn" in cond
@@ -344,7 +346,7 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
 
 // バースト専用：自分の手札にあるバースト効果（kind:"burst"）を持つカード1枚をセットする。
 // setBurst（GameAction）と異なりターン1回制限を受けない
-const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
+const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx, action) => {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
     if (chosenCardIndex !== undefined) {
@@ -362,6 +364,13 @@ const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx) => {
         .filter(({ cardId }) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     if (candidates.length === 0) {
         log(state, `${sourceName}：セットできるバースト持ちのカードが手札になかった。`)
+        return
+    }
+    if (action.ask === true) {
+        requestCardChoice(
+            state, owner, `${sourceName}：セットするバーストを選んでください（セットしない場合はスキップ）`, "hand",
+            candidates.map((c) => c.i), true, { type: "setBurstFromHand" }, self, true,
+        )
         return
     }
     if (

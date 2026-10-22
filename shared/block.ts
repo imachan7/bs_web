@@ -160,6 +160,8 @@ export function canBlock(
         }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
+            // 条件を1つも持たない unblockableBy は「すべてにブロックされない」（require* は有効かどうかの条件で、ブロッカーの絞り込みではない）
+            if (Object.keys(c).every((k) => k === "type" || k.startsWith("require"))) return "このスピリットはブロックされません"
             if (c.noSoulCore && blockerInst.soulCoreOn !== true) return "このスピリットは[ソウルコア]が置かれていないスピリットにブロックされません"
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {
                 return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
