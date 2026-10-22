@@ -233,7 +233,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-- **マジックは効果の対象がいなければ使用できない**（2026-10-22 ユーザー確認。いまのエンジンは使えてしまう。073・074 の場面テストが期待している）。未決：同じタイミングに対象を取らない文もあるマジック（アウェイクン「コアを1体に置き、1枚ドロー」など41枚）の扱い。対象を取る文だけのものは199枚
+- **マジックの対象なし使用不可**（10-22 確定、RULES_BATSPI_WIKI §6）の実装：`magic/targetRequirement.ts` の `magicTargetMissing(state,pid,card,timing)` を validateCastMagic が呼ぶ。対象を取る文だけ（destroy・returnToHand・returnToDeckTop/Bottom・destroyNexus・coreRemove・bpBuff・heavyExhaust・timedEffect の1体指定・declare の from）で候補0なら拒否。sequence は子が全部「対象なし」のときだけ。クライアントの先取り対象は従来どおり捨てる（08-21）が、陣営違いも捨てる。ボタンの出し分けは未対応
 
 
 
