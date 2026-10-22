@@ -21,9 +21,10 @@
 
 ## 1. いまの本線と次の一手
 
-### BS17「剣舞う世界」（`feat/bs17-import`）は PR 提出済み。マージ待ち
+### 進行中：マジックのメイン／フラッシュを選んで使う（`feat/magic-timing-choice`）
 
-既知の限界は [BS17_PLAN.md](./docs/design/BS17_PLAN.md) §末尾「既知の限界」。マージ後の次：マジックのメイン／フラッシュを選んで使えるようにする（`feat/magic-timing-choice`。`castMagic` に `timing?` を足し、使うタイミングの決め打ち4か所を shared の1関数にまとめる。クライアントはクリックで2ボタン）
+`shared/magicTiming.ts`：`magicUseTiming(card, inBattle, requested?)`（バトル中は flash のみ。メインステップは requested どおり、省略時はメイン優先。無ければ null）と `magicTimingChoosable(card)`（main と flash の両方があり、flash が全部 mainForbidden でない）。GameAction `castMagic.timing?`・`doCastMagic`／`validateCastMagic` の末尾引数 `timing?`・`magicFreeChoice.timing?`。決め打ち4か所（validator 2・cast 2）をこの関数に置き換える。AI は両方を候補に。クライアントは `ui.magicTimingSelect`（2ボタン）→ `ui.magicTiming` を送信時に付ける。効果からの使用（tegamoto.ts・moveCards.ts）は対象外
+
 
 ### 次の一手：後片付け2つ（10-16）
 
