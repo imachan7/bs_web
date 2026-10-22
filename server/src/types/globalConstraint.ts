@@ -17,6 +17,7 @@ export type GlobalConstraintDef =
     | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // 発生源が回復状態の間、発生源の持ち主は相手のライフを減らせない（片側のみ。2026-09-02 ユーザー確認で「文面どおり」）
     | { type: "noDrawInMain" } // 両陣営とも、メインステップの間はドローできない
     | { type: "noHandDiscardInMain" } // 両陣営とも、メインステップの間は手札を破棄できない（判定は shared/rules.ts の canDiscardHand。コストとしての破棄も止まる＝COST_MODEL.md §1）
+    | { type: "handTrashSpiritEffectsDisabled" } // 両陣営の手札・トラッシュにあるスピリットカード自身の効果が発揮されない（判定は shared/rules/constraints.ts の zoneSpiritEffectsDisabled。2026-10-23 ユーザー確認）
     | { type: "noDeckMill" } // 両陣営とも、ステップを問わずデッキが破棄されない（noDeckMillInMain のステップ無制限版）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）
     | { type: "noDeckMillInMain" } // 両陣営とも、メインステップの間はデッキが破棄されない（自分の効果によるものも止める＝noDeckMillByOpponent と異なり陣営を問わない）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る）

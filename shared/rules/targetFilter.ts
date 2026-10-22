@@ -9,7 +9,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
-import { activeConstraints, hasTimedUnblockable } from "./constraints"
+import { activeConstraints, hasTimedUnblockable, zoneSpiritEffectsDisabled } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, spiritHasKeywordOrLabel } from "./keywordState"
 import { currentLevel, effectActiveAtLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
@@ -162,9 +162,10 @@ export function cardNameIs(inst: CardInstance, name: string): boolean {
 // kind:"trashNameAs"（トラッシュにある間だけ別名としても扱う。BS10-056蒼天大聖モンゴクウ）を持つカードは
 // その名前でも一致する。トラッシュのカード名を照合する呼び出し側はすべてこれを通すこと
 // （直接 getCard(cardId).name.includes(...) を書くと trashNameAs が無言ですり抜ける）
-export function trashCardNameMatches(cardId: string, needle: string): boolean {
+export function trashCardNameMatches(cardId: string, needle: string, board?: Board): boolean {
     const c = card(cardId)
     if (c.name.includes(needle)) return true
+    if (board !== undefined && zoneSpiritEffectsDisabled(board, cardId)) return false
     const found = c.effects.find((e) => e.kind === "trashNameAs" && e.name.includes(needle))
     if (found) noteCoverage(found, "trashNameAs")
     return found !== undefined

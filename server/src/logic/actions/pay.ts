@@ -8,6 +8,7 @@ import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveI
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { autoPayPlan, canExhaustNexus, payCost } from "../EffectModules"
 import { currentLevel } from "../GameState"
+import { burstTenshoUnpayable } from "../keywords/tensho"
 import { suspend } from "../GameState"
 import { exhaustNexus } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
@@ -16,7 +17,8 @@ import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHas
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay } from "./removeCores"
-import { availableFromSource, placeCoresPoolCandidates } from "./placeCores"
+import { availableFromSource, isLegacyPlaceCores, placeCoresPoolCandidates } from "./placeCores"
+import { gatherPayable } from "./placeCoresGather"
 import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { fieldCoresSpendable, moveCardCandidates, moveCardsPayable } from "./moveCards"
@@ -180,6 +182,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // mill：side（既定opponent）側のデッキがcount枚（countCounterがあれば数えた値）以上あるか
     mill: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "mill") return false
+        if (hasGlobalConstraint(state, "noDeckMill")) return false
         const count =
             action.countCounter !== undefined
                 ? countedAmount(
@@ -258,6 +261,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // ライフ専用ガード）に当たらず、取り元（reserve/trash/self/field）にcount個以上あるか
     placeCores: (state, owner, self, action) => {
         if (action.type !== "placeCores") return false
+        if (!isLegacyPlaceCores(action)) return gatherPayable({ state, owner, self } as ActionCtx, action)
         const guardedTo = action.to === "spirit" || action.to === "nexus" || action.to === "reserve"
         if (action.from === "void" && guardedTo && voidCorePlacementBlocked(state)) return false
         if (action.to === "life") {
@@ -290,7 +294,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const card = getCard(cardId)
         if (card.type === "nexus") return true
         if (card.type !== "spirit" && card.type !== "brave") return false
-        return canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
+        return !burstTenshoUnpayable(state, owner, card) && canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
     },
     summonFromHandFree: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "summonFromHandFree") return false

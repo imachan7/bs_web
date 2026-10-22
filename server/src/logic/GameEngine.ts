@@ -47,6 +47,7 @@ import {
     summonExhausted,
     burstSetCoresRequired,
     payAssistCandidates,
+    ownHandKeyword,
 } from "../../../shared/rules"
 import {
     placeBurst,
@@ -107,6 +108,7 @@ import { doCastMagic } from "./magic/cast"
 import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
+import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed } from "./oncePerTurn"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
@@ -456,7 +458,7 @@ function doBattleSwapSummon(
     }
 
     // doSummon と同じ順序：【転召】→ 召喚時効果（中断したら queue で合流する）
-    if (!state.winner) resolveTensho(state, pid, inst)
+    if (!state.winner) resolveTensho(state, pid, inst, false, true)
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {
@@ -675,10 +677,10 @@ function doSummon(
     if (state.isFlashTiming) {
         state.summoningBySoku = true
         // 「同じカード名のこの効果をターンに1回」＝手札からのフラッシュ召喚の許可を使った時点で枠を取る
-        if (!hasKeyword(cardId, "soku")) for (const e of card.effects) if (e.kind === "flashSummonFromHand" && e.onceScope === "name") markOnceNameUsed(state, pid, cardId, e.id)
+        if (!ownHandKeyword(state, cardId, "soku")) for (const e of card.effects) if (e.kind === "flashSummonFromHand" && e.onceScope === "name") markOnceNameUsed(state, pid, cardId, e.id)
     }
     state.summoningFromHand = true // 通常召喚は手札から（fieldEvent.fromHandOnly。BS11-X05）
-    if (!state.winner) resolveTensho(state, pid, inst)
+    if (!state.winner) resolveTensho(state, pid, inst, false, true)
     if (state.pendingChoice) {
         // 転召の対象選択で中断した。選択が解決したら場に出すところから続ける
         pushResumeFrames(state, [
@@ -827,7 +829,7 @@ export function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: R
     const logText = `${player.name}は【烈神速】でコストを支払わずに${card.name}を召喚した。`
     state.summoningInstanceId = inst.instanceId
     state.summoningFromHand = true
-    if (!state.winner) resolveTensho(state, pid, inst)
+    if (!state.winner) resolveTensho(state, pid, inst, false, true)
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "placeSummon", pid, inst, reserveDelta: 0, logText, cardName: card.name }])
         return null
@@ -1315,8 +1317,10 @@ export function continueBlockDeclaration(state: GameState, pid: PlayerId, instan
     const required = blockRequiredCount(state, attackerPidForCount, attackerForCount)
     if (required > 1) {
         const declared = [...(state.battle.pendingBlockerIds ?? []), instanceId]
+        // 強制ブロックの個体はアタッカー側の場にいる
+        const ownerOf = (id: string): PlayerId => (id === state.battle?.forcedBlockerInstanceId ? attackerPidForCount : pid)
         const name = (id: string) => {
-            const sp = findSpirit(state.players[pid], id)
+            const sp = findSpirit(state.players[ownerOf(id)], id)
             return sp ? getCard(sp.cardId).name : "スピリット"
         }
         if (declared.length < required) {
@@ -1344,9 +1348,9 @@ export function continueBlockDeclaration(state: GameState, pid: PlayerId, instan
         }
         // 非対話（テスト・AI）：アタッカーが勝ちやすい方＝実効BPが最も低いブロッカーを選ぶ
         const picked = [...declared]
-            .map((id) => ({ id, inst: findSpirit(state.players[pid], id) }))
+            .map((id) => ({ id, inst: findSpirit(state.players[ownerOf(id)], id), owner: ownerOf(id) }))
             .filter((x) => x.inst !== undefined)
-            .sort((a, b) => effectiveBp(state, pid, a.inst!) - effectiveBp(state, pid, b.inst!))[0]
+            .sort((a, b) => effectiveBp(state, a.owner, a.inst!) - effectiveBp(state, b.owner, b.inst!))[0]
         const battlingId = picked?.id ?? declared[0]!
         state.battle.extraBlockerIds = declared.filter((id) => id !== battlingId)
         return finishBlockDeclaration(state, pid, battlingId)
@@ -1418,21 +1422,26 @@ const KYOSHU_PAY: EffectAction = {
 
 export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
     if (!state.battle) return "バトルが発生していません"
+    // 強制ブロック（exhaustAndForceBlock）の個体はアタッカー側のスピリット。防御側が払うブロックのコストは払わない
+    const forced = state.battle.forcedBlockerInstanceId === instanceId
+    const blockerPid = forced ? opponentOf(pid) : pid
+    delete state.battle.forcedBlockerInstanceId
+    if (forced) state.battle.blockerPid = blockerPid
     state.battle.blockerInstanceId = instanceId
-    const blocker = findSpirit(state.players[pid], instanceId)
+    const blocker = findSpirit(state.players[blockerPid], instanceId)
     // 26系【地鳴】の減算材料: ブロックを宣言したスピリットのカードを宣言時点で記録する
     // （スワップで複数回宣言された場合は最後のブロッカーで上書き）
     if (blocker) state.lastBattleBlockerCardId = blocker.cardId
     // ブロックの追加コスト（アタッカーに掛かっている blockCost）。検証（validateBlock）で払えることは確認済み。
     // マジックの破棄は自動選択（最初に見つかったマジック）
     const costAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
-    const reserveToll = blockReserveToTrashCount(state, opponentOf(pid), costAttacker)
+    const reserveToll = forced ? 0 : blockReserveToTrashCount(state, opponentOf(pid), costAttacker)
     if (reserveToll > 0) {
         state.players[pid].reserve -= reserveToll
         state.players[pid].trashCores += reserveToll
         log(state, `${state.players[pid].name}はブロックのためリザーブのコア${reserveToll}個をトラッシュに置いた。`)
     }
-    for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
+    for (const c of costAttacker && !forced ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         const blockerPlayer = state.players[pid]
         if (c.cost === "reserveCoreToTrash") {
@@ -1453,7 +1462,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     // ブロックを宣言したスピリットはここで疲労する（複数体ブロックでバトルしない側も宣言はしているので疲労する）
     const declaredAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
     if (declaredAttacker) {
-        if (blocker) exhaustDeclaredBlocker(state, pid, blocker, declaredAttacker, true)
+        if (blocker && !forced) exhaustDeclaredBlocker(state, pid, blocker, declaredAttacker, true)
         for (const extraId of state.battle.extraBlockerIds ?? []) {
             const extra = findSpirit(state.players[pid], extraId)
             if (extra) exhaustDeclaredBlocker(state, pid, extra, declaredAttacker, false)
@@ -1462,7 +1471,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
-    resolveBlockDeclared(state, pid, blocker, instanceId)
+    resolveBlockDeclared(state, blockerPid, blocker, instanceId)
     if (state.winner) {
         state.battle = null
         return null
@@ -1705,6 +1714,8 @@ function doPass(state: GameState, pid: PlayerId): string | null {
         if (state.battle && state.battle.blockerInstanceId) {
             // ブロック後のフラッシュ終了 → バトルを解決する
             resolveBattle(state)
+        } else if (state.battle && state.battle.forcedBlockerInstanceId) {
+            resolveForcedBlock(state)
         } else if (state.battle && state.battle.directedTargetInstanceId) {
             // 指定アタック：アタック時効果と【バースト】の解決がすべて終わり、ブロック宣言に入る
             // 時点＝ここで自動的にブロックを確定させる（防御側に選ばせない）

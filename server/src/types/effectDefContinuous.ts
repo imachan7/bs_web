@@ -140,6 +140,15 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "exhaustPreventByPay" // 持ち主の filter 合致スピリットが相手の bySourceTypes の効果で疲労するとき、疲労する1体ごとに cost を払って疲労を防げる（BS18-014）
+          // exhaustSpirit（疲労の唯一の入口）で判定する。対話では確認を出して、疲労をその答えまで保留する（同じ効果の後続は先に進む）
+          levels: number[] | null
+          filter: TargetFilter
+          bySourceTypes: CardType[]
+          cost: EffectAction // 払えるかは pay と同じ canPayResolve で判定。払えなければ確認も出さず疲労する
+      }
+    | {
+          id: string
           kind: "deckMillNegate" // 持ち主のデッキが破棄されるとき、コストを払って無効にできる
           // 任意コストなので確認を出す。破棄処理の途中では中断できないため、millDeckは見送ってpendingDeckMillNegatesへ積みhandleActionの末尾で確認する。非対話（smoke）では自動で支払う
           levels: number[] | null

@@ -70,7 +70,7 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
     const lastMoved = action.lastMovedOnly ? lastMovedOf(state) : undefined
     // トラッシュのカード名は trashNameAs の別名でも一致する
     const { nameIncludes, ...pickRest } = action.pick ?? {}
-    const nameOk = (id: string): boolean => nameIncludes === undefined || (action.from === "trash" ? trashCardNameMatches(id, nameIncludes) : getCard(id).name.includes(nameIncludes))
+    const nameOk = (id: string): boolean => nameIncludes === undefined || (action.from === "trash" ? trashCardNameMatches(id, nameIncludes, state) : getCard(id).name.includes(nameIncludes))
     return zone
         .map((id, j) => ({ id, j }))
         .filter(
@@ -353,6 +353,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         cardId,
         srcPid: zone.pid,
         dest,
+        ...(action.ignoreBurstCondition ? { ignoreBurstCondition: true as const } : {}),
         ...(action.tensho !== undefined ? { tensho: action.tensho } : {}),
         ...(action.noSummonEffects ? { noSummonEffects: true as const } : {}),
         ...(action.orHand ? { orHand: true as const } : {}),

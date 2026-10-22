@@ -26,6 +26,7 @@ export type FieldEvent =
     | "opponentHandAdded" // 持ち主から見て相手の手札にカードが加えられたとき（notifyHandGainedから発火。犬人マードック／英雄の喪失）
     | "ownSpiritCoresRemovedByOpponent" // 自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき（eventCount=影響を受けた自分のスピリット数。極光の大地）
     | "ownSpiritSummoned" // 自分のフィールドにスピリットが召喚されたとき（doSummonの召喚時効果・転召の解決後に発火）。**self には召喚されたスピリットが渡る**（selfOverride）ため、maxBpFromSelf で「召喚されたスピリットのBP以下」を表現できる（BS04七龍帝の玉座Lv2／鋼葉の樹林Lv2）
+    | "anySpiritSummoned" // 両陣営どちらかのスピリットが召喚されたとき、両者のフィールド発生源から発火（ownSpiritSummoned と同じ地点・同じ eventInfo。self には召喚されたスピリットが渡る。subjectSide で召喚された側を絞る）
     | "opponentDeckMilled" // 相手のデッキがトラッシュへ送られたとき（millDeckから発火。eventCount=実破棄枚数。minEventCountで「一度に◯枚以上」を表現。BS04アリゲイド）
     | "ownChimeiMilled" // 自分のスピリットの【地鳴】が相手のデッキをトラッシュへ送ったとき（mill ハンドラが発火。**self には【地鳴】の持ち主のスピリットが渡る**ので excludeSelfSubject で「このスピリット以外の」を表す。condition {lastMilledHasEx} で「EXシンボルを持つカードを破棄した」）
     | "ownDeckMilled" // 自分のデッキが破棄されたとき（eventCount＝破棄枚数）
@@ -48,6 +49,8 @@ export type FieldEvent =
     // **増えた側だけ**を合計して発火する（出所は問わない＝リザーブからスピリットへ移したものも1個と数える）。
     // 通常のコアステップ・コスト支払いのような効果によらない動きでは発火しない。
     // sourceColorFilter と組み合わせて使う（SD01-029 蠢く地下墓地Lv1）。docs/design/EFFECT_SOURCE_CONTEXT.md
+    | "coresGainedFromVoid" // 効果によってボイドからコアが増えたとき（リザーブ・スピリット・ネクサス・ライフのどこに置かれても数える。コアステップ・ルールによるものは含めない）。効果1回の解決ごとに増えた側ごとに1回、eventCount＝増えた個数。subjectSide はコアが増えた側。opponentEffectSourceTypes＝相手の効果の発生源の種別。GameState.lastCoresGained に置き場所を残す（2026-10-23 ユーザー確認）
+    | "lifeCorePlaced" // どちらかのライフにコアが置かれたとき（出所・原因を問わない）。効果1回の解決ごとに増えた側ごとに1回、eventCount＝置かれた個数。subjectSide はライフが増えた側
     | "ownTensho" // 自分の【転召】が解決したとき（dumpAllCoresTenshoが唯一の解決点から発火。eventInfo.families=犠牲になったスピリットのカード静的な系統。BS08関将龍皇ドラグロン：系統「竜人」を持つスピリットで【転召】したとき）
     | "anySpiritCombined" // どちらかのスピリットにブレイヴが合体したとき（合体の唯一の入口 attachBrave から両フィールドへ発火）。**self には合体スピリット（ホスト）が渡る**（selfOverride）。subjectSide で自分/相手を絞る（BS11-064 闇の聖剣Lv2＝「相手のスピリットが合体したとき、その合体スピリットは疲労する」）
     | "ownCombinedSpiritBattleEnded" // 自分の合体スピリットがバトルし、バトル終了時にまだ生存しているとき、ネクサス等の発生源から発火（GameEngineのonBattleEnd誘発と同じ地点。selfには生存している合体スピリット自身が渡る。BS10-086巨星望む大樹Lv2）

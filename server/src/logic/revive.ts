@@ -41,6 +41,7 @@ import {
     timedPlayerRules,
     hasGlobalConstraint,
     handGainBlocked,
+    zoneSpiritEffectsDisabled,
 } from "../../../shared/rules"
 
 import {
@@ -231,6 +232,7 @@ export function fushiCandidates(
         if (cardId === undefined) continue
         const card = getCard(cardId)
         if (card.type !== "spirit") continue
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const hit = card.effects.some((e) => {
             if (e.kind !== "keyword" || e.keyword !== "fushi") return false
             if ((e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c))) return true
@@ -382,7 +384,7 @@ export function applyFushiSummon(
             (freeNexus ? `（${getCard(freeNexus.cardId).name}を疲労させ、コストを支払わずに）` : `（コスト${String(cost)}）`),
     )
     // 「召喚」なので【転召】は通常どおり解決する（無償召喚でも必ず行う。skipOnSummonと同じ規則）
-    if (!state.winner) resolveTensho(state, info.pid, inst)
+    if (!state.winner) resolveTensho(state, info.pid, inst, false, true)
     if (state.winner) return
     // 無償召喚（魔門を疲労させた場合）は召喚時効果を発揮しない（BS15-064冥府へ続く魔門Lv2の明記どおり）
     if (freeNexus) {
@@ -461,7 +463,7 @@ export function applySpiritMillFreeSummon(
     const inst = createInstance(info.cardId, state.turn, cores)
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
-    if (!state.winner) resolveTensho(state, info.pid, inst)
+    if (!state.winner) resolveTensho(state, info.pid, inst, false, true)
     if (state.winner) return
     if (state.pendingChoice) {
         pushResumeFrames(state, [

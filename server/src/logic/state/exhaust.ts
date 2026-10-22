@@ -1,8 +1,10 @@
 // スピリット・ネクサスの疲労処理
+import { zoneSpiritEffectsDisabled } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
 import { fireTrigger } from "../triggers"
+import { preventExhaustByPay } from "./exhaustPrevent"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { effectActiveAtLevel, effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
 
@@ -77,10 +79,13 @@ export function exhaustSpirit(
     // 【暴風】の持ち主自身のinstanceId（BS14-032ヤツノカンゾウLv2の「このスピリットの【暴風】で疲労させた」が
     // 発生源を特定するために使う。任意＝渡されない呼び出し元では記録されないだけ）
     bofuSourceInstanceId?: string,
+    // exhaustPreventByPay の確認に「払わない」と答えた疲労の実行（再判定しない）
+    skipPrevention?: boolean,
 ): void {
     // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return
     if (inst.isRested) return
+    if (!skipPrevention && causePid !== undefined && causeType !== undefined && preventExhaustByPay(state, ownerPid, inst, { causePid, causeType, bofuSourcePid, bofuSourceInstanceId })) return
     inst.isRested = true
     if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
         state.bofuExhaustedThisBattle.push({
@@ -123,6 +128,7 @@ function returnTrashOnHeavyExhaust(state: GameState, pid: PlayerId): void {
     if (state.turnPlayer !== pid) return
     const player = state.players[pid]
     const index = player.trashCards.findIndex((cardId) =>
+        !zoneSpiritEffectsDisabled(state, cardId) &&
         getCard(cardId).effects.some(
             (e) =>
                 e.kind === "trashReturnOnOwnHeavyExhaust" &&
@@ -142,34 +148,47 @@ export function refreshSpirit(
     ownerPid: PlayerId,
     inst: CardInstance,
     sourceType?: CardType,
-): void {
+    deferSideEvents?: boolean,
+): boolean {
     // 破壊待機状態のカードは**回復できない**（docs/design/TIMING_CHART.md §1.5）
-    if (inst.pendingDestruction) return
+    if (inst.pendingDestruction) return false
     // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：残り回数がある間はリフレッシュステップ・
     // 効果による回復のいずれも通さない（refreshSpiritの唯一の入口で判定するため両方に効く）
-    if ((inst.noRefreshUntilOwnEndSteps ?? 0) > 0) return
+    if ((inst.noRefreshUntilOwnEndSteps ?? 0) > 0) return false
     // BS09-047鮫人サンゴジョー：スピリットすべては、ネクサス/マジックの効果では回復しない
     // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
     if (
         (sourceType === "nexus" || sourceType === "magic") &&
         noRefreshByNexusOrMagicActive(state)
     ) {
-        return
+        return false
     }
     // BS15共通器：BS15-072渦巻く大海峡「疲労状態のスピリットすべては、リフレッシュステップ以外で回復できない」。
     // sourceType が渡る（＝リフレッシュステップ以外の呼び出し）ときだけ止める
     if (sourceType !== undefined && hasGlobalConstraint(state, "noRefreshByAnyEffect")) {
-        return
+        return false
     }
-    if (!inst.isRested) return
+    if (!inst.isRested) return false
     // 重疲労は疲労状態へ1段戻るだけ（回復したことにはならないので誘発もしない）
     if (inst.heavyRested) {
         delete inst.heavyRested
         log(state, `${getCard(inst.cardId).name}は重疲労状態から疲労状態になった。`)
-        return
+        return false
     }
     inst.isRested = false
     fireTrigger(state, ownerPid, inst, "onRefreshed")
+    if (!deferSideEvents) fireRefreshedSideEvents(state, ownerPid, inst, sourceType)
+    return true
+}
+
+// 陣営で数える回復イベント。リフレッシュステップでは回復が同時なので、陣営ごとに1回だけ呼ぶ
+// （2026-10-23 ユーザー確認。self は回復した最初の1体。効果による回復は1体ごとに呼ばれる）
+export function fireRefreshedSideEvents(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    sourceType?: CardType,
+): void {
     // フィールドイベント「自分のスピリットが回復したとき」（ownSpiritExhaustedの対。BS13-024武神獣ディアル・ユキムラLv2）
     fireFieldEventTriggers(state, ownerPid, "ownSpiritRefreshed", { pid: ownerPid, inst })
     // 両陣営から見える版（anySpiritAttackedと同じ形。BS14-085賛美するパイプオルガンLv2：

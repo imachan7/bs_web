@@ -4,7 +4,7 @@ import type { GameView } from "../../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS } from "../../../data/constants"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../../shared/cost"
 import { attachCardArt } from "../cardArt"
-import { hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned, isFlashLockedFor, handCardBanned, magicUseWindowDenial } from "../../../shared/rules"
+import { ownHandKeyword, zoneSpiritEffectsDisabled, hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned, isFlashLockedFor, handCardBanned, magicUseWindowDenial } from "../../../shared/rules"
 import { handBurstEffectDenial } from "../../../shared/handBurstEffect"
 import { payableFieldCores, payingAltPay } from "./paying"
 import { master, UiState, $ } from "../renderer"
@@ -60,7 +60,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         // 場の発生源から継続的に与えられているか（緑芽吹く原野Lv2。判定はサーバーと同一の共有実装）
         const flashSummonable =
             m.type === "spirit" &&
-            (hasKeyword(cardId, "soku") ||
+            (ownHandKeyword(view, cardId, "soku") ||
                 tempSokuCardIds.has(cardId) ||
                 hasHandKeywordGrant(view, view.you, m, "soku") ||
                 flashSummonFromHandNow(view, view.you, cardId))
@@ -69,7 +69,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         // コストはトラッシュのコアから賄うので、reserve >= need の判定は通さない
         const resshinsokuReady =
             m.type === "spirit" &&
-            hasKeyword(cardId, "resshinsoku") &&
+            ownHandKeyword(view, cardId, "resshinsoku") &&
             view.players[view.you].trashCores >= 5
 
         // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
@@ -245,7 +245,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         // 手札から使う効果ボタン（kind:"handActivated"。BS15-011ミーアバット）。
         // 神速召喚の召喚ボタンと同じ並びで、カード本体のクリックとは独立したバッジボタンにする
         // （マジックではないので castMagic の対象選択UIには乗せない。サーバーは useHandAbility を送る）
-        const handAbility = m.effects.find((e) => e.kind === "handActivated")
+        const handAbility = zoneSpiritEffectsDisabled(view, cardId) ? undefined : m.effects.find((e) => e.kind === "handActivated")
         if (handAbility && handAbility.kind === "handActivated") {
             const phaseOk = handAbility.phase === undefined || view.phase === handAbility.phase
             const canUseAbility = inFlash && !flashLocked && phaseOk && !view.pendingChoice

@@ -241,6 +241,7 @@ export function finishSummonEffect(state: GameState): void {
     if (src === undefined || state.pendingChoice) return
     delete state.summonEffectSource
     if (!src.resolved || state.winner) return
+    if (src.cardId !== undefined && src.level !== undefined) state.lastOpponentSummonEffect = { cardId: src.cardId, level: src.level }
     fireFieldEventTriggers(state, opponentOf(src.pid), "opponentSummonEffectResolved", undefined, src.colors, undefined, undefined, { costs: [src.cost] })
 }
 
@@ -409,23 +410,32 @@ export function fireBurstOnEvent(
 
 // オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 // 後始末（finishBurstActivation）がバーストエリアのカードを前提にするので、いったんエリアに戻してから解決する
-export function activateBurstCard(state: GameState, owner: PlayerId, cardId: string): void {
+// ignoreCondition：バースト条件を無視する発動（BS18）。発動の原因になった出来事は起きていないので、
+// 出来事の情報を読む効果（破壊されたスピリットの色・コスト、ライフを減らしたスピリット）は読む先を消して不発にする
+// 戻り値 false＝相手の「バーストを発動できない」で発動できなかった（バースト条件を無視してもカード自身の条件は残る。2026-10-23 ユーザー確認）
+export function activateBurstCard(state: GameState, owner: PlayerId, cardId: string, ignoreCondition = false): boolean {
     const player = state.players[owner]
     const card = getCard(cardId)
     const effect = card.effects.find((e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst")
     if (!effect) {
         player.trashCards.push(cardId)
-        return
+        return true
     }
+    if (ignoreCondition && burstActivationForbidden(state, owner, effect.event)) return false
     noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true
     announceBurstActivation(state, owner, cardId)
     const blocked = burstEffectBlocked(state, owner, cardId)
-    const baseAction: EffectAction = burstConditionMet(state, owner, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    const baseAction: EffectAction = (ignoreCondition || burstConditionMet(state, owner, effect.condition)) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
     const actionToRun = withEffectTax(state, owner, "burst", cardId, baseAction)
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
+    if (ignoreCondition) {
+        delete state.burstEventCost
+        delete state.burstEventColors
+        delete state.burstEventLifeDamagerId
+    }
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
     delete state.resolvingBurstPid
     continueBurstActivation(state, {
@@ -438,6 +448,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
         before: [...before],
     })
+    return true
 }
 
 // kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす

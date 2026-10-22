@@ -419,6 +419,7 @@ export type ResumeFrame =
           attackerPid: PlayerId
           attackerInstanceId: string
           blockerInstanceId: string
+          blockerPid?: PlayerId // 省略＝防御側。強制ブロックでアタッカーと同じ陣営のとき attackerPid が入る
           outcome: "attackerWins" | "blockerWins" | "mutual" | "none" // ＞５のBP比較の結果（＞６以降で覆らない）。none＝器AV（BS13-082）でBP比較自体を飛ばした
           attackerColors: Color[]
           blockerColors: Color[]

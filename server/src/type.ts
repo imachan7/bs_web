@@ -239,6 +239,10 @@ export type SoulCoreLocation =
 export interface BattleState {
     attackerInstanceId: string
     blockerInstanceId: string | null // **実際にバトルするブロッカー**。複数体ブロック（blockRequiresCount）でも1体しか入らない
+    // exhaustAndForceBlock が記録する、ブロック宣言で代わりにブロックする**アタッカー側**のスピリット。
+    // ブロック前のフラッシュが閉じた時点で resolveForcedBlock が宣言に変える（成立しなければ消える）
+    forcedBlockerInstanceId?: string
+    blockerPid?: PlayerId // ブロッカーが防御側のスピリットでないとき（強制ブロックでアタッカーと同じ陣営）だけ入る。省略＝防御側
     pendingBlockerIds?: string[] // 複数体ブロックで、必要数がそろうまで宣言を貯める場所（そろったら空にする）
     extraBlockerIds?: string[] // 複数体ブロックで宣言はしたが**バトルはしない**ブロッカー。
     // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る

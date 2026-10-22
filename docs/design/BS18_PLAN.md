@@ -72,3 +72,30 @@
 - 3f アクション `replayOpponentSummonEffect`（バーストのきっかけになった相手の『召喚時』効果を、自分のスピリット1体を選び、そのスピリットが発揮したものとして解決し直す。自分のスピリットがいなければこの部分は発揮しないが、CONJUNCTION の「その後」の規則どおり thenPay は払える。081）／アクション `revealOpponentBurst`（相手のバースト1つを両者に公開し、`last` に残す。続きは if で書く。084）
 - 3g アクション `exhaustAndForceBlock`（§2 の 082 の細部どおり。疲労させた相手のスピリットを「この後のブロック宣言でブロックするスピリット」として記録し、ブロック前のフラッシュが終わったら、その個体でブロックする）
 
+
+## 4. データ役への注意（部品バッチ1〜3 の実装役の報告から）
+
+- `revived` は `{ handOrDeckTop: true }` のオブジェクト形（文字列ではない）
+- 064・066 の `anySpiritSummoned`／`anySpiritRefreshed` は `selfMode:"source"` が必須（無いと実行者が相手になる）
+- 013 は `sequence` に `passEventTarget:true`（イベントの対象を後続に渡す）。001 は fieldEvent の `eventSourceAsTarget`
+- X01：`{kind:"keyword", keyword:"burstTensho", levels:[…], familyFilter:["覇皇"], dest:"void"}`。バーストは `sequence{keepScope:true, actions:[summonBurstCardFree, {type:"if", cond:{last:{cardType:"spirit"}}, then:placeCores(from:["ownSpirits","reserve"], to:"life", fillTo:5, count:"any")}]}`（召喚できなければ続きも起きない＝「この効果発揮後」）。X01 の「フィールド」にネクサスを含めるなら from に `"field"`
+- 016：`step` 相手のエンドステップ＋`condition:{noAttacksThisTurn:true}`＋`activateBurstIgnoringCondition{from:"set", filter:{color:"purple"}, optional:true}`
+- X05：`revealOpen 4` → `activateBurstIgnoringCondition{from:"revealed", optional:true}` → `moveCards{from:"revealed", count:"all", dest:"deckBottom"}`
+- 084：`sequence{actions:[revealOpponentBurst, if{last:{cardType:"spirit"}} then discardOpponentBurst]}`（`sequence` のフィールドは `actions`）
+- 060：`timedEffect content:[{type:"playerRule", rule:{type:"handCostSetForPid", value:8}}] duration:"turn" side:"both"`／054：`rule:{type:"skipMainStep"}` duration:"nextRefresh"
+- 029 は globalConstraint `opponentMustAttackOnce`（playerRule ではない）
+- **「相手のスピリットにブロックされない」と書かれた既存の12枚に `opponentOnly:true` を付ける**（082 で同じ陣営のスピリットがブロックできるように。付けないと陣営指定なしとして扱われる）
+- データを書いたら `scripts/validate-cards.ts` の `AWAITING_MIGRATION` から BS18 の6つ（exhaustAndForceBlock・voidGainedCores・replayOpponentSummonEffect・revealOpponentBurst・activateBurstIgnoringCondition）を外す
+
+## 5. 既知の限界（部品の段で受け入れたもの）
+
+- 【転召】参照の竜使い系列との組み合わせ（BURST §7.4）は、`spiritHasKeyword(tensho)` が真になるところまでしか確かめていない
+- coresGainedFromVoid の個数は効果前後の純増。同じ効果の中で減らすと相殺される。1つの効果で両陣営に増えたとき、置き場所の記録は後の陣営だけ
+- 082：強制ブロッカーには防御側のブロック追加コストを課さない。相手を対向陣営と仮定して読む BP 系の参照（battlingOpponentSymbols 等）は同陣営バトルで 0／false
+- exhaustPreventByPay：対話では疲労を確認の答えまで保留するので、同じ効果の「その後」は防ぐ前の盤面で動きうる
+- placeCores の複数取り元は coreGainCap を見ない。行き先は self・life・reserve・trash だけ
+- skipMainStep は追加のメインステップ（第2メイン）を飛ばさない
+- noBurstActivationByEvent は「相手による」破壊かどうかを区別しない（いまの破壊後バーストはすべて相手による）
+- 手札のフラッシュ封じのボタン連動はマジックだけ（スピリットの召喚ボタンは未対応）
+
+**確認待ち（2026-10-23 ユーザーへ）**：082 の同陣営バトルで【呪撃】【光芒】を発揮するか（いまは発揮しない）／052 で、場から付与された【神速】も止まるか（いまは止めない）

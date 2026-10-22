@@ -56,7 +56,7 @@ export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: C
             })
         }
     }
-    const attackerPid = opponentOf(pid)
+    const attackerPid = state.turnPlayer // 強制ブロックではブロッカーの持ち主(pid)＝アタッカー側なので opponentOf(pid) は使えない
     const attacker = findSpirit(state.players[attackerPid], attackerId)
     if (attacker) {
         fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId, undefined, undefined, undefined, undefined, items)

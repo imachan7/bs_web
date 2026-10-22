@@ -111,7 +111,10 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             log(state, `${sourceName}：${card.name}をデッキの下に戻した。`)
             return
         case "activateBurst":
-            activateBurstCard(state, owner, cardId)
+            if (!activateBurstCard(state, owner, cardId, action.ignoreBurstCondition === true)) {
+                log(state, `${sourceName}：${card.name}は発動を禁じられているため発動できなかった。`)
+                if (state.revealedCards) state.revealedCards.cardIds.push(cardId)
+            }
             return
         case "tegamoto":
             player.tegamoto.push(cardId)

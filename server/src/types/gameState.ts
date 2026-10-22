@@ -80,12 +80,15 @@ export interface GameState {
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
     currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[]; instanceId?: string; cardId?: string } // instanceIdはresolveActionのself（発生源インスタンス）が確定しているときだけ載る（BS15共通器：BS15-042オリンピアの天使アラトロンLv2「そのスピリットを相手のデッキの下に戻す」＝デッキ破棄を起こしたスピリット自身を特定するために使う）
+    // 直近の coresGainedFromVoid で増えたコアの置き場所（voidGainedCores が読む）。同じ効果で両陣営に増えたときは後のもの
+    lastCoresGained?: { gainerPid: PlayerId; places: { where: "reserve" | "life" | "instance"; instanceId?: string; n: number }[] }
     resolvingBurstPid?: PlayerId // バースト効果を解決している間だけ、その持ち主を載せる（coreReturnBonus.ownBurstOnly が読む。BS14-019シュテン・ドーガ）
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
     // TargetFilter.sameFamilyAsDestroyed が読む（removal.ts の発火直前にセット。BS16-027コーカサス・リョフ・ビートル）
-    summonEffectSource?: { pid: PlayerId; instanceId: string; cost: number; colors: Color[]; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
+    lastOpponentSummonEffect?: { cardId: string; level: number } // opponentSummonEffectResolved の発火時に記録（replayOpponentSummonEffect が読む。召喚した個体が場を離れていても残る）
+    summonEffectSource?: { pid: PlayerId; instanceId: string; cardId?: string; level?: number; cost: number; colors: Color[]; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
     // （fireSummonTrigger が設定し、選択待ちで中断した場合は残して handleAction の事後フックがクリアする。
     // ConstraintDef.immuneToOpponentSummonEffects を isEffectBlocked が判定するために使う。BS05リトルナイト・ランスロットLv3）

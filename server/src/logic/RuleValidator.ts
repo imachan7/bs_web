@@ -20,7 +20,7 @@ import {
 } from "./GameState"
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { handCardBanned, magicUseWindowDenial } from "../../../shared/rules"
+import { handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -213,7 +213,7 @@ export function validateSummon(
     )
     // 緑芽吹く原野Lv2：場の発生源が手札のカードに継続的に【神速】を与えている（手札には書き込まない）
     const hasFieldSoku = hasHandKeywordGrant(state, pid, card, "soku")
-    const staticSoku = hasKeyword(cardId, "soku")
+    const staticSoku = ownHandKeyword(state, cardId, "soku")
     if (state.isFlashTiming && staticSoku) {
         const sokuEntry = getCard(cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "soku")
         if (sokuEntry) noteCoverage(sokuEntry, "keyword")
@@ -320,7 +320,7 @@ export function validateSummon(
     // 【転召】：コアを置く対象になる自分のスピリットがいなければ召喚できない（2026-08-13 修正）。
     // 以前は召喚を通したうえで「対象がいなかった」とログするだけで、犠牲なしに出せてしまっていた。
     // 判定は召喚するレベル（省略時はLv1）で持つ【転召】について行う
-    const tensho = tenshoSpecOf(card, level ?? 1)
+    const tensho = zoneSpiritEffectsDisabled(state, cardId) ? null : tenshoSpecOf(card, level ?? 1)
     if (tensho) {
         const candidates = tenshoCandidates(state, pid, tensho.minCost, undefined, tensho.familyFilter)
         if (candidates.length === 0) {
@@ -460,7 +460,7 @@ export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handI
     const banned = handCardBanned(state, pid, cardId)
     if (banned) return banned
     if (!isSummonableCardType(card.type)) return "スピリットカードではありません"
-    if (!hasKeyword(cardId, "resshinsoku")) return "【烈神速】を持っていません"
+    if (!ownHandKeyword(state, cardId, "resshinsoku")) return "【烈神速】を持っていません"
     if (!state.isFlashTiming || state.phase !== "attack") {
         return "お互いのアタックステップのフラッシュタイミングでのみ使用できます"
     }
@@ -687,7 +687,7 @@ export function validateUseHandAbility(
     const cardId = player.hand[handIndex]
     if (cardId === undefined) return "手札にカードがありません"
     const card = getCard(cardId)
-    const effect = card.effects.find((e) => e.kind === "handActivated" && e.id === effectId)
+    const effect = zoneSpiritEffectsDisabled(state, cardId) ? undefined : card.effects.find((e) => e.kind === "handActivated" && e.id === effectId)
     if (!effect || effect.kind !== "handActivated") return "その効果は使用できません"
     if (effect.phase !== undefined && state.phase !== effect.phase) {
         return "このステップでは使用できません"
@@ -1474,7 +1474,9 @@ export function validateBlock(
                 declared.includes(sp.instanceId) ||
                 canBlock(state, pid, sp, attackerPid, attacker) === null,
         ).length
-        if (available < required) {
+        // 強制ブロック（exhaustAndForceBlock）で宣言済みのアタッカー側の個体も1体に数える
+        const forcedDeclared = declared.filter((id) => !state.players[pid].field.spirits.some((sp) => sp.instanceId === id)).length
+        if (available + forcedDeclared < required) {
             return `ブロックするにはスピリット${String(required)}体が必要です`
         }
     }

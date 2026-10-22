@@ -41,6 +41,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     kobo: { id: "kobo", label: "光芒" },
     makobo: { id: "makobo", label: "魔光芒" },
     tensho: { id: "tensho", label: "転召" },
+    burstTensho: { id: "burstTensho", label: "バースト転召" },
     bofu: { id: "bofu", label: "暴風" },
     seimei: { id: "seimei", label: "聖命" },
     kyoshu: { id: "kyoshu", label: "強襲" },
@@ -64,6 +65,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
 // 逆向きには効かない（「【超覚醒】を持つ〜」は【覚醒】だけの個体を拾わない）
 const KEYWORD_INCLUDES: Partial<Record<Keyword, Keyword[]>> = {
     awaken: ["superAwaken"],
+    tensho: ["burstTensho"],
 }
 export function keywordMatches(has: Keyword, asked: Keyword): boolean {
     return has === asked || (KEYWORD_INCLUDES[asked]?.includes(has) ?? false)

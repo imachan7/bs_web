@@ -90,13 +90,15 @@ export function canBlock(
     blockerInst: CardInstance,
     attackerPid: PlayerId,
     attackerInst: CardInstance | undefined,
+    // ignoreRested：強制ブロック(exhaustAndForceBlock)は疲労させた直後の個体が宣言するので、疲労は理由にしない
+    opts?: { ignoreRested?: boolean },
 ): string | null {
     // ブロッカー側の制約（cantBlock / cantBlockLowerBp）。
     // バーストファイアで無効化されている場合はこれらのチェックをスキップする
     const blockerConstraints = activeConstraints(board, blockerPid, blockerInst)
     // 疲労状態でのブロック（BS06計画された場外乱闘Lv1-2）：canBlockWhileRestedを持ち、
     // targetMaxCost指定時はアタッカーのコストがこれ以下のときのみブロックできる
-    if (blockerInst.isRested) {
+    if (blockerInst.isRested && !opts?.ignoreRested) {
         const canBlockRested =
             blockerConstraints.some((c) => {
                 if (c.type !== "canBlockWhileRested") return false
@@ -156,11 +158,13 @@ export function canBlock(
         // 期間つき効果の「ブロックされない」（1体・すべて・ブレイヴのホスト）。from があればそれに合う相手からだけ
         for (const c of timedContentsOn(board, attackerInst)) {
             if (c.type !== "unblockable") continue
+            if (c.opponentOnly && blockerPid === attackerPid) continue
             if (c.from === undefined) return "このスピリットはブロックされません"
             if (matchesTarget(board, blockerPid, blockerInst, c.from)) return "このスピリットはこの相手にブロックされません"
         }
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
+            if (c.opponentOnly && blockerPid === attackerPid) continue
             // 条件を1つも持たない unblockableBy は「すべてにブロックされない」（require* は有効かどうかの条件で、ブロッカーの絞り込みではない）
             if (Object.keys(c).every((k) => k === "type" || k.startsWith("require"))) return "このスピリットはブロックされません"
             if (c.noSoulCore && blockerInst.soulCoreOn !== true) return "このスピリットは[ソウルコア]が置かれていないスピリットにブロックされません"

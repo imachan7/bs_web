@@ -90,7 +90,7 @@ export { hasKyoshuOnBlock } from "./keywords/kyoshu"
 export { bofuCountFor, hasBofuOnBlock, hasBofuChooserSelf } from "./keywords/bofu"
 export { hasKoboOnBlock, resolveKoboOnBattleEnd } from "./keywords/kobo"
 export { millDeck, applyDeckMillNegate, declineDeckMillNegate } from "./zones/mill"
-export { checkExhaustOnCoreChange, exhaustSpirit, exhaustNexus, heavyExhaustSpirit, refreshSpirit, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
+export { checkExhaustOnCoreChange, exhaustSpirit, exhaustNexus, heavyExhaustSpirit, refreshSpirit, fireRefreshedSideEvents, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
 export { offerOpponentMainEndMagic, applyProvocationUse } from "./magic/cast"
 export {
     activeConstraints,
@@ -1481,7 +1481,7 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
 // 「置いた」の数え方は**増えた側だけの合計**にする。効果文が出所を限定していないため、
 // リザーブからスピリットへ移したものも、スピリットからスピリットへ移したものも1個と数える
 // （2026-08-16 ユーザー確認）。減った側を差し引くと移動が0個になってしまうので引かない。
-type CorePlaces = Record<PlayerId, { reserve: number; byInstance: Map<string, number> }>
+type CorePlaces = Record<PlayerId, { reserve: number; life: number; byInstance: Map<string, number> }>
 
 // 監視するカードが1枚も場に無いなら、スナップショット自体を省く（毎アクション走るため）
 function hasCorePlacedWatcher(state: GameState): boolean {
@@ -1489,7 +1489,7 @@ function hasCorePlacedWatcher(state: GameState): boolean {
         const player = state.players[pid]
         for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
             for (const effect of getCard(inst.cardId).effects) {
-                if (effect.kind === "fieldEvent" && effect.event === "opponentCorePlaced") return true
+                if (effect.kind === "fieldEvent" && (effect.event === "opponentCorePlaced" || effect.event === "coresGainedFromVoid" || effect.event === "lifeCorePlaced")) return true
             }
         }
     }
@@ -1504,7 +1504,7 @@ function snapshotCorePlaces(state: GameState): CorePlaces {
         for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
             byInstance.set(inst.instanceId, inst.cores)
         }
-        snap[pid] = { reserve: player.reserve, byInstance }
+        snap[pid] = { reserve: player.reserve, life: player.life, byInstance }
     }
     return snap
 }
@@ -1520,8 +1520,49 @@ function fireCorePlacedFromDiff(state: GameState, before: CorePlaces): void {
             // この効果の間に場に出たカード（スナップショットに無い）は、そこに置かれたコアも「置いた」分
             placed += Math.max(0, inst.cores - (prev.byInstance.get(inst.instanceId) ?? 0))
         }
-        if (placed <= 0) continue
-        fireFieldEventTriggers(state, opponentOf(pid), "opponentCorePlaced", undefined, undefined, undefined, placed)
+        if (placed > 0) fireFieldEventTriggers(state, opponentOf(pid), "opponentCorePlaced", undefined, undefined, undefined, placed)
+    }
+    fireCoreGainEvents(state, before)
+}
+
+// coresGainedFromVoid / lifeCorePlaced。ボイドから増えたぶん＝コア総数（リザーブ+場+ライフ）の純増。
+// 同じ効果でトラッシュ等へ減らすと純増が相殺されて数え漏れる（簡略化）。増えた置き場所が純増より多いときは後ろから削る
+function fireCoreGainEvents(state: GameState, before: CorePlaces): void {
+    const src = state.currentEffectSource
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        const prev = before[pid]
+        const places: NonNullable<GameState["lastCoresGained"]>["places"] = []
+        const lifeUp = Math.max(0, player.life - prev.life)
+        const resUp = Math.max(0, player.reserve - prev.reserve)
+        if (resUp > 0) places.push({ where: "reserve", n: resUp })
+        if (lifeUp > 0) places.push({ where: "life", n: lifeUp })
+        let totalBefore = prev.reserve + prev.life
+        let totalAfter = player.reserve + player.life
+        for (const v of prev.byInstance.values()) totalBefore += v
+        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+            totalAfter += inst.cores
+            const up = inst.cores - (prev.byInstance.get(inst.instanceId) ?? 0)
+            if (up > 0) places.push({ where: "instance", instanceId: inst.instanceId, n: up })
+        }
+        const info = {
+            gainerPid: pid,
+            ...(src ? { causePid: src.pid } : {}),
+            ...(src?.type !== undefined ? { causeType: src.type, destroySourceType: src.type } : {}),
+            ...(src?.instanceId !== undefined ? { sourceInstanceId: src.instanceId } : {}),
+        }
+        const gained = totalAfter - totalBefore
+        if (gained > 0) {
+            let excess = places.reduce((a, p) => a + p.n, 0) - gained
+            for (let i = places.length - 1; i >= 0 && excess > 0; i--) {
+                const cut = Math.min(excess, places[i]!.n)
+                places[i]!.n -= cut
+                excess -= cut
+            }
+            state.lastCoresGained = { gainerPid: pid, places: places.filter((p) => p.n > 0) }
+            for (const w of ["p1", "p2"] as PlayerId[]) fireFieldEventTriggers(state, w, "coresGainedFromVoid", undefined, undefined, undefined, gained, info)
+        }
+        if (lifeUp > 0) for (const w of ["p1", "p2"] as PlayerId[]) fireFieldEventTriggers(state, w, "lifeCorePlaced", undefined, undefined, undefined, lifeUp, info)
     }
 }
 

@@ -85,7 +85,7 @@ const VALID_KINDS = new Set([
     "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
-    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard",
+    "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
@@ -629,6 +629,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["resshinsokuFinishInternal", "【烈神速】の余分の支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["trashSummonPaidInternal", "【不死】・ミノガメンの支払い待ちから再開する内部専用（カードデータには書かない）"],
+    ["exhaustPayDecide", "kind:\"exhaustPreventByPay\" の「払って疲労を防ぐか」の確認に答えたときの解決（exhaustSpirit が内部で出す。BS18-014）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],
@@ -643,7 +644,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
 // atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
 // returnToBurst／peekOpponentBurst：BS17-004／049 のデータを書いたら外す
-const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
+const AWAITING_MIGRATION = new Set<string>(["exhaustAndForceBlock", "voidGainedCores", "discardBurst", "atTurnEnd", "replayOpponentSummonEffect", "revealOpponentBurst", "activateBurstIgnoringCondition"])
 // standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
 const STANDARD_POOL_ONLY = new Set<string>([
     "bpBuffAll", "bpMinus", "designate", "exhaustOwnNexuses", "fireSoryoSelf", "grantKeywordThisTurn", "heavyExhaust",

@@ -20,7 +20,7 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
@@ -357,6 +357,17 @@ export function hasBraveImmuneAgainst(inst: CardInstance, sourceColors: Color[] 
 // 止められたカードは「選ばれなかった」扱いで、各経路が自分の残りの行き先（トラッシュ・オープン領域の残り・デッキの上）へ送る
 export function handGainBlocked(board: Board): boolean {
     return hasGlobalConstraint(board, "noHandGainByEffect")
+}
+// BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
+// 止めるのは「そのカード自身の効果の発揮」だけで、効果を持つこと自体は変わらない
+// （「【不死】を持つ」の参照や、他の効果から受ける効果は止めない）。
+// ブレイヴ・マジック・ネクサスはスピリットカードではないので対象外。召喚コストを払う通常の召喚は止めない
+export function zoneSpiritEffectsDisabled(board: Board, cardId: string): boolean {
+    return card(cardId).type === "spirit" && hasGlobalConstraint(board, "handTrashSpiritEffectsDisabled")
+}
+// 手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
+export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
+    return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)
 }
 export function hasGlobalConstraint(
     board: Board,

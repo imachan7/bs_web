@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
@@ -290,7 +291,8 @@ export function destroySpirit(
     const sourceInstanceId = context?.sourceInstanceId
     // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
     // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める
-    const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
+    // 強制ブロックで同じ陣営どうしが戦ったバトル（context.sourcePid が持ち主自身）は相手による破壊ではない
+    const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || (byBattle && context?.sourcePid !== ownerPid)
     // 破壊後バースト用の控え（commitPendingDestructionが読む。BS16バッチ0）。
     // BPは破壊直前（まだ場にいる・コアも乗ったまま）のこの時点で確定させる
     inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
@@ -406,6 +408,7 @@ function suspendDestroyCommit(
 function returnTrashOnOwnSpiritDestroyed(state: GameState, pid: PlayerId, families: string[]): void {
     const player = state.players[pid]
     for (const cardId of player.trashCards) {
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const e = getCard(cardId).effects.find((x) => x.kind === "trashReturnOnOwnSpiritDestroyed")
         if (!e || e.kind !== "trashReturnOnOwnSpiritDestroyed" || !families.includes(e.familyFilter)) continue
         if (isOnceNameUsed(state, pid, cardId, e.id)) continue
@@ -644,6 +647,7 @@ export function tryFreeSummonOnHandDiscard(
     // 「相手の**スピリット**の効果で」＝発生源がスピリットで、かつ破棄された側とは別のプレイヤー
     if (sourceType !== "spirit" || sourcePid === targetPid) return false
     if (state.pendingChoice || state.winner) return false
+    if (zoneSpiritEffectsDisabled(state, cardId)) return false
     const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnDiscardedByOpponent")
     if (!effect) return false
     const player = state.players[targetPid]
@@ -679,6 +683,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
     for (let i = 0; i < player.hand.length; i++) {
         const cardId = player.hand[i]
         if (cardId === undefined) continue
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnLifeDamaged")
         if (!effect || effect.kind !== "freeSummonFromHandOnLifeDamaged") continue
         if (effect.phaseTurn) {

@@ -12,7 +12,7 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { activeConstraints, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
+import { activeConstraints, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
 import { instanceSymbolCount } from "./symbols"
@@ -563,7 +563,7 @@ export function altSummonFromHandCheck(
     if (cardId === undefined) return "手札にカードがありません"
     const cardData = card(cardId)
     if (cardData.type !== "spirit") return "スピリットカードではありません"
-    const alt = cardData.effects.find((e) => e.kind === "altSummonFromHand")
+    const alt = zoneSpiritEffectsDisabled(board, cardId) ? undefined : cardData.effects.find((e) => e.kind === "altSummonFromHand")
     if (!alt || alt.kind !== "altSummonFromHand") return "このカードはこの召喚方法を使えません"
     // timing:"main"＝自分のメインステップ中の任意のタイミング（バトル中は不可）
     if (board.turnPlayer !== pid || board.phase !== "main" || board.battle) {

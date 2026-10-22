@@ -237,6 +237,7 @@ export type EffectDefTrigger =
           // ownSpiritDestroyed はバトルのBP比較で敗れた場合も含む。ownSpiritExhausted はネクサスの効果を含まない。
           // destroyNexus に渡された DestroyContext で判定し、発生源不明のときは発火しない側に倒す（文脈不明時に限定を緩める方が誤りが大きいため）
           causedByOwnEffect?: true | "spirit" // 疲労イベント限定。"spirit"＝スピリットの効果のみ
+          eventSourceAsTarget?: true // coresGainedFromVoid 限定。アクションの対象を「その効果を発揮した発生源の個体」（eventInfo.sourceInstanceId）にする。場にいなければ対象なしで不発（BS18-001）
           byOpponentSpiritEffectOnly?: true // ownSpiritDestroyed 限定。DestroyContext.sourceType=="spirit" かつ sourcePid が持ち主と異なるとき
           refreshSourceTypeFilter?: CardType[] // anySpiritRefreshed 限定。回復させた効果の発生源種別（配列＝OR）
           keywordActivatedFilter?: Keyword // ownKeywordActivated 限定。「【増幅】を発揮した時」＝zofuku 限定
