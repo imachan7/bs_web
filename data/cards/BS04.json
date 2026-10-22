@@ -339,7 +339,7 @@
      3
     ],
     "action": {
-     "type": "destroy",
+     "type": "destroy", "anySide": true,
      "filter": {
       "rested": true
      },

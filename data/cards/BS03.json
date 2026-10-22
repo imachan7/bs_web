@@ -586,7 +586,7 @@
      2
     ],
     "action": {
-     "type": "destroy",
+     "type": "destroy", "anySide": true,
      "filter": {
       "maxBp": 2000
      },
@@ -6745,7 +6745,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroy",
+     "type": "destroy", "anySide": true,
      "filter": {
       "maxBp": 5000
      },

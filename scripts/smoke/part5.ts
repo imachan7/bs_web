@@ -751,7 +751,7 @@ console.log("=== BS02-013 バット・バット：onBlockedでブロッカーの
     assert(s.players.p2.reserve === reserveBefore + 1, "減ったコアがブロッカー側（相手）のリザーブへ加算される")
 }
 
-console.log("=== BS02-024 暗黒将軍ブラッディ・シーザー：onAttackのdestroyExhausted anySideが両陣営から実効BP最大を破壊 ===")
+console.log("=== BS02-024 暗黒将軍ブラッディ・シーザー：onAttackのdestroyExhausted anySide。自動選択は相手のスピリットを優先する ===")
 {
     const s = createGame(
         "bs02-caesar-test",
@@ -768,8 +768,8 @@ console.log("=== BS02-024 暗黒将軍ブラッディ・シーザー：onAttack�
     s.players.p2.field.spirits.push(oppRested)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: caesar.instanceId }) === null, "シーザーでアタック")
-    assert(!s.players.p1.field.spirits.includes(ownRested), "自陣の疲労スピリット（BP7000）がanySideで破壊される")
-    assert(s.players.p2.field.spirits.includes(oppRested), "相手の疲労スピリット（BP1000、より低い）は破壊されない")
+    assert(s.players.p1.field.spirits.includes(ownRested), "自陣の疲労スピリット（BP7000）はBPが高くても選ばれない")
+    assert(!s.players.p2.field.spirits.includes(oppRested), "相手の疲労スピリットが破壊される（除去の自動選択は相手を優先）")
     assert(s.players.p1.field.spirits.includes(caesar), "シーザー自身（BP6000、7000より低い）は残る")
 }
 

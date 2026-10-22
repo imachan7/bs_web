@@ -96,6 +96,8 @@ scenario({
     },
     steps(t) {
         t.act("opp", { type: "castMagic", handIndex: 0 })
+        // 「ネクサス1つ」は自分・相手どちらからでも選べるので、まず壊すネクサスを選ぶ
+        if (t.state.pendingChoice?.candidates.includes(t.id(getCard(OTHER).name))) t.act("opp", { type: "resolveChoice", instanceId: t.id(getCard(OTHER).name) })
         // 確認待ちの間は、相手（ジャベリンの使用者）はまだドローしていない
         assert(t.state.pendingChoice?.confirm === true, "魔法監視塔の確認が出る")
         assert(t.state.players[t.opp].hand.length === 0, "確認の解決前にドローしない")

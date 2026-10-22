@@ -270,7 +270,7 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
             const handledAny = new Set<string>()
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesBp(s) && !handledAny.has(s.instanceId), srcColors, srcType, "bounce")
+                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesBp(s) && !handledAny.has(s.instanceId), srcColors, srcType, "bounce", true)
                 if (!target) {
                     log(state, `${sourceName}の手札戻し：対象がいなかった。`)
                     break
@@ -625,7 +625,7 @@ function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" 
                     return { pid: owner, inst: t }
                 })()
               : action.anySide
-                ? pickAnySideByBp(state, owner, Infinity, (s) => action.excludeIds?.includes(s.instanceId) !== true, srcColors, srcType, "bounce")
+                ? pickAnySideByBp(state, owner, Infinity, (s) => action.excludeIds?.includes(s.instanceId) !== true, srcColors, srcType, "bounce", true)
                 : (() => {
                       const t = pickEnemyByBp(state, opp, Infinity, (sp) => filterOk(opp, sp), srcColors, srcType, "bounce")
                       return t ? { pid: opp, inst: t } : null

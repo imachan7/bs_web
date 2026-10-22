@@ -5455,7 +5455,7 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "destroyNexus",
+     "type": "destroyNexus", "side": "either",
      "count": 1,
      "drawPerDestroyed": 1
     }
