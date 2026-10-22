@@ -127,6 +127,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         const selectedHandIndex =
             ui.paying?.handIndex ??
             ui.soulCoreOnlySelect?.handIndex ??
+            ui.magicTimingSelect?.handIndex ??
             ui.exReductionSelect?.handIndex ??
             ui.summonLevelSelect?.handIndex ??
             ui.targeting?.handIndex ?? null

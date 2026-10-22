@@ -406,6 +406,8 @@ function resolveChoiceInner(
             index === 0, // 0=コストを支払わずに使用する
             info.exReductionTrashIndices, // 《継召》：確認をはさんでも選択を引き継ぐ
             info.paySoulCoreFromReserve, // リザーブの[ソウルコア]支払いも同じく引き継ぐ
+            undefined,
+            info.timing,
         )
         if (error) return error
         if (state.winner) return null

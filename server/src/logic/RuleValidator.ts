@@ -59,6 +59,7 @@ import { magicConditionFailure } from "../../../shared/magicCondition"
 import { isOnceUsed, isOncePerBattleUsed } from "./oncePerTurn"
 import { effectCostDiscountNexus } from "./actions/pay"
 import { magicTargetMissing } from "./magic/targetRequirement"
+import { magicUseTiming } from "../../../shared/magicTiming"
 
 
 
@@ -725,6 +726,7 @@ export function validateCastMagic(
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を使用コスト支払い1個ぶんとして使う
     // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」（kind:"soulCoreOnlyCast"）で使用する
     useSoulCoreOnly?: boolean,
+    timing?: "main" | "flash",
 ): string | null {
     const player = state.players[pid]
     const cardId = fromTegamoto ? player.tegamoto[handIndex] : player.hand[handIndex]
@@ -836,8 +838,9 @@ export function validateCastMagic(
         return "このマジックは自分のターンでは使用できません"
     }
     // 「この効果は〜ないと使えない」（useCondition）：使う前に見る（2026-09-26 ユーザー確認）。
-    // 使うことになる timing のエントリ（バトル中は flash、メインステップは main があれば main）で判定する
-    const useTiming: "main" | "flash" = state.battle || !card.effects.some((e) => e.kind === "magic" && e.timing === "main") ? "flash" : "main"
+    // 使うことになる timing のエントリで判定する
+    const useTiming = magicUseTiming(card, !!state.battle, timing)
+    if (useTiming === null) return timing === "main" ? "フラッシュタイミングではメイン効果を使用できません" : "このマジックにはその効果がありません"
     for (const e of card.effects) {
         if (e.kind !== "magic" || e.timing !== useTiming || !e.useCondition) continue
         const failure = magicConditionFailure(state, pid, e.useCondition)
@@ -871,22 +874,17 @@ export function validateCastMagic(
     } else {
         const timing = checkMainTiming(state, pid)
         if (timing) return timing
-        // メインステップ経路（バトル外）で使用しようとしているtiming（doCastMagicと同じ判定：
-        // main用エントリがあればmain、なければflash用エントリをメインステップから使うことになる）の
-        // エントリがすべてmainForbiddenなら、効果文「メインステップで使えない」に従い使用を拒否する
-        const hasMain = card.effects.some((e) => e.kind === "magic" && e.timing === "main")
-        const usedTiming: "main" | "flash" = hasMain ? "main" : "flash"
+        // 使うタイミングのエントリがすべて mainForbidden なら、効果文「メインステップで使えない」に従い使用を拒否する
         const usedEntries = card.effects.filter(
             (e): e is Extract<EffectDef, { kind: "magic" }> =>
-                e.kind === "magic" && e.timing === usedTiming,
+                e.kind === "magic" && e.timing === useTiming,
         )
         if (usedEntries.length > 0 && usedEntries.every((e) => e.mainForbidden)) {
             return "このマジックはメインステップでは使用できません"
         }
-        // 軍師ショウジョウジ／鎖縛の武舞台Lv2：フラッシュ効果（timing:"flash"のエントリしか無く、
-        // メインステップからそのまま使用しようとしている場合）の使用を禁止する
+        // 軍師ショウジョウジ／鎖縛の武舞台Lv2：メインステップからフラッシュ効果を使うことを禁止する
         if (
-            usedTiming === "flash" &&
+            useTiming === "flash" &&
             (hasMagicRestriction(state, pid, "noFlashAll") || hasMagicRestriction(state, pid, "noFlashOpponent"))
         ) {
             return "このターン、マジックカードのフラッシュ効果を使用できません"

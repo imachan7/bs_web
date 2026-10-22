@@ -6,6 +6,7 @@ import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPa
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, exTrashReductionCandidateIndices, ownFieldSymbolColors } from "../../../shared/cost"
 import { braveCombineCandidates, canBattleSwapSummon, isSummonableCardType } from "../../../shared/summon"
 import { blockPayCost } from "../../../shared/block"
+import { magicTimingChoosable, magicUseTiming } from "../../../shared/magicTiming"
 import { toggleDiscardPay, startChoicePaying, assignPayCore } from "./payInput"
 import { view, ui, send, rerender, opponentOf } from "../main"
 
@@ -115,6 +116,7 @@ export function sendPlay(
         send({
             type: "castMagic",
             handIndex,
+            ...(ui.magicTiming ? { timing: ui.magicTiming } : {}),
             ...(targetInstanceId ? { targetInstanceId } : {}),
             ...(paySources ? { paySources } : {}),
             ...(exReductionTrashIndices && exReductionTrashIndices.length > 0 ? { exReductionTrashIndices } : {}),
@@ -284,6 +286,7 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     ui.altSummonSelect = null
     ui.exReductionSelect = null
     ui.soulCoreOnlySelect = null
+    ui.magicTimingSelect = null
     ui.soulSwapSelect = null
     ui.combineBrave = null
     ui.paying = { 
@@ -369,6 +372,7 @@ export function onHandBurstEffectClick(handIndex: number): void {
     ui.altSummonSelect = null
     ui.exReductionSelect = null
     ui.soulCoreOnlySelect = null
+    ui.magicTimingSelect = null
     ui.soulSwapSelect = null
     ui.combineBrave = null
     ui.paying = { handIndex, forHandBurst: true, assigned: {}, discardHandIndices: [], millPay: 0, shinsokuAssistInstanceIds: [] }
@@ -477,19 +481,26 @@ export function onHandClick(handIndex: number): void {
     }
 
     if (card.type === "magic" && (myMainFree || (inFlash && card.flash))) {
-        // メイン効果がなければフラッシュ効果を使う（doCastMagic と同じ判定）
-        const hasMain = card.effects.some(
-            (e) => e.kind === "magic" && e.timing === "main",
-        )
-        const timing: "main" | "flash" =
-            inFlash || !hasMain ? "flash" : "main"
-        const side = magicTargetSide(card, timing)
-        if (side) {
-            ui.targeting = { handIndex, side }
+        ui.magicTiming = null
+        // メインステップではメイン効果とフラッシュ効果のどちらを使うかを選ばせる
+        if (!inFlash && magicTimingChoosable(card)) {
+            ui.magicTimingSelect = { handIndex, cardId }
             rerender()
-        } else {
-            tryPlay(handIndex, card, undefined)
+            return
         }
+        startMagic(handIndex, card, magicUseTiming(card, inFlash) ?? "flash")
+    }
+}
+
+// 使うタイミングが決まったマジックを、対象選択か使用へ進める。選ばせたときだけ timing を送信に付ける
+export function startMagic(handIndex: number, card: CardData, timing: "main" | "flash", chosen = false): void {
+    if (chosen) ui.magicTiming = timing
+    const side = magicTargetSide(card, timing)
+    if (side) {
+        ui.targeting = { handIndex, side }
+        rerender()
+    } else {
+        tryPlay(handIndex, card, undefined)
     }
 }
 
