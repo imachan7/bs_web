@@ -28,6 +28,46 @@
 - B の既定の読みはすべてそのまま採用：022・023 アタック中だけ／027 効果による回復のみ止める／029 プレイヤー単位で1回以上／033 0〜2体／035 疲労状態も指定対象・ライフ狙い不可／078 手札6枚以上の間だけ常時／079 回復しなかった対象にアタック不可は付かない／080 BP合計は実際に疲労した分／057 シンボルちょうど2／034・045 同時破壊は1体でも満たせば成立／X04 相打ちでも発揮／026 自身を含む／014 1体ごとに払うか選ぶ／006 破壊された戦竜は対象外／003 現在Lvで有効な召喚時効果／084 オープンは両者に公開／070 コア数はライフを減らす時点／040 バトルの間／047 軽減の付与だけ止める／054 次の相手ターンのメインステップを飛ばす／053 手札のマジックだけ止める
 - 範囲：X012A/D/E/S/T と X021・X022 も含める（ユーザーの回答がなかったので推奨どおり。違えば外す）
 
-## 3. 新しい部品
+## 3. 新しい部品（2026-10-23 確定。調査メモの N＝赤紫／P＝緑白／#＝黄青 を統合）
 
-（未）
+差し込み先は調査メモの該当行を見る（ここには名前と形だけ書く）。
+
+**バッチ1：小さな軸（2体並行）**
+- 1a 対象の絞り（`types/targetFilter.ts`・`logic/filter.ts`）
+  - `TargetFilter.color?: Color | Color[]`（配列＝OR。N12・P3：018・027）
+  - `notInBattle?: true`（P13：080）
+  - `sameLevelAsSource?: true`（発生源のスピリットと同じ Lv。N5：006）
+  - `exhaust.count` に `"any"`（好きなだけ。P12：080）
+- 1b 誘発の条件
+  - `onBlock`・`onBlocked` の condition に `{ targetMinCost: number }`（P8・N8：035・009）
+  - burst の condition に `{ burstDestroyed: { colors?: Color[]; minCost?: number; family?: FamilyFilter } }`（同時破壊のうち1体でも全部を満たせば真。#6・P6：034・045）
+  - `reviveOnDestroy`・`fieldEvent` の condition に `{ ownHandAtLeast }`（N10：015・063）
+  - `ownSpiritBattleEnded` に `familyFilter`（N6：006）
+- 1c 付与・継続の軸
+  - `keywordGrant.uncombinedFilter`（P5：031）
+  - `summonFromHandFree.symbolCount`（P9：057）・`BraveConditionTerm.minSymbols`（P10：057）
+  - `unblockableBy.costIn: number[]`（#3：043・044）・`immunityGrant.nameIncludes`（#4：043）・`reviveOnDestroy(ownAll).nameIncludes`（#5：044）
+  - `symbolFix` の対象の絞り `colorFilter`・`minCores`（#14：072）
+  - `heavyArmor` の `colorsFrom:"opponentFieldSymbols"`（P14：X04）
+  - `noLifeDamageByCost` の `attackerCores`（#13：070）
+  - `canDirectAttack.targetFilter` に `"hasSummonTrigger"`（N4：003）
+  - `coreGainCap` を両陣営・`max:0` で（N13：063）
+  - `reviveOnDestroy.revived` に `"handOrDeckTop"`（持ち主が選ぶ。#20：X05）
+
+**バッチ2：規則（制約）**
+- 2a `noDeckMill`（両陣営・常時。効果・コストの支払い・【粉砕】の破棄を止める。【粉砕】は0枚で成立。公開したカードの破棄は止めない。N1・P2・#8）
+- 2b `noHandGainByEffect`（既存）の経路をトラッシュ回収・オープンして加える、まで広げる（048・BS15-052）
+- 2c `noBurstActivationByEvent { events: FieldEvent[] }`（条件の種類ごとに発動を封じる。P1：022・023）
+- 2d `playerRule mustAttackOnce`（プレイヤーとしてターンに1回以上。P4：029）／`mustAttackTarget`（コスト◯以上の相手のスピリットは発生源を指定してアタックしなければならない。P7：035）
+- 2e 手札のマジックの封じ（`flashLockWhileAttackingFamily` に `minSymbols`・`cardType` の軸。#10：053）
+- 2f タイミング `beforeBlockFlash`（相手のアタックステップのブロック前のフラッシュ。マジックの使用条件と `cantUseHandCardsForPid` の期間に使う。`cantUseHandCardsForPid.minCost` も足す。#17・#21：082・X06）
+- 2g `skipNextMainStep`（次の相手ターンのメインステップを飛ばす。#11：054）／手札コストの置き換えを両陣営に（このターンの間。#12：060）／`noReductionGrantToHand`（#7：047）／`playerRule` の持続条件 `whileOpponentHandAtLeast`（P11：078）
+
+**バッチ3：手順・イベント（重いので1体2つまで）**
+- 3a イベント「ボイドからコアが増えた」：ライフに置かれたときも含む。陣営・発生源種別・個数（`repeatPerCount`）。効果を発揮したスピリットと増えたコアを指す参照も持たせる（N2・N3・#1：001・013・040・063）／イベント「自分か相手のライフにコアが置かれた」（#2：041）
+- 3b イベント「相手のスピリットが召喚されたとき」（N14：064）／リフレッシュステップの回復の同時性（陣営で数える「回復したとき」は1ステップ1回。066）
+- 3c 「手札／トラッシュのスピリットカードの効果は発揮されない」（#9：052。RULES_BATSPI_WIKI §6 の範囲）
+- 3d 疲労の置き換え「疲労する1体ごとにコストを払って疲労しない」（N9：014）／コアの移動元の和集合（自分の他のスピリット・リザーブ・ライフ → このスピリット。N7・N16・N17：008・X01）
+- 3e バーストを条件を無視して発動する（セット中のバースト・オープンしたカードの両方。N11・#19：016・X05）／【バースト転召】（BURST.md §7.4。N15：X01）
+- 3f 相手の『召喚時』効果を、選んだ自分のスピリットが発揮したものとして再発揮（BURST.md §7.4。#15：081）／相手のバーストをオープンして公開し `last` に残す（#18：084）
+- 3g 相手のスピリットを疲労させ、そのスピリットでブロックさせる（§2 の 082。#16）
