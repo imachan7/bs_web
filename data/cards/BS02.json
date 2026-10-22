@@ -5126,7 +5126,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]
@@ -5212,7 +5212,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]
@@ -5272,7 +5272,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]
@@ -5311,7 +5311,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    },
    {
@@ -5365,7 +5365,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    },
    {
@@ -5422,7 +5422,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]
@@ -5511,7 +5511,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]
@@ -5604,7 +5604,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]
@@ -5798,7 +5798,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    },
    {
@@ -5887,7 +5887,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    },
    {
@@ -5983,7 +5983,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    },
    {
@@ -6027,7 +6027,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    },
    {
@@ -6143,7 +6143,7 @@
   "rarity": "U",
   "limited": false,
   "effect": "メイン：\nスピリットの色を1色指定する。\nこのターンの間、指定した色のスピリットすべてを、そのスピリットの持つ最高Lvとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": [{"id": "BS02-111-e1", "kind": "magic", "timing": "flash", "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "side": "own"}}, {"id": "BS02-111-e2", "kind": "magic", "timing": "main", "action": {"type": "declare", "what": "color", "then": {"type": "timedEffect", "content": [{"type": "level", "max": true}], "duration": "turn", "all": true, "side": "both", "filter": {"declared": "match"}}}}]
+  "effects": [{"id": "BS02-111-e1", "kind": "magic", "timing": "flash", "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "side": "both"}}, {"id": "BS02-111-e2", "kind": "magic", "timing": "main", "action": {"type": "declare", "what": "color", "then": {"type": "timedEffect", "content": [{"type": "level", "max": true}], "duration": "turn", "all": true, "side": "both", "filter": {"declared": "match"}}}}]
  },
  {
   "cardId": "BS02-X05",

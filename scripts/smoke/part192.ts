@@ -99,7 +99,7 @@ function battleWithIsfil(seed: string): {
 } {
     const s = base(seed)
     const isfil = put(s, "p1", ISFIL.cardId, ISFIL_CORES)
-    put(s, "p2", FILLER!.cardId, 1)
+    // 相手のスピリットは置かない（BP+ は相手のスピリットも選べるので、置くと対象の選択が先に立つ）
     s.players.p1.hand.push(BUFF_MAGIC!.cardId)
     const handIndex = s.players.p1.hand.length - 1
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
