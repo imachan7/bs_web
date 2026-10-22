@@ -982,7 +982,7 @@ scenario({
 //   節2 その後コストを支払うことで、フラッシュ効果を発揮
 //   節3 フラッシュ：同名2体以上の相手のスピリット1体を指定→同名のスピリットすべてを破壊
 // ============================================================
-console.log("=== 074-a: フラッシュ。同名2体以上の相手のスピリットを指定→同名すべて破壊（単体は指定できない） ===")
+console.log("=== 074-a: フラッシュ。同名2体以上の相手のスピリットを指定→同名すべて破壊（単体・自分のスピリットを先に選んでも、その選択は捨ててロクを指定する。08-21 の先取り対象の扱い） ===")
 scenario({
     name: "074-a",
     start: {
@@ -1014,9 +1014,19 @@ scenario({
         opp: { spirits: [{ card: RED, label: "ロクA" }, { card: RED, label: "ロクB" }, { card: GORA, label: "ゴラ" }] },
     },
     steps(t) {
-        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ゴラ") })
+        t.act("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("ゴラ") })
+        t.closeFlash()
     },
-    expect: [],
+    expect: [
+        "自分.手札: 殲剣火炎陣 → なし",
+        "自分.トラッシュ: なし → 殲剣火炎陣",
+        "自分.リザーブ: 10 → 5",
+        "自分.トラッシュのコア: 0 → 5",
+        "相手.ロクA.場所: フィールド → なし",
+        "相手.ロクB.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ロクケラトプス、ロクケラトプス",
+        "相手.リザーブ: 10 → 12",
+    ],
 })
 scenario({
     name: "074-a3",
@@ -1027,9 +1037,19 @@ scenario({
         opp: { spirits: [{ card: RED, label: "ロクA" }, { card: RED, label: "ロクB" }, { card: GORA, label: "ゴラ" }] },
     },
     steps(t) {
-        t.actRejected("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("自軍") })
+        t.act("me", { type: "castMagic", handIndex: 0, targetInstanceId: t.id("自軍") })
+        t.closeFlash()
     },
-    expect: [],
+    expect: [
+        "自分.手札: 殲剣火炎陣 → なし",
+        "自分.トラッシュ: なし → 殲剣火炎陣",
+        "自分.リザーブ: 10 → 5",
+        "自分.トラッシュのコア: 0 → 5",
+        "相手.ロクA.場所: フィールド → なし",
+        "相手.ロクB.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ロクケラトプス、ロクケラトプス",
+        "相手.リザーブ: 10 → 12",
+    ],
 })
 console.log("=== 074-b: 起きない：同名が2体以上いなければ使えない ===")
 scenario({

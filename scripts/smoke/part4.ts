@@ -820,7 +820,8 @@ console.log("=== 装甲：色（BS02-040 ロブスターク） ===")
     s.players.p2.field.spirits.push(rob)
     s.players.p1.hand[0] = "BS01-121" // フレイムダンス（赤・destroy maxBp4000）
     s.players.p1.reserve = 10
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "フレイムダンスを使用")
+    // 対象にできるスピリットがいないマジックは使用できない（2026-10-22 ユーザー確認）
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "装甲：赤持ちしかいないのでフレイムダンスは使用できない")
     assert(s.players.p2.field.spirits.length === 1, "装甲：赤持ちは赤の破壊効果の対象にならず生存")
 
     // --- 赤マジックの範囲破壊：装甲：赤持ちだけ生き残り、無装甲は破壊される ---

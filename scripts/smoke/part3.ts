@@ -651,9 +651,10 @@ console.log("=== バスタースピア（BS01-114、ネクサス破壊＋破壊�
     s.players.p1.hand[0] = "BS01-114"
     const handBefore2 = s.players.p1.hand.length
     const deckBefore2 = s.players.p1.deck.length
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "対象なしでも使用はできる")
-    assert(s.players.p1.deck.length === deckBefore2, "破壊できなかったのでドローなし")
-    assert(s.players.p1.hand.length === handBefore2 - 1, "手札は使用分の-1のみ")
+    // 対象を取る効果しかないマジックは、対象がいなければ使用できない（2026-10-22 ユーザー確認）
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "対象がいないので使用できない")
+    assert(s.players.p1.deck.length === deckBefore2, "ドローなし")
+    assert(s.players.p1.hand.length === handBefore2, "手札は減らない")
 }
 
 console.log("=== ステップ誘発の条件：主無き古城 e2（BS01-102 Lv2、手札が相手以下ならスタートステップに1ドロー） ===")

@@ -233,7 +233,7 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
-- **マジックの対象なし使用不可**（10-22 確定、RULES_BATSPI_WIKI §6）の実装：`magic/targetRequirement.ts` の `magicTargetMissing(state,pid,card,timing)` を validateCastMagic が呼ぶ。対象を取る文だけ（destroy・returnToHand・returnToDeckTop/Bottom・destroyNexus・coreRemove・bpBuff・heavyExhaust・timedEffect の1体指定・declare の from）で候補0なら拒否。sequence は子が全部「対象なし」のときだけ。クライアントの先取り対象は従来どおり捨てる（08-21）が、陣営違いも捨てる。ボタンの出し分けは未対応
+- **BS01〜BS10・SD01 の「スピリット1体をBP+」フラッシュ約115枚が、データでは自分側だけ**（`timedEffect` side:"own"。効果文は陣営なしで、BS13 以降は anySide）。対象なし使用不可（RULES_BATSPI_WIKI §6）が入ったので、自分のスピリットがいないと使えない。別PRで side:"both" に直す案をユーザーに出す。あわせて、対象がいないマジックのボタンはクライアントでは消えない（押すとサーバーが理由つきで拒否する）
 
 
 

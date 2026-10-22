@@ -161,8 +161,11 @@ export function consumeOncePerBattleMagicFree(state: GameState, pid: PlayerId, c
 // 捨てたときは「対象未指定」として解決へ進むので、サーバー側が正しい候補を出して選ばせる。
 // なお anySide（自分か相手のどちらでも選べる）は、片側しか選べないのがクライアント側の制限で、
 // サーバーには届かないため、ここでは救済できない（UI側の修正が要る）
+const OPPONENT_DEFAULT_TYPES = new Set<EffectAction["type"]>(["destroy", "exhaust", "returnToHand", "returnToDeckTop", "coreRemove", "heavyExhaust", "timedEffect"])
+
 export function usableMagicTarget(
     state: GameState,
+    pid: PlayerId,
     cardId: string,
     timing: "main" | "flash",
     targetInstanceId: string | undefined,
@@ -179,11 +182,17 @@ export function usableMagicTarget(
     if (typeof action.count === "number" && action.count > 1 && COUNT_IS_BODIES.has(action.type)) {
         return undefined
     }
-    if (action.filter === undefined) return targetInstanceId
     const found = findInstanceAnywhere(state, targetInstanceId)
     if (!found) return targetInstanceId // 見つからない対象は validateCastMagic 側の判定に任せる
     const p1 = state.players.p1.field
     const ownerPid = [...p1.spirits, ...p1.nexuses, ...p1.combinedBraves].includes(found) ? "p1" : "p2"
+    // 陣営違い（相手限定の効果に自分のスピリット）も捨てる。渡したままだと解決時に「対象にできない」で不発になる
+    const sided = action as { side?: string; anySide?: true }
+    const side = sided.anySide || sided.side === "both" ? undefined
+        : action.type === "bpBuff" || sided.side === "own" ? pid
+        : OPPONENT_DEFAULT_TYPES.has(action.type) ? opponentOf(pid) : undefined
+    if (side !== undefined && ownerPid !== side) return undefined
+    if (action.filter === undefined) return targetInstanceId
     // filter は self 相対の軸（"selfBp" 等）を持たない前提（マジックには発生源スピリットがいない）。
     // 判定できない軸が来た場合も matchesTarget が false を返すので、捨てる側に倒れる
     return matchesTarget(state, ownerPid, found, action.filter as never) ? targetInstanceId : undefined
@@ -331,7 +340,7 @@ export function doCastMagic(
     const beforeLastMagicCast = state.lastMagicCast
     if (state.battle) {
         // クライアントが先に選んだ対象は、効果の条件に合うものだけ採用する（usableMagicTarget）
-        const target = usableMagicTarget(state, cardId, "flash", targetInstanceId)
+        const target = usableMagicTarget(state, pid, cardId, "flash", targetInstanceId)
         resolveMagic(state, pid, cardId, "flash", target)
         if (state.lastMagicCast === beforeLastMagicCast) {
             state.lastMagicCast = {
@@ -348,7 +357,7 @@ export function doCastMagic(
             (e) => e.kind === "magic" && e.timing === "main",
         )
         const timing = hasMain ? "main" : "flash"
-        const target = usableMagicTarget(state, cardId, timing, targetInstanceId)
+        const target = usableMagicTarget(state, pid, cardId, timing, targetInstanceId)
         resolveMagic(state, pid, cardId, timing, target)
         if (state.lastMagicCast === beforeLastMagicCast) {
             state.lastMagicCast = {

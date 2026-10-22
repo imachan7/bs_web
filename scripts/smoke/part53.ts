@@ -110,9 +110,10 @@ console.log("=== BS04-112 マッシブアップ: Lv3を持つ青のスピリッ�
     s.players.p2.field.spirits.push(red)
     s.players.p1.hand = ["BS04-112"]
     s.players.p1.reserve = 20
+    // 自分の青のスピリットがいないので使えない（対象がいないマジックは使用不可。2026-10-22 ユーザー確認）
     assert(
-        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: red.instanceId }) === null,
-        "赤のスピリットを対象にマッシブアップを使用",
+        act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: red.instanceId }) !== null,
+        "赤のスピリットしかいなければマッシブアップは使用できない",
     )
     assert(currentLevel(red).level === 1, "青でない対象には効果がない")
 }

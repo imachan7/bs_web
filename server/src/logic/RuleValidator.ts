@@ -58,6 +58,7 @@ import { COLOR_LABELS } from "../../../data/constants"
 import { magicConditionFailure } from "../../../shared/magicCondition"
 import { isOnceUsed, isOncePerBattleUsed } from "./oncePerTurn"
 import { effectCostDiscountNexus } from "./actions/pay"
+import { magicTargetMissing } from "./magic/targetRequirement"
 
 
 
@@ -891,6 +892,8 @@ export function validateCastMagic(
             return "このターン、マジックカードのフラッシュ効果を使用できません"
         }
     }
+
+    if (magicTargetMissing(state, pid, card, useTiming)) return "効果の対象がいないため、このマジックは使用できません"
 
     // 《継召》のEXシンボル除外軽減（validateSummon と同じ検証）：候補はトラッシュのEXシンボル持ちカードに限り、
     // 候補外・重複はエラー。除外カードのシンボル列を effectiveCost に渡し、軽減シンボルと同じ色だけが軽減に使われる

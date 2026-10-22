@@ -146,9 +146,10 @@ console.log("=== 拡張2: BS04-091 フラッシュ（minSymbols未達のみの�
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック開始（バトル中にする）")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（攻撃側に優先権）")
+    // 対象を取る効果しかないマジックは、対象がいなければ使用できない（2026-10-22 ユーザー確認）
     assert(
-        act(s, "p1", { type: "castMagic", handIndex: 0 }) === null,
-        "フラッシュでライトニングバリスタを使用（対象になれるスピリットがいない）",
+        act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null,
+        "対象になれるスピリットがいないのでライトニングバリスタは使用できない",
     )
     assert(oneSymbolAlly.tempBpBuff === 0, "シンボル2つ以上のスピリットがいないため誰もBP+5000されない")
     assert(attacker.tempBpBuff === 0, "アタッカー自身もシンボル1つのため対象にならない")

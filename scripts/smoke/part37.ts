@@ -78,6 +78,7 @@ console.log("=== 大天使ミカファールLv2がいれば、手元のマジッ
     const mika = createInstance("BS02-X08", s.turn, 2) // 大天使ミカファール Lv2（維持コア2個）
     s.players.p1.field.spirits.push(mika)
     s.players.p1.tegamoto = ["BS01-114"] // バスタースピア
+    s.players.p2.field.nexuses.push(createInstance("BS01-102", s.turn, 0)) // 破壊する対象（対象がいないと使えない）
     const trashBefore = s.players.p1.trashCards.length
     const reserveBefore = s.players.p1.reserve
     assert(
