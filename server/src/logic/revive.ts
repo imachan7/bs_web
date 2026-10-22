@@ -760,10 +760,10 @@ function tryReviveOnDestroy(
             }
             return true
         }
-        // 器AR：BS13-040金星神龍ヴィーナ・フェーザー「自分のデッキを上から3枚破棄することで」。
-        // millSelfOneMatchingと違い一致判定は無く、あるだけ破棄すれば成立する（デッキが空でも0枚破棄で成立）
         if (effect.cost?.millSelfCount !== undefined) {
-            const n = Math.min(effect.cost.millSelfCount, player.deck.length)
+            // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
+            const n = effect.cost.millSelfCount
+            if (player.deck.length < n) return false
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!
                 player.trashCards.push(cardId)
@@ -845,6 +845,8 @@ function tryReviveOnDestroy(
     ): string | null => {
         const cost = effect.cost
         if (!cost) return null
+        if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
+        if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
         if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null
         if (cost.oneCoreToTrash) return inst.cores <= 0 ? "コアが足りない" : null

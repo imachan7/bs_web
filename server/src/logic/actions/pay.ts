@@ -611,7 +611,8 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             fizzle(unpaidLine(pre.reason))
             return
         }
-        const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action.tax ? { ...action, confirmed: true as const } : action
+        // 税は外側の markPays では確認済みにならないので、ここで自分に印を付ける（対象つきのマジックでも同じ）
+        const resume = { ...action, ...(eventTargetId !== undefined ? { eventTargetId } : {}), ...(action.tax ? { confirmed: true as const } : {}) }
         const prompt = action.tax
             ? `${action.tax.source}：${action.tax.phrase}なければ、${action.tax.target}の効果を発揮できません。${action.tax.verb}ますか？`
             : `${sourceName}：コストを支払って効果を発揮しますか？`

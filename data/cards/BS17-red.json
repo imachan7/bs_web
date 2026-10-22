@@ -410,6 +410,7 @@
               "from": "revealed",
               "count": 1,
               "dest": "activateBurst",
+              "optional": true,
               "pick": {
                 "burstEvent": "opponentSummonEffectResolved"
               }
@@ -747,7 +748,8 @@
         },
         "constraint": {
           "type": "canDirectAttack",
-          "targetFilter": "any"
+          "targetFilter": "any",
+          "firstAttackOfTurnOnly": true
         }
       },
       {

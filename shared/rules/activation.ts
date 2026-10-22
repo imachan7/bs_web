@@ -450,6 +450,8 @@ export function directAttackFilter(
 ): DirectAttackFilter | null {
     const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
     if (!constraint || constraint.type !== "canDirectAttack") return null
+    // 宣言前の判定なので、ターン最初のアタックはまだ 1 回も宣言されていない（attacksThisTurn は doAttack で加算）
+    if (constraint.firstAttackOfTurnOnly && board.attacksThisTurn > 0) return null
     const filter: DirectAttackFilter = { targetFilter: constraint.targetFilter }
     if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
     if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost

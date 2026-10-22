@@ -68,7 +68,7 @@ kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデ
 **データの段（10-17 開始）**：①期待値役6体が並行で part617（赤）・618（紫）・619（緑）・620（白）・621（黄）・622（青）を効果文だけから書く（変更禁止）→ ②実装役が色ごとに `data/cards/BS17-<色>.json` を書いて①を通す → ③①を再開して見直し → `npx tsx scripts/merge-set.ts BS17`。077・033 は既存の器（BS17_SURVEY_remaining #7・#22）
 **データの段・2周目**：エンジンの直し A・B は済んだ（101988e）。082 は EffectAction でなく timedEffect の content `{type:"swapBattleBp"}`（compareBy と同じ器）に、005 は IfCond `{ownBurstSet:false}`＋`setBurstFromHand ask:true` にした。
 次の一手（10-22 着手）：テストの前提の直し（interactive・自動選択・選択の答え方・場面の作り方。期待値は変えない）→ 残る ❌ をデータの直し（Haiku。書き換え内容をメインループが決めて渡す）とエンジンの直しに分ける → 見直し → `merge-set.ts BS17`。
-エンジンの直し C（10-22 確定）：ConstraintDef `canDirectAttack` に `firstAttackOfTurnOnly?: true`（宣言時に `attacksThisTurn === 0` のときだけ。061）／006 の `moveCards dest:"activateBurst"` は「発動しない」を選べる／reviveOnDestroy は cost を払えなければ確認を出さない（069 の exhaustSelf・052 の millSelfCount。COST_MODEL §10）／060 の税の確認が答えても解決しない／X06 の召喚時の `summonFromHandFree` を断れない（p2 だけ）
+エンジンの直し C は済んだ。既知の限界：税（effectTax）が掛かるマジックで同じタイミングの効果が2つ以上あると、クライアントが選んだ対象が sequence で落ち、サーバーが選び直させる（選択が1回余分に出るだけで結果は同じ。該当20枚）
 件数照合の part363/364/371/373 は BS17 のデータで増えた分が未反映（db34cc5 から落ちている）。結合前に中身を確かめて表と件数を直す。
 「相手による自分のスピリット破壊後」のバーストの `byOpponentEffectOnly` はバトル破壊も含む（removal.ts の `|| byBattle`。fieldEvent 側とは別）。
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。

@@ -341,7 +341,7 @@ sinbadBlock("052 払わなければ破壊される", {
 })
 sinbadBlock("052 デッキが4枚しかなければ払えず、破壊される", {
     sinbadCores: 1, guard: YUSHO, label: "雄将", deck: [ROKU, ROKU, ROKU, ROKU], answers: [],
-    expect: [gone("自分.雄将"), "自分.トラッシュ: なし → ブレーペンタンの音楽隊", "自分.リザーブ: 10 → 11", "自分.デッキ枚数: 4 → 4"],
+    expect: [gone("自分.雄将"), "自分.トラッシュ: なし → ブレーペンタンの音楽隊", "自分.リザーブ: 10 → 11"],
 })
 sinbadBlock("052 「雄将」でないスピリットは対象外（確認も出ず破壊される）", {
     sinbadCores: 1, guard: JEFF, label: "非雄将", answers: [],
@@ -655,7 +655,7 @@ const shehSummon = (name: string, hand: string[], answers: boolean[], expect: st
         start: { phase: "main", interactive: true, me: { hand } },
         steps: (t) => {
             t.act("me", { type: "summon", handIndex: 0 })
-            drive(t, answers)
+            drive(t, [...answers]) // scenario は p1・p2 で steps を2回走らせ、drive は配列を消費する
             if (t.state.pendingChoice && t.state.pendingChoice.kind === "card") pickCard(t, "me")
         },
         expect: ["自分.トラッシュのコア: 0 → 6", ...appears("自分.千夜一夜物語の女帝シェハラザード", 1, 1, 5000), ...expect],

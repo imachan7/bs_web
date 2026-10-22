@@ -195,7 +195,8 @@ export function runMagicActions(
         }
     }
     if (collected.length > 0) {
-        resolveAction(state, owner, null, withEffectTax(state, owner, "magic", cardId, { type: "sequence", actions: collected }), targetInstanceId, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, card.cardId)
+        // 1つなら sequence で包まない：sequence は子へ対象（targetInstanceId）を渡さないので、対象つきマジックの対象が税の後で失われる
+        resolveAction(state, owner, null, withEffectTax(state, owner, "magic", cardId, collected.length === 1 ? collected[0]! : { type: "sequence", actions: collected }), targetInstanceId, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, card.cardId)
         if (state.pendingChoice) {
             delete state.magicRedirectTo
             return
