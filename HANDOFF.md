@@ -70,7 +70,7 @@ kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデ
 A（バースト・支払い・バトル）＝`finishBurstActivation` が sequence/if の中で召喚したカードもトラッシュへ積む／016 の `pay` の then に `summonBurstCardFree` を通す／【魔光芒】の再発揮を断れるように／082 は action `{ type: "swapBattleBp" }`（このバトルの間、BP比較で自分と相手のバトル中のスピリットの BP を入れ替える。state.battle に印）。
 B（継続効果・判定）＝期間つき immune・skipRefresh の `all:true`（timedRule）が効かない／067 の keywordGrant の combinedFilter・turn／条件なし `unblockableBy {}`／`symbolWhenSummoning` の noteCoverage／BraveCondition に `maxCost`（057）／EffectCounter `plus` の2つ目に EffectCounter も許す（075＝相手の総コア＋ライフ）／AuraCondition `ownHasKeyword` に配列（041。step の condition で使う）。
 その後、①がテストの手順の前提（パスの順番・軽減・合体時のコア移動・候補1つなら自動選択）を直し、②がデータを直す。
-「相手による自分のスピリット破壊後」のバーストの `byOpponentEffectOnly` はバトル破壊も含む（removal.ts の `|| byBattle`。fieldEvent 側とは別）。X05 の「ライフ3以下のとき」の未成立時はユーザー確認中
+「相手による自分のスピリット破壊後」のバーストの `byOpponentEffectOnly` はバトル破壊も含む（removal.ts の `|| byBattle`。fieldEvent 側とは別）。X05 の条件未成立時は BURST.md §5.5（発動はでき、召喚せずトラッシュ）
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
