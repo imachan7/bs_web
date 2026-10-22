@@ -367,6 +367,19 @@ input[type="text"] {
     border-radius: 50%;
 }
 
+/* ＋ボタンの左隣。＋ボタンが無い禁止カードでも位置は同じ */
+.remove-btn {
+    position: absolute;
+    bottom: 4px;
+    right: 36px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    line-height: 1;
+    font-size: 16px;
+    border-radius: 50%;
+}
+
 .sym-icon {
     position: relative;
     width: 14px;
@@ -547,6 +560,12 @@ input[type="text"] {
 /* モバイル（ホバー不可端末）ではさらにタップ領域を拡大 */
 @media (hover: none) {
     .add-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+    .remove-btn {
+        right: 52px;
         width: 44px;
         height: 44px;
         font-size: 18px;
