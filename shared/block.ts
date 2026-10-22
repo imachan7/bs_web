@@ -263,6 +263,9 @@ export function matchesDirectedAttackFilter(
         })
         if (resisted) return "このスピリットは効果を受けないため指定できません"
     }
+    if (filter.onlyInstanceIds && !filter.onlyInstanceIds.includes(target.instanceId)) {
+        return "相手の効果により、指定されたスピリットしか指定できません"
+    }
     // BS12-008 グランド・ドラグキャッスル：相手のフィールドで最もBPの高いスピリットしか指定できない
     if (filter.targetHighestBp) {
         const maxBp = Math.max(

@@ -123,6 +123,10 @@ export function millDeck(
         log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
         return 0
     }
+    if (hasGlobalConstraint(state, "noDeckMill")) {
+        log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
+        return 0
+    }
     // 「お互い、メインステップでデッキは破棄されない」（BS14-085賛美するパイプオルガン）。陣営を問わず止める
     if (state.phase === "main" && hasGlobalConstraint(state, "noDeckMillInMain")) {
         log(state, `${state.players[pid].name}のデッキは、メインステップのため破棄されなかった。`)

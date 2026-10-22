@@ -21,7 +21,7 @@ import {
     validateSummon,
     validateTakeLife,
 } from "../logic/RuleValidator"
-import { activatableAbility } from "../../../shared/rules"
+import { activatableAbility, mustBeAttackTargetIds } from "../../../shared/rules"
 
 // 1手の候補。reason は対戦ログとテストのために持つ（AIがなぜその手を選んだかを後から追えるように）
 export interface AiMove {
@@ -167,11 +167,21 @@ function mainStepMoves(state: GameState, pid: PlayerId): AiMove[] {
 function attackStepMoves(state: GameState, pid: PlayerId): AiMove[] {
     const moves: AiMove[] = []
     for (const inst of state.players[pid].field.spirits) {
-        if (validateAttack(state, pid, inst.instanceId) !== null) continue
-        moves.push({
-            action: { type: "attack", instanceId: inst.instanceId },
-            reason: `${getCard(inst.cardId).name}でアタック`,
-        })
+        if (validateAttack(state, pid, inst.instanceId) === null) {
+            moves.push({
+                action: { type: "attack", instanceId: inst.instanceId },
+                reason: `${getCard(inst.cardId).name}でアタック`,
+            })
+            continue
+        }
+        // 指定アタックを強いられている個体（mustBeAttackTarget）は、指定先ごとに手を出す
+        for (const targetId of mustBeAttackTargetIds(state, pid, inst)) {
+            if (validateAttack(state, pid, inst.instanceId, targetId) !== null) continue
+            moves.push({
+                action: { type: "attack", instanceId: inst.instanceId, targetSpiritInstanceId: targetId },
+                reason: `${getCard(inst.cardId).name}で指定アタック`,
+            })
+        }
     }
     if (validateEndTurn(state, pid) === null) {
         moves.push({ action: { type: "endTurn" }, reason: "ターンを終了する" })

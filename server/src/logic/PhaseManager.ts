@@ -3,7 +3,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import type { GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
+import { handGainBlocked, cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
@@ -151,6 +151,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
             state.phase = "refresh"
             // 「次のリフレッシュステップで」の記録（寿命 nextRefresh）は、このステップで読んで使い切る
             const nextRefresh = consumeNextRefreshRecords(state, pid)
+            if (nextRefresh.some((r) => r.content.some((c) => c.type === "playerRule" && c.rule.type === "skipMainStep"))) state.skipMainStepNow = true
             if (player.trashCores > 0) {
                 const caps = nextRefresh.flatMap((r) => r.content.flatMap((c) => (c.type === "trashCoreReturnCap" ? [c.max] : [])))
                 const cap = caps.length > 0 ? Math.min(...caps) : undefined
@@ -200,6 +201,12 @@ function turnStartSegments(state: GameState): (() => void)[] {
         },
         // メインステップ
         () => {
+            if (state.skipMainStepNow) {
+                delete state.skipMainStepNow
+                log(state, `${player.name}はメインステップを行えない。`)
+                toAttackPhase(state)
+                return
+            }
             state.phase = "main"
             state.priorityPlayer = pid
             state.isFlashTiming = false
@@ -425,6 +432,7 @@ export function endTurn(state: GameState): void {
             if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
+            if (handGainBlocked(state)) continue
             noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)

@@ -39,6 +39,8 @@ import {
     lifeDamagePerSpiritRemaining,
     ownFieldOnlyColor,
     timedPlayerRules,
+    hasGlobalConstraint,
+    handGainBlocked,
 } from "../../../shared/rules"
 
 import {
@@ -690,6 +692,7 @@ function tryReviveOnDestroy(
             // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
             // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
             const { color, cardType, thenHandIfNameIncludes } = effect.cost.millSelfOneMatching
+            if (hasGlobalConstraint(state, "noDeckMill")) return false
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
@@ -702,7 +705,7 @@ function tryReviveOnDestroy(
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
             // BS15共通器：thenHandIfNameIncludes（BS15-043ショーグンペンタン）。成立の可否と独立に、
             // カード名が一致すればトラッシュから手札へ移す（CONJUNCTION.md「さらに」）
-            if (thenHandIfNameIncludes !== undefined && milled.name.includes(thenHandIfNameIncludes)) {
+            if (thenHandIfNameIncludes !== undefined && !handGainBlocked(state) && milled.name.includes(thenHandIfNameIncludes)) {
                 const idx = player.trashCards.lastIndexOf(cardId)
                 if (idx !== -1) {
                     player.trashCards.splice(idx, 1)
@@ -766,7 +769,7 @@ function tryReviveOnDestroy(
         if (effect.cost?.millSelfCount !== undefined) {
             // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
             const n = effect.cost.millSelfCount
-            if (player.deck.length < n) return false
+            if (player.deck.length < n || hasGlobalConstraint(state, "noDeckMill")) return false
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!
                 player.trashCards.push(cardId)
@@ -849,6 +852,7 @@ function tryReviveOnDestroy(
         const cost = effect.cost
         if (!cost) return null
         if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
+        if ((cost.millSelfCount !== undefined || cost.millSelfOneMatching) && hasGlobalConstraint(state, "noDeckMill")) return "デッキを破棄できない"
         if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
         if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null
@@ -924,7 +928,10 @@ function tryReviveOnDestroy(
             player.reserve += inst.cores
             // handOrDeckTop の対話モードは行き先が決まるまでどのゾーンにも入れない（手札を経由すると手札が増えた誘発が起きる）。
             // 破壊処理の途中では中断できないので、確認は handleAction の末尾で出す
-            if ("handOrDeckTop" in revived && state.interactiveTargets) {
+            if ("handOrDeckTop" in revived && handGainBlocked(state)) {
+                player.deck.unshift(inst.cardId)
+                log(state, `${player.name}の${getCard(inst.cardId).name}は、手札が増やせないためデッキの上に置かれた。`)
+            } else if ("handOrDeckTop" in revived && state.interactiveTargets) {
                 ;(state.pendingReviveDestinations ??= []).push({ pid: ownerPid, cardId: inst.cardId })
             } else {
                 player.hand.push(inst.cardId)
@@ -972,6 +979,7 @@ function tryReviveOnDestroy(
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (forced && effect.id !== forced.effectId) return false
         if (!effectActiveAtLevel(effect.levels, level)) return false
+        if ("toHand" in effect.revived && handGainBlocked(state)) return false // 手札へ戻れないなら復活しない＝通常どおり破壊される
         if (effect.vanillaFilter && !instIsVanilla(inst)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesReviveCondition(effect.condition)) return false

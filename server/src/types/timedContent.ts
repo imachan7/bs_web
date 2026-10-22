@@ -18,7 +18,7 @@ export type TimedContent =
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
-    | { type: "playerRule"; rule: PlayerRuleDef } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side
+    | { type: "playerRule"; rule: PlayerRuleDef; activeWhile?: { handAtLeast: number } } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side。activeWhile＝制限を受ける側の手札がその枚数以上の間だけ効く（毎回判定）
     | { type: "unblockable"; from?: ResolvedTargetFilter; fromMaxBpSelf?: true } // 相手のスピリットにブロックされない。from に合う相手からだけ（省くとどの相手からも）。条件つきでも「ブロックされない効果を持つ」に数える（2026-09-25 ユーザー決定）。fromMaxBpSelf＝置く時点の self の実効BP以下の相手からだけ（値は置く時点で固定。26RBS02-X11「そのBP以下の相手のスピリットから」）
     | { type: "battleLock"; lock: "flash" | "burst" | "magic" } // マジック追加＝使用不可（バースト発動は含まない。Q22399）
     | { type: "compareBy"; by: "level" | "cores" | "cost" } // このバトルの解決で BP の代わりに比べるもの（期間は battle のみ。複数重なったら level→cores→cost の順で優先）

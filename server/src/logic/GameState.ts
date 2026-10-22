@@ -1,4 +1,5 @@
 // GameState / PlayerState の状態生成・更新の土台
+import { validateEndTurn } from "./RuleValidator"
 import { noteInstance } from "../../../shared/coverage"
 import type {
     CardData,
@@ -35,7 +36,7 @@ import { applyDeckPolicy } from "./deckPolicy"
 import { isOnceNameUsed, markOnceNameUsed } from "./oncePerTurn"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
-import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
+import { countSymbols, currentLevel, hasGlobalConstraint, handGainBlocked } from "../../../shared/rules"
 export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
@@ -337,6 +338,7 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
 // トラッシュのカードを「手札に戻せる」（任意）。持ち主に確認する（非対話なら戻す）。
 // すでに別の選択待ちが立っているときは、その後に確認が来るよう再開スタックへ積む
 export function requestTrashReturn(state: GameState, pid: PlayerId, cardId: string, onceEffectId?: string): void {
+    if (handGainBlocked(state)) return // 発揮されないので確認も出さない
     const base = { type: "trashReturnToHandInternal", cardId, ...(onceEffectId !== undefined ? { onceEffectId } : {}) } as const
     if (!state.interactiveTargets) {
         returnTrashCardToHand(state, pid, cardId, onceEffectId)
@@ -364,6 +366,10 @@ export function returnTrashCardToHand(state: GameState, pid: PlayerId, cardId: s
     const player = state.players[pid]
     const index = player.trashCards.indexOf(cardId)
     if (index === -1) return
+    if (handGainBlocked(state)) {
+        log(state, `${getCard(cardId).name}は、効果によって手札が増やせないためトラッシュに残った。`)
+        return
+    }
     if (onceEffectId !== undefined) {
         if (isOnceNameUsed(state, pid, cardId, onceEffectId)) return
         markOnceNameUsed(state, pid, cardId, onceEffectId)
@@ -495,7 +501,7 @@ export function clearBattle(state: GameState): void {
     state.battle = null
     delete state.battleAttackerRef
     state.timedEffects = state.timedEffects.filter(
-        (r) => r.until !== "battle" && !(r.until === "attack" && r.target.kind === "instance" && r.target.instanceId === attackerId),
+        (r) => r.until !== "battle" && r.until !== "beforeBlock" && !(r.until === "attack" && r.target.kind === "instance" && r.target.instanceId === attackerId),
     )
     revertAttackStepNexusAsSpirit(state, true)
     refreshLevelAsOverrides(state)
@@ -775,6 +781,7 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         timedEffects: [...state.timedEffects],
         ...(state.extraMainStep ? { extraMainStep: true as const } : {}),
         ...(state.secondMainStep ? { secondMainStep: true as const } : {}),
+        ...(state.turnPlayer === viewer && !state.winner && validateEndTurn(state, viewer) !== null ? { endTurnBlocked: true as const } : {}),
         endStepLocks: state.endStepLocks.map((l) => ({ ...l, locks: [...l.locks] })),
         attacksThisTurn: state.attacksThisTurn,
         magicUsedThisTurn: { ...state.magicUsedThisTurn },

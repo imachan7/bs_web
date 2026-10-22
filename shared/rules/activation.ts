@@ -12,9 +12,10 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { activeConstraints, timedFlashLocked, timedKeywords } from "./constraints"
+import { activeConstraints, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
+import { instanceSymbolCount } from "./symbols"
 import { boardResistanceAgainst, type EffectAttempt } from "./resistance"
 import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches, matchesBraveCondition } from "./level"
 
@@ -442,6 +443,7 @@ function activatableAbilityOf(
 export interface DirectAttackFilter {
     targetFilter: "rested" | "singleCore" | "recovered" | "hasSummonTrigger" | "any"
     targetCombinedOnly?: true // 指定時は相手の合体スピリットしか指定できない（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
+    onlyInstanceIds?: string[] // 指定時はこの個体しか指定できない（constraint mustBeAttackTarget。canDirectAttack を持たないアタッカーにも付く）
     targetHighestBp?: true // 指定時は相手のフィールドで**実効BPが最大**のスピリットしか指定できない（同値が複数なら全部が候補。BS12-008 グランド・ドラグキャッスル）
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）
     targetMinCost?: number // 指定時は相手スピリットのコストがこれ以上のもののみ指定できる（BS05天焦がす大聖火Lv2：コスト5以上）
@@ -453,11 +455,14 @@ export function directAttackFilter(
     pid: PlayerId,
     inst: CardInstance,
 ): DirectAttackFilter | null {
+    const forced = mustBeAttackTargetIds(board, pid, inst)
     const constraint = activeConstraints(board, pid, inst).find((c) => c.type === "canDirectAttack")
-    if (!constraint || constraint.type !== "canDirectAttack") return null
     // 宣言前の判定なので、ターン最初のアタックはまだ 1 回も宣言されていない（attacksThisTurn は doAttack で加算）
-    if (constraint.firstAttackOfTurnOnly && board.attacksThisTurn > 0) return null
+    if (!constraint || constraint.type !== "canDirectAttack" || (constraint.firstAttackOfTurnOnly && board.attacksThisTurn > 0)) {
+        return forced.length > 0 ? { targetFilter: "any", onlyInstanceIds: forced } : null
+    }
     const filter: DirectAttackFilter = { targetFilter: constraint.targetFilter }
+    if (forced.length > 0) filter.onlyInstanceIds = forced
     if (constraint.targetMinBp !== undefined) filter.targetMinBp = constraint.targetMinBp
     if (constraint.targetMinCost !== undefined) filter.targetMinCost = constraint.targetMinCost
     if (constraint.targetCombinedOnly) filter.targetCombinedOnly = true
@@ -512,7 +517,8 @@ export function placedCoresForSummon(
 // ① 期間つき効果の battleLock（このバトルの間）
 // ② 相手の継続効果 kind:"flashLockWhileAttackingFamily"（BS07ウィリアンスラッシュ）：
 //    相手の指定系統スピリットがアタックしている間だけ効く
-export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
+// cardType＝使おうとしている手札のカードの種別（cardType 指定のロックは、渡された種別と一致するときだけ掛かる）
+export function isFlashLockedFor(board: Board, pid: PlayerId, cardType?: CardType): boolean {
     if (timedFlashLocked(board, pid)) return true
     const attackerId = board.battle?.attackerInstanceId
     if (attackerId === undefined) return false
@@ -524,7 +530,9 @@ export function isFlashLockedFor(board: Board, pid: PlayerId): boolean {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "flashLockWhileAttackingFamily") continue
             if (!effectActiveAtLevel(effect.levels, level)) continue
-            if (matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) {
+            if (effect.cardType !== undefined && effect.cardType !== cardType) continue
+            if (effect.minSymbols !== undefined && instanceSymbolCount(attacker) < effect.minSymbols) continue
+            if (effect.familyFilter === undefined || matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) {
                 noteCoverage(effect, "flashLockWhileAttackingFamily")
                 return true
             }

@@ -20,6 +20,7 @@ export interface GameState {
     extraStepAfterAttackUsed?: true // BS15-X04 Lv2 をこのターンに使った（ターン終了でリセット）
     extraMainStep?: true // BS15-X04 Lv2 で行っている追加のメインステップ中。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）
     secondMainStep?: true // 第2メインステップ中（アタックステップの後にもう一度行うメインステップ。先攻1ターン目を除く全ターンに存在。2026-10-06）。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）
+    skipMainStepNow?: true // リフレッシュステップで skipMainStep を使い切った＝このターンのメインステップ区間を飛ばす（区間が消費する）
     oweSecondMain?: true // このターンにアタックステップを経由した＝第2メインステップがまだ残っている（toAttackPhase で立て、第2メインステップへ入るときに消す）
     secondMainDone?: true // このターンに第2メインステップを既に行った（BS10-008 の追加アタックステップの後には第2メインをもう行わない。ターン終了でリセット）
     extraAttackStepPending?: true // **アタックステップとエンドステップをもう1回ずつ行う**（BS10-008 火星神龍アレス・ドラグーン）。

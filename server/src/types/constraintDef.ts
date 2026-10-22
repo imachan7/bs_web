@@ -16,6 +16,7 @@ export type ConstraintDef =
     // 効果文は「スピリット2体か、**アルティメット1体**でないとブロックできない」だが、アルティメットは未実装のため2体ブロックだけを見る。
     // count体そろえられないときはブロックそのものができない。宣言は BattleState.pendingBlockerIds に貯まり、
     // そろった時点で**アタック側**がどれとバトルするかを選ぶ（PendingChoice.blockBattlePick。「どれか1体とだけバトルする」）
+    | { type: "mustBeAttackTarget"; attackerMinCost: number } // 発生源の持ち主の相手の、コスト attackerMinCost 以上のスピリットは、アタックするとき発生源（複数ならそのどれか）を指定したアタックしかできない（ライフへは不可）。発生源が疲労していても指定できる（2026-10-23 ユーザー確認）。shared/rules/constraints.mustBeAttackTargetIds
     | { type: "mustAttack" } // このスピリットはアタックできるとき、必ずアタックしなければならない
     | { type: "protectOwnLifeByBpUpToSelf" } // ブロックされなかったアタッカーの実効BPが**この発生源自身の実効BP以下**のとき、そのアタックでは発生源の持ち主のライフは減らされない（片側のみ。ライフダメージ直前に activeConstraints から発生源ごとのBPを引き直して比較する。BS08空帝竜騎プラチナム）
     | { type: "untargetableByOpponent" } // このスピリットは相手のスピリット/マジックの効果の対象にならない（クイーン・ワルキューレ。範囲効果には無力）

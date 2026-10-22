@@ -420,7 +420,7 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-attack-phase", myMainFree && !pendingChoiceActive && !isEndStepLocked(view, "attackStep") && !view.extraMainStep && !view.secondMainStep && view.turn > 1)
     show(
         "btn-end-turn",
-        myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive,
+        myTurn && !view.battle && (view.phase === "main" || view.phase === "attack") && !pendingChoiceActive && !view.endTurnBlocked,
     )
     show(
         "btn-take-life",
@@ -434,7 +434,7 @@ export function render(view: GameView, ui: UiState): void {
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
     // コアが足りていても支払いモードへ入る仕様（tryPlay）とセットで必要になる
     show("btn-confirm-pay", ui.paying !== null && payingRemaining(view, ui.paying) === 0)
-    show("btn-attack-player", ui.directedAttack !== null)
+    show("btn-attack-player", ui.directedAttack !== null && !ui.directedAttack.filter.onlyInstanceIds)
     show("targeting-info", anyMode || pendingChoiceActive)
     show("btn-skip-choice", myPendingChoice?.optional === true)
     // トグル選択では、スキップは「中止」ではなく「これで確定」を意味する（PendingChoice.skipLabel）
@@ -731,7 +731,9 @@ export function render(view: GameView, ui: UiState): void {
             : "🔄 覚醒: コアの移動元にする自分のスピリットを選んでください"
     } else if (ui.directedAttack !== null) {
         $("targeting-info").textContent =
-            "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
+            ui.directedAttack.filter.onlyInstanceIds
+                ? "⚔️ 相手の効果により、指定された相手スピリットを選んでアタックしてください"
+                : "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
     } else if (ui.soulSwapSelect !== null) {
         $("targeting-info").textContent = "🔄 [ソウルコア]交換: 交換相手の自分のスピリット/ネクサスを選んでください（通常コア1個以上が必要）"
     } else if (ui.magicTimingSelect) {

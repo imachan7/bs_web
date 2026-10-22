@@ -5,7 +5,7 @@ import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFram
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
-import { canDiscardHand, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
+import { canDiscardHand, handGainBlocked, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
@@ -504,6 +504,12 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
         if (action.dest === "trash") {
             player.trashCards.push(...movedIds)
             log(state, `${player.name}は手札${names}を破棄した。`)
+            return
+        }
+        if (handGainBlocked(state)) {
+            zone.push(...movedIds)
+            recordMoved(state, [])
+            log(state, `${player.name}：効果によって手札が増やせないため、${names}は元の場所に残った。`)
             return
         }
         player.hand.push(...movedIds)

@@ -3,7 +3,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, opponentOf } from "../GameState"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, spiritHasKeyword } from "../../../../shared/rules"
+import { hasGlobalConstraint, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, spiritHasKeyword } from "../../../../shared/rules"
 import { millDeck } from "../zones/mill"
 
 // 持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ）合計：【粉砕】の破棄枚数に加算する。
@@ -99,6 +99,10 @@ export function resolveFunsai(
     // funsai:true は **ここだけ**が立てる（BS08鳳翼の聖剣Lv2「【粉砕】以外の」の判定用。
     // action:"mill" は効果文で「デッキを破棄する」と書かれた通常の効果なので立てない）
     const actual = millDeck(state, opponentPid, level + bonus, ownerPid, { sourceType: "spirit", funsai: true })
+    // 山札が破棄されない間も【粉砕】は0枚の破棄として成立する（2026-10-23 ユーザー確認）。後続は0枚として動く
+    if (actual === 0 && hasGlobalConstraint(state, "noDeckMill")) {
+        state.lastFunsai = { total: 0, spirits: 0, nexuses: 0, magics: 0, costAtLeast4: 0 }
+    }
     if (actual > 0) {
         const milledCardIds = trashCards.slice(beforeLen, beforeLen + actual)
         let spirits = 0

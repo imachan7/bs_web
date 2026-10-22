@@ -36,6 +36,7 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
+import { handGainBlocked } from "../../../shared/rules"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -621,6 +622,7 @@ export function tryLifeDamageMillGuard(
                 }
             }
             noteCoverage(effect, "lifeDamageMillGuard")
+            if (hasGlobalConstraint(state, "noDeckMill")) return false
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
@@ -635,7 +637,7 @@ export function tryLifeDamageMillGuard(
             const toHand =
                 (effect.keepToHandIfType !== undefined && milled.type === effect.keepToHandIfType) ||
                 (effect.keepToHandIfKeyword !== undefined && hasKeyword(cardId, effect.keepToHandIfKeyword))
-            if (toHand) {
+            if (toHand && !handGainBlocked(state)) {
                 player.hand.push(cardId)
                 log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄し、手札に加えた。`)
                 notifyHandGained(state, defenderPid, 1)

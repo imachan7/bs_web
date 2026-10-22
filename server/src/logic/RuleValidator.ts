@@ -3,7 +3,7 @@
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { moveCardCandidates } from "./actions/moveCards"
-import type { CardData, CardInstance, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
+import type { CardData, CardInstance, CardType, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import { summonFromHandFreeCandidateMatches } from "./summon"
 import { normalReserveOf, soulCoreInReserve, soulCoreOnInstance, keishoExcludedTeamAtLeast } from "./soulCore"
 import {
@@ -18,8 +18,9 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
+import { handCardBanned, magicUseWindowDenial } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -131,22 +132,6 @@ export function validatePaySources(
 // paySources の合計を求める（他の検証・召喚コスト計算で使い回す）
 function paySourcesTotal(paySources: PaySource[] | undefined): number {
     return (paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-}
-
-// この pid は手札のカードを使えないか（期間つき効果の playerRule。期間はターン／バトル）。
-// 使えないなら理由の文字列、使えるなら null。**召喚・配置・マジック使用のすべてが通る入口**で見る
-function handCardBanned(state: GameState, pid: PlayerId, cardId: string): string | null {
-    for (const c of timedPlayerRules(state, pid)) {
-        if (c.type !== "cantUseHandCardsForPid") continue
-        const card = getCard(cardId)
-        if (c.cardType !== undefined && card.type !== c.cardType) continue
-        const colors = card.colors
-        if (c.allowedColor !== undefined && colors.includes(c.allowedColor)) continue
-        // bannedColors は置く時点（timedEffect.ts）で"last"を具体色へ解決済みなので、ここでは配列のみ来る
-        if (Array.isArray(c.bannedColors) && !c.bannedColors.some((col) => colors.includes(col))) continue
-        return "効果により、このカードは使えません"
-    }
-    return null
 }
 
 export function validateSummon(
@@ -680,10 +665,10 @@ function validateSummonHandDiscard(
 // バトル中に手札のカードを使うときの共通検証（フラッシュマジック・神速召喚・手札から使うフラッシュ効果＝
 // kind:"handActivated" の3者で共有する。BS15_PLAN.md §7.2）。
 // 優先権を持つプレイヤーのみ／lockFlash（「フラッシュで手札のカードを使用できません」）適用中は使えない
-export function validateHandFlash(state: GameState, pid: PlayerId): string | null {
+export function validateHandFlash(state: GameState, pid: PlayerId, cardType?: CardType): string | null {
     if (!state.isFlashTiming) return "フラッシュタイミングではありません"
     if (pid !== state.priorityPlayer) return "現在フラッシュの優先権がありません"
-    if (isFlashLockedFor(state, pid)) {
+    if (isFlashLockedFor(state, pid, cardType)) {
         return "効果により、フラッシュで手札のカードを使用できません"
     }
     return null
@@ -856,10 +841,12 @@ export function validateCastMagic(
     ) {
         return "このカードの効果はこのターンすでに使用しています"
     }
+    const windowDenial = magicUseWindowDenial(state, pid, cardId, useTiming)
+    if (windowDenial) return windowDenial
     if (state.battle) {
         // バトル中のフラッシュ：優先権・lockFlash の判定は validateHandFlash に共有する
         // （011ミーアバットの useHandAbility・神速召喚と同じ判定。BS15_PLAN.md §7.2）
-        const flashError = validateHandFlash(state, pid)
+        const flashError = validateHandFlash(state, pid, fromTegamoto ? undefined : "magic")
         if (flashError) return flashError
         if (!card.flash) return "このマジックはフラッシュタイミングで使用できません"
         // 「ブロック宣言後のフラッシュタイミングで使えない」（BS11-078 ブレイヴフラッシュ）。
@@ -1364,6 +1351,13 @@ export function validateAttack(
         return "このスピリットは既にこのターンアタックしています"
     }
 
+    // mustBeAttackTarget：指定すべき相手スピリットがいるなら、そのどれかを指定したアタックしかできない
+    const forcedTargets = mustBeAttackTargetIds(state, pid, inst)
+    if (forcedTargets.length > 0) {
+        if (targetSpiritInstanceId === undefined) return "相手の効果により、相手のスピリットを指定してアタックしなければなりません"
+        if (!forcedTargets.includes(targetSpiritInstanceId)) return "相手の効果により、指定されたスピリットしか指定できません"
+    }
+
     if (targetSpiritInstanceId !== undefined) {
         // 指定アタック：canDirectAttack を持ち、指定した相手スピリットが targetFilter に合うかを検証する
         const targetFilter = directAttackFilter(state, pid, inst)
@@ -1497,22 +1491,8 @@ export function validatePass(state: GameState, pid: PlayerId): string | null {
 
 // 「必ずアタック」を受けていて、いまアタックできる個体か
 function mustAttackNow(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
-    if (inst.isRested) return false
-    if (cantActByTimed(state, inst)) return false
-    if (currentLevel(inst).level < 1) return false
-    // フィールド全体制約（魔帝の墓標）でアタックできない個体はアタック強制の対象外
-    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) return false
-    // フィールド全体制約（BS08赤き砂の座）でアタックできない個体もアタック強制の対象外
-    if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAttack")) return false
-    // フィールド全体制約（BS05白夜の虚空／青嵐の虚空）でアタックできない個体もアタック強制の対象外
-    if (instCostCantAct(state, inst)) return false
-    // フィールド全体制約（BS12-X05戦神乙女ヴィエルジェ）でアタックできない個体もアタック強制の対象外
-    if (instCantAttackByOpponentCost(state, pid, inst)) return false
-    // 器AW：フィールド全体制約（BS13-035オリンピアの天使オク）でアタックできない個体もアタック強制の対象外
-    if (instCantAttackByCost(state, inst)) return false
+    if (!spiritCouldAttackNow(state, pid, inst)) return false
     const constraints = activeConstraints(state, pid, inst)
-    // cantAttack を持つスピリットはそもそもアタックできないため、mustAttack強制の対象外
-    if (constraints.some((c) => c.type === "cantAttack")) return false
     return constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)
 }
 
@@ -1536,6 +1516,9 @@ export function validateEndTurn(state: GameState, pid: PlayerId): string | null 
     for (const inst of state.players[pid].field.spirits) {
         if (mustAttackNow(state, pid, inst)) return `${getCard(inst.cardId).name}は必ずアタックしなければなりません`
     }
+    // メインからの終了でもアタックステップは来るので、phase だけ attack にした写しで宣言可否を見る
+    const atAttack = { ...state, phase: "attack" as const }
+    if (mustAttackOnceBlocksEnd(state, pid, (i, t) => validateAttack(atAttack, pid, i.instanceId, t) === null)) return "このターンは、可能ならば1回以上アタックしなければなりません"
     return null
 }
 

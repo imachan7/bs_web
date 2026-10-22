@@ -113,12 +113,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ConstraintWithSource`（型）：指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
 - `activeConstraints`（fn）：制約だけが要る呼び出し（大多数）はこちら。判定の本体は activeConstraintsWithSource に1本化してある
 - `activeConstraintsWithSource`（fn）
+- `noReductionGrantFrom`（fn）：軽減シンボルの付与（reductionGrant）を、種別 sourceType の発生源からは行えないか
 - `isUntargetableByOpponent`（fn）：⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 - `hasFullEffectImmunity`（fn）：untargetableByOpponentと異なり範囲効果（destroy{all}/exhaust{all}等）にも効く「効果を受けない」判定。
 - `hasArmorAgainst`（fn）：⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
 - `hasHeavyArmorAgainst`（fn）：【重装甲】。装甲との差は**ブレイヴの効果も防ぐ**ことだけで、判定の形は hasArmorAgainst と同じ。
 - `heavyArmorColorsOf`（fn）：器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
 - `hasBraveImmuneAgainst`（fn）：第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
+- `handGainBlocked`（fn）：効果で手札にカードが加わる経路の共通の入口。ドローステップのドロー・手札を出して戻すだけの処理は効果ではないので通さない。
 - `hasGlobalConstraint`（fn）
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
@@ -162,12 +164,19 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedContentsOn`（fn）
 - `timedKeywords`（fn）：この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
 - `timedContentsFor`（fn）：このプレイヤーに掛かっている期間つき効果の内容
+- `isBeforeBlockWindow`（fn）：ブロック宣言前のフラッシュタイミングか。ブロックされずにライフで受ける場合はその場でバトルが終わるので、
+- `handCardBanned`（fn）：手札のカードを使えない期間つき制約（cantUseHandCardsForPid）に掛かるか。掛かるなら理由、掛からなければ null
+- `magicUseWindowDenial`（fn）：useWindow:"beforeBlock" のマジックを、いまの場面で使えるか。使えないなら理由
 - `timedPlayerRules`（fn）：このプレイヤーに掛かっている「このターンの間」の制約
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
 - `magicColorBanned`（fn）：期間つき効果で、このマジックの色が使用禁止か（cantUseMagicForPid。手札・手元・トラッシュなど使用元は問わない）
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
+- `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"：holderPid のバーストが event で発動できないか
+- `spiritCouldAttackNow`（fn）：いま（またはこの後のアタックステップで）アタックを強いられうる個体か。mustAttack 系の判定と validateEndTurn が共有する
+- `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
+- `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
 
 ## shared/rules/keywordState.ts
 

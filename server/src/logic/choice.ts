@@ -1,4 +1,5 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { handGainBlocked } from "../../../shared/rules"
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
 import { notifyHandGained } from "./fieldEventTriggers"
@@ -178,7 +179,7 @@ function resolveChoiceInner(
         const info = pending.reviveDestination
         state.pendingChoice = null
         const player = state.players[info.pid]
-        if (option === "デッキの上に置く") {
+        if (option === "デッキの上に置く" || handGainBlocked(state)) {
             player.deck.unshift(info.cardId)
             log(state, `${player.name}の${getCard(info.cardId).name}はデッキの上に置かれた。`)
         } else {

@@ -7,7 +7,7 @@ import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
-import { cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -94,6 +94,7 @@ export function reductionGrantSymbols(
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (noReductionGrantFrom(board, card(source.cardId).type)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
@@ -150,6 +151,7 @@ export function reductionGrantSymbols(
     // 軽減シンボル[黄]を与える」）
     for (const effect of cardData.effects) {
         if (effect.kind !== "reductionGrant" || !effect.selfOnly) continue
+        if (noReductionGrantFrom(board, cardData.type)) continue
         const repeated: Color[] = effect.symbolCountFromFamily
             ? new Array(
                   board.players[pid].field.spirits.filter((s) =>
@@ -244,6 +246,7 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
 // **デッキの残り枚数による上限は呼び出し側でかける**（Board にデッキ枚数が無いため。
 // サーバーは player.deck.length、クライアントは view の deckCount を使う）
 export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
+    if (hasGlobalConstraint(board, "noDeckMill")) return false
     for (const source of effectSources(board, pid)) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
@@ -437,6 +440,12 @@ export function costSetOverride(
             if (board.players[pid].field.spirits.length > 0) continue
         }
         if (result === undefined || effect.setTo < result) result = effect.setTo
+    }
+    // handCostSetForPid：手札のカードだけ（両陣営に掛かる＝timedEffect side:"both"）
+    if (fromHand) {
+        for (const r of timedPlayerRules(board, pid)) {
+            if (r.type === "handCostSetForPid" && (result === undefined || r.value < result)) result = r.value
+        }
     }
     const sources = effectSources(board, pid)
     for (const source of sources) {

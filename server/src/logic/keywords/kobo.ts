@@ -3,7 +3,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, Keyword, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { notifyHandGained } from "../fieldEventTriggers"
-import { effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, timedKeywords } from "../../../../shared/rules"
+import { handGainBlocked, effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, timedKeywords } from "../../../../shared/rules"
 
 // 静的キーワード（レベル判定つき）‖ 一時付与 ‖ 継続付与のいずれかで keyword を持つか。
 // spiritHasKeyword（shared/rules.ts）と違い静的判定に**レベルを課す**（kobo/makoboの実装から移設。
@@ -62,6 +62,7 @@ export function resolveKoboOnBattleEnd(
     const player = state.players[attackerPid]
     let recovered = 0
     for (const cardId of usedMagicCardIds) {
+        if (handGainBlocked(state)) break
         const idx = player.trashCards.lastIndexOf(cardId)
         if (idx === -1) continue
         player.trashCards.splice(idx, 1)

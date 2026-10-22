@@ -21,7 +21,7 @@ import {
     recordTimed,
     recordPlayerRule,
 } from "../EffectModules"
-import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { handGainBlocked, KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { normalReserveOf, wouldDeplete } from "../soulCore"
@@ -608,6 +608,10 @@ const returnLastUsedMagicToHandHandler: ActionHandler<"returnLastUsedMagicToHand
     const { state, owner, sourceName } = ctx
     const used = state.lastMagicUsed
     const player = state.players[owner]
+    if (handGainBlocked(state)) {
+        log(state, `${sourceName}：効果によって手札が増やせないため、マジックはトラッシュに残った。`)
+        return
+    }
     const idx = used?.pid === owner ? player.trashCards.lastIndexOf(used.cardId) : -1
     if (!used || idx === -1) {
         log(state, `${sourceName}：手札に戻せるマジックがトラッシュになかった。`)

@@ -281,13 +281,15 @@ export type TimedRecord = {
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
         | { kind: "battle" } // このバトルの解決方法（比べるもの・勝敗の逆転）。until は "battle"
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
-    until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" // step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
+    until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" // beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
 }
 
 // プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）
 export type PlayerRuleDef =
-    | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType } // 手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
+    | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType; minCost?: number } // minCost＝印刷コストがこれ以上のカードだけ使えない。手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
+    | { type: "skipMainStep" } // 寿命 nextRefresh 専用：次の自分のターンのメインステップを行わずアタックステップへ進む（リフレッシュステップで使い切り、そのターンのメインステップ区間で消費）
+    | { type: "handCostSetForPid"; value: number } // 手札にあるカードすべてのコストを value にする（後から手札に入ったカードにも効く。軽減はそのコストから適用。複数なら最小）
     | { type: "armorDisabledForPid" } // スピリットの【装甲】が働かない（持っている分もこのターンに得た分も。2026-08-16 ユーザー判断）
     | { type: "freeFushiSummonForPid" } // このターン最初の【不死】召喚だけコストが0（維持コアは要る）。使ったら記録を消す
     | { type: "lifeDamageMaxForPid"; max: number } // ライフは1回のアタックで max 個までしか減らない
@@ -355,6 +357,7 @@ export interface GameView {
     you: PlayerId
     timedEffects: TimedRecord[] // 公開情報
     extraMainStep?: true // BS15-X04 Lv2 の追加メインステップ中（「アタックステップへ」ボタンを出さない）
+    endTurnBlocked?: true // 自分のターンで validateEndTurn が拒否する間（終了ボタンを隠す）
     secondMainStep?: true // 第2メインステップ中（「アタックステップへ」ボタンを出さず、メインのフェーズ表示を「第2メイン」に切り替える）
     endStepLocks: EndStepLock[] // 公開情報。両者に配信する（画面にカウンターとして出す）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（AuraCondition ownAttacksAtLeast がクライアントでも読む）

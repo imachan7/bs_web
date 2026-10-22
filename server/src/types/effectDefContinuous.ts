@@ -595,7 +595,9 @@ export type EffectDefContinuous =
           id: string
           kind: "flashLockWhileAttackingFamily" // 相手はフラッシュで手札のカードを使用できない
           levels: number[] | null
-          familyFilter: FamilyFilter
+          familyFilter?: FamilyFilter // 省略時は系統を問わない
+          minSymbols?: number // アタッカーのシンボル数がこれ以上の間だけ
+          cardType?: CardType // その種別の手札のカードだけ使えない（手元・バーストの発動は止めない。2026-10-23 ユーザー確認）
       }
     | {
           id: string

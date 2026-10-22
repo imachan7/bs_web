@@ -7,7 +7,7 @@ import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModu
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
-import { effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
+import { burstActivationForbidden, handGainBlocked, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 
 import { instHasColor, matchesFamilyFilter, spiritHasKeyword } from "../../../../shared/rules"
@@ -94,7 +94,7 @@ export function finishBurstActivation(
     if (player.burst === cardId) {
         player.burst = null
         player.burstSet = false
-        if (opts?.toHand) {
+        if (opts?.toHand && !handGainBlocked(state)) {
             player.hand.push(cardId)
             log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、手札に戻った。`)
             notifyHandGained(state, pid, 1)
@@ -292,6 +292,8 @@ export function fireBurstOnEvent(
             )
         }
         if (!effect) continue
+        // 相手の noBurstActivationByEvent：発動できない（セットされたまま残る）
+        if (burstActivationForbidden(state, holderPid, effect.event)) continue
         // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
         if (timedContentsFor(state, holderPid).some((c) => c.type === "battleLock" && c.lock === "burst")) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）

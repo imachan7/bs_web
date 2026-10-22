@@ -6,6 +6,7 @@ import { getCard, log, opponentOf } from "../GameState"
 import { millCapBonusFor, millDeck, requestCardChoice } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
+import { hasGlobalConstraint } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 import { currentRecordScope, recordMoved } from "../record"
 import { chimeiBonus } from "../keywords/chimei"
@@ -48,6 +49,10 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
 // マジックはトラッシュに残したまま効果だけを発揮する（resolveMagicを通さない＝コスト・無効化・
 // 使用時誘発を挟まない。resolveMilledFromDeckのマジック分岐と同じ考え方）
 function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName: string, action: { maxCount?: number }): void {
+    if (hasGlobalConstraint(state, "noDeckMill")) {
+        log(state, `${sourceName}：デッキが破棄されないため、発揮されなかった。`)
+        return
+    }
     const player = state.players[owner]
     let found: string | undefined
     let milled = 0

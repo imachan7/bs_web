@@ -3,7 +3,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, handGainBlocked, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { recordMoved } from "../record"
 import { detachBraveByEffect } from "../brave"
@@ -692,6 +692,10 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
         if (!self) return
         if (action.optional && !action.confirmed && state.interactiveTargets) {
             requestActivationConfirm(state, owner, `${sourceName}：このスピリットを手札に戻しますか？`, { type: "returnSelfToHand", confirmed: true }, self)
+            return
+        }
+        if (handGainBlocked(state)) {
+            log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
             return
         }
         const player = state.players[owner]
