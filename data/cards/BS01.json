@@ -522,7 +522,7 @@
      3
     ],
     "action": {
-     "type": "destroyNexus",
+     "type": "destroyNexus", "side": "either",
      "count": 1
     },
     "optional": false
@@ -5382,7 +5382,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroyNexus",
+     "type": "destroyNexus", "side": "either",
      "count": 1,
      "drawPerDestroyed": 1
     }

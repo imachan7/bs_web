@@ -592,7 +592,7 @@
      3
     ],
     "action": {
-     "type": "destroy",
+     "type": "destroy", "anySide": true,
      "filter": {
       "maxBp": 2000
      },

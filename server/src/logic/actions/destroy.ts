@@ -304,7 +304,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             }
             const handledAny = new Set<string>()
             for (let i = 0; i < resolvedCount; i++) {
-                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesFilter(s) && !handledAny.has(s.instanceId), srcColors, srcType)
+                const target = pickAnySideByBp(state, owner, limitBp, (s) => matchesFilter(s) && !handledAny.has(s.instanceId), srcColors, srcType, "other", true)
                 if (!target) {
                     log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                     break
@@ -633,7 +633,16 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 return
             }
             const scope = currentRecordScope(state)
-            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) recordMoved(state, [victim.n.cardId], scope)
+            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+                recordMoved(state, [victim.n.cardId], scope)
+                // 「相手のネクサスを破壊した場合、ドローする」：自分のネクサスを壊したときは引かない
+                if (action.drawPerDestroyed && victim.pid === opp) {
+                    const draw: EffectAction = { type: "draw", count: action.drawPerDestroyed }
+                    // 破壊で誘発した効果が選択待ちを立てたら、ドローはその解決の後に回す（下の相手側の経路と同じ）
+                    if (state.pendingChoice) pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: draw }])
+                    else ctx.resolve(draw)
+                }
+            }
             return
         }
         // chooserIsTarget（BS14-111エクスキューションデストロイ＝「相手は、相手のネクサス1つを破壊する」）：

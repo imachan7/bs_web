@@ -41,7 +41,7 @@ function toAttackStep(s: GameState): void {
 console.log("=== BS01-040 ダークウィッチ：『自分か相手の』疲労スピリットを破壊できる ===")
 {
     const s = setup("anyside-darkwitch")
-    // 自分側の疲労スピリットの方が実効BPが高い状況を作る（自動選択は両陣営から実効BP最大を選ぶ）
+    // 自分側の疲労スピリットの方が実効BPが高くても、除去の自動選択は相手のスピリットを優先する
     const ownRested = put(s, "p1", "BS01-001", 1, { rested: true, bpBuff: 5000 }) // ゴラドンLv1 1000+5000=6000
     const oppRested = put(s, "p2", "BS01-001", 1, { rested: true }) // ゴラドンLv1 1000
     const witch = put(s, "p1", "BS01-040", 3) // ダークウィッチLv2（BP3000）
@@ -49,12 +49,12 @@ console.log("=== BS01-040 ダークウィッチ：『自分か相手の』疲労
 
     assert(act(s, "p1", { type: "attack", instanceId: witch.instanceId }) === null, "ダークウィッチでアタック宣言")
     assert(
-        s.players.p1.field.spirits.every((sp) => sp.instanceId !== ownRested.instanceId),
-        "実効BP最大だった自分の疲労スピリットが破壊される（anySideが効いている）",
+        s.players.p1.field.spirits.some((sp) => sp.instanceId === ownRested.instanceId),
+        "BPの高い自分の疲労スピリットは残る",
     )
     assert(
-        s.players.p2.field.spirits.some((sp) => sp.instanceId === oppRested.instanceId),
-        "相手の疲労スピリットは残る（選ばれなかっただけ）",
+        s.players.p2.field.spirits.every((sp) => sp.instanceId !== oppRested.instanceId),
+        "相手の疲労スピリットが破壊される（除去の自動選択は相手を優先）",
     )
 }
 
@@ -100,7 +100,7 @@ console.log("=== BS01-036 シャ・ズー：『破壊時』の疲労が両陣営
     assert(oppAfter?.isRested === true, "相手のスピリットも疲労させられる")
 }
 
-console.log("=== BS01-090 ヘル・ブリンディ：『召喚時』自分のスピリットも手札に戻せる ===")
+console.log("=== BS01-090 ヘル・ブリンディ：『召喚時』自分か相手のスピリットを手札に戻す（自動選択は相手を優先） ===")
 {
     const s = setup("anyside-brindi")
     const ownBig = put(s, "p1", "BS01-001", 1, { bpBuff: 5000 }) // 実効BP6000＝両陣営で最大
@@ -111,13 +111,13 @@ console.log("=== BS01-090 ヘル・ブリンディ：『召喚時』自分のス
 
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "ヘル・ブリンディを召喚")
     assert(
-        s.players.p1.field.spirits.every((sp) => sp.instanceId !== ownBig.instanceId),
-        "実効BP最大だった自分のスピリットが手札に戻る（anySideが効いている）",
+        s.players.p1.field.spirits.some((sp) => sp.instanceId === ownBig.instanceId),
+        "BPの高い自分のスピリットは残る",
     )
-    assert(s.players.p1.hand.length === handBefore, "手札は1枚使って1枚戻るので増減なし")
+    assert(s.players.p1.hand.length === handBefore - 1, "手札は召喚の1枚ぶんだけ減る")
     assert(
-        s.players.p2.field.spirits.some((sp) => sp.instanceId === oppSmall.instanceId),
-        "相手のスピリットは残る",
+        s.players.p2.field.spirits.every((sp) => sp.instanceId !== oppSmall.instanceId),
+        "相手のスピリットが手札に戻る（除去の自動選択は相手を優先）",
     )
 }
 

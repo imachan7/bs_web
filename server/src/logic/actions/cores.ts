@@ -220,7 +220,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
               action.soulChoiceTarget !== undefined && chosenOption !== undefined
               ? findSpiritAny(state, action.soulChoiceTarget)
               : action.anySide
-              ? pickAnySideByBp(state, owner, Infinity, matchesFilter, srcColors, srcType)
+              ? pickAnySideByBp(state, owner, Infinity, matchesFilter, srcColors, srcType, "other", true)
               : (() => {
                     const t = pickEnemyByBp(state, opp, Infinity, matchesFilter, srcColors, srcType)
                     return t ? { pid: opp, inst: t } : null

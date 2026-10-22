@@ -85,6 +85,8 @@ export function pickAnySideByBp(
     sourceColors?: Color[],
     sourceType?: CardType,
     op: EffectAttempt["op"] = "other",
+    // 除去（破壊・手札に戻す・コアを取り除く）の自動選択は、BPに関わらず相手のスピリットを先に選ぶ
+    preferOpponent = false,
 ): { pid: PlayerId; inst: CardInstance } | null {
     const opp = opponentOf(owner)
     // 封印された魔導書Lv1：片側だけに変更する選択が済んでいれば、その側からしか選ばない
@@ -106,6 +108,7 @@ export function pickAnySideByBp(
               )
             : null
     if (oppCandidate && ownCandidate) {
+        if (preferOpponent) return { pid: opp, inst: oppCandidate }
         return effectiveBp(state, owner, ownCandidate) > effectiveBp(state, opp, oppCandidate)
             ? { pid: owner, inst: ownCandidate }
             : { pid: opp, inst: oppCandidate }
