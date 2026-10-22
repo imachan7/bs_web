@@ -7,7 +7,7 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, populateAllBuiltinDecks, populateAllCustomDecks, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
-import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
+import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, startMagic, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -79,7 +79,7 @@ function connectAndRun(button: HTMLElement, action: () => void): void {
 
 
 export let view: GameView | null = null
-export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
+export const ui: UiState = { payMode: loadPayMode(), targeting: null, awakenTarget: null, paying: null, directedAttack: null, summonLevelSelect: null, battleSwapSummon: null, braveSummonSelect: null, altSummonSelect: null, combineBrave: null, exReductionSelect: null, soulCoreOnlySelect: null, magicTimingSelect: null, magicTiming: null, soulSwapSelect: null, stepper: null, burstResetConfirm: null }
 let activeTrashTab: "mine" | "opp" = "mine"
 let activeTegamotoTab: "mine" | "opp" = "mine"
 let lastErrorText: string = ""
@@ -225,6 +225,8 @@ socket.on("state", (v: GameView) => {
     ui.summonLevelSelect = null // レベル選択もリセット
     ui.exReductionSelect = null // 《継召》の除外カード選択もリセット
     ui.soulCoreOnlySelect = null // 《ソウルマジック》の選択もリセット
+    ui.magicTimingSelect = null
+    ui.magicTiming = null
     ui.soulSwapSelect = null // [ソウルコア]の交換モードもリセット
     ui.braveSummonSelect = null // ブレイヴの召喚方法選択もリセット
     ui.altSummonSelect = null // 代替召喚の方法選択もリセット
@@ -786,6 +788,8 @@ async function init(): Promise<void> {
         ui.altSummonSelect = null
         ui.exReductionSelect = null
         ui.soulCoreOnlySelect = null
+        ui.magicTimingSelect = null
+        ui.magicTiming = null
         ui.soulSwapSelect = null
         ui.burstResetConfirm = null
         rerender()
@@ -888,12 +892,19 @@ async function init(): Promise<void> {
                 choice === "single" ? undefined : choice)
             return
         }
+        const timingEl = closestData(e, "data-magictiming")
+        if (timingEl && ui.magicTimingSelect) {
+            const { handIndex, cardId } = ui.magicTimingSelect
+            ui.magicTimingSelect = null
+            startMagic(handIndex, master(cardId), timingEl.dataset.magictiming === "flash" ? "flash" : "main", true)
+            return
+        }
         const soulOnlyEl = closestData(e, "data-soulonly")
         if (soulOnlyEl && ui.soulCoreOnlySelect) {
             const { handIndex, cardId, targetInstanceId } = ui.soulCoreOnlySelect
             ui.soulCoreOnlySelect = null
             if (soulOnlyEl.dataset.soulonly === "yes") {
-                send({ type: "castMagic", handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), useSoulCoreOnly: true })
+                send({ type: "castMagic", handIndex, ...(targetInstanceId ? { targetInstanceId } : {}), ...(ui.magicTiming ? { timing: ui.magicTiming } : {}), useSoulCoreOnly: true })
             } else {
                 // 「通常どおり」を選んだ済み（再入しない）。継召を持つカードならここから選択モードへ入る
                 tryPlay(handIndex, master(cardId), targetInstanceId, undefined, undefined, undefined, undefined, undefined, true)

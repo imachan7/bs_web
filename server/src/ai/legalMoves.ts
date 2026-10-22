@@ -8,6 +8,7 @@
 // ここは「合法かどうか」だけを見る。どれを選ぶかは evaluate.ts が決める。
 import type { GameAction, GameState, PlayerId } from "../type"
 import { getCard } from "../logic/GameState"
+import { magicTimingChoosable } from "../../../shared/magicTiming"
 import {
     validateActivateAbility,
     validateAttack,
@@ -94,6 +95,10 @@ function handMoves(state: GameState, pid: PlayerId): AiMove[] {
             // 通らない場合だけ、盤面のスピリット・ネクサスを1つずつ対象に当ててみる
             if (validateCastMagic(state, pid, handIndex) === null) {
                 moves.push({ action: { type: "castMagic", handIndex }, reason: `${card.name}を使用` })
+                // メインステップではフラッシュ効果も選べる（既定はメイン効果）
+                if (!state.battle && magicTimingChoosable(card) && validateCastMagic(state, pid, handIndex, undefined, undefined, undefined, undefined, undefined, undefined, "flash") === null) {
+                    moves.push({ action: { type: "castMagic", handIndex, timing: "flash" }, reason: `${card.name}のフラッシュ効果を使用` })
+                }
             } else {
                 for (const side of ["p1", "p2"] as const) {
                     const field = state.players[side].field

@@ -230,6 +230,7 @@ export interface PendingChoice {
         exReductionTrashIndices?: number[]
         // リザーブの[ソウルコア]での支払いも同じく引き継ぐ
         paySoulCoreFromReserve?: boolean
+        timing?: "main" | "flash"
     }
     burstActivate?: {
         // バーストの発動確認待ち（docs/design/BURST.md）。**action は self=null で解決する**（マジックと同じ扱い。

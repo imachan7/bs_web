@@ -12,6 +12,7 @@ import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
 import { matchesTarget } from "../../../../shared/rules"
 import { validateCastMagic } from "../RuleValidator"
+import { magicUseTiming } from "../../../../shared/magicTiming"
 import { passFlashPriority, MAGIC_FREE_OPTIONS, COUNT_IS_BODIES } from "../GameEngine"
 
 export function resolveMagic(
@@ -214,8 +215,10 @@ export function doCastMagic(
     paySoulCoreFromReserve?: boolean,
     // 「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」で使用する（コスト全額を[ソウルコア]1個で支払う）
     useSoulCoreOnly?: boolean,
+    // メインステップでメイン効果／フラッシュ効果のどちらを使うか（省略時はメイン効果を優先）
+    requestedTiming?: "main" | "flash",
 ): string | null {
-    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto, exReductionTrashIndices, paySoulCoreFromReserve, useSoulCoreOnly)
+    const error = validateCastMagic(state, pid, handIndex, targetInstanceId, paySources, fromTegamoto, exReductionTrashIndices, paySoulCoreFromReserve, useSoulCoreOnly, requestedTiming)
     if (error) return error
 
     const player = state.players[pid]
@@ -256,6 +259,7 @@ export function doCastMagic(
                 ...(paySoulCoreFromReserve !== undefined && paySoulCoreFromReserve
                     ? { paySoulCoreFromReserve }
                     : {}),
+                ...(requestedTiming !== undefined ? { timing: requestedTiming } : {}),
             },
             action: { type: "noop" },
             selfInstanceId: null,
@@ -324,13 +328,14 @@ export function doCastMagic(
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
     // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
     recordMagicUsed(state, pid, cardId)
-    const usedTiming = state.battle || !card.effects.some((e) => e.kind === "magic" && e.timing === "main") ? "flash" : "main"
+    // validate 済みなので null にはならない
+    const usedTiming = magicUseTiming(card, !!state.battle, requestedTiming) ?? "flash"
     if (card.effects.some((e) => e.kind === "magic" && e.timing === usedTiming && e.oncePerTurnByName)) {
         const used = ((state.magicEffectsUsedByName ??= {})[pid] ??= [])
         used.push(`${card.name}|${usedTiming}`)
     }
 
-    // 使用タイミングに応じた効果を実行。メインステップでメイン効果がなければフラッシュ効果を使う。
+    // 使用タイミングに応じた効果を実行する。
     // マジックミラー用：このフラッシュタイミングで直前に使用したマジックとして記録する
     // （clearBattleでバトルごとにクリアされる。BS08マジックミラー）。
     // **resolveMagicの後で、かつ解決中に書き換わっていなければ**記録すること：
@@ -353,10 +358,7 @@ export function doCastMagic(
         // フラッシュで使用したら優先権を相手へ移し、再応答の機会を与える
         passFlashPriority(state, pid)
     } else {
-        const hasMain = card.effects.some(
-            (e) => e.kind === "magic" && e.timing === "main",
-        )
-        const timing = hasMain ? "main" : "flash"
+        const timing = usedTiming
         const target = usableMagicTarget(state, pid, cardId, timing, targetInstanceId)
         resolveMagic(state, pid, cardId, timing, target)
         if (state.lastMagicCast === beforeLastMagicCast) {

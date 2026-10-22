@@ -63,6 +63,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `magicConditionFailure`（fn）：満たしていれば null、満たしていなければ理由の文を返す
 
+## shared/magicTiming.ts
+
+- `magicUseTiming`（fn）：使えないタイミングを求められたら null
+- `magicTimingChoosable`（fn）：メインステップで「メイン効果／フラッシュ効果」を選ばせるか。フラッシュ側がすべて「メインステップでは使えない」なら選ばせない
+
 ## shared/rules/activation.ts
 
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
@@ -1146,6 +1151,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `onHandAbilityClick`（fn）：手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
 - `onHandBurstEffectClick`（fn）：手札のマジックのバースト効果を発揮する（handBurstEffectGrant）。通常のマジック使用（onHandClick）とは別操作
 - `onHandClick`（fn）
+- `startMagic`（fn）：使うタイミングが決まったマジックを、対象選択か使用へ進める。選ばせたときだけ timing を送信に付ける
 - `tryResolveChoice`（fn）：pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
 - `onMySpiritClick`（fn）
 - `sendAttack`（fn）：アタックの追加コスト（attackPayToll）：リザーブで払えるならそのまま送り、足りなければ支払いモードへ入る（ブロックと同じ。2026-10-11 ユーザー確認）

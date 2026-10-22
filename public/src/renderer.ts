@@ -212,6 +212,9 @@ export interface UiState {
     exReductionSelect: { handIndex: number; cardId: string; targetInstanceId?: string; phase: "ask" | "select"; groups: ExReductionGroup[] } | null // 《継召》の「する／しない」→ 対象選択（同一カードはグループまとめ）
     // 《ソウルマジック》（kind:"soulCoreOnlyCast"）の選択モード:「自分の◯シンボルがあれば[ソウルコア]だけで使用できる」
     soulCoreOnlySelect: { handIndex: number; cardId: string; targetInstanceId?: string } | null
+    // メインステップでマジックのメイン効果／フラッシュ効果を選ぶモードと、選んだ結果（castMagic を送るときに付ける）
+    magicTimingSelect: { handIndex: number; cardId: string } | null
+    magicTiming: "main" | "flash" | null
     // [ソウルコア]の1:1交換モード（メインステップ・§1.4）: fromInstanceId＝[ソウルコア]が載った自分の個体。
     // 次にクリックした通常コア1個以上の自分の個体と交換する
     soulSwapSelect: { fromInstanceId: string } | null
@@ -425,7 +428,7 @@ export function render(view: GameView, ui: UiState): void {
     )
     show("btn-pass", inFlash && !pendingChoiceActive)
     const anyMode =
-        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
+        ui.targeting !== null || ui.awakenTarget !== null || ui.paying !== null || ui.directedAttack !== null || ui.summonLevelSelect !== null || ui.battleSwapSummon !== null || ui.braveSummonSelect !== null || ui.altSummonSelect !== null || ui.exReductionSelect !== null || ui.soulCoreOnlySelect !== null || ui.magicTimingSelect !== null || ui.soulSwapSelect !== null || ui.burstResetConfirm !== null
     show("btn-cancel-target", anyMode)
     // 支払いモードで、これ以上コアを足さなくても成立するときに出す確定ボタン。
     // 代替コスト（手札破棄／デッキ破棄）を「使わない」まま確定したいケースがあるので、
@@ -495,6 +498,15 @@ export function render(view: GameView, ui: UiState): void {
             b.textContent = `${card.name}（${CARD_TYPE_LABELS[card.type]}）`
             choiceOptionsEl.appendChild(b)
         }
+        show("choice-options", true)
+    } else if (ui.magicTimingSelect) {
+        const main = document.createElement("button")
+        main.dataset.magictiming = "main"
+        main.textContent = "メイン効果を使う"
+        const flash = document.createElement("button")
+        flash.dataset.magictiming = "flash"
+        flash.textContent = "フラッシュ効果を使う"
+        choiceOptionsEl.append(main, flash)
         show("choice-options", true)
     } else if (ui.soulCoreOnlySelect) {
         // 《ソウルマジック》: [ソウルコア]だけで使用するか、通常どおり支払うかの2択
@@ -722,6 +734,8 @@ export function render(view: GameView, ui: UiState): void {
             "⚔️ 指定アタック: アタック対象の相手スピリットを選択（またはプレイヤーへアタック）"
     } else if (ui.soulSwapSelect !== null) {
         $("targeting-info").textContent = "🔄 [ソウルコア]交換: 交換相手の自分のスピリット/ネクサスを選んでください（通常コア1個以上が必要）"
+    } else if (ui.magicTimingSelect) {
+        $("targeting-info").textContent = `${master(ui.magicTimingSelect.cardId).name}：メイン効果とフラッシュ効果のどちらを使うか選んでください`
     } else if (ui.soulCoreOnlySelect) {
         $("targeting-info").textContent = "《ソウルマジック》：自分のフィールドに該当色のシンボルがあれば、[ソウルコア]1個だけで使用できます（リザーブ・自分のスピリット/ネクサスの上のどちらでも）"
     } else if (ui.exReductionSelect) {

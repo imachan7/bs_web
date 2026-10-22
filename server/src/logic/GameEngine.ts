@@ -292,6 +292,7 @@ function dispatchAction(
                 action.exReductionTrashIndices,
                 action.paySoulCoreFromReserve,
                 action.useSoulCoreOnly,
+                action.timing,
             )
         case "useHandBurstEffect": {
             const error = doUseHandBurstEffect(state, pid, action.handIndex, action.paySources, action.paySoulCoreFromReserve)
