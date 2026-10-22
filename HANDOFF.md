@@ -66,11 +66,10 @@ kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデ
 **部品バッチ15（確定スキーマ・未着手）**：継続の kind `{ kind: "handBurstEffectGrant"; levels; attackerKeyword: Keyword[] }`（持ち主の、いずれかのキーワードを持つスピリットがアタックしている間）と GameAction `{ type: "useHandBurstEffect"; handIndex: number }`（フラッシュタイミング。手札のバースト持ちマジックのコストを軽減込みで払い、kind:"burst" の action を thenPay も含めて解決し、カードはトラッシュ。043）。
 マジックの「使用」でもバーストの「発動」でもない＝【光芒】の回収・`ownBurstActivated`・068 の税は起きない。084 の `noBurstEffectForPid` は効く（バースト効果の発揮なので）。クライアントは手札のカードに「バースト効果を使う」を別ボタンで出し、判定は shared に置いて audit:parity を通す（✅ part616）
 **データの段（10-17 開始）**：①期待値役6体が並行で part617（赤）・618（紫）・619（緑）・620（白）・621（黄）・622（青）を効果文だけから書く（変更禁止）→ ②実装役が色ごとに `data/cards/BS17-<色>.json` を書いて①を通す → ③①を再開して見直し → `npx tsx scripts/merge-set.ts BS17`。077・033 は既存の器（BS17_SURVEY_remaining #7・#22）
-**データの段・2周目（10-17）**：①6本・②6色のデータは入った（db34cc5。テストはまだ落ちる）。エンジンの直しを2体で並行：
-A（バースト・支払い・バトル）＝`finishBurstActivation` が sequence/if の中で召喚したカードもトラッシュへ積む／016 の `pay` の then に `summonBurstCardFree` を通す／【魔光芒】の再発揮を断れるように／082 は action `{ type: "swapBattleBp" }`（このバトルの間、BP比較で自分と相手のバトル中のスピリットの BP を入れ替える。state.battle に印）。
-B（継続効果・判定）＝期間つき immune・skipRefresh の `all:true`（timedRule）が効かない／067 の keywordGrant の combinedFilter・turn／条件なし `unblockableBy {}`／`symbolWhenSummoning` の noteCoverage／BraveCondition に `maxCost`（057）／EffectCounter `plus` の2つ目に EffectCounter も許す（075＝相手の総コア＋ライフ）／AuraCondition `ownHasKeyword` に配列（041。step の condition で使う）。
-その後、①がテストの手順の前提（パスの順番・軽減・合体時のコア移動・候補1つなら自動選択）を直し、②がデータを直す。
-「相手による自分のスピリット破壊後」のバーストの `byOpponentEffectOnly` はバトル破壊も含む（removal.ts の `|| byBattle`。fieldEvent 側とは別）。X05 の条件未成立時は BURST.md §5.5（発動はでき、召喚せずトラッシュ）
+**データの段・2周目**：エンジンの直し A・B は済んだ（101988e）。082 は EffectAction でなく timedEffect の content `{type:"swapBattleBp"}`（compareBy と同じ器）に、005 は IfCond `{ownBurstSet:false}`＋`setBurstFromHand ask:true` にした。
+次の一手（10-22 着手）：テストの前提の直し（interactive・自動選択・選択の答え方・場面の作り方。期待値は変えない）→ 残る ❌ をデータの直し（Haiku。書き換え内容をメインループが決めて渡す）とエンジンの直しに分ける → 見直し → `merge-set.ts BS17`。
+件数照合の part363/364/371/373 は BS17 のデータで増えた分が未反映（db34cc5 から落ちている）。結合前に中身を確かめて表と件数を直す。
+「相手による自分のスピリット破壊後」のバーストの `byOpponentEffectOnly` はバトル破壊も含む（removal.ts の `|| byBattle`。fieldEvent 側とは別）。
 10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
 
 ### 次の一手：後片付け2つ（10-16）
