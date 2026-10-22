@@ -25,7 +25,7 @@
 ### 次の一手：後片付け（10-16）
 
 - 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
-- 古い長いコメントの整理（ファイル単位の chore。どのファイルから削るかの一覧をユーザーに出す）
+- 古い長いコメントの整理：型4ファイルは済み（10-22）。次の候補はロジック側（EffectModules・removal・GameEngine・RuleValidator。コメント35〜43%）。名前で向き・数え方・専用の場面が読めない説明は残す
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
