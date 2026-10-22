@@ -63,11 +63,12 @@
 - 2f マジックの `useWindow?: "beforeBlock"`（相手のアタックステップのブロック前のフラッシュでだけ使える）／`cantUseHandCardsForPid.minCost?: number` と timedEffect の期間 `"beforeBlock"`（そのアタックのブロック宣言まで）（#17・#21：082・X06）
 - 2g playerRule `{ type: "skipMainStep" }`（次の相手ターンのメインステップを飛ばす。#11：054）／手札コストの置き換え `costMod mode:"set"` を timedEffect で両陣営の手札へ（このターンの間、後から手札に入ったカードにも効く。#12：060）／globalConstraint `{ type: "noReductionGrantToHand"; sourceTypes }`（#7：047）／playerRule の `activeWhile?: { handAtLeast: number }`（制限を受ける側の手札枚数を毎回判定。P11：078）
 
-**バッチ3：手順・イベント（重いので1体2つまで）**
-- 3a イベント「ボイドからコアが増えた」：ライフに置かれたときも含む。陣営・発生源種別・個数（`repeatPerCount`）。効果を発揮したスピリットと増えたコアを指す参照も持たせる（N2・N3・#1：001・013・040・063）／イベント「自分か相手のライフにコアが置かれた」（#2：041）
-- 3b イベント「相手のスピリットが召喚されたとき」（N14：064）／リフレッシュステップの回復の同時性（陣営で数える「回復したとき」は1ステップ1回。066）
-- 3c 「手札／トラッシュのスピリットカードの効果は発揮されない」（#9：052。RULES_BATSPI_WIKI §6 の範囲）
-- 3d 疲労の置き換え「疲労する1体ごとにコストを払って疲労しない」（N9：014）／コアの移動元の和集合（自分の他のスピリット・リザーブ・ライフ → このスピリット。N7・N16・N17：008・X01）
-- 3e バーストを条件を無視して発動する（セット中のバースト・オープンしたカードの両方。N11・#19：016・X05）／【バースト転召】（BURST.md §7.4。N15：X01）
-- 3f 相手の『召喚時』効果を、選んだ自分のスピリットが発揮したものとして再発揮（BURST.md §7.4。#15：081）／相手のバーストをオープンして公開し `last` に残す（#18：084）
-- 3g 相手のスピリットを疲労させ、そのスピリットでブロックさせる（§2 の 082。#16）
+**バッチ3：手順・イベント**（バッチ2 は 2026-10-23 に済み。6 体並行：H=3a part646〜647／I=3b・3d part648〜649／J=3c part650／K=3e part651〜652／L=3f part653〜654／M=3g part655）
+- 3a fieldEvent `coresGainedFromVoid`（効果1回の解決ごとに1回。eventInfo に、コアが増えた側・個数・発生源の種別・**発生源の個体**・増えたコアの置き場所を持つ。ライフに置かれたときも含む。コアステップは効果ではないので含めない）。`subjectSide`／`opponentEffectSourceTypes` で絞る。参照は、破壊などの対象 `target:"eventSource"` と、増えたコアをボイドへ戻すアクション `voidGainedCores`。個数ぶん繰り返すのは既存の `repeatPerCount`（001・013・040）／fieldEvent `lifeCorePlaced`（どちらのライフでも、出所を問わない。041）
+- 3b fieldEvent `anySpiritSummoned` に `subjectSide`（064 は相手側）／リフレッシュステップの回復は同時：陣営で数える `ownSpiritRefreshed`・`anySpiritRefreshed` は、1回のリフレッシュステップにつき陣営ごとに1回だけ発火する（066）
+- 3c globalConstraint `{ type: "handTrashSpiritEffectsDisabled" }`（両陣営。手札・トラッシュにあるスピリットカードの効果を止める。範囲は RULES_BATSPI_WIKI §6。判定は1つの述語にまとめ、手札・トラッシュの効果を読む入口すべてから呼ぶ。052）
+- 3d 継続効果 `exhaustPreventByPay { filter; bySourceTypes; cost }`（疲労するとき、1体ごとにコストを払うか選び、払えば疲労しない。デッキが破棄されない間は払えない。014）／`placeCores.from` を配列にし、`"ownSpirits"`（自分の他のスピリット）と `"life"` を足す。`to:"self"` と `to:"life"`＋`fillTo`（008・X01）
+- 3e アクション `activateBurstIgnoringCondition { from: "set" | "revealed"; filter? }`（任意。きっかけの出来事に依存する部分は不発。発動しなかった公開カードは効果の残りの行き先へ。016・X05）／キーワード【バースト転召】（BURST.md §7.4。X01）
+- 3f アクション `replayOpponentSummonEffect`（バーストのきっかけになった相手の『召喚時』効果を、自分のスピリット1体を選び、そのスピリットが発揮したものとして解決し直す。自分のスピリットがいなければこの部分は発揮しないが、CONJUNCTION の「その後」の規則どおり thenPay は払える。081）／アクション `revealOpponentBurst`（相手のバースト1つを両者に公開し、`last` に残す。続きは if で書く。084）
+- 3g アクション `exhaustAndForceBlock`（§2 の 082 の細部どおり。疲労させた相手のスピリットを「この後のブロック宣言でブロックするスピリット」として記録し、ブロック前のフラッシュが終わったら、その個体でブロックする）
+
