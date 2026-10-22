@@ -79,11 +79,8 @@ export function reductionGrantSymbols(
     board: Board,
     pid: PlayerId,
     cardData: CardData,
-): { extra: Color[]; replace: Color[] | null } {
+): { extra: Color[] } {
     const extra: Color[] = []
-    // replace:true（BS08超時空重力炉Lv2）指定のエントリが1つでも成立したら、
-    // 素の印刷軽減シンボルを丸ごとこの色配列へ置き換える（加算とは別に持つ）
-    let replace: Color[] | null = null
     // effectSources：このターンだけの仮想発生源（マジックが lendSelfThisTurn で貸した継続効果）も含める
     // （BS07リボーンフレイム。従来は field だけを見ており、貸与された reductionGrant が無言で効かなかった）
     const sources = effectSources(board, pid)
@@ -144,12 +141,8 @@ export function reductionGrantSymbols(
                       ).length,
                   ).fill(effect.symbols[0]!)
                 : effect.symbols
-            if (effect.replace) {
-                replace = repeated
-            } else {
-                noteCoverage(effect, "reductionGrant")
-                extra.push(...repeated)
-            }
+            noteCoverage(effect, "reductionGrant")
+            extra.push(...repeated)
         }
     }
     // 器BJ：selfOnly＝手札にあるこのカード自身の効果として直接見る（effectSourcesを経由しない。
@@ -164,13 +157,9 @@ export function reductionGrantSymbols(
                   ).length,
               ).fill(effect.symbols[0]!)
             : effect.symbols
-        if (effect.replace) {
-            replace = repeated
-        } else {
-            extra.push(...repeated)
-        }
+        extra.push(...repeated)
     }
-    return { extra, replace }
+    return { extra }
 }
 // マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
 // レベル有効・restriction一致・turn条件成立の発生源があるか調べる。
@@ -665,10 +654,7 @@ export function effectiveCost(
                 ? cardData.reduction.map(() => handColorOverride.color)
                 : cardData.reduction
         const grantedReduction = reductionGrantSymbols(board, pid, cardData)
-        const reductionColors =
-            grantedReduction.replace !== null
-                ? grantedReduction.replace
-                : [...baseReduction, ...grantedReduction.extra]
+        const reductionColors = [...baseReduction, ...grantedReduction.extra]
         const reductionBlocked =
             (cardData.type === "magic" && hasMagicRestriction(board, pid, "noReductionOpponent")) ||
             // 器AZ：発生源の持ち主の相手は、ネクサス配置時に軽減シンボルによる軽減ができない（BS13-069）

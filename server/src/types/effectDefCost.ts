@@ -148,7 +148,6 @@ export type EffectDefCost =
           selfOnly?: true // 対象を発生源自身のカード（手札にあるこのカード）だけに絞る
           symbolCountFromFamily?: FamilyFilter // symbolsを固定1組ではなく、持ち主のフィールドの指定系統（配列＝OR）のスピリット数ぶん繰り返し付与する
           symbols: Color[] // 与える軽減シンボル（symbolCountFromFamily指定時は先頭の1色を繰り返す）
-          replace?: true // 指定時は素の印刷軽減シンボルを置き換える。省略時は加算
           vanillaFilter?: true // 指定時は対象カードが効果の記述を持たない（バニラ）ときのみ付与
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
           phase?: Phase // 指定時はこのステップ中のみ有効
