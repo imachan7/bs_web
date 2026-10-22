@@ -183,6 +183,10 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
             action.side === undefined
                 ? pickEnemyByBp(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType)
                 : pickOwnBpTarget(state, owner, filter, self?.instanceId)
+        // 自動で選ぶときは自分のスピリットを優先し、いなければ相手のスピリットから選ぶ
+        if (!target && action.side === "both") {
+            target = pickAnySideCandidates(state, owner, (s) => matchesTarget(state, owner, s, filter, self?.instanceId), srcColors, srcType)[0] ?? null
+        }
     }
     if (!target) {
         log(state, `${sourceName}：対象がいなかった。`)
@@ -339,18 +343,18 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
     if (content.set !== undefined || content.max === true) {
         // max＝そのスピリットのカードの最高Lv（個体ごとに違うので、選んだ個体で決める）
         const levelOf = (s: CardInstance) => content.max ? maxLevelOf(s) : content.set!
-        const pid = action.side === "own" ? owner : opp
+        const pids: PlayerId[] = action.side === "own" ? [owner] : action.side === "both" ? [owner, opp] : [opp]
         const passes = (s: CardInstance, sPid: PlayerId) =>
             matchesTarget(state, sPid, s, filter, self?.instanceId) &&
             (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === levelOf(s)))
-        const candidates = state.players[pid].field.spirits.filter((s) => passes(s, pid))
+        const candidates = pids.flatMap((p) => state.players[p].field.spirits.filter((s) => passes(s, p)))
         if (
             targetInstanceId === undefined &&
             tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${content.max ? "最高Lv" : `Lv${content.set}`}として扱うスピリットを選んでください`, candidates, action, null)
         ) {
             return
         }
-        const found = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : candidates[0] ? { pid, inst: candidates[0] } : null
+        const found = findSpiritAny(state, targetInstanceId ?? candidates[0]?.instanceId ?? "")
         if (!found) {
             log(state, `${sourceName}：対象がいなかった。`)
             return

@@ -209,7 +209,7 @@ console.log("=== BS08堕天使ミカファールLv1-3：手札を好きなだけ
 console.log("=== BS08堕天使ミカファールLv2-3：action castMagicFromTrashByColor ===")
 {
     const s = base("mikafael-cast-from-trash")
-    const own = put(s, "p1", "BS01-005", 3) // Lv2扱いの対象（levelOverrideTarget確認用の的）
+    const own = put(s, "p2", "BS01-005", 3) // キャッツアイのメイン効果（相手のスピリット1体をLv1として扱う）の的
     s.players.p1.trashCards.push("BS08-079") // キャッツアイ（黄・コスト3）
     const reserveBefore = s.players.p1.reserve
     resolveAction(s, "p1", null, { type: "castMagicFromTrashByColor", colorFilter: "yellow" }, undefined, undefined, "spirit")
@@ -364,10 +364,8 @@ console.log("=== BS08勇者フェニックスペンタン／堕天使ミカフ�
 }
 {
     const s = base("mikafael-trigger-onattack")
-    // 使用されるキャッツアイの levelOverrideTarget は、対象未指定のとき
-    // **持ち主のフィールドの先頭**を自動選択する（非対話モードのフォールバック）。
-    // ミカファールより先に置いて、どちらが選ばれるかを決定的にする
-    const target = put(s, "p1", "BS01-005", 3)
+    // 使用されるキャッツアイのメイン効果は相手のスピリット1体をLv1として扱う
+    const target = put(s, "p2", "BS01-005", 3)
     const mika = put(s, "p1", "BS08-X33", 2) // Lv2：e2 の levels に入る
     s.players.p1.trashCards.push("BS08-079")
     const reserveBefore = s.players.p1.reserve
@@ -382,7 +380,8 @@ console.log("=== BS08-X33 ミカファール：トラッシュのマジックの
     // 以前はリザーブ限定で、さらに支払ったコアがトラッシュへ行かず**消えていた**
     const s = base("mikafael-paysources")
     s.interactiveTargets = true
-    const target = put(s, "p1", "BS01-005", 3) // キャッツアイの対象（フィールド先頭）
+    const target = put(s, "p2", "BS01-005", 3) // キャッツアイの対象（相手のスピリット）
+    put(s, "p2", "BS01-005", 3) // 候補を2体にして選択待ちを立てる
     const mika = put(s, "p1", "BS08-X33", 2) // Lv2：トラッシュのマジックを使用できる
     const donor = put(s, "p1", "BS01-005", 6) // 支払い元にするスピリット
     s.players.p1.trashCards.push("BS08-079") // キャッツアイ（黄のマジック）
@@ -409,8 +408,8 @@ console.log("=== BS08-X33 ミカファール：トラッシュのマジックの
         s.players.p1.trashCores === trashCoresBefore + cost,
         `支払ったコアはトラッシュへ（実際: ${String(s.players.p1.trashCores - trashCoresBefore)}個）`,
     )
-    // 対話モードでは、キャッツアイの対象もプレイヤーが選ぶ（2026-09-02。候補は自分のスピリット3体）
-    assert(s.pendingChoice?.kind === "target", "Lv3として扱うスピリットの選択待ちが立つ")
+    // 対話モードでは、キャッツアイの対象もプレイヤーが選ぶ（2026-09-02。候補は相手のスピリット2体）
+    assert(s.pendingChoice?.kind === "target", "Lv1として扱うスピリットの選択待ちが立つ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: target.instanceId }) === null, "対象を選ぶ")
     assert(target.timedLevel === 1, "使用したマジックのメイン効果が発揮される")
 }

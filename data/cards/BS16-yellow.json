@@ -866,7 +866,7 @@
       }
      ],
      "duration": "turn",
-     "side": "own"
+     "side": "both"
     }
    }
   ]

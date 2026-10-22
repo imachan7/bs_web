@@ -3111,7 +3111,7 @@
             }
           ],
           "duration": "turn",
-          "side": "own"
+          "side": "both"
         }
       }
     ]
@@ -5441,7 +5441,7 @@
             }
           ],
           "duration": "turn",
-          "side": "own"
+          "side": "both"
         }
       }
     ]
@@ -5500,7 +5500,7 @@
             }
           ],
           "duration": "turn",
-          "side": "own"
+          "side": "both"
         }
       }
     ]
