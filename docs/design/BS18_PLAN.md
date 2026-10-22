@@ -54,14 +54,14 @@
   - `coreGainCap` を両陣営・`max:0` で（N13：063）
   - `reviveOnDestroy.revived` に `"handOrDeckTop"`（持ち主が選ぶ。#20：X05）
 
-**バッチ2：規則（制約）**
-- 2a `noDeckMill`（両陣営・常時。効果・コストの支払い・【粉砕】の破棄を止める。【粉砕】は0枚で成立。公開したカードの破棄は止めない。N1・P2・#8）
-- 2b `noHandGainByEffect`（既存）の経路をトラッシュ回収・オープンして加える、まで広げる（048・BS15-052）
-- 2c `noBurstActivationByEvent { events: FieldEvent[] }`（条件の種類ごとに発動を封じる。P1：022・023）
-- 2d `playerRule mustAttackOnce`（プレイヤーとしてターンに1回以上。P4：029）／`mustAttackTarget`（コスト◯以上の相手のスピリットは発生源を指定してアタックしなければならない。P7：035）
-- 2e 手札のマジックの封じ（`flashLockWhileAttackingFamily` に `minSymbols`・`cardType` の軸。#10：053）
-- 2f タイミング `beforeBlockFlash`（相手のアタックステップのブロック前のフラッシュ。マジックの使用条件と `cantUseHandCardsForPid` の期間に使う。`cantUseHandCardsForPid.minCost` も足す。#17・#21：082・X06）
-- 2g `skipNextMainStep`（次の相手ターンのメインステップを飛ばす。#11：054）／手札コストの置き換えを両陣営に（このターンの間。#12：060）／`noReductionGrantToHand`（#7：047）／`playerRule` の持続条件 `whileOpponentHandAtLeast`（P11：078）
+**バッチ2：規則（制約）**（1 は 2026-10-23 に済み。2 は 4 体並行：D=2a・2b part638〜639／E=2c・2d part640〜641／F=2e・2f part642〜643／G=2g part644〜645）
+- 2a globalConstraint `{ type: "noDeckMill" }`：両陣営・常時。効果・コストの支払い（デッキを破棄するコストは払えない）・【粉砕】（0枚で成立）を止める。公開したカードの破棄は止めない（N1・P2・#8）
+- 2b `noHandGainByEffect`（既存）の経路を、効果で手札に加わるものすべてに広げる（トラッシュ回収・オープンして加える・復活で手札へ・moveCards の手札行き）。止められたカードは「選ばれなかった」扱いで、効果の残りの行き先へ（048・BS15-052）
+- 2c globalConstraint `{ type: "noBurstActivationByEvent"; events: FieldEvent[]; whileOwnAttackerFamily?: FamilyFilter }`：発生源の持ち主の相手が、その種類のバーストを発動できない（P1：022・023）
+- 2d playerRule `{ type: "mustAttackOnce" }`（アタックできるスピリットがいる間は、そのターン1回もアタックせずにアタックステップを終えられない。P4：029）／constraint `{ type: "mustBeAttackTarget"; attackerMinCost: number }`（コストが以上の相手のスピリットは、発生源を指定してアタックしなければならない。疲労状態でも指定でき、ライフは狙えない。P7：035）
+- 2e `flashLockWhileAttackingFamily` に `minSymbols?: number`・`cardType?: CardType`（family は省略可に。#10：053）
+- 2f マジックの `useWindow?: "beforeBlock"`（相手のアタックステップのブロック前のフラッシュでだけ使える）／`cantUseHandCardsForPid.minCost?: number` と timedEffect の期間 `"beforeBlock"`（そのアタックのブロック宣言まで）（#17・#21：082・X06）
+- 2g playerRule `{ type: "skipMainStep" }`（次の相手ターンのメインステップを飛ばす。#11：054）／手札コストの置き換え `costMod mode:"set"` を timedEffect で両陣営の手札へ（このターンの間、後から手札に入ったカードにも効く。#12：060）／globalConstraint `{ type: "noReductionGrantToHand"; sourceTypes }`（#7：047）／playerRule の `activeWhile?: { handAtLeast: number }`（制限を受ける側の手札枚数を毎回判定。P11：078）
 
 **バッチ3：手順・イベント（重いので1体2つまで）**
 - 3a イベント「ボイドからコアが増えた」：ライフに置かれたときも含む。陣営・発生源種別・個数（`repeatPerCount`）。効果を発揮したスピリットと増えたコアを指す参照も持たせる（N2・N3・#1：001・013・040・063）／イベント「自分か相手のライフにコアが置かれた」（#2：041）
