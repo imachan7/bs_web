@@ -68,6 +68,7 @@ export interface BraveConditionTerm {
     family?: string // 系統
     minCost?: number // コスト◯以上（BS10 の18枚中12枚）
     maxCost?: number // コスト◯以下
+    minSymbols?: number // 合体先の場のシンボル数（instanceSymbolCount）がこれ以上
     cardName?: string // カード名指定
     vanilla?: true // **効果の記述を持たない**（BS10 の18枚中6枚。判定は instIsVanilla＝継続付与の「バニラとしても扱う」も見る）
     keyword?: Keyword // このキーワードを持つ（spiritHasKeywordで判定＝一時付与・継続付与も見る。BS15-057カメン・フクロウ：「コスト4以上/【暴風】を持つ」の後半）

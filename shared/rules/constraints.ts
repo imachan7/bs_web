@@ -729,9 +729,14 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel, attackerCores } = effect.constraint
                 // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
                 if (ownOnly && pid !== defenderPid) continue
+                // attackerCores：アタッカーのコアがちょうどその数のアタックだけを保護する専用条件（他の軸とは併用しない）
+                if (attackerCores !== undefined) {
+                    if (attacker.cores === attackerCores) return true
+                    continue
+                }
                 // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
                 // かつ合体スピリット」のアタックだけを保護する専用条件。maxCost等とは併用しない
                 if (symbolCount !== undefined && combinedOnly) {
@@ -1171,6 +1176,7 @@ function hasImmunityAgainst(
             if (effect.combinedFilter === true && !instIsCombined(inst)) continue
             // vanillaFilter（BS12-071未完成の古代戦艦：帆＝効果の記述を持たないスピリットのみ）
             if (effect.vanillaFilter === true && !instIsVanilla(inst)) continue
+            if (effect.nameIncludes !== undefined && !effect.nameIncludes.some((n) => cardNameContains(inst, n))) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）

@@ -440,7 +440,7 @@ function activatableAbilityOf(
 
 // 指定アタック（canDirectAttack）の対象条件（targetFilter状態条件＋targetMinBpのBP条件）
 export interface DirectAttackFilter {
-    targetFilter: "rested" | "singleCore" | "recovered" | "any"
+    targetFilter: "rested" | "singleCore" | "recovered" | "hasSummonTrigger" | "any"
     targetCombinedOnly?: true // 指定時は相手の合体スピリットしか指定できない（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
     targetHighestBp?: true // 指定時は相手のフィールドで**実効BPが最大**のスピリットしか指定できない（同値が複数なら全部が候補。BS12-008 グランド・ドラグキャッスル）
     targetMinBp?: number // 指定時は相手スピリットの実効BPがこれ以上のもののみ指定できる（BS05シンクロニシティ：BP4000以上）

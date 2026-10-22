@@ -37,7 +37,7 @@ export function matchesTarget(
     if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp && !(filter.orMinBp !== undefined && effectiveBp(board, ownerPid, inst) >= filter.orMinBp)) return false
     if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
-    if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
+    if (filter.color !== undefined && !(Array.isArray(filter.color) ? filter.color : [filter.color]).some((c) => instHasColor(inst, c))) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
     if (filter.minCores !== undefined && inst.cores < filter.minCores) return false
     if (filter.originallyNexus && card(inst.cardId).type !== "nexus") return false
@@ -137,6 +137,7 @@ export function matchesTarget(
     if (filter.notHeavyRested && inst.heavyRested) return false
     if (filter.notAttacking && board.battle?.attackerInstanceId === inst.instanceId) return false
     if (filter.blocking && board.battle?.blockerInstanceId !== inst.instanceId) return false
+    if (filter.notInBattle && (board.battle?.attackerInstanceId === inst.instanceId || board.battle?.blockerInstanceId === inst.instanceId)) return false
     if (filter.inBattle && board.battle?.attackerInstanceId !== inst.instanceId && board.battle?.blockerInstanceId !== inst.instanceId) return false
     // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
     if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false

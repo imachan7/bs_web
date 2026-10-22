@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto"
 import type { CardInstance, CardType, Color, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
+import { getAllFamilies } from "./EffectModules"
 
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -531,6 +532,7 @@ export function commitPendingDestruction(
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
         cardId: inst.cardId,
         colors: instColors(inst),
+        families: getAllFamilies().filter((f) => spiritHasFamily(state, ownerPid, inst, f)),
         hostCost: instAllCosts(inst)[0]! - (inst.braveComposite?.cost ?? 0),
         braves: bravesOf(player, inst).map((b) => ({ instanceId: b.instanceId, cost: instAllCosts(b)[0]! })),
         byOpponentEffect: burstInfo?.byOpponentEffect ?? false,
@@ -604,6 +606,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
         const player = state.players[pid]
         const colors = new Set<Color>()
         const costs: number[] = []
+        const memberInfos: { colors: Color[]; cost: number; families: string[] }[] = []
         let destroyedBp = 0
         let byOpponentEffect = false
         for (const m of members) {
@@ -613,6 +616,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
                 .filter((b) => !player.field.spirits.some((s) => s.instanceId === b.instanceId))
                 .reduce((sum, b) => sum + b.cost, 0)
             costs.push(m.hostCost + braveCost)
+            memberInfos.push({ colors: m.colors, cost: m.hostCost + braveCost, families: m.families })
             destroyedBp = Math.max(destroyedBp, m.destroyedBp)
             byOpponentEffect ||= m.byOpponentEffect
         }
@@ -622,6 +626,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
             byOpponentEffect,
             destroyedBp,
             costs,
+            members: memberInfos,
         })
     }
 }

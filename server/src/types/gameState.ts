@@ -113,6 +113,7 @@ export interface GameState {
         groupKey: string // 同じ破壊（同時破壊グループのid、または単体破壊ならinstanceId）をまとめる単位
         cardId: string
         colors: Color[]
+        families: string[] // 破壊時点の系統（付与込み）。条件{burstDestroyed.family}用
         hostCost: number // ホスト自身のコスト（合体中のブレイヴぶんは含まない。braves側で別途足す）
         braves: { instanceId: string; cost: number }[] // 破壊時に合体していたブレイヴ。トラッシュへ行った分だけ発火時にhostCostへ加算する
         byOpponentEffect: boolean
@@ -161,6 +162,8 @@ export interface GameState {
     // 破壊処理の途中では中断できない（destroySpirit の呼び出しはループの中にあり、
     // pendingChoice の queue は EffectAction の列しか運べない）ため、いったん破壊を見送って
     // ここへ積み、handleAction の末尾＝安全な地点で1件ずつ確認する
+    // reviveOnDestroy.revived:"handOrDeckTop" で手札に入れたカードの、行き先（手札のまま／デッキの上）の確認待ち行列
+    pendingReviveDestinations?: { pid: PlayerId; cardId: string }[]
     pendingReviveConfirms?: {
         pid: PlayerId
         instanceId: string

@@ -12,7 +12,7 @@ export type GlobalConstraintDef =
     | { type: "cantAttackByCost"; costs: number[] } // opponentCantAttackByCost の両陣営版
     | { type: "cantBlockByCost"; costs: number[] } // cantAttackByCost のブロック版（両陣営）
     | { type: "allSpiritsCantBounce" } // 両陣営とも、あらゆる原因でスピリットがフィールドから手札に戻らない（markBounce が冒頭で止める＝戻すはずのスピリットは場に残る）。phase/turn と組み合わせて使う
-    | { type: "noLifeDamageByCost"; maxCost?: number; costs?: number[]; keywordExclude?: Keyword; maxBp?: number; symbolCount?: number; combinedOnly?: true; ownOnly?: true; attackerLevel?: number } // 既定は、コストが maxCost 以下のスピリットのアタックでお互いのライフが減らない（両陣営）。costs＝maxCost の代わりにコスト完全一致。keywordExclude＝そのキーワードを持つアタッカーは保護しない。maxBp＝実効BPで縛る。symbolCount+combinedOnly＝シンボル数ちょうどかつ合体スピリットのアタックでのみ保護（maxCost 等とは併用しない）。symbolCount のみ＝シンボル数ちょうど一致のアタックのみ保護。ownOnly＝発生源の持ち主だけを守る。attackerLevel＝maxCost と両方満たすときだけ保護（AND）
+    | { type: "noLifeDamageByCost"; maxCost?: number; costs?: number[]; keywordExclude?: Keyword; maxBp?: number; symbolCount?: number; combinedOnly?: true; ownOnly?: true; attackerLevel?: number; attackerCores?: number } // 既定は、コストが maxCost 以下のスピリットのアタックでお互いのライフが減らない（両陣営）。costs＝maxCost の代わりにコスト完全一致。keywordExclude＝そのキーワードを持つアタッカーは保護しない。maxBp＝実効BPで縛る。symbolCount+combinedOnly＝シンボル数ちょうどかつ合体スピリットのアタックでのみ保護（maxCost 等とは併用しない）。symbolCount のみ＝シンボル数ちょうど一致のアタックのみ保護。ownOnly＝発生源の持ち主だけを守る。attackerLevel＝maxCost と両方満たすときだけ保護（AND）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た相手のネクサスは疲労させられない（【強襲】の疲労元等も止める）。phase 指定時はそのステップ中のみ
     | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // 発生源が回復状態の間、発生源の持ち主は相手のライフを減らせない（片側のみ。2026-09-02 ユーザー確認で「文面どおり」）
     | { type: "noDrawInMain" } // 両陣営とも、メインステップの間はドローできない
@@ -76,7 +76,7 @@ export type GlobalConstraintDef =
     // 条件を満たすスピリットカードを召喚するときコストを amount だけ余分に支払う
     // （maxCost＝カード記載コストがこれ以下のもの限定／keywordExclude＝そのキーワードを持たないもの限定）
     | { type: "noSummonTriggerByCost"; maxCost?: number; side?: "opponent" } // お互い、コストが maxCost 以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす）。maxCost 省略時はコストを問わずすべて。エントリの phase / turn を書けばその区間だけ有効。side:"opponent" 指定時は発生源の持ち主から見た相手のスピリット/ブレイヴだけが対象（既定は両陣営）
-    | { type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[] } // 発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）
+    | { type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[]; side?: "opponent" | "both" } // side:"both" で発生源の持ち主にも掛かる（省略時は相手だけ）。max:0 はコアが1個も増えない（ボイド→ライフも対象。2026-10-23確認）。発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）
     | { type: "noVoidToLife" } // お互い、ボイドからライフにコアを置けない（placeCores の void→life を落とす。【聖命】も止まる）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストが maxCost 以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（カード静的なコスト＝軽減前の値で判定）
     | { type: "bp0DestroyedToDeckBottom"; maxCost: number } // 発生源の持ち主の相手のスピリットが、破壊直前の実効BPが0でコストが maxCost 以下のまま破壊されたとき、トラッシュに置くかわりに持ち主のデッキの下へ戻す（commitPendingDestruction が読む）。複数体の「好きな順」は選ばせず破壊順

@@ -158,6 +158,7 @@ export function handleAction(
     // ここ（アクションを解決しきった安全な地点）で1件ずつ出す。
     // resolveChoice も handleAction を通るため、複数体ぶんは自然に繰り返される
     requestPendingReviveConfirm(state)
+    requestPendingReviveDestination(state)
     // アタックしていたスピリットが場を離れていたら、その時点でバトルを終える
     endBattleIfAttackerLeftField(state)
     // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）：破壊の確定・ブレイヴの「残す/残さない」・
@@ -233,6 +234,27 @@ function requestPendingReviveConfirm(state: GameState): void {
         return
     }
     if (queue.length === 0) delete state.pendingReviveConfirms
+}
+
+// 復活で手札に入ったカードの行き先を1件だけ聞く。確認（復活させるか）が先、行き先は後
+function requestPendingReviveDestination(state: GameState): void {
+    if (state.pendingChoice || state.winner || (state.pendingReviveConfirms?.length ?? 0) > 0) return
+    const entry = state.pendingReviveDestinations?.shift()
+    if (!entry) {
+        delete state.pendingReviveDestinations
+        return
+    }
+    suspend(state, {
+        pid: entry.pid,
+        kind: "option",
+        prompt: `${getCard(entry.cardId).name}：手札に戻すか、デッキの上に置くかを選んでください`,
+        candidates: [],
+        options: ["手札に残す", "デッキの上に置く"],
+        optional: false,
+        reviveDestination: entry,
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
 }
 
 // 公開ゾーンに残っているカードを、持ち主のデッキの下へ戻して片付ける。

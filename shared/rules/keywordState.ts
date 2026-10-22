@@ -200,6 +200,7 @@ export function continuousKeywordGrantCount(
             if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
             // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
             if (effect.combinedFilter && !instIsCombined(inst)) continue
+            if (effect.uncombinedFilter && instIsCombined(inst)) continue
             if (
                 effect.familyFilter &&
                 !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)

@@ -259,6 +259,7 @@ export function fireBurstOnEvent(
         byOpponentEffect?: boolean
         destroyedBp?: number
         costs?: number[]
+        members?: { colors: Color[]; cost: number; families: string[] }[]
     },
 ): void {
     // 同時に条件を満たした場合は防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
@@ -303,7 +304,7 @@ export function fireBurstOnEvent(
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
         const blocked = burstEffectBlocked(state, holderPid, burstCardId)
-        const baseAction: EffectAction = burstConditionMet(state, holderPid, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+        const baseAction: EffectAction = burstConditionMet(state, holderPid, effect.condition, eventInfo?.members) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
         const actionToRun = withEffectTax(state, holderPid, "burst", burstCardId, baseAction)
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
@@ -442,6 +443,8 @@ export function burstConditionMet(
     state: GameState,
     pid: PlayerId,
     condition: Extract<EffectDef, { kind: "burst" }>["condition"],
+    // 破壊後バーストのときだけ渡る（破壊されたメンバーごとの色・コスト・系統）
+    members?: { colors: Color[]; cost: number; families: string[] }[],
 ): boolean {
     if (condition === undefined) return true
     const player = state.players[pid]
@@ -477,7 +480,19 @@ export function burstConditionMet(
     }
     // BS16共通器：このバースト発動時に破壊された（同時破壊なら全メンバーの）色にこの色が含まれるか
     if ("burstDestroyedColor" in condition) {
-        return (state.burstEventColors ?? []).includes(condition.burstDestroyedColor)
+        // 条件の評価は burstEventColors を積む前なので、破壊メンバーが渡っていればそちらから読む
+        const c = condition.burstDestroyedColor
+        return members !== undefined ? members.some((m) => m.colors.includes(c)) : (state.burstEventColors ?? []).includes(c)
+    }
+    if ("burstDestroyed" in condition) {
+        const { colors, minCost, family } = condition.burstDestroyed
+        const fam = family === undefined ? undefined : Array.isArray(family) ? family : [family]
+        return (members ?? []).some(
+            (m) =>
+                (colors === undefined || colors.some((c) => m.colors.includes(c))) &&
+                (minCost === undefined || m.cost >= minCost) &&
+                (fam === undefined || fam.some((f) => m.families.includes(f))),
+        )
     }
     // 器BS16：発生源の持ち主のフィールドに指定系統（配列＝OR）のスピリットがcount体以上いるか
     // （BS16-005ゴエモン・シーフ・ドラゴン：「系統：「覇皇」/「雄将」を持つ自分のスピリットがいるとき」）

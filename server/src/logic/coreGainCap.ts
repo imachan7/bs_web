@@ -2,7 +2,7 @@
 // 2026-10-17 ユーザー確認：マジックの効果は数えない／累計は相手の効果すべての合計／
 // コアステップ・コストの支払い（効果ではない）は対象外。
 import type { CardType, GameState, PlayerId } from "../type"
-import { currentLevel, getCard, opponentOf } from "./GameState"
+import { currentLevel, getCard } from "./GameState"
 import { effectActiveAtLevel, effectSources } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 
@@ -10,7 +10,7 @@ export type CoreGainFrom = "void" | "trash"
 export type CoreGainTo = "life" | "field" | "reserve"
 
 // pid が自分の from から自分の to へ、srcType の効果で置けるコアの残り個数（制限が無ければ Infinity）。
-// 制限は pid の相手のフィールドの発生源が掛ける
+// 制限は pid の相手のフィールドの発生源が掛ける（side:"both" の発生源は自分側のものも掛かる）
 export function coreGainAllowance(
     state: GameState,
     pid: PlayerId,
@@ -21,16 +21,19 @@ export function coreGainAllowance(
     if (srcType === undefined || (from !== "void" && from !== "trash")) return Infinity
     if (to !== "life" && to !== "field" && to !== "reserve") return Infinity
     let remaining = Infinity
-    for (const source of effectSources(state, opponentOf(pid))) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "coreGainCap") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
-            const c = effect.constraint
-            if (!c.sourceTypes.includes(srcType as "spirit" | "brave" | "nexus")) continue
-            if (!c.from.includes(from) || !c.to.includes(to)) continue
-            noteCoverage(effect, "globalConstraint")
-            remaining = Math.min(remaining, c.max - (state.coreGainCountThisTurn[pid] ?? 0))
+    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(state, sourcePid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "coreGainCap") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                const c = effect.constraint
+                if (c.side !== "both" && sourcePid === pid) continue
+                if (!c.sourceTypes.includes(srcType as "spirit" | "brave" | "nexus")) continue
+                if (!c.from.includes(from) || !c.to.includes(to)) continue
+                noteCoverage(effect, "globalConstraint")
+                remaining = Math.min(remaining, c.max - (state.coreGainCountThisTurn[pid] ?? 0))
+            }
         }
     }
     return Math.max(remaining, 0)

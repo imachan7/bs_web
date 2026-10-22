@@ -296,7 +296,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                     continue
                 }
-                if (effect.kind === "keyword" && effect.keyword === "armor" && effect.colorsFrom === "opponentFieldSymbols") {
+                if (effect.kind === "keyword" && (effect.keyword === "armor" || effect.keyword === "heavyArmor") && effect.colorsFrom === "opponentFieldSymbols") {
                     // 【装甲：∞】：持ち主から見た相手フィールドのシンボル色を毎回算出して自身へ反映する
                     // （hasArmorAgainstはstateを受け取らない純粋述語のため、armorColorsGrantedへ都度全消去→再構築で渡す。
                     // BS06鎧神機ヴァルハランス。sourceは実在するカード自身＝effectSourcesが返す実フィールド発生源）
@@ -304,9 +304,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const oppColors = ownFieldSymbolColors(state, opponentOf(pid))
                     if (oppColors.size > 0) {
                         noteCoverage(effect, "keyword")
-                        if (!source.armorColorsGranted) source.armorColorsGranted = []
+                        const granted = effect.keyword === "heavyArmor" ? (source.heavyArmorColorsGranted ??= []) : (source.armorColorsGranted ??= [])
                         for (const c of oppColors) {
-                            if (!source.armorColorsGranted.includes(c)) source.armorColorsGranted.push(c)
+                            if (!granted.includes(c)) granted.push(c)
                         }
                     }
                     continue
@@ -582,6 +582,8 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const symbolFixTargets = effect.target === "self" ? [source] : player.field.spirits
                     for (const spirit of symbolFixTargets) {
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
+                        if (effect.minCores !== undefined && spirit.cores < effect.minCores) continue
                         // color 指定時はその色に固定する（省略時は対象が元々持つシンボルの1色目）
                         const baseColor = effect.color ?? getCard(spirit.cardId).symbol[0]
                         if (!baseColor) continue

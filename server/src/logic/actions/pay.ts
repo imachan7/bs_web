@@ -154,6 +154,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     exhaust: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "exhaust") return false
         if (action.target === "self") return self !== null && !self.isRested
+        if (action.count === "any") return true
         if (action.nexusOnly) {
             return canExhaustNexus(state, owner) && state.players[owner].field.nexuses.filter((n) => !n.isRested).length >= action.count
         }

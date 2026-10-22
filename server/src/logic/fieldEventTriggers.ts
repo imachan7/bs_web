@@ -434,6 +434,8 @@ export function fireFieldEventTriggers(
                         getCard(inst.cardId).type,
                     )
                     if (total < count) continue
+                } else if ("ownHandAtLeast" in effect.condition) {
+                    if (state.players[pid].hand.length < effect.condition.ownHandAtLeast) continue
                 } else if ("ownFieldHasColorNexus" in effect.condition) {
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
                     const color = effect.condition.ownFieldHasColorNexus

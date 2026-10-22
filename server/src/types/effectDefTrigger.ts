@@ -45,6 +45,7 @@ export type EffectDefTrigger =
               // fieldEvent.condition 側の targetMaxBp とは別物（あちらは onLifeDamaged のアタッカーを見る）
               | { targetHasColor: Color } // onBlocked 用
               | { targetMaxCost: number } // onBlocked 用
+              | { targetMinCost: number } // targetMaxCost の鏡。onBlock＝アタッカー、onBlocked＝ブロッカーのコストがこれ以上
               | { targetNotMaxLevel: true } // onBlocked 用
               | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 自分のフィールドのスピリットを数える
               | { battleLoserMaxCost: number } // onBattleWin 専用
@@ -90,6 +91,7 @@ export type EffectDefTrigger =
               | { ownFieldHasKeywordAny: Keyword[] } // 配列＝OR
               | { opponentHandAtLeast: number } // 相手の手札枚数
               | { burstDestroyedColor: Color } // ownSpiritDestroyed 限定（同時破壊なら全メンバーの色）
+              | { burstDestroyed: { colors?: Color[]; minCost?: number; family?: FamilyFilter } } // ownSpiritDestroyed 限定。同時破壊のうち**1体でも**指定（色はOR・コスト・系統）をすべて満たせば真。メンバーごとに判定するので、別々の個体で満たした組み合わせは偽
               // destroyedColorFilter は発動可否を絞るのに対し、こちらは action 内側の条件分岐用
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // family 配列＝OR
               | { opponentFamilyCountAtLeast: { family: FamilyFilter; count: number } } // 相手のフィールドのスピリット
@@ -243,6 +245,7 @@ export type EffectDefTrigger =
           // 指定時、resolveAction へ渡す対象は通常のイベント対象ではなく、その効果を発揮したスピリット自身（DestroyContext.sourceInstanceId）になる
           condition?:
               | { ownColorTotalAtLeast: { color: Color; count: number } } // スピリット+ネクサス合計
+              | { ownHandAtLeast: number } // 自分の手札枚数
               | { ownFieldHasColorNexus: Color } // 自分のフィールド
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // family 配列＝OR
               | "selfIsAttacking" // 発生源自身が現在のバトルのアタッカーのとき
@@ -268,7 +271,7 @@ export type EffectDefTrigger =
           paidCostOnly?: true // ownMagicUsed 限定。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認）
           magicFreeUseMaxPerTurn?: number // ownMagicUsed 限定。発生源が実際に無償使用を行った回数（CardInstance.magicFreeUseCount）がこの値未満のときのみ
           // 確認で「使わない」を選んだ・候補が無く不発だったときは消費しない（2026-09-07確認）
-          familyFilter?: FamilyFilter // ownSpiritDestroyed | ownSpiritSummoned | ownSpiritExhausted | anySpiritExhausted | anySpiritAttacked 限定
+          familyFilter?: FamilyFilter // ownSpiritDestroyed | ownSpiritSummoned | ownSpiritExhausted | anySpiritExhausted | anySpiritAttacked | ownSpiritBattleEnded 限定
           // 破壊/召喚は eventInfo.families（カード静的な系統）で判定。疲労イベントは families を渡さないため selfOverride を matchesFamilyFilter で判定
           fromHandOnly?: true
           subjectNotInBattle?: true // 主体が今のバトルのアタッカーでもブロッカーでもないときのみ
@@ -325,6 +328,7 @@ export type EffectDefTrigger =
           keywordFilter?: Keyword | Keyword[] // scope:"ownAll" 用。配列はOR
           minBp?: number // scope:"ownAll" 用。対象の実効BP
           minCost?: number // scope:"ownAll" 用。対象のコスト
+          nameIncludes?: string[] // scope:"ownAll" 用。カード名に含む（配列＝OR・部分一致。constraintGrant.nameIncludes と同じ）
           familyFilter?: FamilyFilter // scope:"ownAll" 用。指定系統（配列＝OR）を持つスピリットのみ
           minFamilies?: number // scope:"ownAll" 用。カード静的な family 配列の要素数
           combinedOnly?: true // scope:"ownAll" 用。合体スピリットのみ
@@ -340,7 +344,7 @@ export type EffectDefTrigger =
               byBattleKillerMaxBp?: number // 破壊した側（勝者）の実効BP
           }
           phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件
-          revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // toBurst の Q3469（解決中は発動不可）は未実装（簡略化）
+          revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { handOrDeckTop: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // handOrDeckTop＝toHand と同じく場に残らず（コアはリザーブへ）、行き先を持ち主が手札かデッキの上から選ぶ（非対話は手札。選択は handleAction の末尾で出す＝pendingReviveDestinations。braveStay も toHand と同じ）。toBurst の Q3469（解決中は発動不可）は未実装（簡略化）
           // false＝回復／true＝疲労。toHand＝場に残らず手札へ（コアはリザーブへ）。braveStay 指定時は合体していたブレイヴを確認なしで指定状態のまま残す。省略時は detachBravesOnLeave へ
           cost?: {
               exhaustSelf?: true // 疲労済みなら支払えず不発
@@ -363,7 +367,7 @@ export type EffectDefTrigger =
               exhaustOwnNexusOne?: true // コア最少の個体を選ぶ簡略化。候補が無い・相手のconstraintで疲労させられないなら不発
           }
           oncePerTurn?: boolean // 発生源1つにつきターン1回
-          condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } // AtMost＝相手シンボル色数（重複除く）がこの値以下／ownBurstSet＝セット中(true)/未(false)
+          condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number } // AtMost＝相手シンボル色数（重複除く）がこの値以下／ownBurstSet＝セット中(true)/未(false)
           alsoVoidCoreToReserve?: number // 復活の成立とセットで、ボイドからリザーブに置くコアの数
       }
     | {

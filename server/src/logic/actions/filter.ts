@@ -13,7 +13,7 @@
 import type { ResolvedTargetFilter, TargetFilter } from "../../type"
 import type { EffectAttempt } from "../../../../shared/rules"
 import { effectiveBp, iceWallColorsOf, instAllCosts, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
-import { findInstanceAnywhere, getCard } from "../GameState"
+import { currentLevel, findInstanceAnywhere, getCard } from "../GameState"
 import type { ActionCtx } from "./types"
 import { countEffectCounter } from "../EffectModules"
 import { lastMovedOf, lastTargetsOf } from "../record"
@@ -58,7 +58,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -83,6 +83,12 @@ export function normalizeFilter(
         const level = ctx.state.lastBattleDestroyedLevel
         if (level === 0) return SELF_REQUIRED
         resolved.level = [level]
+    }
+    if (sameLevelAsSource) {
+        const src = ctx.self
+        const onField = src !== null && (ctx.state.players.p1.field.spirits.includes(src) || ctx.state.players.p2.field.spirits.includes(src))
+        if (!onField) return SELF_REQUIRED
+        resolved.level = [currentLevel(src).level]
     }
     // 直前のバトルで破壊された側と同じ実効BP（BS03熾烈極める最前線Lv2）。
     // 記録が0（バトル外での発動など）なら対象なしにする

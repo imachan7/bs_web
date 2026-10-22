@@ -369,6 +369,8 @@ export function summonFromHandFreeCandidateMatches(
         const asCost = action.summonedBy === "fchange" ? fchangeCostAs(state, owner, candidateId) : undefined
         if (!ok(candidate.cost) && (asCost === undefined || !ok(asCost))) return false
     }
+    // symbolCount：手札のカードの印刷シンボル数がちょうど一致するもののみ
+    if (action.symbolCount !== undefined && candidate.symbol.length !== action.symbolCount) return false
     // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
     if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
     if (action.nameExcludes !== undefined && candidate.name.includes(action.nameExcludes)) return false

@@ -22,6 +22,7 @@ import {
     instAllCosts,
     instCantBlockByCost,
     instHasColor,
+    instHasTriggerEffect,
     instHasCost,
     instColors,
     bravesOf,
@@ -209,6 +210,9 @@ export function canBlock(
             if (c.costNot !== undefined && !instHasCost(blockerInst, c.costNot)) {
                 return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
             }
+            if (c.costIn !== undefined && c.costIn.some((n) => instHasCost(blockerInst, n))) {
+                return `このスピリットはコスト${c.costIn.join("/")}のスピリットにブロックされません`
+            }
             // BS05ポテンシャルパワー：ブロッカーのコストがこのアタッカーのコスト以下ならブロックできない。
             // 道化師クランで両者が複数コストを扱いうる状態では、いずれかの組み合わせで
             // 「ブロッカー側のコスト <= アタッカー側のコスト」が成立すれば条件を満たすとする
@@ -275,6 +279,7 @@ export function matchesDirectedAttackFilter(
     if (filter.targetFilter === "rested" && !target.isRested) return "疲労状態のスピリットしか指定できません"
     if (filter.targetFilter === "singleCore" && target.cores !== 1) return "コア1個のスピリットしか指定できません"
     if (filter.targetFilter === "recovered" && target.isRested) return "回復状態のスピリットしか指定できません"
+    if (filter.targetFilter === "hasSummonTrigger" && !instHasTriggerEffect(target, "onSummon")) return "『召喚時』効果を持つスピリットしか指定できません"
     if (
         filter.targetMinBp !== undefined &&
         effectiveBp(board, targetPid, target) < filter.targetMinBp

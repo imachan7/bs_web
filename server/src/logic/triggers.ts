@@ -379,6 +379,11 @@ export function fireTrigger(
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) return false
                 if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCost })) return false
+            } else if ("targetMinCost" in effect.condition) {
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                if (!instMatchesCostFilter(found.inst, { min: effect.condition.targetMinCost })) return false
             } else if ("targetNotMaxLevel" in effect.condition) {
                 // BS07神帝獣スフィン・クロスLv3：ブロックしたスピリット（targetInstanceId）が
                 // そのカードの最高Lvに達していないときのみ発火
