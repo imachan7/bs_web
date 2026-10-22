@@ -1,11 +1,13 @@
 // マジックは、使うタイミングの効果に対象を取る部分しかなく、その対象が1つもいなければ使用できない
 // （2026-10-22 ユーザー確認。対象を取らない部分が同じタイミングにあれば使えて、可能な限り解決する）
-import type { CardData, EffectAction, GameState, PlayerId } from "../../type"
+import type { CardData, CardInstance, EffectAction, GameState, PlayerId } from "../../type"
 import { getCard, opponentOf } from "../GameState"
 import { canPayResolve } from "../actions/pay"
+import { pickEnemyCandidates } from "../targeting"
+import { matchesTarget } from "../../../../shared/rules"
 
-// 候補の有無を「1体ぶん払えるか」で見られる type。疲労（回復状態しか数えない）・コアを置く／移す（コアの数を見る）は
-// 「払えるか」と「対象がいるか」がずれるので入れていない
+// 候補の有無を「1体ぶん払えるか」で見られる type。疲労・回復・コアを置くは下の countsAnyState で見る
+// （「払えるか」は回復状態・置けるコアの数まで見るが、対象としては状態を問わず選べるため）
 const ONE_TARGET_TYPES = new Set<EffectAction["type"]>([
     "destroy", "returnToHand", "returnToDeckTop", "returnToDeckBottom", "destroyNexus", "coreRemove", "bpBuff", "heavyExhaust", "timedEffect",
 ])
@@ -25,6 +27,7 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
         const names = zone.map((i) => getCard(i.cardId).name)
         return !names.some((n) => names.filter((m) => m === n).length >= action.minSameName!)
     }
+    if (action.type === "exhaust" || action.type === "refreshOne" || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
     if (!ONE_TARGET_TYPES.has(action.type)) return null
     const a = action as EffectAction & { all?: true; target?: string; costBudget?: unknown; countCounter?: unknown; filter?: { lastTarget?: unknown } }
     if (a.all || a.target === "self" || a.target === "selfBrave" || a.costBudget !== undefined || a.countCounter !== undefined) return null
@@ -33,6 +36,30 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
     if (action.type === "timedEffect" && action.content.every((c) => c.type === "playerRule")) return null
     const one = "count" in action && typeof action.count === "number" ? ({ ...action, count: 1 } as EffectAction) : action
     return !canPayResolve(state, pid, null, one, card.colors, "magic")
+}
+
+// 疲労済みのスピリットも「疲労させる」の対象に選べる（回復も同じ。コアを置くは置くコアの数を問わない）（2026-10-22 ユーザー確認）
+function anyStateMissing(state: GameState, pid: PlayerId, action: Extract<EffectAction, { type: "exhaust" | "refreshOne" | "placeCores" }>, card: CardData): boolean | null {
+    const opp = opponentOf(pid)
+    let pids: PlayerId[]
+    if (action.type === "exhaust") {
+        if (action.all || action.target === "self" || action.nexus || action.nexusOnly || action.countCounter !== undefined || action.countFromBofu) return null
+        pids = action.anySide ? [pid, opp] : action.side === "own" ? [pid] : [opp]
+    } else if (action.type === "refreshOne") {
+        if (action.all || action.eventTargetOnly || action.countCounter !== undefined) return null
+        pids = action.anySide ? [pid, opp] : [pid]
+    } else {
+        if (action.to !== "spirit" || (action.target ?? "one") !== "one" || action.anyField || (action.targets ?? 1) !== 1 || action.targetsCounter !== undefined) return null
+        pids = [pid]
+    }
+    const filter = (action.filter ?? {}) as never
+    const matches = (side: PlayerId) => (s: CardInstance) => matchesTarget(state, side, s, filter)
+    const found = pids.some((side) =>
+        side === pid
+            ? state.players[side].field.spirits.some(matches(side))
+            : pickEnemyCandidates(state, side, Infinity, matches(side), card.colors, "magic", action.type === "exhaust" ? "exhaust" : "other").length > 0,
+    )
+    return !found
 }
 
 export function magicTargetMissing(state: GameState, pid: PlayerId, card: CardData, timing: "main" | "flash"): boolean {
