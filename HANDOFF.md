@@ -21,16 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：型4ファイルのコメント整理（`chore/trim-type-comments`）
-
-effectAction.ts・effectDefTrigger.ts・effectDefContinuous.ts・globalConstraint.ts を1体ずつ。CLAUDE.md「コードスタイル」の基準で削る（裁定・簡略化・理由・誤読しやすい意味は残す）。コード側が変わっていないことは、コメントを除いた字句列を HEAD と比べて確かめる（照合スクリプトはセッションの scratchpad。消えたら作り直す：ts.createScanner(skipTrivia) の字句列比較）
-
 
 ### 次の一手：後片付け2つ（10-16）
 
 - 使うカードが無くなった reductionGrant の `replace`（`shared/cost.ts` の reductionGrantSymbols。参照は smoke part297 #4 の加算側だけ）
 - 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
-- 古い長いコメントの整理（ファイル単位の chore。どのファイルから削るかの一覧をユーザーに出す）
+- 古い長いコメントの整理：型4ファイルは済み（10-22）。次の候補はロジック側（EffectModules・removal・GameEngine・RuleValidator。コメント35〜43%）。名前で向き・数え方・専用の場面が読めない説明は残す
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 

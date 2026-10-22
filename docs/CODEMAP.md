@@ -966,8 +966,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/effectAction.ts
 
-- `CardPick`（型）：カードデータ1枚に対する条件（reveal の pick・if の cond.last）
-- `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上。count＝既存カウンタとの比較
+- `CardPick`（型）
+- `IfCond`（型）：last＝GameState.lastMoved に pick を満たすカードが1枚以上
 - `EffectAction`（型）
 
 ## server/src/types/effectCounter.ts
@@ -1005,7 +1005,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/globalConstraint.ts
 
-- `GlobalConstraintDef`（型）：フィールド全体制約の定義（kind: "globalConstraint" が参照する宣言的ルール）。
+- `GlobalConstraintDef`（型）：kind: "constraint" は発生源自身への制約だが、こちらは発生源の持ち主に関係なく両陣営のスピリット／ネクサスすべてに効く
 
 ## server/src/types/keyword.ts
 
