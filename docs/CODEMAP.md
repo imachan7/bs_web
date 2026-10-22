@@ -657,7 +657,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `resolveMagic`（fn）
 - `consumeOncePerBattleMagicFree`（fn）：oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。
-- `usableMagicTarget`（fn）：クライアントが**先に選んだ対象**をそのまま使ってよいかを見る（2026-08-21 利用者確定）。
+- `usableMagicTarget`（fn）
 - `doCastMagic`（fn）
 - `offerOpponentMainEndMagic`（fn）：kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
 - `applyProvocationUse`（fn）：プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
@@ -699,6 +699,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
+
+## server/src/logic/magic/targetRequirement.ts
+
+- `magicTargetMissing`（fn）
 
 ## server/src/logic/oncePerTurn.ts
 
