@@ -383,6 +383,9 @@ function updatePoolBadges(): void {
         } else if (existing) {
             existing.remove()
         }
+        // 一覧はデッキの増減では描き直さないので、−ボタンの押せる状態もここで合わせる
+        const removeBtn = el.querySelector<HTMLButtonElement>(".remove-btn")
+        if (removeBtn) removeBtn.disabled = inDeck === 0
     }
 }
 
