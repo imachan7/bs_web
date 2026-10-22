@@ -15,6 +15,7 @@ import { card } from "../cardDb"
 import { activeConstraints, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
+import { boardResistanceAgainst, type EffectAttempt } from "./resistance"
 import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches, matchesBraveCondition } from "./level"
 
 // ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----
@@ -314,6 +315,8 @@ export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self
 // サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy（トップレベルのみ）だけで、
 // 装甲・免疫などの耐性は見ない＝対象が耐性持ちだけのときは「起動できる」側に倒れる。ほかの action は常に true
 export function activatedActionResolvable(board: Board, pid: PlayerId, source: CardInstance, action: EffectAction): boolean {
+    // 「その後」で続く文も、ことで の後半としてすべて解決できなければならない（COST_MODEL）。if の中は条件しだいなので見ない
+    if (action.type === "sequence") return action.actions.every((a) => activatedActionResolvable(board, pid, source, a))
     if (action.type !== "destroy" || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
     const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
     if ([filter.maxBp, filter.minBp, filter.exactBp].some((v) => typeof v === "string")) return true
@@ -324,7 +327,9 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
         }
     }
     const opp: PlayerId = pid === "p1" ? "p2" : "p1"
-    const n = board.players[opp].field.spirits.filter((s) => matchesTarget(board, opp, s, filter, source.instanceId)).length
+    const src = card(source.cardId)
+    const attempt: EffectAttempt = { op: "destroy", scope: "targeted", actorPid: pid, sourceType: src.type, sourceColors: src.colors, probing: true }
+    const n = board.players[opp].field.spirits.filter((s) => matchesTarget(board, opp, s, filter, source.instanceId) && boardResistanceAgainst(board, opp, s, attempt) === null).length
     return n >= (action.upTo || action.count === "any" ? 1 : action.count)
 }
 
