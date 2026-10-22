@@ -21,57 +21,9 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：BS17「剣舞う世界」（`feat/bs17-import`）
+### BS17「剣舞う世界」（`feat/bs17-import`）は PR 提出済み。マージ待ち
 
-staging 取り込み済み。計画と進め方は [BS17_PLAN.md](./docs/design/BS17_PLAN.md)。解釈は §2 で確定済み、部品は §3。
-
-**部品バッチ1（確定スキーマ）**：`AuraCondition` に `{ maxOwnSpirits: number }`（047・048）と `{ battleOpponentHasKeyword: Keyword[] }`（現在のバトルで持ち主から見た相手側の個体がいずれかを持つ。014 は battlingOnly と併用、["armor","heavyArmor"]）。
-`AuraDef.levelFilter?: number[]`（対象の現在Lv。065）。GlobalConstraint `{ type: "cantBlockByCost"; costs: number[] }`（`instCantAttackByCost` の隣に `instCantBlockByCost`、ブロック可否の判定箇所すべてに。071。`cantAttackByCost` に act 軸を足すと名前と中身がずれるので兄弟 type にした）。
-type.ts は残り約300バイトなので、同じ区画の「カード名の引用」コメントを削って場所を作る（✅ 45df5ed・part442）
-**部品バッチ2（免疫。確定スキーマ）**：054 は既存（constraintGrant nameIncludes＋immuneToOpponentEffects against:"magic"）。
-ConstraintDef `immuneToOpponentEffects.against` に配列も許す（072 Lv2＝["spirit","brave"]）。constraintGrant に `combinedBraveColors?: Color[]`（発生源がその色のブレイヴと合体している間。triggered と同じ意味）と `symbolCount?: number`（対象のシンボル数が完全一致。036）。
-TimedContent `{type:"immune"}` に `against?: ("spirit"|"brave"|"magic")[]`（058。省略時は従来どおり全部）（✅ ab6056c・part443）
-**部品バッチ3（確定スキーマ）**：`reviveOnDestroy` に `cost.exhaustSelf?: true`（発生源＝ネクサスを疲労。疲労済みなら不発。069）と `blockingOnly?: true`（ownAll 用。現在のバトルのブロッカーだけ。079 は magic の lendSelfThisTurn＋lentOnly＋blockingOnly で「このバトルの間」を表す）。
-`triggered.burstSummonOnly?: true`（onSummon。その召喚がバースト効果の解決中に行われたときだけ。044）。`reveal.countCounter?: EffectCounter`（destroy.countCounter と同名。041）と EffectCounter `ownKeyword` に配列（OR・1体1回）（✅ dadb506・part444）
-**部品バッチ4（【魔光芒】。確定スキーマ）**：Keyword `"makobo"`。挙動は既存2つの合成で、専用の kind を作らない：`resolveKoboOnBattleEnd` は makobo も kobo と同じく回収、`findMagicRepeatGrantSource` はバトル中の自分のアタッカーが makobo を持てばそれを再発揮の発生源として返す（確認式・マジック1枚ごと・oncePerBattle なし）。
-「【光芒】/【魔光芒】を持つ」用に TargetFilter.keyword と reviveOnDestroy.keywordFilter を `Keyword | Keyword[]`（OR）に広げる。【光芒】だけを見るフィルタに makobo は当てはまらない（✅ 63bea12・part445）
-**部品バッチ5（type.ts を触らない。確定スキーマ）**：`exhaust.untilRefreshedCount?: number`（対象側の回復状態のスピリットがこの数になるまで疲労。選ぶのは chooserIsTarget の規則どおり。072）。`returnToHand.nexus?: "only" | "also"`（exhaust と同じ意味。X04）。
-`battleBpAsLevel` の `fromLevel` を省略可（省くとどのLvでも）・`useLevel: number | "max"`（そのスピリットのカードが持つ最高Lv）・`maxCost?: number`（023）。
-（✅ 4d4dde0・part446）
-type.ts を触る部品（034 の破壊されたカード記録・declare の what:"name"/"level"・EffectCounter の BP差・081 の TimedContent「効果を失う」）は未着手（#226 はマージ済み）。
-残り：returnToHand.countCounter（X04「ブレイヴ1つにつき」）。**聞く前に PROCEDURES_AUDIT §2 の索引を見る**（081 で既存の一般則を聞き直した）
-**部品バッチ6〜15の組み方（10-17 確定）**：仕分けは [BS17_SURVEY_remaining.md](./docs/design/BS17_SURVEY_remaining.md)（# は表の行番号）。直列で 6:#1・#4・#6 → 7:#10・#11・#8 → 8:#2・#3・#5 → 9:#9 → 10:#13・#18・#20 → 11:#16・#17・#21 → 12:#12 → 13:#15 → 14:#19 → 15:#14。#7・#22 は既存（データ役が書く）。その後に色ごとのデータ（3役）。
-**部品バッチ6（確定スキーマ）**：`declare.what` に `"level"`（`declared` を `filter.level=[v]` へ置き換える。081）。TimedContent `{ type: "effectsDisabled" }`（`effectsDisabledContinuous` の期間つき版。後から得た効果も止める＝「新たに得ることもない」。081 は `timedEffect all`＋`filter:{declared:"match"}`）。
-IfCond `{ opponentMainStepNow: true }`（`opponentAttackStepNow` の兄弟。032）。`symbolWhenSummoning` をブレイヴの召喚にも効かせ、`pick.cardType` で絞る（`pick.cardType` を書かないエントリは従来どおりスピリットだけ。067）（✅ part607）
-**部品バッチ7（確定スキーマ）**：EffectCounter の葉 `"lastBattleDestroyedBp"`（`state.lastBattleDestroyedBp` を読む。`lastBattleDestroyedCost` の兄弟）と `lifeCrush.countMax?: number`（009＝`countCounter:{div:[{minus:["selfBp","lastBattleDestroyedBp"]},3000]}`・`countMax:3`）。
-`returnToHand.countCounter?: EffectCounter`（`countedAmount` で count を置き換える。X04＝`selfBraveCount`）。ConstraintDef `combineLimit.extraSlotSymbolless?: true`（2体目以降に合体できるのはシンボル0のブレイヴだけ。合体条件は別に満たす。X04）（✅ part608）
-**部品バッチ8（確定スキーマ）**：`ownDeckMilled` の eventInfo に `byOpponentEffect` を載せ、既存の `byOpponentEffectOnly` を効かせる（070。手札へは `moveCards{from:"trash",fromEvent:true,pick:{hasBurst:true}}`、その後は `timedEffect playerRule noDeckMillForPid`。`milledMagicToTegamoto` は広げない）。
-GlobalConstraint `summonExhausted` に `self?: true`（召喚されるカード自身の effects に書く「このスピリットカードは疲労状態で召喚する」。召喚の判定が召喚するカード自身の effects も見る。026）。
-バトルで破壊されたカードの cardId を `state.lastBattleDestroyedCardId` に記録し、moveCards に `onlyLastBattleDestroyed?: true`（トラッシュのそのカードだけが候補。無ければ不発。034）（✅ part609。026 の self は全召喚経路が通る `createInstance` で見る）
-**見つけた既存の不具合（10-17・未着手）**：場の発生源の `summonExhausted`（BS13-065 八分儀の祠・BS13-X03 セフィロ・アリエス）は `GameEngine.ts` の手札からの召喚2か所でしか判定しておらず、効果・バーストでの召喚では効かない。BS17 とは別の `fix/` ブランチで直す
-**部品バッチ9（確定スキーマ）**：`declare.what` に `"name"`（`declared` を TargetFilter の新しい軸 `nameIs?: string`＝カード名の完全一致へ置き換える。「〜として扱う」名も一致とみなす）。
-`declare.fromSide?: "opponent"`（`from` の候補を選ぶ人の相手の場から取る）と `declare.minSameName?: number`（同じカード名がその場にこの数以上いるものだけが候補。いなければ不発）。074＝バースト部 `from:"nexuses"`、フラッシュ部 `from:"spirits"`・`minSameName:2`（✅ part610）
-**部品バッチ10（確定スキーマ）**：PlayerRuleDef `{ type: "noBurstEffectForPid"; cost?: { min: number; max: number } }`（バーストの発動とトラッシュ送りは成立し、効果の解決だけ飛ばす。スピリットのバーストも対象。cost はバーストカードの印刷コスト。084＝`declare{what:"cost",options:[0..10]}` の then に置き `declared` で cost を埋める）。
-PlayerRuleDef `{ type: "cantUseMagicForPid"; colors: Color[] | "event" }`（どのゾーンからでもその色を持つマジックを使用できない。"event" は置く時点で、きっかけの召喚時効果を発揮したカードの色すべてに解く。083）。
-FieldEvent `"opponentLifeCoreFromVoid"`（相手のライフにボイドからコアが置かれたとき。原因を問わない。`eventCount`＝置かれた個数、`repeatPerCount` 対応。014）（✅ part611。083 の色は召喚時効果を発揮した時点の実際の色）
-**部品バッチ11（確定スキーマ）**：action `{ type: "returnToBurst"; side?: "own"; count?: number; filter?: TargetFilter }`（returnToDeckTop の兄弟。場を離れる手順を通り、コアはリザーブ、カードはバーストとしてセットされ `ownBurstSet` が誘発。004）。
-action `{ type: "peekOpponentBurst" }`（相手のバーストの内容を持ち主だけが見る。PlayerView に見えたカードを返し、そのバーストが入れ替わる・無くなるまで表示する。049）。
-kind `shinsokuPayAssist` を `payAssistByExhaust` に改名し（BS16-021 のデータも直す）、`via?: "shinsoku" | "any"`（省略＝【神速】のみ）・`minBaseCost?: number`（印刷コスト）・`oncePerTurn?: true` を足す。対象はスピリットカードだけ。軽減後の残りから最大 cost まで肩代わり（062）（✅ part612。returnToBurst・peekOpponentBurst は AWAITING_MIGRATION に登録済み＝データを書いたら外す）
-**部品バッチ12（確定スキーマ）**：「〜しなければ、その効果を発揮できない」の関門を新しいファイル `server/src/logic/effectTax.ts` に1つ置く。マジックの効果・バースト効果の解決の直前に、その使用者へ課された税をすべて集め、1つずつ使用者に払うかを聞く（`pay` の支払い可否判定を使う。払えない・払わないなら効果だけ飛ばし、カードは通常どおりトラッシュ）。
-税の出どころは2つ：期間つき PlayerRuleDef `{ type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction }`（060。timedEffect の side で課す相手を決める）と、継続の kind `{ kind: "effectTax"; levels; on; cost; phaseTurn? }`（effectDefContinuous.ts。発生源の持ち主の相手に課す。068）。
-060 の「使用したマジックカード以上のコストの手札1枚」は CardPick `atLeastTaxedCost?: true`（税を課されているカードの印刷コスト以上）（✅ part613。税は `pay{tax}` で包む。断ったバーストは thenPay も止める）
-**部品バッチ13（確定スキーマ）**：継続の kind `{ kind: "lifeDamageReplace"; levels; target: "self" | "ownAll"; familyFilter?: FamilyFilter; phaseTurn?; action: EffectAction }`（effectDefContinuous.ts）。対象のスピリットの**アタック**が相手のライフを減らすとき、持ち主は代わりに action を解決してよい（確認式。非対話は減る数が多いほうを選ぶ）。置換でもライフの減少として扱い `ownLifeDamaged` を誘発させる（2026-10-17 ユーザー確認）。
-段階表は `if{cond:{count:"opponentLife",atLeast:7},then:removeCores{side:"opponent",from:["life"],to:"reserve",downTo:4},else:if…}` の入れ子で書く。足すのは EffectCounter の葉 `"opponentLife"` と、removeCores `from:["life"]`＋`downTo` が動くこと。ライフ3以下は置換を出さない（051・X06）（✅ part614。複数の置換が当たるときは減る数が最も多い1つだけを出す）
-**部品バッチ14（確定スキーマ）**：GlobalConstraint `{ type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[] }`（発生源の持ち主の**相手**に掛かる。相手の、sourceTypes の効果で、相手のボイド/トラッシュから相手のライフ/フィールド/リザーブへ置くコアを、ターンに合計 max 個まで。マジックの効果・コアステップ・コストの支払いは数えない。累計は GameState にプレイヤーごと・ターンごとに持つ。063）（✅ part615。聖杯が場に出る前に置いたぶんは数えない）
-**部品バッチ15（確定スキーマ・未着手）**：継続の kind `{ kind: "handBurstEffectGrant"; levels; attackerKeyword: Keyword[] }`（持ち主の、いずれかのキーワードを持つスピリットがアタックしている間）と GameAction `{ type: "useHandBurstEffect"; handIndex: number }`（フラッシュタイミング。手札のバースト持ちマジックのコストを軽減込みで払い、kind:"burst" の action を thenPay も含めて解決し、カードはトラッシュ。043）。
-マジックの「使用」でもバーストの「発動」でもない＝【光芒】の回収・`ownBurstActivated`・068 の税は起きない。084 の `noBurstEffectForPid` は効く（バースト効果の発揮なので）。クライアントは手札のカードに「バースト効果を使う」を別ボタンで出し、判定は shared に置いて audit:parity を通す（✅ part616）
-**データの段（10-17 開始）**：①期待値役6体が並行で part617（赤）・618（紫）・619（緑）・620（白）・621（黄）・622（青）を効果文だけから書く（変更禁止）→ ②実装役が色ごとに `data/cards/BS17-<色>.json` を書いて①を通す → ③①を再開して見直し → `npx tsx scripts/merge-set.ts BS17`。077・033 は既存の器（BS17_SURVEY_remaining #7・#22）
-**データの段・2周目**：エンジンの直し A・B は済んだ（101988e）。082 は EffectAction でなく timedEffect の content `{type:"swapBattleBp"}`（compareBy と同じ器）に、005 は IfCond `{ownBurstSet:false}`＋`setBurstFromHand ask:true` にした。
-次の一手（10-22 着手）：テストの前提の直し（interactive・自動選択・選択の答え方・場面の作り方。期待値は変えない）→ 残る ❌ をデータの直し（Haiku。書き換え内容をメインループが決めて渡す）とエンジンの直しに分ける → 見直し → `merge-set.ts BS17`。
-エンジンの直し C は済んだ。既知の限界：税（effectTax）が掛かるマジックで同じタイミングの効果が2つ以上あると、クライアントが選んだ対象が sequence で落ち、サーバーが選び直させる（選択が1回余分に出るだけで結果は同じ。該当20枚）
-件数照合の part363/364/371/373 は BS17 のデータで増えた分が未反映（db34cc5 から落ちている）。結合前に中身を確かめて表と件数を直す。
-「相手による自分のスピリット破壊後」のバーストの `byOpponentEffectOnly` はバトル破壊も含む（removal.ts の `|| byBattle`。fieldEvent 側とは別）。
-10-16 に main（standard 版エンジンの持ち込み後）を取り込んだ。旧 `reveal` は `revealOpen`＋`moveCards` に変わったので、041 の `countCounter` は `revealOpen` に付く。
+既知の限界は [BS17_PLAN.md](./docs/design/BS17_PLAN.md) §末尾「既知の限界」。マージ後の次：マジックのメイン／フラッシュを選んで使えるようにする（`feat/magic-timing-choice`。`castMagic` に `timing?` を足し、使うタイミングの決め打ち4か所を shared の1関数にまとめる。クライアントはクリックで2ボタン）
 
 ### 次の一手：後片付け2つ（10-16）
 
