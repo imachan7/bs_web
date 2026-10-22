@@ -598,6 +598,7 @@ scenario({
     expect: [
         ...abraUsed, "相手.手札: ドラグサウルス、マジックハンマー → なし", "相手.リザーブ: 10 → 2", "相手.トラッシュのコア: 0 → 7", "相手.トラッシュ: なし → マジックハンマー",
         ...dragu.slice(3), "自分.デッキ枚数: 40 → 35", `自分.トラッシュ: なし → アブラカダブラ、${rep("ロクケラトプス", 5)}、開かれた岩扉`,
+        "自分.リザーブ: 10 → 11", // 破壊された岩扉のコア
     ],
 })
 scenario({
@@ -676,10 +677,10 @@ const shehAttack = (name: string, o: { shehCores: number; attacker: string; answ
         expect: ["自分.att.疲労: false → true", ...o.expect],
     })
 shehAttack("X06 Lv2：「雄将」の自分のスピリットが相手のライフを減らすとき、置換できる（5→3）", { shehCores: 3, attacker: YUSHO, answers: [true], life: 5, expect: ["相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"] })
-shehAttack("X06 置換は任意：断れば1つ減る", { shehCores: 3, attacker: YUSHO, answers: [false], life: 5, expect: ["相手.ライフ: 5 → 4"] })
-shehAttack("X06 「覇皇」でも「雄将」でもないスピリットのアタックには使えない", { shehCores: 3, attacker: JEFF, answers: [], life: 5, expect: ["相手.ライフ: 5 → 4"] })
-shehAttack("X06 Lv1では置換しない", { shehCores: 1, attacker: YUSHO, answers: [], life: 5, expect: ["相手.ライフ: 5 → 4"] })
-shehAttack("X06 相手のライフが3以下なら表に当たらず通常どおり", { shehCores: 3, attacker: YUSHO, answers: [], life: 3, expect: ["相手.ライフ: 3 → 2"] })
+shehAttack("X06 置換は任意：断れば1つ減る", { shehCores: 3, attacker: YUSHO, answers: [false], life: 5, expect: ["相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"] })
+shehAttack("X06 「覇皇」でも「雄将」でもないスピリットのアタックには使えない", { shehCores: 3, attacker: JEFF, answers: [], life: 5, expect: ["相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"] })
+shehAttack("X06 Lv1では置換しない", { shehCores: 1, attacker: YUSHO, answers: [], life: 5, expect: ["相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"] })
+shehAttack("X06 相手のライフが3以下なら表に当たらず通常どおり", { shehCores: 3, attacker: YUSHO, answers: [], life: 3, expect: ["相手.ライフ: 3 → 2", "相手.リザーブ: 10 → 11"] })
 shehAttack("X06 相手のライフ7なら4になる", { shehCores: 3, attacker: YUSHO, answers: [true], life: 7, expect: ["相手.ライフ: 7 → 4", "相手.リザーブ: 10 → 13"] })
 
 console.log("すべてのチェックに合格しました 🎉（part622）")

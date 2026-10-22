@@ -62,7 +62,7 @@ type Pending = NonNullable<GameState["pendingChoice"]>
 function pend(t: ScenarioCtx, side: Side, kind: Pending["kind"]): Pending {
     const pc = t.state.pendingChoice
     assert(pc !== null, "選択待ちが立つ")
-    if (pc === null) return { pid: side === "me" ? t.me : t.opp, kind, prompt: "", candidates: [], optional: false } // 以降の検査を失敗として続けるための空の選択待ち
+    if (pc === null) return { pid: side === "me" ? t.me : t.opp, kind, prompt: "", candidates: [], optional: false } as unknown as Pending // 以降の検査を失敗として続けるための空の選択待ち
     assert(pc!.pid === (side === "me" ? t.me : t.opp), `選択待ちの回答者は${side}`)
     assert(pc!.kind === kind, `選択待ちの種別は${kind}（実際: ${pc!.kind}）`)
     return pc!
