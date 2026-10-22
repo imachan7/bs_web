@@ -21,11 +21,16 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：BS18「覇王編 第5弾：覇王大決戦」（`feat/bs18-import`）
+
+staging 取り込み済み（98枚。うち8枚は X レアの色違いなど）。計画は [BS18_PLAN.md](./docs/design/BS18_PLAN.md)。次の一手：調査役3体 → 解釈一覧をユーザーに確認
+
 
 ### 次の一手：後片付け（10-16）
 
-- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
+- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は destroy だけを見る（耐性と sequence の中は #290 で見るようにした。if の中・ほかの除去は見ない）
 - 既知の限界：BS12-073 ネクサスコラプス「ネクサス2つまでを破壊する」は相手側だけ（`destroyNexus side:"either"` が1つしか扱えないため。効果文は自分のネクサスも選べる）
+- 既知の限界：対象がいないマジックの判定（magic/targetRequirement.ts）に removeCores（コアを移す）は入っていない
 - 古い長いコメントの整理：型4ファイルは済み（10-22）。次の候補はロジック側（EffectModules・removal・GameEngine・RuleValidator。コメント35〜43%）。名前で向き・数え方・専用の場面が読めない説明は残す
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
