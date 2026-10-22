@@ -51,8 +51,15 @@
         ],
         "optional": false,
         "action": {
-          "type": "bpBuff",
-          "amount": 3000
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
         }
       }
     ]

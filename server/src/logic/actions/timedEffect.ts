@@ -173,6 +173,10 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
             return
         }
         target = candidates[0] ?? null
+    } else if (action.side === "own" && state.interactiveTargets && !filter.lastTarget && !filter.lastBpBuffTarget) {
+        // 旧 bpBuff と同じく、自分のスピリットが2体以上なら選ばせる（移行で自動選択に落ちていた。2026-10-22 発見）
+        const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
+        if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：BPを増加するスピリットを選んでください`, candidates, action, null)) return
     }
     if (!target && targetInstanceId === undefined) {
         target =

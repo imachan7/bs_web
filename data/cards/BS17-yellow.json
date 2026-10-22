@@ -711,8 +711,15 @@
             }
           },
           "then": {
-            "type": "bpBuff",
-            "amount": 3000
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "bp",
+                "amount": 3000
+              }
+            ],
+            "duration": "turn",
+            "side": "own"
           }
         }
       },
@@ -897,7 +904,6 @@
             }
           ],
           "duration": "turn",
-          "count": 1,
           "side": "both"
         }
       }
