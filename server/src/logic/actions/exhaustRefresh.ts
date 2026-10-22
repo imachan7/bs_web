@@ -47,6 +47,18 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 回復状態の体数から逆算した count で既存の経路に合流する
+        if (action.untilRefreshedCount !== undefined) {
+            const side = action.side === "own" ? owner : opp
+            const readyCount = state.players[side].field.spirits.filter((s) => !s.isRested).length
+            const n = Math.max(0, readyCount - action.untilRefreshedCount)
+            const { untilRefreshedCount: _urc, ...rest } = action
+            if (n === 0) {
+                log(state, `${sourceName}：すでに条件を満たしているため疲労させなかった。`)
+                return
+            }
+            action = { ...rest, count: n }
+        }
         if (action.nexusOnly) {
             exhaustOwnNexus(ctx, action)
             return

@@ -1,5 +1,6 @@
 // コアを「取り除く」器（R5。旧 coreRemove 系28種の統合先。旧ハンドラは data 移行が済むまで cores.ts に残す）。
 // スキーマは docs/design/CORE_UNIFY_REMOVE.md §3。
+import { takeCoreGainAllowance } from "../coreGainCap"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
@@ -483,6 +484,7 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     }
     if (s.kind === "trash") {
         if (normalTrashOf(player) <= 0) return 0
+        if (s.pid === owner && (to === "reserve" || to === "life") && takeCoreGainAllowance(state, owner, srcType, "trash", to, 1) <= 0) return 0
         player.trashCores -= 1
         depositTo(state, s.pid, to, 1, "トラッシュ")
         return 1
@@ -707,7 +709,26 @@ function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
     }
 }
 
+// 相手のライフを downTo 個になるまで置く。「ライフの減少」としての後続（ownLifeDamaged等・勝敗）は呼び出し側が扱う
+// （lifeDamageReplace の settle）ので、ここでは誘発も勝敗判定もしない
+function resolveOpponentLifeDownTo(ctx: ActionCtx, action: RemoveCoresAction): void {
+    const { state, opp, sourceName } = ctx
+    const player = state.players[opp]
+    const n = player.life - (action.downTo as number)
+    if (n <= 0) {
+        log(state, `${sourceName}：${player.name}のライフはすでに${String(action.downTo)}個以下だった。`)
+        return
+    }
+    player.life -= n
+    recordLifeLost(state, opp, n)
+    depositTo(state, opp, action.to ?? "reserve", n, "ライフ")
+}
+
 function dispatchByTarget(ctx: ActionCtx, action: RemoveCoresAction): void {
+    if (action.from?.includes("life") && action.side === "opponent" && typeof action.downTo === "number") {
+        resolveOpponentLifeDownTo(ctx, action)
+        return
+    }
     if (action.from?.includes("life")) {
         resolveLife(ctx, action)
         return

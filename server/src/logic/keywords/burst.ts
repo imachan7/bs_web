@@ -2,11 +2,12 @@
 import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
+import { withEffectTax } from "../effectTax"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
-import { effectActiveAtLevel, effectSources, timedContentsFor } from "../../../../shared/rules"
+import { effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 
 import { instHasColor, matchesFamilyFilter, spiritHasKeyword } from "../../../../shared/rules"
@@ -57,13 +58,18 @@ export function continueBurstActivation(state: GameState, frame: BurstFinishFram
     }
     if (frame.stage === "finish") {
         if (frame.alsoDraw) resolveAction(state, frame.pid, null, { type: "draw", count: 1 })
-        tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay)
+        // 税を断った・払えなかったバーストは効果全体が発揮できないので、その後の thenPay も出さない
+        const taxUnpaid = (state.burstTaxUnpaid ?? 0) > 0
+        delete state.burstTaxUnpaid
+        if (!taxUnpaid) tryBurstThenPay(state, frame.pid, frame.cardId, frame.thenPay, frame.handUse)
         if (state.winner) return
         if (state.pendingChoice) {
             pushResumeFrames(state, [{ ...frame, stage: "settle" }])
             return
         }
     }
+    // handUse（手札からの発揮）はバーストエリアを経由せず、発動でもないので後始末と「バースト発動後」の誘発を飛ばす
+    if (frame.handUse) return
     if (frame.stage !== "notify") {
         finishBurstActivation(state, frame.pid, frame.cardId, frame.actionType, frame.toHand ? { toHand: true } : undefined)
     }
@@ -82,12 +88,12 @@ export function finishBurstActivation(
     opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
-    // sequence／if の中で召喚した場合は、summonBurstCardFree がバーストエリアを空にしているので下の分岐に入らない
-    if (actionType !== "summonBurstCardFree") {
-        if (player.burst === cardId) {
-            player.burst = null
-            player.burstSet = false
-        }
+    // 召喚が成功していれば summonBurstCardFree がバーストエリアを空にしているので、エリアに残っているときだけ行き先へ送る
+    // （sequence／if／pay の中で召喚した場合に場とトラッシュへ二重に現れていた）。召喚の条件を満たさない・コア不足で不発のときも
+    // エリアに残るので、召喚せずトラッシュへ置かれる（2026-10-22 ユーザー確認。BURST.md §5.5）
+    if (player.burst === cardId) {
+        player.burst = null
+        player.burstSet = false
         if (opts?.toHand) {
             player.hand.push(cardId)
             log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、手札に戻った。`)
@@ -96,11 +102,6 @@ export function finishBurstActivation(
             player.trashCards.push(cardId)
             log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、トラッシュに置かれた。`)
         }
-    } else if (player.burst === cardId) {
-        // 通常はハンドラ自身（summonBurstCardFree）が空にしているはずだが、
-        // 不発（コア不足等）だった場合に備えて念のため空にしておく
-        player.burst = null
-        player.burstSet = false
     }
 }
 
@@ -109,11 +110,12 @@ function tryBurstThenPay(
     pid: PlayerId,
     cardId: string,
     thenPay: "main" | "flash" | undefined,
+    handUse?: true,
 ): void {
     if (state.winner) return
     const card = getCard(cardId)
     // burstMagicFreeEffect持ちがいれば、こちらの分岐（無償選択肢つき）に委ねる（BS16-070）
-    if (card.type === "magic" && hasBurstMagicFreeEffect(state, pid)) {
+    if (card.type === "magic" && !handUse && hasBurstMagicFreeEffect(state, pid)) {
         tryBurstMagicFreeOrThenPay(state, pid, cardId, thenPay)
         return
     }
@@ -197,6 +199,14 @@ function tryBurstMagicFreeOrThenPay(
     })
 }
 
+// noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
+export function burstEffectBlocked(state: GameState, pid: PlayerId, cardId: string): boolean {
+    const card = getCard(cardId)
+    const hit = timedPlayerRules(state, pid).some((r) => r.type === "noBurstEffectForPid" && (r.cost === undefined || (card.cost >= r.cost.min && card.cost <= r.cost.max)))
+    if (hit) log(state, `${card.name}：効果によりバースト効果を発揮できなかった。`)
+    return hit
+}
+
 // バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 // （before＝発動開始時点のフィールドのinstanceId集合。summonBurstCardFreeで新しく場に出た個体には
 // 発火しない。2026-09-11 ユーザー確認）
@@ -231,7 +241,7 @@ export function finishSummonEffect(state: GameState): void {
     if (src === undefined || state.pendingChoice) return
     delete state.summonEffectSource
     if (!src.resolved || state.winner) return
-    fireFieldEventTriggers(state, opponentOf(src.pid), "opponentSummonEffectResolved", undefined, undefined, undefined, undefined, { costs: [src.cost] })
+    fireFieldEventTriggers(state, opponentOf(src.pid), "opponentSummonEffectResolved", undefined, src.colors, undefined, undefined, { costs: [src.cost] })
 }
 
 // kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
@@ -292,7 +302,9 @@ export function fireBurstOnEvent(
         if (effect.destroyedMinBp !== undefined && (eventInfo?.destroyedBp ?? 0) < effect.destroyedMinBp) continue
         // condition：バーストの宣言自体はここまで来た時点で成立している。満たさないときはactionの解決だけを飛ばす
         // （「このスピリットカードを召喚する」等が空振りし、finishBurstActivationの既定どおりトラッシュへ置かれる）
-        const actionToRun: EffectAction = burstConditionMet(state, holderPid, effect.condition) ? markPayConfirmed(effect.action) : { type: "noop" }
+        const blocked = burstEffectBlocked(state, holderPid, burstCardId)
+        const baseAction: EffectAction = burstConditionMet(state, holderPid, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+        const actionToRun = withEffectTax(state, holderPid, "burst", burstCardId, baseAction)
         // destroyedAsTarget：破壊された個体はもう場に無く、トラッシュには cardId でしか残らないので、
         // instanceId ではなく **cardId** を渡す（受け手は recoverMagicFromTrash の onlyBurstDestroyedCard）
         const destroyedCardId = effect.destroyedAsTarget ? selfOverride?.cardId : undefined
@@ -332,7 +344,7 @@ export function fireBurstOnEvent(
                 pending.burstActivate = {
                     pid: holderPid,
                     cardId: burstCardId,
-                    ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+                    ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
                     ...(destroyedCardId !== undefined ? { destroyedCardId } : {}),
                     ...(alsoDraw ? { alsoDraw: true as const } : {}),
                     ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
@@ -382,8 +394,8 @@ export function fireBurstOnEvent(
             stage: "finish",
             pid: holderPid,
             cardId: burstCardId,
-            actionType: actionToRun.type,
-            ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+            actionType: baseAction.type,
+            ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
             ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
             ...(alsoDraw ? { alsoDraw: true as const } : {}),
             before: [...before],
@@ -406,7 +418,9 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     player.burst = cardId
     player.burstSet = true
     announceBurstActivation(state, owner, cardId)
-    const actionToRun: EffectAction = burstConditionMet(state, owner, effect.condition) ? markPayConfirmed(effect.action) : { type: "noop" }
+    const blocked = burstEffectBlocked(state, owner, cardId)
+    const baseAction: EffectAction = burstConditionMet(state, owner, effect.condition) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
+    const actionToRun = withEffectTax(state, owner, "burst", cardId, baseAction)
     const before = fieldInstanceIdsOf(state, owner)
     state.resolvingBurstPid = owner
     resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
@@ -416,8 +430,8 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         stage: "finish",
         pid: owner,
         cardId,
-        actionType: actionToRun.type,
-        ...(effect.thenPay !== undefined ? { thenPay: effect.thenPay } : {}),
+        actionType: baseAction.type,
+        ...(effect.thenPay !== undefined && !blocked ? { thenPay: effect.thenPay } : {}),
         ...(effect.returnSelfToHandAfter ? { toHand: true as const } : {}),
         before: [...before],
     })

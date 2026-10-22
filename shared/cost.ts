@@ -590,7 +590,7 @@ function cardMatchesSummonPick(c: CardData, pick: CardPick): boolean {
 }
 
 function summoningSymbolBonus(board: Board, pid: PlayerId, cardData: CardData, color: Color): number {
-    if (cardData.type !== "spirit") return 0
+    if (cardData.type !== "spirit" && cardData.type !== "brave") return 0
     let n = 0
     for (const source of effectSources(board, pid)) {
         const level = currentLevel(source).level
@@ -600,8 +600,11 @@ function summoningSymbolBonus(board: Board, pid: PlayerId, cardData: CardData, c
             if (effect.ownMainStepOnly && (board.phase !== "main" || board.turnPlayer !== pid)) continue
             if (effect.team !== undefined && !cardHasTeam(cardData, effect.team)) continue
             if (effect.minCost !== undefined && cardData.cost < effect.minCost) continue
+            // pick.cardType を書かないエントリは従来どおりスピリットだけ（ブレイヴへ効かせるには cardType:"brave" を明示する）
+            if (cardData.type === "brave" && !(effect.pick?.cardType !== undefined)) continue
             if (effect.pick && !cardMatchesSummonPick(cardData, effect.pick)) continue
             if (effect.opponentSpiritVanishedThisTurn && board.spiritVanishedThisTurn?.[pid === "p1" ? "p2" : "p1"] !== true) continue
+            noteCoverage(effect, "symbolWhenSummoning")
             const toCost = effect.toOwnSpiritsCost
             const targets = toCost === undefined ? 1 : board.players[pid].field.spirits.filter((s) => instMatchesCostFilter(s, { in: [toCost] })).length
             n += (effect.count ?? 1) * targets

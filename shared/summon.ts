@@ -32,7 +32,7 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
     return board.players[pid].field.spirits
         // スピリット状態のブレイヴにはブレイヴを合体できない（2026-10-03 ユーザー指摘。例外はイリテバン自身の効果＝combineOwnBrave hostSelf）
         .filter((host) => card(host.cardId).type !== "brave")
-        .filter((host) => (host.braveRefs ?? []).length < combineLimitFor(board, pid, host))
+        .filter((host) => canCombineBraveCount(board, pid, host, braveCardId))
         // 「このスピリットは合体できない」（BS11-X02 滅神星龍ダークヴルム・ノヴァ）
         .filter((host) => !activeConstraints(board, pid, host).some((c) => c.type === "cantCombine"))
         .filter((host) => matchesBraveCondition(board, pid, host, braveCardId))
@@ -42,6 +42,14 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
 // このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
 // 「ブレイヴ2つまでと合体できる」＝ constraint combineLimit で上限を上げる。
 // RuleValidator（ダイレクトブレイヴの召喚検証）とbraveCombineCandidatesの両方がここを読む
+// 上限未満か。extraSlotSymbolless 指定の制約は2体目以降にシンボル0のブレイヴしか受け付けない
+export function canCombineBraveCount(board: Board, pid: PlayerId, host: CardInstance, braveCardId: string): boolean {
+    const n = (host.braveRefs ?? []).length
+    const c = activeConstraints(board, pid, host).find((c) => c.type === "combineLimit")
+    if (c && c.type === "combineLimit" && c.extraSlotSymbolless && n >= 1 && card(braveCardId).symbol.length > 0) return false
+    return n < combineLimitFor(board, pid, host)
+}
+
 export function combineLimitFor(board: Board, pid: PlayerId, host: CardInstance): number {
     const c = activeConstraints(board, pid, host).find((c) => c.type === "combineLimit")
     return c && c.type === "combineLimit" ? c.limit : 1

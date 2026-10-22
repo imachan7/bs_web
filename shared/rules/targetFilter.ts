@@ -68,9 +68,11 @@ export function matchesTarget(
     // kind:"keyword" の宣言を持たないため spiritHasKeyword では引っかからない）。
     // 旧キーワード（kyoshu/soku等）は従来の spiritHasKeyword のまま
     if (filter.keyword !== undefined) {
-        if (!spiritHasKeywordOrLabel(board, ownerPid, inst, filter.keyword)) return false
+        const wanted = Array.isArray(filter.keyword) ? filter.keyword : [filter.keyword]
+        if (!wanted.some((k) => spiritHasKeywordOrLabel(board, ownerPid, inst, k))) return false
     }
-    if (filter.keywordCount !== undefined && (filter.keyword === undefined || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
+    // 配列の keyword との組み合わせは不一致扱い
+    if (filter.keywordCount !== undefined && (typeof filter.keyword !== "string" || staticKeywordCount(inst, filter.keyword) !== filter.keywordCount)) return false
     // keyword の否定（BS07剣王獣ビャク・ガロウLv2＝【転召】を持たない相手）
     // unblockableOnly（BS09-049炎蜥蜴クトゥグマLv3）：「ブロックされない」効果を持つものだけ。
     // 継続的な制約（unblockableBy）と期間つき効果の両方を見る。どちらも「◯◯の相手から」の条件つきでも数える
@@ -125,6 +127,7 @@ export function matchesTarget(
     // カード名の部分一致（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。
     // 名前は master データの静的な値のみを見る（名前の付与・変更を行う効果は未実装）。
     // 配列指定はいずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
+    if (filter.nameIs !== undefined && !cardNameIs(inst, filter.nameIs)) return false
     if (filter.nameContains !== undefined) {
         const names = Array.isArray(filter.nameContains) ? filter.nameContains : [filter.nameContains]
         if (!names.some((n) => cardNameContains(inst, n))) return false
@@ -147,6 +150,11 @@ export function matchesTarget(
 export function cardNameContains(inst: CardInstance, text: string): boolean {
     if (card(inst.cardId).name.includes(text)) return true
     return (inst.namesAsContinuous ?? []).includes(text)
+}
+
+// カード名の完全一致（部分一致しない）。「〜として扱う」名も一致とみなす
+export function cardNameIs(inst: CardInstance, name: string): boolean {
+    return card(inst.cardId).name === name || (inst.namesAsContinuous ?? []).includes(name)
 }
 
 // トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。

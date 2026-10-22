@@ -41,6 +41,7 @@ export interface BoardPlayer {
     // カードの中身（PlayerState.burst / PlayerView.burst）は隠匿情報のためここには置かない
     burstSet: boolean
     onceByNameUsed?: Record<string, number>
+    payAssistUsedThisTurn?: string[] // payAssistByExhaust の oncePerTurn の消費記録（発生源の instanceId）
     // ソウルコアの居場所（26系。公開情報。コア数値には含まれない。docs/design/SOULCORE.md）
     soulCore?: SoulCoreLocation | null
 }

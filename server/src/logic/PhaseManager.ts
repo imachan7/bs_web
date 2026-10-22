@@ -3,7 +3,7 @@ import { noteCoverage } from "../../../shared/coverage"
 import type { GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, refreshRestrictionsFor } from "../../../shared/rules"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
@@ -178,7 +178,8 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
                 if (isRefreshBlockedByMark(state, pid, inst)) continue
                 // 「次のリフレッシュステップで回復できない」（BS11-055）
-                if (nextRefresh.some((r) => r.target.kind === "instance" && r.target.instanceId === inst.instanceId && r.content.some((c) => c.type === "skipRefresh"))) continue
+                // all:true はルールとして置くので、発揮後に場に出たスピリットにも効く（SEMANTICS_AUDIT §3.12）
+                if (nextRefresh.some((r) => r.content.some((c) => c.type === "skipRefresh") && ((r.target.kind === "instance" && r.target.instanceId === inst.instanceId) || (r.target.kind === "rule" && !player.field.nexuses.includes(inst) && matchesTarget(state, pid, inst, r.target.filter, r.target.selfInstanceId))))) continue
                 const isNexus = player.field.nexuses.includes(inst)
                 if (limits.nexuses && isNexus) continue
                 if (limits.combined && !isNexus && instIsCombined(inst)) continue
@@ -440,6 +441,7 @@ export function endTurn(state: GameState): void {
         state.players[pid].turnVirtualInstances = []
         // 「ターンに1回、ブロックしても疲労しない」の消費記録（BS07ブリシンガメンの首飾りLv2）
         state.players[pid].noRestWhenBlockingUsedThisTurn = []
+        state.players[pid].payAssistUsedThisTurn = []
         // バーストのセットはターン1回（docs/design/BURST.md。setBurstFromHandはこの制限を受けない）
         state.players[pid].burstSetThisTurn = false
         // 「このバトルの間」の貸与は clearBattle で切れるのが本筋だが、バトルが成立しないまま
@@ -519,6 +521,7 @@ export function endTurn(state: GameState): void {
     delete state.selfSummonCostUsedNames
     // このターンの相手効果によるミル累計（侵されざる聖域Lv2のmillCap perTurn用）もリセット
     state.millCountThisTurn = { p1: 0, p2: 0 }
+    state.coreGainCountThisTurn = { p1: 0, p2: 0 }
     state.millCountThisTurnMutual = { p1: 0, p2: 0 }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
@@ -535,7 +538,7 @@ function consumeNextRefreshRecords(state: GameState, pid: PlayerId): TimedRecord
     const anyField = new Set((["p1", "p2"] as PlayerId[]).flatMap((p) => [...state.players[p].field.spirits, ...state.players[p].field.nexuses].map((i) => i.instanceId)))
     const mine = (r: TimedRecord): boolean =>
         r.until === "nextRefresh" &&
-        ((r.target.kind === "player" && r.target.pid === pid) || (r.target.kind === "instance" && (onField.has(r.target.instanceId) || !anyField.has(r.target.instanceId))))
+        ((r.target.kind === "player" && r.target.pid === pid) || (r.target.kind === "rule" && r.target.pid === pid) || (r.target.kind === "instance" && (onField.has(r.target.instanceId) || !anyField.has(r.target.instanceId))))
     const used = state.timedEffects.filter(mine)
     state.timedEffects = state.timedEffects.filter((r) => !mine(r))
     return used

@@ -13,7 +13,10 @@
 | キーワード能力1つ | `server/src/logic/keywords/<名前>.ts` |
 | ゾーン（デッキ・トラッシュ・手札・ライフ…）の操作 | `server/src/logic/zones/<名前>.ts` |
 | EffectAction の type | ACTION_VOCABULARY の分類ごとに `server/src/logic/actions/<分類>.ts` |
+| コアを置く配置への上限（`coreGainCap`。ボイド／トラッシュ起点の配置はここの `coreGainAllowance` を通す） | `server/src/logic/coreGainCap.ts` |
+| 効果税（「〜しなければ効果を発揮できない」。マジック／バーストの解決直前の関門） | `server/src/logic/effectTax.ts` |
 | 型の union／interface 1つ（TargetFilter・TimedContent・PendingChoice…）。**5KB 以上のもの** | `server/src/types/<名前>.ts`（利用側は従来どおり `type.ts` から import。type.ts が再輸出する＝`split-file.ts --reexport`）。5KB 未満は type.ts に置く |
+| 手札のカードを使う別操作（手札のバースト効果の発揮 `handBurstEffectGrant` など。マジックの「使用」とは別のアクション） | 判定は `shared/<名前>.ts`（サーバー検証とクライアントのボタンが共有）、解決は `server/src/logic/<名前>.ts` |
 | 画面の部品1つ（フェーズ帯・支払いUI・選択ダイアログ…） | `public/src/ui/<部品>.ts` |
 
 - **各ファイルの1行目は、そのファイルの概念を述べるコメント**（`// 〜`）。無いファイルは `validate:size` が落とす。CODEMAP がこの行を索引に載せる

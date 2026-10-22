@@ -121,6 +121,7 @@ console.log("=== BS06-042 機海兵ゼーロイヴァー：コスト4/5のマジ
     assert(act(s, "p1", { type: "attack", instanceId: attacker.instanceId }) === null, "アタック（フラッシュ開始）")
     assert(getCard("BS01-114").cost === 3, "テスト前提：バスタースピアのコストは3")
     s.players.p2.hand = ["BS01-114"]
+    s.players.p1.field.nexuses.push(createInstance("BS01-102", s.turn, 0)) // 破壊する対象（対象がいないと使えない）
     s.players.p2.reserve = 12
     const opponentSpirit = put(s, "p2", "BS06-013", 1)
     assert(act(s, "p2", { type: "castMagic", handIndex: 0 }) === null, "相手がコスト3のマジックを使用")

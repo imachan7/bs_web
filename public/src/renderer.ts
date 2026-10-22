@@ -690,15 +690,15 @@ export function render(view: GameView, ui: UiState): void {
                 $("targeting-info").innerHTML += `<br>` + noneBtn + costBtn + maintainBtn
             }
         }
-        // kind:"shinsokuPayAssist"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
+        // kind:"payAssistByExhaust"（BS16-021）：【神速】召喚のとき、疲労させて肩代わりする候補があれば選ばせる
         const shinsokuCandidates = payingShinsokuAssistCandidates(view, ui.paying)
         if (shinsokuCandidates.length > 0) {
             const buttons = shinsokuCandidates
                 .map((c) => {
-                    const inst = view.players[view.you].field.spirits.find((s) => s.instanceId === c.instanceId)
+                    const inst = [...view.players[view.you].field.spirits, ...view.players[view.you].field.nexuses].find((s) => s.instanceId === c.instanceId)
                     const name = inst ? master(inst.cardId).name : c.instanceId
                     const on = (ui.paying!.shinsokuAssistInstanceIds ?? []).includes(c.instanceId)
-                    return `<button data-shinsokuassist="${c.instanceId}">${on ? "☑" : "☐"} ${name}を疲労させてコスト${c.discount}を肩代わり</button>`
+                    return `<button data-shinsokuassist="${c.instanceId}">${on ? "☑" : "☐"} ${name}を疲労させてコスト${c.discount}までを肩代わり</button>`
                 })
                 .join(" ")
             $("targeting-info").innerHTML += `<br>${buttons}`

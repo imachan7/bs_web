@@ -1211,6 +1211,7 @@ export function countEffectCounter(
     }
     if (counter === "opponentReserve") return state.players[opponentOf(owner)].reserve
     if (counter === "ownLife") return state.players[owner].life
+    if (counter === "opponentLife") return state.players[opponentOf(owner)].life
     if (counter === "opponentFieldColors") return opponentFieldColorCount(state, owner)
     if (counter === "opponentFieldSpiritColors") return opponentFieldColorCount(state, owner, true)
     if (counter === "selfBraveCount") return self?.braveRefs?.length ?? 0
@@ -1232,6 +1233,7 @@ export function countEffectCounter(
     }
     if (counter === "selfCoresAtDestruction") return self?.coresAtDestruction ?? 0
     if (counter === "lastBattleDestroyedCores") return state.lastBattleDestroyedCores
+    if (counter === "lastBattleDestroyedBp") return state.lastBattleDestroyedBp
     if (counter === "lastBattleDestroyedCost") return state.lastBattleDestroyedCost
     // 26系【地鳴】の減算: このバトルでブロックした相手のスピリットカードのうち、バトル終了時点で
     // 防御側のトラッシュにあったカードのコスト合計（ブロックされていなければ0）
@@ -1290,7 +1292,7 @@ export function countEffectCounter(
     }
     if (typeof counter === "object" && "plus" in counter) {
         const [a, n] = counter.plus
-        return countEffectCounter(state, owner, self, a, sourceType) + n
+        return countEffectCounter(state, owner, self, a, sourceType) + (typeof n === "number" ? n : countEffectCounter(state, owner, self, n, sourceType))
     }
     if (typeof counter === "object" && "minus" in counter) {
         const [a, b] = counter.minus
@@ -1352,11 +1354,12 @@ export function countEffectCounter(
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数（BS05双剣虎ジェン・フー）
     if ("ownKeyword" in counter) {
+        const keywords = Array.isArray(counter.ownKeyword) ? counter.ownKeyword : [counter.ownKeyword]
         return countSpiritsWeighted(
             state,
             owner,
             owner,
-            (s) => spiritHasKeywordOrLabel(state, owner, s, counter.ownKeyword),
+            (s) => keywords.some((k) => spiritHasKeywordOrLabel(state, owner, s, k)),
             sourceType,
         )
     }

@@ -16,6 +16,10 @@ const EXPECTED: Record<string, PlayerId | "both"> = {
     handReductionColorAsForPid: "p1",
     noLifeDamageByCostForPid: "p1",
     noBurstSpiritSummonForPid: "both",
+    effectTaxForPid: "p2",
+    cantUseMagicForPid: "p2",
+    noBurstEffectForPid: "p2",
+    noDeckMillForPid: "p1",
 }
 
 function collect(): { cardId: string; action: Extract<EffectAction, { type: "timedEffect" }> }[] {
@@ -37,10 +41,11 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 {
     const entries = collect()
     // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
-    assert(entries.length === 16, `playerRule は16か所（実際: ${entries.length}）`)
+    assert(entries.length === 20, `playerRule は20か所（BS17 の 060・070・083・084 で+4）（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         // 雷神砲カノン・アームズは直前に破棄したカードの色を読むので、単独で解決しても何も置かない（part281・part426）
-        if (cardId === "BS11-060") continue
+        // アブラカダブラは召喚時効果を発揮したスピリットの色（バーストの発動イベント）を読むので、単独では置かない（part622）
+        if (cardId === "BS11-060" || cardId === "BS17-083") continue
         const s = createGame("p371", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
         resolveAction(s, "p1", null, action)
         const rule = (action.content[0] as { rule: { type: string } }).rule

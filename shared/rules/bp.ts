@@ -209,11 +209,12 @@ export function countAuraCounter(
     }
     // { ownKeyword: Keyword }：自分フィールドで指定キーワードを持つスピリット数
     if ("ownKeyword" in counter) {
+        const keywords = Array.isArray(counter.ownKeyword) ? counter.ownKeyword : [counter.ownKeyword]
         return countSpiritsWeighted(
             board,
             sourcePid,
             sourcePid,
-            (s) => spiritHasKeywordOrLabel(board, sourcePid, s, counter.ownKeyword),
+            (s) => keywords.some((k) => spiritHasKeywordOrLabel(board, sourcePid, s, k)),
             countingSourceType,
         )
     }
@@ -350,6 +351,19 @@ export function checkAuraCondition(
         const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
         return handSizeOf(board.players[oppPid]) >= condition.opponentHandAtLeast
     }
+    if ("maxOwnSpirits" in condition) {
+        return player.field.spirits.length <= condition.maxOwnSpirits
+    }
+    // 持ち主側の当事者ではなく、相手側の当事者（アタッカーかブロッカーのうち sourcePid が持たない方）を見る
+    if ("battleOpponentHasKeyword" in condition) {
+        if (!board.battle) return false
+        const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
+        const oppInst = board.players[oppPid].field.spirits.find(
+            (s) => s.instanceId === board.battle!.attackerInstanceId || s.instanceId === board.battle!.blockerInstanceId,
+        )
+        if (!oppInst) return false
+        return condition.battleOpponentHasKeyword.some((k) => spiritHasKeywordOrLabel(board, oppPid, oppInst, k))
+    }
     // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
         matchesFamilyFilter(board, sourcePid, s, condition.hasOwnFamily),
@@ -453,6 +467,9 @@ export function auraAppliesTo(
         return false
     }
     if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
+        return false
+    }
+    if (aura.levelFilter !== undefined && !aura.levelFilter.includes(currentLevel(targetInst).level)) {
         return false
     }
     // costMinFilter（BS07造兵工房Lv2：コスト3以上）。costFilter＝完全一致とは別軸で、

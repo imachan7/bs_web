@@ -7,7 +7,7 @@ import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../
 import { braveCombineCandidates } from "../../shared/summon"
 import { DECK_STORAGE_KEY, CUSTOM_DECK_PREFIX, customDecks, deckRecipes, setDeckRecipes, populateAllBuiltinDecks, populateAllCustomDecks, loadChangelog } from "./ui/lobby"
 import { loadPayMode, savePayMode, payModeLabel, payModeHint, submitPaying, changeAltPay, startChoicePaying, assignPayCore } from "./ui/payInput"
-import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandClick, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
+import { confirmExtraCost, sendCoreRemove, sendSoulCoreRemove, tryPlay, onBurstSetClick, onHandAbilityClick, onHandBurstEffectClick, onHandClick, tryResolveChoice, onMySpiritClick, sendAttack, onOppSpiritClick } from "./ui/play"
 
 // socket.io クライアントは /socket.io/socket.io.js から読み込まれる
 interface SocketLike {
@@ -410,6 +410,11 @@ async function init(): Promise<void> {
             onHandAbilityClick(Number(abilityBtn.dataset.handAbility), String(abilityBtn.dataset.handAbilityEffectId))
             return
         }
+        const burstEffectBtn = closestData(e, "data-hand-burst-effect")
+        if (burstEffectBtn) {
+            onHandBurstEffectClick(Number(burstEffectBtn.dataset.handBurstEffect))
+            return
+        }
         const el = closestData(e, "data-hand-index")
         if (el) onHandClick(Number(el.dataset.handIndex))
     })
@@ -759,7 +764,7 @@ async function init(): Promise<void> {
         ui.paying.assigned = {}
         rerender()
     })
-    // kind:"shinsokuPayAssist"（BS16-021）：疲労させて肩代わりする候補のオン/オフ切り替え
+    // kind:"payAssistByExhaust"（BS16-021）：疲労させて肩代わりする候補のオン/オフ切り替え
     byId("targeting-info").addEventListener("click", (e) => {
         const btn = closestData(e, "data-shinsokuassist")
         if (!btn || !ui.paying) return

@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
@@ -596,6 +597,12 @@ function tryReviveOnDestroy(
         effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
         source?: CardInstance,
     ): boolean => {
+        // 発生源自身を疲労させる（BS17-069）。COST_MODEL.mdのexhaustSelfと同じく既疲労なら不発
+        if (effect.cost?.exhaustSelf) {
+            if (!source || source.isRested) return false
+            source.isRested = true
+            return true
+        }
         // 発生源自身のコアを払う（BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）
         if (effect.cost?.sourceCoresToTrash !== undefined) {
             const need = effect.cost.sourceCoresToTrash
@@ -753,10 +760,10 @@ function tryReviveOnDestroy(
             }
             return true
         }
-        // 器AR：BS13-040金星神龍ヴィーナ・フェーザー「自分のデッキを上から3枚破棄することで」。
-        // millSelfOneMatchingと違い一致判定は無く、あるだけ破棄すれば成立する（デッキが空でも0枚破棄で成立）
         if (effect.cost?.millSelfCount !== undefined) {
-            const n = Math.min(effect.cost.millSelfCount, player.deck.length)
+            // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
+            const n = effect.cost.millSelfCount
+            if (player.deck.length < n) return false
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!
                 player.trashCards.push(cardId)
@@ -838,6 +845,8 @@ function tryReviveOnDestroy(
     ): string | null => {
         const cost = effect.cost
         if (!cost) return null
+        if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
+        if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
         if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null
         if (cost.oneCoreToTrash) return inst.cores <= 0 ? "コアが足りない" : null
@@ -986,8 +995,9 @@ function tryReviveOnDestroy(
         const name = getCard(inst.cardId).name
         // BS15-030愛の女神ロヴンLv2：復活成立とセットで、場を離れる前にボイドからコアをリザーブへ置く
         if (effect.alsoVoidCoreToReserve) {
-            player.reserve += effect.alsoVoidCoreToReserve
-            log(state, `${sourceName}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+            const placed = takeCoreGainAllowance(state, ownerPid, getCard(inst.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
+            player.reserve += placed
+            log(state, `${sourceName}：ボイドからコア${placed}個を${player.name}のリザーブに置いた。`)
         }
         // BS07ブラックリチュアル：「破壊時効果を発揮した自分のスピリットは手札に戻る」。
         // 既定では復活が成立すると破壊時効果は発揮されないので、場に留める（手札へ戻す）前に先に発揮させる
@@ -1037,7 +1047,7 @@ function tryReviveOnDestroy(
             if (effect.scope !== "ownAll") continue
             if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            if (effect.keywordFilter && !spiritHasKeyword(state, ownerPid, inst, effect.keywordFilter)) continue
+            if (effect.keywordFilter && ![effect.keywordFilter].flat().some((k) => spiritHasKeyword(state, ownerPid, inst, k))) continue
             // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
             // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
@@ -1046,6 +1056,8 @@ function tryReviveOnDestroy(
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
             // BS12-068光の聖剣Lv2：合体スピリットのみ対象
             if (effect.combinedOnly && !instIsCombined(inst)) continue
+            // BS17-079：このバトルのブロッカーのみ対象（AuraDef.blockingOnlyと同義）
+            if (effect.blockingOnly && state.battle?.blockerInstanceId !== inst.instanceId) continue
             // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             // BS14-109アルターミラージュ：コストが閾値以上のスピリットのみ対象（instMatchesCostFilterで判定＝付与コストも見る）
@@ -1083,8 +1095,9 @@ function tryReviveOnDestroy(
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             if (effect.alsoVoidCoreToReserve) {
-                player.reserve += effect.alsoVoidCoreToReserve
-                log(state, `${getCard(source.cardId).name}：ボイドからコア${effect.alsoVoidCoreToReserve}個を${player.name}のリザーブに置いた。`)
+                const placed = takeCoreGainAllowance(state, ownerPid, getCard(source.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
+                player.reserve += placed
+                log(state, `${getCard(source.cardId).name}：ボイドからコア${placed}個を${player.name}のリザーブに置いた。`)
             }
             // BS07ブラックリチュアル：場に留める（手札へ戻す）前に破壊時効果を先に発揮させる
             noteCoverage(effect, "reviveOnDestroy")

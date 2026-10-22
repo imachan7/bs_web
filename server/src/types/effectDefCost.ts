@@ -39,10 +39,13 @@ export type EffectDefCost =
       }
     | {
           id: string
-          kind: "shinsokuPayAssist" // 発生源が場にありレベル有効の間、持ち主の【神速】召喚時、発生源自身を疲労させることを追加コストにcostまでを支払ったものとして扱う
+          kind: "payAssistByExhaust" // 発生源（スピリット／ネクサス）が場にありレベル有効の間、持ち主のスピリットカードの召喚時、発生源自身を疲労させることを追加コストに、軽減後の残りコストからcostまでを支払ったものとして扱う
           levels: number[] | null
-          cost: number // 肩代わりする召喚コストの上限（021＝2）
-          phase?: Phase // 指定時はこのステップ中のみ有効（021＝アタックステップ）
+          cost: number // 肩代わりする召喚コストの上限
+          phase?: Phase // 指定時はこのステップ中のみ有効
+          via?: "shinsoku" | "any" // 省略＝【神速】での召喚のときだけ。"any"＝通常の召喚でも
+          minBaseCost?: number // 召喚するカードの**印刷コスト**（軽減前）がこれ以上のときだけ
+          oncePerTurn?: true // 発生源1つにつきターンに1回（PlayerState.payAssistUsedThisTurn。同名を2枚置けば2回使える）
       }
     | {
           id: string

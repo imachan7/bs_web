@@ -5,6 +5,7 @@ export * from "./types/effectDef"
 export * from "./types/choice"
 // re-export は利用側に届くが、このファイル自身のスコープには入らないので明示的に読む
 import type { EffectDef } from "./types/effectDef"
+import type { EffectAction } from "./types/effectAction"
 import type { PendingChoice } from "./types/choice"
 import { TargetFilter } from "./types/targetFilter"
 import { CardInstance } from "./types/cardInstance"
@@ -41,6 +42,7 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
+export type ImmuneSource = "spirit" | "brave" | "magic" // immuneToOpponentEffects/immune の against が絞る発生源種別
 
 // **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
 // ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
@@ -65,6 +67,7 @@ export interface LevelDef {
 export interface BraveConditionTerm {
     family?: string // 系統
     minCost?: number // コスト◯以上（BS10 の18枚中12枚）
+    maxCost?: number // コスト◯以下
     cardName?: string // カード名指定
     vanilla?: true // **効果の記述を持たない**（BS10 の18枚中6枚。判定は instIsVanilla＝継続付与の「バニラとしても扱う」も見る）
     keyword?: Keyword // このキーワードを持つ（spiritHasKeywordで判定＝一時付与・継続付与も見る。BS15-057カメン・フクロウ：「コスト4以上/【暴風】を持つ」の後半）
@@ -296,6 +299,9 @@ export type PlayerRuleDef =
     | { type: "noDeckMillByOpponentForPid" } // デッキは相手の効果では破棄されない
     | { type: "noDeckMillForPid" } // デッキは自分の効果も含めて破棄されない
     | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
+    | { type: "noBurstEffectForPid"; cost?: { min: number; max: number }; declared?: "match" } // バースト効果の解決だけが飛ぶ（発動は成立し、カードはトラッシュへ行く。誘発も起きる）。cost は印刷コストで比べ、省略時はすべてのバースト。declared は declare の then の中だけ（cost に置き換わる）
+    | { type: "cantUseMagicForPid"; colors: Color[] | "event" } // 手札・手元・トラッシュなどどこからでも、その色をいずれか持つマジックを使用できない。"event"は置く時点で、直前に召喚時効果を発揮したカードの色すべてに解く（timedEffect.ts）
+    | { type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction; source?: string } // 課された側が使うマジック／発動するバーストの効果は、cost を支払わなければ発揮できない（使用・発動は成立する。effectTax.ts）。source は確認文に出す税の発生源名で、timedEffect が置くときに埋める（カードデータには書かない）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）
 
@@ -322,6 +328,8 @@ export interface PlayerView {
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 自分のみ。相手は常に省略（手札内容に紐づくため）
     payToNegate?: boolean // 自分のみ。「手札を破棄して効果を受けない」を払う方針か（UIのトグル表示用。未指定は true 扱い）
+    payAssistUsedThisTurn?: string[] // 公開情報（クライアントの支払い候補の判定に使う）
+    peekedOpponentBurstCardId?: string // 自分のみ。いま相手がセットしているバーストが、見たカードのままである間だけ入る
     peekedOpponentCardIds?: string[] // 自分のみ。相手の手札で内容を見たカード（BS09-039探偵ペンタン）。相手には常に省略する
     turnVirtualInstances: CardInstance[] // 公開情報のため自分/相手とも常に配信する（TURN_EFFECT_SOURCES.md §2.1）
     battleVirtualInstances: CardInstance[] // 同上（lendSelfThisBattle で貸した「このバトルの間」の発生源）

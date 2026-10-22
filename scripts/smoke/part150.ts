@@ -198,6 +198,7 @@ console.log("--- 手元からの使用はコストを支払う（無償化とは
 
     const s = base("lab-cast-from-tegamoto")
     putNexus(s, "p1", lab.cardId, labCores)
+    putNexus(s, "p2", lab.cardId, 0) // バスタースピアが破壊する対象（対象がいないと使えない）
     s.players.p1.deck = [magic.cardId, ...new Array<string>(20).fill(FILLER.cardId)]
     millDeck(s, "p1", 1, "p2", { sourceType: "magic" })
     const index = s.players.p1.tegamoto.indexOf(magic.cardId)

@@ -54,6 +54,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteGrantSource`（fn）：付与先に付与元の __eid を載せ、読む側の計測点で引けるようにする（alsoCostGrant のように付与元を残さない状態用）
 - `noteGrantedFrom`（fn）：kind は付与元の kind（coverage:effects が計測点のある kind として数える）
 
+## shared/handBurstEffect.ts
+
+- `handBurstEffectDenial`（fn）：使えない理由（使えるなら null）。コストを払えるかは含まない。
+- `noteHandBurstEffectUsed`（fn）：計測点（サーバーが実際に発揮したときだけ呼ぶ。判定関数はクライアントからも呼ばれるため noteCoverage をここに置かない）
+
 ## shared/magicCondition.ts
 
 - `magicConditionFailure`（fn）：満たしていれば null、満たしていなければ理由の文を返す
@@ -61,7 +66,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/activation.ts
 
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
-- `shinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）を持つ、pidの自分フィールドの回復状態スピリット。
+- `payAssistCandidates`（fn）：kind:"payAssistByExhaust" を持つ、pidの自分フィールド（スピリット・ネクサス）の回復状態の発生源。
 - `burstSetCoresRequired`（fn）：kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
 - `coreZoneChoiceId`（fn）：pendingChoice の候補に混ぜる「そのプレイヤーのリザーブ／トラッシュのコア」の番兵（removeCores で取り先を1個ずつ選ぶとき）。
 - `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
@@ -122,6 +127,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instCostCantAct`（fn）：フィールド上のインスタンスに対する「全体制約による行動不可」判定。実コストに加えて、道化師クランの
 - `instCantAttackByOpponentCost`（fn）：BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主から見た**相手**のスピリットのうち、コストが
 - `instCantAttackByCost`（fn）：器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
+- `instCantBlockByCost`（fn）：globalConstraint "cantBlockByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 - `instAttackRequiresCoreToll`（fn）：器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
 - `attackPayTollCount`（fn）：attackPayToll（26RSD06-011）：発生源の持ち主から見た相手のスピリットが、アタックのためにリザーブからトラッシュへ置くコア数。
 - `attackTollTotal`（fn）：アタックの宣言でリザーブからトラッシュへ置くコアの合計（attackRequiresCoreToll の1個と attackPayToll）
@@ -154,6 +160,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedPlayerRules`（fn）：このプレイヤーに掛かっている「このターンの間」の制約
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
+- `magicColorBanned`（fn）：期間つき効果で、このマジックの色が使用禁止か（cantUseMagicForPid。手札・手元・トラッシュなど使用元は問わない）
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 
@@ -182,7 +189,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `KeywordInfo`（型）：キーワードの存在と表示名を一元管理する（挙動は GameEngine / RuleValidator が hasKeyword で参照する）
 - `KEYWORDS`（const）：キーワード効果のレジストリ。カードデータには名前だけを持たせ、挙動はエンジン側で解決する
 - `keywordMatches`（fn）
-- `hasKeyword`（fn）：カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
+- `hasKeyword`（fn）：カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）。配列＝いずれかでOR
 - `instHasTriggerEffect`（fn）：指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
 - `staticKeywordCount`（fn）：効果の levels 指定が現在のレベルで有効か（null = レベル不問）
 - `effectActiveAtLevel`（fn）
@@ -249,6 +256,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `matchesTarget`（fn）：対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
 - `cardNameContains`（fn）：カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
+- `cardNameIs`（fn）：カード名の完全一致（部分一致しない）。「〜として扱う」名も一致とみなす
 - `trashCardNameMatches`（fn）：トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。
 - `matchesCostFilter`（fn）：コスト範囲の判定（TargetFilter.cost）。
 - `instMatchesCostFilter`（fn）：フィールド上のインスタンスに対するコスト範囲の判定。実コストに加えて
@@ -257,7 +265,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
 - `braveCombineCandidates`（fn）：合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
-- `combineLimitFor`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
+- `canCombineBraveCount`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
+- `combineLimitFor`（fn）
 - `BattleSwapSummonOption`（型）：手札のこのスピリットカードを、フラッシュ中のバトルで
 - `battleSwapSummonCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**。
 - `canBattleSwapSummon`（fn）：UI向け：手札の handIndex 枚目がいま入れ替え召喚できるなら、その選択肢を返す（できなければ null）。
@@ -528,6 +537,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
 
+## server/src/logic/coreGainCap.ts
+
+- `CoreGainFrom`（型）
+- `CoreGainTo`（型）
+- `coreGainAllowance`（fn）：pid が自分の from から自分の to へ、srcType の効果で置けるコアの残り個数（制限が無ければ Infinity）。
+- `recordCoreGain`（fn）：実際に置けた個数を累計へ足す（制限が掛かる配置だけ呼べばよいが、掛からない配置で呼んでも無害ではないので
+- `takeCoreGainAllowance`（fn）：配置1回ぶんの入口：requested のうち置いてよい個数を返し、累計に加える
+
 ## server/src/logic/counted.ts
 
 - `countedAmount`（fn）
@@ -547,6 +564,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `applyDeckPolicy`（fn）：カードデータの limited / limitCount を、上のポリシーに沿って上書きしたコピーを返す。
 
+## server/src/logic/effectTax.ts
+
+- `hasEffectTax`（const）
+- `withEffectTax`（fn）：払わせる必要がある税の分だけ pay で包んだ action を返す（無ければ元のまま）。
+
 ## server/src/logic/fieldEventTriggers.ts
 
 - `FieldEventExtraItem`（型）：フィールドイベント誘発：「フィールド上の他の何かに起きたこと」に対してネクサス／スピリットが反応する。
@@ -555,6 +577,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `notifyNexusDeployed`（fn）：フィールドイベント誘発「自分のフィールドにネクサスが配置されたとき」（BS04栄光の表彰台Lv2）。
 - `tryHandFreeSummonOnOwnNexusDeployed`（fn）：手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
 - `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
+
+## server/src/logic/handBurstEffect.ts
+
+- `doUseHandBurstEffect`（fn）：発動でも使用でもないので、効果税（on:"burst"）・usedMagicCardIds・【光芒】の回収・ownBurstActivated は通らない。
 
 ## server/src/logic/keywords/bofu.ts
 
@@ -569,6 +595,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `announceBurstActivation`（fn）：発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
 - `continueBurstActivation`（fn）
 - `finishBurstActivation`（fn）：発揮し終えたバーストの行き先（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+- `burstEffectBlocked`（fn）：noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
@@ -594,6 +621,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/keywords/kobo.ts
 
+- `hasKeywordAtLevel`（fn）：静的キーワード（レベル判定つき）‖ 一時付与 ‖ 継続付与のいずれかで keyword を持つか。
 - `hasKoboOnBlock`（fn）：士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を
 - `resolveKoboOnBattleEnd`（fn）：【光芒】: バトル終了時、アタッカーがレベル有効で光芒を持つなら、
 
@@ -621,11 +649,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyTenshoSubstituteCrossSource`（fn）：tenshoCoreSubstituteのfamilyFilter/costFilter版（BS12-061剣の誕生地）：疲労するのは対象スピリット
 - `tenshoDumpAndDestroy`（fn）：【転召】の最終段：対象の上のコアをすべて dest へ置き、維持コア割れなら消滅させる。
 
+## server/src/logic/lifeDamageReplace.ts
+
+- `startLifeDamageReplace`（fn）：置換が成立しうるなら引き取る。複数当たるときは減るコアが最も多い1つだけを提示する
+
 ## server/src/logic/magic/cast.ts
 
 - `resolveMagic`（fn）
 - `consumeOncePerBattleMagicFree`（fn）：oncePerBattle の magicFreeGrant を「このバトルで1枚使った」として記録する。
-- `usableMagicTarget`（fn）：クライアントが**先に選んだ対象**をそのまま使ってよいかを見る（2026-08-21 利用者確定）。
+- `usableMagicTarget`（fn）
 - `doCastMagic`（fn）
 - `offerOpponentMainEndMagic`（fn）：kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
 - `applyProvocationUse`（fn）：プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
@@ -667,6 +699,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
+
+## server/src/logic/magic/targetRequirement.ts
+
+- `magicTargetMissing`（fn）
 
 ## server/src/logic/oncePerTurn.ts
 
@@ -878,6 +914,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `Phase`（型）
 - `Color`（型）
 - `CardType`（型）：ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
+- `ImmuneSource`（型）
 - `DeckSpec`（型）：デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
 - `LevelDef`（型）：スピリット/ネクサスのレベル定義（ネクサスは bp: 0）
 - `BraveConditionTerm`（型）：ブレイヴの合体条件（docs/design/BRAVE.md §2.2）。読点区切りの複数条件は配列＝OR。
@@ -1094,7 +1131,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `exReductionPickedIndices`（fn）：《継召》：各グループの選択枚数から、実際に除外する trashCards 内インデックスを返す
 - `payingCardId`（fn）：支払いモードで使える代替コストを求める。**サーバーの上限計算と同じ式にすること**
 - `payingAltPay`（fn）
-- `payingShinsokuAssistCandidates`（fn）：kind:"shinsokuPayAssist"（BS16-021）：この支払いで選べる肩代わり候補（【神速】召喚のときだけ）
+- `payingShinsokuAssistCandidates`（fn）：kind:"payAssistByExhaust"：この支払いで選べる肩代わり候補
 - `payingShinsokuAssistDiscount`（fn）：選択済みの肩代わり候補ぶんの合計割引
 
 ## public/src/ui/play.ts
@@ -1107,6 +1144,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryResolveCardChoice`（fn）：pendingChoiceが自分宛かつkind:"card"・cardZone:"hand"、クリックしたhandIndexが候補内なら
 - `onBurstSetClick`（fn）：バーストセットボタン（docs/design/BURST.md）。すでにバーストがセットされている場合は
 - `onHandAbilityClick`（fn）：手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
+- `onHandBurstEffectClick`（fn）：手札のマジックのバースト効果を発揮する（handBurstEffectGrant）。通常のマジック使用（onHandClick）とは別操作
 - `onHandClick`（fn）
 - `tryResolveChoice`（fn）：pendingChoiceが自分宛かつクリックしたinstanceIdが候補内なら resolveChoice を送信する。
 - `onMySpiritClick`（fn）

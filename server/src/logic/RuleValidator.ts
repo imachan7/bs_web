@@ -18,9 +18,9 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, shinsokuAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { battleSwapSummonCheck, braveCombineCandidates, combineLimitFor, isSummonableCardType } from "../../../shared/summon"
+import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
 // effectiveCost は多数の箇所から RuleValidator 経由で import されているため再エクスポートで名前を残す
@@ -37,7 +37,7 @@ import {
     summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword } from "../../../shared/rules"
+import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     effectActiveAtLevel,
@@ -58,6 +58,7 @@ import { COLOR_LABELS } from "../../../data/constants"
 import { magicConditionFailure } from "../../../shared/magicCondition"
 import { isOnceUsed, isOncePerBattleUsed } from "./oncePerTurn"
 import { effectCostDiscountNexus } from "./actions/pay"
+import { magicTargetMissing } from "./magic/targetRequirement"
 
 
 
@@ -161,8 +162,7 @@ export function validateSummon(
     // 指定時は kind:"altSummonFromHand" の代替召喚（BS10-058）：召喚コストを支払わず、
     // 指定したネクサスをデッキの下に戻すことがコストになる
     altSummonNexusInstanceIds?: string[],
-    // 指定時は kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：疲労させることを追加コストに、
-    // 召喚コストのうち一部を支払ったものとして扱う。【神速】召喚以外では使えない（任意）
+    // 指定時は kind:"payAssistByExhaust"：疲労させることを追加コストに、召喚コストのうち一部を支払ったものとして扱う（任意）
     shinsokuAssistInstanceIds?: string[],
     // 《継召》(kind:"exTrashReduction")：トラッシュのEXシンボル持ちカードを除外して軽減する
     // trashCards 内のインデックス配列（プレイヤーが召喚時に選ぶ）
@@ -191,7 +191,7 @@ export function validateSummon(
         const host = player.field.spirits.find((sp) => sp.instanceId === braveTargetInstanceId)
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
         if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
-        if ((host.braveRefs ?? []).length >= combineLimitFor(state, pid, host)) return "そのスピリットには既にブレイヴが合体しています"
+        if (!canCombineBraveCount(state, pid, host, cardId)) return "そのスピリットには既にブレイヴが合体しています"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
         if (level !== undefined && level !== 1) return "ダイレクトブレイヴではレベルを指定できません"
@@ -273,12 +273,9 @@ export function validateSummon(
         }
     }
 
-    // kind:"shinsokuPayAssist"（BS16-021ノウゼンサーバル）：【神速】召喚時のみ、疲労させることを
-    // 追加コストに召喚コストの一部を肩代わりできる（任意）
     let shinsokuDiscount = 0
     if (shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0) {
-        if (!flashSummon) return "【神速】での召喚以外では使えません"
-        const candidates = new Map(shinsokuAssistCandidates(state, pid).map((c) => [c.instanceId, c.discount]))
+        const candidates = new Map(payAssistCandidates(state, pid, { cardId, flash: flashSummon }).map((c) => [c.instanceId, c.discount]))
         const seen = new Set<string>()
         for (const id of shinsokuAssistInstanceIds) {
             if (seen.has(id)) return "同じスピリットを重複して指定しています"
@@ -739,6 +736,7 @@ export function validateCastMagic(
     if (card.type !== "magic") return "マジックカードではありません"
     // battleLock "magic"（BS16-X06）：手札・手元どちらの経路でも「使用」自体を止める。バースト発動は別経路なので掛からない
     if (timedMagicLocked(state, pid)) return "効果により、このバトルの間マジックを使用できません"
+    if (magicColorBanned(state, pid, card.colors)) return "効果により、この色のマジックは使用できません"
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto"の無償化（ミカファールLv2）が
     // 有効な場合のみ許可する（凱旋門Lv2のnoFreeCastOpponentが有効なら無償化自体が打ち消される）
@@ -894,6 +892,8 @@ export function validateCastMagic(
             return "このターン、マジックカードのフラッシュ効果を使用できません"
         }
     }
+
+    if (magicTargetMissing(state, pid, card, useTiming)) return "効果の対象がいないため、このマジックは使用できません"
 
     // 《継召》のEXシンボル除外軽減（validateSummon と同じ検証）：候補はトラッシュのEXシンボル持ちカードに限り、
     // 候補外・重複はエラー。除外カードのシンボル列を effectiveCost に渡し、軽減シンボルと同じ色だけが軽減に使われる

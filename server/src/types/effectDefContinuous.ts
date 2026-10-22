@@ -102,8 +102,9 @@ export type EffectDefContinuous =
           id: string
           kind: "battleBpAsLevel" // 発生源が場にありレベル有効の間、持ち主のfromLevelのスピリットはバトルのBP比較のときだけuseLevelのBPを使う
           levels: number[] | null
-          fromLevel: number
-          useLevel: number
+          fromLevel?: number // 省略時はどのLvにも効く
+          useLevel: number | "max" // "max"＝対象のカードが持つ最高Lv
+          maxCost?: number // 対象の印刷コストがこれ以下のときだけ
           side?: "both" // 指定時は持ち主だけでなく両陣営のスピリットが対象
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           keywordFilter?: Keyword // 指定時はこのキーワードを持つスピリットのみ対象
@@ -181,6 +182,13 @@ export type EffectDefContinuous =
           id: string
           kind: "burstMagicFreeEffect" // 発生源が場にありレベル有効の間、自分のバーストがマジックカードで発動したとき、バースト効果の解決後にコストを支払わずメイン/フラッシュのどちらか1つを発揮できる（任意。BS16-070）
           levels: number[] | null
+      }
+    | {
+          id: string
+          // 発揮であって【バースト】の発動でもマジックの使用でもない（ユーザー確認 2026-10-17）。操作は GameAction "useHandBurstEffect"
+          kind: "handBurstEffectGrant"
+          levels: number[] | null
+          attackerKeyword: Keyword[]
       }
     | {
           id: string
@@ -552,6 +560,8 @@ export type EffectDefContinuous =
           vanillaFilter?: true // 指定時は効果の記述を持たない（バニラ）スピリットのみ
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
           minSymbols?: number // 指定時はシンボル数がこれ以上のスピリットのみ
+          symbolCount?: number // シンボル数の完全一致（minSymbols とは別軸）
+          combinedBraveColors?: Color[] // 発生源がこの色のブレイヴと合体している間だけ（triggered と同じ判定）
           nameIncludes?: string[] // 指定時はカード名にいずれかの文字列を含むスピリットのみ
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 指定時は持ち主基準でこのステップ・turn条件のときのみ有効
           costFilter?: number // 指定時は対象スピリットのコストがこれと一致するときのみ有効
@@ -669,7 +679,24 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "effectTax" // 発生源の持ち主の相手が使うマジック／発動するバーストは、cost（相手視点で解決する）を支払わなければ効果を発揮できない
+          levels: number[] | null
+          on: "magic" | "burst"
+          cost: EffectAction
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // turn は発生源の持ち主から見る
+      }
+    | {
+          id: string
           kind: "lifeDamageNegate" // ブロックされなかったアタッカーの実効BPが発生源の実効BP以下のとき、発生源の持ち主のライフは減らない
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
+          kind: "lifeDamageReplace" // アタックが相手のライフを減らすとき、持ち主の任意で通常のライフ減少の代わりに action を解決する。減ったライフは「ライフの減少」として後続（ownLifeDamaged等）を通す
+          levels: number[] | null
+          target: "self" | "ownAll"
+          familyFilter?: FamilyFilter
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+          action: EffectAction
       }

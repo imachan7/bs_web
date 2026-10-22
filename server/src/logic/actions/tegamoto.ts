@@ -2,6 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log } from "../GameState"
 import { requestCardChoice, requestChoice, resolveMagic } from "../EffectModules"
+import { magicColorBanned } from "../../../../shared/rules"
 import { recordMagicUsed, recordMoved } from "../record"
 import { matchesPick } from "./revealAction"
 
@@ -15,6 +16,7 @@ const magicFreeUseFromHandOrTegamotoHandler: ActionHandler<"magicFreeUseFromHand
     const player = state.players[owner]
     const matchesFilter = (id: string): boolean =>
         getCard(id).type === "magic" &&
+        !magicColorBanned(state, owner, getCard(id).colors) &&
         (action.colorFilter === undefined || getCard(id).colors.includes(action.colorFilter)) &&
         (action.familyFilter === undefined ||
             (Array.isArray(action.familyFilter)

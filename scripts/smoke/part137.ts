@@ -375,7 +375,7 @@ console.log("=== BS07 青：系統「勇傑」でアタックしているとき�
         const s = base("lockflash-hit")
         const attacker = put(s, "p1", yuketsu.cardId, 1)
         putNexus(s, "p1", byId("BS07-065").cardId, 0)
-        put(s, "p2", FILLER.cardId, 1)
+        put(s, "p2", "BS10-054", 2) // ネクサスアタックの対象になる【強襲】持ち（対象がいないとロック以前に使えない）
         // メイン側は「このターンの間」の継続効果なので、メインステップで使ってからアタックする
         s.players.p1.hand = [magic.cardId]
         assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, `${magic.name}をメインで使用`)
@@ -392,7 +392,7 @@ console.log("=== BS07 青：系統「勇傑」でアタックしているとき�
     {
         const s = base("lockflash-miss")
         const attacker = put(s, "p1", FILLER.cardId, 1)
-        put(s, "p2", FILLER.cardId, 1)
+        put(s, "p2", "BS10-054", 2)
         s.players.p1.hand = [magic.cardId]
         assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "同じマジックをメインで使用")
         assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")

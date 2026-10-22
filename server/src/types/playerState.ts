@@ -37,9 +37,13 @@ export interface PlayerState {
     minAttackCostThisTurn?: number // このターンにアタックしたスピリットのコスト（付与込みの最小値）の最小。globalConstraint "attackOncePerTurnTotalByCost" が読む。ターン終了でリセット
     turnVirtualInstances: CardInstance[] // このターンの間だけ「フィールドにあるもの」として扱う仮想の効果発生源（マジックが貸した継続効果。lendSelfThisTurn）。
     // ターン終了でリセット（PhaseManager.endTurn）。フィールドには実在しないため、シンボル集計（countSymbols / ownFieldSymbolColors）の対象にはならない（TURN_EFFECT_SOURCES.md §1・§2.1）
+    peekedOpponentBurstCardId?: string // peekOpponentBurst で見た相手のバーストの cardId。持ち主の PlayerView にだけ返す。
+    // 消す処理は持たず、相手の burst がこの cardId と一致している間だけ返す（バーストの出入りはセット箇所が多く、
+    // 全部に消去を入れるより、見たカードがいまのバーストと同じかを出す側で比べるほうが漏れない。同じカードが置き直されたときも、見せる中身は正しい）
     peekedOpponentCardIds?: string[] // 「相手の手札1枚の内容を見る」（peekOpponentHand）で見たカードの cardId。
     // **持ち主の PlayerView にだけ返す**（相手には見せない）。同じカードを二重に見た場合も素直に積む。
     // 見たあとにそのカードが手札から離れても消さない簡略化（何を見たかの記録として残す。BS09-039探偵ペンタン）
+    payAssistUsedThisTurn?: string[] // payAssistByExhaust の oncePerTurn を、このターン使った**発生源の instanceId**。ターン終了でリセット
     noRestWhenBlockingUsedThisTurn?: string[] // 「ターンに1回、ブロックしても疲労しない」（constraint の oncePerTurn）を、このターン使った**発生源の instanceId**。ネクサス1枚につき1回なので、同名を2枚置けば2回使える。ターン終了でリセット（BS07ブリシンガメンの首飾りLv2）
     // ⚠️ **廃止予定・もう読まれない**（2026-08-17）。効果ごとに聞く形（askPayToNegateIfNeeded →
     // payNegateDecide → payNegateDecision）へ移したため、この方針は判定に使われない。

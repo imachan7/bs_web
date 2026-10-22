@@ -40,6 +40,7 @@ export interface GameState {
     lastBattleBlockerTrashCost: number // 上記のうちスピリットカードのみを対象に、バトル終了時点で防御側のトラッシュにあったカードの印刷コストの合計
     // （EffectCounter "lastBattleBlockerTrashCost"。0=ブロックされていない／ブロッカーがトラッシュに無い）
     lastBattleDestroyedLevel: number // 直前のバトル解決でBP比較により破壊されたブロッカーのcurrentLevel（次のバトル解決の冒頭でリセット。0=まだ発生していない。魔界伯爵ヴィール）
+    lastBattleDestroyedCardId?: string // トラッシュから探す用（インスタンスは破壊後に消える）
     lastBattleDestroyedInstanceId?: string // 直前のバトル解決でBP比較により破壊された側の instanceId
     // （action:"battleLoserCoresToVoid" が読む。破壊待機中＝コアがまだ乗っている間に呼ぶ前提。BS10-065 ヘッジボルグ）
     revealedCards?: { pid: PlayerId; cardIds: string[] } // 「デッキを上からN枚オープンする」の公開ゾーン（両者に見える一時領域）。
@@ -83,7 +84,7 @@ export interface GameState {
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
     // TargetFilter.sameFamilyAsDestroyed が読む（removal.ts の発火直前にセット。BS16-027コーカサス・リョフ・ビートル）
-    summonEffectSource?: { pid: PlayerId; instanceId: string; cost: number; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
+    summonEffectSource?: { pid: PlayerId; instanceId: string; cost: number; colors: Color[]; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
     // （fireSummonTrigger が設定し、選択待ちで中断した場合は残して handleAction の事後フックがクリアする。
     // ConstraintDef.immuneToOpponentSummonEffects を isEffectBlocked が判定するために使う。BS05リトルナイト・ランスロットLv3）
@@ -118,6 +119,7 @@ export interface GameState {
         destroyedBp: number
     }[]
     burstEventColors?: Color[] // 破壊後バースト発動時、破壊された全メンバーの色の和集合（burstEventCostと同じ寿命）。条件{burstDestroyedColor}が読む
+    burstTaxUnpaid?: number // 発動中のバーストに掛かった税のうち、まだ払われていない数。0でなければ thenPay も止める（effectTax.ts）
     burstEventLifeDamagerId?: string // event:"ownLifeDamaged"のバースト発動時、ライフを減らしたスピリットのinstanceId（burstEventCostと同じ寿命。取れなければundefined）
     lastDeckMill?: { pid: PlayerId; cardIds: string[] } // 直近の破棄（toDeck.fromEvent が読む。次の破棄で上書き）
     summonPaidWithSoulCore?: true // 直近の召喚・マジック使用のコストの支払いに[ソウルコア]を使ったか
@@ -186,6 +188,7 @@ export interface GameState {
     lifeLostThisTurn?: Partial<Record<PlayerId, true>> // このターンにライフが1以上減ったプレイヤー（26系「このターンに自分のライフが減っていたなら」）
     magicIdsUsedThisTurn?: Partial<Record<PlayerId, string[]>> // このターンに各プレイヤーが使用したマジックのカードID（record.ts の recordMagicUsed）
     magicUsedThisTurn: Record<PlayerId, number> // このターンに各プレイヤーがマジックを使用した回数（ターン終了でリセット。magicRestriction:"oncePerTurnAll"用。作戦参謀フォクシン）
+    coreGainCountThisTurn: Record<PlayerId, number> // このターンに各プレイヤーが相手の発生源の coreGainCap の対象となる配置で置いたコアの累計（サーバー内部のみ）
     millCountThisTurn: Record<PlayerId, number> // このターンに各プレイヤーが相手の効果でデッキを破棄された累計枚数（ターン終了でリセット。globalConstraint "millCap" の perTurn用。BS04侵されざる聖域Lv2。隠匿情報を含まないがGameViewには含めない＝サーバー内部のみで判定に使う）
     millCountThisTurnMutual: Record<PlayerId, number> // 器AM：このターンに各プレイヤーが**誰の効果であっても**デッキを破棄された累計枚数（ターン終了でリセット。globalConstraint "millCap" の mutual用。millCountThisTurnとは別集計＝相手効果限定の既存カードを巻き込まない。BS13-026キグナ・スワンMk-II）
     battleAttackerRef?: CardInstance // 今のバトルのアタッカーの**実体参照**（GameViewには含めない＝サーバー内部のみ）。

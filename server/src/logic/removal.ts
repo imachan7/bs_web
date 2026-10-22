@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
@@ -291,7 +292,7 @@ export function destroySpirit(
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
     // 破壊後バースト用の控え（commitPendingDestructionが読む。BS16バッチ0）。
     // BPは破壊直前（まだ場にいる・コアも乗ったまま）のこの時点で確定させる
-    inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst) }
+    inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
     // （数・シンボル・効果の対象・【転召】の生贄に数えられる）。
@@ -440,6 +441,7 @@ function fireOwnSpiritDestroyed(
         bySpiritEffect,
         // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
         byOpponentEffect,
+        ...(inst.pendingDestroyBurstInfo?.sourceType !== undefined ? { destroySourceType: inst.pendingDestroyBurstInfo.sourceType } : {}),
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
         families: master.family,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
@@ -904,10 +906,15 @@ export function applyDestroyBatchAfter(
         if (self && voidCorePlacementBlocked(state)) {
             log(state, `${getCard(self.cardId).name}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
         } else if (self) {
-            placeCoresOnSpirit(state, self, destroyed, ownerPid)
+            const placed = takeCoreGainAllowance(state, ownerPid, getCard(self.cardId).type, "void", "field", destroyed)
+            if (placed <= 0) {
+                log(state, `${getCard(self.cardId).name}：効果により、これ以上コアを置けなかった。`)
+                return
+            }
+            placeCoresOnSpirit(state, self, placed, ownerPid)
             log(
                 state,
-                `${getCard(self.cardId).name}は、破壊した${destroyed}体につきボイドからコア${destroyed}個を自身の上に置いた。`,
+                `${getCard(self.cardId).name}は、破壊した${destroyed}体につきボイドからコア${placed}個を自身の上に置いた。`,
             )
         }
     }
@@ -1249,7 +1256,7 @@ export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    to: "hand" | "deckTop" | "deckBottom",
+    to: "hand" | "deckTop" | "deckBottom" | "burst",
     sourceName?: string,
 ): void {
     const player = state.players[ownerPid]
@@ -1280,7 +1287,7 @@ const bounceSourceNames = new Map<string, string>()
 // （BS06颶風高原Lv2）のように、プレイヤーが決めた順番がデッキの並びに出る効果で使う。
 // 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
-    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[] = []
+    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[] = []
     const rank = (inst: CardInstance): number => {
         if (!order) return 0
         const i = order.indexOf(inst.instanceId)
@@ -1311,6 +1318,11 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     cardName: name,
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })
+            } else if (pb.to === "burst") {
+                // 呼び出し側が「バーストが未セット」を確認済み。セット通知（ownBurstSet）は移動を全部済ませたあと fireBounceTriggers で出す
+                player.burst = inst.cardId
+                player.burstSet = true
+                log(state, `${prefix}${player.name}はスピリットをバーストとしてセットした。`)
             } else {
                 const top = pb.to === "deckTop"
                 // トークンはデッキに入らずトークン置き場へ戻る
@@ -1342,7 +1354,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
 // （割り込まれる側の作法。docs/design/RESUME_STACK.md）
 export function fireBounceTriggers(
     state: GameState,
-    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[],
+    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[],
     from: number,
 ): void {
     for (let i = from; i < moved.length; i++) {
@@ -1357,6 +1369,10 @@ export function fireBounceTriggers(
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
             }
+        }
+        if (m.to === "burst") {
+            fireFieldEventTriggers(state, m.pid, "ownBurstSet")
+            fireFieldEventTriggers(state, opponentOf(m.pid), "opponentBurstSet")
         }
         if (state.pendingChoice) {
             if (i + 1 < moved.length) {

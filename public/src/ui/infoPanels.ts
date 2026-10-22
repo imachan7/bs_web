@@ -60,6 +60,8 @@ export function renderInfo(
         ["", `トラッシュ ${p.trashCards.length}枚`],
     ]
 
+    const peekedBurst = view.players[view.you].peekedOpponentBurstCardId
+    if (!isSelf && p.burstSet && peekedBurst !== undefined) items.push(["", `(バースト: ${master(peekedBurst).name})`])
     if (!isSelf && view.players[view.you].peekedOpponentCardIds?.length) {
         const peeked = view.players[view.you].peekedOpponentCardIds!.map(id => master(id).name).join(" / ")
         items.push(["", `(判明: ${peeked})`])

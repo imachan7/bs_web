@@ -12,6 +12,7 @@ import { hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from ".
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
 import { recordMoved } from "../record"
+import { countedAmount } from "../counted"
 
 type RevealDest = NonNullable<Extract<EffectAction, { type: "revealApplyOne" }>["dest"]>
 
@@ -288,7 +289,7 @@ const revealRestHandler: ActionHandler<"revealRest"> = (ctx, action) => {
 
 // オープンするだけ（選ぶ・残りを送るのは moveCards from:"revealed"）
 const revealOpenHandler: ActionHandler<"revealOpen"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName } = ctx
+    const { state, owner, opp, self, sourceName, srcType } = ctx
     const from = action.from ?? "ownDeck"
     const srcPid: PlayerId = from === "opponentDeck" ? opp : owner
     const srcPlayer = state.players[srcPid]
@@ -303,7 +304,9 @@ const revealOpenHandler: ActionHandler<"revealOpen"> = (ctx, action) => {
                 : "ownSymbols" in countPer
                 ? countSymbols(state.players[owner], [countPer.ownSymbols])
                 : state.players[owner].field.nexuses.length
-          : action.count ?? 0
+          : action.countCounter !== undefined
+            ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+            : action.count ?? 0
     const revealed = from === "burst" ? takeOwnBurst(srcPlayer) : srcPlayer.deck.splice(0, count)
     recordMoved(state, [...revealed])
     if (revealed.length === 0) {

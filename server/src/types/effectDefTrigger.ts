@@ -27,6 +27,7 @@ export type EffectDefTrigger =
           onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
           battleRole?: "attacker" | "blocker" // onBattleWin/onBattleEnd：勝利/生存時の自分の役割がこれと一致する場合のみ発火。省略時は常に発火
           fromHandOnly?: true // trigger:"onDeploy"限定：手札から配置されたときのみ発火
+          burstSummonOnly?: true // trigger:"onSummon"限定：バースト効果の解決中の召喚のときだけ（バーストで自身を召喚した場合を含む）
           turn?: "own" | "opponent" // 指定時、発生源の持ち主基準のturn条件のときのみ発火
           condition?:
               | { opponentNexusColorsAtLeast: number } // 相手フィールドのネクサス色数（重複除く）がこれ以上のときのみ発火
@@ -232,6 +233,7 @@ export type EffectDefTrigger =
           selfOnly?: true // 発生源自身が主体のときだけ発火（ownSpiritDestroyed / ownSpiritExhausted / ownSpiritReducedLife。26RBS02-001）
           causedByOpponent?: true // 疲労イベント限定：相手の効果（ネクサスの効果も含む。byOpponentEffectOnly はネクサスを除く）で疲労したときのみ発火（26RBS02-050）
           byOpponentOnly?: true // event: "ownSpiritDestroyed" 限定：相手によって破壊されたとき
+          opponentEffectSourceTypes?: CardType[] // byOpponentEffectOnly の発生源をさらに種別で絞る（「相手のスピリット/マジックの効果で」はネクサスを含まない。BS17-063）
           byOpponentEffectOnly?: true // event: "ownNexusDestroyed" | "ownSpiritDestroyed" | "ownSpiritExhausted" 限定：相手のスピリット/ネクサス/マジックの効果で破壊/疲労したときのみ発火。
           // ownSpiritDestroyedはバトルのBP比較で敗れた場合も含む。ownSpiritExhaustedはネクサスの効果を含まない。
           // destroyNexusに渡されたDestroyContextで判定し、発生源不明のときは発火しない側に倒す（文脈不明時に限定を緩める方が誤りが大きいため）
@@ -260,7 +262,7 @@ export type EffectDefTrigger =
               | { opponentMagicUsedAtLeast: number } // event: "opponentMagicUsed" 限定：相手がこのターンにマジックの効果を使用した回数がこれ以上のときのみ発火
               | { burstCostAtMost: number } // event: "ownBurstActivated" 限定：発動したバーストのコストがこれ以下のときのみ発火
               | { ownBurstSet: boolean } // バーストをセットしている間だけ発火
-          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" 用：実カウント数ぶんアクションを繰り返す
+          repeatPerCount?: boolean // event: "ownFunsaiMilled" | "opponentHandAdded" | "opponentCorePlaced" | "opponentLifeCoreFromVoid" 用：実カウント数ぶんアクションを繰り返す
           countMode?: "cores" | "funsaiSpirits" // event: "ownSpiritCoresRemovedByOpponent" 限定：repeatPerCountの回数を「取り除かれたコア数」にする。
           // "funsaiSpirits"：event: "ownFunsaiMilled" 限定：回数を実破棄枚数でなく直前の【粉砕】で破棄したスピリット枚数にする
           minEventCount?: number // eventCountがこの値以上のときのみ発火
@@ -320,10 +322,11 @@ export type EffectDefTrigger =
           perDestroyed?: true // scope:"ownAll"限定：同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）。scope:"self"は対象外
           whileCombined?: true // scope:"self"専用：合体しているホストが破壊されるとき、代わりに防ぐ
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnでこのターンだけ貸した効果）からのみ有効
+          blockingOnly?: true // scope:"ownAll"用：現在のバトルのブロッカーだけ
           optional?: true // 「〜できる」の任意指定。承認でコスト支払い＋復活確定、断ればその場で破壊（非対話は即時確定）。省略時は必ず戻る
           vanillaFilter?: true // scope:"ownAll"用：効果の記述を持たない（バニラ）スピリットのみ対象
           colorFilter?: Color // scope:"ownAll"用：この色を持つスピリットのみ対象
-          keywordFilter?: Keyword // scope:"ownAll"用：このキーワードを静的に持つカードのみ対象
+          keywordFilter?: Keyword | Keyword[] // scope:"ownAll"用：このキーワードを静的に持つカードのみ対象。配列はOR
           minBp?: number // scope:"ownAll"用：対象スピリットの実効BPがこれ以上のときのみ
           minCost?: number // scope:"ownAll"用：対象スピリットのコストがこれ以上のときのみ
           familyFilter?: FamilyFilter // scope:"ownAll"用：指定系統（配列＝OR）を持つスピリットのみ対象
@@ -344,6 +347,7 @@ export type EffectDefTrigger =
           revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // toBurst=トラッシュの代わりにバーストエリアへ。Q3469（解決中は発動不可）は未実装（簡略化）
           // 戻るときの状態はfalse=回復／true=疲労。toHand=場に残らず手札へ（コアはリザーブへ）。braveStay指定時は合体していたブレイヴを確認なしで指定状態のまま残す。省略時はdetachBravesOnLeaveへ
           cost?: {
+              exhaustSelf?: true // 発生源を疲労させる。疲労済みなら支払えず不発
               sourceCoresToTrash?: number // 発生源自身の上のコアをこの数だけトラッシュへ。足りなければ支払い不可＝不発
               keepOneCoreRestToTrash?: boolean // 自身のコアを1個だけ残し、残りをトラッシュへ
               oneCoreToVoid?: boolean // 対象のコア1個をボイドへ（コア1個の個体は支払い不可＝不発）

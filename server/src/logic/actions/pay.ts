@@ -20,6 +20,7 @@ import { availableFromSource, placeCoresPoolCandidates } from "./placeCores"
 import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { fieldCoresSpendable, moveCardCandidates, moveCardsPayable } from "./moveCards"
+import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { normalReserveOf } from "../soulCore"
 import { bofuCountFor, findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
 import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses, requestActivationConfirm, requestChoice } from "../targeting"
@@ -38,7 +39,7 @@ export const PAYABLE_TYPES = [
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust",
+    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -68,6 +69,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     lendSelfThisTurn: () => true,
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
+    peekOpponentBurst: (state, owner) => state.players[opponentOf(owner)].burst !== null,
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
     sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "sequence") return false
@@ -278,6 +280,17 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return true
     },
     // summonFromHandFree：条件に合い実際に召喚できる（payCost指定時は支払い可否も含む）手札のスピリットが1枚以上
+    // summonBurstCardFree：発動中のバーストが召喚できる種類で、召喚に必要なコアがある。バースト以外の文脈では常に偽
+    // （payCost 付きの追加コストはここでは見ない簡略化）
+    summonBurstCardFree: (state, owner, _self, action) => {
+        if (action.type !== "summonBurstCardFree") return false
+        const cardId = state.players[owner].burst
+        if (cardId === null) return false
+        const card = getCard(cardId)
+        if (card.type === "nexus") return true
+        if (card.type !== "spirit" && card.type !== "brave") return false
+        return canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
+    },
     summonFromHandFree: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "summonFromHandFree") return false
         const candidates = state.players[owner].hand.filter((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
@@ -391,6 +404,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     discardBurst: "破棄できるバーストがセットされていない",
     setBurstFromHand: "手札にセットできるバーストがない",
     peekOpponentHand: "相手の手札がない",
+    peekOpponentBurst: "相手がバーストをセットしていない",
     timedEffect: "指定できるスピリットがいない",
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
@@ -411,6 +425,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     heavyExhaust: "重疲労させる対象がいない",
     bpBuff: "BP+する対象がいない",
     summonFromHandFree: "手札に召喚できるカードがない",
+    summonBurstCardFree: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",
     treatAsUnblocked: "ブロックしたスピリットがいない",
 }
@@ -527,7 +542,7 @@ export function markPays(action: EffectAction, fields: { confirmed?: true; onceR
         if (v !== null && typeof v === "object") {
             const out: Record<string, unknown> = {}
             for (const [k, x] of Object.entries(v)) out[k] = walk(x)
-            if (out.type === "pay") Object.assign(out, fields)
+            if (out.type === "pay" && (out.tax === undefined || out.confirmed === true)) Object.assign(out, fields)
             return out
         }
         return v
@@ -555,7 +570,7 @@ export function effectCostDiscountNexus(state: GameState, owner: PlayerId, sourc
 
 // 「Nコスト支払う」の形（リザーブからトラッシュへ決まった数）だけが肩代わりの対象
 const isReserveToll = (a: EffectAction): a is Extract<EffectAction, { type: "removeCores" }> & { count: number } =>
-    a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined
+    a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined && a.chooser === undefined
 
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
@@ -583,6 +598,9 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     }
     // 確認で「発動する」を押した後の不発は、発動した扱い（【相手の『召喚時』発揮後】が反応する。2026-10-03 ユーザー確認）
     if (action.confirmed && self && state.summonEffectSource?.instanceId === self.instanceId) state.summonEffectSource.resolved = true
+    // 税（effectTax.ts）の確認文・不発ログは、税の発生源と、効果を止められるカードの名前で出す
+    const unpaidLine = (reason: string): string =>
+        action.tax ? `${action.tax.source}：${reason}ため、${action.tax.target}の効果を発揮できなかった。` : unpayableLine(sourceName, reason)
     let cost = action.cost
     const judge = () => judgePay(state, owner, self, action, srcColors, srcType, eventTargetId)
     // 聞く前に成立しないなら確認を出さずに不発（2026-10-02 ユーザー確認。COST_MODEL §10 の「払えなくても確認は出る」を改訂）。
@@ -590,16 +608,20 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     if (state.interactiveTargets && !action.confirmed) {
         const pre = judge()
         if (pre.reason !== null) {
-            fizzle(unpayableLine(sourceName, pre.reason))
+            fizzle(unpaidLine(pre.reason))
             return
         }
-        const resume = eventTargetId !== undefined ? { ...action, eventTargetId } : action
-        requestActivationConfirm(state, owner, `${sourceName}：コストを支払って効果を発揮しますか？`, resume, self, action.onceRevert)
+        // 税は外側の markPays では確認済みにならないので、ここで自分に印を付ける（対象つきのマジックでも同じ）
+        const resume = { ...action, ...(eventTargetId !== undefined ? { eventTargetId } : {}), ...(action.tax ? { confirmed: true as const } : {}) }
+        const prompt = action.tax
+            ? `${action.tax.source}：${action.tax.phrase}なければ、${action.tax.target}の効果を発揮できません。${action.tax.verb}ますか？`
+            : `${sourceName}：コストを支払って効果を発揮しますか？`
+        requestActivationConfirm(state, owner, prompt, resume, self, action.onceRevert)
         return
     }
     const verdict = judge()
     if (verdict.reason !== null) {
-        fizzle(unpayableLine(sourceName, verdict.reason))
+        fizzle(unpaidLine(verdict.reason))
         return
     }
     cost = verdict.cost
@@ -654,6 +676,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             tollCovered = true
         }
     }
+    if (action.tax && state.burstTaxUnpaid) state.burstTaxUnpaid--
     const scope = newRecordScope()
     resolveInOrder(state, tollCovered ? [action.then] : [cost, action.then], {
         resolve: (a) => {

@@ -1,6 +1,6 @@
 // 場にある1枚の個体 CardInstance（コア・疲労・合体・期間つきの印など）
 import type { EffectDef } from "./effectDef"
-import { PlayerId, Color, CardType, LevelDef, DestroyContext } from "../type"
+import { PlayerId, Color, CardType, LevelDef, DestroyContext, ImmuneSource } from "../type"
 
 // 盤面インスタンス（可変）。data.md 6.2 に対応
 export interface CardInstance {
@@ -37,6 +37,7 @@ export interface CardInstance {
     // 効果テキストが「このバトルの間、BP+」と明示しているものだけがこちら（BS07ニードルショット）。無記述のBP+はターン終了時まで＝tempBpBuff
     noRefreshUntilOwnEndSteps?: number // 値が1以上の間、この個体はリフレッシュステップ・効果のいずれでも回復しない（refreshSpiritの唯一の入口で判定）。持ち主のエンドステップごとに1減らし、0になったら通常どおり回復する（BS12-078カシオペアシール：「『自分のエンドステップ』を5回行うまで、そのスピリットは回復できない」）
     immuneToOpponentThisTurn: boolean // 期間つき効果の一覧（immune）から作り直す写し
+    immuneAgainstThisTurn?: ImmuneSource[] // 期間つき効果の一覧（immune で against 指定あり）から作り直す写し。対象に選べるかには効かない
     untargetableByOpponentMagicTimed?: true // 期間つき効果（untargetableByOpponentMagic）から作り直す写し
     blockConstraintNegatedThisTurn: boolean // このターンの間、自身の cantBlock/cantBlockLowerBp を無効化（バーストファイア）
     destroyAtBattleEnd?: true // 器BS16：バトル参加者としてonBattleEndまで生き残ったら、そこで破壊される（GameEngine.runBattleStep case8/9が判定）。summonFromTrashFree.destroyAtBattleEndが召喚時に立てる（BS16-075スケープゴート：「バトル終了時、この効果で召喚されたスピリットは破壊される」＝チャンプブロック用の一時召喚）
@@ -51,6 +52,7 @@ export interface CardInstance {
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
+    timedEffectsDisabled?: true // TimedContent effectsDisabled の写し（applyTimedCopies だけが作り直す）
     timedCostDelta?: number // このターンの間のコストの増減（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）。shared/rules.ts の instCostDelta が読む
     // **tempAlsoCosts とは別物**：あちらは「そのコストとしても扱う」（元のコストも残る）、こちらは増減（元のコストは残らない）
     timedColors: Color[] // 期間つき効果で与えられた色の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
@@ -71,7 +73,7 @@ export interface CardInstance {
     //   - 「手札／デッキに戻ることに関する効果」以外は**発揮できず、その対象にもならない**
     //   - 発揮できるのは「フィールドを離れるとき」「手札／デッキに戻るとき」だけ
     // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
-    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" }
+    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" | "burst" }
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     // 破壊待機状態の間だけ持つ、その破壊のコンテキストと確認の出し方（destroySpiritが記録し、
     // commitPendingDestruction が「フィールドに残る」の判定に使う。cards.jsonには書かない内部専用）。
@@ -83,7 +85,7 @@ export interface CardInstance {
     // 破壊待機状態の間だけ持つ、破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）用の控え。
     // destroySpiritが破壊直前に計算した値をここに残し、commitPendingDestructionが読んでpendingBurstDestroyQueueへ積む
     // （破壊後バーストはトラッシュ行き確定の後に発火するため、確定前の値をここで持ち越す。BS16バッチ0）
-    pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number }
+    pendingDestroyBurstInfo?: { byOpponentEffect: boolean; bp: number; sourceType?: CardType }
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）

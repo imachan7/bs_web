@@ -40,6 +40,12 @@ export function recordTimed(state: GameState, record: TimedRecord): void {
 // 一覧から個体の写し（timed〜）をゼロから作り直す。盤面を受け取らない読み取り関数（instHasColor 等）はこの写しを読む
 // 「すべて」の記録の照合は、期間つきの写しを含まない状態で行う（期間つきで青にした個体は、別の「青のスピリットすべて」の記録の照合では青に数えない）。
 // そう読むべきか割れるカードが出たら、ユーザーと相談して決める（2026-09-25 時点で該当カードなし）
+// against省略時は従来どおり全面免疫のboolean。against指定時は種別限定の側だけに積む（対象選択可否は崩さない）
+function grantImmune(inst: CardInstance, c: { against?: NonNullable<CardInstance["immuneAgainstThisTurn"]> }): void {
+    if (c.against === undefined) inst.immuneToOpponentThisTurn = true
+    else inst.immuneAgainstThisTurn = [...(inst.immuneAgainstThisTurn ?? []), ...c.against]
+}
+
 function applyTimedCopies(state: GameState): void {
     const all: CardInstance[] = []
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -51,6 +57,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.battleBpAs
             delete inst.colorlessThisBattle
             inst.immuneToOpponentThisTurn = false
+            delete inst.immuneAgainstThisTurn
             delete inst.untargetableByOpponentMagicTimed
             delete inst.countAsThisTurn
             delete inst.lifeDamageNegatedFor
@@ -61,6 +68,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.timedCostDelta
             delete inst.timedSymbolsOverride
             delete inst.timedSymbolLoss
+            delete inst.timedEffectsDisabled
         }
         all.push(...field.spirits, ...field.nexuses)
     }
@@ -78,6 +86,7 @@ function applyTimedCopies(state: GameState): void {
             }
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
+            if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
             if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
         }
@@ -95,11 +104,25 @@ function applyTimedCopies(state: GameState): void {
             // 記録を出した側（ownerPid）が意味を持つ内容はここで写す（timedContentsOn では誰が出したかが消えるため）
             if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
             if (c.type === "colorless") inst.colorlessThisBattle = true
-            if (c.type === "immune") inst.immuneToOpponentThisTurn = true
+            if (c.type === "immune") grantImmune(inst, c)
             if (c.type === "untargetableByOpponentMagic") inst.untargetableByOpponentMagicTimed = true
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
             if (c.type === "noLifeDamage") inst.lifeDamageNegatedFor = r.ownerPid
             if (c.type === "lifeCap") inst.lifeCapThisTurn = Math.min(inst.lifeCapThisTurn ?? Number.POSITIVE_INFINITY, c.max)
+        }
+    }
+    // 「すべて」（rule 記録）の免疫は、記録を出した後に場に出たスピリットにも掛かる
+    for (const r of state.timedEffects) {
+        if (r.target.kind !== "rule") continue
+        const t = r.target
+        for (const c of r.content) {
+            if (c.type !== "immune") continue
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                if (t.pid !== undefined && t.pid !== pid) continue
+                for (const inst of state.players[pid].field.spirits) {
+                    if (matchesTarget(state, pid, inst, t.filter, t.selfInstanceId)) grantImmune(inst, c)
+                }
+            }
         }
     }
     // シンボル喪失は、BP の写しができたあとにもう一度照合する（「BP1000以下の相手のスピリットすべては〜」が、このターンのBP増減でも入れ替わるように。
@@ -242,7 +265,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // onlyWhileSpiritState：発生源自身が合体しているときは発揮しない（BS13-056：「このブレイヴがスピリット状態の間」）
                     if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                    if (effect.turn === "own" && pid !== state.turnPlayer) continue
+                    if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                     for (const spirit of player.field.spirits) {
+                        if (effect.combinedFilter && !instIsCombined(spirit)) continue
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         if (effect.colorFilter && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue

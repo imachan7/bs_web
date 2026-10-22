@@ -104,6 +104,8 @@ console.log("=== フラッシュ封じアクション（lockFlash） ===")
     const atk2 = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(atk2)
     s.players.p2.hand[0] = "BS01-123"
+    // リターンドローのフラッシュは自分のスピリットが対象（対象がいないと使えない）
+    s.players.p2.field.spirits.push(createInstance("BS01-001", s.turn, 1))
     assert(act(s, "p1", { type: "attack", instanceId: atk2.instanceId }) === null, "2体目でアタック")
     assert(!lockedFor(s, "p1", "flash") && !lockedFor(s, "p2", "flash"), "新しいバトルではフラッシュの封印が消えている")
     assert(

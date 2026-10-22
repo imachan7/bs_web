@@ -208,6 +208,7 @@ export function millDeck(
         state.lastDeckMill = { pid, cardIds: [...milled] }
         fireFieldEventTriggers(state, pid, "ownDeckMilled", undefined, undefined, undefined, actual, {
             bySpiritEffect: byOpponent && cause?.sourceType === "spirit",
+            byOpponentEffect: byOpponent,
         })
     }
     // 破棄されたカード自身の『デッキから破棄されたとき』（kind:"onMilledFromDeck"）。

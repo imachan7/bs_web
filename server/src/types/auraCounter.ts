@@ -37,5 +37,5 @@ export type AuraCounter =
     | { anyNameIncludes: string } // 両陣営のフィールドでカード名にこの文字列を含むスピリット数（EffectCounterの同名軸と同じ判定）
     | { ownSpiritsMatching: TargetFilter } // 絞り込みに合う自分のスピリット数（発生源自身も数える。26RBS02-042「ブロック時効果を持つ自分のスピリット1体につき」）
     | { ownNexusColor: Color } // 自分フィールドの指定色ネクサス数（EffectCounterの同名軸と同じ判定）
-    | { ownKeyword: Keyword } // 自分フィールドで指定キーワードを持つスピリット数（EffectCounterの同名軸と同じ判定）
+    | { ownKeyword: Keyword | Keyword[] } // 自分フィールドで指定キーワードを持つスピリット数（EffectCounterの同名軸と同じ判定）
     | { enemyCost: { max?: number; min?: number } }

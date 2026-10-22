@@ -81,7 +81,7 @@ const VALID_KINDS = new Set([
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
-    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "shinsokuPayAssist", "burstSetCost",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "burstSetCost",
     "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
@@ -90,7 +90,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
-    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect",
+    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant", "lifeDamageReplace", "symbolWhenSummoning", "effectTax",
 ])
 
 export interface ValidationIssue {
@@ -482,7 +482,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
                 const keys = Object.keys(t as Record<string, unknown>)
                 if (keys.length === 0) add(id, "braveCondition の項が空")
                 for (const k of keys) {
-                    if (!["family", "minCost", "cardName", "vanilla", "keyword"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
+                    if (!["family", "minCost", "maxCost", "cardName", "vanilla", "keyword"].includes(k)) add(id, `braveCondition に未知のキー: ${k}`)
                 }
             }
         } else if (c.braveLevels !== undefined || c.braveCondition !== undefined) {
@@ -642,6 +642,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
 
 // 器の PR とカード移行の PR を分けるため（REFACTOR_PLAN §2.2）、器だけ入った時点ではまだ未使用になる。移行の PR で必ず消す
 // atTurnEnd：BS16 バッチ3 のデータ役が BS16-068 に書いたら外す
+// returnToBurst／peekOpponentBurst：BS17-004／049 のデータを書いたら外す
 const AWAITING_MIGRATION = new Set<string>(["discardBurst", "atTurnEnd"])
 // standard 版（26系カード）から持ち込んだエンジンの語彙で、旧カードからは呼ばれないもの（2026-10-15 に bs_web_standard から持ち込み）
 const STANDARD_POOL_ONLY = new Set<string>([

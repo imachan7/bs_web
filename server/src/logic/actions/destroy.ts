@@ -169,6 +169,11 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 log(state, `${sourceName}の破壊効果：対象がいなかった。`)
                 return
             }
+            // クライアントが先に選んだ対象（castMagic の targetInstanceId）も通るので、陣営もここで見る
+            if (!action.anySide && found.pid !== (action.side === "own" ? owner : opp)) {
+                log(state, `${getCard(found.inst.cardId).name}は${sourceName}の対象にできない。`)
+                return
+            }
             // 対象指定なので scope は "targeted"（「相手の効果の対象にならない」がここでは効く）
             const destroyAttempt = attemptOf(ctx, "destroy", "targeted")
             // 「手札を破棄することで効果を受けない」は**払うかを守る側に聞いてから**判定する

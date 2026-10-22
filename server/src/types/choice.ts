@@ -386,12 +386,12 @@ export type ResumeFrame =
           byOpponentEffect: boolean // 同上（byOpponentEffectOnly）。相手によって破壊された（効果 or バトル敗北）か。BS12-005星角獣ユニゴーント
           sourceInstanceId?: string // 同上。その効果を発揮したスピリットのインスタンスID（DestroyContext.sourceInstanceId）
       }
-    | { kind: "burstFinish"; stage: "finish" | "settle" | "notify"; pid: PlayerId; cardId: string; actionType: EffectAction["type"]; thenPay?: "main" | "flash"; toHand?: true; alsoDraw?: true; before: string[] }
+    | { kind: "burstFinish"; stage: "finish" | "settle" | "notify"; pid: PlayerId; cardId: string; actionType: EffectAction["type"]; thenPay?: "main" | "flash"; toHand?: true; alsoDraw?: true; handUse?: true; before: string[] }
     | {
           // バウンス待機状態の続き。**移動はすでに済んでいて、残りの誘発だけ**を後へ送る。
           // 戻ったカードはもうフィールドに無いので、誘発に渡すインスタンスをそのまま持ち回る
           kind: "bounceFlush"
-          moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" }[]
+          moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[]
           index: number
       }
     | {
@@ -436,4 +436,6 @@ export type ResumeFrame =
           attackerSnapshot: CardInstance
           dealt: number
           lifeTriggers: boolean // 「ライフが減ったとき」系を発火するか（ライフ0で敗北が決まったときは発火しない）
+          // lifeDamageReplace の確認・解決の続き。ライフが lifeBefore より減っていれば置換が成立、減っていなければ通常のライフ減少をする
+          settle?: { lifeBefore: number }
       }

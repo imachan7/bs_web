@@ -38,6 +38,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     funsai: { id: "funsai", label: "粉砕" },
     daifunsai: { id: "daifunsai", label: "大粉砕" },
     kobo: { id: "kobo", label: "光芒" },
+    makobo: { id: "makobo", label: "魔光芒" },
     tensho: { id: "tensho", label: "転召" },
     bofu: { id: "bofu", label: "暴風" },
     seimei: { id: "seimei", label: "聖命" },
@@ -67,9 +68,10 @@ export function keywordMatches(has: Keyword, asked: Keyword): boolean {
     return has === asked || (KEYWORD_INCLUDES[asked]?.includes(has) ?? false)
 }
 
-// カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）
-export function hasKeyword(cardId: string, keyword: Keyword): boolean {
-    return card(cardId).effects.some((e) => e.kind === "keyword" && e.keyword === keyword)
+// カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）。配列＝いずれかでOR
+export function hasKeyword(cardId: string, keyword: Keyword | Keyword[]): boolean {
+    const wanted = Array.isArray(keyword) ? keyword : [keyword]
+    return card(cardId).effects.some((e) => e.kind === "keyword" && wanted.includes(e.keyword))
 }
 
 // 指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。
@@ -180,7 +182,7 @@ export function instIsVanilla(inst: CardInstance): boolean {
 // **発揮を止める箇所は必ずこの述語を通すこと**（effectSources / activeConstraints / spiritHasKeyword /
 // EffectModules.fireTrigger の4か所。片方だけを直接見ると、もう一方の軸が無言ですり抜ける）
 export function instEffectsSuppressed(inst: CardInstance): boolean {
-    return inst.effectsDisabledContinuous === true || inst.asSpiritThisTurn !== undefined
+    return inst.effectsDisabledContinuous === true || inst.timedEffectsDisabled === true || inst.asSpiritThisTurn !== undefined
 }
 
 // 「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
@@ -600,6 +602,7 @@ export function matchesBraveCondition(
     return terms.some((t) => {
         if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
         if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
+        if (t.maxCost !== undefined && instBaseCost(host) > t.maxCost) return false
         if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
         // 「合体条件：効果の記述を持たない」（BS10 の18枚中6枚）。
         // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る instIsVanilla を通す

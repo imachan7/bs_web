@@ -74,11 +74,14 @@ export function createInstance(
 ): CardInstance {
     noteInstance(cardId)
     instanceSeq += 1
+    // self:true の summonExhausted はどの召喚経路でも効かせたいので、全経路が通るここで見る。
+    // ⚠️ 召喚以外の createInstance（デバッグ配置等）でも疲労状態になる
+    const exhaustedOnSummon = getCard(cardId).effects.some((e) => e.kind === "globalConstraint" && e.constraint.type === "summonExhausted" && e.constraint.self === true)
     return {
         instanceId: `inst-${String(instanceSeq).padStart(6, "0")}`,
         cardId,
         cores,
-        isRested: false,
+        isRested: exhaustedOnSummon,
         summonedTurn: turn,
         ...(summonedBy !== undefined ? { summonedBy } : {}),
         tempBpBuff: 0,
@@ -232,6 +235,7 @@ export function createGame(
         eventSeq: 0,
         magicUsedThisTurn: { p1: 0, p2: 0 },
         millCountThisTurn: { p1: 0, p2: 0 },
+        coreGainCountThisTurn: { p1: 0, p2: 0 },
         millCountThisTurnMutual: { p1: 0, p2: 0 },
     }
     // 生成直後のフィールド（初期状態では通常空だが将来拡張に備えて）にもレベル置換を反映しておく
@@ -692,7 +696,7 @@ function forView(inst: CardInstance): CardInstance {
     return rest
 }
 
-function playerView(player: PlayerState, isSelf: boolean): PlayerView {
+function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState): PlayerView {
     return {
         id: player.id,
         name: player.name,
@@ -717,6 +721,7 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
         burst: isSelf ? player.burst : null,
         burstSet: player.burstSet,
         ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
+        ...(player.payAssistUsedThisTurn ? { payAssistUsedThisTurn: player.payAssistUsedThisTurn } : {}),
         burstSetThisTurn: player.burstSetThisTurn,
         // ソウルコアの居場所は公開情報（盤上で区別できる形で置かれる）
         soulCore: player.soulCore,
@@ -725,6 +730,9 @@ function playerView(player: PlayerState, isSelf: boolean): PlayerView {
             : {}),
         // 「手札を破棄して効果を受けない」の方針は自分にだけ返す（UIのトグルの現在値）
         ...(isSelf && player.payToNegate !== undefined ? { payToNegate: player.payToNegate } : {}),
+        ...(isSelf && player.peekedOpponentBurstCardId !== undefined && opponent.burst === player.peekedOpponentBurstCardId
+            ? { peekedOpponentBurstCardId: player.peekedOpponentBurstCardId }
+            : {}),
         // 「相手の手札の内容を見た」記録は持ち主にだけ返す（BS09-039探偵ペンタン）
         ...(isSelf && player.peekedOpponentCardIds !== undefined
             ? { peekedOpponentCardIds: player.peekedOpponentCardIds }
@@ -758,8 +766,8 @@ export function viewFor(state: GameState, viewer: PlayerId): GameView {
         isFlashTiming: state.isFlashTiming,
         battle: state.battle ? { ...state.battle } : null,
         players: {
-            p1: playerView(state.players.p1, viewer === "p1"),
-            p2: playerView(state.players.p2, viewer === "p2"),
+            p1: playerView(state.players.p1, viewer === "p1", state.players.p2),
+            p2: playerView(state.players.p2, viewer === "p2", state.players.p1),
         },
         log: state.log.slice(-60),
         winner: state.winner,

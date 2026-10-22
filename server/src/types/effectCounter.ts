@@ -14,7 +14,7 @@ export type EffectCounter =
     | "lastDestroyedChimei" // 直前に破壊したカードの【地鳴】で指定された枚数（効果で増えたぶん込み。26RBS01-125）
     | "opponentCoresTotal" // 相手のフィールド・リザーブ・トラッシュのコアの合計（ownCoresTotal の相手版）
     | { div: [EffectCounter, number] } // 1つ目 ÷ 2つ目（切り捨て）。「◯2体につき1体」（26RDB01-052）
-    | { plus: [EffectCounter, number] } // 1つ目 + 定数。「置くコアを+1個する」のように基本量に数えた量を足す形（count=1 と組む。26RBS01-028）
+    | { plus: [EffectCounter, number | EffectCounter] } // 1つ目 + 定数（または2つ目のカウンタ。BS17-075 の総コア＋ライフ）。「置くコアを+1個する」のように基本量に数えた量を足す形（count=1 と組む。26RBS01-028）
     | { minus: [EffectCounter, EffectCounter] } // 1つ目 − 2つ目（負なら0）。「〜と同じ数になるように」
     | "bothNexusColors" // お互いのフィールドのネクサスの色の種類数（重複を除く）
     | "ownOtherSpirits" // self以外の自分フィールドのスピリット数
@@ -54,6 +54,7 @@ export type EffectCounter =
     | "ownCombinedSpirits" // 自分のフィールドの合体スピリット数（braveRefsを持つホストの数。instIsCombinedで判定。BS10-029木星神龍ノブナガード・ゼウシスLv2-3＝「自分の合体スピリット1体につき」）
     | "ownBraveSpirits" // 自分のフィールドで**スピリット状態のブレイヴ**数（card.type==="brave"かつfield.spiritsにいる個体。合体中はfield.combinedBravesなので対象外。BS12-004ドラゴン・フェゼント：「自分のスピリット状態のブレイヴ1体につき」）
     | "ownLife" // 自分のライフのコア数（player.life）。BS13-061戴冠する活火山Lv2：「自分のライフのコア1個につき」
+    | "opponentLife" // 相手のライフのコア数（発生源の持ち主から見て）
     | "selfBraveCount" // このスピリット（self）に合体しているブレイヴの数（self.braveRefs?.length。BS13-X01光龍騎神サジット・アポロドラゴン【合体中】Lv3：「このスピリットのブレイヴ1つにつき」）
     | "battlingOpponentCombinedSymbols" // 器YC：selfが参加している現在のバトルの相手側（state.battle.attacker/blockerInstanceId）が**合体スピリットのときだけ**そのシンボル数（instanceSymbolCount）、合体していない相手や非バトル中は0（BS12-036星犬ポメラン：「バトルしている相手の合体スピリットのシンボル1つにつき」）
     | "battlingOpponentSymbols" // battlingOpponentCombinedSymbolsの合体限定を外した版：selfが参加している現在のバトルの相手側のシンボル数（instanceSymbolCount）。合体していなくても数える。非バトル中は0（BS13-056ホーク・ブレイカー【合体時】：「バトルしている相手のスピリットのシンボル1つにつき」）
@@ -66,12 +67,13 @@ export type EffectCounter =
     | { anyNameIncludes: string } // 両陣営のフィールドでカード名にこの文字列を含むスピリット数（ownNameIncludesの両陣営版。BS06アルカナナイト・ヘクス：修飾なしの「スピリット」）
     | { ownColor: Color } // 自分のフィールドの指定色スピリット数
     | { ownColorSymbols: Color } // 自分のフィールドの指定色シンボルの合計数（BS04機動要塞キャッスル・ゴレム＝青シンボル）。**スピリットとネクサスの両方**を数える（2026-08-20 修正。以前はスピリットだけを見ていた）。数え方は shared/rules.countSymbols に一本化してあり、symbolFix による固定・バウンス待機の除外・「◯色としても扱う」で得た色も見る
-    | { ownKeyword: Keyword } // 自分のフィールドで指定キーワードを持つスピリット数（静的・一時付与・継続付与すべて考慮。spiritHasKeywordで判定。BS05双剣虎ジェン・フー：【神速】持ち1体につき）
+    | { ownKeyword: Keyword | Keyword[] } // 自分のフィールドで指定キーワードを持つスピリット数（静的・一時付与・継続付与すべて考慮。spiritHasKeywordで判定。BS05双剣虎ジェン・フー：【神速】持ち1体につき）
     | { ownNexusColor: Color } // 自分のフィールドの指定色ネクサス数（BS03武器コレクターのゴドフリー：青のネクサス1つにつき）
     | { ownNexusNameIncludes: string } // 自分のフィールドで、カード名に指定文字列を含むネクサス数（同名重複もそのまま数える。ownNexusNameKindsAtLeastの「種類数」とは別軸。BS13-045巨人船長イアソンLv2：「カード名に「古代戦艦」と入っている自分のネクサス1つにつき」）
     | { enemyCost: { max?: number; min?: number } } // 持ち主から見た相手フィールドの、コスト条件を満たすスピリット数（instMatchesCostFilterで判定＝付与コストも見る。BS07バジリザード：コスト3以下の相手1体につき）
     | "opponentFieldColors" // 持ち主から見た相手フィールド（スピリット+ネクサス）の色の種類数（重複除く。多色は複数色、合体中ブレイヴの色も数える。shared/rules.opponentFieldColorCount。BS15共通器）
     | "opponentFieldSpiritColors" // opponentFieldColorsのスピリット限定版（ネクサスを含めない。BS15共通器）
+    | "lastBattleDestroyedBp" // 直前のバトルで破壊されたスピリットの破壊直前の実効BP（記録が無ければ0）
     | "lastBattleDestroyedCost" // 直前のバトルで破壊されたスピリットのコスト
     | "lastBattleBlockerTrashCost" // このバトルでブロックした相手のスピリット（スピリットカードのみ）のうち、
     // バトル終了時点で防御側のトラッシュにあるカードの印刷コストの合計（26系【地鳴】の減算用。
