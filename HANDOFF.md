@@ -21,6 +21,10 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：型4ファイルのコメント整理（`chore/trim-type-comments`）
+
+effectAction.ts・effectDefTrigger.ts・effectDefContinuous.ts・globalConstraint.ts を1体ずつ。CLAUDE.md「コードスタイル」の基準で削る（裁定・簡略化・理由・誤読しやすい意味は残す）。コード側が変わっていないことは、コメントを除いた字句列を HEAD と比べて確かめる（照合スクリプトはセッションの scratchpad。消えたら作り直す：ts.createScanner(skipTrivia) の字句列比較）
+
 
 ### 次の一手：後片付け2つ（10-16）
 
