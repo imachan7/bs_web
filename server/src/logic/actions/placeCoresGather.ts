@@ -126,7 +126,8 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
         return
     }
     const total = (): number => sourcesOf(ctx, action).reduce((sum, s) => sum + s.cap, 0)
-    const optional = action.count === "any"
+    // upTo:true＝「置くことができる」（0個でもよい）。count:"any" は「好きなだけ」
+    const optional = action.count === "any" || action.upTo === true
     let gathered = action.gathered ?? 0
     let need = action.gatherNeed
     if (need === undefined) {

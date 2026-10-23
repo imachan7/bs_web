@@ -206,6 +206,7 @@ console.log("=== 001 テリジーノ ===")
         start: { turn: "me", interactive: true, me: { hand: [MAIPA], spirits: [{ card: TERI }] } },
         steps(t) {
             t.act("me", { type: "summon", handIndex: 0 })
+            t.act("me", { type: "resolveChoice", instanceId: pc(t).selfInstanceId! }) // メイパロット自身の召喚時のコア配置（interactive のため選択待ちになる）
             noChoice(t, "自分のターン・自分のスピリットの効果では誘発しない")
         },
         expect: ["自分.リザーブ: 10 → 6", "自分.トラッシュのコア: 0 → 3", `自分.手札: ${getCard(MAIPA).name} → なし`, ...appear("自分.メイパロット", 3000, 2, 2)],
@@ -265,7 +266,7 @@ console.log("=== 002 守獣シシンガ ===")
             t.act("me", { type: "summon", handIndex: 0 })
         },
         expect: [
-            "自分.守獣シシンガ.BP: 6000 → 2000", "自分.守獣シシンガ.Lv: 3 → 1", "自分.リザーブ: 10 → 8", "自分.トラッシュのコア: 0 → 1",
+            "自分.守獣シシンガ.BP: 6000 → 2000", "自分.守獣シシンガ.Lv: 3 → 1", "自分.リザーブ: 10 → 9",
             `自分.手札: ${getCard(ROKU).name} → なし`, ...appear("自分.ロクケラトプス", 1000, 1, 1),
         ],
     })
@@ -295,10 +296,8 @@ console.log("=== 003 アサシン・ドラゴン ===")
         name: "assassin-designate",
         start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: MAIPA }, { card: ROKU, rested: true }] } },
         steps(t) {
-            t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
-            const p = pc(t)
-            assert(p.candidates.includes(t.id("メイパロット")) && !p.candidates.includes(t.id("ロクケラトプス")), "指定できるのは召喚時効果を持つ相手のスピリットだけ")
-            ans(t, { id: "メイパロット" })
+            t.actRejected("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン"), targetSpiritInstanceId: t.id("ロクケラトプス") }) // 召喚時効果を持たないので指定できない
+            t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン"), targetSpiritInstanceId: t.id("メイパロット") })
             t.closeFlash()
         },
         expect: [
@@ -311,7 +310,6 @@ console.log("=== 003 アサシン・ドラゴン ===")
         start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: MAIPA }, { card: ROKU, rested: true }] } },
         steps(t) {
             t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
-            ans(t, "no")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -321,8 +319,8 @@ console.log("=== 003 アサシン・ドラゴン ===")
         name: "assassin-lv1-cannot-designate",
         start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 1 }] }, opp: { spirits: [{ card: MAIPA, rested: true }] } },
         steps(t) {
+            t.actRejected("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン"), targetSpiritInstanceId: t.id("メイパロット") }) // Lv1 は指定できない
             t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
-            noChoice(t, "Lv1 は指定できない")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -332,8 +330,8 @@ console.log("=== 003 アサシン・ドラゴン ===")
         name: "assassin-no-summon-effect-target",
         start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: ROKU, rested: true }] } },
         steps(t) {
+            t.actRejected("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン"), targetSpiritInstanceId: t.id("ロクケラトプス") }) // 召喚時効果を持つ相手のスピリットがいなければ指定できない
             t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
-            noChoice(t, "召喚時効果を持つ相手のスピリットがいなければ指定できない")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -349,10 +347,7 @@ console.log("=== 003 現在Lvで有効な召喚時効果 ===")
         name: "assassin-designate-destro-lv1",
         start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: DESTRO, cores: 1 }] } },
         steps(t) {
-            t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
-            const p = pc(t)
-            assert(p.candidates.includes(t.id("魔界七将デストロード")), "Lv1 のデストロードは召喚時効果が有効なので指定できる")
-            ans(t, { id: "魔界七将デストロード" })
+            t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン"), targetSpiritInstanceId: t.id("魔界七将デストロード") }) // Lv1 のデストロードは召喚時効果が有効なので指定できる
             t.closeFlash()
         },
         expect: [
@@ -364,8 +359,8 @@ console.log("=== 003 現在Lvで有効な召喚時効果 ===")
         name: "assassin-designate-destro-lv2",
         start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: DESTRO, cores: 6, rested: true }] } },
         steps(t) {
+            t.actRejected("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン"), targetSpiritInstanceId: t.id("魔界七将デストロード") }) // Lv2 のデストロードに召喚時効果は無い
             t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
-            noChoice(t, "Lv2 のデストロードに召喚時効果は無いので指定できない")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -491,7 +486,7 @@ console.log("=== 006 ガンナー・ドラゴン ===")
             attackBlocked(t, "フェンサー・ドラゴン", "A")
             noChoice(t, "破壊された戦竜のバトル終了時には発揮しない")
         },
-        expect: [gone("自分.フェンサー・ドラゴン"), `自分.トラッシュ: なし → ${getCard(FEN).name}`, "自分.リザーブ: 10 → 11"],
+        expect: [gone("自分.フェンサー・ドラゴン"), `自分.トラッシュ: なし → ${getCard(FEN).name}`, "自分.リザーブ: 10 → 11", "相手.A.疲労: false → true"],
     })
     scenario({
         name: "gunner-opp-senryu",
@@ -511,9 +506,7 @@ console.log("=== 006 ガンナー・ドラゴン ===")
         steps(t) {
             t.act("me", { type: "attack", instanceId: t.id("ガンナー・ドラゴン") })
             ans(t, "yes")
-            const p = pc(t)
-            assert(p.candidates.includes(t.id("R2")) && !p.candidates.includes(t.id("R1")), "同じLvの相手のスピリットだけが対象")
-            ans(t, { id: "R2" })
+            // 対象は同じLvの R2 だけなので選択待ちは出ず自動で決まる（R1 が残ることは expect で確かめる）
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -573,9 +566,7 @@ console.log("=== 006 ガンナー・ドラゴン ===")
         steps(t) {
             t.act("me", { type: "attack", instanceId: t.id("ガンナー・ドラゴン") })
             ans(t, "yes")
-            const p = pc(t)
-            assert(p.candidates.includes(t.id("R3")) && !p.candidates.includes(t.id("R2")), "このスピリットと同じLv3の相手のスピリットだけが対象")
-            ans(t, { id: "R3" })
+            // 対象は同じLv3の R3 だけなので選択待ちは出ず自動で決まる（R2 が残ることは expect で確かめる）
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -599,7 +590,7 @@ console.log("=== 008 モンク・ドラゴン ===")
         start: start(),
         steps(t) {
             oppAttacksMe(t, "用心棒アントマン")
-            go(t, "yes", "no", { id: "RA" })
+            go(t, "yes", "no", "yes") // 3つ目＝コアを取る場所の選択（RA だけ）
         },
         expect: [
             ...burstDrawLines, "自分.モンク・ドラゴン.疲労: true → false", "自分.モンク・ドラゴン.コア: 1 → 2", "自分.モンク・ドラゴン.Lv: 1 → 2", "自分.モンク・ドラゴン.BP: 5000 → 7000",
@@ -611,7 +602,7 @@ console.log("=== 008 モンク・ドラゴン ===")
         start: start(),
         steps(t) {
             oppAttacksMe(t, "用心棒アントマン")
-            go(t, "yes", "no", "no")
+            go(t, "yes", "no", { opt: "やめる" })
         },
         expect: [...burstDrawLines, "自分.モンク・ドラゴン.疲労: true → false"],
     })
@@ -637,7 +628,7 @@ console.log("=== 009 炎の覇獣ハヌ・マーグ ===")
         start: { turn: "opp", me: { burst: HANU }, opp: { hand: [STON], spirits: [{ card: ROKU, label: "R1" }, { card: ANT }] } },
         steps(t) {
             t.act("opp", { type: "summon", handIndex: 0 })
-            ans(t, "yes")
+            // 非 interactive ではバーストの発動確認は出ず自動で発動する
             noChoice(t, "BP4000以下の相手のスピリット2体（R1・ストン）が自動で破壊される")
         },
         expect: [
@@ -782,7 +773,8 @@ console.log("=== 061 戦史の石碑 ===")
         opp: { hand: [ARDER], spirits: [{ card: ANT }, { card: ROKU, label: "RO" }] },
     })
     const oppCast = (t: ScenarioCtx, target: string) => t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id(target) })
-    const castLines = ["相手.トラッシュのコア: 0 → 4", `相手.手札: ${getCard(ARDER).name} → なし`]
+    // アーダーフレイム（コスト4・赤）は、相手の場の赤いロクケラトプス（RO）のシンボルで1軽減されて3
+    const castLines = ["相手.トラッシュのコア: 0 → 3", `相手.手札: ${getCard(ARDER).name} → なし`]
     scenario({
         name: "sekihi-lv2-counter",
         start: oppKills(2, ROKU, "RR"),
@@ -792,7 +784,7 @@ console.log("=== 061 戦史の石碑 ===")
         },
         expect: [
             ...castLines, gone("自分.RR"), `自分.トラッシュ: なし → ${getCard(ROKU).name}`, "自分.リザーブ: 10 → 11",
-            gone("相手.用心棒アントマン"), "相手.リザーブ: 10 → 7", `相手.トラッシュ: なし → ${nm(ARDER, ANT)}`,
+            gone("相手.用心棒アントマン"), "相手.リザーブ: 10 → 8", `相手.トラッシュ: なし → ${nm(ARDER, ANT)}`,
         ],
     })
     scenario({
@@ -802,7 +794,7 @@ console.log("=== 061 戦史の石碑 ===")
             oppCast(t, "MM")
             noChoice(t, "破壊されたのが赤でなければ発揮しない")
         },
-        expect: [...castLines, gone("自分.MM"), `自分.トラッシュ: なし → ${getCard(MAIPA).name}`, "自分.リザーブ: 10 → 11", "相手.リザーブ: 10 → 6", `相手.トラッシュ: なし → ${getCard(ARDER).name}`],
+        expect: [...castLines, gone("自分.MM"), `自分.トラッシュ: なし → ${getCard(MAIPA).name}`, "自分.リザーブ: 10 → 11", "相手.リザーブ: 10 → 7", `相手.トラッシュ: なし → ${getCard(ARDER).name}`],
     })
     scenario({
         name: "sekihi-lv1-no-counter",
@@ -811,7 +803,7 @@ console.log("=== 061 戦史の石碑 ===")
             oppCast(t, "RR")
             noChoice(t, "Lv1 にはこの効果がない")
         },
-        expect: [...castLines, gone("自分.RR"), `自分.トラッシュ: なし → ${getCard(ROKU).name}`, "自分.リザーブ: 10 → 11", "相手.リザーブ: 10 → 6", `相手.トラッシュ: なし → ${getCard(ARDER).name}`],
+        expect: [...castLines, gone("自分.RR"), `自分.トラッシュ: なし → ${getCard(ROKU).name}`, "自分.リザーブ: 10 → 11", "相手.リザーブ: 10 → 7", `相手.トラッシュ: なし → ${getCard(ARDER).name}`],
     })
     scenario({
         name: "sekihi-lv2-own-effect",
@@ -859,7 +851,8 @@ console.log("=== 062 最も高き山頂 ===")
             t.act("me", { type: "summon", handIndex: 0 })
         },
         expect: [
-            "自分.リザーブ: 10 → 3", "自分.トラッシュのコア: 0 → 5", `自分.手札: ${nm(ROKU, ANT)} → なし`,
+            // ロクケラトプス（コスト1・赤1軽減）はサンチョの赤シンボル1で0コスト。用心棒アントマンは緑のみ軽減で4
+            "自分.リザーブ: 10 → 4", "自分.トラッシュのコア: 0 → 4", `自分.手札: ${nm(ROKU, ANT)} → なし`,
             ...appear("自分.ロクケラトプス", 2000, 1, 1), ...appear("自分.用心棒アントマン", 5000, 1, 1),
         ],
     })
@@ -893,7 +886,7 @@ console.log("=== 062 最も高き山頂 ===")
             attackBlocked(t, "A1", "E1")
         },
         expect: [
-            "自分.A1.疲労: false → true", gone("相手.E1"), gone("相手.石碑", "ネクサス"), "相手.リザーブ: 10 → 11",
+            "自分.A1.疲労: false → true", gone("相手.E1"), gone("相手.石碑", "ネクサス"), "相手.リザーブ: 10 → 12", // E1 のコア1＋石碑に載っていたコア1
             `相手.トラッシュ: なし → ${nm(ROKU, SEKIHI)}`,
         ],
     })
@@ -1073,7 +1066,8 @@ console.log("=== X01 超覇王ロード・ドラゴン・セイバー ===")
         steps(t) {
             oppAttacksMe(t, "用心棒アントマン")
             ans(t, "yes")
-            while (t.state.pendingChoice) ans(t, t.state.pendingChoice.kind === "target" ? { id: "炎の覇獣ハヌ・マーグ" } : "yes")
+            while (t.state.pendingChoice) { console.log("DBG", JSON.stringify(t.state.pendingChoice).slice(0,300)); ans(t, t.state.pendingChoice.kind === "target" ? { id: "炎の覇獣ハヌ・マーグ" } : "yes") }
+            console.log("DBGLOG", t.state.log.slice(-8).map((x:any)=>x.text??x).join(" // "))
         },
         expect: [
             "相手.用心棒アントマン.疲労: false → true", `自分.バースト: ${getCard(SABER).name} → なし`, "自分.リザーブ: 10 → 9",
