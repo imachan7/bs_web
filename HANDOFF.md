@@ -21,16 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 進行中：BS18「覇王編 第5弾：覇王大決戦」（`feat/bs18-import`）
+### 次の一手：効果1つ単位で止める入口 `entryActive`（10-23 ユーザー決定）
 
-staging 取り込み済み（98枚。X012A/D/E/S/T・X021・X022 も含める）。計画は [BS18_PLAN.md](./docs/design/BS18_PLAN.md)。§2 解釈は 2026-10-23 に確定、§3 に部品をバッチ1〜3で確定。部品バッチ1〜3 済み。データ役への注意は §4、受け入れた限界は §5。
-①期待値役 part656〜661・②データ役・③見直しは6色とも済み（10-23）。AWAITING_MIGRATION は空にした。全 smoke の ❌ は 018・042 の2場面だけ。
-- 042 の設計（10-23 確定。規則＝エントリの levels に 1 を含むなら止まる。levels:null も含む扱い）：`nexusEffectsDisabled` に `targetEffectLevels: number[]` を足す（042 のデータの `targetLevels:[1]` はこれに置き換える）。止め方は2か所に集める。
-  ①誘発・ステップ（triggers.ts の nexusEffectsStopped・stepTriggers.ts）はエントリを渡して判定。②継続効果は effectSources が、一部だけ止まるネクサスを**写し**（instanceId は同じ、cardId を `<元>@` 付きの派生 ID）で返し、shared/cardDb.ts の card() が派生 ID に対して止まるエントリを除いた定義を返す（継続効果の読み手134か所を触らないため）
-- 035 の指定アタックは指定されたスピリットのブロックとして『ブロック時』が誘発する（082 の確定と同じ扱い）
-- 罠：並行のデータ役がスクラッチパッドを共有して上書きし合った（担当ごとのフォルダに置かせる）。使用量ガードは全体の枠で測るので並行は2〜3体まで
-→ 再開：018・042 の答えを入れる → merge-set → 定型の検証 → お知らせ → PR を Ready
-
+効果が発揮されるかの判定は `effectActiveAtLevel(levels, level)` が184か所に散らばり、止める効果（triggerSuppression・constraintSuppression・nexusEffectsDisabled・noBurstEffectForPid など十数種）はそれぞれ別の場所で足している。
+`entryActive(board, pid, 発生源, エントリ)` を作って Lv と止める効果すべてをそこで見、184か所を置き換える。最初の利用者は BS18-042（エントリの levels に 1 を含むなら止まる。levels:null も含む）。
+いまは card-notes.json の限界と、part660 でコメントアウトした場面「042-Lv2のネクサスのLv1･Lv2効果も止まる」がある（PR で戻す）。effectSources に写しを返す案は、物での比較（73か所）と派生 cardId の漏れで壊れるので採らない。
+調査役（置き換え先の分類）→ 実装役の順。main から新しいブランチで切る。
 
 ### 次の一手：後片付け（10-16）
 
