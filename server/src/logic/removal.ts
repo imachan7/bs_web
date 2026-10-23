@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
@@ -14,6 +15,7 @@ import { randomUUID } from "node:crypto"
 import type { CardInstance, CardType, Color, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
+import { getAllFamilies } from "./EffectModules"
 
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -289,7 +291,8 @@ export function destroySpirit(
     const sourceInstanceId = context?.sourceInstanceId
     // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
     // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める
-    const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || byBattle
+    // 強制ブロックで同じ陣営どうしが戦ったバトル（context.sourcePid が持ち主自身）は相手による破壊ではない
+    const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || (byBattle && context?.sourcePid !== ownerPid)
     // 破壊後バースト用の控え（commitPendingDestructionが読む。BS16バッチ0）。
     // BPは破壊直前（まだ場にいる・コアも乗ったまま）のこの時点で確定させる
     inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
@@ -405,6 +408,7 @@ function suspendDestroyCommit(
 function returnTrashOnOwnSpiritDestroyed(state: GameState, pid: PlayerId, families: string[]): void {
     const player = state.players[pid]
     for (const cardId of player.trashCards) {
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const e = getCard(cardId).effects.find((x) => x.kind === "trashReturnOnOwnSpiritDestroyed")
         if (!e || e.kind !== "trashReturnOnOwnSpiritDestroyed" || !families.includes(e.familyFilter)) continue
         if (isOnceNameUsed(state, pid, cardId, e.id)) continue
@@ -531,6 +535,7 @@ export function commitPendingDestruction(
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
         cardId: inst.cardId,
         colors: instColors(inst),
+        families: getAllFamilies().filter((f) => spiritHasFamily(state, ownerPid, inst, f)),
         hostCost: instAllCosts(inst)[0]! - (inst.braveComposite?.cost ?? 0),
         braves: bravesOf(player, inst).map((b) => ({ instanceId: b.instanceId, cost: instAllCosts(b)[0]! })),
         byOpponentEffect: burstInfo?.byOpponentEffect ?? false,
@@ -544,7 +549,16 @@ export function commitPendingDestruction(
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
     // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間、または現在のバトルで
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）
-    const redirect = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")?.to
+    const redirectEntry = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")
+    // soleOnly（BS18-X02「相手のスピリットだけを破壊したとき」）：効果の持ち主側のバトル中のスピリットが
+    // 同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
+    const winnerSurvives = (): boolean => {
+        const b = state.battle
+        if (!b) return false
+        const mine = state.players[opponentOf(ownerPid)].field.spirits.find((s) => s.instanceId === b.attackerInstanceId || s.instanceId === b.blockerInstanceId)
+        return mine !== undefined && !mine.pendingDestruction && !state.destroyGroup?.memberIds.includes(mine.instanceId)
+    }
+    const redirect = redirectEntry && "soleOnly" in redirectEntry && redirectEntry.soleOnly && !winnerSurvives() ? undefined : redirectEntry?.to
     // ソウルコア退避（案A-outside: 数値に含まれないため自力では動かない。§1.2でボイドには行けない。
     // 破壊されたコアがトラッシュへ行く間だけ一緒にトラッシュへ、それ以外（ボイド行きを含む）はリザーブへ）
     if (soulCoreOnInstance(player, inst.instanceId)) {
@@ -604,6 +618,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
         const player = state.players[pid]
         const colors = new Set<Color>()
         const costs: number[] = []
+        const memberInfos: { colors: Color[]; cost: number; families: string[] }[] = []
         let destroyedBp = 0
         let byOpponentEffect = false
         for (const m of members) {
@@ -613,6 +628,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
                 .filter((b) => !player.field.spirits.some((s) => s.instanceId === b.instanceId))
                 .reduce((sum, b) => sum + b.cost, 0)
             costs.push(m.hostCost + braveCost)
+            memberInfos.push({ colors: m.colors, cost: m.hostCost + braveCost, families: m.families })
             destroyedBp = Math.max(destroyedBp, m.destroyedBp)
             byOpponentEffect ||= m.byOpponentEffect
         }
@@ -622,6 +638,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
             byOpponentEffect,
             destroyedBp,
             costs,
+            members: memberInfos,
         })
     }
 }
@@ -639,6 +656,7 @@ export function tryFreeSummonOnHandDiscard(
     // 「相手の**スピリット**の効果で」＝発生源がスピリットで、かつ破棄された側とは別のプレイヤー
     if (sourceType !== "spirit" || sourcePid === targetPid) return false
     if (state.pendingChoice || state.winner) return false
+    if (zoneSpiritEffectsDisabled(state, cardId)) return false
     const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnDiscardedByOpponent")
     if (!effect) return false
     const player = state.players[targetPid]
@@ -674,6 +692,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
     for (let i = 0; i < player.hand.length; i++) {
         const cardId = player.hand[i]
         if (cardId === undefined) continue
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnLifeDamaged")
         if (!effect || effect.kind !== "freeSummonFromHandOnLifeDamaged") continue
         if (effect.phaseTurn) {

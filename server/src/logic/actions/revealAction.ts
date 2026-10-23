@@ -8,7 +8,7 @@ import { payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, reque
 import { resolveMagicEffects } from "../triggers"
 import { notifyNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
-import { hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from "../../../../shared/rules"
+import { handGainBlocked, hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
 import { recordMoved } from "../record"
@@ -72,7 +72,7 @@ export function matchesPick(id: string, pick: CardPick | undefined, costOverride
 function failDest(ctx: ActionCtx, orHand: boolean | undefined, cardId: string): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
-    if (orHand) {
+    if (orHand && !handGainBlocked(state)) {
         player.hand.push(cardId)
         notifyHandGained(state, owner, 1)
         log(state, `${sourceName}：${getCard(cardId).name}を手札に加えた。`)
@@ -91,6 +91,13 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
         case "hand":
+            // 手札へ加えられないカードは選ばれなかった扱い＝オープン領域の残りに戻し、残りと同じ行き先へ送る
+            if (handGainBlocked(state)) {
+                if (state.revealedCards) state.revealedCards.cardIds.push(cardId)
+                else player.trashCards.push(cardId)
+                log(state, `${sourceName}：効果によって手札が増やせないため、${card.name}は手札に加えられなかった。`)
+                return
+            }
             player.hand.push(cardId)
             notifyHandGained(state, owner, 1)
             log(state, `${player.name}は${sourceName}の効果で、${card.name}を手札に加えた。`)
@@ -104,7 +111,10 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             log(state, `${sourceName}：${card.name}をデッキの下に戻した。`)
             return
         case "activateBurst":
-            activateBurstCard(state, owner, cardId)
+            if (!activateBurstCard(state, owner, cardId, action.ignoreBurstCondition === true)) {
+                log(state, `${sourceName}：${card.name}は発動を禁じられているため発動できなかった。`)
+                if (state.revealedCards) state.revealedCards.cardIds.push(cardId)
+            }
             return
         case "tegamoto":
             player.tegamoto.push(cardId)
@@ -239,6 +249,9 @@ const revealRestHandler: ActionHandler<"revealRest"> = (ctx, action) => {
             if (rest === "trash") {
                 destPlayer.trashCards.push(...ids)
                 log(state, `${destPlayer.name}は残り${ids.length}枚をトラッシュに置いた。`)
+            } else if (handGainBlocked(state)) {
+                destPlayer.trashCards.push(...ids)
+                log(state, `${sourceName}：効果によって手札が増やせないため、残り${ids.length}枚はトラッシュに置かれた。`)
             } else {
                 destPlayer.hand.push(...ids)
                 notifyHandGained(state, action.destPid, ids.length)

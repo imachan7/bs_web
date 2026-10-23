@@ -21,8 +21,25 @@ import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { recordTargets } from "../record"
+import { placeCoresGather } from "./placeCoresGather"
 
-type PlaceCoresAction = Extract<EffectAction, { type: "placeCores" }>
+type WidePlaceCores = Extract<EffectAction, { type: "placeCores" }>
+type LegacyFrom = "void" | "reserve" | "trash" | "self" | "field"
+// 単一の取り元・従来の行き先・数値/all の個数だけを受ける形。それ以外は placeCoresGather が処理する
+export type PlaceCoresAction = Omit<WidePlaceCores, "from" | "to" | "count"> & {
+    from: LegacyFrom
+    to: Exclude<WidePlaceCores["to"], "self">
+    count: number | "all"
+}
+
+export function isLegacyPlaceCores(action: WidePlaceCores): action is PlaceCoresAction {
+    return (
+        !Array.isArray(action.from) &&
+        (action.from === "void" || action.from === "reserve" || action.from === "trash" || action.from === "self" || action.from === "field") &&
+        action.to !== "self" &&
+        action.count !== "any"
+    )
+}
 
 // from の残量（count:"all" の解決に使う。void は上限なしなので呼び出し側で扱う）。
 // pay の checker（pay.ts）とこのファイルのハンドラで共有する
@@ -177,7 +194,12 @@ function placeCoresSpread(ctx: ActionCtx, action: PlaceCoresAction): void {
     }
 }
 
-const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
+const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, wide) => {
+    if (!isLegacyPlaceCores(wide)) return placeCoresGather(ctx, wide)
+    return placeCoresLegacy(ctx, wide)
+}
+
+function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
     // targetsCounter：置き先の数を効果の解決時に数える（0なら何もしない）。以降は targets と同じ
     let action = inAction
     if (action.targetsCounter !== undefined) {
@@ -266,8 +288,10 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
             const picks = action.targets ?? 1
             // 自身のコアを動かす（from:"self"）ときは、自身への移動は何も起こらないので候補から外す
             const open = candidates.filter((c) => !action.excludeIds?.includes(c.instanceId) && !(action.from === "self" && c === self))
-            if (targetInstanceId) {
-                const found = open.find((c) => c.instanceId === targetInstanceId)
+            // バースト等が渡すきっかけの対象（相手のアタッカー・破壊済みの個体）は自分の置き先の指定ではないので無視する
+            const givenTarget = targetInstanceId && [...player.field.spirits, ...player.field.nexuses].some((c) => c.instanceId === targetInstanceId) ? targetInstanceId : undefined
+            if (givenTarget) {
+                const found = open.find((c) => c.instanceId === givenTarget)
                 if (!found) {
                     log(state, `${sourceName}：指定された対象は条件を満たさなかった。`)
                     return
@@ -475,7 +499,7 @@ const placeCoresHandler: ActionHandler<"placeCores"> = (ctx, inAction) => {
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }
     if (action.to === "life" && action.from === "void") fireFieldEventTriggers(state, opponentOf(owner), "opponentLifeCoreFromVoid", undefined, undefined, undefined, totalMoved)
-    if (nextPick && !state.pendingChoice) placeCoresHandler({ ...ctx, targetInstanceId: undefined }, nextPick)
+    if (nextPick && !state.pendingChoice) placeCoresLegacy({ ...ctx, targetInstanceId: undefined }, nextPick)
 }
 
 const handlers = { placeCores: placeCoresHandler } satisfies Partial<ActionRegistry>

@@ -1,10 +1,11 @@
 // ターン進行・フェーズ遷移の制御
+import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
-import type { GameState, PlayerId, TimedRecord } from "../type"
+import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
-import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
+import { handGainBlocked, cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
+import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
 
@@ -151,6 +152,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
             state.phase = "refresh"
             // 「次のリフレッシュステップで」の記録（寿命 nextRefresh）は、このステップで読んで使い切る
             const nextRefresh = consumeNextRefreshRecords(state, pid)
+            if (nextRefresh.some((r) => r.content.some((c) => c.type === "playerRule" && c.rule.type === "skipMainStep"))) state.skipMainStepNow = true
             if (player.trashCores > 0) {
                 const caps = nextRefresh.flatMap((r) => r.content.flatMap((c) => (c.type === "trashCoreReturnCap" ? [c.max] : [])))
                 const cap = caps.length > 0 ? Math.min(...caps) : undefined
@@ -171,6 +173,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
             const refreshedInstanceIds = new Set<string>()
             // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）
             const limits = refreshRestrictionsFor(state, pid)
+            let firstRefreshed: CardInstance | undefined
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
                 // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
@@ -188,8 +191,9 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 if (limits.onlyOneUncombined && !isNexus && !instIsCombined(inst)) continue
                 if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
                 // 回復は refreshSpirit を通す（「このスピリットが回復したとき」＝onRefreshed を発火させる唯一の入口）
-                refreshSpirit(state, pid, inst)
+                if (refreshSpirit(state, pid, inst, undefined, true) && !firstRefreshed) firstRefreshed = inst
             }
+            if (firstRefreshed && !state.winner) fireRefreshedSideEvents(state, pid, firstRefreshed)
             fireStepTriggers(state, "refresh", refreshedInstanceIds)
             // 1体だけの回復は既存の refreshOne に委譲する（**どれを回復させるかはそのステップの
             // プレイヤーが選ぶ**。対話では選択待ちで中断し、非対話は実効BP最大を自動選択する。
@@ -200,6 +204,12 @@ function turnStartSegments(state: GameState): (() => void)[] {
         },
         // メインステップ
         () => {
+            if (state.skipMainStepNow) {
+                delete state.skipMainStepNow
+                log(state, `${player.name}はメインステップを行えない。`)
+                toAttackPhase(state)
+                return
+            }
             state.phase = "main"
             state.priorityPlayer = pid
             state.isFlashTiming = false
@@ -422,9 +432,10 @@ export function endTurn(state: GameState): void {
         const returnedCounts = new Map<string, number>()
         for (let i = p.trashCards.length - 1; i >= 0; i--) {
             const cardId = p.trashCards[i]
-            if (cardId === undefined || !isTrashReturnAtEndStep(cardId)) continue
+            if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || zoneSpiritEffectsDisabled(state, cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
+            if (handGainBlocked(state)) continue
             noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)

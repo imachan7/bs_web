@@ -12,7 +12,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
-import { timedKeywords } from "./constraints"
+import { timedKeywords, zoneSpiritEffectsDisabled } from "./constraints"
 import { bravesOf, cardHasColor, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
 import { instMatchesCostFilter } from "./targetFilter"
 
@@ -200,6 +200,7 @@ export function continuousKeywordGrantCount(
             if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
             // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
             if (effect.combinedFilter && !instIsCombined(inst)) continue
+            if (effect.uncombinedFilter && instIsCombined(inst)) continue
             if (
                 effect.familyFilter &&
                 !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
@@ -298,6 +299,7 @@ export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
 // 【神速】と同じ扱い（フラッシュで手札から召喚・支払いはリザーブ）で召喚できる
 export function flashSummonFromHandNow(board: Board, pid: PlayerId, cardId: string): boolean {
     const me = board.players[pid]
+    if (zoneSpiritEffectsDisabled(board, cardId)) return false
     return card(cardId).effects.some((e) => {
         if (e.kind !== "flashSummonFromHand") return false
         if (board.phase !== e.phaseTurn.phase || !(e.phaseTurn.turn === "both" || (e.phaseTurn.turn === "own") === (pid === board.turnPlayer))) return false

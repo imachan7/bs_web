@@ -1,4 +1,5 @@
 // 盤面の出来事（fieldEvent）で起きる誘発の収集と解決。手札を得た・ネクサスを配置したときの通知もここ
+import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
@@ -64,6 +65,8 @@ export function fireFieldEventTriggers(
         // event: "ownSpiritExhausted" 限定：**相手の**スピリット/ブレイヴ/マジックの効果による疲労か
         // （ネクサスの効果による疲労は含まない。fireExhaustedTriggers が計算する。BS12-062白煙の大山脈）
         byOpponentEffect?: boolean
+        // event: "coresGainedFromVoid" | "lifeCorePlaced" 限定：コアが増えた側（subjectSide はこの陣営で判定する）
+        gainerPid?: PlayerId
         // 疲労イベント限定：疲労させた効果の実行者と発生源種別（効果によらない疲労＝アタック宣言等では undefined。causedByOwnEffect の判定に使う）
         causePid?: PlayerId
         causeType?: CardType
@@ -189,8 +192,14 @@ export function fireFieldEventTriggers(
             ) {
                 continue
             }
-            if (effect.subjectSide === "own" && selfOverride?.pid !== pid) continue
+            // コア増加イベントの主体は「コアが増えた側」（selfOverride を持たない）
+            const gainerEvent = event === "coresGainedFromVoid" || event === "lifeCorePlaced"
+            if (gainerEvent) {
+                if (effect.subjectSide === "own" && eventInfo?.gainerPid !== pid) continue
+                if (effect.subjectSide === "opponent" && eventInfo?.gainerPid === pid) continue
+            } else if (effect.subjectSide === "own" && selfOverride?.pid !== pid) continue
             if (
+                !gainerEvent &&
                 effect.subjectSide === "opponent" &&
                 (selfOverride === undefined || selfOverride.pid === pid)
             ) {
@@ -279,6 +288,8 @@ export function fireFieldEventTriggers(
             // 自分の効果による破壊・発生源が不明な破壊・バトルでの破壊では発火しない（「相手によって」は byOpponentOnly）
             if (effect.byOpponentEffectOnly && !(eventInfo?.byOpponentEffect && !eventInfo.byBattle)) continue
             if (effect.opponentEffectSourceTypes && !(eventInfo?.destroySourceType !== undefined && effect.opponentEffectSourceTypes.includes(eventInfo.destroySourceType))) continue
+            // 「相手の〜の効果で増えたとき」：効果の持ち主が発生源の持ち主でないことも見る
+            if (event === "coresGainedFromVoid" && effect.opponentEffectSourceTypes && eventInfo?.causePid === pid) continue
             if (effect.causedByOpponent && !(eventInfo?.causePid !== undefined && eventInfo.causePid !== pid)) continue
             if (effect.causedByOwnEffect !== undefined) {
                 if (eventInfo?.causePid !== pid || eventInfo.causeType === undefined) continue
@@ -434,6 +445,8 @@ export function fireFieldEventTriggers(
                         getCard(inst.cardId).type,
                     )
                     if (total < count) continue
+                } else if ("ownHandAtLeast" in effect.condition) {
+                    if (state.players[pid].hand.length < effect.condition.ownHandAtLeast) continue
                 } else if ("ownFieldHasColorNexus" in effect.condition) {
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
                     const color = effect.condition.ownFieldHasColorNexus
@@ -519,7 +532,7 @@ export function fireFieldEventTriggers(
         // ignoreEventTarget：イベント対象を効果の対象にしない（SD01-029 蠢く地下墓地Lv2）
         // byOpponentSpiritEffectOnly：対象をイベント対象ではなく「その効果を発揮したスピリット」にする
         // （eventInfo.sourceInstanceId。BS10-012アントイーター/BS10-014闇騎士マリス）
-        const actionTargetId = effect.byOpponentSpiritEffectOnly || effect.summonedSpiritAsTarget
+        const actionTargetId = effect.byOpponentSpiritEffectOnly || effect.summonedSpiritAsTarget || effect.eventSourceAsTarget
             ? eventInfo?.sourceInstanceId
             : effect.attackerAsTarget
               ? selfOverride?.inst.instanceId
@@ -704,6 +717,7 @@ export function tryHandFreeSummonOnOwnNexusDeployed(state: GameState, pid: Playe
     for (let i = 0; i < player.hand.length; i++) {
         const cardId = player.hand[i]
         if (cardId === undefined) continue
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnNexusDeployed")
         if (!effect) continue
         if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue

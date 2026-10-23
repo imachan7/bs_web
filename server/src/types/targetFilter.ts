@@ -15,7 +15,7 @@ export interface TargetFilter {
     minBp?: number | "selfBp" // 実効BPがこれ以上。"selfBp"=発生源の実効BP以上（BS05火龍王ボルケノス：BP7000以上）
     orMinBp?: number // maxBp と併用：実効BPが maxBp 以下、または orMinBp 以上（26RBS02-045「5000以下か8000以上」）
     exactBp?: "selfBp" // 発生源と実効BPが同じものだけ（BS01プテラトマホーク）
-    color?: Color // この色を持つ（多色カードはOR判定。instHasColor/cardHasColor 経由）
+    color?: Color | Color[] // この色を持つ（多色カードはOR判定。instHasColor/cardHasColor 経由）。配列＝いずれかの色を持てばよい（OR）
     colorExclude?: Color // この色を持つものを除外
     colorNotIn?: Color[] // 並べた色以外の色を1つでも持つ（「指定されなかった色のスピリット」）
     declared?: "match" | "except" // declare の then の中だけで書く。解決前に color／family／cost／colorNotIn へ置き換わる（DECLARE_UNIFY §1）
@@ -44,6 +44,7 @@ export interface TargetFilter {
     notHeavyRested?: true // 重疲労状態ではない
     notAttacking?: true // 現在のバトルのアタッカーではない
     blocking?: true // 現在のバトルのブロッカー（board.battle.blockerInstanceId と一致）
+    notInBattle?: true // 現在のバトルのアタッカーでもブロッカーでもない（inBattle の否定。バトル外では全員が該当）
     inBattle?: true // 現在のバトルのアタッカーかブロッカー（26RBS02-019「アタック/ブロックしている相手のスピリット」）
     rested?: true // 疲労状態（isRested）のものだけ（BS05吸血女王カーミラ：範囲破壊の疲労限定）
     refreshed?: true // 回復状態（!isRested）のものだけ（restedの逆。BS12-039導化姫トリックスターLv2＝「回復状態の相手のスピリット」）
@@ -51,6 +52,7 @@ export interface TargetFilter {
     nameContains?: string | string[] // カード名にこの文字列を含むものだけ（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。配列＝いずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
     sameColorAsBattleLoser?: true // 直前のバトルで破壊された側と同じ色（normalizeFilter が state.lastBattleDestroyedColors を color 軸へ解決する。記録が無ければ対象なし。BS04獣使いドヴェルグ）
     keywordCount?: number // keyword（単数のときだけ）と併用。カードに静的に書かれた指定数が一致するもの（【暴風：1】限定。付与された暴風は対象外）
+    sameLevelAsSource?: true // 効果の発生源（ctx.self）のスピリットと同じLv（normalizeFilter が level 軸へ解決する。発生源が場にいなければ対象なし）
     sameLevelAsBattleLoser?: true // 直前のバトルで破壊された側と同じLv（normalizeFilter が state.lastBattleDestroyedLevel を level 軸へ解決する。記録が無ければ対象なし）
     sameFamilyAsBattleLoser?: true // 直前のバトルで破壊された側と同じ系統（normalizeFilter が state.lastBattleDestroyedFamilies を family 軸へ解決する。記録が無ければ対象なし。BS04ニーベルングリング）
     sameFamilyAsDestroyed?: true // 直近に破壊された相手のスピリットと同じ系統（state.lastOpponentSpiritDestroyedFamilies。記録が無ければ対象なし）

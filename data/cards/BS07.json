@@ -2216,6 +2216,7 @@
     },
     "constraint": {
      "type": "unblockableBy",
+     "opponentOnly": true,
      "maxBp": 4000
     }
    }
@@ -4331,6 +4332,7 @@
     },
     "constraint": {
      "type": "unblockableBy",
+     "opponentOnly": true,
      "maxCost": 3
     }
    }

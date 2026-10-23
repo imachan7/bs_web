@@ -33,7 +33,7 @@ import {
     recordBp,
     recordTimed,
 } from "../EffectModules"
-import { instFamilies, instIsCombined, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
+import { hasGlobalConstraint, instFamilies, instIsCombined, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { fieldOrReserveCores, payCoresFromFieldOrReserveToTrash } from "./cores"
@@ -93,7 +93,7 @@ const bpBuff: ActionHandler<"bpBuff"> = (ctx, action) => {
             }
             const player = state.players[owner]
             const n = action.costMillSelfCount
-            if (player.deck.length < n) {
+            if (player.deck.length < n || hasGlobalConstraint(state, "noDeckMill")) {
                 log(state, `${sourceName}：デッキが足りないため発動しなかった。`)
                 return
             }

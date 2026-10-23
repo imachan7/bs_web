@@ -68,6 +68,7 @@ export interface BraveConditionTerm {
     family?: string // 系統
     minCost?: number // コスト◯以上（BS10 の18枚中12枚）
     maxCost?: number // コスト◯以下
+    minSymbols?: number // 合体先の場のシンボル数（instanceSymbolCount）がこれ以上
     cardName?: string // カード名指定
     vanilla?: true // **効果の記述を持たない**（BS10 の18枚中6枚。判定は instIsVanilla＝継続付与の「バニラとしても扱う」も見る）
     keyword?: Keyword // このキーワードを持つ（spiritHasKeywordで判定＝一時付与・継続付与も見る。BS15-057カメン・フクロウ：「コスト4以上/【暴風】を持つ」の後半）
@@ -238,6 +239,10 @@ export type SoulCoreLocation =
 export interface BattleState {
     attackerInstanceId: string
     blockerInstanceId: string | null // **実際にバトルするブロッカー**。複数体ブロック（blockRequiresCount）でも1体しか入らない
+    // exhaustAndForceBlock が記録する、ブロック宣言で代わりにブロックする**アタッカー側**のスピリット。
+    // ブロック前のフラッシュが閉じた時点で resolveForcedBlock が宣言に変える（成立しなければ消える）
+    forcedBlockerInstanceId?: string
+    blockerPid?: PlayerId // ブロッカーが防御側のスピリットでないとき（強制ブロックでアタッカーと同じ陣営）だけ入る。省略＝防御側
     pendingBlockerIds?: string[] // 複数体ブロックで、必要数がそろうまで宣言を貯める場所（そろったら空にする）
     extraBlockerIds?: string[] // 複数体ブロックで宣言はしたが**バトルはしない**ブロッカー。
     // 効果文が「どれか1体とだけバトルする」なので、BP比較・破壊・バトル終了の処理は blockerInstanceId だけを見る
@@ -280,13 +285,15 @@ export type TimedRecord = {
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
         | { kind: "battle" } // このバトルの解決方法（比べるもの・勝敗の逆転）。until は "battle"
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
-    until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" // step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
+    until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" // beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
 }
 
 // プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）
 export type PlayerRuleDef =
-    | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType } // 手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
+    | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType; minCost?: number } // minCost＝印刷コストがこれ以上のカードだけ使えない。手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
+    | { type: "skipMainStep" } // 寿命 nextRefresh 専用：次の自分のターンのメインステップを行わずアタックステップへ進む（リフレッシュステップで使い切り、そのターンのメインステップ区間で消費）
+    | { type: "handCostSetForPid"; value: number } // 手札にあるカードすべてのコストを value にする（後から手札に入ったカードにも効く。軽減はそのコストから適用。複数なら最小）
     | { type: "armorDisabledForPid" } // スピリットの【装甲】が働かない（持っている分もこのターンに得た分も。2026-08-16 ユーザー判断）
     | { type: "freeFushiSummonForPid" } // このターン最初の【不死】召喚だけコストが0（維持コアは要る）。使ったら記録を消す
     | { type: "lifeDamageMaxForPid"; max: number } // ライフは1回のアタックで max 個までしか減らない
@@ -354,6 +361,7 @@ export interface GameView {
     you: PlayerId
     timedEffects: TimedRecord[] // 公開情報
     extraMainStep?: true // BS15-X04 Lv2 の追加メインステップ中（「アタックステップへ」ボタンを出さない）
+    endTurnBlocked?: true // 自分のターンで validateEndTurn が拒否する間（終了ボタンを隠す）
     secondMainStep?: true // 第2メインステップ中（「アタックステップへ」ボタンを出さず、メインのフェーズ表示を「第2メイン」に切り替える）
     endStepLocks: EndStepLock[] // 公開情報。両者に配信する（画面にカウンターとして出す）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（AuraCondition ownAttacksAtLeast がクライアントでも読む）

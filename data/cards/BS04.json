@@ -4790,7 +4790,8 @@
      "type": "timedEffect",
      "content": [
       {
-       "type": "unblockable"
+       "type": "unblockable",
+       "opponentOnly": true
       }
      ],
      "duration": "battle",

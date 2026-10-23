@@ -263,6 +263,8 @@ function countCards(state: GameState): number {
     // 場を離れた合体スピリットから外されて、残すかの確認を待っているブレイヴ（BRAVE.md §6.3）。
     // 「コアを乗せずに分けて置いてある」状態で場のどのゾーンにも属さないので、ここで数える
     total += state.pendingBraveKeeps?.length ?? 0
+    // reviveOnDestroy.revived:"handOrDeckTop" の行き先確認待ち。どのゾーンにも入れず保留している1枚（待ち行列と、いま聞いている1件）
+    total += (state.pendingReviveDestinations?.length ?? 0) + (state.pendingChoice?.reviveDestination ? 1 : 0)
     return total
 }
 

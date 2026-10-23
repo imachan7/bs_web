@@ -5,7 +5,7 @@ import { currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, p
 import { destroySpirit, returnSpiritToHand } from "../removal"
 import { fireTrigger } from "../triggers"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { activeConstraintsWithSource, coresCantBeRemoved, effectActiveAtLevel, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
+import { activeConstraintsWithSource, coresCantBeRemoved, effectActiveAtLevel, zoneSpiritEffectsDisabled, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { requestChoice } from "../EffectModules"
 
@@ -26,9 +26,11 @@ export const TENSHO_SUBSTITUTE_HAND_DUMP = "手札に戻さずコアを置く"
 export function tenshoSpecOf(
     card: CardData,
     level: number,
+    // バースト効果での召喚のときだけ【バースト転召】も【転召】として拾う
+    viaBurst = false,
 ): { entry: EffectDef; minCost: number; familyFilter?: FamilyFilter | undefined; dest: "trash" | "void" } | null {
     const effect = card.effects.find(
-        (e) => e.kind === "keyword" && e.keyword === "tensho" && effectActiveAtLevel(e.levels, level),
+        (e) => e.kind === "keyword" && (e.keyword === "tensho" || (viaBurst && e.keyword === "burstTensho")) && effectActiveAtLevel(e.levels, level),
     )
     if (!effect || effect.kind !== "keyword") return null
     return {
@@ -64,13 +66,23 @@ export function tenshoCandidates(
     })
 }
 
+// 【バースト転召】持ちは、転召の生贄を払えないとバースト効果で召喚できない（「コアをボイドに置くことで召喚する」）
+export function burstTenshoUnpayable(state: GameState, ownerPid: PlayerId, card: CardData): boolean {
+    const spec = tenshoSpecOf(card, 1, true)
+    return spec !== null && card.effects.some((e) => e.kind === "keyword" && e.keyword === "burstTensho") && tenshoCandidates(state, ownerPid, spec.minCost, undefined, spec.familyFilter).length === 0
+}
+
 export function resolveTensho(
     state: GameState,
     ownerPid: PlayerId,
     spirit: CardInstance,
+    viaBurst = false,
+    // 手札・トラッシュから召喚されたときに true。BS18-052 下では【転召】も止まる
+    fromHandOrTrash = false,
 ): void {
+    if (fromHandOrTrash && zoneSpiritEffectsDisabled(state, spirit.cardId)) return
     const level = currentLevel(spirit).level
-    const spec = tenshoSpecOf(getCard(spirit.cardId), level)
+    const spec = tenshoSpecOf(getCard(spirit.cardId), level, viaBurst)
     if (!spec) return
     noteCoverage(spec.entry, "keyword")
     const { minCost, familyFilter, dest } = spec

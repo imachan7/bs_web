@@ -113,12 +113,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ConstraintWithSource`（型）：指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
 - `activeConstraints`（fn）：制約だけが要る呼び出し（大多数）はこちら。判定の本体は activeConstraintsWithSource に1本化してある
 - `activeConstraintsWithSource`（fn）
+- `noReductionGrantFrom`（fn）：軽減シンボルの付与（reductionGrant）を、種別 sourceType の発生源からは行えないか
 - `isUntargetableByOpponent`（fn）：⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 - `hasFullEffectImmunity`（fn）：untargetableByOpponentと異なり範囲効果（destroy{all}/exhaust{all}等）にも効く「効果を受けない」判定。
 - `hasArmorAgainst`（fn）：⚠️ 原則 boardResistanceAgainst の内部実装。**直接呼んでよいのはバトル文脈だけ**
 - `hasHeavyArmorAgainst`（fn）：【重装甲】。装甲との差は**ブレイヴの効果も防ぐ**ことだけで、判定の形は hasArmorAgainst と同じ。
 - `heavyArmorColorsOf`（fn）：器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
 - `hasBraveImmuneAgainst`（fn）：第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
+- `handGainBlocked`（fn）：効果で手札にカードが加わる経路の共通の入口。ドローステップのドロー・手札を出して戻すだけの処理は効果ではないので通さない。
+- `zoneSpiritEffectsDisabled`（fn）：BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
+- `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
@@ -162,12 +166,19 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedContentsOn`（fn）
 - `timedKeywords`（fn）：この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
 - `timedContentsFor`（fn）：このプレイヤーに掛かっている期間つき効果の内容
+- `isBeforeBlockWindow`（fn）：ブロック宣言前のフラッシュタイミングか。ブロックされずにライフで受ける場合はその場でバトルが終わるので、
+- `handCardBanned`（fn）：手札のカードを使えない期間つき制約（cantUseHandCardsForPid）に掛かるか。掛かるなら理由、掛からなければ null
+- `magicUseWindowDenial`（fn）：useWindow:"beforeBlock" のマジックを、いまの場面で使えるか。使えないなら理由
 - `timedPlayerRules`（fn）：このプレイヤーに掛かっている「このターンの間」の制約
 - `timedBattleContents`（fn）：このバトルの解決方法（比べるもの・勝敗の逆転）
 - `timedFlashLocked`（fn）：期間つき効果で、このバトルの間フラッシュで手札のカードを使えないか
 - `magicColorBanned`（fn）：期間つき効果で、このマジックの色が使用禁止か（cantUseMagicForPid。手札・手元・トラッシュなど使用元は問わない）
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
+- `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"：holderPid のバーストが event で発動できないか
+- `spiritCouldAttackNow`（fn）：いま（またはこの後のアタックステップで）アタックを強いられうる個体か。mustAttack 系の判定と validateEndTurn が共有する
+- `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
+- `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
 
 ## shared/rules/keywordState.ts
 
@@ -484,8 +495,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/placeCores.ts
 
+- `PlaceCoresAction`（型）：単一の取り元・従来の行き先・数値/all の個数だけを受ける形。それ以外は placeCoresGather が処理する
+- `isLegacyPlaceCores`（fn）
 - `availableFromSource`（fn）：from の残量（count:"all" の解決に使う。void は上限なしなので呼び出し側で扱う）。
 - `placeCoresPoolCandidates`（fn）：to:"spirit"/"nexus" の置き先候補（filter一致分のみ。target:"self"/"all"/"one" の絞り込みは
+
+## server/src/logic/actions/placeCoresGather.ts
+
+- `gatherPayable`（fn）：pay の成立判定からも使う。行き先が成立し、取り元に count 個以上あるか（好きなだけ／fillTo は成立）
+- `placeCoresGather`（fn）
 
 ## server/src/logic/actions/removeCores.ts
 
@@ -583,6 +601,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryHandFreeSummonOnOwnNexusDeployed`（fn）：手札のカード自身が持つ「自分のネクサスが配置されたとき、コストを支払わずに召喚できる」
 - `fireNexusDeployed`（fn）：ネクサスが「配置」されたときの発火をまとめたもの。通知は2種類あり別物:
 
+## server/src/logic/forcedBlock.ts
+
+- `resolveForcedBlock`（fn）
+
 ## server/src/logic/handBurstEffect.ts
 
 - `doUseHandBurstEffect`（fn）：発動でも使用でもないので、効果税（on:"burst"）・usedMagicCardIds・【光芒】の回収・ownBurstActivated は通らない。
@@ -644,6 +666,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `TENSHO_SUBSTITUTE_HAND_DUMP`（const）
 - `tenshoSpecOf`（fn）：【転召】の解決：spirit が現在レベルで転召を持つなら、召喚コスト支払い後（doSummonの末尾）に呼ぶ。
 - `tenshoCandidates`（fn）：【転召】でコアを置く対象になれる自分のスピリット。
+- `burstTenshoUnpayable`（fn）：【バースト転召】持ちは、転召の生贄を払えないとバースト効果で召喚できない（「コアをボイドに置くことで召喚する」）
 - `resolveTensho`（fn）
 - `tenshoSelfCostBonus`（fn）：kind:"tenshoSelfCostBonus"：【転召】の生贄候補列挙でだけ、その候補のコストに+amountする。
 - `fireTenshoEvent`（fn）：フィールドイベント誘発「自分の【転召】が解決したとき」（BS08関将龍皇ドラグロン）。
@@ -827,9 +850,16 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `exhaustNexus`（fn）：ネクサスを疲労させる入口（スピリットの exhaustSpirit に対応）。ネクサスの疲労は経路が散っていたので、
 - `heavyExhaustSpirit`（fn）：重疲労させる唯一の入口。回復状態からでも直接重疲労になる（疲労を経由するので「疲労したとき」の誘発は起きる。
 - `refreshSpirit`（fn）：スピリットを回復させる唯一の入口。すでに回復状態なら何もしない（誘発も起きない）。
+- `fireRefreshedSideEvents`（fn）：陣営で数える回復イベント。リフレッシュステップでは回復が同時なので、陣営ごとに1回だけ呼ぶ
 - `fireExhaustedTriggers`（fn）：「スピリットが疲労したとき」のフィールドイベント発火。
 - `isRefreshBlockedByMark`（fn）：スクルディア：相手のスピリットから「回復できない」と指定されていて、
 - `canExhaustNexus`（fn）：BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
+
+## server/src/logic/state/exhaustPrevent.ts
+
+- `EXHAUST_PAY_LABEL`（const）
+- `ExhaustCause`（型）
+- `preventExhaustByPay`（fn）：true＝この疲労は呼び出し元では進めない（防いだ、または答えが出るまで保留した）。
 
 ## server/src/logic/stepTriggers.ts
 

@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log, requestTrashReturn, returnTrashCardToHand } from "../GameState"
 import { summonFreeFromTrashIndex, payCost, notifyHandGained, requestCardChoice, resolveMagic } from "../EffectModules"
-import { cardHasColor, isTrashCardProtected, timedMagicLocked } from "../../../../shared/rules"
+import { handGainBlocked, cardHasColor, isTrashCardProtected, timedMagicLocked } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { lastMovedOf, recordMagicUsed } from "../record"
 import { matchesPick } from "./revealAction"
@@ -39,6 +39,10 @@ const takeLastHandler: ActionHandler<"takeLast"> = (ctx, action) => {
     }
     if (action.to === "summon") {
         summonFreeFromTrashIndex(state, owner, sourceName, idx, action.skipOnSummon ? { skipOnSummon: true } : undefined)
+        return
+    }
+    if (handGainBlocked(state)) {
+        log(state, `${sourceName}：効果によって手札が増やせないため、${getCard(cardId).name}はトラッシュに残った。`)
         return
     }
     player.trashCards.splice(idx, 1)

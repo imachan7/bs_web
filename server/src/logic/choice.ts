@@ -1,6 +1,8 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { handGainBlocked } from "../../../shared/rules"
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
+import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
@@ -166,6 +168,23 @@ function resolveChoiceInner(
             if (index !== -1) summonFreeFromTrashIndex(state, info.pid, getCard(info.cardId).name, index)
         } else {
             log(state, `${getCard(info.cardId).name}：トラッシュから召喚しなかった。`)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 復活で手札に入ったカードの行き先。デッキの上を選べば手札の同名の最後の1枚を移す
+    if (pending.reviveDestination) {
+        if (option === undefined || !(pending.options ?? []).includes(option)) return "選択できない候補です"
+        const info = pending.reviveDestination
+        state.pendingChoice = null
+        const player = state.players[info.pid]
+        if (option === "デッキの上に置く" || handGainBlocked(state)) {
+            player.deck.unshift(info.cardId)
+            log(state, `${player.name}の${getCard(info.cardId).name}はデッキの上に置かれた。`)
+        } else {
+            player.hand.push(info.cardId)
+            notifyHandGained(state, info.pid, 1)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)

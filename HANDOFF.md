@@ -21,11 +21,18 @@
 
 ## 1. いまの本線と次の一手
 
+### 次の一手：効果1つ単位で止める入口 `entryActive`（10-23 ユーザー決定）
+
+効果が発揮されるかの判定は `effectActiveAtLevel(levels, level)` が184か所に散らばり、止める効果（triggerSuppression・constraintSuppression・nexusEffectsDisabled・noBurstEffectForPid など十数種）はそれぞれ別の場所で足している。
+`entryActive(board, pid, 発生源, エントリ)` を作って Lv と止める効果すべてをそこで見、184か所を置き換える。最初の利用者は BS18-042（エントリの levels に 1 を含むなら止まる。levels:null も含む）。
+いまは card-notes.json の限界と、part660 でコメントアウトした場面「042-Lv2のネクサスのLv1･Lv2効果も止まる」がある（PR で戻す）。effectSources に写しを返す案は、物での比較（73か所）と派生 cardId の漏れで壊れるので採らない。
+調査役（置き換え先の分類）→ 実装役の順。main から新しいブランチで切る。
 
 ### 次の一手：後片付け（10-16）
 
-- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は相手の耐性を見ない・sequence/if の中の destroy は見ない
+- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は destroy だけを見る（耐性と sequence の中は #290 で見るようにした。if の中・ほかの除去は見ない）
 - 既知の限界：BS12-073 ネクサスコラプス「ネクサス2つまでを破壊する」は相手側だけ（`destroyNexus side:"either"` が1つしか扱えないため。効果文は自分のネクサスも選べる）
+- 既知の限界：対象がいないマジックの判定（magic/targetRequirement.ts）に removeCores（コアを移す）は入っていない
 - 古い長いコメントの整理：型4ファイルは済み（10-22）。次の候補はロジック側（EffectModules・removal・GameEngine・RuleValidator。コメント35〜43%）。名前で向き・数え方・専用の場面が読めない説明は残す
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの

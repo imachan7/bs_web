@@ -1,6 +1,7 @@
 // 相手の手札を見るアクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
-import { log } from "../GameState"
+import { log, getCard } from "../GameState"
+import { recordMoved } from "../record"
 
 // 相手の手札1枚を「内容を見ないで選び」その内容だけを見る。
 // **どの1枚を選ぶかはランダム**（SEMANTICS_AUDIT.md §3.14。見る側が並び順から内容を推測できないため）
@@ -30,7 +31,19 @@ const peekOpponentBurstHandler: ActionHandler<"peekOpponentBurst"> = (ctx) => {
     log(state, `${state.players[owner].name}は${target.name}のバーストの内容を見た。`)
 }
 
+const revealOpponentBurstHandler: ActionHandler<"revealOpponentBurst"> = (ctx) => {
+    const { state, opp, sourceName } = ctx
+    const target = state.players[opp]
+    if (target.burst === null) {
+        log(state, `${sourceName}：${target.name}はバーストをセットしておらず、オープンできなかった。`)
+        return
+    }
+    recordMoved(state, [target.burst])
+    log(state, `${target.name}のバースト（${getCard(target.burst).name}）をオープンした。`)
+}
+
 const handlers = {
+    revealOpponentBurst: revealOpponentBurstHandler,
     peekOpponentBurst: peekOpponentBurstHandler,
     peekOpponentHand: peekOpponentHandHandler,
 } satisfies Partial<ActionRegistry>

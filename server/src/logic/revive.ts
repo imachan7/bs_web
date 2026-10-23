@@ -12,6 +12,7 @@ import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevel
 import { revertDestroyGroupUsage } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import { destroySpirit } from "./removal"
+import { cardNameContains } from "../../../shared/rules/targetFilter"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
 import { soulCoreLeavesField } from "./soulCore"
@@ -38,6 +39,9 @@ import {
     lifeDamagePerSpiritRemaining,
     ownFieldOnlyColor,
     timedPlayerRules,
+    hasGlobalConstraint,
+    handGainBlocked,
+    zoneSpiritEffectsDisabled,
 } from "../../../shared/rules"
 
 import {
@@ -54,6 +58,8 @@ import {
 // 「破壊される代わりに復活**できる**」の確認を保留リストへ積む。
 // 破壊はこの時点では行わない（対象は場に残ったまま）。承認・拒否は handleAction の末尾で確認したあと、
 // applyReviveConfirm / declineReviveConfirm が決着させる
+type Revived = Extract<EffectDef, { kind: "reviveOnDestroy" }>["revived"]
+
 function queueReviveConfirm(
     state: GameState,
     ownerPid: PlayerId,
@@ -226,6 +232,7 @@ export function fushiCandidates(
         if (cardId === undefined) continue
         const card = getCard(cardId)
         if (card.type !== "spirit") continue
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const hit = card.effects.some((e) => {
             if (e.kind !== "keyword" || e.keyword !== "fushi") return false
             if ((e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c))) return true
@@ -377,7 +384,7 @@ export function applyFushiSummon(
             (freeNexus ? `（${getCard(freeNexus.cardId).name}を疲労させ、コストを支払わずに）` : `（コスト${String(cost)}）`),
     )
     // 「召喚」なので【転召】は通常どおり解決する（無償召喚でも必ず行う。skipOnSummonと同じ規則）
-    if (!state.winner) resolveTensho(state, info.pid, inst)
+    if (!state.winner) resolveTensho(state, info.pid, inst, false, true)
     if (state.winner) return
     // 無償召喚（魔門を疲労させた場合）は召喚時効果を発揮しない（BS15-064冥府へ続く魔門Lv2の明記どおり）
     if (freeNexus) {
@@ -456,7 +463,7 @@ export function applySpiritMillFreeSummon(
     const inst = createInstance(info.cardId, state.turn, cores)
     player.field.spirits.push(inst)
     log(state, `${player.name}は${card.name}をコストを支払わずに召喚した。`)
-    if (!state.winner) resolveTensho(state, info.pid, inst)
+    if (!state.winner) resolveTensho(state, info.pid, inst, false, true)
     if (state.winner) return
     if (state.pendingChoice) {
         pushResumeFrames(state, [
@@ -687,6 +694,7 @@ function tryReviveOnDestroy(
             // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
             // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
             const { color, cardType, thenHandIfNameIncludes } = effect.cost.millSelfOneMatching
+            if (hasGlobalConstraint(state, "noDeckMill")) return false
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
@@ -699,7 +707,7 @@ function tryReviveOnDestroy(
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
             // BS15共通器：thenHandIfNameIncludes（BS15-043ショーグンペンタン）。成立の可否と独立に、
             // カード名が一致すればトラッシュから手札へ移す（CONJUNCTION.md「さらに」）
-            if (thenHandIfNameIncludes !== undefined && milled.name.includes(thenHandIfNameIncludes)) {
+            if (thenHandIfNameIncludes !== undefined && !handGainBlocked(state) && milled.name.includes(thenHandIfNameIncludes)) {
                 const idx = player.trashCards.lastIndexOf(cardId)
                 if (idx !== -1) {
                     player.trashCards.splice(idx, 1)
@@ -763,7 +771,7 @@ function tryReviveOnDestroy(
         if (effect.cost?.millSelfCount !== undefined) {
             // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
             const n = effect.cost.millSelfCount
-            if (player.deck.length < n) return false
+            if (player.deck.length < n || hasGlobalConstraint(state, "noDeckMill")) return false
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!
                 player.trashCards.push(cardId)
@@ -846,6 +854,7 @@ function tryReviveOnDestroy(
         const cost = effect.cost
         if (!cost) return null
         if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
+        if ((cost.millSelfCount !== undefined || cost.millSelfOneMatching) && hasGlobalConstraint(state, "noDeckMill")) return "デッキを破棄できない"
         if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
         if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null
@@ -896,7 +905,7 @@ function tryReviveOnDestroy(
 
     // 復活時の状態反映：{rested}は場に留まったまま状態を変更、{toHand}は場から除去して手札へ戻す
     // （コアは持ち主のリザーブへ。トラッシュは経由しない。深緑の樹海Lv2）
-    const applyRevived = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true }): void => {
+    const applyRevived = (revived: Revived): void => {
         // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
         // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
         delete inst.pendingDestruction
@@ -914,13 +923,22 @@ function tryReviveOnDestroy(
             }
             player.burst = inst.cardId
             player.burstSet = true
-        } else if ("toHand" in revived) {
+        } else if ("toHand" in revived || "handOrDeckTop" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
             soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
-            player.hand.push(inst.cardId)
-            notifyHandGained(state, ownerPid, 1)
+            // handOrDeckTop の対話モードは行き先が決まるまでどのゾーンにも入れない（手札を経由すると手札が増えた誘発が起きる）。
+            // 破壊処理の途中では中断できないので、確認は handleAction の末尾で出す
+            if ("handOrDeckTop" in revived && handGainBlocked(state)) {
+                player.deck.unshift(inst.cardId)
+                log(state, `${player.name}の${getCard(inst.cardId).name}は、手札が増やせないためデッキの上に置かれた。`)
+            } else if ("handOrDeckTop" in revived && state.interactiveTargets) {
+                ;(state.pendingReviveDestinations ??= []).push({ pid: ownerPid, cardId: inst.cardId })
+            } else {
+                player.hand.push(inst.cardId)
+                notifyHandGained(state, ownerPid, 1)
+            }
             // 器AT：braveStay指定時は、通常の「残す」確認（コア支払い）を経ずに無償・強制で残す
             if (revived.braveStay !== undefined) {
                 detachBravesOnLeaveFree(state, ownerPid, inst, revived.braveStay === "rested")
@@ -937,8 +955,8 @@ function tryReviveOnDestroy(
         }
     }
 
-    const revivedLabel = (revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { toBurst: true }): string =>
-        "toBurst" in revived ? "バーストとしてセットされた" : "toHand" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
+    const revivedLabel = (revived: Revived): string =>
+        "toBurst" in revived ? "バーストとしてセットされた" : "toHand" in revived || "handOrDeckTop" in revived ? "手札に戻った" : `${revived.rested ? "疲労" : "回復"}状態で自分のフィールドに戻った`
 
     // 持ち主のフィールド（スピリット）に指定カード名を持つ個体が1体以上いるか
     // （BS05プリンセス・スノーホワイト：自分のフィールドに[ドワッフー・セブン]がいるとき）
@@ -950,9 +968,10 @@ function tryReviveOnDestroy(
     // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
     // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
     const matchesReviveCondition = (
-        condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true },
+        condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number },
     ): boolean => {
         if (!condition) return true
+        if ("ownHandAtLeast" in condition) return state.players[ownerPid].hand.length >= condition.ownHandAtLeast
         if ("ownBurstSet" in condition) return (player.burst !== null) === condition.ownBurstSet
         if ("ownFieldOnlyColor" in condition) return ownFieldOnlyColor(state, ownerPid, condition.ownFieldOnlyColor, condition.spiritsOnly)
         const oppColors = ownFieldSymbolColors(state, opponentOf(ownerPid))
@@ -962,6 +981,7 @@ function tryReviveOnDestroy(
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (forced && effect.id !== forced.effectId) return false
         if (!effectActiveAtLevel(effect.levels, level)) return false
+        if ("toHand" in effect.revived && handGainBlocked(state)) return false // 手札へ戻れないなら復活しない＝通常どおり破壊される
         if (effect.vanillaFilter && !instIsVanilla(inst)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesReviveCondition(effect.condition)) return false
@@ -1062,6 +1082,7 @@ function tryReviveOnDestroy(
             if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
             // BS14-109アルターミラージュ：コストが閾値以上のスピリットのみ対象（instMatchesCostFilterで判定＝付与コストも見る）
             if (effect.minCost !== undefined && !instMatchesCostFilter(inst, { min: effect.minCost })) continue
+            if (effect.nameIncludes !== undefined && !effect.nameIncludes.some((n) => cardNameContains(inst, n))) continue
             if (!matchesReviveCondition(effect.condition)) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue

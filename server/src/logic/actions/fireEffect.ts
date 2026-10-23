@@ -3,7 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { getCard, log, pushResumeFrames } from "../GameState"
-import { fireSummonTrigger, fireTrigger, requestChoice } from "../EffectModules"
+import { fireSummonTrigger, fireTrigger, requestChoice, resolveAction } from "../EffectModules"
 import { bravesOf, currentLevel, effectActiveAtLevel, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
@@ -111,7 +111,28 @@ const fireSoryoSelfHandler: ActionHandler<"fireSoryoSelf"> = (ctx) => {
     ctx.resolve(soryo.action)
 }
 
+// 解決者は自分のスピリット1体（「このスピリット」「自分」「相手」はその個体と持ち主から見る）。
+// condition・optional・ターン1回は通常の召喚時と同じ fireTrigger の入口で判定する（ターン1回は選んだスピリット側で数える）
+const replayOpponentSummonEffectHandler: ActionHandler<"replayOpponentSummonEffect"> = (ctx, action) => {
+    const { state, owner, sourceName, targetInstanceId } = ctx
+    const rec = state.lastOpponentSummonEffect
+    const spirits = state.players[owner].field.spirits
+    if (rec === undefined || spirits.length === 0) {
+        log(state, `${sourceName}：${rec === undefined ? "再び発揮できる相手の『召喚時』効果がなかった" : "自分のスピリットがいなかった"}。`)
+        return
+    }
+    const chosenId = action.chosenId ?? targetInstanceId
+    const inst = chosenId !== undefined ? spirits.find((s) => s.instanceId === chosenId) : !state.interactiveTargets ? spirits[0] : undefined
+    if (inst === undefined) {
+        if (chosenId === undefined) requestChoice(state, owner, `${sourceName}：『召喚時』効果を発揮するスピリットを選んでください`, spirits.map((s) => s.instanceId), true, action, ctx.self)
+        return
+    }
+    log(state, `${sourceName}：${getCard(inst.cardId).name}が${getCard(rec.cardId).name}の『召喚時』効果を発揮した。`)
+    fireTrigger(state, owner, inst, "onSummon", undefined, undefined, false, undefined, undefined, undefined, undefined, rec)
+}
+
 const handlers = {
+    replayOpponentSummonEffect: replayOpponentSummonEffectHandler,
     fireEffect: fireEffectHandler,
     fireSoryoSelf: fireSoryoSelfHandler,
 } satisfies Partial<ActionRegistry>

@@ -27,6 +27,22 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
         const names = zone.map((i) => getCard(i.cardId).name)
         return !names.some((n) => names.filter((m) => m === n).length >= action.minSameName!)
     }
+    if (action.type === "exhaustAndForceBlock") {
+        // 疲労済みも選べる。アタッカー自身は「アタックしていない」で除外（actions/forcedBlock.ts と同じ候補）
+        const opp = opponentOf(pid)
+        const attacker = state.battle?.attackerInstanceId
+        const matches = (s: CardInstance) => s.instanceId !== attacker && matchesTarget(state, opp, s, (action.filter ?? {}) as never)
+        return pickEnemyCandidates(state, opp, Infinity, matches, card.colors, "magic", "exhaust").length === 0
+    }
+    if (action.type === "removeCores") {
+        // 相手のスピリット1体を選ぶ形だけ。コア数は問わない（1個しか無い相手にも使え、何も起きない）
+        if (action.side !== undefined && action.side !== "opponent") return null
+        if ((action.target ?? "one") !== "one" || (action.targets ?? 1) !== 1 || action.targetsCounter !== undefined) return null
+        if (action.from !== undefined && !(action.from.length === 1 && action.from[0] === "spirit")) return null
+        const opp = opponentOf(pid)
+        const filter = (action.filter ?? {}) as never
+        return pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter), card.colors, "magic", "other").length === 0
+    }
     if (action.type === "exhaust" || action.type === "refreshOne" || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
     if (!ONE_TARGET_TYPES.has(action.type)) return null
     const a = action as EffectAction & { all?: true; target?: string; costBudget?: unknown; countCounter?: unknown; filter?: { lastTarget?: unknown } }

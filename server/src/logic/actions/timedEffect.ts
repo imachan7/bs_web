@@ -454,7 +454,7 @@ function resolvePlayerRuleContent(state: GameState, c: Extract<Content, { type: 
 // プレイヤーに掛かる制約を置く（ライフが減らない・手札を使えない など）。効くプレイヤーは side（既定は相手）
 function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, opp, sourceName } = ctx
-    if (action.duration !== "turn" && action.duration !== "battle") {
+    if (action.duration !== "turn" && action.duration !== "battle" && action.duration !== "beforeBlock" && !(action.duration === "nextRefresh" && action.content.every((c) => c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
         log(state, `${sourceName}：この期間の制約は未対応のため発揮しなかった。`)
         return
     }
@@ -466,7 +466,7 @@ function placePlayerRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
         .map((c) => (c.rule.type === "effectTaxForPid" && c.rule.source === undefined ? { ...c, rule: { ...c.rule, source: sourceName } } : c))
     if (rules.length === 0) return
     for (const pid of pids) recordTimed(state, { content: rules, target: { kind: "player", pid }, until: action.duration, ownerPid: owner })
-    const period = action.duration === "battle" ? "このバトルの間" : "このターンの間"
+    const period = action.duration === "battle" ? "このバトルの間" : action.duration === "beforeBlock" ? "ブロック前のフラッシュタイミングの間" : action.duration === "nextRefresh" ? "次のターンの間" : "このターンの間"
     log(state, `${sourceName}：${period}、${pids.map((p) => state.players[p].name).join("と")}に効果が掛かった。`)
 }
 
@@ -793,7 +793,7 @@ function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0
 
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    if ((action.duration === "nextRefresh") !== action.content.every((c) => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type))) {
+    if ((action.duration === "nextRefresh") !== action.content.every((c) => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type) || (c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
         return
     }

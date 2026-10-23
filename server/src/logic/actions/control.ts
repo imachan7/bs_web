@@ -3,6 +3,7 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
+import { burstTenshoUnpayable } from "../keywords/tensho"
 import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
@@ -14,7 +15,7 @@ import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeepi
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope } from "../record"
+import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -83,7 +84,7 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
         resolveInOrder(state, action.actions, {
             resolve: (a) => {
                 state.recordScope = scope
-                ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType })
+                ctx.resolve(a, { sourceColors: srcColors, sourceType: srcType, ...(action.passEventTarget && ctx.targetInstanceId !== undefined ? { targetInstanceId: ctx.targetInstanceId } : {}) })
             },
             frame: (a) => ({
                 kind: "action" as const,
@@ -91,6 +92,7 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
                 action: a,
                 actorPid: owner,
                 recordScope: scope,
+                ...(action.passEventTarget && ctx.targetInstanceId !== undefined ? { targetInstanceId: ctx.targetInstanceId } : {}),
                 ...(srcColors !== undefined ? { sourceColors: srcColors } : {}),
                 ...(srcType !== undefined ? { sourceType: srcType } : {}),
             }),
@@ -274,6 +276,8 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
     const cardId = player.burst
+    // 召喚できたときだけ記録を残す（続きを if{last} で止める。「この効果発揮後」）
+    recordMoved(state, [])
     if (cardId === null) {
         log(state, `${sourceName}：発動中のバーストが見つからなかった。`)
         return
@@ -305,6 +309,10 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
     // いれば**直接合体するように**召喚する（ダイレクトブレイヴ＝維持コア0。summonFreeFromHandIndexの
     // braveTargetInstanceId経路と同じ考え方）。候補が無ければ通常どおりスピリット状態で召喚する。
     // 候補が複数あっても選択UIは設けず先頭を自動選択する（バーストは確認1回で完結させる簡略化）
+    if (burstTenshoUnpayable(state, owner, card)) {
+        log(state, `${sourceName}：【バースト転召】でコアを置く自分のスピリットがいないため、${card.name}を召喚できなかった。`)
+        return
+    }
     const combineHostId =
         card.type === "brave" ? braveCombineCandidates(state, owner, cardId)[0] : undefined
     const maintain = combineHostId !== undefined ? 0 : minLevelCores(card)
@@ -335,8 +343,9 @@ const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, a
         `${player.name}はバーストとして${combineHost !== undefined ? `${getCard(combineHost.cardId).name}に合体させて` : ""}${card.name}を` +
             (action.payCost ? `コスト${cost}を支払って召喚した。` : "召喚した。"),
     )
-    if (!state.winner) resolveTensho(state, owner, inst)
+    if (!state.winner) resolveTensho(state, owner, inst, true)
     if (!state.winner) fireSummonSequence(state, owner, inst)
+    recordMoved(state, [cardId])
     // 「その後、このターンの間、このスピリットをBP+」（BS15-X01）
     if (action.thenBuffSelf !== undefined && !state.winner && combineHost === undefined) {
         recordBp(state, owner, inst, action.thenBuffSelf, "turn")
@@ -458,7 +467,7 @@ const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockab
         return
     }
     // 色は指定した時点の【氷壁】の色で固定する（あとで【氷壁】が無効になっても保つ）
-    recordTimed(state, { content: [{ type: "unblockable", from: { colorAny: colors } }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
+    recordTimed(state, { content: [{ type: "unblockable", from: { colorAny: colors }, opponentOnly: true }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
     log(
         state,
         `${sourceName}：${getCard(chosen.cardId).name}は、このターンの間${colors.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされない。`,

@@ -178,7 +178,7 @@ export function fireSummonTrigger(
     }
     // ponytail: 召喚時効果の中で別のスピリットが召喚されたら、内側の分を発火した後に外側へ戻す。内側が選択で中断したときは外側の分が落ちる
     const outer = state.summonEffectSource
-    state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cost: getCard(selfInstance.cardId).cost, colors: instColors(selfInstance) }
+    state.summonEffectSource = { pid: owner, instanceId: selfInstance.instanceId, cardId: selfInstance.cardId, level: currentLevel(selfInstance).level, cost: getCard(selfInstance.cardId).cost, colors: instColors(selfInstance) }
     state.resolvingSummonTriggerPid = owner
     fireTrigger(state, owner, selfInstance, "onSummon", undefined, undefined, byFushi, undefined, undefined, onlyEffectIds)
     if (!state.pendingChoice) {
@@ -216,6 +216,7 @@ export function fireTrigger(
     fromHand?: boolean, // 器BS16：onDeploy限定：手札から配置されたか（effect.fromHandOnly の判定に使う。BS16-062天下眺める絶景門）
     onlyEffectIds?: string[], // fireSummonTrigger と同じ
     collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
+    asCard?: { cardId: string; level: number }, // 別カードの効果エントリを selfInstance が発揮したものとして解く（replayOpponentSummonEffect）。Lv は記録した値、ブレイヴと付与分は見ない
 ): void {
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
@@ -243,8 +244,8 @@ export function fireTrigger(
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
         return
     }
-    const card = getCard(selfInstance.cardId)
-    const level = currentLevel(selfInstance).level
+    const card = getCard(asCard?.cardId ?? selfInstance.cardId)
+    const level = asCard?.level ?? currentLevel(selfInstance).level
     // ブレイブチャージ：この個体の『アタック時』効果は、このターンの間『ブロック時』へ移る。
     // アタック時には発揮されなくなり（＝移し替え）、ブロック時に『ブロック時』効果と一緒に発揮される
     // ターン限定（ブレイブチャージ）に加え、継続付与（ドラグノ近衛兵）でも移し替えが起きる
@@ -379,6 +380,11 @@ export function fireTrigger(
                 const found = findSpiritAny(state, targetInstanceId)
                 if (!found) return false
                 if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCost })) return false
+            } else if ("targetMinCost" in effect.condition) {
+                if (targetInstanceId === undefined) return false
+                const found = findSpiritAny(state, targetInstanceId)
+                if (!found) return false
+                if (!instMatchesCostFilter(found.inst, { min: effect.condition.targetMinCost })) return false
             } else if ("targetNotMaxLevel" in effect.condition) {
                 // BS07神帝獣スフィン・クロスLv3：ブロックしたスピリット（targetInstanceId）が
                 // そのカードの最高Lvに達していないときのみ発火
@@ -505,7 +511,7 @@ export function fireTrigger(
             return other != null && matchesTarget(state, other.pid, other.inst, g.targetFilter as unknown as ResolvedTargetFilter)
         })
         .map((g) => g.action)
-    const grantedActions = onlyEffectIds !== undefined ? [] : [
+    const grantedActions = onlyEffectIds !== undefined || asCard !== undefined ? [] : [
         ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
         ...tempGranted,
     ]
@@ -520,7 +526,7 @@ export function fireTrigger(
     // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
     const entries: { effect: EffectDef; src: CardInstance }[] = [
         ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
-        ...bravesOf(state.players[owner], selfInstance).flatMap((b) =>
+        ...(asCard !== undefined ? [] : bravesOf(state.players[owner], selfInstance)).flatMap((b) =>
             getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
         ),
     ]

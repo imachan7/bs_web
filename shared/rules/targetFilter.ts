@@ -9,7 +9,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
-import { activeConstraints, hasTimedUnblockable } from "./constraints"
+import { activeConstraints, hasTimedUnblockable, zoneSpiritEffectsDisabled } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, spiritHasKeywordOrLabel } from "./keywordState"
 import { currentLevel, effectActiveAtLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
@@ -37,7 +37,7 @@ export function matchesTarget(
     if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp && !(filter.orMinBp !== undefined && effectiveBp(board, ownerPid, inst) >= filter.orMinBp)) return false
     if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
-    if (filter.color !== undefined && !instHasColor(inst, filter.color)) return false
+    if (filter.color !== undefined && !(Array.isArray(filter.color) ? filter.color : [filter.color]).some((c) => instHasColor(inst, c))) return false
     if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
     if (filter.minCores !== undefined && inst.cores < filter.minCores) return false
     if (filter.originallyNexus && card(inst.cardId).type !== "nexus") return false
@@ -137,6 +137,7 @@ export function matchesTarget(
     if (filter.notHeavyRested && inst.heavyRested) return false
     if (filter.notAttacking && board.battle?.attackerInstanceId === inst.instanceId) return false
     if (filter.blocking && board.battle?.blockerInstanceId !== inst.instanceId) return false
+    if (filter.notInBattle && (board.battle?.attackerInstanceId === inst.instanceId || board.battle?.blockerInstanceId === inst.instanceId)) return false
     if (filter.inBattle && board.battle?.attackerInstanceId !== inst.instanceId && board.battle?.blockerInstanceId !== inst.instanceId) return false
     // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
     if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
@@ -161,9 +162,10 @@ export function cardNameIs(inst: CardInstance, name: string): boolean {
 // kind:"trashNameAs"（トラッシュにある間だけ別名としても扱う。BS10-056蒼天大聖モンゴクウ）を持つカードは
 // その名前でも一致する。トラッシュのカード名を照合する呼び出し側はすべてこれを通すこと
 // （直接 getCard(cardId).name.includes(...) を書くと trashNameAs が無言ですり抜ける）
-export function trashCardNameMatches(cardId: string, needle: string): boolean {
+export function trashCardNameMatches(cardId: string, needle: string, board?: Board): boolean {
     const c = card(cardId)
     if (c.name.includes(needle)) return true
+    if (board !== undefined && zoneSpiritEffectsDisabled(board, cardId)) return false
     const found = c.effects.find((e) => e.kind === "trashNameAs" && e.name.includes(needle))
     if (found) noteCoverage(found, "trashNameAs")
     return found !== undefined

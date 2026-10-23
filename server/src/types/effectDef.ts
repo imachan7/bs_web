@@ -40,6 +40,7 @@ export type EffectDef =
           timing: "main" | "flash"
           action: EffectAction
           afterBlockForbidden?: true // trueならブロック宣言後のフラッシュタイミングでは使用不可
+          useWindow?: "beforeBlock" // 相手のアタックのブロック宣言前のフラッシュタイミングでだけ使用できる（メイン・ブロック後・自分のアタックでは不可）
           mainForbidden?: boolean // trueならこのエントリがtimingとして採用されるメインステップでの使用そのものを拒否
           ownTurnForbidden?: true // trueなら発生源の持ち主のターン中は使用不可
           usableAtOpponentMainEnd?: true // timing:"flash"限定：相手がメインステップ終了を宣言した瞬間にも使用できる

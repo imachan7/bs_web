@@ -9,6 +9,7 @@ import type {
     CardType,
     ImmuneSource,
     Color,
+    FieldEvent,
     Keyword,
     PlayerId,
     TimedContent,
@@ -19,10 +20,10 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { hasUntargetableConstraint } from "./resistance"
-import { instanceSymbolCount } from "./symbols"
-import { cardNameContains, matchesTarget } from "./targetFilter"
+import { handSizeOf, instanceSymbolCount } from "./symbols"
+import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- 制約・免疫 ----
 
@@ -212,6 +213,21 @@ export function activeConstraintsWithSource(
     if (suppressed.size === 0) return all
     return all.filter((e) => !suppressed.has(e.constraint.type))
 }
+// 軽減シンボルの付与（reductionGrant）を、種別 sourceType の発生源からは行えないか
+export function noReductionGrantFrom(board: Board, sourceType: CardType): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const source of effectSources(board, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noReductionGrantToHand") continue
+                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (effect.constraint.sourceTypes.includes(sourceType)) return true
+            }
+        }
+    }
+    return false
+}
+
 // ⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 // 効果が届くかを判定したい箇所は resistanceAgainst（サーバー）か boardResistanceAgainst を通すこと。
 export function isUntargetableByOpponent(inst: CardInstance): boolean {
@@ -336,6 +352,22 @@ export function hasBraveImmuneAgainst(inst: CardInstance, sourceColors: Color[] 
         return ownArmorColors.some((c) => sourceColors.includes(c))
     }
     return false
+}
+// 効果で手札にカードが加わる経路の共通の入口。ドローステップのドロー・手札を出して戻すだけの処理は効果ではないので通さない。
+// 止められたカードは「選ばれなかった」扱いで、各経路が自分の残りの行き先（トラッシュ・オープン領域の残り・デッキの上）へ送る
+export function handGainBlocked(board: Board): boolean {
+    return hasGlobalConstraint(board, "noHandGainByEffect")
+}
+// BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
+// 止めるのは「そのカード自身の効果の発揮」だけで、効果を持つこと自体は変わらない
+// （「【不死】を持つ」の参照や、他の効果から受ける効果は止めない）。
+// ブレイヴ・マジック・ネクサスはスピリットカードではないので対象外。召喚コストを払う通常の召喚は止めない
+export function zoneSpiritEffectsDisabled(board: Board, cardId: string): boolean {
+    return card(cardId).type === "spirit" && hasGlobalConstraint(board, "handTrashSpiritEffectsDisabled")
+}
+// 手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
+export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
+    return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)
 }
 export function hasGlobalConstraint(
     board: Board,
@@ -729,9 +761,14 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
                 if (!effectActiveAtLevel(effect.levels, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel } = effect.constraint
+                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel, attackerCores } = effect.constraint
                 // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
                 if (ownOnly && pid !== defenderPid) continue
+                // attackerCores：アタッカーのコアがちょうどその数のアタックだけを保護する専用条件（他の軸とは併用しない）
+                if (attackerCores !== undefined) {
+                    if (attacker.cores === attackerCores) return true
+                    continue
+                }
                 // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
                 // かつ合体スピリット」のアタックだけを保護する専用条件。maxCost等とは併用しない
                 if (symbolCount !== undefined && combinedOnly) {
@@ -1171,6 +1208,7 @@ function hasImmunityAgainst(
             if (effect.combinedFilter === true && !instIsCombined(inst)) continue
             // vanillaFilter（BS12-071未完成の古代戦艦：帆＝効果の記述を持たないスピリットのみ）
             if (effect.vanillaFilter === true && !instIsVanilla(inst)) continue
+            if (effect.nameIncludes !== undefined && !effect.nameIncludes.some((n) => cardNameContains(inst, n))) continue
             if (effect.condition) {
                 const { cost, count } = effect.condition.ownCostCountAtLeast
                 // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
@@ -1220,12 +1258,46 @@ export function timedKeywords(board: Board, inst: CardInstance): { keyword: Keyw
 
 // このプレイヤーに掛かっている期間つき効果の内容
 export function timedContentsFor(board: Board, pid: PlayerId): TimedContent[] {
-    return board.timedEffects.flatMap((r) => (r.target.kind === "player" && r.target.pid === pid ? r.content : []))
+    const open = isBeforeBlockWindow(board)
+    return board.timedEffects.flatMap((r) =>
+        r.target.kind === "player" && r.target.pid === pid && (r.until !== "beforeBlock" || open) ? r.content : [],
+    )
+}
+
+// ブロック宣言前のフラッシュタイミングか。ブロックされずにライフで受ける場合はその場でバトルが終わるので、
+// battle があって blockerInstanceId が空の間がそのまま「ブロック前」になる
+export function isBeforeBlockWindow(board: Board): boolean {
+    return !!board.battle && board.battle.blockerInstanceId === null
+}
+
+// 手札のカードを使えない期間つき制約（cantUseHandCardsForPid）に掛かるか。掛かるなら理由、掛からなければ null
+export function handCardBanned(board: Board, pid: PlayerId, cardId: string): string | null {
+    const data = card(cardId)
+    for (const c of timedPlayerRules(board, pid)) {
+        if (c.type !== "cantUseHandCardsForPid") continue
+        if (c.cardType !== undefined && data.type !== c.cardType) continue
+        if (c.minCost !== undefined && data.cost < c.minCost) continue
+        if (c.allowedColor !== undefined && data.colors.includes(c.allowedColor)) continue
+        // bannedColors は置く時点（timedEffect.ts）で"last"を具体色へ解決済みなので、ここでは配列のみ来る
+        if (Array.isArray(c.bannedColors) && !c.bannedColors.some((col) => data.colors.includes(col))) continue
+        return "効果により、このカードは使えません"
+    }
+    return null
+}
+
+// useWindow:"beforeBlock" のマジックを、いまの場面で使えるか。使えないなら理由
+export function magicUseWindowDenial(board: Board, pid: PlayerId, cardId: string, useTiming: "main" | "flash"): string | null {
+    const entries = card(cardId).effects.filter((e) => e.kind === "magic" && e.timing === useTiming)
+    if (entries.length === 0 || !entries.every((e) => e.kind === "magic" && e.useWindow === "beforeBlock")) return null
+    const attackerId = board.battle?.attackerInstanceId
+    const attackerPid = board.players.p1.field.spirits.some((s) => s.instanceId === attackerId) ? "p1" : "p2"
+    if (!isBeforeBlockWindow(board) || attackerPid === pid) return "このマジックは相手のアタックのブロック前のフラッシュタイミングでしか使用できません"
+    return null
 }
 
 // このプレイヤーに掛かっている「このターンの間」の制約
 export function timedPlayerRules(board: Board, pid: PlayerId): PlayerRuleDef[] {
-    return timedContentsFor(board, pid).flatMap((c) => (c.type === "playerRule" ? [c.rule] : []))
+    return timedContentsFor(board, pid).flatMap((c) => (c.type === "playerRule" && (c.activeWhile === undefined || handSizeOf(board.players[pid]) >= c.activeWhile.handAtLeast) ? [c.rule] : []))
 }
 
 // このバトルの解決方法（比べるもの・勝敗の逆転）
@@ -1252,4 +1324,85 @@ export function timedMagicLocked(board: Board, pid: PlayerId): boolean {
 export function cantActByTimed(board: Board, inst: CardInstance, act: "attack" | "block" = "attack"): boolean {
     const needed = act === "attack" ? "cantAttack" : "cantBlock"
     return timedContentsOn(board, inst).some((c) => c.type === needed)
+}
+
+
+// globalConstraint の phase／turn 窓。turn は発生源の持ち主(ownerPid)基準
+function globalConstraintWindowOpen(board: Board, effect: { phase?: string; turn?: "own" | "opponent" | "both" }, ownerPid: PlayerId, phase: string = board.phase): boolean {
+    if (effect.phase !== undefined && phase !== effect.phase) return false
+    if (effect.turn !== undefined && effect.turn !== "both" && (effect.turn === "own") !== (board.turnPlayer === ownerPid)) return false
+    return true
+}
+
+// globalConstraint "noBurstActivationByEvent"：holderPid のバーストが event で発動できないか
+export function burstActivationForbidden(board: Board, holderPid: PlayerId, event: FieldEvent): boolean {
+    const opp: PlayerId = holderPid === "p1" ? "p2" : "p1"
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noBurstActivationByEvent") continue
+            const c = effect.constraint
+            if (!c.events.includes(event) || !effectActiveAtLevel(effect.levels, level)) continue
+            if (!globalConstraintWindowOpen(board, effect, opp)) continue
+            if (c.whileOwnAttackerFamily !== undefined) {
+                const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
+                if (!attacker || !matchesFamilyFilter(board, opp, attacker, c.whileOwnAttackerFamily)) continue
+            }
+            noteCoverage(effect, "globalConstraint")
+            return true
+        }
+    }
+    return false
+}
+
+// いま（またはこの後のアタックステップで）アタックを強いられうる個体か。mustAttack 系の判定と validateEndTurn が共有する
+export function spiritCouldAttackNow(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    if (inst.isRested) return false
+    if (cantActByTimed(board, inst)) return false
+    if (currentLevel(inst).level < 1) return false
+    if (inst.cores === 1 && hasGlobalConstraint(board, "singleCoreCantAct")) return false
+    if (inst.cores === 1 && hasGlobalConstraint(board, "singleCoreCantAttack")) return false
+    if (instCostCantAct(board, inst)) return false
+    if (instCantAttackByOpponentCost(board, pid, inst)) return false
+    if (instCantAttackByCost(board, inst)) return false
+    return !activeConstraints(board, pid, inst).some((c) => c.type === "cantAttack")
+}
+
+// globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
+// メインからのターン終了でもアタックステップは必ず来るので、窓の phase は "attack" として数える
+// 「可能ならば」は canDeclare（実際のアタック宣言が通るか。サーバーは validateAttack）で判定する。指定先の絞り込み・指定不可・コア不足の拒否もこれで含まれ、詰みを作らない
+export function mustAttackOnceBlocksEnd(board: Board, pid: PlayerId, canDeclare: (inst: CardInstance, targetId?: string) => boolean): boolean {
+    if (board.attacksThisTurn > 0 || board.turn === 1 || (board as { extraMainStep?: boolean; secondMainStep?: boolean }).extraMainStep || (board as { secondMainStep?: boolean }).secondMainStep || isEndStepLocked(board, "attackStep")) return false
+    const opp: PlayerId = pid === "p1" ? "p2" : "p1"
+    let hit: unknown = null
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        hit = card(source.cardId).effects.find(
+            (e) =>
+                e.kind === "globalConstraint" &&
+                e.constraint.type === "opponentMustAttackOnce" &&
+                effectActiveAtLevel(e.levels, level) &&
+                globalConstraintWindowOpen(board, e, opp, "attack"),
+        )
+        if (hit) break
+    }
+    if (!hit) return false
+    const declarable = board.players[pid].field.spirits.some(
+        (s) => canDeclare(s) || mustBeAttackTargetIds(board, pid, s).some((t) => canDeclare(s, t)),
+    )
+    if (!declarable) return false
+    noteCoverage(hit, "globalConstraint")
+    return true
+}
+
+// constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
+export function mustBeAttackTargetIds(board: Board, attackerPid: PlayerId, attacker: CardInstance): string[] {
+    const opp: PlayerId = attackerPid === "p1" ? "p2" : "p1"
+    return board.players[opp].field.spirits
+        .filter((s) =>
+            activeConstraints(board, opp, s).some(
+                (c) => c.type === "mustBeAttackTarget" && instMatchesCostFilter(attacker, { min: c.attackerMinCost }),
+            ),
+        )
+        .map((s) => s.instanceId)
 }

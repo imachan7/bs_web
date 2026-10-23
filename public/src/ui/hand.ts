@@ -4,7 +4,7 @@ import type { GameView } from "../../../server/src/type"
 import { CARD_TYPE_LABELS, COLOR_LABELS } from "../../../data/constants"
 import { effectiveCost, hasMagicRestriction, ownFieldSymbolColors } from "../../../shared/cost"
 import { attachCardArt } from "../cardArt"
-import { hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned } from "../../../shared/rules"
+import { ownHandKeyword, zoneSpiritEffectsDisabled, hasHandKeywordGrant, flashSummonFromHandNow, hasKeyword, burstSetCoresRequired, timedFlashLocked, timedMagicLocked, magicColorBanned, isFlashLockedFor, handCardBanned, magicUseWindowDenial } from "../../../shared/rules"
 import { handBurstEffectDenial } from "../../../shared/handBurstEffect"
 import { payableFieldCores, payingAltPay } from "./paying"
 import { master, UiState, $ } from "../renderer"
@@ -60,16 +60,15 @@ export function renderHand(view: GameView, ui: UiState): void {
         // 場の発生源から継続的に与えられているか（緑芽吹く原野Lv2。判定はサーバーと同一の共有実装）
         const flashSummonable =
             m.type === "spirit" &&
-            (hasKeyword(cardId, "soku") ||
-                tempSokuCardIds.has(cardId) ||
-                hasHandKeywordGrant(view, view.you, m, "soku") ||
+            (ownHandKeyword(view, cardId, "soku") ||
+                ((tempSokuCardIds.has(cardId) || hasHandKeywordGrant(view, view.you, m, "soku")) && !zoneSpiritEffectsDisabled(view, cardId)) ||
                 flashSummonFromHandNow(view, view.you, cardId))
 
         // 【烈神速】：トラッシュのコア5個以上ならコストを支払わず召喚できる（BS16-X03）。
         // コストはトラッシュのコアから賄うので、reserve >= need の判定は通さない
         const resshinsokuReady =
             m.type === "spirit" &&
-            hasKeyword(cardId, "resshinsoku") &&
+            ownHandKeyword(view, cardId, "resshinsoku") &&
             view.players[view.you].trashCores >= 5
 
         // 力奪う凱旋門：相手フィールドに発生源があれば、自分のフィールドのシンボル色と一致しない
@@ -79,7 +78,13 @@ export function renderHand(view: GameView, ui: UiState): void {
             hasMagicRestriction(view, view.you, "colorLockOpponent") &&
             !m.colors.some((c) => ownFieldSymbolColors(view, view.you).has(c))
         // battleLock "magic"（BS16-X06）：メイン・フラッシュとも使用不可（バースト発動は別経路なので掛からない）
-        const magicBattleLocked = m.type === "magic" && (timedMagicLocked(view, view.you) || magicColorBanned(view, view.you, m.colors))
+        const magicBattleLocked =
+            m.type === "magic" &&
+            (timedMagicLocked(view, view.you) ||
+                magicColorBanned(view, view.you, m.colors) ||
+                handCardBanned(view, view.you, cardId) !== null ||
+                (inFlash && isFlashLockedFor(view, view.you, "magic")) ||
+                magicUseWindowDenial(view, view.you, cardId, "flash") !== null)
 
         const fieldCores = payableFieldCores(view, cardId)
         const isTimingValid =
@@ -239,7 +244,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         // 手札から使う効果ボタン（kind:"handActivated"。BS15-011ミーアバット）。
         // 神速召喚の召喚ボタンと同じ並びで、カード本体のクリックとは独立したバッジボタンにする
         // （マジックではないので castMagic の対象選択UIには乗せない。サーバーは useHandAbility を送る）
-        const handAbility = m.effects.find((e) => e.kind === "handActivated")
+        const handAbility = zoneSpiritEffectsDisabled(view, cardId) ? undefined : m.effects.find((e) => e.kind === "handActivated")
         if (handAbility && handAbility.kind === "handActivated") {
             const phaseOk = handAbility.phase === undefined || view.phase === handAbility.phase
             const canUseAbility = inFlash && !flashLocked && phaseOk && !view.pendingChoice

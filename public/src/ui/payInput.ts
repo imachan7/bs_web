@@ -1,6 +1,7 @@
 // コスト支払いの入力（自動／手動の切り替え、コアの割り当て、支払いの送信）
 import type { GameView, PaySource } from "../../../server/src/type"
-import { effectiveCost, hasKeyword, master } from "../renderer"
+import { effectiveCost, master } from "../renderer"
+import { ownHandKeyword } from "../../../shared/rules"
 import { payingAltPay } from "./paying"
 import { flashSummonFromHandNow, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds } from "../../../shared/rules"
 import { view, ui, send, rerender } from "../main"
@@ -264,7 +265,7 @@ export function assignPayCore(instanceId: string): void {
     // 【神速】召喚は基礎ルールではリザーブからのみ支払える。
     // sokuPaySourceGrant（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が許可した対象のみ例外
     // （判定はサーバー validateSummon と同一の共有実装）
-    if (view.isFlashTiming && card.type === "spirit" && (hasKeyword(cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))) {
+    if (view.isFlashTiming && card.type === "spirit" && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))) {
         if (!sokuPayableInstanceIds(view, view.you).has(instanceId)) return
     }
     // payingRemaining（renderer）と同じ計算にすること。

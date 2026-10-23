@@ -162,7 +162,8 @@ export function renderBattle(view: GameView): void {
     // ブロッカーの名前・BP（ブロック宣言後のみ算出。相手陣営のフィールドから探す）
     let blockerText = ""
     if (blocked) {
-        const defenderPid: PlayerId = attackerPid === "p1" ? "p2" : "p1"
+        // 強制ブロック（相手の効果でアタッカー側のスピリットがブロックする）はブロッカーがアタッカーと同じ陣営
+        const defenderPid: PlayerId = view.battle.blockerPid ?? (attackerPid === "p1" ? "p2" : "p1")
         const blocker = view.players[defenderPid].field.spirits.find(
             (s) => s.instanceId === view.battle?.blockerInstanceId,
         )
@@ -203,6 +204,13 @@ export function renderBattle(view: GameView): void {
         } else {
             message = `⚔ ${m.name}（BP${bp}）でアタック中。相手の対応を待っています…`
         }
+    }
+
+    // 強制ブロックが予約されている間：フラッシュが閉じれば防御側の宣言なしに自動で宣言される
+    const forcedId = view.battle.forcedBlockerInstanceId
+    if (forcedId && !blocked) {
+        const forced = view.players[attackerPid].field.spirits.find((s) => s.instanceId === forcedId)
+        if (forced) message += ` ${master(forced.cardId).name}が疲労し、フラッシュ終了後にこのスピリットがブロックを宣言します（ブロックの選択はありません）。`
     }
 
     // ディバインチェイン等でフラッシュ封印中の場合、封じられている側の視点で追記

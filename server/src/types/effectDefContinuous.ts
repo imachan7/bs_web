@@ -140,6 +140,15 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "exhaustPreventByPay" // 持ち主の filter 合致スピリットが相手の bySourceTypes の効果で疲労するとき、疲労する1体ごとに cost を払って疲労を防げる（BS18-014）
+          // exhaustSpirit（疲労の唯一の入口）で判定する。対話では確認を出して、疲労をその答えまで保留する（同じ効果の後続は先に進む）
+          levels: number[] | null
+          filter: TargetFilter
+          bySourceTypes: CardType[]
+          cost: EffectAction // 払えるかは pay と同じ canPayResolve で判定。払えなければ確認も出さず疲労する
+      }
+    | {
+          id: string
           kind: "deckMillNegate" // 持ち主のデッキが破棄されるとき、コストを払って無効にできる
           // 任意コストなので確認を出す。破棄処理の途中では中断できないため、millDeckは見送ってpendingDeckMillNegatesへ積みhandleActionの末尾で確認する。非対話（smoke）では自動で支払う
           levels: number[] | null
@@ -242,6 +251,7 @@ export type EffectDefContinuous =
           keyword: Keyword
           target: "ownAll"
           combinedFilter?: true
+          uncombinedFilter?: true // combinedFilter の逆（付与先が合体していないスピリットのみ）
           familyFilter?: FamilyFilter
           colorFilter?: Color
           lentOnly?: boolean
@@ -325,6 +335,7 @@ export type EffectDefContinuous =
           keywordFilter?: Keyword
           combinedFilter?: true
           vanillaFilter?: true
+          nameIncludes?: string[] // 配列＝OR・部分一致（constraintGrant.nameIncludes と同じ）
           against: "magic" | "bounce" // 自分自身の効果によるバウンスは対象外
           condition?: { ownCostCountAtLeast: { cost: number; count: number } }
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
@@ -423,6 +434,8 @@ export type EffectDefContinuous =
           levels: number[] | null
           target: "ownAll" | "self"
           familyFilter?: FamilyFilter
+          colorFilter?: Color // target:"ownAll" の絞り。その色を持つスピリットだけ（familyFilterと併用ならAND）
+          minCores?: number // target:"ownAll" の絞り。載っているコアがこの数以上のスピリットだけ。毎回の再計算で判定するのでコアが減れば外れる
           count: number
           color?: Color
           summonReductionOnly?: true // 召喚の軽減計算の間だけ。ライフダメージ等の他のシンボル参照には効かない（2026-09-02確認）
@@ -591,7 +604,9 @@ export type EffectDefContinuous =
           id: string
           kind: "flashLockWhileAttackingFamily" // 相手はフラッシュで手札のカードを使用できない
           levels: number[] | null
-          familyFilter: FamilyFilter
+          familyFilter?: FamilyFilter // 省略時は系統を問わない
+          minSymbols?: number // アタッカーのシンボル数がこれ以上の間だけ
+          cardType?: CardType // その種別の手札のカードだけ使えない（手元・バーストの発動は止めない。2026-10-23 ユーザー確認）
       }
     | {
           id: string

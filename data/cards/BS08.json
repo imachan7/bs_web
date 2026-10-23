@@ -2751,6 +2751,7 @@
     },
     "constraint": {
      "type": "unblockableBy",
+     "opponentOnly": true,
      "levelFilter": [
       2,
       3
@@ -2912,6 +2913,7 @@
     },
     "constraint": {
      "type": "unblockableBy",
+     "opponentOnly": true,
      "keywordFilterAbsent": "tensho"
     }
    }

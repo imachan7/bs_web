@@ -1,6 +1,7 @@
 // 対戦中のクリック操作：手札・スピリットを押したときの召喚・アタック・選択の応答
 import type { CardData, GameAction, PaySource } from "../../../server/src/type"
-import { canDirectAttack, effectiveCost, hasKeyword, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
+import { ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { canDirectAttack, effectiveCost, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
 import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores } from "./paying"
 import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, timedContentsOn } from "../../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, exTrashReductionCandidateIndices, ownFieldSymbolColors } from "../../../shared/cost"
@@ -458,7 +459,7 @@ export function onHandClick(handIndex: number): void {
         const tempSoku = (view.players[view.you].tempHandKeywordGrants ?? []).some(
             (g) => g.cardId === cardId && g.keyword === "soku",
         )
-        const canSoku = hasKeyword(cardId, "soku") || tempSoku || flashSummonFromHandNow(view, view.you, cardId)
+        const canSoku = ownHandKeyword(view, cardId, "soku") || (tempSoku && !zoneSpiritEffectsDisabled(view, cardId)) || flashSummonFromHandNow(view, view.you, cardId)
 
         // 現在「神速」と「入れ替え召喚」を両方持つカードは存在しないため、排他的に処理する
         if (swapOpt) {
@@ -474,7 +475,7 @@ export function onHandClick(handIndex: number): void {
 
         // 【烈神速】：お互いのアタックステップ、トラッシュのコア5個以上でコストを支払わず召喚する
         // （置き先はサーバーが立てる distributeCores の選択で1個ずつ聞かれる。BS16-X03）
-        if (hasKeyword(cardId, "resshinsoku") && view.players[view.you].trashCores >= 5) {
+        if (ownHandKeyword(view, cardId, "resshinsoku") && view.players[view.you].trashCores >= 5) {
             send({ type: "resshinsokuSummon", handIndex })
             return
         }

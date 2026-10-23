@@ -74,6 +74,15 @@ export function destroyCandidateCountForPay(
 ): number {
     const opp = opponentOf(owner)
     const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
+    // 使用可否の判定でも解決時と同じく maxCostPer を cost.max に足す（足さないと対象なし扱いになる。BS18-083）
+    if (action.filter?.maxCostPer && filter.cost?.max !== undefined) {
+        filter.cost = { ...filter.cost, max: filter.cost.max + action.filter.maxCostPer.amount * countEffectCounter(state, owner, null, action.filter.maxCostPer.counter, srcType) }
+    }
+    if (action.filter?.sameLevelAsSource) {
+        const src = selfInstanceId ? [...state.players.p1.field.spirits, ...state.players.p2.field.spirits].find((s) => s.instanceId === selfInstanceId) : undefined
+        if (!src) return 0
+        filter.level = [currentLevel(src).level]
+    }
     if (action.side === "own") return ownSideDestroyCandidates(state, owner, selfInstanceId, filter).length
     // ハンドラと同じ「BP◯以下」の閾値加算（destroyBpThresholdBonus）
     if (filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) filter.maxBp += destroyBpThresholdBonusFor(state, owner)

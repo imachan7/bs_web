@@ -19,6 +19,7 @@ const GATE_KINDS = new Set([
     "magicNegate",
     "deckMillNegate",
     "targetNegateByHandDiscard",
+    "exhaustPreventByPay",
     "nexusCostMillPay",
     "battleSwapSummon",
     "altSummonFromHand",

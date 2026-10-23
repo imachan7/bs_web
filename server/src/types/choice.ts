@@ -63,6 +63,11 @@ export interface PendingChoice {
         cardId: string
         trashIndex: number
     }
+    reviveDestination?: {
+        // 復活で手札に入ったカードの行き先の選択（action は解決しない）。options は["手札に残す","デッキの上に置く"]
+        pid: PlayerId
+        cardId: string
+    }
     reviveConfirm?: {
         // 「破壊される代わりに復活できる」の確認待ち。magicNegate と同じく **action は解決しない**。
         // 選べばコストを払って復活が確定し、選ばなければその場で破壊する
@@ -414,6 +419,7 @@ export type ResumeFrame =
           attackerPid: PlayerId
           attackerInstanceId: string
           blockerInstanceId: string
+          blockerPid?: PlayerId // 省略＝防御側。強制ブロックでアタッカーと同じ陣営のとき attackerPid が入る
           outcome: "attackerWins" | "blockerWins" | "mutual" | "none" // ＞５のBP比較の結果（＞６以降で覆らない）。none＝器AV（BS13-082）でBP比較自体を飛ばした
           attackerColors: Color[]
           blockerColors: Color[]

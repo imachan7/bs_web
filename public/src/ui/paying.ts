@@ -1,7 +1,7 @@
 // コスト支払いモードの状態と、残りコスト・軽減の計算
 import type { CardData, Color, GameView } from "../../../server/src/type"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, exSymbolsOfTrashCard } from "../../../shared/cost"
-import { flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
+import { ownHandKeyword, flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
 import { master } from "../renderer"
 
 // 支払いに使える自分のフィールドのコア総数（スピリット/ネクサス上）。
@@ -10,7 +10,7 @@ import { master } from "../renderer"
 export function payableFieldCores(view: GameView, cardId: string): number {
     const player = view.players[view.you]
     const card = master(cardId)
-    const isSoku = view.isFlashTiming && card.type === "spirit" && (hasKeyword(cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))
+    const isSoku = view.isFlashTiming && card.type === "spirit" && (ownHandKeyword(view, cardId, "soku") || flashSummonFromHandNow(view, view.you, cardId))
     const allowed = isSoku ? sokuPayableInstanceIds(view, view.you) : null
     return [...player.field.spirits, ...player.field.nexuses]
         .filter((i) => allowed === null || allowed.has(i.instanceId))

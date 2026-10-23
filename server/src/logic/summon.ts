@@ -1,4 +1,5 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
+import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { hasSummonedExhaustGrant, payCost } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
@@ -30,6 +31,7 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     for (let i = 0; i < player.trashCards.length; i++) {
         const cardId = player.trashCards[i]
         if (cardId === undefined) continue
+        if (zoneSpiritEffectsDisabled(state, cardId)) continue
         const card = getCard(cardId)
         const hit = card.effects.find(
             (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
@@ -109,7 +111,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         // 「【不死】の効果で召喚されたとき」（BS09-013ミミズクロ）を絞り込むためだけに渡す
         // eventColors に召喚されたスピリットの色を渡す（fieldEvent.colorFilter が
         // 「自分の**青の**スピリットが召喚されたとき」を絞れるようにする。BS09-002フタバニア）
-        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, {
+        const summonedInfo = {
             families: getCard(inst.cardId).family,
             // costFilter用：**カード静的なコスト（本来のコスト）**。軽減後の支払いコストではない（BS13-003カメレオプス）
             costs: [getCard(inst.cardId).cost],
@@ -125,7 +127,11 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             // 器AG：summonedSpiritAsTarget指定時に、召喚されたスピリット自身をactionTargetIdとして渡す
             // （selfMode:"source"と組み合わせ、self=発生源自身・target=召喚されたスピリットを両立させる。BS13-053モクバオー）
             sourceInstanceId: inst.instanceId,
-        })
+        }
+        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, summonedInfo)
+        // 両陣営から見える版。subjectSide で主体の陣営を絞る（BS18-064）
+        if (!state.winner) fireFieldEventTriggers(state, pid, "anySpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, summonedInfo)
+        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anySpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, summonedInfo)
     }
     // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
     // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
@@ -230,7 +236,7 @@ export function summonFreeFromHandIndex(
     // 転召持ちを召喚しても転召は無視できない）。
     // skipTensho指定時のみ例外（BS08雷帝竜騎レイブリッツ／X002極龍帝ジーク・ソル・フリード：
     // 「【転召】させずに召喚できる」の明記あり）
-    if (!state.winner && !skipTensho) resolveTensho(state, owner, inst)
+    if (!state.winner && !skipTensho) resolveTensho(state, owner, inst, false, true)
     // ⚠️ **これも「召喚」なので、召喚時効果と「召喚されたとき」の誘発が発揮される**（2026-08-17 修正）。
     // 以前はどちらも呼ばず「召喚時効果は発揮されない」とログに出していたが、
     // 対象26枚のどのカードにも効果文にその制限は書かれていない
@@ -307,7 +313,7 @@ export function summonFreeFromTrashIndex(
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）
-    if (!state.winner) resolveTensho(state, owner, inst)
+    if (!state.winner) resolveTensho(state, owner, inst, false, true)
     // skipOnSummon 指定時は召喚時効果を発揮させない（効果文に明記があるカードだけ。BS11-038 天星馬ペガシーダ）
     if (opts?.skipOnSummon) {
         log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
@@ -369,6 +375,8 @@ export function summonFromHandFreeCandidateMatches(
         const asCost = action.summonedBy === "fchange" ? fchangeCostAs(state, owner, candidateId) : undefined
         if (!ok(candidate.cost) && (asCost === undefined || !ok(asCost))) return false
     }
+    // symbolCount：手札のカードの印刷シンボル数がちょうど一致するもののみ
+    if (action.symbolCount !== undefined && candidate.symbol.length !== action.symbolCount) return false
     // nameIncludes：カード名にこの文字列を含むもののみ（BS05ペンタン帝国）
     if (action.nameIncludes !== undefined && !candidate.name.includes(action.nameIncludes)) return false
     if (action.nameExcludes !== undefined && candidate.name.includes(action.nameExcludes)) return false

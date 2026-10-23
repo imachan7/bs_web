@@ -20,6 +20,7 @@ export interface GameState {
     extraStepAfterAttackUsed?: true // BS15-X04 Lv2 をこのターンに使った（ターン終了でリセット）
     extraMainStep?: true // BS15-X04 Lv2 で行っている追加のメインステップ中。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）
     secondMainStep?: true // 第2メインステップ中（アタックステップの後にもう一度行うメインステップ。先攻1ターン目を除く全ターンに存在。2026-10-06）。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）
+    skipMainStepNow?: true // リフレッシュステップで skipMainStep を使い切った＝このターンのメインステップ区間を飛ばす（区間が消費する）
     oweSecondMain?: true // このターンにアタックステップを経由した＝第2メインステップがまだ残っている（toAttackPhase で立て、第2メインステップへ入るときに消す）
     secondMainDone?: true // このターンに第2メインステップを既に行った（BS10-008 の追加アタックステップの後には第2メインをもう行わない。ターン終了でリセット）
     extraAttackStepPending?: true // **アタックステップとエンドステップをもう1回ずつ行う**（BS10-008 火星神龍アレス・ドラグーン）。
@@ -79,12 +80,15 @@ export interface GameState {
     // **効果によらない**動きでは undefined のままなので、それだけで「効果によるものか」を区別できる。
     // 詳細は docs/design/EFFECT_SOURCE_CONTEXT.md
     currentEffectSource?: { pid: PlayerId; type?: CardType; colors?: Color[]; instanceId?: string; cardId?: string } // instanceIdはresolveActionのself（発生源インスタンス）が確定しているときだけ載る（BS15共通器：BS15-042オリンピアの天使アラトロンLv2「そのスピリットを相手のデッキの下に戻す」＝デッキ破棄を起こしたスピリット自身を特定するために使う）
+    // 直近の coresGainedFromVoid で増えたコアの置き場所（voidGainedCores が読む）。同じ効果で両陣営に増えたときは後のもの
+    lastCoresGained?: { gainerPid: PlayerId; places: { where: "reserve" | "life" | "instance"; instanceId?: string; n: number }[] }
     resolvingBurstPid?: PlayerId // バースト効果を解決している間だけ、その持ち主を載せる（coreReturnBonus.ownBurstOnly が読む。BS14-019シュテン・ドーガ）
     lastBattleDestroyedColors: Color[] // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの**破壊された側**の色（次のバトル解決の冒頭でリセット。TargetFilter.sameColorAsBattleLoser が参照。BS04獣使いドヴェルグ）
     lastBattleDestroyedFamilies: string[] // 同上の系統（TargetFilter.sameFamilyAsBattleLoser が参照。BS04ニーベルングリング）
     lastOpponentSpiritDestroyedFamilies: string[] // 直近に発火した fieldEvent "opponentSpiritDestroyed" の対象（破壊された相手のスピリット）の系統。
     // TargetFilter.sameFamilyAsDestroyed が読む（removal.ts の発火直前にセット。BS16-027コーカサス・リョフ・ビートル）
-    summonEffectSource?: { pid: PlayerId; instanceId: string; cost: number; colors: Color[]; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
+    lastOpponentSummonEffect?: { cardId: string; level: number } // opponentSummonEffectResolved の発火時に記録（replayOpponentSummonEffect が読む。召喚した個体が場を離れていても残る）
+    summonEffectSource?: { pid: PlayerId; instanceId: string; cardId?: string; level?: number; cost: number; colors: Color[]; resolved?: true } // resolved＝召喚時効果を実際に発揮した（BURST.md §10 C）
     resolvingSummonTriggerPid?: PlayerId // スピリットの『このスピリットの召喚時』効果を解決している間だけ立つ、その発生源の持ち主
     // （fireSummonTrigger が設定し、選択待ちで中断した場合は残して handleAction の事後フックがクリアする。
     // ConstraintDef.immuneToOpponentSummonEffects を isEffectBlocked が判定するために使う。BS05リトルナイト・ランスロットLv3）
@@ -113,6 +117,7 @@ export interface GameState {
         groupKey: string // 同じ破壊（同時破壊グループのid、または単体破壊ならinstanceId）をまとめる単位
         cardId: string
         colors: Color[]
+        families: string[] // 破壊時点の系統（付与込み）。条件{burstDestroyed.family}用
         hostCost: number // ホスト自身のコスト（合体中のブレイヴぶんは含まない。braves側で別途足す）
         braves: { instanceId: string; cost: number }[] // 破壊時に合体していたブレイヴ。トラッシュへ行った分だけ発火時にhostCostへ加算する
         byOpponentEffect: boolean
@@ -161,6 +166,8 @@ export interface GameState {
     // 破壊処理の途中では中断できない（destroySpirit の呼び出しはループの中にあり、
     // pendingChoice の queue は EffectAction の列しか運べない）ため、いったん破壊を見送って
     // ここへ積み、handleAction の末尾＝安全な地点で1件ずつ確認する
+    // reviveOnDestroy.revived:"handOrDeckTop" で手札に入れたカードの、行き先（手札のまま／デッキの上）の確認待ち行列
+    pendingReviveDestinations?: { pid: PlayerId; cardId: string }[]
     pendingReviveConfirms?: {
         pid: PlayerId
         instanceId: string

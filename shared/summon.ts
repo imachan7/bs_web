@@ -9,7 +9,7 @@ import type { CardData, CardInstance, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
-import { activeConstraints, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
+import { activeConstraints, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
 
 // 召喚（type:"summon"）で場に出せるカードか。
 // **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
@@ -84,7 +84,7 @@ export function battleSwapSummonCheck(
     if (cardId === undefined) return "手札にカードがありません"
     const cardData = card(cardId)
     if (cardData.type !== "spirit") return "スピリットカードではありません"
-    const swap = cardData.effects.find((e) => e.kind === "battleSwapSummon")
+    const swap = zoneSpiritEffectsDisabled(board, cardId) ? undefined : cardData.effects.find((e) => e.kind === "battleSwapSummon")
     if (!swap || swap.kind !== "battleSwapSummon") return "このカードは入れ替え召喚できません"
     const battle = board.battle
     if (!board.isFlashTiming || !battle) return "フラッシュタイミングではありません"
