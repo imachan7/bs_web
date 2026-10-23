@@ -866,7 +866,13 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         if (action.count !== undefined) {
             const ordered = [...candidates].sort((a, b) => effectiveBp(state, owner, b) - effectiveBp(state, owner, a))
             const picked = ordered.slice(0, action.count)
-            for (const c of picked) refreshSpirit(state, owner, c, srcType)
+            for (const c of picked) {
+                refreshSpirit(state, owner, c, srcType)
+                if (action.thenCantAttackThisTurn) {
+                    recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: c.instanceId }, until: "turn", ownerPid: owner })
+                    recordTargets(state, [c.instanceId])
+                }
+            }
             log(state, `${sourceName}：スピリット${String(picked.length)}体を回復させた。`)
             return
         }

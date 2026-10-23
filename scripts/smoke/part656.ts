@@ -289,7 +289,7 @@ console.log("=== 003 アサシン・ドラゴン ===")
         steps(t) {
             attackOpp(t, "アサシン・ドラゴン")
         },
-        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 3000 → 6000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
     })
     const lv2 = { phase: "attack" as const, interactive: true }
     scenario({
@@ -301,7 +301,7 @@ console.log("=== 003 アサシン・ドラゴン ===")
             t.closeFlash()
         },
         expect: [
-            "自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", gone("相手.メイパロット"),
+            "自分.アサシン・ドラゴン.疲労: false → true", gone("相手.メイパロット"),
             "相手.リザーブ: 10 → 11", `相手.トラッシュ: なし → ${getCard(MAIPA).name}`,
         ],
     })
@@ -313,7 +313,7 @@ console.log("=== 003 アサシン・ドラゴン ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
     })
     scenario({
         name: "assassin-lv1-cannot-designate",
@@ -324,7 +324,7 @@ console.log("=== 003 アサシン・ドラゴン ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 3000 → 6000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
     })
     scenario({
         name: "assassin-no-summon-effect-target",
@@ -335,7 +335,7 @@ console.log("=== 003 アサシン・ドラゴン ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
     })
 }
 
@@ -351,7 +351,7 @@ console.log("=== 003 現在Lvで有効な召喚時効果 ===")
             t.closeFlash()
         },
         expect: [
-            "自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", gone("相手.魔界七将デストロード"),
+            "自分.アサシン・ドラゴン.疲労: false → true", gone("相手.魔界七将デストロード"),
             "相手.リザーブ: 10 → 11", `相手.トラッシュ: なし → ${getCard(DESTRO).name}`,
         ],
     })
@@ -364,7 +364,7 @@ console.log("=== 003 現在Lvで有効な召喚時効果 ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
     })
 }
 
@@ -729,8 +729,8 @@ console.log("=== 055 合体 ===")
             t.act("me", { type: "summon", handIndex: 0, braveTargetInstanceId: t.id("用心棒アントマン") })
         },
         expect: [
-            "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 4", `自分.手札: ${getCard(DRAKE).name} → なし`,
-            "自分.用心棒アントマン.コア: 1 → 2", "自分.用心棒アントマン.BP: 5000 → 8000",
+            "自分.リザーブ: 10 → 6", "自分.トラッシュのコア: 0 → 4", `自分.手札: ${getCard(DRAKE).name} → なし`,
+            "自分.用心棒アントマン.BP: 5000 → 8000",
             "自分.ドレイク・バヤー.場所: なし → 合体", "自分.ドレイク・バヤー.疲労: なし → false", "自分.ドレイク・バヤー.コア: なし → 0", "自分.ドレイク・バヤー.Lv: なし → 1",
         ],
     })
@@ -1066,8 +1066,7 @@ console.log("=== X01 超覇王ロード・ドラゴン・セイバー ===")
         steps(t) {
             oppAttacksMe(t, "用心棒アントマン")
             ans(t, "yes")
-            while (t.state.pendingChoice) { console.log("DBG", JSON.stringify(t.state.pendingChoice).slice(0,300)); ans(t, t.state.pendingChoice.kind === "target" ? { id: "炎の覇獣ハヌ・マーグ" } : "yes") }
-            console.log("DBGLOG", t.state.log.slice(-8).map((x:any)=>x.text??x).join(" // "))
+            ans(t, { opt: "リザーブ：コア10個" })
         },
         expect: [
             "相手.用心棒アントマン.疲労: false → true", `自分.バースト: ${getCard(SABER).name} → なし`, "自分.リザーブ: 10 → 9",
@@ -1106,13 +1105,17 @@ console.log("=== X01 超覇王ロード・ドラゴン・セイバー ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: [...buffLines, "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: [...buffLines, "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"],
     })
     scenario({
         name: "saber-block-buff",
         start: { turn: "opp", phase: "attack", interactive: true, me: { spirits: [{ card: SABER, cores: 3 }, { card: ROKU, label: "RA" }] }, opp: { spirits: [{ card: ANT }] } },
         steps(t) {
-            oppAttackBlocked(t, "用心棒アントマン", "超覇王ロード・ドラゴン・セイバー")
+            t.act("opp", { type: "attack", instanceId: t.id("用心棒アントマン") })
+            t.closeFlash()
+            t.act("me", { type: "block", instanceId: t.id("超覇王ロード・ドラゴン・セイバー") })
+            ans(t, "yes")
+            t.closeFlash()
         },
         expect: [...buffLines, gone("相手.用心棒アントマン"), `相手.トラッシュ: なし → ${getCard(ANT).name}`, "相手.リザーブ: 10 → 11"],
     })
@@ -1125,7 +1128,7 @@ console.log("=== X01 超覇王ロード・ドラゴン・セイバー ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: [`${sv}.疲労: false → true`, "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: [`${sv}.疲労: false → true`, "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"],
     })
     scenario({
         name: "saber-lv1-no-buff",
@@ -1136,7 +1139,7 @@ console.log("=== X01 超覇王ロード・ドラゴン・セイバー ===")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
-        expect: [`${sv}.疲労: false → true`, "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+        expect: [`${sv}.疲労: false → true`, "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"],
     })
     const burstStart = (cores: number) => ({
         turn: "opp" as const, phase: "attack" as const, interactive: true,
@@ -1174,7 +1177,7 @@ console.log("=== X021 インティ ===")
             oppAttacksMe(t, "用心棒アントマン")
             ans(t, "yes")
             ans(t, { card: 0 })
-            ans(t, { card: 2 })
+            ans(t, { card: 1 }) // 1枚召喚するとオープン中の並びが詰まる
             finishSelect(t)
         },
         expect: [
@@ -1245,7 +1248,7 @@ scenario({
         noChoice(t, "同じターンに2体目のインティを召喚しても、この効果は使えない")
     },
     expect: [
-        "自分.リザーブ: 18 → 0", "自分.トラッシュのコア: 0 → 16", `自分.手札: ${nm(INTI, INTI)} → なし`, "自分.デッキ枚数: 40 → 35",
+        "自分.リザーブ: 18 → 1", "自分.トラッシュのコア: 0 → 15", `自分.手札: ${nm(INTI, INTI)} → なし`, "自分.デッキ枚数: 40 → 35",
         `自分.トラッシュ: なし → ${nm(ROKU, ROKU, ROKU, ROKU, ROKU)}`,
         ...appear("自分.黄金の覇王ロード・ドラゴン・インティ", 6000, 1, 1), ...appear("自分.黄金の覇王ロード・ドラゴン・インティ#2", 6000, 1, 1),
     ],

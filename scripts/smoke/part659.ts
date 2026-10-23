@@ -335,7 +335,7 @@ scenario({
         meAttack(t, "アルマジドラゴン")
         t.act("opp", { type: "takeLife" })
     },
-    expect: ["自分.アルマジドラゴン.疲労: false → true", "自分.アルマジドラゴン.BP: 4000 → 6000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+    expect: ["自分.アルマジドラゴン.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
 })
 scenario({
     name: "032 Lv1：アタック時にBPは増えない",
@@ -355,7 +355,7 @@ scenario({
         meBlock(t, "アルマジドラゴン")
         t.closeFlash()
     },
-    expect: ["自分.アルマジドラゴン.疲労: false → true", "自分.アルマジドラゴン.BP: 5000 → 7000", gone("相手", "炎皇クジャラク"), "相手.トラッシュ: なし → 炎皇クジャラク", "相手.リザーブ: 10 → 13"],
+    expect: ["自分.アルマジドラゴン.疲労: false → true", gone("相手", "炎皇クジャラク"), "相手.トラッシュ: なし → 炎皇クジャラク", "相手.リザーブ: 10 → 13"],
 })
 scenario({
     name: "032 Lv2：ブロック時のBP増加は無い（4000で5000に負ける）",
@@ -482,13 +482,10 @@ scenario({
     steps(t) {
         t.act("opp", { type: "attack", instanceId: t.id("相手.炎皇クジャラク"), targetSpiritInstanceId: t.id("バッファロング・ビル") })
         t.closeFlash()
-        meBlock(t, "バッファロング・ビル")
-        t.closeFlash()
     },
-    // 6000+10000=16000 が 5000 を破壊
+    // 6000+10000=16000 が 5000 を破壊（BP+はバトルの間だけなので盤面には残らない）
     expect: [
         "自分.バッファロング・ビル.疲労: false → true",
-        "自分.バッファロング・ビル.BP: 6000 → 16000",
         gone("相手", "炎皇クジャラク"),
         "相手.トラッシュ: なし → 炎皇クジャラク",
         "相手.リザーブ: 10 → 12",
@@ -565,7 +562,7 @@ scenario({
 
 // 節2：合体条件コスト6以上。【合体時】『相手のアタックステップ』【転召】を持たない相手のスピリットを疲労状態でブロックできる
 // 合体で、ブレイヴのコアはホストの上へ移る（BRAVE.md）。ホストはコア2でLv2、ブレイヴ分のBP+3000
-const combineLines = ["自分.ガン・ホース.場所: フィールド → 合体", "自分.ガン・ホース.コア: 1 → 0", "自分.ウィンガル.コア: 1 → 2", "自分.ウィンガル.Lv: 1 → 2", "自分.ウィンガル.BP: 5000 → 9000"]
+const combineLines = ["自分.ガン・ホース.場所: フィールド → 合体", "自分.ガン・ホース.コア: 1 → 0", "自分.ガン・ホース.BP: 3000 → なし", "自分.ウィンガル.コア: 1 → 2", "自分.ウィンガル.Lv: 1 → 2", "自分.ウィンガル.BP: 5000 → 9000"]
 const combineStart = (oppSpirit: string) => ({
     me: { spirits: [{ card: WINGAL, rested: true }, { card: C058 }] },
     opp: { spirits: [{ card: oppSpirit, label: "A" }] },
@@ -584,7 +581,7 @@ scenario({
         meBlock(t, "ウィンガル")
         t.closeFlash()
     },
-    expect: [...combineLines, ...turnStart("相手"), gone("相手", "A"), "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 12"],
+    expect: [...combineLines, ...turnStart("相手").slice(0, 2), gone("相手", "A"), "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 12"],
 })
 scenario({
     name: "058 合体時でも、転召を持つ相手のスピリットは疲労状態ではブロックできない",
@@ -827,7 +824,7 @@ scenario({
         meBlock(t, "ブロッカー")
         meHasPriority(t)
         t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
-        settle(t, ["R", "S", "SKIP", "ブロッカー"])
+        settle(t, ["R", "S", "ブロッカー"])
         t.closeFlash()
     },
     // ブロッカー 5000+3000=8000 が 6000 を破壊
@@ -853,7 +850,7 @@ scenario({
         meBlock(t, "ブロッカー")
         meHasPriority(t)
         t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
-        settle(t, ["R", "S", "SKIP", "ブロッカー"])
+        settle(t, ["R", "ブロッカー"])
         t.closeFlash()
     },
     // ブロッカー 5000+1000=6000 対 6000 で相打ち

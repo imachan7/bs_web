@@ -1046,7 +1046,8 @@
        }
       ],
       "duration": "turn",
-      "target": "ownAll"
+      "all": true,
+      "side": "own"
      }
     }
    },
@@ -1079,7 +1080,8 @@
        }
       ],
       "duration": "turn",
-      "target": "ownAll"
+      "all": true,
+      "side": "own"
      }
     }
    },
@@ -1173,8 +1175,9 @@
       {
        "type": "moveCards",
        "from": "revealed",
-       "count": "all",
+       "count": 5,
        "dest": "summon",
+       "upTo": true,
        "pick": {
         "cardType": "spirit",
         "nameIncludes": "ロード・ドラゴン"
