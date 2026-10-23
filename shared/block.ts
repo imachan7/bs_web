@@ -165,8 +165,8 @@ export function canBlock(
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
             if (c.opponentOnly && blockerPid === attackerPid) continue
-            // 条件を1つも持たない unblockableBy は「すべてにブロックされない」（require* は有効かどうかの条件で、ブロッカーの絞り込みではない）
-            if (Object.keys(c).every((k) => k === "type" || k.startsWith("require"))) return "このスピリットはブロックされません"
+            // 条件を1つも持たない unblockableBy は「すべてにブロックされない」（require* は有効かどうかの条件で、ブロッカーの絞り込みではない）。__eid は coverage:effects が足す計測用の印
+            if (Object.keys(c).every((k) => k === "type" || k === "__eid" || k.startsWith("require"))) return "このスピリットはブロックされません"
             if (c.noSoulCore && blockerInst.soulCoreOn !== true) return "このスピリットは[ソウルコア]が置かれていないスピリットにブロックされません"
             if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {
                 return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
