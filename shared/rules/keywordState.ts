@@ -13,6 +13,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { timedKeywords, zoneSpiritEffectsDisabled } from "./constraints"
+import { entryActive } from "./effectStop"
 import { bravesOf, cardHasColor, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
 import { instMatchesCostFilter } from "./targetFilter"
 
@@ -114,7 +115,7 @@ export function iceWallColorsOf(board: Board, ownerPid: PlayerId, inst: CardInst
         const level = currentLevel(src).level
         for (const effect of card(src.cardId).effects) {
             if (effect.kind !== "magicNegate") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, ownerPid, src, effect, level)) continue
             for (const c of effect.colors ?? []) colors.add(c)
         }
     }
@@ -136,7 +137,7 @@ export function hasDestroyAsMaxLevelGrant(
         for (const effect of card(src.cardId).effects) {
             if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "self") continue
             if (effect.whileCombined === true && !instIsCombined(inst)) continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(src).level)) continue
+            if (!entryActive(board, ownerPid, src, effect, currentLevel(src).level)) continue
             noteCoverage(effect, "destroyAsMaxLevelGrant")
             return true
         }
@@ -145,7 +146,7 @@ export function hasDestroyAsMaxLevelGrant(
     for (const source of effectSources(board, ownerPid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "destroyAsMaxLevelGrant" || effect.target !== "ownAll") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(board, ownerPid, source, effect, currentLevel(source).level)) continue
             noteCoverage(effect, "destroyAsMaxLevelGrant")
             return true
         }
@@ -279,7 +280,7 @@ export function familiesSuppressed(board: Board, inst: CardInstance): boolean {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "familySuppression") continue
                 if (effect.lentOnly && !isVirtualSource(source)) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, ownerPid, source, effect, level)) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
                 if (effect.maxCores !== undefined && inst.cores > effect.maxCores) continue
@@ -332,7 +333,7 @@ export function hasHandKeywordGrant(
             if (effect.kind !== "handKeywordGrant") continue
             if (effect.keyword !== keyword) continue
             noteCoverage(effect, "handKeywordGrant")
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, pid, source, effect, level)) continue
             if (cardData.type !== (effect.cardType ?? "spirit")) continue
             if (effect.familyFilter !== undefined && !cardData.family.includes(effect.familyFilter)) continue
             // vanillaFilter：手札のカードなので静的判定でよい（BS10-085浮遊する岩塊Lv2）
@@ -381,7 +382,7 @@ export function spiritHasFamily(
             }
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, ownerPid, source, effect, sourceLevel)) continue
             // familyFilter は**カード静的な系統のみ**で判定する。ここで spiritHasFamily を呼ぶと
             // 「歌鳥持ちに歌鳥を与える」選択で自己再帰する（音鳥クルーク）。配列＝いずれかの系統でOR
             // （BS06無限なる軌道母艦：機人/動器のいずれかを持つスピリットに武装を付与）
@@ -438,7 +439,7 @@ export function bofuCountBonusFor(board: Board, ownerPid: PlayerId): number {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "bofuCountBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, ownerPid, source, effect, level)) continue
             noteCoverage(effect, "bofuCountBonus")
             total += effect.amount
         }
@@ -457,7 +458,7 @@ export function bofuCountFor(board: Board, ownerPid: PlayerId, inst: CardInstanc
         const level = currentLevel(src).level
         for (const effect of card(src.cardId).effects) {
             if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, ownerPid, src, effect, level)) continue
             base = effect.count ?? 1
             break
         }

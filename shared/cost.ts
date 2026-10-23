@@ -7,6 +7,7 @@ import type { CardData, Color, PlayerId } from "../server/src/type"
 import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
+import { entryActive } from "./rules/effectStop"
 import { noReductionGrantFrom, zoneSpiritEffectsDisabled, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
@@ -29,7 +30,7 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
                 // mode:"set"（コスト置換。BS05パントマイスター／ゴッドスピード）はcostSetOverride側が
                 // 別途処理するため、加算合計のこちらでは読み飛ばす（二重適用を防ぐ）
                 if (effect.mode === "set") continue
-                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+                if (!entryActive(board, pid, source, effect, sourceLevel)) continue
                 if (effect.colorFilter !== undefined && !cardHasColor(cardData, effect.colorFilter)) continue
                 if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
                 // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
@@ -93,7 +94,7 @@ export function reductionGrantSymbols(
             if (effect.selfOnly) continue
             // lentOnly：仮想発生源からのみ有効（実在スピリットが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             if (noReductionGrantFrom(board, card(source.cardId).type)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
@@ -196,7 +197,7 @@ export function hasMagicRestriction(
                 if (effect.kind !== "magicRestriction") continue
                 if (effect.restriction !== restriction) continue
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, ownerPid, source, effect, level)) continue
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
@@ -221,7 +222,7 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "magicRestriction") continue
                 if (effect.restriction !== "costLimitAll") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, ownerPid, source, effect, level)) continue
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
@@ -252,7 +253,7 @@ export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "nexusCostMillPay") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, pid, source, effect, level)) continue
             noteCoverage(effect, "nexusCostMillPay")
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
@@ -313,7 +314,7 @@ export function findMagicFreeGrantSource(
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "magicFreeGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, pid, source, effect, level)) continue
             // oncePerBattle（BS07大天使イスフィール）：このバトルで既に1枚使っていれば、もう無償にしない
             if (effect.oncePerBattle && board.battle?.oncePerBattleMagicFreeUsed?.includes(source.instanceId)) {
                 continue
@@ -362,7 +363,7 @@ export function magicEffectiveColors(board: Board, pid: PlayerId, cardData: Card
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "ownMagicColorless") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, pid, source, effect, level)) continue
             if (!cardData.colors.includes(effect.color)) continue
             if (effect.whileBattling && !isSelfInBattle(board, source.instanceId)) continue
             noteCoverage(effect, "ownMagicColorless")
@@ -458,7 +459,7 @@ export function costSetOverride(
             // ここで除外しないと、そのカードが**場に出たとたん**（BS10-059は絞り込みを持たないため）
             // あらゆるカードのコストを置換してしまう
             if (effect.scope === "self") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             // BS15共通器：虚神（フィールド発生源版。effectSources(board, pid) は pid 自身の発生源なので、
             // source の持ち主は常に pid と一致する）
             if (effect.condition !== undefined && "ownBurstSet" in effect.condition) {
@@ -562,7 +563,7 @@ function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "trashSymbolReduction" || effect.scope !== "ownHand") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
             if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
             noteCoverage(effect, "trashSymbolReduction")
@@ -597,7 +598,7 @@ function summoningSymbolBonus(board: Board, pid: PlayerId, cardData: CardData, c
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "symbolWhenSummoning" || effect.color !== color) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, pid, source, effect, level)) continue
             if (effect.ownMainStepOnly && (board.phase !== "main" || board.turnPlayer !== pid)) continue
             if (effect.team !== undefined && !cardHasTeam(cardData, effect.team)) continue
             if (effect.minCost !== undefined && cardData.cost < effect.minCost) continue
@@ -726,7 +727,7 @@ function opponentMagicCostIncrease(board: Board, usingPid: PlayerId, cardData: C
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "opponentMagicCostIncrease") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, ownerPid, source, effect, level)) continue
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
                 total += effect.constraint.amount
             }
@@ -748,7 +749,7 @@ export function summonSurcharge(board: Board, usingPid: PlayerId, cardData: Card
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "opponentSummonCostIncrease") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, ownerPid, source, effect, level)) continue
                 // phase／turn は発生源の持ち主基準（turn:"opponent"＝持ち主のターンでないとき。26RDB01-053『相手のメインステップ』）
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue

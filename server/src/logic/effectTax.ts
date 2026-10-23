@@ -1,7 +1,8 @@
 // 概念: 効果税（「〜しなければ、その効果を発揮できない」）。マジックの使用・バーストの発動は成立し、
 // 効果の解決の直前だけに関門を置く。払う・払わないを選ぶのは課された側（使用者・発動者）
+import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
-import { effectActiveAtLevel, effectSources, timedPlayerRules } from "../../../shared/rules"
+import { effectSources, timedPlayerRules } from "../../../shared/rules"
 import type { EffectAction, GameState, PlayerId } from "../type"
 import { currentLevel, getCard, opponentOf } from "./GameState"
 
@@ -14,7 +15,7 @@ function taxCosts(state: GameState, payer: PlayerId, on: "magic" | "burst"): Tax
     for (const source of effectSources(state, opp)) {
         const level = currentLevel(source).level
         for (const e of getCard(source.cardId).effects) {
-            if (e.kind !== "effectTax" || e.on !== on || !effectActiveAtLevel(e.levels, level)) continue
+            if (e.kind !== "effectTax" || e.on !== on || !entryActive(state, opp, source, e, level)) continue
             if (e.phaseTurn) {
                 if (state.phase !== e.phaseTurn.phase) continue
                 if (e.phaseTurn.turn === "own" && opp !== state.turnPlayer) continue

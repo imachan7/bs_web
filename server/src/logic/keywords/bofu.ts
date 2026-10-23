@@ -1,8 +1,9 @@
 // 【暴風】の判定
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
-import { effectActiveAtLevel, effectSources, isVirtualSource } from "../../../../shared/rules"
+import { effectSources, isVirtualSource } from "../../../../shared/rules"
 
 export { bofuCountFor } from "../../../../shared/rules"
 
@@ -15,7 +16,7 @@ export function hasBofuOnBlock(state: GameState, ownerPid: PlayerId): boolean {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "bofuOnBlock") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
@@ -34,7 +35,7 @@ export function hasBofuChooserSelf(state: GameState, ownerPid: PlayerId): boolea
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "bofuChooserSelf") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             // phase（BS09-060緑翼の大樹Lv2＝『お互いのアタックステップ』）。
             // データには書いてあったのに型と実装が読んでおらず、メインステップでも効いていた（2026-08-24 修正）
             if (effect.phase !== undefined && state.phase !== effect.phase) continue

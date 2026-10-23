@@ -1,4 +1,5 @@
 // デッキ破棄（mill）の上限とデッキ破棄の実行
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import { recordLifeLost, recordMoved } from "../record"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
@@ -7,7 +8,7 @@ import { returnSpiritToDeckBottom } from "../removal"
 import { spiritMillFreeSummonOrConfirm } from "../revive"
 import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
-import { effectActiveAtLevel, effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
+import { effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { lifeCostBlockedByFloor, recordPlayerRule, resolveAction } from "../EffectModules"
 
@@ -25,7 +26,7 @@ export function millCapFor(state: GameState, pid: PlayerId): number {
             if (effect.kind === "globalConstraint" && effect.constraint.type === "millCap" && effect.constraint.mutual) continue
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             noteCoverage(effect, "globalConstraint")
             cap = Math.min(cap, effect.constraint.maxCount)
         }
@@ -38,7 +39,7 @@ export function millCapFor(state: GameState, pid: PlayerId): number {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap" || effect.constraint.bothSides !== true) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, opponentOf(pid), source, effect, level)) continue
             cap = Math.min(cap, effect.constraint.maxCount)
         }
     }
@@ -58,7 +59,7 @@ export function mutualMillCapRemainingFor(state: GameState, pid: PlayerId): numb
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "millCap" || !effect.constraint.mutual) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, scanPid, source, effect, level)) continue
                 remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
             }
         }
@@ -81,7 +82,7 @@ export function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
             if (!effect.constraint.perTurn) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
         }
     }
@@ -92,7 +93,7 @@ export function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap" || effect.constraint.bothSides !== true) continue
             if (!effect.constraint.perTurn) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, opponentOf(pid), source, effect, level)) continue
             remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
         }
     }
@@ -233,7 +234,7 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
         getCard(source.cardId).effects.some(
             (e) =>
                 e.kind === "milledMagicToTegamoto" &&
-                effectActiveAtLevel(e.levels, currentLevel(source).level),
+                entryActive(state, pid, source, e, currentLevel(source).level),
         ),
     )
     if (!active) return
@@ -267,7 +268,7 @@ export function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "noDeckMillByOpponent") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             // 「このネクサスが配置されたターンの間」（BS08鳳翼の聖剣）
             if (effect.constraint.whileSourceDeployedTurnOnly && source.summonedTurn !== state.turn) continue
             return true
@@ -287,7 +288,7 @@ export function findDeckMillNegate(
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "deckMillNegate") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             // 「相手の**スピリット**の効果で」。種別が渡っていない呼び出しでは、
             // onMilledFromDeck と同じく限定を緩めない側に倒して発火させない
             if (effect.by === "opponentSpiritEffect" && cause?.sourceType !== "spirit") continue

@@ -1,4 +1,5 @@
 // 【粉砕】の判定と解決
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, opponentOf } from "../GameState"
@@ -15,7 +16,7 @@ export function funsaiBonusTotal(state: GameState, ownerPid: PlayerId): number {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "funsaiBonus") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             noteCoverage(effect, "funsaiBonus")
             // BS15共通器：phaseTurn（発生源の持ち主基準のステップ・turn条件。BS15-071巨人の足跡湖）
             if (effect.phaseTurn) {
@@ -46,7 +47,7 @@ export function millCapBonusFor(state: GameState, ownerPid: PlayerId): number {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "millCapBonus") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             noteCoverage(effect, "millCapBonus")
             total += effect.amount
         }
@@ -62,7 +63,7 @@ export function hasFunsaiOnBlock(state: GameState, ownerPid: PlayerId): boolean 
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "funsaiOnBlock") continue
-            if (effectActiveAtLevel(effect.levels, level)) {
+            if (entryActive(state, ownerPid, source, effect, level)) {
                 noteCoverage(effect, "funsaiOnBlock")
                 return true
             }

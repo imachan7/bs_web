@@ -1,8 +1,9 @@
 // 【呪撃】の判定
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
-import { effectActiveAtLevel, effectSources, isVirtualSource } from "../../../../shared/rules"
+import { effectSources, isVirtualSource } from "../../../../shared/rules"
 import type { CardInstance } from "../../type"
 import { log } from "../GameState"
 import { notifySpiritCoresRemovedByOpponent } from "../triggers"
@@ -16,7 +17,7 @@ export function hasJugekiOnBlockReplace(state: GameState, ownerPid: PlayerId): b
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "jugekiOnBlockReplace") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (effectActiveAtLevel(effect.levels, level)) {
+            if (entryActive(state, ownerPid, source, effect, level)) {
                 noteCoverage(effect, "jugekiOnBlockReplace")
                 return true
             }
@@ -39,7 +40,7 @@ export function applyJugekiCoreToVoid(
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "jugekiCoreToVoid") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, attackerPid, source, effect, level)) continue
             const removed = Math.min(effect.count, victim.cores)
             if (removed === 0) continue
             noteCoverage(effect, "jugekiCoreToVoid")

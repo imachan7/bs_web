@@ -1,10 +1,11 @@
 // kind:"exhaustPreventByPay"（BS18-014）：疲労する1体ごとに、持ち主がコストを払って疲労を防ぐ
+import { entryActive } from "../../../../shared/rules/effectStop"
 import type { CardInstance, ResolvedTargetFilter, CardType, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, pushResumeFrames, suspend } from "../GameState"
 import { canPayResolve } from "../actions/pay"
 import { resolveAction } from "../EffectModules"
 import { noteCoverage } from "../../../../shared/coverage"
-import { effectActiveAtLevel, effectSources, matchesTarget } from "../../../../shared/rules"
+import { effectSources, matchesTarget } from "../../../../shared/rules"
 
 export const EXHAUST_PAY_LABEL = "支払う"
 
@@ -24,7 +25,7 @@ function findPrevention(state: GameState, ownerPid: PlayerId, inst: CardInstance
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "exhaustPreventByPay") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (!effect.bySourceTypes.includes(cause.causeType)) continue
             if (!matchesTarget(state, ownerPid, inst, effect.filter as unknown as ResolvedTargetFilter, source.instanceId)) continue
             if (!canPayResolve(state, ownerPid, source, effect.cost, undefined, getCard(source.cardId).type)) continue

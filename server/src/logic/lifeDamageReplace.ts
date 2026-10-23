@@ -1,8 +1,9 @@
 // kind:"lifeDamageReplace"：アタックが相手のライフを減らすとき、通常の減少の代わりに action を解決する
+import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, pushResumeFrames } from "./GameState"
-import { effectActiveAtLevel, matchesFamilyFilter, resolveAction } from "./EffectModules"
+import { matchesFamilyFilter, resolveAction } from "./EffectModules"
 import { effectSources } from "../../../shared/rules"
 import { requestActivationConfirm } from "./targeting"
 
@@ -19,7 +20,7 @@ function candidatesFor(state: GameState, attackerPid: PlayerId, attacker: CardIn
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "lifeDamageReplace") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, attackerPid, source, effect, level)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && attackerPid !== state.turnPlayer) continue

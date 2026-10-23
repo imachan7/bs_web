@@ -246,7 +246,14 @@ function restedNexusEffectsDisabled(board: Board): boolean {
 // 「無効化する側のネクサス」は下の走査に含まれるため一貫して効く
 // nexus指定時：targetLevels／phase指定を持つ効果は、その条件がnexusの現在Lv・現在stateと一致するときだけ止める。
 // 引数省略時（呼び出し互換用）はtargetLevels／phase指定の効果を無条件に無視する（判定できないので止めない側に倒す）
-function nexusEffectsDisabledFor(board: Board, pid: PlayerId, nexus?: CardInstance): boolean {
+// entry 指定時は targetEffectLevels（止める対象のエントリの Lv 指定）を持つ効果をそのエントリについて判定する。
+// entry 省略時は targetEffectLevels を持つ効果を無視する（個体丸ごとは止めない。エントリ単位は entryActive が見る）
+export function nexusEffectsDisabledFor(
+    board: Board,
+    pid: PlayerId,
+    nexus?: CardInstance,
+    entry?: { levels: number[] | null },
+): boolean {
     if (timedPlayerRules(board, pid).some((c) => c.type === "nexusEffectsDisabledForPid")) return true
     const opp = board.players[pid === "p1" ? "p2" : "p1"]
     const sources = [
@@ -263,6 +270,7 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId, nexus?: CardInstan
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid === "p1" ? "p2" : "p1", effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.targetEffectLevels && (!entry || (entry.levels !== null && !entry.levels.some((l) => effect.targetEffectLevels!.includes(l))))) continue
             if (effect.phase !== undefined && effect.phase !== board.phase) continue
             noteCoverage(effect, "nexusEffectsDisabled")
             return true
@@ -283,6 +291,7 @@ function nexusEffectsDisabledFor(board: Board, pid: PlayerId, nexus?: CardInstan
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
             if (effect.targetLevels && (!nexus || !effect.targetLevels.includes(currentLevel(nexus).level))) continue
+            if (effect.targetEffectLevels && (!entry || (entry.levels !== null && !entry.levels.some((l) => effect.targetEffectLevels!.includes(l))))) continue
             if (effect.phase !== undefined && effect.phase !== board.phase) continue
             if (effect.condition?.ownFieldOnlyColor && !ownFieldOnlyColor(board, pid, effect.condition.ownFieldOnlyColor, effect.condition.spiritsOnly)) continue
             noteCoverage(effect, "nexusEffectsDisabled")

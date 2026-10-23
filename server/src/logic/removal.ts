@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { entryActive } from "../../../shared/rules/effectStop"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
@@ -146,7 +147,7 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, pid, source, effect, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
@@ -584,7 +585,7 @@ function bp0DestroyedGoesToDeckBottom(state: GameState, ownerPid: PlayerId, inst
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "bp0DestroyedToDeckBottom") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && pid === state.turnPlayer) continue
@@ -957,7 +958,7 @@ function hasOwnNexusIndestructible(
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "ownNexusIndestructible") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, inst, effect, level)) continue
             // colors（BS09-062ノルンの泉Lv2＝白/黄のネクサスだけ）：対象が分からないときは守らない側に倒す
             if (effect.constraint.colors !== undefined) {
                 if (!target) continue
@@ -1260,7 +1261,7 @@ function allSpiritsCantBounceActive(state: GameState): boolean {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "allSpiritsCantBounce") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, pid, source, effect, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
@@ -1665,7 +1666,7 @@ function coreFloorBlockingKeywordFor(state: GameState, inst: CardInstance): numb
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "coreFloorWhileBlockingKeyword") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, pid, source, effect, level)) continue
                 if (!spiritHasKeywordOrLabel(state, pid, attacker, effect.constraint.keyword)) continue
                 floor = Math.max(floor, effect.constraint.floor)
             }
@@ -1684,7 +1685,7 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "coreFloorByCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, pid, source, effect, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
@@ -1713,7 +1714,7 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
             const level = currentLevel(source).level
             for (const e of getCard(source.cardId).effects) {
                 if (e.kind !== "coreReturnBonus") continue
-                if (!effectActiveAtLevel(e.levels, level)) continue
+                if (!entryActive(state, pid, source, e, level)) continue
                 // 既定はリザーブ行きだけ。includeTrash 指定時はトラッシュ行きにも効く（BS14-019）
                 if (toTrash && !e.includeTrash) continue
                 // targetSide:"opponent"＝発生源の持ち主から見た相手のスピリットから取り除くときだけ

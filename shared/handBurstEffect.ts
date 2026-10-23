@@ -1,4 +1,5 @@
 // 手札のマジックのバースト効果を発揮する操作（kind:"handBurstEffectGrant"）の可否。サーバーの検証とクライアントのボタン出し分けが共有する
+import { entryActive } from "./rules/effectStop"
 import type { PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
@@ -20,7 +21,7 @@ export function handBurstEffectDenial(board: Board, pid: PlayerId, cardId: strin
     for (const src of effectSources(board, pid)) {
         const level = currentLevel(src).level
         for (const e of card(src.cardId).effects) {
-            if (e.kind !== "handBurstEffectGrant" || !effectActiveAtLevel(e.levels, level)) continue
+            if (e.kind !== "handBurstEffectGrant" || !entryActive(board, pid, src, e, level)) continue
             if (e.attackerKeyword.some((k) => spiritHasKeyword(board, pid, attacker, k))) return null
         }
     }

@@ -17,6 +17,7 @@ import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from
 import { matchesTarget } from "./targetFilter"
 import { instanceSymbolCount } from "./symbols"
 import { boardResistanceAgainst, type EffectAttempt } from "./resistance"
+import { entryActive } from "./effectStop"
 import { bravesOf, cardHasColor, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, hasKeyword, instHasColor, keywordMatches, matchesBraveCondition } from "./level"
 
 // ---- 覚醒・起動能力・指定アタック（UIハイライトとサーバー検証で共有する判定） ----
@@ -36,7 +37,7 @@ export function sokuPayableInstanceIds(board: Board, pid: PlayerId): Set<string>
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "sokuPaySourceGrant") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
             noteCoverage(effect, "sokuPaySourceGrant")
@@ -72,7 +73,7 @@ export function payAssistCandidates(
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "payAssistByExhaust") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, pid, inst, effect, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if ((effect.via ?? "shinsoku") === "shinsoku" && !summoning.flash) continue
             if (effect.minBaseCost !== undefined && summoned.cost < effect.minBaseCost) continue
@@ -94,7 +95,7 @@ export function burstSetCoresRequired(board: Board, pid: PlayerId): number {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "burstSetCost") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, opp, source, effect, level)) continue
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && opp !== board.turnPlayer) continue
@@ -125,7 +126,7 @@ export function canAwakenFromReserve(board: Board, ownerPid: PlayerId, inst?: Ca
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "awakenFromReserve") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, ownerPid, source, effect, level)) continue
             // superAwakenOnly（BS13-002鎧竜人アンキロングLv2）：【超覚醒】持ちにだけ有効。
             // 対象インスタンス未指定（inst省略）のときは広く判定する既存の呼び出し元向けの後方互換
             if (effect.superAwakenOnly && (!inst || !hasSuperAwaken(board, ownerPid, inst))) continue
@@ -180,7 +181,7 @@ function globalCoresCantBeRemoved(board: Board, targetOwnerPid: PlayerId, actorP
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "coresCantBeRemovedAll") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, sourcePid, inst, effect, level)) continue
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
@@ -210,7 +211,7 @@ export function summonExhausted(
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "summonExhausted") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, sourcePid, inst, effect, level)) continue
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
@@ -244,7 +245,7 @@ export function coresCantBeRemovedByOpponent(
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "coresCantBeRemovedByOpponent") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, targetOwnerPid, inst, effect, level)) continue
             if (!card(target.cardId).name.includes(effect.constraint.nameContains)) continue
             return true
         }
@@ -324,7 +325,7 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
     if (filter.maxBp !== undefined && card(source.cardId).type === "spirit") {
         for (const s of effectSources(board, pid)) {
             const lv = currentLevel(s).level
-            for (const e of card(s.cardId).effects) if (e.kind === "destroyBpThresholdBonus" && effectActiveAtLevel(e.levels, lv)) filter.maxBp += e.amount
+            for (const e of card(s.cardId).effects) if (e.kind === "destroyBpThresholdBonus" && entryActive(board, pid, s, e, lv)) filter.maxBp += e.amount
         }
     }
     const opp: PlayerId = pid === "p1" ? "p2" : "p1"
@@ -354,7 +355,7 @@ function activatableAbilityOf(
         if (e.kind !== "activated") continue
         // 【合体時】の起動能力は合体しているブレイヴからのみ、それ以外はホスト自身からのみ拾う
         if ((e.whileCombined === true) !== whileCombinedOnly) continue
-        if (!effectActiveAtLevel(e.levels, level)) continue
+        if (!entryActive(board, pid, source, e, level)) continue
         // 発動可能タイミング（validateActivateAbility と同じ切り分け）
         if (e.timing === "flashBattle" && !inBattleFlash) continue
         if (e.timing === "flash" && !inBattleFlash && !inOwnMain) continue
@@ -529,7 +530,7 @@ export function isFlashLockedFor(board: Board, pid: PlayerId, cardType?: CardTyp
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "flashLockWhileAttackingFamily") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, opp, source, effect, level)) continue
             if (effect.cardType !== undefined && effect.cardType !== cardType) continue
             if (effect.minSymbols !== undefined && instanceSymbolCount(attacker) < effect.minSymbols) continue
             if (effect.familyFilter === undefined || matchesFamilyFilter(board, opp, attacker, effect.familyFilter)) {
