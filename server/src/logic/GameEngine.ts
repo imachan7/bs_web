@@ -1,5 +1,5 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
-import { noteCoverage } from "../../../shared/coverage"
+import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge } from "./summonSurcharge"
 import { exSymbolsOfTrashCard, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
@@ -48,6 +48,7 @@ import {
     burstSetCoresRequired,
     payAssistCandidates,
     ownHandKeyword,
+    noteHeldKeyword,
 } from "../../../shared/rules"
 import {
     placeBurst,
@@ -817,6 +818,7 @@ export function finishResshinsokuSummon(state: GameState, pid: PlayerId, info: R
     const player = state.players[pid]
     const at = player.hand[info.handIndex] === info.cardId ? info.handIndex : player.hand.lastIndexOf(info.cardId)
     if (at === -1) return null
+    noteKeyword(getCard(info.cardId).effects, "resshinsoku")
     if (!surchargePaid) {
         const resume = { type: "resshinsokuFinishInternal", handIndex: info.handIndex, cardId: info.cardId, selfCores: info.selfCores } as const
         if (askSurchargePay(state, pid, getCard(info.cardId), false, 0, resume)) return null
@@ -1086,6 +1088,7 @@ function refreshOnSuperAwaken(state: GameState, pid: PlayerId, target: CardInsta
     if (!target.isRested) return
     if (!hasSuperAwaken(state, pid, target)) return
     refreshSpirit(state, pid, target)
+    noteHeldKeyword(state, pid, target, "superAwaken")
     log(state, `【超覚醒】${getCard(target.cardId).name}は回復した。`)
 }
 
@@ -1104,11 +1107,7 @@ function doAwaken(
     if (!target) return "対象のスピリットが見つかりません"
 
     const noteAwaken = () => {
-        const awakenLevel = currentLevel(target).level
-        const awakenEntry = getCard(target.cardId).effects.find(
-            (e) => e.kind === "keyword" && e.keyword === "awaken" && effectActiveAtLevel(e.levels, awakenLevel),
-        )
-        if (awakenEntry) noteCoverage(awakenEntry, "keyword")
+        noteHeldKeyword(state, pid, target, "awaken")
     }
     // リザーブからの【覚醒】（ディノゾールLv2で書き換えられた場合）。移動元スピリットの消滅判定は不要
     if (fromInstanceId === AWAKEN_FROM_RESERVE) {

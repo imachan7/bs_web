@@ -461,12 +461,14 @@ export function resolveMilledFromDeck(
             // 器AR：summonThisSpiritFree（BS13-034）は「できる」＝任意なので、トラッシュに置いたまま
             // 確認（非対話は自動召喚）に回す。他の2つ（無条件）とは違いここではまだ取り除かない
             if (effect.then === "summonThisSpiritFree") {
+                noteCoverage(effect, "onMilledFromDeck")
                 spiritMillFreeSummonOrConfirm(state, pid, idx)
                 break
             }
             // 器BS16：destroyMillSource / voidOpponentLife はどちらも**カード自身は破棄されたまま
             // トラッシュに残る**（マジック/ネクサスのように場へ出ないため splice しない）
             if (effect.then === "destroyMillSource") {
+                noteCoverage(effect, "onMilledFromDeck")
                 const causer = state.currentEffectSource
                 const causerInst =
                     causer?.instanceId !== undefined
@@ -481,6 +483,7 @@ export function resolveMilledFromDeck(
                 break
             }
             if (effect.then === "voidOpponentLife") {
+                noteCoverage(effect, "onMilledFromDeck")
                 resolveAction(state, pid, null, { type: "lifeCrush", count: 1, dest: "void" }, undefined, getCard(cardId).colors, "spirit")
                 break
             }

@@ -1,5 +1,5 @@
 // 盤面の付与効果を考慮したキーワード・系統の判定（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
-import { noteCoverage } from "../coverage"
+import { noteCoverage, noteKeyword } from "../coverage"
 
 import type {
     CardData,
@@ -51,6 +51,13 @@ export function spiritHasKeyword(
     }
     if (timedKeywords(board, inst).some((k) => keywordMatches(k.keyword, keyword))) return true
     return hasContinuousKeywordGrant(board, ownerPid, inst, keyword)
+}
+
+// 計測用：inst が実際に持つ【keyword】のエントリを記録する。合体中のブレイヴ経由のキーワードは
+// inst.cardId の効果には無いので、ブレイヴ側のエントリも拾う（self.cardId だけを引く計測点は合体では素通りする）
+export function noteHeldKeyword(board: Board, ownerPid: PlayerId, inst: CardInstance, keyword: Keyword): void {
+    noteKeyword(card(inst.cardId).effects, keyword, currentLevel(inst).level)
+    for (const b of bravesOf(board.players[ownerPid], inst)) noteKeyword(card(b.cardId).effects, keyword)
 }
 
 // ラベルキーワード（kind:"keyword" の宣言エントリを持たず、triggered/activated の keyword ラベル
@@ -460,6 +467,7 @@ export function bofuCountFor(board: Board, ownerPid: PlayerId, inst: CardInstanc
             if (effect.kind !== "keyword" || effect.keyword !== "bofu") continue
             if (!entryActive(board, ownerPid, src, effect, level)) continue
             base = effect.count ?? 1
+            noteCoverage(effect, "keyword")
             break
         }
     }

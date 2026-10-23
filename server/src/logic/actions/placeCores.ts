@@ -15,7 +15,7 @@ import {
     voidCoreToOwnTrash,
     voidCorePlacementBlocked,
 } from "../EffectModules"
-import { effectiveBp, hasGlobalConstraint, isEndStepLocked, spiritHasKeyword } from "../../../../shared/rules"
+import { effectiveBp, hasGlobalConstraint, isEndStepLocked, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
 import { takeCoresFromSpirit } from "../removal"
 import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -495,7 +495,7 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
 
     // BS09-064天駆ける方舟：「【聖命】の効果で自分のライフにコアが置かれたとき」（from:void限定。旧 lifeCharge と同じ絞り）
     if (action.to === "life" && action.from === "void" && self && spiritHasKeyword(state, owner, self, "seimei")) {
-        noteKeyword(getCard(self.cardId).effects, "seimei")
+        noteHeldKeyword(state, owner, self, "seimei")
         fireFieldEventTriggers(state, owner, "ownSeimeiLifeCharged", { pid: owner, inst: self })
     }
     if (action.to === "life" && action.from === "void") fireFieldEventTriggers(state, opponentOf(owner), "opponentLifeCoreFromVoid", undefined, undefined, undefined, totalMoved)
