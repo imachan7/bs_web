@@ -255,7 +255,7 @@ scenario({
         t.closeFlash()
     },
     // ポニサスは Lv2(6000) のまま。ペンタン(4000) が負ける
-    expect: [gone("自分.詩人ペンタン"), `自分.トラッシュ: なし → ${name(PENTAN)}`, "自分.リザーブ: 10 → 12"],
+    expect: [gone("自分.詩人ペンタン"), `自分.トラッシュ: なし → ${name(PENTAN)}`, "自分.リザーブ: 10 → 12", "相手.ポニサス.疲労: false → true"],
 })
 
 // ============================================================
@@ -464,7 +464,7 @@ scenario({
 })
 scenario({
     name: "045-バーストを発動しない",
-    start: { turn: "opp", me: { burst: FAUST, spirits: [{ card: WILL }] }, opp: { hand: [FLAME] } },
+    start: { interactive: true, turn: "opp", me: { burst: FAUST, spirits: [{ card: WILL }] }, opp: { hand: [FLAME] } },
     steps(t) {
         cast(t, "opp", FLAME, "自分.創造主グリム・ウィル")
         settle(t, { no: 0 })
@@ -473,7 +473,7 @@ scenario({
 })
 scenario({
     name: "045-召喚時のオープン召喚をしない",
-    start: { turn: "opp", me: { burst: FAUST, spirits: [{ card: WILL }] }, opp: { hand: [FLAME] } },
+    start: { interactive: true, turn: "opp", me: { burst: FAUST, spirits: [{ card: WILL }] }, opp: { hand: [FLAME] } },
     steps(t) {
         cast(t, "opp", FLAME, "自分.創造主グリム・ウィル")
         settle(t, { no: faustField })
@@ -538,6 +538,8 @@ function paid059(seed: string, combine: boolean, attackFirst = true): number {
     if (attackFirst) {
         assert(act(s, "p1", { type: "nextPhase" }) === null, `${seed} アタックステップへ`)
         assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, `${seed} アタックできる`)
+        // アタック宣言直後のフラッシュの優先権は防御側が先
+        assert(act(s, "p2", { type: "pass" }) === null, `${seed} 防御側がパス`)
     }
     const before = s.players.p1.reserve
     assert(act(s, "p1", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: foe.instanceId }) === null, `${seed} マジックが使える`)
@@ -569,7 +571,7 @@ scenario({
 })
 scenario({
     name: "069-断る",
-    start: { turn: "opp", me: { hand: [HENZEL], spirits: [{ card: ROKU }], nexuses: [{ card: SWEETS, cores: 0 }] }, opp: { hand: [FLAME] } },
+    start: { interactive: true, turn: "opp", me: { hand: [HENZEL], spirits: [{ card: ROKU }], nexuses: [{ card: SWEETS, cores: 0 }] }, opp: { hand: [FLAME] } },
     steps(t) {
         cast(t, "opp", FLAME, "自分.ロクケラトプス")
         settle(t, { no: 0 })
@@ -578,7 +580,7 @@ scenario({
 })
 scenario({
     name: "069-ターンに1回",
-    start: {
+    start: { interactive: true,
         turn: "opp",
         me: { hand: [HENZEL, JAY], spirits: [{ card: ROKU, label: "ロク甲" }, { card: ROKU, label: "ロク乙" }], nexuses: [{ card: SWEETS, cores: 0 }] },
         opp: { hand: [FLAME, FLAME] },
@@ -772,10 +774,11 @@ scenario({
     expect: ["相手.ポニサス.疲労: false → true", gone("相手.ロクケラトプス"), `相手.トラッシュ: なし → ${name(ROKU)}`, "相手.リザーブ: 10 → 11", ...paniced],
 })
 scenario({
-    name: "082-疲労状態のスピリットを指定するとブロックは起きない",
+    name: "082-疲労状態のスピリットも指定でき、そのスピリットでブロックする",
     start: { turn: "opp", phase: "attack", me: { hand: [PANIC] }, opp: { spirits: [{ card: PONI }, { card: ROKU, rested: true }] } },
-    steps: oppAttackPanic("相手.ロクケラトプス", (t) => t.act("me", { type: "takeLife" })),
-    expect: ["相手.ポニサス.疲労: false → true", "自分.ライフ: 5 → 4", "自分.リザーブ: 10 → 4", ...paniced.filter((l) => !l.includes("リザーブ"))],
+    steps: oppAttackPanic("相手.ロクケラトプス", () => {}),
+    // 2026-10-23 確定（RULES_BATSPI_WIKI §6）。疲労済みでもブロッカーに指定でき、疲労の変化は起きない
+    expect: ["相手.ポニサス.疲労: false → true", gone("相手.ロクケラトプス"), `相手.トラッシュ: なし → ${name(ROKU)}`, "相手.リザーブ: 10 → 11", ...paniced],
 })
 scenario({
     name: "082-対象が場を離れたら防御側が通常どおり決める",
@@ -837,7 +840,7 @@ scenario({
     },
     // ネクロウ(3000) は ポニサス(4000) に負けて破壊される。ポニサスは疲労するが、呪撃では破壊されない
     expect: [
-        "相手.ネクロウ.疲労: false → true", gone("相手.ネクロウ"), `相手.トラッシュ: なし → ${name(NEKURO)}`, "相手.リザーブ: 10 → 12", "相手.ポニサス.疲労: false → true", ...paniced,
+        gone("相手.ネクロウ"), `相手.トラッシュ: なし → ${name(NEKURO)}`, "相手.リザーブ: 10 → 12", "相手.ポニサス.疲労: false → true", ...paniced,
     ],
 })
 
@@ -870,7 +873,7 @@ scenario({
 })
 scenario({
     name: "X05-オープンしない",
-    start: mephiStart,
+    start: { ...mephiStart, interactive: true },
     steps: (t) => mephiAttackCast(t, { no: 0 }),
     expect: [...mephiMagic, "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 3", ...oppLifeHit],
 })
@@ -891,7 +894,7 @@ scenario({
 console.log("=== X05 Lv2. 相手に破壊されたとき手札かデッキの上に戻る ===")
 const mephiBlocked = (cores: number, o?: Parameters<typeof settle>[1]) => ({
     start: {
-        turn: "opp" as const, phase: "attack" as const,
+        turn: "opp" as const, phase: "attack" as const, interactive: true,
         me: { spirits: [{ card: MEPHI, cores }] },
         opp: { spirits: [{ card: WINGAL, cores: 4 }] },
     },

@@ -33,7 +33,9 @@ export function pickEnemyCandidates(
     op: EffectAttempt["op"] = "other",
 ): CardInstance[] {
     const attempt: EffectAttempt = {
-        op,
+        // 「手札に戻らない」(bounceImmune)は対象に選べて解決で戻らないだけ（2026-10-23 ユーザー確認）なので、候補の列挙では bounce を渡さない。
+        // 戻す側の適用点（gateTargetedApply）は op:"bounce" で判定するのでここで外すだけでよい
+        op: op === "bounce" ? "other" : op,
         scope: "targeted",
         actorPid: opponentOf(targetPid),
         // **候補を数えているだけ**なので probing。コストを払って防ぐ耐性（竜騎集う円卓Lv2）は
