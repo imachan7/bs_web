@@ -505,8 +505,7 @@
             "atMost": 2
           },
           "then": {
-            "type": "summonBurstCardFree",
-            "payCost": true
+            "type": "summonBurstCardFree"
           }
         }
       },
@@ -1005,8 +1004,7 @@
         "kind": "burst",
         "event": "ownLifeDamaged",
         "action": {
-          "type": "summonBurstCardFree",
-          "payCost": true
+          "type": "summonBurstCardFree"
         }
       },
       {
