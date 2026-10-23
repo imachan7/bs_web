@@ -187,6 +187,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/keywordState.ts
 
 - `spiritHasKeyword`（fn）：状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
+- `noteHeldKeyword`（fn）：計測用：inst が実際に持つ【keyword】のエントリを記録する。合体中のブレイヴ経由のキーワードは
 - `LABELED_KEYWORDS`（const）：ラベルキーワード（kind:"keyword" の宣言エントリを持たず、triggered/activated の keyword ラベル
 - `spiritHasLabeledKeyword`（fn）：効果レコードの keyword ラベル（triggered/activated の effect.keyword、kind:"keyword" の宣言レコード）に
 - `spiritHasKeywordOrLabel`（fn）：キーワードを「持つ」かの共通判定：26系ラベルキーワードは spiritHasLabeledKeyword、旧キーワードは spiritHasKeyword

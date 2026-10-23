@@ -2,7 +2,7 @@
 
 import { entryActive } from "../../../shared/rules/effectStop"
 import { takeCoreGainAllowance } from "./coreGainCap"
-import { noteCoverage, noteKeyword } from "../../../shared/coverage"
+import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
 import { recordLifeLost } from "./record"
@@ -178,6 +178,7 @@ export function applyReviveEntry(
 // 破壊された個体が【不死】の引き金として持つコストの一覧。
 // 本来のコストに加えて「破壊されたとき、このコストとしても扱う」ぶんを足す（BS11-064 闇の聖剣Lv1）
 export function destroyedCostsOf(inst: CardInstance): number[] {
+    if ((inst.alsoCostsWhenDestroyed ?? []).length > 0) noteGrantedFrom(inst, "alsoCostGrant")
     return [getCard(inst.cardId).cost, ...(inst.alsoCostsWhenDestroyed ?? [])]
 }
 

@@ -39,7 +39,7 @@ import {
     summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword } from "../../../shared/rules"
+import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword, noteHeldKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     effectiveBp,
@@ -1640,10 +1640,7 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         spiritHasLabeledKeyword(state, state.turnPlayer, attacker, "clash") &&
         hasLegalBlocker(state, pid, undefined, { pid: state.turnPlayer, inst: attacker })
     ) {
-        if (hasKeyword(attacker.cardId, "clash")) {
-            const clashEntry = getCard(attacker.cardId).effects.find((e) => e.kind === "keyword" && e.keyword === "clash")
-            if (clashEntry) noteCoverage(clashEntry, "keyword")
-        }
+        noteHeldKeyword(state, state.turnPlayer, attacker, "clash")
         return "【激突】によりブロックしなければなりません"
     }
     if (forcedBlockers(state, pid).length > 0) return "相手の効果により、指定されたスピリットでブロックしなければなりません"

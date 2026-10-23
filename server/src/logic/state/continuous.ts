@@ -222,6 +222,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const c of effect.colors ?? []) {
                         if (!granted.includes(c)) granted.push(c)
                     }
+                    noteGrantSource(host, effect)
                 }
             }
         }
@@ -355,6 +356,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     const own = (source.heavyArmorColorsGranted ??= [])
                     for (const c of instColors(source)) if (!own.includes(c)) own.push(c)
+                    noteGrantSource(source, effect)
                     continue
                 }
                 if (effect.kind === "vanillaAsGrant") {
@@ -371,13 +373,17 @@ export function refreshLevelAsOverrides(state: GameState): void {
                                 ? undefined
                                 : (state.players.p1.field.spirits.find((s) => s.instanceId === chosenId) ??
                                   state.players.p2.field.spirits.find((s) => s.instanceId === chosenId))
-                        if (chosen) chosen.treatedAsVanillaContinuous = true
+                        if (chosen) {
+                            noteCoverage(effect, "vanillaAsGrant")
+                            chosen.treatedAsVanillaContinuous = true
+                        }
                         continue
                     }
                     // self（BS12-046ナタ・ゴレム／BS12-059ショゴルス）：発生源自身。
                     // 合体中ブレイヴ自身の効果なら「このスピリット」はホストを指す（BRAVE.md §12.3。destroyAsMaxLevelGrantと同じ考え方）
                     if (effect.target === "self") {
                         if (effect.whileCombined && !instIsCombined(source)) continue
+                        noteCoverage(effect, "vanillaAsGrant")
                         const isBrave = player.field.combinedBraves.some((b) => b.instanceId === source.instanceId)
                         if (isBrave) {
                             for (const host of hostsOf(player, source)) host.treatedAsVanillaContinuous = true
@@ -407,6 +413,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.target === "opponentNexusesAll") {
                         // BS15-015吸血令嬢エサルフリーダ：相手のネクサスすべての「Lvコスト」を+amount
                         for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
+                            noteCoverage(effect, "levelCostMod")
                             nexus.levelCostBonusContinuous = (nexus.levelCostBonusContinuous ?? 0) + effect.amount
                         }
                         continue
@@ -434,7 +441,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
                                 ? undefined
                                 : (state.players.p1.field.spirits.find((s) => s.instanceId === chosenId) ??
                                   state.players.p2.field.spirits.find((s) => s.instanceId === chosenId))
-                        if (chosen) chosen.effectsDisabledContinuous = true
+                        if (chosen) {
+                            noteCoverage(effect, "spiritEffectsDisabledGrant")
+                            chosen.effectsDisabledContinuous = true
+                        }
                         continue
                     }
                     const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid

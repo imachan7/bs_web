@@ -161,6 +161,7 @@ export function reductionGrantSymbols(
                   ).length,
               ).fill(effect.symbols[0]!)
             : effect.symbols
+        noteCoverage(effect, "reductionGrant")
         extra.push(...repeated)
     }
     return { extra }
@@ -442,6 +443,7 @@ export function costSetOverride(
         if (effect.condition !== undefined && "ownNoSpirit" in effect.condition) {
             if (board.players[pid].field.spirits.length > 0) continue
         }
+        noteCoverage(effect, "costMod")
         if (result === undefined || effect.setTo < result) result = effect.setTo
     }
     // handCostSetForPid：手札のカードだけ（両陣営に掛かる＝timedEffect side:"both"）
@@ -729,6 +731,7 @@ function opponentMagicCostIncrease(board: Board, usingPid: PlayerId, cardData: C
                 if (effect.constraint.type !== "opponentMagicCostIncrease") continue
                 if (!entryActive(board, ownerPid, source, effect, level)) continue
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
+                noteCoverage(effect, "globalConstraint")
                 total += effect.constraint.amount
             }
         }

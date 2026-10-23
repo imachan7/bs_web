@@ -4,7 +4,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, opponentOf } from "../GameState"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { hasGlobalConstraint, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, spiritHasKeyword } from "../../../../shared/rules"
+import { hasGlobalConstraint, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
 import { millDeck } from "../zones/mill"
 
 // 持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ）合計：【粉砕】の破棄枚数に加算する。
@@ -87,11 +87,8 @@ export function resolveFunsai(
     // 仮想発生源からの貸与も含む。BS05サーキュラーソー・アーム）。既存の静的カードは全レベルで
     // 【粉砕】を持つため、レベル不問のこの判定に切り替えても挙動は変わらない
     if (!spiritHasKeyword(state, ownerPid, spirit, "funsai")) return
+    noteHeldKeyword(state, ownerPid, spirit, "funsai")
     const level = currentLevel(spirit).level
-    const funsaiEntry = getCard(spirit.cardId).effects.find(
-        (e) => e.kind === "keyword" && e.keyword === "funsai" && effectActiveAtLevel(e.levels, level),
-    )
-    if (funsaiEntry) noteCoverage(funsaiEntry, "keyword")
     const bonus = funsaiBonusTotal(state, ownerPid)
     const opponentPid = opponentOf(ownerPid)
     const trashCards = state.players[opponentPid].trashCards

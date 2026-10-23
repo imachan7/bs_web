@@ -13,7 +13,7 @@ import { burstTenshoUnpayable } from "../keywords/tensho"
 import { suspend } from "../GameState"
 import { exhaustNexus } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
-import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
+import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
@@ -651,7 +651,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
             else cost = { ...cost, count: left }
         }
     }
-    if (action.limitByKeyword === "kyoshu" && self) noteKeyword(getCard(self.cardId).effects, "kyoshu")
+    if (action.limitByKeyword === "kyoshu" && self) noteHeldKeyword(state, owner, self, "kyoshu")
     if (action.limitByKeyword === "kyoshu" && self) self.kyoshuUsed = { turn: state.turn, count: kyoshuUsed + 1 }
     // 「Nコスト支払う」はフィールドのコアからも払える（リザーブだけでは足りないとき・対話で選べるとき）
     if (!tollCovered && isReserveToll(cost) && cost.count > 0) {

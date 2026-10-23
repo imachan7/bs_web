@@ -1,5 +1,5 @@
 // 制約・免疫・期間つき効果の読み取り（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
-import { noteCoverage, noteKeyword } from "../coverage"
+import { noteCoverage, noteGrantedFrom, noteKeyword } from "../coverage"
 
 import type {
     ConstraintDef,
@@ -187,6 +187,7 @@ export function activeConstraintsWithSource(
             if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             if (familyFilter !== undefined && !matchesFamilyFilter(board, pid, inst, familyFilter)) continue
             if (costFilter !== undefined && !instHasCost(inst, costFilter)) continue
+            noteCoverage(effect, "constraint")
             granted.push({ sourceInstanceId: source.instanceId, constraint: effect.constraint })
         }
     }
@@ -296,7 +297,9 @@ export function hasArmorAgainst(board: Board, inst: CardInstance, sourceColors: 
     }
     // 継続付与の装甲（kind:"keywordGrant"のkeyword:"armor"。refreshLevelAsOverridesが
     // armorColorsGrantedへ毎回再計算する。BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白）
-    return (inst.armorColorsGranted ?? []).some((c) => sourceColors.includes(c))
+    if (!(inst.armorColorsGranted ?? []).some((c) => sourceColors.includes(c))) return false
+    noteGrantedFrom(inst, "keyword")
+    return true
 }
 
 // 【重装甲】。装甲との差は**ブレイヴの効果も防ぐ**ことだけで、判定の形は hasArmorAgainst と同じ。
@@ -314,10 +317,15 @@ export function hasHeavyArmorAgainst(inst: CardInstance, sourceColors: Color[] |
             effectActiveOn(inst, e, level) &&
             (e.colors?.some((c) => sourceColors.includes(c)) ?? false),
     )
-    if (staticHeavyArmor) return true
+    if (staticHeavyArmor) {
+        noteKeyword(card(inst.cardId).effects, "heavyArmor", level)
+        return true
+    }
     // 毎回算出ぶん（合体中のブレイヴが持つ静的【重装甲】のホストへの反映と、【重装甲：可変】＝colorsFrom:"selfColors"）。
     // refreshLevelAsOverrides が heavyArmorColorsGranted へ都度再構築する
-    return (inst.heavyArmorColorsGranted ?? []).some((c) => sourceColors.includes(c))
+    if (!(inst.heavyArmorColorsGranted ?? []).some((c) => sourceColors.includes(c))) return false
+    noteGrantedFrom(inst, "keyword")
+    return true
 }
 
 // 器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
@@ -461,7 +469,10 @@ export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeImmuneToSpiritEffects") continue
-            if (entryActive(board, pid, source, effect, level)) return true
+            if (entryActive(board, pid, source, effect, level)) {
+                noteCoverage(effect, "globalConstraint")
+                return true
+            }
         }
     }
     return false
@@ -535,6 +546,7 @@ export function refreshRestrictionsFor(
                 if (effect.constraint.type === "refreshOnlyOneUncombined") result.onlyOneUncombined = true
                 else if (effect.constraint.type === "nexusesCantRefresh") result.nexuses = true
                 else if (effect.constraint.type === "opponentCombinedCantRefresh" && owner !== pid) {
+                    noteCoverage(effect, "globalConstraint")
                     result.combined = true
                 }
             }
@@ -617,7 +629,10 @@ export function instCantAttackByCost(board: Board, inst: CardInstance): boolean 
                 const constraint = effect.constraint
                 if (constraint.type !== "cantAttackByCost") continue
                 if (!entryActive(board, pid, source, effect, level)) continue
-                if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) return true
+                if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) {
+                    noteCoverage(effect, "globalConstraint")
+                    return true
+                }
             }
         }
     }
@@ -935,6 +950,7 @@ export function lifeDamagePerSpiritRemaining(board: Board, spirit: CardInstance)
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "lifeDamagePerSpiritPerTurn") continue
                 if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                noteCoverage(effect, "globalConstraint")
                 const dealt = spirit.lifeDealtThisTurn ?? 0
                 remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
             }
@@ -1073,6 +1089,7 @@ export function noOpponentTriggerByColor(
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (!effect.constraint.triggers.includes(event)) continue
                 if (effect.constraint.color !== undefined && !instHasColor(inst, effect.constraint.color)) continue
+                noteCoverage(effect, "globalConstraint")
                 return true
             }
         }
