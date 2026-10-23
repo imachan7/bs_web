@@ -1,0 +1,1111 @@
+[
+ {
+  "cardId": "BS18-010",
+  "name": "キャメロット・ポーン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS18-011",
+  "name": "ゾンビ・スネーク",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n系統：「古竜」を持つ相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS18-011-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "family": "古竜"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-012",
+  "name": "闇騎士ラモラック",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "雄将",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札2枚までを破棄することで、その破棄したカード1枚につき、相手のスピリット1体のコア1個を相手のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS18-012-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
+      "count": 2,
+      "upTo": true
+     },
+     "then": {
+      "type": "removeCores",
+      "from": [
+       "spirit"
+      ],
+      "to": "trash",
+      "count": 1,
+      "countCounter": "lastMoved"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-013",
+  "name": "ドン・ディエゴッド",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "purple"
+  ],
+  "family": [
+   "雄将",
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nお互いのデッキは破棄されない。\nLv1･Lv2･Lv3『お互いのメインステップ』\nスピリットの効果でボイドからコアが増えたとき、増えたコアすべてをボイドに置く。\nさらに、その効果を発揮したスピリットのコアすべてをボイドに置く。",
+  "effects": [
+   {
+    "id": "BS18-013-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "noDeckMill"
+    }
+   },
+   {
+    "id": "BS18-013-e2",
+    "kind": "fieldEvent",
+    "event": "coresGainedFromVoid",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "main",
+    "opponentEffectSourceTypes": [
+     "spirit"
+    ],
+    "eventSourceAsTarget": true,
+    "action": {
+     "type": "sequence",
+     "passEventTarget": true,
+     "actions": [
+      {
+       "type": "voidGainedCores"
+      },
+      {
+       "type": "removeCores",
+       "target": "event",
+       "to": "void",
+       "count": "all"
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS18-013-e3",
+    "kind": "fieldEvent",
+    "event": "coresGainedFromVoid",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "main",
+    "causedByOwnEffect": "spirit",
+    "eventSourceAsTarget": true,
+    "action": {
+     "type": "sequence",
+     "passEventTarget": true,
+     "actions": [
+      {
+       "type": "voidGainedCores"
+      },
+      {
+       "type": "removeCores",
+       "target": "event",
+       "to": "void",
+       "count": "all"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-014",
+  "name": "冥司書ダンタリアン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n自分の紫のスピリットが相手のスピリット/ブレイヴの効果によって疲労するとき、疲労するスピリット1体につき、自分のデッキの上から1枚を自分のトラッシュに置くことで、そのスピリットは疲労しない。",
+  "effects": [
+   {
+    "id": "BS18-014-e1",
+    "kind": "exhaustPreventByPay",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "filter": {
+     "color": "purple"
+    },
+    "bySourceTypes": [
+     "spirit",
+     "brave"
+    ],
+    "cost": {
+     "type": "mill",
+     "count": 1,
+     "side": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-015",
+  "name": "タワーミンゴ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互いのデッキは破棄されない。\nLv1･Lv2【呪撃】『このスピリットのアタック時』\nこのスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する。\nLv2『このスピリットの破壊時』\n自分の手札が5枚以上のとき、このスピリットは疲労状態で自分のフィールドに残る。",
+  "effects": [
+   {
+    "id": "BS18-015-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noDeckMill"
+    }
+   },
+   {
+    "id": "BS18-015-e2",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS18-015-e3",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "self",
+    "optional": false,
+    "when": {},
+    "revived": {
+     "rested": true
+    },
+    "condition": {
+     "ownHandAtLeast": 5
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-016",
+  "name": "闇王妃グネヴィア",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "雄将",
+   "夜族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のエンドステップ』\nこのターン相手が1回もアタックしていなかったら、自分の紫のバーストを、バースト条件を無視して発動できる。",
+  "effects": [
+   {
+    "id": "BS18-016-e1",
+    "kind": "step",
+    "step": "end",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "condition": {
+     "noAttacksThisTurn": true
+    },
+    "action": {
+     "type": "activateBurstIgnoringCondition",
+     "from": "set",
+     "filter": {
+      "color": "purple"
+     },
+     "optional": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-017",
+  "name": "闇騎士パーシヴァル",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "雄将",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "【不死：コスト3/4】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト3/4の自分のスピリットが破壊されたとき召喚できる。\nLv2\nカード名に「闇騎士」と入っている自分のスピリットが相手によって破壊されたとき、相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS18-017-e1",
+    "kind": "keyword",
+    "keyword": "fushi",
+    "levels": null,
+    "triggerCosts": [
+     3,
+     4
+    ]
+   },
+   {
+    "id": "BS18-017-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "subjectSide": "own",
+    "byOpponentOnly": true,
+    "nameIncludes": [
+     "闇騎士"
+    ],
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-018",
+  "name": "冥怪傑ゾロ",
+  "type": "spirit",
+  "colors": [
+   "purple",
+   "red"
+  ],
+  "cost": 12,
+  "reduction": [
+   "purple",
+   "purple",
+   "red",
+   "red"
+  ],
+  "family": [
+   "覇皇",
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 8000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 12000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 15000
+   }
+  ],
+  "symbol": [
+   "purple",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nコスト5以上の自分の赤/紫のスピリット1体をデッキの下に戻すことで、このスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nバースト効果で召喚されたとき、このスピリット以外の、スピリットすべてのコア1個ずつを持ち主のリザーブに置く。\nこの効果でコアが0個になったスピリット1体につき、ボイドからコア1個をこのスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS18-018-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "returnToDeckBottom",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "cost": {
+        "min": 5
+       },
+       "color": [
+        "red",
+        "purple"
+       ]
+      }
+     },
+     "then": {
+      "type": "summonBurstCardFree"
+     }
+    }
+   },
+   {
+    "id": "BS18-018-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "burstSummonOnly": true,
+    "optional": false,
+    "action": {
+     "type": "coreDrainAllOthers"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-056",
+  "name": "聖剣竜エクス・ワイバーン",
+  "type": "brave",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "yellow"
+  ],
+  "family": [
+   "雄将",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n相手のスピリットのコア3個を相手のリザーブに置く。\nこの効果で相手のスピリットのコアを0個にはできない。\n合体条件：コスト4以上/魔影\n【合体時】『このスピリットの合体アタック時』\n疲労状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上/魔影",
+  "effects": [
+   {
+    "id": "BS18-056-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "removeCores",
+     "count": 3,
+     "leaveAtLeast": 1
+    }
+   },
+   {
+    "id": "BS18-056-e2",
+    "kind": "constraint",
+    "levels": null,
+    "whileCombined": true,
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "rested"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-063",
+  "name": "魂の海塔",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nお互い、スピリット/ブレイヴの効果でボイドからコアを増やすことができない。\nLv2\n自分の手札が5枚以上の間、相手によって自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS18-063-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "coreGainCap",
+     "max": 0,
+     "sourceTypes": [
+      "spirit",
+      "brave"
+     ],
+     "from": [
+      "void"
+     ],
+     "to": [
+      "life",
+      "field",
+      "reserve"
+     ],
+     "side": "both"
+    }
+   },
+   {
+    "id": "BS18-063-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "subjectSide": "own",
+    "byOpponentOnly": true,
+    "condition": {
+     "ownHandAtLeast": 5
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-064",
+  "name": "黄昏のキャメロット城",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のメインステップ』\n相手のスピリットが召喚されたとき、自分のデッキの上から3枚を自分のトラッシュに置くことができる。\nLv2『自分のスタートステップ』\n自分のトラッシュにある系統：「雄将」/「魔影」を持つスピリットカード1枚を手札に戻すことができる。",
+  "effects": [
+   {
+    "id": "BS18-064-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritSummoned",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "main",
+    "turn": "opponent",
+    "subjectSide": "opponent",
+    "selfMode": "source",
+    "optional": true,
+    "action": {
+     "type": "mill",
+     "count": 3,
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS18-064-e2",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "family": [
+       "雄将",
+       "魔影"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-075",
+  "name": "マーク・オブ・ゾロ",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "【バースト：相手による自分のスピリット破壊後】\n自分はデッキから1枚ドローし、相手のスピリットのコア2個を相手のトラッシュに置く。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nコスト5以下の相手のスピリットすべてのコア1個ずつを相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS18-075-e1",
+    "kind": "burst",
+    "event": "ownSpiritDestroyed",
+    "subjectSide": "own",
+    "byOpponentEffectOnly": true,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "draw",
+       "count": 1
+      },
+      {
+       "type": "removeCores",
+       "target": "spread",
+       "count": 2,
+       "to": "trash",
+       "chooser": "owner"
+      }
+     ]
+    },
+    "thenPay": "flash"
+   },
+   {
+    "id": "BS18-075-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "removeCores",
+     "target": "all",
+     "filter": {
+      "cost": {
+       "max": 5
+      }
+     },
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-076",
+  "name": "クリスタルクラック",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット1体のコアを、1個だけになるように相手のトラッシュに置く。",
+  "effects": [
+   {
+    "id": "BS18-076-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "removeCores",
+     "targets": 1,
+     "count": "all",
+     "leaveAtLeast": 1,
+     "to": "trash"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS18-X02",
+  "name": "騎神皇アヴァロ・パラディオン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 8,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "雄将",
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにある系統：「覇皇」を持つスピリットカードを好きなだけ、コストを支払わずに召喚できる。\nただし、それらの『このスピリットの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\n系統：「覇皇」を持つ自分の紫のスピリットがBPを比べ相手のスピリットだけを破壊したとき、その破壊したスピリットのコアすべては相手のトラッシュに置かれる。",
+  "effects": [
+   {
+    "id": "BS18-X02-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "family": "覇皇"
+     },
+     "count": "all",
+     "upTo": true,
+     "skipOnSummon": true
+    }
+   },
+   {
+    "id": "BS18-X02-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "familyFilter": [
+     "覇皇"
+    ],
+    "colorFilter": "purple",
+    "action": {
+     "type": "battleOpponentDestroyedCoresTo",
+     "to": "trash"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X012A",
+  "name": "英雄皇ロード・ドラゴン・ドミニオン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "覇皇",
+   "戦竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にあるバースト効果を持つカード1枚をセットすることで、自分はデッキから1枚ドローする。\nLv3『自分のアタックステップ』\n自分のバーストをセットしている間、このスピリットをBP+3000する。",
+  "effects": [
+   {
+    "id": "X012A-e1",
+    "kind": "burst",
+    "event": "ownLifeDamaged",
+    "action": {
+     "type": "summonBurstCardFree"
+    }
+   },
+   {
+    "id": "X012A-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "setBurstFromHand"
+     },
+     "then": {
+      "type": "draw",
+      "count": 1
+     }
+    }
+   },
+   {
+    "id": "X012A-e3",
+    "kind": "aura",
+    "levels": [
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "self",
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     },
+     "condition": "hasOwnBurstSet"
+    }
+   }
+  ]
+ }
+]

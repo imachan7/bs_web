@@ -130,6 +130,12 @@ function tryBurstThenPay(
         log(state, unpayableLine(card.name, "コストのコアが足りない"))
         return
     }
+    // 効果本体の解決可否は見ないが、相手のバーストを開く効果だけは相手のバーストが無ければ払わせない（BS18-084）
+    const headAction = entry.action.type === "sequence" ? entry.action.actions[0] : entry.action
+    if (headAction?.type === "revealOpponentBurst" && state.players[opponentOf(pid)].burst === null) {
+        log(state, unpayableLine(card.name, "相手がバーストをセットしていない"))
+        return
+    }
     if (state.interactiveTargets) {
         requestActivationConfirm(
             state,

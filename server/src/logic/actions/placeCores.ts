@@ -288,8 +288,10 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
             const picks = action.targets ?? 1
             // 自身のコアを動かす（from:"self"）ときは、自身への移動は何も起こらないので候補から外す
             const open = candidates.filter((c) => !action.excludeIds?.includes(c.instanceId) && !(action.from === "self" && c === self))
-            if (targetInstanceId) {
-                const found = open.find((c) => c.instanceId === targetInstanceId)
+            // バースト等が渡すきっかけの対象（相手のアタッカー・破壊済みの個体）は自分の置き先の指定ではないので無視する
+            const givenTarget = targetInstanceId && [...player.field.spirits, ...player.field.nexuses].some((c) => c.instanceId === targetInstanceId) ? targetInstanceId : undefined
+            if (givenTarget) {
+                const found = open.find((c) => c.instanceId === givenTarget)
                 if (!found) {
                     log(state, `${sourceName}：指定された対象は条件を満たさなかった。`)
                     return

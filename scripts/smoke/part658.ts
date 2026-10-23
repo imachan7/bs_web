@@ -16,7 +16,7 @@ const HAMMER = "BS03-144" // マジックハンマー
 const HIRAI = "BS15-078" // 飛雷震之計
 const NIOUKABE = "BS14-101" // 仁王壁
 const MAYPA = "BS06-029" // メイパロット
-const RAGNA = "BS09-X37" // 終焉の騎神ラグナ・ロック
+const RAGNA = "BS18-X06" // 混沌魔皇アザートゥース（シンボル2・【転召】なし・召喚時に相手のシンボル1つのスピリットを破壊）
 const TARANDO = "BS16-025" // タランドーズ
 const VALI = "BS14-038" // 弓機兵ヴァーリ
 const MINK = "BS07-019" // スペアミンク
@@ -47,7 +47,7 @@ console.log("=== 前提: カードの機械確認 ===")
     const names: [string, string][] = [
         [RK, "ロクケラトプス"], [BEE, "ビートビートル"], [SHOCK, "ショックイーター"], [BUG, "食蟲花バグ・レシア"],
         [MATAN, "マタンゴル"], [HAMMER, "マジックハンマー"], [HIRAI, "飛雷震之計"], [NIOUKABE, "仁王壁"],
-        [MAYPA, "メイパロット"], [RAGNA, "終焉の騎神ラグナ・ロック"], [TARANDO, "タランドーズ"], [VALI, "弓機兵ヴァーリ"],
+        [MAYPA, "メイパロット"], [RAGNA, "混沌魔皇アザートゥース"], [TARANDO, "タランドーズ"], [VALI, "弓機兵ヴァーリ"],
         [MINK, "スペアミンク"], [FAROW, "戦闘獣バン・ファロー"], [URBY, "ウルビー"], [DSTRIKE, "ダイヤモンドストライク"],
         [POWAURA, "パワーオーラ"], [STROD, "青玉の海竜シュトロドーム"],
         [BUF, "ブフモット"], ["BS18-014", "冥司書ダンタリアン"], [MUKARI, "駿将ムカリ"], [CHIRAUN, "駿将チラウン"], [BOORCHU, "駿将ボオルチュ"],
@@ -349,7 +349,7 @@ scenario({
     name: "▼s25e",
     start: { phase: "attack", me: { spirits: [sp(RIOCK, "リオック"), sp(STROD, "シュトロドーム")] } },
     steps: (t) => attackTake(t, "シュトロドーム"),
-    expect: ["自分.シュトロドーム.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+    expect: ["自分.シュトロドーム.疲労: false → true", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"],
 })
 console.log("=== 025. 対照：リオックがいなければ【粉砕】でLvと同じ1枚破棄される ===")
 scenario({
@@ -357,7 +357,7 @@ scenario({
     start: { phase: "attack", me: { spirits: [sp(STROD, "シュトロドーム")] } },
     steps: (t) => attackTake(t, "シュトロドーム"),
     expect: [
-        "自分.シュトロドーム.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11",
+        "自分.シュトロドーム.疲労: false → true", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12",
         "相手.デッキ枚数: 40 → 39", "相手.トラッシュ: なし → ロクケラトプス",
     ],
 })
@@ -549,8 +549,8 @@ console.log("=== 057. 召喚時：手札のシンボル2つのスピリットを
     ok(s, "p1", { type: "summon", handIndex: 0 }, "ギアゼルを召喚")
     settle(s)
     assert(find(s, "p1", GEAR) !== undefined, "ギアゼルが場に出た")
-    assert(find(s, "p1", RAGNA) !== undefined, "ラグナ・ロックが無償で召喚された")
-    assert(spirits(s, "p2").every((x) => !x.isRested), "ラグナ・ロックの召喚時効果（相手を疲労）は発揮されない")
+    assert(find(s, "p1", RAGNA) !== undefined, "アザートゥースが無償で召喚された")
+    assert(spirits(s, "p2").length === 1, "アザートゥースの召喚時効果（相手のシンボル1つのスピリットを破壊）は発揮されない")
     assert(s.players.p1.hand.length === 1 && s.players.p1.hand[0] === SHOCK, "シンボル1つのショックイーターは手札に残る")
 }
 console.log("=== 057. シンボル2つのスピリットが手札になければ何も召喚されない ===")
@@ -565,7 +565,7 @@ console.log("=== 057. 「できる」：断ったら召喚しない ===")
     const s = build("57c", "p1", { hand: [GEAR, RAGNA] }, {}, { interactive: true })
     ok(s, "p1", { type: "summon", handIndex: 0 }, "ギアゼルを召喚")
     if (s.pendingChoice) ok(s, "p1", { type: "resolveChoice" }, "召喚を断る")
-    assert(find(s, "p1", RAGNA) === undefined && s.players.p1.hand.includes(RAGNA), "ラグナ・ロックは手札に残る")
+    assert(find(s, "p1", RAGNA) === undefined && s.players.p1.hand.includes(RAGNA), "アザートゥースは手札に残る")
 }
 console.log("=== 057. 合体条件（シンボル2つ以上）：2つ持つスピリットには合体でき、1つしか持たないスピリットには合体できない ===")
 {
@@ -657,7 +657,7 @@ scenario({
 console.log("=== 066. 相手のターン、相手のスピリットが回復したとき自分のスピリット1体を回復（リフレッシュの回復）。Lv2でもドローステップの手札増加では破棄させない ===")
 scenario({
     name: "▼s66a",
-    start: { me: { nexuses: [sp(ISLANDS, "島々", 1)], spirits: [sp(RK, "A", 1, true)] }, opp: { spirits: [sp(RK, "O", 1, true)] } },
+    start: { me: { nexuses: [sp(ISLANDS, "島々", 2)], spirits: [sp(RK, "A", 1, true)] }, opp: { spirits: [sp(RK, "O", 1, true)] } },
     steps: (t) => t.act("me", { type: "endTurn" }),
     expect: [
         "自分.A.疲労: true → false", "相手.O.疲労: true → false",
@@ -667,7 +667,7 @@ scenario({
 console.log("=== 066. 全員が回復済みなら回復したスピリットがいないので誘発しない ===")
 scenario({
     name: "▼s66b",
-    start: { me: { nexuses: [sp(ISLANDS, "島々", 1)], spirits: [sp(RK, "A", 1, true)] }, opp: { spirits: [sp(RK, "O")] } },
+    start: { me: { nexuses: [sp(ISLANDS, "島々", 2)], spirits: [sp(RK, "A", 1, true)] }, opp: { spirits: [sp(RK, "O")] } },
     steps: (t) => t.act("me", { type: "endTurn" }),
     expect: ["相手.手札: なし → ロクケラトプス", "相手.デッキ枚数: 40 → 39", "相手.リザーブ: 10 → 11"],
 })
@@ -676,7 +676,7 @@ scenario({
     name: "▼s66c",
     start: {
         interactive: true,
-        me: { nexuses: [sp(ISLANDS, "島々", 1)], spirits: [sp(RK, "A", 1, true), sp(RK, "B", 1, true)] },
+        me: { nexuses: [sp(ISLANDS, "島々", 2)], spirits: [sp(RK, "A", 1, true), sp(RK, "B", 1, true)] },
         opp: { spirits: [sp(RK, "O1", 1, true), sp(RK, "O2", 1, true)] },
     },
     steps: (t) => {
@@ -691,7 +691,7 @@ scenario({
 console.log("=== 066. Lv2：ドローステップ以外で相手の手札が増えたら、相手は手札1枚を破棄する ===")
 scenario({
     name: "▼s66d",
-    start: { turn: "opp", me: { nexuses: [sp(ISLANDS, "島々", 1)] }, opp: { hand: [POWAURA, RK] } },
+    start: { turn: "opp", me: { nexuses: [sp(ISLANDS, "島々", 2)] }, opp: { hand: [POWAURA, RK] } },
     steps: (t) => t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" }),
     expect: [
         "相手.手札: パワーオーラ、ロクケラトプス → ロクケラトプス", "相手.トラッシュ: なし → パワーオーラ、ロクケラトプス",

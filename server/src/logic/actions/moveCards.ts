@@ -97,6 +97,8 @@ function fchangeAsCostMatches(state: GameState, pid: PlayerId, action: MoveCards
 export function moveCardsPayable(state: GameState, owner: PlayerId, self: CardInstance | null, action: MoveCards, srcType: CardType | undefined): boolean {
     // 「好きなだけ」（count:"all"＋upTo）は0枚でも払える。ほかの upTo は数が決まらないので扱わない
     // 召喚・配置・使用の「できる」(upTo) は、候補が1枚でもあれば成り立つ（払ったあとで選ばずに終えることはできる。26RSD07-001）
+    // 「手札N枚までを破棄することで」（BS18-012）：N 以下の任意枚数を払えるので 0 枚でも成り立つ
+    if (action.upTo && typeof action.count === "number" && action.from === "hand" && action.dest === "trash") return true
     if (action.upTo && (action.count === "all" || !(action.dest === "summon" || action.dest === "placeNexus" || action.dest === "cast"))) return action.count === "all"
     if (action.from === "hand" && action.dest === "trash" && !canDiscardHand(state, action.side === "opponent" ? opponentOf(owner) : owner)) return false
     if (action.from === "trash" && action.dest === "hand" && (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner))) return false

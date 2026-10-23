@@ -808,7 +808,10 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
             }
             refreshSpirit(state, owner, chosen, srcType)
             if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, chosen)
-            if (action.thenCantAttackThisTurn) recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
+            if (action.thenCantAttackThisTurn) {
+                recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
+                recordTargets(state, [chosen.instanceId]) // 続く「そのスピリットをBP+」が filter.lastTarget で引く
+            }
             log(state, `${getCard(chosen.cardId).name}は回復した。`)
             // upTo：1体処理するたびに残数で聞き直す（再開スタックには積まない。2026-09-28）
             if (action.upTo) {
@@ -872,7 +875,10 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         )
         refreshSpirit(state, owner, target, srcType)
         if (action.thenLevelUpThisTurn) applyLevelUpThisTurn(state, target)
-        if (action.thenCantAttackThisTurn) recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+        if (action.thenCantAttackThisTurn) {
+            recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
+            recordTargets(state, [target.instanceId]) // 続く「そのスピリットをBP+」が filter.lastTarget で引く
+        }
         log(state, `${getCard(target.cardId).name}は回復した。`)
         return
 }

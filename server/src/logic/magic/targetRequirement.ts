@@ -27,6 +27,13 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
         const names = zone.map((i) => getCard(i.cardId).name)
         return !names.some((n) => names.filter((m) => m === n).length >= action.minSameName!)
     }
+    if (action.type === "exhaustAndForceBlock") {
+        // 疲労済みも選べる。アタッカー自身は「アタックしていない」で除外（actions/forcedBlock.ts と同じ候補）
+        const opp = opponentOf(pid)
+        const attacker = state.battle?.attackerInstanceId
+        const matches = (s: CardInstance) => s.instanceId !== attacker && matchesTarget(state, opp, s, (action.filter ?? {}) as never)
+        return pickEnemyCandidates(state, opp, Infinity, matches, card.colors, "magic", "exhaust").length === 0
+    }
     if (action.type === "exhaust" || action.type === "refreshOne" || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
     if (!ONE_TARGET_TYPES.has(action.type)) return null
     const a = action as EffectAction & { all?: true; target?: string; costBudget?: unknown; countCounter?: unknown; filter?: { lastTarget?: unknown } }

@@ -374,6 +374,10 @@ const anyCapacity = (state: GameState, owner: PlayerId, self: CardInstance | nul
         return removeCoresAchievableCountForPay(state, owner, self, cost, undefined, undefined)
     }
     // moveCards の「好きなだけ」（count:"all"＋upTo）：いま動かせる枚数
+    if (cost.type === "moveCards" && cost.upTo && typeof cost.count === "number" && cost.from === "hand" && cost.dest === "trash") {
+        if (!canDiscardHand(state, owner)) return 0
+        return Math.min(cost.count, moveCardCandidates(state, owner, cost, undefined, self?.cardId).length)
+    }
     if (cost.type === "moveCards" && cost.count === "all" && cost.upTo) {
         if (cost.from === "hand" && cost.dest === "trash" && !canDiscardHand(state, owner)) return 0
         return moveCardCandidates(state, owner, cost, undefined, self?.cardId).length
