@@ -629,7 +629,8 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
             matchesTarget(state, pid, n, filter, self?.instanceId)
         // either：自分か相手のネクサスから1つ。破壊したネクサスは lastMoved に書く（「そうしたなら」が読む）
-        if (action.side === "either") {
+        // 「ネクサス2つまで」のように upTo で複数を選ぶ either は、下の upTo の対話で両陣営から選ばせる
+        if (action.side === "either" && !(action.upTo && action.count !== 1 && state.interactiveTargets)) {
             const cands = [owner, opp].flatMap((pid) => state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => ({ pid, n })))
             const picked = targetInstanceId !== undefined ? cands.find((c) => c.n.instanceId === targetInstanceId) : undefined
             if (picked === undefined && targetInstanceId === undefined && state.interactiveTargets && cands.length >= 2) {
@@ -744,25 +745,27 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             return
         }
         // upTo（0〜count の好きな数を選べる）：既存の自動選択ループは聞かずに先頭から決め打ちするため、
-        // 対話時はここで分岐する。side:both との組み合わせは使用例が無いため sides[0] のみ扱う。
+        // 対話時はここで分岐する。side:both との組み合わせは使用例が無いため sides[0] のみ扱う（either は両陣営から選ばせる）。
         // drawPerDestroyed／discardOpponentPerDestroyed は upTo と組み合わせて使うカードが無いため、
         // 対話の再入をまたいで合計を持ち回る仕組みは未対応（必要になったら action に合計を載せる）
         if (action.upTo && state.interactiveTargets) {
-            const pid = sides[0]
-            if (pid === undefined) {
+            const pools: PlayerId[] = action.side === "either" ? [owner, opp] : sides.slice(0, 1)
+            const candidatesIn = (): string[] => pools.flatMap((p) => state.players[p].field.nexuses.filter(matchesIn(p)).map((n) => n.instanceId))
+            if (pools.length === 0) {
                 log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                 return
             }
             if (targetInstanceId !== undefined) {
-                const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
-                if (!nexus) {
+                const pid = pools.find((p) => state.players[p].field.nexuses.some((n) => n.instanceId === targetInstanceId))
+                const nexus = pid === undefined ? undefined : state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+                if (pid === undefined || !nexus) {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                     return
                 }
                 destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
                 const remaining = action.count - 1
                 if (remaining > 0) {
-                    const nextCandidates = state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => n.instanceId)
+                    const nextCandidates = candidatesIn()
                     requestUpToChoice(
                         state,
                         owner,
@@ -774,12 +777,11 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 }
                 return
             }
-            const candidates = state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => n.instanceId)
             requestUpToChoice(
                 state,
                 owner,
                 `${sourceName}：破壊するネクサスを選んでください（あと${action.count}つまで）`,
-                candidates,
+                candidatesIn(),
                 action,
                 self,
             )

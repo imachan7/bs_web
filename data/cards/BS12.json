@@ -5068,7 +5068,8 @@
         "action": {
           "type": "destroyNexus",
           "count": 2,
-          "upTo": true
+          "upTo": true,
+          "side": "either"
         }
       },
       {
