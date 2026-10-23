@@ -200,7 +200,7 @@ export type EffectAction =
  // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する
  // （2026-08-16 ユーザー確認。docs/design/COST_MODEL.md の「コストではない」側）。
  // interactiveTargets が無い（テスト・自動解決）ときは modes の先頭を選ぶ決定的簡略化
- | { type: "battleOpponentDestroyedCoresTo"; to: "void" | "trash" } // このバトルの間、破壊された相手のスピリットのコアすべてをリザーブではなく to に置く（void＝ゲームから取り除く）
+ | { type: "battleOpponentDestroyedCoresTo"; to: "void" | "trash"; soleOnly?: true } // このバトルの間、破壊された相手のスピリットのコアすべてをリザーブではなく to に置く（void＝ゲームから取り除く）
  | { type: "revealDiscardRest" } // 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ。revealAndSummonKeyword が queue に積み、**選んでもスキップしても**必ず後始末が走るようにする
  | { type: "revealReturnToDeck"; toTop?: true; placed?: number } // 公開ゾーンの残りをデッキの下へ戻す。**戻す順番は1枚ずつ選ばせる**（スキップで現在の順のまま）。toTop＝デッキの**上**へ（先に選んだカードが上＝次に引くカード）
  // pickCountが数値（2以上）のとき「N枚まで」＝1枚ずつ選び、途中でやめられる（BS16-044）。非対話時は

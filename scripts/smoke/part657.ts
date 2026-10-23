@@ -78,7 +78,10 @@ function go(t: ScenarioCtx, answers: Ans[] = []): void {
         const pc = t.state.pendingChoice
         const side = pc.pid === t.me ? "me" : "opp"
         const a = answers[i] ?? {}
-        if (a.skip) {
+        const no = pc.kind === "option" ? pc.options!.find((o) => o.includes("ない")) : undefined
+        if (a.skip && no) {
+            t.act(side, { type: "resolveChoice", option: no })
+        } else if (a.skip) {
             t.act(side, { type: "resolveChoice" })
         } else if (pc.kind === "option") {
             t.act(side, { type: "resolveChoice", option: pc.options![0]! })
@@ -90,6 +93,7 @@ function go(t: ScenarioCtx, answers: Ans[] = []): void {
             if (a.cards) {
                 const want = [...a.cards]
                 for (const idx of pc.cardIndices ?? []) {
+                    if (want.length === 0) break
                     const k = want.indexOf(getCard(zone[idx]!).name)
                     if (k < 0) continue
                     want.splice(k, 1)
@@ -182,7 +186,7 @@ scenario({
     start: ramoStart({ spirits: [{ card: MELT, cores: 3 }] }),
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
-        go(t, [{ cards: ["ヘルスコルピオ"] }])
+        go(t, [{}, { cards: ["ヘルスコルピオ"] }])
     },
     expect: [
         ...ramoSummon, "自分.手札: " + sorted("ファンタズマ", "ヘルスコルピオ", "闇騎士ラモラック") + " → ファンタズマ",
@@ -332,6 +336,7 @@ scenario({
     },
     steps(t) {
         t.act("opp", { type: "attack", instanceId: t.id("相手.ロクケラトプス") })
+        t.act("me", { type: "pass" })
         t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("自分.冥司書ダンタリアン") })
         go(t, skipAll)
         t.closeFlash()
@@ -456,7 +461,8 @@ scenario({
     },
     expect: [
         gone("自分", "デス・ハーデス"), ...appear("自分", "闇騎士パーシヴァル", 1, 1, 4000),
-        "自分.リザーブ: 10 → 4", "自分.トラッシュのコア: 0 → 6", "自分.トラッシュ: 闇騎士パーシヴァル → デス・ハーデス", "相手.攻撃者.疲労: false → true",
+        // 破壊待機中のデス・ハーデスの紫シンボルが軽減に数える（BS09_PLAN「【不死】を誘発した破壊されたスピリットのシンボルは軽減に数える」）
+        "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 5", "自分.トラッシュ: 闇騎士パーシヴァル → デス・ハーデス", "相手.攻撃者.疲労: false → true",
     ],
 })
 scenario({
@@ -588,6 +594,7 @@ scenario({
 const excField = { me: { spirits: [{ card: FAL }, { card: EXC }] }, opp: { spirits: [{ card: V, label: "疲労V", rested: true }, { card: KUJA, label: "回復済み" }] } }
 const combined = [
     "自分.聖剣竜エクス・ワイバーン.場所: フィールド → 合体", "自分.聖剣竜エクス・ワイバーン.BP: 3000 → なし", "自分.フォールンパラディン.BP: 4000 → 7000",
+    "自分.フォールンパラディン.コア: 1 → 2", "自分.聖剣竜エクス・ワイバーン.コア: 1 → 0",
 ]
 scenario({
     name: "exc-attack-rested",
@@ -621,9 +628,10 @@ scenario({
 })
 scenario({
     name: "exc-combine-condition",
-    start: { me: { spirits: [{ card: DAR }, { card: EXC }] } },
+    // 合体条件の「/」は「または」（BS15-057 と同じ）。コスト4未満で魔影でもないスピリットには合体できない
+    start: { me: { spirits: [{ card: V }, { card: EXC }] } },
     steps(t) {
-        t.actRejected("me", { type: "combineBrave", braveInstanceId: t.id("聖剣竜エクス・ワイバーン"), hostInstanceId: t.id("ダークレイス") })
+        t.actRejected("me", { type: "combineBrave", braveInstanceId: t.id("聖剣竜エクス・ワイバーン"), hostInstanceId: t.id("ロクケラトプス") })
     },
     expect: [],
 })
@@ -707,7 +715,7 @@ scenario({
     name: "tower-lv2-hand5-draw",
     start: towerDefense(1, FIVE),
     steps: (t) => oppAttackBlock(t, "相手.攻撃者", "自分.ロクケラトプス"),
-    expect: [...towerBlocked, "自分.手札: " + sorted(...FIVE) + " → " + sorted(...FIVE, "ロクケラトプス"), "自分.デッキ枚数: 40 → 39"],
+    expect: [...towerBlocked, "自分.手札: " + sorted(...FIVE.map(() => "ファンタズマ")) + " → " + sorted(...FIVE.map(() => "ファンタズマ"), "ロクケラトプス"), "自分.デッキ枚数: 40 → 39"],
 })
 scenario({
     name: "tower-lv2-hand4-no-draw",
@@ -828,7 +836,7 @@ scenario({
     start: markStart(10),
     steps(t) {
         oppAttackBlock(t, "相手.攻撃者", "自分.ブロッカー")
-        go(t, [{}, { pick: ["相手.攻撃者"] }, { skip: true }])
+        go(t, [{}, { pick: ["相手.攻撃者"] }, { pick: ["相手.攻撃者"] }, { skip: true }])
     },
     expect: [
         ...markCommon, "自分.リザーブ: 10 → 11", "自分.トラッシュ: なし → " + sorted("ヘルスコルピオ", "マーク・オブ・ゾロ"),
@@ -876,7 +884,7 @@ scenario({
 })
 scenario({
     name: "avalon-summon-none",
-    start: avStart,
+    start: { ...avStart, interactive: true },
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
         go(t, skipAll)

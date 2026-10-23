@@ -301,7 +301,7 @@ const battleOpponentDestroyedCoresToHandler: ActionHandler<"battleOpponentDestro
             log(state, `${sourceName}：バトル外のため不発。`)
             return
         }
-        recordTimed(state, { content: [{ type: "destroyedCoresTo", to: action.to }], target: { kind: "player", pid: opp }, until: "battle", ownerPid: ctx.owner })
+        recordTimed(state, { content: [{ type: "destroyedCoresTo", to: action.to, ...(action.soleOnly ? { soleOnly: true as const } : {}) }], target: { kind: "player", pid: opp }, until: "battle", ownerPid: ctx.owner })
         log(state, `${sourceName}：このバトルの間、破壊された相手のスピリット上のコアは${action.to === "void" ? "ボイド" : "トラッシュ"}に置かれる。`)
         return
 }

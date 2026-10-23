@@ -549,7 +549,16 @@ export function commitPendingDestruction(
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
     // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間、または現在のバトルで
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）
-    const redirect = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")?.to
+    const redirectEntry = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")
+    // soleOnly（BS18-X02「相手のスピリットだけを破壊したとき」）：効果の持ち主側のバトル中のスピリットが
+    // 同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
+    const winnerSurvives = (): boolean => {
+        const b = state.battle
+        if (!b) return false
+        const mine = state.players[opponentOf(ownerPid)].field.spirits.find((s) => s.instanceId === b.attackerInstanceId || s.instanceId === b.blockerInstanceId)
+        return mine !== undefined && !mine.pendingDestruction && !state.destroyGroup?.memberIds.includes(mine.instanceId)
+    }
+    const redirect = redirectEntry && "soleOnly" in redirectEntry && redirectEntry.soleOnly && !winnerSurvives() ? undefined : redirectEntry?.to
     // ソウルコア退避（案A-outside: 数値に含まれないため自力では動かない。§1.2でボイドには行けない。
     // 破壊されたコアがトラッシュへ行く間だけ一緒にトラッシュへ、それ以外（ボイド行きを含む）はリザーブへ）
     if (soulCoreOnInstance(player, inst.instanceId)) {

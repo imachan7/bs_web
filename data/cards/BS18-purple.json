@@ -662,6 +662,14 @@
    }
   ],
   "braveConditionText": "コスト4以上/魔影",
+  "braveCondition": [
+   {
+    "minCost": 4
+   },
+   {
+    "family": "魔影"
+   }
+  ],
   "effects": [
    {
     "id": "BS18-056-e1",
@@ -1013,7 +1021,8 @@
     "colorFilter": "purple",
     "action": {
      "type": "battleOpponentDestroyedCoresTo",
-     "to": "trash"
+     "to": "trash",
+     "soleOnly": true
     }
    }
   ]
