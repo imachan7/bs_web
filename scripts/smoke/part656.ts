@@ -20,6 +20,8 @@ const FORT = "BS03-068" // フォルトロス（黄・コスト7・バニラ・B
 const ARDER = "BS17-073" // アーダーフレイム（赤マジック・コスト4）フラッシュ：BP4000以下の相手のスピリット1体を破壊
 const CHAIN = "BS02-099" // ライフチェイン（緑マジック・コスト5）フラッシュ：自分のスピリット1体を破壊
 const LD1 = "SD06-007" // 英雄龍ロード・ドラゴン（赤・コスト6）
+const DESTRO = "BS02-X06" // 魔界七将デストロード（紫・コスト7）召喚時効果はLv1だけ。Lv2はコア6個
+const GRIP = "BS01-030" // グリプ・ハンズ（紫・コスト3）召喚時に1枚ドロー
 const LD2 = "BS16-X01" // 爆炎の覇王ロード・ドラゴン・バゼル（赤・コスト7）
 
 const TERI = "BS18-001"
@@ -46,7 +48,7 @@ console.log("=== 前提: カードの機械確認 ===")
         [STON, "ストン・スタチュー", "spirit"], [VIERGE, "戦神乙女ヴィエルジェ", "spirit"], [ANT, "用心棒アントマン", "spirit"],
         [DRAW, "妖華吸血爪", "magic"], [BSET, "武迅衝", "magic"], [LIGHT, "烈光閃刃", "magic"], [FEN, "フェンサー・ドラゴン", "spirit"],
         [RAZ, "爪剣のラザラス", "spirit"], [FORT, "フォルトロス", "spirit"], [ARDER, "アーダーフレイム", "magic"], [CHAIN, "ライフチェイン", "magic"],
-        [LD1, "英雄龍ロード・ドラゴン", "spirit"], [LD2, "爆炎の覇王ロード・ドラゴン・バゼル", "spirit"],
+        [LD1, "英雄龍ロード・ドラゴン", "spirit"], [DESTRO, "魔界七将デストロード", "spirit"], [GRIP, "グリプ・ハンズ", "spirit"], [LD2, "爆炎の覇王ロード・ドラゴン・バゼル", "spirit"],
         [TERI, "テリジーノ", "spirit"], [SHISHINGA, "守獣シシンガ", "spirit"], [ASSASSIN, "アサシン・ドラゴン", "spirit"],
         [BASA, "バサ・ラザン", "spirit"], [SHISHINGINI, "護獣シシンギニ", "spirit"], [GUNNER, "ガンナー・ドラゴン", "spirit"],
         [MONK, "モンク・ドラゴン", "spirit"], [HANU, "炎の覇獣ハヌ・マーグ", "spirit"], [DRAKE, "ドレイク・バヤー", "brave"],
@@ -57,7 +59,7 @@ console.log("=== 前提: カードの機械確認 ===")
     for (const [id, name, type] of names) assert(getCard(id).name === name && getCard(id).type === type, `${id} は ${name}（${type}）`)
     const costs: [string, number][] = [
         [ROKU, 1], [MAIPA, 3], [GATHER, 3], [STON, 1], [VIERGE, 6], [ANT, 4], [DRAW, 5], [BSET, 2], [LIGHT, 4], [FEN, 3], [FORT, 7],
-        [ARDER, 4], [CHAIN, 5], [LD1, 6], [HANU, 7], [DRAKE, 4], [HEROIC, 4], [KYUSEI, 4], [SABER, 10], [INTI, 8], [WORLD, 9],
+        [DESTRO, 7], [GRIP, 3], [ARDER, 4], [CHAIN, 5], [LD1, 6], [HANU, 7], [DRAKE, 4], [HEROIC, 4], [KYUSEI, 4], [SABER, 10], [INTI, 8], [WORLD, 9],
     ]
     for (const [id, c] of costs) assert(getCard(id).cost === c, `${id} のコストは ${c}`)
 }
@@ -332,6 +334,38 @@ console.log("=== 003 アサシン・ドラゴン ===")
         steps(t) {
             t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
             noChoice(t, "召喚時効果を持つ相手のスピリットがいなければ指定できない")
+            t.closeFlash()
+            t.act("opp", { type: "takeLife" })
+        },
+        expect: ["自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+    })
+}
+
+// ───────── 003 追加：指定できるのは現在Lvで有効な召喚時効果（2026-10-23 確認）─────────
+console.log("=== 003 現在Lvで有効な召喚時効果 ===")
+{
+    const lv2 = { phase: "attack" as const, interactive: true }
+    scenario({
+        name: "assassin-designate-destro-lv1",
+        start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: DESTRO, cores: 1 }] } },
+        steps(t) {
+            t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
+            const p = pc(t)
+            assert(p.candidates.includes(t.id("魔界七将デストロード")), "Lv1 のデストロードは召喚時効果が有効なので指定できる")
+            ans(t, { id: "魔界七将デストロード" })
+            t.closeFlash()
+        },
+        expect: [
+            "自分.アサシン・ドラゴン.疲労: false → true", "自分.アサシン・ドラゴン.BP: 4000 → 7000", gone("相手.魔界七将デストロード"),
+            "相手.リザーブ: 10 → 11", `相手.トラッシュ: なし → ${getCard(DESTRO).name}`,
+        ],
+    })
+    scenario({
+        name: "assassin-designate-destro-lv2",
+        start: { ...lv2, me: { spirits: [{ card: ASSASSIN, cores: 2 }] }, opp: { spirits: [{ card: DESTRO, cores: 6, rested: true }] } },
+        steps(t) {
+            t.act("me", { type: "attack", instanceId: t.id("アサシン・ドラゴン") })
+            noChoice(t, "Lv2 のデストロードに召喚時効果は無いので指定できない")
             t.closeFlash()
             t.act("opp", { type: "takeLife" })
         },
@@ -694,6 +728,23 @@ console.log("=== 055 ドレイク・バヤー ===")
     })
 }
 
+// ───────── 055 追加：合体 ─────────
+console.log("=== 055 合体 ===")
+{
+    scenario({
+        name: "drake-combine",
+        start: { me: { hand: [DRAKE], spirits: [{ card: ANT }] } },
+        steps(t) {
+            t.act("me", { type: "summon", handIndex: 0, braveTargetInstanceId: t.id("用心棒アントマン") })
+        },
+        expect: [
+            "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 4", `自分.手札: ${getCard(DRAKE).name} → なし`,
+            "自分.用心棒アントマン.コア: 1 → 2", "自分.用心棒アントマン.BP: 5000 → 8000",
+            "自分.ドレイク・バヤー.場所: なし → 合体", "自分.ドレイク・バヤー.疲労: なし → false", "自分.ドレイク・バヤー.コア: なし → 0", "自分.ドレイク・バヤー.Lv: なし → 1",
+        ],
+    })
+}
+
 // ───────── BS18-061 戦史の石碑 ─────────
 console.log("=== 061 戦史の石碑 ===")
 {
@@ -775,6 +826,27 @@ console.log("=== 061 戦史の石碑 ===")
         ],
     })
 }
+
+// Lv2：「相手によって」にはバトルでの破壊も含む
+scenario({
+    name: "sekihi-lv2-battle-destroyed",
+    start: {
+        turn: "opp", phase: "attack", interactive: true,
+        me: { nexuses: [{ card: SEKIHI, cores: 2 }], spirits: [{ card: ROKU, label: "RR" }] },
+        opp: { spirits: [{ card: ANT }, { card: ROKU, label: "RO" }] },
+    },
+    steps(t) {
+        t.act("opp", { type: "attack", instanceId: t.id("用心棒アントマン") })
+        t.closeFlash()
+        t.act("me", { type: "block", instanceId: t.id("RR") })
+        t.closeFlash()
+        ans(t, { id: "用心棒アントマン" })
+    },
+    expect: [
+        gone("自分.RR"), `自分.トラッシュ: なし → ${getCard(ROKU).name}`, "自分.リザーブ: 10 → 11",
+        gone("相手.用心棒アントマン"), "相手.リザーブ: 10 → 11", `相手.トラッシュ: なし → ${getCard(ANT).name}`,
+    ],
+})
 
 // ───────── BS18-062 最も高き山頂 ─────────
 console.log("=== 062 最も高き山頂 ===")
@@ -899,6 +971,24 @@ console.log("=== 073 ヒロイックエントリー ===")
     }
 }
 
+// ───────── 073 追加：メインで使った後に手札へ入ったカードにも効く ─────────
+console.log("=== 073 後から手札に入った覇皇 ===")
+{
+    scenario({
+        name: "heroic-main-card-drawn-later",
+        start: { me: { life: 3, reserve: 12, hand: [HEROIC, GRIP], deck: [HANU, ...Array.from({ length: 39 }, () => ROKU)] } },
+        steps(t) {
+            t.act("me", { type: "castMagic", handIndex: 0, timing: "main" })
+            t.act("me", { type: "summon", handIndex: 0 })
+            t.act("me", { type: "summon", handIndex: 0 })
+        },
+        expect: [
+            "自分.リザーブ: 12 → 0", "自分.トラッシュのコア: 0 → 10", `自分.手札: ${nm(HEROIC, GRIP)} → なし`, "自分.デッキ枚数: 40 → 39",
+            `自分.トラッシュ: なし → ${getCard(HEROIC).name}`, ...appear("自分.グリプ・ハンズ", 2000, 1, 1), ...appear("自分.炎の覇獣ハヌ・マーグ", 5000, 1, 1),
+        ],
+    })
+}
+
 // ───────── BS18-074 救世神撃覇 ─────────
 console.log("=== 074 救世神撃覇 ===")
 {
@@ -955,6 +1045,23 @@ console.log("=== 074 救世神撃覇 ===")
         expect: [...burstUsed, "自分.リザーブ: 10 → 11", gone("相手.用心棒アントマン"), "相手.リザーブ: 10 → 11", `相手.トラッシュ: なし → ${getCard(ANT).name}`],
     })
 }
+
+// 074 追加：フィールドにコアが無く、リザーブも足りないときは払えない
+scenario({
+    name: "kyusei-cannot-pay",
+    start: { turn: "opp", phase: "attack", interactive: true, me: { reserve: 2, burst: KYUSEI }, opp: { spirits: [{ card: ANT }] } },
+    steps(t) {
+        oppAttacksMe(t, "用心棒アントマン")
+        ans(t, "yes")
+        ans(t, { id: "用心棒アントマン" })
+        finishSelect(t)
+        noChoice(t, "払えないので確認は出ない")
+    },
+    expect: [
+        "自分.ライフ: 5 → 4", `自分.バースト: ${getCard(KYUSEI).name} → なし`, `自分.トラッシュ: なし → ${getCard(KYUSEI).name}`, "自分.リザーブ: 2 → 3",
+        gone("相手.用心棒アントマン"), "相手.リザーブ: 10 → 11", `相手.トラッシュ: なし → ${getCard(ANT).name}`,
+    ],
+})
 
 // ───────── BS18-X01 超覇王ロード・ドラゴン・セイバー ─────────
 console.log("=== X01 超覇王ロード・ドラゴン・セイバー ===")
@@ -1134,6 +1241,22 @@ console.log("=== X021 インティ ===")
     })
 }
 
+// 追加：「ターンに1回」はカード名ごとに数える（RULES_BATSPI_WIKI ②）
+scenario({
+    name: "inti-second-copy-same-turn",
+    start: { interactive: true, me: { reserve: 18, hand: [INTI, INTI], deck: [ROKU, ROKU, ROKU, ROKU, ROKU, LD1, ...Array.from({ length: 34 }, () => ROKU)] } },
+    steps(t) {
+        t.act("me", { type: "summon", handIndex: 0 })
+        t.act("me", { type: "summon", handIndex: 0 })
+        noChoice(t, "同じターンに2体目のインティを召喚しても、この効果は使えない")
+    },
+    expect: [
+        "自分.リザーブ: 18 → 0", "自分.トラッシュのコア: 0 → 16", `自分.手札: ${nm(INTI, INTI)} → なし`, "自分.デッキ枚数: 40 → 35",
+        `自分.トラッシュ: なし → ${nm(ROKU, ROKU, ROKU, ROKU, ROKU)}`,
+        ...appear("自分.黄金の覇王ロード・ドラゴン・インティ", 6000, 1, 1), ...appear("自分.黄金の覇王ロード・ドラゴン・インティ#2", 6000, 1, 1),
+    ],
+})
+
 // ───────── X022 覇王ロード・ドラゴン・ザ・ワールド ─────────
 console.log("=== X022 ザ・ワールド ===")
 {
@@ -1224,5 +1347,19 @@ console.log("=== X022 ザ・ワールド ===")
         expect: [gone("自分.L"), `自分.トラッシュ: なし → ${getCard(LD1).name}`, "自分.リザーブ: 10 → 11", ...kills(getCard(ROKU).name, 3)],
     })
 }
+
+// 追加：バーストがセット中でも、古いバーストを破棄してセットし直せる（BURST.md 38行）
+scenario({
+    name: "world-replace-set-burst",
+    start: { interactive: true, me: { burst: LIGHT, hand: [WORLD, BSET] } },
+    steps(t) {
+        t.act("me", { type: "summon", handIndex: 0 })
+        ans(t, { card: 0 })
+    },
+    expect: [
+        "自分.リザーブ: 10 → 0", "自分.トラッシュのコア: 0 → 9", `自分.手札: ${nm(WORLD, BSET)} → ${getCard(ROKU).name}`, "自分.デッキ枚数: 40 → 39",
+        `自分.バースト: ${getCard(LIGHT).name} → ${getCard(BSET).name}`, `自分.トラッシュ: なし → ${getCard(LIGHT).name}`, ...appear("自分.覇王ロード・ドラゴン・ザ・ワールド", 8000, 1, 1),
+    ],
+})
 
 console.log("すべてのチェックに合格しました 🎉（part656）")
