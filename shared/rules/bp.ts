@@ -411,7 +411,8 @@ export function auraAppliesTo(
         if (board.battle.blockerInstanceId !== targetInst.instanceId) return false
     }
     if (aura.target === "self") {
-        return sourceInst.instanceId === targetInst.instanceId
+        // 合体中のブレイヴが【合体時】で言う「このスピリット」はホストを指す（BRAVE.md §12.3。BS14-070ダイヤドカリ）
+        return sourceInst.instanceId === targetInst.instanceId || (targetInst.braveRefs?.some((r) => r.instanceId === sourceInst.instanceId) ?? false)
     }
     // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
     if (sourcePid !== targetOwnerPid) return false

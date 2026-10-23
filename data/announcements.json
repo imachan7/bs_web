@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-10-24",
+   "category": "fix",
+   "text": "ダイヤドカリを合体させたスピリットが、ブロックしたときにBP+5000されていなかったのを直しました"
+  },
+  {
    "date": "2026-10-23",
    "category": "fix",
    "text": "「持つ効果すべては発揮されない」状態のスピリットが、マジックの使用の制限など一部の効果を出し続けていたのを直しました"
