@@ -1,9 +1,10 @@
 // globalConstraint "coreGainCap"（BS17-063 黒き聖杯）。
 // 2026-10-17 ユーザー確認：マジックの効果は数えない／累計は相手の効果すべての合計／
 // コアステップ・コストの支払い（効果ではない）は対象外。
+import { entryActive } from "../../../shared/rules/effectStop"
 import type { CardType, GameState, PlayerId } from "../type"
 import { currentLevel, getCard } from "./GameState"
-import { effectActiveAtLevel, effectSources } from "../../../shared/rules"
+import { effectSources } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 
 export type CoreGainFrom = "void" | "trash"
@@ -26,7 +27,7 @@ export function coreGainAllowance(
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "coreGainCap") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, sourcePid, source, effect, level)) continue
                 const c = effect.constraint
                 if (c.side !== "both" && sourcePid === pid) continue
                 if (!c.sourceTypes.includes(srcType as "spirit" | "brave" | "nexus")) continue

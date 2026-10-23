@@ -7,7 +7,6 @@ import { ownFieldSymbolColors } from "../../../../shared/cost"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { matchesPick } from "../actions/revealAction"
 import {
-    effectActiveAtLevel,
     effectActiveOn,
     effectiveBp,
     effectSources,
@@ -701,7 +700,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 // 発生源自身の Lv（levelAs を受ける前の Lv）が効果の Lv に届かなければ発揮しない（2026-10-03 ユーザー確認）
                 if (
                     effect.sourceMinLevel === undefined && effect.sourceLevels === undefined &&
-                    !effectActiveAtLevel(effect.levels, rawLevel(source))
+                    !entryActive(state, pid, source, effect, rawLevel(source))
                 ) {
                     continue
                 }

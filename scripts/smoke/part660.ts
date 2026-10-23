@@ -377,6 +377,27 @@ scenario({
     expect: [`自分.手札: ${nm(ROKU)} → なし`, "自分.リザーブ: 10 → 8", "自分.トラッシュのコア: 0 → 1", ...appear("自分.ロクケラトプス", { cores: 1, lv: 1, bp: 2000 })],
 })
 
+const FORT = "BS09-066" // 目覚める要塞城（Lv1･Lv2『このネクサスの配置時』手札の青スピリットを無償召喚）
+const BULL = "BS03-071" // 戦闘獣ブルトップ（青・コスト0・Lv1 1コア/1000）
+{
+    assert(getCard(FORT).name === "目覚める要塞城" && getCard(BULL).name === "戦闘獣ブルトップ", "前提: 材料の名前")
+    assert(getCard(FORT).effect.startsWith("Lv1･Lv2『"), "前提: 配置時の見出しにLv1を含む")
+}
+const fortPlaced = ["場所: なし → ネクサス", "疲労: なし → false", "コア: なし → 0", "Lv: なし → 1"].map((x) => `自分.目覚める要塞城.${x}`)
+const fortLines = [`自分.手札: ${nm(FORT, BULL)} → なし`]
+scenario({
+    name: "042-ネクサスのLv1を含む誘発（配置時）も止まる",
+    start: { me: { hand: [FORT, BULL], spirits: [{ card: MELODY }] } },
+    steps: (t) => t.act("me", { type: "setNexus", handIndex: 0 }),
+    expect: [`自分.手札: ${nm(FORT, BULL)} → ${nm(BULL)}`, "自分.リザーブ: 10 → 5", "自分.トラッシュのコア: 0 → 5", ...fortPlaced],
+})
+scenario({
+    name: "042-メロディエルがいなければ配置時は発揮される",
+    start: { me: { hand: [FORT, BULL], spirits: [{ card: GORA }] } },
+    steps: (t) => t.act("me", { type: "setNexus", handIndex: 0 }),
+    expect: [...fortLines, "自分.リザーブ: 10 → 4", "自分.トラッシュのコア: 0 → 5", ...fortPlaced, ...appear("自分.戦闘獣ブルトップ", { cores: 1, lv: 1, bp: 1000 })],
+})
+
 // ============================================================
 // BS18-043 / 044 創造主グリム・ウィル／ジェイ
 // ============================================================

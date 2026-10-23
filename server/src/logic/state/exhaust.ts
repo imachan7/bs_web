@@ -1,4 +1,5 @@
 // スピリット・ネクサスの疲労処理
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { zoneSpiritEffectsDisabled } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
@@ -6,7 +7,7 @@ import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../G
 import { fireTrigger } from "../triggers"
 import { preventExhaustByPay } from "./exhaustPrevent"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { effectActiveAtLevel, effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
+import { effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
 
 // hasGlobalConstraintは汎用関数のためphase/turnを見ない（removal.tsのallSpiritsCantBounceActiveと同じ理由で専用関数にする）。
 // BS16-072 Lv2：『お互いのアタックステップ』限定。phase/turn未指定のBS09-047は従来どおり常時有効のまま
@@ -16,7 +17,7 @@ function noRefreshByNexusOrMagicActive(state: GameState): boolean {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noRefreshByNexusOrMagic") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, pid, source, effect, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
@@ -42,7 +43,7 @@ export function checkExhaustOnCoreChange(
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "exhaustOnManualCoreAdd") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, sourcePid, source, effect, level)) continue
                 if (sourcePid === affectedPid && effect.scope !== "any") continue
                 const wantsEffect = effect.trigger === "effect"
                 if (wantsEffect !== opts.viaEffect) continue
@@ -262,7 +263,7 @@ export function canExhaustNexus(state: GameState, ownerPid: PlayerId): boolean {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "opponentNexusesUnexhaustable") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(state, opponentOf(ownerPid), source, effect, currentLevel(source).level)) continue
             if (effect.constraint.phase !== undefined && state.phase !== effect.constraint.phase) continue
             return false
         }

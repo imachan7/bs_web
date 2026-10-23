@@ -23,6 +23,7 @@ import {
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 import type { KeywordInfo } from "../../../shared/rules"
+import { entryActive } from "../../../shared/rules/effectStop"
 import {
     activeConstraints,
     auraAmount, auraAppliesTo,
@@ -147,7 +148,7 @@ export function isTriggerSuppressed(
             for (const effect of getCard(inst.cardId).effects) {
                 if (effect.kind !== "triggerSuppression") continue
                 if (effect.trigger !== event) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, sourcePid, inst, effect, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && sourcePid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && sourcePid === state.turnPlayer) continue
@@ -281,7 +282,7 @@ export function fireTrigger(
         // 【合体時】＝合体しているときだけ発揮する（BRAVE.md §12.3）。
         // 『このスピリットの**合体アタック時**』もこの形で表す（＝ブレイヴが付いているときだけの『アタック時』。
         // 2026-08-25 ユーザー確認）
-        if (!effectActiveOn(src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
+        if (!entryActive(state, owner, src, effect, src === selfInstance ? level : currentLevel(src).level)) return false
         // 【合体時】の色条件（X008）。ホストは selfInstance 側（合体スピリットは1体）
         if (
             effect.kind === "triggered" &&
@@ -701,7 +702,7 @@ function collectGrantedTriggerActions(
             if (effect.kind !== "effectGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.whileCombined && !instIsCombined(source)) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(state, owner, source, effect, sourceLevel)) continue
             if (effect.granted.trigger !== event) continue
             if (effect.nameIncludes && !cardNameContains(selfInstance, effect.nameIncludes)) {
                 continue

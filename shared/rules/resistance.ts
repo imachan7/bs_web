@@ -1,4 +1,5 @@
 // 効果耐性（装甲・効果を受けない・対象にならない）の一本化（shared/rules.ts から分割。判定の規約は shared/rules.ts 冒頭）
+import { entryActive } from "./effectStop"
 import { noteCoverage } from "../coverage"
 
 import type {
@@ -200,7 +201,7 @@ export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, i
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "exhaustImmunityGrant") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, targetOwnerPid, source, effect, sourceLevel)) continue
             // scope:"self"指定時は発生源自身だけが対象（BS12-012戦車皇ディルガン）。familyFilterは無視する
             if (effect.scope === "self") {
                 if (source.instanceId !== inst.instanceId) continue

@@ -1,9 +1,10 @@
 // ステップの開始・終了、バトルに勝ったとき、BP が達したときの誘発
 import { noteCoverage } from "../../../shared/coverage"
+import { entryActive } from "../../../shared/rules/effectStop"
 import { markPays } from "./actions/pay"
 import type { CardInstance, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { currentLevel, getCard, log, opponentOf, resolveInOrder } from "./GameState"
-import { countSpiritsWeighted, countSymbols, effectActiveAtLevel, effectiveBp, effectSources, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
+import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
 import { requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
@@ -45,7 +46,7 @@ export function fireBattleWonTriggers(
             // lentOnly：仮想発生源からのみ有効（実在カードが同じエントリを持っても恒久化させない）
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             if (effect.whileCombined && !instIsCombined(inst)) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, winnerPid, inst, effect, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
             // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）
             if (effect.firstAttackOfTurn && state.attacksThisTurn !== 1) continue
@@ -212,7 +213,7 @@ export function fireStepTriggers(
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 // 【合体時】のゲート＋レベル判定（BS10-008 火星神龍アレス・ドラグーン）
-                if (!effectActiveOn(inst, effect, level)) continue
+                if (!entryActive(state, pid, inst, effect, level)) continue
                 // 「ターンに1回」（BS10-008：この効果自身が追加のエンドステップを生むため、無いと無限ループになる）
                 if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "stepUsedTurn")) continue
                 if (effect.condition === "handNotGreaterThanOpponent" && !checkStepCondition(state, pid, effect.condition)) continue
@@ -428,7 +429,7 @@ export function battleBp(state: GameState, pid: PlayerId, inst: CardInstance): n
             if (effect.lentOnly && !isVirtualSource(source)) continue
             // 相手側の発生源は side:"both" のエントリだけが効く
             if (sourcePid !== pid && effect.side !== "both") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(state, sourcePid, source, effect, sourceLevel)) continue
             if (effect.fromLevel !== undefined && effect.fromLevel !== level) continue
             if (effect.maxCost !== undefined && getCard(inst.cardId).cost > effect.maxCost) continue
             // keywordFilter（BS06神葉樹の森Lv2）：指定キーワードを持つスピリットのみ対象

@@ -6,6 +6,7 @@
 //   - ハンドラ層: キーワードはレジストリ、アクションは resolveAction で解決
 // キーワードごとの処理は keywords/（【バースト】は keywords/burst.ts）、デッキ破棄は zones/mill.ts、疲労・回復は state/exhaust.ts、
 // 継続効果の再計算は state/continuous.ts、対象の選び方と選択待ちの発行は targeting.ts、召喚時の誘発と無償召喚は summon.ts に分けてある。
+import { entryActive } from "../../../shared/rules/effectStop"
 import { noteAction, noteCoverage } from "../../../shared/coverage"
 import { chimeiBase, chimeiBonus } from "./keywords/chimei"
 import { recordBp, refreshLevelAsOverrides } from "./state/continuous"
@@ -345,7 +346,7 @@ function tryPayableTargetNegate(
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "targetNegateByHandDiscard") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, targetOwnerPid, source, effect, level)) continue
             if (effect.bySourceType !== attempt.sourceType) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
@@ -440,7 +441,7 @@ export function askPayToNegateIfNeeded(
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "targetNegateByHandDiscard") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, targetOwnerPid, source, effect, level)) continue
             if (effect.bySourceType !== attempt.sourceType) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
@@ -531,7 +532,7 @@ export function destroyedCoresGoToTrash(state: GameState): boolean {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "destroyedCoresToTrash") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, pid, source, effect, level)) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 noteCoverage(effect, "destroyedCoresToTrash")
@@ -564,7 +565,7 @@ export function destroyBpThresholdBonusFor(state: GameState, ownerPid: PlayerId)
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "destroyBpThresholdBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             noteCoverage(effect, "destroyBpThresholdBonus")
             total += effect.amount
         }
@@ -581,7 +582,7 @@ export function handImmuneFor(state: GameState, targetPid: PlayerId, sourceType:
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "handImmuneForPid") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, targetPid, source, effect, level)) continue
             // ネクサスの効果は既定では防がない＝意図的（BS12-067）。includeNexus指定時のみ防ぐ（BS14-082五角形の砦）
             if (sourceType === "nexus" && !effect.constraint.includeNexus) continue
             return true
@@ -605,7 +606,7 @@ export function tryLifeDamageMillGuard(
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "lifeDamageMillGuard") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, defenderPid, source, effect, level)) continue
             if (effect.turn === "own" && defenderPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && defenderPid === state.turnPlayer) continue
             // attackerFilter（SD02-012 天の城門＝「【転召】を持たない相手のLv1スピリットのアタック」）。
@@ -668,7 +669,7 @@ export function lifeCostBlockedByFloor(state: GameState, pid: PlayerId, amount =
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "ownLifeFloor") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             if (player.life - amount < effect.constraint.floor) return true
         }
     }
@@ -686,7 +687,7 @@ export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean 
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "ownLifeFloor") continue
             if (!effect.constraint.costSelfToTrash) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             player.field.nexuses.splice(index, 1)
             player.trashCards.push(source.cardId)
             soulCoreLeavesField(player, source) // 案B-inside: 先に[ソウルコア]退避
@@ -713,7 +714,7 @@ export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): b
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "summonedExhaustGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (effect.condition?.selfRested && !source.isRested) continue
             noteCoverage(effect, "summonedExhaustGrant")
             return true
@@ -729,7 +730,7 @@ export function hasBurstMagicFreeEffect(state: GameState, ownerPid: PlayerId): b
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "burstMagicFreeEffect") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             noteCoverage(effect, "burstMagicFreeEffect")
             return true
         }
@@ -759,7 +760,7 @@ function blockTriggersGrant(state: GameState, ownerPid: PlayerId, inst: CardInst
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "blockTriggersAsAttackGrant") continue
             if ((effect.alsoBlock === true) !== both) continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (effect.whileOwnBurstSet === true && !state.players[ownerPid].burstSet) continue
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
@@ -787,7 +788,7 @@ export function hasAttackTriggersAsBlock(
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "attackTriggersAsBlockGrant") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, sourcePid, source, effect, level)) continue
                 // target:"ownAll" は発生源の持ち主のスピリットのみ、target:"self" は発生源自身のみ
                 if (effect.target === "ownAll" && sourcePid !== ownerPid) continue
                 if (effect.target === "self" && source.instanceId !== inst.instanceId) continue
@@ -865,7 +866,7 @@ export function hasLifeDamageNegate(
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "lifeDamageNegate") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(state, defenderPid, source, effect, sourceLevel)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && defenderPid !== state.turnPlayer) continue
@@ -902,7 +903,7 @@ export function drawStepBonusFor(state: GameState, pid: PlayerId): number {
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "drawStepBonus" || !effectActiveAtLevel(effect.levels, level)) continue
+            if (effect.kind !== "drawStepBonus" || !entryActive(state, pid, inst, effect, level)) continue
             if (effect.uniqueByName) {
                 const name = getCard(inst.cardId).name
                 if (counted.has(name)) continue
@@ -926,7 +927,7 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "coreStepBonus") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, inst, effect, level)) continue
             if (effect.condition) {
                 const cond = effect.condition
                 const ok =
@@ -1148,7 +1149,7 @@ export function applyMagicBuffBonus(
     for (const source of effectSources(state, targetOwner)) {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicBuffBonus") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(state, targetOwner, source, effect, currentLevel(source).level)) continue
             // 『自分のアタックステップ』限定（BS02-033騎獣スレイプホースLv3）。
             // 上で state.phase === "attack" は確認済みなので、ここでは誰のターンかだけを見る
             if (effect.turn === "own" && targetOwner !== state.turnPlayer) continue
@@ -1455,7 +1456,7 @@ export function drawDoubleMultiplier(state: GameState, owner: PlayerId): number 
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "drawDouble") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, owner, source, effect, level)) continue
             if (state.phase !== effect.phaseTurn.phase) continue
             if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue
             noteCoverage(effect, "drawDouble")

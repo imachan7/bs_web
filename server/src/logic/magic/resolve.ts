@@ -1,10 +1,11 @@
 // マジック効果の解決と再発揮の付与
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { isSelfInBattle, magicEffectiveColors } from "../../../../shared/cost"
 import { magicConditionFailure } from "../../../../shared/magicCondition"
-import { effectActiveAtLevel, effectSources } from "../../../../shared/rules"
+import { effectSources } from "../../../../shared/rules"
 import { resolveAction } from "../EffectModules"
 import { markPayConfirmed } from "../actions/pay"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
@@ -74,7 +75,7 @@ export function findMagicRepeatGrantSource(state: GameState, pid: PlayerId): Car
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicRepeatGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, pid, source, effect, level)) continue
             if (effect.condition === "selfInBattle" && !isSelfInBattle(state, source.instanceId)) continue
             if (effect.oncePerBattle) {
                 if (!state.battle) continue // バトル外では消費を記録できないので成立させない

@@ -1,4 +1,5 @@
 // 両陣営を対象にするマジックの対象の付け替え
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, CardType, PendingChoice, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, log, opponentOf, suspend } from "../GameState"
@@ -52,7 +53,7 @@ export function findBothSidesRedirectSource(
         for (const source of effectSources(state, ownerPid)) {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "bothSidesTargetRedirect") continue
-                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
                 if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
                 noteCoverage(effect, "bothSidesTargetRedirect")

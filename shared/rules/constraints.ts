@@ -20,7 +20,7 @@ import { card } from "../cardDb"
 import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
-import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
 import { entryActive } from "./effectStop"
 import { hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
@@ -1069,7 +1069,7 @@ export function noOpponentTriggerByColor(
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noOpponentTriggerByColor") continue
                 if (!isOpponentSide && effect.constraint.bothSides !== true) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (!effect.constraint.triggers.includes(event)) continue
                 if (effect.constraint.color !== undefined && !instHasColor(inst, effect.constraint.color)) continue
