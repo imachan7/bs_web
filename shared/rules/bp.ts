@@ -13,6 +13,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrLabel, targetArmorColorCount } from "./keywordState"
+import { entryActive } from "./effectStop"
 import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
 import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
@@ -538,7 +539,7 @@ export function isBpBuffSuppressed(board: Board, effectOwnerPid: PlayerId): bool
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "bpBuffSuppression") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, sourcePid, source, effect, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
@@ -569,7 +570,7 @@ function eachBpAura(board: Board, ownerPid: PlayerId, inst: CardInstance, onAmou
                 if (effect.aura.lentOnly && !isVirtualSource(source)) continue
                 // 発生源のレベル判定は素の currentLevel を使う（effectiveBp の再帰を避ける）
                 const sourceLevel = currentLevel(source).level
-                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+                if (!entryActive(board, pid, source, effect, sourceLevel)) continue
                 if (!auraAppliesTo(board, pid, source, effect.aura, ownerPid, inst)) {
                     continue
                 }

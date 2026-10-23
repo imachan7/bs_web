@@ -4,6 +4,7 @@ import { countEffectCounter, fireFieldEventTriggers } from "../EffectModules"
 import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, TimedRecord, PlayerRuleDef } from "../../type"
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } from "../GameState"
 import { ownFieldSymbolColors } from "../../../../shared/cost"
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { matchesPick } from "../actions/revealAction"
 import {
     effectActiveAtLevel,
@@ -212,7 +213,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 for (const effect of getCard(brave.cardId).effects) {
                     if (effect.kind !== "keyword") continue
                     if (effect.keyword !== "armor" && effect.keyword !== "heavyArmor") continue
-                    if (!effectActiveAtLevel(effect.levels, braveLevel)) continue
+                    if (!entryActive(state, pid, brave, effect, braveLevel)) continue
                     // 【重装甲】も同じ理由でホストへ写す（hasHeavyArmorAgainst も state を受け取らない純粋述語。
                     // BS12-055 ゲッコ・グライダー＝【合体時】【重装甲：紫/黄】）
                     const granted =
@@ -261,7 +262,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 継続付与の装甲（BS05白夜の虚空Lv2：転召持ちに装甲：赤/紫/緑/白を付与）／重装甲（器AP。BS13-056ホーク・ブレイカー）。
                     // hasArmorAgainst/hasHeavyArmorAgainstはstateを受け取らない設計のため、対象スピリットのCardInstance.
                     // armorColorsGranted/heavyArmorColorsGrantedへ毎回再計算して反映する（levelAsContinuous等と同じ「都度再構築」方式）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     // onlyWhileSpiritState：発生源自身が合体しているときは発揮しない（BS13-056：「このブレイヴがスピリット状態の間」）
                     if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -300,7 +301,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 【装甲：∞】：持ち主から見た相手フィールドのシンボル色を毎回算出して自身へ反映する
                     // （hasArmorAgainstはstateを受け取らない純粋述語のため、armorColorsGrantedへ都度全消去→再構築で渡す。
                     // BS06鎧神機ヴァルハランス。sourceは実在するカード自身＝effectSourcesが返す実フィールド発生源）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     const oppColors = ownFieldSymbolColors(state, opponentOf(pid))
                     if (oppColors.size > 0) {
                         noteCoverage(effect, "keyword")
@@ -314,7 +315,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.kind === "braveImmuneGrant") {
                     // 第3の耐性軸（BS12初出）：相手のブレイヴの効果を受けない。target:"self"は発生源自身、
                     // target:"ownAll"は持ち主のスピリットすべて（colorFilter/keywordFilter/phase/turnで絞る）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
                     if (effect.turn === "own" && pid !== state.turnPlayer) continue
                     if (effect.turn === "opponent" && pid === state.turnPlayer) continue
@@ -331,7 +332,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.kind === "effectEntryGrant") {
                     // 誘発でなく効果エントリ本体を継続付与する（BS12-068光の聖剣Lv1）。
                     // grantedMagicNegateへ積み、triggers.findMagicNegateSourceがcard自身のeffectsと合わせて走査する
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         if (
                             effect.keywordFilterAny &&
@@ -352,7 +353,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // ストライクヴルム）。**付与色も含めて毎回算出する**（2026-09-03 ユーザー確認。BS12-027 Lv2 が
                     // 「自分の[ルナテック]すべてを紫/緑のスピリットとしても扱う」と組む）。
                     // 【装甲：∞】の colorsFrom:"opponentFieldSymbols" と同じ都度再構築
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     const own = (source.heavyArmorColorsGranted ??= [])
                     for (const c of instColors(source)) if (!own.includes(c)) own.push(c)
                     continue
@@ -362,7 +363,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // スピリットとしても扱う」（BS04スイッチヒッター）。instIsVanilla は state を受け取らない
                     // 純粋述語なので、対象の CardInstance.treatedAsVanillaContinuous へ毎回再構築して反映する
                     if (effect.lentOnly && !isVirtualSource(source)) continue
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     // chosenInstance（BS12-081メロディアスハープ）：陣営を問わず選んだ1体だけ
                     if (effect.target === "chosenInstance") {
                         const chosenId = source.lentChoiceInstanceId
@@ -403,7 +404,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 「相手のスピリットすべてのLvコストを+1する」（BS09-017蛇凰神バァラルLv2-3）。
                     // 加算は重ねられる（同名を2体並べたら+2）。維持コア割れの掃除は
                     // GameEngine.handleAction の事後フック（sweepLevelCostDepletion）が行う
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     if (effect.target === "opponentNexusesAll") {
                         // BS15-015吸血令嬢エサルフリーダ：相手のネクサスすべての「Lvコスト」を+amount
                         for (const nexus of state.players[opponentOf(pid)].field.nexuses) {
@@ -425,7 +426,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // こちらは effectSources / activeConstraints / spiritHasKeyword / fireTrigger の
                     // 4か所が CardInstance.effectsDisabledContinuous を見て実際に発揮を止める
                     if (effect.lentOnly && !isVirtualSource(source)) continue
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     // chosenInstance（BS12-081メロディアスハープ）：陣営を問わず選んだ1体だけ
                     if (effect.target === "chosenInstance") {
                         const chosenId = source.lentChoiceInstanceId
@@ -467,7 +468,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // cardNameContains は state を受け取らない純粋述語なので、colorsAsContinuous と同じく
                     // 対象の CardInstance.namesAsContinuous へ毎回再構築して反映する
                     if (effect.lentOnly && !isVirtualSource(source)) continue
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         // 器BK：target:"self"は発生源自身にだけ付与する
                         if (effect.target === "self" && spirit.instanceId !== source.instanceId) continue
@@ -486,7 +487,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 発生源自身（target:"ownAll" は持ち主のスピリットすべて）が指定色としても扱われる
                     // （継続。百面相のフラットフェイス／妖精ティングリー）
                     if (effect.lentOnly && !isVirtualSource(source)) continue
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     noteCoverage(effect, "colorAs")
                     // 仮想発生源は場に実在しないため、target:"self" の対象にはできない（TURN_EFFECT_SOURCES.md §4.1）
                     const targets =
@@ -556,7 +557,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind === "costDelta") {
                     // 継続的な「コスト+N」（BS11-017 ムシャツバメLv2-3）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     if (effect.phaseTurn) {
                         if (state.phase !== effect.phaseTurn.phase) continue
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
@@ -571,7 +572,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.kind === "symbolFix") {
                     // 持ち主の対象スピリット（familyFilter一致）のシンボルを、そのスピリット元々の
                     // シンボル1色目でcount個に固定する（継続。BS08海底に眠りし古代都市Lv2）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     // phaseTurn（BS09-008炎皇帝アグニフォンLv2-3＝『自分のアタックステップ』）
                     if (effect.phaseTurn) {
                         if (state.phase !== effect.phaseTurn.phase) continue
@@ -601,7 +602,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 対象は field.spirits にいる card.type==="brave" の個体のみ（合体中のブレイヴは
                     // field.combinedBraves にいるため自然に対象外＝BRAVE.md §12.7）。
                     // ステータスだけを上書きし、そのブレイヴが元から持つ効果は残す（effectsDisabledContinuousは立てない）
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         if (getCard(spirit.cardId).type !== "brave") continue
                         noteCoverage(effect, "braveStatsAs")
@@ -628,7 +629,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // instHasCost / instMatchesCostFilter は state を受け取らない設計のため、
                     // 対象の CardInstance.alsoCostsContinuous へ毎回再計算して反映する
                     if (effect.lentOnly && !isVirtualSource(source)) continue
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         // familyFilter（SD02-013 転召の祭壇Lv2＝召喚するカードと同じ系統のみ）
                         if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
@@ -654,7 +655,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.kind === "bpAs") {
                     // 継続的な「BPを◯として扱う」（levelAsのBP版。器Q。BS13-X011）
                     if (effect.whileCombined === true && !instIsCombined(source)) continue
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     for (const spirit of player.field.spirits) {
                         if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
                         noteCoverage(effect, "bpAs")
@@ -665,7 +666,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 if (effect.kind === "bpEqualizeFamily") {
                     // 器BS16：他の同系統スピリットのLv別BPを、発生源自身の**現在の実効BP**と同じとして
                     // 扱う（全面上書き。対象側のBP+は加算されない）。BS16-009百地ダイル
-                    if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                    if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     if (effect.phaseTurn) {
                         if (state.phase !== effect.phaseTurn.phase) continue
                         if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
@@ -850,13 +851,13 @@ export function refreshLevelAsOverrides(state: GameState): void {
         for (const source of effectSources(state, pid)) {
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "armorEffectiveGrant") continue
-                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
                 const level = currentLevel(source).level
                 const ownArmorColors: Color[] = []
                 for (const e of getCard(source.cardId).effects) {
                     if (e.kind !== "keyword" || e.keyword !== "armor") continue
-                    if (!effectActiveAtLevel(e.levels, level)) continue
+                    if (!entryActive(state, pid, source, e, level)) continue
                     for (const c of e.colors ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)
                 }
                 for (const c of source.armorColorsGranted ?? []) if (!ownArmorColors.includes(c)) ownArmorColors.push(c)

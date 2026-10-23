@@ -529,6 +529,7 @@ export type EffectDefContinuous =
           levels: number[] | null
           target: "opponentAll" | "bothAll" // bothAll（白1色縛り）は両陣営に効く（2026-09-17確認）
           targetLevels?: number[] // levelsは発生源自身の有効Lv、こちらは止める側の対象ネクサスのLv
+          targetEffectLevels?: number[] // 止める対象は「Lvが合う」エントリ。levels が null か、これのいずれかを含むエントリが止まる（ネクサスの現在Lvは問わない）
           phase?: Phase
           condition?: { ownFieldOnlyColor: Color; spiritsOnly?: true } // target:"bothAll" 用の発揮条件
           lentOnly?: boolean

@@ -21,6 +21,7 @@ import { isEndStepLocked } from "./activation"
 import { checkAuraCondition, countSpiritsWeighted, effectiveBp } from "./bp"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instAllCosts, instEffectsSuppressed, ownAllNexusesHaveFamily, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVirtualSource } from "./level"
+import { entryActive } from "./effectStop"
 import { hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
@@ -128,7 +129,7 @@ export function activeConstraintsWithSource(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             // 【合体時】：発生源自身が合体しているときだけ付与する（BRAVE.md §12.3。BS13-X006）
             if (effect.whileCombined === true && !instIsCombined(source)) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             if (effect.minLevel !== undefined && level < effect.minLevel) continue
             if (effect.condition !== undefined && !checkAuraCondition(board, pid, effect.condition)) continue
             // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
@@ -183,7 +184,7 @@ export function activeConstraintsWithSource(
             if (effect.constraint.type !== "tenshoCoreSubstitute") continue
             const { familyFilter, costFilter } = effect.constraint
             if (familyFilter === undefined && costFilter === undefined) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             if (familyFilter !== undefined && !matchesFamilyFilter(board, pid, inst, familyFilter)) continue
             if (costFilter !== undefined && !instHasCost(inst, costFilter)) continue
             granted.push({ sourceInstanceId: source.instanceId, constraint: effect.constraint })
@@ -196,7 +197,7 @@ export function activeConstraintsWithSource(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintSuppression") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, pid, source, effect, sourceLevel)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
@@ -220,7 +221,7 @@ export function noReductionGrantFrom(board: Board, sourceType: CardType): boolea
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noReductionGrantToHand") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (effect.constraint.sourceTypes.includes(sourceType)) return true
             }
         }
@@ -380,7 +381,7 @@ export function hasGlobalConstraint(
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== type) continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, inst, effect, level)) continue
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
@@ -403,7 +404,7 @@ export function attackOncePerTurnLimitApplies(board: Board, inst: CardInstance):
             const level = currentLevel(source).level
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackOncePerTurnBySymbolCount") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (effect.constraint.symbolCount === count) return true
             }
         }
@@ -422,7 +423,7 @@ export function attackOncePerTurnByCostLimitApplies(board: Board, inst: CardInst
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
                 if (constraint.type !== "attackOncePerTurnByCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (instAllCosts(inst).some((cost) => cost <= constraint.maxCost)) return true
             }
         }
@@ -443,7 +444,7 @@ export function attackTotalOncePerTurnLimitApplies(board: Board, attackerPid: Pl
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackOncePerTurnTotalByCost") continue
                 const maxCost = effect.constraint.maxCost
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 const family = effect.condition?.allOwnNexusesHaveFamily
                 if (family !== undefined && !ownAllNexusesHaveFamily(board, pid, family)) continue
                 if (used <= maxCost && costs.some((c) => c <= maxCost)) return true
@@ -460,7 +461,7 @@ export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeImmuneToSpiritEffects") continue
-            if (effectActiveAtLevel(effect.levels, level)) return true
+            if (entryActive(board, pid, source, effect, level)) return true
         }
     }
     return false
@@ -555,7 +556,7 @@ export function costCantAct(board: Board, cost: number): boolean {
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "costCantAct") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, inst, effect, level)) continue
                 const { maxCost, costs } = effect.constraint
                 if (costs !== undefined ? costs.includes(cost) : maxCost !== undefined && cost <= maxCost) {
                     noteCoverage(effect, "globalConstraint")
@@ -589,7 +590,7 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
             if (effect.kind !== "globalConstraint") continue
             const constraint = effect.constraint
             if (constraint.type !== "opponentCantAttackByCost" && constraint.type !== "opponentCantAttackByCores") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(board, opp, source, effect, level)) continue
             // phase/turn指定時は発生源の持ち主(opp)基準でのステップ限定（BS14-053オリンピアの天使ハギトLv2：『相手のアタックステップ』＝opp視点では"opponent"）
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (
@@ -615,7 +616,7 @@ export function instCantAttackByCost(board: Board, inst: CardInstance): boolean 
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
                 if (constraint.type !== "cantAttackByCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) return true
             }
         }
@@ -634,7 +635,7 @@ export function instCantBlockByCost(board: Board, inst: CardInstance): boolean {
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
                 if (constraint.type !== "cantBlockByCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (costsOfBlocker.some((cost) => constraint.costs.includes(cost))) return true
             }
         }
@@ -655,7 +656,7 @@ export function instAttackRequiresCoreToll(board: Board, inst: CardInstance): bo
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
                 if (constraint.type !== "attackRequiresCoreToll") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (costsOfAttacker.some((cost) => cost <= constraint.maxCost)) return true
             }
         }
@@ -674,7 +675,7 @@ export function attackPayTollCount(board: Board, attackerPid: PlayerId, inst: Ca
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackPayToll") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, sourcePid, source, effect, sourceLevel)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.turn === "opponent" && board.turnPlayer === sourcePid) continue
             if (effect.turn === "own" && board.turnPlayer !== sourcePid) continue
@@ -705,7 +706,7 @@ export function instCantAttackByFewOwnSpirits(board: Board, attackerPid: PlayerI
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
                 if (constraint.type !== "cantAttackIfFewOwnSpirits") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (board.players[attackerPid].field.spirits.length <= constraint.atMost) return true
             }
         }
@@ -739,7 +740,7 @@ export function levelCantAct(board: Board, level: number): boolean {
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "levelCantAct") continue
-                if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+                if (!entryActive(board, pid, inst, effect, sourceLevel)) continue
                 if (effect.constraint.levels.includes(level)) return true
             }
         }
@@ -760,7 +761,7 @@ export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noLifeDamageByCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, inst, effect, level)) continue
                 const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel, attackerCores } = effect.constraint
                 // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
                 if (ownOnly && pid !== defenderPid) continue
@@ -908,7 +909,7 @@ export function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker:
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageCapPerSourcePerTurn") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             const dealt = attacker.lifeDealtThisTurn ?? 0
             remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
@@ -932,7 +933,7 @@ export function lifeDamagePerSpiritRemaining(board: Board, spirit: CardInstance)
         for (const source of effectSources(board, pid)) {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "lifeDamagePerSpiritPerTurn") continue
-                if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+                if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 const dealt = spirit.lifeDealtThisTurn ?? 0
                 remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
@@ -973,7 +974,7 @@ export function ownLifeFloorContinuous(board: Board, pid: PlayerId): number {
             // ダメージ計算の時点でここが効くと、コストを払わずに0回避が成立してしまう
             // （tryOwnLifeFloorByCostが life<=0 判定の直後で任意コスト付きで処理する）
             if (effect.constraint.costSelfToTrash) continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             const fam = effect.condition?.ownFamilyCountAtLeast
             if (fam !== undefined) {
@@ -1092,7 +1093,7 @@ export function noSummonTriggerByCost(board: Board, inst: CardInstance, instOwne
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noSummonTriggerByCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 // side:"opponent"指定時は、発生源の持ち主から見た相手（instOwnerPid）のスピリット/ブレイヴだけを止める
                 // （BS14-088青玉の巨大迷宮Lv2。instOwnerPidが分からなければ安全側＝止めない）
                 if (effect.constraint.side === "opponent" && (instOwnerPid === undefined || instOwnerPid === pid)) {
@@ -1122,7 +1123,7 @@ export function summonByEffectBlocked(board: Board): boolean {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noSummonByEffect") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (effect.phase !== undefined && board.phase !== effect.phase) continue
                 return true
             }
@@ -1141,7 +1142,7 @@ export function noReductionBySummonCost(board: Board, staticCost: number): boole
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "noReductionBySummonCost") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(board, pid, source, effect, level)) continue
                 if (staticCost <= effect.constraint.maxCost) return true
             }
         }
@@ -1186,7 +1187,7 @@ function hasImmunityAgainst(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== against) continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(board, ownerPid, source, effect, sourceLevel)) continue
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && ownerPid !== board.turnPlayer) continue
@@ -1342,7 +1343,7 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noBurstActivationByEvent") continue
             const c = effect.constraint
-            if (!c.events.includes(event) || !effectActiveAtLevel(effect.levels, level)) continue
+            if (!c.events.includes(event) || !entryActive(board, opp, source, effect, level)) continue
             if (!globalConstraintWindowOpen(board, effect, opp)) continue
             if (c.whileOwnAttackerFamily !== undefined) {
                 const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
@@ -1381,7 +1382,7 @@ export function mustAttackOnceBlocksEnd(board: Board, pid: PlayerId, canDeclare:
             (e) =>
                 e.kind === "globalConstraint" &&
                 e.constraint.type === "opponentMustAttackOnce" &&
-                effectActiveAtLevel(e.levels, level) &&
+                entryActive(board, opp, source, e, level) &&
                 globalConstraintWindowOpen(board, e, opp, "attack"),
         )
         if (hit) break

@@ -364,13 +364,12 @@ const HILL = "BS01-109" // 風吹く丘陵（Lv1･Lv2『相手のスタート�
     assert(getCard(UNDEAD).name === "闇騎士ガヘリス" && getCard(CLOCK).name === "影潜む時計台" && getCard(HILL).name === "風吹く丘陵", "前提: 材料の名前")
     assert(getCard(CLOCK).effect.includes("Lv1･Lv2\n") && getCard(HILL).effect.includes("\nLv2\n"), "前提: 両方の見出しを持つ")
 }
-// 既知の限界（card-notes.json）：Lv2 以上のネクサスの Lv1 を含むエントリは止まらない。効果1つ単位で止める入口（entryActive）を作る PR で、この場面を戻す
-// scenario({
-//     name: "042-Lv2のネクサスのLv1･Lv2効果も止まる",
-//     start: { me: { spirits: [{ card: MELODY }, { card: UNDEAD }], nexuses: [{ card: CLOCK, cores: 3 }] } },
-//     steps: (t) => t.act("me", { type: "nextPhase" }),
-//     expect: ["自分.闇騎士ガヘリス.BP: 1000 → 2000"],
-// })
+scenario({
+    name: "042-Lv2のネクサスのLv1･Lv2効果も止まる",
+    start: { me: { spirits: [{ card: MELODY }, { card: UNDEAD }], nexuses: [{ card: CLOCK, cores: 3 }] } },
+    steps: (t) => t.act("me", { type: "nextPhase" }),
+    expect: ["自分.闇騎士ガヘリス.BP: 1000 → 2000"],
+})
 scenario({
     name: "042-Lv2だけの効果は止まらない",
     start: { me: { hand: [ROKU], spirits: [{ card: MELODY }], nexuses: [{ card: HILL, cores: 2 }] } },
