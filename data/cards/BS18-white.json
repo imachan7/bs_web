@@ -909,11 +909,10 @@
         }
        ],
        "duration": "turn",
+       "side": "own",
        "filter": {
         "lastTarget": true
-       },
-       "count": 1,
-       "side": "own"
+       }
       }
      ]
     }

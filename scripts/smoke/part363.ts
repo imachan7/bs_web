@@ -110,7 +110,8 @@ function collectMigrated(): { cardId: string; cardName: string; action: BpBuffAc
         }
         const obj = node as Record<string, unknown>
         const content = obj.content as { type: string; amount: number; amountCounter?: unknown }[] | undefined
-        if (obj.type === "timedEffect" && obj.all === undefined && obj.target === undefined && content?.length === 1 && content[0]!.type === "bp") {
+        // countOnce（解決時に固定する数え方）は旧 bpBuff からの移行ではないので比べない
+        if (obj.type === "timedEffect" && obj.all === undefined && obj.target === undefined && content?.length === 1 && content[0]!.type === "bp" && !("countOnce" in content[0]!)) {
             const bp = content[0]!
             const old = {
                 type: "bpBuff",
@@ -130,7 +131,7 @@ function collectMigrated(): { cardId: string; cardName: string; action: BpBuffAc
 
 const candidates = collectMigrated()
 const noEid = (k: string, v: unknown): unknown => (k === "__eid" ? undefined : v)
-assert(candidates.length === 153, `移行したカードデータの1体指定 BP は153件（BS16-077・081 で+2、BS17-001・069・081 で+3）（フェネボラック・キマイラ・デブリは「このスピリット」へ移した）（実際: ${candidates.length}）`)
+assert(candidates.length === 157, `移行したカードデータの1体指定 BP は157件（BS16-077・081 で+2、BS17-001・069・081 で+3、BS18-073・077・078・079 で+4）（フェネボラック・キマイラ・デブリは「このスピリット」へ移した）（実際: ${candidates.length}）`)
 assert(
     // __eid は coverage:effects がカードデータに付け足す計測用の印なので比べない
     candidates.every(({ action, now }) => JSON.stringify(toTimedEffect(action), noEid) === JSON.stringify(now, noEid)),

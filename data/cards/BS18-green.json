@@ -798,8 +798,7 @@
             }
           ],
           "duration": "turn",
-          "side": "both",
-          "count": 1
+          "side": "both"
         }
       }
     ]
@@ -841,8 +840,7 @@
                 }
               ],
               "duration": "turn",
-              "side": "own",
-              "count": 1
+              "side": "own"
             },
             {
               "type": "timedEffect",
