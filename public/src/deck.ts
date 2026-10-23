@@ -302,6 +302,12 @@ function renderPool(): void {
             addBtn.title = "デッキに追加"
             el.appendChild(addBtn)
         }
+        const removeBtn = document.createElement("button")
+        removeBtn.className = "remove-btn"
+        removeBtn.textContent = "−"
+        removeBtn.title = "デッキから1枚減らす"
+        removeBtn.disabled = inDeck === 0
+        el.appendChild(removeBtn)
 
         grid.appendChild(el)
     }
@@ -324,6 +330,10 @@ function setupPoolGridEvents(): void {
         // ＋ボタンなら追加だけ行う（本体クリック側の renderDetail/追加は動かさない）
         if (target.closest(".add-btn")) {
             addCard(cardId)
+            return
+        }
+        if (target.closest(".remove-btn")) {
+            removeCard(cardId)
             return
         }
 
@@ -373,6 +383,9 @@ function updatePoolBadges(): void {
         } else if (existing) {
             existing.remove()
         }
+        // 一覧はデッキの増減では描き直さないので、−ボタンの押せる状態もここで合わせる
+        const removeBtn = el.querySelector<HTMLButtonElement>(".remove-btn")
+        if (removeBtn) removeBtn.disabled = inDeck === 0
     }
 }
 
