@@ -4040,6 +4040,7 @@
      "content": [
       {
        "type": "unblockable",
+       "opponentOnly": true,
        "from": {
         "minBp": 6000
        }
@@ -5337,6 +5338,7 @@
         "content": [
          {
           "type": "unblockable",
+          "opponentOnly": true,
           "from": {
            "level": [
             1,

@@ -876,6 +876,7 @@
         },
         "constraint": {
           "type": "unblockableBy",
+          "opponentOnly": true,
           "levelAtMostAttacker": true
         }
       }

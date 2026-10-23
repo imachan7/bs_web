@@ -324,6 +324,27 @@ scenario({
     expect: ["相手.ダークレイス.BP: 2000 → 3000"],
 })
 
+console.log("=== 042. 見出しにLv1を含む効果はネクサスがLv2でも止まる／Lv2だけの効果は止まらない（2026-10-23 ユーザー確認） ===")
+const UNDEAD = "BS11-010" // 闇騎士ガヘリス（紫・【不死】・Lv1 1000）
+const CLOCK = "BS09-057" // 影潜む時計台（Lv1･Lv2『【不死】持ちBP+1000』／Lv2『呪撃を与える』）
+const HILL = "BS01-109" // 風吹く丘陵（Lv1･Lv2『相手のスタートステップ』／Lv2『召喚された自分のスピリットすべてBP+1000』）
+{
+    assert(getCard(UNDEAD).name === "闇騎士ガヘリス" && getCard(CLOCK).name === "影潜む時計台" && getCard(HILL).name === "風吹く丘陵", "前提: 材料の名前")
+    assert(getCard(CLOCK).effect.includes("Lv1･Lv2\n") && getCard(HILL).effect.includes("\nLv2\n"), "前提: 両方の見出しを持つ")
+}
+scenario({
+    name: "042-Lv2のネクサスのLv1･Lv2効果も止まる",
+    start: { me: { spirits: [{ card: MELODY }, { card: UNDEAD }], nexuses: [{ card: CLOCK, cores: 3 }] } },
+    steps: (t) => t.act("me", { type: "nextPhase" }),
+    expect: ["自分.闇騎士ガヘリス.BP: 1000 → 2000"],
+})
+scenario({
+    name: "042-Lv2だけの効果は止まらない",
+    start: { me: { hand: [ROKU], spirits: [{ card: MELODY }], nexuses: [{ card: HILL, cores: 2 }] } },
+    steps: (t) => t.act("me", { type: "summon", handIndex: 0, level: 1 }),
+    expect: [`自分.手札: ${nm(ROKU)} → なし`, "自分.リザーブ: 10 → 8", "自分.トラッシュのコア: 0 → 1", ...appear("自分.ロクケラトプス", { cores: 1, lv: 1, bp: 2000 })],
+})
+
 // ============================================================
 // BS18-043 / 044 創造主グリム・ウィル／ジェイ
 // ============================================================

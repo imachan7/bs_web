@@ -3150,6 +3150,7 @@
     },
     "constraint": {
      "type": "unblockableBy",
+     "opponentOnly": true,
      "levelFilter": [
       1
      ]
@@ -3417,6 +3418,7 @@
     },
     "constraint": {
      "type": "unblockableBy",
+     "opponentOnly": true,
      "familyFilterAbsent": "覇皇"
     }
    },

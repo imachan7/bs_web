@@ -467,7 +467,7 @@ const markUnblockableByIceWallColorThisTurnHandler: ActionHandler<"markUnblockab
         return
     }
     // 色は指定した時点の【氷壁】の色で固定する（あとで【氷壁】が無効になっても保つ）
-    recordTimed(state, { content: [{ type: "unblockable", from: { colorAny: colors } }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
+    recordTimed(state, { content: [{ type: "unblockable", from: { colorAny: colors }, opponentOnly: true }], target: { kind: "instance", instanceId: chosen.instanceId }, until: "turn", ownerPid: owner })
     log(
         state,
         `${sourceName}：${getCard(chosen.cardId).name}は、このターンの間${colors.map((c) => COLOR_LABELS[c]).join("/")}のスピリットにブロックされない。`,

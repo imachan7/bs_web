@@ -854,6 +854,7 @@
           "content": [
             {
               "type": "unblockable",
+              "opponentOnly": true,
               "from": {
                 "level": [
                   2
@@ -5749,6 +5750,7 @@
         },
         "constraint": {
           "type": "unblockableBy",
+          "opponentOnly": true,
           "maxCost": 5
         }
       }
