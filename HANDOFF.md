@@ -21,12 +21,10 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：止める効果を entryActive へ移す（10-23）
+### 既知の残り：entryActive（10-23）
 
-`entryActive`（shared/rules/effectStop.ts）はできた。設計と残りは [ENTRY_ACTIVE.md](./docs/design/ENTRY_ACTIVE.md)。
-- 既存の止める仕組み11個の移し替え（§5 の表。移せるのは nexusEffectsDisabled／restedNexusEffectsDisabled／spiritEffectsDisabledGrant／effectsDisabled）
-- keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した
-- 既知の不具合：`npm run coverage:effects` の計測下でだけ part620「036 … ブロックされない」4件が落ちる（main でも同じ。計測がカードデータに足す `__eid` が効いている疑い）
+- keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した（ENTRY_ACTIVE.md）
+- `coverage:effects` で「場に出ているのに一度も適用されていない効果」71件（smoke の穴。#296 で計測が最後まで走るようになった）
 
 ### 次の一手：後片付け（10-16）
 

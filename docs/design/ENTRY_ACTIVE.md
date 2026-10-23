@@ -113,3 +113,4 @@ A+ = 署名に board が無く引数を足す（§2）。B = 置換しない。C
 - `nexusEffectsDisabledFor` の中（止める側のエントリを探す走査）は `entryActive` を呼ばない（無限再帰になる）。止める側のエントリ同士の関係は特別扱いしない（042 の Lv1 を含む `nexusEffectsDisabled` も、一般則どおり別の 042 に止められうる。現データでは起きない）
 - クライアント（`activatableAbilityOf`・fieldCard.ts）：共有層の関数は Board を受け取る。クライアントが渡している値で `entryActive` が呼べるならそのまま使う。呼べなければ B に残し、`audit:parity` で差を確かめて PR に限界として書く
 - 既存の止める仕組み11個の移し替えは後の PR（§5）
+- **§5 の移し替えはしない（10-23 判断）**：effectSources の絞り込みを外すと、entryActive を通らない残り約33か所で止まっていた効果が動き出す。代わりに entryActive の中で同じ個体の判定を重ねて見る。spiritEffectsDisabledGrant／effectsDisabled（`instEffectsSuppressed`）は足した（場を直接走査する magicRestriction などで止まっていなかった。part662）。nexus の2つは #295 で足し済み。残りの7つは §5 の表のとおり、エントリ単位ではない／引数が増えるので入れない
