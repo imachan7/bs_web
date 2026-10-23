@@ -239,7 +239,7 @@ scenario({
     name: "050-Lv2ならアタックできる",
     start: { phase: "attack", me: { spirits: [{ card: AUG, label: "アウグスドス", cores: 4 }] } },
     steps: (t) => hit(t, "アウグスドス"),
-    expect: ["自分.アウグスドス.疲労: false → true", "相手.ライフ: 5 → 4", "相手.リザーブ: 10 → 11"],
+    expect: ["自分.アウグスドス.疲労: false → true", "相手.ライフ: 5 → 3", "相手.リザーブ: 10 → 12"],
 })
 const rocomoAttack = { phase: "attack" as const }
 scenario({
