@@ -180,6 +180,26 @@ scenario({
     ],
 })
 
+const declineLines = (label: string, id: string, n = 1) => [gone(label), `自分.トラッシュ: なし → ${name(id)}`, `自分.リザーブ: 10 → ${10 + n}`, ...oppFlameLines]
+scenario({
+    name: "038-残るのを断れば破壊される",
+    start: { interactive: true, turn: "opp", me: { spirits: [{ card: GRETEL, cores: 2 }, { card: HENZEL }] }, opp: { hand: [FLAME] } },
+    steps(t) {
+        cast(t, "opp", FLAME, "自分.グリムの天使グレーテル")
+        settle(t, { no: 0 })
+    },
+    expect: declineLines("自分.グリムの天使グレーテル", GRETEL, 2),
+})
+scenario({
+    name: "039-残るのを断れば破壊される",
+    start: { interactive: true, turn: "opp", me: { spirits: [{ card: HENZEL, cores: 2 }, { card: GRETEL }] }, opp: { hand: [FLAME] } },
+    steps(t) {
+        cast(t, "opp", FLAME, "自分.グリムの天使ヘンゼル")
+        settle(t, { no: 0 })
+    },
+    expect: declineLines("自分.グリムの天使ヘンゼル", HENZEL, 2),
+})
+
 // ============================================================
 // BS18-040 詩人ペンタン
 // ============================================================
@@ -231,6 +251,18 @@ scenario({
         "自分.詩人ペンタン.疲労: false → true", gone("相手.ダッチョーノ"), `相手.トラッシュ: なし → ${name(DACHO)}`, "相手.リザーブ: 10 → 13",
         `自分.手札: なし → ${nm(GORA, GORA)}`, "自分.デッキ枚数: 40 → 38",
     ],
+})
+scenario({
+    name: "040-ドローを断る",
+    start: { interactive: true, turn: "opp", phase: "attack", me: { deck: GDECK, spirits: [{ card: PENTAN }] }, opp: { spirits: [{ card: ANT, cores: 2 }] } },
+    steps(t) {
+        attack(t, "opp", "相手.働きアントマン")
+        settle(t, { no: 0 })
+        t.closeFlash()
+        t.act("me", { type: "takeLife" })
+        settle(t, { no: 0 })
+    },
+    expect: ["相手.働きアントマン.疲労: false → true", "相手.リザーブ: 10 → 11", "自分.ライフ: 5 → 4", "自分.リザーブ: 10 → 11"],
 })
 console.log("=== 040 Lv2. バトルした コスト4以下の相手をLv1として扱う ===")
 scenario({
@@ -438,6 +470,24 @@ scenario({
     expect: ["自分.創造主グリム・ジェイ.疲労: false → true", ...spent("相手", CYCLONE, 5)],
 })
 scenario({
+    name: "044-ウィルが残るのを断れば破壊される",
+    start: { interactive: true, turn: "opp", me: { spirits: [{ card: JAY, cores: 2 }, { card: WILL }] }, opp: { hand: [FLAME] } },
+    steps(t) {
+        cast(t, "opp", FLAME, "自分.創造主グリム・ウィル")
+        settle(t, { no: 0 })
+    },
+    expect: declineLines("自分.創造主グリム・ウィル", WILL),
+})
+scenario({
+    name: "044-ジェイ自身が残るのを断れば破壊される",
+    start: { interactive: true, turn: "opp", me: { spirits: [{ card: JAY, cores: 2 }, { card: WILL }] }, opp: { hand: [CYCLONE] } },
+    steps(t) {
+        cast(t, "opp", CYCLONE, "自分.創造主グリム・ジェイ")
+        settle(t, { no: 0 })
+    },
+    expect: [gone("自分.創造主グリム・ジェイ"), `自分.トラッシュ: なし → ${name(JAY)}`, "自分.リザーブ: 10 → 12", ...spent("相手", CYCLONE, 5)],
+})
+scenario({
     name: "044-Lv1のジェイでは残らない",
     start: { turn: "opp", me: { spirits: [{ card: JAY }, { card: WILL }] }, opp: { hand: [FLAME] } },
     steps: oppFlame("自分.創造主グリム・ウィル"),
@@ -528,17 +578,28 @@ function put059(s: GameState, pid: PlayerId, cardId: string, cores = 1) {
     return inst
 }
 // 戻り値＝フレイムダンス（赤×3軽減・コスト5）の支払い額。味方に赤のシンボルは無い
-function paid059(seed: string, combine: boolean, attackFirst = true): number {
+function paid059(seed: string, combine: boolean, attackFirst = true, afterBattle = false): number {
     const s = game059(seed)
     const host = put059(s, "p1", PONI)
     const brave = put059(s, "p1", ZACCA)
     const foe = put059(s, "p2", ROKU)
+    const second = afterBattle ? put059(s, "p1", ANT) : undefined
     s.players.p1.hand = [FLAME]
     if (combine) assert(act(s, "p1", { type: "combineBrave", braveInstanceId: brave.instanceId, hostInstanceId: host.instanceId }) === null, `${seed} 合体できる`)
     if (attackFirst) {
         assert(act(s, "p1", { type: "nextPhase" }) === null, `${seed} アタックステップへ`)
         assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, `${seed} アタックできる`)
         // アタック宣言直後のフラッシュの優先権は防御側が先
+        assert(act(s, "p2", { type: "pass" }) === null, `${seed} 防御側がパス`)
+    }
+    if (afterBattle) {
+        // 双方パスしたあと、防御側はブロックせずライフで受ける
+        for (let i = 0; i < 6 && s.battle; i++) {
+            if (act(s, "p2", { type: "takeLife" }) !== null) act(s, s.priorityPlayer ?? "p1", { type: "pass" })
+        }
+        assert(!s.battle, `${seed} バトルが終わっている`)
+        // 別のスピリットでもう1度アタックする。先のバトルの期間は終わっているので軽減は効かない
+        assert(act(s, "p1", { type: "attack", instanceId: second!.instanceId }) === null, `${seed} 2度目のアタック`)
         assert(act(s, "p2", { type: "pass" }) === null, `${seed} 防御側がパス`)
     }
     const before = s.players.p1.reserve
@@ -555,6 +616,7 @@ function paid059(seed: string, combine: boolean, attackFirst = true): number {
     assert(paid059("z1", true) === reduced, `合体アタック中のフラッシュは軽減が効く（${reduced}）`)
     assert(paid059("z2", false) === full, "合体していなければ軽減なし")
     assert(paid059("z3", true, false) === full, "合体していてもアタックしていないメインステップでは軽減が効かない")
+    assert(paid059("z4", true, true, true) === full, "バトルが終わったら軽減は元に戻る（期間はバトルの間）")
 }
 
 // ============================================================
