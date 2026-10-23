@@ -182,7 +182,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## shared/rules/effectStop.ts
 
-- `entryActive`（fn）：effectActiveOn（Lv＋【合体時】）に、場のネクサスなら「個体ごと止められていない」「エントリ単位の停止（targetEffectLevels）に当たらない」を足す。
+- `entryActive`（fn）：effectActiveOn（Lv＋【合体時】）に、「持つ効果すべては発揮されない」個体でないこと、場のネクサスなら「個体ごと止められていない」「エントリ単位の停止（targetE…
 
 ## shared/rules/keywordState.ts
 
