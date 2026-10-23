@@ -126,7 +126,7 @@ const appear = (who: "自分" | "相手", label: string, cores: number, lv: numb
     `${who}.${label}.BP: なし → ${bp}`,
 ]
 const gone = (who: "自分" | "相手", label: string) => `${who}.${label}.場所: フィールド → なし`
-const REP = Array.from({ length: 5 }, () => "ロクケラトプス")
+const REP = Array.from({ length: 5 }, () => V)
 
 // ============ BS18-011 ゾンビ・スネーク ============
 console.log("=== 011. 破壊時：古竜を持つ相手のスピリット1体を破壊 ===")
