@@ -180,6 +180,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 - `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
 
+## shared/rules/effectStop.ts
+
+- `entryActive`（fn）：effectActiveOn（Lv＋【合体時】）に、場のネクサスなら「個体ごと止められていない」「エントリ単位の停止（targetEffectLevels）に当たらない」を足す。
+
 ## shared/rules/keywordState.ts
 
 - `spiritHasKeyword`（fn）：状態を考慮したキーワード判定：カード静的 ‖ 一時付与（tempKeywords） ‖ 継続付与（keywordGrant）。
@@ -220,6 +224,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instEffectsSuppressed`（fn）：この個体が「持つ効果すべてを発揮しない」状態か。判定軸は2つ:
 - `effectSources`（fn）：「効果の発生源」をすべて返す器。**フィールドに実在する発生源＋実在しないが効果を出す発生源**の両方を返す。
 - `nexusEffectsStopped`（fn）：場のネクサス1つの効果が止められているか。常在効果は effectSources が外すが、誘発・ステップ効果は
+- `nexusEffectsDisabledFor`（fn）：pid のネクサスの効果が、相手の kind:"nexusEffectsDisabled" によって発揮されない状態か
 - `isVirtualSource`（fn）：このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
 - `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
 - `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。

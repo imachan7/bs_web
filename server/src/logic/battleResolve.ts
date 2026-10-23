@@ -1,4 +1,5 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
+import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
 import { recordLifeLost } from "./record"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
@@ -165,7 +166,7 @@ function lifeDamageToTrashByOwnerSource(state: GameState, attackerPid: PlayerId,
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageToTrashByKeyword") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, attackerPid, source, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (spiritHasKeywordOrLabel(state, attackerPid, attacker, effect.constraint.keyword)) return true
         }

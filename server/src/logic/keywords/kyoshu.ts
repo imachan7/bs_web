@@ -1,4 +1,5 @@
 // 【蹴撃】の判定
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard } from "../GameState"
@@ -14,7 +15,7 @@ export function hasKyoshuOnBlock(state: GameState, ownerPid: PlayerId): boolean 
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "kyoshuOnBlock") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             noteCoverage(effect, "kyoshuOnBlock")
             return true

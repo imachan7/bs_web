@@ -1,5 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { moveCardCandidates } from "./actions/moveCards"
@@ -41,7 +42,6 @@ export { effectiveCost }
 import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
-    effectActiveAtLevel,
     effectiveBp,
     effectSources,
     hasGlobalConstraint,
@@ -394,7 +394,7 @@ function maxSpiritsOnField(state: GameState): number | null {
             for (const effect of getCard(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (effect.constraint.type !== "maxSpiritsOnField") continue
-                if (!effectActiveAtLevel(effect.levels, level)) continue
+                if (!entryActive(state, ownerPid, inst, effect, level)) continue
                 noteCoverage(effect, "globalConstraint")
                 const max = effect.constraint.max
                 cap = cap === null ? max : Math.min(cap, max)
@@ -414,7 +414,7 @@ function summonLimitByCostForOpponentError(state: GameState, pid: PlayerId, card
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "summonLimitByCostForOpponent") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, opponentOf(pid), inst, effect, level)) continue
             const { maxCost, limit } = effect.constraint
             if (card.cost > maxCost) continue
             const countThisTurn = state.players[pid].field.spirits.filter(
@@ -437,7 +437,7 @@ function summonLimitByEffectForOpponentError(state: GameState, pid: PlayerId, ca
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "summonLimitByEffectForOpponent") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, opponentOf(pid), inst, effect, level)) continue
             if (isVanillaCard(card)) continue
             const { limit } = effect.constraint
             const countThisTurn = state.players[pid].field.spirits.filter(
@@ -1079,7 +1079,7 @@ export function validateActivateAbility(
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
     if (effect.whileCombined && !brave) return "合体しているときだけ発動できます"
     if (!effect.whileCombined && brave) return "この効果は合体中のブレイヴからは発動できません"
-    if (!effectActiveAtLevel(effect.levels, level)) {
+    if (!entryActive(state, pid, inst, effect, level)) {
         return "現在のレベルでは発動できません"
     }
     if (effect.ownTurnOnly && state.turnPlayer !== pid) return "このターンでは発動できません"
@@ -1541,7 +1541,7 @@ function hasMustBlockAgainst(
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "mustBlockGrant") continue
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, attackerPid, inst, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             if (effect.turn === "own" && attackerPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && attackerPid === state.turnPlayer) continue

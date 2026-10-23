@@ -1,6 +1,7 @@
 // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに
 // 解決できるときだけ発揮する。判定を通すのはこのファイルだけの責務で、実際の解決は
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
@@ -12,7 +13,7 @@ import { burstTenshoUnpayable } from "../keywords/tensho"
 import { suspend } from "../GameState"
 import { exhaustNexus } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
-import { effectActiveAtLevel, canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
+import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
@@ -571,7 +572,7 @@ export function effectCostDiscountNexus(state: GameState, owner: PlayerId, sourc
         if (nexus.isRested) continue
         const level = currentLevel(nexus).level
         for (const e of getCard(nexus.cardId).effects) {
-            if (e.kind === "effectCostExhaustDiscount" && teams.includes(e.team) && effectActiveAtLevel(e.levels, level)) return { nexus, amount: e.amount }
+            if (e.kind === "effectCostExhaustDiscount" && teams.includes(e.team) && entryActive(state, owner, nexus, e, level)) return { nexus, amount: e.amount }
         }
     }
     return null

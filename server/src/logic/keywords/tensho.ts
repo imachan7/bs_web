@@ -1,4 +1,5 @@
 // 【転召】置換の選択肢ラベル
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, EffectDef, FamilyFilter, GameState, PlayerId } from "../../type"
 import { currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, pushResumeFrames } from "../GameState"
@@ -143,7 +144,7 @@ export function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: 
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "tenshoSelfCostBonus") continue
             if (effect.target !== "ownAll") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(state, ownerPid, source, effect, sourceLevel)) continue
             if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             noteCoverage(effect, "tenshoSelfCostBonus")
             bonus += effect.amount

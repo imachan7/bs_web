@@ -2800,7 +2800,7 @@
      2
     ],
     "target": "bothAll",
-    "targetLevels": [
+    "targetEffectLevels": [
      1
     ],
     "phase": "main"

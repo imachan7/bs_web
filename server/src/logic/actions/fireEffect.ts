@@ -1,10 +1,11 @@
 // 効果を発揮させる（ACTION_VOCABULARY §3）：自分のスピリットの『召喚時』『破壊時』効果を、その出来事なしに発揮させる。
 // 通常の誘発と同じ経路（fireTrigger）を通すので、条件・「〜できる」・ターンに1回もそのまま見る（2026-09-27 ユーザー確認）
+import { entryActive } from "../../../../shared/rules/effectStop"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { getCard, log, pushResumeFrames } from "../GameState"
 import { fireSummonTrigger, fireTrigger, requestChoice, resolveAction } from "../EffectModules"
-import { bravesOf, currentLevel, effectActiveAtLevel, matchesTarget } from "../../../../shared/rules"
+import { bravesOf, currentLevel, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 type FireEffect = Extract<EffectAction, { type: "fireEffect" }>
@@ -22,7 +23,7 @@ function effectGroupsWithLabel(state: GameState, owner: PlayerId, inst: CardInst
     const level = currentLevel(inst).level
     const entries = [inst, ...bravesOf(state.players[owner], inst)].flatMap((src) =>
         getCard(src.cardId).effects.filter(
-            (e): e is Triggered => e.kind === "triggered" && e.trigger === trigger && effectActiveAtLevel(e.levels, level),
+            (e): e is Triggered => e.kind === "triggered" && e.trigger === trigger && entryActive(state, owner, src, e, level),
         ),
     )
     const groups = new Map<string, { ids: string[]; label: string }>()

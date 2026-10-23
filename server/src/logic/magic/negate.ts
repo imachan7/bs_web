@@ -1,9 +1,10 @@
 // マジックの無効化（magicNegate）
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage, noteKeyword } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf } from "../GameState"
 import { magicEffectiveColors } from "../../../../shared/cost"
-import { effectActiveAtLevel, effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
+import { effectSources, instHasStaticKeyword, isVirtualSource } from "../../../../shared/rules"
 import { canExhaustNexus, exhaustNexus, exhaustSpirit } from "../EffectModules"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
@@ -19,7 +20,7 @@ export function magicNegateNexusPayer(state: GameState, ownerPid: PlayerId): Car
     for (const source of effectSources(state, ownerPid)) {
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicNegatePayByNexusGrant") continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
             if (effect.turn === "own" && ownerPid !== state.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === state.turnPlayer) continue
             noteCoverage(effect, "magicNegatePayByNexusGrant")
@@ -38,7 +39,7 @@ export function magicNegateTurnOverride(state: GameState, ownerPid: PlayerId): "
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "magicNegateTurnOverrideGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
-            if (!effectActiveAtLevel(effect.levels, currentLevel(source).level)) continue
+            if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
             noteCoverage(effect, "magicNegateTurnOverrideGrant")
             return effect.turn
         }
@@ -72,7 +73,7 @@ export function findMagicNegateSource(
             ...(inst.grantedMagicNegate ?? []),
         ]
         for (const effect of entries) {
-            if (!effectActiveAtLevel(effect.levels, level)) continue
+            if (!entryActive(state, defenderPid, inst, effect, level)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
             // 【氷壁】を持つスピリットだけ、発揮タイミングを置き換えられる
             const turn = isHyoheki && turnOverride !== undefined ? turnOverride : effect.turn

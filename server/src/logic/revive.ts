@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { entryActive } from "../../../shared/rules/effectStop"
 import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
@@ -207,7 +208,7 @@ function fushiFreeExhaustSource(state: GameState, ownerPid: PlayerId, card: Card
         if (nexus.isRested) continue
         const level = currentLevel(nexus).level
         const hit = getCard(nexus.cardId).effects.some(
-            (e) => e.kind === "fushiFreeByExhaust" && effectActiveAtLevel(e.levels, level) && card.cost <= e.maxCost,
+            (e) => e.kind === "fushiFreeByExhaust" && entryActive(state, ownerPid, nexus, e, level) && card.cost <= e.maxCost,
         )
         if (hit) {
             noteCoverage(getCard(nexus.cardId).effects.find((e) => e.kind === "fushiFreeByExhaust"), "fushiFreeByExhaust")
@@ -1065,7 +1066,7 @@ function tryReviveOnDestroy(
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (forced && effect.id !== forced.effectId) continue
             if (effect.scope !== "ownAll") continue
-            if (!effectActiveAtLevel(effect.levels, sourceLevel)) continue
+            if (!entryActive(state, ownerPid, source, effect, sourceLevel)) continue
             if (effect.vanillaFilter && !instIsVanilla(inst)) continue
             if (effect.keywordFilter && ![effect.keywordFilter].flat().some((k) => spiritHasKeyword(state, ownerPid, inst, k))) continue
             // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象

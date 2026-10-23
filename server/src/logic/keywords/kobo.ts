@@ -1,4 +1,5 @@
 // 【光芒】の判定と解決
+import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, Keyword, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
@@ -28,7 +29,7 @@ export function hasKoboOnBlock(state: GameState, ownerPid: PlayerId): boolean {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "koboOnBlock") continue
-            if (effectActiveAtLevel(effect.levels, level)) {
+            if (entryActive(state, ownerPid, source, effect, level)) {
                 noteCoverage(effect, "koboOnBlock")
                 return true
             }

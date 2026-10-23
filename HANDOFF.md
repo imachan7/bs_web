@@ -21,12 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の一手：効果1つ単位で止める入口 `entryActive`（10-23 ユーザー決定）
+### 次の一手：止める効果を entryActive へ移す（10-23）
 
-効果が発揮されるかの判定は `effectActiveAtLevel(levels, level)` が184か所に散らばり、止める効果（triggerSuppression・constraintSuppression・nexusEffectsDisabled・noBurstEffectForPid など十数種）はそれぞれ別の場所で足している。
-`entryActive(board, pid, 発生源, エントリ)` を作って Lv と止める効果すべてをそこで見、184か所を置き換える。最初の利用者は BS18-042（エントリの levels に 1 を含むなら止まる。levels:null も含む）。
-いまは card-notes.json の限界と、part660 でコメントアウトした場面「042-Lv2のネクサスのLv1･Lv2効果も止まる」がある（PR で戻す）。effectSources に写しを返す案は、物での比較（73か所）と派生 cardId の漏れで壊れるので採らない。
-調査役（置き換え先の分類）→ 実装役の順。main から新しいブランチで切る。
+`entryActive`（shared/rules/effectStop.ts）はできた。設計と残りは [ENTRY_ACTIVE.md](./docs/design/ENTRY_ACTIVE.md)。
+- 既存の止める仕組み11個の移し替え（§5 の表。移せるのは nexusEffectsDisabled／restedNexusEffectsDisabled／spiritEffectsDisabledGrant／effectsDisabled）
+- keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した
+- 既知の不具合：`npm run coverage:effects` の計測下でだけ part620「036 … ブロックされない」4件が落ちる（main でも同じ。計測がカードデータに足す `__eid` が効いている疑い）
 
 ### 次の一手：後片付け（10-16）
 
