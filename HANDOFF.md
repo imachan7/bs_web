@@ -21,6 +21,10 @@
 
 ## 1. いまの本線と次の一手
 
+### 次の候補：専用 type の統一（10-27 計画のみ）
+
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 0〜5。着手は PR 3 から。PR 1・2 の前に §2 の論点 A（ネクサス・ブレイヴを `destroy` の軸にするか）・B（`target: "self"` と耐性）をユーザーに聞く
+
 ### 既知の残り：entryActive（10-23）
 
 - keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した（ENTRY_ACTIVE.md）
