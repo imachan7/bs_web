@@ -1047,7 +1047,8 @@ const destroySelfHandler = (ctx: ActionCtx): void => {
 
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
-        recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
+        // bounceProgress は選択の再入をまたぐ「戻した回数」（内部用）。再入時は戻した記録を消さない
+        if (action.bounceProgress === undefined) recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
         // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
         // 相手のものだったときのみボイドからその数のコアを自分のトラッシュへ（BS03メビウスリング）
         const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
@@ -1118,8 +1119,26 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
                 return
             }
         }
-        for (let i = 0; i < action.count; i++) {
-            const nexus = state.players[opp].field.nexuses[0]
+        let picked = action.bounceProgress !== undefined ? targetInstanceId : undefined
+        for (let i = action.bounceProgress ?? 0; i < action.count; i++) {
+            const cands = state.players[opp].field.nexuses
+            let nexus: CardInstance | undefined
+            if (picked !== undefined) {
+                nexus = cands.find((n) => n.instanceId === picked)
+                picked = undefined
+            } else if (state.interactiveTargets && cands.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：手札に戻すネクサスを選んでください`,
+                    cands.map((n) => n.instanceId),
+                    false,
+                    { ...action, bounceProgress: i },
+                    self,
+                    "target",
+                )
+                return
+            } else nexus = cands[0]
             if (!nexus) {
                 log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
                 break
