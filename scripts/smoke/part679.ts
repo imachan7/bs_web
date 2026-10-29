@@ -100,7 +100,6 @@ function run(seed: string, turn: PlayerId, o: Setup) {
         const err = act(s, turn, { type: "summon", handIndex: 0 })
         assert(err === null, `サテライド・バードを召喚できる${err === null ? "" : `（拒否: ${err}）`}`)
         drain(s)
-        assert(s.players[turn].field.spirits.some((x) => x.cardId === SAT) || s.players[turn].field.combinedBraves.length > 0 || true, "召喚処理が終わった")
     }
     s.phase = "attack"
     const aerr = act(s, turn, { type: "attack", instanceId: atk.instanceId })
