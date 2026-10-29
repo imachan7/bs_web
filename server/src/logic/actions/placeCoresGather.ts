@@ -3,7 +3,7 @@
 import type { ActionCtx } from "./types"
 import type { CardInstance, EffectAction } from "../../type"
 import { getCard, log } from "../GameState"
-import { fireFieldEventTriggers, lifeCostBlockedByFloor, placeCoresOnSpirit, requestChoice } from "../EffectModules"
+import { fireFieldEventTriggers, lifeCostBlocked, placeCoresOnSpirit, requestChoice } from "../EffectModules"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
 import { takeCoresFromSpirit } from "../removal"
 import { recordLifeLost } from "../record"
@@ -37,7 +37,7 @@ function sourcesOf(ctx: ActionCtx, action: WidePlaceCores): Src[] {
     for (const f of fromsOf(action)) {
         if (f === "reserve" && normalReserveOf(player) > 0) out.push({ key: "reserve", label: "リザーブ", cap: normalReserveOf(player), spare: Infinity })
         else if (f === "trash" && normalTrashOf(player) > 0) out.push({ key: "trash", label: "トラッシュ", cap: normalTrashOf(player), spare: Infinity })
-        else if (f === "life" && player.life > 0 && !lifeCostBlockedByFloor(state, owner)) out.push({ key: "life", label: "ライフ", cap: player.life, spare: 0 })
+        else if (f === "life" && player.life > 0 && !lifeCostBlocked(state, owner)) out.push({ key: "life", label: "ライフ", cap: player.life, spare: 0 })
         else if (f === "self" && self) addInst(self, `${getCard(self.cardId).name}`)
         else if (f === "ownSpirits") for (const s of player.field.spirits) addInst(s, getCard(s.cardId).name)
         else if (f === "field") for (const i of [...player.field.nexuses, ...player.field.spirits]) addInst(i, getCard(i.cardId).name)
@@ -70,7 +70,7 @@ function take(ctx: ActionCtx, src: Src, n: number): number {
     if (src.key === "life") {
         const t = Math.min(n, player.life)
         // 払えばライフが0になる分は、床の効果があれば払えない（COST_MODEL §9）
-        if (t <= 0 || lifeCostBlockedByFloor(state, owner, t)) return 0
+        if (t <= 0 || lifeCostBlocked(state, owner, t)) return 0
         player.life -= t
         recordLifeLost(state, owner, t)
         if (player.life <= 0 && !state.winner) {

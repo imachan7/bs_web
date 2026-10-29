@@ -52,7 +52,7 @@ import {
     exhaustSpirit,
     fireSummonSequence,
     resolveTensho,
-    lifeCostBlockedByFloor,
+    lifeCostBlocked,
     tryOwnLifeFloorByCost
 } from "./EffectModules"
 
@@ -742,7 +742,7 @@ function tryReviveOnDestroy(
             // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる。
             // ただし「ライフは0にならない」が働いている間は払って0にできない＝支払い不可（2026-09-16 ユーザー確定）
             if (player.life <= 0) return false
-            if (lifeCostBlockedByFloor(state, ownerPid)) return false
+            if (lifeCostBlocked(state, ownerPid)) return false
             player.life -= 1
             recordLifeLost(state, ownerPid, 1)
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
@@ -757,7 +757,7 @@ function tryReviveOnDestroy(
         // 器AR：BS13-036星鳥クージャ「自分のライフのコア1個を自分のリザーブに置くことで」
         if (effect.cost?.ownLifeOneToReserve) {
             if (player.life <= 0) return false
-            if (lifeCostBlockedByFloor(state, ownerPid)) return false
+            if (lifeCostBlocked(state, ownerPid)) return false
             player.life -= 1
             recordLifeLost(state, ownerPid, 1)
             player.reserve += 1
@@ -878,7 +878,7 @@ function tryReviveOnDestroy(
             const has = player.field.spirits.some((x) => x.instanceId !== inst.instanceId && !x.isRested && matchesFamilyFilter(state, ownerPid, x, family))
             return has ? null : "疲労させられる自分のスピリットがいない"
         }
-        if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || lifeCostBlockedByFloor(state, ownerPid) ? "ライフを減らせない" : null
+        if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || lifeCostBlocked(state, ownerPid) ? "ライフを減らせない" : null
         if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || lifeDamagePerSpiritRemaining(state, inst) <= 0 ? "相手のライフを減らせない" : null
         if (cost.discardOwnBurst) return player.burst === null ? "破棄できるバーストがセットされていない" : null
         if (cost.exhaustOwnNexusOne) return !canExhaustNexus(state, ownerPid) || player.field.nexuses.every((n) => n.isRested) ? "疲労させられる自分のネクサスがない" : null

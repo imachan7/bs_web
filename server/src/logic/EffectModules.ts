@@ -37,7 +37,7 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
-import { handGainBlocked } from "../../../shared/rules"
+import { handGainBlocked, lifeImmuneThisTurn } from "../../../shared/rules"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -660,8 +660,9 @@ export function tryLifeDamageMillGuard(
 // **ライフのコアをコストとして払って0にすることもできない**（2026-09-16 ユーザー確定）。
 // 払えばライフが0になる＝床の効果が止めるので、コストを完全に支払えない。
 // COST_MODEL.md の一般則「AとBの両方が完全に解決できるときだけ発揮できる」により、その効果は発揮できない。
-// 対象は「自分のライフのコアN個を置くことで」を持つ4枚（太陽石の神殿／星鳥クージャ／神獣バーロン／鳳翼の聖剣）
-export function lifeCostBlockedByFloor(state: GameState, pid: PlayerId, amount = 1): boolean {
+// 「このターンの間、ライフは減らない」（lifeImmuneForPid）が働いている間も、ライフのコアをコストとして払えない（2026-10-29 ユーザー確認）
+export function lifeCostBlocked(state: GameState, pid: PlayerId, amount = 1): boolean {
+    if (lifeImmuneThisTurn(state, pid)) return true
     const player = state.players[pid]
     for (const source of effectSources(state, pid)) {
         if (!player.field.nexuses.some((n) => n.instanceId === source.instanceId)) continue

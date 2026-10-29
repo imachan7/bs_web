@@ -143,5 +143,5 @@
 | 9 | `mill`(51) | `discard{from:"deck"}`（PR 3a の器） | 【粉砕】【地鳴】の誘発・「デッキから破棄されたとき」の扱い |
 | 10 | `refreshOne`(72)・`refreshSelf`(112)・`refreshAllOwn`(9) | `refresh{target:"self"\|count\|all, side}` | `refreshAllOwn` のアタック不可の付与は `sequence`＋`timedEffect` へ分ける |
 
-- 要確認（ユーザーに未提示）：`lifeCrush`(27)（相手のライフを減らす）を `removeCores{from:"life"}` に寄せられるか。「ライフを減らす」がルール上コアの除去と別の扱いか（ライフ減少時の誘発など）を調べてから聞く
+- 候補（ライフの扱いは確認済み）：`lifeCrush`(27)（相手のライフを減らす）を `removeCores{from:["life"]}` に寄せられるか。自分のライフをコストで減らすときも「ライフは減らない」で止まる（2026-10-29 ユーザー確認。COST_MODEL §9）ので、止める判定は同じ。寄せるかは PR 7〜10 の後にユーザーへ提案する
 - 候補の見つけ方：type 名を動詞ごとに並べ、同じ動詞で行き先・対象だけ違う組を探す（10-29。ユーザーから「こういうのを見つけて聞いてほしい」）
