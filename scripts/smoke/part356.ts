@@ -52,7 +52,7 @@ console.log("=== 1. 5種の旧typeと同じ結果になる（非対話） ===")
     resolveAction(s, "p1", null, {
         type: "pay",
         cost: legacy({ type: "discardSelfChoose", count: 1 }),
-        then: { type: "discardOpponent", count: 1, cardTypeFilter: "magic" },
+        then: { type: "discard", from: "hand", side: "opponent", count: 1, cardTypeFilter: "magic" },
     })
     answerPayConfirm(s, "p1")
     assert(s.players.p1.hand.length === 0, "自分の手札1枚を破棄した")

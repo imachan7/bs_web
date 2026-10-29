@@ -1067,7 +1067,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -1509,7 +1510,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -3141,7 +3143,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -5640,7 +5643,12 @@
     "condition": {
      "opponentHandAtLeast": 5
     },
-    "action": {"type": "discardOpponent", "count": 0, "downTo": 2},
+    "action": {
+    "type": "discard",
+    "from": "hand",
+    "side": "opponent",
+    "downTo": 2
+    },
     "thenPay": "flash"
    },
    {
@@ -6358,7 +6366,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {

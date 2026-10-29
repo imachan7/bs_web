@@ -74,7 +74,7 @@ console.log("=== 3. 海底火山：お互いの手札を4枚になるように�
 console.log("=== 4. オリバー：相手の手札を指定枚数になるまで破棄 ===")
 {
     const s = game("oliver")
-    const act = actionOf(OLIVER, "discardOpponent") as { downTo?: number }
+    const act = actionOf(OLIVER, "discard") as { downTo?: number }
     s.players.p2.hand = Array.from({ length: act.downTo! + 2 }, () => VANILLA)
     resolveAction(s, "p1", null, act as EffectAction)
     assert(s.players.p2.hand.length === act.downTo, "相手の手札が指定枚数になる")

@@ -2034,8 +2034,9 @@
     ],
     "turn": "opponent",
     "action": {
-     "type": "discardOpponent",
-     "count": 0,
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "countAttackerSymbols": true
     }
    }
@@ -5939,7 +5940,9 @@
       "count": 1
      },
      "then": {
-      "type": "discardOpponent",
+      "type": "discard",
+      "from": "hand",
+      "side": "opponent",
       "count": 1,
       "cardTypeFilter": "magic",
       "chooserIsSource": true

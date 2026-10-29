@@ -172,7 +172,7 @@ console.log("=== discardOpponent（countAttackerSymbols）：アタッカーの�
     p1.field.spirits.push(attacker)
     p2.hand.push("BS13-009", "BS13-010", "BS13-012")
     const handBefore = p2.hand.length
-    resolveAction(s, "p1", null, { type: "discardOpponent", count: 0, countAttackerSymbols: true }, attacker.instanceId)
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "opponent", count: 0, countAttackerSymbols: true }, attacker.instanceId)
     assert(p2.hand.length === handBefore - 1, "アタッカーのシンボル数（1つ）ぶん相手の手札が破棄された")
 }
 

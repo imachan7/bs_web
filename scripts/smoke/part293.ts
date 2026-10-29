@@ -212,7 +212,9 @@ console.log("=== BF: 072Lv2 discardOpponent revealAllHandIfNone（破棄でき�
     const s = game("bf-revealhand")
     s.players.p2.hand = ["BS12-041"] // マジックカードが無い
     resolveAction(s, "p1", null, {
-        type: "discardOpponent",
+        type: "discard",
+        from: "hand",
+        side: "opponent",
         count: 1,
         cardTypeFilter: "magic",
         revealAllHandIfNone: true,

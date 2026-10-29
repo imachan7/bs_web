@@ -63,7 +63,7 @@ console.log("=== 実対戦：選ぶのは自分。相手の手札が公開ゾー
     const src = createInstance(BAHAMUND, s.turn, 1)
     s.players.p1.field.spirits.push(src)
 
-    resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+    resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
 
     assert(s.pendingChoice !== null, "選択待ちになる")
     assert(s.pendingChoice?.pid === "p1", "選ぶのは発生源の持ち主（p1）。相手ではない")
@@ -91,7 +91,7 @@ console.log("=== 相手は選べない ===")
     const s = base("chooser-source-not-target", [CHEAP_MAGIC, PRICEY_MAGIC], true)
     const src = createInstance(BAHAMUND, s.turn, 1)
     s.players.p1.field.spirits.push(src)
-    resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+    resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
     assert(act(s, "p2", { type: "resolveChoice", cardIndex: 0 }) !== null, "相手（p2）が選ぼうとしても拒否される")
 }
 
@@ -100,7 +100,7 @@ console.log("=== 該当する種別が無ければ不発（公開もしない）
     const s = base("chooser-source-none", [CHEAP_SPIRIT], true)
     const src = createInstance(BAHAMUND, s.turn, 1)
     s.players.p1.field.spirits.push(src)
-    resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
+    resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, cardTypeFilter: "magic", chooserIsSource: true })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.revealedCards === undefined, "公開ゾーンも作らない")
     assert(s.players.p2.hand.length === 1, "手札は減らない")
@@ -112,7 +112,7 @@ console.log("=== 非対話：自分が選ぶので、該当カードのうちコ
     const s = base("chooser-source-auto", hand, false)
     const src = createInstance(DRAGRON, s.turn, 1)
     s.players.p1.field.spirits.push(src)
-    resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, cardTypeFilter: "spirit", chooserIsSource: true })
+    resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, cardTypeFilter: "spirit", chooserIsSource: true })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p2.trashCards.includes(PRICEY_SPIRIT), "コストの高いスピリットが落ちる（自分に有利な決定的簡略化）")
     assert(s.players.p2.hand.includes(CHEAP_SPIRIT), "コストの低いほうは残る")

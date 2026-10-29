@@ -351,7 +351,7 @@ console.log("=== BS08魔界七将アスモディオス：ownTenshoのnameInclude
             e["kind"] === "fieldEvent" &&
             e["event"] === "ownTensho" &&
             Array.isArray(e["nameIncludes"]) &&
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "discardOpponent",
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "discard",
     )
     const entry = entryOf(asmodeus, (e) => e["kind"] === "fieldEvent" && e["event"] === "ownTensho")
     const names = entry["nameIncludes"] as string[]

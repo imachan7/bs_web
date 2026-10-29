@@ -422,7 +422,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -4548,7 +4549,9 @@
     ],
     "excludePhase": "draw",
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1
     }
    }
@@ -5597,7 +5600,9 @@
         }
        },
        "then": {
-        "type": "discardOpponentBurst"
+        "type": "discard",
+        "from": "burst",
+        "side": "opponent"
        }
       }
      ]

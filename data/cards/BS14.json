@@ -859,7 +859,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -1709,7 +1710,9 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1
     },
     "returnSelfToHandAfter": true
@@ -1724,7 +1727,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1
     }
    },
@@ -5671,7 +5676,12 @@
      1,
      2
     ],
-    "action": {"type": "discardOpponent", "count": 0, "downTo": 4}
+    "action": {
+    "type": "discard",
+    "from": "hand",
+    "side": "opponent",
+    "downTo": 4
+    }
    },
    {
     "id": "BS14-089-e3",

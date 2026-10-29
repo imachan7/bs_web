@@ -476,7 +476,7 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
 
     console.log("--- discardHandAll ---")
     s.players.p1.hand = ["BS01-004", "BS01-005"]
-    resolveAction(s, "p1", null, { type: "discardHandAll" })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "own", count: "all" })
     assert(s.players.p1.hand.length === 0, "discardHandAllで手札が空になる")
     assert(
         s.players.p1.trashCards.includes("BS01-004") &&

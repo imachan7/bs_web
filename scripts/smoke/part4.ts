@@ -290,14 +290,14 @@ console.log(
     runTurnStart(s)
 
     s.players.p1.hand = ["BS01-001", "BS01-002", "BS01-003"]
-    resolveAction(s, "p1", null, { type: "discardSelfOne" })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "own", count: 1 })
     assert(s.players.p1.hand.length === 2, "手札が1枚減る")
     assert(s.players.p1.trashCards.includes("BS01-003"), "手札末尾のカードがトラッシュへ積まれる")
 
     console.log("--- 手札0はno-op ---")
     s.players.p1.hand = []
     const logLen = s.log.length
-    resolveAction(s, "p1", null, { type: "discardSelfOne" })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "own", count: 1 })
     assert(s.players.p1.hand.length === 0, "手札0のまま変化しない")
     assert(s.log.length > logLen, "no-opのログが出る")
 }

@@ -369,7 +369,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -580,7 +581,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardBurst",
+      "type": "discard",
+      "from": "burst",
       "side": "own"
      },
      "then": {
@@ -845,7 +847,10 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "discardHandAll"
+      "type": "discard",
+      "from": "hand",
+      "side": "own",
+      "count": "all"
      },
      "then": {
       "type": "draw",

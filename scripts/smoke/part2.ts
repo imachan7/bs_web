@@ -912,19 +912,19 @@ console.log("=== discardOpponent: 相手の手札を破棄 ===")
 
     s.players.p2.hand = ["BS01-001", "BS01-002", "BS01-003"]
     const trashBefore = s.players.p2.trashCards.length
-    resolveAction(s, "p1", null, { type: "discardOpponent", count: 1 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "opponent", count: 1 })
     assert(s.players.p2.hand.length === 2, "相手の手札が1枚減る")
     assert(s.players.p2.trashCards.length === trashBefore + 1, "破棄したカードがトラッシュへ増える")
     assert(s.players.p2.trashCards.includes("BS01-003"), "手札末尾のカードが破棄される（決定的選択）")
 
     console.log("--- 手札が足りない場合はある分だけ破棄 ---")
     s.players.p2.hand = ["BS01-001"]
-    resolveAction(s, "p1", null, { type: "discardOpponent", count: 3 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "opponent", count: 3 })
     assert(s.players.p2.hand.length === 0, "手札1枚に対しcount3でも1枚だけ破棄される")
 
     console.log("--- 手札0枚でも安全（no-op） ---")
     const logLenBefore = s.log.length
-    resolveAction(s, "p1", null, { type: "discardOpponent", count: 1 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "opponent", count: 1 })
     assert(s.players.p2.hand.length === 0, "手札0枚のままno-op")
     assert(s.log.length === logLenBefore + 1, "手札0枚でもログのみで安全に処理される")
 }
