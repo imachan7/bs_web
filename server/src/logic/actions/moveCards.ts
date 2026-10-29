@@ -2,7 +2,7 @@
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
-import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
+import { burstSummonBlocked, fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { canDiscardHand, handGainBlocked, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
@@ -77,6 +77,7 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
             ({ id, j }) =>
                 (matchesPick(id, pickRest, undefined, selfCardId) || fchangeAsCostMatches(state, zonePid, action, id, pickRest, selfCardId)) &&
                 nameOk(id) &&
+                (action.dest !== "summon" || !burstSummonBlocked(state, owner, id)) &&
                 (!action.onlyEventCard || id === targetInstanceId) &&
                 (action.from === "hand" || !isTrashCardProtected(id)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
