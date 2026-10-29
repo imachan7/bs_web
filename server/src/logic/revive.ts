@@ -5,7 +5,7 @@ import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
-import { recordLifeLost } from "./record"
+import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
 import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
@@ -37,7 +37,6 @@ import {
     isVirtualSource,
     instMatchesCostFilter,
     matchesFamilyFilter,
-    lifeDamagePerSpiritRemaining,
     ownFieldOnlyColor,
     timedPlayerRules,
     hasGlobalConstraint,
@@ -52,7 +51,6 @@ import {
     exhaustSpirit,
     fireSummonSequence,
     resolveTensho,
-    lifeCostBlocked,
     tryOwnLifeFloorByCost
 } from "./EffectModules"
 
@@ -742,9 +740,9 @@ function tryReviveOnDestroy(
             // ライフ0なら支払い不可＝不発。支払った結果ライフが0になった場合はそのまま勝敗が決まる。
             // ただし「ライフは0にならない」が働いている間は払って0にできない＝支払い不可（2026-09-16 ユーザー確定）
             if (player.life <= 0) return false
-            if (lifeCostBlocked(state, ownerPid)) return false
+            if (!canPayLife(state, lifeCostQuery(ownerPid, 1, inst))) return false
             player.life -= 1
-            recordLifeLost(state, ownerPid, 1)
+            recordLifeLoss(state, ownerPid, 1, inst)
             log(state, `${player.name}はライフのコア1個をボイドに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
                 state.winner = opponentOf(ownerPid)
@@ -757,9 +755,9 @@ function tryReviveOnDestroy(
         // 器AR：BS13-036星鳥クージャ「自分のライフのコア1個を自分のリザーブに置くことで」
         if (effect.cost?.ownLifeOneToReserve) {
             if (player.life <= 0) return false
-            if (lifeCostBlocked(state, ownerPid)) return false
+            if (!canPayLife(state, lifeCostQuery(ownerPid, 1, inst))) return false
             player.life -= 1
-            recordLifeLost(state, ownerPid, 1)
+            recordLifeLoss(state, ownerPid, 1, inst)
             player.reserve += 1
             log(state, `${player.name}はライフのコア1個を自分のリザーブに置いた。（残りライフ${player.life}）`)
             if (player.life <= 0 && !state.winner) {
@@ -804,13 +802,10 @@ function tryReviveOnDestroy(
             const oppPid = opponentOf(ownerPid)
             const oppPlayer = state.players[oppPid]
             if (oppPlayer.life <= 0) return false
-            // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」（BS15共通器）。
-            // このスピリット（inst）による今ターンぶんの許容がすでに0なら、コストとして払えない
-            if (lifeDamagePerSpiritRemaining(state, inst) <= 0) return false
+            if (!canPayLife(state, lifeCostQuery(opponentOf(ownerPid), 1, inst, ownerPid))) return false
             oppPlayer.life -= 1
-            recordLifeLost(state, oppPid, 1)
+            recordLifeLoss(state, oppPid, 1, inst)
             oppPlayer.trashCores += 1
-            inst.lifeDealtThisTurn = (inst.lifeDealtThisTurn ?? 0) + 1
             log(state, `${oppPlayer.name}はライフのコア1個をトラッシュに置いた。（残りライフ${oppPlayer.life}）`)
             if (oppPlayer.life <= 0 && !state.winner) {
                 // BS14-084永久凍土の王都：**相手の効果で**ライフが0になる瞬間も守る
@@ -878,8 +873,8 @@ function tryReviveOnDestroy(
             const has = player.field.spirits.some((x) => x.instanceId !== inst.instanceId && !x.isRested && matchesFamilyFilter(state, ownerPid, x, family))
             return has ? null : "疲労させられる自分のスピリットがいない"
         }
-        if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || lifeCostBlocked(state, ownerPid) ? "ライフを減らせない" : null
-        if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || lifeDamagePerSpiritRemaining(state, inst) <= 0 ? "相手のライフを減らせない" : null
+        if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || !canPayLife(state, lifeCostQuery(ownerPid, 1, inst)) ? "ライフを減らせない" : null
+        if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || !canPayLife(state, lifeCostQuery(opponentOf(ownerPid), 1, inst, ownerPid)) ? "相手のライフを減らせない" : null
         if (cost.discardOwnBurst) return player.burst === null ? "破棄できるバーストがセットされていない" : null
         if (cost.exhaustOwnNexusOne) return !canExhaustNexus(state, ownerPid) || player.field.nexuses.every((n) => n.isRested) ? "疲労させられる自分のネクサスがない" : null
         return null

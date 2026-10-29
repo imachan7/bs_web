@@ -1,5 +1,5 @@
 // ライフを減らすアクション（ライフを増やすのは placeCores の to:"life"）
-import { recordLifeLost } from "../record"
+import { lifeLossAllowed, recordLifeLoss } from "../lifeGate"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log } from "../GameState"
 import { fireTrigger } from "../triggers"
@@ -10,13 +10,13 @@ import { fireFieldEventTriggers } from "../fieldEventTriggers"
 const opponentLifeToReserveHandler: ActionHandler<"opponentLifeToReserve"> = (ctx, action) => {
     const { state, opp, sourceName } = ctx
     const target = state.players[opp]
-    const moved = Math.min(action.count, target.life)
+    const moved = lifeLossAllowed(state, { pid: opp, amount: Math.min(action.count, target.life), cause: "effect", actorPid: ctx.owner, sourceType: ctx.srcType, sourceInstance: ctx.self ?? undefined })
     if (moved <= 0) {
         log(state, `${sourceName}：${target.name}のライフが無いため発動しなかった。`)
         return
     }
     target.life -= moved
-    recordLifeLost(state, opp, moved)
+    recordLifeLoss(state, opp, moved, ctx.self)
     target.reserve += moved
     log(state, `${sourceName}：${target.name}のライフのコア${moved}個をリザーブに置いた。`)
     fireFieldEventTriggers(state, opp, "ownLifeLost")

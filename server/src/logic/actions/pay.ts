@@ -13,7 +13,8 @@ import { burstTenshoUnpayable } from "../keywords/tensho"
 import { suspend } from "../GameState"
 import { exhaustNexus } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
-import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
+import { lifeLossAllowed } from "../lifeGate"
+import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword } from "../../../../shared/rules"
 import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
@@ -293,19 +294,15 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (!found || found.pid === owner) return false
         return true
     },
-    // lifeCrush：相手のライフがcount以上（止める効果＝lifeImmuneThisTurn・cantReduceOpponentLife・
-    // ownLifeImmuneToOpponentSpiritEffectsに当たらないこと）
+    // lifeCrush：相手のライフがcount以上で、ライフを減らす制限（lifeLossAllowed）に全部は止められない
     lifeCrush: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "lifeCrush") return false
         const opp = opponentOf(owner)
-        if (lifeImmuneThisTurn(state, opp)) return false
-        if (cantReduceOpponentLife(state, owner)) return false
-        if (srcType === "spirit" && ownLifeImmuneToOpponentSpiritEffects(state, opp)) return false
         const count =
             action.countCounter !== undefined
                 ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
                 : action.count
-        return count > 0 && state.players[opp].life >= count
+        return count > 0 && state.players[opp].life >= count && lifeLossAllowed(state, { pid: opp, amount: count, cause: "effect", actorPid: owner, sourceType: srcType, sourceInstance: self ?? undefined, floor: action.neverZero ? 1 : 0 }) > 0
     },
     // levelOverrideOpponentNexuses：対象の相手ネクサスが1つ以上
     levelOverrideOpponentNexuses: (state, owner, _self, action) => {

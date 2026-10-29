@@ -3,7 +3,7 @@
 import { flushSummonBatch } from "../summon"
 import { resolveSummonRepeatPaid } from "./summonRepeat"
 import { summonSurcharge } from "../../../../shared/cost"
-import { recordLifeLost } from "../record"
+import { lifeLossAllowed, recordLifeLoss } from "../lifeGate"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -53,7 +53,6 @@ import {
 } from "../EffectModules"
 import {
     activeConstraints,
-    cantReduceOpponentLife,
     bravesOf,
     cardHasColor,
     cardNameContains,
@@ -64,12 +63,8 @@ import {
     instIsCombined,
     isInBattle,
     isTrashCardProtected,
-    lifeDamagePerSpiritRemaining,
-    lifeFloorByEffect,
-    lifeImmuneThisTurn,
     matchesBraveCondition,
     matchesCostFilter,
-    ownLifeImmuneToOpponentSpiritEffects,
     braveCombineOntoSelfCandidates,
 } from "../../../../shared/rules"
 import { braveCombineCandidates } from "../../../../shared/summon"
@@ -310,21 +305,6 @@ const battleOpponentDestroyedCoresToHandler: ActionHandler<"battleOpponentDestro
 
 const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（アタック経路はlifeDamageLimitが見る）
-        if (lifeImmuneThisTurn(state, opp)) {
-            log(state, `${sourceName}：${state.players[opp].name}はこのターンライフが減らないため発動しなかった。`)
-            return
-        }
-        // BS11-X06 天秤造神リブラ・ゴレムLv3：回復状態の発生源がある間、この持ち主は相手のライフを減らせない
-        if (cantReduceOpponentLife(state, owner)) {
-            log(state, `${sourceName}：回復状態の発生源があるため、相手のライフを減らせなかった。`)
-            return
-        }
-        // BS13-027ムーンショウウオLv2：**相手のスピリットの効果では**自分のライフは減らされない（片側・srcType限定）
-        if (srcType === "spirit" && ownLifeImmuneToOpponentSpiritEffects(state, opp)) {
-            log(state, `${sourceName}：${state.players[opp].name}は相手のスピリットの効果ではライフが減らないため発動しなかった。`)
-            return
-        }
         // 相手のライフのコアをリザーブへ（doTakeLife と同様の処理）。ライフ0以下で勝敗が決まる
         const player = state.players[opp]
         // countCounter指定時はcount×EffectCounterの値を個数として使う（BS08メテオストーム）
@@ -333,22 +313,14 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return
         }
-        // このターンの間のライフ下限（BS11-080 デルタバリア＝「相手のスピリット/マジックの効果では0にならない」）。
-        // 下限までは減る。srcType（この効果の発生源の種別）で絞る
-        // neverZero（BS16-X04魁の覇王ミブロック・ブレイヴァー）：この効果自身によっては0にしない（下限1）。
-        // ターン全体制約のlifeFloorByEffectと違いこのアクションだけの下限なので、両者の高い方を使う
-        const floor = Math.max(lifeFloorByEffect(state, opp, srcType), action.neverZero ? 1 : 0)
-        // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」：
-        // 発生源がスピリットの効果によるライフ減少も合計に含める（BS15共通器）
-        const perSpiritLimit = srcType === "spirit" && self ? lifeDamagePerSpiritRemaining(state, self) : Number.POSITIVE_INFINITY
-        const dealt = Math.min(count, Math.max(0, player.life - floor), perSpiritLimit)
-        if (dealt === 0 && count > 0) {
+        // neverZero（BS16-X04魁の覇王ミブロック・ブレイヴァー）は、この効果自身によっては0にしない
+        const dealt = lifeLossAllowed(state, { pid: opp, amount: Math.min(count, player.life), cause: "effect", actorPid: owner, sourceType: srcType, sourceInstance: self ?? undefined, floor: action.neverZero ? 1 : 0 })
+        if (dealt === 0) {
             log(state, `${sourceName}：${player.name}のライフはこれ以上減らせなかった。`)
             return
         }
         player.life -= dealt
-        recordLifeLost(state, opp, dealt)
-        if (srcType === "spirit" && self) self.lifeDealtThisTurn = (self.lifeDealtThisTurn ?? 0) + dealt
+        recordLifeLoss(state, opp, dealt, self)
         // dest:"trash" はトラッシュ行き（リザーブと違い、そのままでは再利用されない。BS08機神獣インフェニット・ヴォルスLv3）
         // dest:"void" はボイド行き（ゲームから完全に取り除く。BS15-027虚天帝ホウオウガ）
         if (action.dest === "trash") player.trashCores += dealt

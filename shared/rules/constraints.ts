@@ -851,10 +851,6 @@ export function lifeDamageLimit(
     if (attacker.lifeDamageNegatedFor === defenderPid) {
         return { max: 0, reason: "このアタックのライフダメージは打ち消されている" }
     }
-    // BS10-093時刻む花時計：このターンの間あらゆる原因でライフが減らない（lifeCrushアクションも別途これを見る）
-    if (lifeImmuneThisTurn(board, defenderPid)) {
-        return { max: 0, reason: "このターンはライフが減らない" }
-    }
     // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
     if (noLifeDamageByCost(board, defenderPid, attacker)) {
         return { max: 0, reason: "コスト条件によりライフが減らない" }
@@ -862,10 +858,6 @@ export function lifeDamageLimit(
     // BS07秘密の花園Lv2：このターン、コスト条件のアタックでは**この防御側だけ**が減らない
     if (lifeProtectedByCostThisTurn(board, defenderPid, attacker)) {
         return { max: 0, reason: "このターンはコスト条件によりライフが減らない" }
-    }
-    // BS11-X06 天秤造神リブラ・ゴレムLv3：発生源が回復状態の間、その持ち主は相手のライフを減らせない
-    if (cantReduceOpponentLife(board, defenderPid === "p1" ? "p2" : "p1")) {
-        return { max: 0, reason: "回復状態の発生源があるため、相手のライフを減らせない" }
     }
     // BS08空帝竜騎プラチナム：アタッカーの実効BPが発生源以下なら減らない
     if (protectedByBpUpToSelf(board, defenderPid, attacker)) {
@@ -876,57 +868,69 @@ export function lifeDamageLimit(
     for (const c of timedPlayerRules(board, defenderPid)) {
         if (c.type === "lifeDamageMaxForPid") max = Math.min(max, c.max)
     }
-    // このターンの間のライフ下限（BS11-080 デルタバリア＝「ライフは0にならない」）。
-    // アタック経路では byAttackMinCost（アタッカーのコスト）で絞る
-    const attackerCost = Math.max(...instAllCosts(attacker), 0)
-    for (const c of timedPlayerRules(board, defenderPid)) {
-        if (c.type !== "lifeFloorForPid") continue
-        if (c.byAttackMinCost !== undefined && attackerCost < c.byAttackMinCost) continue
-        max = Math.min(max, Math.max(0, board.players[defenderPid].life - c.floor))
-    }
-    // 常在のライフ下限（BS12-070天の階Lv2）
-    const continuousFloor = ownLifeFloorContinuous(board, defenderPid)
-    if (continuousFloor > 0) {
-        max = Math.min(max, Math.max(0, board.players[defenderPid].life - continuousFloor))
-    }
-    // 常在の「相手のスピリット1体からmaxまでしか減らされない」（アタッカー個体ごとのターン累計。SD06-010）
-    max = Math.min(max, ownLifeDamageCapRemaining(board, defenderPid, attacker))
-    // 神将「お互いのライフは、ターンごとにスピリット1体からmaxまでしか減らされない」（BS15共通器）
-    max = Math.min(max, lifeDamagePerSpiritRemaining(board, attacker))
+    // 原因を問わない制限（不減・下限・スピリット1体からの上限）は lifeLossAllowed が持つ。amount 無限＝「いくつまで減らせるか」
+    max = Math.min(max, lifeLossAllowed(board, { pid: defenderPid, amount: Number.POSITIVE_INFINITY, cause: "attack", actorPid: (defenderPid === "p1" ? "p2" : "p1"), sourceInstance: attacker }))
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
 }
 
-// このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らないか
-// （BS10-093時刻む花時計。TIMING_CHART.md §2「あらゆる原因を止める」）。
-// lifeDamageLimit（アタック経路）と lifeCrushハンドラ（効果経路）の両方から呼ぶ共通の入口
-// このターンの間、効果（lifeCrush 等）でこの pid のライフを減らせる下限。
-// 下限が無ければ 0（＝0まで減らせる）。BS11-080 デルタバリア
-export function lifeFloorByEffect(board: Board, pid: PlayerId, srcType: CardType | undefined): number {
-    let floor = 0
+
+export interface LifeLossQuery {
+    pid: PlayerId // ライフが減る側
+    amount: number // 減らしたい量（上限を調べるだけなら Infinity）
+    cause: "attack" | "effect" | "cost"
+    actorPid: PlayerId
+    sourceType?: CardType | undefined
+    sourceInstance?: CardInstance | undefined // アタッカー、または効果・コストの発生源。スピリットのときだけ「1体から」の上限に数える
+    floor?: number | undefined // この効果だけの下限（neverZero）
+}
+
+// ライフを減らす処理の制限を1か所に集めた問い合わせ。0〜amount の「減らせる量」を返す。
+// アタックだけの制限（打ち消し・コスト条件・BP条件・1回あたりの上限）は lifeDamageLimit が持つ。
+// 原因を問わず効く扱いは EFFECT_GATE §4 の 4（2026-10-30 ユーザー確認）
+export function lifeLossAllowed(board: Board, q: LifeLossQuery): number {
+    const { pid } = q
+    if (lifeImmuneThisTurn(board, pid)) return 0
+    if (q.actorPid !== pid && cantReduceOpponentLife(board, q.actorPid)) return 0
+    if (q.cause === "effect" && q.sourceType === "spirit" && q.actorPid !== pid && ownLifeImmuneToOpponentSpiritEffects(board, pid)) return 0
+    let allowed = q.amount
+    let floor = q.floor ?? 0
+    const attackerCost = q.cause === "attack" && q.sourceInstance ? Math.max(...instAllCosts(q.sourceInstance), 0) : 0
     for (const c of timedPlayerRules(board, pid)) {
         if (c.type !== "lifeFloorForPid") continue
-        if (c.byEffectSourceTypes !== undefined && (srcType === undefined || !c.byEffectSourceTypes.includes(srcType))) continue
-        floor = Math.max(floor, c.floor)
+        // 絞りが両方未指定なら全原因。指定があればどちらかに当たる原因だけ（OR）。効果の絞りは「相手の〜の効果」（BS11-080）なので自分のコストには効かない
+        const scoped = c.byAttackMinCost !== undefined || c.byEffectSourceTypes !== undefined
+        const hit =
+            !scoped ||
+            (q.cause === "attack" && c.byAttackMinCost !== undefined && attackerCost >= c.byAttackMinCost) ||
+            (q.cause !== "attack" && q.actorPid !== pid && c.byEffectSourceTypes !== undefined && q.sourceType !== undefined && c.byEffectSourceTypes.includes(q.sourceType))
+        if (hit) floor = Math.max(floor, c.floor)
     }
-    // 常在のライフ下限（BS12-070天の階Lv2）
-    floor = Math.max(floor, ownLifeFloorContinuous(board, pid))
-    return floor
+    // 「このネクサスをトラッシュに置くことで0を回避」型は、ライフを払って0にするコストだけは止める（COST_MODEL §9）
+    floor = Math.max(floor, ownLifeFloorContinuous(board, pid, q.cause === "cost"))
+    if (floor > 0) allowed = Math.min(allowed, Math.max(0, board.players[pid].life - floor))
+    const spirit = q.sourceInstance && card(q.sourceInstance.cardId).type === "spirit" ? q.sourceInstance : undefined
+    if (spirit) {
+        // シーマ・クリーク型は「相手のスピリット」から減らされる場合だけ数える
+        if (q.actorPid !== pid) allowed = Math.min(allowed, ownLifeDamageCapRemaining(board, pid, spirit))
+        allowed = Math.min(allowed, lifeDamagePerSpiritRemaining(board, pid, spirit))
+    }
+    return allowed
 }
 
 // SD06-010海皇龍シーマ・クリーク：「自分のライフは、ターンごとに相手のスピリット1体からmaxまでしか
 // 減らされない」。ownLifeFloorContinuousと同じ片側パターンだが、**アタッカー個体ごとのターン累計**
 // （CardInstance.lifeDealtThisTurn）で判定する点が違う（1回のアタック限定のlifeDamageMaxForPidとは別軸）。
 // 該当する制約が無ければInfinityを返す
-export function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker: CardInstance): number {
+function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker: CardInstance): number {
     let remaining = Number.POSITIVE_INFINITY
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageCapPerSourcePerTurn") continue
             if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
-            const dealt = attacker.lifeDealtThisTurn ?? 0
+            const dealt = attacker.lifeDealtThisTurn?.[pid] ?? 0
             remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
         }
     }
@@ -940,10 +944,10 @@ export function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker:
 // **発生源がどちらの陣営のフィールドにあっても両陣営に効く**点が違う（片側のみのownLifeDamageCapとは別軸）。
 // whileOwnBurstSet は効果本体（kind:"globalConstraint"）の既存フィールドをそのまま使う
 // （発生源の持ち主がバーストをセットしている間だけ有効）。該当する制約が無ければInfinity
-export function lifeDamagePerSpiritRemaining(board: Board, spirit: CardInstance): number {
+function lifeDamagePerSpiritRemaining(board: Board, pid: PlayerId, spirit: CardInstance): number {
     // 期間つきの「自分のライフはそれから N しか減らされない」（26RBS03-079）。ほかの制約と同じ lifeDealtThisTurn で数える
     let remaining =
-        spirit.lifeCapThisTurn === undefined ? Number.POSITIVE_INFINITY : Math.max(0, spirit.lifeCapThisTurn - (spirit.lifeDealtThisTurn ?? 0))
+        spirit.lifeCapThisTurn === undefined ? Number.POSITIVE_INFINITY : Math.max(0, spirit.lifeCapThisTurn - (spirit.lifeDealtThisTurn?.[pid] ?? 0))
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, pid)) {
             for (const effect of card(source.cardId).effects) {
@@ -951,7 +955,7 @@ export function lifeDamagePerSpiritRemaining(board: Board, spirit: CardInstance)
                 if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 noteCoverage(effect, "globalConstraint")
-                const dealt = spirit.lifeDealtThisTurn ?? 0
+                const dealt = spirit.lifeDealtThisTurn?.[pid] ?? 0
                 remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
             }
         }
@@ -981,7 +985,7 @@ export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
 // BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
 // 自分のライフは0にならない」。globalConstraint "ownLifeFloor" を持つ発生源から、pid自身の
 // フィールドだけを見て発揮条件（ownFamilyCountAtLeast）を判定する（cantReduceOpponentLifeと同じ片側パターン）
-export function ownLifeFloorContinuous(board: Board, pid: PlayerId): number {
+export function ownLifeFloorContinuous(board: Board, pid: PlayerId, includeCostSelfToTrash = false): number {
     let floor = 0
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
@@ -989,7 +993,7 @@ export function ownLifeFloorContinuous(board: Board, pid: PlayerId): number {
             // costSelfToTrash版（BS14-084）はここでは無条件の下限として数えない：
             // ダメージ計算の時点でここが効くと、コストを払わずに0回避が成立してしまう
             // （tryOwnLifeFloorByCostが life<=0 判定の直後で任意コスト付きで処理する）
-            if (effect.constraint.costSelfToTrash) continue
+            if (effect.constraint.costSelfToTrash && !includeCostSelfToTrash) continue
             if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             const fam = effect.condition?.ownFamilyCountAtLeast

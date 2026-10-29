@@ -1,7 +1,8 @@
 // デッキ破棄（mill）の上限とデッキ破棄の実行
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
-import { recordLifeLost, recordMoved } from "../record"
+import { recordMoved } from "../record"
+import { canPayLife, lifeCostQuery, recordLifeLoss } from "../lifeGate"
 import type { CardInstance, CardType, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, getCard, log, opponentOf, suspend } from "../GameState"
 import { returnSpiritToDeckBottom } from "../removal"
@@ -10,7 +11,7 @@ import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
 import { effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
-import { lifeCostBlocked, recordPlayerRule, resolveAction } from "../EffectModules"
+import { recordPlayerRule, resolveAction } from "../EffectModules"
 
 // globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
 // このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
@@ -298,7 +299,7 @@ export function findDeckMillNegate(
             if (effect.exceptFunsai && cause?.funsai === true) continue
             if ("ownLifeToReserve" in effect.cost) {
                 if (state.players[pid].life < effect.cost.ownLifeToReserve) continue
-                if (lifeCostBlocked(state, pid, effect.cost.ownLifeToReserve)) continue
+                if (!canPayLife(state, lifeCostQuery(pid, effect.cost.ownLifeToReserve, source))) continue
             } else {
                 if (source.isRested) continue
             }
@@ -374,7 +375,7 @@ export function payDeckMillNegateCost(
     if ("ownLifeToReserve" in effect.cost) {
         const paid = effect.cost.ownLifeToReserve
         player.life -= paid
-        recordLifeLost(state, pid, paid)
+        recordLifeLoss(state, pid, paid, source)
         player.reserve += paid
         log(
             state,
@@ -417,7 +418,7 @@ export function applyDeckMillNegate(
     const canPay =
         "ownLifeToReserve" in effect.cost
             ? state.players[entry.pid].life >= effect.cost.ownLifeToReserve &&
-              !lifeCostBlocked(state, entry.pid, effect.cost.ownLifeToReserve)
+              canPayLife(state, lifeCostQuery(entry.pid, effect.cost.ownLifeToReserve, source))
             : !source.isRested
     if (!canPay) {
         declineDeckMillNegate(state, entry)
