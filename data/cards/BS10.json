@@ -4737,7 +4737,8 @@
           2
         ],
         "action": {
-          "type": "returnToHand", "nexus": "only",
+          "type": "returnToHand",
+          "nexus": "only",
           "count": 1
         }
       },

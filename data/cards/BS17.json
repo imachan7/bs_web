@@ -1627,7 +1627,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "returnToHand", "nexus": "only",
+       "type": "returnToHand",
+       "nexus": "only",
        "count": 2
       },
       {
