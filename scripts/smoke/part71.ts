@@ -288,7 +288,7 @@ console.log("=== §C returnSelfToHand: 破壊時に手札へ戻る（実行実�
     const s = setupAttackStep("returnself-battle")
     const attacker = put(s, "p1", "BS01-002", 1)
     const gaurum = put(s, "p2", "BS01-032", 3) // Lv2 BP5000
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 10000 }, attacker) // BP勝ちさせる
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 10000 }], duration: "turn", side: "own", count: 1 }, attacker) // BP勝ちさせる
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(act(s, "p1", { type: "attack", instanceId: attacker }) === null, "アタック宣言")

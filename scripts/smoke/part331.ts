@@ -226,7 +226,7 @@ console.log("=== BS15-075 ブラッディロンド：コア合計が多い方が
     const target = createInstance("BS01-001", s.turn, 1)
     s.players.p2.field.spirits.push(target)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 2000, anySide: true }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", side: "both", count: 1 }, target.instanceId)
     assert(effectiveBp(s, "p2", target) === 1000 + 2000, "指定したスピリットがBP+2000された")
 }
 

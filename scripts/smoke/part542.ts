@@ -44,7 +44,7 @@ console.log("=== 1. placeCores の置き先を bpBuff { lastTarget } が拾う =
             type: "sequence",
             actions: [
                 { type: "placeCores", from: "self", to: "spirit", target: "one", count: 1, filter: { nameContains: "テスト542の相手" } },
-                ...(withBuff ? [{ type: "bpBuff" as const, amount: 3000, scope: "battle" as const, filter: { lastTarget: true as const } }] : []),
+                ...(withBuff ? [{ type: "timedEffect" as const, content: [{ type: "bp" as const, amount: 3000 }], duration: "battle" as const, side: "own" as const, count: 1, filter: { lastTarget: true as const } }] : []),
             ],
         })
         refreshLevelAsOverrides(s)

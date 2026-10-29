@@ -156,7 +156,7 @@ console.log("=== BS10-108ルナティックシール：メインの封印とフ�
     s.players.p1.field.spirits.push(spirit)
     refreshLevelAsOverrides(s)
     const bpBefore = effectiveBp(s, "p1", spirit)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 3000, anySide: true }, spirit.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 3000 }], duration: "turn", side: "both", count: 1 }, spirit.instanceId)
     assert(effectiveBp(s, "p1", spirit) === bpBefore + 3000, "フラッシュ側：スピリット1体をBP+3000する")
 }
 

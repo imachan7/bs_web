@@ -78,7 +78,10 @@ const FLASH_MAGIC = ((): CardRow => {
                 (e) =>
                     e["kind"] === "magic" &&
                     e["timing"] === "flash" &&
-                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff" &&
+                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+                    (e["action"] as Record<string, unknown>)["side"] === "own" &&
+                    (e["action"] as Record<string, unknown>)["target"] === undefined &&
+                    JSON.stringify((e["action"] as Record<string, unknown>)["content"]).includes('"type":"bp"') &&
                     (e["action"] as Record<string, unknown> | undefined)?.["filter"] === undefined,
             ),
     )

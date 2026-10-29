@@ -1988,14 +1988,7 @@
     "cost": {
      "exhaustSelf": true
     },
-    "action": {
-     "type": "bpBuff",
-     "amount": 0,
-     "amountFromSelfBp": true,
-     "filter": {
-      "family": "武装"
-     }
-    }
+    "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 1, "amountCounter": "selfBp", "countOnce": true}], "duration": "turn", "side": "own", "count": 1, "filter": {"family": "武装"}}
    }
   ]
  },

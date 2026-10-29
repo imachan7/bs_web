@@ -28,7 +28,6 @@ function symbolsOf(inst: CardInstance, forSummon = false): { symbols: Color[]; f
         ...(inst.braveComposite?.symbols ?? []),
         ...(inst.symbolsAddedContinuous ?? []),
         ...(inst.extraSymbolsPermanent ?? []),
-        ...(inst.battleSymbolsAdded ?? []),
         ...(inst.timedSymbolsAdded ?? []),
     ]
     for (const c of inst.timedSymbolLoss ?? []) {

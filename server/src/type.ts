@@ -91,10 +91,10 @@ export interface PaySource {
 // ---- 効果データ層（data.md 5.2） ----
 
 // 系統フィルタ：単一文字列 or 配列（配列＝いずれかの系統を持てばよいOR条件）。
-// bpBuffAll/bpBuff.familyFilter が使う。判定は EffectModules.matchesFamilyFilter に集約する
+// bpBuffAll が使う。判定は EffectModules.matchesFamilyFilter に集約する
 // （BS04エンジン拡張バッチ1。aura.familyFilter・AuraCounter{ownFamily}・keywordGrant.familyFilter は
 // public/src/renderer.ts に同型の client-side ミラーがあり、そちらの型も連動改修が要るため今回は見送り。
-// 対象カード（BS04-029/097）はbpBuffAll/bpBuffのみで表現できるため実害なし）
+// 対象カード（BS04-029/097）はbpBuffAll/timedEffectのみで表現できるため実害なし）
 export type FamilyFilter = string | string[]
 
 // normalizeFilter() が self 相対のBP指定（"selfBp"）を数値へ解決した後の形。
