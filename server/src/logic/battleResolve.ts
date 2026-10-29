@@ -1,7 +1,7 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
-import { recordLifeLost } from "./record"
+import { addLifeDealt, recordLifeLoss } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
@@ -107,7 +107,7 @@ function applyNormalLifeDamage(state: GameState, attackerPid: PlayerId, attacker
     const toVoid = activeConstraints(state, attackerPid, attacker).some((c) => c.type === "lifeDamageToVoid")
     const toTrash = !toVoid && lifeDamageToTrashByOwnerSource(state, attackerPid, attacker)
     defender.life -= dealt
-    recordLifeLost(state, defenderPid, dealt)
+    recordLifeLoss(state, defenderPid, dealt, attacker)
     if (toVoid) {
         log(
             state,
@@ -133,7 +133,6 @@ function applyNormalLifeDamage(state: GameState, attackerPid: PlayerId, attacker
 function afterLifeDamage(state: GameState, attackerPid: PlayerId, attacker: CardInstance, dealt: number): void {
     const defenderPid = opponentOf(attackerPid)
     const defender = state.players[defenderPid]
-    attacker.lifeDealtThisTurn = (attacker.lifeDealtThisTurn ?? 0) + dealt
     if (dealt > 0) emitEvent(state, { type: "lifeDamage", pid: defenderPid, amount: dealt })
     // event:"ownLifeDamaged"のバースト用の器（080）：このバトルでライフを減らしたスピリットを記録する
     if (dealt > 0 && state.battle) (state.battle.lifeDamagers ??= []).push(attacker.instanceId)
@@ -213,6 +212,7 @@ function settleLifeDamageReplace(state: GameState, frame: LifeDamageResolveFrame
         applyNormalLifeDamage(state, attackerPid, attacker, lifeDamageLimit(state, opponentOf(attackerPid), attacker).max)
         return
     }
+    addLifeDealt(attacker, opponentOf(attackerPid), reduced)
     afterLifeDamage(state, attackerPid, attacker, reduced)
 }
 

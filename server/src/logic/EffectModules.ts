@@ -37,7 +37,7 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
-import { handGainBlocked, lifeImmuneThisTurn } from "../../../shared/rules"
+import { handGainBlocked } from "../../../shared/rules"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -659,27 +659,6 @@ export function tryLifeDamageMillGuard(
 // 自分のライフは0にならない」（globalConstraint "ownLifeFloor" の costSelfToTrash 版）。
 // 呼び出し側が life<=0 を検知した直後（勝敗確定の直前）に呼ぶ。払わない理由が無い（払わなければ即敗北）ため
 // 対話確認を省いた自動払いの簡略化。支払えたら true を返し、life を floor まで戻す（0にはならない）
-// 「自分のライフは0にならない」（BS14-084永久凍土の王都）が働いている間は、
-// **ライフのコアをコストとして払って0にすることもできない**（2026-09-16 ユーザー確定）。
-// 払えばライフが0になる＝床の効果が止めるので、コストを完全に支払えない。
-// COST_MODEL.md の一般則「AとBの両方が完全に解決できるときだけ発揮できる」により、その効果は発揮できない。
-// 「このターンの間、ライフは減らない」（lifeImmuneForPid）が働いている間も、ライフのコアをコストとして払えない（2026-10-29 ユーザー確認）
-export function lifeCostBlocked(state: GameState, pid: PlayerId, amount = 1): boolean {
-    if (lifeImmuneThisTurn(state, pid)) return true
-    const player = state.players[pid]
-    for (const source of effectSources(state, pid)) {
-        if (!player.field.nexuses.some((n) => n.instanceId === source.instanceId)) continue
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "ownLifeFloor") continue
-            if (!entryActive(state, pid, source, effect, level)) continue
-            if (player.life - amount < effect.constraint.floor) return true
-        }
-    }
-    return false
-}
-
 export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean {
     const player = state.players[pid]
     for (const source of effectSources(state, pid)) {

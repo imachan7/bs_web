@@ -12,7 +12,6 @@ import {
     bothSidesPids,
     canTakeCoresFrom,
     findSpiritAny,
-    lifeCostBlocked,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -23,7 +22,8 @@ import { coreFloorFor, isBattlingCoreProtected } from "../removal"
 import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
-import { recordCores, recordLeftCost, recordLifeLost, recordMoved } from "../record"
+import { recordCores, recordLeftCost, recordMoved } from "../record"
+import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss } from "../lifeGate"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
@@ -133,7 +133,7 @@ export function removeCoresAchievableCountForPay(
 
     if (action.from?.includes("life")) {
         if (action.side !== "own" || typeof countSpec !== "number") return 0
-        return lifeCostBlocked(state, owner, countSpec) ? 0 : state.players[owner].life
+        return canPayLife(state, lifeCostQuery(owner, countSpec, self)) ? state.players[owner].life : 0
     }
 
     if (defaultTarget(action) === "self") {
@@ -691,16 +691,16 @@ const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action) => {
 // 自分のライフのコアを置く（「〜することで」のコスト用。from: ["life"] は単独・side "own" だけ）。
 // 「ライフは0にならない」が働いている間は払って0にできない（COST_MODEL §9。2026-09-16 ユーザー確定）
 function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
-    const { state, owner, opp, sourceName } = ctx
+    const { state, owner, opp, sourceName, self } = ctx
     const count = resolvedCount(ctx, action)
     const player = state.players[owner]
-    if (action.side !== "own" || typeof count !== "number" || player.life < count || lifeCostBlocked(state, owner, count)) {
+    if (action.side !== "own" || typeof count !== "number" || player.life < count || !canPayLife(state, lifeCostQuery(owner, count, self))) {
         log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
         state.effectFizzled = true
         return
     }
     player.life -= count
-    recordLifeLost(state, owner, count)
+    recordLifeLoss(state, owner, count, self)
     depositTo(state, owner, action.to ?? "trash", count, "ライフ")
     if (player.life <= 0 && !state.winner) {
         state.winner = opp
@@ -713,15 +713,20 @@ function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
 // 相手のライフを downTo 個になるまで置く。「ライフの減少」としての後続（ownLifeDamaged等・勝敗）は呼び出し側が扱う
 // （lifeDamageReplace の settle）ので、ここでは誘発も勝敗判定もしない
 function resolveOpponentLifeDownTo(ctx: ActionCtx, action: RemoveCoresAction): void {
-    const { state, opp, sourceName } = ctx
+    const { state, owner, opp, sourceName, self, srcType } = ctx
     const player = state.players[opp]
-    const n = player.life - (action.downTo as number)
-    if (n <= 0) {
+    const wanted = player.life - (action.downTo as number)
+    const n = lifeLossAllowed(state, { pid: opp, amount: Math.max(0, wanted), cause: "effect", actorPid: owner, sourceType: srcType, sourceInstance: self ?? undefined })
+    if (wanted <= 0) {
         log(state, `${sourceName}：${player.name}のライフはすでに${String(action.downTo)}個以下だった。`)
         return
     }
+    if (n <= 0) {
+        log(state, `${sourceName}：${player.name}のライフはこれ以上減らせなかった。`)
+        return
+    }
     player.life -= n
-    recordLifeLost(state, opp, n)
+    recordLifeLoss(state, opp, n, self)
     depositTo(state, opp, action.to ?? "reserve", n, "ライフ")
 }
 

@@ -145,9 +145,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `levelCantAct`（fn）：フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
 - `noLifeDamageByCost`（fn）：フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは
 - `lifeDamageLimit`（fn）：片側限定のライフ保護（playerRule "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
-- `lifeFloorByEffect`（fn）：このターンの間、この pid のライフはあらゆる原因（アタック・lifeCrushアクション）で減らないか
-- `ownLifeDamageCapRemaining`（fn）：SD06-010海皇龍シーマ・クリーク：「自分のライフは、ターンごとに相手のスピリット1体からmaxまでしか
-- `lifeDamagePerSpiritRemaining`（fn）：神将「自分のバーストをセットしている間、お互いのライフは、ターンごとにスピリット1体から
+- `LifeLossQuery`（型）
+- `lifeLossAllowed`（fn）：ライフを減らす処理の制限を1か所に集めた問い合わせ。0〜amount の「減らせる量」を返す。
 - `cantReduceOpponentLife`（fn）：attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
 - `lifeImmuneThisTurn`（fn）
 - `ownLifeFloorContinuous`（fn）：BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
@@ -336,8 +335,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyBpThresholdBonusFor`（fn）：器BS16：発生源の持ち主（ownerPid）のスピリット/マジックの効果による「BP◯以下を破壊する」判定の
 - `handImmuneFor`（fn）：発生源の持ち主（targetPid）の**手札**が、相手のスピリット/ブレイヴ/マジックの効果を受けないか
 - `tryLifeDamageMillGuard`（fn）：kind:"lifeDamageMillGuard"（BS07六花の司書長サーガ）：defenderPid のライフが減る直前に呼ぶ。
-- `lifeCostBlocked`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
-- `tryOwnLifeFloorByCost`（fn）
+- `tryOwnLifeFloorByCost`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 - `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
 - `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
@@ -689,6 +687,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/lifeDamageReplace.ts
 
 - `startLifeDamageReplace`（fn）：置換が成立しうるなら引き取る。複数当たるときは減るコアが最も多い1つだけを提示する
+
+## server/src/logic/lifeGate.ts
+
+- `canPayLife`（const）：コストは全部払えるときだけ払える（COST_MODEL §1）
+- `lifeCostQuery`（const）：発生源の効果のコストでライフを払う問い合わせ。actorPid は効果の持ち主（相手のライフを払わせるときだけ pid と違う）
+- `recordLifeLoss`（fn）：減らしたあとの記録。「スピリット×減らされた側」の組ごとに累計する
+- `addLifeDealt`（fn）：ライフ置換（コアが別の経路で動いた）のときだけ、グローバルな記録なしで累計だけ足す
 
 ## server/src/logic/magic/cast.ts
 

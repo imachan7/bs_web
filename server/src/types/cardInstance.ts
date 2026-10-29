@@ -88,7 +88,7 @@ export interface CardInstance {
     levelCostBonusContinuous?: number // 継続的な「Lvコストを+Nする」。各レベルに必要なコア数がこの数だけ増える（維持コア＝Lv1のコストも上がるので、下回った個体は消滅する）。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instLevels が反映する（BS09-017蛇凰神バァラルLv2-3。2026-08-14 ユーザー確認）
     levelAsContinuous?: number // 継続的な「Lv◯として扱う」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（ナイフ投げのジャグリーン／トパーズの流星）
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
-    lifeCapThisTurn?: number // 期間つき効果（lifeCap）から作り直す写し。このスピリットがこのターンに相手のライフを減らせる合計の上限（アタック・効果の両方。lifeDealtThisTurn と比べる。26RBS03-079）
+    lifeCapThisTurn?: number // 期間つき効果（lifeCap）から作り直す写し。このスピリットがこのターンに同じ側のライフを減らせる合計の上限（lifeDealtThisTurn と比べる。26RBS03-079）
     lifeDamageNegatedFor?: PlayerId // 期間つき効果の一覧（noLifeDamage）から作り直す写し。守られるプレイヤー＝記録を出した側
     coresLinkedTo?: string // このネクサスのコア数を、リンク元スピリット（instanceId）のコア数と同じものとして扱う
     // （クロスシザース。本来は再指定まで永続だが、このターンの間だけの簡略化。ターン終了でリセット）
@@ -113,7 +113,7 @@ export interface CardInstance {
     kyoshuUsed?: { turn: number; count: number } // 【強襲】をこのターン何回使ったか（turnがstate.turnと一致する間だけ有効。BS07）
     timedSymbolsAdded?: Color[] // このターンの間の色指定の追加シンボル（timedExtraSymbols と同じく写し。symbolAdd.color）
     timedExtraSymbols?: number // このターンの間の追加シンボル数（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
-    lifeDealtThisTurn?: number // このスピリットがこのターンに与えたライフダメージの累計（globalConstraint "ownLifeDamageCapPerSourcePerTurn" 用。ライフダメージ解決時に加算し、ターン終了でリセット。SD06-010）
+    lifeDealtThisTurn?: Partial<Record<PlayerId, number>> // このターンにこのスピリットがライフを減らした量。減らされた側のプレイヤーごとの累計（アタック・効果・コストの合算。SD06-010 / BS15共通器はプレイヤーごとに数える）
     // （ブロック時には発揮しない。ターン終了でリセット。fireTriggerが参照。GameState の同名フラグは両陣営全体版で、こちらは個体単位。BS07マクラーンスラッシュ）
     heavyArmorColorsGranted?: Color[] // 【重装甲】の対象色のうち、**毎回算出が要るもの**（合体中のブレイヴが持つ静的【重装甲】のホストへの反映と、colorsFrom:"selfColors"＝【重装甲：可変】）。
     // armorColorsGranted と同じくEffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、hasHeavyArmorAgainstが参照する。

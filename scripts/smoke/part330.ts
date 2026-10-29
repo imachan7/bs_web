@@ -7,7 +7,7 @@ import { act, assert, createGame, createInstance, effectiveCost, resolveAction, 
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
 import type { CardData } from "../../server/src/type"
-import { lifeDamagePerSpiritRemaining, opponentFieldColorCount, ownFieldOnlyColor } from "../../shared/rules"
+import { opponentFieldColorCount, ownFieldOnlyColor } from "../../shared/rules"
 
 function makeCard(cardId: string, over: Partial<CardData> = {}): CardData {
     const c: CardData = {
@@ -189,7 +189,7 @@ console.log("=== 3. 神将：スピリット1体からのライフ減少はタ�
         assert(s.players.p2.life === 4, "1ターン目は1しか減らない（5→4）")
         assert(act(s, "p1", { type: "endTurn" }) === null, "p1のターン終了")
         assert(act(s, "p2", { type: "endTurn" }) === null, "p2のターン終了、p1のターンへ")
-        assert(atk.lifeDealtThisTurn === undefined || atk.lifeDealtThisTurn === 0, "ターンが変わると累計がリセットされる")
+        assert(Object.values(atk.lifeDealtThisTurn ?? {}).every((n) => n === 0), "ターンが変わると累計がリセットされる")
         assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
         assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
         assert(takeLifeAndResolve(s, "p2") === null, "ライフで受ける")
