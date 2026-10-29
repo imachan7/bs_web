@@ -23,7 +23,7 @@
 
 ### 次の候補：専用 type の統一（10-27 計画のみ）
 
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 0 は取り消し。3a・3b・PR 1 の前の修正は済み。PR 1（破壊）は refactor/destroy-unify。**次は PR 2（戻す・疲労の「自分」版）**：§2 の A・B（10-29 決定）に従う。`exhaustSelf` は名前で判定する箇所が6ファイル
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 1＝#308、修正＝#309、2a＝#310。**2b は #309 のマージ後**。PR 4 は `refactor/bpbuff-unify`（スキーマは §4 末尾）。残りは PR 5（1枚専用の付与・印）と回復の統一
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
 ### 既知の残り：entryActive（10-23）

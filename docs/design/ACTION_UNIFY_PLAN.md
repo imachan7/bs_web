@@ -93,3 +93,15 @@
 - `destroySelf` → `destroy{target:"self", count:1}`。耐性の扱いは今のまま（§2 B）。記録（lastMoved）が増えるのは許容
 - `destroyOwnByCost` → `sequence[destroy{side:"own", count:1, filter:{コスト上限}}, placeCores{from:"void", to:"reserve", countCounter:"lastCost"}]`／BS07-084 は後半が `destroyByCostBudget`（予算＝`lastCost`）。**自分で選ぶ**（旧は非対話でコスト最大を自動で選んでいた）。BS02-075 の self 除外は保つ
 - `destroyBrave` は対象外
+
+### PR 4 `bpBuff`・`colorlessSelfThisBattle` → `timedEffect`（10-29 確定）
+
+- `amountIfTarget` はデータ0件なので消すだけ（§1 の「着手前に決めること」は不要になった）
+- `bpBuff{amount, filter, scope, target}` → `timedEffect{content:[{type:"bp", amount}], duration: scope==="battle" ? "battle" : "turn", count:1, filter}`（`target:"self"` はそのまま）。`anySide` は timedEffect の両陣営から1体を選ぶ書き方へ
+- `amountFromSelfBp` → `amountCounter:"selfBp"`（amount 1）／`amountCounter:"lastBp"` はそのまま
+- `thenAddSymbolThisBattle` → 同じ timedEffect の content に `{type:"symbolAdd", color, count}` を足す
+- `costMillSelfCount`＋`thenRefreshIfMilledFamily`（BS13-060）→ `pay{cost: mill 自分6枚, then: sequence[timedEffect bp, if{cond:{last:{系統 光導・スピリット}}} → 自身を回復]}`。
+  **挙動の変化**：デッキが6枚未満なら使えない（COST_MODEL §1「数も完全に」09-24）
+- `extraPerCoreToTrash`（BS10-103）→ `sequence[timedEffect bp 3000, pay{cost: removeCores 好きなだけ 自分のフィールド/リザーブ→トラッシュ, then: timedEffect bp 1000×lastCores, target:"lastBuffed"}]`。
+  **足りない部品**：`timedEffect` の `target:"lastBuffed"`（直前に BP を上げた個体＝`if` の `lastBuffed` と同じ記録）。「そのスピリット」を前の効果の対象で受ける書き方が他に無いため
+- `colorlessSelfThisBattle` → `timedEffect{content:[{type:"colorless"}], duration:"battle", target:"self"}`
