@@ -734,8 +734,8 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         }
         // upTo（0〜count の好きな数を選べる）：既存の自動選択ループは聞かずに先頭から決め打ちするため、
         // 対話時はここで分岐する。side:both との組み合わせは使用例が無いため sides[0] のみ扱う（either は両陣営から選ばせる）。
-        // drawPerDestroyed／discardOpponentPerDestroyed は upTo と組み合わせて使うカードが無いため、
-        // 対話の再入をまたいで合計を持ち回る仕組みは未対応（必要になったら action に合計を載せる）
+        // drawPerDestroyed は upTo と組み合わせて使うカードが無いため、
+        // upTo の経路では破壊数の持ち回り（nexusProgress）は未対応
         if (action.upTo && state.interactiveTargets) {
             const pools: PlayerId[] = action.side === "either" ? [owner, opp] : sides.slice(0, 1)
             const candidatesIn = (): string[] => pools.flatMap((p) => state.players[p].field.nexuses.filter(matchesIn(p)).map((n) => n.instanceId))
@@ -775,31 +775,60 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             )
             return
         }
-        let destroyed = 0
-        for (const pid of sides) {
+        // 選択の再入をまたぐ位置と破壊数は nexusProgress に載せる。選ぶのは破壊される側の持ち主
+        // （side:"both" は各陣営の持ち主が自分のネクサスを選ぶ。それ以外は効果を使う人）
+        const prog = action.nexusProgress
+        let picked = prog !== undefined ? targetInstanceId : undefined
+        let destroyed = prog?.d ?? 0
+        const gone: string[] = prog !== undefined ? [...lastMovedOf(state)] : []
+        const scope = currentRecordScope(state)
+        const destroyOpts = { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }
+        for (let s = prog?.s ?? 0; s < sides.length; s++) {
+            const pid = sides[s]!
             // all指定時はcountを無視し、開始時点で条件に一致するネクサス数ぶん繰り返して全破壊する（BS04風龍王フージャオス）
             const iterations = action.all
                 ? state.players[pid].field.nexuses.filter(matchesIn(pid)).length
                 : action.count
-            for (let i = 0; i < iterations; i++) {
-                const nexus =
-                    action.levelFilter !== undefined || action.filter !== undefined
-                        ? state.players[pid].field.nexuses.find(matchesIn(pid))
-                        : state.players[pid].field.nexuses[0]
+            for (let i = s === (prog?.s ?? 0) ? (prog?.i ?? 0) : 0; i < iterations; i++) {
+                const cands = action.levelFilter !== undefined || action.filter !== undefined
+                    ? state.players[pid].field.nexuses.filter(matchesIn(pid))
+                    : [...state.players[pid].field.nexuses]
+                let nexus: CardInstance | undefined
+                if (picked !== undefined) {
+                    nexus = cands.find((n) => n.instanceId === picked)
+                    picked = undefined
+                } else if (state.interactiveTargets && !action.all && cands.length >= 2) {
+                    recordMoved(state, gone, scope)
+                    requestChoice(
+                        state,
+                        owner,
+                        `${sourceName}：破壊するネクサスを選んでください`,
+                        cands.map((n) => n.instanceId),
+                        false,
+                        { ...action, nexusProgress: { s, i, d: destroyed } },
+                        self,
+                        "target",
+                        undefined,
+                        action.side === "both" && pid !== owner ? pid : undefined,
+                    )
+                    return
+                } else nexus = cands[0]
                 if (!nexus) {
                     log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
                     break
                 }
-                const ok = destroyNexus(state, pid, nexus.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })
+                const cardId = nexus.cardId
+                const ok = destroyNexus(state, pid, nexus.instanceId, destroyOpts)
                 if (!ok) break // 破壊耐性で不発：同じネクサスを再試行しても結果は変わらないため打ち切る
                 destroyed++
+                gone.push(cardId)
             }
         }
-        // 実際に破壊できたネクサス1つにつき、ドロー（バスタースピア）／相手の手札を破棄（BS05鉄槌のオズワルドLv2）。
+        recordMoved(state, gone, scope)
+        // 実際に破壊できたネクサス1つにつき、ドロー（バスタースピア）。
         // 破壊で誘発した効果が選択待ちを立てたら、後半はその解決の後に回す（2026-10-02。中断ガードで見つかった）
         const after: EffectAction[] = []
         if (action.drawPerDestroyed && destroyed > 0) after.push({ type: "draw", count: destroyed * action.drawPerDestroyed })
-        if (action.discardOpponentPerDestroyed && destroyed > 0) after.push({ type: "discard", from: "hand", side: "opponent", count: destroyed * action.discardOpponentPerDestroyed })
         if (after.length === 0) return
         if (state.pendingChoice) {
             pushResumeFrames(state, after.map((a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a })))

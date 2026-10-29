@@ -808,16 +808,7 @@ function hasChooserEvidence(effects: Record<string, unknown>[]): boolean {
         if (found) break
     }
     if (found) return true
-    // 等価表現: 選択者が焼き込まれた type、または discardOpponent へ委譲するフィールドを持つ
-    // （destroyNexus.discardOpponentPerDestroyed＝BS05-054 鉄槌のオズワルド）
-    let delegated = false
-    for (const eff of effects) {
-        walk(eff, (key) => {
-            if (key === "discardOpponentPerDestroyed") delegated = true
-        })
-        if (delegated) break
-    }
-    if (delegated) return true
+    // 等価表現: 選択者が焼き込まれた type
     const types = collectActionTypes(effects)
     if ([...types].some((t) => OPPONENT_CHOOSES_ACTION_TYPES.has(t))) return true
     // 選択が通常手順に委ねられる kind しか持たないカードは対象外
