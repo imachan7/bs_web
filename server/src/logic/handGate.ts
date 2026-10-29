@@ -1,3 +1,4 @@
+// カードが手札に入ってよいかの問い合わせ。行き先が手札なら効く禁止と、トラッシュから戻すときだけ効く禁止を集める（EFFECT_GATE §4 の 5a）
 import type { GameState, PlayerId } from "../type"
 import { hasGlobalConstraint, opponentCantReturnFromTrashToHand } from "../../../shared/rules"
 

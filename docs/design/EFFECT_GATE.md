@@ -93,7 +93,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
      アタックだけの制限（`negateLifeDamageFromTarget`・`lifeDamageMaxForPid`・`noLifeDamageByCost` など）は今の `lifeDamageLimit` に残し、共通の分は `lifeDamageLimit` から `lifeLossAllowed` を呼ぶ。
      減らした後の記録（`recordLifeLost`・組ごとの累計）も1つの関数にする。呼ぶ所：ライフを減らす全11か所（`grep -rn "\.life -=" server/src/logic`）。コストは「全部払えるか」（`lifeLossAllowed < amount` なら払えない）で、`lifeCostBlocked` はこれで置き換える
    - 4 の裁定（10-30 ユーザー確認）：「ターンごとにスピリット1体から1までしか減らされない」は、チャンプボンゴル型（お互い）もシーマ・クリーク型（自分だけ）も、そのスピリットのアタックと効果を合算して数える（今はシーマ・クリーク型がアタックだけ）
-5a. **手札に加える問い合わせ**（設計を10-30に確定）
+5a. ✅ **手札に加える問い合わせ**（設計を10-30に確定。#326）
    - `server/src/logic/handGate.ts`（新規）に `handGainDenial(state, { pid, from: "deck"|"trash"|"revealed"|"field"|"other", cause: "effect"|"rule" }): string | null`。集める禁止：`noHandGainByEffect`（cause effect。今の `handGainBlocked`）・`noTrashRecovery`／`opponentCantReturnFromTrashToHand`（from trash）
    - 「トラッシュから手札に戻せない」は、今は `moveCards` だけが見ている。トラッシュから手札へ移す経路（`returnTrashCardToHand`・【光芒】・`takeLast`・エンドステップの戻し・ショーグンペンタンの `thenHandIfNameIncludes`）すべてに効かせる
    - **破壊時に「このスピリットは手札に戻る」は対象外**：破壊されたスピリットは破壊待機状態で、トラッシュに行っていない（ACTION_VOCABULARY §2。10-30 ユーザー再確認）
