@@ -123,13 +123,17 @@ console.log("=== BS03-131 ユナイテッドパワー：疲労させる自分の
     assert(s.players.p1.hand.length === 1, "手札に残る")
 }
 
-console.log("=== BS08-030 機人フィアラル：武装の自分のスピリットがいなければ起動できない ===")
+console.log("=== BS08-030 機人フィアラル：自分自身も武装なので、ほかに武装がいなくても起動して自分を選べる（2026-10-29 ユーザー確認） ===")
 {
-    const s = game("fial-notarget")
+    const s = game("fial-self")
     const f = put(s, "p1", "BS08-030", 2)
     put(s, "p1", ROKU, 2)
     put(s, "p2", GATLING, 1)
-    assert(handleAction(s, "p1", { type: "activateAbility", instanceId: f.instanceId, effectId: "BS08-030-e2" }) !== null && !f.isRested, "武装の自分のスピリットがいなければ起動できない（疲労だけして不発にはならない）")
+    const before = bp(s, "p1", f)
+    assert(handleAction(s, "p1", { type: "activateAbility", instanceId: f.instanceId, effectId: "BS08-030-e2" }) === null, "起動できる")
+    drive(s, [{ target: f.instanceId }], "fial-self")
+    assert(f.isRested, "コストとして自分が疲労する")
+    assert(bp(s, "p1", f) === before * 2, "自分自身に BP+(このスピリットのBP) が乗る")
 }
 
 console.log("=== SD06-005 ツインブレード・ドラゴン：バーストがなければ起動できない ===")
