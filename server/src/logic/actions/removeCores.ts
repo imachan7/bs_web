@@ -12,7 +12,7 @@ import {
     bothSidesPids,
     canTakeCoresFrom,
     findSpiritAny,
-    lifeCostBlockedByFloor,
+    lifeCostBlocked,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -133,7 +133,7 @@ export function removeCoresAchievableCountForPay(
 
     if (action.from?.includes("life")) {
         if (action.side !== "own" || typeof countSpec !== "number") return 0
-        return lifeCostBlockedByFloor(state, owner, countSpec) ? 0 : state.players[owner].life
+        return lifeCostBlocked(state, owner, countSpec) ? 0 : state.players[owner].life
     }
 
     if (defaultTarget(action) === "self") {
@@ -694,7 +694,7 @@ function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
     const { state, owner, opp, sourceName } = ctx
     const count = resolvedCount(ctx, action)
     const player = state.players[owner]
-    if (action.side !== "own" || typeof count !== "number" || player.life < count || lifeCostBlockedByFloor(state, owner, count)) {
+    if (action.side !== "own" || typeof count !== "number" || player.life < count || lifeCostBlocked(state, owner, count)) {
         log(state, `${sourceName}：ライフのコアを置けないため発動しなかった。`)
         state.effectFizzled = true
         return

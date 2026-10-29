@@ -10,7 +10,7 @@ import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
 import { effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
-import { lifeCostBlockedByFloor, recordPlayerRule, resolveAction } from "../EffectModules"
+import { lifeCostBlocked, recordPlayerRule, resolveAction } from "../EffectModules"
 
 // globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
 // このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
@@ -298,7 +298,7 @@ export function findDeckMillNegate(
             if (effect.exceptFunsai && cause?.funsai === true) continue
             if ("ownLifeToReserve" in effect.cost) {
                 if (state.players[pid].life < effect.cost.ownLifeToReserve) continue
-                if (lifeCostBlockedByFloor(state, pid, effect.cost.ownLifeToReserve)) continue
+                if (lifeCostBlocked(state, pid, effect.cost.ownLifeToReserve)) continue
             } else {
                 if (source.isRested) continue
             }
@@ -417,7 +417,7 @@ export function applyDeckMillNegate(
     const canPay =
         "ownLifeToReserve" in effect.cost
             ? state.players[entry.pid].life >= effect.cost.ownLifeToReserve &&
-              !lifeCostBlockedByFloor(state, entry.pid, effect.cost.ownLifeToReserve)
+              !lifeCostBlocked(state, entry.pid, effect.cost.ownLifeToReserve)
             : !source.isRested
     if (!canPay) {
         declineDeckMillNegate(state, entry)

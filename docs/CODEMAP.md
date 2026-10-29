@@ -337,7 +337,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyBpThresholdBonusFor`（fn）：器BS16：発生源の持ち主（ownerPid）のスピリット/マジックの効果による「BP◯以下を破壊する」判定の
 - `handImmuneFor`（fn）：発生源の持ち主（targetPid）の**手札**が、相手のスピリット/ブレイヴ/マジックの効果を受けないか
 - `tryLifeDamageMillGuard`（fn）：kind:"lifeDamageMillGuard"（BS07六花の司書長サーガ）：defenderPid のライフが減る直前に呼ぶ。
-- `lifeCostBlockedByFloor`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
+- `lifeCostBlocked`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
 - `tryOwnLifeFloorByCost`（fn）
 - `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
 - `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで

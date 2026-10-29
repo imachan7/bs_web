@@ -32,11 +32,11 @@
 | costDestroySelfAndCostFilter | 1 | 自身＋コストmin以上の自分のスピリット1体を破壊 | 効果も出ない | 払わない | 候補2体以上で選択（selfは固定） | 合う | summonFromHandFreeはPAYABLE_TYPES外。「自身＋他1体」の複合破壊はdestroy単体で表現しづらい | battleFlow.ts:883-940 |
 | costReserveCoreToTrash | 1 | リザーブのコア1個→トラッシュ | 効果も出ない | 払わない | 対象外 | 合う | summonFromTrashFreeはPAYABLE_TYPES外。足りない：reserve払い系 | battleFlow.ts:1209-1224 |
 | costReturnOwnBrave | 1 | 自身に合体しているブレイヴ1つを手札へ | 効果も出ない（refreshSelf冒頭でself.isRested確認済み） | 払わない | 候補2体以上で選択 | 合う | 足りない：ブレイヴ切り離し払いは returnToHand と別処理（detachBraveByEffect） | exhaustRefresh.ts:763-780 |
-| costOwnLifeToReserve | 1 | 持ち主のライフのコアN個→リザーブ | 効果も出ない（refreshSelf冒頭でself.isRested確認済み） | 払わない | 対象外 | 合う | 足りない：ライフ払い系が無い（lifeCostBlockedByFloor考慮も必要） | exhaustRefresh.ts:661-684 |
+| costOwnLifeToReserve | 1 | 持ち主のライフのコアN個→リザーブ | 効果も出ない（refreshSelf冒頭でself.isRested確認済み） | 払わない | 対象外 | 合う | 足りない：ライフ払い系が無い（lifeCostBlocked考慮も必要） | exhaustRefresh.ts:661-684 |
 | costSelfToTrash | 1 | **対象外**：`ownLifeFloor` constraintの一部で、「Aすることで、Bする」の任意効果ではなく、ライフ0を止める自動処理 | — | — | — | — | pay対象外（COST_MODEL.md §9で別枠として確定済み） | EffectModules.ts:499-540 |
 | costReserveToTrashFromBofu | 1 | リザーブのコアを実効【暴風】数ぶん→トラッシュ | 効果も出ない（bofu==0またはreserve不足） | **B（countFromBofu体数ぶんの疲労）未確認のまま払う** | 対象外 | **合わない：数どおり疲労させられるか未確認で先払い** | 足りない：暴風連動払いが無い | exhaustRefresh.ts:48-58（B確認は後続のcountFromBofu処理、失敗しても払い戻さない） |
 | costDiscardOwnHandOne | 1 | 自分の手札1枚（末尾）破棄 | 効果も出ない | **B（deck.length>=count）未確認のまま払う** | 対象外（末尾固定） | **合わない** | discardSelfChooseがPAYABLE_TYPES済み（ただし本カードは「好きな1枚」でなく末尾固定の簡略化） | drawDiscard.ts:20-33 |
-| costOwnLifeToVoid | 1 | 自分のライフのコアN個→ボイド（lifeCostBlockedByFloor考慮） | 効果も出ない | 払わない | 対象外 | 合う | 足りない：ライフ払い系が無い | destroy.ts:334-354 |
+| costOwnLifeToVoid | 1 | 自分のライフのコアN個→ボイド（lifeCostBlocked考慮） | 効果も出ない | 払わない | 対象外 | 合う | 足りない：ライフ払い系が無い | destroy.ts:334-354 |
 
 ## §2 足りないもの
 
@@ -101,7 +101,7 @@ then 側の判定（その効果が完全に解決できるか）の両方が要
 | discardBurst { side } | 旧 discardOpponentBurst を置き換え（自分のバーストも捨てられる）、判定はバーストがセットされているか | costDiscardOwnBurst |
 | 既存の部品で書けるもの | destroy・destroyNexus・returnToHand・discardSelfChoose（手札は選ばせる） | costDestroyOwnSpirit／Family／Keyword／VanillaSpirit・costDestroyOwnNexus・costReturnOwnSpiritKeyword・costReturnSelfToHand・costHandDiscardOne・costDiscardOwnHandOne |
 
-**判定の原則（2026-09-26 ユーザー指摘）**：cost 側の「完全に払えるか」は数だけでなく、**支払いを止める効果**まで見る。実際に払う処理と同じ判定を使う（ライフのコア＝永久凍土の王都 `lifeCostBlockedByFloor`（COST_MODEL §9）、スピリットのコア＝バトル中の保護・下限・「取り除けない」、手札＝`canDiscardHand`、疲労＝既に疲労している等）。払えないと分かったら cost も then も何もしない（途中まで払って止まる状態を作らない）。
+**判定の原則（2026-09-26 ユーザー指摘）**：cost 側の「完全に払えるか」は数だけでなく、**支払いを止める効果**まで見る。実際に払う処理と同じ判定を使う（ライフのコア＝永久凍土の王都 `lifeCostBlocked`（COST_MODEL §9）、スピリットのコア＝バトル中の保護・下限・「取り除けない」、手札＝`canDiscardHand`、疲労＝既に疲労している等）。払えないと分かったら cost も then も何もしない（途中まで払って止まる状態を作らない）。
 **段階1の追加**（済み。2026-09-27）：ライフのコアを払う部品は `removeCores { from: ["life"] }`。誘発のコスト（太陽石の神殿など3枚）は効果定義の cost のまま（アクションではなく、王都の判定も入っているため）。
 
 **段階2：then 側の判定**：段階1で書けるフィールドの host（bpBuff・refreshSelf・refreshOne・draw・returnToHand・destroy・summonFromHandFree・summonFromTrashFree・exhaust・placeCores・recoverSpiritFromTrash など）に、完全に解決できるかの判定を1つずつ足す。
