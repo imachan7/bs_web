@@ -811,7 +811,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         // 破壊で誘発した効果が選択待ちを立てたら、後半はその解決の後に回す（2026-10-02。中断ガードで見つかった）
         const after: EffectAction[] = []
         if (action.drawPerDestroyed && destroyed > 0) after.push({ type: "draw", count: destroyed * action.drawPerDestroyed })
-        if (action.discardOpponentPerDestroyed && destroyed > 0) after.push({ type: "discardOpponent", count: destroyed * action.discardOpponentPerDestroyed })
+        if (action.discardOpponentPerDestroyed && destroyed > 0) after.push({ type: "discard", from: "hand", side: "opponent", count: destroyed * action.discardOpponentPerDestroyed })
         if (after.length === 0) return
         if (state.pendingChoice) {
             pushResumeFrames(state, after.map((a) => ({ kind: "action" as const, selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: a })))

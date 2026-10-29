@@ -609,7 +609,9 @@
     ],
     "familyFilter": "竜人",
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1,
      "cardTypeFilter": "spirit",
      "chooserIsSource": true
@@ -1122,7 +1124,9 @@
      3
     ],
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1
     },
     "optional": false
@@ -3376,7 +3380,12 @@
     "condition": {
      "opponentHandAtLeast": 6
     },
-    "action": {"type": "discardOpponent", "count": 0, "downTo": 3},
+    "action": {
+    "type": "discard",
+    "from": "hand",
+    "side": "opponent",
+    "downTo": 3
+    },
     "optional": false
    }
   ]
@@ -5681,7 +5690,9 @@
      "魔界七将ベルゼビート"
     ],
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 4
     }
    },

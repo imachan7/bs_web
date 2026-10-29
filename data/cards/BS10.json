@@ -3254,7 +3254,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "discardBothHands",
+          "type": "discard",
+          "from": "hand",
+          "side": "both",
           "count": 1,
           "countCounter": {
             "ownFamily": [
@@ -5473,9 +5475,10 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "discardBothHands",
-          "count": 0,
-          "all": true
+          "type": "discard",
+          "from": "hand",
+          "side": "both",
+          "count": "all"
         }
       },
       {

@@ -40,7 +40,7 @@ console.log("=== discardBothHands.all：countを無視してお互いの手札�
     const s = base("discardall")
     s.players.p1.hand = ["BS01-001", "BS01-002", "BS01-003"]
     s.players.p2.hand = ["BS01-001", "BS01-002", "BS01-003", "BS01-004", "BS01-005"]
-    resolveAction(s, "p1", null, { type: "discardBothHands", count: 0, all: true })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "both", count: "all" })
     assert(s.players.p1.hand.length === 0, "p1の手札はすべて破棄される")
     assert(s.players.p2.hand.length === 0, "p2の手札（枚数が違っても）すべて破棄される")
     assert(s.players.p1.trashCards.length === 3, "p1のトラッシュに3枚")

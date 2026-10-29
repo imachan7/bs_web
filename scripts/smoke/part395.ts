@@ -189,7 +189,7 @@ console.log("=== 11. discardBurst cost（own）：バーストがセットされ
     const before = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "discardBurst", side: "own" },
+        cost: { type: "discard", from: "burst", side: "own" },
         then: { type: "draw", count: 1 },
     })
     assert(s.players.p1.burst === null, "自分のバーストを破棄した")
@@ -204,7 +204,7 @@ console.log("=== 12. discardBurst cost（own）：バーストが無ければ払
     const before = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "discardBurst", side: "own" },
+        cost: { type: "discard", from: "burst", side: "own" },
         then: { type: "draw", count: 1 },
     })
     assert(s.players.p1.hand.length === before, "ドローしなかった")

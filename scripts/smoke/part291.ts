@@ -117,7 +117,7 @@ console.log("=== §F M handImmuneForPid：BS12-067月光集める塔Lv1＝自分
     const p2spirit = createInstance("BS01-002", s.turn, 1)
     s.players.p2.field.spirits.push(p2spirit)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p2", p2spirit, { type: "discardOpponent", count: 1 }, undefined, undefined, "spirit")
+    resolveAction(s, "p2", p2spirit, { type: "discard", from: "hand", side: "opponent", count: 1 }, undefined, undefined, "spirit")
     assert(s.players.p1.hand.length === 1, "手札は相手のスピリットの効果では破棄されない")
 }
 

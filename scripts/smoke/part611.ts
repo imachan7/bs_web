@@ -137,7 +137,7 @@ restore()
 
 console.log("=== 014: 相手のライフにボイドからコアが置かれたとき、1個につき手札2枚破棄 ===")
 patch(HOLDER, [
-    { id: "t014", kind: "fieldEvent", levels: null, event: "opponentLifeCoreFromVoid", repeatPerCount: true, action: { type: "discardOpponent", count: 2 } },
+    { id: "t014", kind: "fieldEvent", levels: null, event: "opponentLifeCoreFromVoid", repeatPerCount: true, action: { type: "discard", from: "hand", side: "opponent", count: 2 } },
 ])
 {
     const s = game("b014a")

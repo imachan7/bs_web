@@ -42,7 +42,7 @@ console.log("=== §C 相手の手札破棄（discardOpponent）もメインス�
     const s = game("discard-opponent-block")
     s.players.p2.hand = [vanilla[0]!.cardId]
     s.phase = "main"
-    resolveAction(s, "p1", null, { type: "discardOpponent", count: 1 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "opponent", count: 1 })
     assert(s.players.p2.hand.length === 1, "相手の手札もメインステップ中は破棄されない")
 }
 

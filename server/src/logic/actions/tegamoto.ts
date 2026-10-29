@@ -176,23 +176,7 @@ const toTegamotoHandler: ActionHandler<"toTegamoto"> = (ctx, action) => {
     finish([...placed, ...ids])
 }
 
-const discardOpponentTegamotoHandler: ActionHandler<"discardOpponentTegamoto"> = (ctx) => {
-    const { state, opp, sourceName } = ctx
-    const target = state.players[opp]
-    const ids = [...target.tegamoto]
-    recordMoved(state, ids)
-    if (ids.length === 0) {
-        log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
-        return
-    }
-    target.trashCards.push(...ids)
-    target.tegamoto = []
-    target.tegamotoPlayable = [] // 手元が空になるので使用権も残さない
-    log(state, `${sourceName}：${target.name}の手元「${ids.map((id) => getCard(id).name).join("、")}」を破棄した。`)
-}
-
 const handlers = {
-    discardOpponentTegamoto: discardOpponentTegamotoHandler,
     magicFreeUseFromHandOrTegamoto: magicFreeUseFromHandOrTegamotoHandler,
     toTegamoto: toTegamotoHandler,
 } satisfies Partial<ActionRegistry>

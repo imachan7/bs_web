@@ -66,7 +66,7 @@ console.log("=== パンデミウムLv3：お互いが破棄する手札を自分
     s.players.p1.hand = [BIG, SMALL, BIG]
     s.players.p2.hand = [SMALL, BIG, SMALL]
 
-    resolveAction(s, "p1", null, { type: "discardBothHands", count: 1 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "both", count: 1 })
     assert(!!s.pendingChoice, "まず自分（p1）の破棄カードを聞かれる")
     assert(s.pendingChoice!.pid === "p1", `選択者は p1（実際は${s.pendingChoice!.pid}）`)
     assert(s.pendingChoice!.kind === "card" && s.pendingChoice!.cardZone === "hand", "自分の手札から選ぶ")
@@ -89,7 +89,7 @@ console.log("=== パンデミウムLv3：複数枚でも両者ぶんが最後ま
     s.players.p1.hand = [BIG, SMALL, BIG, SMALL]
     s.players.p2.hand = [SMALL, BIG, SMALL, BIG]
 
-    resolveAction(s, "p1", null, { type: "discardBothHands", count: 2 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "both", count: 2 })
     let guard = 0
     while (s.pendingChoice && guard++ < 10) {
         const pid = s.pendingChoice.pid
@@ -105,7 +105,7 @@ console.log("=== パンデミウムLv3：非対話では従来どおり手札の
     const s = setup("pandemium-auto", false)
     s.players.p1.hand = [BIG, SMALL]
     s.players.p2.hand = [SMALL, BIG]
-    resolveAction(s, "p1", null, { type: "discardBothHands", count: 1 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "both", count: 1 })
     assert(!s.pendingChoice, "選択は出ない")
     assert(s.players.p1.hand.length === 1 && s.players.p1.hand[0] === BIG, "p1 は末尾を破棄")
     assert(s.players.p2.hand.length === 1 && s.players.p2.hand[0] === SMALL, "p2 は末尾を破棄")

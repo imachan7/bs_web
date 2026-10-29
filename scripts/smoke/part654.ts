@@ -12,7 +12,7 @@ function game(seed: string, burst: string | null): GameState {
 }
 const action = {
     type: "sequence",
-    actions: [{ type: "revealOpponentBurst" }, { type: "if", cond: { last: { cardType: "spirit" } }, then: { type: "discardOpponentBurst" } }],
+    actions: [{ type: "revealOpponentBurst" }, { type: "if", cond: { last: { cardType: "spirit" } }, then: { type: "discard", from: "burst", side: "opponent" } }],
 } as never
 
 console.log("=== 1. スピリットのバーストは公開されて破棄 ===")
