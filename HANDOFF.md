@@ -23,8 +23,13 @@
 
 ### 次の候補：専用 type の統一（10-27 計画のみ）
 
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。済み：PR 1（#308）・修正（#309）・2a（#310）。PR 4＝#311、使用時判定の修正＝#312。2b＝#313。PR 6＝#314。PR 7（summon{from}）＝#317 予定。**次は PR 8〜10**。スキーマと候補は §4 末尾
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。済み：PR 1（#308）・修正（#309）・2a（#310）。PR 4＝#311、使用時判定の修正＝#312。2b＝#313。PR 6＝#314。PR 7＝#317。**PR 8〜10 は下の「禁止・耐性の問い合わせ」の後**。スキーマと候補は §4 末尾
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
+
+### いまの本線：禁止・耐性を操作ごとの問い合わせにまとめる（10-29 合意）
+
+- [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md)。単位は ACTION_VOCABULARY §3 の単純なアクション。§3 の分類をユーザーと1行ずつ精査してから移す
+- 最初の PR：サテライド・バード（「バースト効果でスピリットを召喚できない」）。①`state.resolvingBurstPid` を `PendingChoice`／`ResumeFrame` に保存し、再開時に戻す ②判定を1つの関数にし、召喚の全経路（`summon{from:"hand"}`・`summon{from:"burst"}`・`moveCards` の `dest:"summon"`・`summonFreeFromTrashIndex`）の**候補判定**から呼ぶ ③召喚された個体への記録は作らない（「バースト効果で召喚されたとき」は①で直る）。手札のバースト効果（`handBurstEffect.ts`）も「バースト効果」に含む
 
 ### 既知の残り：entryActive（10-23）
 
