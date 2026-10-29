@@ -16,7 +16,7 @@
 | ③ バトル・ステップの進行 | 約12 | 固有として残す（2026-10-27 ユーザー了承） |
 | ④ 量・選び方が特殊（予算・お互いに選ぶ・コアの特殊な移し方） | 約17 | 今回は触らない |
 | ⑤ 1枚専用の固有の仕組み | 約17 | 残す。仲間が来たら一般化する（ACTION_VOCABULARY §1 に追記した規則） |
-| カードに出ない | 39 | 内部の再開用と、消し忘れの疑い16種（§1 の PR 0） |
+| カードに出ない | 39 | 内部の再開用と、standard 版から持ち込んだ語彙15種（`validate:cards` の `STANDARD_POOL_ONLY`。10-15 に意図して入れたので残す）。本当の消し忘れは `revealDiscardRest` 1種（生成元の `revealAndSummonKeyword` が既に無い） |
 
 `lendSelfThisTurn`・`lendSelfThisBattle`・`targetChoiceLendThisTurn`・`grantFamilyChoiceAll` は②に入れない
 （マジックを仮想発生源として置く土台。09-23 決定のとおり残す）。
@@ -27,10 +27,12 @@
 
 | 順 | PR | 対象（枚数） | 書き換え先 | 着手前に決めること |
 | :-- | :-- | :-- | :-- | :-- |
-| 0 | 消し忘れの削除 | `bpMinus`・`bpBuffAll`・`grantKeywordThisTurn`・`spawnToken`・`placeSoulCore`・`soulCoreToTrash`・`openAwakenMode`・`levelAsSelfThisBattle`・`designate`・`revealDiscardRest`・`returnOwnNexusToDeckBottom`・`refreshOwnNexus`・`exhaustOwnNexuses`・`nexusAsSpiritThisStep`・`returnLastUsedMagicToHand`・`heavyExhaust`（カード0枚） | 型とハンドラを消す | `type: "名前"` の grep では生成箇所が無い。文字列を組み立てて作っていないかを1つずつ確かめてから消す |
+| 0 | ~~消し忘れの削除~~ | 10-29 に取り消し：16種中15種は `STANDARD_POOL_ONLY`（意図して持ち込んだ語彙）。残る `revealDiscardRest` は PR 3b で消す | — | — |
 | 1 | 破壊の対象違い | `destroyNexus` 35・`destroyBrave` 9・`destroySelf` 8・`destroyOwnByCost` 3 | `destroy` ＋対象の種類の軸／`target: "self"`／`filter` のコスト | **論点 A・B** |
 | 2 | 戻す・疲労の「自分」版 | `returnSelfToHand` 5・`returnSelfToDeckTop` 1・`returnNexusToHand` 9・`exhaustSelf` 3 | `returnToHand`・`returnToDeckTop`・`exhaust` ＋ `target: "self"`／対象の種類 | `exhaustSelf` は名前で判定する箇所が6ファイルある（コストの判定など）。全部追う。PR 1 の論点 A・B の答えを使う |
-| 3 | 破棄の陣営・ゾーン違いほか | `discardBurst` 10・`discardOpponentBurst` 2・`discardOpponentTegamoto` 2・`discardHandAll` 3・`discardBothHands` 3・`discardSelfOne` 3・`drawUpTo` 2・`nexusCoresToTrash` 2・`refreshAllOwn` 9 | 破棄＝トラッシュに置く（`from`・`side`・`all`）、`draw` ＋`upTo`、`removeCores`、`refreshAllOwn` は `sequence`（回復 → `timedEffect` の `cantAttack`） | なし（器の軸の適用だけ） |
+| 3a | 破棄の統一 | `discardOpponent` 22・`discardBurst` 10・`discardHandAll` 3・`discardBothHands` 3・`discardSelfOne` 3・`discardOpponentBurst` 2・`discardOpponentTegamoto` 2 | 新しい `discard`（§4 のスキーマ）。共通の破棄アクションは語彙表に概念があるだけで type が無かった（10-29 に判明） | なし（スキーマは §4 で確定） |
+| 3b | 小物 | `drawUpTo` 2・`nexusCoresToTrash` 2・`revealDiscardRest` 0 | `draw` ＋ `fillTo`（「〜枚になるまで」。`upTo` は 0〜N の意味なので使わない＝09-28 の命名）、`removeCores`、削除 | なし |
+| 後 | 回復の統一 | `refreshAllOwn` 9・`refreshSelf`・`refreshOne`・`refreshOwnNexus` | 共通の `refresh` が無いので、回復をまとめて1本で設計する（PR 3 から外した） | 着手時にスキーマ |
 | 4 | `bpBuff` の残りと無色化 | `bpBuff` 7・`colorlessSelfThisBattle` 4 | `costMillSelfCount`→`pay { cost: mill }`、`thenAddSymbolThisBattle`→`sequence`＋`timedEffect` の `symbolAdd`、`thenRefreshIfMilledFamily`→`if { cond: last }`、無色化→`timedEffect` の内容 | `amountIfTarget`（選んだ対象が条件に合えば量を変える）は今の `if` の3種の `cond` に当たらない。「選んだ対象を見る条件」を部品として足すか、`amountCounter` で書けるかを決める |
 | 5 | 1枚専用の付与・印 | `setTargetBpAsThisBattle`・`countAsMultipleThisTurn`・`markUnblockableByIceWallColorThisTurn`・`grantBlockerImmunity`・`levelOverrideOpponentNexuses`・`requireCoreToBlockThisBattle`・`addSymbolPermanent`・`markNoRefreshTarget`・`grantHostUnblockableThisTurn`・`protectBlockerCoresThisBattle` 2・`treatOwnNexusesAsSpiritsThisTurn` 2・`grantKeywordToHandCard` 2 | `timedEffect`（既存の内容で書けないものは、足りない内容を1つずつ足す） | 1枚ずつ。既存の `TimedContent` で書けるか、足す内容は何かを着手時に表にする。`grantKeywordToHandCard` は手札のカードが対象なので期間つき効果の器に入るか自体を確かめる |
 
@@ -59,6 +61,20 @@
 旧 type を残したまま新しい書き方を足すことはしない（書き方が2通り並存するのを M3 で解消した経緯がある）。
 1本の PR で、データの移行と旧 type の削除まで終える。
 
-## 4. 調査メモ（PR ごとに調査役が書き足す）
+## 4. 確定スキーマ
 
-（未着手）
+### PR 3a `discard`（10-29 確定）
+
+```ts
+{ type: "discard"; from: "hand" | "burst" | "tegamoto"; side: "own" | "opponent" | "both";
+  count?: number | "all"; countCounter?: EffectCounter; downTo?: number;
+  random?: boolean; cardTypeFilter?: CardType; chooserIsSource?: boolean;
+  revealAllHandIfNone?: true; countAttackerSymbols?: true; forcedTargetPid?: PlayerId }
+```
+
+- `side` は必須（旧 type ごとに既定が違ったため省略させない）。`both` は自分→相手の順で、各自が自分の手札から選ぶ
+- 破棄したカードを `lastMoved` に書く（`if { cond: { last } }` で「破棄したとき」を書くため）
+- 旧→新：`discardOpponent{…}`＝`side:"opponent", from:"hand"`＋同じ軸／`discardHandAll`＝`count:"all"`、`thenDrawOpponentHand` は `sequence[discard, if{cond:{last:{}}, then: draw countCounter:"opponentHand"}]`／
+  `discardBothHands{all}`＝`side:"both", count:"all"`／`discardSelfOne`＝`side:"own", count:1`（**自分で選ぶ**。旧は手札の末尾を自動で選ぶ簡略化だった）／
+  `discardBurst`・`discardOpponentBurst`＝`from:"burst"`／`discardOpponentTegamoto`＝`from:"tegamoto", side:"opponent", count:"all"`
+- 外したもの：`randomOpponentHandMagicDiscard`（「無作為に1枚見て、マジックなら破棄」で選び方が違う。⑤の1枚専用）、`mill`（デッキの破棄。【粉砕】【地鳴】の誘発が絡むので別の機会）
