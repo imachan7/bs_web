@@ -1,5 +1,6 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
+import { handGainDenial } from "../handGate"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardPick, EffectAction, PlayerId, PlayerState } from "../../type"
@@ -9,7 +10,7 @@ import { resolveMagicEffects } from "../triggers"
 import { notifyNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
 import { summonDenial } from "../summonGate"
-import { handGainBlocked, hasKeyword, instHasColor, countSymbols } from "../../../../shared/rules"
+import { hasKeyword, instHasColor, countSymbols } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
 import { recordMoved } from "../record"
@@ -73,7 +74,7 @@ export function matchesPick(id: string, pick: CardPick | undefined, costOverride
 function failDest(ctx: ActionCtx, orHand: boolean | undefined, cardId: string): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
-    if (orHand && !handGainBlocked(state)) {
+    if (orHand && !handGainDenial(state, { pid: owner, from: "revealed", cause: "effect" })) {
         player.hand.push(cardId)
         notifyHandGained(state, owner, 1)
         log(state, `${sourceName}：${getCard(cardId).name}を手札に加えた。`)
@@ -93,7 +94,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     switch (dest) {
         case "hand":
             // 手札へ加えられないカードは選ばれなかった扱い＝オープン領域の残りに戻し、残りと同じ行き先へ送る
-            if (handGainBlocked(state)) {
+            if (handGainDenial(state, { pid: owner, from: "revealed", cause: "effect" })) {
                 if (state.revealedCards) state.revealedCards.cardIds.push(cardId)
                 else player.trashCards.push(cardId)
                 log(state, `${sourceName}：効果によって手札が増やせないため、${card.name}は手札に加えられなかった。`)
@@ -251,7 +252,7 @@ const revealRestHandler: ActionHandler<"revealRest"> = (ctx, action) => {
             if (rest === "trash") {
                 destPlayer.trashCards.push(...ids)
                 log(state, `${destPlayer.name}は残り${ids.length}枚をトラッシュに置いた。`)
-            } else if (handGainBlocked(state)) {
+            } else if (handGainDenial(state, { pid: action.destPid, from: "revealed", cause: "effect" })) {
                 destPlayer.trashCards.push(...ids)
                 log(state, `${sourceName}：効果によって手札が増やせないため、残り${ids.length}枚はトラッシュに置かれた。`)
             } else {

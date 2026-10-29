@@ -120,7 +120,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasHeavyArmorAgainst`（fn）：【重装甲】。装甲との差は**ブレイヴの効果も防ぐ**ことだけで、判定の形は hasArmorAgainst と同じ。
 - `heavyArmorColorsOf`（fn）：器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
 - `hasBraveImmuneAgainst`（fn）：第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
-- `handGainBlocked`（fn）：効果で手札にカードが加わる経路の共通の入口。ドローステップのドロー・手札を出して戻すだけの処理は効果ではないので通さない。
 - `zoneSpiritEffectsDisabled`（fn）：BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）
@@ -615,6 +614,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/handBurstEffect.ts
 
 - `doUseHandBurstEffect`（fn）：発動でも使用でもないので、効果税（on:"burst"）・usedMagicCardIds・【光芒】の回収・ownBurstActivated は通らない。
+
+## server/src/logic/handGate.ts
+
+- `HandGainFrom`（型）
+- `handGainDenial`（fn）：手札にカードを加えてよいか。止めるなら理由、よいなら null。
 
 ## server/src/logic/keywords/bofu.ts
 

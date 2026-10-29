@@ -1,9 +1,10 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
+import { handGainDenial } from "../handGate"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { applyBothSidesRedirectToCandidates, returnNexusToDeckTop, voidCoreToOwnTrash, bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, handGainBlocked, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { lastMovedOf, recordMoved } from "../record"
 import { detachBraveByEffect } from "../brave"
@@ -810,15 +811,17 @@ const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
 function returnDestroyedSelfToHand(ctx: ActionCtx): void {
     const { state, owner, self, sourceName } = ctx
         if (!self) return
-        if (handGainBlocked(state)) {
-            log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
-            return
-        }
         const player = state.players[owner]
+        const blocked = (from: "field" | "trash"): boolean => {
+            if (!handGainDenial(state, { pid: owner, from, cause: "effect" })) return false
+            log(state, `${sourceName}：手札に加えられないため発動しなかった。`)
+            return true
+        }
         // 破壊時に呼ばれる。このとき自分のカードは**破壊待機状態でまだフィールドにいる**ので、
         // そこから手札へ移す（TIMING_CHART.md §1.5。乗っていたコアはリザーブへ）。
         // 破壊待機状態を解いてから抜けるので、あとで commitPendingDestruction がトラッシュへ送ることはない
         if (self.pendingDestruction) {
+            if (blocked("field")) return
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
                 player.field.spirits.splice(fieldIdx, 1)
@@ -835,6 +838,7 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
         // 破壊以外の経路（既にトラッシュへ送られている場合）への保険
         const idx = player.trashCards.lastIndexOf(self.cardId)
         if (idx >= 0) {
+            if (blocked("trash")) return
             player.trashCards.splice(idx, 1)
             player.hand.push(self.cardId)
             log(state, `${getCard(self.cardId).name}は手札に戻った。`)

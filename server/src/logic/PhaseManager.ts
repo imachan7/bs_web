@@ -1,10 +1,11 @@
 // ターン進行・フェーズ遷移の制御
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
+import { handGainDenial } from "./handGate"
 import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { handGainBlocked, cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
@@ -435,7 +436,7 @@ export function endTurn(state: GameState): void {
             if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || zoneSpiritEffectsDisabled(state, cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
-            if (handGainBlocked(state)) continue
+            if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
             noteCoverage(getCard(cardId).effects.find((eff) => eff.kind === "trashReturnAtEndStep"), "trashReturnAtEndStep")
             p.trashCards.splice(i, 1)
             p.hand.push(cardId)

@@ -1,8 +1,9 @@
 // デッキ破棄からトラッシュ回収・召喚へつなぐアクションのハンドラ
+import { handGainDenial } from "../handGate"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { getCard, log, requestTrashReturn, returnTrashCardToHand } from "../GameState"
 import { summonFreeFromTrashIndex, payCost, notifyHandGained, requestCardChoice, resolveMagic } from "../EffectModules"
-import { handGainBlocked, cardHasColor, isTrashCardProtected, timedMagicLocked } from "../../../../shared/rules"
+import { cardHasColor, isTrashCardProtected, timedMagicLocked } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { lastMovedOf, recordMagicUsed } from "../record"
 import { matchesPick } from "./revealAction"
@@ -41,7 +42,7 @@ const takeLastHandler: ActionHandler<"takeLast"> = (ctx, action) => {
         summonFreeFromTrashIndex(state, owner, sourceName, idx, action.skipOnSummon ? { skipOnSummon: true } : undefined)
         return
     }
-    if (handGainBlocked(state)) {
+    if (handGainDenial(state, { pid: owner, from: "trash", cause: "effect" })) {
         log(state, `${sourceName}：効果によって手札が増やせないため、${getCard(cardId).name}はトラッシュに残った。`)
         return
     }
