@@ -52,7 +52,7 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
         return "このターンの間バースト効果でスピリットを召喚できません"
     }
 
-    // 旋風渦巻く渓谷（両陣営の発生源のうち最も厳しい値）
+    // 旋風渦巻く渓谷（両陣営の発生源のうち最も厳しい値）。「5体以上召喚できない」は召喚の結果5体以上になる召喚を止める＝データの max は4（2026-10-30 ユーザー確認）
     const combinesDirectly = a.braveTargetInstanceId !== undefined || (a.mayCombine === true && card.type === "brave" && braveCombineCandidates(state, a.pid, a.cardId).length > 0)
     if (state.phase === "main" && !combinesDirectly) {
         let cap: number | null = null

@@ -81,13 +81,14 @@ console.log("=== 1b. 旋風渦巻く渓谷：5体のとき効果による召喚�
     viaEffect(s, "p1", { costFilter: 2 })
     assert(n(s, "p1") === 5 && s.players.p1.hand.includes(V2), "手札から効果で召喚されず5体のまま")
 }
-console.log("=== 1c. 旋風渦巻く渓谷：4体なら効果で1体召喚できる（5体目まではよい） ===")
+// 「5体以上召喚できない」＝召喚の結果フィールドが5体以上になる召喚ができない。4体いれば5体目は出せない（2026-10-30 ユーザー確認）
+console.log("=== 1c. 旋風渦巻く渓谷：3体なら効果で4体目を召喚でき、4体では5体目を召喚できない ===")
 {
-    const s = game("1c", { turn: "p1", nexus: { owner: "p1", card: SENPU, cores: 3 }, spirits: { p1: five.slice(0, 4) }, hand: { p1: [V2, V3] } })
+    const s = game("1c", { turn: "p1", nexus: { owner: "p1", card: SENPU, cores: 3 }, spirits: { p1: five.slice(0, 3) }, hand: { p1: [V2, V3] } })
     viaEffect(s, "p1", { costFilter: 2 })
-    assert(n(s, "p1") === 5, "5体目は召喚される")
+    assert(n(s, "p1") === 4, "4体目は召喚される")
     viaEffect(s, "p1", { costFilter: 3 })
-    assert(n(s, "p1") === 5 && s.players.p1.hand.includes(V3), "6体目は召喚されない")
+    assert(n(s, "p1") === 4 && s.players.p1.hand.includes(V3), "5体目は召喚されない")
 }
 console.log("=== 1d. 旋風渦巻く渓谷：相手側（お互い）にも効く ===")
 {
