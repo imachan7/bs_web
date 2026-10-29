@@ -154,11 +154,8 @@ console.log("=== §E ライフチャージ：コスト3以上の自分のスピ�
         s.players.p1.field.spirits.push(weakInst)
         s.players.p1.hand = [card.cardId]
         const reserveBefore = s.players.p1.reserve
-        assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ライフチャージを使用（コストを払って発動はする）")
-        assert(s.players.p1.field.spirits.includes(weakInst), "対象がいないため自分のスピリットは破壊されない")
-        assert(
-            s.players.p1.reserve === reserveBefore - getCard(card.cardId).cost,
-            "コアは獲得できず、リザーブはマジックのコスト分だけ減った",
-        )
+        assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "ライフチャージは使用できない（破壊できる自分のスピリットがいない。COST_MODEL §1）")
+        assert(s.players.p1.field.spirits.includes(weakInst), "自分のスピリットは破壊されない")
+        assert(s.players.p1.reserve === reserveBefore && s.players.p1.hand.length === 1, "コストは払われず、手札に残る")
     }
 }

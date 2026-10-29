@@ -58,7 +58,7 @@ import {
 import { COLOR_LABELS } from "../../../data/constants"
 import { magicConditionFailure } from "../../../shared/magicCondition"
 import { isOnceUsed, isOncePerBattleUsed } from "./oncePerTurn"
-import { effectCostDiscountNexus } from "./actions/pay"
+import { effectCostDiscountNexus, unpayablePayReason } from "./actions/pay"
 import { magicTargetMissing } from "./magic/targetRequirement"
 import { magicUseTiming } from "../../../shared/magicTiming"
 
@@ -886,6 +886,9 @@ export function validateCastMagic(
     }
 
     if (magicTargetMissing(state, pid, card, useTiming)) return "効果の対象がいないため、このマジックは使用できません"
+    // 「〜することで」を払えない・後半を解決できないなら使用できない（COST_MODEL §1）。使うタイミングの効果がすべてそうなるときだけ拒否する
+    const payFailures = useEntries.map((e) => (e.kind === "magic" && e.action.type === "pay" ? unpayablePayReason(state, pid, e.action, card) : null))
+    if (payFailures.length > 0 && payFailures.every((f) => f !== null)) return `${payFailures[0]}ため、このマジックは使用できません`
 
     // 《継召》のEXシンボル除外軽減（validateSummon と同じ検証）：候補はトラッシュのEXシンボル持ちカードに限り、
     // 候補外・重複はエラー。除外カードのシンボル列を effectiveCost に渡し、軽減シンボルと同じ色だけが軽減に使われる
@@ -1200,6 +1203,9 @@ export function validateActivateAbility(
     }
     // コスト支払い可否。exhaustSelf（BS07桜の妖精オウカ）は既に疲労していると払えない。
     // cost 省略時は追加コストなし（BS08帝竜騎サイクル）
+    if (effect.cost === undefined && effect.action.type === "pay" && !activatedActionResolvable(state, pid, inst, effect.action)) {
+        return "コストを払えないか、効果の対象がいません"
+    }
     if (effect.cost !== undefined) {
         if (!activatedActionResolvable(state, pid, inst, effect.action)) return "効果の対象がいません"
         if ("exhaustSelf" in effect.cost) {

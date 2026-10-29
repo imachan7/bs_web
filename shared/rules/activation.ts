@@ -314,12 +314,22 @@ export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self
 }
 
 // 起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
-// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy（トップレベルのみ）だけで、
+// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy・pay の cost（疲労・バースト破棄）・family だけで絞る bpBuff だけで、
 // 装甲・免疫などの耐性は見ない＝対象が耐性持ちだけのときは「起動できる」側に倒れる。ほかの action は常に true
 export function activatedActionResolvable(board: Board, pid: PlayerId, source: CardInstance, action: EffectAction): boolean {
-    // 「その後」で続く文も、ことで の後半としてすべて解決できなければならない（COST_MODEL）。if の中は条件しだいなので見ない
-    if (action.type === "sequence") return action.actions.every((a) => activatedActionResolvable(board, pid, source, a))
-    if (action.type !== "destroy" || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
+    // 「その後」で続く文も、ことで の後半としてすべて解決できなければならない（COST_MODEL）。if の中は条件しだいなので見ない。
+    // sequence の中の pay は「払えなければそこだけ不発」で前の文は解決する（ウィンガルのランサー）ので、払えるかを見ない＝最上位の pay だけが起動可否を決める
+    if (action.type === "sequence") return action.actions.every((a) => a.type === "pay" || activatedActionResolvable(board, pid, source, a))
+    if (action.type === "pay") return activatedPayResolvable(board, pid, source, action)
+    if (action.type === "bpBuff" && !action.anySide && !action.filter?.excludeSelf) {
+        // family だけの絞り込みに限る。ほかの絞り込み（記号数・キーワード等）はサーバーの targeting.ts が持つので見ない（true 側に倒れる）
+        const f = action.filter
+        if (f?.family !== undefined && Object.keys(f).every((k) => k === "family")) {
+            return board.players[pid].field.spirits.some((s) => matchesFamilyFilter(board, pid, s, f.family!))
+        }
+        return true
+    }
+    if (action.type !== "destroy" || action.nexus !== undefined || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
     const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
     if ([filter.maxBp, filter.minBp, filter.exactBp].some((v) => typeof v === "string")) return true
     if (filter.maxBp !== undefined && card(source.cardId).type === "spirit") {
@@ -333,6 +343,19 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
     const attempt: EffectAttempt = { op: "destroy", scope: "targeted", actorPid: pid, sourceType: src.type, sourceColors: src.colors, probing: true }
     const n = board.players[opp].field.spirits.filter((s) => matchesTarget(board, opp, s, filter, source.instanceId) && boardResistanceAgainst(board, opp, s, attempt) === null).length
     return n >= (action.upTo || action.count === "any" ? 1 : action.count)
+}
+
+// pay の cost を払えるか（疲労させる自分のスピリット・バーストの破棄だけ。ほかの cost は払える扱い）と、then を解決できるか。
+// サーバーの canPayResolve（server/src/logic/actions/pay.ts）と同じ答えになる範囲だけを共有層に写している
+function activatedPayResolvable(board: Board, pid: PlayerId, source: CardInstance, action: Extract<EffectAction, { type: "pay" }>): boolean {
+    const c = action.cost
+    if (c.type === "exhaust" && c.target !== "self" && c.side === "own" && !c.nexusOnly && typeof c.count === "number") {
+        const filter = (c.filter ?? {}) as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
+        const n = board.players[pid].field.spirits.filter((s) => !s.isRested && matchesTarget(board, pid, s, filter, source.instanceId)).length
+        if (n < c.count) return false
+    }
+    if (c.type === "discard" && c.from === "burst" && c.side === "own" && !board.players[pid].burstSet) return false
+    return action.costOnly === true || activatedActionResolvable(board, pid, source, action.then)
 }
 
 function activatableAbilityOf(
@@ -373,7 +396,7 @@ function activatableAbilityOf(
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
         if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
-        if (e.cost !== undefined && !activatedActionResolvable(board, pid, source, e.action)) continue
+        if ((e.cost !== undefined || e.action.type === "pay") && !activatedActionResolvable(board, pid, source, e.action)) continue
         // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
         if (e.oncePerTurn) {
             const used =
