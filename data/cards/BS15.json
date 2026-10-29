@@ -158,7 +158,8 @@
       ]
      },
      "then": {
-      "type": "destroyNexus",
+      "type": "destroy",
+      "nexus": "only",
       "count": 1
      }
     }
@@ -3979,7 +3980,7 @@
     "levels": null,
     "whileCombined": true,
     "optional": false,
-    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "opponent", "then": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "all": true, "filter": {"declared": "except"}}, {"type": "destroyNexus", "count": 1, "all": true, "filter": {"declared": "except"}}]}}
+    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "opponent", "then": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "all": true, "filter": {"declared": "except"}}, {"type": "destroy", "nexus": "only", "count": 1, "all": true, "filter": {"declared": "except"}}]}}
    }
   ],
   "braveCondition": {
@@ -4348,7 +4349,8 @@
     ],
     "byOpponentOnly": true,
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 1
     }
    }

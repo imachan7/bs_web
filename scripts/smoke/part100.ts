@@ -130,7 +130,7 @@ console.log("=== destroyOwnByCost（BS02-075天使長プリンシパール maxCo
     const reserveBefore = s.players.p1.reserve
     const highCores = high.cores // destroySpirit自体もコア分をリザーブへ移すため、gainCoresEqualCost分と分けて計算する
     // 天使長プリンシパール自身の召喚を経由せず、ハンドラを直接呼んで検証する（self=nullで自己除外なし）
-    resolveAction(s, "p1", null, { type: "destroyOwnByCost", maxCost: 4, gainCoresEqualCost: true })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "destroy", side: "own", count: 1, filter: { cost: { max: 4 }, excludeSelf: true } }, { type: "placeCores", from: "void", to: "reserve", count: 1, countCounter: "lastCost" }] })
 
     assert(
         !s.players.p1.field.spirits.includes(high),

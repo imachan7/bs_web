@@ -158,7 +158,7 @@ console.log("=== 8. refreshOne upTo：非対話は従来どおり選べるだけ
 }
 
 // ---- destroyNexus upTo（ネクサスコラプスe1：count:2, side省略=相手, upTo:true） ----
-const destroyNexusAction = { type: "destroyNexus" as const, count: 2, upTo: true as const }
+const destroyNexusAction = { type: "destroy" as const, nexus: "only" as const, count: 2, upTo: true as const }
 
 console.log("=== 9. destroyNexus upTo：0個で終えられる ===")
 {

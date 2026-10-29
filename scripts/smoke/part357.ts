@@ -78,7 +78,7 @@ console.log("=== 4. destroyNexus side:own ===")
     const opp = createInstance(NEXUS, s.turn, 0)
     s.players.p1.field.nexuses.push(own)
     s.players.p2.field.nexuses.push(opp)
-    resolveAction(s, "p1", null, { type: "destroyNexus", side: "own", count: 1 })
+    resolveAction(s, "p1", null, { type: "destroy", nexus: "only", side: "own", count: 1 })
     assert(s.players.p1.field.nexuses.length === 0, "自分側ネクサスが破壊された")
     assert(s.players.p2.field.nexuses.length === 1, "相手側ネクサスは対象外")
 }
@@ -217,7 +217,7 @@ console.log("=== 10. pay：cost destroyNexus(side:own) → then removeCores（�
     s.players.p2.field.nexuses.push(oppNexus)
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "destroyNexus", side: "own", count: 1 },
+        cost: { type: "destroy", nexus: "only", side: "own", count: 1 },
         then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" },
     })
     assert(s.players.p1.field.nexuses.length === 0, "自分側ネクサスを破壊した")
@@ -232,7 +232,7 @@ console.log("=== 10. pay：cost destroyNexus(side:own) → then removeCores（�
     s.players.p2.field.nexuses.push(oppNexus)
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "destroyNexus", side: "own", count: 1 },
+        cost: { type: "destroy", nexus: "only", side: "own", count: 1 },
         then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" },
     })
     assert(s.players.p1.field.nexuses.length === 1, "コストのネクサスは破壊されなかった")

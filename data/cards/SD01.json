@@ -1857,8 +1857,9 @@
                   }
                 },
                 {
-                  "type": "destroyNexus",
-                  "count": 1
+                 "type": "destroy",
+                 "nexus": "only",
+                 "count": 1
                 }
               ]
             }

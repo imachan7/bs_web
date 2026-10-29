@@ -368,7 +368,7 @@
      2,
      3
     ],
-    "action": {"type": "destroyNexus", "count": 1, "all": true, "side": "both", "filter": {"minCores": 1}},
+    "action": {"type": "destroy", "nexus": "only", "count": 1, "all": true, "side": "both", "filter": {"minCores": 1}},
     "optional": false
    }
   ]
@@ -6723,7 +6723,8 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 0,
      "all": true,
      "side": "both",

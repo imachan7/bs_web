@@ -9,7 +9,7 @@ import { matchesTarget } from "../../../../shared/rules"
 // 候補の有無を「1体ぶん払えるか」で見られる type。疲労・回復・コアを置くは下の countsAnyState で見る
 // （「払えるか」は回復状態・置けるコアの数まで見るが、対象としては状態を問わず選べるため）
 const ONE_TARGET_TYPES = new Set<EffectAction["type"]>([
-    "destroy", "returnToHand", "returnToDeckTop", "returnToDeckBottom", "destroyNexus", "coreRemove", "bpBuff", "heavyExhaust", "timedEffect",
+    "destroy", "returnToHand", "returnToDeckTop", "returnToDeckBottom", "coreRemove", "bpBuff", "heavyExhaust", "timedEffect",
 ])
 
 // true＝対象を取る効果で候補が0、false＝候補がいる、null＝対象を取らない（または判定できない）部分がある

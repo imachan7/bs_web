@@ -346,12 +346,12 @@ console.log("=== ウッド・ゴレムLv2：Lv2効果は止めるが、レベル
     const viewedNexus = viewFor(s, "p2").players.p2.field.nexuses[0]!
     assert(currentLevel(viewedNexus).level === 2, "ビュー越しに見てもLv2（画面のレベル表示が下がらない）")
 
-    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, levelFilter: [1] })
+    resolveAction(s, "p1", null, { type: "destroy", nexus: "only", count: 1, levelFilter: [1] })
     assert(
         s.players.p2.field.nexuses.length === 1,
         "Lv1限定のネクサス破壊では壊れない（Lv2として見えている）",
     )
-    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, levelFilter: [2] })
+    resolveAction(s, "p1", null, { type: "destroy", nexus: "only", count: 1, levelFilter: [2] })
     assert(s.players.p2.field.nexuses.length === 0, "Lv2限定なら壊れる")
 }
 

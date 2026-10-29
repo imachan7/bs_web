@@ -96,7 +96,7 @@ console.log("=== リクラメーション：召喚できる手札が無ければ
     const s = base("reclamation-no-summonable")
     s.players.p1.field.nexuses.push(createInstance("BS06-080", s.turn, 0))
     s.players.p1.hand = []
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: {
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", nexus: "only", side: "own", count: 1 }, then: {
         type: "summonFromHandFree",
         colorFilter: "blue",
         costFilter: { max: 4 },

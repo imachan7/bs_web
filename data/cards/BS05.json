@@ -3198,9 +3198,10 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 1,
-     "side": "either"
+     "anySide": true
     },
     "id": "BS05-054-e1"
    },
@@ -3215,9 +3216,10 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "destroyNexus",
+       "type": "destroy",
+       "nexus": "only",
        "count": 1,
-       "side": "either"
+       "anySide": true
       },
       {
        "type": "if",

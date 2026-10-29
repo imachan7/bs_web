@@ -194,7 +194,8 @@
      "ownBurstSet": true
     },
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 1
     }
    }
@@ -2724,7 +2725,9 @@
      3
     ],
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     },
     "optional": false
    },
@@ -5339,7 +5342,9 @@
      "magic"
     ],
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    },
    {
@@ -5356,7 +5361,9 @@
      "magic"
     ],
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    },
    {
@@ -5373,7 +5380,9 @@
      "magic"
     ],
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    },
    {
@@ -5390,7 +5399,9 @@
      "magic"
     ],
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    }
   ]
@@ -5786,7 +5797,8 @@
        "label": "相手のネクサス1つを破壊する",
        "actions": [
         {
-         "type": "destroyNexus",
+         "type": "destroy",
+         "nexus": "only",
          "count": 1
         }
        ]
@@ -5936,7 +5948,8 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 2
     },
     "thenPay": "flash"
@@ -6814,7 +6827,8 @@
          }
         },
         "then": {
-         "type": "destroyNexus",
+         "type": "destroy",
+         "nexus": "only",
          "count": 1,
          "chooserIsTarget": true
         }

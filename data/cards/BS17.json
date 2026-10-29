@@ -5051,7 +5051,8 @@
      "from": "nexuses",
      "fromSide": "opponent",
      "then": {
-      "type": "destroyNexus",
+      "type": "destroy",
+      "nexus": "only",
       "count": 1,
       "all": true,
       "filter": {

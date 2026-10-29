@@ -113,7 +113,7 @@ console.log("=== リクラメーション：コストで破壊するネクサス
     )!
     s.players.p1.hand = [blue4.cardId]
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: {
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", nexus: "only", side: "own", count: 1 }, then: {
         type: "summonFromHandFree",
         colorFilter: "blue",
         costFilter: { max: 4 },

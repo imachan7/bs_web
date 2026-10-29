@@ -687,13 +687,13 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
         // 等価表現4（2026-09-13 に S6 を全12件仕分けて追加）：
         // **イベント対象そのものに作用する／実行者に依存しない action** は、
         // 主体がどちらでも結果が変わらないので対象外にする。
-        //   destroySelf              … アタックしたスピリット自身を破壊する
+        //   destroy{target:"self"}   … アタックしたスピリット自身を破壊する
         //                              （BS13-006 炎獣ファイオリック／BS13-061 戴冠する活火山／BS13-063 血塗られた魔具）
         //   setTargetBpAsThisBattle  … そのバトルの間、アタックしたスピリット自身のLvBPを置き換える
         //                              （BS12-037 オリンピアの天使ベトール）
         //   endAttackStepAfterBattle … アタックステップの終了はプレイヤーに紐づかない
         //                              （BS13-059 フォビッド・バルチャー／BS14-083 氷結した瀑布）
-        if (a.type === "destroySelf" || a.type === "setTargetBpAsThisBattle" || a.type === "endAttackStepAfterBattle") return true
+        if ((a.type === "destroy" && a.target === "self") || a.type === "setTargetBpAsThisBattle" || a.type === "endAttackStepAfterBattle") return true
 
     }
     // 等価表現3: anySpiritAttacked に turn:"own" がある＝自分のターンのアタックに限られる。
@@ -755,7 +755,7 @@ const S7_VERIFIED: Record<string, string> = {
     // ハンドラが requestChoice に chooserPid＝コアを失う側を渡している
     // （cores.ts coresDownToLimitHandler「選ぶのはコアを失う側」）。効果文の「相手は」と一致
     "BS10-019-e2": "ハンドラが chooserPid にコアを失う側を渡している（2026-09-13 確認）",
-    // ハンドラが分岐先の destroy / destroyNexus に chooserIsTarget:true を渡している
+    // ハンドラが分岐先の destroy に chooserIsTarget:true を渡している
     // （mill.ts millThenDestroyByCardTypeHandler）。データ側からは見えない
     "BS14-111-e1": "ハンドラが chooserIsTarget:true を渡している（2026-09-13 確認）",
     // fieldEvent の actionPid が相手になる＝効果文の「相手は」と一致（S6 でも確認済み）

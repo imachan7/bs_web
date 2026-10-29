@@ -511,7 +511,7 @@
      2,
      3
     ],
-    "action": {"type": "if", "cond": {"count": "bothNexusColors", "atLeast": 3}, "then": {"type": "declare", "what": "color", "from": "nexuses", "chooser": "each", "then": {"type": "destroyNexus", "count": 1, "all": true, "side": "both", "filter": {"declared": "except"}}}},
+    "action": {"type": "if", "cond": {"count": "bothNexusColors", "atLeast": 3}, "then": {"type": "declare", "what": "color", "from": "nexuses", "chooser": "each", "then": {"type": "destroy", "nexus": "only", "count": 1, "all": true, "side": "both", "filter": {"declared": "except"}}}},
     "optional": false
    },
    {
@@ -2815,7 +2815,9 @@
      2
     ],
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     },
     "optional": false
    }
@@ -4283,9 +4285,27 @@
      3
     ],
     "action": {
-     "type": "destroyOwnByCost",
-     "maxCost": 4,
-     "gainCoresEqualCost": true
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "side": "own",
+       "count": 1,
+       "filter": {
+        "cost": {
+         "max": 4
+        },
+        "excludeSelf": true
+       }
+      },
+      {
+       "type": "placeCores",
+       "from": "void",
+       "to": "reserve",
+       "count": 1,
+       "countCounter": "lastCost"
+      }
+     ]
     },
     "optional": false
    },
@@ -5110,7 +5130,8 @@
      "bothFieldsHaveNexus": true
     },
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 1,
      "side": "both"
     }
@@ -5458,7 +5479,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "destroyNexus",
+      "type": "destroy",
+      "nexus": "only",
       "side": "own",
       "count": 1
      },
@@ -5642,9 +5664,21 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "destroyOwnByCost",
-     "maxCost": 99,
-     "gainCoresEqualCost": true
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "side": "own",
+       "count": 1
+      },
+      {
+       "type": "placeCores",
+       "from": "void",
+       "to": "reserve",
+       "count": 1,
+       "countCounter": "lastCost"
+      }
+     ]
     }
    }
   ]

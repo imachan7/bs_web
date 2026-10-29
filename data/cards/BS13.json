@@ -219,7 +219,9 @@
       "type": "simultaneous",
       "actions": [
        {
-        "type": "destroySelf"
+        "type": "destroy",
+        "target": "self",
+        "count": 1
        },
        {
         "type": "destroy",
@@ -384,7 +386,9 @@
     "subjectSide": "opponent",
     "maxBp": 4000,
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    },
    {
@@ -733,7 +737,9 @@
     ],
     "maxBp": 4000,
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    },
    {
@@ -1938,7 +1944,9 @@
     "phase": "attack",
     "subjectMaxCores": 2,
     "action": {
-     "type": "destroySelf"
+     "type": "destroy",
+     "target": "self",
+     "count": 1
     }
    },
    {
@@ -6290,12 +6298,14 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "destroyNexus",
+      "type": "destroy",
+      "nexus": "only",
       "side": "own",
       "count": 1
      },
      "then": {
-      "type": "destroyNexus",
+      "type": "destroy",
+      "nexus": "only",
       "count": 1
      }
     }
@@ -6415,7 +6425,8 @@
      }
     },
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 0,
      "all": true
     }

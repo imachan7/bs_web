@@ -44,7 +44,7 @@ export type IfCond = { last: CardPick } | { lastAll: CardPick } | { opponentAtta
 
 export type EffectAction =
  | { type: "draw"; count: number; side?: "own" | "both"; fillTo?: number; costSkipCoreStep?: true; countCounter?: EffectCounter; countMax?: number; costSacrificeChosen?: true } // 自分がデッキから引く。countMaxはmill.countMaxと同義。side:"both"は自分→相手の順の両者、省略時は自分のみ。costSkipCoreStep＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）。fillTo＝手札がその枚数になるまで引く（count は見ない。0〜N の upTo とは別の意味）
- | { type: "destroy"; filter?: TargetFilter; count: number | "any"; suppressOnDestroy?: true; chosenIds?: string[]; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: true; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true; upTo?: true } // 相手スピリットを破壊（既定。side:"own"は自分側で、選ぶのは持ち主＝pay { cost: destroy{side:"own"} } の器）。upTo＝0〜count の好きな数（非対話は count 体まで破壊）。thenDrawFixed は破壊処理後に発火（「その後」＝0体でも）。lowestCost は自動選択の基準をコスト最小にする（同コストはBP最大）。drawPerDestroyed は「残る」で残った個体を数えない。chooserIsTarget は破壊される側（相手）が選ぶ（実行は発生源の持ち主の効果）。filter省略時はBP不問。anySide の自動選択は実効BP最大（同値は相手側優先）。excludeTarget は誘発が渡す targetInstanceId を避ける
+ | { type: "destroy"; filter?: TargetFilter; count: number | "any"; suppressOnDestroy?: true; chosenIds?: string[]; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own" | "both"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: number; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true; upTo?: true; nexus?: "only"; levelFilter?: number[]; target?: "self"; nexusProgress?: { s: number; i: number; d: number }; awaiting?: true } // 相手スピリットを破壊（既定。nexus:"only"＝ネクサスを破壊（levelFilter は表示レベルで判定。anySide は自分か相手のネクサスを持ち主が選び非対話は相手側優先。side:"both"＝両陣営それぞれ。awaiting／nexusProgress は再入用の内部軸）。target:"self"＝このカード自身を破壊（ネクサス自身も可）。side:"own"は自分側で、選ぶのは持ち主＝pay { cost: destroy{side:"own"} } の器）。upTo＝0〜count の好きな数（非対話は count 体まで破壊）。thenDrawFixed は破壊処理後に発火（「その後」＝0体でも）。lowestCost は自動選択の基準をコスト最小にする（同コストはBP最大）。drawPerDestroyed は「残る」で残った個体を数えない。chooserIsTarget は破壊される側（相手）が選ぶ（実行は発生源の持ち主の効果）。filter省略時はBP不問。anySide の自動選択は実効BP最大（同値は相手側優先）。excludeTarget は誘発が渡す targetInstanceId を避ける
 
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文に主語が無いので発生源の持ち主。2026-08-24）。choosing / keptIds は内部フィールド
  | { type: "activateBurstIgnoringCondition"; from: "set" | "revealed"; filter?: CardPick; optional?: true; confirmed?: true } // バースト条件を無視してバーストを発動する（BS18）。きっかけの出来事に依存する参照は不発。confirmed は確認済みの再入印で内部用
@@ -56,7 +56,6 @@ export type EffectAction =
 
 
  | { type: "setBurstFromHand"; ask?: true } // ask＝「〜できる」を式の中で確認する（候補が1枚でも選択を出し、スキップ可）。外側に optional の確認が無い sequence の中で使う。 バースト専用：自分の手札のバースト効果持ち1枚をセットする。setBurst（GameAction）と違い**ターン1回制限を受けない**。自動選択はコスト最大の1枚（決定的簡略化）
- | { type: "destroyNexus"; count: number | "any"; chosenIds?: string[]; choosing?: true; drawPerDestroyed?: number; nexusProgress?: { s: number; i: number; d: number }; all?: boolean; side?: "opponent" | "both" | "own" | "either"; levelFilter?: number[]; filter?: TargetFilter; costSacrificeChosen?: true; chooserIsTarget?: true; upTo?: true; awaiting?: true } // either＝自分か相手のネクサスを持ち主が選んで破壊（count は1だけ。非対話は相手側優先）。awaiting と nexusProgress（陣営・回数・破壊数の再入用の持ち回り）は内部用。side:"own"は pay { cost: destroyNexus{side:"own"} } の器。upTo の count は上限で、選ばずに終えたら以降も破壊しない
 
  // chooserIsTarget（count:1・side省略時のみ対応）は破壊される側が対象を選ぶ（解決は発生源の持ち主の効果＝PendingChoice.actorPid）。chooseColor＝使用者が先に色を指定して colorFilter へ載せ解決し直す（自動選択は破壊できる数が最大の色。同数はred/purple/green/white/yellow/blueの順）。colorFilter の多色はOR
  | { type: "returnSelfToHand"; optional?: true; confirmed?: true } // optional＝「戻せる」（confirmed は確認済みの再入印で内部用）
@@ -141,14 +140,12 @@ export type EffectAction =
  | { type: "battleLoserCoresToVoid" } // 直前のバトルで破壊された相手のスピリット上のコアすべてを、リザーブでなく**ボイド**へ送る。破壊待機中（コアが乗ったまま）に呼ぶ前提
  | { type: "extraAttackStep" } // アタックステップとエンドステップを順番にもう1回ずつ行う（GameState.extraAttackStepPending を立てる）。既に立っていれば何もしない
  | { type: "endAttackStep"; onlyOpponentTurn?: boolean } // 今行っているアタックステップの終了フラグを立てる（onlyOpponentTurn=true時は自分のターンなら発動しない）
- | { type: "destroyOwnByCost"; maxCost: number; gainCoresEqualCost?: boolean; thenDestroyEnemyByCostBudget?: true } // 自分のフィールドの self以外でコスト<=maxCostのうちコスト最大の1体（決定的選択）を破壊。gainCoresEqualCost＝破壊したスピリットと同コストのコアをボイドから自分のリザーブへ。thenDestroyEnemyByCostBudget＝そのコストを予算に destroyByCostBudget と同じ貪欲選択で相手のスピリットを破壊
  // interactiveTargets では**両プレイヤーが順に**色を選ぶ。選択の進捗は chosenOwn / chosenOpp / awaiting に持たせて再入する
  // （相手に選ばせる段は PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする）。
  // 自動選択は従来どおり、お互い自分フィールドで最多の色を自動指定する
  | { type: "resolveOwnDestroyTriggers"; instanceId: string; byOpponent?: true } // **内部専用**。破壊された自身の『破壊時』効果を発揮する。破壊で誘発した効果の列に「自身の破壊時ぜんぶ」を1グループとして入れるために使う（TIMING_CHART.md）
  | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } 
  | { type: "resolveFushiSummon"; pid: PlayerId; cardId: string } // **内部専用**。破壊で誘発した効果の列に並ぶ【不死】1枚分。解決時にトラッシュからカードIDで引き直すので、位置がずれても動く // **内部専用**。指定した reviveOnDestroy エントリを適用する。上と同じ列に1グループとして入る
- | { type: "destroySelf" } // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op）
  | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword } // keywordExclude＝そのキーワードを持たないスピリットだけが候補（一時付与・継続付与も見る）。destroyAllExceptChosenColorsと同じ二段階choice：発生源の持ち主→相手の順にフィールド（両陣営どちらでも可）から1体を指定し、2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaiting。自動選択は各プレイヤーが相手フィールドの実効BP最大（決定的簡略化）
  | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版：各自は**自分の**フィールドから1体を指定し、その2体を除く両陣営のスピリットすべてを破壊する。破壊待機中のself自身は候補に含めない。自動選択は各自の実効BP最大（決定的簡略化）
  | { type: "summonSequence"; byFushi?: true } // byFushi＝【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnlyの判定に使う）。**内部専用**：【転召】の対象選択で中断したとき、GameEngineがpendingChoice.queueへ積んで選択の解決後に合流させる
@@ -190,7 +187,7 @@ export type EffectAction =
  // **発生源自身も数える**（効果文が「このスピリット以外の」と書いていない）。
  // interactiveTargets 時は kind:"option" で系統を選ばせ、非対話では**引ける枚数が多い方**を選ぶ決定的簡略化
  | { type: "sequence"; actions: EffectAction[]; keepScope?: true; passEventTarget?: true } // passEventTarget＝誘発が渡すイベント対象を各アクションにも渡す（既定は渡さない。eventSourceAsTarget の後ろの removeCores target:"event" 用）。keepScope＝記録の枠を新しく作らない（外の「〜したなら」が中の記録を読む）。効果文の「Aする。その後、Bする。」（CONJUNCTION.md）：actionsを常に順番どおり全部解決する。Aが不完全にしか解決できなくてもBは解決する（例：疲労させる対象がいなくてもその後の回復は行う）。選択で中断したら残りは resolveInOrder が再開スタックへ積む
- | { type: "simultaneous"; actions: EffectAction[]; choosing?: true; chosenIds?: string[] } // 「Aして、B」＝同時（CONJUNCTION.md）。対象をすべて集めて1回で破壊待機に入れる。書けるのは destroy{all}・destroySelf・destroy{side:"own", count:数}。choosing／chosenIds は内部用
+ | { type: "simultaneous"; actions: EffectAction[]; choosing?: true; chosenIds?: string[] } // 「Aして、B」＝同時（CONJUNCTION.md）。対象をすべて集めて1回で破壊待機に入れる。書けるのは destroy{all}・destroy{target:"self"}・destroy{side:"own", count:数}。choosing／chosenIds は内部用
  | { type: "chooseActionMode"; modes: { label: string; actions: EffectAction[] }[] } // 効果文の「〜する。**または**、〜する」。使用者が modes からどれか1つを選び、その actions を順に解決する
  // 選択肢は**常に全部出す**：破壊は「〜することで」ではないので、対象が足りなくても発揮でき、いる分だけ破壊する
  // （2026-08-16 ユーザー確認。docs/design/COST_MODEL.md の「コストではない」側）。

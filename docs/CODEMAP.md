@@ -455,7 +455,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `ownSideDestroyCandidates`（fn）：side:"own"（destroyの自分側対象）の候補列挙。ハンドラ本体とpayの判定表（CHECKERS）の両方から呼び、
 - `destroyCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
-- `destroyNexusCandidateCountForPay`（fn）：pay の判定表（destroyNexus）が使う候補数。
+- `destroyNexusCandidateCountForPay`（fn）：pay の判定表（destroy{nexus:"only"}）が使う候補数。
 - `destroyAllTargetList`（fn）：destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
 - `destroyTargetList`（fn）：まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
 - `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）

@@ -24,7 +24,7 @@ function usesAction(cardId: string, actionType: string): boolean {
         if (Array.isArray(o)) return o.some(walk)
         if (o !== null && typeof o === "object") {
             const rec = o as Record<string, unknown>
-            if (rec["type"] === actionType) return true
+            if (rec["type"] === actionType || (actionType === "destroy:nexus" && rec["type"] === "destroy" && rec["nexus"] === "only")) return true
             return Object.values(rec).some(walk)
         }
         return false
@@ -98,7 +98,7 @@ console.log("=== ジャッジメントフレア：非対話では相手が差し
 
 console.log("=== タイダルタイド：自分のネクサスを好きなだけ破壊し、破壊する相手スピリットは相手が選ぶ ===")
 {
-    assert(usesAction("BS04-114", "destroyNexus"), "BS04-114 が destroyNexus（好きなだけ）を使っている")
+    assert(usesAction("BS04-114", "destroy:nexus"), "BS04-114 が destroy{nexus:only}（好きなだけ）を使っている")
 
     const s = base("tidal-chooser", true)
     const n1 = createInstance("BS06-080", s.turn, 0)

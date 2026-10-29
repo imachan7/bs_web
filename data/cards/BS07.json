@@ -5407,9 +5407,24 @@
      "ownSpiritIsBlocking": true
     },
     "action": {
-     "type": "destroyOwnByCost",
-     "maxCost": 4,
-     "thenDestroyEnemyByCostBudget": true
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "side": "own",
+       "count": 1,
+       "filter": {
+        "cost": {
+         "max": 4
+        }
+       }
+      },
+      {
+       "type": "destroyByCostBudget",
+       "budget": 1,
+       "budgetCounter": "lastCost"
+      }
+     ]
     }
    }
   ]

@@ -689,8 +689,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyNexus",
-          "count": 2
+         "type": "destroy",
+         "nexus": "only",
+         "count": 2
         }
       }
     ]

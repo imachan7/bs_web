@@ -147,8 +147,9 @@
                   }
                 },
                 {
-                  "type": "destroyNexus",
-                  "count": 1
+                 "type": "destroy",
+                 "nexus": "only",
+                 "count": 1
                 }
               ]
             }
@@ -5551,7 +5552,9 @@
           2
         ],
         "action": {
-          "type": "destroySelf"
+         "type": "destroy",
+         "target": "self",
+         "count": 1
         }
       }
     ]

@@ -7,7 +7,7 @@ import { effectActiveAtLevel, effectSources, instHasColor, instHasCost, matchesT
 import { resolveMagicEffects } from "./resolve"
 
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
-// 対象を片側だけに変更する。両陣営を対象にするアクション（destroyNexus side:"both" / bothSidesCoreToTrash /
+// 対象を片側だけに変更する。両陣営を対象にするアクション（destroy{nexus:"only", side:"both"} / bothSidesCoreToTrash /
 // bothSidesCoreToVoid / exhaust{all, anySide} / returnToHand{all, anySide} / removeCores side:"both" /
 // draw / discard の side:"both"）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
 // beneficial=true は「受ける側にとって得な効果」（ドロー）で、そのときだけ相手を外す。

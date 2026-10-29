@@ -59,7 +59,7 @@ function resolvedSelf(e: FieldEvent): "source" | "eventSubject" {
 }
 function resolvedActor(e: FieldEvent): "owner" | "eventSubjectOwner" {
     // destroySelf／exhaustSelf は fix/self-action-cause-context 以降、常に発生源の持ち主が実行者
-    if (e.action?.type === "destroySelf" || e.action?.type === "exhaustSelf") return "owner"
+    if ((e.action?.type === "destroy" && e.action.target === "self") || e.action?.type === "exhaustSelf") return "owner"
     if (e.selfMode === "source" || e.ownOnly || e.subjectSide === "own") return "owner"
     return EVENTS_WITH_SWAPPING_ACTOR.has(e.event) ? "eventSubjectOwner" : "owner"
 }
