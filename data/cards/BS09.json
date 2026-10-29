@@ -5675,7 +5675,8 @@
           "opponentHandAtLeast": 6
         },
         "action": {
-          "type": "returnToDeckTop",
+          "type": "return",
+          "to": "deckTop",
           "count": 3,
           "filter": {
             "keywordExclude": "tensho"

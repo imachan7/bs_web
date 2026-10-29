@@ -1962,7 +1962,8 @@
     "byOpponentOnly": true,
     "subjectKeywordFilter": "bofu",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    }
@@ -2457,7 +2458,8 @@
      3
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "hasBurst": false
@@ -2513,7 +2515,7 @@
      1,
      2
     ],
-    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "opponent", "then": {"type": "returnToHand", "count": 1, "all": true, "filter": {"declared": "except"}}}
+    "action": {"type": "declare", "what": "color", "from": "spirits", "chooser": "opponent", "then": {"type": "return", "to": "hand", "count": 1, "all": true, "filter": {"declared": "except"}}}
    },
    {
     "id": "BS15-035-e2",
@@ -5496,7 +5498,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnToDeckBottom"
+     "type": "return",
+     "to": "deckBottom"
     }
    }
   ]

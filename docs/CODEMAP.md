@@ -443,7 +443,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/actions/bounce.ts
 
 - `returnToHandCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
-- `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（returnToDeckTop）が使う候補数
+- `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
 
 ## server/src/logic/actions/cores.ts
 

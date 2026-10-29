@@ -162,7 +162,7 @@ export function consumeOncePerBattleMagicFree(state: GameState, pid: PlayerId, c
 // 捨てたときは「対象未指定」として解決へ進むので、サーバー側が正しい候補を出して選ばせる。
 // なお anySide（自分か相手のどちらでも選べる）は、片側しか選べないのがクライアント側の制限で、
 // サーバーには届かないため、ここでは救済できない（UI側の修正が要る）
-const OPPONENT_DEFAULT_TYPES = new Set<EffectAction["type"]>(["destroy", "exhaust", "returnToHand", "returnToDeckTop", "coreRemove", "heavyExhaust", "timedEffect"])
+const OPPONENT_DEFAULT_TYPES = new Set<EffectAction["type"]>(["destroy", "exhaust", "return", "coreRemove", "heavyExhaust", "timedEffect"])
 
 export function usableMagicTarget(
     state: GameState,

@@ -1974,7 +1974,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "returnToHand",
+       "type": "return",
+       "to": "hand",
        "count": 1
       },
       {
@@ -4365,7 +4366,8 @@
     "phase": "attack",
     "turn": "own",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "maxCostAsSelf": true
@@ -4818,7 +4820,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "keyword": "soku"

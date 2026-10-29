@@ -106,7 +106,7 @@ console.log("=== §D returnAllToHand（BS04-102 ドリームハンド：コス�
         s,
         "p1",
         null,
-        { type: "returnToHand", count: 1, all: true, anySide: true, filter: { cost: { max: 1 } } },
+        { type: "return", to: "hand", count: 1, all: true, anySide: true, filter: { cost: { max: 1 } } },
         undefined,
         ["white"],
         "magic",

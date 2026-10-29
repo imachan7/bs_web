@@ -84,7 +84,7 @@
      2
     ],
     "optional": true,
-    "action": {"type": "returnToHand", "side": "own", "count": 1, "filter": {"keyword": "superAwaken"}}
+    "action": {"type": "return", "to": "hand", "side": "own", "count": 1, "filter": {"keyword": "superAwaken"}}
    },
    {
     "id": "BS13-002-e2",
@@ -549,7 +549,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "side": "own",
       "count": 1,
       "filter": {
@@ -2500,7 +2501,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "side": "own",
       "count": 1,
       "filter": {
@@ -2778,7 +2780,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "target": "selfBrave",
       "count": 1
      },
@@ -2956,7 +2959,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "side": "own",
       "count": 1,
       "filter": {
@@ -2964,7 +2968,8 @@
       }
      },
      "then": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "count": 1
      }
     }
@@ -3608,7 +3613,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "target": "self",
       "count": 1
      },
@@ -4017,7 +4023,8 @@
      3
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "nexus": "only",
      "count": 0,
      "all": true
@@ -4092,7 +4099,8 @@
      1
     ],
     "action": {
-     "type": "returnToDeckTop",
+     "type": "return",
+     "to": "deckTop",
      "count": 1,
      "nexus": "only"
     }
@@ -4322,7 +4330,8 @@
       "count": 1
      },
      "then": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "count": 1
      }
     }
@@ -4410,7 +4419,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    },
@@ -4419,7 +4429,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     },
     "condition": {

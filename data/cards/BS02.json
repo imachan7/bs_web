@@ -1097,7 +1097,8 @@
      3
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "target": "self",
      "count": 1
     },

@@ -49,7 +49,7 @@ type FieldEvent = { id: string; kind: string; event: string; selfMode?: string; 
 // op → データ側のアクション名の前置き。一致するものを優先して対応付ける
 const OP_PREFIX: Record<string, string[]> = {
     "破壊": ["destroy"], "疲労させる": ["exhaust"], "回復させる": ["refresh"], "ドロー": ["draw"],
-    "コアを取り除く": ["removeCores", "coreRemove"], "手札に戻す": ["bounce", "returnToHand"],
+    "コアを取り除く": ["removeCores", "coreRemove"], "手札に戻す": ["bounce", "return"],
     "ライフを減らす": ["lifeDamage", "damageLife"],
 }
 

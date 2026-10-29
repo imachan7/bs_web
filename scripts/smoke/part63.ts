@@ -171,7 +171,7 @@ console.log("=== ⑧ returnToHand countPerOpponentNexus：相手のネクサス�
         createInstance("BS01-001", s.turn, 1),
     )
     const handBefore = s.players.p2.hand.length
-    resolveAction(s, "p1", reen, { type: "returnToHand", count: 1, countPerOpponentNexus: true })
+    resolveAction(s, "p1", reen, { type: "return", to: "hand", count: 1, countPerOpponentNexus: true })
     assert(s.players.p2.hand.length === handBefore + 2, "相手のネクサス2つぶん、2体が手札に戻った")
     assert(s.players.p2.field.spirits.length === 1, "相手フィールドには1体だけ残った")
 }

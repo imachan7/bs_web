@@ -3773,7 +3773,8 @@
     "phase": "attack",
     "familyFilter": "氷姫",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "maxBpFromSelf": true
     }
@@ -5020,7 +5021,8 @@
     ],
     "optional": false,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "countPerOpponentNexus": true
     }

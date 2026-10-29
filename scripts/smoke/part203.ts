@@ -316,7 +316,7 @@ console.log("--- SD01 の継続効果（カバレッジの穴を埋める） ---
     const s = base("tartar")
     const self = put(s, "p1", TARTAR, coresFor(TARTAR, 1))
     const enemy = put(s, "p2", vanillaCost(1), 1)
-    resolveAction(s, "p2", enemy, { type: "returnToHand", count: 1 }, self.instanceId, ["red"], "spirit")
+    resolveAction(s, "p2", enemy, { type: "return", to: "hand", count: 1 }, self.instanceId, ["red"], "spirit")
     assert(
         s.players.p1.field.spirits.some((x) => x.instanceId === self.instanceId),
         "相手の効果では手札に戻らない",

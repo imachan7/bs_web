@@ -94,14 +94,14 @@ console.log("=== BS06颶風高原Lv2：BP比較で勝ったとき、【暴風】
         (e) => {
             const a = e["action"] as Record<string, unknown> | undefined
             const f = a?.["filter"] as Record<string, unknown> | undefined
-            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+            return a?.["type"] === "return" && a?.["to"] === "deckBottom" && f?.["bofuExhausted"] !== undefined
         },
     )
     const entry = (highland.effects ?? []).find(
         (e) => {
             const a = e["action"] as Record<string, unknown> | undefined
             const f = a?.["filter"] as Record<string, unknown> | undefined
-            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+            return a?.["type"] === "return" && a?.["to"] === "deckBottom" && f?.["bofuExhausted"] !== undefined
         },
     )!
     const level = (entry["levels"] as number[])[0]!
@@ -132,7 +132,7 @@ console.log("--- 発生源がLv1なら戻さない（levels 指定が効いて�
         (e) => {
             const a = e["action"] as Record<string, unknown> | undefined
             const f = a?.["filter"] as Record<string, unknown> | undefined
-            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+            return a?.["type"] === "return" && a?.["to"] === "deckBottom" && f?.["bofuExhausted"] !== undefined
         },
     )
     const s = base("highland-level1")
@@ -204,7 +204,7 @@ console.log("--- 装甲を持つ相手は、デッキの下に戻されない --
         (e) => {
             const a = e["action"] as Record<string, unknown> | undefined
             const f = a?.["filter"] as Record<string, unknown> | undefined
-            return a?.["type"] === "returnToDeckBottom" && f?.["bofuExhausted"] !== undefined
+            return a?.["type"] === "return" && a?.["to"] === "deckBottom" && f?.["bofuExhausted"] !== undefined
         },
     )
     const sourceColor = (highland.colors ?? [])[0]!
@@ -229,7 +229,7 @@ console.log("--- 装甲を持つ相手は、デッキの下に戻されない --
         s,
         "p1",
         null,
-        { type: "returnToDeckBottom", all: true, filter: { bofuExhausted: "any" } },
+        { type: "return", to: "deckBottom", all: true, filter: { bofuExhausted: "any" } },
         undefined,
         [sourceColor] as never,
         "nexus",

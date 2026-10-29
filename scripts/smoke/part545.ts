@@ -31,7 +31,7 @@ console.log("=== 1. returnToDeckBottom self ===")
     const me = createInstance("BS01-006", 1, 1)
     s.players.p1.field.spirits.push(me)
     const deckBefore = s.players.p1.deck.length
-    resolveAction(s, "p1", me, { type: "returnToDeckBottom", target: "self" })
+    resolveAction(s, "p1", me, { type: "return", to: "deckBottom", target: "self" })
     assert(s.players.p1.field.spirits.length === 0 && s.players.p1.deck.length === deckBefore + 1 && s.players.p1.deck.at(-1) === "BS01-006", "自身がデッキの下に戻る")
 }
 

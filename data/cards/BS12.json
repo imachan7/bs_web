@@ -2766,7 +2766,8 @@
           3
         ],
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1
         }
       },
@@ -6047,7 +6048,8 @@
         "whileCombined": true,
         "optional": false,
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "maxBpFromSelf": true
         }
@@ -6064,7 +6066,8 @@
         "whileCombined": true,
         "optional": false,
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "maxBpFromSelf": true
         }

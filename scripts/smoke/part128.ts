@@ -302,7 +302,7 @@ console.log("=== BS06-106 メイン：両陣営のネクサスすべてが手札
     putNexus(s, "p1", "BS06-082", 0)
     putNexus(s, "p1", "BS06-083", 0)
     putNexus(s, "p2", "BS06-084", 0)
-    resolveAction(s, "p1", null, { type: "returnToHand", nexus: "only", count: 0, all: true, side: "both" }, undefined, ["white"], "magic")
+    resolveAction(s, "p1", null, { type: "return", to: "hand", nexus: "only", count: 0, all: true, side: "both" }, undefined, ["white"], "magic")
     assert(s.players.p1.field.nexuses.length === 0, "自分のネクサスもすべて戻る")
     assert(s.players.p2.field.nexuses.length === 0, "相手のネクサスもすべて戻る")
     assert(

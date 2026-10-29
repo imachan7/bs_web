@@ -122,7 +122,17 @@
 
 - `returnToHand`・`returnToDeckTop`・`returnToDeckBottom` → `return{to:"hand"|"deckTop"|"deckBottom", …}`。何を戻すかは今の軸のまま（`target:"self"`・`nexus`・`filter`・`side`・`count`・`all` など）
 - 理由：上・下・手札で type が分かれていると、「自分版」「ネクサス版」のような軸を3か所に持つことになる（PR 2a で `returnToDeckTop` だけに `target:"self"` を足した）。語彙表 §3 の「戻す｜to：手札／デッキの上／デッキの下」を到達点にする
-- 中身は今の3つのハンドラのまま、入口で `to` により振り分ける（PR 1 と同じやり方）。軸の名前と意味が3つで食い違うもの（`side`・`count` の既定、pay のコスト用の `target`）は着手時に表にする
+- 中身は今の3つのハンドラのまま、入口で `to` により振り分ける（PR 1 と同じやり方）
+- 型は `to` で分けた共用体にする（`Extract<EffectAction,{type:"return";to:"hand"}>` で今のハンドラの型がそのまま書ける）。`to` ごとに持てる軸は今のまま。使われていない組（`to:"hand"` の `chooserIsTarget` など）は、要るカードが来たときに足す
+- 着手時の突き合わせ（10-29）。ルール上の違いは無く、どれも「片方にだけ足された」もの:
+
+  | 軸 | hand | deckTop | deckBottom | PR 6 での扱い |
+  | :-- | :-- | :-- | :-- | :-- |
+  | `count` | 必須 | 省略可（既定1） | 省略可（既定1） | 今のまま |
+  | `side` | own／both | own | own | 今のまま |
+  | `target` | self／selfBrave | self（破壊されたこのカード） | self（コスト） | 今のまま |
+  | マジックの対象を使用時に選ぶ（`OPPONENT_DEFAULT_TYPES`・`COUNT_IS_BODIES`・クライアントの `magicTargetSide`） | 入る | 入る | **入らない** | `return` 全体で入れる。光速三段突も氷河零刀斬と同じく使用時に相手のスピリットを選ぶようになる（今は解決時にサーバーが聞く。戻す先は同じ） |
+- イベントの `returnToHand`（`GameEvent`）と【転召】の `mode:"returnToHand"` は別物なので変えない。`returnOwnNexusToDeckBottom`（マジックのコスト1枚）・`returnToBurst` は PR 6 に入れない
 
 ### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
 

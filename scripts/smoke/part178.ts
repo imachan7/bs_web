@@ -46,7 +46,7 @@ console.log("=== ビャク・ガロウ：手札に戻せる相手がいなけれ
     const before = s.players.p1.reserve
     // 相手のフィールドは空
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", from: ["reserve"], to: "trash", count: 1 }, then: {
-        type: "returnToHand",
+        type: "return", to: "hand",
         count: 2,
         filter: { keywordExclude: "tensho" },
     } })
@@ -59,7 +59,7 @@ console.log("=== ビャク・ガロウ：手札に戻せる相手がいなけれ
     s2.players.p2.field.spirits.push(createInstance("BS01-003", s2.turn, 1))
     const before2 = s2.players.p1.reserve
     resolveAction(s2, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", from: ["reserve"], to: "trash", count: 1 }, then: {
-        type: "returnToHand",
+        type: "return", to: "hand",
         count: 2,
         filter: { keywordExclude: "tensho" },
     } })
@@ -142,7 +142,7 @@ console.log("=== 体数が足りなければ払わない（書いてある数ど
     s.players.p2.field.spirits.push(createInstance("BS01-003", s.turn, 1))
     const before = s.players.p1.reserve
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", from: ["reserve"], to: "trash", count: 1 }, then: {
-        type: "returnToHand",
+        type: "return", to: "hand",
         count: 2,
         filter: { keywordExclude: "tensho" },
     } })

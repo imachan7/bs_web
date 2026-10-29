@@ -190,12 +190,12 @@ console.log("=== 9. BS16-012金狐角：自分のアタックステップの間�
     const s = game("p012-nobounce")
     put(s, "p1", "BS16-012", 3)
     const enemy = put(s, "p2", "BS01-001", 1)
-    resolveAction(s, "p1", null, { type: "returnToHand", count: 1 }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "return", to: "hand", count: 1 }, undefined, undefined, "spirit")
     assert(s.players.p2.hand.includes("BS01-001"), "メインステップでは通常どおり手札に戻る")
     const enemy2 = put(s, "p2", "BS01-001", 1)
     act(s, "p1", { type: "nextPhase" })
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "returnToHand", count: 1 }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "return", to: "hand", count: 1 }, undefined, undefined, "spirit")
     assert(
         s.players.p2.field.spirits.some((sp) => sp.instanceId === enemy2.instanceId),
         "アタックステップ中はスピリットが手札に戻らない",

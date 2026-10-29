@@ -120,7 +120,7 @@ console.log("=== ブリシンガメン：3体すべてがデッキの上に戻�
     const deckBefore = s.players.p2.deck.length
 
     // 「相手は、相手のスピリット3体をデッキの上に好きな順番で戻す」＝選ぶのは戻される側（p2）
-    resolveAction(s, "p1", null, { type: "returnToDeckTop", count: 3, chooserIsTarget: true })
+    resolveAction(s, "p1", null, { type: "return", to: "deckTop", count: 3, chooserIsTarget: true })
     const picked: string[] = []
     let guard = 0
     while (s.pendingChoice && guard++ < 10) {
@@ -147,7 +147,7 @@ console.log("=== ブリシンガメン：最後に選んだ1体がデッキの�
     put(s, "p2", SMALL, 1)
     put(s, "p2", SMALL, 1)
 
-    resolveAction(s, "p1", null, { type: "returnToDeckTop", count: 3, chooserIsTarget: true })
+    resolveAction(s, "p1", null, { type: "return", to: "deckTop", count: 3, chooserIsTarget: true })
     // a（ドラグノ偵察兵）を最後に選ぶ：まず a 以外を2回選び、最後に a
     let guard = 0
     while (s.pendingChoice && guard++ < 10) {
@@ -170,7 +170,7 @@ console.log("=== 颶風高原Lv2：デッキの下に戻す順番を選べる ==
     ]
     const deckBefore = s.players.p2.deck.length
 
-    resolveAction(s, "p1", null, { type: "returnToDeckBottom", all: true, filter: { bofuExhausted: "any" } })
+    resolveAction(s, "p1", null, { type: "return", to: "deckBottom", all: true, filter: { bofuExhausted: "any" } })
     assert(!!s.pendingChoice, "戻す順番を聞かれる")
     assert(s.pendingChoice!.pid === "p1", "選ぶのは発揮した側（p1）")
     // 記録順どおりなら a が先。あえて b を先にする
@@ -192,7 +192,7 @@ console.log("=== 颶風高原Lv2：非対話では従来どおり記録順 ===")
         { pid: "p2", instanceId: a },
         { pid: "p2", instanceId: b },
     ]
-    resolveAction(s, "p1", null, { type: "returnToDeckBottom", all: true, filter: { bofuExhausted: "any" } })
+    resolveAction(s, "p1", null, { type: "return", to: "deckBottom", all: true, filter: { bofuExhausted: "any" } })
     assert(!s.pendingChoice, "選択は出ない")
     const deck = s.players.p2.deck
     assert(deck[deck.length - 2] === BIG, "記録順（a が先）で戻る")
