@@ -2,10 +2,10 @@
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
-import { bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
+import { applyBothSidesRedirectToCandidates, returnNexusToDeckTop, voidCoreToOwnTrash, bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
 import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, handGainBlocked, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
-import { recordMoved } from "../record"
+import { lastMovedOf, recordMoved } from "../record"
 import { detachBraveByEffect } from "../brave"
 import { countedAmount } from "../counted"
 import { soulCoreLeavesField } from "../soulCore"
@@ -143,6 +143,10 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             }
             const { countCounter: _cc, ...rest } = action
             action = { ...rest, count: n }
+        }
+        if (action.nexus === "only") {
+            bounceNexusOnly(ctx, action)
+            return
         }
         if (action.nexus) {
             returnToHandNexusOrSpirit(ctx, action)
@@ -338,6 +342,113 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
             moved.push(target.cardId)
         }
         recordMoved(state, moved)
+        return
+}
+
+type NexusBounceAction = Extract<EffectAction, { type: "returnToHand" | "returnToDeckTop" }>
+
+// nexus:"only" の入口（returnToHand／returnToDeckTop）。dest は呼び出し側の type で決まる
+function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
+    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
+    const toDeck = action.type === "returnToDeckTop"
+        // bounceProgress は選択の再入をまたぐ「戻した回数」（内部用）。再入時は戻した記録を消さない
+        if (action.bounceProgress === undefined) recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
+        // voidCoreToOwnTrashIfOpponent は「戻したカードが相手のもの」を if で書けないので軸のまま持つ
+        const voidCore = action.type === "returnToHand" ? action.voidCoreToOwnTrashIfOpponent : undefined
+        const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
+            recordMoved(state, [...lastMovedOf(state), nexus.cardId])
+            if (toDeck) {
+                returnNexusToDeckTop(state, pid, nexus.instanceId)
+            } else {
+                returnNexusToHand(state, pid, nexus.instanceId)
+            }
+            if (pid !== owner && voidCore) {
+                voidCoreToOwnTrash(state, owner, voidCore)
+                log(
+                    state,
+                    `${sourceName}：相手のネクサスを手札に戻したため、ボイドからコア${voidCore}個を自分のトラッシュに置いた。`,
+                )
+            }
+        }
+        // all：countを無視し、side（省略時はopponent）が指すネクサスすべてを戻す。
+        // side:"both"は両陣営すべて（bothSidesPidsで封印された魔導書系の対象片側化にも対応。BS06ホワイトホール）
+        if (action.all) {
+            const sides: PlayerId[] = action.type === "returnToHand" && action.side === "both" ? bothSidesPids(state, srcType) : [opp]
+            let bounced = 0
+            for (const pid of sides) {
+                // bounceOne が field.nexuses を破壊的に変更するため、対象をスナップショットしてから戻す
+                for (const nexus of [...state.players[pid].field.nexuses]) {
+                    bounceOne(pid, nexus)
+                    bounced++
+                }
+            }
+            if (bounced === 0) log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
+            return
+        }
+        // anySide：自分/相手どちらのネクサスも対象にできる。
+        // targetInstanceId優先→interactiveTargets時はrequestChoiceで両陣営から選択→
+        // それも無ければ既存どおり相手の先頭ネクサスを自動選択（下のループへフォールスルー）
+        if (action.anySide) {
+            if (targetInstanceId !== undefined) {
+                let found: { pid: PlayerId; inst: CardInstance } | null = null
+                for (const pid of ["p1", "p2"] as PlayerId[]) {
+                    const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
+                    if (nexus) {
+                        found = { pid, inst: nexus }
+                        break
+                    }
+                }
+                if (!found) {
+                    log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
+                    return
+                }
+                bounceOne(found.pid, found.inst)
+                return
+            }
+            if (state.interactiveTargets) {
+                // 封印された魔導書Lv1：片側だけに変更する選択が済んでいればその側のネクサスに絞る
+                const candidates = applyBothSidesRedirectToCandidates(state, srcType, [
+                    ...state.players[opp].field.nexuses,
+                    ...state.players[owner].field.nexuses,
+                ])
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：手札に戻すネクサスを選んでください`,
+                    candidates.map((n) => n.instanceId),
+                    false,
+                    action,
+                    self,
+                )
+                return
+            }
+        }
+        let picked = action.bounceProgress !== undefined ? targetInstanceId : undefined
+        for (let i = action.bounceProgress ?? 0; i < (action.count ?? 1); i++) {
+            const cands = state.players[opp].field.nexuses
+            let nexus: CardInstance | undefined
+            if (picked !== undefined) {
+                nexus = cands.find((n) => n.instanceId === picked)
+                picked = undefined
+            } else if (state.interactiveTargets && cands.length >= 2) {
+                requestChoice(
+                    state,
+                    owner,
+                    `${sourceName}：${toDeck ? "デッキの上" : "手札"}に戻すネクサスを選んでください`,
+                    cands.map((n) => n.instanceId),
+                    false,
+                    { ...action, bounceProgress: i },
+                    self,
+                    "target",
+                )
+                return
+            } else nexus = cands[0]
+            if (!nexus) {
+                log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
+                break
+            }
+            bounceOne(opp, nexus)
+        }
         return
 }
 
@@ -570,7 +681,7 @@ function returnSelfToDeckBottomAsCost(ctx: ActionCtx): void {
 }
 
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =>
-    action.target === "self" ? returnDestroyedSelfToDeckTop(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
+    action.nexus === "only" ? bounceNexusOnly(ctx, action) : action.target === "self" ? returnDestroyedSelfToDeckTop(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
 const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) =>
     action.target === "self" ? returnSelfToDeckBottomAsCost(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
 

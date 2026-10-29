@@ -935,8 +935,8 @@ console.log("=== 破壊耐性：要塞皇オーディーン（BS01-X04）nexusIn
         "破壊耐性のログが出る",
     )
 
-    console.log("--- バウンス（returnNexusToHand）は破壊ではないため防げない ---")
-    resolveAction(s, "p1", null, { type: "returnNexusToHand", count: 1 })
+    console.log("--- バウンス（returnToHand nexus only）は破壊ではないため防げない ---")
+    resolveAction(s, "p1", null, { type: "returnToHand", nexus: "only", count: 1 })
     assert(s.players.p2.field.nexuses.length === 0, "ネクサスは手札に戻る（バウンスは通る）")
     assert(s.players.p2.hand.includes("BS01-102"), "戻ったネクサスが手札にある")
 

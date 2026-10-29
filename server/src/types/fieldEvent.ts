@@ -14,10 +14,10 @@ export type FieldEvent =
     | "anySpiritAttacked" // 両陣営どちらかのスピリットがアタックを宣言したとき（self はアタックしたスピリット。魔帝の墓標Lv2）
     | "opponentDrew" // 持ち主から見て相手がデッキからカードをドローしたとき（GameState.draw から発火。シダフクロウ）
     | "opponentDrewByEffect" // 持ち主から見て相手が**効果で**（ドローステップ以外で）ドローしたとき（GameState.draw の fromDrawStep が false のときだけ発火。#26：ドローステップの枚数+2は該当しない。BS13-067光導く巨塔Lv2）
-    | "anyNexusDestroyed" // 自分か相手を問わず、フィールドのネクサスが破壊されたとき発火（バウンス returnNexusToHand は対象外）
+    | "anyNexusDestroyed" // 自分か相手を問わず、フィールドのネクサスが破壊されたとき発火（バウンスは対象外）
     | "ownBofuExhausted" // 自分のスピリットの【暴風】の効果で相手のスピリットが疲労したとき、その**【暴風】の持ち主**のフィールドから発火する（疲労1体につき1回）。exhaustSpirit が cause から発火させる（BS06ミストラルコア）
     | "ownHyohekiUsed" // 【氷壁】を発揮して自身を疲労させた時点で発火する（無効化が実際に成功したかは問わない。2026-09-07 ユーザー確認）。triggers.payMagicNegateが発火させる。eventTargetIsSelf:trueと組み合わせて発生源自身限定にする（BS12-032蹴激皇ヴィーザルLv2-3）
-    | "ownNexusDestroyed" // 自分のネクサスが破壊されたとき、持ち主側のフィールドから発火（バウンス returnNexusToHand は対象外。シャークハンマー）
+    | "ownNexusDestroyed" // 自分のネクサスが破壊されたとき、持ち主側のフィールドから発火（バウンスは対象外。シャークハンマー）
     | "ownMagicUsed" // 自分がマジックの効果を使用したとき（resolveMagicの効果実行後に発火。緑芽吹く原野）
     | "ownSpiritBlocked" // 自分のスピリットが相手のブロック宣言を受けたとき、持ち主のフィールド発生源から発火（targetInstanceId=ブロッカー。花の子リップ）
     | "ownSpiritDeclaredBlock" // 自分のスピリットがブロックしたとき、持ち主のフィールド発生源から発火（self=ブロックしたスピリット自身。GameEngine.finishBlockDeclarationから発火。BS10-088天貫く塔の城）

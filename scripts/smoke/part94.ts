@@ -5,7 +5,7 @@
 //   - 既存アクションのみ: BS01-118 コールオブロスト・BS02-103 リロードコア・
 //     BS03-127 アイビィーケイジ・BS03-136 フォーカスライト
 //   - 既存アクションの小拡張: destroyNexus(side/levelFilter)・recoverSpiritFromTrash(all)・
-//     coreSqueezeOne(anySide)・returnNexusToHand(anySide/voidCoreToOwnTrashIfOpponent)・
+//     coreSqueezeOne(anySide)・returnToHand{nexus:"only"}(anySide/voidCoreToOwnTrashIfOpponent)・
 //     bothSidesCoreToTrash(コアの多い個体から順に合計count個へアルゴリズム変更)
 //   - 新規アクション: nexusCoresToTrash・drawUpTo・trashSpiritsToDeckBottom・
 //     voidCoresToNexusLevel・opponentNexusOrReserveCoreToTrash・bothSidesCoreToVoid

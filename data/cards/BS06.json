@@ -6137,7 +6137,7 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "returnNexusToHand",
+     "type": "returnToHand", "nexus": "only",
      "count": 0,
      "all": true,
      "side": "both"
