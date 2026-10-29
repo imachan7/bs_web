@@ -87,5 +87,10 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 3. ✅ **貫通の最初の形**（#324）：`EffectAttempt.pierce:"all"`（一切の効果で防げない）だけを入れた。耐性の発生源（色・種類で絞る貫通に要る）は、該当カードを取り込むときに足す。元の案：**耐性に発生源、問い合わせに貫通**（§2.5）。今のプールに貫通のカードは無いので、型と判定の形だけ入れ、場面テストは【龍射撃】相当を組んで確かめる
 4. ライフを減らす（ライフのコストと `lifeCrush` が同じ問い合わせを呼ぶ。量の制限を含む）
    - **ライフを減らす処理なら原因を問わず（アタック・効果・コスト）、ライフの制限はすべて効く**。減ったコアの行き先（リザーブ・ボイド・トラッシュ）も問わない。効果文の「スピリット」はお互いのスピリットを指すので、自分のスピリットの効果のコストで自分のライフを置くのも「そのスピリットから減らされた」に数える（10-30 ユーザー確認）
+   - 「お互いのライフは、ターンごとにスピリット1体から1まで」は**プレイヤーごと**に数える（スピリットXが相手のライフを1減らした後でも、自分のライフはXからまだ減らされていない。10-30 ユーザー確認）。記録は「スピリット×減らされた側」の組ごとに持つ（今は `lifeDealtThisTurn` がスピリットごとに1つ）
+   - **4 の設計（10-30 確定）**：`server/src/logic/lifeGate.ts`（新規）に `lifeLossAllowed(state, a): number`（0〜amount。量で答える）。`a = { pid（減る側）, amount, cause: "attack"|"effect"|"cost", actorPid, sourceType?, sourceInstance?（アタッカーや効果の発生源のスピリット）, floor?（その効果だけの下限。neverZero 用） }`。
+     集める制限：`lifeImmuneThisTurn`（原因を問わない）・`cantReduceOpponentLife`（actor≠pid）・`ownLifeImmuneToOpponentSpiritEffects`（cause effect・sourceType spirit・actor≠pid）・下限（`lifeFloorByEffect`・`ownLifeFloorContinuous`・永久凍土の王都の `ownLifeFloor`。今の `lifeCostBlocked` の床もここへ）・スピリット1体からの上限2種（`lifeDamagePerSpiritRemaining`・`ownLifeDamageCapRemaining`。原因を問わず、記録は組ごと）。
+     アタックだけの制限（`negateLifeDamageFromTarget`・`lifeDamageMaxForPid`・`noLifeDamageByCost` など）は今の `lifeDamageLimit` に残し、共通の分は `lifeDamageLimit` から `lifeLossAllowed` を呼ぶ。
+     減らした後の記録（`recordLifeLost`・組ごとの累計）も1つの関数にする。呼ぶ所：ライフを減らす全11か所（`grep -rn "\.life -=" server/src/logic`）。コストは「全部払えるか」（`lifeLossAllowed < amount` なら払えない）で、`lifeCostBlocked` はこれで置き換える
    - 4 の裁定（10-30 ユーザー確認）：「ターンごとにスピリット1体から1までしか減らされない」は、チャンプボンゴル型（お互い）もシーマ・クリーク型（自分だけ）も、そのスピリットのアタックと効果を合算して数える（今はシーマ・クリーク型がアタックだけ）
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
