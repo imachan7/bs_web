@@ -6,6 +6,7 @@ import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { moveCardCandidates } from "./actions/moveCards"
 import type { CardData, CardInstance, CardType, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import { summonFromHandFreeCandidateMatches } from "./summon"
+import { summonDenial } from "./summonGate"
 import { normalReserveOf, soulCoreInReserve, soulCoreOnInstance, keishoExcludedTeamAtLeast } from "./soulCore"
 import {
     coresForLevel,
@@ -231,23 +232,8 @@ export function validateSummon(
         if (flashError) return flashError
     }
 
-    // フィールドのスピリット数上限（旋風渦巻く渓谷＝5体以上召喚できない）。
-    // 効果文が『お互いのメインステップ』のため、メインステップの通常召喚のみを制限する（神速召喚は対象外）
-    // ダイレクトブレイヴは合体するだけでスピリットの**体数が増えない**ので、上限の対象外
-    if (!flashSummon && state.phase === "main" && braveTargetInstanceId === undefined) {
-        const cap = maxSpiritsOnField(state)
-        if (cap !== null && player.field.spirits.length >= cap) {
-            return `効果により、スピリットは${cap}体までしか召喚できません`
-        }
-    }
-
-    // 相手からの「コストX以下のスピリットはターンにN体まで」制限（BS08夢想法師サンゾール）
-    const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
-    if (summonLimitError) return summonLimitError
-
-    // 相手からの「効果の記述を持つスピリットはターンにN枚まで」制限（BS12-071未完成の古代戦艦：帆Lv2）
-    const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
-    if (summonLimitByEffectError) return summonLimitByEffectError
+    const denial = summonDenial(state, { pid, cardId, from: "hand", cause: "normal", braveTargetInstanceId, ...(flashSummon ? { flash: true as const } : {}) })
+    if (denial) return denial
 
     // 【神速】召喚の支払い制限：基礎ルールではリザーブからのみ支払える。
     // kind:"sokuPaySourceGrant"（旋風渦巻く渓谷Lv2／甲殻戦士ロングホーンLv2-3）が
@@ -383,74 +369,6 @@ export function validateSummon(
     return null
 }
 
-// フィールドに置けるスピリット数の上限（globalConstraint "maxSpiritsOnField"）。
-// 両陣営のフィールドを走査し、レベル有効な発生源があればその max を返す（複数あれば最も厳しい値）
-function maxSpiritsOnField(state: GameState): number | null {
-    let cap: number | null = null
-    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
-        const player = state.players[ownerPid]
-        for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-            const level = currentLevel(inst).level
-            for (const effect of getCard(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== "maxSpiritsOnField") continue
-                if (!entryActive(state, ownerPid, inst, effect, level)) continue
-                noteCoverage(effect, "globalConstraint")
-                const max = effect.constraint.max
-                cap = cap === null ? max : Math.min(cap, max)
-            }
-        }
-    }
-    return cap
-}
-
-// globalConstraint "summonLimitByCostForOpponent"（BS08夢想法師サンゾール：相手はコスト4以下を
-// ターンに1体まで）: pidの**相手**フィールドにこの制約の発生源があれば、pid自身のこのターンの
-// 該当コスト以下の召喚数（CardInstance.summonedTurnで計測）が上限に達していないか検証する
-function summonLimitByCostForOpponentError(state: GameState, pid: PlayerId, card: CardData): string | null {
-    const opponent = state.players[opponentOf(pid)]
-    for (const inst of [...opponent.field.spirits, ...opponent.field.nexuses]) {
-        const level = currentLevel(inst).level
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "summonLimitByCostForOpponent") continue
-            if (!entryActive(state, opponentOf(pid), inst, effect, level)) continue
-            const { maxCost, limit } = effect.constraint
-            if (card.cost > maxCost) continue
-            const countThisTurn = state.players[pid].field.spirits.filter(
-                (s) => s.summonedTurn === state.turn && getCard(s.cardId).cost <= maxCost,
-            ).length
-            if (countThisTurn >= limit) {
-                return `効果により、コスト${maxCost}以下のスピリットはこのターンあと召喚できません`
-            }
-        }
-    }
-    return null
-}
-
-// globalConstraint "summonLimitByEffectForOpponent"（BS12-071未完成の古代戦艦：帆Lv2）：
-// summonLimitByCostForOpponentの兄弟。コストでなく「効果の記述を持つ」スピリットカードで絞る
-function summonLimitByEffectForOpponentError(state: GameState, pid: PlayerId, card: CardData): string | null {
-    const opponent = state.players[opponentOf(pid)]
-    for (const inst of [...opponent.field.spirits, ...opponent.field.nexuses]) {
-        const level = currentLevel(inst).level
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "summonLimitByEffectForOpponent") continue
-            if (!entryActive(state, opponentOf(pid), inst, effect, level)) continue
-            if (isVanillaCard(card)) continue
-            const { limit } = effect.constraint
-            const countThisTurn = state.players[pid].field.spirits.filter(
-                (s) => s.summonedTurn === state.turn && !isVanillaCard(getCard(s.cardId)),
-            ).length
-            if (countThisTurn >= limit) {
-                return "効果により、効果の記述を持つスピリットはこのターンあと召喚できません"
-            }
-        }
-    }
-    return null
-}
-
 // 【烈神速】：お互いのアタックステップのフラッシュタイミングで、トラッシュのコア5個以上を
 // 自分のフィールド/リザーブに好きに置くことで、コストを支払わず手札から召喚する（BS16-X03）。
 // 【神速】とは別のキーワードなので validateSummon の flashSummon 判定には乗せず、専用の検証にする
@@ -472,11 +390,7 @@ export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handI
     // 案B-inside: trashCores には[ソウルコア]が含まれるため、烈神速の閾値は数値だけで見てよい
     if (player.trashCores < 5) return "自分のトラッシュのコアが5個以上必要です"
     if (!canPayFreeSummonSurcharge(state, pid, card)) return "相手の効果による召喚の追加コストを払えません"
-    const summonLimitError = summonLimitByCostForOpponentError(state, pid, card)
-    if (summonLimitError) return summonLimitError
-    const summonLimitByEffectError = summonLimitByEffectForOpponentError(state, pid, card)
-    if (summonLimitByEffectError) return summonLimitByEffectError
-    return null
+    return summonDenial(state, { pid, cardId, from: "hand", cause: "normal", flash: true })
 }
 
 // メインステップの1:1交換（docs/design/SOULCORE.md §1.4）: [ソウルコア]1個と通常コア1個を同時に交換する

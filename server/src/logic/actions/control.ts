@@ -13,7 +13,7 @@ import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { burstSummonBlocked } from "../summon"
+import { summonDenial } from "../summonGate"
 import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
@@ -299,11 +299,12 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
     // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
-    if (burstSummonBlocked(state, owner, cardId, true)) {
+    const denial = summonDenial(state, { pid: owner, cardId, from: "burst", cause: "effect", viaBurstAction: true })
+    if (denial) {
         player.burst = null
         player.burstSet = false
         player.trashCards.push(cardId)
-        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${card.name}をトラッシュへ置いた。`)
+        log(state, `${sourceName}：${denial}：${card.name}をトラッシュへ置いた。`)
         return
     }
     // 器BS16（P069/P070）：ブレイヴカードのバースト召喚は、合体条件を満たすホストが自分のフィールドに
