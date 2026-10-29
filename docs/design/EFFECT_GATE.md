@@ -44,6 +44,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
   | どの耐性を無視するか | すべて（「一切の」「すべての」）／陣営（「相手の効果では」「お互いの」）／耐性の名前（「装甲」を含む・【PS装甲】・【弾幕】・【転神】…）／発生源の属性（色・コスト・カードの種類）。それぞれ「〜では防げない」（それを無視）と「〜以外では防げない」（それ以外を無視）の向きがある | 【龍射撃】＝すべて、サンダー・Z・バイソン＝「効果名に『装甲』を含む効果では防げない」 |
 - 「指定アタック」も貫通の対象なので、**効果による指定アタックは問い合わせに入れる**（§3 の「入れない候補」から外す。【装甲】が防いでいるのは効果による指定）
 - 例外：「フィールドに残る」効果（破壊後に待機から戻る）は防ぐ効果ではないので、貫通されても働く（同ページの裁定）。効果そのものを発揮できなくする（【レーザーボレー】の無効など）も貫通とは別
+- **量の制限も同じ枠に入れる**（`coreFloor*`「N個より減らない」・`millCap`・`lifeDamagePerSpiritPerTurn` など）。問い合わせの答えは「止める／許す」に加えて「Nまで許す」を返す。量の制限も防ぐ効果なので貫通される（2026-10-29 ユーザー確認）
 - **防ぐ効果ではないので貫通されないもの**：対象の変更（【影武者】【煌空蝉】。Q7415）、「対象にならない」（2026-10-29 ユーザー見解：効果を防ぐところには効いていない）。今の `ResistanceCategory` では `untargetable`・`magicRedirect`・`meisai`（指定時のコスト要求）がこちら
 
 ## 3. 分類（たたき台。ユーザーと1行ずつ精査する）
@@ -57,10 +58,10 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 | 戻す | `allSpiritsCantBounce`・`immunityGrant` | |
 | 手札に加える | `noHandGainByEffect`・`noTrashRecovery`・`opponentCantReturnFromTrashToHand`・`handGainBlocked` | ? ドロー（デッキが無いと敗北）は「手札に加える」と別の問い合わせか |
 | ドロー | `noDrawInMain`・`noDrawOutsideDrawStep` | |
-| 破棄（トラッシュに置く） | `noDeckMill`・`noDeckMillByOpponent`・`noDeckMillInMain`・`millCap`・`noHandDiscardByEffect`・`noHandDiscardInMain`・`handImmuneForPid` | ? `millCap`（枚数の上限）は禁止か、量を変えるもの（置換寄り）か |
-| コアを取り除く | `coresCantBeRemoved`・`coresCantBeRemovedAll`・`coresCantBeRemovedByOpponent`・`battlingCoresProtected`・`coreFloorByCost` 等 | ? `coreFloor*`（N個より減らない）は量の制限で、許す／止めるではない |
+| 破棄（トラッシュに置く） | `noDeckMill`・`noDeckMillByOpponent`・`noDeckMillInMain`・`millCap`・`noHandDiscardByEffect`・`noHandDiscardInMain`・`handImmuneForPid` | `millCap` は量の制限（§2.5） |
+| コアを取り除く | `coresCantBeRemoved`・`coresCantBeRemovedAll`・`coresCantBeRemovedByOpponent`・`battlingCoresProtected`・`coreFloorByCost` 等 | `coreFloor*` は量の制限（§2.5） |
 | コアを置く | `noVoidToLife`・`coreGainCap`・`voidCoreBlockedOutsideCoreStep` | |
-| ライフを減らす | `lifeImmuneForPid`・`ownLifeFloor`・`noLifeDamageByCost`・`ownLifeImmuneToSpiritEffects`・`cantReduceOpponentLife*`・`lifeDamagePerSpiritPerTurn` | ? 「1回に減るのはN個まで」は量の制限 |
+| ライフを減らす | `lifeImmuneForPid`・`ownLifeFloor`・`noLifeDamageByCost`・`ownLifeImmuneToSpiritEffects`・`cantReduceOpponentLife*`・`lifeDamagePerSpiritPerTurn` | 「1回に減るのはN個まで」は量の制限（§2.5） |
 | 疲労 | `exhaustImmunityGrant`・`opponentNexusesUnexhaustable`・`exhaustPreventByPay` | 払って防ぐ（`exhaustPreventByPay`・`targetNegateByHandDiscard`）は問い合わせの答えが「払えば止まる」になる |
 | 回復 | `noRefresh`・`noRefreshByAnyEffect`・`noRefreshByNexusOrMagic`・`nexusesCantRefresh`・`opponentCombinedCantRefresh` | |
 | 合体／分離 | `cantCombine`・`cantSeparate`・`opponentCantSpiritStateBrave` | |
