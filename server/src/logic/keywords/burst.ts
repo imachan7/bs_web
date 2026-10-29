@@ -373,8 +373,6 @@ export function fireBurstOnEvent(
         }
         announceBurstActivation(state, holderPid, burstCardId)
         const before = fieldInstanceIdsOf(state, holderPid)
-        // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
-        state.resolvingBurstPid = holderPid
         // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
         if (distinctCosts.length > 0) state.burstEventCost = Math.max(...distinctCosts)
         else delete state.burstEventCost
@@ -397,8 +395,9 @@ export function fireBurstOnEvent(
             undefined,
             undefined,
             burstCardId,
+            undefined,
+            true,
         )
-        delete state.resolvingBurstPid
         continueBurstActivation(state, {
             kind: "burstFinish",
             stage: "finish",
@@ -436,14 +435,12 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     const baseAction: EffectAction = (ignoreCondition || burstConditionMet(state, owner, effect.condition)) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }
     const actionToRun = withEffectTax(state, owner, "burst", cardId, baseAction)
     const before = fieldInstanceIdsOf(state, owner)
-    state.resolvingBurstPid = owner
     if (ignoreCondition) {
         delete state.burstEventCost
         delete state.burstEventColors
         delete state.burstEventLifeDamagerId
     }
-    resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId)
-    delete state.resolvingBurstPid
+    resolveAction(state, owner, null, actionToRun, undefined, magicEffectiveColors(state, owner, card), card.type, undefined, undefined, cardId, undefined, true)
     continueBurstActivation(state, {
         kind: "burstFinish",
         stage: "finish",

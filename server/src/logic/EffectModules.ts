@@ -1580,6 +1580,8 @@ export function resolveAction(
     chosenCardIndex?: number,
     sourceCardId?: string,
     paySources?: PaySource[],
+    // バースト効果の入口（burst.ts／choice.ts／handBurstEffect.ts）だけが true を渡す。入れ子と再開は下で引き継ぐ
+    burst?: true,
 ): void {
     // 召喚時効果を発揮した印。pay は払えないと発動していないので、確認を済ませたか払った時点で付ける（pay.ts）
     if (self !== null && state.summonEffectSource?.instanceId === self.instanceId && action.type !== "pay") state.summonEffectSource.resolved = true
@@ -1640,7 +1642,14 @@ export function resolveAction(
     // ネストした resolveAction は自分の値で上書きし、抜けるときに前の値へ戻す
     const outerEffectSource = state.currentEffectSource
     const isOutermostEffect = outerEffectSource === undefined
+    // 引き継ぐのは「インスタンスを持たない同じカードの解決」だけ（バーストで召喚されたスピリットの召喚時効果は引き継がない）
+    const resumed = state.resumeBurst
+    const inBurst =
+        burst === true ||
+        (outerEffectSource?.burst === true && self === null && owner === outerEffectSource.pid && srcCardId === outerEffectSource.cardId) ||
+        (outerEffectSource === undefined && resumed !== undefined && self === null && owner === resumed.pid && (srcCardId === undefined || srcCardId === resumed.cardId))
     state.currentEffectSource = {
+        ...(inBurst ? { burst: true as const } : {}),
         pid: owner,
         ...(srcType !== undefined ? { type: srcType } : {}),
         ...(srcColors !== undefined ? { colors: srcColors } : {}),

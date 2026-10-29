@@ -43,9 +43,7 @@ export function doUseHandBurstEffect(
     delete state.burstEventCost
     delete state.burstEventColors
     delete state.burstEventLifeDamagerId
-    state.resolvingBurstPid = pid
-    resolveAction(state, pid, null, action, undefined, magicEffectiveColors(state, pid, card), card.type, undefined, undefined, cardId)
-    delete state.resolvingBurstPid
+    resolveAction(state, pid, null, action, undefined, magicEffectiveColors(state, pid, card), card.type, undefined, undefined, cardId, undefined, true)
     continueBurstActivation(state, {
         kind: "burstFinish",
         stage: "finish",

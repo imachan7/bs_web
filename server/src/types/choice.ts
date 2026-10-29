@@ -10,6 +10,7 @@ import type { EffectAction } from "./effectAction"
 export interface PendingChoice {
     pid: PlayerId // 選択するプレイヤー
     recordScope?: string
+    burst?: { pid: PlayerId; cardId: string } // 中断した効果がバースト効果そのものだったか（再開時に GameState.resumeBurst へ戻す）
     flashEffect?: true // 中断した効果がフラッシュ効果だったか（再開時に GameState.flashEffect へ戻す）
     confirmTargetInstanceId?: string // confirm を承認したら resolveAction に渡す効果の対象（イベント対象）
     effectSource?: { type?: CardType; colors?: Color[] } // 中断した効果の発生源の種別・色。再開時に渡し直す（渡さないとマジックの効果が種別なしで続き、耐性や封印された魔導書が効かない）
@@ -296,6 +297,7 @@ export type ResumeFrame =
           action: EffectAction
           actorPid?: PlayerId // 省略時は再開を駆動している側の pid として解決する
           recordScope?: string
+          burst?: { pid: PlayerId; cardId: string } // 積んだ時点でバースト効果そのものを解決中だった
           // ここから下は fieldEvent 誘発の残りを積むときに使う（2026-08-17）。
           // fieldEvent は「self＝イベント対象／発生源＝エントリを持つカード」がずれることがあり、
           // 発生源の色・種別を渡さないと装甲やマジック効果耐性の判定が self 側から導出されて誤る

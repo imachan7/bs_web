@@ -1720,7 +1720,7 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
                 // targetSide:"opponent"＝発生源の持ち主から見た相手のスピリットから取り除くときだけ
                 if (e.targetSide === "opponent" && targetOwnerPid === pid) continue
                 // ownBurstOnly＝発生源の持ち主のバースト効果を解決している間だけ
-                if (e.ownBurstOnly && state.resolvingBurstPid !== pid) continue
+                if (e.ownBurstOnly && !(state.currentEffectSource?.burst && state.currentEffectSource.pid === pid)) continue
                 noteCoverage(e, "coreReturnBonus")
                 bonus += e.amount
             }

@@ -81,3 +81,8 @@ fireCorePlacedFromDiff() … 増えた側だけを合計して "opponentCorePlac
 - 効果文の『』ブロックの範囲: [CONJUNCTION.md](./CONJUNCTION.md)
 
 **選択をまたぐとき**（2026-09-27）：`suspend` が `currentEffectSource` の種別・色を `PendingChoice.effectSource` に控え、`doResolveChoice` が再開の `resolveAction` に渡し直す。これが無いと、マジックの効果が選択のあと種別なしで続き、「マジックの効果を受けない」や封印された魔導書が効かなかった。組み合わせ方（`sequence`・`if`・`pay`・`declare`）は `ctx.resolve` に `sourceColors`・`sourceType` を明示して渡す（`ctx.resolve` は暗黙には引き継がない）
+
+## バースト効果の文脈（`burst`。2026-10-30）
+
+- `currentEffectSource.burst` は「バースト効果そのものを解決中」。入口4か所（`keywords/burst.ts` の2か所・`choice.ts` のバースト確認後・`handBurstEffect.ts`）が立て、入れ子は発生源のインスタンスが無く同じカード・同じ持ち主の解決だけが引き継ぐ。バースト効果で召喚されたスピリットの召喚時効果はそのスピリットの効果なので引き継がない
+- 選択待ち（`PendingChoice.burst`）・再開スタック（`ResumeFrame` の `burst`）に保存し、再開時に `resumeBurst` を経由して戻す（再開直後は外側の `currentEffectSource` が無く、一番外側の判定を崩さないため）
