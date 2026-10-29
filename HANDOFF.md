@@ -21,6 +21,11 @@
 
 ## 1. いまの本線と次の一手
 
+### 次の候補：専用 type の統一（10-27 計画のみ）
+
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 0 は取り消し（STANDARD_POOL_ONLY）。PR 3a `discard`＝#304・3b 小物＝#305（#304 のマージ後に main を取り込んで衝突を解く）。次は PR 1（破壊）。PR 1・2 は §2 の A・B（10-29 決定）に従う。秘宝島の破壊時が不発だった件は #303
+- 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
+
 ### 既知の残り：entryActive（10-23）
 
 - keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した（ENTRY_ACTIVE.md）
