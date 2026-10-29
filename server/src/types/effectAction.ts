@@ -89,7 +89,7 @@ export type EffectAction =
  | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
  | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）
  | { type: "returnOwnNexusToDeckBottom"; filter?: TargetFilter } // 自分のネクサス1つ（filter に合うもの）を持ち主のデッキの下に戻す（破壊ではない。コスト用。選ぶのは持ち主）
- | { type: "returnNexusToHand"; count: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す。anySide の自動選択は相手の先頭ネクサス。voidCoreToOwnTrashIfOpponent＝戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ。all＝countを無視しside（省略時はopponent）が指すすべてのネクサス
+ | { type: "returnNexusToHand"; count: number; bounceProgress?: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す。anySide の自動選択は相手の先頭ネクサス。voidCoreToOwnTrashIfOpponent＝戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ。all＝countを無視しside（省略時はopponent）が指すすべてのネクサス
  // dest:"deckTop"指定時は「手札に戻す」の代わりに持ち主のデッキの上に戻す（returnNexusToDeckTop）
  | { type: "refreshSelf" } // このスピリット自身を回復させる（selfがnull/既に回復状態ならno-op）
  | { type: "lifeCrush"; count: number; countCounter?: EffectCounter; countMax?: number; dest?: "trash" | "void"; neverZero?: true } // 相手のライフのコアcount個を相手のリザーブへ。dest:"trash"は相手のトラッシュ（再利用されないぶんリソースが減る）、"void"はゲームから取り除く。neverZero＝**この効果によっては**相手のライフを0にしない（下限1。このアクション自身だけの下限）。ライフ0以下で勝敗決定
