@@ -5026,8 +5026,9 @@
       },
       {
         "id": "BS12-072-e2",
-        "kind": "triggered",
-        "trigger": "onDestroy",
+        "kind": "fieldEvent",
+        "event": "ownNexusDestroyed",
+        "selfMode": "source",
         "levels": [
           2
         ],
