@@ -352,7 +352,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
@@ -945,7 +946,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
@@ -1555,7 +1557,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
@@ -2239,7 +2242,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
@@ -2889,7 +2893,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
@@ -3541,7 +3546,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,
@@ -4089,7 +4095,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "keywordFilter": "tensho",
      "skipTensho": true,
      "payCost": true,

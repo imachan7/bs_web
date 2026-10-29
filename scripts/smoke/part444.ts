@@ -147,7 +147,7 @@ console.log("=== triggered.burstSummonOnly：バーストでの召喚でのみ�
     const CARD = makeCard("T444-BURST", {
         cost: 1,
         effects: [
-            { id: "b1", kind: "burst", event: "ownLifeDamaged", action: { type: "summonBurstCardFree" } },
+            { id: "b1", kind: "burst", event: "ownLifeDamaged", action: { type: "summon", from: "burst" } },
             {
                 id: "b2",
                 kind: "triggered",

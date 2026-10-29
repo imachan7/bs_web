@@ -48,7 +48,8 @@
      "ownLifeAtMost": 3
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -417,7 +418,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -946,7 +948,8 @@
      "ownLifeAtMost": 2
     },
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "colorFilter": "green",
      "count": 1
     },

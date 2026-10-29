@@ -51,7 +51,7 @@ console.log("=== コストを支払わない召喚でも、召喚時効果が発
     const enemiesBefore = s.players.p2.field.spirits.length
     assert(enemiesBefore === 2, "相手に BP3000以下が2体いる（前提）")
 
-    resolveAction(s, "p1", src, { type: "summonFromHandFree", nameIncludes: "ジーク", skipTensho: true })
+    resolveAction(s, "p1", src, { type: "summon", from: "hand", nameIncludes: "ジーク", skipTensho: true })
 
     assert(s.players.p1.field.spirits.some((x) => x.cardId === CRIMSON), "手札のジークが場に出た")
     assert(s.players.p1.hand.length === 0, "手札から抜けている")
@@ -84,7 +84,7 @@ console.log("=== 「召喚されたとき」のフィールド誘発も発火す
     s.players.p1.field.spirits.push(src2)
     s.players.p1.hand = [SOJU]
     const deckBefore = s.players.p1.deck.length
-    resolveAction(s, "p1", src2, { type: "summonFromHandFree", skipTensho: true })
+    resolveAction(s, "p1", src2, { type: "summon", from: "hand", skipTensho: true })
     assert(s.players.p1.field.spirits.some((x) => x.cardId === SOJU), "想獣が場に出た")
     assert(s.players.p1.deck.length === deckBefore - 1, "「召喚されたとき」の誘発でカードを1枚引いた")
 }

@@ -519,7 +519,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "familyFilter": "竜人"
     }
@@ -2120,7 +2121,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "familyFilter": "氷姫"
     }
@@ -2248,7 +2250,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "costFilter": 2
     }
@@ -2479,7 +2482,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "familyFilter": "想獣"
     }
@@ -3894,7 +3898,8 @@
     "turn": "opponent",
     "colorFilter": "yellow",
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "nameIncludes": "ペンタン"
     },

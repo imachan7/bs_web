@@ -10,7 +10,7 @@ import { fieldCoresSpendable } from "./actions/moveCards"
 
 // batch＝1つの効果で複数体を同時に召喚している（召喚は1回なので余分も1回）。単発の召喚は毎回払う。
 // 払い済みの印は複数体を召喚する効果の1枚目（moveCards）と handleAction の末尾で消す。
-// ponytail: 選択待ちを挟まずに1回の操作の中で「複数体を召喚する効果」が2つ続くと、オープン／summonFromHandFree の側は印を消さないので2つ目の余分が無料になる。起きたら効果の開始時に印を消す
+// ponytail: 選択待ちを挟まずに1回の操作の中で「複数体を召喚する効果」が2つ続くと、オープン／summon{from:"hand"} の側は印を消さないので2つ目の余分が無料になる。起きたら効果の開始時に印を消す
 export function surchargeOwed(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean): number {
     const n = summonSurcharge(state, pid, cardData)
     return n > 0 && batch && state.summonSurchargePaid === pid ? 0 : n

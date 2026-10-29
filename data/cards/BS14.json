@@ -1158,7 +1158,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -2829,7 +2830,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "costFilter": {
       "max": 2
      },
@@ -3412,7 +3414,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3756,7 +3759,8 @@
     "byOpponentEffectOnly": true,
     "destroyedColorFilter": "blue",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3973,7 +3977,8 @@
         "atLeast": 3
        },
        "then": {
-        "type": "summonBurstCardFree"
+        "type": "summon",
+        "from": "burst"
        }
       }
      ]
@@ -7079,7 +7084,8 @@
         }
        },
        {
-        "type": "summonBurstCardFree"
+        "type": "summon",
+        "from": "burst"
        }
       ]
      }
@@ -7267,7 +7273,8 @@
         "atLeast": 8
        },
        "then": {
-        "type": "summonBurstCardFree"
+        "type": "summon",
+        "from": "burst"
        }
       }
      ]
@@ -7355,7 +7362,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -7647,7 +7655,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {

@@ -237,7 +237,8 @@
       ]
      },
      "then": {
-      "type": "summonFromHandFree",
+      "type": "summon",
+      "from": "hand",
       "familyFilter": [
        "神星"
       ]
@@ -860,7 +861,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "combineNameIncludes": "アポロ",
      "thenRefreshCombinedHost": true
@@ -1089,7 +1091,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "nameIncludes": "アポロ"
     }
    },
@@ -2337,7 +2340,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "thenDraw": 1
     }
@@ -3415,7 +3419,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "thenDraw": 1
     }
@@ -4593,7 +4598,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "thenDraw": 1
     }
@@ -4953,7 +4959,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "nameIncludes": "ペンタン"
     }
    }
@@ -5713,7 +5720,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "thenDraw": 1
     }
@@ -6893,7 +6901,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "thenDraw": 1
     }

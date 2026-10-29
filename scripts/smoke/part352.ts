@@ -125,7 +125,7 @@ console.log("=== 5. サテライド・バード：このターンの間バース
     s.players.p1.burstSet = true
     s.players.p1.reserve = 5
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "summonBurstCardFree" })
+    resolveAction(s, "p1", null, { type: "summon", from: "burst" })
     assert(s.players.p1.burst === null, "バースト自体は消費される（発動は止めない）")
     assert(s.players.p1.field.spirits.length === before, "スピリットは場に出ない")
     assert(s.players.p1.trashCards.includes(BURST_SPIRIT), "召喚できなかったバーストはトラッシュへ")
@@ -138,7 +138,7 @@ console.log("=== 6. サテライド・バード：制約が無ければバース
     s.players.p1.burstSet = true
     s.players.p1.reserve = 5
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "summonBurstCardFree" })
+    resolveAction(s, "p1", null, { type: "summon", from: "burst" })
     assert(s.players.p1.field.spirits.length === before + 1, "制約が無ければ通常どおり召喚される")
 }
 

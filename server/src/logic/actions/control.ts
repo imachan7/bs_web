@@ -1,6 +1,6 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoUnpayable } from "../keywords/tensho"
@@ -272,7 +272,7 @@ const forceEndMainStepHandler: ActionHandler<"forceEndMainStep"> = (ctx, action)
 // スピリット/ネクサスのみ（マジックには書かない。validate:cardsが検査する）。
 // **バースト発動の確認応答は self=null で解決される**ため、対象カードは state.players[owner].burst
 // から読む（burst は承認された時点でもまだ非公開のまま残っている＝この関数がここで空にする）
-const summonBurstCardFreeHandler: ActionHandler<"summonBurstCardFree"> = (ctx, action) => {
+export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<EffectAction, { type: "summon"; from: "burst" }>): void {
     const { state, owner, sourceName } = ctx
     const player = state.players[owner]
     const cardId = player.burst
@@ -522,7 +522,6 @@ const handlers = {
     if: ifHandler,
     openAwakenMode: openAwakenModeHandler,
     forceEndMainStep: forceEndMainStepHandler,
-    summonBurstCardFree: summonBurstCardFreeHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     setBurstFromHand: setBurstFromHandHandler,
     payNegateDecide: payNegateDecideHandler,

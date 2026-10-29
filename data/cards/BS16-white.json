@@ -284,7 +284,8 @@
       }
      },
      "then": {
-      "type": "summonBurstCardFree"
+      "type": "summon",
+      "from": "burst"
      }
     }
    },
@@ -375,7 +376,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -851,7 +853,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true
     }
    },

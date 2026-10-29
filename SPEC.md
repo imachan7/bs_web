@@ -90,7 +90,7 @@ Wiki からの取り込みは `scripts/fetch_wiki_cards.py` に常設化した�
   上書きを優先参照、rawLevel で発生源の再帰回避）＋バッチ4のデータ入れ忘れ修正1枚（BS02-081
   緑芽吹く原野＝ownMagicUsed のエンジンだけ実装されデータ未登録だった）＋バッチ7の系統付与・無料召喚
   （BS02-054 ポム・082 尖兵の familyGrant/aura familyFilter、034 トレントン・048 アースガルドの
-  summonFromHandFree。spiritHasFamily で系統参照を状態対応化）＋波1（2026-07-18 再開。
+  summon{from:"hand"}。spiritHasFamily で系統参照を状態対応化）＋波1（2026-07-18 再開。
   波1a: プレシオス・ラングリーズ・スクルディアe1・花の子リップ・決闘台地e2 —
   destroyAllNexusesExceptChosenColors・destructionCoresToOwnSpirit・noRefresh・
   fieldEvent ownSpiritBlocked/condition・levelOverrideTarget・refreshOne all を新設。
@@ -672,7 +672,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 デッキ上 count 枚を公開し、その中の**指定キーワードを静的に持つスピリットカード**1枚をコストを支払わず召喚、
 残りはすべてトラッシュへ破棄する。
 
-- **召喚時効果は通常どおり発揮する**。`summonFromHandFree` / `summonFromTrashFree` は効果文に
+- **召喚時効果は通常どおり発揮する**。`summon{from:"hand"}` / `summonFromTrashFree` は効果文に
   「この効果で召喚されたスピリットの召喚時効果は発揮されない」と書かれているのでそれを再現しているが、
   このカードには**その記載が無い**
 - **【転召】は解決しない**。「【転召】を発揮したものとして」＝**転召を済ませたものとして扱う**の意味で、
@@ -697,12 +697,12 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | 経路 | 召喚時効果 | 【転召】 |
 | :-- | :-- | :-- |
 | 通常召喚（`doSummon`） | 発揮する | 行う |
-| `summonFromHandFree`（トレントン／ディバインウィンド／天使長ソフィア 等） | **発揮する**（2026-08-17 修正） | **行う** |
+| `summon{from:"hand"}`（トレントン／ディバインウィンド／天使長ソフィア 等） | **発揮する**（2026-08-17 修正） | **行う** |
 | `summonFromTrashFree`（妖狐キュービック） | **発揮する**（2026-08-17 修正） | **行う** |
 | `summonRepeatFromHand`（天使長セラフィー／兵隊アントマン） | 発揮しない | **行う** |
 | `revealAndSummonKeyword`（トランスマイグレーション） | 発揮する | **行わない**（「発揮したものとして」の明記があるため） |
 
-**例外は効果文に明記があるカードだけ**（2026-08-20）。`summonFromHandFree` の
+**例外は効果文に明記があるカードだけ**（2026-08-20）。`summon{from:"hand"}` の
 `skipTensho`（「【転召】させずに召喚できる」）と `skipOnSummon`（「ただし、『このスピリットの召喚時』効果は
 発揮されない」）は、その但し書きを持つカードにだけ付ける。BS08帝竜騎サイクル6枚が両方を持つ。
 同じく `payCost: true` は「コストを支払わずに」の記載が**無い**カード用で、通常の召喚コストを支払う

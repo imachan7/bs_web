@@ -318,7 +318,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       },
       {
        "type": "if",
@@ -1046,7 +1047,8 @@
       }
      },
      "then": {
-      "type": "summonBurstCardFree"
+      "type": "summon",
+      "from": "burst"
      }
     }
    },
@@ -1379,7 +1381,8 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -2093,7 +2096,8 @@
       "type": "sequence",
       "actions": [
        {
-        "type": "summonBurstCardFree"
+        "type": "summon",
+        "from": "burst"
        },
        {
         "type": "forceEndMainStep"
@@ -2239,7 +2243,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "skipOnSummon": true
     }
@@ -2894,7 +2899,8 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3201,7 +3207,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3751,7 +3758,8 @@
        "count": 2
       },
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       }
      ]
     }
@@ -3835,7 +3843,8 @@
        "count": 1
       },
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       }
      ]
     }
@@ -3933,7 +3942,8 @@
        "side": "own"
       },
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       }
      ]
     }
@@ -5414,7 +5424,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "colorFilter": [
       "red",
@@ -5710,7 +5721,8 @@
        }
       },
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       }
      ]
     }
@@ -5806,7 +5818,8 @@
      "ownLifeAtMost": 3
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6070,7 +6083,8 @@
       "atMost": 3
      },
      "then": {
-      "type": "summonBurstCardFree"
+      "type": "summon",
+      "from": "burst"
      }
     }
    },
@@ -6158,7 +6172,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "familyFilter": "雄将"
     }
    },

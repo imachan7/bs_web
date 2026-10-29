@@ -1249,14 +1249,14 @@ export function validateActivateAbility(
             return "コアが足りません"
         }
     }
-    // 26系【Fチェンジ】「1枚をコストを支払わずに召喚しなければならない」: summonFromHandFree に
+    // 26系【Fチェンジ】「1枚をコストを支払わずに召喚しなければならない」: summon{from:"hand"} に
     // requireCandidate があるとき、手札に候補が1枚もなければ起動自体を拒否する
     // （受理すると「バウンスだけ起きて必須の召喚が不発」が起きるため。sequence/if の中も走査）
     for (const action of effectActionsDeep(effect.action)) {
         if (action.type === "moveCards" && action.requireCandidate === true) {
             if (moveCardCandidates(state, pid, action, undefined, inst.cardId).length === 0) return "手札に召喚できる対象がありません"
         }
-        if (action.type === "summonFromHandFree" && action.requireCandidate === true) {
+        if (action.type === "summon" && action.from === "hand" && action.requireCandidate === true) {
             const hasCandidate = state.players[pid].hand.some((cardId) =>
                 summonFromHandFreeCandidateMatches(state, pid, inst, action, cardId),
             )
@@ -1266,7 +1266,7 @@ export function validateActivateAbility(
     return null
 }
 
-// 起動効果の action ツリーから summonFromHandFree 等を再帰的に収集する
+// 起動効果の action ツリーから summon{from:"hand"} 等を再帰的に収集する
 // （sequence の actions 配列と if/then/else の分岐を辿る。他の容器型は候補事前判定に不要なので無視）
 function effectActionsDeep(action: EffectAction, acc: EffectAction[] = []): EffectAction[] {
     acc.push(action)

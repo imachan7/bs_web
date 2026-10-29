@@ -57,7 +57,7 @@ console.log("=== 2. summonFromHandFree.symbolCount ===")
 {
     const s = game("c2")
     const m = (cardId: string, symbolCount?: number): boolean =>
-        summonFromHandFreeCandidateMatches(s, "p1", null, { type: "summonFromHandFree", ...(symbolCount !== undefined ? { symbolCount } : {}) }, cardId)
+        summonFromHandFreeCandidateMatches(s, "p1", null, { type: "summon", from: "hand", ...(symbolCount !== undefined ? { symbolCount } : {}) }, cardId)
     assert(m(TWO_SYMBOL, 2), "2シンボルのカードは symbolCount:2 に合う")
     assert(!m(VANILLA, 2), "1シンボルのカードは symbolCount:2 に合わない")
     assert(m(VANILLA, 1) && !m(TWO_SYMBOL, 1), "symbolCount:1 は1シンボルだけ（ちょうど）")

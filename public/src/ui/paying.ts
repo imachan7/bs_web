@@ -72,7 +72,7 @@ export function payingRemaining(view: GameView, paying: PayingState): number {
 export interface PayingState {
     handIndex: number
     // 選択待ち（pendingChoice）の解決として送る場合の手札インデックス。
-    // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル＝summonFromHandFree の payCost）で、
+    // 「コストを支払って召喚できる」起動効果（BS08帝竜騎サイクル＝summon{from:"hand"} の payCost）で、
     // リザーブだけでは払えないときに通常の召喚と同じ支払いUIを流用するためのもの。
     // 立っているときは summon ではなく resolveChoice を送る（2026-08-23）
     forChoiceCardIndex?: number

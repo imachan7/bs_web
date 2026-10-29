@@ -587,7 +587,8 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -1233,7 +1234,8 @@
       }
      },
      "then": {
-      "type": "summonBurstCardFree"
+      "type": "summon",
+      "from": "burst"
      }
     }
    },
@@ -1775,7 +1777,8 @@
       }
      },
      "then": {
-      "type": "summonBurstCardFree"
+      "type": "summon",
+      "from": "burst"
      }
     }
    },
@@ -2264,7 +2267,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3122,7 +3126,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3671,7 +3676,8 @@
       "atMost": 2
      },
      "then": {
-      "type": "summonBurstCardFree"
+      "type": "summon",
+      "from": "burst"
      }
     }
    },
@@ -3913,7 +3919,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "symbolCount": 2,
      "skipOnSummon": true
     }
@@ -4747,7 +4754,8 @@
     "oncePerTurn": true,
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "nameIncludes": "グリム"
     }
    },
@@ -5686,7 +5694,8 @@
      "keepScope": true,
      "actions": [
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       },
       {
        "type": "if",
@@ -5923,7 +5932,8 @@
      "ownLifeAtMost": 3
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6021,7 +6031,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6295,7 +6306,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6385,7 +6397,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6475,7 +6488,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6565,7 +6579,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6655,7 +6670,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6748,7 +6764,8 @@
      "ownLifeAtMost": 3
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -6847,7 +6864,8 @@
      "ownLifeAtMost": 3
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {

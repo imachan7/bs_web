@@ -139,9 +139,13 @@
 | 順 | 今の type（データの件数） | まとめる形の案 | 着手前に確かめること |
 | :-- | :-- | :-- | :-- |
 | 7 | `summonFromHandFree`(51)・`summonBurstCardFree`(59) | `summon{from:"hand"\|"burst", pay:"free"}` | バーストからの召喚が「発動」の手順を持つか |
+
 | 8 | `destroyByBpBudget`(9)・`destroyByCostBudget`(4) | `destroy{budget:{by:"bp"\|"cost", amount}}` | 予算の数え方（BP の合計とコストの合計）以外の違い |
 | 9 | `mill`(51) | `discard{from:"deck"}`（PR 3a の器） | 【粉砕】【地鳴】の誘発・「デッキから破棄されたとき」の扱い |
 | 10 | `refreshOne`(72)・`refreshSelf`(112)・`refreshAllOwn`(9) | `refresh{target:"self"\|count\|all, side}` | `refreshAllOwn` のアタック不可の付与は `sequence`＋`timedEffect` へ分ける |
 
+- PR 7 の突き合わせ（10-29）：`summon{from:"hand"|"burst"}`。型は `to` と同じく `from` で分けた共用体。バーストからの召喚は「発動中のバーストのカード自身」を出す（ネクサスなら配置、ブレイヴは合体先を自動で選ぶ、【バースト転召】）。手札は条件に合うカードを選ぶ。軸の重なりは `payCost` だけで、ルールの手順は別なので中身は今の2つのハンドラのまま
+- 見つかったバグ（未修正）：サテライド・バードの「バースト効果でスピリットを召喚できない」は `from:"burst"` の中でしか見ておらず、翔烈降臨（バースト効果で手札から召喚）を止めない。直すには「いまバースト効果を解決中か」を選択の再開をまたいで持つ必要がある
+- 次の候補：`summonRepeatFromHand`（`mode: free|paid`）は手札からの召喚で、`summon{from:"hand"}` の `repeatWhileChosen`・`payCost` と意味が重なる。ユーザーに提案する
 - 候補（ライフの扱いは確認済み）：`lifeCrush`(27)（相手のライフを減らす）を `removeCores{from:["life"]}` に寄せられるか。自分のライフをコストで減らすときも「ライフは減らない」で止まる（2026-10-29 ユーザー確認。COST_MODEL §9）ので、止める判定は同じ。寄せるかは PR 7〜10 の後にユーザーへ提案する
 - 候補の見つけ方：type 名を動詞ごとに並べ、同じ動詞で行き先・対象だけ違う組を探す（10-29。ユーザーから「こういうのを見つけて聞いてほしい」）

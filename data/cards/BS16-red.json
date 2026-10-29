@@ -245,7 +245,8 @@
           }
         },
         "action": {
-          "type": "summonBurstCardFree"
+          "type": "summon",
+          "from": "burst"
         }
       },
       {
@@ -953,7 +954,8 @@
         "kind": "burst",
         "event": "ownLifeDamaged",
         "action": {
-          "type": "summonBurstCardFree"
+          "type": "summon",
+          "from": "burst"
         }
       },
       {

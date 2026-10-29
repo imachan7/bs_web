@@ -3405,7 +3405,8 @@
       "count": "any"
      },
      "then": {
-      "type": "summonFromHandFree",
+      "type": "summon",
+      "from": "hand",
       "familyFilter": "天霊",
       "costFilter": {
        "max": 6

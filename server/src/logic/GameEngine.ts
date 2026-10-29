@@ -1645,7 +1645,7 @@ function doActivateAbility(
         markOncePerBattleUsed(state, inst, effect.id)
     }
 
-    // 対象を見てからやめられる起動能力か（いまは summonFromHandFree.cancelable ＝ BS08帝竜騎サイクル）。
+    // 対象を見てからやめられる起動能力か（いまは summon{from:"hand"}.cancelable ＝ BS08帝竜騎サイクル）。
     // 「起動ボタンを押す → 対象を選ぶ → やめる」を、効果を発揮しなかった扱いにするための軸
     const cancelable = "cancelable" in effect.action && effect.action.cancelable === true
     delete state.effectFizzled // 前回の発動の残りを拾わないよう、毎回落としてから解決する

@@ -1200,7 +1200,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "bravesOnly": true,
      "combineToSelf": true,
      "payCost": true

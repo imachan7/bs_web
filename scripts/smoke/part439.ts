@@ -101,7 +101,7 @@ console.log("=== 4. summonFromHandFree：alsoFrom:trash＋nameExcludes＋upTo（
     s.players.p1.hand = [PIYON, ARCANA_KEN, CHUNPOPO]
     s.players.p1.trashCards.push(KORISTAL, ARCANA_KEN)
     const action = {
-        type: "summonFromHandFree" as const,
+        type: "summon" as const, from: "hand" as const,
         colorFilter: "yellow" as const,
         nameExcludes: "アルカナ",
         alsoFrom: "trash" as const,
@@ -144,7 +144,7 @@ console.log("=== 5. 非対話（自動解決）：手札とトラッシュを合
     s.players.p1.hand = [PIYON, ARCANA_KEN, CHUNPOPO]
     s.players.p1.trashCards.push(KORISTAL, ARCANA_KEN)
     const action = {
-        type: "summonFromHandFree" as const,
+        type: "summon" as const, from: "hand" as const,
         colorFilter: "yellow" as const,
         nameExcludes: "アルカナ",
         alsoFrom: "trash" as const,

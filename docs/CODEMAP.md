@@ -351,7 +351,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く（無限に湧くボイドが原資。
 - `voidCorePlacementBlocked`（fn）：globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
 - `sweepLevelCostDepletion`（fn）：継続的なレベル置換（kind: "levelAs"）を再計算する。
-- `payCost`（fn）：summonFromHandFree 共通の召喚実行部：指定した手札インデックスのスピリットを、
+- `payCost`（fn）：summon{from:"hand"} 共通の召喚実行部：指定した手札インデックスのスピリットを、
 - `findSpiritAny`（fn）：instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
 - `applyMagicBuffBonus`（fn）：騎獣スレイプホース：マジックによるBPバフ（timedEffect の bp）が対象に適用された直後にフックし、
 - `countEffectCounter`（fn）：selfBuff / timedEffect の bp / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
@@ -444,6 +444,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `returnToHandCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
 - `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
+
+## server/src/logic/actions/control.ts
+
+- `summonBurstCardFreeHandler`（fn）：バースト専用（docs/design/BURST.md）：発動中のバーストのカード自身をコストを支払わずに召喚する。
 
 ## server/src/logic/actions/cores.ts
 
@@ -627,7 +631,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `placeBurst`（fn）：バーストのセット共通処理（docs/design/BURST.md）。既にセット済みなら旧カードを先にトラッシュへ送る。
 - `announceBurstActivation`（fn）：発動した時点でバーストは公開される。効果の解決（対象選択を含む）より前に相手へ見せる
 - `continueBurstActivation`（fn）
-- `finishBurstActivation`（fn）：発揮し終えたバーストの行き先（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+- `finishBurstActivation`（fn）：発揮し終えたバーストの行き先（docs/design/BURST.md）。summon{from:"burst"} はアクション自身が場へ出すので
 - `burstEffectBlocked`（fn）：noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
@@ -882,7 +886,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireSummonSequence`（fn）
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
-- `fchangeCostAs`（fn）：summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
+- `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 - `summonFromHandFreeCandidateMatches`（fn）
 
 ## server/src/logic/summonSurcharge.ts

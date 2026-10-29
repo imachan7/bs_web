@@ -152,7 +152,7 @@ console.log("=== 7. P069ロード・ブレイバン：バーストで召喚す�
     const host = put(s, "p1", "BS16-005", 4) // コスト4（合体条件を満たす）
     s.players.p1.burst = "P069"
     s.players.p1.burstSet = true
-    resolveAction(s, "p1", null, { type: "summonBurstCardFree" })
+    resolveAction(s, "p1", null, { type: "summon", from: "burst" })
     assert(s.players.p1.field.combinedBraves.some((b) => b.cardId === "P069"), "コスト4以上のホストがいたので直接合体した")
     assert((host.braveRefs ?? []).some((r) => s.players.p1.field.combinedBraves.some((b) => b.cardId === "P069" && b.instanceId === r.instanceId)), "ホストがP069を参照している")
 }

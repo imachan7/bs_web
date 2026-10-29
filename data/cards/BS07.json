@@ -1546,7 +1546,8 @@
      2
     ],
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "colorFilter": "green",
      "costFilter": {
@@ -2935,7 +2936,8 @@
      3
     ],
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "familyFilter": "想獣"
     },
     "optional": true

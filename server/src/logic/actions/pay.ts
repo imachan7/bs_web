@@ -38,14 +38,25 @@ export const PAYABLE_TYPES = [
     "draw", "discard", "setBurstFromHand", "timedEffect",
     "destroy", "return", "coreRemove", "removeCores", "refreshSelf",
     "exhaust", "mill",
-    "refreshOne", "placeCores", "summonFromHandFree",
+    "refreshOne", "placeCores", "summon",
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
-    "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
+    "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
+
+function summonFromHandPayable(state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "summon"; from: "hand" }>, srcType: CardType | undefined): boolean {
+    const candidates = state.players[owner].hand.filter((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
+    if (action.countCounter === undefined) return candidates.length > 0
+    // 払ったコアの数ぶん召喚できるか。召喚先に置くコアは、払った後に残るリザーブから出す（記録は pay の探索中の仮の値）
+    const n = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
+    if (n === 0) return false
+    if (candidates.length < n) return false
+    const maintain = candidates.map((id) => minLevelCores(getCard(id))).sort((a, b) => a - b).slice(0, n).reduce((a, b) => a + b, 0)
+    return state.players[owner].reserve - n >= maintain
+}
 
 const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     draw: (state, owner, self, action, _srcColors, srcType) => {
@@ -243,28 +254,18 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         }
         return true
     },
-    // summonFromHandFree：条件に合い実際に召喚できる（payCost指定時は支払い可否も含む）手札のスピリットが1枚以上
-    // summonBurstCardFree：発動中のバーストが召喚できる種類で、召喚に必要なコアがある。バースト以外の文脈では常に偽
+    // summon{from:"hand"}：条件に合い実際に召喚できる（payCost指定時は支払い可否も含む）手札のスピリットが1枚以上
+    // summon{from:"burst"}：発動中のバーストが召喚できる種類で、召喚に必要なコアがある。バースト以外の文脈では常に偽
     // （payCost 付きの追加コストはここでは見ない簡略化）
-    summonBurstCardFree: (state, owner, _self, action) => {
-        if (action.type !== "summonBurstCardFree") return false
+    summon: (state, owner, self, action, srcColors, srcType) => {
+        if (action.type !== "summon") return false
+        if (action.from === "hand") return summonFromHandPayable(state, owner, self, action, srcType)
         const cardId = state.players[owner].burst
         if (cardId === null) return false
         const card = getCard(cardId)
         if (card.type === "nexus") return true
         if (card.type !== "spirit" && card.type !== "brave") return false
         return !burstTenshoUnpayable(state, owner, card) && canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
-    },
-    summonFromHandFree: (state, owner, self, action, _srcColors, srcType) => {
-        if (action.type !== "summonFromHandFree") return false
-        const candidates = state.players[owner].hand.filter((id) => summonFromHandFreeCandidateMatches(state, owner, self, action, id))
-        if (action.countCounter === undefined) return candidates.length > 0
-        // 払ったコアの数ぶん召喚できるか。召喚先に置くコアは、払った後に残るリザーブから出す（記録は pay の探索中の仮の値）
-        const n = countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
-        if (n === 0) return false
-        if (candidates.length < n) return false
-        const maintain = candidates.map((id) => minLevelCores(getCard(id))).sort((a, b) => a - b).slice(0, n).reduce((a, b) => a + b, 0)
-        return state.players[owner].reserve - n >= maintain
     },
     moveCards: (state, owner, self, action, _srcColors, srcType) => action.type === "moveCards" && moveCardsPayable(state, owner, self, action, srcType),
     // destroyByBpBudget：予算（budget／budgetFromSelfBp／budgetFromFamilyBpSum）以下の相手のスピリットが1体以上
@@ -379,8 +380,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     refreshSelf: "回復させる対象がいない",
     refreshOne: "回復させる対象がいない",
     heavyExhaust: "重疲労させる対象がいない",
-    summonFromHandFree: "手札に召喚できるカードがない",
-    summonBurstCardFree: "バーストのカードを召喚できない",
+    summon: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",
     treatAsUnblocked: "ブロックしたスピリットがいない",
 }
@@ -405,6 +405,7 @@ export function unpayableReason(
     if (action.type === "moveCards") return moveCardsUnpayableReason(action)
     if (action.type === "destroy") return destroyUnpayableReason(action)
     if (action.type === "return" && action.to === "hand") return "手札に戻すスピリットがいない"
+    if (action.type === "summon" && action.from === "hand") return "手札に召喚できるカードがない"
     return UNPAYABLE_REASONS[action.type] ?? "条件を満たさない"
 }
 
@@ -417,6 +418,7 @@ function costReasonOf(action: EffectAction): string {
     if (action.type === "moveCards") return moveCardsUnpayableReason(action)
     if (action.type === "destroy") return destroyUnpayableReason(action)
     if (action.type === "return" && action.to === "hand") return "手札に戻すスピリットがいない"
+    if (action.type === "summon" && action.from === "hand") return "手札に召喚できるカードがない"
     return UNPAYABLE_REASONS[action.type]!
 }
 
@@ -485,7 +487,7 @@ export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardIn
     }
     // 「〜できる」の召喚は、召喚できるカードが1枚もないなら確認を出さない（2026-10-02 ユーザー決定の「発動できないなら聞かない」。
     // 判定を書いたのはこの2種と pay だけ）
-    if (action.type === "summonFromHandFree" || (action.type === "moveCards" && action.dest === "summon")) {
+    if ((action.type === "summon" && action.from === "hand") || (action.type === "moveCards" && action.dest === "summon")) {
         const srcType = self ? getCard(self.cardId).type : undefined
         if (canPayResolve(state, owner, self, action, undefined, srcType)) return false
         log(state, unpayableLine(sourceName, costReasonOf(action)))
