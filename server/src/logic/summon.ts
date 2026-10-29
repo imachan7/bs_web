@@ -346,11 +346,12 @@ export function summonFromHandFreeCandidateMatches(
     self: CardInstance | null,
     action: Extract<EffectAction, { type: "summon", from: "hand" }>,
     candidateId: string,
+    zone: "hand" | "trash" = "hand",
 ): boolean {
     const player = state.players[owner]
     const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
     const candidate = getCard(candidateId)
-    if (summonDenial(state, { pid: owner, cardId: candidateId, from: "hand", cause: "effect" })) return false
+    if (summonDenial(state, { pid: owner, cardId: candidateId, from: zone, cause: "effect", mayCombine: true })) return false
     // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
     // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
     if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false

@@ -3,6 +3,7 @@
 import { noteCoverage } from "../../../shared/coverage"
 import { effectSources, isVanillaCard, timedPlayerRules } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
+import { braveCombineCandidates } from "../../../shared/summon"
 import type { GameState, PlayerId } from "../type"
 import { currentLevel, getCard, opponentOf } from "./GameState"
 
@@ -14,6 +15,7 @@ export interface SummonAttempt {
     flash?: true
     braveTargetInstanceId?: string | undefined // ダイレクトブレイヴは体数が増えない
     viaBurstAction?: true // summon{from:"burst"} はバースト効果そのものなので resolvingBurstPid を見ない
+    mayCombine?: true // 合体先をまだ決めていない段階（候補判定・バーストの自動合体）。ブレイヴは合体先があれば体数が増えずに出られる
 }
 
 function globalConstraintsOf(state: GameState, pid: PlayerId, type: string, withBraves = false) {
@@ -51,7 +53,8 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
     }
 
     // 旋風渦巻く渓谷（両陣営の発生源のうち最も厳しい値）
-    if (state.phase === "main" && a.braveTargetInstanceId === undefined) {
+    const combinesDirectly = a.braveTargetInstanceId !== undefined || (a.mayCombine === true && card.type === "brave" && braveCombineCandidates(state, a.pid, a.cardId).length > 0)
+    if (state.phase === "main" && !combinesDirectly) {
         let cap: number | null = null
         for (const p of both) {
             for (const { effect } of globalConstraintsOf(state, p, "maxSpiritsOnField")) {

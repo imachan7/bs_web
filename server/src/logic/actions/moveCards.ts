@@ -78,7 +78,7 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
             ({ id, j }) =>
                 (matchesPick(id, pickRest, undefined, selfCardId) || fchangeAsCostMatches(state, zonePid, action, id, pickRest, selfCardId)) &&
                 nameOk(id) &&
-                (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : "trash", cause: "effect" })) &&
+                (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : "trash", cause: "effect", mayCombine: true })) &&
                 (!action.onlyEventCard || id === targetInstanceId) &&
                 (action.from === "hand" || !isTrashCardProtected(id)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&

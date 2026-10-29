@@ -299,7 +299,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
     // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
-    const denial = summonDenial(state, { pid: owner, cardId, from: "burst", cause: "effect", viaBurstAction: true })
+    const denial = summonDenial(state, { pid: owner, cardId, from: "burst", cause: "effect", viaBurstAction: true, mayCombine: true })
     if (denial) {
         player.burst = null
         player.burstSet = false
