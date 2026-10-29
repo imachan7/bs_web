@@ -821,7 +821,7 @@ export function hasAttackTriggersAsBlock(
 // すべてこちらを参照する（familyGrant で付与された系統もカウントに含めるため）。
 
 // FamilyFilter（string | string[]）共通の判定ヘルパー：配列指定時はいずれかの系統を持てばよい（OR）。
-// aura.familyFilter・AuraCounter の { ownFamily }・bpBuffAll/bpBuff.familyFilter・keywordGrant.familyFilter は
+// aura.familyFilter・AuraCounter の { ownFamily }・bpBuffAll・keywordGrant.familyFilter は
 // すべてこちらを参照する（BS04エンジン拡張バッチ1）
 
 // ---- 常時BP修正（オーラ） ----
@@ -840,7 +840,7 @@ export function hasAttackTriggersAsBlock(
 // 継続的な色置換（colorsAsContinuous。百面相のフラットフェイス）
 
 // インスタンスのシンボル数：カードの静的シンボル数 + このターンの間の追加シンボル数（timedExtraSymbols。ダブルハート）。
-// GameEngineのライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件・bpBuffのminSymbols対象フィルタが共用する
+// GameEngineのライフダメージ計算・magicのownFieldHasMinSymbolSpirit条件が共用する
 // （BS04エンジン拡張バッチ1。state/ownerPidは将来の拡張用に受け取るが現状は未使用）
 
 // 【相手のマジックの効果を受けない】（kind: "immunityGrant"、対象 ownAll）：
@@ -1127,7 +1127,7 @@ export function findSpiritAny(
     return null
 }
 
-// 騎獣スレイプホース：マジックによるBPバフ（bpBuff）が対象に適用された直後にフックし、
+// 騎獣スレイプホース：マジックによるBPバフ（timedEffect の bp）が対象に適用された直後にフックし、
 // 条件を満たせばさらに magicBuffBonus 分のBP+を追加する。
 // 効果文の『このスピリットのアタック時』／『自分のアタックステップ』条件は「バトル中または
 // 自分のアタックステップ」で近似する簡略化とし、判定は state.phase === "attack" のみとする。
@@ -1174,12 +1174,12 @@ export function applyMagicBuffBonus(
     }
 }
 
-// 疲労状態の相手スピリット数（draw / bpBuff の "exhaustedEnemies" カウンタ）
+// 疲労状態の相手スピリット数（draw / timedEffect の bp の "exhaustedEnemies" カウンタ）
 function countExhaustedEnemies(state: GameState, owner: PlayerId, opp: PlayerId, sourceType?: CardType): number {
     return countSpiritsWeighted(state, owner, opp, (s) => s.isRested, sourceType)
 }
 
-// selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
+// selfBuff / timedEffect の bp / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
 // readyEnemies / exhaustedEnemies / opponentHand は相手（opponentOf(owner)）基準、
 // ownReserve / ownNexuses / ownExhausted / ownOtherSpirits / { ownFamily } / { ownNameIncludes } は
 // 自分（owner）のフィールド基準、allNexuses は両者基準、selfCoresAtDestruction は
@@ -1715,9 +1715,6 @@ export {
     pickEnemyLowestCost,
     tryInteractiveTargetChoice,
     tryInteractiveCardChoice,
-    bpBuffTargetPasses,
-    ownBpBuffCandidates,
-    pickBpBuffTarget,
     pickOwnKeywordTarget,
     requestActivationConfirm,
     requestChoice,

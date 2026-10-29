@@ -219,7 +219,7 @@ console.log("--- マジックのBP増加が上乗せされる ---")
         (c) =>
             c.type === "magic" &&
             (c.effects ?? []).some(
-                (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff",
+                (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" && (e["action"] as Record<string, unknown>)["side"] === "own" && (e["action"] as Record<string, unknown>)["target"] === undefined && JSON.stringify((e["action"] as Record<string, unknown>)["content"]).includes('"type":"bp"'),
             ),
     )!
     const vanilla = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0)!
@@ -227,14 +227,14 @@ console.log("--- マジックのBP増加が上乗せされる ---")
     const withoutBonus = base("bs06-085-without")
     const t1 = put(withoutBonus, "p1", vanilla, coresFor(vanilla, 1))
     refreshLevelAsOverrides(withoutBonus)
-    resolveAction(withoutBonus, "p1", null, { type: "bpBuff", amount: 1000 }, t1.instanceId, undefined, "magic")
+    resolveAction(withoutBonus, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 }, t1.instanceId, undefined, "magic")
     const plain = t1.tempBpBuff
 
     const withBonus = base("bs06-085-with")
     putNexus(withBonus, "p1", card, coresFor(card, level))
     const t2 = put(withBonus, "p1", vanilla, coresFor(vanilla, 1))
     refreshLevelAsOverrides(withBonus)
-    resolveAction(withBonus, "p1", null, { type: "bpBuff", amount: 1000 }, t2.instanceId, undefined, "magic")
+    resolveAction(withBonus, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 }, t2.instanceId, undefined, "magic")
 
     assert(
         t2.tempBpBuff === plain + bonus,

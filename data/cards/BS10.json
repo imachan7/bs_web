@@ -3938,11 +3938,7 @@
         "id": "BS10-103-e1",
         "kind": "magic",
         "timing": "flash",
-        "action": {
-          "type": "bpBuff",
-          "amount": 3000,
-          "extraPerCoreToTrash": 1000
-        }
+        "action": {"type": "sequence", "actions": [{"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "side": "own", "count": 1}, {"type": "pay", "cost": {"type": "removeCores", "side": "own", "target": "spread", "from": ["reserve", "spirit", "nexus"], "count": "any", "to": "trash"}, "then": {"type": "timedEffect", "content": [{"type": "bp", "amount": 1000, "amountCounter": "lastCores", "countOnce": true}], "duration": "turn", "target": "lastBuffed"}}]}
       }
     ]
   },

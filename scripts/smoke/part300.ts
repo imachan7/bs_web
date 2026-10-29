@@ -37,7 +37,7 @@ console.log("=== S: 無色化（色とシンボルを無いものとして扱う
     assert(instHasColor(spirit, "purple"), "付与前は紫を持つ")
     assert(countSymbols(p1, ["purple"]) === 1, "付与前はシンボル1つとして軽減に数えられる")
 
-    resolveAction(s, "p1", spirit, { type: "colorlessSelfThisBattle" })
+    resolveAction(s, "p1", spirit, { type: "timedEffect", content: [{ type: "colorless" }], duration: "battle", target: "self" })
     assert(spirit.colorlessThisBattle === true, "colorlessThisBattleが立った")
     assert(!instHasColor(spirit, "purple"), "無色化後は紫を持たない")
     assert(instColors(spirit).length === 0, "無色化後はinstColorsが空配列")

@@ -277,7 +277,7 @@ const LEGACY_FILTER_FIELDS = [
 // normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
 // 新しく filter へ移すアクションを増やしたらここに追記する
 const FILTER_ACTIONS = new Set([
-    "destroy", "destroyExhausted", "exhaust", "refreshOne", "bpBuff", "timedEffect",
+    "destroy", "destroyExhausted", "exhaust", "refreshOne", "timedEffect",
 ])
 
 // TargetFilter の宣言から軸名を読む（手で並べると軸の追加に追従できない）。宣言が見つからなければ落とす（ファイルを移したときに黙って空にならないため）
@@ -291,11 +291,7 @@ const VALID_FILTER_KEYS = (() => {
 })()
 
 // filter を部分的にしか見ないアクション。書いた軸が無言で無視されるため、対応軸だけに限定する
-const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {
-    // bpBuff は対象1体を pickBpBuffTarget で選ぶ経路のため matchesTarget を通らない。
-    // ハンドラが filter から取り出して渡している軸だけが効く（他は無言で無視される）
-    bpBuff: ["minSymbols", "keyword", "nameContains", "attackingOnly", "family", "combined", "vanilla", "cost", "team", "shinkaiho", "lastTarget"],
-}
+const PARTIAL_FILTER_ACTIONS: Record<string, string[]> = {}
 
 function checkTargetFilters(
     cardId: string,

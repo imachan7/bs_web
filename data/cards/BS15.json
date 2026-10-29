@@ -4551,9 +4551,7 @@
       "dest": "trash",
       "count": 1
      },
-     "then": {
-      "type": "colorlessSelfThisBattle"
-     }
+     "then": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
     }
    },
    {

@@ -23,7 +23,7 @@
 
 ### 次の候補：専用 type の統一（10-27 計画のみ）
 
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 1＝#308。**PR 2 は修正 `fix/nexus-bounce-choice` → 2a `refactor/self-unify`（並行）→ 2b（修正のマージ後）**。スキーマは §4 末尾
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。済み：PR 1（#308）・修正（#309）・2a（#310）。PR 4＝#311、使用時判定の修正＝#312。**次は 2b（returnNexusToHand → returnToHand{nexus}）→ PR 6（return{to}）→ PR 7〜10**。スキーマと候補は §4 末尾
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
 ### 既知の残り：entryActive（10-23）

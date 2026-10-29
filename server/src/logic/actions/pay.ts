@@ -26,7 +26,7 @@ import { fieldCoresSpendable, moveCardCandidates, moveCardsPayable } from "./mov
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { normalReserveOf } from "../soulCore"
 import { bofuCountFor, findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
-import { pickAnySideCandidates, pickBpBuffTarget, pickEnemyByBp, pickEnemyCandidates, bpBuffTargetPasses, requestActivationConfirm, requestChoice } from "../targeting"
+import { pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { newRecordScope, withMovedProbe } from "../record"
@@ -38,11 +38,11 @@ export const PAYABLE_TYPES = [
     "draw", "discard", "setBurstFromHand", "timedEffect",
     "destroy", "returnToHand", "returnToDeckTop", "coreRemove", "removeCores", "refreshSelf",
     "exhaust", "mill",
-    "bpBuff", "refreshOne", "placeCores", "summonFromHandFree",
+    "refreshOne", "placeCores", "summonFromHandFree",
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
-    "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
+    "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
+    "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -64,6 +64,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
     peekOpponentBurst: (state, owner) => state.players[opponentOf(owner)].burst !== null,
+    // if：条件が成り立たないことは「解決できない」ではない（then の中身は条件が成り立ったときだけ見る側の責任）
+    if: () => true,
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
     sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "sequence") return false
@@ -91,6 +93,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     timedEffect: (state, owner, self, action) => {
         if (action.type !== "timedEffect") return false
         if (action.target === "self") return self !== null
+        if (action.target === "lastBuffed") return state.lastBpBuffTargetId !== undefined && findSpiritAny(state, state.lastBpBuffTargetId) !== null
         if (action.content.every((c) => c.type === "playerRule")) return true
         const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
         const pids = action.side === "own" ? [owner] : action.side === "both" ? [owner, opponentOf(owner)] : [opponentOf(owner)]
@@ -192,40 +195,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
             const n = action.cardTypeFilter ? p.hand.filter((id) => getCard(id).type === action.cardTypeFilter).length : p.hand.length
             return n >= (action.count ?? 1)
         })
-    },
-    // bpBuff：anySide指定時は両陣営から、それ以外はfilterに合う自分のスピリットから1体以上
-    // （buff.ts の bpBuffHandler と同じ pickAnySideCandidates／pickBpBuffTarget を使う）
-    bpBuff: (state, owner, self, action, srcColors, srcType) => {
-        if (action.type !== "bpBuff") return false
-        // excludeSelf は判定専用（支払い後の解決時には発生源は既に場にいないため）。BS14-X03 の
-        // 「自分を戻したあとに BP+ できる他のスピリットがいる」を、支払い前の判定で見るためのもの
-        if (action.filter?.excludeSelf && !action.anySide) {
-            return state.players[owner].field.spirits.some(
-                (s) =>
-                    s.instanceId !== self?.instanceId &&
-                    bpBuffTargetPasses(
-                        state, owner, s,
-                        action.filter?.minSymbols, action.filter?.keyword, action.filter?.nameContains,
-                        action.filter?.attackingOnly, action.filter?.family, action.filter?.combined, action.filter?.vanilla,
-                    ),
-            )
-        }
-        if (action.anySide) {
-            const passes = (s: CardInstance) =>
-                bpBuffTargetPasses(
-                    state, owner, s,
-                    action.filter?.minSymbols, action.filter?.keyword, action.filter?.nameContains,
-                    action.filter?.attackingOnly, action.filter?.family, action.filter?.combined, action.filter?.vanilla,
-                )
-            return pickAnySideCandidates(state, owner, passes, srcColors, srcType).length >= 1
-        }
-        const full = normalizeFilter({ state, owner, self, targetInstanceId: undefined } as ActionCtx, action)
-        return pickBpBuffTarget(
-            state, owner, undefined,
-            (inst) => full !== SELF_REQUIRED && matchesTarget(state, owner, inst, full, self?.instanceId),
-            action.filter?.minSymbols, action.filter?.keyword, action.filter?.nameContains,
-            action.filter?.attackingOnly, action.filter?.family, action.filter?.combined, action.filter?.vanilla,
-        ) !== null
     },
     // refreshOne：条件に合う疲労状態の自分のスピリットが1体以上（exhaustRefresh.ts の既定経路のみ。
     // eventTargetOnly／all／anySide を pay の then に書くケースは想定しない）
@@ -344,11 +313,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "levelOverrideOpponentNexuses") return false
         return state.players[opponentOf(owner)].field.nexuses.length >= 1
     },
-    // colorlessSelfThisBattle：印を置く相手（自分自身）が場にいる
-    colorlessSelfThisBattle: (_state, _owner, self, action) => {
-        if (action.type !== "colorlessSelfThisBattle") return false
-        return self !== null
-    },
     // negateLifeDamageFromTarget：印を置く相手（対象未指定なら pickEnemyByBp の自動選択と同じ候補）が存在する
     negateLifeDamageFromTarget: (state, owner, _self, action, srcColors, srcType) => {
         if (action.type !== "negateLifeDamageFromTarget") return false
@@ -419,7 +383,6 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     refreshSelf: "回復させる対象がいない",
     refreshOne: "回復させる対象がいない",
     heavyExhaust: "重疲労させる対象がいない",
-    bpBuff: "BP+する対象がいない",
     summonFromHandFree: "手札に召喚できるカードがない",
     summonBurstCardFree: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",

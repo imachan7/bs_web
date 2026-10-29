@@ -105,3 +105,33 @@
   中身は旧ハンドラのまま入口で振り分ける（破壊待機中の個体を手札に戻す経路を含む）。`returnSelfToHand` の `optional`／`confirmed` はデータ0件なので消す。耐性の扱いは今のまま（§2 B）
 - **2b（修正のマージ後）**：`returnNexusToHand`（9）→ `returnToHand{nexus:"only"}`（`side` に "both" を足す）、`dest:"deckTop"` の1件は `returnToDeckTop{nexus:"only"}`（`nexus` 軸を足す）。
   `voidCoreToOwnTrashIfOpponent`（BS03-130 の1件）は `if` の条件に「戻したカードが相手のもの」を表す部品が無いので軸として残す
+### PR 4 `bpBuff`・`colorlessSelfThisBattle` → `timedEffect`（10-29 確定）
+
+- `amountIfTarget` はデータ0件なので消すだけ（§1 の「着手前に決めること」は不要になった）
+- `bpBuff{amount, filter, scope, target}` → `timedEffect{content:[{type:"bp", amount}], duration: scope==="battle" ? "battle" : "turn", count:1, filter}`（`target:"self"` はそのまま）。`anySide` は timedEffect の両陣営から1体を選ぶ書き方へ
+- `amountFromSelfBp` → `amountCounter:"selfBp"`（amount 1）／`amountCounter:"lastBp"` はそのまま
+- `thenAddSymbolThisBattle` → 同じ timedEffect の content に `{type:"symbolAdd", color, count}` を足す
+- `costMillSelfCount`＋`thenRefreshIfMilledFamily`（BS13-060）→ `pay{cost: mill 自分6枚, then: sequence[timedEffect bp, if{cond:{last:{系統 光導・スピリット}}} → 自身を回復]}`。
+  **挙動の変化**：デッキが6枚未満なら使えない（COST_MODEL §1「数も完全に」09-24）
+- `extraPerCoreToTrash`（BS10-103）→ `sequence[timedEffect bp 3000, pay{cost: removeCores 好きなだけ 自分のフィールド/リザーブ→トラッシュ, then: timedEffect bp 1000×lastCores, target:"lastBuffed"}]`。
+  **足りない部品**：`timedEffect` の `target:"lastBuffed"`（直前に BP を上げた個体＝`if` の `lastBuffed` と同じ記録）。「そのスピリット」を前の効果の対象で受ける書き方が他に無いため
+- `colorlessSelfThisBattle` → `timedEffect{content:[{type:"colorless"}], duration:"battle", target:"self"}`
+- **見つかった別の穴（PR 4 の外。修正 PR を別に出す）**：使う・起動する時点で `pay` のコストを払えるか・後半を解決できるかを見ていない。BS03-131（疲労させる自分のスピリットがいなくても使える）・BS08-030（武装がいなくても起動できる）・SD06-005（バーストが無くても起動できる）。part674 の `pending(...)` 4件が目標。HANDOFF の既知の限界「起動能力の後半の判定は destroy だけを見る」と同じ根
+
+### PR 6 「戻す」を1つにまとめる（10-29 ユーザー合意。PR 2b の後）
+
+- `returnToHand`・`returnToDeckTop`・`returnToDeckBottom` → `return{to:"hand"|"deckTop"|"deckBottom", …}`。何を戻すかは今の軸のまま（`target:"self"`・`nexus`・`filter`・`side`・`count`・`all` など）
+- 理由：上・下・手札で type が分かれていると、「自分版」「ネクサス版」のような軸を3か所に持つことになる（PR 2a で `returnToDeckTop` だけに `target:"self"` を足した）。語彙表 §3 の「戻す｜to：手札／デッキの上／デッキの下」を到達点にする
+- 中身は今の3つのハンドラのまま、入口で `to` により振り分ける（PR 1 と同じやり方）。軸の名前と意味が3つで食い違うもの（`side`・`count` の既定、pay のコスト用の `target`）は着手時に表にする
+
+### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
+
+| 順 | 今の type（データの件数） | まとめる形の案 | 着手前に確かめること |
+| :-- | :-- | :-- | :-- |
+| 7 | `summonFromHandFree`(51)・`summonBurstCardFree`(59) | `summon{from:"hand"\|"burst", pay:"free"}` | バーストからの召喚が「発動」の手順を持つか |
+| 8 | `destroyByBpBudget`(9)・`destroyByCostBudget`(4) | `destroy{budget:{by:"bp"\|"cost", amount}}` | 予算の数え方（BP の合計とコストの合計）以外の違い |
+| 9 | `mill`(51) | `discard{from:"deck"}`（PR 3a の器） | 【粉砕】【地鳴】の誘発・「デッキから破棄されたとき」の扱い |
+| 10 | `refreshOne`(72)・`refreshSelf`(112)・`refreshAllOwn`(9) | `refresh{target:"self"\|count\|all, side}` | `refreshAllOwn` のアタック不可の付与は `sequence`＋`timedEffect` へ分ける |
+
+- 要確認（ユーザーに未提示）：`lifeCrush`(27)（相手のライフを減らす）を `removeCores{from:"life"}` に寄せられるか。「ライフを減らす」がルール上コアの除去と別の扱いか（ライフ減少時の誘発など）を調べてから聞く
+- 候補の見つけ方：type 名を動詞ごとに並べ、同じ動詞で行き先・対象だけ違う組を探す（10-29。ユーザーから「こういうのを見つけて聞いてほしい」）

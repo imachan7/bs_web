@@ -10,7 +10,7 @@
 //   globalConstraint"noReductionBySummonCost"（BS08超時空重力炉）／
 //   kind"tenshoSelfCostBonus"（BS08冥機グングニル）／
 //   kind"activated".timing"flash"（バトル外でも発動可。BS08機人フィアラル）／
-//   action"bpBuff".amountFromSelfBp（BS08機人フィアラル）
+//   timedEffect の bp に amountCounter:"selfBp"（countOnce）（BS08機人フィアラル）
 import {
     act,
     assert,
@@ -325,7 +325,7 @@ console.log("=== BS08冥機グングニル：kind tenshoSelfCostBonus（【転�
     assert(s.players.p1.field.spirits.includes(summonedSpirit), "召喚した本体はそのまま場に残る")
 }
 
-console.log("=== BS08機人フィアラル：kind activated timing:\"flash\"（バトル外でも発動可）＋ action bpBuff.amountFromSelfBp ===")
+console.log("=== BS08機人フィアラル：kind activated timing:\"flash\"（バトル外でも発動可）＋ timedEffect の bp（amountCounter:\"selfBp\"） ===")
 {
     const fiaral = findByEffect((e) => e["kind"] === "activated" && e["timing"] === "flash")
     const entry = entryOf(fiaral, (e) => e["kind"] === "activated")
@@ -345,7 +345,7 @@ console.log("=== BS08機人フィアラル：kind activated timing:\"flash\"（�
     assert(fi.isRested === true, "コスト（自身を疲労）を支払った")
     assert(
         effectiveBp(s, "p1", target) === bpAt(buffTarget, 1) + selfBp,
-        "対象はフィアラル自身の実効BP分だけBP+（amountFromSelfBp）",
+        "対象はフィアラル自身の実効BP分だけBP+（amountCounter:selfBp）",
     )
 
     // (b) バトル中のフラッシュでも発動できる（防御側が優先権を持つタイミング）

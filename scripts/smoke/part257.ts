@@ -75,11 +75,11 @@ console.log("=== BS10-095 Lv2：自分のアタックステップ中、相手の
     s.turnPlayer = "p1"
     s.phase = "attack"
     const oppTarget = put(s, "p2", "BS01-001", 1)
-    resolveAction(s, "p2", null, { type: "bpBuff", amount: 1000 }, oppTarget.instanceId)
+    resolveAction(s, "p2", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 }, oppTarget.instanceId)
     assert(oppTarget.tempBpBuff === 0, "相手（p2）の効果によるBP増加は発揮されない")
 
     const ownTarget = put(s, "p1", "BS01-001", 1)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 1000 }, ownTarget.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 }, ownTarget.instanceId)
     assert(ownTarget.tempBpBuff === 1000, "自分（p1）の効果によるBP増加は普通に発揮される")
 }
 
@@ -90,7 +90,7 @@ console.log("=== BS10-095 Lv2：自分のアタックステップ以外では相
     s.turnPlayer = "p1"
     s.phase = "main" // アタックステップ以外
     const oppTarget = put(s, "p2", "BS01-001", 1)
-    resolveAction(s, "p2", null, { type: "bpBuff", amount: 1000 }, oppTarget.instanceId)
+    resolveAction(s, "p2", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 }, oppTarget.instanceId)
     assert(oppTarget.tempBpBuff === 1000, "アタックステップ以外では相手のBP増加も発揮される")
 }
 

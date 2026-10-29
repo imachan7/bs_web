@@ -51,13 +51,13 @@ console.log("=== 1. bpBuff：対象がいれば払ってBP増加、いなけれ�
 {
     const s = game("case1a")
     const me = put(s, "p1", RED, 1)
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "bpBuff", amount: 1000 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 } })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
     assert(me.cores >= 0, "対象は場にいる") // BP増加自体はeffectiveBpで確認
 }
 {
     const s = game("case1b")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "bpBuff", amount: 1000 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "timedEffect", content: [{ type: "bp", amount: 1000 }], duration: "turn", side: "own", count: 1 } })
     assert(s.players.p1.reserve === 5, "対象がいないため払わなかった")
 }
 
@@ -227,12 +227,12 @@ console.log("=== 12. colorlessSelfThisBattle：発生源が場にいれば払っ
 {
     const s = game("case12a")
     const me = put(s, "p1", RED, 1)
-    resolveAction(s, "p1", me, { type: "pay", cost: costRemoveOne(), then: { type: "colorlessSelfThisBattle" } })
+    resolveAction(s, "p1", me, { type: "pay", cost: costRemoveOne(), then: { type: "timedEffect", content: [{ type: "colorless" }], duration: "battle", target: "self" } })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
 }
 {
     const s = game("case12b")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "colorlessSelfThisBattle" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "timedEffect", content: [{ type: "colorless" }], duration: "battle", target: "self" } })
     assert(s.players.p1.reserve === 5, "発生源が場にいないため払わなかった")
 }
 

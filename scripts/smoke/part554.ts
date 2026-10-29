@@ -32,7 +32,7 @@ console.log("=== 1. 疲労状態の自分のスピリット数だけBP+ ===")
     s.players.p1.field.spirits.push(a, b)
     const total = (): number => effectiveBp(s, "p1", a) + effectiveBp(s, "p1", b)
     const before = total()
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 1000, amountCounter: "ownExhausted" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 1000, amountCounter: "ownExhausted" }], duration: "turn", side: "own", count: 1 })
     assert(total() === before + 2000, "疲労2体なので1体に+2000")
 }
 

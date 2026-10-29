@@ -87,12 +87,12 @@ console.log("=== BS04-086 古代闘技場 Lv1：自分のアタックステッ�
     const base = effectiveBp(s, "p2", enemy)
 
     // メインステップ（抑止の窓の外）では相手のBP+効果はそのまま通る
-    resolveAction(s, "p2", null, { type: "bpBuff", amount: 3000 }, enemy.instanceId, undefined, "magic")
+    resolveAction(s, "p2", null, { type: "timedEffect", content: [{ type: "bp", amount: 3000 }], duration: "turn", side: "own", count: 1 }, enemy.instanceId, undefined, "magic")
     assert(effectiveBp(s, "p2", enemy) === base + 3000, "メインステップでは相手のBP+効果は通る")
 
     s.phase = "attack" // 自分（p1）のアタックステップ＝闘技場の抑止が効く窓
     const inWindow = effectiveBp(s, "p2", enemy)
-    resolveAction(s, "p2", null, { type: "bpBuff", amount: 3000 }, enemy.instanceId, undefined, "magic")
+    resolveAction(s, "p2", null, { type: "timedEffect", content: [{ type: "bp", amount: 3000 }], duration: "turn", side: "own", count: 1 }, enemy.instanceId, undefined, "magic")
     assert(
         effectiveBp(s, "p2", enemy) === inWindow,
         "自分のアタックステップ中は相手のBP増加アクションが発揮されない",
@@ -101,7 +101,7 @@ console.log("=== BS04-086 古代闘技場 Lv1：自分のアタックステッ�
     // 自分（闘技場の持ち主）のBP+効果は抑止されない
     const mine = put(s, "p1", "BS01-001", 1)
     const mineBase = effectiveBp(s, "p1", mine)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 2000 }, mine.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", side: "own", count: 1 }, mine.instanceId, undefined, "magic")
     assert(effectiveBp(s, "p1", mine) === mineBase + 2000, "持ち主自身のBP+効果は抑止されない")
 }
 

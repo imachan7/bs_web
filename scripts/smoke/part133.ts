@@ -34,13 +34,9 @@ const cards = loadAllCards() as unknown as {
     effects?: Record<string, unknown>[]
 }[]
 
-// 旧bpBuff／新timedEffect（1体指定＋contentにbp。allは対象外）のどちらでも量とfilterを取り出す
-// （カードデータは単純な旧bpBuffを新timedEffectへ変換済み。旧型はオプション付きの7件だけ残る）
+// timedEffect（1体指定＋contentにbp。allは対象外）から量とfilterを取り出す
 function bpContentOf(action: Record<string, unknown> | undefined): { amount: unknown; amountCounter: unknown; filter: Record<string, unknown> | undefined } | null {
     if (!action) return null
-    if (action["type"] === "bpBuff") {
-        return { amount: action["amount"], amountCounter: action["amountCounter"], filter: action["filter"] as Record<string, unknown> | undefined }
-    }
     if (action["type"] === "timedEffect" && action["all"] !== true) {
         const content = (action["content"] as Record<string, unknown>[] | undefined)?.find((x) => x["type"] === "bp")
         if (!content) return null

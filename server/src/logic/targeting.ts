@@ -1,21 +1,11 @@
 // 効果の対象の選び方（候補の列挙・自動選択）と、プレイヤーへの選択待ち（pendingChoice）の発行
-import { findSpiritAny, isResisted, resolveAction } from "./EffectModules"
-import type { CardInstance, CardType, Color, EffectAction, FamilyFilter, GameState, Keyword, PlayerId } from "../type"
+import { isResisted, resolveAction } from "./EffectModules"
+import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
 import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./triggers"
 import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
-import {
-    effectiveBp,
-    instMatchesCostFilter,
-    instInShinkaihoState,
-    instanceSymbolCount,
-    instIsVanilla,
-    cardNameContains,
-    matchesFamilyFilter,
-    spiritHasKeyword,
-    instIsCombined,
-} from "../../../shared/rules"
+import { effectiveBp } from "../../../shared/rules"
 
 // 相手スピリットから BP <= maxBp かつ extraPredicate を満たすものをすべて集める
 // （pickEnemyByBp の自動選択・対象選択式の候補列挙の両方から使う共通フィルタ）。
@@ -226,105 +216,6 @@ export function tryInteractiveCardChoice(
         }])
     }
     return true
-}
-
-// bpBuff の「対象になれるか」の判定。
-// minSymbols（シンボル数下限）・keywordFilter（キーワード保持。BS07ネクサスアタック＝【強襲】持ち）・
-// nameContains（カード名。BS07ウィリアンスラッシュ＝「勇者」。配列＝OR。BS08ダークパワー）・
-// attackingOnly（BS07桜の妖精オウカ＝アタックしているスピリット）・
-// familyFilter（系統。BS07ニードルショット＝「剣獣」）は、
-// どれも「対象になれるか」の絞り込み。対象指定・自動選択の両方で同じ条件を適用する。
-// anySide の候補列挙（actions/buff.ts）からも呼ぶため export している
-export function bpBuffTargetPasses(
-    state: GameState,
-    owner: PlayerId,
-    inst: CardInstance,
-    minSymbols?: number,
-    keywordFilter?: Keyword | Keyword[],
-    nameContains?: string | string[],
-    attackingOnly?: boolean,
-    familyFilter?: FamilyFilter,
-    combinedFilter?: boolean,
-    vanillaFilter?: boolean,
-    costFilter?: { max?: number; min?: number; in?: number[] },
-    teamFilter?: string,
-    shinkaihoFilter?: boolean,
-): boolean {
-    if (minSymbols !== undefined && instanceSymbolCount(inst) < minSymbols) return false
-    if (keywordFilter !== undefined) {
-        const wanted = Array.isArray(keywordFilter) ? keywordFilter : [keywordFilter]
-        if (!wanted.some((k) => spiritHasKeyword(state, owner, inst, k))) return false
-    }
-    if (nameContains !== undefined) {
-        const names = Array.isArray(nameContains) ? nameContains : [nameContains]
-        if (!names.some((n) => cardNameContains(inst, n))) return false
-    }
-    if (attackingOnly && state.battle?.attackerInstanceId !== inst.instanceId) return false
-    if (familyFilter !== undefined && !matchesFamilyFilter(state, owner, inst, familyFilter)) return false
-    if (combinedFilter !== undefined && instIsCombined(inst) !== combinedFilter) return false
-    // vanillaFilter（BS12-083マジックランプ「効果の記述を持たないスピリット1体をBP+」）
-    if (vanillaFilter === true && !instIsVanilla(inst)) return false
-    // cost（26系水流「コスト8以上で系統：海緑」）。道化師クランの付与コストも見るため instMatchesCostFilter を通す
-    if (costFilter !== undefined && !instMatchesCostFilter(inst, costFilter)) return false
-    // team（26系【チーム：X】所属）・shinkaiho（26系《真界放》のLvにいるか。TargetFilterの同名軸と同じ判定）
-    if (teamFilter !== undefined && !getCard(inst.cardId).team?.includes(teamFilter)) return false
-    if (shinkaihoFilter !== undefined && instInShinkaihoState(inst) !== shinkaihoFilter) return false
-    return true
-}
-
-// bpBuff の対象選択：
-// 対象指定があれば両プレイヤーから検索、なければバトル中の自分スピリット優先、
-// いなければ自分フィールドの先頭スピリット
-// minSymbols指定時、対象（明示指定・自動選択とも）はシンボル数がこれ以上のスピリットのみ有効
-// （ライトニングバリスタ等。BS04エンジン拡張バッチ1）
-// actions/* の分割モジュールから参照するため export している
-// bpBuff の自分側候補一覧（pickBpBuffTarget の自動選択と、対話時の選択肢で共有）
-export function ownBpBuffCandidates(
-    state: GameState,
-    owner: PlayerId,
-    ...rest: DropFirst3<Parameters<typeof bpBuffTargetPasses>>
-): CardInstance[] {
-    return state.players[owner].field.spirits.filter((s) => bpBuffTargetPasses(state, owner, s, ...rest))
-}
-type DropFirst3<T extends unknown[]> = T extends [unknown, unknown, unknown, ...infer R] ? R : never
-
-export function pickBpBuffTarget(
-    state: GameState,
-    owner: PlayerId,
-    targetInstanceId: string | undefined,
-    // 呼び出し側の絞り込み全体（色など、下の個別の軸に無いもの）
-    extra: (inst: CardInstance) => boolean,
-    minSymbols?: number,
-    keywordFilter?: Keyword | Keyword[],
-    nameContains?: string | string[],
-    attackingOnly?: boolean,
-    familyFilter?: FamilyFilter,
-    combinedFilter?: boolean,
-    vanillaFilter?: boolean,
-    costFilter?: { max?: number; min?: number; in?: number[] },
-    teamFilter?: string,
-    shinkaihoFilter?: boolean,
-): CardInstance | null {
-    const passes = (inst: CardInstance): boolean =>
-        extra(inst) && bpBuffTargetPasses(state, owner, inst, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter, costFilter, teamFilter, shinkaihoFilter)
-    if (targetInstanceId) {
-        const found = findSpiritAny(state, targetInstanceId)
-        if (!found) return null
-        if (!passes(found.inst)) return null
-        return found.inst
-    }
-    const mine = ownBpBuffCandidates(state, owner, minSymbols, keywordFilter, nameContains, attackingOnly, familyFilter, combinedFilter, vanillaFilter, costFilter, teamFilter, shinkaihoFilter).filter(extra)
-    let target: CardInstance | null = null
-    if (state.battle) {
-        target =
-            mine.find(
-                (s) =>
-                    s.instanceId === state.battle?.attackerInstanceId ||
-                    s.instanceId === state.battle?.blockerInstanceId,
-            ) ?? null
-    }
-    if (!target) target = mine[0] ?? null
-    return target
 }
 
 // grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。

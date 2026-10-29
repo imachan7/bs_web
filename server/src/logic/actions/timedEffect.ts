@@ -18,7 +18,7 @@ const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration ===
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh", "untargetableByOpponentMagic"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "skipRefresh", "untargetableByOpponentMagic", "colorless"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -56,10 +56,11 @@ function contentLabel(action: TimedEffect): string {
     const granted = action.content.some((c) => c.type === "grantTrigger") ? ["効果を持つ"] : []
     const keywords = action.content.flatMap((c) => (c.type === "keyword" ? [`【${KEYWORDS[c.keyword].label}】を持つ`] : []))
     const bpAs = action.content.flatMap((c) => (c.type === "bpAs" ? [`Lv${c.levels.join("/")}のBPを${c.amount}として扱う`] : []))
+    const colorless = action.content.some((c) => c.type === "colorless") ? ["色を無いものとして扱う"] : []
     const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
     const skipRefresh = action.content.some((c) => c.type === "skipRefresh") ? ["回復できない"] : []
     const untargetable = action.content.some((c) => c.type === "untargetableByOpponentMagic") ? ["相手のマジックの効果では指定されない"] : []
-    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh].join("、")
+    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh, ...colorless].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -114,7 +115,7 @@ function pickOwnBpTarget(state: GameState, owner: PlayerId, filter: ResolvedTarg
     return mine[0] ?? null
 }
 
-// 1体を指定するBP変更（旧 bpBuff の単純形を置き換える経路）。対象選択の優先順は旧 bpBuff と同じ：
+// 1体を指定するBP変更。対象選択の優先順：
 // 1.targetInstanceId指定 2.side:"both"かつ対話ならプレイヤーが選ぶ 3.それ以外は自動選択（既定=相手は実効BP最大、own/bothの非対話フォールバックは自分の場から）
 function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
@@ -152,7 +153,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
         if (chosen.length + 1 < action.count) ctx.resolve({ ...action, chosenIds: [...chosen, t.instanceId] })
         return
     }
-    // 「そのスピリットが」の控えは今回のBP増加の結果でなければならない（旧 bpBuff と同じ）
+    // 「そのスピリットが」の控えは今回のBP増加の結果でなければならない（直前の BP 増加の結果でなければ控えは残さない）
     delete state.lastBpBuffTargetId
     let target: CardInstance | null = null
     if (targetInstanceId !== undefined) {
@@ -174,7 +175,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
         }
         target = candidates[0] ?? null
     } else if (action.side === "own" && state.interactiveTargets && !filter.lastTarget && !filter.lastBpBuffTarget) {
-        // 旧 bpBuff と同じく、自分のスピリットが2体以上なら選ばせる（移行で自動選択に落ちていた。2026-10-22 発見）
+        // 自分のスピリットが2体以上なら選ばせる（移行で自動選択に落ちていた。2026-10-22 発見）
         const candidates = state.players[owner].field.spirits.filter((s) => matchesTarget(state, owner, s, filter, self?.instanceId))
         if (tryInteractiveTargetChoice(state, owner, self, `${sourceName}：BPを増加するスピリットを選んでください`, candidates, action, null)) return
     }
@@ -193,6 +194,12 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
         return
     }
     state.lastBpBuffTargetId = target.instanceId
+    // bp と同じ timedEffect に並んだ色つきシンボル追加は、BP を上げる個体と同じ個体に付く
+    for (const c of action.content) {
+        if (c.type !== "symbolAdd" || !c.color) continue
+        recordTimed(state, { content: [c], target: { kind: "instance", instanceId: target.instanceId }, until: action.duration, ownerPid: owner })
+        log(state, `${getCard(target.cardId).name}は${COLOR_LABELS[c.color]}のシンボルを${c.count ?? 1}つ追加した（${action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+    }
     const untilLabel = action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"
     if (content.amountCounter === undefined) {
         recordBp(state, owner, target, content.amount, bpUntil(action))
@@ -200,7 +207,7 @@ function placeBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], inAction: Tim
         applyMagicBuffBonus(state, target, srcType, srcColors)
         return
     }
-    // 解決時に数えて固定する：countOnce と、共有層で数えられない数え方（数え直せないので旧 bpBuff と同じ扱い）
+    // 解決時に数えて固定する：countOnce と、共有層で数えられない数え方（数え直せない）
     if (content.countOnce || !isAllowedRuleCounter(content.amountCounter)) {
         const amount = countedAmount(state, owner, self, content.amount, content.amountCounter, srcType, undefined, target)
         if (amount === 0) {
@@ -250,6 +257,24 @@ function placeSelfBp(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
     recordTimed(state, { content: [content], target: { kind: "instance", instanceId: self.instanceId }, until: action.duration, ownerPid: owner })
     const preview = content.amount * countAuraCounter(state, owner, content.amountCounter as AuraCounter, self)
     log(state, `${getCard(self.cardId).name}はBP+${preview}（${untilLabel}、数に応じて増減）。`)
+}
+
+// 直前に BP を上げた個体へ足す。量は解決時に数えて固定する（lastCores は取り除いた直後にしか数えられない）
+function placeLastBuffed(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, self, sourceName, srcType } = ctx
+    const content = action.content.find((c): c is Extract<Content, { type: "bp" }> => c.type === "bp")
+    const found = state.lastBpBuffTargetId !== undefined ? findSpiritAny(state, state.lastBpBuffTargetId) : null
+    if (!content || !found) {
+        log(state, `${sourceName}：対象がいなかった。`)
+        return
+    }
+    const amount = content.amountCounter !== undefined ? countedAmount(state, owner, self, content.amount, content.amountCounter, srcType, undefined, found.inst) : content.amount
+    if (amount === 0) {
+        log(state, `${sourceName}：カウントが0のため増加しなかった。`)
+        return
+    }
+    recordBp(state, owner, found.inst, amount, bpUntil(action))
+    log(state, `${getCard(found.inst.cardId).name}はさらにBP+${amount}（${action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
 }
 
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
@@ -810,7 +835,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeTriggerSwap(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost" || c.type === "symbolLoss")) {
+    if (!action.content.some((c) => c.type === "bp") && action.content.some((c) => c.type === "symbolAdd" || c.type === "symbolSet" || c.type === "cost" || c.type === "symbolLoss")) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         if (action.all && action.content.some((c) => c.type === "symbolLoss")) placeSymbolLossRule(ctx, action, filter)
@@ -870,6 +895,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (!action.all && action.content.some((c) => c.type === "keyword")) {
         placeKeyword(ctx, action)
+        return
+    }
+    if (action.target === "lastBuffed") {
+        placeLastBuffed(ctx, action)
         return
     }
     if (action.target === "self" && !action.content.some((c) => c.type === "bp")) {
