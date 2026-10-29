@@ -4077,7 +4077,9 @@
     ],
     "subjectSide": "opponent",
     "action": {
-     "type": "exhaustSelf"
+     "type": "exhaust",
+     "target": "self",
+     "count": 1
     }
    }
   ]

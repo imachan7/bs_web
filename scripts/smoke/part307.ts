@@ -213,7 +213,19 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
     refreshLevelAsOverrides(s)
     s.players.p1.deck.unshift("BS13-X01", "BS02-039", "BS02-039", "BS02-039", "BS02-039", "BS02-039") // 光導1枚＋他5枚
     const trashBefore = s.players.p1.trashCards.length
-    resolveAction(s, "p1", host, { type: "bpBuff", amount: 6000, costMillSelfCount: 6, thenRefreshIfMilledFamily: "光導" })
+    resolveAction(s, "p1", host, {
+        type: "pay",
+        confirmed: true,
+        cost: { type: "mill", side: "own", count: 6 },
+        then: {
+            type: "sequence",
+            keepScope: true,
+            actions: [
+                { type: "timedEffect", content: [{ type: "bp", amount: 6000 }], duration: "turn", target: "self" },
+                { type: "if", cond: { last: { cardType: "spirit", family: "光導" } }, then: { type: "refreshSelf" } },
+            ],
+        },
+    })
     assert(s.players.p1.trashCards.length === trashBefore + 6, "デッキ上6枚が破棄された")
     assert(host.tempBpBuff === 6000, "BP+6000（ターン終了時まで）")
     assert(!host.isRested, "光導スピリットが混ざっていたので回復した")
@@ -229,7 +241,19 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
     s.players.p1.field.combinedBraves.push(brave)
     refreshLevelAsOverrides(s)
     s.players.p1.deck.unshift("BS02-039", "BS02-039", "BS02-039", "BS02-039", "BS02-039", "BS02-039") // 光導なし
-    resolveAction(s, "p1", host, { type: "bpBuff", amount: 6000, costMillSelfCount: 6, thenRefreshIfMilledFamily: "光導" })
+    resolveAction(s, "p1", host, {
+        type: "pay",
+        confirmed: true,
+        cost: { type: "mill", side: "own", count: 6 },
+        then: {
+            type: "sequence",
+            keepScope: true,
+            actions: [
+                { type: "timedEffect", content: [{ type: "bp", amount: 6000 }], duration: "turn", target: "self" },
+                { type: "if", cond: { last: { cardType: "spirit", family: "光導" } }, then: { type: "refreshSelf" } },
+            ],
+        },
+    })
     assert(host.tempBpBuff === 6000, "BP+6000は付く")
     assert(host.isRested, "光導が混ざっていないので回復しない")
 }

@@ -353,8 +353,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `sweepLevelCostDepletion`（fn）：継続的なレベル置換（kind: "levelAs"）を再計算する。
 - `payCost`（fn）：summonFromHandFree 共通の召喚実行部：指定した手札インデックスのスピリットを、
 - `findSpiritAny`（fn）：instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
-- `applyMagicBuffBonus`（fn）：騎獣スレイプホース：マジックによるBPバフ（bpBuff）が対象に適用された直後にフックし、
-- `countEffectCounter`（fn）：selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
+- `applyMagicBuffBonus`（fn）：騎獣スレイプホース：マジックによるBPバフ（timedEffect の bp）が対象に適用された直後にフックし、
+- `countEffectCounter`（fn）：selfBuff / timedEffect の bp / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
 - `drawDoubleMultiplier`（fn）：効果ドロー倍化（封印された魔導書）：owner のフィールドにレベル有効かつ phaseTurn 一致の
 - `resolveAction`（fn）
 
@@ -903,9 +903,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `pickEnemyLowestCost`（fn）：destroy.lowestCost（BS12-084マーキュリーゴブレット）：相手スピリットからコスト最小のものを1体選ぶ
 - `tryInteractiveTargetChoice`（fn）：interactiveTargets 有効時、count で複数体を処理するアクション（destroy/exhaust/destroyExhausted/
 - `tryInteractiveCardChoice`（fn）：tryInteractiveTargetChoice のカード版：interactiveTargets有効時、count等で複数回に分けて
-- `bpBuffTargetPasses`（fn）：bpBuff の「対象になれるか」の判定。
-- `ownBpBuffCandidates`（fn）：bpBuff の対象選択：
-- `pickBpBuffTarget`（fn）
 - `pickOwnKeywordTarget`（fn）：grantKeyword 共通の対象選択：自分のスピリットのみが対象（targetInstanceId は自分側のみ有効）。
 - `requestActivationConfirm`（fn）：「〜できる」（EffectDef.triggered.optional）の発動確認。
 - `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、

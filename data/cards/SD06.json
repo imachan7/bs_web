@@ -296,10 +296,7 @@
       "from": "burst",
       "side": "own"
      },
-     "then": {
-      "type": "bpBuff",
-      "amount": 5000
-     }
+     "then": {"type": "timedEffect", "content": [{"type": "bp", "amount": 5000}], "duration": "turn", "side": "own", "count": 1}
     },
     "phaseTurn": {
      "phase": "attack",

@@ -47,7 +47,7 @@ export type EffectCounter =
     | "targetSameFamilyOwn" // 対象スピリットと系統を1つ以上共有する自分のスピリットの数（**対象自身も数える**。
     // 効果文が「このスピリット以外の」と書いていないため。SD02-015 フレンドリーパワー）。
     // targetSymbols と同じく、対象を選んだ後に logic/counted.ts が数える（countEffectCounter には来ない）
-    | "targetSymbols" // **対象スピリット自身**（bpBuffが解決するtargetInstanceId等）が持つシンボル数。selfSymbolsと異なりself（発生源）ではなく対象基準。マジックはself=nullのためselfSymbolsが使えない場合に使う（対象を選んだ後に logic/counted.ts が数える。BS06サベージパワー）
+    | "targetSymbols" // **対象スピリット自身**（timedEffect の bp が解決するtargetInstanceId等）が持つシンボル数。selfSymbolsと異なりself（発生源）ではなく対象基準。マジックはself=nullのためselfSymbolsが使えない場合に使う（対象を選んだ後に logic/counted.ts が数える。BS06サベージパワー）
     | "targetBofuCount" // 対象自身が持つ【暴風】の指定数（bofuCountFor）
     | "lastFunsaiTotal" // 直前の【粉砕】で破棄した総枚数（GameState.lastFunsai。次のアタック宣言でリセット。BS03巨人王ランドルフ）
     | "lastFunsaiSpirits" // 直前の【粉砕】で破棄したカードのうちスピリットカードの枚数（GameState.lastFunsai。BS04二刀流のアムブローズ）

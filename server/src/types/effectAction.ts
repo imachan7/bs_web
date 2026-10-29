@@ -39,7 +39,7 @@ export type CardPick = { declared?: "match"; cardType?: CardType | CardType[]; f
 // ownAllSpiritsHaveFamily.costIn＝すべてが、そのコストのどれかでもあること
 // ownMagicUsedThisTurn＝このターンに自分が pick に合うマジックカードを使用していた
 // opponentLifeNotLostThisTurn＝このターンに相手のライフが減っていない（state.lifeLostThisTurn）
-// lastBuffed＝直前の bpBuff の対象（state.lastBpBuffTargetId）がいまもフィールドにいて filter に合う
+// lastBuffed＝直前に BP を上げた個体（state.lastBpBuffTargetId）がいまもフィールドにいて filter に合う
 export type IfCond = { last: CardPick } | { lastAll: CardPick } | { opponentAttackStepNow: true } | { opponentMainStepNow: true } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } | { targetBpAtLeast: number } } | { ownAllHaveTeam: string } | { ownAllHaveFamily: string } | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } | { soulCoreInReserve: true } | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } | { ownAttackStepNow: true } | { magicUsedVia: string } | { firstBattleOfTurn: true } | { selfSummonedBy: string } | { lastBuffed: TargetFilter } | { ownMagicUsedThisTurn: CardPick } | { ownLifeLostThisTurn: true } | { opponentLifeNotLostThisTurn: true } | { keishoUsedForSummon: true } | { selfBpAtLeast: number } | { summonPaidWithSoulCore: true } | { soulCoreInTrash: true } | { ownAllSpiritsHaveFamily: string; costIn?: number[] } | { ownSpiritDestroyedThisTurn: true } | { ownAllNexusesHaveFamily: string } | { selfBlocked: true } | { opponentTurn: true } | { ownEffectDestroyedOwnSpirit: { color: Color } } | { ownEffectRemovedOpponentSpirit: { kinds: ("destroy" | "vanish")[]; spiritMagicOnly?: true } } | { selfRested: boolean } | { blockedAttacker: TargetFilter } | { ownEffectDestroyedOwnOnDestroySpirit: true } | { ownBurstSet: boolean }
 
 export type EffectAction =
@@ -58,17 +58,11 @@ export type EffectAction =
  | { type: "setBurstFromHand"; ask?: true } // ask＝「〜できる」を式の中で確認する（候補が1枚でも選択を出し、スキップ可）。外側に optional の確認が無い sequence の中で使う。 バースト専用：自分の手札のバースト効果持ち1枚をセットする。setBurst（GameAction）と違い**ターン1回制限を受けない**。自動選択はコスト最大の1枚（決定的簡略化）
 
  // chooserIsTarget（count:1・side省略時のみ対応）は破壊される側が対象を選ぶ（解決は発生源の持ち主の効果＝PendingChoice.actorPid）。chooseColor＝使用者が先に色を指定して colorFilter へ載せ解決し直す（自動選択は破壊できる数が最大の色。同数はred/purple/green/white/yellow/blueの順）。colorFilter の多色はOR
- | { type: "returnSelfToHand"; optional?: true; confirmed?: true } // optional＝「戻せる」（confirmed は確認済みの再入印で内部用）
- | { type: "returnSelfToDeckTop" } // 破壊された「その個体」を名指しで戻す
- | { type: "colorlessSelfThisBattle" }
- // このバトルの間だけ、色とシンボルを無いものとして扱う（clearBattleでリセット）
  | { type: "spawnToken"; token: string; count: number; upTo?: true } // 召喚ではない（actions/token.ts）。upTo＝「N体まで」
  | { type: "soulCoreToTrash" } // リザーブ・場の個体のどこにあっても。無いときは不発。pay の cost に書ける
  | { type: "placeSoulCore"; from?: "reserve" | "trash"; target?: "self" | "one"; filter?: TargetFilter } // from省略時はトラッシュ。target:"self"＝効果発生源自身、省略時はfilterに合う自分の個体1体。置いた個体にはコア増加の誘発が効く
  | { type: "coreRemove"; count: number; dest?: "void" | "trash"; anySide?: true; side?: "own"; spread?: true; chooserIsTarget?: true; spreadRemaining?: number; countCounter?: EffectCounter; leaveAtLeast?: number; filter?: TargetFilter; drawIfEmptied?: true; all?: true; soulChoiceTarget?: string; excludeSoulCore?: true; distinct?: true; spreadChosen?: string[]; spreadDrew?: true } // excludeSoulCore＝§1.3の持ち主への質問を出さず通常コアだけを移す。distinct＝spread で同じスピリットを2度選ばない。spread と drawIfEmptied の併用は「どれかのコアが0になったら1回だけドロー」。spreadChosen・spreadDrew・soulChoiceTarget は内部用。spread＝count個を1個ずつ別々のスピリットから選んで取り除く（2026-09-24ユーザー確認：「コアN個を置く」は合計N個を1個ずつ選ぶ。自動選択はコアの多い個体から）。chooserIsTarget＝対象側の持ち主が選ぶ（解決は発生源の持ち主の効果のまま）
  // 対象スピリットのコアを持ち主のリザーブへ。drawIfEmptied＝**この効果で**対象のコアが0個になったときだけ自分がドロー。leaveAtLeast＝この数を下回らないところまでしか取り除かない。dest:"void"はボイド（消滅）、"trash"は持ち主のトラッシュ。anySide の自動選択は実効BP最大（同値は相手側優先）。all＝countを無視
- | { type: "bpBuff"; target?: "self"; filter?: TargetFilter; amount: number; amountIfTarget?: { filter: TargetFilter; amount: number }; /* 選ばれた対象がfilterに合うときの量（amountの代わり）。単体指定の経路のみ */ amountCounter?: EffectCounter; amountFromSelfBp?: true; scope?: "battle"; anySide?: true; extraPerCoreToTrash?: number; boostTargetInstanceId?: string; thenAddSymbolThisBattle?: { color: Color; count: number }; costMillSelfCount?: number; thenRefreshIfMilledFamily?: FamilyFilter } // costMillSelfCount＝デッキを上からこの枚数、無条件に破棄することがコスト（あるだけ処理してコストも払う。デッキが尽きていても0枚破棄で成立）。thenRefreshIfMilledFamily＝その破棄で指定系統（配列＝OR）のスピリットカードが1枚以上トラッシュに置かれたときだけ発生源自身を回復
- // 既定はターン終了時まで。amountFromSelfBp＝amountの代わりに発生源自身の実効BP（selfがnullならno-op）。anySide の自動選択は自分の場から。extraPerCoreToTrash＝amount適用後、コアを自分のトラッシュに好きなだけ置いて1個につき追加でBP+（コアはリザーブ優先。自動選択は0個）。boostTargetInstanceId は内部専用。thenAddSymbolThisBattle＝amount適用後の対象へこのバトルの間だけ指定色のシンボルをcount個追加
  | { type: "exhaustAndForceBlock"; filter?: TargetFilter } // アタックしていない相手（アタッカー側）のスピリット1体を疲労させ、ブロック前のフラッシュ後のブロック宣言をそのスピリットで行う。2026-10-23 ユーザー裁定。使う側＝防御側
  | { type: "exhaust"; filter?: TargetFilter; count: number | "any"; all?: true; anySide?: true; excludeTarget?: true; chooserIsTarget?: true; countFromBofu?: true; bofuSourcePid?: PlayerId; countCounter?: EffectCounter; noRefreshUntilOwnEndSteps?: number; side?: "own"; autoPickMaxBp?: true; target?: "self"; upTo?: true; nexus?: "only" | "also"; nexusOnly?: true; excludeIds?: string[]; untilRefreshedCount?: number } // excludeIds は内部用。耐性で受けなかった個体は回復状態のままなので、疲労済みの除外では足りない。既定は相手のスピリット。bofuSourcePid は内部専用（chooserIsTarget で再入すると owner が入れ替わるため持ち回る）。noRefreshUntilOwnEndSteps は anySide／countCounter の経路では付かない簡略化。side own の自動選択は実効BP最小。nexus:"only"＝相手のネクサスだけ、"also"＝相手のスピリット/ネクサス合わせた候補から count 個（非対話は実効BP最大のスピリット優先→残り枠をネクサスへ）。untilRefreshedCount＝回復状態のスピリットがこの数になるまで疲労させる（count は使わない）。upTo の count は上限で、選ばずに終えたら以降も疲労させない
  | { type: "openAwakenMode" } // 【Re覚醒】覚醒モードを開く印。サーバー側は no-op で、覚醒そのものはクライアントが GameAction "awaken" を送る（2026-10-08ユーザー確認）
@@ -79,7 +73,7 @@ export type EffectAction =
  | { type: "returnToHand"; count: number; countCounter?: EffectCounter; all?: true; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true; side?: "own"; filter?: TargetFilter; costSacrificeChosen?: true; target?: "self" | "selfBrave"; costBudget?: EffectCounter; budgetLeft?: number; nexus?: "only" | "also" } // 対象を持ち主の手札に戻す。target self/selfBrave はコスト用で、自分のコストなので耐性は見ない。costBudget＝好きなだけ・コストの合計がカウンタの値まで（count は使わない。budgetLeft は内部用）。side:"own"は自分側。戻すのは破壊ではないので onDestroy は誘発しない。maxBpFromSelf＝selfの実効BP以下の相手のみ。anySide の自動選択は実効BP最大（同値は相手側優先）。nexus は exhaust.nexus と同じ意味
  // picked は選択の再開用（選び終わるまでゾーンから抜かない）。chooserIsTarget＝戻すカードの持ち主が選ぶ
  | { type: "returnToBurst"; side?: "own"; count?: number; filter?: TargetFilter } // バウンスと同じ場の離れ方でバーストエリアにセット（乗っていたコアはリザーブへ）。バーストが既にセット済みなら不発。count は1のみ
- | { type: "returnToDeckTop"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[]; excludeIds?: string[] } // 対象を持ち主のデッキの一番上に戻す。excludeIds は内部用。count 体を1体ずつ選ぶ連鎖で、選んだ個体を除く印（耐性で受けなかった個体は場に残るため）。side:"own"は自分側。count指定時は1体ずつ選ぶので最後に選んだものが一番上＝「好きな順番で戻す」を表現（中断時は残り体数を再開スタックへ）。chooserIsTarget＝戻される側（相手）が選ぶ（解決は発生源の持ち主の効果）。all＝filterの候補すべてを選んだ順に戻す（count/anySide/sideは無視。orderedIdsは内部専用）
+ | { type: "returnToDeckTop"; target?: "self"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[]; excludeIds?: string[] } // 対象を持ち主のデッキの一番上に戻す。excludeIds は内部用。count 体を1体ずつ選ぶ連鎖で、選んだ個体を除く印（耐性で受けなかった個体は場に残るため）。side:"own"は自分側。count指定時は1体ずつ選ぶので最後に選んだものが一番上＝「好きな順番で戻す」を表現（中断時は残り体数を再開スタックへ）。chooserIsTarget＝戻される側（相手）が選ぶ（解決は発生源の持ち主の効果）。all＝filterの候補すべてを選んだ順に戻す（count/anySide/sideは無視。orderedIdsは内部専用）
  | { type: "returnToDeckBottom"; target?: "self"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[]; excludeIds?: string[] } // 対象を持ち主のデッキの一番下に戻す。target:"self"＝コスト用（耐性は見ない）。軸の意味は returnToDeckTop と同じ（「好きな順番で」）。all＝候補すべてを選んだ順に戻す（count/anySide/sideは無視。orderedIdsは内部専用）
  | { type: "setTargetBpAsThisBattle"; levels: number[]; amount: number } // setOpponentBpAsThisBattle の、対象がイベントから渡る版
 
@@ -91,10 +85,9 @@ export type EffectAction =
  | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
  | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）
  | { type: "returnOwnNexusToDeckBottom"; filter?: TargetFilter } // 自分のネクサス1つ（filter に合うもの）を持ち主のデッキの下に戻す（破壊ではない。コスト用。選ぶのは持ち主）
- | { type: "returnNexusToHand"; count: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す。anySide の自動選択は相手の先頭ネクサス。voidCoreToOwnTrashIfOpponent＝戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ。all＝countを無視しside（省略時はopponent）が指すすべてのネクサス
+ | { type: "returnNexusToHand"; count: number; bounceProgress?: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す。anySide の自動選択は相手の先頭ネクサス。voidCoreToOwnTrashIfOpponent＝戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ。all＝countを無視しside（省略時はopponent）が指すすべてのネクサス
  // dest:"deckTop"指定時は「手札に戻す」の代わりに持ち主のデッキの上に戻す（returnNexusToDeckTop）
  | { type: "refreshSelf" } // このスピリット自身を回復させる（selfがnull/既に回復状態ならno-op）
- | { type: "exhaustSelf" } // このスピリット自身を疲労させる（selfがnull/既に疲労状態ならno-op。exhaustSpirit経由なのでownSpiritExhausted等が正しく発火する）
  | { type: "lifeCrush"; count: number; countCounter?: EffectCounter; countMax?: number; dest?: "trash" | "void"; neverZero?: true } // 相手のライフのコアcount個を相手のリザーブへ。dest:"trash"は相手のトラッシュ（再利用されないぶんリソースが減る）、"void"はゲームから取り除く。neverZero＝**この効果によっては**相手のライフを0にしない（下限1。このアクション自身だけの下限）。ライフ0以下で勝敗決定
  | { type: "randomOpponentHandMagicDiscard" } // 内容を見ないで（＝ランダムに）選び、マジックカードならトラッシュへ、それ以外は手札に残す（誰も選ばないので決定的簡略化はしない。SEMANTICS_AUDIT.md §3.14）。手札0枚なら不発
  | { type: "heavyExhaust"; filter?: TargetFilter; count?: number; countCounter?: EffectCounter; upTo?: true; escalate?: true; chooserIsTarget?: true; chosenByPlayer?: true } // 相手のスピリットを重疲労させる。chooserIsTarget＝相手が自分のスピリットから選ぶ（非対話は実効BP最小）。既に重疲労の個体は候補外。escalate＝回復状態なら疲労、疲労状態なら重疲労。count 既定1・upTo＝0〜count。chosenByPlayer は内部フラグ
@@ -122,7 +115,8 @@ export type EffectAction =
  // 内容をすべて既に持つ個体は候補にしない。all:true は個体を選ばず「条件に合うものすべて」をルールとして置く
  // （解決後に場に出たスピリットにも効く。いまは期間 turn だけ）。side と内容 bp は all のときだけ
  // target:"self" は「このスピリット自身をBP+」（旧 selfBuff 相当）：対象は常に発生源自身で、filter/side/count/targetInstanceIdは見ない
- | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock"; colorOptional?: true; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" }
+// target:"lastBuffed" は「そのスピリット」：直前の timedEffect が BP を上げた個体（state.lastBpBuffTargetId）に BP を足す。その個体が場にいなければ何もしない。content は bp のみ
+ | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock"; colorOptional?: true; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" | "lastBuffed" }
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、その【氷壁】の色と同じ色の相手のスピリットからブロックされない（指定時点の色で記録。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）
  | { type: "pay"; cost: EffectAction; then: EffectAction; confirmed?: true; tax?: { source: string; target: string; phrase: string; verb: string }; costOnly?: true; onceRevert?: { instanceId: string; effectId: string }; eventTargetId?: string; limitByKeyword?: "kyoshu" } // costOnly＝then が空振りでもコストは払うので then は成立判定しない。「〜することで〜する」の汎用の器（COST_MODEL.md §1）：cost・thenとも書いてある数どおりに解決できるときだけ発揮する。対応typeは actions/pay.ts の PAYABLE_TYPES
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない）。破棄は COST_MODEL.md §2どおり interactiveTargets 時は持ち主が1枚ずつ選び、自動選択は手札末尾
@@ -270,7 +264,7 @@ export type EffectAction =
  | { type: "millUntilMagicCastFree"; maxCount?: number; discardCardType: "spirit" | "nexus" | "magic" } // 自分の手札の指定種別カード1枚を破棄して（任意コスト。該当なしはno-op）、自分のデッキを上からマジックカードが出るまで破棄し、出たらそのフラッシュ効果をコストを支払わずに発揮する（出ないままデッキ切れなら何も起きない）。maxCountは**省略時は上限なし**（デッキ枚数に上限が無いため、固定値を書くと原文に無い天井になる）
  | { type: "opponentLifeToReserve"; count: number } // お互いのフィールド+リザーブ+トラッシュのコア合計を比べ、多かった方の持ち主が、少ない方と同じ合計になるまでボイドへ置く（同数なら不発）。取り先は多かった方が選ぶ（coresDownToLimit へ委譲。CHOOSER_RULES.md）
 
-// selfBuff / bpBuff / voidCoreToSelf / draw / coreGain 共通のカウンタ定義。
+// selfBuff / timedEffect の bp / voidCoreToSelf / draw / coreGain 共通のカウンタ定義。
 // { ownFamily: string } は自分のフィールドの指定系統スピリット数、{ ownNameIncludes: string } は
 // 自分のフィールドでカード名にこの文字列を含むスピリット数（いずれも onDestroy 等では発火時点で
 // selfはすでにフィールドから除去されているため、self自身はカウントに含まれない）

@@ -9,13 +9,17 @@ import { matchesTarget } from "../../../../shared/rules"
 // 候補の有無を「1体ぶん払えるか」で見られる type。疲労・回復・コアを置くは下の countsAnyState で見る
 // （「払えるか」は回復状態・置けるコアの数まで見るが、対象としては状態を問わず選べるため）
 const ONE_TARGET_TYPES = new Set<EffectAction["type"]>([
-    "destroy", "returnToHand", "returnToDeckTop", "returnToDeckBottom", "coreRemove", "bpBuff", "heavyExhaust", "timedEffect",
+    "destroy", "returnToHand", "returnToDeckTop", "returnToDeckBottom", "coreRemove", "heavyExhaust", "timedEffect",
 ])
 
 // true＝対象を取る効果で候補が0、false＝候補がいる、null＝対象を取らない（または判定できない）部分がある
 function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, card: CardData): boolean | null {
     if (action.type === "sequence" || action.type === "simultaneous") {
-        const results = action.actions.map((a) => targetMissing(state, pid, a, card))
+        // 「そのスピリット」（直前に BP を上げた個体）を受ける後半は、前半が対象を取れないなら後半も何も起きないので前半の結果に従う
+        const dependsOnPrev = (a: EffectAction): boolean =>
+            (a.type === "timedEffect" && a.target === "lastBuffed") || (a.type === "pay" && a.then.type === "timedEffect" && a.then.target === "lastBuffed")
+        const results: (boolean | null)[] = []
+        action.actions.forEach((a, i) => results.push(i > 0 && dependsOnPrev(a) ? results[i - 1]! : targetMissing(state, pid, a, card)))
         if (results.some((r) => r === null)) return null
         return results.every((r) => r === true)
     }

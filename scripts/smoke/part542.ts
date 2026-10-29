@@ -1,6 +1,5 @@
 // smoke パート542
 //   - placeCores が置き先を記録し、bpBuff の filter { lastTarget } が「それ」を拾う（26RCB01-002 の形）
-//   - returnSelfToHand.optional（対話時は確認、非対話は戻す）
 //   - destroy.upTo（対話時は 0〜count を選べる）
 import { assert, createGame, createInstance, effectiveBp, refreshLevelAsOverrides, resolveAction } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
@@ -45,7 +44,7 @@ console.log("=== 1. placeCores の置き先を bpBuff { lastTarget } が拾う =
             type: "sequence",
             actions: [
                 { type: "placeCores", from: "self", to: "spirit", target: "one", count: 1, filter: { nameContains: "テスト542の相手" } },
-                ...(withBuff ? [{ type: "bpBuff" as const, amount: 3000, scope: "battle" as const, filter: { lastTarget: true as const } }] : []),
+                ...(withBuff ? [{ type: "timedEffect" as const, content: [{ type: "bp" as const, amount: 3000 }], duration: "battle" as const, side: "own" as const, count: 1, filter: { lastTarget: true as const } }] : []),
             ],
         })
         refreshLevelAsOverrides(s)
@@ -56,24 +55,6 @@ console.log("=== 1. placeCores の置き先を bpBuff { lastTarget } が拾う =
     assert(buffed.cores[0] === 2 && buffed.cores[1] === 2, "自分のコアが1個ずれた")
     assert(buffed.other - base.other === 3000, "置き先だけBP+3000")
     assert(buffed.me === base.me, "発生源のBPは変わらない")
-}
-
-console.log("=== 2. returnSelfToHand.optional ===")
-{
-    const s = game("542b")
-    const me = createInstance("BS01-002", 1, 0)
-    s.players.p1.trashCards.push(me.cardId)
-    resolveAction(s, "p1", me, { type: "returnSelfToHand", optional: true })
-    assert(s.players.p1.hand.includes(me.cardId), "非対話は戻す")
-}
-{
-    const s = game("542c")
-    s.interactiveTargets = true
-    const me = createInstance("BS01-002", 1, 0)
-    s.players.p1.trashCards.push(me.cardId)
-    resolveAction(s, "p1", me, { type: "returnSelfToHand", optional: true })
-    assert(s.pendingChoice !== null && s.pendingChoice !== undefined, "対話は確認を出す")
-    assert(!s.players.p1.hand.includes(me.cardId), "確認前は戻さない")
 }
 
 console.log("=== 3. destroy.upTo ===")

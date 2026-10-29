@@ -22,12 +22,11 @@ export interface CardInstance {
     // 召喚時効果を発揮しない召喚で出た。『〜で【転召】したとき』（ownTensho）は効果文で召喚時の一部なので、これも起こさない（2026-10-15）
     noOnSummon?: true
     tempBpBuff: number // ターン終了時まで有効なBP増減
-    battleBpBuff?: number // このバトルの間だけ有効なBP増減（bpBuff の scope:"battle"）。clearBattle でリセットする。
+    battleBpBuff?: number // このバトルの間だけ有効なBP増減（timedEffect の duration:"battle"）。clearBattle でリセットする。
     colorlessThisBattle?: true // 期間つき効果の一覧（colorless）から作り直す写し。色とシンボルを無いものとして扱う
     bpAsContinuous?: number // 継続的な「BPを◯として扱う」上書き（kind:"bpAs"。levelAsのBP版。EffectModules.refreshLevelAsOverridesが毎回再計算する。器Q。BS13-X011）
     bpEqualizeContinuous?: number // 継続的な「Lv1/Lv2/Lv3BPを、発生源のBPと同じとして扱う」（kind:"bpEqualizeFamily"）。扱いは bpAsContinuous と同じ
     battleBpAs?: { levels: number[]; amount: number } // 期間つき効果の一覧（bpAs）から作り直す写し
-    battleSymbolsAdded?: Color[] // このバトルの間だけ追加されるシンボル（bpBuff.thenAddSymbolThisBattleが積む。symbolsAddedContinuousの「このバトルの間」版。clearBattleでリセット。BS13-062光り輝く大銀河Lv2）
     timedSymbolsOverride?: Color[] // このバトルの間「シンボルを◯色◯つとして扱う」（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
     borrowedAttackEffectOnce?: true // borrowCombinedAttackEffectの再帰ガード（内部専用。cards.jsonには書かない）。
     // 「自身を選べば同じ効果がそのアタックで2回発揮される」（2026-09-08ユーザー確認）を文字どおり2回で
