@@ -116,7 +116,7 @@
 - `extraPerCoreToTrash`（BS10-103）→ `sequence[timedEffect bp 3000, pay{cost: removeCores 好きなだけ 自分のフィールド/リザーブ→トラッシュ, then: timedEffect bp 1000×lastCores, target:"lastBuffed"}]`。
   **足りない部品**：`timedEffect` の `target:"lastBuffed"`（直前に BP を上げた個体＝`if` の `lastBuffed` と同じ記録）。「そのスピリット」を前の効果の対象で受ける書き方が他に無いため
 - `colorlessSelfThisBattle` → `timedEffect{content:[{type:"colorless"}], duration:"battle", target:"self"}`
-- **見つかった別の穴（PR 4 の外。修正 PR を別に出す）**：使う・起動する時点で `pay` のコストを払えるか・後半を解決できるかを見ていない。BS03-131（疲労させる自分のスピリットがいなくても使える）・BS08-030（武装がいなくても起動できる）・SD06-005（バーストが無くても起動できる）。part674 の `pending(...)` 4件が目標。HANDOFF の既知の限界「起動能力の後半の判定は destroy だけを見る」と同じ根
+- 見つかった別の穴（使う・起動する時点で `pay` を払えるか・後半を解決できるかを見ていない）は #312 で直した。BS08-030 は自分自身も武装なので起動して自分を選べる（10-29 ユーザー確認）
 
 ### PR 6 「戻す」を1つにまとめる（10-29 ユーザー合意。PR 2b の後）
 

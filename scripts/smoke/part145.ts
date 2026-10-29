@@ -338,8 +338,8 @@ console.log("=== BS08マインドブレイク：pay（コストを払えたと�
     const p1c = put(s2, "p1", FILLER.cardId, 2)
     const p2c = put(s2, "p2", FILLER.cardId, 3)
     assert(
-        act(s2, "p1", { type: "castMagic", handIndex: s2.players.p1.hand.length - 1 }) === null,
-        "使用（自分のスピリットのコアが足りない）",
+        act(s2, "p1", { type: "castMagic", handIndex: s2.players.p1.hand.length - 1 }) !== null,
+        "使用できない（自分のスピリットのコアが足りない。COST_MODEL §1）",
     )
     assert(p1c.cores === 2 && p2c.cores === 3, "対照実験：自分が払えなければ相手も無傷のまま")
 }

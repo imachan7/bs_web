@@ -4,7 +4,7 @@
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import type { CardData, CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
 import { autoPayPlan, canExhaustNexus, payCost } from "../EffectModules"
@@ -460,6 +460,12 @@ function judgePay(
     if (max < 0) return { cost: c, reason: thenReason() ?? "条件を満たさない" }
     c = c.type === "moveCards" ? { ...c, count: max } : ({ ...c, anyMax: max } as EffectAction)
     return { cost: c, reason: null }
+}
+
+// 使用・起動の前に、最上位の pay が成立するかを見る（理由は「〜ため」に続く形。成立するなら null）。self はマジックなら null
+export function unpayablePayReason(state: GameState, owner: PlayerId, action: Extract<EffectAction, { type: "pay" }>, source: CardData, self: CardInstance | null = null): string | null {
+    const skipThen = JSON.stringify(action.then).includes('"eventTargetOnly"')
+    return judgePay(state, owner, self, action, source.colors, source.type, undefined, skipThen).reason
 }
 
 // 任意（optional）の誘発が出す「発動しますか？」の前に呼ぶ。最上位が pay で成立しないなら、確認を出さずに理由つきで不発にして true を返す

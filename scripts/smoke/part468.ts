@@ -287,14 +287,14 @@ scenario({
     },
     expect: [...COMBINED, "自分.ウィンガル.疲労: false → true", "自分.ガトリングスタンド.BP: 3000 → 11000"],
 })
-console.log("--- 払えない（疲労させられるスピリットがいない）：BPは増えない ---")
+console.log("--- 払えない（疲労させられるスピリットがいない）：起動できない（2026-10-29。COST_MODEL §1） ---")
 for (const interactive of [true, false]) {
     scenario({
         name: `lancer-nopay-${interactive ? "対話" : "非対話"}`,
         start: { ...lancerBase([], true), interactive },
         steps: (t) => {
             combine(t)
-            activate(t)
+            t.actRejected("me", { type: "activateAbility", instanceId: t.id("突機竜アーケランサー"), effectId: "BS12-050-e3" })
         },
         expect: [...COMBINED, "自分.ガトリングスタンド.BP: 3000 → 8000"],
     })
