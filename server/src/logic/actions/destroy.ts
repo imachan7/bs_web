@@ -1130,7 +1130,7 @@ const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, actio
                 requestChoice(
                     state,
                     owner,
-                    `${sourceName}：手札に戻すネクサスを選んでください`,
+                    `${sourceName}：${action.dest === "deckTop" ? "デッキの上" : "手札"}に戻すネクサスを選んでください`,
                     cands.map((n) => n.instanceId),
                     false,
                     { ...action, bounceProgress: i },
