@@ -1045,109 +1045,6 @@ const destroySelfHandler = (ctx: ActionCtx): void => {
 }
 
 
-const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
-        // bounceProgress は選択の再入をまたぐ「戻した回数」（内部用）。再入時は戻した記録を消さない
-        if (action.bounceProgress === undefined) recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
-        // 1件戻すたびの共通処理：voidCoreToOwnTrashIfOpponent指定時、戻したネクサスが
-        // 相手のものだったときのみボイドからその数のコアを自分のトラッシュへ（BS03メビウスリング）
-        const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
-            recordMoved(state, [...lastMovedOf(state), nexus.cardId])
-            if (action.dest === "deckTop") {
-                returnNexusToDeckTop(state, pid, nexus.instanceId)
-            } else {
-                returnNexusToHand(state, pid, nexus.instanceId)
-            }
-            if (pid !== owner && action.voidCoreToOwnTrashIfOpponent) {
-                voidCoreToOwnTrash(state, owner, action.voidCoreToOwnTrashIfOpponent)
-                log(
-                    state,
-                    `${sourceName}：相手のネクサスを手札に戻したため、ボイドからコア${action.voidCoreToOwnTrashIfOpponent}個を自分のトラッシュに置いた。`,
-                )
-            }
-        }
-        // all：countを無視し、side（省略時はopponent）が指すネクサスすべてを戻す。
-        // side:"both"は両陣営すべて（bothSidesPidsで封印された魔導書系の対象片側化にも対応。BS06ホワイトホール）
-        if (action.all) {
-            const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
-            let bounced = 0
-            for (const pid of sides) {
-                // bounceOne が field.nexuses を破壊的に変更するため、対象をスナップショットしてから戻す
-                for (const nexus of [...state.players[pid].field.nexuses]) {
-                    bounceOne(pid, nexus)
-                    bounced++
-                }
-            }
-            if (bounced === 0) log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
-            return
-        }
-        // anySide：自分/相手どちらのネクサスも対象にできる。
-        // targetInstanceId優先→interactiveTargets時はrequestChoiceで両陣営から選択→
-        // それも無ければ既存どおり相手の先頭ネクサスを自動選択（下のループへフォールスルー）
-        if (action.anySide) {
-            if (targetInstanceId !== undefined) {
-                let found: { pid: PlayerId; inst: CardInstance } | null = null
-                for (const pid of ["p1", "p2"] as PlayerId[]) {
-                    const nexus = state.players[pid].field.nexuses.find((n) => n.instanceId === targetInstanceId)
-                    if (nexus) {
-                        found = { pid, inst: nexus }
-                        break
-                    }
-                }
-                if (!found) {
-                    log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
-                    return
-                }
-                bounceOne(found.pid, found.inst)
-                return
-            }
-            if (state.interactiveTargets) {
-                // 封印された魔導書Lv1：片側だけに変更する選択が済んでいればその側のネクサスに絞る
-                const candidates = applyBothSidesRedirectToCandidates(state, srcType, [
-                    ...state.players[opp].field.nexuses,
-                    ...state.players[owner].field.nexuses,
-                ])
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：手札に戻すネクサスを選んでください`,
-                    candidates.map((n) => n.instanceId),
-                    false,
-                    action,
-                    self,
-                )
-                return
-            }
-        }
-        let picked = action.bounceProgress !== undefined ? targetInstanceId : undefined
-        for (let i = action.bounceProgress ?? 0; i < action.count; i++) {
-            const cands = state.players[opp].field.nexuses
-            let nexus: CardInstance | undefined
-            if (picked !== undefined) {
-                nexus = cands.find((n) => n.instanceId === picked)
-                picked = undefined
-            } else if (state.interactiveTargets && cands.length >= 2) {
-                requestChoice(
-                    state,
-                    owner,
-                    `${sourceName}：${action.dest === "deckTop" ? "デッキの上" : "手札"}に戻すネクサスを選んでください`,
-                    cands.map((n) => n.instanceId),
-                    false,
-                    { ...action, bounceProgress: i },
-                    self,
-                    "target",
-                )
-                return
-            } else nexus = cands[0]
-            if (!nexus) {
-                log(state, `${sourceName}のネクサス手札戻し：対象がいなかった。`)
-                break
-            }
-            bounceOne(opp, nexus)
-        }
-        return
-}
-
 const returnOwnNexusToDeckBottomHandler: ActionHandler<"returnOwnNexusToDeckBottom"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     const filter = normalizeFilter(ctx, action)
@@ -1552,7 +1449,6 @@ const handlers = {
     destroyDuplicateNames: destroyDuplicateNamesHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
-    returnNexusToHand: returnNexusToHandHandler,
     returnOwnNexusToDeckBottom: returnOwnNexusToDeckBottomHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,
 } satisfies Partial<ActionRegistry>

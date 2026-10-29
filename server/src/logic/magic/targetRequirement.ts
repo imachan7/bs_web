@@ -50,7 +50,7 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
     if (action.type === "exhaust" || action.type === "refreshOne" || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
     if (!ONE_TARGET_TYPES.has(action.type)) return null
     const a = action as EffectAction & { all?: true; target?: string; costBudget?: unknown; countCounter?: unknown; filter?: { lastTarget?: unknown } }
-    if (a.all || a.target === "self" || a.target === "selfBrave" || a.costBudget !== undefined || a.countCounter !== undefined) return null
+    if ((a as { nexus?: string }).nexus === "only" && action.type !== "destroy" || a.all || a.target === "self" || a.target === "selfBrave" || a.costBudget !== undefined || a.countCounter !== undefined) return null
     // 「その〜」（前の効果の対象）は前の部分が対象を取れなければ何もしない
     if (a.filter?.lastTarget) return true
     if (action.type === "timedEffect" && action.content.every((c) => c.type === "playerRule")) return null

@@ -7182,7 +7182,8 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "returnNexusToHand",
+     "type": "returnToHand",
+     "nexus": "only",
      "count": 1,
      "anySide": true,
      "voidCoreToOwnTrashIfOpponent": 1

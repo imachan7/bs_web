@@ -3985,7 +3985,8 @@
      1
     ],
     "action": {
-     "type": "returnNexusToHand",
+     "type": "returnToHand",
+     "nexus": "only",
      "count": 1
     },
     "optional": false

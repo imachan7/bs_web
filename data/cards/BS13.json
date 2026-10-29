@@ -4017,7 +4017,8 @@
      3
     ],
     "action": {
-     "type": "returnNexusToHand",
+     "type": "returnToHand",
+     "nexus": "only",
      "count": 0,
      "all": true
     }
@@ -4091,9 +4092,9 @@
      1
     ],
     "action": {
-     "type": "returnNexusToHand",
+     "type": "returnToDeckTop",
      "count": 1,
-     "dest": "deckTop"
+     "nexus": "only"
     }
    },
    {

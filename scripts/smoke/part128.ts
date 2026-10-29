@@ -10,7 +10,7 @@
 //   W4: fieldEvent ownSpiritCoresRemovedByOpponent に repeatPerCount+countMode:"cores" を追加
 //   W5: aura.blockingOnly を追加（attackingOnlyの対）
 //   W6: refreshAllOwn に exemptFamily を追加
-//   W7: returnNexusToHand に all/side を追加
+//   W7: returnToHand{nexus:"only"} に all/side を追加
 //   W8: 【装甲：∞】= keyword.colorsFrom:"opponentFieldSymbols"
 //   W9（不要）: BS06-X24 Lv2-3 は既存の器でそのまま書けたため拡張なし（のち pay に統合）
 //   W10: returnAllToHand に filter を追加
@@ -302,7 +302,7 @@ console.log("=== BS06-106 メイン：両陣営のネクサスすべてが手札
     putNexus(s, "p1", "BS06-082", 0)
     putNexus(s, "p1", "BS06-083", 0)
     putNexus(s, "p2", "BS06-084", 0)
-    resolveAction(s, "p1", null, { type: "returnNexusToHand", count: 0, all: true, side: "both" }, undefined, ["white"], "magic")
+    resolveAction(s, "p1", null, { type: "returnToHand", nexus: "only", count: 0, all: true, side: "both" }, undefined, ["white"], "magic")
     assert(s.players.p1.field.nexuses.length === 0, "自分のネクサスもすべて戻る")
     assert(s.players.p2.field.nexuses.length === 0, "相手のネクサスもすべて戻る")
     assert(

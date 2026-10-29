@@ -1077,7 +1077,7 @@ function driveNexusDestruction(
         switch (step) {
             // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず
             // 両陣営のフィールドから発火（竜狩りのアーケオルニ）。
-            // バウンス（returnNexusToHand）はここを通らないため対象外
+            // バウンスはここを通らないため対象外
             case 1:
                 fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
                 break
