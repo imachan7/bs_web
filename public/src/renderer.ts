@@ -146,6 +146,11 @@ export function magicTargetSide(
     if ((effect.action as { anySide?: true }).anySide) return null
     // 体数を数え上げで決める効果（countCounter）も1体だけ先取りできないので、サーバーの自動選択に委ねる
     if ((effect.action as { countCounter?: unknown }).countCounter !== undefined) return null
+    // ネクサス・自分自身・自分側や両陣営・すべて、を壊す destroy は相手のスピリットを対象に取らない
+    if (effect.action.type === "destroy") {
+        const a = effect.action
+        if (a.nexus || a.target === "self" || a.side !== undefined || a.all) return null
+    }
     if (
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||

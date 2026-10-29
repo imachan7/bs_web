@@ -396,11 +396,11 @@ console.log("=== BS08雷帝竜騎レイブリッツ：activated(timing:main)＋k
 console.log("=== BS08ドラゴンスクランブル：lendSelfThisTurn＋destroyAll.drawPerDestroyed ===")
 {
     const scramble = findByEffect(
-        (e) => e["kind"] === "fieldEvent" && e["event"] === "anySpiritAttacked" && (e["action"] as Record<string, unknown> | undefined)?.["drawPerDestroyed"] === true,
+        (e) => e["kind"] === "fieldEvent" && e["event"] === "anySpiritAttacked" && (e["action"] as Record<string, unknown> | undefined)?.["drawPerDestroyed"] === 1,
     )
     const entry = entryOf(
         scramble,
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["drawPerDestroyed"] === true,
+        (e) => (e["action"] as Record<string, unknown> | undefined)?.["drawPerDestroyed"] === 1,
     )
     const families = entry["familyFilter"] as string[]
     const maxBp = (((entry["action"] as Record<string, unknown>)["filter"]) as Record<string, unknown>)["maxBp"] as number

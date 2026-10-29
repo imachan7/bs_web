@@ -85,7 +85,7 @@
 - 既定経路でも破壊したネクサスを `lastMoved` に書く（either・own の経路と同じ）
 - BS05-054 鉄槌のオズワルドは「自分か相手のネクサス」なので `side:"either"`。Lv2 の `discardOpponentPerDestroyed` は `sequence[destroyNexus either, if{cond:{last:{}}} → discard{from:hand, side:opponent, count:1}]` に分解する
 
-### PR 1 `destroy` へ統一（10-29 確定。調査メモの要点）
+### PR 1 `destroy` へ統一（10-29 確定。調査メモの要点。実装は refactor/destroy-unify）
 
 - `destroy` に足す軸：`nexus?: "only"`（ネクサスの破壊。ハンドラは冒頭で既存のネクサス用処理へ委譲する＝軸の統一で、手順は別のまま）・`side?: "own" | "both"`（"both"＝両陣営それぞれ。`anySide`＝どちらか1つ、とは別）・`levelFilter?: number[]`（ネクサスだけ。表示レベルで判定するので `filter.level` とは別）
 - `drawPerDestroyed` は `number` にそろえる（スピリット側の `true` 2件は `1` に移す）。ネクサスで「相手のネクサスを破壊した場合だけ引く」は今の挙動のまま

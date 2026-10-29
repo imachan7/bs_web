@@ -865,11 +865,13 @@ scenario({
 })
 scenario({
     name: "082-対象が場を離れたら防御側が通常どおり決める",
-    start: { turn: "opp", phase: "attack", me: { hand: [PANIC] }, opp: { hand: [LCHAIN], spirits: [{ card: PONI }, { card: ROKU }] } },
+    start: { turn: "opp", phase: "attack", interactive: true, me: { hand: [PANIC] }, opp: { hand: [LCHAIN], spirits: [{ card: PONI }, { card: ROKU }] } },
     steps(t) {
         attack(t, "opp", "相手.ポニサス")
         cast(t, "me", PANIC, "相手.ロクケラトプス")
-        cast(t, "opp", LCHAIN, "相手.ロクケラトプス")
+        // ライフチェインは使ってから破壊する自分のスピリットを選ぶ（クライアントも対象を先取りしない）
+        cast(t, "opp", LCHAIN)
+        t.act("opp", { type: "resolveChoice", instanceId: t.id("相手.ロクケラトプス") })
         t.closeFlash()
         t.act("me", { type: "takeLife" })
     },

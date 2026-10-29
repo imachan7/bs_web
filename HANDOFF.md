@@ -23,7 +23,7 @@
 
 ### 次の候補：専用 type の統一（10-27 計画のみ）
 
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 0 は取り消し（STANDARD_POOL_ONLY）。PR 3a `discard`＝#304・3b 小物＝#305（#304 のマージ後に main を取り込んで衝突を解く）。次は PR 1（破壊）。その前に実バグの修正 `fix/nexus-destroy-choice`（相手のネクサスを選べない・クロスファイア・オズワルド）。両方のスキーマは ACTION_UNIFY_PLAN §4 末尾。調査メモの要点も同じ所PR 1・2 は §2 の A・B（10-29 決定）に従う。秘宝島の破壊時が不発だった件は #303
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 0 は取り消し。3a・3b・PR 1 の前の修正は済み。PR 1（破壊）は refactor/destroy-unify。**次は PR 2（戻す・疲労の「自分」版）**：§2 の A・B（10-29 決定）に従う。`exhaustSelf` は名前で判定する箇所が6ファイル
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
 ### 既知の残り：entryActive（10-23）
