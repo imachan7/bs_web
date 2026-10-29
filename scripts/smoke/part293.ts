@@ -287,7 +287,7 @@ console.log("=== 083マジックランプ：revealAndPlaceNexusFree・bpBuff van
     const vanillaTarget = createInstance("BS12-041", s2.turn, 1)
     s2.players.p1.field.spirits.push(vanillaTarget)
     const before2 = vanillaTarget.tempBpBuff
-    resolveAction(s2, "p1", null, { type: "bpBuff", amount: 5000, filter: { vanilla: true }, anySide: true })
+    resolveAction(s2, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 5000 }], duration: "turn", side: "both", count: 1, filter: { vanilla: true } })
     assert(vanillaTarget.tempBpBuff === before2 + 5000, "効果の記述を持たないスピリットにBP+5000が乗る（filter.vanilla）")
 }
 

@@ -449,24 +449,25 @@ function spreadCandidatesFor(
     const out: RemoveSource[] = []
     for (const pid of pids) {
         const player = state.players[pid]
-        if (from.includes("spirit")) {
-            const floor = leaveAtLeast ?? 0
-            for (const s of player.field.spirits) {
-                if (s.cores <= floor) continue
-                if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
-                if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
-                out.push({ pid, kind: "spirit", inst: s })
-            }
+        // 候補は from に書いた順に並ぶ（先頭が既定の選択になるので、リザーブから先に取りたいカードは reserve を先頭に書く）
+        for (const zone of from) {
+            if (zone === "spirit") {
+                const floor = leaveAtLeast ?? 0
+                for (const s of player.field.spirits) {
+                    if (s.cores <= floor) continue
+                    if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
+                    if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
+                    out.push({ pid, kind: "spirit", inst: s })
+                }
+            } else if (zone === "nexus") {
+                for (const n of player.field.nexuses) {
+                    if (n.cores <= 0) continue
+                    if (!matchesTarget(state, pid, n, filter, self?.instanceId)) continue
+                    out.push({ pid, kind: "nexus", inst: n })
+                }
+            } else if (zone === "reserve" && player.reserve > 0) out.push({ pid, kind: "reserve" })
+            else if (zone === "trash" && player.trashCores > 0) out.push({ pid, kind: "trash" })
         }
-        if (from.includes("nexus")) {
-            for (const n of player.field.nexuses) {
-                if (n.cores <= 0) continue
-                if (!matchesTarget(state, pid, n, filter, self?.instanceId)) continue
-                out.push({ pid, kind: "nexus", inst: n })
-            }
-        }
-        if (from.includes("reserve") && player.reserve > 0) out.push({ pid, kind: "reserve" })
-        if (from.includes("trash") && player.trashCores > 0) out.push({ pid, kind: "trash" })
     }
     return out
 }

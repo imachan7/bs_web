@@ -175,13 +175,13 @@ console.log("=== 112/113/114 のフラッシュ：BP+3000/4000は自分・相手
     const oppSpirit = put(s, "p2", "BS01-001", 1)
     const ownBefore = effectiveBp(s, "p1", ownSpirit)
     const oppBefore = effectiveBp(s, "p2", oppSpirit)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 3000, anySide: true }, ownSpirit.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 3000 }], duration: "turn", side: "both", count: 1 }, ownSpirit.instanceId)
     assert(effectiveBp(s, "p1", ownSpirit) === ownBefore + 3000, "112/113のフラッシュ：自分のスピリットをBP+3000できる")
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 3000, anySide: true }, oppSpirit.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 3000 }], duration: "turn", side: "both", count: 1 }, oppSpirit.instanceId)
     assert(effectiveBp(s, "p2", oppSpirit) === oppBefore + 3000, "112/113のフラッシュ：相手のスピリットもBP+3000できる")
     const oppSpirit2 = put(s, "p2", "BS01-001", 1)
     const oppBefore2 = effectiveBp(s, "p2", oppSpirit2)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 4000, anySide: true }, oppSpirit2.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 4000 }], duration: "turn", side: "both", count: 1 }, oppSpirit2.instanceId)
     assert(effectiveBp(s, "p2", oppSpirit2) === oppBefore2 + 4000, "114のフラッシュ：相手のスピリットもBP+4000できる")
 }
 

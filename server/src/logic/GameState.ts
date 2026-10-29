@@ -512,11 +512,9 @@ export function clearBattle(state: GameState): void {
             for (const inst of lent) log(state, `${getCard(inst.cardId).name}の「このバトルの間」の効果が切れた。`)
             state.players[pid].battleVirtualInstances = []
         }
-        // 「このバトルの間」のBP増減（bpBuff の scope:"battle"）も同じ寿命（BS07ニードルショット）
+        // 「このバトルの間」のBP増減も同じ寿命（BS07ニードルショット）
         for (const inst of state.players[pid].field.spirits) {
             // 「このバトルの間、BPを◯として扱う」（器J。BS12-037/058）も同じ寿命
-            // 「このバトルの間」の追加シンボル（bpBuff.thenAddSymbolThisBattle。BS13-062）も同じ寿命
-            delete inst.battleSymbolsAdded
             // 「このバトルの間、色を無いものとして扱う」（器S。BS13-011/015/052）も同じ寿命
         }
     }

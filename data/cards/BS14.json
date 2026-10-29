@@ -7293,13 +7293,7 @@
       "target": "self",
       "count": 1
      },
-     "then": {
-      "type": "bpBuff",
-      "amount": 3000,
-      "filter": {
-       "excludeSelf": true
-      }
-     }
+     "then": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "side": "own", "count": 1, "filter": {"excludeSelf": true}}
     }
    }
   ]

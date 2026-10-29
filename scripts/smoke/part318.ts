@@ -362,7 +362,7 @@ console.log("=== BS14-111エクスキューションデストロイ：メイン�
     const s = game("t318-111-c")
     const target = put(s, "p1", "BS01-001", 1)
     const before = effectiveBp(s, "p1", target)
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 2000, anySide: true }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", side: "both", count: 1 }, target.instanceId)
     assert(effectiveBp(s, "p1", target) === before + 2000, "フラッシュ：このターンの間スピリット1体をBP+2000する")
 }
 

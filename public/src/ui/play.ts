@@ -346,7 +346,7 @@ export function onBurstSetClick(handIndex: number): void {
 }
 
 // 手札から使う効果（kind:"handActivated"。BS15-011ミーアバット）。
-// 対象選択はサーバー側の bpBuff.anySide の既存経路（対話ならPendingChoice）に任せるので、
+// 対象選択はサーバー側の timedEffect（side:"both"）の経路（対話ならPendingChoice）に任せるので、
 // クライアントは useHandAbility を送るだけでよい
 export function onHandAbilityClick(handIndex: number, effectId: string): void {
     if (!view) return

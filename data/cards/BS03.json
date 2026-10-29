@@ -7215,7 +7215,7 @@
     "id": "e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "pay", "cost": {"type": "exhaust", "side": "own", "count": 1}, "then": {"type": "bpBuff", "amount": 1, "amountCounter": "lastBp", "anySide": true}}
+    "action": {"type": "pay", "cost": {"type": "exhaust", "side": "own", "count": 1}, "then": {"type": "timedEffect", "content": [{"type": "bp", "amount": 1, "amountCounter": "lastBp", "countOnce": true}], "duration": "turn", "side": "both", "count": 1}}
    }
   ]
  },

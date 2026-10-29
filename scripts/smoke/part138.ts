@@ -637,15 +637,16 @@ console.log("=== BS07 黄：バトル中はマジックが無償になり、効�
                 (e) =>
                     e["kind"] === "magic" &&
                     e["timing"] === "flash" &&
-                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff" &&
+                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+                    (e["action"] as Record<string, unknown>)["side"] === "own" &&
+                    (e["action"] as Record<string, unknown>)["target"] === undefined &&
+                    JSON.stringify((e["action"] as Record<string, unknown>)["content"]).includes('"type":"bp"') &&
                     (e["action"] as Record<string, unknown>)["filter"] === undefined,
             ) &&
             (c.cost ?? 0) > 0,
     )
     if (!buffMagic) throw new Error("検証用のフラッシュBP+マジックが見つかりません")
-    const buffAmount = Number(
-        ((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)["amount"],
-    )
+    const buffAmount = bpAmountOf((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)
 
     const s = base("isfil-repeat")
     const isfilInst = put(s, "p1", isfil.cardId, cores)
@@ -677,12 +678,15 @@ console.log("=== BS07 黄：バトル中はマジックが無償になり、効�
                 (e) =>
                     e["kind"] === "magic" &&
                     e["timing"] === "flash" &&
-                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff" &&
+                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+                    (e["action"] as Record<string, unknown>)["side"] === "own" &&
+                    (e["action"] as Record<string, unknown>)["target"] === undefined &&
+                    JSON.stringify((e["action"] as Record<string, unknown>)["content"]).includes('"type":"bp"') &&
                     (e["action"] as Record<string, unknown>)["filter"] === undefined,
             ) &&
             (c.cost ?? 0) > 0,
     )!
-    const buffAmount = Number(((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)["amount"])
+    const buffAmount = bpAmountOf((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)
 
     const s = base("isfil-not-in-battle")
     put(s, "p1", isfil.cardId, cores) // バトルには出さない
@@ -721,12 +725,15 @@ console.log("=== BS07大天使イスフィール：無償化と再発揮は1バ�
                 (e) =>
                     e["kind"] === "magic" &&
                     e["timing"] === "flash" &&
-                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "bpBuff" &&
+                    (e["action"] as Record<string, unknown> | undefined)?.["type"] === "timedEffect" &&
+                    (e["action"] as Record<string, unknown>)["side"] === "own" &&
+                    (e["action"] as Record<string, unknown>)["target"] === undefined &&
+                    JSON.stringify((e["action"] as Record<string, unknown>)["content"]).includes('"type":"bp"') &&
                     (e["action"] as Record<string, unknown>)["filter"] === undefined,
             ) &&
             (c.cost ?? 0) > 0,
     )!
-    const buffAmount = Number(((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)["amount"])
+    const buffAmount = bpAmountOf((buffMagic.effects ?? [])[0]!["action"] as Record<string, unknown>)
 
     const s = base("isfil-once-per-battle")
     const isfilInst = put(s, "p1", isfil.cardId, cores)

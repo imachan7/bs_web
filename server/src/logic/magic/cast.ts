@@ -190,7 +190,7 @@ export function usableMagicTarget(
     // 陣営違い（相手限定の効果に自分のスピリット）も捨てる。渡したままだと解決時に「対象にできない」で不発になる
     const sided = action as { side?: string; anySide?: true }
     const side = sided.anySide || sided.side === "both" ? undefined
-        : action.type === "bpBuff" || sided.side === "own" ? pid
+        : sided.side === "own" ? pid
         : OPPONENT_DEFAULT_TYPES.has(action.type) ? opponentOf(pid) : undefined
     if (side !== undefined && ownerPid !== side) return undefined
     if (action.filter === undefined) return targetInstanceId

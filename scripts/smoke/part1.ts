@@ -375,7 +375,7 @@ console.log("=== コア除去・BP増加アクション ===")
     act(s, "p1", { type: "summon", handIndex: 0 })
     const sp2 = s.players.p1.field.spirits[0]!
     const buffBefore = sp2.tempBpBuff
-    resolveAction(s, "p1", null, { type: "bpBuff", amount: 2000 }, sp2.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", side: "own", count: 1 }, sp2.instanceId)
     assert(sp2.tempBpBuff === buffBefore + 2000, "BP増加でtempBpBuffが増える")
 }
 
@@ -456,7 +456,7 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
         s,
         "p1",
         null,
-        { type: "bpBuff", amount: 1000, amountCounter: "exhaustedEnemies" },
+        { type: "timedEffect", content: [{ type: "bp", amount: 1000, amountCounter: "exhaustedEnemies", countOnce: true }], duration: "turn", side: "own", count: 1 },
         buffTarget.instanceId,
     )
     assert(buffTarget.tempBpBuff === 2000, "疲労2体×1000でtempBpBuffが2000増える")
@@ -469,7 +469,7 @@ console.log("=== 可変数ドロー・可変数BP増加・全体対象アクシ�
         s,
         "p1",
         null,
-        { type: "bpBuff", amount: 1000, amountCounter: "exhaustedEnemies" },
+        { type: "timedEffect", content: [{ type: "bp", amount: 1000, amountCounter: "exhaustedEnemies", countOnce: true }], duration: "turn", side: "own", count: 1 },
         buffTarget.instanceId,
     )
     assert(buffTarget.tempBpBuff === buffBefore, "疲労スピリットが0体ならBPが増加しない")

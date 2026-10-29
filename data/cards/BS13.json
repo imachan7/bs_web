@@ -826,15 +826,7 @@
       "光導"
      ]
     },
-    "action": {
-     "type": "bpBuff",
-     "amount": 6000,
-     "scope": "battle",
-     "thenAddSymbolThisBattle": {
-      "color": "red",
-      "count": 1
-     }
-    },
+    "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 6000}, {"type": "symbolAdd", "color": "red", "count": 1}], "duration": "battle", "side": "own", "count": 1},
     "phaseTurn": {
      "phase": "attack",
      "turn": "both"
@@ -1369,9 +1361,7 @@
      2
     ],
     "optional": false,
-    "action": {
-     "type": "colorlessSelfThisBattle"
-    }
+    "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
    }
   ]
  },
@@ -1666,9 +1656,7 @@
      "jugeki",
      "fushi"
     ],
-    "action": {
-     "type": "colorlessSelfThisBattle"
-    }
+    "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
    }
   ]
  },
@@ -1891,9 +1879,7 @@
     ],
     "whileCombined": true,
     "optional": false,
-    "action": {
-     "type": "colorlessSelfThisBattle"
-    }
+    "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
    }
   ],
   "braveCondition": {
@@ -6576,13 +6562,7 @@
     "levels": null,
     "whileCombined": true,
     "optional": true,
-    "action": {
-     "type": "bpBuff",
-     "amount": 6000,
-     "costMillSelfCount": 6,
-     "thenRefreshIfMilledFamily": "光導",
-     "scope": "battle"
-    }
+    "action": {"type": "pay", "cost": {"type": "mill", "side": "own", "count": 6}, "then": {"type": "sequence", "keepScope": true, "actions": [{"type": "timedEffect", "content": [{"type": "bp", "amount": 6000}], "duration": "battle", "target": "self"}, {"type": "if", "cond": {"last": {"cardType": "spirit", "family": "光導"}}, "then": {"type": "refreshSelf"}}]}}
    }
   ],
   "braveCondition": {

@@ -33,7 +33,7 @@ const GATE_KINDS_WITH_COST = new Set(["reviveOnDestroy", "activated", "handActiv
 // キーワード（keyword エントリと handKeywordGrant の keyword）
 const GATE_KEYWORDS = new Set(["soku", "resshinsoku", "tensho", "hyoheki", "kyoshu"])
 // 支払いを引数で持つ action の欄
-const GATE_PARAMS = ["payCost", "costDestroyOwnSpiritSameCost", "costSkipCoreStep", "costSkipDraw", "costMillSelfCount", "extraPerCoreToTrash", "thenPay"]
+const GATE_PARAMS = ["payCost", "costDestroyOwnSpiritSameCost", "costSkipCoreStep", "costSkipDraw", "thenPay"]
 
 // 確認を出さないのが正しいもの・「ことで」がコストの意味でないもの
 const VERIFIED: Record<string, string> = {

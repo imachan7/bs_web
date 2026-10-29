@@ -70,7 +70,7 @@ export interface GameState {
     // resolveMagic が読んですぐ消す）。**oncePerBattle の無償化の枠を消費させない**ために使う
     // （払って使ったのだから、1枚きりの枠は残る。BS07大天使イスフィール）
     magicFreeDeclined?: boolean
-    // 直前に bpBuff が BP を増加させた対象の instanceId。効果文が「〜をBP+2000する。**そのスピリットが**〜」と
+    // 直前に timedEffect が BP を増加させた対象の instanceId。効果文が「〜をBP+2000する。**そのスピリットが**〜」と
     // 前の文を指しているカードで、後ろの文を対象1体に限定するために使う（BS07ニードルショット）。
     // 直後の lendSelfThisBattle が仮想発生源の lentBuffTargetId へ写して、そこから battleWon が読む
     lastBpBuffTargetId?: string

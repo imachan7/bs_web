@@ -137,6 +137,6 @@ console.log("=== BS03-142 サルベージ：山札上5枚からネクサス回�
     const target = createInstance("BS01-001", s.turn, 1)
     s.players.p1.field.spirits.push(target)
     const before = effectiveBp(s, "p1", target)
-    resolveAction(s, "p1", target, { type: "bpBuff", amount: 3000 })
+    resolveAction(s, "p1", target, { type: "timedEffect", content: [{ type: "bp", amount: 3000 }], duration: "turn", side: "own", count: 1 })
     assert(effectiveBp(s, "p1", target) === before + 3000, "フラッシュ：対象スピリットがBP+3000される")
 }

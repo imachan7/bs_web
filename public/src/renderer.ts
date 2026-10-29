@@ -167,7 +167,6 @@ export function magicTargetSide(
         return simple && a.chooser === undefined && a.filter === undefined ? "opponent" : null
     }
     if (
-        effect.action.type === "bpBuff" ||
         (effect.action.type === "placeCores" &&
             effect.action.to === "spirit" &&
             (effect.action.target ?? "one") === "one" &&
@@ -176,8 +175,7 @@ export function magicTargetSide(
             effect.action.filter === undefined)
     )
         return "self"
-    // timedEffect の1体指定BP（旧bpBuffの単純形の置き換え）：side:"both"はanySideと同じく先取りしない、
-    // side:"own"は旧bpBuffと同じ"self"、既定（相手）は"opponent"
+    // timedEffect の1体指定：side:"both"（陣営を問わず選ぶ）は先取りしない、side:"own"は"self"、既定（相手）は"opponent"
     if (effect.action.type === "timedEffect" && effect.action.content.some((c) => c.type === "bp" || c.type === "keyword" || (c.type === "level" && c.up !== undefined) || (c.type === "triggerSwap" && c.from === "onAttack")) && !effect.action.all) {
         if (effect.action.side === "both") return null
         return effect.action.side === "own" ? "self" : "opponent"
