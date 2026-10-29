@@ -314,14 +314,14 @@ export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self
 }
 
 // 起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
-// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy・pay の cost（疲労・バースト破棄）・family だけで絞る bpBuff だけで、
+// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy・pay の cost（疲労・バースト破棄）・family だけで絞る「自分のスピリット1体」の timedEffect だけで、
 // 装甲・免疫などの耐性は見ない＝対象が耐性持ちだけのときは「起動できる」側に倒れる。ほかの action は常に true
 export function activatedActionResolvable(board: Board, pid: PlayerId, source: CardInstance, action: EffectAction): boolean {
     // 「その後」で続く文も、ことで の後半としてすべて解決できなければならない（COST_MODEL）。if の中は条件しだいなので見ない。
     // sequence の中の pay は「払えなければそこだけ不発」で前の文は解決する（ウィンガルのランサー）ので、払えるかを見ない＝最上位の pay だけが起動可否を決める
     if (action.type === "sequence") return action.actions.every((a) => a.type === "pay" || activatedActionResolvable(board, pid, source, a))
     if (action.type === "pay") return activatedPayResolvable(board, pid, source, action)
-    if (action.type === "bpBuff" && !action.anySide && !action.filter?.excludeSelf) {
+    if (action.type === "timedEffect" && action.side === "own" && action.target === undefined && !action.all && typeof action.count === "number" && !action.filter?.excludeSelf) {
         // family だけの絞り込みに限る。ほかの絞り込み（記号数・キーワード等）はサーバーの targeting.ts が持つので見ない（true 側に倒れる）
         const f = action.filter
         if (f?.family !== undefined && Object.keys(f).every((k) => k === "family")) {

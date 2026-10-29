@@ -5,10 +5,6 @@ import type { GameAction, GameState, PlayerId } from "./helpers"
 import { instColors } from "../../shared/rules/level"
 import { instanceSymbolColors } from "../../shared/rules/symbols"
 
-// 使用・起動の時点で「〜することで」のコストと後半を見ていない穴（ACTION_UNIFY_PLAN §4 PR 4 の注記）。修正 PR で assert に戻す
-function pending(cond: boolean, msg: string): void {
-    console.log(`  ${cond ? "✅" : "⏸ 未対応"} ${msg}`)
-}
 
 const GOLADON = "BS01-001" // ゴラドン（赤・1コアBP1000）
 const ROKU = "BS01-002" // ロクケラトプス（赤・1コアBP1000／2コアBP3000）
@@ -148,8 +144,8 @@ console.log("=== BS03-131 ユナイテッドパワー（フラッシュ・疲労
     put(s, "p1", AIBERN, 1, true)
     put(s, "p2", ROKU, 2)
     s.players.p1.hand = ["BS03-131"]
-    pending(handleAction(s, "p1", { type: "castMagic", handIndex: 0, timing: "flash" }) !== null, "疲労させる自分のスピリットがいなければ使用できない")
-    pending(s.players.p1.hand.length === 1, "手札に残る")
+    assert(handleAction(s, "p1", { type: "castMagic", handIndex: 0, timing: "flash" }) !== null, "疲労させる自分のスピリットがいなければ使用できない")
+    assert(s.players.p1.hand.length === 1, "手札に残る")
 }
 
 console.log("=== BS10-103 グロウイングソード（+3000 と、置いたコア1個につき同じスピリットを+1000） ===")
@@ -220,11 +216,15 @@ for (const [cores, own] of [[2, 4000], [4, 5000]] as const) {
     assert(handleAction(s, "p1", { type: "activateAbility", instanceId: f.instanceId, effectId: "BS08-030-e2" }) !== null, "すでに疲労していれば起動できない")
 }
 {
-    const s = game("fial-notarget")
+    // 自分自身も武装なので、ほかに武装がいなくても起動して自分を選べる（2026-10-29 ユーザー確認）
+    const s = game("fial-self")
     const f = put(s, "p1", "BS08-030", 2)
     put(s, "p1", ROKU, 2)
     put(s, "p2", GATLING, 1)
-    pending(handleAction(s, "p1", { type: "activateAbility", instanceId: f.instanceId, effectId: "BS08-030-e2" }) !== null && !f.isRested, "武装の自分のスピリットがいなければ起動できない（疲労だけして不発にはならない）")
+    const before = bp(s, "p1", f)
+    assert(handleAction(s, "p1", { type: "activateAbility", instanceId: f.instanceId, effectId: "BS08-030-e2" }) === null, "起動できる")
+    drive(s, [{ target: f.instanceId }], "fial-self")
+    assert(f.isRested && bp(s, "p1", f) === before * 2, "自分が疲労し、自分自身に BP+(このスピリットのBP) が乗る")
 }
 
 console.log("=== SD06-005 ツインブレード・ドラゴン（Lv2 フラッシュ・バーストを破棄してBP+5000） ===")
@@ -261,7 +261,7 @@ function twinGame(seed: string, cores: number, burst: boolean) {
     const { s, t } = twinGame("twin2", 1, true)
     assert(handleAction(s, "p1", { type: "activateAbility", instanceId: t.instanceId, effectId: "SD06-005-e3" }) !== null, "Lv1では起動できない")
     const none = twinGame("twin3", 2, false)
-    pending(handleAction(none.s, "p1", { type: "activateAbility", instanceId: none.t.instanceId, effectId: "SD06-005-e3" }) !== null, "バーストがなければ起動できない")
+    assert(handleAction(none.s, "p1", { type: "activateAbility", instanceId: none.t.instanceId, effectId: "SD06-005-e3" }) !== null, "バーストがなければ起動できない")
     const main = game("twin4", { phase: "main" })
     const t3 = put(main, "p1", "SD06-005", 2)
     main.players.p1.burst = "BS03-131"
