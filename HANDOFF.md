@@ -23,7 +23,7 @@
 
 ### 次の候補：専用 type の統一（10-27 計画のみ）
 
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 0 は取り消し。3a・3b・PR 1 の前の修正は済み。PR 1（破壊）は refactor/destroy-unify。**次は PR 2（戻す・疲労の「自分」版）**：§2 の A・B（10-29 決定）に従う。`exhaustSelf` は名前で判定する箇所が6ファイル
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md)。PR 1＝#308。**PR 2 は修正 `fix/nexus-bounce-choice` → 2a `refactor/self-unify`（並行）→ 2b（修正のマージ後）**。スキーマは §4 末尾
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
 ### 既知の残り：entryActive（10-23）
