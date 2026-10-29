@@ -84,6 +84,6 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
      読む側（`summonGate.ts`・`removal.ts` の `ownBurstOnly`・`triggers.ts` の `burstSummonOnly`）を `currentEffectSource.burst` に移し、`resolvingBurstPid` は消す
    - **2c の設計（10-30）**：`summonRepeatFromHand`（データは兵隊アントマン1枚）を `summon{from:"hand", repeatWhileChosen, payCost, skipOnSummon}` で書く。
      「まとめて選び、合計コストを1回で払う（【転召】の対象は決定の後・支払いの前。10-15 ユーザー確認）」は手順の違いなので、`summonRepeat.ts` はそのまま残し、内部専用の type（`summonBatchPaidInternal`）にする。`summon{from:"hand"}` の入口が `repeatWhileChosen && payCost` のときそちらへ振り分ける。`mode:"free"` は使うカードが無いので消す
-3. **耐性に発生源、問い合わせに貫通**（§2.5）。今のプールに貫通のカードは無いので、型と判定の形だけ入れ、場面テストは【龍射撃】相当を組んで確かめる
+3. ✅ **貫通の最初の形**（#324）：`EffectAttempt.pierce:"all"`（一切の効果で防げない）だけを入れた。耐性の発生源（色・種類で絞る貫通に要る）は、該当カードを取り込むときに足す。元の案：**耐性に発生源、問い合わせに貫通**（§2.5）。今のプールに貫通のカードは無いので、型と判定の形だけ入れ、場面テストは【龍射撃】相当を組んで確かめる
 4. ライフを減らす（ライフのコストと `lifeCrush` が同じ問い合わせを呼ぶ。量の制限を含む）
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
