@@ -201,7 +201,7 @@ console.log("=== BS14-040-e1 勇機リュードロイド：相手のスピリッ
     s.players.p1.hand = ["BS14-040"]
     const before = s.players.p1.field.spirits.length
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p2", null, { type: "discardOpponent", count: 1, random: true }, undefined, undefined, "spirit")
+    resolveAction(s, "p2", null, { type: "discard", from: "hand", side: "opponent", count: 1, random: true }, undefined, undefined, "spirit")
     assert(s.players.p1.hand.length === 0, "手札から破棄された")
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-040"), "コストを支払わず場に出る")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された分だけ場が増える")

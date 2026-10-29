@@ -46,7 +46,7 @@ console.log("=== 実対戦でも選択待ちにならず、相手の手札が1�
     const trashBefore = s.players.p2.trashCards.length
     assert(handBefore.length >= 2, "相手の手札が2枚以上ある（前提。1枚だと選択の有無が判別できない）")
 
-    resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, random: true })
+    resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, random: true })
 
     assert(s.pendingChoice === null, "相手に選ばせる選択待ちにならない（誰も選ばない）")
     assert(s.players.p2.hand.length === handBefore.length - 1, "相手の手札が1枚減る")
@@ -62,7 +62,7 @@ console.log("=== 手札が0枚なら不発 ===")
     s.players.p1.field.spirits.push(src)
     s.players.p2.hand = []
     const trashBefore = s.players.p2.trashCards.length
-    resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, random: true })
+    resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, random: true })
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p2.trashCards.length === trashBefore, "トラッシュも増えない")
 }
@@ -82,7 +82,7 @@ console.log("=== 末尾固定ではない（何度か試すと違う位置が選
         s.players.p1.field.spirits.push(src)
         s.players.p2.hand = [...HAND]
         const last = HAND[HAND.length - 1]!
-        resolveAction(s, "p1", src, { type: "discardOpponent", count: 1, random: true })
+        resolveAction(s, "p1", src, { type: "discard", from: "hand", side: "opponent", count: 1, random: true })
         assert(s.players.p2.hand.length === HAND.length - 1, "毎回ちょうど1枚だけ減る")
         if (s.players.p2.hand.includes(last)) {
             pickedNonLast = true

@@ -6769,7 +6769,9 @@
      3
     ],
     "action": {
-     "type": "discardBothHands",
+     "type": "discard",
+     "from": "hand",
+     "side": "both",
      "count": 5
     },
     "optional": false

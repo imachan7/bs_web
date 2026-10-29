@@ -885,7 +885,10 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "discardOpponentTegamoto"
+       "type": "discard",
+       "from": "tegamoto",
+       "side": "opponent",
+       "count": "all"
       },
       {
        "type": "destroy",
@@ -1054,7 +1057,10 @@
      3
     ],
     "action": {
-     "type": "discardSelfOne"
+     "type": "discard",
+     "from": "hand",
+     "side": "own",
+     "count": 1
     },
     "optional": false
    },
@@ -4551,7 +4557,9 @@
      2
     ],
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1,
      "random": true
     },
@@ -5184,7 +5192,12 @@
      1,
      2
     ],
-    "action": {"type": "discardOpponent", "count": 0, "downTo": 3}
+    "action": {
+    "type": "discard",
+    "from": "hand",
+    "side": "opponent",
+    "downTo": 3
+    }
    }
   ]
  },

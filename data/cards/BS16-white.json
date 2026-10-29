@@ -321,7 +321,9 @@
     "whileCombined": true,
     "turn": "opponent",
     "action": {
-     "type": "discardOpponentBurst"
+     "type": "discard",
+     "from": "burst",
+     "side": "opponent"
     }
    }
   ]

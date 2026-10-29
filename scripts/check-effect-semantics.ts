@@ -715,9 +715,9 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
 // これらは chooserIsTarget を書かなくても実装側で相手に選ばせるので、
 // 「相手は」側では等価表現（適合）、「自分は」側では**食い違い**になる。
 const OPPONENT_CHOOSES_ACTION_TYPES = new Set([
-    // 選択者は破棄される相手本人（type.ts の discardOpponent 定義コメント／
-    // drawDiscard.ts の tryInteractiveCardChoice(state, targetPid, ...) で確認）
-    "discardOpponent",
+    // 選択者は破棄される相手本人（drawDiscard.ts の tryInteractiveCardChoice(state, targetPid, ...) で確認）。
+    // discard は from:"hand" かつ side:"opponent" のときだけ（actionTypeKey が疑似名に直す）
+    "discard:opponentHand",
     // 相手が自分のスピリットを1体ずつ選んで破壊/コア移動する（CHOOSER_RULES.md §3）
     // 取り先（リザーブ／トラッシュ／フィールドの個体）を1個ずつ相手が選ぶ（BS02-094 ブラッディレイン）
 ])
@@ -766,15 +766,20 @@ const S7_VERIFIED: Record<string, string> = {
 // 次の2つは主語が「自分は」でも食い違わない:
 //   random:true         … 誰も選ばない（「内容を見ないで破棄する」）
 //   chooserIsSource:true … 選択者を発生源の持ち主に差し替えてある（「手札すべてを見て」）
+function actionTypeKey(value: string, node: Record<string, unknown>): string {
+    return value === "discard" && node.from === "hand" && node.side === "opponent" ? "discard:opponentHand" : value
+}
+
 function collectOpponentChoosesActions(effects: Record<string, unknown>[]): string[] {
     const found: string[] = []
     for (const eff of effects) {
         walk(eff, (key, value, node) => {
             if (key !== "type" || typeof value !== "string") return
-            if (!OPPONENT_CHOOSES_ACTION_TYPES.has(value)) return
+            const k = actionTypeKey(value, node)
+            if (!OPPONENT_CHOOSES_ACTION_TYPES.has(k)) return
             if (node.random === true) return
             if (node.chooserIsSource === true) return
-            found.push(value)
+            found.push(k)
         })
     }
     return found
@@ -783,8 +788,8 @@ function collectOpponentChoosesActions(effects: Record<string, unknown>[]): stri
 function collectActionTypes(effects: Record<string, unknown>[]): Set<string> {
     const types = new Set<string>()
     for (const eff of effects) {
-        walk(eff, (key, value) => {
-            if (key === "type" && typeof value === "string") types.add(value)
+        walk(eff, (key, value, node) => {
+            if (key === "type" && typeof value === "string") types.add(actionTypeKey(value, node))
         })
     }
     return types

@@ -1709,7 +1709,9 @@
         "sourceColorFilter": "purple",
         "repeatPerCount": true,
         "action": {
-          "type": "discardOpponent",
+          "type": "discard",
+          "from": "hand",
+          "side": "opponent",
           "count": 1
         }
       },

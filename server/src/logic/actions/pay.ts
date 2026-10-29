@@ -35,9 +35,9 @@ import { soulCoreToTrashPossible } from "../soulCore"
 
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
-    "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
+    "draw", "discard", "setBurstFromHand", "timedEffect",
     "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf",
-    "exhaust", "mill", "discardBurst", "discardHandAll",
+    "exhaust", "mill",
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree",
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
@@ -55,15 +55,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
                 ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
                 : action.count
         return state.players[owner].deck.length >= count
-    },
-    discardOpponent: (state, owner, _self, action) => {
-        if (action.type !== "discardOpponent") return false
-        const targetPid = action.forcedTargetPid ?? opponentOf(owner)
-        const target = state.players[targetPid]
-        const count = action.cardTypeFilter
-            ? target.hand.filter((cardId) => getCard(cardId).type === action.cardTypeFilter).length
-            : target.hand.length
-        return count >= action.count
     },
     toTegamoto: (state, owner, _self, action) => {
         if (action.type !== "toTegamoto") return false
@@ -190,14 +181,20 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         return state.players[targetPid].deck.length >= count
     },
-    // discardBurst：side（既定opponent）側にバーストがセットされているか
-    discardBurst: (state, owner, _self, action) => {
-        if (action.type !== "discardBurst") return false
-        const pid = action.side === "own" ? owner : opponentOf(owner)
-        return state.players[pid].burst !== null
+    // discard：from ごとに「破棄できるものがあるか」（COST_MODEL §1。手札が0枚なら不発）
+    discard: (state, owner, _self, action) => {
+        if (action.type !== "discard") return false
+        const pids: PlayerId[] =
+            action.side === "both" ? [owner, opponentOf(owner)] : [action.forcedTargetPid ?? (action.side === "own" ? owner : opponentOf(owner))]
+        return pids.every((pid) => {
+            const p = state.players[pid]
+            if (action.from === "burst") return p.burst !== null
+            if (action.from === "tegamoto") return p.tegamoto.length >= 1
+            if (action.count === "all") return p.hand.length >= 1 && canDiscardHand(state, pid)
+            const n = action.cardTypeFilter ? p.hand.filter((id) => getCard(id).type === action.cardTypeFilter).length : p.hand.length
+            return n >= (action.count ?? 1)
+        })
     },
-    // discardHandAll：手札が1枚以上あるか（COST_MODEL §1。081。0枚なら不発）
-    discardHandAll: (state, owner) => state.players[owner].hand.length >= 1 && canDiscardHand(state, owner),
     // bpBuff：anySide指定時は両陣営から、それ以外はfilterに合う自分のスピリットから1体以上
     // （buff.ts の bpBuffHandler と同じ pickAnySideCandidates／pickBpBuffTarget を使う）
     bpBuff: (state, owner, self, action, srcColors, srcType) => {
@@ -403,11 +400,9 @@ export const canPayResolve = (
 // 成立しなかった cost／then の種類ごとの理由（不発ログ用。表に無い type は汎用文）。revive.ts・burst.ts からも使う
 const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     toTegamoto: "手札に手元へ置けるカードがない",
-    discardHandAll: "手札に破棄できるカードがない",
     draw: "ドローできるデッキの枚数がない",
     mill: "デッキの枚数が足りない",
-    discardOpponent: "相手の手札が足りない",
-    discardBurst: "破棄できるバーストがセットされていない",
+    discard: "破棄できるカードが足りない",
     setBurstFromHand: "手札にセットできるバーストがない",
     peekOpponentHand: "相手の手札がない",
     peekOpponentBurst: "相手がバーストをセットしていない",

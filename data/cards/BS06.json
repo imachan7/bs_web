@@ -2055,7 +2055,9 @@
      2
     ],
     "action": {
-     "type": "discardOpponent",
+     "type": "discard",
+     "from": "hand",
+     "side": "opponent",
      "count": 1
     },
     "optional": false
@@ -4278,7 +4280,10 @@
      2
     ],
     "action": {
-     "type": "discardSelfOne"
+     "type": "discard",
+     "from": "hand",
+     "side": "own",
+     "count": 1
     }
    },
    {

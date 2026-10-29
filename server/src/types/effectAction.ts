@@ -75,7 +75,8 @@ export type EffectAction =
  | { type: "openAwakenMode" } // 【Re覚醒】覚醒モードを開く印。サーバー側は no-op で、覚醒そのものはクライアントが GameAction "awaken" を送る（2026-10-08ユーザー確認）
  | { type: "bpMinus"; amount: number; all?: true; count?: number; excludeIds?: string[]; filter?: TargetFilter; scope?: "battle"; per?: { counter: EffectCounter; amount: number }; chosenByPlayer?: true } // all＝相手のスピリットすべて（「それら」として全員を控える）。per＝「◯1体につき、このBP-を-N する」の加算。対象は state.lastBpBuffTargetId に控える（「その後、それがBP0なら破壊する」は destroy の filter { lastBpBuffTarget, maxBp: 0 }）。chosenByPlayer は内部用
  | { type: "bpBuffAll"; familyFilter?: FamilyFilter; teamFilter?: string; amount: number } // familyFilter省略時は系統を問わない。配列＝OR
- | { type: "discardHandAll"; thenDrawOpponentHand?: true } // 自分の手札をすべてトラッシュへ。thenDrawOpponentHand＝破棄を完全に解決した後（手札0枚で破棄が起きなかった場合は発揮しない）、相手の手札枚数ぶん引く
+ | { type: "discard"; from: "hand" | "burst" | "tegamoto"; side: "own" | "opponent" | "both"; count?: number | "all"; countCounter?: EffectCounter; downTo?: number; random?: boolean; cardTypeFilter?: CardType; chooserIsSource?: boolean; revealAllHandIfNone?: true; countAttackerSymbols?: true; forcedTargetPid?: PlayerId } // 破棄したカードを lastMoved に書く。both＝自分→相手の順に各自が自分で選ぶ。count "all"＝選ばせず全部。burst はセットしていれば1つ
+ // downTo＝手札が downTo 枚になるまで。countAttackerSymbols＝ctx.targetInstanceId のスピリットのシンボル数が枚数（ownLifeDamaged のアタッカー）。random＝誰も選ばない（「内容を見ないで」。2026-08-17ユーザー確認。CHOOSER_RULES.md §1.6）。chooserIsSource＝発生源の持ち主が相手の手札を見て選ぶ（非対話の自動選択はコスト最大＝決定的簡略化）。revealAllHandIfNone＝破棄できる対象が無いとき手札をログにだけ公開（簡略化）。forcedTargetPid は内部設定（選択者=破棄される側で owner が逆算できなくなるのを避ける）
  | { type: "returnToHand"; count: number; countCounter?: EffectCounter; all?: true; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true; side?: "own"; filter?: TargetFilter; costSacrificeChosen?: true; target?: "self" | "selfBrave"; costBudget?: EffectCounter; budgetLeft?: number; nexus?: "only" | "also" } // 対象を持ち主の手札に戻す。target self/selfBrave はコスト用で、自分のコストなので耐性は見ない。costBudget＝好きなだけ・コストの合計がカウンタの値まで（count は使わない。budgetLeft は内部用）。side:"own"は自分側。戻すのは破壊ではないので onDestroy は誘発しない。maxBpFromSelf＝selfの実効BP以下の相手のみ。anySide の自動選択は実効BP最大（同値は相手側優先）。nexus は exhaust.nexus と同じ意味
  // picked は選択の再開用（選び終わるまでゾーンから抜かない）。chooserIsTarget＝戻すカードの持ち主が選ぶ
  | { type: "returnToBurst"; side?: "own"; count?: number; filter?: TargetFilter } // バウンスと同じ場の離れ方でバーストエリアにセット（乗っていたコアはリザーブへ）。バーストが既にセット済みなら不発。count は1のみ
@@ -96,10 +97,6 @@ export type EffectAction =
  | { type: "refreshSelf" } // このスピリット自身を回復させる（selfがnull/既に回復状態ならno-op）
  | { type: "exhaustSelf" } // このスピリット自身を疲労させる（selfがnull/既に疲労状態ならno-op。exhaustSpirit経由なのでownSpiritExhausted等が正しく発火する）
  | { type: "lifeCrush"; count: number; countCounter?: EffectCounter; countMax?: number; dest?: "trash" | "void"; neverZero?: true } // 相手のライフのコアcount個を相手のリザーブへ。dest:"trash"は相手のトラッシュ（再利用されないぶんリソースが減る）、"void"はゲームから取り除く。neverZero＝**この効果によっては**相手のライフを0にしない（下限1。このアクション自身だけの下限）。ライフ0以下で勝敗決定
- | { type: "discardOpponentBurst" } // 相手のバースト（player.burst）1つを破棄する（セットしていなければno-op）
- | { type: "discardBurst"; side?: "own" | "opponent" } // discardOpponentBurstの汎用版（pay の cost 側専用）。既定opponent
- | { type: "discardOpponent"; count: number; downTo?: number; forcedTargetPid?: PlayerId; cardTypeFilter?: CardType; random?: boolean; chooserIsSource?: boolean; revealAllHandIfNone?: true; countAttackerSymbols?: true } // countAttackerSymbols＝countを無視し、ctx.targetInstanceId のスピリットのシンボル数を破棄枚数にする（ownLifeDamaged のアタッカー）。対象が見つからなければ0
- // 相手の手札からcount枚を破棄（末尾から。足りなければある分だけ）。revealAllHandIfNone＝破棄できる対象が無かったとき相手の手札すべてを一瞬公開（ゲーム状態は変えずログにだけ出す簡略化）。random＝**誰も選ばない**（効果文が「内容を見ないで破棄する」の形なのでランダムが正しい。2026-08-17ユーザー確認。CHOOSER_RULES.md §1.6）。forcedTargetPid は内部設定（選択者=破棄される側で owner が逆算できなくなるのを避ける）。cardTypeFilter＝該当が無ければ不発。chooserIsSource＝発生源の持ち主が選ぶ（「相手の手札すべてを見て〜1枚を破棄する」）。自動選択はコスト最大の該当カード（決定的簡略化）
  | { type: "randomOpponentHandMagicDiscard" } // 内容を見ないで（＝ランダムに）選び、マジックカードならトラッシュへ、それ以外は手札に残す（誰も選ばないので決定的簡略化はしない。SEMANTICS_AUDIT.md §3.14）。手札0枚なら不発
  | { type: "heavyExhaust"; filter?: TargetFilter; count?: number; countCounter?: EffectCounter; upTo?: true; escalate?: true; chooserIsTarget?: true; chosenByPlayer?: true } // 相手のスピリットを重疲労させる。chooserIsTarget＝相手が自分のスピリットから選ぶ（非対話は実効BP最小）。既に重疲労の個体は候補外。escalate＝回復状態なら疲労、疲労状態なら重疲労。count 既定1・upTo＝0〜count。chosenByPlayer は内部フラグ
 | { type: "refreshOwnNexus"; upTo?: true; chosenByPlayer?: true } // 自分の疲労状態のネクサス1つを回復させる。upTo＝指定そのものが任意（対話時は選ばずに終えられる）。chosenByPlayer は内部フラグ
@@ -119,8 +116,6 @@ export type EffectAction =
  | { type: "noop" } // 何もしない。magicNegate の確認など、アクション解決以外の pendingChoice のプレースホルダ。カードデータには書かない
  | { type: "peekOpponentBurst" } // 効果の持ち主だけが見る（盤面は変わらない）。PlayerState.peekedOpponentBurstCardId に控える。バーストが無ければ不発
  | { type: "peekOpponentHand" } // 相手の手札1枚を**内容を見ないで選び**（ランダム。SEMANTICS_AUDIT.md §3.14）、その内容だけを見る。PlayerState.peekedOpponentCardIds に積み、持ち主の PlayerView にだけ返す
- | { type: "discardSelfOne" } // 自分の手札の末尾1枚をトラッシュへ破棄（手札0ならno-op。本来は自分が選ぶ処理の簡略化）
- | { type: "discardBothHands"; count: number; countCounter?: EffectCounter; all?: true } // お互いが手札からcount枚を破棄する（自分→相手の順）。**破棄するカードは各自が自分で選ぶ**（相手側は actorPid で相手の効果として解決）。自動選択は手札の末尾から
  // all＝countを無視し、各自の手札すべて（枚数は各自バラバラ。count自体は0を置く）
  // countCounter指定時はcountを無視し、EffectCounterの値を破棄枚数として使う（0ならログのみ）
  | { type: "treatAsUnblocked"; when?: "blockerLevel1" | "levelAtLeastBlocker" } // このバトルの解決で、when を満たせば BP を比べずブロックされなかったものとして扱う（when を省くと無条件）
@@ -235,7 +230,6 @@ export type EffectAction =
  // **置くのを全部済ませてからまとめてドローする**。1枚ごとにドローすると、引いたマジックカードをそのまま次に置けてデッキが尽きるまで回せてしまう（drawPerHandDiscard と同じ不具合。2026-08-10 修正）。
  // interactiveTargets時はcard choice（cardZone:"hand"、optional=スキップ可）を1枚ずつ繰り返し、スキップ・max到達・手札のマジックが尽きた時点でドロー。自動時は該当カードをmax枚まで（未指定なら全部）一括移動して同数ドロー（決定的簡略化）
  // placedSoFar / awaitingSkip は解決の途中経過を持ち回る内部フィールドで、cards.json には書かない
- | { type: "discardOpponentTegamoto" } // 相手の手元をすべてトラッシュへ。破棄したカードを GameState.lastMoved に書く（IF_UNIFY.md §5）
  // **破棄をすべて済ませてからまとめてドローする**。1枚破棄するたびにドローすると、引いたカードをまた破棄できてデッキが尽きるまで回せてしまう（2026-08-10 に実対戦で発覚）。
  // discardedSoFar / awaitingSkip は内部フィールド（awaitingSkip は「スキップされて戻ってきた＝破棄終了」の目印）
  | { type: "lendSelfThisTurn" } // このマジック自身を、このターンの間だけ自分の仮想発生源（PlayerState.turnVirtualInstances）として場に置いたものとして扱う。

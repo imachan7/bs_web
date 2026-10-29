@@ -406,34 +406,6 @@ const setBurstFromHandHandler: ActionHandler<"setBurstFromHand"> = (ctx, action)
 }
 
 
-// BS16-X04魁の覇王ミブロック・ブレイヴァー【合体時】Lv2･Lv3：「相手の手札が増えたとき、相手のバースト1つを破棄する」。
-// fieldEvent event:"opponentHandAdded"と組み合わせて使う。セットしていなければno-op
-function discardBurstOf(state: GameState, pid: PlayerId, sourceName: string): void {
-    const player = state.players[pid]
-    const cardId = player.burst
-    if (cardId === null) {
-        log(state, `${sourceName}：${player.name}はバーストをセットしていなかった。`)
-        return
-    }
-    player.burst = null
-    player.burstSet = false
-    player.trashCards.push(cardId)
-    log(state, `${sourceName}：${player.name}のバーストを破棄した。`)
-}
-
-const discardOpponentBurstHandler: ActionHandler<"discardOpponentBurst"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    discardBurstOf(state, opponentOf(owner), sourceName)
-}
-
-// pay の cost 側で使う汎用版（server/src/logic/actions/pay.ts）。既存のdiscardOpponentBurstとそれを
-// 使うカードは変えず、こちらは新しいカードが移行するまで validate:cards の AWAITING_MIGRATION に載る
-const discardBurstHandler: ActionHandler<"discardBurst"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-    const pid = action.side === "own" ? owner : opponentOf(owner)
-    discardBurstOf(state, pid, sourceName)
-}
-
 // BS16-079ムーンボウクロークのメイン効果：【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、
 // そのスピリットが持つ【氷壁】と同じ色の相手のスピリットからブロックされないようにする。
 // 色は指定した時点のiceWallColorsOfを固定値として保存する（後で【氷壁】が無効化されても保持。Q25026〜Q25028）
@@ -551,8 +523,6 @@ const handlers = {
     openAwakenMode: openAwakenModeHandler,
     forceEndMainStep: forceEndMainStepHandler,
     summonBurstCardFree: summonBurstCardFreeHandler,
-    discardOpponentBurst: discardOpponentBurstHandler,
-    discardBurst: discardBurstHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     setBurstFromHand: setBurstFromHandHandler,
     payNegateDecide: payNegateDecideHandler,

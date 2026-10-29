@@ -74,7 +74,7 @@ console.log("--- count:2の直接resolveAction検証：連続選択でも選択�
     s.interactiveTargets = true
     s.players.p2.hand = ["BS01-001", "BS01-002", "BS01-003", "BS01-004"]
 
-    resolveAction(s, "p1", null, { type: "discardOpponent", count: 2 })
+    resolveAction(s, "p1", null, { type: "discard", from: "hand", side: "opponent", count: 2 })
     assert(s.pendingChoice !== null, "1回目のpendingChoiceが立つ")
     assert(s.pendingChoice?.pid === "p2", "1回目も選択者はp2")
     assert(s.pendingChoice?.cardIndices?.length === 4, "候補は手札4件")

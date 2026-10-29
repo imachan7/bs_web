@@ -93,14 +93,14 @@ console.log("=== R: draw countCounter（discardHandAllのthenDrawOpponentHand経
     s.players.p1.hand = ["BS01-001", "BS01-002"]
     s.players.p2.hand = ["BS01-001", "BS01-002", "BS01-003"]
     const before = s.players.p1.deck.length
-    resolveAction(s, "p1", null, { type: "discardHandAll", thenDrawOpponentHand: true })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "discard", from: "hand", side: "own", count: "all" }, { type: "if", cond: { last: {} }, then: { type: "draw", count: 1, countCounter: "opponentHand" } }] })
     assert(s.players.p1.hand.length === 3, `相手の手札枚数（3枚）ぶんドローする（実際=${s.players.p1.hand.length}）`)
     assert(s.players.p1.deck.length === before - 3, "デッキから3枚引いた")
 }
 {
     const s = game("r-draw-counter-empty")
     s.players.p1.hand = []
-    resolveAction(s, "p1", null, { type: "discardHandAll", thenDrawOpponentHand: true })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "discard", from: "hand", side: "own", count: "all" }, { type: "if", cond: { last: {} }, then: { type: "draw", count: 1, countCounter: "opponentHand" } }] })
     assert(s.players.p1.hand.length === 0, "手札が0枚なら破棄が起きず、ドローもしない")
 }
 

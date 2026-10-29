@@ -1,8 +1,8 @@
 // ドローと手札破棄アクションのハンドラ（noop を含む）
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { EffectAction } from "../../type"
+import type { EffectAction, GameState, PlayerId } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
-import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
+import { tryFreeSummonOnHandDiscard, bothSidesPids, countEffectCounter, drawDoubleMultiplier, findSpiritAny, handImmuneFor, requestCardChoice, requestChoice, resolveAction, spiritHasFamily, tryInteractiveCardChoice } from "../EffectModules"
 import { KEYWORDS, canDiscardHand, instanceSymbolCount, hasGlobalConstraint, hasKeyword } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 import { recordDrawn, recordMoved } from "../record"
@@ -55,62 +55,100 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         return
 }
 
-const discardHandAllHandler: ActionHandler<"discardHandAll"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-        const player = state.players[owner]
-        const count = player.hand.length
-        // thenDrawOpponentHand（BS12-053オオヅツナナフシ：「そうしたとき、相手の手札と同じ枚数ドローする」）は
-        // 手札が0枚（＝破棄が起きない）なら発揮しない。「そうしたとき」＝破棄を完全に解決した後に数える
-        if (count === 0) {
-            log(state, `${sourceName}：手札がないため破棄しなかった。`)
-            recordMoved(state, [])
+type DiscardAction = Extract<EffectAction, { type: "discard" }>
+
+// side:"both" は自分→相手の順に各自が自分で選ぶ。自分側が選択待ちに入ったら相手側は再開スタックへ回す
+// （外側から積むので、自分の残り枚数のフレームより後に実行される）
+function discardBothHands(ctx: ActionCtx, action: DiscardAction): void {
+    const { state, owner, opp, self, srcType } = ctx
+    const pids = bothSidesPids(state, srcType)
+    for (const pid of [owner, opp]) {
+        if (!pids.includes(pid)) continue
+        if (action.count === "all" ? state.players[pid].hand.length === 0 : (action.count ?? 1) <= 0) continue
+        const one: EffectAction = { type: "discard", from: "hand", side: "own", count: action.count ?? 1 }
+        if (state.pendingChoice) {
+            pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, action: one, actorPid: pid }])
             return
         }
-        recordMoved(state, [...player.hand])
-        player.trashCards.push(...player.hand)
-        player.hand = []
-        log(state, `${player.name}は手札${count}枚をすべて破棄した。`)
-        if (action.thenDrawOpponentHand) {
-            const n = state.players[opp].hand.length
-            if (n === 0) {
-                log(state, `${sourceName}：相手の手札が0枚のためドローしなかった。`)
-                return
-            }
-            draw(state, owner, n)
-        }
-        return
+        resolveAction(state, pid, self, one)
+    }
 }
 
-const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        if (action.downTo !== undefined) {
-            const count = state.players[opp].hand.length - action.downTo
-            if (count <= 0) log(state, `${sourceName}：相手の手札は${action.downTo}枚以下のため発動しなかった。`)
-            else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count }) }
+function discardBurstOf(state: GameState, pid: PlayerId, sourceName: string): void {
+    const player = state.players[pid]
+    const cardId = player.burst
+    if (cardId === null) {
+        recordMoved(state, [])
+        log(state, `${sourceName}：${player.name}はバーストをセットしていなかった。`)
+        return
+    }
+    player.burst = null
+    player.burstSet = false
+    player.trashCards.push(cardId)
+    recordMoved(state, [cardId])
+    log(state, `${sourceName}：${player.name}のバーストを破棄した。`)
+}
+
+function discardTegamotoOf(state: GameState, pid: PlayerId, sourceName: string): void {
+    const target = state.players[pid]
+    const ids = [...target.tegamoto]
+    recordMoved(state, ids)
+    if (ids.length === 0) {
+        log(state, `${sourceName}：${target.name}の手元にカードがなかった。`)
+        return
+    }
+    target.trashCards.push(...ids)
+    target.tegamoto = []
+    target.tegamotoPlayable = [] // 手元が空になるので使用権も残さない
+    log(state, `${sourceName}：${target.name}の手元「${ids.map((id) => getCard(id).name).join("、")}」を破棄した。`)
+}
+
+const discardHandler: ActionHandler<"discard"> = (ctx, action) => {
+    const { state, owner, opp, self, srcType, srcColors, sourceName } = ctx
+    // countCounter は枚数に直してから入り直す（side:"both" の各自にも同じ枚数）
+    if (action.countCounter !== undefined) {
+        const n = countedAmount(state, owner, self, typeof action.count === "number" ? action.count : 1, action.countCounter, srcType)
+        if (n <= 0) {
+            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
             return
         }
-        // countAttackerSymbols（BS13-064蛇教徒の宮殿Lv2）：countを無視し、targetInstanceIdが指す
-        // スピリット（fieldEvent event:"ownLifeDamaged"が渡すアタッカー）のシンボル数を破棄枚数として使う。
-        // 一度だけ解決し、countAttackerSymbolsを落としたactionへ入り直す（他のcountCounter系と同じ考え方）
-        if (action.countAttackerSymbols) {
-            const attacker = targetInstanceId ? findSpiritAny(state, targetInstanceId) : null
-            const resolvedCount = attacker ? instanceSymbolCount(attacker.inst) : 0
-            const { countAttackerSymbols: _cas, ...rest } = action
-            ctx.resolve({ ...rest, count: resolvedCount })
-            return
-        }
-        // interactiveTargets時は選択式（選択者は破棄される相手本人）。forcedTargetPid指定時＝
-        // 選択式の再突入呼び出し。選択者=破棄される相手本人のため、pendingChoice解決時に
-        // resolveActionへ渡るowner引数は常にpending.pid（=破棄される側）になり、
-        // opponentOf(owner)による逆算では元の効果所有者を指してしまう。そのため選択式に入った
-        // 時点で対象プレイヤーIdをactionに固定して持ち回す
-        const targetPid = action.forcedTargetPid ?? opp
-        const target = state.players[targetPid]
+        const { countCounter: _cc, ...rest } = action
+        ctx.resolve({ ...rest, count: n }, { sourceType: srcType, sourceColors: srcColors })
+        return
+    }
+    if (action.from === "hand") {
+        if (action.side === "both") discardBothHands(ctx, action)
+        else discardHand(ctx, action)
+        return
+    }
+    const sides = action.side === "both" ? bothSidesPids(state, srcType) : [action.side === "own" ? owner : opp]
+    for (const pid of [owner, opp]) {
+        if (!sides.includes(pid)) continue
+        if (action.from === "burst") discardBurstOf(state, pid, sourceName)
+        else discardTegamotoOf(state, pid, sourceName)
+    }
+}
+
+function discardHand(ctx: ActionCtx, action: DiscardAction): void {
+    const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId, chosenCardIndex } = ctx
+    const targetPid = action.forcedTargetPid ?? (action.side === "own" ? owner : opp)
+    const target = state.players[targetPid]
+    if (action.downTo !== undefined) {
+        const n = target.hand.length - action.downTo
+        if (n <= 0) log(state, `${sourceName}：${target.name}の手札は${action.downTo}枚以下のため発動しなかった。`)
+        else { const { downTo: _, ...rest } = action; ctx.resolve({ ...rest, count: n }, { sourceType: srcType, sourceColors: srcColors }) }
+        return
+    }
+    // countAttackerSymbols：countを無視し、targetInstanceIdが指すスピリット（fieldEvent ownLifeDamaged が渡すアタッカー）の
+    // シンボル数を枚数にして入り直す
+    if (action.countAttackerSymbols) {
+        const attacker = targetInstanceId ? findSpiritAny(state, targetInstanceId) : null
+        const { countAttackerSymbols: _cas, ...rest } = action
+        ctx.resolve({ ...rest, count: attacker ? instanceSymbolCount(attacker.inst) : 0 }, { sourceType: srcType, sourceColors: srcColors })
+        return
+    }
+    // forcedTargetPid＝選択式の再突入。選択者は破棄される本人で、再突入時の owner は pending.pid になり元の効果所有者を指さないため、
+    // 対象プレイヤーは最初に action へ固定して持ち回る
     // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
     if (!canDiscardHand(state, targetPid)) {
         log(state, `${state.players[targetPid].name}は、効果によりメインステップに手札を破棄できない。`)
@@ -135,6 +173,20 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             log(state, `${sourceName}の手札破棄：${target.name}の手札は効果を受けなかった。`)
             return
         }
+        if (action.count === "all") {
+            const ids = [...target.hand]
+            recordMoved(state, ids)
+            if (ids.length === 0) {
+                log(state, `${sourceName}：手札がないため破棄しなかった。`)
+                return
+            }
+            target.trashCards.push(...ids)
+            target.hand = []
+            log(state, `${target.name}は手札${ids.length}枚をすべて破棄した。`)
+            if (targetPid !== owner) for (const id of ids) tryFreeSummonOnHandDiscard(state, targetPid, id, srcType, owner)
+            return
+        }
+        const count = action.count ?? 1
         // chooserIsSource の選択から戻ってきた：公開ゾーンから1枚をトラッシュへ、**残りは手札へ戻す**。
         // 公開ゾーンは手札からカードを移して作る（コピーではない）。コピーにすると
         // 同じカードが手札と公開ゾーンに二重に数えられ、保存則チェックが落ちる
@@ -150,6 +202,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
                 return
             }
             target.trashCards.push(cardId)
+            recordMoved(state, [cardId])
             log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
             tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
             return
@@ -162,12 +215,18 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             }
             target.hand.splice(chosenCardIndex, 1)
             target.trashCards.push(cardId)
+            recordMoved(state, [cardId])
             log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
             // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
             tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
             return
         }
+        if (count <= 0) {
+            recordMoved(state, [])
+            return
+        }
         if (target.hand.length === 0) {
+            recordMoved(state, [])
             log(state, `${sourceName}の手札破棄：${target.name}の手札がなかった。`)
             revealAllHandFallback()
             return
@@ -181,17 +240,20 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // （髑髏騎士ズ・ガイン／巨猫ブリンクス。2026-08-17 ユーザー確認）
         if (action.random) {
             const discardedRandom: string[] = []
-            for (let i = 0; i < action.count; i++) {
+            const discardedIds: string[] = []
+            for (let i = 0; i < count; i++) {
                 const indices = target.hand.map((_, j) => j).filter((j) => matchesType(target.hand[j]!))
                 const pick = indices[Math.floor(Math.random() * indices.length)]
                 if (pick === undefined) break
                 const [cardId] = target.hand.splice(pick, 1)
                 if (cardId === undefined) break
                 target.trashCards.push(cardId)
+                discardedIds.push(cardId)
                 discardedRandom.push(getCard(cardId).name)
                 // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
                 tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
             }
+            recordMoved(state, discardedIds)
             if (discardedRandom.length === 0) {
                 log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
                 return
@@ -220,7 +282,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
                     "reveal",
                     eligible,
                     false,
-                    { ...action, forcedTargetPid: targetPid },
+                    { ...action, count, forcedTargetPid: targetPid },
                     self,
                 )
                 return
@@ -233,6 +295,7 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             const [cardId] = target.hand.splice(best, 1)
             if (cardId === undefined) return
             target.trashCards.push(cardId)
+            recordMoved(state, [cardId])
             log(state, `${target.name}は手札「${getCard(cardId).name}」を破棄した。`)
             tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
             return
@@ -252,11 +315,13 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
                     `${sourceName}の手札破棄：破棄するカードを選んでください`,
                     "hand",
                     indices,
-                    { type: "discardOpponent", count: 1, forcedTargetPid: targetPid },
-                    action.count > 1
+                    { type: "discard", from: "hand", side: action.side, count: 1, forcedTargetPid: targetPid },
+                    count > 1
                         ? {
-                              type: "discardOpponent",
-                              count: action.count - 1,
+                              type: "discard",
+                              from: "hand",
+                              side: action.side,
+                              count: count - 1,
                               forcedTargetPid: targetPid,
                               ...(action.cardTypeFilter !== undefined ? { cardTypeFilter: action.cardTypeFilter } : {}),
                           }
@@ -269,7 +334,8 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
         // 既存の決定的自動選択：本来は相手が選ぶが、簡略化して手札末尾からcount枚を破棄する
         // （cardTypeFilter指定時は末尾から見て最初に一致した1枚を破棄する）
         const discarded: string[] = []
-        for (let i = 0; i < action.count; i++) {
+        const discardedIds: string[] = []
+        for (let i = 0; i < count; i++) {
             const idx = (() => {
                 for (let j = target.hand.length - 1; j >= 0; j--) {
                     if (matchesType(target.hand[j]!)) return j
@@ -280,10 +346,12 @@ const discardOpponentHandler: ActionHandler<"discardOpponent"> = (ctx, action) =
             const [cardId] = target.hand.splice(idx, 1)
             if (cardId === undefined) break
             target.trashCards.push(cardId)
+            discardedIds.push(cardId)
             discarded.push(getCard(cardId).name)
             // BS09-025忍者サルトベ：相手のスピリットの効果で破棄されたカード自身が召喚できる
             tryFreeSummonOnHandDiscard(state, targetPid, cardId, srcType, owner)
         }
+        recordMoved(state, discardedIds)
         if (discarded.length === 0) {
             log(state, `${sourceName}の手札破棄：対象になるカードがなかった。`)
             revealAllHandFallback()
@@ -327,59 +395,6 @@ const randomOpponentHandMagicDiscardHandler: ActionHandler<"randomOpponentHandMa
 
 
 
-const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-    // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない
-    if (!canDiscardHand(state, owner)) {
-        log(state, `${state.players[owner].name}は、効果によりメインステップに手札を破棄できない。`)
-        return
-    }
-        // 自分の手札1枚をトラッシュへ（手札0ならno-op）。
-        // interactiveTargets時は選択式（選択者＝効果所有者本人。cardZone:"hand"）
-        const player = state.players[owner]
-        if (chosenCardIndex !== undefined) {
-            const cardId = player.hand[chosenCardIndex]
-            if (cardId === undefined) {
-                log(state, `${sourceName}の手札破棄：対象がいなかった。`)
-                return
-            }
-            player.hand.splice(chosenCardIndex, 1)
-            player.trashCards.push(cardId)
-            log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
-            return
-        }
-        if (player.hand.length === 0) {
-            log(state, `${sourceName}の手札破棄：手札がなかった。`)
-            return
-        }
-        if (state.interactiveTargets) {
-            const indices = player.hand.map((_, i) => i)
-            if (
-                tryInteractiveCardChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}の手札破棄：破棄するカードを選んでください`,
-                    "hand",
-                    indices,
-                    { type: "discardSelfOne" },
-                    null,
-                )
-            ) {
-                return
-            }
-        }
-        // 既存の決定的自動選択（テスト等 interactiveTargets=false）：手札末尾1枚を破棄
-        const cardId = player.hand.pop()
-        if (cardId === undefined) {
-            log(state, `${sourceName}の手札破棄：手札がなかった。`)
-            return
-        }
-        player.trashCards.push(cardId)
-        log(state, `${player.name}は手札から${getCard(cardId).name}を破棄した。`)
-        return
-}
-
 // pay.ts の判定表からも使う
 // 「自分の手札discardCount枚を破棄することで、自分はデッキからdrawCount枚ドローする」
 // （BS10-019土星神龍クロノ・ボロス）。COST_MODEL.md §1：コストと効果の両方が完全に解決できる
@@ -398,11 +413,9 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
 
 const handlers = {
     draw: drawHandler,
-    discardHandAll: discardHandAllHandler,
-    discardOpponent: discardOpponentHandler,
+    discard: discardHandler,
     randomOpponentHandMagicDiscard: randomOpponentHandMagicDiscardHandler,
     noop: noopHandler,
-    discardSelfOne: discardSelfOneHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

@@ -1592,56 +1592,11 @@ const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> =
     log(state, `${getCard(inst.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
 }
 
-// 魔界七将パンデミウムLv3：お互いが手札からcount枚を破棄する（自分→相手の順）。
-// **破棄するカードは各自が自分で選ぶ**（2026-08-24。それまでは手札の末尾からの決定的簡略化だった）。
-// 1人ぶんの破棄は moveCards（手札→トラッシュ）に委譲する（1枚ずつ選ばせる／非対話では末尾から）。
-// 相手側は actorPid で「相手の効果として」解決させるので、選択者も相手本人になる
-const discardBothHandsHandler: ActionHandler<"discardBothHands"> = (ctx, action) => {
-    const { state, owner, self, srcType } = ctx
-    // all指定時はcountを無視し、各自の手札すべて（枚数は各自バラバラ）を破棄する（BS10-111ハンドタイフーン）
-    // countCounter指定時はcount×EffectCounterの値を破棄枚数として使う
-    // （BS10-X02双魚賊神ピスケガレオン：系統「光導」/「星魂」を持つ自分のスピリット数）
-    const count = action.all
-        ? 0
-        : action.countCounter !== undefined
-          ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
-          : action.count
-    if (!action.all && count <= 0) {
-        if (action.countCounter !== undefined) {
-            const { sourceName } = ctx
-            log(state, `${sourceName}：カウントが0のため発動しなかった。`)
-        }
-        return
-    }
-    const pids = bothSidesPids(state, srcType)
-    for (const pid of [owner, opponentOf(owner)]) {
-        if (!pids.includes(pid)) continue
-        const thisCount = action.all ? state.players[pid].hand.length : count
-        if (thisCount <= 0) continue
-        const discardOne: EffectAction = { type: "moveCards", from: "hand", dest: "trash", count: thisCount }
-        // 自分側が選択待ちに入ったら、相手側の破棄は再開スタックへ回す。
-        // 外側から積むので、自分の残り枚数のフレーム（内側）より後に実行される
-        if (state.pendingChoice) {
-            pushResumeFrames(state, [
-                {
-                    kind: "action",
-                    selfInstanceId: self ? self.instanceId : null,
-                    action: discardOne,
-                    actorPid: pid,
-                },
-            ])
-            return
-        }
-        resolveAction(state, pid, self, discardOne)
-    }
-}
-
 const handlers = {
     endBattle: endBattleHandler,
     funsaiOnBlock: funsaiOnBlockHandler,
     treatAsUnblocked: treatAsUnblockedHandler,
     setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
-    discardBothHands: discardBothHandsHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
     endStepLock: endStepLockHandler,
     skipBpCompare: skipBpCompareHandler,

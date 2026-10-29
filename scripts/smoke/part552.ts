@@ -70,7 +70,7 @@ console.log("=== 4. 手札すべてを破棄したなら ===")
         const s = game("552d")
         s.players.p1.hand = hand
         s.players.p1.deck = ["BS01-002", "BS01-003", "BS01-004", "BS01-005"]
-        resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "discardHandAll" }, { type: "if", cond: { count: "lastMoved", atLeast: 1 }, then: { type: "draw", count: 3 } }] })
+        resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "discard", from: "hand", side: "own", count: "all" }, { type: "if", cond: { count: "lastMoved", atLeast: 1 }, then: { type: "draw", count: 3 } }] })
         return s.players.p1.hand.length
     }
     assert(draws(["BS01-006"]) === 3, "1枚以上破棄したなら3枚ドロー")

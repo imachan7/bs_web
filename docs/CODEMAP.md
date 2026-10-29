@@ -716,8 +716,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `redirectTargetMatches`（fn）：絞り込み対象（サンク）が、そのアクションの filter に合致するか。
 - `askBothSidesRedirect`（fn）：封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）の「対象を相手のみ／自分のみに変更できる」の確認。
 - `BOTH_SIDES_REDIRECT_OPTIONS`（const）：確認の選択肢。**この並び順に GameEngine.doResolveChoice が依存する**（0=変更しない / 1=相手のみ / 2=自分のみ）。
-- `BOTH_SIDES_ACTION_TYPES`（const）：「お互いを対象とする」効果（side:"both" 等）か、陣営を指定しない単体対象（anySide）を含むか。
-- `actionTouchesBothSides`（fn）
+- `actionTouchesBothSides`（fn）：「お互いを対象とする」効果（side:"both" 等）か、陣営を指定しない単体対象（anySide）を含むか。
 - `applyMagicSideChoice`（fn）：pendingChoice（対象の変更の確認）の後処理。keepPid=null なら変更せず、
 - `findMagicRedirectSourceForCard`（fn）：このマジックが解決する効果のうち、1つでも magicTargetRedirect の絞り込み対象になるものがあるか。
 - `applyMagicRedirectChoice`（fn）：pendingChoice（対象の絞り込みの確認）の後処理。承認・拒否のどちらでも、中断していた解決を続ける。

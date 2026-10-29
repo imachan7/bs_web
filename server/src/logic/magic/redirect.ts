@@ -9,7 +9,7 @@ import { resolveMagicEffects } from "./resolve"
 // 封印された魔導書Lv1（kind:"bothSidesTargetRedirect"）：「お互いを対象とするマジックの効果」の
 // 対象を片側だけに変更する。両陣営を対象にするアクション（destroyNexus side:"both" / bothSidesCoreToTrash /
 // bothSidesCoreToVoid / exhaust{all, anySide} / returnToHand{all, anySide} / removeCores side:"both" /
-// draw side:"both" / discardBothHands）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
+// draw / discard の side:"both"）は、ハードコードの ["p1","p2"] の代わりにこれを呼ぶ。
 // beneficial=true は「受ける側にとって得な効果」（ドロー）で、そのときだけ相手を外す。
 // マジック以外の発生源（スピリット・ネクサスの効果）は対象外なので、そのまま両陣営を返す
 export function bothSidesPids(
@@ -247,10 +247,6 @@ export const BOTH_SIDES_REDIRECT_OPTIONS = ["変更しない", "相手のみ", "
 // 「お互いを対象とする」効果（side:"both" 等）か、陣営を指定しない単体対象（anySide）を含むか。
 // EffectAction は判別共用体で、両陣営を示す印が型ごとに散らばっているため、
 // **ここだけは値として再帰的に**走査する（新しい action を足しても印さえ同じなら追随不要）
-export const BOTH_SIDES_ACTION_TYPES = new Set([
-    "discardBothHands",
-])
-
 export function actionTouchesBothSides(node: unknown): boolean {
     if (Array.isArray(node)) return node.some(actionTouchesBothSides)
     if (node === null || typeof node !== "object") return false
@@ -258,7 +254,6 @@ export function actionTouchesBothSides(node: unknown): boolean {
     if (o["anySide"] === true) return true
     if (o["side"] === "both" || o["side"] === "any") return true
     if (o["target"] === "anyAll") return true
-    if (typeof o["type"] === "string" && BOTH_SIDES_ACTION_TYPES.has(o["type"])) return true
     return Object.values(o).some(actionTouchesBothSides)
 }
 
