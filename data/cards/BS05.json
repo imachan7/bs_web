@@ -3010,7 +3010,12 @@
      2
     ],
     "constraint": {
-     "type": "ownNexusIndestructible"
+     "type": "ownNexusIndestructible",
+     "sourceTypes": [
+       "spirit",
+       "nexus",
+       "magic"
+     ]
     }
    },
    {

@@ -17,6 +17,7 @@ import type { CardInstance, CardType, Color, PendingChoice, DestroyContext, Game
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies } from "./EffectModules"
+import { destroyDenial } from "./destroyGate"
 
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -940,75 +941,6 @@ export function applyDestroyBatchAfter(
     }
 }
 
-// 破壊対象ネクサスの持ち主（ownerPid）自身のフィールド（スピリット＋ネクサス）のみを走査し、
-// レベル有効かつ condition（ownVanillaSpiritsAtLeast＝持ち主のバニラスピリット数）を満たす
-// globalConstraint "ownNexusIndestructible" があるか判定する。
-// hasGlobalConstraint は両陣営を走査する汎用判定だが、こちらは破壊対象の持ち主側のみに効く
-// 制約（サファイアの城壁）専用の判定のため別関数にしている。
-function hasOwnNexusIndestructible(
-    state: GameState,
-    ownerPid: PlayerId,
-    target?: CardInstance,
-    context?: DestroyContext,
-): boolean {
-    const player = state.players[ownerPid]
-    const instances = [...player.field.spirits, ...player.field.nexuses]
-    for (const inst of instances) {
-        const level = currentLevel(inst).level
-        for (const effect of getCard(inst.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "ownNexusIndestructible") continue
-            if (!entryActive(state, ownerPid, inst, effect, level)) continue
-            // colors（BS09-062ノルンの泉Lv2＝白/黄のネクサスだけ）：対象が分からないときは守らない側に倒す
-            if (effect.constraint.colors !== undefined) {
-                if (!target) continue
-                if (!effect.constraint.colors.some((c) => instHasColor(target, c))) continue
-            }
-            // nameIncludes（SD06-012英雄皇の御盾Lv2＝カード名に「英雄皇」と入っているネクサスだけ）：対象が分からないときは守らない側に倒す
-            if (effect.constraint.nameIncludes !== undefined) {
-                if (!target) continue
-                if (!cardNameContains(target, effect.constraint.nameIncludes)) continue
-            }
-            // sourceColors / sourceTypes（SD01-032 機械神の加護＝「相手の赤のスピリット/マジックの効果では」）：
-            // 破壊しようとしている効果の発生源で絞る。発生源が分からないときは守らない側に倒す
-            if (effect.constraint.sourceColors !== undefined || effect.constraint.sourceTypes !== undefined) {
-                if (!context || context.sourcePid === undefined) continue
-                if (context.sourcePid === ownerPid) continue
-                if (
-                    effect.constraint.sourceColors !== undefined &&
-                    !effect.constraint.sourceColors.some((c) => (context.sourceColors ?? []).includes(c))
-                ) {
-                    continue
-                }
-                if (
-                    effect.constraint.sourceTypes !== undefined &&
-                    (context.sourceType === undefined || !effect.constraint.sourceTypes.includes(context.sourceType))
-                ) {
-                    continue
-                }
-            }
-            if (effect.condition?.ownVanillaSpiritsAtLeast !== undefined) {
-                const vanillaCount = player.field.spirits.filter((s) =>
-                    instIsVanilla(s),
-                ).length
-                if (vanillaCount < effect.condition.ownVanillaSpiritsAtLeast) continue
-            }
-            // 「自分のネクサスすべてが黄の間」（BS11-069 黄金の鐘楼）。発生源自身も数に入る
-            if (effect.condition?.allOwnNexusesHaveColor !== undefined) {
-                const color = effect.condition.allOwnNexusesHaveColor
-                if (!player.field.nexuses.every((n) => instHasColor(n, color))) continue
-            }
-            // 「自分のフィールドにネクサスが1つだけある間」（BS11-027 海戦機ニヨルドLv2）
-            if (effect.condition?.ownNexusCountExactly !== undefined) {
-                if (player.field.nexuses.length !== effect.condition.ownNexusCountExactly) continue
-            }
-            noteCoverage(effect, "globalConstraint")
-            return true
-        }
-    }
-    return false
-}
-
 // ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
 // （呼び出し側は戻り値でカウント・ドロー処理の可否を判定する。バスタースピア等）。
 export function destroyNexus(
@@ -1024,21 +956,16 @@ export function destroyNexus(
     if (index === -1) return false
     const inst = player.field.nexuses[index]
     if (!inst) return false
-    // 破壊耐性（要塞皇オーディーンLv2-3等）：すべてのネクサスは破壊されない
-    if (hasGlobalConstraint(state, "nexusIndestructible")) {
-        log(
-            state,
-            `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
-        )
-        return false
-    }
-    // 破壊耐性（サファイアの城壁Lv2）：破壊対象ネクサスの持ち主自身のフィールドに、
-    // condition（バニラスピリット数）を満たす ownNexusIndestructible 発生源があれば破壊されない
-    if (hasOwnNexusIndestructible(state, ownerPid, inst, context)) {
-        log(
-            state,
-            `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（破壊耐性）。`,
-        )
+    const denial = destroyDenial(state, {
+        ownerPid,
+        target: inst,
+        cause: "effect",
+        ...(context?.sourcePid !== undefined ? { actorPid: context.sourcePid } : {}),
+        ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}),
+        ...(context?.sourceColors !== undefined ? { sourceColors: context.sourceColors } : {}),
+    })
+    if (denial !== null) {
+        log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊されなかった（${denial}）。`)
         return false
     }
     // 破壊待機状態のネクサスは、そこからさらに破壊されない（TIMING_CHART.md §1.5）

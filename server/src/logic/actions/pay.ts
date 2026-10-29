@@ -437,7 +437,8 @@ function judgePay(
     state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>,
     srcColors: Color[] | undefined, srcType: CardType | undefined, eventTargetId?: string, skipThen = false,
 ): { cost: EffectAction; reason: string | null } {
-    let c = action.cost
+    // コストの破壊は、破壊されないネクサスを候補から外す（Q1711）。印は払う側のハンドラも読む
+    let c: EffectAction = action.cost.type === "destroy" && action.cost.nexus === "only" ? { ...action.cost, asCost: true } : action.cost
     if (action.costOnly) skipThen = true
     // 「Nコスト支払う」はリザーブ＋フィールドのコアから払える。疲労で肩代わりできるネクサスがあれば、その分は払う数から引く
     if (isReserveToll(c)) {
