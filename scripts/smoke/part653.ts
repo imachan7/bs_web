@@ -86,13 +86,13 @@ try {
         resolveAction(s, "p1", null, { type: "replayOpponentSummonEffect", chosenId: a.instanceId })
         assert(s.players.p1.hand.length === hand0 + 2, "選んだ後に解決")
     }
-    console.log("=== 6. バースト発動の文脈（self=null・resolvingBurstPid）で condition を判定する ===")
+    console.log("=== 6. バースト発動の文脈（self=null・currentEffectSource.burst）で condition を判定する ===")
     {
         card.effects = [{ id: "t2", kind: "triggered", trigger: "onSummon", levels: [1], condition: { ownHandAtLeast: 99 }, action: { type: "draw", count: 2 }, optional: false } as never]
         const s = game("c6")
         s.lastOpponentSummonEffect = { cardId: SRC, level: 1 }
         put(s, "p1")
-        s.resolvingBurstPid = "p1"
+        s.currentEffectSource = { pid: "p1", burst: true }
         const hand0 = s.players.p1.hand.length
         resolveAction(s, "p1", null, { type: "replayOpponentSummonEffect" })
         assert(s.players.p1.hand.length === hand0, "選んだスピリットの持ち主から見て条件を満たさなければ発揮しない")

@@ -175,7 +175,7 @@ console.log("=== BS14-019-e3 シュテン・ドーガ：自分のバースト効
     const victim = createInstance("BS01-001", s.turn, 3)
     s.players.p2.field.spirits.push(victim)
     refreshLevelAsOverrides(s)
-    s.resolvingBurstPid = "p1" // バースト効果を解決している間だけ立つ目印
+    s.currentEffectSource = { pid: "p1", burst: true } // バースト効果を解決している間だけ立つ目印
     const trashBefore = s.players.p2.trashCores
     const removed = removeCoresToTrash(s, "p2", victim, 1, "p1")
     assert(removed === 2, "指定した1個に、シュテン・ドーガのボーナス+1個が乗って2個取り除かれる")

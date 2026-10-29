@@ -14,7 +14,7 @@ export interface SummonAttempt {
     cause: "normal" | "effect"
     flash?: true
     braveTargetInstanceId?: string | undefined // ダイレクトブレイヴは体数が増えない
-    viaBurstAction?: true // summon{from:"burst"} はバースト効果そのものなので resolvingBurstPid を見ない
+    viaBurstAction?: true // summon{from:"burst"} はバースト効果そのものなので currentEffectSource.burst を見ない
     mayCombine?: true // 合体先をまだ決めていない段階（候補判定・バーストの自動合体）。ブレイヴは合体先があれば体数が増えずに出られる
 }
 
@@ -48,7 +48,7 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
     }
 
     // BS16-058サテライド・バード（ブレイヴは対象外）
-    if (card.type === "spirit" && (a.viaBurstAction || state.resolvingBurstPid !== undefined) && timedPlayerRules(state, a.pid).some((c) => c.type === "noBurstSpiritSummonForPid")) {
+    if (card.type === "spirit" && (a.viaBurstAction || state.currentEffectSource?.burst) && timedPlayerRules(state, a.pid).some((c) => c.type === "noBurstSpiritSummonForPid")) {
         return "このターンの間バースト効果でスピリットを召喚できません"
     }
 

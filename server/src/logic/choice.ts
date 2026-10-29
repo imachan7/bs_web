@@ -67,9 +67,13 @@ export function doResolveChoice(
 ): string | null {
     const prev = state.flashEffect
     if (state.pendingChoice?.flashEffect) state.flashEffect = true
+    const prevBurst = state.resumeBurst
+    if (state.pendingChoice?.burst) state.resumeBurst = state.pendingChoice.burst
     try {
         return resolveChoiceInner(state, ...rest)
     } finally {
+        if (prevBurst) state.resumeBurst = prevBurst
+        else delete state.resumeBurst
         if (prev) state.flashEffect = true
         else delete state.flashEffect
     }
@@ -506,8 +510,6 @@ function resolveChoiceInner(
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
                     announceBurstActivation(state, info.pid, info.cardId)
-                    // バースト効果を解決している間だけ目印を立てる（coreReturnBonus.ownBurstOnly。BS14-019）
-                    state.resolvingBurstPid = info.pid
                     // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
                     // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う
                     if (info.burstEventCostOptions !== undefined) {
@@ -526,8 +528,7 @@ function resolveChoiceInner(
                     // バーストのカードの色と種別を渡す（【装甲】などの効果耐性。非対話の triggers.ts と同じ。BURST.md §7）。
                     // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                     const burstCard = getCard(info.cardId)
-                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId)
-                    delete state.resolvingBurstPid
+                    resolveAction(state, actor, self, pending.action, info.destroyedCardId, magicEffectiveColors(state, info.pid, burstCard), burstCard.type, undefined, undefined, info.cardId, undefined, true)
                     continueBurstActivation(state, {
                         kind: "burstFinish",
                         stage: "finish",
@@ -711,6 +712,9 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             continue
         }
         // targetInstanceId / sourceColors / sourceType は fieldEvent 誘発の残りを再開するときだけ入る
+        const prevBurst = state.resumeBurst
+        if (frame.burst) state.resumeBurst = frame.burst
+        else delete state.resumeBurst
         resolveAction(
             state,
             frame.actorPid ?? pid,
@@ -720,6 +724,8 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             frame.sourceColors,
             frame.sourceType,
         )
+        if (prevBurst) state.resumeBurst = prevBurst
+        else delete state.resumeBurst
     }
     return null
 }

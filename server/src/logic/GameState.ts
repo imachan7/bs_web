@@ -264,7 +264,8 @@ export function suspend(state: GameState, choice: PendingChoice): void {
         src !== undefined && choice.effectSource === undefined && (src.type !== undefined || src.colors !== undefined)
             ? { ...choice, effectSource: { ...(src.type !== undefined ? { type: src.type } : {}), ...(src.colors !== undefined ? { colors: src.colors } : {}) } }
             : choice
-    const withScope = state.recordScope !== undefined && withSource.recordScope === undefined ? { ...withSource, recordScope: state.recordScope } : withSource
+    const withBurst: PendingChoice = src?.burst && src.cardId !== undefined && withSource.burst === undefined ? { ...withSource, burst: { pid: src.pid, cardId: src.cardId } } : withSource
+    const withScope = state.recordScope !== undefined && withBurst.recordScope === undefined ? { ...withBurst, recordScope: state.recordScope } : withBurst
     state.pendingChoice = state.flashEffect && withScope.flashEffect === undefined ? { ...withScope, flashEffect: true } : withScope
     // 新しい中断の始まり。ここから積まれるフレームは、既にスタックにある古いフレームより前に入る
     state.resumeInsertAt = 0
@@ -330,8 +331,10 @@ export function takeMutationAfterSuspend(): string[] {
 // 1回の中断では内側の層から外側の層へ順に積まれ、正しい実行順は
 // 「内側 → 外側 → それ以前の中断の古いフレーム」であるため。RESUME_STACK.md §3
 export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void {
+    const burst = state.currentEffectSource
     for (const frame of frames) {
-        state.resumeStack.splice(state.resumeInsertAt++, 0, frame)
+        const f = frame.kind === "action" && frame.burst === undefined && burst?.burst && burst.cardId !== undefined ? { ...frame, burst: { pid: burst.pid, cardId: burst.cardId } } : frame
+        state.resumeStack.splice(state.resumeInsertAt++, 0, f)
     }
 }
 
