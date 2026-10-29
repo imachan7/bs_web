@@ -49,7 +49,13 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
     }
     if (action.type === "exhaust" || action.type === "refreshOne" || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
     if (!ONE_TARGET_TYPES.has(action.type)) return null
-    const a = action as EffectAction & { all?: true; target?: string; costBudget?: unknown; countCounter?: unknown; filter?: { lastTarget?: unknown } }
+    // ネクサスを戻すマジックは、戻せるネクサスが無ければ「すべて」でも使用できない（2026-10-29 ユーザー確認）
+    if (action.type === "return" && action.to !== "deckBottom" && action.nexus === "only") {
+        const both = action.anySide || (action.to === "hand" && action.side === "both")
+        const sides: PlayerId[] = both ? [pid, opponentOf(pid)] : [opponentOf(pid)]
+        return sides.every((side) => state.players[side].field.nexuses.length === 0)
+    }
+    const a =action as EffectAction & { all?: true; target?: string; costBudget?: unknown; countCounter?: unknown; filter?: { lastTarget?: unknown } }
     if ((a as { nexus?: string }).nexus === "only" && action.type !== "destroy" || a.all || a.target === "self" || a.target === "selfBrave" || a.costBudget !== undefined || a.countCounter !== undefined) return null
     // 「その〜」（前の効果の対象）は前の部分が対象を取れなければ何もしない
     if (a.filter?.lastTarget) return true
