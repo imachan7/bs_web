@@ -929,7 +929,7 @@ export const MAGIC_FREE_OPTIONS = ["コストを支払わずに使用する", "�
 // コアの個数（coreCharge＝BS01アウェイクンはコア3個までを1体に置く）や、
 // 「何体分として数えるか」（countAsMultipleThisTurn＝BS05スリーカードは1体を3体分に数える）を
 // 体数と読み違えると、正しく渡された対象まで捨ててしまう
-export const COUNT_IS_BODIES = new Set(["destroy", "exhaust", "returnToHand", "returnToDeckTop"])
+export const COUNT_IS_BODIES = new Set(["destroy", "exhaust", "return"])
 
 // 011ミーアバット：手札から使うフラッシュ（kind:"handActivated"）。マジックではないので
 // 「マジックを使用したとき」系の誘発は出さず、【氷壁】の対象にもならない（resolveMagic経由ではないため）。

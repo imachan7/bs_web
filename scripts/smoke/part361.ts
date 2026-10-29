@@ -39,7 +39,7 @@ for (const withChohakkai of [true, false]) {
     if (withChohakkai) put(s, "p2", CHOHAKKAI, 1)
     put(s, "p2", VANILLA2, 1)
     put(s, "p1", VANILLA2, 1)
-    resolveAction(s, "p1", null, { type: "returnToHand", count: 1, all: true, anySide: true, filter: { cost: { max: 2 } } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "return", to: "hand", count: 1, all: true, anySide: true, filter: { cost: { max: 2 } } }, undefined, undefined, "magic")
     const handGained = s.players.p1.hand.length + s.players.p2.hand.length
     if (withChohakkai) assert(handGained === 0, "チョウハッカイがいる間は誰も手札に戻らない")
     else assert(handGained === 2, "対照：チョウハッカイがいなければ両陣営のコスト2が戻る")

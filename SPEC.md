@@ -615,8 +615,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | `bpBuffPer` | 対象1体をカウント値×amountPer だけBP+（ターン終了時まで） |
 | `discardHandAll` | 自分の手札をすべて破棄（トラッシュへ） |
 | `bpBuffAll` | 自分のスピリットすべてをBP+（ターン終了時まで） |
-| `returnToHand` | 対象スピリットを持ち主の手札に戻す（バウンス。onDestroy 不発火、対象指定可） |
-| `returnToDeckTop` | 対象スピリットを持ち主のデッキの上に戻す（対象指定可） |
+| `return` | 対象を持ち主の `to`（`hand`＝手札／`deckTop`＝デッキの上／`deckBottom`＝デッキの下）に戻す（バウンス。onDestroy 不発火、対象指定可。2026-10-29 に `returnToHand`・`returnToDeckTop`・`returnToDeckBottom` を統一） |
 | `coreCharge` | 自分のリザーブから対象の自分スピリットへコアを置く（不足時は可能な分） |
 | `discardOpponent` | 相手の手札を破棄（手札末尾からの決定的選択。本来は相手が選ぶ処理の簡略化） |
 | `refreshSelf` | このスピリット自身を回復 |

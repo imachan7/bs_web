@@ -80,7 +80,7 @@ console.log("=== 4. returnToHand.nexus:\"also\"：スピリットが候補にい
     s.players.p1.field.spirits.push(self)
     const nexus = createInstance(BASE_NEXUS, s.turn, 0)
     s.players.p2.field.nexuses.push(nexus)
-    resolveAction(s, "p1", self, { type: "returnToHand", count: 1, nexus: "also" })
+    resolveAction(s, "p1", self, { type: "return", to: "hand", count: 1, nexus: "also" })
     assert(s.players.p2.field.nexuses.length === 0, "ネクサスは場から消えた")
     assert(s.players.p2.hand.includes(BASE_NEXUS), "ネクサスは手札に戻った")
 }
@@ -93,7 +93,7 @@ console.log("=== 5. returnToHand.nexus:\"also\"：非対話は実効BP最大の�
     const spirit = createInstance(BASE_SPIRIT, s.turn, 1)
     s.players.p2.field.spirits.push(spirit)
     s.players.p2.field.nexuses.push(createInstance(BASE_NEXUS, s.turn, 0))
-    resolveAction(s, "p1", self, { type: "returnToHand", count: 1, nexus: "also" })
+    resolveAction(s, "p1", self, { type: "return", to: "hand", count: 1, nexus: "also" })
     assert(s.players.p2.field.spirits.length === 0, "スピリットが優先して手札に戻る")
     assert(s.players.p2.field.nexuses.length === 1, "ネクサスは残る")
 }
@@ -106,7 +106,7 @@ console.log("=== 6. returnToHand.nexus:\"also\"：対話でネクサスを名指
     s.players.p2.field.spirits.push(createInstance(BASE_SPIRIT, s.turn, 1))
     const nexus = createInstance(BASE_NEXUS, s.turn, 0)
     s.players.p2.field.nexuses.push(nexus)
-    resolveAction(s, "p1", self, { type: "returnToHand", count: 1, nexus: "also" })
+    resolveAction(s, "p1", self, { type: "return", to: "hand", count: 1, nexus: "also" })
     assert(s.pendingChoice?.candidates.includes(nexus.instanceId) === true, "候補にネクサスも含まれる")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: nexus.instanceId }) === null, "ネクサスを選ぶ")
     assert(s.players.p2.field.nexuses.length === 0, "選んだネクサスが手札に戻った")

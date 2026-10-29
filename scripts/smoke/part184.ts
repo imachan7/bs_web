@@ -132,7 +132,7 @@ console.log("=== BS09-055 転生の谷：【転召】持ちを1枚捨ててド�
     const plain = put(s, "p1", PLAIN, 1)
     refreshLevelAsOverrides(s)
     // 相手（p2）の効果で自分（p1）のスピリットを手札に戻そうとする
-    resolveAction(s, "p2", null, { type: "returnToHand", count: 2 })
+    resolveAction(s, "p2", null, { type: "return", to: "hand", count: 2 })
     assert(s.players.p1.field.spirits.some((x) => x.instanceId === tensho.instanceId), "【転召】持ちは相手の効果で手札に戻らない")
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === plain.instanceId), "【転召】を持たないスピリットは戻る")
 }

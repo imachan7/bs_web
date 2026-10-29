@@ -7182,7 +7182,8 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "nexus": "only",
      "count": 1,
      "anySide": true,

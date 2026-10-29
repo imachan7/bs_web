@@ -1352,7 +1352,8 @@
           2
         ],
         "action": {
-          "type": "returnToDeckTop",
+          "type": "return",
+          "to": "deckTop",
           "filter": {
             "maxBp": 5000,
             "keywordExclude": "tensho"

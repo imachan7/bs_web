@@ -151,13 +151,12 @@ export function magicTargetSide(
         const a = effect.action
         if (a.nexus || a.target === "self" || a.side !== undefined || a.all) return null
     }
-    if ((effect.action.type === "returnToHand" || effect.action.type === "returnToDeckTop") && effect.action.nexus === "only") return null
+    if (effect.action.type === "return" && effect.action.to !== "deckBottom" && effect.action.nexus === "only") return null
     if (
         effect.action.type === "destroy" ||
         effect.action.type === "coreRemove" ||
         effect.action.type === "exhaust" ||
-        effect.action.type === "returnToHand" ||
-        effect.action.type === "returnToDeckTop"
+        effect.action.type === "return"
     ) {
         return "opponent"
     }

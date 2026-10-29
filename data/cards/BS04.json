@@ -1082,7 +1082,8 @@
      "ownHandAtLeast": 10
     },
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    },
@@ -1098,7 +1099,8 @@
      "ownHandAtLeast": 8
     },
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    },
@@ -1114,7 +1116,8 @@
      "ownHandAtLeast": 6
     },
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    }
@@ -4939,7 +4942,8 @@
      "巨獣"
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "maxBpFromSelf": true
     }
@@ -5943,7 +5947,8 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "all": true,
      "anySide": true,
@@ -6023,7 +6028,7 @@
     "useCondition": {
      "ownFieldHasMinSymbolSpirit": 2
     },
-    "action": {"type": "pay", "cost": {"type": "returnToDeckBottom", "side": "own", "count": 2}, "then": {"type": "returnToDeckBottom", "count": 2}}
+    "action": {"type": "pay", "cost": {"type": "return", "to": "deckBottom", "side": "own", "count": 2}, "then": {"type": "return", "to": "deckBottom", "count": 2}}
    },
    {
     "id": "BS04-104-e2",

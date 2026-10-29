@@ -716,7 +716,7 @@ console.log("=== バウンス系・コア操作系アクション ===")
     s.players.p2.field.spirits.push(mistwizel)
     const p2HandBefore = s.players.p2.hand.length
     const p2ReserveBefore = s.players.p2.reserve
-    resolveAction(s, "p1", null, { type: "returnToHand", count: 1 })
+    resolveAction(s, "p1", null, { type: "return", to: "hand", count: 1 })
     assert(!s.players.p2.field.spirits.includes(mistwizel), "対象がp2フィールドから消える")
     assert(
         s.players.p2.hand.length === p2HandBefore + 1,
@@ -731,7 +731,7 @@ console.log("=== バウンス系・コア操作系アクション ===")
     s.players.p2.field.spirits.push(goradonOnField)
     const p2DeckBefore = s.players.p2.deck.length
     const p2ReserveBefore2 = s.players.p2.reserve
-    resolveAction(s, "p1", null, { type: "returnToDeckTop" })
+    resolveAction(s, "p1", null, { type: "return", to: "deckTop" })
     assert(!s.players.p2.field.spirits.includes(goradonOnField), "対象がp2フィールドから消える")
     assert(s.players.p2.deck.length === p2DeckBefore + 1, "p2のデッキが1枚増える")
     assert(s.players.p2.deck[0] === "BS01-001", "戻したカードがデッキの一番上になる")

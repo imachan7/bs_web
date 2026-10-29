@@ -2349,7 +2349,8 @@
     ],
     "optional": false,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "keywordExclude": "tensho"
@@ -3068,7 +3069,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToDeckTop",
+      "type": "return",
+      "to": "deckTop",
       "side": "own",
       "count": 1,
       "filter": {

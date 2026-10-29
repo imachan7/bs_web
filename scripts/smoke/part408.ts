@@ -43,7 +43,7 @@ console.log("=== 1. アンキロング：【超覚醒】を持つ自分のスピ
     const sa = createInstance(SA, s.turn, 1)
     s.players.p1.field.spirits.push(self, sa, plain)
     const hand = s.players.p1.hand.length
-    resolveAction(s, "p1", self, actionOf(ANKYLO, "returnToHand"))
+    resolveAction(s, "p1", self, actionOf(ANKYLO, "return"))
     assert(s.players.p1.hand.length === hand + 1 && !s.players.p1.field.spirits.some((x) => x.instanceId === sa.instanceId) && s.players.p1.field.spirits.length === 2, "【超覚醒】持ちだけが戻る")
 }
 

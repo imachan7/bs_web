@@ -147,7 +147,7 @@ console.log("=== BS09-X38 要塞騎神オーディーンType-X：【転召】を
     const tensho = put(s, "p2", "BS09-009", 1) // 【転召】持ち
     const plains = [0, 1, 2, 3].map(() => put(s, "p2", PLAIN, 1))
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", null, { type: "returnToDeckTop", count: 3, filter: { keywordExclude: "tensho" } })
+    resolveAction(s, "p1", null, { type: "return", to: "deckTop", count: 3, filter: { keywordExclude: "tensho" } })
     assert(s.players.p2.field.spirits.some((x) => x.instanceId === tensho.instanceId), "【転召】持ちは戻されない")
     const remaining = plains.filter((p) => s.players.p2.field.spirits.some((x) => x.instanceId === p.instanceId))
     assert(remaining.length === 1, "【転召】を持たない相手が3体だけ戻る")

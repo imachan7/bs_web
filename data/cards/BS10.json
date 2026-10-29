@@ -654,7 +654,8 @@
           1
         ],
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1
         },
         "optional": false
@@ -4302,7 +4303,8 @@
           2
         ],
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1
         },
         "optional": false
@@ -4494,7 +4496,8 @@
           3
         ],
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "all": true,
           "anySide": true,
@@ -4737,7 +4740,8 @@
           2
         ],
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "nexus": "only",
           "count": 1
         }
@@ -4818,7 +4822,8 @@
         "turn": "own",
         "familyFilter": "空魚",
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "filter": {
             "combined": false
@@ -5039,7 +5044,8 @@
           3
         ],
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "all": true,
           "filter": {
@@ -5607,7 +5613,8 @@
           2
         ],
         "action": {
-          "type": "returnToDeckBottom",
+          "type": "return",
+          "to": "deckBottom",
           "filter": {
             "keyword": "kyoshu"
           }

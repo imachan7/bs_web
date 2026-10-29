@@ -751,7 +751,8 @@
     "perDestroyed": true,
     "optional": true,
     "action": {
-     "type": "returnToDeckTop",
+     "type": "return",
+     "to": "deckTop",
      "target": "self"
     }
    }
@@ -998,7 +999,8 @@
       "atLeast": 6
      },
      "then": {
-      "type": "returnToDeckTop",
+      "type": "return",
+      "to": "deckTop",
       "all": true
      }
     }

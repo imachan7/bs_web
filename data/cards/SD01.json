@@ -1077,7 +1077,8 @@
         ],
         "optional": false,
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "all": true,
           "filter": {
@@ -1353,7 +1354,8 @@
         ],
         "optional": false,
         "action": {
-          "type": "returnToHand",
+          "type": "return",
+          "to": "hand",
           "count": 1,
           "all": true,
           "anySide": true,

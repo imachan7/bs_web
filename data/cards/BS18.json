@@ -1218,7 +1218,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToDeckBottom",
+      "type": "return",
+      "to": "deckBottom",
       "side": "own",
       "count": 1,
       "filter": {
@@ -1759,7 +1760,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "returnToDeckBottom",
+      "type": "return",
+      "to": "deckBottom",
       "side": "own",
       "count": 1,
       "filter": {
@@ -2431,7 +2433,8 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 2
     },
     "optional": false
@@ -3985,7 +3988,8 @@
      1
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "nexus": "only",
      "count": 1
     },
@@ -4692,7 +4696,8 @@
     "turn": "own",
     "byBattleOnly": true,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    }
@@ -6040,7 +6045,8 @@
     ],
     "optional": false,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "all": true,
      "filter": {

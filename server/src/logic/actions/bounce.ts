@@ -10,7 +10,9 @@ import { detachBraveByEffect } from "../brave"
 import { countedAmount } from "../counted"
 import { soulCoreLeavesField } from "../soulCore"
 
-// side:"own"（returnToHand/returnToDeckTopの自分側対象）の候補列挙。ハンドラ本体とpayの判定表
+type HandReturn = Extract<EffectAction, { type: "return"; to: "hand" }>
+
+// side:"own"（return の to:"hand"／"deckTop" の自分側対象）の候補列挙。ハンドラ本体とpayの判定表
 // （CHECKERS）の両方から呼び、判定と実際の対象がずれないようにする
 function ownSideBounceCandidates(
     state: GameState,
@@ -26,7 +28,7 @@ export function returnToHandCandidateCountForPay(
     state: GameState,
     owner: PlayerId,
     selfInstanceId: string | undefined,
-    action: Extract<EffectAction, { type: "returnToHand" }>,
+    action: HandReturn,
     srcColors: Color[] | undefined,
     srcType: CardType | undefined,
 ): number {
@@ -38,12 +40,12 @@ export function returnToHandCandidateCountForPay(
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
 }
 
-// pay の判定表（returnToDeckTop）が使う候補数
+// pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
 export function returnToDeckTopCandidateCountForPay(
     state: GameState,
     owner: PlayerId,
     selfInstanceId: string | undefined,
-    action: Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>,
+    action: Extract<EffectAction, { type: "return"; to: "deckTop" | "deckBottom" }>,
     srcColors: Color[] | undefined,
     srcType: CardType | undefined,
 ): number {
@@ -61,7 +63,7 @@ const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow
 
 // 好きなだけ・コスト合計が予算まで：1体ずつ選ばせ、残り予算を budgetLeft に載せて再入する（INTERRUPTION_POINTS.md パターンB）。
 // 非対話・候補1体はコスト最大から
-function returnToHandByBudget(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToHand" }>): void {
+function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const remaining = action.budgetLeft ?? countedAmount(state, owner, self, 1, action.costBudget!, srcType)
     if (action.budgetLeft === undefined) log(state, `${sourceName}：コスト合計${remaining}まで、相手のスピリットを手札に戻せる。`)
@@ -92,7 +94,7 @@ function returnToHandByBudget(ctx: ActionCtx, action: Extract<EffectAction, { ty
 
 // target:"self"／"selfBrave"：自分のコストとして戻すので、耐性・装甲は見ない。
 // selfBrave は合体中のブレイヴを外してから手札へ（2体以上なら持ち主が選ぶ。再入は costSacrificeChosen＋targetInstanceId）
-function returnOwnAsCost(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToHand" }>, target: "self" | "selfBrave"): void {
+function returnOwnAsCost(ctx: ActionCtx, action: HandReturn, target: "self" | "selfBrave"): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
     if (!self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)) {
         log(state, `${sourceName}：手札に戻す自分のスピリットがいなかった。`)
@@ -127,7 +129,7 @@ function returnOwnAsCost(ctx: ActionCtx, action: Extract<EffectAction, { type: "
     recordMoved(state, [brave.cardId])
 }
 
-const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
+const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // target:"self" の入口は2つ。破壊待機中・場にいない個体は破壊時の誘発（returnDestroyedSelfToHand）、
         // 場に健在な個体は pay のコスト（returnOwnAsCost）。データ側のどちらも onDestroy でしか使われないので状態で見分ける
@@ -345,16 +347,16 @@ const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
         return
 }
 
-type NexusBounceAction = Extract<EffectAction, { type: "returnToHand" | "returnToDeckTop" }>
+type NexusBounceAction = Extract<EffectAction, { type: "return"; to: "hand" | "deckTop" }>
 
-// nexus:"only" の入口（returnToHand／returnToDeckTop）。dest は呼び出し側の type で決まる
+// nexus:"only" の入口（return の to:"hand"／"deckTop"）
 function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
-    const toDeck = action.type === "returnToDeckTop"
+    const toDeck = action.to === "deckTop"
         // bounceProgress は選択の再入をまたぐ「戻した回数」（内部用）。再入時は戻した記録を消さない
         if (action.bounceProgress === undefined) recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
         // voidCoreToOwnTrashIfOpponent は「戻したカードが相手のもの」を if で書けないので軸のまま持つ
-        const voidCore = action.type === "returnToHand" ? action.voidCoreToOwnTrashIfOpponent : undefined
+        const voidCore = action.to === "hand" ? action.voidCoreToOwnTrashIfOpponent : undefined
         const bounceOne = (pid: PlayerId, nexus: CardInstance): void => {
             recordMoved(state, [...lastMovedOf(state), nexus.cardId])
             if (toDeck) {
@@ -373,7 +375,7 @@ function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
         // all：countを無視し、side（省略時はopponent）が指すネクサスすべてを戻す。
         // side:"both"は両陣営すべて（bothSidesPidsで封印された魔導書系の対象片側化にも対応。BS06ホワイトホール）
         if (action.all) {
-            const sides: PlayerId[] = action.type === "returnToHand" && action.side === "both" ? bothSidesPids(state, srcType) : [opp]
+            const sides: PlayerId[] = action.to === "hand" && action.side === "both" ? bothSidesPids(state, srcType) : [opp]
             let bounced = 0
             for (const pid of sides) {
                 // bounceOne が field.nexuses を破壊的に変更するため、対象をスナップショットしてから戻す
@@ -454,7 +456,7 @@ function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
 
 // nexus:"only"/"also" 版：対話時は候補（ネクサス/スピリット）を1つの一覧から選ぶ、非対話は
 // 実効BP最大のスピリット優先→残り枠を場の並び順のネクサスへ（exhaustNexusOrSpiritと同じ選び方に揃える）
-function returnToHandNexusOrSpirit(ctx: ActionCtx, action: Extract<EffectAction, { type: "returnToHand" }>): void {
+function returnToHandNexusOrSpirit(ctx: ActionCtx, action: HandReturn): void {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) {
@@ -540,7 +542,7 @@ const returnToHandEachHeavyArmorColorHandler: ActionHandler<"returnToHandEachHea
     for (let i = 0; i < colors.length; i++) {
         const color = colors[i]
         if (color === undefined) continue
-        ctx.resolve({ type: "returnToHand", count: 1, filter: { color } }, {
+        ctx.resolve({ type: "return", to: "hand", count: 1, filter: { color } }, {
             sourceColors: srcColors,
             sourceType: srcType,
         })
@@ -602,7 +604,7 @@ function returnAllTargetsToHand(
 
 // 戻す順番は持ち主が選ぶ（2026-08-24）。選び終えてから markBounce→flushBounces でまとめて戻すのは、1体ずつ即座に戻すと
 // 誘発（「戻ったとき」等）が後続の対象選びに割り込んでしまうため（flushBouncesのコメント参照）
-// all版の本体。returnToDeckTop/returnToDeckBottom共通（positionだけが違う）
+// all版の本体。to:"deckTop"／"deckBottom" 共通（positionだけが違う）
 function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
         const posLabel = position === "top" ? "上" : "下"
@@ -668,7 +670,7 @@ function returnAllMatchingToDeck(ctx: ActionCtx, action: DeckReturnAction, posit
         return
 }
 
-type DeckReturnAction = Extract<EffectAction, { type: "returnToDeckTop" | "returnToDeckBottom" }>
+type DeckReturnAction = Extract<EffectAction, { type: "return"; to: "deckTop" | "deckBottom" }>
 
 function returnSelfToDeckBottomAsCost(ctx: ActionCtx): void {
     const { state, owner, self, sourceName } = ctx
@@ -680,9 +682,9 @@ function returnSelfToDeckBottomAsCost(ctx: ActionCtx): void {
     recordMoved(state, [self.cardId])
 }
 
-const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =>
+const returnToDeckTopHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type: "return"; to: "deckTop" }>): void =>
     action.nexus === "only" ? bounceNexusOnly(ctx, action) : action.target === "self" ? returnDestroyedSelfToDeckTop(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
-const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) =>
+const returnToDeckBottomHandler = (ctx: ActionCtx, action: DeckReturnAction): void =>
     action.target === "self" ? returnSelfToDeckBottomAsCost(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
 
 function returnToDeck(ctx: ActionCtx, action: DeckReturnAction, position: "top" | "bottom"): void {
@@ -869,11 +871,10 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
 }
 
 const handlers = {
-    returnToHand: returnToHandHandler,
+    return: (ctx, action) =>
+        action.to === "hand" ? returnToHandHandler(ctx, action) : action.to === "deckTop" ? returnToDeckTopHandler(ctx, action) : returnToDeckBottomHandler(ctx, action),
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
-    returnToDeckTop: returnToDeckTopHandler,
     returnToBurst: returnToBurstHandler,
-    returnToDeckBottom: returnToDeckBottomHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

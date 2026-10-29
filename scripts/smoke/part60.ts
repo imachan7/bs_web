@@ -135,7 +135,7 @@ console.log("=== returnToHand: 候補2体で choice が立ち、選んだ側だ�
     const [a, b] = twoEnemies(s, "BS01-002", 1)
     const handBefore = s.players.p2.hand.length
 
-    resolveAction(s, "p1", null, { type: "returnToHand", count: 1 })
+    resolveAction(s, "p1", null, { type: "return", to: "hand", count: 1 })
     assert(s.pendingChoice !== null, "候補2体で pendingChoice が立つ")
     assert(s.players.p2.field.spirits.length === 2, "選択待ち中はまだ戻っていない")
 
@@ -154,7 +154,7 @@ console.log("=== returnToDeckTop: 候補2体で choice が立ち、選んだ側�
     const [a, b] = twoEnemies(s, "BS01-002", 1)
     const deckBefore = s.players.p2.deck.length
 
-    resolveAction(s, "p1", null, { type: "returnToDeckTop" })
+    resolveAction(s, "p1", null, { type: "return", to: "deckTop" })
     assert(s.pendingChoice !== null, "候補2体で pendingChoice が立つ")
 
     act(s, "p1", { type: "resolveChoice", instanceId: b })

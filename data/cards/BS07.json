@@ -2194,7 +2194,8 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "keywordExclude": "tensho"
@@ -2447,7 +2448,8 @@
      }
     },
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "target": "self",
      "count": 1
     },
@@ -4175,7 +4177,8 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "returnToDeckTop",
+     "type": "return",
+     "to": "deckTop",
      "count": 3,
      "chooserIsTarget": true
     },
@@ -5598,7 +5601,8 @@
       "count": 1
      },
      "then": {
-      "type": "returnToHand",
+      "type": "return",
+      "to": "hand",
       "count": 2,
       "filter": {
        "keywordExclude": "tensho"

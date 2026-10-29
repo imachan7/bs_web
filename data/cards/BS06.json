@@ -2447,7 +2447,8 @@
     "phase": "attack",
     "magicCostEquals": 4,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    },
@@ -2461,7 +2462,8 @@
     "phase": "attack",
     "magicCostEquals": 5,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    }
@@ -2583,7 +2585,8 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "family": "空牙"
@@ -2692,7 +2695,8 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     },
     "optional": false
@@ -4797,7 +4801,7 @@
     ],
     "winnerKeywordFilter": "bofu",
     "selfMode": "source",
-    "action": {"type": "returnToDeckBottom", "all": true, "filter": {"bofuExhausted": "any"}}
+    "action": {"type": "return", "to": "deckBottom", "all": true, "filter": {"bofuExhausted": "any"}}
    }
   ]
  },
@@ -5060,7 +5064,8 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    }
@@ -6137,7 +6142,8 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "nexus": "only",
      "count": 0,
      "all": true,
@@ -6909,7 +6915,8 @@
      3
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "all": true,
      "filter": {

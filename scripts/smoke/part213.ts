@@ -165,7 +165,7 @@ console.log("=== 破壊以外の対象効果でも働く（コア除去・手札
     // 呼び出し元（resistanceAgainst の直前）ごとに組み込んであることを確かめる
     const cases: { label: string; action: Parameters<typeof resolveAction>[3] }[] = [
         { label: "コア除去", action: { type: "coreRemove", count: 1 } },
-        { label: "手札に戻す", action: { type: "returnToHand", count: 1 } },
+        { label: "手札に戻す", action: { type: "return", to: "hand", count: 1 } },
         { label: "疲労させる", action: { type: "exhaust", count: 1 } },
     ]
     for (const c of cases) {

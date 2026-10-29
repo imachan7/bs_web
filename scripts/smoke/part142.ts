@@ -321,11 +321,11 @@ console.log("=== BS07 白：ネクサス破壊で相手のスピリット3体を
 {
     const necklace = findByEffect(
         (e) =>
-            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnToDeckTop" &&
+            (e["action"] as Record<string, unknown> | undefined)?.["type"] === "return" && (e["action"] as Record<string, unknown>)["to"] === "deckTop" &&
             (e["action"] as Record<string, unknown>)["count"] !== undefined,
     )
     const count = Number(
-        (entryOf(necklace, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "returnToDeckTop")[
+        (entryOf(necklace, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "return" && (e["action"] as Record<string, unknown>)["to"] === "deckTop")[
             "action"
         ] as Record<string, unknown>)["count"],
     )

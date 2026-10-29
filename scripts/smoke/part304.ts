@@ -279,7 +279,7 @@ console.log("=== 器AO：BS13-079メイン「このターンの間、自分の�
     refreshLevelAsOverrides(s)
     const deckLenBefore = s.players.p2.deck.length
 
-    resolveAction(s, "p1", null, { type: "returnToHand", count: 1 }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "return", to: "hand", count: 1 }, target.instanceId)
 
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === target.instanceId), "対象は場を離れた")
     assert(!s.players.p2.hand.includes(target.cardId) || s.players.p2.hand.filter((c) => c === target.cardId).length === 0,
@@ -300,7 +300,7 @@ console.log("=== 器AO：「〜を手札に戻すことで」のコスト支払�
     refreshLevelAsOverrides(s)
     const deckLenBefore = s.players.p1.deck.length
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "returnToHand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "returnToHand", count: 1} }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "return", to: "hand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "return", to: "hand", count: 1} }, target.instanceId)
     answerPayConfirm(s, "p1")
 
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === cost.instanceId), "コストのスピリットは場を離れた")

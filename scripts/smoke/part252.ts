@@ -1,6 +1,6 @@
 // smoke パート252（BS10黄バッチ：ティン・ソルジャー／カラドリアス／シャボンの湖畔／時刻む花時計）
 // 新設した機構:
-//   - action "returnToDeckBottom"（returnToHandの単体版。相手スピリット1体を持ち主のデッキの下に戻す）
+//   - action return{to:"deckBottom"}（相手スピリット1体を持ち主のデッキの下に戻す）
 //   - fieldEvent "ownSpiritDestroyed" の vanillaOnly を実際にカードで使用（既存の軸）
 //   - constraintGrant の costFilter / turn / combinedFilter（AuraDefの同名軸をconstraintGrantにも追加）
 //   - ConstraintDef "immuneToOpponentEffects" の against:"spirit"（マジックは通す絞り込み）

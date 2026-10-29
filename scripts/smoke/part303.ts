@@ -134,7 +134,7 @@ console.log("=== 器AE：refreshSelf.costReturnOwnSpiritKeyword（BS13-019コロ
     s.players.p1.field.spirits.push(soku)
     refreshLevelAsOverrides(s)
 
-    resolveAction(s, "p1", kolokon, { type: "pay", cost: { type: "returnToHand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "refreshSelf"} })
+    resolveAction(s, "p1", kolokon, { type: "pay", cost: { type: "return", to: "hand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "refreshSelf"} })
     answerPayConfirm(s, "p1")
     assert(!kolokon.isRested, "コストを払って回復した")
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === soku.instanceId), "コストにしたスピリットは手札に戻った")
@@ -149,7 +149,7 @@ console.log("=== 器AE：候補がいなければ不発（COST_MODEL.md §1） =
     s.players.p1.field.spirits.push(kolokon)
     refreshLevelAsOverrides(s)
 
-    resolveAction(s, "p1", kolokon, { type: "pay", cost: { type: "returnToHand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "refreshSelf"} })
+    resolveAction(s, "p1", kolokon, { type: "pay", cost: { type: "return", to: "hand", side: "own", count: 1, filter: { keyword: "soku" } }, then: { type: "refreshSelf"} })
     assert(kolokon.isRested, "【神速】持ちがいないので発動しなかった")
 }
 

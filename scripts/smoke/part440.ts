@@ -324,7 +324,7 @@ console.log("=== 15c. returnToDeckTop の all 軸：filter に合う候補すべ
     put(s, "p2", VANILLA, 1)
     put(s, "p2", "BS16-038", 1)
     const deckBefore = s.players.p2.deck.length
-    resolveAction(s, "p1", null, { type: "returnToDeckTop", all: true })
+    resolveAction(s, "p1", null, { type: "return", to: "deckTop", all: true })
     assert(s.players.p2.field.spirits.length === 0, "対象すべてが場から離れた")
     assert(s.players.p2.deck.length === deckBefore + 2, "戻した2枚ぶんデッキが増えた")
     assert(s.players.p2.deck.slice(0, 2).sort().join(",") === [VANILLA, "BS16-038"].sort().join(","), "戻した2枚がデッキの上に来ている")

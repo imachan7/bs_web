@@ -421,7 +421,8 @@
     "subjectSide": "own",
     "subjectKeywordFilter": "hyoheki",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "filter": {
       "sameIceWallColorAs": true
@@ -501,7 +502,8 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     },
     "thenPay": "flash"
@@ -654,7 +656,8 @@
      2
     ],
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     },
     "optional": false

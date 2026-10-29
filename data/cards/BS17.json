@@ -1627,7 +1627,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "returnToHand",
+       "type": "return",
+       "to": "hand",
        "nexus": "only",
        "count": 2
       },
@@ -2176,7 +2177,8 @@
     "whileCombined": true,
     "optional": true,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "target": "selfBrave",
      "count": 1
     }
@@ -4643,7 +4645,8 @@
     "selfMode": "source",
     "attackerAsTarget": true,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1
     }
    }
@@ -6005,7 +6008,8 @@
     "whileCombined": true,
     "optional": false,
     "action": {
-     "type": "returnToHand",
+     "type": "return",
+     "to": "hand",
      "count": 1,
      "countCounter": "selfBraveCount",
      "nexus": "also"

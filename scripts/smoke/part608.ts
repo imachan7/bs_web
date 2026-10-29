@@ -68,7 +68,7 @@ console.log("=== 2. returnToHand.countCounter ===")
     assert((host.braveRefs ?? []).length === 2, "ブレイヴ2つ合体")
     const o1 = put(s, "p2", HOST), o2 = put(s, "p2", HOST), o3 = put(s, "p2", HOST)
     const handBefore = s.players.p2.hand.length
-    resolveAction(s, "p1", host, { type: "returnToHand", count: 1, countCounter: "selfBraveCount", nexus: "also" })
+    resolveAction(s, "p1", host, { type: "return", to: "hand", count: 1, countCounter: "selfBraveCount", nexus: "also" })
     assert(s.players.p2.hand.length === handBefore + 2, "相手のスピリットが2体手札に戻る")
     assert(s.players.p2.field.spirits.length === 1 && [o1, o2, o3].some((o) => s.players.p2.field.spirits.includes(o)), "1体だけ残る")
 
@@ -76,7 +76,7 @@ console.log("=== 2. returnToHand.countCounter ===")
     const lone = put(s0, "p1", HOST, 1)
     put(s0, "p2", HOST)
     const hb = s0.players.p2.hand.length
-    resolveAction(s0, "p1", lone, { type: "returnToHand", count: 1, countCounter: "selfBraveCount", nexus: "also" })
+    resolveAction(s0, "p1", lone, { type: "return", to: "hand", count: 1, countCounter: "selfBraveCount", nexus: "also" })
     assert(s0.players.p2.hand.length === hb && s0.players.p2.field.spirits.length === 1, "ブレイヴ0なら何も戻らない")
 }
 
