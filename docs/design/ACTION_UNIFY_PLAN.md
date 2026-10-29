@@ -30,8 +30,8 @@
 | 0 | ~~消し忘れの削除~~ | 10-29 に取り消し：16種中15種は `STANDARD_POOL_ONLY`（意図して持ち込んだ語彙）。残る `revealDiscardRest` は PR 3b で消す | — | — |
 | 1 | 破壊の対象違い | `destroyNexus` 35・`destroyBrave` 9・`destroySelf` 8・`destroyOwnByCost` 3 | `destroy` ＋対象の種類の軸／`target: "self"`／`filter` のコスト | **論点 A・B** |
 | 2 | 戻す・疲労の「自分」版 | `returnSelfToHand` 5・`returnSelfToDeckTop` 1・`returnNexusToHand` 9・`exhaustSelf` 3 | `returnToHand`・`returnToDeckTop`・`exhaust` ＋ `target: "self"`／対象の種類 | `exhaustSelf` は名前で判定する箇所が6ファイルある（コストの判定など）。全部追う。PR 1 の論点 A・B の答えを使う |
-| 3a | 破棄の統一 | `discardOpponent` 22・`discardBurst` 10・`discardHandAll` 3・`discardBothHands` 3・`discardSelfOne` 3・`discardOpponentBurst` 2・`discardOpponentTegamoto` 2 | 新しい `discard`（§4 のスキーマ）。共通の破棄アクションは語彙表に概念があるだけで type が無かった（10-29 に判明） | なし（スキーマは §4 で確定） |
-| 3b | 小物 | `drawUpTo` 2・`nexusCoresToTrash` 2・`revealDiscardRest` 0 | `draw` ＋ `fillTo`（「〜枚になるまで」。`upTo` は 0〜N の意味なので使わない＝09-28 の命名）、`removeCores`、削除 | なし |
+| 3a（#304） | 破棄の統一 | `discardOpponent` 22・`discardBurst` 10・`discardHandAll` 3・`discardBothHands` 3・`discardSelfOne` 3・`discardOpponentBurst` 2・`discardOpponentTegamoto` 2 | 新しい `discard`（§4 のスキーマ）。共通の破棄アクションは語彙表に概念があるだけで type が無かった（10-29 に判明） | なし（スキーマは §4 で確定） |
+| 3b（#305） | 小物 | `drawUpTo` 2・`nexusCoresToTrash` 2・`revealDiscardRest` 0 | `draw` ＋ `fillTo`（「〜枚になるまで」。`upTo` は 0〜N の意味なので使わない＝09-28 の命名）、`removeCores`、削除 | なし |
 | 後 | 回復の統一 | `refreshAllOwn` 9・`refreshSelf`・`refreshOne`・`refreshOwnNexus` | 共通の `refresh` が無いので、回復をまとめて1本で設計する（PR 3 から外した） | 着手時にスキーマ |
 | 4 | `bpBuff` の残りと無色化 | `bpBuff` 7・`colorlessSelfThisBattle` 4 | `costMillSelfCount`→`pay { cost: mill }`、`thenAddSymbolThisBattle`→`sequence`＋`timedEffect` の `symbolAdd`、`thenRefreshIfMilledFamily`→`if { cond: last }`、無色化→`timedEffect` の内容 | `amountIfTarget`（選んだ対象が条件に合えば量を変える）は今の `if` の3種の `cond` に当たらない。「選んだ対象を見る条件」を部品として足すか、`amountCounter` で書けるかを決める |
 | 5 | 1枚専用の付与・印 | `setTargetBpAsThisBattle`・`countAsMultipleThisTurn`・`markUnblockableByIceWallColorThisTurn`・`grantBlockerImmunity`・`levelOverrideOpponentNexuses`・`requireCoreToBlockThisBattle`・`addSymbolPermanent`・`markNoRefreshTarget`・`grantHostUnblockableThisTurn`・`protectBlockerCoresThisBattle` 2・`treatOwnNexusesAsSpiritsThisTurn` 2・`grantKeywordToHandCard` 2 | `timedEffect`（既存の内容で書けないものは、足りない内容を1つずつ足す） | 1枚ずつ。既存の `TimedContent` で書けるか、足す内容は何かを着手時に表にする。`grantKeywordToHandCard` は手札のカードが対象なので期間つき効果の器に入るか自体を確かめる |
@@ -60,7 +60,9 @@
 
 ## 4. 確定スキーマ
 
-### PR 3a `discard`（10-29 確定）
+### PR 3a `discard`（10-29 確定。#304）
+
+既知の限界：2枚以上の手札破棄は `lastMoved` に最後の1枚だけ／`side:both` の相手側は相手自身の破棄として解決され「相手の効果で破棄されたとき」が起きない（旧も同じ）
 
 ```ts
 { type: "discard"; from: "hand" | "burst" | "tegamoto"; side: "own" | "opponent" | "both";
