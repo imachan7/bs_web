@@ -269,9 +269,10 @@
         "action": {
           "type": "pay",
           "cost": {
-            "type": "destroyNexus",
-            "side": "own",
-            "count": 1
+           "type": "destroy",
+           "nexus": "only",
+           "side": "own",
+           "count": 1
           },
           "then": {
             "type": "placeCores",
@@ -656,9 +657,10 @@
         "action": {
           "type": "pay",
           "cost": {
-            "type": "destroyNexus",
-            "side": "own",
-            "count": 1
+           "type": "destroy",
+           "nexus": "only",
+           "side": "own",
+           "count": 1
           },
           "then": {
             "type": "mill",

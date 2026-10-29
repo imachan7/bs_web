@@ -107,7 +107,7 @@ const sequenceHandler: ActionHandler<"sequence"> = (ctx, action) => {
 const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
     const { state, owner, self, sourceName } = ctx
     const supported = (a: EffectAction): boolean =>
-        a.type === "destroySelf" || (a.type === "destroy" && (a.all === true || (a.side === "own" && typeof a.count === "number")))
+        a.type === "destroy" && !a.nexus && (a.target === "self" || a.all === true || (a.side === "own" && typeof a.count === "number"))
     if (!action.actions.every(supported)) {
         log(state, `${sourceName}：同時に解決できない効果が含まれているため発揮しなかった。`)
         return
@@ -118,10 +118,10 @@ const simultaneousHandler: ActionHandler<"simultaneous"> = (ctx, action) => {
     const add = (pid: PlayerId, instanceId: string): void => {
         if (!targets.some((x) => x.instanceId === instanceId)) targets.push({ pid, instanceId })
     }
-    if (self && action.actions.some((a) => a.type === "destroySelf")) add(findSpiritAny(state, self.instanceId)?.pid ?? owner, self.instanceId)
+    if (self && action.actions.some((a) => a.type === "destroy" && a.target === "self")) add(findSpiritAny(state, self.instanceId)?.pid ?? owner, self.instanceId)
     let pickIdx = 0
     for (const a of action.actions) {
-        if (a.type !== "destroy") continue
+        if (a.type !== "destroy" || a.target === "self") continue
         if (a.all) {
             const list = destroyAllTargetList(ctx, a)
             if (list === SELF_REQUIRED) continue

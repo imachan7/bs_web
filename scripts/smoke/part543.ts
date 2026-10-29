@@ -94,7 +94,7 @@ console.log("=== 5. destroySelf（ネクサス自身） ===")
     const s = game("543f")
     const nx = createInstance("BS01-002", 1, 1)
     s.players.p1.field.nexuses.push(nx)
-    resolveAction(s, "p1", nx, { type: "destroySelf" })
+    resolveAction(s, "p1", nx, { type: "destroy", target: "self", count: 1 })
     assert(!s.players.p1.field.nexuses.includes(nx), "ネクサス自身が破壊される")
 }
 

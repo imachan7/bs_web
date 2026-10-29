@@ -920,7 +920,7 @@ export function applyDestroyBatchAfter(
     // thenDrawFixed（BS14-010）：破壊できた数によらず固定枚数ドロー（「その後」）。0体破壊でも発火する
     if (after.thenDrawFixed) draw(state, ownerPid, after.thenDrawFixed)
     if (destroyed <= 0) return
-    if (after.drawPerDestroyed) draw(state, ownerPid, destroyed)
+    if (after.drawPerDestroyed) draw(state, ownerPid, destroyed * after.drawPerDestroyed)
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
         if (self && voidCorePlacementBlocked(state)) {

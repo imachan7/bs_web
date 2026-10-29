@@ -35,7 +35,7 @@ console.log("=== BS02-075 天使長プリンシパール：破壊する自分の
     const cheap = put(s, "p1", "BS01-001", 1) // ゴラドン（コスト0）
     const pricey = put(s, "p1", "BS01-054", 1) // ショックイーター（コスト2）＝自動選択ならこちら
 
-    resolveAction(s, "p1", null, { type: "destroyOwnByCost", maxCost: 4, gainCoresEqualCost: true }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "destroy", side: "own", count: 1, filter: { cost: { max: 4 }, excludeSelf: true } }, { type: "placeCores", from: "void", to: "reserve", count: 1, countCounter: "lastCost" }] }, undefined, undefined, "spirit")
     assert(s.pendingChoice !== null, "破壊する自分のスピリットの選択待ちが立つ")
     const cands = s.pendingChoice?.candidates ?? []
     assert(cands.includes(cheap.instanceId) && cands.includes(pricey.instanceId), "自分のスピリットが候補になる")
@@ -60,7 +60,7 @@ console.log("--- 非対話時は従来どおりコスト最大を自動選択 --
     const cheap = put(s, "p1", "BS01-001", 1)
     const pricey = put(s, "p1", "BS01-054", 1)
 
-    resolveAction(s, "p1", null, { type: "destroyOwnByCost", maxCost: 4, gainCoresEqualCost: true }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "destroy", side: "own", count: 1, filter: { cost: { max: 4 }, excludeSelf: true } }, { type: "placeCores", from: "void", to: "reserve", count: 1, countCounter: "lastCost" }] }, undefined, undefined, "spirit")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(
         !s.players.p1.field.spirits.some((x) => x.instanceId === pricey.instanceId),
@@ -79,7 +79,7 @@ console.log("=== BS02-095 サクリファイス：破壊する自分のネクサ
     const enemyNexus = createInstance("BS01-098", s.turn, 3)
     s.players.p2.field.nexuses.push(enemyNexus)
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", nexus: "only", side: "own", count: 1 }, then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" } }, undefined, undefined, "magic")
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice !== null, "破壊する自分のネクサスの選択待ちが立つ")
     const cands = s.pendingChoice?.candidates ?? []
@@ -106,7 +106,7 @@ console.log("--- 非対話時は従来どおりコア数最小を自動選択 --
     // 相手のネクサスにコアが無いと発揮しない（COST_MODEL §1）ので置いておく
     s.players.p2.field.nexuses.push(createInstance("BS01-098", s.turn, 1))
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", nexus: "only", side: "own", count: 1 }, then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" } }, undefined, undefined, "magic")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(
         !s.players.p1.field.nexuses.some((x) => x.instanceId === few.instanceId),

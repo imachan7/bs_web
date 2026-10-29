@@ -959,7 +959,7 @@ console.log("=== 破壊耐性：要塞皇オーディーン（BS01-X04）nexusIn
     odin.cores = 3 // Lv2に戻す
     const p1Nexus = createInstance("BS01-102", s.turn, 0)
     s.players.p1.field.nexuses.push(p1Nexus)
-    resolveAction(s, "p2", null, { type: "destroyNexus", count: 1 })
+    resolveAction(s, "p2", null, { type: "destroy", nexus: "only", count: 1 })
     assert(s.players.p1.field.nexuses.length === 1, "相手側のネクサスも破壊されない（お互い）")
 }
 

@@ -34,7 +34,7 @@ const spiritNames = (s: GameState, pid: PlayerId): string[] => s.players[pid].fi
 
 const burst: EffectAction = {
     type: "declare", what: "name", from: "nexuses", fromSide: "opponent",
-    then: { type: "destroyNexus", count: 1, all: true, side: "opponent", filter: { declared: "match" } },
+    then: { type: "destroy", nexus: "only", count: 1, all: true, filter: { declared: "match" } },
 }
 const flash: EffectAction = {
     type: "declare", what: "name", from: "spirits", fromSide: "opponent", minSameName: 2,

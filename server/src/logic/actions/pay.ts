@@ -36,13 +36,13 @@ import { soulCoreToTrashPossible } from "../soulCore"
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "draw", "discard", "setBurstFromHand", "timedEffect",
-    "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf",
+    "destroy", "returnToHand", "returnToDeckTop", "coreRemove", "removeCores", "refreshSelf",
     "exhaust", "mill",
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree",
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "colorlessSelfThisBattle", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn", "returnToDeckBottom",
-    "peekOpponentHand", "sequence", "simultaneous", "destroySelf", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
+    "peekOpponentHand", "sequence", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "summonBurstCardFree", "peekOpponentBurst",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -72,7 +72,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // simultaneous：中の全部が成立するとき。自分自身を壊す組では、同じ個体を相手方の destroy の候補に数えない
     simultaneous: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "simultaneous") return false
-        const withSelf = action.actions.some((a) => a.type === "destroySelf")
+        const withSelf = action.actions.some((a) => a.type === "destroy" && a.target === "self")
         return action.actions.every((a) => {
             if (withSelf && a.type === "destroy" && a.side === "own" && a.count !== "any" && self) {
                 const filter = { ...(a.filter ?? {}) } as unknown as ResolvedTargetFilter
@@ -83,7 +83,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         })
     },
     soulCoreToTrash: (state, owner) => soulCoreToTrashPossible(state.players[owner].soulCore),
-    destroySelf: (state, owner, self) => self !== null && [...state.players[owner].field.spirits, ...state.players[owner].field.nexuses].some((s) => s.instanceId === self.instanceId),
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
@@ -99,6 +98,9 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
+        // ネクサス自身も自分自身として払える
+        if (action.target === "self") return self !== null && [...state.players[owner].field.spirits, ...state.players[owner].field.nexuses].some((s) => s.instanceId === self.instanceId)
+        if (action.nexus === "only") return action.count === "any" || destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count
         return action.count === "any" || destroyCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
     returnToHand: (state, owner, self, action, srcColors, srcType) => {
@@ -114,10 +116,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return returnToDeckTopCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= (action.count ?? 1)
     },
     returnToDeckBottom: (...args) => CHECKERS.returnToDeckTop!(...args),
-    destroyNexus: (state, owner, _self, action, _srcColors, srcType) => {
-        if (action.type !== "destroyNexus") return false
-        return action.count === "any" || destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count
-    },
     returnOwnNexusToDeckBottom: (state, owner, self, action) => {
         if (action.type !== "returnOwnNexusToDeckBottom") return false
         const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
@@ -409,10 +407,8 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     timedEffect: "指定できるスピリットがいない",
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
-    destroySelf: "このスピリットがフィールドにいない",
     soulCoreToTrash: "トラッシュに置ける[ソウルコア]がない",
     destroyByBpBudget: "破壊できる相手のスピリットがいない",
-    destroyNexus: "破壊するネクサスがない",
     destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
     returnToHand: "手札に戻すスピリットがいない",
     returnToDeckTop: "デッキに戻すカードがない",
@@ -436,7 +432,7 @@ export function unpayableReason(
     srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string,
 ): string | null {
     if (canPayResolve(state, owner, self, action, srcColors, srcType, eventTarget)) return null
-    if (action.type === "sequence" || (action.type === "simultaneous" && !action.actions.some((a) => a.type === "destroySelf"))) {
+    if (action.type === "sequence" || (action.type === "simultaneous" && !action.actions.some((a) => a.type === "destroy" && a.target === "self"))) {
         for (const a of action.actions) {
             const r = unpayableReason(state, owner, self, a, srcColors, srcType, eventTarget)
             if (r !== null) return r
@@ -448,7 +444,19 @@ export function unpayableReason(
         return action.side === "own" ? "疲労させられる自分のスピリットがいない" : "疲労させられる相手のスピリットが指定数いない"
     }
     if (action.type === "moveCards") return moveCardsUnpayableReason(action)
+    if (action.type === "destroy") return destroyUnpayableReason(action)
     return UNPAYABLE_REASONS[action.type] ?? "条件を満たさない"
+}
+
+function destroyUnpayableReason(a: Extract<EffectAction, { type: "destroy" }>): string {
+    if (a.target === "self") return "このスピリットがフィールドにいない"
+    return a.nexus === "only" ? "破壊するネクサスがない" : "破壊するスピリットがいない"
+}
+
+function costReasonOf(action: EffectAction): string {
+    if (action.type === "moveCards") return moveCardsUnpayableReason(action)
+    if (action.type === "destroy") return destroyUnpayableReason(action)
+    return UNPAYABLE_REASONS[action.type]!
 }
 
 // 旧 type ごとの理由の文言を、どこから・どこへで引き継ぐ
@@ -513,7 +521,7 @@ export function skipUnpayablePay(state: GameState, owner: PlayerId, self: CardIn
     if (action.type === "summonFromHandFree" || (action.type === "moveCards" && action.dest === "summon")) {
         const srcType = self ? getCard(self.cardId).type : undefined
         if (canPayResolve(state, owner, self, action, undefined, srcType)) return false
-        log(state, unpayableLine(sourceName, action.type === "moveCards" ? moveCardsUnpayableReason(action) : UNPAYABLE_REASONS[action.type]!))
+        log(state, unpayableLine(sourceName, costReasonOf(action)))
         state.effectFizzled = true
         return true
     }

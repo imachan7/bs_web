@@ -39,7 +39,7 @@ console.log("=== 1. 相手の効果で1体を破壊：【不死】で召喚さ�
 console.log("=== 2. 自分の効果で自分のスピリットを破壊：【不死】で召喚される ===")
 {
     const { s, bell } = game("p605-2")
-    resolveAction(s, "p1", bell, { type: "destroySelf" })
+    resolveAction(s, "p1", bell, { type: "destroy", target: "self", count: 1 })
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === bell.instanceId), "デュアルキャノン・ベルが破壊される")
     assert(boaOnField(s), "ボアトリクターが【不死】で召喚される")
 }

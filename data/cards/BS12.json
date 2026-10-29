@@ -3445,8 +3445,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyNexus",
-          "count": 1
+         "type": "destroy",
+         "nexus": "only",
+         "count": 1
         }
       },
       {
@@ -5090,10 +5091,11 @@
         "kind": "magic",
         "timing": "main",
         "action": {
-          "type": "destroyNexus",
-          "count": 2,
-          "upTo": true,
-          "side": "either"
+         "type": "destroy",
+         "nexus": "only",
+         "count": 2,
+         "upTo": true,
+         "anySide": true
         }
       },
       {

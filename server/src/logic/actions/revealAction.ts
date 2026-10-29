@@ -328,7 +328,7 @@ const revealOpenHandler: ActionHandler<"revealOpen"> = (ctx, action) => {
     }
     log(state, `${srcPlayer.name}は${from === "burst" ? "バースト" : `デッキ上${revealed.length}枚`}（${revealed.map((id) => getCard(id).name).join("、")}）を公開した。`)
     state.revealedCards = { pid: srcPid, cardIds: revealed }
-    if (action.destroySelfIf && revealed.some((id) => matchesPick(id, action.destroySelfIf, undefined, ctx.sourceCardId))) ctx.resolve({ type: "destroySelf" })
+    if (action.destroySelfIf && revealed.some((id) => matchesPick(id, action.destroySelfIf, undefined, ctx.sourceCardId))) ctx.resolve({ type: "destroy", target: "self", count: 1 })
 }
 
 const handlers = {

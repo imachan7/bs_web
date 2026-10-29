@@ -19,7 +19,7 @@ const summonEffect = leo.effects.find((e) => e.kind === "triggered" && e.trigger
 assert(summonEffect !== undefined && "action" in summonEffect, "テスト前提: レオグルスは『召喚時』効果を持つ")
 const action = (summonEffect as { action: Parameters<typeof resolveAction>[3] }).action
 assert(
-    (action as { drawPerDestroyed?: true }).drawPerDestroyed === true,
+    (action as { drawPerDestroyed?: number }).drawPerDestroyed === 1,
     "テスト前提: 『破壊したときドロー』が drawPerDestroyed で書かれている",
 )
 // BP5000以下の相手（破壊される側）と、BP5000より大きい相手（破壊されない側）をデータから引く

@@ -656,7 +656,8 @@
      3
     ],
     "action": {
-     "type": "destroyNexus",
+     "type": "destroy",
+     "nexus": "only",
      "count": 0,
      "all": true
     },
@@ -6559,7 +6560,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "destroyNexus",
+       "type": "destroy",
+       "nexus": "only",
        "side": "own",
        "count": "any"
       },

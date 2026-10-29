@@ -371,7 +371,7 @@ export type ResumeFrame =
           prevGroup?: GameState["destroyGroup"]
           after?: {
               // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）
-              drawPerDestroyed?: true
+              drawPerDestroyed?: number
               voidCoreToSelfPerDestroyed?: true
               selfInstanceId?: string // voidCoreToSelfPerDestroyed の置き先
               thenDrawFixed?: number // destroy.thenDrawFixed：破壊できた数によらず固定枚数ドロー（「その後」。BS14-010）

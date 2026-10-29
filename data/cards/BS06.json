@@ -5460,7 +5460,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "destroyNexus", "side": "either",
+     "type": "destroy",
+     "nexus": "only",
+     "anySide": true,
      "count": 1,
      "drawPerDestroyed": 1
     }
@@ -6354,7 +6356,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "destroyNexus",
+      "type": "destroy",
+      "nexus": "only",
       "side": "own",
       "count": 1
      },

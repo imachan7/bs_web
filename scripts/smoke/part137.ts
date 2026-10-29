@@ -322,14 +322,9 @@ console.log("=== BS07 青：【強襲】をブロック時にも発揮させる�
 
 console.log("=== BS07 青：自分のスピリットを破壊し、そのコスト分の予算で相手を破壊（アームズインパクト） ===")
 {
-    const magic = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["thenDestroyEnemyByCostBudget"] === true,
-    )
-    const maxCost = Number(
-        ((magic.effects ?? []).find(
-            (e) => (e["action"] as Record<string, unknown> | undefined)?.["thenDestroyEnemyByCostBudget"] === true,
-        )?.["action"] as Record<string, unknown>)["maxCost"],
-    )
+    const magic = byId("BS07-084")
+    assert(magic.name === "アームズインパクト", "BS07-084 はアームズインパクト")
+    const maxCost = 4 // 効果文「自分のコスト4以下のスピリット1体」
     const sacrifice = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) === maxCost && (c.levels?.[0]?.cores ?? 99) === 1,
     )

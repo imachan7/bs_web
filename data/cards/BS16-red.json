@@ -662,7 +662,8 @@
           }
          },
          {
-          "type": "destroyNexus",
+          "type": "destroy",
+          "nexus": "only",
           "count": 1
          }
         ]

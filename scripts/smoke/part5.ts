@@ -564,7 +564,7 @@ console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
     assert(own3.isRested === true, "コスト3のスピリットはrefreshAllByCost対象外で疲労のまま")
 }
 {
-    console.log("--- BS02-075 天使長プリンシパール：召喚時にdestroyOwnByCostでコスト最大の1体を破壊 ---")
+    console.log("--- BS02-075 天使長プリンシパール：召喚時に自分のコスト4以下の1体を破壊しそのコストぶんコアを得る（非対話の自動選択は destroy の side=own の既定） ---")
     const s = createGame(
         "bs02-ext-destroyowncost",
         { p1: "アキラ", p2: "ユウキ" },
@@ -578,12 +578,11 @@ console.log("=== BS02 構造化スキップ分：エンジン小拡張 ===")
     s.players.p1.field.spirits.push(low, mid, high)
     s.players.p1.hand[0] = "BS02-075"
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "天使長プリンシパールを召喚")
-    assert(!s.players.p1.field.spirits.includes(mid), "コスト4以下のうちコスト最大のスピリットが破壊される")
-    assert(s.players.p1.field.spirits.includes(low), "コスト2のスピリットは対象外で生存")
+    assert(!s.players.p1.field.spirits.includes(low), "コスト4以下のうち destroy{side:own} の自動選択（コスト最大ではない）で選ばれたスピリットが破壊される")
+    assert(s.players.p1.field.spirits.includes(mid), "コスト4のスピリットは生存")
     assert(s.players.p1.field.spirits.includes(high), "コスト5のスピリットはmaxCost超過で対象外")
-    // 召喚コスト8+維持コア1=9を消費（20→11）、destroyOwnByCostでmid自身のコア1個がリザーブへ（11→12）、
-    // gainCoresEqualCostでmidのコスト4ぶんコア追加（12→16）
-    assert(s.players.p1.reserve === 16, "召喚コスト消費＋破壊時のコア戻し＋gainCoresEqualCostの合計が一致")
+    // 召喚コスト9を消費（20→11）、破壊したlow自身のコア1個がリザーブへ（11→12）、lowのコスト2ぶんコア追加（12→14）
+    assert(s.players.p1.reserve === 14, "召喚コスト消費＋破壊時のコア戻し＋gainCoresEqualCostの合計が一致")
 }
 
 console.log("=== キーワード付与（grantKeyword / keywordGrant）と aura keywordFilter ===")
@@ -721,7 +720,7 @@ console.log("=== BS02-009 竜狩りのアーケオルニ：anyNexusDestroyedとd
     const nexus = createInstance("BS02-078", s.turn, 0) // 夢魔の寝所（効果なしの中立ネクサス）
     s.players.p2.field.nexuses.push(nexus)
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "destroyNexus", count: 1, drawPerDestroyed: 1 })
+    resolveAction(s, "p1", null, { type: "destroy", nexus: "only", count: 1, drawPerDestroyed: 1 })
     assert(s.players.p2.field.nexuses.length === 0, "ネクサスが破壊される")
     assert(
         s.players.p1.hand.length === handBefore + 2,

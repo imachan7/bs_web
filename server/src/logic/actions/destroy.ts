@@ -49,7 +49,7 @@ import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordLeftCost, recordMoved, recordNexusCost } from "../record"
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
-type DestroyNexusAction = Extract<EffectAction, { type: "destroyNexus" }>
+type DestroyNexusAction = DestroyAction
 type Counted<T> = T & { count: number }
 
 // side:"own"（destroyの自分側対象）の候補列挙。ハンドラ本体とpayの判定表（CHECKERS）の両方から呼び、
@@ -91,16 +91,16 @@ export function destroyCandidateCountForPay(
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).length
 }
 
-// pay の判定表（destroyNexus）が使う候補数。
+// pay の判定表（destroy{nexus:"only"}）が使う候補数。
 // ponytail: filter は normalizeFilter を通さない（self 相対の BP 指定は見ない）。pay で使うカードが出たら通す
 export function destroyNexusCandidateCountForPay(
     state: GameState,
     owner: PlayerId,
-    action: Extract<EffectAction, { type: "destroyNexus" }>,
+    action: DestroyAction,
     srcType: CardType | undefined,
 ): number {
     const opp = opponentOf(owner)
-    const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.side === "either" ? [owner, opp] : action.side === "own" ? [owner] : [opp]
+    const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.anySide ? [owner, opp] : action.side === "own" ? [owner] : [opp]
     const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
         (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
         matchesTarget(state, pid, n, (action.filter ?? {}) as unknown as ResolvedTargetFilter)
@@ -197,7 +197,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                     [{ pid: found.pid, instanceId: found.inst.instanceId }],
                     destroyContext,
                     {
-                        ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
+                        ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
                         ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                         ...(self ? { selfInstanceId: self.instanceId } : {}),
                     },
@@ -393,7 +393,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                 return
             }
             destroyTargetsBatch(state, owner, picked, destroyContext, {
-                ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
+                ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
                 ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                 ...(self ? { selfInstanceId: self.instanceId } : {}),
             })
@@ -443,7 +443,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         return
 }
 
-type AllTargetsSpec = { filter?: TargetFilter; anySide?: boolean; side?: "own" }
+type AllTargetsSpec = { filter?: TargetFilter; anySide?: boolean; side?: "own" | "both" }
 
 // destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
 // 範囲破壊。untargetable（ワルキューレ）は範囲に無力なので当たるが、
@@ -482,7 +482,7 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
 // 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
 function destroyAllTargets(
     ctx: ActionCtx,
-    action: AllTargetsSpec & { drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true },
+    action: AllTargetsSpec & { drawPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true },
 ): void {
     const { state, sourceName } = ctx
         const list = destroyAllTargetList(ctx, action)
@@ -497,7 +497,7 @@ function destroyAllTargets(
 export function destroyTargetList(
     ctx: ActionCtx,
     batchTargets: { pid: PlayerId; instanceId: string }[],
-    action: { drawPerDestroyed?: true; voidCoreToSelfPerDestroyed?: true } = {},
+    action: { drawPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true } = {},
 ): void {
     const { state, owner, self, sourceName, destroyContext } = ctx
         if (batchTargets.length === 0) {
@@ -511,7 +511,7 @@ export function destroyTargetList(
         // バッチ経由なので、1体ごとに「復活しますか」の確認で**その場で中断できる**。
         // 中断したら destroyBatch フレームを積んで抜け、残りは drainResumeStack が続きを回す
         const after = {
-            ...(action.drawPerDestroyed ? { drawPerDestroyed: true as const } : {}),
+            ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
             ...(action.voidCoreToSelfPerDestroyed ? { voidCoreToSelfPerDestroyed: true as const } : {}),
             ...(self ? { selfInstanceId: self.instanceId } : {}),
         }
@@ -616,9 +616,9 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
             matchesTarget(state, pid, n, filter, self?.instanceId)
-        // either：自分か相手のネクサスから1つ。破壊したネクサスは lastMoved に書く（「そうしたなら」が読む）
+        // anySide：自分か相手のネクサスから1つ。破壊したネクサスは lastMoved に書く（「そうしたなら」が読む）
         // 「ネクサス2つまで」のように upTo で複数を選ぶ either は、下の upTo の対話で両陣営から選ばせる
-        if (action.side === "either" && !(action.upTo && action.count !== 1 && state.interactiveTargets)) {
+        if (action.anySide && !(action.upTo && action.count !== 1 && state.interactiveTargets)) {
             const cands = [owner, opp].flatMap((pid) => state.players[pid].field.nexuses.filter(matchesIn(pid)).map((n) => ({ pid, n })))
             const picked = targetInstanceId !== undefined ? cands.find((c) => c.n.instanceId === targetInstanceId) : undefined
             if (picked === undefined && targetInstanceId === undefined && state.interactiveTargets && cands.length >= 2) {
@@ -733,11 +733,11 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
             return
         }
         // upTo（0〜count の好きな数を選べる）：既存の自動選択ループは聞かずに先頭から決め打ちするため、
-        // 対話時はここで分岐する。side:both との組み合わせは使用例が無いため sides[0] のみ扱う（either は両陣営から選ばせる）。
+        // 対話時はここで分岐する。side:both との組み合わせは使用例が無いため sides[0] のみ扱う（anySide は両陣営から選ばせる）。
         // drawPerDestroyed は upTo と組み合わせて使うカードが無いため、
         // upTo の経路では破壊数の持ち回り（nexusProgress）は未対応
         if (action.upTo && state.interactiveTargets) {
-            const pools: PlayerId[] = action.side === "either" ? [owner, opp] : sides.slice(0, 1)
+            const pools: PlayerId[] = action.anySide ? [owner, opp] : sides.slice(0, 1)
             const candidatesIn = (): string[] => pools.flatMap((p) => state.players[p].field.nexuses.filter(matchesIn(p)).map((n) => n.instanceId))
             if (pools.length === 0) {
                 log(state, `${sourceName}のネクサス破壊：対象がいなかった。`)
@@ -1022,69 +1022,7 @@ const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, a
         return
 }
 
-const destroyOwnByCostHandler: ActionHandler<"destroyOwnByCost"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // 自分のフィールドからself以外でコスト<=maxCostの1体を破壊する。
-        // 実対戦（interactiveTargets）ではプレイヤーが選び、非対話時はコスト最大を自動選択する。
-        // 候補の絞り込みは「場のスピリットのコストを条件にする判定」なので、道化師クランの
-        // 付与コストも見る instMatchesCostFilter を使う
-        const candidates = state.players[owner].field.spirits.filter(
-            (s) =>
-                (!self || s.instanceId !== self.instanceId) &&
-                instMatchesCostFilter(s, { max: action.maxCost }),
-        )
-        if (candidates.length === 0) {
-            log(state, `${sourceName}：対象がいなかった。`)
-            return
-        }
-        // pendingChoice 解決時は選ばれた1体を使う
-        const chosenTarget = targetInstanceId
-            ? candidates.find((s) => s.instanceId === targetInstanceId)
-            : undefined
-        if (!chosenTarget && targetInstanceId === undefined && state.interactiveTargets) {
-            if (
-                tryInteractiveTargetChoice(
-                    state,
-                    owner,
-                    self,
-                    `${sourceName}：破壊する自分のスピリットを選んでください`,
-                    candidates,
-                    action,
-                    null,
-                )
-            ) {
-                return
-            }
-        }
-        // 自動選択の「コスト最大」／gainCoresEqualCostで得るコア数は、複数コストを持つ状態では
-        // 「最大」を定義できないため、道化師クラン等の付与コストではなくカード本来のコストのまま比較する
-        const target =
-            chosenTarget ??
-            candidates.reduce((best, s) =>
-                getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best,
-            )
-        const targetCost = getCard(target.cardId).cost
-        const targetName = getCard(target.cardId).name
-        destroySpirit(state, owner, target.instanceId, "destroy", undefined, { allowSuspend: true })
-        if (action.gainCoresEqualCost) {
-            const player = state.players[owner]
-            player.reserve += targetCost
-            log(
-                state,
-                `${sourceName}：破壊した${targetName}のコストと同じ数のコア${targetCost}個をボイドから自分のリザーブに置いた。（リザーブ${player.reserve}）`,
-            )
-        }
-        // thenDestroyEnemyByCostBudget（BS07アームズインパクト）：破壊した自分のスピリットのコストを
-        // 予算として、相手のスピリットを合計コストがその範囲に収まるだけ破壊する。
-        // 選び方は destroyByCostBudget と同じ貪欲（残り予算内でコスト最大→同コストは実効BP最大）
-        if (action.thenDestroyEnemyByCostBudget) {
-            ctx.resolve({ type: "destroyByCostBudget", budget: targetCost })
-        }
-        return
-}
-
-
-const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
+const destroySelfHandler = (ctx: ActionCtx): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // このスピリット（self）を破壊する（onDestroy誘発あり。selfがnull/不在ならno-op。コリスタル）
         if (!self) {
@@ -1507,10 +1445,16 @@ const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
     recordMoved(ctx.state, ids, scope)
 }
 
-const destroyNexusEntryHandler: ActionHandler<"destroyNexus"> = (ctx, action) => {
-    const { count } = action
-    if (count === "any") destroyOwnNexusesAny(ctx, action)
-    else destroyNexusHandler(ctx, { ...action, count })
+// ネクサス・自分自身は lastMoved を書く経路が旧ハンドラごとに違うので、記録の包みの外で振り分ける
+const destroyEntryHandler: ActionHandler<"destroy"> = (ctx, action) => {
+    if (action.target === "self") return destroySelfHandler(ctx)
+    if (action.nexus === "only") {
+        const { count } = action
+        if (count === "any") destroyOwnNexusesAny(ctx, action)
+        else destroyNexusHandler(ctx, { ...action, count })
+        return
+    }
+    destroyRecordedHandler(ctx, action)
 }
 
 // count:"any"（「自分の〜を好きなだけ」）の選び方。対話は複数選んで確定（選び直し可）、非対話は候補すべて。
@@ -1583,15 +1527,12 @@ const handlers = {
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
-    destroy: destroyRecordedHandler,
+    destroy: destroyEntryHandler,
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
-    destroyNexus: destroyNexusEntryHandler,
     destroyByCostBudget: destroyByCostBudgetHandler,
     destroyByBpBudget: destroyByBpBudgetHandler,
-    destroyOwnByCost: destroyOwnByCostHandler,
-    destroySelf: destroySelfHandler,
     returnNexusToHand: returnNexusToHandHandler,
     returnOwnNexusToDeckBottom: returnOwnNexusToDeckBottomHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,

@@ -123,7 +123,6 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 // （TURN_EFFECT_SOURCES.md §4.1）
 const SELF_REFERENCING_ACTIONS = new Set([
     "refreshSelf",
-    "destroySelf",
     "returnSelfToHand",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
@@ -192,7 +191,7 @@ function checkLentEffects(
             const lent: { type?: unknown; target?: unknown }[] = []
             collectActions([e], lent)
             for (const a of lent) {
-                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
+                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (a.type === "destroy" && a.target === "self") || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
                     add(
                         c.cardId,
                         `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
@@ -310,7 +309,8 @@ function checkTargetFilters(
 
         if (FILTER_ACTIONS.has(a.type)) {
             for (const f of LEGACY_FILTER_FIELDS) {
-                if (f in entry) {
+                // nexus:"only" の levelFilter は表示レベルで判定する別軸（filter.level とは別）
+                if (f in entry && !(f === "levelFilter" && entry["nexus"] === "only")) {
                     add(
                         cardId,
                         `${a.type} に旧フィールド ${f} がある（第2段階で filter へ移行済み。normalizeFilter は filter しか見ないため絞り込みが無言で消える）`,
@@ -666,7 +666,7 @@ export function findStrayDeclared(cards: CardData[]): { cardId: string; message:
     return out
 }
 
-// simultaneous の中は destroy{all}・destroySelf・destroy{side:"own", count:数} だけ（それ以外はハンドラが発揮しない）
+// simultaneous の中は destroy{all}・destroy{target:"self"}・destroy{side:"own", count:数} だけ（それ以外はハンドラが発揮しない）
 export function findBadSimultaneous(cards: CardData[]): { cardId: string; message: string }[] {
     const out: { cardId: string; message: string }[] = []
     const walk = (o: unknown, cardId: string): void => {
@@ -678,8 +678,8 @@ export function findBadSimultaneous(cards: CardData[]): { cardId: string; messag
         const r = o as Record<string, unknown>
         if (r["type"] === "simultaneous") {
             for (const a of (r["actions"] as Record<string, unknown>[] | undefined) ?? []) {
-                const ok = a["type"] === "destroySelf" || (a["type"] === "destroy" && (a["all"] === true || (a["side"] === "own" && typeof a["count"] === "number")))
-                if (!ok) out.push({ cardId, message: "simultaneous の中には destroy{all}・destroySelf・destroy{side:own,count:数} だけ書ける" })
+                const ok = (a["type"] === "destroy" && !a["nexus"] && (a["target"] === "self" || a["all"] === true || (a["side"] === "own" && typeof a["count"] === "number")))
+                if (!ok) out.push({ cardId, message: "simultaneous の中には destroy{all}・destroy{target:self}・destroy{side:own,count:数} だけ書ける" })
             }
         }
         for (const v of Object.values(r)) walk(v, cardId)
