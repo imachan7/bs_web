@@ -137,7 +137,10 @@ console.log("=== ④ chooseActionMode：モード内の残りアクションが�
             assert(act(s, "p1", { type: "resolveChoice", instanceId: spiritTarget }) === null, "スピリット1体を選ぶ")
         }
         // 直す前はここでモードの後半が消えていた（ネクサスが壊れずに終わっていた）。
-        // ※ destroyNexus は現状**対象選択を出さず自動で1つ選ぶ**実装なので、ここで pendingChoice は立たない
+        // ネクサスが2つあるので、使用者が壊すネクサスを選ぶ
+        assert(s.pendingChoice?.kind === "target" && s.pendingChoice.pid === "p1", "壊すネクサスを聞かれる")
+        const nexusTarget = s.pendingChoice?.candidates[0]
+        if (nexusTarget !== undefined) assert(act(s, "p1", { type: "resolveChoice", instanceId: nexusTarget }) === null, "ネクサスを選ぶ")
         assert(s.players.p2.field.spirits.length === 1, "スピリットは1体破壊された")
         assert(s.players.p2.field.nexuses.length === 1, "ネクサスも1つ破壊された（モードの後半が失われない）")
         assert(s.pendingChoice === null, "これで解決しきる")
