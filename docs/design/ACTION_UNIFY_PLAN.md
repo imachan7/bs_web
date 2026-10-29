@@ -94,6 +94,17 @@
 - `destroyOwnByCost` → `sequence[destroy{side:"own", count:1, filter:{コスト上限}}, placeCores{from:"void", to:"reserve", countCounter:"lastCost"}]`／BS07-084 は後半が `destroyByCostBudget`（予算＝`lastCost`）。**自分で選ぶ**（旧は非対話でコスト最大を自動で選んでいた）。BS02-075 の self 除外は保つ
 - `destroyBrave` は対象外
 
+### PR 2 の前の修正 `fix/nexus-bounce-choice`（10-29 確定）
+
+- `returnNexusToHand` の既定経路（相手側・`count` 指定。6件）も対話中に先頭を自動で戻していた。**効果を使う人が選ぶ**（候補2つ以上のとき。`count:2` は1つずつ）。#306 と同じ形
+- 戻したネクサスは今どおり `lastMoved` に書く
+
+### PR 2 を2本に分ける（10-29 確定）
+
+- **2a `refactor/self-unify`**：`returnSelfToHand`（5）→ `returnToHand{target:"self", count:1}`／`returnSelfToDeckTop`（1）→ `returnToDeckTop{target:"self"}`（`target` 軸を足す）／`exhaustSelf`（3）→ `exhaust{target:"self", count:1}`。
+  中身は旧ハンドラのまま入口で振り分ける（破壊待機中の個体を手札に戻す経路を含む）。`returnSelfToHand` の `optional`／`confirmed` はデータ0件なので消す。耐性の扱いは今のまま（§2 B）
+- **2b（修正のマージ後）**：`returnNexusToHand`（9）→ `returnToHand{nexus:"only"}`（`side` に "both" を足す）、`dest:"deckTop"` の1件は `returnToDeckTop{nexus:"only"}`（`nexus` 軸を足す）。
+  `voidCoreToOwnTrashIfOpponent`（BS03-130 の1件）は `if` の条件に「戻したカードが相手のもの」を表す部品が無いので軸として残す
 ### PR 4 `bpBuff`・`colorlessSelfThisBattle` → `timedEffect`（10-29 確定）
 
 - `amountIfTarget` はデータ0件なので消すだけ（§1 の「着手前に決めること」は不要になった）

@@ -58,9 +58,6 @@ export type EffectAction =
  | { type: "setBurstFromHand"; ask?: true } // ask＝「〜できる」を式の中で確認する（候補が1枚でも選択を出し、スキップ可）。外側に optional の確認が無い sequence の中で使う。 バースト専用：自分の手札のバースト効果持ち1枚をセットする。setBurst（GameAction）と違い**ターン1回制限を受けない**。自動選択はコスト最大の1枚（決定的簡略化）
 
  // chooserIsTarget（count:1・side省略時のみ対応）は破壊される側が対象を選ぶ（解決は発生源の持ち主の効果＝PendingChoice.actorPid）。chooseColor＝使用者が先に色を指定して colorFilter へ載せ解決し直す（自動選択は破壊できる数が最大の色。同数はred/purple/green/white/yellow/blueの順）。colorFilter の多色はOR
- | { type: "returnSelfToHand"; optional?: true; confirmed?: true } // optional＝「戻せる」（confirmed は確認済みの再入印で内部用）
- | { type: "returnSelfToDeckTop" } // 破壊された「その個体」を名指しで戻す
- // このバトルの間だけ、色とシンボルを無いものとして扱う（clearBattleでリセット）
  | { type: "spawnToken"; token: string; count: number; upTo?: true } // 召喚ではない（actions/token.ts）。upTo＝「N体まで」
  | { type: "soulCoreToTrash" } // リザーブ・場の個体のどこにあっても。無いときは不発。pay の cost に書ける
  | { type: "placeSoulCore"; from?: "reserve" | "trash"; target?: "self" | "one"; filter?: TargetFilter } // from省略時はトラッシュ。target:"self"＝効果発生源自身、省略時はfilterに合う自分の個体1体。置いた個体にはコア増加の誘発が効く
@@ -76,7 +73,7 @@ export type EffectAction =
  | { type: "returnToHand"; count: number; countCounter?: EffectCounter; all?: true; maxBpFromSelf?: boolean; countPerOpponentNexus?: boolean; anySide?: true; side?: "own"; filter?: TargetFilter; costSacrificeChosen?: true; target?: "self" | "selfBrave"; costBudget?: EffectCounter; budgetLeft?: number; nexus?: "only" | "also" } // 対象を持ち主の手札に戻す。target self/selfBrave はコスト用で、自分のコストなので耐性は見ない。costBudget＝好きなだけ・コストの合計がカウンタの値まで（count は使わない。budgetLeft は内部用）。side:"own"は自分側。戻すのは破壊ではないので onDestroy は誘発しない。maxBpFromSelf＝selfの実効BP以下の相手のみ。anySide の自動選択は実効BP最大（同値は相手側優先）。nexus は exhaust.nexus と同じ意味
  // picked は選択の再開用（選び終わるまでゾーンから抜かない）。chooserIsTarget＝戻すカードの持ち主が選ぶ
  | { type: "returnToBurst"; side?: "own"; count?: number; filter?: TargetFilter } // バウンスと同じ場の離れ方でバーストエリアにセット（乗っていたコアはリザーブへ）。バーストが既にセット済みなら不発。count は1のみ
- | { type: "returnToDeckTop"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[]; excludeIds?: string[] } // 対象を持ち主のデッキの一番上に戻す。excludeIds は内部用。count 体を1体ずつ選ぶ連鎖で、選んだ個体を除く印（耐性で受けなかった個体は場に残るため）。side:"own"は自分側。count指定時は1体ずつ選ぶので最後に選んだものが一番上＝「好きな順番で戻す」を表現（中断時は残り体数を再開スタックへ）。chooserIsTarget＝戻される側（相手）が選ぶ（解決は発生源の持ち主の効果）。all＝filterの候補すべてを選んだ順に戻す（count/anySide/sideは無視。orderedIdsは内部専用）
+ | { type: "returnToDeckTop"; target?: "self"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[]; excludeIds?: string[] } // 対象を持ち主のデッキの一番上に戻す。excludeIds は内部用。count 体を1体ずつ選ぶ連鎖で、選んだ個体を除く印（耐性で受けなかった個体は場に残るため）。side:"own"は自分側。count指定時は1体ずつ選ぶので最後に選んだものが一番上＝「好きな順番で戻す」を表現（中断時は残り体数を再開スタックへ）。chooserIsTarget＝戻される側（相手）が選ぶ（解決は発生源の持ち主の効果）。all＝filterの候補すべてを選んだ順に戻す（count/anySide/sideは無視。orderedIdsは内部専用）
  | { type: "returnToDeckBottom"; target?: "self"; anySide?: true; side?: "own"; count?: number; chooserIsTarget?: true; filter?: TargetFilter; all?: true; orderedIds?: string[]; excludeIds?: string[] } // 対象を持ち主のデッキの一番下に戻す。target:"self"＝コスト用（耐性は見ない）。軸の意味は returnToDeckTop と同じ（「好きな順番で」）。all＝候補すべてを選んだ順に戻す（count/anySide/sideは無視。orderedIdsは内部専用）
  | { type: "setTargetBpAsThisBattle"; levels: number[]; amount: number } // setOpponentBpAsThisBattle の、対象がイベントから渡る版
 
@@ -88,10 +85,9 @@ export type EffectAction =
  | { type: "endBattle" } // 今行っているバトルをただちに終了（BP比較・ライフダメージなし。バトル外はno-op）
  | { type: "swapBattler" } // バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と入れ替える（テレポートチェンジ。バトル外・使用者がバトル非参加・疲労スピリット不在はno-op）
  | { type: "returnOwnNexusToDeckBottom"; filter?: TargetFilter } // 自分のネクサス1つ（filter に合うもの）を持ち主のデッキの下に戻す（破壊ではない。コスト用。選ぶのは持ち主）
- | { type: "returnNexusToHand"; count: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す。anySide の自動選択は相手の先頭ネクサス。voidCoreToOwnTrashIfOpponent＝戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ。all＝countを無視しside（省略時はopponent）が指すすべてのネクサス
+ | { type: "returnNexusToHand"; count: number; bounceProgress?: number; anySide?: true; voidCoreToOwnTrashIfOpponent?: number; all?: true; side?: "opponent" | "both"; dest?: "deckTop" } // 相手のネクサスを持ち主の手札に戻す。anySide の自動選択は相手の先頭ネクサス。voidCoreToOwnTrashIfOpponent＝戻したネクサスが相手のものだったときのみボイドからその数のコアを自分のトラッシュへ。all＝countを無視しside（省略時はopponent）が指すすべてのネクサス
  // dest:"deckTop"指定時は「手札に戻す」の代わりに持ち主のデッキの上に戻す（returnNexusToDeckTop）
  | { type: "refreshSelf" } // このスピリット自身を回復させる（selfがnull/既に回復状態ならno-op）
- | { type: "exhaustSelf" } // このスピリット自身を疲労させる（selfがnull/既に疲労状態ならno-op。exhaustSpirit経由なのでownSpiritExhausted等が正しく発火する）
  | { type: "lifeCrush"; count: number; countCounter?: EffectCounter; countMax?: number; dest?: "trash" | "void"; neverZero?: true } // 相手のライフのコアcount個を相手のリザーブへ。dest:"trash"は相手のトラッシュ（再利用されないぶんリソースが減る）、"void"はゲームから取り除く。neverZero＝**この効果によっては**相手のライフを0にしない（下限1。このアクション自身だけの下限）。ライフ0以下で勝敗決定
  | { type: "randomOpponentHandMagicDiscard" } // 内容を見ないで（＝ランダムに）選び、マジックカードならトラッシュへ、それ以外は手札に残す（誰も選ばないので決定的簡略化はしない。SEMANTICS_AUDIT.md §3.14）。手札0枚なら不発
  | { type: "heavyExhaust"; filter?: TargetFilter; count?: number; countCounter?: EffectCounter; upTo?: true; escalate?: true; chooserIsTarget?: true; chosenByPlayer?: true } // 相手のスピリットを重疲労させる。chooserIsTarget＝相手が自分のスピリットから選ぶ（非対話は実効BP最小）。既に重疲労の個体は候補外。escalate＝回復状態なら疲労、疲労状態なら重疲労。count 既定1・upTo＝0〜count。chosenByPlayer は内部フラグ
