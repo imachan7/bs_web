@@ -53,7 +53,9 @@ function drive(s: GameState, want: string[], opts: { mode?: string; cardIndex?: 
         let err: string | null
         if (pc.kind === "option") {
             const o = (pc.options ?? []) as string[]
-            err = act(s, pc.pid, { type: "resolveChoice", option: (opts.mode !== undefined ? o.find((x) => x.includes(opts.mode!)) : o[0]) ?? "" })
+            const opt = opts.mode !== undefined ? o.find((x) => x.includes(opts.mode!)) : o[0]
+            // 一致する選択肢が無い任意の確認（「発動する」だけの確認など）は、選ばずに飛ばす＝「いいえ」
+            err = act(s, pc.pid, opt !== undefined ? { type: "resolveChoice", option: opt } : { type: "resolveChoice" })
         } else if (pc.kind === "card") {
             err = act(s, pc.pid, { type: "resolveChoice", cardIndex: opts.cardIndex ?? 0 })
         } else if (pc.kind === "target") {
