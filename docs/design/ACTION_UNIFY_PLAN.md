@@ -106,3 +106,9 @@
   **足りない部品**：`timedEffect` の `target:"lastBuffed"`（直前に BP を上げた個体＝`if` の `lastBuffed` と同じ記録）。「そのスピリット」を前の効果の対象で受ける書き方が他に無いため
 - `colorlessSelfThisBattle` → `timedEffect{content:[{type:"colorless"}], duration:"battle", target:"self"}`
 - **見つかった別の穴（PR 4 の外。修正 PR を別に出す）**：使う・起動する時点で `pay` のコストを払えるか・後半を解決できるかを見ていない。BS03-131（疲労させる自分のスピリットがいなくても使える）・BS08-030（武装がいなくても起動できる）・SD06-005（バーストが無くても起動できる）。part674 の `pending(...)` 4件が目標。HANDOFF の既知の限界「起動能力の後半の判定は destroy だけを見る」と同じ根
+
+### PR 6 「戻す」を1つにまとめる（10-29 ユーザー合意。PR 2b の後）
+
+- `returnToHand`・`returnToDeckTop`・`returnToDeckBottom` → `return{to:"hand"|"deckTop"|"deckBottom", …}`。何を戻すかは今の軸のまま（`target:"self"`・`nexus`・`filter`・`side`・`count`・`all` など）
+- 理由：上・下・手札で type が分かれていると、「自分版」「ネクサス版」のような軸を3か所に持つことになる（PR 2a で `returnToDeckTop` だけに `target:"self"` を足した）。語彙表 §3 の「戻す｜to：手札／デッキの上／デッキの下」を到達点にする
+- 中身は今の3つのハンドラのまま、入口で `to` により振り分ける（PR 1 と同じやり方）。軸の名前と意味が3つで食い違うもの（`side`・`count` の既定、pay のコスト用の `target`）は着手時に表にする
