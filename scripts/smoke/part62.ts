@@ -98,7 +98,7 @@ console.log("=== ④ magic condition ownFieldSymbolColorsAtLeast ===")
     const greenOnly = createInstance("BS01-001", s.turn, 1)
     assert(getCard("BS01-001").symbol.length === 1 && getCard("BS01-001").symbol[0] === "red", "テスト前提: BS01-001は赤シンボル")
     s.players.p1.field.spirits.push(greenOnly)
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "ブランチロックを使用（シンボル1色）")
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "シンボル1色では不発になるので使用できない（2026-10-29）")
     assert(enemy1.isRested === false && enemy2.isRested === false, "シンボル1色のときは疲労させない（不発）")
 }
 {
