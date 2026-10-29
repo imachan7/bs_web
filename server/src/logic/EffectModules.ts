@@ -222,6 +222,7 @@ export function resistanceAgainst(
     // 発生源がスピリットで、いま召喚時効果を解決中であり、その持ち主が対象の持ち主と異なるときだけ効く
     const summonPid = state.resolvingSummonTriggerPid
     if (
+        attempt.pierce === undefined &&
         summonPid !== undefined &&
         attempt.sourceType === "spirit" &&
         summonPid !== targetOwnerPid &&
@@ -237,6 +238,8 @@ export function resistanceAgainst(
     if (meisaiToll) return meisaiToll
     // ④ コストを払って受けない耐性（BS08竜騎集う円卓Lv2）。**盤面だけで決まる耐性を全部見たあと**に判定する
     // （先に払うと、装甲などで元々防げていた対象化にまで手札を使ってしまう。迷彩のコストは先に払わせる）
+    // 「一切の効果で防げない」なら払っても防げないので聞かない。【迷彩】は指定のコスト要求で、防ぐ効果ではないので上で残す
+    if (attempt.pierce !== undefined) return null
     return tryPayableTargetNegate(state, targetOwnerPid, target, attempt)
 }
 

@@ -71,6 +71,9 @@ export interface EffectAttempt {
     // 立て忘れると「払いすぎる」＝テストで見える失敗になる。
     // 逆向き（既定が probing）だと、立て忘れが「耐性が無言で効かない」になり検出できない
     probing?: true
+    // 「一切の効果で防げない」（BS45-X01【龍射撃】。Q7409）。防ぐ耐性はすべて無視し、対象の変更と「対象にならない」だけは効く
+    // （Q7415・2026-10-29 ユーザー確認。EFFECT_GATE §2.5）。発生源の属性で絞る貫通は、該当カードを取り込むときに足す
+    pierce?: "all"
 }
 
 // 盤面だけで決まる耐性を判定する。防がれるなら理由を、通るなら null を返す。
@@ -82,6 +85,7 @@ export function boardResistanceAgainst(
     target: CardInstance,
     attempt: EffectAttempt,
 ): Resistance | null {
+    if (attempt.pierce === "all") return untargetableAgainst(board, targetOwnerPid, target, attempt)
     // このターンの間、相手のカード効果を受けない（フェザーバリア）。**範囲効果も防ぐ**ので scope を問わない
     if (target.immuneToOpponentThisTurn && attempt.actorPid !== targetOwnerPid) {
         return { category: "fullImmune", label: "相手の効果を受けない状態" }
@@ -155,7 +159,12 @@ export function boardResistanceAgainst(
     if (attempt.op === "exhaust" && isExhaustImmuneOnBoard(board, targetOwnerPid, target)) {
         return { category: "exhaustImmune", label: "相手の効果で疲労しない" }
     }
-    // 「対象にならない」は**対象指定の効果だけ**を防ぐ（範囲効果はすり抜ける）
+    return untargetableAgainst(board, targetOwnerPid, target, attempt)
+}
+
+// 「対象にならない」は**対象指定の効果だけ**を防ぐ（範囲効果はすり抜ける）。防ぐ効果ではないので貫通されない
+function untargetableAgainst(board: Board, targetOwnerPid: PlayerId, target: CardInstance, attempt: EffectAttempt): Resistance | null {
+    if (attempt.actorPid === targetOwnerPid) return null
     if (
         attempt.scope === "targeted" &&
         attempt.sourceType === "magic" &&
