@@ -9,7 +9,7 @@ import { attachBrave } from "./brave"
 import { fireSummonTrigger } from "./triggers"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { effectiveCost } from "../../../shared/cost"
-import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter, summonByEffectBlocked } from "../../../shared/rules"
+import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter, summonByEffectBlocked, timedPlayerRules } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
@@ -182,6 +182,10 @@ export function summonFreeFromHandIndex(
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
+    if (burstSummonBlocked(state, owner, cardId)) {
+        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${getCard(cardId).name}を召喚できなかった。`)
+        return
+    }
     const card = getCard(cardId)
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。doSummonと同じ規則）
     const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : minLevelCores(card)
@@ -278,6 +282,10 @@ export function summonFreeFromTrashIndex(
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
+    if (burstSummonBlocked(state, owner, cardId)) {
+        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${getCard(cardId).name}を召喚できなかった。`)
+        return
+    }
     const card = getCard(cardId)
     const maintain = minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
@@ -339,6 +347,12 @@ export function fchangeCostAs(state: GameState, owner: PlayerId, cardId: string)
     return undefined
 }
 
+// BS16-058サテライド・バード：バースト効果（手札のバースト効果を含む）の解決中は、スピリットを召喚できない。ブレイヴは対象外
+// summon{from:"burst"} はバースト効果そのものなので、resolvingBurstPid を見ず viaBurstAction=true で呼ぶ
+export function burstSummonBlocked(state: GameState, pid: PlayerId, cardId: string, viaBurstAction = false): boolean {
+    return getCard(cardId).type === "spirit" && (viaBurstAction || state.resolvingBurstPid !== undefined) && timedPlayerRules(state, pid).some((c) => c.type === "noBurstSpiritSummonForPid")
+}
+
 export function summonFromHandFreeCandidateMatches(
     state: GameState,
     owner: PlayerId,
@@ -349,6 +363,7 @@ export function summonFromHandFreeCandidateMatches(
     const player = state.players[owner]
     const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
     const candidate = getCard(candidateId)
+    if (burstSummonBlocked(state, owner, candidateId)) return false
     // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
     // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
     if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false

@@ -8,6 +8,7 @@ import { payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, reque
 import { resolveMagicEffects } from "../triggers"
 import { notifyNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
+import { burstSummonBlocked } from "../summon"
 import { handGainBlocked, hasKeyword, instHasColor, countSymbols, summonByEffectBlocked } from "../../../../shared/rules"
 import { effectiveCost } from "../../../../shared/cost"
 import { activateBurstCard } from "../keywords/burst"
@@ -158,6 +159,11 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             }
             if (summonByEffectBlocked(state)) {
                 log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
+                failDest(ctx, action.orHand, cardId)
+                return
+            }
+            if (burstSummonBlocked(state, owner, cardId)) {
+                log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${card.name}を召喚できなかった。`)
                 failDest(ctx, action.orHand, cardId)
                 return
             }

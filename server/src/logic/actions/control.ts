@@ -13,7 +13,8 @@ import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import { braveCombineCandidates } from "../../../../shared/summon"
-import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword, timedPlayerRules } from "../../../../shared/rules"
+import { burstSummonBlocked } from "../summon"
+import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
@@ -298,7 +299,7 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     }
     // BS16-058サテライド・バード：このターンの間、お互い、バースト効果でスピリットを召喚できない。
     // バーストの発動自体は止めず、召喚だけ不発にしてトラッシュへ送る（ブレイヴは対象外）
-    if (card.type === "spirit" && timedPlayerRules(state, owner).some((c) => c.type === "noBurstSpiritSummonForPid")) {
+    if (burstSummonBlocked(state, owner, cardId, true)) {
         player.burst = null
         player.burstSet = false
         player.trashCards.push(cardId)

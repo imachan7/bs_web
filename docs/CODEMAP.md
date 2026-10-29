@@ -887,6 +887,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
+- `burstSummonBlocked`（fn）：BS16-058サテライド・バード：バースト効果（手札のバースト効果を含む）の解決中は、スピリットを召喚できない。ブレイヴは対象外
 - `summonFromHandFreeCandidateMatches`（fn）
 
 ## server/src/logic/summonSurcharge.ts
