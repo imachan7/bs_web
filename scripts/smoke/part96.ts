@@ -45,7 +45,7 @@ console.log("--- 四道が3体以下だと発動しない（条件ゲート）�
     const enemy = put(s, "p2", "BS01-002", 3)
 
     s.players.p1.hand = ["BS03-137"]
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "使用自体はできる（条件未成立で不発）")
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "条件未成立で不発になるので使用できない（2026-10-29）")
     assert(s.players.p1.turnVirtualInstances.length === 0, "条件未成立のため仮想発生源は立たない")
     assert(currentLevel(enemy).level === 3, "相手スピリットはLv3のまま（従来どおり＝恒久化していない）")
 }

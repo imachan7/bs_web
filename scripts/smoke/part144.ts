@@ -499,7 +499,7 @@ console.log("=== BS08ジャッジメントフレア：magic condition ownSpiritC
     assert(act(s2, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s2, "p1", { type: "attack", instanceId: attacker2.instanceId }) === null, "フラッシュを開くためアタック宣言")
     assert(act(s2, "p2", { type: "pass" }) === null, "防御側がパスして優先権が攻撃側へ")
-    assert(act(s2, "p1", { type: "castMagic", handIndex: 0 }) === null, `${judgment.name}をフラッシュで使用（自分は1体のみ）`)
+    assert(act(s2, "p1", { type: "castMagic", handIndex: 0 }) !== null, `${judgment.name}は自分が1体のみなら不発になるので使用できない（2026-10-29）`)
     assert(
         s2.players.p2.field.spirits.length === oppCountBefore,
         "対照実験：自分のスピリットが2体未満なら発動しない",

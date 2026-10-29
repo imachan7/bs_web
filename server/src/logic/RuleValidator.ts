@@ -833,6 +833,11 @@ export function validateCastMagic(
         const failure = magicConditionFailure(state, pid, e.useCondition)
         if (failure) return `${failure}ため、このマジックは使用できません`
     }
+    // 「〜とき、〜する」（condition）も、そのタイミングの効果がすべて条件を満たさず不発になるなら使用できない
+    // （2026-10-29 ユーザー指摘。対象がいないマジックと同じ考え方＝targetRequirement.ts）
+    const useEntries = card.effects.filter((e) => e.kind === "magic" && e.timing === useTiming)
+    const condFailures = useEntries.map((e) => (e.kind === "magic" && e.condition ? magicConditionFailure(state, pid, e.condition) : null))
+    if (condFailures.length > 0 && condFailures.every((f) => f !== null)) return `${condFailures[0]}ため、このマジックは使用できません`
     if (state.phase === "main" && card.effects.some((e) => e.kind === "castRestriction" && e.notInMainStep)) {
         return "このカードはメインステップでは使用できない"
     }

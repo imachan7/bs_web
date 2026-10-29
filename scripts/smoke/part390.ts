@@ -39,14 +39,14 @@ console.log("=== クロスファイア：どちらのフィールドにもネク
     assert(act(t, "p1", { type: "castMagic", handIndex: 0 }) === null, "両方にネクサスがあれば使用できる")
 }
 
-console.log("=== デルタクラッシュ（「〜とき」）：条件を満たさなくても使え、効果は発揮しない ===")
+console.log("=== デルタクラッシュ（「〜とき」）：条件を満たさず不発になるので使用できない（2026-10-29） ===")
 {
     const s = setupMain("p390-delta")
     s.players.p1.hand = ["BS03-149"]
     const enemy = createInstance("BS01-001", s.turn, 1)
     s.players.p2.field.spirits.push(enemy)
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "使用できる")
-    assert(!s.players.p1.hand.includes("BS03-149"), "マジックは使われて手札から離れる")
+    assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) !== null, "使用できない")
+    assert(s.players.p1.hand.includes("BS03-149"), "マジックは手札に残る")
     assert(s.players.p2.field.spirits.includes(enemy), "闘神が3体いないので破壊は発揮しない")
 }
 

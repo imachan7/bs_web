@@ -95,6 +95,7 @@
 - 1体を指定する「〜1体につき、このスピリットをBP+」（BS12-004 ほか6枚）の量も、判定のたびに数え直す（可変。2026-09-24 ユーザー確認）。1体指定の BP も個体に数値を書かず、その個体に効くルールとして持つ
 - 1体を指定する BP（`timedEffect` の内容 `bp`・`all` なし）：量が固定なら個体に書く（`tempBpBuff`／`battleBpBuff`）。量が可変（`amountCounter`）なら `timedRule` に `instanceId`（その個体だけ）と `until?: "battle"` を付けて置き、`effectiveBp` が計算のたびに数える。対象の決め方は旧 `bpBuff` と同じ（`targetInstanceId`→`side: "both"` かつ対話なら選ばせる→自動選択はバトル中の自分のスピリット優先）。陣営は `side: "own"` を明示する（2026-09-24）
 - 『アタック時』『ブロック時』の効果は、アタック・ブロックしている状態が終わると一緒に終わる。**期間が書かれていない BP+ でも、バトルが解決したら戻る**（2026-09-24 ユーザー確認）。書くときは `duration: "battle"`
+  - 『バトル時』はアタック時・ブロック時の読み替え。ブロックされなくてもアタックした時点でバトル時に当たり、「バトル終了時に破壊される」はライフを減らす処理の後に破壊される（2026-10-29 ユーザー確認。BS02-050 コリスタル）
   - 「アタック中にブロックされたとき」『バトル開始時』もアタック時／ブロック時の読み替えで、同じくバトルの間だけ。効果で与えられたアタック時・ブロック時の効果も同じ。ターン終了まで続く BP+ には必ず「このターンの間」等の期間が書いてあり、書いてあるとおりに従う（2026-09-24 ユーザー確認）
   - 「アタックしているスピリット1体をBP+」のような、アタック中のスピリットを対象にする期間の無い効果もバトルの間だけ。メインステップではアタックしているスピリットがいないので使えない（BS07-038。2026-09-24 ユーザー確認）
   - 『』の見出しが無い「Lv2」だけの行に続く「〜をBP+」は、そのレベルの間ずっと効く継続効果（オーラ）。直前の誘発の続きではない（BS12-004。2026-09-24 ユーザー確認）
@@ -111,7 +112,7 @@
 - アタック時⇔ブロック時の効果の付け替えは `timedEffect` の内容 `{ type: "triggerSwap"; from }`。1体は個体の印、`all: true` は `side: "both"`＝ゲーム全体の印・`side: "own"`＝プレイヤーに掛かる制約（どちらも判定のたびに見るので後から出たスピリットにも効く）（2026-09-24）
 - 「このバトルの間、BPの代わりに Lv／コアの数／コストを比べる」は `timedEffect` の内容 `{ type: "compareBy"; by }`、「BPの高い方が破壊される」は `{ type: "invertBattleWinner" }`（期間 `battle`・対象はバトル）。印は `state.battle` に置き、バトル外は不発（2026-09-25）
 - 「このターンの間、可能ならば必ずアタックする」は `timedEffect` の内容 `{ type: "mustAttack" }`（期間 `turn`）。1体は個体の印 `mustAttackThisTurn`（既に掛かっている個体もそのまま選べる。トリガー抑止も同じ。2026-09-25 ユーザー確認）、「すべて」は `timedRule` で後から出たスピリットにも効く。判定は `shared/rules.ts` の `mustAttackThisTurn`。「好きなだけ指定」（BS12-079）だけ旧 `forceAttackThisTurn` に残す（2026-09-25）
-- 「〜を好きなだけ指定する」は `timedEffect` の `count: "any"`（押すたびに選ぶ／外すを切り替え、確定で掛ける。非対話は候補すべて）。マジックの「この効果は〜ないと使えない」は `useCondition`（使う前に判定）、「〜とき、〜する」は `condition`（解決の時点で判定）。軸は同じ（アブソリュートストライクは `useCondition.ownNameIncludesCountAtLeast`）
+- 「〜を好きなだけ指定する」は `timedEffect` の `count: "any"`（押すたびに選ぶ／外すを切り替え、確定で掛ける。非対話は候補すべて）。マジックの「この効果は〜ないと使えない」は `useCondition`（使う前に判定）、「〜とき、〜する」は `condition`（解決の時点で判定。そのタイミングの効果がすべて条件付きで満たさないなら使用もできない＝2026-10-29）。軸は同じ（アブソリュートストライクは `useCondition.ownNameIncludesCountAtLeast`）
 - 「このターンの間、〜の効果は発揮されない」は `timedEffect` の内容 `{ type: "suppressTrigger"; trigger }`（期間 `turn`）。1体は個体の `suppressedTriggersThisTurn`、`all: true` は陣営ごとの `state.triggerSuppressionThisTurn`（陣営は `side`、絞り込みは未対応）。判定は `triggers.ts` の `isTriggerSuppressed`（2026-09-25）
 - 「このターンの間、疲労状態でもブロックできる」は `timedEffect` の内容 `{ type: "canBlockWhileRested" }`（期間 `turn`・`side: "own"`）。1体は自分のスピリットから選んで個体の印 `canBlockWhileRestedThisTurn`、`all: true` は `timedRule`。判定は `shared/rules.ts` の `canBlockWhileRestedThisTurn`（2026-09-25）
 - 「このターンの間、自分のスピリットに“誘発効果”を与える」は `timedEffect` の内容 `{ type: "grantTrigger"; trigger; action; battleRole? }`（期間 `turn`・`side: "own"`）。1体は自分のスピリットから選んで個体の `tempGrantedTriggers`（`triggers.ts` の `fireTrigger` が静的な効果と合わせて読む）。「すべてに与える」はステップの見出しを期間とする継続効果 `effectGrant`（`phaseTurn`）で書き、`timedEffect` の `all` は未対応（2026-09-25）
