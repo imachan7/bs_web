@@ -1671,9 +1671,12 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonRepeatFromHand",
-     "mode": "paid",
-     "familyFilter": "怪虫"
+     "type": "summon",
+     "from": "hand",
+     "familyFilter": "怪虫",
+     "repeatWhileChosen": true,
+     "payCost": true,
+     "skipOnSummon": true
     }
    }
   ]

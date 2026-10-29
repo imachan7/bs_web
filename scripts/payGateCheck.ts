@@ -8,7 +8,7 @@ const GATE_TYPES = new Set([
     "pay",
     "tenshoCoreSubstitute",
     "reviveLastDestroyedNexus",
-    "summonRepeatFromHand",
+    "summonBatchPaidInternal",
     "millUntilMagicCastFree",
     "detachBrave",
     "skipDrawStep",

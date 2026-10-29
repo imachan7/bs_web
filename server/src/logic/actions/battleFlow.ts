@@ -8,6 +8,7 @@ import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { summonBurstCardFreeHandler } from "./control"
+import { summonDenial } from "../summonGate"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -490,6 +491,15 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
 }
 
 function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectAction, { type: "summon"; from: "hand" }>): void {
+    // 「好きなだけ、コストを支払い召喚」は、まとめて選んで合計を1回で払う手順（10-15 ユーザー確認の【転召】の順序もこちら）
+    if (rawAction.repeatWhileChosen && rawAction.payCost) {
+        summonBatchPaidInternalHandler(ctx, {
+            type: "summonBatchPaidInternal",
+            ...(rawAction.familyFilter !== undefined ? { familyFilter: rawAction.familyFilter } : {}),
+            ...(rawAction.costFilter !== undefined ? { costFilter: rawAction.costFilter } : {}),
+        })
+        return
+    }
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
     // countCounter は最初の1回だけ枚数に解く。中断からの再開ではカウンタの記録が変わりうるので、解いた count を持ち回る
     const action: typeof rawAction = (() => {
@@ -964,86 +974,20 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         return
 }
 
-const summonRepeatFromHandHandler: ActionHandler<"summonRepeatFromHand"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-        // 天使長セラフィー（mode:"free"）／兵隊アントマン（mode:"paid"）：自分の手札にある条件
-        // （familyFilter・costFilter、いずれもカード静的判定）を満たすスピリットカードを、
-        // リザーブが続く限り好きなだけ召喚する（プレイヤー選択の決定的簡略化：1体あたりの必要リザーブが
-        // 小さいものから貪欲に選び、召喚数を最大化する）。free時はextraReserveCostPerSummon指定分を
-        // 1体ごとにリザーブから自分のトラッシュへ置く。paid時はeffectiveCostで通常のコストを計算し、
-        // 維持コア+コストをリザーブから支払う（コスト分はtrashCoresへ）。
-        // いずれもこの効果で召喚されたスピリットのonSummon効果は発揮されない
-        const player = state.players[owner]
-        const matchesCardId = (candidateId: string): boolean => {
-            const candidate = getCard(candidateId)
-            if (candidate.type !== "spirit") return false
-            if (action.familyFilter !== undefined) {
-                const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
-                if (!wanted.some((f) => candidate.family.includes(f))) return false
-            }
-            if (!matchesCostFilter(candidate.cost, action.costFilter)) return false
-            return true
+const summonBatchPaidInternalHandler: ActionHandler<"summonBatchPaidInternal"> = (ctx, action) => {
+    const { state, owner } = ctx
+    const matchesCardId = (candidateId: string): boolean => {
+        const candidate = getCard(candidateId)
+        if (candidate.type !== "spirit") return false
+        if (action.familyFilter !== undefined) {
+            const wanted = Array.isArray(action.familyFilter) ? action.familyFilter : [action.familyFilter]
+            if (!wanted.some((f) => candidate.family.includes(f))) return false
         }
-        if (action.mode === "paid") {
-            resolveSummonRepeatPaid(ctx, action, matchesCardId)
-            return
-        }
-        let summonedCount = 0
-        const summonedNames: string[] = []
-        while (true) {
-            let bestIndex = -1
-            let bestReserveNeed = Infinity
-            for (let i = 0; i < player.hand.length; i++) {
-                const candidateId = player.hand[i]!
-                if (!matchesCardId(candidateId)) continue
-                const candidate = getCard(candidateId)
-                const maintain = minLevelCores(candidate)
-                const need =
-                    action.mode === "free"
-                        ? maintain + (action.extraReserveCostPerSummon ?? 0) + summonSurcharge(state, owner, candidate)
-                        : maintain + effectiveCost(state, owner, candidate)
-                if (need < bestReserveNeed) {
-                    bestReserveNeed = need
-                    bestIndex = i
-                }
-            }
-            // 案B-inside: リザーブの[ソウルコア]は通常コアの支払いに使わない
-            if (bestIndex === -1 || normalReserveOf(player) < bestReserveNeed) break
-            const cardId = player.hand[bestIndex]!
-            const card = getCard(cardId)
-            const maintain = minLevelCores(card)
-            player.hand.splice(bestIndex, 1)
-            if (action.mode === "free") {
-                player.reserve -= maintain
-                // 1体ずつ別々の召喚なので、転召の祭壇などの余分も1体ごとに払う（2026-10-15）
-                const extra = (action.extraReserveCostPerSummon ?? 0) + summonSurcharge(state, owner, card)
-                player.reserve -= extra
-                player.trashCores += extra
-            } else {
-                const cost = effectiveCost(state, owner, card)
-                player.reserve -= cost + maintain
-                player.trashCores += cost
-            }
-            const inst = createInstance(cardId, state.turn, maintain)
-            player.field.spirits.push(inst)
-            summonedNames.push(card.name)
-            summonedCount++
-            // 【転召】はコストを支払わない召喚でも必ず行う（公式Q&A 2024-10-31）。
-            // 現データでこの経路から召喚されうるカード（天霊／怪虫）に転召持ちはいないため実質no-opだが、
-            // 経路ごとに扱いを変えると将来のカードで無言の取りこぼしになるので必ず通す。
-            // 転召が対象選択を要求したら（選択待ちが立ったら）そこで召喚を打ち切る
-            if (!state.winner) resolveTensho(state, owner, inst)
-            if (state.pendingChoice) break
-        }
-        if (summonedCount === 0) {
-            log(state, `${sourceName}：召喚できる対象がいなかった。`)
-            return
-        }
-        log(
-            state,
-            `${player.name}は${sourceName}の効果で「${summonedNames.join("、")}」を${action.mode === "free" ? "コストを支払わず" : "コストを支払い"}召喚した。（このスピリットの召喚時効果は発揮されない）`,
-        )
-        return
+        const cf = action.costFilter
+        if (!matchesCostFilter(candidate.cost, typeof cf === "number" ? { in: [cf] } : cf)) return false
+        return summonDenial(state, { pid: owner, cardId: candidateId, from: "hand", cause: "effect" }) === null
+    }
+    resolveSummonRepeatPaid(ctx, action, matchesCardId)
 }
 
 // 【転召】の対象選択で中断した召喚の続き（cards.jsonには書かない内部専用）。
@@ -1618,7 +1562,7 @@ const handlers = {
     detachBrave: detachBraveHandler,
     detachOpponentBrave: detachOpponentBraveHandler,
     summon: (ctx, action) => (action.from === "hand" ? summonFromHandFreeHandler(ctx, action) : summonBurstCardFreeHandler(ctx, action)),
-    summonRepeatFromHand: summonRepeatFromHandHandler,
+    summonBatchPaidInternal: summonBatchPaidInternalHandler,
     summonSequence: summonSequenceHandler,
     summonBatchFlush: summonBatchFlushHandler,
 } satisfies Partial<ActionRegistry>
