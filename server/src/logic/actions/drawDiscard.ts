@@ -24,8 +24,14 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         // コア置き区間がこのフラグを見て置かずに進む
         if (action.costSkipCoreStep === true) state.coreStepSkipped = true
         // countCounter（BS12-053オオヅツナナフシ：「相手の手札と同じ枚数」）：count×EffectCounterの値を枚数とする
+        if (action.fillTo !== undefined && state.players[owner].hand.length >= action.fillTo) {
+            log(state, `${sourceName}：手札がすでに${action.fillTo}枚以上のためドローしなかった。`)
+            return
+        }
         const count =
-            action.countCounter !== undefined
+            action.fillTo !== undefined
+                ? action.fillTo - state.players[owner].hand.length
+                : action.countCounter !== undefined
                 ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType, action.countMax)
                 : action.count
         if (action.countCounter !== undefined && count === 0) {
@@ -46,19 +52,6 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         }
         // 「ドローしたカード1枚につき」が読む（自分が引いたカードだけ）
         recordDrawn(state, state.players[owner].hand.length - handBefore)
-        return
-}
-
-const drawUpToHandler: ActionHandler<"drawUpTo"> = (ctx, action) => {
-    const { state, owner, sourceName } = ctx
-        // フォースドロー：自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op）
-        const player = state.players[owner]
-        const need = action.size - player.hand.length
-        if (need <= 0) {
-            log(state, `${sourceName}：手札がすでに${action.size}枚以上のためドローしなかった。`)
-            return
-        }
-        draw(state, owner, need)
         return
 }
 
@@ -405,7 +398,6 @@ const discardSelfOneHandler: ActionHandler<"discardSelfOne"> = (ctx, action) => 
 
 const handlers = {
     draw: drawHandler,
-    drawUpTo: drawUpToHandler,
     discardHandAll: discardHandAllHandler,
     discardOpponent: discardOpponentHandler,
     randomOpponentHandMagicDiscard: randomOpponentHandMagicDiscardHandler,

@@ -6661,8 +6661,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "drawUpTo",
-     "size": 4
+     "type": "draw",
+     "count": 0,
+     "fillTo": 4
     }
    }
   ]
@@ -6834,8 +6835,12 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "nexusCoresToTrash",
-     "side": "both"
+     "type": "removeCores",
+     "side": "both",
+     "from": ["nexus"],
+     "to": "trash",
+     "target": "all",
+     "count": "all"
     }
    }
   ]

@@ -355,8 +355,9 @@
         ],
         "optional": false,
         "action": {
-          "type": "drawUpTo",
-          "size": 3
+          "type": "draw",
+          "count": 0,
+          "fillTo": 3
         }
       },
       {

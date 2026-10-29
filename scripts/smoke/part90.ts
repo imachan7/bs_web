@@ -79,7 +79,7 @@ console.log("=== BS02-095 サクリファイス：破壊する自分のネクサ
     const enemyNexus = createInstance("BS01-098", s.turn, 3)
     s.players.p2.field.nexuses.push(enemyNexus)
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "nexusCoresToTrash", side: "opponent" } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" } }, undefined, undefined, "magic")
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice !== null, "破壊する自分のネクサスの選択待ちが立つ")
     const cands = s.pendingChoice?.candidates ?? []
@@ -106,7 +106,7 @@ console.log("--- 非対話時は従来どおりコア数最小を自動選択 --
     // 相手のネクサスにコアが無いと発揮しない（COST_MODEL §1）ので置いておく
     s.players.p2.field.nexuses.push(createInstance("BS01-098", s.turn, 1))
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "nexusCoresToTrash", side: "opponent" } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroyNexus", side: "own", count: 1 }, then: { type: "removeCores", side: "opponent", from: ["nexus"], to: "trash", target: "all", count: "all" } }, undefined, undefined, "magic")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(
         !s.players.p1.field.nexuses.some((x) => x.instanceId === few.instanceId),

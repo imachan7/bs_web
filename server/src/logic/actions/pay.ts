@@ -14,7 +14,7 @@ import { suspend } from "../GameState"
 import { exhaustNexus } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
 import { canDiscardHand, cantReduceOpponentLife, effectiveBp, hasGlobalConstraint, isEndStepLocked, lifeImmuneThisTurn, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, ownLifeImmuneToOpponentSpiritEffects } from "../../../../shared/rules"
-import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, nexusHasCoresForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
+import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay } from "./removeCores"
@@ -36,7 +36,7 @@ import { soulCoreToTrashPossible } from "../soulCore"
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "draw", "discardOpponent", "setBurstFromHand", "timedEffect",
-    "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf", "nexusCoresToTrash",
+    "destroy", "returnToHand", "returnToDeckTop", "destroyNexus", "coreRemove", "removeCores", "refreshSelf",
     "exhaust", "mill", "discardBurst", "discardHandAll",
     "bpBuff", "refreshOne", "placeCores", "summonFromHandFree",
     "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
@@ -149,10 +149,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
     treatAsUnblocked: (state) => (state.battle?.blockerInstanceId ?? null) !== null,
-    nexusCoresToTrash: (state, owner, _self, action, _srcColors, srcType) => {
-        if (action.type !== "nexusCoresToTrash") return false
-        return nexusHasCoresForPay(state, owner, action, srcType)
-    },
     // exhaust：target:"self"（発生源自身が回復状態か）／side:"own"（自分の場に条件に合う回復状態の個体がcount体以上いるか）
     exhaust: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "exhaust") return false
@@ -428,7 +424,6 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     returnToDeckBottom: "デッキに戻すカードがない",
     coreRemove: "取り除けるコアが足りない",
     removeCores: "移せるコアが足りない",
-    nexusCoresToTrash: "ネクサスにトラッシュへ送れるコアがない",
     placeCores: "置けるコアが足りない",
     refreshSelf: "回復させる対象がいない",
     refreshOne: "回復させる対象がいない",
