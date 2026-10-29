@@ -505,7 +505,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // この効果で召喚されたスピリットの onSummon 効果は発揮されないため、fireTrigger を呼ばず
         // 直接 createInstance → push する（summonFreeFromHandIndex に共通化）
         const player = state.players[owner]
-        const matchesCardId = (candidateId: string): boolean => summonFromHandFreeCandidateMatches(state, owner, self, action, candidateId)
+        const matchesCardId = (candidateId: string, zone: "hand" | "trash" = "hand"): boolean => summonFromHandFreeCandidateMatches(state, owner, self, action, candidateId, zone)
         // summonFreeFromHandIndex へ渡す追加指定（コストを支払う／召喚時効果を発揮させない／
         // フィールドのコアからの支払い指定）
         const summonOpts = {
@@ -658,7 +658,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             // alsoFrom:"trash"：手札とトラッシュの合計でcount枚まで、1枚ずつどちらの場所かを選べる（X05）
             if (action.alsoFrom === "trash") {
                 const matchesTrashId = (candidateId: string): boolean =>
-                    !isTrashCardProtected(candidateId) && matchesCardId(candidateId)
+                    !isTrashCardProtected(candidateId) && matchesCardId(candidateId, "trash")
                 const requestZone = (zone: "hand" | "trash", remaining: number): void => {
                     const idxs: number[] = []
                     if (zone === "hand") {

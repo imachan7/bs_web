@@ -1130,25 +1130,6 @@ export function noSummonTriggerByCost(board: Board, inst: CardInstance, instOwne
     return false
 }
 
-// フィールド全体制約 noSummonByEffect（両陣営・主語なし）：スピリット/ブレイヴ/ネクサス/マジックの
-// 効果でスピリット/ブレイヴを召喚できない（BS12-072海賊王の秘宝島Lv1。通常のdoSummonは対象外）。
-// summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（EffectModules.ts）が冒頭で呼ぶ
-export function summonByEffectBlocked(board: Board): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const source of effectSources(board, pid)) {
-            const level = currentLevel(source).level
-            for (const effect of card(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== "noSummonByEffect") continue
-                if (!entryActive(board, pid, source, effect, level)) continue
-                if (effect.phase !== undefined && board.phase !== effect.phase) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
 // フィールド全体制約 noReductionBySummonCost（両陣営）：コストがmaxCost以下のスピリットカードを
 // 召喚するとき、軽減シンボルによるコスト軽減ができなくなる（BS08超時空重力炉）。
 // **カード静的なコスト**（軽減前の値）で判定する。effectiveCost（shared/cost.ts）から呼ぶ

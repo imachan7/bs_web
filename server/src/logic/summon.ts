@@ -6,10 +6,11 @@ import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
 import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { attachBrave } from "./brave"
+import { summonDenial } from "./summonGate"
 import { fireSummonTrigger } from "./triggers"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { effectiveCost } from "../../../shared/cost"
-import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter, summonByEffectBlocked, timedPlayerRules } from "../../../shared/rules"
+import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
@@ -172,18 +173,14 @@ export function summonFreeFromHandIndex(
     },
 ): void {
     const player = state.players[owner]
-    // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
-    if (summonByEffectBlocked(state)) {
-        log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
-        return
-    }
     const cardId = player.hand[handIndex]
     if (cardId === undefined) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    if (burstSummonBlocked(state, owner, cardId)) {
-        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${getCard(cardId).name}を召喚できなかった。`)
+    const denial = summonDenial(state, { pid: owner, cardId, from: "hand", cause: "effect", braveTargetInstanceId: opts?.braveTargetInstanceId })
+    if (denial) {
+        log(state, `${sourceName}：${denial}：${getCard(cardId).name}を召喚できなかった。`)
         return
     }
     const card = getCard(cardId)
@@ -272,18 +269,14 @@ export function summonFreeFromTrashIndex(
     opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true },
 ): void {
     const player = state.players[owner]
-    // BS12-072海賊王の秘宝島Lv1：効果による召喚が両陣営で禁じられている間は発動しない
-    if (summonByEffectBlocked(state)) {
-        log(state, `${sourceName}：効果による召喚が禁じられているため発動しなかった。`)
-        return
-    }
     const cardId = player.trashCards[trashIndex]
     if (cardId === undefined) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    if (burstSummonBlocked(state, owner, cardId)) {
-        log(state, `${sourceName}：このターンの間バースト効果でスピリットを召喚できないため、${getCard(cardId).name}を召喚できなかった。`)
+    const denial = summonDenial(state, { pid: owner, cardId, from: "trash", cause: "effect" })
+    if (denial) {
+        log(state, `${sourceName}：${denial}：${getCard(cardId).name}を召喚できなかった。`)
         return
     }
     const card = getCard(cardId)
@@ -347,23 +340,18 @@ export function fchangeCostAs(state: GameState, owner: PlayerId, cardId: string)
     return undefined
 }
 
-// BS16-058サテライド・バード：バースト効果（手札のバースト効果を含む）の解決中は、スピリットを召喚できない。ブレイヴは対象外
-// summon{from:"burst"} はバースト効果そのものなので、resolvingBurstPid を見ず viaBurstAction=true で呼ぶ
-export function burstSummonBlocked(state: GameState, pid: PlayerId, cardId: string, viaBurstAction = false): boolean {
-    return getCard(cardId).type === "spirit" && (viaBurstAction || state.resolvingBurstPid !== undefined) && timedPlayerRules(state, pid).some((c) => c.type === "noBurstSpiritSummonForPid")
-}
-
 export function summonFromHandFreeCandidateMatches(
     state: GameState,
     owner: PlayerId,
     self: CardInstance | null,
     action: Extract<EffectAction, { type: "summon", from: "hand" }>,
     candidateId: string,
+    zone: "hand" | "trash" = "hand",
 ): boolean {
     const player = state.players[owner]
     const selfFamily = action.sameFamilyAsSelf && self ? getCard(self.cardId).family : null
     const candidate = getCard(candidateId)
-    if (burstSummonBlocked(state, owner, candidateId)) return false
+    if (summonDenial(state, { pid: owner, cardId: candidateId, from: zone, cause: "effect", mayCombine: true })) return false
     // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
     // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
     if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false

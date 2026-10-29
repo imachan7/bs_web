@@ -158,7 +158,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `protectedByBpUpToSelf`（fn）：constraint:"protectOwnLifeByBpUpToSelf"（BS08空帝竜騎プラチナム）：ブロックされなかったアタッカーの
 - `noOpponentTriggerByColor`（fn）：フィールド全体制約 noOpponentTriggerByColor（片側のみ）：発生源の持ち主から見た**相手**の、
 - `noSummonTriggerByCost`（fn）：フィールド全体制約 noSummonTriggerByCost（両陣営）：コストがmaxCost以下のスピリットの
-- `summonByEffectBlocked`（fn）：フィールド全体制約 noSummonByEffect（両陣営・主語なし）：スピリット/ブレイヴ/ネクサス/マジックの
 - `noReductionBySummonCost`（fn）：フィールド全体制約 noReductionBySummonCost（両陣営）：コストがmaxCost以下のスピリットカードを
 - `hasMagicImmunity`（fn）：⚠️ **これは boardResistanceAgainst の内部実装**。個別に呼ぶと他の耐性軸が抜けるので、
 - `hasBounceImmunity`（fn）：発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
@@ -887,8 +886,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonFreeFromHandIndex`（fn）
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
-- `burstSummonBlocked`（fn）：BS16-058サテライド・バード：バースト効果（手札のバースト効果を含む）の解決中は、スピリットを召喚できない。ブレイヴは対象外
 - `summonFromHandFreeCandidateMatches`（fn）
+
+## server/src/logic/summonGate.ts
+
+- `SummonAttempt`（型）
+- `summonDenial`（fn）
 
 ## server/src/logic/summonSurcharge.ts
 
