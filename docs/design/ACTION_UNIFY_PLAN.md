@@ -112,3 +112,15 @@
 - `returnToHand`・`returnToDeckTop`・`returnToDeckBottom` → `return{to:"hand"|"deckTop"|"deckBottom", …}`。何を戻すかは今の軸のまま（`target:"self"`・`nexus`・`filter`・`side`・`count`・`all` など）
 - 理由：上・下・手札で type が分かれていると、「自分版」「ネクサス版」のような軸を3か所に持つことになる（PR 2a で `returnToDeckTop` だけに `target:"self"` を足した）。語彙表 §3 の「戻す｜to：手札／デッキの上／デッキの下」を到達点にする
 - 中身は今の3つのハンドラのまま、入口で `to` により振り分ける（PR 1 と同じやり方）。軸の名前と意味が3つで食い違うもの（`side`・`count` の既定、pay のコスト用の `target`）は着手時に表にする
+
+### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
+
+| 順 | 今の type（データの件数） | まとめる形の案 | 着手前に確かめること |
+| :-- | :-- | :-- | :-- |
+| 7 | `summonFromHandFree`(51)・`summonBurstCardFree`(59) | `summon{from:"hand"\|"burst", pay:"free"}` | バーストからの召喚が「発動」の手順を持つか |
+| 8 | `destroyByBpBudget`(9)・`destroyByCostBudget`(4) | `destroy{budget:{by:"bp"\|"cost", amount}}` | 予算の数え方（BP の合計とコストの合計）以外の違い |
+| 9 | `mill`(51) | `discard{from:"deck"}`（PR 3a の器） | 【粉砕】【地鳴】の誘発・「デッキから破棄されたとき」の扱い |
+| 10 | `refreshOne`(72)・`refreshSelf`(112)・`refreshAllOwn`(9) | `refresh{target:"self"\|count\|all, side}` | `refreshAllOwn` のアタック不可の付与は `sequence`＋`timedEffect` へ分ける |
+
+- 要確認（ユーザーに未提示）：`lifeCrush`(27)（相手のライフを減らす）を `removeCores{from:"life"}` に寄せられるか。「ライフを減らす」がルール上コアの除去と別の扱いか（ライフ減少時の誘発など）を調べてから聞く
+- 候補の見つけ方：type 名を動詞ごとに並べ、同じ動詞で行き先・対象だけ違う組を探す（10-29。ユーザーから「こういうのを見つけて聞いてほしい」）
