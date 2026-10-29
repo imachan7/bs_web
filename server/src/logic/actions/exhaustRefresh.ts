@@ -140,13 +140,23 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             exhaustAllTargets(ctx, action)
             return
         }
-        // target:"self"（pay の cost 用）：発生源自身を疲労させる。スピリット／ネクサスどちらでもよい
+        // target:"self"：発生源自身（スピリット／ネクサス）を疲労させる。pay のコストもデータ由来の「このスピリットを疲労させる」も同じ経路。
+        // fieldEvent で self が相手側のイベント対象のときだけ、持ち主と実行者が異なり耐性を見る
         if (action.target === "self") {
-            if (!self || self.isRested) {
-                log(state, `${sourceName}：発生源自身は疲労させられなかった。`)
+            if (!self) {
+                log(state, `${sourceName}：疲労対象がいなかった。`)
                 return
             }
-            exhaustSpirit(state, owner, self, undefined, owner, srcType)
+            if (self.isRested) {
+                log(state, `${getCard(self.cardId).name}はすでに疲労状態のため何もしなかった。`)
+                return
+            }
+            const selfPid = findSpiritAny(state, self.instanceId)?.pid ?? owner
+            if (selfPid !== owner && isResisted(state, selfPid, self, attemptOf(ctx, "exhaust", "area"))) {
+                log(state, `${getCard(self.cardId).name}は${sourceName}の効果を受けないため疲労しなかった。`)
+                return
+            }
+            exhaustSpirit(state, selfPid, self, undefined, owner, srcType)
             log(state, exhaustLog(sourceName, getCard(self.cardId).name, false))
             return
         }
@@ -992,33 +1002,6 @@ const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
         return
 }
 
-const exhaustSelfHandler: ActionHandler<"exhaustSelf"> = (ctx, action) => {
-    const { state, owner, self, sourceName , srcType } = ctx
-        // このスピリット自身を疲労させる（唯一の入口exhaustSpirit経由。BS06雪ん子イエティ／天使長ファニム）
-        if (!self) {
-            log(state, `${sourceName}：疲労対象がいなかった。`)
-            return
-        }
-        if (self.isRested) {
-            log(state, `${getCard(self.cardId).name}はすでに疲労状態のため何もしなかった。`)
-            return
-        }
-        // fieldEvent で相手側のスピリットがイベント対象のとき、self の持ち主は実行者（owner）と異なる
-        const selfPid = findSpiritAny(state, self.instanceId)?.pid ?? owner
-        if (selfPid !== owner) {
-            if (isResisted(state, selfPid, self, attemptOf(ctx, "exhaust", "area"))) {
-                log(state, `${getCard(self.cardId).name}は${sourceName}の効果を受けないため疲労しなかった。`)
-                return
-            }
-            exhaustSpirit(state, selfPid, self, undefined, owner, srcType)
-        } else {
-            exhaustSpirit(state, owner, self)
-        }
-        log(state, `${getCard(self.cardId).name}は疲労した。`)
-        return
-}
-
-
 // 指定系統の疲労スピリットを最大count体回復させる（refreshByFamilyAuto の共通部分）。
 // 回復させる個体の選択は実効BP降順の簡略化のまま（「3体」の内訳までは選ばせない）
 function refreshSpiritsOfFamily(ctx: ActionCtx, count: number, family: string): void {
@@ -1069,7 +1052,6 @@ const handlers = {
     refreshAllOwn: refreshAllOwnHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
-    exhaustSelf: exhaustSelfHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

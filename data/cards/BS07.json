@@ -2447,7 +2447,9 @@
      }
     },
     "action": {
-     "type": "returnSelfToHand"
+     "type": "returnToHand",
+     "target": "self",
+     "count": 1
     },
     "optional": false
    }

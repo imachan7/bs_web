@@ -2951,7 +2951,9 @@
      2
     ],
     "action": {
-     "type": "exhaustSelf"
+     "type": "exhaust",
+     "target": "self",
+     "count": 1
     },
     "optional": false
    },
@@ -3562,7 +3564,9 @@
      3
     ],
     "action": {
-     "type": "exhaustSelf"
+     "type": "exhaust",
+     "target": "self",
+     "count": 1
     },
     "optional": false
    },

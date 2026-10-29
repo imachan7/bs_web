@@ -123,7 +123,6 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 // （TURN_EFFECT_SOURCES.md §4.1）
 const SELF_REFERENCING_ACTIONS = new Set([
     "refreshSelf",
-    "returnSelfToHand",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
     "markNoRefreshTarget",
