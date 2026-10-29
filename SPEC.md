@@ -699,7 +699,7 @@ cardId をハードコードする箇所は必ず cards.json と突き合わせ�
 | 通常召喚（`doSummon`） | 発揮する | 行う |
 | `summon{from:"hand"}`（トレントン／ディバインウィンド／天使長ソフィア 等） | **発揮する**（2026-08-17 修正） | **行う** |
 | `summonFromTrashFree`（妖狐キュービック） | **発揮する**（2026-08-17 修正） | **行う** |
-| `summonRepeatFromHand`（天使長セラフィー／兵隊アントマン） | 発揮しない | **行う** |
+| `summon{from:"hand"}` の `repeatWhileChosen`＋`payCost`（兵隊アントマン） | 発揮しない | **行う** |
 | `revealAndSummonKeyword`（トランスマイグレーション） | 発揮する | **行わない**（「発揮したものとして」の明記があるため） |
 
 **例外は効果文に明記があるカードだけ**（2026-08-20）。`summon{from:"hand"}` の

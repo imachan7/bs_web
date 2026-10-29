@@ -1,4 +1,4 @@
-// 手札のスピリットを好きなだけ、コストを支払って召喚する（summonRepeatFromHand の mode:"paid"。BS02-030 兵隊アントマン）
+// 手札のスピリットを好きなだけ、コストを支払って召喚する（summon{from:"hand"} の repeatWhileChosen＋payCost。内部では summonBatchPaidInternal）
 // 2026-10-15 ユーザー確認：まとめて選ぶ → 【転召】の対象を選ぶ → 合計のコスト＋祭壇の余分1回を1回で払う → 一括で召喚 → 【転召】を順に解決。
 // 各カードのコストは召喚する前の盤面の軽減で数える（この効果で召喚したスピリットのシンボルは、同じ効果の別のカードの軽減に使えない）。
 // 破壊待機の発動元のコアはリザーブへ移さず、フィールドのコアとして全部払える（autoPayPlan／fieldCoresSpendable）
@@ -10,7 +10,7 @@ import { askCostPay } from "../summonSurcharge"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
 import { effectiveCost, summonSurcharge } from "../../../../shared/cost"
 
-type Repeat = Extract<EffectAction, { type: "summonRepeatFromHand" }>
+type Repeat = Extract<EffectAction, { type: "summonBatchPaidInternal" }>
 
 export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches: (cardId: string) => boolean): void {
     const { state, owner, sourceName, chosenCardIndex } = ctx

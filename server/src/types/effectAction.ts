@@ -239,12 +239,10 @@ export type EffectAction =
  | { type: "moveCoresLeavingOne"; anySide?: true; selfTarget?: true; allowNexusDest?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（先頭側＝決定的簡略化）へ移す。移動先がいなければ不発。allowNexusDest＝スピリットがいなければ自分のネクサス（先頭側）へ
  | { type: "swapOpponentCores"; choosing?: true; firstChosen?: string } // 相手のスピリット2体の上のコアをすべて入れ替える。効果文が「相手のスピリット2体を**指定する**」なので、実対戦では2体とも持ち主が選ぶ（2026-08-24。自動選択は実効BP上位2体）。choosing/firstChosen は内部専用（choosing が無い targetInstanceId は誘発が渡すイベント対象なので取り違えない）。スピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する
  | {
- type: "summonRepeatFromHand"
- mode: "free" | "paid" // free＝summon{from:"hand"}と同じくコストを支払わず維持コアのみリザーブから払う（extraReserveCostPerSummon＝1体ごとにさらにリザーブのコアをその数だけ自分のトラッシュへ）。paid＝effectiveCostで通常のコストを計算し、手札をまとめて選び（対話時）、合計コスト＋召喚の余分1回を1回で払って一括召喚（summonRepeat.ts）
+ type: "summonBatchPaidInternal" // 内部専用（カードデータには書かない）。summon{from:"hand"} の repeatWhileChosen＋payCost を、手札をまとめて選び（対話時）合計コスト＋召喚の余分1回を1回で払う手順で解く（summonRepeat.ts）
  familyFilter?: FamilyFilter
- costFilter?: { max?: number; min?: number }
- extraReserveCostPerSummon?: number
- // choosing/chosenIdx/prepaid は paid の選択の途中経過を持ち回る内部専用。prepaid＝合計コストを支払い待ちで払い済み
+ costFilter?: number | { max?: number; min?: number; in?: number[] }
+ // choosing/chosenIdx/prepaid は選択の途中経過。prepaid＝合計コストを支払い待ちで払い済み
  choosing?: true
  chosenIdx?: number[]
  prepaid?: true
@@ -252,7 +250,7 @@ export type EffectAction =
  confirmed?: true
  tenshoPicks?: (string | null)[]
  tenshoRest?: { name: string; targetId: string; dest: "trash" | "void" }[]
- } // 自分の手札のスピリットカードを、リザーブが続く限り好きなだけ召喚（1体あたりの必要リザーブが小さいものから貪欲に選び、召喚数を最大化する決定的簡略化）。この効果で召喚されたスピリットのonSummon効果は発揮されない
+ } // この手順で召喚したスピリットの召喚時効果は発揮されない（skipOnSummon を常に立てた扱い）
  | { type: "destroyByBpBudget"; budget?: number; maxCount?: number; budgetFromSelfBp?: true; budgetFromFamilyBpSum?: FamilyFilter; choosing?: true; chosenIds?: string[] }
  // 相手スピリットを、**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊。budgetFromSelfBp＝selfの実効BPを予算に。budgetFromFamilyBpSum＝指定系統（配列＝OR）を持つ**自分の**スピリットの実効BP合計を予算に（どちらもbudgetを無視）。choosing/chosenIdsは内部専用（budgetToggleDestroy）
  | { type: "destroyByCostBudget"; budget: number; budgetCounter?: EffectCounter; choosing?: true; chosenIds?: string[] } // 相手スピリットを、コスト合計がbudgetを超えない範囲で好きなだけ破壊。実対戦では**トグル式で選ばせる**（クリックで選択／再クリックで解除、合計はpromptに出し「これで破壊する」で確定。2026-08-24ユーザー確定）。choosing/chosenIdsは内部専用。自動選択は残り予算内でコスト最大から貪欲（同コストは実効BP最大）。budgetCounter＝実際の予算をbudget×counter値で算出。転召で上限が変わるカードは、対象の記録が必要になるため簡略化してbudget=5固定

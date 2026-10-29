@@ -623,6 +623,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["resshinsokuFinishInternal", "【烈神速】の余分の支払い待ちから再開する内部専用（カードデータには書かない）"],
     ["trashSummonPaidInternal", "【不死】・ミノガメンの支払い待ちから再開する内部専用（カードデータには書かない）"],
+    ["summonBatchPaidInternal", "summon{from:\"hand\"} の repeatWhileChosen＋payCost を、まとめて選び合計を1回で払う手順で解く内部専用（カードデータには書かない）"],
     ["exhaustPayDecide", "kind:\"exhaustPreventByPay\" の「払って疲労を防ぐか」の確認に答えたときの解決（exhaustSpirit が内部で出す。BS18-014）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
