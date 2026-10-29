@@ -56,7 +56,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 | 召喚 | `noBurstSpiritSummonForPid`・`noSummonByEffect`・`summonLimitByEffectForOpponent`・`summonLimitByCostForOpponent`・`maxSpiritsOnField` | ? `maxSpiritsOnField`（場の上限）は禁止か、ルールの上限か |
 | 破壊 | `nexusIndestructible`・`ownNexusIndestructible`・`noBpCompareDestroy`・`immunityGrant` | BP比較の破壊も同じ問い合わせ（`cause:"bpCompare"`）。耐性は効く原因を持つ：「効果で破壊されない」「効果を受けない」は効果のときだけ、`noBpCompareDestroy` と原因を限らない「破壊されない」はBP比較も防ぐ。貫通は効果の操作にだけ付く（2026-10-29 ユーザー確認） |
 | 戻す | `allSpiritsCantBounce`・`immunityGrant` | |
-| 手札に加える | `noHandGainByEffect`・`noTrashRecovery`・`opponentCantReturnFromTrashToHand`・`handGainBlocked` | ? ドロー（デッキが無いと敗北）は「手札に加える」と別の問い合わせか |
+| 手札に加える | `noHandGainByEffect`・`noTrashRecovery`・`opponentCantReturnFromTrashToHand`・`handGainBlocked` | 禁止は2種類：**行き先で効く**もの（「手札に加えられない」は、ドロー（効果）・戻す（手札へ）・手札に加えるのどれでも `to: hand` なら効く。今の `noHandGainByEffect` の形）と、**操作で効く**もの（`noDrawInMain` はドローだけ）。ドローはデッキ切れの敗北があるので操作としては別のまま（2026-10-29 ユーザー確認） |
 | ドロー | `noDrawInMain`・`noDrawOutsideDrawStep` | |
 | 破棄（トラッシュに置く） | `noDeckMill`・`noDeckMillByOpponent`・`noDeckMillInMain`・`millCap`・`noHandDiscardByEffect`・`noHandDiscardInMain`・`handImmuneForPid` | `millCap` は量の制限（§2.5） |
 | コアを取り除く | `coresCantBeRemoved`・`coresCantBeRemovedAll`・`coresCantBeRemovedByOpponent`・`battlingCoresProtected`・`coreFloorByCost` 等 | `coreFloor*` は量の制限（§2.5） |
