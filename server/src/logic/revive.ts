@@ -18,6 +18,7 @@ import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
 import { soulCoreLeavesField } from "./soulCore"
 
+import { handGainDenial } from "./handGate"
 import {
     effectiveCost,
     ownFieldSymbolColors,
@@ -40,7 +41,6 @@ import {
     ownFieldOnlyColor,
     timedPlayerRules,
     hasGlobalConstraint,
-    handGainBlocked,
     zoneSpiritEffectsDisabled,
 } from "../../../shared/rules"
 
@@ -707,7 +707,7 @@ function tryReviveOnDestroy(
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
             // BS15共通器：thenHandIfNameIncludes（BS15-043ショーグンペンタン）。成立の可否と独立に、
             // カード名が一致すればトラッシュから手札へ移す（CONJUNCTION.md「さらに」）
-            if (thenHandIfNameIncludes !== undefined && !handGainBlocked(state) && milled.name.includes(thenHandIfNameIncludes)) {
+            if (thenHandIfNameIncludes !== undefined && !handGainDenial(state, { pid: ownerPid, from: "trash", cause: "effect" }) && milled.name.includes(thenHandIfNameIncludes)) {
                 const idx = player.trashCards.lastIndexOf(cardId)
                 if (idx !== -1) {
                     player.trashCards.splice(idx, 1)
@@ -927,7 +927,7 @@ function tryReviveOnDestroy(
             player.reserve += inst.cores
             // handOrDeckTop の対話モードは行き先が決まるまでどのゾーンにも入れない（手札を経由すると手札が増えた誘発が起きる）。
             // 破壊処理の途中では中断できないので、確認は handleAction の末尾で出す
-            if ("handOrDeckTop" in revived && handGainBlocked(state)) {
+            if ("handOrDeckTop" in revived && handGainDenial(state, { pid: ownerPid, from: "field", cause: "effect" })) {
                 player.deck.unshift(inst.cardId)
                 log(state, `${player.name}の${getCard(inst.cardId).name}は、手札が増やせないためデッキの上に置かれた。`)
             } else if ("handOrDeckTop" in revived && state.interactiveTargets) {
@@ -978,7 +978,7 @@ function tryReviveOnDestroy(
     const tryEffect = (effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>, sourceName: string): boolean => {
         if (forced && effect.id !== forced.effectId) return false
         if (!effectActiveAtLevel(effect.levels, level)) return false
-        if ("toHand" in effect.revived && handGainBlocked(state)) return false // 手札へ戻れないなら復活しない＝通常どおり破壊される
+        if ("toHand" in effect.revived && handGainDenial(state, { pid: ownerPid, from: "field", cause: "effect" })) return false // 手札へ戻れないなら復活しない＝通常どおり破壊される
         if (effect.vanillaFilter && !instIsVanilla(inst)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesReviveCondition(effect.condition)) return false

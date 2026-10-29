@@ -37,7 +37,7 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import ACTION_HANDLERS from "./actions"
 import { matchesPick } from "./actions/revealAction"
 import type { ActionCtx } from "./actions/types"
-import { handGainBlocked } from "../../../shared/rules"
+import { handGainDenial } from "./handGate"
 import type { EffectAttempt, KeywordInfo, Resistance } from "../../../shared/rules"
 import {
     activeConstraints,
@@ -641,7 +641,7 @@ export function tryLifeDamageMillGuard(
             const toHand =
                 (effect.keepToHandIfType !== undefined && milled.type === effect.keepToHandIfType) ||
                 (effect.keepToHandIfKeyword !== undefined && hasKeyword(cardId, effect.keepToHandIfKeyword))
-            if (toHand && !handGainBlocked(state)) {
+            if (toHand && !handGainDenial(state, { pid: defenderPid, from: "deck", cause: "effect" })) {
                 player.hand.push(cardId)
                 log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄し、手札に加えた。`)
                 notifyHandGained(state, defenderPid, 1)

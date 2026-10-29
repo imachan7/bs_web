@@ -1,4 +1,5 @@
 // 【バースト】のセットと発動
+import { handGainDenial } from "../handGate"
 import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
@@ -7,7 +8,7 @@ import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModu
 import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
-import { burstActivationForbidden, handGainBlocked, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
+import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 
 import { instHasColor, matchesFamilyFilter, spiritHasKeyword } from "../../../../shared/rules"
@@ -94,7 +95,7 @@ export function finishBurstActivation(
     if (player.burst === cardId) {
         player.burst = null
         player.burstSet = false
-        if (opts?.toHand && !handGainBlocked(state)) {
+        if (opts?.toHand && !handGainDenial(state, { pid: pid, from: "other", cause: "effect" })) {
             player.hand.push(cardId)
             log(state, `${player.name}の${getCard(cardId).name}はバーストとして発動し、手札に戻った。`)
             notifyHandGained(state, pid, 1)

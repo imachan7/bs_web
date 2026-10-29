@@ -6,7 +6,8 @@ import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { summonDenial } from "../summonGate"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
-import { canDiscardHand, handGainBlocked, hasGlobalConstraint, instMinLevelCores, isTrashCardProtected, opponentCantReturnFromTrashToHand, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
+import { handGainDenial } from "../handGate"
+import { canDiscardHand, instMinLevelCores, isTrashCardProtected, timedMagicLocked, magicColorBanned, trashCardNameMatches } from "../../../../shared/rules"
 import { effectiveCost } from "../RuleValidator"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalCoresOn } from "../soulCore"
@@ -103,7 +104,7 @@ export function moveCardsPayable(state: GameState, owner: PlayerId, self: CardIn
     if (action.upTo && typeof action.count === "number" && action.from === "hand" && action.dest === "trash") return true
     if (action.upTo && (action.count === "all" || !(action.dest === "summon" || action.dest === "placeNexus" || action.dest === "cast"))) return action.count === "all"
     if (action.from === "hand" && action.dest === "trash" && !canDiscardHand(state, action.side === "opponent" ? opponentOf(owner) : owner)) return false
-    if (action.from === "trash" && action.dest === "hand" && (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner))) return false
+    if (action.from === "trash" && action.dest === "hand" && handGainDenial(state, { pid: owner, from: "trash", cause: "effect" })) return false
     const found = moveCardCandidates(state, owner, action).length
     // 召喚・配置・使用は1枚でもあれば成り立つ（旧 summonFromTrashFree と同じ）
     if (action.count === "all" || action.costBudget !== undefined || action.dest === "summon" || action.dest === "placeNexus" || action.dest === "cast") return found >= 1
@@ -453,8 +454,9 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
         return
     }
     // 手札へ戻す禁止は、トラッシュから手札へのときだけ（配置／召喚には掛からない）
-    if (action.from === "trash" && action.dest === "hand" && (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, owner))) {
-        log(state, `${sourceName}：トラッシュからカードを手札に戻せないため発動しなかった。`)
+    const denial = action.from === "trash" && action.dest === "hand" ? handGainDenial(state, { pid: owner, from: "trash", cause: "effect" }) : null
+    if (denial) {
+        log(state, `${sourceName}：${denial}ため発動しなかった。`)
         return
     }
     // countCounter：一度だけ数え、countCounter を落とした action へ入り直す（選択の再入で数え直さない）
@@ -511,7 +513,7 @@ const moveCardsHandler: ActionHandler<"moveCards"> = (ctx, action) => {
             log(state, `${player.name}は手札${names}を破棄した。`)
             return
         }
-        if (handGainBlocked(state)) {
+        if (handGainDenial(state, { pid: zonePid, from: "trash", cause: "effect" })) {
             zone.push(...movedIds)
             recordMoved(state, [])
             log(state, `${player.name}：効果によって手札が増やせないため、${names}は元の場所に残った。`)

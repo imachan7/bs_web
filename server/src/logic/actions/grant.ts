@@ -1,5 +1,6 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { handGainDenial } from "../handGate"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
 import { createInstance, currentLevel, findInstanceAnywhere, getCard, log, suspend } from "../GameState"
@@ -21,7 +22,7 @@ import {
     recordTimed,
     recordPlayerRule,
 } from "../EffectModules"
-import { handGainBlocked, KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
+import { KEYWORDS, activeConstraints, effectiveBp, instBaseCost, instHasColor, instHasCost, instIsCombined, instIsVanilla, matchesTarget, spiritHasFamily, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { normalReserveOf, wouldDeplete } from "../soulCore"
@@ -608,7 +609,8 @@ const returnLastUsedMagicToHandHandler: ActionHandler<"returnLastUsedMagicToHand
     const { state, owner, sourceName } = ctx
     const used = state.lastMagicUsed
     const player = state.players[owner]
-    if (handGainBlocked(state)) {
+    // 保留：トラッシュからの戻しを止める禁止は付けていない（使うカードがプールに無い。EFFECT_GATE.md 5a）
+    if (handGainDenial(state, { pid: owner, from: "other", cause: "effect" })) {
         log(state, `${sourceName}：効果によって手札が増やせないため、マジックはトラッシュに残った。`)
         return
     }

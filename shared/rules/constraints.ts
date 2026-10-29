@@ -362,11 +362,6 @@ export function hasBraveImmuneAgainst(inst: CardInstance, sourceColors: Color[] 
     }
     return false
 }
-// 効果で手札にカードが加わる経路の共通の入口。ドローステップのドロー・手札を出して戻すだけの処理は効果ではないので通さない。
-// 止められたカードは「選ばれなかった」扱いで、各経路が自分の残りの行き先（トラッシュ・オープン領域の残り・デッキの上）へ送る
-export function handGainBlocked(board: Board): boolean {
-    return hasGlobalConstraint(board, "noHandGainByEffect")
-}
 // BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
 // 止めるのは「そのカード自身の効果の発揮」だけで、効果を持つこと自体は変わらない
 // （「【不死】を持つ」の参照や、他の効果から受ける効果は止めない）。

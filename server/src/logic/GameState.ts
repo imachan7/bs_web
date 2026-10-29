@@ -33,10 +33,11 @@ import { emitEvent, fireFieldEventTriggers, notifyHandGained, refreshLevelAsOver
 import { setCardLookup } from "../../../shared/cardDb"
 import { startCoverageIfRequested } from "./coverageRecorder"
 import { applyDeckPolicy } from "./deckPolicy"
+import { handGainDenial } from "./handGate"
 import { isOnceNameUsed, markOnceNameUsed } from "./oncePerTurn"
 // 共有ルール層（shared/）へ移設。currentLevel / countSymbols は本ファイル経由で多数 import されているため
 // 再エクスポートで名前を残す
-import { countSymbols, currentLevel, hasGlobalConstraint, handGainBlocked } from "../../../shared/rules"
+import { countSymbols, currentLevel, hasGlobalConstraint } from "../../../shared/rules"
 export { countSymbols, currentLevel }
 
 // ---- カードマスターデータの読み込み ----
@@ -341,7 +342,7 @@ export function pushResumeFrames(state: GameState, frames: ResumeFrame[]): void 
 // トラッシュのカードを「手札に戻せる」（任意）。持ち主に確認する（非対話なら戻す）。
 // すでに別の選択待ちが立っているときは、その後に確認が来るよう再開スタックへ積む
 export function requestTrashReturn(state: GameState, pid: PlayerId, cardId: string, onceEffectId?: string): void {
-    if (handGainBlocked(state)) return // 発揮されないので確認も出さない
+    if (handGainDenial(state, { pid, from: "trash", cause: "effect" })) return // 発揮されないので確認も出さない
     const base = { type: "trashReturnToHandInternal", cardId, ...(onceEffectId !== undefined ? { onceEffectId } : {}) } as const
     if (!state.interactiveTargets) {
         returnTrashCardToHand(state, pid, cardId, onceEffectId)
@@ -369,7 +370,7 @@ export function returnTrashCardToHand(state: GameState, pid: PlayerId, cardId: s
     const player = state.players[pid]
     const index = player.trashCards.indexOf(cardId)
     if (index === -1) return
-    if (handGainBlocked(state)) {
+    if (handGainDenial(state, { pid, from: "trash", cause: "effect" })) {
         log(state, `${getCard(cardId).name}は、効果によって手札が増やせないためトラッシュに残った。`)
         return
     }
