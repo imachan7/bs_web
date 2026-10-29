@@ -77,3 +77,19 @@
   `discardBothHands{all}`＝`side:"both", count:"all"`／`discardSelfOne`＝`side:"own", count:1`（**自分で選ぶ**。旧は手札の末尾を自動で選ぶ簡略化だった）／
   `discardBurst`・`discardOpponentBurst`＝`from:"burst"`／`discardOpponentTegamoto`＝`from:"tegamoto", side:"opponent", count:"all"`
 - 外したもの：`randomOpponentHandMagicDiscard`（「無作為に1枚見て、マジックなら破棄」で選び方が違う。⑤の1枚専用）、`mill`（デッキの破棄。【粉砕】【地鳴】の誘発が絡むので別の機会）
+
+### PR 1 の前の修正 `fix/nexus-destroy-choice`（10-29 確定。PR 1 の調査で見つかった実バグ）
+
+- `destroyNexus` の既定経路（相手側・`side:"both"`、`all` でないもの。16件）は対話でも先頭のネクサスを自動で壊していた。**効果を使う人が選ぶ**（候補2つ以上のとき。`count:2` は1つずつ2回）。
+  `side:"both"` は**各陣営の持ち主が自分のネクサスを選ぶ**（BS02-088 クロスファイア「お互いは、それぞれ自分の…を選び」）
+- 既定経路でも破壊したネクサスを `lastMoved` に書く（either・own の経路と同じ）
+- BS05-054 鉄槌のオズワルドは「自分か相手のネクサス」なので `side:"either"`。Lv2 の `discardOpponentPerDestroyed` は `sequence[destroyNexus either, if{cond:{last:{}}} → discard{from:hand, side:opponent, count:1}]` に分解する
+
+### PR 1 `destroy` へ統一（10-29 確定。調査メモの要点）
+
+- `destroy` に足す軸：`nexus?: "only"`（ネクサスの破壊。ハンドラは冒頭で既存のネクサス用処理へ委譲する＝軸の統一で、手順は別のまま）・`side?: "own" | "both"`（"both"＝両陣営それぞれ。`anySide`＝どちらか1つ、とは別）・`levelFilter?: number[]`（ネクサスだけ。表示レベルで判定するので `filter.level` とは別）
+- `drawPerDestroyed` は `number` にそろえる（スピリット側の `true` 2件は `1` に移す）。ネクサスで「相手のネクサスを破壊した場合だけ引く」は今の挙動のまま
+- 旧→新：`destroyNexus{side}` → `destroy{nexus:"only"}`＋`side` は opponent→省略／own→"own"／both→"both"／either→`anySide:true`。`costSacrificeChosen`（データ0件・ハンドラが読まない）は消す
+- `destroySelf` → `destroy{target:"self", count:1}`。耐性の扱いは今のまま（§2 B）。記録（lastMoved）が増えるのは許容
+- `destroyOwnByCost` → `sequence[destroy{side:"own", count:1, filter:{コスト上限}}, placeCores{from:"void", to:"reserve", countCounter:"lastCost"}]`／BS07-084 は後半が `destroyByCostBudget`（予算＝`lastCost`）。**自分で選ぶ**（旧は非対話でコスト最大を自動で選んでいた）。BS02-075 の self 除外は保つ
+- `destroyBrave` は対象外

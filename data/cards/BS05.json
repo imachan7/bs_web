@@ -3199,7 +3199,8 @@
     "optional": false,
     "action": {
      "type": "destroyNexus",
-     "count": 1
+     "count": 1,
+     "side": "either"
     },
     "id": "BS05-054-e1"
    },
@@ -3211,9 +3212,26 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyNexus",
-     "count": 1,
-     "discardOpponentPerDestroyed": 1
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroyNexus",
+       "count": 1,
+       "side": "either"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {}
+       },
+       "then": {
+        "type": "discard",
+        "from": "hand",
+        "side": "opponent",
+        "count": 1
+       }
+      }
+     ]
     },
     "id": "BS05-054-e2"
    }

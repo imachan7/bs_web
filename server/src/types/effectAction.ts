@@ -56,7 +56,7 @@ export type EffectAction =
 
 
  | { type: "setBurstFromHand"; ask?: true } // ask＝「〜できる」を式の中で確認する（候補が1枚でも選択を出し、スキップ可）。外側に optional の確認が無い sequence の中で使う。 バースト専用：自分の手札のバースト効果持ち1枚をセットする。setBurst（GameAction）と違い**ターン1回制限を受けない**。自動選択はコスト最大の1枚（決定的簡略化）
- | { type: "destroyNexus"; count: number | "any"; chosenIds?: string[]; choosing?: true; drawPerDestroyed?: number; discardOpponentPerDestroyed?: number; all?: boolean; side?: "opponent" | "both" | "own" | "either"; levelFilter?: number[]; filter?: TargetFilter; costSacrificeChosen?: true; chooserIsTarget?: true; upTo?: true; awaiting?: true } // either＝自分か相手のネクサスを持ち主が選んで破壊（count は1だけ。非対話は相手側優先）。awaiting は内部用。side:"own"は pay { cost: destroyNexus{side:"own"} } の器。upTo の count は上限で、選ばずに終えたら以降も破壊しない
+ | { type: "destroyNexus"; count: number | "any"; chosenIds?: string[]; choosing?: true; drawPerDestroyed?: number; nexusProgress?: { s: number; i: number; d: number }; all?: boolean; side?: "opponent" | "both" | "own" | "either"; levelFilter?: number[]; filter?: TargetFilter; costSacrificeChosen?: true; chooserIsTarget?: true; upTo?: true; awaiting?: true } // either＝自分か相手のネクサスを持ち主が選んで破壊（count は1だけ。非対話は相手側優先）。awaiting と nexusProgress（陣営・回数・破壊数の再入用の持ち回り）は内部用。side:"own"は pay { cost: destroyNexus{side:"own"} } の器。upTo の count は上限で、選ばずに終えたら以降も破壊しない
 
  // chooserIsTarget（count:1・side省略時のみ対応）は破壊される側が対象を選ぶ（解決は発生源の持ち主の効果＝PendingChoice.actorPid）。chooseColor＝使用者が先に色を指定して colorFilter へ載せ解決し直す（自動選択は破壊できる数が最大の色。同数はred/purple/green/white/yellow/blueの順）。colorFilter の多色はOR
  | { type: "returnSelfToHand"; optional?: true; confirmed?: true } // optional＝「戻せる」（confirmed は確認済みの再入印で内部用）
