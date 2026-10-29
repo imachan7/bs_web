@@ -88,7 +88,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 4. ライフを減らす（ライフのコストと `lifeCrush` が同じ問い合わせを呼ぶ。量の制限を含む）
    - **ライフを減らす処理なら原因を問わず（アタック・効果・コスト）、ライフの制限はすべて効く**。減ったコアの行き先（リザーブ・ボイド・トラッシュ）も問わない。効果文の「スピリット」はお互いのスピリットを指すので、自分のスピリットの効果のコストで自分のライフを置くのも「そのスピリットから減らされた」に数える（10-30 ユーザー確認）
    - 「お互いのライフは、ターンごとにスピリット1体から1まで」は**プレイヤーごと**に数える（スピリットXが相手のライフを1減らした後でも、自分のライフはXからまだ減らされていない。10-30 ユーザー確認）。記録は「スピリット×減らされた側」の組ごとに持つ（今は `lifeDealtThisTurn` がスピリットごとに1つ）
-   - **4 の設計（10-30 確定）**：`server/src/logic/lifeGate.ts`（新規）に `lifeLossAllowed(state, a): number`（0〜amount。量で答える）。`a = { pid（減る側）, amount, cause: "attack"|"effect"|"cost", actorPid, sourceType?, sourceInstance?（アタッカーや効果の発生源のスピリット）, floor?（その効果だけの下限。neverZero 用） }`。
+   - ✅ **4 の設計（10-30 確定。#325）**：`server/src/logic/lifeGate.ts`（新規）に `lifeLossAllowed(state, a): number`（0〜amount。量で答える）。`a = { pid（減る側）, amount, cause: "attack"|"effect"|"cost", actorPid, sourceType?, sourceInstance?（アタッカーや効果の発生源のスピリット）, floor?（その効果だけの下限。neverZero 用） }`。
      集める制限：`lifeImmuneThisTurn`（原因を問わない）・`cantReduceOpponentLife`（actor≠pid）・`ownLifeImmuneToOpponentSpiritEffects`（cause effect・sourceType spirit・actor≠pid）・下限（`lifeFloorByEffect`・`ownLifeFloorContinuous`・永久凍土の王都の `ownLifeFloor`。今の `lifeCostBlocked` の床もここへ）・スピリット1体からの上限2種（`lifeDamagePerSpiritRemaining`・`ownLifeDamageCapRemaining`。原因を問わず、記録は組ごと）。
      アタックだけの制限（`negateLifeDamageFromTarget`・`lifeDamageMaxForPid`・`noLifeDamageByCost` など）は今の `lifeDamageLimit` に残し、共通の分は `lifeDamageLimit` から `lifeLossAllowed` を呼ぶ。
      減らした後の記録（`recordLifeLost`・組ごとの累計）も1つの関数にする。呼ぶ所：ライフを減らす全11か所（`grep -rn "\.life -=" server/src/logic`）。コストは「全部払えるか」（`lifeLossAllowed < amount` なら払えない）で、`lifeCostBlocked` はこれで置き換える

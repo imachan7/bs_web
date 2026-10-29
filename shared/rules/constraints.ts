@@ -899,12 +899,12 @@ export function lifeLossAllowed(board: Board, q: LifeLossQuery): number {
     const attackerCost = q.cause === "attack" && q.sourceInstance ? Math.max(...instAllCosts(q.sourceInstance), 0) : 0
     for (const c of timedPlayerRules(board, pid)) {
         if (c.type !== "lifeFloorForPid") continue
-        // 絞りが両方未指定なら全原因。指定があればどちらかに当たる原因だけ（OR）
+        // 絞りが両方未指定なら全原因。指定があればどちらかに当たる原因だけ（OR）。効果の絞りは「相手の〜の効果」（BS11-080）なので自分のコストには効かない
         const scoped = c.byAttackMinCost !== undefined || c.byEffectSourceTypes !== undefined
         const hit =
             !scoped ||
             (q.cause === "attack" && c.byAttackMinCost !== undefined && attackerCost >= c.byAttackMinCost) ||
-            (q.cause !== "attack" && c.byEffectSourceTypes !== undefined && q.sourceType !== undefined && c.byEffectSourceTypes.includes(q.sourceType))
+            (q.cause !== "attack" && q.actorPid !== pid && c.byEffectSourceTypes !== undefined && q.sourceType !== undefined && c.byEffectSourceTypes.includes(q.sourceType))
         if (hit) floor = Math.max(floor, c.floor)
     }
     // 「このネクサスをトラッシュに置くことで0を回避」型は、ライフを払って0にするコストだけは止める（COST_MODEL §9）
