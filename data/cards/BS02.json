@@ -5463,8 +5463,12 @@
       "count": 1
      },
      "then": {
-      "type": "nexusCoresToTrash",
-      "side": "opponent"
+      "type": "removeCores",
+      "side": "opponent",
+      "from": ["nexus"],
+      "to": "trash",
+      "target": "all",
+      "count": "all"
      }
     }
    }

@@ -107,18 +107,6 @@ export function destroyNexusCandidateCountForPay(
     return sides.reduce((sum, pid) => sum + state.players[pid].field.nexuses.filter(matchesIn(pid)).length, 0)
 }
 
-// pay の判定表（nexusCoresToTrash）：対象側のネクサスのどれかにコアが1個以上あるか
-export function nexusHasCoresForPay(
-    state: GameState,
-    owner: PlayerId,
-    action: Extract<EffectAction, { type: "nexusCoresToTrash" }>,
-    srcType: CardType | undefined,
-): boolean {
-    const opp = opponentOf(owner)
-    const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
-    return sides.some((pid) => state.players[pid].field.nexuses.some((n) => n.cores > 0))
-}
-
 // 相手のトラッシュにあるマジックカードの色の種類数（重複除く。BS05超獣王ベヒードス）
 function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): number {
     const colors = new Set<Color>()
@@ -1090,32 +1078,6 @@ const destroySelfHandler: ActionHandler<"destroySelf"> = (ctx, action) => {
 }
 
 
-const nexusCoresToTrashHandler: ActionHandler<"nexusCoresToTrash"> = (ctx, action) => {
-    const { state, opp, sourceName, srcType } = ctx
-        // フォールダウン：指定側のネクサスすべての上のコアすべてを、各持ち主のトラッシュへ。
-        // ネクサスはコア0になっても消滅しない
-        const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
-        let total = 0
-        for (const pid of sides) {
-            const player = state.players[pid]
-            for (const nexus of player.field.nexuses) {
-                if (nexus.cores <= 0) continue
-                // 案B-inside: [ソウルコア]が載っていたら先にリザーブへ退避させる
-                soulCoreLeavesField(player, nexus)
-                total += nexus.cores
-                player.trashCores += nexus.cores
-                nexus.cores = 0
-            }
-        }
-        if (total === 0) {
-            log(state, `${sourceName}：コアが置かれているネクサスがなかった。`)
-            return
-        }
-        log(state, `${sourceName}：ネクサスの上のコア合計${total}個を持ち主のトラッシュに置いた。`)
-        return
-}
-
-
 const returnNexusToHandHandler: ActionHandler<"returnNexusToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
         recordMoved(state, []) // 戻したカードの記録（「ネクサスを戻したなら」が読む）。何も戻せなかった道筋でも空にする
@@ -1601,7 +1563,6 @@ const handlers = {
     destroyByBpBudget: destroyByBpBudgetHandler,
     destroyOwnByCost: destroyOwnByCostHandler,
     destroySelf: destroySelfHandler,
-    nexusCoresToTrash: nexusCoresToTrashHandler,
     returnNexusToHand: returnNexusToHandHandler,
     returnOwnNexusToDeckBottom: returnOwnNexusToDeckBottomHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,

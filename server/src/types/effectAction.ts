@@ -43,7 +43,7 @@ export type CardPick = { declared?: "match"; cardType?: CardType | CardType[]; f
 export type IfCond = { last: CardPick } | { lastAll: CardPick } | { opponentAttackStepNow: true } | { opponentMainStepNow: true } | { count: EffectCounter; atLeast?: number; atMost?: number } | { event: { destroyedColor: Color } | { targetBpAtLeast: number } } | { ownAllHaveTeam: string } | { ownAllHaveFamily: string } | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } | { soulCoreInReserve: true } | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } | { ownAttackStepNow: true } | { magicUsedVia: string } | { firstBattleOfTurn: true } | { selfSummonedBy: string } | { lastBuffed: TargetFilter } | { ownMagicUsedThisTurn: CardPick } | { ownLifeLostThisTurn: true } | { opponentLifeNotLostThisTurn: true } | { keishoUsedForSummon: true } | { selfBpAtLeast: number } | { summonPaidWithSoulCore: true } | { soulCoreInTrash: true } | { ownAllSpiritsHaveFamily: string; costIn?: number[] } | { ownSpiritDestroyedThisTurn: true } | { ownAllNexusesHaveFamily: string } | { selfBlocked: true } | { opponentTurn: true } | { ownEffectDestroyedOwnSpirit: { color: Color } } | { ownEffectRemovedOpponentSpirit: { kinds: ("destroy" | "vanish")[]; spiritMagicOnly?: true } } | { selfRested: boolean } | { blockedAttacker: TargetFilter } | { ownEffectDestroyedOwnOnDestroySpirit: true } | { ownBurstSet: boolean }
 
 export type EffectAction =
- | { type: "draw"; count: number; side?: "own" | "both"; costSkipCoreStep?: true; countCounter?: EffectCounter; countMax?: number; costSacrificeChosen?: true } // 自分がデッキから引く。countMaxはmill.countMaxと同義。side:"both"は自分→相手の順の両者、省略時は自分のみ。costSkipCoreStep＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）
+ | { type: "draw"; count: number; side?: "own" | "both"; fillTo?: number; costSkipCoreStep?: true; countCounter?: EffectCounter; countMax?: number; costSacrificeChosen?: true } // 自分がデッキから引く。countMaxはmill.countMaxと同義。side:"both"は自分→相手の順の両者、省略時は自分のみ。costSkipCoreStep＝そのコアステップの処理を支払いに使う（GameState.coreStepSkipped）。fillTo＝手札がその枚数になるまで引く（count は見ない。0〜N の upTo とは別の意味）
  | { type: "destroy"; filter?: TargetFilter; count: number | "any"; suppressOnDestroy?: true; chosenIds?: string[]; choosing?: true; all?: true; voidCoreToSelfPerDestroyed?: true; countCounter?: EffectCounter; countPerOpponentTrashMagicColors?: boolean; anySide?: true; side?: "own"; excludeTarget?: true; chooserIsTarget?: true; drawPerDestroyed?: true; thenDrawFixed?: number; lowestCost?: true; costSacrificeChosen?: true; upTo?: true } // 相手スピリットを破壊（既定。side:"own"は自分側で、選ぶのは持ち主＝pay { cost: destroy{side:"own"} } の器）。upTo＝0〜count の好きな数（非対話は count 体まで破壊）。thenDrawFixed は破壊処理後に発火（「その後」＝0体でも）。lowestCost は自動選択の基準をコスト最小にする（同コストはBP最大）。drawPerDestroyed は「残る」で残った個体を数えない。chooserIsTarget は破壊される側（相手）が選ぶ（実行は発生源の持ち主の効果）。filter省略時はBP不問。anySide の自動選択は実効BP最大（同値は相手側優先）。excludeTarget は誘発が渡す targetInstanceId を避ける
 
  | { type: "destroyDuplicateNames"; choosing?: true; keptIds?: string[] } // カード名1つにつき1体だけ残して残りを破壊する。**どれを残すかは持ち主が選ぶ**（効果文に主語が無いので発生源の持ち主。2026-08-24）。choosing / keptIds は内部フィールド
@@ -196,7 +196,6 @@ export type EffectAction =
  // （2026-08-16 ユーザー確認。docs/design/COST_MODEL.md の「コストではない」側）。
  // interactiveTargets が無い（テスト・自動解決）ときは modes の先頭を選ぶ決定的簡略化
  | { type: "battleOpponentDestroyedCoresTo"; to: "void" | "trash"; soleOnly?: true } // このバトルの間、破壊された相手のスピリットのコアすべてをリザーブではなく to に置く（void＝ゲームから取り除く）
- | { type: "revealDiscardRest" } // 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ。revealAndSummonKeyword が queue に積み、**選んでもスキップしても**必ず後始末が走るようにする
  | { type: "revealReturnToDeck"; toTop?: true; placed?: number } // 公開ゾーンの残りをデッキの下へ戻す。**戻す順番は1枚ずつ選ばせる**（スキップで現在の順のまま）。toTop＝デッキの**上**へ（先に選んだカードが上＝次に引くカード）
  // pickCountが数値（2以上）のとき「N枚まで」＝1枚ずつ選び、途中でやめられる（BS16-044）。非対話時は
  // matchesPickに合うものを前からN枚まで自動で選ぶ
@@ -248,8 +247,6 @@ export type EffectAction =
  // count＝costBudgetの代わりに**枚数指定**（costFilterはcostBudget指定時と違い有効に効く。コスト最大から貪欲に選ぶ決定的簡略化、足りなければ可能な分だけ）
  // skipOnSummon指定時は召喚時効果を発揮させない
  // 自分のトラッシュのスピリットカード1枚をコストを支払わずに召喚（コスト最大、同コストは末尾＝新しい方から自動選択。決定的簡略化）。whileCombinedFilter＝【合体時】効果を持つカードのみ（静的に判定）。payCost＝**通常の召喚コストを支払う**（支払い元はリザーブ＋フィールドのコア＝paySources。払えないカードは候補にも出さない）。colorFilter省略時は色不問。維持コアはリザーブから置き、不足なら不発。この効果で召喚されたスピリットのonSummon効果は発揮されない。costBudget＝costFilterを省略でき、コスト合計がbudget以下で複数枚を召喚（コスト最大から貪欲、維持コアが払えなくなった時点で打ち切り）
- | { type: "nexusCoresToTrash"; side: "opponent" | "both" } // 指定側（相手/両陣営）のネクサスすべての上に置いてあるコアすべてを、各持ち主のトラッシュへ置く。ネクサスはコア0になっても消滅しない
- | { type: "drawUpTo"; size: number } // 自分の手札がsize枚になるまでデッキから引く（既にsize枚以上ならno-op。デッキ切れ判定はdrawへ委譲）
  | { type: "moveCoresLeavingOne"; anySide?: true; selfTarget?: true; allowNexusDest?: true } // 対象スピリット上のコアを1個だけ残し、それ以外を同じフィールドの別のスピリット（先頭側＝決定的簡略化）へ移す。移動先がいなければ不発。allowNexusDest＝スピリットがいなければ自分のネクサス（先頭側）へ
  | { type: "swapOpponentCores"; choosing?: true; firstChosen?: string } // 相手のスピリット2体の上のコアをすべて入れ替える。効果文が「相手のスピリット2体を**指定する**」なので、実対戦では2体とも持ち主が選ぶ（2026-08-24。自動選択は実効BP上位2体）。choosing/firstChosen は内部専用（choosing が無い targetInstanceId は誘発が渡すイベント対象なので取り違えない）。スピリットが2体未満、またはコア数が同じなら不発。入れ替えの結果、維持コア（Lv1）を下回った側は消滅する
  | {

@@ -75,26 +75,8 @@ const revealReturnToDeckHandler: ActionHandler<"revealReturnToDeck"> = (ctx, act
     pushAllRemaining()
 }
 
-const revealDiscardRestHandler: ActionHandler<"revealDiscardRest"> = (ctx) => {
-    // 公開ゾーンの残りをすべてトラッシュへ（revealAndSummonKeyword の後始末専用）
-    discardRevealedZone(ctx.state, ctx.owner, ctx.sourceName)
-}
-
-// 公開ゾーンに残っているカードをすべて持ち主のトラッシュへ置き、公開ゾーンを閉じる
-function discardRevealedZone(state: GameState, owner: PlayerId, sourceName: string): void {
-    const zone = state.revealedCards
-    if (!zone) return
-    const player = state.players[owner]
-    for (const id of zone.cardIds) player.trashCards.push(id)
-    if (zone.cardIds.length > 0) {
-        log(state, `${player.name}は${sourceName}で残った${zone.cardIds.length}枚をトラッシュに置いた。`)
-    }
-    delete state.revealedCards
-}
-
 const handlers = {
     revealReturnToDeck: revealReturnToDeckHandler,
-    revealDiscardRest: revealDiscardRestHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers
