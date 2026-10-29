@@ -29,7 +29,7 @@
 ### いまの本線：禁止・耐性を操作ごとの問い合わせにまとめる（10-29 合意）
 
 - [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md)。単位は ACTION_VOCABULARY §3 の単純なアクション。§3 の分類をユーザーと1行ずつ精査してから移す
-- 最初の PR：サテライド・バード（「バースト効果でスピリットを召喚できない」）。①`state.resolvingBurstPid` を `PendingChoice`／`ResumeFrame` に保存し、再開時に戻す ②判定を1つの関数にし、召喚の全経路（`summon{from:"hand"}`・`summon{from:"burst"}`・`moveCards` の `dest:"summon"`・`summonFreeFromTrashIndex`）の**候補判定**から呼ぶ ③召喚された個体への記録は作らない（「バースト効果で召喚されたとき」は①で直る）。手札のバースト効果（`handBurstEffect.ts`）も「バースト効果」に含む
+- PR 1＝#319（サテライド・バード）。**次は §4 の PR 2（召喚の問い合わせ）**。§3 の分類は10-29にすべて決着
 
 ### 既知の残り：entryActive（10-23）
 

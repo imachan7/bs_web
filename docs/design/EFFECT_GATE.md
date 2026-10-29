@@ -53,7 +53,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 
 | 操作 | 禁止・耐性（今の型の例） | 迷う点 |
 | :-- | :-- | :-- |
-| 召喚 | `noBurstSpiritSummonForPid`・`noSummonByEffect`・`summonLimitByEffectForOpponent`・`summonLimitByCostForOpponent`・`maxSpiritsOnField` | ? `maxSpiritsOnField`（場の上限）は禁止か、ルールの上限か |
+| 召喚 | `noBurstSpiritSummonForPid`・`noSummonByEffect`・`summonLimitByEffectForOpponent`・`summonLimitByCostForOpponent`・`maxSpiritsOnField` | `maxSpiritsOnField`（旋風渦巻く渓谷）は禁止。メインステップ中なら効果による召喚にも効き、貫通される（2026-10-29 ユーザー確認。今は通常の召喚にしか効いていない＝PR 2 で直す） |
 | 破壊 | `nexusIndestructible`・`ownNexusIndestructible`・`noBpCompareDestroy`・`immunityGrant` | BP比較の破壊も同じ問い合わせ（`cause:"bpCompare"`）。耐性は効く原因を持つ：「効果で破壊されない」「効果を受けない」は効果のときだけ、`noBpCompareDestroy` と原因を限らない「破壊されない」はBP比較も防ぐ。貫通は効果の操作にだけ付く（2026-10-29 ユーザー確認） |
 | 戻す | `allSpiritsCantBounce`・`immunityGrant` | |
 | 手札に加える | `noHandGainByEffect`・`noTrashRecovery`・`opponentCantReturnFromTrashToHand`・`handGainBlocked` | 禁止は2種類：**行き先で効く**もの（「手札に加えられない」は、ドロー（効果）・戻す（手札へ）・手札に加えるのどれでも `to: hand` なら効く。今の `noHandGainByEffect` の形）と、**操作で効く**もの（`noDrawInMain` はドローだけ）。ドローはデッキ切れの敗北があるので操作としては別のまま（2026-10-29 ユーザー確認） |
@@ -68,9 +68,10 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 | 効果を受けない（すべての操作に横断） | `immuneToOpponentEffects`・`immuneToOpponentSummonEffects`・`battlingEffectImmune`・`braveImmuneGrant` | 操作ごとではなく、全操作の問い合わせが共通に読む層か |
 | **入れない候補** | アタック・ブロックの可否（`cantAttack`・`cantBlock`・`unblockableBy`…）、マジック・バーストの使用（`cantUseMagicForPid`・`noBurstEffectForPid`・`magicNegate`…）、コストの増減 | 効果の操作ではなくプレイヤーの行動の可否。別の問い合わせ（行動の可否）にするか |
 
-## 4. PR の計画（案）
+## 4. PR の計画（§3 の「?」は 10-29 にすべて決着）
 
-1. サテライド・バードの修正（HANDOFF §1）。「バースト効果の中か」を再開スタックに持たせ、召喚の全経路の候補判定から1つの関数を呼ぶ。この関数を「召喚できるか」の問い合わせの最初の形にする
-2. 召喚の残りの禁止（§3 の召喚の行）を同じ問い合わせへ
-3. ライフを減らす（ライフのコストと `lifeCrush` が同じ問い合わせを呼ぶ）
-4. 以降、§3 の行ごとに1 PR
+1. ✅ サテライド・バード（#319）。`burstSummonBlocked` を召喚の全経路の候補判定から呼ぶ
+2. **召喚の問い合わせ**：`canSummon(attempt)` を作り、§3 の召喚の行（`noBurstSpiritSummonForPid`・`noSummonByEffect`・`summonLimit*`・`maxSpiritsOnField`）を集める。`EffectAttempt` に効果の種類（バースト効果など）を足し、#319 の「解決中の印」で見ている制限（バースト効果の中で起きた別の効果の召喚まで止まる）を直す。旋風渦巻く渓谷を効果による召喚にも効かせる
+3. **耐性に発生源、問い合わせに貫通**（§2.5）。今のプールに貫通のカードは無いので、型と判定の形だけ入れ、場面テストは【龍射撃】相当を組んで確かめる
+4. ライフを減らす（ライフのコストと `lifeCrush` が同じ問い合わせを呼ぶ。量の制限を含む）
+5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
