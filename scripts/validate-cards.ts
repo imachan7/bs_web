@@ -123,7 +123,6 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 // （TURN_EFFECT_SOURCES.md §4.1）
 const SELF_REFERENCING_ACTIONS = new Set([
     "refreshSelf",
-    "returnSelfToHand",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
     "markNoRefreshTarget",
@@ -191,7 +190,7 @@ function checkLentEffects(
             const lent: { type?: unknown; target?: unknown }[] = []
             collectActions([e], lent)
             for (const a of lent) {
-                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (a.type === "destroy" && a.target === "self") || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
+                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (["destroy", "returnToHand", "returnToDeckTop", "exhaust"].includes(a.type) && a.target === "self") || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
                     add(
                         c.cardId,
                         `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,

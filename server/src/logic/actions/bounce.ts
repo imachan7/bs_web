@@ -129,6 +129,12 @@ function returnOwnAsCost(ctx: ActionCtx, action: Extract<EffectAction, { type: "
 
 const returnToHandHandler: ActionHandler<"returnToHand"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // target:"self" の入口は2つ。破壊待機中・場にいない個体は破壊時の誘発（returnDestroyedSelfToHand）、
+        // 場に健在な個体は pay のコスト（returnOwnAsCost）。データ側のどちらも onDestroy でしか使われないので状態で見分ける
+        if (action.target === "self" && (self?.pendingDestruction || !self || !state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId))) {
+            returnDestroyedSelfToHand(ctx)
+            return
+        }
         if (action.countCounter !== undefined) {
             const n = countedAmount(state, owner, self, action.count, action.countCounter, srcType)
             if (n <= 0) {
@@ -564,7 +570,7 @@ function returnSelfToDeckBottomAsCost(ctx: ActionCtx): void {
 }
 
 const returnToDeckTopHandler: ActionHandler<"returnToDeckTop"> = (ctx, action) =>
-    action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
+    action.target === "self" ? returnDestroyedSelfToDeckTop(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "top") : returnToDeck(ctx, action, "top")
 const returnToDeckBottomHandler: ActionHandler<"returnToDeckBottom"> = (ctx, action) =>
     action.target === "self" ? returnSelfToDeckBottomAsCost(ctx) : action.all ? returnAllMatchingToDeck(ctx, action, "bottom") : returnToDeck(ctx, action, "bottom")
 
@@ -687,13 +693,10 @@ const returnToBurstHandler: ActionHandler<"returnToBurst"> = (ctx, action) => {
     recordMoved(state, [picked.cardId])
 }
 
-const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+// 破壊時の誘発で「このスピリットを手札に戻す」。破壊待機中かトラッシュにいる個体が対象で、耐性は見ない
+function returnDestroyedSelfToHand(ctx: ActionCtx): void {
+    const { state, owner, self, sourceName } = ctx
         if (!self) return
-        if (action.optional && !action.confirmed && state.interactiveTargets) {
-            requestActivationConfirm(state, owner, `${sourceName}：このスピリットを手札に戻しますか？`, { type: "returnSelfToHand", confirmed: true }, self)
-            return
-        }
         if (handGainBlocked(state)) {
             log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
             return
@@ -727,11 +730,11 @@ const returnSelfToHandHandler: ActionHandler<"returnSelfToHand"> = (ctx, action)
         return
 }
 
-const returnSelfToDeckTopHandler: ActionHandler<"returnSelfToDeckTop"> = (ctx) => {
+function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
     const { state, owner, self } = ctx
         if (!self) return
         const player = state.players[owner]
-        // returnSelfToHandHandler と同じ形：破壊待機状態ならそこからデッキトップへ、既にトラッシュならそこから
+        // returnDestroyedSelfToHand と同じ形：破壊待機状態ならそこからデッキトップへ、既にトラッシュならそこから
         if (self.pendingDestruction) {
             const fieldIdx = player.field.spirits.findIndex((s) => s.instanceId === self.instanceId)
             if (fieldIdx >= 0) {
@@ -760,8 +763,6 @@ const handlers = {
     returnToDeckTop: returnToDeckTopHandler,
     returnToBurst: returnToBurstHandler,
     returnToDeckBottom: returnToDeckBottomHandler,
-    returnSelfToHand: returnSelfToHandHandler,
-    returnSelfToDeckTop: returnSelfToDeckTopHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers
