@@ -54,7 +54,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 | 操作 | 禁止・耐性（今の型の例） | 迷う点 |
 | :-- | :-- | :-- |
 | 召喚 | `noBurstSpiritSummonForPid`・`noSummonByEffect`・`summonLimitByEffectForOpponent`・`summonLimitByCostForOpponent`・`maxSpiritsOnField` | ? `maxSpiritsOnField`（場の上限）は禁止か、ルールの上限か |
-| 破壊 | `nexusIndestructible`・`ownNexusIndestructible`・`noBpCompareDestroy`・`immunityGrant` | ? BP比較の破壊（原因＝ルール）も同じ問い合わせに入れるか |
+| 破壊 | `nexusIndestructible`・`ownNexusIndestructible`・`noBpCompareDestroy`・`immunityGrant` | BP比較の破壊も同じ問い合わせ（`cause:"bpCompare"`）。耐性は効く原因を持つ：「効果で破壊されない」「効果を受けない」は効果のときだけ、`noBpCompareDestroy` と原因を限らない「破壊されない」はBP比較も防ぐ。貫通は効果の操作にだけ付く（2026-10-29 ユーザー確認） |
 | 戻す | `allSpiritsCantBounce`・`immunityGrant` | |
 | 手札に加える | `noHandGainByEffect`・`noTrashRecovery`・`opponentCantReturnFromTrashToHand`・`handGainBlocked` | ? ドロー（デッキが無いと敗北）は「手札に加える」と別の問い合わせか |
 | ドロー | `noDrawInMain`・`noDrawOutsideDrawStep` | |
