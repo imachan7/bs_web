@@ -179,7 +179,7 @@ console.log("=== Y9: summonFromHandFree.count（コスト最大から複数体�
     runTurnStart(s)
     s.players.p1.hand = ["BS03-067", "BS04-054", "BS02-066", "BS03-054", "BS02-056"] // コスト6/5/4/3/2の「アルカナ」持ち（維持コアは全て1）
     s.players.p1.reserve = 2
-    resolveAction(s, "p1", null, { type: "summonFromHandFree", nameIncludes: "アルカナ", count: 4 })
+    resolveAction(s, "p1", null, { type: "summon", from: "hand", nameIncludes: "アルカナ", count: 4 })
     const summonedIds = s.players.p1.field.spirits.map((x) => x.cardId)
     assert(summonedIds.length === 2, "count=4を指定しても、リザーブ2ではコスト最大から2体までしか召喚できず打ち切られる")
     assert(

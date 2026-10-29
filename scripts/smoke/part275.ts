@@ -171,7 +171,7 @@ console.log("=== §G BS11-020：召喚時、手札のブレイヴを自分に直
     const self_ = createInstance("BS11-020", s.turn, 2)
     s.players.p1.field.spirits.push(self_)
     refreshLevelAsOverrides(s)
-    resolveAction(s, "p1", self_, { type: "summonFromHandFree", bravesOnly: true, combineToSelf: true, payCost: true })
+    resolveAction(s, "p1", self_, { type: "summon", from: "hand", bravesOnly: true, combineToSelf: true, payCost: true })
     assert(s.players.p1.field.combinedBraves.length === 1, "ブレイヴが召喚されて合体している")
     assert((self_.braveRefs ?? []).length === 1, "合体先は発生源自身")
     assert(s.players.p1.hand.length === 0, "手札から出ている")

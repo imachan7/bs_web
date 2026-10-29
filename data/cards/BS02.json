@@ -1916,7 +1916,8 @@
      2
     ],
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "colorFilter": "green"
     },
@@ -2724,7 +2725,8 @@
      2
     ],
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "sameFamilyAsSelf": true
     },
@@ -5524,7 +5526,8 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "maxCostFromOwnTrashCores": true
     }
@@ -5617,7 +5620,8 @@
       }
      },
      "then": {
-      "type": "summonFromHandFree",
+      "type": "summon",
+      "from": "hand",
       "costFilter": 5
      }
     }

@@ -2022,7 +2022,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "bravesOnly": true,
           "costDestroyOwnSpiritSameCost": true
         }
@@ -7081,7 +7082,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "bravesOnly": true,
           "repeatWhileChosen": true,
           "skipOnSummon": true
@@ -7224,7 +7226,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "bravesOnly": true,
           "thenDraw": 1
         }

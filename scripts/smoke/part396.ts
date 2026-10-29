@@ -105,7 +105,7 @@ console.log("=== 4. summonFromHandFree：条件に合う手札があれば払っ
     const s = game("case4a")
     s.players.p1.hand.push(RED)
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "summonFromHandFree", colorFilter: "red" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "summon", from: "hand", colorFilter: "red" } })
     // 召喚された個体の維持コア1個もリザーブから払われる（pay自体のコスト1個とは別。summonFreeFromHandIndex）
     assert(s.players.p1.reserve === 3, "リザーブ1個（pay）＋1個（維持コア）を払った")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された")
@@ -113,7 +113,7 @@ console.log("=== 4. summonFromHandFree：条件に合う手札があれば払っ
 {
     const s = game("case4b")
     s.players.p1.hand = [] // 初期手札に赤のスピリットが混ざりうるため、明示的に空にする
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "summonFromHandFree", colorFilter: "red" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "summon", from: "hand", colorFilter: "red" } })
     assert(s.players.p1.reserve === 5, "条件に合う手札がないため払わなかった")
 }
 

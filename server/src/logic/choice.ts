@@ -81,7 +81,7 @@ function resolveChoiceInner(
     instanceId?: string,
     option?: string,
     cardIndex?: number,
-    // 「コストを支払って召喚できる」起動効果（summonFromHandFree の payCost）で、
+    // 「コストを支払って召喚できる」起動効果（summon{from:"hand"} の payCost）で、
     // リザーブの不足分をフィールドのコアから払うための指定。通常の召喚と同じ支払いUIから届く
     paySources?: PaySource[],
     // リザーブの[ソウルコア]を支払いに使うか（【迷彩】の支払い。2026-10-08 ユーザー確定: 払うかを選ばせる）

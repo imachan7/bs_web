@@ -126,7 +126,7 @@ export function fireFieldEventTriggers(
     // **同じ列**に混ぜてターンプレイヤーに順番を選ばせるために使う。他のイベントでは使わない
     extraItems?: FieldEventExtraItem[],
     // 発生源から除外する instanceId（docs/design/BURST.md）。ownBurstActivated が
-    // 「発動開始時点で場にいた発生源にだけ発火させる」ために、summonBurstCardFreeで新しく場に出た
+    // 「発動開始時点で場にいた発生源にだけ発火させる」ために、summon{from:"burst"}で新しく場に出た
     // 個体をここで除く
     excludeInstanceIds?: string[],
     // BS16バッチ0：破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）は、破壊待機中のこの走査では

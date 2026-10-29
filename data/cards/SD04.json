@@ -118,7 +118,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "nameIncludes": "ジーク",
      "skipTensho": true
     }

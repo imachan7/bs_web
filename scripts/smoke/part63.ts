@@ -139,7 +139,7 @@ console.log("=== ⑥ summonFromHandFree：costFilter と nameIncludes ===")
     s.players.p1.field.spirits.push(seesers)
     s.players.p1.hand = ["BS05-046", "BS05-039"] // コスト1の戦闘獣バビーバーとコスト2のナパルコ（初期手札の影響を避けるため置き換える）
     assert(getCard("BS05-046").cost === 1 && getCard("BS05-039").cost === 2, "テスト前提のコスト確認")
-    resolveAction(s, "p1", seesers, { type: "summonFromHandFree", costFilter: 2 })
+    resolveAction(s, "p1", seesers, { type: "summon", from: "hand", costFilter: 2 })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === "BS05-039"),
         "costFilter:2一致のナパルコが無償召喚された",
@@ -151,7 +151,7 @@ console.log("=== ⑥ summonFromHandFree：costFilter と nameIncludes ===")
     const pentanEmpire = createInstance("BS05-064", s.turn, 1)
     s.players.p1.field.nexuses.push(pentanEmpire)
     s.players.p1.hand = ["BS05-046", "BS02-058"] // 無関係のバビーバーと「ペンタン」（初期手札の影響を避けるため置き換える）
-    resolveAction(s, "p1", pentanEmpire, { type: "summonFromHandFree", nameIncludes: "ペンタン" })
+    resolveAction(s, "p1", pentanEmpire, { type: "summon", from: "hand", nameIncludes: "ペンタン" })
     assert(
         s.players.p1.field.spirits.some((sp) => sp.cardId === "BS02-058"),
         "nameIncludes「ペンタン」一致のペンタンが無償召喚された",

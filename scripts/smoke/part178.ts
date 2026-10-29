@@ -87,7 +87,7 @@ console.log("=== キャストオフ：召喚できる手札が無ければ自分
     const s = base("castoff-no-summonable")
     s.players.p1.field.spirits.push(createInstance(kaichu[0]!.cardId, s.turn, 3))
     s.players.p1.hand = [] // 召喚できるカードが無い
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { family: "怪虫" } }, then: { type: "summonFromHandFree", costFilter: 5} })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { family: "怪虫" } }, then: { type: "summon", from: "hand", costFilter: 5} })
     assert(s.players.p1.field.spirits.length === 1, "自分のスピリットは破壊されない")
 }
 
@@ -97,7 +97,7 @@ console.log("=== リクラメーション：召喚できる手札が無ければ
     s.players.p1.field.nexuses.push(createInstance("BS06-080", s.turn, 0))
     s.players.p1.hand = []
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", nexus: "only", side: "own", count: 1 }, then: {
-        type: "summonFromHandFree",
+        type: "summon", from: "hand",
         colorFilter: "blue",
         costFilter: { max: 4 },
     } })

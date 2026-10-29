@@ -46,7 +46,7 @@ console.log("=== summonFromHandFree（トレントン型）：無償召喚でも
     const victim = putSpirit(s, "p1", "BS04-031", 3) // 陸帝フォン・ダシオン（コスト6）
     s.players.p1.hand = ["BS04-031"] // 手札の緑スピリット＝転召持ち
     const trashCoresBefore = s.players.p1.trashCores
-    resolveAction(s, "p1", src, { type: "summonFromHandFree", colorFilter: "green" })
+    resolveAction(s, "p1", src, { type: "summon", from: "hand", colorFilter: "green" })
     assert(s.players.p1.field.spirits.length >= 1, "召喚された")
     assert(
         !s.players.p1.field.spirits.some((x) => x.instanceId === victim.instanceId),
@@ -67,7 +67,7 @@ console.log("=== summonFromHandFree：転召の対象がいなければ不発（
     s.players.p1.reserve = 10
     const src = putSpirit(s, "p1", "BS01-050", 1) // コスト0＝転召（コスト5以上）の対象にならない
     s.players.p1.hand = ["BS04-031"]
-    resolveAction(s, "p1", src, { type: "summonFromHandFree", colorFilter: "green" })
+    resolveAction(s, "p1", src, { type: "summon", from: "hand", colorFilter: "green" })
     assert(
         s.players.p1.field.spirits.some((x) => x.cardId === "BS04-031"),
         "対象がいなくても召喚自体は成立する",
@@ -118,7 +118,7 @@ console.log("=== 転召を持たないスピリットの無償召喚では何も
     const src = putSpirit(s, "p1", "BS01-050", 1)
     const bystander = putSpirit(s, "p1", "BS04-031", 3) // コスト6だが転召を撃つ側ではない
     s.players.p1.hand = ["BS01-051"] // フライングミラージュ（緑・転召なし）
-    resolveAction(s, "p1", src, { type: "summonFromHandFree", colorFilter: "green" })
+    resolveAction(s, "p1", src, { type: "summon", from: "hand", colorFilter: "green" })
     assert(
         s.players.p1.field.spirits.some((x) => x.instanceId === bystander.instanceId),
         "転召を持たないスピリットの召喚では誰も犠牲にならない",

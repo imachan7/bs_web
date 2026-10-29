@@ -174,15 +174,15 @@ export function toggleDiscardPay(handIndex: number): void {
 // 支払いモードを開始する（開始したら true）。フィールドのコアでも足りないカードは
 // そもそもサーバーが候補に入れないので、ここでは不足＝フィールドから払う場面とみなす。
 // 対象は「コストを支払う」2種：
-//   summonFromHandFree.payCost   手札から召喚（BS08帝竜騎サイクル）
+//   summon{from:"hand"}.payCost   手札から召喚（BS08帝竜騎サイクル）
 //   moveCards.pay:"cost"         トラッシュから召喚（BS07常闇の聖堂）・トラッシュのマジックを使用（BS08-X33ミカファール）
 export function startChoicePaying(cardIndex: number): boolean {
     if (!view || !view.pendingChoice) return false
     // 既にこの選択の支払い中なら、クリックでは何もしない（割り当てをリセットさせない）
     if (ui.paying?.forChoiceCardIndex !== undefined) return true
-    const action = view.pendingChoice.action as { type?: string; payCost?: true; pay?: string } | undefined
+    const action = view.pendingChoice.action as { type?: string; from?: string; payCost?: true; pay?: string } | undefined
     const zone = view.pendingChoice.cardZone === "trash" ? "trash" : "hand"
-    const paysCost = (action?.type === "summonFromHandFree" && action.payCost === true) || (action?.type === "moveCards" && action.pay === "cost")
+    const paysCost = (action?.type === "summon" && action.from === "hand" && action.payCost === true) || (action?.type === "moveCards" && action.pay === "cost")
     if (!paysCost) return false
     const player = view.players[view.you]
     const cardId = zone === "trash" ? player.trashCards[cardIndex] : player.hand?.[cardIndex]

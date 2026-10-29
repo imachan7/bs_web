@@ -22,7 +22,7 @@ export type GameAction =
     | { type: "attack"; instanceId: string; targetSpiritInstanceId?: string; paySources?: PaySource[]; paySoulCoreFromReserve?: boolean } // paySources＝制約 attackPayToll の支払いをフィールドのコアからも払う（省略時はリザーブから）。 targetSpiritInstanceId 指定時は指定アタック（canDirectAttack 持ちのみ）
     | { type: "block"; instanceId: string; paySources?: PaySource[]; paySoulCoreFromReserve?: boolean } // paySources＝ブロックの追加コスト（制約 blockPayCost）をフィールドのコアからも払う。省略時はリザーブから払う
     | { type: "activateAbility"; instanceId: string; effectId: string } // 起動能力の発動（kind:"activated"、コストを払って任意発動する能力）
-    | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number; paySources?: PaySource[]; paySoulCoreFromReserve?: boolean } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）。// paySources指定時は、選んだカードの召喚コストをフィールドのコアからも支払う（「コストを支払って召喚できる」起動効果＝summonFromHandFreeのpayCost。通常の召喚と同じ支払いUIから送られる。2026-08-23）
+    | { type: "resolveChoice"; instanceId?: string; option?: string; cardIndex?: number; paySources?: PaySource[]; paySoulCoreFromReserve?: boolean } // pendingChoice への応答（kind:"target"はinstanceId、kind:"option"はoption、kind:"card"はcardIndex。すべて省略＝スキップ。optionalのときのみ許可）。// paySources指定時は、選んだカードの召喚コストをフィールドのコアからも支払う（「コストを支払って召喚できる」起動効果＝summon{from:"hand"}のpayCost。通常の召喚と同じ支払いUIから送られる。2026-08-23）
     | { type: "setPayToNegate"; enabled: boolean } // ⚠️ **廃止予定・効果は無い**（2026-08-17。効果ごとに聞く形へ移した）。UI からトグルが消えたら PlayerState.payToNegate ごと削除する。// 「手札を破棄して効果を受けない」（BS08竜騎集う円卓Lv2）を払うかどうかの方針を切り替える。
     // 効果の判定自体は装甲と同じ同期の述語なので、**その場で聞くのではなく、あらかじめ盤面の状態にしておく**（PlayerState.payToNegate）。
     // 手順の外側の操作なので、自分のターンでなくても選択待ち中でも受け付ける。既定は true（従来どおり払って防ぐ）

@@ -573,7 +573,8 @@
                 }
               },
               "then": {
-                "type": "summonBurstCardFree"
+                "type": "summon",
+                "from": "burst"
               }
             }
           ]

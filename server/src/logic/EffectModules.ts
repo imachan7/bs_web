@@ -1023,7 +1023,7 @@ export function sweepLevelCostDepletion(state: GameState): void {
 // destroy/destroyExhausted/exhaust の costFilter 共通判定（BS04エンジン拡張バッチ2）。
 // 指定なしは常にtrue、max/minはそれぞれ対象コストの上限/下限
 
-// summonFromHandFree 共通の召喚実行部：指定した手札インデックスのスピリットを、
+// summon{from:"hand"} 共通の召喚実行部：指定した手札インデックスのスピリットを、
 // 維持コアのみリザーブから払ってフィールドへ配置する（onSummon効果は発揮させない）。
 // プレイヤー選択（chosenCardIndex）・自動選択（コスト最大）どちらの経路からも呼ぶ
 // コストと「召喚/配置したカードの上に置くコア」をまとめて支払う。

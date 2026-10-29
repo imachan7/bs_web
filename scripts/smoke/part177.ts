@@ -90,7 +90,7 @@ console.log("=== キャストオフ：コストで破壊する「怪虫」を選
     const give = put(s, kaichu[1]!.cardId, 3)
     s.players.p1.hand = [summonable.cardId]
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { family: "怪虫" } }, then: { type: "summonFromHandFree", costFilter: 5} })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", side: "own", count: 1, filter: { family: "怪虫" } }, then: { type: "summon", from: "hand", costFilter: 5} })
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give }) === null, "犠牲を選ぶ")
@@ -114,7 +114,7 @@ console.log("=== リクラメーション：コストで破壊するネクサス
     s.players.p1.hand = [blue4.cardId]
 
     resolveAction(s, "p1", null, { type: "pay", cost: { type: "destroy", nexus: "only", side: "own", count: 1 }, then: {
-        type: "summonFromHandFree",
+        type: "summon", from: "hand",
         colorFilter: "blue",
         costFilter: { max: 4 },
     } })

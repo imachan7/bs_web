@@ -626,7 +626,7 @@ export function findNexus(
 
 // pid のフィールド（スピリット/ネクサス/合体中ブレイヴ）にある instanceId の集合。
 // バースト発動（docs/design/BURST.md）で「発動開始時点で場にいた発生源」を特定するための
-// before/after 差分に使う（summonBurstCardFreeで新しく場に出た個体を ownBurstActivated の
+// before/after 差分に使う（summon{from:"burst"}で新しく場に出た個体を ownBurstActivated の
 // 発火対象から除くため）
 export function fieldInstanceIdsOf(state: GameState, pid: PlayerId): Set<string> {
     const p = state.players[pid]

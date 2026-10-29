@@ -272,7 +272,8 @@
         "byOpponentOnly": true,
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "bravesOnly": true,
           "spiritStateOnly": true
         }
@@ -288,7 +289,8 @@
         "byOpponentOnly": true,
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "bravesOnly": true,
           "spiritStateOnly": true,
           "thenDraw": 1
@@ -1651,7 +1653,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "bravesOnly": true
         }
       },
@@ -1666,7 +1669,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "colorFilter": "green"
         }
       },
@@ -3783,7 +3787,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "colorFilter": [
             "green",
             "white"

@@ -164,7 +164,7 @@ export function summonFreeFromHandIndex(
         paySources?: PaySource[]
         surchargeBatch?: true // 複数体を同時に召喚する効果の1体（余分は1回だけ。summonSurcharge.ts）
         // 召喚経路の記録（CardInstance.summonedBy）。
-        // summonFromHandFreeアクションからは action.summonedBy ?? "freeEffect" が渡る（26系【Fチェンジ】は"fchange"）
+        // summon{from:"hand"}アクションからは action.summonedBy ?? "freeEffect" が渡る（26系【Fチェンジ】は"fchange"）
         summonedBy?: string
         // 指定時は**ダイレクトブレイヴ**（doSummonのbraveTargetInstanceIdと同じ結果になるようにする。
         // 維持コアを置かない・field.combinedBravesへ入れる・host.braveRefsで参照する。BS10-096最後の優勝旗）
@@ -327,7 +327,7 @@ export function summonFreeFromTrashIndex(
     }
 }
 
-// summonFromHandFree の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
+// summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 // pay の checker（pay.ts）とこのハンドラで共有する（候補のずれ防止）
 // 26系X06「手札のこのカードは、自分が【Fチェンジ】を発揮する時、自分か相手のライフがN以下なら、コストMにできる」
 export function fchangeCostAs(state: GameState, owner: PlayerId, cardId: string): number | undefined {
@@ -343,7 +343,7 @@ export function summonFromHandFreeCandidateMatches(
     state: GameState,
     owner: PlayerId,
     self: CardInstance | null,
-    action: Extract<EffectAction, { type: "summonFromHandFree" }>,
+    action: Extract<EffectAction, { type: "summon", from: "hand" }>,
     candidateId: string,
 ): boolean {
     const player = state.players[owner]

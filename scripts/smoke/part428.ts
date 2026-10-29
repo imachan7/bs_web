@@ -111,7 +111,7 @@ console.log("=== 6. アルカナキング・カール summonFromHandFree upTo：
 {
     const s = game("case6-arcanaking", true)
     s.players.p1.hand = [ARCANA_BEAST, ARCANA_BEAST]
-    resolveAction(s, "p1", null, { type: "summonFromHandFree", nameIncludes: "アルカナ", count: 4, upTo: true })
+    resolveAction(s, "p1", null, { type: "summon", from: "hand", nameIncludes: "アルカナ", count: 4, upTo: true })
     assert(s.pendingChoice?.kind === "card" && s.pendingChoice.cardIndices?.length === 2, "1回目は候補2枚")
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     assert(s.players.p1.field.spirits.length === 1, "1枚目を召喚した")
@@ -127,7 +127,7 @@ console.log("=== 7. アルカナキング・カール summonFromHandFree upTo：
 {
     const s = game("case7-arcanaking-auto", false)
     s.players.p1.hand = [ARCANA_BEAST, ARCANA_BEAST]
-    resolveAction(s, "p1", null, { type: "summonFromHandFree", nameIncludes: "アルカナ", count: 4, upTo: true })
+    resolveAction(s, "p1", null, { type: "summon", from: "hand", nameIncludes: "アルカナ", count: 4, upTo: true })
     assert(s.players.p1.field.spirits.length === 2, `非対話は候補ぶんすべて召喚する（実際:${s.players.p1.field.spirits.length}）`)
 }
 

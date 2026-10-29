@@ -61,7 +61,7 @@ try {
             placeBurst(s, "p1", HOST)
             const before = s.players.p1.reserve
             resolveAction(s, "p1", null, { type: "sequence", keepScope: true, actions: [
-                { type: "summonBurstCardFree" },
+                { type: "summon", from: "burst" },
                 { type: "if", cond: { last: { cardType: "spirit" } }, then: { type: "draw", count: 1 } },
             ] } as never)
             s.players.p1.reserve = before

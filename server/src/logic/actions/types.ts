@@ -30,7 +30,7 @@ export interface ActionCtx {
     chosenOption: string | undefined
     chosenCardIndex: number | undefined
     // 選択の解決時にクライアントが添えてきたコアの支払い元（自分のフィールドのスピリット/ネクサス）。
-    // 「コストを支払って召喚する」起動効果（summonFromHandFree の payCost）でだけ使う。
+    // 「コストを支払って召喚する」起動効果（summon{from:"hand"} の payCost）でだけ使う。
     // 通常の召喚と同じく、リザーブで足りないぶんをフィールドのコアから払うための指定
     // （2026-08-23 追加。それまではリザーブからしか払えず、盤面のコアで払えるカードが
     // 候補にすら出なかった＝利用者報告）

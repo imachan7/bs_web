@@ -3352,7 +3352,8 @@
      2
     ],
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "skipOnSummon": true,
      "nameIncludes": "アルカナ",
      "count": 4,
@@ -6373,7 +6374,8 @@
       "count": 1
      },
      "then": {
-      "type": "summonFromHandFree",
+      "type": "summon",
+      "from": "hand",
       "colorFilter": "blue",
       "costFilter": {
        "max": 4

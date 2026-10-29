@@ -4498,7 +4498,8 @@
         ],
         "optional": true,
         "action": {
-          "type": "summonFromHandFree",
+          "type": "summon",
+          "from": "hand",
           "skipOnSummon": true,
           "colorFilter": "blue",
           "costFilter": {

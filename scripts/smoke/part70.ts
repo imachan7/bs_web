@@ -241,9 +241,9 @@ console.log("=== all 軸: 条件を満たすものを全部（BS03-108 Lv2 の r
 console.log("=== familyFilter 軸（BS05-009 火龍王ボルケノス: 竜人の無償召喚） ===")
 {
     const card = getCard("BS05-009")
-    const eff = card.effects[0] as { action?: { type?: string; familyFilter?: string } }
+    const eff = card.effects[0] as { action?: { type?: string; from?: string; familyFilter?: string } }
     assert(
-        eff.action?.type === "summonFromHandFree" && eff.action?.familyFilter === "竜人",
+        eff.action?.type === "summon" && eff.action?.from === "hand" && eff.action?.familyFilter === "竜人",
         `テスト前提: ${card.name} は summonFromHandFree familyFilter 竜人`,
     )
 
@@ -256,7 +256,7 @@ console.log("=== familyFilter 軸（BS05-009 火龍王ボルケノス: 竜人の
     // 手札を「竜人1枚＋非竜人1枚」にして、竜人だけが召喚されることを見る
     s.players.p1.hand = [nonDragoon.cardId, dragoon.cardId]
     const before = s.players.p1.field.spirits.length
-    resolveAction(s, "p1", null, { type: "summonFromHandFree", familyFilter: "竜人" })
+    resolveAction(s, "p1", null, { type: "summon", from: "hand", familyFilter: "竜人" })
     assert(s.players.p1.field.spirits.length === before + 1, "1体が無償召喚される")
     const summoned = s.players.p1.field.spirits[s.players.p1.field.spirits.length - 1]!
     assert(summoned.cardId === dragoon.cardId, "召喚されたのは竜人のほう")

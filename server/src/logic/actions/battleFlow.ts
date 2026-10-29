@@ -6,7 +6,8 @@ import { summonSurcharge } from "../../../../shared/cost"
 import { recordLifeLost } from "../record"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import { summonBurstCardFreeHandler } from "./control"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -488,7 +489,7 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
         return
 }
 
-const summonFromHandFreeHandler: ActionHandler<"summonFromHandFree"> = (ctx, rawAction) => {
+function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectAction, { type: "summon"; from: "hand" }>): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
     // countCounter は最初の1回だけ枚数に解く。中断からの再開ではカウンタの記録が変わりうるので、解いた count を持ち回る
     const action: typeof rawAction = (() => {
@@ -1616,7 +1617,7 @@ const handlers = {
     negateContinuousMagicByName: negateContinuousMagicByNameHandler,
     detachBrave: detachBraveHandler,
     detachOpponentBrave: detachOpponentBraveHandler,
-    summonFromHandFree: summonFromHandFreeHandler,
+    summon: (ctx, action) => (action.from === "hand" ? summonFromHandFreeHandler(ctx, action) : summonBurstCardFreeHandler(ctx, action)),
     summonRepeatFromHand: summonRepeatFromHandHandler,
     summonSequence: summonSequenceHandler,
     summonBatchFlush: summonBatchFlushHandler,

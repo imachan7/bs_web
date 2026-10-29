@@ -223,7 +223,8 @@
        }
       },
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       }
      ]
     }
@@ -1137,7 +1138,8 @@
      "ownHandAtLeast": 5
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -1825,7 +1827,8 @@
      "bothFieldsRestedSpiritsAtLeast": 3
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -2431,7 +2434,8 @@
     "byOpponentEffectOnly": true,
     "destroyedMinBp": 5000,
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3067,7 +3071,8 @@
      }
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -3817,7 +3822,8 @@
      ]
     },
     "action": {
-     "type": "summonBurstCardFree"
+     "type": "summon",
+     "from": "burst"
     }
    },
    {
@@ -4820,7 +4826,8 @@
     ],
     "optional": true,
     "action": {
-     "type": "summonFromHandFree",
+     "type": "summon",
+     "from": "hand",
      "colorFilter": "white",
      "skipOnSummon": true
     }
@@ -5777,7 +5784,8 @@
       }
      },
      "then": {
-      "type": "summonBurstCardFree",
+      "type": "summon",
+      "from": "burst",
       "thenBuffSelf": 3000
      }
     }
@@ -6146,7 +6154,8 @@
        "orReserve": true
       },
       {
-       "type": "summonBurstCardFree"
+       "type": "summon",
+       "from": "burst"
       }
      ]
     }
@@ -6234,7 +6243,8 @@
         }
        },
        "then": {
-        "type": "summonBurstCardFree"
+        "type": "summon",
+        "from": "burst"
        }
       }
      ]

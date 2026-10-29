@@ -76,7 +76,7 @@ export function continueBurstActivation(state: GameState, frame: BurstFinishFram
     fireOwnBurstActivated(state, frame.pid, new Set(frame.before), frame.cardId)
 }
 
-// 発揮し終えたバーストの行き先（docs/design/BURST.md）。summonBurstCardFree はアクション自身が場へ出すので
+// 発揮し終えたバーストの行き先（docs/design/BURST.md）。summon{from:"burst"} はアクション自身が場へ出すので
 // バーストエリアを空にするだけ、それ以外（マジック相当）はトラッシュへ送る。
 // **resolveMagicは経由しない**（マジックバーストは「バースト発動」であって「マジックの使用」ではないため。
 // state.magicUsedThisTurn / ownMagicUsed・opponentMagicUsedの誤発火を避ける）
@@ -88,7 +88,7 @@ export function finishBurstActivation(
     opts?: { toHand?: true }, // returnSelfToHandAfter（docs/design/BURST.md）：既定の行き先（トラッシュ）を上書きして手札へ戻す（BS14-X02）
 ): void {
     const player = state.players[pid]
-    // 召喚が成功していれば summonBurstCardFree がバーストエリアを空にしているので、エリアに残っているときだけ行き先へ送る
+    // 召喚が成功していれば summon{from:"burst"} がバーストエリアを空にしているので、エリアに残っているときだけ行き先へ送る
     // （sequence／if／pay の中で召喚した場合に場とトラッシュへ二重に現れていた）。召喚の条件を満たさない・コア不足で不発のときも
     // エリアに残るので、召喚せずトラッシュへ置かれる（2026-10-22 ユーザー確認。BURST.md §5.5）
     if (player.burst === cardId) {
@@ -214,7 +214,7 @@ export function burstEffectBlocked(state: GameState, pid: PlayerId, cardId: stri
 }
 
 // バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
-// （before＝発動開始時点のフィールドのinstanceId集合。summonBurstCardFreeで新しく場に出た個体には
+// （before＝発動開始時点のフィールドのinstanceId集合。summon{from:"burst"}で新しく場に出た個体には
 // 発火しない。2026-09-11 ユーザー確認）
 export function fireOwnBurstActivated(
     state: GameState,
