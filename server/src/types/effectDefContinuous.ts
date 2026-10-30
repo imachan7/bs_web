@@ -677,8 +677,9 @@ export type EffectDefContinuous =
       }
     | {
           id: string
-          kind: "exhaustImmunityGrant" // sourceTypeを区別しないためブレイヴの効果も同じ経路で防げる
+          kind: "exhaustImmunityGrant"
           levels: number[] | null
+          sourceTypes?: CardType[] // 防ぐ相手の効果の種類（省略＝すべて）。ブレイヴ自身の効果は "brave"、【合体時】は "spirit"
           familyFilter?: string // scope:"self"のときは省略可（familyFilterとscopeは排他）
           scope?: "self"
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }

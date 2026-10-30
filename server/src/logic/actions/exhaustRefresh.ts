@@ -546,12 +546,10 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: ExhaustNum): void {
     if (action.all) {
         let exhausted = 0
         for (const s of spiritCandidates()) {
-            exhaustSpirit(state, opp, s, undefined, owner, srcType)
-            exhausted++
+            if (exhaustSpirit(state, opp, s, undefined, owner, srcType)) exhausted++
         }
         for (const n of nexusCandidates()) {
-            exhaustNexus(state, opp, n, owner, srcType)
-            exhausted++
+            if (exhaustNexus(state, opp, n, owner, srcType)) exhausted++
         }
         log(state, `${sourceName}：相手の${label}${exhausted}個を疲労させた。`)
         return
@@ -619,14 +617,12 @@ function exhaustNexusOrSpirit(ctx: ActionCtx, action: ExhaustNum): void {
             remaining--
             continue
         }
-        exhaustSpirit(state, opp, target, undefined, owner, srcType)
-        exhausted++
+        if (exhaustSpirit(state, opp, target, undefined, owner, srcType)) exhausted++
         remaining--
     }
     for (const n of nexusCandidates()) {
         if (remaining <= 0) break
-        exhaustNexus(state, opp, n, owner, srcType)
-        exhausted++
+        if (exhaustNexus(state, opp, n, owner, srcType)) exhausted++
         remaining--
     }
     if (exhausted === 0) {

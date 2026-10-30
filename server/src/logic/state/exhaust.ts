@@ -6,6 +6,7 @@ import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
 import { fireTrigger } from "../triggers"
 import { preventExhaustByPay } from "./exhaustPrevent"
+import { exhaustDenial } from "../exhaustGate"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
 
@@ -82,11 +83,16 @@ export function exhaustSpirit(
     bofuSourceInstanceId?: string,
     // exhaustPreventByPay の確認に「払わない」と答えた疲労の実行（再判定しない）
     skipPrevention?: boolean,
-): void {
+): boolean {
     // 破壊待機状態のカードは**疲労できない**（docs/design/TIMING_CHART.md §1.5）
-    if (inst.pendingDestruction) return
-    if (inst.isRested) return
-    if (!skipPrevention && causePid !== undefined && causeType !== undefined && preventExhaustByPay(state, ownerPid, inst, { causePid, causeType, bofuSourcePid, bofuSourceInstanceId })) return
+    if (inst.pendingDestruction) return false
+    if (inst.isRested) return false
+    const denied = exhaustDenial(state, { ownerPid, target: inst, actorPid: causePid, sourceType: causeType })
+    if (denied) {
+        log(state, `${getCard(inst.cardId).name}は疲労しなかった（${denied}）。`)
+        return false
+    }
+    if (!skipPrevention && causePid !== undefined && causeType !== undefined && preventExhaustByPay(state, ownerPid, inst, { causePid, causeType, bofuSourcePid, bofuSourceInstanceId })) return false
     inst.isRested = true
     if (bofuSourcePid !== undefined && ownerPid !== bofuSourcePid) {
         state.bofuExhaustedThisBattle.push({
@@ -97,14 +103,21 @@ export function exhaustSpirit(
         fireFieldEventTriggers(state, bofuSourcePid, "ownBofuExhausted", { pid: ownerPid, inst })
     }
     fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
+    return true
 }
 
 // ネクサスを疲労させる入口（スピリットの exhaustSpirit に対応）。ネクサスの疲労は経路が散っていたので、
 // 発火点（ownNexusExhausted。26RBS01-108「このネクサスが疲労した時」）をここに集めた
-export function exhaustNexus(state: GameState, ownerPid: PlayerId, nexus: CardInstance, causePid?: PlayerId, causeType?: CardType): void {
-    if (nexus.isRested) return
+export function exhaustNexus(state: GameState, ownerPid: PlayerId, nexus: CardInstance, causePid?: PlayerId, causeType?: CardType): boolean {
+    if (nexus.isRested) return false
+    const denied = exhaustDenial(state, { ownerPid, target: nexus, actorPid: causePid, sourceType: causeType })
+    if (denied) {
+        log(state, `${getCard(nexus.cardId).name}は疲労しなかった（${denied}）。`)
+        return false
+    }
     nexus.isRested = true
     fireExhaustedTriggers(state, ownerPid, nexus, causePid, causeType)
+    return true
 }
 
 // 重疲労させる唯一の入口。回復状態からでも直接重疲労になる（疲労を経由するので「疲労したとき」の誘発は起きる。
