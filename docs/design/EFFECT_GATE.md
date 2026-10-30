@@ -129,7 +129,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - **「手札に戻らない」はデッキへ戻す効果を止めない**。今は耐性の判定（op "bounce"）がデッキへ戻す効果にも効き、金狐角は行き先を問わず止めていた
    - 呼ぶ所：`removal.ts` の `markBounce`（戻すはすべてここを通る。actorPid／sourceType を受け取り、止めたら false を返す）。`resistance.ts` の `bounceImmune` は消す（対象には取れる）。コストで戻す候補は止められる個体を外す
 5g. **ドロー・合体／分離**：直すものなし（10-30 に洗った）。ドローは入口 `draw()` が2つの禁止を見ていて、デッキから手札へ移す別経路も無い。分離は `detachBraveByEffect`／`detachBraveByOwnerChoice` の両方で `cantSeparate` を見ている。合体は候補（`braveCombineCandidates`）で `cantCombine` を外す（合体はプレイヤーの行動の一部なので候補で外す）。スピリット状態の禁止は検証と残す確認の両方で見ている
-5c'. **コアの問い合わせのコストの区別**（10-30。ブランチ `fix/core-effect-cost`）：上の一般則に合わせ、「〜することで」のコアのコスト（起動能力の `selfCoresToTrash`・`selfCoresToVoid`・復活のコスト・`reviveLastDestroyedNexus`・`pay`）は `coreRemovalAllowed` に cause effect（actor＝持ち主、sourceType＝発生源）で聞く。cause cost は召喚・マジック・ブレイヴの使用コストとネクサスの配置コスト（大工房）だけ。変わるのは八分儀の祠 Lv2 だけ：持ち主自身の「〜することで」は通る（使用コスト・コアの移動・【転召】は今どおり止まる）
+5c'. **コアの問い合わせのコストの区別**（10-30。**入れない**）：上の一般則に合わせるなら、「Nコストを支払うことで」・起動能力・復活のコアのコストは `coreRemovalAllowed` に cause effect で聞くことになる。変わるのは八分儀の祠 Lv2 だけで、それが働く『相手のメインステップ』にターンプレイヤーがこれらのコストをスピリットのコアから払う場面が今のプールに無い（起動能力はアタックステップ限定、「コストを支払うことで」はバースト効果だけ）。該当カードを取り込むときに足す。「コアを〜置くことで」（エリミネイション型）は 5c の時点で効果として扱われていて、八分儀の下でも払える（smoke part693）
 5h. **デッキの破棄の問い合わせ**（設計を10-30に確定。ブランチ `fix/mill-gate`）
    - `server/src/logic/zones/mill.ts` に `millAllowed(state, { pid, count, actorPid?, sourceType? }): number`（0〜count）。`millDeck` の中の判定を移す
    - 0 にする禁止：エンドステップの封印（`deckMill`）・`noDeckMill`・`noDeckMillInMain`（main）・期間つき `noDeckMillForPid`・`noDeckMillByOpponent`（ディスコンティニュー・鳳翼の聖剣。**効果文に「相手の効果で」が無いので、自分の効果・コストも止める**＝パイルドラコの `noDeckMillForPid` と同じ読み。今は相手の効果だけ止めていた）
