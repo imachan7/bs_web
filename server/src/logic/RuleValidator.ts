@@ -1360,7 +1360,7 @@ export function validateBlock(
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
-        if (c.cost === "discardMagic" && !canDiscardHand(state, pid, false)) return "手札を破棄できないためブロックできません"
+        if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"
         }

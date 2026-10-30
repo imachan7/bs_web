@@ -88,14 +88,14 @@ for (const pasture of [true, false]) {
 
 console.log("=== C. 規則1・2・4: チョウハッカイの下、召喚コストの破棄は通り、「〜することで」の手札破棄コストは払えない ===")
 for (const hachi of [true, false]) {
-    // C1: ビクティムによる召喚コストの破棄は効果ではないので、チョウハッカイがいても払える
+    // C1: ビクティムの「手札の破棄で払える」は効果が与えた払い方なので、その破棄は効果による破棄＝チョウハッカイが止める（10-30 ユーザー決定）
     const s = game(`c1-${hachi}`, "p1", [VICTIM, FILL, FILL, FILL])
     s.players.p1.reserve = 4 + 1
     if (hachi) put(s, "p2", HACHI, 2)
     assert(act(s, "p1", { type: "castMagic", handIndex: 0, timing: "main" }) === null, "C1: ビクティムを使える")
     const n = getCard(FILL).cost
     const e = act(s, "p1", { type: "summon", handIndex: 0, discardHandIndices: [1, 2].slice(0, n) })
-    assert(e === null && s.players.p1.field.spirits.some(x => x.cardId === FILL), `C1(${hachi}): 召喚コストの手札の破棄は止まらない（${e}）`)
+    assert((e === null && s.players.p1.field.spirits.some(x => x.cardId === FILL)) === !hachi, `C1(${hachi}): 手札の破棄で召喚コストを払えるのはチョウハッカイが無いときだけ（${e}）`)
     // C2: オルフェの召喚時「手札1枚を破棄することで」は規則1のコストなのでチョウハッカイが止める
     const t = game(`c2-${hachi}`, "p1", [ORFE, FILL], [MAGIC])
     if (hachi) put(t, "p2", HACHI, 2)
@@ -120,7 +120,8 @@ for (const hachi of [true, false]) {
     assert(used === !hachi, `C3(${hachi}): ミーアバットを手札から破棄して使えるのはチョウハッカイが無いときだけ（${e}）`)
 }
 
-console.log("=== D. 規則2・4: チョウハッカイの下、「手札のマジックを破棄しなければブロックできない」を破棄して払ってブロックできる ===")
+// 効果が要求する破棄は効果による破棄なので、チョウハッカイの下では払えずブロックできない（10-30 ユーザー決定）
+console.log("=== D. チョウハッカイの下、「手札のマジックを破棄しなければブロックできない」は払えずブロックできない ===")
 for (const hachi of [true, false]) {
     const s = game(`d-${hachi}`, "p1", [NOGU], [MAGIC])
     const host = put(s, "p1", MERC, 3) // 【転召：異合】の転召元（異合のスピリット）
@@ -135,8 +136,8 @@ for (const hachi of [true, false]) {
     assert(act(s, "p1", { type: "attack", instanceId: nogu.instanceId }) === null, "D: アタックできる")
     for (let i = 0; i < 3 && s.isFlashTiming; i++) act(s, s.priorityPlayer, { type: "pass" })
     const e = act(s, "p2", { type: "block", instanceId: blocker.instanceId })
-    assert(e === null, `D(${hachi}): ブロックできる（${e}）`)
-    assert(s.players.p2.hand.length === 0, `D(${hachi}): マジックを破棄して払う（${s.players.p2.hand.length}）`)
+    assert((e === null) === !hachi, `D(${hachi}): ブロックできるのはチョウハッカイが無いときだけ（${e}）`)
+    assert(s.players.p2.hand.length === (hachi ? 1 : 0), `D(${hachi}): マジックを破棄して払うのはチョウハッカイが無いときだけ（${s.players.p2.hand.length}）`)
 }
 
 console.log("=== E. 規則5: 塔・砦の持ち主の手札は、相手の「手札1枚を内容を見ないで選び、マジックなら破棄」で破棄されない ===")
