@@ -2837,7 +2837,7 @@
      "type": "pay",
      "cost": {
       "type": "exhaust",
-      "side": "own",
+     "side": "own",
       "nexusOnly": true,
       "count": 1
      },
@@ -4823,6 +4823,7 @@
     "action": {
      "type": "return",
      "to": "hand",
+     "side": "own",
      "count": 1,
      "filter": {
       "keyword": "soku"

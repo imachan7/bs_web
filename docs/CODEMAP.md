@@ -548,6 +548,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `CollectedTrigger`（型）：収集モードで fireTrigger／fireFieldEventTriggers が積む1件。run は非対話時にその場で解決する用、
 - `resolveBlockDeclared`（fn）：非対話（テスト・AI）では収集順＝従来の発火順で解決する。
 
+## server/src/logic/bounceGate.ts
+
+- `BounceTo`（型）
+- `bounceDenial`（fn）
+- `allSpiritsCantBounceActive`（fn）：金狐角。発生源の持ち主基準の phase/turn を見るので hasGlobalConstraint ではなく専用に走査する
+
 ## server/src/logic/brave.ts
 
 - `attachBrave`（fn）：**合体処理の唯一の入口。** ブレイヴの実体を field.combinedBraves へ入れ、

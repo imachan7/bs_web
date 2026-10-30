@@ -239,7 +239,8 @@
     ],
     "target": "ownAll",
     "familyFilter": "地竜",
-    "against": "bounce"
+    "against": "bounce",
+    "sourceTypes": ["spirit", "nexus", "magic"]
    }
   ]
  },

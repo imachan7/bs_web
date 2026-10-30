@@ -3771,7 +3771,8 @@
         ],
         "target": "ownAll",
         "keywordFilter": "tensho",
-        "against": "bounce"
+        "against": "bounce",
+        "sourceTypes": ["spirit", "nexus", "magic"]
       }
     ]
   },

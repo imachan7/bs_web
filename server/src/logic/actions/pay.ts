@@ -1,6 +1,7 @@
 // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに
 // 解決できるときだけ発揮する。判定を通すのはこのファイルだけの責務で、実際の解決は
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
+import { allSpiritsCantBounceActive } from "../bounceGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -125,7 +126,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
             return returnToDeckTopCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= (action.count ?? 1)
         }
         if (action.costBudget !== undefined) return true
-        if (action.target === "self") return self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId)
+        // 金狐角の下では自身を手札に戻すコストは払えない。この表はマジックの対象の有無にも使うので、相手を戻す形には掛けない
+        if (action.target === "self") return self !== null && state.players[owner].field.spirits.some((s) => s.instanceId === self.instanceId) && !allSpiritsCantBounceActive(state)
         if (action.target === "selfBrave") return self !== null && (self.braveRefs?.length ?? 0) >= 1
         return returnToHandCandidateCountForPay(state, owner, self?.instanceId, action, srcColors, srcType) >= action.count
     },
