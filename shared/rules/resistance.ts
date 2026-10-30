@@ -147,8 +147,10 @@ function untargetableAgainst(board: Board, targetOwnerPid: PlayerId, target: Car
     ) {
         return { category: "untargetable", label: "相手のマジックの効果では指定されない" }
     }
-    if (attempt.scope === "targeted" && hasUntargetableConstraint(target)) {
-        return { category: "untargetable", label: "相手の効果の対象にならない" }
+    // 「対象にならない」は「すべて」の効果も防ぐ（Q1679。10-30 ユーザー確認）。「指定されない」（上）は1体を選ぶ効果だけ。
+    // 効果文の「相手のスピリット/マジックの効果」に合わせ、ブレイヴ自身・ネクサスの効果は通す（種類が分からないときは防ぐ側）
+    if (hasUntargetableConstraint(target) && (attempt.sourceType === undefined || attempt.sourceType === "spirit" || attempt.sourceType === "magic")) {
+        return { category: "untargetable", label: "相手のスピリット/マジックの効果の対象にならない" }
     }
     return null
 }

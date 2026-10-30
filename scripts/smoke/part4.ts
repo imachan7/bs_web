@@ -457,11 +457,11 @@ console.log("=== 免疫・効果無効システム（ワルキューレ／フェ
         s.players.p2.field.spirits.some((x) => x.instanceId === walk.instanceId),
         "ワルキューレだけなら対象を取る破壊は当たらない",
     )
-    // ただし範囲破壊（destroyAll）にはワルキューレも当たる
+    // 「すべて」の破壊も防ぐ（Q1679。10-30 に旧い読み「範囲破壊には当たる」を改めた）
     resolveAction(s, "p1", null, { type: "destroy", count: 1, all: true, filter: { maxBp: 9000 } })
     assert(
-        s.players.p2.field.spirits.length === 0,
-        "範囲破壊(destroyAll)にはワルキューレも当たる",
+        s.players.p2.field.spirits.some((x) => x.instanceId === walk.instanceId),
+        "範囲破壊(destroyAll)もワルキューレには当たらない",
     )
 
     // --- フェザーバリア: 免疫フラグは範囲破壊からも守る、ターン終了で解除 ---
