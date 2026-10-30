@@ -147,6 +147,14 @@
 - スキーマ：`discard` を `from` で分けた共用体にした。デッキの形は `{ from: "deck"; side: "own" | "opponent"; count; countCounter?; countMax?; until?; chimei? }`。旧 `mill` は `side` 省略＝相手だったので、データには `"side": "opponent"` を明示した
 - データ51件を移し、旧→新を1対1で機械的に突き合わせた（枚数・側・軸が同じ）。名前の付け替えだけなので期待値役の場面テストは書かず、既存の smoke 49か所で挙動を確かめた（§3 の手順から外した）
 
+### PR 10a `refreshAllOwn` を消す（10-30 確定。ブランチ refactor/refresh-all-own）
+
+- 突き合わせ：`refreshAllOwn` は「疲労状態の自分のスピリットすべてを回復」と「このターン、この効果で回復したスピリットはアタックできない」を1つでやっていた。9件のうち4件（隠されたる賢者の樹・賢者の樹の実・イ・ケダヤンの階段山脈・獣の楽園）は効果文にアタック不可が無いのに付けていた（どれもエンドステップ・ターン終了時なので対戦の結果は変わらない）
+- 足りない部品1つ：`timedEffect` の `target: "lastTargets"`（直前の効果が実際に対象にした個体それぞれに、`filter` に合うものだけ付ける）。「すべて」（`all`）はルールとして後から出たスピリットにも効くので「この効果で回復した」は書けない
+- `refreshOne` の `all` は、実際に回復した個体を記録する（`recordTargets`）
+- 書き換え：アタック不可のある5件＝`sequence[ refreshOne{all:true}, timedEffect{duration:"turn", target:"lastTargets", filter:{除外}, content:[cantAttack]} ]`。除外は キャバルリー `familyExclude:"戦騎"`・エマージェンシー `keywordExclude:"tensho"`・リブートコード `uncombined:true`。無い4件＝`refreshOne{all:true}`
+- PR 10b（後）：`refreshOne`・`refreshSelf` を `refresh` にまとめる（名前の付け替え。データ184件）
+
 ### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
 
 | 順 | 今の type（データの件数） | まとめる形の案 | 着手前に確かめること |
