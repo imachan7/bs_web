@@ -5,7 +5,7 @@
 //     「効果がスピリットの数を数える」箇所をすべて重みつきの共通ヘルパーに寄せた。
 //     通常のスピリットは重み1なので、該当カードが場にない限り従来と同じ結果になる。
 //   - kind:"countAsMultiple"（発生源自身を、**持ち主の効果**では N 体分として数える）
-//   - action:"countAsMultipleThisTurn" ＋ CardInstance.countAsThisTurn
+//   - timedEffect の countAs ＋ CardInstance.countAsThisTurn
 //     （このターンの間、印を付けた側の効果でだけ N 体分。相手のスピリットにも付けられる）
 // 実装したカード:
 //   - BS05-038 シーサーズ Lv2（このスピリットは2体分として数える）

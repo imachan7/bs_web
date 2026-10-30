@@ -4723,15 +4723,7 @@
     "id": "BS05-079-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "countAsMultipleThisTurn",
-     "count": 3,
-     "anySide": true,
-     "sourceTypes": [
-      "spirit",
-      "nexus"
-     ]
-    }
+    "action": {"type": "timedEffect", "count": 1, "duration": "turn", "side": "both", "content": [{"type": "countAs", "count": 3, "sourceTypes": ["spirit", "nexus"]}]}
    }
   ]
  },

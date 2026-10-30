@@ -285,16 +285,6 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         return
 }
 
-const protectBlockerCoresThisBattleHandler: ActionHandler<"protectBlockerCoresThisBattle"> = (ctx) => {
-    const { state, owner, sourceName } = ctx
-    if (!state.battle) {
-        log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
-        return
-    }
-    recordTimed(state, { content: [{ type: "blockerCoresProtected" }], target: { kind: "battle" }, until: "battle", ownerPid: owner })
-    log(state, `${sourceName}：このバトルの間、ブロックしたスピリット上のコアは取り除けない。`)
-}
-
 // bothSidesCoreToTrashHandlerと同じ「コアの多い個体から順に合計count個をトラッシュへ」の
 // 単一プレイヤー版（維持コア割れの消滅処理を含む）。実際に移した枚数を返す
 function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: number): number {
@@ -697,7 +687,6 @@ const handlers = {
     moveCoresLeavingOne: moveCoresLeavingOneHandler,
     swapOpponentCores: swapOpponentCoresHandler,
     coreRemove: coreRemoveHandler,
-    protectBlockerCoresThisBattle: protectBlockerCoresThisBattleHandler,
     coreDrainAllOthers: coreDrainAllOthersHandler,
     linkNexusCoresChoice: linkNexusCoresChoiceHandler,
 } satisfies Partial<ActionRegistry>

@@ -1488,36 +1488,10 @@ const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action)
 }
 
 
-// 対象はフィールドイベントが渡す targetInstanceId（BS12-037 はアタックしたスピリット、BS12-058 はブロックしている相手）
-const setTargetBpAsThisBattleHandler: ActionHandler<"setTargetBpAsThisBattle"> = (ctx, action) => {
-    const { state, owner, sourceName, targetInstanceId, srcColors, srcType } = ctx
-    const found = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
-    if (!found) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    const inst = found.inst
-    // 「そのスピリット」は指定ではないので範囲扱い。【装甲】などで防げる（2026-10-08 ユーザー確認）
-    const resisted = resistanceAgainst(state, found.pid, inst, {
-        op: "other",
-        scope: "area",
-        actorPid: owner,
-        ...(srcType ? { sourceType: srcType } : {}),
-        ...(srcColors ? { sourceColors: srcColors } : {}),
-    })
-    if (resisted) {
-        log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
-        return
-    }
-    recordTimed(state, { content: [{ type: "bpAs", levels: [...action.levels], amount: action.amount }], target: { kind: "instance", instanceId: inst.instanceId }, until: "battle", ownerPid: owner })
-    log(state, `${getCard(inst.cardId).name}：このバトルの間、Lv${action.levels.join("/")}のBPを${action.amount}として扱う。`)
-}
-
 const handlers = {
     endBattle: endBattleHandler,
     funsaiOnBlock: funsaiOnBlockHandler,
     treatAsUnblocked: treatAsUnblockedHandler,
-    setTargetBpAsThisBattle: setTargetBpAsThisBattleHandler,
     battleLoserCoresToVoid: battleLoserCoresToVoidHandler,
     endStepLock: endStepLockHandler,
     skipBpCompare: skipBpCompareHandler,

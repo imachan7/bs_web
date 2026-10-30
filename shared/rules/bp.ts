@@ -648,7 +648,7 @@ export function timedRuleBp(board: Board, ownerPid: PlayerId, inst: CardInstance
         if (!onInstance && !byRule) continue
         for (const x of r.content) {
             if (x.type !== "bp" || (onInstance && x.amountCounter === undefined)) continue
-            total += x.amountCounter === undefined ? x.amount : x.amount * countAuraCounter(board, r.ownerPid, x.amountCounter as AuraCounter, inst)
+            total += x.amountCounter === undefined ? x.amount : x.amount * countAuraCounter(board, r.ownerPid, x.amountCounter as AuraCounter, inst, r.sourceType)
         }
     }
     return total

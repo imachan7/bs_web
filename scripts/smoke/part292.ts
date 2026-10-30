@@ -44,7 +44,7 @@ console.log("=== J: setTargetBpAsThisBattle（実効BPが2000になる＝対象�
     refreshLevelAsOverrides(s)
     const before = effectiveBp(s, "p2", target)
     assert(before > 2000, `前提: 素の実効BPは2000より大きい（実際 ${before}）`)
-    resolveAction(s, "p1", null, { type: "setTargetBpAsThisBattle", levels: [1, 2, 3], amount: 2000 }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "timedEffect", duration: "battle", content: [{ type: "bpAs", levels: [1, 2, 3], amount: 2000 }] }, target.instanceId)
     assert(
         effectiveBp(s, "p2", target) === 2000,
         "バトル中の実効BPそのものが2000になる（BP比較だけでなく対象条件からも2000に見える）",

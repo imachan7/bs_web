@@ -155,6 +155,31 @@
 - 書き換え：アタック不可のある5件＝`sequence[ refreshOne{all:true}, timedEffect{duration:"turn", target:"lastTargets", filter:{除外}, content:[cantAttack]} ]`。除外は キャバルリー `familyExclude:"戦騎"`・エマージェンシー `keywordExclude:"tensho"`・リブートコード `uncombined:true`。無い4件＝`refreshOne{all:true}`
 - ✅ PR 10b（10-30）：`refreshOne`・`refreshSelf` を `refresh` にまとめた（`refreshSelf`＝`refresh{target:"self"}`。データ193件。名前の付け替えだけ）
 
+### PR 5 1枚専用の付与・印の突き合わせ（10-30。調査役）
+
+判定の記号：A＝今の `TimedContent` とハンドラの配置経路でそのまま書ける／B1＝内容は既にあり、`timedEffect` ハンドラ（`logic/actions/timedEffect.ts`）の配置経路を足すだけ（RECORDED と末尾の分岐。内容の新設なし）／B2＝内容の項目か対象の軸を1つ足す／C＝固有として残す。
+
+| type | カード | 効果文の要点 | 判定 | 書き方または理由 | 失われる但し書き |
+| :-- | :-- | :-- | :-: | :-- | :-- |
+| `setTargetBpAsThisBattle` | BS12-037 オリンピアの天使ベトール | シンボル2つを持つ相手のアタッカーのLv1/2/3 BPを、そのバトルの間2000として扱う | A | `timedEffect{ duration:"battle", count:1, content:[{type:"bpAs", levels:[1,2,3], amount:2000}] }`。対象はイベントの `targetInstanceId`（BS15 に同形あり） | 旧は `resistanceAgainst(scope:"area")` で【装甲】等を判定（2026-10-08 ユーザー確認）。`timedEffect.ts` に耐性判定の呼び出しが無いので、統合時に入れる（さもないと【装甲】持ちにも効く） |
+| `countAsMultipleThisTurn` | BS05-079 スリーカード | 指定したスピリット1体（どちらの陣営でも）を、自分のスピリット/ネクサスの効果では3体分と数える | B1 | `timedEffect{ duration:"turn", count:1, side:"both", content:[{type:"countAs", count:3, sourceTypes:["spirit","nexus"]}] }`。`countAs` は RECORDED に無いので足す。`side:"both"` の1体指定は今 `bp` だけが通る（`placeBp`）ので、内容を問わない1体指定にする | 旧の「対象無指定なら BP 最大を自動選択（anySide は両陣営）」。`side:"both"` の非対話フォールバックは自分の場から選ぶ読みになり順序が変わる（対話では選ばせるので実害は小さい） |
+| `markUnblockableByIceWallColorThisTurn` | BS16-079 ムーンボウクローク | 【氷壁】を持つ自分の1体は、そのスピリットの【氷壁】と同じ色の相手スピリットからブロックされない | B2 | `timedEffect{ duration:"turn", count:1, side:"own", filter:{keyword:"hyoheki"}, content:[{type:"unblockable", opponentOnly:true, fromKeywordColors:"hyoheki"}] }`。足す項目は `unblockable.fromKeywordColors`（対象が持つそのキーワードの色を**置いた時点で固定**して `from.colorAny` に写す）。今の `from` は色を固定値でしか持てない。1枚専用で、他に使うカードは無い（他の氷壁色参照は継続効果側）。専用が嫌なら C のまま | 候補が2体以上のときの対話選択（旧は `requestChoice` で再開）。`timedEffect` の自分1体選択に載るので失われないが、再開用の `{type:"markUnblockable…"}` が消えるため再開経路を確認する。色の固定（置いたあとに【氷壁】が無効になっても保つ。Q25026〜Q25028）は新項目の仕様として必須 |
+| `grantBlockerImmunity` | BS01-139 フェザーバリア | このターンの間、ブロックしている自分のスピリット1体は相手のカードの効果を受けない | B1 | `timedEffect{ duration:"turn", count:1, side:"own", filter:{blocking:true}, content:[{type:"immune"}] }`。`immune` は RECORDED と配置経路に無い。`filter.blocking` は既にある | 旧は「ブロッカー→アタッカー→自分の先頭」の順に代わりの対象を取っていた（効果文は「ブロックしている」だけ）。新はブロッカーがいなければ不発。旧の拡大解釈が消えるので挙動が変わる（読みは1通りなので直してよい側） |
+| `levelOverrideOpponentNexuses` | BS02-073 皇帝アンプルール | コア1個をボイドに置くことで、このターンの間、相手のネクサスすべてをLv1として扱う | B2 | `pay{cost, then: timedEffect{ duration:"turn", all:true, （side 省略＝相手）, 対象の軸＝ネクサス, content:[{type:"level", set:1}] }}`。`TargetFilter` にネクサスを選ぶ軸が無い（`matchesTarget` はスピリット前提）ので、`timedEffect` にネクサス対象の軸を1つ足す。内容 `level` は既存。ネクサスを対象にするカードは今のところ他に無い | 旧は発揮時点にいるネクサスの個体ごとに記録（あとから置かれたネクサスは対象外）。`all` の rule 記録にするとあとから置かれたものにも効く。個体記録のまま `timedEffect` で全件に置く形にすれば保てる。`pay.ts:61`・`pay.ts:298` が type 名で解決可能性を見ているので置き換える |
+| `requireCoreToBlockThisBattle` | BS11-037 ヒポグリフィー | アタック時、相手はリザーブのコア1個をトラッシュに置かなければブロックできない（このバトル） | A | `timedEffect{ target:"self", duration:"battle", content:[{type:"blockCost", cost:"reserveCoreToTrash", count:1}] }`。`blockCost` の同形が BS13-047 にある（期間だけ違う）。発生源がアタッカー自身（onAttack）なので `target:"self"` で足りる | 旧は `state.battle.attackerInstanceId` に置き、バトル外なら不発。新はバトル外でも記録が残る（このカードは onAttack でしか発揮されないので実害なし）。`self` がアタッカーでない発動は書けない |
+| `addSymbolPermanent` | BS13-003 カメレオプス | 本来のコスト7以上を召喚するたび、このスピリットに赤のシンボル2つを追加する | C | 期間つきではなく、トリガーのたびに `extraSymbolsPermanent` へ**蓄積して残る**（継続付与の再計算でも消えない）。期間（turn／battle／step…）のどれにも当たらない | なし（そのまま残す） |
+| `markNoRefreshTarget` | BS02-042 スクルディア | 疲労したとき相手の疲労スピリット1体を指定。このスピリットが疲労状態で自分の場にいる間、指定されたスピリットは回復できない | C | 寿命が「発生源が疲労状態で場にいる間」で、期間の一覧に当たらない（`skipRefresh` の寿命は `nextRefresh`）。指定を発生源の `noRefreshTargetInstanceId` に持ち、リフレッシュ側が毎回発生源の状態を引く。`validate-cards.ts:127` も type 名を見ている | なし（そのまま残す） |
+| `grantHostUnblockableThisTurn` | BS12-055 ゲッコ・グライダー | このターンの間、このブレイヴと合体しているスピリットはブロックされない | B2 | `timedEffect{ target:"braveHost", duration:"turn", content:[{type:"unblockable"}] }`。記録の `target.kind:"braveHost"` は既にあり、足すのは `timedEffect.target` の値 `"braveHost"` と配置経路だけ（読むたびにホストを引き直す仕組みは記録側にある）。他のブレイヴの「合体しているスピリットは〜」にも使える | なし（`self` がブレイヴ自身という前提は `target:"self"` と同じ扱い） |
+| `protectBlockerCoresThisBattle` | BS09-027 密林の勇者皇ヴォルザ／BS09-X40 凶悪巨人タイタス・ザ・ブラック | このスピリットをブロックしているスピリット上のコアは取り除けない（このバトル） | B1 | `timedEffect{ duration:"battle", content:[{type:"blockerCoresProtected"}] }`。`restedNexusEffectsDisabled` と同じ `target.kind:"battle"` の内容なので、`placeBattleCompare` に渡す2つの条件（644行・887行付近）へ `blockerCoresProtected` を足すだけ | なし（旧もバトル外は不発。`placeBattleCompare` も同じ） |
+| `treatOwnNexusesAsSpiritsThisTurn` | BS03-147 ゴーレムクラフト／BS09-082 トランスフォーメーション | コアの載った自分のネクサスを、このターンの間、指定したコスト・系統・Lv表のスピリットとして扱う | C | `field.nexuses`→`field.spirits` への**ゾーン移動**と、ターン終了時の復帰（`PhaseManager.endTurn`）という手順を持つ。期間つき効果は「個体に付く値」の器で、ゾーンを動かさない。兄弟の `nexusAsSpiritThisStep` が同じ移動を持つので、統一するならそちらと（`filter`・`all`・`until` を持つ形で）まとめる別 PR | なし（そのまま残す） |
+| `grantKeywordToHandCard` | BS03-033 ビートプリースト／BS08-073 ライトニングスピード | 手札の「殻虫」等のスピリットカードに、このターンの間【神速】を与える | C | 対象が**手札のカード**（場の個体ではない）。`PlayerState.tempHandKeywordGrants` に cardId 単位で持ち、期間つき効果の記録（`state.timedEffects` は場の個体・ルール・プレイヤーが対象）に手札カードの対象が無い | なし（そのまま残す） |
+
+A・B1・B2 だけを移すと消える type は 8 個（A=2、B1=3、B2=3）。C の 4 個（`addSymbolPermanent`・`markNoRefreshTarget`・`treatOwnNexusesAsSpiritsThisTurn`・`grantKeywordToHandCard`）は残る。足す部品は、内容の項目 `unblockable.fromKeywordColors` と、`timedEffect` の対象の軸 2 つ（ネクサス、`target:"braveHost"`）。内容の新設は 0。
+
+✅ **決定（10-30 ユーザー了承。実装済み）**：A の2種と B1 の3種（`setTargetBpAsThisBattle`・`requireCoreToBlockThisBattle`・`countAsMultipleThisTurn`・`grantBlockerImmunity`・`protectBlockerCoresThisBattle`）だけを `timedEffect` に移す。B2 の3種は足す部品がどれも1枚専用なので、仲間のカードが来るまで固有として残す。C の4種も残す。移すときの注意：`setTargetBpAsThisBattle` の耐性（【装甲】など。10-08 確認）を移した先でも効かせる。`grantBlockerImmunity` はブロッカーがいなければ不発（旧の「代わりにアタッカー等に付ける」は効果文に無い）
+
+実装で足したもの：`timedEffect` に「誘発が渡したイベントの主語に置く bpAs」（耐性を判定する。ベトール）・`countAs`・`immune` を置く経路。`TimedRecord.sourceType` を足し、期間つき効果の可変量を数えるとき発生源の種類を渡す（スリーカードは「自分のスピリット/ネクサスの効果で数えるとき」だけ3体分。以前はマジックの効果でも3体分だった）。フェザーバリアは「ブロックしている」が指定ではないので、ブロック前でも使用でき、そのときは何も起きない
+
 ### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
 
 | 順 | 今の type（データの件数） | まとめる形の案 | 着手前に確かめること |

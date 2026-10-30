@@ -2501,15 +2501,7 @@
         "symbolCount": 2,
         "selfMode": "source",
         "attackerAsTarget": true,
-        "action": {
-          "type": "setTargetBpAsThisBattle",
-          "levels": [
-            1,
-            2,
-            3
-          ],
-          "amount": 2000
-        }
+        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "bpAs", "levels": [1, 2, 3], "amount": 2000}]}
       },
       {
         "id": "BS12-037-e2",

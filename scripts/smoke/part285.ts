@@ -28,7 +28,7 @@ console.log("=== §A BS11-037：リザーブのコアを払わなければブロ
     refreshLevelAsOverrides(s)
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
-    resolveAction(s, "p1", null, { type: "requireCoreToBlockThisBattle", count: 1 })
+    resolveAction(s, "p1", atk, { type: "timedEffect", target: "self", duration: "battle", content: [{ type: "blockCost", cost: "reserveCoreToTrash", count: 1 }] })
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了）")
     s.players.p2.reserve = 0

@@ -927,7 +927,7 @@ export const MAGIC_FREE_OPTIONS = ["コストを支払わずに使用する", "�
 // 「複数体が対象なのに1体しか渡されていない」の判定にかける。
 // **ホワイトリストにしてある**のは、同じ count でも意味が違うアクションが混ざっているため:
 // コアの個数（coreCharge＝BS01アウェイクンはコア3個までを1体に置く）や、
-// 「何体分として数えるか」（countAsMultipleThisTurn＝BS05スリーカードは1体を3体分に数える）を
+// 「何体分として数えるか」（timedEffect の countAs＝BS05スリーカードは1体を3体分に数える）を
 // 体数と読み違えると、正しく渡された対象まで捨ててしまう
 export const COUNT_IS_BODIES = new Set(["destroy", "exhaust", "return"])
 

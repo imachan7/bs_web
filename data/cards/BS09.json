@@ -1882,9 +1882,7 @@
           3
         ],
         "optional": false,
-        "action": {
-          "type": "protectBlockerCoresThisBattle"
-        }
+        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "blockerCoresProtected"}]}
       }
     ]
   },
@@ -5892,9 +5890,7 @@
           2
         ],
         "optional": false,
-        "action": {
-          "type": "protectBlockerCoresThisBattle"
-        }
+        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "blockerCoresProtected"}]}
       }
     ]
   }

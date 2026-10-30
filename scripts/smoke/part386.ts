@@ -56,7 +56,7 @@ console.log("=== 2. ベトールも同じ：先の BP+ は乗り、後の BP+ �
     const s = game("p386-betor")
     const target = put(s, "p2", HADES, 4)
     resolveAction(s, "p2", target, plus3000)
-    resolveAction(s, "p1", null, cardAction(BETOR, "setTargetBpAsThisBattle"), target.instanceId)
+    resolveAction(s, "p1", null, cardAction(BETOR, "bpAs"), target.instanceId)
     assert(effectiveBp(s, "p2", target) === 5000, "先の +3000 が乗って5000")
     resolveAction(s, "p2", target, plus3000)
     assert(effectiveBp(s, "p2", target) === 8000, "後の +3000 も乗って8000")
