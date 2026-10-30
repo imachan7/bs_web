@@ -176,7 +176,9 @@
 
 A・B1・B2 だけを移すと消える type は 8 個（A=2、B1=3、B2=3）。C の 4 個（`addSymbolPermanent`・`markNoRefreshTarget`・`treatOwnNexusesAsSpiritsThisTurn`・`grantKeywordToHandCard`）は残る。足す部品は、内容の項目 `unblockable.fromKeywordColors` と、`timedEffect` の対象の軸 2 つ（ネクサス、`target:"braveHost"`）。内容の新設は 0。
 
-**決定（10-30 ユーザー了承）**：A の2種と B1 の3種（`setTargetBpAsThisBattle`・`requireCoreToBlockThisBattle`・`countAsMultipleThisTurn`・`grantBlockerImmunity`・`protectBlockerCoresThisBattle`）だけを `timedEffect` に移す。B2 の3種は足す部品がどれも1枚専用なので、仲間のカードが来るまで固有として残す。C の4種も残す。移すときの注意：`setTargetBpAsThisBattle` の耐性（【装甲】など。10-08 確認）を移した先でも効かせる。`grantBlockerImmunity` はブロッカーがいなければ不発（旧の「代わりにアタッカー等に付ける」は効果文に無い）
+✅ **決定（10-30 ユーザー了承。実装済み）**：A の2種と B1 の3種（`setTargetBpAsThisBattle`・`requireCoreToBlockThisBattle`・`countAsMultipleThisTurn`・`grantBlockerImmunity`・`protectBlockerCoresThisBattle`）だけを `timedEffect` に移す。B2 の3種は足す部品がどれも1枚専用なので、仲間のカードが来るまで固有として残す。C の4種も残す。移すときの注意：`setTargetBpAsThisBattle` の耐性（【装甲】など。10-08 確認）を移した先でも効かせる。`grantBlockerImmunity` はブロッカーがいなければ不発（旧の「代わりにアタッカー等に付ける」は効果文に無い）
+
+実装で足したもの：`timedEffect` に「誘発が渡したイベントの主語に置く bpAs」（耐性を判定する。ベトール）・`countAs`・`immune` を置く経路。`TimedRecord.sourceType` を足し、期間つき効果の可変量を数えるとき発生源の種類を渡す（スリーカードは「自分のスピリット/ネクサスの効果で数えるとき」だけ3体分。以前はマジックの効果でも3体分だった）。フェザーバリアは「ブロックしている」が指定ではないので、ブロック前でも使用でき、そのときは何も起きない
 
 ### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
 

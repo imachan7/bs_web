@@ -2291,10 +2291,7 @@
      3
     ],
     "optional": false,
-    "action": {
-     "type": "requireCoreToBlockThisBattle",
-     "count": 1
-    }
+    "action": {"type": "timedEffect", "target": "self", "duration": "battle", "content": [{"type": "blockCost", "cost": "reserveCoreToTrash", "count": 1}]}
    }
   ]
  },

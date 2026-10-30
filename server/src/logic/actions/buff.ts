@@ -22,35 +22,6 @@ import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 
 
-// スリーカード：対象スピリット1体に「このターンの間、使用者の効果では count 体分として数える」印を付ける。
-// 対象未指定時は実効BP最大の1体（自動選択の簡略化。anySide 指定時は自分/相手どちらからも選ぶ）
-const countAsMultipleThisTurnHandler: ActionHandler<"countAsMultipleThisTurn"> = (ctx, action) => {
-    const { state, owner, opp, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    const found = targetInstanceId
-        ? findSpiritAny(state, targetInstanceId)
-        : action.anySide
-          ? pickAnySideByBp(state, owner, Infinity, () => true, srcColors, srcType)
-          : (() => {
-                const t = pickEnemyByBp(state, opp, Infinity, undefined, srcColors, srcType)
-                return t ? { pid: opp, inst: t } : null
-            })()
-    if (!found) {
-        log(state, `${sourceName}：対象がいなかった。`)
-        return
-    }
-    // sourceTypes（数える側の発生源種別の限定。スリーカード＝スピリット/ネクサスの効果のみ）は印へそのまま写す
-    recordTimed(state, {
-        content: [{ type: "countAs", count: action.count, ...(action.sourceTypes ? { sourceTypes: action.sourceTypes } : {}) }],
-        target: { kind: "instance", instanceId: found.inst.instanceId },
-        until: "turn",
-        ownerPid: owner,
-    })
-    log(
-        state,
-        `${sourceName}：このターンの間、${getCard(found.inst.cardId).name}は${state.players[owner].name}の効果で${action.count}体分として数えられる。`,
-    )
-}
-
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
 // （bpBuffAllByArmorColorsの暴風版。暴風を持たない個体は対象外）
 
@@ -128,7 +99,6 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
 }
 
 const handlers = {
-    countAsMultipleThisTurn: countAsMultipleThisTurnHandler,
     bpBuffAll,
     bpMinus,
 } satisfies Partial<ActionRegistry>

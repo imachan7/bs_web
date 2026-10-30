@@ -6423,9 +6423,7 @@
     "id": "BS01-139-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "grantBlockerImmunity"
-    }
+    "action": {"type": "timedEffect", "count": 1, "duration": "turn", "side": "own", "filter": {"blocking": true}, "content": [{"type": "immune"}]}
    }
   ]
  },

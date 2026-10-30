@@ -229,32 +229,6 @@ const grantHostUnblockableThisTurnHandler: ActionHandler<"grantHostUnblockableTh
 
 
 
-const grantBlockerImmunityHandler: ActionHandler<"grantBlockerImmunity"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        // フェザーバリア：ブロック中の自分スピリット優先、なければバトル中の自分、なければ先頭
-        const mine = state.players[owner].field.spirits
-        let target: CardInstance | null = null
-        if (state.battle) {
-            target =
-                mine.find(
-                    (s) =>
-                        s.instanceId === state.battle?.blockerInstanceId ||
-                        s.instanceId === state.battle?.attackerInstanceId,
-                ) ?? null
-        }
-        if (!target) target = mine[0] ?? null
-        if (!target) {
-            log(state, `${sourceName}：対象のスピリットがいなかった。`)
-            return
-        }
-        recordTimed(state, { content: [{ type: "immune" }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: owner })
-        log(
-            state,
-            `${getCard(target.cardId).name}はこのターン、相手のカードの効果を受けない。`,
-        )
-        return
-}
-
 // 26系【激突】付与（飛兵コーンヒーロ『召喚時』／浮岩城塞『配置時』）: 自分のスピリット1体
 // （filterで絞り込み）に、このターンの間キーワードを与える。候補0体なら不発。
 // 発生源自身も候補に含む（原文に自己除外はなく、『召喚時』のコーンヒーロ自身も赤スピリット。
@@ -489,20 +463,6 @@ const lendSelfThisBattleHandler: ActionHandler<"lendSelfThisBattle"> = (ctx) => 
     )
 }
 
-// このバトルの間、相手はリザーブのコアを払わなければブロックできない（BS11-037 ヒポグリフィーLv2-3）
-const requireCoreToBlockThisBattleHandler: ActionHandler<"requireCoreToBlockThisBattle"> = (ctx, action) => {
-    const { state, owner, opp, sourceName } = ctx
-    if (!state.battle) {
-        log(state, `${sourceName}：バトル中でないため何も起きなかった。`)
-        return
-    }
-    // このバトルのアタッカーへのブロックに支払いを課す
-    recordTimed(state, { content: [{ type: "blockCost", cost: "reserveCoreToTrash", count: action.count }], target: { kind: "instance", instanceId: state.battle.attackerInstanceId }, until: "battle", ownerPid: owner })
-    log(
-        state,
-        `${sourceName}：${state.players[opp].name}はリザーブのコア${action.count}個をトラッシュに置かなければブロックできない。`,
-    )
-}
 
 
 
@@ -635,8 +595,6 @@ const handlers = {
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelAsSelfThisBattle: levelAsSelfThisBattleHandler,
     addSymbolPermanent: addSymbolPermanentHandler,
-    requireCoreToBlockThisBattle: requireCoreToBlockThisBattleHandler,
-    grantBlockerImmunity: grantBlockerImmunityHandler,
     grantKeywordThisTurn: grantKeywordThisTurnHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,

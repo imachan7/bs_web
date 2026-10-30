@@ -34,7 +34,7 @@
 
 ### その後：専用 type の統一の残り（10-27 計画）
 
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4。PR 8（予算つき破壊）・PR 9（`mill` → `discard{from:"deck"}`）・PR 10（回復を `refresh` に）は済み。残りは PR 5（1枚専用の付与・印）。着手前に「分かれている理由がルール上の処理の違いか」を確かめる
+- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4。PR 8（予算つき破壊）・PR 9（`mill` → `discard{from:"deck"}`）・PR 10（回復を `refresh` に）・PR 5（1枚専用の5種を `timedEffect` へ。残りの7種は固有として残す）は済み。着手前に「分かれている理由がルール上の処理の違いか」を確かめる
 - `lifeCrush` を `removeCores{from:["life"]}` に寄せるかは、ユーザーへの提案待ち（止める判定は #325 で共通になった）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 

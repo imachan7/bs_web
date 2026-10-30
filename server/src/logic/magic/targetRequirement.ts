@@ -60,6 +60,8 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
     // 「その〜」（前の効果の対象）は前の部分が対象を取れなければ何もしない
     if (a.filter?.lastTarget) return true
     if (action.type === "timedEffect" && action.content.every((c) => c.type === "playerRule")) return null
+    // 「ブロックしている自分のスピリット1体は〜」は指定ではない（フェザーバリアはブロック前にも使え、対象がいなければ何も起きない）
+    if (action.type === "timedEffect" && action.content.every((c) => c.type === "immune")) return null
     const one = "count" in action && typeof action.count === "number" ? ({ ...action, count: 1 } as EffectAction) : action
     return !canPayResolve(state, pid, null, one, card.colors, "magic")
 }

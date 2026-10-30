@@ -172,7 +172,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
 }
 {
     const { s, decoy, blocker } = setupBlocked("immunity-target")
-    resolveAction(s, "p2", null, { type: "grantBlockerImmunity" })
+    resolveAction(s, "p2", null, { type: "timedEffect", count: 1, duration: "turn", side: "own", filter: { blocking: true }, content: [{ type: "immune" }] })
 
     // 対象選択: field.spirits[0]（囮）ではなくブロック中のスピリットに付くこと
     assert(
@@ -215,7 +215,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
 }
 {
     const { s, blocker } = setupBlocked("immunity-range")
-    resolveAction(s, "p2", null, { type: "grantBlockerImmunity" })
+    resolveAction(s, "p2", null, { type: "timedEffect", count: 1, duration: "turn", side: "own", filter: { blocking: true }, content: [{ type: "immune" }] })
     // 範囲効果（destroyAll）も受けない＝untargetableByOpponent との違い
     resolveAction(s, "p1", null, { type: "destroy", count: 1, all: true, filter: { maxBp: 99999 } })
     assert(
@@ -226,7 +226,7 @@ function setupBlocked(seed: string): { s: GameState; decoy: string; blocker: str
 {
     // 「このターンの間」＝ターン終了でリセットされる
     const { s, blocker } = setupBlocked("immunity-reset")
-    resolveAction(s, "p2", null, { type: "grantBlockerImmunity" })
+    resolveAction(s, "p2", null, { type: "timedEffect", count: 1, duration: "turn", side: "own", filter: { blocking: true }, content: [{ type: "immune" }] })
     assert(
         findSpiritById(s, "p2", blocker)?.immuneToOpponentThisTurn === true,
         "免疫フラグが立つ",
