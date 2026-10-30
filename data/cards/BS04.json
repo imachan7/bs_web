@@ -225,7 +225,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "awaken",
       "excludeSelf": true
@@ -672,7 +672,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": "翼竜",
       "excludeSelf": true
@@ -1569,7 +1569,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -1926,7 +1927,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -2144,7 +2146,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2209,7 +2212,8 @@
     },
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2589,7 +2593,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -4399,7 +4404,8 @@
      "lastFunsaiHasNexus": true
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -5481,7 +5487,8 @@
      "古竜"
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -5990,7 +5997,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "count": 3,
      "filter": {
       "family": [

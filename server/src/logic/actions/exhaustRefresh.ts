@@ -653,7 +653,7 @@ function exhaustSpiritsOfColor(ctx: ActionCtx, chosen: Color, side?: "opponent")
     )
 }
 
-// refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
+// refresh の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
 // pay の then で使う既定経路のみ）。pay の checker（pay.ts）とこのハンドラで共有する
 export function refreshOneOwnCandidates(
     state: GameState,
@@ -749,7 +749,7 @@ const heavyExhaustHandler: ActionHandler<"heavyExhaust"> = (ctx, action) => {
     for (const target of ordered.slice(0, count)) apply(target)
 }
 
-const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
+const refreshOneHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type: "refresh" }>): void => {
     const { state, owner, self, sourceName , srcType, targetInstanceId } = ctx
         // countCounter：解決時点の数で count を決める（0体なら何もしない）
         if (action.countCounter !== undefined) {
@@ -898,7 +898,7 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         return
 }
 
-// BS15共通器：refreshOne.thenLevelUpThisTurn用（BS15-084爆砕轟神掌）。levelUpThisTurnと同じ計算
+// BS15共通器：refresh.thenLevelUpThisTurn用（BS15-084爆砕轟神掌）。levelUpThisTurnと同じ計算
 function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     const maxLevel = getCard(target.cardId).levels.reduce((max, lv) => Math.max(max, lv.level), 0)
     const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
@@ -954,7 +954,7 @@ const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, a
         return
 }
 
-const refreshSelfHandler: ActionHandler<"refreshSelf"> = (ctx, action) => {
+const refreshSelfHandler = (ctx: ActionCtx): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 「相手だけ破壊したとき、このスピリットは回復する」等のバトル勝利時効果
         if (!self) {
@@ -1014,11 +1014,10 @@ const exhaustOwnNexusesHandler: ActionHandler<"exhaustOwnNexuses"> = (ctx, actio
 const handlers = {
     exhaustOwnNexuses: exhaustOwnNexusesHandler,
     exhaust: exhaustHandler,
-    refreshOne: refreshOneHandler,
+    refresh: (ctx, action) => (action.target === "self" ? refreshSelfHandler(ctx) : refreshOneHandler(ctx, action)),
     refreshOwnNexus: refreshOwnNexusHandler,
     heavyExhaust: heavyExhaustHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
-    refreshSelf: refreshSelfHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

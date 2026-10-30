@@ -636,7 +636,7 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, actio
     }
     // 効果文は「相手のスピリット2体を**指定する**」なので、2体とも持ち主が選ぶ（2026-08-24）。
     // choosing が付いているときだけ targetInstanceId を選択結果として読む
-    // （素の targetInstanceId は誘発が渡すイベント対象。part230 の refreshOne で踏んだのと同じ罠）
+    // （素の targetInstanceId は誘発が渡すイベント対象。part230 の refresh で踏んだのと同じ罠）
     if (action.choosing && targetInstanceId !== undefined) {
         const picked = candidates.find((s) => s.instanceId === targetInstanceId)
         if (!picked) {

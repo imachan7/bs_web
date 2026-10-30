@@ -259,7 +259,7 @@
           "targetMaxCostOfEventTarget": 4
         },
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "filter": {
             "keyword": "tensho"
           }
@@ -545,7 +545,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }
@@ -704,7 +705,7 @@
         "action": {
           "type": "pay",
           "cost": {"type": "exhaust", "side": "own", "nexusOnly": true, "count": 1},
-          "then": {"type": "refreshSelf"},
+          "then": {"type": "refresh", "target": "self"},
           "limitByKeyword": "kyoshu"
         }
       },

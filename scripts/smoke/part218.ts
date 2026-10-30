@@ -42,7 +42,7 @@ console.log("=== 実対戦：どのネクサスを疲労させるか聞かれる
     const spirit = s.players.p1.field.spirits[0]
     assert(spirit !== undefined, "【強襲】持ちが場にいる")
     if (spirit !== undefined) {
-        resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
+        resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refresh", target: "self" }, limitByKeyword: "kyoshu" })
         answerPayConfirm(s, "p1")
         assert(s.pendingChoice !== null, "疲労させるネクサスを聞かれる")
         assert(s.pendingChoice?.kind === "target", "盤面の個体から選ぶ")
@@ -70,7 +70,7 @@ console.log("=== 候補が1つなら聞かない ===")
     s.players.p1.field.nexuses = only !== undefined ? [only] : []
     const spirit = s.players.p1.field.spirits[0]
     if (spirit !== undefined && only !== undefined) {
-        resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
+        resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refresh", target: "self" }, limitByKeyword: "kyoshu" })
         answerPayConfirm(s, "p1")
         assert(s.pendingChoice === null, "1つしかないので聞かれない")
         assert(only.isRested && !spirit.isRested, "そのネクサスが疲労して回復した")
@@ -82,7 +82,7 @@ console.log("=== 非対話（テスト）は従来どおりコア数最少を自
     const s = setup(false)
     const spirit = s.players.p1.field.spirits[0]
     if (spirit !== undefined) {
-        resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
+        resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refresh", target: "self" }, limitByKeyword: "kyoshu" })
         assert(s.pendingChoice === null, "選択待ちにならない")
         const light = s.players.p1.field.nexuses.find((n) => n.cardId === NEXUS_A)
         assert(light !== undefined && light.isRested, "コア数最少のネクサスが疲労した")

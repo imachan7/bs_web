@@ -51,7 +51,7 @@ for (const withGrimoire of [true, false]) {
     if (withGrimoire) s.players.p1.field.nexuses.push(createInstance(GRIMOIRE, s.turn, 0))
     const mine = put(s, "p1", VANILLA2, 1, true)
     const theirs = put(s, "p2", VANILLA2, 1, true)
-    resolveAction(s, "p1", null, { type: "refreshOne", all: true, anySide: true, filter: { cost: { min: 2, max: 2 } } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "refresh", all: true, anySide: true, filter: { cost: { min: 2, max: 2 } } }, undefined, undefined, "magic")
     if (withGrimoire) assert(!mine.isRested && theirs.isRested, "魔導書の持ち主側だけ回復し、相手側は疲労のまま")
     else assert(!mine.isRested && !theirs.isRested, "対照：魔導書が無ければ両陣営が回復する")
 }

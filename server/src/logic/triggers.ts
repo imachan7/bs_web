@@ -523,7 +523,7 @@ export function fireTrigger(
     // （2026-08-25 に実カードで発覚。coverage:effects が「一度も適用されていない」と報告した）。
     //
     // **self はホストのまま**にする：合体スピリットは1体なので、効果文の「このスピリット」は
-    // 合体スピリット＝ホスト側の個体を指す（refreshSelf・selfBuff などが正しく当たる）。
+    // 合体スピリット＝ホスト側の個体を指す（refresh{target:"self"}・selfBuff などが正しく当たる）。
     // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
     const entries: { effect: EffectDef; src: CardInstance }[] = [
         ...card.effects.map((e) => ({ effect: e, src: selfInstance })),

@@ -64,7 +64,7 @@ console.log("=== BS09-033 槍戦騎ガウト：黄のスピリット3体を回�
     refreshLevelAsOverrides(s)
     for (const y of yellows) y.isRested = true
     white.isRested = true
-    resolveAction(s, "p1", null, { type: "refreshOne", filter: { color: "yellow" }, count: 3 })
+    resolveAction(s, "p1", null, { type: "refresh", filter: { color: "yellow" }, count: 3 })
     assert(yellows.filter((y) => !y.isRested).length === 3, "黄のスピリットがちょうど3体回復する")
     assert(white.isRested, "黄でないスピリットは回復しない")
 }
@@ -134,7 +134,7 @@ console.log("=== BS09-076 エマージェンシー：回復させるが【転召
     refreshLevelAsOverrides(s)
     tensho.isRested = true
     plain.isRested = true
-    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", filter: { keywordExclude: "tensho" }, content: [{ type: "cantAttack" }] }] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refresh", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", filter: { keywordExclude: "tensho" }, content: [{ type: "cantAttack" }] }] })
     assert(!tensho.isRested && !plain.isRested, "どちらも回復する")
     assert(!cantActByTimed(s, tensho), "【転召】持ちはアタックできる")
     assert(cantActByTimed(s, plain), "【転召】を持たない個体はアタックできない")

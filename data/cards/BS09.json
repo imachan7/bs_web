@@ -1439,7 +1439,8 @@
         ],
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -1868,7 +1869,8 @@
         ],
         "optional": false,
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       },
       {
@@ -1978,7 +1980,7 @@
         "phase": "attack",
         "turn": "opponent",
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "filter": {
             "color": "yellow"
           }
@@ -2248,7 +2250,7 @@
         "phase": "attack",
         "turn": "opponent",
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "filter": {
             "color": "yellow"
           },
@@ -3537,7 +3539,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }
@@ -3695,7 +3698,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }
@@ -4158,7 +4162,7 @@
           2
         ],
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "all": true,
           "filter": {
             "family": [
@@ -4909,7 +4913,8 @@
         ],
         "lentOnly": true,
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -4940,7 +4945,7 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "all": true,
           "filter": {
             "keyword": "bofu"
@@ -4972,7 +4977,7 @@
         "id": "BS09-076-e1",
         "kind": "magic",
         "timing": "flash",
-        "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"keywordExclude": "tensho"}, "content": [{"type": "cantAttack"}]}]}
+        "action": {"type": "sequence", "actions": [{"type": "refresh", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"keywordExclude": "tensho"}, "content": [{"type": "cantAttack"}]}]}
       }
     ]
   },
@@ -5613,7 +5618,7 @@
         ],
         "optional": false,
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "filter": {
             "cost": {
               "max": 8
@@ -5779,7 +5784,8 @@
         ],
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       },
       {
@@ -5792,7 +5798,8 @@
         ],
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       },
       {

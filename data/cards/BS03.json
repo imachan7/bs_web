@@ -1532,7 +1532,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2183,7 +2184,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": "巨獣"
      }
@@ -2644,7 +2645,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -2691,7 +2693,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     },
     "optional": false
    }
@@ -3330,7 +3332,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "kobo"
      }
@@ -4453,7 +4455,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -6063,7 +6066,7 @@
      1
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "vanilla": true
      }
@@ -6078,7 +6081,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "vanilla": true
      },
@@ -6347,7 +6350,7 @@
     "turn": "own",
     "colorFilter": "yellow",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": "四道"
      }
@@ -7157,7 +7160,7 @@
     "id": "e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refreshOne", "count": 3, "filter": {"declared": "match"}}}
+    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refresh", "count": 3, "filter": {"declared": "match"}}}
    }
   ]
  },
@@ -8228,7 +8231,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "anySide": true,
      "filter": {

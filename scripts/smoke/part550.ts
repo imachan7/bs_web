@@ -56,7 +56,7 @@ console.log("=== 3. 指定した1体への回復＋BP+（同じ個体） ===")
     a.isRested = true
     b.isRested = true
     s.players.p1.field.spirits.push(a, b)
-    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", side: "own", count: 1 }, { type: "refreshOne", filter: { lastBpBuffTarget: true } }] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "timedEffect", content: [{ type: "bp", amount: 2000 }], duration: "turn", side: "own", count: 1 }, { type: "refresh", filter: { lastBpBuffTarget: true } }] })
     const refreshed = [a, b].filter((x) => !x.isRested)
     assert(refreshed.length === 1, "回復したのは1体だけ")
     assert(s.lastBpBuffTargetId === refreshed[0]!.instanceId, "BP+した個体と回復した個体が同じ")

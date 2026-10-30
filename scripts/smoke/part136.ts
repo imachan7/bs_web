@@ -74,7 +74,7 @@ console.log("=== 【強襲】の器：ネクサス1つを疲労させて自身�
     const spirit = put(s, "p1", "BS06-036", 1)
     const nexus = putNexus(s, "p1", "BS06-080", 0)
     spirit.isRested = true
-    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refresh", target: "self" }, limitByKeyword: "kyoshu" })
     assert(spirit.isRested === true, "【強襲】を持たないスピリットは回復しない")
     assert(nexus.isRested === false, "ネクサスも疲労しない")
 }

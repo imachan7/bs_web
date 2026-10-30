@@ -185,7 +185,7 @@ console.log("=== BS07 緑：【暴風：1】を持つ自分のスピリットだ
     a.isRested = true
     b.isRested = true
     resolveAction(s, "p1", src, {
-        type: "refreshOne",
+        type: "refresh",
         all: true,
         filter: { keyword: keyword as never, keywordCount: wantCount },
     })

@@ -54,9 +54,9 @@ function discardPayable(state: GameState, owner: PlayerId, action: Extract<Effec
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "draw", "discard", "setBurstFromHand", "timedEffect",
-    "destroy", "return", "coreRemove", "removeCores", "refreshSelf",
+    "destroy", "return", "coreRemove", "removeCores", "refresh",
     "exhaust",
-    "refreshOne", "placeCores", "summon",
+    "placeCores", "summon",
     "moveCards", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
@@ -169,7 +169,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const need = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count
         return achievable >= need
     },
-    refreshSelf: (_state, _owner, self) => self !== null && self.isRested,
     treatAsUnblocked: (state) => (state.battle?.blockerInstanceId ?? null) !== null,
     // exhaust：target:"self"（発生源自身が回復状態か）／side:"own"（自分の場に条件に合う回復状態の個体がcount体以上いるか）
     exhaust: (state, owner, self, action, _srcColors, srcType) => {
@@ -212,7 +211,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         return state.players[targetPid].deck.length >= count && millAllowed(state, { pid: targetPid, count, actorPid: owner, sourceType: srcType }) >= count
     },
-    // refreshOne：条件に合う疲労状態の自分のスピリットが1体以上（exhaustRefresh.ts の既定経路のみ。
+    // refresh：条件に合う疲労状態の自分のスピリットが1体以上（exhaustRefresh.ts の既定経路のみ。
     // eventTargetOnly／all／anySide を pay の then に書くケースは想定しない）
     // heavyExhaust：重疲労させられる相手のスピリット（重疲労でない・絞り込みに合う・耐性で弾かれない）が1体以上いるか
     heavyExhaust: (state, owner, self, action, srcColors, srcType) => {
@@ -223,8 +222,9 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const opp = opponentOf(owner)
         return pickEnemyCandidates(state, opp, Infinity, (s) => !s.heavyRested && matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "exhaust").length >= 1
     },
-    refreshOne: (state, owner, self, action, _srcColors, _srcType, eventTarget) => {
-        if (action.type !== "refreshOne") return false
+    refresh: (state, owner, self, action, _srcColors, _srcType, eventTarget) => {
+        if (action.type !== "refresh") return false
+        if (action.target === "self") return self !== null && self.isRested
         if (action.eventTargetOnly) {
             return eventTarget !== undefined && state.players[owner].field.spirits.some((s) => s.instanceId === eventTarget && s.isRested)
         }
@@ -361,8 +361,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     coreRemove: "取り除けるコアが足りない",
     removeCores: "移せるコアが足りない",
     placeCores: "置けるコアが足りない",
-    refreshSelf: "回復させる対象がいない",
-    refreshOne: "回復させる対象がいない",
+    refresh: "回復させる対象がいない",
     heavyExhaust: "重疲労させる対象がいない",
     summon: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",

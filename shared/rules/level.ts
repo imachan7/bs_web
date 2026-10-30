@@ -302,7 +302,7 @@ export function nexusEffectsDisabledFor(
 }
 
 // このインスタンスがターン限定の仮想発生源（マジックが貸した継続効果）かどうか。
-// 仮想発生源は場に実在しないため、self参照アクション（refreshSelf等）やaura target:"self"の対象にしてはいけない
+// 仮想発生源は場に実在しないため、self参照アクション（refresh{target:"self"}等）やaura target:"self"の対象にしてはいけない
 // （TURN_EFFECT_SOURCES.md §4.1）
 export function isVirtualSource(inst: CardInstance): boolean {
     return inst.instanceId.startsWith("virtual-")

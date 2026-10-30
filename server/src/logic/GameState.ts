@@ -563,7 +563,7 @@ export function draw(state: GameState, pid: PlayerId, count: number, fromDrawSte
     // フィールドイベント誘発「相手がドローしたとき」：ドローしたpidの相手側（opponentOf(pid)）の
     // フィールドから発火する（シダフクロウ＝「相手がドローするとき、このスピリットは回復する」）。
     // 注意（無限ループ）: ここで発火するactionがdrawを含むカードがあると、
-    // draw→誘発→draw→…と再帰する恐れがある。現対象カード（シダフクロウ）はrefreshSelfのみのため
+    // draw→誘発→draw→…と再帰する恐れがある。現対象カード（シダフクロウ）は refresh{target:"self"} のみのため
     // 安全。将来opponentDrewにdrawを組み合わせる場合は無限再帰が起きないか設計時に確認すること。
     // 対戦開始時の初期手札はdeck.spliceで直接配られdraw()を経由しないため、
     // フィールド未初期化での呼び出しは発生しない（createPlayerがfield.spirits/nexusesを

@@ -1428,7 +1428,7 @@
     "turn": "opponent",
     "repeatPerCount": true,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": "剣獣"
      }
@@ -1711,7 +1711,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    },
@@ -3084,7 +3085,8 @@
       }
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     },
     "optional": true
@@ -3492,7 +3494,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -4173,7 +4176,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": [
        "殻虫",
@@ -5494,7 +5497,7 @@
      "action": {
       "type": "pay",
       "cost": {"type": "exhaust", "side": "own", "nexusOnly": true, "count": 1},
-      "then": {"type": "refreshSelf"},
+      "then": {"type": "refresh", "target": "self"},
       "limitByKeyword": "kyoshu"
      }
     }
@@ -5807,7 +5810,8 @@
       "leaveAtLeast": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    }
@@ -5914,7 +5918,8 @@
     "excludeSelfAsEventTarget": true,
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -6128,7 +6133,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }

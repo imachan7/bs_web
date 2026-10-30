@@ -1002,7 +1002,8 @@
         ],
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]

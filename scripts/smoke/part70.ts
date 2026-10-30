@@ -218,7 +218,7 @@ console.log("=== vanillaFilter 軸: 効果を持たないカードだけ回復�
     const eId = putOwn(s, withEffect.cardId, 1)
     for (const x of s.players.p1.field.spirits) x.isRested = true
 
-    resolveAction(s, "p1", null, { type: "refreshOne", filter: { vanilla: true } })
+    resolveAction(s, "p1", null, { type: "refresh", filter: { vanilla: true } })
     const find = (id: string) => s.players.p1.field.spirits.find((x) => x.instanceId === id)!
     assert(!find(vId).isRested, "バニラが回復する")
     assert(find(eId).isRested, "効果持ちは疲労のまま")
@@ -232,7 +232,7 @@ console.log("=== all 軸: 条件を満たすものを全部（BS03-108 Lv2 の r
     putOwn(s, "BS01-025", 1) // 効果持ち
     for (const x of s.players.p1.field.spirits) x.isRested = true
 
-    resolveAction(s, "p1", null, { type: "refreshOne", filter: { vanilla: true }, all: true })
+    resolveAction(s, "p1", null, { type: "refresh", filter: { vanilla: true }, all: true })
     const rested = s.players.p1.field.spirits.filter((x) => x.isRested)
     assert(rested.length === 1, `all 指定でバニラ2体がまとめて回復する（疲労のまま残るのは1体）`)
     assert(getCard(rested[0]!.cardId).effect !== "", "残ったのは効果持ちのほう")

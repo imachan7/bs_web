@@ -2300,7 +2300,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -3444,7 +3445,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "color": "yellow"
      }
@@ -4449,7 +4450,7 @@
      1
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "awaken"
      }
@@ -4464,7 +4465,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "awaken"
      },
@@ -5810,7 +5811,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     }
    }
   ]
@@ -5987,7 +5988,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "anySide": true,
      "filter": {
@@ -6453,7 +6454,8 @@
       }
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    }

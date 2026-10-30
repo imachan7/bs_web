@@ -70,7 +70,7 @@ console.log("=== BS03-129 フロックリカバリー：回復させる系統を
     const treant = put(s, "p1", "BS01-054", 1) // ショックイーター（樹魔）
     for (const sp of [beetle1, beetle2, treant]) sp.isRested = true
 
-    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refreshOne", count: 3, filter: { declared: "match" } } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refresh", count: 3, filter: { declared: "match" } } }, undefined, undefined, "magic")
     assert(s.pendingChoice?.kind === "option", "系統の選択待ちが立つ")
     const opts = s.pendingChoice?.options ?? []
     assert(opts.includes("殻虫") && opts.includes("樹魔"), "疲労中のスピリットが持つ系統が選択肢になる")
@@ -88,7 +88,7 @@ console.log("--- 非対話時は従来どおり最多の系統を自動選択 --
     const treant = put(s, "p1", "BS01-054", 1)
     for (const sp of [beetle1, beetle2, treant]) sp.isRested = true
 
-    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refreshOne", count: 3, filter: { declared: "match" } } }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "declare", what: "family", from: "spirits", then: { type: "refresh", count: 3, filter: { declared: "match" } } }, undefined, undefined, "magic")
     assert(s.pendingChoice === null, "選択待ちは立たない")
     assert(!beetle1.isRested && !beetle2.isRested, "最多の殻虫が自動で選ばれる")
     assert(treant.isRested, "樹魔は回復しない")

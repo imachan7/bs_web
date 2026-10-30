@@ -481,7 +481,8 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         },
         "optional": false
       }
@@ -672,7 +673,8 @@
         "turn": "opponent",
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -1104,7 +1106,7 @@
         "action": {
           "type": "pay",
           "cost": {"type": "exhaust", "side": "own", "nexusOnly": true, "count": 1},
-          "then": {"type": "refreshSelf"},
+          "then": {"type": "refresh", "target": "self"},
           "limitByKeyword": "kyoshu"
         }
       }
@@ -1637,7 +1639,7 @@
         "oncePerTurn": true,
         "onceScope": "name",
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "all": true,
           "filter": {
             "keyword": "clash"
@@ -4255,7 +4257,8 @@
           2
         ],
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -4690,7 +4693,7 @@
         "subjectSide": "opponent",
         "selfMode": "source",
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "all": true,
           "filter": {
             "vanilla": true
@@ -5033,7 +5036,8 @@
         "subjectSide": "opponent",
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       },
       {
@@ -6321,7 +6325,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }
@@ -6548,7 +6553,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }

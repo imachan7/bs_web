@@ -206,7 +206,7 @@
     "optional": false,
     "action": {
      "type": "atTurnEnd",
-     "action": {"type": "refreshOne", "all": true}
+     "action": {"type": "refresh", "all": true}
     }
    },
    {
@@ -725,7 +725,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -936,7 +937,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": [
        "機獣"

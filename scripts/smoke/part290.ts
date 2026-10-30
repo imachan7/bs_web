@@ -113,7 +113,7 @@ console.log("=== I: CardInstance.noRefreshUntilOwnEndSteps（疲労させた個�
     resolveAction(s, "p1", null, { type: "exhaust", count: 1, noRefreshUntilOwnEndSteps: 2 })
     assert(target.isRested, "疲労させた")
     assert(target.noRefreshUntilOwnEndSteps === 2, "残り回数2が立つ")
-    resolveAction(s, "p2", target, { type: "refreshSelf" })
+    resolveAction(s, "p2", target, { type: "refresh", target: "self" })
     assert(target.isRested, "残り回数がある間は効果でも回復しない")
     endTurn(s) // p1のエンドステップ（持ち主p2ではないので減らない）
     assert(target.noRefreshUntilOwnEndSteps === 2, "持ち主でないエンドステップでは減らない")
@@ -123,7 +123,7 @@ console.log("=== I: CardInstance.noRefreshUntilOwnEndSteps（疲労させた個�
     endTurn(s) // p2のエンドステップ：0になる
     assert((target.noRefreshUntilOwnEndSteps ?? 0) === 0, "残り回数が0になった")
     target.isRested = true
-    resolveAction(s, "p2", target, { type: "refreshSelf" })
+    resolveAction(s, "p2", target, { type: "refresh", target: "self" })
     assert(!target.isRested, "0になれば通常どおり回復できる")
 }
 

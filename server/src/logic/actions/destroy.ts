@@ -859,7 +859,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
 //
 // 選択の途中経過は action.choosing / action.chosenIds で持ち回る（cards.jsonには書かない）。
 // **choosing が付いているときだけ targetInstanceId を選択結果として読む**
-// （素の targetInstanceId は誘発が渡すイベント対象。part230 の refreshOne で踏んだ罠）。
+// （素の targetInstanceId は誘発が渡すイベント対象。part230 の refresh で踏んだ罠）。
 //
 // 戻り値 false は「トグル選択に載せなかった」＝呼び出し側が従来の自動選択を続ける合図
 

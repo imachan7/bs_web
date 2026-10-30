@@ -222,7 +222,7 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
             keepScope: true,
             actions: [
                 { type: "timedEffect", content: [{ type: "bp", amount: 6000 }], duration: "turn", target: "self" },
-                { type: "if", cond: { last: { cardType: "spirit", family: "光導" } }, then: { type: "refreshSelf" } },
+                { type: "if", cond: { last: { cardType: "spirit", family: "光導" } }, then: { type: "refresh", target: "self" } },
             ],
         },
     })
@@ -250,7 +250,7 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
             keepScope: true,
             actions: [
                 { type: "timedEffect", content: [{ type: "bp", amount: 6000 }], duration: "turn", target: "self" },
-                { type: "if", cond: { last: { cardType: "spirit", family: "光導" } }, then: { type: "refreshSelf" } },
+                { type: "if", cond: { last: { cardType: "spirit", family: "光導" } }, then: { type: "refresh", target: "self" } },
             ],
         },
     })

@@ -137,7 +137,7 @@ console.log("=== 8. pay：cost destroy(side:own) → then refreshSelf ===")
     resolveAction(s, "p1", me, {
         type: "pay",
         cost: { type: "destroy", side: "own", count: 1, filter: { family: ["地竜"], excludeSelf: true } },
-        then: { type: "refreshSelf" },
+        then: { type: "refresh", target: "self" },
     })
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === mate.instanceId), "コストとして自分の別のスピリットが破壊された")
     assert(!me.isRested, "selfが回復した")
@@ -150,7 +150,7 @@ console.log("=== 8. pay：cost destroy(side:own) → then refreshSelf ===")
     resolveAction(s, "p1", me, {
         type: "pay",
         cost: { type: "destroy", side: "own", count: 1, filter: { family: ["地竜"], excludeSelf: true } },
-        then: { type: "refreshSelf" },
+        then: { type: "refresh", target: "self" },
     })
     assert(me.isRested === true, "コストが払えないので発動しなかった")
 }
@@ -162,7 +162,7 @@ console.log("=== 8. pay：cost destroy(side:own) → then refreshSelf ===")
     resolveAction(s, "p1", me, {
         type: "pay",
         cost: { type: "destroy", side: "own", count: 1, filter: { family: ["地竜"], excludeSelf: true } },
-        then: { type: "refreshSelf" },
+        then: { type: "refresh", target: "self" },
     })
     assert(s.players.p1.field.spirits.some((sp) => sp.instanceId === mate.instanceId), "回復状態のためコストも払われなかった")
 }

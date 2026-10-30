@@ -1415,7 +1415,7 @@ function exhaustDeclaredBlocker(
 const KYOSHU_PAY: EffectAction = {
     type: "pay",
     cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 },
-    then: { type: "refreshSelf" },
+    then: { type: "refresh", target: "self" },
     limitByKeyword: "kyoshu",
 }
 

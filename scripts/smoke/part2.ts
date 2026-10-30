@@ -515,17 +515,17 @@ console.log("=== refreshSelf: このスピリットを回復 ===")
     boar.isRested = true
     s.players.p1.field.spirits.push(boar)
 
-    resolveAction(s, "p1", boar, { type: "refreshSelf" })
+    resolveAction(s, "p1", boar, { type: "refresh", target: "self" })
     assert(!boar.isRested, "疲労していた自身が回復する")
 
     // すでに回復状態なら no-op（ログのみ）
     const logLen1 = s.log.length
-    resolveAction(s, "p1", boar, { type: "refreshSelf" })
+    resolveAction(s, "p1", boar, { type: "refresh", target: "self" })
     assert(!boar.isRested && s.log.length === logLen1 + 1, "回復状態へのrefreshSelfはログのみで安全")
 
     // self が null（マジック等）でも安全に no-op
     const logLen2 = s.log.length
-    resolveAction(s, "p1", null, { type: "refreshSelf" })
+    resolveAction(s, "p1", null, { type: "refresh", target: "self" })
     assert(s.log.length === logLen2 + 1, "selfがnullでもログのみで安全")
 }
 

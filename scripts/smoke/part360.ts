@@ -51,7 +51,7 @@ const snapshot = (s: GameState): string =>
 console.log("=== 2. keywordCount：付与や別の指定数の暴風は対象外 ===")
 {
     const { s, self } = board()
-    resolveAction(s, "p1", self, { type: "refreshOne", all: true, filter: { keyword: "bofu", keywordCount: 1 } }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", self, { type: "refresh", all: true, filter: { keyword: "bofu", keywordCount: 1 } }, undefined, undefined, "spirit")
     const bofu1 = s.players.p1.field.spirits[1]!
     const bofu2 = s.players.p1.field.spirits[2]!
     assert(!bofu1.isRested && bofu2.isRested, "【暴風：1】だけ回復し、【暴風：2】は疲労のまま")

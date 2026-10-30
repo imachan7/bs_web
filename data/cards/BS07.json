@@ -1304,7 +1304,8 @@
      "battleLoserMaxCost": 3
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -1710,7 +1711,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "keyword": "bofu",
@@ -1853,7 +1854,8 @@
     "winnerNameContains": "巨神機トール",
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -1868,7 +1870,8 @@
     "winnerNameContains": "鎧神機ヴァルハランス",
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2757,7 +2760,8 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -2982,7 +2986,8 @@
      "targetNotMaxLevel": true
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -3363,7 +3368,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -3434,7 +3440,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -3621,7 +3628,7 @@
     "action": {
      "type": "pay",
      "cost": {"type": "exhaust", "side": "own", "nexusOnly": true, "count": 1},
-     "then": {"type": "refreshSelf"},
+     "then": {"type": "refresh", "target": "self"},
      "limitByKeyword": "kyoshu"
     }
    }
@@ -4051,7 +4058,8 @@
     "role": "any",
     "winnerFamilyFilter": "剣獣",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -4104,7 +4112,7 @@
     },
     "selfMode": "source",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "family": "機獣"
@@ -5013,7 +5021,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": "武装"
      }
@@ -5773,7 +5781,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }

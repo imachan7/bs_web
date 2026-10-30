@@ -2859,7 +2859,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -3518,7 +3519,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -4370,7 +4372,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     },
     "optional": false
    }
@@ -5050,7 +5052,7 @@
     "levels": [
      2
     ],
-    "action": {"type": "refreshOne", "all": true}
+    "action": {"type": "refresh", "all": true}
    }
   ]
  },
@@ -5159,7 +5161,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -5170,7 +5173,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -5218,7 +5222,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "soku"
      }
@@ -6494,7 +6498,7 @@
     "id": "BS01-142-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "content": [{"type": "cantAttack"}]}]}
+    "action": {"type": "sequence", "actions": [{"type": "refresh", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },
