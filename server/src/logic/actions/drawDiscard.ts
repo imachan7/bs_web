@@ -1,4 +1,5 @@
 // ドローと手札破棄アクションのハンドラ（noop を含む）
+import { discardFromDeck } from "./mill"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { EffectAction, GameState, PlayerId } from "../../type"
 import { draw, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -55,7 +56,7 @@ const drawHandler: ActionHandler<"draw"> = (ctx, action) => {
         return
 }
 
-type DiscardAction = Extract<EffectAction, { type: "discard" }>
+type DiscardAction = Extract<EffectAction, { type: "discard"; from: "hand" | "burst" | "tegamoto" }>
 
 // side:"both" は自分→相手の順に各自が自分で選ぶ。自分側が選択待ちに入ったら相手側は再開スタックへ回す
 // （外側から積むので、自分の残り枚数のフレームより後に実行される）
@@ -104,6 +105,7 @@ function discardTegamotoOf(state: GameState, pid: PlayerId, sourceName: string):
 }
 
 const discardHandler: ActionHandler<"discard"> = (ctx, action) => {
+    if (action.from === "deck") return discardFromDeck(ctx, action)
     const { state, owner, opp, self, srcType, srcColors, sourceName } = ctx
     // countCounter は枚数に直してから入り直す（side:"both" の各自にも同じ枚数）
     if (action.countCounter !== undefined) {

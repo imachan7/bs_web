@@ -239,7 +239,7 @@ console.log("=== BS05-076 エターナルシールド：実際にcastMagicで使
     )
 
     // 相手(p1)の効果でp2のデッキを10枚破棄しようとする → millCapで5枚に制限される
-    resolveAction(s, "p1", null, { type: "mill", count: 10 })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 10 })
     assert(
         s.players.p2.deck.length === deckBefore - 5,
         "相手の効果によるミルは5枚に制限される（10枚破棄しようとしても5枚のみ）",
@@ -247,7 +247,7 @@ console.log("=== BS05-076 エターナルシールド：実際にcastMagicで使
 
     // 自分自身によるミルは制限されない（actorPid===pidのため対象外）
     const deckBefore2 = s.players.p2.deck.length
-    resolveAction(s, "p2", null, { type: "mill", count: 10, side: "own" })
+    resolveAction(s, "p2", null, { type: "discard", from: "deck", count: 10, side: "own" })
     assert(
         s.players.p2.deck.length === deckBefore2 - 10,
         "自分自身の効果によるミルはmillCapの対象外（10枚とも破棄される）",
@@ -260,7 +260,7 @@ console.log("=== BS05-076 エターナルシールド：実際にcastMagicで使
 
     const deckBefore3 = s.players.p2.deck.length
     assert(deckBefore3 >= 10, "テスト前提：まだ十分な枚数が残っている")
-    resolveAction(s, "p1", null, { type: "mill", count: 10 })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 10 })
     assert(
         s.players.p2.deck.length === deckBefore3 - 10,
         "ターン終了で貸与が消え、相手の効果によるミルは制限なく10枚破棄される",

@@ -37,11 +37,25 @@ import { newRecordScope, withMovedProbe } from "../record"
 import { matchesPick } from "./revealAction"
 import { soulCoreToTrashPossible } from "../soulCore"
 
+// 手札・バースト・手元の破棄が払えるか（判定表の discard から呼ぶ）
+function discardPayable(state: GameState, owner: PlayerId, action: Extract<EffectAction, { type: "discard"; from: "hand" | "burst" | "tegamoto" }>): boolean {
+    const pids: PlayerId[] =
+        action.side === "both" ? [owner, opponentOf(owner)] : [action.forcedTargetPid ?? (action.side === "own" ? owner : opponentOf(owner))]
+    return pids.every((pid) => {
+        const p = state.players[pid]
+        if (action.from === "burst") return p.burst !== null
+        if (action.from === "tegamoto") return p.tegamoto.length >= 1
+        if (action.count === "all") return p.hand.length >= 1 && canDiscardHand(state, pid)
+        const n = action.cardTypeFilter ? p.hand.filter((id) => getCard(id).type === action.cardTypeFilter).length : p.hand.length
+        return n >= (action.count ?? 1)
+    })
+}
+
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "draw", "discard", "setBurstFromHand", "timedEffect",
     "destroy", "return", "coreRemove", "removeCores", "refreshSelf",
-    "exhaust", "mill",
+    "exhaust",
     "refreshOne", "placeCores", "summon",
     "moveCards", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
@@ -184,9 +198,10 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const opp = opponentOf(owner)
         return state.players[opp].field.spirits.filter((s) => !s.isRested && matchesTarget(state, opp, s, filter, self?.instanceId)).length >= need
     },
-    // mill：side（既定opponent）側のデッキがcount枚（countCounterがあれば数えた値）以上あるか
-    mill: (state, owner, self, action, _srcColors, srcType) => {
-        if (action.type !== "mill") return false
+    // discard：from ごとに「破棄できるものがあるか」（COST_MODEL §1。手札が0枚なら不発）。デッキは side 側に count 枚（countCounter があれば数えた値）以上あり、止められていないか
+    discard: (state, owner, self, action, _srcColors, srcType) => {
+        if (action.type !== "discard") return false
+        if (action.from !== "deck") return discardPayable(state, owner, action)
         const count =
             action.countCounter !== undefined
                 ? countedAmount(
@@ -196,20 +211,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
                 : action.count
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         return state.players[targetPid].deck.length >= count && millAllowed(state, { pid: targetPid, count, actorPid: owner, sourceType: srcType }) >= count
-    },
-    // discard：from ごとに「破棄できるものがあるか」（COST_MODEL §1。手札が0枚なら不発）
-    discard: (state, owner, _self, action) => {
-        if (action.type !== "discard") return false
-        const pids: PlayerId[] =
-            action.side === "both" ? [owner, opponentOf(owner)] : [action.forcedTargetPid ?? (action.side === "own" ? owner : opponentOf(owner))]
-        return pids.every((pid) => {
-            const p = state.players[pid]
-            if (action.from === "burst") return p.burst !== null
-            if (action.from === "tegamoto") return p.tegamoto.length >= 1
-            if (action.count === "all") return p.hand.length >= 1 && canDiscardHand(state, pid)
-            const n = action.cardTypeFilter ? p.hand.filter((id) => getCard(id).type === action.cardTypeFilter).length : p.hand.length
-            return n >= (action.count ?? 1)
-        })
     },
     // refreshOne：条件に合う疲労状態の自分のスピリットが1体以上（exhaustRefresh.ts の既定経路のみ。
     // eventTargetOnly／all／anySide を pay の then に書くケースは想定しない）
@@ -347,7 +348,6 @@ export const canPayResolve = (
 const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     toTegamoto: "手札に手元へ置けるカードがない",
     draw: "ドローできるデッキの枚数がない",
-    mill: "デッキの枚数が足りない",
     discard: "破棄できるカードが足りない",
     setBurstFromHand: "手札にセットできるバーストがない",
     peekOpponentHand: "相手の手札がない",

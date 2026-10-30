@@ -4010,7 +4010,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1
     },
     "optional": false
@@ -4722,7 +4724,9 @@
      3
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1,
      "countCounter": "selfCoresAtDestruction"
     },
@@ -5314,7 +5318,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 5
     },
     "optional": false
@@ -6563,7 +6569,9 @@
     "phase": "main",
     "repeatPerCount": true,
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1
     }
    },
@@ -6578,7 +6586,9 @@
     "byBattleOnly": true,
     "familyFilter": "勇傑",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 5
     }
    }
@@ -7882,7 +7892,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 5
     }
    }
@@ -8459,7 +8471,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 10
     },
     "optional": false
@@ -8473,7 +8487,9 @@
     ],
     "battleRole": "attacker",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 10
     },
     "optional": false

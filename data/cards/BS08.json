@@ -889,7 +889,7 @@
      2
     ],
     "optional": true,
-    "action": {"type": "sequence", "actions": [{"type": "mill", "count": 6, "side": "own", "until": {"cardType": "spirit", "family": "虚神"}}, {"type": "takeLast", "pick": {"cardType": "spirit", "family": "虚神"}, "to": "hand"}]}
+    "action": {"type": "sequence", "actions": [{"type": "discard", "from": "deck", "count": 6, "side": "own", "until": {"cardType": "spirit", "family": "虚神"}}, {"type": "takeLast", "pick": {"cardType": "spirit", "family": "虚神"}, "to": "hand"}]}
    }
   ]
  },

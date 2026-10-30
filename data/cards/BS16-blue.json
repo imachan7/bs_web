@@ -636,7 +636,8 @@
           "type": "sequence",
           "actions": [
             {
-              "type": "mill",
+              "type": "discard",
+              "from": "deck",
               "count": 5,
               "side": "own"
             },
@@ -664,7 +665,9 @@
            "count": 1
           },
           "then": {
-            "type": "mill",
+            "type": "discard",
+            "from": "deck",
+            "side": "opponent",
             "count": 1,
             "countCounter": "lastCost"
           }

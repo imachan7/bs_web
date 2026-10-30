@@ -251,7 +251,7 @@ console.log("=== 器AM：BS13-026Lv1「お互いのデッキは、効果では�
     refreshLevelAsOverrides(s)
     s.players.p1.deck = Array.from({ length: 10 }, () => "BS01-001")
 
-    resolveAction(s, "p1", null, { type: "mill", count: 5, side: "own" }) // 自分の効果で自分のデッキを破棄
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 5, side: "own" }) // 自分の効果で自分のデッキを破棄
 
     assert(s.players.p1.trashCards.length === 3, "器AM：自分の効果によるミルでも、ターンに3枚までしか破棄されない")
 }

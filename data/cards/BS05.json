@@ -3027,7 +3027,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 2,
      "countCounter": "ownNexuses",
      "countMax": 6
@@ -3137,7 +3139,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 5
     }
    },
@@ -3155,7 +3159,9 @@
     "granted": {
      "trigger": "onBattleStart",
      "action": {
-      "type": "mill",
+      "type": "discard",
+      "from": "deck",
+      "side": "opponent",
       "count": 5
      }
     }
@@ -4902,7 +4908,7 @@
     "id": "BS05-083-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "sequence", "actions": [{"type": "removeCores", "side": "own", "target": "one", "filter": {"family": "造兵"}, "count": "all", "to": "void"}, {"type": "mill", "count": 1, "countCounter": "lastCost"}]}
+    "action": {"type": "sequence", "actions": [{"type": "removeCores", "side": "own", "target": "one", "filter": {"family": "造兵"}, "count": "all", "to": "void"}, {"type": "discard", "from": "deck", "side": "opponent", "count": 1, "countCounter": "lastCost"}]}
    }
   ]
  },

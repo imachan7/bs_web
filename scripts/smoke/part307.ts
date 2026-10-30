@@ -216,7 +216,7 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
     resolveAction(s, "p1", host, {
         type: "pay",
         confirmed: true,
-        cost: { type: "mill", side: "own", count: 6 },
+        cost: { type: "discard", from: "deck", side: "own", count: 6 },
         then: {
             type: "sequence",
             keepScope: true,
@@ -244,7 +244,7 @@ console.log("=== BS13-060トレス・ベルーガ【合体時】：デッキ上6
     resolveAction(s, "p1", host, {
         type: "pay",
         confirmed: true,
-        cost: { type: "mill", side: "own", count: 6 },
+        cost: { type: "discard", from: "deck", side: "own", count: 6 },
         then: {
             type: "sequence",
             keepScope: true,

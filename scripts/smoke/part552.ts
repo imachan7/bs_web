@@ -59,7 +59,7 @@ console.log("=== 3. 破棄したカードだけを手札に戻す ===")
     s.players.p1.trashCards = ["BS01-001"]
     s.players.p1.deck = ["BS01-002", "BS01-003", "BS01-004"]
     s.players.p1.hand = []
-    resolveAction(s, "p1", null, { type: "mill", count: 2, side: "own" })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 2, side: "own" })
     resolveAction(s, "p1", null, { type: "toHand", from: "trash", count: "all", lastMovedOnly: true })
     assert(s.players.p1.hand.length === 2 && !s.players.p1.hand.includes("BS01-001"), "元からトラッシュにあったカードは戻らない")
 }

@@ -1,7 +1,7 @@
 // デッキ破棄（mill）アクションのハンドラ
-import type { ActionHandler, ActionRegistry } from "./types"
+import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { matchesPick } from "./revealAction"
-import type { CardType, EffectCounter, GameState, PlayerId } from "../../type"
+import type { CardType, EffectAction, EffectCounter, GameState, PlayerId } from "../../type"
 import { getCard, log, opponentOf } from "../GameState"
 import { millCapBonusFor, millDeck, requestCardChoice } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
@@ -11,7 +11,9 @@ import { countedAmount } from "../counted"
 import { currentRecordScope, recordMoved } from "../record"
 import { chimeiBonus } from "../keywords/chimei"
 
-const millHandler: ActionHandler<"mill"> = (ctx, action) => {
+export type DeckDiscard = Extract<EffectAction, { type: "discard"; from: "deck" }>
+
+export function discardFromDeck(ctx: ActionCtx, action: DeckDiscard): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 【地鳴】の破棄（キーワードの定型文が chimei:true を付ける）。ほかの効果が【地鳴】の枚数を参照して破棄しても【地鳴】の破棄ではない
         const chimei = action.chimei === true
@@ -118,7 +120,6 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
 }
 
 const handlers = {
-    mill: millHandler,
     millUntilMagicCastFree: millUntilMagicCastFreeHandler,
 } satisfies Partial<ActionRegistry>
 

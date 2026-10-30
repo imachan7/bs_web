@@ -28,8 +28,8 @@ card.effects = [{ id: "t-nodm", kind: "globalConstraint", levels: [1, 2, 3], con
 try {
     for (const on of [true, false]) {
         const s = game(`mill-${on}`, on)
-        resolveAction(s, "p1", null, { type: "mill", count: 3 }, undefined, undefined, "magic")
-        resolveAction(s, "p1", null, { type: "mill", count: 2, side: "own" }, undefined, undefined, "magic")
+        resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 3 }, undefined, undefined, "magic")
+        resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 2, side: "own" }, undefined, undefined, "magic")
         assert(s.players.p2.trashCards.length === (on ? 0 : 3), `相手のデッキ破棄 ${on ? "止まる" : "対照：通る"}`)
         assert(s.players.p1.trashCards.length === (on ? 0 : 2), `自分のデッキ破棄 ${on ? "止まる（自分の効果も）" : "対照：通る"}`)
     }

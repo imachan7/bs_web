@@ -82,7 +82,7 @@ console.log("=== ペンタン：揃えば払って相手の手札を見る ===")
 
 const SHIYU_ACTION = {
     type: "pay" as const,
-    cost: { type: "mill" as const, side: "own" as const, count: 5 },
+    cost: { type: "discard" as const, from: "deck" as const, side: "own" as const, count: 5 },
     then: {
         type: "sequence" as const,
         actions: [
@@ -138,7 +138,7 @@ console.log("=== シユウ：5枚ならライフ+1、Lv1/Lv2からブロック�
 const CANNON_ARMS_ACTION = {
     type: "sequence" as const,
     actions: [
-        { type: "mill" as const, count: 1 },
+        { type: "discard" as const, from: "deck" as const, side: "opponent" as const, count: 1 },
         {
             type: "timedEffect" as const,
             duration: "battle" as const,

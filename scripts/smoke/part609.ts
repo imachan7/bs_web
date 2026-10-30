@@ -65,11 +65,11 @@ patch(HOLDER, [
     put(s, "p1", HOLDER)
     s.players.p1.deck = [BURST, PLAIN, PLAIN, ...s.players.p1.deck]
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p2", null, { type: "mill", count: 2 })
+    resolveAction(s, "p2", null, { type: "discard", from: "deck", side: "opponent", count: 2 })
     assert(s.players.p1.hand.length === handBefore + 1 && s.players.p1.hand.includes(BURST), "バースト持ちだけ手札に加わる")
     assert(s.players.p1.trashCards.includes(PLAIN) && !s.players.p1.trashCards.includes(BURST), "ほかはトラッシュに残る")
     const deckLen = s.players.p1.deck.length
-    resolveAction(s, "p2", null, { type: "mill", count: 3 })
+    resolveAction(s, "p2", null, { type: "discard", from: "deck", side: "opponent", count: 3 })
     assert(s.players.p1.deck.length === deckLen, "そのターンの間は自分のデッキが破棄されない")
 }
 {
@@ -77,7 +77,7 @@ patch(HOLDER, [
     put(s, "p1", HOLDER)
     s.players.p1.deck = [BURST, PLAIN, ...s.players.p1.deck]
     const handBefore = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "mill", count: 2, side: "own" })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 2, side: "own" })
     assert(s.players.p1.hand.length === handBefore, "自分の効果で破棄したときは誘発しない")
     assert(s.players.p1.trashCards.includes(BURST), "バーストはトラッシュのまま")
 }

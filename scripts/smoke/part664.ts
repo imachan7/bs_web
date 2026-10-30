@@ -365,7 +365,7 @@ console.log("=== 11. デッキ破棄されたとき ===")
     {
         const s = game("milled-plain")
         s.players.p2.deck = ["BS16-002", ...Array.from({ length: 39 }, () => VANILLA)]
-        resolveAction(s, "p1", null, { type: "mill", count: 1 }, undefined, undefined, "magic")
+        resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 1 }, undefined, undefined, "magic")
         assert(s.players.p1.field.spirits.length === 0, "スピリットの効果でなければ（マジックでは）何も壊れない")
     }
 }

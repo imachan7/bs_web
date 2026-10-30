@@ -49,10 +49,10 @@ console.log("=== 2. 量の規則：(count ?? 1) × 値、countMax で頭打ち =
 {
     const { s, self } = board("rule")
     const deck = s.players.p2.deck.length
-    resolveAction(s, "p1", self, { type: "mill", count: 3, countCounter: "opponentHand" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", self, { type: "discard", from: "deck", side: "opponent", count: 3, countCounter: "opponentHand" }, undefined, undefined, "spirit")
     assert(s.players.p2.deck.length === deck - 12, "count:3 × 相手の手札4枚＝12枚破棄")
     const r2 = board("rule2")
-    resolveAction(r2.s, "p1", r2.self, { type: "mill", count: 3, countCounter: "opponentHand", countMax: 5 }, undefined, undefined, "spirit")
+    resolveAction(r2.s, "p1", r2.self, { type: "discard", from: "deck", side: "opponent", count: 3, countCounter: "opponentHand", countMax: 5 }, undefined, undefined, "spirit")
     assert(r2.s.players.p2.deck.length === 40 - 5, "countMax:5 で5枚に頭打ち")
     const r3 = board("rule3")
     const hand = r3.s.players.p1.hand.length

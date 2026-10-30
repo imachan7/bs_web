@@ -216,7 +216,7 @@ console.log("=== 器BF：BS13-058【合体時】（このバトルの間、Lv1/L
     const lifeBefore = s.players.p1.life
     resolveAction(s, "p1", host, {
         type: "pay",
-        cost: { type: "mill", side: "own", count: 5 },
+        cost: { type: "discard", from: "deck", side: "own", count: 5 },
         then: {
             type: "sequence",
             actions: [

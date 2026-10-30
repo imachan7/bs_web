@@ -5331,7 +5331,8 @@
     "action": {
      "type": "pay",
      "cost": {
-      "type": "mill",
+      "type": "discard",
+      "from": "deck",
       "side": "own",
       "count": 5
      },
@@ -6326,7 +6327,9 @@
     "ownOnly": true,
     "familyFilter": "闘神",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 2,
      "countCounter": {
       "ownNexusNameIncludes": "古代戦艦"
@@ -6344,7 +6347,9 @@
     "phase": "attack",
     "familyFilter": "闘神",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 2,
      "countCounter": {
       "ownNexusNameIncludes": "古代戦艦"
@@ -6581,7 +6586,7 @@
     "levels": null,
     "whileCombined": true,
     "optional": true,
-    "action": {"type": "pay", "cost": {"type": "mill", "side": "own", "count": 6}, "then": {"type": "sequence", "keepScope": true, "actions": [{"type": "timedEffect", "content": [{"type": "bp", "amount": 6000}], "duration": "battle", "target": "self"}, {"type": "if", "cond": {"last": {"cardType": "spirit", "family": "光導"}}, "then": {"type": "refreshSelf"}}]}}
+    "action": {"type": "pay", "cost": {"type": "discard", "from": "deck", "side": "own", "count": 6}, "then": {"type": "sequence", "keepScope": true, "actions": [{"type": "timedEffect", "content": [{"type": "bp", "amount": 6000}], "duration": "battle", "target": "self"}, {"type": "if", "cond": {"last": {"cardType": "spirit", "family": "光導"}}, "then": {"type": "refreshSelf"}}]}}
    }
   ],
   "braveCondition": {

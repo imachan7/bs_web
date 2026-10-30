@@ -2355,7 +2355,7 @@
      2
     ],
     "optional": true,
-    "action": {"type": "sequence", "actions": [{"type": "mill", "count": 6, "side": "own", "until": {"cardType": "spirit", "cost": {"min": 6, "max": 7}}}, {"type": "takeLast", "pick": {"cardType": "spirit", "cost": {"min": 6, "max": 7}}, "to": "summon", "skipOnSummon": true}]}
+    "action": {"type": "sequence", "actions": [{"type": "discard", "from": "deck", "count": 6, "side": "own", "until": {"cardType": "spirit", "cost": {"min": 6, "max": 7}}}, {"type": "takeLast", "pick": {"cardType": "spirit", "cost": {"min": 6, "max": 7}}, "to": "summon", "skipOnSummon": true}]}
    }
   ]
  },
@@ -2538,7 +2538,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 2
     },
     "optional": false
@@ -2764,7 +2766,9 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "mill",
+       "type": "discard",
+       "from": "deck",
+       "side": "opponent",
        "count": 1
       },
       {
@@ -2985,7 +2989,9 @@
      3
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 3,
      "countCounter": {
       "ownKeyword": "funsai"
@@ -3717,7 +3723,9 @@
      1
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 3
     },
     "optional": false
@@ -3784,7 +3792,9 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "mill",
+       "type": "discard",
+       "from": "deck",
+       "side": "opponent",
        "count": 1
       },
       {
@@ -4554,7 +4564,9 @@
     "turn": "own",
     "keywordFilter": "funsai",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 2
     }
    },
@@ -4572,7 +4584,9 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "mill",
+       "type": "discard",
+       "from": "deck",
+       "side": "opponent",
        "count": 1
       },
       {

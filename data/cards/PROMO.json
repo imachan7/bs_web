@@ -191,7 +191,9 @@
           "type": "sequence",
           "actions": [
             {
-              "type": "mill",
+              "type": "discard",
+              "from": "deck",
+              "side": "opponent",
               "count": 2
             },
             {

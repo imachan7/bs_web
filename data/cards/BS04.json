@@ -5201,7 +5201,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1
     }
    },
@@ -6411,7 +6413,9 @@
     "kind": "magic",
     "timing": "main",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1,
      "countCounter": "opponentHand"
     }
@@ -6912,7 +6916,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 5,
      "countCounter": "ownNexuses",
      "countMax": 15
@@ -6927,7 +6933,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1,
      "countCounter": {
       "ownColorSymbols": "blue"

@@ -12,9 +12,9 @@ console.log("=== BS04-027 アリゲイド Lv2: 一度に5枚以上の破棄で�
     s.players.p1.field.spirits.push(createInstance("BS04-027", s.turn, 3)) // アリゲイド Lv2
     const enemy = createInstance("BS01-007", s.turn, 1)
     s.players.p2.field.spirits.push(enemy)
-    resolveAction(s, "p1", null, { type: "mill", count: 4 })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 4 })
     assert(!enemy.isRested, "4枚の破棄では発火しない")
-    resolveAction(s, "p1", null, { type: "mill", count: 5 })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 5 })
     assert(enemy.isRested, "5枚の破棄で相手スピリットが疲労する")
 }
 
