@@ -7,6 +7,7 @@
 // （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
 // CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+import { bounceDenial } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { takeCoreGainAllowance } from "./coreGainCap"
@@ -1180,37 +1181,21 @@ function bouncesToDeckTop(state: GameState): boolean {
     return timedPlayerRules(state, pid).some((c) => c.type === "bounceToDeckTopForPid")
 }
 
-// 器BS16：globalConstraint "allSpiritsCantBounce"（BS16-012金狐角）。両陣営のeffectSourcesを
-// 走査し、kind:"globalConstraint"のphase/turnフィールド（発生源の持ち主基準）も見る
-// （hasGlobalConstraintは汎用関数のためphase/turnを見ない＝battlingCoresProtected等と同じく専用関数を書く）
-function allSpiritsCantBounceActive(state: GameState): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const source of effectSources(state, pid)) {
-            const level = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "allSpiritsCantBounce") continue
-                if (!entryActive(state, pid, source, effect, level)) continue
-                if (effect.phase !== undefined && state.phase !== effect.phase) continue
-                if (effect.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
 export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
     to: "hand" | "deckTop" | "deckBottom" | "burst",
     sourceName?: string,
-): void {
+): boolean {
     const player = state.players[ownerPid]
-    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return
-    if (inst.pendingBounce) return
-    if (allSpiritsCantBounceActive(state)) return
+    if (!player.field.spirits.some((s) => s.instanceId === inst.instanceId)) return false
+    if (inst.pendingBounce) return false
+    const denied = bounceDenial(state, ownerPid, inst, to)
+    if (denied) {
+        log(state, `${getCard(inst.cardId).name}は手札に戻らなかった（${denied}）。`)
+        return false
+    }
     // 器AO：いま解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは
     // 持ち主のデッキの上に戻る」を張っていれば、手札への戻しをデッキの上へ振り替える
     // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
@@ -1218,6 +1203,7 @@ export function markBounce(
     inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
+    return true
 }
 
 // バウンスの発生源カード名（ログ用）。CardInstance に持たせると盤面の状態が増えるので、

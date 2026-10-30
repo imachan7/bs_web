@@ -256,7 +256,8 @@
           2
         ],
         "target": "self",
-        "against": "bounce"
+        "against": "bounce",
+        "sourceTypes": ["spirit", "nexus", "magic"]
       }
     ]
   },

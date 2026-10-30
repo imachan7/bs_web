@@ -11,7 +11,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { coresCantBeRemoved, coresCantBeRemovedByOpponent } from "./activation"
-import { activeConstraints, hasArmorAgainst, hasBounceImmunity, hasBraveImmuneAgainst, hasFullEffectImmunity, hasGlobalConstraint, hasHeavyArmorAgainst, hasMagicImmunity, timedPlayerRules } from "./constraints"
+import { activeConstraints, hasArmorAgainst, hasBraveImmuneAgainst, hasFullEffectImmunity, hasGlobalConstraint, hasHeavyArmorAgainst, hasMagicImmunity, timedPlayerRules } from "./constraints"
 import { spiritHasFamily } from "./keywordState"
 import { KEYWORDS, currentLevel, effectActiveAtLevel } from "./level"
 
@@ -34,7 +34,6 @@ export type ResistanceCategory =
     | "braveImmune" // 相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"。装甲/重装甲とは別枠の第3の耐性軸。BS12初出）
     | "fullImmune" // 相手の効果を受けない（constraint:"immuneToOpponentEffects"／このターンの間の immuneToOpponentThisTurn）
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
-    | "bounceImmune" // 相手の効果で手札・デッキに戻らない（immunityGrant against:"bounce"）
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
@@ -134,9 +133,6 @@ export function boardResistanceAgainst(
     }
     if (attempt.sourceType === "magic" && hasMagicImmunity(board, targetOwnerPid, target)) {
         return { category: "magicImmune", label: "相手のマジックの効果を受けない" }
-    }
-    if (attempt.op === "bounce" && hasBounceImmunity(board, targetOwnerPid, target)) {
-        return { category: "bounceImmune", label: "相手の効果で手札に戻らない" }
     }
     return untargetableAgainst(board, targetOwnerPid, target, attempt)
 }

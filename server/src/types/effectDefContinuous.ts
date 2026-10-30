@@ -337,6 +337,7 @@ export type EffectDefContinuous =
           vanillaFilter?: true
           nameIncludes?: string[] // 配列＝OR・部分一致（constraintGrant.nameIncludes と同じ）
           against: "magic" | "bounce" // 自分自身の効果によるバウンスは対象外
+          sourceTypes?: CardType[] // bounce：防ぐ相手の効果の種類（省略＝すべて）。ブレイヴ自身の効果は "brave"、【合体時】は "spirit"
           condition?: { ownCostCountAtLeast: { cost: number; count: number } }
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }

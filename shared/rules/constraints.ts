@@ -1166,8 +1166,9 @@ export function hasBounceImmunity(
     board: Board,
     ownerPid: PlayerId,
     inst: CardInstance,
+    sourceType?: CardType,
 ): boolean {
-    return hasImmunityAgainst(board, ownerPid, inst, "bounce")
+    return hasImmunityAgainst(board, ownerPid, inst, "bounce", sourceType)
 }
 
 // hasMagicImmunity / hasBounceImmunity 共通の判定本体（kind:"immunityGrant" の against で分岐）
@@ -1176,6 +1177,7 @@ function hasImmunityAgainst(
     ownerPid: PlayerId,
     inst: CardInstance,
     against: "magic" | "bounce",
+    sourceType?: CardType,
 ): boolean {
     const player = board.players[ownerPid]
     const sources = [...player.field.spirits, ...player.field.nexuses]
@@ -1184,6 +1186,7 @@ function hasImmunityAgainst(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== against) continue
+            if (effect.sourceTypes !== undefined && sourceType !== undefined && !effect.sourceTypes.includes(sourceType)) continue
             if (!entryActive(board, ownerPid, source, effect, sourceLevel)) continue
             if (effect.phaseTurn) {
                 if (board.phase !== effect.phaseTurn.phase) continue
