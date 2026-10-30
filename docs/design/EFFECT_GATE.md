@@ -98,4 +98,9 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 「トラッシュから手札に戻せない」は、今は `moveCards` だけが見ている。トラッシュから手札へ移す経路（`returnTrashCardToHand`・【光芒】・`takeLast`・エンドステップの戻し・ショーグンペンタンの `thenHandIfNameIncludes`）すべてに効かせる
    - **破壊時に「このスピリットは手札に戻る」は対象外**：破壊されたスピリットは破壊待機状態で、トラッシュに行っていない（ACTION_VOCABULARY §2。10-30 ユーザー再確認）
    - 保留：使ったマジックを効果発揮後に手札へ戻す（`returnLastUsedMagicToHand`。26RBS01-X14 巨雷ゼーロトルだけ＝このリポジトリのプールに無い）
+5b. ✅ **破壊の問い合わせ**（設計を10-30に確定。#327）
+   - `server/src/logic/destroyGate.ts`（新規）に `destroyDenial(state, { ownerPid, target, cause: "effect"|"cost"|"bpCompare", actorPid, sourceType?, sourceColors? }): string | null`。集める禁止：`nexusIndestructible`・`ownNexusIndestructible`（ネクサス）・`noBpCompareDestroy`（cause bpCompare）。効果を受けない系は今の `resistanceAgainst` のまま
+   - **「破壊されない」は対象に取られることは防がない**：効果での破壊では、破壊されないネクサスも候補に出して選べ、選んだら破壊されない。マジックも使える。根拠は Q1711（要塞皇オーディーンがいるとき、相手が使ったバスタースピアでネクサスは破壊されない＝使用はできる。10-30 ユーザー了承）
+   - **コストの破壊**（「自分のネクサスを破壊することで」）は、破壊されないネクサスを候補から外す（全部払えなければ払えない。COST_MODEL §1）
+   - データの食い違い：ノルンの泉 Lv2・巨人騎士アルダス・サファイアの城壁 Lv2 は「相手のスピリット/ネクサス/マジックの効果では」なのに `sourceTypes` が無く、自分の効果や相手のブレイヴの効果まで止めていた。`sourceTypes:["spirit","nexus","magic"]` を足す
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）

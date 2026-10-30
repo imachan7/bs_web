@@ -45,6 +45,7 @@ import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { recordDestroysOf } from "../removal"
+import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordLeftCost, recordMoved, recordNexusCost } from "../record"
 
@@ -91,6 +92,11 @@ export function destroyCandidateCountForPay(
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).length
 }
 
+// コストの破壊（asCost）では、破壊されないネクサスは候補にならない。効果の破壊では候補に残す（Q1711）
+function costDenied(state: GameState, owner: PlayerId, pid: PlayerId, n: CardInstance, action: DestroyAction, srcType: CardType | undefined): boolean {
+    return action.asCost === true && destroyDenial(state, { ownerPid: pid, target: n, cause: "cost", actorPid: owner, ...(srcType ? { sourceType: srcType } : {}) }) !== null
+}
+
 // pay の判定表（destroy{nexus:"only"}）が使う候補数。
 // ponytail: filter は normalizeFilter を通さない（self 相対の BP 指定は見ない）。pay で使うカードが出たら通す
 export function destroyNexusCandidateCountForPay(
@@ -103,7 +109,8 @@ export function destroyNexusCandidateCountForPay(
     const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : action.anySide ? [owner, opp] : action.side === "own" ? [owner] : [opp]
     const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
         (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
-        matchesTarget(state, pid, n, (action.filter ?? {}) as unknown as ResolvedTargetFilter)
+        matchesTarget(state, pid, n, (action.filter ?? {}) as unknown as ResolvedTargetFilter) &&
+        !costDenied(state, owner, pid, n, action, srcType)
     return sides.reduce((sum, pid) => sum + state.players[pid].field.nexuses.filter(matchesIn(pid)).length, 0)
 }
 
@@ -615,7 +622,8 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
         }
         const matchesIn = (pid: PlayerId) => (n: CardInstance) =>
             (action.levelFilter === undefined || action.levelFilter.includes(displayLevel(n).level)) &&
-            matchesTarget(state, pid, n, filter, self?.instanceId)
+            matchesTarget(state, pid, n, filter, self?.instanceId) &&
+            !costDenied(state, owner, pid, n, action, srcType)
         // anySide：自分か相手のネクサスから1つ。破壊したネクサスは lastMoved に書く（「そうしたなら」が読む）
         // 「ネクサス2つまで」のように upTo で複数を選ぶ either は、下の upTo の対話で両陣営から選ばせる
         if (action.anySide && !(action.upTo && action.count !== 1 && state.interactiveTargets)) {
@@ -1423,7 +1431,7 @@ function destroyOwnSpiritsAny(ctx: ActionCtx, action: DestroyAction): void {
 function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void {
     const { state, owner, sourceName, srcType } = ctx
     const scope = currentRecordScope(state)
-    const candidates = state.players[owner].field.nexuses.map((n) => n.instanceId)
+    const candidates = state.players[owner].field.nexuses.filter((n) => !costDenied(state, owner, owner, n, action, srcType)).map((n) => n.instanceId)
     const chosen = chooseOwnAny(ctx, action, candidates, "ネクサス")
     if (chosen === null) {
         recordMoved(state, [], scope)

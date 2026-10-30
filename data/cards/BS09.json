@@ -4222,6 +4222,11 @@
           "colors": [
             "white",
             "yellow"
+          ],
+          "sourceTypes": [
+            "spirit",
+            "nexus",
+            "magic"
           ]
         }
       }

@@ -216,6 +216,8 @@ console.log("=== サファイアの城壁Lv1：levelAs target:ownSpiritsVanilla 
     assert(one.levelAsContinuous === undefined, "自分のアタックステップ以外では無効")
 }
 
+// 城壁は相手のスピリット/ネクサス/マジックの効果にだけ効く（発生源の無い破壊は止めない）
+const OPP_SPIRIT = { sourcePid: "p2", sourceType: "spirit" } as const
 console.log("=== サファイアの城壁Lv2：globalConstraint ownNexusIndestructible（バニラ2体では遮断されない） ===")
 {
     const s = createGame(
@@ -230,14 +232,14 @@ console.log("=== サファイアの城壁Lv2：globalConstraint ownNexusIndestru
     const v1 = createInstance("BS03-001", s.turn, 1)
     const v2 = createInstance("BS03-005", s.turn, 1)
     s.players.p1.field.spirits.push(v1, v2)
-    const destroyedWithTwo = destroyNexus(s, "p1", target1.instanceId)
+    const destroyedWithTwo = destroyNexus(s, "p1", target1.instanceId, OPP_SPIRIT)
     assert(destroyedWithTwo === true, "バニラ2体では破壊耐性が働かず破壊される")
 
     const target2 = createInstance("BS01-098", s.turn, 0)
     s.players.p1.field.nexuses.push(target2)
     const v3 = createInstance("BS03-013", s.turn, 1)
     s.players.p1.field.spirits.push(v3)
-    const destroyedWithThree = destroyNexus(s, "p1", target2.instanceId)
+    const destroyedWithThree = destroyNexus(s, "p1", target2.instanceId, OPP_SPIRIT)
     assert(destroyedWithThree === false, "バニラ3体以上で破壊耐性が働き破壊されない")
     assert(
         s.players.p1.field.nexuses.some((n) => n.instanceId === target2.instanceId),

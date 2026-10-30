@@ -593,6 +593,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `applyDeckPolicy`（fn）：カードデータの limited / limitCount を、上のポリシーに沿って上書きしたコピーを返す。
 
+## server/src/logic/destroyGate.ts
+
+- `DestroyDenialQuery`（型）
+- `destroyDenial`（fn）：破壊を止める理由（ログ用）。止められないなら null。スピリットに効く禁止は bpCompare だけ
+
 ## server/src/logic/effectTax.ts
 
 - `hasEffectTax`（const）

@@ -5,6 +5,7 @@ import { addLifeDealt, recordLifeLoss } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
+import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
 import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit } from "../../../shared/rules"
@@ -591,10 +592,9 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         case 1: {
             if (f.outcome === "none") return
             // 26RBS03-036：BP比べでは破壊されない個体はバッチから外す（相打ちなら相手側だけ破壊）
-            const allGuarded = hasGlobalConstraint(state, "noBpCompareDestroy")
             const guarded = (pid: PlayerId, id: string): boolean => {
                 const s = findSpirit(state.players[pid], id)
-                return s !== undefined && (allGuarded || timedContentsOn(state, s).some((c) => c.type === "noBpCompareDestroy"))
+                return s !== undefined && destroyDenial(state, { ownerPid: pid, target: s, cause: "bpCompare" }) !== null
             }
             if (f.outcome === "attackerWins" && guarded(blockerPid, f.blockerInstanceId)) return
             if (f.outcome === "blockerWins" && guarded(attackerPid, f.attackerInstanceId)) return
