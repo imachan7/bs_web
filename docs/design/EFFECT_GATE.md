@@ -117,4 +117,9 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 呼ぶ所：`state/exhaust.ts` の `exhaustSpirit`／`exhaustNexus`（入口がここだけなので、中で聞く）。`exhaustSpirit`／`exhaustNexus` は実際に疲労したかを boolean で返し、数を数えてログに出す呼び出し側はそれを使う。`canExhaustNexus`（コストの候補）は `exhaustDenial` を呼ぶ形にする。`resistance.ts` の `exhaustImmune` は消す（対象には取れる）
    - 発生源の種類が分からない相手の効果（発生源なしの解決）は、`sourceTypes` があっても耐性を効かせる側に倒す。トランプの王国の「ブレイヴ自身の効果は通す」を確かめる場面は無い（持ち主のアタックステップ中に相手がブレイヴを召喚できないため）
    - 入れないもの：ブロック時に疲労しない4枚（`noRestWhenBlocking*`。ブロックの手順で、効果の疲労ではない）・払って防ぐ `exhaustPreventByPay`（置換に近い選択なので `exhaustSpirit` の中のまま）
+5e. ✅ **回復の禁止**（10-30）
+   - 新しいファイルは作らない。回復の入口 `refreshSpirit`（`state/exhaust.ts`）が問い合わせを兼ねる：原因を問わない禁止（`noRefreshUntilOwnEndSteps`・スクルディアの指定）と効果に限った禁止（`noRefreshByNexusOrMagic`・`noRefreshByAnyEffect`）はここで止める。sourceType の省略＝リフレッシュステップ
+   - 『リフレッシュステップ』に限った禁止（`noRefresh`・`skipRefresh`・`nexusesCantRefresh`・`opponentCombinedCantRefresh`）と `refreshOnlyOneUncombined` は、リフレッシュステップの手順（`PhaseManager.ts`）に残す。「次のリフレッシュステップで」の記録をそのステップで使い切る作りのため
+   - 直したもの：スクルディアの指定がリフレッシュステップでしか効いていなかった／【超覚醒】とモクバオーの回復が発生源の種類を渡さず、渦巻く大海峡を素通りしていた。モクバオーは回復できなければ合体もしない（CONJUNCTION「Aし、Bできる」）
+   - 入れないもの：ネクサスを効果で回復させる経路（`exhaustRefresh.ts`）は、効く禁止が無いので入口を通さない
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）

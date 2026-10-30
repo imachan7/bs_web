@@ -1041,7 +1041,11 @@ const refreshSelfBraveThenCombineHandler: ActionHandler<"refreshSelfBraveThenCom
     if (!host || !braveCombineCandidates(state, owner, self.cardId).includes(host.instanceId)) {
         return
     }
-    if (self.isRested) refreshSpirit(state, owner, self)
+    // 「回復させ、合体できる」は両方か、どちらもしない（CONJUNCTION。2026-10-16）
+    if (self.isRested && !refreshSpirit(state, owner, self, "brave")) {
+        log(state, `${sourceName}：回復できないため合体しなかった。`)
+        return
+    }
     attachBrave(state, owner, host, self)
 }
 

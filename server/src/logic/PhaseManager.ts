@@ -6,7 +6,7 @@ import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
-import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, isRefreshBlockedByMark, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
 
@@ -178,9 +178,6 @@ function turnStartSegments(state: GameState): (() => void)[] {
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
                 // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
-                // 相手のスピリットから「回復できない」と指定されている間も回復しない
-                // （スクルディア Lv2-3。指定元が疲労状態で相手のフィールドにいる間だけ効く）
-                if (isRefreshBlockedByMark(state, pid, inst)) continue
                 // 「次のリフレッシュステップで回復できない」（BS11-055）
                 // all:true はルールとして置くので、発揮後に場に出たスピリットにも効く（SEMANTICS_AUDIT §3.12）
                 if (nextRefresh.some((r) => r.content.some((c) => c.type === "skipRefresh") && ((r.target.kind === "instance" && r.target.instanceId === inst.instanceId) || (r.target.kind === "rule" && !player.field.nexuses.includes(inst) && matchesTarget(state, pid, inst, r.target.filter, r.target.selfInstanceId))))) continue

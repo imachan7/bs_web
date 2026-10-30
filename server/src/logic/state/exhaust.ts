@@ -169,6 +169,8 @@ export function refreshSpirit(
     // noRefreshUntilOwnEndSteps（BS12-078カシオペアシール）：残り回数がある間はリフレッシュステップ・
     // 効果による回復のいずれも通さない（refreshSpiritの唯一の入口で判定するため両方に効く）
     if ((inst.noRefreshUntilOwnEndSteps ?? 0) > 0) return false
+    // スクルディアの指定は場面を限っていないので、効果による回復も止める
+    if (isRefreshBlockedByMark(state, ownerPid, inst)) return false
     // BS09-047鮫人サンゴジョー：スピリットすべては、ネクサス/マジックの効果では回復しない
     // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
     if (
@@ -262,7 +264,7 @@ export function fireExhaustedTriggers(
 }
 
 // スクルディア：相手のスピリットから「回復できない」と指定されていて、
-// その指定元が**疲労状態で持ち主のフィールドにいる**間は、リフレッシュステップで回復しない
+// その指定元が**疲労状態で持ち主のフィールドにいる**間は回復しない
 export function isRefreshBlockedByMark(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
     return state.players[opponentOf(pid)].field.spirits.some(
         (s) => s.isRested && s.noRefreshTargetInstanceId === inst.instanceId,

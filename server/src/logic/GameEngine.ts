@@ -1087,7 +1087,7 @@ function doMoveCore(
 function refreshOnSuperAwaken(state: GameState, pid: PlayerId, target: CardInstance): void {
     if (!target.isRested) return
     if (!hasSuperAwaken(state, pid, target)) return
-    refreshSpirit(state, pid, target)
+    if (!refreshSpirit(state, pid, target, "spirit")) return
     noteHeldKeyword(state, pid, target, "superAwaken")
     log(state, `【超覚醒】${getCard(target.cardId).name}は回復した。`)
 }
