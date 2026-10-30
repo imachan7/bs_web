@@ -7,7 +7,8 @@ import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/cove
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
 import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
-import type { CardData, CardInstance, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
+import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
+import { millAllowed, noteMilled } from "./zones/mill"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
@@ -601,6 +602,9 @@ function tryReviveOnDestroy(
         return true
     }
 
+    // 復活のコストは効果の一部なので、発生源（ネクサス、無ければ破壊されたスピリット自身）の種類で破棄の制限に聞く
+    const costSourceType = (source?: CardInstance): CardType => getCard((source ?? inst).cardId).type
+
     const applyCost = (
         effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
         source?: CardInstance,
@@ -696,7 +700,7 @@ function tryReviveOnDestroy(
             // BS07冥勇士デスカラビア：自分のデッキを上から1枚破棄し、そのカードが
             // 指定の色・種別（紫のスピリットカード）だったときだけ成立する
             const { color, cardType, thenHandIfNameIncludes } = effect.cost.millSelfOneMatching
-            if (hasGlobalConstraint(state, "noDeckMill")) return false
+            if (millAllowed(state, { pid: ownerPid, count: 1, actorPid: ownerPid, sourceType: costSourceType(source) }) < 1) return false
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、破壊時の効果は成立しなかった。`)
@@ -704,6 +708,7 @@ function tryReviveOnDestroy(
             }
             const milled = getCard(cardId)
             player.trashCards.push(cardId)
+            noteMilled(state, ownerPid, 1, ownerPid, costSourceType(source))
             log(state, `${player.name}はデッキを上から1枚（${milled.name}）破棄した。`)
             const ok = milled.type === cardType && milled.colors.includes(color)
             if (!ok) log(state, `${milled.name}は条件を満たさなかった。`)
@@ -773,11 +778,12 @@ function tryReviveOnDestroy(
         if (effect.cost?.millSelfCount !== undefined) {
             // 枚数が足りなければ払えない（2026-09-24 ユーザー確定「数も完全に」。COST_MODEL）
             const n = effect.cost.millSelfCount
-            if (player.deck.length < n || hasGlobalConstraint(state, "noDeckMill")) return false
+            if (player.deck.length < n || millAllowed(state, { pid: ownerPid, count: n, actorPid: ownerPid, sourceType: costSourceType(source) }) < n) return false
             for (let i = 0; i < n; i++) {
                 const cardId = player.deck.shift()!
                 player.trashCards.push(cardId)
             }
+            noteMilled(state, ownerPid, n, ownerPid, costSourceType(source))
             log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
             return true
         }
@@ -853,7 +859,7 @@ function tryReviveOnDestroy(
         const cost = effect.cost
         if (!cost) return null
         if (cost.exhaustSelf) return !source || source.isRested ? "疲労させられない" : null
-        if ((cost.millSelfCount !== undefined || cost.millSelfOneMatching) && hasGlobalConstraint(state, "noDeckMill")) return "デッキを破棄できない"
+        if ((cost.millSelfCount !== undefined || cost.millSelfOneMatching) && millAllowed(state, { pid: ownerPid, count: cost.millSelfCount ?? 1, actorPid: ownerPid, sourceType: costSourceType(source) }) < (cost.millSelfCount ?? 1)) return "デッキを破棄できない"
         if (cost.millSelfCount !== undefined) return player.deck.length < cost.millSelfCount ? "デッキが足りない" : null
         if (cost.sourceCoresToTrash !== undefined) return !source || source.cores < cost.sourceCoresToTrash ? "コアが足りない" : null
         if (cost.oneCoreToVoid) return inst.cores <= 1 ? "コアが足りない" : null

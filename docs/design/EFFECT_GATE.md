@@ -123,17 +123,18 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 『リフレッシュステップ』に限った禁止（`noRefresh`・`skipRefresh`・`nexusesCantRefresh`・`opponentCombinedCantRefresh`）と `refreshOnlyOneUncombined` は、リフレッシュステップの手順（`PhaseManager.ts`）に残す。「次のリフレッシュステップで」の記録をそのステップで使い切る作りのため
    - 直したもの：スクルディアの指定がリフレッシュステップでしか効いていなかった／【超覚醒】とモクバオーの回復が発生源の種類を渡さず、渦巻く大海峡を素通りしていた。モクバオーは回復できなければ合体もしない（CONJUNCTION「Aし、Bできる」）
    - 入れないもの：ネクサスを効果で回復させる経路（`exhaustRefresh.ts`）は、効く禁止が無いので入口を通さない
-5f. **戻すの問い合わせ**（設計を10-30に確定。ブランチ `fix/bounce-gate`）
+5f. ✅ **戻すの問い合わせ**（10-30。#332）
    - `server/src/logic/bounceGate.ts`（新規）に `bounceDenial(state, { ownerPid, target, to: "hand"|"deckTop"|"deckBottom"|"burst", actorPid?, sourceType? }): string | null`。actorPid 省略＝プレイヤー自身のコスト
    - 集める禁止：`allSpiritsCantBounce`（金狐角。to hand だけ、原因を問わない）・`immunityGrant{against:"bounce"}`（to hand だけ、actor≠持ち主。軸 `sourceTypes?: CardType[]` を足し、恐竜姫ジュラ・転生の谷・タルタルガーは `["spirit","nexus","magic"]`＝ブレイヴ自身の効果は通す）
    - **「手札に戻らない」はデッキへ戻す効果を止めない**。今は耐性の判定（op "bounce"）がデッキへ戻す効果にも効き、金狐角は行き先を問わず止めていた
-   - 呼ぶ所：`removal.ts` の `markBounce`（戻すはすべてここを通る。actorPid／sourceType を受け取り、止めたら false を返す）。`resistance.ts` の `bounceImmune` は消す（対象には取れる）。コストで戻す候補は止められる個体を外す
+   - 呼ぶ所：`removal.ts` の `markBounce`（戻すはすべてここを通る。誰の効果かは `currentEffectSource` で見る。止めたら false を返す）。`resistance.ts` の `bounceImmune` は消す（対象には取れる）。コストで戻す候補は止められる個体を外す
 5g. **ドロー・合体／分離**：直すものなし（10-30 に洗った）。ドローは入口 `draw()` が2つの禁止を見ていて、デッキから手札へ移す別経路も無い。分離は `detachBraveByEffect`／`detachBraveByOwnerChoice` の両方で `cantSeparate` を見ている。合体は候補（`braveCombineCandidates`）で `cantCombine` を外す（合体はプレイヤーの行動の一部なので候補で外す）。スピリット状態の禁止は検証と残す確認の両方で見ている
 5c'. **コアの問い合わせのコストの区別**（10-30。**入れない**）：上の一般則に合わせるなら、「Nコストを支払うことで」・起動能力・復活のコアのコストは `coreRemovalAllowed` に cause effect で聞くことになる。変わるのは八分儀の祠 Lv2 だけで、それが働く『相手のメインステップ』にターンプレイヤーがこれらのコストをスピリットのコアから払う場面が今のプールに無い（起動能力はアタックステップ限定、「コストを支払うことで」はバースト効果だけ）。該当カードを取り込むときに足す。「コアを〜置くことで」（エリミネイション型）は 5c の時点で効果として扱われていて、八分儀の下でも払える（smoke part693）
-5h. **デッキの破棄の問い合わせ**（設計を10-30に確定。ブランチ `fix/mill-gate`）
+5h. ✅ **デッキの破棄の問い合わせ**（10-30）
    - `server/src/logic/zones/mill.ts` に `millAllowed(state, { pid, count, actorPid?, sourceType? }): number`（0〜count）。`millDeck` の中の判定を移す
    - 0 にする禁止：エンドステップの封印（`deckMill`）・`noDeckMill`・`noDeckMillInMain`（main）・期間つき `noDeckMillForPid`・`noDeckMillByOpponent`（ディスコンティニュー・鳳翼の聖剣。**効果文に「相手の効果で」が無いので、自分の効果・コストも止める**＝パイルドラコの `noDeckMillForPid` と同じ読み。今は相手の効果だけ止めていた）
    - 量の制限：`millCap`（1回・perTurn・bothSides は actor≠持ち主のとき。軸 `sourceTypes?: CardType[]` を足し、侵されざる聖域・エターナルシールドは `["spirit","nexus","magic"]`）・mutual（キグナ・スワン Mk-II・リトル・ビッケン。誰の効果・コストでも）
    - 呼ぶ所：`millDeck`、`millDeck` を通らずにデッキを破棄している経路（`actions/mill.ts` の `runMillUntilMagicCastFree`・`revive.ts` の `millSelfOneMatching`／`millSelfCount`・`EffectModules.ts` の `lifeDamageMillGuard`・`keywords/funsai.ts`）と、払えるかの判定（`actions/pay.ts`）。できるだけ `millDeck` を通す形にして、累計（perTurn・mutual）も数える
-   - 入れないもの：`deckMillNegate`（払って無効にする選択。`millDeck` の中のまま）。`shared/cost.ts` の払えるかの判定（クライアントの表示用。`noDeckMill` だけ見る。サーバーが最後に止める）
+   - 累計：`noteMilled` が数える。perTurn の上限の種類の指定はブレイヴを外す形しか無いので、ブレイヴの効果の分だけ別に数える（`millCountThisTurnBrave`）
+   - 入れないもの：`deckMillNegate`（払って無効にする選択。`millDeck` の中のまま）。エターナルシールドの「6枚以上破棄されない」は1回あたりのまま（累計かは未確認）。`shared/cost.ts` の払えるかの判定（クライアントの表示用。`noDeckMill` だけ見る。サーバーが最後に止める）
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
