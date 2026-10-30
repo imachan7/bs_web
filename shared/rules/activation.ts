@@ -12,7 +12,7 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { activeConstraints, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
+import { activeConstraints, canDiscardHand, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
 import { instanceSymbolCount } from "./symbols"
@@ -412,6 +412,7 @@ function activatableAbilityOf(
             return { effectId: e.id, costLabel: `このカードの上のコア${e.cost.selfCoresToTrash}個を払って効果を発動` }
         }
         if ("discardHandFamily" in e.cost) {
+            if (!canDiscardHand(board, pid)) continue
             // 手札に指定系統のスピリットカードが無ければ発動できない（BS13-062光り輝く大銀河Lv2）
             const wanted = Array.isArray(e.cost.discardHandFamily) ? e.cost.discardHandFamily : [e.cost.discardHandFamily]
             const hasCard = (board.players[pid].hand ?? []).some(
@@ -430,12 +431,14 @@ function activatableAbilityOf(
             return { effectId: e.id, costLabel: "スピリットを疲労させて効果を発動" }
         }
         if ("discardHandOne" in e.cost) {
+            if (!canDiscardHand(board, pid)) continue
             // BS15-003ファイアファンサウル：手札1枚を破棄し、このスピリットを疲労させることで
             if (host.isRested) continue
             if ((board.players[pid].hand ?? []).length < 1) continue
             return { effectId: e.id, costLabel: "手札を破棄しこのスピリットを疲労させて効果を発動" }
         }
         if ("discardHandKeyword" in e.cost) {
+            if (!canDiscardHand(board, pid)) continue
             // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカードが手札に無ければ発動できない
             const keyword = e.cost.discardHandKeyword
             const hasCard = (board.players[pid].hand ?? []).some(
@@ -445,6 +448,7 @@ function activatableAbilityOf(
             return { effectId: e.id, costLabel: "手札のカードを破棄して効果を発動" }
         }
         if ("discardHandColor" in e.cost) {
+            if (!canDiscardHand(board, pid)) continue
             // 器BS16：手札に指定色のカードが無ければ発動できない（BS16-005）
             const color = e.cost.discardHandColor
             const hasCard = (board.players[pid].hand ?? []).some((cardId) => cardHasColor(card(cardId), color))

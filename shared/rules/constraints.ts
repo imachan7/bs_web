@@ -477,10 +477,11 @@ export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId
 // pid は破棄しようとしている本人（両陣営に効く制約なので現状は参照しないが、片側限定の制約が
 // 増えたときのために引数を持たせてある）。手札破棄は約18種のアクションに散っているため、
 // 共通ヘルパー化はせず各ハンドラの先頭でこの述語を見て早期リターンする形にする
-export function canDiscardHand(board: Board, pid: PlayerId): boolean {
+// byEffect：効果と「〜することで」のコスト（効果の一部）。false＝召喚コストの手札払いとブロックのコスト（EFFECT_GATE §4 5i）
+export function canDiscardHand(board: Board, pid: PlayerId, byEffect = true): boolean {
     if (board.phase === "main" && hasGlobalConstraint(board, "noHandDiscardInMain")) return false
     // BS15-052天蒼元帥チョウハッカイ：お互い、効果では手札を破棄できない（ステップを問わない）
-    if (hasGlobalConstraint(board, "noHandDiscardByEffect")) return false
+    if (byEffect && hasGlobalConstraint(board, "noHandDiscardByEffect")) return false
     return true
 }
 // pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。

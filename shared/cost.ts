@@ -274,7 +274,7 @@ export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
 // どちらも「召喚するカード自身」は破棄に使えないので1枚引くこと）
 export function canPaySummonCostByHandDiscard(board: Board, pid: PlayerId): boolean {
     // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1：払えないコストは発揮できない）
-    if (!canDiscardHand(board, pid)) return false
+    if (!canDiscardHand(board, pid, false)) return false
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "summonCostHandDiscardPay") continue
