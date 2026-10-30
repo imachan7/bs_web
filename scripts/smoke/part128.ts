@@ -269,7 +269,7 @@ console.log("=== BS06-103 キャバルリー：戦騎はアタック可、それ
     const other = put(s, "p1", "BS06-013", 1) // 系統：無魔
     cavalry.isRested = true
     other.isRested = true
-    resolveAction(s, "p1", null, { type: "refreshAllOwn", exemptFamily: "戦騎" }, undefined, ["white"], "magic")
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", filter: { familyExclude: "戦騎" }, content: [{ type: "cantAttack" }] }] }, undefined, ["white"], "magic")
     assert(!cavalry.isRested && !other.isRested, "両方とも回復する")
     assert(!cantActByTimed(s, cavalry), "系統「戦騎」持ちはこのターンもアタックできる")
     assert(cantActByTimed(s, other), "系統「戦騎」を持たないスピリットはアタックできない")

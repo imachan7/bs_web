@@ -5050,9 +5050,7 @@
     "levels": [
      2
     ],
-    "action": {
-     "type": "refreshAllOwn"
-    }
+    "action": {"type": "refreshOne", "all": true}
    }
   ]
  },
@@ -6496,9 +6494,7 @@
     "id": "BS01-142-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "refreshAllOwn"
-    }
+    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },

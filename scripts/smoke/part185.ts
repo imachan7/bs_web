@@ -134,7 +134,7 @@ console.log("=== BS09-076 エマージェンシー：回復させるが【転召
     refreshLevelAsOverrides(s)
     tensho.isRested = true
     plain.isRested = true
-    resolveAction(s, "p1", null, { type: "refreshAllOwn", exemptKeyword: "tensho" })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", filter: { keywordExclude: "tensho" }, content: [{ type: "cantAttack" }] }] })
     assert(!tensho.isRested && !plain.isRested, "どちらも回復する")
     assert(!cantActByTimed(s, tensho), "【転召】持ちはアタックできる")
     assert(cantActByTimed(s, plain), "【転召】を持たない個体はアタックできない")

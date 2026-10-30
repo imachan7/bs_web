@@ -18,7 +18,7 @@
 //   - ビュー（情報秘匿）の確認
 //   - コスト支払い（スピリット上のコア）
 //   - バウンス系・コア操作系アクション
-//   - 疲労回復・アタック制御アクション（refreshAllOwn）
+//   - 疲労回復・アタック制御（refreshOne{all} → timedEffect{target:lastTargets}）
 //   - バトル制御アクション（endBattle）
 //   - 色選択の疲労アクション（exhaustAllByColor）
 //   - 色選択の疲労アクション：相手フィールドが0体（no-op）
@@ -798,7 +798,7 @@ console.log("=== バウンス系・コア操作系アクション ===")
     assert(s.players.p1.deck.length === deckBeforeCast - 1, "複合効果のドローでデッキが1枚減る")
 }
 
-console.log("=== 疲労回復・アタック制御アクション（refreshAllOwn） ===")
+console.log("=== 疲労回復・アタック制御（すべて回復し、この効果で回復した個体はアタック不可） ===")
 {
     const s = createGame(
         "refresh-test",
@@ -815,7 +815,7 @@ console.log("=== 疲労回復・アタック制御アクション（refreshAllOw
     restB.isRested = true
     s.players.p1.field.spirits.push(restA, restB, freshC)
 
-    resolveAction(s, "p1", null, { type: "refreshAllOwn" })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] })
     assert(!restA.isRested && !restB.isRested, "疲労していた2体が回復する")
     assert(
         cantActByTimed(s, restA) && cantActByTimed(s, restB),
@@ -825,13 +825,13 @@ console.log("=== 疲労回復・アタック制御アクション（refreshAllOw
 
     // 疲労状態のスピリットが0体になった状態で再実行 → no-op（ログのみで安全）
     const logLenBefore = s.log.length
-    resolveAction(s, "p1", null, { type: "refreshAllOwn" })
-    assert(s.log.length === logLenBefore + 1, "疲労スピリットが0体でもログのみで安全に処理される")
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] })
+    assert(s.log.length > logLenBefore && !restA.isRested && !restB.isRested && !freshC.isRested, "疲労スピリットが0体でもログのみで安全に処理される")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")
     assert(
         act(s, "p1", { type: "attack", instanceId: restA.instanceId }) !== null,
-        "refreshAllOwnで回復した個体のアタックは拒否される",
+        "この効果で回復した個体のアタックは拒否される",
     )
     assert(
         act(s, "p1", { type: "attack", instanceId: freshC.instanceId }) === null,

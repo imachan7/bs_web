@@ -4901,10 +4901,7 @@
     "id": "BS11-079-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "refreshAllOwn",
-     "exemptCombined": true
-    }
+    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"uncombined": true}, "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },

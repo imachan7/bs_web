@@ -220,7 +220,7 @@ console.log("=== 072 渦巻く大海峡：効果では回復できない／破�
     nexus(s, "p1", "BS15-072", 1) // Lv1
     const mine = put(s, "p1", "BS15-050", 1)
     mine.isRested = true
-    resolveAction(s, "p1", null, { type: "refreshAllOwn" }, undefined, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] }, undefined, undefined, "magic")
     assert(mine.isRested, "効果では回復できない（お互い）")
 }
 {

@@ -4452,9 +4452,7 @@
     "levels": [
      2
     ],
-    "action": {
-     "type": "refreshAllOwn"
-    }
+    "action": {"type": "refreshOne", "all": true}
    }
   ]
  },

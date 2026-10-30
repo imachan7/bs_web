@@ -206,9 +206,7 @@
     "optional": false,
     "action": {
      "type": "atTurnEnd",
-     "action": {
-      "type": "refreshAllOwn"
-     }
+     "action": {"type": "refreshOne", "all": true}
     }
    },
    {
