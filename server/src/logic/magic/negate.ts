@@ -1,4 +1,5 @@
 // マジックの無効化（magicNegate）
+import { coreRemovalAllowed } from "../coreGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage, noteKeyword } from "../../../../shared/coverage"
 import type { CardData, CardInstance, PendingChoice, EffectDef, GameState, PlayerId } from "../../type"
@@ -95,7 +96,7 @@ export function findMagicNegateSource(
             if ("exhaustSelf" in effect.cost) {
                 if (!payer && inst.isRested) continue
             } else if ("selfCoresToVoid" in effect.cost) {
-                if (inst.cores < effect.cost.selfCoresToVoid) continue
+                if (inst.cores < effect.cost.selfCoresToVoid || coreRemovalAllowed(state, { ownerPid: defenderPid, target: inst, amount: effect.cost.selfCoresToVoid, cause: "cost", actorPid: defenderPid }) < effect.cost.selfCoresToVoid) continue
             }
             // cost:{none} は支払い無し（SD02-014 魔法監視塔Lv2）。そのまま発動できる
             if (isHyoheki) noteKeyword(getCard(inst.cardId).effects, "hyoheki")

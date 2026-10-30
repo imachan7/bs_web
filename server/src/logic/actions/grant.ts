@@ -1,5 +1,6 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { coreRemovalAllowed } from "../coreGate"
 import { handGainDenial } from "../handGate"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, PlayerId } from "../../type"
@@ -586,7 +587,7 @@ const nexusAsSpiritThisStepHandler: ActionHandler<"nexusAsSpiritThisStep"> = (ct
         const fromReserve = Math.min(n, normalReserveOf(player))
         player.reserve -= fromReserve
         for (let rest = n - fromReserve; rest > 0; rest--) {
-            const richest = player.field.spirits.filter((sp) => sp.cores > 0).reduce<CardInstance | undefined>((b, sp) => (b === undefined || sp.cores > b.cores ? sp : b), undefined)
+            const richest = player.field.spirits.filter((sp) => sp.cores > 0 && coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }) > 0).reduce<CardInstance | undefined>((b, sp) => (b === undefined || sp.cores > b.cores ? sp : b), undefined)
             if (!richest) break
             richest.cores -= 1
             if (wouldDeplete(state, owner, richest)) destroySpirit(state, owner, richest.instanceId, "deplete")

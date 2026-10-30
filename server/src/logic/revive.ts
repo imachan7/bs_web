@@ -1,5 +1,6 @@
 // 破壊されたときの復活（「フィールドに残る」の確認）・【不死】・デッキ破棄からの無償召喚
 
+import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/coverage"
@@ -613,13 +614,14 @@ function tryReviveOnDestroy(
         // 発生源自身のコアを払う（BS11-066 発見されし世界樹Lv2＝このネクサス上のコア3個）
         if (effect.cost?.sourceCoresToTrash !== undefined) {
             const need = effect.cost.sourceCoresToTrash
-            if (!source || source.cores < need) return false
+            if (!source || source.cores < need || coreRemovalAllowed(state, { ownerPid: ownerPid, target: source, amount: need, cause: "cost", actorPid: ownerPid }) < need) return false
             source.cores -= need
             player.trashCores += need
             return true
         }
         if (effect.cost?.keepOneCoreRestToTrash) {
             const excess = inst.cores - 1
+            if (excess > 0 && coreRemovalAllowed(state, { ownerPid: ownerPid, target: inst, amount: excess, cause: "cost", actorPid: ownerPid }) < excess) return false
             if (excess > 0) {
                 inst.cores = 1
                 player.trashCores += excess
@@ -628,14 +630,14 @@ function tryReviveOnDestroy(
         }
         if (effect.cost?.oneCoreToVoid) {
             // コア1個の個体は支払うと維持コア割れになるため不発
-            if (inst.cores <= 1) return false
+            if (inst.cores <= 1 || coreRemovalAllowed(state, { ownerPid: ownerPid, target: inst, amount: 1, cause: "cost", actorPid: ownerPid }) < 1) return false
             inst.cores -= 1
             return true
         }
         if (effect.cost?.oneCoreToTrash) {
             // BS09-063花の宮殿：対象のコア1個を持ち主のトラッシュへ。**コア1個でも支払う**ので、
             // 支払った結果0個になった個体は待機解除の後に維持コア割れで消滅する（2026-08-14 ユーザー確認）
-            if (inst.cores <= 0) return false
+            if (inst.cores <= 0 || coreRemovalAllowed(state, { ownerPid: ownerPid, target: inst, amount: 1, cause: "cost", actorPid: ownerPid }) < 1) return false
             inst.cores -= 1
             player.trashCores += 1
             return true
@@ -656,7 +658,7 @@ function tryReviveOnDestroy(
                 return true
             }
             const source = [...player.field.spirits, ...player.field.nexuses].find(
-                (i) => i.instanceId !== inst.instanceId && i.cores > 0,
+                (i) => i.instanceId !== inst.instanceId && i.cores > 0 && coreRemovalAllowed(state, { ownerPid: ownerPid, target: i, amount: 1, cause: "cost", actorPid: ownerPid }) >= 1,
             )
             if (source) {
                 source.cores -= 1

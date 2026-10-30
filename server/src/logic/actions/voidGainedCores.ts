@@ -30,7 +30,7 @@ const voidGainedCoresHandler: ActionHandler<"voidGainedCores"> = (ctx) => {
         } else {
             const spirit = gp.field.spirits.find((i) => i.instanceId === pl.instanceId)
             if (spirit) {
-                removeCoresToVoid(state, g.gainerPid, spirit, pl.n, owner)
+                removeCoresToVoid(state, g.gainerPid, spirit, pl.n, owner, ctx.srcType)
                 continue
             }
             const nexus = gp.field.nexuses.find((i) => i.instanceId === pl.instanceId)

@@ -1,6 +1,7 @@
 // コア操作系のアクションハンドラ（相手のコアを取り除く・自分のコアを払う／動かす）。コアを置く系は coreGain.ts、ライフは life.ts、【転召】は tensho.ts
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { takeCoreGainAllowance } from "../coreGainCap"
+import { coreRemovalAllowed } from "../coreGate"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardType, CardInstance, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { draw, getCard, instMinLevelCores, log, opponentOf } from "../GameState"
@@ -20,7 +21,6 @@ import {
     pickEnemyByBp,
     pickEnemyCandidates,
     canTakeCoresFrom,
-    coreFloorFor,
     removeCores,
     removeCoresToTrash,
     removeCoresToVoid,
@@ -107,13 +107,13 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                         return 0
                     }
                 }
-                if (action.dest === "void") return removeCoresToVoid(state, pid, inst, 1, owner)
+                if (action.dest === "void") return removeCoresToVoid(state, pid, inst, 1, owner, srcType)
                 // distinct（置くコアは相手が選ぶ）のときだけ、相手は[ソウルコア]を選べる（2026-10-08 ユーザー確定）
                 const soul = action.distinct && !action.excludeSoulCore
                     ? soulCoreInclusionDecision(state, owner, pid, inst, action.dest === "trash" ? "trash" : "reserve", action, self, sourceName, chosenOption)
                     : false
                 if (soul === "asked") return "asked"
-                const removed = action.dest === "trash" ? removeCoresToTrash(state, pid, inst, 1, owner, soul) : removeCores(state, pid, inst, 1, owner, srcType, soul)
+                const removed = action.dest === "trash" ? removeCoresToTrash(state, pid, inst, 1, owner, soul, srcType) : removeCores(state, pid, inst, 1, owner, srcType, soul)
                 // 複数体にまたがっても「消滅したなら、1枚ドロー」は1回だけ（spreadDrew で再入をまたいで覚える。26RBS03-019）
                 if (action.drawIfEmptied && !action.spreadDrew && removed > 0 && inst.cores === 0) {
                     action = { ...action, spreadDrew: true }
@@ -188,8 +188,8 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             }
             // 簡略化：side:"own"はleaveAtLeast/drawIfEmptiedと組み合わない前提（現状そのようなカードは無い）
             const removeCount = action.all ? foundOwn.inst.cores : count
-            if (action.dest === "void") removeCoresToVoid(state, owner, foundOwn.inst, removeCount, owner)
-            else if (action.dest === "trash") removeCoresToTrash(state, owner, foundOwn.inst, removeCount, owner)
+            if (action.dest === "void") removeCoresToVoid(state, owner, foundOwn.inst, removeCount, owner, srcType)
+            else if (action.dest === "trash") removeCoresToTrash(state, owner, foundOwn.inst, removeCount, owner, undefined, srcType)
             else removeCores(state, owner, foundOwn.inst, removeCount, owner, srcType)
             return
         }
@@ -269,12 +269,12 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             )
             if (soulDecision === "asked") return
             if (action.dest === "trash") {
-                removeCoresToTrash(state, found.pid, found.inst, removeCount, owner, soulDecision === true)
+                removeCoresToTrash(state, found.pid, found.inst, removeCount, owner, soulDecision === true, srcType)
             } else {
                 removeCores(state, found.pid, found.inst, removeCount, owner, srcType, soulDecision === true)
             }
         } else {
-            removeCoresToVoid(state, found.pid, found.inst, removeCount, owner)
+            removeCoresToVoid(state, found.pid, found.inst, removeCount, owner, srcType)
         }
         // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
         // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
@@ -304,13 +304,13 @@ function moveRichestSpiritCoresToTrash(state: GameState, pid: PlayerId, count: n
     let moved = 0
     while (remaining > 0) {
         const richest = player.field.spirits
-            .filter((s) => s.cores > 0)
+            .filter((s) => s.cores > 0 && coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "cost", actorPid: pid }) > 0)
             .reduce<CardInstance | undefined>(
                 (best, s) => (best === undefined || s.cores > best.cores ? s : best),
                 undefined,
             )
         if (!richest) break
-        const take = Math.min(remaining, richest.cores)
+        const take = Math.min(remaining, coreRemovalAllowed(state, { ownerPid: pid, target: richest, amount: richest.cores, cause: "cost", actorPid: pid }))
         richest.cores -= take
         player.trashCores += take
         remaining -= take
@@ -457,34 +457,6 @@ function coreSourcesOf(
     return sources
 }
 
-// 選ばれた取り先から1個だけボイドへ置く。維持コア割れの消滅処理は removeCoresToVoid が担う
-function takeOneCoreToVoid(state: GameState, targetPid: PlayerId, picked: CoreSource, actorPid: PlayerId): void {
-    const player = state.players[targetPid]
-    // 案B-inside: [ソウルコア]はボイドへ行けないため、取り出しは通常コアに限る
-    if (picked.kind === "reserve") {
-        if (normalReserveOf(player) < 1) return
-        player.reserve -= 1
-        log(state, `${player.name}はリザーブのコア1個をボイドに置いた。`)
-        return
-    }
-    if (picked.kind === "trash") {
-        if (normalTrashOf(player) < 1) return
-        player.trashCores -= 1
-        log(state, `${player.name}はトラッシュのコア1個をボイドに置いた。`)
-        return
-    }
-    if (picked.kind === "spirit") {
-        const sp = player.field.spirits.find((x) => x.instanceId === picked.instanceId)
-        if (!sp) return
-        removeCoresToVoid(state, targetPid, sp, 1, actorPid)
-        return
-    }
-    const nx = player.field.nexuses.find((x) => x.instanceId === picked.instanceId)
-    if (!nx || normalCoresOn(player, nx) < 1) return
-    nx.cores -= 1
-    log(state, `${getCard(nx.cardId).name}の上のコア1個をボイドに置いた。`)
-}
-
 // 非対話（テスト・AI）の決定的簡略化：リザーブ→トラッシュ→フィールド（コアの多い個体から）の順に
 // count 個をボイドへ置く。**この順は2つのアクションで共有する**（規則を2つ持たないため）
 function autoTakeCoresToVoid(
@@ -529,7 +501,7 @@ function autoTakeCoresToVoid(
                 skip.add(richest.instanceId)
                 continue
             }
-            const removed = removeCoresToVoid(state, targetPid, richest, Math.min(remaining, richest.cores), actorPid)
+            const removed = removeCoresToVoid(state, targetPid, richest, Math.min(remaining, richest.cores), actorPid, srcType)
             if (removed === 0) {
                 skip.add(richest.instanceId)
                 continue
@@ -602,14 +574,13 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
         log(state, `${sourceName}：同じフィールドに移し先がいなかった。`)
         return
     }
-    // コア下限（BS08聖なる柱状彫刻）は移動にも効くので、残す数は「1個」と下限の大きい方
-    const keep = Math.max(1, coreFloorFor(state, inst, pid, owner))
-    const moved = inst.cores - keep
+    // 取り除けない系の禁止・下限（BS08聖なる柱状彫刻）は移動にも効くので、1個残す分と許される分の小さい方
+    const moved = Math.min(inst.cores - 1, coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "effect", actorPid: owner, sourceType: srcType }))
     if (moved <= 0) {
-        log(state, `${sourceName}：${getCard(inst.cardId).name}のコアは下限より少なくできない。`)
+        log(state, `${sourceName}：${getCard(inst.cardId).name}のコアは動かせない。`)
         return
     }
-    inst.cores = keep
+    inst.cores -= moved
     dest.cores += moved
     log(
         state,
@@ -639,8 +610,10 @@ const swapOpponentCoresHandler: ActionHandler<"swapOpponentCores"> = (ctx, actio
         }
         // コア下限（BS08聖なる柱状彫刻）は入れ替えにも効く。入れ替えは同時に起きる1つの動きなので、
         // どちらかが下限を割るなら**入れ替え自体を行わない**（片側だけ動かすとコアが増減してしまう）
-        if (beforeB < coreFloorFor(state, a, opp, owner) || beforeA < coreFloorFor(state, b, opp, owner)) {
-            log(state, `${sourceName}：コアの下限を下回るため入れ替えられなかった。`)
+        const gate = (t: CardInstance, before: number, after: number): boolean =>
+            after >= before || coreRemovalAllowed(state, { ownerPid: opp, target: t, amount: before - after, cause: "effect", actorPid: owner, sourceType: srcType }) >= before - after
+        if (!gate(a, beforeA, beforeB) || !gate(b, beforeB, beforeA)) {
+            log(state, `${sourceName}：コアを取り除けないか下限を下回るため入れ替えられなかった。`)
             return
         }
         a.cores = beforeB

@@ -86,8 +86,8 @@ console.log("=== §B コアを取り除けない（効果でもプレイヤー�
     // ① 効果による取り除き（**相手の効果も自分の効果も**止まる）
     const attempt = (actorPid: PlayerId) =>
         boardResistanceAgainst(s, "p1", locked, { op: "coreRemove", scope: "targeted", actorPid, sourceType: "spirit" })
-    assert(attempt("p2")?.category === "coresLocked", "相手の効果ではコアを取り除けない")
-    assert(attempt("p1")?.category === "coresLocked", "**自分の効果でも**取り除けない（お互い、なので）")
+    assert(attempt("p2") === null, "取り除けなくても対象には取れる（取り除く時点で coreGate が止める。10-30）")
+    assert(attempt("p1") === null, "自分の効果でも対象には取れる")
     // 他の操作は止めない
     const destroyTry = boardResistanceAgainst(s, "p1", locked, { op: "destroy", scope: "targeted", actorPid: "p2", sourceType: "spirit" })
     assert(destroyTry === null, "コアの取り除き以外（破壊）は止めない")

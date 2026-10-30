@@ -18,6 +18,7 @@ import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCor
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
 import { getAllFamilies } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
+import { coreRemovalAllowed } from "./coreGate"
 
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
@@ -1381,6 +1382,11 @@ export function canTakeCoresFrom(
     })
 }
 
+// 効果で取り除ける上限（取り除けない系の禁止・バトル中の保護・下限をすべて見る）。actorPid 省略＝持ち主自身
+function effectCoreCap(state: GameState, ownerPid: PlayerId, inst: CardInstance, actorPid: PlayerId | undefined, srcType: CardType | undefined): number {
+    return coreRemovalAllowed(state, { ownerPid, target: inst, amount: inst.cores, cause: "effect", actorPid: actorPid ?? ownerPid, sourceType: srcType })
+}
+
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
 // actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。
 // actorPid !== ownerPid（自分以外の効果でコアが取り除かれた）のとき、
@@ -1399,10 +1405,6 @@ export function removeCores(
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
     // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
     const player = state.players[ownerPid]
     // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
     // 元のコア数を超えては取れないので、加算してから inst.cores で頭打ちにする
@@ -1411,13 +1413,13 @@ export function removeCores(
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const floor = coreFloorFor(state, inst, ownerPid, actorPid)
+    const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType)
     // [ソウルコア]を含める指定: ソウルコア1個ぶんも移す個数に数える（案B-inside: coresには元から含まれる）。
     // 含めない指定なら、取り除き上限は[ソウルコア]を差し引いた通常コア数
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
     const includeSoulUnit = includeSoul === true && soulHere
     const soulUnits = includeSoulUnit ? 1 : 0
-    const capacity = Math.max(0, inst.cores - floor) - (soulHere && !includeSoulUnit ? 1 : 0)
+    const capacity = allowed - (soulHere && !includeSoulUnit ? 1 : 0)
     const removed = Math.min(count + bonus, capacity)
     inst.cores -= Math.max(0, removed - soulUnits)
     // coresToOpponentReserveGoToTrash（BS12-X02）：本来リザーブへ置かれるはずのコアを、
@@ -1458,13 +1460,10 @@ export function removeCoresToTrash(
     actorPid?: PlayerId,
     // §1.3の持ち主選択で[ソウルコア]を含める答えが戻ってきたとき（ソウルコア1個ぶんも移す。数値には含めない）
     includeSoul?: boolean,
+    srcType?: CardType,
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
     // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
     const player = state.players[ownerPid]
     // coreReturnBonus の includeTrash 版（BS14-019シュテン・ドーガ）：トラッシュ行きにも加算する
     const bonus = coreReturnBonusFor(state, ownerPid, true)
@@ -1475,7 +1474,7 @@ export function removeCoresToTrash(
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
     const includeSoulUnit = includeSoul === true && soulHere
     const soulUnits = includeSoulUnit ? 1 : 0
-    const capacity = Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)) - (soulHere && !includeSoulUnit ? 1 : 0)
+    const capacity = effectCoreCap(state, ownerPid, inst, actorPid, srcType) - (soulHere && !includeSoulUnit ? 1 : 0)
     const removed = Math.min(count + bonus, capacity)
     inst.cores -= Math.max(0, removed - soulUnits)
     if (includeSoulUnit) moveSoulCore(player, { zone: "trash" })
@@ -1504,12 +1503,9 @@ export function takeCoresFromSpirit(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
+    srcType?: CardType,
 ): number {
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
+    const removed = Math.min(count, effectCoreCap(state, ownerPid, inst, actorPid, srcType))
     inst.cores -= removed
     if (removed > 0) checkExhaustOnCoreChange(state, ownerPid, inst, { viaEffect: true, isRemoval: true })
     if (wouldDeplete(state, ownerPid, inst)) {
@@ -1527,16 +1523,12 @@ export function removeCoresToVoid(
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
+    srcType?: CardType,
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
     // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
-    if (isBattlingCoreProtected(state, inst)) {
-        log(state, `${getCard(inst.cardId).name}は、バトル中のためコアを取り除けなかった。`)
-        return 0
-    }
     const player = state.players[ownerPid]
-    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
-    const removed = Math.min(count, Math.max(0, inst.cores - coreFloorFor(state, inst, ownerPid, actorPid)))
+    const removed = Math.min(count, effectCoreCap(state, ownerPid, inst, actorPid, srcType))
     inst.cores -= removed
     log(
         state,

@@ -159,12 +159,8 @@ export function coresCantBeRemoved(
     board: Board,
     ownerPid: PlayerId,
     inst: CardInstance,
-    // このコア除去を行っている側。省略時は「持ち主自身の操作」（支払い元・moveCore・【覚醒】の移動元）を意味する
-    // （globalConstraint "coresCantBeRemovedAll" の exceptOwnerEffects が使う）
-    actorPid?: PlayerId,
 ): boolean {
-    if (activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")) return true
-    return globalCoresCantBeRemoved(board, ownerPid, actorPid ?? ownerPid)
+    return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
 }
 
 // globalConstraint "coresCantBeRemovedAll"（BS13緑バッチ 器AC。既存のcoresCantBeRemovedは自身のコアだけを
@@ -172,9 +168,8 @@ export function coresCantBeRemoved(
 //   side:"opponent" ＝発生源から見た相手のスピリットのコアだけを対象にする（BS13-065八分儀の祠Lv2）
 //   side:"both"     ＝両陣営のスピリットのコアを対象にする（BS13-X03白羊樹神セフィロ・アリエスLv3）
 //   exceptOwnerEffects ＝持ち主自身の効果・操作は例外で通す（相手の効果だけを止める。065Lv2）
-// 【転召】でコアがすべて外れる経路（dumpAllCoresTensho）はこのチェックを経由しないため、
-// 「【転召】以外」の例外は自然に満たされる（コード上の追加対応は不要）
-function globalCoresCantBeRemoved(board: Board, targetOwnerPid: PlayerId, actorPid: PlayerId): boolean {
+// ownEffect＝持ち主自身の効果による除去（exceptOwnerEffects が通すのはこれだけ。持ち主自身の支払い・移動は止まる）
+export function globalCoresCantBeRemoved(board: Board, targetOwnerPid: PlayerId, ownEffect: boolean): boolean {
     for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of effectSources(board, sourcePid)) {
             const level = currentLevel(inst).level
@@ -187,7 +182,7 @@ function globalCoresCantBeRemoved(board: Board, targetOwnerPid: PlayerId, actorP
                 if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
                 const { side, exceptOwnerEffects } = effect.constraint
                 if (side === "opponent" && targetOwnerPid === sourcePid) continue
-                if (exceptOwnerEffects && actorPid === targetOwnerPid) continue
+                if (exceptOwnerEffects && ownEffect) continue
                 return true
             }
         }

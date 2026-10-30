@@ -1,4 +1,5 @@
 // カードを選んで動かす統合の器（旧 toHand／toDeck ほか「選ぶ＋送る」の type をここへ寄せる）
+import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
@@ -124,16 +125,17 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
     if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
     if (action.dest === "cast") return action.pay === "cost" ? player.reserve >= effectiveCost(state, pid, card) : true
-    if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(player).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
+    if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(state, pid).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
     return player.reserve >= minLevelCores(card)
 }
 
 // フィールドから取り出せるコア（維持コアぶんは残す。案B-inside：[ソウルコア]は動かさない）
-export function fieldCoresSpendable(player: PlayerState): { inst: CardInstance; max: number }[] {
+export function fieldCoresSpendable(state: GameState, pid: PlayerId): { inst: CardInstance; max: number }[] {
+    const player = state.players[pid]
     return [
         ...player.field.nexuses.map((n) => ({ inst: n, max: normalCoresOn(player, n) })),
         ...player.field.spirits.map((sp) => ({ inst: sp, max: sp.pendingDestruction ? sp.cores : Math.max(0, sp.cores - instMinLevelCores(sp)) })),
-    ].filter((x) => x.max > 0)
+    ].map((x) => ({ inst: x.inst, max: Math.min(x.max, coreRemovalAllowed(state, { ownerPid: pid, target: x.inst, amount: x.max, cause: "cost", actorPid: pid })) })).filter((x) => x.max > 0)
 }
 
 // 1枚を送る。送れたら true（払えない・種別が違うなどで送れなければゾーンに残して false）
@@ -194,7 +196,7 @@ function deployByFieldCores(ctx: ActionCtx, pid: PlayerId, zone: string[], j: nu
     const player = state.players[pid]
     const cardId = zone[j]!
     const cost = effectiveCost(state, pid, getCard(cardId))
-    const pool = fieldCoresSpendable(player)
+    const pool = fieldCoresSpendable(state, pid)
     if (pool.reduce((sum, x) => sum + x.max, 0) < cost) {
         log(state, `${sourceName}：フィールドのコアが足りないため配置できなかった。`)
         return false

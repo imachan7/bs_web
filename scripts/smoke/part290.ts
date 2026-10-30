@@ -59,7 +59,7 @@ console.log("=== W: globalConstraint coresCantBeRemovedByOpponent（相手の効
     s.players.p1.field.spirits.push(genji)
     refreshLevelAsOverrides(s)
     const byOpponent = boardResistanceAgainst(s, "p1", genji, { op: "coreRemove", scope: "targeted", actorPid: "p2", sourceType: "spirit" })
-    assert(byOpponent?.category === "coresLocked", "相手のスピリットの効果ではコアを取り除けない")
+    assert(byOpponent === null, "取り除けなくても対象には取れる（取り除く時点で coreGate が止める。10-30）")
     const bySelf = boardResistanceAgainst(s, "p1", genji, { op: "coreRemove", scope: "targeted", actorPid: "p1", sourceType: "spirit" })
     assert(bySelf === null, "自分の効果は片側限定の制約に止められない")
     assert(coresCantBeRemovedByOpponent(s, "p1", genji, "nexus") === false, "sourceTypeがネクサスなら対象外")

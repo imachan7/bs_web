@@ -36,7 +36,6 @@ export type ResistanceCategory =
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
     | "bounceImmune" // 相手の効果で手札・デッキに戻らない（immunityGrant against:"bounce"）
     | "exhaustImmune" // 相手の効果で疲労しない（exhaustImmunityGrant）
-    | "coresLocked" // このスピリットのコアは取り除けない（constraint:"coresCantBeRemoved"）。**お互いに効く**
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
@@ -107,24 +106,8 @@ export function boardResistanceAgainst(
     ) {
         return { category: "battlingImmune", label: "バトル中の効果免疫" }
     }
-    // 「お互い、このスピリットのコアを取り除けない」（BS10-X01 幻羅星龍ガイ・アスラ）。
-    // **自分の効果も止める**ので、下の「相手の効果」限定より前で判定する
-    if (attempt.op === "coreRemove" && coresCantBeRemoved(board, targetOwnerPid, target, attempt.actorPid)) {
-        return { category: "coresLocked", label: "コアを取り除けない" }
-    }
     // ここから下はすべて「相手の効果」限定
     if (attempt.actorPid === targetOwnerPid) return null
-    // 「相手のスピリット/ブレイヴ/マジックの効果で、カード名に◯◯と入っている自分のスピリット上の
-    // コアは取り除くことができない」（BS12-022太陽武者ゲンジ・ボルタ）。coresCantBeRemovedと違い片側限定
-    if (attempt.op === "coreRemove" && activeConstraints(board, targetOwnerPid, target).some((c) => c.type === "coresImmovableByOpponent")) {
-        return { category: "coresLocked", label: "相手の効果ではコアを移動できない" }
-    }
-    if (
-        attempt.op === "coreRemove" &&
-        coresCantBeRemovedByOpponent(board, targetOwnerPid, target, attempt.sourceType)
-    ) {
-        return { category: "coresLocked", label: "コアを取り除けない（相手の効果）" }
-    }
 
     // 【装甲】。ただしこのターン「装甲を無いものとして扱う」効果を受けていれば働かない
     //（すでに持っている分も、このターンに付与された分もまとめて落とす。SD01-040 アーマーパージ）

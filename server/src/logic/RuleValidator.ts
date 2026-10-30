@@ -1,5 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
@@ -40,7 +41,7 @@ import {
     summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, coresCantBeRemoved, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword, noteHeldKeyword } from "../../../shared/rules"
+import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword, noteHeldKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     effectiveBp,
@@ -122,7 +123,7 @@ export function validatePaySources(
         const capacity = src.includeSoulCore === true ? inst.cores : inst.cores - (soulCoreOnInstance(player, src.instanceId) ? 1 : 0)
         if (src.count > capacity) return "支払い元のコアが足りません"
         // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**
-        if (coresCantBeRemoved(state, pid, inst)) return "そのカードのコアは支払いに使えません"
+        if (coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: src.count, cause: "cost", actorPid: pid }) < src.count) return "そのカードのコアは支払いに使えません"
         total += src.count
     }
     if (total > need) return "必要数を超えてコアを支払うことはできません"
@@ -312,7 +313,7 @@ export function validateSummon(
     if (tensho) {
         const candidates = tenshoCandidates(state, pid, tensho.minCost, undefined, tensho.familyFilter)
         if (candidates.length === 0) {
-            const locked = state.players[pid].field.spirits.find((s) => coresCantBeRemoved(state, pid, s))
+            const locked = state.players[pid].field.spirits.find((s) => coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "tensho", actorPid: pid }) < s.cores)
             if (locked) {
                 return `【転召】の対象がいません（${getCard(locked.cardId).name}はコアを取り除けないため対象にできません）`
             }
@@ -406,7 +407,7 @@ export function validateSwapSoulCore(state: GameState, pid: PlayerId, fromInstan
     if (!soulCoreOnInstance(player, fromInstanceId)) return "[ソウルコア]が載った個体を選んでください"
     if (to.cores - (soulCoreOnInstance(player, toInstanceId) ? 1 : 0) < 1) return "通常コア1個以上が置かれた個体と交換できます"
     // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、プレイヤーの操作でも取り除けない。交換にも効く
-    if (coresCantBeRemoved(state, pid, from) || coresCantBeRemoved(state, pid, to)) {
+    if (coreRemovalAllowed(state, { ownerPid: pid, target: from, amount: 1, cause: "player", actorPid: pid }) < 1 || coreRemovalAllowed(state, { ownerPid: pid, target: to, amount: 1, cause: "player", actorPid: pid }) < 1) {
         return "コアを取り除けない個体とは交換できません"
     }
     return null
@@ -911,7 +912,7 @@ export function validateMoveCore(
             if (!soulCoreInReserve(player)) return "リザーブに[ソウルコア]がありません"
         } else {
             if (!soulCoreOnInstance(player, instanceId)) return "この個体に[ソウルコア]がありません"
-            if (coresCantBeRemoved(state, pid, inst)) return "このカードのコアは取り除けません"
+            if (coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: 1, cause: "player", actorPid: pid }) < 1) return "このカードのコアは取り除けません"
             if (inst.cores - 1 < instMinLevelCores(inst) && !confirmDeplete) {
                 return "維持コア（Lv1）を下回るため[ソウルコア]を取り除けません"
             }
@@ -925,8 +926,8 @@ export function validateMoveCore(
     } else {
         if (inst.cores < 1) return "コアが置かれていません"
         if (inst.cores - (soulCoreOnInstance(player, instanceId) ? 1 : 0) < 1) return "このカードには[ソウルコア]しか置かれていません"
-        // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**（constraint:"coresCantBeRemoved"。2026-08-25 ユーザー確認）
-        if (coresCantBeRemoved(state, pid, inst)) return "このカードのコアは取り除けません"
+        // プレイヤーの操作でも、取り除けない系の禁止・バトル中の保護・下限が効く（2026-08-25 / 10-30 ユーザー確認）
+        if (coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: 1, cause: "player", actorPid: pid }) < 1) return "このカードのコアは取り除けません"
         const need = instMinLevelCores(inst)
         // confirmDeplete：維持コア割れを承知のうえで取り除く（doMoveCore がそのスピリットを消滅させる）。
         // コアを他のスピリットや召喚コストへ回すために、自分のスピリットをあえて退かせる操作
@@ -970,8 +971,7 @@ export function validateAwaken(
     const from = findSpirit(player, fromInstanceId)
     if (!from) return "コアの移動元スピリットが見つかりません"
     if (from.cores < count) return "移動元のコアが足りません"
-    // 「コアを取り除けない」のカード（BS10-X01 幻羅星龍ガイ・アスラ）は、**プレイヤーの操作でも取り除けない**
-    if (coresCantBeRemoved(state, pid, from)) return "そのスピリットのコアは取り除けません"
+    if (coreRemovalAllowed(state, { ownerPid: pid, target: from, amount: count, cause: "effect", actorPid: pid }) < count) return "そのスピリットのコアは取り除けません"
     return null
 }
 
@@ -1127,6 +1127,7 @@ export function validateActivateAbility(
         } else if ("selfCoresToTrash" in effect.cost) {
             // 発生源自身の上のコアを払う（BS11-067 白き楯の長城Lv2）
             if (host.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
+            if (coreRemovalAllowed(state, { ownerPid: pid, target: host, amount: effect.cost.selfCoresToTrash, cause: "cost", actorPid: pid }) < effect.cost.selfCoresToTrash) return "コアを取り除けません"
         } else if ("discardHandFamily" in effect.cost) {
             // 手札に指定系統のスピリットカードが無ければ発動できない（BS13-062光り輝く大銀河Lv2）
             const wanted = Array.isArray(effect.cost.discardHandFamily)
