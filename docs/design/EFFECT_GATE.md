@@ -122,4 +122,10 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 『リフレッシュステップ』に限った禁止（`noRefresh`・`skipRefresh`・`nexusesCantRefresh`・`opponentCombinedCantRefresh`）と `refreshOnlyOneUncombined` は、リフレッシュステップの手順（`PhaseManager.ts`）に残す。「次のリフレッシュステップで」の記録をそのステップで使い切る作りのため
    - 直したもの：スクルディアの指定がリフレッシュステップでしか効いていなかった／【超覚醒】とモクバオーの回復が発生源の種類を渡さず、渦巻く大海峡を素通りしていた。モクバオーは回復できなければ合体もしない（CONJUNCTION「Aし、Bできる」）
    - 入れないもの：ネクサスを効果で回復させる経路（`exhaustRefresh.ts`）は、効く禁止が無いので入口を通さない
+5f. **戻すの問い合わせ**（設計を10-30に確定。ブランチ `fix/bounce-gate`）
+   - `server/src/logic/bounceGate.ts`（新規）に `bounceDenial(state, { ownerPid, target, to: "hand"|"deckTop"|"deckBottom"|"burst", actorPid?, sourceType? }): string | null`。actorPid 省略＝プレイヤー自身のコスト
+   - 集める禁止：`allSpiritsCantBounce`（金狐角。to hand だけ、原因を問わない）・`immunityGrant{against:"bounce"}`（to hand だけ、actor≠持ち主。軸 `sourceTypes?: CardType[]` を足し、恐竜姫ジュラ・転生の谷・タルタルガーは `["spirit","nexus","magic"]`＝ブレイヴ自身の効果は通す）
+   - **「手札に戻らない」はデッキへ戻す効果を止めない**。今は耐性の判定（op "bounce"）がデッキへ戻す効果にも効き、金狐角は行き先を問わず止めていた
+   - 呼ぶ所：`removal.ts` の `markBounce`（戻すはすべてここを通る。actorPid／sourceType を受け取り、止めたら false を返す）。`resistance.ts` の `bounceImmune` は消す（対象には取れる）。コストで戻す候補は止められる個体を外す
+5g. **ドロー・合体／分離**：直すものなし（10-30 に洗った）。ドローは入口 `draw()` が2つの禁止を見ていて、デッキから手札へ移す別経路も無い。分離は `detachBraveByEffect`／`detachBraveByOwnerChoice` の両方で `cantSeparate` を見ている。合体は候補（`braveCombineCandidates`）で `cantCombine` を外す（合体はプレイヤーの行動の一部なので候補で外す）。スピリット状態の禁止は検証と残す確認の両方で見ている
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
