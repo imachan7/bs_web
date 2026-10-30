@@ -45,11 +45,11 @@ console.log("=== 2. このターン相手の効果を受けない（付与）も
     assert(resistanceAgainst(s, pid, t, attempt("targeted", true)) === null, "一切の効果で防げないなら通る")
 }
 
-console.log("=== 3. 「対象にならない」は防ぐ効果ではないので、貫通しても対象には取れない（範囲なら通る） ===")
+console.log("=== 3. 「対象にならない」は防ぐ効果ではないので、貫通しても対象には取れない（「すべて」も止まる＝Q1679） ===")
 {
     const { s, t } = put("pierce-untargetable", UNTARGETABLE.cardId)
     assert(resistanceAgainst(s, pid, t, attempt("targeted", true))?.category === "untargetable", "対象指定は止まる")
-    assert(resistanceAgainst(s, pid, t, attempt("area", true)) === null, "範囲は通る")
+    assert(resistanceAgainst(s, pid, t, attempt("area", true))?.category === "untargetable", "「すべて」も止まる")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part683）")

@@ -85,7 +85,7 @@ console.log("=== 【装甲：色】は発生源の色で決まり、対象指定
     )
 }
 
-console.log("=== 「相手の効果の対象にならない」は対象指定だけを防ぎ、範囲はすり抜ける ===")
+console.log("=== 「相手の効果の対象にならない」は対象指定も「すべて」も防ぐ（Q1679。10-30 に旧い読みを改めた） ===")
 {
     const s = base("resist-untargetable")
     const t = put(s, "p2", UNTARGETABLE.cardId, 3)
@@ -93,7 +93,7 @@ console.log("=== 「相手の効果の対象にならない」は対象指定だ
         resistanceAgainst(s, "p2", t, byP1("destroy", "targeted"))?.category === "untargetable",
         "対象指定の効果は防がれる",
     )
-    assert(resistanceAgainst(s, "p2", t, byP1("destroy", "area")) === null, "範囲効果は防がない（ここが2軸に分けた理由）")
+    assert(resistanceAgainst(s, "p2", t, byP1("destroy", "area"))?.category === "untargetable", "「すべて」の効果も防ぐ")
 }
 
 console.log("=== 「このターンの間、相手の効果を受けない」は範囲も防ぐ ===")
