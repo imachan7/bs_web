@@ -5,6 +5,7 @@ import { allSpiritsCantBounceActive } from "../bounceGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
+import { millAllowed } from "../zones/mill"
 import type { CardData, CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
@@ -183,7 +184,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // mill：side（既定opponent）側のデッキがcount枚（countCounterがあれば数えた値）以上あるか
     mill: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "mill") return false
-        if (hasGlobalConstraint(state, "noDeckMill")) return false
         const count =
             action.countCounter !== undefined
                 ? countedAmount(
@@ -192,7 +192,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
                   )
                 : action.count
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
-        return state.players[targetPid].deck.length >= count
+        return state.players[targetPid].deck.length >= count && millAllowed(state, { pid: targetPid, count, actorPid: owner, sourceType: srcType }) >= count
     },
     // discard：from ごとに「破棄できるものがあるか」（COST_MODEL §1。手札が0枚なら不発）
     discard: (state, owner, _self, action) => {

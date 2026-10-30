@@ -4569,6 +4569,7 @@
     "levels": null,
     "constraint": {
      "type": "millCap",
+     "sourceTypes": ["spirit", "nexus", "magic"],
      "maxCount": 5
     }
    }

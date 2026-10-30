@@ -52,7 +52,7 @@ export type GlobalConstraintDef =
     | { type: "maxSpiritsOnField"; max: number } // 両陣営とも、フィールドのスピリットが max 体以上のときは召喚できない（メインステップの通常召喚のみ）
     | { type: "levelCantAct"; levels: number[] } // currentLevel がこのリストに含まれるスピリットは、アタックもブロックもできない（両陣営）
     | { type: "costCantAct"; maxCost?: number; costs?: number[] } // コストが maxCost 以下のスピリットは、アタックもブロックもできない（両陣営。shared/rules.ts の costCantAct が参照）。costs＝maxCost の代わりに完全一致するコストのみ対象
-    | { type: "millCap"; maxCount: number; perTurn?: boolean; mutual?: true; bothSides?: true } // 発生源の持ち主のデッキは、相手の効果によるミルで maxCount 枚を超えて破棄されない
+    | { type: "millCap"; maxCount: number; perTurn?: boolean; mutual?: true; bothSides?: true; sourceTypes?: CardType[] } // 発生源の持ち主のデッキは、相手の効果によるミルで maxCount 枚を超えて破棄されない
       // （発生源の持ち主のみに効く。EffectModules.millCapFor が effectSources 経由で判定＝lendSelfThisTurn で貸与可。
       // perTurn 省略時は1回のミルにつき maxCount 枚まで。perTurn:true はターン累計（GameState.millCountThisTurn）
       // mutual 指定時は「相手の効果によるミルだけ」という既定を外れ、お互いのデッキを発生源の持ち主自身の効果によるミルも含めて

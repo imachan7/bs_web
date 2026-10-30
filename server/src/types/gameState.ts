@@ -198,6 +198,7 @@ export interface GameState {
     magicUsedThisTurn: Record<PlayerId, number> // このターンに各プレイヤーがマジックを使用した回数（ターン終了でリセット。magicRestriction:"oncePerTurnAll"用。作戦参謀フォクシン）
     coreGainCountThisTurn: Record<PlayerId, number> // このターンに各プレイヤーが相手の発生源の coreGainCap の対象となる配置で置いたコアの累計（サーバー内部のみ）
     millCountThisTurn: Record<PlayerId, number> // このターンに各プレイヤーが相手の効果でデッキを破棄された累計枚数（ターン終了でリセット。globalConstraint "millCap" の perTurn用。BS04侵されざる聖域Lv2。隠匿情報を含まないがGameViewには含めない＝サーバー内部のみで判定に使う）
+    millCountThisTurnBrave?: Record<PlayerId, number> // millCountThisTurn のうちブレイヴの効果によるもの（millCap の sourceTypes 用）
     millCountThisTurnMutual: Record<PlayerId, number> // 器AM：このターンに各プレイヤーが**誰の効果であっても**デッキを破棄された累計枚数（ターン終了でリセット。globalConstraint "millCap" の mutual用。millCountThisTurnとは別集計＝相手効果限定の既存カードを巻き込まない。BS13-026キグナ・スワンMk-II）
     battleAttackerRef?: CardInstance // 今のバトルのアタッカーの**実体参照**（GameViewには含めない＝サーバー内部のみ）。
     // アタッカーが場を離れてバトルが終わるとき、＞７の【光芒】判定に cardId とコア数が要るため保持する。

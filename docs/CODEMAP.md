@@ -963,9 +963,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/zones/mill.ts
 
-- `millCapFor`（fn）：globalConstraint "millCap"（BS05エターナルシールド）：pid自身のeffectSources（フィールド＋
+- `millCapFor`（fn）
 - `mutualMillCapRemainingFor`（fn）：器AM：globalConstraint "millCap" の mutual:true 版（BS13-026キグナ・スワンMk-II）。
 - `millCapPerTurnRemaining`（fn）：globalConstraint "millCap" の perTurn:true 版（BS04侵されざる聖域Lv2）：pidのデッキが
+- `millAllowed`（fn）：デッキの破棄の問い合わせ（EFFECT_GATE.md §4 の 5h）：pid のデッキを count 枚破棄してよい枚数（0〜count）。
+- `noteMilled`（fn）：破棄した枚数をターンの累計に足す。millDeck を通らない破棄（効果のコストなど）もここで数える
 - `millDeck`（fn）：【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
 - `collectMilledMagicToTegamoto`（fn）：kind:"milledMagicToTegamoto"（BS06混迷する魔法実験場Lv2）：破棄されたマジックカードを
 - `isDeckMillBlocked`（fn）：「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
