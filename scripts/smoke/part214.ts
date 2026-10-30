@@ -18,8 +18,10 @@ const VALLEY = "BS06-073" // 灼熱の谷
 console.log("=== カードデータの機械確認（cardIdのズレ検出） ===")
 {
     assert(getCard(VALLEY).name === "灼熱の谷" && getCard(VALLEY).type === "nexus", "BS06-073 は灼熱の谷（ネクサス）")
+    // ドロー+1 はドローステップの枚数で、誘発の効果ではない（Q3592。10-30 にデータを直した）
     const steps = getCard(VALLEY).effects.filter((e) => e.kind === "step")
-    assert(steps.length === 2, "『自分のドローステップ』のステップ誘発を2つ持つ（ドロー+1と手札破棄）")
+    assert(steps.length === 1, "『自分のドローステップ』のステップ誘発は手札破棄の1つ")
+    assert(getCard(VALLEY).effects.some((e) => e.kind === "drawStepBonus"), "ドロー+1 はドローステップの枚数の加算")
 }
 
 // 灼熱の谷を n 枚置いた状態で、自分のドローステップの誘発を発火させる
@@ -35,23 +37,23 @@ function setup(n: number, interactive: boolean): GameState {
     return s
 }
 
-console.log("=== 1枚のとき：ドロー+1、破棄1枚 ===")
+console.log("=== 1枚のとき：破棄1枚 ===")
 {
     const s = setup(1, false) // 非対話（自動選択）でまず素の枚数を確かめる
     const deckBefore = s.players.p1.deck.length
     const handBefore = s.players.p1.hand.length
     fireStepTriggers(s, "draw", undefined, "enter", "all")
-    assert(s.players.p1.deck.length === deckBefore - 1, "デッキが1枚減る（ドロー+1）")
-    assert(s.players.p1.hand.length === handBefore + 1 - 1, "引いた1枚と破棄1枚で差し引き同数")
+    assert(s.players.p1.deck.length === deckBefore, "誘発ではドローしない（ドロー+1 はドローステップの枚数）")
+    assert(s.players.p1.hand.length === handBefore - 1, "破棄1枚")
     assert(s.players.p1.trashCards.length === 1, "破棄されたのは1枚")
 }
 
-console.log("=== 2枚のとき：ドロー+2、破棄2枚（非対話） ===")
+console.log("=== 2枚のとき：破棄2枚（非対話） ===")
 {
     const s = setup(2, false)
     const deckBefore = s.players.p1.deck.length
     fireStepTriggers(s, "draw", undefined, "enter", "all")
-    assert(s.players.p1.deck.length === deckBefore - 2, "デッキが2枚減る（ドロー+1が2回）")
+    assert(s.players.p1.deck.length === deckBefore, "誘発ではドローしない")
     assert(s.players.p1.trashCards.length === 2, "破棄も2枚になる")
 }
 
@@ -72,7 +74,7 @@ console.log("=== 2枚のとき：実対戦でも破棄は2回聞かれる（こ�
 
     assert(s.pendingChoice === null, "2回で終わる")
     assert(s.players.p1.trashCards.length === 2, "破棄は合計2枚")
-    assert(s.players.p1.deck.length === deckBefore - 2, "ドローも2回ぶん")
+    assert(s.players.p1.deck.length === deckBefore, "誘発ではドローしない")
 }
 
 console.log("=== 3枚並べれば3回（取りこぼしが枚数に比例して起きないこと） ===")

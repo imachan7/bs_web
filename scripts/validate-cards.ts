@@ -79,7 +79,7 @@ const VALID_KINDS = new Set([
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
-    "magicFreeGrant", "coreStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
+    "magicFreeGrant", "coreStepBonus", "drawStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "burstSetCost",
     "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",

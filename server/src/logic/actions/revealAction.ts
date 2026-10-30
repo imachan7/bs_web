@@ -93,11 +93,10 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
     const dest: RevealDest = action.dest === "summonOrPlace" ? (card.type === "nexus" ? "placeNexus" : "summon") : (action.dest ?? "hand")
     switch (dest) {
         case "hand":
-            // 手札へ加えられないカードは選ばれなかった扱い＝オープン領域の残りに戻し、残りと同じ行き先へ送る
+            // 手札へ加えられないカードは残りの行き先（デッキの上など）へは行かず、破棄される（Q3589・Q4506）
             if (handGainDenial(state, { pid: owner, from: "revealed", cause: "effect" })) {
-                if (state.revealedCards) state.revealedCards.cardIds.push(cardId)
-                else player.trashCards.push(cardId)
-                log(state, `${sourceName}：効果によって手札が増やせないため、${card.name}は手札に加えられなかった。`)
+                player.trashCards.push(cardId)
+                log(state, `${sourceName}：効果によって手札が増やせないため、${card.name}は手札に加えられず破棄された。`)
                 return
             }
             player.hand.push(cardId)
