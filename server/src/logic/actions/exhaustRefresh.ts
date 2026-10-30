@@ -787,13 +787,16 @@ const refreshOneHandler: ActionHandler<"refreshOne"> = (ctx, action) => {
         // anySide は両陣営。封印された魔導書の片側への変更に従い、回復は得な効果として扱う（2026-09-24 ユーザー確認）
         if (action.all) {
             let refreshed = 0
+            const ids: string[] = []
             for (const pid of action.anySide ? bothSidesPids(state, srcType, true) : [owner]) {
                 for (const s of [...state.players[pid].field.spirits]) {
                     if (!s.isRested || !matchesTarget(state, pid, s, filter, self?.instanceId)) continue
-                    refreshSpirit(state, pid, s, srcType)
+                    if (refreshSpirit(state, pid, s, srcType)) ids.push(s.instanceId)
                     refreshed++
                 }
             }
+            // 「この効果で回復したスピリットは〜」が target:"lastTargets" で引く
+            recordTargets(state, ids)
             log(state, refreshed === 0 ? `${sourceName}の回復：対象がいなかった。` : `${sourceName}：条件を満たすスピリット${refreshed}体を回復させた。`)
             return
         }
@@ -901,37 +904,6 @@ function applyLevelUpThisTurn(state: GameState, target: CardInstance): void {
     const nextLevel = Math.min(currentLevel(target).level + 1, maxLevel)
     recordTimed(state, { content: [{ type: "level", set: nextLevel }], target: { kind: "instance", instanceId: target.instanceId }, until: "turn", ownerPid: state.players.p1.field.spirits.includes(target) ? "p1" : "p2" })
     log(state, `${getCard(target.cardId).name}のLvを、このターンの間${nextLevel}として扱う。`)
-}
-
-const refreshAllOwnHandler: ActionHandler<"refreshAllOwn"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
-        const player = state.players[owner]
-        let count = 0
-        for (const s of player.field.spirits) {
-            if (!s.isRested) continue
-            refreshSpirit(state, owner, s, srcType)
-            // exemptFamily指定時は、この系統（配列＝OR）を持つ個体にはcantAttackThisTurnを付与しない
-            // （BS06キャバルリー：系統「戦騎」を持たないスピリットのみアタック不可）
-            // exemptKeyword（BS09-076エマージェンシー＝【転召】持ちはアタックできる）は exemptFamily と OR
-            // exemptCombined（BS11-079 リブートコード＝「合体スピリット以外のスピリットはアタックできない」）も OR
-            const exempt =
-                (action.exemptFamily !== undefined && matchesFamilyFilter(state, owner, s, action.exemptFamily)) ||
-                (action.exemptKeyword !== undefined && spiritHasKeyword(state, owner, s, action.exemptKeyword)) ||
-                (action.exemptCombined === true && instIsCombined(s))
-            if (!exempt) {
-                recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: s.instanceId }, until: "turn", ownerPid: owner })
-            }
-            count++
-        }
-        if (count === 0) {
-            log(state, `${sourceName}：疲労状態のスピリットがいなかった。`)
-            return
-        }
-        log(
-            state,
-            `${player.name}の疲労スピリット${count}体を回復した。（このターンの間、回復したスピリットはアタック不可）`,
-        )
-        return
 }
 
 const markNoRefreshTargetHandler: ActionHandler<"markNoRefreshTarget"> = (ctx, action) => {
@@ -1045,7 +1017,6 @@ const handlers = {
     refreshOne: refreshOneHandler,
     refreshOwnNexus: refreshOwnNexusHandler,
     heavyExhaust: heavyExhaustHandler,
-    refreshAllOwn: refreshAllOwnHandler,
     markNoRefreshTarget: markNoRefreshTargetHandler,
     refreshSelf: refreshSelfHandler,
 } satisfies Partial<ActionRegistry>

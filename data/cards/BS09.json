@@ -4972,10 +4972,7 @@
         "id": "BS09-076-e1",
         "kind": "magic",
         "timing": "flash",
-        "action": {
-          "type": "refreshAllOwn",
-          "exemptKeyword": "tensho"
-        }
+        "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"keywordExclude": "tensho"}, "content": [{"type": "cantAttack"}]}]}
       }
     ]
   },

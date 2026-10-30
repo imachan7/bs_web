@@ -8,7 +8,7 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
-import { lastMovedOf } from "../record"
+import { lastMovedOf, lastTargetsOf } from "../record"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 
@@ -275,6 +275,25 @@ function placeLastBuffed(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     }
     recordBp(state, owner, found.inst, amount, bpUntil(action))
     log(state, `${getCard(found.inst.cardId).name}はさらにBP+${amount}（${action.duration === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`)
+}
+
+// target:"lastTargets"：直前の効果が実際に対象にした個体それぞれに置く（「この効果で回復したスピリットは〜」）。
+// all と違ってルールにしないので、後から場に出たスピリットには効かない。filter はいま判定する
+function placeLastTargets(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, self, sourceName } = ctx
+    const { lastTarget: _lt, ...rest } = action.filter ?? {}
+    const filter = rest as unknown as ResolvedTargetFilter
+    let n = 0
+    for (const id of lastTargetsOf(state)) {
+        const found = findSpiritAny(state, id)
+        if (!found || !matchesTarget(state, found.pid, found.inst, filter, self?.instanceId)) continue
+        for (const c of action.content) {
+            if (c.type === "bp") recordBp(state, owner, found.inst, c.amount, bpUntil(action))
+            else recordTimed(state, { content: [c], target: { kind: "instance", instanceId: found.inst.instanceId }, until: action.duration, ownerPid: owner })
+        }
+        n++
+    }
+    if (n === 0) log(state, `${sourceName}：対象がいなかった。`)
 }
 
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
@@ -899,6 +918,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (action.target === "lastBuffed") {
         placeLastBuffed(ctx, action)
+        return
+    }
+    if (action.target === "lastTargets") {
+        placeLastTargets(ctx, action)
         return
     }
     if (action.target === "self" && !action.content.some((c) => c.type === "bp")) {

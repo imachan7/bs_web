@@ -4860,9 +4860,7 @@
     "levels": [
      2
     ],
-    "action": {
-     "type": "refreshAllOwn"
-    }
+    "action": {"type": "refreshOne", "all": true}
    }
   ]
  },
@@ -6021,10 +6019,7 @@
     "id": "BS06-103-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {
-     "type": "refreshAllOwn",
-     "exemptFamily": "戦騎"
-    }
+    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"familyExclude": "戦騎"}, "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },
