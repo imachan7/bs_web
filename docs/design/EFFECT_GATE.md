@@ -111,9 +111,10 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 原因を問わず効く（下限は08-24「動かし方を問わず」、取り除けないは RULES_BATSPI_WIKI「コストの支払いも止める」）。待機状態の個体にも効く（待機前からの常時効果は発揮したまま。PENDING_STATE §1）。魔影街（【呪撃】で破壊される個体のコアをボイドへ）は効果のコア除去として扱う
    - 呼ぶ所：`removal.ts` の取り除く4関数（今の保護と下限の判定を置き換え）、`removeCores.ts`・`cores.ts` の下限の直接判定、プレイヤーの支払い（`validatePaySources`・`autoPayPlan`・`brave.ts` の2か所）、効果のコスト（`moveRichestSpiritCoresToTrash`・`fieldCoresSpendable`・起動の `selfCoresToTrash`・`selfCoresToVoid`・復活のコスト・`reviveLastDestroyedNexus`）、プレイヤーの操作（RuleValidator のコア移動・交換・【覚醒】の移動元）、【転召】の候補（`tenshoCandidates`）、`jugeki.ts`
    - 既知の限界：ネクサス上のコアは問い合わせを通さない（ネクサスのコアを守る効果がプールに無い）。破壊待機の個体のコアを効果で移す `destructionCoresToOwnSpirit` は通さない。起動能力のボタンは、取り除けない状態でもクライアントでは消えない（共有層から `coreRemovalAllowed` を呼べないので、押すとサーバーが拒否する）。`pierce` を渡すカードはまだ無い
-5d. **疲労の問い合わせ**（設計を10-30に確定）
+5d. ✅ **疲労の問い合わせ**（設計を10-30に確定）
    - `server/src/logic/exhaustGate.ts`（新規）に `exhaustDenial(state, { ownerPid, target, actorPid?, sourceType? }): string | null`。actorPid／sourceType の省略＝ルールやプレイヤー自身の操作による疲労（アタック・ブロック・コスト）
    - 集める禁止：`exhaustImmunityGrant`（actor≠持ち主かつ sourceType があるときだけ。軸 `sourceTypes?: CardType[]` を足し、トランプの王国は `["spirit","nexus","magic"]`＝ブレイヴ自身の効果は通す）・`opponentNexusesUnexhaustable`（発生源から見た相手のネクサス。原因を問わない）
    - 呼ぶ所：`state/exhaust.ts` の `exhaustSpirit`／`exhaustNexus`（入口がここだけなので、中で聞く）。`exhaustSpirit`／`exhaustNexus` は実際に疲労したかを boolean で返し、数を数えてログに出す呼び出し側はそれを使う。`canExhaustNexus`（コストの候補）は `exhaustDenial` を呼ぶ形にする。`resistance.ts` の `exhaustImmune` は消す（対象には取れる）
+   - 発生源の種類が分からない相手の効果（発生源なしの解決）は、`sourceTypes` があっても耐性を効かせる側に倒す。トランプの王国の「ブレイヴ自身の効果は通す」を確かめる場面は無い（持ち主のアタックステップ中に相手がブレイヴを召喚できないため）
    - 入れないもの：ブロック時に疲労しない4枚（`noRestWhenBlocking*`。ブロックの手順で、効果の疲労ではない）・払って防ぐ `exhaustPreventByPay`（置換に近い選択なので `exhaustSpirit` の中のまま）
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）

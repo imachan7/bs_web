@@ -6320,6 +6320,11 @@
      2
     ],
     "familyFilter": "四道",
+    "sourceTypes": [
+     "spirit",
+     "nexus",
+     "magic"
+    ],
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"

@@ -35,7 +35,6 @@ export type ResistanceCategory =
     | "fullImmune" // 相手の効果を受けない（constraint:"immuneToOpponentEffects"／このターンの間の immuneToOpponentThisTurn）
     | "magicImmune" // 相手のマジックの効果を受けない（immunityGrant against:"magic"）
     | "bounceImmune" // 相手の効果で手札・デッキに戻らない（immunityGrant against:"bounce"）
-    | "exhaustImmune" // 相手の効果で疲労しない（exhaustImmunityGrant）
     | "untargetable" // 相手の効果の**対象にならない**（constraint:"untargetableByOpponent"）。範囲効果は防がない
     | "battlingImmune" // バトル中は効果を受けない（globalConstraint:"battlingEffectImmune"）
     | "paidNegate" // コストを払って効果を受けなかった（kind:"targetNegateByHandDiscard"。サーバー側で判定）
@@ -139,9 +138,6 @@ export function boardResistanceAgainst(
     if (attempt.op === "bounce" && hasBounceImmunity(board, targetOwnerPid, target)) {
         return { category: "bounceImmune", label: "相手の効果で手札に戻らない" }
     }
-    if (attempt.op === "exhaust" && isExhaustImmuneOnBoard(board, targetOwnerPid, target)) {
-        return { category: "exhaustImmune", label: "相手の効果で疲労しない" }
-    }
     return untargetableAgainst(board, targetOwnerPid, target, attempt)
 }
 
@@ -187,13 +183,14 @@ export function isInBattle(board: Board, inst: CardInstance): boolean {
 
 // 【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
 // サーバーの isExhaustImmune と同じ判定を Board で行う（あちらはこの関数へ委譲している）
-export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, inst: CardInstance): boolean {
+export function isExhaustImmuneOnBoard(board: Board, targetOwnerPid: PlayerId, inst: CardInstance, sourceType?: CardType): boolean {
     const player = board.players[targetOwnerPid]
     for (const source of [...player.field.spirits, ...player.field.nexuses]) {
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "exhaustImmunityGrant") continue
             if (!entryActive(board, targetOwnerPid, source, effect, sourceLevel)) continue
+            if (effect.sourceTypes !== undefined && sourceType !== undefined && !effect.sourceTypes.includes(sourceType)) continue
             // scope:"self"指定時は発生源自身だけが対象（BS12-012戦車皇ディルガン）。familyFilterは無視する
             if (effect.scope === "self") {
                 if (source.instanceId !== inst.instanceId) continue
