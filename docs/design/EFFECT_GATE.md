@@ -137,4 +137,9 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 呼ぶ所：`millDeck`、`millDeck` を通らずにデッキを破棄している経路（`actions/mill.ts` の `runMillUntilMagicCastFree`・`revive.ts` の `millSelfOneMatching`／`millSelfCount`・`EffectModules.ts` の `lifeDamageMillGuard`・`keywords/funsai.ts`）と、払えるかの判定（`actions/pay.ts`）。できるだけ `millDeck` を通す形にして、累計（perTurn・mutual）も数える
    - 累計：`noteMilled` が数える。perTurn の上限の種類の指定はブレイヴを外す形しか無いので、ブレイヴの効果の分だけ別に数える（`millCountThisTurnBrave`）
    - 入れないもの：`deckMillNegate`（払って無効にする選択。`millDeck` の中のまま）。エターナルシールドの「6枚以上破棄されない」は1回あたりのまま（累計かは未確認）。`shared/cost.ts` の払えるかの判定（クライアントの表示用。`noDeckMill` だけ見る。サーバーが最後に止める）
+5i. **手札の破棄の問い合わせ**（設計を10-30に確定。ブランチ `fix/hand-discard-gate`）
+   - 入口は `shared/rules/constraints.ts` の `canDiscardHand(board, pid, byEffect = true)`（クライアントの起動能力のボタンも読むので共有層のまま）。`noHandDiscardInMain`（満天の牧草地「手札を破棄できない」）は原因を問わず止め、`noHandDiscardByEffect`（天蒼元帥チョウハッカイ「効果で」）は `byEffect` のときだけ止める
+   - byEffect＝効果と「〜することで」のコスト（起動能力・手札の能力・BS10-X05 のコストを含む）。false＝召喚コストの手札払い（ビクティム）とブロックのコスト（「手札のマジックを破棄しなければブロックできない」）＝使用コストとプレイヤーの操作
+   - 足す所：起動能力の手札コスト（`RuleValidator` の `discardHandFamily`／`Color`／`Keyword`／`discardHandOne` と、`shared/rules/activation.ts` の同じ判定）・手札の能力（`validateUseHandAbility` の `discardSelf`）・ビクティム（`validateSummonHandDiscard`）・ブロック（`validateBlock` の `blockCost` のマジック破棄）・BS10-X05（`actions/mill.ts`）
+   - 相手の手札を破棄する効果は、`handImmuneFor`（月光集める塔・五角形の砦「自分の手札は相手の〜の効果を受けない」）も見る。今は `discardHand` だけが見ていて、`randomOpponentHandMagicDiscard` が素通り
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
