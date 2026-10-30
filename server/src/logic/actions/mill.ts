@@ -6,7 +6,7 @@ import { getCard, log, opponentOf } from "../GameState"
 import { millCapBonusFor, millDeck, requestCardChoice } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { hasGlobalConstraint } from "../../../../shared/rules"
+import { canDiscardHand, hasGlobalConstraint } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 import { currentRecordScope, recordMoved } from "../record"
 import { chimeiBonus } from "../keywords/chimei"
@@ -75,6 +75,10 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const player = state.players[owner]
     const typeLabel = CARD_TYPE_LABELS[action.discardCardType]
+    if (!canDiscardHand(state, owner)) {
+        log(state, `${sourceName}：手札を破棄できないため、発揮されなかった。`)
+        return
+    }
     if (chosenCardIndex !== undefined) {
         const cardId = player.hand[chosenCardIndex]
         if (cardId === undefined) {
