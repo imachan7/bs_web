@@ -1,7 +1,7 @@
 // smoke パート139（第七弾 赤バッチ：新要素の発揮確認）
 //
 // 赤15枚が持ち込んだ新要素を**実カードデータ経由**で確かめる:
-//   EffectCounter の { enemyCost } ／ destroyByBpBudget ／
+//   EffectCounter の { enemyCost } ／ destroy の budget（BP）／
 //   recoverSpiritFromTrash.thenDestroyIfFamily ／ grantColorThisTurn ／
 //   keywordGrant / familyGrant の turn 条件 ／ 貸与された reductionGrant
 //
@@ -116,12 +116,12 @@ console.log("=== BS07 赤：相手のコスト3以下の体数ぶんBP+する（
 console.log("=== BS07 赤：BP合計まで相手を好きなだけ破壊する（エクス・キャリバス） ===")
 {
     const excalibur = findByEffect(
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyByBpBudget",
+        (e) => ((e["action"] as Record<string, unknown> | undefined)?.["budget"] as Record<string, unknown> | undefined)?.["by"] === "bp" && ((e["action"] as Record<string, unknown>)["budget"] as Record<string, unknown>)["amount"] !== undefined && ((e["action"] as Record<string, unknown>)["budget"] as Record<string, unknown>)["counter"] === undefined,
     )
     const budget = Number(
-        (entryOf(excalibur, (e) => (e["action"] as Record<string, unknown> | undefined)?.["type"] === "destroyByBpBudget")[
+        ((entryOf(excalibur, (e) => ((e["action"] as Record<string, unknown> | undefined)?.["budget"] as Record<string, unknown> | undefined)?.["by"] === "bp")[
             "action"
-        ] as Record<string, unknown>)["budget"],
+        ] as Record<string, unknown>)["budget"] as Record<string, unknown>)["amount"],
     )
     // Lv1コア1のバニラをBPちょうどで引く（効果を持たないので実効BP＝カードのBP）
     const vanillaWithBp = (bp: number): CardRow | undefined =>
@@ -153,7 +153,7 @@ console.log("=== BS07 赤：BP合計まで相手を好きなだけ破壊する�
     const s = base("bp-budget")
     const victims = Array.from({ length: times }, () => put(s, "p2", unit.cardId, 1))
     const src = put(s, "p1", excalibur.cardId, 1)
-    resolveAction(s, "p1", src, { type: "destroyByBpBudget", budget })
+    resolveAction(s, "p1", src, { type: "destroy", count: "any", budget: { by: "bp", amount: budget } })
     assert(
         s.players.p2.field.spirits.length === 0,
         `BP${unitBp}の${times}体（合計${budget}）がすべて破壊される（残り${s.players.p2.field.spirits.length}体）`,
@@ -164,7 +164,7 @@ console.log("=== BS07 赤：BP合計まで相手を好きなだけ破壊する�
     const bigInst = put(s2, "p2", big.cardId, 1)
     const rest = put(s2, "p2", unit.cardId, 1)
     const src2 = put(s2, "p1", excalibur.cardId, 1)
-    resolveAction(s2, "p1", src2, { type: "destroyByBpBudget", budget })
+    resolveAction(s2, "p1", src2, { type: "destroy", count: "any", budget: { by: "bp", amount: budget } })
     const alive = s2.players.p2.field.spirits.map((sp) => sp.instanceId)
     assert(!alive.includes(bigInst.instanceId), `BP最大の${big.name}（BP${bigBp}）から破壊される`)
     assert(

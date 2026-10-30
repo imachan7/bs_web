@@ -43,7 +43,7 @@ console.log("=== コスト予算：クリックで選択、もう一度クリッ
     const c4 = putEnemy(s, C4)
 
     // 聖皇ジークフリーデン：コスト合計5まで
-    resolveAction(s, "p1", null, { type: "destroyByCostBudget", budget: 5 })
+    resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "cost", amount: 5 } })
     assert(!!s.pendingChoice, "選択待ちになる")
     assert(candidates(s).length === 4, `予算5に収まる4体すべてが候補（実際は${candidates(s).length}）`)
     assert((s.pendingChoice!.selectedIds ?? []).length === 0, "まだ何も選ばれていない")
@@ -80,7 +80,7 @@ console.log("=== コスト予算：1体も選ばずに確定できる（好き�
 {
     const s = setup("cost-budget-none", true)
     const c2 = putEnemy(s, C2)
-    resolveAction(s, "p1", null, { type: "destroyByCostBudget", budget: 5 })
+    resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "cost", amount: 5 } })
     assert(!!s.pendingChoice, "候補1体でも選択待ちになる（やめられるようにするため）")
     assert(handleAction(s, "p1", { type: "resolveChoice" }) === null, "何も選ばずに確定する")
     assert(s.pendingChoice === null, "選択待ちが解ける")
@@ -94,7 +94,7 @@ console.log("=== コスト予算：非対話では従来どおりの貪欲選択
     const c2 = putEnemy(s, C2)
     const c3 = putEnemy(s, C3)
     const c4 = putEnemy(s, C4)
-    resolveAction(s, "p1", null, { type: "destroyByCostBudget", budget: 5 })
+    resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "cost", amount: 5 } })
     assert(s.pendingChoice === null, "選択を出さない")
     assert(!alive(s, c4), "残り予算内でコスト最大から選ぶ（コスト4）")
     assert(!alive(s, c1), "続けてコスト1（合計5）")
@@ -109,7 +109,7 @@ console.log("=== BP予算：同じトグルで選べる ===")
     const c3 = putEnemy(s, C3) // BP3000
 
     // 剣龍皇エクス・キャリバス：BP合計6000まで
-    resolveAction(s, "p1", null, { type: "destroyByBpBudget", budget: 6000 })
+    resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "bp", amount: 6000 } })
     assert(!!s.pendingChoice, "選択待ちになる")
     assert(s.pendingChoice!.prompt.includes("BP合計 0／6000"), `BPで数える（実際は「${s.pendingChoice!.prompt}」）`)
 
@@ -130,7 +130,7 @@ console.log("=== BP予算：非対話では従来どおりの貪欲選択 ===")
     const c1 = putEnemy(s, C1)
     const c2 = putEnemy(s, C2)
     const c3 = putEnemy(s, C3)
-    resolveAction(s, "p1", null, { type: "destroyByBpBudget", budget: 6000 })
+    resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "bp", amount: 6000 } })
     assert(s.pendingChoice === null, "選択を出さない")
     assert(!alive(s, c3) && !alive(s, c2) && !alive(s, c1), "BP最大から貪欲に3体（合計6000）")
 }

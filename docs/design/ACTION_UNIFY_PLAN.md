@@ -134,10 +134,11 @@
   | マジックの対象を使用時に選ぶ（`OPPONENT_DEFAULT_TYPES`・`COUNT_IS_BODIES`・クライアントの `magicTargetSide`） | 入る | 入る | **入らない** | `return` 全体で入れる。光速三段突も氷河零刀斬と同じく使用時に相手のスピリットを選ぶようになる（今は解決時にサーバーが聞く。戻す先は同じ） |
 - イベントの `returnToHand`（`GameEvent`）と【転召】の `mode:"returnToHand"` は別物なので変えない。`returnOwnNexusToDeckBottom`（マジックのコスト1枚）・`returnToBurst` は PR 6 に入れない
 
-### PR 8 予算つき破壊を `destroy` へ（10-30 確定。ブランチ refactor/destroy-budget）
+### ✅ PR 8 予算つき破壊を `destroy` へ（10-30）
 
 - 突き合わせ：2つの違いは予算の数え方（実効BPの合計／印刷コストの合計）と予算の出し方（固定値・`budgetFromSelfBp`・`budgetFromFamilyBpSum`・`budgetCounter`）だけ。トグル式の選ばせ方・自動選択（残り予算内で重いものから貪欲。コスト版は同コストなら実効BP最大）・まとめて破壊する手順は共通（`budgetToggleDestroy`）。ルール上の処理の違いではない
-- スキーマ：`destroy` に `budget?: { by: "bp" | "cost"; amount?: number; fromSelfBp?: true; fromFamilyBpSum?: FamilyFilter; counter?: EffectCounter }`。`count: "any"` と組む。`amount × counter` は今の `budget × budgetCounter` と同じ。BP 版の `maxCount` はデータで使っていないので持ち込まない
+- スキーマ：`destroy` に `budget?: { by: "bp" | "cost"; amount?: number; fromFamilyBpSum?: FamilyFilter; counter?: EffectCounter }`。`count: "any"` と組む。`amount × counter` は今の `budget × budgetCounter` と同じ。BP 版の `maxCount` はデータで使っていないので持ち込まない
+- 期待値先行の part700 で見つけたデータの食い違い：太陽石の神殿は予算が「破壊したスピリットのBP」なのに自分のBP（`budgetFromSelfBp`）になっていた → `counter: "lastBattleDestroyedBp"` に直し、`budgetFromSelfBp` は消した
 - 対象13件（12枚）：BS05-X19・BS07-009・BS07-084・BS08-052・BS08-056・BS09-X35・BS10-061・BS13-008・X014・BS16-083・BS17-055（2件）・BS18-074。`pay` の払える判定（`destroyByBpBudget`）も `destroy` の中へ
 
 ### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）

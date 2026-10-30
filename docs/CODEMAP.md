@@ -458,6 +458,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyNexusCandidateCountForPay`（fn）：pay の判定表（destroy{nexus:"only"}）が使う候補数。
 - `destroyAllTargetList`（fn）：destroy{all} の対象（破壊はしない）。simultaneous が複数の destroy{all} の対象をまとめるときにも使う。
 - `destroyTargetList`（fn）：まとめた破壊。1体ごとに「復活しますか」で中断できる（中断したら destroyBatch フレームを積んで抜ける）
+- `budgetDestroyHasTarget`（fn）：pay の払える判定：予算に収まる相手のスピリットが1体以上いるか
+- `destroyWithinBudget`（fn）：「BP／コスト合計○○まで、相手のスピリットを好きなだけ破壊する」（destroy の budget 軸。ACTION_UNIFY_PLAN §4 PR 8）。
 - `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 
 ## server/src/logic/actions/exhaustRefresh.ts

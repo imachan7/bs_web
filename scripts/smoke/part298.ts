@@ -144,7 +144,7 @@ console.log("=== J: BP合計（系統）まで好きなだけ破壊 ===")
     p2.field.spirits.push(cheap, cheap2, expensive)
     refreshLevelAsOverrides(s)
 
-    resolveAction(s, "p1", null, { type: "destroyByBpBudget", budgetFromFamilyBpSum: ["竜人"] })
+    resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "bp", fromFamilyBpSum: ["竜人"] } })
 
     assert(p2.field.spirits.every((sp) => sp.instanceId !== cheap.instanceId), "BP4000は予算5000に収まり破壊された")
     assert(p2.field.spirits.every((sp) => sp.instanceId !== cheap2.instanceId), "BP1000も合わせて予算ちょうどまで破壊された")

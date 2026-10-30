@@ -167,13 +167,13 @@ console.log("=== 8. destroyByBpBudget：予算以下の相手がいれば払っ�
 {
     const s = game("case8a")
     const foe = put(s, "p2", PURPLE, 1)
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "destroyByBpBudget", budget: 3000 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "destroy", count: "any", budget: { by: "bp", amount: 3000 } } })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
     assert(!s.players.p2.field.spirits.includes(foe), "対象が破壊された")
 }
 {
     const s = game("case8b")
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "destroyByBpBudget", budget: 3000 } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "destroy", count: "any", budget: { by: "bp", amount: 3000 } } })
     assert(s.players.p1.reserve === 5, "予算以下の相手がいないため払わなかった")
 }
 

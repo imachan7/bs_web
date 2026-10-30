@@ -5255,8 +5255,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "destroyByCostBudget",
-     "budget": 5
+     "type": "destroy",
+     "count": "any",
+     "budget": {"by": "cost", "amount": 5}
     }
    }
   ]

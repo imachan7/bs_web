@@ -5076,8 +5076,9 @@
     "kind": "burst",
     "event": "ownLifeDamaged",
     "action": {
-     "type": "destroyByBpBudget",
-     "budget": 6000
+     "type": "destroy",
+     "count": "any",
+     "budget": {"by": "bp", "amount": 6000}
     },
     "thenPay": "flash"
    },

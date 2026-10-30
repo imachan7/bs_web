@@ -5427,9 +5427,10 @@
         ],
         "optional": false,
         "action": {
-          "type": "destroyByBpBudget",
-          "budget": 10000
-        }
+          "type": "destroy",
+          "count": "any",
+          "budget": {"by": "bp", "amount": 10000}
+         }
       },
       {
         "id": "BS09-X35-e4",

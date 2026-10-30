@@ -2,7 +2,7 @@
 //
 // BS08の赤15枚取り込みで追加したエンジン拡張を実カード経由で1回ずつ通す:
 //   TargetFilter.hasTrigger／fieldEvent.excludePhase／FieldEvent"ownTensho"＋discardOpponent.cardTypeFilter／
-//   fieldEvent.condition"targetMaxBp"／battleWon.firstAttackOfTurn＋destroyByBpBudget.budgetFromSelfBp／
+//   fieldEvent.condition"targetMaxBp"／battleWon.firstAttackOfTurn＋destroy の budget（破壊したスピリットのBP）／
 //   reviveOnDestroy.cost.ownLifeOneToVoid／summonFromHandFree.keywordFilter+skipTensho／
 //   destroyAll.drawPerDestroyed／timedEffect の grantTrigger＋lifeCrush.countCounter／
 //   destroyDownToOwnCount＋magic condition"ownSpiritCountAtLeast"／revealAndSummonAllByFamily／
@@ -247,14 +247,14 @@ console.log("=== BS08竜騎集う円卓：fieldEvent condition targetMaxBp（own
     )
 }
 
-console.log("=== BS08太陽石の神殿：battleWon.firstAttackOfTurn＋destroyByBpBudget.budgetFromSelfBp ===")
+console.log("=== BS08太陽石の神殿：battleWon.firstAttackOfTurn＋destroy の budget（破壊したスピリットのBP） ===")
 {
     const sunstone = findByEffect(
-        (e) => e["kind"] === "battleWon" && (e["action"] as Record<string, unknown> | undefined)?.["budgetFromSelfBp"] === true,
+        (e) => e["kind"] === "battleWon" && ((e["action"] as Record<string, unknown> | undefined)?.["budget"] as Record<string, unknown> | undefined)?.["counter"] === "lastBattleDestroyedBp",
     )
     const entry = entryOf(
         sunstone,
-        (e) => (e["action"] as Record<string, unknown> | undefined)?.["budgetFromSelfBp"] === true,
+        (e) => ((e["action"] as Record<string, unknown> | undefined)?.["budget"] as Record<string, unknown> | undefined)?.["counter"] === "lastBattleDestroyedBp",
     )
     const level = (entry["levels"] as number[])[0]!
     const clashKeyword = String(entry["winnerKeywordFilter"])

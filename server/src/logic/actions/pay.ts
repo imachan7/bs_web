@@ -18,7 +18,7 @@ import { exhaustNexus } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
 import { lifeLossAllowed } from "../lifeGate"
 import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword } from "../../../../shared/rules"
-import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
+import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay } from "./removeCores"
@@ -43,7 +43,7 @@ export const PAYABLE_TYPES = [
     "destroy", "return", "coreRemove", "removeCores", "refreshSelf",
     "exhaust", "mill",
     "refreshOne", "placeCores", "summon",
-    "moveCards", "destroyByBpBudget", "destroyBlockerAfterBattle",
+    "moveCards", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
     "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst",
@@ -116,6 +116,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     destroy: (state, owner, self, action, srcColors, srcType) => {
         if (action.type !== "destroy") return false
+        // 予算つきは、予算に収まる相手のスピリットが1体以上いること
+        if (action.budget) return budgetDestroyHasTarget(state, owner, self, action, srcColors, srcType)
         // ネクサス自身も自分自身として払える
         if (action.target === "self") return self !== null && [...state.players[owner].field.spirits, ...state.players[owner].field.nexuses].some((s) => s.instanceId === self.instanceId)
         if (action.nexus === "only") return action.count === "any" || destroyNexusCandidateCountForPay(state, owner, action, srcType) >= action.count
@@ -269,20 +271,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return !burstTenshoUnpayable(state, owner, card) && canPayFreeSummonSurcharge(state, owner, card, minLevelCores(card), true)
     },
     moveCards: (state, owner, self, action, _srcColors, srcType) => action.type === "moveCards" && moveCardsPayable(state, owner, self, action, srcType),
-    // destroyByBpBudget：予算（budget／budgetFromSelfBp／budgetFromFamilyBpSum）以下の相手のスピリットが1体以上
-    destroyByBpBudget: (state, owner, self, action, srcColors, srcType) => {
-        if (action.type !== "destroyByBpBudget") return false
-        const opp = opponentOf(owner)
-        const budget = action.budgetFromSelfBp && self
-            ? effectiveBp(state, owner, self)
-            : action.budgetFromFamilyBpSum !== undefined
-                ? state.players[owner].field.spirits
-                    .filter((s) => matchesFamilyFilter(state, owner, s, action.budgetFromFamilyBpSum!))
-                    .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
-                : (action.budget ?? 0)
-        if (budget <= 0) return false
-        return pickEnemyCandidates(state, opp, Infinity, (s) => effectiveBp(state, opp, s) <= budget, srcColors, srcType).length >= 1
-    },
     // destroyBlockerAfterBattle：バトル中でブロックしたスピリットが場にいる（ハンドラの前提と揃える）
     destroyBlockerAfterBattle: (state, owner, self, action) => {
         if (action.type !== "destroyBlockerAfterBattle") return false
@@ -368,7 +356,6 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
     soulCoreToTrash: "トラッシュに置ける[ソウルコア]がない",
-    destroyByBpBudget: "破壊できる相手のスピリットがいない",
     destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
     return: "デッキに戻すカードがない",
     coreRemove: "取り除けるコアが足りない",
