@@ -2499,6 +2499,8 @@
         "phase": "attack",
         "turn": "opponent",
         "symbolCount": 2,
+        "selfMode": "source",
+        "attackerAsTarget": true,
         "action": {
           "type": "setTargetBpAsThisBattle",
           "levels": [
