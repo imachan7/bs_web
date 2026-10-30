@@ -815,7 +815,7 @@ console.log("=== 疲労回復・アタック制御（すべて回復し、この
     restB.isRested = true
     s.players.p1.field.spirits.push(restA, restB, freshC)
 
-    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refresh", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] })
     assert(!restA.isRested && !restB.isRested, "疲労していた2体が回復する")
     assert(
         cantActByTimed(s, restA) && cantActByTimed(s, restB),
@@ -825,7 +825,7 @@ console.log("=== 疲労回復・アタック制御（すべて回復し、この
 
     // 疲労状態のスピリットが0体になった状態で再実行 → no-op（ログのみで安全）
     const logLenBefore = s.log.length
-    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refreshOne", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "refresh", all: true }, { type: "timedEffect", duration: "turn", target: "lastTargets", content: [{ type: "cantAttack" }] }] })
     assert(s.log.length > logLenBefore && !restA.isRested && !restB.isRested && !freshC.isRested, "疲労スピリットが0体でもログのみで安全に処理される")
 
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ移行")

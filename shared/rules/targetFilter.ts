@@ -18,7 +18,7 @@ import { instanceSymbolCount } from "./symbols"
 
 // 対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
 //
-// **これが直交化の中核**: 従来は destroy / exhaust / refreshOne … の各ハンドラが
+// **これが直交化の中核**: 従来は destroy / exhaust / refresh … の各ハンドラが
 // 同じ軸（色・系統・コスト・レベル・キーワード・バニラ）を**それぞれ独自にインラインで**
 // 判定していたため、新しい軸が必要になるたびにアクションごとの後付けフィールドが増えていた。
 // 以後は軸をここへ足せば、filter を受け取る全アクションが自動的にその軸を扱える。
@@ -52,7 +52,7 @@ export function matchesTarget(
     if (filter.team !== undefined && !(card(inst.cardId).team ?? []).includes(filter.team)) return false
     // 場のスピリット/ネクサスのコストを条件にする判定なので、道化師クランの付与コストも見る
     // （instMatchesCostFilter。以前はcard本来のコストのみを見ており、汎用ターゲットフィルタ経由の
-    // destroy/exhaust/refreshOne等すべてが付与コストを無視していた）
+    // destroy/exhaust/refresh等すべてが付与コストを無視していた）
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
     // minLevel（BS13-023マウンテン・セイカイLv1-3：「Lv2以上の自分のスピリットすべて」。levelの完全一致とは別軸）

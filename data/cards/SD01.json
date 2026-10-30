@@ -1253,7 +1253,8 @@
           "targetBlockedMaxBp": 4000
         },
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         },
         "optional": false
       }
@@ -2213,7 +2214,7 @@
         "kind": "magic",
         "timing": "flash",
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "all": true,
           "filter": {
             "keyword": "armor"

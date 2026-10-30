@@ -422,7 +422,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }
@@ -989,7 +990,8 @@
             "count": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           },
           "limitByKeyword": "kyoshu"
         }

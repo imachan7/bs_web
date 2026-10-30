@@ -1366,7 +1366,8 @@
      3
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -1432,7 +1433,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "soku"
      },
@@ -1989,7 +1990,7 @@
         }
        },
        "then": {
-        "type": "refreshOne",
+        "type": "refresh",
         "filter": {
          "family": [
           "光導",
@@ -2490,7 +2491,8 @@
     "whileCombined": true,
     "condition": "selfIsAttacking",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2846,7 +2848,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -2861,7 +2864,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "keyword": "funsai"
@@ -3389,7 +3392,7 @@
    }
   ],
   "braveConditionText": "コスト5以上",
-  "effects": [{"id": "BS11-054-e1", "kind": "step", "step": "attack", "turn": "own", "levels": null, "whileCombined": true, "action": {"type": "declare", "what": "color", "then": {"type": "timedEffect", "target": "self", "duration": "turn", "content": [{"type": "grantTrigger", "trigger": "onBlocked", "action": {"type": "refreshSelf"}, "targetFilter": {"declared": "match"}}]}}}],
+  "effects": [{"id": "BS11-054-e1", "kind": "step", "step": "attack", "turn": "own", "levels": null, "whileCombined": true, "action": {"type": "declare", "what": "color", "then": {"type": "timedEffect", "target": "self", "duration": "turn", "content": [{"type": "grantTrigger", "trigger": "onBlocked", "action": {"type": "refresh", "target": "self"}, "targetFilter": {"declared": "match"}}]}}}],
   "braveCondition": {
    "minCost": 5
   }
@@ -4901,7 +4904,7 @@
     "id": "BS11-079-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"uncombined": true}, "content": [{"type": "cantAttack"}]}]}
+    "action": {"type": "sequence", "actions": [{"type": "refresh", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"uncombined": true}, "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },
@@ -5395,7 +5398,8 @@
     "keywordFilter": "soku",
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -5680,7 +5684,8 @@
      "lastFunsaiHasSpirit": true
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    },

@@ -15,7 +15,7 @@ import { activationPrompt, confirmPromptIfOptional, isStillOnField } from "./tri
 // kind: "battleWon" かつ role 一致（role:"any"はどちらの役割でも一致）かつレベル条件を満たす効果を実行する
 // （ネクサスのバトル結果誘発）。
 // resolveAction には self として発生源（ネクサス／スピリット）ではなく、
-// 「勝利したスピリット（winnerInst）」を渡す。refreshSelf 等が「勝ったスピリット」を回復させる
+// 「勝利したスピリット（winnerInst）」を渡す。refresh{target:"self"} 等が「勝ったスピリット」を回復させる
 // ような効果文（例: 無限蟲の蟻塚「自分のブロックしたスピリットは回復する」）を、
 // 発生源に関係なく素直に表現するための意図的な選択。selfMode:"source" 指定時は逆に
 // 発生源インスタンス（ネクサス自身）を self に渡す（深緑の樹海：ネクサス自身にコアを置く）。

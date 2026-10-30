@@ -236,7 +236,7 @@ console.log("=== BS08ブラックタウロス大王：pay（自身のコアを�
     // pay の cost が自身のコア、then が refreshSelf のエントリ
     const isTaurus = (e: Record<string, unknown>): boolean => {
         const a = e["action"] as Record<string, unknown> | undefined
-        return a?.["type"] === "pay" && (a["then"] as Record<string, unknown>)["type"] === "refreshSelf" &&
+        return a?.["type"] === "pay" && (a["then"] as Record<string, unknown>)["type"] === "refresh" &&
             (a["cost"] as Record<string, unknown>)["target"] === "self" && (a["cost"] as Record<string, unknown>)["to"] === "void"
     }
     const taurus = findByEffect(isTaurus)

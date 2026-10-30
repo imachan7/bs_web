@@ -3,7 +3,7 @@ import { Color, FamilyFilter, EffectCounter, TriggerEvent, Keyword } from "../ty
 
 // ---- 対象選択の絞り込み軸（TargetFilter） ----
 //
-// 従来は destroy.maxBp / exhaust.levelFilter / refreshOne.colorFilter … のように、
+// 従来は destroy.maxBp / exhaust.levelFilter / refresh.colorFilter … のように、
 // **同じ軸がアクションごとに個別フィールドとして後付けされていた**
 // （BS01〜BS04 で計28個。全アクションフィールド117個の23%）。
 // 新しいアクションはこの型を `filter` に持たせるだけでよく、エンジン改修なしで軸を組み合わせられる。

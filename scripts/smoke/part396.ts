@@ -66,7 +66,7 @@ console.log("=== 2. refreshOne：疲労した自分のスピリットがいれ�
     const s = game("case2a")
     const me = put(s, "p1", RED, 1)
     me.isRested = true
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "refreshOne" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "refresh" } })
     assert(s.players.p1.reserve === 4, "リザーブ1個を払った")
     assert(!me.isRested, "回復した")
 }
@@ -74,7 +74,7 @@ console.log("=== 2. refreshOne：疲労した自分のスピリットがいれ�
     const s = game("case2b")
     const me = put(s, "p1", RED, 1)
     me.isRested = false
-    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "refreshOne" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: costRemoveOne(), then: { type: "refresh" } })
     assert(s.players.p1.reserve === 5, "回復状態のスピリットがいないため払わなかった")
 }
 

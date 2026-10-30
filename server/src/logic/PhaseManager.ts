@@ -185,7 +185,7 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 if (limits.nexuses && isNexus) continue
                 if (limits.combined && !isNexus && instIsCombined(inst)) continue
                 // 「合体していないスピリットは1体しか回復できない」ときは、ここでは回復させず
-                // ステップ誘発のあとにまとめて1体だけ選ばせる（下の refreshOne）
+                // ステップ誘発のあとにまとめて1体だけ選ばせる（下の refresh）
                 if (limits.onlyOneUncombined && !isNexus && !instIsCombined(inst)) continue
                 if (inst.isRested) refreshedInstanceIds.add(inst.instanceId)
                 // 回復は refreshSpirit を通す（「このスピリットが回復したとき」＝onRefreshed を発火させる唯一の入口）
@@ -193,11 +193,11 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             if (firstRefreshed && !state.winner) fireRefreshedSideEvents(state, pid, firstRefreshed)
             fireStepTriggers(state, "refresh", refreshedInstanceIds)
-            // 1体だけの回復は既存の refreshOne に委譲する（**どれを回復させるかはそのステップの
+            // 1体だけの回復は既存の refresh に委譲する（**どれを回復させるかはそのステップの
             // プレイヤーが選ぶ**。対話では選択待ちで中断し、非対話は実効BP最大を自動選択する。
             // ステップ誘発のあとに置くのは、中断するとこのステップの残りが走らなくなるため）
             if (limits.onlyOneUncombined && !state.pendingChoice && !state.winner) {
-                resolveAction(state, pid, null, { type: "refreshOne", filter: { uncombined: true } })
+                resolveAction(state, pid, null, { type: "refresh", filter: { uncombined: true } })
             }
         },
         // メインステップ

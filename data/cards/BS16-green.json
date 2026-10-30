@@ -685,7 +685,8 @@
      "雄将"
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -907,7 +908,7 @@
        "side": "both"
       },
       {
-       "type": "refreshOne",
+       "type": "refresh",
        "all": true,
        "anySide": true,
        "filter": {

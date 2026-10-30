@@ -531,7 +531,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "refreshSelf"
+       "type": "refresh",
+       "target": "self"
       },
       {
        "type": "placeCores",
@@ -1695,7 +1696,8 @@
      "雄将"
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -2759,7 +2761,8 @@
     "phase": "attack",
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -3214,7 +3217,8 @@
     "turn": "own",
     "subjectMinSymbols": 2,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -3498,7 +3502,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -3570,7 +3575,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": "覇皇"
      }
@@ -3709,7 +3714,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -4550,7 +4556,7 @@
     "subjectSide": "opponent",
     "selfMode": "source",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "count": 1
     }
    },
@@ -4919,7 +4925,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "count": 1,
      "countCounter": "ownRestedNexuses"
     }
@@ -5229,7 +5235,7 @@
     "kind": "burst",
     "event": "opponentSummonEffectResolved",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "count": 1
     },
     "thenPay": "flash"
@@ -5355,7 +5361,7 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "refreshOne",
+       "type": "refresh",
        "count": 1,
        "chosenByPlayer": true,
        "thenCantAttackThisTurn": true
@@ -5797,7 +5803,8 @@
     ],
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -5950,7 +5957,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "count": 1,
      "filter": {
       "family": "剣獣"
@@ -5974,7 +5981,8 @@
        "count": 1
       },
       {
-       "type": "refreshSelf"
+       "type": "refresh",
+       "target": "self"
       }
      ]
     }

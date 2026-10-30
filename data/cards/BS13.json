@@ -561,7 +561,8 @@
       }
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    }
@@ -2513,7 +2514,8 @@
       }
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    },
@@ -2527,7 +2529,8 @@
     "phase": "attack",
     "subjectSide": "own",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2645,7 +2648,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     }
    }
   ]
@@ -2763,7 +2766,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "minLevel": 2
@@ -2789,7 +2792,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    }
@@ -2894,7 +2898,8 @@
     "excludeSelfAsEventTarget": true,
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -3186,7 +3191,7 @@
     "phase": "attack",
     "turn": "opponent",
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     }
    }
   ]
@@ -3269,7 +3274,8 @@
     "lentOnly": true,
     "winnerIsLentChoiceTarget": true,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -3343,7 +3349,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "family": [
        "光導",
@@ -3717,7 +3723,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "keyword": "hyoheki"
@@ -4523,7 +4529,8 @@
     "excludeSelfAsEventTarget": true,
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -5126,7 +5133,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    }
@@ -5580,7 +5588,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "sequence", "actions": [{"type": "skipBpCompare"}, {"type": "refreshOne"}]
+     "type": "sequence", "actions": [{"type": "skipBpCompare"}, {"type": "refresh"}]
     }
    }
   ]
@@ -6109,7 +6117,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -6586,7 +6595,7 @@
     "levels": null,
     "whileCombined": true,
     "optional": true,
-    "action": {"type": "pay", "cost": {"type": "discard", "from": "deck", "side": "own", "count": 6}, "then": {"type": "sequence", "keepScope": true, "actions": [{"type": "timedEffect", "content": [{"type": "bp", "amount": 6000}], "duration": "battle", "target": "self"}, {"type": "if", "cond": {"last": {"cardType": "spirit", "family": "光導"}}, "then": {"type": "refreshSelf"}}]}}
+    "action": {"type": "pay", "cost": {"type": "discard", "from": "deck", "side": "own", "count": 6}, "then": {"type": "sequence", "keepScope": true, "actions": [{"type": "timedEffect", "content": [{"type": "bp", "amount": 6000}], "duration": "battle", "target": "self"}, {"type": "if", "cond": {"last": {"cardType": "spirit", "family": "光導"}}, "then": {"type": "refresh", "target": "self"}}]}}
    }
   ],
   "braveCondition": {
@@ -6845,7 +6854,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }

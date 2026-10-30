@@ -47,7 +47,7 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
         const filter = (action.filter ?? {}) as never
         return pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter), card.colors, "magic", "other").length === 0
     }
-    if (action.type === "exhaust" || action.type === "refreshOne" || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
+    if (action.type === "exhaust" || (action.type === "refresh" && action.target !== "self") || action.type === "placeCores") return anyStateMissing(state, pid, action, card)
     if (!ONE_TARGET_TYPES.has(action.type)) return null
     // ネクサスを戻すマジックは、戻せるネクサスが無ければ「すべて」でも使用できない（2026-10-29 ユーザー確認）
     if (action.type === "return" && action.to !== "deckBottom" && action.nexus === "only") {
@@ -65,13 +65,13 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
 }
 
 // 疲労済みのスピリットも「疲労させる」の対象に選べる（回復も同じ。コアを置くは置くコアの数を問わない）（2026-10-22 ユーザー確認）
-function anyStateMissing(state: GameState, pid: PlayerId, action: Extract<EffectAction, { type: "exhaust" | "refreshOne" | "placeCores" }>, card: CardData): boolean | null {
+function anyStateMissing(state: GameState, pid: PlayerId, action: Extract<EffectAction, { type: "exhaust" | "refresh" | "placeCores" }>, card: CardData): boolean | null {
     const opp = opponentOf(pid)
     let pids: PlayerId[]
     if (action.type === "exhaust") {
         if (action.all || action.target === "self" || action.nexus || action.nexusOnly || action.countCounter !== undefined || action.countFromBofu) return null
         pids = action.anySide ? [pid, opp] : action.side === "own" ? [pid] : [opp]
-    } else if (action.type === "refreshOne") {
+    } else if (action.type === "refresh") {
         if (action.all || action.eventTargetOnly || action.countCounter !== undefined) return null
         pids = action.anySide ? [pid, opp] : [pid]
     } else {

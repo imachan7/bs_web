@@ -464,7 +464,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/exhaustRefresh.ts
 
-- `refreshOneOwnCandidates`（fn）：refreshOne の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
+- `refreshOneOwnCandidates`（fn）：refresh の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
 
 ## server/src/logic/actions/filter.ts
 

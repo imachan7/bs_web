@@ -1291,7 +1291,7 @@
     "optional": false,
     "battleRole": "attacker",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "color": "blue",
@@ -2065,7 +2065,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "minSymbols": 2,
       "excludeSelf": true
@@ -2554,7 +2554,8 @@
      3
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -2566,7 +2567,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "family": [
@@ -3931,7 +3932,8 @@
     ],
     "targetSameLevelAsSelf": true,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]

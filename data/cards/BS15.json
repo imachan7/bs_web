@@ -639,7 +639,8 @@
     "excludeSelfSubject": true,
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -1609,7 +1610,7 @@
       "count": 1
      },
      "then": {
-      "type": "refreshOne",
+      "type": "refresh",
       "filter": {
        "keywords": [
         "bofu"
@@ -1709,7 +1710,8 @@
     ],
     "oncePerTurn": true,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -4683,7 +4685,8 @@
      "ownFieldOnlyColor": "green"
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -4777,7 +4780,7 @@
       "count": 1
      },
      "then": {
-      "type": "refreshOne",
+      "type": "refresh",
       "eventTargetOnly": true
      }
     }
@@ -5409,7 +5412,7 @@
     "event": "anySpiritAttacked",
     "subjectSide": "opponent",
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     },
     "thenPay": "main"
    },
@@ -5539,7 +5542,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "cost": {
@@ -5727,7 +5730,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "thenLevelUpThisTurn": true
     }
    }
@@ -6014,7 +6017,8 @@
     "subjectSide": "opponent",
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]

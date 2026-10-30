@@ -480,7 +480,8 @@
       "side": "own"
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     },
     "optional": false
@@ -1057,7 +1058,7 @@
     "kind": "magic",
     "timing": "flash",
     "action": {
-     "type": "refreshOne"
+     "type": "refresh"
     }
    }
   ]

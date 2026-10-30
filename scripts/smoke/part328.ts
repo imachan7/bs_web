@@ -72,7 +72,7 @@ console.log("=== 「〜できる」の確認を断ったら消費しない／承
     const src = createInstance("BS13-039", s.turn, 1)
     s.players.p1.field.spirits.push(src)
     const effectId = "BS13-039-e3"
-    const action = { type: "pay" as const, cost: { type: "removeCores" as const, side: "own" as const, from: ["life" as const], to: "reserve" as const, count: 1 }, then: { type: "refreshSelf" as const } }
+    const action = { type: "pay" as const, cost: { type: "removeCores" as const, side: "own" as const, from: ["life" as const], to: "reserve" as const, count: 1 }, then: { type: "refresh" as const, target: "self" as const } }
 
     // 断る（回復の対象になるよう疲労させておく。回復状態だと聞く前に不発になる）
     src.isRested = true

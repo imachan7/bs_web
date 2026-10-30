@@ -46,7 +46,7 @@ console.log("=== §B refreshOne: 新 filter.color が色で絞り込む ===")
     s.players.p1.field.spirits.push(red, purple)
 
     // 紫だけを回復対象にする（resolveAction による変更を見るため、フィールドから読み直す）
-    resolveAction(s, "p1", null, { type: "refreshOne", filter: { color: "purple" } })
+    resolveAction(s, "p1", null, { type: "refresh", filter: { color: "purple" } })
     const after = (id: string) => s.players.p1.field.spirits.find((x) => x.instanceId === id)!
     assert(!after(purple.instanceId).isRested, "新形式 filter.color: 指定色のスピリットが回復した")
     assert(after(red.instanceId).isRested, "新形式 filter.color: 指定色以外は疲労のまま")

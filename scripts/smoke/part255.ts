@@ -103,11 +103,11 @@ function testKyoshu(cardId: string, cores: number, label: string) {
     spirit.isRested = true
     const light = putNexus(s, "p1", PLAIN_NEXUS, 0) // コア0＝最少
     const heavy = putNexus(s, "p1", PLAIN_NEXUS, 3) // コア3＝残しておく
-    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refresh", target: "self" }, limitByKeyword: "kyoshu" })
     assert(!spirit.isRested, `${label}：ネクサスを疲労させて回復した`)
     assert(light.isRested && !heavy.isRested, "疲労するのはコア数最少のネクサス1つだけ")
     spirit.isRested = true // 再び疲労させて2回目を試す（疲労していないネクサスはまだ残っている）
-    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refreshSelf" }, limitByKeyword: "kyoshu" })
+    resolveAction(s, "p1", spirit, { type: "pay", cost: { type: "exhaust", side: "own", nexusOnly: true, count: 1 }, then: { type: "refresh", target: "self" }, limitByKeyword: "kyoshu" })
     assert(spirit.isRested, `${label}：ターン中2回目は発動できない（回復しないまま）`)
     assert(!heavy.isRested, "上限に達しているので残っていたネクサスも消費されない")
 }

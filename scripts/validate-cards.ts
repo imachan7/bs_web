@@ -122,7 +122,6 @@ function collectActions(node: unknown, out: { type?: unknown }[]): void {
 // 仮想発生源は場に存在せず resolveAction に self=null が渡るため、これらは不発か誤動作になる
 // （TURN_EFFECT_SOURCES.md §4.1）
 const SELF_REFERENCING_ACTIONS = new Set([
-    "refreshSelf",
     "tenshoCoreDump",
     "tenshoSubstituteChoice",
     "markNoRefreshTarget",
@@ -190,7 +189,7 @@ function checkLentEffects(
             const lent: { type?: unknown; target?: unknown }[] = []
             collectActions([e], lent)
             for (const a of lent) {
-                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (["destroy", "return", "exhaust"].includes(a.type) && a.target === "self") || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
+                if (typeof a.type === "string" && (SELF_REFERENCING_ACTIONS.has(a.type) || (["destroy", "return", "exhaust", "refresh"].includes(a.type) && a.target === "self") || ((a.type === "timedEffect" || a.type === "placeCores" || a.type === "removeCores") && a.target === "self"))) {
                     add(
                         c.cardId,
                         `貸与効果 ${e.id ?? e.kind} が self 参照アクション "${a.type}" を含む（仮想発生源は場に存在せず self=null になる）`,
@@ -277,7 +276,7 @@ const LEGACY_FILTER_FIELDS = [
 // normalizeFilter を通る（＝絞り込みを filter だけで受ける）アクション。
 // 新しく filter へ移すアクションを増やしたらここに追記する
 const FILTER_ACTIONS = new Set([
-    "destroy", "destroyExhausted", "exhaust", "refreshOne", "timedEffect",
+    "destroy", "destroyExhausted", "exhaust", "refresh", "timedEffect",
 ])
 
 // TargetFilter の宣言から軸名を読む（手で並べると軸の追加に追従できない）。宣言が見つからなければ落とす（ファイルを移したときに黙って空にならないため）

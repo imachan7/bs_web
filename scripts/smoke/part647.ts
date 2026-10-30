@@ -22,7 +22,7 @@ function game(seed: string) {
 // 「このスピリットは回復する」を、疲労状態から確かめる
 const withEffect = <T>(f: () => T): T => {
     const effects = getCard(WATCH).effects as unknown[]
-    effects.push({ id: "tmp-lc", kind: "fieldEvent", event: "lifeCorePlaced", levels: [1, 2, 3], selfMode: "source", action: { type: "refreshSelf" } })
+    effects.push({ id: "tmp-lc", kind: "fieldEvent", event: "lifeCorePlaced", levels: [1, 2, 3], selfMode: "source", action: { type: "refresh", target: "self" } })
     try {
         return f()
     } finally {

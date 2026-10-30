@@ -1574,7 +1574,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     }
    }
@@ -1679,7 +1680,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "family": [
@@ -2462,7 +2463,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keywords": [
        "kobo",
@@ -2795,7 +2796,8 @@
     "oncePerTurn": true,
     "condition": "selfIsAttacking",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2936,7 +2938,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "count": 3,
      "filter": {
       "keywords": [
@@ -3841,7 +3843,7 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "refreshOne",
+       "type": "refresh",
        "count": 1
       },
       {
@@ -4452,7 +4454,7 @@
     "levels": [
      2
     ],
-    "action": {"type": "refreshOne", "all": true}
+    "action": {"type": "refresh", "all": true}
    }
   ]
  },

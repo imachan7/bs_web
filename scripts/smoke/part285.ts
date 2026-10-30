@@ -68,7 +68,7 @@ console.log("=== §B BS11-054：指定した色にブロックされたらアタ
     const blocker = createInstance(blue!.cardId, s.turn, 2)
     s.players.p2.field.spirits.push(blocker)
     refreshLevelAsOverrides(s)
-    giveTimed(s, atk, { type: "grantTrigger", trigger: "onBlocked", action: { type: "refreshSelf" }, targetFilter: { color: "red" } })
+    giveTimed(s, atk, { type: "grantTrigger", trigger: "onBlocked", action: { type: "refresh", target: "self" }, targetFilter: { color: "red" } })
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")
     assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "アタック宣言")
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")

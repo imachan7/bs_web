@@ -540,7 +540,7 @@ export function fireFieldEventTriggers(
                 ? undefined
                 : targetInstanceId
         // inst が合体中のブレイヴ自身のときは、self はホスト（＝合体スピリット。1体として振る舞う）にする
-        // （BS10鎧馬アルファズル・BS12-053オオヅツナナフシ：refreshSelf はホストの isRested を操作する必要がある）
+        // （BS10鎧馬アルファズル・BS12-053オオヅツナナフシ：refresh{target:"self"} はホストの isRested を操作する必要がある）
         const src = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
         if (effect.selfMode === "source") {
             return { actionPid: pid, actionSelf: src, actionTargetId, srcColors: undefined, srcType: undefined }

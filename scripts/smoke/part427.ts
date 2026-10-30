@@ -113,7 +113,7 @@ console.log("=== 5. exhaust upTo：非対話は従来どおり選べるだけ選
 }
 
 // ---- refreshOne upTo（烈風神空覇e1のthen：count:3, filter省略, upTo:true） ----
-const refreshAction = { type: "refreshOne" as const, count: 3, upTo: true as const }
+const refreshAction = { type: "refresh" as const, count: 3, upTo: true as const }
 
 console.log("=== 6. refreshOne upTo：1つ選んで止め、残りは回復させない ===")
 {

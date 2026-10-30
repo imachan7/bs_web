@@ -584,7 +584,8 @@
     "winnerKeywordFilter": "clash",
     "selfMode": "source",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -652,7 +653,8 @@
      "targetHasColor": "white"
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -1996,7 +1998,8 @@
     "selfMode": "source",
     "excludeSelfAsEventTarget": true,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2251,7 +2254,8 @@
      2
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -2714,7 +2718,8 @@
      "targetMinBp": 4000
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -2972,7 +2977,8 @@
     "phase": "attack",
     "turn": "opponent",
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -3025,7 +3031,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "kobo"
      }
@@ -4480,7 +4486,8 @@
      "firstAttackOfTurn": true
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -4860,7 +4867,7 @@
     "levels": [
      2
     ],
-    "action": {"type": "refreshOne", "all": true}
+    "action": {"type": "refresh", "all": true}
    }
   ]
  },
@@ -5435,7 +5442,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "keyword": "funsai"
@@ -6019,7 +6026,7 @@
     "id": "BS06-103-e1",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"familyExclude": "戦騎"}, "content": [{"type": "cantAttack"}]}]}
+    "action": {"type": "sequence", "actions": [{"type": "refresh", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "filter": {"familyExclude": "戦騎"}, "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },
@@ -6626,7 +6633,8 @@
      "targetMaxCost": 5
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     },
     "optional": false
    }
@@ -6808,7 +6816,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      }
     },
     "optional": true

@@ -121,7 +121,7 @@ console.log("=== 5. 系統を自分の場から指定し、sequence の中でも
         type: "declare",
         what: "family",
         from: "spirits",
-        then: { type: "sequence", actions: [{ type: "refreshOne", count: 3, filter: { declared: "match" } }] },
+        then: { type: "sequence", actions: [{ type: "refresh", count: 3, filter: { declared: "match" } }] },
     })
     assert(!a.isRested && !b.isRested && c.isRested, "最多の呪鬼を指定し、呪鬼だけ回復")
 }

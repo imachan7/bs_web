@@ -910,7 +910,7 @@
      "what": "family",
      "from": "spirits",
      "then": {
-      "type": "refreshOne",
+      "type": "refresh",
       "all": true,
       "filter": {
        "declared": "match"

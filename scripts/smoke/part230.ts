@@ -37,7 +37,7 @@ console.log("=== 候補が2体以上なら、どれを回復させるか選ば�
     const s = setup("refresh-choice", true)
     const big = putRested(s, "p1", BIG, 1)
     const small = putRested(s, "p1", SMALL, 1)
-    resolveAction(s, "p1", null, { type: "refreshOne" })
+    resolveAction(s, "p1", null, { type: "refresh" })
     assert(!!s.pendingChoice, "選択待ちになる")
     assert(
         s.pendingChoice!.candidates.includes(big) && s.pendingChoice!.candidates.includes(small),
@@ -56,7 +56,7 @@ console.log("=== count 指定は、その体数ぶん1体ずつ選ばせる ==="
     const a = putRested(s, "p1", BIG, 1)
     const b = putRested(s, "p1", SMALL, 1)
     const c = putRested(s, "p1", SMALL, 1)
-    resolveAction(s, "p1", null, { type: "refreshOne", count: 2 })
+    resolveAction(s, "p1", null, { type: "refresh", count: 2 })
     assert(!!s.pendingChoice, "1体目の選択待ち")
     assert(handleAction(s, "p1", { type: "resolveChoice", instanceId: b }) === null, "1体目を選ぶ")
     assert(!!s.pendingChoice, "2体目の選択待ちが続く")
@@ -70,7 +70,7 @@ console.log("=== 候補が1体しかないときは聞かずに回復させる =
 {
     const s = setup("refresh-choice-single", true)
     const only = putRested(s, "p1", BIG, 1)
-    resolveAction(s, "p1", null, { type: "refreshOne" })
+    resolveAction(s, "p1", null, { type: "refresh" })
     assert(!s.pendingChoice, "選択待ちにならない")
     assert(!isRested(s, only), "そのまま回復した")
 }
@@ -80,7 +80,7 @@ console.log("=== 非対話（テスト・自動解決）では従来どおり実
     const s = setup("refresh-auto", false)
     const big = putRested(s, "p1", BIG, 1)
     const small = putRested(s, "p1", SMALL, 1)
-    resolveAction(s, "p1", null, { type: "refreshOne" })
+    resolveAction(s, "p1", null, { type: "refresh" })
     assert(!s.pendingChoice, "選択待ちにならない")
     assert(!isRested(s, big), "BP最大が回復した")
     assert(isRested(s, small), "BPの低い方は疲労のまま")
@@ -95,7 +95,7 @@ console.log("=== 誘発が渡すイベント対象を、回復対象と読み違
     const enemy = createInstance(SMALL, s.turn, 1)
     s.players.p2.field.spirits.push(enemy)
 
-    resolveAction(s, "p1", null, { type: "refreshOne" }, enemy.instanceId)
+    resolveAction(s, "p1", null, { type: "refresh" }, enemy.instanceId)
     assert(!isRested(s, mine), "自分の疲労スピリットが回復した（相手のアタッカーを対象と誤読していない）")
     assert(
         s.players.p2.field.spirits[0]!.instanceId === enemy.instanceId,

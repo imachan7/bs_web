@@ -153,7 +153,7 @@
 - 足りない部品1つ：`timedEffect` の `target: "lastTargets"`（直前の効果が実際に対象にした個体それぞれに、`filter` に合うものだけ付ける）。「すべて」（`all`）はルールとして後から出たスピリットにも効くので「この効果で回復した」は書けない
 - `refreshOne` の `all` は、実際に回復した個体を記録する（`recordTargets`）
 - 書き換え：アタック不可のある5件＝`sequence[ refreshOne{all:true}, timedEffect{duration:"turn", target:"lastTargets", filter:{除外}, content:[cantAttack]} ]`。除外は キャバルリー `familyExclude:"戦騎"`・エマージェンシー `keywordExclude:"tensho"`・リブートコード `uncombined:true`。無い4件＝`refreshOne{all:true}`
-- PR 10b（後）：`refreshOne`・`refreshSelf` を `refresh` にまとめる（名前の付け替え。データ184件）
+- ✅ PR 10b（10-30）：`refreshOne`・`refreshSelf` を `refresh` にまとめた（`refreshSelf`＝`refresh{target:"self"}`。データ193件。名前の付け替えだけ）
 
 ### PR 7〜10 統一の候補（10-29 ユーザー選択。PR 6 の後に順に。着手前に「分かれている理由がルール上の処理の違いか」を定義とハンドラで確かめ、違えば固有として残す）
 

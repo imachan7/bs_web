@@ -1351,7 +1351,8 @@
         },
         "optional": false,
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -1580,7 +1581,7 @@
         "byOpponentEffectOnly": true,
         "optional": false,
         "action": {
-          "type": "refreshOne",
+          "type": "refresh",
           "all": true,
           "filter": {
             "keyword": "bofu"
@@ -1688,7 +1689,8 @@
           "星魂"
         ],
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -2223,7 +2225,8 @@
             "leaveAtLeast": 1
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           }
         }
       }
@@ -3723,7 +3726,8 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       }
     ]
@@ -6039,7 +6043,8 @@
         "turn": "opponent",
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       },
       {
@@ -6264,7 +6269,8 @@
             }
           },
           "then": {
-            "type": "refreshSelf"
+            "type": "refresh",
+            "target": "self"
           }
         }
       },
@@ -6342,7 +6348,8 @@
         "turn": "opponent",
         "selfMode": "source",
         "action": {
-          "type": "refreshSelf"
+          "type": "refresh",
+          "target": "self"
         }
       },
       {

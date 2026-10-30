@@ -1409,7 +1409,8 @@
      "ownTrashOnlyColor": "green"
     },
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -1749,7 +1750,8 @@
     "granted": {
      "trigger": "onBattleEnd",
      "action": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "condition": {
       "targetMaxBp": 7000
@@ -1966,7 +1968,8 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -2179,7 +2182,8 @@
      3
     ],
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    },
    {
@@ -3343,7 +3347,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "filter": {
       "keyword": "seimei"
      }
@@ -3712,7 +3716,8 @@
     ],
     "loserCostAtMost": 3,
     "action": {
-     "type": "refreshSelf"
+     "type": "refresh",
+     "target": "self"
     }
    }
   ]
@@ -4152,7 +4157,8 @@
       "count": 1
      },
      "then": {
-      "type": "refreshSelf"
+      "type": "refresh",
+      "target": "self"
      },
      "limitByKeyword": "kyoshu"
     }
@@ -5028,7 +5034,7 @@
      2
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "color": "green"
@@ -5492,7 +5498,7 @@
         }
        },
        "then": {
-        "type": "refreshOne"
+        "type": "refresh"
        }
       }
      ]
@@ -6275,7 +6281,7 @@
        "count": 1
       },
       {
-       "type": "refreshOne"
+       "type": "refresh"
       }
      ]
     }
@@ -6362,7 +6368,7 @@
     "id": "BS14-102-e1",
     "kind": "burst",
     "event": "ownLifeDamaged",
-    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refreshOne", "count": 3, "filter": {"declared": "match"}, "upTo": true}},
+    "action": {"type": "declare", "what": "family", "from": "spirits", "then": {"type": "refresh", "count": 3, "filter": {"declared": "match"}, "upTo": true}},
     "thenPay": "flash"
    },
    {
@@ -6500,7 +6506,7 @@
     "id": "BS14-105-e2",
     "kind": "magic",
     "timing": "flash",
-    "action": {"type": "sequence", "actions": [{"type": "refreshOne", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "content": [{"type": "cantAttack"}]}]}
+    "action": {"type": "sequence", "actions": [{"type": "refresh", "all": true}, {"type": "timedEffect", "duration": "turn", "target": "lastTargets", "content": [{"type": "cantAttack"}]}]}
    }
   ]
  },
@@ -7472,7 +7478,8 @@
         }
        },
        "then": {
-        "type": "refreshSelf"
+        "type": "refresh",
+        "target": "self"
        }
       }
      ]
@@ -7503,7 +7510,7 @@
      3
     ],
     "action": {
-     "type": "refreshOne",
+     "type": "refresh",
      "all": true,
      "filter": {
       "family": "想獣"
