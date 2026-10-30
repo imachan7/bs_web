@@ -117,4 +117,9 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 呼ぶ所：`state/exhaust.ts` の `exhaustSpirit`／`exhaustNexus`（入口がここだけなので、中で聞く）。`exhaustSpirit`／`exhaustNexus` は実際に疲労したかを boolean で返し、数を数えてログに出す呼び出し側はそれを使う。`canExhaustNexus`（コストの候補）は `exhaustDenial` を呼ぶ形にする。`resistance.ts` の `exhaustImmune` は消す（対象には取れる）
    - 発生源の種類が分からない相手の効果（発生源なしの解決）は、`sourceTypes` があっても耐性を効かせる側に倒す。トランプの王国の「ブレイヴ自身の効果は通す」を確かめる場面は無い（持ち主のアタックステップ中に相手がブレイヴを召喚できないため）
    - 入れないもの：ブロック時に疲労しない4枚（`noRestWhenBlocking*`。ブロックの手順で、効果の疲労ではない）・払って防ぐ `exhaustPreventByPay`（置換に近い選択なので `exhaustSpirit` の中のまま）
+5e. **回復の問い合わせ**（設計を10-30に確定）
+   - `server/src/logic/refreshGate.ts`（新規）に `refreshDenial(state, { ownerPid, target, cause: "refreshStep"|"effect", sourceType? }): string | null`
+   - 集める禁止：`noRefreshUntilOwnEndSteps`・スクルディアの指定（`noRefreshTargetInstanceId`。どちらも原因を問わない）・`noRefreshByNexusOrMagic`（effect かつ nexus／magic）・`noRefreshByAnyEffect`（effect）・`noRefresh`／`skipRefresh`／`nexusesCantRefresh`／`opponentCombinedCantRefresh`（refreshStep だけ。効果文が『リフレッシュステップ』に限っている）
+   - 呼ぶ所：`refreshSpirit`（sourceType の省略＝リフレッシュステップ）と、リフレッシュステップの回復（`PhaseManager.ts` の行内の判定をこれに置き換える）。sourceType を渡していなかった【超覚醒】（GameEngine `refreshOnSuperAwaken`）とブレイヴの回復（`refreshSelfBraveThenCombine`）は渡す
+   - 入れないもの：`refreshOnlyOneUncombined`（禁止ではなく1体を選ぶ手順）。ネクサスを効果で回復させる経路（`exhaustRefresh.ts`）は、効く禁止が無いので通さない
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
