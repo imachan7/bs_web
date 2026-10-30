@@ -839,10 +839,10 @@
         "subjectSide": "own",
         "byOpponentEffectOnly": true,
         "action": {
-          "type": "destroyByCostBudget",
-          "budget": 1,
-          "budgetCounter": "burstEventCost"
-        },
+          "type": "destroy",
+          "count": "any",
+          "budget": {"by": "cost", "amount": 1, "counter": "burstEventCost"}
+         },
         "thenPay": "flash"
       },
       {

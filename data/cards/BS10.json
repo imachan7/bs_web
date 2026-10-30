@@ -65,9 +65,10 @@
         "levels": null,
         "whileCombined": true,
         "action": {
-          "type": "destroyByBpBudget",
-          "budget": 3000
-        },
+          "type": "destroy",
+          "count": "any",
+          "budget": {"by": "bp", "amount": 3000}
+         },
         "optional": false
       }
     ]

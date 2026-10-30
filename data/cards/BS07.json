@@ -566,8 +566,9 @@
      2
     ],
     "action": {
-     "type": "destroyByBpBudget",
-     "budget": 6000
+     "type": "destroy",
+     "count": "any",
+     "budget": {"by": "bp", "amount": 6000}
     },
     "optional": true
    },
@@ -5427,9 +5428,9 @@
        }
       },
       {
-       "type": "destroyByCostBudget",
-       "budget": 1,
-       "budgetCounter": "lastCost"
+       "type": "destroy",
+       "count": "any",
+       "budget": {"by": "cost", "amount": 1, "counter": "lastCost"}
       }
      ]
     }

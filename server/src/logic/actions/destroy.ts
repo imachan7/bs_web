@@ -862,17 +862,13 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
 // （素の targetInstanceId は誘発が渡すイベント対象。part230 の refreshOne で踏んだ罠）。
 //
 // 戻り値 false は「トグル選択に載せなかった」＝呼び出し側が従来の自動選択を続ける合図
-type BudgetDestroyAction =
-    | Extract<EffectAction, { type: "destroyByCostBudget" }>
-    | Extract<EffectAction, { type: "destroyByBpBudget" }>
 
 function budgetToggleDestroy(
     ctx: ActionCtx,
-    action: BudgetDestroyAction,
+    action: DestroyAction,
     budget: number,
     unitLabel: string, // 「コスト」／「BP」
     weightOf: (s: CardInstance) => number,
-    maxCount?: number,
 ): boolean {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId } = ctx
     if (!action.choosing && !state.interactiveTargets) return false
@@ -896,7 +892,7 @@ function budgetToggleDestroy(
             state,
             opp,
             Infinity,
-            (sp) => chosen.includes(sp.instanceId) || (weightOf(sp) <= left && (maxCount === undefined || chosen.length < maxCount)),
+            (sp) => chosen.includes(sp.instanceId) || weightOf(sp) <= left,
             srcColors,
             srcType,
         )
@@ -926,109 +922,55 @@ function budgetToggleDestroy(
     return true
 }
 
-// BS07剣龍皇エクス・キャリバス：相手スピリットを**実効BP合計**がbudgetを超えない範囲で好きなだけ破壊する。
-// destroyByCostBudget のBP版で、選び方の簡略化も同じ（残り予算内でBP最大から貪欲に選ぶ）
-const destroyByBpBudgetHandler: ActionHandler<"destroyByBpBudget"> = (ctx, action) => {
-    const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-        // budgetFromSelfBp（BS08太陽石の神殿）：予算はselfの実効BP（＝バトルに勝利したアタッカーのBP）。
-        // budgetFromFamilyBpSum（BS13-008恐竜王メガロ・ザウル）：予算は指定系統を持つ自分のスピリットの実効BP合計
-        let remaining = action.budgetFromSelfBp && self
-            ? effectiveBp(state, owner, self)
-            : action.budgetFromFamilyBpSum !== undefined
-                ? state.players[owner].field.spirits
-                    .filter((s) => matchesFamilyFilter(state, owner, s, action.budgetFromFamilyBpSum!))
-                    .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
-                : (action.budget ?? 0)
-        const budgetForLog = remaining
-        // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲へ落ちる）
-        if (budgetToggleDestroy(ctx, action, budgetForLog, "BP", (sp) => effectiveBp(state, opp, sp), action.maxCount)) return
-        let destroyedCount = 0
-        const destroyedNames: string[] = []
-        // **先に選び切ってから、まとめて破壊する**。貪欲な選び方（残り予算内でBP最大から）は
-        // 破壊そのものに依存しないので事前に確定でき、こうしておくと
-        // 復活の確認で中断してもバッチ（destroyBatch フレーム）が続きを回せる
-        const chosenIds: string[] = []
-        while (remaining > 0 && (action.maxCount === undefined || chosenIds.length < action.maxCount)) {
-            const candidates = pickEnemyCandidates(
-                state,
-                opp,
-                Infinity,
-                (s) => effectiveBp(state, opp, s) <= remaining && !chosenIds.includes(s.instanceId),
-                srcColors,
-                srcType,
-            )
-            if (candidates.length === 0) break
-            const target = candidates.reduce((best, s) =>
-                effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best,
-            )
-            remaining -= effectiveBp(state, opp, target)
-            destroyedNames.push(getCard(target.cardId).name)
-            chosenIds.push(target.instanceId)
-            destroyedCount++
-        }
-        if (destroyedCount > 0) {
-            destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
-        }
-        if (destroyedCount === 0) {
-            log(state, `${sourceName}：破壊できる対象がいなかった。`)
-            return
-        }
-        log(
-            state,
-            `${sourceName}：BP合計${budgetForLog}まで「${destroyedNames.join("、")}」を破壊した。`,
-        )
-        return
+// 予算の値（効果の解決時に決まる）
+function budgetOf(state: GameState, owner: PlayerId, self: CardInstance | null, action: DestroyAction, srcType: CardType | undefined): number {
+    const b = action.budget!
+    if (b.fromFamilyBpSum !== undefined) {
+        return state.players[owner].field.spirits
+            .filter((s) => matchesFamilyFilter(state, owner, s, b.fromFamilyBpSum!))
+            .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
+    }
+    return b.counter !== undefined ? countedAmount(state, owner, self, b.amount ?? 1, b.counter, srcType) : (b.amount ?? 0)
 }
 
+// pay の払える判定：予算に収まる相手のスピリットが1体以上いるか
+export function budgetDestroyHasTarget(state: GameState, owner: PlayerId, self: CardInstance | null, action: DestroyAction, srcColors: Color[] | undefined, srcType: CardType | undefined): boolean {
+    const opp = opponentOf(owner)
+    const budget = budgetOf(state, owner, self, action, srcType)
+    const weightOf = (sp: CardInstance): number => (action.budget!.by === "bp" ? effectiveBp(state, opp, sp) : getCard(sp.cardId).cost)
+    return budget > 0 && pickEnemyCandidates(state, opp, Infinity, (s) => weightOf(s) <= budget, srcColors, srcType).length >= 1
+}
 
-const destroyByCostBudgetHandler: ActionHandler<"destroyByCostBudget"> = (ctx, action) => {
+// 「BP／コスト合計○○まで、相手のスピリットを好きなだけ破壊する」（destroy の budget 軸。ACTION_UNIFY_PLAN §4 PR 8）。
+// 対話はトグルで選ばせ、非対話は残り予算内で重いものから貪欲に選ぶ（コストが同じなら実効BP最大）。
+// コストは印刷コスト。先に選び切ってからまとめて破壊する（復活の確認で中断してもバッチが続きを回せるように）
+export function destroyWithinBudget(ctx: ActionCtx, action: DestroyAction): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext } = ctx
-        // 聖皇ジークフリーデン：相手スピリットをコスト合計がbudgetを超えない範囲で好きなだけ破壊する。
-        // 対話モードは「好きなだけ」をトグルで選ばせる（非対話は下の貪欲＝残り予算内でコスト最大から。
-        // 同コストは実効BP最大を優先）
-        // budgetCounter指定時（083）：実際の予算はbudget×counter値（burstEventCost等）で算出する
-        const budget = action.budgetCounter !== undefined
-            ? countedAmount(state, owner, self, action.budget, action.budgetCounter, srcType)
-            : action.budget
-        if (budgetToggleDestroy(ctx, action, budget, "コスト", (sp) => getCard(sp.cardId).cost)) return
-        let remaining = budget
-        let destroyedCount = 0
-        const destroyedNames: string[] = []
-        // 先に選び切ってからまとめて破壊する（destroyByBpBudget と同じ理由）
-        const chosenIds: string[] = []
-        while (remaining > 0) {
-            const candidates = pickEnemyCandidates(
-                state,
-                opp,
-                Infinity,
-                (s) => getCard(s.cardId).cost <= remaining && !chosenIds.includes(s.instanceId),
-                srcColors,
-                srcType,
-            )
-            if (candidates.length === 0) break
-            const target = candidates.reduce((best, s) => {
-                const sCost = getCard(s.cardId).cost
-                const bestCost = getCard(best.cardId).cost
-                if (sCost !== bestCost) return sCost > bestCost ? s : best
-                return effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best
-            })
-            remaining -= getCard(target.cardId).cost
-            destroyedNames.push(getCard(target.cardId).name)
-            chosenIds.push(target.instanceId)
-            destroyedCount++
-        }
-        if (destroyedCount > 0) {
-            destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
-        }
-        if (destroyedCount === 0) {
-            log(state, `${sourceName}：破壊できる対象がいなかった。`)
-            return
-        }
-        log(
-            state,
-            `${sourceName}：コスト合計${budget}まで「${destroyedNames.join("、")}」を破壊した。`,
-        )
+    const byBp = action.budget!.by === "bp"
+    const budget = budgetOf(state, owner, self, action, srcType)
+    const weightOf = (sp: CardInstance): number => (byBp ? effectiveBp(state, opp, sp) : getCard(sp.cardId).cost)
+    const unit = byBp ? "BP" : "コスト"
+    if (budgetToggleDestroy(ctx, action, budget, unit, weightOf)) return
+    let remaining = budget
+    const chosenIds: string[] = []
+    const names: string[] = []
+    while (remaining > 0) {
+        const candidates = pickEnemyCandidates(state, opp, Infinity, (s) => weightOf(s) <= remaining && !chosenIds.includes(s.instanceId), srcColors, srcType)
+        if (candidates.length === 0) break
+        const target = candidates.reduce((best, s) => {
+            if (weightOf(s) !== weightOf(best)) return weightOf(s) > weightOf(best) ? s : best
+            return effectiveBp(state, opp, s) > effectiveBp(state, opp, best) ? s : best
+        })
+        remaining -= weightOf(target)
+        names.push(getCard(target.cardId).name)
+        chosenIds.push(target.instanceId)
+    }
+    if (chosenIds.length === 0) {
+        log(state, `${sourceName}：破壊できる対象がいなかった。`)
         return
+    }
+    destroyTargetsBatch(state, owner, chosenIds.map((instanceId) => ({ pid: opp, instanceId })), destroyContext)
+    log(state, `${sourceName}：${unit}合計${budget}まで「${names.join("、")}」を破壊した。`)
 }
 
 const destroySelfHandler = (ctx: ActionCtx): void => {
@@ -1374,6 +1316,7 @@ const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
 // ネクサス・自分自身は lastMoved を書く経路が旧ハンドラごとに違うので、記録の包みの外で振り分ける
 const destroyEntryHandler: ActionHandler<"destroy"> = (ctx, action) => {
     if (action.target === "self") return destroySelfHandler(ctx)
+    if (action.budget) return destroyWithinBudget(ctx, action)
     if (action.nexus === "only") {
         const { count } = action
         if (count === "any") destroyOwnNexusesAny(ctx, action)
@@ -1457,8 +1400,6 @@ const handlers = {
     mutualDestroyChoice: mutualDestroyChoiceHandler,
     mutualKeepChoice: mutualKeepChoiceHandler,
     destroyDuplicateNames: destroyDuplicateNamesHandler,
-    destroyByCostBudget: destroyByCostBudgetHandler,
-    destroyByBpBudget: destroyByBpBudgetHandler,
     returnOwnNexusToDeckBottom: returnOwnNexusToDeckBottomHandler,
     reviveLastDestroyedNexus: reviveLastDestroyedNexusHandler,
 } satisfies Partial<ActionRegistry>

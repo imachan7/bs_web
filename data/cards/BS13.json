@@ -532,10 +532,9 @@
     ],
     "optional": true,
     "action": {
-     "type": "destroyByBpBudget",
-     "budgetFromFamilyBpSum": [
-      "竜人"
-     ]
+     "type": "destroy",
+     "count": "any",
+     "budget": {"by": "bp", "fromFamilyBpSum": ["竜人"]}
     }
    },
    {

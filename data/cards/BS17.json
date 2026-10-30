@@ -3680,12 +3680,14 @@
       "atLeast": 1
      },
      "then": {
-      "type": "destroyByBpBudget",
-      "budget": 7000
+      "type": "destroy",
+      "count": "any",
+      "budget": {"by": "bp", "amount": 7000}
      },
      "else": {
-      "type": "destroyByBpBudget",
-      "budget": 4000
+      "type": "destroy",
+      "count": "any",
+      "budget": {"by": "bp", "amount": 4000}
      }
     }
    }

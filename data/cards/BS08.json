@@ -3568,8 +3568,9 @@
     "ownOnly": true,
     "familyFilter": "龍帝",
     "action": {
-     "type": "destroyByCostBudget",
-     "budget": 4
+     "type": "destroy",
+     "count": "any",
+     "budget": {"by": "cost", "amount": 4}
     },
     "optional": true
    }
@@ -3891,8 +3892,9 @@
     "winnerKeywordFilter": "clash",
     "optional": true,
     "action": {
-     "type": "destroyByBpBudget",
-     "budgetFromSelfBp": true
+     "type": "destroy",
+     "count": "any",
+     "budget": {"by": "bp", "amount": 1, "counter": "lastBattleDestroyedBp"}
     }
    },
    {
