@@ -3,7 +3,7 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf } from "../soulCore"
 import type { CardInstance } from "../../type"
 import { getCard, log, suspend } from "../GameState"
-import { placeCoresOnSpirit, voidCorePlacementBlocked } from "../EffectModules"
+import { placeCoresOnSpirit } from "../EffectModules"
 import { effectiveBp } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 

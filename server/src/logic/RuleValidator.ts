@@ -1,5 +1,6 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { coreGainAllowed } from "./coreGainCap"
 import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../shared/coverage"
@@ -390,6 +391,8 @@ export function validateResshinsokuSummon(state: GameState, pid: PlayerId, handI
     // 【烈神速】の「トラッシュのコア」にソウルコアも含めて数える（配置は段5まで通常コアのみ）
     // 案B-inside: trashCores には[ソウルコア]が含まれるため、烈神速の閾値は数値だけで見てよい
     if (player.trashCores < 5) return "自分のトラッシュのコアが5個以上必要です"
+    // 【烈神速】はスピリットの効果なので、黒き聖杯の上限が掛かる（Q22409）
+    if (coreGainAllowed(state, { pid, from: "trash", to: "reserve", count: player.trashCores, srcType: "spirit" }) < player.trashCores) return "効果により、トラッシュのコアすべてを置けません"
     if (!canPayFreeSummonSurcharge(state, pid, card)) return "相手の効果による召喚の追加コストを払えません"
     return summonDenial(state, { pid, cardId, from: "hand", cause: "normal", flash: true })
 }

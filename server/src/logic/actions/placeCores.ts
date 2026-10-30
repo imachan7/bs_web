@@ -1,7 +1,7 @@
 // コアを「置く」器（R5。旧 coreGain/voidCoreToSelf/voidCoreToOther/voidCoreToOwnNexuses/
 // voidCoresToNexusLevel/trashCoresToSpirit/trashCoresToReserve/selfCoreToOwnLife/fieldCoreToLife/
 // 旧 lifeCharge 等の統合先）。旧ハンドラは data 移行が済むまで残す（cores.ts）。
-import { coreGainAllowance, recordCoreGain } from "../coreGainCap"
+import { coreGainAllowance, coreGainBlocked, recordCoreGain } from "../coreGainCap"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
@@ -13,7 +13,6 @@ import {
     placeCoresOnSpirit,
     requestChoice,
     voidCoreToOwnTrash,
-    voidCorePlacementBlocked,
 } from "../EffectModules"
 import { effectiveBp, hasGlobalConstraint, isEndStepLocked, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
 import { takeCoresFromSpirit } from "../removal"
@@ -30,6 +29,11 @@ export type PlaceCoresAction = Omit<WidePlaceCores, "from" | "to" | "count"> & {
     from: LegacyFrom
     to: Exclude<WidePlaceCores["to"], "self">
     count: number | "all"
+}
+
+// 置き先を問い合わせの区分へ（スピリット・ネクサスはフィールド。トラッシュなどはそのまま＝禁止も上限も掛からない）
+export function gainTo(to: PlaceCoresAction["to"]): string {
+    return to === "spirit" || to === "nexus" ? "field" : to
 }
 
 export function isLegacyPlaceCores(action: WidePlaceCores): action is PlaceCoresAction {
@@ -215,21 +219,10 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
     const { state, owner, self, sourceName, srcType, targetInstanceId, chosenOption } = ctx
     const player = state.players[owner]
 
-    // from:void で to が field/リザーブのときだけ、コアステップ限定ガードを通す（BS10-056）
-    const guardedTo = action.to === "spirit" || action.to === "nexus" || action.to === "reserve"
-    if (action.from === "void" && guardedTo && voidCorePlacementBlocked(state)) {
-        log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため発動しなかった。`)
+    const blocked = coreGainBlocked(state, action.from, gainTo(action.to))
+    if (blocked) {
+        log(state, `${sourceName}：${blocked}ため発動しなかった。`)
         return
-    }
-    if (action.to === "life") {
-        if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) {
-            log(state, `${sourceName}：効果により、ボイド/リザーブからライフにコアを置けなかった。`)
-            return
-        }
-        if (action.from === "void" && hasGlobalConstraint(state, "noVoidToLife")) {
-            log(state, `${sourceName}：効果により、ボイドからライフにコアを置けなかった。`)
-            return
-        }
     }
 
     const wantsSpiritOrNexus = action.to === "spirit" || action.to === "nexus"

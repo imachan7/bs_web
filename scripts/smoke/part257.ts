@@ -3,7 +3,7 @@
 // 新設した機構:
 //   - kind:"trashNameAs"（トラッシュにあるカードを別名として扱う。shared/rules.trashCardNameMatchesに集約）
 //   - kind:"levelAs" target:"ownSpiritsAll"（発生源の持ち主のスピリットすべて。既存の levelAs 器への追加）
-//   - globalConstraint type:"voidCoreBlockedOutsideCoreStep"（EffectModules.voidCorePlacementBlocked）
+//   - globalConstraint type:"voidCoreBlockedOutsideCoreStep"（coreGainCap.ts の coreGainBlocked）
 // それ以外は既存の器（magicRestriction colorLockOpponent／bpBuffSuppression／lendSelfThisTurn）で書けた。
 // ⚠️ cardId はハードコードせず、名前をカードデータで機械検証してから使う。
 import {

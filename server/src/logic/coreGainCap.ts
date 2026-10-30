@@ -4,7 +4,7 @@
 import { entryActive } from "../../../shared/rules/effectStop"
 import type { CardType, GameState, PlayerId } from "../type"
 import { currentLevel, getCard } from "./GameState"
-import { effectSources } from "../../../shared/rules"
+import { effectSources, hasGlobalConstraint, isEndStepLocked } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 
 export type CoreGainFrom = "void" | "trash"
@@ -60,4 +60,22 @@ export function takeCoreGainAllowance(
     const n = Math.min(requested, allowed)
     recordCoreGain(state, pid, n)
     return n
+}
+
+// コアを置くの問い合わせ（EFFECT_GATE.md §4 の 5j）：止める禁止の理由（無ければ null）。原因を問わない
+export function coreGainBlocked(state: GameState, from: string, to: string): string | null {
+    if (to === "life") {
+        if ((from === "void" || from === "reserve") && isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) return "ボイド/リザーブからライフにコアを置けない"
+        if (from === "void" && hasGlobalConstraint(state, "noVoidToLife")) return "ボイドからライフにコアを置けない"
+    }
+    if (from === "void" && (to === "field" || to === "reserve") && state.phase !== "core" && hasGlobalConstraint(state, "voidCoreBlockedOutsideCoreStep")) {
+        return "コアステップ以外はボイドからコアを置けない"
+    }
+    return null
+}
+
+// 置いてよい個数（0〜count）。禁止と、黒き聖杯・魂の海塔の上限をまとめて見る。累計には足さない（足すのは takeCoreGainAllowance）
+export function coreGainAllowed(state: GameState, a: { pid: PlayerId; from: string; to: string; count: number; srcType?: CardType | undefined }): number {
+    if (coreGainBlocked(state, a.from, a.to)) return 0
+    return Math.max(0, Math.min(a.count, coreGainAllowance(state, a.pid, a.srcType, a.from, a.to)))
 }

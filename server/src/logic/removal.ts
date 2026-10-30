@@ -10,7 +10,7 @@
 import { bounceDenial } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
-import { takeCoreGainAllowance } from "./coreGainCap"
+import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
@@ -127,7 +127,6 @@ import {
     isResisted,
     placeCoresOnSpirit,
     summonFreeFromHandIndex,
-    voidCorePlacementBlocked,
 } from "./EffectModules"
 
 // EffectModules.ts から一緒に移した内部ヘルパー（除去処理でしか使われていない）
@@ -926,7 +925,7 @@ export function applyDestroyBatchAfter(
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed * after.drawPerDestroyed)
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
-        if (self && voidCorePlacementBlocked(state)) {
+        if (self && coreGainBlocked(state, "void", "field")) {
             log(state, `${getCard(self.cardId).name}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
         } else if (self) {
             const placed = takeCoreGainAllowance(state, ownerPid, getCard(self.cardId).type, "void", "field", destroyed)
