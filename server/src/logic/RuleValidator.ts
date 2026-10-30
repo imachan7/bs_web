@@ -23,7 +23,7 @@ import {
 } from "./GameState"
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { canDiscardHand, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -606,6 +606,7 @@ export function validateUseHandAbility(
     const card = getCard(cardId)
     const effect = zoneSpiritEffectsDisabled(state, cardId) ? undefined : card.effects.find((e) => e.kind === "handActivated" && e.id === effectId)
     if (!effect || effect.kind !== "handActivated") return "その効果は使用できません"
+    if (effect.cost.discardSelf && !canDiscardHand(state, pid)) return "手札を破棄できません"
     if (effect.phase !== undefined && state.phase !== effect.phase) {
         return "このステップでは使用できません"
     }
@@ -1129,6 +1130,7 @@ export function validateActivateAbility(
             if (host.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
             if (coreRemovalAllowed(state, { ownerPid: pid, target: host, amount: effect.cost.selfCoresToTrash, cause: "cost", actorPid: pid }) < effect.cost.selfCoresToTrash) return "コアを取り除けません"
         } else if ("discardHandFamily" in effect.cost) {
+            if (!canDiscardHand(state, pid)) return "手札を破棄できません"
             // 手札に指定系統のスピリットカードが無ければ発動できない（BS13-062光り輝く大銀河Lv2）
             const wanted = Array.isArray(effect.cost.discardHandFamily)
                 ? effect.cost.discardHandFamily
@@ -1138,6 +1140,7 @@ export function validateActivateAbility(
             )
             if (!hasCard) return "破棄できるカードが手札にありません"
         } else if ("discardHandColor" in effect.cost) {
+            if (!canDiscardHand(state, pid)) return "手札を破棄できません"
             // 器BS16：手札に指定色のカード（種別を問わない）が無ければ発動できない（BS16-005）
             const color = effect.cost.discardHandColor
             const hasCard = state.players[pid].hand.some((cardId) => cardHasColor(getCard(cardId), color))
@@ -1150,10 +1153,12 @@ export function validateActivateAbility(
             )
             if (!hasCandidate) return "疲労させられるスピリットがいません"
         } else if ("discardHandOne" in effect.cost) {
+            if (!canDiscardHand(state, pid)) return "手札を破棄できません"
             // BS15-003ファイアファンサウル：手札1枚を破棄し、このスピリットを疲労させることで
             if (host.isRested) return "すでに疲労しています"
             if (state.players[pid].hand.length < 1) return "破棄できるカードが手札にありません"
         } else if ("discardHandKeyword" in effect.cost) {
+            if (!canDiscardHand(state, pid)) return "手札を破棄できません"
             // BS15-017エンプレス・ヨウクィーン：指定キーワード持ちのスピリットカードが手札に無ければ発動できない
             const keyword = effect.cost.discardHandKeyword
             const hasCard = state.players[pid].hand.some(
@@ -1355,6 +1360,7 @@ export function validateBlock(
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
+        if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"
         }

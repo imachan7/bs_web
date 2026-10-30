@@ -374,6 +374,10 @@ const randomOpponentHandMagicDiscardHandler: ActionHandler<"randomOpponentHandMa
         log(state, `${state.players[opp].name}は、効果によりメインステップに手札を破棄できない。`)
         return
     }
+    if (handImmuneFor(state, opp, srcType)) {
+        log(state, `${state.players[opp].name}の手札は${sourceName}の効果を受けなかった。`)
+        return
+    }
     const target = state.players[opp]
     if (target.hand.length === 0) {
         log(state, `${sourceName}：${target.name}の手札がなかった。`)

@@ -479,7 +479,8 @@ export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId
 // 共通ヘルパー化はせず各ハンドラの先頭でこの述語を見て早期リターンする形にする
 export function canDiscardHand(board: Board, pid: PlayerId): boolean {
     if (board.phase === "main" && hasGlobalConstraint(board, "noHandDiscardInMain")) return false
-    // BS15-052天蒼元帥チョウハッカイ：お互い、効果では手札を破棄できない（ステップを問わない）
+    // BS15-052天蒼元帥チョウハッカイ：お互い、効果では手札を破棄できない（ステップを問わない）。
+    // 今ある手札の破棄はすべて効果か、効果が与えた払い方・効果が要求するもの（ビクティム・ブロックのコスト。10-30 ユーザー決定）
     if (hasGlobalConstraint(board, "noHandDiscardByEffect")) return false
     return true
 }
