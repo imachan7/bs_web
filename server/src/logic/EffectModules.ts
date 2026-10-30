@@ -896,6 +896,7 @@ export function drawStepBonusFor(state: GameState, pid: PlayerId): number {
                 if (counted.has(name)) continue
                 counted.add(name)
             }
+            noteCoverage(effect, "drawStepBonus")
             bonus += effect.amount
         }
     }

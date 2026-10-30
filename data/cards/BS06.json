@@ -4268,17 +4268,12 @@
   "effects": [
    {
     "id": "BS06-073-e1",
-    "kind": "step",
-    "step": "draw",
-    "turn": "own",
+    "kind": "drawStepBonus",
     "levels": [
      1,
      2
     ],
-    "action": {
-     "type": "draw",
-     "count": 1
-    }
+    "amount": 1
    },
    {
     "id": "BS06-073-e2",

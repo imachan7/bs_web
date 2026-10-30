@@ -99,6 +99,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - `server/src/logic/handGate.ts`（新規）に `handGainDenial(state, { pid, from: "deck"|"trash"|"revealed"|"field"|"other", cause: "effect"|"rule" }): string | null`。集める禁止：`noHandGainByEffect`（cause effect。今の `handGainBlocked`）・`noTrashRecovery`／`opponentCantReturnFromTrashToHand`（from trash）
    - 「トラッシュから手札に戻せない」は、今は `moveCards` だけが見ている。トラッシュから手札へ移す経路（`returnTrashCardToHand`・【光芒】・`takeLast`・エンドステップの戻し・ショーグンペンタンの `thenHandIfNameIncludes`）すべてに効かせる
    - **破壊時に「このスピリットは手札に戻る」は対象外**：破壊されたスピリットは破壊待機状態で、トラッシュに行っていない（ACTION_VOCABULARY §2。10-30 ユーザー再確認）
+   - 天蒼元帥チョウハッカイの公式Q&A（10-30 に照合。smoke part696）：手札に加えられないオープン中のカードは、残りの行き先（デッキの上など）へは行かず破棄される（Q3589・Q4506。以前は「選ばれなかった扱い」で残りと同じ行き先へ送っていた）。「手札を増やせない」はプレイヤーに掛かり、手札に戻す効果はまるごと解決されない（Q3590・Q5341）。ドローステップの「ドローの枚数+1」は手札を増やす効果ではない（Q3592。灼熱の谷のデータを `drawStepBonus` に直した）。ドローできないなら「〜しないことで、ドローする」は選べない（Q22193）
    - 保留：使ったマジックを効果発揮後に手札へ戻す（`returnLastUsedMagicToHand`。26RBS01-X14 巨雷ゼーロトルだけ＝このリポジトリのプールに無い）
 5b. ✅ **破壊の問い合わせ**（設計を10-30に確定。#327）
    - `server/src/logic/destroyGate.ts`（新規）に `destroyDenial(state, { ownerPid, target, cause: "effect"|"cost"|"bpCompare", actorPid, sourceType?, sourceColors? }): string | null`。集める禁止：`nexusIndestructible`・`ownNexusIndestructible`（ネクサス）・`noBpCompareDestroy`（cause bpCompare）。効果を受けない系は今の `resistanceAgainst` のまま
