@@ -92,6 +92,7 @@ export { hasKyoshuOnBlock } from "./keywords/kyoshu"
 export { bofuCountFor, hasBofuOnBlock, hasBofuChooserSelf } from "./keywords/bofu"
 export { hasKoboOnBlock, resolveKoboOnBattleEnd } from "./keywords/kobo"
 export { millDeck, applyDeckMillNegate, declineDeckMillNegate } from "./zones/mill"
+import { millAllowed, noteMilled } from "./zones/mill"
 export { checkExhaustOnCoreChange, exhaustSpirit, exhaustNexus, heavyExhaustSpirit, refreshSpirit, fireRefreshedSideEvents, fireExhaustedTriggers, isRefreshBlockedByMark, canExhaustNexus } from "./state/exhaust"
 export { offerOpponentMainEndMagic, applyProvocationUse } from "./magic/cast"
 export {
@@ -627,12 +628,14 @@ export function tryLifeDamageMillGuard(
                 }
             }
             noteCoverage(effect, "lifeDamageMillGuard")
-            if (hasGlobalConstraint(state, "noDeckMill")) return false
+            const guardType = getCard(source.cardId).type
+            if (millAllowed(state, { pid: defenderPid, count: 1, actorPid: defenderPid, sourceType: guardType }) < 1) return false
             const cardId = player.deck.shift()
             if (cardId === undefined) {
                 log(state, `${player.name}のデッキが尽きているため、${getCard(source.cardId).name}の効果は発揮されなかった。`)
                 return false
             }
+            noteMilled(state, defenderPid, 1, defenderPid, guardType)
             const milled = getCard(cardId)
             const guarded =
                 milled.type === effect.match.cardType &&

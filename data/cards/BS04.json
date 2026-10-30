@@ -4869,6 +4869,7 @@
     ],
     "constraint": {
      "type": "millCap",
+     "sourceTypes": ["spirit", "nexus", "magic"],
      "maxCount": 5,
      "perTurn": true
     }

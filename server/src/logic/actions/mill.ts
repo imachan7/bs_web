@@ -1,7 +1,7 @@
 // デッキ破棄（mill）アクションのハンドラ
 import type { ActionHandler, ActionRegistry } from "./types"
 import { matchesPick } from "./revealAction"
-import type { EffectCounter, GameState, PlayerId } from "../../type"
+import type { CardType, EffectCounter, GameState, PlayerId } from "../../type"
 import { getCard, log, opponentOf } from "../GameState"
 import { millCapBonusFor, millDeck, requestCardChoice } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
@@ -48,25 +48,13 @@ const millHandler: ActionHandler<"mill"> = (ctx, action) => {
 // 出たらそのマジックカードのフラッシュ効果をコストを支払わずに即時発揮する。
 // マジックはトラッシュに残したまま効果だけを発揮する（resolveMagicを通さない＝コスト・無効化・
 // 使用時誘発を挟まない。resolveMilledFromDeckのマジック分岐と同じ考え方）
-function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName: string, action: { maxCount?: number }): void {
-    if (hasGlobalConstraint(state, "noDeckMill")) {
-        log(state, `${sourceName}：デッキが破棄されないため、発揮されなかった。`)
-        return
-    }
+function runMillUntilMagicCastFree(state: GameState, owner: PlayerId, sourceName: string, action: { maxCount?: number }, sourceType?: CardType): void {
     const player = state.players[owner]
-    let found: string | undefined
-    let milled = 0
-    // maxCount 省略時は上限なし（デッキが尽きれば shift が undefined を返して止まる）
-    for (let i = 0; action.maxCount === undefined || i < action.maxCount; i++) {
-        const cardId = player.deck.shift()
-        if (cardId === undefined) break
-        player.trashCards.push(cardId)
-        milled++
-        if (getCard(cardId).type === "magic") {
-            found = cardId
-            break
-        }
-    }
+    const before = player.trashCards.length
+    // maxCount 省略時は上限なし（デッキが尽きるまで）
+    const milled = millDeck(state, owner, action.maxCount ?? player.deck.length, owner, sourceType !== undefined ? { sourceType } : undefined, { until: (cardId) => getCard(cardId).type === "magic" })
+    const last = milled > 0 ? player.trashCards[before + milled - 1] : undefined
+    const found = last !== undefined && getCard(last).type === "magic" ? last : undefined
     log(state, `${sourceName}：デッキを上から${milled}枚破棄した。`)
     if (found === undefined) {
         log(state, `${sourceName}：マジックカードが出なかった。`)
@@ -96,7 +84,7 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
         player.hand.splice(chosenCardIndex, 1)
         player.trashCards.push(cardId)
         log(state, `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄した。`)
-        runMillUntilMagicCastFree(state, owner, sourceName, action)
+        runMillUntilMagicCastFree(state, owner, sourceName, action, ctx.srcType)
         return
     }
     const indices = player.hand.map((_, i) => i).filter((i) => getCard(player.hand[i]!).type === action.discardCardType)
@@ -122,7 +110,7 @@ const millUntilMagicCastFreeHandler: ActionHandler<"millUntilMagicCastFree"> = (
     player.hand.splice(idx, 1)
     player.trashCards.push(cardId)
     log(state, `${player.name}は手札の${typeLabel}カード「${getCard(cardId).name}」を破棄した。`)
-    runMillUntilMagicCastFree(state, owner, sourceName, action)
+    runMillUntilMagicCastFree(state, owner, sourceName, action, ctx.srcType)
 }
 
 const handlers = {

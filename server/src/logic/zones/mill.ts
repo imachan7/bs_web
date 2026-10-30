@@ -17,7 +17,12 @@ import { recordPlayerRule, resolveAction } from "../EffectModules"
 // このターンの仮想発生源。lendSelfThisTurnで貸与可）を走査し、レベル有効な millCap のうち
 // 最も厳しい（小さい）maxCountを返す（無ければInfinity）。ownNexusIndestructibleと同じく
 // 発生源の持ち主のみに効く制約のため、両陣営を見るhasGlobalConstraintとは別の専用判定にしている
-export function millCapFor(state: GameState, pid: PlayerId): number {
+// 上限に種類の指定があれば、その種類の効果による破棄だけを数える。種類が分からないときは数える側に倒す
+function capCoversType(types: CardType[] | undefined, sourceType: CardType | undefined): boolean {
+    return types === undefined || sourceType === undefined || types.includes(sourceType)
+}
+
+export function millCapFor(state: GameState, pid: PlayerId, sourceType?: CardType): number {
     let cap = Infinity
     const sources = effectSources(state, pid)
     for (const source of sources) {
@@ -28,6 +33,7 @@ export function millCapFor(state: GameState, pid: PlayerId): number {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap") continue
             if (!entryActive(state, pid, source, effect, level)) continue
+            if (!capCoversType(effect.constraint.sourceTypes, sourceType)) continue
             noteCoverage(effect, "globalConstraint")
             cap = Math.min(cap, effect.constraint.maxCount)
         }
@@ -41,6 +47,7 @@ export function millCapFor(state: GameState, pid: PlayerId): number {
             if (effect.kind !== "globalConstraint") continue
             if (effect.constraint.type !== "millCap" || effect.constraint.bothSides !== true) continue
             if (!entryActive(state, opponentOf(pid), source, effect, level)) continue
+            if (!capCoversType(effect.constraint.sourceTypes, sourceType)) continue
             cap = Math.min(cap, effect.constraint.maxCount)
         }
     }
@@ -73,9 +80,11 @@ export function mutualMillCapRemainingFor(state: GameState, pid: PlayerId): numb
 // 無ければInfinity）。millCapForは1回のミル呼び出しあたりの上限（perTurn省略時）を返す既存の判定で、
 // 両者は独立に適用する（perTurn:trueのエントリはmillCapForの対象にもなるため、1回のミルでも
 // ターン上限を超える枚数は自動的に制限される）
-export function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number {
+export function millCapPerTurnRemaining(state: GameState, pid: PlayerId, sourceType?: CardType): number {
     let remaining = Infinity
-    const usedSoFar = state.millCountThisTurn[pid] ?? 0
+    // ponytail: 種類ごとの累計はブレイヴだけ分けて持つ（上限の種類の指定がブレイヴを外す形しか無いため）。ほかの種類を外すカードが来たら種類ごとに持つ
+    const countedFor = (types: CardType[] | undefined): number =>
+        (state.millCountThisTurn[pid] ?? 0) - (types !== undefined && !types.includes("brave") ? state.millCountThisTurnBrave?.[pid] ?? 0 : 0)
     const sources = effectSources(state, pid)
     for (const source of sources) {
         const level = currentLevel(source).level
@@ -84,7 +93,8 @@ export function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number
             if (effect.constraint.type !== "millCap") continue
             if (!effect.constraint.perTurn) continue
             if (!entryActive(state, pid, source, effect, level)) continue
-            remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
+            if (!capCoversType(effect.constraint.sourceTypes, sourceType)) continue
+            remaining = Math.min(remaining, effect.constraint.maxCount - countedFor(effect.constraint.sourceTypes))
         }
     }
     // BS15共通器：millCapForのbothSidesと同じ考え方（BS15-069太陰の宮廷）
@@ -95,10 +105,42 @@ export function millCapPerTurnRemaining(state: GameState, pid: PlayerId): number
             if (effect.constraint.type !== "millCap" || effect.constraint.bothSides !== true) continue
             if (!effect.constraint.perTurn) continue
             if (!entryActive(state, opponentOf(pid), source, effect, level)) continue
-            remaining = Math.min(remaining, effect.constraint.maxCount - usedSoFar)
+            if (!capCoversType(effect.constraint.sourceTypes, sourceType)) continue
+            remaining = Math.min(remaining, effect.constraint.maxCount - countedFor(effect.constraint.sourceTypes))
         }
     }
     return Math.max(remaining, 0)
+}
+
+// デッキの破棄の問い合わせ（EFFECT_GATE.md §4 の 5h）：pid のデッキを count 枚破棄してよい枚数（0〜count）。
+// 「〜することで」のコストは効果の一部なので、actorPid／sourceType は効果と同じに渡す（10-30）
+export function millAllowed(state: GameState, a: { pid: PlayerId; count: number; actorPid?: PlayerId | undefined; sourceType?: CardType | undefined }): number {
+    const byOpponent = a.actorPid !== undefined && a.actorPid !== a.pid
+    if (millBlockReason(state, a.pid, byOpponent)) return 0
+    let n = a.count
+    if (byOpponent) n = Math.min(n, millCapFor(state, a.pid, a.sourceType), millCapPerTurnRemaining(state, a.pid, a.sourceType))
+    return Math.max(0, Math.min(n, mutualMillCapRemainingFor(state, a.pid)))
+}
+
+function millBlockReason(state: GameState, pid: PlayerId, byOpponent: boolean): string | null {
+    if (isEndStepLocked(state, "deckMill")) return "効果により破棄されない"
+    if (hasGlobalConstraint(state, "noDeckMill")) return "デッキは破棄されない"
+    if (state.phase === "main" && hasGlobalConstraint(state, "noDeckMillInMain")) return "メインステップでは破棄されない"
+    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillForPid")) return "このターンの間破棄されない"
+    if (isDeckMillBlocked(state, pid, byOpponent)) return "デッキは破棄されない"
+    return null
+}
+
+// 破棄した枚数をターンの累計に足す。millDeck を通らない破棄（効果のコストなど）もここで数える
+export function noteMilled(state: GameState, pid: PlayerId, n: number, actorPid: PlayerId | undefined, sourceType: CardType | undefined): void {
+    if (n <= 0) return
+    state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + n
+    if (actorPid === undefined || actorPid === pid) return
+    state.millCountThisTurn[pid] = (state.millCountThisTurn[pid] ?? 0) + n
+    if (sourceType === "brave") {
+        state.millCountThisTurnBrave ??= { p1: 0, p2: 0 }
+        state.millCountThisTurnBrave[pid] += n
+    }
 }
 
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
@@ -120,32 +162,10 @@ export function millDeck(
 ): number {
     // 破棄できずに抜ける経路でも「破棄したなら」が前の効果の記録を拾わないよう、先に空にする
     recordMoved(state, [])
-    // 「お互い、デッキは破棄されず」（BS10-108 ルナティックシール）。**自分の効果によるものも止める**
-    if (isEndStepLocked(state, "deckMill")) {
-        log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
-        return 0
-    }
-    if (hasGlobalConstraint(state, "noDeckMill")) {
-        log(state, `${state.players[pid].name}のデッキは、効果により破棄されなかった。`)
-        return 0
-    }
-    // 「お互い、メインステップでデッキは破棄されない」（BS14-085賛美するパイプオルガン）。陣営を問わず止める
-    if (state.phase === "main" && hasGlobalConstraint(state, "noDeckMillInMain")) {
-        log(state, `${state.players[pid].name}のデッキは、メインステップのため破棄されなかった。`)
-        return 0
-    }
-    // 器BS16：「このターンの間、自分のデッキは破棄されない」（**自分の効果も含め**）。
-    // noDeckMillByOpponentForPid と違い byOpponent を問わず止める（BS16-002パイルドラコ）
-    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillForPid")) {
-        log(state, `${state.players[pid].name}のデッキは、このターンの間破棄されない。`)
-        return 0
-    }
-    let effectiveCount = count
     const byOpponent = actorPid !== undefined && actorPid !== pid
-    // 「自分のデッキは破棄されない」（BS06ディスコンティニュー／BS08鳳翼の聖剣）。
-    // millCap と同じく**相手の効果による破棄だけ**を止める（自分のコスト支払い等は通す）
-    if (byOpponent && isDeckMillBlocked(state, pid)) {
-        log(state, `${state.players[pid].name}のデッキは破棄されなかった。`)
+    const blocked = millBlockReason(state, pid, byOpponent)
+    if (blocked) {
+        log(state, `${state.players[pid].name}のデッキは破棄されなかった（${blocked}）。`)
         return 0
     }
     // 「コストを払って破棄を無効に**できる**」（BS08鳳翼の聖剣Lv2）。
@@ -153,14 +173,7 @@ export function millDeck(
     if (byOpponent && !options?.skipNegate && trySuspendDeckMillNegate(state, pid, count, actorPid, cause)) {
         return 0
     }
-    if (byOpponent) {
-        effectiveCount = Math.min(effectiveCount, millCapFor(state, pid))
-        // ターン累計の上限（BS04侵されざる聖域Lv2：ターンに5枚まで）
-        effectiveCount = Math.min(effectiveCount, millCapPerTurnRemaining(state, pid))
-    }
-    // 器AM：mutual指定のmillCapは、byOpponentを問わず（自分の効果によるミルも含めて）常に適用する
-    // （BS13-026キグナ・スワンMk-II：「お互いのデッキは〜ターンに3枚までしか破棄されない」）
-    effectiveCount = Math.min(effectiveCount, mutualMillCapRemainingFor(state, pid))
+    const effectiveCount = millAllowed(state, { pid, count, actorPid, sourceType: cause?.sourceType })
     const player = state.players[pid]
     const plannedCount = Math.min(effectiveCount, player.deck.length)
     const milled: string[] = []
@@ -198,13 +211,8 @@ export function millDeck(
     const actual = milled.length
     recordMoved(state, milled)
     // mutual版の累計は誰が引き起こしたかを問わず加算する（既存millCountThisTurnはbyOpponent限定のまま別集計）
-    if (actual > 0) {
-        state.millCountThisTurnMutual[pid] = (state.millCountThisTurnMutual[pid] ?? 0) + actual
-    }
+    noteMilled(state, pid, actual, actorPid, cause?.sourceType)
     log(state, `${player.name}のデッキを上から${actual}枚トラッシュへ送った。`)
-    if (actorPid !== undefined && actorPid !== pid && actual > 0) {
-        state.millCountThisTurn[pid] = (state.millCountThisTurn[pid] ?? 0) + actual
-    }
     // 「相手のデッキを一度に◯枚以上破棄したとき」（アリゲイド）：破棄された側の相手のフィールドから発火する。
     // eventCount には実破棄枚数を渡し、minEventCount で閾値判定する
     if (actual > 0 && !state.winner) {
@@ -260,10 +268,11 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
 }
 
 // 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
+// 効果文に「相手の効果で」が無いので、自分の効果・コストによる破棄も止める（10-30。名前は旧い読みのまま）
 // millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
-export function isDeckMillBlocked(state: GameState, pid: PlayerId): boolean {
+export function isDeckMillBlocked(state: GameState, pid: PlayerId, byOpponent: boolean): boolean {
     // 器AR：ターン限定版（BS13-034ミノガメン。無償召喚したときだけ付く）
-    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillByOpponentForPid")) return true
+    if (byOpponent && timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillByOpponentForPid")) return true
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
