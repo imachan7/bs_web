@@ -25,6 +25,7 @@
 
 - 計画と裁定はすべて [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md)（§2.5 貫通、§3 分類、§4 PR 計画と各 PR の設計）。**新しい禁止・耐性を足すときは、まずここの問い合わせ（下の表）へ足す**
 - 済み：召喚 `summonGate.ts`（#319・#321〜#323）、貫通 `EffectAttempt.pierce`（#324）、ライフ `lifeLossAllowed`（#325）、手札に加える `handGate.ts`（#326）、破壊 `destroyGate.ts`（#327）、コアを取り除く `coreGate.ts`（5c）
+- **進行中：疲労 `exhaustGate.ts`（5d。ブランチ `fix/exhaust-gate`）**。設計は EFFECT_GATE §4 の 5d。`exhaustDenial(state, {ownerPid, target, actorPid?, sourceType?}): string | null` を `exhaustSpirit`／`exhaustNexus` の中で聞く。「〜されない／できない」は対象を防がない（一般則。EFFECT_GATE §1）
 - **次は §3 の残りの行**：疲労 → 回復 → 合体／分離 → 効果による指定アタック。1行ずつ「今どこで判定しているか」を grep で洗い、効果文と食い違うカードを表にしてから設計する（5a・5b と同じ進め方）
 - 進め方：期待値役（効果文と属性だけで part を書く）→ 実装役 → メインが part を実行し直してから PR。**実装役の「❌ 0」は自分で実行し直して確かめる**（10-29 に食い違いがあった）
 - 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い

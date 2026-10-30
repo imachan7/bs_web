@@ -11,6 +11,7 @@
 - 使用時・払える判定（COST_MODEL §1）は、同じ問い合わせを「試しに聞くだけ」（今の `probing`）で回す
 - **置換効果（「代わりに〜する」）は入れない**。許す／止めるではなく中身を変えるため
 - 複数の PR に分けて、操作の種類ごとに移す。この文書で問い合わせの種類と分類を先に決める
+- **「〜されない／〜できない」は対象に取られることを防がない**（10-30 ユーザー確認で一般則にした。Q1711 の「破壊されない」から）。効果では候補に出し、操作の時点で止める。対象を防ぐのは「対象にならない」だけ。**コスト・【転召】は全部できる個体だけを候補にする**（COST_MODEL §1）。破壊（5b）・コア（5c）・疲労（5d）・回復・合体／分離はこれに従う
 
 ## 2. 問い合わせに持たせる情報（案）
 
@@ -110,4 +111,9 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 原因を問わず効く（下限は08-24「動かし方を問わず」、取り除けないは RULES_BATSPI_WIKI「コストの支払いも止める」）。待機状態の個体にも効く（待機前からの常時効果は発揮したまま。PENDING_STATE §1）。魔影街（【呪撃】で破壊される個体のコアをボイドへ）は効果のコア除去として扱う
    - 呼ぶ所：`removal.ts` の取り除く4関数（今の保護と下限の判定を置き換え）、`removeCores.ts`・`cores.ts` の下限の直接判定、プレイヤーの支払い（`validatePaySources`・`autoPayPlan`・`brave.ts` の2か所）、効果のコスト（`moveRichestSpiritCoresToTrash`・`fieldCoresSpendable`・起動の `selfCoresToTrash`・`selfCoresToVoid`・復活のコスト・`reviveLastDestroyedNexus`）、プレイヤーの操作（RuleValidator のコア移動・交換・【覚醒】の移動元）、【転召】の候補（`tenshoCandidates`）、`jugeki.ts`
    - 既知の限界：ネクサス上のコアは問い合わせを通さない（ネクサスのコアを守る効果がプールに無い）。破壊待機の個体のコアを効果で移す `destructionCoresToOwnSpirit` は通さない。起動能力のボタンは、取り除けない状態でもクライアントでは消えない（共有層から `coreRemovalAllowed` を呼べないので、押すとサーバーが拒否する）。`pierce` を渡すカードはまだ無い
+5d. **疲労の問い合わせ**（設計を10-30に確定）
+   - `server/src/logic/exhaustGate.ts`（新規）に `exhaustDenial(state, { ownerPid, target, actorPid?, sourceType? }): string | null`。actorPid／sourceType の省略＝ルールやプレイヤー自身の操作による疲労（アタック・ブロック・コスト）
+   - 集める禁止：`exhaustImmunityGrant`（actor≠持ち主かつ sourceType があるときだけ。軸 `sourceTypes?: CardType[]` を足し、トランプの王国は `["spirit","nexus","magic"]`＝ブレイヴ自身の効果は通す）・`opponentNexusesUnexhaustable`（発生源から見た相手のネクサス。原因を問わない）
+   - 呼ぶ所：`state/exhaust.ts` の `exhaustSpirit`／`exhaustNexus`（入口がここだけなので、中で聞く）。`exhaustSpirit`／`exhaustNexus` は実際に疲労したかを boolean で返し、数を数えてログに出す呼び出し側はそれを使う。`canExhaustNexus`（コストの候補）は `exhaustDenial` を呼ぶ形にする。`resistance.ts` の `exhaustImmune` は消す（対象には取れる）
+   - 入れないもの：ブロック時に疲労しない4枚（`noRestWhenBlocking*`。ブロックの手順で、効果の疲労ではない）・払って防ぐ `exhaustPreventByPay`（置換に近い選択なので `exhaustSpirit` の中のまま）
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
