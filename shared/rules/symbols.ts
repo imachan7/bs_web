@@ -59,11 +59,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
-        // **バウンス待機中のカードのシンボルは軽減に使えない**（バトスピ Wiki「バウンスについて」）。
-        // 破壊待機中は使えるので、そこだけ扱いが違う
-        if (inst.pendingBounce) continue
-        // 消滅待機中も同じく使えない（破壊待機は使える）
-        if (inst.pendingDestruction && inst.pendingVanish) continue
+        // 待機状態（破壊・消滅・戻す）のシンボルも軽減に使える（待機状態の統一。PENDING_STATE.md §1）
         // colorlessThisBattle（器S）：色とシンボルを無いものとして扱う個体は軽減の数からまるごと飛ばす
         // （BS13-011/015/052。docs/design/BS13_PLAN.md §1 #10）
         if (inst.colorlessThisBattle) continue
