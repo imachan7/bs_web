@@ -346,7 +346,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `coreStepBonusFor`（fn）：持ち主のコアステップで得られるコアの追加数（kind: "coreStepBonus"）を集計する。
 - `placeCoresOnSpirit`（fn）：対象スピリットへ「効果で」コアを置く共通処理。coreBonus（グラーバ）ぶんをボイドから追加する。
 - `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く（無限に湧くボイドが原資。
-- `voidCorePlacementBlocked`（fn）：globalConstraint "voidCoreBlockedOutsideCoreStep"（BS10-056蒼天大聖モンゴクウ）：
 - `sweepLevelCostDepletion`（fn）：継続的なレベル置換（kind: "levelAs"）を再計算する。
 - `payCost`（fn）：summon{from:"hand"} 共通の召喚実行部：指定した手札インデックスのスピリットを、
 - `findSpiritAny`（fn）：instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
@@ -503,6 +502,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/actions/placeCores.ts
 
 - `PlaceCoresAction`（型）：単一の取り元・従来の行き先・数値/all の個数だけを受ける形。それ以外は placeCoresGather が処理する
+- `gainTo`（fn）：置き先を問い合わせの区分へ（スピリット・ネクサスはフィールド。トラッシュなどはそのまま＝禁止も上限も掛からない）
 - `isLegacyPlaceCores`（fn）
 - `availableFromSource`（fn）：from の残量（count:"all" の解決に使う。void は上限なしなので呼び出し側で扱う）。
 - `placeCoresPoolCandidates`（fn）：to:"spirit"/"nexus" の置き先候補（filter一致分のみ。target:"self"/"all"/"one" の絞り込みは
@@ -580,6 +580,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `coreGainAllowance`（fn）：pid が自分の from から自分の to へ、srcType の効果で置けるコアの残り個数（制限が無ければ Infinity）。
 - `recordCoreGain`（fn）：実際に置けた個数を累計へ足す（制限が掛かる配置だけ呼べばよいが、掛からない配置で呼んでも無害ではないので
 - `takeCoreGainAllowance`（fn）：配置1回ぶんの入口：requested のうち置いてよい個数を返し、累計に加える
+- `coreGainBlocked`（fn）：コアを置くの問い合わせ（EFFECT_GATE.md §4 の 5j）：止める禁止の理由（無ければ null）。原因を問わない
+- `coreGainAllowed`（fn）：置いてよい個数（0〜count）。禁止と、黒き聖杯・魂の海塔の上限をまとめて見る。累計には足さない（足すのは takeCoreGainAllowance）
 
 ## server/src/logic/coreGate.ts
 

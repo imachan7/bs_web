@@ -95,7 +95,7 @@ export type GlobalConstraintDef =
     | { type: "summonLimitByCostForOpponent"; maxCost: number; limit: number } // 発生源の持ち主から見た相手は、コストが maxCost 以下のスピリットをターンに limit 体までしか召喚できない（RuleValidator.validateSummon が、相手フィールドの CardInstance.summonedTurn で自分のこのターンの該当召喚数を数えて判定。神速召喚も対象）
     | { type: "summonLimitByEffectForOpponent"; limit: number } // summonLimitByCostForOpponent の兄弟：コストでなく効果の記述を持つ（isVanillaCard が false）スピリットカードでターンに limit 体までしか召喚できない
     | { type: "voidCoreBlockedOutsideCoreStep" } // お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない（ライフ・トラッシュへは対象外）。
-    // ボイドから直接置く各アクションが冒頭で EffectModules.voidCorePlacementBlocked を呼ぶ（コアステップ自身の `player.reserve += 1` はガード不要）
+    // ボイドから直接置く各アクションが冒頭で coreGainCap.ts の coreGainBlocked を呼ぶ（コアステップ自身の `player.reserve += 1` はガード不要）
     | { type: "noSummonByEffect" } // お互い、スピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない（通常の doSummon 経由は対象外。主語なし）。
     // エントリの phase を書けばその区間だけ有効。summonByEffectBlocked が判定し、
     // summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（効果による召喚の共通経路）の冒頭で弾く

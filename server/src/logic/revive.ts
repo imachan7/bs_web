@@ -2,7 +2,7 @@
 
 import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
-import { takeCoreGainAllowance } from "./coreGainCap"
+import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
@@ -1020,7 +1020,7 @@ function tryReviveOnDestroy(
         const name = getCard(inst.cardId).name
         // BS15-030愛の女神ロヴンLv2：復活成立とセットで、場を離れる前にボイドからコアをリザーブへ置く
         if (effect.alsoVoidCoreToReserve) {
-            const placed = takeCoreGainAllowance(state, ownerPid, getCard(inst.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
+            const placed = coreGainBlocked(state, "void", "reserve") ? 0 : takeCoreGainAllowance(state, ownerPid, getCard(inst.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
             player.reserve += placed
             log(state, `${sourceName}：ボイドからコア${placed}個を${player.name}のリザーブに置いた。`)
         }
@@ -1121,7 +1121,7 @@ function tryReviveOnDestroy(
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             if (effect.alsoVoidCoreToReserve) {
-                const placed = takeCoreGainAllowance(state, ownerPid, getCard(source.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
+                const placed = coreGainBlocked(state, "void", "reserve") ? 0 : takeCoreGainAllowance(state, ownerPid, getCard(source.cardId).type, "void", "reserve", effect.alsoVoidCoreToReserve)
                 player.reserve += placed
                 log(state, `${getCard(source.cardId).name}：ボイドからコア${placed}個を${player.name}のリザーブに置いた。`)
             }

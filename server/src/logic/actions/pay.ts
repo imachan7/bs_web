@@ -6,6 +6,7 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteKeyword } from "../../../../shared/coverage"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { millAllowed } from "../zones/mill"
+import { coreGainAllowed } from "../coreGainCap"
 import type { CardData, CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
@@ -21,14 +22,14 @@ import { destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLa
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay } from "./removeCores"
-import { availableFromSource, isLegacyPlaceCores, placeCoresPoolCandidates } from "./placeCores"
+import { availableFromSource, isLegacyPlaceCores, gainTo, placeCoresPoolCandidates } from "./placeCores"
 import { gatherPayable } from "./placeCoresGather"
 import { refreshOneOwnCandidates } from "./exhaustRefresh"
 import { summonFromHandFreeCandidateMatches } from "../summon"
 import { fieldCoresSpendable, moveCardCandidates, moveCardsPayable } from "./moveCards"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
 import { normalReserveOf } from "../soulCore"
-import { bofuCountFor, findSpiritAny, millCapBonusFor, voidCorePlacementBlocked } from "../EffectModules"
+import { bofuCountFor, findSpiritAny, millCapBonusFor } from "../EffectModules"
 import { pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice } from "../targeting"
 import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -230,17 +231,14 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (filter === SELF_REQUIRED) return false
         return refreshOneOwnCandidates(state, owner, self, filter).length >= 1
     },
-    // placeCores：置き先（target self/one/all）があり、止める効果（voidCorePlacementBlocked・
+    // placeCores：置き先（target self/one/all）があり、止める効果（coreGainAllowed・
     // ライフ専用ガード）に当たらず、取り元（reserve/trash/self/field）にcount個以上あるか
-    placeCores: (state, owner, self, action) => {
+    placeCores: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "placeCores") return false
         if (!isLegacyPlaceCores(action)) return gatherPayable({ state, owner, self } as ActionCtx, action)
-        const guardedTo = action.to === "spirit" || action.to === "nexus" || action.to === "reserve"
-        if (action.from === "void" && guardedTo && voidCorePlacementBlocked(state)) return false
-        if (action.to === "life") {
-            if (isEndStepLocked(state, "lifeChargeFromVoidOrReserve")) return false
-            if (action.from === "void" && hasGlobalConstraint(state, "noVoidToLife")) return false
-        }
+        // 置く数が決まる形は、黒き聖杯・魂の海塔の上限まで含めて全部置けるときだけ（Q3721・Q22432）
+        const need = action.to === "life" && action.fillTo !== undefined ? Math.max(0, action.fillTo - state.players[owner].life) : typeof action.count === "number" ? action.count : 1
+        if (coreGainAllowed(state, { pid: owner, from: action.from, to: gainTo(action.to), count: need, srcType }) < need) return false
         if (action.to === "spirit" || action.to === "nexus") {
             if (action.target === "self") {
                 if (!self) return false

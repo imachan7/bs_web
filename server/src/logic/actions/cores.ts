@@ -1,6 +1,6 @@
 // コア操作系のアクションハンドラ（相手のコアを取り除く・自分のコアを払う／動かす）。コアを置く系は coreGain.ts、ライフは life.ts、【転召】は tensho.ts
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
-import { takeCoreGainAllowance } from "../coreGainCap"
+import { coreGainBlocked, takeCoreGainAllowance } from "../coreGainCap"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardType, CardInstance, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
@@ -27,7 +27,6 @@ import {
     requestCardChoice,
     requestChoice,
     tryInteractiveTargetChoice,
-    voidCorePlacementBlocked,
     recordTimed,
 } from "../EffectModules"
 import { canDiscardHand, effectiveBp, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
@@ -379,7 +378,7 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
                     state,
                     `${sourceName}：この効果で${destroyed}体が消滅したため、自分はデッキから${destroyed}枚ドローした。`,
                 )
-            } else if (voidCorePlacementBlocked(state)) {
+            } else if (coreGainBlocked(state, "void", "field")) {
                 log(state, `${sourceName}：コアステップ以外はボイドからコアを置けないため置かなかった。`)
             } else {
                 const placed = takeCoreGainAllowance(state, owner, srcType, "void", "field", destroyed)

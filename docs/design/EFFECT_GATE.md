@@ -143,7 +143,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 効果に当たるもの：効果と「〜することで」のコスト（起動能力・手札の能力・BS10-X05 のコストを含む）に加え、ビクティムの「召喚コストを手札の破棄で払える」（効果が与えた払い方）とブロックのコスト（「手札のマジックを破棄しなければブロックできない」＝効果が要求する破棄）（10-30 ユーザー決定）
    - 足す所：起動能力の手札コスト（`RuleValidator` の `discardHandFamily`／`Color`／`Keyword`／`discardHandOne` と、`shared/rules/activation.ts` の同じ判定）・手札の能力（`validateUseHandAbility` の `discardSelf`）・ビクティム（`validateSummonHandDiscard`）・ブロック（`validateBlock` の `blockCost` のマジック破棄）・BS10-X05（`actions/mill.ts`）
    - 相手の手札を破棄する効果は、`handImmuneFor`（月光集める塔・五角形の砦「自分の手札は相手の〜の効果を受けない」）も見る。今は `discardHand` だけが見ていて、`randomOpponentHandMagicDiscard` が素通り
-5j. **コアを置くの問い合わせ**（設計を10-30に確定。ブランチ `fix/core-gain-gate`）
+5j. ✅ **コアを置くの問い合わせ**（10-30）
    - `server/src/logic/coreGainCap.ts` に `coreGainAllowed(state, { pid, from: "void"|"trash"|"reserve", to: "life"|"field"|"reserve", count, srcType? }): number`（0〜count）。止める禁止：モンゴクウ（ボイド→フィールド/リザーブ、コアステップ以外。原因を問わない）・古代戦艦：船尾／熊人ラーテシード（`noVoidToLife`）・エンドステップの封印（`lifeChargeFromVoidOrReserve`）。量の上限：黒き聖杯・魂の海塔（`coreGainCap`。今の `coreGainAllowance`）
    - 呼ぶ所：`placeCoresLegacy` の冒頭の3つの判定、`pay` の `placeCores` の払える判定（上限で count に足りなければ払えない）、復活に付く「ボイドからリザーブへ」（`revive.ts` の `alsoVoidCoreToReserve`）、【烈神速】の検証（トラッシュのコアすべてをフィールド/リザーブへ、スピリットの効果）
    - 公式Q&A（10-30 に照合）：魂の海塔「ボイドからコアを増やせない」はライフに置くことも止める（Q22432）・プレイヤーに掛かるので【装甲】で防げない（Q22434）。船尾の下では「ライフに置くことで」の続き（シユウのデッキ破棄とブロックされない・オフィエルのバーストの破棄）も起きない（Q20150・Q3721）。夢幻祈祷はライフに置けなくてもフラッシュ効果は発揮できる（Q24967）。黒き聖杯の下では【烈神速】（スピリットの効果）はコアが1個しか動かせず使えない（Q22409）。モンゴクウには該当するQ&Aが無い
