@@ -3595,7 +3595,9 @@
      3
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 4
     },
     "optional": false
@@ -5796,7 +5798,9 @@
        }
       },
       {
-       "type": "mill",
+       "type": "discard",
+       "from": "deck",
+       "side": "opponent",
        "count": 1,
        "countCounter": "lastCost"
       }

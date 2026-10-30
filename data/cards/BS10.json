@@ -6600,7 +6600,9 @@
           2
         ],
         "action": {
-          "type": "mill",
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
           "count": 12
         },
         "optional": false
@@ -6770,7 +6772,9 @@
           "星魂"
         ],
         "action": {
-          "type": "mill",
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
           "count": 10
         }
       },

@@ -3633,7 +3633,9 @@
     ],
     "optional": false,
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1
     }
    },
@@ -4070,7 +4072,9 @@
     ],
     "winnerKeywordFilter": "funsai",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1,
      "countCounter": "lastBattleDestroyedCost"
     }
@@ -6811,7 +6815,9 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "mill",
+       "type": "discard",
+       "from": "deck",
+       "side": "opponent",
        "count": 1
       },
       {
@@ -6953,7 +6959,9 @@
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 5
     },
     "thenPay": "flash"
@@ -7452,7 +7460,8 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "mill",
+       "type": "discard",
+       "from": "deck",
        "count": 1,
        "side": "own"
       },

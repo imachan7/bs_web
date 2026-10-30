@@ -29,7 +29,7 @@ console.log("=== 汎用 mill：相手のデッキを上からcount枚トラッ�
     runTurnStart(s)
     const deckBefore = s.players.p2.deck.length
     const trashBefore = s.players.p2.trashCards.length
-    resolveAction(s, "p1", null, { type: "mill", count: 3 })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 3 })
     assert(s.players.p2.deck.length === deckBefore - 3, "相手のデッキが3枚減る")
     assert(s.players.p2.trashCards.length === trashBefore + 3, "相手のトラッシュが3枚増える")
 }
@@ -44,7 +44,7 @@ console.log("=== 汎用 mill：side:\"own\"指定時は自分のデッキを破�
     runTurnStart(s)
     const deckBefore = s.players.p1.deck.length
     const opponentDeckBefore = s.players.p2.deck.length
-    resolveAction(s, "p1", null, { type: "mill", count: 2, side: "own" })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 2, side: "own" })
     assert(s.players.p1.deck.length === deckBefore - 2, "自分のデッキが2枚減る")
     assert(s.players.p2.deck.length === opponentDeckBefore, "相手のデッキは変化しない")
 }
@@ -58,7 +58,7 @@ console.log("=== 汎用 mill：デッキ不足時は可能な分だけ破棄す�
     )
     runTurnStart(s)
     s.players.p2.deck = ["BS01-001", "BS01-001"]
-    resolveAction(s, "p1", null, { type: "mill", count: 5 })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 5 })
     assert(s.players.p2.deck.length === 0, "デッキが尽きる")
     assert(s.players.p2.trashCards.length === 2, "実際に破棄できた2枚のみトラッシュへ")
 }
@@ -77,7 +77,7 @@ console.log("=== 汎用 millPer：EffectCounter { ownColor } 経由でカウン�
         createInstance("BS01-001", s.turn, 1), // 赤（対象外）
     )
     const deckBefore = s.players.p2.deck.length
-    resolveAction(s, "p1", null, { type: "mill", count: 1, countCounter: { ownColor: "blue" } })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", side: "opponent", count: 1, countCounter: { ownColor: "blue" } })
     assert(s.players.p2.deck.length === deckBefore - 2, "自分の青スピリット数（2）ぶん相手のデッキが減る")
 }
 

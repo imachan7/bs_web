@@ -483,6 +483,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `legacyDiscardToMoveCards`（fn）：旧 discardSelfChoose → moveCards（手札→トラッシュ）。「好きなだけ」は count:"all"（anyMax があればその数）＋upTo
 - `migrateMoves`（fn）：旧「選ぶ＋送る」の type を入れ子ごと新しい形へ（データの移行と、変換ツールの出力の後処理で使う）。
 
+## server/src/logic/actions/mill.ts
+
+- `DeckDiscard`（型）
+- `discardFromDeck`（fn）
+
 ## server/src/logic/actions/moveCards.ts
 
 - `moveCardCandidates`（fn）：候補（ゾーンのインデックス）。選び終わるまでゾーンは変わらないので、選択の途中でも同じ値になる

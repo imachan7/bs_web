@@ -75,7 +75,7 @@ withEffect({ ...drawOne, event: "anySpiritSummoned", subjectSide: "own" }, () =>
 })
 
 console.log("=== 3. リフレッシュステップ：陣営ごとに1回（何体回復しても1回） ===")
-withEffect({ ...drawOne, event: "anySpiritRefreshed", subjectSide: "opponent", action: { type: "mill", count: 1, side: "own" } }, () => {
+withEffect({ ...drawOne, event: "anySpiritRefreshed", subjectSide: "opponent", action: { type: "discard", from: "deck", count: 1, side: "own" } }, () => {
     const s = game("refresh-step-opp")
     s.turnPlayer = "p2"
     put(s, "p1", SRC)
@@ -97,7 +97,7 @@ withEffect({ ...drawOne, event: "anySpiritRefreshed", subjectSide: "opponent", a
 })
 
 console.log("=== 4. 自分のリフレッシュステップの ownSpiritRefreshed も1回 ===")
-withEffect({ ...drawOne, event: "ownSpiritRefreshed", action: { type: "mill", count: 1, side: "own" } }, () => {
+withEffect({ ...drawOne, event: "ownSpiritRefreshed", action: { type: "discard", from: "deck", count: 1, side: "own" } }, () => {
     const s = game("refresh-step-own")
     s.turnPlayer = "p1"
     put(s, "p1", SRC)
@@ -110,7 +110,7 @@ withEffect({ ...drawOne, event: "ownSpiritRefreshed", action: { type: "mill", co
 })
 
 console.log("=== 5. 効果による回復は1体ごと ===")
-withEffect({ ...drawOne, event: "ownSpiritRefreshed", action: { type: "mill", count: 1, side: "own" } }, () => {
+withEffect({ ...drawOne, event: "ownSpiritRefreshed", action: { type: "discard", from: "deck", count: 1, side: "own" } }, () => {
     const s = game("refresh-effect")
     put(s, "p1", SRC)
     const a = put(s, "p1", PLAIN, true)

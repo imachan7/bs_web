@@ -63,7 +63,7 @@ console.log("=== §E デッキ破棄（mill）は対象外＝メインステッ�
     const deckBefore = s.players.p1.deck.length
     const trashBefore = s.players.p1.trashCards.length
     s.phase = "main"
-    resolveAction(s, "p1", null, { type: "mill", count: 1, side: "own" })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 1, side: "own" })
     assert(s.players.p1.deck.length === deckBefore - 1, "デッキ破棄（mill）はメインステップ中でも止まらない")
     assert(s.players.p1.trashCards.length === trashBefore + 1, "破棄したカードはトラッシュへ行く")
 }

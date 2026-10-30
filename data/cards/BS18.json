@@ -960,7 +960,8 @@
      "brave"
     ],
     "cost": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
      "count": 1,
      "side": "own"
     }
@@ -4405,7 +4406,8 @@
     "selfMode": "source",
     "optional": true,
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
      "count": 3,
      "side": "own"
     }

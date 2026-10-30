@@ -3824,7 +3824,9 @@
      2
     ],
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 2,
      "countCounter": "ownNexuses",
      "countMax": 4
@@ -5419,7 +5421,9 @@
     "turn": "own",
     "winnerKeywordFilter": "funsai",
     "action": {
-     "type": "mill",
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
      "count": 1,
      "countCounter": "lastBattleDestroyedCost"
     }

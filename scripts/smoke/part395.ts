@@ -159,7 +159,7 @@ console.log("=== 9. mill cost：デッキが足りるなら払える ===")
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "mill", side: "own", count: 3 },
+        cost: { type: "discard", from: "deck", side: "own", count: 3 },
         then: { type: "draw", count: 1 },
     })
     assert(s.players.p1.deck.length === deckBefore - 3 - 1, "デッキを3枚破棄し1枚ドローした")
@@ -174,7 +174,7 @@ console.log("=== 10. mill cost：デッキが足りなければ払わない ==="
     const deckBefore = s.players.p1.deck.length
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "mill", side: "own", count: 3 },
+        cost: { type: "discard", from: "deck", side: "own", count: 3 },
         then: { type: "draw", count: 1 },
     })
     assert(s.players.p1.deck.length === deckBefore, "デッキは破棄されなかった")

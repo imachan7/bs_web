@@ -50,7 +50,7 @@ const prevent = {
     levels: null,
     filter: { color: "purple" },
     bySourceTypes: ["spirit", "brave"],
-    cost: { type: "mill", count: 1, side: "own" },
+    cost: { type: "discard", from: "deck", count: 1, side: "own" },
 }
 
 // p2 のスピリットが p1 のスピリットすべてを疲労させる

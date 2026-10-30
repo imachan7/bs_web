@@ -19,7 +19,7 @@ function game(seed: string): GameState {
 const CANNON_ARMS_ACTION = {
     type: "sequence" as const,
     actions: [
-        { type: "mill" as const, count: 1 },
+        { type: "discard" as const, from: "deck" as const, side: "opponent" as const, count: 1 },
         {
             type: "timedEffect" as const,
             duration: "battle" as const,

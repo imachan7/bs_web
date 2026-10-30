@@ -283,22 +283,22 @@ console.log("=== BS04-082 侵されざる聖域Lv2：自分のデッキは相手
     const deckBefore = s.players.p1.deck.length
     assert(deckBefore >= 20, "テスト前提：p1のデッキが十分残っている")
 
-    resolveAction(s, "p2", null, { type: "mill", count: 3 })
+    resolveAction(s, "p2", null, { type: "discard", from: "deck", side: "opponent", count: 3 })
     assert(s.players.p1.deck.length === deckBefore - 3, "1回目の3枚は上限内でそのまま破棄される")
 
-    resolveAction(s, "p2", null, { type: "mill", count: 10 })
+    resolveAction(s, "p2", null, { type: "discard", from: "deck", side: "opponent", count: 10 })
     assert(
         s.players.p1.deck.length === deckBefore - 5,
         "ターン累計5枚を超える分は追加破棄されない（3+10のうち合計5枚のみ）",
     )
 
     const deckBefore2 = s.players.p1.deck.length
-    resolveAction(s, "p1", null, { type: "mill", count: 10, side: "own" })
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 10, side: "own" })
     assert(s.players.p1.deck.length === deckBefore2 - 10, "自分自身の効果によるミルはmillCapの対象外")
 
     assert(act(s, "p1", { type: "endTurn" }) === null, "ターン終了でmillCountThisTurnがリセットされる")
     const deckBefore3 = s.players.p1.deck.length
-    resolveAction(s, "p2", null, { type: "mill", count: 10 })
+    resolveAction(s, "p2", null, { type: "discard", from: "deck", side: "opponent", count: 10 })
     assert(
         s.players.p1.deck.length === deckBefore3 - 5,
         "ターンが変わればまた5枚まで破棄できる",

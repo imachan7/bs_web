@@ -63,13 +63,13 @@ console.log("=== 1. BS16-002パイルドラコ：破棄された瞬間に発揮�
     const s = game("p002-stop")
     const causer = put(s, "p2", "BS01-001", 1)
     s.players.p1.deck = ["BS16-002", "BS16-002", "BS01-001", "BS01-001"]
-    resolveAction(s, "p2", causer, { type: "mill", count: 3 }, undefined, instColors(causer), "spirit")
+    resolveAction(s, "p2", causer, { type: "discard", from: "deck", side: "opponent", count: 3 }, undefined, instColors(causer), "spirit")
     assert(s.players.p1.deck.length === 3, `1枚だけ破棄されて止まった（残り${s.players.p1.deck.length}枚）`)
     assert(s.players.p1.trashCards.includes("BS16-002"), "破棄されたパイルドラコはトラッシュに残る")
     assert(!s.players.p2.field.spirits.some((sp) => sp.instanceId === causer.instanceId), "破棄を引き起こした相手のスピリットは破壊された")
     // このターンの間、自分（p1）のデッキは自分の効果でも破棄されない
     const before = s.players.p1.deck.length
-    resolveAction(s, "p1", null, { type: "mill", count: 1, side: "own" }, undefined, undefined, "spirit")
+    resolveAction(s, "p1", null, { type: "discard", from: "deck", count: 1, side: "own" }, undefined, undefined, "spirit")
     assert(s.players.p1.deck.length === before, "このターンの間、自分の効果でもデッキは破棄されない")
 }
 
@@ -79,7 +79,7 @@ console.log("=== 2. BS16-014オカピエン：2枚破棄されたら相手のラ
     const causer = put(s, "p2", "BS01-001", 1)
     s.players.p1.deck = ["BS16-014", "BS16-014", "BS01-001"]
     const lifeBefore = s.players.p2.life
-    resolveAction(s, "p2", causer, { type: "mill", count: 3 }, undefined, instColors(causer), "spirit")
+    resolveAction(s, "p2", causer, { type: "discard", from: "deck", side: "opponent", count: 3 }, undefined, instColors(causer), "spirit")
     assert(s.players.p1.deck.length === 0, "3枚とも破棄された（オカピエンは破棄を止めない）")
     assert(s.players.p2.life === lifeBefore - 2, `相手（p2）のライフが2個減った（${s.players.p2.life}）`)
 }

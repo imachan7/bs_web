@@ -34,7 +34,7 @@ console.log("=== 1. mill → if last：破棄したカードが条件を満た�
     const s = game("hit")
     s.players.p1.deck[1] = MAGIC
     const hand = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "mill", count: 2, side: "own" }, ifMilledMagicDraw] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "discard", from: "deck", count: 2, side: "own" }, ifMilledMagicDraw] })
     assert(lastMovedOf(s).length === 2 && lastMovedOf(s).includes(MAGIC), "破棄した2枚が lastMoved に記録される")
     assert(s.players.p1.hand.length === hand + 1, "マジックを破棄したので1枚引く")
 }
@@ -43,11 +43,11 @@ console.log("=== 2. mill → if last：条件を満たさなければ else／els
 {
     const s = game("miss")
     const hand = s.players.p1.hand.length
-    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "mill", count: 2, side: "own" }, ifMilledMagicDraw] })
+    resolveAction(s, "p1", null, { type: "sequence", actions: [{ type: "discard", from: "deck", count: 2, side: "own" }, ifMilledMagicDraw] })
     assert(s.players.p1.hand.length === hand, "マジックが無いので引かない")
     resolveAction(s, "p1", null, {
         type: "sequence",
-        actions: [{ type: "mill", count: 1, side: "own" }, { ...ifMilledMagicDraw, else: { type: "draw", count: 2 } }],
+        actions: [{ type: "discard", from: "deck", count: 1, side: "own" }, { ...ifMilledMagicDraw, else: { type: "draw", count: 2 } }],
     })
     assert(s.players.p1.hand.length === hand + 2, "else 側で2枚引く")
 }
@@ -93,14 +93,14 @@ console.log("=== 6. カウンタ lastMoved：「破棄したカード1枚につ�
     const hand = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "sequence",
-        actions: [{ type: "mill", count: 3, side: "own" }, { type: "draw", count: 1, countCounter: "lastMoved" }],
+        actions: [{ type: "discard", from: "deck", count: 3, side: "own" }, { type: "draw", count: 1, countCounter: "lastMoved" }],
     })
     assert(s.players.p1.hand.length === hand + 3, "破棄した3枚ぶん引く")
     s.players.p1.deck = [VANILLA]
     const hand2 = s.players.p1.hand.length
     resolveAction(s, "p1", null, {
         type: "sequence",
-        actions: [{ type: "mill", count: 3, side: "own" }, { type: "draw", count: 1, countCounter: "lastMoved" }],
+        actions: [{ type: "discard", from: "deck", count: 3, side: "own" }, { type: "draw", count: 1, countCounter: "lastMoved" }],
     })
     assert(lastMovedOf(s).length === 1 && s.players.p1.hand.length === hand2, "デッキが1枚なら破棄できた1枚で数える（引くデッキは0枚）")
 }

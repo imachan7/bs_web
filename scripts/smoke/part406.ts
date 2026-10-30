@@ -34,7 +34,7 @@ console.log("=== 1. 破棄の途中で別の効果（デッキを3枚破棄）�
     act(s, "p1", { type: "resolveChoice", cardIndex: 0 })
     assert(s.pendingChoice?.pid === "p1", "前提：まだ破棄の選択中")
     // 別の効果が、同じ効果の続き（ドロー）より先に解決される場面を作る
-    pushResumeFrames(s, [{ kind: "action", selfInstanceId: null, actorPid: "p1", action: { type: "sequence", actions: [{ type: "mill", count: 3, side: "own" }] } }])
+    pushResumeFrames(s, [{ kind: "action", selfInstanceId: null, actorPid: "p1", action: { type: "sequence", actions: [{ type: "discard", from: "deck", count: 3, side: "own" }] } }])
     const deck = s.players.p1.deck.length
     act(s, "p1", { type: "resolveChoice" })
     assert(s.pendingChoice === null, "前提：解決しきった")

@@ -5325,7 +5325,8 @@
           "type": "sequence",
           "actions": [
             {
-              "type": "mill",
+              "type": "discard",
+              "from": "deck",
               "count": 1,
               "side": "own"
             },
@@ -5873,7 +5874,9 @@
         "battleRole": "attacker",
         "optional": false,
         "action": {
-          "type": "mill",
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
           "count": 15
         }
       },

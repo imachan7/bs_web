@@ -7,7 +7,7 @@ import { currentLevel, effectSources } from "../../../../shared/rules"
 // カードに書かれた【地鳴：N】の N（持たなければ 0）
 export function chimeiBase(cardId: string): number {
     for (const e of getCard(cardId).effects) {
-        if (e.kind !== "triggered" || e.keyword !== "chimei" || e.action.type !== "mill") continue
+        if (e.kind !== "triggered" || e.keyword !== "chimei" || !(e.action.type === "discard" && e.action.from === "deck")) continue
         const c = e.action.countCounter
         if (typeof c === "object" && c !== null && "minus" in c && typeof c.minus[0] === "object" && "const" in c.minus[0]) return c.minus[0].const
     }
