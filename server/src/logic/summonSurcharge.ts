@@ -48,7 +48,7 @@ export function askCostPay(state: GameState, pid: PlayerId, need: number, keep: 
     if (need <= 0 || !state.interactiveTargets) return false
     const player = state.players[pid]
     const soulSelectable = player.soulCore != null && player.soulCore.zone !== "trash"
-    if (!(soulSelectable || fieldCoresSpendable(player).length > 0 || normalReserveOf(player) < need + keep)) return false
+    if (!(soulSelectable || fieldCoresSpendable(state, pid).length > 0 || normalReserveOf(player) < need + keep)) return false
     suspend(state, {
         pid,
         kind: "option",

@@ -1,5 +1,6 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -1081,10 +1082,11 @@ export function reviveLastDestroyedNexusBlockReason(
     const requiredCost = action.coreCost
     const fromFieldOrReserve = action.costFrom === "ownFieldOrReserve"
     if (!fromFieldOrReserve && (!self || self.cores <= 0 || (requiredCost !== undefined && self.cores < requiredCost))) return "支払えるコアがない"
+    if (!fromFieldOrReserve && self && coreRemovalAllowed(state, { ownerPid: owner, target: self, amount: requiredCost ?? self.cores, cause: "cost", actorPid: owner }) < (requiredCost ?? self.cores)) return "支払えるコアがない"
     if (!last || last.pid !== owner) return "戻せるネクサスがない"
     const player = state.players[owner]
     if (!player.field.nexuses.some((n) => n.pendingDestruction) && player.trashCards.lastIndexOf(last.cardId) === -1) return "戻せるネクサスがない"
-    if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + sp.cores, 0) < (requiredCost ?? 1)) return "支払えるコアがない"
+    if (fromFieldOrReserve && player.reserve + player.field.spirits.reduce((n, sp) => n + coreRemovalAllowed(state, { ownerPid: owner, target: sp, amount: sp.cores, cause: "cost", actorPid: owner }), 0) < (requiredCost ?? 1)) return "支払えるコアがない"
     return null
 }
 

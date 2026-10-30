@@ -1,4 +1,5 @@
 // 【転召】置換の選択肢ラベル
+import { coreRemovalAllowed } from "../coreGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardData, CardInstance, EffectDef, FamilyFilter, GameState, PlayerId } from "../../type"
@@ -6,7 +7,7 @@ import { currentLevel, findNexus, findSpirit, getCard, log, instMinLevelCores, p
 import { destroySpirit, returnSpiritToHand } from "../removal"
 import { fireTrigger } from "../triggers"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { activeConstraintsWithSource, coresCantBeRemoved, effectActiveAtLevel, zoneSpiritEffectsDisabled, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
+import { activeConstraintsWithSource, effectActiveAtLevel, zoneSpiritEffectsDisabled, effectSources, instMatchesCostFilter, matchesFamilyFilter } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { requestChoice } from "../EffectModules"
 
@@ -58,7 +59,7 @@ export function tenshoCandidates(
     return state.players[ownerPid].field.spirits.filter((s) => {
         if (s.instanceId === excludeInstanceId) return false
         // コアをすべて動かせない個体は対象にできない（SOULCORE.md §2。2026-10-06 ユーザー確認）
-        if (coresCantBeRemoved(state, ownerPid, s)) return false
+        if (coreRemovalAllowed(state, { ownerPid, target: s, amount: s.cores, cause: "tensho", actorPid: ownerPid }) < s.cores) return false
         if (familyFilter) return matchesFamilyFilter(state, ownerPid, s, familyFilter)
         return (
             instMatchesCostFilter(s, { min: minCost }) ||

@@ -1,4 +1,5 @@
 // 【呪撃】の判定
+import { coreRemovalAllowed } from "../coreGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
@@ -41,7 +42,7 @@ export function applyJugekiCoreToVoid(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "jugekiCoreToVoid") continue
             if (!entryActive(state, attackerPid, source, effect, level)) continue
-            const removed = Math.min(effect.count, victim.cores)
+            const removed = coreRemovalAllowed(state, { ownerPid: victimPid, target: victim, amount: effect.count, cause: "effect", actorPid: attackerPid, sourceType: "nexus" })
             if (removed === 0) continue
             noteCoverage(effect, "jugekiCoreToVoid")
             victim.cores -= removed

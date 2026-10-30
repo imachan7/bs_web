@@ -18,7 +18,7 @@ import {
     requestChoice,
     resistanceAgainst,
 } from "../EffectModules"
-import { coreFloorFor, isBattlingCoreProtected } from "../removal"
+import { coreRemovalAllowed } from "../coreGate"
 import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
@@ -78,8 +78,8 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
 function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
     const { state, owner, srcType } = ctx
     if (state.players[pid].field.spirits.includes(inst)) {
-        if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner)
-        else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner)
+        if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner, srcType)
+        else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
         else if (to === "life") {
             // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
             const taken = removeCores(state, pid, inst, amount, owner, srcType)
@@ -157,9 +157,8 @@ export function removeCoresAchievableCountForPay(
             for (const s of player.field.spirits) {
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
                 if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
-                if (isBattlingCoreProtected(state, s)) continue
-                const keep = Math.max(action.leaveAtLeast ?? 0, coreFloorFor(state, s, pid, owner))
-                perInst.push(Math.max(0, s.cores - keep))
+                const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "effect", actorPid: owner, sourceType: srcType })
+                perInst.push(Math.max(0, Math.min(allowed, s.cores - (action.leaveAtLeast ?? 0))))
             }
         }
         if (from.includes("nexus")) {
@@ -499,8 +498,8 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     }
     const sp = player.field.spirits.find((x) => x.instanceId === s.inst!.instanceId)
     if (!sp) return 0
-    if (to === "void") return removeCoresToVoid(state, s.pid, sp, 1, owner)
-    if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner)
+    if (to === "void") return removeCoresToVoid(state, s.pid, sp, 1, owner, srcType)
+    if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner, undefined, srcType)
     if (to === "life") {
         const taken = removeCores(state, s.pid, sp, 1, owner, srcType)
         if (taken > 0) {

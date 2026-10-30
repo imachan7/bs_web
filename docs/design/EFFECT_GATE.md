@@ -103,4 +103,11 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - **「破壊されない」は対象に取られることは防がない**：効果での破壊では、破壊されないネクサスも候補に出して選べ、選んだら破壊されない。マジックも使える。根拠は Q1711（要塞皇オーディーンがいるとき、相手が使ったバスタースピアでネクサスは破壊されない＝使用はできる。10-30 ユーザー了承）
    - **コストの破壊**（「自分のネクサスを破壊することで」）は、破壊されないネクサスを候補から外す（全部払えなければ払えない。COST_MODEL §1）
    - データの食い違い：ノルンの泉 Lv2・巨人騎士アルダス・サファイアの城壁 Lv2 は「相手のスピリット/ネクサス/マジックの効果では」なのに `sourceTypes` が無く、自分の効果や相手のブレイヴの効果まで止めていた。`sourceTypes:["spirit","nexus","magic"]` を足す
+5c. ✅ **コアを取り除く問い合わせ**（設計を10-30に確定）
+   - `server/src/logic/coreGate.ts`（新規）に `coreRemovalAllowed(state, a): number`（0〜amount。量で答える）。`a = { ownerPid, target, amount, cause: "effect"|"cost"|"tensho"|"player", actorPid, sourceType?, pierce?: "all" }`。`player`＝プレイヤーの操作（コアの移動・ソウルコアの交換）
+   - 0 にする禁止：`coresCantBeRemoved`（個体。原因を問わない）・`coresCantBeRemovedAll`（`exceptOwnerEffects` が通すのは cause effect かつ actor＝持ち主だけ。持ち主自身の支払い・コアの移動・【転召】は止まる＝RULES_BATSPI_WIKI「コストの支払いも止める」09-09。cause tensho は通す＝セフィロ・アリエスの「【転召】以外で」）・`coresCantBeRemovedByOpponent`／`coresImmovableByOpponent`（cause effect・actor≠持ち主）・バトル中の保護 `battlingCoresProtected`／`blockerCoresProtected`（原因を問わない）。それ以外は下限 `coreFloorFor` まで。`pierce:"all"` は cause effect のとき全部を無視（§2.5）
+   - **「取り除けない」は対象に取られることを防がない**（Q1711 の「破壊されない」と同じ。10-30 ユーザー確認）：効果のコア除去では候補に出し、取り除く時点で止める。`resistance.ts` の `coresLocked` 3行は消す（【装甲】など「効果を受けない」は残す）。**コストと【転召】は、全部動かせる個体だけを候補にする**（COST_MODEL §1・SOULCORE §2）
+   - 原因を問わず効く（下限は08-24「動かし方を問わず」、取り除けないは RULES_BATSPI_WIKI「コストの支払いも止める」）。待機状態の個体にも効く（待機前からの常時効果は発揮したまま。PENDING_STATE §1）。魔影街（【呪撃】で破壊される個体のコアをボイドへ）は効果のコア除去として扱う
+   - 呼ぶ所：`removal.ts` の取り除く4関数（今の保護と下限の判定を置き換え）、`removeCores.ts`・`cores.ts` の下限の直接判定、プレイヤーの支払い（`validatePaySources`・`autoPayPlan`・`brave.ts` の2か所）、効果のコスト（`moveRichestSpiritCoresToTrash`・`fieldCoresSpendable`・起動の `selfCoresToTrash`・`selfCoresToVoid`・復活のコスト・`reviveLastDestroyedNexus`）、プレイヤーの操作（RuleValidator のコア移動・交換・【覚醒】の移動元）、【転召】の候補（`tenshoCandidates`）、`jugeki.ts`
+   - 既知の限界：ネクサス上のコアは問い合わせを通さない（ネクサスのコアを守る効果がプールに無い）。破壊待機の個体のコアを効果で移す `destructionCoresToOwnSpirit` は通さない。起動能力のボタンは、取り除けない状態でもクライアントでは消えない（共有層から `coreRemovalAllowed` を呼べないので、押すとサーバーが拒否する）。`pierce` を渡すカードはまだ無い
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）

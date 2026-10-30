@@ -624,7 +624,7 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         const player = state.players[owner]
         const sourceCardId = ctx.sourceCardId ?? self?.cardId
         const soulSelectable = player.soulCore != null && player.soulCore.zone !== "trash"
-        const mustChoose = soulSelectable || fieldCoresSpendable(player).length > 0 || normalReserveOf(player) < need
+        const mustChoose = soulSelectable || fieldCoresSpendable(state, owner).length > 0 || normalReserveOf(player) < need
         if (state.interactiveTargets && mustChoose && sourceCardId !== undefined) {
             suspend(state, {
                 pid: owner,

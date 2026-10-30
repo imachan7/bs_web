@@ -1,5 +1,6 @@
 // ブレイヴの合体・分離と、ホストが場を離れるときにブレイヴを残すかの確認（docs/design/BRAVE.md §2.3・§6・§12.5）
 
+import { coreRemovalAllowed } from "./coreGate"
 import type { CardInstance, DestroyContext, GameState, PaySource, PlayerId } from "../type"
 import { getCard, log, instMinLevelCores, opponentOf, suspend } from "./GameState"
 
@@ -11,7 +12,7 @@ import {
     activeConstraints,
     braveKeepCores,
     cantSpiritStateBrave,
-    coresCantBeRemoved,
+   
     bravesOf,
 } from "../../../shared/rules"
 
@@ -232,8 +233,7 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
 function payableCores(state: GameState, pid: PlayerId): number {
     const player = state.players[pid]
     const onField = [...player.field.spirits, ...player.field.nexuses]
-        .filter((inst) => !coresCantBeRemoved(state, pid, inst))
-        .reduce((sum, inst) => sum + inst.cores, 0)
+        .reduce((sum, inst) => sum + coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid }), 0)
     return player.reserve + onField
 }
 
@@ -324,15 +324,13 @@ function autoPaySources(state: GameState, pid: PlayerId, need: number): PaySourc
     let short = need - player.reserve
     if (short <= 0) return []
     const sources: PaySource[] = []
-    const targets = [...player.field.spirits, ...player.field.nexuses].filter(
-        (inst) => !coresCantBeRemoved(state, pid, inst),
-    )
+    const targets = [...player.field.spirits, ...player.field.nexuses]
     for (const surplusOnly of [true, false]) {
         for (const inst of targets) {
             if (short <= 0) break
             const already = sources.find((src) => src.instanceId === inst.instanceId)?.count ?? 0
             const floor = surplusOnly ? instMinLevelCores(inst) : 0
-            const usable = Math.max(inst.cores - already - floor, 0)
+            const usable = Math.max(Math.min(inst.cores - floor, coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid })) - already, 0)
             if (usable === 0) continue
             const take = Math.min(usable, short)
             if (already > 0) sources.find((src) => src.instanceId === inst.instanceId)!.count += take

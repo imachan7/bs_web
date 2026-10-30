@@ -6,6 +6,7 @@
 //   - ハンドラ層: キーワードはレジストリ、アクションは resolveAction で解決
 // キーワードごとの処理は keywords/（【バースト】は keywords/burst.ts）、デッキ破棄は zones/mill.ts、疲労・回復は state/exhaust.ts、
 // 継続効果の再計算は state/continuous.ts、対象の選び方と選択待ちの発行は targeting.ts、召喚時の誘発と無償召喚は summon.ts に分けてある。
+import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { noteAction, noteCoverage } from "../../../shared/coverage"
 import { chimeiBase, chimeiBonus } from "./keywords/chimei"
@@ -79,7 +80,7 @@ import {
     spiritHasKeywordOrLabel,
     instIsCombined,
     opponentFieldColorCount,
-    coresCantBeRemoved,
+   
 } from "../../../shared/rules"
 import { lastCoresCount, lastDrawnCount, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
 import { checkExhaustOnCoreChange } from "./state/exhaust"
@@ -301,10 +302,10 @@ export function autoPayPlan(state: GameState, pid: PlayerId, need: number, keepL
     const fieldInsts = [...player.field.nexuses, ...[...player.field.spirits].sort((a, b) => b.cores - a.cores)]
     for (const inst of fieldInsts) {
         if (rest <= 0) break
-        if (coresCantBeRemoved(state, pid, inst)) continue
+        const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: inst, amount: inst.cores, cause: "cost", actorPid: pid })
         // 破壊待機の個体は場を離れるので維持コアも払える（2026-10-15 ユーザー確認）
         const spare = keepLevel1 && player.field.spirits.includes(inst) && !inst.pendingDestruction ? inst.cores - instMinLevelCores(inst) : Infinity
-        const take = Math.min(rest, normalCoresOn(player, inst), spare)
+        const take = Math.min(rest, normalCoresOn(player, inst), spare, allowed)
         if (take <= 0) continue
         paySources.push({ instanceId: inst.instanceId, count: take })
         rest -= take
