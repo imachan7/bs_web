@@ -12,6 +12,7 @@
 - **置換効果（「代わりに〜する」）は入れない**。許す／止めるではなく中身を変えるため
 - 複数の PR に分けて、操作の種類ごとに移す。この文書で問い合わせの種類と分類を先に決める
 - **「〜されない／〜できない」は対象に取られることを防がない**（10-30 ユーザー確認で一般則にした。Q1711 の「破壊されない」から）。効果では候補に出し、操作の時点で止める。対象を防ぐのは「対象にならない」だけ。**コスト・【転召】は全部できる個体だけを候補にする**（COST_MODEL §1）。破壊（5b）・コア（5c）・疲労（5d）・回復・合体／分離はこれに従う
+- **「〜することで」のコストは効果の一部**（10-30 ユーザー確認）。「〜の効果で／効果では」の制限はそのコストにも効き、コストの実行者・発生源の種類は効果と同じに扱う。効果ではないのは召喚・マジック・ブレイヴの使用コスト（支払い）とプレイヤーの操作だけ
 
 ## 2. 問い合わせに持たせる情報（案）
 
@@ -128,4 +129,11 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - **「手札に戻らない」はデッキへ戻す効果を止めない**。今は耐性の判定（op "bounce"）がデッキへ戻す効果にも効き、金狐角は行き先を問わず止めていた
    - 呼ぶ所：`removal.ts` の `markBounce`（戻すはすべてここを通る。actorPid／sourceType を受け取り、止めたら false を返す）。`resistance.ts` の `bounceImmune` は消す（対象には取れる）。コストで戻す候補は止められる個体を外す
 5g. **ドロー・合体／分離**：直すものなし（10-30 に洗った）。ドローは入口 `draw()` が2つの禁止を見ていて、デッキから手札へ移す別経路も無い。分離は `detachBraveByEffect`／`detachBraveByOwnerChoice` の両方で `cantSeparate` を見ている。合体は候補（`braveCombineCandidates`）で `cantCombine` を外す（合体はプレイヤーの行動の一部なので候補で外す）。スピリット状態の禁止は検証と残す確認の両方で見ている
+5c'. **コアの問い合わせのコストの区別**（10-30。ブランチ `fix/core-effect-cost`）：上の一般則に合わせ、「〜することで」のコアのコスト（起動能力の `selfCoresToTrash`・`selfCoresToVoid`・復活のコスト・`reviveLastDestroyedNexus`・`pay`）は `coreRemovalAllowed` に cause effect（actor＝持ち主、sourceType＝発生源）で聞く。cause cost は召喚・マジック・ブレイヴの使用コストとネクサスの配置コスト（大工房）だけ。変わるのは八分儀の祠 Lv2 だけ：持ち主自身の「〜することで」は通る（使用コスト・コアの移動・【転召】は今どおり止まる）
+5h. **デッキの破棄の問い合わせ**（設計を10-30に確定。ブランチ `fix/mill-gate`）
+   - `server/src/logic/zones/mill.ts` に `millAllowed(state, { pid, count, actorPid?, sourceType? }): number`（0〜count）。`millDeck` の中の判定を移す
+   - 0 にする禁止：エンドステップの封印（`deckMill`）・`noDeckMill`・`noDeckMillInMain`（main）・期間つき `noDeckMillForPid`・`noDeckMillByOpponent`（ディスコンティニュー・鳳翼の聖剣。**効果文に「相手の効果で」が無いので、自分の効果・コストも止める**＝パイルドラコの `noDeckMillForPid` と同じ読み。今は相手の効果だけ止めていた）
+   - 量の制限：`millCap`（1回・perTurn・bothSides は actor≠持ち主のとき。軸 `sourceTypes?: CardType[]` を足し、侵されざる聖域・エターナルシールドは `["spirit","nexus","magic"]`）・mutual（キグナ・スワン Mk-II・リトル・ビッケン。誰の効果・コストでも）
+   - 呼ぶ所：`millDeck`、`millDeck` を通らずにデッキを破棄している経路（`actions/mill.ts` の `runMillUntilMagicCastFree`・`revive.ts` の `millSelfOneMatching`／`millSelfCount`・`EffectModules.ts` の `lifeDamageMillGuard`・`keywords/funsai.ts`）と、払えるかの判定（`actions/pay.ts`）。できるだけ `millDeck` を通す形にして、累計（perTurn・mutual）も数える
+   - 入れないもの：`deckMillNegate`（払って無効にする選択。`millDeck` の中のまま）。`shared/cost.ts` の払えるかの判定（クライアントの表示用。`noDeckMill` だけ見る。サーバーが最後に止める）
 5. 以降、§3 の行ごとに1 PR（手札に加える＝行き先で効く禁止、破壊＝BP比較を含む、コアを取り除く＝量の制限、…）
