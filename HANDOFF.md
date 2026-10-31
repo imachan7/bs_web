@@ -21,24 +21,22 @@
 
 ## 1. いまの本線と次の一手
 
-### 禁止・耐性を操作ごとの問い合わせにまとめる（10-29 合意。§3 の行は 10-30 に一通り済み）
+### 次の本線：BS19 と PX プロモの取り込み（2026-10-31 ユーザー決定）
 
-- 計画と裁定はすべて [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md)（§2.5 貫通、§3 分類、§4 PR 計画と各 PR の設計）。**新しい禁止・耐性を足すときは、まずここの問い合わせ（下の表）へ足す**
-- 済み：召喚 `summonGate.ts`（#319・#321〜#323）、貫通 `EffectAttempt.pierce`（#324）、ライフ `lifeLossAllowed`（#325）、手札に加える `handGate.ts`（#326）、破壊 `destroyGate.ts`（#327）、コアを取り除く `coreGate.ts`（5c・#329）、疲労 `exhaustGate.ts`（5d・#330）、回復（5e・#331）、戻す `bounceGate.ts`（5f・#332）、デッキの破棄 `millAllowed`（5h）、手札の破棄 `canDiscardHand`（5i・#334）、チョウハッカイのQ&A（#335）、コアを置く `coreGainAllowed`（5j・#336）、「対象にならない」は「すべて」も防ぐ（5k）。ドロー・合体／分離は直すものなし（5g）
-- 指定アタックの行は直すものなし（5k。対象の判定は `shared/block.ts` の `matchesDirectedAttackFilter` 1か所）
-- **新しい行・一般則を設計する前に、主役のカードの batspi.com の公式Q&Aを読む**（10-30。チョウハッカイとワルキューレで、手順書に無い裁定が見つかった）
-- 進め方：期待値役（効果文と属性だけで part を書く）→ 実装役 → メインが part を実行し直してから PR。**実装役の「❌ 0」は自分で実行し直して確かめる**（10-29 に食い違いがあった）
-- 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
-- 待機状態の統一（ルール改訂。10-30）：今のプールでは観測できないので作り替えはしない（ユーザー了承）。軽減の除外だけ外した。残りの規則は該当カードの取り込み時に足す → [PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2
-- 発生源の属性で絞る貫通（「白のスピリットの効果で防げない」など）は、耐性ごとの発生源の記録が要る。該当カードを取り込むときに足す
-
-### その後：専用 type の統一の残り（10-27 計画）
-
-- [ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4。PR 8（予算つき破壊）・PR 9（`mill` → `discard{from:"deck"}`）・PR 10（回復を `refresh` に）・PR 5（1枚専用の5種を `timedEffect` へ。残りの7種は固有として残す）は済み。`lifeCrush` は寄せない・同じ動詞の組の洗い出しも済み（統一計画はこれで一区切り）。着手前に「分かれている理由がルール上の処理の違いか」を確かめる
+- 取り込み済みは BS01〜BS18・SD01/02/04/06・プロモ P069〜P071（`data/cards/`）。BS19 から先は staging にも無い
+- **プロモは PX 番号だけ**。P＋数字（P13 など）はまだやらない（10-31 ユーザー指示）。一覧は batspi.com の「プロモーションカード」ページ。BS19 とは別の PR にする
+- 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）。取得は `scripts/fetch_wiki_cards.py`（`--refer` は Wiki に実在するページ名でないと0件）。着手時に `BS19_PLAN.md` を作る
+- 3役の流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6。**実装役の「❌ 0」は自分で実行し直して確かめる**（10-29 に食い違いがあった）
+- 新しい禁止・耐性は [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md) の問い合わせへ足す。**新しい行・一般則を設計する前に、主役のカードの batspi.com の公式Q&Aを読む**
+- 取り込み時に足すもの：待機状態の改訂の残りの規則（[PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2）、発生源の属性で絞る貫通（耐性ごとの発生源の記録が要る）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
-### 既知の残り：entryActive（10-23）
+### 既知の残り（触るときに読む）
 
+- 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
+- 専用 type の統一は一区切り（[ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4）。新しく統一するときは、分かれている理由がルール上の処理の違いかを先に確かめる
+- 「〜することで」の確認関門：規則と既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10。`if` の器は [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・§5（残した2枚は §5「残す」）
+- 「破壊されたとき」は同時破壊でも1回：必須の `reviveOnDestroy` がコスト不足で不発になった場合、グループの消費を戻していない（次の1体で使えない）
 - keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した（ENTRY_ACTIVE.md）
 - `coverage:effects` の「場に出ているのに一度も適用されていない効果」は【大粉砕】（BS15-X06-e2）・【呪滅撃】（BS14-X02-e2）の2件だけ。宣言だけのキーワードで、挙動は同じカードの別エントリが持つ（読む側が無いので計測されない）
 
@@ -51,34 +49,10 @@
 - 26系カードのデータを読む smoke 76パートは持ち込んでいない（データが非公開）。26系だけの action 16種は `validate:cards` の `STANDARD_POOL_ONLY`
 - **この先の standard 側のエンジン修正は自動では入らない**。旧カードにも効く直しは、そのつど持ち込む
 
-**BS14「覇王編 第1弾：英雄龍の伝説」121種は完了**（2026-09-13。gaps 0件・smoke part313〜323）。
-確定した解釈は [BS14_PLAN.md](./docs/design/BS14_PLAN.md) §1、バーストの確定スキーマは同 §2。
+### ファイルの分割（R3）
 
-**BS15「覇王編 第2弾：黄金の大地」91種は完了**（2026-09-18。gaps 0件・smoke part330〜347・`data/cards/BS15.json` に結合済み）。
-確定した解釈は [BS15_PLAN.md](./docs/design/BS15_PLAN.md) §2、未実装節の設計は同 §7。PR #70 はマージ済み。
-
-**次の本線は BS16「覇王編 第3弾：爆烈の覇道」90種＋プロモ3枚**（ブランチ `feat/bs16-import`。staging 取り込み済み・解釈 §2.1 確定済み）。
-計画は [BS16_PLAN.md](./docs/design/BS16_PLAN.md)。前提の「破壊されたときは1回」は PR #77（このブランチにマージ済み）。バッチ0（破壊後バーストの器）は済み → BURST.md §7.3。公式Q&Aの裏取りは済み（BS16_PLAN §2.2・§2.4）。バッチ1・2の器は実装済み。
-
-**進め方（2026-09-22 ユーザー決定）**：①赤・紫・緑・白＋プロモ3枚は PR #79 でマージ済み（027 の修正は #81）。
-②次は main で [REFACTOR_PLAN.md](./docs/design/REFACTOR_PLAN.md) を進める（進み具合は同 §1 の表と §2.2 の表の「状態」列。09-24 に M1 の一部・M3・M4 の大半・R4 の effectDef.ts が済んだ） ③黄・青（バッチ3）は新しいブランチで、分割後の構成と `pay`・`ifLast` を前提に設計し直す
-
-### いまの本線（2026-09-26 午後にユーザー決定で順番を変えた）
-
-**統合（R5）を先にやり、BS16 の黄・青は統合後の新しい書き方がそろってから実装する**（旧 type で書いて移し替える二度手間を避ける）。
-実装役の呼び出し数の測定（REFACTOR_PLAN §0 と同じ形）は、その BS16 の実装のときに行う。
-
-1. ✅ R2 ヘルパーの索引 `docs/CODEMAP.md`（#154。export を足したら `npm run codemap`）と `validate:size`（#153）
-2. ✅ **R5：コアの統合**（#165〜#169）。置く `placeCores`＝[CORE_UNIFY_PLACE.md](./docs/design/CORE_UNIFY_PLACE.md) §3、取り除く `removeCores`＝[CORE_UNIFY_REMOVE.md](./docs/design/CORE_UNIFY_REMOVE.md) §3。
-   旧 type で残るのはコスト付き・条件付き・直前の結果を使うもの・入れ替え／移動の約10種（pay・if・移動の器がそろったら移す）
-   支払いの自動／手動の切り替え（#164）の次の段＝起動能力・効果の中の支払いは、サーバーが支払い元を受け取らないので未対応（使ってみて要れば）
-3. **次の一手**：R5_TRIAGE §1「まとめる」と §4「要相談」は 09-28 で一区切り（進み具合の表。残したものは §3「固有」と、M8 の決定で入口として残す G-existingContent・イリテバン・`millUntilMagicCastFree`・音鳥クルーク）。
-   R5 の終わりの基準のもう1つ（M2・M3・M4 の残り）は REFACTOR_PLAN §2.2 の表で確かめてから、BS16 の黄・青（手順5）へ
-4. **R5 の残り**：終わりの基準と PR の順番は REFACTOR_PLAN §2.3、対象は [R5_TRIAGE.md](./docs/design/R5_TRIAGE.md)。M1・M5・M2 の器（[IF_UNIFY.md](./docs/design/IF_UNIFY.md)）は済み
-5. ✅ BS16 の黄・青（バッチ3）は 09-28 に実装。045 Lv3 と「効果で複数体を同時に召喚したら召喚は1回」は 10-15 に済み（COST_MODEL §11）
-6. R3 の残り（`validate:size` の据え置き5本。持ち込みで type.ts 222KB・effectDef.ts・triggers.ts・main.ts・renderer.ts が基準超え）と R6・R7 は随時。
+- R3 の残り（`validate:size` の据え置き5本。持ち込みで type.ts 222KB・effectDef.ts・triggers.ts・main.ts・renderer.ts が基準超え）と R6・R7 は随時。
    R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
-
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
 関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
 `tsc --noUnusedLocals` の報告で写った不要な import を消す → **元の関数本体が1文字も変わらず残っているかをスクリプトで確かめる** →
@@ -97,80 +71,24 @@
 
 ### R4 の残り（type.ts 222KB）
 
-effectAction.ts は #155 で済み（コメント32%減。190→138KB）。**その委譲1体で5時間枠を約25ポイント使った**（「分けて sed で読め」と指示したのに Read で大きな範囲を読み、文脈29万トークン）。
+effectAction.ts・effectDefTrigger.ts・effectDefContinuous.ts・globalConstraint.ts（#155・#287）とロジック側4ファイル（#346）は済み。type.ts が残り。
 type.ts は2段でやる：①カード ID・作業番号の除去のような機械的な部分はメインループがスクリプトで行う ②長いコメントの上位だけを小さな委譲で書き直す（Read 禁止・行範囲を指定）。
 検査は `python3 scripts/check-comment-trim.py <元> <新>`（コードの一致と Q番号・日付・⚠️ の保存）。作業ファイルはリポジトリの外に置く。
 
-### 「〜することで」の確認関門は一区切り（2026-10-02。#230〜#246）
 
-規則・実装・既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10 末尾。移行の手順表は PAY_MIGRATION_RECIPES、残した例外は COST_MODEL §10。
-「ことで」の数だけ関門があるかの検査は #248 で `validate:cards` に入っている（`scripts/payGateCheck.ts`）
-
-### M2 `if` は器 PR 1〜5 まで済み
-
-答えは [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3、器のスキーマは同 §5。残した2枚（BS15-X01・BS11-060）は同 §5「残す」の行。
-
-### 「破壊されたとき」は同時破壊でも1回（ブランチ `fix/destroyed-trigger-once`・smoke part348）— 残した制限
-
-- 必須（任意でない）の `reviveOnDestroy` がコスト不足で不発になった場合、グループの消費を戻していない（次の1体で使えない）
-
-### 監査の借金は2本を残して返済済み（2026-09-16。ブランチ chore/semantics-s3-s4）
-
-**`audit:semantics` は S3・S4 とも残0件**（実バグ14件を修正。中身は
-[SEMANTICS_AUDIT.md](./docs/design/SEMANTICS_AUDIT.md) §4「S3・S4 も残0件にした」）。
-**`coverage:effects` の実行実績0だった継続効果11件も smoke part324 で解消**（BS13-038 のコスト欠落を1件修正）。
-
-### BS15 共通の器（バッチ0。2026-09-16 実装済み・smoke part330）— **色バッチはこの名前を使う**
-
-**サブエージェントは1体ずつ直列に回す**（ユーザー指示。0→1→2→3）。バッチ0は**器とテストだけ**で、カードデータは書かない。
-
-1. **相手のフィールドの色の数**：`shared/rules.ts` に `opponentFieldColorCount(board, pid, spiritsOnly?)`。
-   相手のスピリット（**合体中ブレイヴの色を含む**）とネクサスの**色の種類数**。多色は各色、`instColors`（◯色としても扱う）を使い、
-   `colorlessThisBattle` の個体は数えない。`EffectCounter` に `"opponentFieldColors"` / `"opponentFieldSpiritColors"`、
-   条件に `{ opponentFieldColorsAtLeast: number; spiritsOnly?: true }`
-2. **自分のフィールドが◯色しかない**：`ownFieldOnlyColor(board, pid, color, spiritsOnly?)`。**全カードの色が指定色1色だけ**
-   （多色が1枚でもあれば不成立＝Q3515）。**0枚なら不成立**。条件名 `{ ownFieldOnlyColor: Color; spiritsOnly?: true }`
-3. 上の2つの条件は `AuraCondition` と `triggered.condition` に足す。**他の kind が要るときは色バッチが同じ名前で足す**（名前を変えない）
-4. **神将のライフ上限**：`globalConstraint` に `{ type: "lifeDamagePerSpiritPerTurn"; max: number }`（バースト条件は kind 側の既存 `whileOwnBurstSet: true`）。
-   **お互い**に効く。スピリット1体（合体スピリットはホスト）が**1ターンに減らしたライフの合計**を 既存の `CardInstance.lifeDealtThisTurn`（SD06-010 と共用。ターン終了でリセット）で数える。
-   アタック（`lifeDamageLimit`）と**スピリットが発生源の効果によるライフ減少**の両方に掛ける（Q3470〜Q3472）。マジック・ネクサスの効果は対象外
-5. **虚神のコスト固定**：`costMod`（`mode:"set"`）の `condition` に `{ ownBurstSet: boolean }`
-6. **軽減前のコスト増**：`costMod`（加算側）に `beforeReduction?: true`（`effectiveCost` の①総コストに足す）と
-   `amountCounter?: EffectCounter`（`amount × カウンタ`）、`condition` に `{ opponentFieldColorsAtLeast: number }`（068）
-
-### BS15 バッチ1（赤・紫）は実装済み（2026-09-17。smoke part331/332）— 残した判断
+### BS15 で残した判断
 
 - **未実装3節（card-notes に partial）**：011 手札から使うフラッシュ（器が無い）／015 紫マジックの色を無いものとして扱う／
   064 Lv2 【不死】の無償召喚。**ユーザーに実装するか確認する**
 - 簡略化（card-notes 無し）：X01 Lv2-3 はスピリット状態のブレイヴも破壊候補に含む／016・X02 のコア除去は1体からまとめて取る（既存と同じ）／
   004 の Q3469（その破壊の解決中は発動できない）は未実装
 - 008 は「指定色の和集合に無い色を1つでも持つスピリットを両陣営とも破壊」で実装（ユーザーに事後報告済み）
-
-### BS15 で残した課題（次に触るときに読む）
-
-- **簡略化（card-notes 無し）**：X01 Lv2-3 はスピリット状態のブレイヴも破壊候補に含む／016・X02 のコア除去は1体からまとめて取る／004 の Q3469（その破壊の解決中は発動できない）は未実装
 - X04 の追加メインステップ中は、プロボケイションの確認を出さず、アタック強制でターン終了を止めない（その後にアタックステップが無いため）
-- **`coverage:effects` の「未計測の kind」が19種86件まで増えている**（BS10以降の積み残し。`extraStepAfterAttackStep` / `handActivated` / `ownMagicColorless` / `trashNameAs` など）。
-  計測点を足すまで、その kind は発火したか分からない
 - 082 の「好きな順番でデッキの下に戻す」は既存の「1枚ずつ選ぶ」器を流用（番号付きUIは作っていない。2026-09-18 ユーザー確認）
-
-### BS15_PLAN §0 の借金はすべて返済済み（2026-09-16）
-
-監査 S3・S4 の残0件化、実行実績0の継続効果の解消、永久凍土の王都（COST_MODEL §9）、
-Wiki 食い違い（RULES_BATSPI_WIKI）まで片付いた。**BS15 の実装に入ってよい。**
-`coverage:effects` の action 側だけ穴が残る: (a) 未実行2種（negateContinuousMagicByName / unblockableAboveBpThisBattle）、(b) カードデータ経由が未検証10種。
-
-### 作業の進め方が2026-09-13 に変わった（CLAUDE.md に反映済み）
-
-- **委譲は2色で1エージェント**（色ごとに1体を立てない。BS14 の4色並列で5時間制限に達した）
-- **サブに全 smoke と build:client を回させない**（typecheck と自分の part だけ。統合検証はメインループ1回）
-- **PR は1つの作業単位**で出す（弾の取り込みは弾ごと1つでよい）
-- **デプロイは Actions の「Run workflow」で手動**（main へのマージでは出ない。2026-09-23）。手で `gcloud run deploy` を打たない
-- 新しい監査は「**既知のバグをわざと戻して検出できること**」を確かめるまで信用しない
 
 ### 済んでいること（参照先を消さないこと）
 
-BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚数投入済み。
+BS01〜BS18 は全枚数投入済み。BS14〜BS18 の確定した解釈と器は各 `BSnn_PLAN.md`（§1〜§3）。
 **BS12 で確定した解釈18件と全バッチの器は [BS12_PLAN.md](./docs/design/BS12_PLAN.md) §1 と §5〜§8。**
 **BS13 の解釈32件と各色の器は [BS13_PLAN.md](./docs/design/BS13_PLAN.md) §1・§12.3・§6〜§12。**
 **「支払った」の判定規則は [COST_MODEL.md](./docs/design/COST_MODEL.md) §8**（smoke part295 / part296）。
@@ -179,8 +97,6 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 
 残課題は [REMAINING_WORK.md](./docs/design/REMAINING_WORK.md)（検証の穴80件＋計測点の無い kind 10種）。
 
----
-
 ### 効果の動作検証（2026-09-30 設計。ユーザー発案）
 
 「効果を発動させて結果が効果文どおりにならない」を落とす。**効果文だけを AI に読ませて期待値を作り、実装と突き合わせる**（実装・データは見せない）。
@@ -188,11 +104,6 @@ BS10（121枚）・BS11（91枚）・BS12（91枚）・BS13（97枚）は全枚�
 試験運用の結果（2026-09-30。50枚×2回、狙いの3欄＝誘発の主体・実行者・対象の一致）：Sonnet自由記述94%／Haiku自由記述46%／**Haiku選択式（下ごしらえ＋一覧から選ぶ）84%**。未分類は選択式で6〜14%。既知バグ3枚は全モデルで正しい期待値。
 道具：`data/spec/vocab.json`（一覧）・`scripts/spec-skeleton.ts`（下ごしらえ＝skeleton／合成＝merge）・`scripts/validate-spec-output.ts`（機械検査）。**次**：①実装データとの突き合わせ（期待値の3欄 vs 実装の解決先）を作る ②既知バグを戻して検出できるか確認 ③50枚→全カード。
 **全体への突き合わせ（2026-09-30。データ側で自己参照/ドローを持つ fieldEvent 71枚・Haiku選択式1回）**：`npm run audit:spec -- <期待値.json>`（道具は PR「chore/spec-audit-tools」）。実バグ2系統は修正済み（データ＝fix/field-event-self-mode-source、実行者＝fix/self-action-cause-context。解釈は SEMANTICS_AUDIT §3.18）。**次**：色・コスト・系統の指定の突き合わせ（偽陽性が増える見込み）／`audit:spec` のイベント名の対応不足（未照合の偽陽性）を減らす。
-関連：fix/field-event-self-mode-source に part452（selfMode 書き漏れの静的検査＋レオ・ハーキュリーの動作テスト）。
-
-### 場面テストと3役の流れ（2026-10-01 決定）
-
-道具と流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6 に移した。「〜することで」の移行（#241〜#246）で5バッチ回した。①の推測が手順書の規則と食い違うことがあるので、①の報告の「決められなかった点」は手順書と突き合わせてから②に渡す
 
 ## 2. 未決（答えが出たら手順書へ1行移して、ここから消す）
 
