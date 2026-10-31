@@ -78,11 +78,11 @@ const FILLER = CARDS.find(
 console.log("=== BS08ダークスカルデーモン：fieldEvent.maxBp（anySpiritAttacked） ===")
 {
     const dark = findByEffect(
-        (e) => e["kind"] === "fieldEvent" && e["event"] === "anySpiritAttacked" && e["maxBp"] !== undefined,
+        (e) => e["kind"] === "fieldEvent" && e["event"] === "anySpiritAttacked" && (e["subjectFilter"] as Record<string, unknown> | undefined)?.["maxBp"] !== undefined,
     )
     const entry = entryOf(dark, (e) => e["kind"] === "fieldEvent" && e["event"] === "anySpiritAttacked")
     const level = (entry["levels"] as number[])[0]!
-    const maxBp = Number(entry["maxBp"])
+    const maxBp = Number((entry["subjectFilter"] as Record<string, unknown>)["maxBp"])
     const weak = CARDS.find((c) => c.type === "spirit" && bpAt(c, 1) <= maxBp && c.cardId !== dark.cardId)!
     const strong = CARDS.find((c) => c.type === "spirit" && bpAt(c, 1) > maxBp)!
 
@@ -199,7 +199,7 @@ console.log("=== BS08闇帝竜騎サブナ・ルーク：removeCores target:all 
     )
     const entry = entryOf(sabna, (e) => e["kind"] === "fieldEvent" && isSabnaAction(e))
     const level = (entry["levels"] as number[])[0]!
-    const family = String(entry["familyFilter"])
+    const family = String((entry["subjectFilter"] as Record<string, unknown>)["family"])
     const attackerCard = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(family))!
     const withTensho = CARDS.find((c) => c.type === "spirit" && hasKeyword(c.cardId, "tensho"))!
     const withoutTensho = FILLER

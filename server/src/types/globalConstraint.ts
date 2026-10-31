@@ -1,6 +1,6 @@
 // 場全体に掛かる制約 GlobalConstraintDef（kind:"globalConstraint" の constraint の種類）
 import type { EffectAction } from "./effectAction";
-import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent } from "../type";
+import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent, ResolvedTargetFilter } from "../type";
 
 // kind: "constraint" は発生源自身への制約だが、こちらは発生源の持ち主に関係なく両陣営のスピリット／ネクサスすべてに効く
 // （RuleValidator.hasGlobalConstraint 経由）。片側限定の型は「発生源の持ち主」「相手」と明記してある。
@@ -85,7 +85,7 @@ export type GlobalConstraintDef =
     | { type: "bp0DestroyedToDeckBottom"; maxCost: number } // 発生源の持ち主の相手のスピリットが、破壊直前の実効BPが0でコストが maxCost 以下のまま破壊されたとき、トラッシュに置くかわりに持ち主のデッキの下へ戻す（commitPendingDestruction が読む）。複数体の「好きな順」は選ばせず破壊順
     | { type: "coreFloorWhileBlockingKeyword"; keyword: Keyword; floor: number } // 発生源の持ち主の、keyword を持つスピリットをブロックしている相手のスピリット上のコアは、効果で floor 個より少なくならない（コアの動かし方を問わない。coreFloorFor が読む）
     | { type: "coreFloorOwnNamedByOpponent"; nameContains: string; floor: number } // 発生源自身と、持ち主のカード名に nameContains を含むスピリットのコアは、相手の効果では floor 個より少なくならない（actorPid が相手のときだけ床を張る。coreFloorFor が読む）
-    | { type: "coreFloorByCost"; ownOnly?: true; colorFilter?: Color; byOpponentOnly?: true } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない。「Lv1コスト」＝Lv1に必要なコア数（レベル表の表記。2026-08-14 ユーザー確認）。ownOnly＝発生源の持ち主のスピリットだけ。colorFilter＝この色のスピリットだけ。removeCores/removeCoresToTrash/removeCoresToVoid の共通処理で判定し、コアの動かし方を問わず効く＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない（2026-08-24 ユーザー確認）
+    | { type: "coreFloorByCost"; ownOnly?: true; filter?: ResolvedTargetFilter; byOpponentOnly?: true } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない。「Lv1コスト」＝Lv1に必要なコア数（レベル表の表記。2026-08-14 ユーザー確認）。ownOnly＝発生源の持ち主のスピリットだけ。filter＝それに合うスピリットだけ。removeCores/removeCoresToTrash/removeCoresToVoid の共通処理で判定し、コアの動かし方を問わず効く＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない（2026-08-24 ユーザー確認）
     | { type: "coresCantBeRemovedByOpponent"; nameContains: string } // 発生源の持ち主の、カード名に nameContains を含むスピリット上のコアは、相手のスピリット/ブレイヴ/マジックの効果では取り除けない（coresCantBeRemoved と違い片側限定。判定は boardResistanceAgainst の coreRemove 経路）
     | { type: "coresCantBeRemovedAll"; side: "opponent" | "both"; exceptOwnerEffects?: true } // coresCantBeRemoved（自身のコアだけ）を広げたフィールド全体版。side:"opponent"＝発生源から見た相手のスピリットのコアだけ、"both"＝両陣営すべて。exceptOwnerEffects 指定時は持ち主自身の効果・操作（自分のコストの支払いも含む）は例外で通す。未指定時は持ち主自身も含めて完全に止める（自分のコストも払えない）。「【転召】以外」の例外は dumpAllCoresTensho がこのチェックを経由しないため自動的に満たされる。phase/turn で区間を絞れる
     | { type: "summonExhausted"; self?: true; cardTypes?: CardType[]; familyExclude?: FamilyFilter; costFilter?: { max?: number; min?: number } } // お互い、条件を満たすカードを召喚するとき、疲労状態で召喚する。ダイレクトブレイヴでは合体先のスピリットが疲労する（BS13_PLAN.md §1 #14）。「疲労する」であって「疲労状態になる」ではないため ownSpiritExhausted は発火せず、【装甲】等の耐性でも防げない（同 #24）。phase で「メインステップ」に絞る＝神速による召喚は対象外

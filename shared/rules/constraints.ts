@@ -118,8 +118,7 @@ export function activeConstraintsWithSource(
             // この制約は判定対象のスピリット自身が持つ kind:"constraint" なので、数える側の発生源はスピリット
             return countSpiritsWeighted(board, pid, pid, (s) => instHasCost(s, cost), "spirit") >= count
         })
-    // constraintGrant（夢魔の寝所Lv2）：持ち主フィールドの発生源から、ownAll/minLevel/phaseTurn条件に
-    // 合致する制約を合成する（levelはinst自身の現在レベル＝minLevel判定に使う）
+    // constraintGrant：持ち主フィールドの発生源から、ownAll/filter/phaseTurn条件に合致する制約を合成する
     const granted: ConstraintWithSource[] = []
     const sources = effectSources(board, pid)
     for (const source of sources) {
@@ -130,44 +129,20 @@ export function activeConstraintsWithSource(
             // 【合体時】：発生源自身が合体しているときだけ付与する（BRAVE.md §12.3。BS13-X006）
             if (effect.whileCombined === true && !instIsCombined(source)) continue
             if (!entryActive(board, pid, source, effect, sourceLevel)) continue
-            if (effect.minLevel !== undefined && level < effect.minLevel) continue
             if (effect.condition !== undefined && !checkAuraCondition(board, pid, effect.condition)) continue
-            // BS06計画された場外乱闘：系統「闘神」を持つスピリットのみに付与
-            if (effect.familyFilter && !matchesFamilyFilter(board, pid, inst, effect.familyFilter)) continue
-            // BS13-029剣馬グラニム：この色を持つスピリットのみに付与
-            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
-            // BS05シンクロニシティ：覚醒持ちに指定アタックを付与（静的・一時付与・継続付与を考慮）
+            if (effect.filter && !matchesTarget(board, pid, inst, effect.filter, source.instanceId)) continue
+            // keywordFilter（【激突】など）だけ filter に移していない。matchesTarget はラベル系を現在Lvで見るため挙動が変わる
             if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
-            // BS05ポテンシャルパワー：バニラ（効果の記述を持たない）スピリットのみ対象
-            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            // BS05最古龍の顎Lv2：シンボル2つ以上のスピリットのみ（ダブルハートの追加シンボルも数える）
-            if (effect.minSymbols !== undefined && instanceSymbolCount(inst) < effect.minSymbols) continue
-            // BS05天焦がす大聖火Lv2：カード名に「巨人」を含むスピリットのみ（「〜として扱う」付与名も見る）
-            if (
-                effect.nameIncludes !== undefined &&
-                !effect.nameIncludes.some((n) => cardNameContains(inst, n))
-            ) {
-                continue
-            }
             if (effect.phaseTurn) {
                 const { phase, turn } = effect.phaseTurn
                 if (board.phase !== phase) continue
                 if (turn === "own" && pid !== board.turnPlayer) continue
                 if (turn === "opponent" && pid === board.turnPlayer) continue
             }
-            // BS10-091シャボンの湖畔Lv2：コスト2のスピリットのみ（AuraDef.costFilterと同じ意味。付与コストも見る）
-            if (effect.costFilter !== undefined && !instHasCost(inst, effect.costFilter)) continue
             // AuraDef.turnと同じ意味：フェーズを問わずturn条件のみで絞る（phaseTurnのphase必須版とは別軸）
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
-            // BS10-093時刻む花時計Lv2：合体スピリットのみ（AuraDef.combinedFilterと同じ意味）
-            if (effect.combinedFilter && !instIsCombined(inst)) continue
-            if (effect.symbolCount !== undefined && instanceSymbolCount(inst) !== effect.symbolCount) continue
             if (!combinedBraveColorsOk(board.players[pid], source, effect.combinedBraveColors)) continue
-            if (effect.restedOnly === true && !inst.isRested) continue
-            if (effect.summonedBy !== undefined && inst.summonedBy !== effect.summonedBy) continue
-            if (effect.summonedThisTurnOnly === true && inst.summonedTurn !== board.turn) continue
-            if (effect.teamFilter !== undefined && !(card(inst.cardId).team ?? []).includes(effect.teamFilter)) continue
             noteCoverage(effect, "constraintGrant")
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }

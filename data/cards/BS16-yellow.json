@@ -84,7 +84,9 @@
      1,
      2
     ],
-    "familyFilter": "四道",
+    "subjectFilter": {
+     "family": "四道"
+    },
     "byOpponentOnly": true,
     "action": {
      "type": "draw",
@@ -748,7 +750,9 @@
     "levels": [
      2
     ],
-    "familyFilter": "四道",
+    "subjectFilter": {
+     "family": "四道"
+    },
     "perDestroyed": true,
     "optional": true,
     "action": {

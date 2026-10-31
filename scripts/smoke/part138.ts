@@ -318,10 +318,10 @@ console.log("=== BS07 黄：手札のカード名一致スピリットのコス�
 console.log("=== BS07 黄：カード名一致スピリットが破壊されると回復する（アタックステップ限定） ===")
 {
     const empress = findByEffect(
-        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownSpiritDestroyed" && Array.isArray(e["nameIncludes"]),
+        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownSpiritDestroyed" && Array.isArray((e["subjectFilter"] as Record<string, unknown> | undefined)?.["nameContains"]),
     )
     const entry = (empress.effects ?? []).find((e) => e["kind"] === "fieldEvent")!
-    const names = entry["nameIncludes"] as string[]
+    const names = (entry["subjectFilter"] as Record<string, unknown>)["nameContains"] as string[]
     const pentan = CARDS.find((c) => c.type === "spirit" && names.some((n) => c.name.includes(n)))
     if (!pentan) throw new Error("カード名一致スピリットが見つかりません")
 
@@ -540,7 +540,7 @@ console.log("=== BS07 黄：【聖命】持ちがブロックされるとライ�
 {
     // fieldEvent ownSpiritBlocked + keywordFilter:"seimei" を持つマジック
     const bloom = findByEffect(
-        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownSpiritBlocked" && e["keywordFilter"] === "seimei",
+        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownSpiritBlocked" && (e["subjectFilter"] as Record<string, unknown> | undefined)?.["keyword"] === "seimei",
     )
     const s = base("bloom-flute")
     const attacker = put(s, "p1", SEIMEI_L2.cardId, SEIMEI_L2.levels?.[1]?.cores ?? 2)

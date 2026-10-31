@@ -828,8 +828,12 @@
           2
         ],
         "optional": true,
-        "subjectMaxCost": 5,
-        "subjectHasTrigger": "onSummon",
+        "subjectFilter": {
+          "cost": {
+            "max": 5
+          },
+          "hasTrigger": "onSummon"
+        },
         "selfMode": "source",
         "attackerAsTarget": true,
         "action": {

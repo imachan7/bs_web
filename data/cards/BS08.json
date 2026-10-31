@@ -770,7 +770,9 @@
      3
     ],
     "turn": "opponent",
-    "maxBp": 6000,
+    "subjectFilter": {
+     "maxBp": 6000
+    },
     "action": {
      "type": "removeCores",
      "from": [
@@ -966,7 +968,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": "龍帝",
+    "subjectFilter": {
+     "family": "龍帝"
+    },
     "action": {
      "type": "removeCores",
      "target": "all",
@@ -1372,7 +1376,9 @@
      2
     ],
     "turn": "opponent",
-    "maxBp": 6000,
+    "subjectFilter": {
+     "maxBp": 6000
+    },
     "action": {
      "type": "exhaust",
      "count": 1,
@@ -2749,7 +2755,9 @@
      3
     ],
     "target": "ownAll",
-    "keywordFilter": "seimei",
+    "filter": {
+     "keyword": "seimei"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -2914,7 +2922,9 @@
      3
     ],
     "target": "ownAll",
-    "familyFilter": "龍帝",
+    "filter": {
+     "family": "龍帝"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -3575,7 +3585,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": "龍帝",
+    "subjectFilter": {
+     "family": "龍帝"
+    },
     "action": {
      "type": "destroy",
      "count": "any",
@@ -4041,7 +4053,9 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "冥主",
+    "filter": {
+     "family": "冥主"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4158,7 +4172,9 @@
      2
     ],
     "turn": "opponent",
-    "maxBp": 6000,
+    "subjectFilter": {
+     "maxBp": 6000
+    },
     "selfMode": "source",
     "action": {
      "type": "placeCores",
@@ -4496,8 +4512,10 @@
      2
     ],
     "turn": "opponent",
-    "costFilter": {
-     "max": 3
+    "subjectFilter": {
+     "cost": {
+      "max": 3
+     }
     },
     "selfMode": "source",
     "action": {
@@ -4567,7 +4585,9 @@
      1,
      2
     ],
-    "familyFilter": "異合",
+    "subjectFilter": {
+     "family": "異合"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4622,10 +4642,12 @@
     "levels": null,
     "lentOnly": true,
     "ownOnly": true,
-    "familyFilter": [
-     "龍帝",
-     "竜騎"
-    ],
+    "subjectFilter": {
+     "family": [
+      "龍帝",
+      "竜騎"
+     ]
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -5423,7 +5445,9 @@
     "levels": null,
     "lentOnly": true,
     "ownOnly": true,
-    "keywordFilter": "funsai",
+    "subjectFilter": {
+     "keyword": "funsai"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -5920,8 +5944,10 @@
      2,
      3
     ],
-    "familyFilter": "武装",
-    "excludeSelfAsEventTarget": true,
+    "subjectFilter": {
+     "family": "武装",
+     "excludeSelf": true
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",

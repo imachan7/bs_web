@@ -401,7 +401,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "familyFilter": "戦竜",
+    "subjectFilter": {
+     "family": "戦竜"
+    },
     "condition": {
      "ownBurstSet": false
     },
@@ -1159,9 +1161,11 @@
     ],
     "subjectSide": "own",
     "byOpponentOnly": true,
-    "nameIncludes": [
-     "闇騎士"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "闇騎士"
+     ]
+    },
     "action": {
      "type": "exhaust",
      "count": 1
@@ -1391,9 +1395,11 @@
     "phase": "attack",
     "turn": "own",
     "subjectSide": "own",
-    "familyFilter": [
-     "雄将"
-    ],
+    "subjectFilter": {
+     "family": [
+      "雄将"
+     ]
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -2898,9 +2904,11 @@
      3
     ],
     "target": "ownAll",
-    "nameIncludes": [
-     "創造主グリム・ジェイ"
-    ],
+    "filter": {
+     "nameContains": [
+      "創造主グリム・ジェイ"
+     ]
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -3025,9 +3033,11 @@
      3
     ],
     "target": "ownAll",
-    "nameIncludes": [
-     "創造主グリム・ウィル"
-    ],
+    "filter": {
+     "nameContains": [
+      "創造主グリム・ウィル"
+     ]
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -3231,7 +3241,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "subjectMinSymbols": 2,
+    "subjectFilter": {
+     "minSymbols": 2
+    },
     "action": {
      "type": "refresh",
      "target": "self"
@@ -4217,7 +4229,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": "戦竜",
+    "subjectFilter": {
+     "family": "戦竜"
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -4230,7 +4244,9 @@
     "levels": [
      2
     ],
-    "colorFilter": "red",
+    "subjectFilter": {
+     "color": "red"
+    },
     "byOpponentOnly": true,
     "action": {
      "type": "destroy",
@@ -4794,9 +4810,11 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "familyFilter": [
-     "天霊"
-    ],
+    "subjectFilter": {
+     "family": [
+      "天霊"
+     ]
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -5896,10 +5914,12 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": [
-     "覇皇"
-    ],
-    "colorFilter": "purple",
+    "subjectFilter": {
+     "family": [
+      "覇皇"
+     ],
+     "color": "purple"
+    },
     "action": {
      "type": "battleOpponentDestroyedCoresTo",
      "to": "trash",

@@ -3694,7 +3694,9 @@
      2
     ],
     "phase": "attack",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "condition": {
      "ownColorTotalAtLeast": {
       "color": "yellow",
@@ -4536,7 +4538,9 @@
      2
     ],
     "target": "ownAll",
-    "minLevel": 3,
+    "filter": {
+     "minLevel": 3
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4813,7 +4817,9 @@
      2
     ],
     "phase": "attack",
-    "familyFilter": "武装",
+    "subjectFilter": {
+     "family": "武装"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4929,7 +4935,9 @@
      2
     ],
     "phase": "attack",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4945,7 +4953,9 @@
      2
     ],
     "phase": "attack",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "draw",
      "count": 1

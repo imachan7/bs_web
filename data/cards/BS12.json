@@ -923,7 +923,9 @@
           1,
           2
         ],
-        "familyFilter": "無魔",
+        "subjectFilter": {
+          "family": "無魔"
+        },
         "action": {
           "type": "draw",
           "count": 1
@@ -1924,7 +1926,9 @@
         ],
         "target": "ownAll",
         "scope": "all",
-        "colorFilter": "white",
+        "filter": {
+          "color": "white"
+        },
         "phase": "main",
         "turn": "opponent"
       }
@@ -2498,7 +2502,9 @@
         "subjectSide": "opponent",
         "phase": "attack",
         "turn": "opponent",
-        "symbolCount": 2,
+        "subjectFilter": {
+          "symbolCount": 2
+        },
         "selfMode": "source",
         "attackerAsTarget": true,
         "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "bpAs", "levels": [1, 2, 3], "amount": 2000}]}
@@ -2511,9 +2517,11 @@
           2,
           3
         ],
-        "familyFilter": [
-          "天霊"
-        ],
+        "subjectFilter": {
+          "family": [
+            "天霊"
+          ]
+        },
         "phase": "attack",
         "optional": true,
         "action": {
@@ -4433,7 +4441,9 @@
         "phase": "attack",
         "turn": "own",
         "ownOnly": true,
-        "familyFilter": "無魔",
+        "subjectFilter": {
+          "family": "無魔"
+        },
         "action": {
           "type": "removeCores",
           "count": 1
@@ -4547,7 +4557,9 @@
         "constraint": {
           "type": "coreFloorByCost",
           "ownOnly": true,
-          "colorFilter": "green"
+          "filter": {
+            "color": "green"
+          }
         }
       },
       {
@@ -4649,10 +4661,12 @@
         "levels": [
           2
         ],
-        "familyFilter": [
-          "神星",
-          "星魂"
-        ],
+        "subjectFilter": {
+          "family": [
+            "神星",
+            "星魂"
+          ]
+        },
         "action": {
           "type": "placeCores",
           "from": "void",
@@ -4713,7 +4727,9 @@
         ],
         "target": "ownAll",
         "scope": "matchArmorColors",
-        "keywordFilter": "armor"
+        "filter": {
+          "keyword": "armor"
+        }
       }
     ]
   },
@@ -4902,9 +4918,11 @@
         1,
         2
        ],
-       "familyFilter": [
-        "天霊"
-       ],
+       "subjectFilter": {
+        "family": [
+         "天霊"
+        ]
+       },
        "action": {
         "type": "moveCards",
         "from": "trash",
@@ -5860,10 +5878,12 @@
         "phase": "attack",
         "turn": "own",
         "ownOnly": true,
-        "familyFilter": [
-          "光導",
-          "星魂"
-        ],
+        "subjectFilter": {
+          "family": [
+            "光導",
+            "星魂"
+          ]
+        },
         "action": {
           "type": "removeCores",
           "count": 1

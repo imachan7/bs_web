@@ -567,10 +567,12 @@
           3
         ],
         "ownOnly": true,
-        "familyFilter": [
-          "覇皇",
-          "雄将"
-        ],
+        "subjectFilter": {
+          "family": [
+            "覇皇",
+            "雄将"
+          ]
+        },
         "phase": "attack",
         "turn": "own",
         "action": {

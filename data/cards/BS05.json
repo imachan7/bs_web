@@ -2205,9 +2205,11 @@
      3
     ],
     "phase": "attack",
-    "costFilter": {
-     "max": 2,
-     "min": 2
+    "subjectFilter": {
+     "cost": {
+      "max": 2,
+      "min": 2
+     }
     },
     "action": {
      "type": "draw",
@@ -3377,7 +3379,9 @@
     ],
     "phase": "main",
     "turn": "own",
-    "keywordFilter": "tensho",
+    "subjectFilter": {
+     "keyword": "tensho"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -3393,7 +3397,9 @@
      2
     ],
     "target": "ownAll",
-    "minSymbols": 2,
+    "filter": {
+     "minSymbols": 2
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -3448,8 +3454,10 @@
      2
     ],
     "phase": "attack",
-    "costFilter": {
-     "max": 1
+    "subjectFilter": {
+     "cost": {
+      "max": 1
+     }
     },
     "action": {
      "type": "removeCores",
@@ -3797,7 +3805,9 @@
      2
     ],
     "phase": "attack",
-    "familyFilter": "氷姫",
+    "subjectFilter": {
+     "family": "氷姫"
+    },
     "action": {
      "type": "return",
      "to": "hand",
@@ -3918,7 +3928,9 @@
      2
     ],
     "turn": "opponent",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "summon",
      "from": "hand",
@@ -3936,10 +3948,12 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "nameIncludes": [
-     "ペンタン",
-     "アンプルール"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "ペンタン",
+      "アンプルール"
+     ]
+    },
     "targetSameLevelAsSelf": true,
     "action": {
      "type": "refresh",
@@ -4052,7 +4066,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "colorFilter": "blue",
+    "subjectFilter": {
+     "color": "blue"
+    },
     "action": {
      "type": "sequence",
      "keepScope": true,
@@ -4088,9 +4104,11 @@
      2
     ],
     "target": "ownAll",
-    "nameIncludes": [
-     "巨人"
-    ],
+    "filter": {
+     "nameContains": [
+      "巨人"
+     ]
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4208,7 +4226,9 @@
     "kind": "constraintGrant",
     "levels": null,
     "target": "ownAll",
-    "keywordFilter": "awaken",
+    "filter": {
+     "keyword": "awaken"
+    },
     "constraint": {
      "type": "canDirectAttack",
      "targetFilter": "any",
@@ -4323,9 +4343,11 @@
     "event": "ownSpiritSummoned",
     "levels": null,
     "lentOnly": true,
-    "nameIncludes": [
-     "魔界七将"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "魔界七将"
+     ]
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -4967,7 +4989,9 @@
     "kind": "constraintGrant",
     "levels": null,
     "target": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "constraint": {
      "type": "unblockableBy",
      "filter": {

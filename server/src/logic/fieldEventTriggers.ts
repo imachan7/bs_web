@@ -6,7 +6,7 @@ import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId } from "../type"
 import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, suspend, resolveInOrder } from "./GameState"
-import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instanceSymbolCount, instColors, instHasColor, instHasTriggerEffect, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, instHasStaticKeyword, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, instIsCombined, combinedBraveColorsOk, hostsOf } from "../../../shared/rules"
+import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, combinedBraveColorsOk, hostsOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed } from "./oncePerTurn"
 import { fireBurstOnEvent } from "./keywords/burst"
@@ -167,8 +167,6 @@ export function fireFieldEventTriggers(
             if (effect.lentOnly && !isVirtualSource(inst)) continue
             // selfOnly：発生源自身が破壊されたときだけ（ownSpiritDestroyed 限定。BS13-010 スカルザード）
             if (effect.selfOnly && inst.instanceId !== selfOverride?.inst.instanceId) continue
-            // excludeSelfSubject（BS15-009虚龍帝カタストロフドラゴン）：イベントの主体が発生源自身のときは発火しない
-            if (effect.excludeSelfSubject && inst.instanceId === selfOverride?.inst.instanceId) continue
             if (!effectActiveOn(inst, effect, level)) continue
             // 個体ごとの枠は集める時点で取る。名前スコープの枠は resolve の直前に取る（同名の1体目が不発なら2体目が使える）
             if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")) continue
@@ -185,12 +183,14 @@ export function fireFieldEventTriggers(
             // subjectSide：**イベントの主体がどちら側か**で絞る（turn＝誰のターンか、とは別軸）。
             // 「**相手の**スピリットが疲労したとき」のように、any…系のイベントで
             // 主体の陣営だけを条件にしたいときに使う（SD01-028 呪われし神殿Lv2）
-            // subjectCombined：**イベントの主体が合体しているか**で絞る（BS10-070 鎧馬アルファズル）
-            if (
-                effect.subjectCombined !== undefined &&
-                (selfOverride === undefined || instIsCombined(selfOverride.inst) !== effect.subjectCombined)
-            ) {
-                continue
+            // 主体・相手役の絞り込み。判定は matchesTarget に一本化（色・系統・バニラ・コストは付与込みで、場を離れる直前の個体を見る）
+            if (effect.subjectFilter !== undefined) {
+                if (selfOverride === undefined) continue
+                if (!matchesTarget(state, selfOverride.pid, selfOverride.inst, effect.subjectFilter, inst.instanceId)) continue
+            }
+            if (effect.partnerFilter !== undefined) {
+                const partner = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
+                if (!partner || !matchesTarget(state, partner.pid, partner.inst, effect.partnerFilter, inst.instanceId)) continue
             }
             // コア増加イベントの主体は「コアが増えた側」（selfOverride を持たない）
             const gainerEvent = event === "coresGainedFromVoid" || event === "lifeCorePlaced"
@@ -205,8 +205,6 @@ export function fireFieldEventTriggers(
             ) {
                 continue
             }
-            // subjectMaxCores（BS13-063血塗られた魔具）：アタックしたスピリット自身のコア数で絞る
-            if (effect.subjectMaxCores !== undefined && (selfOverride === undefined || selfOverride.inst.cores > effect.subjectMaxCores)) continue
             if (effect.colorFilter !== undefined && !(eventColors ?? []).includes(effect.colorFilter)) continue
             // sourceColorFilter：「**相手の**この色のスピリット/ネクサス/マジックの**効果によって**起きたとき」
             // だけ発火する（SD01-029 蠢く地下墓地Lv1＝緑／SD01-031 朝焼け岬Lv1＝紫）。
@@ -219,35 +217,6 @@ export function fireFieldEventTriggers(
                 if (src.pid === pid) continue
                 if (!(src.colors ?? []).includes(effect.sourceColorFilter)) continue
             }
-            // targetColorFilter：イベントの「相手役」（targetInstanceId）の色で絞る。
-            // colorFilter（イベントの主体の色）とは別軸（SD01-029 蠢く地下墓地Lv2＝緑にブロックされたとき）
-            if (effect.targetColorFilter !== undefined) {
-                if (targetInstanceId === undefined) continue
-                const found = findSpiritAny(state, targetInstanceId)
-                if (!found) continue
-                if (!instHasColor(found.inst, effect.targetColorFilter)) continue
-            }
-            // vanillaOnly：破壊/召喚のように主体が既にフィールドを離れているイベントは
-            // 呼び出し側が eventInfo.vanilla を渡す。anySpiritAttacked のように主体が場に残る
-            // イベントは selfOverride の実体で判定する（継続付与の「バニラとしても扱う」も見る）
-            if (effect.vanillaOnly) {
-                const subjectIsVanilla = eventInfo?.vanilla ?? (selfOverride !== undefined && instIsVanilla(selfOverride.inst))
-                if (!subjectIsVanilla) continue
-            }
-            // subjectKeywordFilter（BS11-069 黄金の鐘楼Lv2＝【聖命】持ち）：主体の実体で判定する。
-            // 破壊のイベントでも、この時点では破壊待機状態でまだ場にいるのでキーワードを読める
-            if (effect.subjectKeywordFilter !== undefined) {
-                if (selfOverride === undefined) continue
-                const needs = Array.isArray(effect.subjectKeywordFilter)
-                    ? effect.subjectKeywordFilter
-                    : [effect.subjectKeywordFilter]
-                if (!needs.some((kw) => spiritHasKeywordOrLabel(state, selfOverride.pid, selfOverride.inst, kw))) continue
-            }
-            // 器BS16：subjectMaxCost / subjectHasTrigger（BS16-064宙吊りの五行山Lv2）。
-            // 主体の実体（selfOverride）で判定する＝subjectKeywordFilterと同じ考え方
-            if (effect.subjectMaxCost !== undefined) {
-                if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { max: effect.subjectMaxCost })) continue
-            }
             if (effect.subjectMinCost !== undefined) {
                 if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { min: effect.subjectMinCost })) continue
             }
@@ -259,15 +228,11 @@ export function fireFieldEventTriggers(
             }
             if (effect.subjectMinBp !== undefined && (selfOverride === undefined || effectiveBp(state, selfOverride.pid, selfOverride.inst) < effect.subjectMinBp)) continue
             if (effect.subjectRefreshed && (selfOverride === undefined || selfOverride.inst.isRested)) continue
-            if (effect.subjectMinSymbols !== undefined && (selfOverride === undefined || instanceSymbolCount(selfOverride.inst) < effect.subjectMinSymbols)) continue
             // 本来はネクサスの主体（スピリットとして扱われているネクサス。26RBS02-X16）
             if (effect.subjectOriginalNexus && (selfOverride === undefined || getCard(selfOverride.inst.cardId).type !== "nexus")) continue
             if (effect.subjectDifferentNameFromSelf && (selfOverride === undefined || getCard(selfOverride.inst.cardId).name === getCard(inst.cardId).name)) continue
             if (effect.subjectTeamFilter !== undefined) {
                 if (selfOverride === undefined || !(getCard(selfOverride.inst.cardId).team ?? []).includes(effect.subjectTeamFilter)) continue
-            }
-            if (effect.subjectHasTrigger !== undefined) {
-                if (selfOverride === undefined || !instHasTriggerEffect(selfOverride.inst, effect.subjectHasTrigger)) continue
             }
             if (effect.destroyedByOwnEffect) {
                 const want = effect.destroyedByOwnEffect
@@ -322,21 +287,6 @@ export function fireFieldEventTriggers(
             ) {
                 continue
             }
-            // アタックしたスピリット（selfOverride）の実効BPで絞る（BS08ダークスカルデーモン：BP6000以下）
-            if (
-                effect.maxBp !== undefined &&
-                (selfOverride === undefined ||
-                    effectiveBp(state, selfOverride.pid, selfOverride.inst) > effect.maxBp)
-            ) {
-                continue
-            }
-            // アタックしたスピリット（selfOverride）のシンボル数で絞る（BS12-037オリンピアの天使ベトール：シンボル2つ）
-            if (
-                effect.symbolCount !== undefined &&
-                (selfOverride === undefined || instanceSymbolCount(selfOverride.inst) !== effect.symbolCount)
-            ) {
-                continue
-            }
             // 「一度に◯枚以上破棄したとき」（アリゲイド）：eventCount が閾値以上のときのみ
             if (effect.minEventCount !== undefined && (eventCount ?? 0) < effect.minEventCount) continue
             // 相手のマジック使用（氷の女神フリッグ）：コスト／タイミングの一致で絞る
@@ -350,18 +300,9 @@ export function fireFieldEventTriggers(
                 const selfTarget = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
                 if (selfOverride?.inst.instanceId !== selfTarget.instanceId) continue
             }
-            // 「[カード名]以外の」の除外（BS06鉄拳のカクタスガルー）：イベント対象が発生源自身のときは発火しない
-            if (effect.excludeSelfAsEventTarget && selfOverride?.inst.instanceId === inst.instanceId) continue
-            // イベント対象のカード名で絞る（BS05ペンタン帝国Lv2：「ペンタン」/「アンプルール」）。
-            // event: "ownTensho" はselfOverrideを渡さないため、eventInfo.names（【転召】の犠牲になった
-            // スピリットのカード名）があればそちらで判定する（BS08魔界七将アスモディオス）
+            // ownTensho は主体（犠牲になったスピリット）が場に居ないので、subjectFilter でなく eventInfo.names で見る
             if (effect.nameIncludes !== undefined) {
-                const nameOk =
-                    eventInfo?.names !== undefined
-                        ? effect.nameIncludes.some((n) => eventInfo.names?.some((name) => name.includes(n)))
-                        : selfOverride !== undefined &&
-                          effect.nameIncludes.some((n) => cardNameContains(selfOverride.inst, n))
-                if (!nameOk) continue
+                if (!effect.nameIncludes.some((n) => eventInfo?.names?.some((name) => name.includes(n)))) continue
             }
             // targetInstanceId のスピリットのLvがイベント対象と同じときだけ
             // （BS05ペンタン帝国Lv2：同じLvの相手のスピリットにブロックされたとき）
@@ -370,20 +311,10 @@ export function fireFieldEventTriggers(
                 if (!target || !selfOverride) continue
                 if (currentLevel(target).level !== currentLevel(selfOverride.inst).level) continue
             }
+            // ownTensho 限定（主体が場に居ないので eventInfo.families）
             if (effect.familyFilter !== undefined) {
-                // 配列指定はいずれかの系統を持てばよい（OR。BS04七龍帝の玉座＝古竜/龍帝）
-                const wanted = Array.isArray(effect.familyFilter)
-                    ? effect.familyFilter
-                    : [effect.familyFilter]
-                const ok =
-                    eventInfo?.families !== undefined
-                        ? // 破壊/召喚イベント：呼び出し側が渡した**カード静的な系統**で判定する（従来どおり）
-                          wanted.some((f) => eventInfo.families?.includes(f))
-                        : // families を渡さないイベント（疲労）：継続付与された系統も含めて判定する
-                          // （BS02生み出される尖兵：自身のLv1が与える「武装」を Lv2 が見る）
-                          selfOverride !== undefined &&
-                          matchesFamilyFilter(state, selfOverride.pid, selfOverride.inst, effect.familyFilter)
-                if (!ok) continue
+                const wanted = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
+                if (!wanted.some((f) => eventInfo?.families?.includes(f))) continue
             }
             // 【不死】の効果で召喚されたときのみ（BS09-013ミミズクロ）。通常の召喚では発火しない
             if (effect.fushiSummonOnly && eventInfo?.byFushi !== true) continue
@@ -400,15 +331,6 @@ export function fireFieldEventTriggers(
             if (effect.magicFreeUseMaxPerTurn !== undefined) {
                 const usedSoFar = inst.magicFreeUseTurn === state.turn ? (inst.magicFreeUseCount ?? 0) : 0
                 if (usedSoFar >= effect.magicFreeUseMaxPerTurn) continue
-            }
-            // イベント対象（召喚された／アタックしたスピリットなど）がこのキーワードを持つときのみ。
-            // 「持つ」には効果で得たものも含む（2026-09-25 ユーザー確認）
-            if (effect.keywordFilter !== undefined) {
-                const hasKw =
-                    selfOverride !== undefined
-                        ? spiritHasKeywordOrLabel(state, selfOverride.pid, selfOverride.inst, effect.keywordFilter)
-                        : instHasStaticKeyword(inst, effect.keywordFilter)
-                if (!hasKw) continue
             }
             if (effect.condition) {
                 if (effect.condition === "selfIsAttacking") {

@@ -81,7 +81,7 @@ for (const [id, suffix] of [["BS07-061", "e1"], ["BS08-065", "e1"]] as const) {
     const card = byId(id)
     const entry = entryOf(card, suffix)
     const level = (entry["levels"] as number[])[0]!
-    const maxCost = Number((entry["costFilter"] as Record<string, unknown>)["max"])
+    const maxCost = Number(((entry["subjectFilter"] as Record<string, unknown>)["cost"] as Record<string, unknown>)["max"])
     // アタックする側は**相手**（『相手のアタックステップ』なので）。コスト条件を満たす駒を使う
     const attackerCard = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= maxCost)!
     const s = base(`fe-${id}`)
@@ -149,7 +149,7 @@ for (const [id, suffix] of [["BS09-X35", "e2"], ["BS09-X37", "e3"]] as const) {
     const lifeBefore = s.players.p1.life
     const coresBefore = self.cores
 
-    fireFieldEventTriggers(s, "p1", "ownTensho" as never, { pid: "p1", inst: subject }, undefined, subject.instanceId)
+    fireFieldEventTriggers(s, "p1", "ownTensho" as never, undefined, undefined, undefined, undefined, { names: [subjectCard.name] })
     assert(
         s.players.p1.life !== lifeBefore || self.cores !== coresBefore,
         `${card.name}：「${names.join("/")}」を含むスピリットで【転召】したときに働く`,
@@ -162,7 +162,7 @@ console.log("--- 青のスピリットが召喚されたときのフィールド
     assert(card.name === "蛇竜キング・ゴルゴー", "前提: BS09-006 は蛇竜キング・ゴルゴー")
     const entry = entryOf(card, "e2")
     const level = (entry["levels"] as number[])[0]!
-    const color = String(entry["colorFilter"])
+    const color = String((entry["subjectFilter"] as Record<string, unknown>)["color"])
     const filter = (entry["action"] as Record<string, unknown>)["filter"] as Record<string, unknown>
     const maxBp = Number(filter["maxBp"])
     const summoned = CARDS.find((c) => c.type === "spirit" && (c.colors ?? []).includes(color as Color))!

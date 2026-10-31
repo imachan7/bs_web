@@ -75,7 +75,7 @@ console.log("=== 7b. fieldEvent の ownHandAtLeast ===")
 
 console.log("=== 8. ownSpiritBattleEnded の familyFilter ===")
 {
-    const fe = { id: "t-fe-family", kind: "fieldEvent", event: "ownSpiritBattleEnded", levels: [1], familyFilter: "地竜", action: { type: "draw", count: 1 } }
+    const fe = { id: "t-fe-family", kind: "fieldEvent", event: "ownSpiritBattleEnded", levels: [1], subjectFilter: { family: "地竜" }, action: { type: "draw", count: 1 } }
     withEffects([fe], () => {
         const s = game("fe-family-ok")
         put(s, "p1", HOLDER)
