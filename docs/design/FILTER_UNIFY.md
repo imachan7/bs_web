@@ -236,4 +236,4 @@ AuraDef（`bp` など）約68・`constraintGrant` 47（`familyFilter`14・`keywo
 - `targetSameLevelAsSelf`（1件）：TargetFilter に「主語と同じ Lv」の軸が無い
 - `ownTensho` の名前・系統（主語が場に居ない）と、`ownNexusDestroyed` の色（主語がネクサス）
 
-**移行の確かめ方**：smoke の全緑だけでは足りない。全カードを発火させるテスト（part190・part197）は旧軸名を読んで場面を組むので、データだけ移すと場面が組めずに黙って発火しなくなる。`npm run coverage:effects` の実行率と「場に出ているのに一度も適用されていない効果」を main と比べ、一致することを確かめる
+**移行の確かめ方**：`npm run coverage:check`（CLAUDE.md の実行時カバレッジの節）。smoke の全緑だけでは足りない。全カードを発火させるテスト（part190・part197）は旧軸名を読んで場面を組むので、データだけ移すと場面が組めずに黙って発火しなくなる。`npm run coverage:effects` の実行率と「場に出ているのに一度も適用されていない効果」を main と比べ、一致することを確かめる

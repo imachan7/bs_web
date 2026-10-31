@@ -174,6 +174,28 @@ function main(): void {
     }
 }
 
+// 未実行のエントリの基準（npm run coverage:check / coverage:update）。
+// データの移行で、全カードを発火させるテストが場面を組めずに黙って飛ばすと、smoke は全緑のまま発火が減る（2026-10-31 に28件）。
+// 基準より増えた未実行だけを落とす。part190 は手札をシャッフルするので、1件だけの増減はまず再実行する
+const BASELINE = path.join(REPO, "data", "coverage-baseline.json")
+function checkBaseline(notFired: string[]): void {
+    const now = [...new Set(notFired)].sort()
+    if (process.argv.includes("--update")) {
+        fs.writeFileSync(BASELINE, JSON.stringify(now, null, 2) + "\n")
+        console.log(`\n基準を更新しました（未実行 ${now.length}件）: ${path.relative(REPO, BASELINE)}`)
+        return
+    }
+    if (!process.argv.includes("--check")) return
+    const base = new Set<string>(JSON.parse(fs.readFileSync(BASELINE, "utf8")))
+    const added = now.filter((e) => !base.has(e))
+    const gone = [...base].filter((e) => !now.includes(e))
+    if (gone.length > 0) console.log(`\n基準より減った未実行 ${gone.length}件（npm run coverage:update で縮める）: ${gone.join(" ")}`)
+    if (added.length > 0) {
+        console.log(`\n❌ 基準より増えた未実行 ${added.length}件: ${added.join(" ")}`)
+        process.exitCode = 1
+    } else console.log(`\n✅ 未実行は基準の範囲内（${now.length}件）`)
+}
+
 function summarize(label: string, entries: EffectEntry[], firedEids: Set<string>): EffectEntry[] {
     const notFired = entries.filter((e) => !firedEids.has(e.eid))
     const fired = entries.length - notFired.length
@@ -225,6 +247,7 @@ function report(
             .join(" / ")
     }
     console.log(`  未実行の内訳: ${byKind([...notFiredAction, ...notFiredCont])}`)
+    checkBaseline([...notFiredAction, ...notFiredCont].map((e) => e.eid))
 
     // ★ 最重要: 場に出ている（＝テストに登場する）のに、その効果だけ発火していないもの。
     // 「カードごと未登場」は単に未テストなだけだが、こちらは**通っているつもりで通っていない**形。
