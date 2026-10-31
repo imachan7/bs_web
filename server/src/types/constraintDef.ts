@@ -1,12 +1,12 @@
 // 個体に掛かる制約 ConstraintDef（アタック・ブロック・効果の対象などの禁止と強制）
 import type { CardPick } from "./effectAction";
-import { Color, FamilyFilter, ImmuneSource, Keyword } from "../type";
+import { Color, FamilyFilter, ImmuneSource, Keyword, ResolvedTargetFilter } from "../type";
 
 export type ConstraintDef =
     | { type: "cantBlock" } // このスピリットはブロックできない
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
-    | { type: "unblockableBy"; opponentOnly?: true; noSoulCore?: true; levelAtMostAttacker?: true; colorFilter?: Color; keywordFilter?: Keyword; keywordFilterAbsent?: Keyword; familyFilterAbsent?: FamilyFilter; maxCores?: number; maxCost?: number; maxBp?: number; levelFilter?: number[]; costNot?: number; costIn?: number[]; costAtMostAttacker?: true; nonVanilla?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、条件を満たすスピリットにブロックされない。*Absent は「持たない」側。maxCost はブロッカーの付与コストも見る。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
+    | { type: "unblockableBy"; opponentOnly?: true; noSoulCore?: true; filter?: ResolvedTargetFilter; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、filter に合うスピリットにブロックされない（filter 省略＝すべてにブロックされない）。filter は AND で、self＝アタッカー（maxCostAsSelf 等）。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
     | { type: "coresImmovableByOpponent" } // このスピリットのコアは相手の効果では移動できない（相手の効果の coreRemove をすべて防ぐ。発生源の種別を問わない。26RDB01-025）
     | { type: "untargetableByOpponentMagic" } // 相手のマジックの効果では指定されない（対象指定のみ。範囲効果は届く。26RDB01-049 Lv2 を constraintGrant で付与）
     | { type: "blockPayCost"; count: number; noStackId?: string } // このスピリットをブロックする時、相手はcountコスト支払わなければブロックできない（リザーブ＋フィールドのコアから選んで払う。2026-10-08 ユーザー確認。26RDB01-X06）。noStackId＝〔重複不可〕：同じ値の制約は何体から受けても1回分（2026-10-08 ユーザー確認）
@@ -30,10 +30,7 @@ export type ConstraintDef =
     | { type: "cantAttack"; whileNoOwnSoulCore?: true; whileNoOwnFamilySpirit?: string; unlessOpponentHasColorSpirit?: Color; whileOwnNexusCount?: number } // このスピリットはアタックできない（カイザレオン大帝Lv1）。whileOwnNexusCount指定時は「持ち主のフィールドのネクサス数がちょうどこの数の間」だけ有効（BS11-027 海戦機ニヨルド＝ネクサスが1つだけある間）。unlessOpponentHasColorSpirit 指定時は「持ち主から見た相手のフィールドに指定色のスピリットがいない間」だけ有効（activeConstraints が判定して外す。BS04鎧装獣ヘイズ・ルーン＝赤）
     | { type: "lifeDamageBonus"; amount: number; ifOwnEffectVanishedOpponentSpirit?: true; ifOwnTrashAtLeast?: { pick: CardPick; count: number } } // このスピリットのアタックで相手のライフが減る量（減るコア）を+amount（シンボル数とは別。ライフ減少の上限は超えない）。ifOwnEffectVanishedOpponentSpirit＝このターンに自分の効果で相手のスピリットが消滅していたときだけ（26RBS01-X06）。ifOwnTrashAtLeast＝自分のトラッシュに pick に合うカードが count 枚以上あるときだけ（26RDB01-X05）
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
-    | { type: "noRestWhenBlockingColor"; color: Color } // このスピリットが指定色のスピリットをブロックしたとき疲労しない（巨神機トール）
-    | { type: "noRestWhenBlockingCost"; maxCost?: number; sameCost?: true } // このスピリットが、コストmaxCost以下（sameCost指定時は自身と同じコスト）の相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor の兄弟。BS07シルバー・ゴレム／造兵工房）
-    | { type: "noRestWhenBlockingWithoutKeyword"; keyword: Keyword; oncePerTurn?: true } // このスピリットが、指定キーワードを**持たない**相手のスピリットをブロックしたとき疲労しない（noRestWhenBlockingColor/Cost の兄弟。BS07ブリシンガメンの首飾りLv2＝【転召】を持たない相手）。
-    // oncePerTurn 指定時は「ターンに1回」に制限する（消費した**発生源**を PlayerState.noRestWhenBlockingUsedThisTurn に記録。ネクサス1枚につき1回なので、同名を2枚置けば2回使える。2026-08-24）
+    | { type: "noRestWhenBlocking"; filter: ResolvedTargetFilter; oncePerTurn?: true } // このスピリットが、filter に合う相手（アタッカー）のスピリットをブロックしたとき疲労しない。filter 内の self 相対の軸（sameCostAsSelf 等）の self＝ブロッカー。oncePerTurn＝ターンに1回で、消費した**発生源**を PlayerState.noRestWhenBlockingUsedThisTurn に記録する（ネクサス1枚につき1回なので、同名を2枚置けば2回使える。2026-08-24）
     | { type: "noRefresh" } // このスピリットはリフレッシュステップで回復しない（スクルディア）
     | { type: "coresCantBeRemoved" } // **お互い、このスピリットのコアを取り除けない**（BS10-X01 幻羅星龍ガイ・アスラ）。
     // 2026-08-25 ユーザー確認で「文字どおり。効果でもプレイヤーによる操作でも取り除けない」。
@@ -46,6 +43,4 @@ export type ConstraintDef =
     // （SD02-009 獣将軍クジャルタ）。手札に戻る＝通常のバウンスなので**上のコアはリザーブへ行く**
     // （「指定場所に置いたものとして扱う」は【転召】の条件を満たすための扱いで、実際に置くわけではない。
     //  2026-08-16 ユーザー確認）。疲労版と違い、既に疲労していても使える。「疲労させることで」は**任意**なので、interactiveTargets時は「疲労する／コアを置く」の選択を出す（自動時は疲労を選ぶ決定的簡略化）
-    // levelAtMostAttacker：ブロッカーのcurrentLevelがアタッカーのcurrentLevel以下ならブロックできない
-    // （costAtMostAttacker の Lv 版。SD02-012 天の城門Lv2＝「同じLv以下の相手のスピリットからブロックされない」）
-    | { type: "canBlockWhileRested"; targetMaxCost?: number; targetKeywordExclude?: Keyword; targetMaxBp?: number; targetCombinedOnly?: true }
+    | { type: "canBlockWhileRested"; filter?: ResolvedTargetFilter } // 疲労状態でもブロックできる。filter があるときは、それに合うアタッカーに対してだけ（アタッカー不明なら不可）

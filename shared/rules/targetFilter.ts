@@ -11,7 +11,7 @@ import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { activeConstraints, hasTimedUnblockable, zoneSpiritEffectsDisabled } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, spiritHasKeywordOrLabel } from "./keywordState"
-import { currentLevel, effectActiveAtLevel, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
+import { currentLevel, effectActiveAtLevel, instAllCosts, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
 
 // ---- 対象選択の絞り込み（TargetFilter） ----
@@ -54,7 +54,12 @@ export function matchesTarget(
     // （instMatchesCostFilter。以前はcard本来のコストのみを見ており、汎用ターゲットフィルタ経由の
     // destroy/exhaust/refresh等すべてが付与コストを無視していた）
     if (filter.cost !== undefined && !instMatchesCostFilter(inst, filter.cost)) return false
+    if (filter.cost?.notIn !== undefined && instAllCosts(inst).some((c) => filter.cost!.notIn!.includes(c))) return false
     if (filter.level !== undefined && !filter.level.includes(currentLevel(inst).level)) return false
+    if (filter.maxLevelAsSelf) {
+        const self = selfInstanceId === undefined ? undefined : findOnBoard(board, selfInstanceId)
+        if (self === undefined || currentLevel(inst).level > currentLevel(self).level) return false
+    }
     // minLevel（BS13-023マウンテン・セイカイLv1-3：「Lv2以上の自分のスピリットすべて」。levelの完全一致とは別軸）
     if (filter.minLevel !== undefined && currentLevel(inst).level < filter.minLevel) return false
     // 合体しているか（BS10。docs/design/BRAVE.md）。true=合体スピリット／false=合体していない
@@ -143,6 +148,27 @@ export function matchesTarget(
     if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
     if (filter.instanceIn !== undefined && !filter.instanceIn.includes(inst.instanceId)) return false
     return true
+}
+
+function findOnBoard(board: Board, instanceId: string): CardInstance | undefined {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const f = board.players[pid].field
+        const hit = [...f.spirits, ...f.nexuses, ...f.combinedBraves].find((x) => x.instanceId === instanceId)
+        if (hit) return hit
+    }
+    return undefined
+}
+
+// self 相対の軸を、ActionCtx なしで self の個体から数値の軸へ解決する（block.ts／GameEngine 用。クライアントも通る）。
+// コストは normalizeFilter（印刷コスト1個）と違い、付与コスト込みの総当たり：「どれかのコスト同士が条件を満たせば一致」
+// （shared/block.ts の旧 costAtMostAttacker・GameEngine の旧 noRestWhenBlockingCost と同じ見方）
+export function resolveSelfRelative(filter: ResolvedTargetFilter, self: CardInstance): ResolvedTargetFilter {
+    const { maxCostAsSelf, sameCostAsSelf, maxLevelAsSelf, ...rest } = filter
+    const out: ResolvedTargetFilter = rest
+    if (maxCostAsSelf) out.cost = { ...out.cost, max: Math.max(...instAllCosts(self)) }
+    if (sameCostAsSelf) out.cost = { ...out.cost, in: instAllCosts(self) }
+    if (maxLevelAsSelf) out.level = Array.from({ length: currentLevel(self).level }, (_, i) => i + 1)
+    return out
 }
 
 // カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。

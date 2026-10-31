@@ -334,6 +334,34 @@ function checkTargetFilters(
     }
 }
 
+// ブロックまわりの制約（unblockableBy・canBlockWhileRested・noRestWhenBlocking）は絞り込みを filter 1本で持つ。
+// 旧軸名は型が効かない JSON に書いても無言で無視され、制約が広く（または狭く）効くので落とす
+const LEGACY_BLOCK_CONSTRAINT_FIELDS: Record<string, string[]> = {
+    noRestWhenBlocking: [],
+    unblockableBy: ["colorFilter", "keywordFilter", "keywordFilterAbsent", "familyFilterAbsent", "levelFilter", "maxCores", "maxCost", "costIn", "costNot", "maxBp", "nonVanilla", "costAtMostAttacker", "levelAtMostAttacker"],
+    canBlockWhileRested: ["targetMaxCost", "targetKeywordExclude", "targetMaxBp", "targetCombinedOnly"],
+    noRestWhenBlockingColor: [], noRestWhenBlockingCost: [], noRestWhenBlockingWithoutKeyword: [],
+}
+
+function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkBlockConstraints(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    const t = obj["type"]
+    if (typeof t === "string" && t in LEGACY_BLOCK_CONSTRAINT_FIELDS) {
+        if (t.startsWith("noRestWhenBlocking") && t !== "noRestWhenBlocking") add(cardId, `${t} は廃止（noRestWhenBlocking{filter} に統合済み）`)
+        for (const f of LEGACY_BLOCK_CONSTRAINT_FIELDS[t]!) if (f in obj) add(cardId, `${t} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)
+    }
+    if ((t === "unblockableBy" || t === "canBlockWhileRested" || t === "noRestWhenBlocking") && typeof obj["filter"] === "object" && obj["filter"] !== null) {
+        for (const key of Object.keys(obj["filter"])) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `${t} の filter に未知の軸 "${key}" がある`)
+    }
+    if (t === "noRestWhenBlocking" && (typeof obj["filter"] !== "object" || obj["filter"] === null)) add(cardId, "noRestWhenBlocking に filter が無い")
+    for (const v of Object.values(obj)) checkBlockConstraints(cardId, v, add)
+}
+
 // pay の cost/then は判定表（PAYABLE_TYPES）にある type しか実際には解決できない
 // （actions/pay.ts の CHECKERS に無い type は canPayResolve が false を返し不発になる）。
 // カードデータの段階で落とす
@@ -590,6 +618,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
+        checkBlockConstraints(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
         checkPayGates(c, add)
 

@@ -24,7 +24,7 @@ export interface TargetFilter {
     familyAll?: string[] // 指定した系統すべてを持つ（AND。familyのOR配列とは別軸。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
     exSymbol?: Color // この色のEXシンボルを持つ（CardData.symbolEx かつ symbol にこの色。26系「黄のEXシンボルを持つ」）
     team?: string // このチームに所属するカードだけ（26系【チーム：X】。カード静的な team 配列を見る。「【レッドステラ】を持つ」参照はこの軸）
-    cost?: { max?: number; min?: number; in?: number[] } // in＝いずれかのコストと一致
+    cost?: { max?: number; min?: number; in?: number[]; notIn?: number[] } // in＝いずれかのコストと一致。notIn＝付与コスト込みでどのコストも一致しない
     level?: number[] // currentLevel がこれに含まれる
     minLevel?: number // currentLevel がこれ以上（levelの完全一致とは別軸。BS13-023マウンテン・セイカイLv1-3：「Lv2以上の自分のスピリットすべて」）
     keyword?: Keyword | Keyword[] // 配列はOR。 指定キーワード持ち（一時付与・継続付与も考慮）
@@ -60,6 +60,7 @@ export interface TargetFilter {
     lowerBpThanBattleLoser?: true // 直前のバトルで破壊された側より実効BPが低い（normalizeFilter が state.lastBattleDestroyedBp-1 を maxBp 軸へ解決する＝厳密な未満。記録が無ければ対象なし。BS10-X04月光龍ストライク・ジークヴルム Lv2：「そのスピリットよりBPの低い」）
     costSameAsOwn?: FamilyFilter // この系統を持つ自分のスピリット（発生源も含む）のいずれかと同じコスト（normalizeFilter が cost.in に畳む）
     sameCostAsSelf?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝召喚されたスピリット等）と同じコスト。normalizeFilter が cost 軸へ解決する。self がいなければ対象なし（BS09-060緑翼の大樹＝「そのスピリットと同じコストの相手」）
+    maxLevelAsSelf?: true // Lv が self 以下。matchesTarget は selfInstanceId の個体を盤面から探して比べる（見つからなければ対象なし）
     maxCostAsSelf?: true // self と同じかそれ以下のコスト（sameCostAsSelfの以下版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS10-X06天蠍神騎スコル・スピア＝「このスピリットのコスト以下の相手」）
     sameIceWallColorAs?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝アタックしたスピリット等）が持つ【氷壁】の色（iceWallColorsOfで判定。複数色ならOR）のいずれかを持つもの。normalizeFilter が colorAny 軸へ解決する。self がいない／【氷壁】の色を持たなければ対象なし（BS16-036氷聖女ジャンヌダルク【合体時】：「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）

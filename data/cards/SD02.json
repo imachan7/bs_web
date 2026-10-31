@@ -461,8 +461,12 @@
         ],
         "constraint": {
           "type": "canBlockWhileRested",
-          "targetMaxCost": 3
-        }
+          "filter": {
+           "cost": {
+            "max": 3
+           }
+          }
+         }
       }
     ]
   },
@@ -880,8 +884,10 @@
         "constraint": {
           "type": "unblockableBy",
           "opponentOnly": true,
-          "levelAtMostAttacker": true
-        }
+          "filter": {
+           "maxLevelAsSelf": true
+          }
+         }
       }
     ]
   },

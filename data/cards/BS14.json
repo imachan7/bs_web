@@ -2682,7 +2682,13 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "costNot": 8
+     "filter": {
+      "cost": {
+       "notIn": [
+        8
+       ]
+      }
+     }
     }
    }
   ]
@@ -3169,9 +3175,11 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    }
   ]
@@ -3438,7 +3446,9 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "familyFilterAbsent": "覇皇"
+     "filter": {
+      "familyExclude": "覇皇"
+     }
     }
    },
    {

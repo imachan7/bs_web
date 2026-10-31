@@ -2661,7 +2661,11 @@
     ],
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetMaxCost": 5
+     "filter": {
+      "cost": {
+       "max": 5
+      }
+     }
     }
    }
   ]

@@ -910,7 +910,7 @@
           "content": [
             {
               "type": "canBlockWhileRested"
-            }
+             }
           ]
         }
       }
