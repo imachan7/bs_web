@@ -43,10 +43,6 @@
 - keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した（ENTRY_ACTIVE.md）
 - `coverage:effects` の「場に出ているのに一度も適用されていない効果」は【大粉砕】（BS15-X06-e2）・【呪滅撃】（BS14-X02-e2）の2件だけ。宣言だけのキーワードで、挙動は同じカードの別エントリが持つ（読む側が無いので計測されない）
 
-### 次の一手：後片付け（10-16）
-
-- 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は destroy だけを見る（耐性と sequence の中は #290 で見るようにした。if の中・ほかの除去は見ない）
-
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 
 `~/develop/bs_web_standard` のエンジン（ソウルコア・moveCards・26系の語彙・ルールの直し）を持ち込み、旧版の #260〜#264 を当て直した。

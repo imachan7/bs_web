@@ -309,20 +309,19 @@ export function braveCombineOntoSelfCandidates(board: Board, pid: PlayerId, self
 }
 
 // 起動能力の「〜することで」の後半を解決できるか（COST_MODEL §1。2026-10-16 ユーザー確認：できないなら起動できない）。
-// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy・pay の cost（疲労・バースト破棄）・family だけで絞る「自分のスピリット1体」の timedEffect だけで、
-// 装甲・免疫などの耐性は見ない＝対象が耐性持ちだけのときは「起動できる」側に倒れる。ほかの action は常に true
+// サーバーとクライアントの両方が同じ関数を呼ぶ。判定するのは destroy・pay の cost（疲労・バースト破棄）・スピリットに置く timedEffect・手札への付与だけ。ほかの action は常に true
 export function activatedActionResolvable(board: Board, pid: PlayerId, source: CardInstance, action: EffectAction): boolean {
     // 「その後」で続く文も、ことで の後半としてすべて解決できなければならない（COST_MODEL）。if の中は条件しだいなので見ない。
     // sequence の中の pay は「払えなければそこだけ不発」で前の文は解決する（ウィンガルのランサー）ので、払えるかを見ない＝最上位の pay だけが起動可否を決める
     if (action.type === "sequence") return action.actions.every((a) => a.type === "pay" || activatedActionResolvable(board, pid, source, a))
     if (action.type === "pay") return activatedPayResolvable(board, pid, source, action)
-    if (action.type === "timedEffect" && action.side === "own" && action.target === undefined && !action.all && typeof action.count === "number" && !action.filter?.excludeSelf) {
-        // family だけの絞り込みに限る。ほかの絞り込み（記号数・キーワード等）はサーバーの targeting.ts が持つので見ない（true 側に倒れる）
-        const f = action.filter
-        if (f?.family !== undefined && Object.keys(f).every((k) => k === "family")) {
-            return board.players[pid].field.spirits.some((s) => matchesFamilyFilter(board, pid, s, f.family!))
-        }
-        return true
+    if (action.type === "timedEffect") return timedTargetsExist(board, pid, source, action)
+    if (action.type === "grantKeywordToHandCard") {
+        const fams = action.familyFilter === undefined ? undefined : [action.familyFilter].flat()
+        return (board.players[pid].hand ?? []).some((id) => {
+            const c = card(id)
+            return c !== null && (action.cardType === undefined || c.type === action.cardType) && (fams === undefined || fams.some((f) => c.family.includes(f)))
+        })
     }
     if (action.type !== "destroy" || action.nexus !== undefined || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
     const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
@@ -338,6 +337,21 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
     const attempt: EffectAttempt = { op: "destroy", scope: "targeted", actorPid: pid, sourceType: src.type, sourceColors: src.colors, probing: true }
     const n = board.players[opp].field.spirits.filter((s) => matchesTarget(board, opp, s, filter, source.instanceId) && boardResistanceAgainst(board, opp, s, attempt) === null).length
     return n >= (action.upTo || action.count === "any" ? 1 : action.count)
+}
+
+// スピリットに置く timedEffect の対象がいるか。「すべて」も1体以上要る（COST_MODEL §1）。相手側は耐性・バウンス待機を除く
+const TIMED_TARGETED = new Set(["bp", "bpAs", "level", "symbolAdd"])
+function timedTargetsExist(board: Board, pid: PlayerId, source: CardInstance, action: Extract<EffectAction, { type: "timedEffect" }>): boolean {
+    if (action.target !== undefined || !action.content.some((c) => TIMED_TARGETED.has(c.type))) return true
+    const opp: PlayerId = pid === "p1" ? "p2" : "p1"
+    const src = card(source.cardId)
+    const attempt: EffectAttempt = { op: "other", scope: "targeted", actorPid: pid, sourceType: src.type, sourceColors: src.colors, probing: true }
+    const filter = action.filter as unknown as Parameters<typeof matchesTarget>[3]
+    const pids: PlayerId[] = action.side === "own" ? [pid] : action.side === "both" ? [pid, opp] : [opp]
+    const n = pids.flatMap((p) =>
+        board.players[p].field.spirits.filter((s) => matchesTarget(board, p, s, filter, source.instanceId) && (p === pid || (!s.pendingBounce && boardResistanceAgainst(board, p, s, attempt) === null))),
+    ).length
+    return n >= (action.all || typeof action.count !== "number" ? 1 : action.count)
 }
 
 // pay の cost を払えるか（疲労させる自分のスピリット・バーストの破棄だけ。ほかの cost は払える扱い）と、then を解決できるか。
