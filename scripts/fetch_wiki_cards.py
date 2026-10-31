@@ -230,8 +230,11 @@ def parse_row(row_html):
     return card
 
 
-def parse_html(page_html):
+def parse_html(page_html, id_pattern=None):
     rows = page_html.split('<li><span class="cardno">')[1:]
+    # プロモの一覧は後の時代のカード（アルティメット等）も混ざるので、解釈する前に番号で絞る
+    if id_pattern is not None:
+        rows = [r for r in rows if re.fullmatch(id_pattern, r.split("</span>", 1)[0].strip())]
     return [parse_row(r) for r in rows]
 
 
@@ -271,6 +274,7 @@ def main():
     ap.add_argument("--pages", type=int, required=True, help="ページ数（1ページ50枚）")
     ap.add_argument("--rowid", default="59632", help="Wiki のリストID（既定値で BS02 以降は通る）")
     ap.add_argument("--out", help="出力先 JSON。省略時は標準出力へは書かず件数だけ表示")
+    ap.add_argument("--id-pattern", help="この正規表現に一致する cardId だけ取り込む（プロモの一覧用。例 'P0\\d\\d|PX\\d\\d'）")
     ap.add_argument("--verify", action="store_true", help="data/cards/*.json と突き合わせて差分を報告する")
     ap.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR, help=f"取得した HTML のキャッシュ先（既定: {DEFAULT_CACHE_DIR}）")
     ap.add_argument("--no-cache", action="store_true", help="キャッシュを使わず必ず Wiki から取り直す")
@@ -288,7 +292,7 @@ def main():
         page_html, from_network = fetch_page(args.card_set, args.refer, page, args.rowid, cache_dir)
         prev_from_network = from_network
         fetched += from_network
-        got = parse_html(page_html)
+        got = parse_html(page_html, args.id_pattern)
         print(f"{args.card_set} page{page}: {len(got)}枚{'' if from_network else '（キャッシュ）'}")
         cards.extend(got)
 
