@@ -24,6 +24,8 @@
     "gaps:report": "tsx scripts/check-effect-gaps.ts",
     "gaps:update": "tsx scripts/check-effect-gaps.ts --update-baseline",
     "coverage:effects": "tsx scripts/coverage-effects.ts",
+    "coverage:check": "tsx scripts/coverage-effects.ts --check",
+    "coverage:update": "tsx scripts/coverage-effects.ts --update",
     "access:stats": "tsx scripts/access-stats.ts",
     "fuzz": "tsx scripts/fuzz.ts",
     "audit:semantics": "tsx scripts/check-effect-semantics.ts",
