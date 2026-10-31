@@ -54,23 +54,14 @@ P13〜P25 のような「P＋年」の番号と PX13 以降はまだやらない
 
 番号は調査メモの組と番号（赤＝R、紫緑＝G、白黄＝W、青＝B）。
 
-### 3.1 統一：兄弟の器にだけ無い絞り込みは、共通の `TargetFilter` で受ける（設計の2原則の1）
+### 3.1 統一のあとの書き方（#349〜#353 で寄せ終えた）
 
-1軸ずつ足すと、器ごとに同じ軸（名前・コスト下限・Lv・キーワード）を別々に持つことになる。既存の動作は `filter: TargetFilter`（`matchesTarget` で判定）を受け、条件にも `ownSpiritMatches: TargetFilter`（auraCondition）がある。これに揃える。
+絞り込みは器ごとの `filter`／`subjectFilter`／`partnerFilter`／`ownSpiritMatches`／`battleOpponentMatches`（`ResolvedTargetFilter`）に書く。§3.1 の旧案のうち、既存の軸で書けるようになったもの：
 
-- **条件「自分のフィールドに〜がいる」**：`ownSpiritMatches: TargetFilter` を `reviveOnDestroy.condition` と `triggered.condition` でも受ける（W1）
-- **主語・相手の絞り込み**：次の器に `filter?: TargetFilter` を1つ足し、新しい絞り込みはそこに書く
-  - `braveImmuneGrant`（W4 名前）
-  - `fieldEvent` の主語（W6 召喚されたカードの名前。`subjectFilter`）
-  - `unblockableBy`（W10 コスト下限）
-  - `canBlockWhileRested`（W8 自身のコスト以下）
-  - `summonedExhaustGrant`（W9 コスト下限）
-  - 取り除けない（G1 名前）
-  - `ownSpiritDealtLife`（G2 【暴風：1】）
-  - バトル相手（R2 名前。`battleOpponentFilter`）
-- **ブロックしても疲労しない**：兄弟3種（Color／Cost／WithoutKeyword）と W11（Lv）を `{ type: "noRestWhenBlocking"; filter: TargetFilter; oncePerTurn? }` 1つにまとめ、既存データも移す
-- **TargetFilter に足す軸**：`notBlocking`（G5）、`maxCostLastMagic`（W2。直前に使ったマジックの印刷コスト以下）、`selfRelativeMaxCost`（W8 の「自身のコスト以下」）
-- **既存の個別の軸（`colorFilter`・`keywordFilter`・`maxCost` など）も、いま `filter` へ寄せる**（2026-10-31 ユーザー決定）。プロモより先に別 PR（挙動を変えない移行）で出し、プロモの部品は寄せた後の書き方で作る。洗い出しと対応表は [FILTER_UNIFY.md](./FILTER_UNIFY.md)
+- W4 `braveImmuneGrant.filter.nameContains`、W6 `fieldEvent.subjectFilter.nameContains`、W10 `unblockableBy.filter.cost.min`、W11 `noRestWhenBlocking.filter.level`、G1 `filter.nameContains`、G2 `subjectFilter{keyword:"bofu",keywordCount:1}`、R2 `battleOpponentMatches.nameContains`
+- W8（自身のコスト以下）は `canBlockWhileRested.filter.maxCostAsSelf`。self がブロッカーかを実装役が確かめる
+
+まだ足りないもの：`TargetFilter` の `notBlocking`（G5）・`maxCostLastMagic`（W2。直前に使ったマジックの印刷コスト以下）、`reviveOnDestroy.condition` の `ownSpiritMatches`（W1）、`summonedExhaustGrant` の `filter`＋`ownBurstSet` 条件（W9）
 
 ### 3.2 そのほかの部品
 
@@ -94,3 +85,17 @@ P13〜P25 のような「P＋年」の番号と PX13 以降はまだやらない
 | timedEffect の内容「コスト N としても扱う」 | 内容の型 | B9 |
 
 R8（この効果で破壊した数）は既存の `lastMoved`（BS12-052）で書けるので部品にしない。
+
+### 3.3 バッチ（カード単位。1バッチの新しい部品は2〜3種）
+
+| バッチ | カード | 新しい部品 |
+| :-- | :-- | :-- |
+| A1 | P049・P052・P033・P076 | `selfNotCombined`・`selfInBattle`・`maxCostLastMagic` |
+| A2 | P032・P036・P024・P078 | R3 の記録・`byBattleKillerMinBp`・`reviveOnDestroy.condition.ownSpiritMatches` |
+| B | P072・P060・P065 | `repeatBurstEffect`・`ownBurstActivated` の条件2つ・`lastFunsaiHasBurst` |
+| C1 | PX13 | `notBlocking`・`blockerCost`・`ownSpiritReturnedToHand` の `byOpponentOnly` と1体ごと |
+| C2 | P047・PX15 | `ownCombinedBraves`・`exhaust.budget` |
+| D | P029・P043・P077・P074・P040・P054 | `cantUseMagicForPid` の `allowColors`／`costs`・ブレイヴの無償召喚の禁止・`braveBpBonusZero` の `side` と条件 |
+| E | PX19・P055・P064 | トラッシュの凍結・「コスト N としても扱う」・【強襲】の代わりの疲労・`summonedExhaustGrant.filter` |
+
+進め方：①期待値役がバッチのカードの場面テストを効果文だけから書く → ②実装役（2〜3体並行、触るファイルが重ならない組で）→ ③残りの約75枚（既存の器だけで書ける）はデータ役が色ごとに書き、`validate:gaps`・`coverage:check`・part190 で確かめる。§2.2 の解釈のカード（P019・P022・P039・P050・PX09）も①の場面テストに入れる
