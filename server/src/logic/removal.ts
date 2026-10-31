@@ -394,6 +394,11 @@ function returnTrashOnOwnSpiritDestroyed(state: GameState, pid: PlayerId, famili
     }
 }
 
+// 付与された系統も含む（破壊待機中はまだ場にいるので、場を離れる直前の状態を読める。2026-10-31 ユーザー決定）
+function grantedFamilies(state: GameState, pid: PlayerId, inst: CardInstance): string[] {
+    return getAllFamilies().filter((f) => spiritHasFamily(state, pid, inst, f))
+}
+
 // フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火。
 // 色・バニラ・バトル破壊の判定材料を渡し、selfOverride に破壊された個体自身を渡す（maxBpFromSelf が「破壊されたスピリットのBP以下」を参照するため）
 function fireOwnSpiritDestroyed(
@@ -408,7 +413,10 @@ function fireOwnSpiritDestroyed(
     extraItems?: FieldEventExtraItem[],
 ): void {
     const master = getCard(inst.cardId)
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
+    // 色・系統は付与込み（破壊待機中でまだ場にいるので、場を離れる直前の状態を読める）
+    const colors = instColors(inst)
+    const families = grantedFamilies(state, ownerPid, inst)
+    fireFieldEventTriggers(state, ownerPid, "ownSpiritDestroyed", { pid: ownerPid, inst }, colors, undefined, undefined, {
         vanilla: instIsVanilla(inst),
         vanishedByOpponent: inst.pendingVanishByOpponent === true,
         byBattle,
@@ -419,7 +427,7 @@ function fireOwnSpiritDestroyed(
         byOpponentEffect,
         ...(inst.pendingDestroyBurstInfo?.sourceType !== undefined ? { destroySourceType: inst.pendingDestroyBurstInfo.sourceType } : {}),
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
-        families: master.family,
+        families,
         // instAllCosts：破壊されたスピリットの本来のコストに加え、道化師クランの付与コストも含める
         costs: instAllCosts(inst),
         // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
@@ -427,18 +435,18 @@ function fireOwnSpiritDestroyed(
     }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestruction が積み、fireQueuedDestroyBursts がトラッシュ行き確定後に発火させる）
     // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た相手のフィールドで発火する。手段は問わない
     // sameFamilyAsDestroyed が読む橋渡し。同時破壊なら破壊待機の全員の系統
-    state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? master.family
+    state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? families
     // 破壊した側（発火する側）の効果による破壊なら、その発生源の種別とカード（「自分のスピリット/マジックの効果で」）。バトルは含まない
     const dctx = inst.pendingDestroyContext
     const ownEffect = !byBattle && dctx?.sourcePid !== undefined && dctx.sourcePid !== ownerPid ? dctx : undefined
-    fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, master.colors, undefined, undefined, {
+    fireFieldEventTriggers(state, opponentOf(ownerPid), "opponentSpiritDestroyed", { pid: ownerPid, inst }, colors, undefined, undefined, {
         byBattle,
         bySpiritEffect,
         byOpponentEffect,
         destroyedBp: effectiveBp(state, ownerPid, inst),
         ...(ownEffect?.sourceType !== undefined ? { ownEffectSourceType: ownEffect.sourceType } : {}),
         ...(ownEffect?.sourceCardId !== undefined ? { ownEffectSourceCardId: ownEffect.sourceCardId } : {}),
-        families: master.family,
+        families,
         costs: instAllCosts(inst),
     })
     if (inst.pendingVanish !== true) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
@@ -793,7 +801,7 @@ export function destroyTargetsBatch(
     for (const t of targets) {
         const inst = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
         if (!inst) continue
-        familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...getCard(inst.cardId).family])]
+        familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...grantedFamilies(state, t.pid, inst)])]
     }
     state.destroyGroup = { id: randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid }
     const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, context)
