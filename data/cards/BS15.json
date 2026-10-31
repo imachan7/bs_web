@@ -635,8 +635,10 @@
     "phase": "attack",
     "turn": "own",
     "subjectSide": "own",
-    "subjectKeywordFilter": "clash",
-    "excludeSelfSubject": true,
+    "subjectFilter": {
+     "keyword": "clash",
+     "excludeSelf": true
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",
@@ -1434,7 +1436,9 @@
      2
     ],
     "turn": "own",
-    "colorFilter": "green",
+    "subjectFilter": {
+     "color": "green"
+    },
     "byOpponentOnly": true,
     "ignoreEventTarget": true,
     "action": {
@@ -1841,7 +1845,9 @@
      2
     ],
     "subjectSide": "own",
-    "subjectKeywordFilter": "bofu",
+    "subjectFilter": {
+     "keyword": "bofu"
+    },
     "action": {
      "type": "pay",
      "cost": {
@@ -1948,8 +1954,10 @@
      2,
      3
     ],
-    "subjectKeywordFilter": "bofu",
-    "excludeSelfSubject": true,
+    "subjectFilter": {
+     "keyword": "bofu",
+     "excludeSelf": true
+    },
     "action": {
      "type": "lifeCrush",
      "count": 1,
@@ -1965,7 +1973,9 @@
      3
     ],
     "byOpponentOnly": true,
-    "subjectKeywordFilter": "bofu",
+    "subjectFilter": {
+     "keyword": "bofu"
+    },
     "action": {
      "type": "return",
      "to": "hand",
@@ -2619,7 +2629,9 @@
      3
     ],
     "target": "ownAll",
-    "keywordFilter": "hyoheki",
+    "filter": {
+     "keyword": "hyoheki"
+    },
     "constraint": {
      "type": "canBlockWhileRested"
     }
@@ -3265,7 +3277,9 @@
      2,
      3
     ],
-    "subjectKeywordFilter": "seimei",
+    "subjectFilter": {
+     "keyword": "seimei"
+    },
     "optional": true,
     "action": {
      "type": "pay",
@@ -4554,7 +4568,9 @@
     "phase": "attack",
     "turn": "own",
     "subjectSide": "own",
-    "colorFilter": "purple",
+    "subjectFilter": {
+     "color": "purple"
+    },
     "action": {
      "type": "pay",
      "cost": {
@@ -5916,7 +5932,9 @@
     "phase": "attack",
     "turn": "own",
     "subjectSide": "own",
-    "subjectKeywordFilter": "fushi",
+    "subjectFilter": {
+     "keyword": "fushi"
+    },
     "action": {
      "type": "removeCores",
      "to": "trash",

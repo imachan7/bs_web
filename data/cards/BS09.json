@@ -157,7 +157,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "colorFilter": "blue",
+        "subjectFilter": {
+          "color": "blue"
+        },
         "action": {
           "type": "destroy",
           "count": 1,
@@ -452,7 +454,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "colorFilter": "blue",
+        "subjectFilter": {
+          "color": "blue"
+        },
         "action": {
           "type": "destroy",
           "count": 1,
@@ -791,7 +795,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "colorFilter": "red",
+        "subjectFilter": {
+          "color": "red"
+        },
         "action": {
           "type": "removeCores",
           "count": 1
@@ -1097,7 +1103,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "colorFilter": "red",
+        "subjectFilter": {
+          "color": "red"
+        },
         "action": {
           "type": "removeCores",
           "count": 1
@@ -1433,10 +1441,12 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "familyFilter": [
-          "剣獣",
-          "勇傑"
-        ],
+        "subjectFilter": {
+          "family": [
+            "剣獣",
+            "勇傑"
+          ]
+        },
         "selfMode": "source",
         "action": {
           "type": "refresh",
@@ -4077,7 +4087,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "keywordFilter": "bofu",
+        "subjectFilter": {
+          "keyword": "bofu"
+        },
         "action": {
           "type": "exhaust",
           "count": 1,
@@ -4427,7 +4439,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "familyFilter": "創手",
+        "subjectFilter": {
+          "family": "創手"
+        },
         "selfMode": "source",
         "action": {
           "type": "placeCores",
@@ -4763,7 +4777,9 @@
         "event": "ownSpiritSummoned",
         "levels": null,
         "lentOnly": true,
-        "keywordFilter": "fushi",
+        "subjectFilter": {
+          "keyword": "fushi"
+        },
         "action": {
           "type": "draw",
           "count": 2

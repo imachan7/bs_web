@@ -3865,11 +3865,13 @@
     ],
     "phase": "main",
     "turn": "own",
-    "familyFilter": [
-     "神星",
-     "光導",
-     "星魂"
-    ],
+    "subjectFilter": {
+     "family": [
+      "神星",
+      "光導",
+      "星魂"
+     ]
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -4025,7 +4027,9 @@
      2
     ],
     "target": "ownAll",
-    "combinedFilter": true,
+    "filter": {
+     "combined": true
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4353,7 +4357,9 @@
     ],
     "subjectSide": "opponent",
     "selfMode": "source",
-    "subjectCombined": false,
+    "subjectFilter": {
+     "combined": false
+    },
     "phase": "attack",
     "turn": "opponent",
     "action": {
@@ -4377,7 +4383,9 @@
      2
     ],
     "ownOnly": true,
-    "familyFilter": "星魂",
+    "subjectFilter": {
+     "family": "星魂"
+    },
     "phase": "attack",
     "turn": "own",
     "action": {
@@ -4447,7 +4455,9 @@
      2
     ],
     "phase": "attack",
-    "subjectKeywordFilter": "seimei",
+    "subjectFilter": {
+     "keyword": "seimei"
+    },
     "selfMode": "source",
     "action": {
      "type": "placeCores",
@@ -4501,9 +4511,11 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "familyFilter": [
-     "戯狩"
-    ],
+    "subjectFilter": {
+     "family": [
+      "戯狩"
+     ]
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -4566,7 +4578,9 @@
     ],
     "phase": "main",
     "turn": "own",
-    "keywordFilter": "funsai",
+    "subjectFilter": {
+     "keyword": "funsai"
+    },
     "action": {
      "type": "discard",
      "from": "deck",
@@ -5141,7 +5155,9 @@
     "levels": null,
     "lentOnly": true,
     "target": "ownAll",
-    "keywordFilter": "funsai",
+    "filter": {
+     "keyword": "funsai"
+    },
     "constraint": {
      "type": "canBlockWhileRested"
     }
@@ -5199,9 +5215,11 @@
      3
     ],
     "target": "ownAll",
-    "familyFilter": [
-     "星竜"
-    ],
+    "filter": {
+     "family": [
+      "星竜"
+     ]
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -5396,7 +5414,9 @@
      3
     ],
     "whileCombined": true,
-    "keywordFilter": "soku",
+    "subjectFilter": {
+     "keyword": "soku"
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",
@@ -5568,11 +5588,13 @@
      2,
      3
     ],
-    "familyFilter": [
-     "神星",
-     "光導",
-     "星魂"
-    ],
+    "subjectFilter": {
+     "family": [
+      "神星",
+      "光導",
+      "星魂"
+     ]
+    },
     "fromHandOnly": true,
     "action": {
      "type": "sequence",

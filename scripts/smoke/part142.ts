@@ -239,7 +239,7 @@ console.log("=== BS07 白：BP4000以下の相手からブロックされない�
     )
     const grant = entryOf(orca, (e) => (e["constraint"] as { filter?: { maxBp?: number } } | undefined)?.filter?.maxBp !== undefined)
     const maxBp = Number((grant["constraint"] as { filter: { maxBp: number } }).filter.maxBp)
-    const family = String(grant["familyFilter"])
+    const family = String((grant["filter"] as { family: string }).family)
     const level = (grant["levels"] as number[])[0]!
     const attackerCard = CARDS.find(
         (c) => c.type === "spirit" && c.cardId !== orca.cardId && (c.family ?? []).includes(family),

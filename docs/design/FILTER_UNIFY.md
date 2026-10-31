@@ -227,3 +227,13 @@ AuraDef（`bp` など）約68・`constraintGrant` 47（`familyFilter`14・`keywo
 3. fieldEvent の主語（1 のマージ後）
 4. 付与とコア系（`braveImmuneGrant`・`constraintGrant`・コア除去の制約）
 5. 条件（「いる」系→`ownSpiritMatches`、バトル相手→`battleOpponentMatches`、`reviveOnDestroy` の個別軸）
+
+### PR 3・4 で寄せずに残したもの（挙動が変わるため）
+
+- BS07-X25-e3（constraintGrant の `keywordFilter:"clash"`）：`matchesTarget` は【激突】をラベル付きキーワードとして狭く見る（継続効果の付与を見ない）。寄せると Lv2 で【激突】を与えた勇傑が Lv3 の対象から外れる。`matchesTarget` のラベル付きキーワードの見方は、ほかのカードにも響きうるので別に調べる
+- BS12-022（`coresCantBeRemovedByOpponent` の `nameContains`）：今は印刷名だけ。寄せると「〜として扱う」の名前も数える
+- BS13-003（`ownSpiritSummoned` の `costFilter`）：召喚の経路は印刷コストだけを渡している。寄せると付与コストも数える
+- `targetSameLevelAsSelf`（1件）：TargetFilter に「主語と同じ Lv」の軸が無い
+- `ownTensho` の名前・系統（主語が場に居ない）と、`ownNexusDestroyed` の色（主語がネクサス）
+
+**移行の確かめ方**：smoke の全緑だけでは足りない。全カードを発火させるテスト（part190・part197）は旧軸名を読んで場面を組むので、データだけ移すと場面が組めずに黙って発火しなくなる。`npm run coverage:effects` の実行率と「場に出ているのに一度も適用されていない効果」を main と比べ、一致することを確かめる

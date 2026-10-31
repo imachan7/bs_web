@@ -2215,7 +2215,9 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "空魚",
+    "filter": {
+     "family": "空魚"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -2757,9 +2759,11 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "nameIncludes": [
-     "ペンタン"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "ペンタン"
+     ]
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",
@@ -3265,10 +3269,12 @@
      3
     ],
     "phase": "main",
-    "familyFilter": [
-     "虚神",
-     "神将"
-    ],
+    "subjectFilter": {
+     "family": [
+      "虚神",
+      "神将"
+     ]
+    },
     "selfMode": "source",
     "action": {
      "type": "deployNexus",
@@ -4113,8 +4119,10 @@
     ],
     "phase": "attack",
     "turn": "opponent",
-    "costFilter": {
-     "max": 2
+    "subjectFilter": {
+     "cost": {
+      "max": 2
+     }
     },
     "selfMode": "source",
     "action": {
@@ -4351,7 +4359,9 @@
      2
     ],
     "target": "ownAll",
-    "keywordFilter": "seimei",
+    "filter": {
+     "keyword": "seimei"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4409,7 +4419,9 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "造兵",
+    "filter": {
+     "family": "造兵"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
@@ -5183,7 +5195,9 @@
     "event": "ownSpiritBlocked",
     "levels": null,
     "lentOnly": true,
-    "keywordFilter": "seimei",
+    "subjectFilter": {
+     "keyword": "seimei"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",

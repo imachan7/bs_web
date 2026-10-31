@@ -1580,7 +1580,9 @@
         ],
         "phase": "attack",
         "subjectSide": "opponent",
-        "colorFilter": "green",
+        "subjectFilter": {
+          "color": "green"
+        },
         "selfMode": "source",
         "action": {
           "type": "exhaust",
@@ -1595,7 +1597,9 @@
           2
         ],
         "phase": "attack",
-        "targetColorFilter": "green",
+        "partnerFilter": {
+          "color": "green"
+        },
         "ignoreEventTarget": true,
         "selfMode": "source",
         "action": {

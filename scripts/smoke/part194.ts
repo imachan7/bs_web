@@ -49,7 +49,7 @@ const SWEEP_MAX_COST = Number(
     (((SWEEP_ENTRY["action"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["cost"] as Record<string, unknown>)["max"],
 )
 const VOLCANO_ENTRY = (VOLCANO.effects ?? []).find((e) => e["event"] === "ownSpiritReturnedToHand")!
-const VOLCANO_FAMILY = String(VOLCANO_ENTRY["familyFilter"])
+const VOLCANO_FAMILY = String((VOLCANO_ENTRY["subjectFilter"] as Record<string, unknown>)["family"])
 const VOLCANO_MAX_BP = Number(
     ((VOLCANO_ENTRY["action"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["maxBp"],
 )

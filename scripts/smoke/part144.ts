@@ -402,7 +402,7 @@ console.log("=== BS08ドラゴンスクランブル：lendSelfThisTurn＋destroy
         scramble,
         (e) => (e["action"] as Record<string, unknown> | undefined)?.["drawPerDestroyed"] === 1,
     )
-    const families = entry["familyFilter"] as string[]
+    const families = (entry["subjectFilter"] as Record<string, unknown>)["family"] as string[]
     const maxBp = (((entry["action"] as Record<string, unknown>)["filter"]) as Record<string, unknown>)["maxBp"] as number
     const attackerCard = CARDS.find((c) => c.type === "spirit" && families.some((f) => (c.family ?? []).includes(f)))!
     const lowBp = CARDS.find((c) => c.type === "spirit" && bpAt(c, 1) <= maxBp)!

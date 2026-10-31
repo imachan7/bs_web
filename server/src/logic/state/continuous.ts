@@ -314,15 +314,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind === "braveImmuneGrant") {
                     // 第3の耐性軸（BS12初出）：相手のブレイヴの効果を受けない。target:"self"は発生源自身、
-                    // target:"ownAll"は持ち主のスピリットすべて（colorFilter/keywordFilter/phase/turnで絞る）
+                    // target:"ownAll"は持ち主のスピリットすべて（filter/phase/turnで絞る）
                     if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
                     if (effect.turn === "own" && pid !== state.turnPlayer) continue
                     if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                     const targets = effect.target === "self" ? [source] : player.field.spirits
                     for (const spirit of targets) {
-                        if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
-                        if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        if (!matchesTarget(state, pid, spirit, effect.filter, source.instanceId)) continue
                         noteCoverage(effect, "braveImmuneGrant")
                         if (effect.scope === "all") spirit.braveImmuneAll = true
                         else spirit.braveImmuneMatchArmorColors = true

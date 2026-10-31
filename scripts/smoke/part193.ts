@@ -40,7 +40,7 @@ if (!SOURCE) throw new Error("excludeTarget を持つ ownSpiritBlocked の破壊
 const ENTRY = (SOURCE.effects ?? []).find(
     (e) => e["kind"] === "fieldEvent" && e["event"] === "ownSpiritBlocked",
 )!
-const FAMILY = String(ENTRY["familyFilter"])
+const FAMILY = String((ENTRY["subjectFilter"] as Record<string, unknown>)["family"])
 
 console.log(`=== パート193：excludeTarget の破壊は、選んだ相手を破壊する（${SOURCE.name}）===`)
 

@@ -724,7 +724,9 @@
           2
         ],
         "target": "ownAll",
-        "familyFilter": "戦竜",
+        "filter": {
+          "family": "戦竜"
+        },
         "constraint": {
           "type": "canDirectAttack",
           "targetFilter": "any"

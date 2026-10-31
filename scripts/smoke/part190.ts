@@ -92,10 +92,9 @@ function keywordsIn(node: unknown, acc: Set<string>): void {
     }
     if (node === null || typeof node !== "object") return
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-        if (/keywordfilter$/i.test(k)) {
-            if (typeof v === "string") acc.add(v)
-            else if (Array.isArray(v)) for (const x of v) if (typeof x === "string") acc.add(x)
-        }
+        const kv = /keywordfilter$/i.test(k) ? v : /^(subject|partner)?[fF]ilter$/.test(k) ? (v as Record<string, unknown> | null)?.["keyword"] : undefined
+        if (typeof kv === "string") acc.add(kv)
+        else if (Array.isArray(kv)) for (const x of kv) if (typeof x === "string") acc.add(x)
         keywordsIn(v, acc)
     }
 }
@@ -238,10 +237,11 @@ function buildBoard(testCard: CardData): {
 }
 
 // フィールド誘発の**主体**（「自分のスピリットが召喚されたとき」の、その召喚されたスピリット）を選ぶ。
-// エントリ直下の familyFilter / keywordFilter を満たす駒を盤面から探す（無ければ null）
+// エントリの subjectFilter（fieldEvent）か、直下の familyFilter / keywordFilter を満たす駒を盤面から探す（無ければ null）
 function pickSubject(s: GameState, cond: Record<string, unknown>): ReturnType<typeof createInstance> | null {
-    const fam = cond["familyFilter"]
-    const kw = cond["keywordFilter"]
+    const sf = (cond["subjectFilter"] ?? {}) as Record<string, unknown>
+    const fam = sf["family"] ?? cond["familyFilter"]
+    const kw = sf["keyword"] ?? cond["keywordFilter"]
     if (fam === undefined && kw === undefined) return null
     const wantFams = typeof fam === "string" ? [fam] : Array.isArray(fam) ? (fam as string[]) : []
     const wantKws = typeof kw === "string" ? [kw] : Array.isArray(kw) ? (kw as string[]) : []

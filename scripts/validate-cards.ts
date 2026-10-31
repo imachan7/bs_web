@@ -362,6 +362,62 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     for (const v of Object.values(obj)) checkBlockConstraints(cardId, v, add)
 }
 
+// 付与・コア系の制約（constraintGrant・braveImmuneGrant・coreFloorByCost）も絞り込みは filter 1本。
+// constraintGrant の keywordFilter は【激突】などラベル系の見方が変わるため BS07-X25 の1件だけ残している
+const LEGACY_GRANT_FIELDS: Record<string, string[]> = {
+    constraintGrant: ["familyFilter", "colorFilter", "vanillaFilter", "minSymbols", "symbolCount", "nameIncludes", "costFilter", "combinedFilter", "teamFilter", "restedOnly", "summonedBy", "summonedThisTurnOnly", "minLevel"],
+    braveImmuneGrant: ["colorFilter", "keywordFilter"],
+    coreFloorByCost: ["colorFilter"],
+}
+
+function checkGrantFilters(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkGrantFilters(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    const name = (obj["kind"] === "constraintGrant" || obj["kind"] === "braveImmuneGrant") ? obj["kind"] : obj["type"] === "coreFloorByCost" ? "coreFloorByCost" : undefined
+    if (typeof name === "string" && name in LEGACY_GRANT_FIELDS) {
+        for (const f of LEGACY_GRANT_FIELDS[name]!) if (f in obj) add(cardId, `${name} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)
+        if (name === "constraintGrant" && "keywordFilter" in obj && obj["keywordFilter"] !== "clash") add(cardId, "constraintGrant に旧軸 keywordFilter がある（filter.keyword に統合済み。【激突】だけ例外）")
+        const flt = obj["filter"]
+        if (typeof flt === "object" && flt !== null) {
+            for (const key of Object.keys(flt)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `${name} の filter に未知の軸 "${key}" がある`)
+        }
+    }
+    for (const v of Object.values(obj)) checkGrantFilters(cardId, v, add)
+}
+
+// fieldEvent の主語・相手役の絞り込みは subjectFilter／partnerFilter に寄せた。旧軸名は型が効かない JSON に書いても無言で無視される。
+// 主語が selfOverride を持たないイベントだけ、旧軸が残る（colorFilter＝ownNexusDestroyed／familyFilter・nameIncludes＝ownTensho／costFilter＝ownSpiritSummoned の印刷コスト）
+const LEGACY_FIELD_EVENT_AXES: Record<string, string[]> = {
+    keywordFilter: [], subjectKeywordFilter: [], maxBp: [], vanillaOnly: [], symbolCount: [], subjectCombined: [], subjectMaxCores: [],
+    subjectMaxCost: [], subjectHasTrigger: [], subjectMinSymbols: [], excludeSelfSubject: [], excludeSelfAsEventTarget: [], targetColorFilter: [],
+    colorFilter: ["ownNexusDestroyed"], familyFilter: ["ownTensho"], nameIncludes: ["ownTensho"], costFilter: ["ownSpiritSummoned"],
+}
+
+function checkFieldEventSubjects(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkFieldEventSubjects(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    if (obj["kind"] === "fieldEvent") {
+        for (const [axis, events] of Object.entries(LEGACY_FIELD_EVENT_AXES)) {
+            if (axis in obj && !events.includes(String(obj["event"]))) add(cardId, `fieldEvent(${String(obj["event"])}) に旧軸 ${axis} がある（subjectFilter／partnerFilter に統合済み。無言で無視される）`)
+        }
+        for (const name of ["subjectFilter", "partnerFilter"]) {
+            const f = obj[name]
+            if (f === undefined) continue
+            if (typeof f !== "object" || f === null || Array.isArray(f)) add(cardId, `fieldEvent の ${name} がオブジェクトでない`)
+            else for (const key of Object.keys(f)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `fieldEvent の ${name} に未知の軸 "${key}" がある`)
+        }
+    }
+    for (const v of Object.values(obj)) checkFieldEventSubjects(cardId, v, add)
+}
+
 // pay の cost/then は判定表（PAYABLE_TYPES）にある type しか実際には解決できない
 // （actions/pay.ts の CHECKERS に無い type は canPayResolve が false を返し不発になる）。
 // カードデータの段階で落とす
@@ -619,6 +675,8 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
         checkBlockConstraints(id, c.effects, add)
+        checkFieldEventSubjects(id, c.effects, add)
+        checkGrantFilters(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
         checkPayGates(c, add)
 

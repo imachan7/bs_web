@@ -2207,8 +2207,10 @@
      2
     ],
     "turn": "opponent",
-    "costFilter": {
-     "max": 1
+    "subjectFilter": {
+     "cost": {
+      "max": 1
+     }
     },
     "selfMode": "source",
     "action": {
@@ -4538,10 +4540,12 @@
     ],
     "phase": "main",
     "turn": "own",
-    "familyFilter": [
-     "古竜",
-     "龍帝"
-    ],
+    "subjectFilter": {
+     "family": [
+      "古竜",
+      "龍帝"
+     ]
+    },
     "action": {
      "type": "destroy",
      "filter": {
@@ -4945,10 +4949,12 @@
     ],
     "phase": "main",
     "turn": "own",
-    "familyFilter": [
-     "甲獣",
-     "巨獣"
-    ],
+    "subjectFilter": {
+     "family": [
+      "甲獣",
+      "巨獣"
+     ]
+    },
     "action": {
      "type": "return",
      "to": "hand",

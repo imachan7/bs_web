@@ -1501,8 +1501,7 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
                 if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
                 // byOpponentOnly：減らす側が actorPid で、pid（守る側）と同じなら自分自身の減少なので床を張らない
                 if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
-                // colorFilter：この色を持たなければ守らない
-                if (effect.constraint.colorFilter !== undefined && !instHasColor(inst, effect.constraint.colorFilter)) continue
+                if (!matchesTarget(state, ownerPid ?? pid, inst, effect.constraint.filter, source.instanceId)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。以前はカードの召喚コストとして実装していた
                 return instMinLevelCores(inst)
             }

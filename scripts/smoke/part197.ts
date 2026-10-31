@@ -81,14 +81,15 @@ function snapshot(s: GameState): string {
 
 // 誘発の**主体**（「自分のスピリットが召喚されたとき」のその1体）を、条件を満たすカードから選ぶ
 function pickSubjectCard(entry: Record<string, unknown>, exclude: string): CardRow | undefined {
-    const fam = entry["familyFilter"]
+    const sf = (entry["subjectFilter"] ?? {}) as Record<string, unknown>
+    const fam = sf["family"] ?? entry["familyFilter"]
     const wantFams = typeof fam === "string" ? [fam] : Array.isArray(fam) ? (fam as string[]) : []
-    const nm = entry["nameIncludes"]
+    const nm = sf["nameContains"] ?? entry["nameIncludes"]
     const wantNames = typeof nm === "string" ? [nm] : Array.isArray(nm) ? (nm as string[]) : []
-    const col = entry["colorFilter"]
+    const col = sf["color"] ?? entry["colorFilter"]
     const wantColors = typeof col === "string" ? [col] : Array.isArray(col) ? (col as string[]) : []
-    const kw = entry["keywordFilter"] as string | undefined
-    const costFilter = entry["costFilter"] as Record<string, unknown> | undefined
+    const kw = (sf["keyword"] ?? entry["keywordFilter"]) as string | undefined
+    const costFilter = (sf["cost"] ?? entry["costFilter"]) as Record<string, unknown> | undefined
     const maxCost = costFilter?.["max"] as number | undefined
     return CARDS.find(
         (c) =>

@@ -1362,7 +1362,9 @@
      2
     ],
     "target": "ownAll",
-    "keywordFilter": "jugeki",
+    "filter": {
+     "keyword": "jugeki"
+    },
     "constraint": {
      "type": "unblockableBy",
      "filter": {
@@ -5804,7 +5806,9 @@
      2
     ],
     "phase": "attack",
-    "vanillaOnly": true,
+    "subjectFilter": {
+     "vanilla": true
+    },
     "byBattleOnly": true,
     "action": {
      "type": "draw",
@@ -6360,7 +6364,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "refresh",
      "filter": {
@@ -6599,7 +6605,9 @@
     ],
     "phase": "attack",
     "byBattleOnly": true,
-    "familyFilter": "勇傑",
+    "subjectFilter": {
+     "family": "勇傑"
+    },
     "action": {
      "type": "discard",
      "from": "deck",
