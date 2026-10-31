@@ -4813,7 +4813,9 @@
           2
         ],
         "scope": "ownAll",
-        "combinedOnly": true,
+        "filter": {
+         "combined": true
+        },
         "when": {},
         "revived": {
           "toHand": true
@@ -6187,10 +6189,12 @@
           3
         ],
         "scope": "ownAll",
-        "familyFilter": [
+        "filter": {
+         "family": [
           "光導",
           "天霊"
-        ],
+         ]
+        },
         "when": {
           "byOpponent": true
         },

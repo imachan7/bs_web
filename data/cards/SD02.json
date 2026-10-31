@@ -255,8 +255,8 @@
         "turn": "own",
         "selfMode": "source",
         "ignoreEventTarget": true,
-        "condition": {
-          "targetMaxCostOfEventTarget": 4
+        "partnerFilter": {
+          "cost": {"max": 4}
         },
         "action": {
           "type": "refresh",

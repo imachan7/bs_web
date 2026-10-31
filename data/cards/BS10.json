@@ -1315,7 +1315,9 @@
         "target": "self",
         "treatAs": 3,
         "condition": {
-          "ownFieldHasCombinedSpirit": true
+          "ownSpiritMatches": {
+           "combined": true
+          }
         }
       }
     ]
@@ -4027,7 +4029,9 @@
           2
         ],
         "condition": {
-          "ownFieldHasCombinedSpirit": true
+          "ownSpiritMatches": {
+           "combined": true
+          }
         },
         "action": {
           "type": "lifeCrush",

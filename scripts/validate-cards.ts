@@ -418,6 +418,41 @@ function checkFieldEventSubjects(cardId: string, node: unknown, add: (cardId: st
     for (const v of Object.values(obj)) checkFieldEventSubjects(cardId, v, add)
 }
 
+// 条件の「いる」系とバトル相手は ownSpiritMatches／battleOpponentMatches に、reviveOnDestroy の絞り込みは filter に寄せた。
+// 旧軸名は型が効かない JSON に書いても無言で無視される。【激突】の keywordFilter だけ filter.keyword に寄せていない（matchesTarget が付与を見ないため）
+const LEGACY_CONDITION_AXES = ["ownFieldHasColorSpirit", "ownFieldHasKeyword", "ownFieldHasCombinedSpirit", "battleOpponentCombined", "battleOpponentHasKeyword"]
+const LEGACY_REVIVE_AXES = ["colorFilter", "familyFilter", "vanillaFilter", "minBp", "minCost", "nameIncludes", "combinedOnly", "blockingOnly"]
+const LEGACY_FIELD_EVENT_CONDITION_AXES = ["targetMaxBp", "targetMaxCostOfEventTarget", "targetKeywordExclude"]
+
+function checkConditionFilters(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkConditionFilters(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    for (const axis of LEGACY_CONDITION_AXES) if (axis in obj) add(cardId, `条件に旧軸 ${axis} がある（ownSpiritMatches／battleOpponentMatches に統合済み。無言で無視される）`)
+    for (const name of ["ownSpiritMatches", "battleOpponentMatches"]) {
+        const f = obj[name]
+        if (f === undefined) continue
+        if (typeof f !== "object" || f === null || Array.isArray(f)) add(cardId, `条件の ${name} がオブジェクトでない`)
+        else for (const key of Object.keys(f)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `条件の ${name} に未知の軸 "${key}" がある`)
+    }
+    if (obj["kind"] === "reviveOnDestroy") {
+        for (const axis of LEGACY_REVIVE_AXES) if (axis in obj) add(cardId, `reviveOnDestroy に旧軸 ${axis} がある（filter に統合済み。無言で無視される）`)
+        if ("keywordFilter" in obj && obj["keywordFilter"] !== "clash") add(cardId, "reviveOnDestroy に旧軸 keywordFilter がある（filter.keyword に統合済み。【激突】だけ例外）")
+        const f = obj["filter"]
+        if (f !== undefined) {
+            if (typeof f !== "object" || f === null || Array.isArray(f)) add(cardId, "reviveOnDestroy の filter がオブジェクトでない")
+            else for (const key of Object.keys(f)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `reviveOnDestroy の filter に未知の軸 "${key}" がある`)
+        }
+    }
+    if (obj["kind"] === "fieldEvent" && typeof obj["condition"] === "object" && obj["condition"] !== null) {
+        for (const axis of LEGACY_FIELD_EVENT_CONDITION_AXES) if (axis in (obj["condition"] as object)) add(cardId, `fieldEvent の condition に旧軸 ${axis} がある（partnerFilter に統合済み。無言で無視される）`)
+    }
+    for (const v of Object.values(obj)) checkConditionFilters(cardId, v, add)
+}
+
 // pay の cost/then は判定表（PAYABLE_TYPES）にある type しか実際には解決できない
 // （actions/pay.ts の CHECKERS に無い type は canPayResolve が false を返し不発になる）。
 // カードデータの段階で落とす
@@ -677,6 +712,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
         checkBlockConstraints(id, c.effects, add)
         checkFieldEventSubjects(id, c.effects, add)
         checkGrantFilters(id, c.effects, add)
+        checkConditionFilters(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
         checkPayGates(c, add)
 

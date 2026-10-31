@@ -3071,7 +3071,9 @@
      2
     ],
     "condition": {
-     "ownFieldHasColorSpirit": "green"
+     "ownSpiritMatches": {
+      "color": "green"
+     }
     },
     "action": {
      "type": "placeCores",
@@ -3127,7 +3129,9 @@
      2
     ],
     "condition": {
-     "ownFieldHasColorSpirit": "purple"
+     "ownSpiritMatches": {
+      "color": "purple"
+     }
     },
     "action": {
      "type": "draw",
@@ -3415,7 +3419,9 @@
      3
     ],
     "scope": "ownAll",
-    "familyFilter": "小玩",
+    "filter": {
+     "family": "小玩"
+    },
     "when": {},
     "revived": {
      "toHand": true
@@ -5679,7 +5685,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattle": true
     },
@@ -5953,7 +5961,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattle": true
     },
@@ -6021,7 +6031,9 @@
      2
     ],
     "scope": "ownAll",
-    "keywordFilter": "soku",
+    "filter": {
+     "keyword": "soku"
+    },
     "when": {
      "byBattle": true
     },
@@ -6269,7 +6281,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattleKillerLevel": 1
     },
@@ -6288,7 +6302,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattleKillerLevel": 3
     },
@@ -7314,7 +7330,9 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
-    "keywordFilter": "armor",
+    "filter": {
+     "keyword": "armor"
+    },
     "when": {
      "byBattle": true
     },

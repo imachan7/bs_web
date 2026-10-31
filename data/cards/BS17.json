@@ -180,7 +180,9 @@
     ],
     "optional": false,
     "condition": {
-     "battleOpponentCombined": true
+     "battleOpponentMatches": {
+      "combined": true
+     }
     },
     "action": {
      "type": "timedEffect",
@@ -917,10 +919,12 @@
       "turn": "own"
      },
      "condition": {
-      "battleOpponentHasKeyword": [
-       "armor",
-       "heavyArmor"
-      ]
+      "battleOpponentMatches": {
+       "keyword": [
+        "armor",
+        "heavyArmor"
+       ]
+      }
      },
      "amount": 3000
     }
@@ -3483,7 +3487,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "雄将",
+    "filter": {
+     "family": "雄将"
+    },
     "when": {},
     "phaseTurn": {
      "phase": "attack",
@@ -4206,8 +4212,10 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "覇皇",
-    "colorFilter": "red",
+    "filter": {
+     "family": "覇皇",
+     "color": "red"
+    },
     "when": {
      "byOpponent": true
     },
@@ -4764,10 +4772,12 @@
     ],
     "scope": "ownAll",
     "optional": true,
-    "keywordFilter": [
-     "kobo",
-     "makobo"
-    ],
+    "filter": {
+     "keyword": [
+      "kobo",
+      "makobo"
+     ]
+    },
     "when": {
      "byOpponent": true
     },
@@ -5402,7 +5412,9 @@
     "levels": null,
     "scope": "ownAll",
     "lentOnly": true,
-    "blockingOnly": true,
+    "filter": {
+     "blocking": true
+    },
     "when": {},
     "revived": {
      "rested": true

@@ -6754,7 +6754,11 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
-    "minCost": 3,
+    "filter": {
+     "cost": {
+      "min": 3
+     }
+    },
     "when": {
      "byBattle": true
     },

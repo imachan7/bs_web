@@ -5327,7 +5327,9 @@
     ],
     "optional": false,
     "condition": {
-     "battleOpponentCombined": true
+     "battleOpponentMatches": {
+      "combined": true
+     }
     },
     "action": {
      "type": "timedEffect",

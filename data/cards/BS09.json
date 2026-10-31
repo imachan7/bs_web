@@ -1797,7 +1797,9 @@
           2
         ],
         "scope": "ownAll",
-        "keywordFilter": "bofu",
+        "filter": {
+         "keyword": "bofu"
+        },
         "when": {
           "byBattle": true
         },
@@ -3283,7 +3285,9 @@
         ],
         "optional": false,
         "condition": {
-          "ownFieldHasColorSpirit": "green"
+          "ownSpiritMatches": {
+           "color": "green"
+          }
         },
         "action": {
           "type": "destroy",
@@ -3518,7 +3522,9 @@
         ],
         "optional": false,
         "condition": {
-          "ownFieldHasColorSpirit": "green"
+          "ownSpiritMatches": {
+           "color": "green"
+          }
         },
         "action": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "filter": {"cost": {"min": 3, "max": 3}}}, {"type": "destroy", "count": 1, "filter": {"cost": {"min": 4, "max": 4}}}]}
       },
@@ -4287,7 +4293,9 @@
           2
         ],
         "scope": "ownAll",
-        "familyFilter": "楽族",
+        "filter": {
+         "family": "楽族"
+        },
         "optional": true,
         "when": {},
         "phaseTurn": {

@@ -311,14 +311,9 @@ export function fireTrigger(
                 const oppNexuses = state.players[opponentOf(owner)].field.nexuses
                 const colors = new Set(oppNexuses.flatMap((n) => instColors(n)))
                 if (colors.size < effect.condition.opponentNexusColorsAtLeast) return false
-            } else if ("ownFieldHasColorSpirit" in effect.condition) {
-                // オチョゴ／ジェルフィ：発生源の持ち主のフィールドに指定色のスピリットがいるときのみ発火
-                const color = effect.condition.ownFieldHasColorSpirit
-                if (
-                    !state.players[owner].field.spirits.some((s) => instHasColor(s, color))
-                ) {
-                    return false
-                }
+            } else if ("ownSpiritMatches" in effect.condition) {
+                const filter = effect.condition.ownSpiritMatches
+                if (!state.players[owner].field.spirits.some((s) => matchesTarget(state, owner, s, filter, src.instanceId))) return false
             } else if ("ownFieldHasColorNexus" in effect.condition) {
                 // 天使キュリオ：発生源の持ち主のフィールドに指定色のネクサスがあるときのみ発火
                 const color = effect.condition.ownFieldHasColorNexus
@@ -343,19 +338,6 @@ export function fireTrigger(
             } else if ("lastFunsaiHasSpirit" in effect.condition) {
                 // 爆砕巨人ダグラスLv2-3：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ発火
                 if ((state.lastFunsai?.spirits ?? 0) === 0) return false
-            } else if ("ownFieldHasKeyword" in effect.condition) {
-                // クナノミ：発生源の持ち主のフィールドに指定キーワード持ちのスピリットがいるときのみ発火
-                const kw = effect.condition.ownFieldHasKeyword
-                if (
-                    !state.players[owner].field.spirits.some((s) =>
-                        spiritHasKeywordOrLabel(state, owner, s, kw),
-                    )
-                ) {
-                    return false
-                }
-            } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
-                // BS10-X03巨蟹武神キャンサードLv2：自分のフィールドに合体スピリットがいるときのみ発火
-                if (!state.players[owner].field.spirits.some((sp) => instIsCombined(sp))) return false
             } else if ("targetMinBp" in effect.condition) {
                 // 鍵鎚のヴァルグリンドLv2：ブロックしたスピリット（targetInstanceId）の実効BPがこれ以上のときのみ発火
                 if (targetInstanceId === undefined) return false
@@ -415,9 +397,7 @@ export function fireTrigger(
                 const has = (p: PlayerId) =>
                     state.players[p].field.spirits.some((sp) => effectiveBp(state, p, sp) >= min)
                 if (!has("p1") || !has("p2")) return false
-            } else if ("battleOpponentCombined" in effect.condition) {
-                // BS11-X02 滅神星龍ダークヴルム・ノヴァLv2-3：いま成立しているバトルの相手側が
-                // 合体スピリットのときのみ発火。self がアタッカーかブロッカーかで相手側を選ぶ
+            } else if ("battleOpponentMatches" in effect.condition) {
                 const battle = state.battle
                 if (!battle) return false
                 const otherId =
@@ -426,7 +406,7 @@ export function fireTrigger(
                         : battle.attackerInstanceId
                 if (!otherId) return false
                 const other = findSpiritAny(state, otherId)
-                if (!other || !instIsCombined(other.inst)) return false
+                if (!other || !matchesTarget(state, other.pid, other.inst, effect.condition.battleOpponentMatches)) return false
             } else if ("requirePrevAttackerCombined" in effect.condition) {
                 // BS10-047赤ずきん妖精ルージュLv3：直前のアタック宣言が発生源の持ち主自身の
                 // 合体スピリットによるものだったときのみ発火（doAttackがスライドさせるprevAttackerCombinedPid）

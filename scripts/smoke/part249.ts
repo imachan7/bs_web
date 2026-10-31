@@ -7,7 +7,7 @@
 //     BP比較・破壊・バトル終了の処理はいっさい変えていない
 //   - PendingChoice.blockBattlePick（**アタック側**がどのブロッカーとバトルするかを選ぶ。
 //     効果文に「相手は」が無く主語がアタッカー側のため。2026-08-27 ユーザー確認）
-//   - triggered.condition.ownFieldHasCombinedSpirit
+//   - triggered.condition.ownSpiritMatches{combined}
 // ※ 効果文は「スピリット2体か、**アルティメット1体**でないとブロックできない」だが、
 //   アルティメットは未実装なので2体ブロックだけを見る。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。

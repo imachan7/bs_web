@@ -31,11 +31,9 @@ export type EffectDefTrigger =
           turn?: "own" | "opponent" // 発生源の持ち主基準
           condition?:
               | { opponentNexusColorsAtLeast: number } // 色数は重複除く
-              | { ownFieldHasColorSpirit: Color } // timedColors 考慮
+              | { ownSpiritMatches: ResolvedTargetFilter } // 自分のスピリットのうち絞り込みに合うものが1体以上いる（発生源自身も数える。AuraCondition.ownSpiritMatches と同じ判定）
               | { ownFieldHasColorNexus: Color } // 自分のフィールド
               | { targetSameLevelAsSelf: true } // onBlocked 用
-              | { ownFieldHasKeyword: Keyword } // 一時/継続付与も考慮
-              | { ownFieldHasCombinedSpirit: true } // 自分のフィールドに合体スピリットがいる
               | { firstAttackOfTurn: true }
               | { lastFunsaiHasNexus: true }
               | { lastMilledHasEx: true } // ownChimeiMilled 限定（state.lastDeckMill を見る）
@@ -52,7 +50,7 @@ export type EffectDefTrigger =
               | { opponentHandAtLeast: number } // 相手の手札枚数
               | { ownHandAtLeast: number } // 発火しないので確認も出ない
               | { bothFieldsHaveMinBpSpirit: number } // 両陣営のフィールドにそれぞれ実効BPがこの値以上のスピリットがいる
-              | { battleOpponentCombined: true } // onBattleStart 用
+              | { battleOpponentMatches: ResolvedTargetFilter } // いま成立しているバトルの、発生源がアタッカーならブロッカー・ブロッカーならアタッカーが絞り込みに合う（AuraCondition 側は発生源でなく持ち主から見た相手側で引く）
               | { requirePrevAttackerCombined: true } // ターン開始でリセット
               | { ownLifeAtMost: number } // 自分のライフ
               | { selfSummonedByFushi: true } // onSummon 限定
@@ -246,10 +244,6 @@ export type EffectDefTrigger =
               | "selfIsAttacking" // 発生源自身が現在のバトルのアタッカーのとき
               | { firstAttackOfTurn: true } // anySpiritAttacked 限定
               | { attacksThisTurnAtLeast: number } // anySpiritAttacked 限定。N回目以降のアタック
-              | { targetMaxBp: number } // ownLifeDamaged 限定。ライフを減らしたスピリット（アタッカー）の実効BP
-              | { targetMaxCostOfEventTarget: number } // targetInstanceIdのスピリットのコスト
-              // event:"ownSpiritBlocked" ではブロッカー。targetMaxBp のコスト版
-              | { targetKeywordExclude: Keyword } // ownLifeDamaged 限定
               | { lastFunsaiHasSpirit: true } // ownFunsaiMilled 限定
               | { lastFunsaiHasCostAtLeast4: true } // ownFunsaiMilled 限定
               | { opponentHandAtLeastOwnHand: true } // 相手の手札枚数
@@ -307,17 +301,10 @@ export type EffectDefTrigger =
           perDestroyed?: true // scope:"ownAll" 限定。同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）
           whileCombined?: true // scope:"self" 専用
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効
-          blockingOnly?: true // scope:"ownAll" 用。現在のバトルのブロッカーだけ
           optional?: true // 承認でコスト支払い＋復活確定、断ればその場で破壊（非対話は即時確定）。省略時は必ず戻る
-          vanillaFilter?: true // scope:"ownAll" 用。効果の記述を持たない（バニラ）スピリットのみ
-          colorFilter?: Color // scope:"ownAll" 用。この色を持つスピリットのみ
-          keywordFilter?: Keyword | Keyword[] // scope:"ownAll" 用。配列はOR
-          minBp?: number // scope:"ownAll" 用。対象の実効BP
-          minCost?: number // scope:"ownAll" 用。対象のコスト
-          nameIncludes?: string[] // scope:"ownAll" 用。カード名に含む（配列＝OR・部分一致。constraintGrant.nameIncludes と同じ）
-          familyFilter?: FamilyFilter // scope:"ownAll" 用。指定系統（配列＝OR）を持つスピリットのみ
-          minFamilies?: number // scope:"ownAll" 用。カード静的な family 配列の要素数
-          combinedOnly?: true // scope:"ownAll" 用。合体スピリットのみ
+          filter?: ResolvedTargetFilter // 復活させる（破壊される）スピリットの絞り込み。scope:"self" でも自身に掛かる
+          keywordFilter?: Keyword | Keyword[] // scope:"ownAll" 用。filter.keyword に寄せなかった残り（【激突】。matchesTarget は付与込みで見ないため。BS08-056）
+          minFamilies?: number // scope:"ownAll" 用。カード静的な family 配列の要素数。TargetFilter に対応する軸が無い
           requireOwnFieldHasName?: string // 持ち主のフィールドにこのカード名の個体が1体以上いるときのみ
           when: {
               byOpponentEffect?: boolean // 相手の効果による破壊のみ

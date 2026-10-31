@@ -67,7 +67,7 @@ withEffects(SRC, [{ id: "t1", kind: "immunityGrant", levels: null, target: "ownA
 })
 
 function reviveEntry(revived: unknown): unknown[] {
-    return [{ id: "t1", kind: "reviveOnDestroy", levels: null, scope: "ownAll", nameIncludes: ["ロク"], when: {}, revived }]
+    return [{ id: "t1", kind: "reviveOnDestroy", levels: null, scope: "ownAll", filter: { nameContains: ["ロク"] }, when: {}, revived }]
 }
 
 console.log("=== 6. reviveOnDestroy.nameIncludes（復活先は場に残る） ===")

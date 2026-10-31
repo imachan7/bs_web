@@ -113,7 +113,7 @@ console.log("=== reviveOnDestroy.blockingOnly + lendSelfThisBattle：ブロッ�
                 scope: "ownAll",
                 when: {},
                 lentOnly: true,
-                blockingOnly: true,
+                filter: { blocking: true },
                 revived: { rested: true },
             },
         ],

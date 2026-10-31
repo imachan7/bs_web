@@ -356,14 +356,14 @@ export function checkAuraCondition(
         return player.field.spirits.length <= condition.maxOwnSpirits
     }
     // 持ち主側の当事者ではなく、相手側の当事者（アタッカーかブロッカーのうち sourcePid が持たない方）を見る
-    if ("battleOpponentHasKeyword" in condition) {
+    if ("battleOpponentMatches" in condition) {
         if (!board.battle) return false
         const oppPid: PlayerId = sourcePid === "p1" ? "p2" : "p1"
         const oppInst = board.players[oppPid].field.spirits.find(
             (s) => s.instanceId === board.battle!.attackerInstanceId || s.instanceId === board.battle!.blockerInstanceId,
         )
         if (!oppInst) return false
-        return condition.battleOpponentHasKeyword.some((k) => spiritHasKeywordOrLabel(board, oppPid, oppInst, k))
+        return matchesTarget(board, oppPid, oppInst, condition.battleOpponentMatches)
     }
     // { hasOwnFamily: FamilyFilter }：発生源自身を含んでよい（配列＝いずれかの系統でOR。BS05黄道の虚空）
     return player.field.spirits.some((s) =>
