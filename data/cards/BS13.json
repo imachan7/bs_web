@@ -3791,7 +3791,9 @@
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetMaxBp": 6000
+     "filter": {
+      "maxBp": 6000
+     }
     }
    },
    {
@@ -3809,7 +3811,9 @@
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetCombinedOnly": true
+     "filter": {
+      "combined": true
+     }
     }
    },
    {

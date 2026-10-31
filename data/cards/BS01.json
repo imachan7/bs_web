@@ -729,7 +729,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     }
     },
     "id": "BS01-015-e1"
    }
@@ -1739,7 +1741,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "green"
+     "filter": {
+      "color": "green"
+     }
     },
     "id": "BS01-035-e1"
    }
@@ -2238,7 +2242,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "maxCores": 1
+     "filter": {
+      "maxCores": 1
+     }
     }
    }
   ]
@@ -3976,7 +3982,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "red"
+     "filter": {
+      "color": "red"
+     }
     },
     "id": "BS01-083-e1"
    }

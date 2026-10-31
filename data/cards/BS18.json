@@ -2876,13 +2876,17 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "costIn": [
-      0,
-      1,
-      3,
-      5,
-      7
-     ]
+     "filter": {
+      "cost": {
+       "in": [
+        0,
+        1,
+        3,
+        5,
+        7
+       ]
+      }
+     }
     }
    },
    {
@@ -2904,13 +2908,17 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "costIn": [
-      0,
-      1,
-      3,
-      5,
-      7
-     ]
+     "filter": {
+      "cost": {
+       "in": [
+        0,
+        1,
+        3,
+        5,
+        7
+       ]
+      }
+     }
     }
    },
    {
@@ -2995,13 +3003,17 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "costIn": [
-      0,
-      2,
-      4,
-      6,
-      8
-     ]
+     "filter": {
+      "cost": {
+       "in": [
+        0,
+        2,
+        4,
+        6,
+        8
+       ]
+      }
+     }
     }
    },
    {
@@ -3023,13 +3035,17 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "costIn": [
-      0,
-      2,
-      4,
-      6,
-      8
-     ]
+     "filter": {
+      "cost": {
+       "in": [
+        0,
+        2,
+        4,
+        6,
+        8
+       ]
+      }
+     }
     }
    },
    {
@@ -4020,7 +4036,9 @@
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetKeywordExclude": "tensho"
+     "filter": {
+      "keywordExclude": "tensho"
+     }
     }
    }
   ]

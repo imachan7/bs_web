@@ -1069,7 +1069,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "green"
+     "filter": {
+      "color": "green"
+     }
     }
    },
    {
@@ -1080,7 +1082,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "white"
+     "filter": {
+      "color": "white"
+     }
     }
    },
    {
@@ -1091,7 +1095,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "blue"
+     "filter": {
+      "color": "blue"
+     }
     }
    },
    {
@@ -1102,7 +1108,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "red"
+     "filter": {
+      "color": "red"
+     }
     }
    },
    {
@@ -1113,7 +1121,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "colorFilter": "yellow"
+     "filter": {
+      "color": "yellow"
+     }
     }
    }
   ]
@@ -4960,7 +4970,9 @@
     "vanillaFilter": true,
     "constraint": {
      "type": "unblockableBy",
-     "costAtMostAttacker": true
+     "filter": {
+      "maxCostAsSelf": true
+     }
     }
    }
   ]
@@ -5046,10 +5058,12 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "nonVanilla": true,
      "requireOwnCostCountAtLeast": {
       "cost": 2,
       "count": 3
+     },
+     "filter": {
+      "vanilla": false
      }
     }
    }

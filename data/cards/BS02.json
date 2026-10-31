@@ -949,9 +949,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      3
-     ]
+     "filter": {
+      "level": [
+       3
+      ]
+     }
     }
    },
    {
@@ -962,10 +964,12 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      2,
-      3
-     ]
+     "filter": {
+      "level": [
+       2,
+       3
+      ]
+     }
     }
    }
   ]
@@ -1018,9 +1022,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    },
    {
@@ -1031,10 +1037,12 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1,
-      2
-     ]
+     "filter": {
+      "level": [
+       1,
+       2
+      ]
+     }
     }
    }
   ]
@@ -2744,7 +2752,13 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "costNot": 8
+     "filter": {
+      "cost": {
+       "notIn": [
+        8
+       ]
+      }
+     }
     }
    }
   ]
@@ -6393,8 +6407,10 @@
      3
     ],
     "constraint": {
-     "type": "noRestWhenBlockingColor",
-     "color": "red"
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "color": "red"
+     }
     }
    },
    {

@@ -495,14 +495,15 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
 
 console.log("=== BS07 黄：【聖命】持ちは相手のコスト3以下からブロックされない ===")
 {
-    // 聖なる命の泉：unblockableBy.maxCost を持つ唯一のカード
+    // 聖なる命の泉：unblockableBy の filter.cost.max を持つ唯一のカード
     const fountain = findByEffect(
         (e) =>
             e["kind"] === "constraintGrant" &&
-            (e["constraint"] as Record<string, unknown> | undefined)?.["maxCost"] !== undefined,
+            (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "unblockableBy" &&
+            ((e["constraint"] as Record<string, unknown> | undefined)?.["filter"] as { cost?: { max?: number } } | undefined)?.cost?.max !== undefined,
     )
     const grant = (fountain.effects ?? []).find((e) => e["kind"] === "constraintGrant")!
-    const maxCost = Number((grant["constraint"] as Record<string, unknown>)["maxCost"])
+    const maxCost = Number(((grant["constraint"] as Record<string, unknown>)["filter"] as { cost: { max: number } }).cost.max)
     const nexusCores = Number((fountain.levels ?? [])[(grant["levels"] as number[])[0]! - 1]?.cores ?? 3)
     const cheapBlocker = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= maxCost,

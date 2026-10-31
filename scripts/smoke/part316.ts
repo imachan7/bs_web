@@ -185,7 +185,7 @@ console.log("=== BS14-044 氷河竜グレイセウス：バースト中は相手
     const dragon = put(s, "p1", "BS14-044", 3) // Lv2
     refreshLevelAsOverrides(s)
     assert(
-        activeConstraints(s, "p1", dragon).some((c) => c.type === "unblockableBy" && c.costNot === 8),
+        activeConstraints(s, "p1", dragon).some((c) => c.type === "unblockableBy" && c.filter?.cost?.notIn?.includes(8) === true),
         "コスト8以外のスピリットからブロックされない",
     )
     assert(

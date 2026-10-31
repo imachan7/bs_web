@@ -5302,7 +5302,11 @@
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetMaxCost": 1
+     "filter": {
+      "cost": {
+       "max": 1
+      }
+     }
     }
    },
    {

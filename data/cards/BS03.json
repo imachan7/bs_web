@@ -130,7 +130,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     }
     }
    },
    {
@@ -141,7 +143,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     }
     }
    },
    {
@@ -152,7 +156,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "jugeki"
+     "filter": {
+      "keyword": "jugeki"
+     }
     }
    }
   ]
@@ -1342,9 +1348,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    },
    {
@@ -1357,9 +1365,11 @@
     "keywordFilter": "jugeki",
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    }
   ]
@@ -5397,9 +5407,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    }
   ]

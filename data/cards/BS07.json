@@ -2223,7 +2223,9 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "maxBp": 4000
+     "filter": {
+      "maxBp": 4000
+     }
     }
    }
   ]
@@ -3128,8 +3130,12 @@
      2
     ],
     "constraint": {
-     "type": "noRestWhenBlockingCost",
-     "maxCost": 3
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
     }
    }
   ]
@@ -4209,8 +4215,10 @@
      "turn": "opponent"
     },
     "constraint": {
-     "type": "noRestWhenBlockingWithoutKeyword",
-     "keyword": "tensho",
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "keywordExclude": "tensho"
+     },
      "oncePerTurn": true
     }
    }
@@ -4351,7 +4359,11 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "maxCost": 3
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
     }
    }
   ]
@@ -4403,8 +4415,10 @@
      "turn": "opponent"
     },
     "constraint": {
-     "type": "noRestWhenBlockingCost",
-     "sameCost": true
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "sameCostAsSelf": true
+     }
     }
    },
    {

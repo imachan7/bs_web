@@ -74,7 +74,7 @@ console.log("--- unblockableBy（レベル指定）：指定レベルのスピ�
     assert(card.name === "悪魔デースペル", "前提: BS02-019 は悪魔デースペル")
     const entry = entryOf(card, "e1")
     const level = (entry["levels"] as number[])[0]!
-    const filter = ((entry["constraint"] as Record<string, unknown>)["levelFilter"] as number[])[0]!
+    const filter = (((entry["constraint"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["level"] as number[])[0]!
 
     const s = base("bs02-019")
     const attacker = put(s, "p1", card, coresFor(card, level))
