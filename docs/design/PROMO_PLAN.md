@@ -70,7 +70,7 @@ P13〜P25 のような「P＋年」の番号と PX13 以降はまだやらない
   - バトル相手（R2 名前。`battleOpponentFilter`）
 - **ブロックしても疲労しない**：兄弟3種（Color／Cost／WithoutKeyword）と W11（Lv）を `{ type: "noRestWhenBlocking"; filter: TargetFilter; oncePerTurn? }` 1つにまとめ、既存データも移す
 - **TargetFilter に足す軸**：`notBlocking`（G5）、`maxCostLastMagic`（W2。直前に使ったマジックの印刷コスト以下）、`selfRelativeMaxCost`（W8 の「自身のコスト以下」）
-- 既存の個別の軸（`colorFilter`・`keywordFilter`・`maxCost` など）は今回は残す。同じ器に2通りの書き方が並ぶので、プロモの後に別 PR で寄せる
+- **既存の個別の軸（`colorFilter`・`keywordFilter`・`maxCost` など）も、いま `filter` へ寄せる**（2026-10-31 ユーザー決定）。プロモより先に別 PR（挙動を変えない移行）で出し、プロモの部品は寄せた後の書き方で作る。洗い出しと対応表は [FILTER_UNIFY.md](./FILTER_UNIFY.md)
 
 ### 3.2 そのほかの部品
 
