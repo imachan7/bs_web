@@ -45,7 +45,6 @@
 ### 次の一手：後片付け（10-16）
 
 - 既知の限界：起動能力の後半の判定（`activatedActionResolvable`）は destroy だけを見る（耐性と sequence の中は #290 で見るようにした。if の中・ほかの除去は見ない）
-- 古い長いコメントの整理：型4ファイルは済み（10-22）。次の候補はロジック側（EffectModules・removal・GameEngine・RuleValidator。コメント35〜43%）。名前で向き・数え方・専用の場面が読めない説明は残す
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
 

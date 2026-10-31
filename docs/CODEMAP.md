@@ -323,51 +323,51 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/EffectModules.ts
 
 - `getAllFamilies`（fn）
-- `emitEvent`（fn）：state.events にイベントを1件積む（seqはstate.eventSeqをインクリメントして自動採番）。
-- `resistanceAgainst`（fn）：このインスタンスが、いま解決中の効果を「受けない」状態か。
+- `emitEvent`（fn）：seq は state.eventSeq で自動採番。GameEngine.handleAction 冒頭で events をクリアするので、配信されるのは1アクション分だけ
+- `resistanceAgainst`（fn）：このインスタンスが、いま解決中の効果を「受けない」状態か。破壊・コア除去・疲労・バウンス等の各ガードから呼ぶ。
 - `meisaiTollOf`（fn）：kind:"meisai" で対象 target に掛かるコスト（無ければ undefined）
 - `autoPayPlan`（fn）：「Nコスト支払う」をリザーブ＋フィールドのコアから自動で払う計画（2026-10-08 ユーザー確定: 支払い元はフィールドも含む）。
 - `askPayToNegateIfNeeded`（fn）
-- `gateTargetedApply`（fn）：自動で（または複数体のうちの1体として）決めた対象に、効果を当てる直前の関門。
-- `isResisted`（fn）：resistanceAgainst の真偽値版（理由を使わない呼び出し側用）
-- `destroyedCoresGoToTrash`（fn）：スピリットのコアが効果／手動操作で増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち
-- `consumeSummonHandDiscardPay`（fn）：BS08ビクティム（kind:"summonCostHandDiscardPay"）：「スピリットカード**1枚**の召喚に」なので、
-- `destroyBpThresholdBonusFor`（fn）：器BS16：発生源の持ち主（ownerPid）のスピリット/マジックの効果による「BP◯以下を破壊する」判定の
-- `handImmuneFor`（fn）：発生源の持ち主（targetPid）の**手札**が、相手のスピリット/ブレイヴ/マジックの効果を受けないか
-- `tryLifeDamageMillGuard`（fn）：kind:"lifeDamageMillGuard"（BS07六花の司書長サーガ）：defenderPid のライフが減る直前に呼ぶ。
-- `tryOwnLifeFloorByCost`（fn）：BS14-084永久凍土の王都：「自分のライフが0になるとき、このネクサスを自分のトラッシュに置くことで、
-- `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"（天使長ファニム）：ownerPidのフィールドに、
-- `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"（BS16-070）：ownerPidのフィールドに、自分のバーストがマジックで
-- `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant" の継続付与（BS04ドラグノ近衛兵）：
-- `blockTriggersAlsoOnAttack`（fn）：付け替えず両方で発揮する版（alsoBlock。26RBS02-X10）。発揮の判定のたびに読む
+- `gateTargetedApply`（fn）：自動で（または複数体のうちの1体として）決めた対象に効果を当てる直前の関門。聞いて中断したなら "asked"（呼び出し元はその対象を適用せず、残りを再開スタックへ積んで retu…
+- `isResisted`（fn）
+- `destroyedCoresGoToTrash`（fn）：スピリットのコアが増減したとき、相手フィールドの exhaustOnManualCoreAdd 持ち発生源（レベル有効。effectSources 経由で lendSelfThis…
+- `consumeSummonHandDiscardPay`（fn）：summonCostHandDiscardPay：「スピリットカード**1枚**の召喚に」なので、手札破棄で支払った時点で貸与を使い切る（仮想発生源を1つ取り除く）。
+- `destroyBpThresholdBonusFor`（fn）：発生源の持ち主のスピリット/マジックの効果による「BP◯以下を破壊する」判定の閾値ボーナス合計（kind:"destroyBpThresholdBonus"）。
+- `handImmuneFor`（fn）：持ち主（targetPid）の**手札**が、相手のスピリット/ブレイヴ/マジックの効果を受けないか（globalConstraint:"handImmuneForPid"。ネクサ…
+- `tryLifeDamageMillGuard`（fn）：kind:"lifeDamageMillGuard"：defenderPid のライフが減る直前に呼ぶ。発生源が有効なら持ち主のデッキを上から1枚破棄し、そのカードが match …
+- `tryOwnLifeFloorByCost`（fn）：kind:"ownLifeFloor" の costSelfToTrash 版：自分のライフが0になるとき、このネクサスをトラッシュに置いてライフを0にしない。呼び出し側が lif…
+- `hasSummonedExhaustGrant`（fn）：kind:"summonedExhaustGrant"：ownerPid のフィールドに「相手のスピリットは召喚されたとき疲労する」を持つ有効な発生源があるか（condition.…
+- `hasBurstMagicFreeEffect`（fn）：kind:"burstMagicFreeEffect"：ownerPid のフィールドに、自分のバーストがマジックで発動したときコストを支払わずメイン/フラッシュを発揮できる発生源…
+- `hasBlockTriggersAsAttack`（fn）：kind:"attackTriggersAsBlockGrant"：対象スピリットの『アタック時』効果が『ブロック時』へ**移し替え**られているか。
+- `blockTriggersAlsoOnAttack`（fn）：付け替えず両方で発揮する版（alsoBlock）。発揮の判定のたびに読む
 - `hasAttackTriggersAsBlock`（fn）
-- `hasLifeDamageNegate`（fn）：硝子の女神フレイア：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の
+- `hasLifeDamageNegate`（fn）：kind:"lifeDamageNegate"：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の実効BP以下のとき、ライフダメージそのものを打ち消す…
 - `drawStepBonusFor`（fn）：持ち主のドローステップで引く枚数の追加数（kind: "drawStepBonus"）。uniqueByName は同名の発生源を1回だけ数える
-- `coreStepBonusFor`（fn）：持ち主のコアステップで得られるコアの追加数（kind: "coreStepBonus"）を集計する。
-- `placeCoresOnSpirit`（fn）：対象スピリットへ「効果で」コアを置く共通処理。coreBonus（グラーバ）ぶんをボイドから追加する。
-- `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く（無限に湧くボイドが原資。
-- `sweepLevelCostDepletion`（fn）：継続的なレベル置換（kind: "levelAs"）を再計算する。
-- `payCost`（fn）：summon{from:"hand"} 共通の召喚実行部：指定した手札インデックスのスピリットを、
-- `findSpiritAny`（fn）：instanceId から両プレイヤーのフィールドを検索し、対象スピリットと持ち主を返す
-- `applyMagicBuffBonus`（fn）：騎獣スレイプホース：マジックによるBPバフ（timedEffect の bp）が対象に適用された直後にフックし、
-- `countEffectCounter`（fn）：selfBuff / timedEffect の bp / voidCoreToSelf / draw / coreGain 共通のカウンタ集計（BS03バッチで統一）。
-- `drawDoubleMultiplier`（fn）：効果ドロー倍化（封印された魔導書）：owner のフィールドにレベル有効かつ phaseTurn 一致の
+- `coreStepBonusFor`（fn）：持ち主のコアステップで得られるコアの追加数（kind:"coreStepBonus"）。フィールド（スピリット＋ネクサス）の発動条件を満たす発生源をすべて合算する。
+- `placeCoresOnSpirit`（fn）：対象スピリットへ「効果で」コアを置く共通処理。coreBonus ぶんをボイドから追加する。ownerPid は inst の持ち主（checkExhaustOnCoreChang…
+- `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く。スピリット上のコアを取り除く処理ではないので checkExhaustOnCoreChange は呼ばない
+- `sweepLevelCostDepletion`（fn）：継続効果で「Lvコスト」が上がり、維持コア（Lv1）を下回った個体を消滅させる。コアが減ったのではなく**必要なコア数が増えた**ことで起きるので、コアを動かす各所の判定では拾えな…
+- `payCost`（fn）：コストと「置くコア」をまとめて支払う。paySources（フィールド上のコア）から取ったぶんは**先にコストへ充当し、余りを置くコアへ回す**。
+- `findSpiritAny`（fn）
+- `applyMagicBuffBonus`（fn）：マジックによる BP バフ（timedEffect の bp）が対象に適用された直後にフックし、条件を満たせば magicBuffBonus 分の BP+ を追加する。
+- `countEffectCounter`（fn）：selfBuff / timedEffect の bp / voidCoreToSelf / draw / coreGain 共通のカウンタ集計。数える側の基準：
+- `drawDoubleMultiplier`（fn）：効果ドロー倍化：owner のフィールドにレベル有効かつ phaseTurn 一致の kind:"drawDouble" があれば2を返す（複数あっても2倍まで）。
 - `resolveAction`（fn）
 
 ## server/src/logic/GameEngine.ts
 
 - `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
-- `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする
-- `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す。
-- `ResshinsokuInfo`（型）：【烈神速】の中断状態（PendingChoice.distributeCores と同じ形＋どこまで進んだか）
-- `applyResshinsokuDestination`（fn）：distributeCores の選択を1件適用し、残りがあれば続けて聞く
-- `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで、実際にスピリットを場に出す。
+- `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする（フラッシュマジック・神速召喚・覚醒で共通）
+- `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す（docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は Res…
+- `ResshinsokuInfo`（型）
+- `applyResshinsokuDestination`（fn）
+- `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで実際にスピリットを場に出す。コストも維持コアの支払いも無い（維持コアぶんは「このスピリット」に置かれたコアが兼ねる）。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
-- `COUNT_IS_BODIES`（const）：count が「対象の**体数**」を表すアクション。ここに挙げたものだけを
+- `COUNT_IS_BODIES`（const）：count が「対象の体数」を表すアクション。ここに挙げたものだけを「複数体が対象なのに1体しか渡されていない」の判定にかける。
 - `exhaustBlockToll`（fn）
 - `continueBlockDeclaration`（fn）：ブロックのコストを払ったあとの宣言処理（blockExhaustSpirit の選択待ちからも再開する）
 - `finishBlockDeclaration`（fn）
-- `revertActivatedUse`（fn）：フラッシュの優先権を相手へ渡す。両者が連続でパスするとフラッシュ終了。
+- `revertActivatedUse`（fn）：起動能力の「ターンに1回」の消費を取り消す（対象を見てからやめたとき／対象がいなかったとき）。
 
 ## server/src/logic/GameState.ts
 
@@ -414,26 +414,26 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/RuleValidator.ts
 
-- `validatePaySources`（fn）：コスト支払いの妥当性を検証する（スピリット上のコアを併用する場合）。
+- `validatePaySources`（fn）：コスト支払いの妥当性検証。paySources 未指定・空ならリザーブのみで cost を賄えるか見る。
 - `validateSummon`（fn）
-- `validateResshinsokuSummon`（fn）：【烈神速】：お互いのアタックステップのフラッシュタイミングで、トラッシュのコア5個以上を
-- `validateSwapSoulCore`（fn）：メインステップの1:1交換（docs/design/SOULCORE.md §1.4）: [ソウルコア]1個と通常コア1個を同時に交換する
+- `validateResshinsokuSummon`（fn）：【烈神速】：お互いのアタックステップのフラッシュで、トラッシュのコア5個以上を自分のフィールド/リザーブに置くことで
+- `validateSwapSoulCore`（fn）
 - `validateSetNexus`（fn）
 - `validateSetBurst`（fn）：バーストのセット（docs/design/BURST.md）：自分のターンのメインステップ限定・ターン1回。
-- `nexusMillPayAmount`（fn）：ネクサスの配置コストをデッキ破棄で支払う枚数を決める（栄光の表彰台Lv1）。
-- `summonHandDiscardPayAmount`（fn）：スピリットの召喚コストのうち、手札破棄で支払う枚数を決める（BS08ビクティム）。
-- `validateHandFlash`（fn）：バトル中に手札のカードを使うときの共通検証（フラッシュマジック・神速召喚・手札から使うフラッシュ効果＝
-- `validateUseHandAbility`（fn）：011ミーアバット：手札から使うフラッシュ（kind:"handActivated"）の検証。
+- `nexusMillPayAmount`（fn）：ネクサスの配置コストをデッキ破棄で支払う枚数を決める。
+- `summonHandDiscardPayAmount`（fn）：スピリットの召喚コストのうち、手札破棄で支払う枚数を決める。「どこまで手札破棄で払うか」は**プレイヤーが選ぶ**
+- `validateHandFlash`（fn）：バトル中に手札のカードを使うときの共通検証（フラッシュマジック・神速召喚・kind:"handActivated" の3者で共有。BS15_PLAN.md §7.2）。
+- `validateUseHandAbility`（fn）：手札から使うフラッシュ（kind:"handActivated"）の検証。バトル中の共通判定は validateHandFlash に任せ、
 - `validateCastMagic`（fn）
 - `validateCombineBrave`（fn）：メインステップの任意合体（docs/design/BRAVE.md §6.4）。
 - `validateDetachBrave`（fn）：メインステップの任意分離（§6.4）。**効果による分離（コア不要）とは別の手順**で、
 - `validateMoveCore`（fn）
-- `validateAwaken`（fn）：覚醒：フラッシュタイミングで、自分のスピリットのコアを覚醒持ちへ移す
-- `validateActivateAbility`（fn）：起動能力（kind: "activated"）の発動可否。コストを払って任意発動する能力の汎用検証。
+- `validateAwaken`（fn）
+- `validateActivateAbility`（fn）
 - `validateAttack`（fn）
 - `validateBlock`（fn）
-- `validatePass`（fn）：フラッシュの優先権を相手に渡す（パス）
-- `validateEndTurn`（fn）：ターン終了（endTurn）の妥当性を検証する。
+- `validatePass`（fn）
+- `validateEndTurn`（fn）：ターン終了の妥当性。「必ずアタック」制約（mustAttack）を持ち現在アタック可能な自分のスピリットが1体でもいれば拒否する（メイン・アタックステップ両方）
 - `validateTakeLife`（fn）
 
 ## server/src/logic/actions/bounce.ts
@@ -820,35 +820,35 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `recordDestroysOf`（fn）
 - `destroySpirit`（fn）
-- `resumeDestroyCommit`（fn）：中断していた破壊処理の続き（drainResumeStack から呼ぶ）
-- `commitPendingDestruction`（fn）：破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
-- `fireQueuedDestroyBursts`（fn）：破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）を、pendingBurstDestroyQueueにたまった分だけ
-- `tryFreeSummonOnHandDiscard`（fn）：手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
-- `tryHandFreeSummonOnLifeDamaged`（fn）：手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
-- `applyHandFreeSummon`（fn）：pendingChoice（手札からの無償召喚の確認）で「召喚する」が選ばれたときの後処理。
-- `destroySpiritsFrom`（fn）：複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
-- `destroyTargetsBatch`（fn）：事前に確定した対象リストをまとめて破壊する（呼び出し元の定型）。
+- `resumeDestroyCommit`（fn）
+- `commitPendingDestruction`（fn）：**順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
+- `fireQueuedDestroyBursts`（fn）：破壊後バーストを、pendingBurstDestroyQueue にたまった分だけまとめて発火する。handleAction の末尾
+- `tryFreeSummonOnHandDiscard`（fn）：手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。
+- `tryHandFreeSummonOnLifeDamaged`（fn）：ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
+- `applyHandFreeSummon`（fn）：確認を出したあとに手札から失われていた場合は何もしない
+- `destroySpiritsFrom`（fn）：戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
+- `destroyTargetsBatch`（fn）：復活の確認で中断したら destroyBatch フレームを積んで止まるので、
 - `resumeDestroyBatch`（fn）：破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
 - `applyDestroyBatchAfter`（fn）：「この効果で破壊したスピリット1体につき」の後処理。
-- `destroyNexus`（fn）：ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
-- `resumeDestroyNexusCommit`（fn）：中断していたネクサスの破壊処理の続き（drainResumeStack から呼ぶ）
-- `commitPendingNexusDestruction`（fn）：破壊待機状態のネクサスを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）
-- `returnNexusToHand`（fn）：ネクサスを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。
-- `returnNexusToDeckBottom`（fn）：ネクサスを持ち主のデッキの下（末尾）へ戻す：コアはリザーブへ、カードはデッキの下へ。
-- `returnNexusToDeckTop`（fn）：ネクサスを持ち主のデッキの上へ戻す：returnNexusToDeckBottomのデッキ上版（unshift）。
-- `returnSpiritToHand`（fn）：スピリットを持ち主の手札へ戻す（バウンス）。
+- `destroyNexus`（fn）：ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）
+- `resumeDestroyNexusCommit`（fn）
+- `commitPendingNexusDestruction`（fn）
+- `returnNexusToHand`（fn）：ネクサスを持ち主の手札へ戻す（バウンス）。破壊ではないため destroyNexus とは別処理
+- `returnNexusToDeckBottom`（fn）：ネクサスを持ち主のデッキの下（末尾）へ戻す。代替召喚コストの支払い（デッキの下へ戻すことでコスト不要で召喚）に使う。破壊ではないため onDestroy は誘発しない
+- `returnNexusToDeckTop`（fn）：ネクサスを持ち主のデッキの上へ戻す（returnNexusToDeckBottom のデッキ上版）。破壊ではないため onDestroy は誘発しない
+- `returnSpiritToHand`（fn）：**その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
 - `markBounce`（fn）
-- `flushBounces`（fn）：バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。
+- `flushBounces`（fn）：バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。バウンス効果の解決が終わった時点で呼ぶ。
 - `fireBounceTriggers`（fn）：移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**
-- `returnSpiritToDeckTop`（fn）：スピリットを持ち主のデッキの一番上へ戻す：コアはリザーブへ、カードはデッキトップへ。
-- `returnSpiritToDeckBottom`（fn）：スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版。BS04グラシアルブレス）。
+- `returnSpiritToDeckTop`（fn）：スピリットを持ち主のデッキの一番上へ戻す。破壊ではないため onDestroy は誘発しない。
+- `returnSpiritToDeckBottom`（fn）：スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版）。
 - `canTakeCoresFrom`（fn）：相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。
-- `removeCores`（fn）：コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
-- `removeCoresToTrash`（fn）：コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
-- `takeCoresFromSpirit`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
-- `removeCoresToVoid`（fn）
-- `coreFloorFor`（fn）：globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
-- `isBattlingCoreProtected`（fn）：バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が
+- `removeCores`（fn）：コアを取り除き、維持コア（Lv1）を下回ったら消滅させる。
+- `removeCoresToTrash`（fn）：コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる。actorPid の扱いは removeCores と同じ
+- `takeCoresFromSpirit`（fn）：スピリットからコアを取る共通部分（行き先への加算とログは呼び出し側）。自分の効果で動かすときも保護・下限を見る
+- `removeCoresToVoid`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
+- `coreFloorFor`（fn）：globalConstraint "coreFloorByCost"：有効な発生源があれば、スピリット上のコアはそのカードのコスト（Lv1コスト）を下回るまで取り除けない。
+- `isBattlingCoreProtected`（fn）：バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が有効な発生源が両陣営のフィールドにあれば効果によ…
 
 ## server/src/logic/revive.ts
 

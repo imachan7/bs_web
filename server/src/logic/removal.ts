@@ -1,12 +1,5 @@
-// スピリット／ネクサスの除去（EffectModules.ts から分割。2026-08-10）
-//
-// 破壊・消滅・コアの取り除き・手札／デッキへ戻す処理をまとめたもの。
-// **中身は移設しただけで、ロジックは一切変えていない。**
-//
-// ⚠️ EffectModules.ts / triggers.ts とは相互 import の関係にある
-// （破壊は誘発を発火し、誘発は破壊を呼ぶ）。GameState.ts ↔ EffectModules.ts と同じ形で、
-// CommonJS の循環require（関数宣言はホイストされ、呼び出しは対戦処理中＝読み込み完了後）で安全に動く。
-// 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
+// スピリット／ネクサスの除去。EffectModules.ts / triggers.ts と相互 import の関係にある（破壊は誘発を発火し、誘発は破壊を呼ぶ）。
+// CommonJS の循環 require で安全に動く（関数宣言はホイストされ、呼び出しは対戦処理中）。EffectModules.ts がここの export を再エクスポートしている
 import { bounceDenial } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
@@ -21,10 +14,6 @@ import { getAllFamilies } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
 import { coreRemovalAllowed } from "./coreGate"
 
-// 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
-// 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
-// 分割した triggers.ts の関数を内部でも使う（再エクスポートとは別に import が要る）。
-// 相互 import になるが CommonJS の循環requireで安全（ファイル冒頭の注記を参照）
 import { fireBurstOnEvent } from "./keywords/burst"
 import { notifySpiritCoresRemovedByOpponent } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
@@ -129,8 +118,6 @@ import {
     summonFreeFromHandIndex,
 } from "./EffectModules"
 
-// EffectModules.ts から一緒に移した内部ヘルパー（除去処理でしか使われていない）
-// 指定インスタンスが今まさにバトルの当事者（アタッカーかブロッカー）か
 function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
     if (!state.battle) return false
     return (
@@ -139,7 +126,6 @@ function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
     )
 }
 
-// 両陣営のフィールドに、指定タイプの globalConstraint が有効な発生源があるか。
 // phase/turn は EffectDef 側（globalConstraint エントリ自身）が持つ（発生源の持ち主基準の turn 判定）
 function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
@@ -163,10 +149,8 @@ function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
 
 // ---- スピリット／ネクサスの除去 ----
 
-// スピリットを破壊（または消滅）：コアをリザーブへ戻し、カードをトラッシュへ。
-// cause が "destroy" のときのみ破壊時効果（onDestroy）が誘発する。
-// destroy アクション1回ぶんで破壊待機に入れたカード（if の cond.last・カウンタ lastMoved/lastCost が読む）。
-// destroyContext は効果の解決ごとに作られるので、同じオブジェクトなら同じアクションの破壊（破壊時の誘発が別に破壊したものは混ざらない）
+// destroy アクション1回ぶんで破壊待機に入れたカードの記録（if の cond.last・lastMoved/lastCost が読む）。
+// destroyContext は効果の解決ごとに作られるので、同じオブジェクトの破壊だけを数える（破壊時の誘発が別に破壊したものは混ざらない）
 let destroyRecorder: { context: DestroyContext; cardIds: string[] } | null = null
 export function recordDestroysOf(context: DestroyContext, run: () => void): string[] {
     const outer = destroyRecorder
@@ -199,8 +183,7 @@ export function destroySpirit(
     // （docs/design/TIMING_CHART.md §1.5）
     // suppressOnDestroy: この破壊では『このスピリットの破壊時』（onDestroy）トリガーを発揮させない。
     // 「自分のスピリットが破壊されたとき」フィールドイベント（fireOwnSpiritDestroyed）は通常どおり発火する
-    // （効果文が名指ししているのは「このスピリットの破壊時」だけなので、他カードが見る一般則イベントは止めない。
-    // BS12-052デス・ヘイズ：召喚時に自分のスピリットを好きなだけ破壊するがそれらの破壊時効果は出さない）
+    // （効果文が名指ししているのは「このスピリットの破壊時」だけなので、他カードが見る一般則イベントは止めない）
     // includeFushi: この破壊で誘発する【不死】も**同じ列**に並べる（docs/design/TIMING_CHART.md）。
     // 既定は有効（2026-10-16 ユーザー確認：【不死】は破壊なら手段・体数を問わず誘発する）。消滅は cause で除かれる
     options?: { skipRevive?: true; allowSuspend?: true; suppressOnDestroy?: true; includeFushi?: boolean },
@@ -220,10 +203,8 @@ export function destroySpirit(
     if (inst.pendingDestruction && !options?.skipRevive) return false
     const master = getCard(inst.cardId)
 
-    // 器N（BS12-057ハイドランディア【合体時】/BS12-069定規山脈）：「相手のスピリット/ブレイヴ/マジックの
-    // 効果でコアが0個になったとき」は、通常の維持コア割れ（cause:"deplete"＝消滅・onDestroy不発火）ではなく、
-    // 最高Lvとして破壊される（onDestroy誘発あり）。currentEffectSourceは resolveAction が効果解決中ずっと
-    // 立てているので、ここで「誰の・どの種別の効果の解決中か」を読める（EFFECT_SOURCE_CONTEXT.md）
+    // 相手のスピリット/ブレイヴ/マジックの効果でコアが0個になったときは、維持コア割れ（deplete＝消滅・onDestroy不発火）ではなく
+    // 最高Lvとして破壊される（onDestroy誘発あり）。誰の効果の解決中かは currentEffectSource で読む（EFFECT_SOURCE_CONTEXT.md）
     if (cause === "deplete" && inst.cores === 0) {
         const src = state.currentEffectSource
         const bySpiritBraveOrMagic = src?.type === "spirit" || src?.type === "brave" || src?.type === "magic"
@@ -243,9 +224,7 @@ export function destroySpirit(
     else delete inst.pendingVanish
     if (cause === "deplete" && state.currentEffectSource !== undefined && state.currentEffectSource.pid !== ownerPid) inst.pendingVanishByOpponent = true
     else delete inst.pendingVanishByOpponent
-    // 破壊直前のコア数を記録（漆黒鳥ヤタグロスの coreGain: selfCoresAtDestruction）
     inst.coresAtDestruction = inst.cores
-    // 「フィールドに残る」の判定に要る材料を、破壊待機状態の間だけ控えておく。
     // ⚠️ 復活チェックは**ここではやらない**。「フィールドに残る」は破壊を無効にするのではなく
     // 「トラッシュに置かれる代わりに場へ戻る」効果なので、**破壊で誘発した効果の列の1項目**として
     // 並べ、ターンプレイヤーが選んだ順で解決する
@@ -288,16 +267,14 @@ export function destroySpirit(
     const wasAttacker = state.battle?.attackerInstanceId === inst.instanceId
     const byBattle = context?.battle !== undefined
     // 「相手のスピリットの効果で破壊されたとき」（byOpponentSpiritEffectOnly）の判定材料。
-    // BS10-012アントイーター/BS10-014闇騎士マリス
     // バトルの BP 比較は sourceType:"spirit" で記録されるが、スピリットの効果ではない
     const bySpiritEffect = !byBattle && context?.sourceType === "spirit" && context?.sourcePid !== undefined && context.sourcePid !== ownerPid
     const sourceInstanceId = context?.sourceInstanceId
-    // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）：
+    // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly）：
     // バトルのBP比較で敗れた場合も、相手のスピリット/ネクサス/マジックの効果による場合も含める
     // 強制ブロックで同じ陣営どうしが戦ったバトル（context.sourcePid が持ち主自身）は相手による破壊ではない
     const byOpponentEffect = byOpponentEffectOf(context, ownerPid) || (byBattle && context?.sourcePid !== ownerPid)
-    // 破壊後バースト用の控え（commitPendingDestructionが読む。BS16バッチ0）。
-    // BPは破壊直前（まだ場にいる・コアも乗ったまま）のこの時点で確定させる
+    // 破壊後バースト用の控え。BP は破壊直前（まだ場にいてコアも乗ったまま）のこの時点で確定させる
     inst.pendingDestroyBurstInfo = { byOpponentEffect, bp: effectiveBp(state, ownerPid, inst), ...(context?.sourceType !== undefined ? { sourceType: context.sourceType } : {}) }
 
     // ＞６-1：破壊時の誘発。**この間、破壊された個体はまだフィールドにいる**
@@ -336,7 +313,6 @@ export function destroySpirit(
     }
     // 【不死】：トラッシュの【不死】持ちも**同じ列**に並べる。先に「フィールドに残る」が解決すると
     // 破壊が無かったことになるので、requiresPendingDestructionOf のガードで自動的に空振りする
-    // （＝「残るを先に解決したら【不死】は撃てない」。従来は破壊の外側の2択で表していた）
     if (cause === "destroy" && options?.includeFushi !== false) {
         for (const trashIndex of fushiCandidates(state, ownerPid, destroyedCostsOf(inst), destroyedFamiliesOf(inst))) {
             const cardId = player.trashCards[trashIndex]
@@ -357,7 +333,6 @@ export function destroySpirit(
         return true
     }
 
-    // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
     commitPendingDestruction(state, ownerPid, inst)
     // 同時破壊グループの外（単体の直接呼び出し）なら、破壊後バーストはここで確定させてよい。
     // グループの中（destroyTargetsBatchのループ経由）は他のメンバーの確定を待つため、
@@ -379,7 +354,6 @@ function suspendDestroyCommit(
     byOpponentEffect: boolean,
     sourceInstanceId: string | undefined,
 ): void {
-    // 勝敗が決まっているならもう盤面は動かさない（待機のまま終わってよい）
     if (state.winner) {
         commitPendingDestruction(state, ownerPid, inst)
         return
@@ -406,7 +380,7 @@ function suspendDestroyCommit(
     else pushResumeFrames(state, [commitFrame])
 }
 
-// kind:"trashReturnOnOwnSpiritDestroyed"（26RSD05-012）。トラッシュの同名カードが複数あっても、同名は1ターン1回なので戻るのは1枚だけ。
+// kind:"trashReturnOnOwnSpiritDestroyed"。同名は1ターン1回なので戻るのは1枚だけ。
 // 「手札に戻せる」は任意なので持ち主に確認する（2026-10-11 ユーザー確認）。ほかの誘発の選択待ちより後に聞く
 function returnTrashOnOwnSpiritDestroyed(state: GameState, pid: PlayerId, families: string[]): void {
     const player = state.players[pid]
@@ -420,11 +394,8 @@ function returnTrashOnOwnSpiritDestroyed(state: GameState, pid: PlayerId, famili
     }
 }
 
-// フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火
-// （侵食されゆく銀世界Lv2）。破壊されたスピリットの色（colorFilter判定用。祝福されし大聖堂）と、
-// バニラ判定・バトル破壊判定（vanillaOnly／byBattleOnly。運命分かつ岐路）を渡す。
-// selfOverrideに破壊されたスピリット自身を渡す（BS05永久氷殿：maxBpFromSelfで
-// 「破壊されたスピリットのBP以下」を参照できるようにする）
+// フィールドイベント誘発「自分のスピリットが破壊されたとき」：cause問わず（消滅も含む）持ち主側で発火。
+// 色・バニラ・バトル破壊の判定材料を渡し、selfOverride に破壊された個体自身を渡す（maxBpFromSelf が「破壊されたスピリットのBP以下」を参照するため）
 function fireOwnSpiritDestroyed(
     state: GameState,
     ownerPid: PlayerId,
@@ -442,11 +413,9 @@ function fireOwnSpiritDestroyed(
         vanishedByOpponent: inst.pendingVanishByOpponent === true,
         byBattle,
         wasAttacker,
-        // kind:"burst".destroyedMinBp用（BS15-034）：破壊直前の実効BPの近似値。既にフィールドから
-        // 離れている場合があるためeffectiveBpはオーラ等を欠くことがあるが、破壊直前の状態を極力保つ
+        // 破壊直前の実効BPの近似値（既にフィールドを離れていると effectiveBp がオーラ等を欠くことがある）
         destroyedBp: effectiveBp(state, ownerPid, inst),
         bySpiritEffect,
-        // 「自分のスピリットが相手によって破壊されたとき」（byOpponentEffectOnly。BS12-005星角獣ユニゴーント）
         byOpponentEffect,
         ...(inst.pendingDestroyBurstInfo?.sourceType !== undefined ? { destroySourceType: inst.pendingDestroyBurstInfo.sourceType } : {}),
         ...(sourceInstanceId !== undefined ? { sourceInstanceId } : {}),
@@ -455,10 +424,9 @@ function fireOwnSpiritDestroyed(
         costs: instAllCosts(inst),
         // extraSources に破壊された個体自身を渡す。effectSources はもう場にいないものを返さないため、
         // これが無いと fieldEvent の selfOnly（「このスピリットが破壊されたとき」）が無言で発火しない
-    }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestructionが積み、fireQueuedDestroyBurstsがトラッシュ行き確定後に発火させる。BS16バッチ0）
-    // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た**相手**の
-    // フィールドで発火する（anyNexusDestroyed が両陣営を順に焚くのと同じ形）。手段は問わない
-    // sameFamilyAsDestroyed（BS16-027）が読む橋渡し。同時破壊なら破壊待機の全員の系統
+    }, [inst], extraItems, undefined, true) // skipBurst：破壊後バーストはここでは判定しない（commitPendingDestruction が積み、fireQueuedDestroyBursts がトラッシュ行き確定後に発火させる）
+    // フィールドイベント誘発「相手のスピリットが破壊されたとき」：破壊された側から見た相手のフィールドで発火する。手段は問わない
+    // sameFamilyAsDestroyed が読む橋渡し。同時破壊なら破壊待機の全員の系統
     state.lastOpponentSpiritDestroyedFamilies = state.destroyGroup?.familiesByPid[ownerPid] ?? master.family
     // 破壊した側（発火する側）の効果による破壊なら、その発生源の種別とカード（「自分のスピリット/マジックの効果で」）。バトルは含まない
     const dctx = inst.pendingDestroyContext
@@ -476,13 +444,11 @@ function fireOwnSpiritDestroyed(
     if (inst.pendingVanish !== true) returnTrashOnOwnSpiritDestroyed(state, ownerPid, master.family)
 }
 
-// 中断していた破壊処理の続き（drainResumeStack から呼ぶ）
 export function resumeDestroyCommit(
     state: GameState,
     frame: Extract<ResumeFrame, { kind: "destroyCommit" }>,
 ): void {
     const inst = state.players[frame.pid].field.spirits.find((s) => s.instanceId === frame.instanceId)
-    // 誘発の解決中に復活した／場から居なくなったなら、破壊は成立しない
     if (!inst || !inst.pendingDestruction) return
     if (frame.step <= 1) {
         fireOwnSpiritDestroyed(state, frame.pid, inst, frame.byBattle, frame.wasAttacker, frame.bySpiritEffect, frame.byOpponentEffect, frame.sourceInstanceId)
@@ -492,16 +458,14 @@ export function resumeDestroyCommit(
         }
     }
     commitPendingDestruction(state, frame.pid, inst)
-    // グループ外の単体破壊の再開ならここで発火（destroySpirit本体と同じ規則。BS16バッチ0）
+    // グループ外の単体破壊の再開ならここで発火（destroySpirit 本体と同じ規則）
     if (!state.destroyGroup) fireQueuedDestroyBursts(state)
 }
 
-// この個体が『このスピリットの破壊時』エントリを1つでも持つか（列に並べるかの判定）
 function hasOwnDestroyTrigger(inst: CardInstance): boolean {
     return getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")
 }
 
-// 破壊待機状態のカードを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）。
 // **順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
 // 誘発の解決中に復活した／場から居なくなった場合は何もしない
 export function commitPendingDestruction(
@@ -523,12 +487,9 @@ export function commitPendingDestruction(
         delete inst.pendingDestroyBurstInfo
         return
     }
-    // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）用の材料を、トラッシュ行きが確定した
-    // このタイミングで控える。**まだ合体中のここで**捕える（instColors／instAllCostsはbraveComposite経由で
-    // 合体中のブレイヴの色・コストを含むため。detachBravesOnLeaveの後では読めなくなる）。
-    // hostCostはブレイヴぶんを差し引いた「ホスト自身のコスト」（braves側で改めて足す。TIMING_CHART.md ＞６）。
-    // 発火自体はここではしない（ブレイヴを残す/残さない確認が残っていることがあるため、
-    // handleAction末尾のfireQueuedDestroyBurstsへ委ねる。BS16バッチ0）
+    // 破壊後バースト用の材料を、トラッシュ行きが確定したこのタイミングで控える。まだ合体中のここで捕える
+    // （instColors／instAllCosts が合体中のブレイヴの色・コストを含むため。detachBravesOnLeave の後では読めない）。hostCost はブレイヴぶんを除いたホスト自身のコスト。
+    // 発火はここではせず handleAction 末尾の fireQueuedDestroyBursts に委ねる（ブレイヴを残す/残さない確認が残っていることがあるため）
     const burstInfo = inst.pendingDestroyBurstInfo
     delete inst.pendingDestroyBurstInfo
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
@@ -549,12 +510,10 @@ export function commitPendingDestruction(
         if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
         else player.trashCards.push(inst.cardId)
     }
-    // 破壊されたスピリット上のコアは通常リザーブへ戻るが、
-    // destroyedCoresToTrash（古龍の縄張りLv1）が有効な間、または現在のバトルで
+    // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）
     const redirectEntry = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")
-    // soleOnly（BS18-X02「相手のスピリットだけを破壊したとき」）：効果の持ち主側のバトル中のスピリットが
-    // 同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
+    // soleOnly：効果の持ち主側のバトル中のスピリットが同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
     const winnerSurvives = (): boolean => {
         const b = state.battle
         if (!b) return false
@@ -568,7 +527,6 @@ export function commitPendingDestruction(
         moveSoulCore(player, redirect === "trash" || destroyedCoresGoToTrash(state) ? { zone: "trash" } : { zone: "reserve" })
     }
     if (redirect === "void") {
-        // ボイドへ：ゲームから取り除く
     } else if (redirect === "trash" || destroyedCoresGoToTrash(state)) {
         player.trashCores += inst.cores
     } else {
@@ -580,7 +538,7 @@ export function commitPendingDestruction(
     detachBravesOnLeave(state, ownerPid, inst)
 }
 
-// globalConstraint "bp0DestroyedToDeckBottom"（26RBS02-083）。発生源は破壊された側から見た相手のフィールドにある
+// globalConstraint "bp0DestroyedToDeckBottom"。発生源は破壊された側から見た相手のフィールドにある
 function bp0DestroyedGoesToDeckBottom(state: GameState, ownerPid: PlayerId, inst: CardInstance): boolean {
     const pid = opponentOf(ownerPid)
     for (const source of effectSources(state, pid)) {
@@ -597,10 +555,8 @@ function bp0DestroyedGoesToDeckBottom(state: GameState, ownerPid: PlayerId, inst
     return false
 }
 
-// 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）を、pendingBurstDestroyQueueにたまった分だけ
-// まとめて発火する。handleAction の末尾（ブレイヴの「残す/残さない」確認まで含め、すべて決着した安全な地点）
-// から呼ぶ。groupKey＋持ち主単位でまとめ、同時破壊グループは1回にする（TIMING_CHART.md ＞６：
-// 破壊時効果・破壊されたとき効果 → 破壊後バースト。BS16バッチ0）
+// 破壊後バーストを、pendingBurstDestroyQueue にたまった分だけまとめて発火する。handleAction の末尾
+// （ブレイヴの「残す/残さない」確認まで決着した安全な地点）から呼ぶ。groupKey＋持ち主単位でまとめ、同時破壊グループは1回にする（TIMING_CHART.md ＞６）
 export function fireQueuedDestroyBursts(state: GameState): void {
     if (state.pendingChoice || state.winner) return
     // ブレイヴの「残す/残さない」がまだ決着していない間は、コストが確定しないので待つ
@@ -626,7 +582,6 @@ export function fireQueuedDestroyBursts(state: GameState): void {
         let byOpponentEffect = false
         for (const m of members) {
             for (const c of m.colors) colors.add(c)
-            // 一緒にトラッシュへ行ったブレイヴぶんのコストだけ足す（残したブレイヴは今フィールドにいる）
             const braveCost = m.braves
                 .filter((b) => !player.field.spirits.some((s) => s.instanceId === b.instanceId))
                 .reduce((sum, b) => sum + b.cost, 0)
@@ -635,7 +590,7 @@ export function fireQueuedDestroyBursts(state: GameState): void {
             destroyedBp = Math.max(destroyedBp, m.destroyedBp)
             byOpponentEffect ||= m.byOpponentEffect
         }
-        // destroyedAsTarget：グループが1体だけのときのみcardIdを渡す（複数体では1枚に決まらないため対象外。BS16バッチ0の簡略化）
+        // destroyedAsTarget：グループが1体だけのときのみ cardId を渡す（複数体では1枚に決まらないため対象外。簡略化）
         const selfOverride = { pid, ...(members.length === 1 ? { cardId: members[0]!.cardId } : {}) }
         fireBurstOnEvent(state, pid, "ownSpiritDestroyed", selfOverride, [...colors], undefined, {
             byOpponentEffect,
@@ -646,9 +601,8 @@ export function fireQueuedDestroyBursts(state: GameState): void {
     }
 }
 
-// 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに
-// 召喚できる」（BS09-025忍者サルトベ）。**破棄されてトラッシュに置かれた直後**に呼ぶ。
-// 召喚できたら true を返し、呼び出し側はトラッシュからそのカードを取り除いてある前提で進む
+// 手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。
+// 破棄されてトラッシュに置かれた直後に呼ぶ。true なら、呼び出し側はトラッシュからそのカードを取り除いてある前提で進む
 export function tryFreeSummonOnHandDiscard(
     state: GameState,
     targetPid: PlayerId,
@@ -656,14 +610,12 @@ export function tryFreeSummonOnHandDiscard(
     sourceType: CardType | undefined,
     sourcePid: PlayerId,
 ): boolean {
-    // 「相手の**スピリット**の効果で」＝発生源がスピリットで、かつ破棄された側とは別のプレイヤー
     if (sourceType !== "spirit" || sourcePid === targetPid) return false
     if (state.pendingChoice || state.winner) return false
     if (zoneSpiritEffectsDisabled(state, cardId)) return false
     const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnDiscardedByOpponent")
     if (!effect) return false
     const player = state.players[targetPid]
-    // 維持コアを置けないなら召喚できない
     if (!canPayFreeSummonSurcharge(state, targetPid, getCard(cardId), minLevelCores(getCard(cardId)))) return false
     const index = player.trashCards.lastIndexOf(cardId)
     if (index === -1) return false
@@ -687,7 +639,6 @@ export function tryFreeSummonOnHandDiscard(
     return true
 }
 
-// 手札のカード自身が持つ「ライフが減ったとき、コストを支払わずに召喚できる」（BS08猫娘アニー）。
 // ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
 export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId): void {
     if (state.pendingChoice || state.winner) return
@@ -704,8 +655,7 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
             if (effect.phaseTurn.turn === "own" && pid !== state.turnPlayer) continue
             if (effect.phaseTurn.turn === "opponent" && pid === state.turnPlayer) continue
         }
-        // condition（BS09-035巨獣皇スミドロード＝自分のライフが3以下なら）。
-        // この関数はライフが減った**後**に呼ばれるので、減った後のライフで判定される
+        // condition：この関数はライフが減った後に呼ばれるので、減った後のライフで判定される
         if (effect.condition && player.life > effect.condition.ownLifeAtMost) continue
         // 維持コアを置けないなら召喚できないので、確認自体を出さない
         if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
@@ -730,7 +680,6 @@ export function tryHandFreeSummonOnLifeDamaged(state: GameState, pid: PlayerId):
     }
 }
 
-// pendingChoice（手札からの無償召喚の確認）で「召喚する」が選ばれたときの後処理。
 // 確認を出したあとに手札から失われていた場合は何もしない
 export function applyHandFreeSummon(
     state: GameState,
@@ -741,7 +690,6 @@ export function applyHandFreeSummon(
     summonFreeFromHandIndex(state, info.pid, getCard(info.cardId).name, index)
 }
 
-// 直前の「どの体から破壊処理をするか」で指名された個体を、残りの先頭（index）へ入れ替える。
 // 指名が無ければ false（＝これから聞く必要があるかもしれない）
 function applyDestroyOrderPick(
     state: GameState,
@@ -796,7 +744,6 @@ function askDestroyOrder(
     return true
 }
 
-// 複数体をまとめて破壊する（1体ごとに「破壊される代わりに復活できる」の確認で中断しうる）。
 // 戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
 // 呼び出し元は destroyBatch フレームを積んで return する（GameEngine の drainResumeStack が続きを回す）
 export function destroySpiritsFrom(
@@ -810,16 +757,13 @@ export function destroySpiritsFrom(
     for (let i = startIndex; i < targets.length; i++) {
         // 同時破壊で「フィールドに残る」の確認が2体以上に出るなら、
         // どの体から破壊処理をするかをターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3）。
-        // 直前の選択で指名された個体があればそれを先頭へ入れ替え、無ければ必要に応じて聞く
         if (!applyDestroyOrderPick(state, targets, i) && askDestroyOrder(state, targets, i, context)) {
             return { destroyed, stoppedAt: i }
         }
         const t = targets[i]
         if (!t) continue
         const ctx = t.context ?? context
-        // 【不死】（BS09）も「フィールドに残る」も、いまは destroySpirit の中で
-        // **破壊で誘発した効果の1つの列**として解決される（docs/design/TIMING_CHART.md）。
-        // かつてここにあった「破壊 or 不死」の2択は、その列に統合したので消した（2026-09-08）
+        // 【不死】も「フィールドに残る」も、destroySpirit の中で破壊で誘発した効果の列の1項目として解決される（TIMING_CHART.md）
         if (destroySpirit(state, t.pid, t.instanceId, "destroy", ctx, { allowSuspend: true, includeFushi: true })) {
             destroyed++
         }
@@ -831,7 +775,6 @@ export function destroySpiritsFrom(
     return { destroyed, stoppedAt: targets.length }
 }
 
-// 事前に確定した対象リストをまとめて破壊する（呼び出し元の定型）。
 // 復活の確認で中断したら destroyBatch フレームを積んで止まるので、
 // **呼び出し元は「戻ってきたら state.pendingChoice を見て return する」だけでよい**。
 // 戻り値は（中断していなければ）実際に破壊できた数
@@ -845,7 +788,7 @@ export function destroyTargetsBatch(
     // 同時破壊グループ（他カードの「破壊されたとき」を1回にする単位）。入れ子の破壊に備え、
     // このバッチが始まる前の値を退避して完了時に戻す（docs/design/TIMING_CHART.md）
     const prevGroup = state.destroyGroup
-    // 破壊待機のスピリットすべての系統を持ち主ごとに控える（BS16-027 は1回の誘発で全員を参照する。2026-09-22 ユーザー確認）
+    // 破壊待機のスピリットすべての系統を持ち主ごとに控える（1回の誘発で全員を参照するため。2026-09-22 ユーザー確認）
     const familiesByPid: Partial<Record<PlayerId, string[]>> = {}
     for (const t of targets) {
         const inst = state.players[t.pid].field.spirits.find((s) => s.instanceId === t.instanceId)
@@ -868,7 +811,7 @@ export function destroyTargetsBatch(
         return destroyed
     }
     restoreDestroyGroup(state, prevGroup)
-    // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する（BS16バッチ0）
+    // グループの外（入れ子の破壊でなければ）に戻ったところで、破壊後バーストをまとめて発火する
     if (!state.destroyGroup) fireQueuedDestroyBursts(state)
     if (state.winner) return destroyed
     if (after) applyDestroyBatchAfter(state, ownerPid, destroyed, after)
@@ -877,7 +820,6 @@ export function destroyTargetsBatch(
 
 // 破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
 // 途中で止まったらフレームを積み直して抜ける（destroyed は中断をまたいで持ち回る）。
-// 全部終わったら after（破壊できた数を使う処理）を適用する
 export function resumeDestroyBatch(
     state: GameState,
     frame: Extract<ResumeFrame, { kind: "destroyBatch" }>,
@@ -919,7 +861,7 @@ export function applyDestroyBatchAfter(
     after: Extract<ResumeFrame, { kind: "destroyBatch" }>["after"],
 ): void {
     if (!after) return
-    // thenDrawFixed（BS14-010）：破壊できた数によらず固定枚数ドロー（「その後」）。0体破壊でも発火する
+    // thenDrawFixed：破壊できた数によらず固定枚数ドロー（「その後」）。0体破壊でも発火する
     if (after.thenDrawFixed) draw(state, ownerPid, after.thenDrawFixed)
     if (destroyed <= 0) return
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed * after.drawPerDestroyed)
@@ -942,8 +884,7 @@ export function applyDestroyBatchAfter(
     }
 }
 
-// ネクサスを破壊する。破壊できたら true、破壊耐性（nexusIndestructible）で不発だった場合は false を返す
-// （呼び出し側は戻り値でカウント・ドロー処理の可否を判定する。バスタースピア等）。
+// ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）
 export function destroyNexus(
     state: GameState,
     ownerPid: PlayerId,
@@ -971,18 +912,16 @@ export function destroyNexus(
     }
     // 破壊待機状態のネクサスは、そこからさらに破壊されない（TIMING_CHART.md §1.5）
     if (inst.pendingDestruction) return false
-    // ＞６：まず**破壊待機状態**にする。カードはフィールドに残り、コアも乗ったまま。
     // この間もネクサスの効果（誘発・継続効果）は普通に働く（2026-08-14 ユーザー確認）
     inst.pendingDestruction = true
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
-    // 直近に破壊されたネクサスを記録する（戦闘獣ジャッカーが「その破壊されたネクサス」を参照するため）
+    // 直近に破壊されたネクサスを記録する（「その破壊されたネクサス」を参照する効果用）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
     driveNexusDestruction(state, ownerPid, inst, 1, byOpponentEffectOf(context, ownerPid))
     return true
 }
 
-// 「相手の効果で破壊されたとき」限定のエントリ（BS07の各色ネクサス6枚）の判定材料。
-// 効果による破壊か（sourceType あり）＋発生源が持ち主自身でないか
+// 「相手の効果で破壊されたとき」限定のエントリの判定材料。効果による破壊か（sourceType あり）＋発生源が持ち主自身でないか
 function byOpponentEffectOf(context: DestroyContext | undefined, ownerPid: PlayerId): boolean {
     return (
         context?.sourceType !== undefined &&
@@ -1003,28 +942,21 @@ function driveNexusDestruction(
 ): void {
     for (let step = startStep; step <= 4; step++) {
         switch (step) {
-            // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず
-            // 両陣営のフィールドから発火（竜狩りのアーケオルニ）。
-            // バウンスはここを通らないため対象外
+            // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず両陣営のフィールドから発火。バウンスはここを通らないため対象外
             case 1:
                 fireFieldEventTriggers(state, ownerPid, "anyNexusDestroyed")
                 break
             case 2:
                 fireFieldEventTriggers(state, opponentOf(ownerPid), "anyNexusDestroyed")
                 break
-            // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ
-            // 発火（シャークハンマー）。破壊されたネクサス自身は**破壊待機状態でまだ場にいる**ので、
-            // 「自分のネクサスが破壊されたとき」をそのネクサス自身が持つ形（BS07の各色ネクサス6枚）も
-            // 走査にそのまま含まれる（以前は場から外していたため extraSources で補っていた）
+            // フィールドイベント誘発「自分のネクサスが破壊されたとき」：持ち主側のフィールドからのみ発火。
+            // 破壊されたネクサス自身は破壊待機状態でまだ場にいるので、そのネクサス自身が持つ形も走査に含まれる
             case 3:
-                // eventColors には**破壊されたネクサスの色**を渡す。
-                // 渡さないと fieldEvent.colorFilter が常に外れる（「自分の緑のネクサスが破壊されたとき」＝
-                // BS11-066 発見されし世界樹。2026-09-02 まで配線されておらず、条件付きの誘発は常に不発だった）
+                // eventColors には破壊されたネクサスの色を渡す。渡さないと fieldEvent.colorFilter が常に外れ、条件付きの誘発が不発になる
                 fireFieldEventTriggers(state, ownerPid, "ownNexusDestroyed", undefined, instColors(inst), undefined, undefined, {
                     byOpponentEffect,
                 })
                 break
-            // ＞６-3/4：破壊待機状態を解いて、カードをトラッシュへ・コアをリザーブへ
             default:
                 commitPendingNexusDestruction(state, ownerPid, inst)
                 return
@@ -1048,7 +980,6 @@ function driveNexusDestruction(
     }
 }
 
-// 中断していたネクサスの破壊処理の続き（drainResumeStack から呼ぶ）
 export function resumeDestroyNexusCommit(
     state: GameState,
     frame: Extract<ResumeFrame, { kind: "destroyNexusCommit" }>,
@@ -1058,7 +989,6 @@ export function resumeDestroyNexusCommit(
     driveNexusDestruction(state, frame.pid, inst, frame.step, frame.byOpponentEffect)
 }
 
-// 破壊待機状態のネクサスを実際にトラッシュへ置き、乗っていたコアをリザーブへ移す（＞６の3と4）
 export function commitPendingNexusDestruction(
     state: GameState,
     ownerPid: PlayerId,
@@ -1079,8 +1009,7 @@ export function commitPendingNexusDestruction(
     delete inst.pendingDestruction
 }
 
-// ネクサスを持ち主の手札へ戻す（バウンス）：コアはリザーブへ、カードは手札へ。
-// 破壊ではないため destroyNexus とは別処理（ネクサスに onDestroy はまだないが将来のため命名を揃える）。
+// ネクサスを持ち主の手札へ戻す（バウンス）。破壊ではないため destroyNexus とは別処理
 export function returnNexusToHand(
     state: GameState,
     ownerPid: PlayerId,
@@ -1103,10 +1032,7 @@ export function returnNexusToHand(
     notifyHandGained(state, ownerPid, 1)
 }
 
-// ネクサスを持ち主のデッキの下（末尾）へ戻す：コアはリザーブへ、カードはデッキの下へ。
-// returnNexusToHand のデッキ下版。代替召喚コストの支払い（BS10-058水星神龍メルクリウス・サーペント：
-// 青のネクサス1つをデッキの下に戻すことで、コストを支払わずに召喚できる）に使う。
-// 破壊ではないため onDestroy は誘発しない
+// ネクサスを持ち主のデッキの下（末尾）へ戻す。代替召喚コストの支払い（デッキの下へ戻すことでコスト不要で召喚）に使う。破壊ではないため onDestroy は誘発しない
 export function returnNexusToDeckBottom(
     state: GameState,
     ownerPid: PlayerId,
@@ -1127,9 +1053,7 @@ export function returnNexusToDeckBottom(
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの下に戻った。`)
 }
 
-// ネクサスを持ち主のデッキの上へ戻す：returnNexusToDeckBottomのデッキ上版（unshift）。
-// コアはリザーブへ、カードはデッキの一番上へ。破壊ではないため onDestroy は誘発しない
-// （BS13-055重装合体シールド・ドラゴンMk-II：「相手のネクサス1つをデッキの上に戻す」）
+// ネクサスを持ち主のデッキの上へ戻す（returnNexusToDeckBottom のデッキ上版）。破壊ではないため onDestroy は誘発しない
 export function returnNexusToDeckTop(
     state: GameState,
     ownerPid: PlayerId,
@@ -1150,7 +1074,6 @@ export function returnNexusToDeckTop(
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）はデッキの上に戻った。`)
 }
 
-// スピリットを持ち主の手札へ戻す（バウンス）。
 // **その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
 // 実際の移動と「手札に戻ったとき」の誘発は、バウンス効果の解決が終わってから
 // flushBounces がまとめて行う。破壊ではないため onDestroy は誘発しない。
@@ -1172,7 +1095,7 @@ export function returnSpiritToHand(
 // そうすると「全部戻ってから、まとめて『戻ったとき』が誘発する」というルールどおりになる
 // （1体ずつ戻すと、1体目の誘発が2体目以降の対象を変えてしまう）。
 // 1体だけ戻す場合は returnSpiritToHand 等がその場で flush するので結果は変わらない
-// 器AO：いま解決中の効果の持ち主に「手札に戻る先をデッキの上へ」が張られているか
+// いま解決中の効果の持ち主に「手札に戻る先をデッキの上へ」が張られているか
 // （GameState.currentEffectSource が効果の持ち主を指す。効果の解決中でなければ常に false）
 function bouncesToDeckTop(state: GameState): boolean {
     const pid = state.currentEffectSource?.pid
@@ -1195,10 +1118,8 @@ export function markBounce(
         log(state, `${getCard(inst.cardId).name}は手札に戻らなかった（${denied}）。`)
         return false
     }
-    // 器AO：いま解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは
-    // 持ち主のデッキの上に戻る」を張っていれば、手札への戻しをデッキの上へ振り替える
-    // （BS13-079ヴァニシングデイ）。**手札への戻しはすべてここを通る**ので、
-    // 「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
+    // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
+    // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
@@ -1209,15 +1130,12 @@ export function markBounce(
 // **待機中だけの一時情報**としてここに置く（flushBounces が使い終わったら消す）
 const bounceSourceNames = new Map<string, string>()
 
-// バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。
-// **バウンス効果の解決が終わった時点で呼ぶ**。
+// バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。バウンス効果の解決が終わった時点で呼ぶ。
 //
 // 移動を先に全部済ませてから誘発するのが要点（Wiki：待機中の「戻るとき」効果は割り込まない）。
 // 1体戻すごとに誘発していると、その誘発が2体目以降の対象を変えてしまう
-// （例：紅玉の火山弾＝地竜が手札に戻ったとき相手1体を破壊、とまとめ戻しの組み合わせ）
 //
-// order（instanceId の列）を渡すと**その順に移す**。「好きな順番でデッキの下に戻す」
-// （BS06颶風高原Lv2）のように、プレイヤーが決めた順番がデッキの並びに出る効果で使う。
+// order（instanceId の列）を渡すと**その順に移す**。プレイヤーが決めた順番がデッキの並びに出る効果（好きな順番でデッキの下に戻す）で使う。
 // 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
     const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[] = []
@@ -1258,7 +1176,6 @@ export function flushBounces(state: GameState, order?: string[]): void {
                 log(state, `${prefix}${player.name}はスピリットをバーストとしてセットした。`)
             } else {
                 const top = pb.to === "deckTop"
-                // トークンはデッキに入らずトークン置き場へ戻る
                 if (!isTokenCard(inst.cardId)) {
                     if (top) player.deck.unshift(inst.cardId)
                     else player.deck.push(inst.cardId)
@@ -1293,12 +1210,11 @@ export function fireBounceTriggers(
     for (let i = from; i < moved.length; i++) {
         const m = moved[i]!
         if (state.winner) return
-        // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」（BS01リターンドロー）。
+        // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」。
         // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
         if (m.to === "hand") {
             fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
-            // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る
-            // （subjectSide で主体の陣営を絞る。anySpiritAttacked と同じ形。BS12-040 天王神龍スレイ・カエルス）
+            // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る（subjectSide で主体の陣営を絞る。anySpiritAttacked と同じ形）
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
             }
@@ -1316,8 +1232,7 @@ export function fireBounceTriggers(
     }
 }
 
-// スピリットを持ち主のデッキの一番上へ戻す：コアはリザーブへ、カードはデッキトップへ。
-// 破壊ではないため onDestroy は誘発しない。
+// スピリットを持ち主のデッキの一番上へ戻す。破壊ではないため onDestroy は誘発しない。
 export function returnSpiritToDeckTop(
     state: GameState,
     ownerPid: PlayerId,
@@ -1329,13 +1244,13 @@ export function returnSpiritToDeckTop(
     flushBounces(state)
 }
 
-// スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版。BS04グラシアルブレス）。
+// スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版）。
 // 上に置くか下に置くかだけの違いなので、コアの戻し先など他の扱いは揃えてある
 export function returnSpiritToDeckBottom(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-    // 効果の発生源カード名。渡すとログの先頭に出す（颶風高原Lv2 で「何によって戻ったか」が分かるように）
+    // 効果の発生源カード名。渡すとログの先頭に出す（何によって戻ったかが分かるように）
     sourceName?: string,
 ): void {
     markBounce(state, ownerPid, inst, "deckBottom", sourceName)
@@ -1343,13 +1258,8 @@ export function returnSpiritToDeckBottom(
 }
 
 // 相手のスピリットからコアを奪う効果が、そのスピリットに届くか（＝耐性で弾かれないか）。
-//
-// **なぜ必要か**: コアを1体ずつ選んで取る効果（coreRemove 等）は、対象選びの中で
-// pickEnemyByBp / pickEnemyCandidates が装甲・免疫を弾いてくれる。しかし「範囲でまとめて奪う」
-// 効果（幻龍シェイロン・氷の女神フリッグ等）は候補を自前で走査するため、その経路を通らず
-// **【装甲】を素通りしていた**（2026-08-10 修正）。
-// 現在は耐性の唯一の入口（resistanceAgainst）へ委譲している。この関数はコア除去用の別名にすぎず、
-// **新しく書くハンドラは resistanceAgainst を直接呼んでよい**
+// 範囲でまとめて奪う効果は候補を自前で走査するため pickEnemyByBp 等の経路を通らず、【装甲】を素通りしていた（2026-08-10 修正）。
+// 現在は耐性の唯一の入口（resistanceAgainst）へ委譲している。新しく書くハンドラは resistanceAgainst を直接呼んでよい
 export function canTakeCoresFrom(
     state: GameState,
     ownerPid: PlayerId,
@@ -1372,32 +1282,27 @@ function effectCoreCap(state: GameState, ownerPid: PlayerId, inst: CardInstance,
     return coreRemovalAllowed(state, { ownerPid, target: inst, amount: inst.cores, cause: "effect", actorPid: actorPid ?? ownerPid, sourceType: srcType })
 }
 
-// コアを取り除き、維持コア（Lv1）を下回ったら消滅させる
-// actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。
-// actorPid !== ownerPid（自分以外の効果でコアが取り除かれた）のとき、
-// フィールドイベント「ownSpiritCoresRemovedByOpponent」を発火する（極光の大地）
+// コアを取り除き、維持コア（Lv1）を下回ったら消滅させる。
+// actorPid: このコア除去を引き起こした実行者（省略時は通知なし）。actorPid !== ownerPid のときフィールドイベント「ownSpiritCoresRemovedByOpponent」を発火する
 export function removeCores(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
     count: number,
     actorPid?: PlayerId,
-    // このコア除去を引き起こした効果の種別（BS12-X02魔羯邪神シュタイン・ボルグ：
-    // coresToOpponentReserveGoToTrash の判定に使う。省略時＝ネクサス扱いと同じ「対象外」に倒す）
+    // このコア除去を引き起こした効果の種別（coresToOpponentReserveGoToTrash の判定に使う。省略時＝ネクサス扱いと同じ「対象外」に倒す）
     srcType?: CardType,
     // §1.3の持ち主選択で[ソウルコア]を含める答えが戻ってきたとき（ソウルコア1個ぶんも移す。案A-outsideのため数値には含めない）
     includeSoul?: boolean,
 ): number {
-    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
-    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
+    // 戻り値＝**実際に取り除けた数**。バトル中の保護やコア下限で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     const player = state.players[ownerPid]
-    // coreReturnBonus（BS02チャウーLv2）：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。
-    // 元のコア数を超えては取れないので、加算してから inst.cores で頭打ちにする
+    // coreReturnBonus：効果でリザーブへ置かれるコアの数を+する（両陣営の発生源が効く）。元のコア数を超えては取れないので inst.cores で頭打ちにする
     const bonus = coreReturnBonusFor(state, ownerPid)
     if (bonus > 0 && inst.cores > count) {
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
-    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
+    // coreFloorByCost：有効なら、このカードのコストを下回るまでは取り除けない
     const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType)
     // [ソウルコア]を含める指定: ソウルコア1個ぶんも移す個数に数える（案B-inside: coresには元から含まれる）。
     // 含めない指定なら、取り除き上限は[ソウルコア]を差し引いた通常コア数
@@ -1407,8 +1312,7 @@ export function removeCores(
     const capacity = allowed - (soulHere && !includeSoulUnit ? 1 : 0)
     const removed = Math.min(count + bonus, capacity)
     inst.cores -= Math.max(0, removed - soulUnits)
-    // coresToOpponentReserveGoToTrash（BS12-X02）：本来リザーブへ置かれるはずのコアを、
-    // 発生源の持ち主から見た相手（＝ownerPid）のトラッシュへ振り替える
+    // coresToOpponentReserveGoToTrash：本来リザーブへ置かれるはずのコアを、発生源の持ち主から見た相手（＝ownerPid）のトラッシュへ振り替える
     const redirectToTrash = removed > 0 && coresToOpponentReserveGoToTrash(state, ownerPid, srcType)
     if (includeSoulUnit) moveSoulCore(player, { zone: redirectToTrash ? "trash" : "reserve" })
     if (redirectToTrash) {
@@ -1434,9 +1338,7 @@ export function removeCores(
     return removed
 }
 
-// コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる
-// （魔帝の墓標Lv2「そのスピリット上のコア1個をトラッシュに置かなければならない」）
-// actorPidの扱いはremoveCoresと同じ
+// コアを取り除いて持ち主のトラッシュへ置き、維持コア（Lv1）を下回ったら消滅させる。actorPid の扱いは removeCores と同じ
 export function removeCoresToTrash(
     state: GameState,
     ownerPid: PlayerId,
@@ -1447,15 +1349,13 @@ export function removeCoresToTrash(
     includeSoul?: boolean,
     srcType?: CardType,
 ): number {
-    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
-    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
+    // 戻り値＝**実際に取り除けた数**。バトル中の保護やコア下限で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     const player = state.players[ownerPid]
-    // coreReturnBonus の includeTrash 版（BS14-019シュテン・ドーガ）：トラッシュ行きにも加算する
+    // coreReturnBonus の includeTrash 版：トラッシュ行きにも加算する
     const bonus = coreReturnBonusFor(state, ownerPid, true)
     if (bonus > 0 && inst.cores > count) {
         log(state, `トラッシュに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
-    // coreFloorByCost（BS08聖なる柱状彫刻）：有効なら、このカードのコストを下回るまでは取り除けない
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
     const includeSoulUnit = includeSoul === true && soulHere
     const soulUnits = includeSoulUnit ? 1 : 0
@@ -1478,8 +1378,6 @@ export function removeCoresToTrash(
     return removed
 }
 
-// コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
-// 維持コア（Lv1）を下回ったら消滅させる（BS04ヴェノムショット）。actorPidの扱いはremoveCoresと同じ
 // スピリットからコアを取る共通部分（行き先への加算とログは呼び出し側）。自分の効果で動かすときも保護・下限を見る
 // （2026-09-26 ユーザー確認）。removeCoresToVoid も同じ中身だがログの順が違うので、取り除く系の器を作るときにまとめる
 export function takeCoresFromSpirit(
@@ -1502,6 +1400,8 @@ export function takeCoresFromSpirit(
     return removed
 }
 
+// コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
+// 維持コア（Lv1）を下回ったら消滅させる。actorPid の扱いは removeCores と同じ
 export function removeCoresToVoid(
     state: GameState,
     ownerPid: PlayerId,
@@ -1510,8 +1410,7 @@ export function removeCoresToVoid(
     actorPid?: PlayerId,
     srcType?: CardType,
 ): number {
-    // 戻り値＝**実際に取り除けた数**。バトル中の保護（BS05茨の決戦地Lv1）やコア下限
-    // （BS08聖なる柱状彫刻）で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
+    // 戻り値＝**実際に取り除けた数**。バトル中の保護やコア下限で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     const player = state.players[ownerPid]
     const removed = Math.min(count, effectCoreCap(state, ownerPid, inst, actorPid, srcType))
     inst.cores -= removed
@@ -1529,9 +1428,8 @@ export function removeCoresToVoid(
     return removed
 }
 
-// globalConstraint "coreFloorByCost"（BS08聖なる柱状彫刻）：有効な発生源があれば、スピリット上のコアは
-// そのカードのコスト（Lv1コスト）を下回るまで取り除けない。ネクサスは対象外（カードに「コスト」はあるが
-// 効果文は「スピリットすべて」なのでtype==="spirit"のみに適用）。
+// globalConstraint "coreFloorByCost"：有効な発生源があれば、スピリット上のコアはそのカードのコスト（Lv1コスト）を下回るまで取り除けない。
+// ネクサスは対象外（効果文は「スピリットすべて」なので type==="spirit" のみに適用）。
 // **コアの動かし方を問わず効く**（2026-08-24 ユーザー確認）。「少なくならない」は結果の状態を縛る
 // 書き方なので、取り除く効果だけでなく**移動・入れ替え**でも下回れない。
 // 取り除く系は removeCores/removeCoresToTrash/removeCoresToVoid が、
@@ -1580,8 +1478,7 @@ function coreFloorBlockingKeywordFor(state: GameState, inst: CardInstance): numb
 }
 
 function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
-    // ownOnly（BS09-059翡翠の社Lv2）は発生源の持ち主のスピリットだけを守るので、
-    // 「どちらの発生源から来た制約か」を見る必要がある
+    // ownOnly は発生源の持ち主のスピリットだけを守るので、どちらの発生源から来た制約かを見る必要がある
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
         for (const source of sources) {
@@ -1594,12 +1491,11 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                 if (effect.constraint.ownOnly && (ownerPid === undefined || ownerPid !== pid)) continue
-                // byOpponentOnly（BS16-039）：減らす側がactorPidで、pid（守る側）と同じなら自分自身の減少なので床を張らない
+                // byOpponentOnly：減らす側が actorPid で、pid（守る側）と同じなら自分自身の減少なので床を張らない
                 if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
-                // colorFilter（BS12-065大樹茂る天守閣：「自分の緑のスピリットすべて」）：この色を持たなければ守らない
+                // colorFilter：この色を持たなければ守らない
                 if (effect.constraint.colorFilter !== undefined && !instHasColor(inst, effect.constraint.colorFilter)) continue
-                // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。
-                // 以前はカードの召喚コストとして実装していた（BS08-059聖なる柱状彫刻の挙動もここで変わる）
+                // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。以前はカードの召喚コストとして実装していた
                 return instMinLevelCores(inst)
             }
         }
@@ -1607,7 +1503,7 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
     return 0
 }
 
-// 効果でスピリットからリザーブへ置かれるコアの追加数（BS02チャウーLv2の coreReturnBonus）。
+// 効果でスピリットからリザーブへ置かれるコアの追加数（coreReturnBonus）。
 // 効果文が「お互いのスピリット上に置かれたコアが」と陣営を限定していないため、**両陣営の発生源**を見る。
 // 走査は effectSources 経由＝このターンだけの仮想発生源（マジックが貸した継続効果）も含む
 // targetOwnerPid＝コアを取り除かれるスピリットの持ち主。toTrash＝行き先がトラッシュか（既定はリザーブ）
@@ -1619,7 +1515,7 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
             for (const e of getCard(source.cardId).effects) {
                 if (e.kind !== "coreReturnBonus") continue
                 if (!entryActive(state, pid, source, e, level)) continue
-                // 既定はリザーブ行きだけ。includeTrash 指定時はトラッシュ行きにも効く（BS14-019）
+                // 既定はリザーブ行きだけ。includeTrash 指定時はトラッシュ行きにも効く
                 if (toTrash && !e.includeTrash) continue
                 // targetSide:"opponent"＝発生源の持ち主から見た相手のスピリットから取り除くときだけ
                 if (e.targetSide === "opponent" && targetOwnerPid === pid) continue
@@ -1633,9 +1529,8 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
     return bonus
 }
 
-// バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が
-// 有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない（BS05茨の決戦地Lv1-2）。
-// phase/turnはEffectDef側（globalConstraintエントリ自身）が持つ（発生源の持ち主基準のturn判定）
+// バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない。
+// phase/turn は EffectDef 側が持つ（発生源の持ち主基準の turn 判定）
 export function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
     // ブロッカー限定の保護（期間つき効果 blockerCoresProtected。このバトルの間）
     if (state.battle?.blockerInstanceId === inst.instanceId && timedBattleContents(state).some((c) => c.type === "blockerCoresProtected")) {
