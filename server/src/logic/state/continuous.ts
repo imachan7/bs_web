@@ -314,15 +314,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind === "braveImmuneGrant") {
                     // 第3の耐性軸（BS12初出）：相手のブレイヴの効果を受けない。target:"self"は発生源自身、
-                    // target:"ownAll"は持ち主のスピリットすべて（colorFilter/keywordFilter/phase/turnで絞る）
+                    // target:"ownAll"は持ち主のスピリットすべて（filter/phase/turnで絞る）
                     if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
                     if (effect.phase !== undefined && state.phase !== effect.phase) continue
                     if (effect.turn === "own" && pid !== state.turnPlayer) continue
                     if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                     const targets = effect.target === "self" ? [source] : player.field.spirits
                     for (const spirit of targets) {
-                        if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
-                        if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
+                        if (!matchesTarget(state, pid, spirit, effect.filter, source.instanceId)) continue
                         noteCoverage(effect, "braveImmuneGrant")
                         if (effect.scope === "all") spirit.braveImmuneAll = true
                         else spirit.braveImmuneMatchArmorColors = true
@@ -728,9 +727,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // BS08ダークチュンポポLv2：自分のスピリットの体数が相手より少ない間だけ有効
                         const oppCount = state.players[opponentOf(pid)].field.spirits.length
                         if (player.field.spirits.length >= oppCount) continue
-                    } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
-                        // BS10-002首長竜人ブラッキオ：自分のフィールドに合体スピリットがいる間だけ有効
-                        if (!player.field.spirits.some((s) => instIsCombined(s))) continue
+                    } else if ("ownSpiritMatches" in effect.condition) {
+                        const filter = effect.condition.ownSpiritMatches
+                        if (!player.field.spirits.some((s) => matchesTarget(state, pid, s, filter, source.instanceId))) continue
                     } else if ("ownBurstSet" in effect.condition) {
                         // SD06-003ワン・ケンゴー：自分がバーストをセットしている間だけ有効
                         if (!player.burstSet) continue

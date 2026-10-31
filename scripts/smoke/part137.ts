@@ -166,7 +166,8 @@ console.log("=== BS07 青：コスト3以下をブロックしたとき疲労し
     const blockerCard = findByEffect(
         (e) =>
             e["kind"] === "constraint" &&
-            (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noRestWhenBlockingCost",
+            (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noRestWhenBlocking" &&
+            ((e["constraint"] as { filter?: { cost?: unknown } }).filter?.cost !== undefined),
     )
     const cheapAttacker = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= 3 && (c.levels?.[0]?.cores ?? 99) === 1,

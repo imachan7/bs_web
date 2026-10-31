@@ -157,7 +157,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "colorFilter": "blue",
+        "subjectFilter": {
+          "color": "blue"
+        },
         "action": {
           "type": "destroy",
           "count": 1,
@@ -452,7 +454,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "colorFilter": "blue",
+        "subjectFilter": {
+          "color": "blue"
+        },
         "action": {
           "type": "destroy",
           "count": 1,
@@ -791,7 +795,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "colorFilter": "red",
+        "subjectFilter": {
+          "color": "red"
+        },
         "action": {
           "type": "removeCores",
           "count": 1
@@ -1097,7 +1103,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "colorFilter": "red",
+        "subjectFilter": {
+          "color": "red"
+        },
         "action": {
           "type": "removeCores",
           "count": 1
@@ -1433,10 +1441,12 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "familyFilter": [
-          "剣獣",
-          "勇傑"
-        ],
+        "subjectFilter": {
+          "family": [
+            "剣獣",
+            "勇傑"
+          ]
+        },
         "selfMode": "source",
         "action": {
           "type": "refresh",
@@ -1787,7 +1797,9 @@
           2
         ],
         "scope": "ownAll",
-        "keywordFilter": "bofu",
+        "filter": {
+         "keyword": "bofu"
+        },
         "when": {
           "byBattle": true
         },
@@ -3273,7 +3285,9 @@
         ],
         "optional": false,
         "condition": {
-          "ownFieldHasColorSpirit": "green"
+          "ownSpiritMatches": {
+           "color": "green"
+          }
         },
         "action": {
           "type": "destroy",
@@ -3508,7 +3522,9 @@
         ],
         "optional": false,
         "condition": {
-          "ownFieldHasColorSpirit": "green"
+          "ownSpiritMatches": {
+           "color": "green"
+          }
         },
         "action": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "filter": {"cost": {"min": 3, "max": 3}}}, {"type": "destroy", "count": 1, "filter": {"cost": {"min": 4, "max": 4}}}]}
       },
@@ -4077,7 +4093,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "keywordFilter": "bofu",
+        "subjectFilter": {
+          "keyword": "bofu"
+        },
         "action": {
           "type": "exhaust",
           "count": 1,
@@ -4275,7 +4293,9 @@
           2
         ],
         "scope": "ownAll",
-        "familyFilter": "楽族",
+        "filter": {
+         "family": "楽族"
+        },
         "optional": true,
         "when": {},
         "phaseTurn": {
@@ -4427,7 +4447,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "familyFilter": "創手",
+        "subjectFilter": {
+          "family": "創手"
+        },
         "selfMode": "source",
         "action": {
           "type": "placeCores",
@@ -4763,7 +4785,9 @@
         "event": "ownSpiritSummoned",
         "levels": null,
         "lentOnly": true,
-        "keywordFilter": "fushi",
+        "subjectFilter": {
+          "keyword": "fushi"
+        },
         "action": {
           "type": "draw",
           "count": 2

@@ -170,7 +170,7 @@ console.log(
     s.turnPlayer = "p1"
     s.phase = "attack"
     assert(
-        activeConstraints(s, "p1", combined).some((c) => c.type === "unblockableBy" && c.maxCost === 5),
+        activeConstraints(s, "p1", combined).some((c) => c.type === "unblockableBy" && c.filter?.cost?.max === 5),
         "合体スピリットには相手コスト5以下からブロックされない制約が付く",
     )
     assert(

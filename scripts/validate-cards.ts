@@ -334,6 +334,125 @@ function checkTargetFilters(
     }
 }
 
+// ブロックまわりの制約（unblockableBy・canBlockWhileRested・noRestWhenBlocking）は絞り込みを filter 1本で持つ。
+// 旧軸名は型が効かない JSON に書いても無言で無視され、制約が広く（または狭く）効くので落とす
+const LEGACY_BLOCK_CONSTRAINT_FIELDS: Record<string, string[]> = {
+    noRestWhenBlocking: [],
+    unblockableBy: ["colorFilter", "keywordFilter", "keywordFilterAbsent", "familyFilterAbsent", "levelFilter", "maxCores", "maxCost", "costIn", "costNot", "maxBp", "nonVanilla", "costAtMostAttacker", "levelAtMostAttacker"],
+    canBlockWhileRested: ["targetMaxCost", "targetKeywordExclude", "targetMaxBp", "targetCombinedOnly"],
+    noRestWhenBlockingColor: [], noRestWhenBlockingCost: [], noRestWhenBlockingWithoutKeyword: [],
+}
+
+function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkBlockConstraints(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    const t = obj["type"]
+    if (typeof t === "string" && t in LEGACY_BLOCK_CONSTRAINT_FIELDS) {
+        if (t.startsWith("noRestWhenBlocking") && t !== "noRestWhenBlocking") add(cardId, `${t} は廃止（noRestWhenBlocking{filter} に統合済み）`)
+        for (const f of LEGACY_BLOCK_CONSTRAINT_FIELDS[t]!) if (f in obj) add(cardId, `${t} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)
+    }
+    if ((t === "unblockableBy" || t === "canBlockWhileRested" || t === "noRestWhenBlocking") && typeof obj["filter"] === "object" && obj["filter"] !== null) {
+        for (const key of Object.keys(obj["filter"])) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `${t} の filter に未知の軸 "${key}" がある`)
+    }
+    if (t === "noRestWhenBlocking" && (typeof obj["filter"] !== "object" || obj["filter"] === null)) add(cardId, "noRestWhenBlocking に filter が無い")
+    for (const v of Object.values(obj)) checkBlockConstraints(cardId, v, add)
+}
+
+// 付与・コア系の制約（constraintGrant・braveImmuneGrant・coreFloorByCost）も絞り込みは filter 1本。
+// constraintGrant の keywordFilter は【激突】などラベル系の見方が変わるため BS07-X25 の1件だけ残している
+const LEGACY_GRANT_FIELDS: Record<string, string[]> = {
+    constraintGrant: ["familyFilter", "colorFilter", "vanillaFilter", "minSymbols", "symbolCount", "nameIncludes", "costFilter", "combinedFilter", "teamFilter", "restedOnly", "summonedBy", "summonedThisTurnOnly", "minLevel"],
+    braveImmuneGrant: ["colorFilter", "keywordFilter"],
+    coreFloorByCost: ["colorFilter"],
+}
+
+function checkGrantFilters(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkGrantFilters(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    const name = (obj["kind"] === "constraintGrant" || obj["kind"] === "braveImmuneGrant") ? obj["kind"] : obj["type"] === "coreFloorByCost" ? "coreFloorByCost" : undefined
+    if (typeof name === "string" && name in LEGACY_GRANT_FIELDS) {
+        for (const f of LEGACY_GRANT_FIELDS[name]!) if (f in obj) add(cardId, `${name} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)
+        if (name === "constraintGrant" && "keywordFilter" in obj && obj["keywordFilter"] !== "clash") add(cardId, "constraintGrant に旧軸 keywordFilter がある（filter.keyword に統合済み。【激突】だけ例外）")
+        const flt = obj["filter"]
+        if (typeof flt === "object" && flt !== null) {
+            for (const key of Object.keys(flt)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `${name} の filter に未知の軸 "${key}" がある`)
+        }
+    }
+    for (const v of Object.values(obj)) checkGrantFilters(cardId, v, add)
+}
+
+// fieldEvent の主語・相手役の絞り込みは subjectFilter／partnerFilter に寄せた。旧軸名は型が効かない JSON に書いても無言で無視される。
+// 主語が selfOverride を持たないイベントだけ、旧軸が残る（colorFilter＝ownNexusDestroyed／familyFilter・nameIncludes＝ownTensho／costFilter＝ownSpiritSummoned の印刷コスト）
+const LEGACY_FIELD_EVENT_AXES: Record<string, string[]> = {
+    keywordFilter: [], subjectKeywordFilter: [], maxBp: [], vanillaOnly: [], symbolCount: [], subjectCombined: [], subjectMaxCores: [],
+    subjectMaxCost: [], subjectHasTrigger: [], subjectMinSymbols: [], excludeSelfSubject: [], excludeSelfAsEventTarget: [], targetColorFilter: [],
+    colorFilter: ["ownNexusDestroyed"], familyFilter: ["ownTensho"], nameIncludes: ["ownTensho"], costFilter: ["ownSpiritSummoned"],
+}
+
+function checkFieldEventSubjects(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkFieldEventSubjects(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    if (obj["kind"] === "fieldEvent") {
+        for (const [axis, events] of Object.entries(LEGACY_FIELD_EVENT_AXES)) {
+            if (axis in obj && !events.includes(String(obj["event"]))) add(cardId, `fieldEvent(${String(obj["event"])}) に旧軸 ${axis} がある（subjectFilter／partnerFilter に統合済み。無言で無視される）`)
+        }
+        for (const name of ["subjectFilter", "partnerFilter"]) {
+            const f = obj[name]
+            if (f === undefined) continue
+            if (typeof f !== "object" || f === null || Array.isArray(f)) add(cardId, `fieldEvent の ${name} がオブジェクトでない`)
+            else for (const key of Object.keys(f)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `fieldEvent の ${name} に未知の軸 "${key}" がある`)
+        }
+    }
+    for (const v of Object.values(obj)) checkFieldEventSubjects(cardId, v, add)
+}
+
+// 条件の「いる」系とバトル相手は ownSpiritMatches／battleOpponentMatches に、reviveOnDestroy の絞り込みは filter に寄せた。
+// 旧軸名は型が効かない JSON に書いても無言で無視される。【激突】の keywordFilter だけ filter.keyword に寄せていない（matchesTarget が付与を見ないため）
+const LEGACY_CONDITION_AXES = ["ownFieldHasColorSpirit", "ownFieldHasKeyword", "ownFieldHasCombinedSpirit", "battleOpponentCombined", "battleOpponentHasKeyword"]
+const LEGACY_REVIVE_AXES = ["colorFilter", "familyFilter", "vanillaFilter", "minBp", "minCost", "nameIncludes", "combinedOnly", "blockingOnly"]
+const LEGACY_FIELD_EVENT_CONDITION_AXES = ["targetMaxBp", "targetMaxCostOfEventTarget", "targetKeywordExclude"]
+
+function checkConditionFilters(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
+    if (!node || typeof node !== "object") return
+    if (Array.isArray(node)) {
+        for (const x of node) checkConditionFilters(cardId, x, add)
+        return
+    }
+    const obj = node as Record<string, unknown>
+    for (const axis of LEGACY_CONDITION_AXES) if (axis in obj) add(cardId, `条件に旧軸 ${axis} がある（ownSpiritMatches／battleOpponentMatches に統合済み。無言で無視される）`)
+    for (const name of ["ownSpiritMatches", "battleOpponentMatches"]) {
+        const f = obj[name]
+        if (f === undefined) continue
+        if (typeof f !== "object" || f === null || Array.isArray(f)) add(cardId, `条件の ${name} がオブジェクトでない`)
+        else for (const key of Object.keys(f)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `条件の ${name} に未知の軸 "${key}" がある`)
+    }
+    if (obj["kind"] === "reviveOnDestroy") {
+        for (const axis of LEGACY_REVIVE_AXES) if (axis in obj) add(cardId, `reviveOnDestroy に旧軸 ${axis} がある（filter に統合済み。無言で無視される）`)
+        if ("keywordFilter" in obj && obj["keywordFilter"] !== "clash") add(cardId, "reviveOnDestroy に旧軸 keywordFilter がある（filter.keyword に統合済み。【激突】だけ例外）")
+        const f = obj["filter"]
+        if (f !== undefined) {
+            if (typeof f !== "object" || f === null || Array.isArray(f)) add(cardId, "reviveOnDestroy の filter がオブジェクトでない")
+            else for (const key of Object.keys(f)) if (!VALID_FILTER_KEYS.has(key)) add(cardId, `reviveOnDestroy の filter に未知の軸 "${key}" がある`)
+        }
+    }
+    if (obj["kind"] === "fieldEvent" && typeof obj["condition"] === "object" && obj["condition"] !== null) {
+        for (const axis of LEGACY_FIELD_EVENT_CONDITION_AXES) if (axis in (obj["condition"] as object)) add(cardId, `fieldEvent の condition に旧軸 ${axis} がある（partnerFilter に統合済み。無言で無視される）`)
+    }
+    for (const v of Object.values(obj)) checkConditionFilters(cardId, v, add)
+}
+
 // pay の cost/then は判定表（PAYABLE_TYPES）にある type しか実際には解決できない
 // （actions/pay.ts の CHECKERS に無い type は canPayResolve が false を返し不発になる）。
 // カードデータの段階で落とす
@@ -590,6 +709,10 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 
         // --- pay の cost/then が判定表にある type か ---
         checkPayActions(id, c.effects, add)
+        checkBlockConstraints(id, c.effects, add)
+        checkFieldEventSubjects(id, c.effects, add)
+        checkGrantFilters(id, c.effects, add)
+        checkConditionFilters(id, c.effects, add)
         checkTimedCounters(id, c.effects, add)
         checkPayGates(c, add)
 

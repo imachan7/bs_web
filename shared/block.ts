@@ -14,6 +14,7 @@ import {
     boardResistanceAgainst,
     cantActByTimed,
     matchesTarget,
+    resolveSelfRelative,
     timedPlayerRules,
     timedContentsOn,
     canBlockWhileRestedThisTurn,
@@ -96,35 +97,12 @@ export function canBlock(
     // ブロッカー側の制約（cantBlock / cantBlockLowerBp）。
     // バーストファイアで無効化されている場合はこれらのチェックをスキップする
     const blockerConstraints = activeConstraints(board, blockerPid, blockerInst)
-    // 疲労状態でのブロック（BS06計画された場外乱闘Lv1-2）：canBlockWhileRestedを持ち、
-    // targetMaxCost指定時はアタッカーのコストがこれ以下のときのみブロックできる
     if (blockerInst.isRested && !opts?.ignoreRested) {
         const canBlockRested =
             blockerConstraints.some((c) => {
                 if (c.type !== "canBlockWhileRested") return false
-                if (c.targetMaxCost !== undefined) {
-                    if (attackerInst === undefined || !instMatchesCostFilter(attackerInst, { max: c.targetMaxCost })) {
-                        return false
-                    }
-                }
-                // targetKeywordExclude（BS08一角魚モノケロック：【転召】を持たない相手のスピリット）：
-                // アタッカーがそのキーワードを持つときはこのエントリでは許可しない
-                if (c.targetKeywordExclude !== undefined) {
-                    if (attackerInst === undefined || spiritHasKeyword(board, attackerPid, attackerInst, c.targetKeywordExclude)) {
-                        return false
-                    }
-                }
-                // 器AL：targetMaxBp指定時はアタッカーの実効BPがこれ以下のときのみ（BS13-029剣馬グラニムLv1-3）
-                if (c.targetMaxBp !== undefined) {
-                    if (attackerInst === undefined || effectiveBp(board, attackerPid, attackerInst) > c.targetMaxBp) {
-                        return false
-                    }
-                }
-                // 器AL：targetCombinedOnly指定時はアタッカーが合体スピリットのときのみ（BS13-029Lv2-3／BS13-031Lv1-2）
-                if (c.targetCombinedOnly) {
-                    if (attackerInst === undefined || !instIsCombined(attackerInst)) return false
-                }
-                return true
+                if (c.filter === undefined) return true
+                return attackerInst !== undefined && matchesTarget(board, attackerPid, attackerInst, c.filter, blockerInst.instanceId)
             }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }
@@ -165,80 +143,11 @@ export function canBlock(
         for (const c of activeConstraints(board, attackerPid, attackerInst)) {
             if (c.type !== "unblockableBy") continue
             if (c.opponentOnly && blockerPid === attackerPid) continue
-            // 条件を1つも持たない unblockableBy は「すべてにブロックされない」（require* は有効かどうかの条件で、ブロッカーの絞り込みではない）。__eid は coverage:effects が足す計測用の印
+            // filter も noSoulCore も無い unblockableBy は「すべてにブロックされない」（require* は有効かどうかの条件で、ブロッカーの絞り込みではない）。__eid は coverage:effects が足す計測用の印
             if (Object.keys(c).every((k) => k === "type" || k === "__eid" || k.startsWith("require"))) return "このスピリットはブロックされません"
             if (c.noSoulCore && blockerInst.soulCoreOn !== true) return "このスピリットは[ソウルコア]が置かれていないスピリットにブロックされません"
-            if (c.colorFilter !== undefined && instHasColor(blockerInst, c.colorFilter)) {
-                return `このスピリットは${COLOR_LABELS[c.colorFilter]}のスピリットにブロックされません`
-            }
-            if (
-                c.keywordFilter !== undefined &&
-                spiritHasKeyword(board, blockerPid, blockerInst, c.keywordFilter)
-            ) {
-                return `このスピリットは【${KEYWORDS[c.keywordFilter].label}】を持つスピリットにブロックされません`
-            }
-            // keywordFilterAbsent（BS08光帝竜騎アルカナジョーカーLv3）：指定キーワードを持た**ない**
-            // スピリットにブロックされない（keywordFilterの否定版）
-            if (
-                c.keywordFilterAbsent !== undefined &&
-                !spiritHasKeyword(board, blockerPid, blockerInst, c.keywordFilterAbsent)
-            ) {
-                return `このスピリットは【${KEYWORDS[c.keywordFilterAbsent].label}】を持たないスピリットにブロックされません`
-            }
-            // familyFilterAbsent（BS14-055ミスティック・ヒミコ）：指定系統を持た**ない**スピリットにブロックされない
-            if (
-                c.familyFilterAbsent !== undefined &&
-                !matchesFamilyFilter(board, blockerPid, blockerInst, c.familyFilterAbsent)
-            ) {
-                return "このスピリットは指定の系統を持たないスピリットにブロックされません"
-            }
-            if (c.maxCores !== undefined && blockerInst.cores <= c.maxCores) {
-                return `このスピリットはコア${c.maxCores}個以下のスピリットにブロックされません`
-            }
-            if (
-                c.levelFilter !== undefined &&
-                c.levelFilter.includes(currentLevel(blockerInst).level)
-            ) {
-                return `このスピリットはLv${c.levelFilter.join("/")}のスピリットにブロックされません`
-            }
-            // BS07聖なる命の泉Lv2：ブロッカーのコストがこれ以下ならブロックできない。
-            // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instMatchesCostFilter）
-            // BS07鋼翼魚オルカノンLv2：ブロッカーの実効BPがこれ以下ならブロックできない
-            if (c.maxBp !== undefined && effectiveBp(board, blockerPid, blockerInst) <= c.maxBp) {
-                return `このスピリットはBP${c.maxBp}以下のスピリットにブロックされません`
-            }
-            if (c.maxCost !== undefined && instMatchesCostFilter(blockerInst, { max: c.maxCost })) {
-                return `このスピリットはコスト${c.maxCost}以下のスピリットにブロックされません`
-            }
-            // 場のスピリットのコストを条件にする判定なので、道化師クランの付与コストも見る（instHasCost）
-            if (c.costNot !== undefined && !instHasCost(blockerInst, c.costNot)) {
-                return `このスピリットはコスト${c.costNot}以外のスピリットにブロックされません`
-            }
-            if (c.costIn !== undefined && c.costIn.some((n) => instHasCost(blockerInst, n))) {
-                return `このスピリットはコスト${c.costIn.join("/")}のスピリットにブロックされません`
-            }
-            // BS05ポテンシャルパワー：ブロッカーのコストがこのアタッカーのコスト以下ならブロックできない。
-            // 道化師クランで両者が複数コストを扱いうる状態では、いずれかの組み合わせで
-            // 「ブロッカー側のコスト <= アタッカー側のコスト」が成立すれば条件を満たすとする
-            // （instMatchesCostFilterの「いずれかのコストが条件を満たせばtrue」と同じ考え方の拡張）
-            if (
-                c.costAtMostAttacker &&
-                instAllCosts(blockerInst).some((b) => instAllCosts(attackerInst).some((a) => b <= a))
-            ) {
-                return "このスピリットは同じか低いコストのスピリットにブロックされません"
-            }
-            // SD02-012 天の城門Lv2：ブロッカーのLvがアタッカーのLv以下ならブロックできない
-            // （costAtMostAttacker の Lv 版。「同じLv以下の相手のスピリットからブロックされない」）
-            if (
-                c.levelAtMostAttacker &&
-                currentLevel(blockerInst).level <= currentLevel(attackerInst).level
-            ) {
-                return "このスピリットは同じか低いLvのスピリットにブロックされません"
-            }
-            // BS05幻獣王リーンLv3：カードに効果の記述を持つスピリットにブロックされない
-            // （バニラ＝効果の記述を持たないスピリットならブロックできる）
-            if (c.nonVanilla && !instIsVanilla(blockerInst)) {
-                return "このスピリットは効果を持つスピリットにブロックされません"
+            if (c.filter !== undefined && matchesTarget(board, blockerPid, blockerInst, resolveSelfRelative(c.filter, attackerInst), attackerInst.instanceId)) {
+                return "このスピリットはこの相手にブロックされません"
             }
         }
     }

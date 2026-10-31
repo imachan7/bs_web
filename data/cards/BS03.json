@@ -130,7 +130,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     }
     }
    },
    {
@@ -141,7 +143,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "soku"
+     "filter": {
+      "keyword": "soku"
+     }
     }
    },
    {
@@ -152,7 +156,9 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "keywordFilter": "jugeki"
+     "filter": {
+      "keyword": "jugeki"
+     }
     }
    }
   ]
@@ -1342,9 +1348,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    },
    {
@@ -1354,12 +1362,16 @@
      2
     ],
     "target": "ownAll",
-    "keywordFilter": "jugeki",
+    "filter": {
+     "keyword": "jugeki"
+    },
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    }
   ]
@@ -3059,7 +3071,9 @@
      2
     ],
     "condition": {
-     "ownFieldHasColorSpirit": "green"
+     "ownSpiritMatches": {
+      "color": "green"
+     }
     },
     "action": {
      "type": "placeCores",
@@ -3115,7 +3129,9 @@
      2
     ],
     "condition": {
-     "ownFieldHasColorSpirit": "purple"
+     "ownSpiritMatches": {
+      "color": "purple"
+     }
     },
     "action": {
      "type": "draw",
@@ -3403,7 +3419,9 @@
      3
     ],
     "scope": "ownAll",
-    "familyFilter": "小玩",
+    "filter": {
+     "family": "小玩"
+    },
     "when": {},
     "revived": {
      "toHand": true
@@ -5397,9 +5415,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    }
   ]
@@ -5665,7 +5685,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattle": true
     },
@@ -5792,7 +5814,9 @@
      2
     ],
     "phase": "attack",
-    "vanillaOnly": true,
+    "subjectFilter": {
+     "vanilla": true
+    },
     "byBattleOnly": true,
     "action": {
      "type": "draw",
@@ -5937,7 +5961,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattle": true
     },
@@ -6005,7 +6031,9 @@
      2
     ],
     "scope": "ownAll",
-    "keywordFilter": "soku",
+    "filter": {
+     "keyword": "soku"
+    },
     "when": {
      "byBattle": true
     },
@@ -6253,7 +6281,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattleKillerLevel": 1
     },
@@ -6272,7 +6302,9 @@
      2
     ],
     "scope": "ownAll",
-    "vanillaFilter": true,
+    "filter": {
+     "vanilla": true
+    },
     "when": {
      "byBattleKillerLevel": 3
     },
@@ -6348,7 +6380,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "refresh",
      "filter": {
@@ -6587,7 +6621,9 @@
     ],
     "phase": "attack",
     "byBattleOnly": true,
-    "familyFilter": "勇傑",
+    "subjectFilter": {
+     "family": "勇傑"
+    },
     "action": {
      "type": "discard",
      "from": "deck",
@@ -7294,7 +7330,9 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
-    "keywordFilter": "armor",
+    "filter": {
+     "keyword": "armor"
+    },
     "when": {
      "byBattle": true
     },

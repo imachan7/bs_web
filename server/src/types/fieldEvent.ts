@@ -28,7 +28,7 @@ export type FieldEvent =
     | "ownSpiritSummoned" // 自分のフィールドにスピリットが召喚されたとき（doSummonの召喚時効果・転召の解決後に発火）。**self には召喚されたスピリットが渡る**（selfOverride）ため、maxBpFromSelf で「召喚されたスピリットのBP以下」を表現できる（BS04七龍帝の玉座Lv2／鋼葉の樹林Lv2）
     | "anySpiritSummoned" // 両陣営どちらかのスピリットが召喚されたとき、両者のフィールド発生源から発火（ownSpiritSummoned と同じ地点・同じ eventInfo。self には召喚されたスピリットが渡る。subjectSide で召喚された側を絞る）
     | "opponentDeckMilled" // 相手のデッキがトラッシュへ送られたとき（millDeckから発火。eventCount=実破棄枚数。minEventCountで「一度に◯枚以上」を表現。BS04アリゲイド）
-    | "ownChimeiMilled" // 自分のスピリットの【地鳴】が相手のデッキをトラッシュへ送ったとき（mill ハンドラが発火。**self には【地鳴】の持ち主のスピリットが渡る**ので excludeSelfSubject で「このスピリット以外の」を表す。condition {lastMilledHasEx} で「EXシンボルを持つカードを破棄した」）
+    | "ownChimeiMilled" // 自分のスピリットの【地鳴】が相手のデッキをトラッシュへ送ったとき（mill ハンドラが発火。**self には【地鳴】の持ち主のスピリットが渡る**ので subjectFilter.excludeSelf で「このスピリット以外の」を表す。condition {lastMilledHasEx} で「EXシンボルを持つカードを破棄した」）
     | "ownDeckMilled" // 自分のデッキが破棄されたとき（eventCount＝破棄枚数）
     | "ownNexusDeployed" // 自分のフィールドにネクサスが配置されたとき（通常の配置・効果による配置・復活のいずれからも発火。BS04栄光の表彰台）
     | "opponentMagicUsed" // 相手がマジックの効果を使用したとき（resolveMagicから発火。eventInfoにcost/timingを載せ、magicCostEquals・magicTimingで絞る。BS04氷の女神フリッグ）
@@ -55,7 +55,7 @@ export type FieldEvent =
     | "anySpiritCombined" // どちらかのスピリットにブレイヴが合体したとき（合体の唯一の入口 attachBrave から両フィールドへ発火）。**self には合体スピリット（ホスト）が渡る**（selfOverride）。subjectSide で自分/相手を絞る（BS11-064 闇の聖剣Lv2＝「相手のスピリットが合体したとき、その合体スピリットは疲労する」）
     | "ownCombinedSpiritBattleEnded" // 自分の合体スピリットがバトルし、バトル終了時にまだ生存しているとき、ネクサス等の発生源から発火（GameEngineのonBattleEnd誘発と同じ地点。selfには生存している合体スピリット自身が渡る。BS10-086巨星望む大樹Lv2）
     | "anyBraveSummoned" // **両陣営**どちらかのブレイヴが召喚されたとき（スピリット状態・合体を問わない）。発生源の持ち主から見て自分/相手いずれの召喚でも発火するため、エントリには必ずselfMode:"source"を付けて発生源自身を主体にする（BS12-061剣の誕生地Lv2）
-    | "ownSpiritRefreshed" // 自分のスピリットが回復したとき、持ち主のフィールド発生源から発火（refreshSpiritの唯一の入口から。**self には回復したスピリットが渡る**）。excludeSelfAsEventTargetと組み合わせて「[カード名]以外の」を表現する（BS13-024武神獣ディアル・ユキムラLv2）
+    | "ownSpiritRefreshed" // 自分のスピリットが回復したとき、持ち主のフィールド発生源から発火（refreshSpiritの唯一の入口から。**self には回復したスピリットが渡る**）。subjectFilter.excludeSelf と組み合わせて「[カード名]以外の」を表現する（BS13-024武神獣ディアル・ユキムラLv2）
     | "anySpiritRefreshed" // 両陣営どちらかのスピリットが回復したとき、**両者の**フィールド発生源から発火する（anySpiritAttackedと同じ形。subjectSideで主体の陣営を絞る。selfには回復したスピリットが渡る。eventInfo.refreshSourceTypeで回復元の効果種別が分かる＝refreshSourceTypeFilterの判定に使う。BS14-085賛美するパイプオルガンLv2：「スピリット/マジックの効果で回復した〜すべてを破壊する」）
     | "opponentSummonEffectResolved" // 相手の『このスピリット/ブレイヴの召喚時』効果が**実際に解決された**後（単なる召喚では発火しない。kind:"triggered" trigger:"onSummon" が現在のレベルで有効な状態で1件でもあるときに発火する簡略化。任意発動の未発動・条件不一致まではここでは見分けない。BURST.md）
     | "ownBurstSet" // 自分がバーストをセットしたとき（効果によるセットも含む。setBurst / setBurstFromHand の両方から発火）

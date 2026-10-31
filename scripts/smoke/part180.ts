@@ -67,7 +67,7 @@ const HORIZON = findCard(
             (e) =>
                 e["kind"] === "reviveOnDestroy" &&
                 e["optional"] === true &&
-                e["keywordFilter"] === "soku" &&
+                (e["filter"] as Record<string, unknown> | undefined)?.["keyword"] === "soku" &&
                 (e["when"] as Record<string, unknown> | undefined)?.["byBattle"] === true,
         ),
     "【神速】持ちを手札に戻す任意の復活ネクサス",
@@ -155,7 +155,7 @@ const GREENFIELD = findCard(
 const GREENFIELD_REVIVE = (GREENFIELD.effects ?? []).find(
     (e) => e["kind"] === "reviveOnDestroy",
 )!
-const GREENFIELD_FAMILY = GREENFIELD_REVIVE["familyFilter"] as string
+const GREENFIELD_FAMILY = (GREENFIELD_REVIVE["filter"] as Record<string, unknown>)["family"] as string
 const GREENFIELD_MAXBP = (GREENFIELD_REVIVE["when"] as Record<string, number>)["byBattleKillerMaxBp"]!
 const GREENFIELD_AURA = 2000 // 同じネクサスが「四道」に与えるBP+
 // 守られる側：その系統を持ち、召喚時などの余計な誘発が解決順に混ざらないスピリット

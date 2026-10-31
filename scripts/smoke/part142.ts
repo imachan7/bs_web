@@ -235,11 +235,11 @@ console.log("=== BS07 白：指定した1体の『ブロック時』効果をア
 console.log("=== BS07 白：BP4000以下の相手からブロックされない（鋼翼魚オルカノン） ===")
 {
     const orca = findByEffect(
-        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["maxBp"] !== undefined,
+        (e) => (e["constraint"] as { filter?: { maxBp?: number } } | undefined)?.filter?.maxBp !== undefined,
     )
-    const grant = entryOf(orca, (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["maxBp"] !== undefined)
-    const maxBp = Number((grant["constraint"] as Record<string, unknown>)["maxBp"])
-    const family = String(grant["familyFilter"])
+    const grant = entryOf(orca, (e) => (e["constraint"] as { filter?: { maxBp?: number } } | undefined)?.filter?.maxBp !== undefined)
+    const maxBp = Number((grant["constraint"] as { filter: { maxBp: number } }).filter.maxBp)
+    const family = String((grant["filter"] as { family: string }).family)
     const level = (grant["levels"] as number[])[0]!
     const attackerCard = CARDS.find(
         (c) => c.type === "spirit" && c.cardId !== orca.cardId && (c.family ?? []).includes(family),
@@ -278,10 +278,11 @@ console.log("=== BS07 白：【転召】を持たない相手をブロックし�
 {
     const necklace = findByEffect(
         (e) =>
-            (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noRestWhenBlockingWithoutKeyword",
+            (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noRestWhenBlocking" &&
+            (e["constraint"] as { filter?: { keywordExclude?: unknown } }).filter?.keywordExclude !== undefined,
     )
-    const grant = entryOf(necklace, (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noRestWhenBlockingWithoutKeyword")
-    const kw = String((grant["constraint"] as Record<string, unknown>)["keyword"])
+    const grant = entryOf(necklace, (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noRestWhenBlocking")
+    const kw = String((grant["constraint"] as { filter: { keywordExclude: string } }).filter.keywordExclude)
     const nexusCores = coresFor(necklace, (grant["levels"] as number[])[0]!)
     const withKw = CARDS.find(
         (c) =>

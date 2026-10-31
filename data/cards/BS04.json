@@ -42,7 +42,9 @@
      2
     ],
     "condition": {
-     "ownFieldHasKeyword": "awaken"
+     "ownSpiritMatches": {
+      "keyword": "awaken"
+     }
     },
     "action": {
      "type": "timedEffect",
@@ -2207,8 +2209,10 @@
      2
     ],
     "turn": "opponent",
-    "costFilter": {
-     "max": 1
+    "subjectFilter": {
+     "cost": {
+      "max": 1
+     }
     },
     "selfMode": "source",
     "action": {
@@ -2321,7 +2325,9 @@
      2
     ],
     "scope": "ownAll",
-    "keywordFilter": "soku",
+    "filter": {
+     "keyword": "soku"
+    },
     "when": {
      "byBattle": true
     },
@@ -4538,10 +4544,12 @@
     ],
     "phase": "main",
     "turn": "own",
-    "familyFilter": [
-     "古竜",
-     "龍帝"
-    ],
+    "subjectFilter": {
+     "family": [
+      "古竜",
+      "龍帝"
+     ]
+    },
     "action": {
      "type": "destroy",
      "filter": {
@@ -4777,7 +4785,9 @@
      2
     ],
     "scope": "ownAll",
-    "minBp": 6000,
+    "filter": {
+     "minBp": 6000
+    },
     "when": {
      "byBattle": true
     },
@@ -4945,10 +4955,12 @@
     ],
     "phase": "main",
     "turn": "own",
-    "familyFilter": [
-     "甲獣",
-     "巨獣"
-    ],
+    "subjectFilter": {
+     "family": [
+      "甲獣",
+      "巨獣"
+     ]
+    },
     "action": {
      "type": "return",
      "to": "hand",
@@ -5016,7 +5028,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "天霊",
+    "filter": {
+     "family": "天霊"
+    },
     "when": {
      "byBattle": true
     },

@@ -297,8 +297,10 @@
      3
     ],
     "target": "ownAll",
-    "combinedFilter": true,
-    "keywordFilter": "superAwaken",
+    "filter": {
+     "combined": true,
+     "keyword": "superAwaken"
+    },
     "constraint": {
      "type": "cantSeparate"
     }
@@ -312,8 +314,10 @@
      3
     ],
     "target": "ownAll",
-    "combinedFilter": true,
-    "keywordFilter": "superAwaken",
+    "filter": {
+     "combined": true,
+     "keyword": "superAwaken"
+    },
     "constraint": {
      "type": "coresCantBeRemoved"
     }
@@ -385,7 +389,9 @@
      3
     ],
     "subjectSide": "opponent",
-    "maxBp": 4000,
+    "subjectFilter": {
+     "maxBp": 4000
+    },
     "action": {
      "type": "destroy",
      "target": "self",
@@ -737,7 +743,9 @@
      1,
      2
     ],
-    "maxBp": 4000,
+    "subjectFilter": {
+     "maxBp": 4000
+    },
     "action": {
      "type": "destroy",
      "target": "self",
@@ -1007,10 +1015,12 @@
      3
     ],
     "target": "ownAll",
-    "familyFilter": [
-     "光導",
-     "星魂"
-    ],
+    "filter": {
+     "family": [
+      "光導",
+      "星魂"
+     ]
+    },
     "constraint": {
      "type": "canDirectAttack",
      "targetFilter": "any"
@@ -1105,7 +1115,9 @@
     ],
     "whileCombined": true,
     "target": "ownAll",
-    "familyFilter": "神星",
+    "filter": {
+     "family": "神星"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -1656,10 +1668,12 @@
      2
     ],
     "ownOnly": true,
-    "subjectKeywordFilter": [
-     "jugeki",
-     "fushi"
-    ],
+    "subjectFilter": {
+     "keyword": [
+      "jugeki",
+      "fushi"
+     ]
+    },
     "action": {"type": "timedEffect", "content": [{"type": "colorless"}], "duration": "battle", "target": "self"}
    }
   ]
@@ -1717,7 +1731,9 @@
      2,
      3
     ],
-    "familyFilter": "妖蛇",
+    "subjectFilter": {
+     "family": "妖蛇"
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -1733,7 +1749,9 @@
      3
     ],
     "phase": "attack",
-    "familyFilter": "竜人",
+    "subjectFilter": {
+     "family": "竜人"
+    },
     "action": {
      "type": "removeCores",
      "count": 1
@@ -1932,7 +1950,9 @@
      2
     ],
     "phase": "attack",
-    "subjectMaxCores": 2,
+    "subjectFilter": {
+     "maxCores": 2
+    },
     "action": {
      "type": "destroy",
      "target": "self",
@@ -2017,8 +2037,10 @@
      2
     ],
     "target": "ownAll",
-    "minLevel": 2,
-    "familyFilter": "妖蛇",
+    "filter": {
+     "minLevel": 2,
+     "family": "妖蛇"
+    },
     "constraint": {
      "type": "lifeDamageToVoid"
     }
@@ -2255,10 +2277,12 @@
      3
     ],
     "scope": "ownAll",
-    "familyFilter": [
-     "光導",
-     "妖蛇"
-    ],
+    "filter": {
+     "family": [
+      "光導",
+      "妖蛇"
+     ]
+    },
     "when": {
      "byBattle": true
     },
@@ -2895,7 +2919,9 @@
     "levels": [
      2
     ],
-    "excludeSelfAsEventTarget": true,
+    "subjectFilter": {
+     "excludeSelf": true
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",
@@ -2950,7 +2976,9 @@
     "phase": "attack",
     "selfMode": "source",
     "summonedSpiritAsTarget": true,
-    "subjectKeywordFilter": "soku",
+    "subjectFilter": {
+     "keyword": "soku"
+    },
     "action": {
      "type": "refreshSelfBraveThenCombine"
     },
@@ -3784,14 +3812,18 @@
      3
     ],
     "target": "ownAll",
-    "colorFilter": "red",
+    "filter": {
+     "color": "red"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetMaxBp": 6000
+     "filter": {
+      "maxBp": 6000
+     }
     }
    },
    {
@@ -3802,14 +3834,18 @@
      3
     ],
     "target": "ownAll",
-    "colorFilter": "red",
+    "filter": {
+     "color": "red"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetCombinedOnly": true
+     "filter": {
+      "combined": true
+     }
     }
    },
    {
@@ -3932,9 +3968,11 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": [
-     "甲竜"
-    ],
+    "filter": {
+     "family": [
+      "甲竜"
+     ]
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
@@ -4253,7 +4291,9 @@
      2
     ],
     "scope": "ownAll",
-    "keywordFilter": "heavyArmor",
+    "filter": {
+     "keyword": "heavyArmor"
+    },
     "when": {
      "byBattleVsHeavyArmorColor": true
     },
@@ -4329,7 +4369,9 @@
      2
     ],
     "turn": "opponent",
-    "maxBp": 4000,
+    "subjectFilter": {
+     "maxBp": 4000
+    },
     "selfMode": "source",
     "attackerAsTarget": true,
     "action": {
@@ -4522,11 +4564,13 @@
      2,
      3
     ],
-    "familyFilter": [
-     "光導",
-     "星魂"
-    ],
-    "excludeSelfAsEventTarget": true,
+    "subjectFilter": {
+     "family": [
+      "光導",
+      "星魂"
+     ],
+     "excludeSelf": true
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",
@@ -4855,7 +4899,9 @@
      3
     ],
     "scope": "ownAll",
-    "colorFilter": "yellow",
+    "filter": {
+     "color": "yellow"
+    },
     "cost": {
      "ownLifeOneToReserve": true
     },
@@ -4877,7 +4923,9 @@
      2,
      3
     ],
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -4891,7 +4939,9 @@
     "levels": [
      3
     ],
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -5015,7 +5065,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "導魔",
+    "filter": {
+     "family": "導魔"
+    },
     "cost": {
      "handDiscardOne": true,
      "handDiscardCardType": "spirit"
@@ -6334,7 +6386,9 @@
     ],
     "phase": "attack",
     "ownOnly": true,
-    "familyFilter": "闘神",
+    "subjectFilter": {
+     "family": "闘神"
+    },
     "action": {
      "type": "discard",
      "from": "deck",
@@ -6354,7 +6408,9 @@
      2
     ],
     "phase": "attack",
-    "familyFilter": "闘神",
+    "subjectFilter": {
+     "family": "闘神"
+    },
     "action": {
      "type": "discard",
      "from": "deck",
@@ -6535,8 +6591,10 @@
     "event": "anySpiritAttacked",
     "levels": null,
     "whileCombined": true,
-    "costFilter": {
-     "max": 4
+    "subjectFilter": {
+     "cost": {
+      "max": 4
+     }
     },
     "phase": "attack",
     "action": {

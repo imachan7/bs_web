@@ -419,7 +419,9 @@
     "phase": "attack",
     "turn": "own",
     "subjectSide": "own",
-    "subjectKeywordFilter": "hyoheki",
+    "subjectFilter": {
+     "keyword": "hyoheki"
+    },
     "action": {
      "type": "return",
      "to": "hand",

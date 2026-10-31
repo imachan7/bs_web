@@ -1,4 +1,4 @@
-// smoke パート635（BS18 軸4〜7：unblockableBy.costIn／immunityGrant.nameIncludes／reviveOnDestroy.nameIncludes／revived.handOrDeckTop）
+// smoke パート635（BS18 軸4〜7：unblockableBy filter.cost.in／immunityGrant.nameIncludes／reviveOnDestroy.nameIncludes／revived.handOrDeckTop）
 import { hasMagicImmunity } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { assert, createGame, createInstance, destroySpirit, getCard, handleAction, refreshLevelAsOverrides, runTurnStart } from "./helpers"
@@ -36,8 +36,8 @@ function withEffects(cardId: string, effects: unknown[], body: () => void): void
     }
 }
 
-console.log("=== 4. unblockableBy.costIn ===")
-withEffects(SRC, [{ id: "t1", kind: "constraint", levels: null, constraint: { type: "unblockableBy", costIn: [1, 3] } }], () => {
+console.log("=== 4. unblockableBy filter.cost.in ===")
+withEffects(SRC, [{ id: "t1", kind: "constraint", levels: null, constraint: { type: "unblockableBy", filter: { cost: { in: [1, 3] } } } }], () => {
     const s = game("c4")
     const atk = createInstance(SRC, s.turn, 1)
     const a = createInstance(A, s.turn, 1)
@@ -67,7 +67,7 @@ withEffects(SRC, [{ id: "t1", kind: "immunityGrant", levels: null, target: "ownA
 })
 
 function reviveEntry(revived: unknown): unknown[] {
-    return [{ id: "t1", kind: "reviveOnDestroy", levels: null, scope: "ownAll", nameIncludes: ["ロク"], when: {}, revived }]
+    return [{ id: "t1", kind: "reviveOnDestroy", levels: null, scope: "ownAll", filter: { nameContains: ["ロク"] }, when: {}, revived }]
 }
 
 console.log("=== 6. reviveOnDestroy.nameIncludes（復活先は場に残る） ===")

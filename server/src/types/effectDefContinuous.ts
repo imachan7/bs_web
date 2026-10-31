@@ -1,5 +1,5 @@
 // 効果の定義のうち、場にある間ずっと効く継続効果と付与（〜Grant・〜As・抑制など）
-import type { AuraCondition, AuraDef, CardPick, CardType, Color, ConstraintDef, EffectAction, EffectCounter, FamilyFilter, GlobalConstraintDef, Keyword, LevelDef, Phase, TargetFilter, TriggerEvent } from "../type"
+import type { AuraCondition, AuraDef, CardPick, CardType, Color, ConstraintDef, EffectAction, EffectCounter, FamilyFilter, GlobalConstraintDef, Keyword, LevelDef, Phase, ResolvedTargetFilter, TargetFilter, TriggerEvent } from "../type"
 import type { EffectDef } from "./effectDef"
 
 export type EffectDefContinuous =
@@ -272,8 +272,7 @@ export type EffectDefContinuous =
           levels: number[] | null
           target: "self" | "ownAll" // self=発生源自身／ownAll=持ち主のスピリットすべて
           scope: "all" | "matchArmorColors" // matchArmorColors=対象が持つ【装甲】の色と一致する色の相手ブレイヴだけ防ぐ
-          colorFilter?: Color
-          keywordFilter?: Keyword
+          filter?: ResolvedTargetFilter // 付与先（持ち主のスピリット）の絞り込み。発生源自身も同じ filter を通る
           phase?: Phase
           turn?: "own" | "opponent"
       }
@@ -363,7 +362,7 @@ export type EffectDefContinuous =
               | { anyFieldHasColorSpirit: Color } // 自分か相手のどちらかのフィールドに指定色のスピリットがいる間
               | { ownFieldHasFamily: string }
               | { ownSpiritCountBelowOpponent: true } // 自分のスピリット数が相手より少ない間
-              | { ownFieldHasCombinedSpirit: true }
+              | { ownSpiritMatches: ResolvedTargetFilter } // 発生源自身も数える
               | { ownBurstSet: true }
               | { ownLifeAtLeast: number }
               | { opponentTrashAtLeast: number } // 相手のトラッシュの枚数
@@ -557,25 +556,14 @@ export type EffectDefContinuous =
           levels: number[] | null
           whileCombined?: true
           target: "ownAll"
-          minLevel?: number
           condition?: AuraCondition
-          familyFilter?: FamilyFilter
-          colorFilter?: Color
+          filter?: ResolvedTargetFilter // 付与先の絞り込み。発生源は selfInstanceId として渡す
+          // filter に移していない唯一の残り。ラベル系キーワード（【激突】）は matchesTarget だと見方が変わる（要判断。BS07-X25）
           keywordFilter?: Keyword
-          vanillaFilter?: true
           lentOnly?: boolean
-          minSymbols?: number
-          symbolCount?: number
           combinedBraveColors?: Color[]
-          nameIncludes?: string[]
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
-          costFilter?: number
           turn?: "own" | "opponent" | "both"
-          combinedFilter?: true
-          teamFilter?: string
-          restedOnly?: true
-          summonedBy?: string
-          summonedThisTurnOnly?: true
           constraint: ConstraintDef
       }
     | {

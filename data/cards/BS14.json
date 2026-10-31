@@ -572,7 +572,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": "皇獣",
+    "subjectFilter": {
+     "family": "皇獣"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -2682,7 +2684,13 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "costNot": 8
+     "filter": {
+      "cost": {
+       "notIn": [
+        8
+       ]
+      }
+     }
     }
    }
   ]
@@ -2938,9 +2946,11 @@
      2
     ],
     "phase": "attack",
-    "nameIncludes": [
-     "ペンタン"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "ペンタン"
+     ]
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -3161,7 +3171,9 @@
      3
     ],
     "target": "ownAll",
-    "keywordFilter": "seimei",
+    "filter": {
+     "keyword": "seimei"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -3169,9 +3181,11 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    }
   ]
@@ -3430,7 +3444,9 @@
      3
     ],
     "target": "ownAll",
-    "familyFilter": "導魔",
+    "filter": {
+     "family": "導魔"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -3438,7 +3454,9 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "familyFilterAbsent": "覇皇"
+     "filter": {
+      "familyExclude": "覇皇"
+     }
     }
    },
    {
@@ -5210,7 +5228,9 @@
     "id": "BS14-083-e1",
     "kind": "fieldEvent",
     "event": "anySpiritAttacked",
-    "maxBp": 3000,
+    "subjectFilter": {
+     "maxBp": 3000
+    },
     "phase": "attack",
     "levels": [
      1,
@@ -5224,7 +5244,9 @@
     "id": "BS14-083-e3",
     "kind": "fieldEvent",
     "event": "anySpiritDeclaredBlock",
-    "maxBp": 3000,
+    "subjectFilter": {
+     "maxBp": 3000
+    },
     "phase": "attack",
     "levels": [
      1,
@@ -5357,7 +5379,9 @@
      2
     ],
     "turn": "opponent",
-    "colorFilter": "red",
+    "subjectFilter": {
+     "color": "red"
+    },
     "refreshSourceTypeFilter": [
      "spirit",
      "magic"
@@ -5376,7 +5400,9 @@
      2
     ],
     "turn": "opponent",
-    "colorFilter": "green",
+    "subjectFilter": {
+     "color": "green"
+    },
     "refreshSourceTypeFilter": [
      "spirit",
      "magic"
@@ -5395,7 +5421,9 @@
      2
     ],
     "turn": "opponent",
-    "colorFilter": "white",
+    "subjectFilter": {
+     "color": "white"
+    },
     "refreshSourceTypeFilter": [
      "spirit",
      "magic"
@@ -5414,7 +5442,9 @@
      2
     ],
     "turn": "opponent",
-    "colorFilter": "blue",
+    "subjectFilter": {
+     "color": "blue"
+    },
     "refreshSourceTypeFilter": [
      "spirit",
      "magic"
@@ -6724,7 +6754,11 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
-    "minCost": 3,
+    "filter": {
+     "cost": {
+      "min": 3
+     }
+    },
     "when": {
      "byBattle": true
     },

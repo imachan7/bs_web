@@ -241,7 +241,7 @@ console.log("=== BS03-024 吸血騎士ノスフェラト：Lv2【呪撃】持ち
     const jugekiSpirit = put(s, "p1", "BS03-017", 1) // 幽霊船長シルバーシャーク：【呪撃】持ち Lv1
     const constraints = activeConstraints(s, "p1", jugekiSpirit)
     assert(
-        constraints.some((c) => c.type === "unblockableBy" && c.levelFilter?.includes(1)),
+        constraints.some((c) => c.type === "unblockableBy" && c.filter?.level?.includes(1)),
         "呪撃持ちの自分のスピリットにもunblockableBy(Lv1)が付与される",
     )
 }

@@ -669,7 +669,9 @@
         "levels": null,
         "whileCombined": true,
         "subjectSide": "opponent",
-        "subjectCombined": false,
+        "subjectFilter": {
+          "combined": false
+        },
         "turn": "opponent",
         "selfMode": "source",
         "action": {
@@ -1313,7 +1315,9 @@
         "target": "self",
         "treatAs": 3,
         "condition": {
-          "ownFieldHasCombinedSpirit": true
+          "ownSpiritMatches": {
+           "combined": true
+          }
         }
       }
     ]
@@ -1892,7 +1896,9 @@
           2
         ],
         "phase": "main",
-        "vanillaOnly": true,
+        "subjectFilter": {
+          "vanilla": true
+        },
         "action": {
           "type": "destroy",
           "count": 1,
@@ -2930,7 +2936,9 @@
         "levels": [
           2
         ],
-        "familyFilter": "魔影",
+        "subjectFilter": {
+          "family": "魔影"
+        },
         "action": {
           "type": "removeCores",
           "targets": 1,
@@ -3043,7 +3051,9 @@
           1,
           2
         ],
-        "familyFilter": "妖蛇",
+        "subjectFilter": {
+          "family": "妖蛇"
+        },
         "action": {
           "type": "draw",
           "count": 1
@@ -3157,7 +3167,9 @@
         "event": "ownSpiritDestroyed",
         "levels": null,
         "lentOnly": true,
-        "keywordFilter": "fushi",
+        "subjectFilter": {
+          "keyword": "fushi"
+        },
         "action": {
           "type": "destroy",
           "count": 1,
@@ -3825,7 +3837,9 @@
         "phase": "attack",
         "turn": "own",
         "ownOnly": true,
-        "vanillaOnly": true,
+        "subjectFilter": {
+          "vanilla": true
+        },
         "action": {
           "type": "placeCores",
           "from": "void",
@@ -3992,10 +4006,12 @@
           2
         ],
         "target": "ownAll",
-        "familyFilter": [
-          "光導",
-          "星魂"
-        ],
+        "filter": {
+          "family": [
+            "光導",
+            "星魂"
+          ]
+        },
         "phaseTurn": {
           "phase": "attack",
           "turn": "own"
@@ -4013,7 +4029,9 @@
           2
         ],
         "condition": {
-          "ownFieldHasCombinedSpirit": true
+          "ownSpiritMatches": {
+           "combined": true
+          }
         },
         "action": {
           "type": "lifeCrush",
@@ -4321,7 +4339,9 @@
         "levels": [
           2
         ],
-        "familyFilter": "星魂",
+        "subjectFilter": {
+          "family": "星魂"
+        },
         "action": {
           "type": "placeCores",
           "from": "void",
@@ -4673,7 +4693,9 @@
           1,
           2
         ],
-        "vanillaOnly": true,
+        "subjectFilter": {
+          "vanilla": true
+        },
         "action": {
           "type": "placeCores",
           "from": "void",
@@ -4825,7 +4847,9 @@
         ],
         "phase": "main",
         "turn": "own",
-        "familyFilter": "空魚",
+        "subjectFilter": {
+          "family": "空魚"
+        },
         "action": {
           "type": "return",
           "to": "hand",
@@ -5128,9 +5152,11 @@
           2
         ],
         "phase": "attack",
-        "costFilter": {
-          "max": 2,
-          "min": 2
+        "subjectFilter": {
+          "cost": {
+            "max": 2,
+            "min": 2
+          }
         },
         "action": {
           "type": "draw",
@@ -5398,7 +5424,9 @@
         ],
         "phase": "attack",
         "turn": "own",
-        "keywordFilter": "seimei",
+        "subjectFilter": {
+          "keyword": "seimei"
+        },
         "action": {
           "type": "lifeCrush",
           "count": 1
@@ -5670,7 +5698,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "vanillaOnly": true,
+        "subjectFilter": {
+          "vanilla": true
+        },
         "action": {
           "type": "draw",
           "count": 1
@@ -5683,7 +5713,13 @@
           2
         ],
         "target": "ownAll",
-        "costFilter": 2,
+        "filter": {
+          "cost": {
+            "in": [
+              2
+            ]
+          }
+        },
         "turn": "opponent",
         "constraint": {
           "type": "immuneToOpponentEffects",
@@ -5736,7 +5772,9 @@
         ],
         "phase": "attack",
         "turn": "opponent",
-        "colorFilter": "yellow",
+        "subjectFilter": {
+          "color": "yellow"
+        },
         "byOpponentSpiritEffectOnly": true,
         "action": {
           "type": "timedEffect",
@@ -5759,7 +5797,9 @@
           2
         ],
         "target": "ownAll",
-        "combinedFilter": true,
+        "filter": {
+          "combined": true
+        },
         "phaseTurn": {
           "phase": "attack",
           "turn": "own"
@@ -5767,8 +5807,12 @@
         "constraint": {
           "type": "unblockableBy",
           "opponentOnly": true,
-          "maxCost": 5
-        }
+          "filter": {
+           "cost": {
+            "max": 5
+           }
+          }
+         }
       }
     ]
   },
@@ -5825,11 +5869,13 @@
         ],
         "phase": "main",
         "turn": "own",
-        "familyFilter": [
-          "神星",
-          "光導",
-          "星魂"
-        ],
+        "subjectFilter": {
+          "family": [
+            "神星",
+            "光導",
+            "星魂"
+          ]
+        },
         "action": {
           "type": "placeCores",
           "from": "reserve",
@@ -6655,15 +6701,21 @@
           2
         ],
         "target": "ownAll",
-        "vanillaFilter": true,
+        "filter": {
+          "vanilla": true
+        },
         "phaseTurn": {
           "phase": "attack",
           "turn": "opponent"
         },
         "constraint": {
           "type": "canBlockWhileRested",
-          "targetMaxCost": 4
-        }
+          "filter": {
+           "cost": {
+            "max": 4
+           }
+          }
+         }
       },
       {
         "id": "BS10-094-e2",
@@ -6773,10 +6825,12 @@
         "event": "ownSpiritDealtLife",
         "levels": null,
         "lentOnly": true,
-        "familyFilter": [
-          "闘神",
-          "星魂"
-        ],
+        "subjectFilter": {
+          "family": [
+            "闘神",
+            "星魂"
+          ]
+        },
         "action": {
           "type": "discard",
           "from": "deck",

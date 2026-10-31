@@ -178,13 +178,13 @@ console.log("=== BS08インフィニティシールド：timedEffect canBlockWhi
     assert(declareBlock(s, "p1", other.instanceId) !== null, "対照実験：系統が一致しない疲労スピリットはブロックできない")
 }
 
-console.log("=== BS08一角魚モノケロック：constraint canBlockWhileRested.targetKeywordExclude（【転召】持ちの攻撃はブロックできない） ===")
+console.log("=== BS08一角魚モノケロック：constraint canBlockWhileRested の filter.keywordExclude（【転召】持ちの攻撃はブロックできない） ===")
 {
     const monokerokku = findByEffect(
         (e) =>
             e["kind"] === "constraint" &&
             (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "canBlockWhileRested" &&
-            (e["constraint"] as Record<string, unknown>)["targetKeywordExclude"] !== undefined,
+            ((e["constraint"] as Record<string, unknown>)["filter"] as Record<string, unknown> | undefined)?.["keywordExclude"] !== undefined,
     )
     const entry = entryOf(monokerokku, (e) => e["kind"] === "constraint")
     const activeLevel = (entry["levels"] as number[])[0]!

@@ -175,14 +175,14 @@ console.log("=== noRestWhenBlockingCost：同じコストをブロックして�
 
     const constraints = activeConstraints(s, "p1", blocker)
     assert(
-        constraints.some((c) => c.type === "noRestWhenBlockingCost"),
+        constraints.some((c) => c.type === "noRestWhenBlocking"),
         `系統「造兵」の${golem.name}に noRestWhenBlockingCost が付与されている`,
     )
     // 系統を持たないスピリットには付かない
     const other = CARDS.find((c) => c.type === "spirit" && !(c.family ?? []).includes("造兵"))!
     const plain = putSpirit(s, "p1", other.cardId, 1)
     assert(
-        !activeConstraints(s, "p1", plain).some((c) => c.type === "noRestWhenBlockingCost"),
+        !activeConstraints(s, "p1", plain).some((c) => c.type === "noRestWhenBlocking"),
         "系統「造兵」を持たないスピリットには付与されない",
     )
 }

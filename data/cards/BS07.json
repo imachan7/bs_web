@@ -2215,7 +2215,9 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "空魚",
+    "filter": {
+     "family": "空魚"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -2223,7 +2225,9 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "maxBp": 4000
+     "filter": {
+      "maxBp": 4000
+     }
     }
    }
   ]
@@ -2755,9 +2759,11 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "nameIncludes": [
-     "ペンタン"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "ペンタン"
+     ]
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",
@@ -3128,8 +3134,12 @@
      2
     ],
     "constraint": {
-     "type": "noRestWhenBlockingCost",
-     "maxCost": 3
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
     }
    }
   ]
@@ -3259,10 +3269,12 @@
      3
     ],
     "phase": "main",
-    "familyFilter": [
-     "虚神",
-     "神将"
-    ],
+    "subjectFilter": {
+     "family": [
+      "虚神",
+      "神将"
+     ]
+    },
     "selfMode": "source",
     "action": {
      "type": "deployNexus",
@@ -4107,8 +4119,10 @@
     ],
     "phase": "attack",
     "turn": "opponent",
-    "costFilter": {
-     "max": 2
+    "subjectFilter": {
+     "cost": {
+      "max": 2
+     }
     },
     "selfMode": "source",
     "action": {
@@ -4209,8 +4223,10 @@
      "turn": "opponent"
     },
     "constraint": {
-     "type": "noRestWhenBlockingWithoutKeyword",
-     "keyword": "tensho",
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "keywordExclude": "tensho"
+     },
      "oncePerTurn": true
     }
    }
@@ -4343,7 +4359,9 @@
      2
     ],
     "target": "ownAll",
-    "keywordFilter": "seimei",
+    "filter": {
+     "keyword": "seimei"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4351,7 +4369,11 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "maxCost": 3
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
     }
    }
   ]
@@ -4397,14 +4419,18 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "造兵",
+    "filter": {
+     "family": "造兵"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
     },
     "constraint": {
-     "type": "noRestWhenBlockingCost",
-     "sameCost": true
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "sameCostAsSelf": true
+     }
     }
    },
    {
@@ -5169,7 +5195,9 @@
     "event": "ownSpiritBlocked",
     "levels": null,
     "lentOnly": true,
-    "keywordFilter": "seimei",
+    "subjectFilter": {
+     "keyword": "seimei"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",

@@ -770,7 +770,9 @@
      3
     ],
     "turn": "opponent",
-    "maxBp": 6000,
+    "subjectFilter": {
+     "maxBp": 6000
+    },
     "action": {
      "type": "removeCores",
      "from": [
@@ -966,7 +968,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": "龍帝",
+    "subjectFilter": {
+     "family": "龍帝"
+    },
     "action": {
      "type": "removeCores",
      "target": "all",
@@ -1372,7 +1376,9 @@
      2
     ],
     "turn": "opponent",
-    "maxBp": 6000,
+    "subjectFilter": {
+     "maxBp": 6000
+    },
     "action": {
      "type": "exhaust",
      "count": 1,
@@ -1921,7 +1927,9 @@
     ],
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetKeywordExclude": "tensho"
+     "filter": {
+      "keywordExclude": "tensho"
+     }
     }
    }
   ]
@@ -2747,7 +2755,9 @@
      3
     ],
     "target": "ownAll",
-    "keywordFilter": "seimei",
+    "filter": {
+     "keyword": "seimei"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -2755,10 +2765,12 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "levelFilter": [
-      2,
-      3
-     ]
+     "filter": {
+      "level": [
+       2,
+       3
+      ]
+     }
     }
    }
   ]
@@ -2910,7 +2922,9 @@
      3
     ],
     "target": "ownAll",
-    "familyFilter": "龍帝",
+    "filter": {
+     "family": "龍帝"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -2918,7 +2932,9 @@
     "constraint": {
      "type": "unblockableBy",
      "opponentOnly": true,
-     "keywordFilterAbsent": "tensho"
+     "filter": {
+      "keywordExclude": "tensho"
+     }
     }
    }
   ]
@@ -3569,7 +3585,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "familyFilter": "龍帝",
+    "subjectFilter": {
+     "family": "龍帝"
+    },
     "action": {
      "type": "destroy",
      "count": "any",
@@ -3839,8 +3857,8 @@
      1,
      2
     ],
-    "condition": {
-     "targetMaxBp": 5000
+    "partnerFilter": {
+     "maxBp": 5000
     },
     "action": {
      "type": "destroy",
@@ -4035,7 +4053,9 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "冥主",
+    "filter": {
+     "family": "冥主"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4152,7 +4172,9 @@
      2
     ],
     "turn": "opponent",
-    "maxBp": 6000,
+    "subjectFilter": {
+     "maxBp": 6000
+    },
     "selfMode": "source",
     "action": {
      "type": "placeCores",
@@ -4368,7 +4390,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "四道",
+    "filter": {
+     "family": "四道"
+    },
     "when": {
      "byBattle": true,
      "byBattleKillerMaxBp": 7000
@@ -4490,8 +4514,10 @@
      2
     ],
     "turn": "opponent",
-    "costFilter": {
-     "max": 3
+    "subjectFilter": {
+     "cost": {
+      "max": 3
+     }
     },
     "selfMode": "source",
     "action": {
@@ -4561,7 +4587,9 @@
      1,
      2
     ],
-    "familyFilter": "異合",
+    "subjectFilter": {
+     "family": "異合"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4616,10 +4644,12 @@
     "levels": null,
     "lentOnly": true,
     "ownOnly": true,
-    "familyFilter": [
-     "龍帝",
-     "竜騎"
-    ],
+    "subjectFilter": {
+     "family": [
+      "龍帝",
+      "竜騎"
+     ]
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -5156,8 +5186,8 @@
     "event": "ownLifeDamaged",
     "levels": null,
     "lentOnly": true,
-    "condition": {
-     "targetKeywordExclude": "tensho"
+    "partnerFilter": {
+     "keywordExclude": "tensho"
     },
     "action": {
      "type": "destroy",
@@ -5417,7 +5447,9 @@
     "levels": null,
     "lentOnly": true,
     "ownOnly": true,
-    "keywordFilter": "funsai",
+    "subjectFilter": {
+     "keyword": "funsai"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -5914,8 +5946,10 @@
      2,
      3
     ],
-    "familyFilter": "武装",
-    "excludeSelfAsEventTarget": true,
+    "subjectFilter": {
+     "family": "武装",
+     "excludeSelf": true
+    },
     "selfMode": "source",
     "action": {
      "type": "refresh",

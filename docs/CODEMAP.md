@@ -275,6 +275,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/targetFilter.ts
 
 - `matchesTarget`（fn）：対象インスタンス1体が ResolvedTargetFilter の全条件を満たすかを判定する純粋な述語。
+- `resolveSelfRelative`（fn）：self 相対の軸を、ActionCtx なしで self の個体から数値の軸へ解決する（block.ts／GameEngine 用。クライアントも通る）。
 - `cardNameContains`（fn）：カード名に指定文字列を含むか。「カード名に『◯◯』と入っているスピリット」の共通判定。
 - `cardNameIs`（fn）：カード名の完全一致（部分一致しない）。「〜として扱う」名も一致とみなす
 - `trashCardNameMatches`（fn）：トラッシュ（インスタンスを持たない、cardIdだけのゾーン）のカード名照合。cardNameContainsのトラッシュ版。

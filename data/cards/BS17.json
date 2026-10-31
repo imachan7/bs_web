@@ -180,7 +180,9 @@
     ],
     "optional": false,
     "condition": {
-     "battleOpponentCombined": true
+     "battleOpponentMatches": {
+      "combined": true
+     }
     },
     "action": {
      "type": "timedEffect",
@@ -345,10 +347,12 @@
     "phase": "attack",
     "turn": "own",
     "subjectSide": "own",
-    "familyFilter": [
-     "覇皇",
-     "雄将"
-    ],
+    "subjectFilter": {
+     "family": [
+      "覇皇",
+      "雄将"
+     ]
+    },
     "condition": {
      "ownBurstSet": true
     },
@@ -767,9 +771,11 @@
     "levels": [
      2
     ],
-    "costFilter": {
-     "max": 3,
-     "min": 3
+    "subjectFilter": {
+     "cost": {
+      "max": 3,
+      "min": 3
+     }
     },
     "byOpponentOnly": true,
     "action": {
@@ -835,9 +841,11 @@
      2,
      3
     ],
-    "costFilter": {
-     "max": 3,
-     "min": 3
+    "subjectFilter": {
+     "cost": {
+      "max": 3,
+      "min": 3
+     }
     },
     "byOpponentOnly": true,
     "optional": true,
@@ -911,10 +919,12 @@
       "turn": "own"
      },
      "condition": {
-      "battleOpponentHasKeyword": [
-       "armor",
-       "heavyArmor"
-      ]
+      "battleOpponentMatches": {
+       "keyword": [
+        "armor",
+        "heavyArmor"
+       ]
+      }
      },
      "amount": 3000
     }
@@ -2032,7 +2042,9 @@
      2
     ],
     "target": "ownAll",
-    "keywordFilter": "hyoheki",
+    "filter": {
+     "keyword": "hyoheki"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
@@ -2370,8 +2382,10 @@
      2
     ],
     "target": "ownAll",
-    "symbolCount": 1,
-    "combinedFilter": true,
+    "filter": {
+     "symbolCount": 1,
+     "combined": true
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -2392,7 +2406,9 @@
      "white"
     ],
     "target": "ownAll",
-    "combinedFilter": true,
+    "filter": {
+     "combined": true
+    },
     "constraint": {
      "type": "immuneToOpponentEffects",
      "against": "spirit"
@@ -2412,7 +2428,9 @@
      "blue"
     ],
     "target": "ownAll",
-    "combinedFilter": true,
+    "filter": {
+     "combined": true
+    },
     "constraint": {
      "type": "immuneToOpponentEffects",
      "against": "magic"
@@ -3469,7 +3487,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "雄将",
+    "filter": {
+     "family": "雄将"
+    },
     "when": {},
     "phaseTurn": {
      "phase": "attack",
@@ -3602,9 +3622,11 @@
      2
     ],
     "target": "ownAll",
-    "nameIncludes": [
-     "ロック・アラディン"
-    ],
+    "filter": {
+     "nameContains": [
+      "ロック・アラディン"
+     ]
+    },
     "constraint": {
      "type": "immuneToOpponentEffects",
      "against": "magic"
@@ -4170,7 +4192,9 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "覇皇",
+    "filter": {
+     "family": "覇皇"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4188,8 +4212,10 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "覇皇",
-    "colorFilter": "red",
+    "filter": {
+     "family": "覇皇",
+     "color": "red"
+    },
     "when": {
      "byOpponent": true
     },
@@ -4314,9 +4340,11 @@
     ],
     "subjectSide": "own",
     "byOpponentEffectOnly": true,
-    "nameIncludes": [
-     "闇騎士"
-    ],
+    "subjectFilter": {
+     "nameContains": [
+      "闇騎士"
+     ]
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -4382,9 +4410,11 @@
      2
     ],
     "phase": "attack",
-    "costFilter": {
-     "max": 3,
-     "min": 3
+    "subjectFilter": {
+     "cost": {
+      "max": 3,
+      "min": 3
+     }
     },
     "action": {
      "type": "draw",
@@ -4652,7 +4682,9 @@
     "levels": [
      2
     ],
-    "familyFilter": "機獣",
+    "subjectFilter": {
+     "family": "機獣"
+    },
     "byOpponentOnly": true,
     "selfMode": "source",
     "attackerAsTarget": true,
@@ -4740,10 +4772,12 @@
     ],
     "scope": "ownAll",
     "optional": true,
-    "keywordFilter": [
-     "kobo",
-     "makobo"
-    ],
+    "filter": {
+     "keyword": [
+      "kobo",
+      "makobo"
+     ]
+    },
     "when": {
      "byOpponent": true
     },
@@ -4988,9 +5022,11 @@
      2
     ],
     "target": "ownAll",
-    "nameIncludes": [
-     "ロック・アラディン"
-    ],
+    "filter": {
+     "nameContains": [
+      "ロック・アラディン"
+     ]
+    },
     "constraint": {
      "type": "immuneToOpponentEffects",
      "against": [
@@ -5376,7 +5412,9 @@
     "levels": null,
     "scope": "ownAll",
     "lentOnly": true,
-    "blockingOnly": true,
+    "filter": {
+     "blocking": true
+    },
     "when": {},
     "revived": {
      "rested": true

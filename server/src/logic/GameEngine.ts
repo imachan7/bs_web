@@ -42,6 +42,8 @@ import {
     instIsCombined,
     matchesFamilyFilter,
     spiritHasKeyword,
+    matchesTarget,
+    resolveSelfRelative,
     hasSuperAwaken,
     isEndStepLocked,
     summonExhausted,
@@ -1257,27 +1259,14 @@ function exhaustDeclaredBlocker(
     withKyoshu: boolean,
 ): void {
     const attackerPid = opponentOf(defenderPid)
-    // noRestWhenBlockingColor：アタッカーの色が一致する場合、ブロッカーは疲労しない。
-    // noRestWhenBlockingCost：アタッカーのコストが条件（maxCost以下／sameCost＝ブロッカー自身と同じ）を満たす場合も疲労しない。
-    // コストは道化師クランの付与コストも見る（instAllCosts）
-    const attackerColors = instColors(attacker)
-    const attackerCosts = instAllCosts(attacker)
-    const blockerCosts = instAllCosts(blocker)
     // 発生源つきで取るのは、「ターンに1回」を**ネクサス1枚ごと**に数えるため（下記）
-    const matched = activeConstraintsWithSource(state, defenderPid, blocker).filter(({ constraint: c }) => {
-        if (c.type === "noRestWhenBlockingColor") return attackerColors.includes(c.color)
-        if (c.type === "noRestWhenBlockingWithoutKeyword") {
-            return !spiritHasKeyword(state, attackerPid, attacker, c.keyword)
-        }
-        if (c.type !== "noRestWhenBlockingCost") return false
-        if (c.sameCost) return attackerCosts.some((a) => blockerCosts.includes(a))
-        const max = c.maxCost
-        return max !== undefined && attackerCosts.some((a) => a <= max)
-    })
+    const matched = activeConstraintsWithSource(state, defenderPid, blocker).filter(
+        ({ constraint: c }) => c.type === "noRestWhenBlocking" && matchesTarget(state, attackerPid, attacker, resolveSelfRelative(c.filter, blocker)),
+    )
     // 「ターンに1回」（oncePerTurn）は発生源1つにつき1回数える（同名ネクサスを2枚置けば2回使える。2026-08-24）。
     // このターン既に使った発生源の制約は数に入れない。回数制限の無い制約が同時にあるならそちらが働くので消費もしない
     const isOnce = (e: (typeof matched)[number]): boolean =>
-        e.constraint.type === "noRestWhenBlockingWithoutKeyword" && e.constraint.oncePerTurn === true
+        e.constraint.type === "noRestWhenBlocking" && e.constraint.oncePerTurn === true
     const usedIds = state.players[defenderPid].noRestWhenBlockingUsedThisTurn ?? []
     const usable = matched.filter((e) => !(isOnce(e) && usedIds.includes(e.sourceInstanceId)))
     const skipRest = usable.length > 0

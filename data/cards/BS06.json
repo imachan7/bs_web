@@ -1397,7 +1397,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "keywordFilter": "jugeki",
+    "subjectFilter": {
+     "keyword": "jugeki"
+    },
     "action": {
      "type": "removeCores",
      "count": 1
@@ -1994,9 +1996,11 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "keywordFilter": "bofu",
+    "subjectFilter": {
+     "keyword": "bofu",
+     "excludeSelf": true
+    },
     "selfMode": "source",
-    "excludeSelfAsEventTarget": true,
     "action": {
      "type": "refresh",
      "target": "self"
@@ -4359,7 +4363,9 @@
      2
     ],
     "byBattleOnly": true,
-    "familyFilter": "地竜",
+    "subjectFilter": {
+     "family": "地竜"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -4376,7 +4382,9 @@
      1,
      2
     ],
-    "familyFilter": "地竜",
+    "subjectFilter": {
+     "family": "地竜"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -4466,7 +4474,9 @@
      2
     ],
     "byBattleOnly": true,
-    "keywordFilter": "clash",
+    "subjectFilter": {
+     "keyword": "clash"
+    },
     "action": {
      "type": "destructionCoresToOwnSpirit"
     }
@@ -4481,7 +4491,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "keywordFilter": "clash",
+    "subjectFilter": {
+     "keyword": "clash"
+    },
     "condition": {
      "firstAttackOfTurn": true
     },
@@ -4546,7 +4558,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "無魔",
+    "filter": {
+     "family": "無魔"
+    },
     "revived": {
      "rested": false
     },
@@ -4615,7 +4629,9 @@
     "phase": "attack",
     "turn": "own",
     "ownOnly": true,
-    "keywordFilter": "jugeki",
+    "subjectFilter": {
+     "keyword": "jugeki"
+    },
     "action": {
      "type": "removeCores",
      "count": 1
@@ -4788,7 +4804,9 @@
     ],
     "phase": "main",
     "turn": "own",
-    "keywordFilter": "bofu",
+    "subjectFilter": {
+     "keyword": "bofu"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4924,7 +4942,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "武装",
+    "filter": {
+     "family": "武装"
+    },
     "revived": {
      "toHand": true
     },
@@ -5224,7 +5244,9 @@
     ],
     "phase": "main",
     "turn": "own",
-    "familyFilter": "想獣",
+    "subjectFilter": {
+     "family": "想獣"
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -5237,7 +5259,9 @@
      2
     ],
     "scope": "ownAll",
-    "colorFilter": "yellow",
+    "filter": {
+     "color": "yellow"
+    },
     "when": {
      "byBattle": true
     },
@@ -5295,14 +5319,20 @@
      2
     ],
     "target": "ownAll",
-    "familyFilter": "闘神",
+    "filter": {
+     "family": "闘神"
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "opponent"
     },
     "constraint": {
      "type": "canBlockWhileRested",
-     "targetMaxCost": 1
+     "filter": {
+      "cost": {
+       "max": 1
+      }
+     }
     }
    },
    {
@@ -5314,7 +5344,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "familyFilter": "闘神",
+    "subjectFilter": {
+     "family": "闘神"
+    },
     "action": {
      "type": "destroy",
      "count": 1,
@@ -5677,7 +5709,9 @@
     "lentOnly": true,
     "event": "ownSpiritDestroyed",
     "byBattleOnly": true,
-    "colorFilter": "purple",
+    "subjectFilter": {
+     "color": "purple"
+    },
     "action": {
      "type": "draw",
      "count": 2
@@ -6714,7 +6748,9 @@
     ],
     "phase": "attack",
     "turn": "own",
-    "keywordFilter": "jugeki",
+    "subjectFilter": {
+     "keyword": "jugeki"
+    },
     "action": {
      "type": "destroy",
      "count": 1

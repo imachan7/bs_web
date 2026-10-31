@@ -62,7 +62,7 @@ registerCard({
     cardId: "ZTEST443-GRANT-SYMBOL",
     type: "spirit",
     effects: [
-        { id: "t3", kind: "constraintGrant", levels: [1], target: "ownAll", symbolCount: 1, constraint: { type: "mustAttack" } },
+        { id: "t3", kind: "constraintGrant", levels: [1], target: "ownAll", filter: { symbolCount: 1 }, constraint: { type: "mustAttack" } },
     ],
 })
 registerCard({ cardId: "ZTEST443-BRAVE-RED", type: "brave", colors: ["red"], levels: [{ level: 1, cores: 1, bp: 1000 }], braveLevels: [{ level: 1, cores: 0, bp: 0 }] })

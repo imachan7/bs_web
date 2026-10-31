@@ -1,5 +1,5 @@
 // smoke パート45（BS04構造化スキップ解消・エンジン拡張バッチ3の検証）
-// 拡張A: triggered condition ownFieldHasKeyword — BS04-001 クナノミ（覚醒持ちがいるときアタック時BP+2000）
+// 拡張A: triggered condition ownSpiritMatches{keyword} — BS04-001 クナノミ（覚醒持ちがいるときアタック時BP+2000）
 // 拡張B: exhaustAll{side,minBp,maxBp} — BS04-099 グラウンドハウリング main（BP4000以上の相手を疲労）
 // 拡張C: returnAllToHand{side,costFilter} — BS04-102 ドリームハンド（両陣営コスト1以下を手札へ）
 // 拡張D: refreshByFamily{familyFilter(OR),count} — BS04-103 ハイエーテル（巨獣/甲獣を3体回復）

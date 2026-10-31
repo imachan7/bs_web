@@ -255,8 +255,8 @@
         "turn": "own",
         "selfMode": "source",
         "ignoreEventTarget": true,
-        "condition": {
-          "targetMaxCostOfEventTarget": 4
+        "partnerFilter": {
+          "cost": {"max": 4}
         },
         "action": {
           "type": "refresh",
@@ -461,8 +461,12 @@
         ],
         "constraint": {
           "type": "canBlockWhileRested",
-          "targetMaxCost": 3
-        }
+          "filter": {
+           "cost": {
+            "max": 3
+           }
+          }
+         }
       }
     ]
   },
@@ -872,7 +876,9 @@
           2
         ],
         "target": "ownAll",
-        "keywordFilter": "tensho",
+        "filter": {
+          "keyword": "tensho"
+        },
         "phaseTurn": {
           "phase": "attack",
           "turn": "own"
@@ -880,8 +886,10 @@
         "constraint": {
           "type": "unblockableBy",
           "opponentOnly": true,
-          "levelAtMostAttacker": true
-        }
+          "filter": {
+           "maxLevelAsSelf": true
+          }
+         }
       }
     ]
   },

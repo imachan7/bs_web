@@ -11,6 +11,8 @@ import type { GameState, PlayerId } from "./helpers"
 import { fireFieldEventTriggers, resolveAction, spiritHasKeyword } from "../../server/src/logic/EffectModules"
 import { loadAllCards } from "../../data/loadCards"
 import type { Color, Phase } from "../../server/src/type"
+import * as fs from "node:fs"
+import * as path from "node:path"
 
 interface CardRow {
     cardId: string
@@ -81,14 +83,15 @@ function snapshot(s: GameState): string {
 
 // 誘発の**主体**（「自分のスピリットが召喚されたとき」のその1体）を、条件を満たすカードから選ぶ
 function pickSubjectCard(entry: Record<string, unknown>, exclude: string): CardRow | undefined {
-    const fam = entry["familyFilter"]
+    const sf = (entry["subjectFilter"] ?? {}) as Record<string, unknown>
+    const fam = sf["family"] ?? entry["familyFilter"]
     const wantFams = typeof fam === "string" ? [fam] : Array.isArray(fam) ? (fam as string[]) : []
-    const nm = entry["nameIncludes"]
+    const nm = sf["nameContains"] ?? entry["nameIncludes"]
     const wantNames = typeof nm === "string" ? [nm] : Array.isArray(nm) ? (nm as string[]) : []
-    const col = entry["colorFilter"]
+    const col = sf["color"] ?? entry["colorFilter"]
     const wantColors = typeof col === "string" ? [col] : Array.isArray(col) ? (col as string[]) : []
-    const kw = entry["keywordFilter"] as string | undefined
-    const costFilter = entry["costFilter"] as Record<string, unknown> | undefined
+    const kw = (sf["keyword"] ?? entry["keywordFilter"]) as string | undefined
+    const costFilter = (sf["cost"] ?? entry["costFilter"]) as Record<string, unknown> | undefined
     const maxCost = costFilter?.["max"] as number | undefined
     return CARDS.find(
         (c) =>
@@ -112,7 +115,10 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
         for (const entry of (src.effects ?? []).filter((e) => e["kind"] === "fieldEvent")) {
             const event = entry["event"] as string
             const subjectCard = pickSubjectCard(entry, src.cardId)
-            if (!subjectCard) continue
+            if (!subjectCard) {
+                notFired.push(String(entry["id"]))
+                continue
+            }
 
             const s = base(`fe-${src.cardId}-${String(entry["id"])}`)
             // 『相手のターン』条件があれば相手のターンにする
@@ -166,10 +172,26 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
                 if (pc.action.type === "noop") break
             }
             if (snapshot(s) !== before) fired++
-            else notFired.push(`${src.cardId} ${src.name}(${event})`)
+            else notFired.push(String(entry["id"]))
         }
     }
     console.log(`  （発揮した fieldEvent エントリ: ${fired}件／盤面が動かなかった: ${notFired.length}件）`)
     assert(fired > 0, "fieldEvent のエントリが1件以上発揮した")
-    if (notFired.length > 0) console.log(`  動かなかったもの: ${notFired.slice(0, 12).join(" / ")}`)
+    // 動かなかったエントリは基準と比べ、増えたら落とす。組めない場面を黙って飛ばすと、
+    // データの移行で発火しなくなっても smoke が全緑のままになる（2026-10-31 に実際に28件）。
+    // 基準の更新は FIRE_BASELINE_UPDATE=1 npx tsx scripts/smoke/part197.ts
+    const baselinePath = path.join(__dirname, "..", "..", "data", "fieldevent-fire-baseline.json")
+    // 山札・手札の中身で動くかが変わる（createGame のシャッフルは Math.random）ので基準の比較から外す
+    const DECK_DEPENDENT = new Set(["BS09-064-e1", "BS12-072-e2"])
+    const now = [...new Set(notFired)].filter((id) => !DECK_DEPENDENT.has(id)).sort()
+    if (process.env["FIRE_BASELINE_UPDATE"] === "1") {
+        fs.writeFileSync(baselinePath, JSON.stringify(now, null, 2) + "\n")
+        console.log(`  基準を更新しました（${now.length}件）`)
+    } else {
+        const base = new Set<string>(JSON.parse(fs.readFileSync(baselinePath, "utf8")))
+        const added = now.filter((id) => !base.has(id))
+        assert(added.length === 0, `動かなかった fieldEvent が基準より増えていない（増えた: ${added.join(" ")}）`)
+        const gone = [...base].filter((id) => !now.includes(id) && !DECK_DEPENDENT.has(id))
+        if (gone.length > 0) console.log(`  基準より減った ${gone.length}件（基準を縮められる）: ${gone.join(" ")}`)
+    }
 }

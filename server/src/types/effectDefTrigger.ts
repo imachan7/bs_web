@@ -1,5 +1,5 @@
 // 効果の定義のうち、事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活など）
-import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, TriggerEvent } from "../type"
+import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, ResolvedTargetFilter, TriggerEvent } from "../type"
 
 export type EffectDefTrigger =
     | {
@@ -31,11 +31,9 @@ export type EffectDefTrigger =
           turn?: "own" | "opponent" // 発生源の持ち主基準
           condition?:
               | { opponentNexusColorsAtLeast: number } // 色数は重複除く
-              | { ownFieldHasColorSpirit: Color } // timedColors 考慮
+              | { ownSpiritMatches: ResolvedTargetFilter } // 自分のスピリットのうち絞り込みに合うものが1体以上いる（発生源自身も数える。AuraCondition.ownSpiritMatches と同じ判定）
               | { ownFieldHasColorNexus: Color } // 自分のフィールド
               | { targetSameLevelAsSelf: true } // onBlocked 用
-              | { ownFieldHasKeyword: Keyword } // 一時/継続付与も考慮
-              | { ownFieldHasCombinedSpirit: true } // 自分のフィールドに合体スピリットがいる
               | { firstAttackOfTurn: true }
               | { lastFunsaiHasNexus: true }
               | { lastMilledHasEx: true } // ownChimeiMilled 限定（state.lastDeckMill を見る）
@@ -52,7 +50,7 @@ export type EffectDefTrigger =
               | { opponentHandAtLeast: number } // 相手の手札枚数
               | { ownHandAtLeast: number } // 発火しないので確認も出ない
               | { bothFieldsHaveMinBpSpirit: number } // 両陣営のフィールドにそれぞれ実効BPがこの値以上のスピリットがいる
-              | { battleOpponentCombined: true } // onBattleStart 用
+              | { battleOpponentMatches: ResolvedTargetFilter } // いま成立しているバトルの、発生源がアタッカーならブロッカー・ブロッカーならアタッカーが絞り込みに合う（AuraCondition 側は発生源でなく持ち主から見た相手側で引く）
               | { requirePrevAttackerCombined: true } // ターン開始でリセット
               | { ownLifeAtMost: number } // 自分のライフ
               | { selfSummonedByFushi: true } // onSummon 限定
@@ -203,32 +201,26 @@ export type EffectDefTrigger =
           excludePhase?: Phase // このステップでは発火しない
           turn?: "own" | "opponent" // own=持ち主がturnPlayerの時、opponent=非turnPlayerの時。省略時はどちらでも発火
           subjectSide?: "own" | "opponent" // イベントの主体がどちら側か（turn＝誰のターンかとは別軸。2026-08-16判断）
-          colorFilter?: Color // ownSpiritDestroyed | ownSpiritBlocked | anySpiritAttacked | ownSpiritSummoned 限定。対象スピリットの色
+          subjectFilter?: ResolvedTargetFilter // イベントの主体（selfOverride）の絞り込み。主体が居ないイベントでは不成立。excludeSelf＝主体が発生源自身なら発火しない
+          partnerFilter?: ResolvedTargetFilter // targetInstanceId（ブロッカー・アタッカーなどの相手役）の絞り込み
+          colorFilter?: Color // ownNexusDestroyed 限定（主体が selfOverride を持たず eventColors で渡す）。ほかのイベントは subjectFilter.color
           sourceColorFilter?: Color // 「相手のこの色の〜の効果によって」起きたときだけ（currentEffectSource で判定）。colorFilter はイベント対象、こちらは効果の発生源の色
-          targetColorFilter?: Color // targetInstanceIdのスピリットの色
           ignoreEventTarget?: true // resolveActionにtargetInstanceIdを渡さない
           selfMode?: "source" // self にイベント対象でなく発生源インスタンス自身を渡す
-          vanillaOnly?: true // ownSpiritDestroyed | ownSpiritSummoned | anySpiritAttacked | ownSpiritDeclaredBlock 限定。
-          // 破壊・召喚は主体が既にフィールドを離れているため eventInfo.vanilla で、アタック/ブロックは場に残るため instIsVanilla で判定
-          subjectKeywordFilter?: Keyword | Keyword[] // イベントの主体が対象
           bpReachedAt?: number // ownSpiritBpReached 限定。前回BP < この値 <= 今回BP のときだけ
           blockerMaxBp?: number // ownSpiritBlocked 限定。ブロック宣言の時点の実効BP
           subjectMinBp?: number // イベントの主体の実効BP
           subjectRefreshed?: true // そのイベントの時点の状態
-          subjectMinSymbols?: number // シンボル数は付与込み
-          subjectMaxCost?: number // イベントの主体のコスト
           subjectReceivesBpPlus?: true // 期間つき・常時・自身の効果を問わない（receivesBpPlus）
           subjectMinCost?: number // イベントの主体のコスト
           subjectOriginalNexus?: true // 本来はネクサスのカード（スピリットとして扱われているネクサス）
           subjectDifferentNameFromSelf?: true // 主体が発生源と異なるカード名のときのみ
           subjectTeamFilter?: string // CardData.team
-          subjectHasTrigger?: TriggerEvent // 現在のレベルで静的に持つもの
           destroyedByOwnEffect?: { sourceType: CardType; sourceFamily?: string | string[] } // opponentSpiritDestroyed 限定。バトルは含まない。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）
           destroyedMaxBp?: number // opponentSpiritDestroyed 限定。破壊直前の実効BP
           byBattleOnly?: true // ownSpiritDestroyed 限定
           attackerOnly?: true // ownSpiritDestroyed 限定
           duringSelfAttack?: true // opponentSpiritDestroyed 限定
-          excludeSelfSubject?: true // 主体が発生源自身なら発火しない
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
           byOpponentOnly?: true // ownSpiritDestroyed 限定
@@ -252,10 +244,6 @@ export type EffectDefTrigger =
               | "selfIsAttacking" // 発生源自身が現在のバトルのアタッカーのとき
               | { firstAttackOfTurn: true } // anySpiritAttacked 限定
               | { attacksThisTurnAtLeast: number } // anySpiritAttacked 限定。N回目以降のアタック
-              | { targetMaxBp: number } // ownLifeDamaged 限定。ライフを減らしたスピリット（アタッカー）の実効BP
-              | { targetMaxCostOfEventTarget: number } // targetInstanceIdのスピリットのコスト
-              // event:"ownSpiritBlocked" ではブロッカー。targetMaxBp のコスト版
-              | { targetKeywordExclude: Keyword } // ownLifeDamaged 限定
               | { lastFunsaiHasSpirit: true } // ownFunsaiMilled 限定
               | { lastFunsaiHasCostAtLeast4: true } // ownFunsaiMilled 限定
               | { opponentHandAtLeastOwnHand: true } // 相手の手札枚数
@@ -272,28 +260,19 @@ export type EffectDefTrigger =
           paidCostOnly?: true // ownMagicUsed 限定。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認）
           magicFreeUseMaxPerTurn?: number // ownMagicUsed 限定。発生源が実際に無償使用を行った回数（CardInstance.magicFreeUseCount）がこの値未満のときのみ
           // 確認で「使わない」を選んだ・候補が無く不発だったときは消費しない（2026-09-07確認）
-          familyFilter?: FamilyFilter // ownSpiritDestroyed | ownSpiritSummoned | ownSpiritExhausted | anySpiritExhausted | anySpiritAttacked | ownSpiritBattleEnded 限定
-          // 破壊/召喚は eventInfo.families（カード静的な系統）で判定。疲労イベントは families を渡さないため selfOverride を matchesFamilyFilter で判定
+          familyFilter?: FamilyFilter // ownTensho 限定（主体が場に居ないので eventInfo.families で判定）。ほかのイベントは subjectFilter.family
           fromHandOnly?: true
           subjectNotInBattle?: true // 主体が今のバトルのアタッカーでもブロッカーでもないときのみ
           keishoSummonOnly?: true // ownSpiritSummoned 限定。《継召》（トラッシュのEXシンボル持ちを除外してコスト軽減）による召喚のみ
           byOpponentVanishOnly?: true // ownSpiritDestroyed 限定。消滅（維持コア割れ。破壊ではない）で、その原因が相手の効果のとき
           sokuSummonOnly?: true // ownSpiritSummoned 限定。⚠️ keywordFilter:"soku"（召喚されたカードが【神速】を持つ）とは別物
           fushiSummonOnly?: true // ownSpiritSummoned 限定。【不死】召喚も通常と同じくこのイベントを起こすので限定したいときだけ指定
-          subjectCombined?: boolean // 主体が合体しているか
-          keywordFilter?: Keyword // ownSpiritSummoned 限定。召喚されたスピリットがこのキーワードを静的に持つとき
-          // event: "anySpiritAttacked" | "ownSpiritDealtLife" 限定：イベント対象（selfOverride）が該当キーワードを持つとき
-          costFilter?: { max?: number; min?: number } // ownSpiritDestroyed | anySpiritAttacked | ownSpiritExhausted | anySpiritExhausted | ownSpiritSummoned 限定。
-          // ownSpiritSummoned 限定：カード静的なコスト（本来のコスト）で判定し、軽減後の支払いコストではない
-          maxBp?: number // anySpiritAttacked 限定
-          subjectMaxCores?: number // anySpiritAttacked 限定
-          symbolCount?: number // anySpiritAttacked 限定
+          costFilter?: { max?: number; min?: number } // ownSpiritSummoned 限定。カード静的な本来のコストで判定する（付与コスト込みの subjectFilter.cost とは別。軽減後の支払いコストでもない）
           eventTargetIsSelf?: true // ownSpiritExhausted | anySpiritExhausted 限定
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効
-          nameIncludes?: string[] // event:"ownTensho" 限定では eventInfo.names（【転召】の犠牲になったスピリットのカード名）、それ以外は selfOverride
-          targetSameLevelAsSelf?: true // targetInstanceIdのLvがイベント対象（selfOverride）のLvと同じときのみ
+          nameIncludes?: string[] // ownTensho 限定。eventInfo.names（【転召】の犠牲になったスピリットのカード名）で判定。ほかのイベントは subjectFilter.nameContains
+          targetSameLevelAsSelf?: true // targetInstanceIdのLvがイベント対象（selfOverride）のLvと同じときのみ。TargetFilter に主体と同じLvを表す軸が無いので partnerFilter へは寄せていない
           ownOnly?: true // anySpiritAttacked 限定
-          excludeSelfAsEventTarget?: true // イベント対象（selfOverride）が発生源自身なら発火しない
           optional?: true // 「〜できる」＝任意
       }
     | {
@@ -322,17 +301,10 @@ export type EffectDefTrigger =
           perDestroyed?: true // scope:"ownAll" 限定。同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）
           whileCombined?: true // scope:"self" 専用
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効
-          blockingOnly?: true // scope:"ownAll" 用。現在のバトルのブロッカーだけ
           optional?: true // 承認でコスト支払い＋復活確定、断ればその場で破壊（非対話は即時確定）。省略時は必ず戻る
-          vanillaFilter?: true // scope:"ownAll" 用。効果の記述を持たない（バニラ）スピリットのみ
-          colorFilter?: Color // scope:"ownAll" 用。この色を持つスピリットのみ
-          keywordFilter?: Keyword | Keyword[] // scope:"ownAll" 用。配列はOR
-          minBp?: number // scope:"ownAll" 用。対象の実効BP
-          minCost?: number // scope:"ownAll" 用。対象のコスト
-          nameIncludes?: string[] // scope:"ownAll" 用。カード名に含む（配列＝OR・部分一致。constraintGrant.nameIncludes と同じ）
-          familyFilter?: FamilyFilter // scope:"ownAll" 用。指定系統（配列＝OR）を持つスピリットのみ
-          minFamilies?: number // scope:"ownAll" 用。カード静的な family 配列の要素数
-          combinedOnly?: true // scope:"ownAll" 用。合体スピリットのみ
+          filter?: ResolvedTargetFilter // 復活させる（破壊される）スピリットの絞り込み。scope:"self" でも自身に掛かる
+          keywordFilter?: Keyword | Keyword[] // scope:"ownAll" 用。filter.keyword に寄せなかった残り（【激突】。matchesTarget は付与込みで見ないため。BS08-056）
+          minFamilies?: number // scope:"ownAll" 用。カード静的な family 配列の要素数。TargetFilter に対応する軸が無い
           requireOwnFieldHasName?: string // 持ち主のフィールドにこのカード名の個体が1体以上いるときのみ
           when: {
               byOpponentEffect?: boolean // 相手の効果による破壊のみ

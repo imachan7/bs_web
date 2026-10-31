@@ -949,9 +949,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      3
-     ]
+     "filter": {
+      "level": [
+       3
+      ]
+     }
     }
    },
    {
@@ -962,10 +964,12 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      2,
-      3
-     ]
+     "filter": {
+      "level": [
+       2,
+       3
+      ]
+     }
     }
    }
   ]
@@ -1018,9 +1022,11 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1
-     ]
+     "filter": {
+      "level": [
+       1
+      ]
+     }
     }
    },
    {
@@ -1031,10 +1037,12 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "levelFilter": [
-      1,
-      2
-     ]
+     "filter": {
+      "level": [
+       1,
+       2
+      ]
+     }
     }
    }
   ]
@@ -2744,7 +2752,13 @@
     ],
     "constraint": {
      "type": "unblockableBy",
-     "costNot": 8
+     "filter": {
+      "cost": {
+       "notIn": [
+        8
+       ]
+      }
+     }
     }
    }
   ]
@@ -3680,7 +3694,9 @@
      2
     ],
     "phase": "attack",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "condition": {
      "ownColorTotalAtLeast": {
       "color": "yellow",
@@ -4522,7 +4538,9 @@
      2
     ],
     "target": "ownAll",
-    "minLevel": 3,
+    "filter": {
+     "minLevel": 3
+    },
     "phaseTurn": {
      "phase": "attack",
      "turn": "own"
@@ -4799,7 +4817,9 @@
      2
     ],
     "phase": "attack",
-    "familyFilter": "武装",
+    "subjectFilter": {
+     "family": "武装"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4915,7 +4935,9 @@
      2
     ],
     "phase": "attack",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -4931,7 +4953,9 @@
      2
     ],
     "phase": "attack",
-    "colorFilter": "yellow",
+    "subjectFilter": {
+     "color": "yellow"
+    },
     "action": {
      "type": "draw",
      "count": 1
@@ -6393,8 +6417,10 @@
      3
     ],
     "constraint": {
-     "type": "noRestWhenBlockingColor",
-     "color": "red"
+     "type": "noRestWhenBlocking",
+     "filter": {
+      "color": "red"
+     }
     }
    },
    {
