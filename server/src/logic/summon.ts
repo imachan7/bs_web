@@ -1,7 +1,7 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
-import { hasSummonedExhaustGrant, payCost } from "./EffectModules"
+import { getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
 import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
@@ -113,7 +113,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
         // eventColors に召喚されたスピリットの色を渡す（fieldEvent.colorFilter が
         // 「自分の**青の**スピリットが召喚されたとき」を絞れるようにする。BS09-002フタバニア）
         const summonedInfo = {
-            families: getCard(inst.cardId).family,
+            families: getAllFamilies().filter((f) => spiritHasFamily(state, pid, inst, f)),
             // costFilter用：**カード静的なコスト（本来のコスト）**。軽減後の支払いコストではない（BS13-003カメレオプス）
             costs: [getCard(inst.cardId).cost],
             byFushi,
