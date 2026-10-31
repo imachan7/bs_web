@@ -38,7 +38,7 @@ P13〜P25 のような「P＋年」の番号と PX13 以降はまだやらない
 - P072（Q17811〜Q17813）：もう1度発揮するバースト効果は対象を選び直す。召喚もやり直せる。すでに場にいるスピリットの召喚時効果は出ない
 - PX19（Q18473・Q18475）：【不死】と「デッキから破棄されたとき」の効果は使えない。コスト3としても扱う＝元のコストと3の両方で当たる（Q18474）
 
-### 2.2 こう読んだ（ユーザー確認待ち）
+### 2.2 こう読んだ（2026-10-31 ユーザー確認済み）
 
 1. PX19 のトラッシュ凍結：トラッシュのカードを動かす効果（回収・トラッシュからの召喚）と、トラッシュのカード自身の効果（【不死】・トラッシュのシンボルによる軽減など）を全部止める。トラッシュの枚数を数えるだけの効果は止めない。PX19 自身がトラッシュにあるときは効かない（場にいる間だけの効果）
 2. 期間の書かれていない禁止は、アタック時の誘発なので「このバトルの間」：P029（シンボルの色のマジックしか使えない）・P077（疲労ネクサスと同じコストは使えない）・P074（バーストを発動できない）。色・コストは使うたびに見る
@@ -50,6 +50,47 @@ P13〜P25 のような「P＋年」の番号と PX13 以降はまだやらない
 8. P050「コア1個ずつ」は1個残さない（コア1個のスピリットは消滅する）
 9. P072 の条件「そのバースト発動時に自分のスピリットが召喚されていたら」は、そのバースト効果の解決で自分のスピリットを召喚したとき
 
-## 3. 新しい部品
+## 3. 新しい部品（案。調査メモ4本の34種を畳んだもの）
 
-（調査後に書く）
+番号は調査メモの組と番号（赤＝R、紫緑＝G、白黄＝W、青＝B）。
+
+### 3.1 統一：兄弟の器にだけ無い絞り込みは、共通の `TargetFilter` で受ける（設計の2原則の1）
+
+1軸ずつ足すと、器ごとに同じ軸（名前・コスト下限・Lv・キーワード）を別々に持つことになる。既存の動作は `filter: TargetFilter`（`matchesTarget` で判定）を受け、条件にも `ownSpiritMatches: TargetFilter`（auraCondition）がある。これに揃える。
+
+- **条件「自分のフィールドに〜がいる」**：`ownSpiritMatches: TargetFilter` を `reviveOnDestroy.condition` と `triggered.condition` でも受ける（W1）
+- **主語・相手の絞り込み**：次の器に `filter?: TargetFilter` を1つ足し、新しい絞り込みはそこに書く
+  - `braveImmuneGrant`（W4 名前）
+  - `fieldEvent` の主語（W6 召喚されたカードの名前。`subjectFilter`）
+  - `unblockableBy`（W10 コスト下限）
+  - `canBlockWhileRested`（W8 自身のコスト以下）
+  - `summonedExhaustGrant`（W9 コスト下限）
+  - 取り除けない（G1 名前）
+  - `ownSpiritDealtLife`（G2 【暴風：1】）
+  - バトル相手（R2 名前。`battleOpponentFilter`）
+- **ブロックしても疲労しない**：兄弟3種（Color／Cost／WithoutKeyword）と W11（Lv）を `{ type: "noRestWhenBlocking"; filter: TargetFilter; oncePerTurn? }` 1つにまとめ、既存データも移す
+- **TargetFilter に足す軸**：`notBlocking`（G5）、`maxCostLastMagic`（W2。直前に使ったマジックの印刷コスト以下）、`selfRelativeMaxCost`（W8 の「自身のコスト以下」）
+- 既存の個別の軸（`colorFilter`・`keywordFilter`・`maxCost` など）は今回は残す。同じ器に2通りの書き方が並ぶので、プロモの後に別 PR で寄せる
+
+### 3.2 そのほかの部品
+
+| 部品 | 種別 | 該当 |
+| :-- | :-- | :-- |
+| 自身が合体していない（`selfNotCombined`） | 条件の軸 | R1・W7 |
+| 発生源自身がバトル中（`selfInBattle`。アタッカー・ブロッカーとも） | 条件の軸 | W3 |
+| このターンに BP 比較で自分のスピリットが破壊された | 条件の軸＋ターン内の記録 | R3 |
+| `reviveOnDestroy.when.byBattleKillerMinBp` | 条件の軸（Max の対） | W5 |
+| `ownBurstActivated` の条件：そのバーストの解決で自分のスピリットを召喚した／そのバーストの event | 条件の軸2つ | R5・R6 |
+| `repeatBurstEffect`（直前に発動したバースト効果をもう1度。対象は選び直す） | 単純なアクション | R4 |
+| カウンタ `ownCombinedBraves`／`blockerCost` | カウンタ2つ | R7・G4 |
+| `exhaust` の `budget`（destroy と同じ形） | 軸 | G6 |
+| `ownSpiritReturnedToHand` に `byOpponentOnly` と1体ごとの発火 | 条件の軸 | G3 |
+| `cantUseMagicForPid` に `allowColors:"opponentFieldSymbols"` と `costs`（配列・宣言・疲労ネクサスから集める） | 軸 | B1・B3・B7 |
+| ブレイヴは無償で召喚できない（globalConstraint。お互い） | 制約の型 | B2 |
+| `braveBpBonusZero` に `side` と条件 | 軸 | B4 |
+| 【強襲】の疲労をこのスピリットで払える | 支払い方の部品 | B5（1枚専用） |
+| `ownFunsaiMilled` の `lastFunsaiHasBurst` | 条件の軸 | B6 |
+| お互いのトラッシュの凍結（globalConstraint。§2.2 の1） | 制約の型 | B8 |
+| timedEffect の内容「コスト N としても扱う」 | 内容の型 | B9 |
+
+R8（この効果で破壊した数）は既存の `lastMoved`（BS12-052）で書けるので部品にしない。
