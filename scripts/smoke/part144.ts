@@ -204,14 +204,14 @@ console.log("=== BS08関将龍皇ドラグロン：ownTensho＋familyFilter、di
     assert(s2.players.p2.hand.length === p2HandBefore2, "対照実験：系統が違うスピリットで【転召】しても手札は破棄されない")
 }
 
-console.log("=== BS08竜騎集う円卓：fieldEvent condition targetMaxBp（ownLifeDamaged） ===")
+console.log("=== BS08竜騎集う円卓：fieldEvent partnerFilter.maxBp（ownLifeDamaged） ===")
 {
     const roundtable = findByEffect(
-        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownLifeDamaged" && e["condition"] !== undefined,
+        (e) => e["kind"] === "fieldEvent" && e["event"] === "ownLifeDamaged" && (e["partnerFilter"] as Record<string, unknown> | undefined)?.["maxBp"] !== undefined,
     )
     const entry = entryOf(roundtable, (e) => e["kind"] === "fieldEvent" && e["event"] === "ownLifeDamaged")
     const level = (entry["levels"] as number[])[0]!
-    const maxBp = ((entry["condition"] as Record<string, unknown>)["targetMaxBp"]) as number
+    const maxBp = ((entry["partnerFilter"] as Record<string, unknown>)["maxBp"]) as number
     const weakAttacker = CARDS.find((c) => c.type === "spirit" && bpAt(c, 1) <= maxBp)!
     const strongAttacker = CARDS.find((c) => c.type === "spirit" && bpAt(c, 1) > maxBp)!
 

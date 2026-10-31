@@ -362,7 +362,7 @@ export type EffectDefContinuous =
               | { anyFieldHasColorSpirit: Color } // 自分か相手のどちらかのフィールドに指定色のスピリットがいる間
               | { ownFieldHasFamily: string }
               | { ownSpiritCountBelowOpponent: true } // 自分のスピリット数が相手より少ない間
-              | { ownFieldHasCombinedSpirit: true }
+              | { ownSpiritMatches: ResolvedTargetFilter } // 発生源自身も数える
               | { ownBurstSet: true }
               | { ownLifeAtLeast: number }
               | { opponentTrashAtLeast: number } // 相手のトラッシュの枚数

@@ -4558,7 +4558,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "無魔",
+    "filter": {
+     "family": "無魔"
+    },
     "revived": {
      "rested": false
     },
@@ -4940,7 +4942,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "武装",
+    "filter": {
+     "family": "武装"
+    },
     "revived": {
      "toHand": true
     },
@@ -5255,7 +5259,9 @@
      2
     ],
     "scope": "ownAll",
-    "colorFilter": "yellow",
+    "filter": {
+     "color": "yellow"
+    },
     "when": {
      "byBattle": true
     },

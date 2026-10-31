@@ -727,9 +727,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         // BS08ダークチュンポポLv2：自分のスピリットの体数が相手より少ない間だけ有効
                         const oppCount = state.players[opponentOf(pid)].field.spirits.length
                         if (player.field.spirits.length >= oppCount) continue
-                    } else if ("ownFieldHasCombinedSpirit" in effect.condition) {
-                        // BS10-002首長竜人ブラッキオ：自分のフィールドに合体スピリットがいる間だけ有効
-                        if (!player.field.spirits.some((s) => instIsCombined(s))) continue
+                    } else if ("ownSpiritMatches" in effect.condition) {
+                        const filter = effect.condition.ownSpiritMatches
+                        if (!player.field.spirits.some((s) => matchesTarget(state, pid, s, filter, source.instanceId))) continue
                     } else if ("ownBurstSet" in effect.condition) {
                         // SD06-003ワン・ケンゴー：自分がバーストをセットしている間だけ有効
                         if (!player.burstSet) continue

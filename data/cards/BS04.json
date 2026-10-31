@@ -42,7 +42,9 @@
      2
     ],
     "condition": {
-     "ownFieldHasKeyword": "awaken"
+     "ownSpiritMatches": {
+      "keyword": "awaken"
+     }
     },
     "action": {
      "type": "timedEffect",
@@ -2323,7 +2325,9 @@
      2
     ],
     "scope": "ownAll",
-    "keywordFilter": "soku",
+    "filter": {
+     "keyword": "soku"
+    },
     "when": {
      "byBattle": true
     },
@@ -4781,7 +4785,9 @@
      2
     ],
     "scope": "ownAll",
-    "minBp": 6000,
+    "filter": {
+     "minBp": 6000
+    },
     "when": {
      "byBattle": true
     },
@@ -5022,7 +5028,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "天霊",
+    "filter": {
+     "family": "天霊"
+    },
     "when": {
      "byBattle": true
     },

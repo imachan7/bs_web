@@ -15,7 +15,7 @@ import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevel
 import { revertDestroyGroupUsage } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import { destroySpirit } from "./removal"
-import { cardNameContains } from "../../../shared/rules/targetFilter"
+import { matchesTarget } from "../../../shared/rules/targetFilter"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
 import { soulCoreLeavesField } from "./soulCore"
@@ -987,7 +987,7 @@ function tryReviveOnDestroy(
         if (forced && effect.id !== forced.effectId) return false
         if (!effectActiveAtLevel(effect.levels, level)) return false
         if ("toHand" in effect.revived && handGainDenial(state, { pid: ownerPid, from: "field", cause: "effect" })) return false // 手札へ戻れないなら復活しない＝通常どおり破壊される
-        if (effect.vanillaFilter && !instIsVanilla(inst)) return false
+        if (!matchesTarget(state, ownerPid, inst, effect.filter, inst.instanceId)) return false
         if (!matchesRequireOwnFieldHasName(effect.requireOwnFieldHasName)) return false
         if (!matchesReviveCondition(effect.condition)) return false
         if (!matchesWhen(effect.when)) return false
@@ -1071,23 +1071,10 @@ function tryReviveOnDestroy(
             if (forced && effect.id !== forced.effectId) continue
             if (effect.scope !== "ownAll") continue
             if (!entryActive(state, ownerPid, source, effect, sourceLevel)) continue
-            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
+            if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
             if (effect.keywordFilter && ![effect.keywordFilter].flat().some((k) => spiritHasKeyword(state, ownerPid, inst, k))) continue
-            // BS06夢中漂う桃幻郷：指定色を持つスピリットのみ対象
-            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
-            // 氷の魔女ヘル：指定系統を持つスピリットのみ対象（配列＝OR）
-            if (effect.familyFilter && !matchesFamilyFilter(state, ownerPid, inst, effect.familyFilter)) continue
             // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
-            // BS12-068光の聖剣Lv2：合体スピリットのみ対象
-            if (effect.combinedOnly && !instIsCombined(inst)) continue
-            // BS17-079：このバトルのブロッカーのみ対象（AuraDef.blockingOnlyと同義）
-            if (effect.blockingOnly && state.battle?.blockerInstanceId !== inst.instanceId) continue
-            // 強者統べる大地：実効BPが閾値以上のスピリットのみ対象（破壊直前のBPで判定する）
-            if (effect.minBp !== undefined && effectiveBp(state, ownerPid, inst) < effect.minBp) continue
-            // BS14-109アルターミラージュ：コストが閾値以上のスピリットのみ対象（instMatchesCostFilterで判定＝付与コストも見る）
-            if (effect.minCost !== undefined && !instMatchesCostFilter(inst, { min: effect.minCost })) continue
-            if (effect.nameIncludes !== undefined && !effect.nameIncludes.some((n) => cardNameContains(inst, n))) continue
             if (!matchesReviveCondition(effect.condition)) continue
             if (!matchesWhen(effect.when)) continue
             if (!matchesPhaseTurn(effect.phaseTurn)) continue

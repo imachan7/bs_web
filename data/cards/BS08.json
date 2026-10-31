@@ -3857,8 +3857,8 @@
      1,
      2
     ],
-    "condition": {
-     "targetMaxBp": 5000
+    "partnerFilter": {
+     "maxBp": 5000
     },
     "action": {
      "type": "destroy",
@@ -4390,7 +4390,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "四道",
+    "filter": {
+     "family": "四道"
+    },
     "when": {
      "byBattle": true,
      "byBattleKillerMaxBp": 7000
@@ -5184,8 +5186,8 @@
     "event": "ownLifeDamaged",
     "levels": null,
     "lentOnly": true,
-    "condition": {
-     "targetKeywordExclude": "tensho"
+    "partnerFilter": {
+     "keywordExclude": "tensho"
     },
     "action": {
      "type": "destroy",

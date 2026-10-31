@@ -343,13 +343,6 @@ export function fireFieldEventTriggers(
                 } else if ("firstAttackOfTurn" in effect.condition) {
                     // 神鳴る霊峰Lv2：そのターンの最初のアタックのときのみ（triggered.conditionの同名軸と同じ判定）
                     if (state.attacksThisTurn !== 1) continue
-                } else if ("targetMaxBp" in effect.condition) {
-                    // BS08竜騎集う円卓：ライフを減らしたスピリット（targetInstanceId＝アタッカー）の
-                    // 実効BPがこれ以下のときのみ（見つからなければ発火しない）
-                    if (targetInstanceId === undefined) continue
-                    const found = findSpiritAny(state, targetInstanceId)
-                    if (!found) continue
-                    if (effectiveBp(state, found.pid, found.inst) > effect.condition.targetMaxBp) continue
                 } else if ("ownColorTotalAtLeast" in effect.condition) {
                     // 花の子リップ：発生源の持ち主のスピリット+ネクサス合計が指定色でcount以上
                     const { color, count } = effect.condition.ownColorTotalAtLeast
@@ -373,13 +366,6 @@ export function fireFieldEventTriggers(
                     // 修理屋バラン・バラン：発生源の持ち主のフィールドに指定色のネクサスがある
                     const color = effect.condition.ownFieldHasColorNexus
                     if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
-                } else if ("targetMaxCostOfEventTarget" in effect.condition) {
-                    // SD02-004 神獣ハクタクLv2-3：ブロックした相手（targetInstanceId）のコストがこれ以下のときのみ。
-                    // 道化師クランの付与コストも見るため instMatchesCostFilter を使う
-                    if (targetInstanceId === undefined) continue
-                    const found = findSpiritAny(state, targetInstanceId)
-                    if (!found) continue
-                    if (!instMatchesCostFilter(found.inst, { max: effect.condition.targetMaxCostOfEventTarget })) continue
                 } else if ("lastMilledHasEx" in effect.condition) {
                     if (!(state.lastDeckMill?.cardIds ?? []).some((id) => getCard(id).symbolEx === true)) continue
                 } else if ("lastFunsaiHasSpirit" in effect.condition) {
@@ -404,12 +390,6 @@ export function fireFieldEventTriggers(
                     // BS14-X04氷の覇王ミブロック・バラガン：「自分のバーストをセットしていないとき」
                     // （triggered.conditionの同名軸と同じ判定。falseなら未セットの間だけ発火）
                     if (state.players[pid].burstSet !== effect.condition.ownBurstSet) continue
-                } else {
-                    // BS08デストラクションバリア：ライフを減らしたスピリットが指定キーワードを持つときは発火しない
-                    if (targetInstanceId === undefined) continue
-                    const found = findSpiritAny(state, targetInstanceId)
-                    if (!found) continue
-                    if (spiritHasKeyword(state, found.pid, found.inst, effect.condition.targetKeywordExclude)) continue
                 }
             }
             // repeatPerCount（バラン・バラン「置かれるたび」）: 実破棄枚数ぶんアクションを繰り返す。

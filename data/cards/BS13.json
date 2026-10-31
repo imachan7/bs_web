@@ -2277,10 +2277,12 @@
      3
     ],
     "scope": "ownAll",
-    "familyFilter": [
-     "光導",
-     "妖蛇"
-    ],
+    "filter": {
+     "family": [
+      "光導",
+      "妖蛇"
+     ]
+    },
     "when": {
      "byBattle": true
     },
@@ -4289,7 +4291,9 @@
      2
     ],
     "scope": "ownAll",
-    "keywordFilter": "heavyArmor",
+    "filter": {
+     "keyword": "heavyArmor"
+    },
     "when": {
      "byBattleVsHeavyArmorColor": true
     },
@@ -4895,7 +4899,9 @@
      3
     ],
     "scope": "ownAll",
-    "colorFilter": "yellow",
+    "filter": {
+     "color": "yellow"
+    },
     "cost": {
      "ownLifeOneToReserve": true
     },
@@ -5059,7 +5065,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "導魔",
+    "filter": {
+     "family": "導魔"
+    },
     "cost": {
      "handDiscardOne": true,
      "handDiscardCardType": "spirit"

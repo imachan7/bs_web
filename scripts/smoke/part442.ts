@@ -1,4 +1,4 @@
-// smoke パート442（BS17部品バッチ1：AuraCondition maxOwnSpirits／battleOpponentHasKeyword、AuraDef.levelFilter、globalConstraint cantBlockByCost）
+// smoke パート442（BS17部品バッチ1：AuraCondition maxOwnSpirits／battleOpponentMatches{keyword}、AuraDef.levelFilter、globalConstraint cantBlockByCost）
 import {
     assert,
     act,
@@ -62,21 +62,21 @@ console.log("=== 1. AuraCondition.maxOwnSpirits：発生源含む自分のスピ
     }
 }
 
-console.log("=== 2. AuraCondition.battleOpponentHasKeyword：バトル中の相手側当事者がキーワードを持つ間だけBP上昇 ===")
+console.log("=== 2. AuraCondition.battleOpponentMatches{keyword}：バトル中の相手側当事者がキーワードを持つ間だけBP上昇 ===")
 {
     const s = game("p442-battleopp")
     const card = getCard(VANILLA)
     const savedEffects = card.effects
     try {
-        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", battlingOnly: true, amount: 3000, condition: { battleOpponentHasKeyword: ["armor", "heavyArmor"] } } }] as typeof card.effects
+        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", battlingOnly: true, amount: 3000, condition: { battleOpponentMatches: { keyword: ["armor", "heavyArmor"] } } } }] as typeof card.effects
         const attacker = put(s, "p1", VANILLA, 1)
         const blocker = put(s, "p2", VANILLA, 1)
         const baseBp = effectiveBp(s, "p1", attacker)
         s.battle = { attackerInstanceId: attacker.instanceId, blockerInstanceId: blocker.instanceId, directed: false }
         assert(effectiveBp(s, "p1", attacker) === baseBp, "相手側当事者が【装甲】/【重装甲】を持たない間はBP+3000が乗らない")
         // attacker/blockerは同じcardId（VANILLA）を使っているため、effects の再代入は両方に効く。
-        // battleOpponentHasKeywordは相手側当事者だけを見るので、自分側にも装甲が付いても判定には影響しない
-        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", battlingOnly: true, amount: 3000, condition: { battleOpponentHasKeyword: ["armor", "heavyArmor"] } } }, { id: "smoke442-armor", kind: "keyword", keyword: "armor", levels: null }] as typeof card.effects
+        // battleOpponentMatches{keyword}は相手側当事者だけを見るので、自分側にも装甲が付いても判定には影響しない
+        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", battlingOnly: true, amount: 3000, condition: { battleOpponentMatches: { keyword: ["armor", "heavyArmor"] } } } }, { id: "smoke442-armor", kind: "keyword", keyword: "armor", levels: null }] as typeof card.effects
         assert(effectiveBp(s, "p1", attacker) === baseBp + 3000, "相手側当事者が【装甲】を持つ間はBP+3000が乗る")
     } finally {
         card.effects = savedEffects

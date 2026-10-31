@@ -275,7 +275,7 @@ console.log("--- バトルで破壊されたスピリットが復活する ---")
     assert(card.name === "夢中漂う桃幻郷", "前提: BS06-087 は夢中漂う桃幻郷")
     const entry = entryOf(card, "e2")
     const level = (entry["levels"] as number[])[0]!
-    const color = String(entry["colorFilter"])
+    const color = String((entry["filter"] as Record<string, unknown>)["color"])
     const yellow = CARDS.find(
         (c) => c.type === "spirit" && (c.colors ?? []).includes(color as Color) && (c.effects ?? []).length === 0,
     ) ?? CARDS.find((c) => c.type === "spirit" && (c.colors ?? []).includes(color as Color))!

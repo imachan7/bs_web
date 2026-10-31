@@ -3082,9 +3082,11 @@
      3
     ],
     "scope": "ownAll",
-    "nameIncludes": [
-     "創造主グリム・ウィル"
-    ],
+    "filter": {
+     "nameContains": [
+      "創造主グリム・ウィル"
+     ]
+    },
     "when": {
      "byOpponent": true
     },

@@ -4,7 +4,7 @@
 //   - 汎用: voidCoreToAllOwnByFamily（指定系統いずれか持ちの自分スピリット全員にコアを置く）
 //   - 汎用: voidCoreToTarget（対象指定 / フォールバックはBP最大）
 //   - 汎用: refreshByFamilyAuto（疲労中スピリットの最多系統を自動選択して回復）
-//   - triggered condition: ownFieldHasColorSpirit（BS03-056 オチョゴ）
+//   - triggered condition: ownSpiritMatches{color}（BS03-056 オチョゴ）
 //   - triggered condition: targetSameLevelAsSelf（BS03-008 剣竜ステゴラーサウルス）
 //   - triggered condition: ownFieldHasColorNexus（BS03-065 天使キュリオ）
 //   - aura condition: ownHasKeyword（BS03-004 ブロントライデント）
@@ -114,7 +114,7 @@ console.log("=== 汎用 refreshByFamilyAuto：疲労中スピリットの最多�
     assert(other.isRested, "少数派の系統は回復対象に選ばれない")
 }
 
-console.log("=== triggered condition ownFieldHasColorSpirit：BS03-056 オチョゴ（緑スピリット不在では不発） ===")
+console.log("=== triggered condition ownSpiritMatches{color}：BS03-056 オチョゴ（緑スピリット不在では不発） ===")
 {
     const s = createGame(
         "bs03-056-nogreen-test",

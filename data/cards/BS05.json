@@ -2144,7 +2144,9 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": "氷姫",
+    "filter": {
+     "family": "氷姫"
+    },
     "when": {},
     "phaseTurn": {
      "phase": "attack",
@@ -4409,7 +4411,9 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
-    "keywordFilter": "jugeki",
+    "filter": {
+     "keyword": "jugeki"
+    },
     "when": {
      "byBattle": true
     },

@@ -3535,7 +3535,9 @@
     "levels": null,
     "scope": "ownAll",
     "lentOnly": true,
-    "keywordFilter": "funsai",
+    "filter": {
+     "keyword": "funsai"
+    },
     "when": {
      "byBattle": true
     },
@@ -3549,7 +3551,9 @@
     "levels": null,
     "scope": "ownAll",
     "lentOnly": true,
-    "keywordFilter": "daifunsai",
+    "filter": {
+     "keyword": "daifunsai"
+    },
     "when": {
      "byBattle": true
     },
@@ -4509,10 +4513,12 @@
      2
     ],
     "scope": "ownAll",
-    "familyFilter": [
-     "夜族",
-     "虚神"
-    ],
+    "filter": {
+     "family": [
+      "夜族",
+      "虚神"
+     ]
+    },
     "when": {},
     "revived": {
      "rested": true
