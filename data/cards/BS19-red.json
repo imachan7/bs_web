@@ -233,7 +233,7 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n『このスピリットの召喚時』効果を持つ相手のスピリット1体を破壊する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：自分はデッキから1枚ドローする。",
-    "effects":     [
+    "effects": [
       {
         "id": "BS19-006-e1",
         "kind": "triggered",
@@ -446,7 +446,7 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2『このスピリットの破壊時』\nこのターンの間、系統：「地竜」を持つ自分のスピリットすべてに赤のシンボル1つを追加する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：相手は、相手のスピリットのコア7個を相手のトラッシュに置く。",
-    "effects":     [
+    "effects": [
       {
         "id": "BS19-010-e1",
         "kind": "keyword",
@@ -585,7 +585,10 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 4
+    }
   },
   {
     "cardId": "BS19-068",
@@ -622,7 +625,10 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 4
+    }
   },
   {
     "cardId": "BS19-079",

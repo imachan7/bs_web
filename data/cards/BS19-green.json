@@ -463,7 +463,10 @@
       }
     ],
     "braveConditionText": "コスト3以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 3
+    }
   },
   {
     "cardId": "BS19-072",
@@ -502,7 +505,10 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 4
+    }
   },
   {
     "cardId": "BS19-085",
@@ -748,6 +754,9 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 5
+    }
   }
 ]

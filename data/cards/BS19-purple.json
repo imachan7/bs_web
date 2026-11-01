@@ -401,7 +401,7 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n疲労状態の相手のスピリット1体を破壊する。\nLv2･Lv3『自分のメインステップ』\n【連鎖】を持つ自分のスピリットが召喚されたとき、疲労状態の相手のスピリット1体を破壊する。",
-    "effects":     [
+    "effects": [
       {
         "id": "BS19-021-e1",
         "kind": "triggered",
@@ -522,7 +522,10 @@
       }
     ],
     "braveConditionText": "コスト3以下",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "maxCost": 3
+    }
   },
   {
     "cardId": "BS19-070",
@@ -561,7 +564,10 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 4
+    }
   },
   {
     "cardId": "BS19-082",
@@ -708,7 +714,7 @@
     "rarity": "",
     "limited": false,
     "effect": "メイン：\n自分のトラッシュにあるコスト5以下のスピリットカード1枚を、コストを支払わずに召喚する。\nただし、『このスピリットの召喚時』効果は発揮されない。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：このターンの間、コスト3以下の相手のスピリットすべてはブロックできない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-    "effects":     [
+    "effects": [
       {
         "id": "BS19-101-e1",
         "kind": "magic",

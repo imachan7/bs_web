@@ -464,7 +464,10 @@
       }
     ],
     "braveConditionText": "【強化】を持つ",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "keyword": "kyoka"
+    }
   },
   {
     "cardId": "BS19-078",
@@ -503,7 +506,10 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 4
+    }
   },
   {
     "cardId": "BS19-094",
@@ -756,6 +762,9 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": []
+    "effects": [],
+    "braveCondition": {
+      "minCost": 5
+    }
   }
 ]
