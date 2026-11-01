@@ -782,10 +782,11 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("天使パワー") })
-        t.act("opp", { type: "pass" })
-        t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
         t.closeFlash()
         t.act("opp", { type: "block", instanceId: t.id("キャンデル") })
+        // ブロックのあとのフラッシュで使う（防御側が先にパス）。連鎖でブロックしたキャンデルを手札に戻す
+        t.act("opp", { type: "pass" })
+        t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
         t.closeFlash()
     },
     expect: [
