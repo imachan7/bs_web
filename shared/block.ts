@@ -150,6 +150,9 @@ export function canBlock(
             if (c.filter !== undefined && matchesTarget(board, blockerPid, blockerInst, resolveSelfRelative(c.filter, attackerInst), attackerInst.instanceId)) {
                 return "このスピリットはこの相手にブロックされません"
             }
+            if (c.fromMaxBpSelf && effectiveBp(board, blockerPid, blockerInst) <= effectiveBp(board, attackerPid, attackerInst)) {
+                return "このスピリットはこの相手にブロックされません"
+            }
         }
     }
     return null

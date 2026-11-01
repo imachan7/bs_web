@@ -24,18 +24,34 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { recordCores, recordLeftCost, recordMoved } from "../record"
 import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss } from "../lifeGate"
+import { kyokaBonus } from "../keywords/kyoka"
 
 type RemoveCoresAction = Extract<EffectAction, { type: "removeCores" }>
 type Zone = "spirit" | "nexus" | "reserve" | "trash" | "life"
 type Dest = "reserve" | "trash" | "void" | "life"
 type CountSpec = number | "all" | "toLowerLevel"
 
+// 【強化】（紫）でリザーブに置くコアが+1個になる条件。行き先がリザーブ（既定）で、スピリットから
+// 取る数値 count のときだけ（ライフのコア・行き先リザーブ以外・downTo／leaveAtLeast は除く：Q759・Q761）。
+// from にライフが混ざる全体にも足さない（ライフのコアには効かないので、混在を個別に増やすのは複雑すぎる）
+export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action: RemoveCoresAction): number {
+    if (action.kyokaSettled === true) return 0
+    const from = action.from ?? ["spirit"]
+    if ((action.to ?? "reserve") !== "reserve") return 0
+    // ponytail: すべてのスピリットから取る除去は Q760（追加の1個は1体からだけ）の分け方が要る。該当カードが出たら足す
+    if (action.target === "all") return 0
+    if (action.side === "own") return 0 // 自分のスピリットのコアを置くのは「相手へのコアシュート」ではない
+    if (!from.includes("spirit") || from.includes("life")) return 0
+    if (action.downTo !== undefined || action.leaveAtLeast !== undefined) return 0
+    return kyokaBonus(state, owner, "coreRemove")
+}
+
 // countCounter を解決した後の count（typeof action.count === "number" のときだけ EffectCounter を適用）
 function resolvedCount(ctx: ActionCtx, action: RemoveCoresAction): CountSpec {
     if (action.count === "any") return 0 // removeCoresHandler が数を決めてから入れ直すので、ここには来ない
     if (typeof action.count !== "number") return action.count
-    if (action.countCounter === undefined) return action.count
-    return countedAmount(ctx.state, ctx.owner, ctx.self, action.count, action.countCounter, ctx.srcType)
+    const base = action.countCounter === undefined ? action.count : countedAmount(ctx.state, ctx.owner, ctx.self, action.count, action.countCounter, ctx.srcType)
+    return base + removeCoresKyokaBonus(ctx.state, ctx.owner, action)
 }
 
 // 個体（スピリット／ネクサス）1体から取れる量。leaveAtLeast は個体上限、toLowerLevel は1つ下のLvのコア数まで
@@ -620,6 +636,7 @@ const resolveDownTo = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         target: "spread",
         count: excess,
         chooser: action.chooser ?? "owner",
+        kyokaSettled: true, // 余剰分はこの場で算出済み。【強化】の加算対象にしない
     }
     resolveSpread(ctx, spreadAction)
 }
@@ -655,7 +672,7 @@ const resolveAny = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         log(state, `${sourceName}：コアを置かなかった。`)
         return
     }
-    dispatchByTarget(ctx, { ...rest, count: n })
+    dispatchByTarget(ctx, { ...rest, count: n, kyokaSettled: true }) // n は選択で決まった数。【強化】の加算対象にしない
 }
 
 const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action) => {

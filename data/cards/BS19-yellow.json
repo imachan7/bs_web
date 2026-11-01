@@ -312,7 +312,19 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nお互いのデッキは破棄されない。\nLv1･Lv2･Lv3【強化】\n自分の「BP-効果」を-1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-052-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "bpMinus",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-053",
@@ -434,7 +446,92 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。\nLv2･Lv3\n【連鎖】を持つ自分のスピリットすべてに【聖命】を与える。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：【聖命】を持つ自分のスピリットすべては、そのスピリットのBP以下の相手のスピリットからブロックされない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-055-e1",
+        "kind": "keyword",
+        "keyword": "seimei",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS19-055-e2",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-055-e3",
+        "kind": "keywordGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "keyword": "seimei",
+        "target": "ownAll",
+        "filter": {
+          "keyword": "rensa"
+        }
+      },
+      {
+        "id": "BS19-055-e5",
+        "kind": "effectGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "keywordFilter": "rensa",
+        "granted": {
+          "trigger": "onLifeDealt",
+          "action": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "life",
+            "count": 1
+          },
+          "keywordBody": "seimei"
+        }
+      },
+      {
+        "id": "BS19-055-e4",
+        "kind": "constraintGrant",
+        "keyword": "rensa",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "condition": {
+          "ownColorSymbolsAtLeast": {
+            "color": "white",
+            "count": 1
+          }
+        },
+        "filter": {
+          "keyword": "seimei"
+        },
+        "constraint": {
+          "type": "unblockableBy",
+          "opponentOnly": true,
+          "fromMaxBpSelf": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-075",
@@ -639,7 +736,18 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、相手のスピリット1体をBP-3000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-109-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "bpMinus",
+          "amount": 3000,
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-110",

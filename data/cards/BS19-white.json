@@ -186,7 +186,18 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\nお互いのデッキは破棄されない。\nLv1･Lv2【強化】\n自分の「スピリット回復効果」の体数を+1体する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-038-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "refresh",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-039",

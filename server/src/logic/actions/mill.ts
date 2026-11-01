@@ -10,8 +10,18 @@ import { canDiscardHand, hasGlobalConstraint } from "../../../../shared/rules"
 import { countedAmount } from "../counted"
 import { currentRecordScope, recordMoved } from "../record"
 import { chimeiBonus } from "../keywords/chimei"
+import { kyokaBonus } from "../keywords/kyoka"
 
 export type DeckDiscard = Extract<EffectAction, { type: "discard"; from: "deck" }>
+
+// 【強化】（青）：相手へのデッキ破棄効果の枚数+n枚。1枚以上破棄するときだけ（Q766）、
+// 上限（countMax）のある破棄は上限を超えない（Q764）。ハンドラと pay 判定の両方から使う
+export function deckDiscardKyokaCount(state: GameState, owner: PlayerId, action: DeckDiscard, count: number): number {
+    if (action.side !== "opponent" || count < 1) return count
+    const kyoka = kyokaBonus(state, owner, "deckMill")
+    if (kyoka === 0) return count
+    return action.countMax !== undefined ? Math.min(count + kyoka, action.countMax + millCapBonusFor(state, owner)) : count + kyoka
+}
 
 export function discardFromDeck(ctx: ActionCtx, action: DeckDiscard): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
@@ -37,7 +47,7 @@ export function discardFromDeck(ctx: ActionCtx, action: DeckDiscard): void {
         const scope = currentRecordScope(state)
         const beforeLen = state.players[targetPid].trashCards.length
         const until = action.until
-        const actual = millDeck(state, targetPid, count, owner, srcType ? { sourceType: srcType } : undefined, until ? { until: (id) => matchesPick(id, until) } : undefined)
+        const actual = millDeck(state, targetPid, deckDiscardKyokaCount(state, owner, action, count), owner, srcType ? { sourceType: srcType } : undefined, until ? { until: (id) => matchesPick(id, until) } : undefined)
         recordMoved(state, state.players[targetPid].trashCards.slice(beforeLen, beforeLen + actual), scope)
         if (chimei && actual > 0 && self) fireFieldEventTriggers(state, owner, "ownChimeiMilled", { pid: owner, inst: self }, undefined, undefined, actual)
         return

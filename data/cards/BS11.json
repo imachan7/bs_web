@@ -4533,6 +4533,31 @@
      "戯狩"
     ],
     "phase": "attack"
+   },
+   {
+    "id": "BS11-070-e3",
+    "kind": "effectGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "familyFilter": [
+     "戯狩"
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    },
+    "granted": {
+     "trigger": "onLifeDealt",
+     "action": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "life",
+      "count": 1
+     },
+     "keywordBody": "seimei"
+    }
    }
   ]
  },

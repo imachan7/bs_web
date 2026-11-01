@@ -72,7 +72,18 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2【強化】\nアルティメット以外の自分の「相手へのデッキ破棄効果」の枚数を+1枚する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-057-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-058",

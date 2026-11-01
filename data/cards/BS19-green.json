@@ -255,7 +255,17 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\nお互いのデッキは破棄されない。\nLv2【強化】\n自分の「相手への疲労効果」の体数を+1体する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-029-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "exhaust",
+        "levels": [
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-030",

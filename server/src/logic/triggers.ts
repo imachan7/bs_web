@@ -23,6 +23,7 @@ import {
 // 共有ルール層（shared/）へ移設した純粋述語。サーバー／クライアントで同一実装を使う。
 // 外部から EffectModules 経由で import している箇所を壊さないため、再エクスポートで名前を残す
 import type { KeywordInfo } from "../../../shared/rules"
+import type { Keyword } from "../types/keyword"
 import { entryActive } from "../../../shared/rules/effectStop"
 import {
     activeConstraints,
@@ -58,7 +59,7 @@ import {
     noOpponentTriggerByColor,
     noSummonTriggerByCost,
     spiritHasFamily, spiritHasKeyword,
-    spiritHasKeywordOrLabel,
+    spiritHasKeywordOrLabel, instHasStaticKeyword,
     effectActiveOn,
     isOnFieldAnyZone,
     instIsCombined,
@@ -701,6 +702,7 @@ function collectGrantedTriggerActions(
     const fieldSources = effectSources(state, owner)
     const sources = fieldSources.includes(selfInstance) ? fieldSources : [...fieldSources, selfInstance]
     const actions: EffectAction[] = []
+    const grantedBodies = new Set<Keyword>()
     for (const source of sources) {
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
@@ -734,6 +736,11 @@ function collectGrantedTriggerActions(
                 if ("targetMaxCost" in effect.granted.condition) {
                     if (!instMatchesCostFilter(found.inst, { max: effect.granted.condition.targetMaxCost })) continue
                 } else if (effectiveBp(state, found.pid, found.inst) > effect.granted.condition.targetMaxBp) continue
+            }
+            const body = effect.granted.keywordBody
+            if (body !== undefined) {
+                if (grantedBodies.has(body) || instHasStaticKeyword(selfInstance, body)) continue
+                grantedBodies.add(body)
             }
             actions.push(effect.granted.action)
         }

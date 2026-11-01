@@ -38,6 +38,7 @@ export type EffectDef =
     | {
           id: string
           kind: "magic"
+          keyword?: Keyword // 【連鎖】のように効果の見出しに付くキーワードのラベル（triggered と同型。マジックは場の個体でないため参照側は無いが、効果の分類のために付ける）
           timing: "main" | "flash"
           action: EffectAction
           afterBlockForbidden?: true // trueならブロック宣言後のフラッシュタイミングでは使用不可

@@ -20,6 +20,7 @@ import {
 } from "../EffectModules"
 import { isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
+import { kyokaBonus } from "../keywords/kyoka"
 
 
 // BS08スナイピングブラスト：自分のスピリットすべてを、それぞれが持つ【暴風】の実効指定数×amountPerだけBP+
@@ -50,7 +51,7 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
     // 複数体のとき「それらがBP0なら」が読む控え。count 回の再帰の初回で空に戻し、BP-できた個体を足していく
     if (action.excludeIds === undefined) recordTargets(state, [])
     if (filter === SELF_REQUIRED) return
-    const amount = action.amount + (action.per ? countEffectCounter(state, owner, self, action.per.counter, srcType) * action.per.amount : 0)
+    const amount = action.amount + (action.per ? countEffectCounter(state, owner, self, action.per.counter, srcType) * action.per.amount : 0) + kyokaBonus(state, owner, "bpMinus") * 1000
     if (action.all) {
         const hit = state.players[opp].field.spirits.filter((s) => matchesTarget(state, opp, s, filter, self?.instanceId))
         for (const t of hit) {
@@ -72,7 +73,9 @@ const bpMinus: ActionHandler<"bpMinus"> = (ctx, action) => {
         const { chosenByPlayer: _c, ...rest } = action
         if ((action.count ?? 1) > 1) ctx.resolve({ ...rest, count: action.count! - 1, excludeIds: [...excluded, t.instanceId] }, { sourceColors: srcColors, sourceType: srcType })
     }
-    let target = action.chosenByPlayer && targetInstanceId !== undefined ? list.find((s) => s.instanceId === targetInstanceId) : undefined
+    // マジックは使用時に対象を指定してくる（castMagic の targetInstanceId）。誘発の targetInstanceId は出来事の個体なので使わない
+    const preChosen = (action.chosenByPlayer || (srcType === "magic" && excluded.length === 0)) && targetInstanceId !== undefined
+    let target = preChosen ? list.find((s) => s.instanceId === targetInstanceId) : undefined
     if (target === undefined) {
         if (list.length === 0) {
             log(state, `${sourceName}のBP-：対象がいなかった。`)

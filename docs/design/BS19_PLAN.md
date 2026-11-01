@@ -67,4 +67,8 @@
 
 ## 3. 新しい部品
 
-（調査のあとに書く）
+### 3.1 済み（バッチ M1・M2）
+- 【連鎖】は新しい器なし（sequence＋if＋`ownColorSymbols`）。`keyword: "rensa"` のラベルで「持つ」。ラベルのキーワードは `spiritHasKeyword` でも拾う（effectGrant の keywordFilter などが【連鎖】を見られるように）。ラベルでも `whileCombined` のものは合体中だけ
+- 【強化】は `keywords/kyoka.ts`。自分のスピリットへの疲労・コア除去（`side: "own"`）には足さない。すべてのスピリットから取るコア除去（Q760）は該当カードが無いので未対応
+- 付与された【聖命】：`effectGrant.granted.keywordBody`。元から持つ個体には付けず、重なっても1回。**BS11-070 は「持つ」だけで働かなかったので直した**（BS18-070 と同じ2エントリにした）
+- `bpMinus` はマジックの使用時に指定した対象を受け取る

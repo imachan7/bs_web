@@ -15,7 +15,7 @@ import { effectiveBp } from "./bp"
 import { timedKeywords, zoneSpiritEffectsDisabled } from "./constraints"
 import { entryActive } from "./effectStop"
 import { bravesOf, cardHasColor, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
-import { instMatchesCostFilter } from "./targetFilter"
+import { instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
 
@@ -30,6 +30,7 @@ export function spiritHasKeyword(
     // 「持つ効果すべては発揮されない」を受けている個体は、静的キーワードも付与キーワードも発揮しない
     // （kind:"spiritEffectsDisabledGrant"。BS07ルナースラッシュ）
     if (instEffectsSuppressed(inst)) return false
+    if (LABELED_KEYWORDS.has(keyword) && spiritHasLabeledKeyword(board, ownerPid, inst, keyword)) return true
     // カード静的なキーワード。**【合体時】のキーワードは合体しているときだけ**（BS10のブレイヴ：
     // 【合体時】【激突】など）。
     // **合体しているブレイヴのキーワードもホスト側でここに合流させる**（合体スピリットは1体として
@@ -86,6 +87,7 @@ export function spiritHasLabeledKeyword(
             // kind:"keyword" の宣言レコードも levels 付きで拾う（Lv2書きの宣言はLv1では「持たない」）
             if ((effect as { keyword?: Keyword }).keyword !== keyword) continue
             if (!effectActiveAtLevel((effect as { levels?: number[] | null }).levels ?? null, level)) continue
+            if ((effect as { whileCombined?: true }).whileCombined === true && !instIsCombined(inst)) continue
             return true
         }
     }
@@ -221,6 +223,9 @@ export function continuousKeywordGrantCount(
             // costFilterを見て構築）は正しくコスト絞り込みできる一方、spiritHasKeyword経由のこちらは
             // costFilter を無視してすべてのスピリットにマッチしてしまっていた（2026-07-31 発見・修正）
             if (effect.costFilter && !instMatchesCostFilter(inst, effect.costFilter)) continue
+            // filter（統一軸）。ラベル専用キーワード（【連鎖】等）の参照はここを通る（Q774：Lvで判定）。
+            // filter の keyword 軸に旧キーワードを書くと spiritHasKeyword→この走査→matchesTarget と再帰するので書かない
+            if (effect.filter && !matchesTarget(board, ownerPid, inst, effect.filter, source.instanceId)) continue
             // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
             if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
             // keywordFilter の OR 版（BS12-068光の聖剣Lv1＝【装甲】/【重装甲】のいずれかを持つスピリットに【氷壁】を配る）

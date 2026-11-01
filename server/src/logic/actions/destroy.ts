@@ -1,6 +1,7 @@
 // 破壊系のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { coreRemovalAllowed } from "../coreGate"
+import { kyokaBonus } from "../keywords/kyoka"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -88,6 +89,8 @@ export function destroyCandidateCountForPay(
     if (action.side === "own") return ownSideDestroyCandidates(state, owner, selfInstanceId, filter).length
     // ハンドラと同じ「BP◯以下」の閾値加算（destroyBpThresholdBonus）
     if (filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) filter.maxBp += destroyBpThresholdBonusFor(state, owner)
+    // ハンドラと同じ【強化】（赤）の上限加算（数値で書かれた上限だけ：Q756）
+    if (filter.maxBp !== undefined && typeof action.filter?.maxBp === "number") filter.maxBp += kyokaBonus(state, owner, "bpDestroy") * 1000
     const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
     if (action.anySide) return pickAnySideCandidates(state, owner, matches, srcColors, srcType).length
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType).length
@@ -153,6 +156,11 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         if (filter !== SELF_REQUIRED && filter.maxBp !== undefined && (srcType === "spirit" || srcType === "magic")) {
             const bonus = destroyBpThresholdBonusFor(state, owner)
             if (bonus > 0) filter.maxBp += bonus
+        }
+        // 【強化】（赤・BS19）：BP破壊効果の上限+1000×n。数値で書かれた上限だけ（「このスピリットのBP以下」には効かない：Q756）
+        if (filter !== SELF_REQUIRED && filter.maxBp !== undefined && typeof action.filter?.maxBp === "number") {
+            const kyoka = kyokaBonus(state, owner, "bpDestroy") * 1000
+            if (kyoka > 0) filter.maxBp += kyoka
         }
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
@@ -465,6 +473,11 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
     const { state, owner, opp, self, srcType } = ctx
         const areaFilter = normalizeFilter(ctx, action)
         if (areaFilter === SELF_REQUIRED) return SELF_REQUIRED
+        // 【強化】（赤）：destroy{all} の「BP◯以下をすべて破壊する」も数値で書かれた上限なら同じく+1000×n（Q756）
+        if (areaFilter.maxBp !== undefined && typeof action.filter?.maxBp === "number") {
+            const kyoka = kyokaBonus(state, owner, "bpDestroy") * 1000
+            if (kyoka > 0) areaFilter.maxBp += kyoka
+        }
         const oppTargets = action.side === "own" ? [] : state.players[opp].field.spirits
             .filter(
                 (s) =>
@@ -934,7 +947,9 @@ function budgetOf(state: GameState, owner: PlayerId, self: CardInstance | null, 
             .filter((s) => matchesFamilyFilter(state, owner, s, b.fromFamilyBpSum!))
             .reduce((sum, s) => sum + effectiveBp(state, owner, s), 0)
     }
-    return b.counter !== undefined ? countedAmount(state, owner, self, b.amount ?? 1, b.counter, srcType) : (b.amount ?? 0)
+    // 【強化】（赤）は数値で書かれた予算だけに足す（counter・BP合計参照は除く：Q756）
+    const kyoka = b.by === "bp" && b.counter === undefined && b.amount !== undefined ? kyokaBonus(state, owner, "bpDestroy") * 1000 : 0
+    return (b.counter !== undefined ? countedAmount(state, owner, self, b.amount ?? 1, b.counter, srcType) : (b.amount ?? 0)) + kyoka
 }
 
 // pay の払える判定：予算に収まる相手のスピリットが1体以上いるか

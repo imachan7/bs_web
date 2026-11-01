@@ -39,6 +39,7 @@ import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
 import { exhaustWithinBudget } from "./exhaustBudget"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
+import { kyokaBonus } from "../keywords/kyoka"
 
 // 疲労させたときのログ。**どのカードの効果で疲労したのか**が対戦者に分かるように発生源を前に置く
 // （2026-08-10 ユーザー要望。【暴風】由来のときはキーワード名まで出す＝颶風高原がどれを戻すのか追えるように）
@@ -113,7 +114,7 @@ const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
         log(state, `${sourceName}の疲労付与：対象がいなかった。`)
         return
     }
-    exhaustCore(ctx, { ...action, count: n, upTo: true })
+    exhaustCore(ctx, { ...action, count: n, upTo: true, kyokaSettled: true }) // 場の数から算出した上限。【強化】の加算対象にしない
 }
 
 const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
@@ -128,7 +129,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
                 log(state, `${sourceName}：すでに条件を満たしているため疲労させなかった。`)
                 return
             }
-            action = { ...rest, count: n }
+            action = { ...rest, count: n, kyokaSettled: true } // 場の数から算出。【強化】の加算対象にしない
         }
         if (action.nexusOnly) {
             exhaustOwnNexus(ctx, action)
@@ -233,7 +234,7 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
             // bofuSource は落とさずに立てる：選択の再入（count-1 の派生 action や chooserIsTarget の
             // 差し替え）をまたいで「この疲労は【暴風】由来」を持ち回るため
             const { countFromBofu: _resolved, ...rest } = action
-            action = { ...rest, count: bofu, bofuSourcePid: owner }
+            action = { ...rest, count: bofu, bofuSourcePid: owner, kyokaSettled: true } // 【暴風】の指定数は体数でない。【強化】の加算対象にしない
         }
         // countCounter（BS10-029木星神龍ノブナガード・ゼウシス「自分の合体スピリット1体につき」）：
         // count×EffectCounterの値を疲労させる体数として使う（coreRemove.countCounterと同型）
@@ -245,6 +246,12 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
                 return
             }
             action = { ...restCc, count: n }
+        }
+        // 【強化】（緑）：相手のスピリットへの疲労効果の体数+n体（重疲労も含む：Q770。追加の対象も元の効果の絞り込みに従う）。
+        // ここより上の分岐（【暴風】・untilRefreshedCount・好きだけ派生）は数値で書かれた体数ではないので効かない
+        if (typeof action.count === "number" && action.kyokaSettled !== true && !action.anySide && action.side !== "own") {
+            const n = kyokaBonus(state, owner, "exhaust")
+            if (n > 0) action = { ...action, count: action.count + n, kyokaSettled: true }
         }
         // 絞り込みは共通の TargetFilter に一本化（level/cost の2軸）
         const filter = normalizeFilter(ctx, action)
@@ -702,6 +709,11 @@ const heavyExhaustHandler: ActionHandler<"heavyExhaust"> = (ctx, action) => {
         heavyExhaustHandler(ctx, { ...rest, count: n })
         return
     }
+    // 【強化】（緑）：重疲労も疲労効果の体数に含める（Q770）
+    if (action.kyokaSettled !== true) {
+        const n = kyokaBonus(state, owner, "exhaust")
+        if (n > 0) action = { ...action, count: (action.count ?? 1) + n, kyokaSettled: true }
+    }
     const filter = normalizeFilter(ctx, action)
     if (filter === SELF_REQUIRED) return
     const count = action.count ?? 1
@@ -763,6 +775,11 @@ const refreshOneHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type:
             }
             refreshOneHandler(ctx, { ...rest, count: n })
             return
+        }
+        // 【強化】（白）：自身以外への回復効果の体数+n体。「このスピリットを回復」（target:"self"）は別経路で増えない（Q762）
+        if (action.kyokaSettled !== true && action.target !== "self" && !action.eventTargetOnly && !action.all) {
+            const n = kyokaBonus(state, owner, "refresh")
+            if (n > 0) action = { ...action, count: (action.count ?? 1) + n, kyokaSettled: true }
         }
         // eventTargetOnly（BS15-067雪の結晶樹Lv2）：誘発が渡すtargetInstanceIdだけを対象にする
         // （selfMode:"source"＋attackerAsTarget等でtargetを固定するfieldEvent用。選択の余地なし）

@@ -252,6 +252,7 @@ export type EffectDefContinuous =
           onlyWhileSpiritState?: true // whileCombinedの逆。combinedBravesは合体中もeffectSourcesに含まれ続けるため、付けない継続付与は既定では合体後も効き続ける
           keyword: Keyword
           target: "ownAll"
+          filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordFilter の統一軸。ラベル専用キーワードの参照＝【連鎖】持ちなどはここに書く。Q774：Lvで判定される）
           combinedFilter?: true
           uncombinedFilter?: true // combinedFilter の逆（付与先が合体していないスピリットのみ）
           familyFilter?: FamilyFilter
@@ -480,6 +481,7 @@ export type EffectDefContinuous =
               trigger: TriggerEvent
               action: EffectAction
               condition?: { targetMaxCost: number } | { targetMaxBp: number } // targetMaxBp は onBattleEnd 用
+              keywordBody?: Keyword // この誘発がキーワードの本体（【聖命】等）。同じキーワードは重ねて持っても1回なので、元から持つ個体には付けず、付与が重なっても1回
           } // 付与される誘発効果（levelsは常に有効扱い）
           lentOnly?: boolean
       }
@@ -558,6 +560,7 @@ export type EffectDefContinuous =
           id: string
           kind: "constraintGrant" // 持ち主フィールドの対象に付与
           levels: number[] | null
+          keyword?: Keyword // 効果の見出しに付くキーワードのラベル（triggered と同型。【連鎖】を含む継続効果＝Q774）
           whileCombined?: true
           target: "ownAll"
           condition?: AuraCondition
