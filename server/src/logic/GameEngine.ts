@@ -1538,7 +1538,7 @@ function doActivateAbility(
     const prevFlash = state.flashEffect
     if (effect.timing === "flash" || effect.timing === "flashBattle") state.flashEffect = true
     try {
-        resolveAction(state, pid, host, markPayConfirmed(reserveTollViaPay ? { type: "pay", cost: { type: "removeCores", side: "own", from: ["reserve"], to: "trash", count: (effect.cost as { reserveToTrash: number }).reserveToTrash }, then: effect.action, costOnly: true } : effect.action))
+        resolveAction(state, pid, host, markPayConfirmed(reserveTollViaPay ? { type: "pay", cost: { type: "removeCores", side: "own", from: ["reserve"], to: "trash", count: (effect.cost as { reserveToTrash: number }).reserveToTrash, ...((effect.cost as { reserveOnly?: true }).reserveOnly ? { reserveOnly: true as const } : {}) }, then: effect.action, costOnly: true } : effect.action))
     } finally {
         if (prevFlash) state.flashEffect = true
         else delete state.flashEffect

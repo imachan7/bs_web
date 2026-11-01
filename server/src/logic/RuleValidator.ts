@@ -1105,6 +1105,9 @@ export function validateActivateAbility(
                 (cardId) => getCard(cardId).type === "spirit" && hasKeyword(cardId, keyword),
             )
             if (!hasCard) return "破棄できるカードが手札にありません"
+        } else if (effect.cost.reserveOnly === true) {
+            // 「自分のリザーブのコアN個をトラッシュに置くことで」はリザーブからだけ（「Nコスト支払う」と違いフィールドのコアは使えない）
+            if (state.players[pid].reserve < effect.cost.reserveToTrash) return "リザーブのコアが足りません"
         } else if (autoPayPlan(state, pid, Math.max(0, effect.cost.reserveToTrash - (effectCostDiscountNexus(state, pid, inst.cardId)?.amount ?? 0)), true) === null) {
             return "コアが足りません"
         }
