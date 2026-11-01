@@ -5,7 +5,7 @@ import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opp
 import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { applyBounceStay, declineBounceStay, resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
 import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
@@ -269,6 +269,20 @@ function resolveChoiceInner(
         state.pendingChoice = null
         if (option !== undefined) applyBraveKeep(state, info, paySources)
         else declineBraveKeep(state, info)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 「手札/デッキに戻る代わりに、下のカード1枚を破棄して残る」の確認（BS19-X02）。
+    // action は解決せず、選べば下のカード1枚を破棄して回復状態で残し、選ばなければ戻る
+    if (pending.bounceStay) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.bounceStay
+        state.pendingChoice = null
+        if (option !== undefined) applyBounceStay(state, info)
+        else declineBounceStay(state, info)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

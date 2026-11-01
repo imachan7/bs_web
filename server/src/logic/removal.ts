@@ -1,6 +1,6 @@
 // スピリット／ネクサスの除去。EffectModules.ts / triggers.ts と相互 import の関係にある（破壊は誘発を発火し、誘発は破壊を呼ぶ）。
 // CommonJS の循環 require で安全に動く（関数宣言はホイストされ、呼び出しは対戦処理中）。EffectModules.ts がここの export を再エクスポートしている
-import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
+import { bounceDenial, canStayOnReturn, stayOnReturn } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
@@ -1131,9 +1131,13 @@ export function markBounce(
         log(state, `${getCard(inst.cardId).name}は手札に戻らなかった（${denied}）。`)
         return false
     }
-    // kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で戻されるときも復活して場に残る
-    if (to !== "burst" && state.currentEffectSource?.pid !== undefined && state.currentEffectSource.pid !== ownerPid && reviveOnReturnStay(state, ownerPid, inst)) {
-        return false
+    // kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で戻されるときも復活して場に残る。
+    // 対話ありのときはここで払わず、戻る予定の印を付けたまま flushBounces の直前に持ち主へ確認する
+    if (to !== "burst" && state.currentEffectSource?.pid !== undefined && state.currentEffectSource.pid !== ownerPid && canStayOnReturn(state, ownerPid, inst)) {
+        if (!state.interactiveTargets) {
+            stayOnReturn(state, ownerPid, inst)
+            return false
+        }
     }
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
     // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
@@ -1156,6 +1160,31 @@ const bounceSourceNames = new Map<string, string>()
 // order（instanceId の列）を渡すと**その順に移す**。プレイヤーが決めた順番がデッキの並びに出る効果（好きな順番でデッキの下に戻す）で使う。
 // 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
+    // BS19-X02：対話ありのとき、相手によって戻る予定で「下のカード1枚を破棄して残れる」個体には
+    // 移す直前に持ち主へ確認する（2026-11-02 ユーザー指示）。答えが返ったら applyBounceStay /
+    // declineBounceStay がこの flushBounces をやり直すので、残りの確認と移動はそこで続く
+    if (state.interactiveTargets && !state.pendingChoice && !state.winner) {
+        for (const pid of ["p1", "p2"] as PlayerId[]) {
+            for (const inst of state.players[pid].field.spirits) {
+                const pb = inst.pendingBounce
+                if (!pb || pb.to === "burst" || pb.byOpponent !== true || pb.stayDeclined === true) continue
+                if (!canStayOnReturn(state, pid, inst)) continue
+                suspend(state, {
+                    pid,
+                    kind: "option",
+                    prompt: `${getCard(inst.cardId).name}：手札/デッキに戻る代わりに、下のカード1枚を破棄して残りますか？`,
+                    candidates: [],
+                    options: ["残す"],
+                    optional: true,
+                    confirm: true,
+                    bounceStay: { pid, instanceId: inst.instanceId },
+                    action: { type: "noop" },
+                    selfInstanceId: inst.instanceId,
+                })
+                return
+            }
+        }
+    }
     const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }[] = []
     const rank = (inst: CardInstance): number => {
         if (!order) return 0
@@ -1217,6 +1246,25 @@ export function flushBounces(state: GameState, order?: string[]): void {
         if (n > 0) notifyHandGained(state, pid, n)
     }
     fireBounceTriggers(state, moved, 0)
+}
+
+// 「手札/デッキに戻る代わりに、下のカード1枚を破棄して残る」の確認（BS19-X02）への答え。
+// doResolveChoice から呼ぶ。決着したら flushBounces をやり直して、残りの確認と移動・誘発を続ける
+export function applyBounceStay(state: GameState, info: { pid: PlayerId; instanceId: string }): void {
+    const inst = state.players[info.pid].field.spirits.find((s) => s.instanceId === info.instanceId)
+    if (inst && inst.pendingBounce && stayOnReturn(state, info.pid, inst)) delete inst.pendingBounce
+    flushBounces(state)
+}
+
+// 確認を閉じた（残さない）。下のカードは場を離れるとき破棄なので、戻る先の移動に任せる。
+// stayDeclined の印で、やり直した flushBounces が同じ個体へ再び確認を出さないようにする
+export function declineBounceStay(state: GameState, info: { pid: PlayerId; instanceId: string }): void {
+    const inst = state.players[info.pid].field.spirits.find((s) => s.instanceId === info.instanceId)
+    if (inst?.pendingBounce) {
+        inst.pendingBounce.stayDeclined = true
+        log(state, `${state.players[info.pid].name}の${getCard(inst.cardId).name}は、残さず手札/デッキに戻る。`)
+    }
+    flushBounces(state)
 }
 
 // 移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**

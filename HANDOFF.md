@@ -26,7 +26,6 @@
 - 取り込み済みは BS01〜BS19・SD01/02/04/06・プロモ P001〜P084・PX01〜PX19（`data/cards/`）。BS20 から先は staging にも無い
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。指示の型は BS19_PLAN §4
-- **X02 で手札・デッキに戻るときの「下のカードを破棄して残る」は確認を出さず自動で払う**（P8 の簡略化。破壊のときは確認が出る。ユーザー確認待ち）
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
 - **絞り込みの統一は済み**（#349〜#353。2026-10-31 ユーザー決定「全部いま寄せる」）。絞り込みは `filter`／`subjectFilter`／`partnerFilter`／`ownSpiritMatches`／`battleOpponentMatches`（`ResolvedTargetFilter`）に書く。寄せずに残したものは [FILTER_UNIFY.md](./docs/design/FILTER_UNIFY.md) §7、付録の器（約250件）はプロモの後
 - **プロモ P0・PX0 の100枚は実装済み**（#354。解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md) §2）。後半は Mistral Vibe（GLM-5.3・Devstral）に直させた：モデルは `~/.vibe/config.toml` の `active_model` でしか選べない（エージェント定義の指定は無視される）。Devstral は `devstral-latest`／`devstral-2512`。指示は1回1〜2件、読む範囲を絞り、差分は必ず見る（Devstral はテストの確かめを飛ばしたことがある）

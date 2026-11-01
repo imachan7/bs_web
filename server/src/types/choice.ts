@@ -109,6 +109,13 @@ export interface PendingChoice {
         cardId: string
         need: number // スピリット状態の Lv1 維持コスト（braveKeepCores）
     }
+    bounceStay?: {
+        // 「手札/デッキに戻る代わりに、下のカード1枚を破棄して残る」の確認待ち（BS19-X02。
+        // removal.ts の flushBounces が移す直前に出す）。**action は解決しない**。
+        // 選べば下のカード1枚を破棄して回復状態でフィールドに残り、選ばなければ戻る
+        pid: PlayerId
+        instanceId: string
+    }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
         // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。

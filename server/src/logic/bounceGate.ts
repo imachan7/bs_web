@@ -45,9 +45,22 @@ export function allSpiritsCantBounceActive(state: GameState): boolean {
 
 // kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で手札・デッキに戻るときも、
 // 破壊のときと同じコスト（cost.discardUnderOne のみ対応）で revived の状態で場に残る。
-// optional（「〜できる」）の問い直しは出さず、コストを払えるなら自動で残る。
-// 破壊側の reviveConfirm の確認経路は断ったとき破壊し直す造りなので戻しには流用できない（簡略化）
-export function reviveOnReturnStay(state: GameState, ownerPid: PlayerId, target: CardInstance): boolean {
+// 対話ありのときは確認を持ち主に出す（removal.ts の flushBounces 直前）ので、
+// ここは「残れるか」の判定（canStayOnReturn）と「払って残す」（stayOnReturn）に分ける
+export function canStayOnReturn(state: GameState, ownerPid: PlayerId, target: CardInstance): boolean {
+    const level = currentLevel(target).level
+    for (const effect of getCard(target.cardId).effects) {
+        if (effect.kind !== "reviveOnDestroy" || effect.alsoOnReturn !== true || effect.scope !== "self") continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        if (effect.cost?.discardUnderOne !== true) continue
+        if ((target.underCards?.length ?? 0) < 1) continue
+        return true
+    }
+    return false
+}
+
+// canStayOnReturn を満たす個体のコストを払って場に残す（戻る予定の印 pendingBounce は呼び出し側が消す）
+export function stayOnReturn(state: GameState, ownerPid: PlayerId, target: CardInstance): boolean {
     const level = currentLevel(target).level
     for (const effect of getCard(target.cardId).effects) {
         if (effect.kind !== "reviveOnDestroy" || effect.alsoOnReturn !== true || effect.scope !== "self") continue

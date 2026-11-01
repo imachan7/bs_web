@@ -580,7 +580,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BounceTo`（型）
 - `bounceDenial`（fn）
 - `allSpiritsCantBounceActive`（fn）：金狐角。発生源の持ち主基準の phase/turn を見るので hasGlobalConstraint ではなく専用に走査する
-- `reviveOnReturnStay`（fn）：kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で手札・デッキに戻るときも、
+- `canStayOnReturn`（fn）：kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で手札・デッキに戻るときも、
+- `stayOnReturn`（fn）：canStayOnReturn を満たす個体のコストを払って場に残す（戻る予定の印 pendingBounce は呼び出し側が消す）
 
 ## server/src/logic/brave.ts
 
@@ -870,6 +871,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `returnSpiritToHand`（fn）：**その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
 - `markBounce`（fn）
 - `flushBounces`（fn）：バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。バウンス効果の解決が終わった時点で呼ぶ。
+- `applyBounceStay`（fn）：「手札/デッキに戻る代わりに、下のカード1枚を破棄して残る」の確認（BS19-X02）への答え。
+- `declineBounceStay`（fn）：確認を閉じた（残さない）。下のカードは場を離れるとき破棄なので、戻る先の移動に任せる。
 - `fireBounceTriggers`（fn）：移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**
 - `returnSpiritToDeckTop`（fn）：スピリットを持ち主のデッキの一番上へ戻す。破壊ではないため onDestroy は誘発しない。
 - `returnSpiritToDeckBottom`（fn）：スピリットをデッキの一番下へ戻す（returnSpiritToDeckTop のデッキ下版）。
