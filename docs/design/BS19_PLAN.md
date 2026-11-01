@@ -78,3 +78,27 @@
 - 【強化】は `keywords/kyoka.ts`。自分のスピリットへの疲労・コア除去（`side: "own"`）には足さない。すべてのスピリットから取るコア除去（Q760）は該当カードが無いので未対応
 - 付与された【聖命】：`effectGrant.granted.keywordBody`。元から持つ個体には付けず、重なっても1回。**BS11-070 は「持つ」だけで働かなかったので直した**（BS18-070 と同じ2エントリにした）
 - `bpMinus` はマジックの使用時に指定した対象を受け取る
+
+### 3.2 決めた型（HANDOFF から移した。2026-11-01）
+- バッチ M（仕組み。2026-11-01 確定）**。カードは `data/cards/BS19-<色>.json`（効果なしで置いた。最後に `merge-set.ts BS19`）
+  - M1【連鎖】：Keyword に `"rensa"` を足し `LABELED_KEYWORDS` に入れる。連鎖を含む効果のエントリに `keyword: "rensa"` を書く（Lv の判定は spiritHasLabeledKeyword がそのまま Q774 になる）。連鎖は action を `{ type: "sequence", actions: [連鎖元, { type: "if", cond: { count: { ownColorSymbols: 色 }, atLeast: N }, then: 連鎖 }] }`。2色は if を入れ子。継続の連鎖は aura／constraint の condition `ownColorSymbolsAtLeast`
+  - M2【強化】：Keyword に `"kyoka"`。keyword エントリに `kyoka: "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill"`。新しいファイル `server/src/logic/keywords/kyoka.ts` の `kyokaBonus(state, pid, kind)`＝`effectSources` のうち Lv・合体条件を満たす kyoka エントリの数。足す所は destroy の数値の bpMax と budget(by bp)（+1000×n）／removeCores の行き先リザーブ（+n個、ライフ・downTo・leaveAtLeast は除く）／相手のスピリットへの exhaust の数値 count（+n体）／自身以外への refresh の数値 count（+n体）／bpMinus と timedEffect の負の bp（-1000×n）／相手の discard from deck と【粉砕】（実際に1枚以上破棄するとき +n枚、上限は超えない）
+  - M1・M2 は済み（#356 の draft に積んだ）
+  - M3 場に残るマジック：`PlayerState.field.magics: CardInstance[]`（新しい置き場。`effectSources` に1行足す＝中身の継続効果・fieldEvent がそのまま効く）。メイン効果の action は `sequence` の最後に `{ type: "placeSelfOnField" }`（lendSelfThisTurn の持続版）。破棄の条件は同じカードの fieldEvent（levels null）で action `{ type: "trashSelfFromField" }`。中身の継続効果は同じカードに levels null で書く（手札では発生源でないので効かない）。新しいファイル `server/src/logic/zones/fieldMagic.ts`。対象にはならない・フラッシュ効果は場からは使えない（BS19_PLAN §2.2 C）。クライアントは自分／相手の場にマジックの列を出す
+  - M4 X02 下のカード：`CardInstance.underCards?: string[]`（相手には枚数だけ見せる）。`{ type: "placeUnderSelf", from: "hand", upTo: 3 }`・pay の cost に `{ type: "discardUnder", count: 1 }`。場を離れるとき下のカードはトラッシュへ。「破壊し、そのスピリットのコア1個をボイド」は sequence で destroy の後に、破壊できていれば相手のリザーブからコア1個をボイドへ（ソウルコアが無いので結果は同じ）
+- バッチ P（新しい部品。2026-11-01 確定。GLM に2〜3個ずつ）**。器を足したらそのカードのデータまで書く（期待値は part730〜741）
+  - P1 戦闘：011 `partnerFilter.maxBp: "subjectBp"`（出来事の主体のBP以下）／X01 TargetFilter `highestBp: true`（同値が複数なら使う側が選ぶ）／X05 `treatAsUnblocked.when` に `{ blockerMaxBp: 3000 }`・`reviveOnDestroy` に `then?: EffectAction`
+  - P2 場に残るマジック（M3）＋中身：099 の「お互いの効果で疲労せず・手札/デッキに戻らず・入れ替わらない」＝globalConstraint 3つ（両陣営・両者の効果）／103 globalConstraint `noCoreZeroOutsideEffect`・`handGainOnlyInDrawStep`／100・110・112 は既存の中身
+  - P3 紫：IfCond `{ lastEmptied: true }`（直前の removeCores で対象のコアが0個になった。070・102）／083 `exhaustOnManualCoreAdd.trigger: "nonSummon"`（召喚のための配置以外すべて）／084 `effectTax.on: "deckMill"`
+  - P4 X02（M4）
+  - P5 白：035 aura の絞り込みに `rested: true`／040 globalConstraint `combinedBraveIndestructible`（このスピリットのブレイヴ）と条件 `combinedWithSymbollessBrave`／042 summon に `costBudget`／043 `ownLifeDamageCapPerSourcePerTurn` に発生源の `minSymbols`（§3.25）／044 カウンタ `{ ownKeywordSpirits: Keyword }`／088 `opponentHandAdded` に `sourceTypes`／090 fieldEvent ownSpiritDestroyed の破壊された個体を `targetInstanceId` で渡す（§3.24：1回だけ）／106 `negateLifeDamageFromTarget.includeEffects`
+  - P6 黄：fieldEvent `opponentSpiritBpZero`（091 Lv1。ターンに1回）・`ownSpiritBattleLost`（091 Lv2。相打ちは含まない）・`ownBraveOnlyDestroyed`（093）／092 `coreStepBonus.toLife`（任意・条件 ownLifeAtMost）／054 `payAssistByExhaust.via: "magic"`
+  - P7 青：バーストの発動禁止に色の軸 `colors`（060・096）／064 アタッカーのキーワードの軸（`whileOwnAttackerFamily` のキーワード版。§3.23 アタックの間）／066 `magicRestriction` に固定の色・両陣営／078 手札の軽減シンボルを無いものとして扱う playerRule と CardPick `keywordExclude`／X06 fieldEvent「相手の効果で1枚も破棄できなかった」・triggered `maxPerTurn: 3`
+  - P8：087 continuous kind `sokuFreeSummon`（levels・phaseTurn・ターンに1回）。【神速】での召喚（フラッシュで手札から）の支払いの前に、magicFreeGrant の使用時確認（magic/cast.ts）と同じ形で「コストを支払わずに召喚しますか」を聞き、はいなら召喚コスト0（維持コアは置く）／X02 `reviveOnDestroy.alsoOnReturn: true`：相手によって手札・デッキに戻るときも同じコストで回復状態で残る（bounceGate.ts。期待値は part742）
+
+## 4. サブエージェントの指示の型（2026-11-01。次の弾でも使う）
+
+- 調査・期待値・部品の実装は GLM-5.3（`vibe -p ... --model glm`）。1回あたり2〜3部品・約10枚まで
+- データ役は Large 4（`--model large4`）。指示は「調査メモの表の手本の効果 id ＋ 前例の無い形だけメインが JSON を書く」。devstral はメインが完成形を持っている作業だけ
+- どの指示にも入れる：テスト・エンジンを触らない／`git stash` などを使わない／同じ場面の ❌ を3回直しても消えなければ止めて報告／道具の呼び出しが上限に近づいたら途中でも報告／報告は日本語
+- 期待値テストの誤りの型（BS19 で多かったもの）：合体スピリットのシンボル数（ブレイヴも1つ持つ）・Lv/BP の行の書き漏れ・リフレッシュで戻るコア・アタックステップ限定の効果をメインで見る・ネクサスの既定コア1・アタック後のフラッシュは防御側が先・場面の開始時点で効いている継続効果は差分に出ない

@@ -21,26 +21,12 @@
 
 ## 1. いまの本線と次の一手
 
-### 次の本線：BS19 の取り込み（ブランチ `feat/bs19-import`。計画は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
+### 次の本線：BS20 の取り込み（BS19 は #356。計画の型は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
 
-- 取り込み済みは BS01〜BS18・SD01/02/04/06・プロモ P001〜P084・PX01〜PX19（`data/cards/`）。BS19 は `data/staging/BS19.json`（122枚）
-- **新しいキーワード【連鎖】（33枚）と【強化】（15枚）**。Q&A の要約は BS19_PLAN §2.1。【強化】は既存の弾の効果にも効く一般則なので、効果の種類（BP破壊・コア除去・疲労・回復・BP-・デッキ破棄）の判定を部品として作る
-- **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。剣刃編の取り込みでは方針を決めない。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
-- **バッチ M（仕組み。2026-11-01 確定）**。カードは `data/cards/BS19-<色>.json`（効果なしで置いた。最後に `merge-set.ts BS19`）
-  - M1【連鎖】：Keyword に `"rensa"` を足し `LABELED_KEYWORDS` に入れる。連鎖を含む効果のエントリに `keyword: "rensa"` を書く（Lv の判定は spiritHasLabeledKeyword がそのまま Q774 になる）。連鎖は action を `{ type: "sequence", actions: [連鎖元, { type: "if", cond: { count: { ownColorSymbols: 色 }, atLeast: N }, then: 連鎖 }] }`。2色は if を入れ子。継続の連鎖は aura／constraint の condition `ownColorSymbolsAtLeast`
-  - M2【強化】：Keyword に `"kyoka"`。keyword エントリに `kyoka: "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill"`。新しいファイル `server/src/logic/keywords/kyoka.ts` の `kyokaBonus(state, pid, kind)`＝`effectSources` のうち Lv・合体条件を満たす kyoka エントリの数。足す所は destroy の数値の bpMax と budget(by bp)（+1000×n）／removeCores の行き先リザーブ（+n個、ライフ・downTo・leaveAtLeast は除く）／相手のスピリットへの exhaust の数値 count（+n体）／自身以外への refresh の数値 count（+n体）／bpMinus と timedEffect の負の bp（-1000×n）／相手の discard from deck と【粉砕】（実際に1枚以上破棄するとき +n枚、上限は超えない）
-  - M1・M2 は済み（#356 の draft に積んだ）
-  - M3 場に残るマジック：`PlayerState.field.magics: CardInstance[]`（新しい置き場。`effectSources` に1行足す＝中身の継続効果・fieldEvent がそのまま効く）。メイン効果の action は `sequence` の最後に `{ type: "placeSelfOnField" }`（lendSelfThisTurn の持続版）。破棄の条件は同じカードの fieldEvent（levels null）で action `{ type: "trashSelfFromField" }`。中身の継続効果は同じカードに levels null で書く（手札では発生源でないので効かない）。新しいファイル `server/src/logic/zones/fieldMagic.ts`。対象にはならない・フラッシュ効果は場からは使えない（BS19_PLAN §2.2 C）。クライアントは自分／相手の場にマジックの列を出す
-  - M4 X02 下のカード：`CardInstance.underCards?: string[]`（相手には枚数だけ見せる）。`{ type: "placeUnderSelf", from: "hand", upTo: 3 }`・pay の cost に `{ type: "discardUnder", count: 1 }`。場を離れるとき下のカードはトラッシュへ。「破壊し、そのスピリットのコア1個をボイド」は sequence で destroy の後に、破壊できていれば相手のリザーブからコア1個をボイドへ（ソウルコアが無いので結果は同じ）
-- **バッチ P（新しい部品。2026-11-01 確定。GLM に2〜3個ずつ）**。器を足したらそのカードのデータまで書く（期待値は part730〜741）
-  - P1 戦闘：011 `partnerFilter.maxBp: "subjectBp"`（出来事の主体のBP以下）／X01 TargetFilter `highestBp: true`（同値が複数なら使う側が選ぶ）／X05 `treatAsUnblocked.when` に `{ blockerMaxBp: 3000 }`・`reviveOnDestroy` に `then?: EffectAction`
-  - P2 場に残るマジック（M3）＋中身：099 の「お互いの効果で疲労せず・手札/デッキに戻らず・入れ替わらない」＝globalConstraint 3つ（両陣営・両者の効果）／103 globalConstraint `noCoreZeroOutsideEffect`・`handGainOnlyInDrawStep`／100・110・112 は既存の中身
-  - P3 紫：IfCond `{ lastEmptied: true }`（直前の removeCores で対象のコアが0個になった。070・102）／083 `exhaustOnManualCoreAdd.trigger: "nonSummon"`（召喚のための配置以外すべて）／084 `effectTax.on: "deckMill"`
-  - P4 X02（M4）
-  - P5 白：035 aura の絞り込みに `rested: true`／040 globalConstraint `combinedBraveIndestructible`（このスピリットのブレイヴ）と条件 `combinedWithSymbollessBrave`／042 summon に `costBudget`／043 `ownLifeDamageCapPerSourcePerTurn` に発生源の `minSymbols`（§3.25）／044 カウンタ `{ ownKeywordSpirits: Keyword }`／088 `opponentHandAdded` に `sourceTypes`／090 fieldEvent ownSpiritDestroyed の破壊された個体を `targetInstanceId` で渡す（§3.24：1回だけ）／106 `negateLifeDamageFromTarget.includeEffects`
-  - P6 黄：fieldEvent `opponentSpiritBpZero`（091 Lv1。ターンに1回）・`ownSpiritBattleLost`（091 Lv2。相打ちは含まない）・`ownBraveOnlyDestroyed`（093）／092 `coreStepBonus.toLife`（任意・条件 ownLifeAtMost）／054 `payAssistByExhaust.via: "magic"`
-  - P7 青：バーストの発動禁止に色の軸 `colors`（060・096）／064 アタッカーのキーワードの軸（`whileOwnAttackerFamily` のキーワード版。§3.23 アタックの間）／066 `magicRestriction` に固定の色・両陣営／078 手札の軽減シンボルを無いものとして扱う playerRule と CardPick `keywordExclude`／X06 fieldEvent「相手の効果で1枚も破棄できなかった」・triggered `maxPerTurn: 3`
-  - P8：087 continuous kind `sokuFreeSummon`（levels・phaseTurn・ターンに1回）。【神速】での召喚（フラッシュで手札から）の支払いの前に、magicFreeGrant の使用時確認（magic/cast.ts）と同じ形で「コストを支払わずに召喚しますか」を聞き、はいなら召喚コスト0（維持コアは置く）／X02 `reviveOnDestroy.alsoOnReturn: true`：相手によって手札・デッキに戻るときも同じコストで回復状態で残る（bounceGate.ts。期待値は part742）
+- 取り込み済みは BS01〜BS19・SD01/02/04/06・プロモ P001〜P084・PX01〜PX19（`data/cards/`）。BS20 から先は staging にも無い
+- **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
+- **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。指示の型は BS19_PLAN §4
+- **X02 で手札・デッキに戻るときの「下のカードを破棄して残る」は確認を出さず自動で払う**（P8 の簡略化。破壊のときは確認が出る。ユーザー確認待ち）
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
 - **絞り込みの統一は済み**（#349〜#353。2026-10-31 ユーザー決定「全部いま寄せる」）。絞り込みは `filter`／`subjectFilter`／`partnerFilter`／`ownSpiritMatches`／`battleOpponentMatches`（`ResolvedTargetFilter`）に書く。寄せずに残したものは [FILTER_UNIFY.md](./docs/design/FILTER_UNIFY.md) §7、付録の器（約250件）はプロモの後
 - **プロモ P0・PX0 の100枚は実装済み**（#354。解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md) §2）。後半は Mistral Vibe（GLM-5.3・Devstral）に直させた：モデルは `~/.vibe/config.toml` の `active_model` でしか選べない（エージェント定義の指定は無視される）。Devstral は `devstral-latest`／`devstral-2512`。指示は1回1〜2件、読む範囲を絞り、差分は必ず見る（Devstral はテストの確かめを飛ばしたことがある）

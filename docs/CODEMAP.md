@@ -219,6 +219,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `staticKeywordCount`（fn）：効果の levels 指定が現在のレベルで有効か（null = レベル不問）
 - `effectActiveAtLevel`（fn）
 - `instIsCombined`（fn）：このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
+- `combinedBraveEntryOk`（fn）：合体中のブレイヴのエントリは【合体時】のものだけが働く（docs/design/BRAVE.md §12 の表の #8。
 - `effectActiveOn`（fn）：効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
 - `combinedBraveColorsOk`（fn）：【合体時】の色条件（X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」）。
 - `cardHasTeam`（fn）：カードが指定チームを持つか（kind:"allTeams"＝「すべてのチームを持つ」は全チームに当たる。カード単体で見る場所用）
