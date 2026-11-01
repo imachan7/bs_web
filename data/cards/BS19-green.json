@@ -1028,22 +1028,15 @@
       },
       {
         "id": "BS19-087-e2",
-        "kind": "activated",
-        "timing": "flash",
+        "kind": "sokuFreeSummon",
         "levels": [
           2
         ],
-        "oncePerTurn": true,
         "phaseTurn": {
           "phase": "attack",
           "turn": "both"
         },
-        "action": {
-          "type": "summon",
-          "from": "hand",
-          "keywordFilter": "soku",
-          "cancelable": true
-        }
+        "oncePerTurn": true
       }
     ]
   },

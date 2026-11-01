@@ -1,7 +1,7 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge } from "./summonSurcharge"
-import { exSymbolsOfTrashCard, selfSetCost, summonSurcharge } from "../../../shared/cost"
+import { exSymbolsOfTrashCard, findSokuFreeSummonSource, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
     clearBattle,
@@ -271,7 +271,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice)
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
@@ -474,7 +474,7 @@ export function placeSummonedSpirit(
     if (!state.winner) fireSummonSequence(state, pid, inst)
 }
 
-function doSummon(
+export function doSummon(
     state: GameState,
     pid: PlayerId,
     handIndex: number,
@@ -488,8 +488,9 @@ function doSummon(
     exReductionTrashIndices?: number[], // 《継召》(kind:"exTrashReduction")：除外して軽減するトラッシュ内インデックス
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
+    sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（undefined=まだ聞いていない / true=無償 / false=あえて支払う）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice)
     if (error) return error
 
     const player = state.players[pid]
@@ -542,11 +543,42 @@ function doSummon(
             `${player.name}はトラッシュのEXシンボル${excluded.length}枚を除外し、《継召》で召喚コストを軽減した。`,
         )
     }
-    const cost = Math.max(
+    // kind:"sokuFreeSummon"（BS19-087）：フラッシュでの【神速】召喚をターンに1回コスト0にする（維持コアは置く）。
+    // 使用時確認は magicFreeGrant と同じ形：interactive で、リザーブで払える見込みがあるときだけ聞く
+    const sokuFreeSource = altSummonNexusInstanceIds === undefined ? findSokuFreeSummonSource(state, pid) : null
+    const sokuFree = sokuFreeSource !== null && sokuFreeChoice !== false
+    const baseCost = Math.max(
         0,
         (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
             shinsokuDiscount,
     )
+    if (sokuFreeChoice === undefined && sokuFree && baseCost > 0 && state.interactiveTargets && player.reserve >= baseCost) {
+        suspend(state, {
+            pid,
+            kind: "option",
+            prompt: `${card.name}：コストを支払わずに召喚しますか？（支払う場合のコストは${baseCost}）`,
+            candidates: [],
+            options: ["コストを支払わずに召喚する", "コストを支払って召喚する"],
+            optional: false,
+            sokuFreeChoice: {
+                handIndex,
+                ...(level !== undefined ? { level } : {}),
+                ...(paySources !== undefined ? { paySources } : {}),
+                ...(braveTargetInstanceId !== undefined ? { braveTargetInstanceId } : {}),
+                ...(exReductionTrashIndices !== undefined && exReductionTrashIndices.length > 0 ? { exReductionTrashIndices } : {}),
+                ...(paySoulCoreFromReserve !== undefined && paySoulCoreFromReserve ? { paySoulCoreFromReserve } : {}),
+                ...(placeSoulCoreFromReserve === true ? { placeSoulCoreFromReserve } : {}),
+            },
+            action: { type: "noop" },
+            selfInstanceId: null,
+        })
+        return null
+    }
+    const cost = sokuFree && baseCost > 0 ? 0 : baseCost
+    if (sokuFree && baseCost > 0) {
+        const src = [...player.field.spirits, ...player.field.nexuses].find((s) => s.instanceId === sokuFreeSource)
+        if (src) src.sokuFreeSummonUsedTurn = state.turn
+    }
     // 「〜ならコストNにする。同じカード名でターンに1回」：この注記のコストで召喚したら1回と数える
     if (altSummonNexusInstanceIds === undefined && card.effects.some((e) => e.kind === "selfSummonCost" && e.oncePerTurnName) && selfSetCost(state, pid, card) !== undefined) {
         state.selfSummonCostUsedNames = { ...(state.selfSummonCostUsedNames ?? {}), [pid]: [...(state.selfSummonCostUsedNames?.[pid] ?? []), card.name] }

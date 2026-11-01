@@ -695,6 +695,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "sokuFreeSummon" // 持ち主が【神速】で手札から召喚するとき（フラッシュタイミング）、ターンに1回コストを支払わずに召喚できる（維持コアは置く）
+          levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+          oncePerTurn: true
+      }
+    | {
+          id: string
           kind: "lifeDamageNegate" // 発生源の持ち主のライフが減らない
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }

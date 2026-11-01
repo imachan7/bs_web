@@ -1,6 +1,6 @@
 // スピリット／ネクサスの除去。EffectModules.ts / triggers.ts と相互 import の関係にある（破壊は誘発を発火し、誘発は破壊を呼ぶ）。
 // CommonJS の循環 require で安全に動く（関数宣言はホイストされ、呼び出しは対戦処理中）。EffectModules.ts がここの export を再エクスポートしている
-import { bounceDenial } from "./bounceGate"
+import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
@@ -1129,6 +1129,10 @@ export function markBounce(
     const denied = bounceDenial(state, ownerPid, inst, to)
     if (denied) {
         log(state, `${getCard(inst.cardId).name}は手札に戻らなかった（${denied}）。`)
+        return false
+    }
+    // kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で戻されるときも復活して場に残る
+    if (to !== "burst" && state.currentEffectSource?.pid !== undefined && state.currentEffectSource.pid !== ownerPid && reviveOnReturnStay(state, ownerPid, inst)) {
         return false
     }
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、

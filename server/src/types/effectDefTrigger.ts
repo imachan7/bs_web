@@ -358,6 +358,7 @@ export type EffectDefTrigger =
           oncePerTurn?: boolean // 発生源1つにつきターン1回
           condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number } | { ownSpiritMatches: ResolvedTargetFilter } // AtMost＝相手シンボル色数（重複除く）がこの値以下／ownBurstSet＝セット中(true)/未(false)
           alsoVoidCoreToReserve?: number // 復活の成立とセットで、ボイドからリザーブに置くコアの数
+          alsoOnReturn?: true // when.byOpponent と同じ条件で手札・デッキに戻るときも、同じコストで revived の状態で場に残る（BS19-X02）
       }
     | {
           id: string

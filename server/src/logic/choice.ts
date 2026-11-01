@@ -36,7 +36,7 @@ import {
 import { validatePaySources } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
-import { applyResshinsokuDestination, continueBlockDeclaration, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
+import { applyResshinsokuDestination, continueBlockDeclaration, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 
@@ -431,6 +431,36 @@ function resolveChoiceInner(
             info.paySoulCoreFromReserve, // リザーブの[ソウルコア]支払いも同じく引き継ぐ
             undefined,
             info.timing,
+        )
+        if (error) return error
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 【神速】召喚の無償化（kind:"sokuFreeSummon"）の使用時確認。action は解決せず、
+    // 答えを持って doSummon をやり直す（コストの支払いはそのやり直しの中で行う）
+    if (pending.sokuFreeChoice) {
+        const options = pending.options ?? []
+        if (option === undefined) return "コストを支払うかどうか選んでください"
+        const index = options.indexOf(option)
+        if (index < 0) return "選択できない候補です"
+        const info = pending.sokuFreeChoice
+        state.pendingChoice = null
+        const error = doSummon(
+            state,
+            pending.pid,
+            info.handIndex,
+            info.paySources,
+            info.level,
+            undefined,
+            undefined,
+            info.braveTargetInstanceId,
+            undefined,
+            undefined,
+            info.exReductionTrashIndices,
+            info.paySoulCoreFromReserve,
+            info.placeSoulCoreFromReserve,
+            index === 0, // 0=コストを支払わずに召喚する
         )
         if (error) return error
         if (state.winner) return null

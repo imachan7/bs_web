@@ -36,6 +36,7 @@ import {
     exTrashReductionCandidateIndices,
     exSymbolsOfTrashCard,
     hasMagicFreeGrant,
+    findSokuFreeSummonSource,
     hasMagicCostLock,
     hasMagicColorBan,
     hasMagicRestriction,
@@ -153,6 +154,7 @@ export function validateSummon(
     exReductionTrashIndices?: number[],
     paySoulCoreFromReserve?: boolean,
     placeSoulCoreFromReserve?: boolean,
+    sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（doSummon と同じ意味）
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -281,10 +283,17 @@ export function validateSummon(
         }
         exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
     }
-    const cost = Math.max(
-        0,
-        (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
-    )
+    // kind:"sokuFreeSummon"（BS19-087）：フラッシュでの【神速】召喚が無償になるときは、支払い検証もコスト0で行う
+    const sokuFree = altSummonNexusInstanceIds === undefined &&
+        substituteInstanceId === undefined &&
+        findSokuFreeSummonSource(state, pid) !== null &&
+        sokuFreeChoice !== false
+    const cost = sokuFree
+        ? 0
+        : Math.max(
+              0,
+              (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
+          )
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {

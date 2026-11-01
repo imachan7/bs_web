@@ -377,6 +377,29 @@ export function isSelfInBattle(board: Board, instanceId: string): boolean {
     )
 }
 
+// 【神速】での召喚の無償化（kind: "sokuFreeSummon"）の判定。フラッシュタイミングの手札からの召喚で、
+// レベル有効・phaseTurn一致・ターンに1回の枠が残っている発生源があればその instanceId を返す（無ければ null）
+export function findSokuFreeSummonSource(board: Board, pid: PlayerId): string | null {
+    if (!board.isFlashTiming) return null
+    const sources = [...board.players[pid].field.spirits, ...board.players[pid].field.nexuses]
+    for (const source of sources) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "sokuFreeSummon") continue
+            if (!entryActive(board, pid, source, effect, level)) continue
+            if (source.sokuFreeSummonUsedTurn === board.turn) continue
+            if (effect.phaseTurn) {
+                if (effect.phaseTurn.phase !== undefined && board.phase !== effect.phaseTurn.phase) continue
+                if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
+                if (effect.phaseTurn.turn === "opponent" && pid === board.turnPlayer) continue
+            }
+            noteCoverage(effect, "sokuFreeSummon")
+            return source.instanceId
+        }
+    }
+    return null
+}
+
 // kind:"ownMagicColorless"（BS15-015吸血令嬢エサルフリーダ Lv1-3）：発生源自身が現在のバトルの当事者
 // （アタッカー/ブロッカー）の間、pidが使用する指定色のマジックカードすべての色を無いものとして扱う。
 // 無効化・耐性をすり抜けるのが目的で、軽減やコストの色条件には及ばない（呼び出し側はこの関数を

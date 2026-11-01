@@ -1330,7 +1330,8 @@
      "cost": {
       "discardUnderOne": true
      },
-     "optional": true
+     "optional": true,
+     "alsoOnReturn": true
     },
     {
      "id": "BS19-X02-e3",
