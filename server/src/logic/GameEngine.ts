@@ -585,7 +585,8 @@ function doSummon(
     // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
-    const inst = createInstance(cardId, state.turn, maintain, "summon")
+    // フラッシュでの手札からの召喚＝【神速】。「【神速】で召喚したとき」の連鎖（BS19-024・028）が summonedBy で見る
+    const inst = createInstance(cardId, state.turn, maintain, state.isFlashTiming ? "soku" : "summon")
     // globalConstraint "summonExhausted"：「疲労する」であって「疲労状態になる」ではないため exhaustSpirit を経由しない（ownSpiritExhausted は発火しない）。
     // ダイレクトブレイヴは後続の attachBrave の疲労合成がこの疲労を拾い、合体先へ伝播する
     if (summonExhausted(state, card)) inst.isRested = true
