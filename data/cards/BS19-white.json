@@ -1,0 +1,719 @@
+[
+  {
+    "cardId": "BS19-034",
+    "name": "リヴァードフィン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "空魚"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-035",
+    "name": "ジュレヌーク",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 2,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "甲獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nお互いのデッキは破棄されない。\nLv2『相手のターン』\n疲労状態の自分のスピリットすべてをBP+2000する。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-036",
+    "name": "近衛機バイキング1号",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【重装甲：白/青】\nこのスピリットは、相手の白/青のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2･Lv3『相手のアタックステップ』\nBP6000以下の相手のスピリットがアタックしたとき、自分のスピリット1体を回復させる。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-037",
+    "name": "アーマー・フィッシュ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "空魚",
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-038",
+    "name": "近衛機キュリオシティ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nお互いのデッキは破棄されない。\nLv1･Lv2【強化】\n自分の「スピリット回復効果」の体数を+1体する。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-039",
+    "name": "ペガシオーネ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのアタック時』\nBP4000以下の相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-040",
+    "name": "十剣聖ヴォル・クーガ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "剣使",
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【合体時】Lv1･Lv2･Lv3\nこのスピリットのブレイヴは破壊されない。\nLv2･Lv3『このスピリットのアタック時』\nターンに1回、[十剣聖ヴォル・クーガ]以外の自分のスピリット1体を回復させる。\n【合体時】Lv3\nこのスピリットがシンボルを持たないブレイヴと合体している間、このスピリットに白のシンボル1つを追加する。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-041",
+    "name": "アザラ・バーグ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "巨獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-042",
+    "name": "機甲要塞ソーベック・タートル",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣",
+      "甲獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：自分の手札にあるブレイヴカードをコスト合計12まで、コストを支払わずに好きなだけ召喚できる。\nただし、『このブレイヴの召喚時』効果は発揮されない。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-043",
+    "name": "銀の女神アリアンロッド",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "氷姫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のライフは、ターンごとにシンボル2つ以上を持つ相手のスピリット1体から1までしか減らされない。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-044",
+    "name": "高速機獣オセローダー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 7,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n【連鎖】を持つ自分のスピリット1体につき、相手のスピリット1体を手札に戻す。\nLv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+4000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BP4000以下の相手のスピリットすべてを疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-073",
+    "name": "銃機トラドール",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nBP5000以下の相手のスピリット1体を手札に戻す。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-074",
+    "name": "砲獣アークィドリー",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体中】『相手のアタックステップ』\n自分のライフが減ったとき、このスピリットは回復する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-088",
+    "name": "獣の氷窟",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\nBP4000以下のスピリットのアタックでは、お互いのライフは減らない。\nLv2\n相手のスピリット/マジックの効果で相手の手札が増えたとき、増えたカード1枚につき、自分はデッキから1枚ドローできる。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-089",
+    "name": "フォートレスキューブ",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分の白のスピリットが回復したとき、ボイドからコア1個を自分のスピリットに置く。\nLv2『相手のアタックステップ』\n自分のライフが相手のスピリットのアタックで減ったとき、その相手のスピリット1体を手札に戻す。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-090",
+    "name": "凍てつくつららの逆塔",
+    "type": "nexus",
+    "colors": [
+      "white",
+      "green"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white",
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のメインステップ』\n自分の緑のスピリットが召喚されたとき、ボイドからコア1個を自分の白のスピリットに置く。\nLv2\n【連鎖】を持つ自分のスピリットが相手の効果によって破壊されたとき、破壊された自分のスピリット1体を手札に戻す。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-106",
+    "name": "アイスエイジシールド",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 2,
+    "reduction": [
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\n相手のスピリット1体を指定する。\nこのターンの間、指定された相手のスピリットのアタック/効果によって、自分のライフは減らない。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-107",
+    "name": "リゲイン",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n自分のスピリット1体を回復させる。\nまたは、このターンの間、自分のスピリットすべてをBP+3000する。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-108",
+    "name": "リカバリーラッシュ",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n自分の白のスピリットすべてを回復させる。\nこのターンの間、この効果で回復した、コスト10以下のスピリットはアタックできない。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手は、相手のスピリット2体を疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "BS19-X04",
+    "name": "黄金騎神フィン・マックラン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 7,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【重装甲：赤/紫/白】\nこのスピリットは、相手の赤/紫/白のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットのシンボルを白のシンボル2つにする。\nLv3『お互いのアタックステップ』\n相手のスピリットが手札に戻ったとき、自分のスピリット1体を回復させる。",
+    "effects": []
+  }
+]
