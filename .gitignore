@@ -168,3 +168,6 @@ tools/
 
 # セッションログのエクスポート（/export の出力）
 conversation-*.txt
+
+# 旧カードの画像（scripts/download-card-images.ts で取得。Cloud Storage のバケットに置き、デプロイ時に取り込む）
+public/imgs/cards/
