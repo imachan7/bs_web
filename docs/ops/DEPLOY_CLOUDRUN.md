@@ -187,3 +187,22 @@ gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.bugRepor
 Cloud Run が返す `https://bs-web-xxxxx.asia-northeast1.run.app` は安定したドメインなので、
 [DISCORD_ACTIVITY.md](../design/DISCORD_ACTIVITY.md) の URL Mapping にそのまま使える。
 独自ドメインの購入は不要。
+
+## 旧カードの画像（隠し要素。2026-11-02）
+
+画像は git 管理外。手元で取って縮小し、Cloud Storage のバケットに置く。デプロイ（Actions）がバケットから取り込み、`.gcloudignore` の指定どおり md/sm/xs だけをイメージに焼き込む。
+画面に出るのは、入力欄に「ゲートオープン開放」と打った端末だけ（`public/src/cardArt.ts`）。
+
+1. 画像を取る・縮小する（取得済みは飛ばす。全部で1時間強）
+   `npx tsx scripts/download-card-images.ts && npx tsx scripts/optimize-card-images.ts`
+2. **初回だけ**：バケットを作り、デプロイ用サービスアカウントに読み取りを付け、リポジトリの Variables に名前を登録する
+   ```bash
+   gcloud storage buckets create gs://<バケット名> --project=bs-web-imachan --location=asia-northeast1 --uniform-bucket-level-access
+   gcloud storage buckets add-iam-policy-binding gs://<バケット名> --member="serviceAccount:<GCP_DEPLOY_SA の値>" --role=roles/storage.objectViewer
+   gh variable set CARD_IMAGES_BUCKET --body "<バケット名>"
+   ```
+3. 画像を上げる（画像を足したら同じコマンドで上げ直す）
+   `gcloud storage rsync --recursive --exclude 'original/.*' public/imgs/cards gs://<バケット名>`
+4. いつもどおり Actions からデプロイする。`CARD_IMAGES_BUCKET` が無いうちは画像なしで出る（対戦は動く）
+
+容量の上限は無い。約2,200枚で md/sm/xs 合わせて数十MB、保存料は月1円未満。
