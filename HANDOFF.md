@@ -25,15 +25,13 @@
 
 - 取り込み済みは BS01〜BS19・SD01/02/04/06・プロモ P001〜P084・PX01〜PX19（`data/cards/`）。BS20 から先は staging にも無い
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
-- **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。指示の型は BS19_PLAN §4
-- **X02 で手札・デッキに戻るときの「下のカードを破棄して残る」は確認を出さず自動で払う**（P8 の簡略化。破壊のときは確認が出る。ユーザー確認待ち）
+- **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
 - **絞り込みの統一は済み**（#349〜#353。2026-10-31 ユーザー決定「全部いま寄せる」）。絞り込みは `filter`／`subjectFilter`／`partnerFilter`／`ownSpiritMatches`／`battleOpponentMatches`（`ResolvedTargetFilter`）に書く。寄せずに残したものは [FILTER_UNIFY.md](./docs/design/FILTER_UNIFY.md) §7、付録の器（約250件）はプロモの後
-- **プロモ P0・PX0 の100枚は実装済み**（#354。解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md) §2）。後半は Mistral Vibe（GLM-5.3・Devstral）に直させた：モデルは `~/.vibe/config.toml` の `active_model` でしか選べない（エージェント定義の指定は無視される）。Devstral は `devstral-latest`／`devstral-2512`。指示は1回1〜2件、読む範囲を絞り、差分は必ず見る（Devstral はテストの確かめを飛ばしたことがある）
+- **プロモ P0・PX0 の100枚は実装済み**（#354。解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md) §2）
 - データの移行をしたら `npm run coverage:check`（#352。smoke の全緑だけでは、場面を組めずに黙って発火しなくなった効果が見えない）
 - 3役の流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6。**実装役の「❌ 0」は自分で実行し直して確かめる**（10-29 に食い違いがあった）
 - 新しい禁止・耐性は [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md) の問い合わせへ足す。**新しい行・一般則を設計する前に、主役のカードの batspi.com の公式Q&Aを読む**
-- **プロモの後にやる**：「自分のリザーブのコアN個をトラッシュに置くことで」はリザーブからしか払えないのに、「Nコスト支払う」（フィールドのコアからも払える）と同じ形（`removeCores` reserve→trash）で書かれ、フィールドのコアでも払われている（BS15-032・BS15-X05 など）。プロモの P074 で `removeCores.reserveOnly` を足した。既存カードを効果文で洗い出して付ける（2026-11-01）
 - 取り込み時に足すもの：待機状態の改訂の残りの規則（[PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2）、発生源の属性で絞る貫通（耐性ごとの発生源の記録が要る）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
@@ -43,7 +41,6 @@
 - 専用 type の統一は一区切り（[ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4）。新しく統一するときは、分かれている理由がルール上の処理の違いかを先に確かめる
 - 「〜することで」の確認関門：規則と既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10。`if` の器は [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・§5（残した2枚は §5「残す」）
 - 「破壊されたとき」は同時破壊でも1回：必須の `reviveOnDestroy` がコスト不足で不発になった場合、グループの消費を戻していない（次の1体で使えない）
-- keywordState.ts 81行（`spiritHasLabeledKeyword`）は置き換えると【合体時】の判定が新たに掛かるので残した（ENTRY_ACTIVE.md）
 - `coverage:effects` の「場に出ているのに一度も適用されていない効果」は【大粉砕】（BS15-X06-e2）・【呪滅撃】（BS14-X02-e2）の2件だけ。宣言だけのキーワードで、挙動は同じカードの別エントリが持つ（読む側が無いので計測されない）
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの

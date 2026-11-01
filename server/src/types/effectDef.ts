@@ -103,7 +103,7 @@ export type EffectDef =
           ownTurnOnly?: true // 『自分のターン』：ステップを絞らず自分のターンだけ（26RBS02-X07）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 『自分のアタックステップ』等の絞り込み（AuraDef.phaseTurnと同型）。
           // timingだけでは「フラッシュで使えるタイミング全般」になり相手ターンにも撃ててしまうため、ステップを明示しているカードには必ず付ける
-          cost?: { reserveToTrash: number } | { exhaustSelf: true } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } | { exhaustOwnFamilyOne: FamilyFilter } | { discardHandOne: true; exhaustSelf: true } | { discardHandKeyword: Keyword } | { discardHandColor: Color } // 発動コスト。reserveToTrash=リザーブから／exhaustSelf=自身を疲労。省略時は追加コストなし
+          cost?: { reserveToTrash: number; reserveOnly?: true } | { exhaustSelf: true } | { selfCoresToTrash: number } | { discardHandFamily: FamilyFilter } | { exhaustOwnFamilyOne: FamilyFilter } | { discardHandOne: true; exhaustSelf: true } | { discardHandKeyword: Keyword } | { discardHandColor: Color } // 発動コスト。reserveToTrash=リザーブから／exhaustSelf=自身を疲労。省略時は追加コストなし
           // discardHandColor=手札にある指定色のカード（種別不問）1枚を破棄。selfCoresToTrash=発生源自身の上のコアをこの数だけトラッシュへ。
           // discardHandFamily=手札にある指定系統（配列＝OR）のスピリットカード1枚を破棄。exhaustOwnFamilyOne=フィールドの指定系統（配列＝OR）の回復状態スピリット1体を疲労。
           // { discardHandOne; exhaustSelf }=手札1枚（末尾。決定的簡略化）を破棄しこのスピリット自身を疲労。{ discardHandKeyword }=指定キーワードを静的に持つ手札のスピリットカード1枚を破棄
