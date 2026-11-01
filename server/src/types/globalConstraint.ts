@@ -32,9 +32,11 @@ export type GlobalConstraintDef =
     | { type: "ownLifeDamageToTrashByKeyword"; keyword: Keyword } // 発生源の持ち主の、指定キーワードを持つスピリットのアタックで減る相手のライフのコアは、リザーブでなく相手のトラッシュに置かれる（battleResolve のライフ受けが見る）
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営）
+    | { type: "combinedBraveIndestructible" } // 発生源自身（このスピリット）に合体中のブレイヴは破壊されない（BS19-040【合体時】「このスピリットのブレイヴは破壊されない」）。ブレイヴだけを破壊する効果は不発。合体元が破壊されてもブレイヴは「残す」の確認なしで場に残る（コアの支払いは通常の残す手順と同じ）
     | { type: "braveBpBonusZero"; side?: "opponent" } // side:"opponent" は発生源の持ち主から見た相手の合体スピリットだけ（省略時は両陣営）。両陣営の合体スピリットの「合体時BP+」（braveBpBonus）を0にする。ブレイヴ自体のLv判定は変えない＝加算値だけ無視する。主語が無いので両陣営が対象
     | { type: "lifeDamagePerSpiritPerTurn"; max: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計は max まで（アタック・効果を合算。CardInstance.lifeDealtThisTurn で判定。ownLifeDamageCapPerSourcePerTurn と同じ記録だが、こちらは発生源の陣営を問わずお互いに効く）。effect.whileOwnBurstSet で絞れる。shared/rules.lifeDamagePerSpiritRemaining
-    | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number } // 発生源の持ち主だけを守る片側型。相手のスピリット1体（アタッカー個体）ごとのターン累計で max までしか減らされない（1回のアタックで max 個ずつの capLifeDamageThisTurn とは別物）。ターン終了でリセット。shared/rules.ownLifeDamageCapRemaining
+    | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number; minSymbols?: number } // 発生源の持ち主だけを守る片側型。相手のスピリット1体（アタッカー個体）ごとのターン累計で max までしか減らされない（1回のアタックで max 個ずつの capLifeDamageThisTurn とは別物）。ターン終了でリセット。shared/rules.ownLifeDamageCapRemaining
+    // minSymbols＝ライフを減らした発生源のスピリットのシンボル数がこれ以上のときだけ cap をかける（BS19-043「シンボル2つ以上を持つ相手のスピリット1体からは1まで」。SEMANTICS_AUDIT §3.25：アタック中でない個体の効果による減少も同じ発生源で数える）
     | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // 発生源の持ち主だけのライフは floor を下回らない（片側のみ。condition:{ownFamilyCountAtLeast} と組み合わせて使う）。
     // costSelfToTrash 指定時：ライフが実際に0になる瞬間だけ発揮する任意コスト版（tryOwnLifeFloorByCost が life<=0 判定の直後で処理）。
     // 発生源自身を持ち主のトラッシュへ置くことで floor を適用する。払わなければ即敗北で、払わない理由が無いため、
@@ -105,5 +107,12 @@ export type GlobalConstraintDef =
     | { type: "attackRequiresCoreToll"; maxCost: number } // 両陣営とも、コストが maxCost 以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならアタック不可＝validateAttack が弾く）。払えるかぎり自動で払う（GameEngine.doAttack が宣言成立時に移す）。「断ればアタックしない」はクライアント側で表現する（public/src/main.ts の confirmExtraCost が send() 直前に確認をはさむ）。2026-09-10 ユーザー確認
     | { type: "opponentCantReturnFromTrashToHand" } // 発生源の持ち主から見た相手は、トラッシュからカードを手札に戻せない（noTrashRecovery〈両陣営〉の片側版）。トラッシュ→手札の経路の各ハンドラ冒頭が共通ヘルパーで一括して弾く
     | { type: "noBurstActivationByEvent"; events: FieldEvent[]; whileOwnAttackerFamily?: FamilyFilter } // 発生源の持ち主の**相手**は、バースト条件が events のいずれかのバーストを**発動できない**（セットされたまま残る。noBurstEffectForPid は発動が成立して解決だけ飛ぶ別物）。whileOwnAttackerFamily＝発生源の持ち主のその系統のスピリットがアタックしている間だけ。ownSpiritDestroyed は byOpponentEffectOnly の有無を区別しない（現行データのバーストは全部「相手による」。2026-10-23）
+    | { type: "noBurstActivationByColor"; colors: Color[]; whileOwnAttackerKeyword?: Keyword } // 発生源の持ち主の**相手**は、colors のいずれかの色のバーストカードを発動できない（バースト条件のイベント軸は問わない。BS19-064・096）。whileOwnAttackerKeyword＝発生源の持ち主のそのキーワードを持つスピリットがアタックしている間だけ（§3.23。whileOwnAttackerFamily のキーワード版）
     | { type: "opponentMustAttackOnce" } // 発生源の持ち主の相手は、アタックできるスピリットがいるのにそのターン1回もアタックしていなければターンを終えられない（validateEndTurn。メインからの終了も同じ＝アタックステップは必ず来るので phase:"attack" の効果もメイン中から数える）。2026-10-23 ユーザー確認の読み。継続効果として levels／phase／turn を使うため playerRule（timedEffect 専用）でなくここに置いた
     | { type: "cantAttackIfFewOwnSpirits"; atMost: number }
+    | { type: "noExhaustByEffect" } // 両陣営のスピリットすべては、お互いの効果で疲労しない（アタック・ブロック宣言やコストの疲労は通常どおり。exhaustDenial が止める。BS19-099）
+    | { type: "noBounceByEffect" } // 両陣営のスピリットすべては、お互いの効果でフィールドから手札にもデッキにも戻らない（bounceDenial が止める。allSpiritsCantBounce と違いデッキ行きも止め、原因を効果に限る。BS19-099）
+    | { type: "noBattlerSwap" } // 両陣営とも、バトル中のスピリットの入れ替え（swapBattler）はできない（BS19-099「入れ替わらない」）
+    | { type: "noCoreZeroOutsideEffect" } // 両陣営とも、効果以外の手段（コア移動・コスト・【転召】の支払い）でスピリットのコアを0個にできない（coreRemovalAllowed が止める。効果によるコア除去は通常どおり。BS19-103）
+    | { type: "handGainOnlyInDrawStep" } // 両陣営とも、ドローステップ以外では手札を増やせない（ドロー・バウンス・トラッシュ回収など、手札が増える経路すべて。handGainDenial と draw の共通経路が止める。BS19-103）
+    | { type: "magicOnlyOwnFieldSymbolColors" } // 両陣営とも、それぞれの自分のフィールドにあるシンボルと同じ色のマジックカードしか使用できない（magicColorBanned が判定。BS19-112）

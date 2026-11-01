@@ -20,7 +20,7 @@ export type TimedContent =
     | { type: "keyword"; keyword: Keyword; colors?: Color[] } // colors＝【装甲】の色
     | { type: "playerRule"; rule: PlayerRuleDef; activeWhile?: { handAtLeast: number } } // プレイヤーに掛かる「このターンの間」の制約。効くプレイヤーは timedEffect の side。activeWhile＝制限を受ける側の手札がその枚数以上の間だけ効く（毎回判定）
     | { type: "unblockable"; from?: ResolvedTargetFilter; fromMaxBpSelf?: true; opponentOnly?: true } // 相手のスピリットにブロックされない。from に合う相手からだけ（省くとどの相手からも）。opponentOnly＝効果文が「相手のスピリットに」と陣営を指定している（強制ブロックでアタッカーと同じ陣営の個体には効かない。2026-10-23 ユーザー裁定）。条件つきでも「ブロックされない効果を持つ」に数える（2026-09-25 ユーザー決定）。fromMaxBpSelf＝置く時点の self の実効BP以下の相手からだけ（値は置く時点で固定。26RBS02-X11「そのBP以下の相手のスピリットから」）
-    | { type: "battleLock"; lock: "flash" | "burst" | "magic" } // マジック追加＝使用不可（バースト発動は含まない。Q22399）
+    | { type: "battleLock"; lock: "flash" | "burst" | "magic"; colors?: Color[] } // colors＝lock:"burst"限定：その色のバーストカードだけ発動できない（BS19-060「相手は白のバーストを発動できない」）
     | { type: "compareBy"; by: "level" | "cores" | "cost" } // このバトルの解決で BP の代わりに比べるもの（期間は battle のみ。複数重なったら level→cores→cost の順で優先）
     | { type: "restedNexusEffectsDisabled" } // 疲労状態のネクサスすべて（両陣営）の効果が発揮されない（期間は battle のみ、target.kind:"battle"）。ネクサスの疲労は元から効果を止めないので、止める側を内容として持つ
     | { type: "noBpCompareDestroy" } // BP比べでは破壊されない（期間は battle。バトルは成立し、相手側の破壊判定は通常どおり。26RBS03-036）
@@ -39,7 +39,7 @@ export type TimedContent =
     | { type: "immune"; against?: ImmuneSource[] } // 相手のカードの効果を受けない（範囲効果も含む）。against 指定時はその種類の効果だけ
     | { type: "untargetableByOpponentMagic" } // 相手のマジックの効果では指定されない（constraint 同名の期間つき版。範囲効果は届く。26RBS01-119）
     | { type: "lifeCap"; max: number } // このスピリットがこのターンに記録を出した側のライフを減らせるのは合計maxまで（アタック・効果の両方。lifeDealtThisTurn で判定。2026-10-11 ユーザー確認：26RBS03-079）
-    | { type: "noLifeDamage" } // このスピリットのアタックでは、記録を出した側のライフが減らない
+    | { type: "noLifeDamage"; includeEffects?: true } // このスピリットのアタックでは、記録を出した側のライフが減らない。includeEffects＝そのスピリットの**効果**によるライフ減少（lifeCrush 等）も減らない（BS19-106「アタック/効果によって」）
     | { type: "colorless" } // 色とシンボルを無いものとして扱う
     | { type: "destroyedCoresTo"; to: "void" | "trash"; soleOnly?: true } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
     | { type: "skipRefresh" } // 次のリフレッシュステップで回復しない（寿命 nextRefresh）

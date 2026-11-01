@@ -59,6 +59,7 @@ import {
     currentLevel,
     effectActiveAtLevel,
     effectiveBp,
+    hasGlobalConstraint,
     instBaseCost,
     instIsCombined,
     isInBattle,
@@ -221,6 +222,11 @@ const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle">
 
 const swapBattlerHandler: ActionHandler<"swapBattler"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // noBattlerSwap（BS19-099「入れ替わらない」）：バトル中のスピリットの入れ替えはできない
+        if (hasGlobalConstraint(state, "noBattlerSwap")) {
+            log(state, `${sourceName}：スピリットは入れ替わらない。`)
+            return
+        }
         // テレポートチェンジ：バトルしている自分のスピリット1体を、疲労状態の自分のスピリット1体と
         // 入れ替える。使用者（owner）がアタッカー側かブロッカー側かで入れ替え対象を判定する
         if (!state.battle) {
@@ -502,10 +508,16 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // 効果からのブレイヴ召喚は常にこの選択方式にする。候補はshared/summon.tsのbraveCombineCandidates
         // をそのまま使う（サーバーのvalidateSummonと条件を揃えるため）。合体する場合は
         // summonFreeFromHandIndexのbraveTargetInstanceId経路（doSummonのダイレクトブレイヴと同じ結果）へ渡す
+        // costBudget（BS19-042）：コスト合計の上限。実際に召喚したぶんを finishBraveSummon で
+        // costBudgetSpent に積み、中断再開では action に載せて持ち越す
+        let budgetSpent = action.costBudgetSpent ?? 0
+        const budgetLeft = (): number | undefined =>
+            action.costBudget === undefined ? undefined : Math.max(0, action.costBudget - budgetSpent)
         const finishBraveSummon = (handIndex: number, combineTargetInstanceId?: string): void => {
             // thenDraw（X005R北斗七星龍ジーク・アポロドラゴン）：実際に召喚できたときだけ引く。
             // summonFreeFromHandIndexは不発時に手札を消費しないので、手札枚数の増減で成否を判定する
             const beforeHandLen = player.hand.length
+            if (action.costBudget !== undefined && player.hand[handIndex] !== undefined) budgetSpent += getCard(player.hand[handIndex]!).cost
             summonFreeFromHandIndex(state, owner, sourceName, handIndex, action.skipTensho, {
                 ...summonOpts,
                 ...(combineTargetInstanceId !== undefined ? { braveTargetInstanceId: combineTargetInstanceId } : {}),
@@ -587,10 +599,13 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // interactiveTargetsは毎回requestCardChoiceで聞き直し、選ばなくなったら終わる。
         // 非対話はコスト最大から貪欲に、候補が尽きるまですべて召喚する
         // （resolveBraveSummonの非対話フォールバックと同じく合体先は選ばせずスピリット状態で出す）
+        // costBudget（BS19-042）：コスト合計の上限。予算（costBudget−costBudgetSpent）に収まる候補だけを扱う
         function askNextRepeatBrave(): void {
             const indices: number[] = []
             for (let i = 0; i < player.hand.length; i++) {
-                if (matchesCardId(player.hand[i]!)) indices.push(i)
+                if (!matchesCardId(player.hand[i]!)) continue
+                if (budgetLeft() !== undefined && getCard(player.hand[i]!).cost > budgetLeft()!) continue
+                indices.push(i)
             }
             if (indices.length === 0) return
             if (state.interactiveTargets) {
@@ -604,7 +619,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                     "hand",
                     indices,
                     true,
-                    actionForNext,
+                    { ...actionForNext, ...(action.costBudget !== undefined ? { costBudgetSpent: budgetSpent } : {}) },
                     self,
                     true,
                 )
@@ -1476,6 +1491,9 @@ const TREAT_AS_UNBLOCKED_LABEL = {
     levelAtLeastBlocker: "ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。",
 } as const
 
+const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number }): string =>
+    typeof when === "object" ? `BP${when.blockerMaxBp}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。` : TREAT_AS_UNBLOCKED_LABEL[when]
+
 const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action) => {
     const { state, sourceName } = ctx
     if (!state.battle) {
@@ -1484,7 +1502,7 @@ const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action)
     }
     const when = action.when ?? "always"
     state.battle.treatAsUnblocked = [...(state.battle.treatAsUnblocked ?? []), when]
-    log(state, `${sourceName}：${TREAT_AS_UNBLOCKED_LABEL[when]}`)
+    log(state, `${sourceName}：${treatAsUnblockedLabel(when)}`)
 }
 
 

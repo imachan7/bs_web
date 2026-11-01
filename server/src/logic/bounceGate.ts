@@ -3,13 +3,18 @@
 // 「〜されない」は対象に取られることを防がない（10-30 の一般則）ので、戻す入口（markBounce）がここを聞く。
 // 「手札に戻らない」はデッキへ戻すことを止めない。誰の効果かは解決中の効果の記録（currentEffectSource）で見る
 import { entryActive } from "../../../shared/rules/effectStop"
-import { effectSources, hasBounceImmunity } from "../../../shared/rules"
+import { effectSources, hasBounceImmunity, hasGlobalConstraint } from "../../../shared/rules"
 import type { CardInstance, GameState, PlayerId } from "../type"
 import { currentLevel, getCard } from "./GameState"
 
 export type BounceTo = "hand" | "deckTop" | "deckBottom" | "burst"
 
 export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardInstance, to: BounceTo): string | null {
+    // noBounceByEffect（BS19-099）：効果による戻しは手札・デッキとも戻らない。原因を効果に限るので、
+    // currentEffectSource が載っていない（＝効果の解決中でない）戻しは従来どおり通る
+    if (to !== "burst" && state.currentEffectSource && hasGlobalConstraint(state, "noBounceByEffect")) {
+        return "効果では手札/デッキに戻らない"
+    }
     if (to !== "hand") return null
     if (allSpiritsCantBounceActive(state)) return "スピリットは手札に戻らない"
     const src = state.currentEffectSource

@@ -181,7 +181,7 @@ function createPlayer(id: PlayerId, name: string, deckSpec: DeckSpec): PlayerSta
         excludedCards: [],
         tegamoto: [],
         tegamotoPlayable: [],
-        field: { spirits: [], nexuses: [], combinedBraves: [] },
+        field: { spirits: [], nexuses: [], combinedBraves: [], magics: [] },
         turnVirtualInstances: [],
         battleVirtualInstances: [],
         burst: null,
@@ -548,6 +548,11 @@ export function draw(state: GameState, pid: PlayerId, count: number, fromDrawSte
         log(state, `${state.players[pid].name}は、ドローステップ以外でドローできないため、ドローしなかった。`)
         return
     }
+    // handGainOnlyInDrawStep（BS19-103）：ドローも「手札を増やす」ので、ドローステップ以外では引けない
+    if (!fromDrawStep && hasGlobalConstraint(state, "handGainOnlyInDrawStep")) {
+        log(state, `${state.players[pid].name}は、ドローステップ以外で手札を増やせないため、ドローしなかった。`)
+        return
+    }
     const player = state.players[pid]
     for (let i = 0; i < count; i++) {
         const cardId = player.deck.shift()
@@ -648,7 +653,8 @@ export function findInstanceAnywhere(
         const hit =
             f.spirits.find((x) => x.instanceId === instanceId) ??
             f.nexuses.find((x) => x.instanceId === instanceId) ??
-            f.combinedBraves.find((x) => x.instanceId === instanceId)
+            f.combinedBraves.find((x) => x.instanceId === instanceId) ??
+            f.magics.find((x) => x.instanceId === instanceId)
         if (hit) return hit
     }
     if (DEBUG_CHECKS) noteLostLookup(state, instanceId)
@@ -698,9 +704,15 @@ export function takeMissedPayAsks(): string[] {
 // BS03ウッド・ゴレム「相手のネクサスすべてのLv2効果は発揮されない」）はここで落とす。
 // 効果を発揮するかどうかを決めるのはサーバーだけなので、クライアントへ渡す必要がなく、
 // 渡すと画面のレベル表示が実際より低く出る（shared/rules.ts の displayLevel と同じ考え方）
-function forView(inst: CardInstance): CardInstance {
-    if (!inst.levelAsEffectsOnly) return { ...inst }
-    const { levelAsContinuous: _lv, levelAsEffectsOnly: _flag, ...rest } = inst
+function forView(inst: CardInstance, hideUnder: boolean): CardInstance {
+    // 下のカードは非公開（BS19-X02）。相手視点では中身を隠して枚数だけ残す
+    const base = { ...inst }
+    if (hideUnder && base.underCards) {
+        base.underCount = base.underCards.length
+        delete base.underCards
+    }
+    if (!inst.levelAsEffectsOnly) return base
+    const { levelAsContinuous: _lv, levelAsEffectsOnly: _flag, ...rest } = base
     return rest
 }
 
@@ -719,9 +731,10 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState)
         excludedCards: [...player.excludedCards],
         tegamoto: [...player.tegamoto],
         field: {
-            spirits: player.field.spirits.map(forView),
-            nexuses: player.field.nexuses.map(forView),
-            combinedBraves: player.field.combinedBraves.map(forView),
+            spirits: player.field.spirits.map((s) => forView(s, !isSelf)),
+            nexuses: player.field.nexuses.map((s) => forView(s, !isSelf)),
+            combinedBraves: player.field.combinedBraves.map((s) => forView(s, !isSelf)),
+            magics: player.field.magics.map((s) => forView(s, !isSelf)),
         },
         turnVirtualInstances: player.turnVirtualInstances.map((s) => ({ ...s })),
         battleVirtualInstances: player.battleVirtualInstances.map((s) => ({ ...s })),

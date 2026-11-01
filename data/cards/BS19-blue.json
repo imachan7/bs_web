@@ -207,7 +207,50 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手は白のバーストを発動できない。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-060-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "battleLock",
+                  "lock": "burst",
+                  "colors": [
+                    "white"
+                  ]
+                }
+              ],
+              "duration": "battle"
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "draw",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-061",
@@ -420,7 +463,57 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手のデッキを上から2枚破棄する。\nLv2･Lv3『自分のアタックステップ』\n【強化】を持つ自分のスピリットがアタックしたとき、相手は赤のバーストを発動できない。\n【合体時】Lv3『このスピリットの合体アタック時』\nこのスピリットのコスト以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-064-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 2
+        }
+      },
+      {
+        "id": "BS19-064-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noBurstActivationByColor",
+          "colors": [
+            "red"
+          ],
+          "whileOwnAttackerKeyword": "kyoka"
+        }
+      },
+      {
+        "id": "BS19-064-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxCostAsSelf": true
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-065",
@@ -539,7 +632,47 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2\nお互い、緑/白/黄のマジックカードを使用できない。\nLv2\n相手は、トラッシュのカードを手札に戻せない。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：このスピリットに青のシンボル2つを追加する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-066-e1",
+        "kind": "magicRestriction",
+        "levels": [
+          1,
+          2
+        ],
+        "restriction": "colorBanAll",
+        "colors": [
+          "green",
+          "white",
+          "yellow"
+        ]
+      },
+      {
+        "id": "BS19-066-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "constraint": {
+          "type": "opponentCantReturnFromTrashToHand"
+        }
+      },
+      {
+        "id": "BS19-066-e3",
+        "kind": "symbolAddGrant",
+        "keyword": "rensa",
+        "levels": null,
+        "target": "self",
+        "color": "blue",
+        "count": 2,
+        "condition": {
+          "count": {
+            "ownColorSymbols": "red"
+          },
+          "atLeast": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-077",
@@ -650,7 +783,31 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-078-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "handReductionVoidForPid",
+                "cardType": "magic",
+                "keywordExclude": "rensa"
+              }
+            }
+          ],
+          "duration": "battle",
+          "side": "opponent"
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 4
     }
@@ -824,7 +981,38 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n【連鎖】を持つ自分のスピリットがアタックしたとき、そのスピリットのLvを1つ上のものとして扱う。\nLv2『お互いのアタックステップ』\n相手は赤/緑/白のバーストを発動できない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-096-e1",
+        "kind": "levelAs",
+        "levels": null,
+        "target": "ownSpiritsByKeyword",
+        "keywordFilter": "rensa",
+        "treatAs": {
+          "plus": 1
+        },
+        "attackerOnly": true,
+        "phase": "attack",
+        "turn": "own"
+      },
+      {
+        "id": "BS19-096-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "both",
+        "constraint": {
+          "type": "noBurstActivationByColor",
+          "colors": [
+            "red",
+            "green",
+            "white"
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-112",
@@ -845,7 +1033,60 @@
     "rarity": "",
     "limited": false,
     "effect": "メイン：\nお互い、それぞれのフィールドにあるシンボルと同じ色のマジックカードしか使用できず、自分のトラッシュにあるカードを手札に加えられない。\nこのマジックカードは、相手のスピリットのアタックによって自分のライフが減るまで自分のフィールドに置いておき、その間、効果を発揮し続ける。\nこの効果が無効になったとき破棄される。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-    "effects": []
+    "effects":     [
+      {
+        "id": "BS19-112-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "placeSelfOnField"
+        }
+      },
+      {
+        "id": "BS19-112-e2",
+        "kind": "globalConstraint",
+        "levels": null,
+        "constraint": {
+          "type": "magicOnlyOwnFieldSymbolColors"
+        }
+      },
+      {
+        "id": "BS19-112-e3",
+        "kind": "globalConstraint",
+        "levels": null,
+        "constraint": {
+          "type": "noTrashRecovery"
+        }
+      },
+      {
+        "id": "BS19-112-e4",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": null,
+        "byAttackOnly": true,
+        "selfMode": "source",
+        "optional": false,
+        "action": {
+          "type": "trashSelfFromField"
+        }
+      },
+      {
+        "id": "BS19-112-e5",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-113",
@@ -992,7 +1233,75 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手のデッキを上から5枚破棄し、マジックカードが破棄されたとき、このスピリットに青のシンボル1つを追加する。\nLv2･Lv3【強化】\n自分の「相手へのデッキ破棄効果」の枚数を+1枚する。\nLv3『このスピリットのアタック時』\nこのスピリットが相手へのデッキ破棄効果を発揮したとき、相手の効果で1枚も破棄できなければ、ターンに3回まで、このスピリットは回復できる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-X06-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "discard",
+              "from": "deck",
+              "side": "opponent",
+              "count": 5
+            },
+            {
+              "type": "if",
+              "cond": {
+                "last": {
+                  "cardType": "magic"
+                }
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "symbolAdd",
+                    "color": "blue",
+                    "count": 1
+                  }
+                ],
+                "duration": "battle",
+                "target": "self"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS19-X06-e2",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": [
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS19-X06-e3",
+        "kind": "fieldEvent",
+        "event": "ownDeckMillPrevented",
+        "levels": [
+          3
+        ],
+        "selfOnly": true,
+        "maxPerTurn": 3,
+        "optional": true,
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-X08",

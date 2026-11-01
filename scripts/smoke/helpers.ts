@@ -245,11 +245,16 @@ function countCards(state: GameState): number {
             p.excludedCards.length +
             p.tegamoto.length +
             p.field.spirits.length +
+            // スピリットの下に裏向きで置いたカード（BS19-X02）。フィールド走査の対象ではないが
+            // カードとしては場に存在するので保存則には数える
+            p.field.spirits.reduce((n, s) => n + (s.underCards?.length ?? 0), 0) +
             p.field.nexuses.length +
             // 合体中のブレイヴ（docs/design/BRAVE.md §2.3）。**フィールド走査の対象ではないが、
             // カードとしては場に存在する**ので保存則には数える。数え忘れると
             // 「合体するたびに1枚消えた」と誤検出される（2026-08-25 に実際に出た）
             p.field.combinedBraves.length +
+            // 場に残るマジック（BS19-099 等）。フィールド走査の対象ではないがカードとしては場に存在する
+            p.field.magics.length +
             // バーストエリアに伏せている1枚（2026-09-16。数え忘れると、バーストから
             // 自身を召喚する効果で「カードが1枚増えた」と誤検出される）
             (p.burst === null ? 0 : 1)

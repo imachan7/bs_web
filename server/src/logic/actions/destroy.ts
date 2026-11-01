@@ -162,6 +162,12 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             const kyoka = kyokaBonus(state, owner, "bpDestroy") * 1000
             if (kyoka > 0) filter.maxBp += kyoka
         }
+        // highestBp（BS19-X01「最もBPの高い相手のスピリット1体を破壊する」）：候補の実効BPの最大値を
+        // maxBp へ解決する。同値が複数残れば候補全員が maxBp に一致するので、対話時は対象選択に回る
+        if (filter !== SELF_REQUIRED && action.filter?.highestBp) {
+            const pool = pickEnemyCandidates(state, opp, Infinity, (s) => matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType)
+            if (pool.length > 0) filter.maxBp = pool.reduce((m, s) => Math.max(m, effectiveBp(state, opp, s)), 0)
+        }
         if (filter === SELF_REQUIRED) {
             log(state, `${sourceName}の破壊効果：BP参照元がいなかった。`)
             return

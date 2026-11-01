@@ -8,7 +8,7 @@ import { destroyTargetsBatch } from "./removal"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, bravesOf } from "../../../shared/rules"
+import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, bravesOf, effectiveBp } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -394,7 +394,8 @@ export function resolveBattle(state: GameState): void {
         (when) =>
             when === "always" ||
             (when === "blockerLevel1" && currentLevel(blocker).level === 1) ||
-            (when === "levelAtLeastBlocker" && currentLevel(attacker).level >= currentLevel(blocker).level),
+            (when === "levelAtLeastBlocker" && currentLevel(attacker).level >= currentLevel(blocker).level) ||
+            (typeof when === "object" && effectiveBp(state, blockerPid, blocker) <= when.blockerMaxBp),
     )
     if (unblocked !== undefined) {
         log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)
@@ -626,6 +627,9 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner || sameSide) return
             if (f.outcome === "attackerWins") fireTrigger(state, blockerPid, blocker, "onBattleLose")
             else if (f.outcome === "blockerWins") fireTrigger(state, attackerPid, attacker, "onBattleLose")
+            // 敗北側のフィールド発生源（ownSpiritBattleWon の鏡像。相打ちは含まない）
+            if (f.outcome === "attackerWins") fireFieldEventTriggers(state, blockerPid, "ownSpiritBattleLost", { pid: blockerPid, inst: blocker }, instColors(blocker))
+            else if (f.outcome === "blockerWins") fireFieldEventTriggers(state, attackerPid, "ownSpiritBattleLost", { pid: attackerPid, inst: attacker }, instColors(attacker))
             return
         }
         // 勝利側の『このスピリットのバトル時』（相打ちでは発火しない）

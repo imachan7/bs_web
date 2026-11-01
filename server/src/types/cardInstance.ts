@@ -11,6 +11,9 @@ export interface CardInstance {
     // ポインタを書き換えてよい moveSoulCore / placeSoulCoreOnSummoned だけが保守する。
     // levelOf は shared 側で PlayerState を見られないため、真界放Lvの免除判定はこの写しを見る
     soulCoreOn?: true
+    // このスピリットの下に裏向きで置いたカード（BS19-X02）。非公開情報：GameView は相手には underCount（枚数）だけ見せる
+    underCards?: string[]
+    underCount?: number // GameView 専用の写し（相手視点）。ロジック側では読まない
     isRested: boolean
     // 重疲労状態（26系）。立つときは isRested も必ず true（重疲労は疲労状態の一種）。
     // 回復ステップ・回復効果では回復せず疲労状態へ1段戻る（2026-10-08 ユーザー確定）。入口は heavyExhaustSpirit / refreshSpirit だけ
@@ -48,6 +51,7 @@ export interface CardInstance {
     magicFreeUseTurn?: number // BS11-X05 魔導双神ジェミナイズ Lv2-3用。magicFreeUseCount が最後に更新されたターン番号（一致しない間はcount実質0扱い＝ターンをまたいだ暗黙のリセット。magicNegateUsedTurnと同じ形）
     magicFreeUseCount?: number // 同上：magicFreeUseTurn === state.turn の間だけ有効な、そのターンに実際に無償使用した回数（「ターンに2回しか使えない」の実測カウント。confirmで断った・候補が無かった場合は増えない）
     triggeredUsedTurn?: Record<string, number> // kind:"triggered" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（stepUsedTurnと同型。BS11-032 天王神獣スレイ・ウラノス）
+    triggeredUsedCount?: Record<string, { turn: number; count: number }> // kind:"fieldEvent" の maxPerTurn 用。effectId -> そのターンに発揮した回数（BS19-X06「ターンに3回まで」）
     stepUsedTurn?: Record<string, number> // kind:"step" の oncePerTurn 用。effectId -> 最後に発揮したターン番号（activatedUsedTurnと同型。BS10-008 火星神龍アレス・ドラグーン）
     tempAlsoCosts: number[] // このターンの間、実コストに加えてこれらのコストとしても扱われる（ターン終了でリセット。道化師クラン）
     costDeltaContinuous?: number // 継続的なコストの増減（kind:"costDelta"。EffectModules.refreshLevelAsOverridesが毎回再計算し、shared/rules.instCostDelta が読む。BS11-017 ムシャツバメ）
@@ -90,6 +94,7 @@ export interface CardInstance {
     timedLevel?: number // 期間つき効果の「Lv◯として扱う」の写し（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す。直接書かない）
     lifeCapThisTurn?: number // 期間つき効果（lifeCap）から作り直す写し。このスピリットがこのターンに同じ側のライフを減らせる合計の上限（lifeDealtThisTurn と比べる。26RBS03-079）
     lifeDamageNegatedFor?: PlayerId // 期間つき効果の一覧（noLifeDamage）から作り直す写し。守られるプレイヤー＝記録を出した側
+    lifeDamageEffectsNegatedFor?: PlayerId // noLifeDamage の includeEffects 付きから作り直す写し。このスピリットの**効果**でも守られる側のライフは減らない（BS19-106）
     coresLinkedTo?: string // このネクサスのコア数を、リンク元スピリット（instanceId）のコア数と同じものとして扱う
     // （クロスシザース。本来は再指定まで永続だが、このターンの間だけの簡略化。ターン終了でリセット）
     coresOverride?: number // coresLinkedTo設定時、EffectModules.refreshLevelAsOverridesがリンク元スピリットの

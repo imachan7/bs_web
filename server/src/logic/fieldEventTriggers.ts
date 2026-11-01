@@ -4,11 +4,11 @@ import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
-import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId } from "../type"
+import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
 import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, suspend, resolveInOrder } from "./GameState"
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, combinedBraveColorsOk, hostsOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
-import { claimOnce, isOnceUsed, markOnceUsed } from "./oncePerTurn"
+import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
 import { fireBurstOnEvent } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { revertOncePerTurn, revertDestroyGroupUsage, fireTrigger, activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
@@ -170,6 +170,7 @@ export function fireFieldEventTriggers(
             if (!effectActiveOn(inst, effect, level)) continue
             // 個体ごとの枠は集める時点で取る。名前スコープの枠は resolve の直前に取る（同名の1体目が不発なら2体目が使える）
             if (effect.oncePerTurn === true && isOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")) continue
+            if (effect.maxPerTurn !== undefined && usedCountThisTurn(state, inst, effect.id) >= effect.maxPerTurn) continue
             // 【合体時】の色条件（X008）
             if (!combinedBraveColorsOk(state.players[pid], inst, effect.combinedBraveColors)) continue
             if (effect.phase !== undefined && state.phase !== effect.phase) continue
@@ -190,7 +191,16 @@ export function fireFieldEventTriggers(
             }
             if (effect.partnerFilter !== undefined) {
                 const partner = targetInstanceId === undefined ? undefined : findSpiritAny(state, targetInstanceId)
-                if (!partner || !matchesTarget(state, partner.pid, partner.inst, effect.partnerFilter, inst.instanceId)) continue
+                // maxBp:"subjectBp"＝イベント主体（selfOverride）の実効BP以下。主体が居ないイベントでは不成立
+                const pf = effect.partnerFilter
+                let partnerFilter: ResolvedTargetFilter
+                if (pf.maxBp === "subjectBp") {
+                    if (selfOverride === undefined) continue
+                    partnerFilter = { ...pf, maxBp: effectiveBp(state, selfOverride.pid, selfOverride.inst) }
+                } else {
+                    partnerFilter = pf
+                }
+                if (!partner || !matchesTarget(state, partner.pid, partner.inst, partnerFilter, inst.instanceId)) continue
             }
             // コア増加イベントの主体は「コアが増えた側」（selfOverride を持たない）
             const gainerEvent = event === "coresGainedFromVoid" || event === "lifeCorePlaced"
@@ -216,6 +226,13 @@ export function fireFieldEventTriggers(
                 if (!src) continue
                 if (src.pid === pid) continue
                 if (!(src.colors ?? []).includes(effect.sourceColorFilter)) continue
+            }
+            // sourceTypes（event:"opponentHandAdded" 限定。BS19-088）：「相手のスピリット/マジックの効果で
+            // 相手の手札が増えた」の発生源種別の絞り込み。currentEffectSource が無い＝効果によらない
+            // 増加（ドローステップ等）では発火しない。sourceColorFilter と同じく効果の発生源側の判定
+            if (effect.sourceTypes !== undefined) {
+                const src = state.currentEffectSource
+                if (!src || src.pid === pid || src.type === undefined || !effect.sourceTypes.includes(src.type)) continue
             }
             if (effect.subjectMinCost !== undefined) {
                 if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { min: effect.subjectMinCost })) continue
@@ -244,6 +261,9 @@ export function fireFieldEventTriggers(
             }
             if (effect.destroyedMaxBp !== undefined && !(eventInfo?.destroyedBp !== undefined && eventInfo.destroyedBp <= effect.destroyedMaxBp)) continue
             if (effect.byBattleOnly && !eventInfo?.byBattle) continue
+            // 「相手のスピリットのアタックによって自分のライフが減るまで」（BS19-103・110・112）：
+            // アタックによるライフ減少は targetInstanceId にアタッカーが渡り、効果による減少（lifeCrush 等）は渡らない
+            if (effect.byAttackOnly && (event !== "ownLifeDamaged" || targetInstanceId === undefined)) continue
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
             if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
@@ -433,6 +453,7 @@ export function fireFieldEventTriggers(
             }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
+            if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
             firing.push({ inst, effect, repeatTimes })
         }
     }
@@ -534,6 +555,10 @@ export function fireFieldEventTriggers(
                 // コストを払えないなどで何も起きなかったら、「ターンに1回」／同時破壊グループの消費を戻す（2026-09-16／fix/destroyed-trigger-once）
                 if (state.effectFizzled) {
                     if (e.effect.oncePerTurn) revertOncePerTurn(state, e.inst, e.effect.id)
+                    if (e.effect.maxPerTurn !== undefined) {
+                        const rec = e.inst.triggeredUsedCount?.[e.effect.id]
+                        if (rec !== undefined && rec.turn === state.turn && rec.count > 0) rec.count -= 1
+                    }
                     revertDestroyGroupUsage(state, e.inst.instanceId, e.effect.id)
                 }
                 delete state.effectFizzled

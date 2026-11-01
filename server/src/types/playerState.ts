@@ -32,6 +32,9 @@ export interface PlayerState {
         combinedBraves: CardInstance[] // 合体中のブレイヴの実体置き場（docs/design/BRAVE.md §2.3・§2.4）。
         // **フィールド走査の対象に入れない**（spirits に置くと合体スピリットが2体に数えられ、
         // シンボルの二重計上・destroy{all} の二重ヒット・コア0での維持コア割れ消滅が起きる）
+        magics: CardInstance[] // 場に残るマジック（BS19-099 等。使用後にトラッシュへ行かずここへ置かれ、
+        // effectSources 経由で中身の継続効果・fieldEvent がそのまま効く。シンボルは持たず、
+        // 他の効果の対象にもならない（このプールを触る効果が現時点で無い）。フラッシュ効果は場からは使えない
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 手札のカードに一時付与されたキーワード（grantKeywordToHandCard。ターン終了でリセット。ビートプリースト）
     minAttackCostThisTurn?: number // このターンにアタックしたスピリットのコスト（付与込みの最小値）の最小。globalConstraint "attackOncePerTurnTotalByCost" が読む。ターン終了でリセット

@@ -242,7 +242,8 @@ export type EffectDefContinuous =
           kind: "coreStepBonus" // 持ち主のコアステップで得られるコア
           levels: number[] | null
           amount: number
-          condition?: { ownFieldHasNames: string[] } | { ownFieldHasFamily: string }
+          condition?: { ownFieldHasNames: string[] } | { ownFieldHasFamily: string } | { ownLifeAtMost: number } // ownLifeAtMost は toLife と併用（ライフがこの値以下のときだけ行き先を変える）
+          toLife?: true // コアステップでリザーブに置く1個のかわりにライフに置く（amount の追加コアはリザーブのまま。「置くことができる」＝任意だが、条件を満たせば自動で置く簡略化。BS19-092）
       }
     | {
           id: string
@@ -353,7 +354,8 @@ export type EffectDefContinuous =
           treatAs: number | "max" | "coresScaled" | { plus: number } // 数値=固定／"max"=対象カードの最高Lv（対象ごとに算出）／"coresScaled"=コア数で換算／{plus:N}=相対（2026-08-25確認で「文字どおり」）。⚠️相対シフトは最高Lvで頭打ち（レベル定義が無いとlevelOfが黙って無視し効果が無言で消える）
           costMinFilter?: number
           nameContains?: string
-          keywordFilter?: Keyword // target:"opponentBlockersOfOwnKeyword"では「このキーワードを持つ自分のスピリットをブロックしている相手」を指す
+          keywordFilter?: Keyword // target:"opponentBlockersOfOwnKeyword"では「このキーワードを持つ自分のスピリットをブロックしている相手」を指す。ラベル系キーワード（【連鎖】等）は現在Lvで「持つ」（Q774）
+          attackerOnly?: true // 対象をいまアタックしている個体（board.battle.attackerInstanceId）だけに絞る（「〜がアタックしたとき、そのスピリットは」の継続版。BS19-096）
           familyFilter?: FamilyFilter
           effectsOnly?: true // 効果の発揮判定にだけ効かせ、displayLevelは無視する。「Lv◯効果は発揮されない」用
           summonedThisTurnOnly?: true
@@ -421,6 +423,7 @@ export type EffectDefContinuous =
           id: string
           kind: "symbolAddGrant" // 盤面シンボル数に反映（2026-09-04確認）
           // 軽減計算にもライフダメージにも効く。symbolFixがある個体では固定値に追加分を加算する（固定値が勝つ既存規則は変えない）
+          keyword?: Keyword // 効果の見出しに付くキーワードのラベル（triggered と同型。【連鎖】を含む継続効果＝Q774）
           whileCombined?: true
           levels: number[] | null
           target: "self" | "ownAll" // self=発生源自身／ownAll=持ち主のスピリットすべて
@@ -429,7 +432,7 @@ export type EffectDefContinuous =
           count?: number // 省略時1
           counter?: EffectCounter // 指定時はcountを無視（0なら追加しない）
           phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // phase省略＝そのターンの間ずっと
-          condition?: { ownFieldHasBraveInSpiritState: true } | { ownBurstSet: true } | { ownMagicUsedThisTurn: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number } // ownFieldHasBraveInSpiritState＝スピリット状態のブレイヴがいる間。ownMagicUsedThisTurn＝このターンに自分が pick に合うマジックを使用している間
+          condition?: { ownFieldHasBraveInSpiritState: true } | { ownBurstSet: true } | { ownMagicUsedThisTurn: CardPick } | { count: EffectCounter; atLeast?: number; atMost?: number } | { combinedWithSymbollessBrave: true } // ownFieldHasBraveInSpiritState＝スピリット状態のブレイヴがいる間。ownMagicUsedThisTurn＝このターンに自分が pick に合うマジックを使用している間。combinedWithSymbollessBrave＝発生源自身がシンボルを持たないブレイヴと合体している間（BS19-040【合体時】Lv3）
       }
     | {
           id: string
@@ -550,7 +553,7 @@ export type EffectDefContinuous =
           id: string
           kind: "exhaustOnManualCoreAdd" // スピリット/ネクサス/マジックの効果以外（moveCore/awaken）でコアが増えたとき
           levels: number[] | null
-          trigger?: "manual" | "effect" // 省略時"manual"（moveCore/awakenのみ、持ち主の相手のメインステップ限定）。"effect"＝効果によるコア増加時で、フェーズ不問
+          trigger?: "manual" | "effect" | "nonSummon" // 省略時"manual"（moveCore/awakenのみ、持ち主の相手のメインステップ限定）。"effect"＝効果によるコア増加時で、フェーズ不問。"nonSummon"＝効果・手操作の区別なくコアを置かれたとき（083。召喚の維持コア配置はそもそもこの検査に来ない。対象側のターンのメインステップ限定）
           onRemove?: boolean
           colorFilter?: Color
           scope?: "opponent" | "any" // 省略時"opponent"
@@ -652,7 +655,9 @@ export type EffectDefContinuous =
               | "trashColorLockOpponent" // 相手は、その相手自身のトラッシュにあるマジックカードと同じ色を含むマジックカードを使用できない
               | "noFlashOpponent" // 相手は、マジックカードのフラッシュ効果を使用できない
               | "noSpiritCoresOpponent" // 相手は、マジックのコストを支払うときスピリット上のコアでは支払えない
+              | "colorBanAll" // お互い、colors のいずれかの色のマジックカードを使用できない（BS19-066「お互い、緑/白/黄のマジックカードを使用できない」）
           maxCost?: number // restriction:"costLimitAll"専用：カード記載のコスト（軽減前）がこの値以下のマジックを使用できなくする
+          colors?: Color[] // restriction:"colorBanAll"専用：使用できない色
           requireOwnKeyword?: Keyword // 指定時、持ち主のフィールドにこのキーワードを持つスピリットがいる間のみ有効
           phase?: Phase
           turn?: "own" | "opponent" // 指定時、持ち主がturnPlayerのとき(own)／でないとき(opponent)のみ有効
@@ -684,7 +689,7 @@ export type EffectDefContinuous =
           id: string
           kind: "effectTax" // cost（相手視点で解決する）を支払わなければ効果を発揮できない
           levels: number[] | null
-          on: "magic" | "burst"
+          on: "magic" | "burst" | "deckMill" // deckMill＝このカードの持ち主のデッキを破棄する効果（破棄する側が払う。084）
           cost: EffectAction
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // turnは発生源の持ち主から見る
       }

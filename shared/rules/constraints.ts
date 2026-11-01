@@ -892,6 +892,9 @@ export function lifeLossAllowed(board: Board, q: LifeLossQuery): number {
     if (lifeImmuneThisTurn(board, pid)) return 0
     if (q.actorPid !== pid && cantReduceOpponentLife(board, q.actorPid)) return 0
     if (q.cause === "effect" && q.sourceType === "spirit" && q.actorPid !== pid && ownLifeImmuneToOpponentSpiritEffects(board, pid)) return 0
+    // noLifeDamage の includeEffects（BS19-106）：減らしに来た効果の発生源が「アタック/効果では減らない」を
+    // 指定されたスピリットそのもののときは減らせない
+    if (q.cause === "effect" && q.actorPid !== pid && q.sourceInstance?.lifeDamageEffectsNegatedFor === pid) return 0
     let allowed = q.amount
     let floor = q.floor ?? 0
     const attackerCost = q.cause === "attack" && q.sourceInstance ? Math.max(...instAllCosts(q.sourceInstance), 0) : 0
@@ -928,6 +931,13 @@ function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker: CardIn
             if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageCapPerSourcePerTurn") continue
             if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
             if (effect.whileCombined === true && !instIsCombined(source)) continue
+            // minSymbols（BS19-043）：シンボル数が足りない発生源には cap をかけない。
+            // §3.25：アタック中でない個体の効果による減少もここへ同じ sourceInstance で来る
+            if (effect.constraint.minSymbols !== undefined && instanceSymbolCount(attacker) < effect.constraint.minSymbols) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            noteCoverage(effect, "globalConstraint")
             const dealt = attacker.lifeDealtThisTurn?.[pid] ?? 0
             remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
         }
@@ -1318,6 +1328,9 @@ export function timedFlashLocked(board: Board, pid: PlayerId): boolean {
 // 色・コストの禁止は使うたびに見る（ユーザー確認 2026-10-31）。cost は印刷コスト
 export function magicColorBanned(board: Board, pid: PlayerId, colors: Color[], cost?: number): boolean {
     const foe: PlayerId = pid === "p1" ? "p2" : "p1"
+    // globalConstraint "magicOnlyOwnFieldSymbolColors"（BS19-112）：それぞれの自分のフィールドのシンボルと
+    // 同じ色のマジックしか使えない。両陣営に効くので、ここから見た自分側（pid）のフィールドで判定する
+    if (hasGlobalConstraint(board, "magicOnlyOwnFieldSymbolColors") && !colors.some((c) => ownFieldSymbolColors(board, pid).has(c))) return true
     return timedPlayerRules(board, pid).some((r) => {
         if (r.type !== "cantUseMagicForPid") return false
         if (Array.isArray(r.colors) && r.colors.some((c) => colors.includes(c))) return true
@@ -1347,22 +1360,36 @@ function globalConstraintWindowOpen(board: Board, effect: { phase?: string; turn
     return true
 }
 
-// globalConstraint "noBurstActivationByEvent"：holderPid のバーストが event で発動できないか
-export function burstActivationForbidden(board: Board, holderPid: PlayerId, event: FieldEvent): boolean {
+// globalConstraint "noBurstActivationByEvent"／"noBurstActivationByColor"：holderPid のバーストが発動できないか。
+// burstCardId は色の軸（noBurstActivationByColor・battleLock colors）の判定に使う。省略時は色の軸を見ない
+export function burstActivationForbidden(board: Board, holderPid: PlayerId, event: FieldEvent, burstCardId?: string): boolean {
     const opp: PlayerId = holderPid === "p1" ? "p2" : "p1"
     for (const source of effectSources(board, opp)) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noBurstActivationByEvent") continue
+            if (effect.kind !== "globalConstraint") continue
             const c = effect.constraint
-            if (!c.events.includes(event) || !entryActive(board, opp, source, effect, level)) continue
-            if (!globalConstraintWindowOpen(board, effect, opp)) continue
-            if (c.whileOwnAttackerFamily !== undefined) {
-                const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
-                if (!attacker || !matchesFamilyFilter(board, opp, attacker, c.whileOwnAttackerFamily)) continue
+            if (c.type === "noBurstActivationByEvent") {
+                if (!c.events.includes(event) || !entryActive(board, opp, source, effect, level)) continue
+                if (!globalConstraintWindowOpen(board, effect, opp)) continue
+                if (c.whileOwnAttackerFamily !== undefined) {
+                    const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
+                    if (!attacker || !matchesFamilyFilter(board, opp, attacker, c.whileOwnAttackerFamily)) continue
+                }
+                noteCoverage(effect, "globalConstraint")
+                return true
             }
-            noteCoverage(effect, "globalConstraint")
-            return true
+            if (c.type === "noBurstActivationByColor") {
+                if (!entryActive(board, opp, source, effect, level)) continue
+                if (!globalConstraintWindowOpen(board, effect, opp)) continue
+                if (burstCardId === undefined || !card(burstCardId).colors.some((col) => c.colors.includes(col))) continue
+                if (c.whileOwnAttackerKeyword !== undefined) {
+                    const attacker = board.battle && board.turnPlayer === opp ? board.players[opp].field.spirits.find((s) => s.instanceId === board.battle!.attackerInstanceId) : undefined
+                    if (!attacker || !spiritHasKeyword(board, opp, attacker, c.whileOwnAttackerKeyword)) continue
+                }
+                noteCoverage(effect, "globalConstraint")
+                return true
+            }
         }
     }
     return false

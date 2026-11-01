@@ -157,7 +157,7 @@ export interface GameState {
     // 場のどのゾーンにも属さない一時的な置き場で、flushBraveKeeps が1体ずつ決着させる
     // （残す＝コアを置いて field.spirits へ／残さない＝トラッシュへ）。
     // **答えが返るまでエントリを消さない**ので、確認が別の中断に上書きされても保険の flush で拾い直せる
-    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean }[]
+    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true }[]
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。
@@ -213,6 +213,7 @@ export interface GameState {
     lastNexusCost?: Record<string, number> // 枠ごとの、直前に破壊した自分のネクサスの印刷コスト（logic/record.ts。ほかの破壊が lastMoved を書き換えても残る）
     lastDrawn?: Record<string, number> // 枠ごとの直前のドローで引いた枚数（logic/record.ts）
     lastTargets?: Record<string, string[]>
+    lastCoreRemoveEmptied?: boolean // 直前の coreRemove の解決で対象のコアが0個になったか（action "if" の lastEmptied が読む。coreRemove ハンドラが解決の冒頭で false に戻す）
     recordScope?: string
     bpSeen?: Record<string, number> // instanceId -> 前回観測した実効BP（ownSpiritBpReached の「前回値」。BPが届いたかを判定する効果が場に無いときは消す。サーバー内部のみ）
     flashEffect?: true // いまフラッシュ効果（マジックのフラッシュ・【起動：フラッシュ】）を解決中（ownSpiritBpUpByFlash の判定用。中断しても pendingChoice.flashEffect 経由で再開時に戻す）

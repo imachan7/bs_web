@@ -10,7 +10,8 @@ import { markPayConfirmed } from "../actions/pay"
 import { isRedirectOptional, askBothSidesRedirect, findMagicRedirectSourceForCard } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
-import { matchesTarget } from "../../../../shared/rules"
+import { matchesTarget, magicPayAssistCandidates } from "../../../../shared/rules"
+import { noteCoverage } from "../../../../shared/coverage"
 import { validateCastMagic } from "../RuleValidator"
 import { magicUseTiming } from "../../../../shared/magicTiming"
 import { passFlashPriority, MAGIC_FREE_OPTIONS, COUNT_IS_BODIES } from "../GameEngine"
@@ -312,8 +313,25 @@ export function doCastMagic(
     // [ソウルコア]だけで使用するときは通常の支払い（payCost）を行わない。通常コアの消費は0
     const cost = useSoulCoreOnly ? 0 : effectiveCost(state, pid, card, declinedFree, exReductionSymbols)
 
+    // kind:"payAssistByExhaust" via:"magic"（BS19-054）：回復状態の発生源を疲労させ、使用コストの一部を肩代わりする。
+    // 無償化（declinedFree）や[ソウルコア]だけで使用するときは疲労させない
+    let magicAssistDiscount = 0
+    if (!useSoulCoreOnly && cost > 0) {
+        const assist = magicPayAssistCandidates(state, pid)[0]
+        if (assist) {
+            const src = [...player.field.spirits, ...player.field.nexuses].find((s) => s.instanceId === assist.instanceId)
+            if (src) {
+                src.isRested = true
+                noteCoverage(getCard(src.cardId).effects.find((e) => e.kind === "payAssistByExhaust"), "payAssistByExhaust")
+                if (assist.oncePerTurn) player.payAssistUsedThisTurn = [...(player.payAssistUsedThisTurn ?? []), assist.instanceId]
+                magicAssistDiscount = Math.min(cost, assist.discount)
+                log(state, `${player.name}は${getCard(src.cardId).name}を疲労させ、使用コストのうち${magicAssistDiscount}を支払ったものとして扱った。`)
+            }
+        }
+    }
+
     if (!useSoulCoreOnly) {
-        payCost(state, pid, cost, paySources, 0, paySoulCoreFromReserve)
+        payCost(state, pid, cost - magicAssistDiscount, paySources, 0, paySoulCoreFromReserve)
     }
     if (fromTegamoto) {
         player.tegamoto.splice(handIndex, 1)
@@ -325,7 +343,9 @@ export function doCastMagic(
         player.hand.splice(handIndex, 1)
     }
     player.trashCards.push(cardId)
-    log(state, `${player.name}は${card.name}を使用した。（コスト${cost}）`)
+    log(state, `${player.name}は${card.name}を使用した。（コスト${cost - magicAssistDiscount}）`)
+    // 解決中の効果から returnLastUsedMagicToHand がこの使用自身を見えるように、トラッシュへ置いた時点で記録する（BS19-102）
+    state.lastMagicUsed = { pid, cardId }
     // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
     recordMagicUsed(state, pid, cardId)
     // validate 済みなので null にはならない

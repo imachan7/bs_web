@@ -178,7 +178,9 @@ const openAwakenModeHandler: ActionHandler<"openAwakenMode"> = (ctx) => {
 const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     const cond = action.cond
-    const met = "last" in cond
+    const met = "lastEmptied" in cond
+        ? state.lastCoreRemoveEmptied === true
+        : "last" in cond
         ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
         : "lastAll" in cond
           ? lastMovedOf(state).length > 0 && lastMovedOf(state).every((id) => matchesPick(id, cond.lastAll, lastLeftCostOf(state, id))) // 0枚は不成立

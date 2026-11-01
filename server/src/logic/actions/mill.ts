@@ -11,6 +11,7 @@ import { countedAmount } from "../counted"
 import { currentRecordScope, recordMoved } from "../record"
 import { chimeiBonus } from "../keywords/chimei"
 import { kyokaBonus } from "../keywords/kyoka"
+import { hasDeckMillTax, withDeckMillTax } from "../effectTax"
 
 export type DeckDiscard = Extract<EffectAction, { type: "discard"; from: "deck" }>
 
@@ -41,6 +42,11 @@ export function discardFromDeck(ctx: ActionCtx, action: DeckDiscard): void {
         if (action.countCounter !== undefined && count === 0) {
             recordMoved(state, [])
             log(state, `${sourceName}：カウントが0のため粉砕しなかった。`)
+            return
+        }
+        // デッキ破棄への税（effectTax on:"deckMill"）：破棄する側が払えなければ破棄ごと不発。再入印が無いときだけ包む
+        if (action.side === "opponent" && action.deckMillTaxed !== true && hasDeckMillTax(state, owner)) {
+            ctx.resolve(withDeckMillTax(state, owner, state.players[opponentOf(owner)].name, { ...action, deckMillTaxed: true }))
             return
         }
         const targetPid = action.side === "own" ? owner : opponentOf(owner)

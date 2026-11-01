@@ -727,7 +727,47 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP7000以下の相手のスピリット1体を破壊する。\nLv2･Lv3『自分のアタックステップ』\n系統：「星竜」を持つ自分のスピリットがアタックしたとき、そのスピリットのBP以下の相手のスピリットにブロックされたら、相手のライフのコア1個を相手のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-011-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "maxBp": 7000
+          },
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-011-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritBlocked",
+        "levels": [
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "family": "星竜"
+        },
+        "partnerFilter": {
+          "maxBp": "subjectBp"
+        },
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-067",
@@ -1271,7 +1311,68 @@
     "rarity": "R",
     "limited": false,
     "effect": "メイン：\nお互いのスピリットすべては、お互いの効果で、疲労せず、フィールドから手札/デッキに戻らず、入れ替わらない。\nこのカードは、自分のフィールドに置かれ、その間、効果を発揮し続ける。\n自分のスピリットが相手の効果で破壊されたとき、このカードを破棄する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-    "effects": []
+    "effects":     [
+      {
+        "id": "BS19-099-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "placeSelfOnField"
+        }
+      },
+      {
+        "id": "BS19-099-e2",
+        "kind": "globalConstraint",
+        "levels": null,
+        "constraint": {
+          "type": "noExhaustByEffect"
+        }
+      },
+      {
+        "id": "BS19-099-e3",
+        "kind": "globalConstraint",
+        "levels": null,
+        "constraint": {
+          "type": "noBounceByEffect"
+        }
+      },
+      {
+        "id": "BS19-099-e4",
+        "kind": "globalConstraint",
+        "levels": null,
+        "constraint": {
+          "type": "noBattlerSwap"
+        }
+      },
+      {
+        "id": "BS19-099-e5",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": null,
+        "byOpponentEffectOnly": true,
+        "selfMode": "source",
+        "optional": false,
+        "action": {
+          "type": "trashSelfFromField"
+        }
+      },
+      {
+        "id": "BS19-099-e6",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-X01",
@@ -1322,6 +1423,86 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3･Lv4『このスピリットのアタック時』\n最もBPの高い相手のスピリット1体を破壊する。\nLv2･Lv3･Lv4『このスピリットのアタック時』\nこのスピリットをBP+5000する。\n【合体中】Lv3･Lv4『このスピリットのアタック時』\nBP7000以下の相手のスピリット1体を破壊する。\nこの効果でコスト6以上のスピリットを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-X01-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "highestBp": true
+          },
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-X01-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3,
+          4
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
+      },
+      {
+        "id": "BS19-X01-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "whileCombined": true,
+        "levels": [
+          3,
+          4
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "filter": {
+                "maxBp": 7000
+              },
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "last": {
+                  "cardType": "spirit",
+                  "cost": {
+                    "min": 6
+                  }
+                }
+              },
+              "then": {
+                "type": "lifeCrush",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   }
 ]

@@ -39,6 +39,7 @@ export interface AuraDef {
     excludeSelf?: true // ownAll 用: 発生源自身を除く（「このスピリット以外の自分のスピリットすべて」。P084）
     uncombinedFilter?: true // ownAll 用: combinedFilterのちょうど逆＝対象スピリットが合体していない（instIsCombinedがfalse）ときのみ有効（SD06-004ドス・モンキ：「自分の合体していないスピリットすべてをBP+3000する」）
     refreshedOnly?: true // ownAll 用: 回復状態（isRested=false）のスピリットのみ。疲労するとBPが外れるのが正（26系「回復状態の〜すべてをBP+」）
+    restedOnly?: true // ownAll 用: 疲労状態（isRested=true）のスピリットのみ（BS19-035ジュレヌークLv2「疲労状態の自分のスピリットすべてをBP+」）
     braveOnly?: true // ownAll 用: 対象がブレイヴカード（card.type==="brave"）のときのみ有効。合体中のブレイヴはfield.spiritsに実体を置かない（BRAVE.md §2.4）ため、
     // ownAllの走査に来た時点で自動的に「スピリット状態のブレイヴ」を意味する（BS10-086巨星望む大樹Lv1：自分のスピリット状態のブレイヴすべて）
 }

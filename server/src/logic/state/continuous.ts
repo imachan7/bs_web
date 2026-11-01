@@ -29,6 +29,8 @@ import {
     instIsCombined,
     opponentFieldColorCount,
     ownAllSpiritsHaveFamily,
+    spiritHasLabeledKeyword,
+    LABELED_KEYWORDS,
 } from "../../../../shared/rules"
 
 // 期間つき効果を一覧に記録する（docs/design/TIMED_EFFECTS.md）。一覧への追加はここだけにし、記録したら必ず個体の写しを作り直す
@@ -61,6 +63,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.untargetableByOpponentMagicTimed
             delete inst.countAsThisTurn
             delete inst.lifeDamageNegatedFor
+            delete inst.lifeDamageEffectsNegatedFor
             delete inst.lifeCapThisTurn
             delete inst.timedLevel
             delete inst.timedExtraSymbols
@@ -109,7 +112,10 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "immune") grantImmune(inst, c)
             if (c.type === "untargetableByOpponentMagic") inst.untargetableByOpponentMagicTimed = true
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
-            if (c.type === "noLifeDamage") inst.lifeDamageNegatedFor = r.ownerPid
+            if (c.type === "noLifeDamage") {
+                inst.lifeDamageNegatedFor = r.ownerPid
+                if (c.includeEffects) inst.lifeDamageEffectsNegatedFor = r.ownerPid
+            }
             if (c.type === "lifeCap") inst.lifeCapThisTurn = Math.min(inst.lifeCapThisTurn ?? Number.POSITIVE_INFINITY, c.max)
         }
     }
@@ -554,6 +560,12 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         const pick = effect.condition.ownMagicUsedThisTurn
                         if (!(state.magicIdsUsedThisTurn?.[pid] ?? []).some((id) => matchesPick(id, pick))) continue
                     }
+                    // combinedWithSymbollessBrave（BS19-040【合体時】Lv3）：発生源自身が
+                    // シンボルを持たないブレイヴと合体している間だけ有効
+                    if (effect.condition && "combinedWithSymbollessBrave" in effect.condition) {
+                        const braves = bravesOf(player, source)
+                        if (braves.length === 0 || !braves.some((b) => (getCard(b.cardId).symbol ?? []).length === 0)) continue
+                    }
                     if (effect.condition && "count" in effect.condition) {
                         const v = countEffectCounter(state, pid, source, effect.condition.count, undefined)
                         if (effect.condition.atLeast !== undefined && v < effect.condition.atLeast) continue
@@ -811,11 +823,14 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     }
                 } else if (effect.target === "ownSpiritsByKeyword") {
                     // キーワード判定はカード静的のみ（getCard(s.cardId).effectsにkind"keyword"かつ
-                    // keyword一致のエントリがあるか。レベル・付与は見ない）
+                    // keyword一致のエントリがあるか。レベル・付与は見ない）。
+                    // ラベル系キーワード（【連鎖】等）は効果の見出しの keyword フィールドで判定し、
+                    // 現在Lvで「持つ」（Q774。BS19-096）
                     for (const spirit of player.field.spirits) {
-                        const hasStaticKeyword = getCard(spirit.cardId).effects.some(
-                            (e) => e.kind === "keyword" && e.keyword === effect.keywordFilter,
-                        )
+                        if (effect.attackerOnly && spirit.instanceId !== state.battle?.attackerInstanceId) continue
+                        const hasStaticKeyword =
+                            getCard(spirit.cardId).effects.some((e) => e.kind === "keyword" && e.keyword === effect.keywordFilter) ||
+                            (effect.keywordFilter !== undefined && LABELED_KEYWORDS.has(effect.keywordFilter) && spiritHasLabeledKeyword(state, pid, spirit, effect.keywordFilter))
                         if (!hasStaticKeyword) continue
                         noteCoverage(effect, "levelAs")
                         spirit.levelAsContinuous = resolveTreatAs(effect.treatAs, spirit)

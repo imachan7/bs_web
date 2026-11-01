@@ -64,6 +64,7 @@ export const PAYABLE_TYPES = [
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
     "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
+    "discardUnder",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -122,6 +123,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         })
     },
     soulCoreToTrash: (state, owner) => soulCoreToTrashPossible(state.players[owner].soulCore),
+    // discardUnder：発生源のスピリットの下に count 枚あること（BS19-X02）
+    discardUnder: (state, owner, self, action) => action.type === "discardUnder" && self !== null && (self.underCards?.length ?? 0) >= action.count,
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
@@ -366,6 +369,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
     soulCoreToTrash: "トラッシュに置ける[ソウルコア]がない",
+    discardUnder: "このスピリットの下のカードが足りない",
     destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
     return: "デッキに戻すカードがない",
     coreRemove: "取り除けるコアが足りない",

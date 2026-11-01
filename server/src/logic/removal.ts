@@ -23,6 +23,7 @@ import { detachBravesOnLeave } from "./brave"
 import { recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
 import { isTokenCard } from "../../../shared/cardDb"
+import { trashUnderCards } from "./zones/underCards"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, wouldAskReviveConfirm } from "./revive"
 import {
     activeConstraints,
@@ -515,6 +516,7 @@ export function commitPendingDestruction(
         destroyedBp: burstInfo?.bp ?? 0,
     })
     player.field.spirits.splice(index, 1)
+    trashUnderCards(state, ownerPid, inst) // 下のカードは場を離れるとき破棄（BS19-X02。トラッシュでは下のカードが先）
     if (!token) {
         if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
         else player.trashCards.push(inst.cardId)
@@ -533,7 +535,9 @@ export function commitPendingDestruction(
     // ソウルコア退避（案A-outside: 数値に含まれないため自力では動かない。§1.2でボイドには行けない。
     // 破壊されたコアがトラッシュへ行く間だけ一緒にトラッシュへ、それ以外（ボイド行きを含む）はリザーブへ）
     if (soulCoreOnInstance(player, inst.instanceId)) {
-        moveSoulCore(player, redirect === "trash" || destroyedCoresGoToTrash(state) ? { zone: "trash" } : { zone: "reserve" })
+        // 既に field から splice 済みなので fromInst を渡す（soulInstance は場にいない個体を見つけられない。
+        // 渡さないと inst.cores が1個多くリザーブへ移り、ソウルコアぶんが二重に加算される）
+        moveSoulCore(player, redirect === "trash" || destroyedCoresGoToTrash(state) ? { zone: "trash" } : { zone: "reserve" }, inst)
     }
     if (redirect === "void") {
     } else if (redirect === "trash" || destroyedCoresGoToTrash(state)) {
@@ -1162,6 +1166,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
             const index = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (index === -1) continue
             player.field.spirits.splice(index, 1)
+            trashUnderCards(state, pid, inst) // 下のカードは場を離れるとき破棄（BS19-X02）
             soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避（coresの数値調整込み）
             player.reserve += inst.cores
             detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）

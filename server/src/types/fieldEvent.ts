@@ -30,6 +30,7 @@ export type FieldEvent =
     | "opponentDeckMilled" // 相手のデッキがトラッシュへ送られたとき（millDeckから発火。eventCount=実破棄枚数。minEventCountで「一度に◯枚以上」を表現。BS04アリゲイド）
     | "ownChimeiMilled" // 自分のスピリットの【地鳴】が相手のデッキをトラッシュへ送ったとき（mill ハンドラが発火。**self には【地鳴】の持ち主のスピリットが渡る**ので subjectFilter.excludeSelf で「このスピリット以外の」を表す。condition {lastMilledHasEx} で「EXシンボルを持つカードを破棄した」）
     | "ownDeckMilled" // 自分のデッキが破棄されたとき（eventCount＝破棄枚数）
+    | "ownDeckMillPrevented" // 自分の効果による相手のデッキ破棄が、相手の効果で1枚も破棄できなかったとき（破棄を起こした側のフィールドから発火。self＝破棄を起こした発生源のスピリット。デッキ切れの0枚は含まない。BS19-X06）
     | "ownNexusDeployed" // 自分のフィールドにネクサスが配置されたとき（通常の配置・効果による配置・復活のいずれからも発火。BS04栄光の表彰台）
     | "opponentMagicUsed" // 相手がマジックの効果を使用したとき（resolveMagicから発火。eventInfoにcost/timingを載せ、magicCostEquals・magicTimingで絞る。BS04氷の女神フリッグ）
     | "anySpiritReturnedToHand" // 両陣営どちらかのスピリットがフィールドから手札に戻ったとき、**両者の**フィールド発生源から発火する（`subjectSide` で主体の陣営を絞る。anySpiritAttacked と同じ形）。ownSpiritReturnedToHand が持ち主側にしか発火しないため、「**相手の**スピリットが手札に戻ったとき」を書くにはこちらが要る（BS12-040 天王神龍スレイ・カエルス【合体時】）
@@ -38,9 +39,11 @@ export type FieldEvent =
     | "ownNexusExhausted" // 自分のネクサスが疲労したとき、持ち主のフィールド発生源から発火（**self には疲労したネクサスが渡る**。exhaustNexus と exhaustSpirit（ネクサスの【起動】コスト等）から。26RBS01-108）
     | "anySpiritExhausted" // 両陣営どちらかのスピリットが疲労したとき、両者のフィールド発生源から発火（**self には疲労したスピリットが渡る**。BS05藍紫の虚空Lv1）
     | "ownSpiritBattleWon" // 自分のスピリットがBP比べで相手のスピリットだけを破壊したとき、持ち主のフィールド発生源から発火（**self には勝ったスピリットが渡る**。バトル解決の終盤に発火し、順序は『バトル終了時』より後に簡略化。26RDB01-048）
+    | "ownSpiritBattleLost" // 自分のスピリットがBP比べで相手のスピリットだけに破壊されたとき（相打ちは含まない）、持ち主のフィールド発生源から発火（**self には破壊されたスピリットが渡る**。ownSpiritBattleWon の敗北側の鏡像で、onBattleLose と同じ地点。BS19-091）
     | "ownSpiritBattleEnded" // 自分のスピリットがバトルし、バトル終了時にまだ生存しているとき、持ち主のフィールド発生源から発火（**self には生存しているバトル参加者が渡る**。onBattleEnd と同じ地点。破壊されて場にいない参加者には発火しない簡略化。26RBS03-005）
     | "ownSpiritBpReached" // 自分のスピリットの実効BPが増減の結果ある値に届いたとき（前回の観測値 < bpReachedAt <= 今回の値）。handleAction の事後処理（GameState.bpSeen との差分）から発火し、**self には届いたスピリットが渡る**。26RBS01-055/X10/X11
     | "ownSpiritBpUpByFlash" // 自分のスピリットのBPが、自分のフラッシュ効果の「BPを+する」で増加したとき（recordBp から発火。GameState.flashEffect で判定。**self には増えたスピリットが渡る**）。26RCB01-057
+    | "opponentSpiritBpReachedZero" // 持ち主から見て相手のスピリットの実効BPが0になったとき（前回の観測値 > 0 で今回0。増加して0になることは無いので減少到達のみ）。fireBpReachedTriggers から発火し、**self にはBP0になったスピリットが渡る**。「ターンで初めて」は oncePerTurn で書く。BS19-091
     | "ownSpiritReducedLife" // 自分のスピリットが相手のライフを減らしたとき（アタックでも、そのスピリットの効果でも）。**self にはライフを減らしたスピリットが渡る**（26RBS02-X01「スピリットが相手のライフを減らした時」）
     | "ownSpiritDealtLife" // 自分のスピリットのアタックによって相手のライフを減らしたとき、持ち主のフィールド発生源から発火（**self にはライフを減らしたスピリットが渡る**。onLifeDealtの直後。BS06-X22魔界七将ベルゼビート）
     | "opponentLifeCoreFromVoid" // 持ち主から見て相手のライフに、ボイドからコアが置かれたとき（原因は問わない）。eventCount＝置かれた個数。repeatPerCount で個数ぶん繰り返せる
@@ -55,6 +58,7 @@ export type FieldEvent =
     | "anySpiritCombined" // どちらかのスピリットにブレイヴが合体したとき（合体の唯一の入口 attachBrave から両フィールドへ発火）。**self には合体スピリット（ホスト）が渡る**（selfOverride）。subjectSide で自分/相手を絞る（BS11-064 闇の聖剣Lv2＝「相手のスピリットが合体したとき、その合体スピリットは疲労する」）
     | "ownCombinedSpiritBattleEnded" // 自分の合体スピリットがバトルし、バトル終了時にまだ生存しているとき、ネクサス等の発生源から発火（GameEngineのonBattleEnd誘発と同じ地点。selfには生存している合体スピリット自身が渡る。BS10-086巨星望む大樹Lv2）
     | "anyBraveSummoned" // **両陣営**どちらかのブレイヴが召喚されたとき（スピリット状態・合体を問わない）。発生源の持ち主から見て自分/相手いずれの召喚でも発火するため、エントリには必ずselfMode:"source"を付けて発生源自身を主体にする（BS12-061剣の誕生地Lv2）
+    | "ownBraveOnlyDestroyed" // 自分の合体スピリットのブレイヴだけが破壊されたとき（ホストは無傷。スピリット状態のブレイヴの破壊は含まない）、持ち主のフィールド発生源から発火（destroyCombinedBrave から。**self には破壊されたブレイヴが渡る**。この時点でブレイヴはトラッシュに置かれている）。BS19-093
     | "ownSpiritRefreshed" // 自分のスピリットが回復したとき、持ち主のフィールド発生源から発火（refreshSpiritの唯一の入口から。**self には回復したスピリットが渡る**）。subjectFilter.excludeSelf と組み合わせて「[カード名]以外の」を表現する（BS13-024武神獣ディアル・ユキムラLv2）
     | "anySpiritRefreshed" // 両陣営どちらかのスピリットが回復したとき、**両者の**フィールド発生源から発火する（anySpiritAttackedと同じ形。subjectSideで主体の陣営を絞る。selfには回復したスピリットが渡る。eventInfo.refreshSourceTypeで回復元の効果種別が分かる＝refreshSourceTypeFilterの判定に使う。BS14-085賛美するパイプオルガンLv2：「スピリット/マジックの効果で回復した〜すべてを破壊する」）
     | "opponentSummonEffectResolved" // 相手の『このスピリット/ブレイヴの召喚時』効果が**実際に解決された**後（単なる召喚では発火しない。kind:"triggered" trigger:"onSummon" が現在のレベルで有効な状態で1件でもあるときに発火する簡略化。任意発動の未発動・条件不一致まではここでは見分けない。BURST.md）

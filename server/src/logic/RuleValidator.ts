@@ -22,7 +22,7 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { canDiscardHand, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
@@ -37,6 +37,7 @@ import {
     exSymbolsOfTrashCard,
     hasMagicFreeGrant,
     hasMagicCostLock,
+    hasMagicColorBan,
     hasMagicRestriction,
     ownFieldSymbolColors,
     summonSurcharge,
@@ -629,6 +630,10 @@ export function validateCastMagic(
     if (hasMagicCostLock(state, card)) {
         return "このコストのマジックは、場の効果によって使用できません"
     }
+    // どちらかのフィールドに発生源があれば、お互い指定色のマジックを使用できない（BS19-066）
+    if (hasMagicColorBan(state, card)) {
+        return "この色のマジックは、場の効果によって使用できません"
+    }
     // 相手フィールドに発生源があれば、マジックのコストはすべてリザーブから支払う（フィールドのコアを支払い元にできない）
     if (hasMagicRestriction(state, pid, "reserveOnlyOpponent") && (paySources ?? []).length > 0) {
         return "このマジックのコストはすべてリザーブから支払わなくてはなりません"
@@ -783,9 +788,13 @@ export function validateCastMagic(
         }
         if (paySources && paySources.length > 0) return "[ソウルコア]だけで使用する場合は他のコアを支払えません"
     }
+    // kind:"payAssistByExhaust" via:"magic"（BS19-054）：疲労させることで使用コストの一部を肩代わりできる。
+    // doCastMagic と同じ候補の最初の1つで割り引く
+    const magicAssist = magicPayAssistCandidates(state, pid)[0]
+    const magicAssistDiscount = magicAssist ? magicAssist.discount : 0
     const payError = useSoulCoreOnly
         ? null // [ソウルコア]だけで使用するとき通常コアの支払い検証は不要（コスト0として扱う）
-        : validatePaySources(state, pid, effectiveCost(state, pid, card, false, exReductionSymbols), paySources, paySoulCoreFromReserve)
+        : validatePaySources(state, pid, Math.max(0, effectiveCost(state, pid, card, false, exReductionSymbols) - magicAssistDiscount), paySources, paySoulCoreFromReserve)
     if (payError) return payError
     return null
 }

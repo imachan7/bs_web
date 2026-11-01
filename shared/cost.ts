@@ -3,7 +3,7 @@ import { noteCoverage } from "./coverage"
 // 軽減シンボル・コスト修正・マジック使用制約・無償化の判定を一本化する。
 // クライアントは「軽減後のコスト表示」と「使用可能ハイライト」にこれを使うため、
 // サーバーと実装がズレると『使えるのに使えないように見える』表示バグになる（旧 renderer のミラーで実在した）。
-import type { CardData, Color, PlayerId } from "../server/src/type"
+import type { CardData, Color, Keyword, PlayerId } from "../server/src/type"
 import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
@@ -236,6 +236,30 @@ export function hasMagicCostLock(board: Board, cardData: CardData): boolean {
                 ) {
                     continue
                 }
+                noteCoverage(effect, "magicRestriction")
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// 色によるマジック使用制約（restriction:"colorBanAll"）の判定。お互いに効くので
+// 使用者と発生源の持ち主の一致チェックはしない（costLimitAll と同じ）。colors のいずれかの色を
+// 含むマジックカードを使用できない（BS19-066「お互い、緑/白/黄のマジックカードを使用できない」）
+export function hasMagicColorBan(board: Board, cardData: CardData): boolean {
+    for (const ownerPid of ["p1", "p2"] as PlayerId[]) {
+        const sources = [...board.players[ownerPid].field.spirits, ...board.players[ownerPid].field.nexuses]
+        for (const source of sources) {
+            const level = currentLevel(source).level
+            for (const effect of card(source.cardId).effects) {
+                if (effect.kind !== "magicRestriction") continue
+                if (effect.restriction !== "colorBanAll") continue
+                if (!entryActive(board, ownerPid, source, effect, level)) continue
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
+                if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
+                if (effect.colors === undefined || !cardData.colors.some((c) => effect.colors!.includes(c))) continue
                 noteCoverage(effect, "magicRestriction")
                 return true
             }
@@ -662,13 +686,21 @@ export function effectiveCost(
     {
         // handReductionColorAsForPid（BS12-042ヒノキ・ゴレムLv1）：このターンの間、手札にある該当カード種別の
         // 軽減シンボルすべてを指定色1色として扱う（printed reduction の色を置き換え。件数は変えない）
+        // handReductionVoidForPid（BS19-078）：該当カードの軽減シンボルすべてを無いものとして扱う（消去）
+        const handVoid = timedPlayerRules(board, pid).find(
+            (c) =>
+                c.type === "handReductionVoidForPid" &&
+                (c.cardType === undefined || c.cardType === cardData.type) &&
+                (c.keywordExclude === undefined || !cardData.effects.some((e) => (e as { keyword?: Keyword }).keyword === c.keywordExclude)),
+        )
         const handColorOverride = timedPlayerRules(board, pid).find(
             (c) => c.type === "handReductionColorAsForPid" && c.cardType === cardData.type,
         )
-        const baseReduction =
-            handColorOverride && "color" in handColorOverride
-                ? cardData.reduction.map(() => handColorOverride.color)
-                : cardData.reduction
+        const baseReduction = handVoid
+            ? []
+            : handColorOverride && "color" in handColorOverride
+              ? cardData.reduction.map(() => handColorOverride.color)
+              : cardData.reduction
         const grantedReduction = reductionGrantSymbols(board, pid, cardData)
         const reductionColors = [...baseReduction, ...grantedReduction.extra]
         const reductionBlocked =

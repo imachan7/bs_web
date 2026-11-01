@@ -3,7 +3,7 @@
 import { handGainDenial } from "../handGate"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardPick, EffectAction, PlayerId, PlayerState } from "../../type"
+import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../../type"
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
 import { payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
@@ -50,6 +50,8 @@ export function matchesPick(id: string, pick: CardPick | undefined, costOverride
     if (pick.hasWhileCombined === true && !card.effects.some((e) => "whileCombined" in e && e.whileCombined === true)) return false
     if (pick.hasTrigger !== undefined && !card.effects.some((e) => e.kind === "triggered" && e.trigger === pick.hasTrigger)) return false
     if (pick.keyword !== undefined && !hasKeyword(id, pick.keyword)) return false
+    // keywordExclude はラベル（効果の見出しの keyword フィールド）で判定。手札のカード用で、kind:"keyword" 宣言も同じ形で拾う
+    if (pick.keywordExclude !== undefined && card.effects.some((e) => (e as { keyword?: Keyword }).keyword === pick.keywordExclude)) return false
     if (pick.hasEx === true && card.symbolEx !== true) return false
     if (pick.nameIncludes !== undefined && !card.name.includes(pick.nameIncludes)) return false
     if (pick.team !== undefined && !cardHasTeam(card, pick.team)) return false

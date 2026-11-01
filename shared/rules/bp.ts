@@ -436,6 +436,7 @@ export function auraAppliesTo(
         return false
     }
     if (aura.refreshedOnly === true && targetInst.isRested) return false
+    if (aura.restedOnly === true && !targetInst.isRested) return false
     if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
         return false
     }

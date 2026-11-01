@@ -10,6 +10,9 @@ export type HandGainFrom = "deck" | "trash" | "revealed" | "field" | "other"
 // 破壊時に手札へ戻るスピリットは破壊待機でトラッシュに行っていないので from:"field"（2026-10-30 ユーザー確認）
 export function handGainDenial(state: GameState, q: { pid: PlayerId; from: HandGainFrom; cause: "effect" | "rule" }): string | null {
     if (q.cause === "effect" && hasGlobalConstraint(state, "noHandGainByEffect")) return "効果によって手札が増やせない"
+    // handGainOnlyInDrawStep（BS19-103）：ドローステップ以外では手札を増やせない。
+    // ドローステップのドローはこの関数を通らず draw(fromDrawStep) から来るので、ここを通る経路はすべて止めてよい
+    if (hasGlobalConstraint(state, "handGainOnlyInDrawStep")) return "ドローステップ以外で手札を増やせない"
     if (q.from === "trash" && (hasGlobalConstraint(state, "noTrashRecovery") || opponentCantReturnFromTrashToHand(state, q.pid))) {
         return "トラッシュからカードを手札に戻せない"
     }

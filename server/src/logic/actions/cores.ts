@@ -62,6 +62,8 @@ export function coreRemoveAchievableCountForPay(
 
 const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
+        // 直前の coreRemove で対象のコアが0個になったかの記録を、解決の冒頭でリセットする（action "if" の lastEmptied）
+        state.lastCoreRemoveEmptied = false
         // countCounter指定時はcount×EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count
@@ -106,13 +108,18 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                         return 0
                     }
                 }
-                if (action.dest === "void") return removeCoresToVoid(state, pid, inst, 1, owner, srcType)
+                if (action.dest === "void") {
+                    const removed = removeCoresToVoid(state, pid, inst, 1, owner, srcType)
+                    state.lastCoreRemoveEmptied = removed > 0 && inst.cores === 0
+                    return removed
+                }
                 // distinct（置くコアは相手が選ぶ）のときだけ、相手は[ソウルコア]を選べる（2026-10-08 ユーザー確定）
                 const soul = action.distinct && !action.excludeSoulCore
                     ? soulCoreInclusionDecision(state, owner, pid, inst, action.dest === "trash" ? "trash" : "reserve", action, self, sourceName, chosenOption)
                     : false
                 if (soul === "asked") return "asked"
                 const removed = action.dest === "trash" ? removeCoresToTrash(state, pid, inst, 1, owner, soul, srcType) : removeCores(state, pid, inst, 1, owner, srcType, soul)
+                state.lastCoreRemoveEmptied = removed > 0 && inst.cores === 0
                 // 複数体にまたがっても「消滅したなら、1枚ドロー」は1回だけ（spreadDrew で再入をまたいで覚える。26RBS03-019）
                 if (action.drawIfEmptied && !action.spreadDrew && removed > 0 && inst.cores === 0) {
                     action = { ...action, spreadDrew: true }
@@ -190,6 +197,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             if (action.dest === "void") removeCoresToVoid(state, owner, foundOwn.inst, removeCount, owner, srcType)
             else if (action.dest === "trash") removeCoresToTrash(state, owner, foundOwn.inst, removeCount, owner, undefined, srcType)
             else removeCores(state, owner, foundOwn.inst, removeCount, owner, srcType)
+            state.lastCoreRemoveEmptied = removeCount > 0 && foundOwn.inst.cores === 0
             return
         }
         // anySide：自分/相手どちらのスピリットも対象にできる（destroy等のanySideと同じ非対称ルール。
@@ -275,6 +283,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         } else {
             removeCoresToVoid(state, found.pid, found.inst, removeCount, owner, srcType)
         }
+        state.lastCoreRemoveEmptied = removeCount > 0 && found.inst.cores === 0
         // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
         // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
         // 元から0だった場合は上の removeCount 計算で 0 になり、ここへ来る前に何も起きていない

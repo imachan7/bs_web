@@ -226,6 +226,7 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
+        ...player.field.magics, // 場に残るマジック（BS19-099 等。中身の継続効果・fieldEvent がこの行だけで効く。手札/トラッシュでは発生源でない
     ]
 }
 
@@ -671,6 +672,7 @@ export function isOnFieldAnyZone(player: BoardPlayer, instanceId: string): boole
     return (
         player.field.spirits.some((x) => x.instanceId === instanceId) ||
         player.field.nexuses.some((x) => x.instanceId === instanceId) ||
-        player.field.combinedBraves.some((x) => x.instanceId === instanceId)
+        player.field.combinedBraves.some((x) => x.instanceId === instanceId) ||
+        player.field.magics.some((x) => x.instanceId === instanceId)
     )
 }

@@ -37,6 +37,17 @@ export function isOnceUsed(state: GameState, pid: PlayerId, inst: CardInstance, 
     return inst[slot]?.[effect.id] === state.turn
 }
 
+// 「ターンにN回まで」（maxPerTurn）。このターンに発揮した回数
+export function usedCountThisTurn(state: GameState, inst: CardInstance, effectId: string): number {
+    const rec = inst.triggeredUsedCount?.[effectId]
+    return rec !== undefined && rec.turn === state.turn ? rec.count : 0
+}
+
+export function markUsedOnceThisTurn(state: GameState, inst: CardInstance, effectId: string): void {
+    const rec = inst.triggeredUsedCount?.[effectId]
+    ;(inst.triggeredUsedCount ??= {})[effectId] = { turn: state.turn, count: rec !== undefined && rec.turn === state.turn ? rec.count + 1 : 1 }
+}
+
 export function markOnceUsed(state: GameState, pid: PlayerId, inst: CardInstance, effect: OnceEffect, slot: OnceSlot): void {
     if (effect.onceScope === "name") {
         ;(state.players[pid].onceByNameUsed ??= {})[onceNameKey(inst.cardId, effect.id)] = state.turn
