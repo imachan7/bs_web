@@ -2100,6 +2100,7 @@
      "type": "pay",
      "cost": {
       "type": "removeCores",
+      "reserveOnly": true,
       "side": "own",
       "from": [
        "reserve"

@@ -2280,6 +2280,7 @@
      "type": "pay",
      "cost": {
       "type": "removeCores",
+      "reserveOnly": true,
       "side": "own",
       "from": ["reserve"],
       "to": "trash",
@@ -6206,7 +6207,8 @@
      3
     ],
     "cost": {
-     "reserveToTrash": 2
+     "reserveToTrash": 2,
+     "reserveOnly": true
     },
     "action": {"type": "timedEffect", "count": 1, "duration": "battle", "content": [{"type": "bpAs", "levels": [1, 2, 3, 4], "amount": 2000}]}
    }

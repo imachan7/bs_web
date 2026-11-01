@@ -1,6 +1,7 @@
 // サーバー通信、ユーザー操作の受付、状態購読
 import type { CardData, GameAction, GameView, PlayerId } from "../../server/src/type"
 import { master, render, setCardDb, showToast, showWaiting, hideWaiting, type UiState } from "./renderer"
+import { installSecretCardArt } from "./cardArt"
 import { exReductionEffectiveCount, exReductionPickedIndices, exReductionSymbolsFor, payingCardId, payingIsCostOnly, payingRemaining } from "./ui/paying"
 import { setupEffectTooltip } from "./ui/tooltip"
 import { AWAKEN_FROM_RESERVE, canAwakenFromReserve, minLevelCores } from "../../shared/rules"
@@ -294,6 +295,7 @@ async function init(): Promise<void> {
 
     // お知らせ（Gitコミット履歴）を非同期で取得・表示
     loadChangelog()
+    installSecretCardArt(showToast)
 
     byId("join-btn").addEventListener("click", () => {
         const name =
