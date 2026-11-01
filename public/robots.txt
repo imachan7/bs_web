@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /imgs/cards/
 
 Sitemap: https://bs-web-battle.app/sitemap.xml

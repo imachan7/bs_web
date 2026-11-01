@@ -1149,6 +1149,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## public/src/cardArt.ts
 
 - `cardImageUrl`（fn）：カード画像の URL と、カード要素へ画像を重ねる処理（対戦画面とデッキビルダーで共用）
+- `cardSetDir`（fn）：画像の置き場の弾フォルダ。プロモ（P001・PX01・X014）は番号に「-」が無いので英字の部分で分ける。
+- `installSecretCardArt`（fn）
 - `attachCardArt`（fn）
 
 ## public/src/effectText.ts
