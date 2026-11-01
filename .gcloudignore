@@ -1,0 +1,7 @@
+# gcloud run deploy --source . で送らないもの。このファイルが無いと .gitignore が使われ、
+# git 管理外のカード画像（public/imgs/cards/）が送られない。表示に使う md/sm/xs だけ送り、元画像は外す
+.gcloudignore
+.git/
+node_modules/
+public/dist/
+public/imgs/cards/original/

@@ -100,6 +100,16 @@ jobs:
       - name: gcloud をセットアップ
         uses: google-github-actions/setup-gcloud@v2
 
+      # カード画像は git 管理外。GCS バケット（変数 CARD_IMAGES_BUCKET）に置いたものを取り込み、
+      # .gcloudignore の指定どおり md/sm/xs だけを --source に含めてイメージへ焼き込む。
+      # 変数が無いうちは画像なしで出す（旧カードの画像は隠し要素なので、無くても対戦は動く）
+      - name: カード画像をバケットから取得
+        if: vars.CARD_IMAGES_BUCKET != ''
+        run: |
+          mkdir -p public/imgs/cards
+          gcloud storage rsync --recursive "gs://${{ vars.CARD_IMAGES_BUCKET }}" public/imgs/cards
+          test -n "$(ls public/imgs/cards/md)" # 空なら止める
+
       - name: Cloud Run へデプロイ
         run: |
           gcloud run deploy bs-web \
