@@ -119,7 +119,52 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「星竜」を持つ自分のスピリットは、【重装甲】を持つ相手のスピリットにブロックされたとき回復する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-003-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritBlocked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "family": "星竜"
+        },
+        "partnerFilter": {
+          "keyword": "heavyArmor"
+        },
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        },
+        "optional": false
+      },
+      {
+        "id": "BS19-003-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-004",
@@ -197,7 +242,44 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるスピリットカード1枚を手札に戻す。\nLv2『自分のアタックステップ』\n自分の手札1枚につき、このスピリットをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-005-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "cardType": "spirit"
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "BS19-005-e2",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "counter": "ownHand",
+          "amountPer": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-006",
@@ -312,7 +394,37 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nお互いのデッキは破棄されない。\nLv2･Lv3『このスピリットのアタック時』\nBP4000以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-007-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
+      },
+      {
+        "id": "BS19-007-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "maxBp": 4000
+          },
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "BS19-008",
@@ -354,7 +466,52 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+5000する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：系統：「殻人」を持つ相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-008-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "bp",
+                  "amount": 5000
+                }
+              ],
+              "duration": "battle",
+              "target": "self"
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "purple"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "filter": {
+                  "family": "殻人"
+                },
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-009",
@@ -408,6 +565,30 @@
           2,
           3
         ]
+      },
+      {
+        "id": "BS19-009-e2",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "eventTarget": "ignore",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "condition": {
+          "battleOpponentMatches": {
+            "maxBp": "selfBp"
+          }
+        },
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "maxBp": 6000
+          },
+          "count": 1
+        }
       }
     ]
   },
@@ -585,7 +766,30 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-067-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "draw",
+              "count": 1
+            },
+            {
+              "type": "destroy",
+              "nexus": "only",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 4
     }
@@ -625,7 +829,42 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-068-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "declare",
+          "what": "family",
+          "from": "spirits",
+          "fromSide": "opponent",
+          "then": {
+            "type": "destroy",
+            "count": 2,
+            "filter": {
+              "declared": "match",
+              "maxBp": 5000
+            }
+          }
+        }
+      },
+      {
+        "id": "BS19-068-e2",
+        "kind": "constraint",
+        "levels": null,
+        "whileCombined": true,
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any",
+          "targetMinBp": 7000
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 4
     }
