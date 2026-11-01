@@ -5,7 +5,7 @@
 // 「自分」は場面の主役。mirror（既定 true）で主役を p1→p2 に入れ替えてもう1回走らせる
 import { act, assert, createGame, createInstance, currentLevel, effectiveBp, getCard, refreshLevelAsOverrides } from "./helpers"
 import type { GameAction, GameState, PlayerId } from "./helpers"
-import type { CardInstance } from "../../server/src/type"
+import type { CardInstance, SoulCoreLocation } from "../../server/src/type"
 
 const VANILLA = "BS01-002" // ロクケラトプス（赤・コスト1・バニラ）
 
@@ -22,6 +22,8 @@ export interface SideSpec {
     hand?: string[] // 既定 空
     deck?: string[] // 既定 バニラ40枚
     trash?: string[]
+    // ソウルコアの置き場（"リザーブ" か、その陣営の個体の label）。数えるコア数には含まれる（案B-inside）。省略時はソウルコアなし
+    soulCore?: string
     spirits?: InstanceSpec[]
     nexuses?: InstanceSpec[]
     burst?: string
@@ -54,6 +56,13 @@ export interface ScenarioSpec {
 
 type Snapshot = Map<string, string>
 
+// 個体の上なら label。写像の時点で場にいない個体は instanceId のまま出す（整合検査が別に落とす）
+function soulCoreWhere(soul: SoulCoreLocation, label: (id: string) => string | undefined): string {
+    if (soul.zone === "reserve") return "リザーブ"
+    if (soul.zone === "trash") return "トラッシュ"
+    return label(soul.instanceId) ?? soul.instanceId
+}
+
 const sideName = (side: Side) => (side === "me" ? "自分" : "相手")
 
 // instanceId → 写像のキーの頭（「自分.レオ」）。陣営は最初に見えた時点で決める
@@ -83,6 +92,18 @@ function setupSide(s: GameState, pid: PlayerId, side: Side, spec: SideSpec, labe
     }
     place(spec.spirits, p.field.spirits)
     place(spec.nexuses, p.field.nexuses)
+    p.soulCore = null
+    if (spec.soulCore === undefined) return
+    if (spec.soulCore === "リザーブ") {
+        if (p.reserve < 1) throw new Error(`${sideName(side)}のソウルコアをリザーブに置くにはリザーブが1以上要る`)
+        p.soulCore = { zone: "reserve" }
+        return
+    }
+    const label = `${sideName(side)}.${spec.soulCore}`
+    const inst = [...p.field.spirits, ...p.field.nexuses].find((x) => labels.get(x.instanceId) === label)
+    if (!inst) throw new Error(`ソウルコアの置き場「${label}」がいない`)
+    p.soulCore = { zone: "instance", instanceId: inst.instanceId }
+    inst.soulCoreOn = true
 }
 
 // 写像に載せるのは、対戦者が盤面から読み取れるものだけ（内部の印・一時フィールドは見ない）
@@ -113,6 +134,7 @@ function snapshot(s: GameState, me: PlayerId, labels: Labels): Snapshot {
         out.set(`${k}.デッキ枚数`, String(p.deck.length))
         out.set(`${k}.トラッシュ`, names(p.trashCards))
         out.set(`${k}.バースト`, p.burst ? getCard(p.burst).name : "なし")
+        if (p.soulCore !== null) out.set(`${k}.ソウルコア`, soulCoreWhere(p.soulCore, (id) => labels.get(id)))
         const put = (inst: CardInstance, where: string, withBp: boolean) => {
             const l = labelOf(inst, k)
             seen.add(inst.instanceId)
