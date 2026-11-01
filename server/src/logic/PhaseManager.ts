@@ -535,6 +535,19 @@ export function endTurn(state: GameState): void {
     state.coreGainCountThisTurn = { p1: 0, p2: 0 }
     state.millCountThisTurnMutual = { p1: 0, p2: 0 }
 
+    // PX18 時統べる幻龍神アマテラス：atTurnEnd（ターン終了時効果）の解決で extraAttackStep が
+    // 予約された場合の消費。BS10-008（ステップ誘発）の消費は上のエンドステップ誘発の直後で行うが、
+    // atTurnEnd はさらにその後（上の atTurnEnd ブロック）で初めて解決されるため、そこで立った
+    // 予約はここで消費する（公式Q&A Q18465：エンドステップの後にアタックステップとエンドステップを
+    // 1回ずつ足す。Q18467：最初のエンドステップでターン中続く効果はすべて切れるので、
+    // この位置＝一時状態のリセット群をまたいでからアタックステップへ戻す）
+    if (state.extraAttackStepPending === true) {
+        delete state.extraAttackStepPending
+        log(state, `${state.players[state.turnPlayer].name}はアタックステップとエンドステップを、もう1回ずつ行う。`)
+        toAttackPhase(state)
+        return
+    }
+
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"
     state.turn += 1

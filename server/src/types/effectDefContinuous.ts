@@ -497,6 +497,7 @@ export type EffectDefContinuous =
           nameIncludes: string
           costFilter?: number
           colorFilter?: Color
+          whileCombined?: true // ブレイヴの【合体時】限定。合体中の間、ホスト（合体スピリット）に付与する（P044 星鎧龍ジーク・ブレイヴ）
           lentOnly?: boolean
       }
     | {

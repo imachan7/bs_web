@@ -3,6 +3,7 @@
 import type { CardInstance, GameState, PlayerId, ResumeFrame } from "../type"
 import { findSpirit, opponentOf, resolveInOrder } from "./GameState"
 import {
+    battleOpponentConditionedOnBattleStartIds,
     fireFieldEventTriggers,
     fireTrigger,
     hasFunsaiOnBlock,
@@ -23,7 +24,9 @@ export type CollectedTrigger = {
 
 // 非対話（テスト・AI）では収集順＝従来の発火順で解決する。
 // ⚠️ 解決で選択待ちが立って列が中断した場合、バースト判定は行わない（再開後に拾う仕組みが無い）
-export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: CardInstance | undefined, instanceId: string): void {
+// directed：指定アタック（resolveDirectedBlock）経由のブロック確定。この場合アタッカーの
+// 『バトル時』は resolveDirectedBlock が確定後に全件発火するため、ここではbattleOpponentMatches条件付きを発火しない
+export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: CardInstance | undefined, instanceId: string, directed = false): void {
     const battle = state.battle
     if (!battle) return
     const items: CollectedTrigger[] = []
@@ -58,6 +61,18 @@ export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: C
     }
     const attackerPid = state.turnPlayer // 強制ブロックではブロッカーの持ち主(pid)＝アタッカー側なので opponentOf(pid) は使えない
     const attacker = findSpirit(state.players[attackerPid], attackerId)
+    // アタッカーの『このスピリットのバトル時』のうちバトル相手を条件に持つもの
+    // （condition.battleOpponentMatches）は、アタック宣言の時点ではブロッカーがまだ
+    // 決まっていないため条件不成立で見送られている。ブロックが確定したこの時点で
+    // 改めて発火する（PX14 戦皇ゴッドスレイヤー・ドラゴン「名前に『神』を持つ相手の
+    // スピリットとバトルしているとき BP+5000」）。無条件の『バトル時』はアタック宣言時に
+    // すでに発火済みなので、ここでは条件付きだけを onlyEffectIds で絞って発火する
+    if (!directed && !state.winner && attacker) {
+        const conditionedIds = battleOpponentConditionedOnBattleStartIds(state, attackerPid, attacker)
+        if (conditionedIds.length > 0) {
+            fireTrigger(state, attackerPid, attacker, "onBattleStart", "attacker", instanceId, undefined, undefined, undefined, conditionedIds, items)
+        }
+    }
     if (attacker) {
         fireTrigger(state, attackerPid, attacker, "onBlocked", undefined, instanceId, undefined, undefined, undefined, undefined, items)
         fieldEvent(attackerPid, "ownSpiritBlocked", attacker, attackerPid, instanceId)

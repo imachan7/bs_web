@@ -122,8 +122,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `heavyArmorColorsOf`（fn）：器AJ：instがその時点で実際に持つ【重装甲】の色を列挙する（静的keyword＋heavyArmorColorsGranted。
 - `hasBraveImmuneAgainst`（fn）：第3の耐性軸：相手のブレイヴの効果を受けない（kind:"braveImmuneGrant"）。装甲/重装甲とは別枠
 - `zoneSpiritEffectsDisabled`（fn）：BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
+- `trashFrozen`（fn）：PX19：トラッシュのカードが効果を受けない／自身の効果を使えない（Q18473・Q18475）。トラッシュの枚数やシンボルを数えるだけの参照は止めない
+- `trashCardEffectsDisabled`（fn）：トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）
+- `braveBpBonusZeroFor`（fn）：「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
 - `attackTotalOncePerTurnLimitApplies`（fn）：attackOncePerTurnByCostLimitApplies の「合計」版（26RBS02-085）。attackerPid のコストがmaxCost以下のスピリットが
@@ -463,6 +466,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyWithinBudget`（fn）：「BP／コスト合計○○まで、相手のスピリットを好きなだけ破壊する」（destroy の budget 軸。ACTION_UNIFY_PLAN §4 PR 8）。
 - `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 
+## server/src/logic/actions/exhaustBudget.ts
+
+- `exhaustWithinBudget`（fn）
+
 ## server/src/logic/actions/exhaustRefresh.ts
 
 - `refreshOneOwnCandidates`（fn）：refresh の「own側・疲労状態・filter一致」の候補集め（all/eventTargetOnly/anySideは含まない、
@@ -523,6 +530,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/actions/removeCores.ts
 
 - `removeCoresAchievableCountForPay`（fn）：pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
+
+## server/src/logic/actions/repeatBurst.ts
+
+- `lastBurstAction`（fn）：発動した本人でなければ（相手のバースト発動後に反応する書き方になったときのため）繰り返さない
 
 ## server/src/logic/actions/revealAction.ts
 
@@ -700,6 +711,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasKyoshuOnBlock`（fn）：持ち主のフィールドに kyoshuOnBlock（BS07蹴撃の戦場跡Lv2）が有効な発生源があるか。
 - `kyoshuLimitOf`（fn）：【強襲：N】の上限回数。合体しているブレイヴ側にだけ書かれている場合（BS10バズーカ・アームズ）と、
 - `kyoshuUsedOf`（fn）
+- `kyoshuSelfExhaustSources`（fn）：【強襲】のコストを自分の疲労で払える回復状態の発生源（kind:"kyoshuSelfExhaustGrant"）。
 
 ## server/src/logic/keywords/tensho.ts
 
@@ -965,6 +977,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `revertOncePerTurn`（fn）：「ターンに1回」の消費を戻す（発揮しなかったと分かったとき）。GameEngine の revertActivatedUse の誘発版
 - `revertDestroyGroupUsage`（fn）：同時破壊グループの「使った」印を戻す（「〜できる」を断った・コストが払えず不発だったとき）。
 - `fireTrigger`（fn）
+- `battleOpponentConditionedOnBattleStartIds`（fn）：アタッカー側の『このスピリットのバトル時』(trigger:"onBattleStart")効果のうち、バトル相手を
 - `fireCombinedAttackTrigger`（fn）：BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
 - `activationPrompt`（fn）：発動確認の文面（3種の誘発で同じ形を使う）
 - `confirmPromptIfOptional`（fn）：optional な誘発の残りは、再開時も**発動確認から**始める（確認なしの自動発動を防ぐ）。

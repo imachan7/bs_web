@@ -1289,7 +1289,7 @@ const KYOSHU_PAY: EffectAction = {
     limitByKeyword: "kyoshu",
 }
 
-export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string): string | null {
+export function finishBlockDeclaration(state: GameState, pid: PlayerId, instanceId: string, directed = false): string | null {
     if (!state.battle) return "バトルが発生していません"
     const forced = state.battle.forcedBlockerInstanceId === instanceId
     const blockerPid = forced ? opponentOf(pid) : pid
@@ -1336,7 +1336,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
-    resolveBlockDeclared(state, blockerPid, blocker, instanceId)
+    resolveBlockDeclared(state, blockerPid, blocker, instanceId, directed)
     if (state.winner) {
         state.battle = null
         return null

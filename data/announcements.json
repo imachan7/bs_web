@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-11-01",
+   "category": "new",
+   "text": "プロモーションカード（P001〜P084・PX01〜PX19）の100枚を追加しました"
+  },
+  {
    "date": "2026-10-24",
    "category": "fix",
    "text": "ネクサスコラプスで、自分のネクサスも破壊するネクサスとして選べるようにしました"

@@ -2576,24 +2576,18 @@
     "effects": [
       {
         "id": "P037-e1",
-        "kind": "fieldEvent",
-        "event": "ownSpiritSummoned",
+        "kind": "symbolWhenSummoning",
         "levels": [
           1,
           2,
           3
         ],
-        "phase": "main",
-        "turn": "own",
-        "subjectFilter": {
-          "nameContains": "月光"
+        "color": "white",
+        "count": 2,
+        "pick": {
+          "nameIncludes": "月光"
         },
-        "action": {
-          "type": "addSymbolPermanent",
-          "count": 2,
-          "color": "white"
-        },
-        "selfMode": "source"
+        "ownMainStepOnly": true
       },
       {
         "id": "P037-e2",
