@@ -8,7 +8,7 @@ import { destroyTargetsBatch } from "./removal"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit } from "../../../shared/rules"
+import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, bravesOf } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -511,6 +511,11 @@ export function resolveBattle(state: GameState): void {
         blockerColors: instColors(blocker),
         attackerLevel,
         blockerLevel,
+        attackerJugeki:
+            staticJugeki(attacker.cardId, attackerLevel) ||
+            bravesOf(state.players[attackerPid], attacker).some((b) =>
+                getCard(b.cardId).effects.some((e) => e.kind === "keyword" && e.keyword === "jugeki"),
+            ),
         attackerBp,
         blockerBp,
         // ＞６に入る直前の写し。破壊されると場から消えるが、『相手のスピリットに破壊されたとき』や
@@ -651,7 +656,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
             // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
             const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
-            if (sameSide || !staticJugeki(attacker.cardId, f.attackerLevel) || attackerJugekiReplaced) return
+            if (sameSide || !(f.attackerJugeki ?? staticJugeki(attacker.cardId, f.attackerLevel)) || attackerJugekiReplaced) return
             const stillOnField = findSpirit(state.players[blockerPid], f.blockerInstanceId)
             if (!stillOnField) return
             if (hasArmorAgainst(state, stillOnField, f.attackerColors)) {

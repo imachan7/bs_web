@@ -427,6 +427,7 @@ export type ResumeFrame =
           blockerColors: Color[]
           attackerLevel: number
           blockerLevel: number
+          attackerJugeki?: boolean // バトル開始時に【呪撃】を持っていたか（合体中のブレイヴの【呪撃】も含む。BP比較で破壊されて合体が解けても発動するので開始時に控える）
           attackerBp: number
           blockerBp: number
           // 破壊された個体は場から消えるが、『相手のスピリットに破壊されたとき』（onBattleLose）や

@@ -68,7 +68,50 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの破壊時』\nコスト4以下の疲労状態の相手のスピリット1体を破壊する。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：自分のスピリット1体を回復させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-013-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "filter": {
+                "rested": true,
+                "cost": {
+                  "max": 4
+                }
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "yellow"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "refresh",
+                "count": 1,
+                "filter": {
+                  "excludeSelf": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-014",
@@ -108,7 +151,64 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：このターンの間、このスピリットはLv1の相手のスピリットからブロックされない。\nLv3\nこのスピリットの色とシンボルは黄としても扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-014-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "draw",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "yellow"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "unblockable",
+                    "opponentOnly": true,
+                    "from": {
+                      "level": [
+                        1
+                      ]
+                    }
+                  }
+                ],
+                "duration": "turn",
+                "target": "self"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS19-014-e2",
+        "kind": "colorAs",
+        "levels": [
+          3
+        ],
+        "colors": [
+          "yellow"
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-015",
@@ -143,7 +243,22 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv2『このスピリットのアタック時』\n相手のスピリットのコア1個を相手のリザーブに置く。\nこの効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-015-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 1,
+          "drawIfEmptied": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-016",
@@ -274,7 +389,35 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリットのコア1個を相手のリザーブに置く。\nLv1･Lv2･Lv3\nお互いのデッキは破棄されない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-018-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-018-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-019",
@@ -359,7 +502,42 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nお互いのデッキは破棄されない。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nバトル終了時、自分のトラッシュにあるブレイヴカード1枚を手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-020-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
+      },
+      {
+        "id": "BS19-020-e2",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "eventTarget": "ignore",
+        "battleRole": "attacker",
+        "whileCombined": true,
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "dest": "hand",
+          "count": 1,
+          "pick": {
+            "cardType": "brave"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-021",
@@ -485,7 +663,55 @@
     "rarity": "U",
     "limited": false,
     "effect": "【不死：コスト2/3】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト2/3の自分のスピリットが破壊されたとき召喚できる。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリットにブロックされたとき、相手は、相手の手札1枚を破棄する。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：このターンの間、相手のスピリット1体をBP-2000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-022-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS19-022-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBlocked",
+        "eventTarget": "ignore",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "discard",
+              "from": "hand",
+              "side": "opponent",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "yellow"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "bpMinus",
+                "amount": 2000,
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-069",
@@ -522,7 +748,30 @@
       }
     ],
     "braveConditionText": "コスト3以下",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-069-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-069-e2",
+        "kind": "keyword",
+        "keyword": "jugeki",
+        "levels": [
+          1
+        ],
+        "whileCombined": true
+      }
+    ],
     "braveCondition": {
       "maxCost": 3
     }

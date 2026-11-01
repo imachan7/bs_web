@@ -214,5 +214,6 @@ export type EffectDefCost =
           scope?: "allMagicHandAndTegamoto" // 色を問わず、持ち主の手札/手元(tegamoto)のマジックカードすべてを無償化
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           condition?: "selfInBattle" // 指定時、発生源自身が現在のバトルの当事者であるときのみ有効
+          whileCombined?: true
           oncePerBattle?: true // 指定時、この発生源が無償化できるのは1バトルにつきマジック1枚だけ
       }
