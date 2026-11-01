@@ -67,7 +67,33 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\nお互いのデッキは破棄されない。\nLv2『相手のターン』\n疲労状態の自分のスピリットすべてをBP+2000する。",
-    "effects": [{"id": "BS19-035-e1","kind": "globalConstraint","levels": [1,2],"constraint": {"type": "noDeckMill"}},{"id": "BS19-035-e2","kind": "aura","levels": [2],"aura": {"type": "bp","target": "ownAll","amount": 2000,"restedOnly": true,"turn": "opponent"}}]
+    "effects": [
+      {
+        "id": "BS19-035-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
+      },
+      {
+        "id": "BS19-035-e2",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 2000,
+          "restedOnly": true,
+          "turn": "opponent"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-036",
@@ -362,7 +388,54 @@
     "rarity": "M",
     "limited": false,
     "effect": "【合体時】Lv1･Lv2･Lv3\nこのスピリットのブレイヴは破壊されない。\nLv2･Lv3『このスピリットのアタック時』\nターンに1回、[十剣聖ヴォル・クーガ]以外の自分のスピリット1体を回復させる。\n【合体時】Lv3\nこのスピリットがシンボルを持たないブレイヴと合体している間、このスピリットに白のシンボル1つを追加する。",
-    "effects": [{"id": "BS19-040-e1","kind": "globalConstraint","levels": [1,2,3],"whileCombined": true,"constraint": {"type": "combinedBraveIndestructible"}},{"id": "BS19-040-e2","kind": "triggered","trigger": "onAttack","levels": [2,3],"optional": false,"oncePerTurn": true,"onceScope": "name","action": {"type": "refresh","count": 1,"filter": {"excludeSelf": true}}},{"id": "BS19-040-e3","kind": "symbolAddGrant","levels": [3],"whileCombined": true,"target": "self","color": "white","count": 1,"condition": {"combinedWithSymbollessBrave": true}}]
+    "effects": [
+      {
+        "id": "BS19-040-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "constraint": {
+          "type": "combinedBraveIndestructible"
+        }
+      },
+      {
+        "id": "BS19-040-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "oncePerTurn": true,
+        "onceScope": "name",
+        "action": {
+          "type": "refresh",
+          "count": 1,
+          "filter": {
+            "excludeSelf": true
+          }
+        }
+      },
+      {
+        "id": "BS19-040-e3",
+        "kind": "symbolAddGrant",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "target": "self",
+        "color": "white",
+        "count": 1,
+        "condition": {
+          "combinedWithSymbollessBrave": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-041",
@@ -443,7 +516,46 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：自分の手札にあるブレイヴカードをコスト合計12まで、コストを支払わずに好きなだけ召喚できる。\nただし、『このブレイヴの召喚時』効果は発揮されない。",
-    "effects": [{"id": "BS19-042-e1","kind": "triggered","keyword": "rensa","trigger": "onSummon","levels": [1,2],"optional": false,"action": {"type": "sequence","actions": [{"type": "return","to": "hand","count": 1},{"type": "if","cond": {"count": {"ownColorSymbols": "green"},"atLeast": 1},"then": {"type": "summon","from": "hand","bravesOnly": true,"repeatWhileChosen": true,"skipOnSummon": true,"costBudget": 12}}]}}]
+    "effects": [
+      {
+        "id": "BS19-042-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "return",
+              "to": "hand",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "summon",
+                "from": "hand",
+                "bravesOnly": true,
+                "repeatWhileChosen": true,
+                "skipOnSummon": true,
+                "costBudget": 12
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-043",
@@ -482,7 +594,23 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のライフは、ターンごとにシンボル2つ以上を持つ相手のスピリット1体から1までしか減らされない。",
-    "effects": [{"id": "BS19-043-e1","kind": "globalConstraint","levels": [1,2],"phase": "attack","turn": "opponent","constraint": {"type": "ownLifeDamageCapPerSourcePerTurn","max": 1,"minSymbols": 2}}]
+    "effects": [
+      {
+        "id": "BS19-043-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "constraint": {
+          "type": "ownLifeDamageCapPerSourcePerTurn",
+          "max": 1,
+          "minSymbols": 2
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-044",
@@ -524,7 +652,72 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n【連鎖】を持つ自分のスピリット1体につき、相手のスピリット1体を手札に戻す。\nLv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+4000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BP4000以下の相手のスピリットすべてを疲労させる。",
-    "effects": [{"id": "BS19-044-k1","kind": "keyword","keyword": "rensa","levels": [1,2,3]},{"id": "BS19-044-e1","kind": "triggered","trigger": "onSummon","levels": [1,2,3],"optional": false,"action": {"type": "return","to": "hand","count": 1,"countCounter": {"ownKeyword": "rensa"}}},{"id": "BS19-044-e2","kind": "triggered","keyword": "rensa","trigger": "onBlock","eventTarget": "use","levels": [2,3],"optional": false,"action": {"type": "sequence","actions": [{"type": "timedEffect","content": [{"type": "bp","amount": 4000}],"duration": "battle","target": "self"},{"type": "if","cond": {"count": {"ownColorSymbols": "green"},"atLeast": 1},"then": {"type": "exhaust","count": 1,"all": true,"filter": {"maxBp": 4000}}}]}}]
+    "effects": [
+      {
+        "id": "BS19-044-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "countCounter": {
+            "ownKeyword": "rensa"
+          }
+        }
+      },
+      {
+        "id": "BS19-044-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBlock",
+        "eventTarget": "use",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "bp",
+                  "amount": 4000
+                }
+              ],
+              "duration": "battle",
+              "target": "self"
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "exhaust",
+                "count": 1,
+                "all": true,
+                "filter": {
+                  "maxBp": 4000
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-073",
@@ -673,7 +866,38 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『お互いのアタックステップ』\nBP4000以下のスピリットのアタックでは、お互いのライフは減らない。\nLv2\n相手のスピリット/マジックの効果で相手の手札が増えたとき、増えたカード1枚につき、自分はデッキから1枚ドローできる。",
-    "effects": [{"id": "BS19-088-e1","kind": "globalConstraint","levels": [1,2],"constraint": {"type": "noLifeDamageByCost","maxBp": 4000}},{"id": "BS19-088-e2","kind": "fieldEvent","event": "opponentHandAdded","levels": [2],"sourceTypes": ["spirit","magic"],"repeatPerCount": true,"optional": true,"action": {"type": "draw","count": 1}}]
+    "effects": [
+      {
+        "id": "BS19-088-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noLifeDamageByCost",
+          "maxBp": 4000
+        }
+      },
+      {
+        "id": "BS19-088-e2",
+        "kind": "fieldEvent",
+        "event": "opponentHandAdded",
+        "levels": [
+          2
+        ],
+        "sourceTypes": [
+          "spirit",
+          "magic"
+        ],
+        "repeatPerCount": true,
+        "optional": true,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-089",
@@ -780,7 +1004,49 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のメインステップ』\n自分の緑のスピリットが召喚されたとき、ボイドからコア1個を自分の白のスピリットに置く。\nLv2\n【連鎖】を持つ自分のスピリットが相手の効果によって破壊されたとき、破壊された自分のスピリット1体を手札に戻す。",
-    "effects": [{"id": "BS19-090-e1","kind": "fieldEvent","event": "ownSpiritSummoned","levels": [1,2],"phase": "main","turn": "own","subjectFilter": {"color": "green"},"action": {"type": "placeCores","from": "void","to": "spirit","count": 1,"filter": {"color": "white"}}},{"id": "BS19-090-e2","kind": "fieldEvent","event": "ownSpiritDestroyed","levels": [2],"byOpponentEffectOnly": true,"subjectFilter": {"keyword": "rensa"},"optional": false,"action": {"type": "return","to": "hand","target": "self"}}]
+    "effects": [
+      {
+        "id": "BS19-090-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "main",
+        "turn": "own",
+        "subjectFilter": {
+          "color": "green"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "count": 1,
+          "filter": {
+            "color": "white"
+          }
+        }
+      },
+      {
+        "id": "BS19-090-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          2
+        ],
+        "byOpponentEffectOnly": true,
+        "subjectFilter": {
+          "keyword": "rensa"
+        },
+        "optional": false,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-106",
@@ -800,7 +1066,17 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\n相手のスピリット1体を指定する。\nこのターンの間、指定された相手のスピリットのアタック/効果によって、自分のライフは減らない。",
-    "effects": [{"id": "BS19-106-e1","kind": "magic","timing": "flash","action": {"type": "negateLifeDamageFromTarget","includeEffects": true}}]
+    "effects": [
+      {
+        "id": "BS19-106-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "negateLifeDamageFromTarget",
+          "includeEffects": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-107",

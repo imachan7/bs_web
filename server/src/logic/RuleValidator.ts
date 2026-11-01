@@ -43,7 +43,7 @@ import {
     summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword, noteHeldKeyword } from "../../../shared/rules"
+import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, instColors, matchesBraveCondition, timedMagicLocked, spiritHasKeyword, noteHeldKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     effectiveBp,
@@ -1457,12 +1457,12 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         state.battle.attackerInstanceId,
     )
     // 【激突】持ちのアタック時はブロック強制。判定は kind:"keyword" 宣言の levels を尊重する
-    // （Lv2書きはLv1アタックでは強制しない。一時付与も spiritHasLabeledKeyword で拾う）。
+    // （Lv2書きはLv1アタックでは強制しない。一時付与・継続付与も spiritHasKeyword で拾う）。
     // hasBlocker（疲労とレベルしか見ない）だと cantBlock 等でブロックできない個体を数えて防御側が詰むため
     // hasLegalBlocker（validateBlock を実際に通る個体）で判定する（part65 §C）。強制ブロック（mustBlockGrant）と同じ「可能ならば」の解釈
     if (
         attacker &&
-        spiritHasLabeledKeyword(state, state.turnPlayer, attacker, "clash") &&
+        spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
         hasLegalBlocker(state, pid, undefined, { pid: state.turnPlayer, inst: attacker })
     ) {
         noteHeldKeyword(state, state.turnPlayer, attacker, "clash")
