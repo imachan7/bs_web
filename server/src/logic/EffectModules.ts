@@ -57,6 +57,7 @@ import {
     hasBounceImmunity,
     hasKeyword,
     instanceSymbolCount,
+    instBaseCost,
     instColors,
     instHasColor,
     instHasCost,
@@ -625,13 +626,17 @@ export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean 
 
 // kind:"summonedExhaustGrant"：ownerPid のフィールドに「相手のスピリットは召喚されたとき疲労する」を持つ有効な発生源があるか（condition.selfRested は発生源自身が疲労状態のときのみ）。
 // GameEngine.doSummon が、召喚した側から見た相手（=この付与の持ち主）に対して呼ぶ
-export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): boolean {
+export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId, summoned: CardInstance): boolean {
     for (const source of effectSources(state, ownerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "summonedExhaustGrant") continue
             if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (effect.condition?.selfRested && !source.isRested) continue
+            if (effect.condition?.ownBurstSet && !state.players[ownerPid].burstSet) continue
+            const pt = effect.phaseTurn
+            if (pt && (state.phase !== pt.phase || (pt.turn !== "both" && (pt.turn === "own") !== (state.turnPlayer === ownerPid)))) continue
+            if (effect.filter && !matchesTarget(state, opponentOf(ownerPid), summoned, effect.filter, source.instanceId)) continue
             noteCoverage(effect, "summonedExhaustGrant")
             return true
         }
@@ -1119,6 +1124,11 @@ export function countEffectCounter(
     }
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
+    if (counter === "blockerCost") {
+        const b = state.battle?.blockerInstanceId
+        const f = b ? findSpiritAny(state, b) : undefined
+        return f ? instBaseCost(f.inst) : 0
+    }
     if (counter === "lastMoved") return lastMovedCount(state)
     if (counter === "lastTargetCount") return lastTargetsOf(state).length
     if (counter === "lastCores") return lastCoresCount(state)
@@ -1166,6 +1176,9 @@ export function countEffectCounter(
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
     if (counter === "ownCombinedSpirits") {
         return state.players[owner].field.spirits.filter((s) => instIsCombined(s)).length
+    }
+    if (counter === "ownCombinedBraves") {
+        return state.players[owner].field.spirits.reduce((n, s) => n + (s.braveRefs?.length ?? 0), 0)
     }
     if (counter === "ownBraveSpirits") {
         return state.players[owner].field.spirits.filter((s) => getCard(s.cardId).type === "brave").length

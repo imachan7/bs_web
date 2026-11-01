@@ -1,5 +1,5 @@
 // ターン進行・フェーズ遷移の制御
-import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { trashCardEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { handGainDenial } from "./handGate"
 import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
@@ -430,7 +430,7 @@ export function endTurn(state: GameState): void {
         const returnedCounts = new Map<string, number>()
         for (let i = p.trashCards.length - 1; i >= 0; i--) {
             const cardId = p.trashCards[i]
-            if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || zoneSpiritEffectsDisabled(state, cardId)) continue
+            if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || trashCardEffectsDisabled(state, cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
             if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
@@ -523,6 +523,7 @@ export function endTurn(state: GameState): void {
     delete state.lifeLostThisTurn
     delete state.magicEffectsUsedByName
     delete state.ownSpiritDestroyedThisTurn
+    delete state.ownSpiritDestroyedByBattleThisTurn
     delete state.spiritVanishedThisTurn
     delete state.oppSpiritRemovedByEffectThisTurn
     delete state.ownSpiritDestroyedByOwnEffectColors

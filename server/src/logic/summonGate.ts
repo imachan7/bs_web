@@ -1,7 +1,7 @@
 // 召喚を止める禁止の問い合わせ。召喚の制限は効果文に「通常の召喚」と書かれていなければ、効果による召喚にも効く
 // （2026-10-29 ユーザー確認。docs/design/EFFECT_GATE.md §4 PR 2a）。新しい禁止はここへ足す
 import { noteCoverage } from "../../../shared/coverage"
-import { effectSources, isVanillaCard, timedPlayerRules } from "../../../shared/rules"
+import { effectSources, isVanillaCard, timedPlayerRules, trashFrozen } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { braveCombineCandidates } from "../../../shared/summon"
 import type { GameState, PlayerId } from "../type"
@@ -43,6 +43,18 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
             for (const { effect } of globalConstraintsOf(state, p, "noSummonByEffect", true)) {
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 return "効果による召喚が禁じられています"
+            }
+        }
+    }
+
+    if (a.cause === "effect" && a.from === "trash" && trashFrozen(state)) return "トラッシュのカードは効果を受けない"
+
+    if (a.cause === "effect" && card.type === "brave") {
+        for (const p of both) {
+            for (const { effect } of globalConstraintsOf(state, p, "braveSummonNeedsCost", true)) {
+                if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                noteCoverage(effect, "globalConstraint")
+                return "コストを支払わなければブレイヴを召喚できません"
             }
         }
     }

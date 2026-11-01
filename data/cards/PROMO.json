@@ -293,7 +293,28 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv2『自分のアタックステップ』\n自分のフィールドの系統：「竜人」/「翼竜」を持つスピリットすべてをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P002-e1",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": [
+            "竜人",
+            "翼竜"
+          ],
+          "amount": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P003",
@@ -370,7 +391,30 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、疲労している相手のスピリット上のコア1個を相手のトラッシュに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P004-e1",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          1,
+          2
+        ],
+        "battleRole": "attacker",
+        "optional": false,
+        "action": {
+          "type": "removeCores",
+          "from": [
+            "spirit"
+          ],
+          "to": "trash",
+          "count": 1,
+          "filter": {
+            "rested": true
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P005",
@@ -406,7 +450,34 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のフィールドに系統：「歌鳥」を持つスピリットがいるとき、このスピリットをBP+2000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P005-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "condition": {
+          "ownSpiritMatches": {
+            "family": "歌鳥"
+          }
+        },
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "P006",
@@ -490,7 +561,19 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットを対象としたBPを+するマジックの効果が使用されたとき、さらにこのスピリットをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P007-e1",
+        "kind": "magicBuffBonus",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "self",
+        "amountBonus": 1000
+      }
+    ]
   },
   {
     "cardId": "P008",
@@ -531,7 +614,24 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv2･Lv3『このスピリットの破壊時』\n系統：「爪鳥」を持つ自分のスピリット1体を回復させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P008-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "refresh",
+          "filter": {
+            "family": "爪鳥"
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P009",
@@ -567,7 +667,24 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットは、BPを比べ相手のスピリットだけを破壊したとき、相手のデッキを上から1枚破棄する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P009-e1",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P010",
@@ -604,7 +721,40 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のフィールドに系統：「翼竜」を持つスピリットが2体以上いるとき、このスピリットをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P010-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownSpirits": {
+                "family": "翼竜"
+              }
+            },
+            "atLeast": 2
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "bp",
+                "amount": 1000
+              }
+            ],
+            "duration": "battle",
+            "target": "self"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P011",
@@ -687,7 +837,18 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P012-e1",
+        "kind": "keyword",
+        "keyword": "funsai",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      }
+]
   },
   {
     "cardId": "P013",
@@ -730,7 +891,29 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P013-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": [
+            "地竜"
+          ],
+          "amount": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P014",
@@ -766,7 +949,24 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のトラッシュから、コア2個を自分のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P014-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "trash",
+          "to": "reserve",
+          "count": 2
+        }
+      }
+    ]
   },
   {
     "cardId": "P015",
@@ -801,7 +1001,25 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv2『相手のアタックステップ』\n系統：「空魚」を持つ自分のスピリットすべてをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P015-e1",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": "空魚",
+          "amount": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P016",
@@ -839,7 +1057,20 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2【装甲：緑】\nこのスピリットは、指定された色の相手のスピリット/ネクサス/マジックの効果を受けない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P016-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "green"
+        ]
+      }
+    ]
   },
   {
     "cardId": "P017",
@@ -881,7 +1112,38 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「空牙」/「神将」を持つ自分のスピリットすべてをBP+1000する。\nLv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P017-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": [
+            "空牙",
+            "神将"
+          ],
+          "amount": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      },
+      {
+        "id": "P017-e2",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          3
+        ]
+      }
+    ]
   },
   {
     "cardId": "P018",
@@ -918,7 +1180,27 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を【暴風】を持つ自分のスピリット1体の上に置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P018-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "count": 1,
+          "filter": {
+            "keyword": "bofu"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P019",
@@ -960,7 +1242,48 @@
     "rarity": "P",
     "limited": false,
     "effect": "【転召：コスト3以上/トラッシュ】\n召喚コスト支払い後、指定コスト以上の自分のスピリット1体の上のコアすべてを指定場所に置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nBP4000以下のスピリット1体を破壊し、自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P019-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 3,
+        "dest": "trash"
+      },
+      {
+        "id": "P019-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+        "type": "sequence",
+        "actions": [
+          {
+            "type": "destroy",
+            "count": 1,
+            "anySide": true,
+            "filter": {
+              "maxBp": 4000
+            }
+          },
+          {
+            "type": "draw",
+            "count": 1
+          }
+        ]
+      },
+      "optional": false
+      }
+    ]
   },
   {
     "cardId": "P020",
@@ -1005,7 +1328,29 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分のフィールドに系統：「機人」を持つスピリットがいる間、このスピリットをBP+3000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P020-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amount": 3000,
+          "condition": {
+            "hasOwnFamily": "機人"
+          },
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P021",
@@ -1048,7 +1393,28 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分のトラッシュから［大龍皇ジークムンド］1枚を選び手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P021-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "name": "大龍皇ジークムンド"
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P022",
@@ -1084,7 +1450,61 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分のフィールドにネクサスがある間、このスピリットをBP+2000する。\nLv2【強襲：1】『このスピリットのアタック時』\n自分のネクサス1つを疲労させることで、ターン中に指定された回数まで、このスピリットは回復できる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P022-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amount": 2000,
+          "condition": {
+            "ownNexusAtLeast": 1
+          },
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          },
+          "attackingOnly": true
+        }
+      },
+      {
+        "id": "P022-e2",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "levels": [
+          2
+        ],
+        "count": 1
+      },
+      {
+        "id": "P022-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      }
+    ]
   },
   {
     "cardId": "P023",
@@ -1126,7 +1546,30 @@
     "rarity": "P,EX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「星竜」/「翼竜」を持つ自分のスピリットすべてをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P023-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": [
+            "星竜",
+            "翼竜"
+          ],
+          "amount": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P024",
@@ -1167,7 +1610,27 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n自分のフィールドに【聖命】を持つスピリットがいる間、このスピリットは疲労状態で自分のフィールドに戻る。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P024-e1",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "scope": "self",
+        "when": {},
+        "condition": {
+          "ownSpiritMatches": {
+            "keyword": "seimei"
+          }
+        },
+        "revived": {
+          "rested": true
+        }
+      }
+    ]
   },
   {
     "cardId": "P025",
@@ -1209,7 +1672,43 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\nLv2･Lv3『このスピリットの破壊時』\n自分のトラッシュにある、系統：「妖蛇」を持つスピリットカード1枚を選んで手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P025-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "P025-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "cardType": "spirit",
+            "family": "妖蛇"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P026",
@@ -1251,7 +1750,48 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n系統：「甲竜」/「神将」を持つ自分のスピリットすべてをBP+1000する。\nLv3『このスピリットのブロック時』\nこのスピリットがブロックした系統：「空牙」を持つ相手のスピリット1体を手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P026-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": [
+            "甲竜",
+            "神将"
+          ],
+          "amount": 1000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      },
+      {
+        "id": "P026-e2",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          3
+        ],
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "filter": {
+            "family": "空牙"
+          }
+        },
+        "optional": false,
+        "eventTarget": "use"
+      }
+    ]
   },
   {
     "cardId": "P027",
@@ -1289,7 +1829,60 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターン中に1回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2『このスピリットのアタック時』\nコスト3以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P027-e1",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "levels": [
+          1,
+          2
+        ],
+        "count": 1
+      },
+      {
+        "id": "P027-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      },
+      {
+        "id": "P027-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P028",
@@ -1327,7 +1920,21 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "P028-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "levels": null,
+        "whileCombined": true,
+        "colors": [
+          "white"
+        ]
+      }
+    ]
   },
   {
     "cardId": "P029",
@@ -1363,8 +1970,50 @@
         "bp": 2000
       }
     ],
+    "braveCondition": {"minCost": 4},
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "effects": [
+      {
+        "id": "P029-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "P029-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "cantUseMagicForPid",
+                "allowColors": "opponentFieldSymbols"
+              }
+            }
+          ],
+          "duration": "battle",
+          "side": "opponent"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P030",
@@ -1402,7 +2051,39 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {"minCost": 4},
+    "effects": [
+      {
+        "id": "P030-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "draw",
+              "count": 1
+            },
+            {
+              "type": "removeCores",
+              "from": [
+                "spirit"
+              ],
+              "to": "reserve",
+              "count": 1,
+              "filter": {
+                "cost": {
+                  "max": 4
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "P031",
@@ -1438,7 +2119,37 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {"minCost": 4},
+    "effects": [
+      {
+        "id": "P031-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        }
+      },
+      {
+        "id": "P031-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "condition": {
+          "firstAttackOfTurn": true
+        },
+        "optional": false,
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "P032",
@@ -1483,7 +2194,54 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのターンにBPを比べ自分のスピリットが破壊されているとき、このスピリットはブロックされない。\nLv3『お互いのスタートステップ』\n色1色を指定する。このターンの間、相手のスピリットすべては指定した色のシンボル1つを失う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P032-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "ownSpiritDestroyedByBattleThisTurn": true
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "unblockable"
+              }
+            ],
+            "duration": "battle",
+            "target": "self"
+          }
+        }
+      },
+      {
+        "id": "P032-e2",
+        "kind": "step",
+        "step": "start",
+        "turn": "both",
+        "levels": [
+          3
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "symbolLoss"
+            }
+          ],
+          "duration": "turn",
+          "all": true
+        }
+      }
+    ]
   },
   {
     "cardId": "P033",
@@ -1522,7 +2280,26 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "P033-e1",
+        "kind": "fieldEvent",
+        "event": "ownMagicUsed",
+        "levels": null,
+        "whileCombined": true,
+        "condition": "selfInBattle",
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "maxCostLastMagic": true
+          },
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P034",
@@ -1561,7 +2338,46 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "P034-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "BP4000以下の相手のスピリット1体",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "count": 1,
+                  "filter": {
+                    "maxBp": 4000
+                  }
+                }
+              ]
+            },
+            {
+              "label": "相手のネクサス1つ",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "nexus": "only",
+                  "count": 1
+                }
+              ]
+            }
+          ]
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P035",
@@ -1599,7 +2415,39 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2\n相手のスピリット/ブレイヴ/マジックの効果で、カード名に「月光」と入っている自分のスピリット上に置いてあるコアは取り除くことができない。\n【合体時】Lv2\n相手のスピリット/ブレイヴ/マジックの効果で、自分のスピリット上のコアが取り除かれたとき、取り除かれたコア1個につき、相手のスピリット上のコア1個をボイドに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P035-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "coresCantBeRemovedByOpponent",
+          "nameContains": "月光"
+        }
+      },
+      {
+        "id": "P035-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritCoresRemovedByOpponent",
+        "levels": [
+          2
+        ],
+        "whileCombined": true,
+        "countMode": "cores",
+        "repeatPerCount": true,
+        "action": {
+          "type": "removeCores",
+          "from": [
+            "spirit"
+          ],
+          "to": "void",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P036",
@@ -1638,7 +2486,44 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2\nカード名に「月光」と入っている自分のスピリットすべては、相手のブレイヴの効果を受けない。\n【合体時】Lv2『このスピリットのブロック時』\nBPを比べBP10000以上の相手のスピリットに破壊されたとき、このスピリット上のコア1個を自分のトラッシュに置くことで、このスピリットは回復状態で自分のフィールドに戻る。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P036-e1",
+        "kind": "braveImmuneGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "scope": "all",
+        "filter": {
+          "nameContains": "月光"
+        }
+      },
+      {
+        "id": "P036-e2",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2
+        ],
+        "scope": "self",
+        "whileCombined": true,
+        "when": {
+          "byBattle": true,
+          "byBattleKillerMinBp": 10000
+        },
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "opponent"
+        },
+        "cost": {
+          "oneCoreToTrash": true
+        },
+        "revived": {
+          "rested": false
+        }
+      }
+    ]
   },
   {
     "cardId": "P037",
@@ -1681,7 +2566,49 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分がカード名に「月光」と入っているスピリットカードを召喚するとき、このスピリットに白のシンボル2つを追加する。\n【合体時】Lv3『自分のメインステップ』\nカード名に「月光」と入っている自分のスピリットが召喚されたとき、ボイドからコア1個を自分のライフに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P037-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "main",
+        "turn": "own",
+        "subjectFilter": {
+          "nameContains": "月光"
+        },
+        "action": {
+          "type": "addSymbolPermanent",
+          "count": 2,
+          "color": "white"
+        },
+        "selfMode": "source"
+      },
+      {
+        "id": "P037-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "phase": "main",
+        "turn": "own",
+        "subjectFilter": {
+          "nameContains": "月光"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P038",
@@ -1724,7 +2651,53 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nこのスピリットと同じBPの相手のスピリット1体を破壊する。\n【合体時】Lv2･Lv3『このスピリットのバトル時』\nカード名に「太陽」と入っている自分のスピリット1体につき、このスピリットをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P038-e1",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "eventTarget": "ignore",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "exactBp": "selfBp"
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "P038-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          2,
+          3
+        ],
+        "eventTarget": "use",
+        "whileCombined": true,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 1000,
+              "amountCounter": {
+                "ownNameIncludes": "太陽"
+              }
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P039",
@@ -1767,7 +2740,61 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるカード名に「太陽」と入っているスピリットカード1枚を手札に戻す。\n【合体時】Lv2･Lv3『このスピリットの破壊時』\n相手の合体スピリット1体を破壊する。\nその後、この合体スピリットのブレイヴを残し、スピリットだけを手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P039-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "cardType": "spirit",
+            "nameIncludes": "太陽"
+          }
+        }
+      },
+      {
+        "id": "P039-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "combined": true
+          }
+        }
+      },
+      {
+        "id": "P039-e3",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "scope": "self",
+        "whileCombined": true,
+        "revived": {
+          "toHand": true
+        },
+        "when": {}
+      }
+    ]
   },
   {
     "cardId": "P040",
@@ -1805,7 +2832,43 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『お互いのメインステップ』\nお互い、コストを支払わなければブレイヴを召喚できない。\n【合体時】Lv2『このスピリットの合体アタック時』\nカード名に「太陽」と入っている自分のスピリット1体につき、相手のコスト3以下のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P040-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "braveSummonNeedsCost"
+        },
+        "phase": "main",
+        "turn": "both"
+      },
+      {
+        "id": "P040-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "countCounter": {
+            "ownNameIncludes": "太陽"
+          },
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P041",
@@ -1843,7 +2906,22 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "P041-e1",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": null,
+        "whileCombined": true,
+        "colors": [
+          "red",
+          "purple"
+        ]
+      }
+    ]
   },
   {
     "cardId": "P042",
@@ -1882,7 +2960,27 @@
       }
     ],
     "braveConditionText": "コスト3以上",
-    "effects": []
+    "braveCondition": {"minCost": 3},
+    "effects": [
+      {
+        "id": "P042-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": null
+      },
+      {
+        "id": "P042-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "P043",
@@ -1918,8 +3016,56 @@
         "bp": 3000
       }
     ],
+    "braveCondition": {"minCost": 3},
     "braveConditionText": "コスト3以上",
-    "effects": []
+    "effects": [
+      {
+        "id": "P043-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "nexus",
+          "target": "one",
+          "count": 2
+        },
+        "optional": false
+      },
+      {
+        "id": "P043-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "declare",
+          "what": "cost",
+          "options": [
+            3,
+            4
+          ],
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "playerRule",
+                "rule": {
+                  "type": "cantUseMagicForPid",
+                  "declared": "match"
+                }
+              }
+            ],
+            "duration": "battle",
+            "side": "opponent"
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P044",
@@ -1958,7 +3104,26 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "P044-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 4000
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P045",
@@ -1998,7 +3163,75 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるマジックカード1枚を、手札またはデッキの上に戻す。\nLv2『お互いのアタックステップ』\n自分の手札にあるマジックカードすべての軽減シンボルすべてを[黄]として扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P045-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "手札に戻す",
+              "actions": [
+                {
+                  "type": "moveCards",
+                  "from": "trash",
+                  "count": 1,
+                  "dest": "hand",
+                  "pick": {
+                    "cardType": "magic"
+                  }
+                }
+              ]
+            },
+            {
+              "label": "デッキの上に戻す",
+              "actions": [
+                {
+                  "type": "moveCards",
+                  "from": "trash",
+                  "count": 1,
+                  "dest": "deckTop",
+                  "pick": {
+                    "cardType": "magic"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "optional": false
+      },
+      {
+        "id": "P045-e2",
+        "kind": "step",
+        "step": "attack",
+        "turn": "both",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "handReductionColorAsForPid",
+                "color": "yellow",
+                "cardType": "magic"
+              }
+            }
+          ],
+          "duration": "step",
+          "side": "own"
+        }
+      }
+    ]
   },
   {
     "cardId": "P046",
@@ -2041,7 +3274,29 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n系統：「地竜」を持つ自分のスピリット1体につき、BP3000以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P046-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "countCounter": {
+            "ownFamily": "地竜"
+          },
+          "filter": {
+            "maxBp": 3000
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P047",
@@ -2085,7 +3340,61 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP4000以下のスピリット2体までを破壊する。\nこの効果で破壊されたスピリット1体につき、自分はデッキから1枚ドローする。\n【合体時】Lv3『このスピリットの合体アタック時』\n自分のスピリット状態のブレイヴ1体か、自分の合体スピリットのブレイヴ1つにつき、BP7000以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P047-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "filter": {
+                "maxBp": 4000
+              },
+              "count": 2,
+              "upTo": true,
+              "anySide": true
+            },
+            {
+              "type": "draw",
+              "count": 1,
+              "countCounter": "lastMoved"
+            }
+          ]
+        }
+      },
+      {
+        "id": "P047-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "maxBp": 7000
+          },
+          "count": 1,
+          "countCounter": {
+            "plus": [
+              "ownBraveSpirits",
+              "ownCombinedBraves"
+            ]
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P048",
@@ -2106,7 +3415,31 @@
     "rarity": "P",
     "limited": false,
     "effect": "【バースト：自分のライフ減少後】\nBP3000以下の相手のスピリット2体を破壊する。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のネクサス1つを破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P048-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "action": {
+          "type": "destroy",
+          "count": 2,
+          "filter": {
+            "maxBp": 3000
+          }
+        },
+        "thenPay": "flash"
+      },
+      {
+        "id": "P048-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "destroy",
+          "nexus": "only",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P049",
@@ -2148,7 +3481,73 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のバースト発動後』\nBP4000以下の相手のスピリット1体を破壊する。または、相手のネクサス1つを破壊する。\nLv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『このスピリットのアタック時』\n自分のバーストをセットしている間、合体していないこのスピリットをBP+4000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P049-e1",
+        "kind": "fieldEvent",
+        "event": "ownBurstActivated",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "BP4000以下の相手のスピリット1体を破壊する",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "filter": {
+                    "maxBp": 4000
+                  },
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "label": "相手のネクサス1つを破壊する",
+              "actions": [
+                {
+                  "type": "destroy",
+                  "nexus": "only",
+                  "count": 1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "P049-e2",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "P049-e3",
+        "kind": "aura",
+        "levels": [
+          2,
+          3
+        ],
+        "whileOwnBurstSet": true,
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "attackingOnly": true,
+          "amount": 4000,
+          "condition": {
+            "selfNotCombined": true
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P050",
@@ -2189,7 +3588,50 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n疲労状態の相手の合体スピリット1体を破壊する。\nLv2･Lv3『自分のバースト発動後』\nコスト4以下の相手のスピリットすべてのコア1個ずつを相手のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P050-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "rested": true,
+            "combined": true
+          }
+        }
+      },
+      {
+        "id": "P050-e2",
+        "kind": "fieldEvent",
+        "event": "ownBurstActivated",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "removeCores",
+          "from": [
+            "spirit"
+          ],
+          "to": "reserve",
+          "target": "all",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 4
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P051",
@@ -2225,7 +3667,53 @@
     "rarity": "P",
     "limited": false,
     "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\n【神速】/【暴風】を持つ自分のスピリット1体を手札に戻すことで、このスピリットカードを召喚する。\nLv2『相手のアタックステップ』\nステップ開始時、このスピリットを疲労させることで、相手のスピリット1体を疲労させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P051-e1",
+        "kind": "burst",
+        "event": "opponentSummonEffectResolved",
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "return",
+            "to": "hand",
+            "side": "own",
+            "count": 1,
+            "filter": {
+              "keyword": [
+                "soku",
+                "bofu"
+              ]
+            }
+          },
+          "then": {
+            "type": "summon",
+            "from": "burst"
+          }
+        }
+      },
+      {
+        "id": "P051-e2",
+        "kind": "step",
+        "step": "attack",
+        "turn": "opponent",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "target": "self",
+            "count": 1
+          },
+          "then": {
+            "type": "exhaust",
+            "count": 1
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P052",
@@ -2261,7 +3749,47 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のバーストをセットしている間、合体していないこのスピリットをBP+4000する。\nLv2『相手のアタックステップ』\nコスト5以下の相手のスピリットがアタックしたとき、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P052-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "whileOwnBurstSet": true,
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "blockingOnly": true,
+          "amount": 4000,
+          "condition": {
+            "selfNotCombined": true
+          }
+        }
+      },
+      {
+        "id": "P052-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          2
+        ],
+        "subjectSide": "opponent",
+        "subjectFilter": {
+          "cost": {
+            "max": 5
+          }
+        },
+        "phase": "attack",
+        "turn": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "P053",
@@ -2302,7 +3830,24 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv2･Lv3『このスピリットの破壊時』\n自分のバーストをセットしているとき、このスピリットは疲労状態で自分のフィールドに残る。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P053-e1",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          2,
+          3
+        ],
+        "scope": "self",
+        "when": {},
+        "condition": {
+          "ownBurstSet": true
+        },
+        "revived": {
+          "rested": true
+        }
+      }
+    ]
   },
   {
     "cardId": "P054",
@@ -2340,7 +3885,46 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n系統：「異合」/「海首」を持つ自分のスピリット1体につき、コスト3以下の相手のスピリット1体を破壊する。\nLv1･Lv2\n自分のバーストをセットしている間、相手の合体スピリットすべての「合体時BP+」を0として扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P054-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "countCounter": {
+            "ownFamily": [
+              "異合",
+              "海首"
+            ]
+          },
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "P054-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "braveBpBonusZero",
+          "side": "opponent"
+        },
+        "whileOwnBurstSet": true
+      }
+    ]
   },
   {
     "cardId": "P055",
@@ -2381,7 +3965,40 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\n自分のスピリットの【強襲】の効果を、ネクサスではなくこのスピリットを疲労させて使用できる。\nLv2･Lv3『自分のアタックステップ』\n自分のネクサス1つにつき、【強襲】を持つ自分のスピリットすべてをBP+1000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P055-e1",
+        "kind": "kyoshuSelfExhaustGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "both"
+        }
+      },
+      {
+        "id": "P055-e2",
+        "kind": "aura",
+        "levels": [
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amountPer": 1000,
+          "counter": "ownNexuses",
+          "keywordFilter": "kyoshu",
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P056",
@@ -2402,7 +4019,32 @@
     "rarity": "P",
     "limited": false,
     "effect": "【バースト：相手による自分のスピリット破壊後】\n相手のスピリット1体を手札に戻す。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\n相手のネクサス1つを手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P056-e1",
+        "kind": "burst",
+        "event": "ownSpiritDestroyed",
+        "subjectSide": "own",
+        "byOpponentEffectOnly": true,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1
+        },
+        "thenPay": "flash"
+      },
+      {
+        "id": "P056-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "nexus": "only",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P057",
@@ -2443,7 +4085,35 @@
     "rarity": "P",
     "limited": false,
     "effect": "【不死：コスト5/6】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、自分のコスト5/6のスピリットが破壊されたとき召喚できる。\nLv2･Lv3『お互いのアタックステップ』\n相手によって自分のスピリットが破壊されたとき、自分のトラッシュのコア1個を自分のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P057-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          5,
+          6
+        ]
+      },
+      {
+        "id": "P057-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          2,
+          3
+        ],
+        "phase": "attack",
+        "byOpponentEffectOnly": true,
+        "action": {
+          "type": "placeCores",
+          "from": "trash",
+          "to": "reserve",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P058",
@@ -2479,7 +4149,53 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のスピリット1体を指定できる。\n指定したスピリットと同じコストの相手のスピリット1体を破壊する。\nLv2\n自分のネクサスが配置されたとき、配置されたネクサス1つにつき、コスト3以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P058-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "designate",
+              "side": "own",
+              "count": 1,
+              "upTo": true
+            },
+            {
+              "type": "destroy",
+              "count": 1,
+              "filter": {
+                "sameCostAsLastTarget": true
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "P058-e2",
+        "kind": "fieldEvent",
+        "event": "ownNexusDeployed",
+        "levels": [
+          2
+        ],
+        "selfMode": "source",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P059",
@@ -2521,7 +4237,47 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。\nLv2･Lv3『このスピリットのアタック時』\nBP3000以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P059-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      },
+      {
+        "id": "P059-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 3000
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P060",
@@ -2563,7 +4319,62 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のバーストをセットしているとき、このスピリットをBP+3000する。\nLv2･Lv3『自分のバースト発動後』\n発動したカードのバースト条件が【自分のライフ減少後】だったら、自分のリザーブからコア1個を自分のライフに置く。\nこの効果はターンに1回しか使えない。",
-    "effects": []
+    "effects": [
+    {
+      "id": "P060-e1",
+      "kind": "keyword",
+      "keyword": "clash",
+      "levels": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "P060-e2",
+      "kind": "triggered",
+      "trigger": "onAttack",
+      "levels": [
+        1,
+        2,
+        3
+      ],
+      "optional": false,
+      "condition": {
+        "ownBurstSet": true
+      },
+      "action": {
+        "type": "timedEffect",
+        "content": [
+          {
+            "type": "bp",
+            "amount": 3000
+          }
+        ],
+        "duration": "battle",
+        "target": "self"
+      }
+    },
+    {
+      "id": "P060-e3",
+      "kind": "fieldEvent",
+      "event": "ownBurstActivated",
+      "levels": [
+        2,
+        3
+      ],
+      "oncePerTurn": true,
+      "condition": {
+        "burstEvent": "ownLifeDamaged"
+      },
+      "action": {
+        "type": "placeCores",
+        "from": "reserve",
+        "to": "life",
+        "count": 1
+      }
+    }
+  ]
   },
   {
     "cardId": "P061",
@@ -2599,7 +4410,32 @@
     "rarity": "P",
     "limited": false,
     "effect": "【不死：コスト4】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト4の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2\n相手のスピリットの効果によって自分のデッキが1度に10枚以上破棄されたとき、相手のライフのコア2個を相手のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P061-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          4
+        ]
+      },
+      {
+        "id": "P061-e2",
+        "kind": "fieldEvent",
+        "event": "ownDeckMilled",
+        "levels": [
+          1,
+          2
+        ],
+        "byOpponentSpiritEffectOnly": true,
+        "minEventCount": 10,
+        "action": {
+          "type": "lifeCrush",
+          "count": 2
+        }
+      }
+    ]
   },
   {
     "cardId": "P062",
@@ -2636,7 +4472,54 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2【暴風：1】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット1体を疲労させる。\nLv2『自分のアタックステップ』\n【暴風：1】を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のスピリット1体を疲労させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P062-e1",
+        "kind": "keyword",
+        "keyword": "bofu",
+        "levels": [
+          1,
+          2
+        ],
+        "count": 1
+      },
+      {
+        "id": "P062-e2",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "levels": [
+          1,
+          2
+        ],
+        "eventTarget": "ignore",
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "chooserIsTarget": true,
+          "excludeTarget": true,
+          "countFromBofu": true
+        }
+      },
+      {
+        "id": "P062-e3",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDealtLife",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "keyword": "bofu",
+          "keywordCount": 1
+        },
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P063",
@@ -2679,7 +4562,70 @@
     "rarity": "P",
     "limited": false,
     "effect": "【バースト：自分のライフ減少後】\nこのスピリットカードを召喚する。\nその後、このターンの間、自分のスピリットすべてをBP+3000する。\nLv1･Lv2･Lv3『このスピリットのブロック時』\nボイドからコア1個をこのスピリットに置く。\nLv2･Lv3『相手のアタックステップ』\nこのスピリットは、このスピリットのコスト以下の相手のスピリットを疲労状態でブロックできる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P063-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "summon",
+              "from": "burst"
+            },
+            {
+              "type": "lendSelfThisTurn"
+            }
+          ]
+        }
+      },
+      {
+        "id": "P063-e2",
+        "kind": "aura",
+        "lentOnly": true,
+        "levels": null,
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "amount": 3000,
+          "lentOnly": true
+        }
+      },
+      {
+        "id": "P063-e3",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
+          "count": 1
+        },
+        "optional": false,
+        "eventTarget": "use"
+      },
+      {
+        "id": "P063-e4",
+        "kind": "constraint",
+        "levels": [
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "canBlockWhileRested",
+          "filter": {
+            "maxCostAsSelf": true
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P064",
@@ -2721,7 +4667,29 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『相手のメインステップ』\n自分のバーストをセットしている間、コスト6以上の相手のスピリットすべては、召喚されたとき疲労する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P064-e1",
+        "kind": "summonedExhaustGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "condition": {
+          "ownBurstSet": true
+        },
+        "filter": {
+          "cost": {
+            "min": 6
+          }
+        },
+        "phaseTurn": {
+          "phase": "main",
+          "turn": "opponent"
+        }
+      }
+    ]
   },
   {
     "cardId": "P065",
@@ -2762,7 +4730,37 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv3『自分のアタックステップ』\n自分のスピリットの【粉砕】/【大粉砕】で、バースト効果を持つカードが破棄されたとき、さらに、相手のデッキを上から2枚破棄する。",
-    "effects": []
+    "effects": [
+    {
+      "id": "P065-e1",
+      "kind": "keyword",
+      "keyword": "funsai",
+      "levels": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "P065-e2",
+      "kind": "fieldEvent",
+      "event": "ownFunsaiMilled",
+      "levels": [
+        3
+      ],
+      "phase": "attack",
+      "turn": "own",
+      "condition": {
+        "lastFunsaiHasBurst": true
+      },
+      "action": {
+        "type": "discard",
+        "from": "deck",
+        "side": "opponent",
+        "count": 2
+      }
+    }
+  ]
   },
   {
     "cardId": "P066",
@@ -2802,7 +4800,23 @@
     "rarity": "C,P",
     "limited": false,
     "effect": "Lv1･Lv2\nこのスピリットの色とシンボルは赤/紫/白/黄/青としても扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P066-e1",
+        "kind": "colorAs",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "red",
+          "purple",
+          "white",
+          "yellow",
+          "blue"
+        ]
+      }
+    ]
   },
   {
     "cardId": "P067",
@@ -2841,7 +4855,29 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットをBP+5000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P067-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P068",
@@ -2861,7 +4897,50 @@
     "rarity": "P",
     "limited": false,
     "effect": "【バースト：自分のライフ減少後】\nコアが1個の相手のスピリットすべてを疲労させる。\nその後コストを支払うことで、このカードのフラッシュ効果を発揮する。\nフラッシュ：\nボイドからコア1個を自分のスピリットに置く。\nさらに、ボイドからコア1個を、自分の[風の覇王ドルクス・ウシワカ]か、[グラント・ベンケイ]に置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P068-e1",
+        "kind": "burst",
+        "event": "ownLifeDamaged",
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "filter": {
+            "cores": 1
+          }
+        },
+        "thenPay": "flash"
+      },
+      {
+        "id": "P068-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "spirit",
+              "count": 1
+            },
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "spirit",
+              "count": 1,
+              "filter": {
+                "nameContains": [
+                  "風の覇王ドルクス・ウシワカ",
+                  "グラント・ベンケイ"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "P072",
@@ -2903,7 +4982,40 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。\nLv2･Lv3『自分のバースト発動後』\nそのバースト発動時に自分のスピリットが召喚されていたら、このスピリットを疲労させることで、そのバースト効果をもう1度発揮させる。",
-    "effects": []
+    "effects": [
+    {
+      "id": "P072-e1",
+      "kind": "keyword",
+      "keyword": "awaken",
+      "levels": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "P072-e2",
+      "kind": "fieldEvent",
+      "event": "ownBurstActivated",
+      "levels": [
+        2,
+        3
+      ],
+      "condition": {
+        "burstSummonedSpirit": true
+      },
+      "action": {
+        "type": "pay",
+        "cost": {
+          "type": "exhaust",
+          "target": "self"
+        },
+        "then": {
+          "type": "repeatBurstEffect"
+        }
+      }
+    }
+  ]
   },
   {
     "cardId": "P073",
@@ -2946,7 +5058,50 @@
     "limited": false,
     "effect": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】\nこのスピリットカードを召喚する。\n【不死：コスト6/7】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト6/7の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n【不死】で召喚されたとき、自分のトラッシュにあるブレイヴカード1枚を、コストを支払わずに召喚できる。",
     "limitCount": 1,
-    "effects": []
+    "effects": [
+      {
+        "id": "P073-e1",
+        "kind": "burst",
+        "event": "opponentSummonEffectResolved",
+        "action": {
+          "type": "summon",
+          "from": "burst"
+        }
+      },
+      {
+        "id": "P073-e2",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          6,
+          7
+        ]
+      },
+      {
+        "id": "P073-e3",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "condition": {
+          "selfSummonedByFushi": true
+        },
+        "optional": true,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "dest": "summon",
+          "pick": {
+            "cardType": "brave"
+          },
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P074",
@@ -2983,7 +5138,57 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のリザーブに置く。\nLv2『このスピリットのアタック時』\n自分のリザーブのコア2個を自分のトラッシュに置くことで、相手はバーストを発動できない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P074-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "P074-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "removeCores",
+            "reserveOnly": true,
+            "side": "own",
+            "from": [
+              "reserve"
+            ],
+            "to": "trash",
+            "count": 2
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "battleLock",
+                "lock": "burst"
+              }
+            ],
+            "duration": "battle",
+            "side": "opponent"
+          }
+        },
+        "optional": true
+      }
+    ]
   },
   {
     "cardId": "P075",
@@ -3019,7 +5224,51 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2【氷壁：赤/青】『相手のターン』\n相手が赤/青のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv1･Lv2『相手のメインステップ』\n相手の手札が増えたとき、増えたカード1枚につき、相手は、相手の手札1枚を破棄する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P075-e1",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "P075-e2",
+        "kind": "magicNegate",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "red",
+          "blue"
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "P075-e3",
+        "kind": "fieldEvent",
+        "event": "opponentHandAdded",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "main",
+        "turn": "opponent",
+        "repeatPerCount": true,
+        "action": {
+          "type": "discard",
+          "from": "hand",
+          "side": "opponent",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P076",
@@ -3060,7 +5309,28 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分がマジックカードを使用したとき、その効果発揮後、使用したマジックカードのコスト以下の相手のスピリット1体を手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P076-e1",
+        "kind": "fieldEvent",
+        "event": "ownMagicUsed",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "filter": {
+            "maxCostLastMagic": true
+          },
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "P077",
@@ -3097,7 +5367,65 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2『このスピリットのアタック時』\n相手は、疲労状態の自分のネクサスと同じコストのマジックカードを使用できない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P077-e1",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "P077-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        },
+        "optional": false
+      },
+      {
+        "id": "P077-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "cantUseMagicForPid",
+                "costs": "ownerRestedNexuses"
+              }
+            }
+          ],
+          "duration": "battle",
+          "side": "opponent"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "P078",
@@ -3133,7 +5461,55 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2\n自分の緑/白のスピリットがいる間、相手によってこのスピリットが破壊されたとき、このスピリットは疲労状態で自分のフィールドに残る。\nLv2『このスピリットのアタック時』\n自分の赤/紫/青のスピリットがいる間、このスピリットは、コスト6以上の相手のスピリットにブロックされない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P078-e1",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "self",
+        "when": {
+          "byOpponent": true
+        },
+        "condition": {
+          "ownSpiritMatches": {
+            "color": [
+              "green",
+              "white"
+            ]
+          }
+        },
+        "revived": {
+          "rested": true
+        }
+      },
+      {
+        "id": "P078-e2",
+        "kind": "constraint",
+        "levels": [
+          2
+        ],
+        "condition": {
+          "ownSpiritMatches": {
+            "color": [
+              "red",
+              "purple",
+              "blue"
+            ]
+          }
+        },
+        "constraint": {
+          "type": "unblockableBy",
+          "filter": {
+            "cost": {
+              "min": 6
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P079",
@@ -3155,7 +5531,34 @@
     "rarity": "P",
     "limited": false,
     "effect": "メイン：\nこのターンの間、スピリット1体に、本来持っている色とは別に、もう1色、好きな色を与える。\nフラッシュ：\nブロックしている自分のスピリット1体を回復させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P079-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "color"
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      },
+      {
+        "id": "P079-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "refresh",
+          "filter": {
+            "blocking": true
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P080",
@@ -3177,7 +5580,31 @@
     "rarity": "P",
     "limited": false,
     "effect": "メイン：\n自分はデッキから1枚ドローする。\nフラッシュ：\nコスト3以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P080-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "P080-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P081",
@@ -3201,7 +5628,41 @@
     "rarity": "P",
     "limited": false,
     "effect": "メイン：\nこのターンの間、自分のスピリットすべてに“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”を与える。\nフラッシュ：\n系統1つを指定する。指定した系統を持つ自分のスピリット2体を回復させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P081-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "keyword",
+              "keyword": "clash"
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
+        }
+      },
+      {
+        "id": "P081-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "declare",
+          "what": "family",
+          "from": "spirits",
+          "then": {
+            "type": "refresh",
+            "count": 2,
+            "filter": {
+              "declared": "match"
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "P082",
@@ -3225,7 +5686,29 @@
     "rarity": "P",
     "limited": false,
     "effect": "メイン：\n相手のスピリット2体を手札に戻す。\nフラッシュ：\n相手のネクサスすべてを破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P082-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 2
+        }
+      },
+      {
+        "id": "P082-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "destroy",
+          "nexus": "only",
+          "count": 1,
+          "all": true
+        }
+      }
+    ]
   },
   {
     "cardId": "P083",
@@ -3249,7 +5732,30 @@
     "rarity": "P",
     "limited": false,
     "effect": "メイン：\nBP10000以下の相手のスピリット1体を破壊する。\nフラッシュ：\n相手は、相手のスピリット3体を疲労させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P083-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 10000
+          }
+        }
+      },
+      {
+        "id": "P083-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "exhaust",
+          "count": 3,
+          "chooserIsTarget": true
+        }
+      }
+    ]
   },
   {
     "cardId": "P084",
@@ -3290,7 +5796,41 @@
     "rarity": "P",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nこのスピリット以外の自分のスピリットすべてをBP+2000する。\nLv3『このスピリットの破壊時』\nこのスピリットは手札に戻る。",
-    "effects": []
+    "effects": [
+      {
+        "id": "P084-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownOthers",
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      },
+      {
+        "id": "P084-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          3
+        ],
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "target": "self",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX01",
@@ -3332,7 +5872,50 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP3000以下のスピリットすべてを破壊し、破壊したスピリット1体につき、自分はデッキから1枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+4000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX01-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "all": true,
+          "anySide": true,
+          "filter": {
+            "maxBp": 3000
+          },
+          "drawPerDestroyed": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "PX01-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 4000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX02",
@@ -3369,7 +5952,45 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットは、相手のLv1スピリットをブロックしたとき疲労しない。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+4000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX02-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noRestWhenBlocking",
+          "filter": {
+            "level": [
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "PX02-e2",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 4000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false,
+        "eventTarget": "use"
+      }
+    ]
   },
   {
     "cardId": "PX03",
@@ -3406,7 +6027,40 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドから、コア1個ずつを自分のスピリットすべての上に置く。\nLv2『このスピリットのアタック時』\nボイドから、コア1個を自分のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX03-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "all",
+          "count": 1
+        }
+      },
+      {
+        "id": "PX03-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "PX04",
@@ -3449,7 +6103,41 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコア1個だけしか置かれていない相手のスピリットすべてを疲労させる。\nLv2･Lv3『このスピリットのアタック時』\n自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX04-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "all": true,
+          "filter": {
+            "cores": 1
+          }
+        }
+      },
+      {
+        "id": "PX04-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "PX05",
@@ -3491,7 +6179,45 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにある黄のマジックカードすべてを手札に戻す。\nLv2･Lv3『このスピリットのアタック時』\n自分のマジックカードすべてを、フラッシュタイミングでコストを支払わずに使用できる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX05-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": "all",
+          "dest": "hand",
+          "pick": {
+            "cardType": "magic",
+            "color": [
+              "yellow"
+            ]
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "PX05-e2",
+        "kind": "magicFreeGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "scope": "allMagicHandAndTegamoto",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "condition": "selfInBattle"
+      }
+    ]
   },
   {
     "cardId": "PX06",
@@ -3529,7 +6255,57 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト3以下のスピリットすべてを破壊する。\nこの効果で破壊されたスピリット1体につき、相手のデッキを上から2枚破棄する。\nLv2『このスピリットのバトル時』\n相手のデッキを上から3枚破棄する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX06-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "all": true,
+              "anySide": true,
+              "filter": {
+                "cost": {
+                  "max": 3
+                }
+              }
+            },
+            {
+              "type": "discard",
+              "from": "deck",
+              "side": "opponent",
+              "count": 2,
+              "countCounter": "lastMoved"
+            }
+          ]
+        }
+      },
+      {
+        "id": "PX06-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 3
+        },
+        "eventTarget": "ignore"
+      }
+    ]
   },
   {
     "cardId": "PX07",
@@ -3573,7 +6349,62 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【強襲：2】『このスピリットのアタック時』\nこのスピリットは、ターンに2回まで、自分のネクサス1つを疲労させることで回復できる。\nLv1･Lv2･Lv3『このスピリットのアタック時』\nBP5000以下の相手のスピリット1体を破壊する。\nこの効果で相手のスピリットを破壊したとき、自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX07-e1",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "count": 2
+      },
+      {
+        "id": "PX07-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      },
+      {
+        "id": "PX07-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 5000
+          },
+          "drawPerDestroyed": 1
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX08",
@@ -3611,7 +6442,68 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2【氷壁：紫/白/青】『相手のターン』\n相手が紫/白/青のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。\nLv1･Lv2『相手のアタックステップ』\nこのスピリットは疲労状態でブロックできる。\nLv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復し、相手のスピリット1体を疲労させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX08-e1",
+        "kind": "keyword",
+        "keyword": "hyoheki",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "PX08-e2",
+        "kind": "magicNegate",
+        "levels": [
+          1,
+          2
+        ],
+        "cost": {
+          "exhaustSelf": true
+        },
+        "colors": [
+          "purple",
+          "white",
+          "blue"
+        ],
+        "turn": "opponent"
+      },
+      {
+        "id": "PX08-e3",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "canBlockWhileRested"
+        }
+      },
+      {
+        "id": "PX08-e4",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          2
+        ],
+        "battleRole": "attacker",
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "refresh",
+              "target": "self"
+            },
+            {
+              "type": "exhaust",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "PX09",
@@ -3650,7 +6542,69 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2【暴風：5】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット5体を疲労させる。\nLv1･Lv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、相手のデッキを上から12枚破棄する。\nLv2『自分のアタックステップ』\n相手のスピリットが疲労したとき、そのスピリット1体につき、相手のデッキを上から3枚破棄する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX09-e1",
+        "kind": "keyword",
+        "keyword": "bofu",
+        "levels": [
+          1,
+          2
+        ],
+        "count": 5
+      },
+      {
+        "id": "PX09-e2",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "chooserIsTarget": true,
+          "countFromBofu": true
+        },
+        "eventTarget": "ignore"
+      },
+      {
+        "id": "PX09-e3",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 12
+        }
+      },
+      {
+        "id": "PX09-e4",
+        "kind": "fieldEvent",
+        "event": "anySpiritExhausted",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectSide": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 3
+        }
+      }
+    ]
   },
   {
     "cardId": "PX10",
@@ -3693,7 +6647,49 @@
     "rarity": "PX",
     "limited": false,
     "effect": "【不死：コスト2/3/4】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト2/3/4の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3\n相手のスピリットの効果で自分のデッキからマジックカードが破棄されたとき、このターンの間、自分のデッキは破棄されない。\nLv2･Lv3『このスピリットのバトル時』\n自分のトラッシュにあるカード1枚をデッキの下に戻すことで、相手のスピリットのコア2個を相手のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX10-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "id": "PX10-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "moveCards",
+            "from": "trash",
+            "dest": "deckBottom",
+            "count": 1
+          },
+          "then": {
+            "type": "removeCores",
+            "side": "opponent",
+            "from": [
+              "spirit"
+            ],
+            "to": "reserve",
+            "target": "spread",
+            "count": 2
+          }
+        },
+        "optional": false,
+        "eventTarget": "ignore"
+      }
+    ]
   },
   {
     "cardId": "PX11",
@@ -3736,7 +6732,78 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP5000以下の相手のスピリットすべてを手札に戻す。\nこの効果で手札に戻したスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。\nLv1･Lv2･Lv3\nこのスピリットは、相手のスピリットの効果を受けない。\nLv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX11-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "return",
+              "to": "hand",
+              "count": 1,
+              "all": true,
+              "filter": {
+                "maxBp": 5000
+              }
+            },
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "reserve",
+              "count": 1,
+              "countCounter": "lastMoved"
+            }
+          ]
+        },
+        "optional": false
+      },
+      {
+        "id": "PX11-e2",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "immuneToOpponentEffects",
+          "against": "spirit"
+        }
+      },
+      {
+        "id": "PX11-e3",
+        "kind": "keyword",
+        "keyword": "seimei",
+        "levels": [
+          2,
+          3
+        ]
+      },
+      {
+        "id": "PX11-e4",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "life",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX12",
@@ -3784,7 +6851,72 @@
     "rarity": "PX",
     "limited": false,
     "effect": "【転召：コスト5以上/ボイド】\n召喚コスト支払い後、自分のコスト5以上のスピリット1体の上のコアすべてをボイドに置かなければならない。\nLv1･Lv2･Lv3『このスピリットの召喚時』\nカード名に「ヴルム」と入っている自分のスピリット1体につき、相手のスピリット1体を破壊する。\nこの効果で破壊したスピリット1体につき、ボイドからコア1個を自分のライフに置く。\n【合体時】Lv3『このスピリットのバトル時』\nこのスピリットをBP+5000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX12-e1",
+        "kind": "keyword",
+        "keyword": "tensho",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "minCost": 5,
+        "dest": "void"
+      },
+      {
+        "id": "PX12-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "countCounter": {
+                "ownNameIncludes": "ヴルム"
+              }
+            },
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "life",
+              "count": 1,
+              "countCounter": "lastMoved"
+            }
+          ]
+        },
+        "optional": false
+      },
+      {
+        "id": "PX12-e3",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          3
+        ],
+        "eventTarget": "use",
+        "whileCombined": true,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX13",
@@ -3828,7 +6960,60 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv1･Lv2･Lv3\n相手によって自分のスピリットが手札に戻るとき、戻るスピリット1体につき、相手は手札1枚を破棄する。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリットにブロックされたとき、ブロックしたスピリットのコスト1につき、ブロックしていない相手のスピリット上のコア1個を相手のトラッシュに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX13-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "PX13-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritReturnedToHand",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "byOpponentOnly": true,
+        "action": {
+          "type": "discard",
+          "from": "hand",
+          "side": "opponent",
+          "count": 1
+        }
+      },
+      {
+        "id": "PX13-e3",
+        "kind": "triggered",
+        "trigger": "onBlocked",
+        "eventTarget": "ignore",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "removeCores",
+          "side": "opponent",
+          "from": [
+            "spirit"
+          ],
+          "to": "trash",
+          "target": "spread",
+          "filter": {
+            "notBlocking": true
+          },
+          "count": 1,
+          "countCounter": "blockerCost"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX14",
@@ -3872,7 +7057,79 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手のネクサス1つを破壊する。この効果でネクサスを破壊したとき、このスピリットは回復する。\nLv1･Lv2･Lv3『このスピリットのバトル時』\nカード名に「神」と入っている相手のスピリットとバトルしたとき、このスピリットをBP+5000する。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体を指定し、そのスピリットにアタックできる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX14-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "nexus": "only",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "last": {}
+              },
+              "then": {
+                "type": "refresh",
+                "target": "self"
+              }
+            }
+          ]
+        },
+        "optional": false
+      },
+      {
+        "id": "PX14-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "eventTarget": "use",
+        "condition": {
+          "battleOpponentMatches": {
+            "nameContains": "神"
+          }
+        },
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 5000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      },
+      {
+        "id": "PX14-e3",
+        "kind": "constraint",
+        "levels": [
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any"
+        }
+      }
+    ]
   },
   {
     "cardId": "PX15",
@@ -3911,7 +7168,66 @@
     "rarity": "X,PX",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nボイドからコア3個をこのスピリットに置く。\nLv1･Lv2『このスピリットのアタック時』\nBP合計10000まで相手のスピリットを好きなだけ疲労させる。\nLv2『このスピリットのアタック時』\n相手のライフを減らしたとき、このスピリットのコア3個を自分のトラッシュに置くことで、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX15-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
+          "count": 3
+        }
+      },
+      {
+        "id": "PX15-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": "any",
+          "budget": {
+            "by": "bp",
+            "amount": 10000
+          }
+        }
+      },
+      {
+        "id": "PX15-e3",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "removeCores",
+            "side": "own",
+            "target": "self",
+            "to": "trash",
+            "count": 3
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "PX16",
@@ -3954,7 +7270,64 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるカード名に「魔界七将」と入っているスピリットカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットの破壊時』\n相手のフィールドのコア1個を相手のトラッシュに置く。\nLv2･Lv3『このスピリットのアタック時』\n自分のスピリット1体が持つ『このスピリットの破壊時』効果1つを、スピリットを破壊させずに発揮させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX16-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "dest": "summon",
+          "pick": {
+            "cardType": "spirit",
+            "nameIncludes": "魔界七将"
+          },
+          "count": 1
+        }
+      },
+      {
+        "id": "PX16-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "removeCores",
+          "from": [
+            "spirit",
+            "nexus"
+          ],
+          "to": "trash",
+          "count": 1
+        }
+      },
+      {
+        "id": "PX16-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "fireEffect",
+          "trigger": "onDestroy",
+          "oneEffect": true
+        }
+      }
+    ]
   },
   {
     "cardId": "PX17",
@@ -3997,7 +7370,69 @@
     "rarity": "X,PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nこのスピリットは、相手のスピリットの効果を受けない。\nLv1･Lv2･Lv3『相手のアタックステップ開始時』\n相手のスピリット1体を指定できる。\nこのターンの間、指定されたスピリットはアタックできない。\nLv2･Lv3『このスピリットのアタック/ブロック時』\nバトル終了時、自分の白のスピリット1体を手札に戻すことで、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX17-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "immuneToOpponentEffects",
+          "against": "spirit"
+        }
+      },
+      {
+        "id": "PX17-e2",
+        "kind": "step",
+        "step": "attack",
+        "turn": "opponent",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "cantAttack"
+            }
+          ],
+          "duration": "turn"
+        }
+      },
+      {
+        "id": "PX17-e3",
+        "kind": "triggered",
+        "trigger": "onBattleEnd",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "return",
+            "to": "hand",
+            "side": "own",
+            "count": 1,
+            "filter": {
+              "color": "white"
+            }
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          }
+        },
+        "optional": false,
+        "eventTarget": "ignore"
+      }
+    ]
   },
   {
     "cardId": "PX18",
@@ -4039,7 +7474,53 @@
     "rarity": "PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリット1体を破壊する。\nLv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分のターン終了時、自分の赤のスピリットすべてを回復させ、アタックステップとエンドステップを順番に1回ずつ行う。\nこの効果はターンに1回しか使えない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX18-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "destroy",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "PX18-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          3
+        ],
+        "battleRole": "attacker",
+        "oncePerTurn": true,
+        "onceScope": "name",
+        "action": {
+          "type": "atTurnEnd",
+          "action": {
+            "type": "sequence",
+            "actions": [
+              {
+                "type": "refresh",
+                "all": true,
+                "filter": {
+                  "color": "red"
+                }
+              },
+              {
+                "type": "extraAttackStep"
+              }
+            ]
+          }
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "PX19",
@@ -4082,6 +7563,74 @@
     "rarity": "X,PX",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nお互いのトラッシュにあるカードすべては、この効果以外の一切の効果を受けず、その効果を使えない。\nLv2･Lv3『このスピリットのアタック時』\nコスト4以下の相手のスピリット1体を破壊する。\nこの効果でスピリットを破壊したとき、このスピリットは回復する。\nLv3『自分のアタックステップ』\nステップ開始時、相手のスピリット1体を指定できる。\nこのターンの間、そのスピリットをコスト3としても扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "PX19-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "trashFrozen"
+        }
+      },
+      {
+        "id": "PX19-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "filter": {
+                "cost": {
+                  "max": 4
+                }
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "last": {}
+              },
+              "then": {
+                "type": "refresh",
+                "target": "self"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "PX19-e3",
+        "kind": "step",
+        "step": "attack",
+        "turn": "own",
+        "levels": [
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "alsoCost",
+              "cost": 3
+            }
+          ],
+          "duration": "turn",
+          "count": 1
+        }
+      }
+    ]
   }
 ]

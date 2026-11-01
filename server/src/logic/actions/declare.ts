@@ -48,7 +48,9 @@ function substitute(node: unknown, what: DeclareAction["what"], values: Value[])
     if (obj["type"] === "declare") return obj
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(obj)) if (k !== "declared") out[k] = substitute(v, what, values)
-    if (obj["declared"] === "except") out["colorNotIn"] = values
+    if (obj["type"] === "cantUseMagicForPid" && obj["declared"] === "match") {
+        out["costs"] = values
+    } else if (obj["declared"] === "except") out["colorNotIn"] = values
     else if (obj["declared"] === "match") {
         const v = values[0]!
         if (what === "color") out["color"] = v

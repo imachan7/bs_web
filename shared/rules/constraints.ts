@@ -24,6 +24,7 @@ import { hasKeyword, bravesOf, combinedBraveColorsOk, currentLevel, effectActive
 import { entryActive } from "./effectStop"
 import { hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
+import { ownFieldSymbolColors } from "../cost"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- 制約・免疫 ----
@@ -344,6 +345,14 @@ export function hasBraveImmuneAgainst(inst: CardInstance, sourceColors: Color[] 
 export function zoneSpiritEffectsDisabled(board: Board, cardId: string): boolean {
     return card(cardId).type === "spirit" && hasGlobalConstraint(board, "handTrashSpiritEffectsDisabled")
 }
+// PX19：トラッシュのカードが効果を受けない／自身の効果を使えない（Q18473・Q18475）。トラッシュの枚数やシンボルを数えるだけの参照は止めない
+export function trashFrozen(board: Board): boolean {
+    return hasGlobalConstraint(board, "trashFrozen")
+}
+// トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
+export function trashCardEffectsDisabled(board: Board, cardId: string): boolean {
+    return zoneSpiritEffectsDisabled(board, cardId) || trashFrozen(board)
+}
 // 手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
     return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)
@@ -363,6 +372,24 @@ export function hasGlobalConstraint(
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
+                noteCoverage(effect, "globalConstraint")
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// 「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
+export function braveBpBonusZeroFor(board: Board, hostPid: PlayerId): boolean {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, pid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "braveBpBonusZero") continue
+                if (effect.constraint.side === "opponent" && pid === hostPid) continue
+                if (!entryActive(board, pid, inst, effect, level)) continue
+                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 noteCoverage(effect, "globalConstraint")
                 return true
             }
@@ -1288,8 +1315,17 @@ export function timedFlashLocked(board: Board, pid: PlayerId): boolean {
 }
 
 // 期間つき効果で、このマジックの色が使用禁止か（cantUseMagicForPid。手札・手元・トラッシュなど使用元は問わない）
-export function magicColorBanned(board: Board, pid: PlayerId, colors: Color[]): boolean {
-    return timedPlayerRules(board, pid).some((r) => r.type === "cantUseMagicForPid" && Array.isArray(r.colors) && r.colors.some((c) => colors.includes(c)))
+// 色・コストの禁止は使うたびに見る（ユーザー確認 2026-10-31）。cost は印刷コスト
+export function magicColorBanned(board: Board, pid: PlayerId, colors: Color[], cost?: number): boolean {
+    const foe: PlayerId = pid === "p1" ? "p2" : "p1"
+    return timedPlayerRules(board, pid).some((r) => {
+        if (r.type !== "cantUseMagicForPid") return false
+        if (Array.isArray(r.colors) && r.colors.some((c) => colors.includes(c))) return true
+        if (r.allowColors === "opponentFieldSymbols" && !colors.some((c) => ownFieldSymbolColors(board, pid).has(c))) return true
+        if (cost === undefined || r.costs === undefined) return false
+        const banned = r.costs === "ownerRestedNexuses" ? board.players[foe].field.nexuses.filter((n) => n.isRested).map((n) => card(n.cardId).cost) : r.costs
+        return banned.includes(cost)
+    })
 }
 
 // 期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない

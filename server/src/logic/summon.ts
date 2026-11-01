@@ -1,5 +1,5 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
-import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
 import { refreshLevelAsOverrides } from "./state/continuous"
@@ -32,7 +32,7 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     for (let i = 0; i < player.trashCards.length; i++) {
         const cardId = player.trashCards[i]
         if (cardId === undefined) continue
-        if (zoneSpiritEffectsDisabled(state, cardId)) continue
+        if (trashCardEffectsDisabled(state, cardId)) continue
         const card = getCard(cardId)
         const hit = card.effects.find(
             (e) => e.kind === "trashSummonOnNameSummoned" && summonedName.includes(e.nameIncludes),
@@ -148,7 +148,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
-    if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid))) {
+    if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid), inst)) {
         exhaustSpirit(state, pid, inst, undefined, opponentOf(pid), "spirit")
     }
 }

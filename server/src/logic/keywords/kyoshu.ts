@@ -41,3 +41,23 @@ export function kyoshuLimitOf(state: GameState, owner: PlayerId, self: CardInsta
 export function kyoshuUsedOf(state: GameState, self: CardInstance): number {
     return self.kyoshuUsed?.turn === state.turn ? self.kyoshuUsed.count : 0
 }
+
+// 【強襲】のコストを自分の疲労で払える回復状態の発生源（kind:"kyoshuSelfExhaustGrant"）。
+// phaseTurn の turn は発生源の持ち主から見る（P055 は両者のアタックステップで有効）
+export function kyoshuSelfExhaustSources(state: GameState, ownerPid: PlayerId): CardInstance[] {
+    const out: CardInstance[] = []
+    for (const source of state.players[ownerPid].field.spirits) {
+        if (source.isRested) continue
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "kyoshuSelfExhaustGrant") continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
+            const pt = effect.phaseTurn
+            if (pt && (state.phase !== pt.phase || (pt.turn !== "both" && (pt.turn === "own") !== (state.turnPlayer === ownerPid)))) continue
+            noteCoverage(effect, "kyoshuSelfExhaustGrant")
+            out.push(source)
+            break
+        }
+    }
+    return out
+}

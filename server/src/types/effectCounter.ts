@@ -53,11 +53,13 @@ export type EffectCounter =
     | "lastFunsaiSpirits" // 直前の【粉砕】で破棄したカードのうちスピリットカードの枚数（GameState.lastFunsai。BS04二刀流のアムブローズ）
     | "ownCombinedSpirits" // 自分のフィールドの合体スピリット数（braveRefsを持つホストの数。instIsCombinedで判定。BS10-029木星神龍ノブナガード・ゼウシスLv2-3＝「自分の合体スピリット1体につき」）
     | "ownBraveSpirits" // 自分のフィールドで**スピリット状態のブレイヴ**数（card.type==="brave"かつfield.spiritsにいる個体。合体中はfield.combinedBravesなので対象外。BS12-004ドラゴン・フェゼント：「自分のスピリット状態のブレイヴ1体につき」）
+    | "ownCombinedBraves" // 自分の合体スピリットに合体しているブレイヴの合計数（braveRefs の長さの総和。スピリット状態のブレイヴは数えない）
     | "ownLife" // 自分のライフのコア数（player.life）。BS13-061戴冠する活火山Lv2：「自分のライフのコア1個につき」
     | "opponentLife" // 相手のライフのコア数（発生源の持ち主から見て）
     | "selfBraveCount" // このスピリット（self）に合体しているブレイヴの数（self.braveRefs?.length。BS13-X01光龍騎神サジット・アポロドラゴン【合体中】Lv3：「このスピリットのブレイヴ1つにつき」）
     | "battlingOpponentCombinedSymbols" // 器YC：selfが参加している現在のバトルの相手側（state.battle.attacker/blockerInstanceId）が**合体スピリットのときだけ**そのシンボル数（instanceSymbolCount）、合体していない相手や非バトル中は0（BS12-036星犬ポメラン：「バトルしている相手の合体スピリットのシンボル1つにつき」）
     | "battlingOpponentSymbols" // battlingOpponentCombinedSymbolsの合体限定を外した版：selfが参加している現在のバトルの相手側のシンボル数（instanceSymbolCount）。合体していなくても数える。非バトル中は0（BS13-056ホーク・ブレイカー【合体時】：「バトルしている相手のスピリットのシンボル1つにつき」）
+    | "blockerCost" // 現在のバトルのブロッカーのコスト。ブロッカーがフィールドにいなければ0（PX13）
     | { opponentSpirits: TargetFilter } // 絞り込みに合う相手のスピリットの数
     | { ownTrashCards: CardPick } // 自分のトラッシュで pick に合うカードの枚数（26系「自分のトラッシュに系統：「瞳剣」を持つマジックカードが2枚以上あるなら」）
     | { ownFieldCards: TargetFilter } // 絞り込みに合う自分のスピリットとネクサスの数

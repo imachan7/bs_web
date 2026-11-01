@@ -21,6 +21,7 @@ console.log("=== 前提: カードの機械確認 ===")
         ["BS10-039", "ビアンコ・ティーガー", "spirit"], // 白・コスト6・バニラ。Lv2(コア2)でBP9000
         ["BS08-042", "天使サラティ", "spirit"], // 黄・【聖命】持ち（Lv1から）
         ["BS10-065", "ヘッジボルグ", "brave"], // 紫・コスト4・合体条件コスト4以上（P036の合体相手）
+        ["BS12-049", "アンフィスバエナー", "brave"], // 赤・コスト5・『このブレイヴの召喚時』にBP6000以下の相手スピリット1体を破壊（ブレイヴ自身の効果の例）
         ["BS10-068", "ビーム・ビートル", "brave"], // 緑・コスト4・合体条件コスト4以上・合体アタック時に相手スピリット1体を疲労（相手のブレイヴの効果の例）
     ]
     for (const [id, name, type] of expect) assert(getCard(id).name === name && getCard(id).type === type, `${id} は ${name}(${type})`)
@@ -189,9 +190,40 @@ const OPP_COMBINE = [
     "自分.リザーブ: 10 → 12",
 ]
 
-console.log("=== P036 / 月光の名前を持つ自分のスピリット（自身）は相手のブレイヴの効果を受けない：疲労させられない ===")
+// 相手がアンフィスバエナー(ブレイヴ)を召喚して、召喚時効果で破壊を狙う。ブレイヴ自身の効果なので P036 が防ぐ。召喚の差は素の動きから採る
+const oppSummonBrave = (t: ScenarioCtx): void => {
+    t.act("opp", { type: "summon", handIndex: 0 })
+}
+const SUMMON_BRAVE = [
+    "相手.リザーブ: 10 → 4",
+    "相手.トラッシュのコア: 0 → 5",
+    "相手.手札: アンフィスバエナー → なし",
+    "相手.アンフィスバエナー.場所: なし → フィールド",
+    "相手.アンフィスバエナー.疲労: なし → false",
+    "相手.アンフィスバエナー.コア: なし → 1",
+    "相手.アンフィスバエナー.Lv: なし → 1",
+    "相手.アンフィスバエナー.BP: なし → 4000",
+]
+
+console.log("=== P036 / 月光の名前を持つ自分のスピリット（自身）は相手のブレイヴ自身の効果（召喚時の破壊）を受けない：破壊されない ===")
 scenario({
-    name: "P036-相手のブレイヴの効果を受けない",
+    name: "P036-ブレイヴ自身の効果を受けない",
+    start: { turn: "opp", phase: "main", me: { spirits: [{ card: "P036", cores: 1 }] }, opp: { hand: ["BS12-049"] } },
+    steps: oppSummonBrave,
+    expect: SUMMON_BRAVE,
+})
+
+console.log("=== P036 / 名前に月光が入っていない自分のスピリットは守られず破壊される（P036 は対象にならない） ===")
+scenario({
+    name: "P036-月光でないスピリットは守られない",
+    start: { turn: "opp", phase: "main", me: { spirits: [{ card: "P036", cores: 1 }, { card: "BS01-002", cores: 1 }] }, opp: { hand: ["BS12-049"] } },
+    steps: oppSummonBrave,
+    expect: [...SUMMON_BRAVE, "自分.ロクケラトプス.場所: フィールド → なし", "自分.トラッシュ: なし → ロクケラトプス", "自分.リザーブ: 10 → 11"],
+})
+
+console.log("=== P036 / 【合体時】の効果は合体スピリットの効果なので防がない：合体したビーム・ビートルの合体アタック時に P036 は疲労させられる ===")
+scenario({
+    name: "P036-合体時の効果は防がない",
     start: {
         turn: "opp",
         phase: "main",
@@ -199,20 +231,7 @@ scenario({
         opp: { spirits: [{ card: "BS03-042", cores: 1 }, { card: "BS10-068", cores: 1 }] },
     },
     steps: oppBraveAttack,
-    expect: OPP_COMBINE,
-})
-
-console.log("=== P036 / 名前に月光が入っていない自分のスピリットは守られず、疲労させられる（P036 は対象にならない） ===")
-scenario({
-    name: "P036-月光でないスピリットは守られない",
-    start: {
-        turn: "opp",
-        phase: "main",
-        me: { spirits: [{ card: "P036", cores: 1 }, { card: "BS01-002", cores: 1 }] },
-        opp: { spirits: [{ card: "BS03-042", cores: 1 }, { card: "BS10-068", cores: 1 }] },
-    },
-    steps: oppBraveAttack,
-    expect: [...OPP_COMBINE, "自分.ロクケラトプス.疲労: false → true"],
+    expect: [...OPP_COMBINE, "自分.月光竜機クレセントール.疲労: false → true"],
 })
 
 console.log("=== P036 / 相手のブレイヴが無い場面の対照：P036 がいなければ P036 相当のスピリットも疲労する ===")

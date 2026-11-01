@@ -29,6 +29,15 @@ import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, record
 // interactiveTargets が無い（テスト・自動解決）ときは modes の先頭を選ぶ決定的簡略化。
 // requestChoice の kind:"option" は候補1件でも自動選択しないため、
 // 非対話の分岐はここで明示的に書く必要がある
+// モードの先頭が相手への destroy のとき、破壊できる対象が1つでもあるか。destroy 以外は判定せず true（＝従来どおり先頭）
+function modeHasDestroyTarget(ctx: ActionCtx, first: EffectAction | undefined): boolean {
+    if (!first || first.type !== "destroy") return true
+    const filter = normalizeFilter(ctx, first)
+    if (filter === SELF_REQUIRED) return false
+    const field = ctx.state.players[ctx.opp].field
+    return (first.nexus === "only" ? field.nexuses : field.spirits).some((i) => matchesTarget(ctx.state, ctx.opp, i, filter, ctx.self?.instanceId))
+}
+
 const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action) => {
     const { state, owner, self, sourceName, srcColors, srcType, chosenOption } = ctx
         if (action.modes.length === 0) return
@@ -58,8 +67,14 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
             runMode(index === -1 ? 0 : index)
             return
         }
-        if (!state.interactiveTargets || action.modes.length === 1) {
+        if (action.modes.length === 1) {
             runMode(0)
+            return
+        }
+        if (!state.interactiveTargets) {
+            // 非対話では、先頭が空振りになる「スピリットか、ネクサスか」の2択（P049）だけ、対象のあるモードへ寄せる。対話側は従来どおり全部出す
+            const viable = action.modes.findIndex((m) => modeHasDestroyTarget(ctx, m.actions[0]))
+            runMode(viable === -1 ? 0 : viable)
             return
         }
         requestChoice(
@@ -191,6 +206,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? ownAllSpiritsHaveFamily(state, owner, cond.ownAllSpiritsHaveFamily, cond.costIn)
           : "ownAllNexusesHaveFamily" in cond
           ? ownAllNexusesHaveFamily(state, owner, cond.ownAllNexusesHaveFamily)
+          : "ownSpiritDestroyedByBattleThisTurn" in cond
+          ? state.ownSpiritDestroyedByBattleThisTurn?.[owner] === true
           : "ownSpiritDestroyedThisTurn" in cond
           ? state.ownSpiritDestroyedThisTurn?.[owner] === true
           : "ownEffectDestroyedOwnSpirit" in cond

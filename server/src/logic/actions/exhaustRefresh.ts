@@ -37,6 +37,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { detachBraveByEffect } from "../brave"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
+import { exhaustWithinBudget } from "./exhaustBudget"
 import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
 
 // 疲労させたときのログ。**どのカードの効果で疲労したのか**が対戦者に分かるように発生源を前に置く
@@ -49,6 +50,7 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 type ExhaustNum = Omit<Extract<EffectAction, { type: "exhaust" }>, "count"> & { count: number }
 
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
+    if (action.budget) return exhaustWithinBudget(ctx, action)
     if (action.count !== "any") return exhaustCore(ctx, action as ExhaustNum)
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx
     // 好きなだけ（0体以上）。自分側は選ぶたびに残りの候補で聞き直し、非対話は候補すべて

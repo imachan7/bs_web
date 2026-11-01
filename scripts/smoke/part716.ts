@@ -62,7 +62,7 @@ scenario({
         resolveAll(t)
     },
     expect: [
-        ...SUMMON_LINES,
+        ...SUMMON_LINES.slice(1),
         ...COST(1, 8),
         "相手.メタルバーン.場所: フィールド → なし",
         "相手.ヘラクレス・ジオ.場所: フィールド → なし",
@@ -249,7 +249,7 @@ scenario({
 console.log("=== 10. PX15 Lv2 アタック時：相手のライフを減らしたら、コア3個を払って回復（コア4→1でLv1に戻る） ===")
 scenario({
     name: "px15-recover",
-    start: { me: { spirits: [{ card: PX15, cores: 4 }] } },
+    start: { interactive: true, me: { spirits: [{ card: PX15, cores: 4 }] } },
     steps: (t) => {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("蜂王フォン・ニード") })

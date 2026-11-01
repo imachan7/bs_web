@@ -256,6 +256,7 @@ export function checkAuraCondition(
     sourceInst?: CardInstance,
 ): boolean {
     const player = board.players[sourcePid]
+    if (typeof condition === "object" && "selfNotCombined" in condition) return sourceInst !== undefined && !instIsCombined(sourceInst)
     if (typeof condition === "object" && "selfRested" in condition) return sourceInst !== undefined && sourceInst.isRested === condition.selfRested
     if (typeof condition === "object" && "selfBpAtMost" in condition) return sourceInst !== undefined && effectiveBp(board, sourcePid, sourceInst) <= condition.selfBpAtMost
     if (condition === "ownReserveNotEmpty") return player.reserve >= 1

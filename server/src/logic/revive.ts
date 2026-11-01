@@ -7,7 +7,7 @@ import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/cove
 import { summonSurcharge } from "../../../shared/cost"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
 import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
-import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId } from "../type"
+import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
@@ -44,6 +44,7 @@ import {
     timedPlayerRules,
     hasGlobalConstraint,
     zoneSpiritEffectsDisabled,
+    trashCardEffectsDisabled,
 } from "../../../shared/rules"
 
 import {
@@ -234,7 +235,7 @@ export function fushiCandidates(
         if (cardId === undefined) continue
         const card = getCard(cardId)
         if (card.type !== "spirit") continue
-        if (zoneSpiritEffectsDisabled(state, cardId)) continue
+        if (trashCardEffectsDisabled(state, cardId)) continue
         const hit = card.effects.some((e) => {
             if (e.kind !== "keyword" || e.keyword !== "fushi") return false
             if ((e.triggerCosts ?? []).some((c) => destroyedCosts.includes(c))) return true
@@ -557,6 +558,7 @@ function tryReviveOnDestroy(
         byBattle?: boolean
         byBattleKillerLevel?: number
         byBattleKillerMaxBp?: number
+        byBattleKillerMinBp?: number
     }): boolean => {
         if (when.byOpponentEffect) {
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
@@ -587,6 +589,12 @@ function tryReviveOnDestroy(
         if (
             when.byBattleKillerMaxBp !== undefined &&
             (context?.battle?.attackerBp === undefined || context.battle.attackerBp > when.byBattleKillerMaxBp)
+        ) {
+            return false
+        }
+        if (
+            when.byBattleKillerMinBp !== undefined &&
+            (context?.battle?.attackerBp === undefined || context.battle.attackerBp < when.byBattleKillerMinBp)
         ) {
             return false
         }
@@ -973,9 +981,10 @@ function tryReviveOnDestroy(
     // 発生源の持ち主から見た相手フィールドのシンボル色数（重複除く）がこの値以下か
     // （BS06夢中漂う桃幻郷Lv2：相手フィールドにシンボルが1色しかない間）
     const matchesReviveCondition = (
-        condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number },
+        condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number } | { ownSpiritMatches: ResolvedTargetFilter },
     ): boolean => {
         if (!condition) return true
+        if ("ownSpiritMatches" in condition) return player.field.spirits.some((s) => matchesTarget(state, ownerPid, s, condition.ownSpiritMatches, inst.instanceId))
         if ("ownHandAtLeast" in condition) return state.players[ownerPid].hand.length >= condition.ownHandAtLeast
         if ("ownBurstSet" in condition) return (player.burst !== null) === condition.ownBurstSet
         if ("ownFieldOnlyColor" in condition) return ownFieldOnlyColor(state, ownerPid, condition.ownFieldOnlyColor, condition.spiritsOnly)
@@ -1039,6 +1048,8 @@ function tryReviveOnDestroy(
     for (const effect of getCard(inst.cardId).effects) {
         if (effect.kind !== "reviveOnDestroy") continue
         if (effect.scope !== "self") continue
+        // スピリットの【合体時】：合体していなければ働かない（ブレイヴ側の合体時は下のホスト経由の走査が持つ）
+        if (effect.whileCombined && getCard(inst.cardId).type !== "brave" && !state.players[ownerPid].field.combinedBraves.some((b) => hostsOf(state.players[ownerPid], b).some((h) => h.instanceId === inst.instanceId))) continue
         if (tryEffect(effect, getCard(inst.cardId).name)) return true
     }
 

@@ -223,7 +223,7 @@ export type EffectDefTrigger =
           duringSelfAttack?: true // opponentSpiritDestroyed 限定
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
-          byOpponentOnly?: true // ownSpiritDestroyed 限定
+          byOpponentOnly?: true // ownSpiritDestroyed | ownSpiritReturnedToHand 限定。後者は相手の効果で戻るときだけ（持ち主が自分の効果で戻すときは発火しない）
           opponentEffectSourceTypes?: CardType[] // 「相手のスピリット/マジックの効果で」はネクサスを含まない
           byOpponentEffectOnly?: true // ownNexusDestroyed | ownSpiritDestroyed | ownSpiritExhausted 限定。
           // ownSpiritDestroyed はバトルのBP比較で敗れた場合も含む。ownSpiritExhausted はネクサスの効果を含まない。
@@ -241,14 +241,18 @@ export type EffectDefTrigger =
               | { ownHandAtLeast: number } // 自分の手札枚数
               | { ownFieldHasColorNexus: Color } // 自分のフィールド
               | { ownFamilyCountAtLeast: { family: FamilyFilter; count: number } } // family 配列＝OR
+              | "selfInBattle" // 発生源自身が現在のバトルのアタッカーまたはブロッカーのとき（合体中のブレイヴはホストで見る）
               | "selfIsAttacking" // 発生源自身が現在のバトルのアタッカーのとき
               | { firstAttackOfTurn: true } // anySpiritAttacked 限定
               | { attacksThisTurnAtLeast: number } // anySpiritAttacked 限定。N回目以降のアタック
               | { lastFunsaiHasSpirit: true } // ownFunsaiMilled 限定
               | { lastFunsaiHasCostAtLeast4: true } // ownFunsaiMilled 限定
+              | { lastFunsaiHasBurst: true } // ownFunsaiMilled 限定。バースト効果を持つカードを破棄した
               | { opponentHandAtLeastOwnHand: true } // 相手の手札枚数
               | { opponentMagicUsedAtLeast: number } // opponentMagicUsed 限定。このターンの使用回数
               | { burstCostAtMost: number } // ownBurstActivated 限定
+              | { burstSummonedSpirit: true } // ownBurstActivated 限定。そのバースト効果の解決で自分のスピリットが召喚された
+              | { burstEvent: FieldEvent } // ownBurstActivated 限定。発動したバーストのバースト条件（kind:"burst" の event）
               | { ownBurstSet: boolean } // false 指定時はしていない間だけ
           repeatPerCount?: boolean // ownFunsaiMilled | opponentHandAdded | opponentCorePlaced | opponentLifeCoreFromVoid 用。実カウント数ぶんアクションを繰り返す
           countMode?: "cores" | "funsaiSpirits" // ownSpiritCoresRemovedByOpponent 限定。repeatPerCount の回数を「取り除かれたコア数」にする
@@ -315,6 +319,7 @@ export type EffectDefTrigger =
               byBattle?: boolean
               byBattleKillerLevel?: number // 破壊した側（勝者）の currentLevel
               byBattleKillerMaxBp?: number // 破壊した側（勝者）の実効BP
+              byBattleKillerMinBp?: number // byBattleKillerMaxBp の対
           }
           phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件
           revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { handOrDeckTop: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // handOrDeckTop＝toHand と同じく場に残らず（コアはリザーブへ）、行き先を持ち主が手札かデッキの上から選ぶ（非対話は手札。選択は handleAction の末尾で出す＝pendingReviveDestinations。braveStay も toHand と同じ）。toBurst の Q3469（解決中は発動不可）は未実装（簡略化）
@@ -340,7 +345,7 @@ export type EffectDefTrigger =
               exhaustOwnNexusOne?: true // コア最少の個体を選ぶ簡略化。候補が無い・相手のconstraintで疲労させられないなら不発
           }
           oncePerTurn?: boolean // 発生源1つにつきターン1回
-          condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number } // AtMost＝相手シンボル色数（重複除く）がこの値以下／ownBurstSet＝セット中(true)/未(false)
+          condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number } | { ownSpiritMatches: ResolvedTargetFilter } // AtMost＝相手シンボル色数（重複除く）がこの値以下／ownBurstSet＝セット中(true)/未(false)
           alsoVoidCoreToReserve?: number // 復活の成立とセットで、ボイドからリザーブに置くコアの数
       }
     | {

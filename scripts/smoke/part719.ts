@@ -17,7 +17,7 @@ const HERA = "BS01-058" // ヘラクレス・ジオ（緑・コスト3・BP4000�
 const ARNOLD = "BS03-089" // ディープ・アーノルド（青・コスト4・BP4000）
 const TAIGA = "BS03-099" // 虎拳士タイガ（青・コスト7・Lv1 BP5000／Lv3(コア7) BP10000）
 const WINGAL = "BS02-046" // ウィンガル（白・コスト6・BP5000）
-const FENRIR = "BS10-071" // フェンリルキャノンType-B（白・ブレイヴ・コスト4・BP3000）
+const FENRIR = "BS10-077" // ギョクリューン（青・ブレイヴ・コスト4・BP3000。【装甲】なし。合体時はバトル時にマジックの追加コスト）
 const KETTO = "BS02-077" // 決闘台地（赤・ネクサス。この場面では何も起きない）
 const SPEAR = "BS01-114" // バスタースピア（赤・マジック・コスト3・フラッシュ：ネクサス1つを破壊。相手のネクサスなら1枚ドロー）
 const BURST = "SD06-016" // 絶甲氷盾（白・マジック・バースト：自分のライフ減少後にライフへコア1個）
@@ -40,7 +40,8 @@ console.log("=== 前提: カードの機械確認 ===")
     chk(ARNOLD, "ディープ・アーノルド", "spirit", "blue", 4)
     chk(TAIGA, "虎拳士タイガ", "spirit", "blue", 7)
     chk(WINGAL, "ウィンガル", "spirit", "white", 6)
-    chk(FENRIR, "フェンリルキャノンType-B", "brave", "white", 4)
+    chk(FENRIR, "ギョクリューン", "brave", "blue", 4)
+    assert(!c(FENRIR).effect.includes("装甲") && c(FENRIR).effect.includes("合体条件：コスト4以上"), "FENRIRは装甲を持たず合体条件はコスト4以上")
     chk(KETTO, "決闘台地", "nexus", "red", 4)
     chk(SPEAR, "バスタースピア", "magic", "red", 3)
     chk(BURST, "絶甲氷盾", "magic", "white", 4)
@@ -48,7 +49,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(c(P039).levels[1]!.cores === 3 && c(PX09).levels[1]!.cores === 5 && c(P022).levels[1]!.cores === 4 && c(P050).levels[1]!.cores === 2, "各カードのLv2に要るコア数")
     assert(c(TAIGA).levels[2]!.cores === 7 && c(TAIGA).levels[2]!.bp === 10000, "TAIGAはLv3(コア7)でBP10000")
     assert(c(SPEAR).flash === true, "SPEARはフラッシュ")
-    for (const id of [ROKU, METAL, HERA, ARNOLD, TAIGA, WINGAL, P038]) assert(c(id).effects.length === 0 && c(id).type === "spirit", `${id}は効果なしのスピリット`)
+    for (const id of [ROKU, METAL, HERA, ARNOLD, TAIGA, WINGAL]) assert(c(id).effects.length === 0 && c(id).type === "spirit", `${id}は効果なしのスピリット`)
 }
 
 function resolveAll(t: ScenarioCtx, prefer: string[] = []): void {
@@ -71,19 +72,22 @@ function resolveAll(t: ScenarioCtx, prefer: string[] = []): void {
 const bpOf = (t: ScenarioCtx, label: string) => effectiveBp(t.state, t.me, t.inst(label))
 
 // ================= P019 =================
-console.log("=== 1. P019 召喚時：BP4000以下のスピリット1体を破壊し、自分はデッキから1枚ドロー ===")
+// 【転召：コスト3以上/トラッシュ】は召喚に必須。召喚コスト支払い後、コスト3以上の自分のスピリット1体（メタルバーン）のコアすべてがトラッシュに置かれ、そのスピリットは消える
+console.log("=== 1. P019 召喚時：BP4000以下のスピリット1体を破壊し、自分はデッキから1枚ドロー（転召でメタルバーンのコアがトラッシュへ） ===")
 scenario({
     name: "p019-destroy-draw",
-    start: { interactive: true, me: { hand: [P019] }, opp: { spirits: [{ card: ROKU }, { card: TAIGA }] } },
+    start: { interactive: true, me: { hand: [P019], spirits: [{ card: METAL }] }, opp: { spirits: [{ card: ROKU }, { card: TAIGA }] } },
     steps: (t) => {
         t.act("me", { type: "summon", handIndex: 0 })
         resolveAll(t, ["相手.ロクケラトプス"])
     },
     expect: [
         "自分.手札: 皇角獣メガロ・エルス → ロクケラトプス",
-        "自分.リザーブ: 10 → 4",
-        "自分.トラッシュのコア: 0 → 5",
+        "自分.リザーブ: 10 → 5", // 赤シンボル1つで軽減してコスト4＋コア1個
+        "自分.トラッシュのコア: 0 → 5", // コスト4＋転召で動いたメタルバーンのコア1個
         "自分.デッキ枚数: 40 → 39",
+        "自分.メタルバーン.場所: フィールド → なし",
+        "自分.トラッシュ: なし → メタルバーン",
         "自分.皇角獣メガロ・エルス.場所: なし → フィールド",
         "自分.皇角獣メガロ・エルス.疲労: なし → false",
         "自分.皇角獣メガロ・エルス.コア: なし → 1",
@@ -98,71 +102,56 @@ scenario({
 console.log("=== 2. P019：破壊できる相手がいなくても、同時にドローする（Lv2にして自身もBP7000で対象外） ===")
 scenario({
     name: "p019-draw-without-target",
-    start: { me: { hand: [P019] }, opp: { spirits: [{ card: TAIGA }] } },
+    start: { me: { hand: [P019], spirits: [{ card: METAL }] }, opp: { spirits: [{ card: TAIGA }] } },
     steps: (t) => {
         t.act("me", { type: "summon", handIndex: 0, level: 2 })
         resolveAll(t)
     },
     expect: [
         "自分.手札: 皇角獣メガロ・エルス → ロクケラトプス",
-        "自分.リザーブ: 10 → 2",
+        "自分.リザーブ: 10 → 3", // コスト4＋コア3個
         "自分.トラッシュのコア: 0 → 5",
-        "自分.デッキ枚数: 40 → 39",
-        "自分.皇角獣メガロ・エルス.場所: なし → フィールド",
-        "自分.皇角獣メガロ・エルス.疲労: なし → false",
-        "自分.皇角獣メガロ・エルス.コア: なし → 3",
-        "自分.皇角獣メガロ・エルス.Lv: なし → 2",
-        "自分.皇角獣メガロ・エルス.BP: なし → 7000",
-    ],
-})
-
-console.log("=== 3. P019：「自分の」「相手の」が無いので、相手側に候補がなければ自分のスピリットが破壊される（赤シンボルでコスト4） ===")
-scenario({
-    name: "p019-own-spirit",
-    start: { me: { hand: [P019], spirits: [{ card: ROKU }] }, opp: { spirits: [{ card: TAIGA }] } },
-    steps: (t) => {
-        t.act("me", { type: "summon", handIndex: 0, level: 2 })
-        resolveAll(t)
-    },
-    expect: [
-        "自分.手札: 皇角獣メガロ・エルス → ロクケラトプス",
-        "自分.リザーブ: 10 → 4", // コスト4＋コア3個で7、破壊されたロクケラトプスのコア1個が戻る
-        "自分.トラッシュのコア: 0 → 4",
-        "自分.デッキ枚数: 40 → 39",
-        "自分.皇角獣メガロ・エルス.場所: なし → フィールド",
-        "自分.皇角獣メガロ・エルス.疲労: なし → false",
-        "自分.皇角獣メガロ・エルス.コア: なし → 3",
-        "自分.皇角獣メガロ・エルス.Lv: なし → 2",
-        "自分.皇角獣メガロ・エルス.BP: なし → 7000",
-        "自分.ロクケラトプス.場所: フィールド → なし",
-        "自分.トラッシュ: なし → ロクケラトプス",
-    ],
-})
-
-console.log("=== 4. P019【転召：コスト3以上/トラッシュ】：コスト支払い後、コスト3以上の自分のスピリットのコアすべてをトラッシュに置いて召喚する ===")
-scenario({
-    name: "p019-tensho",
-    start: { interactive: true, me: { hand: [P019], spirits: [{ card: METAL }] }, opp: { spirits: [{ card: ROKU }] } },
-    steps: (t) => {
-        t.act("me", { type: "summon", handIndex: 0, substituteInstanceId: t.id("自分.メタルバーン") })
-        resolveAll(t, ["相手.ロクケラトプス"])
-    },
-    expect: [
-        "自分.手札: 皇角獣メガロ・エルス → ロクケラトプス",
-        "自分.リザーブ: 10 → 5", // 赤シンボル1つで軽減してコスト4＋コア1個
-        "自分.トラッシュのコア: 0 → 5", // コスト4＋メタルバーンのコア1個
         "自分.デッキ枚数: 40 → 39",
         "自分.メタルバーン.場所: フィールド → なし",
         "自分.トラッシュ: なし → メタルバーン",
         "自分.皇角獣メガロ・エルス.場所: なし → フィールド",
         "自分.皇角獣メガロ・エルス.疲労: なし → false",
-        "自分.皇角獣メガロ・エルス.コア: なし → 1",
-        "自分.皇角獣メガロ・エルス.Lv: なし → 1",
-        "自分.皇角獣メガロ・エルス.BP: なし → 4000",
-        "相手.ロクケラトプス.場所: フィールド → なし",
-        "相手.リザーブ: 10 → 11",
-        "相手.トラッシュ: なし → ロクケラトプス",
+        "自分.皇角獣メガロ・エルス.コア: なし → 3",
+        "自分.皇角獣メガロ・エルス.Lv: なし → 2",
+        "自分.皇角獣メガロ・エルス.BP: なし → 7000",
     ],
+})
+
+console.log("=== 3. P019：「自分の」「相手の」が無いので、相手側に候補がなければ自分のスピリットが破壊される（赤シンボル2つでコスト3） ===")
+scenario({
+    name: "p019-own-spirit",
+    start: { me: { hand: [P019], spirits: [{ card: METAL }, { card: ROKU }] }, opp: { spirits: [{ card: TAIGA }] } },
+    steps: (t) => {
+        t.act("me", { type: "summon", handIndex: 0, level: 2 })
+        resolveAll(t)
+    },
+    expect: [
+        "自分.手札: 皇角獣メガロ・エルス → ロクケラトプス",
+        "自分.リザーブ: 10 → 5", // コスト3＋コア3個で6、破壊されたロクケラトプスのコア1個が戻る
+        "自分.トラッシュのコア: 0 → 4", // コスト3＋転召のメタルバーンのコア1個
+        "自分.デッキ枚数: 40 → 39",
+        "自分.メタルバーン.場所: フィールド → なし",
+        "自分.ロクケラトプス.場所: フィールド → なし",
+        "自分.トラッシュ: なし → メタルバーン、ロクケラトプス",
+        "自分.皇角獣メガロ・エルス.場所: なし → フィールド",
+        "自分.皇角獣メガロ・エルス.疲労: なし → false",
+        "自分.皇角獣メガロ・エルス.コア: なし → 3",
+        "自分.皇角獣メガロ・エルス.Lv: なし → 2",
+        "自分.皇角獣メガロ・エルス.BP: なし → 7000",
+    ],
+})
+
+console.log("=== 4. P019【転召】は必須：コスト3以上の自分のスピリットがいなければ召喚できない ===")
+scenario({
+    name: "p019-tensho-required",
+    start: { me: { hand: [P019], spirits: [{ card: ROKU }] }, opp: { spirits: [{ card: ROKU }] } },
+    steps: (t) => t.actRejected("me", { type: "summon", handIndex: 0 }),
+    expect: [],
 })
 
 // ================= P022 =================
@@ -280,10 +269,10 @@ scenario({
 
 // 破壊時：自分のターンに P039（Lv2）にブレイヴを合体させ、ターンを渡す。相手のターンに相手が合体（タイガ Lv3＋ブレイヴ）して攻撃し、P039 がブロックして破壊される
 function p039Battle(t: ScenarioCtx, oppCombined: boolean): void {
-    t.act("me", { type: "combineBrave", braveInstanceId: t.id("自分.フェンリルキャノンType-B"), hostInstanceId: t.id("自分.太陽伯爵ルビカンテ") })
+    t.act("me", { type: "combineBrave", braveInstanceId: t.id("自分.ギョクリューン"), hostInstanceId: t.id("自分.太陽伯爵ルビカンテ") })
     t.act("me", { type: "endTurn" })
     resolveAll(t)
-    if (oppCombined) t.act("opp", { type: "combineBrave", braveInstanceId: t.id("相手.フェンリルキャノンType-B"), hostInstanceId: t.id("相手.虎拳士タイガ") })
+    if (oppCombined) t.act("opp", { type: "combineBrave", braveInstanceId: t.id("相手.ギョクリューン"), hostInstanceId: t.id("相手.虎拳士タイガ") })
     t.act("opp", { type: "nextPhase" })
     t.act("opp", { type: "attack", instanceId: t.id("相手.虎拳士タイガ") })
     resolveAll(t)
@@ -309,10 +298,10 @@ scenario({
         "相手.リザーブ: 10 → 18",
         "相手.虎拳士タイガ.場所: フィールド → なし",
         "相手.トラッシュ: なし → 虎拳士タイガ",
-        "相手.フェンリルキャノンType-B.疲労: false → true",
+        "相手.ギョクリューン.疲労: false → true",
         "自分.手札: なし → 太陽伯爵ルビカンテ",
         "自分.太陽伯爵ルビカンテ.場所: フィールド → なし",
-        "自分.フェンリルキャノンType-B.疲労: false → true",
+        "自分.ギョクリューン.疲労: false → true",
         "自分.リザーブ: 10 → 13",
     ],
 })
@@ -329,7 +318,7 @@ scenario({
         "相手.虎拳士タイガ.疲労: false → true",
         "自分.手札: なし → 太陽伯爵ルビカンテ",
         "自分.太陽伯爵ルビカンテ.場所: フィールド → なし",
-        "自分.フェンリルキャノンType-B.疲労: false → true",
+        "自分.ギョクリューン.疲労: false → true",
         "自分.リザーブ: 10 → 13",
     ],
 })
@@ -337,7 +326,7 @@ scenario({
 // ================= P050 =================
 // 相手のターンに相手が合体し（タイガ＋ブレイヴ）、rest=true ならアタックして疲労させたままターンを終える。自分のターンに P050 を召喚する
 function p050Summon(t: ScenarioCtx, rest: boolean): void {
-    t.act("opp", { type: "combineBrave", braveInstanceId: t.id("相手.フェンリルキャノンType-B"), hostInstanceId: t.id("相手.虎拳士タイガ") })
+    t.act("opp", { type: "combineBrave", braveInstanceId: t.id("相手.ギョクリューン"), hostInstanceId: t.id("相手.虎拳士タイガ") })
     if (rest) {
         t.act("opp", { type: "nextPhase" })
         t.act("opp", { type: "attack", instanceId: t.id("相手.虎拳士タイガ") })
@@ -361,7 +350,7 @@ scenario({
         "相手.虎拳士タイガ.場所: フィールド → なし",
         "相手.トラッシュ: なし → 虎拳士タイガ",
         "相手.リザーブ: 10 → 11",
-        "相手.フェンリルキャノンType-B.疲労: false → true",
+        "相手.ギョクリューン.疲労: false → true",
         "自分.コウディーン.BP: なし → 2000",
         "自分.コウディーン.Lv: なし → 1",
         "自分.コウディーン.コア: なし → 1",
@@ -381,9 +370,9 @@ scenario({
     start: P050_SPEC,
     steps: (t) => p050Summon(t, false),
     expect: [
-        "相手.フェンリルキャノンType-B.BP: 3000 → なし",
-        "相手.フェンリルキャノンType-B.コア: 1 → 0",
-        "相手.フェンリルキャノンType-B.場所: フィールド → 合体",
+        "相手.ギョクリューン.BP: 3000 → なし",
+        "相手.ギョクリューン.コア: 1 → 0",
+        "相手.ギョクリューン.場所: フィールド → 合体",
         "相手.虎拳士タイガ.BP: 5000 → 8000",
         "相手.虎拳士タイガ.コア: 1 → 2",
         "自分.コウディーン.BP: なし → 2000",

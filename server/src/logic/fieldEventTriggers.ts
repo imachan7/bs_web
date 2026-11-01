@@ -333,7 +333,10 @@ export function fireFieldEventTriggers(
                 if (usedSoFar >= effect.magicFreeUseMaxPerTurn) continue
             }
             if (effect.condition) {
-                if (effect.condition === "selfIsAttacking") {
+                if (effect.condition === "selfInBattle") {
+                    const selfHost = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                    if (!state.battle || (state.battle.attackerInstanceId !== selfHost.instanceId && state.battle.blockerInstanceId !== selfHost.instanceId)) continue
+                } else if (effect.condition === "selfIsAttacking") {
                     // キノコノコ：発生源自身が現在のバトルのアタッカーであるときのみ
                     // 合体中のブレイヴが発生源なら、アタッカーはホスト（合体スピリットは1体）
                     const selfAttacker = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
@@ -375,6 +378,14 @@ export function fireFieldEventTriggers(
                 } else if ("lastFunsaiHasCostAtLeast4" in effect.condition) {
                     // BS15共通器：BS15-053コジロンド・ゴレムLv2-3「コスト4以上のカードを破棄したとき」
                     if ((state.lastFunsai?.costAtLeast4 ?? 0) === 0) continue
+                } else if ("lastFunsaiHasBurst" in effect.condition) {
+                    if ((state.lastFunsai?.bursts ?? 0) === 0) continue
+                } else if ("burstSummonedSpirit" in effect.condition) {
+                    if (!state.lastBurstActivated?.summoned) continue
+                } else if ("burstEvent" in effect.condition) {
+                    const last = state.lastBurstActivated
+                    const wanted = effect.condition.burstEvent
+                    if (!last || !getCard(last.cardId).effects.some((e) => e.kind === "burst" && e.event === wanted)) continue
                 } else if ("opponentHandAtLeastOwnHand" in effect.condition) {
                     // BS13-042ナイト・ゴーンLv2：相手の手札枚数が自分の手札枚数以上のときのみ
                     if (state.players[opponentOf(pid)].hand.length < state.players[pid].hand.length) continue
@@ -489,7 +500,7 @@ export function fireFieldEventTriggers(
         // 集めたあとに場を離れた発生源は発火させない（先に解決した効果で破壊されうる）。
         // 仮想発生源はフィールドに実体が無いので在否を見ない
         skip: (e) =>
-            (e.extra === undefined && !isVirtualSource(e.inst) && !isStillOnField(state, pid, e.inst.instanceId)) ||
+            (e.extra === undefined && !isVirtualSource(e.inst) && !extraSources?.some((x) => x.instanceId === e.inst.instanceId) && !isStillOnField(state, pid, e.inst.instanceId)) ||
             (e.extra === undefined && destroyGuard !== undefined && findInstanceAnywhere(state, destroyGuard)?.pendingDestruction !== true),
         resolve: (e) => {
             if (e.extra !== undefined) {

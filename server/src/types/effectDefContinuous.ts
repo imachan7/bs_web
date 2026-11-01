@@ -184,7 +184,9 @@ export type EffectDefContinuous =
           id: string
           kind: "summonedExhaustGrant" // 相手のスピリットが召喚されたとき疲労する
           levels: number[] | null
-          condition?: { selfRested: true }
+          condition?: { selfRested?: true; ownBurstSet?: true }
+          filter?: ResolvedTargetFilter // 召喚されたスピリットがこれに合うときだけ（コストは印刷された値＝軽減前）
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
     | {
           id: string

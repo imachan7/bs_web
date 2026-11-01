@@ -8,7 +8,7 @@ import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, zoneSpiritEffectsDisabled, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -493,6 +493,7 @@ export function costSetOverride(
 // 効果は「召喚しようとするカード自身」が持っているかで判定する（手札以外＝トラッシュ等から
 // コストを支払う召喚でも効く）。手札のカードは effectSources では拾えないため cardData.effects を直接見る
 function hasExTrashReduction(board: Board, cardData: CardData): boolean {
+    if (trashFrozen(board)) return false
     return !zoneSpiritEffectsDisabled(board, cardData.cardId) && cardData.effects.some((e) => e.kind === "exTrashReduction")
 }
 
@@ -553,6 +554,8 @@ export function selfSetCost(board: Board, pid: PlayerId, cardData: CardData, via
 }
 
 function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData, viaSoryo = false): boolean {
+    // お互いのトラッシュの凍結（PX19）の間は、トラッシュのシンボルで軽減できない（2026-10-31 ユーザー確認）
+    if (trashFrozen(board)) return false
     const selfEntry = zoneSpiritEffectsDisabled(board, cardData.cardId) ? undefined : cardData.effects.find((e) => e.kind === "trashSymbolReduction" && e.scope === "self")
     if (selfEntry) {
         noteCoverage(selfEntry, "trashSymbolReduction")

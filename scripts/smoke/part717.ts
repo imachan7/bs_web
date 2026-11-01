@@ -59,7 +59,6 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(c(ARNOLD).family.includes("異合") && c(P054).family.includes("異合") && c(P054).family.includes("海首"), "ARNOLDとP054は系統「異合」を持つ")
     assert(!c(ROKU).family.includes("異合") && !c(ROKU).family.includes("海首"), "ROKUは異合も海首も持たない")
     assert(c(P038).name.includes("太陽") && c(P040).name.includes("太陽") && !c(METAL).name.includes("太陽"), "名前に「太陽」を持つのはP038とP040")
-    assert(c(P038).effects.length === 0, "P038は効果なし")
 }
 
 // 選択待ちを最後まで答える。prefer に挙げたラベルのインスタンス／option の部分文字列があれば優先する
@@ -265,7 +264,7 @@ function p043Attack(t: ScenarioCtx, cost: string): void {
 console.log("=== 8. P043 合体アタック時：コスト3を指定すると、相手はコスト3のマジックを使えない（コスト4は使える） ===")
 scenario({
     name: "p043-cost3",
-    start: { me: { spirits: [{ card: METAL }, { card: P043 }] }, opp: { hand: [POWERAURA, OFFENSIVE] } },
+    start: { interactive: true, me: { spirits: [{ card: METAL }, { card: P043 }] }, opp: { hand: [POWERAURA, OFFENSIVE] } },
     steps: (t) => {
         p043Attack(t, "3")
         flashRejected(t, 0) // パワーオーラ（コスト3）
@@ -285,7 +284,7 @@ scenario({
 console.log("=== 9. P043 合体アタック時：コスト4を指定すると、コスト4は使えずコスト3は使える ===")
 scenario({
     name: "p043-cost4",
-    start: { me: { spirits: [{ card: METAL }, { card: P043 }] }, opp: { hand: [POWERAURA, OFFENSIVE] } },
+    start: { interactive: true, me: { spirits: [{ card: METAL }, { card: P043 }] }, opp: { hand: [POWERAURA, OFFENSIVE] } },
     steps: (t) => {
         p043Attack(t, "4")
         flashRejected(t, 1) // オフェンシブオーラ（コスト4）

@@ -81,7 +81,7 @@ export function renderHand(view: GameView, ui: UiState): void {
         const magicBattleLocked =
             m.type === "magic" &&
             (timedMagicLocked(view, view.you) ||
-                magicColorBanned(view, view.you, m.colors) ||
+                magicColorBanned(view, view.you, m.colors, m.cost) ||
                 handCardBanned(view, view.you, cardId) !== null ||
                 (inFlash && isFlashLockedFor(view, view.you, "magic")) ||
                 magicUseWindowDenial(view, view.you, cardId, "flash") !== null)

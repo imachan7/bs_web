@@ -82,7 +82,7 @@ export function moveCardCandidates(state: GameState, owner: PlayerId, action: Mo
                 nameOk(id) &&
                 (action.dest !== "summon" || !summonDenial(state, { pid: owner, cardId: id, from: action.from === "hand" ? "hand" : "trash", cause: "effect", mayCombine: true })) &&
                 (!action.onlyEventCard || id === targetInstanceId) &&
-                (action.from === "hand" || !isTrashCardProtected(id)) &&
+                (action.from === "hand" || !isTrashCardProtected(id, state)) &&
                 (fromEventIdx === undefined || fromEventIdx.has(j)) &&
                 (!action.onlyLastBattleDestroyed || (battleLoserIdx !== undefined && battleLoserIdx === j)) &&
                 (lastMoved === undefined || lastMoved.includes(id)),
@@ -229,7 +229,7 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
         return false
     }
     const card = getCard(cardId)
-    if (magicColorBanned(state, pid, card.colors)) {
+    if (magicColorBanned(state, pid, card.colors, card.cost)) {
         log(state, `${sourceName}：効果によりこの色のマジックを使用できなかった。`)
         return false
     }

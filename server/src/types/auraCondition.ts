@@ -12,6 +12,7 @@ export type AuraCondition =
     | "ownSoulCoreInTrash" // 自分のトラッシュに[ソウルコア]がある間（26RSD09-X01）
     | "ownReserveNotEmpty" // 自分のリザーブが1個以上
     | { selfBpAtMost: number } // 発生源自身の実効BPがこの値以下の間（kind:"constraint" の condition だけが発生源を渡す。26RBS02-001「このスピリットがBP3000以下なら、アタック/ブロックできない」）
+    | { selfNotCombined: true } // 発生源自身が合体していない間（合体したらその場で外れる。auraAmount だけが発生源を渡す）
     | { selfRested: boolean } // 発生源自身が疲労状態(true)／回復状態(false)の間（auraAmount だけが発生源を渡す。それ以外の呼び出しでは不成立。26RBS03-035）
     | "opponentAttackerRefreshed" // アタックしている相手のスピリットが回復状態（疲労していない）のとき（バトル中のアタッカーが相手側の場合のみ。26RBS03-043）
     | { ownHasKeyword: Keyword } // 自分フィールドに指定キーワードを持つスピリットがいる（spiritHasKeywordで判定、付与キーワードも考慮。ブロントライデント）

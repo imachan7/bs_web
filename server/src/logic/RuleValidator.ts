@@ -605,7 +605,7 @@ export function validateCastMagic(
     if (card.type !== "magic") return "マジックカードではありません"
     // battleLock "magic"（BS16-X06）：手札・手元どちらの経路でも「使用」自体を止める。バースト発動は別経路なので掛からない
     if (timedMagicLocked(state, pid)) return "効果により、このバトルの間マジックを使用できません"
-    if (magicColorBanned(state, pid, card.colors)) return "効果により、この色のマジックは使用できません"
+    if (magicColorBanned(state, pid, card.colors, card.cost)) return "効果により、この色のマジックは使用できません"
 
     // 手元(tegamoto)からの使用は、scope:"allMagicHandAndTegamoto" の無償化が有効な場合のみ許可する
     // （noFreeCastOpponent が有効なら無償化自体が打ち消される）
