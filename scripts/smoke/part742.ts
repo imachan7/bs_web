@@ -76,4 +76,67 @@ scenario({
     ],
 })
 
+console.log("=== 対話あり：残すかを持ち主が選ぶ（「〜することで」は任意。2026-11-02 ユーザー指示） ===")
+const bounceSteps = (answer: "残す" | "断る") => (t: import("./scenario").ScenarioCtx) => {
+    t.act("me", { type: "summon", handIndex: 0 })
+    // 召喚時の「手札3枚までを下に置く」の選択に答える（いちばん多く置く選択肢）
+    for (let i = 0; i < 5 && t.state.pendingChoice; i++) {
+        const opts = t.state.pendingChoice.options ?? []
+        const last = opts[opts.length - 1]
+        t.act("me", last !== undefined ? { type: "resolveChoice", option: last } : { type: "resolveChoice" })
+    }
+    t.act("me", { type: "endTurn" })
+    t.act("opp", { type: "nextPhase" })
+    t.act("opp", { type: "attack", instanceId: t.id("アタッカー") })
+    t.act("me", { type: "pass" })
+    const baroque = t.state.players[t.me].field.spirits.find((s) => s.cardId === BAROQUE)!.instanceId
+    t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: baroque })
+    const pc = t.state.pendingChoice as { pid: string; kind: string; options?: string[] } | null
+    assert(pc !== null && pc.pid === t.me && pc.kind === "option" && (pc.options ?? []).includes("残す"), "戻る前に持ち主へ「残す」かを聞く")
+    t.act("me", answer === "残す" ? { type: "resolveChoice", option: "残す" } : { type: "resolveChoice" })
+    t.closeFlash()
+    t.act("me", { type: "takeLife" })
+}
+scenario({
+    name: "baroque-bounce-ask-stay",
+    start: { interactive: true, me: { hand: [BAROQUE, ROKU, ROKU] }, opp: { spirits: [{ card: ROKU, label: "アタッカー" }], hand: [RIBBON] } },
+    steps: bounceSteps("残す"),
+    expect: [
+        "自分.手札: ロクケラトプス、ロクケラトプス、冥府三巨頭バロック・ボルドー → なし",
+        "自分.リザーブ: 10 → 2",
+        "自分.トラッシュのコア: 0 → 8",
+        "自分.冥府三巨頭バロック・ボルドー.場所: なし → フィールド",
+        "自分.冥府三巨頭バロック・ボルドー.疲労: なし → false",
+        "自分.冥府三巨頭バロック・ボルドー.コア: なし → 1",
+        "自分.冥府三巨頭バロック・ボルドー.Lv: なし → 1",
+        "自分.冥府三巨頭バロック・ボルドー.BP: なし → 6000",
+        "自分.トラッシュ: なし → ロクケラトプス",
+        "自分.ライフ: 5 → 4",
+        "相手.アタッカー.疲労: false → true",
+        "相手.手札: ドリームリボン → ロクケラトプス",
+        "相手.リザーブ: 10 → 7",
+        "相手.トラッシュ: なし → ドリームリボン",
+        "相手.トラッシュのコア: 0 → 4",
+        "相手.デッキ枚数: 40 → 39",
+    ],
+})
+scenario({
+    name: "baroque-bounce-ask-decline",
+    start: { interactive: true, me: { hand: [BAROQUE, ROKU, ROKU] }, opp: { spirits: [{ card: ROKU, label: "アタッカー" }], hand: [RIBBON] } },
+    steps: bounceSteps("断る"),
+    expect: [
+        "自分.手札: ロクケラトプス、ロクケラトプス、冥府三巨頭バロック・ボルドー → 冥府三巨頭バロック・ボルドー",
+        "自分.リザーブ: 10 → 3",
+        "自分.トラッシュのコア: 0 → 8",
+        "自分.トラッシュ: なし → ロクケラトプス、ロクケラトプス", // 場を離れるとき下のカードは破棄
+        "自分.ライフ: 5 → 4",
+        "相手.アタッカー.疲労: false → true",
+        "相手.手札: ドリームリボン → ロクケラトプス",
+        "相手.リザーブ: 10 → 7",
+        "相手.トラッシュ: なし → ドリームリボン",
+        "相手.トラッシュのコア: 0 → 4",
+        "相手.デッキ枚数: 40 → 39",
+    ],
+})
+
 console.log("すべてのチェックに合格しました 🎉（part742）")
