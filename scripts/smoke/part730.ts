@@ -591,6 +591,10 @@ scenario({
     },
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0 })
+        // 対象を1体ずつ選ぶ（2体）
+        for (const label of ["ロクA", "ロクB"]) {
+            if (t.state.pendingChoice?.kind === "target") t.act("me", { type: "resolveChoice", instanceId: t.id(label) })
+        }
     },
     expect: [
         "自分.手札: 電竜機トランスファー・ドラゴン → なし",
