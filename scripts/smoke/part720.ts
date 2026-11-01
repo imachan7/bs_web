@@ -732,13 +732,13 @@ scenario({
     name: "px12-tensho-one",
     start: { interactive: true, me: { hand: [PX12], spirits: [{ card: TAIGA }] }, opp: { spirits: [{ card: ROKU }, { card: METAL }] } },
     steps: (t) => {
-        t.act("me", { type: "summon", handIndex: 0, substituteInstanceId: t.id("自分.虎拳士タイガ") })
-        resolveAll(t, ["相手.ロクケラトプス"])
+        t.act("me", { type: "summon", handIndex: 0 })
+        resolveAll(t, ["自分.虎拳士タイガ", "相手.ロクケラトプス"])
     },
     expect: [
         "自分.手札: 伝説龍エンシェントヴルム → なし",
         "自分.リザーブ: 10 → 1",
-        "自分.トラッシュのコア: 0 → 8",
+        "自分.トラッシュのコア: 0 → 8", // コスト8（軽減なし）。転召で動いた虎拳士タイガのコア1個はボイドへ
         "自分.トラッシュ: なし → 虎拳士タイガ",
         "自分.虎拳士タイガ.場所: フィールド → なし",
         "自分.伝説龍エンシェントヴルム.場所: なし → フィールド",
@@ -761,13 +761,13 @@ scenario({
         opp: { spirits: [{ card: ROKU }, { card: METAL }, { card: AIBARN }] },
     },
     steps: (t) => {
-        t.act("me", { type: "summon", handIndex: 0, substituteInstanceId: t.id("自分.虎拳士タイガ") })
-        resolveAll(t, ["相手.メタルバーン", "相手.アイバーン"])
+        t.act("me", { type: "summon", handIndex: 0 })
+        resolveAll(t, ["自分.虎拳士タイガ", "相手.メタルバーン", "相手.アイバーン"])
     },
     expect: [
         "自分.手札: 伝説龍エンシェントヴルム → なし",
         "自分.リザーブ: 10 → 2",
-        "自分.トラッシュのコア: 0 → 7",
+        "自分.トラッシュのコア: 0 → 7", // 赤シンボル1つで軽減してコスト7。転召で動いた虎拳士タイガのコア2個はボイドへ
         "自分.トラッシュ: なし → 虎拳士タイガ",
         "自分.虎拳士タイガ.場所: フィールド → なし",
         "自分.伝説龍エンシェントヴルム.場所: なし → フィールド",

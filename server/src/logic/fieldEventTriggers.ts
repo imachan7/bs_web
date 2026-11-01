@@ -371,6 +371,9 @@ export function fireFieldEventTriggers(
                     if (!player.field.nexuses.some((n) => instHasColor(n, color))) continue
                 } else if ("lastMilledHasEx" in effect.condition) {
                     if (!(state.lastDeckMill?.cardIds ?? []).some((id) => getCard(id).symbolEx === true)) continue
+                } else if ("lastMilledHasMagic" in effect.condition) {
+                    // PX10 導魔神姫ジェラルディー：破棄されたカードにマジックが含まれるときのみ（state.lastDeckMill）
+                    if (!(state.lastDeckMill?.cardIds ?? []).some((id) => getCard(id).type === "magic")) continue
                 } else if ("lastFunsaiHasSpirit" in effect.condition) {
                     // BS11-042 海賊ラッコルセア：直前の【粉砕】で破棄したカードの中にスピリットカードがあったときのみ
                     // （triggered.conditionの同名軸と同じ判定。GameState.lastFunsai）

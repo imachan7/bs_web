@@ -248,6 +248,7 @@ export type EffectDefTrigger =
               | { lastFunsaiHasSpirit: true } // ownFunsaiMilled 限定
               | { lastFunsaiHasCostAtLeast4: true } // ownFunsaiMilled 限定
               | { lastFunsaiHasBurst: true } // ownFunsaiMilled 限定。バースト効果を持つカードを破棄した
+              | { lastMilledHasMagic: true } // ownDeckMilled 限定（state.lastDeckMill を見る）。破棄されたカードにマジックが含まれる
               | { opponentHandAtLeastOwnHand: true } // 相手の手札枚数
               | { opponentMagicUsedAtLeast: number } // opponentMagicUsed 限定。このターンの使用回数
               | { burstCostAtMost: number } // ownBurstActivated 限定

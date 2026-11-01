@@ -43,7 +43,7 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 {
     const entries = collect()
     // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
-    assert(entries.length === 25, `playerRule は25か所（BS18 の 054・059・060・078・X06 で+5）（実際: ${entries.length}）`)
+    assert(entries.length === 30, `playerRule は30か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5）（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         // 雷神砲カノン・アームズは直前に破棄したカードの色を読むので、単独で解決しても何も置かない（part281・part426）
         // アブラカダブラは召喚時効果を発揮したスピリットの色（バーストの発動イベント）を読むので、単独では置かない（part622）

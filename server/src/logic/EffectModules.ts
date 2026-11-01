@@ -1022,10 +1022,12 @@ export function applyMagicBuffBonus(
                 if (!instHasColor(target, "green")) continue
             }
             noteCoverage(effect, "magicBuffBonus")
-            recordBp(state, targetOwner, target, effect.amountBonus, "turn")
+            // 『アタック時』など効果文に期間が書かれていないBP+はバトルの間だけ（battleOnly）。省略時はターン終了時まで
+            const until: "turn" | "battle" = effect.battleOnly === true ? "battle" : "turn"
+            recordBp(state, targetOwner, target, effect.amountBonus, until)
             log(
                 state,
-                `${getCard(source.cardId).name}の効果で${getCard(target.cardId).name}はさらにBP+${effect.amountBonus}（ターン終了時まで）。`,
+                `${getCard(source.cardId).name}の効果で${getCard(target.cardId).name}はさらにBP+${effect.amountBonus}（${until === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`,
             )
         }
     }

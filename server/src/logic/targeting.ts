@@ -3,6 +3,7 @@ import { isResisted, resolveAction } from "./EffectModules"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId } from "../type"
 import { getCard, log, opponentOf, pushResumeFrames, suspend } from "./GameState"
 import { applyBothSidesRedirectToCandidates, bothSidesRedirectKeepPid } from "./triggers"
+import { currentRecordScope } from "./record"
 import { markPays, skipUnpayablePay } from "./actions/pay"
 import type { EffectAttempt } from "../../../shared/rules"
 import { effectiveBp } from "../../../shared/rules"
@@ -184,6 +185,8 @@ export function tryInteractiveTargetChoice(
             kind: "action",
             selfInstanceId: self ? self.instanceId : null,
             action: remainingAction,
+            // 続きは同じ効果の同じ記録枠で（枠が変わると lastMoved の記録が再開のたびに分断される）
+            recordScope: currentRecordScope(state),
             ...(chooser !== owner ? { actorPid: owner } : {}),
         }])
     }

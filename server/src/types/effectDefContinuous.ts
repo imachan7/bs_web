@@ -463,6 +463,7 @@ export type EffectDefContinuous =
           target: "self" | "ownOthers" | "ownAll" // ownOthers=発生源以外の持ち主の緑スピリット
           colorFilter?: Color
           amountBonus: number
+          battleOnly?: true // 『アタック時』『ブロック時』など効果文に期間が書かれていないBP+はバトルの間だけ（バトル終了で消える）。省略時はターン終了時まで
       }
     | {
           id: string

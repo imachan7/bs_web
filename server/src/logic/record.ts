@@ -26,8 +26,8 @@ export function lastLeftCostOf(state: GameState, cardId: string, scope: string =
     return state.lastLeftCosts?.[scope]?.[cardId]
 }
 
-export function lastMovedOf(state: GameState): string[] {
-    return state.lastMoved?.[currentRecordScope(state)] ?? []
+export function lastMovedOf(state: GameState, scope: string = currentRecordScope(state)): string[] {
+    return state.lastMoved?.[scope] ?? []
 }
 
 // pay が「好きなだけ払う」の上限を探すときだけ、カウンタ lastMoved／lastCores に仮の値を入れて then を判定する（COST_MODEL §1。2026-09-27 ユーザー確認：後半が解決しきれない数は選べない）

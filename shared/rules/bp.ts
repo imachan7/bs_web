@@ -417,6 +417,7 @@ export function auraAppliesTo(
     }
     // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
     if (sourcePid !== targetOwnerPid) return false
+    if (aura.excludeSelf && sourceInst.instanceId === targetInst.instanceId) return false
     if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
     if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
         return false

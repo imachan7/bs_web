@@ -571,6 +571,7 @@
           3
         ],
         "target": "self",
+        "battleOnly": true,
         "amountBonus": 1000
       }
     ]
@@ -848,7 +849,7 @@
           3
         ]
       }
-]
+    ]
   },
   {
     "cardId": "P013",
@@ -1265,23 +1266,23 @@
           3
         ],
         "action": {
-        "type": "sequence",
-        "actions": [
-          {
-            "type": "destroy",
-            "count": 1,
-            "anySide": true,
-            "filter": {
-              "maxBp": 4000
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "anySide": true,
+              "filter": {
+                "maxBp": 4000
+              }
+            },
+            {
+              "type": "draw",
+              "count": 1
             }
-          },
-          {
-            "type": "draw",
-            "count": 1
-          }
-        ]
-      },
-      "optional": false
+          ]
+        },
+        "optional": false
       }
     ]
   },
@@ -1970,7 +1971,9 @@
         "bp": 2000
       }
     ],
-    "braveCondition": {"minCost": 4},
+    "braveCondition": {
+      "minCost": 4
+    },
     "braveConditionText": "コスト4以上",
     "effects": [
       {
@@ -2051,7 +2054,9 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "braveCondition": {"minCost": 4},
+    "braveCondition": {
+      "minCost": 4
+    },
     "effects": [
       {
         "id": "P030-e1",
@@ -2119,7 +2124,9 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "braveCondition": {"minCost": 4},
+    "braveCondition": {
+      "minCost": 4
+    },
     "effects": [
       {
         "id": "P031-e1",
@@ -2960,7 +2967,9 @@
       }
     ],
     "braveConditionText": "コスト3以上",
-    "braveCondition": {"minCost": 3},
+    "braveCondition": {
+      "minCost": 3
+    },
     "effects": [
       {
         "id": "P042-e1",
@@ -3016,7 +3025,9 @@
         "bp": 3000
       }
     ],
-    "braveCondition": {"minCost": 3},
+    "braveCondition": {
+      "minCost": 3
+    },
     "braveConditionText": "コスト3以上",
     "effects": [
       {
@@ -3122,6 +3133,14 @@
           }
         },
         "optional": false
+      },
+      {
+        "id": "P044-e2",
+        "kind": "nameAsGrant",
+        "levels": null,
+        "whileCombined": true,
+        "target": "self",
+        "nameIncludes": "ジークヴルム"
       }
     ]
   },
@@ -4320,61 +4339,61 @@
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のバーストをセットしているとき、このスピリットをBP+3000する。\nLv2･Lv3『自分のバースト発動後』\n発動したカードのバースト条件が【自分のライフ減少後】だったら、自分のリザーブからコア1個を自分のライフに置く。\nこの効果はターンに1回しか使えない。",
     "effects": [
-    {
-      "id": "P060-e1",
-      "kind": "keyword",
-      "keyword": "clash",
-      "levels": [
-        1,
-        2,
-        3
-      ]
-    },
-    {
-      "id": "P060-e2",
-      "kind": "triggered",
-      "trigger": "onAttack",
-      "levels": [
-        1,
-        2,
-        3
-      ],
-      "optional": false,
-      "condition": {
-        "ownBurstSet": true
+      {
+        "id": "P060-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2,
+          3
+        ]
       },
-      "action": {
-        "type": "timedEffect",
-        "content": [
-          {
-            "type": "bp",
-            "amount": 3000
-          }
+      {
+        "id": "P060-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
         ],
-        "duration": "battle",
-        "target": "self"
-      }
-    },
-    {
-      "id": "P060-e3",
-      "kind": "fieldEvent",
-      "event": "ownBurstActivated",
-      "levels": [
-        2,
-        3
-      ],
-      "oncePerTurn": true,
-      "condition": {
-        "burstEvent": "ownLifeDamaged"
+        "optional": false,
+        "condition": {
+          "ownBurstSet": true
+        },
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
       },
-      "action": {
-        "type": "placeCores",
-        "from": "reserve",
-        "to": "life",
-        "count": 1
+      {
+        "id": "P060-e3",
+        "kind": "fieldEvent",
+        "event": "ownBurstActivated",
+        "levels": [
+          2,
+          3
+        ],
+        "oncePerTurn": true,
+        "condition": {
+          "burstEvent": "ownLifeDamaged"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "reserve",
+          "to": "life",
+          "count": 1
+        }
       }
-    }
-  ]
+    ]
   },
   {
     "cardId": "P061",
@@ -4731,36 +4750,36 @@
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv3『自分のアタックステップ』\n自分のスピリットの【粉砕】/【大粉砕】で、バースト効果を持つカードが破棄されたとき、さらに、相手のデッキを上から2枚破棄する。",
     "effects": [
-    {
-      "id": "P065-e1",
-      "kind": "keyword",
-      "keyword": "funsai",
-      "levels": [
-        1,
-        2,
-        3
-      ]
-    },
-    {
-      "id": "P065-e2",
-      "kind": "fieldEvent",
-      "event": "ownFunsaiMilled",
-      "levels": [
-        3
-      ],
-      "phase": "attack",
-      "turn": "own",
-      "condition": {
-        "lastFunsaiHasBurst": true
+      {
+        "id": "P065-e1",
+        "kind": "keyword",
+        "keyword": "funsai",
+        "levels": [
+          1,
+          2,
+          3
+        ]
       },
-      "action": {
-        "type": "discard",
-        "from": "deck",
-        "side": "opponent",
-        "count": 2
+      {
+        "id": "P065-e2",
+        "kind": "fieldEvent",
+        "event": "ownFunsaiMilled",
+        "levels": [
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "condition": {
+          "lastFunsaiHasBurst": true
+        },
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 2
+        }
       }
-    }
-  ]
+    ]
   },
   {
     "cardId": "P066",
@@ -4983,39 +5002,39 @@
     "limited": false,
     "effect": "Lv1･Lv2･Lv3：フラッシュ【覚醒】\n自分のスピリットのコアを、好きなだけこのスピリットに置くことができる。\nLv2･Lv3『自分のバースト発動後』\nそのバースト発動時に自分のスピリットが召喚されていたら、このスピリットを疲労させることで、そのバースト効果をもう1度発揮させる。",
     "effects": [
-    {
-      "id": "P072-e1",
-      "kind": "keyword",
-      "keyword": "awaken",
-      "levels": [
-        1,
-        2,
-        3
-      ]
-    },
-    {
-      "id": "P072-e2",
-      "kind": "fieldEvent",
-      "event": "ownBurstActivated",
-      "levels": [
-        2,
-        3
-      ],
-      "condition": {
-        "burstSummonedSpirit": true
+      {
+        "id": "P072-e1",
+        "kind": "keyword",
+        "keyword": "awaken",
+        "levels": [
+          1,
+          2,
+          3
+        ]
       },
-      "action": {
-        "type": "pay",
-        "cost": {
-          "type": "exhaust",
-          "target": "self"
+      {
+        "id": "P072-e2",
+        "kind": "fieldEvent",
+        "event": "ownBurstActivated",
+        "levels": [
+          2,
+          3
+        ],
+        "condition": {
+          "burstSummonedSpirit": true
         },
-        "then": {
-          "type": "repeatBurstEffect"
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "target": "self"
+          },
+          "then": {
+            "type": "repeatBurstEffect"
+          }
         }
       }
-    }
-  ]
+    ]
   },
   {
     "cardId": "P073",
@@ -5642,7 +5661,8 @@
             }
           ],
           "duration": "turn",
-          "side": "own"
+          "side": "own",
+          "all": true
         }
       },
       {
@@ -5807,7 +5827,8 @@
         ],
         "aura": {
           "type": "bp",
-          "target": "ownOthers",
+          "target": "ownAll",
+          "excludeSelf": true,
           "amount": 2000,
           "phaseTurn": {
             "phase": "attack",
@@ -6660,6 +6681,33 @@
         ]
       },
       {
+        "id": "PX10-e3",
+        "kind": "fieldEvent",
+        "event": "ownDeckMilled",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "byOpponentSpiritEffectOnly": true,
+        "condition": {
+          "lastMilledHasMagic": true
+        },
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "noDeckMillForPid"
+              }
+            }
+          ],
+          "duration": "turn",
+          "side": "own"
+        }
+      },
+      {
         "id": "PX10-e2",
         "kind": "triggered",
         "trigger": "onBattleStart",
@@ -7421,7 +7469,8 @@
             "side": "own",
             "count": 1,
             "filter": {
-              "color": "white"
+              "color": "white",
+              "excludeSelf": true
             }
           },
           "then": {

@@ -583,6 +583,7 @@ function returnAllTargetsToHand(
         // 指定側のスピリットのうちコスト条件を満たすものすべてを各持ち主の手札へ戻す（相手側のみ装甲・免疫を尊重）
         const sides: PlayerId[] = action.side === "both" ? bothSidesPids(state, srcType) : [opp]
         let returned = 0
+        const moved: string[] = []
         for (const pid of sides) {
             // returnSpiritToHand が field.spirits を破壊的に変更するため、対象をスナップショットしてから戻す
             const targets = state.players[pid].field.spirits.filter((s) => {
@@ -594,11 +595,14 @@ function returnAllTargetsToHand(
             })
             for (const s of targets) {
                 markBounce(state, pid, s, "hand", sourceName)
+                moved.push(s.cardId)
                 returned++
             }
         }
         // 全部を待機させてから一度に戻す（「戻ったとき」の誘発は全部戻ってからまとめて発揮する）
         flushBounces(state)
+        // 戻したカードを lastMoved に書く（「この効果で手札に戻した1体につき」が読む。1体版と同じ）
+        recordMoved(state, moved)
         if (returned === 0) log(state, `${sourceName}：手札に戻す対象がいなかった。`)
         return
 }
