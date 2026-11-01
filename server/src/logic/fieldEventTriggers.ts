@@ -488,10 +488,15 @@ export function fireFieldEventTriggers(
             // 色と種別は発生源のものを明示的に渡す（渡さないと self から導出され、
             // 「召喚されたスピリットの色で装甲を判定する」誤りになる。BS04七龍帝の玉座／鋼葉の樹林）
             // 「そのスピリットを破壊する／疲労させる」は発生源の持ち主の効果（2026-09-30 ユーザー確認）。
-            // イベント対象が相手側でも実行者は発生源の持ち主にする（装甲などの耐性と「相手の効果で〜」の判定に効く）
+            // イベント対象が相手側でも実行者は発生源の持ち主にする（装甲などの耐性と「相手の効果で〜」の判定に効く）。
+            // opponentSpiritDestroyed（破壊した側のフィールドで発火）では、アクション全般の実行者も
+            // 発生源の持ち主（pid）でなければならない。selfOverride.pid（破壊された側）のまま解決すると、
+            // 「相手のスピリットを破壊したときトラッシュから回収する」（BS19-079 星見の三連塔Lv2）が
+            // 破壊された側のトラッシュに対して実行されてしまう。
+            // 他のイベント（アタック誘発のコア除去など）は従来どおりイベント対象の持ち主が実行者
             const actsOnEventSubject = (effect.action.type === "destroy" && effect.action.target === "self") || (effect.action.type === "exhaust" && effect.action.target === "self")
             return {
-                actionPid: actsOnEventSubject ? pid : selfOverride.pid,
+                actionPid: actsOnEventSubject || (event === "opponentSpiritDestroyed" && selfOverride.pid !== pid) ? pid : selfOverride.pid,
                 actionSelf: selfOverride.inst,
                 actionTargetId,
                 srcColors: instColors(inst),
