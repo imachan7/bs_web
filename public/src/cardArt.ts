@@ -59,6 +59,8 @@ export function attachCardArt(el: HTMLElement, cardId: string, name: string): vo
     const art = document.createElement("img")
     art.className = "card-art"
     art.alt = ""
+    // デッキ構築の一覧は全カードを一度に描くので、画面に近づいたものだけ読む（ブラウザ標準の遅延読み込み）
+    art.loading = "lazy"
     art.src = url
     if (artLoaded.has(cardId)) el.classList.add("has-art")
     art.onload = () => {
