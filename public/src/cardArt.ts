@@ -3,9 +3,47 @@
 // 旧カードの BS01-001 は別のカードなので、画像に対応させない（名前・効果と食い違うため）。
 // 画像が無いカードは <img> の onerror で外し、従来のテキスト表示にフォールバックする
 export function cardImageUrl(cardId: string, size: "md" | "sm" | "xs" = "md"): string | null {
-    if (!cardId.startsWith("26R")) return null
-    const set = cardId.slice(0, cardId.indexOf("-"))
-    return `/imgs/cards/${size}/${set}/${cardId}.webp`
+    if (!cardId.startsWith("26R") && !secretArtOn()) return null
+    return `/imgs/cards/${size}/${cardSetDir(cardId)}/${cardId}.webp`
+}
+
+// 画像の置き場の弾フォルダ。プロモ（P001・PX01・X014）は番号に「-」が無いので英字の部分で分ける。
+// scripts/download-card-images.ts と同じ決め方
+export function cardSetDir(cardId: string): string {
+    const dash = cardId.indexOf("-")
+    return dash >= 0 ? cardId.slice(0, dash) : cardId.replace(/\d+$/, "")
+}
+
+// 旧カードの画像は隠し要素（2026-11-02 ユーザー要望）。どこかの入力欄に合言葉を打つと、その端末でだけ出す／もう一度で消す。
+// 鍵ではない（画像の URL を知っていれば誰でも開ける）。検索結果やふだんの画面に出さないためだけ
+// 読点・感嘆符・空白は無視し、原作の表記「界放」でも通す
+const isSecretPhrase = (text: string): boolean => text.replace(/[、。,.!！\s]/g, "").replace("界放", "開放") === "ゲートオープン開放"
+const SECRET_KEY = "bs.secretCardArt"
+
+function secretArtOn(): boolean {
+    try {
+        return localStorage.getItem(SECRET_KEY) === "1"
+    } catch {
+        return false
+    }
+}
+
+export function installSecretCardArt(notify: (message: string) => void): void {
+    document.addEventListener("input", (e) => {
+        const el = e.target
+        if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return
+        if (!isSecretPhrase(el.value)) return
+        const on = !secretArtOn()
+        try {
+            if (on) localStorage.setItem(SECRET_KEY, "1")
+            else localStorage.removeItem(SECRET_KEY)
+        } catch {
+            return
+        }
+        el.value = ""
+        artMissing.clear()
+        notify(on ? "ゲートオープン開放！カードの画像を表示します" : "カードの画像を表示しないようにしました")
+    })
 }
 
 // 画像が読み込めたときだけ .has-art（縦長レイアウト）を付ける。

@@ -5,7 +5,7 @@ import { CARD_TYPE_LABELS, COLOR_LABELS, DECK_SIZE, DECK_MIN_SIZE } from "../../
 import { KEYWORDS } from "../../shared/rules"
 import { isTokenCard } from "../../shared/cardDb"
 import { effectLineSegments } from "./effectText"
-import { attachCardArt } from "./cardArt"
+import { attachCardArt, installSecretCardArt } from "./cardArt"
 
 // ---- 定数 ----
 
@@ -1361,6 +1361,10 @@ async function init(): Promise<void> {
     setupDeckIo()
     renderSavedDecks()
     renderAll()
+    installSecretCardArt((message) => {
+        showToast(message)
+        renderAll()
+    })
 }
 
 init().catch((err) => {
