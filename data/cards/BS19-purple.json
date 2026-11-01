@@ -850,7 +850,30 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。\nLv2\n系統：「無魔」を持つ自分のスピリットすべては、相手の効果では疲労しない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-082-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-082-e2",
+        "kind": "exhaustImmunityGrant",
+        "levels": [
+          2
+        ],
+        "familyFilter": "無魔"
+      }
+    ]
   },
   {
     "cardId": "BS19-083",

@@ -901,7 +901,74 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n【強化】を持つコスト2以上の自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。\nLv2『自分のアタックステップ』\n系統：「星竜」を持つ自分のスピリットが相手のスピリットを破壊したとき、自分のトラッシュにあるブレイヴカード1枚を手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-079-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectSide": "own",
+        "subjectFilter": {
+          "keyword": "kyoka",
+          "cost": {
+            "min": 2
+          }
+        },
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-079-e2",
+        "kind": "battleWon",
+        "role": "attacker",
+        "levels": [
+          2
+        ],
+        "turn": "own",
+        "winnerFamilyFilter": "星竜",
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "cardType": "brave"
+          }
+        }
+      },
+      {
+        "id": "BS19-079-e3",
+        "kind": "fieldEvent",
+        "event": "opponentSpiritDestroyed",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "destroyedByOwnEffect": {
+          "sourceType": "spirit",
+          "sourceFamily": [
+            "星竜"
+          ]
+        },
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "cardType": "brave"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-080",
@@ -935,7 +1002,42 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\n系統：「地竜」を持つ自分のスピリットすべてに“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”を与える。\nLv2『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットがアタックしたとき、そのスピリットと同じBPの相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-080-e1",
+        "kind": "keywordGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "keyword": "clash",
+        "target": "ownAll",
+        "familyFilter": [
+          "地竜"
+        ]
+      },
+      {
+        "id": "BS19-080-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectSide": "own",
+        "subjectFilter": {
+          "family": "地竜"
+        },
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "exactBp": "selfBp"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-081",
@@ -972,7 +1074,63 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n【連鎖】を持つ自分のスピリットが、相手の効果によって破壊された/手札に戻ったとき、相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【連鎖】を持つ自分のスピリットすべてをBP+3000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-081-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "byOpponentEffectOnly": true,
+        "subjectFilter": {
+          "keyword": "rensa"
+        },
+        "action": {
+          "type": "destroy",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-081-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritReturnedToHand",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "byOpponentOnly": true,
+        "subjectFilter": {
+          "keyword": "rensa"
+        },
+        "action": {
+          "type": "destroy",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-081-e3",
+        "kind": "aura",
+        "levels": [
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "keywordFilter": "rensa",
+          "amount": 3000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-097",
@@ -992,7 +1150,47 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、アタックしている自分のスピリットすべてをBP+1000する。\nさらに、アタックしている【強化】を持つ自分のスピリットすべてをBP+3000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-097-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "bp",
+                  "amount": 1000
+                }
+              ],
+              "duration": "turn",
+              "side": "own",
+              "filter": {
+                "attackingOnly": true
+              }
+            },
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "bp",
+                  "amount": 3000
+                }
+              ],
+              "duration": "turn",
+              "side": "own",
+              "filter": {
+                "attackingOnly": true,
+                "keyword": "kyoka"
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-098",
@@ -1013,7 +1211,45 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nBP5000以下の相手のスピリット1体を破壊する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：疲労状態のコスト4以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-098-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "keyword": "rensa",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "filter": {
+                "maxBp": 5000
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "purple"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "count": 1,
+                "filter": {
+                  "rested": true,
+                  "cost": {
+                    "max": 4
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-099",

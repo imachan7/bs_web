@@ -802,7 +802,27 @@
       }
     ],
     "braveConditionText": "コスト4以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-072-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "all",
+          "count": 1,
+          "filter": {
+            "keyword": "rensa"
+          }
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 4
     }
@@ -839,7 +859,46 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n自分の緑のスピリットがアタックしたとき、ボイドからコア1個を【強化】を持つ自分のスピリットに置く。\nLv2『相手のアタックステップ』\n相手のスピリットのアタックによって自分のライフが減ったとき、自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-085-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "ownOnly": true,
+        "subjectFilter": {
+          "color": "green"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "count": 1,
+          "filter": {
+            "keyword": "kyoka"
+          }
+        }
+      },
+      {
+        "id": "BS19-085-e2",
+        "kind": "fieldEvent",
+        "event": "ownLifeDamaged",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-086",
@@ -873,7 +932,43 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のエンドステップ』\n自分の緑のスピリットすべてを回復させる。\nLv2『自分のアタックステップ』\n系統：「爪鳥」を持つ自分のスピリットがアタックしたとき、相手のスピリット1体を疲労させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-086-e1",
+        "kind": "step",
+        "step": "end",
+        "turn": "own",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "refresh",
+          "all": true,
+          "filter": {
+            "color": "green"
+          }
+        }
+      },
+      {
+        "id": "BS19-086-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "ownOnly": true,
+        "subjectFilter": {
+          "family": "爪鳥"
+        },
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-087",
@@ -910,7 +1005,47 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n【連鎖】を持つ自分のスピリットのアタックで相手のライフが減ったとき、ボイドからコア1個を自分のリザーブに置く。\nLv2『お互いのアタックステップ』\n【神速】で自分の手札にあるスピリットカード/ブレイヴカードを召喚するとき、ターンに1回、コストを支払わずに召喚できる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-087-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDealtLife",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "keyword": "rensa"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-087-e2",
+        "kind": "activated",
+        "timing": "flash",
+        "levels": [
+          2
+        ],
+        "oncePerTurn": true,
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "both"
+        },
+        "action": {
+          "type": "summon",
+          "from": "hand",
+          "keywordFilter": "soku",
+          "cancelable": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-103",
@@ -952,7 +1087,55 @@
     "rarity": "",
     "limited": false,
     "effect": "メイン：\nこのターンの間、コスト4以下の自分のスピリットがアタックするとき、相手はバーストを発動できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-104-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "lendSelfThisTurn"
+        }
+      },
+      {
+        "id": "BS19-104-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": null,
+        "lentOnly": true,
+        "ownOnly": true,
+        "subjectFilter": {
+          "cost": {
+            "max": 4
+          }
+        },
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "battleLock",
+              "lock": "burst"
+            }
+          ],
+          "duration": "battle"
+        }
+      },
+      {
+        "id": "BS19-104-e3",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 2000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-105",
@@ -974,7 +1157,41 @@
     "rarity": "U",
     "limited": false,
     "effect": "フラッシュ：\n相手のスピリット1体を疲労させる。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：コスト3以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-105-e1",
+        "kind": "magic",
+        "keyword": "rensa",
+        "timing": "flash",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "exhaust",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "count": 1,
+                "filter": {
+                  "cost": {
+                    "max": 3
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-X03",
@@ -1011,7 +1228,82 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手のスピリット1体を疲労させる。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：自分はデッキから2枚ドローする。その後、自分は手札2枚を破棄する。\nLv2『自分のアタックステップ』\nこのスピリットと【神速】を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のライフのコア1個を相手のリザーブに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-X03-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "exhaust",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "sequence",
+                "actions": [
+                  {
+                    "type": "draw",
+                    "count": 2
+                  },
+                  {
+                    "type": "moveCards",
+                    "from": "hand",
+                    "dest": "trash",
+                    "count": 2
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS19-X03-e2",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-X03-e3",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDealtLife",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "keyword": "soku"
+        },
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-X07",
@@ -1051,7 +1343,47 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-X07-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": null
+      },
+      {
+        "id": "BS19-X07-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "eventTarget": "use",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "battleLock",
+              "lock": "burst"
+            }
+          ],
+          "duration": "battle"
+        }
+      },
+      {
+        "id": "BS19-X07-e3",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "battleRole": "attacker",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "lifeCrush",
+          "count": 1,
+          "dest": "trash"
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 5
     }

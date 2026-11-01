@@ -160,7 +160,19 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【強化】\nアルティメット以外の自分の「相手へのデッキ破棄効果」の枚数を+1枚する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-059-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-060",
@@ -231,7 +243,18 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2【強化】\n自分の「相手へのデッキ破棄効果」の枚数を+1枚する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-061-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "BS19-062",
@@ -272,7 +295,52 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-062-e1",
+        "kind": "keyword",
+        "keyword": "funsai",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS19-062-e2",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": [
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS19-062-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-063",
@@ -389,7 +457,51 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト5以下の相手のスピリット1体を破壊する。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：自分のトラッシュにあるスピリットカード1枚を手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-065-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "filter": {
+                "cost": {
+                  "max": 5
+                }
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "moveCards",
+                "from": "trash",
+                "dest": "hand",
+                "pick": {
+                  "cardType": "spirit"
+                },
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-066",
@@ -464,7 +576,39 @@
       }
     ],
     "braveConditionText": "【強化】を持つ",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-077-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "level",
+              "max": true
+            }
+          ],
+          "duration": "turn",
+          "count": 1,
+          "side": "own",
+          "filter": {
+            "keyword": "kyoka"
+          }
+        }
+      },
+      {
+        "id": "BS19-077-e2",
+        "kind": "keyword",
+        "keyword": "funsai",
+        "levels": null,
+        "whileCombined": true
+      }
+    ],
     "braveCondition": {
       "keyword": "kyoka"
     }
@@ -543,7 +687,38 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2\n『このスピリットの召喚時』効果と、『このブレイヴの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\n系統：「闘神」を持つ自分のスピリットが相手のスピリットにブロックされたとき、ボイドからコア1個を自分のスピリットに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-094-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noSummonTriggerByCost"
+        }
+      },
+      {
+        "id": "BS19-094-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritBlocked",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "family": "闘神"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-095",
@@ -578,7 +753,41 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『このネクサスの配置時』\n自分の手札にあるブレイヴカード1枚をコストを支払わずに召喚できる。\nただし、『このブレイヴの召喚時』効果は発揮されない。\nLv2『自分のアタックステップ』\n系統：「闘神」を持つ自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-095-e1",
+        "kind": "triggered",
+        "trigger": "onDeploy",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "moveCards",
+          "from": "hand",
+          "dest": "summon",
+          "pick": {
+            "cardType": "brave"
+          },
+          "count": 1,
+          "skipOnSummon": true
+        }
+      },
+      {
+        "id": "BS19-095-e2",
+        "kind": "levelAs",
+        "levels": null,
+        "target": "ownSpiritsByFamily",
+        "familyFilter": "闘神",
+        "treatAs": "max",
+        "phase": "attack",
+        "sourceLevels": [
+          2
+        ],
+        "turn": "own"
+      }
+    ]
   },
   {
     "cardId": "BS19-096",
@@ -658,7 +867,25 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、自分のスピリット1体のLvを2つまで上のものとして扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-113-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "level",
+              "up": 2
+            }
+          ],
+          "duration": "turn",
+          "side": "own",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-114",
@@ -680,7 +907,50 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\nコスト5/8/11のバースト効果を持つスピリットすべてを破壊する。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：BP3000以下のスピリットすべてを破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-114-e1",
+        "kind": "magic",
+        "keyword": "rensa",
+        "timing": "flash",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "all": true,
+              "filter": {
+                "cost": {
+                  "in": [
+                    5,
+                    8,
+                    11
+                  ]
+                },
+                "hasBurst": true
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "all": true,
+                "anySide": true,
+                "filter": {
+                  "maxBp": 3000
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-X06",
@@ -762,7 +1032,55 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-X08-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": [
+          1
+        ]
+      },
+      {
+        "id": "BS19-X08-e2",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": null,
+        "whileCombined": true
+      },
+      {
+        "id": "BS19-X08-e3",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": null,
+        "whileCombined": true
+      },
+      {
+        "id": "BS19-X08-e4",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 5
     }
