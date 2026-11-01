@@ -24,7 +24,8 @@ async function main(): Promise<void> {
         const file = path.join(OUTPUT_ROOT, cardSetDir(id), `${id}.webp`)
         if (fs.existsSync(file)) continue
         const res = await fetch(`${BASE_URL}${id}.webp`)
-        if (res.status === 404) {
+        // 公式は無い画像を 404 でなくトップページへの 302 で返す（BS01-014・X004）
+        if (res.status === 404 || res.redirected || !res.headers.get("content-type")?.startsWith("image/")) {
             missing.push(id)
         } else if (!res.ok) {
             console.error(`[${i + 1}/${ids.length}] ${id}: HTTP ${res.status}。少し休んで続ける`)
