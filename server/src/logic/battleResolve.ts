@@ -1,9 +1,9 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
 import { entryActive } from "../../../shared/rules/effectStop"
-import { noteCoverage } from "../../../shared/coverage"
+import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { addLifeDealt, recordLifeLoss } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
-import { clearBattle, currentLevel, findSpirit, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
+import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
@@ -675,6 +675,13 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                 (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, f.attackerLevel),
             )
             if (jugekiEntry) noteCoverage(jugekiEntry, "keyword")
+            // 合体中のブレイヴが【呪撃】を持つ場合は attacker.cardId の効果にエントリが無いので、
+            // ブレイヴ側のエントリもここで記録する（BS19-069【合体中】【呪撃】）。
+            // ＞６の破壊で合体がすでに解けていることがあるので、参照から実体を引き直す
+            for (const ref of attacker.braveRefs ?? []) {
+                const brave = findInstanceAnywhere(state, ref.instanceId)
+                if (brave) noteKeyword(getCard(brave.cardId).effects, "jugeki")
+            }
             // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
             applyJugekiCoreToVoid(state, attackerPid, blockerPid, stillOnField)
             destroyTargetsBatch(state, attackerPid, [
