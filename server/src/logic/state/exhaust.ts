@@ -46,10 +46,17 @@ export function checkExhaustOnCoreChange(
                 if (effect.kind !== "exhaustOnManualCoreAdd") continue
                 if (!entryActive(state, sourcePid, source, effect, level)) continue
                 if (sourcePid === affectedPid && effect.scope !== "any") continue
-                const wantsEffect = effect.trigger === "effect"
-                if (wantsEffect !== opts.viaEffect) continue
-                if (opts.isRemoval && !effect.onRemove) continue
-                if (!opts.viaEffect && !effect.anyPhase && state.phase !== "main") continue
+                if (effect.trigger === "nonSummon") {
+                    // 召喚の維持コア配置は placeSummonedSpirit がこの検査を呼ばないため、ここへ来る置きはすべて「召喚のため以外」。
+                    // カード記載の『相手のメインステップ』＝対象側がターンプレイヤーのメインステップだけ
+                    if (opts.isRemoval) continue
+                    if (state.phase !== "main" || state.turnPlayer !== affectedPid) continue
+                } else {
+                    const wantsEffect = effect.trigger === "effect"
+                    if (wantsEffect !== opts.viaEffect) continue
+                    if (opts.isRemoval && !effect.onRemove) continue
+                    if (!opts.viaEffect && !effect.anyPhase && state.phase !== "main") continue
+                }
                 if (effect.colorFilter !== undefined && !instHasColor(affectedInst, effect.colorFilter)) continue
                 log(
                     state,

@@ -830,6 +830,7 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
         const level = currentLevel(inst).level
         for (const effect of getCard(inst.cardId).effects) {
             if (effect.kind !== "coreStepBonus") continue
+            if (effect.toLife) continue // 行き先変更は coreStepToLifeActive が見る。追加コアではない
             if (!entryActive(state, pid, inst, effect, level)) continue
             if (effect.condition) {
                 const cond = effect.condition
@@ -838,7 +839,9 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
                         ? cond.ownFieldHasNames.every((name) =>
                               player.field.spirits.some((s) => getCard(s.cardId).name === name),
                           )
-                        : player.field.spirits.some((s) => spiritHasFamily(state, pid, s, cond.ownFieldHasFamily))
+                        : "ownFieldHasFamily" in cond
+                          ? player.field.spirits.some((s) => spiritHasFamily(state, pid, s, cond.ownFieldHasFamily))
+                          : true
                 if (!ok) continue
             }
             noteCoverage(effect, "coreStepBonus")
@@ -846,6 +849,24 @@ export function coreStepBonusFor(state: GameState, pid: PlayerId): number {
         }
     }
     return bonus
+}
+
+// コアステップの「リザーブに置く1個」をライフに置くか（kind:"coreStepBonus".toLife。BS19-092）。
+// 条件（ownLifeAtMost）を満たす有効な発生源があれば置き換える。「置くことができる」＝任意だが、
+// 満たせば自動で置く簡略化（ライフを増やすことを拒む場面はこの弾に無い）。PhaseManager から呼ぶ
+export function coreStepToLifeActive(state: GameState, pid: PlayerId): boolean {
+    const player = state.players[pid]
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        const level = currentLevel(inst).level
+        for (const effect of getCard(inst.cardId).effects) {
+            if (effect.kind !== "coreStepBonus" || !effect.toLife) continue
+            if (!entryActive(state, pid, inst, effect, level)) continue
+            if (effect.condition && "ownLifeAtMost" in effect.condition && player.life > effect.condition.ownLifeAtMost) continue
+            noteCoverage(effect, "coreStepBonus")
+            return true
+        }
+    }
+    return false
 }
 
 // 対象スピリットへ「効果で」コアを置く共通処理。coreBonus ぶんをボイドから追加する。ownerPid は inst の持ち主（checkExhaustOnCoreChange の viaEffect 判定用）

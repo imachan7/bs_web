@@ -26,6 +26,38 @@ export function renderField(
     for (const inst of player.field.nexuses) {
         nexusZone.appendChild(fieldCardEl(view, ui, inst, isMine, pid, true))
     }
+    // 場に残るマジック（BS19-099 等）。対象にもコア移動にもならないので、絵と名前だけ出す
+    for (const inst of player.field.magics ?? []) {
+        nexusZone.appendChild(fieldMagicEl(inst, isMine))
+    }
+}
+
+function fieldMagicEl(inst: CardInstance, isMine: boolean): HTMLElement {
+    const m = master(inst.cardId)
+    const el = document.createElement("div")
+    el.className = "card field-magic"
+    el.style.setProperty("--c-main", `var(--c-${m.colors[0]})`)
+    el.style.setProperty("--c-sub", `var(--c-${m.colors[m.colors.length > 1 ? 1 : 0]})`)
+    el.dataset.instanceId = inst.instanceId
+    el.dataset.cardId = inst.cardId
+    el.dataset.side = isMine ? "mine" : "opp"
+    el.appendChild(cornerBadge("場のマジック", "#6a1b9a"))
+    attachCardArt(el, inst.cardId, m.name)
+    const name = document.createElement("div")
+    name.className = "name"
+    name.textContent = m.name
+    el.appendChild(name)
+    return el
+}
+
+function cornerBadge(text: string, color: string): HTMLElement {
+    const badge = document.createElement("div")
+    badge.textContent = text
+    Object.assign(badge.style, {
+        position: "absolute", top: "-6px", right: "-6px", background: color, color: "white", fontSize: "10px",
+        padding: "2px 6px", borderRadius: "4px", boxShadow: "0 1px 3px rgba(0,0,0,0.5)", zIndex: "2", pointerEvents: "none",
+    })
+    return badge
 }
 
 // コア移動ボタン（+/−、および各レベルへのショートカット）。スピリットとネクサスで共用する
@@ -221,6 +253,15 @@ export function fieldCardEl(
         badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.5)"
         badge.style.zIndex = "2"
         badge.style.pointerEvents = "none"
+        el.appendChild(badge)
+    }
+
+    // スピリットの下に裏向きで置いたカード（BS19-X02）。相手には枚数（underCount）だけ届く
+    const under = inst.underCards?.length ?? inst.underCount ?? 0
+    if (under > 0) {
+        const badge = cornerBadge(`下 ${under}枚`, "#37474f")
+        badge.style.top = "auto"
+        badge.style.bottom = "-6px"
         el.appendChild(badge)
     }
 

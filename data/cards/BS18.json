@@ -4896,6 +4896,7 @@
     ],
     "granted": {
      "trigger": "onLifeDealt",
+     "keywordBody": "seimei",
      "action": {
       "type": "placeCores",
       "from": "void",

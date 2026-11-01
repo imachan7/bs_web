@@ -37,6 +37,8 @@ import token from "./token"
 import declare from "./declare"
 import fireEffect from "./fireEffect"
 import forcedBlock from "./forcedBlock"
+import underCards from "./underCards"
+import fieldMagic from "../zones/fieldMagic"
 
 const ACTION_HANDLERS: ActionRegistry = {
     ...battleFlow,
@@ -74,6 +76,8 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...declare,
     ...fireEffect,
     ...forcedBlock,
+    ...underCards,
+    ...fieldMagic,
 }
 
 export default ACTION_HANDLERS

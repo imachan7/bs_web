@@ -92,4 +92,5 @@ export interface TargetFilter {
     sameCostAsLastTarget?: true // 直前に指定した自分のスピリット（lastTargetsOf の先頭）と同じ印刷コスト。normalizeFilter が cost 軸へ解決する（P058）
     maxLv1BpOfLastTarget?: true // 直前の対象（自分のスピリット1体）のカードのLv1BP（印刷値。効果による増減は含めない）以下。normalizeFilter が maxBp 軸へ解決する（26RCB01-066）
     lastTarget?: true // 直前の対象（recordTargets の記録。placeCores で置き先にした個体など）
+    highestBp?: true // 候補の中で実効BPが最も高いものだけ（同値が複数なら対象選択で使い側が選ぶ。destroy の相手側プールで解決）
 }

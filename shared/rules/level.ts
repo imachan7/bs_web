@@ -58,6 +58,8 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     fchange: { id: "fchange", label: "Fチェンジ" },
     meisai: { id: "meisai", label: "迷彩" },
     levelup: { id: "levelup", label: "レベルアップ" },
+    rensa: { id: "rensa", label: "連鎖" },
+    kyoka: { id: "kyoka", label: "強化" },
 }
 
 // キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。
@@ -112,6 +114,19 @@ export function instIsCombined(inst: CardInstance): boolean {
     return (inst.braveRefs?.length ?? 0) > 0 || inst.braveCombined === true
 }
 
+// 合体中のブレイヴのエントリは【合体時】のものだけが働く（docs/design/BRAVE.md §12 の表の #8。
+// 2026-11-02 ユーザー確認）。Lv の書かれた効果・キーワードはスピリット状態のときだけ。
+// 例外は『このブレイヴの召喚時』（kind:"triggered"＋trigger:"onSummon"）：ダイレクトブレイヴで
+// 合体しながら召喚しても働く。ホスト（braveRefs を持つ側）はここでは無関係なので素通り
+export function combinedBraveEntryOk(
+    inst: CardInstance,
+    effect: { whileCombined?: true; kind?: string; trigger?: string },
+): boolean {
+    if (inst.braveCombined !== true) return true
+    if (effect.whileCombined === true) return true
+    return effect.kind === "triggered" && effect.trigger === "onSummon"
+}
+
 // 効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
 //
 // ⚠️ `whileCombined` を宣言しているのは **keyword / triggered / aura / constraint / fieldEvent** の5 kind だけ
@@ -120,10 +135,11 @@ export function instIsCombined(inst: CardInstance): boolean {
 // 新しい kind に【合体時】が要るようになったら、型宣言と走査の両方を足すこと
 export function effectActiveOn(
     inst: CardInstance,
-    effect: { levels: number[] | null; whileCombined?: true },
+    effect: { levels: number[] | null; whileCombined?: true; kind?: string; trigger?: string },
     level: number,
 ): boolean {
     if (!effectActiveAtLevel(effect.levels, level)) return false
+    if (!combinedBraveEntryOk(inst, effect)) return false
     return effect.whileCombined !== true || instIsCombined(inst)
 }
 
@@ -224,6 +240,7 @@ export function effectSources(board: Board, pid: PlayerId): CardInstance[] {
         ),
         ...player.turnVirtualInstances, // 実在しないが効果を出す発生源：このターン限定（マジックが貸した継続効果）
         ...player.battleVirtualInstances, // 同上のこのバトル限定版（lendSelfThisBattle。clearBattle で消える）
+        ...player.field.magics, // 場に残るマジック（BS19-099 等。中身の継続効果・fieldEvent がこの行だけで効く。手札/トラッシュでは発生源でない
     ]
 }
 
@@ -669,6 +686,7 @@ export function isOnFieldAnyZone(player: BoardPlayer, instanceId: string): boole
     return (
         player.field.spirits.some((x) => x.instanceId === instanceId) ||
         player.field.nexuses.some((x) => x.instanceId === instanceId) ||
-        player.field.combinedBraves.some((x) => x.instanceId === instanceId)
+        player.field.combinedBraves.some((x) => x.instanceId === instanceId) ||
+        player.field.magics.some((x) => x.instanceId === instanceId)
     )
 }

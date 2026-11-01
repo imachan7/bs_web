@@ -12,9 +12,13 @@ import {
     activeConstraints,
     braveKeepCores,
     cantSpiritStateBrave,
-   
+
     bravesOf,
+    instColors,
 } from "../../../shared/rules"
+import { entryActive } from "../../../shared/rules/effectStop"
+import { noteCoverage } from "../../../shared/coverage"
+import { currentLevel } from "./GameState"
 
 import {
     emitEvent,
@@ -93,6 +97,22 @@ export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, h
     flushBraveKeeps(state)
 }
 
+// globalConstraint "combinedBraveIndestructible"（BS19-040【合体時】）：host 自身が
+// 「このスピリットのブレイヴは破壊されない」を持っているか。発生源は host そのものなので
+// host の効果だけを見る（detachBravesOnLeave の呼び出し時点で host は既に field から抜けているので
+// 在籍判定はしない＝破壊される瞬間まで効果は働いている）
+function combinedBraveIndestructibleFor(state: GameState, ownerPid: PlayerId, host: CardInstance): boolean {
+    const level = currentLevel(host).level
+    for (const effect of getCard(host.cardId).effects) {
+        if (effect.kind !== "globalConstraint") continue
+        if (effect.constraint.type !== "combinedBraveIndestructible") continue
+        if (!entryActive(state, ownerPid, host, effect, level)) continue
+        noteCoverage(effect, "globalConstraint")
+        return true
+    }
+    return false
+}
+
 // 合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
 // **ホストは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
 // 『破壊時』はブレイヴ側のものだけ発火する（ホストは破壊されていないため）。
@@ -105,6 +125,10 @@ export function destroyCombinedBrave(
     brave: CardInstance,
     context?: DestroyContext,
 ): void {
+    if (combinedBraveIndestructibleFor(state, ownerPid, host)) {
+        log(state, `${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は破壊されない。`)
+        return
+    }
     const player = state.players[ownerPid]
     host.braveRefs = (host.braveRefs ?? []).filter((r) => r.instanceId !== brave.instanceId)
     if (host.braveRefs.length === 0) delete host.braveRefs
@@ -118,6 +142,8 @@ export function destroyCombinedBrave(
     log(state, `${player.name}の${getCard(host.cardId).name}のブレイヴ「${name}」は破壊された。`)
     emitEvent(state, { type: "destroy", pid: ownerPid, cardName: name })
     fireTrigger(state, ownerPid, brave, "onDestroy")
+    // 「自分の合体スピリットのブレイヴだけが破壊されたとき」（BS19-093）。ブレイヴはすでにトラッシュへ置かれている
+    fireFieldEventTriggers(state, ownerPid, "ownBraveOnlyDestroyed", { pid: ownerPid, inst: brave }, instColors(brave))
     void context
 }
 
@@ -209,6 +235,8 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
     if (braves.length === 0) return
+    // 「このスピリットのブレイヴは破壊されない」は合体中だけの効果なので、参照を切る前に判定する
+    const forcedKeep = combinedBraveIndestructibleFor(state, ownerPid, host)
     // 先に参照を切る。異魔神ブレイヴ（実体1つ・参照2本）は、
     // **もう片方のホストがまだ生きていれば合体したまま**にする
     delete host.braveRefs
@@ -222,7 +250,10 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         if (at !== -1) player.field.combinedBraves.splice(at, 1)
         // 合体スピリットの疲労状態をそのまま引き継ぐ（合体中は1体なので状態を共有している。§1.3）
         brave.isRested = host.isRested
-        state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker, wasBlocker }]
+        state.pendingBraveKeeps = [
+            ...(state.pendingBraveKeeps ?? []),
+            { pid: ownerPid, brave, wasAttacker, wasBlocker, ...(forcedKeep ? { forced: true } : {}) },
+        ]
     }
     refreshLevelAsOverrides(state)
     flushBraveKeeps(state)
@@ -254,7 +285,11 @@ export function flushBraveKeeps(state: GameState): void {
         // BS11-X02 滅神星龍ダークヴルム・ノヴァLv3：この持ち主はブレイヴをスピリット状態にできない
         // ＝「残す」を選べない（確認を出さずトラッシュへ）
         const cantKeep = cantSpiritStateBrave(state, entry.pid)
-        if (!cantKeep && state.interactiveTargets && payableCores(state, entry.pid) >= need) {
+        // forced（combinedBraveIndestructible）：ブレイヴは破壊されないので「残さない」を選べない。
+        // 確認も出さず無条件で残す。リザーブが維持コアに足りなければ0コアで残す簡略化（コアを
+        // 置けない理由が無いので通常はホストのコアがリザーブへ返って間に合う）
+        const forced = entry.forced === true
+        if (!forced && !cantKeep && state.interactiveTargets && payableCores(state, entry.pid) >= need) {
             suspend(state, {
                 pid: entry.pid,
                 kind: "option",
@@ -271,10 +306,14 @@ export function flushBraveKeeps(state: GameState): void {
             return
         }
         state.pendingBraveKeeps!.shift()
-        if (cantKeep || player.reserve < need) {
+        if (!forced && (cantKeep || player.reserve < need)) {
             // 残せない → **合体元と同時にトラッシュへ**（§1.4）
             player.trashCards.push(entry.brave.cardId)
             log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
+            continue
+        }
+        if (forced && player.reserve < need) {
+            keepBrave(state, entry, 0)
             continue
         }
         player.reserve -= need

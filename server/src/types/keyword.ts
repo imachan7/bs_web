@@ -56,4 +56,6 @@ export type Keyword =
     // ＝指定する側のリザーブからコアN個をトラッシュへ支払わなければ対象に取れず、払えなければ候補から除外される。
     // マジック/ネクサスの効果・持ち主自身の効果には支払い不要。範囲効果は「指定」ではないので対象外。
     // 判定は EffectModules.resistanceAgainst の tryMeisaiToll（候補列挙では払わず実適用の1点だけで払う）
+    | "rensa" // 連鎖：ラベル専用（LABELED_KEYWORDS）。連鎖を含む効果のエントリに付け、そのLvで「【連鎖】を持つ」（Q774・Q775。シンボルの有無は問わない）
+    | "kyoka" // 強化：keyword エントリの kyoka が効果の種類。数値の加算は server/src/logic/keywords/kyoka.ts
     | "levelup"

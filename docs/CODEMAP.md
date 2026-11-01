@@ -30,11 +30,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `reductionGrantSymbols`（fn）：軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボルを求める。
 - `hasMagicRestriction`（fn）：マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
 - `hasMagicCostLock`（fn）：コスト上限によるマジック使用制約（restriction:"costLimitAll"）の判定。
+- `hasMagicColorBan`（fn）：色によるマジック使用制約（restriction:"colorBanAll"）の判定。お互いに効くので
 - `canPayNexusCostByMill`（fn）：栄光の表彰台Lv1（kind:"nexusCostMillPay"）：ネクサスの配置コストを
 - `canPaySummonCostByHandDiscard`（fn）：BS08ビクティム（kind:"summonCostHandDiscardPay"）：スピリットの召喚コストを
 - `hasMagicFreeGrant`（fn）：マジック無償化（kind: "magicFreeGrant"）の判定。使用者pid自身のフィールドに、
 - `findMagicFreeGrantSource`（fn）：hasMagicFreeGrant の実体。無償化を成立させている**発生源のinstanceId**を返す（無ければ null）。
 - `isSelfInBattle`（fn）：発生源自身が現在のバトルの当事者（アタッカー/ブロッカー）か。
+- `findSokuFreeSummonSource`（fn）：【神速】での召喚の無償化（kind: "sokuFreeSummon"）の判定。フラッシュタイミングの手札からの召喚で、
 - `magicEffectiveColors`（fn）：kind:"ownMagicColorless"（BS15-015吸血令嬢エサルフリーダ Lv1-3）：発生源自身が現在のバトルの当事者
 - `ownFieldSymbolColors`（fn）：pidのフィールド（スピリット＋ネクサス）が持つシンボルの色集合（力奪う凱旋門のcolorLockOpponent判定用。
 - `costSetOverride`（fn）：コスト置換（kind:"costMod"のmode:"set"）を求める。pid自身のeffectSources（フィールド＋
@@ -72,6 +74,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `sokuPayableInstanceIds`（fn）：【覚醒】を現在レベルで持っているか。
 - `payAssistCandidates`（fn）：kind:"payAssistByExhaust" を持つ、pidの自分フィールド（スピリット・ネクサス）の回復状態の発生源。
+- `magicPayAssistCandidates`（fn）：kind:"payAssistByExhaust" via:"magic"（BS19-054）：持ち主がマジックカードを使用するときに
 - `burstSetCoresRequired`（fn）：kind:"burstSetCost"（BS16-067氷聖女の塔Lv2）が課す、pidがバーストをセットするために必要な
 - `coreZoneChoiceId`（fn）：pendingChoice の候補に混ぜる「そのプレイヤーのリザーブ／トラッシュのコア」の番兵（removeCores で取り先を1個ずつ選ぶとき）。
 - `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
@@ -176,7 +179,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `magicColorBanned`（fn）：期間つき効果で、このマジックの色が使用禁止か（cantUseMagicForPid。手札・手元・トラッシュなど使用元は問わない）
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
-- `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"：holderPid のバーストが event で発動できないか
+- `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"／"noBurstActivationByColor"：holderPid のバーストが発動で…
 - `spiritCouldAttackNow`（fn）：いま（またはこの後のアタックステップで）アタックを強いられうる個体か。mustAttack 系の判定と validateEndTurn が共有する
 - `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 - `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
@@ -216,6 +219,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `staticKeywordCount`（fn）：効果の levels 指定が現在のレベルで有効か（null = レベル不問）
 - `effectActiveAtLevel`（fn）
 - `instIsCombined`（fn）：このインスタンスが**合体しているか**（docs/design/BRAVE.md §12.3）。
+- `combinedBraveEntryOk`（fn）：合体中のブレイヴのエントリは【合体時】のものだけが働く（docs/design/BRAVE.md §12 の表の #8。
 - `effectActiveOn`（fn）：効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
 - `combinedBraveColorsOk`（fn）：【合体時】の色条件（X008 神星皇ストライク・アポロドラゴン＝「赤/紫/青のブレイヴとの合体時」）。
 - `cardHasTeam`（fn）：カードが指定チームを持つか（kind:"allTeams"＝「すべてのチームを持つ」は全チームに当たる。カード単体で見る場所用）
@@ -348,6 +352,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasLifeDamageNegate`（fn）：kind:"lifeDamageNegate"：ブロックされなかったアタッカーの実効BPが、発生源（defenderPid側）の実効BP以下のとき、ライフダメージそのものを打ち消す…
 - `drawStepBonusFor`（fn）：持ち主のドローステップで引く枚数の追加数（kind: "drawStepBonus"）。uniqueByName は同名の発生源を1回だけ数える
 - `coreStepBonusFor`（fn）：持ち主のコアステップで得られるコアの追加数（kind:"coreStepBonus"）。フィールド（スピリット＋ネクサス）の発動条件を満たす発生源をすべて合算する。
+- `coreStepToLifeActive`（fn）：コアステップの「リザーブに置く1個」をライフに置くか（kind:"coreStepBonus".toLife。BS19-092）。
 - `placeCoresOnSpirit`（fn）：対象スピリットへ「効果で」コアを置く共通処理。coreBonus ぶんをボイドから追加する。ownerPid は inst の持ち主（checkExhaustOnCoreChang…
 - `voidCoreToOwnTrash`（fn）：ボイドからコアcount個を直接、持ち主のトラッシュに置く。スピリット上のコアを取り除く処理ではないので checkExhaustOnCoreChange は呼ばない
 - `sweepLevelCostDepletion`（fn）：継続効果で「Lvコスト」が上がり、維持コア（Lv1）を下回った個体を消滅させる。コアが減ったのではなく**必要なコア数が増えた**ことで起きるので、コアを動かす各所の判定では拾えな…
@@ -363,6 +368,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `handleAction`（fn）：アクションを実行し、エラーがあれば理由を返す（null = 成功）
 - `passFlashPriority`（fn）：バトル中のフラッシュで行動したら優先権を相手へ移し、連続パス数をリセットする（フラッシュマジック・神速召喚・覚醒で共通）
 - `placeSummonedSpirit`（fn）：【転召】まで解決し終えたスピリットを、維持コアを置いて実際にフィールドへ出す（docs/design/RESUME_STACK.md §6）。転召の対象選択で中断した場合は Res…
+- `doSummon`（fn）
 - `ResshinsokuInfo`（型）
 - `applyResshinsokuDestination`（fn）
 - `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで実際にスピリットを場に出す。コストも維持コアの支払いも無い（維持コアぶんは「このスピリット」に置かれたコアが兼ねる）。
@@ -494,6 +500,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/actions/mill.ts
 
 - `DeckDiscard`（型）
+- `deckDiscardKyokaCount`（fn）：【強化】（青）：相手へのデッキ破棄効果の枚数+n枚。1枚以上破棄するときだけ（Q766）、
 - `discardFromDeck`（fn）
 
 ## server/src/logic/actions/moveCards.ts
@@ -529,6 +536,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/removeCores.ts
 
+- `removeCoresKyokaBonus`（fn）：【強化】（紫）でリザーブに置くコアが+1個になる条件。行き先がリザーブ（既定）で、スピリットから
 - `removeCoresAchievableCountForPay`（fn）：pay の判定表（removeCores）が使う、取れる最大数。filter は self相対軸を解決せずに比べる
 
 ## server/src/logic/actions/repeatBurst.ts
@@ -572,6 +580,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BounceTo`（型）
 - `bounceDenial`（fn）
 - `allSpiritsCantBounceActive`（fn）：金狐角。発生源の持ち主基準の phase/turn を見るので hasGlobalConstraint ではなく専用に走査する
+- `reviveOnReturnStay`（fn）：kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で手札・デッキに戻るときも、
 
 ## server/src/logic/brave.ts
 
@@ -635,6 +644,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `hasEffectTax`（const）
 - `withEffectTax`（fn）：払わせる必要がある税の分だけ pay で包んだ action を返す（無ければ元のまま）。
+- `withDeckMillTax`（fn）：デッキ破棄への税（on:"deckMill"）。破棄する側（payer）が相手のデッキを破棄する action を pay で包む。
+- `hasDeckMillTax`（const）
 
 ## server/src/logic/exhaustGate.ts
 
@@ -705,6 +716,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasKeywordAtLevel`（fn）：静的キーワード（レベル判定つき）‖ 一時付与 ‖ 継続付与のいずれかで keyword を持つか。
 - `hasKoboOnBlock`（fn）：士気高き大本営の光芒版（BS03星降る巡礼地Lv2）：持ち主のスピリットの【光芒】を
 - `resolveKoboOnBattleEnd`（fn）：【光芒】: バトル終了時、アタッカーがレベル有効で光芒を持つなら、
+
+## server/src/logic/keywords/kyoka.ts
+
+- `KyokaKind`（型）：【強化】の対象になる効果の種類（effectDef.ts の keyword エントリの kyoka 欄と同じ値）
+- `kyokaBonus`（fn）：効果の使用者（発生源の持ち主）pid の【強化】（種類 kind）の数。effectSources＝発生源のうち
 
 ## server/src/logic/keywords/kyoshu.ts
 
@@ -801,6 +817,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `markOnceNameUsed`（fn）
 - `ownerPidOfInstance`（fn）
 - `isOnceUsed`（fn）
+- `usedCountThisTurn`（fn）：「ターンにN回まで」（maxPerTurn）。このターンに発揮した回数
+- `markUsedOnceThisTurn`（fn）
 - `markOnceUsed`（fn）
 - `claimOnce`（fn）：解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
 - `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
@@ -984,6 +1002,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isStillOnField`（fn）：発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。
 - `notifySpiritCoresRemovedByOpponent`（fn）：フィールドイベント誘発「自分のスピリット上のコアが相手の効果でリザーブ/トラッシュへ置かれたとき」
 
+## server/src/logic/zones/fieldMagic.ts
+
+- `trashFieldMagic`（fn）：フィールドに置いてあるマジック1枚を持ち主のトラッシュへ破棄する（破棄条件の fieldEvent から呼ぶ）
+
 ## server/src/logic/zones/mill.ts
 
 - `millCapFor`（fn）
@@ -996,10 +1018,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isDeckMillBlocked`（fn）：「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
 - `findDeckMillNegate`（fn）：kind:"deckMillNegate"（BS08鳳翼の聖剣Lv2）：この破棄を無効にできる発生源を探す。
 - `trySuspendDeckMillNegate`（fn）：破棄を見送って**その場で**確認を出す。出した（＝この破棄を保留した）なら true。
-- `payDeckMillNegateCost`（fn）：無効化のコスト（ライフのコアN個を持ち主のリザーブへ）を支払い、無効になった旨をログに出す
+- `payDeckMillNegateCost`（fn）：無効化のコスト（ライフのコアN個を持ち主のリザーブへ）を支払い、無効になった旨をログに出す。
 - `applyDeckMillNegate`（fn）：保留していた「デッキ破棄の無効化」の確認で、承認されたときの処理。
 - `declineDeckMillNegate`（fn）：同上、断られたときの処理。見送っていた破棄をここで行う（skipNegate で確認の再入を防ぐ）
 - `resolveMilledFromDeck`（fn）：破棄されたカードのうち kind:"onMilledFromDeck" を持つものを解決する。
+
+## server/src/logic/zones/underCards.ts
+
+- `trashUnderCards`（fn）：下のカードを持ち主のトラッシュへ破棄する。場を離れるとき（全枚）とコスト支払い（count 枚）の共用。
 
 ## server/src/roomManager.ts
 
@@ -1085,6 +1111,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/effectDefTrigger.ts
 
+- `PartnerFilter`（型）：partnerFilter の maxBp だけ、ResolvedTargetFilter に無い "subjectBp"（イベント主体の実効BP以下）を書ける。
 - `EffectDefTrigger`（型）
 
 ## server/src/types/fieldEvent.ts

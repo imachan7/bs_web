@@ -136,6 +136,7 @@ function totalCards(s: GameState): number {
         const p = s.players[pid]
         n += p.deck.length + p.hand.length + p.trashCards.length + p.tegamoto.length
         n += p.field.spirits.length + p.field.nexuses.length
+        n += p.field.magics.length + p.field.spirits.reduce((m, sp) => m + (sp.underCards?.length ?? 0), 0) // 場に残るマジック・スピリットの下のカード（BS19）
     }
     n += s.revealedCards?.cardIds.length ?? 0
     return n

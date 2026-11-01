@@ -251,7 +251,7 @@ export interface BattleState {
     directedTargetInstanceId?: string // 指定アタックで指定された相手スピリット。**アタック宣言の時点ではまだブロックは確定しない**（アタック時効果と【バースト】をすべて解決した後に確定する。2026-09-06 ユーザー確認）。GameEngine.doPass がフラッシュ①を閉じる時点で finishBlockDeclaration へ渡し、正規のブロック宣言として成立させる（疲労状態でも成立する＝『ブロック時』効果は発揮する）。指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もせず、通常のアタックに戻る
     skipBpCompare?: true // 器AV：バトル解決時にBP比較（とその結果の破壊）自体を飛ばす。outcomeが"none"になり、勝敗判定・onBattleWin/onBattleLose・fireBattleWonTriggersは発火しない。【呪撃】・endBattleDestroy等のBP比較に依らない処理はそのまま動く（BS13-082ペガサスフラップ）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
-    treatAsUnblocked?: ("always" | "blockerLevel1" | "levelAtLeastBlocker")[] // バトルの解決で条件を満たせば、BPを比べずブロックされなかったものとして扱う（action treatAsUnblocked）
+    treatAsUnblocked?: ("always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number })[] // バトルの解決で条件を満たせば、BPを比べずブロックされなかったものとして扱う（action treatAsUnblocked）
     // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
     // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
     // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、
@@ -304,6 +304,7 @@ export type PlayerRuleDef =
     | { type: "nexusEffectsDisabledForPid" } // ネクサスすべての効果が発揮されない
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; symbolCount?: number; combinedOnly?: true; cores?: number } // maxCost 以下のスピリット（symbolCount 指定時はシンボル数ちょうど、combinedOnly なら合体スピリット、cores 指定時は載っているコアがちょうどその数のスピリット。26RSD02-013）のアタックではライフが減らない
     | { type: "handReductionColorAsForPid"; color: Color; cardType: CardType } // 手札にある cardType のカードすべての軽減シンボルを color 一色として扱う（件数は変えない）
+    | { type: "handReductionVoidForPid"; cardType?: CardType; keywordExclude?: Keyword } // 手札にある、cardType が一致し keywordExclude を持たないカードすべての軽減シンボルを無いものとして扱う（BS19-078「相手の手札にある【連鎖】を持たないマジックカードすべての軽減シンボルすべてを無いものとして扱う」）
     | { type: "noDeckMillByOpponentForPid" } // デッキは相手の効果では破棄されない
     | { type: "noDeckMillForPid" } // デッキは自分の効果も含めて破棄されない
     | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
@@ -333,6 +334,7 @@ export interface PlayerView {
         spirits: CardInstance[]
         nexuses: CardInstance[]
         combinedBraves: CardInstance[] // 公開情報のため自分/相手とも常に配信する（合体表示に要る）
+        magics: CardInstance[] // 場に残るマジック（BS19-099 等）。公開情報のため両者に配信する
     }
     tempHandKeywordGrants?: { cardId: string; keyword: Keyword }[] // 自分のみ。相手は常に省略（手札内容に紐づくため）
     payToNegate?: boolean // 自分のみ。「手札を破棄して効果を受けない」を払う方針か（UIのトグル表示用。未指定は true 扱い）

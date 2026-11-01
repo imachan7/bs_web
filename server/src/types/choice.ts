@@ -238,6 +238,17 @@ export interface PendingChoice {
         paySoulCoreFromReserve?: boolean
         timing?: "main" | "flash"
     }
+    sokuFreeChoice?: {
+        // 「【神速】でコストを支払わずに召喚できる」（kind:"sokuFreeSummon"）の使用時確認。
+        // **action は解決しない**（答えを持って doSummon をやり直す。magicFreeChoice と同じ形）
+        handIndex: number
+        level?: number
+        paySources?: PaySource[]
+        braveTargetInstanceId?: string
+        exReductionTrashIndices?: number[]
+        paySoulCoreFromReserve?: boolean
+        placeSoulCoreFromReserve?: true
+    }
     burstActivate?: {
         // バーストの発動確認待ち（docs/design/BURST.md）。**action は self=null で解決する**（マジックと同じ扱い。
         // バーストはフィールドに実体を持たないため、確認後の再開経路（selfInstanceId復元）に乗せられない）。
@@ -427,6 +438,7 @@ export type ResumeFrame =
           blockerColors: Color[]
           attackerLevel: number
           blockerLevel: number
+          attackerJugeki?: boolean // バトル開始時に【呪撃】を持っていたか（合体中のブレイヴの【呪撃】も含む。BP比較で破壊されて合体が解けても発動するので開始時に控える）
           attackerBp: number
           blockerBp: number
           // 破壊された個体は場から消えるが、『相手のスピリットに破壊されたとき』（onBattleLose）や

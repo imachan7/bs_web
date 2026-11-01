@@ -279,7 +279,7 @@ console.log("=== §K 合体中ブレイヴが効果の発生源になる（レ�
 {
     // 【合体中】Lv2で「自分のスピリットすべてBP+2000」を持つテスト用ブレイヴ
     const AURA = makeBrave("TEST-BRAVE-AURA", {
-        effects: [{ id: "TEST-BRAVE-AURA-e1", kind: "aura", levels: [2], aura: { type: "bp", target: "ownAll", amount: 2000 } }],
+        effects: [{ id: "TEST-BRAVE-AURA-e1", kind: "aura", levels: [2], whileCombined: true, aura: { type: "bp", target: "ownAll", amount: 2000 } }],
     } as never).cardId
 
     const s = base()

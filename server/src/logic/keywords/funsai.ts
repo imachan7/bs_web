@@ -6,6 +6,7 @@ import { currentLevel, getCard, opponentOf } from "../GameState"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { hasGlobalConstraint, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
 import { millDeck } from "../zones/mill"
+import { kyokaBonus } from "./kyoka"
 
 // 持ち主フィールドの funsaiBonus（崩壊する戦線／デモリッシュ）合計：【粉砕】の破棄枚数に加算する。
 // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。lentOnly。BS06デモリッシュ）も含める
@@ -96,7 +97,8 @@ export function resolveFunsai(
     // 【粉砕】の発生源は常にスピリット（onMilledFromDeck の by:"opponentSpiritEffect" 判定に使う）。
     // funsai:true は **ここだけ**が立てる（BS08鳳翼の聖剣Lv2「【粉砕】以外の」の判定用。
     // discard{from:"deck"} は効果文で「デッキを破棄する」と書かれた通常の効果なので立てない）
-    const actual = millDeck(state, opponentPid, level + bonus, ownerPid, { sourceType: "spirit", funsai: true })
+    // 【粉砕】も【強化】（青）のデッキ破棄効果の枚数に含まれる（Q757）
+    const actual = millDeck(state, opponentPid, level + bonus + kyokaBonus(state, ownerPid, "deckMill"), ownerPid, { sourceType: "spirit", funsai: true })
     // 山札が破棄されない間も【粉砕】は0枚の破棄として成立する（2026-10-23 ユーザー確認）。後続は0枚として動く
     if (actual === 0 && hasGlobalConstraint(state, "noDeckMill")) {
         state.lastFunsai = { total: 0, spirits: 0, nexuses: 0, magics: 0, costAtLeast4: 0, bursts: 0 }

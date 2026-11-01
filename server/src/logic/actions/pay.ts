@@ -21,7 +21,8 @@ import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, inst
 import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
-import { removeCoresAchievableCountForPay } from "./removeCores"
+import { removeCoresAchievableCountForPay, removeCoresKyokaBonus } from "./removeCores"
+import { kyokaBonus } from "../keywords/kyoka"
 import { availableFromSource, isLegacyPlaceCores, gainTo, placeCoresPoolCandidates } from "./placeCores"
 import { gatherPayable } from "./placeCoresGather"
 import { refreshOneOwnCandidates } from "./exhaustRefresh"
@@ -35,6 +36,7 @@ import { countedAmount } from "../counted"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { newRecordScope, withMovedProbe } from "../record"
 import { matchesPick } from "./revealAction"
+import { deckDiscardKyokaCount } from "./mill"
 import { soulCoreToTrashPossible } from "../soulCore"
 import { lastBurstAction } from "./repeatBurst"
 
@@ -62,6 +64,7 @@ export const PAYABLE_TYPES = [
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
     "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
+    "discardUnder",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -120,6 +123,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         })
     },
     soulCoreToTrash: (state, owner) => soulCoreToTrashPossible(state.players[owner].soulCore),
+    // discardUnder：発生源のスピリットの下に count 枚あること（BS19-X02）
+    discardUnder: (state, owner, self, action) => action.type === "discardUnder" && self !== null && (self.underCards?.length ?? 0) >= action.count,
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
@@ -172,7 +177,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.count === "any") return true
         const achievable = removeCoresAchievableCountForPay(state, owner, self, action, srcColors, srcType)
         if (typeof action.count !== "number") return achievable >= 1
-        const need = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count
+        const need = (action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count) + removeCoresKyokaBonus(state, owner, action)
         return achievable >= need
     },
     treatAsUnblocked: (state) => (state.battle?.blockerInstanceId ?? null) !== null,
@@ -195,9 +200,9 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         // 疲労耐性は見ない（耐性で減る分は解決時に任せる）
         const need = action.countFromBofu
             ? (self ? bofuCountFor(state, owner, self) : 0)
-            : action.countCounter !== undefined
+            : (action.countCounter !== undefined
               ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType)
-              : action.count
+              : action.count) + (action.anySide || action.nexus || action.all ? 0 : kyokaBonus(state, owner, "exhaust"))
         if (need <= 0) return false
         const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
         const opp = opponentOf(owner)
@@ -207,13 +212,15 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     discard: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "discard") return false
         if (action.from !== "deck") return discardPayable(state, owner, action)
-        const count =
+        const count = deckDiscardKyokaCount(
+            state, owner, action,
             action.countCounter !== undefined
                 ? countedAmount(
                       state, owner, self, action.count ?? 1, action.countCounter, srcType,
                       action.countMax !== undefined ? action.countMax + millCapBonusFor(state, owner) : undefined,
                   )
-                : action.count
+                : action.count,
+        )
         const targetPid = action.side === "own" ? owner : opponentOf(owner)
         return state.players[targetPid].deck.length >= count && millAllowed(state, { pid: targetPid, count, actorPid: owner, sourceType: srcType }) >= count
     },
@@ -362,6 +369,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     destroy: "破壊するスピリットがいない",
     simultaneous: "破壊するスピリットがいない",
     soulCoreToTrash: "トラッシュに置ける[ソウルコア]がない",
+    discardUnder: "このスピリットの下のカードが足りない",
     destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
     return: "デッキに戻すカードがない",
     coreRemove: "取り除けるコアが足りない",

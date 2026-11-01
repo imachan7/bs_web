@@ -7,8 +7,9 @@ import type { EffectAction, GameState, PlayerId } from "../type"
 import { currentLevel, getCard, opponentOf } from "./GameState"
 
 type Tax = { cost: EffectAction; source: string }
+type TaxOn = "magic" | "burst" | "deckMill"
 
-function taxCosts(state: GameState, payer: PlayerId, on: "magic" | "burst"): Tax[] {
+function taxCosts(state: GameState, payer: PlayerId, on: TaxOn): Tax[] {
     const costs: Tax[] = []
     for (const r of timedPlayerRules(state, payer)) if (r.type === "effectTaxForPid" && r.on === on) costs.push({ cost: r.cost, source: r.source ?? "効果" })
     const opp = opponentOf(payer)
@@ -28,7 +29,7 @@ function taxCosts(state: GameState, payer: PlayerId, on: "magic" | "burst"): Tax
     return costs
 }
 
-export const hasEffectTax = (state: GameState, payer: PlayerId, on: "magic" | "burst"): boolean => taxCosts(state, payer, on).length > 0
+export const hasEffectTax = (state: GameState, payer: PlayerId, on: TaxOn): boolean => taxCosts(state, payer, on).length > 0
 
 // atLeastTaxedCost は払う時点まで税の対象カードを覚えておく場所が要らないよう、ここで印刷コストの下限に置き換える
 function bindTaxedCost(cost: EffectAction, printedCost: number): EffectAction {
@@ -61,7 +62,7 @@ function describeTaxCost(cost: EffectAction, printed: number): { phrase: string;
 // 払わせる必要がある税の分だけ pay で包んだ action を返す（無ければ元のまま）。
 // pay は costOnly：包まれる効果の種類は問わず、払えない・断られたら then ごと飛ぶ。
 // tax：外側の発動確認（markPays）では確認済みにならない。確認済みのバースト発動でも払うかは別に聞くため
-export function withEffectTax(state: GameState, payer: PlayerId, on: "magic" | "burst", cardId: string, action: EffectAction): EffectAction {
+export function withEffectTax(state: GameState, payer: PlayerId, on: TaxOn, cardId: string, action: EffectAction): EffectAction {
     const taxes = taxCosts(state, payer, on)
     if (on === "burst") state.burstTaxUnpaid = action.type === "noop" ? 0 : taxes.length
     if (action.type === "noop") return action
@@ -73,3 +74,18 @@ export function withEffectTax(state: GameState, payer: PlayerId, on: "magic" | "
     }
     return wrapped
 }
+
+// デッキ破棄への税（on:"deckMill"）。破棄する側（payer）が相手のデッキを破棄する action を pay で包む。
+// deckOwnerName は破棄されるデッキの持ち主（確認文に出す）。呼び出し側は action に再入印を付けて二重課税を避める
+export function withDeckMillTax(state: GameState, payer: PlayerId, deckOwnerName: string, action: EffectAction): EffectAction {
+    const taxes = taxCosts(state, payer, "deckMill")
+    if (action.type === "noop") return action
+    let wrapped = action
+    for (const { cost, source } of taxes.reverse()) {
+        const { phrase, verb } = describeTaxCost(cost, 0)
+        wrapped = { type: "pay", cost, then: wrapped, costOnly: true, tax: { source, target: `${deckOwnerName}のデッキ破棄`, phrase, verb } }
+    }
+    return wrapped
+}
+
+export const hasDeckMillTax = (state: GameState, payer: PlayerId): boolean => taxCosts(state, payer, "deckMill").length > 0

@@ -1,6 +1,10 @@
 // 効果の定義のうち、事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活など）
 import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, ResolvedTargetFilter, TriggerEvent } from "../type"
 
+// partnerFilter の maxBp だけ、ResolvedTargetFilter に無い "subjectBp"（イベント主体の実効BP以下）を書ける。
+// 主体はイベントごとに違う（ownSpiritBlocked＝ブロックされた側）ので、解決は fieldEventTriggers が主体を見て行う
+export type PartnerFilter = ResolvedTargetFilter | (Omit<ResolvedTargetFilter, "maxBp"> & { maxBp: "subjectBp" })
+
 export type EffectDefTrigger =
     | {
           id: string
@@ -193,6 +197,7 @@ export type EffectDefTrigger =
           levels: number[] | null
           perDestroyed?: true // ownSpiritDestroyed | opponentSpiritDestroyed 限定。同時破壊でも破壊体数ぶん発火（「1体につき」「すべて」用）。省略時は同時破壊グループにつき1回＝Q22359
           oncePerTurn?: true // 発生源1体につきターン1回
+          maxPerTurn?: number // 発生源1体につき、このターンにこの回数まで（oncePerTurn の回数版。BS19-X06「ターンに3回まで」）
           onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤー・カード名ごとに1回
           whileCombined?: true
           combinedBraveColors?: Color[] // 合体中のブレイヴのいずれかがこの色を持つとき
@@ -202,9 +207,10 @@ export type EffectDefTrigger =
           turn?: "own" | "opponent" // own=持ち主がturnPlayerの時、opponent=非turnPlayerの時。省略時はどちらでも発火
           subjectSide?: "own" | "opponent" // イベントの主体がどちら側か（turn＝誰のターンかとは別軸。2026-08-16判断）
           subjectFilter?: ResolvedTargetFilter // イベントの主体（selfOverride）の絞り込み。主体が居ないイベントでは不成立。excludeSelf＝主体が発生源自身なら発火しない
-          partnerFilter?: ResolvedTargetFilter // targetInstanceId（ブロッカー・アタッカーなどの相手役）の絞り込み
+          partnerFilter?: PartnerFilter // targetInstanceId（ブロッカー・アタッカーなどの相手役）の絞り込み
           colorFilter?: Color // ownNexusDestroyed 限定（主体が selfOverride を持たず eventColors で渡す）。ほかのイベントは subjectFilter.color
           sourceColorFilter?: Color // 「相手のこの色の〜の効果によって」起きたときだけ（currentEffectSource で判定）。colorFilter はイベント対象、こちらは効果の発生源の色
+          sourceTypes?: CardType[] // event:"opponentHandAdded" 限定。「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み（currentEffectSource で判定。効果によらない増加＝ドローステップ等では発火しない。BS19-088）
           ignoreEventTarget?: true // resolveActionにtargetInstanceIdを渡さない
           selfMode?: "source" // self にイベント対象でなく発生源インスタンス自身を渡す
           bpReachedAt?: number // ownSpiritBpReached 限定。前回BP < この値 <= 今回BP のときだけ
@@ -220,6 +226,8 @@ export type EffectDefTrigger =
           destroyedMaxBp?: number // opponentSpiritDestroyed 限定。破壊直前の実効BP
           byBattleOnly?: true // ownSpiritDestroyed 限定
           attackerOnly?: true // ownSpiritDestroyed 限定
+          byAttackOnly?: true // ownLifeDamaged 限定。「相手のスピリットのアタックによって」ライフが減ったときだけ。
+          // 効果によるライフ減少（lifeCrush 等）では発火しない。アタックによる減少は targetInstanceId にアタッカーが渡ることで区別する
           duringSelfAttack?: true // opponentSpiritDestroyed 限定
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
@@ -324,6 +332,7 @@ export type EffectDefTrigger =
           }
           phaseTurn?: { phase?: Phase; turn: "own" | "opponent" | "both" } // 発動できるステップ条件
           revived: { rested: boolean } | { toHand: true; braveStay?: "rested" | "refreshed" } | { handOrDeckTop: true; braveStay?: "rested" | "refreshed" } | { toBurst: true } // handOrDeckTop＝toHand と同じく場に残らず（コアはリザーブへ）、行き先を持ち主が手札かデッキの上から選ぶ（非対話は手札。選択は handleAction の末尾で出す＝pendingReviveDestinations。braveStay も toHand と同じ）。toBurst の Q3469（解決中は発動不可）は未実装（簡略化）
+          then?: EffectAction // 復活が成立した後に解決するアクション（BS19-X05「フィールドに残り、1枚ドローする」）
           // false＝回復／true＝疲労。toHand＝場に残らず手札へ（コアはリザーブへ）。braveStay 指定時は合体していたブレイヴを確認なしで指定状態のまま残す。省略時は detachBravesOnLeave へ
           cost?: {
               exhaustSelf?: true // 疲労済みなら支払えず不発
@@ -343,11 +352,13 @@ export type EffectDefTrigger =
               exhaustOwnSameFamilyOne?: true // このスピリット自身の系統と一致する、自身以外の持ち主のフィールドの回復状態スピリット1体
               opponentLifeOneToTrash?: true // 相手のライフが0なら不発。結果0になれば持ち主の勝利が決まる
               discardOwnBurst?: true // 自分のバースト1つを破棄することがコスト
+              discardUnderOne?: true // このスピリットの下のカード1枚を破棄することがコスト（BS19-X02）。無ければ不発
               exhaustOwnNexusOne?: true // コア最少の個体を選ぶ簡略化。候補が無い・相手のconstraintで疲労させられないなら不発
           }
           oncePerTurn?: boolean // 発生源1つにつきターン1回
           condition?: { opponentFieldSymbolColorsAtMost: number } | { ownBurstSet: boolean } | { ownFieldOnlyColor: Color; spiritsOnly?: true } | { ownHandAtLeast: number } | { ownSpiritMatches: ResolvedTargetFilter } // AtMost＝相手シンボル色数（重複除く）がこの値以下／ownBurstSet＝セット中(true)/未(false)
           alsoVoidCoreToReserve?: number // 復活の成立とセットで、ボイドからリザーブに置くコアの数
+          alsoOnReturn?: true // when.byOpponent と同じ条件で手札・デッキに戻るときも、同じコストで revived の状態で場に残る（BS19-X02）
       }
     | {
           id: string

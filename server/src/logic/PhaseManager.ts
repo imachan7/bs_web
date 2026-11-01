@@ -6,7 +6,7 @@ import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
 import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
-import { activeConstraints, coreStepBonusFor, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
+import { activeConstraints, coreStepBonusFor, coreStepToLifeActive, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
 
@@ -120,11 +120,19 @@ function turnStartSegments(state: GameState): (() => void)[] {
                 log(state, `${player.name}は効果のコストとしてリザーブにコアを置かなかった。`)
             } else {
                 const coreStepBonus = coreStepBonusFor(state, pid)
-                player.reserve += 1 + coreStepBonus
-                if (coreStepBonus > 0) {
-                    log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+                // 「リザーブに置くかわりにライフに置く」（kind:"coreStepBonus".toLife。BS19-092）。
+                // 置き換えるのは通常の1個ぶん。coreStepBonus の追加コアはリザーブのまま
+                if (coreStepToLifeActive(state, pid)) {
+                    player.life += 1
+                    player.reserve += coreStepBonus
+                    log(state, `${player.name}はボイドからコアを1個ライフに置いた（コアステップ）。`)
                 } else {
-                    log(state, `${player.name}はリザーブにコアを1個置いた。`)
+                    player.reserve += 1 + coreStepBonus
+                    if (coreStepBonus > 0) {
+                        log(state, `${player.name}はリザーブにコアを${1 + coreStepBonus}個置いた（コアステップ+${coreStepBonus}）。`)
+                    } else {
+                        log(state, `${player.name}はリザーブにコアを1個置いた。`)
+                    }
                 }
             }
             fireStepTriggers(state, "core", undefined, "enter", "after")

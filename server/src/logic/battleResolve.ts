@@ -1,14 +1,14 @@
 // ブロック成立後のバトル解決（BP比較・破壊・ライフ減少）と、中断されたバトル解決の再開
 import { entryActive } from "../../../shared/rules/effectStop"
-import { noteCoverage } from "../../../shared/coverage"
+import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { addLifeDealt, recordLifeLoss } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
-import { clearBattle, currentLevel, findSpirit, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
+import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
-import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit } from "../../../shared/rules"
+import { effectSources, spiritHasKeywordOrLabel, hasGlobalConstraint, timedBattleContents, timedContentsOn, boardResistanceAgainst, instEffectsSuppressed, instIsCombined, lifeDamageLimit, bravesOf, effectiveBp } from "../../../shared/rules"
 import {
     activeConstraints,
     destroySpirit,
@@ -394,7 +394,8 @@ export function resolveBattle(state: GameState): void {
         (when) =>
             when === "always" ||
             (when === "blockerLevel1" && currentLevel(blocker).level === 1) ||
-            (when === "levelAtLeastBlocker" && currentLevel(attacker).level >= currentLevel(blocker).level),
+            (when === "levelAtLeastBlocker" && currentLevel(attacker).level >= currentLevel(blocker).level) ||
+            (typeof when === "object" && effectiveBp(state, blockerPid, blocker) <= when.blockerMaxBp),
     )
     if (unblocked !== undefined) {
         log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)
@@ -511,6 +512,11 @@ export function resolveBattle(state: GameState): void {
         blockerColors: instColors(blocker),
         attackerLevel,
         blockerLevel,
+        attackerJugeki:
+            staticJugeki(attacker.cardId, attackerLevel) ||
+            bravesOf(state.players[attackerPid], attacker).some((b) =>
+                getCard(b.cardId).effects.some((e) => e.kind === "keyword" && e.keyword === "jugeki"),
+            ),
         attackerBp,
         blockerBp,
         // ＞６に入る直前の写し。破壊されると場から消えるが、『相手のスピリットに破壊されたとき』や
@@ -621,6 +627,9 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner || sameSide) return
             if (f.outcome === "attackerWins") fireTrigger(state, blockerPid, blocker, "onBattleLose")
             else if (f.outcome === "blockerWins") fireTrigger(state, attackerPid, attacker, "onBattleLose")
+            // 敗北側のフィールド発生源（ownSpiritBattleWon の鏡像。相打ちは含まない）
+            if (f.outcome === "attackerWins") fireFieldEventTriggers(state, blockerPid, "ownSpiritBattleLost", { pid: blockerPid, inst: blocker }, instColors(blocker))
+            else if (f.outcome === "blockerWins") fireFieldEventTriggers(state, attackerPid, "ownSpiritBattleLost", { pid: attackerPid, inst: attacker }, instColors(attacker))
             return
         }
         // 勝利側の『このスピリットのバトル時』（相打ちでは発火しない）
@@ -651,7 +660,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
             // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
             const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
-            if (sameSide || !staticJugeki(attacker.cardId, f.attackerLevel) || attackerJugekiReplaced) return
+            if (sameSide || !(f.attackerJugeki ?? staticJugeki(attacker.cardId, f.attackerLevel)) || attackerJugekiReplaced) return
             const stillOnField = findSpirit(state.players[blockerPid], f.blockerInstanceId)
             if (!stillOnField) return
             if (hasArmorAgainst(state, stillOnField, f.attackerColors)) {
@@ -666,6 +675,13 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                 (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, f.attackerLevel),
             )
             if (jugekiEntry) noteCoverage(jugekiEntry, "keyword")
+            // 合体中のブレイヴが【呪撃】を持つ場合は attacker.cardId の効果にエントリが無いので、
+            // ブレイヴ側のエントリもここで記録する（BS19-069【合体中】【呪撃】）。
+            // ＞６の破壊で合体がすでに解けていることがあるので、参照から実体を引き直す
+            for (const ref of attacker.braveRefs ?? []) {
+                const brave = findInstanceAnywhere(state, ref.instanceId)
+                if (brave) noteKeyword(getCard(brave.cardId).effects, "jugeki")
+            }
             // 魔影街Lv1：破壊の直前に、そのスピリット上のコアをボイドへ（リザーブに戻らなくなる）
             applyJugekiCoreToVoid(state, attackerPid, blockerPid, stillOnField)
             destroyTargetsBatch(state, attackerPid, [

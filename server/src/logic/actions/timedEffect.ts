@@ -9,6 +9,7 @@ import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { lastMovedOf, lastTargetsOf } from "../record"
+import { kyokaBonus } from "../keywords/kyoka"
 
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 
@@ -60,7 +61,8 @@ function contentLabel(action: TimedEffect): string {
     const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
     const skipRefresh = action.content.some((c) => c.type === "skipRefresh") ? ["回復できない"] : []
     const untargetable = action.content.some((c) => c.type === "untargetableByOpponentMagic") ? ["相手のマジックの効果では指定されない"] : []
-    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh, ...colorless].join("、")
+    const symbolAdd = action.content.flatMap((c) => (c.type === "symbolAdd" ? [`${c.color !== undefined ? `${COLOR_LABELS[c.color]}の` : ""}シンボルを${c.count ?? 1}つ追加する`] : []))
+    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh, ...symbolAdd, ...colorless].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける
@@ -875,6 +877,18 @@ function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0
 
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    // 【強化】（黄）：負の BP（BP-効果）は -1000×n だけ深くする（可変量の amountCounter には足さない）。
+    // 置き方（指定・すべて・ルール）は下流の placement がそのまま使う
+    if (action.kyokaSettled !== true) {
+        const kyoka = kyokaBonus(state, owner, "bpMinus") * 1000
+        if (kyoka > 0 && action.content.some((c) => c.type === "bp" && c.amount < 0 && c.amountCounter === undefined)) {
+            action = {
+                ...action,
+                kyokaSettled: true,
+                content: action.content.map((c) => (c.type === "bp" && c.amount < 0 && c.amountCounter === undefined ? { ...c, amount: c.amount - kyoka } : c)),
+            }
+        }
+    }
     if ((action.duration === "nextRefresh") !== action.content.every((c) => (ONLY_NEXT_REFRESH as readonly string[]).includes(c.type) || (c.type === "playerRule" && c.rule.type === "skipMainStep"))) {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
         return
@@ -896,6 +910,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         if (action.all && action.content.some((c) => c.type === "symbolLoss")) placeSymbolLossRule(ctx, action, filter)
+        else if (action.all && action.content.some((c) => c.type === "symbolAdd")) placeRule(ctx, action, filter)
         else placeSymbolOrCost(ctx, action, filter)
         return
     }

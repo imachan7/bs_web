@@ -301,10 +301,18 @@ export function fireBurstOnEvent(
             )
         }
         if (!effect) continue
-        // 相手の noBurstActivationByEvent：発動できない（セットされたまま残る）
-        if (burstActivationForbidden(state, holderPid, effect.event)) continue
-        // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）
-        if (timedContentsFor(state, holderPid).some((c) => c.type === "battleLock" && c.lock === "burst")) continue
+        // 相手の noBurstActivationByEvent／noBurstActivationByColor：発動できない（セットされたまま残る）
+        if (burstActivationForbidden(state, holderPid, effect.event, burstCardId)) continue
+        // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）。
+        // colors 指定時はその色のバーストカードだけ（BS19-060「相手は白のバーストを発動できない」）
+        if (
+            timedContentsFor(state, holderPid).some(
+                (c) =>
+                    c.type === "battleLock" &&
+                    c.lock === "burst" &&
+                    (c.colors === undefined || (burstCardId !== undefined && getCard(burstCardId).colors.some((col) => c.colors!.includes(col)))),
+            )
+        ) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
         if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
         if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
@@ -428,7 +436,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         player.trashCards.push(cardId)
         return true
     }
-    if (ignoreCondition && burstActivationForbidden(state, owner, effect.event)) return false
+    if (ignoreCondition && burstActivationForbidden(state, owner, effect.event, cardId)) return false
     noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true

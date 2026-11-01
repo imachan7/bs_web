@@ -43,7 +43,7 @@ export type EffectDefCost =
           levels: number[] | null
           cost: number // 肩代わりする召喚コストの上限
           phase?: Phase // 指定時はこのステップ中のみ有効
-          via?: "shinsoku" | "any" // 省略＝【神速】での召喚のときだけ。"any"＝通常の召喚でも
+          via?: "shinsoku" | "any" | "magic" // 省略＝【神速】での召喚のときだけ。"any"＝通常の召喚でも。"magic"＝マジックカードの使用時（召喚では効かない。BS19-054）
           minBaseCost?: number // 召喚するカードの**印刷コスト**（軽減前）がこれ以上のときだけ
           oncePerTurn?: true // 発生源1つにつきターンに1回（PlayerState.payAssistUsedThisTurn。同名を2枚置けば2回使える）
       }
@@ -214,5 +214,6 @@ export type EffectDefCost =
           scope?: "allMagicHandAndTegamoto" // 色を問わず、持ち主の手札/手元(tegamoto)のマジックカードすべてを無償化
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           condition?: "selfInBattle" // 指定時、発生源自身が現在のバトルの当事者であるときのみ有効
+          whileCombined?: true
           oncePerBattle?: true // 指定時、この発生源が無償化できるのは1バトルにつきマジック1枚だけ
       }

@@ -22,7 +22,7 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { canDiscardHand, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
@@ -36,13 +36,15 @@ import {
     exTrashReductionCandidateIndices,
     exSymbolsOfTrashCard,
     hasMagicFreeGrant,
+    findSokuFreeSummonSource,
     hasMagicCostLock,
+    hasMagicColorBan,
     hasMagicRestriction,
     ownFieldSymbolColors,
     summonSurcharge,
 } from "../../../shared/cost"
 export { effectiveCost }
-import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, instColors, matchesBraveCondition, timedMagicLocked, spiritHasLabeledKeyword, noteHeldKeyword } from "../../../shared/rules"
+import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, instColors, matchesBraveCondition, timedMagicLocked, spiritHasKeyword, noteHeldKeyword } from "../../../shared/rules"
 import {
     activeConstraints,
     effectiveBp,
@@ -152,6 +154,7 @@ export function validateSummon(
     exReductionTrashIndices?: number[],
     paySoulCoreFromReserve?: boolean,
     placeSoulCoreFromReserve?: boolean,
+    sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（doSummon と同じ意味）
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -280,10 +283,17 @@ export function validateSummon(
         }
         exReductionSymbols = exReductionTrashIndices.flatMap((idx) => exSymbolsOfTrashCard(state, pid, idx))
     }
-    const cost = Math.max(
-        0,
-        (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
-    )
+    // kind:"sokuFreeSummon"（BS19-087）：フラッシュでの【神速】召喚が無償になるときは、支払い検証もコスト0で行う
+    const sokuFree = altSummonNexusInstanceIds === undefined &&
+        substituteInstanceId === undefined &&
+        findSokuFreeSummonSource(state, pid) !== null &&
+        sokuFreeChoice !== false
+    const cost = sokuFree
+        ? 0
+        : Math.max(
+              0,
+              (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
+          )
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {
@@ -629,6 +639,10 @@ export function validateCastMagic(
     if (hasMagicCostLock(state, card)) {
         return "このコストのマジックは、場の効果によって使用できません"
     }
+    // どちらかのフィールドに発生源があれば、お互い指定色のマジックを使用できない（BS19-066）
+    if (hasMagicColorBan(state, card)) {
+        return "この色のマジックは、場の効果によって使用できません"
+    }
     // 相手フィールドに発生源があれば、マジックのコストはすべてリザーブから支払う（フィールドのコアを支払い元にできない）
     if (hasMagicRestriction(state, pid, "reserveOnlyOpponent") && (paySources ?? []).length > 0) {
         return "このマジックのコストはすべてリザーブから支払わなくてはなりません"
@@ -783,9 +797,13 @@ export function validateCastMagic(
         }
         if (paySources && paySources.length > 0) return "[ソウルコア]だけで使用する場合は他のコアを支払えません"
     }
+    // kind:"payAssistByExhaust" via:"magic"（BS19-054）：疲労させることで使用コストの一部を肩代わりできる。
+    // doCastMagic と同じ候補の最初の1つで割り引く
+    const magicAssist = magicPayAssistCandidates(state, pid)[0]
+    const magicAssistDiscount = magicAssist ? magicAssist.discount : 0
     const payError = useSoulCoreOnly
         ? null // [ソウルコア]だけで使用するとき通常コアの支払い検証は不要（コスト0として扱う）
-        : validatePaySources(state, pid, effectiveCost(state, pid, card, false, exReductionSymbols), paySources, paySoulCoreFromReserve)
+        : validatePaySources(state, pid, Math.max(0, effectiveCost(state, pid, card, false, exReductionSymbols) - magicAssistDiscount), paySources, paySoulCoreFromReserve)
     if (payError) return payError
     return null
 }
@@ -1448,12 +1466,12 @@ export function validateTakeLife(state: GameState, pid: PlayerId): string | null
         state.battle.attackerInstanceId,
     )
     // 【激突】持ちのアタック時はブロック強制。判定は kind:"keyword" 宣言の levels を尊重する
-    // （Lv2書きはLv1アタックでは強制しない。一時付与も spiritHasLabeledKeyword で拾う）。
+    // （Lv2書きはLv1アタックでは強制しない。一時付与・継続付与も spiritHasKeyword で拾う）。
     // hasBlocker（疲労とレベルしか見ない）だと cantBlock 等でブロックできない個体を数えて防御側が詰むため
     // hasLegalBlocker（validateBlock を実際に通る個体）で判定する（part65 §C）。強制ブロック（mustBlockGrant）と同じ「可能ならば」の解釈
     if (
         attacker &&
-        spiritHasLabeledKeyword(state, state.turnPlayer, attacker, "clash") &&
+        spiritHasKeyword(state, state.turnPlayer, attacker, "clash") &&
         hasLegalBlocker(state, pid, undefined, { pid: state.turnPlayer, inst: attacker })
     ) {
         noteHeldKeyword(state, state.turnPlayer, attacker, "clash")

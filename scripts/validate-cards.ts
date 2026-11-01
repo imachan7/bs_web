@@ -64,6 +64,8 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
 // 直したら消す。放置すると借りる器（イビルグライダー等）に借りられ、破壊時封じでも止まる。
 // ⚠️ 新しいカードをここに足さないこと。落ちたら直すのが原則
 const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
+    // 【神速】の下の【連鎖】：連鎖元が【神速】そのもの。「【神速】で召喚したとき」を onSummon＋summonedBy:"soku" で書く（BS19_PLAN §2.15）
+    ["BS19-024-e2", "神速の連鎖（召喚時の見出しは無い）"],
     // BS15-X04機獣要塞ナウマンガルド：印刷テキストに『』見出しが無い「相手によって破壊されたとき」節。
     // fieldEvent(selfOnly)にすると、destroySpiritが破壊時トリガーの間instをまだfield.spiritsに残したまま
     // extraSourcesにも同じinstを渡すため、effectSources()とextraSourcesの両方にinstが載って二重発火する
@@ -87,6 +89,7 @@ const VALID_KINDS = new Set([
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
     "kyoshuSelfExhaustGrant",
+    "sokuFreeSummon",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",

@@ -73,10 +73,36 @@ export function payAssistCandidates(
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "payAssistByExhaust") continue
+            if (effect.via === "magic") continue // マジック使用時専用（BS19-054）。召喚の肩代わりには使えない
             if (!entryActive(board, pid, inst, effect, level)) continue
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if ((effect.via ?? "shinsoku") === "shinsoku" && !summoning.flash) continue
             if (effect.minBaseCost !== undefined && summoned.cost < effect.minBaseCost) continue
+            if (effect.oncePerTurn && used.includes(inst.instanceId)) continue
+            result.push({ instanceId: inst.instanceId, discount: effect.cost, oncePerTurn: effect.oncePerTurn === true })
+            break
+        }
+    }
+    return result
+}
+
+// kind:"payAssistByExhaust" via:"magic"（BS19-054）：持ち主がマジックカードを使用するときに
+// 疲労させることで使用コストの一部を肩代わりできる発生源。サーバー doCastMagic が使う。
+// 「疲労させることで」は任意だが、常に使う（コアを温存したくなる場面はこの弾に無い）簡略化
+export function magicPayAssistCandidates(
+    board: Board,
+    pid: PlayerId,
+): { instanceId: string; discount: number; oncePerTurn: boolean }[] {
+    const result: { instanceId: string; discount: number; oncePerTurn: boolean }[] = []
+    const player = board.players[pid]
+    const used = player.payAssistUsedThisTurn ?? []
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        if (inst.isRested) continue
+        const level = currentLevel(inst).level
+        for (const effect of card(inst.cardId).effects) {
+            if (effect.kind !== "payAssistByExhaust" || effect.via !== "magic") continue
+            if (!entryActive(board, pid, inst, effect, level)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if (effect.oncePerTurn && used.includes(inst.instanceId)) continue
             result.push({ instanceId: inst.instanceId, discount: effect.cost, oncePerTurn: effect.oncePerTurn === true })
             break

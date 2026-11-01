@@ -3,13 +3,21 @@
 // 「〜されない」は対象に取られることを防がない（10-30 の一般則）ので、戻す入口（markBounce）がここを聞く。
 // 「手札に戻らない」はデッキへ戻すことを止めない。誰の効果かは解決中の効果の記録（currentEffectSource）で見る
 import { entryActive } from "../../../shared/rules/effectStop"
-import { effectSources, hasBounceImmunity } from "../../../shared/rules"
+import { effectSources, hasBounceImmunity, hasGlobalConstraint } from "../../../shared/rules"
+import { effectActiveAtLevel } from "../../../shared/rules/level"
+import { noteCoverage } from "../../../shared/coverage"
+import { trashUnderCards } from "./zones/underCards"
 import type { CardInstance, GameState, PlayerId } from "../type"
-import { currentLevel, getCard } from "./GameState"
+import { currentLevel, getCard, log } from "./GameState"
 
 export type BounceTo = "hand" | "deckTop" | "deckBottom" | "burst"
 
 export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardInstance, to: BounceTo): string | null {
+    // noBounceByEffect（BS19-099）：効果による戻しは手札・デッキとも戻らない。原因を効果に限るので、
+    // currentEffectSource が載っていない（＝効果の解決中でない）戻しは従来どおり通る
+    if (to !== "burst" && state.currentEffectSource && hasGlobalConstraint(state, "noBounceByEffect")) {
+        return "効果では手札/デッキに戻らない"
+    }
     if (to !== "hand") return null
     if (allSpiritsCantBounceActive(state)) return "スピリットは手札に戻らない"
     const src = state.currentEffectSource
@@ -31,6 +39,27 @@ export function allSpiritsCantBounceActive(state: GameState): boolean {
                 return true
             }
         }
+    }
+    return false
+}
+
+// kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で手札・デッキに戻るときも、
+// 破壊のときと同じコスト（cost.discardUnderOne のみ対応）で revived の状態で場に残る。
+// optional（「〜できる」）の問い直しは出さず、コストを払えるなら自動で残る。
+// 破壊側の reviveConfirm の確認経路は断ったとき破壊し直す造りなので戻しには流用できない（簡略化）
+export function reviveOnReturnStay(state: GameState, ownerPid: PlayerId, target: CardInstance): boolean {
+    const level = currentLevel(target).level
+    for (const effect of getCard(target.cardId).effects) {
+        if (effect.kind !== "reviveOnDestroy" || effect.alsoOnReturn !== true || effect.scope !== "self") continue
+        if (!effectActiveAtLevel(effect.levels, level)) continue
+        if (effect.cost?.discardUnderOne !== true) continue
+        if ((target.underCards?.length ?? 0) < 1) continue
+        noteCoverage(effect, "reviveOnDestroy")
+        trashUnderCards(state, ownerPid, target, 1)
+        if ("rested" in effect.revived) target.isRested = effect.revived.rested
+        const stayed = "rested" in effect.revived ? (effect.revived.rested ? "疲労" : "回復") + "状態でフィールドに残った" : "フィールドに残った"
+        log(state, `${state.players[ownerPid].name}の${getCard(target.cardId).name}は、手札/デッキに戻る代わりに${stayed}。`)
+        return true
     }
     return false
 }

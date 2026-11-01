@@ -9,7 +9,8 @@ export function entryActive(
     board: Board,
     pid: PlayerId,
     source: CardInstance,
-    effect: { levels: number[] | null; whileCombined?: true },
+    // kind/trigger は combinedBraveEntryOk（合体中のブレイヴは【合体時】だけ。onSummon の誘発は例外）が見る
+    effect: { levels: number[] | null; whileCombined?: true; kind?: string; trigger?: string },
     level: number,
 ): boolean {
     if (!effectActiveOn(source, effect, level)) return false

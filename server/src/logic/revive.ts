@@ -9,6 +9,7 @@ import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSu
 import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
+import { trashUnderCards } from "./zones/underCards"
 import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
@@ -53,6 +54,7 @@ import {
     canExhaustNexus,
     exhaustSpirit,
     fireSummonSequence,
+    resolveAction,
     resolveTensho,
     tryOwnLifeFloorByCost
 } from "./EffectModules"
@@ -561,6 +563,8 @@ function tryReviveOnDestroy(
         byBattleKillerMinBp?: number
     }): boolean => {
         if (when.byOpponentEffect) {
+            // バトルのBP比較による破壊は「効果」ではない（BS19-X05。効果による破壊だけに効く）
+            if (context?.battle !== undefined) return false
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
         }
         // 「相手によって破壊されたとき」＝相手の効果 **または** バトルのBP比較（BS12-X05）。
@@ -855,6 +859,11 @@ function tryReviveOnDestroy(
             chosen.isRested = true
             return true
         }
+        if (effect.cost?.discardUnderOne) {
+            // BS19-X02：下のカード1枚の破棄がコスト。場を離れずに残るので下のカードはそのまま
+            if (trashUnderCards(state, ownerPid, inst, 1) < 1) return false
+            return true
+        }
         return true
     }
 
@@ -892,6 +901,7 @@ function tryReviveOnDestroy(
         if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || !canPayLife(state, lifeCostQuery(ownerPid, 1, inst)) ? "ライフを減らせない" : null
         if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || !canPayLife(state, lifeCostQuery(opponentOf(ownerPid), 1, inst, ownerPid)) ? "相手のライフを減らせない" : null
         if (cost.discardOwnBurst) return player.burst === null ? "破棄できるバーストがセットされていない" : null
+        if (cost.discardUnderOne) return (inst.underCards?.length ?? 0) < 1 ? "下のカードがない" : null
         if (cost.exhaustOwnNexusOne) return !canExhaustNexus(state, ownerPid) || player.field.nexuses.every((n) => n.isRested) ? "疲労させられる自分のネクサスがない" : null
         return null
     }
@@ -928,6 +938,7 @@ function tryReviveOnDestroy(
             // EffectModulesからのimportは循環参照になるためここでは直接書く）
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
+            trashUnderCards(state, ownerPid, inst) // 場を離れるので下のカードは破棄（BS19-X02）
             soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
             detachBravesOnLeave(state, ownerPid, inst)
@@ -939,6 +950,7 @@ function tryReviveOnDestroy(
         } else if ("toHand" in revived || "handOrDeckTop" in revived) {
             const idx = player.field.spirits.findIndex((s) => s.instanceId === inst.instanceId)
             if (idx !== -1) player.field.spirits.splice(idx, 1)
+            trashUnderCards(state, ownerPid, inst) // 場を離れるので下のカードは破棄（BS19-X02）
             soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避
             player.reserve += inst.cores
             // handOrDeckTop の対話モードは行き先が決まるまでどのゾーンにも入れない（手札を経由すると手札が増えた誘発が起きる）。
@@ -1041,6 +1053,8 @@ function tryReviveOnDestroy(
             state,
             `${player.name}の${name}は、${sourceName}の効果で破壊される代わりに${revivedLabel(effect.revived)}。`,
         )
+        // then（BS19-X05「フィールドに残り、1枚ドローする」）：復活の直後に解決する
+        if (effect.then) resolveAction(state, ownerPid, inst, effect.then)
         return true
     }
 

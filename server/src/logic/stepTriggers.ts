@@ -383,7 +383,7 @@ export function fireStepTriggers(
 // 新しく場に出た個体は前回値が無いので記録するだけ。発火は届いた個体を集めてから順に行い、選択待ちが立ったら残りは捨てる（同時に複数体が届くのは稀なので簡略化）
 export function fireBpReachedTriggers(state: GameState): void {
     const pids = ["p1", "p2"] as PlayerId[]
-    const watched = pids.some((pid) => effectSources(state, pid).some((inst) => getCard(inst.cardId).effects.some((e) => e.kind === "fieldEvent" && e.event === "ownSpiritBpReached")))
+    const watched = pids.some((pid) => effectSources(state, pid).some((inst) => getCard(inst.cardId).effects.some((e) => e.kind === "fieldEvent" && (e.event === "ownSpiritBpReached" || e.event === "opponentSpiritBpReachedZero"))))
     if (!watched) {
         delete state.bpSeen
         return
@@ -408,6 +408,10 @@ export function fireBpReachedTriggers(state: GameState): void {
             return
         }
         fireFieldEventTriggers(state, r.pid, "ownSpiritBpReached", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, { bpFrom: r.from, bpTo: r.to })
+        // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）
+        if (r.to === 0 && r.from > 0) {
+            fireFieldEventTriggers(state, opponentOf(r.pid), "opponentSpiritBpReachedZero", { pid: r.pid, inst: r.inst }, instColors(r.inst))
+        }
     }
 }
 

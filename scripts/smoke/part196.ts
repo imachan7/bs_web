@@ -101,6 +101,8 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
             const granted = entry["granted"] as Record<string, unknown> | undefined
             const trigger = granted?.["trigger"] as string | undefined
             if (!trigger) continue
+            // 【合体時】の付与（BS19-033）は付与元を合体させる場面が要るので、この総当たりでは組まない（part734 が見る）
+            if (entry["whileCombined"] === true) continue
             // 付与先の絞り込みは**系統だけではない**（名前・色・キーワードもある）。
             // どれか1つでも見落とすと、その付与は永久に働かない
             const fam = entry["familyFilter"]

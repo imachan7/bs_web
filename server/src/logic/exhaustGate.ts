@@ -3,6 +3,7 @@
 // 「〜されない／できない」は対象に取られることを防がない（10-30 の一般則）。疲労させる入口
 // （exhaustSpirit／exhaustNexus）がここを聞き、コストの候補だけは呼び出し側が先に外す（canExhaustNexus）
 import { isExhaustImmuneOnBoard } from "../../../shared/rules/resistance"
+import { hasGlobalConstraint } from "../../../shared/rules"
 import type { CardInstance, CardType, GameState, PlayerId } from "../type"
 import { canExhaustNexus } from "./state/exhaust"
 
@@ -21,5 +22,7 @@ export function exhaustDenial(state: GameState, a: ExhaustAttempt): string | nul
     if (a.actorPid !== undefined && a.actorPid !== a.ownerPid && isExhaustImmuneOnBoard(state, a.ownerPid, a.target, a.sourceType)) {
         return "相手の効果で疲労しない"
     }
+    // actorPid が渡っている＝効果による疲労（アタック・ブロック宣言・コストは渡されない）
+    if (a.actorPid !== undefined && hasGlobalConstraint(state, "noExhaustByEffect")) return "効果では疲労しない"
     return null
 }

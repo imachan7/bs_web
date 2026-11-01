@@ -350,12 +350,12 @@ const negateLifeDamageFromTargetHandler: ActionHandler<"negateLifeDamageFromTarg
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }
-        recordTimed(state, { content: [action.cap !== undefined ? { type: "lifeCap", max: action.cap } : { type: "noLifeDamage" }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
+        recordTimed(state, { content: [action.cap !== undefined ? { type: "lifeCap", max: action.cap } : { type: "noLifeDamage", ...(action.includeEffects ? { includeEffects: true } : {}) }], target: { kind: "instance", instanceId: found.inst.instanceId }, until: "turn", ownerPid: owner })
         log(
             state,
             action.cap !== undefined
                 ? `${sourceName}：このターン、${state.players[owner].name}のライフは${getCard(found.inst.cardId).name}から${action.cap}しか減らされない。`
-                : `${sourceName}：このターン、${getCard(found.inst.cardId).name}のアタックでは${state.players[owner].name}のライフは減らない。`,
+                : `${sourceName}：このターン、${getCard(found.inst.cardId).name}のアタック${action.includeEffects ? "/効果" : ""}では${state.players[owner].name}のライフは減らない。`,
         )
         return
 }

@@ -143,6 +143,14 @@ export function noteMilled(state: GameState, pid: PlayerId, n: number, actorPid:
     }
 }
 
+// 「自分のデッキ破棄効果が相手の効果で1枚も破棄できなかったとき」（event:"ownDeckMillPrevented"）。
+// 破棄を起こした側（actorPid）のフィールドから発火し、self に破棄を起こした発生源のスピリットを渡す
+function fireOwnDeckMillPrevented(state: GameState, actorPid: PlayerId): void {
+    const srcId = state.currentEffectSource?.instanceId
+    const inst = srcId !== undefined ? state.players[actorPid].field.spirits.find((s) => s.instanceId === srcId) : undefined
+    fireFieldEventTriggers(state, actorPid, "ownDeckMillPrevented", inst ? { pid: actorPid, inst } : undefined)
+}
+
 // 【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
 // デッキが0枚になっても敗北にはしない（敗北は既存どおりドロー不能時のみ、drawで判定）。
 // actorPid（このミルを引き起こした実行者）を渡すと、actorPid !== pid（相手の効果による）のときのみ
@@ -166,6 +174,8 @@ export function millDeck(
     const blocked = millBlockReason(state, pid, byOpponent)
     if (blocked) {
         log(state, `${state.players[pid].name}のデッキは破棄されなかった（${blocked}）。`)
+        // 破棄を起こした側の「相手の効果で1枚も破棄できなかった」（BS19-X06）。デッキ切れは含まない
+        if (byOpponent && actorPid !== undefined) fireOwnDeckMillPrevented(state, actorPid)
         return 0
     }
     // 「コストを払って破棄を無効に**できる**」（BS08鳳翼の聖剣Lv2）。
@@ -343,7 +353,7 @@ export function trySuspendDeckMillNegate(
     // 確認の再入をまたいで持ち回るため今のうちに控える（EFFECT_SOURCE_CONTEXT.md）
     const causingInstanceId = found.effect.thenReturnCauseToDeckBottom ? state.currentEffectSource?.instanceId : undefined
     if (!state.interactiveTargets) {
-        payDeckMillNegateCost(state, pid, found.source, found.effect, causingInstanceId)
+        payDeckMillNegateCost(state, pid, found.source, found.effect, causingInstanceId, actorPid)
         return true
     }
     suspend(state, {
@@ -372,13 +382,15 @@ export function trySuspendDeckMillNegate(
     return true
 }
 
-// 無効化のコスト（ライフのコアN個を持ち主のリザーブへ）を支払い、無効になった旨をログに出す
+// 無効化のコスト（ライフのコアN個を持ち主のリザーブへ）を支払い、無効になった旨をログに出す。
+// actorPid＝破棄を起こした側（無効化が成立したときの ownDeckMillPrevented の発火用）
 export function payDeckMillNegateCost(
     state: GameState,
     pid: PlayerId,
     source: CardInstance,
     effect: Extract<EffectDef, { kind: "deckMillNegate" }>,
     causingInstanceId?: string,
+    actorPid?: PlayerId,
 ): void {
     const player = state.players[pid]
     if ("ownLifeToReserve" in effect.cost) {
@@ -405,6 +417,7 @@ export function payDeckMillNegateCost(
             log(state, `${getCard(source.cardId).name}：破棄を起こしたスピリットは既に場にいなかった。`)
         }
     }
+    if (actorPid !== undefined && !state.winner) fireOwnDeckMillPrevented(state, actorPid)
 }
 
 // 保留していた「デッキ破棄の無効化」の確認で、承認されたときの処理。
@@ -433,7 +446,7 @@ export function applyDeckMillNegate(
         declineDeckMillNegate(state, entry)
         return
     }
-    payDeckMillNegateCost(state, entry.pid, source, effect, entry.causingInstanceId)
+    payDeckMillNegateCost(state, entry.pid, source, effect, entry.causingInstanceId, entry.actorPid)
 }
 
 // 同上、断られたときの処理。見送っていた破棄をここで行う（skipNegate で確認の再入を防ぐ）
