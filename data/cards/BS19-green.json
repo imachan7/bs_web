@@ -67,7 +67,43 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：コスト2以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-024-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": null
+      },
+      {
+        "id": "BS19-024-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "condition": {
+          "summonedBy": "soku"
+        },
+        "levels": null,
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "blue"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "destroy",
+            "count": 1,
+            "filter": {
+              "cost": {
+                "max": 2
+              }
+            }
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-025",
@@ -108,7 +144,46 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n自分のスピリットのコア3個までを自分のリザーブに置くことができる。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：このスピリットは最高Lvとして扱う。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-025-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "removeCores",
+              "side": "own",
+              "to": "reserve",
+              "target": "one",
+              "count": "any",
+              "anyMax": 3
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "levelAsSelfThisBattle",
+                "level": 3
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-026",
@@ -182,7 +257,40 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のリザーブに置く。\nLv2『このスピリットのアタック時』\n自分のターンの最初のアタックのとき、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-027-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-027-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "condition": {
+          "firstAttackOfTurn": true
+        },
+        "optional": false,
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-028",
@@ -218,7 +326,30 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv1･Lv2『このスピリットの召喚時』\n系統：「怪虫」を持つ自分のスピリット1体を回復させる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-028-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": null
+      },
+      {
+        "id": "BS19-028-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "refresh",
+          "filter": {
+            "family": "怪虫"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-029",
@@ -264,6 +395,17 @@
         "levels": [
           2
         ]
+      },
+      {
+        "id": "BS19-029-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
       }
     ]
   },
@@ -308,7 +450,28 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある系統：「華兵」/「爪鳥」を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、そのスピリットの『このスピリットの召喚時』効果は発揮されない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-030-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "summon",
+          "from": "hand",
+          "familyFilter": [
+            "華兵",
+            "爪鳥"
+          ],
+          "skipOnSummon": true
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-031",
@@ -389,7 +552,58 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：ターンに1回、自分のネクサス1つを疲労させることで、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-032-e1",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "battleRole": "attacker",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-032-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBattleWin",
+        "levels": [
+          1,
+          2
+        ],
+        "oncePerTurn": true,
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "blue"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "pay",
+            "cost": {
+              "type": "exhaust",
+              "side": "own",
+              "nexusOnly": true,
+              "count": 1
+            },
+            "then": {
+              "type": "refresh",
+              "target": "self"
+            }
+          }
+        },
+        "battleRole": "attacker"
+      }
+    ]
   },
   {
     "cardId": "BS19-033",
@@ -427,7 +641,62 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\n相手のスピリット1体を疲労させる。\n【合体時】Lv1･Lv2\n系統：「爪鳥」を持つ自分のスピリットすべてに“『このスピリットのバトル時』相手はバーストを発動できない”を与える。\nLv2『このスピリットのアタック時』\n自分のターンの最初のアタックのとき、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BS19-033-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-033-e2",
+        "kind": "effectGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "whileCombined": true,
+        "target": "ownAll",
+        "familyFilter": "爪鳥",
+        "granted": {
+          "trigger": "onBattleStart",
+          "action": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "battleLock",
+                "lock": "burst"
+              }
+            ],
+            "duration": "battle"
+          }
+        }
+      },
+      {
+        "id": "BS19-033-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "condition": {
+          "firstAttackOfTurn": true
+        },
+        "optional": false,
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "BS19-071",
@@ -463,7 +732,35 @@
       }
     ],
     "braveConditionText": "コスト3以上",
-    "effects": [],
+    "effects": [
+      {
+        "id": "BS19-071-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS19-071-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "whileCombined": true,
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1
+        }
+      }
+    ],
     "braveCondition": {
       "minCost": 3
     }

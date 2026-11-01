@@ -247,7 +247,7 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("自分.ディオマンティス") })
-        answer(t, { decline: true }) // コア移しは断る
+        answer(t, { numeric: "0" }) // コア移しは0個（「できる」を断る）
         t.closeFlash()
         t.act("opp", { type: "block", instanceId: t.id("相手.ディオ・マンティス") })
         t.closeFlash()
@@ -523,16 +523,34 @@ scenario({
 
 scenario({
     name: "032-rensu-rest-nexus-refresh",
-    // 青シンボルがあるので、アタック時に続けて自分のネクサス1つを疲労させることでハビロングが回復する
+    // 連鎖元は「BPを比べ相手のスピリットだけを破壊したとき」なので、連鎖もバトルに勝ったときに発揮する（裁定3）。
+    // 青シンボルがあるので、続けて自分のネクサス1つを疲労させることでハビロングが回復する
     start: {
         interactive: true,
         me: {
             spirits: [{ card: "BS19-032", label: "ハビロング" }, { card: STAGGER, label: "スタッガー" }],
             nexuses: [{ card: FRUIT, label: "命の果実" }],
         },
+        opp: { spirits: [{ card: VANILLA, label: "ロクケラトプス" }] },
     },
     steps(t) {
         t.act("me", { type: "nextPhase" })
+        t.act("me", { type: "attack", instanceId: t.id("自分.ハビロング") })
+        t.closeFlash()
+        t.act("opp", { type: "block", instanceId: t.id("相手.ロクケラトプス") })
+        t.closeFlash()
+        answer(t, { target: "自分.命の果実" }) // 連鎖の「ネクサスを疲労させて回復」を発動
+    },
+    expect: [
+        "自分.命の果実.疲労: false → true",
+        "相手.ロクケラトプス.疲労: false → true",
+        "相手.ロクケラトプス.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ロクケラトプス",
+        "相手.ライフ: 5 → 4",
+        "相手.リザーブ: 10 → 12", // ライフのコア1個＋破壊されたロクケラトプスのコア1個
+        // ハビロングは疲労してから回復するので、差分に疲労行は出ない
+    ],
+})
         t.act("me", { type: "attack", instanceId: t.id("自分.ハビロング") })
         answer(t, { target: "自分.命の果実" }) // 連鎖の「ネクサスを疲労させて回復」を発動
         t.closeFlash()
