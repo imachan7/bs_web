@@ -58,7 +58,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLastTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxCostLastMagic, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -146,6 +146,12 @@ export function normalizeFilter(
         resolved.cost = { max: cost }
     }
 
+    if (maxCostLastMagic) {
+        const used = ctx.state.lastMagicUsed
+        if (!used) return SELF_REQUIRED
+        resolved.cost = { max: getCard(used.cardId).cost }
+    }
+
     // self が持つ【氷壁】と同じ色（複数色ならOR。BS16-036氷聖女ジャンヌダルク【合体時】：
     // 「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）。fieldEventではselfにイベント対象（アタックしたスピリット）が入る
     if (sameIceWallColorAs) {
@@ -162,6 +168,13 @@ export function normalizeFilter(
         const lv1 = getCard(ctx.self.cardId).levels.find((l) => l.level === 1)
         if (!lv1) return SELF_REQUIRED
         resolved.maxBp = lv1.bp
+    }
+
+    if (sameCostAsLastTarget) {
+        const last = findInstanceAnywhere(ctx.state, lastTargetsOf(ctx.state)[0] ?? "")
+        if (!last) return SELF_REQUIRED
+        const cost = getCard(last.cardId).cost
+        resolved.cost = { min: cost, max: cost }
     }
 
     if (maxLv1BpOfLastTarget) {

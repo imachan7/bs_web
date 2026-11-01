@@ -2,7 +2,7 @@
 // CommonJS の循環 require で安全に動く（関数宣言はホイストされ、呼び出しは対戦処理中）。EffectModules.ts がここの export を再エクスポートしている
 import { bounceDenial } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
-import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
@@ -248,6 +248,7 @@ export function destroySpirit(
         state,
         `${player.name}の${master.name}は${cause === "destroy" ? "破壊" : "消滅"}された。`,
     )
+    if (cause === "destroy" && context?.battle !== undefined) state.ownSpiritDestroyedByBattleThisTurn = { ...(state.ownSpiritDestroyedByBattleThisTurn ?? {}), [ownerPid]: true }
     if (cause === "destroy") state.ownSpiritDestroyedThisTurn = { ...(state.ownSpiritDestroyedThisTurn ?? {}), [ownerPid]: true }
     else state.spiritVanishedThisTurn = { ...(state.spiritVanishedThisTurn ?? {}), [ownerPid]: true }
     // 相手の効果での除去だけを記録（バトルや維持コア割れは currentEffectSource が立っていない／自分の効果ではない）
@@ -385,7 +386,7 @@ function suspendDestroyCommit(
 function returnTrashOnOwnSpiritDestroyed(state: GameState, pid: PlayerId, families: string[]): void {
     const player = state.players[pid]
     for (const cardId of player.trashCards) {
-        if (zoneSpiritEffectsDisabled(state, cardId)) continue
+        if (trashCardEffectsDisabled(state, cardId)) continue
         const e = getCard(cardId).effects.find((x) => x.kind === "trashReturnOnOwnSpiritDestroyed")
         if (!e || e.kind !== "trashReturnOnOwnSpiritDestroyed" || !families.includes(e.familyFilter)) continue
         if (isOnceNameUsed(state, pid, cardId, e.id)) continue
@@ -1128,7 +1129,8 @@ export function markBounce(
     }
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
     // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
-    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to }
+    const srcPid = state.currentEffectSource?.pid
+    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}) }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
     return true
@@ -1146,7 +1148,7 @@ const bounceSourceNames = new Map<string, string>()
 // order（instanceId の列）を渡すと**その順に移す**。プレイヤーが決めた順番がデッキの並びに出る効果（好きな順番でデッキの下に戻す）で使う。
 // 列に無いものは従来どおりフィールドの並び順で、そのあとに続く
 export function flushBounces(state: GameState, order?: string[]): void {
-    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[] = []
+    const moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }[] = []
     const rank = (inst: CardInstance): number => {
         if (!order) return 0
         const i = order.indexOf(inst.instanceId)
@@ -1197,7 +1199,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
                     ...(sourceName !== undefined ? { sourceName } : {}),
                 })
             }
-            moved.push({ pid, inst, to: pb.to })
+            moved.push({ pid, inst, to: pb.to, ...(pb.byOpponent ? { byOpponent: true as const } : {}) })
         }
     }
     if (moved.length === 0) return
@@ -1212,7 +1214,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
 // （割り込まれる側の作法。docs/design/RESUME_STACK.md）
 export function fireBounceTriggers(
     state: GameState,
-    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst" }[],
+    moved: { pid: PlayerId; inst: CardInstance; to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }[],
     from: number,
 ): void {
     for (let i = from; i < moved.length; i++) {
@@ -1221,7 +1223,8 @@ export function fireBounceTriggers(
         // フィールドイベント誘発「自分のスピリットが手札に戻ったとき」。
         // self には戻ったスピリットを渡す（すでにフィールドからは外れている）
         if (m.to === "hand") {
-            fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))
+            // 同時に戻るスピリット自身の「戻るとき」も、もう場にいなくても発揮する（待機中に誘発する扱い）
+            fireFieldEventTriggers(state, m.pid, "ownSpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst), undefined, undefined, { byOpponentEffect: m.byOpponent === true }, moved.filter((x) => x.pid === m.pid && x.to === "hand").map((x) => x.inst))
             // 「**相手の**スピリットが手札に戻ったとき」を書けるように、両者のフィールド発生源にも配る（subjectSide で主体の陣営を絞る。anySpiritAttacked と同じ形）
             for (const pid of ["p1", "p2"] as PlayerId[]) {
                 fireFieldEventTriggers(state, pid, "anySpiritReturnedToHand", { pid: m.pid, inst: m.inst }, instColors(m.inst))

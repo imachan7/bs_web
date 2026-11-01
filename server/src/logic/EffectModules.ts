@@ -57,6 +57,7 @@ import {
     hasBounceImmunity,
     hasKeyword,
     instanceSymbolCount,
+    instBaseCost,
     instColors,
     instHasColor,
     instHasCost,
@@ -625,13 +626,17 @@ export function tryOwnLifeFloorByCost(state: GameState, pid: PlayerId): boolean 
 
 // kind:"summonedExhaustGrant"：ownerPid のフィールドに「相手のスピリットは召喚されたとき疲労する」を持つ有効な発生源があるか（condition.selfRested は発生源自身が疲労状態のときのみ）。
 // GameEngine.doSummon が、召喚した側から見た相手（=この付与の持ち主）に対して呼ぶ
-export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId): boolean {
+export function hasSummonedExhaustGrant(state: GameState, ownerPid: PlayerId, summoned: CardInstance): boolean {
     for (const source of effectSources(state, ownerPid)) {
         const level = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "summonedExhaustGrant") continue
             if (!entryActive(state, ownerPid, source, effect, level)) continue
             if (effect.condition?.selfRested && !source.isRested) continue
+            if (effect.condition?.ownBurstSet && !state.players[ownerPid].burstSet) continue
+            const pt = effect.phaseTurn
+            if (pt && (state.phase !== pt.phase || (pt.turn !== "both" && (pt.turn === "own") !== (state.turnPlayer === ownerPid)))) continue
+            if (effect.filter && !matchesTarget(state, opponentOf(ownerPid), summoned, effect.filter, source.instanceId)) continue
             noteCoverage(effect, "summonedExhaustGrant")
             return true
         }
@@ -1017,10 +1022,12 @@ export function applyMagicBuffBonus(
                 if (!instHasColor(target, "green")) continue
             }
             noteCoverage(effect, "magicBuffBonus")
-            recordBp(state, targetOwner, target, effect.amountBonus, "turn")
+            // 『アタック時』など効果文に期間が書かれていないBP+はバトルの間だけ（battleOnly）。省略時はターン終了時まで
+            const until: "turn" | "battle" = effect.battleOnly === true ? "battle" : "turn"
+            recordBp(state, targetOwner, target, effect.amountBonus, until)
             log(
                 state,
-                `${getCard(source.cardId).name}の効果で${getCard(target.cardId).name}はさらにBP+${effect.amountBonus}（ターン終了時まで）。`,
+                `${getCard(source.cardId).name}の効果で${getCard(target.cardId).name}はさらにBP+${effect.amountBonus}（${until === "battle" ? "このバトルの間" : "ターン終了時まで"}）。`,
             )
         }
     }
@@ -1119,6 +1126,11 @@ export function countEffectCounter(
     }
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
+    if (counter === "blockerCost") {
+        const b = state.battle?.blockerInstanceId
+        const f = b ? findSpiritAny(state, b) : undefined
+        return f ? instBaseCost(f.inst) : 0
+    }
     if (counter === "lastMoved") return lastMovedCount(state)
     if (counter === "lastTargetCount") return lastTargetsOf(state).length
     if (counter === "lastCores") return lastCoresCount(state)
@@ -1166,6 +1178,9 @@ export function countEffectCounter(
     if (counter === "lastFunsaiSpirits") return state.lastFunsai?.spirits ?? 0
     if (counter === "ownCombinedSpirits") {
         return state.players[owner].field.spirits.filter((s) => instIsCombined(s)).length
+    }
+    if (counter === "ownCombinedBraves") {
+        return state.players[owner].field.spirits.reduce((n, s) => n + (s.braveRefs?.length ?? 0), 0)
     }
     if (counter === "ownBraveSpirits") {
         return state.players[owner].field.spirits.filter((s) => getCard(s.cardId).type === "brave").length
@@ -1495,7 +1510,7 @@ export function resolveAction(
 
 // ---- イベント発火（server/src/logic/triggers.ts へ分割。2026-08-10）----
 // 呼び出し側（57ファイル）を変えずに済むよう、ここから再エクスポートする。相互 import は GameState.ts ↔ EffectModules.ts と同じ CommonJS の循環 require で安全
-export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicRedirectChoice, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
+export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, battleOpponentConditionedOnBattleStartIds, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicRedirectChoice, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
 export { applyJugekiCoreToVoid } from "./keywords/jugeki"
 export { fireBattleWonTriggers, fireStepTriggers, fireBpReachedTriggers, battleBp } from "./stepTriggers"
 export { fireFieldEventTriggers, notifyHandGained, notifyNexusDeployed, fireNexusDeployed } from "./fieldEventTriggers"

@@ -43,6 +43,7 @@ export interface TargetFilter {
     uncombined?: true // **合体していない**スピリットだけ（instIsCombined が false。BS11-X04 宝瓶神機アクア・エリシオン＝リフレッシュステップで1体しか回復できない対象）
     notHeavyRested?: true // 重疲労状態ではない
     notAttacking?: true // 現在のバトルのアタッカーではない
+    notBlocking?: true // 現在のバトルのブロッカーではない（バトル外では全員が該当）
     blocking?: true // 現在のバトルのブロッカー（board.battle.blockerInstanceId と一致）
     notInBattle?: true // 現在のバトルのアタッカーでもブロッカーでもない（inBattle の否定。バトル外では全員が該当）
     inBattle?: true // 現在のバトルのアタッカーかブロッカー（26RBS02-019「アタック/ブロックしている相手のスピリット」）
@@ -61,6 +62,7 @@ export interface TargetFilter {
     costSameAsOwn?: FamilyFilter // この系統を持つ自分のスピリット（発生源も含む）のいずれかと同じコスト（normalizeFilter が cost.in に畳む）
     sameCostAsSelf?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝召喚されたスピリット等）と同じコスト。normalizeFilter が cost 軸へ解決する。self がいなければ対象なし（BS09-060緑翼の大樹＝「そのスピリットと同じコストの相手」）
     maxLevelAsSelf?: true // Lv が self 以下。matchesTarget は selfInstanceId の個体を盤面から探して比べる（見つからなければ対象なし）
+    maxCostLastMagic?: true // 直前に使ったマジック（GameState.lastMagicUsed）の**印刷コスト（軽減前）**以下。記録が無ければ対象なし（P033・P076。2026-10-31 ユーザー確認）
     maxCostAsSelf?: true // self と同じかそれ以下のコスト（sameCostAsSelfの以下版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS10-X06天蠍神騎スコル・スピア＝「このスピリットのコスト以下の相手」）
     sameIceWallColorAs?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝アタックしたスピリット等）が持つ【氷壁】の色（iceWallColorsOfで判定。複数色ならOR）のいずれかを持つもの。normalizeFilter が colorAny 軸へ解決する。self がいない／【氷壁】の色を持たなければ対象なし（BS16-036氷聖女ジャンヌダルク【合体時】：「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
@@ -87,6 +89,7 @@ export interface TargetFilter {
     maxBpPer?: { counter: EffectCounter; amount: number } // maxBp と併用。counter の数×amount を maxBp に足す（normalizeFilter が解決。26RBS03-X01「この継召で除外した〜EXシンボル1つにつき、指定するBPを+2000する」）
     maxCostPer?: { counter: EffectCounter; amount: number } // cost.max と併用。counter の数×amount を cost.max に足す（normalizeFilter が解決。26RSD06-013「破壊したネクサスのコスト1につき、指定するコストを+1する」＝lastNexusCost）
     maxCostPerOwn?: { per: TargetFilter; amount: number; includeNexus?: true } // cost.max と併用。per に合う自分のスピリット（includeNexus 指定時はネクサスも。発生源自身も含む）1つにつき cost.max に amount を足す（26RCB01-071「自分のスピリット/ネクサス1つにつき、指定するコストを+1する」）
+    sameCostAsLastTarget?: true // 直前に指定した自分のスピリット（lastTargetsOf の先頭）と同じ印刷コスト。normalizeFilter が cost 軸へ解決する（P058）
     maxLv1BpOfLastTarget?: true // 直前の対象（自分のスピリット1体）のカードのLv1BP（印刷値。効果による増減は含めない）以下。normalizeFilter が maxBp 軸へ解決する（26RCB01-066）
     lastTarget?: true // 直前の対象（recordTargets の記録。placeCores で置き先にした個体など）
 }

@@ -191,6 +191,7 @@ export interface GameState {
     selfSummonCostUsedNames?: Partial<Record<PlayerId, string[]>> // このターンに「手札のこのカードを召喚する時、〜ならコストNにする」（ターンに1回）で召喚したカード名
     ownSpiritWithOnDestroyDestroyedByOwnEffect?: Partial<Record<PlayerId, true>> // このターンに、そのプレイヤー自身の効果で破壊された、破壊時効果（onDestroy の誘発）を持つそのプレイヤーのスピリットがいたか（26RBS02-076。カードが静的に持つ効果で判じる）
     ownSpiritDestroyedByOwnEffectColors?: Partial<Record<PlayerId, Color[]>> // このターンに、そのプレイヤー自身の効果で破壊された、そのプレイヤーのスピリットの色（破壊時の色。26RBS02-X05）
+    ownSpiritDestroyedByBattleThisTurn?: Partial<Record<PlayerId, true>> // BPを比べて破壊されたものだけ。キーは破壊された側の持ち主
     ownSpiritDestroyedThisTurn?: Partial<Record<PlayerId, true>> // このターンに自分のスピリットが破壊された（26系「このターンに自分のスピリットが破壊されていたなら」）
     magicEffectsUsedByName?: Partial<Record<PlayerId, string[]>> // このターンに使ったマジック効果の "カード名|timing"（EffectDef.oncePerTurnByName の判定。2026-10-08 ユーザー確定）
     lifeLostThisTurn?: Partial<Record<PlayerId, true>> // このターンにライフが1以上減ったプレイヤー（26系「このターンに自分のライフが減っていたなら」）
@@ -204,7 +205,8 @@ export interface GameState {
     // アタッカーが場を離れてバトルが終わるとき、＞７の【光芒】判定に cardId とコア数が要るため保持する。
     // 場から取り除かれた後でもオブジェクト参照からは読み取れる（resolveBattle が attacker を
     // ローカル変数で持ち回っているのと同じ考え方）。clearBattle で消す
-    lastFunsai?: { total: number; spirits: number; nexuses: number; magics: number; costAtLeast4: number } // 直前の【粉砕】で破棄した内容（resolveFunsaiが記録）。アタック宣言のたびにクリアする（doAttack冒頭）。EffectCounter "lastFunsaiTotal"/"lastFunsaiSpirits"とtriggered.condition {lastFunsaiHasNexus}が参照する（BS03巨人王ランドルフ／BS04二刀流のアムブローズ／BS04伝説巨人ジュード）。costAtLeast4はBS15共通器：破棄したカードのうちコスト4以上の枚数（BS15-053コジロンド・ゴレムLv2-3：「コスト4以上のカードを破棄したとき」）
+    lastBurstActivated?: { pid: PlayerId; cardId: string; summoned: boolean } // 直前に発動したバースト。summoned＝その解決で自分のスピリットが場に増えた（fireOwnBurstActivated が記録）
+    lastFunsai?: { total: number; spirits: number; nexuses: number; magics: number; costAtLeast4: number; bursts?: number } // 直前の【粉砕】で破棄した内容（resolveFunsaiが記録）。アタック宣言のたびにクリアする（doAttack冒頭）。EffectCounter "lastFunsaiTotal"/"lastFunsaiSpirits"とtriggered.condition {lastFunsaiHasNexus}が参照する（BS03巨人王ランドルフ／BS04二刀流のアムブローズ／BS04伝説巨人ジュード）。costAtLeast4はBS15共通器：破棄したカードのうちコスト4以上の枚数（BS15-053コジロンド・ゴレムLv2-3：「コスト4以上のカードを破棄したとき」）
     lastMoved?: Record<string, string[]> // 枠ごとの直前に動いたカード（logic/record.ts）
     lastLeftCosts?: Record<string, Record<string, number>> // 枠ごと・cardId ごとの、待機状態に入ったときのコスト（logic/record.ts）
     lastCores?: Record<string, number>

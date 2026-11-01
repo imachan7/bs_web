@@ -1,5 +1,5 @@
 // ターン進行・フェーズ遷移の制御
-import { zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { trashCardEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
 import { handGainDenial } from "./handGate"
 import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
@@ -430,7 +430,7 @@ export function endTurn(state: GameState): void {
         const returnedCounts = new Map<string, number>()
         for (let i = p.trashCards.length - 1; i >= 0; i--) {
             const cardId = p.trashCards[i]
-            if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || zoneSpiritEffectsDisabled(state, cardId)) continue
+            if (cardId === undefined || !isTrashReturnAtEndStep(cardId) || trashCardEffectsDisabled(state, cardId)) continue
             const already = returnedCounts.get(cardId) ?? 0
             if (already >= trashReturnMaxCount(cardId)) continue
             if (handGainDenial(state, { pid: state.turnPlayer, from: "trash", cause: "effect" })) continue
@@ -523,6 +523,7 @@ export function endTurn(state: GameState): void {
     delete state.lifeLostThisTurn
     delete state.magicEffectsUsedByName
     delete state.ownSpiritDestroyedThisTurn
+    delete state.ownSpiritDestroyedByBattleThisTurn
     delete state.spiritVanishedThisTurn
     delete state.oppSpiritRemovedByEffectThisTurn
     delete state.ownSpiritDestroyedByOwnEffectColors
@@ -533,6 +534,19 @@ export function endTurn(state: GameState): void {
     delete state.millCountThisTurnBrave
     state.coreGainCountThisTurn = { p1: 0, p2: 0 }
     state.millCountThisTurnMutual = { p1: 0, p2: 0 }
+
+    // PX18 時統べる幻龍神アマテラス：atTurnEnd（ターン終了時効果）の解決で extraAttackStep が
+    // 予約された場合の消費。BS10-008（ステップ誘発）の消費は上のエンドステップ誘発の直後で行うが、
+    // atTurnEnd はさらにその後（上の atTurnEnd ブロック）で初めて解決されるため、そこで立った
+    // 予約はここで消費する（公式Q&A Q18465：エンドステップの後にアタックステップとエンドステップを
+    // 1回ずつ足す。Q18467：最初のエンドステップでターン中続く効果はすべて切れるので、
+    // この位置＝一時状態のリセット群をまたいでからアタックステップへ戻す）
+    if (state.extraAttackStepPending === true) {
+        delete state.extraAttackStepPending
+        log(state, `${state.players[state.turnPlayer].name}はアタックステップとエンドステップを、もう1回ずつ行う。`)
+        toAttackPhase(state)
+        return
+    }
 
     log(state, `${state.players[state.turnPlayer].name}はターンを終了した。`)
     state.turnPlayer = state.turnPlayer === "p1" ? "p2" : "p1"

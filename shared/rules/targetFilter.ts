@@ -9,7 +9,7 @@ import type {
 import type { Board } from "../board"
 import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
-import { activeConstraints, hasTimedUnblockable, zoneSpiritEffectsDisabled } from "./constraints"
+import { activeConstraints, hasTimedUnblockable, trashCardEffectsDisabled } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, spiritHasKeywordOrLabel } from "./keywordState"
 import { currentLevel, effectActiveAtLevel, instAllCosts, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
@@ -141,6 +141,7 @@ export function matchesTarget(
     if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
     if (filter.notHeavyRested && inst.heavyRested) return false
     if (filter.notAttacking && board.battle?.attackerInstanceId === inst.instanceId) return false
+    if (filter.notBlocking && board.battle?.blockerInstanceId === inst.instanceId) return false
     if (filter.blocking && board.battle?.blockerInstanceId !== inst.instanceId) return false
     if (filter.notInBattle && (board.battle?.attackerInstanceId === inst.instanceId || board.battle?.blockerInstanceId === inst.instanceId)) return false
     if (filter.inBattle && board.battle?.attackerInstanceId !== inst.instanceId && board.battle?.blockerInstanceId !== inst.instanceId) return false
@@ -191,7 +192,7 @@ export function cardNameIs(inst: CardInstance, name: string): boolean {
 export function trashCardNameMatches(cardId: string, needle: string, board?: Board): boolean {
     const c = card(cardId)
     if (c.name.includes(needle)) return true
-    if (board !== undefined && zoneSpiritEffectsDisabled(board, cardId)) return false
+    if (board !== undefined && trashCardEffectsDisabled(board, cardId)) return false
     const found = c.effects.find((e) => e.kind === "trashNameAs" && e.name.includes(needle))
     if (found) noteCoverage(found, "trashNameAs")
     return found !== undefined

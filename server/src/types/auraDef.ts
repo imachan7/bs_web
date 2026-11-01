@@ -36,6 +36,7 @@ export interface AuraDef {
     reductionColorsAtLeast?: number // ownAll 用: 対象スピリットの**軽減シンボルの色数**（重複除く。カード静的な reduction を見る）がこれ以上のときのみ有効（BS09-003角竜人ドラケンLv2＝2色以上）
     turn?: "own" | "opponent" | "both" // target問わず適用: フェーズを問わず指定turn条件の間だけ有効（phaseTurnのphase必須版とは別軸。『自分のターン』のようにステップ不問の継続効果用。BS10-079そびえる机山群Lv1）
     combinedFilter?: true // ownAll 用: 対象スピリットが合体スピリット（instIsCombinedがtrue）のときのみ有効（BS10-097ブレイヴオーラ：合体スピリットへの追加BP）
+    excludeSelf?: true // ownAll 用: 発生源自身を除く（「このスピリット以外の自分のスピリットすべて」。P084）
     uncombinedFilter?: true // ownAll 用: combinedFilterのちょうど逆＝対象スピリットが合体していない（instIsCombinedがfalse）ときのみ有効（SD06-004ドス・モンキ：「自分の合体していないスピリットすべてをBP+3000する」）
     refreshedOnly?: true // ownAll 用: 回復状態（isRested=false）のスピリットのみ。疲労するとBPが外れるのが正（26系「回復状態の〜すべてをBP+」）
     braveOnly?: true // ownAll 用: 対象がブレイヴカード（card.type==="brave"）のときのみ有効。合体中のブレイヴはfield.spiritsに実体を置かない（BRAVE.md §2.4）ため、

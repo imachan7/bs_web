@@ -14,8 +14,8 @@ import { autoPayPlan, canExhaustNexus, payCost } from "../EffectModules"
 import { currentLevel } from "../GameState"
 import { burstTenshoUnpayable } from "../keywords/tensho"
 import { suspend } from "../GameState"
-import { exhaustNexus } from "../state/exhaust"
-import { kyoshuLimitOf, kyoshuUsedOf } from "../keywords/kyoshu"
+import { exhaustNexus, exhaustSpirit } from "../state/exhaust"
+import { kyoshuLimitOf, kyoshuSelfExhaustSources, kyoshuUsedOf } from "../keywords/kyoshu"
 import { lifeLossAllowed } from "../lifeGate"
 import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword } from "../../../../shared/rules"
 import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
@@ -36,6 +36,7 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { newRecordScope, withMovedProbe } from "../record"
 import { matchesPick } from "./revealAction"
 import { soulCoreToTrashPossible } from "../soulCore"
+import { lastBurstAction } from "./repeatBurst"
 
 // 手札・バースト・手元の破棄が払えるか（判定表の discard から呼ぶ）
 function discardPayable(state: GameState, owner: PlayerId, action: Extract<EffectAction, { type: "discard"; from: "hand" | "burst" | "tegamoto" }>): boolean {
@@ -60,7 +61,7 @@ export const PAYABLE_TYPES = [
     "moveCards", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
-    "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst",
+    "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -93,6 +94,11 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
     peekOpponentBurst: (state, owner) => state.players[opponentOf(owner)].burst !== null,
+    // 繰り返すバースト効果の中身が、いま解決できるとき（選べる対象がなければ偽）
+    repeatBurstEffect: (state, owner, self, _action, srcColors, srcType) => {
+        const last = lastBurstAction(state, owner)
+        return last !== null && canPayResolve(state, owner, null, last.action, srcColors, srcType)
+    },
     // if：条件が成り立たないことは「解決できない」ではない（then の中身は条件が成り立ったときだけ見る側の責任）
     if: () => true,
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
@@ -117,13 +123,13 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     setBurstFromHand: (state, owner) => {
         return state.players[owner].hand.some((cardId) => getCard(cardId).effects.some((e) => e.kind === "burst"))
     },
-    // 自分自身に置くものは自分が場にいること。プレイヤーに掛ける制約（playerRule）は対象を要らないので常に成立
+    // 自分自身に置くものは自分が場にいること。プレイヤーに掛ける制約（playerRule／battleLock）は対象を要らないので常に成立
     // target 未指定（相手のスピリットを1体指定する書き方）は、filter に合う相手のスピリットが1体以上いること
     timedEffect: (state, owner, self, action) => {
         if (action.type !== "timedEffect") return false
         if (action.target === "self") return self !== null
         if (action.target === "lastBuffed") return state.lastBpBuffTargetId !== undefined && findSpiritAny(state, state.lastBpBuffTargetId) !== null
-        if (action.content.every((c) => c.type === "playerRule")) return true
+        if (action.content.every((c) => c.type === "playerRule" || c.type === "battleLock")) return true
         const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
         const pids = action.side === "own" ? [owner] : action.side === "both" ? [owner, opponentOf(owner)] : [opponentOf(owner)]
         return pids.some((pid) => state.players[pid].field.spirits.some((s) => matchesTarget(state, pid, s, filter, self?.instanceId)))
@@ -366,6 +372,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     summon: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",
     treatAsUnblocked: "ブロックしたスピリットがいない",
+    repeatBurstEffect: "もう1度発揮できるバースト効果がない",
 }
 
 // 成立しない最初の cost／then の理由を「〜ため」に続く形で返す。全部成立するなら null
@@ -417,6 +424,11 @@ function moveCardsUnpayableReason(a: Extract<EffectAction, { type: "moveCards" }
 
 export const unpayableLine = (sourceName: string, reason: string): string => `${sourceName}：${reason}ため発動しなかった。`
 
+// 【強襲】のネクサス疲労のコストを、kyoshuSelfExhaustGrant（P055）の疲労で代わりに払えるか
+function kyoshuSelfPayable(state: GameState, owner: PlayerId, action: Extract<EffectAction, { type: "pay" }>): boolean {
+    return action.limitByKeyword === "kyoshu" && action.cost.type === "exhaust" && action.cost.nexusOnly === true && kyoshuSelfExhaustSources(state, owner).length > 0
+}
+
 // pay の成立判定の本体（payHandler と skipUnpayablePay が共有する）。好きなだけ払う cost は then を解決しきれる最大数までしか選べない
 // （2026-09-27 ユーザー確認）。skipThen：then を見ない（イベント対象が呼び出し側で分からないとき）
 function judgePay(
@@ -430,7 +442,7 @@ function judgePay(
     if (isReserveToll(c)) {
         const assist = effectCostDiscountNexus(state, owner, self?.cardId)
         if (autoPayPlan(state, owner, Math.max(0, c.count - (assist?.amount ?? 0)), true) === null) return { cost: c, reason: UNPAYABLE_REASONS.removeCores ?? "コアが足りない" }
-    } else {
+    } else if (!kyoshuSelfPayable(state, owner, action)) {
         const costReason = unpayableReason(state, owner, self, c, srcColors, srcType)
         if (costReason !== null) return { cost: c, reason: costReason }
     }
@@ -531,12 +543,13 @@ export function effectCostDiscountNexus(state: GameState, owner: PlayerId, sourc
 
 // 「Nコスト支払う」の形（リザーブからトラッシュへ決まった数）だけが肩代わりの対象
 const isReserveToll = (a: EffectAction): a is Extract<EffectAction, { type: "removeCores" }> & { count: number } =>
-    a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined && a.chooser === undefined
+    a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined && a.chooser === undefined && a.reserveOnly === undefined
 
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     // 「そのスピリット」＝イベント対象は then にだけ渡す（cost は自分の場から払うもの）。確認で止まると ctx から落ちるので行動に持たせる
-    const eventTargetId = action.eventTargetId ?? ctx.targetInstanceId
+    const kyoshuAlt = kyoshuSelfPayable(state, owner, action)
+    const eventTargetId = action.eventTargetId ?? (kyoshuAlt ? undefined : ctx.targetInstanceId)
     const fizzle = (message: string): void => {
         log(state, message)
         state.effectFizzled = true
@@ -587,6 +600,22 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     }
     cost = verdict.cost
     let tollCovered = false
+    if (kyoshuAlt) {
+        // 払い方の選択（ネクサスか、発生源自身か）。選び直しの再開では ctx.targetInstanceId に選んだ個体が入る
+        const selfs = kyoshuSelfExhaustSources(state, owner)
+        const nexuses = canExhaustNexus(state, owner) ? state.players[owner].field.nexuses.filter((n) => !n.isRested) : []
+        const all = [...nexuses, ...selfs]
+        let pick = all.find((i) => i.instanceId === ctx.targetInstanceId)
+        if (!pick && all.length > 1 && state.interactiveTargets) {
+            requestChoice(state, owner, `${sourceName}：【強襲】のコストとして疲労させるカードを選んでください`, all.map((i) => i.instanceId), false, { ...action, confirmed: true }, self)
+            return
+        }
+        pick ??= all[0]!
+        if (selfs.includes(pick)) exhaustSpirit(state, owner, pick, undefined, owner, srcType)
+        else exhaustNexus(state, owner, pick, owner, srcType)
+        log(state, `${sourceName}：【強襲】のコストとして${getCard(pick.cardId).name}を疲労させた。`)
+        tollCovered = true
+    }
     const assist = isReserveToll(cost) ? effectCostDiscountNexus(state, owner, ctx.sourceCardId) : null
     if (assist && isReserveToll(cost)) {
         if (ctx.chosenOption === undefined && state.interactiveTargets) {

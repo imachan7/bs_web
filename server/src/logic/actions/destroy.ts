@@ -129,10 +129,11 @@ function distinctOpponentTrashMagicColors(state: GameState, opp: PlayerId): numb
 
 
 
-// 「残り N 体」を再開フレームに積むときは体数を固定する（countCounter を再開のたびに数え直さない）
-function fixedCount(a: DestroyAction, count: number): DestroyAction {
+// 「残り N 体」を再開フレームに積むときは体数を固定する（countCounter を再開のたびに数え直さない）。
+// append を付けたものは分割再開の継続（lastMoved に追記する。この効果で破壊した分が選択の中断で消えないように）
+function fixedCount(a: DestroyAction, count: number, append = false): DestroyAction {
     const { countCounter: _counted, ...rest } = a
-    return { ...rest, count, countPerOpponentTrashMagicColors: false }
+    return { ...rest, count, countPerOpponentTrashMagicColors: false, ...(append ? { recordAppend: true } : {}) }
 }
 
 const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void => {
@@ -257,7 +258,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                         `${sourceName}の破壊効果：破壊する自分のスピリットを選んでください`,
                         candidates,
                         { ...actionForChoice, count: 1 },
-                        resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1) : null,
+                        resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1, true) : null,
                     )
                 ) {
                     return
@@ -278,7 +279,8 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                             kind: "action",
                             selfInstanceId: self ? self.instanceId : null,
                             actorPid: owner,
-                            action: fixedCount(action, rest),
+                            recordScope: currentRecordScope(state),
+                            action: fixedCount(action, rest, true),
                         }])
                     }
                     return
@@ -301,7 +303,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                     anySideCandidates,
                     { ...actionForChoice, count: 1 },
                     resolvedCount > 1
-                        ? fixedCount(actionForChoice, resolvedCount - 1)
+                        ? fixedCount(actionForChoice, resolvedCount - 1, true)
                         : null,
                 )
             ) {
@@ -334,7 +336,8 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                             kind: "action",
                             selfInstanceId: self ? self.instanceId : null,
                             actorPid: owner,
-                            action: fixedCount(action, rest),
+                            recordScope: currentRecordScope(state),
+                            action: fixedCount(action, rest, true),
                         }])
                     }
                     return
@@ -366,7 +369,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                         : `${sourceName}の破壊効果：破壊するスピリットを選んでください`,
                     candidates,
                     { ...actionForChoice, count: 1 },
-                    resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1) : null,
+                    resolvedCount > 1 ? fixedCount(actionForChoice, resolvedCount - 1, true) : null,
                     // chooserIsTarget（BS10-101ハングドマン＝「相手は、相手のスピリット1体を破壊する」）：
                     // 破壊される側（相手＝opp）が対象を選ぶ。解決はowner（発生源の持ち主）の効果として続ける
                     action.chooserIsTarget ? opp : undefined,
@@ -441,7 +444,8 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                         kind: "action",
                         selfInstanceId: self ? self.instanceId : null,
                         actorPid: owner,
-                        action: fixedCount(action, rest),
+                        recordScope: currentRecordScope(state),
+                        action: fixedCount(action, rest, true),
                     }])
                 }
                 return
@@ -1303,14 +1307,16 @@ const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, act
     fushiSummonOrConfirm(state, action.pid, trashIndex)
 }
 
-// 破壊したカードを lastMoved に残す（if の cond.last・カウンタ lastCost が読む。IF_UNIFY.md §5）
+// 破壊したカードを lastMoved に残す（if の cond.last・カウンタ lastCost が読む。IF_UNIFY.md §5）。
+// recordAppend（「残りN体」の分割再開）のときは上書きでなく追記：対象選びのたびに再入しても
+// 「この効果で破壊したスピリット1体につき」が全数を見られる（nexusProgress の gone と同じ枠の渡し方）
 const destroyRecordedHandler: ActionHandler<"destroy"> = (ctx, action) => {
     const { count } = action
     const scope = currentRecordScope(ctx.state)
     const ids = recordDestroysOf(ctx.destroyContext, () =>
         count === "any" ? destroyOwnSpiritsAny(ctx, action) : destroyHandler(ctx, { ...action, count }),
     )
-    recordMoved(ctx.state, ids, scope)
+    recordMoved(ctx.state, action.recordAppend ? [...lastMovedOf(ctx.state, scope), ...ids] : ids, scope)
 }
 
 // ネクサス・自分自身は lastMoved を書く経路が旧ハンドラごとに違うので、記録の包みの外で振り分ける

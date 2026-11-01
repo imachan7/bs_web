@@ -619,6 +619,31 @@ export function fireTrigger(
     }
 }
 
+// アタッカー側の『このスピリットのバトル時』(trigger:"onBattleStart")効果のうち、バトル相手を
+// 条件に持つもの（condition.battleOpponentMatches。PX14 戦皇ゴッドスレイヤー・ドラゴン
+// 「名前に『神』を持つ相手のスピリットとバトルしているとき BP+5000」）の効果ID一覧
+// （本体＋合体ブレイヴ）。通常アタックでは onBattleStart はアタック宣言の時点
+// （GameEngine.doAttack）で発火するが、その時点ではブロッカーが決まっていないため
+// これらは条件不成立で見送られる。ブロック宣言でバトル相手が確定した時点
+// （blockDeclared.resolveBlockDeclared）で改めて発火するために使う
+export function battleOpponentConditionedOnBattleStartIds(state: GameState, owner: PlayerId, inst: CardInstance): string[] {
+    const ids: string[] = []
+    for (const src of [inst, ...bravesOf(state.players[owner], inst)]) {
+        for (const e of getCard(src.cardId).effects) {
+            if (
+                e.kind === "triggered" &&
+                e.trigger === "onBattleStart" &&
+                e.condition !== undefined &&
+                typeof e.condition === "object" &&
+                "battleOpponentMatches" in e.condition
+            ) {
+                ids.push(e.id)
+            }
+        }
+    }
+    return ids
+}
+
 // BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
 // 『このスピリットの合体アタック時』効果を発揮させる」。fireTriggerの`entries`は呼び出し時点でのbravesOf
 // スナップショットなので、その最中に新たに合体したブレイヴが持ち込む【合体時】onAttackエントリは自然には

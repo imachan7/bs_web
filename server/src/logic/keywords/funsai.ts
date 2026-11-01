@@ -99,7 +99,7 @@ export function resolveFunsai(
     const actual = millDeck(state, opponentPid, level + bonus, ownerPid, { sourceType: "spirit", funsai: true })
     // 山札が破棄されない間も【粉砕】は0枚の破棄として成立する（2026-10-23 ユーザー確認）。後続は0枚として動く
     if (actual === 0 && hasGlobalConstraint(state, "noDeckMill")) {
-        state.lastFunsai = { total: 0, spirits: 0, nexuses: 0, magics: 0, costAtLeast4: 0 }
+        state.lastFunsai = { total: 0, spirits: 0, nexuses: 0, magics: 0, costAtLeast4: 0, bursts: 0 }
     }
     if (actual > 0) {
         const milledCardIds = trashCards.slice(beforeLen, beforeLen + actual)
@@ -107,6 +107,7 @@ export function resolveFunsai(
         let nexuses = 0
         let magics = 0
         let costAtLeast4 = 0
+        let bursts = 0
         for (const cardId of milledCardIds) {
             const card = getCard(cardId)
             if (card.type === "spirit") spirits++
@@ -114,8 +115,9 @@ export function resolveFunsai(
             else if (card.type === "magic") magics++
             // BS15共通器：BS15-053コジロンド・ゴレムLv2-3「コスト4以上のカードを破棄したとき」用
             if (card.cost >= 4) costAtLeast4++
+            if (card.effects.some((e) => e.kind === "burst")) bursts++
         }
-        state.lastFunsai = { total: actual, spirits, nexuses, magics, costAtLeast4 }
+        state.lastFunsai = { total: actual, spirits, nexuses, magics, costAtLeast4, bursts }
         fireFieldEventTriggers(state, ownerPid, "ownFunsaiMilled", undefined, undefined, undefined, actual)
     }
 }

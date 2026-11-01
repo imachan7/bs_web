@@ -13,7 +13,7 @@ import type {
 import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
 import { minLevelCoresOf } from "./activation"
-import { activeConstraints, hasGlobalConstraint, timedBattleContents, timedPlayerRules } from "./constraints"
+import { activeConstraints, braveBpBonusZeroFor, hasGlobalConstraint, timedBattleContents, timedPlayerRules, trashFrozen } from "./constraints"
 import { instanceSymbolCount } from "./symbols"
 import { spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
@@ -156,7 +156,8 @@ export function isVanillaCard(cardData: CardData): boolean {
 // **トラッシュにあるカードを対象にする効果は、候補を絞り込む箇所でこれを1つ呼ぶこと**
 // （noTrashRecoveryのように各ハンドラ冒頭へ個別に書くと、書き忘れの経路が残る。
 // BS10-108ルナティックシール：「トラッシュにあるこのマジックカードは、一切の効果を受けない」＝自分の効果からも守られる）
-export function isTrashCardProtected(cardId: string): boolean {
+export function isTrashCardProtected(cardId: string, board?: Board): boolean {
+    if (board !== undefined && trashFrozen(board)) return true
     const found = card(cardId).effects.find((e) => e.kind === "trashImmunity")
     if (found) noteCoverage(found, "trashImmunity")
     return found !== undefined
@@ -572,7 +573,7 @@ export function braveLevelOf(host: CardInstance, brave: CardInstance): number {
 // braveComposite（レベルに依らない値のキャッシュ）には入れず、ここで都度引く
 export function braveBpBonus(board: Board, player: BoardPlayer, host: CardInstance): number {
     // BS14-090勇壮なる船上都市：両陣営の合体スピリットすべての「合体時BP+」を0にする
-    if (hasGlobalConstraint(board, "braveBpBonusZero")) return 0
+    if (braveBpBonusZeroFor(board, board.players.p1.field.spirits.includes(host) ? "p1" : "p2")) return 0
     let total = 0
     for (const brave of bravesOf(player, host)) {
         // braveCombined が載っていれば currentLevel が合体状態のレベル表を引く（instLevels）。

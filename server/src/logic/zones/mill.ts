@@ -9,7 +9,7 @@ import { returnSpiritToDeckBottom } from "../removal"
 import { spiritMillFreeSummonOrConfirm } from "../revive"
 import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
-import { effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules } from "../../../../shared/rules"
+import { effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules, trashCardEffectsDisabled, trashFrozen } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { recordPlayerRule, resolveAction } from "../EffectModules"
 
@@ -246,7 +246,7 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
                 entryActive(state, pid, source, e, currentLevel(source).level),
         ),
     )
-    if (!active) return
+    if (!active || trashFrozen(state)) return
     const player = state.players[pid]
     const moved: string[] = []
     for (const cardId of milled) {
@@ -461,6 +461,7 @@ export function resolveMilledFromDeck(
 ): void {
     const player = state.players[pid]
     for (const cardId of milled) {
+        if (trashCardEffectsDisabled(state, cardId)) continue
         for (const effect of getCard(cardId).effects) {
             if (effect.kind !== "onMilledFromDeck") continue
             // 「相手の**スピリット**の効果で」（BS08鳳翼の聖剣）は発生源の種別まで一致を要求する。

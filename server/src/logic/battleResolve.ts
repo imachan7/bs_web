@@ -295,7 +295,7 @@ export function resolveDirectedBlock(state: GameState): void {
               })
             : null
     if (target && attacker && !instEffectsSuppressed(attacker) && !resisted) {
-        finishBlockDeclaration(state, defenderPid, id!)
+        finishBlockDeclaration(state, defenderPid, id!, true)
     }
     // アタッカーの『このスピリットのバトル時』は、指定アタックでは**ブロックが確定したこの時点**で
     // 発揮する（アタック宣言の時点ではまだ相手が決まっていないため。BS11-X02 滅神星龍ダークヴルム・ノヴァの

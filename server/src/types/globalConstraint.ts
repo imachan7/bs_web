@@ -32,7 +32,7 @@ export type GlobalConstraintDef =
     | { type: "ownLifeDamageToTrashByKeyword"; keyword: Keyword } // 発生源の持ち主の、指定キーワードを持つスピリットのアタックで減る相手のライフのコアは、リザーブでなく相手のトラッシュに置かれる（battleResolve のライフ受けが見る）
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営）
-    | { type: "braveBpBonusZero" } // 両陣営の合体スピリットの「合体時BP+」（braveBpBonus）を0にする。ブレイヴ自体のLv判定は変えない＝加算値だけ無視する。主語が無いので両陣営が対象
+    | { type: "braveBpBonusZero"; side?: "opponent" } // side:"opponent" は発生源の持ち主から見た相手の合体スピリットだけ（省略時は両陣営）。両陣営の合体スピリットの「合体時BP+」（braveBpBonus）を0にする。ブレイヴ自体のLv判定は変えない＝加算値だけ無視する。主語が無いので両陣営が対象
     | { type: "lifeDamagePerSpiritPerTurn"; max: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計は max まで（アタック・効果を合算。CardInstance.lifeDealtThisTurn で判定。ownLifeDamageCapPerSourcePerTurn と同じ記録だが、こちらは発生源の陣営を問わずお互いに効く）。effect.whileOwnBurstSet で絞れる。shared/rules.lifeDamagePerSpiritRemaining
     | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number } // 発生源の持ち主だけを守る片側型。相手のスピリット1体（アタッカー個体）ごとのターン累計で max までしか減らされない（1回のアタックで max 個ずつの capLifeDamageThisTurn とは別物）。ターン終了でリセット。shared/rules.ownLifeDamageCapRemaining
     | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // 発生源の持ち主だけのライフは floor を下回らない（片側のみ。condition:{ownFamilyCountAtLeast} と組み合わせて使う）。
@@ -65,6 +65,7 @@ export type GlobalConstraintDef =
     | { type: "coresToOpponentReserveGoToTrash" } // 発生源の持ち主から見た相手のリザーブへ、スピリット/ブレイヴ/マジックの効果で置かれるコアはその相手のトラッシュへ振り替えられる（両陣営の発生源が効く＝主語なし）。ネクサスの効果・ルール処理は対象外。removeCores〈removal.ts〉の共通フックで判定
       // （removeCores/removeCoresToTrash/removeCoresToVoid の共通フックで判定。coreSqueezeAll/One・coreDrainAllOthers・coreToVoidOwn など
       // 直接コアを操作する一部アクションはこの経路を通らないため対象外＝簡略化）
+    | { type: "trashFrozen" } // お互いのトラッシュのカードは、効果を受けず自身の効果も使えない（PX19。発生源が場にいる間だけ。判定は shared/rules/constraints.ts の trashFrozen。数を数えるだけの参照は止めない）
     | { type: "noTrashRecovery" } // お互い、トラッシュからカードを手札に戻せない（recoverSpiritFromTrash / recoverMagicFromTrash / recoverAllMagicFromTrashByColorChoice の各ハンドラ冒頭で判定）
     | { type: "noOpponentTriggerByColor"; color?: Color; triggers: TriggerEvent[]; bothSides?: true } // 発生源の持ち主から見た相手の、指定色のスピリットの、指定した『〇〇時』効果は発揮されない（color 省略時は色を問わない）。bothSides 指定時は「相手」限定を外し、発生源の持ち主自身のスピリットも含めて両陣営が対象（主語の無い効果文＝CONJUNCTION.md／SEMANTICS_AUDIT.md §3.17の既存規則）
     // （noSummonTriggerByCost と違い両陣営ではなく片側だけ）。
@@ -96,6 +97,7 @@ export type GlobalConstraintDef =
     | { type: "summonLimitByEffectForOpponent"; limit: number } // summonLimitByCostForOpponent の兄弟：コストでなく効果の記述を持つ（isVanillaCard が false）スピリットカードでターンに limit 体までしか召喚できない
     | { type: "voidCoreBlockedOutsideCoreStep" } // お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない（ライフ・トラッシュへは対象外）。
     // ボイドから直接置く各アクションが冒頭で coreGainCap.ts の coreGainBlocked を呼ぶ（コアステップ自身の `player.reserve += 1` はガード不要）
+    | { type: "braveSummonNeedsCost" } // お互い、効果による無償のブレイヴ召喚ができない。コストを払う召喚（軽減で0になった場合も「0を払った」）は止めない（公式 Q17764）。summonDenial が cause:"effect" のブレイヴを弾く
     | { type: "noSummonByEffect" } // お互い、スピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない（通常の doSummon 経由は対象外。主語なし）。
     // エントリの phase を書けばその区間だけ有効。summonByEffectBlocked が判定し、
     // summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（効果による召喚の共通経路）の冒頭で弾く

@@ -102,7 +102,8 @@ export function canBlock(
             blockerConstraints.some((c) => {
                 if (c.type !== "canBlockWhileRested") return false
                 if (c.filter === undefined) return true
-                return attackerInst !== undefined && matchesTarget(board, attackerPid, attackerInst, c.filter, blockerInst.instanceId)
+                // 「自身のコスト以下」などの self はブロッカー（P063）
+                return attackerInst !== undefined && matchesTarget(board, attackerPid, attackerInst, resolveSelfRelative(c.filter, blockerInst), blockerInst.instanceId)
             }) || canBlockWhileRestedThisTurn(board, blockerPid, blockerInst)
         if (!canBlockRested) return "疲労しているためブロックできません"
     }

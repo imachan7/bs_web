@@ -29,6 +29,7 @@ export type TimedContent =
     | { type: "symbolAdd"; color?: Color; count?: number } // 持っているシンボルと同じ色のシンボルを1つ追加する。color 指定時は、その色を count 個（既定1）追加する（自分のスピリット1体を filter で選ぶ。26RBS03-X08）
     | { type: "symbolSet"; color?: Color; count: number } // シンボルを◯色◯つとして扱う。color 省略時は対象が元々持つシンボルの1色目（kind:"symbolFix" と同じ読み）
     | { type: "symbolLoss"; color?: Color } // 指定した色のシンボルを1つ失う。color を省くと使う人が色を選ぶ
+    | { type: "alsoCost"; cost: number } // 元のコストに加えて、このコストとしても扱う（PX19。tempAlsoCosts へ写す。元のコストは残る）
     | { type: "cost"; amount: number } // コストを増減する（元のコストは残らない）
     | { type: "triggerSwap"; from: "onAttack" | "onBlock" } // from の効果を、もう片方（アタック時⇔ブロック時）に発揮する（元のタイミングでは発揮しない）
     | { type: "color"; color?: Color } // color を省くと使う人が色を選ぶ（対象を選ぶ→色を選ぶ、の2段階）

@@ -1,6 +1,6 @@
 // スピリット・ネクサスの疲労処理
 import { entryActive } from "../../../../shared/rules/effectStop"
-import { zoneSpiritEffectsDisabled } from "../../../../shared/rules"
+import { trashCardEffectsDisabled } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, CardType, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, log, opponentOf, requestTrashReturn } from "../GameState"
@@ -142,7 +142,7 @@ function returnTrashOnHeavyExhaust(state: GameState, pid: PlayerId): void {
     if (state.turnPlayer !== pid) return
     const player = state.players[pid]
     const index = player.trashCards.findIndex((cardId) =>
-        !zoneSpiritEffectsDisabled(state, cardId) &&
+        !trashCardEffectsDisabled(state, cardId) &&
         getCard(cardId).effects.some(
             (e) =>
                 e.kind === "trashReturnOnOwnHeavyExhaust" &&

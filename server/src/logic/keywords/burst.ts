@@ -226,6 +226,7 @@ export function fireOwnBurstActivated(
     if (state.winner) return
     const after = fieldInstanceIdsOf(state, pid)
     const excludeInstanceIds = [...after].filter((id) => !before.has(id))
+    state.lastBurstActivated = { pid, cardId, summoned: state.players[pid].field.spirits.some((s) => !before.has(s.instanceId)) }
     fireFieldEventTriggers(
         state,
         pid,

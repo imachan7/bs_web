@@ -150,6 +150,13 @@ export type EffectDef =
       }
     | {
           id: string
+          // 【強襲】のコスト（ネクサスの疲労）の代わりに、発生源自身（回復状態のとき）を疲労させて払える。回数の上限は変わらない（P055）
+          kind: "kyoshuSelfExhaustGrant"
+          levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
           kind: "koboOnBlock" // 持ち主のスピリットの【光芒】を『このスピリットのブロック時』にも発揮させる
           levels: number[] | null
       }

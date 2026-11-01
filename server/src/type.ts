@@ -308,7 +308,7 @@ export type PlayerRuleDef =
     | { type: "noDeckMillForPid" } // デッキは自分の効果も含めて破棄されない
     | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
     | { type: "noBurstEffectForPid"; cost?: { min: number; max: number }; declared?: "match" } // バースト効果の解決だけが飛ぶ（発動は成立し、カードはトラッシュへ行く。誘発も起きる）。cost は印刷コストで比べ、省略時はすべてのバースト。declared は declare の then の中だけ（cost に置き換わる）
-    | { type: "cantUseMagicForPid"; colors: Color[] | "event" } // 手札・手元・トラッシュなどどこからでも、その色をいずれか持つマジックを使用できない。"event"は置く時点で、直前に召喚時効果を発揮したカードの色すべてに解く（timedEffect.ts）
+    | { type: "cantUseMagicForPid"; colors?: Color[] | "event"; allowColors?: "opponentFieldSymbols"; costs?: number[] | "ownerRestedNexuses"; declared?: "match" } // allowColors は、掛かった側のフィールドにシンボルを持つ色のマジックだけ使える（使うたびに見る）。costs は印刷コストが一致するマジックを禁じ、"ownerRestedNexuses" は掛けた側の疲労状態のネクサスのコストを使うたびに集める。declared は declare の then の中だけ（costs に置き換わる）。手札・手元・トラッシュなどどこからでも、その色をいずれか持つマジックを使用できない。"event"は置く時点で、直前に召喚時効果を発揮したカードの色すべてに解く（timedEffect.ts）
     | { type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction; source?: string } // 課された側が使うマジック／発動するバーストの効果は、cost を支払わなければ発揮できない（使用・発動は成立する。effectTax.ts）。source は確認文に出す税の発生源名で、timedEffect が置くときに埋める（カードデータには書かない）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）

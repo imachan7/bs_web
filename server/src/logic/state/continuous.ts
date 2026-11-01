@@ -66,6 +66,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.timedExtraSymbols
             delete inst.timedSymbolsAdded
             delete inst.timedCostDelta
+            inst.tempAlsoCosts = []
             delete inst.timedSymbolsOverride
             delete inst.timedSymbolLoss
             delete inst.timedEffectsDisabled
@@ -87,6 +88,7 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
+            if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
             if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
         }
@@ -477,6 +479,21 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 対象の CardInstance.namesAsContinuous へ毎回再構築して反映する
                     if (effect.lentOnly && !isVirtualSource(source)) continue
                     if (!entryActive(state, pid, source, effect, currentLevel(source).level)) continue
+                    // whileCombined（ブレイヴの【合体時】限定。P044 星鎧龍ジーク・ブレイヴ）：
+                    // 合体していなければ付与しない。合体中のブレイヴは field.combinedBraves にいるため、
+                    // 「このスピリット」＝ホスト（合体スピリット）に付与する（BRAVE.md §12.3。vanillaAsGrant と同じ考え方）
+                    if (effect.whileCombined && !instIsCombined(source)) continue
+                    const combinedBrave = player.field.combinedBraves.find((b) => b.instanceId === source.instanceId)
+                    if (effect.whileCombined && combinedBrave) {
+                        for (const host of hostsOf(player, source)) {
+                            if (!host.namesAsContinuous) host.namesAsContinuous = []
+                            noteCoverage(effect, "nameAsGrant")
+                            if (!host.namesAsContinuous.includes(effect.nameIncludes)) {
+                                host.namesAsContinuous.push(effect.nameIncludes)
+                            }
+                        }
+                        continue
+                    }
                     for (const spirit of player.field.spirits) {
                         // 器BK：target:"self"は発生源自身にだけ付与する
                         if (effect.target === "self" && spirit.instanceId !== source.instanceId) continue

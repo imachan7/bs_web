@@ -27,10 +27,12 @@
 - **プロモは P001〜P084 と PX01〜PX19**（新しいのは100枚）。年の番号（P13〜・PX13〜）はまだやらない（10-31 ユーザー指示）。一覧は batspi.com の「プロモーションカード」ページ。BS19 とは別の PR にする
 - **BS19 の前にソウルコアの方針を決める**（剣刃編から入る。今は常に無効。下の「standard 版エンジンの持ち込み」）
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）。取得は `scripts/fetch_wiki_cards.py`（`--refer` は Wiki に実在するページ名でないと0件）。着手時に `BS19_PLAN.md` を作る
-- **プロモの前に、絞り込みの統一を進めている**（2026-10-31 ユーザー決定「全部いま寄せる」）。器ごとの個別の軸を `filter: ResolvedTargetFilter`（`matchesTarget`）へ寄せる。済み：ブロックまわり（#350）・fieldEvent の主語と付与・コア系（#351）。残り：条件（PR 5）。決定と寄せずに残したものは [FILTER_UNIFY.md](./docs/design/FILTER_UNIFY.md) §7。プロモの計画と確定した解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md)（ブランチ `feat/promo-p0-px0-import`）。プロモの部品は寄せた後の書き方で作る
+- **絞り込みの統一は済み**（#349〜#353。2026-10-31 ユーザー決定「全部いま寄せる」）。絞り込みは `filter`／`subjectFilter`／`partnerFilter`／`ownSpiritMatches`／`battleOpponentMatches`（`ResolvedTargetFilter`）に書く。寄せずに残したものは [FILTER_UNIFY.md](./docs/design/FILTER_UNIFY.md) §7、付録の器（約250件）はプロモの後
+- **プロモ P0・PX0 の100枚は実装済み**（PR を出した。解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md) §2）。後半は Mistral Vibe（GLM-5.3・Devstral）に直させた：モデルは `~/.vibe/config.toml` の `active_model` でしか選べない（エージェント定義の指定は無視される）。Devstral は `devstral-latest`／`devstral-2512`。指示は1回1〜2件、読む範囲を絞り、差分は必ず見る（Devstral はテストの確かめを飛ばしたことがある）
 - データの移行をしたら `npm run coverage:check`（#352。smoke の全緑だけでは、場面を組めずに黙って発火しなくなった効果が見えない）
 - 3役の流れは [TEST_STRATEGY.md](./docs/design/TEST_STRATEGY.md) §5・§6。**実装役の「❌ 0」は自分で実行し直して確かめる**（10-29 に食い違いがあった）
 - 新しい禁止・耐性は [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md) の問い合わせへ足す。**新しい行・一般則を設計する前に、主役のカードの batspi.com の公式Q&Aを読む**
+- **プロモの後にやる**：「自分のリザーブのコアN個をトラッシュに置くことで」はリザーブからしか払えないのに、「Nコスト支払う」（フィールドのコアからも払える）と同じ形（`removeCores` reserve→trash）で書かれ、フィールドのコアでも払われている（BS15-032・BS15-X05 など）。プロモの P074 で `removeCores.reserveOnly` を足した。既存カードを効果文で洗い出して付ける（2026-11-01）
 - 取り込み時に足すもの：待機状態の改訂の残りの規則（[PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2）、発生源の属性で絞る貫通（耐性ごとの発生源の記録が要る）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 

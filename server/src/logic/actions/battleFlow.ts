@@ -640,7 +640,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             // alsoFrom:"trash"：手札とトラッシュの合計でcount枚まで、1枚ずつどちらの場所かを選べる（X05）
             if (action.alsoFrom === "trash") {
                 const matchesTrashId = (candidateId: string): boolean =>
-                    !isTrashCardProtected(candidateId) && matchesCardId(candidateId, "trash")
+                    !isTrashCardProtected(candidateId, state) && matchesCardId(candidateId, "trash")
                 const requestZone = (zone: "hand" | "trash", remaining: number): void => {
                     const idxs: number[] = []
                     if (zone === "hand") {
