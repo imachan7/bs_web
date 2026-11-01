@@ -58,6 +58,8 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     fchange: { id: "fchange", label: "Fチェンジ" },
     meisai: { id: "meisai", label: "迷彩" },
     levelup: { id: "levelup", label: "レベルアップ" },
+    rensa: { id: "rensa", label: "連鎖" },
+    kyoka: { id: "kyoka", label: "強化" },
 }
 
 // キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。

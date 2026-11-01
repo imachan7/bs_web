@@ -28,6 +28,7 @@ export type EffectDef =
           familyFilter?: FamilyFilter // 転召用: 対象スピリットの系統（配列＝OR）。minCostとは排他
           dest?: "trash" | "void" // 転召用: コアの行き先（trash=持ち主のトラッシュ、void=消滅）
           triggerCosts?: number[] // 不死用: 引き金になる自分のスピリットのコスト（省略時は「キーワードを持つ」宣言だけ）
+          kyoka?: "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill" // 強化用: 数値を足す効果の種類（BS19_PLAN §2.1）
           triggerFamilies?: FamilyFilter // 不死用: 引き金になる自分のスピリットの系統。triggerCostsとはどちらか一致で可
       }
     | {
