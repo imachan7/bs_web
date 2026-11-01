@@ -14,7 +14,7 @@ import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { timedKeywords, zoneSpiritEffectsDisabled } from "./constraints"
 import { entryActive } from "./effectStop"
-import { bravesOf, cardHasColor, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
+import { bravesOf, cardHasColor, combinedBraveEntryOk, ownAllHaveTeam, currentLevel, effectActiveAtLevel, effectActiveOn, effectSources, instEffectsSuppressed, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isVanillaCard, isVirtualSource, keywordMatches } from "./level"
 import { instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
 // ---- キーワード・系統の状態判定（盤面の付与効果を考慮する） ----
@@ -44,7 +44,8 @@ export function spiritHasKeyword(
                 (e) =>
                     e.kind === "keyword" &&
                     keywordMatches(e.keyword, keyword) &&
-                    (e.whileCombined !== true || instIsCombined(inst)),
+                    // 合体中のブレイヴのキーワードは【合体時】のものだけ（BRAVE.md §12 の #8）
+                    combinedBraveEntryOk(src, e),
             ),
         )
     ) {
@@ -88,6 +89,8 @@ export function spiritHasLabeledKeyword(
             if ((effect as { keyword?: Keyword }).keyword !== keyword) continue
             if (!effectActiveAtLevel((effect as { levels?: number[] | null }).levels ?? null, level)) continue
             if ((effect as { whileCombined?: true }).whileCombined === true && !instIsCombined(inst)) continue
+            // 合体中のブレイヴ（src）のエントリは【合体時】のものだけ（BRAVE.md §12 の #8）
+            if (!combinedBraveEntryOk(src, effect)) continue
             return true
         }
     }
@@ -109,6 +112,8 @@ export function instHasStaticKeyword(inst: CardInstance, keyword: Keyword): bool
             e.kind === "keyword" &&
             keywordMatches(e.keyword, keyword) &&
             (e.whileCombined !== true || instIsCombined(inst)) &&
+            // inst 自身が合体中のブレイヴのときは【合体時】のものだけ（BRAVE.md §12 の #8）
+            combinedBraveEntryOk(inst, e) &&
             effectActiveAtLevel(e.levels, level),
     )
 }

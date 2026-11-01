@@ -114,6 +114,19 @@ export function instIsCombined(inst: CardInstance): boolean {
     return (inst.braveRefs?.length ?? 0) > 0 || inst.braveCombined === true
 }
 
+// 合体中のブレイヴのエントリは【合体時】のものだけが働く（docs/design/BRAVE.md §12 の表の #8。
+// 2026-11-02 ユーザー確認）。Lv の書かれた効果・キーワードはスピリット状態のときだけ。
+// 例外は『このブレイヴの召喚時』（kind:"triggered"＋trigger:"onSummon"）：ダイレクトブレイヴで
+// 合体しながら召喚しても働く。ホスト（braveRefs を持つ側）はここでは無関係なので素通り
+export function combinedBraveEntryOk(
+    inst: CardInstance,
+    effect: { whileCombined?: true; kind?: string; trigger?: string },
+): boolean {
+    if (inst.braveCombined !== true) return true
+    if (effect.whileCombined === true) return true
+    return effect.kind === "triggered" && effect.trigger === "onSummon"
+}
+
 // 効果エントリが**いま発揮されているか**。レベル条件に加えて【合体時】のゲートも見る。
 //
 // ⚠️ `whileCombined` を宣言しているのは **keyword / triggered / aura / constraint / fieldEvent** の5 kind だけ
@@ -122,10 +135,11 @@ export function instIsCombined(inst: CardInstance): boolean {
 // 新しい kind に【合体時】が要るようになったら、型宣言と走査の両方を足すこと
 export function effectActiveOn(
     inst: CardInstance,
-    effect: { levels: number[] | null; whileCombined?: true },
+    effect: { levels: number[] | null; whileCombined?: true; kind?: string; trigger?: string },
     level: number,
 ): boolean {
     if (!effectActiveAtLevel(effect.levels, level)) return false
+    if (!combinedBraveEntryOk(inst, effect)) return false
     return effect.whileCombined !== true || instIsCombined(inst)
 }
 
