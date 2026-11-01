@@ -116,6 +116,7 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("自分.ロクケラトプス") })
+        t.act("opp", { type: "pass" }) // アタック後のフラッシュは防御側が先
         t.act("me", { type: "summon", handIndex: 0 }) // フラッシュで【神速】召喚（コスト2＋コア1をリザーブから）
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
@@ -145,6 +146,7 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("自分.ロクケラトプス") })
+        t.act("opp", { type: "pass" }) // アタック後のフラッシュは防御側が先
         t.act("me", { type: "summon", handIndex: 0 })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
@@ -321,6 +323,7 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("自分.ロクケラトプス") })
+        t.act("opp", { type: "pass" }) // アタック後のフラッシュは防御側が先
         t.act("me", { type: "summon", handIndex: 0 }) // 神速（緑1シンボルでコスト4-1=3、コア1個）
         answer(t, { target: "自分.マッハフライ" }) // 召喚時：回復させる怪虫は自分で選ぶ（候補に自身も入る）
         t.closeFlash()
