@@ -1803,7 +1803,8 @@
      2
     ],
     "cost": {
-     "reserveToTrash": 1
+     "reserveToTrash": 1,
+     "reserveOnly": true
     },
     "action": {
      "type": "grantKeywordToHandCard",
