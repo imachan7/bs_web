@@ -361,7 +361,7 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         suspend(state, {
             pid: owner,
             kind: "option",
-            prompt: `${sourceName}：${destLabel(action)}しますか？`,
+            prompt: `${sourceName}：${destLabel(action).endsWith("する") ? `${destLabel(action).slice(0, -2)}しますか` : `${destLabel(action)}か`}？`,
             candidates: [],
             options: ["発動する"],
             optional: true,
