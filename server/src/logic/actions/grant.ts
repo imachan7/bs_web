@@ -197,24 +197,6 @@ function pickSingleTarget(
     )
 }
 
-const addSymbolPermanentHandler: ActionHandler<"addSymbolPermanent"> = (ctx, action) => {
-    const { state, self, sourceName } = ctx
-    // BS13-003カメレオプス：本来のコストが7以上のスピリットカードを召喚するたび、自身に永続的にシンボルを追加する。
-    // symbolAddGrant（継続の再計算式）と異なりトリガーで蓄積するため、専用フィールドextraSymbolsPermanentへ加算する
-    if (!self) {
-        log(state, `${sourceName}：シンボルを追加する対象がいなかった。`)
-        return
-    }
-    if (!self.extraSymbolsPermanent) self.extraSymbolsPermanent = []
-    for (let i = 0; i < action.count; i++) self.extraSymbolsPermanent.push(action.color)
-    log(
-        state,
-        `${sourceName}：${getCard(self.cardId).name}に${COLOR_LABELS[action.color]}のシンボル${action.count}個を追加した。`,
-    )
-    return
-}
-
-
 // BS12-055ゲッコ・グライダー『このブレイヴの召喚時』：このターンの間、このブレイヴといま合体している
 // ホストはブロックされない。selfはブレイヴ自身のインスタンス（毎回いまのホストをshared/block.tsが引き直す）
 const grantHostUnblockableThisTurnHandler: ActionHandler<"grantHostUnblockableThisTurn"> = (ctx) => {
@@ -594,7 +576,6 @@ const handlers = {
     grantFamilyChoiceAll: grantFamilyChoiceAllHandler,
     levelOverrideOpponentNexuses: levelOverrideOpponentNexusesHandler,
     levelAsSelfThisBattle: levelAsSelfThisBattleHandler,
-    addSymbolPermanent: addSymbolPermanentHandler,
     grantKeywordThisTurn: grantKeywordThisTurnHandler,
     negateOwnBlockConstraint: negateOwnBlockConstraintHandler,
     negateLifeDamageFromTarget: negateLifeDamageFromTargetHandler,

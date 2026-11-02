@@ -135,21 +135,15 @@
   "effects": [
    {
     "id": "BS13-003-e1",
-    "kind": "fieldEvent",
-    "event": "ownSpiritSummoned",
+    "kind": "symbolWhenSummoning",
     "levels": [
      1,
      2
     ],
-    "costFilter": {
-     "min": 7
-    },
-    "action": {
-     "type": "addSymbolPermanent",
-     "count": 2,
-     "color": "red"
-    },
-    "selfMode": "source"
+    "color": "red",
+    "count": 2,
+    "minCost": 7,
+    "ownMainStepOnly": true
    }
   ]
  },

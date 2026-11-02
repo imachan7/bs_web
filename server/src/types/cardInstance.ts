@@ -106,7 +106,6 @@ export interface CardInstance {
     symbolsForSummonReduction?: Color[] // 「スピリット召喚の軽減計算のあいだだけ」置き換わるシンボル（kind:"symbolFix" の summonReductionOnly。countSymbols が forSummon のときだけ読む。BS11-039 天使ティアエル）
     symbolsOverrideContinuous?: Color[] // 継続的な「シンボルを◯個に固定する」上書き。EffectModules.refreshLevelAsOverridesが毎回再計算する（kind:"symbolFix"）。instanceSymbolCount / countSymbols が、カード静的なsymbolの代わりにこちらを見る（BS08海底に眠りし古代都市）
     symbolsAddedContinuous?: Color[] // 継続的な「シンボルを追加する」（kind:"symbolAddGrant"。BS12初出）。symbolsOverrideContinuousと異なり**加算**で、固定値が有る個体でも固定値+追加分になる。instanceSymbolCount / countSymbols の両方がこの配列の長さぶんを加算する
-    extraSymbolsPermanent?: Color[] // 永続的に蓄積する「シンボルを追加する」（kind:"addSymbolPermanent"。BS13初出）。symbolsAddedContinuousと違い継続付与の再計算では消えず、トリガーのたびに加算されたまま残る。instanceSymbolCount / countSymbols の両方がこの配列の長さぶんを加算する（BS13-003カメレオプス）
     alsoCostsWhenDestroyed?: number[] // 「破壊されたとき、このコストとしても扱う」値（kind:"alsoCostGrant" の whenDestroyedOnly。【不死】の引き金コスト判定だけが読む。BS11-064 闇の聖剣Lv1）
     alsoCostsContinuous?: number[] // 継続付与された「このコストとしても扱う」値（kind:"alsoCostGrant"。EffectModules.refreshLevelAsOverridesが毎回全消去→再構築し、instHasCost / instMatchesCostFilter が参照する。道化師クラン）
     lentChoiceFamily?: string // 貸与（lendSelfThisTurn 相当）の際にプレイヤーが選んだ系統。仮想発生源にのみ載り、kind:"familyGrant" の familyFromChoice が読む（音鳥クルーク）
