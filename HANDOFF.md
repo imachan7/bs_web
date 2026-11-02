@@ -38,6 +38,7 @@
 ### 進行中：構築済みデッキ SD03〜SD18（ブランチ `feat/starter-decks`。計画は [STARTER_PLAN.md](./docs/design/STARTER_PLAN.md)）
 
 - 124種をプールへ。BS20-074 を先に入れるので、BS20 の取り込みではこの1枚を飛ばす
+- テスト用の色デッキは `TEST_DECK_RECIPES`（#366）。ブレイヴ入りのデッキが入ったら part261 の `recipesWithBrave > 0` を戻す
 
 ### 既知の残り（触るときに読む）
 

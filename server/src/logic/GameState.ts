@@ -21,7 +21,7 @@ import {
     INITIAL_RESERVE,
 } from "../../../data/constants"
 import { loadAllCards } from "../../../data/loadCards"
-import { DECK_RECIPES } from "../../../data/constants"
+import { DECK_RECIPES, TEST_DECK_RECIPES } from "../../../data/constants"
 // 注意（循環importについて）: EffectModules.ts は本ファイルの関数を多数importしているため、
 // ここで EffectModules.ts から import すると相互参照になる。ただし双方とも関数宣言のみで
 // トップレベルで呼び出し合うことはなく（呼び出しは対戦処理中＝両モジュールの読み込み完了後）、
@@ -145,11 +145,11 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
     return null
 }
 
-// 色キー（DECK_RECIPES）またはカスタムカードリストからデッキ（cardId の配列）を構築する
+// レシピのキーまたはカスタムカードリストからデッキ（cardId の配列）を構築する
 export function buildDeck(spec: DeckSpec): string[] {
     let cards: Record<string, number>
     if (typeof spec === "string") {
-        const recipe = DECK_RECIPES[spec]
+        const recipe = DECK_RECIPES[spec] ?? TEST_DECK_RECIPES[spec]
         if (!recipe) throw new Error(`デッキレシピが見つかりません: ${spec}`)
         cards = recipe.cards
     } else {
