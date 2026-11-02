@@ -141,6 +141,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `costCantAct`（fn）：フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
 - `instCostCantAct`（fn）：フィールド上のインスタンスに対する「全体制約による行動不可」判定。実コストに加えて、道化師クランの
 - `instCantAttackByOpponentCost`（fn）：BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主から見た**相手**のスピリットのうち、コストが
+- `timedCantAttackByCost`（fn）：期間つき効果（playerRule "cantAttackByCostForPid"）：コストが配列のいずれかと一致するこのプレイヤーの
 - `instCantAttackByCost`（fn）：器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 - `instCantBlockByCost`（fn）：globalConstraint "cantBlockByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 - `instAttackRequiresCoreToll`（fn）：器BM：globalConstraint "attackRequiresCoreToll"（両陣営）：コストがmaxCost以下のスピリットが
@@ -729,6 +730,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `kyoshuUsedOf`（fn）
 - `kyoshuSelfExhaustSources`（fn）：【強襲】のコストを自分の疲労で払える回復状態の発生源（kind:"kyoshuSelfExhaustGrant"）。
 
+## server/src/logic/keywords/rensa.ts
+
+- `rensaConditionIgnored`（fn）
+
 ## server/src/logic/keywords/tensho.ts
 
 - `TENSHO_SUBSTITUTE_REST`（const）：【転召】置換（tenshoCoreSubstitute）の選択肢ラベル。cores.ts の tenshoSubstituteChoice ハンドラと共有する
@@ -861,7 +866,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyTargetsBatch`（fn）：復活の確認で中断したら destroyBatch フレームを積んで止まるので、
 - `resumeDestroyBatch`（fn）：破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
 - `applyDestroyBatchAfter`（fn）：「この効果で破壊したスピリット1体につき」の後処理。
-- `destroyNexus`（fn）：ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）
+- `destroyNexus`（fn）：ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）。
 - `resumeDestroyNexusCommit`（fn）
 - `commitPendingNexusDestruction`（fn）
 - `returnNexusToHand`（fn）：ネクサスを持ち主の手札へ戻す（バウンス）。破壊ではないため destroyNexus とは別処理
@@ -884,6 +889,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/revive.ts
 
 - `wouldAskReviveConfirm`（fn）：この個体を今このコンテキストで破壊しようとしたとき、
+- `tryNexusReviveOnDestroy`（fn）：ネクサス版の reviveOnDestroy（scope:"ownNexus"）。破壊待機中のネクサスを、発生源（別の
+- `applyNexusReviveConfirm`（fn）：確認で「残す」が選ばれたときの後処理（choice.ts から呼ぶ）。コストを払って復活を確定させる。
 - `collectReviveEntries`（fn）：この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：
 - `applyReviveEntry`（fn）：集めておいた「フィールドに残る／戻る」エントリを1つだけ適用する（列から選ばれたときに呼ぶ）。
 - `destroyedCostsOf`（fn）：この破壊で【不死】の確認が出るトラッシュのカード位置を列挙する（**副作用なし**）。
@@ -946,6 +953,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `checkStepCondition`（fn）：ステップ誘発の condition を、発火元インスタンスの持ち主 pid 基準で判定する
 - `STEP_LABELS`（const）：ステップ誘発のログに出すステップ名。「どのステップの効果として発動したか」を示す
 - `fireStepTriggers`（fn）：指定ステップに到達したときの誘発（ネクサス・スピリット共通）を、
+- `ensureBpSeen`（fn）：handleAction の実行前に呼ぶ：前回値がまだ無い（盤面を設定した直後の最初の操作）とき、
 - `fireBpReachedTriggers`（fn）：「BPがN以上になった時」（event: "ownSpiritBpReached"）：handleAction が1操作を解決しきった地点で呼ぶ。
 - `battleBp`（fn）：果て無き地平線Lv1（kind:"battleBpAsLevel"）：バトルのBP比較のときだけ、指定レベルのスピリットが
 

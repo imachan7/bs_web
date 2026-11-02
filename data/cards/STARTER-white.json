@@ -18,7 +18,24 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、自分か相手のスピリット1体はブロックされない。",
-    "effects": [{"id": "BS01-141-e1", "kind": "magic", "timing": "flash", "action": {"type": "timedEffect", "content": [{"type": "unblockable"}], "duration": "turn", "count": 1, "side": "both"}}]
+    "effects": [
+      {
+        "id": "BS01-141-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "unblockable"
+            }
+          ],
+          "duration": "turn",
+          "count": 1,
+          "side": "both"
+        }
+      }
+    ]
   },
   {
     "cardId": "BSC05-007",
@@ -55,7 +72,19 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\nこのスピリットの色とシンボルは赤としても扱う。",
-    "effects": [{"id": "BSC05-007-e1", "kind": "colorAs", "levels": [1, 2], "colors": ["red"]}]
+    "effects": [
+      {
+        "id": "BSC05-007-e1",
+        "kind": "colorAs",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "red"
+        ]
+      }
+    ]
   },
   {
     "cardId": "BSC05-009",
@@ -176,7 +205,20 @@
     "braveCondition": {
       "minCost": 5
     },
-    "effects": [{"id": "BSC05-015-e1", "kind": "keyword", "keyword": "armor", "colors": ["red", "green", "white"], "levels": null, "whileCombined": true}]
+    "effects": [
+      {
+        "id": "BSC05-015-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "colors": [
+          "red",
+          "green",
+          "white"
+        ],
+        "levels": null,
+        "whileCombined": true
+      }
+    ]
   },
   {
     "cardId": "BSC05-019",
@@ -210,7 +252,35 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『相手のターン』\n自分のライフは、ターンごとに相手のスピリット1体から1までしか減らない。\nLv2\n自分のスピリット状態のブレイヴすべてに“【装甲：赤/青】このスピリットは、相手の赤/青のスピリット/ネクサス/マジックの効果を受けない”を与える。",
-    "effects": [{"id": "BSC05-019-e1", "kind": "globalConstraint", "levels": [1, 2], "turn": "opponent", "constraint": {"type": "ownLifeDamageCapPerSourcePerTurn", "max": 1}}, {"id": "BSC05-019-e2", "kind": "keywordGrant", "levels": [2], "keyword": "armor", "target": "ownAll", "braveInSpiritState": true, "colors": ["red", "blue"]}]
+    "effects": [
+      {
+        "id": "BSC05-019-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "turn": "opponent",
+        "constraint": {
+          "type": "ownLifeDamageCapPerSourcePerTurn",
+          "max": 1
+        }
+      },
+      {
+        "id": "BSC05-019-e2",
+        "kind": "keywordGrant",
+        "levels": [
+          2
+        ],
+        "keyword": "armor",
+        "target": "ownAll",
+        "braveInSpiritState": true,
+        "colors": [
+          "red",
+          "blue"
+        ]
+      }
+    ]
   },
   {
     "cardId": "EX011",
@@ -251,7 +321,18 @@
     "braveCondition": {
       "minCost": 4
     },
-    "effects": [{"id": "EX011-e1", "kind": "keyword", "keyword": "armor", "colors": ["white"], "levels": null, "whileCombined": true}]
+    "effects": [
+      {
+        "id": "EX011-e1",
+        "kind": "keyword",
+        "keyword": "armor",
+        "colors": [
+          "white"
+        ],
+        "levels": null,
+        "whileCombined": true
+      }
+    ]
   },
   {
     "cardId": "SD11-001",
@@ -287,7 +368,30 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2【重装甲：赤】\nこのスピリットは、相手の赤のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2\nこのスピリットの色とシンボルは緑としても扱う。",
-    "effects": [{"id": "SD11-001-e1", "kind": "keyword", "keyword": "heavyArmor", "colors": ["red"], "levels": [1, 2]}, {"id": "SD11-001-e2", "kind": "colorAs", "levels": [2], "colors": ["green"]}]
+    "effects": [
+      {
+        "id": "SD11-001-e1",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "colors": [
+          "red"
+        ],
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "SD11-001-e2",
+        "kind": "colorAs",
+        "levels": [
+          2
+        ],
+        "colors": [
+          "green"
+        ]
+      }
+    ]
   },
   {
     "cardId": "SD11-002",
@@ -362,7 +466,66 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。\nLv2『このスピリットのブロック時』\nボイドからコア1個をこのスピリットに置く。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
-    "effects": [{"id": "SD11-003-e1", "kind": "triggered", "trigger": "onBlock", "eventTarget": "use", "levels": [1, 2], "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "battle", "target": "self"}, "optional": false}, {"id": "SD11-003-e2", "kind": "triggered", "keyword": "rensa", "trigger": "onBlock", "eventTarget": "use", "levels": [2], "optional": false, "action": {"type": "sequence", "actions": [{"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}, {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "exhaust", "count": 1}}]}}]
+    "effects": [
+      {
+        "id": "SD11-003-e1",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "eventTarget": "use",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      },
+      {
+        "id": "SD11-003-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBlock",
+        "eventTarget": "use",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "spirit",
+              "target": "self",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "exhaust",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-004",
@@ -402,7 +565,42 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nこのスピリットは疲労状態でブロックできる。\nLv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+3000する。",
-    "effects": [{"id": "SD11-004-e1", "kind": "constraint", "levels": [1, 2, 3], "constraint": {"type": "canBlockWhileRested"}}, {"id": "SD11-004-e2", "kind": "triggered", "trigger": "onBlock", "eventTarget": "use", "levels": [2, 3], "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "battle", "target": "self"}, "optional": false}]
+    "effects": [
+      {
+        "id": "SD11-004-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "canBlockWhileRested"
+        }
+      },
+      {
+        "id": "SD11-004-e2",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "eventTarget": "use",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      }
+    ]
   },
   {
     "cardId": "SD11-005",
@@ -438,7 +636,65 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP2000以下の相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。\nLv2【重装甲：赤/青】\nこのスピリットは、相手の赤/青のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
-    "effects": [{"id": "SD11-005-e1", "kind": "triggered", "trigger": "onSummon", "levels": [1, 2], "action": {"type": "return", "to": "hand", "count": 1, "filter": {"maxBp": 2000}}, "optional": false}, {"id": "SD11-005-e2", "kind": "triggered", "keyword": "rensa", "trigger": "onSummon", "levels": [1, 2], "optional": false, "action": {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "target": "self", "count": 1}}}, {"id": "SD11-005-e3", "kind": "keyword", "keyword": "heavyArmor", "levels": [2], "colors": ["red", "blue"]}]
+    "effects": [
+      {
+        "id": "SD11-005-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "filter": {
+            "maxBp": 2000
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "SD11-005-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "green"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "spirit",
+            "target": "self",
+            "count": 1
+          }
+        }
+      },
+      {
+        "id": "SD11-005-e3",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          2
+        ],
+        "colors": [
+          "red",
+          "blue"
+        ]
+      }
+    ]
   },
   {
     "cardId": "SD11-006",
@@ -479,7 +735,27 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n自分の白のスピリットすべてをBP+2000する。",
-    "effects": [{"id": "SD11-006-e1", "kind": "aura", "levels": [1, 2, 3], "aura": {"type": "bp", "target": "ownAll", "colorFilter": "white", "amount": 2000, "phaseTurn": {"phase": "attack", "turn": "opponent"}}}]
+    "effects": [
+      {
+        "id": "SD11-006-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "colorFilter": "white",
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-007",
@@ -516,7 +792,66 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『相手のアタックステップ』\n相手は、可能ならば必ずターンに1回以上アタックする。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
-    "effects": [{"id": "SD11-007-e1", "kind": "globalConstraint", "levels": [1, 2], "constraint": {"type": "opponentMustAttackOnce"}, "phase": "attack", "turn": "opponent"}, {"id": "SD11-007-e2", "kind": "triggered", "trigger": "onBlock", "eventTarget": "use", "levels": [2], "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "battle", "target": "self"}, "optional": false}, {"id": "SD11-007-e3", "kind": "triggered", "keyword": "rensa", "trigger": "onBlock", "eventTarget": "use", "levels": [2], "optional": false, "action": {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "exhaust", "count": 1}}}]
+    "effects": [
+      {
+        "id": "SD11-007-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "opponentMustAttackOnce"
+        },
+        "phase": "attack",
+        "turn": "opponent"
+      },
+      {
+        "id": "SD11-007-e2",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "eventTarget": "use",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        },
+        "optional": false
+      },
+      {
+        "id": "SD11-007-e3",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBlock",
+        "eventTarget": "use",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "green"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "exhaust",
+            "count": 1
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-008",
@@ -553,7 +888,22 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「機獣」を持つ自分のスピリットすべての『このスピリットのブロック時』効果すべては、『このスピリットのアタック時』に発揮される。",
-    "effects": [{"id": "SD11-008-e1", "kind": "blockTriggersAsAttackGrant", "levels": [1, 2], "target": "ownAll", "familyFilter": "機獣", "phaseTurn": {"phase": "attack", "turn": "own"}}]
+    "effects": [
+      {
+        "id": "SD11-008-e1",
+        "kind": "blockTriggersAsAttackGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "ownAll",
+        "familyFilter": "機獣",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-009",
@@ -595,7 +945,49 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手はバーストを発動できない。",
-    "effects": [{"id": "SD11-009-e1", "kind": "triggered", "trigger": "onBattleWin", "battleRole": "blocker", "levels": [1, 2, 3], "action": {"type": "lifeCrush", "count": 1}, "optional": false}, {"id": "SD11-009-e2", "kind": "triggered", "keyword": "rensa", "trigger": "onBattleWin", "battleRole": "blocker", "levels": [1, 2, 3], "optional": false, "action": {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "timedEffect", "content": [{"type": "battleLock", "lock": "burst"}], "duration": "battle"}}}]
+    "effects": [
+      {
+        "id": "SD11-009-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBattleWin",
+        "battleRole": "blocker",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "battleLock",
+                    "lock": "burst"
+                  }
+                ],
+                "duration": "battle"
+              }
+            },
+            {
+              "type": "lifeCrush",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-010",
@@ -639,7 +1031,71 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv2･Lv3\nこのスピリットは緑のスピリットとしても扱う。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nBP7000以上の相手のスピリット1体を疲労させることで、このスピリットは回復する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個を自分のスピリットに置く。",
-    "effects": [{"id": "SD11-010-e1", "kind": "colorAs", "levels": [2, 3], "colors": ["green"]}, {"id": "SD11-010-e2", "kind": "triggered", "trigger": "onAttack", "levels": [2, 3], "whileCombined": true, "optional": false, "action": {"type": "pay", "cost": {"type": "exhaust", "filter": {"minBp": 7000}, "count": 1}, "then": {"type": "refresh", "target": "self"}}}, {"id": "SD11-010-e3", "kind": "triggered", "keyword": "rensa", "trigger": "onAttack", "levels": [2, 3], "whileCombined": true, "optional": false, "action": {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "placeCores", "from": "void", "to": "spirit", "count": 1}}}]
+    "effects": [
+      {
+        "id": "SD11-010-e1",
+        "kind": "colorAs",
+        "levels": [
+          2,
+          3
+        ],
+        "colors": [
+          "green"
+        ]
+      },
+      {
+        "id": "SD11-010-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "filter": {
+              "minBp": 7000
+            },
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          }
+        }
+      },
+      {
+        "id": "SD11-010-e3",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "green"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "spirit",
+            "count": 1
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-011",
@@ -679,7 +1135,40 @@
     "braveCondition": {
       "minCost": 4
     },
-    "effects": [{"id": "SD11-011-e1", "kind": "triggered", "trigger": "onSummon", "levels": [1], "action": {"type": "return", "to": "hand", "nexus": "only", "count": 1}, "optional": false}, {"id": "SD11-011-e2", "kind": "fieldEvent", "event": "anySpiritAttacked", "levels": null, "whileCombined": true, "subjectSide": "opponent", "subjectFilter": {"minBp": 4000}, "turn": "opponent", "selfMode": "source", "action": {"type": "refresh", "target": "self"}}]
+    "effects": [
+      {
+        "id": "SD11-011-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "nexus": "only",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "SD11-011-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": null,
+        "whileCombined": true,
+        "subjectSide": "opponent",
+        "subjectFilter": {
+          "minBp": 4000
+        },
+        "turn": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-012",
@@ -783,7 +1272,38 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このネクサスの破壊時』\n自分の手札にある白のスピリットカード1枚を、コストを支払わずに召喚できる。\nLv2\n系統：「機獣」を持つ自分のスピリットすべてに“【重装甲：赤】このスピリットは、相手の赤のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない”を与える。",
-    "effects": [{"id": "SD11-013-e1", "kind": "triggered", "trigger": "onDestroy", "levels": [1, 2], "optional": true, "action": {"type": "summon", "from": "hand", "skipOnSummon": true, "colorFilter": "white"}}, {"id": "SD11-013-e2", "kind": "keywordGrant", "levels": [2], "keyword": "heavyArmor", "colors": ["red"], "target": "ownAll", "familyFilter": "機獣"}]
+    "effects": [
+      {
+        "id": "SD11-013-e1",
+        "kind": "fieldEvent",
+        "event": "ownNexusDestroyed",
+        "selfMode": "source",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "summon",
+          "from": "hand",
+          "skipOnSummon": true,
+          "colorFilter": "white"
+        }
+      },
+      {
+        "id": "SD11-013-e2",
+        "kind": "keywordGrant",
+        "levels": [
+          2
+        ],
+        "keyword": "heavyArmor",
+        "colors": [
+          "red"
+        ],
+        "target": "ownAll",
+        "familyFilter": "機獣"
+      }
+    ]
   },
   {
     "cardId": "SD11-014",
@@ -804,7 +1324,43 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのバトルが終了したとき、アタックステップを終了する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
-    "effects": [{"id": "SD11-014-e1", "kind": "magic", "timing": "flash", "action": {"type": "endAttackStepAfterBattle"}}, {"id": "SD11-014-e2", "kind": "magic", "timing": "flash", "keyword": "rensa", "action": {"type": "sequence", "actions": [{"type": "endAttackStepAfterBattle"}, {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "exhaust", "count": 1}}]}}]
+    "effects": [
+      {
+        "id": "SD11-014-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "endAttackStepAfterBattle"
+        }
+      },
+      {
+        "id": "SD11-014-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "keyword": "rensa",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "endAttackStepAfterBattle"
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "exhaust",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-015",
@@ -825,7 +1381,50 @@
     "rarity": "U",
     "limited": false,
     "effect": "フラッシュ：\n相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：自分の白のスピリット1体を回復させる。",
-    "effects": [{"id": "SD11-015-e1", "kind": "magic", "timing": "flash", "action": {"type": "return", "to": "hand", "count": 1}}, {"id": "SD11-015-e2", "kind": "magic", "timing": "flash", "keyword": "rensa", "action": {"type": "sequence", "actions": [{"type": "return", "to": "hand", "count": 1}, {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "refresh", "count": 1, "filter": {"color": "white"}}}]}}]
+    "effects": [
+      {
+        "id": "SD11-015-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1
+        }
+      },
+      {
+        "id": "SD11-015-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "keyword": "rensa",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "return",
+              "to": "hand",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "refresh",
+                "count": 1,
+                "filter": {
+                  "color": "white"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-016",
@@ -926,7 +1525,99 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復し、このターンの間、このスピリットをBP+3000する。\nLv3『このスピリットのバトル時』\nコスト6以下の相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
-    "effects": [{"id": "SD11-X01-e1", "kind": "triggered", "trigger": "onBattleWin", "battleRole": "blocker", "levels": [1, 2, 3], "optional": false, "action": {"type": "sequence", "actions": [{"type": "refresh", "target": "self"}, {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "target": "self"}]}}, {"id": "SD11-X01-e2", "kind": "triggered", "trigger": "onBattleStart", "eventTarget": "use", "levels": [3], "optional": false, "action": {"type": "return", "to": "hand", "count": 1, "filter": {"cost": {"max": 6}}}}, {"id": "SD11-X01-e3", "kind": "triggered", "keyword": "rensa", "trigger": "onBattleStart", "eventTarget": "use", "levels": [3], "optional": false, "action": {"type": "sequence", "actions": [{"type": "return", "to": "hand", "count": 1, "filter": {"cost": {"max": 6}}}, {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "exhaust", "count": 1}}]}}]
+    "effects": [
+      {
+        "id": "SD11-X01-e1",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "battleRole": "blocker",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "refresh",
+              "target": "self"
+            },
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "bp",
+                  "amount": 3000
+                }
+              ],
+              "duration": "turn",
+              "target": "self"
+            }
+          ]
+        }
+      },
+      {
+        "id": "SD11-X01-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "eventTarget": "use",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 6
+            }
+          }
+        }
+      },
+      {
+        "id": "SD11-X01-e3",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBattleStart",
+        "eventTarget": "use",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "return",
+              "to": "hand",
+              "count": 1,
+              "filter": {
+                "cost": {
+                  "max": 6
+                }
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "exhaust",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-X02",
@@ -973,25 +1664,25 @@
       "minCost": 5
     },
     "effects": [
-   {
-    "id": "SD11-X02-e1",
-    "kind": "keyword",
-    "keyword": "heavyArmor",
-    "levels": null,
-    "whileCombined": true,
-    "colors": [
-     "green",
-     "white",
-     "yellow",
-     "blue"
+      {
+        "id": "SD11-X02-e1",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": null,
+        "whileCombined": true,
+        "colors": [
+          "green",
+          "white",
+          "yellow",
+          "blue"
+        ]
+      },
+      {
+        "id": "SD11-X02-e2",
+        "kind": "rensaIgnoreCondition",
+        "levels": null,
+        "whileCombined": true
+      }
     ]
-   },
-   {
-    "id": "SD11-X02-e2",
-    "kind": "rensaIgnoreCondition",
-    "levels": null,
-    "whileCombined": true
-   }
-  ]
   }
 ]

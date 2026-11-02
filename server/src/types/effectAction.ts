@@ -137,7 +137,7 @@ export type EffectAction =
  | { type: "resolveOwnDestroyTriggers"; instanceId: string; byOpponent?: true } // **内部専用**。破壊された自身の『破壊時』効果を発揮する。破壊で誘発した効果の列に「自身の破壊時ぜんぶ」を1グループとして入れるために使う（TIMING_CHART.md）
  | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } 
  | { type: "resolveFushiSummon"; pid: PlayerId; cardId: string } // **内部専用**。破壊で誘発した効果の列に並ぶ【不死】1枚分。解決時にトラッシュからカードIDで引き直すので、位置がずれても動く // **内部専用**。指定した reviveOnDestroy エントリを適用する。上と同じ列に1グループとして入る
- | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword } // keywordExclude＝そのキーワードを持たないスピリットだけが候補（一時付与・継続付与も見る）。destroyAllExceptChosenColorsと同じ二段階choice：発生源の持ち主→相手の順にフィールド（両陣営どちらでも可）から1体を指定し、2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaiting。自動選択は各プレイヤーが相手フィールドの実効BP最大（決定的簡略化）
+ | { type: "mutualDestroyChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent"; keywordExclude?: Keyword; eachOwn?: true } // keywordExclude＝そのキーワードを持たないスピリットだけが候補（一時付与・継続付与も見る）。destroyAllExceptChosenColorsと同じ二段階choice：発生源の持ち主→相手の順にフィールド（両陣営どちらでも可）から1体を指定し、2体（重複可）をそれぞれ破壊する。進捗はchosenOwn/chosenOpp/awaiting。自動選択は各プレイヤーが相手フィールドの実効BP最大（決定的簡略化）
  | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版：各自は**自分の**フィールドから1体を指定し、その2体を除く両陣営のスピリットすべてを破壊する。破壊待機中のself自身は候補に含めない。自動選択は各自の実効BP最大（決定的簡略化）
  | { type: "summonSequence"; byFushi?: true } // byFushi＝【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnlyの判定に使う）。**内部専用**：【転召】の対象選択で中断したとき、GameEngineがpendingChoice.queueへ積んで選択の解決後に合流させる
  | { type: "magicMirrorRepeat" } // 相手が直前に使用したマジックの効果を自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCast。相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止）

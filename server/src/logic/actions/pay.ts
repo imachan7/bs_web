@@ -94,6 +94,8 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         return action.count === "any" || state.players[owner].hand.filter((id) => matchesPick(id, action.pick)).length >= action.count
     },
     lendSelfThisTurn: () => true,
+    // 「このバトルが終了したとき、アタックステップを終了する」は予約するだけなので、いつでも成立する（SD10-015）
+    endAttackStepAfterBattle: () => true,
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
     peekOpponentBurst: (state, owner) => state.players[opponentOf(owner)].burst !== null,

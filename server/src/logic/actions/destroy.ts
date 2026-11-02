@@ -1131,6 +1131,10 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         ...state.players.p1.field.spirits.filter((s) => eligible("p1", s)).map((s) => s.instanceId),
         ...state.players.p2.field.spirits.filter((s) => eligible("p2", s)).map((s) => s.instanceId),
     ]
+    // eachOwn：「お互い、それぞれのスピリット1体を破壊」（BS01-125）。各自は自分のフィールドからだけ選ぶ。
+    // 選べるスピリットが無い側は "" にして飛ばす
+    const ownIds = (pid: PlayerId): string[] => state.players[pid].field.spirits.filter((s) => eligible(pid, s)).map((s) => s.instanceId)
+    const candidatesFor = (pid: PlayerId): string[] => (action.eachOwn ? ownIds(pid) : allSpiritIds())
 
     let chosenOwn = action.chosenOwn
     let chosenOpp = action.chosenOpp
@@ -1139,12 +1143,14 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         if (action.awaiting === "own" && targetInstanceId !== undefined) chosenOwn = targetInstanceId
         if (action.awaiting === "opponent" && targetInstanceId !== undefined) chosenOpp = targetInstanceId
 
+        if (chosenOwn === undefined && action.eachOwn && ownIds(owner).length === 0) chosenOwn = ""
+        if (chosenOpp === undefined && action.eachOwn && ownIds(opp).length === 0) chosenOpp = ""
         if (chosenOwn === undefined) {
             requestChoice(
                 state,
                 owner,
                 `${sourceName}：破壊するスピリットを選んでください`,
-                allSpiritIds(),
+                candidatesFor(owner),
                 false,
                 { ...action, awaiting: "own", ...(chosenOpp !== undefined ? { chosenOpp } : {}) },
                 self,
@@ -1156,7 +1162,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
                 state,
                 opp,
                 `${sourceName}：破壊するスピリットを選んでください`,
-                allSpiritIds(),
+                candidatesFor(opp),
                 false,
                 { ...action, awaiting: "opponent", chosenOwn },
                 self,
@@ -1174,6 +1180,16 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
             return spirits.reduce((best, s) =>
                 effectiveBp(state, fromPid, s) > effectiveBp(state, fromPid, best) ? s : best,
             ).instanceId
+        }
+        // eachOwn は自分のスピリットを差し出すので、各自の実効BP最小を選ぶ（決定的簡略化）
+        const pickMinBp = (pid: PlayerId): string | undefined => {
+            const spirits = state.players[pid].field.spirits.filter((s) => eligible(pid, s))
+            if (spirits.length === 0) return undefined
+            return spirits.reduce((best, s) => (effectiveBp(state, pid, s) < effectiveBp(state, pid, best) ? s : best)).instanceId
+        }
+        if (action.eachOwn) {
+            chosenOwn ??= pickMinBp(owner)
+            chosenOpp ??= pickMinBp(opp)
         }
         if (chosenOwn === undefined) chosenOwn = pickMaxBp(opp, owner) ?? pickMaxBp(owner, owner)
         if (chosenOpp === undefined) chosenOpp = pickMaxBp(owner, opp) ?? pickMaxBp(opp, opp)

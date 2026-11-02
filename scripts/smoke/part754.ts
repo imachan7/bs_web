@@ -67,6 +67,7 @@ scenario({
     },
     expect: [
         "相手.ロク.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ロクケラトプス",
         "相手.リザーブ: 10 → 11",
     ],
 })
@@ -89,6 +90,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.リザーブ: 10 → 11",
         "自分.ライノ.疲労: false → true",
     ],
@@ -112,6 +114,7 @@ scenario({
     },
     expect: [
         "自分.ライノ.場所: フィールド → なし",
+        "自分.トラッシュ: なし → ライノゴルド",
         "自分.リザーブ: 10 → 11",
         "相手.ヘラ.疲労: false → true",
     ],
@@ -205,16 +208,15 @@ scenario({
     steps(t) {
         t.act("me", { type: "nextPhase" })
         t.act("me", { type: "attack", instanceId: t.id("ガドファント") })
-        t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("ガドファント") })
+        // 【重装甲】の相手は対象に選べず、使用そのものが拒否される（SEMANTICS_AUDIT §3.20。2026-11-02 期待値を改めた）
+        t.actRejected("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("ガドファント") })
         t.closeFlash()
         t.act("opp", { type: "takeLife" })
     },
     expect: [
         "自分.ガドファント.疲労: false → true",
-        "相手.手札: アーダーフレイム → なし",
-        "相手.リザーブ: 10 → 7",
-        "相手.トラッシュのコア: 0 → 4",
         "相手.ライフ: 5 → 4",
+        "相手.リザーブ: 10 → 11",
     ],
 })
 
@@ -234,8 +236,10 @@ scenario({
     },
     expect: [
         "自分.ガドファント.場所: フィールド → なし",
+        "自分.トラッシュ: なし → ダーク・ガドファント",
         "自分.リザーブ: 10 → 11",
         "相手.手札: アーダーフレイム → なし",
+        "相手.トラッシュ: なし → アーダーフレイム",
         "相手.リザーブ: 10 → 6",
         "相手.トラッシュのコア: 0 → 4",
     ],
@@ -248,11 +252,12 @@ scenario({
     name: "sd11_006_opp_attack_step_bp_plus",
     start: {
         turn: "opp",
-        phase: "attack",
+        phase: "main",
         me: { spirits: [{ card: FALCO, label: "ファルコン", cores: 1 }] },
         opp: { spirits: [{ card: HERA, label: "ヘラ", cores: 1 }] },
     },
     steps(t) {
+        t.act("opp", { type: "nextPhase" })
         t.act("opp", { type: "attack", instanceId: t.id("ヘラ") })
         t.closeFlash()
         t.act("me", { type: "block", instanceId: t.id("ファルコン") })
@@ -260,6 +265,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.リザーブ: 10 → 11",
         "自分.ファルコン.疲労: false → true",
         "自分.ファルコン.BP: 3000 → 5000",
@@ -272,11 +278,12 @@ scenario({
     name: "sd11_006_white_only",
     start: {
         turn: "opp",
-        phase: "attack",
+        phase: "main",
         me: { spirits: [{ card: FALCO, label: "ファルコン", cores: 1 }, { card: METAL, label: "メタル", cores: 1 }] },
         opp: { spirits: [{ card: HERA, label: "ヘラ", cores: 1 }] },
     },
     steps(t) {
+        t.act("opp", { type: "nextPhase" })
         t.act("opp", { type: "attack", instanceId: t.id("ヘラ") })
         t.closeFlash()
         t.act("me", { type: "block", instanceId: t.id("メタル") })
@@ -284,6 +291,7 @@ scenario({
     },
     expect: [
         "自分.メタル.場所: フィールド → なし",
+        "自分.トラッシュ: なし → メタルバーン",
         "自分.リザーブ: 10 → 11",
         "自分.ファルコン.BP: 3000 → 5000",
         "相手.ヘラ.疲労: false → true",
@@ -346,6 +354,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.リザーブ: 10 → 11",
         "自分.ポーラー.疲労: false → true",
     ],
@@ -367,11 +376,11 @@ scenario({
         t.act("opp", { type: "attack", instanceId: t.id("ヘラ") })
         t.closeFlash()
         t.act("me", { type: "block", instanceId: t.id("ポーラー") })
-        t.act("me", { type: "resolveChoice", instanceId: t.id("カモメ") }) // 連鎖の疲労対象
         t.closeFlash()
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.リザーブ: 10 → 11",
         "相手.カモメ.疲労: false → true",
         "自分.ポーラー.疲労: false → true",
@@ -396,6 +405,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.リザーブ: 10 → 11",
         "自分.ポーラー.疲労: false → true",
     ],
@@ -419,6 +429,7 @@ scenario({
     },
     expect: [
         "相手.カモメ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → カモメーヴェ",
         "相手.リザーブ: 10 → 12",
         "自分.ライノ.疲労: false → true",
     ],
@@ -441,6 +452,7 @@ scenario({
     },
     expect: [
         "自分.ライノ.場所: フィールド → なし",
+        "自分.トラッシュ: なし → ライノゴルド",
         "自分.リザーブ: 10 → 12",
         "相手.カモメ.疲労: false → true",
     ],
@@ -465,6 +477,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.ライフ: 5 → 4",
         "相手.リザーブ: 10 → 12",
         "自分.ジャッカル.疲労: false → true",
@@ -489,6 +502,7 @@ scenario({
     },
     expect: [
         "自分.ジャッカル.場所: フィールド → なし",
+        "自分.トラッシュ: なし → 猟機獣シルバー・ジャッカル",
         "自分.リザーブ: 10 → 12",
         "相手.ヴァジュ.疲労: false → true",
     ],
@@ -513,6 +527,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.ライフ: 5 → 4",
         "相手.リザーブ: 10 → 12",
         "自分.ジャッカル.疲労: false → true",
@@ -538,6 +553,7 @@ scenario({
     },
     expect: [
         "相手.ヘラ.場所: フィールド → なし",
+        "相手.トラッシュ: なし → ヘラクレス・ジオ",
         "相手.ライフ: 5 → 4",
         "相手.リザーブ: 10 → 12",
         "相手.バースト: グラント・ベンケイ → なし",
@@ -743,7 +759,7 @@ scenario({
         "自分.ジェット・ガネット.Lv: なし → 1",
         "自分.ジェット・ガネット.疲労: なし → false",
         "自分.ファルコン.疲労: true → false",
-        "自分.ファルコン.BP: 3000 → 7000",
+        "自分.ファルコン.BP: 3000 → 9000",
         "自分.ライフ: 5 → 4",
         "相手.デッキ枚数: 40 → 39",
         "相手.手札: なし → ロクケラトプス",
@@ -776,7 +792,7 @@ scenario({
         "自分.ジェット・ガネット.コア: なし → 0",
         "自分.ジェット・ガネット.Lv: なし → 1",
         "自分.ジェット・ガネット.疲労: なし → false",
-        "自分.ファルコン.BP: 3000 → 7000",
+        "自分.ファルコン.BP: 3000 → 9000",
         "自分.ライフ: 5 → 4",
         "相手.デッキ枚数: 40 → 39",
         "相手.手札: なし → ロクケラトプス",

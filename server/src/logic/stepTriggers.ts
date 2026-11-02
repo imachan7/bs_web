@@ -384,9 +384,10 @@ function bpWatched(state: GameState): boolean {
 }
 
 // handleAction の実行前に呼ぶ：前回値がまだ無い（盤面を設定した直後の最初の操作）とき、
-// 操作前の実効BPを前回値として記録する。最初の操作でBPが下がっても0到達を検出できるようにするため
+// 操作前の実効BPを前回値として記録する。最初の操作でBPが下がっても0到達を検出できるようにするため。
+// 見張り役がいなくても記録する：その操作の中で見張り役が生まれ、同じ操作でBPが0になることがある（SD15-007）
 export function ensureBpSeen(state: GameState): void {
-    if (state.bpSeen !== undefined || !bpWatched(state)) return
+    if (state.bpSeen !== undefined) return
     const next: Record<string, number> = {}
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of state.players[pid].field.spirits) next[inst.instanceId] = effectiveBp(state, pid, inst)

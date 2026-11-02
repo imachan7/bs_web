@@ -24,7 +24,8 @@
             "kind": "magic",
             "timing": "flash",
             "action": {
-                "type": "mutualDestroyChoice"
+                "type": "mutualDestroyChoice",
+            "eachOwn": true
             }
         }
     ]

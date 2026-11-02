@@ -876,8 +876,9 @@ export function placeCoresOnSpirit(
     baseCount: number,
     ownerPid: PlayerId,
 ): void {
-    inst.cores += baseCount
+    // 「Lv2：コアが置かれるとき+1個」は置く前の Lv で見る（置いた結果 Lv2 になっても足さない。SD14-005）
     const bonus = coreBonusFor(inst)
+    inst.cores += baseCount
     if (bonus > 0) {
         inst.cores += bonus
         log(
