@@ -98,7 +98,41 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\nこのスピリットは、合体していない相手のスピリットすべてを疲労状態でブロックできる。\nLv3『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、コスト合計4まで相手のスピリットを好きなだけ手札に戻す。",
-    "effects": []
+    "effects": [
+      {
+        "id": "BSC05-009-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "canBlockWhileRested",
+          "filter": {
+            "uncombined": true
+          }
+        }
+      },
+      {
+        "id": "BSC05-009-e2",
+        "kind": "triggered",
+        "trigger": "onBattleWin",
+        "levels": [
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "budget": {
+            "by": "cost",
+            "amount": 4
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "BSC05-015",
@@ -767,7 +801,44 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\nBP合計5000まで相手のスピリットを好きなだけ手札に戻す。\nまたは、相手のバースト1つを破棄する。この効果は、メインステップで使えない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD11-016-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "mainForbidden": true,
+        "action": {
+          "type": "chooseActionMode",
+          "modes": [
+            {
+              "label": "BP合計5000まで相手のスピリットを好きなだけ手札に戻す",
+              "actions": [
+                {
+                  "type": "return",
+                  "to": "hand",
+                  "count": 1,
+                  "budget": {
+                    "by": "bp",
+                    "amount": 5000
+                  }
+                }
+              ]
+            },
+            {
+              "label": "相手のバースト1つを破棄する",
+              "actions": [
+                {
+                  "type": "discard",
+                  "from": "burst",
+                  "side": "opponent",
+                  "count": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-X01",

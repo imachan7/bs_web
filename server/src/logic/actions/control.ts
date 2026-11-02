@@ -8,6 +8,7 @@ import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
 import { destroyAllTargetList, destroyTargetList, ownSideDestroyCandidates } from "./destroy"
+import { returnToHandCandidateCountForPay } from "./bounce"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
@@ -31,11 +32,22 @@ import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, record
 // 非対話の分岐はここで明示的に書く必要がある
 // モードの先頭が相手への destroy のとき、破壊できる対象が1つでもあるか。destroy 以外は判定せず true（＝従来どおり先頭）
 function modeHasDestroyTarget(ctx: ActionCtx, first: EffectAction | undefined): boolean {
-    if (!first || first.type !== "destroy") return true
-    const filter = normalizeFilter(ctx, first)
-    if (filter === SELF_REQUIRED) return false
-    const field = ctx.state.players[ctx.opp].field
-    return (first.nexus === "only" ? field.nexuses : field.spirits).some((i) => matchesTarget(ctx.state, ctx.opp, i, filter, ctx.self?.instanceId))
+    if (!first) return true
+    if (first.type === "destroy") {
+        const filter = normalizeFilter(ctx, first)
+        if (filter === SELF_REQUIRED) return false
+        const field = ctx.state.players[ctx.opp].field
+        return (first.nexus === "only" ? field.nexuses : field.spirits).some((i) => matchesTarget(ctx.state, ctx.opp, i, filter, ctx.self?.instanceId))
+    }
+    // 先頭が return（相手へのバウンス）・discard（バースト破棄）のモードも同じ寄せ方（SD11-016）。
+    // return の budget は見ない（予算に収まるかではなく、戻せる候補がいるかだけ）
+    if (first.type === "return" && first.to === "hand" && first.side !== "own" && first.target === undefined && first.nexus === undefined && first.all !== true) {
+        return returnToHandCandidateCountForPay(ctx.state, ctx.owner, ctx.self?.instanceId, first, ctx.srcColors, ctx.srcType) > 0
+    }
+    if (first.type === "discard" && first.from === "burst" && first.side !== "own") {
+        return ctx.state.players[ctx.opp].burstSet
+    }
+    return true
 }
 
 const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action) => {

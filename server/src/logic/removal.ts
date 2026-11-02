@@ -4,6 +4,8 @@ import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
+import { millDeck } from "./zones/mill"
+import { kyokaBonus } from "./keywords/kyoka"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
@@ -878,6 +880,12 @@ export function applyDestroyBatchAfter(
     if (after.thenDrawFixed) draw(state, ownerPid, after.thenDrawFixed)
     if (destroyed <= 0) return
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed * after.drawPerDestroyed)
+    if (after.millPerDestroyed) {
+        // 破棄されるのは効果の持ち主から見た相手のデッキ。体数ぶんの破棄も「相手へのデッキ破棄効果」なので
+        // 【強化】（青）の +1枚を最終枚数に足す（BS19_PLAN §2.1）
+        const kyoka = kyokaBonus(state, ownerPid, "deckMill")
+        millDeck(state, opponentOf(ownerPid), destroyed * after.millPerDestroyed + kyoka, ownerPid)
+    }
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
         if (self && coreGainBlocked(state, "void", "field")) {

@@ -213,7 +213,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             }
             // drawPerDestroyed（BS11-006）は「実際に破壊できた数」を数える必要があるので、
             // 数え方と中断の扱いを持っている destroyTargetsBatch を通す
-            if (action.drawPerDestroyed || action.thenDrawFixed) {
+            if (action.drawPerDestroyed || action.millPerDestroyed || action.thenDrawFixed) {
                 destroyTargetsBatch(
                     state,
                     owner,
@@ -221,6 +221,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                     destroyContext,
                     {
                         ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
+                        ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
                         ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                         ...(self ? { selfInstanceId: self.instanceId } : {}),
                     },
@@ -394,7 +395,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         }
         // drawPerDestroyed（BS11-006）：候補を先に選び切ってからバッチで破壊する
         // （数え方と中断の扱いを destroyTargetsBatch に任せる）
-        if (action.drawPerDestroyed || action.thenDrawFixed) {
+        if (action.drawPerDestroyed || action.millPerDestroyed || action.thenDrawFixed) {
             const picked: { pid: PlayerId; instanceId: string }[] = []
             // 受けなかった対象は picked に入らないので、選び直さないよう別に覚える。
             // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
@@ -419,6 +420,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             }
             destroyTargetsBatch(state, owner, picked, destroyContext, {
                 ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
+                ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
                 ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                 ...(self ? { selfInstanceId: self.instanceId } : {}),
             })
@@ -513,7 +515,7 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
 // 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
 function destroyAllTargets(
     ctx: ActionCtx,
-    action: AllTargetsSpec & { drawPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true },
+    action: AllTargetsSpec & { drawPerDestroyed?: number; millPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true },
 ): void {
     const { state, sourceName } = ctx
         const list = destroyAllTargetList(ctx, action)
@@ -528,7 +530,7 @@ function destroyAllTargets(
 export function destroyTargetList(
     ctx: ActionCtx,
     batchTargets: { pid: PlayerId; instanceId: string }[],
-    action: { drawPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true } = {},
+    action: { drawPerDestroyed?: number; millPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true } = {},
 ): void {
     const { state, owner, self, sourceName, destroyContext } = ctx
         if (batchTargets.length === 0) {
@@ -543,6 +545,7 @@ export function destroyTargetList(
         // 中断したら destroyBatch フレームを積んで抜け、残りは drainResumeStack が続きを回す
         const after = {
             ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
+            ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
             ...(action.voidCoreToSelfPerDestroyed ? { voidCoreToSelfPerDestroyed: true as const } : {}),
             ...(self ? { selfInstanceId: self.instanceId } : {}),
         }

@@ -468,7 +468,28 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト3以下の相手のスピリット2体を破壊する。\nこの効果で破壊したスピリット1体につき、相手のデッキを上から3枚破棄する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD16-005-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 2,
+          "filter": {
+            "cost": {
+              "max": 3
+            }
+          },
+          "millPerDestroyed": 3
+        }
+      }
+    ]
   },
   {
     "cardId": "SD16-006",

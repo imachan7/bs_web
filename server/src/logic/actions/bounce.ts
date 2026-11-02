@@ -62,14 +62,18 @@ export function returnToDeckTopCandidateCountForPay(
 const RETURN_FIELD_COLORS: Color[] = ["red", "purple", "green", "white", "yellow", "blue"]
 
 
-// 好きなだけ・コスト合計が予算まで：1体ずつ選ばせ、残り予算を budgetLeft に載せて再入する（INTERRUPTION_POINTS.md パターンB）。
+// 好きなだけ・コスト/BP合計が予算まで：1体ずつ選ばせ、残り予算を budgetLeft に載せて再入する（INTERRUPTION_POINTS.md パターンB）。
 // 非対話・候補1体はコスト最大から
 function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
-    const remaining = action.budgetLeft ?? countedAmount(state, owner, self, 1, action.costBudget!, srcType)
-    if (action.budgetLeft === undefined) log(state, `${sourceName}：コスト合計${remaining}まで、相手のスピリットを手札に戻せる。`)
+    // budget は静的な数値上限（by:"bp" の重みは実効BP）、costBudget は EffectCounter で決まる値
+    const byBp = action.budget?.by === "bp"
+    const weightOf = (s: CardInstance): number => (byBp ? effectiveBp(state, opp, s) : getCard(s.cardId).cost)
+    const unit = byBp ? "BP" : "コスト"
+    const remaining = action.budgetLeft ?? (action.budget !== undefined ? action.budget.amount : countedAmount(state, owner, self, 1, action.costBudget!, srcType))
+    if (action.budgetLeft === undefined) log(state, `${sourceName}：${unit}合計${remaining}まで、相手のスピリットを手札に戻せる。`)
     const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce").filter(
-        (s) => getCard(s.cardId).cost <= remaining,
+        (s) => weightOf(s) <= remaining,
     )
     if (candidates.length === 0) return
     let picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : undefined
@@ -78,7 +82,7 @@ function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
             requestChoice(
                 state,
                 owner,
-                `${sourceName}：手札に戻す相手のスピリットを選んでください（残りコスト${remaining}）`,
+                `${sourceName}：手札に戻す相手のスピリットを選んでください（残り${unit}${remaining}）`,
                 candidates.map((s) => s.instanceId),
                 true,
                 { ...action, budgetLeft: remaining },
@@ -86,11 +90,11 @@ function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
             )
             return
         }
-        picked = candidates.reduce((best, s) => (getCard(s.cardId).cost > getCard(best.cardId).cost ? s : best))
+        picked = candidates.reduce((best, s) => (weightOf(s) > weightOf(best) ? s : best))
     }
     returnSpiritToHand(state, opp, picked, sourceName)
     if (state.winner) return
-    ctx.resolve({ ...action, budgetLeft: remaining - getCard(picked.cardId).cost })
+    ctx.resolve({ ...action, budgetLeft: remaining - weightOf(picked) })
 }
 
 // target:"self"／"selfBrave"：自分のコストとして戻すので、耐性・装甲は見ない。
@@ -165,7 +169,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
             log(state, `${sourceName}：効果によって手札が増やせないため発動しなかった。`)
             return
         }
-        if (action.costBudget !== undefined) {
+        if (action.costBudget !== undefined || action.budget !== undefined) {
             returnToHandByBudget(ctx, action)
             return
         }
