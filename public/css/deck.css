@@ -1042,13 +1042,22 @@ input[type="text"] {
 /* ---- カードプールを画像表示にする ----
    画像が読み込めたときだけ .has-art が付く（無ければ従来のテキスト表示）。
    名前・BP などは画像に入っているので文字は隠し、コスト・枚数・＋ボタン・注記バッジは重ねたまま */
-.pool-card > .card-art { display: none; }
+/* 読み込み前は display: none にしない。loading="lazy" の画像は描画されないと読み込みが始まらず、.has-art が付かない */
+.pool-card > .card-art {
+    opacity: 0;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
 .pool-card.has-art {
     padding: 0;
     aspect-ratio: 675 / 985;
     align-self: start;
 }
 .pool-card.has-art > .card-art {
+    opacity: 1;
     display: block;
     position: absolute;
     inset: 0;
