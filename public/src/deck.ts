@@ -37,15 +37,28 @@ const SERIES_LABELS: Record<string, string> = {
     "BS11": "灼熱の太陽",
     "BS12": "月の咆哮",
     "BS13": "星空の王者",
+    "BS14": "英雄龍の伝説",
+    "BS15": "黄金の大地",
+    "BS16": "爆烈の覇道",
+    "BS17": "剣舞う世界",
+    "BS18": "覇王大決戦",
+    "BS19": "聖剣時代",
+    "BS20": "乱剣戦記",
+    "BS21": "光輝剣武",
+    "BS22": "暗黒刃翼",
+    "BS23": "剣刃神話",
     "SD01": "構築済みデッキ",
     "SD02": "構築済みデッキ",
     "SD04": "構築済みデッキ",
 }
 
-// 弾の表示名。プロモは cardId の枝番（X003A / X005R 等）が弾ごとに違うので、
-// 一覧に並べず「X」始まりをまとめて「プロモ」と呼ぶ
+// プロモ（P001・PX01・X003A 等）は「-」が無く番号まで cardId なので、数字より前を弾とする
+function seriesOf(cardId: string): string {
+    return cardId.includes("-") ? cardId.split("-")[0]! : cardId.replace(/\d.*$/, "")
+}
+
 function seriesLabel(series: string): string {
-    if (series.startsWith("X")) return "プロモ"
+    if (series === "P" || series === "PX" || series === "X") return "プロモ"
     return SERIES_LABELS[series] ?? ""
 }
 
@@ -173,7 +186,7 @@ function passesFilter(card: CardData): boolean {
         }
         if (!hit) return false
     }
-    if (filterSeries !== "" && card.cardId.substring(0, 4) !== filterSeries) return false
+    if (filterSeries !== "" && seriesOf(card.cardId) !== filterSeries) return false
     if (filterKeywords !== "") {
         let hasKw = false
         for (const effect of card.effects) {
@@ -1121,7 +1134,7 @@ function setupFilterChips(): void {
     const availableFamilies = new Set<string>()
 
     for (const card of cards) {
-        availableSeries.add(card.cardId.substring(0, 4))
+        availableSeries.add(seriesOf(card.cardId))
         for (const effect of card.effects) {
             if (effect.kind === "keyword") {
                 availableKeywords.add(effect.keyword)
