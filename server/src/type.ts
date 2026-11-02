@@ -281,7 +281,7 @@ export type TimedRecord = {
     content: TimedContent[]
     target:
         | { kind: "instance"; instanceId: string }
-        | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string } // 判定のたびに照合＝後から出たスピリットにも効く
+        | { kind: "rule"; pid?: PlayerId; filter: ResolvedTargetFilter; selfInstanceId?: string; exceptInstanceIds?: string[] } // 判定のたびに照合（exceptInstanceIds＝記録時に耐性で除いた個体）＝後から出たスピリットにも効く
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
         | { kind: "battle" } // このバトルの解決方法（比べるもの・勝敗の逆転）。until は "battle"
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）

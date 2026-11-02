@@ -1125,8 +1125,11 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
     const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
     // keywordExclude（BS09-016闇騎士モルドレッド＝【転召】を持たない）：候補から除外する。
     // 一時付与・継続付与も見るので spiritHasKeyword で判定する
+    // 選ぶのが誰でも効果は発生源の持ち主のものなので、耐性は持ち主を attempt の actor として見る（2026-11-03 ユーザー確認）
+    const destroyAttempt = { ...attemptOf(ctx, "destroy", "targeted"), probing: true as const }
     const eligible = (pid: PlayerId, s: CardInstance): boolean =>
-        action.keywordExclude === undefined || !spiritHasKeyword(state, pid, s, action.keywordExclude)
+        (action.keywordExclude === undefined || !spiritHasKeyword(state, pid, s, action.keywordExclude)) &&
+        resistanceAgainst(state, pid, s, destroyAttempt) === null
     const allSpiritIds = (): string[] => [
         ...state.players.p1.field.spirits.filter((s) => eligible("p1", s)).map((s) => s.instanceId),
         ...state.players.p2.field.spirits.filter((s) => eligible("p2", s)).map((s) => s.instanceId),

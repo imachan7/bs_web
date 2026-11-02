@@ -1293,7 +1293,7 @@ export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[
                 ? t.instanceId === inst.instanceId
                 : t.kind === "braveHost"
                   ? bravesOf(board.players[pid], inst).some((b) => b.instanceId === t.braveInstanceId)
-                  : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
+                  : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId) && !t.exceptInstanceIds?.includes(inst.instanceId)
         return hit ? r.content : []
     })
 }
