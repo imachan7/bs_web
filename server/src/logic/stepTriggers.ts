@@ -378,14 +378,32 @@ export function fireStepTriggers(
     })
 }
 
+// BP0到達・BP到達の観測が要るカードが場にいるか（fireBpReachedTriggers と ensureBpSeen の共有判定）
+function bpWatched(state: GameState): boolean {
+    return (["p1", "p2"] as PlayerId[]).some((pid) => effectSources(state, pid).some((inst) => getCard(inst.cardId).effects.some((e) => e.kind === "fieldEvent" && (e.event === "ownSpiritBpReached" || e.event === "opponentSpiritBpReachedZero"))))
+}
+
+// handleAction の実行前に呼ぶ：前回値がまだ無い（盤面を設定した直後の最初の操作）とき、
+// 操作前の実効BPを前回値として記録する。最初の操作でBPが下がっても0到達を検出できるようにするため。
+// 見張り役がいなくても記録する：その操作の中で見張り役が生まれ、同じ操作でBPが0になることがある（SD15-007）
+export function ensureBpSeen(state: GameState): void {
+    if (state.bpSeen !== undefined) return
+    const next: Record<string, number> = {}
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of state.players[pid].field.spirits) next[inst.instanceId] = effectiveBp(state, pid, inst)
+    }
+    state.bpSeen = next
+}
+
 // 「BPがN以上になった時」（event: "ownSpiritBpReached"）：handleAction が1操作を解決しきった地点で呼ぶ。
 // 各スピリットの前回の実効BP（state.bpSeen）と今回を比べ、増減があったものだけ発火する（2026-10-11 ユーザー確認）。
 // 新しく場に出た個体は前回値が無いので記録するだけ。発火は届いた個体を集めてから順に行い、選択待ちが立ったら残りは捨てる（同時に複数体が届くのは稀なので簡略化）
 export function fireBpReachedTriggers(state: GameState): void {
     const pids = ["p1", "p2"] as PlayerId[]
-    const watched = pids.some((pid) => effectSources(state, pid).some((inst) => getCard(inst.cardId).effects.some((e) => e.kind === "fieldEvent" && (e.event === "ownSpiritBpReached" || e.event === "opponentSpiritBpReachedZero"))))
+    const watched = bpWatched(state)
     if (!watched) {
         delete state.bpSeen
+        delete state.bpMinusSourceBy
         return
     }
     const prev = state.bpSeen ?? {}
@@ -410,8 +428,11 @@ export function fireBpReachedTriggers(state: GameState): void {
         fireFieldEventTriggers(state, r.pid, "ownSpiritBpReached", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, { bpFrom: r.from, bpTo: r.to })
         // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）
         if (r.to === 0 && r.from > 0) {
-            fireFieldEventTriggers(state, opponentOf(r.pid), "opponentSpiritBpReachedZero", { pid: r.pid, inst: r.inst }, instColors(r.inst))
+            const bpMinusSource = state.bpMinusSourceBy?.[r.inst.instanceId]
+            fireFieldEventTriggers(state, opponentOf(r.pid), "opponentSpiritBpReachedZero", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, bpMinusSource === undefined ? undefined : { sourceInstanceId: bpMinusSource })
         }
+        // 原因の記録はこのBP変動の発火で使い切る（効果によらない下げ方で古い記録が残らないように）
+        if (state.bpMinusSourceBy) delete state.bpMinusSourceBy[r.inst.instanceId]
     }
 }
 

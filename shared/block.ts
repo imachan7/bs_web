@@ -213,5 +213,12 @@ export function matchesDirectedAttackFilter(
     ) {
         return `コスト${filter.targetMinCost}以上のスピリットしか指定できません`
     }
+    // EX006輝星龍ジークヴルム・デネブ：コスト4以下のみ指定できる（付与コストも見る）
+    if (
+        filter.targetMaxCost !== undefined &&
+        !instMatchesCostFilter(target, { max: filter.targetMaxCost })
+    ) {
+        return `コスト${filter.targetMaxCost}以下のスピリットしか指定できません`
+    }
     return null
 }

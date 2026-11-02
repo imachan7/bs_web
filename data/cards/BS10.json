@@ -4699,7 +4699,7 @@
         "action": {
           "type": "placeCores",
           "from": "void",
-          "to": "nexus",
+          "to": "spirit",
           "target": "self",
           "count": 1
         }

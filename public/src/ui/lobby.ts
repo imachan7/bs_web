@@ -44,7 +44,8 @@ export function setDeckRecipes(r: typeof deckRecipes): void {
 
 export function populateBuiltinDecks(selectId = "deck-select"): void {
     const select = byId(selectId) as HTMLSelectElement
-    for (const [key, recipe] of Object.entries(deckRecipes)) {
+    // キー（sd01_blazing・sd03c 等）の順＝商品番号の順に並べる
+    for (const [key, recipe] of Object.entries(deckRecipes).sort(([a], [b]) => a.localeCompare(b))) {
         const option = document.createElement("option")
         option.value = key
         option.textContent = recipe.label

@@ -13,6 +13,8 @@ import { loadAllCards } from "../../data/loadCards"
 import type { Color, Phase } from "../../server/src/type"
 import * as fs from "node:fs"
 import * as path from "node:path"
+import { LABELED_KEYWORDS } from "../../shared/rules/keywordState"
+import type { Keyword } from "../../server/src/type"
 
 interface CardRow {
     cardId: string
@@ -100,7 +102,8 @@ function pickSubjectCard(entry: Record<string, unknown>, exclude: string): CardR
             (wantFams.length === 0 || wantFams.some((f) => (c.family ?? []).includes(f))) &&
             (wantNames.length === 0 || wantNames.some((n) => c.name.includes(n))) &&
             (wantColors.length === 0 || wantColors.some((x) => (c.colors ?? []).includes(x))) &&
-            (kw === undefined || (c.effects ?? []).some((e) => e["kind"] === "keyword" && e["keyword"] === kw)) &&
+            // ラベルだけのキーワード（【連鎖】など）は、宣言でなく効果エントリの keyword ラベルで持つ
+            (kw === undefined || (c.effects ?? []).some((e) => e["keyword"] === kw && (e["kind"] === "keyword" || LABELED_KEYWORDS.has(kw as Keyword)))) &&
             (maxCost === undefined || (c.cost ?? 99) <= maxCost),
     )
 }

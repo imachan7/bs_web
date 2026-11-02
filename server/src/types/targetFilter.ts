@@ -93,4 +93,5 @@ export interface TargetFilter {
     maxLv1BpOfLastTarget?: true // 直前の対象（自分のスピリット1体）のカードのLv1BP（印刷値。効果による増減は含めない）以下。normalizeFilter が maxBp 軸へ解決する（26RCB01-066）
     lastTarget?: true // 直前の対象（recordTargets の記録。placeCores で置き先にした個体など）
     highestBp?: true // 候補の中で実効BPが最も高いものだけ（同値が複数なら対象選択で使い側が選ぶ。destroy の相手側プールで解決）
+    highestLevel?: true // 候補の中で現在Lvが最も高いものだけ（同Lvが複数なら対象選択で使い側が選ぶ。exhaust の相手側プールで解決）
 }

@@ -213,7 +213,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             }
             // drawPerDestroyed（BS11-006）は「実際に破壊できた数」を数える必要があるので、
             // 数え方と中断の扱いを持っている destroyTargetsBatch を通す
-            if (action.drawPerDestroyed || action.thenDrawFixed) {
+            if (action.drawPerDestroyed || action.millPerDestroyed || action.thenDrawFixed) {
                 destroyTargetsBatch(
                     state,
                     owner,
@@ -221,6 +221,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
                     destroyContext,
                     {
                         ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
+                        ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
                         ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                         ...(self ? { selfInstanceId: self.instanceId } : {}),
                     },
@@ -394,7 +395,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
         }
         // drawPerDestroyed（BS11-006）：候補を先に選び切ってからバッチで破壊する
         // （数え方と中断の扱いを destroyTargetsBatch に任せる）
-        if (action.drawPerDestroyed || action.thenDrawFixed) {
+        if (action.drawPerDestroyed || action.millPerDestroyed || action.thenDrawFixed) {
             const picked: { pid: PlayerId; instanceId: string }[] = []
             // 受けなかった対象は picked に入らないので、選び直さないよう別に覚える。
             // 対話中にここへ来るのは候補が0〜1体のときだけなので、聞いて中断しても積む残りは無い
@@ -419,6 +420,7 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             }
             destroyTargetsBatch(state, owner, picked, destroyContext, {
                 ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
+                ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
                 ...(action.thenDrawFixed ? { thenDrawFixed: action.thenDrawFixed } : {}),
                 ...(self ? { selfInstanceId: self.instanceId } : {}),
             })
@@ -513,7 +515,7 @@ export function destroyAllTargetList(ctx: ActionCtx, action: AllTargetsSpec): { 
 // 「すべて」の破壊は範囲の効果（attempt が "area"）。1体を対象に取る destroy とは耐性の判定が違うので、destroy{all} もここを通す
 function destroyAllTargets(
     ctx: ActionCtx,
-    action: AllTargetsSpec & { drawPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true },
+    action: AllTargetsSpec & { drawPerDestroyed?: number; millPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true },
 ): void {
     const { state, sourceName } = ctx
         const list = destroyAllTargetList(ctx, action)
@@ -528,7 +530,7 @@ function destroyAllTargets(
 export function destroyTargetList(
     ctx: ActionCtx,
     batchTargets: { pid: PlayerId; instanceId: string }[],
-    action: { drawPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true } = {},
+    action: { drawPerDestroyed?: number; millPerDestroyed?: number; voidCoreToSelfPerDestroyed?: true } = {},
 ): void {
     const { state, owner, self, sourceName, destroyContext } = ctx
         if (batchTargets.length === 0) {
@@ -543,6 +545,7 @@ export function destroyTargetList(
         // 中断したら destroyBatch フレームを積んで抜け、残りは drainResumeStack が続きを回す
         const after = {
             ...(action.drawPerDestroyed ? { drawPerDestroyed: action.drawPerDestroyed } : {}),
+            ...(action.millPerDestroyed ? { millPerDestroyed: action.millPerDestroyed } : {}),
             ...(action.voidCoreToSelfPerDestroyed ? { voidCoreToSelfPerDestroyed: true as const } : {}),
             ...(self ? { selfInstanceId: self.instanceId } : {}),
         }
@@ -663,15 +666,14 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 return
             }
             const scope = currentRecordScope(state)
-            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+            // 「相手のネクサスを破壊した場合、ドローする」：自分のネクサスを壊したときは引かない。
+            // ドローは破壊のコミットで確定したときだけ解決する（ネクサス版 reviveOnDestroy で場に残ったら引かない）
+            const drawAfter =
+                action.drawPerDestroyed && victim.pid === opp
+                    ? { actorPid: owner, action: { type: "draw" as const, count: action.drawPerDestroyed } }
+                    : undefined
+            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }, drawAfter)) {
                 recordMoved(state, [victim.n.cardId], scope)
-                // 「相手のネクサスを破壊した場合、ドローする」：自分のネクサスを壊したときは引かない
-                if (action.drawPerDestroyed && victim.pid === opp) {
-                    const draw: EffectAction = { type: "draw", count: action.drawPerDestroyed }
-                    // 破壊で誘発した効果が選択待ちを立てたら、ドローはその解決の後に回す（下の相手側の経路と同じ）
-                    if (state.pendingChoice) pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: draw }])
-                    else ctx.resolve(draw)
-                }
             }
             return
         }
@@ -1129,6 +1131,10 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         ...state.players.p1.field.spirits.filter((s) => eligible("p1", s)).map((s) => s.instanceId),
         ...state.players.p2.field.spirits.filter((s) => eligible("p2", s)).map((s) => s.instanceId),
     ]
+    // eachOwn：「お互い、それぞれのスピリット1体を破壊」（BS01-125）。各自は自分のフィールドからだけ選ぶ。
+    // 選べるスピリットが無い側は "" にして飛ばす
+    const ownIds = (pid: PlayerId): string[] => state.players[pid].field.spirits.filter((s) => eligible(pid, s)).map((s) => s.instanceId)
+    const candidatesFor = (pid: PlayerId): string[] => (action.eachOwn ? ownIds(pid) : allSpiritIds())
 
     let chosenOwn = action.chosenOwn
     let chosenOpp = action.chosenOpp
@@ -1137,12 +1143,14 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
         if (action.awaiting === "own" && targetInstanceId !== undefined) chosenOwn = targetInstanceId
         if (action.awaiting === "opponent" && targetInstanceId !== undefined) chosenOpp = targetInstanceId
 
+        if (chosenOwn === undefined && action.eachOwn && ownIds(owner).length === 0) chosenOwn = ""
+        if (chosenOpp === undefined && action.eachOwn && ownIds(opp).length === 0) chosenOpp = ""
         if (chosenOwn === undefined) {
             requestChoice(
                 state,
                 owner,
                 `${sourceName}：破壊するスピリットを選んでください`,
-                allSpiritIds(),
+                candidatesFor(owner),
                 false,
                 { ...action, awaiting: "own", ...(chosenOpp !== undefined ? { chosenOpp } : {}) },
                 self,
@@ -1154,7 +1162,7 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
                 state,
                 opp,
                 `${sourceName}：破壊するスピリットを選んでください`,
-                allSpiritIds(),
+                candidatesFor(opp),
                 false,
                 { ...action, awaiting: "opponent", chosenOwn },
                 self,
@@ -1172,6 +1180,16 @@ const mutualDestroyChoiceHandler: ActionHandler<"mutualDestroyChoice"> = (ctx, a
             return spirits.reduce((best, s) =>
                 effectiveBp(state, fromPid, s) > effectiveBp(state, fromPid, best) ? s : best,
             ).instanceId
+        }
+        // eachOwn は自分のスピリットを差し出すので、各自の実効BP最小を選ぶ（決定的簡略化）
+        const pickMinBp = (pid: PlayerId): string | undefined => {
+            const spirits = state.players[pid].field.spirits.filter((s) => eligible(pid, s))
+            if (spirits.length === 0) return undefined
+            return spirits.reduce((best, s) => (effectiveBp(state, pid, s) < effectiveBp(state, pid, best) ? s : best)).instanceId
+        }
+        if (action.eachOwn) {
+            chosenOwn ??= pickMinBp(owner)
+            chosenOpp ??= pickMinBp(opp)
         }
         if (chosenOwn === undefined) chosenOwn = pickMaxBp(opp, owner) ?? pickMaxBp(owner, owner)
         if (chosenOpp === undefined) chosenOpp = pickMaxBp(owner, opp) ?? pickMaxBp(opp, opp)

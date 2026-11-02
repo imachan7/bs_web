@@ -6,7 +6,7 @@ import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
-import { applyFushiSummon, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
+import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
     continueBurstActivation,
@@ -206,6 +206,21 @@ function resolveChoiceInner(
             applyReviveConfirm(state, entry)
         } else {
             declineReviveConfirm(state, entry)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // ネクサス版 reviveOnDestroy の確認。action は解決しない。選ばなければ何もせず、
+    // 見送っていた破壊は destroyNexusCommit フレームの再開（コミット）で行われる
+    if (pending.reviveNexusConfirm) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const entry = pending.reviveNexusConfirm
+        state.pendingChoice = null
+        if (option !== undefined) {
+            applyNexusReviveConfirm(state, entry)
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)

@@ -876,8 +876,9 @@ export function placeCoresOnSpirit(
     baseCount: number,
     ownerPid: PlayerId,
 ): void {
-    inst.cores += baseCount
+    // 「Lv2：コアが置かれるとき+1個」は置く前の Lv で見る（置いた結果 Lv2 になっても足さない。SD14-005）
     const bonus = coreBonusFor(inst)
+    inst.cores += baseCount
     if (bonus > 0) {
         inst.cores += bonus
         log(
@@ -1533,7 +1534,7 @@ export function resolveAction(
 // 呼び出し側（57ファイル）を変えずに済むよう、ここから再エクスポートする。相互 import は GameState.ts ↔ EffectModules.ts と同じ CommonJS の循環 require で安全
 export { isTriggerSuppressed, fireSummonTrigger, fireTrigger, fireCombinedAttackTrigger, battleOpponentConditionedOnBattleStartIds, applyBothSidesRedirectToCandidates, bothSidesPids, bothSidesRedirectKeepPid, notifySpiritCoresRemovedByOpponent, findMagicNegateSource, resolveMagic, applyMagicRedirectChoice, applyMagicSideChoice, applyMagicRepeatChoice, applyMagicNegateChoice, declineMagicNegateChoice, revertOncePerTurn, revertDestroyGroupUsage } from "./triggers"
 export { applyJugekiCoreToVoid } from "./keywords/jugeki"
-export { fireBattleWonTriggers, fireStepTriggers, fireBpReachedTriggers, battleBp } from "./stepTriggers"
+export { fireBattleWonTriggers, fireStepTriggers, fireBpReachedTriggers, ensureBpSeen, battleBp } from "./stepTriggers"
 export { fireFieldEventTriggers, notifyHandGained, notifyNexusDeployed, fireNexusDeployed } from "./fieldEventTriggers"
 
 // ---- スピリット／ネクサスの除去・ブレイヴ・復活（removal.ts・brave.ts・revive.ts へ分割）----

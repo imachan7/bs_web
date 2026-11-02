@@ -1491,17 +1491,24 @@ const TREAT_AS_UNBLOCKED_LABEL = {
     levelAtLeastBlocker: "ブロックした相手と同じLv以下なら、ブロックされなかったものとして扱う。",
 } as const
 
-const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number }): string =>
-    typeof when === "object" ? `BP${when.blockerMaxBp}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。` : TREAT_AS_UNBLOCKED_LABEL[when]
+const treatAsUnblockedLabel = (when: "always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerBpBelowSelf: true }): string =>
+    typeof when === "object"
+        ? "blockerMaxBp" in when
+            ? `BP${when.blockerMaxBp}以下のスピリットにブロックされても、ブロックされなかったものとして扱う。`
+            : "このスピリットよりBPの低いスピリットにブロックされても、ブロックされなかったものとして扱う。"
+        : TREAT_AS_UNBLOCKED_LABEL[when]
 
 const treatAsUnblockedHandler: ActionHandler<"treatAsUnblocked"> = (ctx, action) => {
-    const { state, sourceName } = ctx
+    const { state, sourceName, self } = ctx
     if (!state.battle) {
         log(state, `${sourceName}：バトル中ではないため何も起きなかった。`)
         return
     }
     const when = action.when ?? "always"
-    state.battle.treatAsUnblocked = [...(state.battle.treatAsUnblocked ?? []), when]
+    // blockerBpBelowSelf は解決時に発生源とブロッカーで比べるので、発生源の個体を記録に残す
+    const stored = typeof when === "object" && "blockerBpBelowSelf" in when ? (self ? { ...when, selfInstanceId: self.instanceId } : null) : when
+    if (stored === null) return
+    state.battle.treatAsUnblocked = [...(state.battle.treatAsUnblocked ?? []), stored]
     log(state, `${sourceName}：${treatAsUnblockedLabel(when)}`)
 }
 

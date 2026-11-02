@@ -64,6 +64,15 @@ export interface PendingChoice {
         cardId: string
         trashIndex: number
     }
+    reviveNexusConfirm?: {
+        // ネクサス版 reviveOnDestroy（scope:"ownNexus"）の確認待ち。action は解決しない。
+        // 選べば発生源ネクサスを疲労させて破壊待機中のネクサスを疲労状態で場に残し、
+        // 選ばなければ見送っていた破壊が destroyNexusCommit の再開で行われる
+        pid: PlayerId
+        instanceId: string
+        sourceInstanceId: string
+        effectId: string
+    }
     reviveDestination?: {
         // 復活で手札に入ったカードの行き先の選択（action は解決しない）。options は["手札に残す","デッキの上に置く"]
         pid: PlayerId
@@ -385,6 +394,7 @@ export type ResumeFrame =
           after?: {
               // 全体を破壊し終えたあとの処理（破壊できた数を使うもの）
               drawPerDestroyed?: number
+              millPerDestroyed?: number
               voidCoreToSelfPerDestroyed?: true
               selfInstanceId?: string // voidCoreToSelfPerDestroyed の置き先
               thenDrawFixed?: number // destroy.thenDrawFixed：破壊できた数によらず固定枚数ドロー（「その後」。BS14-010）
@@ -421,6 +431,7 @@ export type ResumeFrame =
           instanceId: string
           step: number
           byOpponentEffect: boolean // 「相手の効果で破壊されたとき」限定エントリの判定材料
+          after?: { actorPid: PlayerId; action: EffectAction } // 破壊がコミットで確定したときだけ解決する（destroyNexus の after）
       }
     | {
           // バトル解決（＞５のBP比較が終わった後 〜 ＞７のバトル終了宣言）の続き。

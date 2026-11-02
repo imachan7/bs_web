@@ -166,7 +166,7 @@ export type EffectDefContinuous =
           whileOwnBurstSet?: true
           whileSelfAttacking?: true // アタック中窓。hasGlobalConstraintが見る
           constraint: GlobalConstraintDef // 持ち主を問わず効く。ただしownNexusIndestructibleは持ち主自身のみ
-          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number } }
+          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number }; ownSpiritMatches?: ResolvedTargetFilter }
           phase?: Phase
           turn?: "own" | "opponent" | "both" // opponentCantAttackByCostのopponentは「相手のアタックステップ」
       }
@@ -714,4 +714,10 @@ export type EffectDefContinuous =
           familyFilter?: FamilyFilter
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           action: EffectAction
+      }
+    | {
+          id: string
+          kind: "rensaIgnoreCondition" // 合体中のブレイヴの【合体時】効果。ホストスピリットの【連鎖】の条件（if ownColorSymbols）を無視して発揮させる（SD11-X02）
+          levels: number[] | null
+          whileCombined?: true
       }

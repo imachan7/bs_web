@@ -395,7 +395,14 @@ export function resolveBattle(state: GameState): void {
             when === "always" ||
             (when === "blockerLevel1" && currentLevel(blocker).level === 1) ||
             (when === "levelAtLeastBlocker" && currentLevel(attacker).level >= currentLevel(blocker).level) ||
-            (typeof when === "object" && effectiveBp(state, blockerPid, blocker) <= when.blockerMaxBp),
+            (typeof when === "object" &&
+                ("blockerMaxBp" in when
+                    ? effectiveBp(state, blockerPid, blocker) <= when.blockerMaxBp
+                    : // 発生源が既に場にいなければ効かない（「このスピリットよりBPの低い」のこのスピリットがいないため）
+                      (() => {
+                          const src = findSpiritAny(state, when.selfInstanceId)
+                          return src !== null && effectiveBp(state, blockerPid, blocker) < effectiveBp(state, src.pid, src.inst)
+                      })())),
     )
     if (unblocked !== undefined) {
         log(state, `${getCard(attacker.cardId).name}：BPを比べずブロックされなかったものとして扱う。`)

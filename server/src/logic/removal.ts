@@ -4,13 +4,15 @@ import { bounceDenial, reviveOnReturnStay } from "./bounceGate"
 import { entryActive } from "../../../shared/rules/effectStop"
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
+import { millDeck } from "./zones/mill"
+import { kyokaBonus } from "./keywords/kyoka"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
-import type { CardInstance, CardType, Color, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
+import type { CardInstance, CardType, Color, EffectAction, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
-import { getAllFamilies } from "./EffectModules"
+import { getAllFamilies, resolveAction } from "./EffectModules"
 import { destroyDenial } from "./destroyGate"
 import { coreRemovalAllowed } from "./coreGate"
 
@@ -24,7 +26,7 @@ import { recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
 import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
-import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, wouldAskReviveConfirm } from "./revive"
+import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, tryNexusReviveOnDestroy, wouldAskReviveConfirm } from "./revive"
 import {
     activeConstraints,
     auraAmount,
@@ -448,6 +450,7 @@ function fireOwnSpiritDestroyed(
         destroyedBp: effectiveBp(state, ownerPid, inst),
         ...(ownEffect?.sourceType !== undefined ? { ownEffectSourceType: ownEffect.sourceType } : {}),
         ...(ownEffect?.sourceCardId !== undefined ? { ownEffectSourceCardId: ownEffect.sourceCardId } : {}),
+        ...(ownEffect?.sourceInstanceId !== undefined ? { ownEffectSourceInstanceId: ownEffect.sourceInstanceId } : {}),
         families,
         costs: instAllCosts(inst),
     })
@@ -878,6 +881,12 @@ export function applyDestroyBatchAfter(
     if (after.thenDrawFixed) draw(state, ownerPid, after.thenDrawFixed)
     if (destroyed <= 0) return
     if (after.drawPerDestroyed) draw(state, ownerPid, destroyed * after.drawPerDestroyed)
+    if (after.millPerDestroyed) {
+        // 破棄されるのは効果の持ち主から見た相手のデッキ。体数ぶんの破棄も「相手へのデッキ破棄効果」なので
+        // 【強化】（青）の +1枚を最終枚数に足す（BS19_PLAN §2.1）
+        const kyoka = kyokaBonus(state, ownerPid, "deckMill")
+        millDeck(state, opponentOf(ownerPid), destroyed * after.millPerDestroyed + kyoka, ownerPid)
+    }
     if (after.voidCoreToSelfPerDestroyed && after.selfInstanceId) {
         const self = findInstanceAnywhere(state, after.selfInstanceId)
         if (self && coreGainBlocked(state, "void", "field")) {
@@ -897,12 +906,15 @@ export function applyDestroyBatchAfter(
     }
 }
 
-// ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）
+// ネクサスを破壊する。破壊耐性（nexusIndestructible）で不発なら false（呼び出し側はカウント・ドロー処理の可否を判定する）。
+// after＝破壊がコミットで確定したときにだけ解決するアクション（「相手のネクサスを破壊したときドローする」等。
+// ネクサス版 reviveOnDestroy で場に残ったときは解決されない）
 export function destroyNexus(
     state: GameState,
     ownerPid: PlayerId,
     instanceId: string,
     context?: DestroyContext,
+    after?: { actorPid: PlayerId; action: EffectAction },
 ): boolean {
     const player = state.players[ownerPid]
     const index = player.field.nexuses.findIndex(
@@ -930,7 +942,7 @@ export function destroyNexus(
     log(state, `${player.name}の${getCard(inst.cardId).name}（ネクサス）は破壊された。`)
     // 直近に破壊されたネクサスを記録する（「その破壊されたネクサス」を参照する効果用）
     state.lastDestroyedNexus = { pid: ownerPid, cardId: inst.cardId }
-    driveNexusDestruction(state, ownerPid, inst, 1, byOpponentEffectOf(context, ownerPid))
+    driveNexusDestruction(state, ownerPid, inst, 1, byOpponentEffectOf(context, ownerPid), after)
     return true
 }
 
@@ -952,8 +964,21 @@ function driveNexusDestruction(
     inst: CardInstance,
     startStep: number,
     byOpponentEffect: boolean,
+    after?: { actorPid: PlayerId; action: EffectAction },
 ): void {
-    for (let step = startStep; step <= 4; step++) {
+    // 破壊が確定したときだけ after を解決する。ネクサス版 reviveOnDestroy で「破壊される代わりに」
+    // 場に残った（nexusReviveStayed）ときは破壊されていないので解決しない。
+    // reviveLastDestroyedNexus（破壊された後でフィールドに戻す）は待機を解除しても破壊は成立しているので解決する
+    const runAfterIfDestroyed = (): void => {
+        const stayed = inst.nexusReviveStayed === true
+        delete inst.nexusReviveStayed
+        if (after && !stayed) resolveAction(state, after.actorPid, null, after.action)
+    }
+    const commit = (): void => {
+        commitPendingNexusDestruction(state, ownerPid, inst)
+        runAfterIfDestroyed()
+    }
+    for (let step = startStep; step <= 5; step++) {
         switch (step) {
             // フィールドイベント誘発「ネクサスが破壊されたとき」：破壊した/された側を問わず両陣営のフィールドから発火。バウンスはここを通らないため対象外
             case 1:
@@ -970,12 +995,17 @@ function driveNexusDestruction(
                     byOpponentEffect,
                 })
                 break
+            // ネクサス版 reviveOnDestroy（scope:"ownNexus"）：コミットの前に、他の自分のネクサスが
+            // コストで破壊を打ち消せるかを見る。復活したら inst.pendingDestruction が消えるのでコミットは空振りする
+            case 4:
+                tryNexusReviveOnDestroy(state, ownerPid, inst)
+                break
             default:
-                commitPendingNexusDestruction(state, ownerPid, inst)
+                commit()
                 return
         }
         if (state.winner) {
-            commitPendingNexusDestruction(state, ownerPid, inst)
+            commit()
             return
         }
         if (state.pendingChoice) {
@@ -986,6 +1016,7 @@ function driveNexusDestruction(
                     instanceId: inst.instanceId,
                     step: step + 1,
                     byOpponentEffect,
+                    ...(after ? { after } : {}),
                 },
             ])
             return
@@ -998,21 +1029,31 @@ export function resumeDestroyNexusCommit(
     frame: Extract<ResumeFrame, { kind: "destroyNexusCommit" }>,
 ): void {
     const inst = state.players[frame.pid].field.nexuses.find((n) => n.instanceId === frame.instanceId)
-    if (!inst || !inst.pendingDestruction) return
-    driveNexusDestruction(state, frame.pid, inst, frame.step, frame.byOpponentEffect)
+    if (!inst) return
+    // 確認のあいだに破壊待機が解除されていたら、もうステップを進めない。
+    // reviveLastDestroyedNexus（破壊された後で戻す）なら破壊は成立しているので after だけ解決する。
+    // ネクサス版 reviveOnDestroy（nexusReviveStayed）なら「破壊されていない」ので after も解決しない
+    if (!inst.pendingDestruction) {
+        const stayed = inst.nexusReviveStayed === true
+        delete inst.nexusReviveStayed
+        if (frame.after && !stayed) resolveAction(state, frame.after.actorPid, null, frame.after.action)
+        return
+    }
+    driveNexusDestruction(state, frame.pid, inst, frame.step, frame.byOpponentEffect, frame.after)
 }
 
 export function commitPendingNexusDestruction(
     state: GameState,
     ownerPid: PlayerId,
     inst: CardInstance,
-): void {
-    if (!inst.pendingDestruction) return
+): boolean {
+    // 戻り値＝実際にトラッシュへ置いたか（reviveOnDestroy で待機が解除済みのときは false）
+    if (!inst.pendingDestruction) return false
     const player = state.players[ownerPid]
     const index = player.field.nexuses.findIndex((n) => n.instanceId === inst.instanceId)
     if (index === -1) {
         delete inst.pendingDestruction
-        return
+        return false
     }
     player.field.nexuses.splice(index, 1)
     player.trashCards.push(inst.cardId)
@@ -1020,6 +1061,7 @@ export function commitPendingNexusDestruction(
     soulCoreLeavesField(player, inst)
     player.reserve += inst.cores
     delete inst.pendingDestruction
+    return true
 }
 
 // ネクサスを持ち主の手札へ戻す（バウンス）。破壊ではないため destroyNexus とは別処理
@@ -1327,7 +1369,8 @@ export function removeCores(
     // [ソウルコア]を含める指定: ソウルコア1個ぶんも移す個数に数える（案B-inside: coresには元から含まれる）。
     // 含めない指定なら、取り除き上限は[ソウルコア]を差し引いた通常コア数
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
-    const includeSoulUnit = includeSoul === true && soulHere
+    // 通常コアだけでは足りない（全部取るときを含む）なら、聞かずに[ソウルコア]も取る（SOULCORE.md §5）
+    const includeSoulUnit = soulHere && (includeSoul === true || count + bonus > allowed - 1)
     const soulUnits = includeSoulUnit ? 1 : 0
     const capacity = allowed - (soulHere && !includeSoulUnit ? 1 : 0)
     const removed = Math.min(count + bonus, capacity)
@@ -1377,9 +1420,11 @@ export function removeCoresToTrash(
         log(state, `トラッシュに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
-    const includeSoulUnit = includeSoul === true && soulHere
+    const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType)
+    // 通常コアだけでは足りない（全部取るときを含む）なら、聞かずに[ソウルコア]も取る（SOULCORE.md §5）
+    const includeSoulUnit = soulHere && (includeSoul === true || count + bonus > allowed - 1)
     const soulUnits = includeSoulUnit ? 1 : 0
-    const capacity = effectCoreCap(state, ownerPid, inst, actorPid, srcType) - (soulHere && !includeSoulUnit ? 1 : 0)
+    const capacity = allowed - (soulHere && !includeSoulUnit ? 1 : 0)
     const removed = Math.min(count + bonus, capacity)
     inst.cores -= Math.max(0, removed - soulUnits)
     if (includeSoulUnit) moveSoulCore(player, { zone: "trash" })

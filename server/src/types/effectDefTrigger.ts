@@ -211,6 +211,7 @@ export type EffectDefTrigger =
           colorFilter?: Color // ownNexusDestroyed 限定（主体が selfOverride を持たず eventColors で渡す）。ほかのイベントは subjectFilter.color
           sourceColorFilter?: Color // 「相手のこの色の〜の効果によって」起きたときだけ（currentEffectSource で判定）。colorFilter はイベント対象、こちらは効果の発生源の色
           sourceTypes?: CardType[] // event:"opponentHandAdded" 限定。「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み（currentEffectSource で判定。効果によらない増加＝ドローステップ等では発火しない。BS19-088）
+          bySelfEffectOnly?: true // event:"opponentSpiritBpReachedZero" 限定。発生源自身の効果でBP0になったときだけ発火（BPを下げた効果の発生源instanceIdで判定。効果によらないBP0到達では発火しない）
           ignoreEventTarget?: true // resolveActionにtargetInstanceIdを渡さない
           selfMode?: "source" // self にイベント対象でなく発生源インスタンス自身を渡す
           bpReachedAt?: number // ownSpiritBpReached 限定。前回BP < この値 <= 今回BP のときだけ
@@ -222,7 +223,7 @@ export type EffectDefTrigger =
           subjectOriginalNexus?: true // 本来はネクサスのカード（スピリットとして扱われているネクサス）
           subjectDifferentNameFromSelf?: true // 主体が発生源と異なるカード名のときのみ
           subjectTeamFilter?: string // CardData.team
-          destroyedByOwnEffect?: { sourceType: CardType; sourceFamily?: string | string[] } // opponentSpiritDestroyed 限定。バトルは含まない。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）
+          destroyedByOwnEffect?: { sourceType: CardType; sourceFamily?: string | string[]; sourceKeyword?: Keyword } // opponentSpiritDestroyed 限定。バトルは含まない。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）。sourceKeyword＝発生源のスピリットがその場で持つキーワード（【強化】など。Lv・合体条件は spiritHasKeyword が見る）
           destroyedMaxBp?: number // opponentSpiritDestroyed 限定。破壊直前の実効BP
           byBattleOnly?: true // ownSpiritDestroyed 限定
           attackerOnly?: true // ownSpiritDestroyed 限定
@@ -310,7 +311,7 @@ export type EffectDefTrigger =
           id: string
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる
           levels: number[] | null
-          scope: "self" | "ownAll" // self＝このスピリット自身／ownAll＝発生源の持ち主のスピリットすべて
+          scope: "self" | "ownAll" | "ownNexus" // self＝このスピリット自身／ownAll＝発生源の持ち主のスピリットすべて／ownNexus＝発生源の持ち主のネクサスが破壊されるとき、そのネクサスを場に残す（発生源はネクサス。発生源自身が破壊されたときは発揮できない＝破壊待機状態では疲労できずコストが払えない。STARTER_PLAN §2.2 の2）
           perDestroyed?: true // scope:"ownAll" 限定。同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）
           whileCombined?: true // scope:"self" 専用
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効

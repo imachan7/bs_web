@@ -15,7 +15,7 @@ import { card } from "../cardDb"
 import { minLevelCoresOf } from "./activation"
 import { activeConstraints, braveBpBonusZeroFor, hasGlobalConstraint, timedBattleContents, timedPlayerRules, trashFrozen } from "./constraints"
 import { instanceSymbolCount } from "./symbols"
-import { spiritHasFamily, spiritHasKeyword } from "./keywordState"
+import { LABELED_KEYWORDS, spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
 
 // ---- キーワード ----
@@ -74,9 +74,15 @@ export function keywordMatches(has: Keyword, asked: Keyword): boolean {
 }
 
 // カード静的なキーワード保持判定（一時付与・継続付与は spiritHasKeyword を使うこと）。配列＝いずれかでOR
+// ラベルだけのキーワード（【連鎖】など。宣言エントリを持たない）は、効果エントリの keyword ラベルでも持つとみなす
+// （手札・トラッシュ・デッキのカードを「【連鎖】を持つ」で選ぶとき。BS19 の連鎖持ちは宣言を持たない）
 export function hasKeyword(cardId: string, keyword: Keyword | Keyword[]): boolean {
     const wanted = Array.isArray(keyword) ? keyword : [keyword]
-    return card(cardId).effects.some((e) => e.kind === "keyword" && wanted.includes(e.keyword))
+    return card(cardId).effects.some((e) => {
+        if (e.kind === "keyword") return wanted.includes(e.keyword)
+        const label = (e as { keyword?: Keyword }).keyword
+        return label !== undefined && LABELED_KEYWORDS.has(label) && wanted.includes(label)
+    })
 }
 
 // 指定トリガーの誘発効果（kind:"triggered"）を現在のレベルで静的に持つか（TargetFilter.hasTrigger）。

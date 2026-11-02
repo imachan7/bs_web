@@ -100,11 +100,12 @@ export type GlobalConstraintDef =
     | { type: "voidCoreBlockedOutsideCoreStep" } // お互い、コアステップ以外でボイドからフィールド/リザーブにコアを置けない（ライフ・トラッシュへは対象外）。
     // ボイドから直接置く各アクションが冒頭で coreGainCap.ts の coreGainBlocked を呼ぶ（コアステップ自身の `player.reserve += 1` はガード不要）
     | { type: "braveSummonNeedsCost" } // お互い、効果による無償のブレイヴ召喚ができない。コストを払う召喚（軽減で0になった場合も「0を払った」）は止めない（公式 Q17764）。summonDenial が cause:"effect" のブレイヴを弾く
-    | { type: "noSummonByEffect" } // お互い、スピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない（通常の doSummon 経由は対象外。主語なし）。
+    | { type: "noSummonByEffect"; spiritOnly?: true } // お互い、スピリット/ブレイヴ/ネクサス/マジックの効果でスピリット/ブレイヴを召喚できない（通常の doSummon 経由は対象外。主語なし）。
     // エントリの phase を書けばその区間だけ有効。summonByEffectBlocked が判定し、
     // summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（効果による召喚の共通経路）の冒頭で弾く
+    // spiritOnly指定時はスピリットの召喚だけ止め、ブレイヴの召喚は止めない（SD03-014オリンスピア競技場。効果文が「スピリットを召喚できない」でブレイヴに言及しない。BS12-072は「スピリット/ブレイヴ」と明記）
     | { type: "attackPayToll"; count: number; attackerLevel: number; noStack?: true } // 発生源の持ち主から見た相手の、現在のLvが attackerLevel のスピリットがアタックするとき、持ち主のリザーブのコア count 個をトラッシュに置かなければアタックできない（払えるかぎり自動で払う。コスト支払いのうちリザーブからだけ払う簡略化）。noStack＝〔重複不可〕：同じカード名の発生源は何枚あっても1回分
-    | { type: "attackRequiresCoreToll"; maxCost: number } // 両陣営とも、コストが maxCost 以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならアタック不可＝validateAttack が弾く）。払えるかぎり自動で払う（GameEngine.doAttack が宣言成立時に移す）。「断ればアタックしない」はクライアント側で表現する（public/src/main.ts の confirmExtraCost が send() 直前に確認をはさむ）。2026-09-10 ユーザー確認
+    | { type: "attackRequiresCoreToll"; maxCost?: number; side?: "opponent"; filter?: ResolvedTargetFilter } // 既定は両陣営とも、コストが maxCost 以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならアタック不可＝validateAttack が弾く）。払えるかぎり自動で払う（GameEngine.doAttack が宣言成立時に移す）。「断ればアタックしない」はクライアント側で表現する（public/src/main.ts の confirmExtraCost が send() 直前に確認をはさむ）。2026-09-10 ユーザー確認。side:"opponent"指定時は発生源の持ち主から見た相手のアタックだけ（SD16-004戦鎚のゴードン）。maxCost省略時はコストを問わない（SD03-014オリンスピア競技場）。filterはアタッカーの絞り込み（ResolvedTargetFilter。SD03-014の「合体していない」＝{combined:false}）
     | { type: "opponentCantReturnFromTrashToHand" } // 発生源の持ち主から見た相手は、トラッシュからカードを手札に戻せない（noTrashRecovery〈両陣営〉の片側版）。トラッシュ→手札の経路の各ハンドラ冒頭が共通ヘルパーで一括して弾く
     | { type: "noBurstActivationByEvent"; events: FieldEvent[]; whileOwnAttackerFamily?: FamilyFilter } // 発生源の持ち主の**相手**は、バースト条件が events のいずれかのバーストを**発動できない**（セットされたまま残る。noBurstEffectForPid は発動が成立して解決だけ飛ぶ別物）。whileOwnAttackerFamily＝発生源の持ち主のその系統のスピリットがアタックしている間だけ。ownSpiritDestroyed は byOpponentEffectOnly の有無を区別しない（現行データのバーストは全部「相手による」。2026-10-23）
     | { type: "noBurstActivationByColor"; colors: Color[]; whileOwnAttackerKeyword?: Keyword } // 発生源の持ち主の**相手**は、colors のいずれかの色のバーストカードを発動できない（バースト条件のイベント軸は問わない。BS19-064・096）。whileOwnAttackerKeyword＝発生源の持ち主のそのキーワードを持つスピリットがアタックしている間だけ（§3.23。whileOwnAttackerFamily のキーワード版）
