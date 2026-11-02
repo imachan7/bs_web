@@ -116,10 +116,13 @@ console.log("--- unblockableBy（色指定）：指定色のスピリットに�
     for (const suffix of ["e1", "e2", "e3"]) {
         const entry = entryOf(card, suffix)
         const level = (entry["levels"] as number[])[0]!
-        const color = String((entry["constraint"] as Record<string, unknown>)["colorFilter"])
+        const filter = (entry["constraint"] as Record<string, unknown>)["filter"] as Record<string, unknown> | undefined
+        const color = String(filter?.["color"])
         // その色を持つブロック役と、持たないブロック役
         const same = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.colors ?? []).includes(color as Color))
         const other = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length === 0 && !(c.colors ?? []).includes(color as Color))
+        // 駒が見つからないときは黙って飛ばさない（10-31 の #350 で欄名が変わり、ここが黙って空振りしていた）
+        assert(same !== undefined && other !== undefined, `前提: ${color}のブロック役と、それ以外のブロック役がある`)
         if (!same || !other) continue
 
         const s = base(`bs05-018-${suffix}`)
