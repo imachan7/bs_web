@@ -1,0 +1,872 @@
+[
+  {
+    "cardId": "SD10-013",
+    "name": "天目指す竜射台",
+    "type": "nexus",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n相手のスピリットのアタックによって自分のライフが減ったとき、アタックしたBP5000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【強化】を持つ自分のスピリットが相手のスピリットを破壊したとき、相手のネクサス1つを破壊する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD10-014",
+    "name": "ツインフレイム",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nBP2000以下の相手のスピリット2体を破壊する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD10-015",
+    "name": "ファイアーウォール",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "フラッシュ：\n自分の赤のスピリット1体を破壊することで、このバトルが終了したとき、アタックステップを終了する。\nこの効果は、『相手のアタックステップ』でしか使えない。",
+    "effects": []
+  },
+  {
+    "cardId": "SD10-016",
+    "name": "チャージドロー",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\n自分はデッキから2枚ドローする。\nその後、自分のデッキを上から2枚オープンし、その中の【強化】を持つスピリットカード/ブレイヴカードすべてを手札に加える。\n残ったカードは好きな順番でデッキの上に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD10-X01",
+    "name": "輝龍シャイニング・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "星竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある赤のブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv2･Lv3『このスピリットのアタック時』\nBP5000以下の相手のスピリット1体を破壊する。\nLv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD10-X02",
+    "name": "輝きの聖剣シャイニング・ソード",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 7,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "剣刃"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nBP3000以下の相手のスピリットすべてを破壊し、破壊したスピリット1体につき、自分はデッキから1枚ドローする。\nLv1【強化】\nアルティメット以外の自分の「BP破壊効果」の上限を+1000する。\n合体条件：コスト5以上\n【合体時】【強化】\nアルティメット以外の自分の「BP破壊効果」の上限を+1000する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-001",
+    "name": "ピナコチャザウルス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nこのスピリットの色とシンボルは緑としても扱う。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-002",
+    "name": "ダーク・ディノニクソー",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2･Lv3\nこのスピリットは緑のスピリットとしても扱う。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-003",
+    "name": "刀竜ステゴディータ",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-004",
+    "name": "ブロンソードザウルス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のネクサス1つを破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-005",
+    "name": "羽竜ペドペンナー",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red",
+      "green"
+    ],
+    "family": [
+      "地竜",
+      "空牙"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+2000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-006",
+    "name": "激竜ランベオス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2『このスピリットのアタック時』\n自分はデッキから1枚ドローする。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-007",
+    "name": "プテラスラッシャー",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜",
+      "空牙"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットをBP+3000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-008",
+    "name": "モノフォースザウルス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：自分のターンの最初のアタックのとき、このスピリットは回復する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-009",
+    "name": "突竜スティラゴーン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットのBP以下の相手のスピリット1体を破壊する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-010",
+    "name": "ランスモザウルス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "green",
+      "green"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-011",
+    "name": "鎧機竜シルヴィード",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜",
+      "機竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにある【連鎖】を持つスピリットカード1枚を手札に戻す。\n合体条件：地竜\n【合体時】【激突】『このスピリットの合体アタック時』\n相手は可能ならば必ずブロックする。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "地竜",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-012",
+    "name": "原始の森",
+    "type": "nexus",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。\nLv2\n自分のスピリットが相手によって破壊されたとき、自分のトラッシュにある系統：「地竜」を持つスピリットカード1枚を手札に戻す。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-013",
+    "name": "黄昏の暗黒銀河",
+    "type": "nexus",
+    "colors": [
+      "red",
+      "green"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "red",
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+3000する。\nLv2『自分のエンドステップ』\n系統：「地竜」を持つ自分のスピリット3体を回復させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-014",
+    "name": "ジュラシックフレイム",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nBP3000以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-015",
+    "name": "ディノクライシス",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\nBP合計5000まで相手のスピリットを好きなだけ破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：シンボル1つだけを持つ自分のスピリット2体を回復させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-016",
+    "name": "ラッシュドロー",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "C,U",
+    "limited": false,
+    "effect": "メイン：\n自分はデッキから2枚ドローする。\nその後、自分のデッキを上から2枚オープンし、その中の【連鎖】を持つスピリットカード/ブレイヴカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの上に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-X01",
+    "name": "闇龍ダーク・ティラノザウラー",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "地竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのBP以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\nLv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+3000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD17-X02",
+    "name": "暗黒の魔剣ダーク・ブレード",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "剣刃"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n相手のネクサス1つを破壊する。\nこの効果でネクサスを破壊したとき、自分はデッキから1枚ドローする。\n合体条件：コスト5以上\n【合体時】『このスピリットのアタック時』\n相手のスピリット1体を指定してアタックできる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": []
+  },
+  {
+    "cardId": "X009",
+    "name": "鳳凰竜フェニック・ソード",
+    "type": "brave",
+    "colors": [
+      "red"
+    ],
+    "cost": 6,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "機竜",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nBP4000以下のスピリットすべてを破壊する。または、ネクサスすべてを破壊する。\n合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\n相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": []
+  }
+]

@@ -1,0 +1,857 @@
+[
+  {
+    "cardId": "BS01-141",
+    "name": "インビジブルクローク",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、自分か相手のスピリット1体はブロックされない。",
+    "effects": []
+  },
+  {
+    "cardId": "BSC05-007",
+    "name": "イグア・バギー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [
+      "white",
+      "red"
+    ],
+    "family": [
+      "機獣",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2\nこのスピリットの色とシンボルは赤としても扱う。",
+    "effects": []
+  },
+  {
+    "cardId": "BSC05-009",
+    "name": "竜機合神ソードランダー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣",
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\nこのスピリットは、合体していない相手のスピリットすべてを疲労状態でブロックできる。\nLv3『このスピリットのバトル時』\nBPを比べ相手のスピリットだけを破壊したとき、コスト合計4まで相手のスピリットを好きなだけ手札に戻す。",
+    "effects": []
+  },
+  {
+    "cardId": "BSC05-015",
+    "name": "獣装甲メガバイソン",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "red",
+      "red"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "C,U",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体中】【装甲：赤/緑/白】\nこのスピリットは、相手の赤/緑/白のスピリット/ネクサス/マジックの効果を受けない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": []
+  },
+  {
+    "cardId": "BSC05-019",
+    "name": "絶望壁の要塞",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のターン』\n自分のライフは、ターンごとに相手のスピリット1体から1までしか減らない。\nLv2\n自分のスピリット状態のブレイヴすべてに“【装甲：赤/青】このスピリットは、相手の赤/青のスピリット/ネクサス/マジックの効果を受けない”を与える。",
+    "effects": []
+  },
+  {
+    "cardId": "EX011",
+    "name": "銀装合体シールド・ドラゴン",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "甲竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "EX",
+    "limited": false,
+    "effect": "合体条件：コスト4以上\n【合体時】【装甲：白】\nこのスピリットは、相手の白のスピリット/ネクサス/マジックの効果を受けない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-001",
+    "name": "シュライクン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "機獣",
+      "爪鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【重装甲：赤】\nこのスピリットは、相手の赤のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2\nこのスピリットの色とシンボルは緑としても扱う。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-002",
+    "name": "ボブキャッツ",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 1,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-003",
+    "name": "ダーク・カリブー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 2,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。\nLv2『このスピリットのブロック時』\nボイドからコア1個をこのスピリットに置く。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-004",
+    "name": "ライノゴルド",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nこのスピリットは疲労状態でブロックできる。\nLv2･Lv3『このスピリットのブロック時』\nこのスピリットをBP+3000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-005",
+    "name": "ダーク・ガドファント",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\nBP2000以下の相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。\nLv2【重装甲：赤/青】\nこのスピリットは、相手の赤/青のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-006",
+    "name": "ブラン・ファルコン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n自分の白のスピリットすべてをBP+2000する。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-007",
+    "name": "ベア・ポーラー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n相手は、可能ならば必ずターンに1回以上アタックする。\nLv2『このスピリットのブロック時』\nこのスピリットをBP+3000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-008",
+    "name": "ワイズ・モンキー",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「機獣」を持つ自分のスピリットすべての『このスピリットのブロック時』効果すべては、『このスピリットのアタック時』に発揮される。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-009",
+    "name": "猟機獣シルバー・ジャッカル",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手はバーストを発動できない。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-010",
+    "name": "ダーク・ウラノス",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "green",
+      "green"
+    ],
+    "family": [
+      "機獣",
+      "遊精"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv2･Lv3\nこのスピリットは緑のスピリットとしても扱う。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nBP7000以上の相手のスピリット1体を疲労させることで、このスピリットは回復する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個を自分のスピリットに置く。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-011",
+    "name": "ジェット・ガネット",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n相手のネクサス1つを手札に戻す。\n合体条件：コスト4以上\n【合体時】『相手のアタックステップ』\nBP4000以上の相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-012",
+    "name": "氷刃の地底湖",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 3,
+    "reduction": [
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n系統：「機獣」を持つ自分のスピリットすべてをBP+2000する。\nLv2『相手のアタックステップ』\n系統：「機獣」を持つ自分のスピリットがブロックしたとき、ボイドからコア1個をそのスピリットに置く。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-013",
+    "name": "迷子水晶",
+    "type": "nexus",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このネクサスの破壊時』\n自分の手札にある白のスピリットカード1枚を、コストを支払わずに召喚できる。\nLv2\n系統：「機獣」を持つ自分のスピリットすべてに“【重装甲：赤】このスピリットは、相手の赤のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない”を与える。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-014",
+    "name": "ウィンドウォール",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのバトルが終了したとき、アタックステップを終了する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-015",
+    "name": "ドリームホライゾン",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "フラッシュ：\n相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：自分の白のスピリット1体を回復させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-016",
+    "name": "バーストブレイク",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "green"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\nBP合計5000まで相手のスピリットを好きなだけ手札に戻す。\nまたは、相手のバースト1つを破棄する。この効果は、メインステップで使えない。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-X01",
+    "name": "闇皇ナインテイル・ダーク",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復し、このターンの間、このスピリットをBP+3000する。\nLv3『このスピリットのバトル時』\nコスト6以下の相手のスピリット1体を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+    "effects": []
+  },
+  {
+    "cardId": "SD11-X02",
+    "name": "白夜の宝剣ミッドナイト・サン",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 6,
+    "reduction": [
+      "white",
+      "white",
+      "white",
+      "white",
+      "white",
+      "white"
+    ],
+    "family": [
+      "剣刃"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "合体条件：コスト5以上\n【合体時】【重装甲：緑/白/黄/青】\nこのスピリットは、相手の緑/白/黄/青のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\n【合体時】\nこのスピリットの【連鎖】は、条件を無視して発揮する。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": []
+  }
+]
