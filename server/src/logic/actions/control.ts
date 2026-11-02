@@ -4,6 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoUnpayable } from "../keywords/tensho"
+import { rensaConditionIgnored } from "../keywords/rensa"
 import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
@@ -270,7 +271,9 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
               : ((t) => t !== undefined && effectiveBp(state, t.pid, t.inst) >= (cond.event as { targetBpAtLeast: number }).targetBpAtLeast)(
                     ctx.targetInstanceId ? findSpiritAny(state, ctx.targetInstanceId) ?? undefined : undefined,
                 )
-          : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
+          : self !== null && typeof cond.count === "object" && "ownColorSymbols" in cond.count && rensaConditionIgnored(state, owner, self)
+        ? true // 【連鎖】の条件無視（SD11-X02【合体時】）：合体中のブレイヴが rensaIgnoreCondition を持つなら、シンボル条件を満た扱いにする
+        : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
               countEffectCounter(state, owner, self, cond.count, srcType),
           )
     const branch = met ? action.then : action.else

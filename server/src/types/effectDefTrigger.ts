@@ -223,7 +223,7 @@ export type EffectDefTrigger =
           subjectOriginalNexus?: true // 本来はネクサスのカード（スピリットとして扱われているネクサス）
           subjectDifferentNameFromSelf?: true // 主体が発生源と異なるカード名のときのみ
           subjectTeamFilter?: string // CardData.team
-          destroyedByOwnEffect?: { sourceType: CardType; sourceFamily?: string | string[] } // opponentSpiritDestroyed 限定。バトルは含まない。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）
+          destroyedByOwnEffect?: { sourceType: CardType; sourceFamily?: string | string[]; sourceKeyword?: Keyword } // opponentSpiritDestroyed 限定。バトルは含まない。sourceFamily＝発生源カードが静的に持つ系統（配列＝OR）。sourceKeyword＝発生源のスピリットがその場で持つキーワード（【強化】など。Lv・合体条件は spiritHasKeyword が見る）
           destroyedMaxBp?: number // opponentSpiritDestroyed 限定。破壊直前の実効BP
           byBattleOnly?: true // ownSpiritDestroyed 限定
           attackerOnly?: true // ownSpiritDestroyed 限定

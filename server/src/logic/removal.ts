@@ -450,6 +450,7 @@ function fireOwnSpiritDestroyed(
         destroyedBp: effectiveBp(state, ownerPid, inst),
         ...(ownEffect?.sourceType !== undefined ? { ownEffectSourceType: ownEffect.sourceType } : {}),
         ...(ownEffect?.sourceCardId !== undefined ? { ownEffectSourceCardId: ownEffect.sourceCardId } : {}),
+        ...(ownEffect?.sourceInstanceId !== undefined ? { ownEffectSourceInstanceId: ownEffect.sourceInstanceId } : {}),
         families,
         costs: instAllCosts(inst),
     })

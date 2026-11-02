@@ -32,7 +32,62 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『相手のアタックステップ』\n相手のスピリットのアタックによって自分のライフが減ったとき、アタックしたBP5000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【強化】を持つ自分のスピリットが相手のスピリットを破壊したとき、相手のネクサス1つを破壊する。",
-    "effects": []
+    "effects": [
+   {
+    "id": "SD10-013-e1",
+    "kind": "fieldEvent",
+    "event": "ownLifeDamaged",
+    "levels": [
+     1,
+     2
+    ],
+    "byAttackOnly": true,
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 5000,
+      "attackingOnly": true
+     }
+    }
+   },
+   {
+    "id": "SD10-013-e2",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     2
+    ],
+    "turn": "own",
+    "winnerKeywordFilter": "kyoka",
+    "action": {
+     "type": "destroy",
+     "nexus": "only",
+     "count": 1
+    }
+   },
+   {
+    "id": "SD10-013-e3",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "destroyedByOwnEffect": {
+     "sourceType": "spirit",
+     "sourceKeyword": "kyoka"
+    },
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "nexus": "only",
+     "count": 1
+    }
+   }
+  ]
   },
   {
     "cardId": "SD10-014",

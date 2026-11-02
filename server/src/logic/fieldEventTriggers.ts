@@ -6,7 +6,7 @@ import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
 import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, suspend, resolveInOrder } from "./GameState"
-import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, combinedBraveColorsOk, hostsOf, matchesTarget } from "../../../shared/rules"
+import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
 import { fireBurstOnEvent } from "./keywords/burst"
@@ -73,6 +73,8 @@ export function fireFieldEventTriggers(
         // event: "opponentSpiritDestroyed" 限定：破壊した側（発火する側）の効果による破壊のときの、その発生源の種別とカードID（destroyedByOwnEffect の判定に使う）
         ownEffectSourceType?: CardType
         ownEffectSourceCardId?: string
+        // destroyedByOwnEffect.sourceKeyword の判定に使う発生源の個体（場にいなければ sourceKeyword は不成立）
+        ownEffectSourceInstanceId?: string
         // event: "ownSpiritDestroyed" 限定：**相手のスピリットの**効果による破壊か（byOpponentSpiritEffectOnly の判定に使う）
         bySpiritEffect?: boolean
         // event: "ownSpiritDestroyed" 限定：破壊した効果の発生源の種別（opponentEffectSourceTypes の判定に使う）
@@ -260,6 +262,12 @@ export function fireFieldEventTriggers(
                 if (want.sourceFamily !== undefined) {
                     const fams = eventInfo.ownEffectSourceCardId !== undefined ? getCard(eventInfo.ownEffectSourceCardId).family : []
                     if (!(Array.isArray(want.sourceFamily) ? want.sourceFamily : [want.sourceFamily]).some((f) => fams.includes(f))) continue
+                }
+                // sourceKeyword（SD10-013「【強化】を持つ自分のスピリットが破壊したとき」）：発生源の個体が
+                // その場でキーワードを持つか（Lv・合体条件込み）。マジック等の発生源は個体が無いので不成立
+                if (want.sourceKeyword !== undefined) {
+                    const src = eventInfo.ownEffectSourceInstanceId !== undefined ? findSpiritAny(state, eventInfo.ownEffectSourceInstanceId) : undefined
+                    if (!src || !spiritHasKeywordOrLabel(state, src.pid, src.inst, want.sourceKeyword)) continue
                 }
             }
             if (effect.destroyedMaxBp !== undefined && !(eventInfo?.destroyedBp !== undefined && eventInfo.destroyedBp <= effect.destroyedMaxBp)) continue

@@ -715,3 +715,9 @@ export type EffectDefContinuous =
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           action: EffectAction
       }
+    | {
+          id: string
+          kind: "rensaIgnoreCondition" // 合体中のブレイヴの【合体時】効果。ホストスピリットの【連鎖】の条件（if ownColorSymbols）を無視して発揮させる（SD11-X02）
+          levels: number[] | null
+          whileCombined?: true
+      }

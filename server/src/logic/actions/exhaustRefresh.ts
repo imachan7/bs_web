@@ -277,6 +277,12 @@ const exhaustCore = (ctx: ActionCtx, action: ExhaustNum): void => {
         // 未指定時（自動選択・対象choice共通）は対象が常に相手側（opp）のため、疲労免疫を無条件でフィルタする
         // 疲労耐性は候補列挙（pickEnemy*）へ op:"exhaust" を渡すことで効く
         const matchesCandidate = (s: CardInstance) => !s.isRested && matchesLevel(s) && !action.excludeIds?.includes(s.instanceId)
+        // highestLevel（SD13-005 連鎖「最もLvの高い相手のスピリット1体を疲労させる」）：候補の最大Lvへ
+        // 絞る。同Lvが複数残れば候補全員が level に一致するので、対話時は対象選択に回る
+        if (action.filter?.highestLevel) {
+            const pool = pickEnemyCandidates(state, opp, Infinity, matchesCandidate, srcColors, srcType, "exhaust")
+            if (pool.length > 0) filter.level = [pool.reduce((m, s) => Math.max(m, currentLevel(s).level), 0)]
+        }
         // 対象指定時はその1体のみ処理（既に疲労済み・levelFilter不一致ならログを出して何もしない）
         if (targetInstanceId && !action.excludeTarget) {
             const found = findSpiritAny(state, targetInstanceId)

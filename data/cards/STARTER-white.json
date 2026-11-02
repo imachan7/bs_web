@@ -972,6 +972,26 @@
     "braveCondition": {
       "minCost": 5
     },
-    "effects": []
+    "effects": [
+   {
+    "id": "SD11-X02-e1",
+    "kind": "keyword",
+    "keyword": "heavyArmor",
+    "levels": null,
+    "whileCombined": true,
+    "colors": [
+     "green",
+     "white",
+     "yellow",
+     "blue"
+    ]
+   },
+   {
+    "id": "SD11-X02-e2",
+    "kind": "rensaIgnoreCondition",
+    "levels": null,
+    "whileCombined": true
+   }
+  ]
   }
 ]
