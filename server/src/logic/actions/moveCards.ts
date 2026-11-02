@@ -341,13 +341,13 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
     deliver(best)
 }
 
-// オープン中のカード（GameState.revealedCards）から。pick 無し・count:"all" でデッキ/トラッシュ/手札行きは「残り」（revealRest：デッキへは戻す順番を選ばせる）。
-// それ以外は選んだ1枚ずつ revealApplyOne へ送る。count:1 の自動選択はコスト最大（同コストは前）、2以上と "all" は前から（旧 reveal のまま）
 function candidatesForAsk(ctx: ActionCtx, action: MoveCards): boolean {
     const zone = ctx.state.revealedCards
     return !!zone && zone.cardIds.some((id) => matchesPick(id, action.pick, undefined, ctx.sourceCardId))
 }
 
+// オープン中のカード（GameState.revealedCards）から。pick 無し・count:"all" でデッキ/トラッシュ/手札行きは「残り」（revealRest：デッキへは戻す順番を選ばせる）。
+// それ以外は選んだ1枚ずつ revealApplyOne へ送る。count:1 の自動選択はコスト最大（同コストは前）、2以上と "all" は前から（旧 reveal のまま）
 function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const zone = state.revealedCards
