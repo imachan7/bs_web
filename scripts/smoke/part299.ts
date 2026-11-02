@@ -180,6 +180,7 @@ console.log("=== P: ブレイヴの合体上限を2つにする（BS13-X01 Lv1-3
 console.log("=== Q: 継続で実効BPを固定する（X011【合体時】Lv2） ===")
 {
     const s = game("q-bp-as")
+    s.phase = "attack" // 見出し『自分のアタックステップ』（2026-11-02 まではメインステップでも効いていた）
     const p1 = s.players.p1
     // X011 は Lv2（維持コア5）で【合体時】。ブレイヴ1つを合体させて条件を満たす
     const zodiac = createInstance("X011", s.turn, 5)

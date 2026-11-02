@@ -136,7 +136,7 @@ export function tenshoSelfCostBonus(state: GameState, ownerPid: PlayerId, inst: 
     for (const effect of getCard(inst.cardId).effects) {
         if (effect.kind !== "tenshoSelfCostBonus") continue
         if (effect.target === "ownAll") continue // 自身のエントリでも ownAll 版は②で数える
-        if (!effectActiveAtLevel(effect.levels, instLevel)) continue
+        if (!entryActive(state, ownerPid, inst, effect, instLevel)) continue
         noteCoverage(effect, "tenshoSelfCostBonus")
         bonus += effect.amount
     }
