@@ -2,7 +2,7 @@
 // 使い方: PORT=3100 tsx server/src/index.ts を起動してから PORT=3100 tsx scripts/e2e.ts
 import { io, type Socket } from "socket.io-client"
 import type { GameAction, GameView, PlayerId } from "../server/src/type"
-import { DECK_RECIPES } from "../data/constants"
+import { TEST_DECK_RECIPES } from "../data/constants"
 
 import { loadAllCards } from "../data/loadCards"
 
@@ -183,8 +183,8 @@ function assert(cond: boolean, label: string): void {
 
 async function main(): Promise<void> {
     console.log("=== 接続とゲーム開始 ===")
-    const c1 = await connect("アキラ", { deck: "red" })
-    const c2 = await connect("ユウキ", { deck: "purple" })
+    const c1 = await connect("アキラ", { deck: "sd01_blazing" })
+    const c2 = await connect("ユウキ", { deck: "sd04_deathcross" })
     assert(c1.playerId === "p1", "1人目はp1")
     assert(c2.playerId === "p2", "2人目はp2")
 
@@ -211,16 +211,16 @@ async function main(): Promise<void> {
     c2.socket.disconnect()
 
     console.log("=== カスタムデッキでの参加 ===")
-    // DECK_RECIPES.red 相当の40枚を deckCards（cardId -> 枚数）として送信する
+    // TEST_DECK_RECIPES.red 相当の40枚を deckCards（cardId -> 枚数）として送信する
     // （cardId は constants.ts の定義を流用。smoke で cards.json との一致を検証済み）
-    const customCards: Record<string, number> = { ...DECK_RECIPES.red!.cards }
+    const customCards: Record<string, number> = { ...TEST_DECK_RECIPES.red!.cards }
     const d1 = await connect("カスタム太郎", {
         roomId: "e2e-custom",
         deckCards: customCards,
     })
     const d2 = await connect("プリセット花子", {
         roomId: "e2e-custom",
-        deck: "purple",
+        deck: "sd04_deathcross",
     })
     assert(d1.playerId === "p1" && d2.playerId === "p2", "カスタムデッキで参加できる")
 
@@ -262,7 +262,7 @@ async function main(): Promise<void> {
     // 自分対自分で操作できない状態になっていた（2026-08-13 利用者報告）。
     // 2回目は参加の取り消しになり、席が空く
     {
-        const dup = await connect("二度押し太郎", { roomId: "e2e-dup", deck: "red" })
+        const dup = await connect("二度押し太郎", { roomId: "e2e-dup", deck: "sd01_blazing" })
         assert(dup.playerId === "p1", "1回目でp1に座る")
         const cancelled = await new Promise<string>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error("joinCancelled が届きませんでした")), 3000)
@@ -274,12 +274,12 @@ async function main(): Promise<void> {
                 clearTimeout(timer)
                 reject(new Error("2回目の参加でゲームが始まってしまいました（自分対自分）"))
             })
-            dup.socket.emit("join", { roomId: "e2e-dup", name: "二度押し太郎", deck: "red" })
+            dup.socket.emit("join", { roomId: "e2e-dup", name: "二度押し太郎", deck: "sd01_blazing" })
         })
         assert(cancelled === "e2e-dup", "2回目の参加は取り消される（ゲームは始まらない）")
 
         // 取り消した後は、別の人がその席に座れる
-        const other = await connect("あとから花子", { roomId: "e2e-dup", deck: "purple" })
+        const other = await connect("あとから花子", { roomId: "e2e-dup", deck: "sd04_deathcross" })
         assert(other.playerId === "p1", "空いた席（p1）に別の人が入れる")
         other.socket.disconnect()
         dup.socket.disconnect()
@@ -293,8 +293,8 @@ async function main(): Promise<void> {
         assert(enabled.enabled === true, "ローカル実行ではデバッグ機能が有効になる")
 
         const roomId = "e2e-debug"
-        const d1 = await connect("盤面太郎", { roomId, deck: "red" })
-        const d2 = await connect("盤面次郎", { roomId, deck: "blue" })
+        const d1 = await connect("盤面太郎", { roomId, deck: "sd01_blazing" })
+        const d2 = await connect("盤面次郎", { roomId, deck: "sd02" })
         await d1.nextState() // 対戦開始の配信
 
         const board = {
@@ -342,7 +342,7 @@ async function main(): Promise<void> {
     console.log("=== ランダムマッチ ===")
     {
         const a = open("待ち子")
-        a.socket.emit("randomMatch", { name: "待ち子", deck: "red" })
+        a.socket.emit("randomMatch", { name: "待ち子", deck: "sd01_blazing" })
         const queued = await a.once<{ waiting: number }>("matchQueued")
         assert(queued.waiting === 1, "1人目は待機列に並ぶ（待ち人数1）")
 
@@ -350,7 +350,7 @@ async function main(): Promise<void> {
         // マッチは2人目の送信と同時に成立するので、待ち受けを**送信前に**登録しておく
         const aFound = a.once<{ roomId: string }>("matchFound")
         const bFound = b.once<{ roomId: string }>("matchFound")
-        b.socket.emit("randomMatch", { name: "来た郎", deck: "blue" })
+        b.socket.emit("randomMatch", { name: "来た郎", deck: "sd02" })
         const [fa, fb] = await Promise.all([aFound, bFound])
         assert(fa.roomId === fb.roomId, "2人が同じルームでマッチする")
         assert(fa.roomId.startsWith("match-"), `ルームIDは自動生成される（${fa.roomId}）`)
@@ -366,7 +366,7 @@ async function main(): Promise<void> {
     console.log("=== ランダムマッチの取り消し ===")
     {
         const c = open("やめ子")
-        c.socket.emit("randomMatch", { name: "やめ子", deck: "green" })
+        c.socket.emit("randomMatch", { name: "やめ子", deck: "sd04" })
         await c.once("matchQueued")
         const cancelled = c.once("matchCancelled")
         c.socket.emit("cancelRandomMatch")
@@ -375,7 +375,7 @@ async function main(): Promise<void> {
 
         // 取り消した人は列に残らない：次に並んだ人は「待ち人数1」になる（マッチしてしまわない）
         const d = open("次の人")
-        d.socket.emit("randomMatch", { name: "次の人", deck: "white" })
+        d.socket.emit("randomMatch", { name: "次の人", deck: "sd01_diamond" })
         const q = await d.once<{ waiting: number }>("matchQueued")
         assert(q.waiting === 1, "取り消した人は列に残らない")
         c.socket.disconnect()
@@ -387,10 +387,10 @@ async function main(): Promise<void> {
         // ランダムマッチで待ちながら合言葉ルームにも座れてしまうと、後からマッチが成立したときに
         // 同じ socket が2つのルームに座り、action がどちらの対戦に届くか分からなくなる
         const e = open("しびれ切れ子")
-        e.socket.emit("randomMatch", { name: "しびれ切れ子", deck: "red" })
+        e.socket.emit("randomMatch", { name: "しびれ切れ子", deck: "sd01_blazing" })
         await e.once("matchQueued")
         const cancelledByJoin = e.once("matchCancelled")
-        e.socket.emit("join", { roomId: "e2e-queue-then-join", name: "しびれ切れ子", deck: "red" })
+        e.socket.emit("join", { roomId: "e2e-queue-then-join", name: "しびれ切れ子", deck: "sd01_blazing" })
         const joined = await e.once<{ playerId: PlayerId }>("joined")
         await cancelledByJoin
         assert(joined.playerId === "p1", "待機中でも合言葉ルームには座れる")
@@ -398,7 +398,7 @@ async function main(): Promise<void> {
 
         // 待機列が空になっているので、次に並んだ人は「待ち人数1」になる（幽霊が残っていない）
         const f = open("次の人")
-        f.socket.emit("randomMatch", { name: "次の人", deck: "blue" })
+        f.socket.emit("randomMatch", { name: "次の人", deck: "sd02" })
         const q = await f.once<{ waiting: number }>("matchQueued")
         assert(q.waiting === 1, "合言葉ルームへ移った人は待機列に残らない")
         e.socket.disconnect()
@@ -412,7 +412,7 @@ async function main(): Promise<void> {
         // AI には低コスト確定のデッキを渡す（手札事故でテストが落ちないように。AI_TEST_DECK の注記を参照）
         c.socket.emit("startAi", {
             name: "ひとり太郎",
-            deck: "red",
+            deck: "sd01_blazing",
             aiDeckCards: AI_TEST_DECK,
             aiName: "AI紫",
         })
