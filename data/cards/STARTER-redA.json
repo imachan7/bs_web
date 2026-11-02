@@ -549,7 +549,9 @@
         "bp": 3000
       }
     ],
-    "symbol": [],
+    "symbol": [
+      "red"
+    ],
     "flash": false,
     "rarity": "R",
     "limited": false,

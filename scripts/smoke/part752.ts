@@ -53,7 +53,7 @@ console.log("=== 前提: カードの機械確認 ===")
     t(PAKI, "頭竜人パキケファロン", "spirit", ["red"], ["地竜", "竜人"], 4)
     t(PENTA, "ペンタケラトップ", "spirit", ["red"], ["地竜"], 5)
     t(SHOCK, "ショックイーター", "spirit", ["green"], ["樹魔"], 2)
-    t(TAL, "タランドーズ", "spirit", ["green"], [], 6)
+    t(TAL, "タランドーズ", "spirit", ["green"], ["殻人"], 6)
     t(BANFA, "戦闘獣バン・ファロー", "spirit", ["blue"], ["戦獣"], 5)
     t(FIELD, "燃えさかる戦場", "nexus", ["red"], [], 3)
     t(DINON, "ディノニクソー", "spirit", ["red"], ["地竜"], 1)
@@ -84,7 +84,7 @@ console.log("=== 前提: カードの機械確認 ===")
     assert(JSON.stringify(c(TYRANO).reduction) === JSON.stringify(["red", "red", "red"]), "ティラノザウラーの軽減は[赤]×3")
     assert(JSON.stringify(c(BLADE).reduction) === JSON.stringify(["red", "red", "red"]), "ダーク・ブレードの軽減は[赤]×3")
     assert(JSON.stringify(c(PHOENIX).reduction) === JSON.stringify(["red", "red", "red"]), "フェニック・ソードの軽減は[赤]×3")
-    assert(c(RENSA).effect.includes("【連鎖】"), "ブロンソードザウルスは【連鎖】持ち")
+    assert(c(RENSA).effect.includes("【連鎖"), "ブロンソードザウルスは【連鎖】持ち")
     assert(c(PHOENIX).symbol.length === 0, "フェニック・ソードはシンボルを持たない")
 }
 
@@ -396,7 +396,7 @@ scenario({
         "自分.リザーブ: 10 → 5", // コスト5。自分の赤シンボル0つ
         "自分.トラッシュのコア: 0 → 5",
         "自分.トラッシュ: なし → ラッシュドロー",
-        "自分.デッキ枚数: 40 → 38", // 2ドロー＋1枚回収。残った1枚はデッキの上に戻る
+        "自分.デッキ枚数: 40 → 37", // 2ドロー＋オープン2枚のうち1枚回収。残った1枚はデッキの上に戻る
     ],
 })
 
@@ -508,9 +508,8 @@ scenario({
         const pc = t.state.pendingChoice
         if (pc) {
             assert(pc.pid === t.me, "アタック時効果の対象は自分が選ぶ")
-            const opt = pc.options?.find((o) => o.includes("ゴラドン"))
-            assert(opt !== undefined, "対象の候補にゴラドンがいる")
-            t.act("me", { type: "resolveChoice", option: opt as string })
+            assert((pc.candidates ?? []).includes(t.id("ゴラドン")), "対象の候補にゴラドンがいる")
+            t.act("me", { type: "resolveChoice", instanceId: t.id("ゴラドン") })
         }
         t.closeFlash()
         t.act("opp", { type: "block", instanceId: t.id("ディノハウンド") })
@@ -541,9 +540,8 @@ scenario({
         const pc = t.state.pendingChoice
         if (pc) {
             assert(pc.pid === t.me, "アタック時効果の対象は自分が選ぶ")
-            const opt = pc.options?.find((o) => o.includes("ゴラドン"))
-            assert(opt !== undefined, "対象の候補にゴラドンがいる")
-            t.act("me", { type: "resolveChoice", option: opt as string })
+            assert((pc.candidates ?? []).includes(t.id("ゴラドン")), "対象の候補にゴラドンがいる")
+            t.act("me", { type: "resolveChoice", instanceId: t.id("ゴラドン") })
         }
         t.closeFlash()
         t.act("opp", { type: "block", instanceId: t.id("ディノハウンド") })

@@ -119,7 +119,7 @@
     "rarity": "EX",
     "limited": false,
     "effect": "Lv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターン中に1回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2『このスピリットのアタック時』\nコスト3以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [{"id":"EX023-e1","kind":"keyword","keyword":"kyoshu","count":1,"levels":[1,2]},{"id":"EX023-e2","kind":"triggered","trigger":"onAttack","levels":[1,2],"optional":false,"action":{"type":"pay","cost":{"type":"exhaust","side":"own","nexusOnly":true,"count":1},"then":{"type":"refresh","target":"self"},"limitByKeyword":"kyoshu"}},{"id":"EX023-e3","kind":"triggered","trigger":"onAttack","levels":[2],"optional":false,"action":{"type":"destroy","count":1,"filter":{"cost":{"max":3}}}}]
   },
   {
     "cardId": "SD03-007",
@@ -155,7 +155,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\nこのスピリットの色とシンボルは赤としても扱う。",
-    "effects": []
+    "effects": [{"id":"SD03-007-e1","kind":"colorAs","levels":[1,2],"colors":["red"]}]
   },
   {
     "cardId": "SD03-008",
@@ -191,7 +191,7 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドから、このスピリットのLvと同じ個数のコアを、自分のネクサス1つの上に置く。",
-    "effects": []
+    "effects": [{"id":"SD03-008-e1","kind":"triggered","trigger":"onAttack","levels":[1,2],"optional":false,"action":{"type":"placeCores","from":"void","to":"nexus","target":"one","count":1,"countCounter":"selfLevel"}}]
   },
   {
     "cardId": "SD03-009",
@@ -353,7 +353,7 @@
       "minCost": 5
     },
     "limitCount": 1,
-    "effects": []
+    "effects": [{"id":"SD03-012-e1","kind":"triggered","trigger":"onAttack","whileCombined":true,"levels":[1],"oncePerTurn":true,"optional":false,"action":{"type":"pay","cost":{"type":"discard","from":"deck","side":"own","count":5},"then":{"type":"refresh","target":"self"}}}]
   },
   {
     "cardId": "SD03-014",
@@ -438,7 +438,7 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\n相手のコスト3以下のスピリット1体を破壊する。\nまたは、自分のトラッシュにあるネクサスカード1枚を手札に戻す。",
-    "effects": []
+    "effects": [{"id":"SD03-017-e1","kind":"magic","timing":"flash","action":{"type":"chooseActionMode","modes":[{"label":"相手のコスト3以下のスピリット1体を破壊する","actions":[{"type":"destroy","count":1,"filter":{"cost":{"max":3}}}]},{"label":"自分のトラッシュにあるネクサスカード1枚を手札に戻す","actions":[{"type":"moveCards","from":"trash","count":1,"dest":"hand","pick":{"cardType":"nexus"}}]}]}}]
   },
   {
     "cardId": "SD16-001",
@@ -473,7 +473,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2\n系統：「闘神」を持つ自分のスピリットが相手によって破壊されたとき、相手のデッキを上から2枚破棄する。",
-    "effects": []
+    "effects": [{"id":"SD16-001-e1","kind":"fieldEvent","event":"ownSpiritDestroyed","levels":[1,2],"subjectFilter":{"family":"闘神"},"byOpponentOnly":true,"action":{"type":"discard","from":"deck","side":"opponent","count":2}}]
   },
   {
     "cardId": "SD16-002",
@@ -509,7 +509,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2【強化】\nアルティメット以外の自分の「相手へのデッキ破棄効果」の枚数を+1枚する。\nLv2『このスピリットの破壊時』\nコスト4以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [{"id":"SD16-002-e1","kind":"keyword","keyword":"kyoka","kyoka":"deckMill","levels":[1,2]},{"id":"SD16-002-e2","kind":"triggered","trigger":"onDestroy","levels":[2],"optional":false,"action":{"type":"destroy","count":1,"filter":{"cost":{"max":4}}}}]
   },
   {
     "cardId": "SD16-003",
@@ -545,7 +545,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2【強化】\nアルティメット以外の自分の「相手へのデッキ破棄効果」の枚数を+1枚する。\nLv2\n自分の青のネクサスすべては、相手のスピリット/ブレイヴ/ネクサス/マジックの効果では破壊されない。",
-    "effects": []
+    "effects": [{"id":"SD16-003-e1","kind":"keyword","keyword":"kyoka","kyoka":"deckMill","levels":[1,2]},{"id":"SD16-003-e2","kind":"globalConstraint","levels":[2],"constraint":{"type":"ownNexusIndestructible","colors":["blue"],"sourceTypes":["spirit","brave","nexus","magic"]}}]
   },
   {
     "cardId": "SD16-004",
@@ -707,7 +707,7 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のネクサス1つを破壊することで、相手のデッキを上から7枚破棄する。\n【合体時】Lv2『相手のアタックステップ』\nコスト4以下の相手のスピリットはアタックできない。",
-    "effects": []
+    "effects": [{"id":"SD16-006-e1","kind":"triggered","trigger":"onSummon","levels":[1,2],"optional":false,"action":{"type":"pay","cost":{"type":"destroy","nexus":"only","count":1},"then":{"type":"discard","from":"deck","side":"opponent","count":7}}},{"id":"SD16-006-e2","kind":"globalConstraint","levels":[2],"whileCombined":true,"phase":"attack","turn":"opponent","constraint":{"type":"opponentCantAttackByCost","costs":[0,1,2,3,4]}}]
   },
   {
     "cardId": "SD16-007",
@@ -747,7 +747,7 @@
     "braveCondition": {
       "family": "闘神"
     },
-    "effects": []
+    "effects": [{"id":"SD16-007-e1","kind":"triggered","trigger":"onSummon","levels":[1],"optional":false,"action":{"type":"placeCores","from":"void","to":"nexus","target":"one","count":1}},{"id":"SD16-007-e2","kind":"triggered","trigger":"onAttack","whileCombined":true,"levels":[1],"optional":false,"action":{"type":"destroy","count":1,"filter":{"cost":{"max":3}}}}]
   },
   {
     "cardId": "SD16-008",
@@ -854,6 +854,6 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコスト5以下の相手のスピリット1体を破壊する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n相手のデッキを上から5枚破棄する。\nLv2･Lv3『このスピリットのアタック時』\nターンに1回、系統：「闘神」を持つ自分のスピリット1体を疲労させることで、このスピリットは回復する。",
-    "effects": []
+    "effects": [{"id":"SD16-X01-e1","kind":"triggered","trigger":"onSummon","levels":[1,2,3],"optional":false,"action":{"type":"destroy","count":1,"filter":{"cost":{"max":5}}}},{"id":"SD16-X01-e2","kind":"triggered","trigger":"onAttack","levels":[1,2,3],"optional":false,"action":{"type":"discard","from":"deck","side":"opponent","count":5}},{"id":"SD16-X01-e3","kind":"triggered","trigger":"onAttack","levels":[2,3],"oncePerTurn":true,"optional":false,"action":{"type":"pay","cost":{"type":"exhaust","side":"own","count":1,"filter":{"family":"闘神"}},"then":{"type":"refresh","target":"self"}}}]
   }
 ]

@@ -1697,7 +1697,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2【強化】\n自分の「BP-効果」を-1000する。\nLv2\n相手のスピリットがBP0になったとき、BP0になったスピリットすべてを疲労させる。",
-    "effects": [{"id": "SD15-002-e1", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpMinus", "levels": [1, 2]}, {"id": "SD15-002-e2", "kind": "fieldEvent", "event": "opponentSpiritBpReachedZero", "levels": [2], "action": {"type": "exhaust", "count": 1, "all": true, "filter": {"maxBp": 0}}}]
+    "effects": [{"id": "SD15-002-e1", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpMinus", "levels": [1, 2]}, {"id": "SD15-002-e2", "kind": "fieldEvent", "event": "opponentSpiritBpReachedZero", "levels": [2], "selfMode": "source", "action": {"type": "exhaust", "count": 1, "all": true, "filter": {"maxBp": 0}}}]
   },
   {
     "cardId": "SD15-003",
@@ -1821,7 +1821,7 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【強化】\n自分の「BP-効果」を-1000する。\nLv2･Lv3『相手のアタックステップ』\nBP4000以下の相手のスピリットのアタックでは、自分のライフは減らない。\nLv3『このスピリットの破壊時』\nこのスピリットは手札に戻る。",
-    "effects": [{"id": "SD15-005-e1", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpMinus", "levels": [1, 2, 3]}, {"id": "SD15-005-e2", "kind": "globalConstraint", "levels": [2, 3], "phase": "attack", "turn": "opponent", "constraint": {"type": "noLifeDamageByCost", "maxBp": 4000, "ownOnly": true}}, {"id": "SD15-005-e3", "kind": "reviveOnDestroy", "levels": [3], "scope": "self", "revived": {"toHand": true}}]
+    "effects": [{"id": "SD15-005-e1", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpMinus", "levels": [1, 2, 3]}, {"id": "SD15-005-e2", "kind": "globalConstraint", "levels": [2, 3], "phase": "attack", "turn": "opponent", "constraint": {"type": "noLifeDamageByCost", "maxBp": 4000, "ownOnly": true}}, {"id": "SD15-005-e3", "kind": "reviveOnDestroy", "levels": [3], "scope": "self", "when": {}, "revived": {"toHand": true}}]
   },
   {
     "cardId": "SD15-006",
@@ -1882,7 +1882,7 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nこのターンの間、相手のスピリットがBP0になったとき、BP0になったスピリットすべてを疲労させる。\nその後、このターンの間、相手のスピリット1体をBP-2000する。",
-    "effects": [{"id": "SD15-007-e1", "kind": "magic", "timing": "flash", "action": {"type": "lendSelfThisTurn"}}, {"id": "SD15-007-e2", "kind": "fieldEvent", "event": "opponentSpiritBpReachedZero", "levels": null, "lentOnly": true, "action": {"type": "exhaust", "count": 1, "all": true, "filter": {"maxBp": 0}}}, {"id": "SD15-007-e3", "kind": "magic", "timing": "flash", "action": {"type": "bpMinus", "amount": 2000, "count": 1}}]
+    "effects": [{"id": "SD15-007-e1", "kind": "magic", "timing": "flash", "action": {"type": "lendSelfThisTurn"}}, {"id": "SD15-007-e2", "kind": "fieldEvent", "event": "opponentSpiritBpReachedZero", "levels": null, "lentOnly": true, "selfMode": "source", "action": {"type": "exhaust", "count": 1, "all": true, "filter": {"maxBp": 0}}}, {"id": "SD15-007-e3", "kind": "magic", "timing": "flash", "action": {"type": "bpMinus", "amount": 2000, "count": 1}}]
   },
   {
     "cardId": "SD15-008",

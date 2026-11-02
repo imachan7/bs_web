@@ -116,7 +116,7 @@ scenario({
     start: {
         phase: "attack",
         me: { spirits: [{ card: "SD14-X01", label: "ヘラク", cores: 1 }, { card: INE, cores: 1 }] },
-        opp: { spirits: [{ card: VANILLA }, { card: ORYX }] },
+        opp: { spirits: [{ card: VANILLA }] },
     },
     steps(t) {
         t.act("me", { type: "attack", instanceId: t.id("ヘラク") })
@@ -136,7 +136,7 @@ scenario({
     start: {
         phase: "attack",
         me: { spirits: [{ card: "SD14-X01", label: "ヘラク", cores: 1 }, { card: INE, cores: 1 }] },
-        opp: { spirits: [{ card: VANILLA }, { card: ORYX }] },
+        opp: { spirits: [{ card: VANILLA }] },
     },
     steps(t) {
         t.act("me", { type: "attack", instanceId: t.id("イネゴバッタ") })
@@ -276,14 +276,14 @@ scenario({
     name: "sd15-002-lv2-bp0-exhausts",
     start: {
         me: { hand: [PRESS], spirits: [{ card: "SD15-002", cores: 2 }] },
-        opp: { spirits: [{ card: MANTIS, cores: 1 }] },
+        opp: { spirits: [{ card: VANILLA, cores: 3 }] },
     },
     steps(t) {
         t.act("me", { type: "castMagic", handIndex: 0 })
     },
     expect: [
-        "相手.ディオ・マンティス.BP: 3000 → 0",
-        "相手.ディオ・マンティス.疲労: false → true",
+        "相手.ロクケラトプス.BP: 4000 → 0",
+        "相手.ロクケラトプス.疲労: false → true",
         "自分.リザーブ: 10 → 8",
         "自分.トラッシュのコア: 0 → 2",
         "自分.手札: エンジェリックプレッシャー → なし",
@@ -295,13 +295,13 @@ scenario({
     name: "sd15-002-lv1-bp0-no-exhaust",
     start: {
         me: { hand: [PRESS], spirits: [{ card: "SD15-002", cores: 1 }] },
-        opp: { spirits: [{ card: MANTIS, cores: 1 }] },
+        opp: { spirits: [{ card: VANILLA, cores: 3 }] },
     },
     steps(t) {
         t.act("me", { type: "castMagic", handIndex: 0 })
     },
     expect: [
-        "相手.ディオ・マンティス.BP: 3000 → 0",
+        "相手.ロクケラトプス.BP: 4000 → 0",
         "自分.リザーブ: 10 → 8",
         "自分.トラッシュのコア: 0 → 2",
         "自分.手札: エンジェリックプレッシャー → なし",
@@ -393,11 +393,10 @@ scenario({
     expect: [
         "自分.天使アーチェル.場所: フィールド → なし",
         "自分.トラッシュ: なし → 天使アーチェル",
-        "自分.リザーブ: 10 → 11",
         "相手.ロクケラトプス.疲労: false → true",
         "相手.ブラックマッハジー.疲労: false → true",
         "自分.ライフ: 5 → 4",
-        "自分.リザーブ: 10 → 11",
+        "自分.リザーブ: 10 → 12",
     ],
 })
 
@@ -454,7 +453,6 @@ scenario({
         t.closeFlash()
         t.act("opp", { type: "block", instanceId: t.id("ロクケラトプス") })
         t.closeFlash()
-        t.act("opp", { type: "takeLife" })
     },
     expect: [
         "相手.ロクケラトプス.BP: 4000 → 2000",
@@ -701,14 +699,14 @@ scenario({
     name: "sd15-007-bp0-exhaust-then-minus",
     start: {
         me: { hand: ["SD15-007"] },
-        opp: { spirits: [{ card: VANILLA, cores: 1 }] },
+        opp: { spirits: [{ card: ORYX, cores: 1 }] },
     },
     steps(t) {
         t.act("me", { type: "castMagic", handIndex: 0 })
     },
     expect: [
-        "相手.ロクケラトプス.BP: 1000 → 0",
-        "相手.ロクケラトプス.疲労: false → true",
+        "相手.オリクス盗賊団.BP: 2000 → 0",
+        "相手.オリクス盗賊団.疲労: false → true",
         "自分.リザーブ: 10 → 7",
         "自分.トラッシュのコア: 0 → 3",
         "自分.手札: アセンションゼロ → なし",
@@ -749,7 +747,7 @@ scenario({
     },
     expect: [
         "自分.手札: マジカルドロー → 天使パティエル、天使マカエル",
-        "自分.デッキ枚数: 10 → 4",
+        "自分.デッキ枚数: 10 → 8",
         "自分.リザーブ: 10 → 5",
         "自分.トラッシュのコア: 0 → 5",
         "自分.トラッシュ: なし → マジカルドロー",
@@ -847,9 +845,8 @@ scenario({
     expect: [
         "相手.ディオ・マンティス.場所: フィールド → なし",
         "相手.トラッシュ: なし → ディオ・マンティス",
-        "相手.リザーブ: 10 → 11",
+        "相手.リザーブ: 10 → 12",
         "相手.ライフ: 5 → 4",
-        "自分.リザーブ: 10 → 11",
         "自分.戦天使イクセル.疲労: false → true",
     ],
 })
@@ -874,7 +871,7 @@ scenario({
         "自分.リザーブ: 10 → 11",
         "自分.戦天使イクセル.疲労: false → true",
         "相手.手札: フレイムガスト → なし",
-        "相手.リザーブ: 10 → 4",
+        "相手.リザーブ: 10 → 5",
         "相手.トラッシュのコア: 0 → 6",
         "相手.トラッシュ: なし → フレイムガスト",
         "相手.ライフ: 5 → 4",
