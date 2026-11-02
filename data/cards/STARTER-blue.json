@@ -227,6 +227,9 @@
       }
     ],
     "braveConditionText": "コスト5以上",
+    "braveCondition": {
+      "minCost": 5
+    },
     "limitCount": 1,
     "effects": []
   },
@@ -563,6 +566,9 @@
       }
     ],
     "braveConditionText": "闘神",
+    "braveCondition": {
+      "family": "闘神"
+    },
     "effects": []
   },
   {

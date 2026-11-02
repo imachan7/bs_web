@@ -173,6 +173,9 @@
       }
     ],
     "braveConditionText": "コスト5以上",
+    "braveCondition": {
+      "minCost": 5
+    },
     "effects": []
   },
   {
@@ -245,6 +248,9 @@
       }
     ],
     "braveConditionText": "コスト4以上",
+    "braveCondition": {
+      "minCost": 4
+    },
     "effects": []
   },
   {
@@ -670,6 +676,9 @@
       }
     ],
     "braveConditionText": "コスト4以上",
+    "braveCondition": {
+      "minCost": 4
+    },
     "effects": []
   },
   {
@@ -923,6 +932,9 @@
       }
     ],
     "braveConditionText": "コスト5以上",
+    "braveCondition": {
+      "minCost": 5
+    },
     "effects": []
   }
 ]
