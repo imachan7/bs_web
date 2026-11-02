@@ -363,4 +363,78 @@ scenario({
     ],
 })
 
+console.log("=== 9. コントン召喚時『相手のスピリットすべてをLv1』：スピリットの効果を受けない耐性は無いので、マジン・ゴレムの（マジックへの）耐性はアラディンを守らない ===")
+{
+    const ALADDIN = "BS17-049" // ロック・アラディン（青・Lv1 1コア/3000・Lv2 4コア/5000）
+    const GOLEM = "BS17-054" // マジン・ゴレム（青・Lv1 1コア/5000・Lv2 4コア/9000）
+    assert(getCard(ALADDIN).name === "ロック・アラディン" && getCard(GOLEM).name === "マジン・ゴレム", "ALADDIN/GOLEMの名前")
+    scenario({
+        name: "aladdin-golem-vs-konton",
+        start: {
+            me: { hand: [KONTON] },
+            opp: {
+                spirits: [
+                    { card: ALADDIN, label: "アラディン", cores: 4 },
+                    { card: GOLEM, label: "ゴレム", cores: 4 },
+                ],
+            },
+        },
+        steps(t) {
+            t.act("me", { type: "summon", handIndex: 0 })
+        },
+        expect: [
+            "自分.手札: 凶獣コントン → なし",
+            "自分.凶獣コントン.場所: なし → フィールド",
+            "自分.凶獣コントン.疲労: なし → false",
+            "自分.凶獣コントン.コア: なし → 1",
+            "自分.凶獣コントン.Lv: なし → 1",
+            "自分.凶獣コントン.BP: なし → 2000",
+            "自分.リザーブ: 10 → 5",
+            "自分.トラッシュのコア: 0 → 4",
+            "相手.アラディン.Lv: 2 → 1",
+            "相手.アラディン.BP: 5000 → 3000",
+            "相手.ゴレム.Lv: 2 → 1",
+            "相手.ゴレム.BP: 9000 → 5000",
+        ],
+    })
+}
+
+console.log("=== 10. キャッツアイ（メイン）：マジックの効果を受けないアラディンは対象の候補に出ず、ゴレムは候補に出る ===")
+{
+    const ALADDIN = "BS17-049"
+    const GOLEM = "BS17-054"
+    scenario({
+        name: "aladdin-immune-to-magic-catseye",
+        start: {
+            interactive: true,
+            me: { hand: [CATS_EYE] },
+            opp: {
+                spirits: [
+                    { card: ALADDIN, label: "アラディン", cores: 4 },
+                    { card: GOLEM, label: "ゴレム", cores: 4 },
+                ],
+            },
+        },
+        steps(t) {
+            t.act("me", { type: "castMagic", handIndex: 0, timing: "main" })
+            // 候補がゴレム1体だけなら自動で決まる。アラディンが選ばれた場合は expect の差分で落ちる
+            const pc = t.state.pendingChoice as PendingChoice | null
+            if (pc !== null) {
+                assert(pc.kind === "target", "キャッツアイの対象選択")
+                assert(!pc.candidates.includes(t.id("アラディン")), "アラディンは候補に出ない（マジックの効果を受けない）")
+                assert(pc.candidates.includes(t.id("ゴレム")), "ゴレムは候補に出る")
+                t.act("me", { type: "resolveChoice", instanceId: t.id("ゴレム") })
+            }
+        },
+        expect: [
+            "自分.手札: キャッツアイ → なし",
+            "自分.リザーブ: 10 → 7",
+            "自分.トラッシュ: なし → キャッツアイ",
+            "自分.トラッシュのコア: 0 → 3",
+            "相手.ゴレム.Lv: 2 → 1",
+            "相手.ゴレム.BP: 9000 → 5000",
+        ],
+    })
+}
+
 console.log("すべてのチェックに合格しました 🎉（part766）")

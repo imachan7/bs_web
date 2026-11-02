@@ -331,16 +331,14 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         return
     }
     if (action.content.some((c) => c.type === "level")) {
-        // 耐性のあるスピリットは記録時点の分だけ除く。後から場に出たスピリットには耐性を見ない（記録は判定のたびに照合するため）
-        const exceptInstanceIds = (["p1", "p2"] as PlayerId[])
-            .flatMap((p) => state.players[p].field.spirits.map((s) => ({ p, s })))
-            .filter(({ p, s }) => (pid === undefined || pid === p) && resistanceAgainst(state, p, s, attemptOf(ctx, "other", "area")) !== null)
-            .map(({ s }) => s.instanceId)
+        // 耐性は記録時でなく、計算し直すたびに判定する（state/continuous.ts の applyTimedCopies）。後から耐性を得た／失った個体も正しくなる
         recordTimed(state, {
             content: action.content,
-            target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}), ...(exceptInstanceIds.length > 0 ? { exceptInstanceIds } : {}) },
+            target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
             until: bpUntil(action),
             ownerPid: owner,
+            ...(ctx.srcType !== undefined ? { sourceType: ctx.srcType } : {}),
+            ...(ctx.srcColors !== undefined ? { sourceColors: ctx.srcColors } : {}),
         })
         const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
         const lv = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")!
