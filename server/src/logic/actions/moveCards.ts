@@ -343,12 +343,34 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
 
 // オープン中のカード（GameState.revealedCards）から。pick 無し・count:"all" でデッキ/トラッシュ/手札行きは「残り」（revealRest：デッキへは戻す順番を選ばせる）。
 // それ以外は選んだ1枚ずつ revealApplyOne へ送る。count:1 の自動選択はコスト最大（同コストは前）、2以上と "all" は前から（旧 reveal のまま）
+function candidatesForAsk(ctx: ActionCtx, action: MoveCards): boolean {
+    const zone = ctx.state.revealedCards
+    return !!zone && zone.cardIds.some((id) => matchesPick(id, action.pick, undefined, ctx.sourceCardId))
+}
+
 function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
     const { state, owner, self, sourceName, chosenCardIndex } = ctx
     const zone = state.revealedCards
     if (!zone) return
     const dest = action.dest
     if (dest === "exMark") return
+    // 承認後の再入は ask を外した同じ action で来るので二度聞かない。断ると確認の解決側が再開スタックの次の手順へ進む
+    if (action.ask && state.interactiveTargets && chosenCardIndex === undefined && candidatesForAsk(ctx, action)) {
+        const { ask: _ask, ...confirmed } = action
+        // requestActivationConfirm は moveCardsPayable（revealed を数えない）で不発扱いにするので、同じ形の確認を直接出す
+        suspend(state, {
+            pid: owner,
+            kind: "option",
+            prompt: `${sourceName}：${destLabel(action)}しますか？`,
+            candidates: [],
+            options: ["発動する"],
+            optional: true,
+            confirm: true,
+            action: confirmed,
+            selfInstanceId: self ? self.instanceId : null,
+        })
+        return
+    }
     if (action.pick === undefined && action.count === "all") {
         if (dest !== "deckTop" && dest !== "deckBottom" && dest !== "deckTopOrBottom" && dest !== "trash" && dest !== "hand") return
         ctx.resolve({ type: "revealRest", destPid: zone.pid, rest: dest }, { sourceColors: ctx.srcColors, sourceType: ctx.srcType })

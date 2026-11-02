@@ -457,7 +457,8 @@
                   "max": 2
                 }
               },
-              "orHand": true
+              "orHand": true,
+              "ask": true
             },
             {
               "type": "moveCards",

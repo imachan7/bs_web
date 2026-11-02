@@ -5609,7 +5609,8 @@
         ]
        },
        "tensho": "none",
-       "noSummonEffects": true
+       "noSummonEffects": true,
+       "ask": true
       },
       {
        "type": "moveCards",
