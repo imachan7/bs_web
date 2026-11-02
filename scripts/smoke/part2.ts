@@ -48,6 +48,7 @@ import {
     lockedFor,
 } from "./helpers"
 import type { GameState } from "./helpers"
+import { TEST_DECK_RECIPES } from "../../data/constants"
 import { cardHasColor } from "../../shared/rules"
 
 console.log("=== フラッシュ封じアクション（lockFlash） ===")
@@ -603,7 +604,7 @@ console.log("=== voidCoreToSelf / voidCoreToSelfPer: ボイドから自身の上
 }
 
 console.log("=== カードデータの検証 ===")
-for (const [name, recipe] of Object.entries(DECK_RECIPES)) {
+for (const [name, recipe] of Object.entries({ ...DECK_RECIPES, ...TEST_DECK_RECIPES })) {
     const total = Object.values(recipe.cards).reduce((a, b) => a + b, 0)
     // デッキは**40枚以上**（ちょうどではない。2026-08-16 ユーザー指摘。
     // 構築済みデッキには42枚のものがある＝SD04 ジーク進化レボリューション）
@@ -637,8 +638,8 @@ console.log("=== 第二弾（BS02）データの検証 ===")
 
 console.log("=== カスタムデッキ検証（validateDeckCards） ===")
 {
-    // DECK_RECIPES.red 相当の40枚（cardId はレシピ定義を流用。実在チェックは上のループ済み）
-    const base: Record<string, number> = { ...DECK_RECIPES.red!.cards }
+    // TEST_DECK_RECIPES.red 相当の40枚（cardId はレシピ定義を流用。実在チェックは上のループ済み）
+    const base: Record<string, number> = { ...TEST_DECK_RECIPES.red!.cards }
     assert(validateDeckCards(base) === null, "有効な40枚デッキは合格")
 
     const short: Record<string, number> = { ...base, "BS01-114": 2 }

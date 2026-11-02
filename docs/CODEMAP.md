@@ -386,7 +386,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `getCard`（fn）
 - `createInstance`（fn）
 - `validateDeckCards`（fn）：カスタムデッキの内容を検証する。問題があれば日本語のエラーメッセージ、なければ null を返す
-- `buildDeck`（fn）：色キー（DECK_RECIPES）またはカスタムカードリストからデッキ（cardId の配列）を構築する
+- `buildDeck`（fn）：レシピのキーまたはカスタムカードリストからデッキ（cardId の配列）を構築する
 - `createGame`（fn）
 - `opponentOf`（fn）
 - `log`（fn）
@@ -1042,7 +1042,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `Color`（型）
 - `CardType`（型）：ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 - `ImmuneSource`（型）
-- `DeckSpec`（型）：デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
+- `DeckSpec`（型）：デッキの指定方法: DECK_RECIPES・TEST_DECK_RECIPES のキー（"sd02"・テスト用の "red" 等）またはカスタムデッキのカードリスト（cardId…
 - `LevelDef`（型）：スピリット/ネクサスのレベル定義（ネクサスは bp: 0）
 - `BraveConditionTerm`（型）：ブレイヴの合体条件（docs/design/BRAVE.md §2.2）。読点区切りの複数条件は配列＝OR。
 - `BraveCondition`（型）

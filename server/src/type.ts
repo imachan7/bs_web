@@ -51,7 +51,7 @@ export type ImmuneSource = "spirit" | "brave" | "magic" // immuneToOpponentEffec
 // 丸めると装甲が過剰に効く。一方、合体中にブレイヴがホストへ付与している効果の発生源は
 // **合体スピリット＝スピリット**なので、そちらは装甲で防げる
 
-// デッキの指定方法: DECK_RECIPES の色キー（"red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
+// デッキの指定方法: DECK_RECIPES・TEST_DECK_RECIPES のキー（"sd02"・テスト用の "red" 等）またはカスタムデッキのカードリスト（cardId -> 枚数）
 export type DeckSpec = string | Record<string, number>
 
 // スピリット/ネクサスのレベル定義（ネクサスは bp: 0）

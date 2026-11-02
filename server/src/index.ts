@@ -392,7 +392,7 @@ function resolveDeckSpec(deck: unknown, deckCards: unknown): { deck: DeckSpec } 
         if (deckError) return { error: `デッキが不正です: ${deckError}` }
         return { deck: deckCards as DeckSpec }
     }
-    const name = String(deck || "red")
+    const name = String(deck || "sd01_blazing")
     if (!DECK_RECIPES[name]) return { error: "不明なデッキです" }
     return { deck: name }
 }
