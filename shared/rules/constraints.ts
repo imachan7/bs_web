@@ -627,6 +627,17 @@ export function instCantAttackByCost(board: Board, inst: CardInstance): boolean 
                 const constraint = effect.constraint
                 if (constraint.type !== "cantAttackByCost") continue
                 if (!entryActive(board, pid, source, effect, level)) continue
+                // phase/turn指定時は発生源の持ち主(pid)基準でのステップ限定（instCantAttackByOpponentCostと同じ読み）
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (
+                    effect.turn !== undefined &&
+                    effect.turn !== "both" &&
+                    (effect.turn === "own") !== (board.turnPlayer === pid)
+                )
+                    continue
+                // condition.ownSpiritMatches：持ち主のフィールドにこの絞り込みに合うスピリットがいる間だけ有効
+                const matches = effect.condition?.ownSpiritMatches
+                if (matches !== undefined && !board.players[pid].field.spirits.some((s) => matchesTarget(board, pid, s, matches, source.instanceId))) continue
                 if (costsOfAttacker.some((cost) => constraint.costs.includes(cost))) {
                     noteCoverage(effect, "globalConstraint")
                     return true
@@ -660,7 +671,7 @@ export function instCantBlockByCost(board: Board, inst: CardInstance): boolean {
 // アタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない。
 // instCantAttackByCostと同じ両陣営走査だが、こちらは「不可」でなく「要求」を返す判定なので専用関数にする
 // （BS13-043鳥人イカロッシュ）
-export function instAttackRequiresCoreToll(board: Board, inst: CardInstance): boolean {
+export function instAttackRequiresCoreToll(board: Board, attackerPid: PlayerId, inst: CardInstance): boolean {
     const costsOfAttacker = instAllCosts(inst)
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(board, pid)) {
@@ -670,7 +681,20 @@ export function instAttackRequiresCoreToll(board: Board, inst: CardInstance): bo
                 const constraint = effect.constraint
                 if (constraint.type !== "attackRequiresCoreToll") continue
                 if (!entryActive(board, pid, source, effect, level)) continue
-                if (costsOfAttacker.some((cost) => cost <= constraint.maxCost)) return true
+                // side:"opponent"指定時は発生源の持ち主(pid)から見た相手のアタックだけ
+                if (constraint.side === "opponent" && attackerPid === pid) continue
+                // phase/turn指定時は発生源の持ち主(pid)基準（attackPayTollCountと同じ読み）
+                if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                if (
+                    effect.turn !== undefined &&
+                    effect.turn !== "both" &&
+                    (effect.turn === "own") !== (board.turnPlayer === pid)
+                )
+                    continue
+                const maxCost = constraint.maxCost
+                if (maxCost !== undefined && !costsOfAttacker.some((cost) => cost <= maxCost)) continue
+                if (constraint.filter !== undefined && !matchesTarget(board, attackerPid, inst, constraint.filter, source.instanceId)) continue
+                return true
             }
         }
     }
@@ -706,7 +730,7 @@ export function attackPayTollCount(board: Board, attackerPid: PlayerId, inst: Ca
 
 // アタックの宣言でリザーブからトラッシュへ置くコアの合計（attackRequiresCoreToll の1個と attackPayToll）
 export function attackTollTotal(board: Board, attackerPid: PlayerId, inst: CardInstance): number {
-    return (instAttackRequiresCoreToll(board, inst) ? 1 : 0) + attackPayTollCount(board, attackerPid, inst)
+    return (instAttackRequiresCoreToll(board, attackerPid, inst) ? 1 : 0) + attackPayTollCount(board, attackerPid, inst)
 }
 
 // 器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：

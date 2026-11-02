@@ -36,7 +36,52 @@
     "rarity": "EX",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nコスト4以下の相手のスピリット1体を指定し、そのスピリットにアタックできる。\nLv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。",
-    "effects": []
+    "effects": [
+      {
+        "id": "EX006-e1",
+        "kind": "constraint",
+        "levels": [
+          1,
+          2
+        ],
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "any",
+          "targetMaxCost": 4
+        }
+      },
+      {
+        "id": "EX006-e2",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": [
+          2
+        ]
+      },
+      {
+        "id": "EX006-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      }
+    ]
   },
   {
     "cardId": "EX023",
@@ -185,7 +230,84 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト4以下の相手のスピリット1体を破壊する。\nLv1･Lv2【強襲：1】『このスピリットのアタック時』\nこのスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復する。\nLv2『相手のアタックステップ』\n自分の合体スピリットがいる間、コスト4以下のスピリットはアタックできない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD03-009-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 4
+            }
+          }
+        }
+      },
+      {
+        "id": "SD03-009-e2",
+        "kind": "keyword",
+        "keyword": "kyoshu",
+        "count": 1,
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "SD03-009-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "nexusOnly": true,
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          },
+          "limitByKeyword": "kyoshu"
+        }
+      },
+      {
+        "id": "SD03-009-e4",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "condition": {
+          "ownSpiritMatches": {
+            "combined": true
+          }
+        },
+        "constraint": {
+          "type": "cantAttackByCost",
+          "costs": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    ]
   },
   {
     "cardId": "SD03-012",
@@ -265,7 +387,37 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『お互いのメインステップ』\nスピリット/ネクサス/マジックの効果でスピリットを召喚できない。\nLv2『相手のアタックステップ』\n合体していない相手のスピリットがアタックするとき、相手は、相手のリザーブのコア1個をトラッシュに置かなければアタックできない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD03-014-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "main",
+        "constraint": {
+          "type": "noSummonByEffect",
+          "spiritOnly": true
+        }
+      },
+      {
+        "id": "SD03-014-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "constraint": {
+          "type": "attackRequiresCoreToll",
+          "side": "opponent",
+          "filter": {
+            "combined": false
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "SD03-017",
@@ -434,7 +586,33 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。\nLv2･Lv3『相手のアタックステップ』\nコスト3以下の相手のスピリットがアタックするとき、相手は、相手のリザーブのコア1個を相手のトラッシュに置かなければアタックできない。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD16-004-e1",
+        "kind": "keyword",
+        "keyword": "funsai",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "SD16-004-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "constraint": {
+          "type": "attackRequiresCoreToll",
+          "maxCost": 3,
+          "side": "opponent"
+        }
+      }
+    ]
   },
   {
     "cardId": "SD16-005",

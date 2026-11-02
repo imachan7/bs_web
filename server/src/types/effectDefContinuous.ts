@@ -166,7 +166,7 @@ export type EffectDefContinuous =
           whileOwnBurstSet?: true
           whileSelfAttacking?: true // アタック中窓。hasGlobalConstraintが見る
           constraint: GlobalConstraintDef // 持ち主を問わず効く。ただしownNexusIndestructibleは持ち主自身のみ
-          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number } }
+          condition?: { ownVanillaSpiritsAtLeast?: number; allOwnNexusesHaveColor?: Color; allOwnNexusesHaveFamily?: string; ownNexusCountExactly?: number; ownFamilyCountAtLeast?: { family: FamilyFilter; count: number }; ownSpiritMatches?: ResolvedTargetFilter }
           phase?: Phase
           turn?: "own" | "opponent" | "both" // opponentCantAttackByCostのopponentは「相手のアタックステップ」
       }

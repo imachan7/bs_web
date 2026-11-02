@@ -42,6 +42,7 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
         for (const p of both) {
             for (const { effect } of globalConstraintsOf(state, p, "noSummonByEffect", true)) {
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
+                if (effect.constraint.spiritOnly && card.type !== "spirit") continue
                 return "効果による召喚が禁じられています"
             }
         }
