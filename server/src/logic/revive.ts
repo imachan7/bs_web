@@ -52,6 +52,7 @@ import {
     autoPayPlan,
     payCost,
     canExhaustNexus,
+    exhaustNexus,
     exhaustSpirit,
     fireSummonSequence,
     resolveAction,
@@ -128,6 +129,92 @@ export function wouldAskReviveConfirm(
     const inst = state.players[ownerPid].field.spirits.find((s) => s.instanceId === instanceId)
     if (!inst) return false
     return tryReviveOnDestroy(state, ownerPid, inst, context, undefined, true, "confirm")
+}
+
+// ネクサス版の reviveOnDestroy（scope:"ownNexus"）。破壊待機中のネクサスを、発生源（別の
+// 自分のネクサス）のコストで場に残す。removal.ts の driveNexusDestruction がコミット直前に呼ぶ。
+// true＝復活した、または確認を出した（どちらでもコミットは実質何もしない／断られたときだけ破壊される）
+export function tryNexusReviveOnDestroy(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+): boolean {
+    const player = state.players[ownerPid]
+    for (const source of player.field.nexuses) {
+        if (source.instanceId === inst.instanceId) continue
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "reviveOnDestroy" || effect.scope !== "ownNexus") continue
+            // ネクサス版のコストは発生源の疲労のみ（cost.exhaustSelf）。ほかのコスト種は対応しない
+            if (effect.cost?.exhaustSelf !== true) continue
+            if (!entryActive(state, ownerPid, source, effect, currentLevel(source).level)) continue
+            if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
+            // コストはこのネクサスの疲労のみ。破壊待機状態のネクサスは疲労できないので、
+            // 発生源自身が破壊されているとき（同時破壊）もここで落ちる
+            if (source.pendingDestruction || source.isRested || !canExhaustNexus(state, ownerPid)) continue
+            if (state.interactiveTargets) {
+                suspend(state, {
+                    pid: ownerPid,
+                    kind: "option",
+                    prompt: `${getCard(inst.cardId).name}：${getCard(source.cardId).name}を疲労させて、破壊される代わりに疲労状態でフィールドに残しますか？`,
+                    candidates: [],
+                    options: ["疲労させて残す"],
+                    optional: true,
+                    confirm: true,
+                    reviveNexusConfirm: {
+                        pid: ownerPid,
+                        instanceId: inst.instanceId,
+                        sourceInstanceId: source.instanceId,
+                        effectId: effect.id,
+                    },
+                    action: { type: "noop" },
+                    selfInstanceId: inst.instanceId,
+                })
+                return true
+            }
+            applyNexusRevive(state, ownerPid, inst, source, effect)
+            return true
+        }
+    }
+    return false
+}
+
+// 確認で「残す」が選ばれたときの後処理（choice.ts から呼ぶ）。コストを払って復活を確定させる。
+// 発生源が確認のあいだに疲労・破壊されてコストが払えなくなったら不発（破壊はコミットで行われる）
+export function applyNexusReviveConfirm(
+    state: GameState,
+    entry: NonNullable<PendingChoice["reviveNexusConfirm"]>,
+): void {
+    const player = state.players[entry.pid]
+    const inst = player.field.nexuses.find((n) => n.instanceId === entry.instanceId)
+    const source = player.field.nexuses.find((n) => n.instanceId === entry.sourceInstanceId)
+    if (!inst || !source || !inst.pendingDestruction) return
+    const effect = getCard(source.cardId).effects.find(
+        (e): e is Extract<EffectDef, { kind: "reviveOnDestroy" }> =>
+            e.kind === "reviveOnDestroy" && e.id === entry.effectId && e.scope === "ownNexus",
+    )
+    if (!effect || effect.cost?.exhaustSelf !== true || source.isRested || source.pendingDestruction || !canExhaustNexus(state, entry.pid)) {
+        log(state, `${getCard(source.cardId).name}：コストを払えないため発動しなかった。`)
+        return
+    }
+    applyNexusRevive(state, entry.pid, inst, source, effect)
+}
+
+function applyNexusRevive(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    source: CardInstance,
+    effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+): void {
+    if (!exhaustNexus(state, ownerPid, source, ownerPid, getCard(source.cardId).type)) return
+    delete inst.pendingDestruction
+    inst.isRested = true
+    inst.nexusReviveStayed = true
+    noteCoverage(effect, "reviveOnDestroy")
+    log(
+        state,
+        `${state.players[ownerPid].name}の${getCard(inst.cardId).name}は、${getCard(source.cardId).name}の効果で破壊される代わりに疲労状態でフィールドに残った。`,
+    )
 }
 
 // この破壊で成立しうる「フィールドに残る／戻る」のエントリを集める（**副作用ありに変わった**：

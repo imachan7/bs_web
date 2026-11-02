@@ -712,7 +712,44 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『相手のアタックステップ』\n系統：「機獣」を持つ自分のスピリットすべてをBP+2000する。\nLv2『相手のアタックステップ』\n系統：「機獣」を持つ自分のスピリットがブロックしたとき、ボイドからコア1個をそのスピリットに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD11-012-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": "機獣",
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "opponent"
+          }
+        }
+      },
+      {
+        "id": "SD11-012-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDeclaredBlock",
+        "levels": [
+          2
+        ],
+        "subjectFilter": {
+          "family": "機獣"
+        },
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "spirit",
+          "target": "self",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "SD11-013",

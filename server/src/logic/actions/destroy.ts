@@ -666,15 +666,14 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
                 return
             }
             const scope = currentRecordScope(state)
-            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) })) {
+            // 「相手のネクサスを破壊した場合、ドローする」：自分のネクサスを壊したときは引かない。
+            // ドローは破壊のコミットで確定したときだけ解決する（ネクサス版 reviveOnDestroy で場に残ったら引かない）
+            const drawAfter =
+                action.drawPerDestroyed && victim.pid === opp
+                    ? { actorPid: owner, action: { type: "draw" as const, count: action.drawPerDestroyed } }
+                    : undefined
+            if (destroyNexus(state, victim.pid, victim.n.instanceId, { sourcePid: owner, ...(srcType ? { sourceType: srcType } : {}) }, drawAfter)) {
                 recordMoved(state, [victim.n.cardId], scope)
-                // 「相手のネクサスを破壊した場合、ドローする」：自分のネクサスを壊したときは引かない
-                if (action.drawPerDestroyed && victim.pid === opp) {
-                    const draw: EffectAction = { type: "draw", count: action.drawPerDestroyed }
-                    // 破壊で誘発した効果が選択待ちを立てたら、ドローはその解決の後に回す（下の相手側の経路と同じ）
-                    if (state.pendingChoice) pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: draw }])
-                    else ctx.resolve(draw)
-                }
             }
             return
         }

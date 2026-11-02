@@ -781,7 +781,38 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2\n自分のネクサスが破壊されたとき、このネクサスを疲労させることで、破壊された青のネクサス1つを疲労状態でフィールドに残す。\nLv2\n系統：「闘神」を持つ自分のスピリットすべてに“【粉砕】『このスピリットのアタック時』相手のデッキを上から、このスピリットのLvと同じ枚数破棄する”を与える。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD16-008-e1",
+        "kind": "reviveOnDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "scope": "ownNexus",
+        "filter": {
+          "color": "blue"
+        },
+        "cost": {
+          "exhaustSelf": true
+        },
+        "revived": {
+          "rested": true
+        },
+        "optional": true,
+        "when": {}
+      },
+      {
+        "id": "SD16-008-e2",
+        "kind": "keywordGrant",
+        "levels": [
+          2
+        ],
+        "keyword": "funsai",
+        "target": "ownAll",
+        "familyFilter": "闘神"
+      }
+    ]
   },
   {
     "cardId": "SD16-X01",
