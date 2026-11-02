@@ -35,6 +35,10 @@
 - 取り込み時に足すもの：待機状態の改訂の残りの規則（[PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2）、発生源の属性で絞る貫通（耐性ごとの発生源の記録が要る）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
 
+### 進行中：構築済みデッキ SD03〜SD18（ブランチ `feat/starter-decks`。計画は [STARTER_PLAN.md](./docs/design/STARTER_PLAN.md)）
+
+- 124種をプールへ。BS20-074 を先に入れるので、BS20 の取り込みではこの1枚を飛ばす
+
 ### 既知の残り（触るときに読む）
 
 - 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
