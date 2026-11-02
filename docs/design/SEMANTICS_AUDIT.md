@@ -112,6 +112,23 @@ S7 の5件はユーザー確認のうえ**すべて直した**（→ §5）。**
 **ここは `check-effect-gaps.ts` のカテゴリ4が既に苦労して避けた領域**（見出しとエントリの索引対応は信頼できない）。
 S4 は「候補を出して人が見る」道具として使い、対応付けの精密化はやらない。
 
+### 2.4 第3回（2026-11-02）：道具の検出力の確認と、見えていなかった2か所
+
+BS17〜19・プロモ・構築済みデッキを入れた後に、軸ごとに**正しい印をわざと消して検出されるか**を確かめた（新しい弾のカードだけ。消して戻すスクリプトはジョブの tmp）。
+S1 は12/12。S6・S7 の見逃しはすべて正当（`turn:"own"` の等価表現、【暴風】の定型文、「〜しなければ発揮できない」の制約文）。見えていなかったのは次の2か所で、道具を直した:
+
+- **S6 のイベント一覧が 9-13 のまま**だった。今は `anySpiritSummoned`・`anyBraveSummoned`・`anySpiritCombined`・`anySpiritReturnedToHand`・`opponentSpiritBpReachedZero`・`anySpiritDeclaredBlock` でも主体が入れ替わる（`fieldEventTriggers.ts` の `contextOf` は selfOverride があれば持ち主を実行者にする）。データの該当は全部が主体に依存しない書き方で、実バグは0
+- **S4 が見る見出しがアタックステップ・自分のスタートステップ・ターンの6種類だけ**だった。メイン・エンド・コア・ドロー・リフレッシュと相手・お互いのスタートを足し、候補は7件→35件。前からの7件（BS18〜19・P063・SD10）も未仕分けだった
+
+S4 の35件の仕分け（途中）：性質上そのステップでしか起きないもの（`coreStepBonus`、リフレッシュステップの制約、ブロック中・アタック中だけ意味のある制約、`noDrawInMain` のような名前にステップを含む禁止、`ownMainStepOnly` を持つもの、ハンドラがメインステップを見ている `exhaustOnManualCoreAdd`）は無害。
+**実バグの疑い**（`entryActive` はステップの欄を読まず、限定はハンドラごとに書く作りのため、データに `phase` を足しても直らない）:
+
+| カード | 見出し | 外れている所 |
+| :-- | :-- | :-- |
+| BS08-003・012・021・039・048（`tenshoCoreSubstitute`）、BS08-040・049（`onTenshoTarget`）、BS08-031・057（`tenshoSelfCostBonus`）、SD02-013（`alsoCostGrant`） | 『自分のメインステップ』 | 【転召】は効果による召喚（`summon.ts`）・復活（`revive.ts`）からも解決されるが、`keywords/tensho.ts` がステップを見ていない |
+| BS08-066-e1・BS13-003-e1（`fieldEvent` `ownSpiritSummoned`） | 『自分のメインステップ』 | `phase` が無く、【神速】や効果で召喚したときも発火する |
+| BS13-062-e1（`costMod` `mode:"set"`） | 『自分のメインステップ』 | `costSetOverride`（`shared/cost.ts`）が `phaseTurn` を見ない（`costModTotal` は見る） |
+
 ## 3. ここから確定した一般則（実装するときに守ること）
 
 ### 3.1 `fieldEvent` は**イベント対象の持ち主**が解決の主体になる

@@ -452,7 +452,17 @@ const TIMING_PATTERNS: { re: RegExp; side: Side; phase: string | null; label: st
     { re: /自分のアタックステップ/, side: "own", phase: "attack", label: "自分のアタックステップ" },
     { re: /相手のアタックステップ/, side: "opponent", phase: "attack", label: "相手のアタックステップ" },
     { re: /お互いのアタックステップ/, side: "both", phase: "attack", label: "お互いのアタックステップ" },
-    { re: /自分のスタートステップ/, side: "own", phase: "start", label: "自分のスタートステップ" },
+    // 2026-11-02 にアタック・スタート以外のステップも見るようにした（それまでメイン・エンド等は素通りしていた。
+    // §3.3 の「BP増減・レベル読み替え・対象変更は必ず限定を書く」はステップを問わないため）
+    ...(["start", "core", "draw", "refresh", "main", "end"] as const).flatMap((phase) => {
+        const ja = { start: "スタート", core: "コア", draw: "ドロー", refresh: "リフレッシュ", main: "メイン", end: "エンド" }[phase]
+        return ([["自分", "own"], ["相手", "opponent"], ["お互い", "both"]] as const).map(([who, side]) => ({
+            re: new RegExp(`${who}の${ja}ステップ`),
+            side: side as Side,
+            phase,
+            label: `${who}の${ja}ステップ`,
+        }))
+    }),
     { re: /自分のターン/, side: "own", phase: null, label: "自分のターン" },
     { re: /相手のターン/, side: "opponent", phase: null, label: "相手のターン" },
 ]
@@ -530,6 +540,10 @@ function collectTimingDeclarations(effects: Record<string, unknown>[]): { phase:
                 phase: typeof ptObj.phase === "string" ? ptObj.phase : null,
                 turn: isTurnValue(ptObj.turn) ? ptObj.turn : "both",
             })
+        }
+        // 起動能力の timing:"main"/"end" は自分のそのステップでだけ使える（相手のターンには起動できない）
+        if (node.kind === "activated" && (node.timing === "main" || node.timing === "end")) {
+            decls.push({ phase: node.timing, turn: "own" })
         }
         const phaseVal = typeof node.phase === "string" ? node.phase : typeof node.step === "string" ? node.step : null
         const turnVal = node.turn
@@ -654,7 +668,13 @@ function collectNumbers(effects: Record<string, unknown>[]): Set<number> {
 //   selfOverride を渡さない残りのイベント … 常に発生源の持ち主で解決される
 //
 // 一致する側と selfOverride 無しの側は、印が無くても主体が入れ替わらないので対象外にする。
-const SELF_SWAP_EVENTS = new Set(["ownBofuExhausted", "anySpiritExhausted", "anySpiritAttacked"])
+// 2026-11-02 に呼び出しを洗い直して6イベントを足した（9-13 の3イベントのままで、後から足したイベントが素通りしていた）。
+// イベントを足したら `grep -rn "fireFieldEventTriggers(" server/src` で発火先と selfOverride.pid が食い違うものをここへ足す
+const SELF_SWAP_EVENTS = new Set([
+    "ownBofuExhausted", "anySpiritExhausted", "anySpiritAttacked",
+    "anySpiritSummoned", "anyBraveSummoned", "anySpiritCombined", "anySpiritReturnedToHand",
+    "opponentSpiritBpReachedZero", "anySpiritDeclaredBlock",
+])
 
 // S6 で「読んで問題なしと確認した」もの。**理由を必ず添える**（次に見る人が再検証しないため）。
 // 機械的な等価表現に落とせないものだけをここに書く（落とせるなら hasSubjectFixedEvidence へ）
@@ -691,7 +711,7 @@ function hasSubjectFixedEvidence(entry: Record<string, unknown>): boolean {
         //                              （BS13-006 炎獣ファイオリック／BS13-061 戴冠する活火山／BS13-063 血塗られた魔具）
         //   endAttackStepAfterBattle … アタックステップの終了はプレイヤーに紐づかない
         //                              （BS13-059 フォビッド・バルチャー／BS14-083 氷結した瀑布）
-        if ((a.type === "destroy" && a.target === "self") || a.type === "endAttackStepAfterBattle") return true
+        if (((a.type === "destroy" || a.type === "exhaust") && a.target === "self") || a.type === "endAttackStepAfterBattle") return true
 
     }
     // 等価表現3: anySpiritAttacked に turn:"own" がある＝自分のターンのアタックに限られる。
