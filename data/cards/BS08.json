@@ -136,6 +136,10 @@
      2,
      3
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "constraint": {
      "type": "tenshoCoreSubstitute"
     }
@@ -757,6 +761,10 @@
      2,
      3
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "constraint": {
      "type": "tenshoCoreSubstitute"
     }
@@ -1364,6 +1372,10 @@
      1,
      2
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "constraint": {
      "type": "tenshoCoreSubstitute"
     }
@@ -2052,6 +2064,10 @@
      2,
      3
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "amount": 3
    }
   ]
@@ -2599,6 +2615,10 @@
      1,
      2
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "constraint": {
      "type": "tenshoCoreSubstitute"
     }
@@ -2669,6 +2689,10 @@
      2,
      3
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -3267,6 +3291,10 @@
      1,
      2
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "constraint": {
      "type": "tenshoCoreSubstitute"
     }
@@ -3335,6 +3363,10 @@
      1,
      2
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "action": {
      "type": "placeCores",
      "from": "void",
@@ -3990,6 +4022,10 @@
     "levels": [
      2
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "amount": 3,
     "target": "ownAll",
     "familyFilter": "冥主"
@@ -4587,6 +4623,8 @@
      1,
      2
     ],
+    "phase": "main",
+    "turn": "own",
     "subjectFilter": {
      "family": "異合"
     },

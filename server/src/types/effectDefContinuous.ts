@@ -380,6 +380,7 @@ export type EffectDefContinuous =
           id: string
           kind: "bpAs"
           levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           whileCombined?: true
           target: "ownSpiritsByFamily" // 現状これだけ対応
           familyFilter: FamilyFilter

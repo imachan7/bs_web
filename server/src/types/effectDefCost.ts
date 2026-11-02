@@ -110,6 +110,7 @@ export type EffectDefCost =
           // 【転召】は「コストN以上の自分のスピリット1体」を生贄に要求するため、これがあると本来コストの足りない自身も生贄に選べる。
           // 効くのは転召の生贄判定だけで、召喚コストやinstAllCosts一般には影響しない
           levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           amount: number
           target?: "ownAll" // 省略時は「このカード自身」（従来＝グングニル）。"ownAll"指定時は持ち主のスピリットすべてが対象
           familyFilter?: FamilyFilter // target:"ownAll"用。指定系統（配列＝OR）を持つスピリットのみ
@@ -126,6 +127,7 @@ export type EffectDefCost =
           id: string
           kind: "alsoCostGrant" // 発生源が場にありレベル有効の間、持ち主のスピリットすべてを「コストNのスピリットとしても扱う」
           levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           target: "ownAll"
           cost?: number // 「このコストとしても扱う」値
           costs?: number[] // 複数の値を同時に与える

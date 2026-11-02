@@ -75,6 +75,8 @@ console.log("=== 3. Q3632：書き換えた後に合体しても、ブレイヴ�
 console.log("=== 4. Q18859：X011 は合体して13000以上のスピリットも12000にする ===")
 {
     const s = game("p386-q18859")
+    s.phase = "attack" // 見出し『自分のアタックステップ』
+    s.turnPlayer = "p1"
     const x011 = put(s, "p1", X011, 5)
     attachBrave(s, "p1", x011, createInstance(KAMYURA, s.turn, 0))
     const pisces = put(s, "p1", PISCES, 3) // Lv2 BP8000
