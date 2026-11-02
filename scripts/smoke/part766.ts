@@ -124,7 +124,8 @@ scenario({
     start: {
         interactive: true,
         me: { hand: [CATS_EYE] },
-        opp: { spirits: [HILDA_LV2, { card: DESPERADO, label: "敵", cores: 4 }] },
+        // 耐性の無い候補を2体置く（候補が1体だと選択を出さずに自動で決まるため。2026-11-03 メインループが追加）
+        opp: { spirits: [HILDA_LV2, { card: DESPERADO, label: "敵", cores: 4 }, { card: VANILLA, label: "素" }] },
     },
     steps(t) {
         t.act("me", { type: "castMagic", handIndex: 0, timing: "main" })
