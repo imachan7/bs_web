@@ -5508,7 +5508,8 @@
      "type": "discard",
      "from": "hand",
      "side": "opponent",
-     "count": 1
+     "count": 1,
+     "random": true
     }
    },
    {
@@ -6294,7 +6295,7 @@
      1,
      2
     ],
-    "optional": false,
+    "optional": true,
     "action": {
      "type": "moveCards",
      "from": "hand",

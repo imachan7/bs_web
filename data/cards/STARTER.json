@@ -433,6 +433,7 @@
         "id": "BSC05-020-e1",
         "kind": "fieldEvent",
         "event": "ownLifeDamaged",
+        "optional": true,
         "levels": [
           1,
           2
