@@ -138,6 +138,27 @@ scenario({
     ],
 })
 
+// 効果による破壊の側（バトルの破壊は上の場面）：Lv3 の輝龍は【強化】を持ち、アタック時の効果で BP6000（5000＋強化1000）以下を破壊する
+console.log("=== SD10-013 Lv2: 【強化】持ち（輝龍 Lv3）がアタック時の効果で相手を破壊したら、相手のネクサスも破壊 ===")
+scenario({
+    name: "yajirutai-kyoka-effect-destroys-nexus",
+    start: {
+        phase: "attack",
+        me: { nexuses: [{ card: YAJIRUTAI, cores: 1 }], spirits: [{ card: SHINING_DRAGON, cores: 4 }] },
+        opp: { spirits: [{ card: MATANGOL }], nexuses: [{ card: MATENRO, cores: 1 }] },
+    },
+    steps(t) {
+        t.act("me", { type: "attack", instanceId: t.id("輝龍シャイニング・ドラゴン") })
+    },
+    expect: [
+        "自分.輝龍シャイニング・ドラゴン.疲労: false → true",
+        "相手.マタンゴル.場所: フィールド → なし",
+        "相手.旅団の摩天楼.場所: ネクサス → なし",
+        "相手.トラッシュ: なし → マタンゴル、旅団の摩天楼",
+        "相手.リザーブ: 10 → 12", // 破壊されたスピリットとネクサスのコア1個ずつ
+    ],
+})
+
 console.log("=== SD10-013 Lv2: 破壊したのが【強化】を持たないスピリットなら（条件を1つ外す）ネクサスは残る ===")
 scenario({
     name: "yajirutai-no-kyoka-no-nexus",

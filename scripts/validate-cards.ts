@@ -66,6 +66,7 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
 const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
     // 【神速】の下の【連鎖】：連鎖元が【神速】そのもの。「【神速】で召喚したとき」を onSummon＋summonedBy:"soku" で書く（BS19_PLAN §2.15）
     ["BS19-024-e2", "神速の連鎖（召喚時の見出しは無い）"],
+    ["SD14-004-e2", "神速の連鎖（召喚時の見出しは無い）"],
     // BS15-X04機獣要塞ナウマンガルド：印刷テキストに『』見出しが無い「相手によって破壊されたとき」節。
     // fieldEvent(selfOnly)にすると、destroySpiritが破壊時トリガーの間instをまだfield.spiritsに残したまま
     // extraSourcesにも同じinstを渡すため、effectSources()とextraSourcesの両方にinstが載って二重発火する
@@ -77,6 +78,7 @@ const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
 
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
+    "rensaIgnoreCondition",
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",

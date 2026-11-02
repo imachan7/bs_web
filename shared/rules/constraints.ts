@@ -609,7 +609,10 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
                 (effect.turn === "own") !== (board.turnPlayer === opp)
             )
                 continue
-            if (constraint.type === "opponentCantAttackByCores" ? inst.cores === constraint.cores : attackerCosts.some((cost) => constraint.costs.includes(cost))) return true
+            if (constraint.type === "opponentCantAttackByCores" ? inst.cores === constraint.cores : attackerCosts.some((cost) => constraint.costs.includes(cost))) {
+                noteCoverage(effect, "globalConstraint")
+                return true
+            }
         }
     }
     return false

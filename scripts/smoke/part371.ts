@@ -23,6 +23,7 @@ const EXPECTED: Record<string, PlayerId | "both"> = {
     skipMainStep: "p2",
     handCostSetForPid: "both",
     handReductionVoidForPid: "p2",
+    cantAttackByCostForPid: "p2",
 }
 
 function collect(): { cardId: string; action: Extract<EffectAction, { type: "timedEffect" }> }[] {
@@ -44,7 +45,7 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 {
     const entries = collect()
     // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
-    assert(entries.length === 31, `playerRule は31か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5。BS19-078 で+1）（実際: ${entries.length}）`)
+    assert(entries.length === 33, `playerRule は33か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5。BS19-078 で+1。構築済みデッキの SD14-003・SD15-003 で+2）（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         // 雷神砲カノン・アームズは直前に破棄したカードの色を読むので、単独で解決しても何も置かない（part281・part426）
         // アブラカダブラは召喚時効果を発揮したスピリットの色（バーストの発動イベント）を読むので、単独では置かない（part622）

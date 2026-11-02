@@ -291,6 +291,40 @@ scenario({
     ],
 })
 
+// 節2の起きる場面（緑・青）：赤と同じ形で、回復した緑／青のスピリットも破壊する（効果エントリが色ごとに分かれているので色ごとに見る）
+for (const [color, cardId, name] of [["緑", "BS01-051", "フライングミラージュ"], ["青", "BS03-072", "槍兵のジェフリー"]] as const) {
+    assert(getCard(cardId).name === name && getCard(cardId).cost === 1 && getCard(cardId).effect.trim() === "", `${cardId}は${name}（${color}・コスト1・バニラ）`)
+    scenario({
+        name: `crown-lv2-destroy-refreshed-${color}`,
+        start: {
+            turn: "opp", phase: "attack",
+            me: { nexuses: [{ card: CROWN, cores: 1 }] }, // Lv2
+            opp: { spirits: [{ card: SANDMAN, cores: 1 }, { card: cardId, label: "標的", cores: 1, rested: true }], hand: [ELIXIR] },
+        },
+        steps(t) {
+            t.act("opp", { type: "attack", instanceId: t.id("相手.サンドマン") })
+            t.act("me", { type: "pass" })
+            t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash" })
+            t.closeFlash()
+            t.act("me", { type: "takeLife" })
+        },
+        expect: [
+            "相手.手札: ピュアエリクサー → なし",
+            "相手.リザーブ: 10 → 8",
+            "相手.トラッシュのコア: 0 → 3",
+            `相手.トラッシュ: なし → ピュアエリクサー、${name}`,
+            "相手.標的.場所: フィールド → なし",
+            "自分.ライフ: 5 → 4",
+            "自分.デッキ枚数: 40 → 39",
+            "自分.ロクケラトプス.場所: なし → フィールド",
+            "自分.ロクケラトプス.疲労: なし → false",
+            "自分.ロクケラトプス.コア: なし → 1",
+            "自分.ロクケラトプス.Lv: なし → 1",
+            "自分.ロクケラトプス.BP: なし → 1000",
+        ],
+    })
+}
+
 // 節2の起きない場面：Lv1 では回復しても破壊しない（ロクは疲労が解けるだけ）
 scenario({
     name: "crown-lv1-no-destroy",

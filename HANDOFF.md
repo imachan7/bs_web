@@ -23,7 +23,7 @@
 
 ### 次の本線：BS20 の取り込み（BS19 は #356。計画の型は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
 
-- 取り込み済みは BS01〜BS19・SD01/02/04/06・プロモ P001〜P084・PX01〜PX19（`data/cards/`）。BS20 から先は staging にも無い
+- 取り込み済みは BS01〜BS19・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS20 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
@@ -34,11 +34,6 @@
 - 新しい禁止・耐性は [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md) の問い合わせへ足す。**新しい行・一般則を設計する前に、主役のカードの batspi.com の公式Q&Aを読む**
 - 取り込み時に足すもの：待機状態の改訂の残りの規則（[PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2）、発生源の属性で絞る貫通（耐性ごとの発生源の記録が要る）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
-
-### 進行中：構築済みデッキ SD03〜SD18（ブランチ `feat/starter-decks`。計画は [STARTER_PLAN.md](./docs/design/STARTER_PLAN.md)）
-
-- 124種をプールへ。BS20-074 を先に入れるので、BS20 の取り込みではこの1枚を飛ばす
-- テスト用の色デッキは `TEST_DECK_RECIPES`（#366）。ブレイヴ入りのデッキが入ったら part261 の `recipesWithBrave > 0` を戻す
 
 ### 既知の残り（触るときに読む）
 
