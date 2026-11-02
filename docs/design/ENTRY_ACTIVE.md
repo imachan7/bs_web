@@ -109,6 +109,7 @@ A+ = 署名に board が無く引数を足す（§2）。B = 置換しない。C
 
 ## 7. 決めたこと（2026-10-23 メインループ）
 
+- **有効な時間帯（#369、2026-11-02）**：`entryActive` はエントリの `phaseTurn{phase?,turn?}` も見る（`turn` は発生源の持ち主から見た own/opponent）。**直下の `phase`／`turn` は読まない**：【氷壁】の turn は「持っているか」に効かず（アイスバーグで置き換えも効く）、`globalConstraint` のアタック義務はメインステップの終わりに先回りして見るなど、器ごとに意味が違う。見出しのステップ限定は `phaseTurn` で書く
 - `entryActive` ＝ Lv が合う（`effectActiveOn` と同じ）かつ、場のネクサスなら「丸ごと止まっていない（`nexusEffectsStopped`）」かつ「新軸 `targetEffectLevels` に当たらない」。丸ごとの判定も中に入れるので、`field.nexuses` を直接走査している所（cost.ts:199,316・removal.ts:960 ほか）と battleWon（stepTriggers.ts:48）も、置き換えれば既存の止める効果が効くようになる（既存の穴の修正。PR に挙動の変化として書く）
 - `nexusEffectsDisabledFor` の中（止める側のエントリを探す走査）は `entryActive` を呼ばない（無限再帰になる）。止める側のエントリ同士の関係は特別扱いしない（042 の Lv1 を含む `nexusEffectsDisabled` も、一般則どおり別の 042 に止められうる。現データでは起きない）
 - クライアント（`activatableAbilityOf`・fieldCard.ts）：共有層の関数は Board を受け取る。クライアントが渡している値で `entryActive` が呼べるならそのまま使う。呼べなければ B に残し、`audit:parity` で差を確かめて PR に限界として書く
