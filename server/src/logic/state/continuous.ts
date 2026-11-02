@@ -148,6 +148,10 @@ export function recordPlayerRule(state: GameState, pid: PlayerId, rule: PlayerRu
 // 1体を BP+（このターン／このバトルの間）。ownerPid＝効果を出した側
 export function recordBp(state: GameState, ownerPid: PlayerId, inst: CardInstance, amount: number, until: "turn" | "battle"): void {
     recordTimed(state, { content: [{ type: "bp", amount }], target: { kind: "instance", instanceId: inst.instanceId }, until, ownerPid })
+    // 「このスピリットの効果でBP0になったとき」の発生源判定用に、効果による下げの原因を残す
+    if (amount < 0 && state.currentEffectSource?.instanceId !== undefined) {
+        state.bpMinusSourceBy = { ...state.bpMinusSourceBy, [inst.instanceId]: state.currentEffectSource.instanceId }
+    }
     // 自分のスピリットがフラッシュ効果のBP+で増えた（相手のスピリットへの+は「自分の」にならないので対象外）
     if (state.flashEffect && amount > 0 && state.players[ownerPid].field.spirits.some((x) => x.instanceId === inst.instanceId)) {
         fireFieldEventTriggers(state, ownerPid, "ownSpiritBpUpByFlash", { pid: ownerPid, inst }, instColors(inst))

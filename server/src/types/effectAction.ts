@@ -108,7 +108,7 @@ export type EffectAction =
  | { type: "peekOpponentHand" } // 相手の手札1枚を**内容を見ないで選び**（ランダム。SEMANTICS_AUDIT.md §3.14）、その内容だけを見る。PlayerState.peekedOpponentCardIds に積み、持ち主の PlayerView にだけ返す
  // all＝countを無視し、各自の手札すべて（枚数は各自バラバラ。count自体は0を置く）
  // countCounter指定時はcountを無視し、EffectCounterの値を破棄枚数として使う（0ならログのみ）
- | { type: "treatAsUnblocked"; when?: "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } } // このバトルの解決で、when を満たせば BP を比べずブロックされなかったものとして扱う（when を省くと無条件）
+ | { type: "treatAsUnblocked"; when?: "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerBpBelowSelf: true } } // このバトルの解決で、when を満たせば BP を比べずブロックされなかったものとして扱う（when を省くと無条件）。blockerBpBelowSelf＝ブロッカーの実効BPが発生源（このスピリット）の実効BPより低いとき
  // 継続効果を期間つきで置く（ACTION_VOCABULARY §3）。対象は相手のスピリット、選ぶのは発生源の持ち主。
  // 内容をすべて既に持つ個体は候補にしない。all:true は個体を選ばず「条件に合うものすべて」をルールとして置く
  // （解決後に場に出たスピリットにも効く。いまは期間 turn だけ）。side と内容 bp は all のときだけ

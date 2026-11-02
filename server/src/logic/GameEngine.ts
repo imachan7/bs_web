@@ -68,6 +68,7 @@ import {
     flushPendingTenshoEvent,
     fireFieldEventTriggers,
     fireBpReachedTriggers,
+    ensureBpSeen,
     fireTrigger,
     hasFunsaiOnBlock,
     hasKyoshuOnBlock,
@@ -121,6 +122,7 @@ export function handleAction(
     action: GameAction,
 ): string | null {
     if (state.winner) return "ゲームはすでに終了しています"
+    ensureBpSeen(state)
 
     // クライアント演出用イベント列は1アクションごとに配信するため、実行前にクリアする
     state.events = []

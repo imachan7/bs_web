@@ -1231,6 +1231,8 @@ function tryReviveOnDestroy(
                 state,
                 `${player.name}の${name}は、${getCard(source.cardId).name}の効果で破壊される代わりに${revivedLabel(effect.revived)}。`,
             )
+            // then は scope:"self\" と同じく復活の直後に解決する（SD15-X01「手札に戻る。その後、1枚ドローする」）
+            if (effect.then) resolveAction(state, ownerPid, inst, effect.then)
             return true
         }
     }

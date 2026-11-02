@@ -1685,7 +1685,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのターンの間、相手のスピリット1体をBP-1000する。\nLv2･Lv3『このスピリットの破壊時』\nこのターンの間、コスト3以下の相手のスピリットはアタックできない。",
-    "effects": []
+    "effects": [{"id": "SD15-003-e1", "kind": "triggered", "trigger": "onAttack", "levels": [1, 2, 3], "optional": false, "action": {"type": "bpMinus", "amount": 1000}},{"id": "SD15-003-e2", "kind": "triggered", "trigger": "onDestroy", "levels": [2, 3], "optional": false, "action": {"type": "timedEffect", "content": [{"type": "playerRule", "rule": {"type": "cantAttackByCostForPid", "costs": [1, 2, 3]}}], "duration": "turn"}}]
   },
   {
     "cardId": "SD15-004",
@@ -1726,7 +1726,7 @@
     "rarity": "R",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのターンの間、相手のスピリット1体をBP-2000する。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットよりBPの低い相手のスピリットとBPを比べるとき、BPを比べずにブロックされなかったものとして扱う。",
-    "effects": []
+    "effects": [{"id": "SD15-004-e1", "kind": "triggered", "trigger": "onAttack", "levels": [1, 2, 3], "optional": false, "action": {"type": "bpMinus", "amount": 2000}},{"id": "SD15-004-e2", "kind": "triggered", "trigger": "onAttack", "levels": [2, 3], "optional": false, "action": {"type": "treatAsUnblocked", "when": {"blockerBpBelowSelf": true}}}]
   },
   {
     "cardId": "SD15-005",
@@ -1893,6 +1893,6 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのターンの間、相手のスピリット1体をBP-3000する。\nLv1･Lv2･Lv3\nコスト3以下の自分のスピリットが相手の効果で破壊されたとき、そのスピリットは手札に戻る。\nその後、自分はデッキから1枚ドローする。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットの効果で相手のスピリットがBP0になったとき、BP0になったスピリットすべてを破壊する。",
-    "effects": []
+    "effects": [{"id": "SD15-X01-e1", "kind": "triggered", "trigger": "onAttack", "levels": [1, 2, 3], "optional": false, "action": {"type": "bpMinus", "amount": 3000}},{"id": "SD15-X01-e2", "kind": "reviveOnDestroy", "levels": [1, 2, 3], "scope": "ownAll", "filter": {"cost": {"max": 3}}, "when": {"byOpponentEffect": true}, "revived": {"toHand": true}, "then": {"type": "draw", "count": 1}},{"id": "SD15-X01-e3", "kind": "fieldEvent", "event": "opponentSpiritBpReachedZero", "levels": [2, 3], "bySelfEffectOnly": true, "selfMode": "source", "action": {"type": "destroy", "count": 1, "all": true, "filter": {"maxBp": 0}}}]
   }
 ]

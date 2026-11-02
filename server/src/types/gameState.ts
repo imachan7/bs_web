@@ -216,6 +216,7 @@ export interface GameState {
     lastCoreRemoveEmptied?: boolean // 直前の coreRemove の解決で対象のコアが0個になったか（action "if" の lastEmptied が読む。coreRemove ハンドラが解決の冒頭で false に戻す）
     recordScope?: string
     bpSeen?: Record<string, number> // instanceId -> 前回観測した実効BP（ownSpiritBpReached の「前回値」。BPが届いたかを判定する効果が場に無いときは消す。サーバー内部のみ）
+    bpMinusSourceBy?: Record<string, string> // instanceId -> 最後にそのスピリットのBPを下げた効果の発生源instanceId（currentEffectSource が無い下げ方は記録しない。opponentSpiritBpReachedZero の bySelfEffectOnly が読む。発火のたびに消す。サーバー内部のみ）
     flashEffect?: true // いまフラッシュ効果（マジックのフラッシュ・【起動：フラッシュ】）を解決中（ownSpiritBpUpByFlash の判定用。中断しても pendingChoice.flashEffect 経由で再開時に戻す）
     burstEventCost?: number // BS15共通器：バースト発動時、eventInfo.costsの先頭値を一時的に積む（EffectCounter "burstEventCost" が読む。confirmを経由する対話モードでもpendingChoice.burstActivate.destroyedCostへ引き継いで復元する。BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     lastMagicUsed?: { pid: PlayerId; cardId: string } // 直近にマジックの効果の発揮を終えた使用者とカード（fireMagicUsedTriggers が ownMagicUsed の発火前に記録。returnLastUsedMagicToHand が読む）

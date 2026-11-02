@@ -211,6 +211,7 @@ export type EffectDefTrigger =
           colorFilter?: Color // ownNexusDestroyed 限定（主体が selfOverride を持たず eventColors で渡す）。ほかのイベントは subjectFilter.color
           sourceColorFilter?: Color // 「相手のこの色の〜の効果によって」起きたときだけ（currentEffectSource で判定）。colorFilter はイベント対象、こちらは効果の発生源の色
           sourceTypes?: CardType[] // event:"opponentHandAdded" 限定。「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み（currentEffectSource で判定。効果によらない増加＝ドローステップ等では発火しない。BS19-088）
+          bySelfEffectOnly?: true // event:"opponentSpiritBpReachedZero" 限定。発生源自身の効果でBP0になったときだけ発火（BPを下げた効果の発生源instanceIdで判定。効果によらないBP0到達では発火しない）
           ignoreEventTarget?: true // resolveActionにtargetInstanceIdを渡さない
           selfMode?: "source" // self にイベント対象でなく発生源インスタンス自身を渡す
           bpReachedAt?: number // ownSpiritBpReached 限定。前回BP < この値 <= 今回BP のときだけ

@@ -251,7 +251,7 @@ export interface BattleState {
     directedTargetInstanceId?: string // 指定アタックで指定された相手スピリット。**アタック宣言の時点ではまだブロックは確定しない**（アタック時効果と【バースト】をすべて解決した後に確定する。2026-09-06 ユーザー確認）。GameEngine.doPass がフラッシュ①を閉じる時点で finishBlockDeclaration へ渡し、正規のブロック宣言として成立させる（疲労状態でも成立する＝『ブロック時』効果は発揮する）。指定先が場を離れた／耐性を得た／アタッカーが効果を失った場合は何もせず、通常のアタックに戻る
     skipBpCompare?: true // 器AV：バトル解決時にBP比較（とその結果の破壊）自体を飛ばす。outcomeが"none"になり、勝敗判定・onBattleWin/onBattleLose・fireBattleWonTriggersは発火しない。【呪撃】・endBattleDestroy等のBP比較に依らない処理はそのまま動く（BS13-082ペガサスフラップ）
     usedMagicCardIds?: { p1: string[]; p2: string[] } // このバトル中に使用されたマジックのcardId（光芒用）
-    treatAsUnblocked?: ("always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number })[] // バトルの解決で条件を満たせば、BPを比べずブロックされなかったものとして扱う（action treatAsUnblocked）
+    treatAsUnblocked?: ("always" | "blockerLevel1" | "levelAtLeastBlocker" | { blockerMaxBp: number } | { blockerBpBelowSelf: true; selfInstanceId: string })[] // バトルの解決で条件を満たせば、BPを比べずブロックされなかったものとして扱う（action treatAsUnblocked）。blockerBpBelowSelf の selfInstanceId は置くときに発生源を埋める
     // oncePerBattle 指定の magicFreeGrant / magicRepeatGrant を、このバトルで既に使い切った発生源のinstanceId
     // （BS07大天使イスフィール＝無償で使えるのは「1枚」だけ）。**無償化と再発揮で別リストに分ける**のは
     // 消費点が違うため: 無償化は resolveMagic の冒頭（コスト判定はその手前で済んでいる）、
@@ -312,6 +312,7 @@ export type PlayerRuleDef =
     | { type: "cantUseMagicForPid"; colors?: Color[] | "event"; allowColors?: "opponentFieldSymbols"; costs?: number[] | "ownerRestedNexuses"; declared?: "match" } // allowColors は、掛かった側のフィールドにシンボルを持つ色のマジックだけ使える（使うたびに見る）。costs は印刷コストが一致するマジックを禁じ、"ownerRestedNexuses" は掛けた側の疲労状態のネクサスのコストを使うたびに集める。declared は declare の then の中だけ（costs に置き換わる）。手札・手元・トラッシュなどどこからでも、その色をいずれか持つマジックを使用できない。"event"は置く時点で、直前に召喚時効果を発揮したカードの色すべてに解く（timedEffect.ts）
     | { type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction; source?: string } // 課された側が使うマジック／発動するバーストの効果は、cost を支払わなければ発揮できない（使用・発動は成立する。effectTax.ts）。source は確認文に出す税の発生源名で、timedEffect が置くときに埋める（カードデータには書かない）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
+    | { type: "cantAttackByCostForPid"; costs: number[] } // このプレイヤーのスピリットのうち、コストが配列のいずれかと一致するものはアタックできない（ブロックは可。globalConstraint opponentCantAttackByCost の期間つき版）
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）
 
 

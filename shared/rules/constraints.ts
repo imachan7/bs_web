@@ -615,6 +615,12 @@ export function instCantAttackByOpponentCost(board: Board, attackerPid: PlayerId
     return false
 }
 
+// 期間つき効果（playerRule "cantAttackByCostForPid"）：コストが配列のいずれかと一致するこのプレイヤーの
+// スピリットはアタックできない（ブロックは可能。globalConstraint opponentCantAttackByCost と同じ判定の期間つき版）
+export function timedCantAttackByCost(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return timedPlayerRules(board, pid).some((r) => r.type === "cantAttackByCostForPid" && instAllCosts(inst).some((cost) => r.costs.includes(cost)))
+}
+
 // 器AW：globalConstraint "cantAttackByCost"（両陣営）：コストが配列のいずれかと完全一致するスピリットは
 // 持ち主を問わずアタックできない（ブロックは可能。opponentCantAttackByCostの両陣営版。BS13-035オリンピアの天使オク）
 export function instCantAttackByCost(board: Board, inst: CardInstance): boolean {
@@ -1429,6 +1435,7 @@ export function spiritCouldAttackNow(board: Board, pid: PlayerId, inst: CardInst
     if (instCostCantAct(board, inst)) return false
     if (instCantAttackByOpponentCost(board, pid, inst)) return false
     if (instCantAttackByCost(board, inst)) return false
+    if (timedCantAttackByCost(board, pid, inst)) return false
     return !activeConstraints(board, pid, inst).some((c) => c.type === "cantAttack")
 }
 

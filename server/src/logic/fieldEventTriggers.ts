@@ -234,6 +234,9 @@ export function fireFieldEventTriggers(
                 const src = state.currentEffectSource
                 if (!src || src.pid === pid || src.type === undefined || !effect.sourceTypes.includes(src.type)) continue
             }
+            // bySelfEffectOnly（event:"opponentSpiritBpReachedZero" 限定）：BPを下げた効果の発生源が
+            // この発生源自身の効果だったか（recordBp が残した原因のinstanceIdで判定）
+            if (effect.bySelfEffectOnly && eventInfo?.sourceInstanceId !== inst.instanceId) continue
             if (effect.subjectMinCost !== undefined) {
                 if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { min: effect.subjectMinCost })) continue
             }
