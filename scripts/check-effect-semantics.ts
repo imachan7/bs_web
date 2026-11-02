@@ -65,12 +65,22 @@ function stripQuotedSpans(text: string): string {
         .replace(/"[^"]*"/g, "") // "…"
 }
 
+// 【…】が見出しのキーワードか（直後が助詞なら文の途中で名指ししているだけ）。名指しの
+// 「トラッシュにある【不死】を持つ〜」は定型文の候補にしない（2026-11-02。これを数えていたため、
+// 3枚以上に同じ文がある効果文そのものが定型文として消え、S3 が素通りしていた）
+function isKeywordHeader(text: string, index: number): boolean {
+    const close = text.indexOf("】", index)
+    const next = text.slice(close + 1, close + 2)
+    return !/[をのがはでとさにへもや、]/.test(next)
+}
+
 // 【…】の直後から次の「。」までを1文として取り出す
 function extractPostKeywordSentences(text: string): string[] {
     const sentences: string[] = []
     const re = /【[^】]*】/g
     let m: RegExpExecArray | null
     while ((m = re.exec(text))) {
+        if (!isKeywordHeader(text, m.index)) continue
         const rest = text.slice(re.lastIndex)
         const periodIdx = rest.indexOf("。")
         if (periodIdx === -1) continue
@@ -111,6 +121,7 @@ function maskText(rawText: string): string {
     const re = /【[^】]*】/g
     let m: RegExpExecArray | null
     while ((m = re.exec(text))) {
+        if (!isKeywordHeader(text, m.index)) continue
         const restStart = re.lastIndex
         const rest = text.slice(restStart)
         const periodIdx = rest.indexOf("。")
@@ -469,7 +480,8 @@ const TIMING_PATTERNS: { re: RegExp; side: Side; phase: string | null; label: st
 
 // 効果ブロックの見出し行にマッチする正規表現（check-effect-gaps.ts の BLOCK_HEADER_RE を踏襲）
 const BLOCK_HEADER_RE =
-    /^(?:(?:フラッシュ|メイン)：?$|Lv\d(?:[･・/]Lv\d)*(?:：フラッシュ)?(?:\s*(?:【[^】]*】|『[^』]*』|[/･・]))*\s*$)/
+    // 先頭の【合体時】【合体中】と、Lv の無いブレイヴの見出し（【合体中】『〜』）も見出しとして扱う（2026-11-02）
+    /^(?:(?:フラッシュ|メイン)：?$|(?:【[^】]*】)*(?:Lv\d(?:[･・/]Lv\d)*(?:：フラッシュ)?)?(?:\s*(?:【[^】]*】|『[^』]*』|[/･・]))*\s*$)/
 
 function parseLevels(headerText: string): number[] | null {
     const matches = headerText.match(/Lv\d/g)
@@ -541,9 +553,13 @@ function collectTimingDeclarations(effects: Record<string, unknown>[]): { phase:
                 turn: isTurnValue(ptObj.turn) ? ptObj.turn : "both",
             })
         }
-        // 起動能力の timing:"main"/"end" は自分のそのステップでだけ使える（相手のターンには起動できない）
-        if (node.kind === "activated" && (node.timing === "main" || node.timing === "end")) {
+        // 起動能力・手札からの召喚の timing:"main"/"end" は自分のそのステップでだけ使える
+        if (node.timing === "main" || node.timing === "end") {
             decls.push({ phase: node.timing, turn: "own" })
+        }
+        // 「アタックしたとき」はアタックステップでしか起きない
+        if (node.kind === "fieldEvent" && typeof node.event === "string" && /Attacked$/.test(node.event)) {
+            decls.push({ phase: "attack", turn: isTurnValue(node.turn) ? node.turn : "both" })
         }
         const phaseVal = typeof node.phase === "string" ? node.phase : typeof node.step === "string" ? node.step : null
         const turnVal = node.turn
@@ -967,7 +983,7 @@ for (const card of cards) {
     }
 
     // ---- S4 タイミング / S5 数値 ----
-    if ((!axisFilter || axisFilter === "S4" || axisFilter === "S5") && (card.type === "spirit" || card.type === "nexus" || card.type === "magic")) {
+    if ((!axisFilter || axisFilter === "S4" || axisFilter === "S5") && (card.type === "spirit" || card.type === "nexus" || card.type === "magic" || card.type === "brave")) {
         const blocks = segmentBlocks(text)
 
         // S4: 見出し単位でレベル群ごとにまとめ、食い違う要求が同じレベル群にあればスキップ
