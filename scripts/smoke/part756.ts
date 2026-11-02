@@ -445,15 +445,11 @@ scenario({
     start: {
         me: { nexuses: [{ card: ARENA, label: "競技場", cores: 0 }], hand: [RECLAMATION, GOLEM] },
     },
+    // 「ネクサスを破壊することで召喚する」の召喚が禁じられているので、マジックは使えない（COST_MODEL §1。2026-11-02 期待値を改めた）
     steps(t) {
-        t.act("me", { type: "castMagic", handIndex: 0, timing: "main" })
+        t.actRejected("me", { type: "castMagic", handIndex: 0, timing: "main" })
     },
-    expect: [
-        "自分.手札: シェル・ゴレム、リクラメーション → シェル・ゴレム",
-        "自分.リザーブ: 10 → 8", // コスト3・青軽減1つ（競技場）で2支払い
-        "自分.トラッシュのコア: 0 → 2",
-        "自分.トラッシュ: なし → リクラメーション",
-    ],
+    expect: [],
 })
 
 // 起きない場面：効果によらない通常の召喚は禁止されない（条件を1つ外す）
