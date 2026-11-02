@@ -22,6 +22,7 @@ export type EffectDefTrigger =
           keyword?: Keyword // ラベルのみ（spiritHasLabeledKeyword が判定）
           trigger: TriggerEvent
           levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           whileCombined?: true
           combinedBraveColors?: Color[] // 合体中のブレイヴのいずれかがこの色を持つとき（多色は1色でも該当。2026-09-07確認）
           action: EffectAction

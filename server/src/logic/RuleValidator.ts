@@ -961,6 +961,14 @@ export function validateActivateAbility(
     if (!effect || effect.kind !== "activated") return "起動能力が見つかりません"
     if (effect.whileCombined && !brave) return "合体しているときだけ発動できます"
     if (!effect.whileCombined && brave) return "この効果は合体中のブレイヴからは発動できません"
+    // ステップ・手番の明示（『自分のアタックステップ』等）。timing だけでは絞れないぶんをここで見る（entryActive も見るが、理由の文言を分けるため先に見る）
+    if (effect.phaseTurn) {
+        if (state.phase !== effect.phaseTurn.phase) return "このステップでは発動できません"
+        const turnOk =
+            effect.phaseTurn.turn === "both" ||
+            (effect.phaseTurn.turn === "own") === (state.turnPlayer === pid)
+        if (!turnOk) return "このターンでは発動できません"
+    }
     if (!entryActive(state, pid, inst, effect, level)) {
         return "現在のレベルでは発動できません"
     }
@@ -982,14 +990,6 @@ export function validateActivateAbility(
         if (!inBattleFlash && !inOwnMain) {
             return "フラッシュタイミングではありません"
         }
-    }
-    // ステップ・手番の明示（『自分のアタックステップ』等）。timing だけでは絞れないぶんをここで見る
-    if (effect.phaseTurn) {
-        if (state.phase !== effect.phaseTurn.phase) return "このステップでは発動できません"
-        const turnOk =
-            effect.phaseTurn.turn === "both" ||
-            (effect.phaseTurn.turn === "own") === (state.turnPlayer === pid)
-        if (!turnOk) return "このターンでは発動できません"
     }
     if (effect.action.type === "combineOwnBrave" && effect.action.hostSelf && braveCombineOntoSelfCandidates(state, pid, inst).length === 0) {
         return "合体させられるブレイヴがいません"

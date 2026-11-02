@@ -232,6 +232,8 @@ function checkCostSetEffects(
     }[]) {
         if (e.kind !== "costMod" || e.mode !== "set") continue
         for (const field of COST_SET_UNSUPPORTED) {
+            // phaseTurn は場の発生源なら entryActive が読む（2026-11-02）。手札のカード自身（scope:"self"）の枝だけが読まない
+            if (field === "phaseTurn" && e.scope !== "self") continue
             if (field in e) {
                 add(
                     c.cardId,
