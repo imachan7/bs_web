@@ -23,8 +23,13 @@ async function main(): Promise<void> {
     for (const [i, id] of ids.entries()) {
         const file = path.join(OUTPUT_ROOT, cardSetDir(id), `${id}.webp`)
         if (fs.existsSync(file)) continue
-        const res = await fetch(`${BASE_URL}${id}.webp`)
-        // 公式は無い画像を 404 でなくトップページへの 302 で返す（BS01-014・X004）
+        let res = await fetch(`${BASE_URL}${id}.webp`)
+        // 公式は無い画像を 404 でなくトップページへの 302 で返す。
+        // 絵違いの配布版があるカードは末尾に A（通常版）・B（配布版）が付く（BS01-014・X004）
+        if (res.redirected) {
+            await setTimeout(1500 + Math.random() * 1000)
+            res = await fetch(`${BASE_URL}${id}A.webp`)
+        }
         if (res.status === 404 || res.redirected || !res.headers.get("content-type")?.startsWith("image/")) {
             missing.push(id)
         } else if (!res.ok) {
