@@ -52,7 +52,7 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nBP2000以下の相手のスピリット2体を破壊する。",
-    "effects": []
+    "effects": [{"id": "SD10-014-e1", "kind": "magic", "timing": "flash", "action": {"type": "destroy", "count": 2, "filter": {"maxBp": 2000}}}]
   },
   {
     "cardId": "SD10-015",
@@ -74,7 +74,7 @@
     "rarity": "U",
     "limited": false,
     "effect": "フラッシュ：\n自分の赤のスピリット1体を破壊することで、このバトルが終了したとき、アタックステップを終了する。\nこの効果は、『相手のアタックステップ』でしか使えない。",
-    "effects": []
+    "effects": [{"id": "SD10-015-e1", "kind": "magic", "timing": "flash", "ownTurnForbidden": true, "mainForbidden": true, "action": {"type": "pay", "cost": {"type": "destroy", "side": "own", "count": 1, "filter": {"color": "red"}}, "then": {"type": "endAttackStepAfterBattle"}}}]
   },
   {
     "cardId": "SD10-016",
@@ -96,7 +96,7 @@
     "rarity": "R",
     "limited": false,
     "effect": "メイン：\n自分はデッキから2枚ドローする。\nその後、自分のデッキを上から2枚オープンし、その中の【強化】を持つスピリットカード/ブレイヴカードすべてを手札に加える。\n残ったカードは好きな順番でデッキの上に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-    "effects": []
+    "effects": [{"id": "SD10-016-e1", "kind": "magic", "timing": "main", "action": {"type": "sequence", "keepScope": true, "actions": [{"type": "draw", "count": 2}, {"type": "revealOpen", "count": 2}, {"type": "moveCards", "from": "revealed", "count": "all", "dest": "hand", "pick": {"cardType": ["spirit", "brave"], "keyword": "kyoka"}}, {"type": "moveCards", "from": "revealed", "count": "all", "dest": "deckTop"}]}}, {"id": "SD10-016-e2", "kind": "magic", "timing": "flash", "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "side": "both", "count": 1}}]
   },
   {
     "cardId": "SD10-X01",
@@ -138,7 +138,7 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある赤のブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv2･Lv3『このスピリットのアタック時』\nBP5000以下の相手のスピリット1体を破壊する。\nLv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
-    "effects": []
+    "effects": [{"id": "SD10-X01-e1", "kind": "triggered", "trigger": "onSummon", "levels": [1, 2, 3], "optional": true, "action": {"type": "summon", "from": "hand", "colorFilter": "red", "bravesOnly": true}}, {"id": "SD10-X01-e2", "kind": "triggered", "trigger": "onAttack", "levels": [2, 3], "optional": false, "action": {"type": "destroy", "count": 1, "filter": {"maxBp": 5000}}}, {"id": "SD10-X01-e3", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpDestroy", "levels": [3]}]
   },
   {
     "cardId": "SD10-X02",
@@ -178,7 +178,10 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [{"id": "SD10-X02-e1", "kind": "triggered", "trigger": "onSummon", "levels": [1], "optional": false, "action": {"type": "destroy", "count": 1, "all": true, "filter": {"maxBp": 3000}, "drawPerDestroyed": 1}}, {"id": "SD10-X02-e2", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpDestroy", "levels": [1]}, {"id": "SD10-X02-e3", "kind": "keyword", "keyword": "kyoka", "kyoka": "bpDestroy", "levels": null, "whileCombined": true}]
   },
   {
     "cardId": "SD17-001",
@@ -218,7 +221,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3\nこのスピリットの色とシンボルは緑としても扱う。",
-    "effects": []
+    "effects": [{"id": "SD17-001-e1", "kind": "colorAs", "levels": [1, 2, 3], "colors": ["green"]}]
   },
   {
     "cardId": "SD17-002",
@@ -259,7 +262,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv2･Lv3\nこのスピリットは緑のスピリットとしても扱う。",
-    "effects": []
+    "effects": [{"id": "SD17-002-e1", "kind": "colorAs", "levels": [2, 3], "colors": ["green"]}]
   },
   {
     "cardId": "SD17-003",
@@ -300,7 +303,18 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-003-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
   },
   {
     "cardId": "SD17-004",
@@ -336,7 +350,59 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のネクサス1つを破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-004-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "nexus": "only",
+          "count": 1
+        }
+      },
+      {
+        "id": "SD17-004-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "green"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "spirit",
+            "target": "self",
+            "count": 1
+          }
+        }
+      },
+      {
+        "id": "SD17-004-e3",
+        "kind": "keyword",
+        "keyword": "rensa",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "SD17-005",
@@ -379,7 +445,27 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+2000する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-005-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "familyFilter": "地竜",
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "own"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "SD17-006",
@@ -415,7 +501,30 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2『このスピリットのアタック時』\n自分はデッキから1枚ドローする。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-006-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "SD17-006-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
   },
   {
     "cardId": "SD17-007",
@@ -452,7 +561,65 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットをBP+3000する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-007-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
+      },
+      {
+        "id": "SD17-007-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "green"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "placeCores",
+            "from": "void",
+            "to": "spirit",
+            "target": "self",
+            "count": 1
+          }
+        }
+      },
+      {
+        "id": "SD17-007-e3",
+        "kind": "keyword",
+        "keyword": "rensa",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "SD17-008",
@@ -488,7 +655,53 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：自分のターンの最初のアタックのとき、このスピリットは回復する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-008-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2
+        ]
+      },
+      {
+        "id": "SD17-008-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "condition": {
+          "firstAttackOfTurn": true
+        },
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "green"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          }
+        }
+      },
+      {
+        "id": "SD17-008-e3",
+        "kind": "keyword",
+        "keyword": "rensa",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
     "cardId": "SD17-009",
@@ -530,7 +743,35 @@
     "rarity": "M",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットのBP以下の相手のスピリット1体を破壊する。",
-    "effects": []
+    "effects": [
+      {
+        "id": "SD17-009-e1",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "SD17-009-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": "selfBp"
+          }
+        }
+      }
+    ]
   },
   {
     "cardId": "SD17-010",
@@ -611,7 +852,37 @@
       }
     ],
     "braveConditionText": "地竜",
-    "effects": []
+    "braveCondition": {
+      "family": "地竜"
+    },
+    "effects": [
+      {
+        "id": "SD17-011-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": 1,
+          "dest": "hand",
+          "pick": {
+            "cardType": "spirit",
+            "keyword": "rensa"
+          }
+        }
+      },
+      {
+        "id": "SD17-011-e2",
+        "kind": "keyword",
+        "keyword": "clash",
+        "levels": null,
+        "whileCombined": true
+      }
+    ]
   },
   {
     "cardId": "SD17-012",
@@ -645,7 +916,7 @@
     "rarity": "U",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、自分はデッキから1枚ドローする。\nLv2\n自分のスピリットが相手によって破壊されたとき、自分のトラッシュにある系統：「地竜」を持つスピリットカード1枚を手札に戻す。",
-    "effects": []
+    "effects": [{"id": "SD17-012-e1", "kind": "battleWon", "role": "any", "levels": [1, 2], "turn": "own", "selfMode": "source", "action": {"type": "draw", "count": 1}}, {"id": "SD17-012-e2", "kind": "fieldEvent", "event": "ownSpiritDestroyed", "levels": [2], "byOpponentOnly": true, "action": {"type": "moveCards", "from": "trash", "count": 1, "dest": "hand", "pick": {"cardType": "spirit", "family": "地竜"}}}]
   },
   {
     "cardId": "SD17-013",
@@ -682,7 +953,7 @@
     "rarity": "",
     "limited": false,
     "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+3000する。\nLv2『自分のエンドステップ』\n系統：「地竜」を持つ自分のスピリット3体を回復させる。",
-    "effects": []
+    "effects": [{"id": "SD17-013-e1", "kind": "aura", "levels": [1, 2], "aura": {"type": "bp", "target": "ownAll", "familyFilter": "地竜", "amount": 3000, "phaseTurn": {"phase": "attack", "turn": "own"}}}, {"id": "SD17-013-e2", "kind": "step", "step": "end", "turn": "own", "levels": [2], "action": {"type": "refresh", "count": 3, "filter": {"family": ["地竜"]}}}]
   },
   {
     "cardId": "SD17-014",
@@ -703,7 +974,7 @@
     "rarity": "",
     "limited": false,
     "effect": "フラッシュ：\nBP3000以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
-    "effects": []
+    "effects": [{"id": "SD17-014-e1", "kind": "magic", "keyword": "rensa", "timing": "flash", "action": {"type": "sequence", "actions": [{"type": "destroy", "count": 1, "filter": {"maxBp": 3000}}, {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "exhaust", "count": 1}}]}}]
   },
   {
     "cardId": "SD17-015",
@@ -724,7 +995,7 @@
     "rarity": "R",
     "limited": false,
     "effect": "フラッシュ：\nBP合計5000まで相手のスピリットを好きなだけ破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：シンボル1つだけを持つ自分のスピリット2体を回復させる。",
-    "effects": []
+    "effects": [{"id": "SD17-015-e1", "kind": "magic", "keyword": "rensa", "timing": "flash", "action": {"type": "sequence", "actions": [{"type": "destroy", "count": "any", "budget": {"by": "bp", "amount": 5000}}, {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "refresh", "count": 2, "filter": {"symbolCount": 1}}}]}}]
   },
   {
     "cardId": "SD17-016",
@@ -746,7 +1017,7 @@
     "rarity": "C,U",
     "limited": false,
     "effect": "メイン：\n自分はデッキから2枚ドローする。\nその後、自分のデッキを上から2枚オープンし、その中の【連鎖】を持つスピリットカード/ブレイヴカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの上に戻す。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-    "effects": []
+    "effects": [{"id": "SD17-016-e1", "kind": "magic", "timing": "main", "action": {"type": "sequence", "keepScope": true, "actions": [{"type": "draw", "count": 2}, {"type": "revealOpen", "count": 2}, {"type": "moveCards", "from": "revealed", "count": 1, "dest": "hand", "pick": {"cardType": ["spirit", "brave"], "keyword": "rensa"}}, {"type": "moveCards", "from": "revealed", "count": "all", "dest": "deckTop"}]}}, {"id": "SD17-016-e2", "kind": "magic", "timing": "flash", "action": {"type": "timedEffect", "content": [{"type": "bp", "amount": 3000}], "duration": "turn", "side": "both"}}]
   },
   {
     "cardId": "SD17-X01",
@@ -788,7 +1059,7 @@
     "rarity": "X",
     "limited": false,
     "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのBP以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\nLv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットすべてをBP+3000する。",
-    "effects": []
+    "effects": [{"id": "SD17-X01-e1", "kind": "triggered", "keyword": "rensa", "trigger": "onAttack", "levels": [1, 2, 3], "optional": false, "action": {"type": "destroy", "count": 1, "filter": {"maxBp": "selfBp"}}}, {"id": "SD17-X01-e2", "kind": "battleWon", "role": "attacker", "levels": [1, 2, 3], "action": {"type": "if", "cond": {"count": {"ownColorSymbols": "green"}, "atLeast": 1}, "then": {"type": "lifeCrush", "count": 1}}}, {"id": "SD17-X01-e3", "kind": "aura", "levels": [2, 3], "aura": {"type": "bp", "target": "ownAll", "familyFilter": "地竜", "amount": 3000, "phaseTurn": {"phase": "attack", "turn": "own"}}}]
   },
   {
     "cardId": "SD17-X02",
@@ -828,7 +1099,10 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [{"id": "SD17-X02-e1", "kind": "triggered", "trigger": "onSummon", "levels": [1], "optional": false, "action": {"type": "destroy", "nexus": "only", "count": 1, "drawPerDestroyed": 1}}, {"id": "SD17-X02-e2", "kind": "constraint", "levels": null, "whileCombined": true, "constraint": {"type": "canDirectAttack", "targetFilter": "any"}}]
   },
   {
     "cardId": "X009",
@@ -867,6 +1141,9 @@
       }
     ],
     "braveConditionText": "コスト5以上",
-    "effects": []
+    "braveCondition": {
+      "minCost": 5
+    },
+    "effects": [{"id": "X009-e1", "kind": "triggered", "trigger": "onSummon", "levels": [1], "optional": false, "action": {"type": "chooseActionMode", "modes": [{"label": "スピリットすべて", "actions": [{"type": "destroy", "all": true, "anySide": true, "filter": {"maxBp": 4000}}]}, {"label": "ネクサスすべて", "actions": [{"type": "destroy", "nexus": "only", "all": true, "side": "both"}]}]}}, {"id": "X009-e2", "kind": "constraint", "levels": null, "whileCombined": true, "constraint": {"type": "canDirectAttack", "targetFilter": "any"}}]
   }
 ]
