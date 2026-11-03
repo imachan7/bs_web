@@ -141,6 +141,8 @@
      1,
      2
     ],
+    "phase": "main",
+    "turn": "own",
     "costFilter": {
      "min": 7
     },
@@ -816,6 +818,10 @@
      1,
      2
     ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    },
     "mode": "set",
     "setTo": 5,
     "familyFilter": "光導",
@@ -1215,6 +1221,10 @@
     "levels": [
      2
     ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
     "whileCombined": true,
     "target": "ownSpiritsByFamily",
     "familyFilter": "光導",

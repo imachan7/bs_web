@@ -433,6 +433,7 @@
         "id": "BSC05-020-e1",
         "kind": "fieldEvent",
         "event": "ownLifeDamaged",
+        "optional": true,
         "levels": [
           1,
           2
@@ -456,7 +457,8 @@
                   "max": 2
                 }
               },
-              "orHand": true
+              "orHand": true,
+              "ask": true
             },
             {
               "type": "moveCards",

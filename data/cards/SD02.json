@@ -946,6 +946,10 @@
         "levels": [
           2
         ],
+        "phaseTurn": {
+         "phase": "main",
+         "turn": "own"
+        },
         "target": "ownAll",
         "plus": 3
       }

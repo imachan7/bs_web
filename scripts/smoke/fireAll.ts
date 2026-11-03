@@ -377,8 +377,12 @@ for (const card of CARDS) {
             // **自分のターン／相手のターンの両方**で撃つ。『相手のターン』条件の効果は
             // turnPlayer を固定したままだと一度も発火しない（BS09-021 武士インパラー等）
             for (const ev of triggers) {
-                for (const tp of ["p1", "p2"] as PlayerId[]) {
+                // 時間帯（phaseTurn）つきの誘発はそのステップでも撃つ（entryActive が時間帯を見るため）
+                const phases = new Set<Phase>(["attack"])
+                for (const e of effects) if (e.kind === "triggered" && e.trigger === ev && e.phaseTurn) phases.add(e.phaseTurn.phase)
+                for (const ph of phases) for (const tp of ["p1", "p2"] as PlayerId[]) {
                     s.turnPlayer = tp
+                    s.phase = ph
                     const opp = s.players.p2.field.spirits[0]
                     if (BATTLE_EVENTS.includes(ev)) {
                         setBattle(s, selfInst.instanceId, opp?.instanceId ?? null)
@@ -387,6 +391,7 @@ for (const card of CARDS) {
                     fired++
                 }
                 s.turnPlayer = "p1"
+                s.phase = "attack"
             }
             // (3) バトル勝利誘発：**勝者に条件がある**（「〇〇が勝ったとき」）ので、
             //     エントリごとに条件（名前・系統・キーワード）を満たす勝者を盤面から選んで渡す
