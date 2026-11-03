@@ -182,7 +182,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 - `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"／"noBurstActivationByColor"：holderPid のバーストが発動で…
-- `spiritCouldAttackNow`（fn）：いま（またはこの後のアタックステップで）アタックを強いられうる個体か。mustAttack 系の判定と validateEndTurn が共有する
 - `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 - `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
 
