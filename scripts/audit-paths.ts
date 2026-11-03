@@ -108,12 +108,16 @@ function infoFor(e: EffectDef): Record<string, unknown> {
     if (cf) info["costs"] = [cf.min ?? cf.max ?? 0]
     return info
 }
-function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, subj: Subj | null): { s: string; ok: boolean; asked: boolean } {
+// via:"attack"＝誘発を直接撃たず、主体にアタックを宣言させて起こす（アタック宣言の同時発揮の列・アタック後バーストを通す）。
+// このときの相方は「スピリットがアタックしたとき、何もしない」（どの効果の列にも同時に入る）
+type Via = "direct" | "attack"
+const ATTACK_ECHO = { kind: "fieldEvent", event: "anySpiritAttacked", id: "AE-e1", levels: null, action: { type: "noop" } } as unknown as EffectDef
+function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, subj: Subj | null, via: Via = "direct"): { s: string; ok: boolean; asked: boolean } | null {
     const saved = Math.random
     let x = 12345
     Math.random = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648)
     try {
-        echoCard.effects = v === "単独" || v === "無" ? [] : [echoOf(e)]
+        echoCard.effects = v === "単独" || v === "無" ? [] : [via === "attack" ? ATTACK_ECHO : echoOf(e)]
         const db = CARD_DB.get(card.cardId)!
         const own = db.effects
         if (v === "無") db.effects = (own ?? []).filter((x) => x !== e && x.id !== e.id)
@@ -126,7 +130,17 @@ function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, 
         s.turnPlayer = tp
         s.phase = ph
         const cond = e as unknown as Record<string, unknown>
-        if (e.kind === "fieldEvent") {
+        if (via === "attack") {
+            const sj = subj!
+            const attacker = s.players[sj.pid].field.spirits[sj.idx]!
+            attacker.isRested = false
+            s.turnPlayer = sj.pid
+            s.phase = "attack"
+            if (handleAction(s, sj.pid, { type: "attack", instanceId: attacker.instanceId }) !== null) {
+                db.effects = own
+                return null
+            }
+        } else if (e.kind === "fieldEvent") {
             const sj = subj ?? { firePid: "p1", pid: "p1", idx: 0, info: false }
             const subject = s.players[sj.pid].field.spirits[sj.idx]!
             const info = sj.info ? infoFor(e) : undefined
@@ -190,71 +204,100 @@ const notFiredBy = new Map<string, number>()
 let echoMissed = 0
 const echoMissedIds = new Set<string>()
 const lines: string[] = []
-// ONLY=<cardId> で1枚だけ回す
+
+// 1つの効果を、主体の候補を順に試して誘発させ（単独≠無）、相方を挟んだ2経路と比べる
+function sweep(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, cands: (Subj | null)[], via: Via, key: string): void {
+    const tag = via === "attack" ? "アタック宣言" : `turn:${tp} ${ph}`
+    let base: NonNullable<ReturnType<typeof run>> | null = null
+    let subj: Subj | null = null
+    let fired = false
+    try {
+        for (const c of cands) {
+            const b = run(card, e, tp, ph, "単独", c, via)
+            if (b === null) continue
+            let none: string | null = null
+            try {
+                none = run(card, e, tp, ph, "無", c, via)?.s ?? null
+            } catch {
+                // 無で例外なら、少なくとも違う経路を通っている
+            }
+            if (base === null) {
+                base = b
+                subj = c
+            }
+            if (none !== b.s) {
+                base = b
+                subj = c
+                fired = true
+                break
+            }
+        }
+    } catch (err) {
+        lines.push(`${e.id} ${tag}：単独で例外 ${(err as Error).message.slice(0, 80)}`)
+        return
+    }
+    if (base === null) return
+    for (const v of ["後に相方", "先に相方"] as const) {
+        let r: ReturnType<typeof run>
+        try {
+            r = run(card, e, tp, ph, v, subj, via)
+        } catch (err) {
+            lines.push(`${e.id} ${tag} ${v}：例外 ${(err as Error).message.slice(0, 80)}`)
+            continue
+        }
+        if (r === null) continue
+        compared++
+        if (r.asked) comparedIds.add(key)
+        if (!r.asked) {
+            if (fired) {
+                echoMissed++
+                echoMissedIds.add(key)
+            } else {
+                notFired++
+                notFiredBy.set(allIds.get(key)!, (notFiredBy.get(allIds.get(key)!) ?? 0) + 1)
+            }
+            continue
+        }
+        if (r.ok !== base.ok) lines.push(`${e.id} ${tag} ${v}：選択待ちの解消が食い違う（単独=${base.ok} 経路=${r.ok}）`)
+        else if (r.s !== base.s) lines.push(`${e.id} ${card.name} ${tag} ${v}：盤面が食い違う\n      ${firstDiff(base.s, r.s)}`)
+    }
+}
+
+// アタック宣言から起こす効果：アタック時・『バトル時』（アタッカー自身）と、アタックしたとき・疲労したとき（場の誰か）
+const ATTACK_EVENTS = new Set(["anySpiritAttacked", "ownSpiritExhausted", "anySpiritExhausted"])
+function attackKind(card: CardData, e: EffectDef): "self" | "any" | null {
+    const f = e as unknown as Record<string, unknown>
+    if (card.type === "spirit" && e.kind === "triggered" && (f["trigger"] === "onAttack" || f["trigger"] === "onBattleStart")) return "self"
+    if (e.kind === "fieldEvent" && ATTACK_EVENTS.has(e.event)) return "any"
+    return null
+}
+
+// ONLY=<cardId> で1枚だけ回す。VIA=direct|attack で片方だけ
+const vias = (process.env["VIA"] ? [process.env["VIA"]] : ["direct", "attack"]) as Via[]
 for (const card of CARDS.filter((c) => !process.env["ONLY"] || c.cardId === process.env["ONLY"])) {
     if (card.type !== "spirit" && card.type !== "nexus") continue
     for (const e of (card.effects ?? []) as EffectDef[]) {
-        if (e.kind !== "fieldEvent" && e.kind !== "step") continue
-        allIds.set(e.id, e.kind === "fieldEvent" ? `fieldEvent:${e.event}` : `step:${e.step}`)
-        const cond = e as unknown as Record<string, unknown>
-        const phases: Phase[] =
-            e.kind === "step" ? [e.step] : typeof cond["phase"] === "string" ? [cond["phase"] as Phase] : ["attack", "main"]
-        for (const tp of ["p1", "p2"] as PlayerId[]) {
-            for (const ph of phases) {
-                let base: ReturnType<typeof run> | null = null
-                let subj: Subj | null = null
-                let fired = false
-                const cands: (Subj | null)[] = e.kind === "fieldEvent" ? subjectsFor(card, e) : [null]
-                try {
-                    for (const c of cands) {
-                        const b = run(card, e, tp, ph, "単独", c)
-                        let none: string | null = null
-                        try {
-                            none = run(card, e, tp, ph, "無", c).s
-                        } catch {
-                            // 無で例外なら、少なくとも違う経路を通っている
-                        }
-                        if (base === null) {
-                            base = b
-                            subj = c
-                        }
-                        if (none !== b.s) {
-                            base = b
-                            subj = c
-                            fired = true
-                            break
-                        }
-                    }
-                } catch (err) {
-                    lines.push(`${e.id} turn:${tp} ${ph}：単独で例外 ${(err as Error).message.slice(0, 80)}`)
-                    continue
-                }
-                if (base === null) continue
-                for (const v of ["後に相方", "先に相方"] as const) {
-                    let r: ReturnType<typeof run>
-                    try {
-                        r = run(card, e, tp, ph, v, subj)
-                    } catch (err) {
-                        lines.push(`${e.id} turn:${tp} ${ph} ${v}：例外 ${(err as Error).message.slice(0, 80)}`)
-                        continue
-                    }
-                    compared++
-                    if (r.asked) comparedIds.add(e.id)
-                    if (!r.asked) {
-                        if (fired) {
-                            echoMissed++
-                            echoMissedIds.add(e.id)
-                        } else {
-                            notFired++
-                            const key = e.kind === "fieldEvent" ? `fieldEvent:${e.event}` : `step:${e.step}`
-                            notFiredBy.set(key, (notFiredBy.get(key) ?? 0) + 1)
-                        }
-                        continue
-                    }
-                    if (r.ok !== base.ok) lines.push(`${e.id} turn:${tp} ${ph} ${v}：選択待ちの解消が食い違う（単独=${base.ok} 経路=${r.ok}）`)
-                    else if (r.s !== base.s) lines.push(`${e.id} ${card.name} turn:${tp} ${ph} ${v}：盤面が食い違う\n      ${firstDiff(base.s, r.s)}`)
-                }
+        if (vias.includes("direct") && (e.kind === "fieldEvent" || e.kind === "step")) {
+            allIds.set(e.id, e.kind === "fieldEvent" ? `fieldEvent:${e.event}` : `step:${e.step}`)
+            const cond = e as unknown as Record<string, unknown>
+            const phases: Phase[] =
+                e.kind === "step" ? [e.step] : typeof cond["phase"] === "string" ? [cond["phase"] as Phase] : ["attack", "main"]
+            const cands: (Subj | null)[] = e.kind === "fieldEvent" ? subjectsFor(card, e) : [null]
+            for (const tp of ["p1", "p2"] as PlayerId[]) for (const ph of phases) sweep(card, e, tp, ph, cands, "direct", e.id)
+        }
+        const ak = vias.includes("attack") ? attackKind(card, e) : null
+        if (ak !== null) {
+            const key = `${e.id}@attack`
+            allIds.set(key, `アタック宣言:${e.kind === "fieldEvent" ? e.event : (e as unknown as Record<string, string>)["trigger"]}`)
+            // 自身のアタック時はテスト対象のカード（p1 の場の1体目）だけ。場の誰かが主体なら、両陣営の全スピリットを試す
+            const { s } = buildBoard(card)
+            const cands: Subj[] = []
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                s.players[pid].field.spirits.forEach((sp, idx) => {
+                    if (ak === "any" || (pid === "p1" && sp.cardId === card.cardId)) cands.push({ firePid: pid, pid, idx, info: false })
+                })
             }
+            sweep(card, e, "p1", "attack", cands, "attack", key)
         }
     }
 }
@@ -268,5 +311,4 @@ if (process.env["SHOW_MISSED"] === "1") {
     const by = new Map<string, string[]>()
     for (const [id, k] of never) by.set(k, [...(by.get(k) ?? []), id])
     for (const [k, list] of [...by].sort((a, b) => b[1].length - a[1].length)) console.log(`  ${list.length}\t${k}\t${list.slice(0, 4).join(" ")}`)
-    console.log([...echoMissedIds].join(" "))
 }
