@@ -153,6 +153,10 @@ export function handleAction(
         delete state.lastDrawn
         delete state.lastTargets
         delete state.recordScope
+        // 枠の無い効果（枠 ""）どうしで、前の効果のコストを読まないように一緒に消す
+        delete state.lastLeftCosts
+        // 解決順の確認を挟んで再開スタックから解決した効果は、読み終えた不発の目印を消す所を通らない
+        delete state.effectFizzled
     }
     // 「破壊される代わりに復活できる」の確認は破壊処理の途中では中断できないので、解決しきったここで1件ずつ出す
     requestPendingReviveConfirm(state)
