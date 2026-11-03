@@ -142,7 +142,7 @@ function totalCards(s: GameState): number {
 }
 
 // 立っている選択待ちを候補の先頭で解消する（非対話モードでも一部の効果は選択を立てる）
-function drain(s: GameState): boolean {
+export function drain(s: GameState): boolean {
     for (let i = 0; i < 40; i++) {
         if (!s.pendingChoice || s.winner) return true
         const pending = s.pendingChoice
@@ -158,7 +158,7 @@ function drain(s: GameState): boolean {
 }
 
 // 「現実的で、条件が通りやすい」盤面を作る。テスト対象のカードは p1 のフィールド（またはネクサス帯）に置く
-function buildBoard(testCard: CardData): {
+export function buildBoard(testCard: CardData): {
     s: GameState
     selfInst: ReturnType<typeof createInstance> | null
 } {
@@ -238,7 +238,7 @@ function buildBoard(testCard: CardData): {
 
 // フィールド誘発の**主体**（「自分のスピリットが召喚されたとき」の、その召喚されたスピリット）を選ぶ。
 // エントリの subjectFilter（fieldEvent）か、直下の familyFilter / keywordFilter を満たす駒を盤面から探す（無ければ null）
-function pickSubject(s: GameState, cond: Record<string, unknown>): ReturnType<typeof createInstance> | null {
+export function pickSubject(s: GameState, cond: Record<string, unknown>): ReturnType<typeof createInstance> | null {
     const sf = (cond["subjectFilter"] ?? {}) as Record<string, unknown>
     const fam = sf["family"] ?? cond["familyFilter"]
     const kw = sf["keyword"] ?? cond["keywordFilter"]
