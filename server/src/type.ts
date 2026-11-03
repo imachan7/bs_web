@@ -288,6 +288,7 @@ export type TimedRecord = {
     until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" // beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
     sourceType?: CardType // amountCounter を数え直すとき、数える効果の発生源の種別（スリーカードの sourceTypes 判定に要る）
+    sourceColors?: Color[] // 「すべて」の Lv の置き換えを計算し直すたびに耐性（装甲を含む）を判定するため
 }
 
 // プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）

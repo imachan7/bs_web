@@ -65,6 +65,11 @@ function discardBothHands(ctx: ActionCtx, action: DiscardAction): void {
     const pids = bothSidesPids(state, srcType)
     for (const pid of [owner, opp]) {
         if (!pids.includes(pid)) continue
+        // 1人ぶんの処理は破棄する本人を owner にして入り直すので、手札耐性はここで見る（Q22265：手札は破棄しない）
+        if (pid !== owner && handImmuneFor(state, pid, srcType)) {
+            log(state, `${ctx.sourceName}の手札破棄：${state.players[pid].name}の手札は効果を受けなかった。`)
+            continue
+        }
         if (action.count === "all" ? state.players[pid].hand.length === 0 : (action.count ?? 1) <= 0) continue
         const one: EffectAction = { type: "discard", from: "hand", side: "own", count: action.count ?? 1 }
         if (state.pendingChoice) {

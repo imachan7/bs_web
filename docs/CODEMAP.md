@@ -169,6 +169,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasBounceImmunity`（fn）：発生源の持ち主の familyFilter/colorFilter 一致スピリットは、相手の効果によるバウンス
 - `hasTimedUnblockable`（fn）：この個体にいま掛かっている期間つき効果の内容（docs/design/TIMED_EFFECTS.md）。1体指定と「すべて」の両方を追加順に返す。
 - `timedContentsOn`（fn）
+- `timedRecordsOn`（fn）：記録を出した側（ownerPid）が要る判定のために、当たった記録そのものを記録順で返す
 - `timedKeywords`（fn）：この個体に期間つき効果で与えられたキーワード（colors＝【装甲】の色）
 - `timedContentsFor`（fn）：このプレイヤーに掛かっている期間つき効果の内容
 - `isBeforeBlockWindow`（fn）：ブロック宣言前のフラッシュタイミングか。ブロックされずにライフで受ける場合はその場でバトルが終わるので、
