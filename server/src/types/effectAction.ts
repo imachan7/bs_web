@@ -205,7 +205,6 @@ export type EffectAction =
  | { type: "if"; cond: IfCond; then: EffectAction; else?: EffectAction } // 「〜とき／〜なら」（docs/design/IF_UNIFY.md §5）
  | { type: "takeLast"; pick: CardPick; to: "hand" | "summon"; skipOnSummon?: true } // 直前に動いたカード（record.ts）のうち pick に合う最後の1枚を、まだトラッシュにあれば to へ（「その後、トラッシュにあるそのカード」）
  | { type: "grantKeywordToHandCard"; keyword: Keyword; familyFilter?: FamilyFilter; cardType?: "spirit" | "nexus" | "magic"; all?: true } // 自分の手札の条件一致カード1枚に、このターンの間キーワードを付与（PlayerState.tempHandKeywordGrants。自動選択は手札末尾。付与はcardId単位＝同名重複カードにも効く簡略化）。all＝選択を挟まず条件一致する手札カードすべて
- | { type: "addSymbolPermanent"; count: number; color: Color } // 発生源自身（self）に、指定色のシンボルをcount個**永続的に**追加（symbolAddGrantと違い、条件で消えず蓄積する）。CardInstance.extraSymbolsPermanent
  | { type: "tenshoResume"; dest: "trash" | "void"; stage: "afterTargetTrigger" | "afterEvent"; skipSubstitute?: true } // 【転召】の途中で**誘発が選択待ちを立てた**ときの再開専用（内部専用）。手順は「コアを外す＋対象スピリットの効果発揮 → 対象の消滅 → 召喚時効果」で、**消滅は効果の発揮が解決しきってから**（2026-08-13ユーザー確認）。stage:"afterTargetTrigger"＝『転召の対象になったとき』の誘発の後（置換の判断から再開）、"afterEvent"＝『転召が解決したとき』の誘発の後（コア処理と消滅だけ）
  | { type: "tenshoCoreDump"; dest: "trash" | "void" } // 【転召】のpendingChoice再開専用。維持コア割れは既存の消滅処理（destroySpirit "deplete"）に委ねる
  | { type: "markNoRefreshTarget" } // 相手の疲労状態のスピリット1体を「回復できない」と指定する。発生源＝selfに noRefreshTargetInstanceId として記録し、**selfが疲労状態で持ち主のフィールドにいる間**だけ効く（PhaseManagerのリフレッシュステップがisRefreshBlockedByMarkで参照）。対象は実効BP最大の1体を自動選択する決定的簡略化（アタック宣言中に発火しうるため pendingChoice を立てない）

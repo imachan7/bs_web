@@ -37,17 +37,13 @@ console.log("=== C: 本来のコスト（軽減前）で判定する軸（BS13-0
     // まずコスト7未満のカードを召喚しても発火しない
     p1.hand[0] = "BS01-001" // ゴラドン：コスト0
     assert(handleAction(s, "p1", { type: "summon", handIndex: 0 }) === null, "コスト0のゴラドンを召喚")
-    assert((cham.extraSymbolsPermanent?.length ?? 0) === 0, "コスト7未満の召喚では発火しない")
 
     // 次に本来のコスト7の晶輝龍ディアマットを召喚（実質コストは軽減で4になっている）。
     // 召喚時効果は「【神速】を持つスピリット1体を破壊できる」で、場に神速持ちがいないため無害
     p1.hand[0] = "BS01-024" // 晶輝龍ディアマット：コスト7・軽減赤赤赤
     assert(handleAction(s, "p1", { type: "summon", handIndex: 0 }) === null, "本来のコスト7の晶輝龍ディアマットを召喚（軽減で実質4）")
-    assert(
-        (cham.extraSymbolsPermanent?.length ?? 0) === 2,
-        "軽減で実質コストが下がっても、本来のコストが7以上なら赤シンボル2つが永続的に追加される",
-    )
-    assert(instanceSymbolCount(cham) === 3, "カメレオプス自身のシンボル数は1（静的）+2（永続追加）=3")
+    // 追加の赤シンボル2つはその召喚の軽減にだけ数え、場に残らない（Q3206。2026-11-02 に永続追加から改めた）
+    assert(instanceSymbolCount(cham) === 1, "召喚の後、カメレオプス自身のシンボル数は1のまま")
 }
 
 console.log("=== D: アタック時に合体し、合体できたときだけ『合体アタック時』を発揮 ===")
