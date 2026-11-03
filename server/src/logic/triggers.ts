@@ -571,6 +571,7 @@ export function fireTrigger(
                     actorPid: owner,
                     ...(target !== undefined ? { targetInstanceId: target } : {}),
                     ...(effect.optional && state.interactiveTargets ? { confirmPrompt: `${getCard(entry.src.cardId).name}の効果を発動しますか？` } : {}),
+                    ...(card.type === "spirit" || entry.src !== selfInstance ? { redirectTarget: true as const } : {}),
                 },
             })
         }

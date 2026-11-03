@@ -24,6 +24,7 @@ import {
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
 import { wouldDepleteOf, moveSoulCore, placeSoulCoreOnSummoned, soulCoreInReserve, soulCoreInTrash } from "./soulCore"
+import { resolveAttackDeclared } from "./attackDeclared"
 import { resolveBlockDeclared } from "./blockDeclared"
 import { finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
@@ -63,7 +64,6 @@ import {
     emitEvent,
     exhaustSpirit,
     offerOpponentMainEndMagic,
-    fireExhaustedTriggers,
     fireSummonSequence,
     flushPendingTenshoEvent,
     fireFieldEventTriggers,
@@ -1171,28 +1171,9 @@ function doAttack(
     // 順序が逆だと常に空のまま発揮されてしまう
     resolveFunsai(state, pid, inst)
 
-    if (!state.winner) fireTrigger(state, pid, inst, "onAttack")
-
-    // 『このスピリットのバトル時』：バトルが成立した時点（アタック宣言時）で発火する。勝敗を問わない。
-    // 指定アタックのときはここでは発火させない（この時点では相手が決まっていない。resolveDirectedBlock がブロック確定後に発火させる）
-    if (!state.winner && targetSpiritInstanceId === undefined) fireTrigger(state, pid, inst, "onBattleStart")
-
-    // フィールドイベント誘発「スピリットがアタックを宣言したとき」。発生源の持ち主に関わらず作用させるため、両プレイヤーのフィールドから selfOverride（アタッカー）付きで発火する
-    if (!state.winner) {
-        fireFieldEventTriggers(state, pid, "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
-            // instAllCosts：本来のコストに加え、道化師クランの付与コストも含める
-            costs: instAllCosts(inst),
-        })
-    }
-    if (!state.winner) {
-        // アタックしたスピリットのコストを渡す（costFilter で絞る効果のため）
-        fireFieldEventTriggers(state, opponentOf(pid), "anySpiritAttacked", { pid, inst }, instColors(inst), undefined, undefined, {
-            // instAllCosts：本来のコストに加え、道化師クランの付与コストも含める
-            costs: instAllCosts(inst),
-        })
-    }
-    // フィールドイベント誘発「スピリットが疲労したとき」。アタック宣言による疲労の分をここで発火する。アタッカーが効果で消滅しうるので、直後の「バトル不成立」判定に乗る位置に置く
-    if (!state.winner) fireExhaustedTriggers(state, pid, inst)
+    // アタック時・『バトル時』・アタックしたとき・アタッカーが疲労したときは同時発揮。続けてアタック後バースト（attackDeclared.ts）
+    if (!state.winner) resolveAttackDeclared(state, pid, inst, targetSpiritInstanceId !== undefined)
+    if (state.pendingChoice) return null
     if (state.battle && !findSpirit(player, instanceId)) {
         log(state, `${card.name}は消滅したため、バトルは発生しなかった。`)
         clearBattle(state)

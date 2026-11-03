@@ -563,6 +563,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ActionHandler`（型）：単一アクションのハンドラ。action は type で絞り込まれた具体型が渡る
 - `ActionRegistry`（型）：全 EffectAction.type を網羅するハンドラ表。
 
+## server/src/logic/attackDeclared.ts
+
+- `resolveAttackDeclared`（fn）：directed：指定アタック。『バトル時』は相手が決まるブロック確定時に発火するので、ここでは積まない
+
 ## server/src/logic/battleResolve.ts
 
 - `resolveLifeDamage`（fn）：ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
@@ -691,7 +695,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `burstEffectBlocked`（fn）：noBurstEffectForPid：効果の解決だけを飛ばす。宣言は成立済みなのでカードはトラッシュへ行き、発動後の誘発も起きる
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
-- `fireBurstOnEvent`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
+- `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
+- `fireBurstOnEvent`（fn）
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
 
@@ -938,6 +943,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `refreshSpirit`（fn）：スピリットを回復させる唯一の入口。すでに回復状態なら何もしない（誘発も起きない）。
 - `fireRefreshedSideEvents`（fn）：陣営で数える回復イベント。リフレッシュステップでは回復が同時なので、陣営ごとに1回だけ呼ぶ
 - `fireExhaustedTriggers`（fn）：「スピリットが疲労したとき」のフィールドイベント発火。
+- `exhaustedEvents`（fn）：疲労で発火するフィールドイベントの一覧（発火する側・イベント・付帯情報）。アタック宣言はこれを同時発揮の列に積む（attackDeclared.ts）
 - `isRefreshBlockedByMark`（fn）：スクルディア：相手のスピリットから「回復できない」と指定されていて、
 - `canExhaustNexus`（fn）：BS09-063花の宮殿Lv2：発生源の持ち主から見た相手のネクサスは疲労させられない。
 
@@ -1087,6 +1093,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/choice.ts
 
+- `EventBurstCheck`（型）：バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
 - `PendingChoice`（型）：効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 - `ResumeFrame`（型）：中断した処理の再開情報（GameState.resumeStack の要素）。
 

@@ -245,29 +245,38 @@ export function fireExhaustedTriggers(
     causePid?: PlayerId,
     causeType?: CardType,
 ): void {
+    const colors = instColors(inst)
+    for (const ev of exhaustedEvents(ownerPid, inst, causePid, causeType)) {
+        if (state.winner) return
+        fireFieldEventTriggers(state, ev.pid, ev.event, { pid: ownerPid, inst }, colors, undefined, undefined, ev.info)
+    }
+}
+
+// 疲労で発火するフィールドイベントの一覧（発火する側・イベント・付帯情報）。アタック宣言はこれを同時発揮の列に積む（attackDeclared.ts）
+export function exhaustedEvents(
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    causePid?: PlayerId,
+    causeType?: CardType,
+): { pid: PlayerId; event: "ownNexusExhausted" | "ownSpiritExhausted" | "anySpiritExhausted"; info: { costs: number[]; byOpponentEffect: boolean; causePid?: PlayerId; causeType?: CardType } }[] {
     // 疲労したスピリットのコスト（道化師クランの付与コストも含む）を costFilter 用に渡す。
     // byOpponentEffect：「相手の**スピリット/ブレイヴ/マジック**の効果」で疲労したときのみtrue
     // （ネクサスの効果による疲労は含まない。BS12-062白煙の大山脈）
-    const eventInfo = {
+    const info = {
         costs: instAllCosts(inst),
         byOpponentEffect:
             causeType !== undefined && causeType !== "nexus" && causePid !== undefined && causePid !== ownerPid,
         ...(causePid !== undefined ? { causePid } : {}),
         ...(causeType !== undefined ? { causeType } : {}),
     }
-    const colors = instColors(inst)
-    if (state.winner) return
     // ネクサスの【起動】コスト・効果の疲労も exhaustSpirit を通るので、ここで種別を見て足す。
     // スピリットとして扱われているネクサス（nexusAsSpiritThisStep）の ownSpiritExhausted は従来どおり発火させる
-    if (getCard(inst.cardId).type === "nexus") {
-        fireFieldEventTriggers(state, ownerPid, "ownNexusExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
-        if (state.winner) return
-    }
-    fireFieldEventTriggers(state, ownerPid, "ownSpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
-    if (state.winner) return
-    fireFieldEventTriggers(state, ownerPid, "anySpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
-    if (state.winner) return
-    fireFieldEventTriggers(state, opponentOf(ownerPid), "anySpiritExhausted", { pid: ownerPid, inst }, colors, undefined, undefined, eventInfo)
+    return [
+        ...(getCard(inst.cardId).type === "nexus" ? [{ pid: ownerPid, event: "ownNexusExhausted" as const, info }] : []),
+        { pid: ownerPid, event: "ownSpiritExhausted" as const, info },
+        { pid: ownerPid, event: "anySpiritExhausted" as const, info },
+        { pid: opponentOf(ownerPid), event: "anySpiritExhausted" as const, info },
+    ]
 }
 
 // スクルディア：相手のスピリットから「回復できない」と指定されていて、
