@@ -122,6 +122,8 @@ let totalSteps = 0
 for (let g = 0; g < GAMES; g++) {
     const seed = BASE_SEED + g
     const rng = makeRng(seed)
+    // エンジンのシャッフル・ランダム破棄は Math.random を使うので、これも seed から作る（でないと同じ seed で再現しない）
+    Math.random = makeRng(seed * 7919 + 13)
     let s: GameState
     try {
         s = createGame(`fuzz-${seed}`, { p1: "アキラ", p2: "ユウキ" }, { p1: randomDeck(rng), p2: randomDeck(rng) })
