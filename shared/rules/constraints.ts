@@ -1282,19 +1282,22 @@ export function hasTimedUnblockable(board: Board, inst: CardInstance): boolean {
 }
 
 export function timedContentsOn(board: Board, inst: CardInstance): TimedContent[] {
+    return timedRecordsOn(board, inst).flatMap((r) => r.content)
+}
+
+// 記録を出した側（ownerPid）が要る判定のために、当たった記録そのものを記録順で返す
+export function timedRecordsOn(board: Board, inst: CardInstance): Board["timedEffects"] {
     const p1 = board.players.p1.field
     const pid: PlayerId = p1.spirits.includes(inst) || p1.nexuses.includes(inst) ? "p1" : "p2"
     // 「〜のスピリットすべて」の記録はスピリットにだけ当たる（ネクサスは1体指定の記録でだけ受ける）
     const isSpirit = board.players[pid].field.spirits.includes(inst)
-    return board.timedEffects.flatMap((r) => {
+    return board.timedEffects.filter((r) => {
         const t = r.target
-        const hit =
-            t.kind === "instance"
-                ? t.instanceId === inst.instanceId
-                : t.kind === "braveHost"
-                  ? bravesOf(board.players[pid], inst).some((b) => b.instanceId === t.braveInstanceId)
-                  : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
-        return hit ? r.content : []
+        return t.kind === "instance"
+            ? t.instanceId === inst.instanceId
+            : t.kind === "braveHost"
+              ? bravesOf(board.players[pid], inst).some((b) => b.instanceId === t.braveInstanceId)
+              : t.kind === "rule" && isSpirit && (t.pid === undefined || t.pid === pid) && matchesTarget(board, pid, inst, t.filter, t.selfInstanceId)
     })
 }
 

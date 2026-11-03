@@ -362,6 +362,11 @@ const coreDrainAllOthersHandler: ActionHandler<"coreDrainAllOthers"> = (ctx, act
                 (s) => s.instanceId === instanceId,
             )
             if (!inst) continue // 途中の誘発等ですでにフィールドから消えている場合はスキップ
+            const resisted = resistanceAgainst(state, pid, inst, attemptOf(ctx, "coreRemove", "area"))
+            if (resisted) {
+                log(state, `${getCard(inst.cardId).name}は${sourceName}の効果を受けなかった（${resisted.label}）。`)
+                continue
+            }
             const before = state.players[pid].field.spirits.length
             removeCores(state, pid, inst, 1, owner, srcType)
             if (state.players[pid].field.spirits.length < before) destroyed++

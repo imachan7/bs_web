@@ -4,7 +4,7 @@ import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, Gam
 import { currentLevel, getCard, log, suspend } from "../GameState"
 import { applyMagicBuffBonus, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
-import { normalizeFilter, SELF_REQUIRED } from "./filter"
+import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { bothSidesPids } from "../magic/redirect"
 import { COLOR_LABELS } from "../../../../data/constants"
@@ -331,11 +331,14 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         return
     }
     if (action.content.some((c) => c.type === "level")) {
+        // 耐性は記録時でなく、計算し直すたびに判定する（state/continuous.ts の applyTimedCopies）。後から耐性を得た／失った個体も正しくなる
         recordTimed(state, {
             content: action.content,
             target: { kind: "rule", ...(pid !== undefined ? { pid } : {}), filter, ...(self ? { selfInstanceId: self.instanceId } : {}) },
             until: bpUntil(action),
             ownerPid: owner,
+            ...(ctx.srcType !== undefined ? { sourceType: ctx.srcType } : {}),
+            ...(ctx.srcColors !== undefined ? { sourceColors: ctx.srcColors } : {}),
         })
         const who = pid === undefined ? "お互いの" : `${state.players[pid].name}の`
         const lv = action.content.find((c): c is Extract<Content, { type: "level" }> => c.type === "level")!
@@ -392,6 +395,7 @@ function placeLevel(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Ti
         const levelOf = (s: CardInstance) => content.max ? maxLevelOf(s) : content.set!
         const pids: PlayerId[] = action.side === "own" ? [owner] : action.side === "both" ? [owner, opp] : [opp]
         const passes = (s: CardInstance, sPid: PlayerId) =>
+            resistanceAgainst(state, sPid, s, { ...attemptOf(ctx, "other", "targeted"), probing: true as const }) === null &&
             matchesTarget(state, sPid, s, filter, self?.instanceId) &&
             (!content.requireLevelExists || getCard(s.cardId).levels.some((l) => l.level === levelOf(s)))
         const candidates = pids.flatMap((p) => state.players[p].field.spirits.filter((s) => passes(s, p)))

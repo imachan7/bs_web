@@ -5,6 +5,7 @@ import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, Ti
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } from "../GameState"
 import { ownFieldSymbolColors } from "../../../../shared/cost"
 import { entryActive } from "../../../../shared/rules/effectStop"
+import { boardResistanceAgainst } from "../../../../shared/rules/resistance"
 import { matchesPick } from "../actions/revealAction"
 import {
     effectActiveOn,
@@ -20,6 +21,7 @@ import {
     cardNameContains,
     matchesTarget,
     timedContentsOn,
+    timedRecordsOn,
     instMatchesCostFilter,
     matchesFamilyFilter,
     spiritHasFamily,
@@ -82,12 +84,6 @@ function applyTimedCopies(state: GameState): void {
         // 記録順に処理する＝後から掛けた Lv が勝つ
         for (const c of contents) {
             if (c.type === "color" && c.color !== undefined && !inst.timedColors.includes(c.color)) inst.timedColors.push(c.color)
-            if (c.type === "level") {
-                const levels = getCard(inst.cardId).levels
-                if (c.requireLevelExists && c.set !== undefined && !levels.some((l) => l.level === c.set)) continue
-                const to = c.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : c.set
-                if (to !== undefined) inst.timedLevel = to
-            }
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
@@ -130,6 +126,33 @@ function applyTimedCopies(state: GameState): void {
                 for (const inst of state.players[pid].field.spirits) {
                     if (matchesTarget(state, pid, inst, t.filter, t.selfInstanceId)) grantImmune(inst, c)
                 }
+            }
+        }
+    }
+    // 「〜として扱う」の Lv は、期間つきの耐性を写したあとで当てる。ここではまだ Lv の置き換えを消した状態なので、耐性は本来の Lv で判定でき、
+    // 「耐性が Lv で決まり、その Lv を置き換えが決める」循環にならない。計算し直すたびに見るので、後から耐性を得た／失った個体も正しくなる（2026-11-03 ユーザーと決定）。
+    // 自分の効果による Lv の置き換え（levelAsContinuous）はこの後で組むので、それで得る耐性はここでは見えない（既知の限界）
+    for (const inst of all) {
+        const pid: PlayerId = state.players.p1.field.spirits.includes(inst) || state.players.p1.field.nexuses.includes(inst) ? "p1" : "p2"
+        // 記録順に処理する＝後から掛けた Lv が勝つ
+        for (const r of timedRecordsOn(state, inst)) {
+            for (const c of r.content) {
+                if (c.type !== "level") continue
+                const levels = getCard(inst.cardId).levels
+                if (c.requireLevelExists && c.set !== undefined && !levels.some((l) => l.level === c.set)) continue
+                if (
+                    r.target.kind === "rule" &&
+                    boardResistanceAgainst(state, pid, inst, {
+                        op: "other",
+                        scope: "area",
+                        actorPid: r.ownerPid,
+                        ...(r.sourceType !== undefined ? { sourceType: r.sourceType } : {}),
+                        ...(r.sourceColors !== undefined ? { sourceColors: r.sourceColors } : {}),
+                    }) !== null
+                )
+                    continue
+                const to = c.max ? levels.reduce((m, l) => Math.max(m, l.level), 1) : c.set
+                if (to !== undefined) inst.timedLevel = to
             }
         }
     }
