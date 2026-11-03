@@ -5,7 +5,7 @@ import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { withEffectTax } from "../effectTax"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
-import type { Color, EffectAction, EffectDef, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
+import type { Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import { fireFieldEventTriggers, notifyHandGained } from "../fieldEventTriggers"
 import { burstActivationForbidden, effectActiveAtLevel, effectSources, timedContentsFor, timedPlayerRules } from "../../../../shared/rules"
@@ -257,6 +257,19 @@ export function finishSummonEffect(state: GameState): void {
 // BS16バッチ0：破壊後バースト（event:"ownSpiritDestroyed"）はトラッシュ行き確定後に
 // removal.ts の fireQueuedDestroyBursts が単独で呼ぶ（selfOverrideは{pid, cardId}の軽量版でよい。
 // 破壊済みの個体はもうCardInstance実体が無いため）
+// 宣言のあとのバースト判定を順に行う。発動の確認などで中断したら、残りを後ろへ積む
+export function fireEventBursts(state: GameState, checks: EventBurstCheck[]): void {
+    for (let i = 0; i < checks.length; i++) {
+        if (state.winner) return
+        const c = checks[i]!
+        fireBurstOnEvent(state, c.pid, c.event, c.subject, c.colors, c.targetInstanceId, c.info)
+        if (state.pendingChoice) {
+            if (i + 1 < checks.length) pushResumeFrames(state, [{ kind: "eventBursts", checks: checks.slice(i + 1) }])
+            return
+        }
+    }
+}
+
 export function fireBurstOnEvent(
     state: GameState,
     pid: PlayerId,
