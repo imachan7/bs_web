@@ -22,7 +22,7 @@ import {
     opponentOf,
     placedCoresForSummon,
 } from "./GameState"
-import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, spiritCouldAttackNow, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
+import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
 import { canDiscardHand, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
@@ -1147,6 +1147,8 @@ export function validateAttack(
     targetSpiritInstanceId?: string,
     paySources?: PaySource[],
     paySoulCoreFromReserve?: boolean,
+    // mustAttackNow から呼ぶとき：「最初にアタックしなければならない」個体の確認は飛ばす（その確認が mustAttackNow を呼ぶので循環する）
+    ignoreAttackOrder = false,
 ): string | null {
     if (state.turnPlayer !== pid) return "自分のターンではありません"
     if (state.phase !== "attack") return "アタックステップではありません"
@@ -1157,9 +1159,9 @@ export function validateAttack(
     if (inst.isRested) return "疲労しているためアタックできません"
     if (cantActByTimed(state, inst)) return "このターンの間、このスピリットはアタックできません"
     if (currentLevel(inst).level < 1) return "レベル1未満のためアタックできません"
-    const first = state.players[pid].field.spirits.find(
-        (s) => s.instanceId !== instanceId && mustAttackFirst(state, s) && mustAttackNow(state, pid, s),
-    )
+    const first = ignoreAttackOrder
+        ? undefined
+        : state.players[pid].field.spirits.find((s) => s.instanceId !== instanceId && mustAttackFirst(state, s) && mustAttackNow(state, pid, s))
     if (first) return `${getCard(first.cardId).name}がこのステップの最初にアタックしなければなりません`
     if (inst.cores === 1 && hasGlobalConstraint(state, "singleCoreCantAct")) {
         return "コア1個しか置いていないスピリットはアタックできません"
@@ -1346,9 +1348,11 @@ export function validatePass(state: GameState, pid: PlayerId): string | null {
 }
 
 function mustAttackNow(state: GameState, pid: PlayerId, inst: CardInstance): boolean {
-    if (!spiritCouldAttackNow(state, pid, inst)) return false
-    const constraints = activeConstraints(state, pid, inst)
-    return constraints.some((c) => c.type === "mustAttack") || mustAttackThisTurn(state, pid, inst)
+    if (!activeConstraints(state, pid, inst).some((c) => c.type === "mustAttack") && !mustAttackThisTurn(state, pid, inst)) return false
+    // 「アタックできるとき」は、実際のアタック宣言が通るか（mustAttackOnceBlocksEnd と同じ）。条件を別に持つと片方だけ抜けて、
+    // アタックもターン終了もできずに詰む（2026-11-03：自分のスピリットが少ないとアタックできない制限が抜けていた。fuzz seed=187）。
+    // メインステップからのターン終了でもアタックステップは来るので、phase だけ attack にした写しで見る
+    return validateAttack({ ...state, phase: "attack" as const }, pid, inst.instanceId, undefined, undefined, undefined, true) === null
 }
 
 // ターン終了の妥当性。「必ずアタック」制約（mustAttack）を持ち現在アタック可能な自分のスピリットが1体でもいれば拒否する（メイン・アタックステップ両方）

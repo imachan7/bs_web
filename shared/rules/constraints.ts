@@ -1431,20 +1431,6 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
     return false
 }
 
-// いま（またはこの後のアタックステップで）アタックを強いられうる個体か。mustAttack 系の判定と validateEndTurn が共有する
-export function spiritCouldAttackNow(board: Board, pid: PlayerId, inst: CardInstance): boolean {
-    if (inst.isRested) return false
-    if (cantActByTimed(board, inst)) return false
-    if (currentLevel(inst).level < 1) return false
-    if (inst.cores === 1 && hasGlobalConstraint(board, "singleCoreCantAct")) return false
-    if (inst.cores === 1 && hasGlobalConstraint(board, "singleCoreCantAttack")) return false
-    if (instCostCantAct(board, inst)) return false
-    if (instCantAttackByOpponentCost(board, pid, inst)) return false
-    if (instCantAttackByCost(board, inst)) return false
-    if (timedCantAttackByCost(board, pid, inst)) return false
-    return !activeConstraints(board, pid, inst).some((c) => c.type === "cantAttack")
-}
-
 // globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 // メインからのターン終了でもアタックステップは必ず来るので、窓の phase は "attack" として数える
 // 「可能ならば」は canDeclare（実際のアタック宣言が通るか。サーバーは validateAttack）で判定する。指定先の絞り込み・指定不可・コア不足の拒否もこれで含まれ、詰みを作らない
