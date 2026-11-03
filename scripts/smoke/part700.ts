@@ -304,7 +304,8 @@ for (const [attackerId, expectKill] of [["BS08-X29", true], [VAN, false]] as con
 {
     const s = game("h-int", "p1", true)
     put(s, "p1", "BS08-052", 1)
-    const me = put(s, "p1", "BS08-X29", 3)
+    // 自動と同じく Lv1：Lv2 以上だと自身のアタック時の破壊も同時発揮になり、解決順の確認と選択が挟まる
+    const me = put(s, "p1", "BS08-X29", 1)
     const fs = foes(s, FIVE)
     for (const f of fs) f.inst.isRested = true
     const seen: string[][] = []

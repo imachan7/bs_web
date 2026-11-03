@@ -10,6 +10,7 @@ import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, d
 import {
     summonFreeFromTrashIndex,
     continueBurstActivation,
+    fireEventBursts,
     announceBurstActivation,
     applyMagicNegateChoice,
     applyMagicRedirectChoice,
@@ -36,6 +37,7 @@ import {
 import { validatePaySources } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
+import { setTargetRedirect } from "./magic/redirect"
 import { applyResshinsokuDestination, continueBlockDeclaration, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
@@ -730,6 +732,10 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             continueBurstActivation(state, frame)
             continue
         }
+        if (frame.kind === "eventBursts") {
+            fireEventBursts(state, frame.checks)
+            continue
+        }
         // requiresPendingDestructionOf：破壊で誘発した効果の列の残り。途中で
         // 「フィールドに残る／戻る」が解決してその破壊が無かったことになっていれば空振りさせる
         // （docs/design/TIMING_CHART.md）。フレームは消さず、ここで無効化する
@@ -760,6 +766,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
         const prevBurst = state.resumeBurst
         if (frame.burst) state.resumeBurst = frame.burst
         else delete state.resumeBurst
+        if (frame.redirectTarget) setTargetRedirect(state, frame.actorPid ?? pid, frame.targetInstanceId, frame.action)
         resolveAction(
             state,
             frame.actorPid ?? pid,
@@ -769,6 +776,7 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
             frame.sourceColors,
             frame.sourceType,
         )
+        if (frame.redirectTarget) delete state.magicRedirectTo
         if (prevBurst) state.resumeBurst = prevBurst
         else delete state.resumeBurst
     }

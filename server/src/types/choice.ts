@@ -2,6 +2,17 @@
 
 import type { CardInstance, CardType, Color, DestroyContext, GameState, PaySource, PlayerId } from "../type"
 import type { EffectAction } from "./effectAction"
+import type { FieldEvent } from "./fieldEvent"
+
+// バースト判定1回ぶん（fireBurstOnEvent の引数そのまま。再開スタックに載せるので実体参照を持たない）
+export type EventBurstCheck = {
+    pid: PlayerId
+    event: FieldEvent
+    subject?: { pid: PlayerId; cardId?: string }
+    colors?: Color[]
+    targetInstanceId?: string
+    info?: { byOpponentEffect?: boolean; destroyedBp?: number; costs?: number[] }
+}
 
 // 効果解決中のプレイヤー選択（v1は対象選択のみ）。resolveAction が候補2件以上のときに
 // requestChoice 経由でセットし、GameAction "resolveChoice" で消費される。
@@ -337,6 +348,15 @@ export type ResumeFrame =
           targetInstanceId?: string // 効果の対象（イベント対象を引き継ぐ）
           sourceColors?: Color[] // 発生源の色（self とずれるとき）
           sourceType?: CardType // 発生源の種別（同上）
+          // 解決の直前に対象の付け替え（magicTargetRedirect）を掛け直す。誘発を同時発揮の列から解決するとき、
+          // 列を作った時点では掛けられない（付け替えは解決中だけ有効な一時状態）ので印だけ持ち回る
+          redirectTarget?: true
+      }
+    | {
+          // 宣言のあとのバースト判定（アタック後バースト等。TIMING_CHART ＞１-3）。同時発揮の列が選択待ちで中断しても、
+          // 列を解決し終えてから判定するために、列の後ろへ積む
+          kind: "eventBursts"
+          checks: EventBurstCheck[]
       }
     | {
           // 列を**使い切ったあと**に実行するフレーム（省略可）。破壊で誘発した効果の列では
