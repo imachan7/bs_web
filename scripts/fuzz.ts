@@ -19,6 +19,7 @@ import { runTurnStart } from "../server/src/logic/PhaseManager"
 import type { GameAction, GameState, PlayerId } from "../server/src/type"
 import { loadAllCards } from "../data/loadCards"
 import { DECK_SIZE } from "../data/constants"
+import { countCards } from "./smoke/countCards"
 
 interface CardRow {
     cardId: string
@@ -75,18 +76,6 @@ function randomDeck(rng: () => number): Record<string, number> {
     return deck
 }
 
-function totalCards(s: GameState): number {
-    let n = 0
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const p = s.players[pid]
-        n += p.deck.length + p.hand.length + p.trashCards.length + p.tegamoto.length
-        n += p.field.spirits.length + p.field.nexuses.length
-    }
-    n += s.revealedCards?.cardIds.length ?? 0
-    // 【転召】の対象選択で中断中の召喚は、カードが手札から出てフィールドにもまだ無い（RESUME_STACK.md §6）
-    n += s.summoningInstanceId !== undefined ? 1 : 0
-    return n
-}
 
 // いま手を打つべきプレイヤー
 function actorOf(s: GameState): PlayerId {
@@ -142,7 +131,7 @@ for (let g = 0; g < GAMES; g++) {
     }
     s.interactiveTargets = true // 実サーバーと同じ経路
     runTurnStart(s) // スタートステップ（実サーバーもゲーム開始時に呼ぶ）
-    let expected = totalCards(s)
+    let expected = countCards(s)
     let stuck = 0
     let lastPending: unknown = null
     let steps = 0
@@ -206,7 +195,7 @@ for (let g = 0; g < GAMES; g++) {
             break
         }
         // 保存則（カードが増減していないか）。**増減した時点**で止めて原因の手を残す
-        const now = totalCards(s)
+        const now = countCards(s)
         if (now !== expected) {
             anomalies.push({ seed, kind: "保存則違反", detail: `カード総数が ${expected} → ${now}` })
             expected = now // 同じゲームで何度も報告しない

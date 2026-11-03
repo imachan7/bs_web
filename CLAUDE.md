@@ -184,7 +184,8 @@ npm run typecheck && npm run validate:cards && npm run validate:notes && npm run
 
 **データの移行（軸の名前を変える・器をまとめる）をしたら `npm run coverage:check` を回す**（2026-10-31）。未実行の効果エントリが基準（`data/coverage-baseline.json`）より増えたら落ちる。
 全カードを発火させるテスト（part190・part197）は欄の名前を読んで場面を組むので、データだけ移すと場面が組めずに黙って発火しなくなり、smoke は全緑のままになる（10-31 に28件）。
-減ったら `npm run coverage:update` で基準を縮める。part197 自身も、動かなかった fieldEvent が基準（`data/fieldevent-fire-baseline.json`）より増えたら落ちる（更新は `FIRE_BASELINE_UPDATE=1 npx tsx scripts/smoke/part197.ts`）。
+減ったら `npm run coverage:update` で基準を縮める。
+⚠️ 基準を作る前に移行が入っていると、壊れた状態が基準に含まれる（11-02 に part198 が #350 以降 `colorFilter` を読んで黙って空振りしていたのを発見）。移行の前後で smoke の ✅ の文言を突き合わせると、消えた確認が出る（件数を含む文言は数字が変わるだけなので除いて読む）。part197 自身も、動かなかった fieldEvent が基準（`data/fieldevent-fire-baseline.json`）より増えたら落ちる（更新は `FIRE_BASELINE_UPDATE=1 npx tsx scripts/smoke/part197.ts`）。
 
 `validate:gaps` が「**書かれていない効果**」を静的に探すのに対し、これは
 「**書かれているのに一度も発火していない効果エントリ**」を実測で洗い出す。

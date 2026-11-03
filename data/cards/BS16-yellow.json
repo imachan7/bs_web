@@ -484,7 +484,7 @@
      2,
      3
     ],
-    "optional": false,
+    "optional": true,
     "action": {
      "type": "sequence",
      "keepScope": true,
