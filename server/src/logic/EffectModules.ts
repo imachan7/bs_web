@@ -1517,6 +1517,9 @@ export function resolveAction(
     // （ネストで取ると同じ配置を二重に数える）。監視するカードが場に無ければ何もしない
     const coreSnapshot = isOutermostEffect && hasCorePlacedWatcher(state) ? snapshotCorePlaces(state) : undefined
     handler(ctx, action)
+    // 「その後」の次の手は、前の手で変わった盤面の継続効果を見る（発生源が場を離れた・条件の体数が変わった等）。
+    // 更新点（合体・召喚・期限つき効果の記録）を通らない変化もあるので、手ごとに組み直す（2026-11-03 ユーザーと決定）
+    if (!state.winner) refreshLevelAsOverrides(state)
     // コアの居場所を突き合わせ、増えた側だけを合計して "opponentCorePlaced" を発火する。
     // **currentEffectSource を戻す前に**呼ぶ（sourceColorFilter がこれを読むため）
     if (coreSnapshot) fireCorePlacedFromDiff(state, coreSnapshot)
