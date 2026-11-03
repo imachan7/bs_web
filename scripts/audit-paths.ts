@@ -4,7 +4,7 @@
 //   先に相方   ：相方を先に選ぶ
 // 後の2つは解決順の確認・再開スタックを通るので、そこで発生源などを見失うと盤面が食い違う
 // （竜騎集う円卓＋賢者の樹の実で【装甲】が抜けた #235 の型）。誤検出を含むので終了コードは常に 0（人が読む道具）。
-import { CARDS, buildBoard, drain, pickSubject } from "./smoke/fireAll"
+import { CARDS, buildBoard, drain } from "./smoke/fireAll"
 import { fireFieldEventTriggers, fireStepTriggers } from "../server/src/logic/EffectModules"
 import { CARD_DB, createInstance } from "../server/src/logic/GameState"
 import { handleAction, refreshLevelAsOverrides } from "./smoke/helpers"
@@ -30,21 +30,24 @@ const echoCard = {
 } as unknown as CardData
 CARD_DB.set(ECHO_ID, echoCard)
 
-// 相方の効果：同じ条件で誘発し、何もしない。確認・支払い・1ターンに1回は外す（相方が先に使い切らないように）
+// 相方の効果：同じ条件で誘発し、何もしない。確認・支払い・ターンの回数制限は外す（相方が先に使い切らないように）。
+// 相方は発生源としての Lv・合体を持たず、主体にもなれないので、発生源の Lv・合体の条件と「主体が自分自身」の条件も外す
+// （外さないと Lv2 以上の効果や「このスピリットが〜したとき」で相方だけ誘発しない）
 function echoOf(e: EffectDef): EffectDef {
-    const { optional: _o, cost: _c, thenPay: _p, ...rest } = e as unknown as Record<string, unknown>
+    const { optional: _o, cost: _c, thenPay: _p, whileCombined: _w, sourceLevels: _l, sourceMinLevel: _m, selfOnly: _s, eventTargetIsSelf: _t, bySelfEffectOnly: _b, maxPerTurn: _x, ...rest } =
+        e as unknown as Record<string, unknown>
     for (const k of Object.keys(rest)) if (/^once/i.test(k)) delete rest[k]
-    return { ...rest, id: "AE-e1", action: { type: "noop" } } as unknown as EffectDef
+    return { ...rest, id: "AE-e1", levels: null, action: { type: "noop" } } as unknown as EffectDef
 }
 
-const ids = new Map<string, string>()
+// 個体の ID は対戦をまたいで通し番号なので、その対戦の中での大小順に振り直す（出てきた順だと、記録の並びの違いで別の番号になる）
 function norm(s: GameState): string {
-    ids.clear()
-    return JSON.stringify(s, (k, v) => (k === "log" || k === "history" || k === "triggerOrderPick" || k === "resumeInsertAt" || k === "events" ? undefined : v))
-        .replace(/inst-\d{6}/g, (m) => {
-            if (!ids.has(m)) ids.set(m, `I${ids.size}`)
-            return ids.get(m)!
-        })
+    const raw = JSON.stringify(s, (k, v) => (k === "log" || k === "history" || k === "triggerOrderPick" || k === "resumeInsertAt" || k === "events" ? undefined : v))
+    // 通し番号は全カードを回すと6桁を超える（inst-1000000）ので、桁数を決め打ちしない
+    const num = (id: string): number => Number(id.slice(5))
+    const rank = new Map([...new Set(raw.match(/inst-\d+/g) ?? [])].sort((a, b) => num(a) - num(b)).map((id, i) => [id, `I${i}`]))
+    return raw
+        .replace(/inst-\d+/g, (m) => rank.get(m)!)
         .replace(/AE-e1/g, "")
         // 記録の枠の ID（randomUUID）。単独で撃つと枠が無く "" になる
         .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, "")
@@ -57,13 +60,63 @@ function firstDiff(a: string, b: string): string {
     return `単独…${a.slice(Math.max(0, i - 120), i + 80)}\n      経路…${b.slice(Math.max(0, i - 120), i + 80)}`
 }
 
-type Variant = "単独" | "後に相方" | "先に相方"
-function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant): { s: string; ok: boolean; asked: boolean } {
+// 無＝この効果を外して撃つ（単独と比べて、効果がそもそも誘発したかを見る）
+type Variant = "無" | "単独" | "後に相方" | "先に相方"
+// フィールド誘発の撃ち方：誰のイベントとして撃つか（firePid）と、主体（場の何体目のスピリットか）
+interface Subj {
+    firePid: PlayerId
+    pid: PlayerId
+    idx: number
+    info: boolean // 効果の条件から作った付帯情報（eventInfo）を渡すか
+}
+
+// 付帯情報（「戦闘で破壊されたとき」「【不死】で召喚されたとき」など）を、効果側の条件の欄から作る。
+// 発生源は p1 に置くので、相手＝p2
+function infoFor(e: EffectDef): Record<string, unknown> {
+    const f = e as unknown as Record<string, unknown>
+    const info: Record<string, unknown> = {}
+    const first = <T,>(x: unknown): T | undefined => (Array.isArray(x) ? (x[0] as T) : (x as T | undefined))
+    if (f["byBattleOnly"] || f["attackerOnly"]) info["byBattle"] = true
+    if (f["attackerOnly"]) info["wasAttacker"] = true
+    if (typeof f["destroyedMaxBp"] === "number") info["destroyedBp"] = f["destroyedMaxBp"]
+    if (f["byOpponentEffectOnly"] || f["byOpponentOnly"] || f["byOpponentSpiritEffectOnly"] || f["causedByOpponent"]) {
+        info["byOpponentEffect"] = true
+        info["causePid"] = "p2"
+        info["causeType"] = "spirit"
+    }
+    if (f["byOpponentSpiritEffectOnly"]) info["bySpiritEffect"] = true
+    if (f["opponentEffectSourceTypes"]) info["destroySourceType"] = first(f["opponentEffectSourceTypes"])
+    if (f["causedByOwnEffect"]) {
+        info["causePid"] = "p1"
+        info["causeType"] = f["causedByOwnEffect"] === true ? "spirit" : f["causedByOwnEffect"]
+    }
+    if (f["refreshSourceTypeFilter"]) info["refreshSourceType"] = first(f["refreshSourceTypeFilter"])
+    if (f["keywordActivatedFilter"]) info["keyword"] = f["keywordActivatedFilter"]
+    if (f["magicCostEquals"] !== undefined) info["magicCost"] = f["magicCostEquals"]
+    if (f["magicTiming"]) info["magicTiming"] = f["magicTiming"]
+    if (f["nameIncludes"]) info["names"] = f["nameIncludes"]
+    if (f["familyFilter"]) info["families"] = Array.isArray(f["familyFilter"]) ? f["familyFilter"] : [f["familyFilter"]]
+    if (f["fushiSummonOnly"]) info["byFushi"] = true
+    if (f["sokuSummonOnly"]) info["bySoku"] = true
+    if (f["keishoSummonOnly"]) info["byKeisho"] = true
+    if (f["byOpponentVanishOnly"]) info["vanishedByOpponent"] = true
+    if (f["fromHandOnly"]) info["fromHand"] = true
+    if (f["paidCostOnly"]) info["paidCost"] = true
+    if (f["subjectSide"] === "own") info["gainerPid"] = "p1"
+    if (f["subjectSide"] === "opponent") info["gainerPid"] = "p2"
+    const cf = f["costFilter"] as { min?: number; max?: number } | undefined
+    if (cf) info["costs"] = [cf.min ?? cf.max ?? 0]
+    return info
+}
+function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, subj: Subj | null): { s: string; ok: boolean; asked: boolean } {
     const saved = Math.random
     let x = 12345
     Math.random = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648)
     try {
-        echoCard.effects = v === "単独" ? [] : [echoOf(e)]
+        echoCard.effects = v === "単独" || v === "無" ? [] : [echoOf(e)]
+        const db = CARD_DB.get(card.cardId)!
+        const own = db.effects
+        if (v === "無") db.effects = (own ?? []).filter((x) => x !== e && x.id !== e.id)
         const { s } = buildBoard(card)
         s.interactiveTargets = true
         // 相方は単独のときも置く（盤面の条件を揃える）
@@ -74,8 +127,10 @@ function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant):
         s.phase = ph
         const cond = e as unknown as Record<string, unknown>
         if (e.kind === "fieldEvent") {
-            const subject = pickSubject(s, cond) ?? s.players.p1.field.spirits[0]!
-            fireFieldEventTriggers(s, "p1", e.event as never, { pid: "p1", inst: subject }, undefined, s.players.p2.field.spirits[0]?.instanceId)
+            const sj = subj ?? { firePid: "p1", pid: "p1", idx: 0, info: false }
+            const subject = s.players[sj.pid].field.spirits[sj.idx]!
+            const info = sj.info ? infoFor(e) : undefined
+            fireFieldEventTriggers(s, sj.firePid, e.event as never, { pid: sj.pid, inst: subject }, getCardColors(subject.cardId), s.players[sj.pid === "p1" ? "p2" : "p1"].field.spirits[0]?.instanceId, undefined, info as never)
         } else {
             fireStepTriggers(s, ph, undefined, ((cond["timing"] as "enter" | "end" | undefined) ?? "enter"))
         }
@@ -96,10 +151,31 @@ function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant):
             if (!s.pendingChoice) break
             ok = drain(s)
         }
+        db.effects = own
         return { s: norm(s).replace(/"name":"監査の相方"/g, ""), ok, asked }
     } finally {
         Math.random = saved
     }
+}
+
+function getCardColors(cardId: string): CardData["colors"] {
+    return CARD_DB.get(cardId)!.colors
+}
+
+// 主体の候補：場の全スピリット × イベントの持ち主。主体の条件（色・系統・コスト…）をここで読み直すと条件の種類だけ穴が残るので、
+// 順に試して効果が実際に誘発した最初の1つを使う（誘発したか＝この効果を外した盤面と違うか）
+function subjectsFor(card: CardData, e: EffectDef): Subj[] {
+    const { s } = buildBoard(card)
+    const out: Subj[] = []
+    const infos = Object.keys(infoFor(e)).length > 0 ? [true, false] : [false]
+    for (const info of infos) {
+        for (const firePid of ["p1", "p2"] as PlayerId[]) {
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                for (let idx = 0; idx < s.players[pid].field.spirits.length; idx++) out.push({ firePid, pid, idx, info })
+            }
+        }
+    }
+    return out
 }
 
 function handleChoice(s: GameState, pid: PlayerId, option: string): void {
@@ -107,35 +183,72 @@ function handleChoice(s: GameState, pid: PlayerId, option: string): void {
 }
 
 let compared = 0
-let notAsked = 0
+let notFired = 0
+const allIds = new Map<string, string>()
+const comparedIds = new Set<string>()
+const notFiredBy = new Map<string, number>()
+let echoMissed = 0
+const echoMissedIds = new Set<string>()
 const lines: string[] = []
-for (const card of CARDS) {
+// ONLY=<cardId> で1枚だけ回す
+for (const card of CARDS.filter((c) => !process.env["ONLY"] || c.cardId === process.env["ONLY"])) {
     if (card.type !== "spirit" && card.type !== "nexus") continue
     for (const e of (card.effects ?? []) as EffectDef[]) {
         if (e.kind !== "fieldEvent" && e.kind !== "step") continue
+        allIds.set(e.id, e.kind === "fieldEvent" ? `fieldEvent:${e.event}` : `step:${e.step}`)
         const cond = e as unknown as Record<string, unknown>
         const phases: Phase[] =
             e.kind === "step" ? [e.step] : typeof cond["phase"] === "string" ? [cond["phase"] as Phase] : ["attack", "main"]
         for (const tp of ["p1", "p2"] as PlayerId[]) {
             for (const ph of phases) {
-                let base: ReturnType<typeof run>
+                let base: ReturnType<typeof run> | null = null
+                let subj: Subj | null = null
+                let fired = false
+                const cands: (Subj | null)[] = e.kind === "fieldEvent" ? subjectsFor(card, e) : [null]
                 try {
-                    base = run(card, e, tp, ph, "単独")
+                    for (const c of cands) {
+                        const b = run(card, e, tp, ph, "単独", c)
+                        let none: string | null = null
+                        try {
+                            none = run(card, e, tp, ph, "無", c).s
+                        } catch {
+                            // 無で例外なら、少なくとも違う経路を通っている
+                        }
+                        if (base === null) {
+                            base = b
+                            subj = c
+                        }
+                        if (none !== b.s) {
+                            base = b
+                            subj = c
+                            fired = true
+                            break
+                        }
+                    }
                 } catch (err) {
                     lines.push(`${e.id} turn:${tp} ${ph}：単独で例外 ${(err as Error).message.slice(0, 80)}`)
                     continue
                 }
+                if (base === null) continue
                 for (const v of ["後に相方", "先に相方"] as const) {
                     let r: ReturnType<typeof run>
                     try {
-                        r = run(card, e, tp, ph, v)
+                        r = run(card, e, tp, ph, v, subj)
                     } catch (err) {
                         lines.push(`${e.id} turn:${tp} ${ph} ${v}：例外 ${(err as Error).message.slice(0, 80)}`)
                         continue
                     }
                     compared++
+                    if (r.asked) comparedIds.add(e.id)
                     if (!r.asked) {
-                        notAsked++
+                        if (fired) {
+                            echoMissed++
+                            echoMissedIds.add(e.id)
+                        } else {
+                            notFired++
+                            const key = e.kind === "fieldEvent" ? `fieldEvent:${e.event}` : `step:${e.step}`
+                            notFiredBy.set(key, (notFiredBy.get(key) ?? 0) + 1)
+                        }
                         continue
                     }
                     if (r.ok !== base.ok) lines.push(`${e.id} turn:${tp} ${ph} ${v}：選択待ちの解消が食い違う（単独=${base.ok} 経路=${r.ok}）`)
@@ -146,4 +259,14 @@ for (const card of CARDS) {
     }
 }
 console.log(lines.join("\n"))
-console.log(`\n比較 ${compared}回（解決順の確認が立たず比べなかった回 ${notAsked}）／食い違い ${lines.length}件`)
+console.log(`\n比較 ${compared}回／食い違い ${lines.length}件`)
+console.log(`  解決順の確認が立たず比べなかった回：効果が誘発しなかった ${notFired}／効果は誘発したが相方が誘発しなかった ${echoMissed}（${echoMissedIds.size}エントリ）`)
+const never = [...allIds].filter(([id]) => !comparedIds.has(id))
+console.log(`  効果エントリ ${allIds.size}件のうち、一度も比べられなかった ${never.length}件`)
+if (process.env["SHOW_MISSED"] === "1") {
+    console.log(`  相方が誘発しなかった: ${[...echoMissedIds].join(" ")}`)
+    const by = new Map<string, string[]>()
+    for (const [id, k] of never) by.set(k, [...(by.get(k) ?? []), id])
+    for (const [k, list] of [...by].sort((a, b) => b[1].length - a[1].length)) console.log(`  ${list.length}\t${k}\t${list.slice(0, 4).join(" ")}`)
+    console.log([...echoMissedIds].join(" "))
+}
