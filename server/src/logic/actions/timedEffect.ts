@@ -678,13 +678,15 @@ function placeTriggerSuppressionRule(ctx: Parameters<ActionHandler<"timedEffect"
 // このバトルの解決方法を変える（一覧の target.kind:"battle"）
 function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
     const { state, owner, sourceName } = ctx
-    if (!state.battle) {
+    // 「このターンの間、バトル解決時、〜を比べ」（BS16-082）はターンの印で、この後のバトルすべてに効く。バトルの外でも置ける
+    const forTurn = action.duration === "turn"
+    if (!state.battle && !forTurn) {
         log(state, `${sourceName}：バトル外のため不発。`)
         return
     }
-    const usedInBattle = [state.battle.attackerInstanceId, state.battle.blockerInstanceId].some((id) => id !== null && state.players[owner].field.spirits.some((sp) => sp.instanceId === id))
+    const usedInBattle = [state.battle?.attackerInstanceId ?? null, state.battle?.blockerInstanceId ?? null].some((id) => id !== null && state.players[owner].field.spirits.some((sp) => sp.instanceId === id))
     const contents = action.content.filter((c) => c.type !== "swapBattleBp" || usedInBattle).filter((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "blockerCoresProtected")
-    recordTimed(state, { content: contents, target: { kind: "battle" }, until: "battle", ownerPid: owner })
+    recordTimed(state, { content: contents, target: { kind: "battle" }, until: forTurn ? "turn" : "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
     for (const c of contents) {
         if (c.type === "compareBy") {
