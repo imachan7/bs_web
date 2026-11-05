@@ -1277,7 +1277,7 @@ function exhaustDeclaredBlocker(
     blocker: CardInstance,
     attacker: CardInstance,
     withKyoshu: boolean,
-): void {
+): boolean {
     const attackerPid = opponentOf(defenderPid)
     // 発生源つきで取るのは、「ターンに1回」を**ネクサス1枚ごと**に数えるため（下記）
     const matched = activeConstraintsWithSource(state, defenderPid, blocker).filter(
@@ -1295,11 +1295,14 @@ function exhaustDeclaredBlocker(
         if (consumed) state.players[defenderPid].noRestWhenBlockingUsedThisTurn = [...usedIds, consumed.sourceInstanceId]
         log(state, `${getCard(blocker.cardId).name}はブロックしても疲労しない（ターンに1回）。`)
     }
-    if (!skipRest) exhaustSpirit(state, defenderPid, blocker)
+    // 「疲労したとき」はブロック宣言の同時発揮の列で解決するので、exhaustSpirit を通さず立てる（アタッカーと同じ。2026-11-03 ユーザー確認）
+    const exhausted = !skipRest && !blocker.isRested && !blocker.pendingDestruction
+    if (exhausted) blocker.isRested = true
     // 【強襲】を『このスピリットのブロック時』にも発揮させる継続付与。疲労の直後に置く（回復状態のままだと【強襲】が空振りする）。バトルしない側のブロッカーには発揮しない
     if (withKyoshu && hasKyoshuOnBlock(state, defenderPid)) {
         resolveAction(state, defenderPid, blocker, KYOSHU_PAY)
     }
+    return exhausted
 }
 
 const KYOSHU_PAY: EffectAction = {
@@ -1346,17 +1349,18 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
         }
     }
     const declaredAttacker = findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId)
+    const exhaustedBlockers: CardInstance[] = []
     if (declaredAttacker) {
-        if (blocker && !forced) exhaustDeclaredBlocker(state, pid, blocker, declaredAttacker, true)
+        if (blocker && !forced && exhaustDeclaredBlocker(state, pid, blocker, declaredAttacker, true)) exhaustedBlockers.push(blocker)
         for (const extraId of state.battle.extraBlockerIds ?? []) {
             const extra = findSpirit(state.players[pid], extraId)
-            if (extra) exhaustDeclaredBlocker(state, pid, extra, declaredAttacker, false)
+            if (extra && exhaustDeclaredBlocker(state, pid, extra, declaredAttacker, false)) exhaustedBlockers.push(extra)
         }
     }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
-    resolveBlockDeclared(state, blockerPid, blocker, instanceId, directed)
+    resolveBlockDeclared(state, blockerPid, blocker, instanceId, directed, exhaustedBlockers)
     if (state.winner) {
         state.battle = null
         return null

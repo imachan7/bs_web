@@ -1,16 +1,18 @@
 // ブロック宣言の後に誘発する効果を1つの列にして同時発揮として解決する
-// （TIMING_CHART ＞３-2B・§0-3。2026-10-08 ユーザー確認：解決順はターンプレイヤーが選ぶ）
-import type { CardInstance, GameState, PlayerId, ResumeFrame } from "../type"
-import { findSpirit, opponentOf, resolveInOrder } from "./GameState"
+// （TIMING_CHART ＞３-2B・§0-3。2026-10-08 ユーザー確認：解決順はターンプレイヤーが選ぶ）。
+// ブロッカーの疲労による「疲労したとき」も同じ列に入れる（2026-11-03 ユーザー確認。アタック側と同じ）
+import type { CardInstance, EventBurstCheck, GameState, PlayerId, ResumeFrame } from "../type"
+import { findSpirit, opponentOf, pushResumeFrames, resolveInOrder } from "./GameState"
 import {
     battleOpponentConditionedOnBattleStartIds,
+    fireEventBursts,
     fireFieldEventTriggers,
     fireTrigger,
     hasFunsaiOnBlock,
     instColors,
     resolveFunsai,
 } from "./EffectModules"
-import { fireBurstOnEvent } from "./keywords/burst"
+import { exhaustedEvents } from "./state/exhaust"
 
 // 収集モードで fireTrigger／fireFieldEventTriggers が積む1件。run は非対話時にその場で解決する用、
 // frame は解決順を聞いたあと／中断したときに残りを再開スタックへ積む用
@@ -22,16 +24,30 @@ export type CollectedTrigger = {
     skip?: () => boolean
 }
 
-// 非対話（テスト・AI）では収集順＝従来の発火順で解決する。
-// ⚠️ 解決で選択待ちが立って列が中断した場合、バースト判定は行わない（再開後に拾う仕組みが無い）
+// 非対話（テスト・AI）では収集順＝従来の発火順で解決する（ブロッカーの疲労による誘発が先頭）。
 // directed：指定アタック（resolveDirectedBlock）経由のブロック確定。この場合アタッカーの
 // 『バトル時』は resolveDirectedBlock が確定後に全件発火するため、ここではbattleOpponentMatches条件付きを発火しない
-export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: CardInstance | undefined, instanceId: string, directed = false): void {
+// exhausted：ブロック宣言で疲労した pid のスピリット（追加ブロッカーを含む）
+export function resolveBlockDeclared(
+    state: GameState,
+    pid: PlayerId,
+    blocker: CardInstance | undefined,
+    instanceId: string,
+    directed = false,
+    exhausted: CardInstance[] = [],
+): void {
     const battle = state.battle
     if (!battle) return
     const items: CollectedTrigger[] = []
-    const bursts: (() => void)[] = []
+    const checks: EventBurstCheck[] = []
     const attackerId = battle.attackerInstanceId
+    for (const inst of exhausted) {
+        const colors = instColors(inst)
+        for (const ev of exhaustedEvents(pid, inst)) {
+            fireFieldEventTriggers(state, ev.pid, ev.event, { pid, inst }, colors, undefined, undefined, ev.info, undefined, undefined, undefined, undefined, items)
+            checks.push({ pid: ev.pid, event: ev.event, subject: { pid, cardId: inst.cardId }, colors, info: ev.info })
+        }
+    }
     const fieldEvent = (
         firePid: PlayerId,
         event: "ownSpiritDeclaredBlock" | "anySpiritDeclaredBlock" | "ownSpiritBlocked",
@@ -40,9 +56,7 @@ export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: C
         targetId: string,
     ) => {
         fireFieldEventTriggers(state, firePid, event, { pid: selfPid, inst: self }, instColors(self), targetId, undefined, undefined, undefined, undefined, undefined, undefined, items)
-        bursts.push(() =>
-            fireBurstOnEvent(state, firePid, event, { pid: selfPid, cardId: self.cardId }, instColors(self), targetId, undefined),
-        )
+        checks.push({ pid: firePid, event, subject: { pid: selfPid, cardId: self.cardId }, colors: instColors(self), targetInstanceId: targetId })
     }
     if (blocker) {
         fireTrigger(state, pid, blocker, "onBlock", undefined, attackerId, undefined, undefined, undefined, undefined, items)
@@ -87,9 +101,10 @@ export function resolveBlockDeclared(state: GameState, pid: PlayerId, blocker: C
             key: (i) => i.key,
         },
     })
-    if (state.winner || state.pendingChoice) return
-    for (const burst of bursts) {
-        burst()
-        if (state.winner || state.pendingChoice) return
+    if (state.winner) return
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "eventBursts", checks }])
+        return
     }
+    fireEventBursts(state, checks)
 }
