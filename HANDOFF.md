@@ -27,7 +27,8 @@
   - **① は 11-02 に一巡した**。道具の穴を5つ直した（audit:semantics の S6・S4・定型文、part198 の空振り、fuzz の数え漏れ）。audit:choices・audit:parity は新しい実バグ0、fuzz は1200戦で異常なし
   - **一度も実行されていない効果43件**（`data/coverage-baseline.json`）は 10-24 以前から残っている。BS11〜16 のブレイヴとマジックのバースト効果がほとんどで、#278・#279 と同じく場面テストを足せばバグが出る見込み
 - ② 耐性は済み（#372 監査ツール `audit:immunity`・#373 修正。残りと既知の限界は [IMMUNITY_AUDIT.md](./docs/design/IMMUNITY_AUDIT.md) §4）。効果の手ごとの継続効果の組み直しも入れた（#374）
-- ③ 手順・時点：同じ誘発を「単独」と「解決順の確認を挟む」経路で解決して盤面を比べる総当たり（`audit:paths`。TEST_STRATEGY §7。11-03 ユーザー決定で、2枚の組み合わせの場面テストから切り替えた）。誘発を直接撃つ経路は食い違い0。アタック宣言（`VIA=attack`）・ブロック宣言（`VIA=block`）から誘発させる経路も食い違い0。**次**：召喚から誘発させる経路も比べる。下調べで、アタック宣言（#380）とブロック宣言の誘発の割り込み順の実バグが出て直した
+- ③ 手順・時点：同じ誘発を「単独」と「解決順の確認を挟む」経路で解決して盤面を比べる総当たり（`audit:paths`。TEST_STRATEGY §7。11-03 ユーザー決定で、2枚の組み合わせの場面テストから切り替えた）。誘発を直接撃つ経路は食い違い0。アタック宣言（`VIA=attack`）・ブロック宣言（`VIA=block`）から誘発させる経路も食い違い0。召喚の経路（`VIA=summon`、ブランチ `chore/audit-paths-summon`）で、召喚時と「召喚されたとき」が別々に解決されているのが出た。
+  - **進行中（ブランチ `fix/summon-simultaneous`）：召喚したスピリットの『召喚時』と「（自分の）スピリットが召喚されたとき」を1つの同時発揮の列にし、ターンプレイヤーが解決順を選ぶ**（2026-11-05 ユーザー確認）。設計：`fireSummonSequence` で、召喚時を1件（key＝cardId・run＝`fireSummonTrigger`・frame＝`summonSequence` に `triggerOnly`）として先頭に置き、`ownSpiritSummoned`・`anySpiritSummoned`（両陣営）を `fireFieldEventTriggers` の collect で同じ列に積み、`resolveInOrder`（askOrder＝ターンプレイヤー）。非対話は従来どおり召喚時が先。ブレイヴの召喚イベント・トラッシュからの召喚・召喚時の疲労付与は列の後で従来どおり下調べで、アタック宣言（#380）とブロック宣言の誘発の割り込み順の実バグが出て直した
 
 ### その次：BS20 の取り込み（BS19 は #356。計画の型は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
 
