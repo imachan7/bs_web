@@ -597,10 +597,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `returnCombinedBraveToDeckBottom`（fn）：合体中のブレイヴ**だけ**をデッキの一番下へ戻す（returnCombinedBraveToHand のデッキ下版。
 - `detachBraveVoluntary`（fn）：メインステップの任意分離（§6.4）。**効果による分離（detachBraveByEffect）とは別の手順**で、// メインステップの任意分離（§6.4）。**効果による分離…
 - `detachBravesOnLeaveFree`（fn）：**ホストが場を離れるときに必ず1回だけ呼ぶ共通の入口。**
-- `detachBravesOnLeave`（fn）
+- `detachBravesOnLeave`（fn）：deferKeeps：残すかの確認（flushBraveKeeps）を呼び出し側に任せる。まとめて移す途中で確認の中断を立てないため（flushBounces）。
 - `flushBraveKeeps`（fn）：脇に置いてあるブレイヴを1体ずつ決着させる。
 - `applyBraveKeep`（fn）：「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
-- `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
+- `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じ領域へ
+- `pickBraveKeepOrder`（fn）：「これから決める」ブレイヴが選ばれた（doResolveChoice から呼ぶ）。その項目を先頭へ移す
 
 ## server/src/logic/choice.ts
 
@@ -1140,6 +1141,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/types/gameState.ts
 
+- `BraveLeaveDest`（型）：合体スピリットが場を離れたとき、残さないブレイヴの行き先（合体していたスピリットと同じ領域）
 - `GameState`（型）：ゲーム全体の状態（サーバーで一元管理）
 
 ## server/src/types/globalConstraint.ts
