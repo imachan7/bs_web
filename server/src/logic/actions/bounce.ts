@@ -835,7 +835,7 @@ function returnDestroyedSelfToHand(ctx: ActionCtx): void {
                 player.field.spirits.splice(fieldIdx, 1)
                 soulCoreLeavesField(player, self) // 案B-inside: 先に[ソウルコア]退避
                 player.reserve += self.cores
-                detachBravesOnLeave(state, owner, self) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
+                detachBravesOnLeave(state, owner, self, false, "hand") // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1。残さないなら手札へ §6.3.2）
             }
             delete self.pendingDestruction
             player.hand.push(self.cardId)
@@ -866,7 +866,7 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
                 player.field.spirits.splice(fieldIdx, 1)
                 soulCoreLeavesField(player, self) // 案B-inside: 先に[ソウルコア]退避
                 player.reserve += self.cores
-                detachBravesOnLeave(state, owner, self)
+                detachBravesOnLeave(state, owner, self, false, "deckTop")
             }
             delete self.pendingDestruction
             player.deck.unshift(self.cardId)

@@ -2,6 +2,8 @@
 
 import { coreRemovalAllowed } from "./coreGate"
 import type { CardInstance, DestroyContext, GameState, PaySource, PlayerId } from "../type"
+import type { BraveLeaveDest } from "../types/gameState"
+import { notifyHandGained } from "./fieldEventTriggers"
 import { getCard, log, instMinLevelCores, opponentOf, suspend } from "./GameState"
 
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
@@ -231,7 +233,9 @@ export function detachBravesOnLeaveFree(state: GameState, ownerPid: PlayerId, ho
     refreshLevelAsOverrides(state)
 }
 
-export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
+// deferKeeps：残すかの確認（flushBraveKeeps）を呼び出し側に任せる。まとめて移す途中で確認の中断を立てないため（flushBounces）。
+// dest：残さないときの行き先＝ホストの行き先（BRAVE.md §6.3.2）
+export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance, deferKeeps = false, dest: BraveLeaveDest = "trash"): void {
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
     if (braves.length === 0) return
@@ -252,11 +256,11 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         brave.isRested = host.isRested
         state.pendingBraveKeeps = [
             ...(state.pendingBraveKeeps ?? []),
-            { pid: ownerPid, brave, wasAttacker, wasBlocker, ...(forcedKeep ? { forced: true } : {}) },
+            { pid: ownerPid, brave, wasAttacker, wasBlocker, ...(forcedKeep ? { forced: true } : {}), ...(dest !== "trash" ? { dest } : {}) },
         ]
     }
     refreshLevelAsOverrides(state)
-    flushBraveKeeps(state)
+    if (!deferKeeps) flushBraveKeeps(state)
 }
 
 // このプレイヤーがいま支払いに回せるコアの総数（リザーブ＋フィールドの取り除けるコア）。
@@ -277,8 +281,11 @@ export function flushBraveKeeps(state: GameState): void {
         delete state.pendingBraveKeeps
         return
     }
+    // ターンプレイヤー側から決める（両陣営にまたがるとき。同じ陣営の中は並び順のまま。BRAVE.md §6.3.2）
+    state.pendingBraveKeeps?.sort((a, b) => Number(b.pid === state.turnPlayer) - Number(a.pid === state.turnPlayer))
     while (!state.pendingChoice && (state.pendingBraveKeeps?.length ?? 0) > 0) {
         const entry = state.pendingBraveKeeps![0]!
+        if (state.interactiveTargets && !entry.picked && askBraveKeepOrder(state, entry.pid)) return
         const player = state.players[entry.pid]
         const need = braveKeepCores(entry.brave)
         const name = getCard(entry.brave.cardId).name
@@ -298,7 +305,7 @@ export function flushBraveKeeps(state: GameState): void {
                 options: ["残す"],
                 optional: true,
                 confirm: true,
-                skipLabel: "残さない（トラッシュへ）",
+                skipLabel: `残さない（${DEST_LABEL[entry.dest ?? "trash"]}へ）`,
                 braveKeep: { pid: entry.pid, instanceId: entry.brave.instanceId, cardId: entry.brave.cardId, need },
                 action: { type: "noop" },
                 selfInstanceId: null,
@@ -307,9 +314,8 @@ export function flushBraveKeeps(state: GameState): void {
         }
         state.pendingBraveKeeps!.shift()
         if (!forced && (cantKeep || player.reserve < need)) {
-            // 残せない → **合体元と同時にトラッシュへ**（§1.4）
-            player.trashCards.push(entry.brave.cardId)
-            log(state, `${player.name}の${name}は、コアを置けないため合体元と一緒にトラッシュに置かれた。`)
+            // 残せない → **合体元と同時に同じ領域へ**（§1.4・§6.3.2）
+            sendUnkeptBrave(state, entry, "コアを置けないため合体元と一緒に")
             continue
         }
         if (forced && player.reserve < need) {
@@ -380,19 +386,62 @@ function autoPaySources(state: GameState, pid: PlayerId, need: number): PaySourc
     return sources
 }
 
-// 「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じくトラッシュへ
+// 「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じ領域へ
 export function declineBraveKeep(state: GameState, info: { pid: PlayerId; instanceId: string }): void {
     const entry = takeBraveKeep(state, info.instanceId)
     if (!entry) return
+    sendUnkeptBrave(state, entry, "残さず")
+}
+
+const DEST_LABEL: Record<BraveLeaveDest, string> = { trash: "トラッシュ", hand: "手札", deckTop: "デッキの上", deckBottom: "デッキの下" }
+
+// 残さないブレイヴを、合体していたスピリットと同じ領域へ置く（デッキならホストのすぐ隣。BRAVE.md §6.3.2）
+function sendUnkeptBrave(state: GameState, entry: { pid: PlayerId; brave: CardInstance; dest?: BraveLeaveDest }, how: string): void {
     const player = state.players[entry.pid]
-    player.trashCards.push(entry.brave.cardId)
-    log(state, `${player.name}の${getCard(entry.brave.cardId).name}は、残さずトラッシュに置かれた。`)
+    const dest = entry.dest ?? "trash"
+    const cardId = entry.brave.cardId
+    if (dest === "hand") player.hand.push(cardId)
+    else if (dest === "deckTop") player.deck.splice(Math.min(1, player.deck.length), 0, cardId)
+    else if (dest === "deckBottom") player.deck.push(cardId)
+    else player.trashCards.push(cardId)
+    log(state, `${player.name}の${getCard(cardId).name}は、${how}${DEST_LABEL[dest]}に置かれた。`)
+    if (dest === "hand") notifyHandGained(state, entry.pid, 1)
+}
+
+// 同じ持ち主の「残しますか？」待ちが2体以上なら、どれから決めるかを持ち主に聞く（BRAVE.md §6.3.2）。聞いたら true
+function askBraveKeepOrder(state: GameState, pid: PlayerId): boolean {
+    const asks = (state.pendingBraveKeeps ?? []).filter(
+        (e) => e.pid === pid && !e.forced && !cantSpiritStateBrave(state, pid) && payableCores(state, pid) >= braveKeepCores(e.brave),
+    )
+    if (asks.length < 2) return false
+    suspend(state, {
+        pid,
+        kind: "option",
+        prompt: "合体元が場を離れたブレイヴが複数あります。どのブレイヴから、残すかを決めますか？",
+        candidates: [],
+        options: asks.map((e, i) => `${i + 1}. ${getCard(e.brave.cardId).name}`),
+        optional: false,
+        braveKeepOrder: { pid, instanceIds: asks.map((e) => e.brave.instanceId) },
+        action: { type: "noop" },
+        selfInstanceId: null,
+    })
+    return true
+}
+
+// 「これから決める」ブレイヴが選ばれた（doResolveChoice から呼ぶ）。その項目を先頭へ移す
+export function pickBraveKeepOrder(state: GameState, instanceId: string): void {
+    const list = state.pendingBraveKeeps ?? []
+    const at = list.findIndex((e) => e.brave.instanceId === instanceId)
+    if (at === -1) return
+    const [entry] = list.splice(at, 1)
+    entry!.picked = true
+    list.unshift(entry!)
 }
 
 function takeBraveKeep(
     state: GameState,
     instanceId: string,
-): { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean } | undefined {
+): { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; dest?: BraveLeaveDest } | undefined {
     const list = state.pendingBraveKeeps ?? []
     const at = list.findIndex((e) => e.brave.instanceId === instanceId)
     if (at === -1) return undefined

@@ -648,11 +648,13 @@ function tryReviveOnDestroy(
         byBattleKillerLevel?: number
         byBattleKillerMaxBp?: number
         byBattleKillerMinBp?: number
+        opponentEffectSourceTypes?: CardType[]
     }): boolean => {
         if (when.byOpponentEffect) {
             // バトルのBP比較による破壊は「効果」ではない（BS19-X05。効果による破壊だけに効く）
             if (context?.battle !== undefined) return false
             if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
+            if (when.opponentEffectSourceTypes && (context.sourceType === undefined || !when.opponentEffectSourceTypes.includes(context.sourceType))) return false
         }
         // 「相手によって破壊されたとき」＝相手の効果 **または** バトルのBP比較（BS12-X05）。
         // 自分の効果で自分を破壊した場合は含まない
@@ -1055,7 +1057,8 @@ function tryReviveOnDestroy(
             if (revived.braveStay !== undefined) {
                 detachBravesOnLeaveFree(state, ownerPid, inst, revived.braveStay === "rested")
             } else {
-                detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
+                // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残さないなら手札へ（§6.3.2。行き先を後で選ぶ handOrDeckTop はトラッシュのまま）
+                detachBravesOnLeave(state, ownerPid, inst, false, "toHand" in revived ? "hand" : "trash")
             }
         } else {
             inst.isRested = revived.rested

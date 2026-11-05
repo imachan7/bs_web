@@ -30,6 +30,7 @@ import {
     flushBraveKeeps,
     applyBraveKeep,
     declineBraveKeep,
+    pickBraveKeepOrder,
     requestActivationConfirm,
     autoPayPlan,
     payCost,
@@ -266,6 +267,18 @@ function resolveChoiceInner(
         log(state, info.surcharge ? `${state.players[info.pid].name}：転召の祭壇により${info.need}コスト余分に支払った。` : `${getCard(info.sourceCardId).name}：${info.need}コストを支払った。`)
         const self = pending.selfInstanceId ? findInstanceAnywhere(state, pending.selfInstanceId) ?? null : null
         resolveAction(state, pending.actorPid ?? pending.pid, self, pending.action, info.targetInstanceId, pending.effectSource?.colors, pending.effectSource?.type)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 同じ持ち主のブレイヴが2体以上待っているとき、どれから決めるか（BRAVE.md §6.3.2）
+    if (pending.braveKeepOrder) {
+        const at = option === undefined ? -1 : (pending.options ?? []).indexOf(option)
+        const id = pending.braveKeepOrder.instanceIds[at]
+        if (id === undefined) return "選択できない候補です"
+        state.pendingChoice = null
+        pickBraveKeepOrder(state, id)
+        flushBraveKeeps(state)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

@@ -5,7 +5,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, Keyword, PlayerId } from "../../type"
 import { currentLevel, getCard, log } from "../GameState"
 import { notifyHandGained } from "../fieldEventTriggers"
-import { effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, timedKeywords } from "../../../../shared/rules"
+import { bravesOf, combinedBraveEntryOk, effectActiveAtLevel, effectSources, hasContinuousKeywordGrant, noteHeldKeyword, timedKeywords } from "../../../../shared/rules"
 
 // 静的キーワード（レベル判定つき）‖ 一時付与 ‖ 継続付与のいずれかで keyword を持つか。
 // spiritHasKeyword（shared/rules.ts）と違い静的判定に**レベルを課す**（kobo/makoboの実装から移設。
@@ -15,8 +15,13 @@ export function hasKeywordAtLevel(state: GameState, pid: PlayerId, inst: CardIns
     const hasStatic = getCard(inst.cardId).effects.some(
         (e) => e.kind === "keyword" && e.keyword === keyword && effectActiveAtLevel(e.levels, level),
     )
+    // 合体中のブレイヴの【合体時】のキーワードも持つ（spiritHasKeyword と同じ合流。以前は見ておらず、バタホルン BS11-057 の【光芒】が効かなかった）
+    const fromBrave = bravesOf(state.players[pid], inst).some((b) =>
+        getCard(b.cardId).effects.some((e) => e.kind === "keyword" && e.keyword === keyword && combinedBraveEntryOk(b, e)),
+    )
     return (
         hasStatic ||
+        fromBrave ||
         timedKeywords(state, inst).some((k) => k.keyword === keyword) ||
         hasContinuousKeywordGrant(state, pid, inst, keyword)
     )
@@ -56,11 +61,7 @@ export function resolveKoboOnBattleEnd(
     const hasKobo = hasMakobo || hasKeywordAtLevel(state, attackerPid, attacker, "kobo")
     if (!hasKobo) return
     const keywordLabel = hasMakobo ? "魔光芒" : "光芒"
-    const attackerLevel = currentLevel(attacker).level
-    const koboEntry = getCard(attacker.cardId).effects.find(
-        (e) => e.kind === "keyword" && (e.keyword === "kobo" || e.keyword === "makobo") && effectActiveAtLevel(e.levels, attackerLevel),
-    )
-    if (koboEntry) noteCoverage(koboEntry, "keyword")
+    noteHeldKeyword(state, attackerPid, attacker, hasMakobo ? "makobo" : "kobo")
     const player = state.players[attackerPid]
     let recovered = 0
     for (const cardId of usedMagicCardIds) {

@@ -4476,7 +4476,10 @@
     "scope": "self",
     "whileCombined": true,
     "when": {
-     "byOpponentEffect": true
+     "byOpponentEffect": true,
+     "opponentEffectSourceTypes": [
+      "spirit"
+     ]
     },
     "revived": {
      "rested": true

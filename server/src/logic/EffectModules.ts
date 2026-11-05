@@ -1567,7 +1567,7 @@ export {
     removeCoresToTrash,
     removeCoresToVoid,
 } from "./removal"
-export { attachBrave, detachBraveByEffect, detachBraveByOwnerChoice, returnCombinedBraveToHand, returnCombinedBraveToDeckBottom, destroyCombinedBrave, detachBraveVoluntary, detachBravesOnLeave, flushBraveKeeps, applyBraveKeep, declineBraveKeep } from "./brave"
+export { attachBrave, detachBraveByEffect, detachBraveByOwnerChoice, returnCombinedBraveToHand, returnCombinedBraveToDeckBottom, destroyCombinedBrave, detachBraveVoluntary, detachBravesOnLeave, flushBraveKeeps, applyBraveKeep, declineBraveKeep, pickBraveKeepOrder } from "./brave"
 export { applyReviveEntry, collectReviveEntries, fushiSummonOrConfirm, applyReviveConfirm, declineReviveConfirm } from "./revive"
 
 // ---- 継続効果の再計算・対象の選び方・【バースト】・召喚（state/continuous.ts・targeting.ts・keywords/burst.ts・summon.ts へ分割。2026-09-26）----

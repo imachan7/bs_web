@@ -323,6 +323,7 @@ export type EffectDefTrigger =
           requireOwnFieldHasName?: string // 持ち主のフィールドにこのカード名の個体が1体以上いるときのみ
           when: {
               byOpponentEffect?: boolean // 相手の効果による破壊のみ
+              opponentEffectSourceTypes?: CardType[] // byOpponentEffect をさらに発生源の種類で絞る（「相手のスピリットの効果で」＝["spirit"]。fieldEvent の同名の軸と同じ）
               byOpponent?: boolean // 相手の効果による破壊 または バトルのBP比較による破壊（2026-09-07確認）
               // 自分の効果で自分のスピリットを破壊した場合は含まない。byOpponentEffect より広い
               byBattleVsArmorColor?: boolean // 【装甲】で指定した色の相手とのBP比較による破壊のみ
