@@ -982,7 +982,9 @@ const summonBatchPaidInternalHandler: ActionHandler<"summonBatchPaidInternal"> =
 const summonSequenceHandler: ActionHandler<"summonSequence"> = (ctx, action) => {
     const { state, owner, self } = ctx
     if (!self) return
-    fireSummonSequence(state, owner, self, action.byFushi === true)
+    // triggerOnly：召喚時と「召喚されたとき」の列が止まったあと、召喚時だけを再開する
+    if (action.triggerOnly) fireSummonTrigger(state, owner, self, action.byFushi === true)
+    else fireSummonSequence(state, owner, self, action.byFushi === true)
 }
 
 const summonBatchFlushHandler: ActionHandler<"summonBatchFlush"> = (ctx) => {

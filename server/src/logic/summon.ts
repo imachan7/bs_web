@@ -8,6 +8,11 @@ import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, oppo
 import { attachBrave } from "./brave"
 import { summonDenial } from "./summonGate"
 import { fireSummonTrigger } from "./triggers"
+import { fireEventBursts } from "./EffectModules"
+import type { CollectedTrigger } from "./blockDeclared"
+import type { EventBurstCheck } from "../type"
+import { entryActive } from "../../../shared/rules/effectStop"
+import { bravesOf, currentLevel } from "../../../shared/rules"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
 import { effectiveCost } from "../../../shared/cost"
 import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
@@ -101,7 +106,22 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // ⚠️ **ダイレクトブレイヴは field.combinedBraves に入る**ので、spirits だけを見ると
     // ここで打ち切られて『このブレイヴの召喚時』効果が丸ごと発火しない（2026-08-25 に実際に踏んだ）
     if (!isOnFieldAnyZone(player, inst.instanceId)) return
-    fireSummonTrigger(state, pid, inst, byFushi)
+    // 召喚時と「召喚されたとき」は同時発揮の1つの列（TIMING_CHART §0-3。2026-11-05 ユーザー確認）。非対話では召喚時が先。
+    // 召喚時の効果を書いていないカード（付与された召喚時だけを持つ場合も含む）は列に入れずに先に呼ぶ。入れると、誘発しない1件のせいで解決順を聞いてしまう
+    const items: CollectedTrigger[] = []
+    const level = currentLevel(inst).level
+    const hasOwnSummonTrigger = [inst, ...bravesOf(player, inst)].some((src) =>
+        getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && entryActive(state, pid, src, e, level)),
+    )
+    if (hasOwnSummonTrigger) {
+        items.push({
+            key: `${pid}:${inst.cardId}`,
+            label: `${player.name}の${getCard(inst.cardId).name}`,
+            frame: { kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", triggerOnly: true, ...(byFushi ? { byFushi: true } : {}) } },
+            run: () => fireSummonTrigger(state, pid, inst, byFushi),
+        })
+    } else fireSummonTrigger(state, pid, inst, byFushi)
+    const checks: EventBurstCheck[] = []
     // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
     // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
     // 合体した状態で出たブレイヴは対象にならない（合体スピリットは既に場にいたものが状態を変えただけ）。
@@ -129,10 +149,27 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             // （selfMode:"source"と組み合わせ、self=発生源自身・target=召喚されたスピリットを両立させる。BS13-053モクバオー）
             sourceInstanceId: inst.instanceId,
         }
-        fireFieldEventTriggers(state, pid, "ownSpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, summonedInfo)
-        // 両陣営から見える版。subjectSide で主体の陣営を絞る（BS18-064）
-        if (!state.winner) fireFieldEventTriggers(state, pid, "anySpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, summonedInfo)
-        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anySpiritSummoned", { pid, inst }, instColors(inst), undefined, undefined, summonedInfo)
+        // anySpiritSummoned は両陣営から見える版。subjectSide で主体の陣営を絞る（BS18-064）
+        const events = [
+            { pid, event: "ownSpiritSummoned" as const },
+            { pid, event: "anySpiritSummoned" as const },
+            { pid: opponentOf(pid), event: "anySpiritSummoned" as const },
+        ]
+        const colors = instColors(inst)
+        for (const ev of events) {
+            fireFieldEventTriggers(state, ev.pid, ev.event, { pid, inst }, colors, undefined, undefined, summonedInfo, undefined, undefined, undefined, undefined, items)
+            checks.push({ pid: ev.pid, event: ev.event, subject: { pid, cardId: inst.cardId }, colors, info: summonedInfo })
+        }
+    }
+    resolveInOrder(state, items, {
+        skip: (i) => i.skip?.() === true,
+        resolve: (i) => i.run(),
+        frame: (i) => i.frame,
+        askOrder: { pid: state.turnPlayer, label: (i) => i.label, key: (i) => i.key },
+    })
+    if (!state.winner) {
+        if (state.pendingChoice) pushResumeFrames(state, [{ kind: "eventBursts", checks }])
+        else fireEventBursts(state, checks)
     }
     // 「anyBraveSummoned」（BS12-061剣の誕生地）：**両陣営**どちらかのブレイヴが召喚されたとき。
     // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
