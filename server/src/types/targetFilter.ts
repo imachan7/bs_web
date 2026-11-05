@@ -11,7 +11,7 @@ import { Color, FamilyFilter, EffectCounter, TriggerEvent, Keyword } from "../ty
 // 既存アクションの個別フィールドは normalizeFilter() がこの型へ畳み込むため **データ移行は不要**
 // （cards.json は無変更のまま。個別フィールドの削除は第2段階の別タスク）。
 export interface TargetFilter {
-    maxBp?: number | "selfBp" // 実効BPがこれ以下。"selfBp"=発生源の実効BP以下（BS04七龍帝の玉座Lv2）
+    maxBp?: number | "selfBp" | "subjectBp" // 実効BPがこれ以下。"selfBp"=発生源の実効BP以下（BS04七龍帝の玉座Lv2）。"subjectBp"=イベント主体の実効BP以下（fieldEvent の action の filter 専用。BS20-X03鳥武神シシグイ＝「アタックしたスピリットのBP以下の相手」）
     minBp?: number | "selfBp" // 実効BPがこれ以上。"selfBp"=発生源の実効BP以上（BS05火龍王ボルケノス：BP7000以上）
     orMinBp?: number // maxBp と併用：実効BPが maxBp 以下、または orMinBp 以上（26RBS02-045「5000以下か8000以上」）
     exactBp?: "selfBp" // 発生源と実効BPが同じものだけ（BS01プテラトマホーク）
@@ -65,6 +65,7 @@ export interface TargetFilter {
     maxLevelAsSelf?: true // Lv が self 以下。matchesTarget は selfInstanceId の個体を盤面から探して比べる（見つからなければ対象なし）
     maxCostLastMagic?: true // 直前に使ったマジック（GameState.lastMagicUsed）の**印刷コスト（軽減前）**以下。記録が無ければ対象なし（P033・P076。2026-10-31 ユーザー確認）
     maxCostAsSelf?: true // self と同じかそれ以下のコスト（sameCostAsSelfの以下版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS10-X06天蠍神騎スコル・スピア＝「このスピリットのコスト以下の相手」）
+    lowerCostThanSelf?: true // self のコストより低い（同じコストは含まない。maxCostAsSelf の未満版）。normalizeFilter が cost 軸（max）へ解決する。self がいなければ対象なし（BS20-061近衛機メッセンジャー【合体時】＝「このスピリットよりコストの低い自分のスピリット」。self が合体スピリットなら instAllCosts でブレイヴ込みのコストになる）
     sameIceWallColorAs?: true // self（＝この効果を解決するときの基準インスタンス。fieldEvent ではイベント対象＝アタックしたスピリット等）が持つ【氷壁】の色（iceWallColorsOfで判定。複数色ならOR）のいずれかを持つもの。normalizeFilter が colorAny 軸へ解決する。self がいない／【氷壁】の色を持たなければ対象なし（BS16-036氷聖女ジャンヌダルク【合体時】：「そのスピリットが持つ【氷壁】と同じ色の相手のスピリット」）
     maxLv1BpOfSelf?: true // self（sameCostAsSelfと同じ意味＝fieldEventではイベント対象。召喚されたスピリット等）の**カードのLv1BP**（実効BPでなく印刷値。levels配列のlevel:1のbp）以下。normalizeFilter が maxBp 軸へ解決する。self がいなければ対象なし（BS10-080炎の結晶石Lv2＝「そのスピリットのLv1BP以下の相手のスピリット」）
     sameCostAsLast?: true // 直前に動いたカード（logic/record.ts）の先頭と同じコスト。記録が空なら対象なし

@@ -58,7 +58,7 @@ export function normalizeFilter(
     const spec: TargetFilter = action.filter ?? {}
     // exactOptionalPropertyTypes 対応：BP系は下で条件付きに代入するため、いったん除いて展開する
     // バトル敗者参照の軸も、ここで既存の color / family 軸へ畳んでから matchesTarget に渡す
-    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLastTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, maxCostLastMagic, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
+    const { maxBp, minBp, exactBp, sameColorAsBattleLoser, sameFamilyAsBattleLoser, sameFamilyAsDestroyed, sameLevelAsBattleLoser, sameLevelAsSource, sameBpAsBattleLoser, lowerBpThanBattleLoser, sameCostAsEventTarget, sameCostAsLastTarget, sameCostAsLast, sameCostAsSelf, costSameAsOwn, maxCostAsSelf, lowerCostThanSelf, maxCostLastMagic, maxLv1BpOfSelf, maxLv1BpOfLastTarget, sameIceWallColorAs, maxBpPerOwn, maxBpPer, maxCostPer, maxCostPerOwn, ...rest } = spec
     const resolved: ResolvedTargetFilter = { ...rest }
 
     // 直前のバトルで「BPを比べ相手のスピリットだけを破壊した」ときの、破壊された側の色／系統。
@@ -146,6 +146,13 @@ export function normalizeFilter(
         resolved.cost = { max: cost }
     }
 
+    // self のコストより低い（同じコストは含まない。BS20-061近衛機メッセンジャー【合体時】）。
+    // 合体スピリットは instAllCosts でブレイヴ込みのコスト（ホスト＋ブレイヴ）を見る
+    if (lowerCostThanSelf) {
+        if (!ctx.self) return SELF_REQUIRED
+        resolved.cost = { max: Math.max(...instAllCosts(ctx.self)) - 1 }
+    }
+
     if (maxCostLastMagic) {
         const used = ctx.state.lastMagicUsed
         if (!used) return SELF_REQUIRED
@@ -188,6 +195,11 @@ export function normalizeFilter(
     const selfBp = ctx.self ? effectiveBp(ctx.state, ctx.owner, ctx.self) : undefined
 
     if (maxBp === "selfBp") {
+        if (selfBp === undefined) return SELF_REQUIRED
+        resolved.maxBp = selfBp
+    } else if (maxBp === "subjectBp") {
+        // イベント主体（アタックしたスピリット等）の実効BP以下（BS20-X03）。fieldEvent の解決では
+        // ctx.self にイベント主体が入るため、ここで解決時点の実効BPを引く。主体が居ない文脈では対象なし
         if (selfBp === undefined) return SELF_REQUIRED
         resolved.maxBp = selfBp
     } else if (maxBp !== undefined) {
