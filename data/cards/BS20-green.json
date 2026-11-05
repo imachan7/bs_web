@@ -1,0 +1,144 @@
+[
+ {
+  "cardId": "BS20-025",
+  "name": "翠刃の剣使いワオノシン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣使",
+   "遊精"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n相手がドローしたとき、このスピリットは回復する。\n【合体時】Lv2･Lv3『お互いのアタックステップ』\nバトルしている自分のスピリットのコア1個につき、そのスピリットをBP+1000する。",
+  "effects": [
+   {
+    "id": "BS20-025-e1",
+    "kind": "fieldEvent",
+    "event": "opponentDrew",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS20-025-e2",
+    "kind": "aura",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "battlingOnly": true,
+     "amountPer": 1000,
+     "counter": "targetCores",
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "both"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-069",
+  "name": "入道雲連峰",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分の緑のスピリットは、BPを比べ相手のスピリットだけを破壊したとき回復する。\nLv2『自分のターン』\n自分のスピリットの効果で相手のスピリットを疲労させたとき、ボイドからコア1個を自分のスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS20-069-e1",
+    "kind": "battleWon",
+    "role": "blocker",
+    "levels": [
+     1,
+     2
+    ],
+    "turn": "opponent",
+    "winnerColorFilter": "green",
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS20-069-e2",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritExhaustedByOwnSpiritEffect",
+    "levels": [
+     2
+    ],
+    "turn": "own",
+    "selfMode": "source",
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "count": 1
+    }
+   }
+  ]
+ }
+]

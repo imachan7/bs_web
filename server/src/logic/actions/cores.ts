@@ -65,11 +65,11 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 直前の coreRemove で対象のコアが0個になったかの記録を、解決の冒頭でリセットする（action "if" の lastEmptied）
         state.lastCoreRemoveEmptied = false
-        // 「opponentSpiritCoresEmptied」の発火。効果1回の解決につき1回（emptiedNotified で再入をまたいで覚える。
-        // spreadDrew と同じ枠。発生源がスピリット/ブレイヴの効果で、0個になったのが効果の持ち主から見て相手のときだけ）
+        // 「opponentSpiritCoresEmptied」の発火。発生源がスピリット/ブレイヴの効果で、0個になったのが効果の持ち主から見て相手のときだけ。
+        // 効果1回の解決につき1回（印は removeCores と共通で、一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
         const notifyEmptied = (targetPid: PlayerId, inst: CardInstance): void => {
-            if (targetPid === owner || (srcType !== "spirit" && srcType !== "brave") || action.emptiedNotified) return
-            action = { ...action, emptiedNotified: true }
+            if (targetPid === owner || (srcType !== "spirit" && srcType !== "brave") || state.coresEmptiedNotifiedPid === owner) return
+            state.coresEmptiedNotifiedPid = owner
             fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid: targetPid, inst })
         }
         // countCounter指定時はcount×EffectCounterの値を除去枚数として使う

@@ -32,6 +32,7 @@ export type AuraCounter =
     | "opponentTrashCores" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（相手のトラッシュのコア数。selfBuff由来はowner基準で対象に依らない）
     | "ownBraveSpirits" // AuraCounter版＝継続オーラ用。EffectCounterの同名軸と同じ判定（自分フィールドのスピリット状態のブレイヴ数）
     | "selfCores" // AuraCounter版＝継続オーラ用。**対象自身**（targetInst）の上に置かれているコア数（timedEffect の target:"self"／aura の target:"self" でのみ使う＝targetInstは常に発生源自身）
+    | "targetCores" // **対象自身**（targetInst。オーラの対象ごと）の上に置かれているコア数。selfCores と違い target:"ownAll" でも対象ごとに数える（BS20-025「バトルしている自分のスピリットのコア1個につき」）
     | "battlingOpponentSymbols" // AuraCounter版＝継続オーラ用。**対象自身**（targetInst）が参加しているバトルの相手側のシンボル数
     | "battlingOpponentCombinedSymbols" // battlingOpponentSymbolsの合体スピリット限定版
     | { anyNameIncludes: string } // 両陣営のフィールドでカード名にこの文字列を含むスピリット数（EffectCounterの同名軸と同じ判定）

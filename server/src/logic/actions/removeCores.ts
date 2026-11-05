@@ -89,10 +89,6 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
     log(state, `${player.name}の${label}のコア${amount}個をリザーブに置いた。`)
 }
 
-// 「自分のスピリットの効果で相手のスピリットのコアが0個になったとき」（opponentSpiritCoresEmptied）を効果1回の解決につき1回だけ起こす印。
-// 既知の限界：選択待ちをまたいで1つの効果が続くと文脈が変わるので2回起こりうる（使うのは BS20-017 の回復だけで結果は同じ）
-const emptiedNotified = new WeakSet<ActionCtx>()
-
 // スピリット／ネクサス1体から amount 個取る（スピリットは保護・下限・維持コア割れを見る removeCores* を通す。
 // ネクサスは装甲・維持コアの概念が無いので直接動かす＝bothSidesCoreToVoid等と同じ扱い）
 function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
@@ -100,8 +96,9 @@ function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, am
     if (state.players[pid].field.spirits.includes(inst)) {
         const before = inst.cores
         applyToSpirit(ctx, pid, inst, amount, to)
-        if (pid !== owner && before > 0 && inst.cores === 0 && (srcType === "spirit" || srcType === "brave") && !emptiedNotified.has(ctx)) {
-            emptiedNotified.add(ctx)
+        if (pid !== owner && before > 0 && inst.cores === 0 && (srcType === "spirit" || srcType === "brave") && state.coresEmptiedNotifiedPid !== owner) {
+            // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
+            state.coresEmptiedNotifiedPid = owner
             fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst })
         }
         return

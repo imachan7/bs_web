@@ -17,7 +17,7 @@ import { suspend } from "../GameState"
 import { exhaustNexus, exhaustSpirit } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuSelfExhaustSources, kyoshuUsedOf } from "../keywords/kyoshu"
 import { lifeLossAllowed } from "../lifeGate"
-import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword } from "../../../../shared/rules"
+import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf } from "../../../../shared/rules"
 import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { coreRemoveAchievableCountForPay } from "./cores"
@@ -64,7 +64,7 @@ export const PAYABLE_TYPES = [
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
     "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
-    "discardUnder", "endAttackStepAfterBattle",
+    "discardUnder", "endAttackStepAfterBattle", "destroyBrave",
 ] as const
 
 type Checker = (state: GameState, owner: PlayerId, self: CardInstance | null, action: EffectAction, srcColors: Color[] | undefined, srcType: CardType | undefined, eventTarget?: string) => boolean
@@ -106,6 +106,16 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     },
     // if：条件が成り立たないことは「解決できない」ではない（then の中身は条件が成り立ったときだけ見る側の責任）
     if: () => true,
+    // destroyBrave：side:"own" は発生源（self＝ホスト）に cardId のブレイヴが合体していれば支払える。
+    // 相手側（省略形）はブレイヴを壊せる相手の合体スピリットがいるか
+    destroyBrave: (state, owner, self, action) => {
+        if (action.type !== "destroyBrave") return false
+        if (action.side === "own") {
+            return self !== null && bravesOf(state.players[owner], self).some((b) => b.cardId === action.cardId)
+        }
+        const oppPlayer = state.players[opponentOf(owner)]
+        return oppPlayer.field.spirits.some((sp) => bravesOf(oppPlayer, sp).length > 0)
+    },
     // sequence：中身のアクションすべてが成立するときだけ成立（一般則どおり「書いてある数どおり」全部）
     sequence: (state, owner, self, action, srcColors, srcType, eventTarget) => {
         if (action.type !== "sequence") return false
@@ -382,6 +392,7 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     summon: "バーストのカードを召喚できない",
     lifeCrush: "相手のライフを減らせない",
     treatAsUnblocked: "ブロックしたスピリットがいない",
+    destroyBrave: "破壊できる合体中のブレイヴがない",
     repeatBurstEffect: "もう1度発揮できるバースト効果がない",
 }
 

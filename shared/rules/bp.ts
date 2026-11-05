@@ -140,6 +140,7 @@ export function countAuraCounter(
     }
     // selfCores／battlingOpponent* は timedEffect／aura の target:"self" 経由でのみ使うため、targetInst は常に発生源自身
     if (counter === "selfCores") return targetInst?.cores ?? 0
+    if (counter === "targetCores") return targetInst?.cores ?? 0
     if (counter === "battlingOpponentSymbols" || counter === "battlingOpponentCombinedSymbols") {
         if (!board.battle || !targetInst) return 0
         const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"

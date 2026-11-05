@@ -1526,6 +1526,11 @@ export function resolveAction(
     // exactOptionalPropertyTypes：undefined の代入ではなくプロパティごと消す
     if (outerEffectSource === undefined) delete state.currentEffectSource
     else state.currentEffectSource = outerEffectSource
+    // 「効果1回の解決につき1回」の印は、一番外側の効果を解決し終えた時点で消す（選択待ちで止まっている間は1つの効果の途中なので残す）
+    if (isOutermostEffect && !state.pendingChoice) {
+        delete state.enemyExhaustNotifiedPid
+        delete state.coresEmptiedNotifiedPid
+    }
     // バウンス待機状態のカードを、**この効果の解決が終わった時点で**まとめて手札／デッキへ移す
     // （Wiki「バウンスについて」：待機中の「戻るとき」効果は割り込まず、解決後に発揮する）。
     // 選択待ちで中断している間はまだ解決が終わっていないので、待機のまま残す

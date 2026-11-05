@@ -996,6 +996,21 @@ const summonBatchFlushHandler: ActionHandler<"summonBatchFlush"> = (ctx) => {
 // ホストは無傷で場に残る。どのホストのブレイヴを壊すかは**効果の使用者**が選ぶ
 const destroyBraveHandler: ActionHandler<"destroyBrave"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, targetInstanceId, destroyContext } = ctx
+    // side:"own"（X07「このブレイヴを破壊することで」の支払い）：発生源＝合体スピリット（self はホスト）に
+    // 合体している、カードID一致のブレイヴ1つだけを破壊する。ホストは残る（BRAVE.md §6.5）
+    if (action.side === "own") {
+        if (!self) {
+            log(state, `${sourceName}：発揮する対象がいなかった。`)
+            return
+        }
+        const brave = bravesOf(state.players[owner], self).find((b) => b.cardId === action.cardId)
+        if (!brave) {
+            log(state, `${sourceName}：破壊するブレイヴが合体していなかった。`)
+            return
+        }
+        destroyCombinedBrave(state, owner, self, brave, destroyContext)
+        return
+    }
     const oppPlayer = state.players[opp]
     const hosts = oppPlayer.field.spirits.filter((sp) => bravesOf(oppPlayer, sp).length > 0)
     if (hosts.length === 0) {

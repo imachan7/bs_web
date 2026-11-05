@@ -323,7 +323,8 @@ export function fushiCandidates(
         const cardId = player.trashCards[i]
         if (cardId === undefined) continue
         const card = getCard(cardId)
-        if (card.type !== "spirit") continue
+        // 【不死】で召喚するのはスピリットに限らない：ブレイヴカードならスピリット状態で場に出る（BS20-X07）
+        if (card.type !== "spirit" && card.type !== "brave") continue
         if (trashCardEffectsDisabled(state, cardId)) continue
         const hit = card.effects.some((e) => {
             if (e.kind !== "keyword" || e.keyword !== "fushi") return false

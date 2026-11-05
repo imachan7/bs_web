@@ -48,6 +48,7 @@ export function fireBattleWonTriggers(
             if (effect.whileCombined && !instIsCombined(inst)) continue
             if (!entryActive(state, winnerPid, inst, effect, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && winnerPid === state.turnPlayer) continue
             // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）
             if (effect.firstAttackOfTurn && state.attacksThisTurn !== 1) continue
             if (effect.vanillaWinnerOnly && !instIsVanilla(winnerInst)) continue

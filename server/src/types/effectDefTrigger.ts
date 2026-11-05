@@ -169,7 +169,7 @@ export type EffectDefTrigger =
           role: "attacker" | "blocker" | "any" // ネクサスのバトル結果誘発。any＝どちらの役割でも
           levels: number[] | null
           action: EffectAction
-          turn?: "own" // 持ち主がturnPlayerのときのみ
+          turn?: "own" | "opponent" // 持ち主がturnPlayerのときのみ／turnPlayerでないときのみ
           vanillaWinnerOnly?: true // 勝利したスピリットが効果の記述を持たない（バニラ）ときのみ
           winnerNameContains?: string // 勝ったスピリットのカード名
           winnerMinCores?: number
