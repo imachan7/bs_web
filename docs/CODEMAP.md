@@ -779,6 +779,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `offerOpponentMainEndMagic`（fn）：kind:"magic" usableAtOpponentMainEnd（BS15-079プロボケイション）：相手（＝これからアタックステップに
 - `applyProvocationUse`（fn）：プロボケイションの使用確定：コストを払い、手札から取り除いてフラッシュ効果を解決する
 
+## server/src/logic/magic/inUse.ts
+
+- `beginMagicUse`（fn）
+- `finishMagicUseOrDefer`（fn）：解決が選択待ちで止まっていれば、トラッシュへ置くのを再開スタックに積む（使用は解決の外側の層なので、
+- `redirectMagicInUse`（fn）：使用中のこのマジックの行き先を変える（「このマジックカードは手札に戻る」・場に残るマジック）。使用中でなければ false
+- `finishMagicUseHandler`（const）
+
 ## server/src/logic/magic/negate.ts
 
 - `magicNegateNexusPayer`（fn）：マジックを無効にできる発生源（kind:"magicNegate"）を、使用者の相手側のフィールドから探す。

@@ -10,6 +10,7 @@ import { markPayConfirmed } from "../actions/pay"
 import { isRedirectOptional, askBothSidesRedirect, findMagicRedirectSourceForCard } from "./redirect"
 import { findMagicNegateSource, payMagicNegate } from "./negate"
 import { resolveMagicEffects, fireMagicUsedTriggers } from "./resolve"
+import { beginMagicUse, finishMagicUseOrDefer } from "./inUse"
 import { matchesTarget, magicPayAssistCandidates } from "../../../../shared/rules"
 import { noteCoverage } from "../../../../shared/coverage"
 import { validateCastMagic } from "../RuleValidator"
@@ -342,9 +343,10 @@ export function doCastMagic(
     } else {
         player.hand.splice(handIndex, 1)
     }
-    player.trashCards.push(cardId)
+    // 解決し終えるまでは使用中（トラッシュへは最後に置く。magic/inUse.ts）
+    beginMagicUse(state, pid, cardId)
     log(state, `${player.name}は${card.name}を使用した。（コスト${cost - magicAssistDiscount}）`)
-    // 解決中の効果から returnLastUsedMagicToHand がこの使用自身を見えるように、トラッシュへ置いた時点で記録する（BS19-102）
+    // 解決中の効果から returnLastUsedMagicToHand がこの使用自身を見えるように、使用の時点で記録する（BS19-102）
     state.lastMagicUsed = { pid, cardId }
     // このターンのマジック使用回数を加算（作戦参謀フォクシンのoncePerTurnAll判定用）
     recordMagicUsed(state, pid, cardId)
@@ -375,6 +377,7 @@ export function doCastMagic(
                 ...(target !== undefined ? { targetInstanceId: target } : {}),
             }
         }
+        finishMagicUseOrDefer(state)
         // フラッシュで使用したら優先権を相手へ移し、再応答の機会を与える
         passFlashPriority(state, pid)
     } else {
@@ -389,6 +392,7 @@ export function doCastMagic(
                 ...(target !== undefined ? { targetInstanceId: target } : {}),
             }
         }
+        finishMagicUseOrDefer(state)
     }
     if (state.winner) state.battle = null
     return null

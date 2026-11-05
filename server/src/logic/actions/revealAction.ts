@@ -1,5 +1,6 @@
 // オープン統合の器 reveal（docs/design/REVEAL_UNIFY.md §4）。
 // reveal.ts（旧17 type の置き場）は増やさず、こちらに新設する。
+import { beginMagicUse, finishMagicUseOrDefer } from "../magic/inUse"
 import { handGainDenial } from "../handGate"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
@@ -150,9 +151,10 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             }
             log(state, `${sourceName}：${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
             state.keishoExcludedCardIds = []
-            // 使ったマジックはトラッシュへ。手札からの使用と同じく、解決より先に置く（以前はどこにも置かず消えていた）
-            player.trashCards.push(cardId)
+            // 解決し終えてからトラッシュへ（手札からの使用と同じ。magic/inUse.ts。以前はどこにも置かず消えていた）
+            beginMagicUse(state, owner, cardId)
             resolveMagicEffects(state, owner, cardId, "flash", undefined)
+            finishMagicUseOrDefer(state)
             return
         }
         case "summon": {
