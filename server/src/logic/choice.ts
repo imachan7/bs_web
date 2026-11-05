@@ -1,5 +1,6 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import { handGainDenial } from "./handGate"
+import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
 import { notifyHandGained } from "./fieldEventTriggers"
@@ -141,6 +142,31 @@ function resolveChoiceInner(
         if (!state.battle || !chosen) return null
         exhaustBlockToll(state, blockerPid, chosen)
         continueBlockDeclaration(state, blockerPid, blockerInstanceId)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // BS20-072 Lv2：アタック時効果発揮のコア支払いの応答。action は解決しない。
+    // 置くならリザーブ→トラッシュ、置かないならこのバトルの間アタッカーの『アタック/バトル時』効果を出さない。
+    // どちらでも resolveAttackDeclared をやり直す
+    if (pending.attackEffectsToll) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) return "選択できない候補です"
+        const info = pending.attackEffectsToll
+        state.pendingChoice = null
+        const battle = state.battle
+        const attacker = findSpirit(state.players[info.attackerPid], info.attackerInstanceId)
+        if (battle && attacker) {
+            const player = state.players[info.attackerPid]
+            if (option === "置く" && player.reserve >= 1) {
+                player.reserve -= 1
+                player.trashCores += 1
+                log(state, `${player.name}はリザーブのコア1個をトラッシュに置いた。`)
+            } else {
+                battle.attackEffectsSuppressed = true
+                log(state, `${player.name}はコアを置かなかったため、${getCard(attacker.cardId).name}の『アタック/バトル時』効果すべては発揮されない。`)
+            }
+            resolveAttackDeclared(state, info.attackerPid, attacker, info.directed)
+        }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

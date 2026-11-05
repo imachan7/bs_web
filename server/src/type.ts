@@ -272,6 +272,10 @@ export interface BattleState {
     }[]
     lifeDamagers?: string[] // このバトルで相手のライフを減らしたスピリットのinstanceId（アタックで減らすたびに積む）。
     // event:"ownLifeDamaged"のバースト発動時、GameState.burstEventLifeDamagerIdへ引き継ぐ材料（BS16バッチ0：080用の器）
+    // BS20-072 Lv2（attackEffectsToll）の支払い確認をこのアタックで済ませたか。確認→応答→resolveAttackDeclared のやり直しの間に二度聞かないための印
+    attackEffectsTollAsked?: true
+    // BS20-072 Lv2：アタックした側がコアを置かなかったとき、このバトルの間アタッカーの『このスピリットのアタック/バトル時』効果すべて（合体中のブレイヴの『合体アタック時』なども含む）を出さない
+    attackEffectsSuppressed?: true
 }
 
 

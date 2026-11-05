@@ -220,6 +220,13 @@ export function fireTrigger(
     collect?: CollectedTrigger[], // 渡されたら解決せず、同時発揮の1件ずつとして積んで返る（blockDeclared.ts）
     asCard?: { cardId: string; level: number }, // 別カードの効果エントリを selfInstance が発揮したものとして解く（replayOpponentSummonEffect）。Lv は記録した値、ブレイヴと付与分は見ない
 ): void {
+    // BS20-072 Lv2（attackEffectsToll）でコアを置かなかったアタッカー：このバトルの間、
+    // 『このスピリットのアタック/バトル時』効果すべて（合体中のブレイヴの『合体アタック時』なども含む）を出さない。
+    // ブロッカーの『バトル時』は対象外（印はアタッカーのinstanceIdと突き合わせる）
+    if ((event === "onAttack" || event === "onBattleStart") && state.battle?.attackEffectsSuppressed === true && selfInstance.instanceId === state.battle.attackerInstanceId) {
+        log(state, `${getCard(selfInstance.cardId).name}の『アタック/バトル時』効果は発揮されない。`)
+        return
+    }
     // 相手の効果によりこのトリガーが発揮されない状態なら、誘発そのものを行わない
     if (isTriggerSuppressed(state, owner, event)) {
         log(state, `${getCard(selfInstance.cardId).name}の効果は発揮されなかった。`)
@@ -657,6 +664,8 @@ export function fireCombinedAttackTrigger(
     host: CardInstance,
     event: TriggerEvent,
 ): void {
+    // 海の主の大口（BS20-072）で抑止されたアタッカーの『アタック時』『バトル時』は、この経路でも撃たない
+    if ((event === "onAttack" || event === "onBattleStart") && state.battle?.attackEffectsSuppressed === true && host.instanceId === state.battle.attackerInstanceId) return
     const entries = bravesOf(state.players[owner], host).flatMap((brave) =>
         getCard(brave.cardId)
             .effects.filter(

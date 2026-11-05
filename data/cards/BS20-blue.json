@@ -1,87 +1,258 @@
 [
-  {
-    "cardId": "BS20-054",
-    "name": "戦騎将パトロクロス",
-    "type": "spirit",
-    "colors": [
-      "blue"
-    ],
-    "cost": 8,
-    "reduction": [
-      "blue",
-      "blue",
-      "blue",
-      "blue"
-    ],
-    "family": [
-      "闘神"
-    ],
+ {
+  "cardId": "BS20-054",
+  "name": "戦騎将パトロクロス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 7000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "blue",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【強化】\n自分の「相手へのデッキ破棄効果」の枚数を+1枚する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n[戦騎将パトロクロス]以外の【強化】を持つ自分のスピリット1体を疲労させることで、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS20-054-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "deckMill",
     "levels": [
-      {
-        "level": 1,
-        "cores": 1,
-        "bp": 7000
-      },
-      {
-        "level": 2,
-        "cores": 3,
-        "bp": 10000
-      },
-      {
-        "level": 3,
-        "cores": 6,
-        "bp": 12000
-      }
-    ],
-    "symbol": [
-      "blue",
-      "blue"
-    ],
-    "flash": false,
-    "rarity": "M",
-    "limited": false,
-    "effect": "Lv1･Lv2･Lv3【強化】\n自分の「相手へのデッキ破棄効果」の枚数を+1枚する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n[戦騎将パトロクロス]以外の【強化】を持つ自分のスピリット1体を疲労させることで、このスピリットは回復する。",
-    "effects": [
-      {
-        "id": "BS20-054-e1",
-        "kind": "keyword",
-        "keyword": "kyoka",
-        "kyoka": "deckMill",
-        "levels": [
-          1,
-          2,
-          3
-        ]
-      },
-      {
-        "id": "BS20-054-e2",
-        "kind": "triggered",
-        "trigger": "onAttack",
-        "levels": [
-          1,
-          2,
-          3
-        ],
-        "optional": false,
-        "action": {
-          "type": "pay",
-          "cost": {
-            "type": "exhaust",
-            "side": "own",
-            "count": 1,
-            "filter": {
-              "keyword": "kyoka",
-              "nameExcludes": [
-                "戦騎将パトロクロス"
-              ]
-            }
-          },
-          "then": {
-            "type": "refresh",
-            "target": "self"
-          }
-        }
-      }
+     1,
+     2,
+     3
     ]
-  }
+   },
+   {
+    "id": "BS20-054-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "keyword": "kyoka",
+       "nameExcludes": [
+        "戦騎将パトロクロス"
+       ]
+      }
+     },
+     "then": {
+      "type": "refresh",
+      "target": "self"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-072",
+  "name": "海の主の大口",
+  "type": "nexus",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nコスト2以下のスピリットはアタックできない。\nLv2『相手のアタックステップ』\n相手のスピリットがアタックしたとき、相手は、相手のリザーブのコア1個を相手のトラッシュに置かなければ、『このスピリットのアタック/バトル時』効果すべてを発揮できない。",
+  "effects": [
+   {
+    "id": "BS20-072-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttackByCost",
+     "costs": [
+      0,
+      1,
+      2
+     ]
+    }
+   },
+   {
+    "id": "BS20-072-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "constraint": {
+     "type": "attackEffectsToll"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-X06",
+  "name": "森羅龍樹リーフ・シードラ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 7,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "blue",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n相手は、相手のフィールドにあるシンボルと同じ色のバーストしか発動できない。\nLv2･Lv3『このスピリットのアタック時』\n相手はマジックカードを使用できない。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：BPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア2個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS20-X06-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "burstOnlyOwnFieldSymbolColors"
+    }
+   },
+   {
+    "id": "BS20-X06-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "battleLock",
+         "lock": "magic"
+        }
+       ],
+       "duration": "battle",
+       "side": "opponent"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "grantTrigger",
+          "trigger": "onBattleWin",
+          "battleRole": "attacker",
+          "action": {
+           "type": "lifeCrush",
+           "count": 2
+          }
+         }
+        ],
+        "duration": "battle",
+        "target": "self"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ }
 ]

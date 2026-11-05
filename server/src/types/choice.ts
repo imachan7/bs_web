@@ -154,6 +154,13 @@ export interface PendingChoice {
         blockerPid: PlayerId
         blockerInstanceId: string
     }
+    attackEffectsToll?: {
+        // BS20-072 Lv2：アタックした側がリザーブのコア1個をトラッシュに置くかの確認待ち。**action は解決しない**。
+        // 応答後に resolveAttackDeclared をやり直す（2026-11-05 ユーザー確認：アタッカーの『アタック時』より先に聞く）
+        attackerPid: PlayerId
+        attackerInstanceId: string
+        directed: boolean
+    }
     fushiSummon?: {
         // 【不死】：トラッシュにあるこのカードを、コストを支払って召喚するかの確認待ち。
         // reviveConfirm と同じく **action は解決しない**（BS09。docs/design/BS09_PLAN.md §3）

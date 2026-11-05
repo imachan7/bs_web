@@ -616,6 +616,7 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     recordTimed(state, { content: locks, target: { kind: "player", pid }, until: "battle", ownerPid: owner })
     for (const c of locks) {
         if (c.lock === "flash") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
+        else if (c.lock === "magic") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はマジックカードを使用できない。`)
         else log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はバーストを発動できない。`)
     }
 }
@@ -623,10 +624,10 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
 // 自分のスピリット1体に置く（疲労状態でもブロックできる・誘発効果を与える）。対話なら選ばせ、非対話は実効BP最大
 function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
-    if (action.duration === "turn" && action.target === "self") {
+    if ((action.duration === "turn" || action.duration === "battle") && action.target === "self") {
         if (!self) return
         pushInstanceRecord(state, owner, self, action.content.filter(isRecorded), action.duration)
-        log(state, `${sourceName}：このターンの間、${getCard(self.cardId).name}に効果を付与した。`)
+        log(state, `${sourceName}：${action.duration === "battle" ? "このバトル" : "このターン"}の間、${getCard(self.cardId).name}に効果を付与した。`)
         return
     }
     // 相手のスピリット1体を「このバトル中、疲労状態でもブロックできる」にする（26RBS01-109/X01）。相手側は耐性を通す
