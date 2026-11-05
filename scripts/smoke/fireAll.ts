@@ -139,7 +139,7 @@ function totalCards(s: GameState): number {
         n += p.field.spirits.length + p.field.nexuses.length + p.field.combinedBraves.length + (p.burst ? 1 : 0)
         n += p.field.magics.length + p.field.spirits.reduce((m, sp) => m + (sp.underCards?.length ?? 0), 0) // 場に残るマジック・スピリットの下のカード（BS19）
     }
-    n += s.revealedCards?.cardIds.length ?? 0
+    n += (s.revealedCards?.cardIds.length ?? 0) + (s.magicsInUse?.length ?? 0)
     return n
 }
 

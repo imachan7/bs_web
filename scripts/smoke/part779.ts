@@ -115,19 +115,13 @@ console.log("=== 1. BS12-078-e0／BS13-081-e0: トラッシュのカシオペア
 {
     const s = game("trash-immunity", "yellow", [SHINE])
     s.players.p1.trashCards = [CASS, DREAM, ELIXIR]
-    // cast 内の pump が cardIndex を答えてしまうので、act 直後の pendingChoice を手動で見る
     const err = act(s, "p1", { type: "castMagic", handIndex: 0, timing: "main" })
     assert(err === null, `シャイニングマジックをメインで使用（${err}）`)
     answerPayConfirm(s, "p1")
-    const pc = s.pendingChoice as (typeof s.pendingChoice & { kind: string; cardIndices?: number[] }) | null
-    const indices = pc && pc.kind === "card" ? pc.cardIndices ?? [] : []
-    const candidates = indices.map((i) => s.players.p1.trashCards[i])
-    assert(!candidates.includes(CASS), "候補にカシオペアシールは含まれない（一切の効果を受けない）")
-    assert(!candidates.includes(DREAM), "候補にドリームシールは含まれない（一切の効果を受けない）")
-    assert(candidates.includes(ELIXIR), "ほかのトラッシュのマジック（ピュアエリクサー）は対象になる")
-    pump(s, { cardIndex: (_p, idx) => idx.find((i) => s.players.p1.trashCards[i] === ELIXIR) })
-    assert(s.players.p1.hand.length === 1 && s.players.p1.hand[0] === ELIXIR, "選んだピュアエリクサーだけ手札に戻る")
-    assert(s.players.p1.trashCards.filter((c) => c === CASS).length === 1 && s.players.p1.trashCards.includes(DREAM), "カシオペアシールとドリームシールはトラッシュに残る")
+    pump(s, {})
+    assert(s.players.p1.hand.length === 1 && s.players.p1.hand[0] === ELIXIR, "トラッシュのピュアエリクサーだけが手札に戻る（候補が1枚なので選択は出ない）")
+    assert(s.players.p1.trashCards.filter((c) => c === CASS).length === 1 && s.players.p1.trashCards.includes(DREAM), "カシオペアシールとドリームシールはトラッシュに残る（一切の効果を受けない）")
+    assert(s.players.p1.trashCards.includes(SHINE), "使ったシャイニングマジックは解決後にトラッシュへ（自分自身は回収されない）")
 }
 
 console.log("=== 2. BS12-078 メイン: 相手スピリットを疲労させ、自分のエンドステップを5回行うまで回復できない ===")

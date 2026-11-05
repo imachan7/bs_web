@@ -161,6 +161,8 @@ export interface GameState {
     // （残す＝コアを置いて field.spirits へ／残さない＝トラッシュへ）。
     // **答えが返るまでエントリを消さない**ので、確認が別の中断に上書きされても保険の flush で拾い直せる
     // dest＝残さないときの行き先（合体していたスピリットと同じ領域。省略はトラッシュ。BRAVE.md §6.3.2）。picked＝持ち主が「これから決める」と選んだ項目
+    // 使用中のマジック（効果と派生効果を解決し終えるまで、手札にもトラッシュにも無い。logic/magic/inUse.ts）。dest＝トラッシュ以外の行き先
+    magicsInUse?: { pid: PlayerId; cardId: string; dest?: "hand" | "field" }[]
     pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true; dest?: BraveLeaveDest; picked?: true }[]
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。

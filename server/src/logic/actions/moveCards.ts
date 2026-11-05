@@ -1,4 +1,5 @@
 // カードを選んで動かす統合の器（旧 toHand／toDeck ほか「選ぶ＋送る」の type をここへ寄せる）
+import { beginMagicUse, finishMagicUseOrDefer } from "../magic/inUse"
 import { coreRemovalAllowed } from "../coreGate"
 import type { ActionCtx, ActionHandler, ActionRegistry, ResolveOpts } from "./types"
 import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerId, PlayerState } from "../../type"
@@ -244,7 +245,8 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
     }
     zone.splice(j, 1)
     payCost(state, pid, cost, ctx.paySources)
-    zone.push(cardId)
+    // 解決し終えるまで使用中（トラッシュへは最後に戻す。magic/inUse.ts）
+    beginMagicUse(state, pid, cardId)
     log(state, `${player.name}はトラッシュの${card.name}を手札にあるときと同様に使用した。（コスト${cost}）`)
     recordMagicUsed(state, pid, cardId)
     const hasMain = card.effects.some((e) => e.kind === "magic" && e.timing === "main")
@@ -254,6 +256,7 @@ function castWithCost(ctx: ActionCtx, pid: PlayerId, zone: string[], j: number):
     state.keishoExcludedCardIds = []
     resolveMagic(state, pid, cardId, timing)
     if (state.lastMagicCast === beforeLastMagicCast) state.lastMagicCast = { pid, cardId, timing }
+    finishMagicUseOrDefer(state)
     return true
 }
 
