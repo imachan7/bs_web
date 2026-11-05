@@ -51,6 +51,7 @@ export interface TargetFilter {
     refreshed?: true // 回復状態（!isRested）のものだけ（restedの逆。BS12-039導化姫トリックスターLv2＝「回復状態の相手のスピリット」）
     nameIs?: string // カード名の完全一致（「〜として扱う」名も一致。declare what:"name" が declared:"match" から置き換える）
     nameContains?: string | string[] // カード名にこの文字列を含むものだけ（BS04獣使いドヴェルグ＝「鎧装獣」／ニーベルングリング＝「ジーク」）。配列＝いずれかの文字列を含めばよい（OR。BS08ダークパワー：「ダーク」/「ブラック」）
+    nameExcludes?: string[] // カード名がこのいずれかに完全一致するものを除く（「[カード名]以外の」）。nameIs の否定で、部分一致の nameContains とは違い完全一致
     sameColorAsBattleLoser?: true // 直前のバトルで破壊された側と同じ色（normalizeFilter が state.lastBattleDestroyedColors を color 軸へ解決する。記録が無ければ対象なし。BS04獣使いドヴェルグ）
     keywordCount?: number // keyword（単数のときだけ）と併用。カードに静的に書かれた指定数が一致するもの（【暴風：1】限定。付与された暴風は対象外）
     sameLevelAsSource?: true // 効果の発生源（ctx.self）のスピリットと同じLv（normalizeFilter が level 軸へ解決する。発生源が場にいなければ対象なし）

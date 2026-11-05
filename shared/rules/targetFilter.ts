@@ -137,6 +137,8 @@ export function matchesTarget(
         const names = Array.isArray(filter.nameContains) ? filter.nameContains : [filter.nameContains]
         if (!names.some((n) => cardNameContains(inst, n))) return false
     }
+    // 「[カード名]以外の」：完全一致の除外（BS20-X01 Lv2・BS20-054）
+    if (filter.nameExcludes !== undefined && filter.nameExcludes.some((n) => cardNameIs(inst, n))) return false
     // 「アタックしている」（BS07桜の妖精オウカ）：現在のバトルのアタッカーだけ。バトル外では対象なし
     if (filter.attackingOnly && board.battle?.attackerInstanceId !== inst.instanceId) return false
     if (filter.notHeavyRested && inst.heavyRested) return false

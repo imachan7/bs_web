@@ -164,6 +164,9 @@ export interface GameState {
     // 使用中のマジック（効果と派生効果を解決し終えるまで、手札にもトラッシュにも無い。logic/magic/inUse.ts）。dest＝トラッシュ以外の行き先
     magicsInUse?: { pid: PlayerId; cardId: string; dest?: "hand" | "field" }[]
     pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true; dest?: BraveLeaveDest; picked?: true }[]
+    // 破壊されたスピリットのコアの行き先待ち（destroyedCoresToSelf。BS20-X01）。ブレイヴを残す確認より先に決着させる。
+    // options＝行き先の instanceId か "trash"/"void"/"reserve"。chooser＝選ぶプレイヤー（候補のみなら持ち主、トラッシュ/ボイド行きとの衝突ならターンプレイヤー）
+    pendingCoreDestinations?: { chooser: PlayerId; ownerPid: PlayerId; cores: number; options: string[] }[]
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。

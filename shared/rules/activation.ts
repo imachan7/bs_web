@@ -430,6 +430,8 @@ function activatableAbilityOf(
             if (!turnOk) continue
         }
         if (e.condition === "selfInBattle" && !inBattle) continue
+        if (e.condition === "selfAttacking" && board.battle?.attackerInstanceId !== host.instanceId) continue
+        if (e.condition === "selfBlocking" && board.battle?.blockerInstanceId !== host.instanceId) continue
         if (e.action.type === "combineOwnBrave" && e.action.hostSelf && braveCombineOntoSelfCandidates(board, pid, source).length === 0) continue
         if ((e.cost !== undefined || e.action.type === "pay") && !activatedActionResolvable(board, pid, source, e.action)) continue
         // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回（キーは server/src/logic/oncePerTurn.ts の onceNameKey と同じ）
@@ -439,6 +441,14 @@ function activatableAbilityOf(
                     ? board.players[pid].onceByNameUsed?.[card(source.cardId).name + e.id.slice(e.id.lastIndexOf("-e"))]
                     : source.activatedUsedTurn?.[e.id]
             if (used === board.turn) continue
+        }
+        // 「ターンにN回まで」（maxPerTurn）。onceScope:"name" はプレイヤーごと・カード名ごとに数える（キーは oncePerTurn と同じ）
+        if (e.maxPerTurn !== undefined) {
+            const used =
+                e.onceScope === "name"
+                    ? board.players[pid].onceByNameUsedCount?.[card(source.cardId).name + e.id.slice(e.id.lastIndexOf("-e"))]
+                    : undefined
+            if (used !== undefined && used.turn === board.turn && used.count >= e.maxPerTurn) continue
         }
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }

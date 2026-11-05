@@ -135,6 +135,13 @@ export interface PendingChoice {
         pid: PlayerId
         instanceIds: string[]
     }
+    coreDestination?: {
+        // 破壊されたスピリットのコアの行き先選び（destroyedCoresToSelf。BS20-X01）。**action は解決しない**。
+        // options（PendingChoice 側）の各選択肢が destOptions の同じ添字の行き先に対応する
+        ownerPid: PlayerId
+        cores: number
+        destOptions: string[]
+    }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
         // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。

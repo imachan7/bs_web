@@ -62,7 +62,7 @@ import {
 } from "./EffectModules"
 import { COLOR_LABELS } from "../../../data/constants"
 import { magicConditionFailure } from "../../../shared/magicCondition"
-import { isOnceUsed, isOncePerBattleUsed } from "./oncePerTurn"
+import { isOnceUsed, isOncePerBattleUsed, usedCountThisTurn, usedNameCountThisTurn } from "./oncePerTurn"
 import { effectCostDiscountNexus, unpayablePayReason } from "./actions/pay"
 import { magicTargetMissing } from "./magic/targetRequirement"
 import { magicUseTiming } from "../../../shared/magicTiming"
@@ -1058,6 +1058,11 @@ export function validateActivateAbility(
     // 「ターンに1回」：既定は発生源1体につき1回。onceScope:"name" は同名で1回
     if (effect.oncePerTurn && isOnceUsed(state, pid, inst, effect, "activatedUsedTurn")) {
         return "この効果はこのターンすでに使いました"
+    }
+    // 「ターンにN回まで」：onceScope:"name" はプレイヤーごと・カード名ごとに数える（BS20-X01）
+    if (effect.maxPerTurn !== undefined) {
+        const used = effect.onceScope === "name" ? usedNameCountThisTurn(state, pid, inst.cardId, effect.id) : usedCountThisTurn(state, inst, effect.id)
+        if (used >= effect.maxPerTurn) return "この効果はこのターンの使用回数に達しました"
     }
     // 〔バトル1回〕（oncePerBattle）：このバトルで発動済みなら拒否（バトル終了で枠は戻る）
     if (effect.oncePerBattle && isOncePerBattleUsed(state, inst, effect.id)) {

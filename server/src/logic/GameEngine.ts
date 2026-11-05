@@ -113,7 +113,7 @@ import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
-import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed } from "./oncePerTurn"
+import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -1517,6 +1517,12 @@ function doActivateAbility(
     // 「ターンに1回」の消費は、コスト支払い後・効果解決前に記録する（解決中に中断が入ってもこのターンの再発動を防ぐ）
     if (effect.oncePerTurn) {
         markOnceUsed(state, pid, inst, effect, "activatedUsedTurn")
+    }
+    // 「ターンにN回まで」も同じ位置で数える。不発・中断でも消費は戻さない（oncePerTurn の cancelable 巻き戻しと同じ簡略化）
+    if (effect.maxPerTurn !== undefined) {
+        if (effect.onceScope === "name") markNameUsedOnceThisTurn(state, pid, inst.cardId, effect.id)
+        else markUsedOnceThisTurn(state, inst, effect.id)
+        noteCoverage(effect, "activated")
     }
     // 〔バトル1回〕も同じ位置で記録する（バトル単位。clearBattle で消える）
     if (effect.oncePerBattle) {

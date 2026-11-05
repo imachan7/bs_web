@@ -5,7 +5,7 @@ import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opp
 import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
+import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
 import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
@@ -279,6 +279,23 @@ function resolveChoiceInner(
         state.pendingChoice = null
         pickBraveKeepOrder(state, id)
         flushBraveKeeps(state)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 破壊されたスピリットのコアの行き先選び（destroyedCoresToSelf。BS20-X01）。action は解決しない
+    if (pending.coreDestination) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.coreDestination
+        const at = option === undefined ? -1 : (pending.options ?? []).indexOf(option)
+        const dest = at >= 0 ? info.destOptions[at] : undefined
+        if (dest === undefined) return "行き先を選択してください"
+        state.pendingChoice = null
+        state.pendingCoreDestinations?.shift()
+        applyCoreDestination(state, info.ownerPid, info.cores, dest)
+        flushCoreDestinations(state)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -686,7 +703,9 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
     // 直前のアクションが新しい選択待ちを立てていたら、消化せずそのまま中断を続ける
     // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
     // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
-    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0)) {
+    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0 || (state.pendingCoreDestinations?.length ?? 0) > 0)) {
+        // 破壊されたスピリットのコアの行き先選び（destroyedCoresToSelf）を先に決着させる（ブレイヴを残す確認より先）
+        flushCoreDestinations(state)
         // 脇に置いたままのブレイヴ（BRAVE.md §6.3）を先に決着させる。detachBravesOnLeave 直後の
         // 確認が別の中断に上書きされていても、ここで聞き直せる（エントリは答えるまで消えない）
         flushBraveKeeps(state)

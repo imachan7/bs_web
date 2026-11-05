@@ -552,6 +552,14 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          // 破壊された自分のスピリットのコアすべては、リザーブではなくこのスピリットに置かれる（BS20-X01 Lv1）。
+          // 破壊された個体自身と破壊待機中の個体は行き先になれない。候補が複数なら持ち主が、
+          // トラッシュ/ボイド行き（destroyedCoresToTrash・timed の destroyedCoresTo）と衝突するときはターンプレイヤーが選ぶ
+          kind: "destroyedCoresToSelf"
+          levels: number[] | null
+      }
+    | {
+          id: string
           kind: "exhaustOnManualCoreAdd" // スピリット/ネクサス/マジックの効果以外（moveCore/awaken）でコアが増えたとき
           levels: number[] | null
           trigger?: "manual" | "effect" | "nonSummon" // 省略時"manual"（moveCore/awakenのみ、持ち主の相手のメインステップ限定）。"effect"＝効果によるコア増加時で、フェーズ不問。"nonSummon"＝効果・手操作の区別なくコアを置かれたとき（083。召喚の維持コア配置はそもそもこの検査に来ない。対象側のターンのメインステップ限定）

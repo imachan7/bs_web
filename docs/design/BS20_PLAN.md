@@ -54,6 +54,8 @@
 
 ### 3.2 新しい部品（16件。バッチは 2〜3件ずつ）
 
+**済み**：バッチ1＝N1・N2・N4（X01・054。part782・part783）
+
 | # | 足りない部品（種別） | 組み合わせで書けない理由 | カード |
 | :-- | :-- | :-- | :-- |
 | N1 | TargetFilter `nameExcludes`（条件の軸） | TargetFilter は nameIs／nameContains だけ。`nameExclude` は CardPick（ゾーンのカード）専用 | X01 Lv2・054 |

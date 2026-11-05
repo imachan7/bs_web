@@ -1,0 +1,87 @@
+[
+  {
+    "cardId": "BS20-054",
+    "name": "戦騎将パトロクロス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 8,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "闘神"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 12000
+      }
+    ],
+    "symbol": [
+      "blue",
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3【強化】\n自分の「相手へのデッキ破棄効果」の枚数を+1枚する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n[戦騎将パトロクロス]以外の【強化】を持つ自分のスピリット1体を疲労させることで、このスピリットは回復する。",
+    "effects": [
+      {
+        "id": "BS20-054-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "deckMill",
+        "levels": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "BS20-054-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "exhaust",
+            "side": "own",
+            "count": 1,
+            "filter": {
+              "keyword": "kyoka",
+              "nameExcludes": [
+                "戦騎将パトロクロス"
+              ]
+            }
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          }
+        }
+      }
+    ]
+  }
+]

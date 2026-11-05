@@ -1,0 +1,115 @@
+[
+  {
+    "cardId": "BS20-X01",
+    "name": "滅龍帝ジエンド・ドラゴニス",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 9,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "滅龍"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 9000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 12000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 16000
+      },
+      {
+        "level": 4,
+        "cores": 8,
+        "bp": 20000
+      }
+    ],
+    "symbol": [
+      "red",
+      "red"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3･Lv4\n破壊された自分のスピリットのコアすべては、リザーブではなく、このスピリットに置かれる。\nLv2･Lv3･Lv4『自分のアタックステップ』\nカード名：「滅龍帝ジエンド・ドラゴニス」以外の自分のスピリットが相手のスピリットにブロックされたとき、このスピリットは回復する。\nLv3･Lv4：フラッシュ『このスピリットのアタック時』\n自分のスピリット1体を破壊することで、このスピリットは回復する。\nこの効果は、ターンに3回までしか使えない。",
+    "effects": [
+      {
+        "id": "BS20-X01-e1",
+        "kind": "destroyedCoresToSelf",
+        "levels": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "id": "BS20-X01-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritBlocked",
+        "levels": [
+          2,
+          3,
+          4
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "nameExcludes": [
+            "滅龍帝ジエンド・ドラゴニス"
+          ]
+        },
+        "action": {
+          "type": "refresh",
+          "target": "self"
+        },
+        "optional": false,
+        "selfMode": "source"
+      },
+      {
+        "id": "BS20-X01-e3",
+        "kind": "activated",
+        "timing": "flash",
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "condition": "selfAttacking",
+        "levels": [
+          3,
+          4
+        ],
+        "maxPerTurn": 3,
+        "onceScope": "name",
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroy",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "refresh",
+            "target": "self"
+          }
+        }
+      }
+    ]
+  }
+]

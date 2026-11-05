@@ -349,6 +349,7 @@ export interface PlayerView {
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
     onceByNameUsed?: Record<string, number>
+    onceByNameUsedCount?: Record<string, { turn: number; count: number }>
     burstSetThisTurn: boolean // 両者に見える公開情報（このターンにセット済みか。クライアントがセットボタンのグレーアウトに使う）
     soulCore: SoulCoreLocation | null // 公開情報のため自分/相手ともに配信する（どのコアが[ソウルコア]かの所在。案B-insideなので数値には既に含まれている。docs/design/SOULCORE.md）
 }

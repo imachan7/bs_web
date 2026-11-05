@@ -838,6 +838,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isOnceUsed`（fn）
 - `usedCountThisTurn`（fn）：「ターンにN回まで」（maxPerTurn）。このターンに発揮した回数
 - `markUsedOnceThisTurn`（fn）
+- `usedNameCountThisTurn`（fn）：「ターンにN回まで」の名前スコープ版（activated の maxPerTurn＋onceScope:"name"）。キーは onceNameKey と同じ
+- `markNameUsedOnceThisTurn`（fn）
 - `markOnceUsed`（fn）
 - `claimOnce`（fn）：解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
 - `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
@@ -871,6 +873,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `recordDestroysOf`（fn）
 - `destroySpirit`（fn）
 - `resumeDestroyCommit`（fn）
+- `flushCoreDestinations`（fn）：pendingCoreDestinations を先頭から1件ずつ確認に出す（flushBraveKeeps と同じ形。ブレイヴを残す確認より先）
+- `applyCoreDestination`（fn）：選ばれた行き先へコアを置く。行き先の個体が場を離れていたらリザーブへ（コアを消さない）
 - `commitPendingDestruction`（fn）：**順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
 - `fireQueuedDestroyBursts`（fn）：破壊後バーストを、pendingBurstDestroyQueue にたまった分だけまとめて発火する。handleAction の末尾
 - `tryFreeSummonOnHandDiscard`（fn）：手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。

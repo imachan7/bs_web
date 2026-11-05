@@ -86,7 +86,7 @@ const VALID_KINDS = new Set([
     "magicFreeGrant", "coreStepBonus", "drawStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "burstSetCost",
-    "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
+    "destroyedCoresToTrash", "destroyedCoresToSelf", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
@@ -624,6 +624,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             granted?: { trigger?: string }
             oncePerTurn?: boolean
             onceScope?: string
+            maxPerTurn?: number
             eventTarget?: string
         }[]) {
             // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
@@ -633,8 +634,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             ) {
                 add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
             }
-            if (e.onceScope !== undefined && (e.onceScope !== "name" || e.oncePerTurn !== true)) {
-                add(id, `onceScope は oncePerTurn: true と併用する "name" のみ（${String(e.id)}）`)
+            // maxPerTurn（「ターンにN回まで」）も名前スコープで数えるので onceScope との併用を許す（BS20-X01）
+            if (e.onceScope !== undefined && (e.onceScope !== "name" || (e.oncePerTurn !== true && e.maxPerTurn === undefined))) {
+                add(id, `onceScope は oncePerTurn: true か maxPerTurn と併用する "name" のみ（${String(e.id)}）`)
             }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
