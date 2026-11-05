@@ -17,7 +17,7 @@ import { destroyDenial } from "./destroyGate"
 import { coreRemovalAllowed } from "./coreGate"
 
 import { fireBurstOnEvent } from "./keywords/burst"
-import { notifySpiritCoresRemovedByOpponent } from "./triggers"
+import { hasGrantedTrigger, notifySpiritCoresRemovedByOpponent } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import type { FieldEventExtraItem } from "./fieldEventTriggers"
 import type { KeywordInfo } from "../../../shared/rules"
@@ -292,7 +292,7 @@ export function destroySpirit(
     // ③が解決した時点でこの破壊は無かったことになり、列の残りは
     // requiresPendingDestructionOf のガードで空振りする
     const extraItems: FieldEventExtraItem[] = []
-    if (cause === "destroy" && !options?.suppressOnDestroy && !context?.suppressOnDestroy && hasOwnDestroyTrigger(inst)) {
+    if (cause === "destroy" && !options?.suppressOnDestroy && !context?.suppressOnDestroy && hasOwnTrigger(state, ownerPid, inst, "onDestroy")) {
         extraItems.push({
             key: `selfOnDestroy:${inst.instanceId}`,
             label: `${player.name}の${master.name}（破壊時）`,
@@ -301,6 +301,16 @@ export function destroySpirit(
             actorPid: ownerPid,
             requiresPendingDestructionOf: inst.instanceId,
             first: true,
+        })
+    }
+    // 「フィールドに残る」で生き残っても勝敗は変わらないので発揮する（requiresPendingDestructionOf を付けない。TIMING_CHART の勝敗の行）
+    if (cause === "destroy" && context?.battleLoser && hasOwnTrigger(state, ownerPid, inst, "onBattleLose")) {
+        extraItems.push({
+            key: `selfBattleLose:${inst.instanceId}`,
+            label: `${player.name}の${master.name}（バトルで破壊されたとき）`,
+            action: { type: "resolveOwnBattleLoseTriggers", instanceId: inst.instanceId },
+            selfInstanceId: inst.instanceId,
+            actorPid: ownerPid,
         })
     }
     if (cause === "destroy" && !inst.skipReviveOnCommit) {
@@ -475,8 +485,12 @@ export function resumeDestroyCommit(
     if (!state.destroyGroup) fireQueuedDestroyBursts(state)
 }
 
-function hasOwnDestroyTrigger(inst: CardInstance): boolean {
-    return getCard(inst.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onDestroy")
+// 合体中のブレイヴの【合体時】も含める（含めないと、ホストが破壊時効果を持たない合体スピリットでブレイヴ側が発揮しない。BS15-055）
+function hasOwnTrigger(state: GameState, pid: PlayerId, inst: CardInstance, trigger: "onDestroy" | "onBattleLose"): boolean {
+    return (
+        [inst, ...bravesOf(state.players[pid], inst)].some((src) => getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === trigger)) ||
+        hasGrantedTrigger(state, pid, inst, trigger)
+    )
 }
 
 // **順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
