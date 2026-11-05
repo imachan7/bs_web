@@ -904,9 +904,9 @@ const refreshOneHandler = (ctx: ActionCtx, action: Extract<EffectAction, { type:
                 refreshSpirit(state, owner, c, srcType)
                 if (action.thenCantAttackThisTurn) {
                     recordTimed(state, { content: [{ type: "cantAttack" }], target: { kind: "instance", instanceId: c.instanceId }, until: "turn", ownerPid: owner })
-                    recordTargets(state, [c.instanceId])
                 }
             }
+            recordTargets(state, picked.map((c) => c.instanceId))
             log(state, `${sourceName}：スピリット${String(picked.length)}体を回復させた。`)
             return
         }

@@ -934,7 +934,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
         return
     }
-    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
+    if (!action.all && action.target !== "lastTargets" && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         placeOwnOne(ctx, action, filter)

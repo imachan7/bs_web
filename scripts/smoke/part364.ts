@@ -156,11 +156,12 @@ function collectSelfBuffActions(node: unknown, out: OldSelfBuff[]): void {
     }
 }
 
-// __eid は coverage:effects がカードデータに付け足す計測用の印なので比べない
+// __eid は coverage:effects がカードデータに付け足す計測用の印なので比べない。
+// countOnce は旧 selfBuff の解決時固定を明示しただけ（timedContent.ts）なので、形の比較からは外す
 function canonical(v: unknown): string {
     return JSON.stringify(v, (_k, x: unknown) =>
         x && typeof x === "object" && !Array.isArray(x)
-            ? Object.fromEntries(Object.entries(x as Record<string, unknown>).filter(([k]) => k !== "__eid").sort(([a], [b]) => a.localeCompare(b)))
+            ? Object.fromEntries(Object.entries(x as Record<string, unknown>).filter(([k]) => k !== "__eid" && k !== "countOnce").sort(([a], [b]) => a.localeCompare(b)))
             : x,
     )
 }
@@ -208,7 +209,7 @@ console.log("=== 1. 新旧一致：selfBuff を持つ全カード（変換後の
         for (const a of found) entries.push({ cardId: c.cardId, action: a })
     }
     // BS16-024 は『自分のアタックステップ』見出しの継続効果としてオーラへ移したので 82-1
-    assert(entries.length === 126, `移行した「このスピリットをBP+」は126件（BS13-060 の pay の then で+1。BS18 の 003・030・032×2・035 で+5。BS17 の6枚で+6。フェネボラック・キマイラ・デブリを含む。BS16-049 で+1、pay へ移した BS13-024・BS06-074・BS02-X07・BS12-050・BS06-X24 で+4。プロモの P005・P010・P038・P059・P060・P067・PX01・PX02・PX12・PX14 で+10。BS19 の 003・008・X01・044 で+4。BS20 の 003・055 で+2。構築済みデッキで+9）（実際:${entries.length}`)
+    assert(entries.length === 128, `移行した「このスピリットをBP+」は128件（BS13-060 の pay の then で+1。BS18 の 003・030・032×2・035 で+5。BS17 の6枚で+6。フェネボラック・キマイラ・デブリを含む。BS16-049 で+1、pay へ移した BS13-024・BS06-074・BS02-X07・BS12-050・BS06-X24 で+4。プロモの P005・P010・P038・P059・P060・P067・PX01・PX02・PX12・PX14 で+10。BS19 の 003・008・X01・044 で+4。BS20 の 003・031・034・055 で+4。構築済みデッキで+9）（実際:${entries.length}`)
     assert(!JSON.stringify(ALL_CARDS.map((c) => c.effects)).includes('"type":"selfBuff"'), "カードデータに旧 selfBuff は残っていない")
 
     let mismatches = 0
