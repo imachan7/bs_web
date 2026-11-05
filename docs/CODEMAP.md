@@ -578,7 +578,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/blockDeclared.ts
 
 - `CollectedTrigger`（型）：収集モードで fireTrigger／fireFieldEventTriggers が積む1件。run は非対話時にその場で解決する用、
-- `resolveBlockDeclared`（fn）：非対話（テスト・AI）では収集順＝従来の発火順で解決する。
+- `resolveBlockDeclared`（fn）：非対話（テスト・AI）では収集順＝従来の発火順で解決する（ブロッカーの疲労による誘発が先頭）。
 
 ## server/src/logic/bounceGate.ts
 
