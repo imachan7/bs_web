@@ -25,6 +25,8 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger, fireFieldEventTriggers, fireBattleWonTriggers, resolveMagic } from "../../server/src/logic/EffectModules"
+import { activateBurstCard } from "../../server/src/logic/keywords/burst"
+import { attachBrave } from "../../server/src/logic/brave"
 import { activeConstraints, hasGlobalConstraint, instHasColor, noLifeDamageByCost } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
@@ -134,7 +136,7 @@ function totalCards(s: GameState): number {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const p = s.players[pid]
         n += p.deck.length + p.hand.length + p.trashCards.length + p.tegamoto.length
-        n += p.field.spirits.length + p.field.nexuses.length
+        n += p.field.spirits.length + p.field.nexuses.length + p.field.combinedBraves.length + (p.burst ? 1 : 0)
         n += p.field.magics.length + p.field.spirits.reduce((m, sp) => m + (sp.underCards?.length ?? 0), 0) // 場に残るマジック・スピリットの下のカード（BS19）
     }
     n += s.revealedCards?.cardIds.length ?? 0
@@ -230,7 +232,8 @@ export function buildBoard(testCard: CardData): {
         if (first) first.isRested = true
     }
     let selfInst: ReturnType<typeof createInstance> | null = null
-    if (testCard.type === "spirit") selfInst = put(s, "p1", testCard, maxCores(testCard))
+    // ブレイヴはスピリット状態で置く（『このブレイヴの召喚時』など）。【合体時】は fireAll が合体させてから撃つ
+    if (testCard.type === "spirit" || testCard.type === "brave") selfInst = put(s, "p1", testCard, maxCores(testCard))
     else if (testCard.type === "nexus") selfInst = putNexus(s, "p1", testCard, maxCores(testCard))
     refreshLevelAsOverrides(s)
     return { s, selfInst }
@@ -361,6 +364,12 @@ for (const card of CARDS) {
     try {
         const { s, selfInst } = buildBoard(card)
         hooks.setup?.(s, card)
+        // バーストを持つマジックはバーストエリアに伏せておく（保存則の数に入れるため、数える前に置く）
+        const hasBurst = card.type === "magic" && effects.some((e) => e.kind === "burst")
+        if (hasBurst) {
+            s.players.p1.burst = card.cardId
+            s.players.p1.burstSet = true
+        }
         const before = totalCards(s)
         // (1) マジックは両タイミングで使用する
         if (card.type === "magic") {
@@ -368,6 +377,13 @@ for (const card of CARDS) {
                 const target = s.players.p2.field.spirits[0]
                 setBattle(s, s.players.p1.field.spirits[0]!.instanceId, target?.instanceId ?? null)
                 shoot(`${card.cardId} magic:${timing}`, () => resolveMagic(s, "p1", card.cardId, timing, target?.instanceId), s)
+            }
+            // バーストとして発動（条件の出来事は起こさず、条件を無視する発動の口を使う）
+            if (hasBurst) {
+                const target = s.players.p2.field.spirits[0]
+                setBattle(s, s.players.p1.field.spirits[0]!.instanceId, target?.instanceId ?? null)
+                shoot(`${card.cardId} burst`, () => void activateBurstCard(s, "p1", card.cardId, true), s)
+                fired++
             }
         }
         if (selfInst) {
@@ -392,6 +408,24 @@ for (const card of CARDS) {
                 }
                 s.turnPlayer = "p1"
                 s.phase = "attack"
+            }
+            // (2b) ブレイヴの【合体時】：p1 の別のスピリットに合体させ、合体先の誘発として撃つ
+            if (card.type === "brave") {
+                const host = s.players.p1.field.spirits.find((sp) => sp.instanceId !== selfInst.instanceId)
+                if (host) {
+                    attachBrave(s, "p1", host, selfInst)
+                    refreshLevelAsOverrides(s)
+                    for (const ev of triggers) {
+                        for (const tp of ["p1", "p2"] as PlayerId[]) {
+                            s.turnPlayer = tp
+                            const opp = s.players.p2.field.spirits[0]
+                            if (BATTLE_EVENTS.includes(ev)) setBattle(s, host.instanceId, opp?.instanceId ?? null)
+                            shoot(`${card.cardId} combined trigger:${ev} turn:${tp}`, () => fireTrigger(s, "p1", host, ev, "attacker", opp?.instanceId), s)
+                            fired++
+                        }
+                    }
+                    s.turnPlayer = "p1"
+                }
             }
             // (3) バトル勝利誘発：**勝者に条件がある**（「〇〇が勝ったとき」）ので、
             //     エントリごとに条件（名前・系統・キーワード）を満たす勝者を盤面から選んで渡す
