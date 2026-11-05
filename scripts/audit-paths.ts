@@ -112,9 +112,14 @@ function infoFor(e: EffectDef): Record<string, unknown> {
 // via:"attack"＝誘発を直接撃たず、主体にアタックを宣言させて起こす（アタック宣言の同時発揮の列・アタック後バーストを通す）。
 // via:"block"＝主体にブロックを宣言させて起こす（主体の相手陣営の1体目がアタックする）。
 // 相方は「スピリットがアタック／ブロックしたとき、何もしない」（その宣言のどの効果の列にも同時に入る）
-type Via = "direct" | "attack" | "block"
+// via:"summon"＝主体（場のスピリット）を手札へ戻してから、持ち主のメインステップに召喚させて起こす
+type Via = "direct" | "attack" | "block" | "summon"
 const echoOn = (event: string): EffectDef => ({ kind: "fieldEvent", event, id: "AE-e1", levels: null, action: { type: "noop" } }) as unknown as EffectDef
-const VIA_ECHO: Record<"attack" | "block", EffectDef> = { attack: echoOn("anySpiritAttacked"), block: echoOn("anySpiritDeclaredBlock") }
+const VIA_ECHO: Record<"attack" | "block" | "summon", EffectDef> = {
+    attack: echoOn("anySpiritAttacked"),
+    block: echoOn("anySpiritDeclaredBlock"),
+    summon: echoOn("anySpiritSummoned"),
+}
 function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, subj: Subj | null, via: Via = "direct"): { s: string; ok: boolean; asked: boolean } | null {
     const saved = Math.random
     let x = 12345
@@ -140,6 +145,19 @@ function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, 
             s.turnPlayer = sj.pid
             s.phase = "attack"
             if (handleAction(s, sj.pid, { type: "attack", instanceId: attacker.instanceId }) !== null) {
+                db.effects = own
+                return null
+            }
+        } else if (via === "summon") {
+            const sj = subj!
+            const p = s.players[sj.pid]
+            const target = p.field.spirits[sj.idx]!
+            p.field.spirits.splice(sj.idx, 1)
+            p.reserve += target.cores ?? 0
+            p.hand.push(target.cardId)
+            s.turnPlayer = sj.pid
+            s.phase = "main"
+            if (handleAction(s, sj.pid, { type: "summon", handIndex: p.hand.length - 1 } as never) !== null) {
                 db.effects = own
                 return null
             }
@@ -236,7 +254,7 @@ const lines: string[] = []
 
 // 1つの効果を、主体の候補を順に試して誘発させ（単独≠無）、相方を挟んだ2経路と比べる
 function sweep(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, cands: (Subj | null)[], via: Via, key: string): void {
-    const tag = via === "attack" ? "アタック宣言" : via === "block" ? "ブロック宣言" : `turn:${tp} ${ph}`
+    const tag = via === "attack" ? "アタック宣言" : via === "block" ? "ブロック宣言" : via === "summon" ? "召喚" : `turn:${tp} ${ph}`
     let base: NonNullable<ReturnType<typeof run>> | null = null
     let subj: Subj | null = null
     let fired = false
@@ -315,8 +333,17 @@ function blockKind(card: CardData, e: EffectDef): "self" | "any" | null {
     return null
 }
 
-// ONLY=<cardId> で1枚だけ回す。VIA=direct|attack|block で1つだけ
-const vias = (process.env["VIA"] ? [process.env["VIA"]] : ["direct", "attack", "block"]) as Via[]
+// 召喚から起こす効果：召喚時（召喚されたスピリット自身）と、スピリットが召喚されたとき（場の誰か）
+const SUMMON_EVENTS = new Set(["ownSpiritSummoned", "anySpiritSummoned"])
+function summonKind(card: CardData, e: EffectDef): "self" | "any" | null {
+    const f = e as unknown as Record<string, unknown>
+    if (card.type === "spirit" && e.kind === "triggered" && f["trigger"] === "onSummon") return "self"
+    if (e.kind === "fieldEvent" && SUMMON_EVENTS.has(e.event)) return "any"
+    return null
+}
+
+// ONLY=<cardId> で1枚だけ回す。VIA=direct|attack|block|summon で1つだけ
+const vias = (process.env["VIA"] ? [process.env["VIA"]] : ["direct", "attack", "block", "summon"]) as Via[]
 for (const card of CARDS.filter((c) => !process.env["ONLY"] || c.cardId === process.env["ONLY"])) {
     if (card.type !== "spirit" && card.type !== "nexus") continue
     for (const e of (card.effects ?? []) as EffectDef[]) {
@@ -357,6 +384,20 @@ for (const card of CARDS.filter((c) => !process.env["ONLY"] || c.cardId === proc
                 })
             }
             sweep(card, e, "p1", "attack", cands, "block", key)
+        }
+        const sk = vias.includes("summon") ? summonKind(card, e) : null
+        if (sk !== null) {
+            const key = `${e.id}@summon`
+            allIds.set(key, `召喚:${e.kind === "fieldEvent" ? e.event : "onSummon"}`)
+            // 主体＝召喚されるスピリット。自身の召喚時はテスト対象のカード（p1 の場）だけ、場の誰かなら両陣営の全スピリット
+            const { s } = buildBoard(card)
+            const cands: Subj[] = []
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                s.players[pid].field.spirits.forEach((sp, idx) => {
+                    if (sk === "any" || (pid === "p1" && sp.cardId === card.cardId)) cands.push({ firePid: pid, pid, idx, info: false })
+                })
+            }
+            sweep(card, e, "p1", "main", cands, "summon", key)
         }
     }
 }
