@@ -613,7 +613,8 @@ export function effectiveBp(
     eachBpAura(board, ownerPid, inst, (amount) => {
         total += amount
     })
-    return total + timedRuleBp(board, ownerPid, inst)
+    // BPは0未満にならない（0として扱う）
+    return Math.max(0, total + timedRuleBp(board, ownerPid, inst))
 }
 
 // 「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。

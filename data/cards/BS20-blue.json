@@ -314,5 +314,698 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "BS20-047",
+  "name": "海楯の守護者ジャイルズ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2\nコスト3以下の自分のスピリットすべては、相手の効果で破壊されたとき、疲労状態でフィールドに残ることができる。\nLv2『このスピリットのバトル時』\n相手のデッキを上から2枚破棄する。",
+  "effects": [
+   {
+    "id": "BS20-047-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "scope": "ownAll",
+    "filter": {
+     "cost": {
+      "max": 3
+     }
+    },
+    "when": {
+     "byOpponentEffect": true
+    },
+    "revived": {
+     "rested": true
+    },
+    "optional": true
+   },
+   {
+    "id": "BS20-047-e2",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
+     "count": 2
+    },
+    "eventTarget": "use"
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-048",
+  "name": "タツノ・ドラコ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのLvを1つ上のものとして扱う。",
+  "effects": [
+   {
+    "id": "BS20-048-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": {
+     "plus": 1
+    },
+    "whileAttacking": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-049",
+  "name": "カモオネ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\nボイドからコア1個を自分のネクサスに置く。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個を自分のスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS20-049-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "placeCores",
+       "from": "void",
+       "to": "nexus",
+       "target": "one",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "placeCores",
+        "from": "void",
+        "to": "spirit",
+        "target": "one",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-050",
+  "name": "トライデントのデータス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【粉砕】『このスピリットのアタック時』\n相手のデッキを上から、このスピリットのLvと同じ枚数破棄する。",
+  "effects": [
+   {
+    "id": "BS20-050-e1",
+    "kind": "keyword",
+    "keyword": "funsai",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-051",
+  "name": "波濤の剣使いアカシ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "剣使",
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト4以下の相手のスピリット1体を破壊する。\n【合体時】Lv2『自分のアタックステップ』\n自分の青のスピリットがアタックしたとき、コスト3以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS20-051-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "max": 4
+      }
+     }
+    }
+   },
+   {
+    "id": "BS20-051-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "whileCombined": true,
+    "ownOnly": true,
+    "subjectFilter": {
+     "color": "blue"
+    },
+    "phase": "attack",
+    "turn": "own",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-052",
+  "name": "破戒僧サンゴジョー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2：フラッシュ『お互いのアタックステップ』\n自分のフィールドのコア1個を自分のトラッシュに置くことで、「ブロックされない」効果を持つ相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS20-052-e1",
+    "kind": "activated",
+    "timing": "flash",
+    "levels": [
+     1,
+     2
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "both"
+    },
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "placeCores",
+      "from": "field",
+      "to": "trash",
+      "target": "one",
+      "count": 1
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "filter": {
+       "unblockableOnly": true
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-053",
+  "name": "異海獣シーポリープ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのアタック時』\nコスト4以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS20-053-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "cost": {
+         "max": 4
+        }
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-066",
+  "name": "コノハガニン",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue",
+   "green"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのアタック時』\nこのスピリットのLvを1つ上のものとして扱う。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個を自分のスピリットに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS20-066-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "whileCombined": true,
+    "target": "self",
+    "treatAs": {
+     "plus": 1
+    },
+    "whileAttacking": true
+   },
+   {
+    "id": "BS20-066-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "whileCombined": true,
+    "levels": null,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "green"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "spirit",
+      "target": "one",
+      "count": 1
+     }
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 4
+  }
+ },
+ {
+  "cardId": "BS20-083",
+  "name": "コールオブディープ",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n「ブロックされない」効果を持つ相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。\nまたは、コスト4以下の相手のスピリット2体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS20-083-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "keyword": "rensa",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "unblockableOnly": true
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "chooseActionMode",
+        "modes": [
+         {
+          "label": "相手のスピリット1体を疲労させる",
+          "actions": [
+           {
+            "type": "exhaust",
+            "count": 1
+           }
+          ]
+         },
+         {
+          "label": "コスト4以下の相手のスピリット2体を疲労させる",
+          "actions": [
+           {
+            "type": "exhaust",
+            "count": 2,
+            "filter": {
+             "cost": {
+              "max": 4
+             }
+            }
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-084",
+  "name": "フィニッシュブロー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのバトルの間、自分のスピリット1体をBP+3000する。\nそのスピリットがBPを比べ相手のスピリットだけを破壊したとき、相手のデッキを上から7枚破棄する。",
+  "effects": [
+   {
+    "id": "BS20-084-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      },
+      {
+       "type": "grantTrigger",
+       "trigger": "onBattleWin",
+       "action": {
+        "type": "discard",
+        "from": "deck",
+        "side": "opponent",
+        "count": 7
+       }
+      }
+     ],
+     "duration": "battle",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
  }
 ]

@@ -651,8 +651,13 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
     ) {
         return
     }
+    // BP+ を含むときの自動選択は pickOwnBpTarget と同じくバトル中の個体を優先する
+    const battling = action.content.some((c) => c.type === "bp")
+        ? candidates.find((s) => s.instanceId === state.battle?.attackerInstanceId || s.instanceId === state.battle?.blockerInstanceId)
+        : undefined
     const target =
         (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
+        battling ||
         candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
     const name = getCard(target.cardId).name
     pushInstanceRecord(state, owner, target, action.content.filter(isRecorded), action.duration)

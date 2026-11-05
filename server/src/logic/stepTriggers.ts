@@ -429,8 +429,9 @@ export function fireBpReachedTriggers(state: GameState): void {
             return
         }
         fireFieldEventTriggers(state, r.pid, "ownSpiritBpReached", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, { bpFrom: r.from, bpTo: r.to })
-        // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）
-        if (r.to === 0 && r.from > 0) {
+        // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）。
+        // 実効BPは負の値まで下がるが、BPは0未満にならない（0として扱う）ので0以下を0とみなす
+        if (r.to <= 0 && r.from > 0) {
             const bpMinusSource = state.bpMinusSourceBy?.[r.inst.instanceId]
             fireFieldEventTriggers(state, opponentOf(r.pid), "opponentSpiritBpReachedZero", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, bpMinusSource === undefined ? undefined : { sourceInstanceId: bpMinusSource })
         }

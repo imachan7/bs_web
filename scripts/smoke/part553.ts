@@ -91,5 +91,5 @@ console.log("=== 5. BP-の加算（継召で除外した数） ===")
     s.keishoExcludedCardIds = ["BS01-001", "BS01-002"]
     const bp0 = effectiveBp(s, "p2", foe)
     resolveAction(s, "p1", null, { type: "bpMinus", amount: 2000, per: { counter: "keishoExcludedCount", amount: 1000 } })
-    assert(effectiveBp(s, "p2", foe) === bp0 - 4000, "2000＋1000×2枚＝4000下がる")
+    assert(effectiveBp(s, "p2", foe) === Math.max(0, bp0 - 4000), "2000＋1000×2枚＝4000下がる（BPは0未満にならない）")
 }

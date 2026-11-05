@@ -390,6 +390,7 @@ function activatedPayResolvable(board: Board, pid: PlayerId, source: CardInstanc
         if (n < c.count) return false
     }
     if (c.type === "discard" && c.from === "burst" && c.side === "own" && !board.players[pid].burstSet) return false
+    if (c.type === "discard" && c.from === "hand" && c.side === "own" && typeof c.count === "number" && (board.players[pid].hand?.length ?? c.count) < c.count) return false
     return action.costOnly === true || activatedActionResolvable(board, pid, source, action.then)
 }
 

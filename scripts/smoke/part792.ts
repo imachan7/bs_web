@@ -225,7 +225,7 @@ console.log("=== 6. 031 連鎖《黄》：ブロック時、黄シンボルが�
     settle(s, [van.instanceId])
     passFlash(s)
     settle(s)
-    assert(effectiveBp(s, "p2", van) === 1000 - 3000, "連鎖でロクケラトプスはこのターンBP-3000（BP1000→-2000）")
+    assert(effectiveBp(s, "p2", van) === 0, "連鎖でロクケラトプスはこのターンBP-3000（BP1000→0。BPは0未満にならない）")
 }
 {
     const s = game("s6b", "p2")
@@ -436,7 +436,7 @@ console.log("=== 16. 062 カタパシール『召喚時』：相手スピリッ�
     settle(s, [saber.instanceId, van.instanceId])
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === saber.instanceId), "召喚時効果でテラノセイバーを手札に戻す")
     assert(s.players.p2.hand.length === 1, "戻ったカードは相手の手札に")
-    assert(effectiveBp(s, "p2", van) === 1000 - 3000, "連鎖《黄》でロクケラトプスはこのターンBP-3000")
+    assert(effectiveBp(s, "p2", van) === 0, "連鎖《黄》でロクケラトプスはこのターンBP-3000（BP1000→0。BPは0未満にならない）")
     assert(s.players.p1.field.spirits.some((x) => x.cardId === CATAP), "カタパシールはスピリット状態で場に残る")
 }
 
@@ -495,7 +495,7 @@ console.log("=== 19. 079 ダークネスオーラ：フラッシュで自分の�
     assert(act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: atk.instanceId }) === null, "ダークネスオーラを使用できる")
     settle(s, [atk.instanceId, van.instanceId])
     assert(effectiveBp(s, "p1", atk) === 1000 + 3000, "このターンの間、自分のロクケラトプスはBP+3000")
-    assert(effectiveBp(s, "p2", van) === 1000 - 3000, "連鎖《黄》で相手のロクケラトプスはBP-3000")
+    assert(effectiveBp(s, "p2", van) === 0, "連鎖《黄》で相手のロクケラトプスはBP-3000（BP1000→0。BPは0未満にならない）")
     takeLifeAndResolve(s, "p2")
 }
 {

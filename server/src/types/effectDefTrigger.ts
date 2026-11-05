@@ -237,7 +237,7 @@ export type EffectDefTrigger =
           attackerOnly?: true // ownSpiritDestroyed 限定
           byAttackOnly?: true // ownLifeDamaged 限定。「相手のスピリットのアタックによって」ライフが減ったときだけ。
           // 効果によるライフ減少（lifeCrush 等）では発火しない。アタックによる減少は targetInstanceId にアタッカーが渡ることで区別する
-          duringSelfAttack?: true // opponentSpiritDestroyed 限定
+          duringSelfAttack?: true // 発生源自身が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero で使う）
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
           byOpponentOnly?: true // ownSpiritDestroyed | ownSpiritReturnedToHand 限定。後者は相手の効果で戻るときだけ（持ち主が自分の効果で戻すときは発火しない）
