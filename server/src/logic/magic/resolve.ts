@@ -127,6 +127,45 @@ export function applyMagicRepeatChoice(
     fireMagicUsedTriggers(state, info.casterPid, card, info.timing, info.paidCost)
 }
 
+type MagicEntry = Extract<EffectDef, { kind: "magic" }>
+
+// エントリを発揮しないか（使用条件・解決時の条件・ターンに1回）。発揮しないときはログを出す。ターンに1回は発揮する時点で使ったことにする
+function magicEntryBlocked(state: GameState, owner: PlayerId, card: CardData, effect: MagicEntry): boolean {
+    // 使用条件（手札以外から使う経路もあるので、解決の時点でも見る）と、解決時の条件
+    const failure = [effect.useCondition, effect.condition].map((c) => (c ? magicConditionFailure(state, owner, c) : null)).find((f) => f !== null)
+    if (failure) {
+        log(state, `${card.name}：${failure}ため発動しなかった。`)
+        return true
+    }
+    // 「(この効果はターンに1回しか使えない)」＝使用者ごと・カード名ごとにそのターン1回だけ発揮する。
+    // 判定はエントリ単位（同じカードの他の timing のエントリには影響させない）。
+    // 2枚目は使用自体はできる（コストは払う）が、このエントリの効果だけが発揮されない（BS03-133 ハイエリクサー）
+    if (effect.oncePerTurn) {
+        if (isOnceNameUsed(state, owner, card.cardId, effect.id)) {
+            log(state, `${card.name}：この効果はターンに1回しか使えないため、発揮されなかった。`)
+            return true
+        }
+        markOnceNameUsed(state, owner, card.cardId, effect.id)
+    }
+    return false
+}
+
+// self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
+// （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）。
+// 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
+function runMagicEntryAction(state: GameState, owner: PlayerId, card: CardData, effect: MagicEntry, targetInstanceId?: string): void {
+    resolveAction(state, owner, null, markPayConfirmed(effect.action), targetInstanceId, magicEffectiveColors(state, owner, card), "magic", undefined, undefined, card.cardId)
+}
+
+// 選択待ちで止まったマジックの、残りのエントリ1つ（runMagicActions が積む内部専用）
+export const resumeMagicEntryHandler: ActionHandler<"resumeMagicEntry"> = (ctx, action) => {
+    const { state, owner } = ctx
+    const card = getCard(action.cardId)
+    const effect = card.effects.find((e): e is MagicEntry => e.kind === "magic" && e.id === action.effectId)
+    if (!effect || magicEntryBlocked(state, owner, card, effect)) return
+    runMagicEntryAction(state, owner, card, effect)
+}
+
 // マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
 // （「マジックの効果を使用したとき」の誘発は呼び出し側が最後に1回だけ発火させる）
 export function runMagicActions(
@@ -146,22 +185,7 @@ export function runMagicActions(
     for (let i = 0; i < effects.length; i++) {
         const effect = effects[i]
         if (!effect || !matches(effect)) continue
-        // 使用条件（手札以外から使う経路もあるので、解決の時点でも見る）と、解決時の条件
-        const failure = [effect.useCondition, effect.condition].map((c) => (c ? magicConditionFailure(state, owner, c) : null)).find((f) => f !== null)
-        if (failure) {
-            log(state, `${card.name}：${failure}ため発動しなかった。`)
-            continue
-        }
-        // 「(この効果はターンに1回しか使えない)」＝使用者ごと・カード名ごとにそのターン1回だけ発揮する。
-        // 判定はエントリ単位（同じカードの他の timing のエントリには影響させない）。
-        // 2枚目は使用自体はできる（コストは払う）が、このエントリの効果だけが発揮されない（BS03-133 ハイエリクサー）
-        if (effect.oncePerTurn) {
-            if (isOnceNameUsed(state, owner, cardId, effect.id)) {
-                log(state, `${card.name}：この効果はターンに1回しか使えないため、発揮されなかった。`)
-                continue
-            }
-            markOnceNameUsed(state, owner, cardId, effect.id)
-        }
+        if (magicEntryBlocked(state, owner, card, effect)) continue
         // アルカナソルジャー・サンクLv2：相手が使用したマジックがサンクを対象に含むとき、
         // このアクションの対象をサンクのみに絞る（＝同じ持ち主の他のスピリットは効果を受けない）
         setTargetRedirect(state, owner, targetInstanceId, effect.action)
@@ -169,26 +193,14 @@ export function runMagicActions(
             collected.push(markPayConfirmed(effect.action))
             continue
         }
-        // self が null（マジック）のため、装甲・マジック効果耐性判定用のカード色／種別／カードIDを明示的に渡す
-        // （sourceCardId: lendSelfThisTurnが仮想発生源を作るのに使う。TURN_EFFECT_SOURCES.md §3.3）。
-        // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
-        resolveAction(
-            state,
-            owner,
-            null,
-            markPayConfirmed(effect.action),
-            targetInstanceId,
-            magicEffectiveColors(state, owner, card),
-            "magic",
-            undefined,
-            undefined,
-            card.cardId,
-        )
+        runMagicEntryAction(state, owner, card, effect, targetInstanceId)
         if (state.pendingChoice) {
+            // 残りのエントリは、解決時の条件・ターンに1回・色と種別の受け渡しも含めて、エントリごとに解決し直す
+            // （以前は中身のアクションだけを積んでいて、2つ目の「〜とき」が再開で素通りしていた。BS13-080）
             const remaining = effects.slice(i + 1).filter(matches)
             pushResumeFrames(
                 state,
-                remaining.map((e) => ({ kind: "action" as const, selfInstanceId: null, action: e.action })),
+                remaining.map((e) => ({ kind: "action" as const, selfInstanceId: null, action: { type: "resumeMagicEntry" as const, cardId, effectId: e.id } })),
             )
             // 選択待ちで抜けるときも絞り込みは持ち越さない（選択の解決は別のアクションとして走る）
             delete state.magicRedirectTo
