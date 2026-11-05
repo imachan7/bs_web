@@ -150,6 +150,8 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             }
             log(state, `${sourceName}：${card.name}のフラッシュ効果をコストを支払わずに使用した。`)
             state.keishoExcludedCardIds = []
+            // 使ったマジックはトラッシュへ。手札からの使用と同じく、解決より先に置く（以前はどこにも置かず消えていた）
+            player.trashCards.push(cardId)
             resolveMagicEffects(state, owner, cardId, "flash", undefined)
             return
         }
