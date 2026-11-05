@@ -756,6 +756,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["summonBatchPaidInternal", "summon{from:\"hand\"} の repeatWhileChosen＋payCost を、まとめて選び合計を1回で払う手順で解く内部専用（カードデータには書かない）"],
     ["exhaustPayDecide", "kind:\"exhaustPreventByPay\" の「払って疲労を防ぐか」の確認に答えたときの解決（exhaustSpirit が内部で出す。BS18-014）"],
     ["payNegateDecide", "「手札を破棄することで効果を受けない」を払うかの確認を、対象確定後に askPayToNegateIfNeeded が内部で出す（BS08竜騎集う円卓Lv2）"],
+    ["resumeMagicEntry", "選択待ちで止まったマジックの残りのエントリを、条件の判定から解決し直すために runMagicActions が積む（2026-11-05）"],
     ["resolveOwnBattleLoseTriggers", "BPを比べて破壊された敗者の『バトル時』破壊されたときを、破壊待機の列の1件として destroySpirit が積む（TIMING_CHART ＞６-1。2026-11-05）"],
     ["resolveOwnDestroyTriggers", "破壊で誘発した効果を1列に並べるとき、破壊されたカード自身の『破壊時』を1グループとして列に入れるために destroySpirit が積む（docs/design/TIMING_CHART.md）"],
     ["applyReviveOnDestroy", "同じ列の「フィールドに残る／戻る」1グループ分。reviveOnDestroy はカードデータ側では kind として書くので、この action 名はカードデータに現れない"],

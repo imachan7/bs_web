@@ -2,7 +2,7 @@
 // ActionRegistry（全 EffectAction.type を網羅）として型注釈することで、
 // **ハンドラの書き漏れがコンパイル時に検出される**（旧 switch の網羅性チェックの代替）
 import type { ActionRegistry } from "./types"
-import { magicMirrorRepeatHandler } from "../magic/resolve"
+import { magicMirrorRepeatHandler, resumeMagicEntryHandler } from "../magic/resolve"
 import battleFlow from "./battleFlow"
 import burstActivate from "./burstActivate"
 import bounce from "./bounce"
@@ -55,6 +55,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...grant,
     ...life,
     magicMirrorRepeat: magicMirrorRepeatHandler,
+    resumeMagicEntry: resumeMagicEntryHandler,
     ...mill,
     ...pay,
     ...peekHand,

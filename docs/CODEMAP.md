@@ -812,6 +812,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `consumeMagicRepeatGrant`（fn）：上で見つけた発生源を「このバトルで使い切った」として記録する（oncePerBattle のときだけ）
 - `MAGIC_REPEAT_OPTIONS`（const）：再発揮の確認の選択肢。**この並び順に GameEngine.doResolveChoice が依存する**（0=発揮する / 1=しない）
 - `applyMagicRepeatChoice`（fn）：pendingChoice（再発揮の確認）の後処理。GameEngine.doResolveChoice から呼ぶ
+- `resumeMagicEntryHandler`（const）：選択待ちで止まったマジックの、残りのエントリ1つ（runMagicActions が積む内部専用）
 - `runMagicActions`（fn）：マジックの効果エントリを1周ぶん解決する。resolveMagicEffects が1〜2回呼ぶ
 - `fireMagicUsedTriggers`（fn）：「マジックの効果を使用したとき」の誘発（使用者側・相手側）。
 - `magicMirrorRepeatHandler`（const）：このフラッシュタイミングで相手が直前に使用したマジックの効果を、自分が使用したものとして
