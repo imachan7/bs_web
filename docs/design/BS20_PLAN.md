@@ -60,6 +60,7 @@
 | N2 | activated `maxPerTurn`（カウンタ） | activated は oncePerTurn だけ。回数は fieldEvent・triggered にしか無い | X01 Lv3-4（onceScope name） |
 | N3 | 「手札に戻らない」耐性を「手札/デッキ」に広げる軸（`immunityGrant` against bounce） | `bounceGate` が行き先が手札以外のとき耐性を見ない | 006 |
 | N4 | 継続「破壊された自分のスピリットのコアはこのスピリットへ」（効果の軸） | `destructionCoresToOwnSpirit` は1回きりのアクションで行き先が最大BPの決め打ち | X01 Lv1（§2 の 8） |
+|  | ↳ 決め事（2026-11-05 ユーザー確認） | X01 が2体なら**持ち主が選ぶ**。古龍の縄張り（BS01-101「コアはトラッシュへ」）と同時に効くときは**ターンプレイヤーが選ぶ**（**仮決め。公式に問い合わせ中**。これまでの原則から）。作り：`commitPendingDestruction` でカードを送った後、コアを `GameState.pendingCoreDestinations` に置いて行き先を選ばせる（`pendingBraveKeeps` と同じ形。ブレイヴを残す確認より先）。非対話は X01（先に場に出た方）へ | |
 | N5 | fieldEvent「自分のスピリットの効果で相手のスピリットのコアが0個になったとき」（タイミング） | `lastEmptied` は同じ効果の中だけ | 017 |
 | N6 | 破壊時効果の中の「このスピリットはフィールドに残る」アクション（アクション） | 「残る」は kind `reviveOnDestroy` でしか書けず、破壊時効果の結果（破棄したカード）を見られない | X02 |
 | N7 | pay の cost「このスピリットのブレイヴ（自身）を破壊する」（アクションの軸） | `destroyBrave` は相手の合体スピリット専用 | X07 |
