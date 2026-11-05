@@ -59,5 +59,125 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "BS20-X04",
+  "name": "黒天狐ネガ・ナインテイル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "手札にあるこのスピリットカードは、コスト6以上の自分の白のスピリットが相手によって破壊されたとき、コストを支払わずに召喚できる。\nLv2･Lv3『このスピリットのバトル時』\nBP合計(このスピリットのBP)まで相手のスピリットを、好きなだけ手札に戻す。\n【連鎖：条件《緑/黄シンボル》】\n(自分の緑/黄のシンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[緑]：相手はバーストを発動できない。\n[黄]：このスピリットは相手のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS20-X04-e1",
+    "kind": "freeSummonFromHandOnOwnSpiritDestroyed",
+    "levels": null,
+    "filter": {
+     "color": "white",
+     "cost": {
+      "min": 6
+     }
+    },
+    "byOpponent": true
+   },
+   {
+    "id": "BS20-X04-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onBattleStart",
+    "eventTarget": "use",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "return",
+       "to": "hand",
+       "count": 1,
+       "budget": {
+        "by": "bp",
+        "counter": "selfBp"
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "battleLock",
+          "lock": "burst"
+         }
+        ],
+        "duration": "battle"
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "yellow"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "unblockable",
+          "opponentOnly": true
+         }
+        ],
+        "duration": "battle",
+        "target": "self"
+       }
+      }
+     ]
+    }
+   }
+  ]
  }
 ]

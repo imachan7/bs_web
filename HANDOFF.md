@@ -31,7 +31,7 @@
 
 ### その次：BS20 の取り込み（BS19 は #356。計画の型は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
 
-- **進行中（ブランチ `feat/bs20-import`）：BS20 の91枚**。計画は [BS20_PLAN.md](./docs/design/BS20_PLAN.md)（§2 解釈は確定、§3 新しい部品16件）。次の一手：§3.2 を 2〜3件ずつのバッチで「期待値役→部品の実装→データ役→見直し」。カードはバッチのデータ役が `data/cards/BS20-<色>.json` に書いたものだけ置く（効果なしで先に置くと合体条件・確認関門の検査で `validate:cards` が落ちる）。最後に `merge-set.ts BS20`。バッチ1〜4（N1〜N11）は済み。未実装カードの期待値テストは、実装に入るまで scripts/smoke の外に置く（全体の smoke がカード無しで止まるため）
+- **進行中（ブランチ `feat/bs20-import`）：BS20 の91枚**。計画は [BS20_PLAN.md](./docs/design/BS20_PLAN.md)（§2 解釈は確定、§3 新しい部品16件）。次の一手：§3.2 を 2〜3件ずつのバッチで「期待値役→部品の実装→データ役→見直し」。カードはバッチのデータ役が `data/cards/BS20-<色>.json` に書いたものだけ置く（効果なしで先に置くと合体条件・確認関門の検査で `validate:cards` が落ちる）。最後に `merge-set.ts BS20`。バッチ1〜5（N1〜N13）は済み。未実装カードの期待値テストは、実装に入るまで scripts/smoke の外に置く（全体の smoke がカード無しで止まるため）
 - 取り込み済みは BS01〜BS19・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS20 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4

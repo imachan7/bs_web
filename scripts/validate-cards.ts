@@ -95,7 +95,7 @@ const VALID_KINDS = new Set([
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
-    "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
+    "handActivated", "ownMagicColorless", "fushiFreeByExhaust", "freeSummonFromHandOnOwnSpiritDestroyed",
     "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant", "lifeDamageReplace", "symbolWhenSummoning", "effectTax",
 ])
 
@@ -743,6 +743,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 // ここに載せた action.type がカードデータに書かれていたら validate:cards で落とす（2026-09-25）。
 // 「先に仕組みだけ入れる」用途でここに載せない（カードが入った時点で落ちて気づけるが、載せっぱなしの原因になる）
 const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["resolveHandFreeSummonOnDestroy", "破壊で誘発した効果の列に並ぶ、手札の「〜が破壊されたときコストを支払わずに召喚できる」1枚分（removal.ts。手札が発生源なのでカードデータには書かない）"],
     ["funsaiOnBlock", "ブロック宣言時の同時発揮で【粉砕】を他の誘発と同じ列に並べるための再開フレーム（blockDeclared.ts）"],
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],

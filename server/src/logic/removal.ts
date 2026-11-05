@@ -341,6 +341,32 @@ export function destroySpirit(
             })
         }
     }
+    // 手札の「自分のスピリットが破壊されたときコストを支払わずに召喚できる」も【不死】と同じ列に並ぶ
+    // （2026-11-05ユーザー確認・TIMING_CHART）。byOpponent は BP 比べの敗北も含む（byOpponentEffect の定義どおり）
+    if (cause === "destroy") {
+        for (let i = 0; i < player.hand.length; i++) {
+            const cardId = player.hand[i]
+            if (cardId === undefined || zoneSpiritEffectsDisabled(state, cardId)) continue
+            const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnSpiritDestroyed")
+            if (!effect || effect.kind !== "freeSummonFromHandOnOwnSpiritDestroyed") continue
+            if (effect.byOpponent && !byOpponentEffect) continue
+            // この kind の filter は色・コストなど静的な軸だけ。self 相対のBP軸はここでは解決しないので除外する
+            if (effect.filter) {
+                const { maxBp: _maxBp, minBp: _minBp, exactBp: _exactBp, ...resolvedFilter } = effect.filter
+                if (!matchesTarget(state, ownerPid, inst, resolvedFilter, undefined)) continue
+            }
+            if (!canPayFreeSummonSurcharge(state, ownerPid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+            noteCoverage(effect, "freeSummonFromHandOnOwnSpiritDestroyed")
+            extraItems.push({
+                key: `handFreeSummonOnDestroy:${ownerPid}:${cardId}`,
+                label: `${getCard(cardId).name}（手札からのコスト不払い召喚）`,
+                action: { type: "resolveHandFreeSummonOnDestroy", pid: ownerPid, cardId },
+                selfInstanceId: null,
+                actorPid: ownerPid,
+                requiresPendingDestructionOf: inst.instanceId,
+            })
+        }
+    }
     fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems)
     if (state.pendingChoice || state.winner) {
         suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
@@ -809,6 +835,31 @@ export function applyHandFreeSummon(
     const index = state.players[info.pid].hand.indexOf(info.cardId)
     if (index === -1) return
     summonFreeFromHandIndex(state, info.pid, getCard(info.cardId).name, index)
+}
+
+// 破壊で誘発した効果の列に並んだ「〜が破壊されたときコストを支払わずに召喚できる」1枚分。
+// 実対戦では確認を出し、非対話では自動で召喚する
+export function resolveHandFreeSummonOnDestroy(state: GameState, pid: PlayerId, cardId: string): void {
+    if (state.pendingChoice || state.winner) return
+    const index = state.players[pid].hand.indexOf(cardId)
+    if (index === -1) return
+    if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) return
+    if (state.interactiveTargets) {
+        suspend(state, {
+            pid,
+            kind: "option",
+            prompt: `${getCard(cardId).name}：手札からコストを支払わずに召喚しますか？`,
+            candidates: [],
+            options: ["召喚する"],
+            optional: true,
+            confirm: true,
+            handFreeSummon: { pid, cardId },
+            action: { type: "noop" },
+            selfInstanceId: null,
+        })
+        return
+    }
+    summonFreeFromHandIndex(state, pid, getCard(cardId).name, index)
 }
 
 // 指名が無ければ false（＝これから聞く必要があるかもしれない）

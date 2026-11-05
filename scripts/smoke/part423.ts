@@ -75,6 +75,8 @@ console.log("=== バラガン：戻した自分のスピリットのコストま
     answerPayConfirm(s, "p1")
     act(s, "p1", { type: "resolveChoice", instanceId: payer.instanceId })
     assert(!s.players.p1.field.spirits.includes(payer), "コストに自分のコスト1を戻した")
+    // 「好きなだけ」なので候補が1体でも選ばせる（0体でやめられる。2026-11-06 BS20-X04 の取り込みで直した）
+    act(s, "p1", { type: "resolveChoice", instanceId: cheap.instanceId })
     assert(!s.players.p2.field.spirits.includes(cheap) && s.players.p2.field.spirits.includes(pricey), "予算1なのでコスト1だけ戻る")
 }
 

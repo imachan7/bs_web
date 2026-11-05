@@ -880,6 +880,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `tryFreeSummonOnHandDiscard`（fn）：手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。
 - `tryHandFreeSummonOnLifeDamaged`（fn）：ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
 - `applyHandFreeSummon`（fn）：確認を出したあとに手札から失われていた場合は何もしない
+- `resolveHandFreeSummonOnDestroy`（fn）：破壊で誘発した効果の列に並んだ「〜が破壊されたときコストを支払わずに召喚できる」1枚分。
 - `destroySpiritsFrom`（fn）：戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
 - `destroyTargetsBatch`（fn）：復活の確認で中断したら destroyBatch フレームを積んで止まるので、
 - `resumeDestroyBatch`（fn）：破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、

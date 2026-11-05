@@ -1,5 +1,5 @@
 // 効果の定義のうち、事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活など）
-import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, ResolvedTargetFilter, TriggerEvent } from "../type"
+import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, ResolvedTargetFilter, TargetFilter, TriggerEvent } from "../type"
 
 // partnerFilter の maxBp だけ、ResolvedTargetFilter に無い "subjectBp"（イベント主体の実効BP以下）を書ける。
 // 主体はイベントごとに違う（ownSpiritBlocked＝ブロックされた側）ので、解決は fieldEventTriggers が主体を見て行う
@@ -162,6 +162,13 @@ export type EffectDefTrigger =
           id: string
           kind: "freeSummonFromHandOnOwnNexusDeployed" // 手札にあるこのカード自身の効果。通常・効果・復活いずれの配置も含む
           levels: null // 手札のカードにレベルは無いので常にnull
+      }
+    | {
+          id: string
+          kind: "freeSummonFromHandOnOwnSpiritDestroyed" // 手札にあるこのカード自身の効果（「できる」＝任意）。破壊で誘発した効果の列に並ぶ（2026-11-05ユーザー確認・TIMING_CHART）
+          levels: null // 手札のカードにレベルは無いので常にnull
+          filter?: TargetFilter // 破壊された自分のスピリットの絞り込み（色・コスト）
+          byOpponent?: true // 相手によって破壊されたとき（相手の効果またはBP比べ）だけ
       }
     | {
           id: string
