@@ -1,5 +1,86 @@
 [
   {
+    "cardId": "BS20-006",
+    "name": "魔炎の剣使いシュマルド",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red"
+    ],
+    "family": [
+      "剣使",
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n自分の赤のスピリットすべては、相手のマジックの効果では、フィールドから手札/デッキに戻らない。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nBP6000以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS20-006-e1",
+        "kind": "immunityGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "colorFilter": "red",
+        "against": "bounce",
+        "toDeck": true,
+        "sourceTypes": [
+          "magic"
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        }
+      },
+      {
+        "id": "BS20-006-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 6000
+          }
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS20-X01",
     "name": "滅龍帝ジエンド・ドラゴニス",
     "type": "spirit",

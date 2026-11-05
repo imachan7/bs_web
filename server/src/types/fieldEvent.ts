@@ -66,3 +66,4 @@ export type FieldEvent =
     | "opponentBurstSet" // 相手がバーストをセットしたとき
     | "ownBurstActivated" // 自分のバーストの解決がすべて終わった後。eventInfo.burstCost に発動したカードのコストを載せる
     | "ownKeywordActivated"
+    | "opponentSpiritCoresEmptied" // 自分のスピリット/ブレイヴの効果の解決で、相手のスピリットのコアが0個になったとき（効果1回の解決につき1回。2体同時に0個でも1回）。coreRemove ハンドラが lastCoreRemoveEmptied を記録する各所から、効果の持ち主のフィールドへ発火。**self にはコアが0個になったスピリットが渡る**（この時点で消滅済みのこともある）。BS20-017

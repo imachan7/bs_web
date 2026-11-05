@@ -2,6 +2,7 @@
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
 import { coreGainBlocked, takeCoreGainAllowance } from "../coreGainCap"
 import { coreRemovalAllowed } from "../coreGate"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardType, CardInstance, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { draw, getCard, instMinLevelCores, log, opponentOf } from "../GameState"
@@ -64,6 +65,13 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // 直前の coreRemove で対象のコアが0個になったかの記録を、解決の冒頭でリセットする（action "if" の lastEmptied）
         state.lastCoreRemoveEmptied = false
+        // 「opponentSpiritCoresEmptied」の発火。効果1回の解決につき1回（emptiedNotified で再入をまたいで覚える。
+        // spreadDrew と同じ枠。発生源がスピリット/ブレイヴの効果で、0個になったのが効果の持ち主から見て相手のときだけ）
+        const notifyEmptied = (targetPid: PlayerId, inst: CardInstance): void => {
+            if (targetPid === owner || (srcType !== "spirit" && srcType !== "brave") || action.emptiedNotified) return
+            action = { ...action, emptiedNotified: true }
+            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid: targetPid, inst })
+        }
         // countCounter指定時はcount×EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
         const count = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count
@@ -111,6 +119,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                 if (action.dest === "void") {
                     const removed = removeCoresToVoid(state, pid, inst, 1, owner, srcType)
                     state.lastCoreRemoveEmptied = removed > 0 && inst.cores === 0
+                    if (removed > 0 && inst.cores === 0) notifyEmptied(pid, inst)
                     return removed
                 }
                 // distinct（置くコアは相手が選ぶ）のときだけ、相手は[ソウルコア]を選べる（2026-10-08 ユーザー確定）
@@ -120,6 +129,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
                 if (soul === "asked") return "asked"
                 const removed = action.dest === "trash" ? removeCoresToTrash(state, pid, inst, 1, owner, soul, srcType) : removeCores(state, pid, inst, 1, owner, srcType, soul)
                 state.lastCoreRemoveEmptied = removed > 0 && inst.cores === 0
+                if (removed > 0 && inst.cores === 0) notifyEmptied(pid, inst)
                 // 複数体にまたがっても「消滅したなら、1枚ドロー」は1回だけ（spreadDrew で再入をまたいで覚える。26RBS03-019）
                 if (action.drawIfEmptied && !action.spreadDrew && removed > 0 && inst.cores === 0) {
                     action = { ...action, spreadDrew: true }
@@ -284,6 +294,7 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
             removeCoresToVoid(state, found.pid, found.inst, removeCount, owner, srcType)
         }
         state.lastCoreRemoveEmptied = removeCount > 0 && found.inst.cores === 0
+        if (removeCount > 0 && found.inst.cores === 0) notifyEmptied(found.pid, found.inst)
         // 「この効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする」
         // （BS10-066 騎士王蛇ペンドラゴン）。**この効果で0にしたときだけ**なので、
         // 元から0だった場合は上の removeCount 計算で 0 になり、ここへ来る前に何も起きていない

@@ -1213,8 +1213,10 @@ export function hasBounceImmunity(
     ownerPid: PlayerId,
     inst: CardInstance,
     sourceType?: CardType,
+    // "deck"＝デッキの上/下へ戻す効果への問い合わせ。toDeck 無しの耐性（手札限定）はここで弾かれる
+    to?: "hand" | "deck",
 ): boolean {
-    return hasImmunityAgainst(board, ownerPid, inst, "bounce", sourceType)
+    return hasImmunityAgainst(board, ownerPid, inst, "bounce", sourceType, to)
 }
 
 // hasMagicImmunity / hasBounceImmunity 共通の判定本体（kind:"immunityGrant" の against で分岐）
@@ -1224,6 +1226,7 @@ function hasImmunityAgainst(
     inst: CardInstance,
     against: "magic" | "bounce",
     sourceType?: CardType,
+    to?: "hand" | "deck",
 ): boolean {
     const player = board.players[ownerPid]
     const sources = [...player.field.spirits, ...player.field.nexuses]
@@ -1232,6 +1235,7 @@ function hasImmunityAgainst(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== against) continue
+            if (to === "deck" && effect.toDeck !== true) continue
             if (effect.sourceTypes !== undefined && sourceType !== undefined && !effect.sourceTypes.includes(sourceType)) continue
             if (!entryActive(board, ownerPid, source, effect, sourceLevel)) continue
             if (effect.phaseTurn) {

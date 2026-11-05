@@ -1,7 +1,7 @@
 // 戻すの問い合わせ：「手札に戻らない」を1か所に集める（EFFECT_GATE.md §4 の 5f）
 //
 // 「〜されない」は対象に取られることを防がない（10-30 の一般則）ので、戻す入口（markBounce）がここを聞く。
-// 「手札に戻らない」はデッキへ戻すことを止めない。誰の効果かは解決中の効果の記録（currentEffectSource）で見る
+// 「手札に戻らない」はデッキへ戻すことを止めない（toDeck 付きの耐性だけデッキも止める）。誰の効果かは解決中の効果の記録（currentEffectSource）で見る
 import { entryActive } from "../../../shared/rules/effectStop"
 import { effectSources, hasBounceImmunity, hasGlobalConstraint } from "../../../shared/rules"
 import { effectActiveAtLevel } from "../../../shared/rules/level"
@@ -18,10 +18,12 @@ export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardI
     if (to !== "burst" && state.currentEffectSource && hasGlobalConstraint(state, "noBounceByEffect")) {
         return "効果では手札/デッキに戻らない"
     }
-    if (to !== "hand") return null
-    if (allSpiritsCantBounceActive(state)) return "スピリットは手札に戻らない"
+    if (to !== "hand" && to !== "deckTop" && to !== "deckBottom") return null
+    if (to === "hand" && allSpiritsCantBounceActive(state)) return "スピリットは手札に戻らない"
     const src = state.currentEffectSource
-    if (src && src.pid !== ownerPid && hasBounceImmunity(state, ownerPid, target, src.type)) return "相手の効果では手札に戻らない"
+    if (src && src.pid !== ownerPid && hasBounceImmunity(state, ownerPid, target, src.type, to === "hand" ? "hand" : "deck")) {
+        return to === "hand" ? "相手の効果では手札に戻らない" : "相手の効果では手札/デッキに戻らない"
+    }
     return null
 }
 

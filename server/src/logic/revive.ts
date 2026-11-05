@@ -610,6 +610,20 @@ export function declineReviveConfirm(
     )
 }
 
+// 「残る」の後始末。reviveOnDestroy の revived:{rested} と action "remainOnFieldSelf"（破壊時効果の中で
+// 自分の破壊を取り消す。BS20-X02）が共有する。破壊待機でなければ呼ばない（呼び出し側で見る）
+export function stayOnFieldRevived(state: GameState, ownerPid: PlayerId, inst: CardInstance, rested: boolean): void {
+    // 復活が成立した＝**破壊待機状態が解除された**（TIMING_CHART.md §1.5）。
+    // 印を消さないと、以後この個体は「疲労も回復もできず、破壊もされない」ままになる
+    delete inst.pendingDestruction
+    inst.isRested = rested
+    // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
+    // （cause:"deplete" は復活判定に入らないので再帰しない。BS09-063花の宮殿＝コア1個の個体）
+    if (inst.cores < instMinLevelCores(inst)) {
+        destroySpirit(state, ownerPid, inst.instanceId, "deplete")
+    }
+}
+
 // reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
 // 優先順位: instのカード自身が持つ scope:"self" の効果 → 持ち主フィールドの scope:"ownAll" の効果（先に見つかった方）。
 function tryReviveOnDestroy(
@@ -1061,12 +1075,7 @@ function tryReviveOnDestroy(
                 detachBravesOnLeave(state, ownerPid, inst, false, "toHand" in revived ? "hand" : "trash")
             }
         } else {
-            inst.isRested = revived.rested
-            // 支払いでコアが維持コアを下回った場合は、待機解除の直後に消滅する
-            // （cause:"deplete" は復活判定に入らないので再帰しない。BS09-063花の宮殿＝コア1個の個体）
-            if (inst.cores < instMinLevelCores(inst)) {
-                destroySpirit(state, ownerPid, inst.instanceId, "deplete")
-            }
+            stayOnFieldRevived(state, ownerPid, inst, revived.rested)
         }
     }
 

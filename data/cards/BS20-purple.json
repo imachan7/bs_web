@@ -1,0 +1,222 @@
+[
+ {
+  "cardId": "BS20-017",
+  "name": "十剣聖コブラージャ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "剣使",
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分のトラッシュにあるブレイヴカード1枚を手札に戻す。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n相手のスピリットのコア1個を相手のリザーブに置く。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n自分のスピリットの効果で相手のスピリットのコアが0個になったとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS20-017-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "brave"
+     }
+    }
+   },
+   {
+    "id": "BS20-017-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS20-017-e3",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritCoresEmptied",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "phase": "attack",
+    "turn": "own",
+    "selfMode": "source",
+    "optional": false,
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-X02",
+  "name": "黒き骸王バルトアンデルス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 7,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n疲労状態のコスト7以下の相手のスピリット1体を破壊する。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：相手は可能ならば必ずブロックする。\nLv2･Lv3『このスピリットの破壊時』\n自分は、相手の手札1枚を破棄する。\nこの効果でスピリットカードを破棄したとき、このスピリットは回復状態でフィールドに残る。",
+  "effects": [
+   {
+    "id": "BS20-X02-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "rested": true,
+        "cost": {
+         "max": 7
+        }
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "mustBlock"
+         }
+        ],
+        "duration": "battle",
+        "target": "self"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS20-X02-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discard",
+       "from": "hand",
+       "side": "opponent",
+       "count": 1,
+       "random": true
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cardType": "spirit"
+        }
+       },
+       "then": {
+        "type": "remainOnFieldSelf",
+        "rested": false
+       }
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

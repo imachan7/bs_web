@@ -16,6 +16,7 @@ import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
 import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { summonDenial } from "../summonGate"
+import { stayOnFieldRevived } from "../revive"
 import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
@@ -551,12 +552,20 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
     resolveFree(magicEntry(action.payTiming))
 }
 
+const remainOnFieldSelfHandler: ActionHandler<"remainOnFieldSelf"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+    if (!self || !self.pendingDestruction) return
+    stayOnFieldRevived(state, owner, self, action.rested)
+    log(state, `${sourceName}は${action.rested ? "疲労" : "回復"}状態でフィールドに残った。`)
+}
+
 const handlers = {
     chooseActionMode: chooseActionModeHandler,
     sequence: sequenceHandler,
     simultaneous: simultaneousHandler,
     if: ifHandler,
     openAwakenMode: openAwakenModeHandler,
+    remainOnFieldSelf: remainOnFieldSelfHandler,
     forceEndMainStep: forceEndMainStepHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
     setBurstFromHand: setBurstFromHandHandler,

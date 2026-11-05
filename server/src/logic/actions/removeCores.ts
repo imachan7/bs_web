@@ -89,29 +89,43 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
     log(state, `${player.name}の${label}のコア${amount}個をリザーブに置いた。`)
 }
 
+// 「自分のスピリットの効果で相手のスピリットのコアが0個になったとき」（opponentSpiritCoresEmptied）を効果1回の解決につき1回だけ起こす印。
+// 既知の限界：選択待ちをまたいで1つの効果が続くと文脈が変わるので2回起こりうる（使うのは BS20-017 の回復だけで結果は同じ）
+const emptiedNotified = new WeakSet<ActionCtx>()
+
 // スピリット／ネクサス1体から amount 個取る（スピリットは保護・下限・維持コア割れを見る removeCores* を通す。
 // ネクサスは装甲・維持コアの概念が無いので直接動かす＝bothSidesCoreToVoid等と同じ扱い）
 function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
     const { state, owner, srcType } = ctx
     if (state.players[pid].field.spirits.includes(inst)) {
-        if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner, srcType)
-        else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
-        else if (to === "life") {
-            // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
-            const taken = removeCores(state, pid, inst, amount, owner, srcType)
-            if (taken > 0) {
-                const moved = Math.min(taken, state.players[pid].reserve)
-                state.players[pid].reserve -= moved
-                state.players[pid].life += moved
-                log(state, `${state.players[pid].name}は${getCard(inst.cardId).name}から取り除いたコア${moved}個をライフに置いた。`)
-            }
+        const before = inst.cores
+        applyToSpirit(ctx, pid, inst, amount, to)
+        if (pid !== owner && before > 0 && inst.cores === 0 && (srcType === "spirit" || srcType === "brave") && !emptiedNotified.has(ctx)) {
+            emptiedNotified.add(ctx)
+            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst })
         }
-        else removeCores(state, pid, inst, amount, owner, srcType)
         return
     }
     const taken = Math.min(amount, inst.cores)
     inst.cores -= taken
     depositTo(state, pid, to, taken, `${getCard(inst.cardId).name}（ネクサス）`)
+}
+
+function applyToSpirit(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
+    const { state, owner, srcType } = ctx
+    if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner, srcType)
+    else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
+    else if (to === "life") {
+        // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
+        const taken = removeCores(state, pid, inst, amount, owner, srcType)
+        if (taken > 0) {
+            const moved = Math.min(taken, state.players[pid].reserve)
+            state.players[pid].reserve -= moved
+            state.players[pid].life += moved
+            log(state, `${state.players[pid].name}は${getCard(inst.cardId).name}から取り除いたコア${moved}個をライフに置いた。`)
+        }
+    }
+    else removeCores(state, pid, inst, amount, owner, srcType)
 }
 
 // side:"both" は removeCoresHandler が dispatchByTarget へ渡す前に own/opponent へ分解済みなので、
