@@ -922,6 +922,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `declineSpiritMillFreeSummon`（fn）
 - `applySpiritMillFreeSummon`（fn）
 - `applyReviveConfirm`（fn）：保留していた復活の確認で「復活させる」が選ばれたときの後処理。
+- `applyReviveCostPick`（fn）：「フィールドに残る」のコストの選択（reviveCostPick）に答えたときの後処理。
 - `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 - `stayOnFieldRevived`（fn）：「残る」の後始末。reviveOnDestroy の revived:{rested} と action "remainOnFieldSelf"（破壊時効果の中で
 

@@ -84,6 +84,15 @@ export interface PendingChoice {
         sourceInstanceId: string
         effectId: string
     }
+    reviveCostPick?: {
+        // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択待ち（action は解決しない）。
+        // 復活の確認（reviveConfirm）に「復活させる」と答えたあとに立つ。選んだ対象でコストを払って復活が確定する
+        pid: PlayerId
+        instanceId: string
+        effectId: string
+        sourceInstanceId: string
+        context?: DestroyContext
+    }
     reviveDestination?: {
         // 復活で手札に入ったカードの行き先の選択（action は解決しない）。options は["手札に残す","デッキの上に置く"]
         pid: PlayerId

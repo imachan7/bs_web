@@ -15,7 +15,7 @@ import { createInstance, currentLevel, getCard, log, instMinLevelCores, minLevel
 // removal.ts・triggers.ts・EffectModules.ts とは相互 import（CommonJS の循環 require で安全。removal.ts 冒頭の注記）
 import { revertDestroyGroupUsage } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
-import { destroySpirit } from "./removal"
+import { destroySpirit, destroyNexus } from "./removal"
 import { matchesTarget } from "../../../shared/rules/targetFilter"
 import { detachBravesOnLeave, detachBravesOnLeaveFree } from "./brave"
 import { unpayableLine } from "./actions/pay"
@@ -115,6 +115,40 @@ function suspendReviveConfirm(
         action: { type: "noop" },
         selfInstanceId: inst.instanceId,
     })
+}
+
+// 「フィールドに残る」のコストの「使う1体／1つ／1枚」を持ち主に選ばせる選択待ち。
+// 復活の確認に「復活させる」と答えたあと（applyReviveConfirm の中）で立つ。
+// 答えは applyReviveCostPick が受け、コストを払って復活を確定させる
+function suspendReviveCostPick(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+    source: CardInstance | undefined,
+    context: DestroyContext | undefined,
+    instanceIds: string[] | undefined,
+    cardIndices: number[] | undefined,
+    prompt: string,
+): "pending" {
+    suspend(state, {
+        pid: ownerPid,
+        kind: instanceIds !== undefined ? "target" : "card",
+        prompt,
+        candidates: instanceIds ?? [],
+        ...(cardIndices !== undefined ? { cardZone: "hand" as const, cardOwner: ownerPid, cardIndices } : {}),
+        optional: false,
+        reviveCostPick: {
+            pid: ownerPid,
+            instanceId: inst.instanceId,
+            effectId: effect.id,
+            sourceInstanceId: source?.instanceId ?? inst.instanceId,
+            ...(context ? { context } : {}),
+        },
+        action: { type: "noop" },
+        selfInstanceId: inst.instanceId,
+    })
+    return "pending"
 }
 
 // この個体を今このコンテキストで破壊しようとしたとき、
@@ -588,6 +622,30 @@ export function applyReviveConfirm(
     state.lastReviveDestroyed = false
 }
 
+// 「フィールドに残る」のコストの選択（reviveCostPick）に答えたときの後処理。
+// 選んだ対象でコストを払って復活を確定させる。選んだ候補がもう使えなくなっていたら不発＝破壊する
+export function applyReviveCostPick(
+    state: GameState,
+    entry: NonNullable<PendingChoice["reviveCostPick"]>,
+    instanceId?: string,
+    cardIndex?: number,
+): void {
+    const player = state.players[entry.pid]
+    const inst = player.field.spirits.find((s) => s.instanceId === entry.instanceId)
+    if (!inst) return // 選択を出したあとに場から居なくなっていたら何もしない
+    if (
+        !tryReviveOnDestroy(state, entry.pid, inst, entry.context, { effectId: entry.effectId, skipConfirm: true }, undefined, undefined, undefined, {
+            ...(instanceId !== undefined ? { instanceId } : {}),
+            ...(cardIndex !== undefined ? { cardIndex } : {}),
+        })
+    ) {
+        log(state, `${getCard(inst.cardId).name}：条件を満たさないため発動しなかった。`)
+        declineReviveConfirm(state, entry)
+        return
+    }
+    state.lastReviveDestroyed = false
+}
+
 // 保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 export function declineReviveConfirm(
     state: GameState,
@@ -650,6 +708,9 @@ function tryReviveOnDestroy(
     // sourceInstanceId／perDestroyed は scope:"ownAll"（他の発生源）のときだけ載る
     // （collectReviveEntries が同時破壊グループの重複判定に使う。scope:"self" は対象外＝常に載らない）
     collect?: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true }[],
+    // reviveCostPick の選択で持ち主が選んだ対象（スピリット/ネクサスのinstanceId、手札のcardIndex）。
+    // 指定時は applyCost がその候補を使う（候補外・既に使えなければ不発）
+    chosen?: { instanceId?: string; cardIndex?: number },
 ): boolean {
     const player = state.players[ownerPid]
     const level = currentLevel(inst).level
@@ -721,10 +782,47 @@ function tryReviveOnDestroy(
     // 復活のコストは効果の一部なので、発生源（ネクサス、無ければ破壊されたスピリット自身）の種類で破棄の制限に聞く
     const costSourceType = (source?: CardInstance): CardType => getCard((source ?? inst).cardId).type
 
+    // 「自分の〜1体を疲労させることで」の候補（exhaustOwnFamilyOne・exhaustOwnSameFamilyOne・exhaustOwnOne の共通化。
+    // 破壊される個体自身は除く）
+    const exhaustCostCandidates = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+    ): CardInstance[] => {
+        const own = effect.cost?.exhaustOwnOne
+        const family =
+            effect.cost?.exhaustOwnFamilyOne ??
+            (effect.cost?.exhaustOwnSameFamilyOne ? getCard(inst.cardId).family : undefined)
+        return player.field.spirits.filter(
+            (s) =>
+                s.instanceId !== inst.instanceId &&
+                !s.isRested &&
+                (family === undefined || matchesFamilyFilter(state, ownerPid, s, family)) &&
+                (own === undefined || matchesTarget(state, ownerPid, s, own, inst.instanceId)),
+        )
+    }
+
+    // 選択式コストの共通処理。候補が複数で対話モードなら選択待ちを立てる（"pending"）。
+    // 非対話は auto の簡略化ヒューリスティックで選ぶ。選ばれた候補がもう使えなければ undefined＝不発
+    const pickCostTarget = (
+        effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
+        source: CardInstance | undefined,
+        candidates: CardInstance[],
+        prompt: string,
+        auto: (candidates: CardInstance[]) => CardInstance,
+    ): CardInstance | "pending" | undefined => {
+        if (chosen?.instanceId !== undefined) {
+            return candidates.find((c) => c.instanceId === chosen!.instanceId)
+        }
+        if (candidates.length === 1) return candidates[0]
+        if (state.interactiveTargets) {
+            return suspendReviveCostPick(state, ownerPid, inst, effect, source, context, candidates.map((c) => c.instanceId), undefined, prompt)
+        }
+        return auto(candidates)
+    }
+
     const applyCost = (
         effect: Extract<EffectDef, { kind: "reviveOnDestroy" }>,
         source?: CardInstance,
-    ): boolean => {
+    ): boolean | "pending" => {
         // 発生源自身を疲労させる（BS17-069）。COST_MODEL.mdのexhaustSelfと同じく既疲労なら不発
         if (effect.cost?.exhaustSelf) {
             if (!source || source.isRested) return false
@@ -791,24 +889,28 @@ function tryReviveOnDestroy(
             // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない（コストとしての破棄も止まる。COST_MODEL.md §1）
             if (!canDiscardHand(state, ownerPid)) return false
             const cardType = effect.cost.handDiscardCardType
-            if (cardType !== undefined) {
-                // BS10-046龍仙公主：手札の末尾から指定種別のカードを探して破棄する。
-                // 該当が無ければ支払い不可＝不発（指定なしの既存挙動＝末尾1枚は変えない）
-                let index = -1
-                for (let i = player.hand.length - 1; i >= 0; i--) {
-                    if (getCard(player.hand[i]!).type === cardType) {
-                        index = i
-                        break
-                    }
+            const indices = player.hand
+                .map((id, i) => (cardType === undefined || getCard(id).type === cardType ? i : -1))
+                .filter((i) => i !== -1)
+            if (indices.length === 0) return false
+            // 破棄する1枚は持ち主が選ぶ（対話モードかつ候補2枚以上。2026-11-05 ユーザー確認）。
+            // 候補1枚なら選ばせない。非対話は末尾（元の簡略化）
+            const pickedIndex = chosen?.cardIndex !== undefined && indices.includes(chosen.cardIndex) ? chosen.cardIndex : undefined
+            if (pickedIndex === undefined && chosen?.cardIndex !== undefined) return false
+            const index = pickedIndex ?? (indices.length === 1 ? indices[0]! : -1)
+            if (index === -1) {
+                if (!state.interactiveTargets) {
+                    const cardId = player.hand.splice(indices[indices.length - 1]!, 1)[0]!
+                    player.trashCards.push(cardId)
+                    return true
                 }
-                if (index === -1) return false
-                const cardId = player.hand.splice(index, 1)[0]!
-                player.trashCards.push(cardId)
-                return true
+                return suspendReviveCostPick(
+                    state, ownerPid, inst, effect, source, context,
+                    undefined, indices,
+                    `${getCard((source ?? inst).cardId).name}：破棄する手札1枚を選んでください`,
+                )
             }
-            // 持ち主の手札1枚（末尾＝決定的簡略化）をトラッシュへ。手札0枚なら支払い不可＝不発（BS06暴かれた墓石Lv2）
-            if (player.hand.length === 0) return false
-            const cardId = player.hand.pop()!
+            const cardId = player.hand.splice(index, 1)[0]!
             player.trashCards.push(cardId)
             return true
         }
@@ -841,21 +943,19 @@ function tryReviveOnDestroy(
             }
             return ok
         }
-        if (effect.cost?.exhaustOwnFamilyOne) {
-            // BS07パオ・ペイール：持ち主の「想獣」の回復状態スピリット1体を疲労させる。
-            // 破壊されようとしている個体自身は除く。候補は実効BP最小を選ぶ（犠牲を最小化する簡略化）
-            const family = effect.cost.exhaustOwnFamilyOne
-            const candidates = player.field.spirits.filter(
-                (s) =>
-                    s.instanceId !== inst.instanceId &&
-                    !s.isRested &&
-                    matchesFamilyFilter(state, ownerPid, s, family),
-            )
+        if (effect.cost?.exhaustOwnFamilyOne || effect.cost?.exhaustOwnSameFamilyOne || effect.cost?.exhaustOwnOne) {
+            // 疲労させる1体は持ち主が選ぶ（対話モードかつ候補2体以上。2026-11-05 ユーザー確認）。
+            // 候補1体なら選ばせない。非対話は実効BP最小（元の簡略化）
+            const candidates = exhaustCostCandidates(effect)
             if (candidates.length === 0) return false
-            const chosen = candidates.reduce((min, s) =>
-                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
+            const picked = pickCostTarget(
+                effect, source, candidates,
+                `${getCard((source ?? inst).cardId).name}：疲労させる自分のスピリットを選んでください`,
+                (cs) => cs.reduce((min, s) => (effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min)),
             )
-            exhaustSpirit(state, ownerPid, chosen)
+            if (picked === "pending") return "pending"
+            if (picked === undefined) return false
+            exhaustSpirit(state, ownerPid, picked)
             return true
         }
         if (effect.cost?.ownLifeOneToVoid) {
@@ -903,22 +1003,6 @@ function tryReviveOnDestroy(
             log(state, `${player.name}はデッキを上から${n}枚破棄した。`)
             return true
         }
-        // 器AR：BS13-X05麒麟星獣リーン「このスピリットと同じ系統を持つ自分のスピリット1体を疲労させることで」
-        if (effect.cost?.exhaustOwnSameFamilyOne) {
-            const family = getCard(inst.cardId).family
-            const candidates = player.field.spirits.filter(
-                (s) =>
-                    s.instanceId !== inst.instanceId &&
-                    !s.isRested &&
-                    matchesFamilyFilter(state, ownerPid, s, family),
-            )
-            if (candidates.length === 0) return false
-            const chosen = candidates.reduce((min, s) =>
-                effectiveBp(state, ownerPid, s) < effectiveBp(state, ownerPid, min) ? s : min,
-            )
-            exhaustSpirit(state, ownerPid, chosen)
-            return true
-        }
         // 器BW：BS14-X02呪の覇王カオティック・セイメイLv3【呪滅撃】「相手のライフのコア1個を相手のトラッシュに置くことで」。
         // 支払うのは**相手**のライフ（ownLifeOneToVoid等の自分版とは別軸）。相手のライフが0なら支払い不可＝不発。
         // 支払った結果相手のライフが0になれば、そのまま持ち主の勝利が決まる
@@ -954,14 +1038,36 @@ function tryReviveOnDestroy(
             return true
         }
         // BS14-064レボルシング・ゼヨンLv2：「自分のネクサス1つを疲労させることで」。
-        // 相手のconstraintで疲労させられない間は支払い不可＝不発（canExhaustNexus）
+        // 相手のconstraintで疲労させられない間は支払い不可＝不発（canExhaustNexus）。
+        // 疲労させる1つは持ち主が選ぶ（対話モードかつ候補2つ以上。2026-11-05 ユーザー確認）。非対話はコア最少（元の簡略化）
         if (effect.cost?.exhaustOwnNexusOne) {
             if (!canExhaustNexus(state, ownerPid)) return false
             const candidates = player.field.nexuses.filter((n) => !n.isRested)
             if (candidates.length === 0) return false
-            const chosen = candidates.reduce((min, n) => (n.cores < min.cores ? n : min))
-            chosen.isRested = true
+            const picked = pickCostTarget(
+                effect, source, candidates,
+                `${getCard((source ?? inst).cardId).name}：疲労させる自分のネクサスを選んでください`,
+                (cs) => cs.reduce((min, n) => (n.cores < min.cores ? n : min)),
+            )
+            if (picked === "pending") return "pending"
+            if (picked === undefined) return false
+            picked.isRested = true
             return true
+        }
+        // BS20-065サイクロ・アームズ【合体時】：「自分のネクサス1つを破壊することで」。
+        // 破壊する1つは持ち主が選ぶ（対話モードかつ候補2つ以上。2026-11-05 ユーザー確認）。非対話は先頭。
+        // 破壊は destroyNexus の通常処理で行う（破壊待機を経てコミットされる。相手の破壊耐性があれば支払い不可＝不発）
+        if (effect.cost?.destroyOwnNexusOne) {
+            const candidates = player.field.nexuses.filter((n) => !n.pendingDestruction)
+            if (candidates.length === 0) return false
+            const picked = pickCostTarget(
+                effect, source, candidates,
+                `${getCard((source ?? inst).cardId).name}：破壊する自分のネクサスを選んでください`,
+                (cs) => cs[0]!,
+            )
+            if (picked === "pending") return "pending"
+            if (picked === undefined) return false
+            return destroyNexus(state, ownerPid, picked.instanceId)
         }
         if (effect.cost?.discardUnderOne) {
             // BS19-X02：下のカード1枚の破棄がコスト。場を離れずに残るので下のカードはそのまま
@@ -997,11 +1103,11 @@ function tryReviveOnDestroy(
             return has ? null : "手札に破棄できるカードがない"
         }
         if (cost.millSelfOneMatching) return player.deck.length === 0 ? "デッキがない" : null
-        if (cost.exhaustOwnFamilyOne || cost.exhaustOwnSameFamilyOne) {
-            const family = cost.exhaustOwnFamilyOne ?? getCard(inst.cardId).family
-            const has = player.field.spirits.some((x) => x.instanceId !== inst.instanceId && !x.isRested && matchesFamilyFilter(state, ownerPid, x, family))
+        if (cost.exhaustOwnFamilyOne || cost.exhaustOwnSameFamilyOne || cost.exhaustOwnOne) {
+            const has = exhaustCostCandidates(effect).length > 0
             return has ? null : "疲労させられる自分のスピリットがいない"
         }
+        if (cost.destroyOwnNexusOne) return player.field.nexuses.length === 0 ? "破壊できる自分のネクサスがない" : null
         if (cost.ownLifeOneToVoid || cost.ownLifeOneToReserve) return player.life <= 0 || !canPayLife(state, lifeCostQuery(ownerPid, 1, inst)) ? "ライフを減らせない" : null
         if (cost.opponentLifeOneToTrash) return state.players[opponentOf(ownerPid)].life <= 0 || !canPayLife(state, lifeCostQuery(opponentOf(ownerPid), 1, inst, ownerPid)) ? "相手のライフを減らせない" : null
         if (cost.discardOwnBurst) return player.burst === null ? "破棄できるバーストがセットされていない" : null
@@ -1136,7 +1242,9 @@ function tryReviveOnDestroy(
         // 任意でない復活（＝確認を出さずに確定する）。"any" は復活しうるので true、
         // "confirm" は確認が出ないので次のエントリを見に行く
         if (probe) return probe === "any"
-        if (!applyCost(effect, inst)) return false
+        const paid = applyCost(effect, inst)
+        if (paid === "pending") return true // コストの対象の選択待ち（applyReviveCostPick が確定させる）
+        if (!paid) return false
         markOncePerTurn(effect, inst)
         const name = getCard(inst.cardId).name
         // BS15-030愛の女神ロヴンLv2：復活成立とセットで、場を離れる前にボイドからコアをリザーブへ置く
@@ -1229,7 +1337,9 @@ function tryReviveOnDestroy(
             // 任意でない復活。"any" は復活しうるので true、"confirm" は次の発生源を見に行く
             if (probe === "any") return true
             if (probe) continue
-            if (!applyCost(effect, source)) continue
+            const paid = applyCost(effect, source)
+            if (paid === "pending") return true // コストの対象の選択待ち（applyReviveCostPick が確定させる）
+            if (!paid) continue
             markOncePerTurn(effect, source)
             const name = getCard(inst.cardId).name
             if (effect.alsoVoidCoreToReserve) {

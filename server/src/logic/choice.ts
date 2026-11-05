@@ -7,7 +7,7 @@ import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
-import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
+import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, applyReviveCostPick, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
     continueBurstActivation,
@@ -236,6 +236,25 @@ function resolveChoiceInner(
         } else {
             declineReviveConfirm(state, entry)
         }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択。action は解決しない。
+    // 選んだ対象でコストを払って復活が確定する
+    if (pending.reviveCostPick) {
+        const entry = pending.reviveCostPick
+        if (pending.kind === "card") {
+            if (cardIndex === undefined || !(pending.cardIndices ?? []).includes(cardIndex)) {
+                return "破棄するカードを選んでください"
+            }
+        } else {
+            if (instanceId === undefined || !pending.candidates.includes(instanceId)) {
+                return "対象を選択してください"
+            }
+        }
+        state.pendingChoice = null
+        applyReviveCostPick(state, entry, instanceId, cardIndex)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }

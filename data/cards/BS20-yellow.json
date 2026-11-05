@@ -1,0 +1,172 @@
+[
+ {
+  "cardId": "BS20-044",
+  "name": "剣士ペンタン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "剣使",
+   "歌鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの破壊時』\n自分の黄のスピリット1体を疲労させることで、このスピリットは疲労状態でフィールドに残る。\n【合体時】Lv2･Lv3『このスピリットのアタック/ブロック時』\nこのターンの間、相手のスピリット1体をBP-3000する。",
+  "effects": [
+   {
+    "id": "BS20-044-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "scope": "self",
+    "when": {},
+    "revived": {
+     "rested": true
+    },
+    "cost": {
+     "exhaustOwnOne": {
+      "color": "yellow"
+     }
+    }
+   },
+   {
+    "id": "BS20-044-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "bpMinus",
+     "amount": 3000,
+     "count": 1
+    }
+   },
+   {
+    "id": "BS20-044-e3",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "eventTarget": "use",
+    "action": {
+     "type": "bpMinus",
+     "amount": 3000,
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS20-071",
+  "name": "光射す丘",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「天霊」を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、自分はデッキから1枚ドローする。\nLv2\n【強化】を持つ自分のスピリットが相手によって破壊されたとき、このネクサスを疲労させることで、そのスピリット1体を疲労状態でフィールドに残す。",
+  "effects": [
+   {
+    "id": "BS20-071-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDealtLife",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "subjectFilter": {
+     "family": "天霊"
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS20-071-e2",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     2
+    ],
+    "scope": "ownAll",
+    "filter": {
+     "keyword": "kyoka"
+    },
+    "when": {
+     "byOpponent": true
+    },
+    "revived": {
+     "rested": true
+    },
+    "cost": {
+     "exhaustSelf": true
+    }
+   }
+  ]
+ }
+]

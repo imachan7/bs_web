@@ -85,6 +85,66 @@
   ]
  },
  {
+  "cardId": "BS20-065",
+  "name": "サイクロ・アームズ",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの破壊時』\n自分のネクサス1つを破壊することで、このスピリットは疲労状態でフィールドに残る。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "braveCondition": {
+   "minCost": 4
+  },
+  "effects": [
+   {
+    "id": "BS20-065-e1",
+    "kind": "reviveOnDestroy",
+    "levels": [
+     1
+    ],
+    "scope": "self",
+    "whileCombined": true,
+    "when": {},
+    "revived": {
+     "rested": true
+    },
+    "cost": {
+     "destroyOwnNexusOne": true
+    }
+   }
+  ]
+ },
+ {
   "cardId": "BS20-072",
   "name": "海の主の大口",
   "type": "nexus",

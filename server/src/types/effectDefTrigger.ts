@@ -355,7 +355,9 @@ export type EffectDefTrigger =
               handDiscardOne?: boolean // 手札の末尾1枚を使う決定的簡略化。手札0枚なら不発
               handDiscardCardType?: CardType // 手札を末尾からその種別に絞って探す
               millSelfOneMatching?: { color: Color; cardType: CardType; thenHandIfNameIncludes?: string } // 成立可否と独立に、thenHandIfNameIncludes に名前が一致すれば手札へ
-              exhaustOwnFamilyOne?: FamilyFilter // 実効BP最小の個体を選ぶ簡略化。破壊される個体自身は除く。該当なしなら不発
+              exhaustOwnFamilyOne?: FamilyFilter // 疲労させる1体。exhaustOwnOne の系統だけを書く省略形（データの書き換えはせず両方を読む）
+              exhaustOwnOne?: ResolvedTargetFilter // 疲労させる1体をこの絞り込みで選ぶ。対話モードでは持ち主が選ぶ（候補1体なら選ばせない。2026-11-05 ユーザー確認）。非対話は実効BP最小を自動選択
+              destroyOwnNexusOne?: true // 破壊する1つ。対話モードでは持ち主が選ぶ（候補1つなら選ばせない。2026-11-05 ユーザー確認）。非対話は先頭を自動選択
               ownLifeOneToVoid?: boolean // リザーブへは戻らない。ライフ0なら不発。結果0になればそのまま勝敗が決まる
               ownLifeOneToReserve?: boolean // 自分のライフのコア1個を自分のリザーブへ。ライフ0なら不発
               millSelfCount?: number // 自分のデッキを上からこの枚数だけ無条件に破棄
