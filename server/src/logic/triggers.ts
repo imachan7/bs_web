@@ -688,6 +688,11 @@ export function fireCombinedAttackTrigger(
     }
 }
 
+// 付与された誘発（継続の effectGrant と、このターン限りの grantTrigger）を持つか。破壊待機の列に「自身の誘発」を積むかの判定に使う
+export function hasGrantedTrigger(state: GameState, owner: PlayerId, inst: CardInstance, event: TriggerEvent): boolean {
+    return collectGrantedTriggerActions(state, owner, inst, event).length > 0 || timedContentsOn(state, inst).some((c) => c.type === "grantTrigger" && c.trigger === event)
+}
+
 // fireTrigger 用: 持ち主(owner)フィールドの kind:"effectGrant" 発生源から、selfInstance に
 // 継続付与された誘発効果（trigger一致）のアクション一覧を集める（アルカナビースト・ケン）
 function collectGrantedTriggerActions(

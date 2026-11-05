@@ -1011,6 +1011,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireTrigger`（fn）
 - `battleOpponentConditionedOnBattleStartIds`（fn）：アタッカー側の『このスピリットのバトル時』(trigger:"onBattleStart")効果のうち、バトル相手を
 - `fireCombinedAttackTrigger`（fn）：BS13-007豹竜パンドランサー：「自分のスピリット状態のブレイヴ1体と合体できる。その後、このスピリットが持つ
+- `hasGrantedTrigger`（fn）：付与された誘発（継続の effectGrant と、このターン限りの grantTrigger）を持つか。破壊待機の列に「自身の誘発」を積むかの判定に使う
 - `activationPrompt`（fn）：発動確認の文面（3種の誘発で同じ形を使う）
 - `confirmPromptIfOptional`（fn）：optional な誘発の残りは、再開時も**発動確認から**始める（確認なしの自動発動を防ぐ）。
 - `isStillOnField`（fn）：発生源がまだ持ち主のフィールドに居るか（スピリット／ネクサスのどちらでも）。

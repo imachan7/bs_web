@@ -134,6 +134,7 @@ export type EffectAction =
  // interactiveTargets では**両プレイヤーが順に**色を選ぶ。選択の進捗は chosenOwn / chosenOpp / awaiting に持たせて再入する
  // （相手に選ばせる段は PendingChoice.actorPid で「選択者＝相手・実行者＝発生源の持ち主」にする）。
  // 自動選択は従来どおり、お互い自分フィールドで最多の色を自動指定する
+ | { type: "resolveOwnBattleLoseTriggers"; instanceId: string } // **内部専用**。破壊待機の列で、敗者自身（合体中のブレイヴを含む）の『BPを比べ相手のスピリットに破壊されたとき』を発揮する
  | { type: "resolveOwnDestroyTriggers"; instanceId: string; byOpponent?: true } // **内部専用**。破壊された自身の『破壊時』効果を発揮する。破壊で誘発した効果の列に「自身の破壊時ぜんぶ」を1グループとして入れるために使う（TIMING_CHART.md）
  | { type: "applyReviveOnDestroy"; instanceId: string; effectId: string } 
  | { type: "resolveFushiSummon"; pid: PlayerId; cardId: string } // **内部専用**。破壊で誘発した効果の列に並ぶ【不死】1枚分。解決時にトラッシュからカードIDで引き直すので、位置がずれても動く // **内部専用**。指定した reviveOnDestroy エントリを適用する。上と同じ列に1グループとして入る
