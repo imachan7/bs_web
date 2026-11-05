@@ -68,6 +68,7 @@ interface Subj {
     pid: PlayerId
     idx: number
     info: boolean // 効果の条件から作った付帯情報（eventInfo）を渡すか
+    aidx?: number // ブロックの経路でのアタッカー（主体＝ブロッカーの相手陣営の何体目か）
 }
 
 // 付帯情報（「戦闘で破壊されたとき」「【不死】で召喚されたとき」など）を、効果側の条件の欄から作る。
@@ -109,15 +110,17 @@ function infoFor(e: EffectDef): Record<string, unknown> {
     return info
 }
 // via:"attack"＝誘発を直接撃たず、主体にアタックを宣言させて起こす（アタック宣言の同時発揮の列・アタック後バーストを通す）。
-// このときの相方は「スピリットがアタックしたとき、何もしない」（どの効果の列にも同時に入る）
-type Via = "direct" | "attack"
-const ATTACK_ECHO = { kind: "fieldEvent", event: "anySpiritAttacked", id: "AE-e1", levels: null, action: { type: "noop" } } as unknown as EffectDef
+// via:"block"＝主体にブロックを宣言させて起こす（主体の相手陣営の1体目がアタックする）。
+// 相方は「スピリットがアタック／ブロックしたとき、何もしない」（その宣言のどの効果の列にも同時に入る）
+type Via = "direct" | "attack" | "block"
+const echoOn = (event: string): EffectDef => ({ kind: "fieldEvent", event, id: "AE-e1", levels: null, action: { type: "noop" } }) as unknown as EffectDef
+const VIA_ECHO: Record<"attack" | "block", EffectDef> = { attack: echoOn("anySpiritAttacked"), block: echoOn("anySpiritDeclaredBlock") }
 function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, subj: Subj | null, via: Via = "direct"): { s: string; ok: boolean; asked: boolean } | null {
     const saved = Math.random
     let x = 12345
     Math.random = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648)
     try {
-        echoCard.effects = v === "単独" || v === "無" ? [] : [via === "attack" ? ATTACK_ECHO : echoOf(e)]
+        echoCard.effects = v === "単独" || v === "無" ? [] : [via === "direct" ? echoOf(e) : VIA_ECHO[via]]
         const db = CARD_DB.get(card.cardId)!
         const own = db.effects
         if (v === "無") db.effects = (own ?? []).filter((x) => x !== e && x.id !== e.id)
@@ -139,6 +142,32 @@ function run(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, v: Variant, 
             if (handleAction(s, sj.pid, { type: "attack", instanceId: attacker.instanceId }) !== null) {
                 db.effects = own
                 return null
+            }
+        } else if (via === "block") {
+            // ブロックまで進める。アタック時の選択待ちは drain で片付ける（どの経路でも同じ答えになる）
+            const sj = subj!
+            const apid: PlayerId = sj.pid === "p1" ? "p2" : "p1"
+            const attacker = s.players[apid].field.spirits[sj.aidx ?? 0]
+            const blocker = s.players[sj.pid].field.spirits[sj.idx]!
+            if (!attacker || attacker === blocker) {
+                db.effects = own
+                return null
+            }
+            attacker.isRested = false
+            blocker.isRested = false
+            s.turnPlayer = apid
+            s.phase = "attack"
+            const steps: [PlayerId, Record<string, unknown>][] = [
+                [apid, { type: "attack", instanceId: attacker.instanceId }],
+                [sj.pid, { type: "pass" }],
+                [apid, { type: "pass" }],
+                [sj.pid, { type: "block", instanceId: blocker.instanceId }],
+            ]
+            for (const [pid, a] of steps) {
+                if (!drain(s) || handleAction(s, pid, a as never) !== null) {
+                    db.effects = own
+                    return null
+                }
             }
         } else if (e.kind === "fieldEvent") {
             const sj = subj ?? { firePid: "p1", pid: "p1", idx: 0, info: false }
@@ -207,7 +236,7 @@ const lines: string[] = []
 
 // 1つの効果を、主体の候補を順に試して誘発させ（単独≠無）、相方を挟んだ2経路と比べる
 function sweep(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, cands: (Subj | null)[], via: Via, key: string): void {
-    const tag = via === "attack" ? "アタック宣言" : `turn:${tp} ${ph}`
+    const tag = via === "attack" ? "アタック宣言" : via === "block" ? "ブロック宣言" : `turn:${tp} ${ph}`
     let base: NonNullable<ReturnType<typeof run>> | null = null
     let subj: Subj | null = null
     let fired = false
@@ -226,10 +255,15 @@ function sweep(card: CardData, e: EffectDef, tp: PlayerId, ph: Phase, cands: (Su
                 subj = c
             }
             if (none !== b.s) {
-                base = b
-                subj = c
-                fired = true
-                break
+                // 宣言から起こすときは、別の宣言の列で誘発しただけのことがある（ブロックの経路で、アタッカーの疲労に
+                // 「相手のスピリットが疲労したとき」が反応する）。相方と同じ列に並ぶ候補が見つかるまで先を試す
+                const sameColumn = via === "direct" || run(card, e, tp, ph, "後に相方", c, via)?.asked === true
+                if (!fired || sameColumn) {
+                    base = b
+                    subj = c
+                    fired = true
+                }
+                if (sameColumn) break
             }
         }
     } catch (err) {
@@ -272,8 +306,17 @@ function attackKind(card: CardData, e: EffectDef): "self" | "any" | null {
     return null
 }
 
-// ONLY=<cardId> で1枚だけ回す。VIA=direct|attack で片方だけ
-const vias = (process.env["VIA"] ? [process.env["VIA"]] : ["direct", "attack"]) as Via[]
+// ブロック宣言から起こす効果：ブロック時・『バトル時』（ブロッカー自身）と、ブロックしたとき・ブロックされたとき・疲労したとき（場の誰か）
+const BLOCK_EVENTS = new Set(["anySpiritDeclaredBlock", "ownSpiritDeclaredBlock", "ownSpiritBlocked", "ownSpiritExhausted", "anySpiritExhausted"])
+function blockKind(card: CardData, e: EffectDef): "self" | "any" | null {
+    const f = e as unknown as Record<string, unknown>
+    if (card.type === "spirit" && e.kind === "triggered" && (f["trigger"] === "onBlock" || f["trigger"] === "onBattleStart")) return "self"
+    if (e.kind === "fieldEvent" && BLOCK_EVENTS.has(e.event)) return "any"
+    return null
+}
+
+// ONLY=<cardId> で1枚だけ回す。VIA=direct|attack|block で1つだけ
+const vias = (process.env["VIA"] ? [process.env["VIA"]] : ["direct", "attack", "block"]) as Via[]
 for (const card of CARDS.filter((c) => !process.env["ONLY"] || c.cardId === process.env["ONLY"])) {
     if (card.type !== "spirit" && card.type !== "nexus") continue
     for (const e of (card.effects ?? []) as EffectDef[]) {
@@ -298,6 +341,22 @@ for (const card of CARDS.filter((c) => !process.env["ONLY"] || c.cardId === proc
                 })
             }
             sweep(card, e, "p1", "attack", cands, "attack", key)
+        }
+        const bk = vias.includes("block") ? blockKind(card, e) : null
+        if (bk !== null) {
+            const key = `${e.id}@block`
+            allIds.set(key, `ブロック宣言:${e.kind === "fieldEvent" ? e.event : (e as unknown as Record<string, string>)["trigger"]}`)
+            // ブロッカー × アタッカーを総当たり（「ブロックされたとき」は主体がアタッカー）。自身のブロック時はテスト対象のカード（p1 の場）がブロッカー
+            const { s } = buildBoard(card)
+            const cands: Subj[] = []
+            for (const pid of ["p1", "p2"] as PlayerId[]) {
+                const others = s.players[pid === "p1" ? "p2" : "p1"].field.spirits
+                s.players[pid].field.spirits.forEach((sp, idx) => {
+                    if (bk === "self" && !(pid === "p1" && sp.cardId === card.cardId)) return
+                    others.forEach((_, aidx) => cands.push({ firePid: pid, pid, idx, info: false, aidx }))
+                })
+            }
+            sweep(card, e, "p1", "attack", cands, "block", key)
         }
     }
 }
