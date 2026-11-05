@@ -1331,6 +1331,14 @@ const resolveOwnDestroyTriggersHandler: ActionHandler<"resolveOwnDestroyTriggers
     fireTrigger(state, found.pid, found.inst, "onDestroy", undefined, undefined, undefined, action.byOpponent === true)
 }
 
+// 同じ列の「BPを比べ相手のスピリットに破壊されたとき」（敗者自身と合体中のブレイヴ）。生き残っていても発揮する
+const resolveOwnBattleLoseTriggersHandler: ActionHandler<"resolveOwnBattleLoseTriggers"> = (ctx, action) => {
+    const { state } = ctx
+    const found = findSpiritAny(state, action.instanceId)
+    if (!found) return
+    fireTrigger(state, found.pid, found.inst, "onBattleLose")
+}
+
 // 同じ列の「フィールドに残る／戻る」1グループ分。適用できたらその破壊は無かったことになり、
 // 列に残っている項目は requiresPendingDestructionOf のガードで空振りする
 const applyReviveOnDestroyHandler: ActionHandler<"applyReviveOnDestroy"> = (ctx, action) => {
@@ -1442,6 +1450,7 @@ function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void 
 const handlers = {
     resolveFushiSummon: resolveFushiSummonHandler,
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
+    resolveOwnBattleLoseTriggers: resolveOwnBattleLoseTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,
     destroyBlockerAfterBattle: destroyBlockerAfterBattleHandler,
     destroy: destroyEntryHandler,

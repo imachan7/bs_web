@@ -613,11 +613,11 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (f.outcome === "blockerWins" && guarded(attackerPid, f.attackerInstanceId)) return
             if (f.outcome === "attackerWins") {
                 destroyTargetsBatch(state, attackerPid, [
-                    { pid: blockerPid, instanceId: f.blockerInstanceId, context: attackerContext },
+                    { pid: blockerPid, instanceId: f.blockerInstanceId, context: { ...attackerContext, battleLoser: true } },
                 ])
             } else if (f.outcome === "blockerWins") {
                 destroyTargetsBatch(state, blockerPid, [
-                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: blockerContext },
+                    { pid: attackerPid, instanceId: f.attackerInstanceId, context: { ...blockerContext, battleLoser: true } },
                 ])
             } else {
                 const batch = [
@@ -628,12 +628,10 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             }
             return
         }
-        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（敗北側）。
-        // destroySpirit（＝onDestroy誘発）の後に発火し、相打ちでは発火しない
+        // 『このスピリットのバトル時』相手のスピリットに破壊されたとき（onBattleLose）は＞６-1 の破壊待機の列で発揮する
+        // （DestroyContext.battleLoser。2026-11-05 ユーザー確認）
         case 2: {
             if (state.winner || sameSide) return
-            if (f.outcome === "attackerWins") fireTrigger(state, blockerPid, blocker, "onBattleLose")
-            else if (f.outcome === "blockerWins") fireTrigger(state, attackerPid, attacker, "onBattleLose")
             // 敗北側のフィールド発生源（ownSpiritBattleWon の鏡像。相打ちは含まない）
             if (f.outcome === "attackerWins") fireFieldEventTriggers(state, blockerPid, "ownSpiritBattleLost", { pid: blockerPid, inst: blocker }, instColors(blocker))
             else if (f.outcome === "blockerWins") fireFieldEventTriggers(state, attackerPid, "ownSpiritBattleLost", { pid: attackerPid, inst: attacker }, instColors(attacker))
