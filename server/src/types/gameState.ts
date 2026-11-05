@@ -3,6 +3,9 @@ import type { EffectAction } from "./effectAction"
 import type { PendingChoice, ResumeFrame } from "./choice"
 import { PlayerId, Phase, Color, CardType, GameEvent, EndStepLock, DestroyContext, CardInstance, PlayerState, BattleState, TimedRecord } from "../type"
 
+// 合体スピリットが場を離れたとき、残さないブレイヴの行き先（合体していたスピリットと同じ領域）
+export type BraveLeaveDest = "trash" | "hand" | "deckTop" | "deckBottom"
+
 // ゲーム全体の状態（サーバーで一元管理）
 export interface GameState {
     gameId: string
@@ -157,7 +160,8 @@ export interface GameState {
     // 場のどのゾーンにも属さない一時的な置き場で、flushBraveKeeps が1体ずつ決着させる
     // （残す＝コアを置いて field.spirits へ／残さない＝トラッシュへ）。
     // **答えが返るまでエントリを消さない**ので、確認が別の中断に上書きされても保険の flush で拾い直せる
-    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true }[]
+    // dest＝残さないときの行き先（合体していたスピリットと同じ領域。省略はトラッシュ。BRAVE.md §6.3.2）。picked＝持ち主が「これから決める」と選んだ項目
+    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true; dest?: BraveLeaveDest; picked?: true }[]
     resumeStack: ResumeFrame[] // 中断した処理の再開情報。先頭から順に消化する（docs/design/RESUME_STACK.md）
     resumeInsertAt: number // 「今回の中断で積まれた領域の末尾」を指す挿入位置。
     // 中断が始まるたび（pendingChoice を立てるたび）に 0 へ戻す。

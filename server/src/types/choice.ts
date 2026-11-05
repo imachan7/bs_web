@@ -129,6 +129,12 @@ export interface PendingChoice {
         cardId: string
         need: number // スピリット状態の Lv1 維持コスト（braveKeepCores）
     }
+    braveKeepOrder?: {
+        // 同じ持ち主のブレイヴが2体以上「残しますか？」待ちのとき、どれから決めるかを持ち主に選ばせる（BRAVE.md §6.3.2）。
+        // options[i] が pendingBraveKeeps の instanceIds[i] に対応する。**action は解決しない**
+        pid: PlayerId
+        instanceIds: string[]
+    }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
         // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。

@@ -1057,7 +1057,8 @@ function tryReviveOnDestroy(
             if (revived.braveStay !== undefined) {
                 detachBravesOnLeaveFree(state, ownerPid, inst, revived.braveStay === "rested")
             } else {
-                detachBravesOnLeave(state, ownerPid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
+                // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残さないなら手札へ（§6.3.2。行き先を後で選ぶ handOrDeckTop はトラッシュのまま）
+                detachBravesOnLeave(state, ownerPid, inst, false, "toHand" in revived ? "hand" : "trash")
             }
         } else {
             inst.isRested = revived.rested

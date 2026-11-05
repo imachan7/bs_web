@@ -1231,7 +1231,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
             player.reserve += inst.cores
             // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残すかの確認は全員を移し終えてから出す
             // （途中で確認の中断を立てると、その後の移動で盤面が変わる。smoke part778 の場面25）
-            detachBravesOnLeave(state, pid, inst, true)
+            detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to)
             delete inst.pendingBounce
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)
