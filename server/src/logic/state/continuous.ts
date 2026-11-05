@@ -87,6 +87,7 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
+            if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
             if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
@@ -104,7 +105,6 @@ function applyTimedCopies(state: GameState): void {
             }
             // 記録を出した側（ownerPid）が意味を持つ内容はここで写す（timedContentsOn では誰が出したかが消えるため）
             if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
-            if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "immune") grantImmune(inst, c)
             if (c.type === "untargetableByOpponentMagic") inst.untargetableByOpponentMagicTimed = true
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }

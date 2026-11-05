@@ -1361,6 +1361,8 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
+    // ブロッカーが決まって初めて効く継続効果（blockingOnly の効果無効など）を『ブロック時』より先に反映する（BS20_PLAN §2 の6）
+    refreshLevelAsOverrides(state)
     // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
     resolveBlockDeclared(state, blockerPid, blocker, instanceId, directed, exhaustedBlockers)
     if (state.winner) {
