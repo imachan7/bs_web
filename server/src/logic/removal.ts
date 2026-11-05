@@ -21,7 +21,7 @@ import { notifySpiritCoresRemovedByOpponent } from "./triggers"
 import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import type { FieldEventExtraItem } from "./fieldEventTriggers"
 import type { KeywordInfo } from "../../../shared/rules"
-import { detachBravesOnLeave } from "./brave"
+import { detachBravesOnLeave, flushBraveKeeps } from "./brave"
 import { recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
 import { isTokenCard } from "../../../shared/cardDb"
@@ -1215,7 +1215,9 @@ export function flushBounces(state: GameState, order?: string[]): void {
             trashUnderCards(state, pid, inst) // 下のカードは場を離れるとき破棄（BS19-X02）
             soulCoreLeavesField(player, inst) // 案B-inside: 先に[ソウルコア]退避（coresの数値調整込み）
             player.reserve += inst.cores
-            detachBravesOnLeave(state, pid, inst) // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）
+            // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残すかの確認は全員を移し終えてから出す
+            // （途中で確認の中断を立てると、その後の移動で盤面が変わる。smoke part778 の場面25）
+            detachBravesOnLeave(state, pid, inst, true)
             delete inst.pendingBounce
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)
@@ -1257,6 +1259,11 @@ export function flushBounces(state: GameState, order?: string[]): void {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const n = moved.filter((m) => m.pid === pid && m.to === "hand" && !isTokenCard(m.inst.cardId)).length
         if (n > 0) notifyHandGained(state, pid, n)
+    }
+    flushBraveKeeps(state)
+    if (state.pendingChoice) {
+        pushResumeFrames(state, [{ kind: "bounceFlush", moved, index: 0 }])
+        return
     }
     fireBounceTriggers(state, moved, 0)
 }

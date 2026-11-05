@@ -231,7 +231,8 @@ export function detachBravesOnLeaveFree(state: GameState, ownerPid: PlayerId, ho
     refreshLevelAsOverrides(state)
 }
 
-export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance): void {
+// deferKeeps：残すかの確認（flushBraveKeeps）を呼び出し側に任せる。まとめて移す途中で確認の中断を立てないため（flushBounces）
+export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance, deferKeeps = false): void {
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
     if (braves.length === 0) return
@@ -256,7 +257,7 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         ]
     }
     refreshLevelAsOverrides(state)
-    flushBraveKeeps(state)
+    if (!deferKeeps) flushBraveKeeps(state)
 }
 
 // このプレイヤーがいま支払いに回せるコアの総数（リザーブ＋フィールドの取り除けるコア）。
