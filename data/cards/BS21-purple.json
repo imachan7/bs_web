@@ -255,5 +255,828 @@
     "braveCondition": {
       "minCost": 4
     }
+  },
+  {
+    "cardId": "BS21-010",
+    "name": "マーシュビル",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 0,
+    "reduction": [],
+    "family": [
+      "幽魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS21-011",
+    "name": "ジャンゴヘビ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "reduction": [
+      "purple"
+    ],
+    "family": [
+      "妖蛇"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 2000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2･Lv3【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。",
+    "effects": [
+      {
+        "id": "BS21-011-e1",
+        "kind": "keyword",
+        "keyword": "jugeki",
+        "levels": [
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-012",
+    "name": "ボーン・ボアー",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 2,
+    "reduction": [
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv2『自分のメインステップ』\n自分の青のスピリットが召喚されたとき、自分はデッキから1枚ドローする。\nこの効果はターンに1回しか使えない。",
+    "effects": [
+      {
+        "id": "BS21-012-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritSummoned",
+        "levels": [
+          2
+        ],
+        "phase": "main",
+        "turn": "own",
+        "subjectFilter": {
+          "color": "blue"
+        },
+        "oncePerTurn": true,
+        "action": {
+          "type": "draw",
+          "count": 1
+        },
+        "onceScope": "name"
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-015",
+    "name": "死の剣使いデュラボーン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "剣使",
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n疲労状態の相手のスピリット1体を破壊する。\n【連鎖：条件《白/黄シンボル》】\n(自分の白/黄シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[白]：コスト5以下の相手のスピリット1体を手札に戻す。\n[黄]：このスピリットは、Lv1/Lv2の相手のスピリットからブロックされない。",
+    "effects": [
+      {
+        "id": "BS21-015-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS21-015-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "filter": {
+            "rested": true
+          },
+          "count": 1
+        }
+      },
+      {
+        "id": "BS21-015-e3",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "white"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "return",
+            "to": "hand",
+            "count": 1,
+            "filter": {
+              "cost": {
+                "max": 5
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "BS21-015-e4",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "yellow"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "unblockable",
+                "opponentOnly": true,
+                "from": {
+                  "level": [
+                    1,
+                    2
+                  ]
+                }
+              }
+            ],
+            "duration": "battle",
+            "target": "self"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-016",
+    "name": "デス・ヒュードラ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「星魂」を持つ自分のスピリットがアタックしたとき、相手のスピリットのコア1個を相手のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS21-016-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "ownOnly": true,
+        "subjectFilter": {
+          "family": "星魂"
+        },
+        "action": {
+          "type": "removeCores",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-017",
+    "name": "冥巡士ヴァルファレード",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "冥主"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 7000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\n【呪撃】を持つ自分のスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。",
+    "effects": [
+      {
+        "id": "BS21-017-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "byOpponentOnly": true,
+        "subjectFilter": {
+          "keyword": "jugeki"
+        },
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-018",
+    "name": "骸獣侯ボーン・クスロー",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 6,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "【不死：コスト3/4】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト3/4の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手のフィールドのコア1個を相手のリザーブに置く。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：相手のスピリット1体を手札に戻す。",
+    "effects": [
+      {
+        "id": "BS21-018-e1",
+        "kind": "keyword",
+        "keyword": "fushi",
+        "levels": null,
+        "triggerCosts": [
+          3,
+          4
+        ]
+      },
+      {
+        "id": "BS21-018-e2",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS21-018-e3",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": null,
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "white"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "return",
+            "to": "hand",
+            "count": 1
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-057",
+    "name": "冥獣騎シトリー",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "冥主"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "合体条件：コスト3以上\n【合体時】『このスピリットの破壊時』\n相手のスピリット2体を疲労させる。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      }
+    ],
+    "braveConditionText": "コスト3以上",
+    "effects": [
+      {
+        "id": "BS21-057-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 2
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 3
+    }
+  },
+  {
+    "cardId": "BS21-068",
+    "name": "暗き棺桶洞",
+    "type": "nexus",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のスピリットすべての【呪撃】を“【呪撃】『このスピリットのブロック時』バトル解決時にアタックしていた相手のスピリット1体を、バトル終了時に破壊する”に変更する。\nLv2『お互いのアタックステップ』\n自分の効果によって相手のスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。",
+    "effects": [
+      {
+        "id": "BS21-068-e1",
+        "kind": "jugekiOnBlockReplace",
+        "levels": [
+          1,
+          2
+        ],
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "opponent"
+        }
+      },
+      {
+        "id": "BS21-068-e2",
+        "kind": "fieldEvent",
+        "event": "opponentSpiritCoresEmptied",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "selfMode": "source",
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        },
+        "sourceTypes": [
+          "spirit",
+          "brave",
+          "nexus",
+          "magic"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-075",
+    "name": "デッドリィヘクス",
+    "type": "magic",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "U",
+    "limited": false,
+    "effect": "フラッシュ：\n自分のスピリット1体を破壊することで、相手は、相手のスピリット1体を破壊する。\n【連鎖：条件《白/黄シンボル》】\n(自分の白/黄シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[白]：相手のスピリット1体を手札に戻す。\n[黄]：このターンの間、相手のスピリット1体をLv1として扱う。",
+    "effects": [
+      {
+        "id": "BS21-075-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroy",
+            "side": "own",
+            "count": 1
+          },
+          "then": {
+            "type": "destroy",
+            "count": 1,
+            "chooserIsTarget": true
+          }
+        }
+      },
+      {
+        "id": "BS21-075-e2",
+        "kind": "magic",
+        "keyword": "rensa",
+        "timing": "flash",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "white"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "return",
+                "to": "hand",
+                "count": 1
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "yellow"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "level",
+                    "set": 1
+                  }
+                ],
+                "duration": "turn",
+                "count": 1,
+                "side": "opponent"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-076",
+    "name": "ソウルスライド",
+    "type": "magic",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n相手のスピリット2体のコアを、それぞれ1個だけになるように相手のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS21-076-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "removeCores",
+          "targets": 2,
+          "count": "all",
+          "leaveAtLeast": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-X02",
+    "name": "双頭の龍王バイ・ジャオウ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n系統：「妖蛇」を持つ自分のスピリットすべてに“【呪撃】『このスピリットのアタック時』バトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する”を与える。\nLv1･Lv2･Lv3『このスピリットの破壊時』\nこのスピリットを手札に戻すことができる。\nLv2･Lv3『自分のアタックステップ』\n【呪撃】を持つ自分のスピリットすべては、アタックするとき疲労状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+    "effects": [
+      {
+        "id": "BS21-X02-e1",
+        "kind": "keywordGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "keyword": "jugeki",
+        "target": "ownAll",
+        "familyFilter": [
+          "妖蛇"
+        ]
+      },
+      {
+        "id": "BS21-X02-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": true,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "target": "self",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS21-X02-e3",
+        "kind": "constraintGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "filter": {
+          "keyword": "jugeki"
+        },
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "own"
+        },
+        "constraint": {
+          "type": "canDirectAttack",
+          "targetFilter": "rested"
+        }
+      }
+    ]
   }
 ]

@@ -665,5 +665,593 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS21-046",
+    "name": "ヤナクラゲー",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 1,
+    "reduction": [],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のアタックステップ』\nコスト0の相手のスピリットはアタックできない。",
+    "effects": [
+      {
+        "id": "BS21-046-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "constraint": {
+          "type": "opponentCantAttackByCost",
+          "costs": [
+            0
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-047",
+    "name": "怪力巨人アドルファス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "闘神"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「闘神」を持つ自分のスピリットがアタックしたとき、そのスピリットをBP+2000し、相手のデッキを上から1枚破棄する。",
+    "effects": [
+      {
+        "id": "BS21-047-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "ownOnly": true,
+        "subjectFilter": {
+          "family": "闘神"
+        },
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "bp",
+                  "amount": 2000
+                }
+              ],
+              "duration": "battle",
+              "target": "self"
+            },
+            {
+              "type": "discard",
+              "from": "deck",
+              "side": "opponent",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-049",
+    "name": "海の彫刻家ナポレオ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "創手"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS21-050",
+    "name": "ゲル・ゴロス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト3の相手のスピリット1体を破壊する。\n【連鎖：条件《赤/紫シンボル》】\n(自分の赤/紫シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：相手のネクサス1つを破壊する。\n[紫]：自分はデッキから1枚ドローする。",
+    "effects": [
+      {
+        "id": "BS21-050-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "min": 3,
+              "max": 3
+            }
+          }
+        }
+      },
+      {
+        "id": "BS21-050-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "nexus": "only",
+                "count": 1
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "purple"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "draw",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-051",
+    "name": "ダーク・スクアーロ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2\nこのスピリットは赤のスピリットとしても扱う。",
+    "effects": [
+      {
+        "id": "BS21-051-e1",
+        "kind": "colorAs",
+        "levels": [
+          2
+        ],
+        "colors": [
+          "red"
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-066",
+    "name": "深海竜ラブリス",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "white",
+      "white"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにある白/青のネクサスカードすべてを手札に戻す。\n合体条件：コスト4以上",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": [
+      {
+        "id": "BS21-066-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "count": "all",
+          "dest": "hand",
+          "pick": {
+            "cardType": "nexus",
+            "color": [
+              "white",
+              "blue"
+            ]
+          }
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    }
+  },
+  {
+    "cardId": "BS21-083",
+    "name": "サファイアエロード",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "reduction": [
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n自分のネクサスの数以下のコストの相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS21-083-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 0
+            },
+            "maxCostPer": {
+              "counter": "ownNexuses",
+              "amount": 1
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-084",
+    "name": "レイジングシー",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\nこのターンの間、自分のスピリット1体を、そのスピリットが持つ最高Lvとして扱う。\n【連鎖：条件《赤/紫シンボル》】\n(自分の赤/紫シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。\n[紫]：自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS21-084-e1",
+        "kind": "magic",
+        "keyword": "rensa",
+        "timing": "main",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "timedEffect",
+              "content": [
+                {
+                  "type": "level",
+                  "max": true
+                }
+              ],
+              "duration": "turn",
+              "side": "own"
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "draw",
+                "count": 1
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "purple"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "draw",
+                "count": 1
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS21-084-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-X08",
+    "name": "深淵の巨剣アビス・アポカリプス",
+    "type": "brave",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "剣刃"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。\n合体条件：コスト5以上\n【合体中】\n相手は、相手のフィールドにあるシンボルと同じ色のバーストしか発動できず、相手のフィールドにあるシンボルと同じ色のマジックカードしか使用できない。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 5000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": [
+      {
+        "id": "BS21-X08-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "level",
+              "max": true
+            }
+          ],
+          "duration": "turn",
+          "all": true,
+          "side": "own"
+        }
+      },
+      {
+        "id": "BS21-X08-e2",
+        "kind": "globalConstraint",
+        "levels": null,
+        "whileCombined": true,
+        "constraint": {
+          "type": "burstOnlyOwnFieldSymbolColors"
+        }
+      },
+      {
+        "id": "BS21-X08-e3",
+        "kind": "globalConstraint",
+        "levels": null,
+        "whileCombined": true,
+        "constraint": {
+          "type": "magicOnlyOwnFieldSymbolColors"
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    }
   }
 ]

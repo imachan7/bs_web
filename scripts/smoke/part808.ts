@@ -420,7 +420,7 @@ scene("018-7: 自分の白シンボルがあれば連鎖[白]：相手のスピ�
     const opp = put(s, "p2", VAN, 2)
     assert(act(s, "p1", { type: "summon", handIndex: 0 }) === null, "クスローを召喚できる")
     settle(s, [opp.instanceId])
-    assert(s.players.p2.reserve === 21, "コア1個がリザーブへ")
+    assert(s.players.p2.reserve === 22, "コア1個がリザーブへ＋手札に戻したスピリットの残りコア1個もリザーブへ")
     assert(!onField(s, "p2", opp) && s.players.p2.hand.includes(VAN), "相手のスピリットが手札に戻る")
 })
 

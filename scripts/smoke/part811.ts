@@ -198,20 +198,20 @@ scene("039-2: Lv2 でもアタックできない", () => {
     assert(act(s, "p1", { type: "attack", instanceId: l.instanceId }) !== null, "Lv2 でもアタックは拒否される")
 })
 scene("039-3: 【強化】自分のBP-効果が-1000される（-3000 が -4000）。境目：リセルが無ければ -3000、相手のリセルは自分の効果を強化しない", () => {
-    const s = game("lisel3")
+    const s = game("lisel3", "main")
     put(s, "p1", LISEL, 1)
     const h = put(s, "p2", HERA, 3) // Lv2 BP6000
     s.players.p1.hand = [PRESSURE]
     assert(act(s, "p1", { type: "castMagic", handIndex: 0 }) === null, "エンジェリックプレッシャーを使用")
     settle(s, [h.instanceId])
     assert(effectiveBp(s, "p2", h) === 2000, "6000-3000-1000=2000")
-    const t = game("lisel3b")
+    const t = game("lisel3b", "main")
     const h2 = put(t, "p2", HERA, 3)
     t.players.p1.hand = [PRESSURE]
     assert(act(t, "p1", { type: "castMagic", handIndex: 0 }) === null, "リセル無しでエンジェリックプレッシャーを使用")
     settle(t, [h2.instanceId])
     assert(effectiveBp(t, "p2", h2) === 3000, "リセル無しなら 6000-3000=3000")
-    const u = game("lisel3c")
+    const u = game("lisel3c", "main")
     put(u, "p2", LISEL, 3) // 相手のリセル（Lv2 BP3000）
     const h3 = put(u, "p2", HERA, 3)
     u.players.p1.hand = [PRESSURE]
@@ -254,10 +254,10 @@ scene("040-2: 境目：ブロックされてライフを減らさなければラ
 })
 
 // 042
-const setupNara = (seed: string, naraCores: number, withBrave: boolean, withGreen: boolean) => {
+const setupNara = (seed: string, naraCores: number, withBrave: boolean | string, withGreen: boolean) => {
     const s = game(seed)
     const n = put(s, "p1", NARA, naraCores)
-    if (withBrave) combine(s, "p1", n, KARAKURI)
+    if (withBrave) combine(s, "p1", n, typeof withBrave === "string" ? withBrave : KARAKURI)
     if (withGreen) put(s, "p1", BEAT, 1)
     s.players.p1.trashCards = [SHOCK, HERA]
     return { s, n }
@@ -280,7 +280,9 @@ scene("042-2: 合体アタック時（Lv2）、トラッシュのコスト2の�
     assert(v.isRested, "連鎖[緑]で相手のスピリットが疲労する")
 })
 scene("042-3: 境目：緑シンボルが無ければ疲労させないが、トラッシュの回収はする", () => {
-    const { s, n } = setupNara("nara3", 2, true, false)
+    // カラクリバッタは緑のシンボルを持つので、シンボルの無いブレイヴ（P029 アーチ・アームズ）と合体させる
+    assert(getCard("P029").name === "アーチ・アームズ" && getCard("P029").symbol.length === 0, "P029はシンボルの無いブレイヴ")
+    const { s, n } = setupNara("nara3", 2, "P029", false)
     const v = put(s, "p2", VAN, 1)
     assert(act(s, "p1", { type: "attack", instanceId: n.instanceId }) === null, "合体アタック")
     settle(s)
@@ -547,9 +549,11 @@ scene("X05-1: 自分のアタックステップ、相手のスピリットすべ
     assert(effectiveBp(s, "p2", h) === 4000, "自分のアタックステップ中は 4000")
     assert(effectiveBp(s, "p1", own) === 3000, "自分のスピリットは変わらない")
     s.phase = "main"
+    refreshLevelAsOverrides(s)
     assert(effectiveBp(s, "p2", h) === 6000, "メインステップでは 6000")
     s.phase = "attack"
     s.turnPlayer = "p2"
+    refreshLevelAsOverrides(s)
     assert(effectiveBp(s, "p2", h) === 6000, "相手のアタックステップでは 6000")
 })
 scene("X05-2: Lv2 のアタック時、コアが1個の相手のスピリットからブロックされない（2個ならブロックできる）", () => {

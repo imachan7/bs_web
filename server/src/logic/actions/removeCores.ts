@@ -97,10 +97,10 @@ function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, am
         const before = inst.cores
         applyToSpirit(ctx, pid, inst, amount, to)
         if (before > 0 && inst.cores === 0) recordEmptiedSpirits(state, lastEmptiedSpiritsOf(state) + 1)
-        if (pid !== owner && before > 0 && inst.cores === 0 && (srcType === "spirit" || srcType === "brave") && state.coresEmptiedNotifiedPid !== owner) {
+        if (pid !== owner && before > 0 && inst.cores === 0 && srcType !== undefined && state.coresEmptiedNotifiedPid !== owner) {
             // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
             state.coresEmptiedNotifiedPid = owner
-            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst })
+            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst }, undefined, undefined, undefined, { causeType: srcType })
         }
         return
     }

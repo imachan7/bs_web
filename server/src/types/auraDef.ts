@@ -6,7 +6,7 @@ import { Phase, Color, FamilyFilter, AuraCounter, AuraCondition } from "../type"
 export interface AuraDef {
     type: "bp"
     target: "self" | "ownAll" | "chosenInstance" // 発生源自身のみ / 発生源の持ち主のスピリットすべて / targetChoiceLendThisTurn で選んだ1体だけ（発生源は仮想発生源）
-    colorFilter?: Color // ownAll 用: この色のスピリットのみ
+    colorFilter?: Color | Color[] // ownAll 用: この色のスピリットのみ（配列＝どれかの色を持つ。「赤/黄のスピリットすべて」に1回だけ効く）
     battlingOnly?: boolean // バトル中（アタッカーまたはブロッカー）のスピリットのみ。**target:"self" でも効く**（phaseTurn と同じく target を問わない。2026-08-16 修正）
     amount?: number // 固定量（condition と併用可）
     amountPer?: number // counter × amountPer の可変量

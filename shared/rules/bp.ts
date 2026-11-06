@@ -424,7 +424,7 @@ export function auraAppliesTo(
     if (sourcePid !== targetOwnerPid) return false
     if (aura.excludeSelf && sourceInst.instanceId === targetInst.instanceId) return false
     if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && !instHasColor(targetInst, aura.colorFilter)) {
+    if (aura.colorFilter && !(Array.isArray(aura.colorFilter) ? aura.colorFilter : [aura.colorFilter]).some((c) => instHasColor(targetInst, c))) {
         return false
     }
     // combinedFilter（BS10-097ブレイヴオーラ：合体スピリットへの追加BP）

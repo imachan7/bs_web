@@ -239,11 +239,11 @@ export function fireFieldEventTriggers(
             // currentEffectSource が無い＝効果によらない増加（ドローステップ等）では発火しない。
             // opponentSpiritExhaustedByOwnSpiritEffect＝疲労させた効果の種別（eventInfo.causeType）の絞り込み。
             // 省略時はスピリット/ブレイヴの効果だけ（マジックで疲労させても発火しない）
-            if (effect.sourceTypes !== undefined && event !== "opponentSpiritExhaustedByOwnSpiritEffect") {
+            if (effect.sourceTypes !== undefined && event !== "opponentSpiritExhaustedByOwnSpiritEffect" && event !== "opponentSpiritCoresEmptied") {
                 const src = state.currentEffectSource
                 if (!src || src.pid === pid || src.type === undefined || !effect.sourceTypes.includes(src.type)) continue
             }
-            if (event === "opponentSpiritExhaustedByOwnSpiritEffect") {
+            if (event === "opponentSpiritExhaustedByOwnSpiritEffect" || event === "opponentSpiritCoresEmptied") {
                 const causeType = eventInfo?.causeType
                 if (effect.sourceTypes !== undefined) {
                     if (causeType === undefined || !effect.sourceTypes.includes(causeType)) continue

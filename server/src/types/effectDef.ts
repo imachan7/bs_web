@@ -129,6 +129,7 @@ export type EffectDef =
           id: string
           kind: "jugekiOnBlockReplace" // 持ち主のスピリットの【呪撃】の発揮タイミングを『このスピリットのブロック時』へ差し替える
           levels: number[] | null
+          phaseTurn?: { phase?: Phase; turn?: "own" | "opponent" | "both" }
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurnで貸したもの）からのみ有効
       }
     | {

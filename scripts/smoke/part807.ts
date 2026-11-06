@@ -508,9 +508,10 @@ scene("073-1: フラッシュ：BP4000以下の相手のスピリット1体を�
     const taran = put(s, "p2", TARAN, 1)
     s.players.p1.trashCards = [FORTROSS]
     attack(s, atk)
-    assert(flashBurning(s, taran) !== null, "BP6000のタランドーズは対象にできない")
-    assert(flashBurning(s, bell) === null, "BP3000のベルを対象にフラッシュで使える")
+    // 対象にできないIDを直に渡されても使用は拒否されず、候補（BP4000以下＝ベルだけ）から選ばれる
+    flashBurning(s, taran)
     settle(s)
+    assert(has(s, "p2", taran), "BP6000のタランドーズは対象にならず場に残る")
     assert(!has(s, "p2", bell), "ベルが破壊される")
     assert(s.players.p1.trashCards.includes(BURNING) && s.players.p1.trashCards.includes(FORTROSS), "使ったマジックはトラッシュへ。シンボルが無いのでフォルトロスは召喚されずトラッシュに残る")
 })
@@ -534,6 +535,8 @@ scene("073-3: 連鎖[紫]の召喚は任意：断ればフォルトロスはト�
     s.players.p1.trashCards = [FORTROSS]
     attack(s, atk)
     assert(flashBurning(s, bell) === null, "フラッシュで使える")
+    assert((s.pendingChoice as { kind: string } | null)?.kind === "card", "トラッシュのカードの選択が出る")
+    assert(act(s, "p1", { type: "resolveChoice" }) === null, "召喚を断る（cardIndex なしで答える）")
     settle(s, [], [])
     assert(!s.players.p1.field.spirits.some((x) => x.cardId === FORTROSS) && s.players.p1.trashCards.includes(FORTROSS), "断れば召喚されない")
 })
