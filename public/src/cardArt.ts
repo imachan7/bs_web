@@ -16,8 +16,8 @@ export function cardSetDir(cardId: string): string {
 
 // 旧カードの画像は隠し要素（2026-11-02 ユーザー要望）。どこかの入力欄に合言葉を打つと、その端末でだけ出す／もう一度で消す。
 // 鍵ではない（画像の URL を知っていれば誰でも開ける）。検索結果やふだんの画面に出さないためだけ
-// 読点・感嘆符・空白は無視し、原作の表記「界放」でも通す
-const isSecretPhrase = (text: string): boolean => text.replace(/[、。,.!！\s]/g, "").replace("界放", "開放") === "ゲートオープン開放"
+// 読点・感嘆符・空白は無視し、原作の表記「界放」と変換で出やすい「解放」でも通す
+const isSecretPhrase = (text: string): boolean => text.replace(/[、。,.!！\s]/g, "").replace(/[界解]放/, "開放") === "ゲートオープン開放"
 const SECRET_KEY = "bs.secretCardArt"
 
 function secretArtOn(): boolean {
