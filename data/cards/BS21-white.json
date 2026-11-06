@@ -147,5 +147,166 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS21-034",
+    "name": "天眼機神ディアリーン",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 7000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 9000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n自分の白のスピリットがブロックしたとき、そのスピリットをBP+3000する。\nLv3『相手のアタックステップ』\n合体していない相手のスピリットすべては、可能ならば必ずアタックする。",
+    "effects": [
+      {
+        "id": "BS21-034-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDeclaredBlock",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "subjectFilter": {
+          "color": "white"
+        },
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "battle",
+          "target": "self"
+        }
+      },
+      {
+        "id": "BS21-034-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          3
+        ],
+        "target": "opponentAll",
+        "filter": {
+          "uncombined": true
+        },
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "opponent"
+        },
+        "constraint": {
+          "type": "mustAttack"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-062",
+    "name": "弩弓獣クロス・ボンゴ",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white",
+      "purple"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのブロック時』\nボイドからコア1個をこのスピリットに置く。\nこのスピリットが紫のシンボルを持つとき、相手のフィールドのコア1個を相手のリザーブに置く。",
+    "braveCondition": {
+      "minCost": 4
+    },
+    "effects": [
+      {
+        "id": "BS21-062-e1",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": null,
+        "whileCombined": true,
+        "optional": false,
+        "eventTarget": "ignore",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "spirit",
+              "target": "self",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "selfSymbolColor": "purple"
+              },
+              "then": {
+                "type": "coreRemove",
+                "count": 1
+              }
+            }
+          ]
+        }
+      }
+    ]
   }
 ]

@@ -127,6 +127,7 @@ export function activeConstraintsWithSource(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant") continue
+            if (effect.target === "opponentAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             // 【合体時】：発生源自身が合体しているときだけ付与する（BRAVE.md §12.3。BS13-X006）
             if (effect.whileCombined === true && !instIsCombined(source)) continue
@@ -145,6 +146,32 @@ export function activeConstraintsWithSource(
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             if (!combinedBraveColorsOk(board.players[pid], source, effect.combinedBraveColors)) continue
+            noteCoverage(effect, "constraintGrant")
+            granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
+        }
+    }
+    // target:"opponentAll"（N9）：発生源の持ち主から見て相手の側（pid）に効く制約。
+    // phaseTurn・turn は効果文どおり発生源の持ち主（oppPid）基準で判定する
+    const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+    for (const source of effectSources(board, oppPid)) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "constraintGrant" || effect.target !== "opponentAll") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effect.whileCombined === true && !instIsCombined(source)) continue
+            if (!entryActive(board, oppPid, source, effect, sourceLevel)) continue
+            if (effect.condition !== undefined && !checkAuraCondition(board, oppPid, effect.condition)) continue
+            if (effect.filter && !matchesTarget(board, pid, inst, effect.filter, source.instanceId)) continue
+            if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (board.phase !== phase) continue
+                if (turn === "own" && oppPid !== board.turnPlayer) continue
+                if (turn === "opponent" && oppPid === board.turnPlayer) continue
+            }
+            if (effect.turn === "own" && oppPid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && oppPid === board.turnPlayer) continue
+            if (!combinedBraveColorsOk(board.players[oppPid], source, effect.combinedBraveColors)) continue
             noteCoverage(effect, "constraintGrant")
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }

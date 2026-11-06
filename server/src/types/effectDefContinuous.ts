@@ -308,6 +308,7 @@ export type EffectDefContinuous =
           familyFromChoice?: true // 発生源インスタンスのlentChoiceFamily（貸与時に選んだ系統）
           familiesFromOwnField?: true // 持ち主のフィールドのスピリットが（カード静的に）持つ系統すべてを動的に付与
           familyFilter?: FamilyFilter
+          filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordGrant の filter と同じ判定。付与した系統をこの軸で参照すると自己再帰するので、family 軸には書かない）
           lentOnly?: boolean
           colorFilter?: Color
           costFilter?: number
@@ -576,7 +577,7 @@ export type EffectDefContinuous =
           levels: number[] | null
           keyword?: Keyword // 効果の見出しに付くキーワードのラベル（triggered と同型。【連鎖】を含む継続効果＝Q774）
           whileCombined?: true
-          target: "ownAll"
+          target: "ownAll" | "opponentAll" // opponentAll＝発生源の持ち主から見て相手のスピリットすべて（BS21_PLAN §3 の N9）
           condition?: AuraCondition
           filter?: ResolvedTargetFilter // 付与先の絞り込み。発生源は selfInstanceId として渡す
           // filter に移していない唯一の残り。ラベル系キーワード（【激突】）は matchesTarget だと見方が変わる（要判断。BS07-X25）

@@ -50,5 +50,124 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS21-007",
+    "name": "極彩竜ピーコック・ワイバーン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "yellow"
+    ],
+    "family": [
+      "星竜",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのアタック時』\n系統：「星魂」を持つ自分のスピリット1体につき、BP3000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【強化】を持つ自分のスピリットすべてに系統：「星魂」を与える。",
+    "effects": [
+      {
+        "id": "BS21-007-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "countCounter": {
+            "ownFamily": "星魂"
+          },
+          "filter": {
+            "maxBp": 3000
+          }
+        }
+      },
+      {
+        "id": "BS21-007-e2",
+        "kind": "familyGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "family": "星魂",
+        "filter": {
+          "keyword": "kyoka"
+        },
+        "phase": "attack",
+        "turn": "own"
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-002",
+    "name": "ウォルフドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [],
+    "family": [
+      "星竜",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2【強化】\n自分の「BP破壊効果」の上限を+1000する。",
+    "effects": [
+      {
+        "id": "BS21-002-e1",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "bpDestroy",
+        "levels": [
+          1,
+          2
+        ]
+      }
+    ]
   }
 ]
