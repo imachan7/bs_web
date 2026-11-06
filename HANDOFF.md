@@ -29,7 +29,7 @@
 
 ### いまの本線：BS20 の取り込み（2026-11-05 から）（BS19 は #356。計画の型は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
 
-- **ブランチ `feat/bs20-import`（draft #395）：BS20 の91枚は全部入った**（`data/cards/BS20.json`。全 smoke・coverage:check 緑）。残りは [BS20_PLAN.md](./docs/design/BS20_PLAN.md) §4 のユーザー確認（034 の数の固定・026 の聞き方・X01 と古龍の縄張りの選択者＝公式の返事待ち）と、その答えを手順書へ移すこと。答えが出たら #395 を Ready にする
+- **ブランチ `feat/bs20-import`（draft #395）：BS20 の91枚は全部入った**（`data/cards/BS20.json`。全 smoke・coverage:check 緑）。[BS20_PLAN.md](./docs/design/BS20_PLAN.md) §4 の確認は 11-06 にすべて答えをもらい、計画書・TIMING_CHART に書いた。残りは X01 と古龍の縄張りが同時に効くときの選択者（ターンプレイヤーの仮決め。公式の返事待ち）だけ
 - 取り込み済みは BS01〜BS20・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS20 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
