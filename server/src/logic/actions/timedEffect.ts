@@ -887,6 +887,22 @@ function placeTrashCoreReturnCap(ctx: Parameters<ActionHandler<"timedEffect">>[0
     }
 }
 
+// 合体スピリットのブレイヴ値を0として扱う記録。side の既定は相手（braveBpBonusZero）／両陣営（braveCostZero は side:"both"）
+function placeBraveZero(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect): void {
+    const { state, owner, opp, self, sourceName } = ctx
+    const content = action.content.filter((c) => c.type === "braveBpBonusZero" || c.type === "braveCostZero")
+    if (action.duration !== "turn" && action.duration !== "battle" && action.duration !== "effect") {
+        log(state, `${sourceName}：この期間の指定は未対応のため発揮しなかった。`)
+        return
+    }
+    const pids: PlayerId[] = action.side === "both" ? ["p1", "p2"] : [action.side === "own" ? owner : opp]
+    for (const pid of pids) {
+        recordTimed(state, { content, target: { kind: "player", pid }, until: action.duration, ownerPid: owner, ...(content.some((c) => c.type === "braveBpBonusZero") && self ? { sourceInstanceId: self.instanceId } : {}) })
+    }
+    const what = content.map((c) => (c.type === "braveBpBonusZero" ? "「合体時BP+」を0" : "ブレイヴのコストを0")).join("と")
+    log(state, `${sourceName}：${pids.map((p) => state.players[p].name).join("と")}の合体スピリットの${what}として扱う。`)
+}
+
 const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     // 【強化】（黄）：負の BP（BP-効果）は -1000×n だけ深くする（可変量の amountCounter には足さない）。
@@ -908,6 +924,10 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     // 「このステップ中」はシンボル喪失のルールとプレイヤー制約（P045 導化姫ブラックスター『お互いのアタックステップ』の軽減黄化）だけ対応（2026-10-11 ユーザー確認）
     if (action.duration === "step" && !action.content.every((c) => c.type === "symbolLoss" || c.type === "playerRule")) {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
+        return
+    }
+    if (action.content.some((c) => c.type === "braveBpBonusZero" || c.type === "braveCostZero")) {
+        placeBraveZero(ctx, action)
         return
     }
     if (action.content.some((c) => c.type === "trashCoreReturnCap")) {

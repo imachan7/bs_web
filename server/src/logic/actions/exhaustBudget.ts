@@ -1,5 +1,5 @@
-// 「BP合計○○まで相手のスピリットを好きなだけ疲労させる」（exhaust の budget 軸）。
-// 選び方は destroy の budget と同じ：1体ずつ選び、残り予算を超える候補は外す。非対話は重いものから貪欲
+// 「BP／コスト合計○○まで相手のスピリットを好きなだけ疲労させる」（exhaust の budget 軸）。
+// 選び方は destroy の budget と同じ（cost は印刷のコスト）：1体ずつ選び、残り予算を超える候補は外す。非対話は重いものから貪欲
 import type { ActionCtx } from "./types"
 import type { CardInstance } from "../../type"
 import { getCard, log, suspend } from "../GameState"
@@ -13,7 +13,8 @@ type ExhaustAction = Extract<EffectAction, { type: "exhaust" }>
 export function exhaustWithinBudget(ctx: ActionCtx, action: ExhaustAction): void {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
     const budget = action.budget!.amount
-    const weightOf = (s: CardInstance): number => effectiveBp(state, opp, s)
+    const byCost = action.budget!.by === "cost"
+    const weightOf = (s: CardInstance): number => (byCost ? getCard(s.cardId).cost : effectiveBp(state, opp, s))
     const onField = (id: string): CardInstance | undefined => state.players[opp].field.spirits.find((s) => s.instanceId === id)
     const pick = (ok: (s: CardInstance) => boolean): CardInstance[] =>
         pickEnemyCandidates(state, opp, Infinity, (s) => !s.isRested && ok(s), srcColors, srcType, "exhaust")
@@ -31,7 +32,7 @@ export function exhaustWithinBudget(ctx: ActionCtx, action: ExhaustAction): void
                 suspend(state, {
                     pid: owner,
                     kind: "target",
-                    prompt: `${sourceName}：疲労させるスピリットを選んでください（BP合計 ${used}／${budget}。選んだものをもう一度押すと外れます）`,
+                    prompt: `${sourceName}：疲労させるスピリットを選んでください（${byCost ? "コスト" : "BP"}合計 ${used}／${budget}。選んだものをもう一度押すと外れます）`,
                     candidates: candidates.map((s) => s.instanceId),
                     selectedIds: chosen,
                     skipLabel: chosen.length > 0 ? `これで疲労させる（${chosen.length}体）` : "疲労させない",

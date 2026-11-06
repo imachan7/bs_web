@@ -4,7 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, Color, EffectAction, GameState, Keyword, PlayerId, TargetFilter } from "../../type"
 import { currentLevel, getCard, log, minLevelCores } from "../GameState"
 import { resolveInOrder } from "../GameState"
-import { lastTargetsOf, recordTargets } from "../record"
+import { currentRecordScope, lastMovedOf, lastTargetsOf, recordMoved, recordTargets } from "../record"
 import {
     canExhaustNexus,
     bothSidesPids,
@@ -50,7 +50,26 @@ function exhaustLog(sourceName: string, targetName: string, byBofu: boolean): st
 // count:"any" を解いたあとの形。本体は数値の count だけを扱う
 type ExhaustNum = Omit<Extract<EffectAction, { type: "exhaust" }>, "count"> & { count: number }
 
+// 「この効果で疲労した」の記録（lastMoved）。効果の解決前後で疲労状態に変わった個体を差分で取る。
+// recordAppend を内側の action に載せて、選択の再入（spread で引き継がれる）では追記にする
+let exhaustDepth = 0
 const exhaustHandler: ActionHandler<"exhaust"> = (ctx, action) => {
+    const { state } = ctx
+    const scope = currentRecordScope(state)
+    const spirits = () => [...state.players.p1.field.spirits, ...state.players.p2.field.spirits]
+    const before = new Set(spirits().filter((s) => s.isRested).map((s) => s.instanceId))
+    exhaustDepth++
+    try {
+        exhaustBody(ctx, { ...action, recordAppend: true })
+    } finally {
+        exhaustDepth--
+    }
+    if (exhaustDepth > 0) return // 入れ子（残りを選び直す再入）の疲労は外側の差分に含まれる
+    const ids = spirits().filter((s) => s.isRested && !before.has(s.instanceId)).map((s) => s.cardId)
+    recordMoved(state, action.recordAppend ? [...lastMovedOf(state, scope), ...ids] : ids, scope)
+}
+
+const exhaustBody: ActionHandler<"exhaust"> = (ctx, action) => {
     if (action.budget) return exhaustWithinBudget(ctx, action)
     if (action.count !== "any") return exhaustCore(ctx, action as ExhaustNum)
     const { state, owner, opp, self, sourceName, srcType, targetInstanceId } = ctx

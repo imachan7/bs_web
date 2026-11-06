@@ -737,6 +737,7 @@ function collectGrantedTriggerActions(
                 continue
             }
             if (effect.keywordFilter && !spiritHasKeyword(state, owner, selfInstance, effect.keywordFilter)) continue
+            if (effect.filter && !matchesTarget(state, owner, selfInstance, effect.filter, source.instanceId)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue

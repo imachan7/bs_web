@@ -111,6 +111,9 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
             const colorFilter = entry["colorFilter"]
             const wantColors = typeof colorFilter === "string" ? [colorFilter] : Array.isArray(colorFilter) ? (colorFilter as string[]) : []
             const wantKeyword = entry["keywordFilter"] as string | undefined
+            // filter（TargetFilter。BS22-X06）は系統・コスト下限だけ読む（合体していないことは、ここでは合体させないので常に満たす）
+            const flt = entry["filter"] as { family?: string | string[]; cost?: { min?: number } } | undefined
+            const fltFams = typeof flt?.family === "string" ? [flt.family] : (flt?.family ?? [])
             const grantee = CARDS.find(
                 (c) =>
                     c.type === "spirit" &&
@@ -118,6 +121,8 @@ console.log("=== パート196：effectGrant で付与された効果が、付与
                     (wantFams.length === 0 || wantFams.some((f) => (c.family ?? []).includes(f))) &&
                     (wantName === undefined || c.name.includes(wantName)) &&
                     (wantColors.length === 0 || wantColors.some((col) => (c.colors ?? []).includes(col))) &&
+                    fltFams.every((f) => (c.family ?? []).includes(f)) &&
+                    (c.cost ?? 0) >= (flt?.cost?.min ?? 0) &&
                     (wantKeyword === undefined ||
                         (c.effects ?? []).some((e2) => e2["kind"] === "keyword" && e2["keyword"] === wantKeyword)),
             )

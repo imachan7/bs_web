@@ -147,7 +147,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "timedEffect") return false
         if (action.target === "self") return self !== null
         if (action.target === "lastBuffed") return state.lastBpBuffTargetId !== undefined && findSpiritAny(state, state.lastBpBuffTargetId) !== null
-        if (action.content.every((c) => c.type === "playerRule" || c.type === "battleLock")) return true
+        if (action.content.every((c) => c.type === "playerRule" || c.type === "battleLock" || c.type === "braveBpBonusZero" || c.type === "braveCostZero")) return true
         const filter = { ...(action.filter ?? {}) } as unknown as ResolvedTargetFilter
         const pids = action.side === "own" ? [owner] : action.side === "both" ? [owner, opponentOf(owner)] : [opponentOf(owner)]
         return pids.some((pid) => state.players[pid].field.spirits.some((s) => matchesTarget(state, pid, s, filter, self?.instanceId)))

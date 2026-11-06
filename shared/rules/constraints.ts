@@ -428,8 +428,31 @@ export function refreshBlockedByRule(board: Board, ownerPid: PlayerId): boolean 
     return blocked || timedPlayerRules(board, ownerPid).some((r) => r.type === "noSpiritRefresh")
 }
 
+// 合体スピリットのコストからブレイヴ分を引くか（050 の継続・054 の期間つき）。refreshLevelAsOverrides が braveComposite を組むときに読む
+export function braveCostZeroFor(board: Board, hostPid: PlayerId): boolean {
+    if (board.timedEffects.some((r) => r.target.kind === "player" && r.target.pid === hostPid && r.content.some((c) => c.type === "braveCostZero"))) return true
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const inst of effectSources(board, pid)) {
+            const level = currentLevel(inst).level
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "braveCostZero") continue
+                if (!entryActive(board, pid, inst, effect, level)) continue
+                noteCoverage(effect, "globalConstraint")
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // 「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 export function braveBpBonusZeroFor(board: Board, hostPid: PlayerId): boolean {
+    const onField = (id: string): boolean => (["p1", "p2"] as PlayerId[]).some((p) => [...board.players[p].field.spirits, ...board.players[p].field.combinedBraves].some((i) => i.instanceId === id))
+    for (const r of board.timedEffects) {
+        if (r.target.kind !== "player" || r.target.pid !== hostPid || !r.content.some((c) => c.type === "braveBpBonusZero")) continue
+        if (r.sourceInstanceId !== undefined && !onField(r.sourceInstanceId)) continue
+        return true
+    }
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const inst of effectSources(board, pid)) {
             const level = currentLevel(inst).level

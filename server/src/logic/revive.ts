@@ -267,6 +267,7 @@ export function collectReviveEntries(
     const group = state.destroyGroup
     const result: { effectId: string; sourceName: string }[] = []
     for (const entry of found) {
+        if (context?.suppressOwnEffects && entry.sourceInstanceId === undefined) continue
         if (group && entry.sourceInstanceId !== undefined && entry.perDestroyed !== true) {
             const key = `${entry.sourceInstanceId}:${entry.effectId}`
             if (group.used.includes(key)) continue

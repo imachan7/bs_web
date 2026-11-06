@@ -137,11 +137,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
-          kind: "targetNegateByHandDiscard" // 持ち主のfamilyFilter一致スピリットが相手のスピリットの効果の対象になるたび、手札をdiscardCount枚破棄してその効果を受けない
-          // probing（候補列挙）では払わない＝対象にはなる。「〜することで」は任意コストだが、確認を都度出すと解決が止まるため常に支払う簡略化（手札0枚なら免除）。破棄は手札末尾から
+          kind: "targetNegateByHandDiscard" // 持ち主の対象スピリットが、相手の bySourceType(s) の効果の対象になるたび、手札をdiscardCount枚破棄してその効果を受けない
+          // 払うかは対象1体ごとに守る側へ確認する（askPayToNegateIfNeeded）。probing（候補列挙）では払わない＝対象にはなる。非対話（テスト・自動解決）だけ払える限り自動で払う（破棄は手札末尾から）
           levels: number[] | null
-          familyFilter: FamilyFilter
-          bySourceType: "spirit" // 相手のスピリットの効果のみ
+          familyFilter?: FamilyFilter // 省略可。filter と併用すると両方に合うものだけ
+          filter?: ResolvedTargetFilter // 受け手（持ち主のスピリット）の絞り込み
+          bySourceType?: "spirit" // bySourceTypes の旧書式（BS08-055）。どちらか1つを書く
+          bySourceTypes?: CardType[]
           discardCount: number
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" }
       }
@@ -485,6 +487,7 @@ export type EffectDefContinuous =
           kind: "effectGrant" // 持ち主の対象スピリットに付与
           levels: number[] | null
           target: "ownAll"
+          filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordGrant の filter と同じ判定。コスト下限・合体していない等）
           nameIncludes?: string // 省略時は自分のスピリットすべて（発生源自身も一致すれば含む）
           colorFilter?: Color
           familyFilter?: FamilyFilter

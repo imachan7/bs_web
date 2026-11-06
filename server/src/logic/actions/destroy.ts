@@ -3,7 +3,7 @@
 import { coreRemovalAllowed } from "../coreGate"
 import { kyokaBonus } from "../keywords/kyoka"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
-import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
+import type { CardInstance, CardType, Color, DestroyContext, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { createInstance, currentLevel, draw, findNexus, getCard, instMinLevelCores, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
 import {
     applyBothSidesRedirectToCandidates,
@@ -142,7 +142,15 @@ function fixedCount(a: DestroyAction, count: number, append = false): DestroyAct
 const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId, chosenOption } = ctx
     // 後続の動作へ印を持ち越さないよう、この破壊だけのコピーに付ける
-    const destroyContext = action.suppressOnDestroy ? { ...ctx.destroyContext, suppressOnDestroy: true as const } : ctx.destroyContext
+    const marks: Partial<DestroyContext> = {
+        ...(action.suppressOnDestroy || action.suppressOwnEffects ? { suppressOnDestroy: true as const } : {}),
+        ...(action.suppressOwnEffects ? { suppressOwnEffects: true as const } : {}),
+        ...(action.braveCantRemain ? { braveCantRemain: true as const } : {}),
+    }
+    const marked = Object.keys(marks).length > 0
+    const destroyContext = marked ? { ...ctx.destroyContext, ...marks } : ctx.destroyContext
+    // all／anySide など ctx.destroyContext を直接読む経路にも印を届ける
+    if (marked && !(Object.keys(marks) as (keyof DestroyContext)[]).every((k) => ctx.destroyContext?.[k] === true)) return destroyHandler({ ...ctx, destroyContext }, action)
         if (action.all) {
             destroyAllTargets(ctx, action)
             return

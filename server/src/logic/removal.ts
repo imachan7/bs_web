@@ -598,6 +598,7 @@ export function commitPendingDestruction(
     // ⚠️ ここでは「フィールドに残る／戻る」を試さない。**破壊で誘発した効果の列の1項目**として
     // 既に解決済みだから（docs/design/TIMING_CHART.md）。列で復活が成立していれば
     // applyRevived が pendingDestruction を消しているので、この関数は上の行で抜けている
+    const braveCantRemain = inst.pendingDestroyContext?.braveCantRemain === true
     delete inst.pendingDestroyContext
     delete inst.pendingDestroyAllowSuspend
     delete inst.skipReviveOnCommit
@@ -682,7 +683,7 @@ export function commitPendingDestruction(
     delete inst.pendingDestruction
     // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
     // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
-    detachBravesOnLeave(state, ownerPid, inst)
+    detachBravesOnLeave(state, ownerPid, inst, false, "trash", braveCantRemain)
 }
 
 // globalConstraint "bp0DestroyedToDeckBottom"。発生源は破壊された側から見た相手のフィールドにある
@@ -1316,6 +1317,18 @@ function bouncesToDeckTop(state: GameState): boolean {
     return timedPlayerRules(state, pid).some((c) => c.type === "bounceToDeckTopForPid")
 }
 
+// return アクションの braveCantRemain を、その解決の間だけ markBounce へ届ける（戻す経路が多く、引数で通すと全部の呼び出しを直すことになる）
+let bounceBraveCantRemain = false
+export function withBounceBraveCantRemain(on: boolean, run: () => void): void {
+    const saved = bounceBraveCantRemain
+    bounceBraveCantRemain = on
+    try {
+        run()
+    } finally {
+        bounceBraveCantRemain = saved
+    }
+}
+
 export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
@@ -1338,7 +1351,7 @@ export function markBounce(
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
     // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     const srcPid = state.currentEffectSource?.pid
-    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}) }
+    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}), ...(bounceBraveCantRemain ? { braveCantRemain: true as const } : {}) }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
     return true
@@ -1375,7 +1388,7 @@ export function flushBounces(state: GameState, order?: string[]): void {
             player.reserve += inst.cores
             // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残すかの確認は全員を移し終えてから出す
             // （途中で確認の中断を立てると、その後の移動で盤面が変わる。smoke part778 の場面25）
-            detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to)
+            detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to, pb.braveCantRemain === true)
             delete inst.pendingBounce
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)

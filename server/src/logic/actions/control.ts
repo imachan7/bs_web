@@ -19,6 +19,7 @@ import { summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
 import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { claimOnce } from "../oncePerTurn"
 import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
@@ -279,6 +280,10 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
         : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
               countEffectCounter(state, owner, self, cond.count, srcType),
           )
+    if (met && action.oncePerTurn !== undefined && self !== null && !claimOnce(state, owner, self, { id: action.oncePerTurn }, "triggeredUsedTurn")) {
+        log(state, `${sourceName}：このターンはすでに使っている。`)
+        return
+    }
     const branch = met ? action.then : action.else
     if (branch === undefined) {
         log(state, `${sourceName}：条件を満たさなかった。`)
@@ -499,7 +504,7 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     const found = findSpiritAny(state, action.targetInstanceId)
     if (!found) {
         // 聞いている間に対象が場を離れた。払わせずに元の処理へ戻す（そちらが「対象がいない」を出す）
-        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
+        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId, sourceColors: ctx.srcColors, sourceType: ctx.srcType })
         return
     }
     const defender = state.players[found.pid]
@@ -517,7 +522,8 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     }
     // **対象を明示的に渡し直す**（ctx.resolve は targetInstanceId を暗黙には引き継がない。
     // 渡さないと元のアクションが「対象指定なし」の経路に落ちて、別のスピリットを巻き込む）
-    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
+    // 発生源の種別・色も渡し直す（落とすと耐性判定が発生源種別を見られず、払ったのに効果を受ける）
+    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId, sourceColors: ctx.srcColors, sourceType: ctx.srcType })
     return
 }
 

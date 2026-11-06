@@ -1,0 +1,300 @@
+[
+  {
+    "cardId": "BS22-016",
+    "name": "魔剣使プリシラ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "剣使",
+      "夜族"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3\n『このスピリットの召喚時』効果を持つスピリットすべては、フィールドから手札/デッキに戻らない。\n【合体時】Lv2･Lv3『このスピリットのアタック時』\n疲労状態の相手のスピリット1体を破壊する。\nこの効果で合体スピリットを破壊したとき、ブレイヴはフィールドに残せない。",
+    "effects": [
+      {
+        "id": "BS22-016-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "draw",
+          "count": 1
+        },
+        "optional": false
+      },
+      {
+        "id": "BS22-016-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "rested": true
+          },
+          "braveCantRemain": true
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-018",
+    "name": "魔王バロール",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 9,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "魔神"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 8,
+        "bp": 16000
+      }
+    ],
+    "symbol": [
+      "purple",
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコスト13以下の合体スピリットすべてを分離させる。\nただし、分離するときのコアの移動は持ち主が行う。\nLv1･Lv2･Lv3\nコスト7以下のスピリットすべては合体できない。\nLv2･Lv3『このスピリットのアタック時』\n疲労状態の相手のスピリット1体を破壊することで、自分はデッキから2枚ドローする。",
+    "effects": [
+      {
+        "id": "BS22-018-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "detachOpponentBrave",
+          "allHosts": true,
+          "side": "both",
+          "filter": {
+            "combined": true,
+            "cost": {
+              "max": 13
+            }
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "BS22-018-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "filter": {
+          "cost": {
+            "max": 7
+          }
+        },
+        "constraint": {
+          "type": "cantCombine"
+        }
+      },
+      {
+        "id": "BS22-018-e3",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "opponentAll",
+        "filter": {
+          "cost": {
+            "max": 7
+          }
+        },
+        "constraint": {
+          "type": "cantCombine"
+        }
+      },
+      {
+        "id": "BS22-018-e4",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroy",
+            "count": 1,
+            "filter": {
+              "rested": true
+            }
+          },
+          "then": {
+            "type": "draw",
+            "count": 2
+          }
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-068",
+    "name": "万魔の霊廟",
+    "type": "nexus",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このネクサスの配置時』\n合体スピリットの系統：「剣刃」を持たないブレイヴすべてを分離させる。\nただし、分離するときのコアの移動は持ち主が行う。\nLv1\nコスト4/6/7のスピリットすべては合体できない。",
+    "effects": [
+      {
+        "id": "BS22-068-e1",
+        "kind": "triggered",
+        "trigger": "onDeploy",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "detachOpponentBrave",
+          "allHosts": true,
+          "side": "both",
+          "filter": {
+            "combined": true
+          },
+          "braveFilter": {
+            "familyExclude": "剣刃"
+          }
+        },
+        "optional": false
+      },
+      {
+        "id": "BS22-068-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          1
+        ],
+        "target": "ownAll",
+        "filter": {
+          "cost": {
+            "in": [
+              4,
+              6,
+              7
+            ]
+          }
+        },
+        "constraint": {
+          "type": "cantCombine"
+        }
+      },
+      {
+        "id": "BS22-068-e3",
+        "kind": "constraintGrant",
+        "levels": [
+          1
+        ],
+        "target": "opponentAll",
+        "filter": {
+          "cost": {
+            "in": [
+              4,
+              6,
+              7
+            ]
+          }
+        },
+        "constraint": {
+          "type": "cantCombine"
+        }
+      }
+    ]
+  }
+]

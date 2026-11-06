@@ -1,0 +1,230 @@
+[
+  {
+    "cardId": "BS22-034",
+    "name": "戦術機神コナン・バウル",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "武装"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2【重装甲：紫/緑/白】\nこのスピリットは、相手の紫/緑/白のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv1･Lv2『相手のアタックステップ』\n相手のスピリットがアタックしたとき、系統：「武装」を持つ自分のスピリット1体を回復させる。\nLv2『このスピリットのブロック時』\nアタックしている相手の合体スピリットのブレイヴ1つを手札に戻すことができる。",
+    "effects": [
+      {
+        "id": "BS22-034-e1",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          1,
+          2
+        ],
+        "colors": [
+          "purple",
+          "green",
+          "white"
+        ]
+      },
+      {
+        "id": "BS22-034-e2",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "opponent",
+        "subjectSide": "opponent",
+        "selfMode": "source",
+        "action": {
+          "type": "refresh",
+          "filter": {
+            "family": [
+              "武装"
+            ]
+          },
+          "count": 1
+        }
+      },
+      {
+        "id": "BS22-034-e3",
+        "kind": "triggered",
+        "trigger": "onBlock",
+        "levels": [
+          2
+        ],
+        "eventTarget": "ignore",
+        "optional": true,
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "target": "opponentBrave",
+          "battlingOnly": true
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-062",
+    "name": "獣爆マナティ・マローダ",
+    "type": "brave",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n相手のスピリット1体を手札に戻す。\nこの効果で合体スピリットが手札に戻るとき、ブレイヴはフィールドに残せない。\n合体条件：コスト4以上",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    },
+    "braveConditionText": "コスト4以上",
+    "effects": [
+      {
+        "id": "BS22-062-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "return",
+          "to": "hand",
+          "count": 1,
+          "braveCantRemain": true
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-070",
+    "name": "水銀海に浮かぶ工場島",
+    "type": "nexus",
+    "colors": [
+      "white",
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "white",
+      "white",
+      "purple"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "white",
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『相手のターン』\n相手の効果で相手の手札が増えたとき、増えたカード1枚につき、相手は、相手の手札1枚を破棄する。\nLv2\n自分の紫/白のスピリットすべてに“【重装甲：紫/白】このスピリットは、相手の紫/白のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない”を与える。",
+    "effects": [
+      {
+        "id": "BS22-070-e1",
+        "kind": "fieldEvent",
+        "event": "opponentHandAdded",
+        "levels": [
+          1,
+          2
+        ],
+        "turn": "opponent",
+        "sourceTypes": [
+          "spirit",
+          "brave",
+          "nexus",
+          "magic"
+        ],
+        "repeatPerCount": true,
+        "action": {
+          "type": "discard",
+          "from": "hand",
+          "side": "opponent",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS22-070-e2",
+        "kind": "keywordGrant",
+        "levels": [
+          2
+        ],
+        "keyword": "heavyArmor",
+        "colors": [
+          "purple",
+          "white"
+        ],
+        "target": "ownAll",
+        "filter": {
+          "color": [
+            "purple",
+            "white"
+          ]
+        }
+      }
+    ]
+  }
+]

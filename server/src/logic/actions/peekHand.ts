@@ -28,6 +28,7 @@ const peekOpponentBurstHandler: ActionHandler<"peekOpponentBurst"> = (ctx) => {
         return
     }
     state.players[owner].peekedOpponentBurstCardId = target.burst
+    recordMoved(state, [target.burst]) // 「コスト6以上のとき破棄」など、見た内容で続きを分けるため（見た本人だけが知る内容は log に出さない）
     log(state, `${state.players[owner].name}は${target.name}のバーストの内容を見た。`)
 }
 

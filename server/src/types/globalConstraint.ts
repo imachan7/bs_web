@@ -34,6 +34,7 @@ export type GlobalConstraintDef =
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営）
     | { type: "combinedBraveIndestructible" } // 発生源自身（このスピリット）に合体中のブレイヴは破壊されない（BS19-040【合体時】「このスピリットのブレイヴは破壊されない」）。ブレイヴだけを破壊する効果は不発。合体元が破壊されてもブレイヴは「残す」の確認なしで場に残る（コアの支払いは通常の残す手順と同じ）
+    | { type: "braveCostZero" } // 両陣営の合体スピリットのコストからブレイヴ分を引く（BS22-050）
     | { type: "braveBpBonusZero"; side?: "opponent" } // side:"opponent" は発生源の持ち主から見た相手の合体スピリットだけ（省略時は両陣営）。両陣営の合体スピリットの「合体時BP+」（braveBpBonus）を0にする。ブレイヴ自体のLv判定は変えない＝加算値だけ無視する。主語が無いので両陣営が対象
     | { type: "lifeDamagePerSpiritPerTurn"; max: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計は max まで（アタック・効果を合算。CardInstance.lifeDealtThisTurn で判定。ownLifeDamageCapPerSourcePerTurn と同じ記録だが、こちらは発生源の陣営を問わずお互いに効く）。effect.whileOwnBurstSet で絞れる。shared/rules.lifeDamagePerSpiritRemaining
     | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number; minSymbols?: number } // 発生源の持ち主だけを守る片側型。相手のスピリット1体（アタッカー個体）ごとのターン累計で max までしか減らされない（1回のアタックで max 個ずつの capLifeDamageThisTurn とは別物）。ターン終了でリセット。shared/rules.ownLifeDamageCapRemaining

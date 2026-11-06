@@ -11,7 +11,7 @@ import { card } from "../cardDb"
 import { effectiveBp } from "./bp"
 import { activeConstraints, hasTimedUnblockable, trashCardEffectsDisabled } from "./constraints"
 import { matchesFamilyFilter, spiritHasFamily, spiritHasKeyword, spiritHasKeywordOrLabel } from "./keywordState"
-import { currentLevel, effectActiveAtLevel, instAllCosts, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
+import { bravesOf, currentLevel, effectActiveAtLevel, instAllCosts, instBaseCost, instColors, instHasColor, instHasTriggerEffect, instInShinkaihoState, instIsCombined, instIsVanilla, staticKeywordCount } from "./level"
 import { instanceSymbolCount } from "./symbols"
 
 // ---- 対象選択の絞り込み（TargetFilter） ----
@@ -64,6 +64,8 @@ export function matchesTarget(
     if (filter.minLevel !== undefined && currentLevel(inst).level < filter.minLevel) return false
     // 合体しているか（BS10。docs/design/BRAVE.md）。true=合体スピリット／false=合体していない
     if (filter.combined !== undefined && instIsCombined(inst) !== filter.combined) return false
+    // 合体しているブレイヴの系統（ホスト自身の系統は見ない。BS22-067）
+    if (filter.braveFamily !== undefined && !bravesOf(board.players[ownerPid], inst).some((b) => matchesFamilyFilter(board, ownerPid, b, filter.braveFamily!))) return false
     // スピリット状態のブレイヴ＝カード種別がブレイヴで、合体していない個体。
     // 合体中のブレイヴは field.combinedBraves にいて field.spirits の走査に入らないので、
     // ここへ来る時点で「スピリット状態」だが、braveCombined でも二重に確かめておく

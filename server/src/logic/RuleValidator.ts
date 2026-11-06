@@ -176,6 +176,7 @@ export function validateSummon(
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
         if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
         if (!canCombineBraveCount(state, pid, host, cardId)) return "そのスピリットには既にブレイヴが合体しています"
+        if (activeConstraints(state, pid, host).some((c) => c.type === "cantCombine")) return "そのスピリットは合体できません"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
         if (level !== undefined && level !== 1) return "ダイレクトブレイヴではレベルを指定できません"

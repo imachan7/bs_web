@@ -193,6 +193,8 @@ export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: CardType
     suppressOnDestroy?: true
+    suppressOwnEffects?: true // suppressOnDestroy に加え、破壊された個体自身の「フィールドに残る／戻る」も出さない（BS22-054。【不死】やほかのカードの効果は止めない。2026-11-07 ユーザー確認）
+    braveCantRemain?: true // 合体スピリットが破壊されるとき、ブレイヴを残す確認を出さずトラッシュへ（BS22-016）
     sourceColors?: Color[] // 破壊を引き起こした効果の発生源の色（「相手の**赤の**スピリット/マジックの効果では破壊されない」の判定用。SD01-032 機械神の加護）
     sourceCardId?: string // 破壊を引き起こした効果の発生源のカードID（マジックは self が無いので cardId で系統を引く。26RBS01-105）
     sourceInstanceId?: string // 破壊を引き起こした効果の発生源インスタンスID。
@@ -292,8 +294,9 @@ export type TimedRecord = {
         | { kind: "player"; pid: PlayerId } // プレイヤーに掛かるもの（そのプレイヤーの誘発すべてを止める、など）
         | { kind: "battle" } // このバトルの解決方法（比べるもの・勝敗の逆転）。until は "battle"（「このターンの間」なら "turn"＝以後のバトルすべて）
         | { kind: "braveHost"; braveInstanceId: string } // そのブレイヴがいま合体しているホスト。読むたびに引き直す（分離したら誰にも当たらない）
-    until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" // beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
+    until: "turn" | "battle" | "attack" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock" | "effect" // effect＝一番外側の効果の解決が終わる（選択待ちで止まっていない）ときに消える（resolveAction）。 beforeBlock＝そのアタックのブロック宣言前のフラッシュの間だけ効く（ブロックが宣言されたら効かなくなり、バトル終了で消える）。 step＝いまのステップの終わりで消える（PhaseManager.endStepScoped）。attack＝対象の個体がアタックしたバトルの終了かターン終了の早い方で消える（「ターンに1回」）。nextRefresh＝ターン終了では消えず、対象のプレイヤー（個体なら持ち主）の次のリフレッシュステップで使って消える
     ownerPid: PlayerId
+    sourceInstanceId?: string // 発生源が場を離れたら効かなくなる記録だけが付ける（braveBpBonusZero）
     sourceType?: CardType // amountCounter を数え直すとき、数える効果の発生源の種別（スリーカードの sourceTypes 判定に要る）
     sourceColors?: Color[] // 「すべて」の Lv の置き換えを計算し直すたびに耐性（装甲を含む）を判定するため
 }

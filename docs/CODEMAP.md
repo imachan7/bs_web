@@ -130,6 +130,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
 - `refreshBlockedByRule`（fn）：「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
+- `braveCostZeroFor`（fn）：合体スピリットのコストからブレイヴ分を引くか（050 の継続・054 の期間つき）。refreshLevelAsOverrides が braveComposite を組むときに読…
 - `braveBpBonusZeroFor`（fn）：「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
@@ -915,6 +916,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `returnNexusToDeckBottom`（fn）：ネクサスを持ち主のデッキの下（末尾）へ戻す。代替召喚コストの支払い（デッキの下へ戻すことでコスト不要で召喚）に使う。破壊ではないため onDestroy は誘発しない
 - `returnNexusToDeckTop`（fn）：ネクサスを持ち主のデッキの上へ戻す（returnNexusToDeckBottom のデッキ上版）。破壊ではないため onDestroy は誘発しない
 - `returnSpiritToHand`（fn）：**その場では移さず、バウンス待機状態にするだけ**（バトスピ Wiki「バウンスについて」）。
+- `withBounceBraveCantRemain`（fn）
 - `markBounce`（fn）
 - `flushBounces`（fn）：バウンス待機状態のカードを実際に手札／デッキへ移し、そのあとで誘発をまとめて発揮する。バウンス効果の解決が終わった時点で呼ぶ。
 - `fireBounceTriggers`（fn）：移動後の誘発をまとめて発揮する。**選択待ちで中断したら残りを再開スタックへ送る**

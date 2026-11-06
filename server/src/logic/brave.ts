@@ -81,7 +81,7 @@ export function detachBraveByEffect(state: GameState, ownerPid: PlayerId, host: 
 // 「場を離れるとき」と同じ手順（§6.3）に乗せ、持ち主に「残すか・どのコアを置くか」を聞く。
 // ⚠️ 自分の効果による分離（detachBraveByEffect。コア不要）とは別の手順。
 // ホストはそのまま場に残るので、バトル中でもブレイヴがバトルを引き継ぐことはない
-export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance): void {
+export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, host: CardInstance, brave: CardInstance, deferKeeps = false): void {
     const player = state.players[ownerPid]
     // BS13-005強暴竜ディラノ・レックス：【超覚醒】を持つ自分の合体スピリットは分離できない（相手の効果でも同じ）
     if (activeConstraints(state, ownerPid, host).some((c) => c.type === "cantSeparate")) {
@@ -96,7 +96,7 @@ export function detachBraveByOwnerChoice(state: GameState, ownerPid: PlayerId, h
     state.pendingBraveKeeps = [...(state.pendingBraveKeeps ?? []), { pid: ownerPid, brave, wasAttacker: false, wasBlocker: false }]
     log(state, `${player.name}の${getCard(host.cardId).name}は分離させられた。`)
     refreshLevelAsOverrides(state)
-    flushBraveKeeps(state)
+    if (!deferKeeps) flushBraveKeeps(state)
 }
 
 // globalConstraint "combinedBraveIndestructible"（BS19-040【合体時】）：host 自身が
@@ -235,7 +235,8 @@ export function detachBravesOnLeaveFree(state: GameState, ownerPid: PlayerId, ho
 
 // deferKeeps：残すかの確認（flushBraveKeeps）を呼び出し側に任せる。まとめて移す途中で確認の中断を立てないため（flushBounces）。
 // dest：残さないときの行き先＝ホストの行き先（BRAVE.md §6.3.2）
-export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance, deferKeeps = false, dest: BraveLeaveDest = "trash"): void {
+// noKeep：効果が「ブレイヴはフィールドに残せない」を指定している。確認を出さず、ホストと同じ領域へ（BRAVE.md §6.3.2。BS22-016・062）
+export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: CardInstance, deferKeeps = false, dest: BraveLeaveDest = "trash", noKeep = false): void {
     const player = state.players[ownerPid]
     const braves = bravesOf(player, host)
     if (braves.length === 0) return
@@ -256,7 +257,7 @@ export function detachBravesOnLeave(state: GameState, ownerPid: PlayerId, host: 
         brave.isRested = host.isRested
         state.pendingBraveKeeps = [
             ...(state.pendingBraveKeeps ?? []),
-            { pid: ownerPid, brave, wasAttacker, wasBlocker, ...(forcedKeep ? { forced: true } : {}), ...(dest !== "trash" ? { dest } : {}) },
+            { pid: ownerPid, brave, wasAttacker, wasBlocker, ...(forcedKeep ? { forced: true } : {}), ...(noKeep ? { noKeep: true as const } : {}), ...(dest !== "trash" ? { dest } : {}) },
         ]
     }
     refreshLevelAsOverrides(state)
@@ -285,6 +286,11 @@ export function flushBraveKeeps(state: GameState): void {
     state.pendingBraveKeeps?.sort((a, b) => Number(b.pid === state.turnPlayer) - Number(a.pid === state.turnPlayer))
     while (!state.pendingChoice && (state.pendingBraveKeeps?.length ?? 0) > 0) {
         const entry = state.pendingBraveKeeps![0]!
+        if (entry.noKeep && !entry.forced) {
+            state.pendingBraveKeeps!.shift()
+            sendUnkeptBrave(state, entry, "残せないため")
+            continue
+        }
         if (state.interactiveTargets && !entry.picked && askBraveKeepOrder(state, entry.pid)) return
         const player = state.players[entry.pid]
         const need = braveKeepCores(entry.brave)
