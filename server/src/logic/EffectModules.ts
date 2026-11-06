@@ -1147,6 +1147,19 @@ export function countEffectCounter(
         return instanceSymbolCount(self)
     }
     if (counter === "selfLevel") return self ? currentLevel(self).level : 0
+    // 合体中のブレイヴが self のときは合体スピリット（ホスト）のコストを数える（合体スピリットは1体）
+    if (counter === "selfCost") {
+        if (!self) return 0
+        if (self.braveCombined) {
+            for (const p of ["p1", "p2"] as const) {
+                const host = state.players[p].field.spirits.find((sp) =>
+                    (sp.braveRefs ?? []).some((r) => r.instanceId === self.instanceId),
+                )
+                if (host) return instBaseCost(host)
+            }
+        }
+        return instBaseCost(self)
+    }
     if (counter === "burstEventCost") return state.burstEventCost ?? 0
     if (counter === "blockerCost") {
         const b = state.battle?.blockerInstanceId

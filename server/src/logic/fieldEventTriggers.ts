@@ -6,7 +6,7 @@ import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
 import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, suspend, resolveInOrder } from "./GameState"
-import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, matchesTarget } from "../../../shared/rules"
+import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
 import { fireBurstOnEvent } from "./keywords/burst"
@@ -246,9 +246,17 @@ export function fireFieldEventTriggers(
                     if (causeType === undefined || !effect.sourceTypes.includes(causeType)) continue
                 } else if (causeType !== "spirit" && causeType !== "brave") continue
             }
-            // bySelfEffectOnly（event:"opponentSpiritBpReachedZero" 限定）：BPを下げた効果の発生源が
-            // この発生源自身の効果だったか（recordBp が残した原因のinstanceIdで判定）
-            if (effect.bySelfEffectOnly && eventInfo?.sourceInstanceId !== inst.instanceId) continue
+            // bySelfEffectOnly（event:"opponentSpiritBpReachedZero"・"opponentDeckMilled"）：
+            // 出来事の原因がこの発生源自身の効果だったか。合体スピリットは1体なので、
+            // 発生源が合体中のブレイヴならホストの効果も「このスピリットの効果」であり、
+            // その逆（発生源がホストでブレイヴの効果）も同じ（BS21_PLAN §2 の8）
+            if (effect.bySelfEffectOnly) {
+                const causeId = eventInfo?.sourceInstanceId
+                if (causeId === undefined) continue
+                const host = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                const ownEffectIds = new Set([host.instanceId, ...bravesOf(player, host).map((b) => b.instanceId)])
+                if (!ownEffectIds.has(causeId)) continue
+            }
             if (effect.subjectMinCost !== undefined) {
                 if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { min: effect.subjectMinCost })) continue
             }
@@ -288,8 +296,12 @@ export function fireFieldEventTriggers(
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
             if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
-            // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ
-            if (effect.duringSelfAttack && state.battle?.attackerInstanceId !== inst.instanceId) continue
+            // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ。
+            // 合体中のブレイヴが発生源ならアタッカーはホスト（合体スピリットは1体）
+            if (effect.duringSelfAttack) {
+                const selfAttacker = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                if (state.battle?.attackerInstanceId !== selfAttacker.instanceId) continue
+            }
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚・BS12-023ウドウ）：
             // 自分の効果による破壊・発生源が不明な破壊・バトルでの破壊では発火しない（「相手によって」は byOpponentOnly）
             if (effect.byOpponentEffectOnly && !(eventInfo?.byOpponentEffect && !eventInfo.byBattle)) continue

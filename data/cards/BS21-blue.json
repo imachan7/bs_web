@@ -98,6 +98,98 @@
     ]
   },
   {
+    "cardId": "BS21-054",
+    "name": "英傑巨人ヘラクラス",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 6,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "purple"
+    ],
+    "family": [
+      "闘神",
+      "星魂"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 10000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n相手の効果によって相手の手札が増えたとき、増えたカード1枚につき、相手のデッキを上から1枚破棄する。\nLv2･Lv3『自分のアタックステップ』\n系統：「星魂」を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のデッキを上から、そのスピリットのコストと同じ枚数破棄する。",
+    "effects": [
+      {
+        "id": "BS21-054-e1",
+        "kind": "fieldEvent",
+        "event": "opponentHandAdded",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "sourceTypes": [
+          "spirit",
+          "brave",
+          "nexus",
+          "magic"
+        ],
+        "repeatPerCount": true,
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS21-054-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDealtLife",
+        "levels": [
+          2,
+          3
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "subjectFilter": {
+          "family": [
+            "星魂"
+          ]
+        },
+        "action": {
+          "type": "discard",
+          "from": "deck",
+          "side": "opponent",
+          "count": 1,
+          "countCounter": "selfCost"
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS21-065",
     "name": "ダイブ・アームズ",
     "type": "brave",

@@ -98,7 +98,7 @@ export function resolveFunsai(
     // funsai:true は **ここだけ**が立てる（BS08鳳翼の聖剣Lv2「【粉砕】以外の」の判定用。
     // discard{from:"deck"} は効果文で「デッキを破棄する」と書かれた通常の効果なので立てない）
     // 【粉砕】も【強化】（青）のデッキ破棄効果の枚数に含まれる（Q757）
-    const actual = millDeck(state, opponentPid, level + bonus + kyokaBonus(state, ownerPid, "deckMill"), ownerPid, { sourceType: "spirit", funsai: true })
+    const actual = millDeck(state, opponentPid, level + bonus + kyokaBonus(state, ownerPid, "deckMill"), ownerPid, { sourceType: "spirit", funsai: true, sourceInstanceId: spirit.instanceId })
     // 山札が破棄されない間も【粉砕】は0枚の破棄として成立する（2026-10-23 ユーザー確認）。後続は0枚として動く
     if (actual === 0 && hasGlobalConstraint(state, "noDeckMill")) {
         state.lastFunsai = { total: 0, spirits: 0, nexuses: 0, magics: 0, costAtLeast4: 0, bursts: 0 }

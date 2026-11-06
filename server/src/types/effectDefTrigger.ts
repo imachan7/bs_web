@@ -220,7 +220,7 @@ export type EffectDefTrigger =
           colorFilter?: Color // ownNexusDestroyed 限定（主体が selfOverride を持たず eventColors で渡す）。ほかのイベントは subjectFilter.color
           sourceColorFilter?: Color // 「相手のこの色の〜の効果によって」起きたときだけ（currentEffectSource で判定）。colorFilter はイベント対象、こちらは効果の発生源の色
           sourceTypes?: CardType[] // event:"opponentHandAdded"＝「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み（currentEffectSource で判定。効果によらない増加＝ドローステップ等では発火しない。BS19-088）。event:"opponentSpiritExhaustedByOwnSpiritEffect"＝疲労させた効果の種別（eventInfo.causeType で判定。省略時はスピリット/ブレイヴの効果だけ）
-          bySelfEffectOnly?: true // event:"opponentSpiritBpReachedZero" 限定。発生源自身の効果でBP0になったときだけ発火（BPを下げた効果の発生源instanceIdで判定。効果によらないBP0到達では発火しない）
+          bySelfEffectOnly?: true // event:"opponentSpiritBpReachedZero"・"opponentDeckMilled"。発生源自身（合体中なら合体スピリット全体）の効果で起きたときだけ発火（出来事に渡した原因の発生源instanceIdで判定。原因が渡されない出来事では発火しない）
           ignoreEventTarget?: true // resolveActionにtargetInstanceIdを渡さない
           selfMode?: "source" // self にイベント対象でなく発生源インスタンス自身を渡す
           bpReachedAt?: number // ownSpiritBpReached 限定。前回BP < この値 <= 今回BP のときだけ
@@ -238,7 +238,7 @@ export type EffectDefTrigger =
           attackerOnly?: true // ownSpiritDestroyed 限定
           byAttackOnly?: true // ownLifeDamaged 限定。「相手のスピリットのアタックによって」ライフが減ったときだけ。
           // 効果によるライフ減少（lifeCrush 等）では発火しない。アタックによる減少は targetInstanceId にアタッカーが渡ることで区別する
-          duringSelfAttack?: true // 発生源自身が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero で使う）
+          duringSelfAttack?: true // 発生源自身（合体中のブレイヴならホスト）が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero・opponentDeckMilled で使う）
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
           byOpponentOnly?: true // ownSpiritDestroyed | ownSpiritReturnedToHand 限定。後者は相手の効果で戻るときだけ（持ち主が自分の効果で戻すときは発火しない）

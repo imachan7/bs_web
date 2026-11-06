@@ -81,7 +81,7 @@ export type GlobalConstraintDef =
     // 条件を満たすスピリットカードを召喚するときコストを amount だけ余分に支払う
     // （maxCost＝カード記載コストがこれ以下のもの限定／keywordExclude＝そのキーワードを持たないもの限定）
     | { type: "noSummonTriggerByCost"; maxCost?: number; side?: "opponent" } // お互い、コストが maxCost 以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす）。maxCost 省略時はコストを問わずすべて。エントリの phase / turn を書けばその区間だけ有効。side:"opponent" 指定時は発生源の持ち主から見た相手のスピリット/ブレイヴだけが対象（既定は両陣営）
-    | { type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[]; side?: "opponent" | "both" } // side:"both" で発生源の持ち主にも掛かる（省略時は相手だけ）。max:0 はコアが1個も増えない（ボイド→ライフも対象。2026-10-23確認）。発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）
+    | { type: "coreGainCap"; max: number; sourceTypes?: ("spirit" | "brave" | "nexus" | "magic")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[]; side?: "opponent" | "both" } // side:"both" で発生源の持ち主にも掛かる（省略時は相手だけ）。max:0 はコアが1個も増えない（ボイド→ライフも対象。2026-10-23確認）。発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）。sourceTypes 省略時は原因を問わない（効果によらない動きも含む。エントリの phase / turn でステップを絞る。BS21-013）
     | { type: "noReductionGrantToHand"; sourceTypes: CardType[] } // お互い、sourceTypes の種別のカードの効果では、手札のカードに軽減シンボルを増やせない（付与だけ止める。印刷の軽減・軽減そのものは止めない。2026-10-23 ユーザー確認）
     | { type: "noVoidToLife" } // お互い、ボイドからライフにコアを置けない（placeCores の void→life を落とす。【聖命】も止まる）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストが maxCost 以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（カード静的なコスト＝軽減前の値で判定）
