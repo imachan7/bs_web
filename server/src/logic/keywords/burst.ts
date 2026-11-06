@@ -3,6 +3,7 @@ import { handGainDenial } from "../handGate"
 import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
+import { negateBurstActivation } from "../burstNegate"
 import { withEffectTax } from "../effectTax"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
@@ -273,7 +274,7 @@ export function fireEventBursts(state: GameState, checks: EventBurstCheck[]): vo
 // セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
 // プレイヤーに掛かるコスト（発動の支払いなど）は耐性で防げない（Q7016）ので、ここには入れない。
 // 今のカードプールに該当カードは無い。カードデータに耐性の欄が入ったらここで読む
-function burstCardIgnoresEffects(_cardId: string): boolean {
+export function burstCardIgnoresEffects(_cardId: string): boolean {
     return false
 }
 
@@ -417,6 +418,7 @@ export function fireBurstOnEvent(
             }
             return
         }
+        if (negateBurstActivation(state, holderPid, burstCardId, { kind: "card", ignoreCondition: false })) continue
         announceBurstActivation(state, holderPid, burstCardId)
         const before = fieldInstanceIdsOf(state, holderPid)
         // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
@@ -464,7 +466,8 @@ export function fireBurstOnEvent(
 // ignoreCondition：バースト条件を無視する発動（BS18）。発動の原因になった出来事は起きていないので、
 // 出来事の情報を読む効果（破壊されたスピリットの色・コスト、ライフを減らしたスピリット）は読む先を消して不発にする
 // 戻り値 false＝相手の「バーストを発動できない」で発動できなかった（バースト条件を無視してもカード自身の条件は残る。2026-10-23 ユーザー確認）
-export function activateBurstCard(state: GameState, owner: PlayerId, cardId: string, ignoreCondition = false): boolean {
+// negateChecked：BS21-052 の無効化を断られた後の呼び直し
+export function activateBurstCard(state: GameState, owner: PlayerId, cardId: string, ignoreCondition = false, negateChecked = false): boolean {
     const player = state.players[owner]
     const card = getCard(cardId)
     const effect = card.effects.find((e): e is Extract<EffectDef, { kind: "burst" }> => e.kind === "burst")
@@ -476,6 +479,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
     noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true
+    if (!negateChecked && negateBurstActivation(state, owner, cardId, { kind: "card", ignoreCondition })) return true
     announceBurstActivation(state, owner, cardId)
     const blocked = burstEffectBlocked(state, owner, cardId)
     const baseAction: EffectAction = (ignoreCondition || burstConditionMet(state, owner, effect.condition)) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }

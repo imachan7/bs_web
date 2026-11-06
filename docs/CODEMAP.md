@@ -606,6 +606,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じ領域へ
 - `pickBraveKeepOrder`（fn）：「これから決める」ブレイヴが選ばれた（doResolveChoice から呼ぶ）。その項目を先頭へ移す
 
+## server/src/logic/burstNegate.ts
+
+- `negateBurstActivation`（fn）：バーストが発動する全経路（発動確認の承認・非対話の自動発動・効果でめくった／条件を無視した発動）が、効果の解決とバーストカードの公開の前に呼ぶ。
+- `applyBurstNegate`（fn）：破壊することを選んだ：スピリットを破壊し、バーストカードをトラッシュへ置く（発動の後始末や「バースト発動後」の誘発は起きない）
+
 ## server/src/logic/choice.ts
 
 - `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
@@ -700,6 +705,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
+- `burstCardIgnoresEffects`（fn）：セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
 - `fireOwnLifeReducedBurst`（fn）：自分のライフが減るたびに1回だけ、セットしたバースト（条件【自分のライフ減少後】）の発動を聞く。原因は問わない（2026-11-06 ユーザー確認）。
 - `fireBurstOnEvent`（fn）
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。

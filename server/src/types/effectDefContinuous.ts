@@ -62,6 +62,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "burstActivationNegate" // 相手のバーストが発動したとき、destroyFamily の系統を持つ自分のスピリット1体を破壊して発動を無効にし破棄する（任意）。効果を受けないバーストには効かない（Q7012）
+          levels: number[] | null
+          phase?: Phase
+          destroyFamily: string
+      }
+    | {
+          id: string
           kind: "magicNegatePayByNexusGrant" // 【氷壁】の支払いを自分のネクサス1つの疲労で代替できる
           levels: number[] | null
           turn?: "own" | "opponent"
