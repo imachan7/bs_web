@@ -19,7 +19,7 @@ export function coreGainAllowance(
     from: string,
     to: string,
 ): number {
-    if (srcType === undefined || (from !== "void" && from !== "trash")) return Infinity
+    if (from !== "void" && from !== "trash") return Infinity
     if (to !== "life" && to !== "field" && to !== "reserve") return Infinity
     let remaining = Infinity
     for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
@@ -30,8 +30,15 @@ export function coreGainAllowance(
                 if (!entryActive(state, sourcePid, source, effect, level)) continue
                 const c = effect.constraint
                 if (c.side !== "both" && sourcePid === pid) continue
-                if (!c.sourceTypes.includes(srcType as "spirit" | "brave" | "nexus")) continue
-                if (!c.from.includes(from) || !c.to.includes(to)) continue
+                // sourceTypes 省略＝原因を問わない（効果によらない動きも含む）。指定時は
+                // 効果の発生源種別で絞る（srcType が無い＝効果によらない動きは対象外）
+                if (c.sourceTypes !== undefined && (srcType === undefined || !c.sourceTypes.includes(srcType))) continue
+                if (!c.from.includes(from as "void" | "trash") || !c.to.includes(to as "life" | "field" | "reserve")) continue
+                // エントリ直下の phase / turn（「お互いのメインステップ」など。hasGlobalConstraint は
+                // この軸を見ないので、ここで先回りして見る。refreshBlockedByRule と同じ形）
+                if (effect.phase !== undefined && effect.phase !== state.phase) continue
+                if (effect.turn === "own" && state.turnPlayer !== sourcePid) continue
+                if (effect.turn === "opponent" && state.turnPlayer === sourcePid) continue
                 noteCoverage(effect, "globalConstraint")
                 remaining = Math.min(remaining, c.max - (state.coreGainCountThisTurn[pid] ?? 0))
             }

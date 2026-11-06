@@ -11,6 +11,7 @@ import { TargetFilter } from "./types/targetFilter"
 import { CardInstance } from "./types/cardInstance"
 import { Keyword } from "./types/keyword"
 import { TimedContent } from "./types/timedContent"
+import type { FieldEvent } from "./types/fieldEvent"
 export type { AuraCounter } from "./types/auraCounter"
 export type { AuraCondition } from "./types/auraCondition"
 export type { PlayerState } from "./types/playerState"
@@ -69,6 +70,7 @@ export interface BraveConditionTerm {
     minCost?: number // コスト◯以上（BS10 の18枚中12枚）
     maxCost?: number // コスト◯以下
     minSymbols?: number // 合体先の場のシンボル数（instanceSymbolCount）がこれ以上
+    symbolColor?: Color // 合体先がこの色のシンボルを持つ（instanceSymbolColors。合体中ブレイヴのシンボルも含む）
     cardName?: string // カード名指定
     vanilla?: true // **効果の記述を持たない**（BS10 の18枚中6枚。判定は instIsVanilla＝継続付与の「バニラとしても扱う」も見る）
     keyword?: Keyword // このキーワードを持つ（spiritHasKeywordで判定＝一時付与・継続付与も見る。BS15-057カメン・フクロウ：「コスト4以上/【暴風】を持つ」の後半）
@@ -319,7 +321,9 @@ export type PlayerRuleDef =
     | { type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction; source?: string } // 課された側が使うマジック／発動するバーストの効果は、cost を支払わなければ発揮できない（使用・発動は成立する。effectTax.ts）。source は確認文に出す税の発生源名で、timedEffect が置くときに埋める（カードデータには書かない）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
     | { type: "cantAttackByCostForPid"; costs: number[] } // このプレイヤーのスピリットのうち、コストが配列のいずれかと一致するものはアタックできない（ブロックは可。globalConstraint opponentCantAttackByCost の期間つき版）
+    | { type: "noSpiritRefresh" } // このプレイヤーのスピリットは効果では回復しない（リフレッシュステップは通る。048『このスピリットのバトル時』の「このバトルの間」用。判定は refreshBlockedByRule）
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）
+    | { type: "noBurstActivation"; byEvent?: FieldEvent } // このプレイヤーはバーストを発動できない（セットは残る。判定は fireBurstOnEvent）。byEvent＝そのバースト条件（【自分のライフ減少後】等）のバーストだけ
 
 
 // ---- クライアントへ送る公開ビュー（相手の手札・デッキ内容は隠す） ----

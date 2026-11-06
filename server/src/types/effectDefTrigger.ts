@@ -197,6 +197,7 @@ export type EffectDefTrigger =
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効
           selfMode?: "source" // self に勝利スピリットでなく発生源インスタンス（ネクサス）を渡す
           condition?: { ownFieldOnlyColor: Color; spiritsOnly?: true }
+          noStackByName?: true // 「この効果は重複しない」（BS21_PLAN §2 の3）：同じ持ち主の同名の発生源の同じ効果idが1つの出来事で複数誘発しても、集めた候補の段階で2つ目以降を除く
       }
     | {
           id: string
@@ -218,8 +219,8 @@ export type EffectDefTrigger =
           partnerFilter?: PartnerFilter // targetInstanceId（ブロッカー・アタッカーなどの相手役）の絞り込み
           colorFilter?: Color // ownNexusDestroyed 限定（主体が selfOverride を持たず eventColors で渡す）。ほかのイベントは subjectFilter.color
           sourceColorFilter?: Color // 「相手のこの色の〜の効果によって」起きたときだけ（currentEffectSource で判定）。colorFilter はイベント対象、こちらは効果の発生源の色
-          sourceTypes?: CardType[] // event:"opponentHandAdded" 限定。「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み（currentEffectSource で判定。効果によらない増加＝ドローステップ等では発火しない。BS19-088）
-          bySelfEffectOnly?: true // event:"opponentSpiritBpReachedZero" 限定。発生源自身の効果でBP0になったときだけ発火（BPを下げた効果の発生源instanceIdで判定。効果によらないBP0到達では発火しない）
+          sourceTypes?: CardType[] // event:"opponentHandAdded"＝「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み（currentEffectSource で判定。効果によらない増加＝ドローステップ等では発火しない。BS19-088）。event:"opponentSpiritExhaustedByOwnSpiritEffect"＝疲労させた効果の種別（eventInfo.causeType で判定。省略時はスピリット/ブレイヴの効果だけ）
+          bySelfEffectOnly?: true // event:"opponentSpiritBpReachedZero"・"opponentDeckMilled"。発生源自身（合体中なら合体スピリット全体）の効果で起きたときだけ発火（出来事に渡した原因の発生源instanceIdで判定。原因が渡されない出来事では発火しない）
           ignoreEventTarget?: true // resolveActionにtargetInstanceIdを渡さない
           selfMode?: "source" // self にイベント対象でなく発生源インスタンス自身を渡す
           bpReachedAt?: number // ownSpiritBpReached 限定。前回BP < この値 <= 今回BP のときだけ
@@ -237,7 +238,7 @@ export type EffectDefTrigger =
           attackerOnly?: true // ownSpiritDestroyed 限定
           byAttackOnly?: true // ownLifeDamaged 限定。「相手のスピリットのアタックによって」ライフが減ったときだけ。
           // 効果によるライフ減少（lifeCrush 等）では発火しない。アタックによる減少は targetInstanceId にアタッカーが渡ることで区別する
-          duringSelfAttack?: true // 発生源自身が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero で使う）
+          duringSelfAttack?: true // 発生源自身（合体中のブレイヴならホスト）が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero・opponentDeckMilled で使う）
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
           byOpponentOnly?: true // ownSpiritDestroyed | ownSpiritReturnedToHand 限定。後者は相手の効果で戻るときだけ（持ち主が自分の効果で戻すときは発火しない）
@@ -296,6 +297,7 @@ export type EffectDefTrigger =
           targetSameLevelAsSelf?: true // targetInstanceIdのLvがイベント対象（selfOverride）のLvと同じときのみ。TargetFilter に主体と同じLvを表す軸が無いので partnerFilter へは寄せていない
           ownOnly?: true // anySpiritAttacked 限定
           optional?: true // 「〜できる」＝任意
+          noStackByName?: true // 「この効果は重複しない」（BS21_PLAN §2 の3）。battleWon の同名軸と同じ意味
       }
     | {
           id: string
@@ -319,7 +321,7 @@ export type EffectDefTrigger =
           id: string
           kind: "reviveOnDestroy" // 破壊される代わりに場に留まる
           levels: number[] | null
-          scope: "self" | "ownAll" | "ownNexus" // self＝このスピリット自身／ownAll＝発生源の持ち主のスピリットすべて／ownNexus＝発生源の持ち主のネクサスが破壊されるとき、そのネクサスを場に残す（発生源はネクサス。発生源自身が破壊されたときは発揮できない＝破壊待機状態では疲労できずコストが払えない。STARTER_PLAN §2.2 の2）
+          scope: "self" | "ownAll" | "ownNexus" | "chosenInstance" // self＝このスピリット自身／ownAll＝発生源の持ち主のスピリットすべて／ownNexus＝発生源の持ち主のネクサスが破壊されるとき、そのネクサスを場に残す（発生源はネクサス。発生源自身が破壊されたときは発揮できない＝破壊待機状態では疲労できずコストが払えない。STARTER_PLAN §2.2 の2）／chosenInstance＝targetChoiceLendThisTurn で選んだ1体だけ（発生源は仮想発生源）
           perDestroyed?: true // scope:"ownAll" 限定。同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）
           whileCombined?: true // scope:"self" 専用
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効

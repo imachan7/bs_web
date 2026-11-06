@@ -17,7 +17,7 @@ import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeepi
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
-import { effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
+import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
@@ -239,6 +239,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
                 state.battle?.attackerInstanceId && state.battle.blockerInstanceId === self?.instanceId ? findSpiritAny(state, state.battle.attackerInstanceId) : null,
                 normalizeFilter(ctx, { filter: cond.blockedAttacker }),
             )
+          : "selfSymbolColor" in cond
+          ? self !== null && combinedSpiritSymbolColors(state, owner, self).includes(cond.selfSymbolColor)
           : "selfBlocked" in cond
           ? state.battle !== undefined && state.battle !== null && state.battle.attackerInstanceId === self?.instanceId && state.battle.blockerInstanceId !== null
           : "opponentTurn" in cond

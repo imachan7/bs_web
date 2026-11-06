@@ -383,9 +383,16 @@ const lendSelfThisTurnHandler: ActionHandler<"lendSelfThisTurn"> = (ctx) => {
 // 対象インスタンスにした版。仮想発生源にlentChoiceInstanceIdを載せ、以後は
 // kind:"vanillaAsGrant"/"spiritEffectsDisabledGrant"のtarget:"chosenInstance"がそれを読む）
 const targetChoiceLendThisTurnHandler: ActionHandler<"targetChoiceLendThisTurn"> = (ctx, action) => {
-    const { state, owner, sourceCardId, targetInstanceId } = ctx
+    const { state, owner, targetInstanceId } = ctx
+    // 選択の答えから再開したときは ctx にマジックのカードIDが無いので、選択待ちに持たせた控えを使う
+    const sourceCardId = ctx.sourceCardId ?? action.sourceCardId
     if (targetInstanceId === undefined) {
-        const candidates = pickAnySideCandidates(state, owner, () => true)
+        const filter = normalizeFilter(ctx, action)
+        const pred = (s: CardInstance): boolean => filter !== SELF_REQUIRED && matchesTarget(state, owner, s, filter, undefined)
+        const candidates =
+            action.side === "own"
+                ? state.players[owner].field.spirits.filter((s) => !s.pendingBounce && pred(s))
+                : pickAnySideCandidates(state, owner, pred)
         if (candidates.length === 0) {
             log(state, "効果：対象がいなかった。")
             return
@@ -397,17 +404,20 @@ const targetChoiceLendThisTurnHandler: ActionHandler<"targetChoiceLendThisTurn">
                 "効果を与えるスピリットを選んでください",
                 candidates.map((s) => s.instanceId),
                 false,
-                { type: "targetChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}) },
+                { type: "targetChoiceLendThisTurn", ...(sourceCardId !== undefined ? { sourceCardId } : {}), ...(action.filter !== undefined ? { filter: action.filter } : {}), ...(action.side !== undefined ? { side: action.side } : {}) },
                 null,
             )
             return
         }
-        const found = pickAnySideByBp(state, owner, Infinity, () => true)
-        if (!found) {
+        const found =
+            action.filter === undefined && action.side === undefined
+                ? pickAnySideByBp(state, owner, Infinity, () => true)?.inst.instanceId
+                : candidates[0]!.instanceId
+        if (found === undefined) {
             log(state, "効果：対象がいなかった。")
             return
         }
-        doTargetChoiceLendThisTurn(state, owner, sourceCardId, found.inst.instanceId)
+        doTargetChoiceLendThisTurn(state, owner, sourceCardId, found)
         return
     }
     doTargetChoiceLendThisTurn(state, owner, sourceCardId, targetInstanceId)

@@ -6,10 +6,10 @@ import { markPays } from "./actions/pay"
 import { matchesPick } from "./actions/revealAction"
 import type { CardInstance, CardType, Color, EffectAction, EffectDef, FieldEvent, GameState, Keyword, PlayerId, ResolvedTargetFilter } from "../type"
 import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf, suspend, resolveInOrder } from "./GameState"
-import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, matchesTarget } from "../../../shared/rules"
+import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
-import { fireBurstOnEvent } from "./keywords/burst"
+import { fireBurstOnEvent, fireOwnLifeReducedBurst } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { revertOncePerTurn, revertDestroyGroupUsage, fireTrigger, activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
@@ -118,6 +118,9 @@ export function fireFieldEventTriggers(
         // event: "ownSpiritBpReached" 限定：前回観測したBPと今回のBP（bpReachedAt の判定に使う）
         bpFrom?: number
         bpTo?: number
+        // event: "ownLifeLost" 限定：noOwnBurst 付きの placeCores（BS21_PLAN §3 N14）で減ったライフか。
+        // その減少をきっかけにしたバーストの発動確認は、ライフが減った本人に対しては出さない
+        lifeLossByNoOwnBurst?: boolean
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
@@ -158,6 +161,8 @@ export function fireFieldEventTriggers(
         effect: Extract<EffectDef, { kind: "fieldEvent" }>
         repeatTimes: number
     }[] = []
+    // noStackByName（「この効果は重複しない」）の重複確認用。誘発が確定した候補だけを数える
+    const noStackSeen = new Set<string>()
     for (const inst of instances) {
         if (excludeInstanceIds?.includes(inst.instanceId)) continue
         const card = getCard(inst.cardId)
@@ -229,16 +234,32 @@ export function fireFieldEventTriggers(
                 if (src.pid === pid) continue
                 if (!(src.colors ?? []).includes(effect.sourceColorFilter)) continue
             }
-            // sourceTypes（event:"opponentHandAdded" 限定。BS19-088）：「相手のスピリット/マジックの効果で
-            // 相手の手札が増えた」の発生源種別の絞り込み。currentEffectSource が無い＝効果によらない
-            // 増加（ドローステップ等）では発火しない。sourceColorFilter と同じく効果の発生源側の判定
-            if (effect.sourceTypes !== undefined) {
+            // sourceTypes（event:"opponentHandAdded" と opponentSpiritExhaustedByOwnSpiritEffect）：
+            // opponentHandAdded＝「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み。
+            // currentEffectSource が無い＝効果によらない増加（ドローステップ等）では発火しない。
+            // opponentSpiritExhaustedByOwnSpiritEffect＝疲労させた効果の種別（eventInfo.causeType）の絞り込み。
+            // 省略時はスピリット/ブレイヴの効果だけ（マジックで疲労させても発火しない）
+            if (effect.sourceTypes !== undefined && event !== "opponentSpiritExhaustedByOwnSpiritEffect" && event !== "opponentSpiritCoresEmptied") {
                 const src = state.currentEffectSource
                 if (!src || src.pid === pid || src.type === undefined || !effect.sourceTypes.includes(src.type)) continue
             }
-            // bySelfEffectOnly（event:"opponentSpiritBpReachedZero" 限定）：BPを下げた効果の発生源が
-            // この発生源自身の効果だったか（recordBp が残した原因のinstanceIdで判定）
-            if (effect.bySelfEffectOnly && eventInfo?.sourceInstanceId !== inst.instanceId) continue
+            if (event === "opponentSpiritExhaustedByOwnSpiritEffect" || event === "opponentSpiritCoresEmptied") {
+                const causeType = eventInfo?.causeType
+                if (effect.sourceTypes !== undefined) {
+                    if (causeType === undefined || !effect.sourceTypes.includes(causeType)) continue
+                } else if (causeType !== "spirit" && causeType !== "brave") continue
+            }
+            // bySelfEffectOnly（event:"opponentSpiritBpReachedZero"・"opponentDeckMilled"）：
+            // 出来事の原因がこの発生源自身の効果だったか。合体スピリットは1体なので、
+            // 発生源が合体中のブレイヴならホストの効果も「このスピリットの効果」であり、
+            // その逆（発生源がホストでブレイヴの効果）も同じ（BS21_PLAN §2 の8）
+            if (effect.bySelfEffectOnly) {
+                const causeId = eventInfo?.sourceInstanceId
+                if (causeId === undefined) continue
+                const host = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                const ownEffectIds = new Set([host.instanceId, ...bravesOf(player, host).map((b) => b.instanceId)])
+                if (!ownEffectIds.has(causeId)) continue
+            }
             if (effect.subjectMinCost !== undefined) {
                 if (selfOverride === undefined || !instMatchesCostFilter(selfOverride.inst, { min: effect.subjectMinCost })) continue
             }
@@ -278,8 +299,12 @@ export function fireFieldEventTriggers(
             // 「アタックした自分のスピリットが破壊されるたび」（BS06ベリアルドロー）：
             // ブロッカーとして破壊された場合は発火させない
             if (effect.attackerOnly && !eventInfo?.wasAttacker) continue
-            // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ
-            if (effect.duringSelfAttack && state.battle?.attackerInstanceId !== inst.instanceId) continue
+            // 「このスピリットのアタック時」限定（BS16-027）：発生源自身が現在のバトルのアタッカーであるときだけ。
+            // 合体中のブレイヴが発生源ならアタッカーはホスト（合体スピリットは1体）
+            if (effect.duringSelfAttack) {
+                const selfAttacker = inst.braveCombined === true ? (hostsOf(player, inst)[0] ?? inst) : inst
+                if (state.battle?.attackerInstanceId !== selfAttacker.instanceId) continue
+            }
             // 「相手のスピリット/ネクサス/マジックの効果で破壊されたとき」（BS07の各色ネクサス6枚・BS12-023ウドウ）：
             // 自分の効果による破壊・発生源が不明な破壊・バトルでの破壊では発火しない（「相手によって」は byOpponentOnly）
             if (effect.byOpponentEffectOnly && !(eventInfo?.byOpponentEffect && !eventInfo.byBattle)) continue
@@ -462,9 +487,16 @@ export function fireFieldEventTriggers(
                 if (state.destroyGroup.used.includes(groupKey)) continue
                 state.destroyGroup.used.push(groupKey)
             }
+            // 「この効果は重複しない」：同じ持ち主の同名の発生源の同じ効果idが、この出来事で既に候補に入っていたら出さない
+            if (effect.noStackByName) {
+                const key = `${pid}:${card.name}:${effect.id}`
+                if (noStackSeen.has(key)) continue
+                noStackSeen.add(key)
+            }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
+            noteCoverage(effect, "fieldEvent")
             firing.push({ inst, effect, repeatTimes })
         }
     }
@@ -636,6 +668,9 @@ export function fireFieldEventTriggers(
     // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
     // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
     if (state.pendingChoice || skipBurst) return
+    // 【自分のライフ減少後】は原因を問わず減少1回につき1回、ownLifeLost の側で聞く。
+    // 相手起因の本番経路は ownLifeDamaged を skipBurst で呼ぶ（同じ減少で2回聞かないため）
+    if (event === "ownLifeLost") return fireOwnLifeReducedBurst(state, pid, eventInfo)
     fireBurstOnEvent(
         state,
         pid,

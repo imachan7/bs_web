@@ -194,7 +194,9 @@ function analyzeKeywords(text: string): {
                 /^以外/.test(after.slice(jpName.length + 2).trim()) ||
                 // 「自分のスピリットの【粉砕】/【大粉砕】で破棄するカードを+1枚する」（BS15共通器：粉砕ボーナス系）。
                 // 直前が「スピリットの」で終わる＝他のスピリットが持つキーワードへの言及（BS15-048/071）
-                /スピリットの$/.test(before.trim())
+                /スピリットの$/.test(before.trim()) ||
+                // 「自分のスピリットすべての【呪撃】を“〜”に変更する」（BS21-068）。他のスピリットが持つキーワードへの言及
+                /すべての$/.test(before.trim())
 
             // 「自身が持つ」パターン
             const isSelf =

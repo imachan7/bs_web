@@ -1,6 +1,6 @@
 // GameState / PlayerState の状態生成・更新の土台
 import { validateEndTurn } from "./RuleValidator"
-import { noteInstance } from "../../../shared/coverage"
+import { noteCoverage, noteInstance } from "../../../shared/coverage"
 import type {
     CardData,
     CardInstance,
@@ -127,9 +127,15 @@ export function validateDeckCards(cards: Record<string, number>): string | null 
         }
         total += count
         byName.set(card.name, (byName.get(card.name) ?? 0) + count)
-        const limit =
-            card.limitCount !== undefined ? Math.min(MAX_COPIES, card.limitCount) : MAX_COPIES
-        nameLimit.set(card.name, Math.min(nameLimit.get(card.name) ?? MAX_COPIES, limit))
+        const anyCopies = card.effects.some((e) => {
+            if (e.kind !== "deckRule" || e.rule !== "anyCopies") return false
+            noteCoverage(e, "deckRule")
+            return true
+        })
+        const limit = anyCopies
+            ? Infinity
+            : card.limitCount !== undefined ? Math.min(MAX_COPIES, card.limitCount) : MAX_COPIES
+        nameLimit.set(card.name, Math.min(nameLimit.get(card.name) ?? Infinity, limit))
     }
     for (const [name, count] of byName) {
         const limit = nameLimit.get(name) ?? MAX_COPIES

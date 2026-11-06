@@ -1,0 +1,64 @@
+[
+  {
+    "cardId": "CP13-01",
+    "name": "ミニーズ特攻隊",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "爬獣",
+      "星竜",
+      "翼竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "CP",
+    "limited": false,
+    "effect": "[ミニーズ特攻隊]はデッキに何枚でも入れることができる。\nLv1【強化】\n自分の「BP破壊効果」の上限を+1000する。\nLv1\n自分の[ミニーズ特攻隊]1体につき、このスピリットをBP+1000する。",
+    "effects": [
+      {
+        "id": "CP13-01-e1",
+        "kind": "deckRule",
+        "rule": "anyCopies"
+      },
+      {
+        "id": "CP13-01-e2",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "bpDestroy",
+        "levels": [
+          1
+        ]
+      },
+      {
+        "id": "CP13-01-e3",
+        "kind": "aura",
+        "levels": [
+          1
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "self",
+          "amountPer": 1000,
+          "counter": {
+            "ownNameIncludes": "ミニーズ特攻隊"
+          }
+        }
+      }
+    ]
+  }
+]

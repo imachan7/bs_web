@@ -3,8 +3,9 @@
 import type {
     CardInstance,
     Color,
+    PlayerId,
 } from "../../server/src/type"
-import type { BoardPlayer } from "../board"
+import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
 
 // ---- シンボル ----
@@ -41,6 +42,25 @@ export function instanceSymbolColors(inst: CardInstance): Color[] {
     const { symbols, fixed } = symbolsOf(inst)
     const extra = fixed ? 0 : inst.timedExtraSymbols ?? 0
     return extra > 0 && symbols[0] !== undefined ? [...symbols, ...new Array<Color>(extra).fill(symbols[0])] : symbols
+}
+
+// 合体スピリット全体のシンボルの色（BS21_PLAN §3 の N7）。instanceSymbolColors は braveComposite の
+// 組み直しを待たない呼び出しでは合体中のブレイヴのぶんが漏れるので、braveRefs から辿って
+// ブレイヴのシンボルが載っていなければホストとブレイヴの両方の色を返す。合体していなければ
+// instanceSymbolColors と同じ
+export function combinedSpiritSymbolColors(board: Board, ownerPid: PlayerId, inst: CardInstance): Color[] {
+    const colors = instanceSymbolColors(inst)
+    if (inst.braveCombined === true) {
+        const host = board.players[ownerPid].field.spirits.find((s) => (s.braveRefs ?? []).some((r) => r.instanceId === inst.instanceId))
+        if (host !== undefined) return combinedSpiritSymbolColors(board, ownerPid, host)
+        return colors
+    }
+    const braves = (inst.braveRefs ?? []).flatMap((r) =>
+        board.players[ownerPid].field.combinedBraves.filter((b) => b.instanceId === r.instanceId),
+    )
+    if (braves.length === 0) return colors
+    const braveSymbols = braves.flatMap((b) => card(b.cardId).symbol)
+    return braveSymbols.every((c) => colors.includes(c)) ? colors : [...colors, ...braveSymbols]
 }
 
 // インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する

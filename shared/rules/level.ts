@@ -13,8 +13,8 @@ import type {
 import type { Board, BoardPlayer } from "../board"
 import { card } from "../cardDb"
 import { minLevelCoresOf } from "./activation"
-import { activeConstraints, braveBpBonusZeroFor, hasGlobalConstraint, timedBattleContents, timedPlayerRules, trashFrozen } from "./constraints"
-import { instanceSymbolCount } from "./symbols"
+import { activeConstraints, braveBpBonusZeroFor, braveExtraMinCostFor, hasGlobalConstraint, timedBattleContents, timedPlayerRules, trashFrozen } from "./constraints"
+import { instanceSymbolColors, instanceSymbolCount } from "./symbols"
 import { LABELED_KEYWORDS, spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
 
@@ -368,6 +368,11 @@ export function instBaseCost(inst: CardInstance): number {
     )
 }
 
+// 合体しているブレイヴのコストを除いた、ホスト自身のコスト（X06「合体条件をコスト7以上」の比較用。合体後も条件を満たしているか確かめ直すため）
+export function instCostWithoutBraves(inst: CardInstance): number {
+    return Math.max(0, instBaseCost(inst) - (inst.braveComposite?.cost ?? 0))
+}
+
 // このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
 // （付与効果による系統は含まない。それらは spiritHasFamily が別途見る）
 export function instFamilies(inst: CardInstance): string[] {
@@ -631,6 +636,8 @@ export function matchesBraveCondition(
 ): boolean {
     // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
     if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return true
+    const extra = braveExtraMinCostFor(board, hostOwnerPid, host)
+    if (extra !== null && instCostWithoutBraves(host) < extra.minCost) return false
     const cond = card(braveCardId).braveCondition
     if (cond === undefined) return false
     const terms = Array.isArray(cond) ? cond : [cond]
@@ -640,6 +647,7 @@ export function matchesBraveCondition(
         if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
         if (t.maxCost !== undefined && instBaseCost(host) > t.maxCost) return false
         if (t.minSymbols !== undefined && instanceSymbolCount(host) < t.minSymbols) return false
+        if (t.symbolColor !== undefined && !instanceSymbolColors(host).includes(t.symbolColor)) return false
         if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false
         // 「合体条件：効果の記述を持たない」（BS10 の18枚中6枚）。
         // 継続付与の「バニラとしても扱う」（BS04スイッチヒッター）も見る instIsVanilla を通す
