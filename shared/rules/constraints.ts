@@ -3,6 +3,7 @@ import { noteCoverage, noteGrantedFrom, noteKeyword } from "../coverage"
 
 import type {
     ConstraintDef,
+    EffectDef,
     PlayerRuleDef,
     GlobalConstraintDef,
     CardInstance,
@@ -126,6 +127,7 @@ export function activeConstraintsWithSource(
         const sourceLevel = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "constraintGrant") continue
+            if (effect.target === "opponentAll") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             // 【合体時】：発生源自身が合体しているときだけ付与する（BRAVE.md §12.3。BS13-X006）
             if (effect.whileCombined === true && !instIsCombined(source)) continue
@@ -144,6 +146,32 @@ export function activeConstraintsWithSource(
             if (effect.turn === "own" && pid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && pid === board.turnPlayer) continue
             if (!combinedBraveColorsOk(board.players[pid], source, effect.combinedBraveColors)) continue
+            noteCoverage(effect, "constraintGrant")
+            granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
+        }
+    }
+    // target:"opponentAll"（N9）：発生源の持ち主から見て相手の側（pid）に効く制約。
+    // phaseTurn・turn は効果文どおり発生源の持ち主（oppPid）基準で判定する
+    const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+    for (const source of effectSources(board, oppPid)) {
+        const sourceLevel = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "constraintGrant" || effect.target !== "opponentAll") continue
+            if (effect.lentOnly && !isVirtualSource(source)) continue
+            if (effect.whileCombined === true && !instIsCombined(source)) continue
+            if (!entryActive(board, oppPid, source, effect, sourceLevel)) continue
+            if (effect.condition !== undefined && !checkAuraCondition(board, oppPid, effect.condition)) continue
+            if (effect.filter && !matchesTarget(board, pid, inst, effect.filter, source.instanceId)) continue
+            if (effect.keywordFilter && !spiritHasKeyword(board, pid, inst, effect.keywordFilter)) continue
+            if (effect.phaseTurn) {
+                const { phase, turn } = effect.phaseTurn
+                if (board.phase !== phase) continue
+                if (turn === "own" && oppPid !== board.turnPlayer) continue
+                if (turn === "opponent" && oppPid === board.turnPlayer) continue
+            }
+            if (effect.turn === "own" && oppPid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && oppPid === board.turnPlayer) continue
+            if (!combinedBraveColorsOk(board.players[oppPid], source, effect.combinedBraveColors)) continue
             noteCoverage(effect, "constraintGrant")
             granted.push({ constraint: effect.constraint, sourceInstanceId: source.instanceId })
         }
@@ -357,9 +385,11 @@ export function trashCardEffectsDisabled(board: Board, cardId: string): boolean 
 export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
     return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)
 }
+// match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
 export function hasGlobalConstraint(
     board: Board,
     type: GlobalConstraintDef["type"],
+    match?: (effect: Extract<EffectDef, { kind: "globalConstraint" }>, sourcePid: PlayerId) => boolean,
 ): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS02グレートウォール）も含める
@@ -372,12 +402,30 @@ export function hasGlobalConstraint(
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
+                if (match && !match(effect, pid)) continue
                 noteCoverage(effect, "globalConstraint")
                 return true
             }
         }
     }
     return false
+}
+
+// 「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
+// 前段（sourceType の有無）は呼び出し側で見る
+// globalConstraint noRefreshByAnyEffect は、この型に限り side（発生源の持ち主から見た陣営）と
+// エントリ直下の phase/turn をここで見る（hasGlobalConstraint はこれらの軸を見ない）
+export function refreshBlockedByRule(board: Board, ownerPid: PlayerId): boolean {
+    const blocked = hasGlobalConstraint(board, "noRefreshByAnyEffect", (effect, pid) => {
+        if (effect.constraint.type !== "noRefreshByAnyEffect") return false
+        if (effect.constraint.side === "opponent" && ownerPid === pid) return false
+        if (effect.constraint.side === "own" && ownerPid !== pid) return false
+        if (effect.phase !== undefined && effect.phase !== board.phase) return false
+        if (effect.turn === "own" && board.turnPlayer !== pid) return false
+        if (effect.turn === "opponent" && board.turnPlayer === pid) return false
+        return true
+    })
+    return blocked || timedPlayerRules(board, ownerPid).some((r) => r.type === "noSpiritRefresh")
 }
 
 // 「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
@@ -501,6 +549,30 @@ export function cantSpiritStateBrave(board: Board, pid: PlayerId): boolean {
         }
     }
     return false
+}
+
+// globalConstraint "opponentBraveConditionMinCost"（BS21-X06 Lv2）：hostOwnerPid の側のブレイヴの合体条件に足される「コストN以上」。
+// 元の条件に加えて満たす必要がある（2026-11-06 ユーザー確認）。複数の発生源があれば最も高い値。
+// 「合体条件を無視して合体できる」ホストは元の条件ごと無視するので足さない（解釈は未確認＝報告事項）
+export function braveExtraMinCostFor(
+    board: Board,
+    hostOwnerPid: PlayerId,
+    host: CardInstance,
+): { minCost: number; sourceOwner: PlayerId } | null {
+    if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return null
+    let found: { minCost: number; sourceOwner: PlayerId } | null = null
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        if (owner === hostOwnerPid) continue
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "opponentBraveConditionMinCost") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                noteCoverage(effect, "globalConstraint")
+                if (found === null || effect.constraint.minCost > found.minCost) found = { minCost: effect.constraint.minCost, sourceOwner: owner }
+            }
+        }
+    }
+    return found
 }
 
 // globalConstraint "coresToOpponentReserveGoToTrash"（BS12-X02魔羯邪神シュタイン・ボルグLv2-3）:

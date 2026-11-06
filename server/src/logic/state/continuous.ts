@@ -316,6 +316,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
                         if (effect.costFilter && !instMatchesCostFilter(spirit, effect.costFilter)) continue
+                        noteCoverage(effect, "keywordGrant")
                         if (effect.keyword === "heavyArmor") {
                             // 器AP：重装甲の継続付与（BS13-056ホーク・ブレイカー）
                             if (!spirit.heavyArmorColorsGranted) spirit.heavyArmorColorsGranted = []
@@ -324,7 +325,6 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             }
                             continue
                         }
-                        noteCoverage(effect, "keywordGrant")
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
                         for (const c of effect.colors ?? []) {
                             if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)
@@ -569,6 +569,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // 継続的な「シンボルを追加する」（BS12初出。BS12-006竜拳士アルディ・バロン／
                     // BS12-X01金牛龍神ドラゴニック・タウラス）。盤面のシンボル数に効く（軽減計算・ライフダメージ両方）
                     if (!effectActiveOn(source, effect, currentLevel(source).level)) continue
+                    if (effect.whileSpirit === true && player.field.combinedBraves.some((b) => b.instanceId === source.instanceId)) continue
                     // condition.ownFieldHasBraveInSpiritState（BS13-006炎獣ファイオリックLv2-3）：
                     // 持ち主のフィールドにスピリット状態のブレイヴが**いる間**だけ有効
                     if (

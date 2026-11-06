@@ -166,8 +166,12 @@ console.log("=== パート197：fieldEvent が、条件を満たした盤面で�
             }
 
             const before = snapshot(s)
+            // 「自分の効果で相手のスピリットを疲労させたとき」は、疲労させた効果の種別（sourceTypes。省略はスピリット）を渡す
+            const causeInfo = event === "opponentSpiritExhaustedByOwnSpiritEffect"
+                ? { causeType: ((entry["sourceTypes"] as string[] | undefined)?.[0] ?? "spirit") as never }
+                : undefined
             fireFieldEventTriggers(s, "p1", event as never, { pid: subjectPid, inst: subject }, undefined,
-                s.players.p2.field.spirits[0]?.instanceId)
+                s.players.p2.field.spirits[0]?.instanceId, undefined, causeInfo)
             // 選択待ちは先頭で解消する
             for (let i = 0; i < 20 && s.pendingChoice; i++) {
                 const pc = s.pendingChoice

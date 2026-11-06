@@ -68,9 +68,9 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         // 「opponentSpiritCoresEmptied」の発火。発生源がスピリット/ブレイヴの効果で、0個になったのが効果の持ち主から見て相手のときだけ。
         // 効果1回の解決につき1回（印は removeCores と共通で、一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
         const notifyEmptied = (targetPid: PlayerId, inst: CardInstance): void => {
-            if (targetPid === owner || (srcType !== "spirit" && srcType !== "brave") || state.coresEmptiedNotifiedPid === owner) return
+            if (targetPid === owner || srcType === undefined || state.coresEmptiedNotifiedPid === owner) return
             state.coresEmptiedNotifiedPid = owner
-            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid: targetPid, inst })
+            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid: targetPid, inst }, undefined, undefined, undefined, { causeType: srcType })
         }
         // countCounter指定時はcount×EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）

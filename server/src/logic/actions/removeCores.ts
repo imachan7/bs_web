@@ -22,7 +22,7 @@ import { coreRemovalAllowed } from "../coreGate"
 import { coreZoneChoiceId, currentLevel, effectiveBp, instBaseCost, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
-import { recordCores, recordLeftCost, recordMoved } from "../record"
+import { recordCores, recordEmptiedSpirits, recordLeftCost, recordMoved, lastEmptiedSpiritsOf } from "../record"
 import { canPayLife, lifeCostQuery, lifeLossAllowed, recordLifeLoss } from "../lifeGate"
 import { kyokaBonus } from "../keywords/kyoka"
 
@@ -96,10 +96,11 @@ function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, am
     if (state.players[pid].field.spirits.includes(inst)) {
         const before = inst.cores
         applyToSpirit(ctx, pid, inst, amount, to)
-        if (pid !== owner && before > 0 && inst.cores === 0 && (srcType === "spirit" || srcType === "brave") && state.coresEmptiedNotifiedPid !== owner) {
+        if (before > 0 && inst.cores === 0) recordEmptiedSpirits(state, lastEmptiedSpiritsOf(state) + 1)
+        if (pid !== owner && before > 0 && inst.cores === 0 && srcType !== undefined && state.coresEmptiedNotifiedPid !== owner) {
             // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
             state.coresEmptiedNotifiedPid = owner
-            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst })
+            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst }, undefined, undefined, undefined, { causeType: srcType })
         }
         return
     }
@@ -688,6 +689,7 @@ const resolveAny = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 
 const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action) => {
     const { state, owner, opp, srcType } = ctx
+    recordEmptiedSpirits(state, 0)
     if (action.count === "any") {
         resolveAny(ctx, action)
         return

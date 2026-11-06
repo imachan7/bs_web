@@ -21,13 +21,14 @@ export type GlobalConstraintDef =
     | { type: "noDeckMill" } // 両陣営とも、ステップを問わずデッキが破棄されない（noDeckMillInMain のステップ無制限版）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）
     | { type: "noDeckMillInMain" } // 両陣営とも、メインステップの間はデッキが破棄されない（自分の効果によるものも止める＝noDeckMillByOpponent と異なり陣営を問わない）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る）
-    | { type: "noRefreshByAnyEffect" } // 両陣営とも、疲労状態のスピリットは効果（種別を問わず）では回復しない（リフレッシュステップだけが通る）
+    | { type: "noRefreshByAnyEffect"; side?: "opponent" | "own" } // 疲労状態のスピリットは効果（種別を問わず）では回復しない（リフレッシュステップだけが通る）。side は発生源の持ち主から見た陣営で、省略時は両陣営。phase/turn はこの型では refreshBlockedByRule だけが見る
     | { type: "noHandDiscardByEffect" } // 両陣営とも、効果では手札を破棄できない（canDiscardHand の関門で止める＝「手札を破棄することで」のコストも払えなくなる。破棄する効果自体は発揮するが1枚も破棄されない）
     | { type: "noHandGainByEffect" } // 両陣営とも、効果（draw／returnToHand によるスピリットの手札戻し）では手札が増えない（ドロー・バウンス自体が発揮されない＝バウンスされるはずのスピリットは場に残る。ドロー枚数を増やす継続効果自体は止めない）
     | { type: "burstAltEventFromOpponentSummon" } // 発生源の持ち主だけ：バースト条件が opponentSummonEffectResolved のバーストは ownLifeDamaged でも発動できる（triggers.ts のバースト走査が通常の event 一致に加えてこの読み替えを見る）
     | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで合体していないスピリットは1体しか回復できない（どれかはそのステップのプレイヤーが選ぶ）
     | { type: "nexusesCantRefresh" } // 両陣営とも、リフレッシュステップでネクサスは回復しない
     | { type: "opponentCombinedCantRefresh" } // 発生源の持ち主から見た相手の合体スピリットは、リフレッシュステップで回復しない（片側のみ）
+    | { type: "opponentBraveConditionMinCost"; minCost: number } // 発生源の持ち主から見た相手のブレイヴ/ブレイヴカードの合体条件に「コストminCost以上」を足す（元の条件と両方。判定は shared/rules/constraints.ts の braveExtraMinCostFor。満たさなくなった合体は logic/braveConditionGate.ts が分離。BS21-X06）
     | { type: "opponentCantSpiritStateBrave" } // 発生源の持ち主から見た相手は、ブレイヴをスピリット状態にできない（片側のみ）。止めるのは3経路：メインステップの任意分離／場を離れるときの「残す」／ブレイヴ単体（合体先なし）の召喚
     | { type: "ownLifeDamageToTrashByKeyword"; keyword: Keyword } // 発生源の持ち主の、指定キーワードを持つスピリットのアタックで減る相手のライフのコアは、リザーブでなく相手のトラッシュに置かれる（battleResolve のライフ受けが見る）
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）
@@ -81,7 +82,7 @@ export type GlobalConstraintDef =
     // 条件を満たすスピリットカードを召喚するときコストを amount だけ余分に支払う
     // （maxCost＝カード記載コストがこれ以下のもの限定／keywordExclude＝そのキーワードを持たないもの限定）
     | { type: "noSummonTriggerByCost"; maxCost?: number; side?: "opponent" } // お互い、コストが maxCost 以下のスピリットの『このスピリットの召喚時』効果は発揮されない（召喚時トリガーの発火直前に判定して落とす）。maxCost 省略時はコストを問わずすべて。エントリの phase / turn を書けばその区間だけ有効。side:"opponent" 指定時は発生源の持ち主から見た相手のスピリット/ブレイヴだけが対象（既定は両陣営）
-    | { type: "coreGainCap"; max: number; sourceTypes: ("spirit" | "brave" | "nexus")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[]; side?: "opponent" | "both" } // side:"both" で発生源の持ち主にも掛かる（省略時は相手だけ）。max:0 はコアが1個も増えない（ボイド→ライフも対象。2026-10-23確認）。発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）
+    | { type: "coreGainCap"; max: number; sourceTypes?: ("spirit" | "brave" | "nexus" | "magic")[]; from: ("void" | "trash")[]; to: ("life" | "field" | "reserve")[]; side?: "opponent" | "both" } // side:"both" で発生源の持ち主にも掛かる（省略時は相手だけ）。max:0 はコアが1個も増えない（ボイド→ライフも対象。2026-10-23確認）。発生源の持ち主の相手が、sourceTypes の効果で自分の from から自分の to へ置くコアは、ターンに合計 max 個まで（coreGainCap.ts。置けたぶんだけ置く）。sourceTypes 省略時は原因を問わない（効果によらない動きも含む。エントリの phase / turn でステップを絞る。BS21-013）
     | { type: "noReductionGrantToHand"; sourceTypes: CardType[] } // お互い、sourceTypes の種別のカードの効果では、手札のカードに軽減シンボルを増やせない（付与だけ止める。印刷の軽減・軽減そのものは止めない。2026-10-23 ユーザー確認）
     | { type: "noVoidToLife" } // お互い、ボイドからライフにコアを置けない（placeCores の void→life を落とす。【聖命】も止まる）
     | { type: "noReductionBySummonCost"; maxCost: number } // お互い、コストが maxCost 以下のスピリットカードを召喚するとき、軽減シンボルによるコスト軽減ができない（カード静的なコスト＝軽減前の値で判定）
@@ -106,6 +107,7 @@ export type GlobalConstraintDef =
     // spiritOnly指定時はスピリットの召喚だけ止め、ブレイヴの召喚は止めない（SD03-014オリンスピア競技場。効果文が「スピリットを召喚できない」でブレイヴに言及しない。BS12-072は「スピリット/ブレイヴ」と明記）
     | { type: "attackPayToll"; count: number; attackerLevel: number; noStack?: true } // 発生源の持ち主から見た相手の、現在のLvが attackerLevel のスピリットがアタックするとき、持ち主のリザーブのコア count 個をトラッシュに置かなければアタックできない（払えるかぎり自動で払う。コスト支払いのうちリザーブからだけ払う簡略化）。noStack＝〔重複不可〕：同じカード名の発生源は何枚あっても1回分
     | { type: "attackRequiresCoreToll"; maxCost?: number; side?: "opponent"; filter?: ResolvedTargetFilter } // 既定は両陣営とも、コストが maxCost 以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならアタック不可＝validateAttack が弾く）。払えるかぎり自動で払う（GameEngine.doAttack が宣言成立時に移す）。「断ればアタックしない」はクライアント側で表現する（public/src/main.ts の confirmExtraCost が send() 直前に確認をはさむ）。2026-09-10 ユーザー確認。side:"opponent"指定時は発生源の持ち主から見た相手のアタックだけ（SD16-004戦鎚のゴードン）。maxCost省略時はコストを問わない（SD03-014オリンスピア競技場）。filterはアタッカーの絞り込み（ResolvedTargetFilter。SD03-014の「合体していない」＝{combined:false}）
+    | { type: "opponentKyokaSuppressed" } // 発生源の持ち主の相手のスピリット（合体中のブレイヴ含む）の【強化】は数えない（kyokaBonus が読む）
     | { type: "opponentCantReturnFromTrashToHand" } // 発生源の持ち主から見た相手は、トラッシュからカードを手札に戻せない（noTrashRecovery〈両陣営〉の片側版）。トラッシュ→手札の経路の各ハンドラ冒頭が共通ヘルパーで一括して弾く
     | { type: "noBurstActivationByEvent"; events: FieldEvent[]; whileOwnAttackerFamily?: FamilyFilter } // 発生源の持ち主の**相手**は、バースト条件が events のいずれかのバーストを**発動できない**（セットされたまま残る。noBurstEffectForPid は発動が成立して解決だけ飛ぶ別物）。whileOwnAttackerFamily＝発生源の持ち主のその系統のスピリットがアタックしている間だけ。ownSpiritDestroyed は byOpponentEffectOnly の有無を区別しない（現行データのバーストは全部「相手による」。2026-10-23）
     | { type: "noBurstActivationByColor"; colors: Color[]; whileOwnAttackerKeyword?: Keyword } // 発生源の持ち主の**相手**は、colors のいずれかの色のバーストカードを発動できない（バースト条件のイベント軸は問わない。BS19-064・096）。whileOwnAttackerKeyword＝発生源の持ち主のそのキーワードを持つスピリットがアタックしている間だけ（§3.23。whileOwnAttackerFamily のキーワード版）

@@ -407,6 +407,9 @@ export function spiritHasFamily(
                 const wantedFamilies = Array.isArray(effect.familyFilter) ? effect.familyFilter : [effect.familyFilter]
                 if (!wantedFamilies.some((f) => instFamilies(inst).includes(f))) continue
             }
+            // filter（keywordGrant と同じ統一軸）。付与した系統を family 軸で参照させないため、
+            // ここを通るときは spiritHasFamily を介さない軸だけが対象
+            if (effect.filter && !matchesTarget(board, ownerPid, inst, effect.filter, source.instanceId)) continue
             if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) {
                 continue
             }

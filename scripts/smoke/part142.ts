@@ -392,7 +392,7 @@ console.log("=== BS07の各色ネクサス：fieldEvent.byOpponentEffectOnly（�
             (e) => e["kind"] === "fieldEvent" && e["event"] === "ownNexusDestroyed" && e["byOpponentEffectOnly"] === true,
         ),
     )
-    assert(guarded.length === 6, `byOpponentEffectOnly を持つネクサスは6枚（実際は${guarded.length}枚）`)
+    assert(guarded.length === 7, `byOpponentEffectOnly を持つネクサスは7枚（BS07の6枚＋BS21赤1枚）（実際は${guarded.length}枚）`)
 
     // 観測しやすい1枚（ライフが増えるもの）で、発生源の違いによる発火の有無を見る
     const garden = guarded.find((c) =>

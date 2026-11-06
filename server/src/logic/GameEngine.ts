@@ -111,6 +111,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
+import { separateBravesBelowMinCost } from "./braveConditionGate"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
@@ -135,6 +136,7 @@ export function handleAction(
     if (!state.winner) refreshLevelAsOverrides(state)
     // 維持コアを下回った個体の掃除（refreshLevelAsOverrides の後に置くこと）
     sweepLevelCostDepletion(state)
+    separateBravesBelowMinCost(state)
     // バウンス待機カードは選択待ちが無くなった時点で手札／デッキへ移す。resolveAction を通らない経路（エンドステップのデッキ下戻し・召喚時の入れ替え）の安全網
     if (!state.pendingChoice) flushBounces(state)
     // 【迷彩】の支払い済み目印は、払った効果の解決（中断含む）が終わるまで持ち、次の効果へ持ち越さない

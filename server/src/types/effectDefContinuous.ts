@@ -52,13 +52,20 @@ export type EffectDefContinuous =
           id: string
           kind: "magicNegate" // カード自体は通常どおりトラッシュへ。「マジック使用時」誘発は発揮される
           levels: number[] | null
-          cost: { selfCoresToVoid: number } | { exhaustSelf: true } | { none: true } // exhaustSelf=発生源を疲労（回復状態でなければ使えない）
+          cost: { selfCoresToVoid: number } | { selfCoresToTrash: number } | { exhaustSelf: true } | { none: true } // exhaustSelf=発生源を疲労（回復状態でなければ使えない）。selfCoresToTrash=selfCoresToVoid と同じ判定・支払いで行き先が持ち主のトラッシュ（BS21-X04 Lv3）
           colors?: Color[]
           phase?: Phase
           turn?: "own" | "opponent"
           afterNegate?: "selfToDeckBottom" // 「その後」＝結果であり支払いではない。無効にしなければ戻らない（2026-08-16確認）
           oncePerTurn?: true
           onceScope?: "name" // oncePerTurnと併用。プレイヤーごと・カード名ごとに1回
+      }
+    | {
+          id: string
+          kind: "burstActivationNegate" // 相手のバーストが発動したとき、destroyFamily の系統を持つ自分のスピリット1体を破壊して発動を無効にし破棄する（任意）。効果を受けないバーストには効かない（Q7012）
+          levels: number[] | null
+          phase?: Phase
+          destroyFamily: string
       }
     | {
           id: string
@@ -308,6 +315,7 @@ export type EffectDefContinuous =
           familyFromChoice?: true // 発生源インスタンスのlentChoiceFamily（貸与時に選んだ系統）
           familiesFromOwnField?: true // 持ち主のフィールドのスピリットが（カード静的に）持つ系統すべてを動的に付与
           familyFilter?: FamilyFilter
+          filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordGrant の filter と同じ判定。付与した系統をこの軸で参照すると自己再帰するので、family 軸には書かない）
           lentOnly?: boolean
           colorFilter?: Color
           costFilter?: number
@@ -427,6 +435,7 @@ export type EffectDefContinuous =
           // 軽減計算にもライフダメージにも効く。symbolFixがある個体では固定値に追加分を加算する（固定値が勝つ既存規則は変えない）
           keyword?: Keyword // 効果の見出しに付くキーワードのラベル（triggered と同型。【連鎖】を含む継続効果＝Q774）
           whileCombined?: true
+          whileSpirit?: true // ブレイヴがスピリット状態（単独）のときだけ。whileCombinedの逆
           levels: number[] | null
           target: "self" | "ownAll" // self=発生源自身／ownAll=持ち主のスピリットすべて
           filter?: TargetFilter
@@ -575,7 +584,7 @@ export type EffectDefContinuous =
           levels: number[] | null
           keyword?: Keyword // 効果の見出しに付くキーワードのラベル（triggered と同型。【連鎖】を含む継続効果＝Q774）
           whileCombined?: true
-          target: "ownAll"
+          target: "ownAll" | "opponentAll" // opponentAll＝発生源の持ち主から見て相手のスピリットすべて（BS21_PLAN §3 の N9）
           condition?: AuraCondition
           filter?: ResolvedTargetFilter // 付与先の絞り込み。発生源は selfInstanceId として渡す
           // filter に移していない唯一の残り。ラベル系キーワード（【激突】）は matchesTarget だと見方が変わる（要判断。BS07-X25）
@@ -724,6 +733,11 @@ export type EffectDefContinuous =
           familyFilter?: FamilyFilter
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           action: EffectAction
+      }
+    | {
+          id: string
+          kind: "deckRule" // デッキ構築の規則。継続効果ではなく印（盤面では読まない。validateDeckCards が読む）
+          rule: "anyCopies" // 同名カードの枚数上限を外す（CP13-01）
       }
     | {
           id: string

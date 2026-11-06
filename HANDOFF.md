@@ -27,12 +27,13 @@
 - 道具：`audit:paths`（`VIA=direct|attack|block|summon`。TEST_STRATEGY §7）、全カードの火入れはブレイヴとバーストも撃つ（`fireAll.ts`）
 - **11-05 の反省：バグ修正でも、直し方に処理の順（どちらを先に・確認をいつ出す・条件をいつ判定する）の選択が入るなら、実装前に聞く**
 
-### いまの本線：BS20 の取り込み（2026-11-05 から）（BS19 は #356。計画の型は [BS19_PLAN.md](./docs/design/BS19_PLAN.md)）
+### いまの本線：BS21 の取り込み（2026-11-06。計画の型は [BS21_PLAN.md](./docs/design/BS21_PLAN.md)）
 
-- **ブランチ `feat/bs20-import`（draft #395）：BS20 の91枚は全部入った**（`data/cards/BS20.json`。全 smoke・coverage:check 緑）。[BS20_PLAN.md](./docs/design/BS20_PLAN.md) §4 の確認は 11-06 にすべて答えをもらい、計画書・TIMING_CHART に書いた。残りは X01 と古龍の縄張りが同時に効くときの選択者（ターンプレイヤーの仮決め。公式の返事待ち）だけ
-- 取り込み済みは BS01〜BS20・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS20 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
+- **ブランチ `feat/bs21-import`（draft #396）：BS21 の92枚とキャンペーンカード CP13-01 は全部入った**（全 smoke・coverage:check 緑）。解釈は §2、新しい部品20件は §3、仕上げと後回しは §5
+- BS20 は #395 で入った
+- 取り込み済みは BS01〜BS21・CP13-01・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS22 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
-- **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral、Mistral を使い切ったら Haiku）。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
+- **サブは vibe**（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral）。Mistral の枠は Vibe Code（ログイン）と API（`~/.config/mistral_api_key`。`MISTRAL_API_KEY="$(tr -d '\n ' < ~/.config/mistral_api_key)" vibe …`）の2つで、どちらも月初に戻る。**両方尽きたら Claude のサブ（期待値・実装＝Sonnet、データ＝Haiku）**。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
 - **絞り込みの統一は済み**（#349〜#353。2026-10-31 ユーザー決定「全部いま寄せる」）。絞り込みは `filter`／`subjectFilter`／`partnerFilter`／`ownSpiritMatches`／`battleOpponentMatches`（`ResolvedTargetFilter`）に書く。寄せずに残したものは [FILTER_UNIFY.md](./docs/design/FILTER_UNIFY.md) §7、付録の器（約250件）はプロモの後
 - **プロモ P0・PX0 の100枚は実装済み**（#354。解釈は [PROMO_PLAN.md](./docs/design/PROMO_PLAN.md) §2）

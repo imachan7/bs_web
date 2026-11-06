@@ -219,6 +219,7 @@ export interface GameState {
     lastMoved?: Record<string, string[]> // 枠ごとの直前に動いたカード（logic/record.ts）
     lastLeftCosts?: Record<string, Record<string, number>> // 枠ごと・cardId ごとの、待機状態に入ったときのコスト（logic/record.ts）
     lastCores?: Record<string, number>
+    lastEmptiedSpirits?: Record<string, number> // 枠ごとの、直前の removeCores の解決でコアが0個になった体数（logic/record.ts。EffectCounter "lastEmptiedSpirits" が読む）
     lastNexusCost?: Record<string, number> // 枠ごとの、直前に破壊した自分のネクサスの印刷コスト（logic/record.ts。ほかの破壊が lastMoved を書き換えても残る）
     lastDrawn?: Record<string, number> // 枠ごとの直前のドローで引いた枚数（logic/record.ts）
     lastTargets?: Record<string, string[]>
