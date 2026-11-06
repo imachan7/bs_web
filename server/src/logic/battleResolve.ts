@@ -224,7 +224,7 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
     if (step === 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）とライフ減少後バースト。
         // targetInstanceIdにアタッカーを渡す（BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
-        if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+        if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId, undefined, undefined, undefined, undefined, undefined, true)
         if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeLost")
     } else if (step === 1) {
         if (f.lifeTriggers) fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")

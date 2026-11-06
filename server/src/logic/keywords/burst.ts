@@ -270,6 +270,39 @@ export function fireEventBursts(state: GameState, checks: EventBurstCheck[]): vo
     }
 }
 
+// セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
+// プレイヤーに掛かるコスト（発動の支払いなど）は耐性で防げない（Q7016）ので、ここには入れない。
+// 今のカードプールに該当カードは無い。カードデータに耐性の欄が入ったらここで読む
+function burstCardIgnoresEffects(_cardId: string): boolean {
+    return false
+}
+
+// 「バーストを発動できない」を1か所にまとめた判定（BURST.md §2。Q7012・Q7015）。true＝発動できない（セットされたまま残る）
+function burstActivationBlocked(
+    state: GameState,
+    holderPid: PlayerId,
+    burstCardId: string,
+    event: FieldEvent,
+    eventInfo?: { lifeLossByNoOwnBurst?: boolean },
+): boolean {
+    if (burstCardIgnoresEffects(burstCardId)) return false
+    // noOwnBurst 付きの placeCores で減ったライフ（N14）：その減少では、ライフが減った本人のバーストは発動できない（相手のバーストは別）
+    if (eventInfo?.lifeLossByNoOwnBurst === true) return true
+    // 相手の noBurstActivationByEvent／ByColor／burstOnlyOwnFieldSymbolColors
+    if (burstActivationForbidden(state, holderPid, event, burstCardId)) return true
+    const timed = timedContentsFor(state, holderPid)
+    // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03）。colors 指定時はその色のバーストカードだけ（BS19-060）
+    if (timed.some((c) => c.type === "battleLock" && c.lock === "burst" && (c.colors === undefined || getCard(burstCardId).colors.some((col) => c.colors!.includes(col))))) return true
+    // playerRule "noBurstActivation"（N13）。byEvent 指定時はそのバースト条件のバーストだけ
+    return timed.some((c) => c.type === "playerRule" && c.rule.type === "noBurstActivation" && (c.rule.byEvent === undefined || c.rule.byEvent === event))
+}
+
+// 自分のライフが減るたびに1回だけ、セットしたバースト（条件【自分のライフ減少後】）の発動を聞く。原因は問わない（2026-11-06 ユーザー確認）。
+// 相手起因では fieldEvent の ownLifeDamaged と ownLifeLost の両方が起きるので、聞くのは ownLifeLost の側だけにしてある
+export function fireOwnLifeReducedBurst(state: GameState, pid: PlayerId, eventInfo?: { lifeLossByNoOwnBurst?: boolean }): void {
+    fireBurstOnEvent(state, pid, "ownLifeDamaged", undefined, undefined, undefined, eventInfo)
+}
+
 export function fireBurstOnEvent(
     state: GameState,
     pid: PlayerId,
@@ -315,28 +348,7 @@ export function fireBurstOnEvent(
             )
         }
         if (!effect) continue
-        // noOwnBurst 付きの placeCores で減ったライフ（N14）：ライフが減った本人のバーストは発動を聞かない。
-        // 相手のバーストには影響しない
-        if (eventInfo?.lifeLossByNoOwnBurst === true && holderPid === pid) continue
-        // 相手の noBurstActivationByEvent／noBurstActivationByColor：発動できない（セットされたまま残る）
-        if (burstActivationForbidden(state, holderPid, effect.event, burstCardId)) continue
-        // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）。
-        // colors 指定時はその色のバーストカードだけ（BS19-060「相手は白のバーストを発動できない」）
-        if (
-            timedContentsFor(state, holderPid).some(
-                (c) =>
-                    c.type === "battleLock" &&
-                    c.lock === "burst" &&
-                    (c.colors === undefined || (burstCardId !== undefined && getCard(burstCardId).colors.some((col) => c.colors!.includes(col)))),
-            )
-        ) continue
-        // playerRule "noBurstActivation"（BS21_PLAN §3 N13）：期間つき効果で「このターンの間バーストを発動できない」が
-        // 掛かっているプレイヤーは発動できない（セットされたまま残る）。byEvent 指定時はそのバースト条件のバーストだけ
-        if (
-            timedContentsFor(state, holderPid).some(
-                (c) => c.type === "playerRule" && c.rule.type === "noBurstActivation" && (c.rule.byEvent === undefined || c.rule.byEvent === effect.event),
-            )
-        ) continue
+        if (burstActivationBlocked(state, holderPid, burstCardId, effect.event, eventInfo)) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）
         if (effect.subjectSide === "own" && selfOverride?.pid !== holderPid) continue
         if (effect.subjectSide === "opponent" && (selfOverride === undefined || selfOverride.pid === holderPid)) continue
@@ -460,7 +472,7 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         player.trashCards.push(cardId)
         return true
     }
-    if (ignoreCondition && burstActivationForbidden(state, owner, effect.event, cardId)) return false
+    if (ignoreCondition && burstActivationBlocked(state, owner, cardId, effect.event)) return false
     noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true

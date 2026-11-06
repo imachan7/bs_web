@@ -9,7 +9,7 @@ import { currentLevel, findInstanceAnywhere, getCard, minLevelCores, opponentOf,
 import { countSpiritsWeighted, effectiveBp, receivesBpPlus, effectSources, instColors, instHasColor, isVirtualSource, instMatchesCostFilter, matchesCostFilter, matchesFamilyFilter, spiritHasKeyword, spiritHasKeywordOrLabel, effectActiveOn, combinedBraveColorsOk, hostsOf, bravesOf, matchesTarget } from "../../../shared/rules"
 import { findSpiritAny, requestActivationConfirm, resolveAction, summonFreeFromHandIndex } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, markUsedOnceThisTurn, usedCountThisTurn } from "./oncePerTurn"
-import { fireBurstOnEvent } from "./keywords/burst"
+import { fireBurstOnEvent, fireOwnLifeReducedBurst } from "./keywords/burst"
 import type { CollectedTrigger } from "./blockDeclared"
 import { revertOncePerTurn, revertDestroyGroupUsage, fireTrigger, activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
@@ -668,6 +668,9 @@ export function fireFieldEventTriggers(
     // skipBurst指定時（破壊待機中のownSpiritDestroyed走査）はここで判定しない（BS16バッチ0：呼び出し元が
     // トラッシュ行き確定後にfireQueuedDestroyBursts経由でfireBurstOnEventを直接呼ぶ）
     if (state.pendingChoice || skipBurst) return
+    // 【自分のライフ減少後】は原因を問わず減少1回につき1回、ownLifeLost の側で聞く。
+    // 相手起因の本番経路は ownLifeDamaged を skipBurst で呼ぶ（同じ減少で2回聞かないため）
+    if (event === "ownLifeLost") return fireOwnLifeReducedBurst(state, pid, eventInfo)
     fireBurstOnEvent(
         state,
         pid,

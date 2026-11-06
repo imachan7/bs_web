@@ -53,7 +53,7 @@ function sourcesOf(ctx: ActionCtx, action: WidePlaceCores): Src[] {
     return out
 }
 
-function take(ctx: ActionCtx, src: Src, n: number, noOwnBurst = false): number {
+function take(ctx: ActionCtx, src: Src, n: number): number {
     const { state, owner } = ctx
     const player = state.players[owner]
     if (n <= 0) return 0
@@ -77,8 +77,6 @@ function take(ctx: ActionCtx, src: Src, n: number, noOwnBurst = false): number {
             const opp = owner === "p1" ? "p2" : "p1"
             state.winner = opp
             log(state, `${state.players[opp].name}の勝利！`)
-        } else {
-            fireFieldEventTriggers(state, owner, "ownLifeLost", undefined, undefined, undefined, undefined, noOwnBurst ? { lifeLossByNoOwnBurst: true } : undefined)
         }
         return t
     }
@@ -129,6 +127,10 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
     // upTo:true＝「置くことができる」（0個でもよい）。count:"any" は「好きなだけ」
     const optional = action.count === "any" || action.upTo === true
     let gathered = action.gathered ?? 0
+    // ライフを取った事実の誘発（バーストの発動確認を含む）は、コアを置き終えてから1回だけ出す。取った直後に出すと、
+    // 発動確認の中断中に置き先のコアが増える（中断後は盤面を動かさない規則）。選択待ちをまたぐので再開用のアクションに持たせる
+    const lifeAtEntry = player.life
+    const lifeTaken = (): boolean => action.lifeTaken === true || player.life < lifeAtEntry
     let need = action.gatherNeed
     if (need === undefined) {
         const cap = total()
@@ -141,15 +143,15 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
         }
     }
     const { gatherPick: _drop, ...base } = action
-    const next = (patch: Partial<WidePlaceCores> = {}): WidePlaceCores => ({ ...base, gathered, gatherNeed: need, ...patch })
+    const next = (patch: Partial<WidePlaceCores> = {}): WidePlaceCores => ({ ...base, gathered, gatherNeed: need, ...(lifeTaken() ? { lifeTaken: true as const } : {}), ...patch })
     const pick = action.gatherPick
 
     // 直前の問いへの答え
     if (chosenOption !== undefined) {
-        if (chosenOption === "やめる") return finish(ctx, action, gathered)
+        if (chosenOption === "やめる") return finish(ctx, action, gathered, lifeTaken())
         if (pick !== undefined) {
             const src = sourcesOf(ctx, action).find((s) => s.key === pick)
-            if (src) gathered += take(ctx, src, Math.min(Math.max(0, Number(chosenOption) || 0), src.cap, need - gathered), action.noOwnBurst === true)
+            if (src) gathered += take(ctx, src, Math.min(Math.max(0, Number(chosenOption) || 0), src.cap, need - gathered))
         } else {
             const src = sourcesOf(ctx, action).find((s) => s.label === chosenOption)
             if (src) {
@@ -158,7 +160,7 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
                     requestChoice(state, owner, `${sourceName}：${src.label.split("：")[0]}から置くコアの数を選んでください（最大${max}個）`, [], false, next({ gatherPick: src.key }), self, "option", Array.from({ length: max }, (_, i) => String(i + 1)), undefined, true)
                     return
                 }
-                gathered += take(ctx, src, max, action.noOwnBurst === true)
+                gathered += take(ctx, src, max)
             }
         }
     }
@@ -171,7 +173,7 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
             const usable = optional ? srcs.filter((x) => x.key !== "life" && (!x.inst || x.spare > 0)) : srcs
             if (usable.length === 0) break
             const { src, n } = autoPick(usable, need - gathered)
-            const t = take(ctx, src, n, action.noOwnBurst === true)
+            const t = take(ctx, src, n)
             if (t <= 0) break
             gathered += t
             continue
@@ -185,10 +187,16 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
         requestChoice(state, owner, `${sourceName}：コアを取る場所を選んでください（あと${need - gathered}個${optional ? "まで" : ""}）`, [], false, next(), self, "option", [...srcs.map((s) => s.label), ...(optional ? ["やめる"] : [])])
         return
     }
-    finish(ctx, action, gathered)
+    finish(ctx, action, gathered, lifeTaken())
 }
 
-function finish(ctx: ActionCtx, action: WidePlaceCores, gathered: number): void {
+function finish(ctx: ActionCtx, action: WidePlaceCores, gathered: number, lifeTaken: boolean): void {
+    place(ctx, action, gathered)
+    if (!lifeTaken || ctx.state.winner) return
+    fireFieldEventTriggers(ctx.state, ctx.owner, "ownLifeLost", undefined, undefined, undefined, undefined, action.noOwnBurst === true ? { lifeLossByNoOwnBurst: true } : undefined)
+}
+
+function place(ctx: ActionCtx, action: WidePlaceCores, gathered: number): void {
     const { state, owner, self, sourceName } = ctx
     const player = state.players[owner]
     if (gathered <= 0) {
