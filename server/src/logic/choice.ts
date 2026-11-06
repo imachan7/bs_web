@@ -1,5 +1,7 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import { handGainDenial } from "./handGate"
+import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
+import { activateBurstCard } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
@@ -116,6 +118,26 @@ function resolveChoiceInner(
         }
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 相手のバーストの発動を異合の破壊で無効にする確認（BS21-052）。選べば破壊して無効、選ばなければ発動確認を通常どおり再入する
+    if (pending.burstNegate) {
+        if (instanceId !== undefined && !pending.candidates.includes(instanceId)) return "選択できない対象です"
+        if (instanceId === undefined && !pending.optional) return "対象を選択してください"
+        const info = pending.burstNegate
+        state.pendingChoice = null
+        if (instanceId !== undefined) {
+            applyBurstNegate(state, pending.pid, instanceId, info)
+            if (state.winner) return null
+            return finishChoiceResolution(state, pending.pid)
+        }
+        if (info.resume.kind === "card") {
+            activateBurstCard(state, info.burstPid, info.cardId, info.resume.ignoreCondition, true)
+            if (state.winner) return null
+            return finishChoiceResolution(state, pending.pid)
+        }
+        state.pendingChoice = { ...info.resume.original, burstNegateChecked: true }
+        return resolveChoiceInner(state, info.resume.original.pid, undefined, info.resume.option)
     }
 
     // 複数体ブロック（blockRequiresCount）で、アタック側がバトル相手を選ぶ待ち。action は解決しない
@@ -625,6 +647,8 @@ function resolveChoiceInner(
                         // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
                         resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
                     }
+                } else if (pending.burstActivate && !pending.burstNegateChecked && negateBurstActivation(state, pending.burstActivate.pid, pending.burstActivate.cardId, { kind: "confirm", original: pending, option })) {
+                    // 無効にした、または相手の BS21-052 の確認待ち（続きは burstNegate の解決で行う）
                 } else if (pending.burstActivate) {
                     // バーストの発動確認（docs/design/BURST.md）。承認された時点でバーストエリアはまだ
                     // 空にしていない（cardIdは保持しておく必要があるため）。resolveAction のあとで

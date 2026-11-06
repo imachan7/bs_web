@@ -314,8 +314,8 @@ function moveOneAtATime(ctx: ActionCtx, action: MoveCards, cands: number[]): voi
         end()
         return
     }
-    // 支払いがあるときと「N枚まで」は候補1枚でも聞く（やめる・支払い元を選ぶ機会がここにしか無い）
-    const optional = action.pay !== undefined || action.upTo === true
+    // 支払いがあるときと「N枚まで」「〜できる」(optional)は候補1枚でも聞く（やめる・支払い元を選ぶ機会がここにしか無い）
+    const optional = action.pay !== undefined || action.upTo === true || action.optional === true
     if (state.interactiveTargets && action.costBudget === undefined && (choosable.length >= 2 || optional)) {
         const chooser = action.chooserIsTarget ? pid : owner
         suspend(state, {

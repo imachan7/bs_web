@@ -49,6 +49,14 @@ export function recordCores(state: GameState, n: number, scope: string = current
     state.lastCores = { ...(state.lastCores ?? {}), [scope]: n }
 }
 
+export function recordEmptiedSpirits(state: GameState, n: number, scope: string = currentRecordScope(state)): void {
+    state.lastEmptiedSpirits = { ...(state.lastEmptiedSpirits ?? {}), [scope]: n }
+}
+
+export function lastEmptiedSpiritsOf(state: GameState, scope: string = currentRecordScope(state)): number {
+    return state.lastEmptiedSpirits?.[scope] ?? 0
+}
+
 export function recordDrawn(state: GameState, n: number, scope: string = currentRecordScope(state)): void {
     state.lastDrawn = { ...(state.lastDrawn ?? {}), [scope]: n }
 }

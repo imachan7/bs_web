@@ -5,7 +5,7 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { getCard } from "../GameState"
-import { currentLevel, effectSources } from "../../../../shared/rules"
+import { currentLevel, effectSources, hasGlobalConstraint } from "../../../../shared/rules"
 
 // 【強化】の対象になる効果の種類（effectDef.ts の keyword エントリの kyoka 欄と同じ値）
 export type KyokaKind = "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill"
@@ -13,6 +13,8 @@ export type KyokaKind = "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bp
 // 効果の使用者（発生源の持ち主）pid の【強化】（種類 kind）の数。effectSources＝発生源のうち
 // Lv・whileCombined を満たし、効果が止められていないもの（仮想発生源も含む）
 export function kyokaBonus(state: GameState, pid: PlayerId, kind: KyokaKind): number {
+    // BS21-053 Lv2：発生源の持ち主の相手の【強化】は発揮されない
+    if (hasGlobalConstraint(state, "opponentKyokaSuppressed", (_e, srcPid) => srcPid !== pid)) return 0
     let total = 0
     for (const source of effectSources(state, pid)) {
         const level = currentLevel(source).level

@@ -1302,7 +1302,9 @@ function tryReviveOnDestroy(
             if (effect.kind !== "reviveOnDestroy") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (forced && effect.id !== forced.effectId) continue
-            if (effect.scope !== "ownAll") continue
+            if (effect.scope !== "ownAll" && effect.scope !== "chosenInstance") continue
+            // chosenInstance（BS21-077）：targetChoiceLendThisTurn で選んだ1体だけ
+            if (effect.scope === "chosenInstance" && source.lentChoiceInstanceId !== inst.instanceId) continue
             if (!entryActive(state, ownerPid, source, effect, sourceLevel)) continue
             if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
             if (effect.keywordFilter && ![effect.keywordFilter].flat().some((k) => spiritHasKeyword(state, ownerPid, inst, k))) continue

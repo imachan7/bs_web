@@ -316,6 +316,15 @@ export interface PendingChoice {
         burstEventColors?: Color[] // BS16バッチ0：GameState.burstEventColorsへ引き継ぐ値（条件{burstDestroyedColor}用）
         burstEventLifeDamagerId?: string // BS16バッチ0：GameState.burstEventLifeDamagerIdへ引き継ぐ値
     }
+    burstNegate?: {
+        // BS21-052：相手のバーストの発動を異合の破壊で無効にするかの待ち。action は解決しない。
+        // 断ったときは resume で本来の発動を（確認済みとして）続ける。confirm＝承認された発動確認を burstNegateChecked 付きで再入、
+        // card＝activateBurstCard を確認済みで呼び直す
+        burstPid: PlayerId
+        cardId: string
+        resume: { kind: "confirm"; original: PendingChoice; option: string } | { kind: "card"; ignoreCondition: boolean }
+    }
+    burstNegateChecked?: true
     burstThenPay?: {
         // burstActivate の thenPay：解決後にコストを支払って本来のメイン/フラッシュ効果を追加発揮するかの確認待ち。
         // 承認されたら pid のリザーブから cost を払ってから action を解決する（resolveMagicは経由しない）

@@ -10,6 +10,7 @@ import { coreGainAllowed } from "../coreGainCap"
 import type { CardData, CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { revertDestroyGroupUsage, revertOncePerTurn } from "../triggers"
+import { isOnceUsed, markOnceUsed } from "../oncePerTurn"
 import { autoPayPlan, canExhaustNexus, payCost } from "../EffectModules"
 import { currentLevel } from "../GameState"
 import { burstTenshoUnpayable } from "../keywords/tensho"
@@ -566,6 +567,31 @@ export function effectCostDiscountNexus(state: GameState, owner: PlayerId, sourc
 const isReserveToll = (a: EffectAction): a is Extract<EffectAction, { type: "removeCores" }> & { count: number } =>
     a.type === "removeCores" && a.from?.length === 1 && a.from[0] === "reserve" && a.to === "trash" && typeof a.count === "number" && a.countCounter === undefined && a.chooser === undefined && a.reserveOnly === undefined
 
+// pay.oncePerTurn の枠の键となる効果 idを、発生源カードの効果木からこの pay と同じ cost/then の節を探して得る
+function oncePayEffectId(cardId: string | undefined, action: Extract<EffectAction, { type: "pay" }>): string | undefined {
+    if (cardId === undefined) return undefined
+    const shape = JSON.stringify({ cost: action.cost, then: action.then })
+    for (const effect of getCard(cardId).effects) {
+        let hit = false
+        const walk = (v: unknown): void => {
+            if (hit || v === null || typeof v !== "object") return
+            if (Array.isArray(v)) {
+                for (const x of v) walk(x)
+                return
+            }
+            const o = v as Record<string, unknown>
+            if (o["type"] === "pay" && o["oncePerTurn"] === true && JSON.stringify({ cost: o["cost"], then: o["then"] }) === shape) {
+                hit = true
+                return
+            }
+            for (const x of Object.values(o)) walk(x)
+        }
+        walk(effect)
+        if (hit) return effect.id
+    }
+    return undefined
+}
+
 const payHandler: ActionHandler<"pay"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     // 「そのスピリット」＝イベント対象は then にだけ渡す（cost は自分の場から払うもの）。確認で止まると ctx から落ちるので行動に持たせる
@@ -588,6 +614,18 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         kyoshuUsed = self ? kyoshuUsedOf(state, self) : 0
         if (!self || kyoshuUsed >= limit) {
             log(state, `${sourceName}：【強襲】を発動できる状態でないため何もしなかった。`)
+            return
+        }
+    }
+    // pay.oncePerTurn（BS21_PLAN §2 の5）：【強襲】と同じ中身だが【強襲】として数えない回数制限。
+    // 枠は発生源の個体×効果 id で数える。効果 id は action には載らないので、カードの効果木から
+    // この pay と同じ cost/then の節を探して得る（確認の再入や markPays で action は写しになるが
+    // cost/then の中身と键順は変わらない）
+    let payOnceKey: string | undefined
+    if (action.oncePerTurn === true) {
+        payOnceKey = oncePayEffectId(ctx.sourceCardId ?? self?.cardId, action)
+        if (!self || payOnceKey === undefined || isOnceUsed(state, owner, self, { id: payOnceKey }, "triggeredUsedTurn")) {
+            log(state, `${sourceName}：ターンに1回までのため発動しなかった。`)
             return
         }
     }
@@ -688,6 +726,8 @@ const payHandler: ActionHandler<"pay"> = (ctx, action) => {
         }
     }
     if (action.tax && state.burstTaxUnpaid) state.burstTaxUnpaid--
+    // コストを払って then に進む直前で「ターンに1回」の枠を取る（断った場合はここへ来ない＝消費しない）
+    if (action.oncePerTurn === true && self && payOnceKey !== undefined) markOnceUsed(state, owner, self, { id: payOnceKey }, "triggeredUsedTurn")
     const scope = newRecordScope()
     resolveInOrder(state, tollCovered ? [action.then] : [cost, action.then], {
         resolve: (a) => {

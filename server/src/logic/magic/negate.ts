@@ -97,6 +97,8 @@ export function findMagicNegateSource(
                 if (!payer && inst.isRested) continue
             } else if ("selfCoresToVoid" in effect.cost) {
                 if (inst.cores < effect.cost.selfCoresToVoid || coreRemovalAllowed(state, { ownerPid: defenderPid, target: inst, amount: effect.cost.selfCoresToVoid, cause: "cost", actorPid: defenderPid }) < effect.cost.selfCoresToVoid) continue
+            } else if ("selfCoresToTrash" in effect.cost) {
+                if (inst.cores < effect.cost.selfCoresToTrash || coreRemovalAllowed(state, { ownerPid: defenderPid, target: inst, amount: effect.cost.selfCoresToTrash, cause: "cost", actorPid: defenderPid }) < effect.cost.selfCoresToTrash) continue
             }
             // cost:{none} は支払い無し（SD02-014 魔法監視塔Lv2）。そのまま発動できる
             if (isHyoheki) noteKeyword(getCard(inst.cardId).effects, "hyoheki")
@@ -140,6 +142,13 @@ export function payMagicNegate(
         log(
             state,
             `${getCard(inst.cardId).name}：コア${effect.cost.selfCoresToVoid}個をボイドに置いた。`,
+        )
+    } else if ("selfCoresToTrash" in effect.cost) {
+        inst.cores -= effect.cost.selfCoresToTrash
+        state.players[pid].trashCores += effect.cost.selfCoresToTrash
+        log(
+            state,
+            `${getCard(inst.cardId).name}：コア${effect.cost.selfCoresToTrash}個を自分のトラッシュに置いた。`,
         )
     }
     if (effect.oncePerTurn) markOnceUsed(state, pid, inst, effect, "magicNegateUsedTurn")

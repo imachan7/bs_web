@@ -39,6 +39,7 @@ const GATE_PARAMS = ["payCost", "costDestroyOwnSpiritSameCost", "costSkipCoreSte
 const VERIFIED: Record<string, string> = {
     "BS14-084": "払わないと負けるので自動で払う（2026-10-02 ユーザー決定。COST_MODEL §10）",
     "BS12-075": "「ことで」はマジックの通常コストの支払い手段の言い直し",
+    "BS21-052": "burstActivationNegate が破壊する前に任意の対象選択（断れる）を必ず出す。払えないときは聞かない（COST_MODEL §10）",
     "BS17-043": "「ことで」は手札のバースト効果を使う操作（useHandBurstEffect）のコストの支払いそのもので、払うかは操作を選んだ時点で決まる",
 }
 

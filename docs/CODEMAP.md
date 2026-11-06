@@ -128,7 +128,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `trashFrozen`（fn）：PX19：トラッシュのカードが効果を受けない／自身の効果を使えない（Q18473・Q18475）。トラッシュの枚数やシンボルを数えるだけの参照は止めない
 - `trashCardEffectsDisabled`（fn）：トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
-- `hasGlobalConstraint`（fn）
+- `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
+- `refreshBlockedByRule`（fn）：「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
 - `braveBpBonusZeroFor`（fn）：「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
@@ -136,6 +137,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownLifeImmuneToOpponentSpiritEffects`（fn）：globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
 - `canDiscardHand`（fn）：手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
 - `cantSpiritStateBrave`（fn）：pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
+- `braveExtraMinCostFor`（fn）：globalConstraint "opponentBraveConditionMinCost"（BS21-X06 Lv2）：hostOwnerPid の側のブレイヴの合体条件に足…
 - `coresToOpponentReserveGoToTrash`（fn）：globalConstraint "coresToOpponentReserveGoToTrash"（BS12-X02魔羯邪神シュタイン・ボルグLv2-3）:
 - `refreshRestrictionsFor`（fn）：リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）。
 - `costCantAct`（fn）：フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
@@ -237,6 +239,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
 - `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
 - `instBaseCost`（fn）：このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
+- `instCostWithoutBraves`（fn）：合体しているブレイヴのコストを除いた、ホスト自身のコスト（X06「合体条件をコスト7以上」の比較用。合体後も条件を満たしているか確かめ直すため）
 - `instFamilies`（fn）：このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
 - `instAllCosts`（fn）：インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
 - `cardHasColor`（fn）：カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
@@ -276,6 +279,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/rules/symbols.ts
 
 - `instanceSymbolColors`（fn）：画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
+- `combinedSpiritSymbolColors`（fn）：合体スピリット全体のシンボルの色（BS21_PLAN §3 の N7）。instanceSymbolColors は braveComposite の
 - `instanceSymbolCount`（fn）：インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
 - `countSymbols`（fn）：軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
 - `countTrashSymbols`（fn）：軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
@@ -604,6 +608,15 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じ領域へ
 - `pickBraveKeepOrder`（fn）：「これから決める」ブレイヴが選ばれた（doResolveChoice から呼ぶ）。その項目を先頭へ移す
 
+## server/src/logic/braveConditionGate.ts
+
+- `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
+
+## server/src/logic/burstNegate.ts
+
+- `negateBurstActivation`（fn）：バーストが発動する全経路（発動確認の承認・非対話の自動発動・効果でめくった／条件を無視した発動）が、効果の解決とバーストカードの公開の前に呼ぶ。
+- `applyBurstNegate`（fn）：破壊することを選んだ：スピリットを破壊し、バーストカードをトラッシュへ置く（発動の後始末や「バースト発動後」の誘発は起きない）
+
 ## server/src/logic/choice.ts
 
 - `doResolveChoice`（fn）：pendingChoice（効果解決中のプレイヤー選択）への応答を処理する。
@@ -698,6 +711,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fireOwnBurstActivated`（fn）：バーストの解決がすべて終わった後（ownBurstActivated）。**発動開始時点で場にいた発生源にだけ発火させる**
 - `finishSummonEffect`（fn）：召喚時効果を解決しきった地点で呼ぶ（選択を挟んだときは handleAction の事後フック）。
 - `fireEventBursts`（fn）：kind:"burst" の走査本体（docs/design/BURST.md）。fireFieldEventTriggers の末尾から呼ぶほか、
+- `burstCardIgnoresEffects`（fn）：セットしているバーストカード自身が「効果を受けない」耐性を持つか。持つなら発動を止める効果をすべて無視して発動できる（Q7012）。
+- `fireOwnLifeReducedBurst`（fn）：自分のライフが減るたびに1回だけ、セットしたバースト（条件【自分のライフ減少後】）の発動を聞く。原因は問わない（2026-11-06 ユーザー確認）。
 - `fireBurstOnEvent`（fn）
 - `activateBurstCard`（fn）：オープンしたバーストのカードを、バーストとして発動させる（reveal の dest:"activateBurst"。BS16-X01）。
 - `burstConditionMet`（fn）：kind:"burst" の condition 判定（docs/design/BURST.md）。未指定なら常に満たす
@@ -859,6 +874,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `withMovedProbe`（fn）
 - `lastMovedCount`（fn）
 - `recordCores`（fn）
+- `recordEmptiedSpirits`（fn）
+- `lastEmptiedSpiritsOf`（fn）
 - `recordDrawn`（fn）
 - `recordNexusCost`（fn）
 - `lastNexusCostOf`（fn）

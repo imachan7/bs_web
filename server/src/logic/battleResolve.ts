@@ -224,7 +224,7 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
     if (step === 0) {
         // フィールドイベント誘発「相手によって自分のライフが減らされたとき」（命の果実）とライフ減少後バースト。
         // targetInstanceIdにアタッカーを渡す（BS08竜騎集う円卓：BP5000以下のアタックによって減らされたとき、そのスピリットを破壊する）
-        if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId)
+        if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeDamaged", undefined, undefined, attacker.instanceId, undefined, undefined, undefined, undefined, undefined, true)
         if (f.lifeTriggers) fireFieldEventTriggers(state, defenderPid, "ownLifeLost")
     } else if (step === 1) {
         if (f.lifeTriggers) fireFieldEventTriggers(state, attackerPid, "opponentLifeDamaged")
@@ -519,11 +519,7 @@ export function resolveBattle(state: GameState): void {
         blockerColors: instColors(blocker),
         attackerLevel,
         blockerLevel,
-        attackerJugeki:
-            staticJugeki(attacker.cardId, attackerLevel) ||
-            bravesOf(state.players[attackerPid], attacker).some((b) =>
-                getCard(b.cardId).effects.some((e) => e.kind === "keyword" && e.keyword === "jugeki"),
-            ),
+        attackerJugeki: spiritHasKeywordOrLabel(state, attackerPid, attacker, "jugeki"),
         attackerBp,
         blockerBp,
         // ＞６に入る直前の写し。破壊されると場から消えるが、『相手のスピリットに破壊されたとき』や
@@ -557,13 +553,6 @@ function driveBattleResolution(state: GameState, frame: BattleResolveFrame): voi
 // 中断されていたバトル解決の続き（drainResumeStack から呼ぶ）
 export function resumeBattleResolution(state: GameState, frame: BattleResolveFrame): void {
     driveBattleResolution(state, frame)
-}
-
-// 【呪撃】をそのレベルで静的に持つか（一時付与は見ない）
-function staticJugeki(cardId: string, level: number): boolean {
-    return getCard(cardId).effects.some(
-        (e) => e.kind === "keyword" && e.keyword === "jugeki" && effectActiveAtLevel(e.levels, level),
-    )
 }
 
 // バトル解決の1ステップ。**中断（pendingChoice）は呼び出し元 driveBattleResolution が見る**ので、
@@ -665,7 +654,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             // BS06カウンターカース：【呪撃】の発揮タイミングを『ブロック時』へ**差し替える**。
             // 差し替えが効いている側はアタック時に発揮しなくなり、代わりにブロック時に発揮する
             const attackerJugekiReplaced = hasJugekiOnBlockReplace(state, attackerPid)
-            if (sameSide || !(f.attackerJugeki ?? staticJugeki(attacker.cardId, f.attackerLevel)) || attackerJugekiReplaced) return
+            if (sameSide || !(f.attackerJugeki ?? spiritHasKeywordOrLabel(state, attackerPid, attacker, "jugeki")) || attackerJugekiReplaced) return
             const stillOnField = findSpirit(state.players[blockerPid], f.blockerInstanceId)
             if (!stillOnField) return
             if (hasArmorAgainst(state, stillOnField, f.attackerColors)) {
@@ -706,7 +695,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
         // バトルした相手（＝アタッカー）をバトル終了時に破壊する
         case 6: {
             if (sameSide || !hasJugekiOnBlockReplace(state, defenderPid)) return
-            if (!staticJugeki(blocker.cardId, f.blockerLevel)) return
+            if (!spiritHasKeywordOrLabel(state, blockerPid, blocker, "jugeki")) return
             const attackerStill = findSpirit(state.players[attackerPid], f.attackerInstanceId)
             if (!attackerStill) return
             if (hasArmorAgainst(state, attackerStill, f.blockerColors)) {

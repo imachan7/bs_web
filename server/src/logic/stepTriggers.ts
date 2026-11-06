@@ -34,6 +34,8 @@ export function fireBattleWonTriggers(
     // 以前はループの中で直接解決し、選択待ちが立ったら `return` するだけだったため、
     // **同じバトルの残りの誘発が永久に失われていた**（太陽石の神殿を2枚並べると2枚目が発火しない）
     const firing: { inst: CardInstance; effect: Extract<EffectDef, { kind: "battleWon" }> }[] = []
+    // noStackByName（「この効果は重複しない」）の重複確認用。誘発が確定した候補だけを数える
+    const noStackSeen = new Set<string>()
     for (const inst of instances) {
         const card = getCard(inst.cardId)
         const level = currentLevel(inst).level
@@ -112,6 +114,13 @@ export function fireBattleWonTriggers(
             ) {
                 continue
             }
+            // 「この効果は重複しない」：同じ持ち主の同名の発生源の同じ効果idが、このバトルで既に候補に入っていたら出さない
+            if (effect.noStackByName) {
+                const key = `${winnerPid}:${card.name}:${effect.id}`
+                if (noStackSeen.has(key)) continue
+                noStackSeen.add(key)
+            }
+            noteCoverage(effect, "battleWon")
             firing.push({ inst, effect })
         }
     }

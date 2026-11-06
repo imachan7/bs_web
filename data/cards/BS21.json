@@ -1,0 +1,6804 @@
+[
+ {
+  "cardId": "BS21-001",
+  "name": "ヤマバッカ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『お互いのアタックステップ』\n相手によって自分の緑のスピリットが破壊されたとき、自分はデッキから1枚ドローする。\nこの効果は重複しない。",
+  "effects": [
+   {
+    "id": "BS21-001-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "byOpponentOnly": true,
+    "subjectFilter": {
+     "color": "green"
+    },
+    "noStackByName": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-002",
+  "name": "ウォルフドラゴン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 2,
+  "reduction": [],
+  "family": [
+   "星竜",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2【強化】\n自分の「BP破壊効果」の上限を+1000する。",
+  "effects": [
+   {
+    "id": "BS21-002-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     1,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-003",
+  "name": "コンボペルタ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットをBP+3000する。\n【連鎖：条件《紫/黄シンボル》】\n(自分の紫/黄シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[紫]：コスト2以下の相手のスピリットのコア1個を相手のリザーブに置く。\n[黄]：BPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS21-003-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS21-003-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "purple"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "removeCores",
+        "from": [
+         "spirit"
+        ],
+        "to": "reserve",
+        "count": 1,
+        "filter": {
+         "cost": {
+          "max": 2
+         }
+        }
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "yellow"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "grantTrigger",
+          "trigger": "onBattleWin",
+          "battleRole": "attacker",
+          "action": {
+           "type": "placeCores",
+           "from": "void",
+           "to": "life",
+           "count": 1
+          }
+         }
+        ],
+        "duration": "battle",
+        "target": "self"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-004",
+  "name": "ハービッグ・ワイバーン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2【強化】\n自分の「BP破壊効果」の上限を+1000する。\nLv2『自分のメインステップ』\nコスト5以上の自分のスピリットが召喚されたとき、自分はデッキから1枚ドローする。\nこの効果はターンに1回しか使えない。",
+  "effects": [
+   {
+    "id": "BS21-004-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS21-004-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "phase": "main",
+    "costFilter": {
+     "min": 5
+    },
+    "oncePerTurn": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "onceScope": "name"
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-005",
+  "name": "ブレード・プテラス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS21-006",
+  "name": "長腕の剣使いアスキーナ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣使",
+   "皇獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n自分はデッキから1枚ドローする。\nLv2【合体時】『自分のアタックステップ』\nこのスピリット以外の系統：「皇獣」を持つ自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS21-006-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-006-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": [
+      "皇獣"
+     ],
+     "excludeSelf": true
+    },
+    "whileCombined": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-007",
+  "name": "極彩竜ピーコック・ワイバーン",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "yellow"
+  ],
+  "family": [
+   "星竜",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのアタック時』\n系統：「星魂」を持つ自分のスピリット1体につき、BP3000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【強化】を持つ自分のスピリットすべてに系統：「星魂」を与える。",
+  "effects": [
+   {
+    "id": "BS21-007-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "countCounter": {
+      "ownFamily": "星魂"
+     },
+     "filter": {
+      "maxBp": 3000
+     }
+    }
+   },
+   {
+    "id": "BS21-007-e2",
+    "kind": "familyGrant",
+    "levels": [
+     2
+    ],
+    "target": "ownAll",
+    "family": "星魂",
+    "filter": {
+     "keyword": "kyoka"
+    },
+    "phase": "attack",
+    "turn": "own"
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-008",
+  "name": "ガルノタウルス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【激突】『このスピリットのアタック時』\n相手は可能ならば必ずブロックする。",
+  "effects": [
+   {
+    "id": "BS21-008-e1",
+    "kind": "keyword",
+    "keyword": "clash",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-009",
+  "name": "戦棍竜メイシュノサウルス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 8,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体を指定し、そのスピリットにアタックできる。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：BPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のライフに置く。\nLv2･Lv3『自分のアタックステップ』\n自分の赤/黄のスピリットすべてをBP+3000する。",
+  "effects": [
+   {
+    "id": "BS21-009-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any"
+    }
+   },
+   {
+    "id": "BS21-009-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "yellow"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "grantTrigger",
+        "trigger": "onBattleWin",
+        "battleRole": "attacker",
+        "action": {
+         "type": "placeCores",
+         "from": "void",
+         "to": "life",
+         "count": 1
+        }
+       }
+      ],
+      "duration": "battle",
+      "target": "self"
+     }
+    }
+   },
+   {
+    "id": "BS21-009-e3",
+    "kind": "aura",
+    "levels": [
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "amount": 3000,
+     "colorFilter": [
+      "red",
+      "yellow"
+     ],
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-010",
+  "name": "マーシュビル",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 0,
+  "reduction": [],
+  "family": [
+   "幽魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS21-011",
+  "name": "ジャンゴヘビ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 1,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3【呪撃】『このスピリットのアタック時』\nバトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する。",
+  "effects": [
+   {
+    "id": "BS21-011-e1",
+    "kind": "keyword",
+    "keyword": "jugeki",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-012",
+  "name": "ボーン・ボアー",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 2,
+  "reduction": [
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2『自分のメインステップ』\n自分の青のスピリットが召喚されたとき、自分はデッキから1枚ドローする。\nこの効果はターンに1回しか使えない。",
+  "effects": [
+   {
+    "id": "BS21-012-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "phase": "main",
+    "turn": "own",
+    "subjectFilter": {
+     "color": "blue"
+    },
+    "oncePerTurn": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "onceScope": "name"
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-013",
+  "name": "怪盗バット・バニーガール",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "夜族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのメインステップ』\nお互い、ボイドからコアを増やすことができない。\nLv2･Lv3『お互いのアタックステップ』\nお互い、トラッシュのコアをフィールド/リザーブに置くことができない。",
+  "effects": [
+   {
+    "id": "BS21-013-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "main",
+    "turn": "both",
+    "constraint": {
+     "type": "coreGainCap",
+     "max": 0,
+     "from": [
+      "void"
+     ],
+     "to": [
+      "life",
+      "field",
+      "reserve"
+     ],
+     "side": "both"
+    }
+   },
+   {
+    "id": "BS21-013-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "both",
+    "constraint": {
+     "type": "coreGainCap",
+     "max": 0,
+     "from": [
+      "trash"
+     ],
+     "to": [
+      "field",
+      "reserve"
+     ],
+     "side": "both"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-014",
+  "name": "告死蛇ブームスネーク",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nコスト3の相手のスピリットすべてのコア1個ずつを相手のリザーブに置く。\nこの効果でコアが0個になったスピリット1体につき、自分はデッキから1枚ドローする。\nLv2･Lv3『自分のアタックステップ』\nステップ開始時、このスピリットを疲労させることで、このターンの間、自分のスピリット1体の色を無いものとして扱う。",
+  "effects": [
+   {
+    "id": "BS21-014-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "removeCores",
+       "target": "all",
+       "count": 1,
+       "filter": {
+        "cost": {
+         "in": [
+          3
+         ]
+        }
+       }
+      },
+      {
+       "type": "draw",
+       "count": 1,
+       "countCounter": "lastEmptiedSpirits"
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS21-014-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "target": "self",
+      "count": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "colorless"
+       }
+      ],
+      "duration": "turn",
+      "side": "own",
+      "count": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-015",
+  "name": "死の剣使いデュラボーン",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "剣使",
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n疲労状態の相手のスピリット1体を破壊する。\n【連鎖：条件《白/黄シンボル》】\n(自分の白/黄シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[白]：コスト5以下の相手のスピリット1体を手札に戻す。\n[黄]：このスピリットは、Lv1/Lv2の相手のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS21-015-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-015-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "filter": {
+      "rested": true
+     },
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-015-e3",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "white"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "return",
+      "to": "hand",
+      "count": 1,
+      "filter": {
+       "cost": {
+        "max": 5
+       }
+      }
+     }
+    }
+   },
+   {
+    "id": "BS21-015-e4",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "yellow"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "unblockable",
+        "opponentOnly": true,
+        "from": {
+         "level": [
+          1,
+          2
+         ]
+        }
+       }
+      ],
+      "duration": "battle",
+      "target": "self"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-016",
+  "name": "デス・ヒュードラ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「星魂」を持つ自分のスピリットがアタックしたとき、相手のスピリットのコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS21-016-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": "星魂"
+    },
+    "action": {
+     "type": "removeCores",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-017",
+  "name": "冥巡士ヴァルファレード",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n【呪撃】を持つ自分のスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS21-017-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "byOpponentOnly": true,
+    "subjectFilter": {
+     "keyword": "jugeki"
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-018",
+  "name": "骸獣侯ボーン・クスロー",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "【不死：コスト3/4】『お互いのアタックステップ』\nトラッシュにあるこのスピリットカードは、コスト3/4の自分のスピリットが破壊されたとき召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n相手のフィールドのコア1個を相手のリザーブに置く。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS21-018-e1",
+    "kind": "keyword",
+    "keyword": "fushi",
+    "levels": null,
+    "triggerCosts": [
+     3,
+     4
+    ]
+   },
+   {
+    "id": "BS21-018-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-018-e3",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onSummon",
+    "levels": null,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "white"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "return",
+      "to": "hand",
+      "count": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-019",
+  "name": "クイック・モスキー",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。",
+  "effects": [
+   {
+    "id": "BS21-019-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-020",
+  "name": "ハリモグリ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 2,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS21-021",
+  "name": "鶴星アルナイル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "爪鳥",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「星魂」を持つ自分のスピリットがアタックしたとき、BP4000以下の相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS21-021-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": "星魂"
+    },
+    "action": {
+     "type": "exhaust",
+     "count": 1,
+     "filter": {
+      "maxBp": 4000
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-022",
+  "name": "水蟲ゲングラス",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv2『このスピリットのアタック時』\n合体していない相手のスピリット1体を疲労させる。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS21-022-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "exhaust",
+       "count": 1,
+       "filter": {
+        "combined": false
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-023",
+  "name": "マンドラホラ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『自分のアタックステップ』\n系統：「想獣」を持つ自分のスピリットがアタックしたとき、ボイドからコア1個をそのスピリットに置く。",
+  "effects": [
+   {
+    "id": "BS21-023-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": "想獣"
+    },
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-024",
+  "name": "クロタネホーク",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【暴風：2】『このスピリットのアタック時』\nこのスピリットがブロックされたとき、相手は、相手のスピリット2体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS21-024-e1",
+    "kind": "keyword",
+    "keyword": "bofu",
+    "count": 2,
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS21-024-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "eventTarget": "ignore",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true,
+     "excludeTarget": true,
+     "countFromBofu": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-025",
+  "name": "大草鳥ソテツニア・コンドル",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2\n系統：「爪鳥」を持つ自分のスピリットすべてのコアの数は、相手によってLv1コストより少なくならない。\nLv2『お互いのアタックステップ』\n自分のマジックの効果で相手のスピリットが疲労したとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS21-025-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "coreFloorByCost",
+     "ownOnly": true,
+     "byOpponentOnly": true,
+     "filter": {
+      "family": "爪鳥"
+     }
+    }
+   },
+   {
+    "id": "BS21-025-e2",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritExhaustedByOwnSpiritEffect",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "selfMode": "source",
+    "sourceTypes": [
+     "magic"
+    ],
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-026",
+  "name": "紅蟲ベニカミキラン",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2『お互いのアタックステップ』\n【神速】を持つ自分のスピリット/ブレイヴが召喚されたとき、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "BS21-026-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritSummoned",
+    "levels": [
+     2
+    ],
+    "subjectFilter": {
+     "keyword": "soku"
+    },
+    "selfMode": "source",
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS21-026-e2",
+    "kind": "fieldEvent",
+    "event": "anyBraveSummoned",
+    "levels": [
+     2
+    ],
+    "subjectSide": "own",
+    "subjectFilter": {
+     "keyword": "soku"
+    },
+    "selfMode": "source",
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-027",
+  "name": "十剣聖ゴホンカク",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 7,
+  "reduction": [
+   "green",
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣使",
+   "殻人"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、系統：「怪虫」を持つ自分のスピリット2体を回復させる。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n相手のスピリット2体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS21-027-e1",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "attacker",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "refresh",
+     "filter": {
+      "family": "怪虫"
+     },
+     "count": 2
+    }
+   },
+   {
+    "id": "BS21-027-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "whileCombined": true,
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaust",
+     "count": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-028",
+  "name": "プロード・ファルコン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 1,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv3【強化】\n自分の「スピリット回復効果」の体数を+1体する。",
+  "effects": [
+   {
+    "id": "BS21-028-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "refresh",
+    "levels": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-029",
+  "name": "リシアキリン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 2,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "巨獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2【重装甲：赤/緑】\nこのスピリットは、相手の赤/緑のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2\n【連鎖】を持つ自分の紫のスピリットすべてに【重装甲：赤/緑】を与える。",
+  "effects": [
+   {
+    "id": "BS21-029-e1",
+    "kind": "keyword",
+    "keyword": "heavyArmor",
+    "levels": [
+     1,
+     2
+    ],
+    "colors": [
+     "red",
+     "green"
+    ]
+   },
+   {
+    "id": "BS21-029-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "heavyArmor",
+    "colors": [
+     "red",
+     "green"
+    ],
+    "target": "ownAll",
+    "colorFilter": "purple",
+    "keywordFilter": "rensa"
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-030",
+  "name": "真紅の女神マッハ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white"
+  ],
+  "family": [
+   "氷姫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\nこのスピリットは疲労状態でブロックできる。\nLv2･Lv3【重装甲：赤/紫】\nこのスピリットは、相手の赤/紫のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+  "effects": [
+   {
+    "id": "BS21-030-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "constraint": {
+     "type": "canBlockWhileRested"
+    }
+   },
+   {
+    "id": "BS21-030-e2",
+    "kind": "keyword",
+    "keyword": "heavyArmor",
+    "levels": [
+     2,
+     3
+    ],
+    "colors": [
+     "red",
+     "purple"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-031",
+  "name": "神機ゲイボルグ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2【強化】\n自分の「スピリット回復効果」の体数を+1体する。",
+  "effects": [
+   {
+    "id": "BS21-031-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "refresh",
+    "levels": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-032",
+  "name": "猟犬機アステリオ・ベネラ9号",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n相手のスピリットがアタックしたとき、系統：「星魂」を持つ自分のスピリット1体を回復させる。",
+  "effects": [
+   {
+    "id": "BS21-032-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "subjectSide": "opponent",
+    "selfMode": "source",
+    "action": {
+     "type": "refresh",
+     "filter": {
+      "family": [
+       "星魂"
+      ]
+     },
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-033",
+  "name": "近衛機ジェネシルド",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【強化】\n自分の「スピリット回復効果」の体数を+1体する。\nLv2･Lv3『このスピリットのブロック時』\nBPを比べ相手のスピリットだけを破壊したとき、相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS21-033-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "refresh",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS21-033-e2",
+    "kind": "triggered",
+    "trigger": "onBattleWin",
+    "battleRole": "blocker",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "return",
+     "to": "hand",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-034",
+  "name": "天眼機神ディアリーン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『相手のアタックステップ』\n自分の白のスピリットがブロックしたとき、そのスピリットをBP+3000する。\nLv3『相手のアタックステップ』\n合体していない相手のスピリットすべては、可能ならば必ずアタックする。",
+  "effects": [
+   {
+    "id": "BS21-034-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDeclaredBlock",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "subjectFilter": {
+     "color": "white"
+    },
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS21-034-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     3
+    ],
+    "target": "opponentAll",
+    "filter": {
+     "uncombined": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    },
+    "constraint": {
+     "type": "mustAttack"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-035",
+  "name": "ネガ・カンガル",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 6,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\nこのスピリットをBP+5000する。",
+  "effects": [
+   {
+    "id": "BS21-035-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "eventTarget": "use",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-036",
+  "name": "十剣聖ザンバー・コング",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "剣使",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのアタック時』\n相手のネクサス1つを手札に戻す。\n【連鎖：条件《緑/青シンボル》】\n(自分の緑/青シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。\n[青]：このスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。\n【合体時】Lv3『相手のアタックステップ』\n自分の合体スピリットがBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS21-036-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "return",
+     "to": "hand",
+     "nexus": "only",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-036-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "blue"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "pay",
+        "cost": {
+         "type": "exhaust",
+         "side": "own",
+         "nexusOnly": true,
+         "count": 1
+        },
+        "then": {
+         "type": "refresh",
+         "target": "self"
+        },
+        "oncePerTurn": true
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS21-036-e3",
+    "kind": "battleWon",
+    "role": "blocker",
+    "levels": [
+     3
+    ],
+    "whileCombined": true,
+    "winnerCombinedOnly": true,
+    "turn": "opponent",
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-037",
+  "name": "カメロンパン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "菓族"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの破壊時』\n自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS21-037-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "optional": false
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-038",
+  "name": "ボジャノーイ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 2,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS21-039",
+  "name": "天使リセル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\nこのスピリットはアタックできない。\nLv1･Lv2【強化】\n自分の「BP-効果」を-1000する。\nLv2『お互いのアタックステップ』\n系統：「天霊」を持つ自分のスピリットすべてをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS21-039-e1",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "cantAttack"
+    }
+   },
+   {
+    "id": "BS21-039-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpMinus",
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "BS21-039-e3",
+    "kind": "aura",
+    "levels": [
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": "天霊",
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "both"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-040",
+  "name": "ガトーブレパス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 1000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 2000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+  "effects": [
+   {
+    "id": "BS21-040-e1",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS21-040-e2",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-041",
+  "name": "アドペンタン＆チャール",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "歌鳥",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n相手のスピリットがターンで初めてBP0になったとき、自分はデッキから1枚ドローする。\nLv2･Lv3『相手のアタックステップ』\n相手のスピリットすべては回復できない。",
+  "effects": [
+   {
+    "id": "BS21-041-e1",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritBpReachedZero",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "oncePerTurn": true,
+    "selfMode": "source",
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-041-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "constraint": {
+     "type": "noRefreshByAnyEffect",
+     "side": "opponent"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-042",
+  "name": "十剣聖ナラシンハ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "剣使",
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットは、Lv1の相手のスピリットからブロックされない。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n自分のトラッシュにあるコスト2のスピリットカード1枚を手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS21-042-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "unblockable",
+       "opponentOnly": true,
+       "from": {
+        "level": [
+         1
+        ]
+       }
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS21-042-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "cost": {
+       "in": [
+        2
+       ]
+      }
+     }
+    }
+   },
+   {
+    "id": "BS21-042-e3",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": null,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "green"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "exhaust",
+      "count": 1
+     }
+    },
+    "whileCombined": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-043",
+  "name": "ダーク・アイベリックス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2･Lv3『このスピリットのアタック時』\nこのスピリットは、Lv1/Lv2の相手のスピリットからブロックされない。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
+  "effects": [
+   {
+    "id": "BS21-043-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "unblockable",
+       "opponentOnly": true,
+       "from": {
+        "level": [
+         1,
+         2
+        ]
+       }
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS21-043-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "green"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "exhaust",
+      "count": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-044",
+  "name": "凶獣トウコツ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットのブロック時』\n自分のトラッシュにある黄のマジックカード1枚を手札に戻す。\n【連鎖：条件《緑/白シンボル》】\n(自分の緑/白シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。\n[白]：BP4000以下の相手のスピリット1体を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS21-044-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "magic",
+      "color": [
+       "yellow"
+      ]
+     }
+    },
+    "eventTarget": "use"
+   },
+   {
+    "id": "BS21-044-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "placeCores",
+        "from": "void",
+        "to": "spirit",
+        "target": "self",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "white"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "return",
+        "to": "hand",
+        "count": 1,
+        "filter": {
+         "maxBp": 4000
+        }
+       }
+      }
+     ]
+    },
+    "eventTarget": "use"
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-045",
+  "name": "美の天使カフオペイア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "green"
+  ],
+  "family": [
+   "天霊",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのターンの間、相手のスピリット1体をBP-3000する。\nLv2･Lv3『自分のアタックステップ』\n系統：「星魂」を持つ自分のスピリットすべては、BP0の相手のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS21-045-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "bpMinus",
+     "amount": 3000,
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-045-e2",
+    "kind": "constraintGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "filter": {
+     "family": "星魂"
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "unblockableBy",
+     "opponentOnly": true,
+     "filter": {
+      "maxBp": 0
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-046",
+  "name": "ヤナクラゲー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 1,
+  "reduction": [],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\nコスト0の相手のスピリットはアタックできない。",
+  "effects": [
+   {
+    "id": "BS21-046-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "constraint": {
+     "type": "opponentCantAttackByCost",
+     "costs": [
+      0
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-047",
+  "name": "怪力巨人アドルファス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n系統：「闘神」を持つ自分のスピリットがアタックしたとき、そのスピリットをBP+2000し、相手のデッキを上から1枚破棄する。",
+  "effects": [
+   {
+    "id": "BS21-047-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": "闘神"
+    },
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "bp",
+         "amount": 2000
+        }
+       ],
+       "duration": "battle",
+       "target": "self"
+      },
+      {
+       "type": "discard",
+       "from": "deck",
+       "side": "opponent",
+       "count": 1
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-048",
+  "name": "リュウグウウシ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nこのバトルの間、相手のスピリットすべては回復できない。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：相手のスピリットのコア1個を相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS21-048-e1",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "eventTarget": "use",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "noSpiritRefresh"
+       }
+      }
+     ],
+     "duration": "battle",
+     "side": "opponent"
+    }
+   },
+   {
+    "id": "BS21-048-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onBattleStart",
+    "eventTarget": "use",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "purple"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "removeCores",
+      "side": "opponent",
+      "from": [
+       "spirit"
+      ],
+      "to": "reserve",
+      "target": "one",
+      "count": 1
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-049",
+  "name": "海の彫刻家ナポレオ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "創手"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "",
+  "effects": []
+ },
+ {
+  "cardId": "BS21-050",
+  "name": "ゲル・ゴロス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト3の相手のスピリット1体を破壊する。\n【連鎖：条件《赤/紫シンボル》】\n(自分の赤/紫シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：相手のネクサス1つを破壊する。\n[紫]：自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS21-050-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "min": 3,
+       "max": 3
+      }
+     }
+    }
+   },
+   {
+    "id": "BS21-050-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "destroy",
+        "nexus": "only",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "purple"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-051",
+  "name": "ダーク・スクアーロ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv2\nこのスピリットは赤のスピリットとしても扱う。",
+  "effects": [
+   {
+    "id": "BS21-051-e1",
+    "kind": "colorAs",
+    "levels": [
+     2
+    ],
+    "colors": [
+     "red"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-052",
+  "name": "十剣聖ブールド・サイノス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "剣使",
+   "獣頭"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\n相手のバーストが発動したとき、系統：「異合」を持つ自分のスピリット1体を破壊することで、そのバーストの発動を無効にして破棄する。\nLv2･Lv3【合体時】『このスピリットのバトル時』\n系統：「異合」を持つ自分のスピリット1体につき、このスピリットをBP+2000する。",
+  "effects": [
+   {
+    "id": "BS21-052-e1",
+    "kind": "burstActivationNegate",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "destroyFamily": "異合"
+   },
+   {
+    "id": "BS21-052-e2",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "eventTarget": "use",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000,
+       "amountCounter": {
+        "ownFamily": "異合"
+       }
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-053",
+  "name": "星喰いのヤシガニド",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n系統：「天霊」を持つ相手のスピリット1体を破壊する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：系統：「星魂」を持つ相手のスピリット1体を破壊する。\nLv2\n相手のスピリットの【強化】は発揮されない。",
+  "effects": [
+   {
+    "id": "BS21-053-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "family": "天霊"
+     }
+    }
+   },
+   {
+    "id": "BS21-053-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "purple"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "filter": {
+       "family": "星魂"
+      }
+     }
+    }
+   },
+   {
+    "id": "BS21-053-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     2
+    ],
+    "constraint": {
+     "type": "opponentKyokaSuppressed"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-054",
+  "name": "英傑巨人ヘラクラス",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue",
+   "purple"
+  ],
+  "family": [
+   "闘神",
+   "星魂"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 8000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n相手の効果によって相手の手札が増えたとき、増えたカード1枚につき、相手のデッキを上から1枚破棄する。\nLv2･Lv3『自分のアタックステップ』\n系統：「星魂」を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、相手のデッキを上から、そのスピリットのコストと同じ枚数破棄する。",
+  "effects": [
+   {
+    "id": "BS21-054-e1",
+    "kind": "fieldEvent",
+    "event": "opponentHandAdded",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "sourceTypes": [
+     "spirit",
+     "brave",
+     "nexus",
+     "magic"
+    ],
+    "repeatPerCount": true,
+    "action": {
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-054-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDealtLife",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "subjectFilter": {
+     "family": [
+      "星魂"
+     ]
+    },
+    "action": {
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
+     "count": 1,
+     "countCounter": "selfCost"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-055",
+  "name": "ゴルニック・イーグル",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "空牙"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n相手のネクサス1つを破壊する。\n合体条件：コスト3以上\n【合体時】『このスピリットの合体アタック時』\nこのスピリットをBP+5000する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト3以上",
+  "effects": [
+   {
+    "id": "BS21-055-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "nexus": "only",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-055-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 5000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   }
+  ],
+  "braveCondition": [
+   {
+    "minCost": 3
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-056",
+  "name": "プテラノストーン",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "green",
+   "green"
+  ],
+  "family": [
+   "機竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nBP3000以下の相手のスピリット2体を破壊する。\n合体条件：コスト4以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS21-056-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 2,
+     "filter": {
+      "maxBp": 3000
+     }
+    }
+   }
+  ],
+  "braveCondition": [
+   {
+    "minCost": 4
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-057",
+  "name": "冥獣騎シトリー",
+  "type": "brave",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "冥主"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "合体条件：コスト3以上\n【合体時】『このスピリットの破壊時』\n相手のスピリット2体を疲労させる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   }
+  ],
+  "braveConditionText": "コスト3以上",
+  "effects": [
+   {
+    "id": "BS21-057-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "exhaust",
+     "count": 2
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 3
+  }
+ },
+ {
+  "cardId": "BS21-058",
+  "name": "ガーゴイラス",
+  "type": "brave",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple",
+   "blue"
+  ],
+  "family": [
+   "魔影"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nこのスピリットの効果で相手のデッキを破棄したとき、相手のフィールドのコア1個を相手のリザーブに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS21-058-e1",
+    "kind": "fieldEvent",
+    "event": "opponentDeckMilled",
+    "levels": null,
+    "whileCombined": true,
+    "bySelfEffectOnly": true,
+    "duringSelfAttack": true,
+    "action": {
+     "type": "removeCores",
+     "side": "opponent",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
+     "to": "reserve",
+     "target": "one",
+     "count": 1
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 4
+  }
+ },
+ {
+  "cardId": "BS21-059",
+  "name": "カラクリペリカン",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1\nこのブレイヴがスピリット状態の間、このスピリットに緑のシンボル1つを追加する。\n合体条件：緑のシンボルを持つ\n【合体時】『このスピリットの合体アタック時』\nBPを比べ相手のスピリットだけを破壊したとき、このスピリットは回復する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "緑のシンボルを持つ",
+  "effects": [
+   {
+    "id": "BS21-059-e1",
+    "kind": "symbolAddGrant",
+    "levels": [
+     1
+    ],
+    "whileSpirit": true,
+    "target": "self",
+    "color": "green"
+   },
+   {
+    "id": "BS21-059-e2",
+    "kind": "battleWon",
+    "role": "attacker",
+    "levels": [
+     1
+    ],
+    "whileCombined": true,
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    }
+   }
+  ],
+  "braveCondition": {
+   "symbolColor": "green"
+  }
+ },
+ {
+  "cardId": "BS21-060",
+  "name": "食虫草ドロセラー",
+  "type": "brave",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "yellow"
+  ],
+  "family": [
+   "樹魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットの合体アタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個をこのスピリットに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS21-060-e1",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
+     "count": 1
+    }
+   }
+  ],
+  "braveCondition": [
+   {
+    "minCost": 4
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-061",
+  "name": "衛星機パイオニア・V",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：白のシンボルを持つ\n【合体時】『このスピリットのブロック時』\nこのスピリットをBP+3000する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "白のシンボルを持つ",
+  "braveCondition": {
+   "symbolColor": "white"
+  },
+  "effects": [
+   {
+    "id": "BS21-061-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "eventTarget": "use",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-062",
+  "name": "弩弓獣クロス・ボンゴ",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "purple"
+  ],
+  "family": [
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effect": "合体条件：コスト4以上\n【合体時】『このスピリットのブロック時』\nボイドからコア1個をこのスピリットに置く。\nこのスピリットが紫のシンボルを持つとき、相手のフィールドのコア1個を相手のリザーブに置く。",
+  "braveCondition": {
+   "minCost": 4
+  },
+  "effects": [
+   {
+    "id": "BS21-062-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "eventTarget": "ignore",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "placeCores",
+       "from": "void",
+       "to": "spirit",
+       "target": "self",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "selfSymbolColor": "purple"
+       },
+       "then": {
+        "type": "coreRemove",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-063",
+  "name": "ぐるみパンダ",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "red"
+  ],
+  "family": [
+   "小玩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "合体条件：コスト4以上\n【合体時】\nこのスピリットが相手によって破壊されたとき、ボイドからコア1個を自分のライフに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS21-063-e1",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": null,
+    "whileCombined": true,
+    "condition": {
+     "selfDestroyedByOpponent": true
+    },
+    "optional": false,
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
+    }
+   }
+  ],
+  "braveCondition": [
+   {
+    "minCost": 4
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-064",
+  "name": "ブリキタイガー",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "戯狩"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1\nこのブレイヴがスピリット状態の間、このスピリットに黄のシンボル1つを追加する。\n合体条件：コスト3以上\n【合体時】【聖命】『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 3000
+   }
+  ],
+  "braveConditionText": "コスト3以上",
+  "effects": [
+   {
+    "id": "BS21-064-e1",
+    "kind": "symbolAddGrant",
+    "levels": [
+     1
+    ],
+    "whileSpirit": true,
+    "target": "self",
+    "color": "yellow"
+   },
+   {
+    "id": "BS21-064-e2",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": null,
+    "whileCombined": true
+   },
+   {
+    "id": "BS21-064-e3",
+    "kind": "triggered",
+    "trigger": "onLifeDealt",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 3
+  }
+ },
+ {
+  "cardId": "BS21-065",
+  "name": "ダイブ・アームズ",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1\nこのブレイヴがスピリット状態の間、このスピリットに青のシンボル1つを追加する。\n合体条件：青のシンボルを持つ\n【合体時】『このスピリットの合体アタック時』\n自分のトラッシュにあるネクサスカード1枚を手札に戻す。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "青のシンボルを持つ",
+  "effects": [
+   {
+    "id": "BS21-065-e1",
+    "kind": "symbolAddGrant",
+    "levels": [
+     1
+    ],
+    "whileSpirit": true,
+    "target": "self",
+    "color": "blue"
+   },
+   {
+    "id": "BS21-065-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "nexus"
+     }
+    }
+   }
+  ],
+  "braveCondition": {
+   "symbolColor": "blue"
+  }
+ },
+ {
+  "cardId": "BS21-066",
+  "name": "深海竜ラブリス",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "white",
+   "white"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のトラッシュにある白/青のネクサスカードすべてを手札に戻す。\n合体条件：コスト4以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "effects": [
+   {
+    "id": "BS21-066-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": "all",
+     "dest": "hand",
+     "pick": {
+      "cardType": "nexus",
+      "color": [
+       "white",
+       "blue"
+      ]
+     }
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 4
+  }
+ },
+ {
+  "cardId": "BS21-067",
+  "name": "アポロニア岩窟寺院",
+  "type": "nexus",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2\nこのネクサスが相手によって破壊されたとき、BP10000以下の相手のスピリット1体を破壊する。\nLv2『自分のアタックステップ』\n【強化】/【連鎖】を持つ自分のスピリットがアタックしたとき、BP1000以下の相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS21-067-e1",
+    "kind": "fieldEvent",
+    "event": "ownNexusDestroyed",
+    "levels": [
+     1,
+     2
+    ],
+    "selfMode": "source",
+    "byOpponentEffectOnly": true,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 10000
+     }
+    }
+   },
+   {
+    "id": "BS21-067-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "keyword": [
+      "kyoka",
+      "rensa"
+     ]
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 1000
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-068",
+  "name": "暗き棺桶洞",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分のスピリットすべての【呪撃】を“【呪撃】『このスピリットのブロック時』バトル解決時にアタックしていた相手のスピリット1体を、バトル終了時に破壊する”に変更する。\nLv2『お互いのアタックステップ』\n自分の効果によって相手のスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "BS21-068-e1",
+    "kind": "jugekiOnBlockReplace",
+    "levels": [
+     1,
+     2
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "opponent"
+    }
+   },
+   {
+    "id": "BS21-068-e2",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritCoresEmptied",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "selfMode": "source",
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    },
+    "sourceTypes": [
+     "spirit",
+     "brave",
+     "nexus",
+     "magic"
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-069",
+  "name": "リュウケツの大樹",
+  "type": "nexus",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\nバトルしている自分のスピリットをBP+2000する。\nLv2『自分のアタックステップ』\n系統：「怪虫」を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\nこの効果は重複しない。",
+  "effects": [
+   {
+    "id": "BS21-069-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "battlingOnly": true,
+     "amount": 2000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "both"
+     }
+    }
+   },
+   {
+    "id": "BS21-069-e2",
+    "kind": "battleWon",
+    "role": "attacker",
+    "levels": [
+     2
+    ],
+    "turn": "own",
+    "winnerFamilyFilter": "怪虫",
+    "noStackByName": true,
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-070",
+  "name": "フィアナ空母都市",
+  "type": "nexus",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『相手のアタックステップ』\n自分の白のスピリットすべてをBP+3000する。\nLv2『相手のアタックステップ』\n系統：「武装」を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\nこの効果は重複しない。",
+  "effects": [
+   {
+    "id": "BS21-070-e1",
+    "kind": "aura",
+    "levels": [
+     1,
+     2
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "colorFilter": "white",
+     "amount": 3000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "opponent"
+     }
+    }
+   },
+   {
+    "id": "BS21-070-e2",
+    "kind": "battleWon",
+    "role": "blocker",
+    "levels": [
+     2
+    ],
+    "turn": "opponent",
+    "winnerFamilyFilter": "武装",
+    "noStackByName": true,
+    "action": {
+     "type": "lifeCrush",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-071",
+  "name": "四雲庵",
+  "type": "nexus",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 1,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のスタートステップ』\n自分の手札にある系統：「想獣」/「星魂」を持つスピリットカード1枚を破棄することで、ボイドからコア1個を自分のリザーブに置く。\nこの効果はターンに1回しか使えない。\nLv2『自分のメインステップ』\n自分がコスト7以上のスピリットカードを召喚するとき、このネクサスのシンボルを黄のシンボル3つにする。",
+  "effects": [
+   {
+    "id": "BS21-071-e1",
+    "kind": "step",
+    "step": "start",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "oncePerTurn": true,
+    "onceScope": "name",
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "moveCards",
+      "from": "hand",
+      "dest": "trash",
+      "count": 1,
+      "pick": {
+       "cardType": "spirit",
+       "family": [
+        "想獣",
+        "星魂"
+       ]
+      }
+     },
+     "then": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "reserve",
+      "count": 1
+     }
+    }
+   },
+   {
+    "id": "BS21-071-e2",
+    "kind": "symbolWhenSummoning",
+    "levels": [
+     2
+    ],
+    "color": "yellow",
+    "count": 2,
+    "minCost": 7,
+    "ownMainStepOnly": true
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-072",
+  "name": "珊瑚の樹海",
+  "type": "nexus",
+  "colors": [
+   "blue",
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "blue",
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のアタックステップ』\n【連鎖】を持つ自分の青のスピリットがアタックしたとき、自分はデッキから1枚ドローできる。\nこの効果でドローしたとき、自分は手札1枚を破棄する。\nLv2『自分のアタックステップ』\nステップ開始時、自分のライフのコア1個を自分のリザーブに置くことで、このターンの間、お互いはバーストを発動できない。",
+  "effects": [
+   {
+    "id": "BS21-072-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "keyword": "rensa",
+     "color": "blue"
+    },
+    "optional": true,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "draw",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": "lastDrawn",
+        "atLeast": 1
+       },
+       "then": {
+        "type": "discard",
+        "from": "hand",
+        "side": "own",
+        "count": 1
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS21-072-e2",
+    "kind": "step",
+    "step": "attack",
+    "turn": "own",
+    "levels": [
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "placeCores",
+      "from": "life",
+      "to": "reserve",
+      "count": 1
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "playerRule",
+        "rule": {
+         "type": "noBurstActivation"
+        }
+       }
+      ],
+      "duration": "turn",
+      "side": "both"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-073",
+  "name": "バーニングフォース",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\nBP4000以下の相手のスピリット1体を破壊する。\n【連鎖：条件《紫/黄シンボル》】\n(自分の紫/黄シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[紫]：自分のトラッシュにあるコスト7のスピリットカード1枚を召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\n[黄]：このバトルの間、アタックしている自分のスピリット1体は、コスト6以上の相手のスピリットからブロックされない。",
+  "effects": [
+   {
+    "id": "BS21-073-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 4000
+     }
+    }
+   },
+   {
+    "id": "BS21-073-e2",
+    "kind": "magic",
+    "keyword": "rensa",
+    "timing": "flash",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "purple"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "moveCards",
+        "from": "trash",
+        "dest": "summon",
+        "pick": {
+         "cardType": "spirit",
+         "cost": {
+          "min": 7,
+          "max": 7
+         }
+        },
+        "count": 1,
+        "skipOnSummon": true,
+        "optional": true
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "yellow"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "unblockable",
+          "from": {
+           "cost": {
+            "min": 6
+           }
+          }
+         }
+        ],
+        "duration": "battle",
+        "count": 1,
+        "choosing": true,
+        "filter": {
+         "attackingOnly": true
+        }
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-074",
+  "name": "ボルカニックブレイク",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\n相手のネクサスすべてを破壊する。\nこの効果で破壊したネクサス1つにつき、自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS21-074-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "destroy",
+     "nexus": "only",
+     "count": 1,
+     "all": true,
+     "drawPerDestroyed": 1
+    }
+   },
+   {
+    "id": "BS21-074-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "both",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-075",
+  "name": "デッドリィヘクス",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 4,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のスピリット1体を破壊することで、相手は、相手のスピリット1体を破壊する。\n【連鎖：条件《白/黄シンボル》】\n(自分の白/黄シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[白]：相手のスピリット1体を手札に戻す。\n[黄]：このターンの間、相手のスピリット1体をLv1として扱う。",
+  "effects": [
+   {
+    "id": "BS21-075-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "side": "own",
+      "count": 1
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1,
+      "chooserIsTarget": true
+     }
+    }
+   },
+   {
+    "id": "BS21-075-e2",
+    "kind": "magic",
+    "keyword": "rensa",
+    "timing": "flash",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "white"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "return",
+        "to": "hand",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "yellow"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "level",
+          "set": 1
+         }
+        ],
+        "duration": "turn",
+        "count": 1,
+        "side": "opponent"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-076",
+  "name": "ソウルスライド",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n相手のスピリット2体のコアを、それぞれ1個だけになるように相手のリザーブに置く。",
+  "effects": [
+   {
+    "id": "BS21-076-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "removeCores",
+     "targets": 2,
+     "count": "all",
+     "leaveAtLeast": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-077",
+  "name": "ベロティカルウィンド",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 3,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\nこのターンの間、合体していない系統：「爪鳥」を持つ自分のスピリット1体をBP+5000し、そのスピリットが相手によって破壊されたとき、そのスピリットを手札に戻す。",
+  "effects": [
+   {
+    "id": "BS21-077-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "targetChoiceLendThisTurn",
+     "filter": {
+      "family": [
+       "爪鳥"
+      ],
+      "uncombined": true
+     },
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS21-077-e2",
+    "kind": "aura",
+    "levels": null,
+    "lentOnly": true,
+    "aura": {
+     "type": "bp",
+     "target": "chosenInstance",
+     "amount": 5000,
+     "lentOnly": true
+    }
+   },
+   {
+    "id": "BS21-077-e3",
+    "kind": "reviveOnDestroy",
+    "levels": null,
+    "lentOnly": true,
+    "scope": "chosenInstance",
+    "when": {
+     "byOpponent": true
+    },
+    "revived": {
+     "toHand": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-078",
+  "name": "バインディングウェブ",
+  "type": "magic",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "フラッシュ：\n相手は、相手のスピリット2体を疲労させる。\n【連鎖：条件《赤/青シンボル》】\n(自分の赤/青シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：相手のネクサス1つを破壊する。\n[青]：自分のトラッシュにあるネクサスカード1枚を手札に戻す。",
+  "effects": [
+   {
+    "id": "BS21-078-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "exhaust",
+     "count": 2,
+     "chooserIsTarget": true
+    }
+   },
+   {
+    "id": "BS21-078-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "keyword": "rensa",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "destroy",
+        "nexus": "only",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "blue"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "moveCards",
+        "from": "trash",
+        "count": 1,
+        "dest": "hand",
+        "pick": {
+         "cardType": "nexus"
+        }
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-079",
+  "name": "エターナルディフェンス",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 3,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のスピリット1体を指定する。\nこのターンの間、指定されたスピリットは、疲労状態でブロックできる。",
+  "effects": [
+   {
+    "id": "BS21-079-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "canBlockWhileRested"
+      }
+     ],
+     "duration": "turn",
+     "side": "own",
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-080",
+  "name": "ホワイトアウト",
+  "type": "magic",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n相手のネクサスすべてを手札に戻す。\n【連鎖：条件《緑/青シンボル》】\n(自分の緑/青シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。\n[青]：このターンの間、相手は、バースト条件が【自分のライフ減少後】のバーストを発動できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS21-080-e1",
+    "kind": "magic",
+    "keyword": "rensa",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "return",
+       "to": "hand",
+       "nexus": "only",
+       "count": 1,
+       "all": true
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "blue"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "timedEffect",
+        "content": [
+         {
+          "type": "playerRule",
+          "rule": {
+           "type": "noBurstActivation",
+           "byEvent": "ownLifeDamaged"
+          }
+         }
+        ],
+        "duration": "turn",
+        "side": "opponent"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS21-080-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-081",
+  "name": "サプライズスラップ",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 3,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\nアタックしている回復状態の相手のスピリット1体を破壊する。\n【連鎖：条件《緑/白シンボル》】\n(自分の緑/白シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[緑]：コスト3の相手のスピリット2体を疲労させる。\n[白]：相手のスピリット1体を指定する。\nこのターンの間、指定された相手のスピリットのアタックによって、自分のライフは減らない。",
+  "effects": [
+   {
+    "id": "BS21-081-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "attackingOnly": true,
+      "refreshed": true
+     }
+    }
+   },
+   {
+    "id": "BS21-081-e2",
+    "kind": "magic",
+    "keyword": "rensa",
+    "timing": "flash",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 2,
+        "filter": {
+         "cost": {
+          "in": [
+           3
+          ]
+         }
+        }
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "white"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "negateLifeDamageFromTarget"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-082",
+  "name": "ライフドリーム",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分の黄のスピリットすべてに“『このスピリットのアタック時』自分のライフのコア1個をこのスピリットに置くことで、このスピリットはブロックされない。この効果で自分はバーストを発動できない”を与える。\nフラッシュ：\nこのターンの間、スピリット1体をBP-2000する。",
+  "effects": [
+   {
+    "id": "BS21-082-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "grantTrigger",
+       "trigger": "onAttack",
+       "optional": true,
+       "action": {
+        "type": "pay",
+        "cost": {
+         "type": "placeCores",
+         "from": "life",
+         "to": "self",
+         "count": 1,
+         "noOwnBurst": true
+        },
+        "then": {
+         "type": "timedEffect",
+         "content": [
+          {
+           "type": "unblockable"
+          }
+         ],
+         "duration": "battle",
+         "target": "self"
+        }
+       }
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own",
+     "filter": {
+      "color": "yellow"
+     }
+    }
+   },
+   {
+    "id": "BS21-082-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": -2000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-083",
+  "name": "サファイアエロード",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 2,
+  "reduction": [
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分のネクサスの数以下のコストの相手のスピリット1体を破壊する。",
+  "effects": [
+   {
+    "id": "BS21-083-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "max": 0
+      },
+      "maxCostPer": {
+       "counter": "ownNexuses",
+       "amount": 1
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-084",
+  "name": "レイジングシー",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分のスピリット1体を、そのスピリットが持つ最高Lvとして扱う。\n【連鎖：条件《赤/紫シンボル》】\n(自分の赤/紫シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。\n[紫]：自分はデッキから1枚ドローする。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": [
+   {
+    "id": "BS21-084-e1",
+    "kind": "magic",
+    "keyword": "rensa",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "level",
+         "max": true
+        }
+       ],
+       "duration": "turn",
+       "side": "own"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "purple"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS21-084-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X01",
+  "name": "光輝龍皇シャイニング・ドラゴン・アーク",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 13000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n【強化】を持つ自分の赤のスピリットすべてに赤のシンボル1つを追加する。\nLv2･Lv3『このスピリットのアタック時』\nBP10000以下の相手のスピリット1体を破壊する。\nLv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
+  "effects": [
+   {
+    "id": "BS21-X01-e1",
+    "kind": "symbolAddGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "filter": {
+     "color": "red",
+     "keyword": "kyoka"
+    },
+    "color": "red",
+    "count": 1,
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    }
+   },
+   {
+    "id": "BS21-X01-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 10000
+     }
+    }
+   },
+   {
+    "id": "BS21-X01-e3",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X02",
+  "name": "双頭の龍王バイ・ジャオウ",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 5,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 4000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n系統：「妖蛇」を持つ自分のスピリットすべてに“【呪撃】『このスピリットのアタック時』バトル解決時にブロックしていた相手のスピリット1体を、バトル終了時に破壊する”を与える。\nLv1･Lv2･Lv3『このスピリットの破壊時』\nこのスピリットを手札に戻すことができる。\nLv2･Lv3『自分のアタックステップ』\n【呪撃】を持つ自分のスピリットすべては、アタックするとき疲労状態の相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "effects": [
+   {
+    "id": "BS21-X02-e1",
+    "kind": "keywordGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "keyword": "jugeki",
+    "target": "ownAll",
+    "familyFilter": [
+     "妖蛇"
+    ]
+   },
+   {
+    "id": "BS21-X02-e2",
+    "kind": "triggered",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "return",
+     "to": "hand",
+     "target": "self",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-X02-e3",
+    "kind": "constraintGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "filter": {
+     "keyword": "jugeki"
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "rested"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X03",
+  "name": "黒樹神クワガ・ラブナ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green"
+  ],
+  "family": [
+   "怪虫",
+   "殻虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2･Lv3『このスピリットのアタック時』\n相手はバーストを発動できない。\n【連鎖：条件《赤/青シンボル》】\n(自分の赤/青シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。\n[青]：このスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。",
+  "effects": [
+   {
+    "id": "BS21-X03-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "BS21-X03-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "battleLock",
+       "lock": "burst"
+      }
+     ],
+     "duration": "battle"
+    }
+   },
+   {
+    "id": "BS21-X03-e3",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "blue"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "pay",
+        "cost": {
+         "type": "exhaust",
+         "side": "own",
+         "nexusOnly": true,
+         "count": 1
+        },
+        "then": {
+         "type": "refresh",
+         "target": "self"
+        },
+        "oncePerTurn": true
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X04",
+  "name": "槍光機神クーゲル・ホルン",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "white",
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\n【強化】を持つ自分のスピリットすべては、相手のスピリットの効果を受けない。\nLv2･Lv3【強化】\nアルティメット以外の自分の「スピリット回復効果」の体数を+1体する。\nLv3『相手のターン』\n相手がマジックカードを使用したとき、その効果発揮前にこのスピリットのコア2個を自分のトラッシュに置くことで、その効果を無効にする。",
+  "effects": [
+   {
+    "id": "BS21-X04-e1",
+    "kind": "constraintGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "target": "ownAll",
+    "filter": {
+     "keyword": "kyoka"
+    },
+    "constraint": {
+     "type": "immuneToOpponentEffects",
+     "against": "spirit"
+    }
+   },
+   {
+    "id": "BS21-X04-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "refresh",
+    "levels": [
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS21-X04-e3",
+    "kind": "magicNegate",
+    "levels": [
+     3
+    ],
+    "turn": "opponent",
+    "cost": {
+     "selfCoresToTrash": 2
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X05",
+  "name": "陸獣神ベヒモス",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 8,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 12000
+   },
+   {
+    "level": 3,
+    "cores": 8,
+    "bp": 20000
+   }
+  ],
+  "symbol": [
+   "yellow",
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n相手のスピリットすべてをLv1として扱う。\nLv2･Lv3『このスピリットのアタック時』\nこのスピリットは、コアが1個の相手のスピリットからブロックされない。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：コスト4以下の相手のスピリットすべてを疲労させる。",
+  "effects": [
+   {
+    "id": "BS21-X05-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "opponentSpiritsAll",
+    "treatAs": 1,
+    "phase": "attack",
+    "turn": "own"
+   },
+   {
+    "id": "BS21-X05-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "unblockable",
+       "opponentOnly": true,
+       "from": {
+        "cores": 1
+       }
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS21-X05-e3",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "green"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "exhaust",
+      "count": 1,
+      "all": true,
+      "filter": {
+       "cost": {
+        "max": 4
+       }
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X06",
+  "name": "異海神ディスト・ルクシオン",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 8,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 9000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 14000
+   }
+  ],
+  "symbol": [
+   "blue",
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nコスト5以下の相手のスピリット1体を破壊する。\n【連鎖：条件《赤/紫シンボル》】\n(自分の赤/紫シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：【強化】を持つ相手のスピリット1体を破壊する。\n[紫]：疲労状態の相手の合体スピリット1体を破壊する。\nLv2･Lv3\n相手のブレイヴ/ブレイヴカードすべての合体条件をコスト7以上にする。",
+  "effects": [
+   {
+    "id": "BS21-X06-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "cost": {
+       "max": 5
+      }
+     }
+    }
+   },
+   {
+    "id": "BS21-X06-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "destroy",
+        "count": 1,
+        "filter": {
+         "keyword": "kyoka"
+        }
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "purple"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "destroy",
+        "count": 1,
+        "filter": {
+         "rested": true,
+         "combined": true
+        }
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS21-X06-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "opponentBraveConditionMinCost",
+     "minCost": 7
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X07",
+  "name": "天空の光剣クラウン・ソーラー",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1【強化】\nアルティメット以外の自分の「スピリット回復効果」の体数を+1体する。\n合体条件：コスト5以上\n【合体中】【強化】\nアルティメット以外の自分の「スピリット回復効果」の体数を+1体する。\n【合体中】『このスピリットのアタック/ブロック時』\n合体していない自分のスピリット1体を回復させる。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 7000
+   }
+  ],
+  "braveConditionText": "コスト5以上",
+  "limitCount": 1,
+  "braveCondition": {
+   "minCost": 5
+  },
+  "effects": [
+   {
+    "id": "BS21-X07-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "refresh",
+    "levels": [
+     1
+    ]
+   },
+   {
+    "id": "BS21-X07-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "refresh",
+    "levels": null,
+    "whileCombined": true
+   },
+   {
+    "id": "BS21-X07-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "refresh",
+     "filter": {
+      "uncombined": true
+     },
+     "count": 1
+    }
+   },
+   {
+    "id": "BS21-X07-e4",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "eventTarget": "ignore",
+    "action": {
+     "type": "refresh",
+     "filter": {
+      "uncombined": true
+     },
+     "count": 1
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS21-X08",
+  "name": "深淵の巨剣アビス・アポカリプス",
+  "type": "brave",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、自分のスピリットすべてを、そのスピリットが持つ最高Lvとして扱う。\n合体条件：コスト5以上\n【合体中】\n相手は、相手のフィールドにあるシンボルと同じ色のバーストしか発動できず、相手のフィールドにあるシンボルと同じ色のマジックカードしか使用できない。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 5000
+   }
+  ],
+  "braveConditionText": "コスト5以上",
+  "effects": [
+   {
+    "id": "BS21-X08-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "level",
+       "max": true
+      }
+     ],
+     "duration": "turn",
+     "all": true,
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS21-X08-e2",
+    "kind": "globalConstraint",
+    "levels": null,
+    "whileCombined": true,
+    "constraint": {
+     "type": "burstOnlyOwnFieldSymbolColors"
+    }
+   },
+   {
+    "id": "BS21-X08-e3",
+    "kind": "globalConstraint",
+    "levels": null,
+    "whileCombined": true,
+    "constraint": {
+     "type": "magicOnlyOwnFieldSymbolColors"
+    }
+   }
+  ],
+  "braveCondition": {
+   "minCost": 5
+  }
+ }
+]

@@ -339,7 +339,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
         if (player.life <= 0 && !state.winner) {
             // BS14-084永久凍土の王都：ライフが0になる瞬間、任意コストで0を回避できる
             if (tryOwnLifeFloorByCost(state, opp)) {
-                fireFieldEventTriggers(state, opp, "ownLifeDamaged")
+                fireFieldEventTriggers(state, opp, "ownLifeDamaged", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true)
                 fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
                 fireFieldEventTriggers(state, opp, "ownLifeLost")
             } else {
@@ -348,7 +348,7 @@ const lifeCrushHandler: ActionHandler<"lifeCrush"> = (ctx, action) => {
             }
         } else if (dealt > 0) {
             // 相手（opp）から見て「相手（owner）によって自分のライフが減らされたとき」に該当（命の果実）
-            fireFieldEventTriggers(state, opp, "ownLifeDamaged")
+            fireFieldEventTriggers(state, opp, "ownLifeDamaged", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true)
             fireFieldEventTriggers(state, owner, "opponentLifeDamaged")
             fireFieldEventTriggers(state, opp, "ownLifeLost")
             if (srcType === "spirit" && self) fireFieldEventTriggers(state, owner, "ownSpiritReducedLife", { pid: owner, inst: self })

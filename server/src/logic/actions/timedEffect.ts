@@ -644,7 +644,7 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
         log(state, `${sourceName}：対象のスピリットがいなかった。`)
         return
     }
-    const prompt = action.content.some((c) => c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "noBpCompareDestroy" || c.type === "immune") ? "効果を付与する" : "疲労状態でブロックできるようにする"
+    const prompt = action.content.some((c) => c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "noBpCompareDestroy" || c.type === "immune" || c.type === "colorless") ? "効果を付与する" : "疲労状態でブロックできるようにする"
     if (
         targetInstanceId === undefined &&
         tryInteractiveTargetChoice(state, owner, self, `${sourceName}：${prompt}スピリットを選んでください`, candidates, action, null)
@@ -664,7 +664,7 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
     for (const c of action.content) {
         if (c.type === "canBlockWhileRested") log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${name}は疲労状態でもブロックできる。`)
         else if (c.type === "mustBlock") log(state, `${sourceName}：このバトルの間、${name}は可能ならばブロックしなければならない。`)
-        else if (c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "noBpCompareDestroy" || c.type === "immune") log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${name}に効果を付与した。`)
+        else if (c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "noBpCompareDestroy" || c.type === "immune" || c.type === "colorless") log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、${name}に効果を付与した。`)
     }
 }
 
@@ -939,7 +939,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
         return
     }
-    if (!action.all && action.target !== "lastTargets" && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
+    if (!action.all && action.target !== "lastTargets" && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "colorless" && action.side === "own") || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         placeOwnOne(ctx, action, filter)

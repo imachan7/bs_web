@@ -162,7 +162,9 @@ export function millDeck(
     pid: PlayerId,
     count: number,
     actorPid?: PlayerId,
-    cause?: { sourceType?: CardType; funsai?: true },
+    // sourceInstanceId：破棄を起こした効果の発生源の個体（【粉砕】のように resolveAction の外で破棄するときは
+    // 呼び出し側が渡す。opponentDeckMilled の bySelfEffectOnly が読む）
+    cause?: { sourceType?: CardType; funsai?: true; sourceInstanceId?: string },
     // skipNegate: kind:"deckMillNegate" の確認で「無効にしない」が選ばれたあとの破棄。
     // 再び確認待ちへ積んで無限に確認を出すのを防ぐ（destroySpirit の skipRevive と同型）
     // until：このカードを破棄したところで止める（「〜が出るまで破棄する」）
@@ -226,7 +228,10 @@ export function millDeck(
     // 「相手のデッキを一度に◯枚以上破棄したとき」（アリゲイド）：破棄された側の相手のフィールドから発火する。
     // eventCount には実破棄枚数を渡し、minEventCount で閾値判定する
     if (actual > 0 && !state.winner) {
-        fireFieldEventTriggers(state, opponentOf(pid), "opponentDeckMilled", undefined, undefined, undefined, actual)
+        const millCauseId = cause?.sourceInstanceId ?? state.currentEffectSource?.instanceId
+        fireFieldEventTriggers(state, opponentOf(pid), "opponentDeckMilled", undefined, undefined, undefined, actual, {
+            ...(millCauseId !== undefined ? { sourceInstanceId: millCauseId } : {}),
+        })
         // ownDeckMilledの鏡：破棄された側（pid）のフィールドから発火。byOpponentSpiritEffectOnlyの判定は
         // 既存のbySpiritEffect（相手のスピリットの効果による破棄か）をそのまま使う（BS16-039）
         state.lastDeckMill = { pid, cardIds: [...milled] }
