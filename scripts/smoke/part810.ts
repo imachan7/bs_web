@@ -171,6 +171,10 @@ refreshCase("A4: 031 の境目 Lv1（1コア）は【強化】なしで回復1�
 refreshCase("A5: 033 Lv1（1コア）【強化】で回復2体（Lv1･Lv2･Lv3）", GENESHIELD, 1, true)
 refreshCase("A6: X07 Lv1（スピリット状態1コア）【強化】で回復2体", CROWN, 1, true)
 refreshCase("A7: X07 【合体中】【強化】で回復2体（ホストはマタンゴル）", CROWN, 0, true, true)
+// BS21-X04 Lv2･Lv3【強化】（コアステップで済む Lv2＝コア2）。Lv1 は【強化】なし
+assert(getCard("BS21-X04").name === "槍光機神クーゲル・ホルン" && getCard("BS21-X04").levels.map((l) => l.cores).join("/") === "1/2/4", "BS21-X04はクーゲル・ホルン（Lvコア1/2/4）")
+refreshCase("A8: X04 Lv2（2コア）【強化】で回復2体", "BS21-X04", 2, true)
+refreshCase("A9: X04 の境目 Lv1（1コア）は【強化】なしで回復1体", "BS21-X04", 1, false)
 
 // ───── 029 リシアキリン
 function ardorOn(s: GameState, targetId: string, mirageOwnerAtk = true): void {

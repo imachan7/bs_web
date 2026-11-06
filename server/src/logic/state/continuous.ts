@@ -316,6 +316,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
                         if (effect.costFilter && !instMatchesCostFilter(spirit, effect.costFilter)) continue
+                        noteCoverage(effect, "keywordGrant")
                         if (effect.keyword === "heavyArmor") {
                             // 器AP：重装甲の継続付与（BS13-056ホーク・ブレイカー）
                             if (!spirit.heavyArmorColorsGranted) spirit.heavyArmorColorsGranted = []
@@ -324,7 +325,6 @@ export function refreshLevelAsOverrides(state: GameState): void {
                             }
                             continue
                         }
-                        noteCoverage(effect, "keywordGrant")
                         if (!spirit.armorColorsGranted) spirit.armorColorsGranted = []
                         for (const c of effect.colors ?? []) {
                             if (!spirit.armorColorsGranted.includes(c)) spirit.armorColorsGranted.push(c)

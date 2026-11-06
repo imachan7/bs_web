@@ -246,4 +246,27 @@ scene("E2: 1体なら BP2000（自分自身を数える）。相手のミニー�
     assert(effectiveBp(s, "p2", other) === 2000, "相手側も自分の1体だけなので BP2000")
 })
 
+// CP13-01 Lv1【強化】：自分の「BP破壊効果」の上限を+1000（フレイムガスト BP6000以下 → BP7000 まで）
+for (const withMinnies of [true, false]) {
+    scene(withMinnies ? "F1: ミニーズ特攻隊の【強化】でフレイムガストが BP7000 を破壊する" : "F2: 境目：【強化】が無ければ BP7000 は対象にならない", () => {
+        assert(getCard("BS09-069").name === "フレイムガスト" && getCard("BS06-008").levels[1]!.bp === 7000, "フレイムガスト・刀剣魚エスパーダ（Lv2 BP7000）")
+        const s = game(withMinnies ? "minnies-kyoka" : "minnies-nokyoka", "attack")
+        if (withMinnies) put(s, "p1", "CP13-01", 1)
+        const atk = put(s, "p1", VAN, 1)
+        const espada = put(s, "p2", "BS06-008", 3) // Lv2 BP7000
+        s.players.p1.hand = ["BS09-069"]
+        assert(act(s, "p1", { type: "attack", instanceId: atk.instanceId }) === null, "ロクケラトプスでアタック")
+        assert(act(s, "p2", { type: "pass" }) === null, "アタック直後のフラッシュは防御側が先にパス")
+        const err = act(s, "p1", { type: "castMagic", handIndex: 0, targetInstanceId: espada.instanceId })
+        for (let i = 0; i < 10 && s.pendingChoice; i++) {
+            const pc = s.pendingChoice as { pid?: PlayerId; kind: string; candidates?: string[] }
+            if (pc.kind === "target" && (pc.candidates ?? []).includes(espada.instanceId)) act(s, pc.pid ?? "p1", { type: "resolveChoice", instanceId: espada.instanceId })
+            else act(s, pc.pid ?? "p1", { type: "resolveChoice" })
+        }
+        const destroyed = !s.players.p2.field.spirits.some((x) => x.instanceId === espada.instanceId)
+        if (withMinnies) assert(err === null && destroyed, "【強化】で上限が BP7000 になり、エスパーダは破壊される")
+        else assert(!destroyed, "【強化】が無ければエスパーダは破壊されない")
+    })
+}
+
 console.log("すべてのチェックに合格しました 🎉（part806）")
