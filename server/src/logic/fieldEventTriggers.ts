@@ -158,6 +158,8 @@ export function fireFieldEventTriggers(
         effect: Extract<EffectDef, { kind: "fieldEvent" }>
         repeatTimes: number
     }[] = []
+    // noStackByName（「この効果は重複しない」）の重複確認用。誘発が確定した候補だけを数える
+    const noStackSeen = new Set<string>()
     for (const inst of instances) {
         if (excludeInstanceIds?.includes(inst.instanceId)) continue
         const card = getCard(inst.cardId)
@@ -462,9 +464,16 @@ export function fireFieldEventTriggers(
                 if (state.destroyGroup.used.includes(groupKey)) continue
                 state.destroyGroup.used.push(groupKey)
             }
+            // 「この効果は重複しない」：同じ持ち主の同名の発生源の同じ効果idが、この出来事で既に候補に入っていたら出さない
+            if (effect.noStackByName) {
+                const key = `${pid}:${card.name}:${effect.id}`
+                if (noStackSeen.has(key)) continue
+                noStackSeen.add(key)
+            }
             // 発揮しなかったときは解決後に巻き戻す（triggered と同型。2026-09-16）
             if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
+            noteCoverage(effect, "fieldEvent")
             firing.push({ inst, effect, repeatTimes })
         }
     }

@@ -6,6 +6,7 @@ import { ALL_CARDS } from "../../server/src/logic/GameState"
 // 制約の type → p1 が使ったときに効くプレイヤー（旧 type と同じ）
 const EXPECTED: Record<string, PlayerId | "both"> = {
     lifeDamageMaxForPid: "p1",
+    noSpiritRefresh: "p2",
     lifeFloorForPid: "p1",
     lifeImmuneForPid: "p1",
     cantUseHandCardsForPid: "p2",
@@ -45,7 +46,7 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 {
     const entries = collect()
     // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
-    assert(entries.length === 34, `playerRule は34か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5。BS19-078 で+1。構築済みデッキの SD14-003・SD15-003 で+2。BS20-004 で+1）（実際: ${entries.length}）`)
+    assert(entries.length === 35, `playerRule は35か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5。BS19-078 で+1。構築済みデッキの SD14-003・SD15-003 で+2。BS20-004 で+1。BS21-048 で+1）（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         // 雷神砲カノン・アームズは直前に破棄したカードの色を読むので、単独で解決しても何も置かない（part281・part426）
         // アブラカダブラは召喚時効果を発揮したスピリットの色（バーストの発動イベント）を読むので、単独では置かない（part622）

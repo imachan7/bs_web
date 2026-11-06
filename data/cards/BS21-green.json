@@ -1,0 +1,69 @@
+[
+  {
+    "cardId": "BS21-069",
+    "name": "リュウケツの大樹",
+    "type": "nexus",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのアタックステップ』\nバトルしている自分のスピリットをBP+2000する。\nLv2『自分のアタックステップ』\n系統：「怪虫」を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、相手のライフのコア1個を相手のリザーブに置く。\nこの効果は重複しない。",
+    "effects": [
+      {
+        "id": "BS21-069-e1",
+        "kind": "aura",
+        "levels": [
+          1,
+          2
+        ],
+        "aura": {
+          "type": "bp",
+          "target": "ownAll",
+          "battlingOnly": true,
+          "amount": 2000,
+          "phaseTurn": {
+            "phase": "attack",
+            "turn": "both"
+          }
+        }
+      },
+      {
+        "id": "BS21-069-e2",
+        "kind": "battleWon",
+        "role": "attacker",
+        "levels": [
+          2
+        ],
+        "turn": "own",
+        "winnerFamilyFilter": "怪虫",
+        "noStackByName": true,
+        "action": {
+          "type": "lifeCrush",
+          "count": 1
+        }
+      }
+    ]
+  }
+]

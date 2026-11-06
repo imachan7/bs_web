@@ -1,0 +1,100 @@
+[
+  {
+    "cardId": "BS21-048",
+    "name": "リュウグウウシ",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "reduction": [
+      "blue"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nこのバトルの間、相手のスピリットすべては回復できない。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：相手のスピリットのコア1個を相手のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS21-048-e1",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "eventTarget": "use",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "playerRule",
+              "rule": {
+                "type": "noSpiritRefresh"
+              }
+            }
+          ],
+          "duration": "battle",
+          "side": "opponent"
+        }
+      },
+      {
+        "id": "BS21-048-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onBattleStart",
+        "eventTarget": "use",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "if",
+          "cond": {
+            "count": {
+              "ownColorSymbols": "purple"
+            },
+            "atLeast": 1
+          },
+          "then": {
+            "type": "removeCores",
+            "side": "opponent",
+            "from": [
+              "spirit"
+            ],
+            "to": "reserve",
+            "target": "one",
+            "count": 1
+          }
+        }
+      }
+    ]
+  }
+]

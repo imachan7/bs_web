@@ -3,6 +3,7 @@ import { noteCoverage, noteGrantedFrom, noteKeyword } from "../coverage"
 
 import type {
     ConstraintDef,
+    EffectDef,
     PlayerRuleDef,
     GlobalConstraintDef,
     CardInstance,
@@ -357,9 +358,11 @@ export function trashCardEffectsDisabled(board: Board, cardId: string): boolean 
 export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
     return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)
 }
+// match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
 export function hasGlobalConstraint(
     board: Board,
     type: GlobalConstraintDef["type"],
+    match?: (effect: Extract<EffectDef, { kind: "globalConstraint" }>, sourcePid: PlayerId) => boolean,
 ): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS02グレートウォール）も含める
@@ -372,12 +375,30 @@ export function hasGlobalConstraint(
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
+                if (match && !match(effect, pid)) continue
                 noteCoverage(effect, "globalConstraint")
                 return true
             }
         }
     }
     return false
+}
+
+// 「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
+// 前段（sourceType の有無）は呼び出し側で見る
+// globalConstraint noRefreshByAnyEffect は、この型に限り side（発生源の持ち主から見た陣営）と
+// エントリ直下の phase/turn をここで見る（hasGlobalConstraint はこれらの軸を見ない）
+export function refreshBlockedByRule(board: Board, ownerPid: PlayerId): boolean {
+    const blocked = hasGlobalConstraint(board, "noRefreshByAnyEffect", (effect, pid) => {
+        if (effect.constraint.type !== "noRefreshByAnyEffect") return false
+        if (effect.constraint.side === "opponent" && ownerPid === pid) return false
+        if (effect.constraint.side === "own" && ownerPid !== pid) return false
+        if (effect.phase !== undefined && effect.phase !== board.phase) return false
+        if (effect.turn === "own" && board.turnPlayer !== pid) return false
+        if (effect.turn === "opponent" && board.turnPlayer === pid) return false
+        return true
+    })
+    return blocked || timedPlayerRules(board, ownerPid).some((r) => r.type === "noSpiritRefresh")
 }
 
 // 「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか

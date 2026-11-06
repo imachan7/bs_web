@@ -21,7 +21,7 @@ export type GlobalConstraintDef =
     | { type: "noDeckMill" } // 両陣営とも、ステップを問わずデッキが破棄されない（noDeckMillInMain のステップ無制限版）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）
     | { type: "noDeckMillInMain" } // 両陣営とも、メインステップの間はデッキが破棄されない（自分の効果によるものも止める＝noDeckMillByOpponent と異なり陣営を問わない）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る）
-    | { type: "noRefreshByAnyEffect" } // 両陣営とも、疲労状態のスピリットは効果（種別を問わず）では回復しない（リフレッシュステップだけが通る）
+    | { type: "noRefreshByAnyEffect"; side?: "opponent" | "own" } // 疲労状態のスピリットは効果（種別を問わず）では回復しない（リフレッシュステップだけが通る）。side は発生源の持ち主から見た陣営で、省略時は両陣営。phase/turn はこの型では refreshBlockedByRule だけが見る
     | { type: "noHandDiscardByEffect" } // 両陣営とも、効果では手札を破棄できない（canDiscardHand の関門で止める＝「手札を破棄することで」のコストも払えなくなる。破棄する効果自体は発揮するが1枚も破棄されない）
     | { type: "noHandGainByEffect" } // 両陣営とも、効果（draw／returnToHand によるスピリットの手札戻し）では手札が増えない（ドロー・バウンス自体が発揮されない＝バウンスされるはずのスピリットは場に残る。ドロー枚数を増やす継続効果自体は止めない）
     | { type: "burstAltEventFromOpponentSummon" } // 発生源の持ち主だけ：バースト条件が opponentSummonEffectResolved のバーストは ownLifeDamaged でも発動できる（triggers.ts のバースト走査が通常の event 一致に加えてこの読み替えを見る）

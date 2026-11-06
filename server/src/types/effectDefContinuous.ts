@@ -52,7 +52,7 @@ export type EffectDefContinuous =
           id: string
           kind: "magicNegate" // カード自体は通常どおりトラッシュへ。「マジック使用時」誘発は発揮される
           levels: number[] | null
-          cost: { selfCoresToVoid: number } | { exhaustSelf: true } | { none: true } // exhaustSelf=発生源を疲労（回復状態でなければ使えない）
+          cost: { selfCoresToVoid: number } | { selfCoresToTrash: number } | { exhaustSelf: true } | { none: true } // exhaustSelf=発生源を疲労（回復状態でなければ使えない）。selfCoresToTrash=selfCoresToVoid と同じ判定・支払いで行き先が持ち主のトラッシュ（BS21-X04 Lv3）
           colors?: Color[]
           phase?: Phase
           turn?: "own" | "opponent"

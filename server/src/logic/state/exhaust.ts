@@ -8,7 +8,7 @@ import { fireTrigger } from "../triggers"
 import { preventExhaustByPay } from "./exhaustPrevent"
 import { exhaustDenial } from "../exhaustGate"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { effectSources, hasGlobalConstraint, instAllCosts, instColors, instFamilies, instHasColor } from "../../../../shared/rules"
+import { effectSources, instAllCosts, instColors, instFamilies, instHasColor, refreshBlockedByRule } from "../../../../shared/rules"
 
 // hasGlobalConstraintは汎用関数のためphase/turnを見ない（removal.tsのallSpiritsCantBounceActiveと同じ理由で専用関数にする）。
 // BS16-072 Lv2：『お互いのアタックステップ』限定。phase/turn未指定のBS09-047は従来どおり常時有効のまま
@@ -197,9 +197,10 @@ export function refreshSpirit(
     ) {
         return false
     }
-    // BS15共通器：BS15-072渦巻く大海峡「疲労状態のスピリットすべては、リフレッシュステップ以外で回復できない」。
-    // sourceType が渡る（＝リフレッシュステップ以外の呼び出し）ときだけ止める
-    if (sourceType !== undefined && hasGlobalConstraint(state, "noRefreshByAnyEffect")) {
+    // 「回復できない」（BS15-072渦巻く大海峡の両陣営常時・BS21-041 Lv2 の陣営/ステップ限定・
+    // BS21-048 のバトルの間の期間つき playerRule）。sourceType が渡る（＝リフレッシュステップ以外の
+    // 呼び出し）ときだけ止める。判定は refreshBlockedByRule に集約している
+    if (sourceType !== undefined && refreshBlockedByRule(state, ownerPid)) {
         return false
     }
     if (!inst.isRested) return false

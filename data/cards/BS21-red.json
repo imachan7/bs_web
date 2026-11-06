@@ -1,0 +1,54 @@
+[
+  {
+    "cardId": "BS21-001",
+    "name": "ヤマバッカ",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "reduction": [],
+    "family": [
+      "皇獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2『お互いのアタックステップ』\n相手によって自分の緑のスピリットが破壊されたとき、自分はデッキから1枚ドローする。\nこの効果は重複しない。",
+    "effects": [
+      {
+        "id": "BS21-001-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          2
+        ],
+        "phase": "attack",
+        "byOpponentOnly": true,
+        "subjectFilter": {
+          "color": "green"
+        },
+        "noStackByName": true,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ]
+  }
+]

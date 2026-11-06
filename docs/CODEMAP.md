@@ -128,7 +128,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `trashFrozen`（fn）：PX19：トラッシュのカードが効果を受けない／自身の効果を使えない（Q18473・Q18475）。トラッシュの枚数やシンボルを数えるだけの参照は止めない
 - `trashCardEffectsDisabled`（fn）：トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
-- `hasGlobalConstraint`（fn）
+- `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
+- `refreshBlockedByRule`（fn）：「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
 - `braveBpBonusZeroFor`（fn）：「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。

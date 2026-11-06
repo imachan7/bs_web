@@ -197,6 +197,7 @@ export type EffectDefTrigger =
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn で貸したもの）からのみ有効
           selfMode?: "source" // self に勝利スピリットでなく発生源インスタンス（ネクサス）を渡す
           condition?: { ownFieldOnlyColor: Color; spiritsOnly?: true }
+          noStackByName?: true // 「この効果は重複しない」（BS21_PLAN §2 の3）：同じ持ち主の同名の発生源の同じ効果idが1つの出来事で複数誘発しても、集めた候補の段階で2つ目以降を除く
       }
     | {
           id: string
@@ -296,6 +297,7 @@ export type EffectDefTrigger =
           targetSameLevelAsSelf?: true // targetInstanceIdのLvがイベント対象（selfOverride）のLvと同じときのみ。TargetFilter に主体と同じLvを表す軸が無いので partnerFilter へは寄せていない
           ownOnly?: true // anySpiritAttacked 限定
           optional?: true // 「〜できる」＝任意
+          noStackByName?: true // 「この効果は重複しない」（BS21_PLAN §2 の3）。battleWon の同名軸と同じ意味
       }
     | {
           id: string
