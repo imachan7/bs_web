@@ -46,7 +46,7 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 {
     const entries = collect()
     // BS10-073 エンジェドールは期間つき効果の unblockable へ移した（part385）。レッドウォール・ヒノキ・ゴレム・コンドラッド・サテライド・バード・秘密の花園を足した
-    assert(entries.length === 35, `playerRule は35か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5。BS19-078 で+1。構築済みデッキの SD14-003・SD15-003 で+2。BS20-004 で+1。BS21-048 で+1）（実際: ${entries.length}）`)
+    assert(entries.length === 37, `playerRule は37か所（BS18 の 054・059・060・078・X06 で+5。プロモの P029・P043・P045・P077・PX10 で+5。BS19-078 で+1。構築済みデッキの SD14-003・SD15-003 で+2。BS20-004 で+1。BS21-048・072・080 で+3）（実際: ${entries.length}）`)
     for (const { cardId, action } of entries) {
         // 雷神砲カノン・アームズは直前に破棄したカードの色を読むので、単独で解決しても何も置かない（part281・part426）
         // アブラカダブラは召喚時効果を発揮したスピリットの色（バーストの発動イベント）を読むので、単独では置かない（part622）
@@ -57,7 +57,8 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
         const rule = (action.content[0] as { rule: { type: string } }).rule
         const placed = (["p1", "p2"] as PlayerId[]).filter((pid) => playerHas(s, pid, rule.type))
         // 【装甲】を働かなくするのは、アーマーパージ（SD01-040）が自分、ジャンビ・オレピス（BS11-049）が相手
-        const want = rule.type === "armorDisabledForPid" ? (cardId === "SD01-040" ? "p1" : "p2") : EXPECTED[rule.type]
+        // バーストの発動禁止は、珊瑚の樹海（BS21-072）がお互い、ホワイトアウト（BS21-080）が相手
+        const want = rule.type === "armorDisabledForPid" ? (cardId === "SD01-040" ? "p1" : "p2") : rule.type === "noBurstActivation" ? (cardId === "BS21-072" ? "both" : "p2") : EXPECTED[rule.type]
         const ok = want === "both" ? placed.length === 2 : placed.length === 1 && placed[0] === want
         assert(ok, `${cardId} ${getCard(cardId).name}：${rule.type} が ${want} に積まれる`)
     }

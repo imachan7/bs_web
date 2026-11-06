@@ -256,5 +256,114 @@
     "braveCondition": {
       "symbolColor": "blue"
     }
+  },
+  {
+    "cardId": "BS21-072",
+    "name": "珊瑚の樹海",
+    "type": "nexus",
+    "colors": [
+      "blue",
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "purple"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue",
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のアタックステップ』\n【連鎖】を持つ自分の青のスピリットがアタックしたとき、自分はデッキから1枚ドローできる。\nこの効果でドローしたとき、自分は手札1枚を破棄する。\nLv2『自分のアタックステップ』\nステップ開始時、自分のライフのコア1個を自分のリザーブに置くことで、このターンの間、お互いはバーストを発動できない。",
+    "effects": [
+      {
+        "id": "BS21-072-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2
+        ],
+        "phase": "attack",
+        "turn": "own",
+        "ownOnly": true,
+        "subjectFilter": {
+          "keyword": "rensa",
+          "color": "blue"
+        },
+        "optional": true,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "draw",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": "lastDrawn",
+                "atLeast": 1
+              },
+              "then": {
+                "type": "discard",
+                "from": "hand",
+                "side": "own",
+                "count": 1
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS21-072-e2",
+        "kind": "step",
+        "step": "attack",
+        "turn": "own",
+        "levels": [
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "placeCores",
+            "from": "life",
+            "to": "reserve",
+            "count": 1
+          },
+          "then": {
+            "type": "timedEffect",
+            "content": [
+              {
+                "type": "playerRule",
+                "rule": {
+                  "type": "noBurstActivation"
+                }
+              }
+            ],
+            "duration": "turn",
+            "side": "both"
+          }
+        }
+      }
+    ]
   }
 ]

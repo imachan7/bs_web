@@ -308,5 +308,97 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS21-080",
+    "name": "ホワイトアウト",
+    "type": "magic",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\n相手のネクサスすべてを手札に戻す。\n【連鎖：条件《緑/青シンボル》】\n(自分の緑/青シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。\n[青]：このターンの間、相手は、バースト条件が【自分のライフ減少後】のバーストを発動できない。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS21-080-e1",
+        "kind": "magic",
+        "keyword": "rensa",
+        "timing": "main",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "return",
+              "to": "hand",
+              "nexus": "only",
+              "count": 1,
+              "all": true
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "green"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "exhaust",
+                "count": 1
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "playerRule",
+                    "rule": {
+                      "type": "noBurstActivation",
+                      "byEvent": "ownLifeDamaged"
+                    }
+                  }
+                ],
+                "duration": "turn",
+                "side": "opponent"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS21-080-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      }
+    ]
   }
 ]

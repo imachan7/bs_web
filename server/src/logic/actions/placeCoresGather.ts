@@ -53,7 +53,7 @@ function sourcesOf(ctx: ActionCtx, action: WidePlaceCores): Src[] {
     return out
 }
 
-function take(ctx: ActionCtx, src: Src, n: number): number {
+function take(ctx: ActionCtx, src: Src, n: number, noOwnBurst = false): number {
     const { state, owner } = ctx
     const player = state.players[owner]
     if (n <= 0) return 0
@@ -78,7 +78,7 @@ function take(ctx: ActionCtx, src: Src, n: number): number {
             state.winner = opp
             log(state, `${state.players[opp].name}の勝利！`)
         } else {
-            fireFieldEventTriggers(state, owner, "ownLifeLost")
+            fireFieldEventTriggers(state, owner, "ownLifeLost", undefined, undefined, undefined, undefined, noOwnBurst ? { lifeLossByNoOwnBurst: true } : undefined)
         }
         return t
     }
@@ -149,7 +149,7 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
         if (chosenOption === "やめる") return finish(ctx, action, gathered)
         if (pick !== undefined) {
             const src = sourcesOf(ctx, action).find((s) => s.key === pick)
-            if (src) gathered += take(ctx, src, Math.min(Math.max(0, Number(chosenOption) || 0), src.cap, need - gathered))
+            if (src) gathered += take(ctx, src, Math.min(Math.max(0, Number(chosenOption) || 0), src.cap, need - gathered), action.noOwnBurst === true)
         } else {
             const src = sourcesOf(ctx, action).find((s) => s.label === chosenOption)
             if (src) {
@@ -158,7 +158,7 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
                     requestChoice(state, owner, `${sourceName}：${src.label.split("：")[0]}から置くコアの数を選んでください（最大${max}個）`, [], false, next({ gatherPick: src.key }), self, "option", Array.from({ length: max }, (_, i) => String(i + 1)), undefined, true)
                     return
                 }
-                gathered += take(ctx, src, max)
+                gathered += take(ctx, src, max, action.noOwnBurst === true)
             }
         }
     }
@@ -171,7 +171,7 @@ export function placeCoresGather(ctx: ActionCtx, action: WidePlaceCores): void {
             const usable = optional ? srcs.filter((x) => x.key !== "life" && (!x.inst || x.spare > 0)) : srcs
             if (usable.length === 0) break
             const { src, n } = autoPick(usable, need - gathered)
-            const t = take(ctx, src, n)
+            const t = take(ctx, src, n, action.noOwnBurst === true)
             if (t <= 0) break
             gathered += t
             continue

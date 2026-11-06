@@ -144,5 +144,84 @@
     "braveCondition": {
       "minCost": 3
     }
+  },
+  {
+    "cardId": "BS21-082",
+    "name": "ライフドリーム",
+    "type": "magic",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "メイン：\nこのターンの間、自分の黄のスピリットすべてに“『このスピリットのアタック時』自分のライフのコア1個をこのスピリットに置くことで、このスピリットはブロックされない。この効果で自分はバーストを発動できない”を与える。\nフラッシュ：\nこのターンの間、スピリット1体をBP-2000する。",
+    "effects": [
+      {
+        "id": "BS21-082-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "grantTrigger",
+              "trigger": "onAttack",
+              "optional": true,
+              "action": {
+                "type": "pay",
+                "cost": {
+                  "type": "placeCores",
+                  "from": "life",
+                  "to": "self",
+                  "count": 1,
+                  "noOwnBurst": true
+                },
+                "then": {
+                  "type": "timedEffect",
+                  "content": [
+                    {
+                      "type": "unblockable"
+                    }
+                  ],
+                  "duration": "battle",
+                  "target": "self"
+                }
+              }
+            }
+          ],
+          "duration": "turn",
+          "all": true,
+          "side": "own",
+          "filter": {
+            "color": "yellow"
+          }
+        }
+      },
+      {
+        "id": "BS21-082-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": -2000
+            }
+          ],
+          "duration": "turn",
+          "side": "both"
+        }
+      }
+    ]
   }
 ]

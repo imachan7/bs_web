@@ -11,6 +11,7 @@ import { TargetFilter } from "./types/targetFilter"
 import { CardInstance } from "./types/cardInstance"
 import { Keyword } from "./types/keyword"
 import { TimedContent } from "./types/timedContent"
+import type { FieldEvent } from "./types/fieldEvent"
 export type { AuraCounter } from "./types/auraCounter"
 export type { AuraCondition } from "./types/auraCondition"
 export type { PlayerState } from "./types/playerState"
@@ -322,6 +323,7 @@ export type PlayerRuleDef =
     | { type: "cantAttackByCostForPid"; costs: number[] } // このプレイヤーのスピリットのうち、コストが配列のいずれかと一致するものはアタックできない（ブロックは可。globalConstraint opponentCantAttackByCost の期間つき版）
     | { type: "noSpiritRefresh" } // このプレイヤーのスピリットは効果では回復しない（リフレッシュステップは通る。048『このスピリットのバトル時』の「このバトルの間」用。判定は refreshBlockedByRule）
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）
+    | { type: "noBurstActivation"; byEvent?: FieldEvent } // このプレイヤーはバーストを発動できない（セットは残る。判定は fireBurstOnEvent）。byEvent＝そのバースト条件（【自分のライフ減少後】等）のバーストだけ
 
 
 // ---- クライアントへ送る公開ビュー（相手の手札・デッキ内容は隠す） ----

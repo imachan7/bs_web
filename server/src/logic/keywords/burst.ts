@@ -282,6 +282,7 @@ export function fireBurstOnEvent(
         destroyedBp?: number
         costs?: number[]
         members?: { colors: Color[]; cost: number; families: string[] }[]
+        lifeLossByNoOwnBurst?: boolean
     },
 ): void {
     // 同時に条件を満たした場合は防御側（ターンプレイヤーでない側）の宣言を優先する＝走査順を固定するだけでよい
@@ -314,6 +315,9 @@ export function fireBurstOnEvent(
             )
         }
         if (!effect) continue
+        // noOwnBurst 付きの placeCores で減ったライフ（N14）：ライフが減った本人のバーストは発動を聞かない。
+        // 相手のバーストには影響しない
+        if (eventInfo?.lifeLossByNoOwnBurst === true && holderPid === pid) continue
         // 相手の noBurstActivationByEvent／noBurstActivationByColor：発動できない（セットされたまま残る）
         if (burstActivationForbidden(state, holderPid, effect.event, burstCardId)) continue
         // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03鳥武帝スザクロス・ソウソー）。
@@ -324,6 +328,13 @@ export function fireBurstOnEvent(
                     c.type === "battleLock" &&
                     c.lock === "burst" &&
                     (c.colors === undefined || (burstCardId !== undefined && getCard(burstCardId).colors.some((col) => c.colors!.includes(col)))),
+            )
+        ) continue
+        // playerRule "noBurstActivation"（BS21_PLAN §3 N13）：期間つき効果で「このターンの間バーストを発動できない」が
+        // 掛かっているプレイヤーは発動できない（セットされたまま残る）。byEvent 指定時はそのバースト条件のバーストだけ
+        if (
+            timedContentsFor(state, holderPid).some(
+                (c) => c.type === "playerRule" && c.rule.type === "noBurstActivation" && (c.rule.byEvent === undefined || c.rule.byEvent === effect.event),
             )
         ) continue
         // subjectSide：fieldEvent の同名軸と同じ判定（own=バーストの持ち主自身の事象、opponent=その相手の事象）

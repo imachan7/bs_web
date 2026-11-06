@@ -62,10 +62,12 @@
 | N19 | 相手のブレイヴの合体条件の下限（コスト7以上）と、満たさなくなった合体の即時分離 | 合体条件を書き換える口が無い | X06 Lv2 | 8 |
 | N20 | デッキの同名枚数の上限を外す（「何枚でも入れることができる」） | デッキの検査は同名3枚固定 | CP13-01 | 8 |
 
-**済み**：バッチ1＝N1・N2・N3（001・041・048・069・070・X04。part797）。「回復できない」の判定は `refreshBlockedByRule`（shared/rules/constraints.ts）1か所で、発生源が効いているかは `hasGlobalConstraint` の match 引数で見る／バッチ2＝N4・N5・N6（014・025・059・064・065。part798）。合体条件にシンボルの色の軸 `braveCondition.symbolColor` も足した（N7 は同じ `instanceSymbolColors` を使う）。「自分の効果で相手を疲労させたとき」は出来事に疲労させた効果の種別（causeType）を渡す／バッチ3＝N7・N8・N9（007・034・062。part799。助っ人として 002 も書いた）。合体スピリットのシンボルの色は `combinedSpiritSymbolColors`（shared/rules/symbols.ts）。相手側へ配る制約は `activeConstraints` の opponentAll ループで、phase/turn は発生源の持ち主から見る／バッチ4＝N10・N11・N12（013・054・058。part800）。合体スピリットのコストは `instBaseCost`（ブレイヴのコストを含む）。デッキ破棄の出来事に原因の発生源を渡し、`bySelfEffectOnly` は合体スピリット全体（ホストとブレイヴ）を自分とみなす（SD15-X01 も同じになった）。`coreGainCap` は sourceTypes を省略すると原因を問わない
+**済み**：バッチ1＝N1・N2・N3（001・041・048・069・070・X04。part797）。「回復できない」の判定は `refreshBlockedByRule`（shared/rules/constraints.ts）1か所で、発生源が効いているかは `hasGlobalConstraint` の match 引数で見る／バッチ2＝N4・N5・N6（014・025・059・064・065。part798）。合体条件にシンボルの色の軸 `braveCondition.symbolColor` も足した（N7 は同じ `instanceSymbolColors` を使う）。「自分の効果で相手を疲労させたとき」は出来事に疲労させた効果の種別（causeType）を渡す／バッチ3＝N7・N8・N9（007・034・062。part799。助っ人として 002 も書いた）。合体スピリットのシンボルの色は `combinedSpiritSymbolColors`（shared/rules/symbols.ts）。相手側へ配る制約は `activeConstraints` の opponentAll ループで、phase/turn は発生源の持ち主から見る／バッチ4＝N10・N11・N12（013・054・058。part800）。合体スピリットのコストは `instBaseCost`（ブレイヴのコストを含む）。デッキ破棄の出来事に原因の発生源を渡し、`bySelfEffectOnly` は合体スピリット全体（ホストとブレイヴ）を自分とみなす（SD15-X01 も同じになった）。`coreGainCap` は sourceTypes を省略すると原因を問わない／バッチ5＝N13・N14（072・080・082。part801）。バーストの発動禁止は `fireBurstOnEvent`（keywords/burst.ts）で battleLock と並べて見る。N14 の `noOwnBurst` は、今のエンジンが自分の効果によるライフ減少でバーストを聞かないため、まだ効き目が無い（§4 の確認待ち）
 
 各バッチは「期待値役（GLM）→ 部品の実装（GLM）→ データ役（Large 4）」。サブは Mistral の API 枠（`~/.config/mistral_api_key`）で回す。既存の器で書ける残りのカードは、バッチ8のあとに色ごとのデータ役でまとめて書く。
 
-## 4. 朝に聞くこと
+## 4. 確認待ち
 
-（なし）
+| # | 何を | こう読んだ | 影響 |
+| :-- | :-- | :-- | :-- |
+| 1 | 【自分のライフ減少後】のバーストは、自分の効果・コストで自分のライフが減ったときも発動できるか | できる（アニヲタWiki・知恵袋。082 の「この効果で自分はバーストを発動できない」もその前提）。今のエンジンは相手のアタック・相手の効果で減ったときだけ聞いている（ownLifeDamaged） | 自分のライフをコストに払うカード・自分のライフを動かす効果すべて |

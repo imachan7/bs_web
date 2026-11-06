@@ -118,6 +118,9 @@ export function fireFieldEventTriggers(
         // event: "ownSpiritBpReached" 限定：前回観測したBPと今回のBP（bpReachedAt の判定に使う）
         bpFrom?: number
         bpTo?: number
+        // event: "ownLifeLost" 限定：noOwnBurst 付きの placeCores（BS21_PLAN §3 N14）で減ったライフか。
+        // その減少をきっかけにしたバーストの発動確認は、ライフが減った本人に対しては出さない
+        lifeLossByNoOwnBurst?: boolean
     },
     // 場から離れた発生源を走査に加える（「**自分のネクサスが破壊されたとき**」を、
     // 破壊されたネクサス自身が持っている場合。effectSources はもう場にいないものを返さないため、
