@@ -12,6 +12,8 @@ import { cardSetDir } from "../public/src/cardArt"
 const BASE_URL = "https://www.battlespirits.com/images/cardlist/"
 const OUTPUT_ROOT = "public/imgs/cards/original"
 const prefixes = process.argv.slice(2)
+// 公式に EX 番号の画像が無く、同じカードのプロモ番号にだけあるもの（2026-11-06 ユーザー指摘）
+const OFFICIAL_ALIAS: Record<string, string> = { EX023: "P027", EX032: "P042" }
 
 const ids = loadAllCards()
     .map((c) => c.cardId)
@@ -23,7 +25,7 @@ async function main(): Promise<void> {
     for (const [i, id] of ids.entries()) {
         const file = path.join(OUTPUT_ROOT, cardSetDir(id), `${id}.webp`)
         if (fs.existsSync(file)) continue
-        let res = await fetch(`${BASE_URL}${id}.webp`)
+        let res = await fetch(`${BASE_URL}${OFFICIAL_ALIAS[id] ?? id}.webp`)
         // 公式は無い画像を 404 でなくトップページへの 302 で返す。
         // 絵違いの配布版があるカードは末尾に A（通常版）・B（配布版）が付く（BS01-014・X004）
         if (res.redirected) {
