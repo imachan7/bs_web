@@ -736,6 +736,11 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "deckRule" // デッキ構築の規則。継続効果ではなく印（盤面では読まない。validateDeckCards が読む）
+          rule: "anyCopies" // 同名カードの枚数上限を外す（CP13-01）
+      }
+    | {
+          id: string
           kind: "rensaIgnoreCondition" // 合体中のブレイヴの【合体時】効果。ホストスピリットの【連鎖】の条件（if ownColorSymbols）を無視して発揮させる（SD11-X02）
           levels: number[] | null
           whileCombined?: true

@@ -551,6 +551,30 @@ export function cantSpiritStateBrave(board: Board, pid: PlayerId): boolean {
     return false
 }
 
+// globalConstraint "opponentBraveConditionMinCost"（BS21-X06 Lv2）：hostOwnerPid の側のブレイヴの合体条件に足される「コストN以上」。
+// 元の条件に加えて満たす必要がある（2026-11-06 ユーザー確認）。複数の発生源があれば最も高い値。
+// 「合体条件を無視して合体できる」ホストは元の条件ごと無視するので足さない（解釈は未確認＝報告事項）
+export function braveExtraMinCostFor(
+    board: Board,
+    hostOwnerPid: PlayerId,
+    host: CardInstance,
+): { minCost: number; sourceOwner: PlayerId } | null {
+    if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return null
+    let found: { minCost: number; sourceOwner: PlayerId } | null = null
+    for (const owner of ["p1", "p2"] as PlayerId[]) {
+        if (owner === hostOwnerPid) continue
+        for (const inst of effectSources(board, owner)) {
+            for (const effect of card(inst.cardId).effects) {
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "opponentBraveConditionMinCost") continue
+                if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
+                noteCoverage(effect, "globalConstraint")
+                if (found === null || effect.constraint.minCost > found.minCost) found = { minCost: effect.constraint.minCost, sourceOwner: owner }
+            }
+        }
+    }
+    return found
+}
+
 // globalConstraint "coresToOpponentReserveGoToTrash"（BS12-X02魔羯邪神シュタイン・ボルグLv2-3）:
 // 「スピリット/ブレイヴ/マジックの効果で相手のリザーブに置かれるコアすべては相手のトラッシュに置かれる」。
 // targetPid は「コアが向かうプレイヤー」。targetPid から見て発生源が「相手」である側だけを見る（両陣営の発生源が効く＝主語なし）。

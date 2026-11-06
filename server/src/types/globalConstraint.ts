@@ -28,6 +28,7 @@ export type GlobalConstraintDef =
     | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで合体していないスピリットは1体しか回復できない（どれかはそのステップのプレイヤーが選ぶ）
     | { type: "nexusesCantRefresh" } // 両陣営とも、リフレッシュステップでネクサスは回復しない
     | { type: "opponentCombinedCantRefresh" } // 発生源の持ち主から見た相手の合体スピリットは、リフレッシュステップで回復しない（片側のみ）
+    | { type: "opponentBraveConditionMinCost"; minCost: number } // 発生源の持ち主から見た相手のブレイヴ/ブレイヴカードの合体条件に「コストminCost以上」を足す（元の条件と両方。判定は shared/rules/constraints.ts の braveExtraMinCostFor。満たさなくなった合体は logic/braveConditionGate.ts が分離。BS21-X06）
     | { type: "opponentCantSpiritStateBrave" } // 発生源の持ち主から見た相手は、ブレイヴをスピリット状態にできない（片側のみ）。止めるのは3経路：メインステップの任意分離／場を離れるときの「残す」／ブレイヴ単体（合体先なし）の召喚
     | { type: "ownLifeDamageToTrashByKeyword"; keyword: Keyword } // 発生源の持ち主の、指定キーワードを持つスピリットのアタックで減る相手のライフのコアは、リザーブでなく相手のトラッシュに置かれる（battleResolve のライフ受けが見る）
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）

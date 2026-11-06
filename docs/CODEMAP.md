@@ -137,6 +137,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownLifeImmuneToOpponentSpiritEffects`（fn）：globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
 - `canDiscardHand`（fn）：手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
 - `cantSpiritStateBrave`（fn）：pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
+- `braveExtraMinCostFor`（fn）：globalConstraint "opponentBraveConditionMinCost"（BS21-X06 Lv2）：hostOwnerPid の側のブレイヴの合体条件に足…
 - `coresToOpponentReserveGoToTrash`（fn）：globalConstraint "coresToOpponentReserveGoToTrash"（BS12-X02魔羯邪神シュタイン・ボルグLv2-3）:
 - `refreshRestrictionsFor`（fn）：リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）。
 - `costCantAct`（fn）：フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
@@ -238,6 +239,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instHasCost`（fn）：状態を考慮したコスト判定：カード本来のコスト ‖ 一時的に「コストとしても扱う」値（tempAlsoCosts） ‖
 - `instCostDelta`（fn）：このインスタンスに掛かっている**コストの増減の合計**（「このターンの間、コスト+3する」など）。
 - `instBaseCost`（fn）：このインスタンスの「本来のコスト」。asSpiritThisTurn（このターンだけスピリットとして扱われている
+- `instCostWithoutBraves`（fn）：合体しているブレイヴのコストを除いた、ホスト自身のコスト（X06「合体条件をコスト7以上」の比較用。合体後も条件を満たしているか確かめ直すため）
 - `instFamilies`（fn）：このインスタンスの「カード側の系統」。braveStatsAsContinuous / asSpiritThisTurn があればその系統で置き換わる
 - `instAllCosts`（fn）：インスタンスが「扱われている」コストの一覧（本来のコスト＋tempAlsoCosts＋alsoCostsContinuous）。
 - `cardHasColor`（fn）：カード（手札・デッキ・トラッシュ＝インスタンスが無い経路）の色判定。
@@ -605,6 +607,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyBraveKeep`（fn）：「残す」が選ばれた（doResolveChoice から呼ぶ）。支払いは召喚と同じ payCost に通す
 - `declineBraveKeep`（fn）：「残さない」が選ばれた（doResolveChoice から呼ぶ）。合体元と同じ領域へ
 - `pickBraveKeepOrder`（fn）：「これから決める」ブレイヴが選ばれた（doResolveChoice から呼ぶ）。その項目を先頭へ移す
+
+## server/src/logic/braveConditionGate.ts
+
+- `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
 
 ## server/src/logic/burstNegate.ts
 

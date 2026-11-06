@@ -538,5 +538,132 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS21-X06",
+    "name": "異海神ディスト・ルクシオン",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 8,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "異合"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 6000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 9000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "blue",
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nコスト5以下の相手のスピリット1体を破壊する。\n【連鎖：条件《赤/紫シンボル》】\n(自分の赤/紫シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：【強化】を持つ相手のスピリット1体を破壊する。\n[紫]：疲労状態の相手の合体スピリット1体を破壊する。\nLv2･Lv3\n相手のブレイヴ/ブレイヴカードすべての合体条件をコスト7以上にする。",
+    "effects": [
+      {
+        "id": "BS21-X06-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "cost": {
+              "max": 5
+            }
+          }
+        }
+      },
+      {
+        "id": "BS21-X06-e2",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "count": 1,
+                "filter": {
+                  "keyword": "kyoka"
+                }
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "purple"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "destroy",
+                "count": 1,
+                "filter": {
+                  "rested": true,
+                  "combined": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS21-X06-e3",
+        "kind": "globalConstraint",
+        "levels": [
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "opponentBraveConditionMinCost",
+          "minCost": 7
+        }
+      }
+    ]
   }
 ]

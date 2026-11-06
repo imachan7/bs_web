@@ -218,7 +218,10 @@ scene("D: ミニーズ特攻隊は4枚入れてもデッキの検査を通り、
         const out: Record<string, number> = { ...extra }
         let total = 0
         for (const [id, n] of Object.entries(base)) if (total + n <= want) { out[id] = n; total += n }
-        for (const id of Object.keys(base)) { if (total >= want) break; if (!(id in out)) { out[id] = 1; total++ } }
+        // 取りこぼした分は、同名3枚までの範囲で既存の id に積んで40枚ちょうどにする
+        for (const id of Object.keys(base)) {
+            while (total < want && (out[id] ?? 0) < 3) { out[id] = (out[id] ?? 0) + 1; total++ }
+        }
         return out
     }
     const denied = validateDeckCards(build({ [VAN]: 4 }))
