@@ -434,7 +434,7 @@ scene("I1: 060 合体アタックでライフを減らしたら、ボイドか�
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側のパス")
     takeLifeAndResolve(s, "p2")
     settle(s)
-    assert(s.players.p2.life === 4, "相手のライフが1減る")
+    assert(s.players.p2.life === 3, "相手のライフが2減る（合体スピリットのシンボルはホストの白とブレイヴの緑で2つ）")
     assert(host.cores === 2, `合体スピリットにコアが1個増える（1→2。実際 ${host.cores}）`)
     assert(s.players.p1.reserve === 20, "コアはボイドから来るのでリザーブは減らない")
 })
