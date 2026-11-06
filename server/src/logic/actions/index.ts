@@ -35,6 +35,7 @@ import surchargePay from "./surchargePay"
 import moveCards from "./moveCards"
 import designate from "./designate"
 import token from "./token"
+import bunshin from "../keywords/bunshin"
 import declare from "./declare"
 import fireEffect from "./fireEffect"
 import forcedBlock from "./forcedBlock"
@@ -76,6 +77,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...moveCards,
     ...designate,
     ...token,
+    ...bunshin,
     ...declare,
     ...fireEffect,
     ...forcedBlock,

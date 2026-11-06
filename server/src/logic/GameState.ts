@@ -717,6 +717,7 @@ function forView(inst: CardInstance, hideUnder: boolean): CardInstance {
         base.underCount = base.underCards.length
         delete base.underCards
     }
+    if (hideUnder) delete base.bunshinOf
     if (!inst.levelAsEffectsOnly) return base
     const { levelAsContinuous: _lv, levelAsEffectsOnly: _flag, ...rest } = base
     return rest

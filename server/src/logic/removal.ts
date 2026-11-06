@@ -24,6 +24,7 @@ import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave, flushBraveKeeps } from "./brave"
 import { recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
+import { leavesNothingBehind } from "./keywords/bunshin"
 import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, tryNexusReviveOnDestroy, wouldAskReviveConfirm } from "./revive"
@@ -613,7 +614,7 @@ export function commitPendingDestruction(
     const burstInfo = inst.pendingDestroyBurstInfo
     delete inst.pendingDestroyBurstInfo
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
-    const token = isTokenCard(inst.cardId)
+    const token = leavesNothingBehind(inst)
     if (!token) (state.pendingBurstDestroyQueue ??= []).push({
         pid: ownerPid,
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
@@ -627,7 +628,8 @@ export function commitPendingDestruction(
     })
     player.field.spirits.splice(index, 1)
     trashUnderCards(state, ownerPid, inst) // 下のカードは場を離れるとき破棄（BS19-X02。トラッシュでは下のカードが先）
-    if (!token) {
+    if (inst.bunshinOf !== undefined) player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
+    else if (!token) {
         if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
         else player.trashCards.push(inst.cardId)
     }
@@ -1379,6 +1381,12 @@ export function flushBounces(state: GameState, order?: string[]): void {
             bounceSourceNames.delete(inst.instanceId)
             const name = getCard(inst.cardId).name
             const prefix = sourceName !== undefined ? `${sourceName}：` : ""
+            if (inst.bunshinOf !== undefined) {
+                // Q788：手札・デッキ・バーストには入らず、元のカードが表向きでトラッシュへ。「手札に戻ったとき」の誘発も起きない
+                player.trashCards.push(inst.bunshinOf)
+                log(state, `${prefix}${player.name}の分身スピリットは場を離れ、元のカードがトラッシュに置かれた。`)
+                continue
+            }
             if (pb.to === "hand") {
                 if (!isTokenCard(inst.cardId)) player.hand.push(inst.cardId)
                 log(state, `${prefix}${player.name}の${name}は手札に戻った。`)
@@ -1664,7 +1672,7 @@ export function removeCoresToVoid(
 // 移動・入れ替え系（moveCoresLeavingOne／swapOpponentCores）は各ハンドラがこの関数を直接見る。
 export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     // トークンのスピリットも守る対象（「ソーディッシュ」）。ほかの下限は従来どおりカード種別が spirit のものだけ
-    if (isTokenCard(inst.cardId)) return coreFloorOwnNamedFor(state, inst, ownerPid, actorPid)
+    if (leavesNothingBehind(inst)) return coreFloorOwnNamedFor(state, inst, ownerPid, actorPid)
     if (getCard(inst.cardId).type !== "spirit") return 0
     return Math.max(coreFloorByCostFor(state, inst, ownerPid, actorPid), coreFloorBlockingKeywordFor(state, inst), coreFloorOwnNamedFor(state, inst, ownerPid, actorPid))
 }

@@ -699,6 +699,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `hasBofuOnBlock`（fn）：持ち主のフィールドに bofuOnBlock（BS07大風車の丘Lv2）が有効な発生源があるか。
 - `hasBofuChooserSelf`（fn）：持ち主のフィールドに bofuChooserSelf（BS07ワールウィンド）が有効な発生源があるか。
 
+## server/src/logic/keywords/bunshin.ts
+
+- `BUNSHIN_CARD_ID`（const）
+- `leavesNothingBehind`（fn）：場を離れたとき手札・デッキ・トラッシュのどこにも自分自身を残さない個体（トークン。分身は元のカードを別に残す）
+
 ## server/src/logic/keywords/burst.ts
 
 - `BURST_MAGIC_FREE_MAIN_LABEL`（const）：burstMagicFreeEffect（BS16-070）の選択肢ラベル。actions/control.tsのburstMagicFreeOrThenPayHandlerと

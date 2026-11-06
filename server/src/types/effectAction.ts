@@ -59,6 +59,7 @@ export type EffectAction =
  | { type: "setBurstFromHand"; ask?: true } // ask＝「〜できる」を式の中で確認する（候補が1枚でも選択を出し、スキップ可）。外側に optional の確認が無い sequence の中で使う。 バースト専用：自分の手札のバースト効果持ち1枚をセットする。setBurst（GameAction）と違い**ターン1回制限を受けない**。自動選択はコスト最大の1枚（決定的簡略化）
 
  // chooserIsTarget（count:1・side省略時のみ対応）は破壊される側が対象を選ぶ（解決は発生源の持ち主の効果＝PendingChoice.actorPid）。chooseColor＝使用者が先に色を指定して colorFilter へ載せ解決し直す（自動選択は破壊できる数が最大の色。同数はred/purple/green/white/yellow/blueの順）。colorFilter の多色はOR
+ | { type: "bunshin"; max: number; left?: number } // 【分身：N】（keywords/bunshin.ts）。left は個体ごとのコア個数の選択から戻る再入用
  | { type: "spawnToken"; token: string; count: number; upTo?: true } // 召喚ではない（actions/token.ts）。upTo＝「N体まで」
  | { type: "soulCoreToTrash" } // リザーブ・場の個体のどこにあっても。無いときは不発。pay の cost に書ける
  | { type: "placeUnderSelf"; from: "hand"; upTo: number } // 自分の手札をupTo枚、発生源のスピリットの下に裏向きで置く（BS19-X02）。対話・非対話とも手札末尾から置けるだけ置く（決定的簡略化）

@@ -66,7 +66,7 @@ export function noteHeldKeyword(board: Board, ownerPid: PlayerId, inst: CardInst
 // だけで「持つ」を判定する26系キーワード）。TargetFilter.keyword はこの集合のキーワードを
 // spiritHasLabeledKeyword（Lv条件を尊重）で解決し、旧キーワードは従来どおり spiritHasKeyword を使う。
 // 26系キーワードを増やすときはここへ足すだけで参照側（matchesTarget）が追従する
-export const LABELED_KEYWORDS: ReadonlySet<Keyword> = new Set(["zofuku", "suiryu", "chimei", "soryo", "majutsu", "kyoso", "clash", "meisai", "levelup", "fchange", "rensa"])
+export const LABELED_KEYWORDS: ReadonlySet<Keyword> = new Set(["zofuku", "suiryu", "chimei", "soryo", "majutsu", "kyoso", "clash", "meisai", "levelup", "fchange", "rensa", "bunshin"])
 
 // 効果レコードの keyword ラベル（triggered/activated の effect.keyword、kind:"keyword" の宣言レコード）に
 // よるキーワード保持判定。【増幅】/【水流】のように挙動が起動効果そのもので kind:"keyword" の宣言

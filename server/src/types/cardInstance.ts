@@ -14,6 +14,8 @@ export interface CardInstance {
     // このスピリットの下に裏向きで置いたカード（BS19-X02）。非公開情報：GameView は相手には underCount（枚数）だけ見せる
     underCards?: string[]
     underCount?: number // GameView 専用の写し（相手視点）。ロジック側では読まない
+    // 【分身】の個体が裏向きで置かれた元のカードの cardId（Q790）。持ち主にだけ見せる。場を離れるとこのカードが表向きでトラッシュへ行く
+    bunshinOf?: string
     isRested: boolean
     // 重疲労状態（26系）。立つときは isRested も必ず true（重疲労は疲労状態の一種）。
     // 回復ステップ・回復効果では回復せず疲労状態へ1段戻る（2026-10-08 ユーザー確定）。入口は heavyExhaustSpirit / refreshSpirit だけ
