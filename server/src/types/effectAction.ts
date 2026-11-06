@@ -234,6 +234,7 @@ export type EffectAction =
  // effectSources() 経由で継続効果・fieldEvent として効き始める（BS19-099 等）
  | { type: "trashSelfFromField" } // フィールドに置いてあるこのマジック自身（self）を持ち主のトラッシュへ破棄する（破棄条件の fieldEvent の action）
  // clearBattle でリセットされるため、同じターンの2回目のバトルには持ち越さない。効果テキストが「このバトルの間」のマジックはこちらを使うこと
+ | { type: "grantedTriggerAskInternal"; action: EffectAction } // **内部専用**：期間つきで与えた任意の誘発（grantTrigger.optional）を、発火したとき「発動しますか？」と聞いてから解決する（非対話なら発動する）
  | { type: "trashReturnToHandInternal"; cardId: string; onceEffectId?: string; ask?: true } // **内部専用**：トラッシュの自分のカードを手札に戻す。ask＝持ち主に「戻しますか？」を聞く（非対話なら戻す）。trashReturnOnOwnSpiritDestroyed／trashReturnOnOwnHeavyExhaust の「手札に戻せる」（任意。2026-10-11 ユーザー確認）。onceEffectId＝同名ターン1回の枠（戻したときに取る）
  | { type: "summonFreeFromTrashIndexInternal"; trashIndex: number } // **内部専用**：トラッシュの指定位置のカードを、コストを支払わずに召喚する。trashSummonOnNameSummoned の確認に答えたときの解決に使う
  | { type: "resshinsokuFinishInternal"; handIndex: number; cardId: string; selfCores: number } // 【烈神速】の割り振りの後、余分の支払い待ちから召喚を再開する内部専用

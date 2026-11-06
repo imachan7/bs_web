@@ -752,6 +752,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+    ["grantedTriggerAskInternal", "期間つきで与えた任意の誘発（timedEffect の grantTrigger.optional）を発火時に「発動しますか？」と聞いてから解決する包み（triggers.ts が作る。カードデータは grantTrigger に optional を書く）"],
     ["trashReturnToHandInternal", "kind:\"trashReturnOnOwnSpiritDestroyed\"／\"trashReturnOnOwnHeavyExhaust\" の「手札に戻しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。26RSD05-012・26RBS02-032）"],
     ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
     ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],

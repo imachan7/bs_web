@@ -1765,25 +1765,12 @@
        "type": "grantTrigger",
        "trigger": "onBattleEnd",
        "action": {
-        "type": "chooseActionMode",
-        "modes": [
-         {
-          "label": "手札に戻る",
-          "actions": [
-           {
-            "type": "return",
-            "to": "hand",
-            "target": "self",
-            "count": 1
-           }
-          ]
-         },
-         {
-          "label": "戻らない",
-          "actions": []
-         }
-        ]
-       }
+        "type": "return",
+        "to": "hand",
+        "target": "self",
+        "count": 1
+       },
+       "optional": true
       }
      ],
      "duration": "battle",
@@ -1806,25 +1793,12 @@
        "type": "grantTrigger",
        "trigger": "onBattleEnd",
        "action": {
-        "type": "chooseActionMode",
-        "modes": [
-         {
-          "label": "手札に戻る",
-          "actions": [
-           {
-            "type": "return",
-            "to": "hand",
-            "target": "self",
-            "count": 1
-           }
-          ]
-         },
-         {
-          "label": "戻らない",
-          "actions": []
-         }
-        ]
-       }
+        "type": "return",
+        "to": "hand",
+        "target": "self",
+        "count": 1
+       },
+       "optional": true
       }
      ],
      "duration": "battle",

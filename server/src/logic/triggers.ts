@@ -499,7 +499,7 @@ export function fireTrigger(
             const other = targetInstanceId !== undefined ? findSpiritAny(state, targetInstanceId) : null
             return other != null && matchesTarget(state, other.pid, other.inst, g.targetFilter as unknown as ResolvedTargetFilter)
         })
-        .map((g) => g.action)
+        .map((g): EffectAction => (g.optional ? { type: "grantedTriggerAskInternal", action: g.action } : g.action))
     const grantedActions = onlyEffectIds !== undefined || asCard !== undefined ? [] : [
         ...collectGrantedTriggerActions(state, owner, selfInstance, event, targetInstanceId),
         ...tempGranted,

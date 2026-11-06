@@ -90,8 +90,9 @@ function settle(s: GameState, picks: string[] = [], optionPick?: (prompt: string
         const who = pc.pid ?? "p1"
         let err: string | null
         if (pc.kind === "option") {
+            // optionPick が "" を返したら選択肢を付けずに答える（任意の確認を断る）
             const picked = optionPick?.(pc.prompt, pc.options ?? []) ?? (pc.options ?? []).find((x) => x === "発動する" || x === "はい") ?? (pc.options ?? [])[0]
-            err = act(s, who, { type: "resolveChoice", option: picked ?? "" })
+            err = picked === "" ? act(s, who, { type: "resolveChoice" }) : act(s, who, { type: "resolveChoice", option: picked ?? "" })
         } else if (pc.kind === "target") {
             const next = picks.find((x) => (pc.candidates ?? []).includes(x)) ?? pc.candidates?.[0]
             err = next !== undefined ? act(s, who, { type: "resolveChoice", instanceId: next }) : act(s, who, { type: "resolveChoice" })
@@ -272,7 +273,7 @@ console.log("=== H. 026 Lv2『アタック/ブロック時』：バトル終了�
     const chuhi = put(s, "p1", CHUHI, 3) // Lv2
     assert(act(s, "p1", { type: "attack", instanceId: chuhi.instanceId }) === null, "シノビ・チュウヒでアタックできる")
     takeLifeAndResolve(s, "p2")
-    settle(s, [], (_p, o) => o.find((x) => x === "戻らない")) // 戻るかを聞かれても断る
+    settle(s, [], () => "") // 戻るかを聞かれても断る
     assert(s.players.p1.field.spirits.some((x) => x.instanceId === chuhi.instanceId), "断ればフィールドに残る")
     assert(!s.players.p1.hand.includes(CHUHI), "手札には戻らない")
 }
