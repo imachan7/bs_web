@@ -29,7 +29,7 @@
 
 ### いまの本線：BS22 の取り込み（2026-11-06。計画は [BS22_PLAN.md](./docs/design/BS22_PLAN.md)、型は [BS21_PLAN.md](./docs/design/BS21_PLAN.md)）
 
-- **ブランチ `feat/bs22-import`**：staging に100枚（うち対象99枚）。調査役を回している。新しいキーワード【分身】がある
+- **ブランチ `feat/bs22-import`**：staging に100枚（うち対象99枚）。解釈は §1・§2（確認済み）、新しい部品は §3 の B1〜B11。次は B1〜B11 の期待値役 → 実装役
 - BS20 は #395、BS21・CP13-01 は #396 で入った
 - 取り込み済みは BS01〜BS21・CP13-01・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS22 は staging にある。BS23 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
