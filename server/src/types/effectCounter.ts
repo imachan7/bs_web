@@ -40,6 +40,7 @@ export type EffectCounter =
     | "lastNexusCost" // 直前に破壊した自分のネクサスの印刷コスト（26RSD06-013「破壊したネクサスのコスト1につき」。lastCost は続く破壊で lastMoved が書き換わるので別に持つ）
     | "lastDrawn" // 直前のドローで引いた枚数（logic/record.ts。26RBS02-X17「ドローしたカード1枚につき」）
     | "lastCores" // 直前の removeCores が取り除いたコアの数（logic/record.ts）
+    | "lastEmptiedSpirits" // 直前の removeCores の解決でコアが0個になった体数（logic/record.ts）
     | "lastBp" // 直前に疲労させた個体の実効BP（logic/record.ts）
     | "burstEventCost" // BS15共通器：GameState.burstEventCost（バースト発動時のeventInfo.costs先頭値）。未設定なら0（BS15-084爆砕轟神掌／BS15-X06鉄の覇王サイゴード・ゴレム）
     | "selfCores" // このスピリット（self）自身の上に置かれているコア数（selfがnullなら0。BS13-020ブッシュベイベ：「このスピリット上のコア1個につき」）

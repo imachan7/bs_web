@@ -112,13 +112,13 @@ export function exhaustSpirit(
     // 「自分のスピリット/ブレイヴの効果で相手のスピリットを疲労させたとき」（BS20-069）。効果1回の解決につき1回：
     // 選択待ちをまたいでも1回に数えるため、印は state に置き、一番外側の効果を解決し終えた時点で消す（EffectModules の resolveAction）
     if (
-        (causeType === "spirit" || causeType === "brave") &&
+        (causeType === "spirit" || causeType === "brave" || causeType === "magic") &&
         causePid !== undefined &&
         ownerPid !== causePid &&
         state.enemyExhaustNotifiedPid !== causePid
     ) {
         state.enemyExhaustNotifiedPid = causePid
-        fireFieldEventTriggers(state, causePid, "opponentSpiritExhaustedByOwnSpiritEffect", { pid: ownerPid, inst })
+        fireFieldEventTriggers(state, causePid, "opponentSpiritExhaustedByOwnSpiritEffect", { pid: ownerPid, inst }, undefined, undefined, undefined, { causeType })
     }
     fireExhaustedTriggers(state, ownerPid, inst, causePid, causeType)
     return true

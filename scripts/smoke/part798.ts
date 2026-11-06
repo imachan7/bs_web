@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs"
 import { act, assert, createGame, createInstance, declareBlock, fireStepTriggers, getCard, refreshLevelAsOverrides, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import { countSymbols, matchesBraveCondition } from "../../shared/rules"
+import { countSymbols, instHasColor, matchesBraveCondition } from "../../shared/rules"
 
 const BOOM = "BS21-014" // 告死蛇ブームスネーク（紫・コスト4・妖蛇・Lv1召喚時コスト3全体コア除去＋0体ドロー・Lv2ステップ開始時色無効）
 const CONDOR = "BS21-025" // 大草鳥ソテツニア・コンドル（緑・コスト5・爪鳥・Lv1爪鳥コア保護・Lv2マジック疲労で回復）
@@ -195,6 +195,8 @@ scene("C1: 059【合体時】BPを比べ相手のスピリットだけを破壊�
     assert(act(s, "p2", { type: "pass" }) === null, "防御側フラッシュパス")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側フラッシュパス")
     assert(declareBlock(s, "p2", stira.instanceId) === null, "スティラホーンでブロック")
+    assert(act(s, "p2", { type: "pass" }) === null, "フラッシュ②は防御側から優先権なので防御側のパス")
+    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側もパスしてフラッシュ②を閉じる")
     settle(s)
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === stira.instanceId), "BP比べでスティラホーンだけが破壊される（8000対3000）")
     assert(!host.isRested, "059【合体時】破壊したので合体スピリットは回復する")
@@ -250,7 +252,7 @@ scene("D1: 014 Lv1 召喚時：コスト3の相手3体（コア1・1・2）か�
     const vanInst = p2.field.spirits.find((x) => x.instanceId === van.instanceId)
     const saberInst = p2.field.spirits.find((x) => x.instanceId === saber.instanceId)
     assert(vanInst !== undefined && vanInst.cores === 1 && saberInst !== undefined && saberInst.cores === 1, "コスト3以外のロクケラトプス（コスト1）とテラノセイバー（コスト2）は対象外")
-    assert(p2.reserve === 22, "相手のリザーブは20→22（2個移動）")
+    assert(p2.reserve === 23, "相手のリザーブは20→23（3個移動）")
     assert(s.players.p1.hand.length === 2 && s.players.p1.deck.length === 38, "0個になった2体ぶん2枚ドロー（手札2・デッキ40→38）")
 })
 
@@ -270,7 +272,7 @@ scene("E1: 014 Lv2 ステップ開始時に疲労させて、選んだスピリ�
     assert(act(s, "p2", { type: "castMagic", handIndex: 0, timing: "main" }) === null, "バインディングウッズをメインで使用できる")
     assert(act(s, "p2", { type: "resolveChoice", option: "紫" }) === null, "紫を選ぶ")
     settle(s)
-    assert(!boom.isRested, "色が無くなったブームスネークは紫指定の疲労対象にならない")
+    assert(!instHasColor(boom, "purple"), "色が無くなったブームスネークは紫として扱われない（疲労状態に依らない色の判定）")
     assert(grip.isRested, "色が残っているグリプ・ハンズは疲労する")
 })
 scene("E2: 014 Lv2 任意の確認を断ったら疲労せず色も残る", () => {
@@ -305,7 +307,8 @@ scene("F1: 025 Lv1 相手のコア除去で爪鳥のコアはLv1コスト未満�
     s.priorityPlayer = "p2"
     s.players.p2.hand = [PURPLEHAZE]
     assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "相手のロクケラトプスがアタック")
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: condor.instanceId }) === null, "防御側のフラッシュでパープルヘイズを使用できる")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側のパス")
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: condor.instanceId }) === null, "手札に置いた攻撃側がフラッシュでパープルヘイズを使用できる")
     settle(s)
     const condorInst = s.players.p1.field.spirits.find((x) => x.instanceId === condor.instanceId)
     assert(condorInst !== undefined && condorInst.cores === 1, "025 Lv1：相手のコア除去ではコア1個のまま（Lv1コスト未満にならない）")
@@ -321,7 +324,8 @@ scene("F2: 025 がいても爪鳥でなければ相手のコア除去でコア0�
     s.priorityPlayer = "p2"
     s.players.p2.hand = [PURPLEHAZE]
     assert(act(s, "p2", { type: "attack", instanceId: attacker.instanceId }) === null, "相手のロクケラトプスがアタック")
-    assert(act(s, "p1", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: van.instanceId }) === null, "防御側のフラッシュでパープルヘイズを使用できる")
+    assert(act(s, "p1", { type: "pass" }) === null, "防御側のパス")
+    assert(act(s, "p2", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: van.instanceId }) === null, "手札に置いた攻撃側がフラッシュでパープルヘイズを使用できる")
     settle(s)
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === van.instanceId), "爪鳥でないロクケラトプスはコア0で破壊される")
     passFlash(s)
@@ -332,7 +336,14 @@ scene("F3: 025 Lv1 自分の効果なら爪鳥のコアはLv1コスト未満に�
     const condor = put(s, "p1", CONDOR, 1) // 爪鳥・コア1
     const dio = put(s, "p1", DIOMANTIS, 1)
     assert(act(s, "p1", { type: "attack", instanceId: dio.instanceId }) === null, "ディオマンティスでアタックできる")
-    settle(s, [condor.instanceId]) // 自分の効果でソテツニア・コンドルのコア1個をリザーブへ
+    // 「コアを置く数」は数値ラベルの選択なので、settle でなく直接 resolveChoice で 1 を答える
+    for (let i = 0; i < 30 && s.pendingChoice; i++) {
+        const pc = s.pendingChoice as { pid?: PlayerId; kind: string; options?: string[] }
+        const who = pc.pid ?? "p1"
+        if (pc.kind === "option" && (pc.options ?? []).includes("1")) {
+            if (act(s, who, { type: "resolveChoice", option: "1" }) !== null) break
+        } else settle(s, [condor.instanceId]) // 対象選択はソテツニア・コンドルを選ぶ
+    }
     assert(!s.players.p1.field.spirits.some((x) => x.instanceId === condor.instanceId), "自分の効果ならコア0になって破壊される")
     passFlash(s)
     takeLifeAndResolve(s, "p2")

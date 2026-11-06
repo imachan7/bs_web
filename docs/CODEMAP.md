@@ -860,6 +860,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `withMovedProbe`（fn）
 - `lastMovedCount`（fn）
 - `recordCores`（fn）
+- `recordEmptiedSpirits`（fn）
+- `lastEmptiedSpiritsOf`（fn）
 - `recordDrawn`（fn）
 - `recordNexusCost`（fn）
 - `lastNexusCostOf`（fn）

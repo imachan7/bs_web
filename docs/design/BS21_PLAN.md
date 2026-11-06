@@ -62,7 +62,7 @@
 | N19 | 相手のブレイヴの合体条件の下限（コスト7以上）と、満たさなくなった合体の即時分離 | 合体条件を書き換える口が無い | X06 Lv2 | 8 |
 | N20 | デッキの同名枚数の上限を外す（「何枚でも入れることができる」） | デッキの検査は同名3枚固定 | CP13-01 | 8 |
 
-**済み**：バッチ1＝N1・N2・N3（001・041・048・069・070・X04。part797）。「回復できない」の判定は `refreshBlockedByRule`（shared/rules/constraints.ts）1か所で、発生源が効いているかは `hasGlobalConstraint` の match 引数で見る
+**済み**：バッチ1＝N1・N2・N3（001・041・048・069・070・X04。part797）。「回復できない」の判定は `refreshBlockedByRule`（shared/rules/constraints.ts）1か所で、発生源が効いているかは `hasGlobalConstraint` の match 引数で見る／バッチ2＝N4・N5・N6（014・025・059・064・065。part798）。合体条件にシンボルの色の軸 `braveCondition.symbolColor` も足した（N7 は同じ `instanceSymbolColors` を使う）。「自分の効果で相手を疲労させたとき」は出来事に疲労させた効果の種別（causeType）を渡す
 
 各バッチは「期待値役（GLM）→ 部品の実装（GLM）→ データ役（Large 4）」。サブは Mistral の API 枠（`~/.config/mistral_api_key`）で回す。既存の器で書ける残りのカードは、バッチ8のあとに色ごとのデータ役でまとめて書く。
 

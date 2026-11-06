@@ -75,7 +75,7 @@ import {
     opponentFieldColorCount,
    
 } from "../../../shared/rules"
-import { lastCoresCount, lastDrawnCount, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
+import { lastCoresCount, lastDrawnCount, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
 import { checkExhaustOnCoreChange } from "./state/exhaust"
 export type { KeywordInfo }
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
@@ -1156,6 +1156,7 @@ export function countEffectCounter(
     if (counter === "lastMoved") return lastMovedCount(state)
     if (counter === "lastTargetCount") return lastTargetsOf(state).length
     if (counter === "lastCores") return lastCoresCount(state)
+    if (counter === "lastEmptiedSpirits") return lastEmptiedSpiritsOf(state)
     if (counter === "lastDrawn") return lastDrawnCount(state)
     if (counter === "lastNexusCost") return lastNexusCostOf(state)
     if (counter === "lastBp") {

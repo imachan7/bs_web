@@ -231,12 +231,20 @@ export function fireFieldEventTriggers(
                 if (src.pid === pid) continue
                 if (!(src.colors ?? []).includes(effect.sourceColorFilter)) continue
             }
-            // sourceTypes（event:"opponentHandAdded" 限定。BS19-088）：「相手のスピリット/マジックの効果で
-            // 相手の手札が増えた」の発生源種別の絞り込み。currentEffectSource が無い＝効果によらない
-            // 増加（ドローステップ等）では発火しない。sourceColorFilter と同じく効果の発生源側の判定
-            if (effect.sourceTypes !== undefined) {
+            // sourceTypes（event:"opponentHandAdded" と opponentSpiritExhaustedByOwnSpiritEffect）：
+            // opponentHandAdded＝「相手のスピリット/マジックの効果で相手の手札が増えた」の発生源種別の絞り込み。
+            // currentEffectSource が無い＝効果によらない増加（ドローステップ等）では発火しない。
+            // opponentSpiritExhaustedByOwnSpiritEffect＝疲労させた効果の種別（eventInfo.causeType）の絞り込み。
+            // 省略時はスピリット/ブレイヴの効果だけ（マジックで疲労させても発火しない）
+            if (effect.sourceTypes !== undefined && event !== "opponentSpiritExhaustedByOwnSpiritEffect") {
                 const src = state.currentEffectSource
                 if (!src || src.pid === pid || src.type === undefined || !effect.sourceTypes.includes(src.type)) continue
+            }
+            if (event === "opponentSpiritExhaustedByOwnSpiritEffect") {
+                const causeType = eventInfo?.causeType
+                if (effect.sourceTypes !== undefined) {
+                    if (causeType === undefined || !effect.sourceTypes.includes(causeType)) continue
+                } else if (causeType !== "spirit" && causeType !== "brave") continue
             }
             // bySelfEffectOnly（event:"opponentSpiritBpReachedZero" 限定）：BPを下げた効果の発生源が
             // この発生源自身の効果だったか（recordBp が残した原因のinstanceIdで判定）

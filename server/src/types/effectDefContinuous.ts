@@ -427,6 +427,7 @@ export type EffectDefContinuous =
           // 軽減計算にもライフダメージにも効く。symbolFixがある個体では固定値に追加分を加算する（固定値が勝つ既存規則は変えない）
           keyword?: Keyword // 効果の見出しに付くキーワードのラベル（triggered と同型。【連鎖】を含む継続効果＝Q774）
           whileCombined?: true
+          whileSpirit?: true // ブレイヴがスピリット状態（単独）のときだけ。whileCombinedの逆
           levels: number[] | null
           target: "self" | "ownAll" // self=発生源自身／ownAll=持ち主のスピリットすべて
           filter?: TargetFilter
