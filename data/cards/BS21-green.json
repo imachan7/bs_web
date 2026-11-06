@@ -198,5 +198,190 @@
     "braveCondition": {
       "symbolColor": "green"
     }
+  },
+  {
+    "cardId": "BS21-X03",
+    "name": "黒樹神クワガ・ラブナ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green"
+    ],
+    "family": [
+      "怪虫",
+      "殻虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2･Lv3『このスピリットのアタック時』\n相手はバーストを発動できない。\n【連鎖：条件《赤/青シンボル》】\n(自分の赤/青シンボルがあるとき、下の同じ色の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。\n[青]：このスピリットは、ターンに1回まで、自分のネクサス1つを疲労させることで回復できる。",
+    "effects": [
+      {
+        "id": "BS21-X03-e1",
+        "kind": "keyword",
+        "keyword": "soku",
+        "levels": null
+      },
+      {
+        "id": "BS21-X03-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "battleLock",
+              "lock": "burst"
+            }
+          ],
+          "duration": "battle"
+        }
+      },
+      {
+        "id": "BS21-X03-e3",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "red"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "draw",
+                "count": 1
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "pay",
+                "cost": {
+                  "type": "exhaust",
+                  "side": "own",
+                  "nexusOnly": true,
+                  "count": 1
+                },
+                "then": {
+                  "type": "refresh",
+                  "target": "self"
+                },
+                "oncePerTurn": true
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS21-077",
+    "name": "ベロティカルウィンド",
+    "type": "magic",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nこのターンの間、合体していない系統：「爪鳥」を持つ自分のスピリット1体をBP+5000し、そのスピリットが相手によって破壊されたとき、そのスピリットを手札に戻す。",
+    "effects": [
+      {
+        "id": "BS21-077-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "targetChoiceLendThisTurn",
+          "filter": {
+            "family": [
+              "爪鳥"
+            ],
+            "uncombined": true
+          },
+          "side": "own"
+        }
+      },
+      {
+        "id": "BS21-077-e2",
+        "kind": "aura",
+        "levels": null,
+        "lentOnly": true,
+        "aura": {
+          "type": "bp",
+          "target": "chosenInstance",
+          "amount": 5000,
+          "lentOnly": true
+        }
+      },
+      {
+        "id": "BS21-077-e3",
+        "kind": "reviveOnDestroy",
+        "levels": null,
+        "lentOnly": true,
+        "scope": "chosenInstance",
+        "when": {
+          "byOpponent": true
+        },
+        "revived": {
+          "toHand": true
+        }
+      }
+    ]
   }
 ]

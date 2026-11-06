@@ -416,6 +416,10 @@ export function auraAppliesTo(
         // 合体中のブレイヴが【合体時】で言う「このスピリット」はホストを指す（BRAVE.md §12.3。BS14-070ダイヤドカリ）
         return sourceInst.instanceId === targetInst.instanceId || (targetInst.braveRefs?.some((r) => r.instanceId === sourceInst.instanceId) ?? false)
     }
+    // target === "chosenInstance"：targetChoiceLendThisTurn で選んだ1体だけ（発生源は仮想発生源）
+    if (aura.target === "chosenInstance") {
+        return sourceInst.lentChoiceInstanceId === targetInst.instanceId
+    }
     // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
     if (sourcePid !== targetOwnerPid) return false
     if (aura.excludeSelf && sourceInst.instanceId === targetInst.instanceId) return false

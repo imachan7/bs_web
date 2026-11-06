@@ -5,7 +5,7 @@ import { Phase, Color, FamilyFilter, AuraCounter, AuraCondition } from "../type"
 // 常時BP修正の定義
 export interface AuraDef {
     type: "bp"
-    target: "self" | "ownAll" // 発生源自身のみ / 発生源の持ち主のスピリットすべて
+    target: "self" | "ownAll" | "chosenInstance" // 発生源自身のみ / 発生源の持ち主のスピリットすべて / targetChoiceLendThisTurn で選んだ1体だけ（発生源は仮想発生源）
     colorFilter?: Color // ownAll 用: この色のスピリットのみ
     battlingOnly?: boolean // バトル中（アタッカーまたはブロッカー）のスピリットのみ。**target:"self" でも効く**（phaseTurn と同じく target を問わない。2026-08-16 修正）
     amount?: number // 固定量（condition と併用可）

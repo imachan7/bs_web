@@ -117,7 +117,7 @@ export type EffectAction =
 // target:"lastBuffed" は「そのスピリット」：直前の timedEffect が BP を上げた個体（state.lastBpBuffTargetId）に BP を足す。その個体が場にいなければ何もしない。content は bp のみ
  | { type: "timedEffect"; content: TimedContent[]; duration: "turn" | "battle" | "nextRefresh" | "step" | "firstAttack" | "beforeBlock"; colorOptional?: true; count?: number | "any"; choosing?: true; chosenIds?: string[]; countCounter?: EffectCounter; filter?: TargetFilter; all?: true; side?: "own" | "both"; target?: "self" | "lastBuffed" | "lastTargets"; kyokaSettled?: true } // kyokaSettled は内部用（【強化】の負のBP加算の判断済み。keywords/kyoka.ts）
  | { type: "markUnblockableByIceWallColorThisTurn" } // 【氷壁】を持つ自分のスピリット1体を指定し、このターンの間、その【氷壁】の色と同じ色の相手のスピリットからブロックされない（指定時点の色で記録。このターン中に【氷壁】が無効化されても保持＝Q25026〜Q25028）
- | { type: "pay"; cost: EffectAction; then: EffectAction; confirmed?: true; tax?: { source: string; target: string; phrase: string; verb: string }; costOnly?: true; onceRevert?: { instanceId: string; effectId: string }; eventTargetId?: string; limitByKeyword?: "kyoshu" } // costOnly＝then が空振りでもコストは払うので then は成立判定しない。「〜することで〜する」の汎用の器（COST_MODEL.md §1）：cost・thenとも書いてある数どおりに解決できるときだけ発揮する。対応typeは actions/pay.ts の PAYABLE_TYPES
+ | { type: "pay"; cost: EffectAction; then: EffectAction; confirmed?: true; tax?: { source: string; target: string; phrase: string; verb: string }; costOnly?: true; onceRevert?: { instanceId: string; effectId: string }; eventTargetId?: string; limitByKeyword?: "kyoshu"; oncePerTurn?: true } // oncePerTurn＝この発生源・この効果 id でターンに1回まで（BS21_PLAN §2 の5。【強襲】と同じ中身だが【強襲】の回数・【強襲】を参照する効果には数えないので limitByKeyword は使わない） // costOnly＝then が空振りでもコストは払うので then は成立判定しない。「〜することで〜する」の汎用の器（COST_MODEL.md §1）：cost・thenとも書いてある数どおりに解決できるときだけ発揮する。対応typeは actions/pay.ts の PAYABLE_TYPES
  // 手札がdiscardCount枚未満なら不発（部分的な破棄はしない）。破棄は COST_MODEL.md §2どおり interactiveTargets 時は持ち主が1枚ずつ選び、自動選択は手札末尾
  // discardCountは選択の再入をまたいで「残り破棄枚数」を持ち回る（0になった時点でdrawCount枚ドロー）
  | { type: "coreDrainAllOthers"; rewardDraw?: true } // 両陣営。この効果で消滅した数ぶんボイドからselfへコアを置く（selfがnullならno-op）
@@ -224,7 +224,7 @@ export type EffectAction =
  // **破棄をすべて済ませてからまとめてドローする**。1枚破棄するたびにドローすると、引いたカードをまた破棄できてデッキが尽きるまで回せてしまう（2026-08-10 に実対戦で発覚）。
  // discardedSoFar / awaitingSkip は内部フィールド（awaitingSkip は「スキップされて戻ってきた＝破棄終了」の目印）
  | { type: "lendSelfThisTurn" } // このマジック自身を、このターンの間だけ自分の仮想発生源（PlayerState.turnVirtualInstances）として場に置いたものとして扱う。
- | { type: "targetChoiceLendThisTurn" } // 「スピリット1体は」（どちらの陣営でもよい）を選び、このターンの間その1体だけへ効果を貸す。colorChoiceLendThisTurnの対象インスタンス版（CardInstance.lentChoiceInstanceId）
+ | { type: "targetChoiceLendThisTurn"; filter?: TargetFilter; side?: "own"; sourceCardId?: string } // sourceCardId は内部用（選択待ちから再開するときのマジックのカードID）。 「スピリット1体は」（どちらの陣営でもよい）を選び、このターンの間その1体だけへ効果を貸す。colorChoiceLendThisTurnの対象インスタンス版（CardInstance.lentChoiceInstanceId）
  // 同じカードの他の効果エントリ（levels:null必須）が effectSources() 経由で継続効果として一斉に有効になる（TURN_EFFECT_SOURCES.md §3）
  // **1つのアクションにまとめてあるのが要点**：疲労（コスト）と貸与（効果）を別エントリに分けると確認が2回に割れて「疲労だけして効果が出ない」が起きる（2026-08-10 修正）
  // 既に疲労している場合は支払えないので不発（ログのみ）
