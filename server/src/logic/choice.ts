@@ -1,12 +1,13 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import { handGainDenial } from "./handGate"
+import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
 import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
-import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit } from "./removal"
-import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, declineSpiritMillFreeSummon } from "./revive"
+import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
+import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, applyReviveCostPick, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
     continueBurstActivation,
@@ -145,6 +146,31 @@ function resolveChoiceInner(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // BS20-072 Lv2：アタック時効果発揮のコア支払いの応答。action は解決しない。
+    // 置くならリザーブ→トラッシュ、置かないならこのバトルの間アタッカーの『アタック/バトル時』効果を出さない。
+    // どちらでも resolveAttackDeclared をやり直す
+    if (pending.attackEffectsToll) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) return "選択できない候補です"
+        const info = pending.attackEffectsToll
+        state.pendingChoice = null
+        const battle = state.battle
+        const attacker = findSpirit(state.players[info.attackerPid], info.attackerInstanceId)
+        if (battle && attacker) {
+            const player = state.players[info.attackerPid]
+            if (option === "置く" && player.reserve >= 1) {
+                player.reserve -= 1
+                player.trashCores += 1
+                log(state, `${player.name}はリザーブのコア1個をトラッシュに置いた。`)
+            } else {
+                battle.attackEffectsSuppressed = true
+                log(state, `${player.name}はコアを置かなかったため、${getCard(attacker.cardId).name}の『アタック/バトル時』効果すべては発揮されない。`)
+            }
+            resolveAttackDeclared(state, info.attackerPid, attacker, info.directed)
+        }
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 手札からの無償召喚の確認（BS08猫娘アニー）。action は解決しない
     if (pending.handFreeSummon) {
         if (option !== undefined && !(pending.options ?? []).includes(option)) {
@@ -214,6 +240,25 @@ function resolveChoiceInner(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択。action は解決しない。
+    // 選んだ対象でコストを払って復活が確定する
+    if (pending.reviveCostPick) {
+        const entry = pending.reviveCostPick
+        if (pending.kind === "card") {
+            if (cardIndex === undefined || !(pending.cardIndices ?? []).includes(cardIndex)) {
+                return "破棄するカードを選んでください"
+            }
+        } else {
+            if (instanceId === undefined || !pending.candidates.includes(instanceId)) {
+                return "対象を選択してください"
+            }
+        }
+        state.pendingChoice = null
+        applyReviveCostPick(state, entry, instanceId, cardIndex)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // ネクサス版 reviveOnDestroy の確認。action は解決しない。選ばなければ何もせず、
     // 見送っていた破壊は destroyNexusCommit フレームの再開（コミット）で行われる
     if (pending.reviveNexusConfirm) {
@@ -279,6 +324,23 @@ function resolveChoiceInner(
         state.pendingChoice = null
         pickBraveKeepOrder(state, id)
         flushBraveKeeps(state)
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
+    // 破壊されたスピリットのコアの行き先選び（destroyedCoresToSelf。BS20-X01）。action は解決しない
+    if (pending.coreDestination) {
+        if (option !== undefined && !(pending.options ?? []).includes(option)) {
+            return "選択できない候補です"
+        }
+        const info = pending.coreDestination
+        const at = option === undefined ? -1 : (pending.options ?? []).indexOf(option)
+        const dest = at >= 0 ? info.destOptions[at] : undefined
+        if (dest === undefined) return "行き先を選択してください"
+        state.pendingChoice = null
+        state.pendingCoreDestinations?.shift()
+        applyCoreDestination(state, info.ownerPid, info.cores, dest)
+        flushCoreDestinations(state)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
     }
@@ -686,7 +748,9 @@ function drainResumeStack(state: GameState, pid: PlayerId): string | null {
     // 直前のアクションが新しい選択待ちを立てていたら、消化せずそのまま中断を続ける
     // （選択の解決中にさらに選択が必要になるケース。例：【転召】でコアを置く先を選んだあと、
     // その対象が【転召】置換を持っていて「疲労するか」を続けて聞く）
-    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0)) {
+    while (!state.pendingChoice && !state.winner && (state.resumeStack.length > 0 || (state.pendingBraveKeeps?.length ?? 0) > 0 || (state.pendingCoreDestinations?.length ?? 0) > 0)) {
+        // 破壊されたスピリットのコアの行き先選び（destroyedCoresToSelf）を先に決着させる（ブレイヴを残す確認より先）
+        flushCoreDestinations(state)
         // 脇に置いたままのブレイヴ（BRAVE.md §6.3）を先に決着させる。detachBravesOnLeave 直後の
         // 確認が別の中断に上書きされていても、ここで聞き直せる（エントリは答えるまで消えない）
         flushBraveKeeps(state)

@@ -66,6 +66,7 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
 const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
     // 【神速】の下の【連鎖】：連鎖元が【神速】そのもの。「【神速】で召喚したとき」を onSummon＋summonedBy:"soku" で書く（BS19_PLAN §2.15）
     ["BS19-024-e2", "神速の連鎖（召喚時の見出しは無い）"],
+    ["BS20-021-e2", "神速の連鎖（召喚時の見出しは無い）"],
     ["SD14-004-e2", "神速の連鎖（召喚時の見出しは無い）"],
     // BS15-X04機獣要塞ナウマンガルド：印刷テキストに『』見出しが無い「相手によって破壊されたとき」節。
     // fieldEvent(selfOnly)にすると、destroySpiritが破壊時トリガーの間instをまだfield.spiritsに残したまま
@@ -86,7 +87,7 @@ const VALID_KINDS = new Set([
     "magicFreeGrant", "coreStepBonus", "drawStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
     "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "burstSetCost",
-    "destroyedCoresToTrash", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
+    "destroyedCoresToTrash", "destroyedCoresToSelf", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
@@ -95,7 +96,7 @@ const VALID_KINDS = new Set([
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
-    "handActivated", "ownMagicColorless", "fushiFreeByExhaust",
+    "handActivated", "ownMagicColorless", "fushiFreeByExhaust", "freeSummonFromHandOnOwnSpiritDestroyed",
     "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant", "lifeDamageReplace", "symbolWhenSummoning", "effectTax",
 ])
 
@@ -624,6 +625,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             granted?: { trigger?: string }
             oncePerTurn?: boolean
             onceScope?: string
+            maxPerTurn?: number
             eventTarget?: string
         }[]) {
             // kind:"triggerSuppression" の trigger（発揮させないイベント名）も同様に検証する
@@ -633,8 +635,9 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
             ) {
                 add(id, `未知の trigger（triggerSuppression）: ${String(e.trigger)}`)
             }
-            if (e.onceScope !== undefined && (e.onceScope !== "name" || e.oncePerTurn !== true)) {
-                add(id, `onceScope は oncePerTurn: true と併用する "name" のみ（${String(e.id)}）`)
+            // maxPerTurn（「ターンにN回まで」）も名前スコープで数えるので onceScope との併用を許す（BS20-X01）
+            if (e.onceScope !== undefined && (e.onceScope !== "name" || (e.oncePerTurn !== true && e.maxPerTurn === undefined))) {
+                add(id, `onceScope は oncePerTurn: true か maxPerTurn と併用する "name" のみ（${String(e.id)}）`)
             }
             if (typeof e.id === "string") {
                 if (seenEffectIds.has(e.id)) add(id, `effects の id が重複: ${e.id}`)
@@ -741,6 +744,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 // ここに載せた action.type がカードデータに書かれていたら validate:cards で落とす（2026-09-25）。
 // 「先に仕組みだけ入れる」用途でここに載せない（カードが入った時点で落ちて気づけるが、載せっぱなしの原因になる）
 const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["resolveHandFreeSummonOnDestroy", "破壊で誘発した効果の列に並ぶ、手札の「〜が破壊されたときコストを支払わずに召喚できる」1枚分（removal.ts。手札が発生源なのでカードデータには書かない）"],
     ["funsaiOnBlock", "ブロック宣言時の同時発揮で【粉砕】を他の誘発と同じ列に並べるための再開フレーム（blockDeclared.ts）"],
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
@@ -748,6 +752,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],
+    ["grantedTriggerAskInternal", "期間つきで与えた任意の誘発（timedEffect の grantTrigger.optional）を発火時に「発動しますか？」と聞いてから解決する包み（triggers.ts が作る。カードデータは grantTrigger に optional を書く）"],
     ["trashReturnToHandInternal", "kind:\"trashReturnOnOwnSpiritDestroyed\"／\"trashReturnOnOwnHeavyExhaust\" の「手札に戻しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。26RSD05-012・26RBS02-032）"],
     ["summonFreeFromTrashIndexInternal", "kind:\"trashSummonOnNameSummoned\" の「召喚しますか？」に答えたときの解決（トラッシュが発生源なのでカードデータには書かない。BS11-004 プロミネンスワイバーン）"],
     ["summonFreeIndexInternal", "無償召喚の余分（転召の祭壇など）の支払い待ちから再開する内部専用（カードデータには書かない）"],

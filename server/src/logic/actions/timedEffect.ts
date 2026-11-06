@@ -616,6 +616,7 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
     recordTimed(state, { content: locks, target: { kind: "player", pid }, until: "battle", ownerPid: owner })
     for (const c of locks) {
         if (c.lock === "flash") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はフラッシュで手札のカードを使用できない。`)
+        else if (c.lock === "magic") log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はマジックカードを使用できない。`)
         else log(state, `${sourceName}：このバトルの間、${state.players[pid].name}はバーストを発動できない。`)
     }
 }
@@ -623,10 +624,10 @@ function placeBattleLock(ctx: Parameters<ActionHandler<"timedEffect">>[0], actio
 // 自分のスピリット1体に置く（疲労状態でもブロックできる・誘発効果を与える）。対話なら選ばせ、非対話は実効BP最大
 function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, self, sourceName, targetInstanceId } = ctx
-    if (action.duration === "turn" && action.target === "self") {
+    if ((action.duration === "turn" || action.duration === "battle") && action.target === "self") {
         if (!self) return
         pushInstanceRecord(state, owner, self, action.content.filter(isRecorded), action.duration)
-        log(state, `${sourceName}：このターンの間、${getCard(self.cardId).name}に効果を付与した。`)
+        log(state, `${sourceName}：${action.duration === "battle" ? "このバトル" : "このターン"}の間、${getCard(self.cardId).name}に効果を付与した。`)
         return
     }
     // 相手のスピリット1体を「このバトル中、疲労状態でもブロックできる」にする（26RBS01-109/X01）。相手側は耐性を通す
@@ -650,8 +651,13 @@ function placeOwnOne(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: T
     ) {
         return
     }
+    // BP+ を含むときの自動選択は pickOwnBpTarget と同じくバトル中の個体を優先する
+    const battling = action.content.some((c) => c.type === "bp")
+        ? candidates.find((s) => s.instanceId === state.battle?.attackerInstanceId || s.instanceId === state.battle?.blockerInstanceId)
+        : undefined
     const target =
         (targetInstanceId !== undefined && candidates.find((s) => s.instanceId === targetInstanceId)) ||
+        battling ||
         candidates.reduce((best, s) => (effectiveBp(state, owner, s) > effectiveBp(state, owner, best) ? s : best))
     const name = getCard(target.cardId).name
     pushInstanceRecord(state, owner, target, action.content.filter(isRecorded), action.duration)
@@ -933,7 +939,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         log(state, `${sourceName}：このターンの間、条件に合う自分のスピリットすべてに効果を付与した。`)
         return
     }
-    if (!action.all && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
+    if (!action.all && action.target !== "lastTargets" && action.content.some((c) => c.type === "canBlockWhileRested" || c.type === "grantTrigger" || c.type === "untargetableByOpponentMagic" || c.type === "immune" || (c.type === "noBpCompareDestroy" && action.target !== "self"))) {
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return
         placeOwnOne(ctx, action, filter)

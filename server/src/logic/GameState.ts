@@ -742,6 +742,7 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState)
         burst: isSelf ? player.burst : null,
         burstSet: player.burstSet,
         ...(player.onceByNameUsed ? { onceByNameUsed: player.onceByNameUsed } : {}),
+        ...(player.onceByNameUsedCount ? { onceByNameUsedCount: player.onceByNameUsedCount } : {}),
         ...(player.payAssistUsedThisTurn ? { payAssistUsedThisTurn: player.payAssistUsedThisTurn } : {}),
         burstSetThisTurn: player.burstSetThisTurn,
         // ソウルコアの居場所は公開情報（盤上で区別できる形で置かれる）

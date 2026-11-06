@@ -113,7 +113,7 @@ import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
-import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed } from "./oncePerTurn"
+import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
 
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
@@ -157,6 +157,8 @@ export function handleAction(
         delete state.lastLeftCosts
         // 解決順の確認を挟んで再開スタックから解決した効果は、読み終えた不発の目印を消す所を通らない
         delete state.effectFizzled
+        // 「自分のスピリットの効果で相手のスピリットを疲労させたとき」の効果1回につき1回の印もここで消す
+        delete state.enemyExhaustNotifiedPid
     }
     // 「破壊される代わりに復活できる」の確認は破壊処理の途中では中断できないので、解決しきったここで1件ずつ出す
     requestPendingReviveConfirm(state)
@@ -1359,6 +1361,8 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     }
     const blockerName = blocker ? getCard(blocker.cardId).name : "スピリット"
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
+    // ブロッカーが決まって初めて効く継続効果（blockingOnly の効果無効など）を『ブロック時』より先に反映する（BS20_PLAN §2 の6）
+    refreshLevelAsOverrides(state)
     // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
     resolveBlockDeclared(state, blockerPid, blocker, instanceId, directed, exhaustedBlockers)
     if (state.winner) {
@@ -1517,6 +1521,12 @@ function doActivateAbility(
     // 「ターンに1回」の消費は、コスト支払い後・効果解決前に記録する（解決中に中断が入ってもこのターンの再発動を防ぐ）
     if (effect.oncePerTurn) {
         markOnceUsed(state, pid, inst, effect, "activatedUsedTurn")
+    }
+    // 「ターンにN回まで」も同じ位置で数える。不発・中断でも消費は戻さない（oncePerTurn の cancelable 巻き戻しと同じ簡略化）
+    if (effect.maxPerTurn !== undefined) {
+        if (effect.onceScope === "name") markNameUsedOnceThisTurn(state, pid, inst.cardId, effect.id)
+        else markUsedOnceThisTurn(state, inst, effect.id)
+        noteCoverage(effect, "activated")
     }
     // 〔バトル1回〕も同じ位置で記録する（バトル単位。clearBattle で消える）
     if (effect.oncePerBattle) {

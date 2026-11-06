@@ -1213,8 +1213,10 @@ export function hasBounceImmunity(
     ownerPid: PlayerId,
     inst: CardInstance,
     sourceType?: CardType,
+    // "deck"＝デッキの上/下へ戻す効果への問い合わせ。toDeck 無しの耐性（手札限定）はここで弾かれる
+    to?: "hand" | "deck",
 ): boolean {
-    return hasImmunityAgainst(board, ownerPid, inst, "bounce", sourceType)
+    return hasImmunityAgainst(board, ownerPid, inst, "bounce", sourceType, to)
 }
 
 // hasMagicImmunity / hasBounceImmunity 共通の判定本体（kind:"immunityGrant" の against で分岐）
@@ -1224,6 +1226,7 @@ function hasImmunityAgainst(
     inst: CardInstance,
     against: "magic" | "bounce",
     sourceType?: CardType,
+    to?: "hand" | "deck",
 ): boolean {
     const player = board.players[ownerPid]
     const sources = [...player.field.spirits, ...player.field.nexuses]
@@ -1232,6 +1235,7 @@ function hasImmunityAgainst(
         for (const effect of card(source.cardId).effects) {
             if (effect.kind !== "immunityGrant") continue
             if (effect.against !== against) continue
+            if (to === "deck" && effect.toDeck !== true) continue
             if (effect.sourceTypes !== undefined && sourceType !== undefined && !effect.sourceTypes.includes(sourceType)) continue
             if (!entryActive(board, ownerPid, source, effect, sourceLevel)) continue
             if (effect.phaseTurn) {
@@ -1426,6 +1430,31 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
                 noteCoverage(effect, "globalConstraint")
                 return true
             }
+            if (c.type === "burstOnlyOwnFieldSymbolColors") {
+                if (!entryActive(board, opp, source, effect, level)) continue
+                if (!globalConstraintWindowOpen(board, effect, opp)) continue
+                // 色の軸はバーストカード自身の色。burstCardId が渡せない場面では判定できないので見ない
+                if (burstCardId === undefined || card(burstCardId).colors.some((col) => ownFieldSymbolColors(board, holderPid).has(col))) continue
+                noteCoverage(effect, "globalConstraint")
+                return true
+            }
+        }
+    }
+    return false
+}
+
+// globalConstraint "attackEffectsToll"（BS20-072 Lv2）：attackerPid の今回のアタックに効いているか。
+// 効果窓（phase／turn）は発生源の持ち主基準。アタックした側がコアを置くかは攻撃側の選択なので、ここでは効いているかだけを返す
+export function attackEffectsTollActive(board: Board, attackerPid: PlayerId): boolean {
+    const opp: PlayerId = attackerPid === "p1" ? "p2" : "p1"
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "attackEffectsToll") continue
+            if (!entryActive(board, opp, source, effect, level)) continue
+            if (!globalConstraintWindowOpen(board, effect, opp)) continue
+            noteCoverage(effect, "globalConstraint")
+            return true
         }
     }
     return false

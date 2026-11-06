@@ -109,6 +109,7 @@ export type EffectDef =
           // { discardHandOne; exhaustSelf }=手札1枚（末尾。決定的簡略化）を破棄しこのスピリット自身を疲労。{ discardHandKeyword }=指定キーワードを静的に持つ手札のスピリットカード1枚を破棄
           oncePerTurn?: true // 「ターンに1回」。発生源のスピリット1体につきターン1回
           onceScope?: "name" // oncePerTurn と併用。個体でなくプレイヤーごと・カード名ごとに1回（「この効果はターンに1回しか使えない」）
+          maxPerTurn?: number // 「ターンにN回まで」。oncePerTurn の回数版。onceScope:"name" と併用でプレイヤーごと・カード名ごとに数える（BS20-X01「ターンに3回までしか使えない」）
           condition?: "selfInBattle" | "selfAttacking" | "selfBlocking" | { ownAllHaveTeam: string } | { ownAllHaveFamily: string } | { ownTeamAtLeast: { team: string; count: number; restedOnly?: true } } | { soulCoreInReserve: true } | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } | { selfRested: true } | { summonedBy: string } // 発動条件（selfが現在のバトルの当事者＝attacker/blocker／selfが現在のバトルのブロッカー＝『ブロック中』窓／selfが現在のバトルのアタッカー＝『アタック中』窓（26系【魔述】。地鳴のtriggered selfWasAttackerと同じ判定／自分のスピリット/ネクサスすべてが指定チーム所属。0体では不成立／【X】を持つ自分のスピリットがcount体以上いる。AuraCondition.ownTeamAtLeastと同じ判定／自分のリザーブに[ソウルコア]がある／直近の《継召》で除外した指定チーム所属カードがcount枚以上／発生源自身が疲労状態のときのみ発動できる（26系【Fチェンジ】「疲労状態のこのスピリットを手札に戻し」）／発生源自身の召喚経路が一致するときのみ発動できる（CardInstance.summonedByと突合）
           action: EffectAction // 発動時の効果
       }

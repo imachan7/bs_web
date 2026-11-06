@@ -136,7 +136,7 @@ def parse_brave_levels(line):
     （表記に Lv 番号が無いため、出現順がレベル。cores の昇順であることは
     scripts/validate-cards.ts が別途検査する）"""
     levels = []
-    for cores, bp in re.findall(r"<(\d+)>合体\+(\d+)", line):
+    for cores, bp in re.findall(r"<(\d+)>合体\s*\+(\d+)", line):
         levels.append({"level": len(levels) + 1, "cores": int(cores), "bp": int(bp)})
     return levels
 

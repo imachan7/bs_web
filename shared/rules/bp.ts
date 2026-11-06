@@ -140,6 +140,7 @@ export function countAuraCounter(
     }
     // selfCores／battlingOpponent* は timedEffect／aura の target:"self" 経由でのみ使うため、targetInst は常に発生源自身
     if (counter === "selfCores") return targetInst?.cores ?? 0
+    if (counter === "targetCores") return targetInst?.cores ?? 0
     if (counter === "battlingOpponentSymbols" || counter === "battlingOpponentCombinedSymbols") {
         if (!board.battle || !targetInst) return 0
         const opp: PlayerId = sourcePid === "p1" ? "p2" : "p1"
@@ -612,7 +613,8 @@ export function effectiveBp(
     eachBpAura(board, ownerPid, inst, (amount) => {
         total += amount
     })
-    return total + timedRuleBp(board, ownerPid, inst)
+    // BPは0未満にならない（0として扱う）
+    return Math.max(0, total + timedRuleBp(board, ownerPid, inst))
 }
 
 // 「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。

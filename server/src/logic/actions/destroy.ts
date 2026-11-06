@@ -46,7 +46,7 @@ import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { payCoresFromFieldOrReserveToTrash } from "./cores"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { countedAmount } from "../counted"
-import { recordDestroysOf } from "../removal"
+import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
 import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
 import { currentRecordScope, lastMovedOf, recordLeftCost, recordMoved, recordNexusCost } from "../record"
@@ -1357,6 +1357,11 @@ const resolveFushiSummonHandler: ActionHandler<"resolveFushiSummon"> = (ctx, act
     fushiSummonOrConfirm(state, action.pid, trashIndex)
 }
 
+// 同じ列の手札の「〜が破壊されたときコストを支払わずに召喚できる」1枚分。手札からカードIDで引き直す
+const resolveHandFreeSummonOnDestroyHandler: ActionHandler<"resolveHandFreeSummonOnDestroy"> = (ctx, action) => {
+    resolveHandFreeSummonOnDestroy(ctx.state, action.pid, action.cardId)
+}
+
 // 破壊したカードを lastMoved に残す（if の cond.last・カウンタ lastCost が読む。IF_UNIFY.md §5）。
 // recordAppend（「残りN体」の分割再開）のときは上書きでなく追記：対象選びのたびに再入しても
 // 「この効果で破壊したスピリット1体につき」が全数を見られる（nexusProgress の gone と同じ枠の渡し方）
@@ -1449,6 +1454,7 @@ function destroyOwnNexusesAny(ctx: ActionCtx, action: DestroyNexusAction): void 
 
 const handlers = {
     resolveFushiSummon: resolveFushiSummonHandler,
+    resolveHandFreeSummonOnDestroy: resolveHandFreeSummonOnDestroyHandler,
     resolveOwnDestroyTriggers: resolveOwnDestroyTriggersHandler,
     resolveOwnBattleLoseTriggers: resolveOwnBattleLoseTriggersHandler,
     applyReviveOnDestroy: applyReviveOnDestroyHandler,

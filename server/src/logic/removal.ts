@@ -341,6 +341,32 @@ export function destroySpirit(
             })
         }
     }
+    // 手札の「自分のスピリットが破壊されたときコストを支払わずに召喚できる」も【不死】と同じ列に並ぶ
+    // （2026-11-05ユーザー確認・TIMING_CHART）。byOpponent は BP 比べの敗北も含む（byOpponentEffect の定義どおり）
+    if (cause === "destroy") {
+        for (let i = 0; i < player.hand.length; i++) {
+            const cardId = player.hand[i]
+            if (cardId === undefined || zoneSpiritEffectsDisabled(state, cardId)) continue
+            const effect = getCard(cardId).effects.find((e) => e.kind === "freeSummonFromHandOnOwnSpiritDestroyed")
+            if (!effect || effect.kind !== "freeSummonFromHandOnOwnSpiritDestroyed") continue
+            if (effect.byOpponent && !byOpponentEffect) continue
+            // この kind の filter は色・コストなど静的な軸だけ。self 相対のBP軸はここでは解決しないので除外する
+            if (effect.filter) {
+                const { maxBp: _maxBp, minBp: _minBp, exactBp: _exactBp, ...resolvedFilter } = effect.filter
+                if (!matchesTarget(state, ownerPid, inst, resolvedFilter, undefined)) continue
+            }
+            if (!canPayFreeSummonSurcharge(state, ownerPid, getCard(cardId), minLevelCores(getCard(cardId)))) continue
+            noteCoverage(effect, "freeSummonFromHandOnOwnSpiritDestroyed")
+            extraItems.push({
+                key: `handFreeSummonOnDestroy:${ownerPid}:${cardId}`,
+                label: `${getCard(cardId).name}（手札からのコスト不払い召喚）`,
+                action: { type: "resolveHandFreeSummonOnDestroy", pid: ownerPid, cardId },
+                selfInstanceId: null,
+                actorPid: ownerPid,
+                requiresPendingDestructionOf: inst.instanceId,
+            })
+        }
+    }
     fireOwnSpiritDestroyed(state, ownerPid, inst, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId, extraItems)
     if (state.pendingChoice || state.winner) {
         suspendDestroyCommit(state, ownerPid, inst, 2, byBattle, wasAttacker, bySpiritEffect, byOpponentEffect, sourceInstanceId)
@@ -493,6 +519,73 @@ function hasOwnTrigger(state: GameState, pid: PlayerId, inst: CardInstance, trig
     )
 }
 
+// destroyedCoresToSelf（BS20-X01 Lv1）の有効な発生源＝破壊された個体の持ち主の場のスピリット。
+// 破壊待機中の個体は行き先になれない（破壊された個体自身はこの時点で既に場にいない）
+function destroyedCoresToSelfCandidates(state: GameState, ownerPid: PlayerId): CardInstance[] {
+    const out: CardInstance[] = []
+    for (const source of effectSources(state, ownerPid)) {
+        if (!state.players[ownerPid].field.spirits.includes(source) || source.pendingDestruction) continue
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "destroyedCoresToSelf") continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
+            noteCoverage(effect, "destroyedCoresToSelf")
+            out.push(source)
+            break
+        }
+    }
+    return out
+}
+
+// pendingCoreDestinations を先頭から1件ずつ確認に出す（flushBraveKeeps と同じ形。ブレイヴを残す確認より先）
+export function flushCoreDestinations(state: GameState): void {
+    while (!state.pendingChoice && !state.winner && (state.pendingCoreDestinations?.length ?? 0) > 0) {
+        const entry = state.pendingCoreDestinations![0]!
+        if (state.interactiveTargets) {
+            // 同名の X01 が2体いても見分けられるように、スピリットには番号と今のコアの数を付ける
+            const label = (dest: string, i: number): string => {
+                if (dest === "trash") return "トラッシュ"
+                if (dest === "void") return "ボイド"
+                if (dest === "reserve") return "リザーブ"
+                const inst = findInstanceAnywhere(state, dest)
+                return `${i + 1}. ${getCard(inst?.cardId ?? "").name || dest}（コア${inst?.cores ?? 0}個）`
+            }
+            suspend(state, {
+                pid: entry.chooser,
+                kind: "option",
+                prompt: `破壊されたスピリットのコア${entry.cores}個の行き先を選んでください`,
+                candidates: [],
+                options: entry.options.map((d, i) => label(d, i)),
+                optional: false,
+                action: { type: "noop" },
+                selfInstanceId: null,
+                coreDestination: { ownerPid: entry.ownerPid, cores: entry.cores, destOptions: entry.options },
+            })
+            return
+        }
+        state.pendingCoreDestinations!.shift()
+        applyCoreDestination(state, entry.ownerPid, entry.cores, entry.options[0]!)
+    }
+    if ((state.pendingCoreDestinations?.length ?? 0) === 0) delete state.pendingCoreDestinations
+}
+
+// 選ばれた行き先へコアを置く。行き先の個体が場を離れていたらリザーブへ（コアを消さない）
+export function applyCoreDestination(state: GameState, ownerPid: PlayerId, cores: number, dest: string): void {
+    if (dest === "trash") {
+        state.players[ownerPid].trashCores += cores
+    } else if (dest === "reserve") {
+        state.players[ownerPid].reserve += cores
+    } else if (dest !== "void") {
+        const target = state.players[ownerPid].field.spirits.find((s) => s.instanceId === dest)
+        if (target) {
+            target.cores += cores
+            log(state, `破壊されたスピリットのコア${cores}個は${getCard(target.cardId).name}に置かれた。`)
+        } else {
+            state.players[ownerPid].reserve += cores
+        }
+    }
+}
+
 // **順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
 // 誘発の解決中に復活した／場から居なくなった場合は何もしない
 export function commitPendingDestruction(
@@ -539,7 +632,8 @@ export function commitPendingDestruction(
         else player.trashCards.push(inst.cardId)
     }
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
-    // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）
+    // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
+    // destroyedCoresToSelf（BS20-X01）の候補があるときは、コアは候補へ（複数・トラッシュ/ボイド行きとの衝突時は選択）
     const redirectEntry = timedContentsFor(state, ownerPid).find((c) => c.type === "destroyedCoresTo")
     // soleOnly：効果の持ち主側のバトル中のスピリットが同じ破壊バッチにいる（または既に場にいない）なら相打ちなので適用しない
     const winnerSurvives = (): boolean => {
@@ -556,10 +650,31 @@ export function commitPendingDestruction(
         // 渡さないと inst.cores が1個多くリザーブへ移り、ソウルコアぶんが二重に加算される）
         moveSoulCore(player, redirect === "trash" || destroyedCoresGoToTrash(state) ? { zone: "trash" } : { zone: "reserve" }, inst)
     }
-    if (redirect === "void") {
-    } else if (redirect === "trash" || destroyedCoresGoToTrash(state)) {
+    const baseDest: "reserve" | "trash" | "void" = redirect === "void" ? "void" : redirect === "trash" || destroyedCoresGoToTrash(state) ? "trash" : "reserve"
+    const selfDests = destroyedCoresToSelfCandidates(state, ownerPid)
+    if (selfDests.length > 0 && baseDest === "reserve" && (selfDests.length === 1 || !state.interactiveTargets)) {
+        // 候補が1体（または非対話）でトラッシュ/ボイド行きとの衝突が無ければ、選ばずにその候補へ（非対話は先頭）
+        const dest = selfDests[0]!
+        dest.cores += inst.cores
+        log(state, `破壊された${getCard(inst.cardId).name}のコア${inst.cores}個は${getCard(dest.cardId).name}に置かれた。`)
+    } else if (selfDests.length > 0 && !state.interactiveTargets) {
+        // 非対話でトラッシュ/ボイド行きと衝突していても候補の先頭へ（決定的簡略化）
+        const dest = selfDests[0]!
+        dest.cores += inst.cores
+        log(state, `破壊された${getCard(inst.cardId).name}のコア${inst.cores}個は${getCard(dest.cardId).name}に置かれた。`)
+    } else if (selfDests.length > 0) {
+        // 候補が2体以上、またはトラッシュ/ボイド行き（古龍の縄張り等）との衝突。持ち主（衝突時はターンプレイヤー）が選ぶ
+        ;(state.pendingCoreDestinations ??= []).push({
+            chooser: baseDest === "reserve" ? ownerPid : state.turnPlayer,
+            ownerPid,
+            cores: inst.cores,
+            options: [...selfDests.map((s) => s.instanceId), ...(baseDest === "reserve" ? [] : [baseDest])],
+        })
+        inst.cores = 0
+        flushCoreDestinations(state)
+    } else if (baseDest === "trash") {
         player.trashCores += inst.cores
-    } else {
+    } else if (baseDest === "reserve") {
         player.reserve += inst.cores
     }
     delete inst.pendingDestruction
@@ -591,6 +706,8 @@ export function fireQueuedDestroyBursts(state: GameState): void {
     if (state.pendingChoice || state.winner) return
     // ブレイヴの「残す/残さない」がまだ決着していない間は、コストが確定しないので待つ
     if ((state.pendingBraveKeeps?.length ?? 0) > 0) return
+    // コアの行き先選び（destroyedCoresToSelf）も同じく、決着するまで待つ
+    if ((state.pendingCoreDestinations?.length ?? 0) > 0) return
     const queue = state.pendingBurstDestroyQueue
     if (!queue || queue.length === 0) return
     delete state.pendingBurstDestroyQueue
@@ -718,6 +835,31 @@ export function applyHandFreeSummon(
     const index = state.players[info.pid].hand.indexOf(info.cardId)
     if (index === -1) return
     summonFreeFromHandIndex(state, info.pid, getCard(info.cardId).name, index)
+}
+
+// 破壊で誘発した効果の列に並んだ「〜が破壊されたときコストを支払わずに召喚できる」1枚分。
+// 実対戦では確認を出し、非対話では自動で召喚する
+export function resolveHandFreeSummonOnDestroy(state: GameState, pid: PlayerId, cardId: string): void {
+    if (state.pendingChoice || state.winner) return
+    const index = state.players[pid].hand.indexOf(cardId)
+    if (index === -1) return
+    if (!canPayFreeSummonSurcharge(state, pid, getCard(cardId), minLevelCores(getCard(cardId)))) return
+    if (state.interactiveTargets) {
+        suspend(state, {
+            pid,
+            kind: "option",
+            prompt: `${getCard(cardId).name}：手札からコストを支払わずに召喚しますか？`,
+            candidates: [],
+            options: ["召喚する"],
+            optional: true,
+            confirm: true,
+            handFreeSummon: { pid, cardId },
+            action: { type: "noop" },
+            selfInstanceId: null,
+        })
+        return
+    }
+    summonFreeFromHandIndex(state, pid, getCard(cardId).name, index)
 }
 
 // 指名が無ければ false（＝これから聞く必要があるかもしれない）

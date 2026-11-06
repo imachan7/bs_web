@@ -1,5 +1,5 @@
 // 効果の定義のうち、事象で起きる誘発（召喚時・ステップ・盤面の出来事・破壊時の復活など）
-import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, ResolvedTargetFilter, TriggerEvent } from "../type"
+import type { CardPick, CardType, Color, EffectAction, FamilyFilter, FieldEvent, Keyword, Phase, ResolvedTargetFilter, TargetFilter, TriggerEvent } from "../type"
 
 // partnerFilter の maxBp だけ、ResolvedTargetFilter に無い "subjectBp"（イベント主体の実効BP以下）を書ける。
 // 主体はイベントごとに違う（ownSpiritBlocked＝ブロックされた側）ので、解決は fieldEventTriggers が主体を見て行う
@@ -165,11 +165,18 @@ export type EffectDefTrigger =
       }
     | {
           id: string
+          kind: "freeSummonFromHandOnOwnSpiritDestroyed" // 手札にあるこのカード自身の効果（「できる」＝任意）。破壊で誘発した効果の列に並ぶ（2026-11-05ユーザー確認・TIMING_CHART）
+          levels: null // 手札のカードにレベルは無いので常にnull
+          filter?: TargetFilter // 破壊された自分のスピリットの絞り込み（色・コスト）
+          byOpponent?: true // 相手によって破壊されたとき（相手の効果またはBP比べ）だけ
+      }
+    | {
+          id: string
           kind: "battleWon"
           role: "attacker" | "blocker" | "any" // ネクサスのバトル結果誘発。any＝どちらの役割でも
           levels: number[] | null
           action: EffectAction
-          turn?: "own" // 持ち主がturnPlayerのときのみ
+          turn?: "own" | "opponent" // 持ち主がturnPlayerのときのみ／turnPlayerでないときのみ
           vanillaWinnerOnly?: true // 勝利したスピリットが効果の記述を持たない（バニラ）ときのみ
           winnerNameContains?: string // 勝ったスピリットのカード名
           winnerMinCores?: number
@@ -230,7 +237,7 @@ export type EffectDefTrigger =
           attackerOnly?: true // ownSpiritDestroyed 限定
           byAttackOnly?: true // ownLifeDamaged 限定。「相手のスピリットのアタックによって」ライフが減ったときだけ。
           // 効果によるライフ減少（lifeCrush 等）では発火しない。アタックによる減少は targetInstanceId にアタッカーが渡ることで区別する
-          duringSelfAttack?: true // opponentSpiritDestroyed 限定
+          duringSelfAttack?: true // 発生源自身が今のバトルのアタッカーのときだけ（opponentSpiritDestroyed・opponentSpiritBpReachedZero で使う）
           selfOnly?: true // ownSpiritDestroyed | ownSpiritExhausted | ownSpiritReducedLife 用
           causedByOpponent?: true // 疲労イベント限定。ネクサスの効果も含む（byOpponentEffectOnly は含まない）
           byOpponentOnly?: true // ownSpiritDestroyed | ownSpiritReturnedToHand 限定。後者は相手の効果で戻るときだけ（持ち主が自分の効果で戻すときは発火しない）
@@ -348,7 +355,9 @@ export type EffectDefTrigger =
               handDiscardOne?: boolean // 手札の末尾1枚を使う決定的簡略化。手札0枚なら不発
               handDiscardCardType?: CardType // 手札を末尾からその種別に絞って探す
               millSelfOneMatching?: { color: Color; cardType: CardType; thenHandIfNameIncludes?: string } // 成立可否と独立に、thenHandIfNameIncludes に名前が一致すれば手札へ
-              exhaustOwnFamilyOne?: FamilyFilter // 実効BP最小の個体を選ぶ簡略化。破壊される個体自身は除く。該当なしなら不発
+              exhaustOwnFamilyOne?: FamilyFilter // 疲労させる1体。exhaustOwnOne の系統だけを書く省略形（データの書き換えはせず両方を読む）
+              exhaustOwnOne?: ResolvedTargetFilter // 疲労させる1体をこの絞り込みで選ぶ。対話モードでは持ち主が選ぶ（候補1体なら選ばせない。2026-11-05 ユーザー確認）。非対話は実効BP最小を自動選択
+              destroyOwnNexusOne?: true // 破壊する1つ。対話モードでは持ち主が選ぶ（候補1つなら選ばせない。2026-11-05 ユーザー確認）。非対話は先頭を自動選択
               ownLifeOneToVoid?: boolean // リザーブへは戻らない。ライフ0なら不発。結果0になればそのまま勝敗が決まる
               ownLifeOneToReserve?: boolean // 自分のライフのコア1個を自分のリザーブへ。ライフ0なら不発
               millSelfCount?: number // 自分のデッキを上からこの枚数だけ無条件に破棄

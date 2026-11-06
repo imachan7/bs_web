@@ -1,5 +1,6 @@
 // 付与系（キーワード／色／系統／レベル置換など）のアクションハンドラ（旧 resolveAction の switch から移設）。
 // 本体は移設元と同一のロジックで、closure ローカルの参照だけを ctx からの分割代入に置き換えている。
+import { requestActivationConfirm } from "../targeting"
 import { redirectMagicInUse } from "../magic/inUse"
 import { coreRemovalAllowed } from "../coreGate"
 import { handGainDenial } from "../handGate"
@@ -571,6 +572,15 @@ const returnLastUsedMagicToHandHandler: ActionHandler<"returnLastUsedMagicToHand
     log(state, `${sourceName}：${getCard(used.cardId).name}をトラッシュから手札に戻した。`)
 }
 
+const grantedTriggerAskInternalHandler: ActionHandler<"grantedTriggerAskInternal"> = (ctx, action) => {
+    const { state, owner, self } = ctx
+    if (!state.interactiveTargets || !self) {
+        ctx.resolve(action.action)
+        return
+    }
+    requestActivationConfirm(state, owner, `${getCard(self.cardId).name}の効果を発動しますか？`, action.action, self)
+}
+
 const handlers = {
     returnLastUsedMagicToHand: returnLastUsedMagicToHandHandler,
     nexusAsSpiritThisStep: nexusAsSpiritThisStepHandler,
@@ -586,6 +596,7 @@ const handlers = {
     targetChoiceLendThisTurn: targetChoiceLendThisTurnHandler,
     lendSelfThisBattle: lendSelfThisBattleHandler,
     grantHostUnblockableThisTurn: grantHostUnblockableThisTurnHandler,
+    grantedTriggerAskInternal: grantedTriggerAskInternalHandler,
 } satisfies Partial<ActionRegistry>
 
 export default handlers

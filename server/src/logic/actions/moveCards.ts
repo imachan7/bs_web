@@ -415,10 +415,15 @@ function moveRevealed(ctx: ActionCtx, action: MoveCards): void {
         return
     }
     const cands = candidates()
-    if (cands.length === 0 || (typeof action.count === "number" && action.count <= 0)) return
+    // オープン中から動かした枚数も記録する（「その中の〜1枚につき」が revealOpen の記録＝オープンした全枚数を拾わないように）
+    if (cands.length === 0 || (typeof action.count === "number" && action.count <= 0)) {
+        recordMoved(state, [])
+        return
+    }
     if (action.count === "all") {
         const ids = cands.map((i) => zone.cardIds[i]!)
         zone.cardIds = zone.cardIds.filter((_, i) => !cands.includes(i))
+        recordMoved(state, ids)
         sendAll(ids)
         return
     }

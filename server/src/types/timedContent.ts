@@ -13,7 +13,7 @@ export type TimedContent =
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
     | { type: "canBlockWhileRested" } // 疲労状態でもブロックできる（期間は turn のみ。1体は自分のスピリットから選ぶ）
     | { type: "mustBlock" } // 可能ならばブロックしなければならない（期間は battle。その個体でブロックできるなら、ライフで受ける・ほかの個体でブロックは検証で拒否する。26RSD03-007）
-    | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter } // 誘発効果を与える（期間は turn、または自分1体に限り battle。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火
+    | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter; optional?: true } // 誘発効果を与える（期間は turn、または自分1体に限り battle。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火。optional＝「〜できる」：発火したとき持ち主に発動するかを聞く（2026-11-06 ユーザー確認：任意効果の聞き方に揃える）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
     | { type: "cantBlock" }
     | { type: "bp"; amount: number; amountCounter?: EffectCounter; countOnce?: true }

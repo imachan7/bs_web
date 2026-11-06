@@ -272,6 +272,10 @@ export interface BattleState {
     }[]
     lifeDamagers?: string[] // このバトルで相手のライフを減らしたスピリットのinstanceId（アタックで減らすたびに積む）。
     // event:"ownLifeDamaged"のバースト発動時、GameState.burstEventLifeDamagerIdへ引き継ぐ材料（BS16バッチ0：080用の器）
+    // BS20-072 Lv2（attackEffectsToll）の支払い確認をこのアタックで済ませたか。確認→応答→resolveAttackDeclared のやり直しの間に二度聞かないための印
+    attackEffectsTollAsked?: true
+    // BS20-072 Lv2：アタックした側がコアを置かなかったとき、このバトルの間アタッカーの『このスピリットのアタック/バトル時』効果すべて（合体中のブレイヴの『合体アタック時』なども含む）を出さない
+    attackEffectsSuppressed?: true
 }
 
 
@@ -349,6 +353,7 @@ export interface PlayerView {
     burst: string | null // 自分のみ。相手は必ず null（伏せているため内容は見えない。docs/design/BURST.md）
     burstSet: boolean // 両者に見える（伏せてあるか否かは公開情報）
     onceByNameUsed?: Record<string, number>
+    onceByNameUsedCount?: Record<string, { turn: number; count: number }>
     burstSetThisTurn: boolean // 両者に見える公開情報（このターンにセット済みか。クライアントがセットボタンのグレーアウトに使う）
     soulCore: SoulCoreLocation | null // 公開情報のため自分/相手ともに配信する（どのコアが[ソウルコア]かの所在。案B-insideなので数値には既に含まれている。docs/design/SOULCORE.md）
 }

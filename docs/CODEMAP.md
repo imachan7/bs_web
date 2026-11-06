@@ -182,6 +182,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 - `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"／"noBurstActivationByColor"：holderPid のバーストが発動で…
+- `attackEffectsTollActive`（fn）：globalConstraint "attackEffectsToll"（BS20-072 Lv2）：attackerPid の今回のアタックに効いているか。
 - `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 - `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
 
@@ -838,6 +839,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isOnceUsed`（fn）
 - `usedCountThisTurn`（fn）：「ターンにN回まで」（maxPerTurn）。このターンに発揮した回数
 - `markUsedOnceThisTurn`（fn）
+- `usedNameCountThisTurn`（fn）：「ターンにN回まで」の名前スコープ版（activated の maxPerTurn＋onceScope:"name"）。キーは onceNameKey と同じ
+- `markNameUsedOnceThisTurn`（fn）
 - `markOnceUsed`（fn）
 - `claimOnce`（fn）：解決の直前に枠を取る。名前スコープの効果は集める時点では記録せず、ここで取る
 - `revertOnceUsed`（fn）：発揮しなかったと分かったときの巻き戻し。発生源が場を離れて持ち主を引けない場合は戻せない（名前の枠は消費されたまま）
@@ -871,11 +874,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `recordDestroysOf`（fn）
 - `destroySpirit`（fn）
 - `resumeDestroyCommit`（fn）
+- `flushCoreDestinations`（fn）：pendingCoreDestinations を先頭から1件ずつ確認に出す（flushBraveKeeps と同じ形。ブレイヴを残す確認より先）
+- `applyCoreDestination`（fn）：選ばれた行き先へコアを置く。行き先の個体が場を離れていたらリザーブへ（コアを消さない）
 - `commitPendingDestruction`（fn）：**順序は「カードをトラッシュへ → コアを移す」**（TIMING_CHART.md §1.5）。
 - `fireQueuedDestroyBursts`（fn）：破壊後バーストを、pendingBurstDestroyQueue にたまった分だけまとめて発火する。handleAction の末尾
 - `tryFreeSummonOnHandDiscard`（fn）：手札のカード自身が持つ「相手のスピリットの効果で手札から破棄されたとき、コストを支払わずに召喚できる」。
 - `tryHandFreeSummonOnLifeDamaged`（fn）：ownLifeDamaged の発火点から呼ぶ。実対戦では確認を出し、非対話では自動で召喚する
 - `applyHandFreeSummon`（fn）：確認を出したあとに手札から失われていた場合は何もしない
+- `resolveHandFreeSummonOnDestroy`（fn）：破壊で誘発した効果の列に並んだ「〜が破壊されたときコストを支払わずに召喚できる」1枚分。
 - `destroySpiritsFrom`（fn）：戻り値は「実際に破壊できた数」。中断したときは state.pendingChoice が立ち、
 - `destroyTargetsBatch`（fn）：復活の確認で中断したら destroyBatch フレームを積んで止まるので、
 - `resumeDestroyBatch`（fn）：破壊バッチの続きを回す。1体ごとに「破壊される代わりに復活できる」の確認で中断しうるので、
@@ -916,7 +922,9 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `declineSpiritMillFreeSummon`（fn）
 - `applySpiritMillFreeSummon`（fn）
 - `applyReviveConfirm`（fn）：保留していた復活の確認で「復活させる」が選ばれたときの後処理。
+- `applyReviveCostPick`（fn）：「フィールドに残る」のコストの選択（reviveCostPick）に答えたときの後処理。
 - `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
+- `stayOnFieldRevived`（fn）：「残る」の後始末。reviveOnDestroy の revived:{rested} と action "remainOnFieldSelf"（破壊時効果の中で
 
 ## server/src/logic/soulCore.ts
 

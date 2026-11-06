@@ -48,6 +48,18 @@ export function markUsedOnceThisTurn(state: GameState, inst: CardInstance, effec
     ;(inst.triggeredUsedCount ??= {})[effectId] = { turn: state.turn, count: rec !== undefined && rec.turn === state.turn ? rec.count + 1 : 1 }
 }
 
+// 「ターンにN回まで」の名前スコープ版（activated の maxPerTurn＋onceScope:"name"）。キーは onceNameKey と同じ
+export function usedNameCountThisTurn(state: GameState, pid: PlayerId, cardId: string, effectId: string): number {
+    const rec = state.players[pid].onceByNameUsedCount?.[onceNameKey(cardId, effectId)]
+    return rec !== undefined && rec.turn === state.turn ? rec.count : 0
+}
+
+export function markNameUsedOnceThisTurn(state: GameState, pid: PlayerId, cardId: string, effectId: string): void {
+    const key = onceNameKey(cardId, effectId)
+    const rec = state.players[pid].onceByNameUsedCount?.[key]
+    ;(state.players[pid].onceByNameUsedCount ??= {})[key] = { turn: state.turn, count: rec !== undefined && rec.turn === state.turn ? rec.count + 1 : 1 }
+}
+
 export function markOnceUsed(state: GameState, pid: PlayerId, inst: CardInstance, effect: OnceEffect, slot: OnceSlot): void {
     if (effect.onceScope === "name") {
         ;(state.players[pid].onceByNameUsed ??= {})[onceNameKey(inst.cardId, effect.id)] = state.turn

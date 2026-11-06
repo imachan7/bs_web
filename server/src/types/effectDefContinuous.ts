@@ -340,6 +340,7 @@ export type EffectDefContinuous =
           vanillaFilter?: true
           nameIncludes?: string[] // 配列＝OR・部分一致（constraintGrant.nameIncludes と同じ）
           against: "magic" | "bounce" // 自分自身の効果によるバウンスは対象外
+          toDeck?: true // against:"bounce"限定。デッキの上/下に戻す効果も防ぐ（省略時は手札に戻す効果だけ防ぐ）
           sourceTypes?: CardType[] // bounce：防ぐ相手の効果の種類（省略＝すべて）。ブレイヴ自身の効果は "brave"、【合体時】は "spirit"
           condition?: { ownCostCountAtLeast: { cost: number; count: number } }
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
@@ -549,6 +550,14 @@ export type EffectDefContinuous =
           kind: "destroyedCoresToTrash" // 破壊/消滅したスピリット上のコアを持ち主のリザーブでなくトラッシュへ置く
           levels: number[] | null
           turn?: "own" | "opponent"
+      }
+    | {
+          id: string
+          // 破壊された自分のスピリットのコアすべては、リザーブではなくこのスピリットに置かれる（BS20-X01 Lv1）。
+          // 破壊された個体自身と破壊待機中の個体は行き先になれない。候補が複数なら持ち主が、
+          // トラッシュ/ボイド行き（destroyedCoresToTrash・timed の destroyedCoresTo）と衝突するときはターンプレイヤーが選ぶ
+          kind: "destroyedCoresToSelf"
+          levels: number[] | null
       }
     | {
           id: string

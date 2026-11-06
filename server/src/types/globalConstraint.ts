@@ -117,3 +117,5 @@ export type GlobalConstraintDef =
     | { type: "noCoreZeroOutsideEffect" } // 両陣営とも、効果以外の手段（コア移動・コスト・【転召】の支払い）でスピリットのコアを0個にできない（coreRemovalAllowed が止める。効果によるコア除去は通常どおり。BS19-103）
     | { type: "handGainOnlyInDrawStep" } // 両陣営とも、ドローステップ以外では手札を増やせない（ドロー・バウンス・トラッシュ回収など、手札が増える経路すべて。handGainDenial と draw の共通経路が止める。BS19-103）
     | { type: "magicOnlyOwnFieldSymbolColors" } // 両陣営とも、それぞれの自分のフィールドにあるシンボルと同じ色のマジックカードしか使用できない（magicColorBanned が判定。BS19-112）
+    | { type: "attackEffectsToll" } // 発生源の持ち主から見た相手のスピリットがアタックしたとき、そのアタックの間『このスピリットのアタック/バトル時』効果すべてを発揮するには、アタックした側が自分のリザーブのコア1個を自分のトラッシュに置く（置かななければ発揮しない。リザーブが空なら置けず発揮されない。BS20-072 Lv2）
+    | { type: "burstOnlyOwnFieldSymbolColors" } // 発生源の持ち主の相手は、その相手自身のフィールドにあるシンボルと同じ色のバーストカードしか発動できない（発動できないバーストはセットされたまま残る。burstActivationForbidden が判定。BS20-X06）

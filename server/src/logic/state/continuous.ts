@@ -87,6 +87,7 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
+            if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
             if (c.type === "symbolSet") inst.timedSymbolsOverride = new Array<Color>(c.count).fill(c.color ?? getCard(inst.cardId).symbol[0]!)
@@ -104,7 +105,6 @@ function applyTimedCopies(state: GameState): void {
             }
             // 記録を出した側（ownerPid）が意味を持つ内容はここで写す（timedContentsOn では誰が出したかが消えるため）
             if (c.type === "bpAs") inst.battleBpAs = { levels: [...c.levels], amount: c.amount }
-            if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "immune") grantImmune(inst, c)
             if (c.type === "untargetableByOpponentMagic") inst.untargetableByOpponentMagicTimed = true
             if (c.type === "countAs") inst.countAsThisTurn = { pid: r.ownerPid, count: c.count, ...(c.sourceTypes ? { sourceTypes: c.sourceTypes } : {}) }
@@ -747,7 +747,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.kind !== "levelAs") continue
                 if (effect.lentOnly && !isVirtualSource(source)) continue
-                if (effect.whileAttacking === true && state.battle?.attackerInstanceId !== source.instanceId) continue
+                // 合体中のブレイヴが発生源なら、アタックしているのはホスト（合体スピリット）
+                const attackerId = state.battle?.attackerInstanceId
+                if (effect.whileAttacking === true && attackerId !== source.instanceId && !hostsOf(player, source).some((h) => h.instanceId === attackerId)) continue
                 // 【合体時】：発生源が合体しているときだけ（BS10-078 聖鎧獣アメミード）
                 if (effect.whileCombined === true && !instIsCombined(source)) continue
                 if (
@@ -816,7 +818,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 }
                 if (effect.target === "self") {
                     noteCoverage(effect, "levelAs")
-                    source.levelAsContinuous = resolveTreatAs(effect.treatAs, source)
+                    // 合体中のブレイヴの「このスピリット」は合体スピリット：ブレイヴ側のLv表（braveLevels）とホストの両方に掛ける
+                    const subjects = player.field.combinedBraves.includes(source) ? [source, ...hostsOf(player, source)] : [source]
+                    for (const subject of subjects) subject.levelAsContinuous = resolveTreatAs(effect.treatAs, subject)
                 } else if (effect.target === "ownNexusesAll") {
                     // nameContains指定時はカード名にこの文字列を含む自分のネクサスのみ（BS13-072未完成の古代戦艦：羅針盤Lv2）
                     for (const nexus of player.field.nexuses) {

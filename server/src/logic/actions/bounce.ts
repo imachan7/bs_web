@@ -70,7 +70,13 @@ function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
     const byBp = action.budget?.by === "bp"
     const weightOf = (s: CardInstance): number => (byBp ? effectiveBp(state, opp, s) : getCard(s.cardId).cost)
     const unit = byBp ? "BP" : "コスト"
-    const remaining = action.budgetLeft ?? (action.budget !== undefined ? action.budget.amount : countedAmount(state, owner, self, 1, action.costBudget!, srcType))
+    const remaining =
+        action.budgetLeft ??
+        (action.budget !== undefined
+            ? action.budget.counter !== undefined
+                ? countedAmount(state, owner, self, action.budget.amount ?? 1, action.budget.counter, srcType)
+                : (action.budget.amount ?? 0)
+            : countedAmount(state, owner, self, 1, action.costBudget!, srcType))
     if (action.budgetLeft === undefined) log(state, `${sourceName}：${unit}合計${remaining}まで、相手のスピリットを手札に戻せる。`)
     const candidates = pickEnemyCandidates(state, opp, Infinity, () => true, srcColors, srcType, "bounce").filter(
         (s) => weightOf(s) <= remaining,
@@ -78,13 +84,13 @@ function returnToHandByBudget(ctx: ActionCtx, action: HandReturn): void {
     if (candidates.length === 0) return
     let picked = targetInstanceId !== undefined ? candidates.find((s) => s.instanceId === targetInstanceId) : undefined
     if (!picked) {
-        if (state.interactiveTargets && candidates.length >= 2) {
-            requestChoice(
+        // 「好きなだけ」は0体でやめることもできるので、候補が1体でも対話時は確認を出す
+        if (state.interactiveTargets) {
+            requestUpToChoice(
                 state,
                 owner,
                 `${sourceName}：手札に戻す相手のスピリットを選んでください（残り${unit}${remaining}）`,
                 candidates.map((s) => s.instanceId),
-                true,
                 { ...action, budgetLeft: remaining },
                 self,
             )

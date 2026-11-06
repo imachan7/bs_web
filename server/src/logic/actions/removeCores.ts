@@ -94,24 +94,35 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
 function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
     const { state, owner, srcType } = ctx
     if (state.players[pid].field.spirits.includes(inst)) {
-        if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner, srcType)
-        else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
-        else if (to === "life") {
-            // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
-            const taken = removeCores(state, pid, inst, amount, owner, srcType)
-            if (taken > 0) {
-                const moved = Math.min(taken, state.players[pid].reserve)
-                state.players[pid].reserve -= moved
-                state.players[pid].life += moved
-                log(state, `${state.players[pid].name}は${getCard(inst.cardId).name}から取り除いたコア${moved}個をライフに置いた。`)
-            }
+        const before = inst.cores
+        applyToSpirit(ctx, pid, inst, amount, to)
+        if (pid !== owner && before > 0 && inst.cores === 0 && (srcType === "spirit" || srcType === "brave") && state.coresEmptiedNotifiedPid !== owner) {
+            // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
+            state.coresEmptiedNotifiedPid = owner
+            fireFieldEventTriggers(state, owner, "opponentSpiritCoresEmptied", { pid, inst })
         }
-        else removeCores(state, pid, inst, amount, owner, srcType)
         return
     }
     const taken = Math.min(amount, inst.cores)
     inst.cores -= taken
     depositTo(state, pid, to, taken, `${getCard(inst.cardId).name}（ネクサス）`)
+}
+
+function applyToSpirit(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
+    const { state, owner, srcType } = ctx
+    if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner, srcType)
+    else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
+    else if (to === "life") {
+        // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
+        const taken = removeCores(state, pid, inst, amount, owner, srcType)
+        if (taken > 0) {
+            const moved = Math.min(taken, state.players[pid].reserve)
+            state.players[pid].reserve -= moved
+            state.players[pid].life += moved
+            log(state, `${state.players[pid].name}は${getCard(inst.cardId).name}から取り除いたコア${moved}個をライフに置いた。`)
+        }
+    }
+    else removeCores(state, pid, inst, amount, owner, srcType)
 }
 
 // side:"both" は removeCoresHandler が dispatchByTarget へ渡す前に own/opponent へ分解済みなので、

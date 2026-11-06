@@ -4,7 +4,7 @@ import { entryActive } from "../../../shared/rules/effectStop"
 import { markPays } from "./actions/pay"
 import type { CardInstance, EffectDef, GameState, Phase, PlayerId } from "../type"
 import { currentLevel, getCard, log, opponentOf, resolveInOrder } from "./GameState"
-import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
+import { countSpiritsWeighted, countSymbols, effectiveBp, effectSources, hostsOf, instColors, nexusEffectsStopped, instHasColor, instIsVanilla, isVirtualSource, cardNameContains, instMatchesCostFilter, matchesFamilyFilter, spiritHasKeyword, effectActiveOn, instIsCombined, cardHasColor, ownFieldOnlyColor, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast } from "../../../shared/rules"
 import { requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
@@ -48,6 +48,7 @@ export function fireBattleWonTriggers(
             if (effect.whileCombined && !instIsCombined(inst)) continue
             if (!entryActive(state, winnerPid, inst, effect, level)) continue
             if (effect.turn === "own" && winnerPid !== state.turnPlayer) continue
+            if (effect.turn === "opponent" && winnerPid === state.turnPlayer) continue
             // そのターンの最初のアタックで勝利したときのみ（BS08太陽石の神殿）
             if (effect.firstAttackOfTurn && state.attacksThisTurn !== 1) continue
             if (effect.vanillaWinnerOnly && !instIsVanilla(winnerInst)) continue
@@ -196,11 +197,13 @@ export function fireStepTriggers(
     // （灼熱の谷を2枚並べると、1枚目の「手札1枚を破棄」で中断して2枚目が発火しなかった）。
     // 中断したら残りを再開スタックへ積む（fireTrigger と同じ形）。
     // 条件（handNotGreaterThanOpponent など）は**誘発した時点**で判定する
-    const firing: { pid: PlayerId; inst: CardInstance; effect: Extract<EffectDef, { kind: "step" }> }[] = []
+    // self＝効果の「このスピリット」。合体中のブレイヴはホスト（合体スピリット）になる
+    const firing: { pid: PlayerId; inst: CardInstance; self: CardInstance; effect: Extract<EffectDef, { kind: "step" }> }[] = []
     for (const pid of order) {
         const player = state.players[pid]
         const instances = [...player.field.spirits, ...player.field.nexuses]
-        for (const inst of instances) {
+        // 合体中のブレイヴの【合体時】ステップ効果も発火させる（色・数の集計 instances には混ぜない）
+        for (const inst of [...instances, ...player.field.combinedBraves]) {
             const card = getCard(inst.cardId)
             const level = currentLevel(inst).level
             if (nexusEffectsStopped(state, pid, inst)) continue
@@ -322,7 +325,7 @@ export function fireStepTriggers(
                     // 26系「【Fチェンジ】で召喚されているか」など（step軸。triggeredの条件判定と同じ。発生源自身の召喚経路と突合）
                     if (inst.summonedBy !== effect.condition.summonedBy) continue
                 }
-                firing.push({ pid, inst, effect })
+                firing.push({ pid, inst, self: player.field.combinedBraves.includes(inst) ? (hostsOf(player, inst)[0] ?? inst) : inst, effect })
             }
         }
     }
@@ -350,17 +353,17 @@ export function fireStepTriggers(
                 `${state.players[e.pid].name}の${getCard(e.inst.cardId).name}の効果が発動した。（${STEP_LABELS[step]}${timing === "end" ? "終了時" : ""}）`,
             )
             if (!byName) {
-                resolveAction(state, e.pid, e.inst, e.effect.action)
+                resolveAction(state, e.pid, e.self, e.effect.action)
                 return
             }
             delete state.effectFizzled
-            resolveAction(state, e.pid, e.inst, markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }))
+            resolveAction(state, e.pid, e.self, markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }))
             if (state.effectFizzled) revertOnceUsed(state, e.inst, e.effect.id, "stepUsedTurn")
             delete state.effectFizzled
         },
         frame: (e) => ({
             kind: "action" as const,
-            selfInstanceId: e.inst.instanceId,
+            selfInstanceId: e.self.instanceId,
             action: e.effect.onceScope === "name" ? markPays(e.effect.action, { onceRevert: { instanceId: e.inst.instanceId, effectId: e.effect.id } }) : e.effect.action,
             actorPid: e.pid,
             ...(e.effect.onceScope === "name" ? { onceClaim: { instanceId: e.inst.instanceId, effectId: e.effect.id } } : {}),
@@ -426,8 +429,9 @@ export function fireBpReachedTriggers(state: GameState): void {
             return
         }
         fireFieldEventTriggers(state, r.pid, "ownSpiritBpReached", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, { bpFrom: r.from, bpTo: r.to })
-        // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）
-        if (r.to === 0 && r.from > 0) {
+        // 「相手のスピリットがBP0になったとき」：減少して0に届いたときだけ（ownSpiritBpReached と同じ事後処理から）。
+        // 実効BPは負の値まで下がるが、BPは0未満にならない（0として扱う）ので0以下を0とみなす
+        if (r.to <= 0 && r.from > 0) {
             const bpMinusSource = state.bpMinusSourceBy?.[r.inst.instanceId]
             fireFieldEventTriggers(state, opponentOf(r.pid), "opponentSpiritBpReachedZero", { pid: r.pid, inst: r.inst }, instColors(r.inst), undefined, undefined, bpMinusSource === undefined ? undefined : { sourceInstanceId: bpMinusSource })
         }

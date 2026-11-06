@@ -84,6 +84,15 @@ export interface PendingChoice {
         sourceInstanceId: string
         effectId: string
     }
+    reviveCostPick?: {
+        // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択待ち（action は解決しない）。
+        // 復活の確認（reviveConfirm）に「復活させる」と答えたあとに立つ。選んだ対象でコストを払って復活が確定する
+        pid: PlayerId
+        instanceId: string
+        effectId: string
+        sourceInstanceId: string
+        context?: DestroyContext
+    }
     reviveDestination?: {
         // 復活で手札に入ったカードの行き先の選択（action は解決しない）。options は["手札に残す","デッキの上に置く"]
         pid: PlayerId
@@ -135,6 +144,13 @@ export interface PendingChoice {
         pid: PlayerId
         instanceIds: string[]
     }
+    coreDestination?: {
+        // 破壊されたスピリットのコアの行き先選び（destroyedCoresToSelf。BS20-X01）。**action は解決しない**。
+        // options（PendingChoice 側）の各選択肢が destOptions の同じ添字の行き先に対応する
+        ownerPid: PlayerId
+        cores: number
+        destOptions: string[]
+    }
     blockBattlePick?: {
         // 複数体ブロック（blockRequiresCount）で宣言がそろったあと、**アタック側**が
         // どのブロッカーとバトルするかを選ぶ待ち。**action は解決しない**。
@@ -146,6 +162,13 @@ export interface PendingChoice {
         // **action は解決しない**。選ばれたら疲労させて宣言の続き（continueBlockDeclaration）へ進む
         blockerPid: PlayerId
         blockerInstanceId: string
+    }
+    attackEffectsToll?: {
+        // BS20-072 Lv2：アタックした側がリザーブのコア1個をトラッシュに置くかの確認待ち。**action は解決しない**。
+        // 応答後に resolveAttackDeclared をやり直す（2026-11-05 ユーザー確認：アタッカーの『アタック時』より先に聞く）
+        attackerPid: PlayerId
+        attackerInstanceId: string
+        directed: boolean
     }
     fushiSummon?: {
         // 【不死】：トラッシュにあるこのカードを、コストを支払って召喚するかの確認待ち。

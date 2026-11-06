@@ -59,6 +59,7 @@ export interface PlayerState {
     battleVirtualInstances: CardInstance[] // 上の「このバトルの間」版（lendSelfThisBattle）。effectSources が turnVirtualInstances と一緒に返すので、
     // 効果エントリ側（lentOnly / levels:null）の書き方は同じ。違いは寿命だけで、こちらは clearBattle でリセットされる（同じターンの2回目のバトルには効かない）
     onceByNameUsed?: Record<string, number> // 「同名で1回」。キー=名前+効果ID末尾
+    onceByNameUsedCount?: Record<string, { turn: number; count: number }> // 「同名でターンにN回まで」（activated の maxPerTurn＋onceScope:"name"）。キーは onceByNameUsed と同じ
     burst: string | null // バーストエリアに伏せているカードのcardId（非公開。docs/design/BURST.md）
     // 「セットしているか」の公開情報版（burst !== null と常に一致するよう mutation 側で同期する）。
     // shared/board.ts の BoardPlayer が持つのはこちらだけ（burstはGameViewで相手はnullに隠されるため、
