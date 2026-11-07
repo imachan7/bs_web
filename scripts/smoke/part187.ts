@@ -1,7 +1,7 @@
 // smoke パート187（第九弾「超星」＝青16枚・緑13枚）
 //
 // 新しく足した器の確認:
-//   noRefreshByNexusOrMagic（鮫人サンゴジョー）/ canBlockUnblockable・unblockableOnly（炎蜥蜴クトゥグマ）/
+//   cantRefresh（鮫人サンゴジョー）/ canBlockUnblockable・unblockableOnly（炎蜥蜴クトゥグマ）/
 //   destroyCostsEachOne（フォレスト・ゴレム）/ deployNexusFromTrashByFieldCores（名工集いし大工房）/
 //   millThenDestroySameCost（ドラゴニックハウル）/ voidCoreToOther の色・体数（ヤミヤンマ／要塞蟲ラルバ）/
 //   freeSummonFromHandOnDiscardedByOpponent（忍者サルトベ）/ coreFloorByCost.ownOnly（翡翠の社）/

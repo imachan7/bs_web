@@ -431,23 +431,6 @@ export function deckMillBlockedByRule(board: Board, pid: PlayerId, byOpponent: b
     })
 }
 
-// 「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
-// 前段（sourceType の有無）は呼び出し側で見る
-// globalConstraint noRefreshByAnyEffect は、この型に限り side（発生源の持ち主から見た陣営）と
-// エントリ直下の phase/turn をここで見る（hasGlobalConstraint はこれらの軸を見ない）
-export function refreshBlockedByRule(board: Board, ownerPid: PlayerId): boolean {
-    const blocked = hasGlobalConstraint(board, "noRefreshByAnyEffect", (effect, pid) => {
-        if (effect.constraint.type !== "noRefreshByAnyEffect") return false
-        if (effect.constraint.side === "opponent" && ownerPid === pid) return false
-        if (effect.constraint.side === "own" && ownerPid !== pid) return false
-        if (effect.phase !== undefined && effect.phase !== board.phase) return false
-        if (effect.turn === "own" && board.turnPlayer !== pid) return false
-        if (effect.turn === "opponent" && board.turnPlayer === pid) return false
-        return true
-    })
-    return blocked || timedPlayerRules(board, ownerPid).some((r) => r.type === "noSpiritRefresh")
-}
-
 // 合体スピリットのコストからブレイヴ分を引くか（050 の継続・054 の期間つき）。refreshLevelAsOverrides が braveComposite を組むときに読む
 export function braveCostZeroFor(board: Board, hostPid: PlayerId): boolean {
     if (board.timedEffects.some((r) => r.target.kind === "player" && r.target.pid === hostPid && r.content.some((c) => c.type === "braveCostZero"))) return true
@@ -627,25 +610,15 @@ export function coresToOpponentReserveGoToTrash(
     return false
 }
 
-// リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）。
-// pid は**これから回復させるプレイヤー**。両陣営の発生源を見る:
-//   onlyOneUncombined / nexuses は両者に効き、combined は「発生源の持ち主から見た相手」だけに効く
-export function refreshRestrictionsFor(
-    board: Board,
-    pid: PlayerId,
-): { onlyOneUncombined: boolean; nexuses: boolean; combined: boolean } {
-    const result = { onlyOneUncombined: false, nexuses: false, combined: false }
+// リフレッシュステップで合体していないスピリットを1体しか回復できないか（両陣営の発生源を見る。回復の禁止は cantRefresh.ts）
+export function refreshRestrictionsFor(board: Board): { onlyOneUncombined: boolean } {
+    const result = { onlyOneUncombined: false }
     for (const owner of ["p1", "p2"] as PlayerId[]) {
         for (const inst of effectSources(board, owner)) {
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 if (!effectActiveOn(inst, effect, currentLevel(inst).level)) continue
                 if (effect.constraint.type === "refreshOnlyOneUncombined") result.onlyOneUncombined = true
-                else if (effect.constraint.type === "nexusesCantRefresh") result.nexuses = true
-                else if (effect.constraint.type === "opponentCombinedCantRefresh" && owner !== pid) {
-                    noteCoverage(effect, "globalConstraint")
-                    result.combined = true
-                }
             }
         }
     }

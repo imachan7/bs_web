@@ -2,6 +2,7 @@
 import type { EffectAction } from "./effectAction"
 import { TargetFilter } from "./targetFilter"
 import { EffectCounter } from "./effectCounter"
+import type { CantRefreshDef } from "./cantRefresh"
 import type { CoresProtectedRule } from "./coresProtected"
 import { Keyword } from "./keyword"
 import { Color, CardType, ResolvedTargetFilter, TriggerEvent, PlayerRuleDef, ImmuneSource } from "../type"
@@ -9,6 +10,7 @@ import { Color, CardType, ResolvedTargetFilter, TriggerEvent, PlayerRuleDef, Imm
 // 期間つき継続効果（timedEffect）の内容。bp の amountCounter は、全体ルールでは計算のたびに数え直す（ダークパワーの Q&A）。
 // countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
 export type TimedContent =
+    | CantRefreshDef // 寿命 nextRefresh では by:"step"＝次のリフレッシュステップで回復しない
     | { type: "cantAttack" }
     | { type: "effectsDisabled" } // 効果を失い、新たに得ることもない（付与されたキーワードも。instEffectsSuppressed が読む）
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
@@ -45,7 +47,6 @@ export type TimedContent =
     | { type: "noLifeDamage"; includeEffects?: true } // このスピリットのアタックでは、記録を出した側のライフが減らない。includeEffects＝そのスピリットの**効果**によるライフ減少（lifeCrush 等）も減らない（BS19-106「アタック/効果によって」）
     | { type: "colorless" } // 色とシンボルを無いものとして扱う
     | { type: "destroyedCoresTo"; to: "void" | "trash"; soleOnly?: true } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
-    | { type: "skipRefresh" } // 次のリフレッシュステップで回復しない（寿命 nextRefresh）
     | { type: "trashCoreReturnCap"; max: number } // 次のリフレッシュステップで、トラッシュのコアを max 個までしかリザーブに戻せない（寿命 nextRefresh。重なったら小さい方）
     | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic" | "destroyOwnSpirit"; count: number } // destroyOwnSpirit＝ブロックするスピリット以外の自分のスピリット1体を破壊（選ぶのはブロック側。いなければブロックできない。Q4429〜Q4432）
     | ({ type: "coresProtected"; battle: "blocker" } & Pick<CoresProtectedRule, "causes">) // このバトルのブロッカー上のコアを取り除けない（target.kind:"battle"。アタック時にはまだブロッカーが決まっていないため）

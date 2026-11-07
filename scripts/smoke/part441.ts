@@ -238,7 +238,7 @@ console.log("=== 072 Lv2：お互いのアタックステップ、スピリッ�
 {
     const s = game("072-b")
     putNexus(s, "p1", "BS16-072", 1) // Lv2
-    assert(hasGlobalConstraint(s, "noRefreshByNexusOrMagic"), "noRefreshByNexusOrMagic 制約が場に出ている")
+    assert(hasGlobalConstraint(s, "cantRefresh"), "noRefreshByNexusOrMagic 制約が場に出ている")
 }
 console.log("=== 072 Lv2：制約は phase/turn で絞られる（アタックステップ限定。BS09-047のphase無し版は変わらない） ===")
 {

@@ -110,6 +110,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `receivesBpPlus`（fn）：「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。
 - `timedRuleBp`（fn）：全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
 
+## shared/rules/cantRefresh.ts
+
+- `RefreshPath`（型）
+- `refreshBlockedByRule`（fn）
+
 ## shared/rules/constraints.ts
 
 - `ConstraintWithSource`（型）：指定インスタンスが現在レベルで持つ制約定義の一覧（RuleValidator の validateBlock が参照する）
@@ -128,7 +133,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
 - `deckMillBlockedByRule`（fn）：pid のデッキが破棄できないか（globalConstraint／このターンの playerRule の noDeckMill）。mill・コスト・【粉砕】の判定はここ1か所。
-- `refreshBlockedByRule`（fn）：「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの
 - `braveCostZeroFor`（fn）：合体スピリットのコストからブレイヴ分を引くか（050 の継続・054 の期間つき）。refreshLevelAsOverrides が braveComposite を組むときに読…
 - `braveBpBonusZeroFor`（fn）：「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
@@ -138,7 +142,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `cantSpiritStateBrave`（fn）：pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
 - `braveExtraMinCostFor`（fn）：globalConstraint "opponentBraveConditionMinCost"（BS21-X06 Lv2）：hostOwnerPid の側のブレイヴの合体条件に足…
 - `coresToOpponentReserveGoToTrash`（fn）：globalConstraint "coresToOpponentReserveGoToTrash"（BS12-X02魔羯邪神シュタイン・ボルグLv2-3）:
-- `refreshRestrictionsFor`（fn）：リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）。
+- `refreshRestrictionsFor`（fn）：リフレッシュステップで合体していないスピリットを1体しか回復できないか（両陣営の発生源を見る。回復の禁止は cantRefresh.ts）
 - `costCantAct`（fn）：フィールド全体制約 costCantAct（両陣営）：コストがmaxCost以下（またはcostsに完全一致）のスピリットは
 - `instCostCantAct`（fn）：フィールド上のインスタンスに対する「全体制約による行動不可」判定。実コストに加えて、道化師クランの
 - `instCantAttackByOpponentCost`（fn）：BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主から見た**相手**のスピリットのうち、コストが
@@ -1145,6 +1149,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/types/auraDef.ts
 
 - `AuraDef`（型）：常時BP修正の定義
+
+## server/src/types/cantRefresh.ts
+
+- `CantRefreshDef`（型）
 
 ## server/src/types/cardInstance.ts
 

@@ -6,7 +6,7 @@ import { ALL_CARDS } from "../../server/src/logic/GameState"
 // 制約の type → p1 が使ったときに効くプレイヤー（旧 type と同じ）
 const EXPECTED: Record<string, PlayerId | "both"> = {
     lifeGuard: "p1",
-    noSpiritRefresh: "p2",
+    cantRefresh: "p2",
     cantUseHandCardsForPid: "p2",
     nexusEffectsDisabledForPid: "p2",
     freeFushiSummonForPid: "p1",

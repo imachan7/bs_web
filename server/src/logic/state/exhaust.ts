@@ -10,25 +10,6 @@ import { exhaustDenial } from "../exhaustGate"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { effectSources, instAllCosts, instColors, instFamilies, instHasColor, refreshBlockedByRule } from "../../../../shared/rules"
 
-// hasGlobalConstraintは汎用関数のためphase/turnを見ない（bounceGate.tsのcantBounceと同じ理由で専用関数にする）。
-// BS16-072 Lv2：『お互いのアタックステップ』限定。phase/turn未指定のBS09-047は従来どおり常時有効のまま
-function noRefreshByNexusOrMagicActive(state: GameState): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const source of effectSources(state, pid)) {
-            const level = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "noRefreshByNexusOrMagic") continue
-                if (!entryActive(state, pid, source, effect, level)) continue
-                if (effect.phase !== undefined && state.phase !== effect.phase) continue
-                if (effect.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                return true
-            }
-        }
-    }
-    return false
-}
-
 export function checkExhaustOnCoreChange(
     state: GameState,
     affectedPid: PlayerId,
@@ -189,18 +170,8 @@ export function refreshSpirit(
     if ((inst.noRefreshUntilOwnEndSteps ?? 0) > 0) return false
     // スクルディアの指定は場面を限っていないので、効果による回復も止める
     if (isRefreshBlockedByMark(state, ownerPid, inst)) return false
-    // BS09-047鮫人サンゴジョー：スピリットすべては、ネクサス/マジックの効果では回復しない
-    // （スピリットの効果とリフレッシュステップは通る。sourceType 未指定＝効果由来でない扱い）
-    if (
-        (sourceType === "nexus" || sourceType === "magic") &&
-        noRefreshByNexusOrMagicActive(state)
-    ) {
-        return false
-    }
-    // 「回復できない」（BS15-072渦巻く大海峡の両陣営常時・BS21-041 Lv2 の陣営/ステップ限定・
-    // BS21-048 のバトルの間の期間つき playerRule）。sourceType が渡る（＝リフレッシュステップ以外の
-    // 呼び出し）ときだけ止める。判定は refreshBlockedByRule に集約している
-    if (sourceType !== undefined && refreshBlockedByRule(state, ownerPid)) {
+    // 効果による回復（sourceType が渡る）だけここで cantRefresh を見る。リフレッシュステップは PhaseManager が見る
+    if (sourceType !== undefined && refreshBlockedByRule(state, ownerPid, inst, { by: "effect", sourceType })) {
         return false
     }
     if (!inst.isRested) return false

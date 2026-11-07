@@ -5,7 +5,7 @@ import { handGainDenial } from "./handGate"
 import type { CardInstance, GameState, PlayerId, TimedRecord } from "../type"
 import { moveSoulCore, soulCoreInTrash } from "./soulCore"
 import { currentLevel, draw, getCard, log, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
-import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshRestrictionsFor } from "../../../shared/rules"
+import { cardNameContains, effectActiveOn, effectSources, instIsCombined, isEndStepLocked, isTrashReturnAtEndStep, matchesTarget, refreshBlockedByRule, refreshRestrictionsFor } from "../../../shared/rules"
 import { activeConstraints, coreStepBonusFor, coreStepToLifeActive, detachBravesOnLeave, drawStepBonusFor, fireStepTriggers, fireRefreshedSideEvents, refreshLevelAsOverrides, refreshSpirit, resolveAction, returnSpiritToDeckBottom } from "./EffectModules"
 
 const SECOND_MAIN_STEP = false
@@ -181,17 +181,18 @@ function turnStartSegments(state: GameState): (() => void)[] {
             }
             const refreshedInstanceIds = new Set<string>()
             // リフレッシュステップの制限（BS11-X04 宝瓶神機アクア・エリシオン）
-            const limits = refreshRestrictionsFor(state, pid)
+            const limits = refreshRestrictionsFor(state)
+            // ループ中の回復で場が変わっても、ステップ開始時点の判定を使う
+            const stepBlocked = new Set([...player.field.spirits, ...player.field.nexuses].filter((i) => refreshBlockedByRule(state, pid, i, { by: "step" })).map((i) => i.instanceId))
             let firstRefreshed: CardInstance | undefined
             for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
                 // noRefresh（スクルディア Lv1-2 の自分自身）を持つスピリットはこのステップで回復しない
                 if (activeConstraints(state, pid, inst).some((c) => c.type === "noRefresh")) continue
                 // 「次のリフレッシュステップで回復できない」（BS11-055）
                 // all:true はルールとして置くので、発揮後に場に出たスピリットにも効く（SEMANTICS_AUDIT §3.12）
-                if (nextRefresh.some((r) => r.content.some((c) => c.type === "skipRefresh") && ((r.target.kind === "instance" && r.target.instanceId === inst.instanceId) || (r.target.kind === "rule" && !player.field.nexuses.includes(inst) && matchesTarget(state, pid, inst, r.target.filter, r.target.selfInstanceId))))) continue
+                if (nextRefresh.some((r) => r.content.some((c) => c.type === "cantRefresh") && ((r.target.kind === "instance" && r.target.instanceId === inst.instanceId) || (r.target.kind === "rule" && !player.field.nexuses.includes(inst) && matchesTarget(state, pid, inst, r.target.filter, r.target.selfInstanceId))))) continue
                 const isNexus = player.field.nexuses.includes(inst)
-                if (limits.nexuses && isNexus) continue
-                if (limits.combined && !isNexus && instIsCombined(inst)) continue
+                if (stepBlocked.has(inst.instanceId)) continue
                 // 「合体していないスピリットは1体しか回復できない」ときは、ここでは回復させず
                 // ステップ誘発のあとにまとめて1体だけ選ばせる（下の refresh）
                 if (limits.onlyOneUncombined && !isNexus && !instIsCombined(inst)) continue
