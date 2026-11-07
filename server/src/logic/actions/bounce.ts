@@ -418,9 +418,12 @@ function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
         if (action.all) {
             const sides: PlayerId[] = action.to === "hand" && action.side === "both" ? bothSidesPids(state, srcType) : [opp]
             let bounced = 0
+            const nexusFilter = action.filter ? normalizeFilter(ctx, action) : undefined
             for (const pid of sides) {
                 // bounceOne が field.nexuses を破壊的に変更するため、対象をスナップショットしてから戻す
                 for (const nexus of [...state.players[pid].field.nexuses]) {
+                    // 指定した色のネクサスだけ戻す（BS22-052 連鎖[白]）
+                    if (nexusFilter && nexusFilter !== SELF_REQUIRED && !matchesTarget(state, pid, nexus, nexusFilter, self?.instanceId)) continue
                     bounceOne(pid, nexus)
                     bounced++
                 }

@@ -455,6 +455,8 @@ export function fireTrigger(
                 // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）。
                 // false指定時は**セットしていない**間だけ発火（SD06-009キジ・トリアLv2）
                 if (state.players[owner].burstSet !== effect.condition.ownBurstSet) return false
+            } else if ("opponentBurstSet" in effect.condition) {
+                if (state.players[opponentOf(owner)].burstSet !== effect.condition.opponentBurstSet) return false
             } else if ("opponentFieldColorsAtLeast" in effect.condition) {
                 // BS15共通器：持ち主から見た相手フィールドの色の種類数がこれ以上のときのみ発火
                 const { opponentFieldColorsAtLeast, spiritsOnly } = effect.condition

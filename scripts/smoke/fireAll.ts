@@ -334,6 +334,7 @@ const BATTLE_EVENTS: TriggerEvent[] = [
     "onBlock",
     "onBlocked",
     "onBattleWin",
+    "onBattleDestroy",
     "onBattleLose",
     "onBattleStart",
     "onBattleEnd",

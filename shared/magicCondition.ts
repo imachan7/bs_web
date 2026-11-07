@@ -28,6 +28,10 @@ export function magicConditionFailure(board: Board, owner: PlayerId, cond: Magic
     if ("ownSpiritCountAtLeast" in cond) {
         return field.spirits.length >= cond.ownSpiritCountAtLeast ? null : `自分のスピリットが${cond.ownSpiritCountAtLeast}体未満`
     }
+    if ("opponentSpiritCountAtLeast" in cond) {
+        const opp = board.players[owner === "p1" ? "p2" : "p1"].field.spirits.length
+        return opp >= cond.opponentSpiritCountAtLeast ? null : `相手のスピリットが${cond.opponentSpiritCountAtLeast}体未満`
+    }
     if ("ownFieldHasColorSpirits" in cond) {
         return cond.ownFieldHasColorSpirits.every((c) => field.spirits.some((s) => instHasColor(s, c))) ? null : "必要な色のスピリットがそろっていない"
     }

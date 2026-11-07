@@ -190,7 +190,11 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "removeCores") return false
         if (action.count === "any") return true
         const achievable = removeCoresAchievableCountForPay(state, owner, self, action, srcColors, srcType)
-        if (typeof action.count !== "number") return achievable >= 1
+        if (typeof action.count !== "number") {
+            // targets 体ぶんの「すべて」は、その体数がいなければ払えない
+            const spirits = state.players[action.side === "own" ? owner : opponentOf(owner)].field.spirits.length
+            return achievable >= 1 && (action.targets === undefined || spirits >= action.targets)
+        }
         const need = (action.countCounter !== undefined ? countedAmount(state, owner, self, action.count, action.countCounter, srcType) : action.count) + removeCoresKyokaBonus(state, owner, action)
         return achievable >= need
     },

@@ -381,7 +381,12 @@ const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void =>
             return
         }
         if (state.interactiveTargets) {
-            const candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
+            let candidates = pickEnemyCandidates(state, opp, limitBp, matchesFilter, srcColors, srcType)
+            // lowestCost：最低コストの同点だけが候補（同点なら使用者が選ぶ。BS19_PLAN §2.2）
+            if (action.lowestCost && candidates.length > 0) {
+                const low = Math.min(...candidates.map((c) => getCard(c.cardId).cost))
+                candidates = candidates.filter((c) => getCard(c.cardId).cost === low)
+            }
             if (
                 tryInteractiveTargetChoice(
                     state,

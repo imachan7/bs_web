@@ -33,7 +33,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 // 「未登録の trigger は無言で一度も発火しない」まま気づかれない（onBattle→onBattleWin改名事故の再発防止）。
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
-    "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
+    "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleDestroy", "onBattleStart", "onBattleLose",
     "onBlock", "onBlocked", "onUnblocked", "onBattleEnd", "onLifeDealt", "onLifeReduced", "onRefreshed", "onTenshoTarget",
 ])
 
@@ -55,6 +55,7 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
     onBlocked: ["アタック時", "ブロック時", "バトル時"],
     onBattleStart: ["バトル時", "アタック時", "ブロック時"],
     onBattleWin: ["バトル時", "アタック時", "ブロック時"],
+    onBattleDestroy: ["バトル時", "アタック時", "ブロック時"],
     onBattleLose: ["バトル時", "アタック時", "ブロック時"],
     onBattleEnd: ["バトル時", "アタック時", "ブロック時"],
     onLifeDealt: ["アタック時"],

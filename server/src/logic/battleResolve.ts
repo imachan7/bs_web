@@ -645,8 +645,14 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner || sameSide) return
             if (f.outcome === "attackerWins") {
                 fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker")
+                fireTrigger(state, attackerPid, attacker, "onBattleDestroy", "attacker")
             } else if (f.outcome === "blockerWins") {
                 fireTrigger(state, blockerPid, blocker, "onBattleWin", "blocker")
+                fireTrigger(state, blockerPid, blocker, "onBattleDestroy", "blocker")
+            } else if (f.outcome === "mutual") {
+                // 相打ちは同時破壊なので、どちらの onBattleDestroy も（破壊後の写しから）発揮する
+                fireTrigger(state, attackerPid, attacker, "onBattleDestroy", "attacker")
+                fireTrigger(state, blockerPid, blocker, "onBattleDestroy", "blocker")
             }
             return
         }

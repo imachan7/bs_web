@@ -881,5 +881,388 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS22-010",
+    "name": "ボーン・ダイル",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 2,
+    "reduction": [
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『自分のメインステップ』\nこのスピリットに白のシンボル2つを追加する。",
+    "effects": [
+      {
+        "id": "BS22-010-e1",
+        "kind": "symbolAddGrant",
+        "levels": [
+          1,
+          2
+        ],
+        "target": "self",
+        "color": "white",
+        "count": 2,
+        "phaseTurn": {
+          "phase": "main",
+          "turn": "own"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-011",
+    "name": "冥術士シャクス",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 2,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "冥主"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 2000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの破壊時』\n疲労状態のコスト12以下の相手の合体スピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS22-011-e1",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "rested": true,
+            "combined": true,
+            "cost": {
+              "max": 12
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-013",
+    "name": "セグロースネーク",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      },
+      {
+        "level": 3,
+        "cores": 5,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "",
+    "effects": []
+  },
+  {
+    "cardId": "BS22-057",
+    "name": "スカル・ガルダ",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple",
+      "white"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\n自分はデッキから1枚ドローする。\n合体条件：コスト4以上",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 4000
+      }
+    ],
+    "braveConditionText": "コスト4以上",
+    "effects": [
+      {
+        "id": "BS22-057-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "optional": false,
+        "action": {
+          "type": "draw",
+          "count": 1
+        }
+      }
+    ],
+    "braveCondition": {
+      "minCost": 4
+    }
+  },
+  {
+    "cardId": "BS22-075",
+    "name": "ソウルリッパー",
+    "type": "magic",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "R",
+    "limited": false,
+    "effect": "フラッシュ：\n相手の合体スピリットのブレイヴ1つを破壊することで、自分はデッキから1枚ドローする。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：コスト4以下の相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS22-075-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "keyword": "rensa",
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroyBrave"
+          },
+          "then": {
+            "type": "sequence",
+            "actions": [
+              {
+                "type": "draw",
+                "count": 1
+              },
+              {
+                "type": "if",
+                "cond": {
+                  "count": {
+                    "ownColorSymbols": "blue"
+                  },
+                  "atLeast": 1
+                },
+                "then": {
+                  "type": "destroy",
+                  "count": 1,
+                  "filter": {
+                    "cost": {
+                      "max": 4
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-076",
+    "name": "トリプルデッドリィ",
+    "type": "magic",
+    "colors": [
+      "purple"
+    ],
+    "cost": 6,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n自分のスピリット3体のコアすべてを自分のリザーブに置くことで、相手は、相手のスピリット3体のコアすべてを相手のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS22-076-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "useCondition": {
+          "opponentSpiritCountAtLeast": 3
+        },
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "removeCores",
+            "side": "own",
+            "targets": 3,
+            "count": "all"
+          },
+          "then": {
+            "type": "removeCores",
+            "targets": 3,
+            "count": "all",
+            "chooser": "owner"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "X13-02",
+    "name": "闇王蛇ペンドクルス",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 6,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇",
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリットすべてのコアを、それぞれ1個だけになるように相手のリザーブに置く。\nLv2『このスピリットのアタック時』\n相手のスピリットのコア1個を相手のリザーブに置く。\nこの効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。",
+    "effects": [
+      {
+        "id": "X13-02-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "removeCores",
+          "target": "all",
+          "count": "all",
+          "leaveAtLeast": 1
+        }
+      },
+      {
+        "id": "X13-02-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "coreRemove",
+          "count": 1,
+          "drawIfEmptied": true
+        }
+      }
+    ]
   }
 ]

@@ -195,7 +195,10 @@ const openAwakenModeHandler: ActionHandler<"openAwakenMode"> = (ctx) => {
 const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     const cond = action.cond
-    const met = "lastEmptied" in cond
+    // cond を省いた if は then を必ず解決する（oncePerTurn の枠だけを付けたいとき。BS22-X04）
+    const met = cond === undefined
+        ? true
+        : "lastEmptied" in cond
         ? state.lastCoreRemoveEmptied === true
         : "last" in cond
         ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
