@@ -96,6 +96,7 @@ const VALID_KINDS = new Set([
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
     "kyoshuSelfExhaustGrant",
+    "summonNeedsCost", "summonExtraDiscard",
     "sokuFreeSummon",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
@@ -222,7 +223,7 @@ function checkLentEffects(
 // **絞り込みが無言で無視され、全カードに置換が適用される**（エラーも出ない）。
 // 現行データ（BS05-030 / BS05-073）は該当しないが、将来「相手の◯色のカードのコストを△にする」を
 // 書いた瞬間に発現するため、データ側で落とす。
-const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn"] as const
+const COST_SET_UNSUPPORTED = ["cardType", "side", "phaseTurn"] as const
 
 function checkCostSetEffects(
     c: CardData,

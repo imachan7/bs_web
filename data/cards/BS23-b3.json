@@ -38,7 +38,46 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、自分の手札にあるカード名に「シャイニング・ドラゴン」と入っているスピリットカード1枚のコストを、自分のライフと同じ数にする。\nLv1･Lv2･Lv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-003-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "summonCostSetOnceForPid",
+        "counter": "ownLife",
+        "nameContains": "シャイニング・ドラゴン",
+        "cardType": "spirit"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS23-003-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS23-068",
@@ -72,7 +111,49 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『自分のエンドステップ』\n自分のトラッシュにあるカード名に「アルデウス」と入っているスピリットカード1枚を手札に戻すことができる。\nLv2『自分のメインステップ』\n自分の手札にある本来のコストがコスト10以上の紫のスピリットカードを召喚するとき、コスト6として扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-068-e1",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "アルデウス"
+     },
+     "requireCandidate": true
+    }
+   },
+   {
+    "id": "BS23-068-e2",
+    "kind": "costMod",
+    "mode": "set",
+    "levels": [
+     2
+    ],
+    "setTo": 6,
+    "costFilter": {
+     "min": 10
+    },
+    "colorFilter": "purple",
+    "cardTypeFilter": "spirit",
+    "fromHandOnly": true,
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-084",
@@ -93,7 +174,42 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\nこのターンの間、自分がスピリットカード/ブレイヴカード1枚を召喚するとき、自分のネクサスを好きなだけ疲労させることで、この効果で疲労させたネクサス1つにつき、1コストを支払ったものとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-084-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "summonPayByNexusExhaustForPid"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS23-084-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-X07",
@@ -139,6 +255,59 @@
   "braveCondition": {
    "minCost": 5
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-X07-e1",
+    "kind": "summonNeedsCost",
+    "levels": null
+   },
+   {
+    "id": "BS23-X07-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "moveCards",
+     "from": "hand",
+     "dest": "summon",
+     "count": "all",
+     "upTo": true,
+     "skipOnSummon": true,
+     "pick": {
+      "anyOf": [
+       {
+        "cardType": "spirit",
+        "family": "剣使"
+       },
+       {
+        "cardType": "brave",
+        "family": "剣刃"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "id": "BS23-X07-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "discard",
+      "from": "burst",
+      "side": "opponent"
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1
+     }
+    }
+   }
+  ]
  }
 ]

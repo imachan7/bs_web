@@ -119,7 +119,7 @@ scenario({
     name: "x1312-discard",
     start: { me: { hand: [X1312, VANILLA] } },
     steps(t) {
-        t.act("me", { type: "summon", handIndex: 0, discardHandIndices: [1] } as GameAction)
+        t.act("me", { type: "summon", handIndex: 0, extraDiscardHandIndices: [1] } as GameAction)
     },
     expect: [
         `自分.手札: ${nm(X1312, VANILLA)} → なし`,
@@ -140,7 +140,7 @@ scenario({
     start: { me: { hand: [X1312, NEXUS] } },
     steps(t) {
         t.actRejected("me", { type: "summon", handIndex: 0 })
-        t.actRejected("me", { type: "summon", handIndex: 0, discardHandIndices: [1] } as GameAction)
+        t.actRejected("me", { type: "summon", handIndex: 0, extraDiscardHandIndices: [1] } as GameAction)
     },
     expect: [],
 })

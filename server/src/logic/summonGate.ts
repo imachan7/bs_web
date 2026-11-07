@@ -48,6 +48,15 @@ export function summonDenial(state: GameState, a: SummonAttempt): string | null 
         }
     }
 
+    // 効果による召喚は払うコストを持たない（コストを払う効果の召喚も止めてしまう簡略化。Q20364）
+    if (a.cause === "effect") {
+        const needs = card.effects.find((e) => e.kind === "summonNeedsCost")
+        if (needs) {
+            noteCoverage(needs, "summonNeedsCost")
+            return "1コスト以上支払わなければ召喚できません"
+        }
+    }
+
     if (a.cause === "effect" && a.from === "trash" && trashFrozen(state)) return "トラッシュのカードは効果を受けない"
 
     if (a.cause === "effect" && card.type === "brave") {

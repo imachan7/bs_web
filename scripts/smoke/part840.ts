@@ -1,5 +1,5 @@
 // smoke パート840（BS23 B3: 084 ディープシーイリュージョン。ネクサスを疲労させて召喚コストを払う）
-// Q25253・Q25254・Q25255。ネクサスを疲労させる指定は召喚アクションに exhaustNexusInstanceIds を付ける想定（未実装の仮の名前。設計で変わったら直す）
+// Q25253・Q25254・Q25255。ネクサスを疲労させる指定は召喚アクションに shinsokuAssistInstanceIds を付ける想定（未実装の仮の名前。設計で変わったら直す）
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
 import type { GameAction, GameState } from "./helpers"
 import { scenario } from "./scenario"
@@ -35,7 +35,7 @@ const nexuses = [
     { card: NX_B, label: "B", cores: 0 },
     { card: NX_C, label: "C", cores: 0 },
 ]
-const withNexus = (handIndex: number, ...ids: string[]) => ({ type: "summon", handIndex, exhaustNexusInstanceIds: ids }) as unknown as GameAction
+const withNexus = (handIndex: number, ...ids: string[]) => ({ type: "summon", handIndex, shinsokuAssistInstanceIds: ids }) as unknown as GameAction
 const MAGIC_NAME = getCard(MAGIC).name
 
 console.log("=== 1. 一部だけネクサス（2つ）、残りはコア：4 − 2 ＝ 2 をリザーブから払う（Q25254） ===")
@@ -92,8 +92,8 @@ scenario({
     expect: [
         `自分.手札: ${nm(MAGIC, SPIRIT, SPIRIT)} → なし`,
         `自分.トラッシュ: なし → ${MAGIC_NAME}`,
-        "自分.リザーブ: 14 → 2",
-        "自分.トラッシュのコア: 0 → 10",
+        "自分.リザーブ: 14 → 3",
+        "自分.トラッシュのコア: 0 → 9",
         "自分.A.疲労: false → true",
         ...born(SPIRIT_NAME, 4000),
         ...born(`${SPIRIT_NAME}#2`, 4000),

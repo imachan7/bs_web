@@ -12,7 +12,7 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { activeConstraints, canDiscardHand, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
+import { activeConstraints, canDiscardHand, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
 import { instanceSymbolCount } from "./symbols"
@@ -62,10 +62,14 @@ export function payAssistCandidates(
     board: Board,
     pid: PlayerId,
     summoning: { cardId: string; flash: boolean },
-): { instanceId: string; discount: number; oncePerTurn: boolean }[] {
-    const result: { instanceId: string; discount: number; oncePerTurn: boolean }[] = []
+): { instanceId: string; discount: number; oncePerTurn: boolean; byRule?: true }[] {
+    const result: { instanceId: string; discount: number; oncePerTurn: boolean; byRule?: true }[] = []
     const player = board.players[pid]
     const summoned = card(summoning.cardId)
+    // summonPayByNexusExhaustForPid（BS23-084）：スピリット/ブレイヴの召喚で、回復状態のネクサスを1つ1コストとして疲労させられる
+    if ((summoned.type === "spirit" || summoned.type === "brave") && timedPlayerRules(board, pid).some((r) => r.type === "summonPayByNexusExhaustForPid")) {
+        for (const nx of player.field.nexuses) if (!nx.isRested) result.push({ instanceId: nx.instanceId, discount: 1, oncePerTurn: false, byRule: true })
+    }
     if (summoned.type !== "spirit") return result
     const used = player.payAssistUsedThisTurn ?? []
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
@@ -79,6 +83,9 @@ export function payAssistCandidates(
             if ((effect.via ?? "shinsoku") === "shinsoku" && !summoning.flash) continue
             if (effect.minBaseCost !== undefined && summoned.cost < effect.minBaseCost) continue
             if (effect.oncePerTurn && used.includes(inst.instanceId)) continue
+            // 同じネクサスが両方で候補になるときは、固有の肩代わり（payAssistByExhaust）を優先する
+            const at = result.findIndex((r) => r.instanceId === inst.instanceId)
+            if (at !== -1) result.splice(at, 1)
             result.push({ instanceId: inst.instanceId, discount: effect.cost, oncePerTurn: effect.oncePerTurn === true })
             break
         }

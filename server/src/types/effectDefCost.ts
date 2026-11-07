@@ -63,6 +63,18 @@ export type EffectDefCost =
       }
     | {
           id: string
+          kind: "summonNeedsCost" // このカード自身の召喚条件：1コスト以上支払わなければ召喚できない（軽減で0になる場合・効果によるコストなしの召喚は不可。Q20363・Q20364）
+          levels: null
+      }
+    | {
+          id: string
+          kind: "summonExtraDiscard" // このカード自身の召喚の追加コスト：手札のcardType（省略時は種別不問）のカードcount枚を破棄しなければ召喚できない
+          levels: null
+          count: number
+          cardType?: CardType
+      }
+    | {
+          id: string
           kind: "summonCostHandDiscardPay" // 発生源が場（このターンの仮想発生源）にある間、持ち主はスピリットの召喚コストを「コスト1につき手札1枚破棄」で支払える
           levels: null // 貸与専用（マジックがlendSelfThisTurnで自分を貸す）。仮想発生源はLv0なのでnull固定
       }
@@ -98,6 +110,9 @@ export type EffectDefCost =
           setTo: number // 置換後のコスト値（2026-07-26に旧amountから改名。「+5」と読み違えないため）。setToCounter指定時は無視される
           setToCounter?: "ownLife" // 指定時はsetToでなく、その時点の値を置換後のコストにする
           familyFilter?: FamilyFilter // 対象カードが持つ系統
+          colorFilter?: Color // 対象カードの色
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 持ち主基準のステップ・turn条件
+          fromHandOnly?: true // 「手札にある」カードの召喚だけ（トラッシュ・デッキからの召喚には効かない）
           keywordFilter?: Keyword // 対象カードが静的に持つキーワード
           costFilter?: { max?: number; min?: number } // 対象カードの元コストの範囲
           nameContains?: string // 対象カードのカード名にこの文字列を含むもののみ

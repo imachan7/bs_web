@@ -41,6 +41,14 @@
   "braveCondition": {
    "minCost": 8
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "X13-12-e1",
+    "kind": "summonExtraDiscard",
+    "levels": null,
+    "count": 1,
+    "cardType": "spirit"
+   }
+  ]
  }
 ]

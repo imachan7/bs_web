@@ -9,6 +9,7 @@ import { moveCardCandidates } from "./actions/moveCards"
 import type { CardData, CardInstance, CardType, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import { summonFromHandFreeCandidateMatches } from "./summon"
 import { summonDenial } from "./summonGate"
+import { summonExtraDiscardPlan } from "./summonCostRules"
 import { normalReserveOf, soulCoreInReserve, soulCoreOnInstance, keishoExcludedTeamAtLeast } from "./soulCore"
 import {
     coresForLevel,
@@ -156,6 +157,7 @@ export function validateSummon(
     paySoulCoreFromReserve?: boolean,
     placeSoulCoreFromReserve?: boolean,
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（doSummon と同じ意味）
+    extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（discardHandIndices はコストの肩代わり用で別物）
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -297,6 +299,13 @@ export function validateSummon(
               0,
               (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
           )
+    // kind:"summonNeedsCost"：肩代わり（ネクサスの疲労）は払ったものとして数えるが、軽減で0になるコスト・無償化は払ったことにならない
+    if (card.effects.some((e) => e.kind === "summonNeedsCost")) {
+        const printedPaid = altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)
+        if (sokuFree || printedPaid <= 0) return "1コスト以上支払わなければ召喚できません"
+    }
+    const extraPlan = summonExtraDiscardPlan(state, pid, handIndex, card, extraDiscardHandIndices, discardHandIndices)
+    if ("error" in extraPlan) return extraPlan.error
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {

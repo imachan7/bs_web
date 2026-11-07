@@ -1042,6 +1042,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 - `summonFromHandFreeCandidateMatches`（fn）
 
+## server/src/logic/summonCostRules.ts
+
+- `consumeSummonCostSetOnce`（fn）：召喚の宣言で対象が決まる（Q4458）ので、該当するカードを召喚した時点で使い切る
+- `consumeSummonPayByNexusExhaust`（fn）：ネクサスを疲労させて払ったら、その1枚で使い切る（Q25255）
+- `summonExtraDiscardPlan`（fn）：summonExtraDiscard：破棄する手札のインデックス（召喚するカード自身・コストの手札破棄で使うカードは除く）。
+- `noteSummonExtraDiscard`（fn）
+
 ## server/src/logic/summonGate.ts
 
 - `SummonAttempt`（型）

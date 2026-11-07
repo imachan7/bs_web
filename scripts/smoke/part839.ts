@@ -64,7 +64,7 @@ scenario({
     },
     expect: [
         `自分.手札: ${nm(SHINING, DRAGON)} → なし`,
-        "自分.リザーブ: 10 → 1",
+        "自分.リザーブ: 10 → 0",
         "自分.トラッシュのコア: 0 → 8",
         ...born(SHINING_NAME, 2000),
         ...born(DRAGON_NAME, 5000),
@@ -225,7 +225,7 @@ for (const cores of [0, 2]) {
         refreshLevelAsOverrides(s)
         assert(act(s, "p1", { type: "endTurn" }) === null, `[コア${cores}] ターン終了`)
         assert(s.pendingChoice !== null && s.pendingChoice.pid === "p1", `[コア${cores}] 戻すかどうかを聞かれる`)
-        assert(act(s, "p1", accept ? { type: "resolveChoice", cardIndex: 0 } : { type: "resolveChoice" }) === null, `[コア${cores}] 答える`)
+        assert(act(s, "p1", accept ? { type: "resolveChoice", option: "発動する" } : { type: "resolveChoice" }) === null, `[コア${cores}] 答える`)
         const h = s.players.p1.hand
         if (accept) assert(h.length === 1 && h[0] === ALDEUS && !s.players.p1.trashCards.includes(ALDEUS) && s.players.p1.trashCards.includes(VANILLA), `[コア${cores}] アルデウスだけが手札へ`)
         else assert(!h.includes(ALDEUS) && s.players.p1.trashCards.includes(ALDEUS), `[コア${cores}] 断れば戻らない`)
