@@ -801,47 +801,6 @@
   "effects": []
  },
  {
-  "cardId": "BS23-027",
-  "name": "要塞蟲フォートコーカサス",
-  "type": "spirit",
-  "colors": [
-   "green",
-   "white"
-  ],
-  "cost": 8,
-  "reduction": [
-   "green",
-   "green",
-   "white",
-   "white"
-  ],
-  "family": [
-   "怪虫",
-   "機獣"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 7000
-   },
-   {
-    "level": 2,
-    "cores": 3,
-    "bp": 11000
-   }
-  ],
-  "symbol": [
-   "green",
-   "white"
-  ],
-  "flash": false,
-  "rarity": "U",
-  "limited": false,
-  "effect": "Lv1･Lv2『相手のアタックステップ』\n【連鎖】を持つ自分のスピリットがブロックしたとき、このスピリットは回復する。\nLv1･Lv2『自分のアタックステップ』\nアタックしている自分のスピリットの【連鎖】の[白]が発揮したとき、相手のスピリット1体を疲労させる。\nLv2『自分のアタックステップ』\nアタックしている自分のスピリットの【連鎖】の[緑]が発揮したとき、相手の合体していないスピリット1体を手札に戻す。",
-  "effects": []
- },
- {
   "cardId": "BS23-028",
   "name": "アナグパンツァー",
   "type": "spirit",
@@ -951,43 +910,6 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2：フラッシュ『相手のアタックステップ』\nこのスピリットを疲労させることで、アタックしている相手の合体していないスピリット1体を手札に戻す。",
-  "effects": []
- },
- {
-  "cardId": "BS23-032",
-  "name": "黒き女神ネヴァン",
-  "type": "spirit",
-  "colors": [
-   "white"
-  ],
-  "cost": 4,
-  "reduction": [
-   "white",
-   "white",
-   "white"
-  ],
-  "family": [
-   "氷姫"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 4000
-   },
-   {
-    "level": 2,
-    "cores": 3,
-    "bp": 7000
-   }
-  ],
-  "symbol": [
-   "white"
-  ],
-  "flash": false,
-  "rarity": "",
-  "limited": false,
-  "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、系統：「氷姫」を持つ自分のスピリット1体を疲労させることで、このターンの間、相手のスピリット1体の『自分のアタックステップ』効果すべてを無効にする。",
   "effects": []
  },
  {
@@ -1280,47 +1202,6 @@
   "rarity": "",
   "limited": false,
   "effect": "",
-  "effects": []
- },
- {
-  "cardId": "BS23-041",
-  "name": "光の天使ダリエル",
-  "type": "spirit",
-  "colors": [
-   "yellow"
-  ],
-  "cost": 4,
-  "reduction": [
-   "yellow",
-   "yellow"
-  ],
-  "family": [
-   "天霊"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 3000
-   },
-   {
-    "level": 2,
-    "cores": 2,
-    "bp": 4000
-   },
-   {
-    "level": 3,
-    "cores": 3,
-    "bp": 5000
-   }
-  ],
-  "symbol": [
-   "yellow"
-  ],
-  "flash": false,
-  "rarity": "",
-  "limited": false,
-  "effect": "Lv1･Lv2･Lv3【強化】\nアルティメット以外の自分の「BP-効果」を-1000する。\nLv2･Lv3『自分のアタックステップ』\n相手のスピリットがターンで初めてBP0になったとき、ボイドからコア1個を自分のライフに置く。",
   "effects": []
  },
  {
@@ -2497,48 +2378,6 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【重装甲：赤/緑/青】\nこのスピリットは、相手の赤/緑/青のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv1･Lv2･Lv3：フラッシュ『相手のアタックステップ』\n系統：「武装」を持つ自分のスピリット1体を疲労させることで、「ブロックされない」効果を持つ相手のスピリット1体を破壊する。\nLv2･Lv3『このスピリットのアタック時』\n相手のバースト1つを破棄することで、自分のスピリット1体を回復させる。",
-  "effects": []
- },
- {
-  "cardId": "BS23-X05",
-  "name": "大天使アヴリエル",
-  "type": "spirit",
-  "colors": [
-   "yellow"
-  ],
-  "cost": 6,
-  "reduction": [
-   "yellow",
-   "yellow",
-   "yellow"
-  ],
-  "family": [
-   "天霊"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 4000
-   },
-   {
-    "level": 2,
-    "cores": 2,
-    "bp": 6000
-   },
-   {
-    "level": 3,
-    "cores": 3,
-    "bp": 9000
-   }
-  ],
-  "symbol": [
-   "yellow"
-  ],
-  "flash": false,
-  "rarity": "X",
-  "limited": false,
-  "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分の手札にある/手元に置いてあるブレイヴカードを召喚するとき、自分のリザーブのコア1個を自分のトラッシュに置くことで、コストを支払わずに召喚する。\nただし、『このブレイヴの召喚時』効果は発揮されない。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nこのターンの間、相手のスピリット1体をBP-5000する。\nまたは、このターンの間、相手のスピリット3体をBP-3000する。\nこのバトルの間、相手のスピリットがBP0になったとき、BP0になったスピリットすべてを破壊する。",
   "effects": []
  },
  {
