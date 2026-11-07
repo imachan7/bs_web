@@ -14,12 +14,12 @@ import { kyokaBonus } from "../keywords/kyoka"
 type TimedEffect = Extract<EffectAction, { type: "timedEffect" }>
 
 // 期間 nextRefresh は ONLY_NEXT_REFRESH の内容にしか書けない（ハンドラの入口で落とす）
-const ONLY_NEXT_REFRESH = ["skipRefresh", "trashCoreReturnCap"] as const
+const ONLY_NEXT_REFRESH = ["cantRefresh", "trashCoreReturnCap"] as const
 const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration === "battle" ? "battle" : "turn")
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "skipRefresh", "untargetableByOpponentMagic", "colorless"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -59,7 +59,7 @@ function contentLabel(action: TimedEffect): string {
     const bpAs = action.content.flatMap((c) => (c.type === "bpAs" ? [`Lv${c.levels.join("/")}のBPを${c.amount}として扱う`] : []))
     const colorless = action.content.some((c) => c.type === "colorless") ? ["色を無いものとして扱う"] : []
     const blockCost = action.content.some((c) => c.type === "blockCost") ? ["ブロックするには支払いが要る"] : []
-    const skipRefresh = action.content.some((c) => c.type === "skipRefresh") ? ["回復できない"] : []
+    const skipRefresh = action.content.some((c) => c.type === "cantRefresh") ? ["回復できない"] : []
     const untargetable = action.content.some((c) => c.type === "untargetableByOpponentMagic") ? ["相手のマジックの効果では指定されない"] : []
     const symbolAdd = action.content.flatMap((c) => (c.type === "symbolAdd" ? [`${c.color !== undefined ? `${COLOR_LABELS[c.color]}の` : ""}シンボルを${c.count ?? 1}つ追加する`] : []))
     return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh, ...symbolAdd, ...colorless].join("、")
@@ -301,7 +301,7 @@ function placeLastTargets(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
 // all:true：個体を選ばず、条件をルールとして置く（判定は shared/rules.ts の cantActByTimedRule）
 function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName } = ctx
-    const skipOnly = action.duration === "nextRefresh" && action.content.every((c) => c.type === "skipRefresh")
+    const skipOnly = action.duration === "nextRefresh" && action.content.every((c) => c.type === "cantRefresh")
     // バトル期間のルールとして置けるのは Lv の置き換えだけ（ほかの content は期間切れの扱いを確かめていない）
     if (action.duration !== "turn" && !skipOnly && !action.content.some((c) => c.type === "level")) {
         log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)

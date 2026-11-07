@@ -3235,7 +3235,9 @@
           3
         ],
         "constraint": {
-          "type": "noRefreshByNexusOrMagic"
+          "type": "cantRefresh",
+          "by": "effect",
+          "effectSource": {"types": ["nexus", "magic"]}
         }
       }
     ]

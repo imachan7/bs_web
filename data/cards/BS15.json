@@ -5108,7 +5108,8 @@
      2
     ],
     "constraint": {
-     "type": "noRefreshByAnyEffect"
+     "type": "cantRefresh",
+     "by": "effect"
     }
    },
    {

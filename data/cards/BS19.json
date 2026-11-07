@@ -7228,7 +7228,8 @@
     "kind": "globalConstraint",
     "levels": null,
     "constraint": {
-     "type": "noRefreshByAnyEffect"
+     "type": "cantRefresh",
+     "by": "effect"
     }
    },
    {

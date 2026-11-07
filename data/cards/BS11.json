@@ -3456,7 +3456,8 @@
      "type": "timedEffect",
      "content": [
       {
-       "type": "skipRefresh"
+       "type": "cantRefresh",
+       "by": "step"
       }
      ],
      "duration": "nextRefresh",
@@ -5527,7 +5528,9 @@
      3
     ],
     "constraint": {
-     "type": "nexusesCantRefresh"
+     "type": "cantRefresh",
+     "by": "step",
+     "cardType": "nexus"
     }
    },
    {
@@ -5558,7 +5561,10 @@
     ],
     "whileCombined": true,
     "constraint": {
-     "type": "opponentCombinedCantRefresh"
+     "type": "cantRefresh",
+     "side": "opponent",
+     "by": "step",
+     "target": {"combined": true}
     }
    }
   ]

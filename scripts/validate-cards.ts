@@ -358,6 +358,8 @@ const LEGACY_BLOCK_CONSTRAINT_FIELDS: Record<string, string[]> = {
     noRestWhenBlockingColor: [], noRestWhenBlockingCost: [], noRestWhenBlockingWithoutKeyword: [],
 }
 
+const RETIRED_REFRESH_TYPES = new Set(["noRefreshByAnyEffect", "noRefreshByNexusOrMagic", "noSpiritRefresh", "nexusesCantRefresh", "opponentCombinedCantRefresh", "skipRefresh"])
+
 function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
     if (!node || typeof node !== "object") return
     if (Array.isArray(node)) {
@@ -366,6 +368,7 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     }
     const obj = node as Record<string, unknown>
     const t = obj["type"]
+    if (typeof t === "string" && RETIRED_REFRESH_TYPES.has(t)) add(cardId, `${t} は廃止（cantRefresh{by,side,cardType,target,effectSource} に統合済み）`)
     if (typeof t === "string" && t in LEGACY_BLOCK_CONSTRAINT_FIELDS) {
         if (t.startsWith("noRestWhenBlocking") && t !== "noRestWhenBlocking") add(cardId, `${t} は廃止（noRestWhenBlocking{filter} に統合済み）`)
         for (const f of LEGACY_BLOCK_CONSTRAINT_FIELDS[t]!) if (f in obj) add(cardId, `${t} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)

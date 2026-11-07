@@ -1,5 +1,6 @@
 // 場全体に掛かる制約 GlobalConstraintDef（kind:"globalConstraint" の constraint の種類）
 import type { EffectAction } from "./effectAction";
+import type { CantRefreshDef } from "./cantRefresh";
 import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent, ResolvedTargetFilter } from "../type";
 
 // kind: "constraint" は発生源自身への制約だが、こちらは発生源の持ち主に関係なく両陣営のスピリット／ネクサスすべてに効く
@@ -20,14 +21,11 @@ export type GlobalConstraintDef =
     | { type: "handTrashSpiritEffectsDisabled" } // 両陣営の手札・トラッシュにあるスピリットカード自身の効果が発揮されない（判定は shared/rules/constraints.ts の zoneSpiritEffectsDisabled。2026-10-23 ユーザー確認）
     | { type: "noDeckMill" } // 両陣営とも、ステップを問わずデッキが破棄されない（noDeckMillInMain のステップ無制限版）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）
     | { type: "noDeckMillInMain" } // 両陣営とも、メインステップの間はデッキが破棄されない（自分の効果によるものも止める＝noDeckMillByOpponent と異なり陣営を問わない）
-    | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る）
-    | { type: "noRefreshByAnyEffect"; side?: "opponent" | "own" } // 疲労状態のスピリットは効果（種別を問わず）では回復しない（リフレッシュステップだけが通る）。side は発生源の持ち主から見た陣営で、省略時は両陣営。phase/turn はこの型では refreshBlockedByRule だけが見る
     | { type: "noHandDiscardByEffect" } // 両陣営とも、効果では手札を破棄できない（canDiscardHand の関門で止める＝「手札を破棄することで」のコストも払えなくなる。破棄する効果自体は発揮するが1枚も破棄されない）
     | { type: "noHandGainByEffect" } // 両陣営とも、効果（draw／returnToHand によるスピリットの手札戻し）では手札が増えない（ドロー・バウンス自体が発揮されない＝バウンスされるはずのスピリットは場に残る。ドロー枚数を増やす継続効果自体は止めない）
     | { type: "burstAltEventFromOpponentSummon" } // 発生源の持ち主だけ：バースト条件が opponentSummonEffectResolved のバーストは ownLifeDamaged でも発動できる（triggers.ts のバースト走査が通常の event 一致に加えてこの読み替えを見る）
+    | CantRefreshDef
     | { type: "refreshOnlyOneUncombined" } // 両陣営とも、リフレッシュステップで合体していないスピリットは1体しか回復できない（どれかはそのステップのプレイヤーが選ぶ）
-    | { type: "nexusesCantRefresh" } // 両陣営とも、リフレッシュステップでネクサスは回復しない
-    | { type: "opponentCombinedCantRefresh" } // 発生源の持ち主から見た相手の合体スピリットは、リフレッシュステップで回復しない（片側のみ）
     | { type: "opponentBraveConditionMinCost"; minCost: number } // 発生源の持ち主から見た相手のブレイヴ/ブレイヴカードの合体条件に「コストminCost以上」を足す（元の条件と両方。判定は shared/rules/constraints.ts の braveExtraMinCostFor。満たさなくなった合体は logic/braveConditionGate.ts が分離。BS21-X06）
     | { type: "opponentCantSpiritStateBrave" } // 発生源の持ち主から見た相手は、ブレイヴをスピリット状態にできない（片側のみ）。止めるのは3経路：メインステップの任意分離／場を離れるときの「残す」／ブレイヴ単体（合体先なし）の召喚
     | { type: "ownLifeDamageToTrashByKeyword"; keyword: Keyword } // 発生源の持ち主の、指定キーワードを持つスピリットのアタックで減る相手のライフのコアは、リザーブでなく相手のトラッシュに置かれる（battleResolve のライフ受けが見る）

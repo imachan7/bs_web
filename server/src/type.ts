@@ -11,11 +11,13 @@ import { TargetFilter } from "./types/targetFilter"
 import { CardInstance } from "./types/cardInstance"
 import { Keyword } from "./types/keyword"
 import { TimedContent } from "./types/timedContent"
+import type { CantRefreshDef } from "./types/cantRefresh"
 import type { FieldEvent } from "./types/fieldEvent"
 export type { AuraCounter } from "./types/auraCounter"
 export type { AuraCondition } from "./types/auraCondition"
 export type { PlayerState } from "./types/playerState"
 export type { TimedContent } from "./types/timedContent"
+export type { CantRefreshDef } from "./types/cantRefresh"
 export type { AuraDef } from "./types/auraDef"
 export type { Keyword } from "./types/keyword"
 export type { GameAction } from "./types/gameAction"
@@ -306,6 +308,7 @@ export type TimedRecord = {
 
 // プレイヤーに掛かる「このターンの間」の制約（期間つき効果の一覧に target.kind:"player" で記録する。効くプレイヤーは timedEffect の side）
 export type PlayerRuleDef =
+    | CantRefreshDef
     | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType; minCost?: number } // minCost＝印刷コストがこれ以上のカードだけ使えない。手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
     | { type: "skipMainStep" } // 寿命 nextRefresh 専用：次の自分のターンのメインステップを行わずアタックステップへ進む（リフレッシュステップで使い切り、そのターンのメインステップ区間で消費）
     | { type: "handCostSetForPid"; value: number } // 手札にあるカードすべてのコストを value にする（後から手札に入ったカードにも効く。軽減はそのコストから適用。複数なら最小）
@@ -327,7 +330,6 @@ export type PlayerRuleDef =
     | { type: "effectTaxForPid"; on: "magic" | "burst"; cost: EffectAction; source?: string } // 課された側が使うマジック／発動するバーストの効果は、cost を支払わなければ発揮できない（使用・発動は成立する。effectTax.ts）。source は確認文に出す税の発生源名で、timedEffect が置くときに埋める（カードデータには書かない）
     | { type: "ignoreUnblockableForPid" } // このプレイヤーのスピリットは「ブロックされない」効果を持つスピリットもブロックできる
     | { type: "cantAttackByCostForPid"; costs: number[] } // このプレイヤーのスピリットのうち、コストが配列のいずれかと一致するものはアタックできない（ブロックは可。globalConstraint opponentCantAttackByCost の期間つき版）
-    | { type: "noSpiritRefresh" } // このプレイヤーのスピリットは効果では回復しない（リフレッシュステップは通る。048『このスピリットのバトル時』の「このバトルの間」用。判定は refreshBlockedByRule）
     | { type: "trashCardAsEx"; cardId: string; color: Color } // トラッシュにある cardId の1枚のシンボル1つを color のEXシンボルとして扱う（寿命 step。《継召》の除外候補になる。26RBS03-X04）
     | { type: "noBurstActivation"; byEvent?: FieldEvent } // このプレイヤーはバーストを発動できない（セットは残る。判定は fireBurstOnEvent）。byEvent＝そのバースト条件（【自分のライフ減少後】等）のバーストだけ
 
