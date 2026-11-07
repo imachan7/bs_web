@@ -691,7 +691,7 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
         return
     }
     const usedInBattle = [state.battle?.attackerInstanceId ?? null, state.battle?.blockerInstanceId ?? null].some((id) => id !== null && state.players[owner].field.spirits.some((sp) => sp.instanceId === id))
-    const contents = action.content.filter((c) => c.type !== "swapBattleBp" || usedInBattle).filter((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "blockerCoresProtected")
+    const contents = action.content.filter((c) => c.type !== "swapBattleBp" || usedInBattle).filter((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "coresProtected")
     recordTimed(state, { content: contents, target: { kind: "battle" }, until: forTurn ? "turn" : "battle", ownerPid: owner })
     const label = { level: "Lv", cores: "コアの数", cost: "コスト" }
     for (const c of contents) {
@@ -701,7 +701,7 @@ function placeBattleCompare(ctx: Parameters<ActionHandler<"timedEffect">>[0], ac
             log(state, `${sourceName}：このバトルの間、BPを比べるとき、バトルしている2体のBPを入れ替える。`)
         } else if (c.type === "restedNexusEffectsDisabled") {
             log(state, `${sourceName}：このバトルの間、疲労状態のネクサスすべての効果は発揮されない。`)
-        } else if (c.type === "blockerCoresProtected") {
+        } else if (c.type === "coresProtected") {
             log(state, `${sourceName}：このバトルの間、ブロックしたスピリット上のコアは取り除けない。`)
         } else {
             log(state, `${sourceName}：バトル解決時、BPの高い方が破壊される。`)
@@ -969,7 +969,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         placeTriggerSuppressionRule(ctx, action)
         return
     }
-    if (action.content.some((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "blockerCoresProtected")) {
+    if (action.content.some((c) => c.type === "compareBy" || c.type === "swapBattleBp" || c.type === "invertBattleWinner" || c.type === "restedNexusEffectsDisabled" || c.type === "coresProtected")) {
         placeBattleCompare(ctx, action)
         return
     }

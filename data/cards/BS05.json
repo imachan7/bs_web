@@ -3670,7 +3670,9 @@
      2
     ],
     "constraint": {
-     "type": "battlingCoresProtected"
+     "type": "coresProtected",
+     "side": "both",
+     "battle": "participants"
     },
     "phase": "attack",
     "turn": "own"

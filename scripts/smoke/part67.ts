@@ -3,7 +3,7 @@
 //   - constraint "tenshoCoreSubstitute"（【転召】対象時、疲労することでコアを維持する代替。白亜の竜使いアルブス）
 //   - immunityGrant の familyFilter（OR配列）・includeSelf・colorFilter・condition ownCostCountAtLeast
 //     （白亜の竜使いアルブスLv2-3／リトルナイト・ランスロット）
-//   - globalConstraint "battlingCoresProtected"（バトル中の両陣営スピリットのコアが効果で取り除かれない。茨の決戦地）
+//   - globalConstraint "coresProtected"（battle:"participants"）（バトル中の両陣営スピリットのコアが効果で取り除かれない。茨の決戦地）
 //   - fieldEvent "anySpiritAttacked" の colorFilter（アタックしたスピリットの色で絞る。天焦がす大聖火）
 //   - action "deckReveal" の nameIncludes/discardNonMatching（天焦がす大聖火）
 //   - kind:"exhaustOnManualCoreAdd" の trigger:"effect"/onRemove（効果によるコア増減で疲労。アブソーブシンボル）

@@ -2,6 +2,7 @@
 import type { EffectAction } from "./effectAction"
 import { TargetFilter } from "./targetFilter"
 import { EffectCounter } from "./effectCounter"
+import type { CoresProtectedRule } from "./coresProtected"
 import { Keyword } from "./keyword"
 import { Color, CardType, ResolvedTargetFilter, TriggerEvent, PlayerRuleDef, ImmuneSource } from "../type"
 
@@ -47,5 +48,5 @@ export type TimedContent =
     | { type: "skipRefresh" } // 次のリフレッシュステップで回復しない（寿命 nextRefresh）
     | { type: "trashCoreReturnCap"; max: number } // 次のリフレッシュステップで、トラッシュのコアを max 個までしかリザーブに戻せない（寿命 nextRefresh。重なったら小さい方）
     | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic" | "destroyOwnSpirit"; count: number } // destroyOwnSpirit＝ブロックするスピリット以外の自分のスピリット1体を破壊（選ぶのはブロック側。いなければブロックできない。Q4429〜Q4432）
-    | { type: "blockerCoresProtected" } // このバトルのブロッカー上のコアは効果で取り除けない（target.kind:"battle"。アタック時にはまだブロッカーが決まっていないため）
+    | ({ type: "coresProtected"; battle: "blocker" } & Pick<CoresProtectedRule, "causes">) // このバトルのブロッカー上のコアを取り除けない（target.kind:"battle"。アタック時にはまだブロッカーが決まっていないため）
     | { type: "refreshWhenBlockedBy"; color: Color }
