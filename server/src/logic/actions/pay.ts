@@ -21,7 +21,6 @@ import { lifeLossAllowed } from "../lifeGate"
 import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf } from "../../../../shared/rules"
 import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
-import { coreRemoveAchievableCountForPay } from "./cores"
 import { removeCoresAchievableCountForPay, removeCoresKyokaBonus } from "./removeCores"
 import { kyokaBonus } from "../keywords/kyoka"
 import { availableFromSource, isLegacyPlaceCores, gainTo, placeCoresPoolCandidates } from "./placeCores"
@@ -58,7 +57,7 @@ function discardPayable(state: GameState, owner: PlayerId, action: Extract<Effec
 // 判定表に載っている type だけが pay の cost/then に書ける（scripts/validate-cards.ts が突き合わせる）
 export const PAYABLE_TYPES = [
     "draw", "discard", "setBurstFromHand", "timedEffect",
-    "destroy", "return", "coreRemove", "removeCores", "refresh",
+    "destroy", "return", "removeCores", "refresh",
     "exhaust",
     "placeCores", "summon",
     "moveCards", "destroyBlockerAfterBattle",
@@ -178,12 +177,6 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (action.type !== "returnOwnNexusToDeckBottom") return false
         const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
         return state.players[owner].field.nexuses.some((n) => matchesTarget(state, owner, n, filter, self?.instanceId))
-    },
-    coreRemove: (state, owner, self, action, srcColors, srcType) => {
-        if (action.type !== "coreRemove") return false
-        const achievable = coreRemoveAchievableCountForPay(state, owner, self?.instanceId, action, srcColors, srcType)
-        if (action.all) return achievable >= 1
-        return achievable >= action.count
     },
     // removeCores.ts の removeCoresAchievableCountForPay に判定を委譲（候補の集め方は本ハンドラと共用）
     removeCores: (state, owner, self, action, srcColors, srcType) => {
@@ -390,7 +383,6 @@ const UNPAYABLE_REASONS: Partial<Record<EffectAction["type"], string>> = {
     discardUnder: "このスピリットの下のカードが足りない",
     destroyBlockerAfterBattle: "破壊できるブロックしたスピリットがいない",
     return: "デッキに戻すカードがない",
-    coreRemove: "取り除けるコアが足りない",
     removeCores: "移せるコアが足りない",
     placeCores: "置けるコアが足りない",
     refresh: "回復させる対象がいない",

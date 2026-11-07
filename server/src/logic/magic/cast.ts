@@ -164,7 +164,7 @@ export function consumeOncePerBattleMagicFree(state: GameState, pid: PlayerId, c
 // 捨てたときは「対象未指定」として解決へ進むので、サーバー側が正しい候補を出して選ばせる。
 // なお anySide（自分か相手のどちらでも選べる）は、片側しか選べないのがクライアント側の制限で、
 // サーバーには届かないため、ここでは救済できない（UI側の修正が要る）
-const OPPONENT_DEFAULT_TYPES = new Set<EffectAction["type"]>(["destroy", "exhaust", "return", "coreRemove", "heavyExhaust", "timedEffect"])
+const OPPONENT_DEFAULT_TYPES = new Set<EffectAction["type"]>(["destroy", "exhaust", "return", "removeCores", "heavyExhaust", "timedEffect"])
 
 export function usableMagicTarget(
     state: GameState,
@@ -191,7 +191,7 @@ export function usableMagicTarget(
     const ownerPid = [...p1.spirits, ...p1.nexuses, ...p1.combinedBraves].includes(found) ? "p1" : "p2"
     // 陣営違い（相手限定の効果に自分のスピリット）も捨てる。渡したままだと解決時に「対象にできない」で不発になる
     const sided = action as { side?: string; anySide?: true }
-    const side = sided.anySide || sided.side === "both" ? undefined
+    const side = sided.anySide || sided.side === "both" || sided.side === "any" ? undefined
         : sided.side === "own" ? pid
         : OPPONENT_DEFAULT_TYPES.has(action.type) ? opponentOf(pid) : undefined
     if (side !== undefined && ownerPid !== side) return undefined

@@ -139,7 +139,7 @@ console.log("=== マインドブレイク：前半は支払う本人、後半は
     const theirs = put(s, "p2", "BS01-020", 3)
     put(s, "p2", "BS01-003", 3)
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "coreRemove", side: "own", spread: true, count: 2, dest: "trash" }, then: { type: "coreRemove", spread: true, count: 2, dest: "trash", chooserIsTarget: true } })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", target: "spread", count: 2, to: "trash" }, then: { type: "removeCores", target: "spread", count: 2, to: "trash", chooser: "owner" } })
     answerPayConfirm(s, "p1")
     // 前半：コストなので支払う本人（p1）が選ぶ
     assert(s.pendingChoice?.pid === "p1", "前半（コストの支払い）は自分が選ぶ")
@@ -168,7 +168,7 @@ console.log("=== マインドブレイク：自分のコアが足りなければ
     put(s, "p1", "BS01-003", 1)
     put(s, "p2", "BS01-020", 3)
     const oppTrashBefore = s.players.p2.trashCores
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "coreRemove", side: "own", spread: true, count: 5, dest: "trash" }, then: { type: "coreRemove", spread: true, count: 5, dest: "trash", chooserIsTarget: true } })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "removeCores", side: "own", target: "spread", count: 5, to: "trash" }, then: { type: "removeCores", target: "spread", count: 5, to: "trash", chooser: "owner" } })
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p1.trashCores === 0, "自分のコアは減らない")

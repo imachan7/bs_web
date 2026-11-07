@@ -2,7 +2,7 @@
 //
 // このバッチで server/src/type.ts に新設した軸（kind:"step" の whileCombined/oncePerTurn、
 // AuraDef.turn/combinedFilter、recoverSpiritFromTrash.includeBraves、reductionGrant.vanillaFilter、
-// constraint:"coresCantBeRemoved"）は既存 smoke のどのパートも通らないため、ここで最低限の発火を確認する。
+// constraint:"coresProtected"）は既存 smoke のどのパートも通らないため、ここで最低限の発火を確認する。
 // ⚠️ cardId はハードコードせず、名前と型をカードデータで機械検証してから使う。
 import { act, assert, createGame, createInstance, currentLevel, effectiveBp, getCard, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"

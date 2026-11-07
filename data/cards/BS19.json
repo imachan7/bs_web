@@ -1023,9 +1023,18 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
-     "count": 1,
-     "drawIfEmptied": true
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "removeCores",
+       "count": 1
+      },
+      {
+       "type": "draw",
+       "count": 1,
+       "countCounter": "lastEmptiedSpirits"
+      }
+     ]
     }
    }
   ]
@@ -1171,7 +1180,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    },
@@ -4546,7 +4555,7 @@
      "type": "sequence",
      "actions": [
       {
-       "type": "coreRemove",
+       "type": "removeCores",
        "count": 1
       },
       {
@@ -5450,7 +5459,7 @@
      "family": "妖蛇"
     },
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    }
@@ -6786,7 +6795,7 @@
      "passEventTarget": true,
      "actions": [
       {
-       "type": "coreRemove",
+       "type": "removeCores",
        "count": 1
       },
       {

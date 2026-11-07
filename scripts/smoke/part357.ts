@@ -89,7 +89,7 @@ console.log("=== 5. coreRemove spread（非対話：2体にまたがって合計
     const a = put(s, "p2", VANILLA, 3)
     const b = put(s, "p2", VANILLA, 2)
     const trashBefore = s.players.p2.trashCores
-    resolveAction(s, "p1", null, { type: "coreRemove", spread: true, count: 5, dest: "trash" })
+    resolveAction(s, "p1", null, { type: "removeCores", target: "spread", count: 5, to: "trash" })
     assert(s.players.p2.trashCores - trashBefore === 5, `2体合計5個をトラッシュへ（実際: ${String(s.players.p2.trashCores - trashBefore)}）`)
     void a
     void b
@@ -100,7 +100,7 @@ console.log("=== 6. coreRemove spread（対話：1個ずつ選び、残数で再
     const s = game("case6", true)
     const a = put(s, "p1", VANILLA, 2)
     const b = put(s, "p1", VANILLA, 1)
-    resolveAction(s, "p1", null, { type: "coreRemove", side: "own", spread: true, count: 3, dest: "trash" })
+    resolveAction(s, "p1", null, { type: "removeCores", side: "own", target: "spread", count: 3, to: "trash" })
     assert(s.pendingChoice !== null && s.pendingChoice.kind === "target", "1個目の選択待ちが立つ")
     assert(s.pendingChoice!.pid === "p1", "選ぶのはowner（chooserIsTarget無し）")
     let err = handleAction(s, "p1", { type: "resolveChoice", instanceId: a.instanceId })
@@ -120,7 +120,7 @@ console.log("=== 7. coreRemove spread + chooserIsTarget（相手が選ぶ） ===
     const s = game("case7", true)
     const enemyA = put(s, "p2", VANILLA, 2)
     const enemyB = put(s, "p2", VANILLA, 2)
-    resolveAction(s, "p1", null, { type: "coreRemove", spread: true, count: 1, dest: "trash", chooserIsTarget: true })
+    resolveAction(s, "p1", null, { type: "removeCores", target: "spread", count: 1, to: "trash", chooser: "owner" })
     assert(s.pendingChoice !== null && s.pendingChoice.pid === "p2", "選ぶのは対象側（相手）")
     const err = handleAction(s, "p2", { type: "resolveChoice", instanceId: enemyA.instanceId })
     assert(err === null, `相手の応答が通る（実際: ${String(err)}）`)
@@ -176,8 +176,8 @@ console.log("=== 9. pay：cost coreRemove(side:own,spread) → then coreRemove(s
     const enemyB = put(s, "p2", VANILLA, 2)
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "coreRemove", side: "own", spread: true, count: 5, dest: "trash" },
-        then: { type: "coreRemove", spread: true, count: 5, dest: "trash", chooserIsTarget: true },
+        cost: { type: "removeCores", side: "own", target: "spread", count: 5, to: "trash" },
+        then: { type: "removeCores", target: "spread", count: 5, to: "trash", chooser: "owner" },
     })
     assert(s.players.p1.trashCores === 5, `自分側から合計5個払った（実際: ${String(s.players.p1.trashCores)}）`)
     assert(s.players.p2.trashCores === 5, `相手側から合計5個取り除かれた（実際: ${String(s.players.p2.trashCores)}）`)
@@ -196,8 +196,8 @@ console.log("=== 9. pay：cost coreRemove(side:own,spread) → then coreRemove(s
     enemyB.cores = 1
     resolveAction(s, "p1", null, {
         type: "pay",
-        cost: { type: "coreRemove", side: "own", spread: true, count: 5, dest: "trash" },
-        then: { type: "coreRemove", spread: true, count: 5, dest: "trash", chooserIsTarget: true },
+        cost: { type: "removeCores", side: "own", target: "spread", count: 5, to: "trash" },
+        then: { type: "removeCores", target: "spread", count: 5, to: "trash", chooser: "owner" },
     })
     assert(s.players.p1.trashCores === 0, "相手のコアが足りないのでコストも払わなかった")
     assert(s.players.p2.trashCores === 0, "相手のコアは取り除かれなかった")

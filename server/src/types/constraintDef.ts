@@ -1,5 +1,6 @@
 // 個体に掛かる制約 ConstraintDef（アタック・ブロック・効果の対象などの禁止と強制）
 import type { CardPick } from "./effectAction";
+import type { CoresProtectedRule } from "./coresProtected";
 import { Color, FamilyFilter, ImmuneSource, Keyword, ResolvedTargetFilter } from "../type";
 
 export type ConstraintDef =
@@ -7,7 +8,6 @@ export type ConstraintDef =
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
     | { type: "unblockableBy"; opponentOnly?: true; noSoulCore?: true; filter?: ResolvedTargetFilter; fromMaxBpSelf?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、filter に合うスピリットにブロックされない（filter 省略＝すべてにブロックされない）。filter は AND で、self＝アタッカー（maxCostAsSelf 等）。fromMaxBpSelf＝このスピリット（アタッカー）自身の実効BP以下の相手からだけブロックされない（判定のたびにBPを引き直す継続効果用。期間つき unblockable の fromMaxBpSelf とは違い値を固定しない）。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
-    | { type: "coresImmovableByOpponent"; toReserveOnly?: true } // toReserveOnly＝行き先がリザーブのコア除去だけを止める（トラッシュ・ボイド行きとコアの移動は通る。BS22-020・Q4361）。 このスピリットのコアは相手の効果では移動できない（相手の効果の coreRemove をすべて防ぐ。発生源の種別を問わない。26RDB01-025）
     | { type: "untargetableByOpponentMagic" } // 相手のマジックの効果では指定されない（対象指定のみ。範囲効果は届く。26RDB01-049 Lv2 を constraintGrant で付与）
     | { type: "blockPayCost"; count: number; noStackId?: string } // このスピリットをブロックする時、相手はcountコスト支払わなければブロックできない（リザーブ＋フィールドのコアから選んで払う。2026-10-08 ユーザー確認。26RDB01-X06）。noStackId＝〔重複不可〕：同じ値の制約は何体から受けても1回分（2026-10-08 ユーザー確認）
     | { type: "blockReserveToTrash"; count: number } // このスピリットがアタックしている間、相手はブロックする時にリザーブのコアcount個をトラッシュに置かなければブロックできない（リザーブからだけ払う。26RCB01-050）
@@ -32,12 +32,7 @@ export type ConstraintDef =
     | { type: "lifeDamageToVoid" } // このスピリットがアタッカーとしてライフダメージを与えるとき、相手のライフから取り除かれるコアはリザーブでなくボイドへ（スライミーLv3）
     | { type: "noRestWhenBlocking"; filter: ResolvedTargetFilter; oncePerTurn?: true } // このスピリットが、filter に合う相手（アタッカー）のスピリットをブロックしたとき疲労しない。filter 内の self 相対の軸（sameCostAsSelf 等）の self＝ブロッカー。oncePerTurn＝ターンに1回で、消費した**発生源**を PlayerState.noRestWhenBlockingUsedThisTurn に記録する（ネクサス1枚につき1回なので、同名を2枚置けば2回使える。2026-08-24）
     | { type: "noRefresh" } // このスピリットはリフレッシュステップで回復しない（スクルディア）
-    | { type: "coresCantBeRemoved" } // **お互い、このスピリットのコアを取り除けない**（BS10-X01 幻羅星龍ガイ・アスラ）。
-    // 2026-08-25 ユーザー確認で「文字どおり。効果でもプレイヤーによる操作でも取り除けない」。
-    // ⚠️ **自分の効果・自分の操作も止める**ので、`boardResistanceAgainst` の「ここから下は相手の効果限定」
-    // より**前**で判定する（battlingEffectImmune と同じ位置）。
-    // プレイヤー操作は3入口で止める：コアの手動移動（moveCore）・コストの支払い元（validatePaySources）・
-    // 【覚醒】の移動元（validateAwaken）
+    | ({ type: "coresProtected" } & Pick<CoresProtectedRule, "by" | "causes" | "to">) // このスピリットのコアを取り除けない。BS10-X01 は by/causes 省略＝自分の効果・操作・コストも止める（2026-08-25 ユーザー確認）。BS22-021・020 は by:"opponent"・causes:["effect"]（発生源の種別は問わない。26RDB01-025）
     | { type: "tenshoCoreSubstitute"; mode?: "rest" | "returnToHand"; familyFilter?: FamilyFilter; costFilter?: number } // このスピリットが【転召】の対象になったとき、疲労していなければ、疲労することでコアすべてを指定場所に置いたものとして扱う（実際にはコアを失わない代替。dumpAllCoresTenshoが判定する。BS05の竜使い6枚）。familyFilter/costFilter指定時は対象スピリットの絞り込み用（自分自身ではなく**他の発生源から宣言**される想定＝BS12-061剣の誕生地。この場合、疲労するのは対象スピリットではなく**宣言した発生源自身**。activeConstraintsWithSourceが familyFilter/costFilter 一致で他の発生源から合流させる）
     // mode:"returnToHand" 指定時は、疲労の代わりに**このスピリットを手札に戻す**ことで同じ扱いにする
     // （SD02-009 獣将軍クジャルタ）。手札に戻る＝通常のバウンスなので**上のコアはリザーブへ行く**

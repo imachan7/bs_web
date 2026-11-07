@@ -1077,9 +1077,9 @@
       "side": "own"
      },
      "then": {
-      "type": "coreRemove",
+      "type": "removeCores",
       "count": 3,
-      "dest": "trash"
+      "to": "trash"
      }
     }
    },
