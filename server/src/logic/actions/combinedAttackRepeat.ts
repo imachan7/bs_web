@@ -1,4 +1,4 @@
-// 合体スピリットが持つ「ブレイヴの『合体アタック時』効果をもう1度だけ発揮できる」（BS22-009。Q4332）
+// 合体スピリットが持つ「ブレイヴの『合体アタック時』効果をもう1度だけ発揮できる」（BS22-009）
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { currentLevel, instIsCombined } from "../../../../shared/rules"
 import type { ActionHandler, ActionRegistry } from "./types"
@@ -14,9 +14,8 @@ type Triggered = Extract<EffectDef, { kind: "triggered" }>
 export function wrapWithRepeat(state: GameState, owner: PlayerId, host: CardInstance, brave: CardInstance, effect: EffectDef): EffectDef {
     if (brave === host || effect.kind !== "triggered" || effect.trigger !== "onAttack" || effect.whileCombined !== true) return effect
     if (!instIsCombined(host)) return effect
-    // 見出しが『合体アタック時』のカードだけ（Q4332）。Ver.6.0 以降の【合体時】『アタック時』はデータ上同じ onAttack+whileCombined なので効果文で見分ける。
-    // 1枚に両方の見出しが混ざるカードは data/cards に無い（混ざったらエントリ単位の印が要る）
-    if (!getCard(brave.cardId).effect.includes("合体アタック時")) return effect
+    // 見出しが『合体アタック時』か【合体時】『アタック時』かは区別しない（2026-11-08 ユーザー決定。BS23-031・044 と同じ）。
+    // 対象はブレイヴのカード自身のエントリだけで、合体先のスピリットの【合体時】の効果は含めない
     const level = currentLevel(host).level
     const marker = getCard(host.cardId).effects.find(
         (e): e is Triggered => e.kind === "triggered" && e.action.type === "repeatCombinedAttackMarker" && entryActive(state, owner, host, e, level),

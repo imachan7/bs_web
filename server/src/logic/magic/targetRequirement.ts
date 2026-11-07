@@ -19,6 +19,8 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
         // 「そのスピリット」（直前に BP を上げた個体）を受ける後半は、前半が対象を取れないなら後半も何も起きないので前半の結果に従う
         const dependsOnPrev = (a: EffectAction): boolean =>
             (a.type === "timedEffect" && a.target === "lastBuffed") || (a.type === "destroy" && a.filter?.maxCostAsLast === true) || (a.type === "pay" && a.then.type === "timedEffect" && a.then.target === "lastBuffed")
+        // 自分のブレイヴを破壊できなければ、後半（剣使がいれば手札に戻る）が出せても使えない（BS23-075。2026-11-08 ユーザー確認）
+        if (action.actions.some((a) => a.type === "destroyOwnBrave" && ownBraveCandidates(state, pid).length === 0)) return true
         const results: (boolean | null)[] = []
         action.actions.forEach((a, i) => results.push(i > 0 && dependsOnPrev(a) ? results[i - 1]! : targetMissing(state, pid, a, card)))
         if (results.some((r) => r === null)) return null

@@ -267,6 +267,19 @@ scenario({
     ],
 })
 
-// J4（自分のブレイヴがいないとき 075 を使えるか）はユーザー確認待ち（BS23_PLAN §2-2）
+console.log("=== J4. 075：自分のブレイヴがいなければ、剣使がいても使えない（2026-11-08 ユーザー確認） ===")
+scenario({
+    name: "deadsword-no-brave",
+    start: {
+        interactive: true,
+        phase: "main",
+        me: { hand: [DEADSWORD], spirits: [{ card: MINO, label: "ミノ" }] },
+        opp: { spirits: oppSpirits },
+    },
+    steps(t) {
+        t.actRejected("me", { type: "castMagic", handIndex: 0, timing: "flash" })
+    },
+    expect: [],
+})
 
 console.log("すべてのチェックに合格しました 🎉（part835）")
