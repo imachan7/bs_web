@@ -29,8 +29,8 @@
 
 ### いまの本線：BS22 の取り込み（2026-11-07。計画は [BS22_PLAN.md](./docs/design/BS22_PLAN.md)）
 
-- **ブランチ `feat/bs22-import`（draft #399）：BS22 の92枚とキャンペーンカード X13 の7枚は全部入った**（`data/cards/BS22.json`・`X13.json`。全 smoke・coverage:check 緑）。解釈は §1・§2、新しい部品は §3、既知の限界は §5
-- 相談待ち：コア除去のアクション `coreRemove` と `removeCores` を1つにまとめるか（【強化】の処理が両方に入っている）
+- **BS22 の92枚とキャンペーンカード X13 の7枚は #399 で入った**（`data/cards/BS22.json`・`X13.json`。全 smoke・coverage:check 緑）。解釈は §1・§2、新しい部品は §3、既知の限界は §5
+- 禁止・保護の型の統一（#400〜#405）は済み。結果と残した型は [CONSTRAINT_UNIFY.md](./docs/design/CONSTRAINT_UNIFY.md)
 - BS20 は #395、BS21・CP13-01 は #396 で入った
 - 取り込み済みは BS01〜BS22・CP13-01・X13・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS23 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」

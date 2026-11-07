@@ -391,7 +391,7 @@
 | grantKeywordToHandCard | 手札のカード（自分・cardType/系統で絞り込み、all指定で複数） | 指定キーワードを持つ | ターン | `handKeywordGrant`（kind） | なし |
 | levelUpThisTurn | スピリット（自分or相手1体、anySide） | Lvを1つ上として扱う（最大Lvでキャップ） | ターン | `levelAs`/`levelOverrideTarget`と同型（差分算出という点のみ違う） | なし |
 | protectBlockerCoresThisBattle | バトル（ブロックしているスピリット上のコア） | コアが効果で取り除けない | バトル | `coreBonus`/`trashImmunity`近似だが「コア除去耐性」の語彙が既存に薄い | なし |
-| protectLifeByCostThisTurn | プレイヤー（自分）／絞り込みはアタック側スピリットのコスト・系統・シンボル数 | 指定条件のアタックでライフが減らされない | ターン | `lifeDamageNegate`/`globalConstraint`の`noLifeDamageByCost`の片側版 | costExhaustFamily（系統1体を疲労させるコスト）を伴う版があり、コスト部分は器の外 |
+| protectLifeByCostThisTurn | プレイヤー（自分）／絞り込みはアタック側スピリットのコスト・系統・シンボル数 | 指定条件のアタックでライフが減らされない | ターン | `lifeDamageNegate`/`globalConstraint`の`lifeGuard`（旧 noLifeDamageByCost）の片側版 | costExhaustFamily（系統1体を疲労させるコスト）を伴う版があり、コスト部分は器の外 |
 | targetChoiceLendThisTurn | スピリット（自分or相手・選択で1体） | 効果を貸す（対象が1体固定の貸与） | ターン | なし（土台。lendSelfThisTurnの対象版） | 対象選択という中間ステップを持つ土台のみで、単体では書けない |
 | treatOwnNexusesAsSpiritsThisTurn | ネクサス（自分・コア数条件） | スピリットとして扱う（コスト/系統/Lv構成も上書き） | ターン | なし（`kind`の中に該当語彙が無い） | 「ゾーン移動を伴う」（fieldNexuses→fieldSpirits）ため、単純な制約付与では表現できない。新しい部品が要る可能性 |
 | attackTriggersAsBlockThisTurn | スピリット（自分1体） | 『アタック時』効果が『ブロック時』に発揮される（移し替え） | ターン | なし（`kind`にトリガー種別の付け替えという語彙が無い） | トリガーの発火タイミングそのものを書き換える効果で、既存の「制約」「付与」語彙とは別物 |
@@ -403,7 +403,7 @@
 | borrowDestroyEffect | スピリット（自分1体の効果を選択） | 選んだ『破壊時』効果を破壊させずに発揮 | 即時 | なし | 同上。一度きりの効果借用 |
 | borrowSummonEffect | スピリット（自分・カード名条件） | 『召喚時』効果を召喚し直さず発揮 | 即時 | なし | 同上。一度きりの効果借用 |
 | bounceToDeckTopThisTurn | プレイヤー（自分の効果で手札に戻る対象すべて） | 手札にではなくデッキの上に戻る | ターン | なし（`globalConstraint`に近い語彙が無い） | 「戻し先の振替」という処理経路の変更で、対象・内容・期間の枠に馴染むが「内容」語彙が既存に無い |
-| capLifeDamageThisTurn | プレイヤー（自分） | 1回のアタックでのライフ減少がmax個まで | ターン | `globalConstraint`の`lifeDamageMaxForPid`相当 | なし |
+| capLifeDamageThisTurn | プレイヤー（自分） | 1回のアタックでのライフ減少がmax個まで | ターン | `globalConstraint`の`lifeGuard`（旧 lifeDamageMaxForPid）相当 | なし |
 | capOpponentTrashCoreReturnNextRefresh | プレイヤー（相手） | 次のリフレッシュステップでトラッシュのコアがmax個までしか戻らない | `次のリフレッシュステップまで`（1回限り） | なし | 「次の1回だけ」という一度きり消費の期間で、ターン/バトルどちらでもない |
 | costBuffThisTurn | スピリット（自分1体） | コストが増減する（置き換え） | ターン | `costMod`/`costDelta`（kind） | なし |
 | countAsMultipleThisTurn | スピリット（自分or相手1体、anySide、sourceTypesで発生源限定） | 効果内で複数体分として数えられる | ターン | なし（`countAsMultiple`という語彙自体は`kind`一覧に見当たらない） | 「数え方」の書き換えで、対象・内容の枠には収まるが同じ内容の既存語彙は無い |
@@ -422,8 +422,8 @@
 | levelMaxAllOwnThisTurn | スピリット（自分全員） | 各カードの最高Lvとして扱う | ターン | `levelAs`/levelOverrideTargetと同型（全体版） | なし |
 | levelOverrideOpponentNexuses | ネクサス（相手全員） | Lvを指定値として扱う | ターン | `levelAs`と同内容 | costReserveToVoid（リザーブのコアを払う任意コスト）を伴う版があり、コスト部分は器の外 |
 | levelOverrideOpponentSpiritsAllThisTurn | スピリット（相手全員） | Lvを指定値として扱う | ターン | `levelAs`と同内容 | なし |
-| lifeFloorThisTurn | プレイヤー（自分）／絞り込みはアタック側の最低コスト・発生源種別 | ライフが指定値を下回らない | ターン | `globalConstraint`の`lifeFloorForPid`相当 | なし |
-| lifeImmuneThisTurn | プレイヤー（自分） | あらゆる原因でライフが減らない | ターン | `globalConstraint`の`lifeImmuneForPid`相当 | なし |
+| lifeFloorThisTurn | プレイヤー（自分）／絞り込みはアタック側の最低コスト・発生源種別 | ライフが指定値を下回らない | ターン | `globalConstraint`の`lifeGuard`（旧 lifeFloorForPid）相当 | なし |
+| lifeImmuneThisTurn | プレイヤー（自分） | あらゆる原因でライフが減らない | ターン | `globalConstraint`の`lifeGuard`（旧 lifeImmuneForPid）相当 | なし |
 | markCantBlockThisBattle | スピリット（相手1体） | ブロックできない | バトル | `constraint`の`cantBlock`相当（バトル限定版） | なし |
 | markCantBlockThisTurn | スピリット（相手・counter体分、繰り返し指定） | ブロックできない | ターン | `constraint`の`cantBlock`相当 | 指定体数ぶん1体ずつ選ぶ繰り返し処理（再帰呼び出し）を伴うが、内容自体は既存語彙 |
 | markNoRefreshTarget | スピリット（相手1体） | 回復できない（発生源が疲労状態で場にいる間だけ有効という条件付き） | `発生源（self）が疲労状態で場にいる間`（可変の期間） | `globalConstraint`の`noRefresh`類似 | 期間が「ターン」でも「バトル」でもなく「発生源の状態に連動」という第三の期間で、既存の期間分類に無い |

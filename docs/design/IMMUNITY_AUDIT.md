@@ -9,8 +9,8 @@
 - 相手（p2）に、総当たりの中だけで使う「盾」のネクサス（`AUDIT-SHIELD`。`CARD_DB` に登録する）を置く。効果は次の4つ：
   - `constraintGrant` ownAll → `immuneToOpponentEffects`（`against` 省略）：自分のスピリットは相手のスピリット・マジックの効果を受けない
   - `globalConstraint` `handImmuneForPid`（`includeNexus`）：手札
-  - `globalConstraint` `lifeImmuneForPid`：ライフ
-  - `globalConstraint` `noDeckMillByOpponent`：デッキの破棄
+  - `globalConstraint` `lifeGuard`（旧 lifeImmuneForPid）：ライフ
+  - `globalConstraint` `noDeckMill`（旧 noDeckMillByOpponent）：デッキの破棄
 - 発火の1回ごとに、p2 の盤面を前後で写して比べる。見る所：スピリット（場所・コア・疲労・BP・Lv）・手札・ライフ・デッキ枚数・トラッシュのカード。
 - 変わったら「カード・エントリ・発火の種類（誘発名／ステップ／マジック）・変わった所」を1行で出す。定型には入れない（誤検出を含むので人が読む）。
 

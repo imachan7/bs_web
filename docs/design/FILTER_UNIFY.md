@@ -97,13 +97,13 @@
 
 | 器 | 軸 | 件数 | 誰を絞るか | TargetFilter |
 | :-- | :-- | --: | :-- | :-- |
-| `coresCantBeRemovedByOpponent` | `nameContains`（必須） | 1（BS12-022） | 発生源の持ち主のスピリット | `nameContains` |
+| `coresProtected`（旧 coresCantBeRemovedByOpponent） | `nameContains`（必須） | 1（BS12-022） | 発生源の持ち主のスピリット | `nameContains` |
 | `coreFloorByCost` | `colorFilter`（`ownOnly`・`byOpponentOnly` は陣営の軸で別） | 1（BS12-065） | 両陣営のスピリット | `color` |
 | `coreFloorOwnNamedByOpponent` | `nameContains`（必須） | 0 | 発生源の持ち主のスピリット | `nameContains` |
-| `coresCantBeRemovedAll` | `side`（陣営） | 2 | 陣営の軸のみ | 移さない |
-| `constraintGrant` で付与される `coresCantBeRemoved` | 付与先の `keywordFilter`＋`combinedFilter` | 1（BS13-005） | 付与先 | §付録 |
+| `coresProtected`（旧 coresCantBeRemovedAll） | `side`（陣営） | 2 | 陣営の軸のみ | 移さない |
+| `constraintGrant` で付与される `coresProtected`（旧 coresCantBeRemoved） | 付与先の `keywordFilter`＋`combinedFilter` | 1（BS13-005） | 付与先 | §付録 |
 
-判定：`shared/rules/activation.ts:231-250`（`coresCantBeRemovedByOpponent`）、`server/src/logic/removal.ts:1480`（`coreFloorByCostFor`）。
+判定：`shared/rules/activation.ts:231-250`（`coresProtected`（旧 coresCantBeRemovedByOpponent））、`server/src/logic/removal.ts:1480`（`coreFloorByCostFor`）。
 
 ### 2-7. noRestWhenBlocking{Color,Cost,WithoutKeyword}（計4エントリ／4枚）→ 1種 `noRestWhenBlocking{filter, oncePerTurn?}`
 
@@ -231,7 +231,7 @@ AuraDef（`bp` など）約68・`constraintGrant` 47（`familyFilter`14・`keywo
 ### PR 3・4 で寄せずに残したもの（挙動が変わるため）
 
 - BS07-X25-e3（constraintGrant の `keywordFilter:"clash"`）：`matchesTarget` は【激突】をラベル付きキーワードとして狭く見る（継続効果の付与を見ない）。寄せると Lv2 で【激突】を与えた勇傑が Lv3 の対象から外れる。`matchesTarget` のラベル付きキーワードの見方は、ほかのカードにも響きうるので別に調べる
-- BS12-022（`coresCantBeRemovedByOpponent` の `nameContains`）：今は印刷名だけ。寄せると「〜として扱う」の名前も数える
+- BS12-022（`coresProtected`（旧 coresCantBeRemovedByOpponent） の `nameContains`）：今は印刷名だけ。寄せると「〜として扱う」の名前も数える
 - BS13-003（`ownSpiritSummoned` の `costFilter`）：召喚の経路は印刷コストだけを渡している。寄せると付与コストも数える
 - `targetSameLevelAsSelf`（1件）：TargetFilter に「主語と同じ Lv」の軸が無い
 - `ownTensho` の名前・系統（主語が場に居ない）と、`ownNexusDestroyed` の色（主語がネクサス）
