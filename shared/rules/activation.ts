@@ -169,9 +169,6 @@ export function hasSuperAwaken(board: Board, ownerPid: PlayerId, inst: CardInsta
     return spiritHasKeyword(board, ownerPid, inst, "superAwaken")
 }
 
-// このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
-// **効果でもプレイヤーの操作でも取り除けない**ので、耐性の判定表と、
-// コアが動くプレイヤー操作の入口（moveCore / 支払い元 / 【覚醒】の移動元）から呼ぶ
 // エンドステップを数える封印（BS10-108 ルナティックシール）が、いま指定の制限をかけているか。
 // **両陣営に効く**（誰が発揮したかを問わない）。クライアントもこれを読んでボタンを落とす
 export function isEndStepLocked(
@@ -179,41 +176,6 @@ export function isEndStepLocked(
     lock: "attackStep" | "deckMill" | "lifeChargeFromVoidOrReserve" | "summonTrigger",
 ): boolean {
     return board.endStepLocks.some((l) => l.remaining > 0 && l.locks.includes(lock))
-}
-
-export function coresCantBeRemoved(
-    board: Board,
-    ownerPid: PlayerId,
-    inst: CardInstance,
-): boolean {
-    return activeConstraints(board, ownerPid, inst).some((c) => c.type === "coresCantBeRemoved")
-}
-
-// globalConstraint "coresCantBeRemovedAll"（BS13緑バッチ 器AC。既存のcoresCantBeRemovedは自身のコアだけを
-// 対象にする個体制約だが、こちらは**フィールド全体**（相手すべて／両陣営すべて）に効く）:
-//   side:"opponent" ＝発生源から見た相手のスピリットのコアだけを対象にする（BS13-065八分儀の祠Lv2）
-//   side:"both"     ＝両陣営のスピリットのコアを対象にする（BS13-X03白羊樹神セフィロ・アリエスLv3）
-//   exceptOwnerEffects ＝持ち主自身の効果・操作は例外で通す（相手の効果だけを止める。065Lv2）
-// ownEffect＝持ち主自身の効果による除去（exceptOwnerEffects が通すのはこれだけ。持ち主自身の支払い・移動は止まる）
-export function globalCoresCantBeRemoved(board: Board, targetOwnerPid: PlayerId, ownEffect: boolean): boolean {
-    for (const sourcePid of ["p1", "p2"] as PlayerId[]) {
-        for (const inst of effectSources(board, sourcePid)) {
-            const level = currentLevel(inst).level
-            for (const effect of card(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== "coresCantBeRemovedAll") continue
-                if (!entryActive(board, sourcePid, inst, effect, level)) continue
-                if (effect.phase !== undefined && board.phase !== effect.phase) continue
-                if (effect.turn === "own" && sourcePid !== board.turnPlayer) continue
-                if (effect.turn === "opponent" && sourcePid === board.turnPlayer) continue
-                const { side, exceptOwnerEffects } = effect.constraint
-                if (side === "opponent" && targetOwnerPid === sourcePid) continue
-                if (exceptOwnerEffects && ownEffect) continue
-                return true
-            }
-        }
-    }
-    return false
 }
 
 // globalConstraint "summonExhausted"（BS13緑バッチ 器AB）：お互い、条件を満たすカードを召喚するとき、
@@ -244,31 +206,6 @@ export function summonExhausted(
                 if (costFilter?.min !== undefined && summonedCard.cost < costFilter.min) continue
                 return true
             }
-        }
-    }
-    return false
-}
-
-// globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：
-// 発生源の持ち主の、カード名にnameContainsを含むスピリット上のコアは、
-// **相手の**スピリット/ブレイヴ/マジックの効果では取り除けない（coresCantBeRemovedと違い片側限定）。
-// sourceType（コア除去を引き起こした効果の種別）がspirit/brave/magicのいずれでもなければ判定するまでもなくfalse
-// （ネクサスの効果・undefined＝ルール処理は対象外。coresToOpponentReserveGoToTrashと同じ形）
-export function coresCantBeRemovedByOpponent(
-    board: Board,
-    targetOwnerPid: PlayerId,
-    target: CardInstance,
-    sourceType: CardType | undefined,
-): boolean {
-    if (sourceType !== "spirit" && sourceType !== "brave" && sourceType !== "magic") return false
-    for (const inst of effectSources(board, targetOwnerPid)) {
-        const level = currentLevel(inst).level
-        for (const effect of card(inst.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "coresCantBeRemovedByOpponent") continue
-            if (!entryActive(board, targetOwnerPid, inst, effect, level)) continue
-            if (!card(target.cardId).name.includes(effect.constraint.nameContains)) continue
-            return true
         }
     }
     return false

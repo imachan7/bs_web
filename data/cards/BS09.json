@@ -1894,7 +1894,7 @@
           3
         ],
         "optional": false,
-        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "blockerCoresProtected"}]}
+        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "coresProtected", "battle": "blocker"}]}
       }
     ]
   },
@@ -5918,7 +5918,7 @@
           2
         ],
         "optional": false,
-        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "blockerCoresProtected"}]}
+        "action": {"type": "timedEffect", "duration": "battle", "content": [{"type": "coresProtected", "battle": "blocker"}]}
       }
     ]
   }

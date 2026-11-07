@@ -140,7 +140,7 @@ console.log("=== コアが0個になるとスピリットとして消滅し、�
     craft(s)
     const trashBefore = s.players.p1.trashCards.length
     // 相手（p2）の効果でコアを1個取り除く＝維持コア割れ
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 1 } as never, undefined, ["white"] as never, "magic")
+    resolveAction(s, "p2", null, { type: "removeCores", count: 1 } as never, undefined, ["white"] as never, "magic")
     assert(golem.cores === 0, "コアが0個になった")
     assert(
         !s.players.p1.field.spirits.some((x) => x.instanceId === golem.instanceId),
@@ -165,7 +165,7 @@ console.log("=== ターン終了で生き残りだけがネクサスへ戻る ==
         s,
         "p2",
         null,
-        { type: "coreRemove", count: 1 } as never,
+        { type: "removeCores", count: 1 } as never,
         doomed.instanceId,
         ["white"] as never,
         "magic",

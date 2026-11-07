@@ -1486,8 +1486,20 @@
           2
         ],
         "constraint": {
-          "type": "coresCantBeRemovedByOpponent",
+         "type": "coresProtected",
+         "side": "own",
+         "filter": {
           "nameContains": "太陽"
+         },
+         "by": "opponent",
+         "causes": [
+          "effect"
+         ],
+         "sourceTypes": [
+          "spirit",
+          "brave",
+          "magic"
+         ]
         }
       },
       {

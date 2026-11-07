@@ -3,7 +3,7 @@
 import { takeCoreGainAllowance } from "../coreGainCap"
 import type { ActionHandler, ActionRegistry } from "./types"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { normalCoresOn, normalReserveOf, normalTrashOf } from "../soulCore"
+import { normalCoresOn, normalReserveOf, normalTrashOf, soulCoreInclusionDecision } from "../soulCore"
 import type { ActionCtx } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { coresForLevel, getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -89,13 +89,23 @@ function depositTo(state: GameState, pid: PlayerId, to: Dest, amount: number, la
     log(state, `${player.name}の${label}のコア${amount}個をリザーブに置いた。`)
 }
 
+// 相手の効果でスピリットからリザーブ／トラッシュへ移すとき、[ソウルコア]を含めるかを持ち主に聞く（§1.3・2026-10-05 確定）。
+// 答えは action.soulAnswers に溜める。resume は「この個体の続きから」解決し直すアクション
+function soulFor(ctx: ActionCtx, resume: RemoveCoresAction, pid: PlayerId, inst: CardInstance, to: Dest): boolean | "asked" {
+    if (to !== "reserve" && to !== "trash") return false
+    if (!ctx.state.players[pid].field.spirits.includes(inst)) return false
+    const answered = resume.soulAnswers?.[inst.instanceId]
+    if (answered !== undefined) return answered
+    return soulCoreInclusionDecision(ctx.state, ctx.owner, pid, inst, to, resume, ctx.self, ctx.sourceName, ctx.chosenOption)
+}
+
 // スピリット／ネクサス1体から amount 個取る（スピリットは保護・下限・維持コア割れを見る removeCores* を通す。
 // ネクサスは装甲・維持コアの概念が無いので直接動かす＝bothSidesCoreToVoid等と同じ扱い）
-function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
+function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest, includeSoul = false): void {
     const { state, owner, srcType } = ctx
     if (state.players[pid].field.spirits.includes(inst)) {
         const before = inst.cores
-        applyToSpirit(ctx, pid, inst, amount, to)
+        applyToSpirit(ctx, pid, inst, amount, to, includeSoul)
         if (before > 0 && inst.cores === 0) recordEmptiedSpirits(state, lastEmptiedSpiritsOf(state) + 1)
         if (pid !== owner && before > 0 && inst.cores === 0 && srcType !== undefined && state.coresEmptiedNotifiedPid !== owner) {
             // 効果1回の解決につき1回（印は一番外側の効果を解決し終えた時点で消える。EffectModules の resolveAction）
@@ -109,10 +119,10 @@ function applyToIndividual(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, am
     depositTo(state, pid, to, taken, `${getCard(inst.cardId).name}（ネクサス）`)
 }
 
-function applyToSpirit(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest): void {
+function applyToSpirit(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount: number, to: Dest, includeSoul = false): void {
     const { state, owner, srcType } = ctx
     if (to === "void") removeCoresToVoid(state, pid, inst, amount, owner, srcType)
-    else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
+    else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, includeSoul, srcType)
     else if (to === "life") {
         // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
         const taken = removeCores(state, pid, inst, amount, owner, srcType, undefined, true)
@@ -123,7 +133,7 @@ function applyToSpirit(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount
             log(state, `${state.players[pid].name}は${getCard(inst.cardId).name}から取り除いたコア${moved}個をライフに置いた。`)
         }
     }
-    else removeCores(state, pid, inst, amount, owner, srcType)
+    else removeCores(state, pid, inst, amount, owner, srcType, includeSoul)
 }
 
 // side:"both" は removeCoresHandler が dispatchByTarget へ渡す前に own/opponent へ分解済みなので、
@@ -229,7 +239,8 @@ const resolveSelfTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
 }
 
 const resolveEventTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
-    const { state, sourceName, targetInstanceId } = ctx
+    const { state, sourceName } = ctx
+    const targetInstanceId = ctx.targetInstanceId ?? action.soulChoiceTarget
     const to = action.to ?? "reserve"
     if (targetInstanceId === undefined) {
         log(state, `${sourceName}のコア除去：対象が見つからなかった。`)
@@ -244,7 +255,9 @@ const resolveEventTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => 
     if (count === 0) return
     const amount = amountFor(found.inst, count, action.leaveAtLeast)
     if (amount <= 0) return
-    applyToIndividual(ctx, found.pid, found.inst, amount, to)
+    const soul = soulFor(ctx, action, found.pid, found.inst, to)
+    if (soul === "asked") return
+    applyToIndividual(ctx, found.pid, found.inst, amount, to, soul)
 }
 
 // ============ target: "all" ============
@@ -287,17 +300,22 @@ const resolveAllTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         log(state, `${sourceName}のコア除去：対象がいなかった。`)
         return
     }
+    // 1体も動かす前に全員ぶん聞き終える（中断後の再入で二重に取り除かないため）
+    for (const { pid, inst } of list) {
+        if (amountFor(inst, count, action.leaveAtLeast) > 0 && soulFor(ctx, action, pid, inst, to) === "asked") return
+    }
     for (const { pid, inst } of list) {
         const amount = amountFor(inst, count, action.leaveAtLeast)
         if (amount <= 0) continue
-        applyToIndividual(ctx, pid, inst, amount, to)
+        applyToIndividual(ctx, pid, inst, amount, to, soulFor(ctx, action, pid, inst, to) === true)
     }
 }
 
 // ============ target: "one" ============
 
 const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
-    const { state, owner, self, sourceName, srcColors, srcType, targetInstanceId } = ctx
+    const { state, owner, self, sourceName, srcColors, srcType } = ctx
+    const targetInstanceId = ctx.targetInstanceId ?? action.soulChoiceTarget
     // 体数をカウンタで決める（「破棄した枚数と同じ数の相手のスピリットから1個ずつ」）。最初に一度だけ数えて固定する
     if (action.targetsCounter !== undefined) {
         const { targetsCounter, ...rest } = action
@@ -365,7 +383,9 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         // 「そのスピリットのコスト」を後ろで読むため、コアを取り除いた個体を書く（カード自体は動かない）
         recordMoved(state, [inst.cardId])
         recordLeftCost(state, inst.cardId, instBaseCost(inst))
-        applyToIndividual(ctx, pid, inst, amount, to)
+        const soul = soulFor(ctx, resume, pid, inst, to)
+        if (soul === "asked") return true
+        applyToIndividual(ctx, pid, inst, amount, to, soul)
         return false
     }
 
@@ -379,7 +399,8 @@ const resolveOneTarget = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         }
         if (applyOne(found.pid, found.inst)) return
         if (picks > 1) {
-            ctx.resolve({ ...action, targets: picks - 1, excludeIds: [...excludeIds, found.inst.instanceId] })
+            const { soulChoiceTarget: _answered, ...withoutSoulTarget } = action
+            ctx.resolve({ ...withoutSoulTarget, targets: picks - 1, excludeIds: [...excludeIds, found.inst.instanceId] })
         }
         return
     }
@@ -500,7 +521,7 @@ function spreadCandidatesFor(
 }
 
 // 選ばれた1つから1個だけ移す。実際に取れた数（0/1）を返す
-function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
+function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest, includeSoul = false): number {
     const { state, owner, srcType } = ctx
     const player = state.players[s.pid]
     // 案B-inside: [ソウルコア]は明示的な指定でだけ動く。ここでは通常コアだけ移す
@@ -527,7 +548,7 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     const sp = player.field.spirits.find((x) => x.instanceId === s.inst!.instanceId)
     if (!sp) return 0
     if (to === "void") return removeCoresToVoid(state, s.pid, sp, 1, owner, srcType)
-    if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner, undefined, srcType)
+    if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner, includeSoul, srcType)
     if (to === "life") {
         const taken = removeCores(state, s.pid, sp, 1, owner, srcType, undefined, true)
         if (taken > 0) {
@@ -537,7 +558,7 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
         }
         return taken
     }
-    return removeCores(state, s.pid, sp, 1, owner, srcType)
+    return removeCores(state, s.pid, sp, 1, owner, srcType, includeSoul)
 }
 
 // target:"spread" と downTo（1個ずつ委譲された結果）の共通解決。pids/from/to/filter/leaveAtLeast/chooserは
@@ -589,15 +610,22 @@ const resolveSpread = (ctx: ActionCtx, action: RemoveCoresAction): void => {
         // どちらの陣営からでも選べるときは、奪う側の得になる相手側を優先する
         const oppSide = candidates.filter((c) => c.pid !== chooserPid)
         const picked = pickAutoSource(state, drainPid === undefined && oppSide.length > 0 ? oppSide : candidates, hurting)
-        const taken = takeOneFromSource(ctx, picked, to)
+        const soul = picked.kind === "spirit" ? soulFor(ctx, { ...action, spreadRemaining: left, excludeIds }, picked.pid, picked.inst!, to) : false
+        if (soul === "asked") return
+        const taken = takeOneFromSource(ctx, picked, to, soul)
         step(left - (taken > 0 ? 1 : 0), taken > 0 ? excludeIds : [...excludeIds, sourceIdOf(picked)])
     }
 
     // 対話の再入：選ばれた1つから1個取り、続きを解決する
-    if (action.spreadRemaining !== undefined && targetInstanceId !== undefined) {
+    const reTarget = targetInstanceId ?? action.soulChoiceTarget
+    if (action.spreadRemaining !== undefined && reTarget !== undefined) {
         const candidates = spreadCandidatesFor(ctx, pids, from, filter, action.leaveAtLeast)
-        const chosen = candidates.find((c) => sourceIdOf(c) === targetInstanceId)
-        if (chosen) takeOneFromSource(ctx, chosen, to)
+        const chosen = candidates.find((c) => sourceIdOf(c) === reTarget)
+        if (chosen) {
+            const soul = chosen.kind === "spirit" ? soulFor(ctx, action, chosen.pid, chosen.inst!, to) : false
+            if (soul === "asked") return
+            takeOneFromSource(ctx, chosen, to, soul)
+        }
         step(action.spreadRemaining - 1, action.excludeIds ?? [])
         return
     }
@@ -687,8 +715,12 @@ const resolveAny = (ctx: ActionCtx, action: RemoveCoresAction): void => {
     dispatchByTarget(ctx, { ...rest, count: n, kyokaSettled: true }) // n は選択で決まった数。【強化】の加算対象にしない
 }
 
-const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action) => {
+const removeCoresHandler: ActionHandler<"removeCores"> = (ctx, action0) => {
     const { state, owner, opp, srcType } = ctx
+    // [ソウルコア]の質問の答えが戻ってきた再入：答えを記録して続きを解決する
+    const action: RemoveCoresAction = action0.soulChoiceTarget !== undefined && ctx.chosenOption !== undefined
+        ? { ...action0, soulAnswers: { ...action0.soulAnswers, [action0.soulChoiceTarget]: ctx.chosenOption.includes("[ソウルコア]を含める") } }
+        : action0
     recordEmptiedSpirits(state, 0)
     if (action.count === "any") {
         resolveAny(ctx, action)

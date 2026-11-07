@@ -122,33 +122,12 @@ import {
     summonFreeFromHandIndex,
 } from "./EffectModules"
 
-function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
+export function isInCurrentBattle(state: GameState, inst: CardInstance): boolean {
     if (!state.battle) return false
     return (
         inst.instanceId === state.battle.attackerInstanceId ||
         inst.instanceId === state.battle.blockerInstanceId
     )
-}
-
-// phase/turn は EffectDef 側（globalConstraint エントリ自身）が持つ（発生源の持ち主基準の turn 判定）
-function hasActiveGlobalConstraint(state: GameState, type: string): boolean {
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-        for (const source of sources) {
-            const level = currentLevel(source).level
-            for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== type) continue
-                if (!entryActive(state, pid, source, effect, level)) continue
-                if (effect.phase !== undefined && state.phase !== effect.phase) continue
-                if (effect.turn === "own" && pid !== state.turnPlayer) continue
-                if (effect.turn === "opponent" && pid === state.turnPlayer) continue
-                noteCoverage(effect, "globalConstraint")
-                return true
-            }
-        }
-    }
-    return false
 }
 
 // ---- スピリット／ネクサスの除去 ----
@@ -1794,15 +1773,4 @@ function coreReturnBonusFor(state: GameState, targetOwnerPid: PlayerId, toTrash 
         }
     }
     return bonus
-}
-
-// バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が有効な発生源が両陣営のフィールドにあれば効果によって取り除かれない。
-// phase/turn は EffectDef 側が持つ（発生源の持ち主基準の turn 判定）
-export function isBattlingCoreProtected(state: GameState, inst: CardInstance): boolean {
-    // ブロッカー限定の保護（期間つき効果 blockerCoresProtected。このバトルの間）
-    if (state.battle?.blockerInstanceId === inst.instanceId && timedBattleContents(state).some((c) => c.type === "blockerCoresProtected")) {
-        return true
-    }
-    if (!isInCurrentBattle(state, inst)) return false
-    return hasActiveGlobalConstraint(state, "battlingCoresProtected")
 }

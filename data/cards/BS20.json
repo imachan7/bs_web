@@ -465,7 +465,7 @@
      3
     ],
     "constraint": {
-     "type": "coresCantBeRemoved"
+     "type": "coresProtected"
     }
    },
    {
@@ -1159,7 +1159,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    },

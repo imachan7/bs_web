@@ -3,7 +3,7 @@
 //   - constraint "tenshoCoreSubstitute"（【転召】対象時、疲労することでコアを維持する代替。白亜の竜使いアルブス）
 //   - immunityGrant の familyFilter（OR配列）・includeSelf・colorFilter・condition ownCostCountAtLeast
 //     （白亜の竜使いアルブスLv2-3／リトルナイト・ランスロット）
-//   - globalConstraint "battlingCoresProtected"（バトル中の両陣営スピリットのコアが効果で取り除かれない。茨の決戦地）
+//   - globalConstraint "coresProtected"（battle:"participants"）（バトル中の両陣営スピリットのコアが効果で取り除かれない。茨の決戦地）
 //   - fieldEvent "anySpiritAttacked" の colorFilter（アタックしたスピリットの色で絞る。天焦がす大聖火）
 //   - action "deckReveal" の nameIncludes/discardNonMatching（天焦がす大聖火）
 //   - kind:"exhaustOnManualCoreAdd" の trigger:"effect"/onRemove（効果によるコア増減で疲労。アブソーブシンボル）
@@ -138,14 +138,14 @@ console.log("=== BS05-060 茨の決戦地：自分のアタックステップ中
     const attackerInst = s.players.p1.field.spirits.find((x) => x.instanceId === attacker)!
     const blockerInst = s.players.p2.field.spirits.find((x) => x.instanceId === blocker)!
 
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 5 }, attacker)
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 5 }, blocker)
+    resolveAction(s, "p2", null, { type: "removeCores", count: 5 }, attacker)
+    resolveAction(s, "p1", null, { type: "removeCores", count: 5 }, blocker)
     assert(attackerInst.cores === 3, "バトル中のアタッカーはコアを取り除かれない")
     assert(blockerInst.cores === 3, "バトル中のブロッカーも取り除かれない（両陣営が対象）")
 
     // 対照：自分（茨の決戦地の持ち主）のアタックステップでなくなれば保護されない
     s.phase = "main"
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 5 }, attacker)
+    resolveAction(s, "p2", null, { type: "removeCores", count: 5 }, attacker)
     assert(attackerInst.cores === 0, "自分のアタックステップ以外では保護されない（対照実験）")
 }
 

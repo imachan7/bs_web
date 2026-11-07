@@ -359,6 +359,7 @@ const LEGACY_BLOCK_CONSTRAINT_FIELDS: Record<string, string[]> = {
 }
 
 const REMOVED_LIFE_GUARD_TYPES = new Set(["noLifeDamageByCost", "noLifeDamageByCostForPid", "lifeFloorForPid", "lifeDamageMaxForPid", "lifeDamagePerSpiritPerTurn", "ownLifeDamageCapPerSourcePerTurn", "lifeImmuneForPid", "ownLifeImmuneToSpiritEffects"])
+const REMOVED_CORE_PROTECT_TYPES = new Set(["coresCantBeRemoved", "coresImmovableByOpponent", "coresCantBeRemovedByOpponent", "coresCantBeRemovedAll", "battlingCoresProtected", "blockerCoresProtected"])
 
 function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
     if (!node || typeof node !== "object") return
@@ -370,6 +371,7 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     const t = obj["type"]
     if (typeof t === "string" && REMOVED_LIFE_GUARD_TYPES.has(t)) add(cardId, `${t} は廃止（lifeGuard に統合済み。無言で無視される）`)
     if (t === "ownLifeFloor" && obj["costSelfToTrash"] !== true) add(cardId, "ownLifeFloor は costSelfToTrash 版だけ（下限1の無条件版は lifeGuard{side:\"own\", floor} に統合済み）")
+    if (typeof t === "string" && REMOVED_CORE_PROTECT_TYPES.has(t)) add(cardId, `${t} は廃止（coresProtected に統合済み。無言で無視される）`)
     if (typeof t === "string" && t in LEGACY_BLOCK_CONSTRAINT_FIELDS) {
         if (t.startsWith("noRestWhenBlocking") && t !== "noRestWhenBlocking") add(cardId, `${t} は廃止（noRestWhenBlocking{filter} に統合済み）`)
         for (const f of LEGACY_BLOCK_CONSTRAINT_FIELDS[t]!) if (f in obj) add(cardId, `${t} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)
@@ -486,6 +488,7 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
     if (obj["type"] === "simultaneous") {
         for (const k of ["choosing", "chosenIds"]) if (k in obj) add(cardId, `simultaneous に実行時専用の内部欄 ${k} が書かれている（カードデータには書かない）`)
     }
+    if (obj["type"] === "coreRemove") add(cardId, "coreRemove は廃止（removeCores に統合済み。docs/design/CORE_UNIFY_REMOVE.md §3）")
     if (obj["kind"] === "step" && "cost" in obj) add(cardId, "step に cost が書かれている（廃止済み。「〜することで」は pay で書く）")
     if (obj["type"] === "pay") {
         if ("confirmed" in obj) add(cardId, "pay に実行時専用の内部欄 confirmed が書かれている（カードデータには書かない）")

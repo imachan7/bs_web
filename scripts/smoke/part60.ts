@@ -116,7 +116,7 @@ console.log("=== coreRemove: 候補2体で choice が立ち、選んだ側だけ
     const [a, b] = twoEnemies(s, "BS01-002", 3) // ロクケラトプス（Lv3=コア3）
     const find = (id: string) => s.players.p2.field.spirits.find((x) => x.instanceId === id)
 
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 1 })
+    resolveAction(s, "p1", null, { type: "removeCores", count: 1 })
     assert(s.pendingChoice !== null, "候補2体で pendingChoice が立つ")
     assert(s.pendingChoice?.candidates.length === 2, "候補は2体")
     assert(find(a)?.cores === 3 && find(b)?.cores === 3, "選択待ち中はまだコアが減っていない")
