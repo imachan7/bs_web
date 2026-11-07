@@ -6296,7 +6296,9 @@
     "kind": "globalConstraint",
     "levels": null,
     "constraint": {
-     "type": "noDeckMillByOpponent"
+     "type": "noDeckMill",
+     "side": "own",
+     "by": "any"
     }
    },
    {
