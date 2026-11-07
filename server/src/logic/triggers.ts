@@ -767,6 +767,10 @@ function collectGrantedTriggerActions(
                     for (const e of getCard(holder.cardId).effects) {
                         if (e.kind !== "triggered" || e.trigger !== "onAttack" || e.whileCombined !== true) continue
                         if (e.levels !== null && !e.levels.includes(lv)) continue
+                        // 借りた側（selfInstance）で条件を見る（スピリット状態の 056 は 055 と合体していない）。
+                        // ponytail: 読むのは selfHasBraveNamed だけ。ほかの条件付きエントリを貸すカードが出たら fireTrigger の条件判定を関数に切り出して使う
+                        const cond = e.condition
+                        if (typeof cond === "object" && "selfHasBraveNamed" in cond && !bravesOf(state.players[owner], selfInstance).some((b) => getCard(b.cardId).name === cond.selfHasBraveNamed)) continue
                         actions.push(e.action)
                     }
                 }
