@@ -361,12 +361,12 @@ console.log("=== コア除去・BP増加アクション ===")
 
     // coreRemove: 対象のコアが減り、リザーブが増える
     const reserveBefore = s.players.p1.reserve
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 2 }, sp.instanceId)
+    resolveAction(s, "p1", null, { type: "removeCores", count: 2, side: "any" }, sp.instanceId)
     assert(sp.cores === 1, "コア除去で対象のコアが2個減る")
     assert(s.players.p1.reserve === reserveBefore + 2, "除去したコアがリザーブへ2個戻る")
 
     // coreRemove: 維持コア（Lv1）を下回ると消滅する
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 1 }, sp.instanceId)
+    resolveAction(s, "p1", null, { type: "removeCores", count: 1, side: "any" }, sp.instanceId)
     assert(s.players.p1.field.spirits.length === 0, "維持コア割れでスピリットが消滅する")
     assert(s.players.p1.trashCards.includes("BS01-001"), "消滅したスピリットがトラッシュへ")
 

@@ -224,7 +224,6 @@ export interface GameState {
     lastDestroyedCount?: Record<string, number> // 枠ごとの直前の破壊で実際に破壊できた体数（logic/record.ts）
     lastDrawn?: Record<string, number> // 枠ごとの直前のドローで引いた枚数（logic/record.ts）
     lastTargets?: Record<string, string[]>
-    lastCoreRemoveEmptied?: boolean // 直前の coreRemove の解決で対象のコアが0個になったか（action "if" の lastEmptied が読む。coreRemove ハンドラが解決の冒頭で false に戻す）
     enemyExhaustNotifiedPid?: PlayerId // opponentSpiritExhaustedByOwnSpiritEffect をその効果の持ち主についてすでに発火したか（効果1回の解決につき1回の印。選択待ちをまたいでも1回に数えるため ActionCtx でなく state に置く。一番外側の効果を解決し終えた時点で消す）
     coresEmptiedNotifiedPid?: PlayerId // opponentSpiritCoresEmptied の同じ印
     recordScope?: string

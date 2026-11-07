@@ -237,7 +237,7 @@ console.log("=== G. 017【合体時】Lv2：コブラージャ自身でなくと
     const ally = put(s, "p1", ZUGAIN, 1) // 自分の別のスピリット（アタック時：相手のスピリット1体のコア1個を相手のリザーブに置く）
     const victim = put(s, "p2", SKULL, 1)
     // 別スピリットのコア除去効果を自分の効果として解決する（コア1個の相手スピリットが0個になる形）
-    resolveAction(s, "p1", ally, { type: "coreRemove", count: 1 }, victim.instanceId)
+    resolveAction(s, "p1", ally, { type: "removeCores", count: 1 }, victim.instanceId)
     settle(s, [victim.instanceId])
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === victim.instanceId), "別スピリットの効果で相手スピリットのコアは0個になり場を離れる")
     assert(!cob.isRested, "自分の別スピリットの効果で0個になったので、コブラージャは回復する")
@@ -250,7 +250,7 @@ console.log("=== G. 017【合体時】Lv2：コブラージャ自身でなくと
     cob.isRested = true
     const victim = put(s, "p2", SKULL, 1)
     // 境目：同じコア除去でもマジックの効果（self=null・sourceType="magic"）では回復しない
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 1 }, victim.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", count: 1 }, victim.instanceId, undefined, "magic")
     settle(s, [victim.instanceId])
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === victim.instanceId), "マジックの効果でも相手スピリットのコアは0個になり場を離れる")
     assert(cob.isRested, "マジックの効果で0個になったので、コブラージャは回復しない")
