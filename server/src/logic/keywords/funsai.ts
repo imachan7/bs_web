@@ -4,7 +4,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import type { CardInstance, GameState, PlayerId } from "../../type"
 import { currentLevel, getCard, opponentOf } from "../GameState"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
-import { hasGlobalConstraint, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
+import { deckMillBlockedByRule, countSymbols, effectActiveAtLevel, effectSources, isVirtualSource, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
 import { millDeck } from "../zones/mill"
 import { kyokaBonus } from "./kyoka"
 
@@ -100,7 +100,7 @@ export function resolveFunsai(
     // 【粉砕】も【強化】（青）のデッキ破棄効果の枚数に含まれる（Q757）
     const actual = millDeck(state, opponentPid, level + bonus + kyokaBonus(state, ownerPid, "deckMill"), ownerPid, { sourceType: "spirit", funsai: true, sourceInstanceId: spirit.instanceId })
     // 山札が破棄されない間も【粉砕】は0枚の破棄として成立する（2026-10-23 ユーザー確認）。後続は0枚として動く
-    if (actual === 0 && hasGlobalConstraint(state, "noDeckMill")) {
+    if (actual === 0 && deckMillBlockedByRule(state, opponentPid, false, true)) {
         state.lastFunsai = { total: 0, spirits: 0, nexuses: 0, magics: 0, costAtLeast4: 0, bursts: 0 }
     }
     if (actual > 0) {

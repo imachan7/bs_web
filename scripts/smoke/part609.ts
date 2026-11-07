@@ -55,7 +55,7 @@ patch(HOLDER, [
             type: "sequence",
             actions: [
                 { type: "moveCards", from: "trash", fromEvent: true, pick: { hasBurst: true }, count: "all", dest: "hand" },
-                { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noDeckMillForPid" } }], duration: "turn", side: "own" },
+                { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noDeckMill" } }], duration: "turn", side: "own" },
             ],
         },
     },

@@ -319,8 +319,7 @@ export type PlayerRuleDef =
     | { type: "noLifeDamageByCostForPid"; maxCost?: number; symbolCount?: number; combinedOnly?: true; cores?: number } // maxCost 以下のスピリット（symbolCount 指定時はシンボル数ちょうど、combinedOnly なら合体スピリット、cores 指定時は載っているコアがちょうどその数のスピリット。26RSD02-013）のアタックではライフが減らない
     | { type: "handReductionColorAsForPid"; color: Color; cardType: CardType } // 手札にある cardType のカードすべての軽減シンボルを color 一色として扱う（件数は変えない）
     | { type: "handReductionVoidForPid"; cardType?: CardType; keywordExclude?: Keyword } // 手札にある、cardType が一致し keywordExclude を持たないカードすべての軽減シンボルを無いものとして扱う（BS19-078「相手の手札にある【連鎖】を持たないマジックカードすべての軽減シンボルすべてを無いものとして扱う」）
-    | { type: "noDeckMillByOpponentForPid" } // デッキは相手の効果では破棄されない
-    | { type: "noDeckMillForPid" } // デッキは自分の効果も含めて破棄されない
+    | { type: "noDeckMill"; by?: "any" | "opponent" } // このターンの間デッキが破棄されない。by:"opponent" は相手の効果による破棄だけ止める（BS13-034）。既定は any
     | { type: "noBurstSpiritSummonForPid" } // バースト効果でスピリットを召喚できない（バーストの発動自体は止めない。ブレイヴは対象外）
     | { type: "noBurstEffectForPid"; cost?: { min: number; max: number }; declared?: "match" } // バースト効果の解決だけが飛ぶ（発動は成立し、カードはトラッシュへ行く。誘発も起きる）。cost は印刷コストで比べ、省略時はすべてのバースト。declared は declare の then の中だけ（cost に置き換わる）
     | { type: "cantUseMagicForPid"; colors?: Color[] | "event"; allowColors?: "opponentFieldSymbols"; costs?: number[] | "ownerRestedNexuses"; declared?: "match" } // allowColors は、掛かった側のフィールドにシンボルを持つ色のマジックだけ使える（使うたびに見る）。costs は印刷コストが一致するマジックを禁じ、"ownerRestedNexuses" は掛けた側の疲労状態のネクサスのコストを使うたびに集める。declared は declare の then の中だけ（costs に置き換わる）。手札・手元・トラッシュなどどこからでも、その色をいずれか持つマジックを使用できない。"event"は置く時点で、直前に召喚時効果を発揮したカードの色すべてに解く（timedEffect.ts）

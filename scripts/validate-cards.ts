@@ -366,6 +366,7 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     }
     const obj = node as Record<string, unknown>
     const t = obj["type"]
+    if (t === "noDeckMillInMain" || t === "noDeckMillByOpponent" || t === "noDeckMillForPid" || t === "noDeckMillByOpponentForPid") add(cardId, `${t} は廃止（noDeckMill{side・by}・phase に統合済み）`)
     if (typeof t === "string" && t in LEGACY_BLOCK_CONSTRAINT_FIELDS) {
         if (t.startsWith("noRestWhenBlocking") && t !== "noRestWhenBlocking") add(cardId, `${t} は廃止（noRestWhenBlocking{filter} に統合済み）`)
         for (const f of LEGACY_BLOCK_CONSTRAINT_FIELDS[t]!) if (f in obj) add(cardId, `${t} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)

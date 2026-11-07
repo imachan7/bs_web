@@ -392,7 +392,7 @@ export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): 
 export function hasGlobalConstraint(
     board: Board,
     type: GlobalConstraintDef["type"],
-    match?: (effect: Extract<EffectDef, { kind: "globalConstraint" }>, sourcePid: PlayerId) => boolean,
+    match?: (effect: Extract<EffectDef, { kind: "globalConstraint" }>, sourcePid: PlayerId, source: CardInstance) => boolean,
 ): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果。BS02グレートウォール）も含める
@@ -405,13 +405,29 @@ export function hasGlobalConstraint(
                 // whileOwnBurstSet：発生源の持ち主が自分のバーストをセットしている間だけ有効（docs/design/BURST.md）
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 if (effect.whileSelfAttacking === true && board.battle?.attackerInstanceId !== inst.instanceId) continue
-                if (match && !match(effect, pid)) continue
+                if (match && !match(effect, pid, inst)) continue
                 noteCoverage(effect, "globalConstraint")
                 return true
             }
         }
     }
     return false
+}
+
+// pid のデッキが破棄できないか（globalConstraint／このターンの playerRule の noDeckMill）。mill・コスト・【粉砕】の判定はここ1か所。
+// alwaysOnly：phase 限定のエントリと by:"opponent" を数えない。ネクサスの配置コスト・【粉砕】の0枚判定は従来、常時のものしか見ていない
+export function deckMillBlockedByRule(board: Board, pid: PlayerId, byOpponent: boolean, alwaysOnly = false): boolean {
+    if (!alwaysOnly && timedPlayerRules(board, pid).some((r) => r.type === "noDeckMill" && (r.by !== "opponent" || byOpponent))) return true
+    return hasGlobalConstraint(board, "noDeckMill", (effect, sourcePid, source) => {
+        const c = effect.constraint
+        if (c.type !== "noDeckMill") return false
+        if (c.side === "own" && sourcePid !== pid) return false
+        if (alwaysOnly) return effect.phase === undefined && c.side !== "own" && c.by !== "opponent"
+        if (c.by === "opponent" && !byOpponent) return false
+        if (effect.phase !== undefined && effect.phase !== board.phase) return false
+        if (c.whileSourceDeployedTurnOnly && source.summonedTurn !== board.turn) return false
+        return true
+    })
 }
 
 // 「回復できない」の判定を1か所に集める（refreshSpirit が呼ぶ）。効果による回復かどうかの

@@ -6693,7 +6693,8 @@
             {
               "type": "playerRule",
               "rule": {
-                "type": "noDeckMillForPid"
+                "type": "noDeckMill",
+                "by": "any"
               }
             }
           ],

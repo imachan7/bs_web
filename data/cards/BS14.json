@@ -5370,8 +5370,9 @@
      1,
      2
     ],
+    "phase": "main",
     "constraint": {
-     "type": "noDeckMillInMain"
+     "type": "noDeckMill"
     }
    },
    {
