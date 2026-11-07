@@ -154,7 +154,7 @@ export function soulCoreInclusionDecision(
     targetPid: PlayerId,
     inst: CardInstance,
     dest: "reserve" | "trash",
-    action: EffectAction & { soulChoiceTarget?: string },
+    action: Extract<EffectAction, { type: "removeCores" }>,
     self: CardInstance | null,
     sourceName: string,
     chosenOption: string | undefined,
@@ -173,8 +173,7 @@ export function soulCoreInclusionDecision(
         `${sourceName}：${getCard(inst.cardId).name}からコアを移す際、[ソウルコア]を含めますか？`,
         [],
         false,
-        // soulChoiceTarget は coreRemove の内部用フィールド（effectAction.ts の該当メンバーのみが持つ）
-        { ...action, soulChoiceTarget: inst.instanceId } as EffectAction,
+        { ...action, soulChoiceTarget: inst.instanceId },
         self,
         "option",
         ["[ソウルコア]は残す", "[ソウルコア]を含める"],

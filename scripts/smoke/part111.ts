@@ -81,7 +81,7 @@ console.log("=== BS02-055 チャウー Lv2：効果でリザーブへ置かれ�
     const src = putSpirit(s, "p1", "BS01-001", 1)
     const victim = putSpirit(s, "p2", "BS01-002", 3) // コア3個
     const reserveBefore = s.players.p2.reserve
-    resolveAction(s, "p1", src, { type: "coreRemove", count: 1 })
+    resolveAction(s, "p1", src, { type: "removeCores", count: 1 })
     assert(victim.cores === 1, `コア1個の除去が+1されて2個抜ける（実際 残り${victim.cores}）`)
     assert(
         s.players.p2.reserve === reserveBefore + 2,
@@ -96,7 +96,7 @@ console.log("=== BS02-055 Lv1：coreReturnBonus は発揮されない（levels:[
     putSpirit(s, "p1", "BS02-055", 1) // Lv1
     const src = putSpirit(s, "p1", "BS01-001", 1)
     const victim = putSpirit(s, "p2", "BS01-002", 3)
-    resolveAction(s, "p1", src, { type: "coreRemove", count: 1 })
+    resolveAction(s, "p1", src, { type: "removeCores", count: 1 })
     assert(victim.cores === 2, `Lv1では+1されない（実際 残り${victim.cores}）`)
 }
 
@@ -108,7 +108,7 @@ console.log("=== BS02-055 Lv2：元のコア数を超えては取れない ===")
     const src = putSpirit(s, "p1", "BS01-001", 1)
     const victim = putSpirit(s, "p2", "BS01-002", 1) // コア1個しかない
     const reserveBefore = s.players.p2.reserve
-    resolveAction(s, "p1", src, { type: "coreRemove", count: 1 })
+    resolveAction(s, "p1", src, { type: "removeCores", count: 1 })
     assert(
         s.players.p2.reserve === reserveBefore + 1,
         `置かれているコアを超えて取らない（実際${s.players.p2.reserve - reserveBefore}）`,

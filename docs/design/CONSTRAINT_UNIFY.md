@@ -14,6 +14,12 @@
 | ④ | `cantRefresh` | noRefreshByAnyEffect ほか6種 | markNoRefreshTarget・noRefresh・refreshOnlyOneUncombined |
 | ⑤ | `cantBounce { by, to, target }` | noBounceByEffect・allSpiritsCantBounce | bounceToDeckTopForPid |
 
+## 0 の結果（coreRemove → removeCores）
+- 11枚と smoke 18 part を移し、`coreRemove` の型・処理を消した。データに書くと validate:cards が落とす
+- removeCores に[ソウルコア]を含めるかの確認が無かった（旧 coreRemove だけが持っていた。2026-10-05 確定の一律の規則）。removeCores の共通処理に足した。ソウルコアは今は常に無効なので対戦の挙動は変わらない
+- IfCond `lastEmptied` は `lastEmptiedSpirits` を読む形にした
+- 既知の限界：[ソウルコア]の答え待ちで中断して再入すると、それまでに0個にした体数が lastEmptiedSpirits から落ちる（複数体を取り除く途中で聞いた場合だけ。使うカードは1体対象）
+
 ## 決まったこと（2026-11-07 ユーザー確認）
 - ①：プレイヤーの操作（効果でないコアの移動）まで止める型は、統合後も止める。`causes` の既定は「効果・コスト・プレイヤーの操作のすべて」にし、今「効果だけ」の型にだけ `causes:["effect"]` を書いて移す（既定を効果だけにしない）
 - ⑤：BS22-016 プリシラの「戻らない」は効果による戻しだけでよい（効果以外で手札/デッキに戻す操作はプールに無い。「〜することで」の支払いの戻しも効果の解決中なので止まる）

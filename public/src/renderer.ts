@@ -154,7 +154,6 @@ export function magicTargetSide(
     if (effect.action.type === "return" && effect.action.to !== "deckBottom" && effect.action.nexus === "only") return null
     if (
         effect.action.type === "destroy" ||
-        effect.action.type === "coreRemove" ||
         effect.action.type === "exhaust" ||
         effect.action.type === "return"
     ) {

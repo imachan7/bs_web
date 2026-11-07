@@ -1159,7 +1159,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    },

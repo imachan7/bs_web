@@ -64,7 +64,7 @@ console.log("=== 器AC：coresCantBeRemovedAll（BS13-X03白羊樹神セフィ�
     refreshLevelAsOverrides(s)
 
     const coresBefore = enemy.cores
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 1, dest: "trash", anySide: true }, enemy.instanceId)
+    resolveAction(s, "p1", null, { type: "removeCores", count: 1, to: "trash", side: "any" }, enemy.instanceId)
     assert(enemy.cores === coresBefore, "明示的なコア除去は両陣営とも止まる（自分のコストと同じ経路）")
 
     console.log("  -- #25：破壊に伴うコア移動は止まらない --")
@@ -85,10 +85,10 @@ console.log("=== 器AC：side:opponent + exceptOwnerEffects（BS13-065八分儀�
 
     const coresBefore = target.cores
     // p1（065の持ち主から見て自分＝相手の効果）が取り除こうとすると止まる
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 1, dest: "trash", anySide: true }, target.instanceId)
+    resolveAction(s, "p1", null, { type: "removeCores", count: 1, to: "trash", side: "any" }, target.instanceId)
     assert(target.cores === coresBefore, "相手（065の持ち主）の効果では取り除けない")
     // target自身の持ち主（p2）の効果は例外で通る
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 1, dest: "trash" }, target.instanceId)
+    resolveAction(s, "p2", null, { type: "removeCores", count: 1, to: "trash", side: "any" }, target.instanceId)
     assert(target.cores === coresBefore - 1, "持ち主自身の効果は例外で通る（exceptOwnerEffects）")
 }
 

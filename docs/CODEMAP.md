@@ -474,7 +474,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/cores.ts
 
-- `coreRemoveAchievableCountForPay`（fn）：pay の判定表（coreRemove）が使う候補。spread＝候補の合計コア数、all＝候補数（0/1）、
 - `payCoresFromFieldOrReserveToTrash`（fn）：「自分のフィールド/リザーブのコアを自分のトラッシュに置く」の共通処理。
 - `fieldOrReserveCores`（fn）：「自分のフィールド/リザーブ」から払えるコアの総量
 
