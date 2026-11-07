@@ -36,7 +36,7 @@ console.log("=== 1. 虚神が出たところで止め、トラッシュにある
 console.log("=== 2. デッキ破棄の共通処理を通る：「このターンの間、自分のデッキは破棄されない」なら何も起きない ===")
 {
     const s = game("blocked")
-    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noDeckMillForPid" } }], duration: "turn", side: "own" })
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noDeckMill" } }], duration: "turn", side: "own" })
     const hand = s.players.p1.hand.length
     const deck = s.players.p1.deck.length
     resolveAction(s, "p1", null, effect)

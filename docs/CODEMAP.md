@@ -132,6 +132,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `trashCardEffectsDisabled`（fn）：トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
+- `deckMillBlockedByRule`（fn）：pid のデッキが破棄できないか（globalConstraint／このターンの playerRule の noDeckMill）。mill・コスト・【粉砕】の判定はここ1か所。
 - `braveCostZeroFor`（fn）：合体スピリットのコストからブレイヴ分を引くか（050 の継続・054 の期間つき）。refreshLevelAsOverrides が braveComposite を組むときに読…
 - `braveBpBonusZeroFor`（fn）：「合体時BP+」を0にする制約（braveBpBonusZero）が、hostPid の合体スピリットに掛かっているか
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
@@ -1093,7 +1094,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `noteMilled`（fn）：破棄した枚数をターンの累計に足す。millDeck を通らない破棄（効果のコストなど）もここで数える
 - `millDeck`（fn）：【粉砕】: デッキ上から count 枚を持ち主のトラッシュへ送る（不足時はある分だけ）。
 - `collectMilledMagicToTegamoto`（fn）：kind:"milledMagicToTegamoto"（BS06混迷する魔法実験場Lv2）：破棄されたマジックカードを
-- `isDeckMillBlocked`（fn）：「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
 - `findDeckMillNegate`（fn）：kind:"deckMillNegate"（BS08鳳翼の聖剣Lv2）：この破棄を無効にできる発生源を探す。
 - `trySuspendDeckMillNegate`（fn）：破棄を見送って**その場で**確認を出す。出した（＝この破棄を保留した）なら true。
 - `payDeckMillNegateCost`（fn）：無効化のコスト（ライフのコアN個を持ち主のリザーブへ）を支払い、無効になった旨をログに出す。

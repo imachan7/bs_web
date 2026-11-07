@@ -9,7 +9,7 @@ import { returnSpiritToDeckBottom } from "../removal"
 import { spiritMillFreeSummonOrConfirm } from "../revive"
 import { resolveMagicEffects } from "../triggers"
 import { fireFieldEventTriggers, fireNexusDeployed } from "../fieldEventTriggers"
-import { effectSources, hasGlobalConstraint, isEndStepLocked, timedPlayerRules, trashCardEffectsDisabled, trashFrozen } from "../../../../shared/rules"
+import { effectSources, deckMillBlockedByRule, isEndStepLocked, timedPlayerRules, trashCardEffectsDisabled, trashFrozen } from "../../../../shared/rules"
 import { exhaustSpirit } from "../state/exhaust"
 import { recordPlayerRule, resolveAction } from "../EffectModules"
 
@@ -124,10 +124,7 @@ export function millAllowed(state: GameState, a: { pid: PlayerId; count: number;
 
 function millBlockReason(state: GameState, pid: PlayerId, byOpponent: boolean): string | null {
     if (isEndStepLocked(state, "deckMill")) return "効果により破棄されない"
-    if (hasGlobalConstraint(state, "noDeckMill")) return "デッキは破棄されない"
-    if (state.phase === "main" && hasGlobalConstraint(state, "noDeckMillInMain")) return "メインステップでは破棄されない"
-    if (timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillForPid")) return "このターンの間破棄されない"
-    if (isDeckMillBlocked(state, pid, byOpponent)) return "デッキは破棄されない"
+    if (deckMillBlockedByRule(state, pid, byOpponent)) return "デッキは破棄されない"
     return null
 }
 
@@ -214,7 +211,7 @@ export function millDeck(
                     (e.by !== "opponentSpiritEffect" || cause?.sourceType === "spirit"),
             )
             if (protects) {
-                recordPlayerRule(state, pid, { type: "noDeckMillByOpponentForPid" })
+                recordPlayerRule(state, pid, { type: "noDeckMill", by: "opponent" })
                 log(state, `${player.name}：このターンの間、デッキは相手の効果で破棄されない。`)
                 break
             }
@@ -280,26 +277,6 @@ export function collectMilledMagicToTegamoto(state: GameState, pid: PlayerId, mi
             `${player.name}は、破棄されたマジックカード${moved.length}枚（${moved.join("、")}）をオープンして手元に置いた。`,
         )
     }
-}
-
-// 「自分のデッキは破棄されない」（globalConstraint "noDeckMillByOpponent"）が pid に対して有効か。
-// 効果文に「相手の効果で」が無いので、自分の効果・コストによる破棄も止める（10-30。名前は旧い読みのまま）
-// millCapFor と同じく **pid 自身のフィールド（＋このターンの仮想発生源）** だけを見る
-export function isDeckMillBlocked(state: GameState, pid: PlayerId, byOpponent: boolean): boolean {
-    // 器AR：ターン限定版（BS13-034ミノガメン。無償召喚したときだけ付く）
-    if (byOpponent && timedPlayerRules(state, pid).some((c) => c.type === "noDeckMillByOpponentForPid")) return true
-    for (const source of effectSources(state, pid)) {
-        const level = currentLevel(source).level
-        for (const effect of getCard(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint") continue
-            if (effect.constraint.type !== "noDeckMillByOpponent") continue
-            if (!entryActive(state, pid, source, effect, level)) continue
-            // 「このネクサスが配置されたターンの間」（BS08鳳翼の聖剣）
-            if (effect.constraint.whileSourceDeployedTurnOnly && source.summonedTurn !== state.turn) continue
-            return true
-        }
-    }
-    return false
 }
 
 // kind:"deckMillNegate"（BS08鳳翼の聖剣Lv2）：この破棄を無効にできる発生源を探す。
@@ -507,7 +484,7 @@ export function resolveMilledFromDeck(
                     resolveAction(state, pid, null, { type: "destroy", count: 1 }, causerInst.instanceId, getCard(cardId).colors, "spirit")
                 }
                 if (effect.thenBlockAllDeckMillThisTurn) {
-                    recordPlayerRule(state, pid, { type: "noDeckMillForPid" })
+                    recordPlayerRule(state, pid, { type: "noDeckMill", by: "any" })
                 }
                 break
             }

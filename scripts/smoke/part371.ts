@@ -17,7 +17,7 @@ const EXPECTED: Record<string, PlayerId | "both"> = {
     effectTaxForPid: "p2",
     cantUseMagicForPid: "p2",
     noBurstEffectForPid: "p2",
-    noDeckMillForPid: "p1",
+    noDeckMill: "p1",
     skipMainStep: "p2",
     handCostSetForPid: "both",
     handReductionVoidForPid: "p2",
