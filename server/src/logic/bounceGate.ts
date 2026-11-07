@@ -3,8 +3,8 @@
 // 「〜されない」は対象に取られることを防がない（10-30 の一般則）ので、戻す入口（markBounce）がここを聞く。
 // 「手札に戻らない」はデッキへ戻すことを止めない（toDeck 付きの耐性だけデッキも止める）。誰の効果かは解決中の効果の記録（currentEffectSource）で見る
 import { entryActive } from "../../../shared/rules/effectStop"
-import { effectSources, hasBounceImmunity, hasGlobalConstraint } from "../../../shared/rules"
-import { effectActiveAtLevel, instHasTriggerEffect } from "../../../shared/rules/level"
+import { effectSources, hasBounceImmunity, matchesTarget } from "../../../shared/rules"
+import { effectActiveAtLevel } from "../../../shared/rules/level"
 import { noteCoverage } from "../../../shared/coverage"
 import { trashUnderCards } from "./zones/underCards"
 import type { CardInstance, GameState, PlayerId } from "../type"
@@ -12,15 +12,14 @@ import { currentLevel, getCard, log } from "./GameState"
 
 export type BounceTo = "hand" | "deckTop" | "deckBottom" | "burst"
 
-export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardInstance, to: BounceTo): string | null {
-    // noBounceByEffect（BS19-099）：効果による戻しは手札・デッキとも戻らない。原因を効果に限るので、
-    // currentEffectSource が載っていない（＝効果の解決中でない）戻しは従来どおり通る
-    if (to !== "burst" && state.currentEffectSource && hasGlobalConstraint(state, "noBounceByEffect", (e) =>
-        e.constraint.type === "noBounceByEffect" && (e.constraint.filter !== "hasSummonTrigger" || instHasTriggerEffect(target, "onSummon")))) {
-        return "効果では手札/デッキに戻らない"
+// asEffect：払えるかの判定（pay の CHECKERS）は効果の外で呼ばれるので、「効果による戻し」として聞く
+export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardInstance, to: BounceTo, asEffect = false): string | null {
+    if (to === "burst") return null
+    const byEffect = asEffect || state.currentEffectSource !== undefined
+    if (cantBounceActive(state, ownerPid, target, to === "hand" ? "hand" : "deck", byEffect)) {
+        return to === "hand" ? "スピリットは手札に戻らない" : "効果では手札/デッキに戻らない"
     }
     if (to !== "hand" && to !== "deckTop" && to !== "deckBottom") return null
-    if (to === "hand" && allSpiritsCantBounceActive(state)) return "スピリットは手札に戻らない"
     const src = state.currentEffectSource
     if (src && src.pid !== ownerPid && hasBounceImmunity(state, ownerPid, target, src.type, to === "hand" ? "hand" : "deck")) {
         return to === "hand" ? "相手の効果では手札に戻らない" : "相手の効果では手札/デッキに戻らない"
@@ -28,17 +27,22 @@ export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardI
     return null
 }
 
-// 金狐角。発生源の持ち主基準の phase/turn を見るので hasGlobalConstraint ではなく専用に走査する
-export function allSpiritsCantBounceActive(state: GameState): boolean {
+// globalConstraint cantBounce。発生源の持ち主基準の phase/turn を見るので hasGlobalConstraint ではなく専用に走査する
+function cantBounceActive(state: GameState, ownerPid: PlayerId, target: CardInstance, to: "hand" | "deck", byEffect: boolean): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         for (const source of effectSources(state, pid)) {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "allSpiritsCantBounce") continue
+                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "cantBounce") continue
+                const c = effect.constraint
                 if (!entryActive(state, pid, source, effect, level)) continue
                 if (effect.phase !== undefined && state.phase !== effect.phase) continue
                 if (effect.turn === "own" && pid !== state.turnPlayer) continue
                 if (effect.turn === "opponent" && pid === state.turnPlayer) continue
+                if (c.by === "effect" && !byEffect) continue
+                if (!(c.to ?? ["hand"]).includes(to)) continue
+                if (c.target && !matchesTarget(state, ownerPid, target, c.target)) continue
+                noteCoverage(effect, "globalConstraint")
                 return true
             }
         }

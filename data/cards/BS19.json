@@ -6565,7 +6565,12 @@
     "kind": "globalConstraint",
     "levels": null,
     "constraint": {
-     "type": "noBounceByEffect"
+     "type": "cantBounce",
+     "by": "effect",
+     "to": [
+      "hand",
+      "deck"
+     ]
     }
    },
    {

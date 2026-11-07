@@ -14,7 +14,7 @@ export type GlobalConstraintDef =
     | { type: "opponentCantAttackByCores"; cores: number } // コア数がちょうどこの数の相手のスピリットはアタック不可（ブロックは可）
     | { type: "cantAttackByCost"; costs: number[] } // opponentCantAttackByCost の両陣営版
     | { type: "cantBlockByCost"; costs: number[] } // cantAttackByCost のブロック版（両陣営）
-    | { type: "allSpiritsCantBounce" } // 両陣営とも、あらゆる原因でスピリットがフィールドから手札に戻らない（markBounce が冒頭で止める＝戻すはずのスピリットは場に残る）。phase/turn と組み合わせて使う
+    | { type: "cantBounce"; by?: "effect"; to?: ("hand" | "deck")[]; target?: ResolvedTargetFilter } // 両陣営のスピリットは、フィールドから to（省略＝手札のみ。デッキへ戻すのは止めない）へ戻らない。by:"effect" は効果による戻し（「〜することで」の支払いとして戻すのも効果のうち。2026-11-07 ユーザー確認）だけを止め、省略は原因を問わない。target＝戻される側の絞り込み。phase/turn はエントリ直下を見る（bounceDenial）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た相手のネクサスは疲労させられない（【強襲】の疲労元等も止める）。phase 指定時はそのステップ中のみ
     | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // 発生源が回復状態の間、発生源の持ち主は相手のライフを減らせない（片側のみ。2026-09-02 ユーザー確認で「文面どおり」）
     | { type: "noDrawInMain" } // 両陣営とも、メインステップの間はドローできない
@@ -104,7 +104,6 @@ export type GlobalConstraintDef =
     | { type: "opponentMustAttackOnce" } // 発生源の持ち主の相手は、アタックできるスピリットがいるのにそのターン1回もアタックしていなければターンを終えられない（validateEndTurn。メインからの終了も同じ＝アタックステップは必ず来るので phase:"attack" の効果もメイン中から数える）。2026-10-23 ユーザー確認の読み。継続効果として levels／phase／turn を使うため playerRule（timedEffect 専用）でなくここに置いた
     | { type: "cantAttackIfFewOwnSpirits"; atMost: number }
     | { type: "noExhaustByEffect" } // 両陣営のスピリットすべては、お互いの効果で疲労しない（アタック・ブロック宣言やコストの疲労は通常どおり。exhaustDenial が止める。BS19-099）
-    | { type: "noBounceByEffect"; filter?: "hasSummonTrigger" } // 両陣営のスピリットすべては、お互いの効果でフィールドから手札にもデッキにも戻らない（bounceDenial が止める。allSpiritsCantBounce と違いデッキ行きも止め、原因を効果に限る。BS19-099。filter 付きは戻される側が条件を満たすスピリットだけ止める）
     | { type: "noBattlerSwap" } // 両陣営とも、バトル中のスピリットの入れ替え（swapBattler）はできない（BS19-099「入れ替わらない」）
     | { type: "noCoreZeroOutsideEffect" } // 両陣営とも、効果以外の手段（コア移動・コスト・【転召】の支払い）でスピリットのコアを0個にできない（coreRemovalAllowed が止める。効果によるコア除去は通常どおり。BS19-103）
     | { type: "handGainOnlyInDrawStep" } // 両陣営とも、ドローステップ以外では手札を増やせない（ドロー・バウンス・トラッシュ回収など、手札が増える経路すべて。handGainDenial と draw の共通経路が止める。BS19-103）

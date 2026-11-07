@@ -370,6 +370,7 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     }
     const obj = node as Record<string, unknown>
     const t = obj["type"]
+    if (t === "noBounceByEffect" || t === "allSpiritsCantBounce") add(cardId, `${t} は廃止（cantBounce{by,to,target} に統合済み）`)
     if (typeof t === "string" && RETIRED_REFRESH_TYPES.has(t)) add(cardId, `${t} は廃止（cantRefresh{by,side,cardType,target,effectSource} に統合済み）`)
     if (t === "noDeckMillInMain" || t === "noDeckMillByOpponent" || t === "noDeckMillForPid" || t === "noDeckMillByOpponentForPid") add(cardId, `${t} は廃止（noDeckMill{side・by}・phase に統合済み）`)
     if (typeof t === "string" && REMOVED_LIFE_GUARD_TYPES.has(t)) add(cardId, `${t} は廃止（lifeGuard に統合済み。無言で無視される）`)
