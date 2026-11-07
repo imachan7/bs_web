@@ -1,5 +1,5 @@
 // smoke パート290（BS12 緑バッチ4：新しく足した5つの器を1件ずつ発火させる）
-// U=noLifeDamageByCost symbolCount+combinedOnly／W=coresCantBeRemovedByOpponent／
+// U=noLifeDamageByCost symbolCount+combinedOnly／W=coresProtected（side:own・by:opponent）／
 // X=revealTopSummonFreeByFamily／R=draw countCounter（discardHandAllのthenDrawOpponentHand経由）／
 // I=noRefreshUntilOwnEndSteps／voidCoreToSelf.orReserve
 import {
@@ -16,10 +16,11 @@ import {
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { attachBrave } from "../../server/src/logic/brave"
-import { noLifeDamageByCost, coresCantBeRemovedByOpponent, boardResistanceAgainst } from "../../shared/rules"
+import { noLifeDamageByCost, boardResistanceAgainst } from "../../shared/rules"
+import { coreProtectedBy } from "../../server/src/logic/coreGate"
 
 const SHIBERUZA = "BS12-020" // 一番槍のシベルザ（symbolCount+combinedOnly）
-const GENJI = "BS12-022" // 太陽武者ゲンジ・ボルタ（coresCantBeRemovedByOpponent：カード名に「太陽」）
+const GENJI = "BS12-022" // 太陽武者ゲンジ・ボルタ（coresProtected：カード名に「太陽」）
 
 function game(seed: string): GameState {
     const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "green", p2: "green" })
@@ -51,7 +52,7 @@ console.log("=== U: globalConstraint noLifeDamageByCost（symbolCount+combinedOn
     assert(noLifeDamageByCost(s, "p2", uncombined) === false, "合体していなければ（シンボル1つ）保護されない")
 }
 
-console.log("=== W: globalConstraint coresCantBeRemovedByOpponent（相手の効果限定・カード名一致） ===")
+console.log("=== W: globalConstraint coresProtected（相手の効果限定・カード名一致） ===")
 {
     const s = game("w-corelock")
     const genji = createInstance(GENJI, s.turn, 1) // Lv1で有効（カード名「太陽」）
@@ -62,7 +63,7 @@ console.log("=== W: globalConstraint coresCantBeRemovedByOpponent（相手の効
     assert(byOpponent === null, "取り除けなくても対象には取れる（取り除く時点で coreGate が止める。10-30）")
     const bySelf = boardResistanceAgainst(s, "p1", genji, { op: "coreRemove", scope: "targeted", actorPid: "p1", sourceType: "spirit" })
     assert(bySelf === null, "自分の効果は片側限定の制約に止められない")
-    assert(coresCantBeRemovedByOpponent(s, "p1", genji, "nexus") === false, "sourceTypeがネクサスなら対象外")
+    assert(coreProtectedBy(s, { ownerPid: "p1", target: genji, amount: 1, cause: "effect", actorPid: "p2", sourceType: "nexus" }) === false, "sourceTypeがネクサスなら対象外")
 }
 
 console.log("=== X: revealTopSummonFreeByFamily（対象なら無償召喚・対象外なら破棄） ===")

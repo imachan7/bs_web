@@ -81,11 +81,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `AWAKEN_FROM_RESERVE`（const）：GameAction awaken の fromInstanceId に渡すと「自分のリザーブから」の意味になる番兵。
 - `canAwakenFromReserve`（fn）：【覚醒】のコア移動元に自分のリザーブを使えるか（kind:"awakenFromReserve" が有効な発生源が
 - `hasSuperAwaken`（fn）：この個体が【超覚醒】を持つか（＝コアを置いたあと回復するか）。
-- `isEndStepLocked`（fn）：このスピリットのコアを取り除けないか（constraint:"coresCantBeRemoved"）。
-- `coresCantBeRemoved`（fn）
-- `globalCoresCantBeRemoved`（fn）：globalConstraint "coresCantBeRemovedAll"（BS13緑バッチ 器AC。既存のcoresCantBeRemovedは自身のコアだけを
+- `isEndStepLocked`（fn）：エンドステップを数える封印（BS10-108 ルナティックシール）が、いま指定の制限をかけているか。
 - `summonExhausted`（fn）：globalConstraint "summonExhausted"（BS13緑バッチ 器AB）：お互い、条件を満たすカードを召喚するとき、
-- `coresCantBeRemovedByOpponent`（fn）：globalConstraint "coresCantBeRemovedByOpponent"（BS12-022太陽武者ゲンジ・ボルタ）：
 - `canAwaken`（fn）
 - `activatableAbility`（fn）：起動能力（kind: "activated"）が今このスピリットで発動可能なら {effectId, costLabel} を返す。
 - `braveCombineOntoSelfCandidates`（fn）：activatableAbility の実体。source＝効果を持つカード、host＝レベル/バトル判定に使うカード
@@ -478,7 +475,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/actions/cores.ts
 
-- `coreRemoveAchievableCountForPay`（fn）：pay の判定表（coreRemove）が使う候補。spread＝候補の合計コア数、all＝候補数（0/1）、
 - `payCoresFromFieldOrReserveToTrash`（fn）：「自分のフィールド/リザーブのコアを自分のトラッシュに置く」の共通処理。
 - `fieldOrReserveCores`（fn）：「自分のフィールド/リザーブ」から払えるコアの総量
 
@@ -649,6 +645,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/coreGate.ts
 
 - `CoreRemovalAttempt`（型）
+- `coreProtectedBy`（fn）：個体の constraint・場全体の globalConstraint・このバトルのブロッカーへの期間つき効果のどれかが、この取り除きを止めるか
 - `coreRemovalAllowed`（fn）：取り除いてよい数（0〜min(amount, target.cores)）
 
 ## server/src/logic/counted.ts
@@ -914,6 +911,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 ## server/src/logic/removal.ts
 
+- `isInCurrentBattle`（fn）
 - `recordDestroysOf`（fn）
 - `destroySpirit`（fn）
 - `resumeDestroyCommit`（fn）
@@ -948,7 +946,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `takeCoresFromSpirit`（fn）：スピリットからコアを取る共通部分（行き先への加算とログは呼び出し側）。自分の効果で動かすときも保護・下限を見る
 - `removeCoresToVoid`（fn）：コアを取り除いてボイドへ送る（消滅させる。リザーブ・トラッシュどちらも増えない）。
 - `coreFloorFor`（fn）：globalConstraint "coreFloorByCost"：有効な発生源があれば、スピリット上のコアはそのカードのコスト（Lv1コスト）を下回るまで取り除けない。
-- `isBattlingCoreProtected`（fn）：バトルをしている両陣営のスピリット上のコアは、globalConstraint "battlingCoresProtected" が有効な発生源が両陣営のフィールドにあれば効果によ…
 
 ## server/src/logic/revive.ts
 
@@ -1171,6 +1168,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/types/constraintDef.ts
 
 - `ConstraintDef`（型）
+
+## server/src/types/coresProtected.ts
+
+- `CoreProtectCause`（型）：止める原因。省略＝全部（【転召】を含む）。【転召】を通したい場合は tensho を外して書く（BS13-065・X03）
+- `CoresProtectedRule`（型）
 
 ## server/src/types/effectAction.ts
 

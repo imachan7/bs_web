@@ -102,7 +102,7 @@ console.log("--- SD01-013 冥剣士ベリト：召喚時はコア3個を配分�
     const s = base("berith-attack")
     const a = put(s, "p2", VANILLA, 1)
     const self = put(s, "p1", BERITH, coresFor(BERITH, 2))
-    resolveAction(s, "p1", self, { type: "coreRemove", count: 1 })
+    resolveAction(s, "p1", self, { type: "removeCores", count: 1 })
     assert(
         !s.players.p2.field.spirits.some((x) => x.instanceId === a.instanceId),
         "アタック時の効果は0個にできる＝維持コア割れで消滅する",

@@ -91,7 +91,7 @@ console.log("=== BS09-018 暗空の勇者皇ザンバ：アタック時、Lvと�
     const zanba = put(s, "p1", "BS09-018", 3) // Lv2
     const enemy = put(s, "p2", PLAIN, 5)
     const reserveBefore = s.players.p2.reserve
-    resolveAction(s, "p1", zanba, { type: "coreRemove", count: 1, countCounter: "selfLevel" })
+    resolveAction(s, "p1", zanba, { type: "removeCores", count: 1, countCounter: "selfLevel" })
     assert(enemy.cores === 3, "Lv2なのでコア2個が取り除かれる")
     assert(s.players.p2.reserve === reserveBefore + 2, "取り除いた2個は相手のリザーブへ")
 }

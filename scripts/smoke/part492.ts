@@ -28,8 +28,8 @@ console.log("=== 前提: カードの機械確認 ===")
     const card = getCard(TARGET)
     assert(card.name === "騎士王蛇ペンドラゴン" && card.type === "brave", "TARGET は騎士王蛇ペンドラゴン（ブレイヴ）")
     assert(
-        card.effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && e.action.type === "coreRemove"),
-        "召喚時に coreRemove を持つ",
+        card.effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && JSON.stringify(e.action).includes(`"removeCores"`)),
+        "召喚時に removeCores を持つ",
     )
 }
 

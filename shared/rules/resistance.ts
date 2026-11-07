@@ -10,7 +10,6 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { coresCantBeRemoved, coresCantBeRemovedByOpponent } from "./activation"
 import { activeConstraints, hasArmorAgainst, hasBraveImmuneAgainst, hasFullEffectImmunity, hasGlobalConstraint, hasHeavyArmorAgainst, hasMagicImmunity, timedPlayerRules } from "./constraints"
 import { spiritHasFamily } from "./keywordState"
 import { KEYWORDS, currentLevel, effectActiveAtLevel } from "./level"

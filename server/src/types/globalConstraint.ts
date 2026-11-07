@@ -1,6 +1,7 @@
 // 場全体に掛かる制約 GlobalConstraintDef（kind:"globalConstraint" の constraint の種類）
 import type { EffectAction } from "./effectAction";
 import type { CantRefreshDef } from "./cantRefresh";
+import type { CoresProtectedRule } from "./coresProtected";
 import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent, ResolvedTargetFilter } from "../type";
 
 // kind: "constraint" は発生源自身への制約だが、こちらは発生源の持ち主に関係なく両陣営のスピリット／ネクサスすべてに効く
@@ -62,7 +63,7 @@ export type GlobalConstraintDef =
       // bothSides 指定時は、mutual と違い自分の効果によるミルは含めない（相手の効果によるミルだけを見る既定判定のまま）。
       // 発生源がどちらの陣営にあっても、発生源の持ち主から見た相手と、発生源の持ち主自身のデッキの両方を同じ maxCount で守る。
       // millCapPerTurnRemaining が perTurn とあわせて両陣営の effectSources を走査する
-    | { type: "battlingCoresProtected" } // 現在バトルをしている両陣営のスピリット上のコアは、効果（コア除去アクション）によって取り除かれない
+    | ({ type: "coresProtected"; side?: "own" | "opponent" | "both"; filter?: ResolvedTargetFilter; battle?: "participants" } & CoresProtectedRule) // side＝発生源から見てどちらのスピリットのコアか（既定 both）。battle:"participants"＝バトル中の両者だけ。判定は coreGate の coreProtectedBy
     | { type: "battlingEffectImmune" } // 現在バトルをしている両陣営のスピリットは、お互いのスピリット/マジックの効果を受けない（ネクサスの効果は通る。EffectModules.isEffectBlocked が参照）
     | { type: "coresToOpponentReserveGoToTrash" } // 発生源の持ち主から見た相手のリザーブへ、スピリット/ブレイヴ/マジックの効果で置かれるコアはその相手のトラッシュへ振り替えられる（両陣営の発生源が効く＝主語なし）。ネクサスの効果・ルール処理は対象外。removeCores〈removal.ts〉の共通フックで判定
       // （removeCores/removeCoresToTrash/removeCoresToVoid の共通フックで判定。coreSqueezeAll/One・coreDrainAllOthers・coreToVoidOwn など
@@ -89,8 +90,6 @@ export type GlobalConstraintDef =
     | { type: "coreFloorWhileBlockingKeyword"; keyword: Keyword; floor: number } // 発生源の持ち主の、keyword を持つスピリットをブロックしている相手のスピリット上のコアは、効果で floor 個より少なくならない（コアの動かし方を問わない。coreFloorFor が読む）
     | { type: "coreFloorOwnNamedByOpponent"; nameContains: string; floor: number } // 発生源自身と、持ち主のカード名に nameContains を含むスピリットのコアは、相手の効果では floor 個より少なくならない（actorPid が相手のときだけ床を張る。coreFloorFor が読む）
     | { type: "coreFloorByCost"; floor?: number; ownOnly?: true; filter?: ResolvedTargetFilter; byOpponentOnly?: true } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない。「Lv1コスト」＝Lv1に必要なコア数（レベル表の表記。2026-08-14 ユーザー確認）。ownOnly＝発生源の持ち主のスピリットだけ。filter＝それに合うスピリットだけ。removeCores/removeCoresToTrash/removeCoresToVoid の共通処理で判定し、コアの動かし方を問わず効く＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない（2026-08-24 ユーザー確認）
-    | { type: "coresCantBeRemovedByOpponent"; nameContains: string } // 発生源の持ち主の、カード名に nameContains を含むスピリット上のコアは、相手のスピリット/ブレイヴ/マジックの効果では取り除けない（coresCantBeRemoved と違い片側限定。判定は boardResistanceAgainst の coreRemove 経路）
-    | { type: "coresCantBeRemovedAll"; side: "opponent" | "both"; exceptOwnerEffects?: true } // coresCantBeRemoved（自身のコアだけ）を広げたフィールド全体版。side:"opponent"＝発生源から見た相手のスピリットのコアだけ、"both"＝両陣営すべて。exceptOwnerEffects 指定時は持ち主自身の効果・操作（自分のコストの支払いも含む）は例外で通す。未指定時は持ち主自身も含めて完全に止める（自分のコストも払えない）。「【転召】以外」の例外は dumpAllCoresTensho がこのチェックを経由しないため自動的に満たされる。phase/turn で区間を絞れる
     | { type: "summonExhausted"; self?: true; cardTypes?: CardType[]; familyExclude?: FamilyFilter; costFilter?: { max?: number; min?: number } } // お互い、条件を満たすカードを召喚するとき、疲労状態で召喚する。ダイレクトブレイヴでは合体先のスピリットが疲労する（BS13_PLAN.md §1 #14）。「疲労する」であって「疲労状態になる」ではないため ownSpiritExhausted は発火せず、【装甲】等の耐性でも防げない（同 #24）。phase で「メインステップ」に絞る＝神速による召喚は対象外
     | { type: "handImmuneForPid"; includeNexus?: true } // 発生源の持ち主の手札は、相手のスピリット/ブレイヴ/マジックの効果を受けない（ネクサスの効果は防がない＝効果文に列挙が無いため意図的。EffectModules.handImmuneFor が判定し、discardOpponent 等の手札を対象に取る処理の冒頭で弾く）。includeNexus 指定時はネクサスの効果も防ぐ
     | { type: "noDeckMillByOpponent"; whileSourceDeployedTurnOnly?: true } // 相手の効果では、この発生源の持ち主のデッキは破棄されない（millDeck の冒頭で判定。両陣営ではなく持ち主だけを守る＝millCap と同じ向き。自分自身の効果・コスト支払いによる破棄は止めない）。whileSourceDeployedTurnOnly 指定時は、発生源がこのターンに場へ出た（summonedTurn === state.turn）ときのみ有効

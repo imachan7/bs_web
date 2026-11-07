@@ -515,7 +515,7 @@ export function clearBp(state: GameState, inst: CardInstance): void {
     refreshLevelAsOverrides(state)
 }
 // このバトルに掛かっている内容（比べるもの・勝敗の逆転）
-export function battleHas(state: GameState, type: "compareBy" | "invertBattleWinner" | "blockerCoresProtected", by?: "level" | "cores" | "cost"): boolean {
+export function battleHas(state: GameState, type: "compareBy" | "invertBattleWinner" | "coresProtected", by?: "level" | "cores" | "cost"): boolean {
     return timedBattleContents(state).some((c) => c.type === type && (by === undefined || ("by" in c && c.by === by)))
 }
 // pid にこのターンの間の制約（playerRule）が掛かっているか

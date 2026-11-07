@@ -1306,7 +1306,7 @@
     ],
     "optional": false,
     "action": {
-     "type": "coreRemove",
+     "type": "removeCores",
      "count": 1
     }
    },
@@ -4435,7 +4435,7 @@
         "selfSymbolColor": "purple"
        },
        "then": {
-        "type": "coreRemove",
+        "type": "removeCores",
         "count": 1
        }
       }
