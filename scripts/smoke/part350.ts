@@ -5,7 +5,7 @@
 // - action:"summonBurstCardFreeIfDestroyedColor"（BS16-018）
 // - timedEffect の invertBattleWinner（P070）
 // - action:"openOwnBurstActivateIfSummonCond"（BS16-X01）
-// - globalConstraint "allSpiritsCantBounce"（BS16-012）
+// - globalConstraint "cantBounce"（BS16-012）
 // - summonBurstCardFree のブレイヴ対応（自動合体。P069）
 // ⚠️ cardId はハードコードで信用せず、カードデータをロードして名前・型・色・コストを機械検証してから使う。
 import { destroyTargetsBatch } from "../../server/src/logic/removal"

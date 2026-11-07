@@ -1,5 +1,6 @@
 // バウンス（手札・デッキ上へ戻す）アクションのハンドラと候補数の判定
 import { handGainDenial } from "../handGate"
+import { bounceDenial } from "../bounceGate"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
@@ -21,8 +22,9 @@ function ownSideBounceCandidates(
     owner: PlayerId,
     selfInstanceId: string | undefined,
     filter: ResolvedTargetFilter,
+    to: "hand" | "deckTop",
 ): CardInstance[] {
-    return state.players[owner].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(state, owner, s, filter, selfInstanceId))
+    return state.players[owner].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(state, owner, s, filter, selfInstanceId) && bounceDenial(state, owner, s, to, true) === null)
 }
 
 // ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
@@ -36,7 +38,7 @@ export function returnToHandCandidateCountForPay(
 ): number {
     const opp = opponentOf(owner)
     const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
-    if (action.side === "own") return ownSideBounceCandidates(state, owner, selfInstanceId, filter).length
+    if (action.side === "own") return ownSideBounceCandidates(state, owner, selfInstanceId, filter, "hand").length
     const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
     if (action.anySide) return pickAnySideCandidates(state, owner, matches, srcColors, srcType, "bounce").length
     return pickEnemyCandidates(state, opp, Infinity, matches, srcColors, srcType, "bounce").length
@@ -53,7 +55,7 @@ export function returnToDeckTopCandidateCountForPay(
 ): number {
     const opp = opponentOf(owner)
     const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
-    if (action.side === "own") return ownSideBounceCandidates(state, owner, selfInstanceId, filter).length
+    if (action.side === "own") return ownSideBounceCandidates(state, owner, selfInstanceId, filter, "deckTop").length
     const matches = (s: CardInstance) => matchesTarget(state, opp, s, filter, selfInstanceId)
     return action.anySide
         ? pickAnySideCandidates(state, owner, matches, srcColors, srcType, "bounce").length
@@ -263,7 +265,7 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
         // 自分の効果は自分のスピリットに免疫が働かないためisResistedは挟まない＝anySideの自分側と同じ扱い）
         if (action.side === "own") {
             const ownMatchesBp = (s: CardInstance) =>
-                effectiveBp(state, owner, s) <= limitBp && !s.pendingBounce && matchesTarget(state, owner, s, filter, self?.instanceId)
+                effectiveBp(state, owner, s) <= limitBp && !s.pendingBounce && matchesTarget(state, owner, s, filter, self?.instanceId) && bounceDenial(state, owner, s, "hand") === null
             const ownCandidates = state.players[owner].field.spirits.filter(ownMatchesBp)
             if (
                 state.interactiveTargets &&

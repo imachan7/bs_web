@@ -599,8 +599,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/bounceGate.ts
 
 - `BounceTo`（型）
-- `bounceDenial`（fn）
-- `allSpiritsCantBounceActive`（fn）：金狐角。発生源の持ち主基準の phase/turn を見るので hasGlobalConstraint ではなく専用に走査する
+- `bounceDenial`（fn）：asEffect：払えるかの判定（pay の CHECKERS）は効果の外で呼ばれるので、「効果による戻し」として聞く
 - `reviveOnReturnStay`（fn）：kind:"reviveOnDestroy".alsoOnReturn（BS19-X02）：相手の効果で手札・デッキに戻るときも、
 
 ## server/src/logic/brave.ts

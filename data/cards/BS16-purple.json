@@ -174,7 +174,7 @@
           3
         ],
         "constraint": {
-          "type": "allSpiritsCantBounce"
+          "type": "cantBounce"
         },
         "phase": "attack",
         "turn": "own"

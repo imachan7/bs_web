@@ -10,7 +10,7 @@ import { exhaustDenial } from "../exhaustGate"
 import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { effectSources, instAllCosts, instColors, instFamilies, instHasColor, refreshBlockedByRule } from "../../../../shared/rules"
 
-// hasGlobalConstraintは汎用関数のためphase/turnを見ない（removal.tsのallSpiritsCantBounceActiveと同じ理由で専用関数にする）。
+// hasGlobalConstraintは汎用関数のためphase/turnを見ない（bounceGate.tsのcantBounceと同じ理由で専用関数にする）。
 // BS16-072 Lv2：『お互いのアタックステップ』限定。phase/turn未指定のBS09-047は従来どおり常時有効のまま
 function noRefreshByNexusOrMagicActive(state: GameState): boolean {
     for (const pid of ["p1", "p2"] as PlayerId[]) {
