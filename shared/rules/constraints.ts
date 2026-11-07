@@ -27,6 +27,7 @@ import { hasUntargetableConstraint } from "./resistance"
 import { handSizeOf, instanceSymbolCount } from "./symbols"
 import { ownFieldSymbolColors } from "../cost"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
+import { lifeGuardBounds } from "./lifeGuard"
 
 // ---- 制約・免疫 ----
 
@@ -516,22 +517,6 @@ export function attackTotalOncePerTurnLimitApplies(board: Board, attackerPid: Pl
     return false
 }
 
-// globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
-// **発生源の持ち主だけ**を守る片側パターン（ownLifeFloorContinuousと同型）。pid自身のeffectSourcesだけを見る
-export function ownLifeImmuneToOpponentSpiritEffects(board: Board, pid: PlayerId): boolean {
-    for (const source of effectSources(board, pid)) {
-        const level = currentLevel(source).level
-        for (const effect of card(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeImmuneToSpiritEffects") continue
-            if (entryActive(board, pid, source, effect, level)) {
-                noteCoverage(effect, "globalConstraint")
-                return true
-            }
-        }
-    }
-    return false
-}
-
 // 手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
 // pid は破棄しようとしている本人（両陣営に効く制約なので現状は参照しないが、片側限定の制約が
 // 増えたときのために引数を持たせてある）。手札破棄は約18種のアクションに散っているため、
@@ -865,80 +850,11 @@ export function levelCantAct(board: Board, level: number): boolean {
     return false
 }
 
-// フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは
-// お互いのライフが減らされない（BS07の「勇傑」各色に共通。天槍の勇者アーク等）。
-// costCantAct と同じ「しきい値を比較する専用判定」の形。道化師クランの付与コストも見る（instAllCosts）
-export function noLifeDamageByCost(board: Board, defenderPid: PlayerId, attacker: CardInstance): boolean {
-    // keywordExclude の判定に持ち主が要る（spiritHasKeyword は付与キーワードを持ち主基準で見る）
-    const attackerPid: PlayerId = board.players.p1.field.spirits.includes(attacker) ? "p1" : "p2"
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        // effectSources()：このターンだけの仮想発生源（マジックが貸した継続効果）も含める
-        for (const inst of effectSources(board, pid)) {
-            const level = currentLevel(inst).level
-            for (const effect of card(inst.cardId).effects) {
-                if (effect.kind !== "globalConstraint") continue
-                if (effect.constraint.type !== "noLifeDamageByCost") continue
-                if (!entryActive(board, pid, inst, effect, level)) continue
-                const { maxCost, costs, keywordExclude, maxBp, symbolCount, combinedOnly, ownOnly, attackerLevel, attackerCores } = effect.constraint
-                // ownOnly（BS12-069定規山脈Lv2）：発生源の持ち主だけを守る（両陣営でなく片側）
-                if (ownOnly && pid !== defenderPid) continue
-                // attackerCores：アタッカーのコアがちょうどその数のアタックだけを保護する専用条件（他の軸とは併用しない）
-                if (attackerCores !== undefined) {
-                    if (attacker.cores === attackerCores) return true
-                    continue
-                }
-                // symbolCount+combinedOnly（BS12-020一番槍のシベルザ）：「シンボル数がsymbolCountちょうど、
-                // かつ合体スピリット」のアタックだけを保護する専用条件。maxCost等とは併用しない
-                if (symbolCount !== undefined && combinedOnly) {
-                    if (instanceSymbolCount(attacker) === symbolCount && instIsCombined(attacker)) return true
-                    continue
-                }
-                // symbolCountのみ（combinedOnlyなし。BS12-069定規山脈Lv2）：シンボル数がちょうど一致するアタックのみ保護
-                if (symbolCount !== undefined) {
-                    if (instanceSymbolCount(attacker) === symbolCount) return true
-                    continue
-                }
-                // keywordExclude（BS08守護機獣スノパルド：【転召】を持たない）：持っていれば保護しない
-                if (keywordExclude && spiritHasKeyword(board, attackerPid, attacker, keywordExclude)) continue
-                // costs はコスト完全一致（配列＝いずれか）。maxCost とは排他で、costs を優先する
-                const costsOfAttacker = instAllCosts(attacker)
-                if (costs) {
-                    if (costsOfAttacker.some((cost) => costs.includes(cost))) return true
-                    continue
-                }
-                // maxBp（BS09-031守護巨獣ガラパーゾ＝BP3000以下のアタック）：コストでなく実効BPで縛る形
-                if (maxBp !== undefined && effectiveBp(board, attackerPid, attacker) <= maxBp) return true
-                // attackerLevel（器BA）：maxCostと**両方**満たすときだけ保護する（BS13-070：コスト3以下かつLv1）。
-                // maxCost省略時はLvだけで判定する（BS14-110天災之禍風：「Lv1のスピリットのアタックでは」）
-                if (
-                    attackerLevel !== undefined &&
-                    maxCost === undefined &&
-                    currentLevel(attacker).level === attackerLevel
-                ) {
-                    return true
-                }
-                if (
-                    maxCost !== undefined &&
-                    costsOfAttacker.some((cost) => cost <= maxCost) &&
-                    (attackerLevel === undefined || currentLevel(attacker).level === attackerLevel)
-                ) {
-                    return true
-                }
-            }
-        }
-    }
-    return false
-}
-
-// 片側限定のライフ保護（playerRule "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
-// このターンの間、コストがmaxCost以下のスピリットのアタックでは defenderPid のライフだけが減らされない。
-// noLifeDamageByCost（両陣営）と違い、守られるのは積んだ側だけ
 // このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
 // 0＝減らない／Infinity＝制限なし。実際の減少量は Math.min(アタッカーのシンボル数, max)。
 //
 // **「減るか／減らないか」ではなく値で返す**のが要点（2026-08-16 ユーザー提案）。
-// 「〇しか減らない」（SD01-039 ブリザードウォール）は上限として合流し、
-// 「減らない」は max:0 として合流する。今後この種の効果が増えてもここに集まる。
+// 「〇しか減らない」「減らない」は lifeGuard の max として合流する。今後この種の効果が増えてもここに集まる。
 // クライアントが「このアタックはライフに通るか」を判定するのにも使える（純粋な述語なので shared に置ける）。
 //
 // ⚠️ **副作用のあるものはここに入れない**。
@@ -953,25 +869,12 @@ export function lifeDamageLimit(
     if (attacker.lifeDamageNegatedFor === defenderPid) {
         return { max: 0, reason: "このアタックのライフダメージは打ち消されている" }
     }
-    // BS07「勇傑」各色：コストが条件以下のアタックでは**お互いの**ライフが減らない
-    if (noLifeDamageByCost(board, defenderPid, attacker)) {
-        return { max: 0, reason: "コスト条件によりライフが減らない" }
-    }
-    // BS07秘密の花園Lv2：このターン、コスト条件のアタックでは**この防御側だけ**が減らない
-    if (lifeProtectedByCostThisTurn(board, defenderPid, attacker)) {
-        return { max: 0, reason: "このターンはコスト条件によりライフが減らない" }
-    }
     // BS08空帝竜騎プラチナム：アタッカーの実効BPが発生源以下なら減らない
     if (protectedByBpUpToSelf(board, defenderPid, attacker)) {
         return { max: 0, reason: "BP条件によりライフが減らない" }
     }
-    // このターン限定の上限（ブリザードウォール＝1しか減らない）。複数あれば最も厳しいものを採る
-    let max = Number.POSITIVE_INFINITY
-    for (const c of timedPlayerRules(board, defenderPid)) {
-        if (c.type === "lifeDamageMaxForPid") max = Math.min(max, c.max)
-    }
-    // 原因を問わない制限（不減・下限・スピリット1体からの上限）は lifeLossAllowed が持つ。amount 無限＝「いくつまで減らせるか」
-    max = Math.min(max, lifeLossAllowed(board, { pid: defenderPid, amount: Number.POSITIVE_INFINITY, cause: "attack", actorPid: (defenderPid === "p1" ? "p2" : "p1"), sourceInstance: attacker }))
+    // 不減・下限・1回／スピリット1体ごとの上限は lifeGuard が持ち、lifeLossAllowed が畳む。amount 無限＝「いくつまで減らせるか」
+    const max = lifeLossAllowed(board, { pid: defenderPid, amount: Number.POSITIVE_INFINITY, cause: "attack", actorPid: (defenderPid === "p1" ? "p2" : "p1"), sourceInstance: attacker })
     if (max === 0) return { max, reason: "このターンはライフが減らない" }
     if (Number.isFinite(max)) return { max, reason: `このターンはライフが${max}しか減らない` }
     return { max }
@@ -993,87 +896,34 @@ export interface LifeLossQuery {
 // 原因を問わず効く扱いは EFFECT_GATE §4 の 4（2026-10-30 ユーザー確認）
 export function lifeLossAllowed(board: Board, q: LifeLossQuery): number {
     const { pid } = q
-    if (lifeImmuneThisTurn(board, pid)) return 0
     if (q.actorPid !== pid && cantReduceOpponentLife(board, q.actorPid)) return 0
-    if (q.cause === "effect" && q.sourceType === "spirit" && q.actorPid !== pid && ownLifeImmuneToOpponentSpiritEffects(board, pid)) return 0
     // noLifeDamage の includeEffects（BS19-106）：減らしに来た効果の発生源が「アタック/効果では減らない」を
     // 指定されたスピリットそのもののときは減らせない
     if (q.cause === "effect" && q.actorPid !== pid && q.sourceInstance?.lifeDamageEffectsNegatedFor === pid) return 0
-    let allowed = q.amount
-    let floor = q.floor ?? 0
-    const attackerCost = q.cause === "attack" && q.sourceInstance ? Math.max(...instAllCosts(q.sourceInstance), 0) : 0
-    for (const c of timedPlayerRules(board, pid)) {
-        if (c.type !== "lifeFloorForPid") continue
-        // 絞りが両方未指定なら全原因。指定があればどちらかに当たる原因だけ（OR）。効果の絞りは「相手の〜の効果」（BS11-080）なので自分のコストには効かない
-        const scoped = c.byAttackMinCost !== undefined || c.byEffectSourceTypes !== undefined
-        const hit =
-            !scoped ||
-            (q.cause === "attack" && c.byAttackMinCost !== undefined && attackerCost >= c.byAttackMinCost) ||
-            (q.cause !== "attack" && q.actorPid !== pid && c.byEffectSourceTypes !== undefined && q.sourceType !== undefined && c.byEffectSourceTypes.includes(q.sourceType))
-        if (hit) floor = Math.max(floor, c.floor)
-    }
+    const guard = lifeGuardBounds(board, q)
+    let allowed = Math.min(q.amount, guard.max)
+    let floor = Math.max(q.floor ?? 0, guard.floor)
     // 「このネクサスをトラッシュに置くことで0を回避」型は、ライフを払って0にするコストだけは止める（COST_MODEL §9）
-    floor = Math.max(floor, ownLifeFloorContinuous(board, pid, q.cause === "cost"))
+    if (q.cause === "cost") floor = Math.max(floor, ownLifeFloorByCostSelfToTrash(board, pid))
     if (floor > 0) allowed = Math.min(allowed, Math.max(0, board.players[pid].life - floor))
+    // 期間つきの「自分のライフはそれから N しか減らされない」（26RBS03-079）。lifeGuard の per:"spirit" と同じ lifeDealtThisTurn で数える
     const spirit = q.sourceInstance && card(q.sourceInstance.cardId).type === "spirit" ? q.sourceInstance : undefined
-    if (spirit) {
-        // シーマ・クリーク型は「相手のスピリット」から減らされる場合だけ数える
-        if (q.actorPid !== pid) allowed = Math.min(allowed, ownLifeDamageCapRemaining(board, pid, spirit))
-        allowed = Math.min(allowed, lifeDamagePerSpiritRemaining(board, pid, spirit))
-    }
+    if (spirit?.lifeCapThisTurn !== undefined) allowed = Math.min(allowed, Math.max(0, spirit.lifeCapThisTurn - (spirit.lifeDealtThisTurn?.[pid] ?? 0)))
     return allowed
 }
 
-// SD06-010海皇龍シーマ・クリーク：「自分のライフは、ターンごとに相手のスピリット1体からmaxまでしか
-// 減らされない」。ownLifeFloorContinuousと同じ片側パターンだが、**アタッカー個体ごとのターン累計**
-// （CardInstance.lifeDealtThisTurn）で判定する点が違う（1回のアタック限定のlifeDamageMaxForPidとは別軸）。
-// 該当する制約が無ければInfinityを返す
-function ownLifeDamageCapRemaining(board: Board, pid: PlayerId, attacker: CardInstance): number {
-    let remaining = Number.POSITIVE_INFINITY
+// ownLifeFloor（costSelfToTrash 版。BS14-084）：ダメージ計算の時点で下限として効くと、コストを払わずに0回避が成立してしまうので、
+// ライフを払って0にするコストだけを止める。実際の0回避は tryOwnLifeFloorByCost が life<=0 の判定直後に任意コスト付きで処理する
+function ownLifeFloorByCostSelfToTrash(board: Board, pid: PlayerId): number {
+    let floor = 0
     for (const source of effectSources(board, pid)) {
         for (const effect of card(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeDamageCapPerSourcePerTurn") continue
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeFloor") continue
             if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
-            if (effect.whileCombined === true && !instIsCombined(source)) continue
-            // minSymbols（BS19-043）：シンボル数が足りない発生源には cap をかけない。
-            // §3.25：アタック中でない個体の効果による減少もここへ同じ sourceInstance で来る
-            if (effect.constraint.minSymbols !== undefined && instanceSymbolCount(attacker) < effect.constraint.minSymbols) continue
-            if (effect.phase !== undefined && board.phase !== effect.phase) continue
-            if (effect.turn === "own" && pid !== board.turnPlayer) continue
-            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
-            noteCoverage(effect, "globalConstraint")
-            const dealt = attacker.lifeDealtThisTurn?.[pid] ?? 0
-            remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
+            floor = Math.max(floor, effect.constraint.floor)
         }
     }
-    return remaining
-}
-
-// 神将「自分のバーストをセットしている間、お互いのライフは、ターンごとにスピリット1体から
-// maxまでしか減らされない」（BS15共通器）。ownLifeDamageCapRemainingと同じ
-// CardInstance.lifeDealtThisTurn（そのスピリットがこのターンに与えたライフダメージ累計。
-// アタック・スピリット自身の効果の両方をここに合算して記録する）を見るが、
-// **発生源がどちらの陣営のフィールドにあっても両陣営に効く**点が違う（片側のみのownLifeDamageCapとは別軸）。
-// whileOwnBurstSet は効果本体（kind:"globalConstraint"）の既存フィールドをそのまま使う
-// （発生源の持ち主がバーストをセットしている間だけ有効）。該当する制約が無ければInfinity
-function lifeDamagePerSpiritRemaining(board: Board, pid: PlayerId, spirit: CardInstance): number {
-    // 期間つきの「自分のライフはそれから N しか減らされない」（26RBS03-079）。ほかの制約と同じ lifeDealtThisTurn で数える
-    let remaining =
-        spirit.lifeCapThisTurn === undefined ? Number.POSITIVE_INFINITY : Math.max(0, spirit.lifeCapThisTurn - (spirit.lifeDealtThisTurn?.[pid] ?? 0))
-    for (const pid of ["p1", "p2"] as PlayerId[]) {
-        for (const source of effectSources(board, pid)) {
-            for (const effect of card(source.cardId).effects) {
-                if (effect.kind !== "globalConstraint" || effect.constraint.type !== "lifeDamagePerSpiritPerTurn") continue
-                if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
-                if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
-                if (effect.constraint.minSymbols !== undefined && instanceSymbolCount(spirit) < effect.constraint.minSymbols) continue
-                noteCoverage(effect, "globalConstraint")
-                const dealt = spirit.lifeDealtThisTurn?.[pid] ?? 0
-                remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))
-            }
-        }
-    }
-    return remaining
+    return floor
 }
 
 // attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
@@ -1089,57 +939,6 @@ export function cantReduceOpponentLife(board: Board, attackerPid: PlayerId): boo
         }
     }
     return false
-}
-
-export function lifeImmuneThisTurn(board: Board, pid: PlayerId): boolean {
-    return timedPlayerRules(board, pid).some((c) => c.type === "lifeImmuneForPid")
-}
-
-// BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
-// 自分のライフは0にならない」。globalConstraint "ownLifeFloor" を持つ発生源から、pid自身の
-// フィールドだけを見て発揮条件（ownFamilyCountAtLeast）を判定する（cantReduceOpponentLifeと同じ片側パターン）
-export function ownLifeFloorContinuous(board: Board, pid: PlayerId, includeCostSelfToTrash = false): number {
-    let floor = 0
-    for (const source of effectSources(board, pid)) {
-        for (const effect of card(source.cardId).effects) {
-            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownLifeFloor") continue
-            // costSelfToTrash版（BS14-084）はここでは無条件の下限として数えない：
-            // ダメージ計算の時点でここが効くと、コストを払わずに0回避が成立してしまう
-            // （tryOwnLifeFloorByCostが life<=0 判定の直後で任意コスト付きで処理する）
-            if (effect.constraint.costSelfToTrash && !includeCostSelfToTrash) continue
-            if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
-            if (effect.whileCombined === true && !instIsCombined(source)) continue
-            const fam = effect.condition?.ownFamilyCountAtLeast
-            if (fam !== undefined) {
-                const wanted = Array.isArray(fam.family) ? fam.family : [fam.family]
-                const count = board.players[pid].field.spirits.filter((s) =>
-                    wanted.some((f) => spiritHasFamily(board, pid, s, f)),
-                ).length
-                if (count < fam.count) continue
-            }
-            floor = Math.max(floor, effect.constraint.floor)
-        }
-    }
-    return floor
-}
-
-export function lifeProtectedByCostThisTurn(
-    board: Board,
-    defenderPid: PlayerId,
-    attacker: CardInstance,
-): boolean {
-    return timedPlayerRules(board, defenderPid).some((c) => {
-        if (c.type !== "noLifeDamageByCostForPid") return false
-        if (c.cores !== undefined) return attacker.cores === c.cores
-        // symbolCount+combinedOnly（BS12-043大地の狩人コンドラッドLv1）：maxCostの代わりに
-        // 「シンボル数がsymbolCountちょうど、かつ合体スピリット」のアタックだけを保護する
-        if (c.symbolCount !== undefined) {
-            if (instanceSymbolCount(attacker) !== c.symbolCount) return false
-            if (c.combinedOnly && !instIsCombined(attacker)) return false
-            return true
-        }
-        return c.maxCost !== undefined && instAllCosts(attacker).some((cost) => cost <= c.maxCost!)
-    })
 }
 
 // このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか

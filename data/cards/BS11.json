@@ -4979,13 +4979,19 @@
       {
        "type": "playerRule",
        "rule": {
-        "type": "lifeFloorForPid",
-        "floor": 1,
-        "byAttackMinCost": 4,
-        "byEffectSourceTypes": [
-         "spirit",
-         "magic"
-        ]
+        "type": "lifeGuard",
+        "from": "attack",
+        "source": {"cost": {"min": 4}},
+        "floor": 1
+       }
+      },
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "lifeGuard",
+        "byOpponentOnly": true,
+        "effectSource": {"sourceTypes": ["spirit", "magic"]},
+        "floor": 1
        }
       }
      ],

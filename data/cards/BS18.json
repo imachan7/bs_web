@@ -4868,9 +4868,11 @@
     "phase": "attack",
     "turn": "opponent",
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "attackerCores": 1,
-     "ownOnly": true
+     "type": "lifeGuard",
+     "side": "own",
+     "from": "attack",
+     "source": {"cores": 1},
+     "max": 0
     }
    },
    {

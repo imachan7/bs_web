@@ -300,8 +300,9 @@
     ],
     "whileOwnBurstSet": true,
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "max": 1,
+     "per": "spirit"
     }
    },
    {
@@ -917,8 +918,9 @@
     ],
     "whileOwnBurstSet": true,
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "max": 1,
+     "per": "spirit"
     }
    },
    {
@@ -1422,8 +1424,9 @@
     ],
     "whileOwnBurstSet": true,
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "max": 1,
+     "per": "spirit"
     }
    },
    {
@@ -2213,8 +2216,9 @@
     ],
     "whileOwnBurstSet": true,
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "max": 1,
+     "per": "spirit"
     }
    },
    {
@@ -3014,8 +3018,9 @@
     ],
     "whileOwnBurstSet": true,
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "max": 1,
+     "per": "spirit"
     }
    },
    {
@@ -3680,8 +3685,9 @@
     ],
     "whileOwnBurstSet": true,
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "max": 1,
+     "per": "spirit"
     }
    },
    {

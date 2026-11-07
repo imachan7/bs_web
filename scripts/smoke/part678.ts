@@ -13,7 +13,7 @@ console.log("=== 前提: カードの機械確認 ===")
 function setup(immune: boolean) {
     const s = createGame(`dk${immune}`, { p1: "アキラ", p2: "ユウキ" }, { p1: "purple", p2: "red" })
     runTurnStart(s)
-    if (immune) resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "lifeImmuneForPid" } }], duration: "turn", side: "own" })
+    if (immune) resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "lifeGuard", max: 0 } }], duration: "turn", side: "own" })
     const dk = createInstance(DARK_KNIGHT, s.turn, 1)
     const foe = createInstance(VANILLA, s.turn, 1)
     s.players.p1.field.spirits.push(dk)

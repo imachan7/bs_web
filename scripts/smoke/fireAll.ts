@@ -27,7 +27,7 @@ import type { GameState, PlayerId } from "./helpers"
 import { fireTrigger, fireFieldEventTriggers, fireBattleWonTriggers, resolveMagic } from "../../server/src/logic/EffectModules"
 import { activateBurstCard } from "../../server/src/logic/keywords/burst"
 import { attachBrave } from "../../server/src/logic/brave"
-import { activeConstraints, hasGlobalConstraint, instHasColor, noLifeDamageByCost } from "../../shared/rules"
+import { activeConstraints, hasGlobalConstraint, instHasColor, lifeDamageLimit, lifeLossAllowed } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { effectiveCost } from "../../server/src/logic/RuleValidator"
 import { loadAllCards } from "../../data/loadCards"
@@ -288,7 +288,9 @@ function readContinuousEffects(s: GameState): void {
         for (const inst of s.players[pid].field.spirits) {
             effectiveBp(s, pid, inst)
             activeConstraints(s, pid, inst)
-            noLifeDamageByCost(s, pid === "p1" ? "p2" : "p1", inst)
+            const defender: PlayerId = pid === "p1" ? "p2" : "p1"
+            lifeDamageLimit(s, defender, inst)
+            lifeLossAllowed(s, { pid: defender, amount: 1, cause: "effect", actorPid: pid, sourceType: "spirit", sourceInstance: inst })
             for (const kw of Object.keys(KEYWORDS)) spiritHasKeyword(s, pid, inst, kw as never)
             for (const col of ["red", "purple", "green", "white", "yellow", "blue"] as const) instHasColor(inst, col)
         }

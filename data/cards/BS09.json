@@ -2105,8 +2105,10 @@
           2
         ],
         "constraint": {
-          "type": "noLifeDamageByCost",
-          "maxBp": 3000
+          "type": "lifeGuard",
+          "from": "attack",
+          "source": {"maxBp": 3000},
+          "max": 0
         }
       },
       {
@@ -2491,8 +2493,10 @@
           3
         ],
         "constraint": {
-          "type": "noLifeDamageByCost",
-          "maxCost": 4
+          "type": "lifeGuard",
+          "from": "attack",
+          "source": {"cost": {"max": 4}},
+          "max": 0
         }
       },
       {

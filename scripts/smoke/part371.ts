@@ -5,17 +5,14 @@ import { ALL_CARDS } from "../../server/src/logic/GameState"
 
 // 制約の type → p1 が使ったときに効くプレイヤー（旧 type と同じ）
 const EXPECTED: Record<string, PlayerId | "both"> = {
-    lifeDamageMaxForPid: "p1",
+    lifeGuard: "p1",
     cantRefresh: "p2",
-    lifeFloorForPid: "p1",
-    lifeImmuneForPid: "p1",
     cantUseHandCardsForPid: "p2",
     nexusEffectsDisabledForPid: "p2",
     freeFushiSummonForPid: "p1",
     bounceToDeckTopForPid: "p1",
     ignoreUnblockableForPid: "p1",
     handReductionColorAsForPid: "p1",
-    noLifeDamageByCostForPid: "p1",
     noBurstSpiritSummonForPid: "both",
     effectTaxForPid: "p2",
     cantUseMagicForPid: "p2",
@@ -67,8 +64,8 @@ console.log("=== 1. 移したカードデータ15か所が、正しい制約を�
 console.log("=== 2. side:\"both\" は両方のプレイヤーに積む ===")
 {
     const s = createGame("p371b", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "blue" })
-    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "lifeImmuneForPid" } }], duration: "turn", side: "both" })
-    const pids = (["p1", "p2"] as PlayerId[]).filter((pid) => playerHas(s, pid, "lifeImmuneForPid"))
+    resolveAction(s, "p1", null, { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "lifeGuard", max: 0 } }], duration: "turn", side: "both" })
+    const pids = (["p1", "p2"] as PlayerId[]).filter((pid) => playerHas(s, pid, "lifeGuard"))
     assert(JSON.stringify(pids) === JSON.stringify(["p1", "p2"]), "p1 と p2 の両方に積まれる")
 }
 

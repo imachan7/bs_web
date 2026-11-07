@@ -27,6 +27,8 @@ export type { ConstraintDef } from "./types/constraintDef"
 export type { CardInstance } from "./types/cardInstance"
 export type { GameState } from "./types/gameState"
 export type { GlobalConstraintDef } from "./types/globalConstraint"
+export type { LifeGuardDef } from "./types/lifeGuard"
+import type { LifeGuardDef } from "./types/lifeGuard"
 export type { TargetFilter } from "./types/targetFilter"
 
 // プレイヤーIDやステップ名を厳格に定義（タイポを防ぎます）
@@ -314,12 +316,9 @@ export type PlayerRuleDef =
     | { type: "handCostSetForPid"; value: number } // 手札にあるカードすべてのコストを value にする（後から手札に入ったカードにも効く。軽減はそのコストから適用。複数なら最小）
     | { type: "armorDisabledForPid" } // スピリットの【装甲】が働かない（持っている分もこのターンに得た分も。2026-08-16 ユーザー判断）
     | { type: "freeFushiSummonForPid" } // このターン最初の【不死】召喚だけコストが0（維持コアは要る）。使ったら記録を消す
-    | { type: "lifeDamageMaxForPid"; max: number } // ライフは1回のアタックで max 個までしか減らない
-    | { type: "lifeFloorForPid"; floor: number; byAttackMinCost?: number; byEffectSourceTypes?: CardType[] } // ライフは floor を下回らない。byAttackMinCost＝そのコスト以上のスピリットのアタックでだけ、byEffectSourceTypes＝その種別の効果でだけ（指定すればOR）
-    | { type: "lifeImmuneForPid" } // ライフはあらゆる原因（アタック・効果）で減らない
+    | LifeGuardDef // ライフを減らす処理への制限（このターンの間の写し。timedEffect の playerRule。守られるのは積まれた側）
     | { type: "bounceToDeckTopForPid" } // このプレイヤーの効果で手札に戻すスピリットは、手札の代わりにデッキの上へ
     | { type: "nexusEffectsDisabledForPid" } // ネクサスすべての効果が発揮されない
-    | { type: "noLifeDamageByCostForPid"; maxCost?: number; symbolCount?: number; combinedOnly?: true; cores?: number } // maxCost 以下のスピリット（symbolCount 指定時はシンボル数ちょうど、combinedOnly なら合体スピリット、cores 指定時は載っているコアがちょうどその数のスピリット。26RSD02-013）のアタックではライフが減らない
     | { type: "handReductionColorAsForPid"; color: Color; cardType: CardType } // 手札にある cardType のカードすべての軽減シンボルを color 一色として扱う（件数は変えない）
     | { type: "handReductionVoidForPid"; cardType?: CardType; keywordExclude?: Keyword } // 手札にある、cardType が一致し keywordExclude を持たないカードすべての軽減シンボルを無いものとして扱う（BS19-078「相手の手札にある【連鎖】を持たないマジックカードすべての軽減シンボルすべてを無いものとして扱う」）
     | { type: "noDeckMillByOpponentForPid" } // デッキは相手の効果では破棄されない
