@@ -2,6 +2,7 @@
 // （公式Q&A Q3657/Q3718/Q3753、2026-10-15 ユーザー確認）。通常の召喚の余分は effectiveCost に入っている。
 // 支払い元はリザーブとフィールドのコア。対話中は効果のコストと同じ effectCostPay の待ちで聞き、非対話は autoPayPlan で払う
 import { summonSurcharge } from "../../../shared/cost"
+import { summonVoidToll } from "../../../shared/rules/summonToll"
 import type { CardData, EffectAction, GameState, PlayerId } from "../type"
 import { autoPayPlan, payCost } from "./EffectModules"
 import { log, suspend } from "./GameState"
@@ -18,6 +19,32 @@ export function surchargeOwed(state: GameState, pid: PlayerId, cardData: CardDat
 
 // 余分に加えて、続けて置くコア（extraNeeded）も賄えるか。余分が無いときは従来どおりリザーブだけで見る
 export function canPayFreeSummonSurcharge(state: GameState, pid: PlayerId, cardData: CardData, extraNeeded = 0, batch = false): boolean {
+    // ボイドの通行料（BS22-012）はリザーブから先に引かれるものとして、残りで余分と置くコアを賄えるかを見る
+    const toll = summonVoidToll(state, cardData)
+    if (toll === 0) return canPayFreeSummonSurchargeBase(state, pid, cardData, extraNeeded, batch)
+    const player = state.players[pid]
+    if (player.reserve < toll) return false
+    player.reserve -= toll
+    try {
+        return canPayFreeSummonSurchargeBase(state, pid, cardData, extraNeeded, batch)
+    } finally {
+        player.reserve += toll
+    }
+}
+
+// 召喚するカードに掛かるボイドの通行料を払う（リザーブから引くだけ。トラッシュには数えない）。払えなければ何もせず false。
+// コストを払う経路（payCost 系）は、コストの支払いの前にこれを呼ぶ。無償の経路は payFreeSummonSurchargeKeeping が内側で呼ぶ
+export function payVoidToll(state: GameState, pid: PlayerId, cardData: CardData): boolean {
+    const toll = summonVoidToll(state, cardData)
+    if (toll === 0) return true
+    const player = state.players[pid]
+    if (player.reserve < toll) return false
+    player.reserve -= toll
+    log(state, `${player.name}は召喚のためにリザーブのコア${toll}個をボイドに置いた。`)
+    return true
+}
+
+function canPayFreeSummonSurchargeBase(state: GameState, pid: PlayerId, cardData: CardData, extraNeeded: number, batch: boolean): boolean {
     const n = surchargeOwed(state, pid, cardData, batch)
     if (n === 0) return state.players[pid].reserve >= extraNeeded
     return autoPayPlan(state, pid, n + extraNeeded, true) !== null
@@ -26,6 +53,15 @@ export function canPayFreeSummonSurcharge(state: GameState, pid: PlayerId, cardD
 // 余分を払い、置くコア（maintain）のうちフィールドのコアで賄えた数を返す（呼び出し側はリザーブから maintain - 戻り値 を引く）。
 // 払えないときは何も動かさず null。余分が無い・同じ召喚で払済みは 0
 export function payFreeSummonSurchargeKeeping(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean, maintain: number): number | null {
+    const toll = summonVoidToll(state, cardData)
+    if (toll === 0) return payFreeSummonSurchargeBase(state, pid, cardData, batch, maintain)
+    if (!payVoidToll(state, pid, cardData)) return null
+    const placed = payFreeSummonSurchargeBase(state, pid, cardData, batch, maintain)
+    if (placed === null) state.players[pid].reserve += toll
+    return placed
+}
+
+function payFreeSummonSurchargeBase(state: GameState, pid: PlayerId, cardData: CardData, batch: boolean, maintain: number): number | null {
     const n = surchargeOwed(state, pid, cardData, batch)
     if (n === 0) return 0
     const plan = autoPayPlan(state, pid, n + maintain, true)

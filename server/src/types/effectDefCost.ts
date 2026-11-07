@@ -76,6 +76,9 @@ export type EffectDefCost =
           beforeReduction?: true // 指定時、この加算は軽減の前に総コストへ足す
           colorFilter?: Color // 対象カードの色（省略時は色不問。両陣営に効く）
           cardType?: CardType // 対象カードの種別
+          cardTypes?: CardType[] // cardType の複数版（どれかに一致）。Q4338：コストは印刷のコストで見る
+          asSurcharge?: true // 余分のコストとして扱う：軽減の後に足し、「コストを支払わずに」の召喚でも払う（COST_MODEL §11。summonSurcharge が読む）
+          costIn?: number[] // 対象カードの印刷のコストがこの一覧のどれか
           side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 持ち主基準のステップ・turn条件
           turn?: "own" | "opponent" // phaseTurnと違いステップを問わないturn限定
@@ -158,6 +161,16 @@ export type EffectDefCost =
               | { ownColorTotalAtLeast: { color: Color; count: number } } // スピリット+ネクサス合計が指定色でcount以上
               | { ownColorSpiritsAtLeast: { color: Color; count: number } } // 指定色スピリットがcount体以上
               | { opponentFieldColorsAtLeast: number; spiritsOnly?: true } // 相手フィールドの色の種類数がこれ以上
+      }
+    | {
+          id: string
+          kind: "reductionAlsoColor" // 持ち主の手札の対象カードの軽減シンボルすべてを、印刷の色のまま color としても数える（追加。赤の軽減も残る：BS22 Q22534）
+          levels: number[] | null
+          color: Color
+          cardColor?: Color
+          cardTypes?: CardType[]
+          phase?: Phase
+          turn?: "own" | "opponent"
       }
     | {
           id: string

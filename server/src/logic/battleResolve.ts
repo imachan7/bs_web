@@ -41,7 +41,7 @@ import { startLifeDamageReplace } from "./lifeDamageReplace"
 // ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
 // フラッシュ①中に盤面が変わりうるため（アタッカー破壊・BP変化・ライフダメージ無効の付与等）、
 // 解決時点の状態を読む
-export function resolveLifeDamage(state: GameState): void {
+export function resolveLifeDamage(state: GameState, unblockedFired = false): void {
     if (!state.battle) return
     const attackerPid = state.turnPlayer
     const defenderPid = opponentOf(attackerPid)
@@ -56,6 +56,16 @@ export function resolveLifeDamage(state: GameState): void {
         log(state, "アタッカーが場を離れたため、ライフダメージは発生しなかった。")
         clearBattle(state)
         return
+    }
+
+    if (!unblockedFired) {
+        fireTrigger(state, attackerPid, attacker, "onUnblocked")
+        if (state.winner) return
+        if (state.pendingChoice) {
+            // step -1：onUnblocked の選択待ちのあと、ライフ減少の判定から続ける
+            pushResumeFrames(state, [{ kind: "lifeDamageResolve", step: -1, attackerPid, attackerSnapshot: { ...attacker }, dealt: 0, lifeTriggers: false }])
+            return
+        }
     }
 
     // このバトルはブロックされていないため、【地鳴】の減算記録（lastBattleBlockerTrashCost）は
@@ -193,6 +203,10 @@ function driveLifeDamageResolution(state: GameState, frame: LifeDamageResolveFra
 export function resumeLifeDamageResolution(state: GameState, frame: LifeDamageResolveFrame): void {
     if (frame.settle) {
         settleLifeDamageReplace(state, frame)
+        return
+    }
+    if (frame.step === -1) {
+        resolveLifeDamage(state, true)
         return
     }
     driveLifeDamageResolution(state, frame)
@@ -631,8 +645,14 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             if (state.winner || sameSide) return
             if (f.outcome === "attackerWins") {
                 fireTrigger(state, attackerPid, attacker, "onBattleWin", "attacker")
+                fireTrigger(state, attackerPid, attacker, "onBattleDestroy", "attacker")
             } else if (f.outcome === "blockerWins") {
                 fireTrigger(state, blockerPid, blocker, "onBattleWin", "blocker")
+                fireTrigger(state, blockerPid, blocker, "onBattleDestroy", "blocker")
+            } else if (f.outcome === "mutual") {
+                // 相打ちは同時破壊なので、どちらの onBattleDestroy も（破壊後の写しから）発揮する
+                fireTrigger(state, attackerPid, attacker, "onBattleDestroy", "attacker")
+                fireTrigger(state, blockerPid, blocker, "onBattleDestroy", "blocker")
             }
             return
         }

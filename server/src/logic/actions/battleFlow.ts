@@ -37,6 +37,7 @@ import {
     fireTrigger,
     instanceSymbolCount,
     fireNexusDeployed,
+    countEffectCounter,
     pickEnemyCandidates,
     refreshSpirit,
     requestCardChoice,
@@ -66,10 +67,13 @@ import {
     isTrashCardProtected,
     matchesBraveCondition,
     matchesCostFilter,
+    matchesTarget,
     braveCombineOntoSelfCandidates,
 } from "../../../../shared/rules"
+import { flushBraveKeeps } from "../brave"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
+import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 
 const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
@@ -498,6 +502,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // フィールドのコアからの支払い指定）
         const summonOpts = {
             ...(action.payCost ? { payCost: action.payCost } : {}),
+            ...(action.payCost && action.costPaidAsIfCounter !== undefined ? { paidAsIf: countEffectCounter(state, owner, self, action.costPaidAsIfCounter) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」
@@ -1381,7 +1386,6 @@ const lifeCoresBySymbolDiffHandler: ActionHandler<"lifeCoresBySymbolDiff"> = (ct
 // 「場を離れるとき」と同じ pendingBraveKeeps に乗せる（持ち主に残すかどうかを聞く）
 const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, action) => {
     const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
-    const oppPlayer = state.players[opp]
     // battlingOnly（BS12-019くノ一ジョロウ：「バトルしている相手の合体スピリット」）：
     // 現在成立しているバトルの参加者（アタッカー/ブロッカー）のうち相手側のものだけに絞る
     const battlingIds = state.battle
@@ -1389,23 +1393,41 @@ const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, a
               (id): id is string => id !== null && id !== undefined,
           )
         : []
-    const hosts = oppPlayer.field.spirits.filter(
-        (sp) =>
-            bravesOf(oppPlayer, sp).length > 0 &&
-            (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols) &&
-            (!action.battlingOnly || battlingIds.includes(sp.instanceId)),
-    )
-    if (hosts.length === 0) {
-        log(state, `${sourceName}：分離させられる相手の合体スピリットがいなかった。`)
+    // side:"both"（BS22-018・068）：ターンプレイヤー側から。分離のコアの移動は各ブレイヴの持ち主が行う
+    const hostFilter = action.filter === undefined ? undefined : normalizeFilter(ctx, { filter: action.filter })
+    const braveFilter = action.braveFilter === undefined ? undefined : normalizeFilter(ctx, { filter: action.braveFilter })
+    if (hostFilter === SELF_REQUIRED || braveFilter === SELF_REQUIRED) return
+    const sides = action.side === "both" ? [state.turnPlayer, opponentOf(state.turnPlayer)] : [opp]
+    const matchedHosts = sides.flatMap((pid) => {
+        const player = state.players[pid]
+        return player.field.spirits
+            .filter(
+                (sp) =>
+                    bravesOf(player, sp).length > 0 &&
+                    (action.minSymbols === undefined || instanceSymbolCount(sp) >= action.minSymbols) &&
+                    (!action.battlingOnly || battlingIds.includes(sp.instanceId)) &&
+                    (hostFilter === undefined || matchesTarget(state, pid, sp, hostFilter, self?.instanceId)),
+            )
+            .map((host) => ({ pid, host }))
+    })
+    // 分離の前にブレイヴの対象を確定する（分離で合体スピリットのコストが変わるため）
+    const detachPlan = matchedHosts.map(({ pid, host }) => ({
+        pid,
+        host,
+        braves: bravesOf(state.players[pid], host).filter((b) => braveFilter === undefined || matchesTarget(state, pid, b, braveFilter, self?.instanceId)),
+    })).filter((p) => p.braves.length > 0)
+    if (detachPlan.length === 0) {
+        log(state, `${sourceName}：分離させられる合体スピリットがいなかった。`)
         return
     }
     if (action.allHosts) {
-        for (const host of [...hosts]) {
-            for (const brave of bravesOf(oppPlayer, host)) detachBraveByOwnerChoice(state, opp, host, brave)
-            if (state.pendingChoice || state.winner) return
+        for (const { pid, host, braves } of detachPlan) {
+            for (const brave of braves) detachBraveByOwnerChoice(state, pid, host, brave, true)
         }
+        flushBraveKeeps(state)
         return
     }
+    const hosts = detachPlan.map((p) => p.host)
     const chosen = targetInstanceId !== undefined ? hosts.find((h) => h.instanceId === targetInstanceId) : undefined
     if (chosen === undefined && targetInstanceId === undefined && state.interactiveTargets && hosts.length >= 2) {
         requestChoice(
@@ -1419,12 +1441,13 @@ const detachOpponentBraveHandler: ActionHandler<"detachOpponentBrave"> = (ctx, a
         )
         return
     }
-    const host = chosen ?? hosts[0]
-    if (!host) {
+    const plan = (chosen ? detachPlan.find((p) => p.host === chosen) : undefined) ?? detachPlan[0]
+    if (!plan) {
         log(state, `${sourceName}：対象がいなかった。`)
         return
     }
-    for (const brave of bravesOf(oppPlayer, host)) detachBraveByOwnerChoice(state, opp, host, brave)
+    for (const brave of plan.braves) detachBraveByOwnerChoice(state, plan.pid, plan.host, brave, true)
+    flushBraveKeeps(state)
 }
 
 // 効果によるブレイヴの分離（BRAVE.md §12.5・§12.7）。分離元ホストの決定：

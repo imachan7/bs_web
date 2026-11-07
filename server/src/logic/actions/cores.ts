@@ -33,6 +33,7 @@ import {
 import { canDiscardHand, effectiveBp, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { kyokaBonus } from "../keywords/kyoka"
 
 // pay の判定表（coreRemove）が使う候補。spread＝候補の合計コア数、all＝候補数（0/1）、
 // それ以外＝count個以上持つ候補の有無を、呼び出し側が比較できるよう「達成できる最大量」を返す。
@@ -74,7 +75,9 @@ const coreRemoveHandler: ActionHandler<"coreRemove"> = (ctx, action) => {
         }
         // countCounter指定時はcount×EffectCounterの値を除去枚数として使う
         // （BS03巨人王ランドルフ：直前の【粉砕】で破棄した枚数ぶん。0ならログのみ）
-        const count = action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count
+        // 【強化】（紫）：リザーブに置く相手のスピリットのコアを+1個（removeCores の removeCoresKyokaBonus と同じ範囲。spread・all・void/trash・自分側は足さない）
+        const kyokaPlus = action.dest === undefined && !action.spread && !action.all && !action.anySide && action.side !== "own" && action.leaveAtLeast === undefined ? kyokaBonus(state, owner, "coreRemove") : 0
+        const count = (action.countCounter !== undefined ? countedAmount(state, owner, self, action.count ?? 1, action.countCounter, srcType) : action.count) + kyokaPlus
         if (count === 0 && !action.all) {
             log(state, `${sourceName}のコア除去：カウントが0のため発動しなかった。`)
             return

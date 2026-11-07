@@ -37,6 +37,7 @@ export type EffectCounter =
     | "ownCoresTotal" // 自分のフィールド（合体中ブレイヴを含む）・リザーブ・トラッシュのコアの合計
     | "lastCost" // 直前に動いたカードの印刷コストの合計
     | "lastTargetCount" // 直前に記録した個体（recordTargets）の数。exhaustOwnNexuses が実際に疲労させたネクサスの数（26RBS02-073）
+    | "lastDestroyedCount" // 直前の destroy（まとめて破壊する経路）で実際に破壊できた体数。0体なら0（logic/record.ts。復活して残った個体は数えない）
     | "lastMoved" // 直前に動いたカードの枚数（logic/record.ts）
     | "lastNexusCost" // 直前に破壊した自分のネクサスの印刷コスト（26RSD06-013「破壊したネクサスのコスト1につき」。lastCost は続く破壊で lastMoved が書き換わるので別に持つ）
     | "lastDrawn" // 直前のドローで引いた枚数（logic/record.ts。26RBS02-X17「ドローしたカード1枚につき」）

@@ -137,11 +137,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
-          kind: "targetNegateByHandDiscard" // 持ち主のfamilyFilter一致スピリットが相手のスピリットの効果の対象になるたび、手札をdiscardCount枚破棄してその効果を受けない
-          // probing（候補列挙）では払わない＝対象にはなる。「〜することで」は任意コストだが、確認を都度出すと解決が止まるため常に支払う簡略化（手札0枚なら免除）。破棄は手札末尾から
+          kind: "targetNegateByHandDiscard" // 持ち主の対象スピリットが、相手の bySourceType(s) の効果の対象になるたび、手札をdiscardCount枚破棄してその効果を受けない
+          // 払うかは対象1体ごとに守る側へ確認する（askPayToNegateIfNeeded）。probing（候補列挙）では払わない＝対象にはなる。非対話（テスト・自動解決）だけ払える限り自動で払う（破棄は手札末尾から）
           levels: number[] | null
-          familyFilter: FamilyFilter
-          bySourceType: "spirit" // 相手のスピリットの効果のみ
+          familyFilter?: FamilyFilter // 省略可。filter と併用すると両方に合うものだけ
+          filter?: ResolvedTargetFilter // 受け手（持ち主のスピリット）の絞り込み
+          bySourceType?: "spirit" // bySourceTypes の旧書式（BS08-055）。どちらか1つを書く
+          bySourceTypes?: CardType[]
           discardCount: number
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" }
       }
@@ -485,6 +487,7 @@ export type EffectDefContinuous =
           kind: "effectGrant" // 持ち主の対象スピリットに付与
           levels: number[] | null
           target: "ownAll"
+          filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordGrant の filter と同じ判定。コスト下限・合体していない等）
           nameIncludes?: string // 省略時は自分のスピリットすべて（発生源自身も一致すれば含む）
           colorFilter?: Color
           familyFilter?: FamilyFilter
@@ -537,8 +540,9 @@ export type EffectDefContinuous =
           kind: "spiritEffectsDisabledGrant"
           // vanillaAsGrantと違い、対象判定用の述語でなく発揮自体を止める
           levels: number[] | null
-          target: "ownAll" | "opponentAll" | "chosenInstance" // ownAll=持ち主のスピリットすべて／opponentAll=相手のスピリットすべて／chosenInstance=targetChoiceLendThisTurnで選んだ1体だけ
+          target: "ownAll" | "opponentAll" | "bothAll" | "chosenInstance" // ownAll=持ち主のスピリットすべて／opponentAll=相手のスピリットすべて／bothAll=お互い／chosenInstance=targetChoiceLendThisTurnで選んだ1体だけ
           familyFilter?: FamilyFilter
+          filter?: TargetFilter // コスト・名前のように状態を読まない軸だけ使う（BP軸などは再構築中に自己参照する）
           keywordExclude?: Keyword // 静的に持たないスピリットのみ。一時/継続付与を見ないのは、spiritHasKeywordがeffectsDisabledContinuousを見て自己参照になるため
           blockingOnly?: true
           lentOnly?: boolean
@@ -731,6 +735,13 @@ export type EffectDefContinuous =
           levels: number[] | null
           target: "self" | "ownAll" // self=発生源自身／ownAll=持ち主のスピリットすべて
           familyFilter?: FamilyFilter
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+          action: EffectAction
+      }
+    | {
+          id: string
+          kind: "seimeiReplace" // 持ち主の【聖命】すべてのライフ増加を、発揮のたびに聞いて action に置き換える
+          levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
           action: EffectAction
       }

@@ -6,6 +6,7 @@ import type { CardInstance, CardPick, CardType, EffectAction, GameState, PlayerI
 import { createInstance, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "../GameState"
 import { fchangeCostAs, flushSummonBatch, startSummonBatch } from "../summon"
 import { canPayFreeSummonSurcharge } from "../summonSurcharge"
+import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { summonDenial } from "../summonGate"
 import { notifyHandGained, payCost, recordTimed, resolveMagic, summonFreeFromHandIndex, summonFreeFromTrashIndex } from "../EffectModules"
 import { handGainDenial } from "../handGate"
@@ -124,7 +125,7 @@ function affordable(state: GameState, pid: PlayerId, action: MoveCards, cardId: 
     const player = state.players[pid]
     const card = getCard(cardId)
     const fieldCores = [...player.field.spirits, ...player.field.nexuses].reduce((sum, i) => sum + i.cores, 0)
-    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
+    if (action.dest === "summon") return action.pay === "cost" ? player.reserve + fieldCores >= minLevelCores(card) + effectiveCost(state, pid, card, false, [], soryo, action.from === "hand") + summonVoidToll(state, card) : canPayFreeSummonSurcharge(state, pid, card, minLevelCores(card), true)
     if (action.dest === "cast") return action.pay === "cost" ? player.reserve >= effectiveCost(state, pid, card) : true
     if (action.pay === "fieldCoresOnly") return fieldCoresSpendable(state, pid).reduce((sum, x) => sum + x.max, 0) >= effectiveCost(state, pid, card)
     return player.reserve >= minLevelCores(card)

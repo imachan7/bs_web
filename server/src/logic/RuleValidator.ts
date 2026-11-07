@@ -43,6 +43,7 @@ import {
     ownFieldSymbolColors,
     summonSurcharge,
 } from "../../../shared/cost"
+import { summonVoidToll } from "../../../shared/rules/summonToll"
 export { effectiveCost }
 import { boardResistanceAgainst, ownAllHaveFamily, ownAllHaveTeam, ownTeamAtLeast, timedContentsOn, timedPlayerRules, magicColorBanned, braveKeepCores, cantSpiritStateBrave, instColors, matchesBraveCondition, timedMagicLocked, spiritHasKeyword, noteHeldKeyword } from "../../../shared/rules"
 import {
@@ -176,6 +177,7 @@ export function validateSummon(
         if (host === undefined) return "合体先のスピリットが自分のフィールドにいません"
         if (getCard(host.cardId).type === "brave") return "スピリット状態のブレイヴにはブレイヴを合体できません"
         if (!canCombineBraveCount(state, pid, host, cardId)) return "そのスピリットには既にブレイヴが合体しています"
+        if (activeConstraints(state, pid, host).some((c) => c.type === "cantCombine")) return "そのスピリットは合体できません"
         if (!matchesBraveCondition(state, pid, host, cardId)) return "そのスピリットは合体条件を満たしていません"
         // 合体中のブレイヴはコアを持たない（Lv1が0コア）。レベル指定は受け付けない
         if (level !== undefined && level !== 1) return "ダイレクトブレイヴではレベルを指定できません"
@@ -190,6 +192,7 @@ export function validateSummon(
         if (typeof swap === "string") return swap
         // 召喚コスト＋維持コアを通常どおり支払えるか。支払い元の妥当性はサーバー専用なので共有層に置かない。
         // フィールドのコアも支払い元にできる（【神速】のリザーブ限定は掛からない）
+        if (summonVoidToll(state, card) > player.reserve) return "リザーブのコアが足りず、ボイドに置けません"
         const swapPayError = validatePaySources(state, pid, swap.totalCores, paySources)
         if (swapPayError) {
             return swapPayError === "コアが足りません"
@@ -357,6 +360,12 @@ export function validateSummon(
         return payError === "コアが足りません"
             ? `コアが足りません（コスト+置くコアで${cost + maintain}個必要）`
             : payError
+    }
+    // ボイドの通行料はリザーブからだけ払う。支払いのあとに残るリザーブで賄えなければ召喚できない
+    const toll = summonVoidToll(state, card)
+    if (toll > 0) {
+        const fromField = (paySources ?? []).reduce((sum, src) => sum + src.count, 0)
+        if (player.reserve - Math.max(0, cost - discardPaid + maintain - fromField) < toll) return `リザーブのコアが足りず、ボイドに${toll}個置けません`
     }
     return null
 }
@@ -1290,6 +1299,10 @@ export function validateBlock(
     const costAttacker = state.battle ? findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId) : undefined
     for (const c of costAttacker ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
+        if (c.cost === "destroyOwnSpirit") {
+            if (!state.players[pid].field.spirits.some((sp) => sp.instanceId !== instanceId)) return "破壊するスピリットがいないためブロックできません"
+            continue
+        }
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
         if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {

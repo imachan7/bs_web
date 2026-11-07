@@ -14,6 +14,8 @@ export interface CardInstance {
     // このスピリットの下に裏向きで置いたカード（BS19-X02）。非公開情報：GameView は相手には underCount（枚数）だけ見せる
     underCards?: string[]
     underCount?: number // GameView 専用の写し（相手視点）。ロジック側では読まない
+    // 【分身】の個体が裏向きで置かれた元のカードの cardId（Q790）。持ち主にだけ見せる。場を離れるとこのカードが表向きでトラッシュへ行く
+    bunshinOf?: string
     isRested: boolean
     // 重疲労状態（26系）。立つときは isRested も必ず true（重疲労は疲労状態の一種）。
     // 回復ステップ・回復効果では回復せず疲労状態へ1段戻る（2026-10-08 ユーザー確定）。入口は heavyExhaustSpirit / refreshSpirit だけ
@@ -31,6 +33,7 @@ export interface CardInstance {
     bpEqualizeContinuous?: number // 継続的な「Lv1/Lv2/Lv3BPを、発生源のBPと同じとして扱う」（kind:"bpEqualizeFamily"）。扱いは bpAsContinuous と同じ
     battleBpAs?: { levels: number[]; amount: number } // 期間つき効果の一覧（bpAs）から作り直す写し
     timedSymbolsOverride?: Color[] // このバトルの間「シンボルを◯色◯つとして扱う」（一覧 timedEffects から refreshLevelAsOverrides だけが作り直す写し。直接書かない）
+    combinedAttackRepeated?: true // fireAgain 用。1回の合体アタックで「もう1度」は1つの効果にだけ使える（Q4332）。onAttack の誘発を集めるたびに外す
     borrowedAttackEffectOnce?: true // borrowCombinedAttackEffectの再帰ガード（内部専用。cards.jsonには書かない）。
     // 「自身を選べば同じ効果がそのアタックで2回発揮される」（2026-09-08ユーザー確認）を文字どおり2回で
     // 止めるための印。自身を選んで発揮する間だけ立て、次に同じ効果を借りようとしたときは自身を候補から外す
@@ -78,7 +81,7 @@ export interface CardInstance {
     //   - 「手札／デッキに戻ることに関する効果」以外は**発揮できず、その対象にもならない**
     //   - 発揮できるのは「フィールドを離れるとき」「手札／デッキに戻るとき」だけ
     // これらの誘発は**バウンス効果の解決が終わってから**まとめて発揮する（割り込ませない）
-    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true }
+    pendingBounce?: { to: "hand" | "deckTop" | "deckBottom" | "burst"; byOpponent?: true; braveCantRemain?: true }
     coresAtDestruction?: number // 破壊直前に置かれていたコア数（destroySpiritが記録。漆黒鳥ヤタグロス）
     // 破壊待機状態の間だけ持つ、その破壊のコンテキストと確認の出し方（destroySpiritが記録し、
     // commitPendingDestruction が「フィールドに残る」の判定に使う。cards.jsonには書かない内部専用）。

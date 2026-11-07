@@ -131,6 +131,7 @@ const toTegamotoHandler: ActionHandler<"toTegamoto"> = (ctx, action) => {
         }
         player.hand.splice(chosenCardIndex, 1)
         player.tegamoto.push(cardId)
+        if (action.playable) player.tegamotoPlayable.push(cardId)
         log(state, `${player.name}は${getCard(cardId).name}を手元に置いた。`)
         const next = [...placed, cardId]
         if (next.length >= limit) {
@@ -172,6 +173,7 @@ const toTegamotoHandler: ActionHandler<"toTegamoto"> = (ctx, action) => {
     const ids = take.map((i) => player.hand[i]!)
     player.hand = player.hand.filter((_, i) => !take.includes(i))
     player.tegamoto.push(...ids)
+    if (action.playable) player.tegamotoPlayable.push(...ids)
     log(state, `${player.name}は手元に「${ids.map((id) => getCard(id).name).join("、")}」を置いた。`)
     finish([...placed, ...ids])
 }

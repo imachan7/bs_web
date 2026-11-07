@@ -231,7 +231,7 @@ export function fireFieldEventTriggers(
             if (effect.sourceColorFilter !== undefined) {
                 const src = state.currentEffectSource
                 if (!src) continue
-                if (src.pid === pid) continue
+                if (src.pid === pid && effect.causedByOwnEffect === undefined) continue // causedByOwnEffect を書いたエントリは自分の効果も対象（BS22-014）
                 if (!(src.colors ?? []).includes(effect.sourceColorFilter)) continue
             }
             // sourceTypes（event:"opponentHandAdded" と opponentSpiritExhaustedByOwnSpiritEffect）：
@@ -239,11 +239,11 @@ export function fireFieldEventTriggers(
             // currentEffectSource が無い＝効果によらない増加（ドローステップ等）では発火しない。
             // opponentSpiritExhaustedByOwnSpiritEffect＝疲労させた効果の種別（eventInfo.causeType）の絞り込み。
             // 省略時はスピリット/ブレイヴの効果だけ（マジックで疲労させても発火しない）
-            if (effect.sourceTypes !== undefined && event !== "opponentSpiritExhaustedByOwnSpiritEffect" && event !== "opponentSpiritCoresEmptied") {
+            if (effect.sourceTypes !== undefined && event !== "opponentSpiritExhaustedByOwnSpiritEffect" && event !== "opponentSpiritCoresEmptied" && event !== "opponentSpiritCoresToReserve") {
                 const src = state.currentEffectSource
                 if (!src || src.pid === pid || src.type === undefined || !effect.sourceTypes.includes(src.type)) continue
             }
-            if (event === "opponentSpiritExhaustedByOwnSpiritEffect" || event === "opponentSpiritCoresEmptied") {
+            if (event === "opponentSpiritExhaustedByOwnSpiritEffect" || event === "opponentSpiritCoresEmptied" || event === "opponentSpiritCoresToReserve") {
                 const causeType = eventInfo?.causeType
                 if (effect.sourceTypes !== undefined) {
                     if (causeType === undefined || !effect.sourceTypes.includes(causeType)) continue
@@ -497,6 +497,12 @@ export function fireFieldEventTriggers(
             if (effect.oncePerTurn && effect.onceScope !== "name") markOnceUsed(state, pid, inst, effect, "triggeredUsedTurn")
             if (effect.maxPerTurn !== undefined) markUsedOnceThisTurn(state, inst, effect.id)
             noteCoverage(effect, "fieldEvent")
+            const lowerPick = effect.action.type === "moveCards" ? effect.action.pick?.lowerCostThanEventTarget : undefined
+            if (lowerPick && effect.action.type === "moveCards") {
+                const { lowerCostThanEventTarget: _l, ...pickRest } = effect.action.pick!
+                firing.push({ inst, effect: { ...effect, action: { ...effect.action, pick: { ...pickRest, cost: { max: (eventInfo?.costs?.[0] ?? 0) - 1 } } } }, repeatTimes })
+                continue
+            }
             firing.push({ inst, effect, repeatTimes })
         }
     }

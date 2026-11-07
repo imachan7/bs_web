@@ -163,7 +163,7 @@ export interface GameState {
     // dest＝残さないときの行き先（合体していたスピリットと同じ領域。省略はトラッシュ。BRAVE.md §6.3.2）。picked＝持ち主が「これから決める」と選んだ項目
     // 使用中のマジック（効果と派生効果を解決し終えるまで、手札にもトラッシュにも無い。logic/magic/inUse.ts）。dest＝トラッシュ以外の行き先
     magicsInUse?: { pid: PlayerId; cardId: string; dest?: "hand" | "field" }[]
-    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true; dest?: BraveLeaveDest; picked?: true }[]
+    pendingBraveKeeps?: { pid: PlayerId; brave: CardInstance; wasAttacker: boolean; wasBlocker: boolean; forced?: true; noKeep?: true; dest?: BraveLeaveDest; picked?: true }[]
     // 破壊されたスピリットのコアの行き先待ち（destroyedCoresToSelf。BS20-X01）。ブレイヴを残す確認より先に決着させる。
     // options＝行き先の instanceId か "trash"/"void"/"reserve"。chooser＝選ぶプレイヤー（候補のみなら持ち主、トラッシュ/ボイド行きとの衝突ならターンプレイヤー）
     pendingCoreDestinations?: { chooser: PlayerId; ownerPid: PlayerId; cores: number; options: string[] }[]
@@ -221,6 +221,7 @@ export interface GameState {
     lastCores?: Record<string, number>
     lastEmptiedSpirits?: Record<string, number> // 枠ごとの、直前の removeCores の解決でコアが0個になった体数（logic/record.ts。EffectCounter "lastEmptiedSpirits" が読む）
     lastNexusCost?: Record<string, number> // 枠ごとの、直前に破壊した自分のネクサスの印刷コスト（logic/record.ts。ほかの破壊が lastMoved を書き換えても残る）
+    lastDestroyedCount?: Record<string, number> // 枠ごとの直前の破壊で実際に破壊できた体数（logic/record.ts）
     lastDrawn?: Record<string, number> // 枠ごとの直前のドローで引いた枚数（logic/record.ts）
     lastTargets?: Record<string, string[]>
     lastCoreRemoveEmptied?: boolean // 直前の coreRemove の解決で対象のコアが0個になったか（action "if" の lastEmptied が読む。coreRemove ハンドラが解決の冒頭で false に戻す）

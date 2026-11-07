@@ -42,7 +42,8 @@ import { validatePaySources } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
 import { setTargetRedirect } from "./magic/redirect"
-import { applyResshinsokuDestination, continueBlockDeclaration, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
+import { doSummonFromTegamoto } from "./tegamotoSummon"
+import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
 import { newRecordScope } from "./record"
 
@@ -158,11 +159,12 @@ function resolveChoiceInner(
     // ブロックのコスト（blockExhaustSpirit）で疲労させるスピリットの選択待ち。action は解決しない
     if (pending.blockExhaustPick) {
         if (instanceId === undefined || !pending.candidates.includes(instanceId)) return "選択できない対象です"
-        const { blockerPid, blockerInstanceId } = pending.blockExhaustPick
+        const { blockerPid, blockerInstanceId, destroy } = pending.blockExhaustPick
         const chosen = findSpirit(state.players[blockerPid], instanceId)
         state.pendingChoice = null
         if (!state.battle || !chosen) return null
-        exhaustBlockToll(state, blockerPid, chosen)
+        if (destroy) destroyBlockToll(state, blockerPid, chosen)
+        else exhaustBlockToll(state, blockerPid, chosen)
         continueBlockDeclaration(state, blockerPid, blockerInstanceId)
         if (state.winner) return null
         return finishChoiceResolution(state, pending.pid)
@@ -560,7 +562,20 @@ function resolveChoiceInner(
         if (index < 0) return "選択できない候補です"
         const info = pending.sokuFreeChoice
         state.pendingChoice = null
-        const error = doSummon(
+        const error = info.fromTegamoto
+            ? doSummonFromTegamoto(state, pending.pid, {
+                  type: "summon",
+                  handIndex: info.handIndex,
+                  fromTegamoto: true,
+                  ...(info.level !== undefined ? { level: info.level } : {}),
+                  ...(info.paySources !== undefined ? { paySources: info.paySources } : {}),
+                  ...(info.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: info.braveTargetInstanceId } : {}),
+                  ...(info.exReductionTrashIndices !== undefined ? { exReductionTrashIndices: info.exReductionTrashIndices } : {}),
+                  ...(info.paySoulCoreFromReserve !== undefined ? { paySoulCoreFromReserve: info.paySoulCoreFromReserve } : {}),
+                  ...(info.placeSoulCoreFromReserve !== undefined ? { placeSoulCoreFromReserve: info.placeSoulCoreFromReserve } : {}),
+                  sokuFreeChoice: index === 0, // 0=コストを支払わずに召喚する
+              })
+            : doSummon(
             state,
             pending.pid,
             info.handIndex,
@@ -699,6 +714,7 @@ function resolveChoiceInner(
         } else {
             const name = self ? getCard(self.cardId).name : "効果"
             log(state, pending.confirm ? `${name}：効果を発動しなかった。` : `${name}：選択しなかった。`)
+            if (pending.declineAction) resolveAction(state, actor, self, pending.declineAction)
             // 「〜できる」を断った＝発揮していないので「ターンに1回」を戻す（2026-09-16）
             revertActivatedIfSkipped(state, pending)
         }

@@ -4,7 +4,7 @@
 // 「手札に戻らない」はデッキへ戻すことを止めない（toDeck 付きの耐性だけデッキも止める）。誰の効果かは解決中の効果の記録（currentEffectSource）で見る
 import { entryActive } from "../../../shared/rules/effectStop"
 import { effectSources, hasBounceImmunity, hasGlobalConstraint } from "../../../shared/rules"
-import { effectActiveAtLevel } from "../../../shared/rules/level"
+import { effectActiveAtLevel, instHasTriggerEffect } from "../../../shared/rules/level"
 import { noteCoverage } from "../../../shared/coverage"
 import { trashUnderCards } from "./zones/underCards"
 import type { CardInstance, GameState, PlayerId } from "../type"
@@ -15,7 +15,8 @@ export type BounceTo = "hand" | "deckTop" | "deckBottom" | "burst"
 export function bounceDenial(state: GameState, ownerPid: PlayerId, target: CardInstance, to: BounceTo): string | null {
     // noBounceByEffect（BS19-099）：効果による戻しは手札・デッキとも戻らない。原因を効果に限るので、
     // currentEffectSource が載っていない（＝効果の解決中でない）戻しは従来どおり通る
-    if (to !== "burst" && state.currentEffectSource && hasGlobalConstraint(state, "noBounceByEffect")) {
+    if (to !== "burst" && state.currentEffectSource && hasGlobalConstraint(state, "noBounceByEffect", (e) =>
+        e.constraint.type === "noBounceByEffect" && (e.constraint.filter !== "hasSummonTrigger" || instHasTriggerEffect(target, "onSummon")))) {
         return "効果では手札/デッキに戻らない"
     }
     if (to !== "hand" && to !== "deckTop" && to !== "deckBottom") return null

@@ -4,10 +4,11 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, CardType, Color, EffectAction, GameState, PlayerId, ResolvedTargetFilter, TargetFilter } from "../../type"
 import { getCard, log, opponentOf, pushResumeFrames } from "../GameState"
 import { applyBothSidesRedirectToCandidates, returnNexusToDeckTop, voidCoreToOwnTrash, bothSidesPids, askPayToNegateIfNeeded, gateTargetedApply, resistanceAgainst, detachBravesOnLeave, findSpiritAny, isResisted, notifyHandGained, pickAnySideByBp, pickAnySideCandidates, pickEnemyByBp, pickEnemyCandidates, requestActivationConfirm, requestChoice, requestUpToChoice, returnNexusToHand, returnSpiritToDeckBottom, markBounce, flushBounces, returnSpiritToDeckTop, returnSpiritToHand, tryInteractiveTargetChoice } from "../EffectModules"
-import { effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
+import { bravesOf, effectiveBp, heavyArmorColorsOf, instColors, hasGlobalConstraint, instMatchesCostFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { lastMovedOf, recordMoved } from "../record"
-import { detachBraveByEffect } from "../brave"
+import { detachBraveByEffect, returnCombinedBraveToHand } from "../brave"
+import { withBounceBraveCantRemain } from "../removal"
 import { countedAmount } from "../counted"
 import { soulCoreLeavesField } from "../soulCore"
 
@@ -140,6 +141,31 @@ function returnOwnAsCost(ctx: ActionCtx, action: HandReturn, target: "self" | "s
     recordMoved(state, [brave.cardId])
 }
 
+// 相手の合体スピリットのブレイヴ1つを手札に戻す。ホストは場に残る（BS22-034 Lv2）。
+// 2つ以上いるときは戻す側の使用者が選ぶ。ブレイヴ個々の耐性は見ない（removeOneOfAnyType と同じ）
+function returnOpponentBrave(ctx: ActionCtx, action: HandReturn): void {
+    const { state, owner, opp, self, sourceName, targetInstanceId } = ctx
+    const oppPlayer = state.players[opp]
+    const battlingIds = state.battle ? [state.battle.attackerInstanceId, state.battle.blockerInstanceId] : []
+    const pairs = oppPlayer.field.spirits
+        .filter((sp) => !action.battlingOnly || battlingIds.includes(sp.instanceId))
+        .flatMap((host) => bravesOf(oppPlayer, host).map((brave) => ({ host, brave })))
+    if (pairs.length === 0) {
+        log(state, `${sourceName}：手札に戻せる相手のブレイヴがいなかった。`)
+        return
+    }
+    let chosen = targetInstanceId !== undefined ? pairs.find((p) => p.brave.instanceId === targetInstanceId) : undefined
+    if (!chosen) {
+        if (state.interactiveTargets && pairs.length >= 2) {
+            requestChoice(state, owner, `${sourceName}：手札に戻す相手のブレイヴを選んでください`, pairs.map((p) => p.brave.instanceId), false, action, self)
+            return
+        }
+        chosen = pairs[0]!
+    }
+    returnCombinedBraveToHand(state, opp, chosen.host, chosen.brave)
+    recordMoved(state, [chosen.brave.cardId])
+}
+
 const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, destroyContext, targetInstanceId, chosenOption, chosenCardIndex } = ctx
         // target:"self" の入口は2つ。破壊待機中・場にいない個体は破壊時の誘発（returnDestroyedSelfToHand）、
@@ -177,6 +203,10 @@ const returnToHandHandler = (ctx: ActionCtx, action: HandReturn): void => {
         }
         if (action.costBudget !== undefined || action.budget !== undefined) {
             returnToHandByBudget(ctx, action)
+            return
+        }
+        if (action.target === "opponentBrave") {
+            returnOpponentBrave(ctx, action)
             return
         }
         if (action.target !== undefined) {
@@ -388,9 +418,12 @@ function bounceNexusOnly(ctx: ActionCtx, action: NexusBounceAction): void {
         if (action.all) {
             const sides: PlayerId[] = action.to === "hand" && action.side === "both" ? bothSidesPids(state, srcType) : [opp]
             let bounced = 0
+            const nexusFilter = action.filter ? normalizeFilter(ctx, action) : undefined
             for (const pid of sides) {
                 // bounceOne が field.nexuses を破壊的に変更するため、対象をスナップショットしてから戻す
                 for (const nexus of [...state.players[pid].field.nexuses]) {
+                    // 指定した色のネクサスだけ戻す（BS22-052 連鎖[白]）
+                    if (nexusFilter && nexusFilter !== SELF_REQUIRED && !matchesTarget(state, pid, nexus, nexusFilter, self?.instanceId)) continue
                     bounceOne(pid, nexus)
                     bounced++
                 }
@@ -890,7 +923,7 @@ function returnDestroyedSelfToDeckTop(ctx: ActionCtx): void {
 
 const handlers = {
     return: (ctx, action) =>
-        action.to === "hand" ? returnToHandHandler(ctx, action) : action.to === "deckTop" ? returnToDeckTopHandler(ctx, action) : returnToDeckBottomHandler(ctx, action),
+        action.to === "hand" ? withBounceBraveCantRemain(action.braveCantRemain === true, () => returnToHandHandler(ctx, action)) : action.to === "deckTop" ? returnToDeckTopHandler(ctx, action) : returnToDeckBottomHandler(ctx, action),
     returnToHandEachHeavyArmorColor: returnToHandEachHeavyArmorColorHandler,
     returnToBurst: returnToBurstHandler,
 } satisfies Partial<ActionRegistry>

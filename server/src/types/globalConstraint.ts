@@ -34,8 +34,9 @@ export type GlobalConstraintDef =
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営）
     | { type: "combinedBraveIndestructible" } // 発生源自身（このスピリット）に合体中のブレイヴは破壊されない（BS19-040【合体時】「このスピリットのブレイヴは破壊されない」）。ブレイヴだけを破壊する効果は不発。合体元が破壊されてもブレイヴは「残す」の確認なしで場に残る（コアの支払いは通常の残す手順と同じ）
+    | { type: "braveCostZero" } // 両陣営の合体スピリットのコストからブレイヴ分を引く（BS22-050）
     | { type: "braveBpBonusZero"; side?: "opponent" } // side:"opponent" は発生源の持ち主から見た相手の合体スピリットだけ（省略時は両陣営）。両陣営の合体スピリットの「合体時BP+」（braveBpBonus）を0にする。ブレイヴ自体のLv判定は変えない＝加算値だけ無視する。主語が無いので両陣営が対象
-    | { type: "lifeDamagePerSpiritPerTurn"; max: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計は max まで（アタック・効果を合算。CardInstance.lifeDealtThisTurn で判定。ownLifeDamageCapPerSourcePerTurn と同じ記録だが、こちらは発生源の陣営を問わずお互いに効く）。effect.whileOwnBurstSet で絞れる。shared/rules.lifeDamagePerSpiritRemaining
+    | { type: "lifeDamagePerSpiritPerTurn"; max: number; minSymbols?: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計は max まで（アタック・効果を合算。CardInstance.lifeDealtThisTurn で判定。ownLifeDamageCapPerSourcePerTurn と同じ記録だが、こちらは発生源の陣営を問わずお互いに効く）。effect.whileOwnBurstSet で絞れる。shared/rules.lifeDamagePerSpiritRemaining
     | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number; minSymbols?: number } // 発生源の持ち主だけを守る片側型。相手のスピリット1体（アタッカー個体）ごとのターン累計で max までしか減らされない（1回のアタックで max 個ずつの capLifeDamageThisTurn とは別物）。ターン終了でリセット。shared/rules.ownLifeDamageCapRemaining
     // minSymbols＝ライフを減らした発生源のスピリットのシンボル数がこれ以上のときだけ cap をかける（BS19-043「シンボル2つ以上を持つ相手のスピリット1体からは1まで」。SEMANTICS_AUDIT §3.25：アタック中でない個体の効果による減少も同じ発生源で数える）
     | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // 発生源の持ち主だけのライフは floor を下回らない（片側のみ。condition:{ownFamilyCountAtLeast} と組み合わせて使う）。
@@ -89,7 +90,7 @@ export type GlobalConstraintDef =
     | { type: "bp0DestroyedToDeckBottom"; maxCost: number } // 発生源の持ち主の相手のスピリットが、破壊直前の実効BPが0でコストが maxCost 以下のまま破壊されたとき、トラッシュに置くかわりに持ち主のデッキの下へ戻す（commitPendingDestruction が読む）。複数体の「好きな順」は選ばせず破壊順
     | { type: "coreFloorWhileBlockingKeyword"; keyword: Keyword; floor: number } // 発生源の持ち主の、keyword を持つスピリットをブロックしている相手のスピリット上のコアは、効果で floor 個より少なくならない（コアの動かし方を問わない。coreFloorFor が読む）
     | { type: "coreFloorOwnNamedByOpponent"; nameContains: string; floor: number } // 発生源自身と、持ち主のカード名に nameContains を含むスピリットのコアは、相手の効果では floor 個より少なくならない（actorPid が相手のときだけ床を張る。coreFloorFor が読む）
-    | { type: "coreFloorByCost"; ownOnly?: true; filter?: ResolvedTargetFilter; byOpponentOnly?: true } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない。「Lv1コスト」＝Lv1に必要なコア数（レベル表の表記。2026-08-14 ユーザー確認）。ownOnly＝発生源の持ち主のスピリットだけ。filter＝それに合うスピリットだけ。removeCores/removeCoresToTrash/removeCoresToVoid の共通処理で判定し、コアの動かし方を問わず効く＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない（2026-08-24 ユーザー確認）
+    | { type: "coreFloorByCost"; floor?: number; ownOnly?: true; filter?: ResolvedTargetFilter; byOpponentOnly?: true } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない。「Lv1コスト」＝Lv1に必要なコア数（レベル表の表記。2026-08-14 ユーザー確認）。ownOnly＝発生源の持ち主のスピリットだけ。filter＝それに合うスピリットだけ。removeCores/removeCoresToTrash/removeCoresToVoid の共通処理で判定し、コアの動かし方を問わず効く＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない（2026-08-24 ユーザー確認）
     | { type: "coresCantBeRemovedByOpponent"; nameContains: string } // 発生源の持ち主の、カード名に nameContains を含むスピリット上のコアは、相手のスピリット/ブレイヴ/マジックの効果では取り除けない（coresCantBeRemoved と違い片側限定。判定は boardResistanceAgainst の coreRemove 経路）
     | { type: "coresCantBeRemovedAll"; side: "opponent" | "both"; exceptOwnerEffects?: true } // coresCantBeRemoved（自身のコアだけ）を広げたフィールド全体版。side:"opponent"＝発生源から見た相手のスピリットのコアだけ、"both"＝両陣営すべて。exceptOwnerEffects 指定時は持ち主自身の効果・操作（自分のコストの支払いも含む）は例外で通す。未指定時は持ち主自身も含めて完全に止める（自分のコストも払えない）。「【転召】以外」の例外は dumpAllCoresTensho がこのチェックを経由しないため自動的に満たされる。phase/turn で区間を絞れる
     | { type: "summonExhausted"; self?: true; cardTypes?: CardType[]; familyExclude?: FamilyFilter; costFilter?: { max?: number; min?: number } } // お互い、条件を満たすカードを召喚するとき、疲労状態で召喚する。ダイレクトブレイヴでは合体先のスピリットが疲労する（BS13_PLAN.md §1 #14）。「疲労する」であって「疲労状態になる」ではないため ownSpiritExhausted は発火せず、【装甲】等の耐性でも防げない（同 #24）。phase で「メインステップ」に絞る＝神速による召喚は対象外
@@ -105,6 +106,7 @@ export type GlobalConstraintDef =
     // エントリの phase を書けばその区間だけ有効。summonByEffectBlocked が判定し、
     // summonFreeFromHandIndex/summonFreeFromTrashIndex/summonRevealedFree（効果による召喚の共通経路）の冒頭で弾く
     // spiritOnly指定時はスピリットの召喚だけ止め、ブレイヴの召喚は止めない（SD03-014オリンスピア競技場。効果文が「スピリットを召喚できない」でブレイヴに言及しない。BS12-072は「スピリット/ブレイヴ」と明記）
+    | { type: "summonPayToll"; costIn: number[]; count: number } // 両陣営：印刷のコストが costIn のスピリットカードを召喚するとき、召喚する側のリザーブのコア count 個をボイドに置かなければ召喚できない（効果による召喚にも掛かる。トラッシュには置かない。shared/rules/summonToll.ts）
     | { type: "attackPayToll"; count: number; attackerLevel: number; noStack?: true } // 発生源の持ち主から見た相手の、現在のLvが attackerLevel のスピリットがアタックするとき、持ち主のリザーブのコア count 個をトラッシュに置かなければアタックできない（払えるかぎり自動で払う。コスト支払いのうちリザーブからだけ払う簡略化）。noStack＝〔重複不可〕：同じカード名の発生源は何枚あっても1回分
     | { type: "attackRequiresCoreToll"; maxCost?: number; side?: "opponent"; filter?: ResolvedTargetFilter } // 既定は両陣営とも、コストが maxCost 以下のスピリットがアタックするとき、持ち主のリザーブのコア1個を持ち主のトラッシュに置かなければアタックできない（リザーブが空ならアタック不可＝validateAttack が弾く）。払えるかぎり自動で払う（GameEngine.doAttack が宣言成立時に移す）。「断ればアタックしない」はクライアント側で表現する（public/src/main.ts の confirmExtraCost が send() 直前に確認をはさむ）。2026-09-10 ユーザー確認。side:"opponent"指定時は発生源の持ち主から見た相手のアタックだけ（SD16-004戦鎚のゴードン）。maxCost省略時はコストを問わない（SD03-014オリンスピア競技場）。filterはアタッカーの絞り込み（ResolvedTargetFilter。SD03-014の「合体していない」＝{combined:false}）
     | { type: "opponentKyokaSuppressed" } // 発生源の持ち主の相手のスピリット（合体中のブレイヴ含む）の【強化】は数えない（kyokaBonus が読む）
@@ -114,7 +116,7 @@ export type GlobalConstraintDef =
     | { type: "opponentMustAttackOnce" } // 発生源の持ち主の相手は、アタックできるスピリットがいるのにそのターン1回もアタックしていなければターンを終えられない（validateEndTurn。メインからの終了も同じ＝アタックステップは必ず来るので phase:"attack" の効果もメイン中から数える）。2026-10-23 ユーザー確認の読み。継続効果として levels／phase／turn を使うため playerRule（timedEffect 専用）でなくここに置いた
     | { type: "cantAttackIfFewOwnSpirits"; atMost: number }
     | { type: "noExhaustByEffect" } // 両陣営のスピリットすべては、お互いの効果で疲労しない（アタック・ブロック宣言やコストの疲労は通常どおり。exhaustDenial が止める。BS19-099）
-    | { type: "noBounceByEffect" } // 両陣営のスピリットすべては、お互いの効果でフィールドから手札にもデッキにも戻らない（bounceDenial が止める。allSpiritsCantBounce と違いデッキ行きも止め、原因を効果に限る。BS19-099）
+    | { type: "noBounceByEffect"; filter?: "hasSummonTrigger" } // 両陣営のスピリットすべては、お互いの効果でフィールドから手札にもデッキにも戻らない（bounceDenial が止める。allSpiritsCantBounce と違いデッキ行きも止め、原因を効果に限る。BS19-099。filter 付きは戻される側が条件を満たすスピリットだけ止める）
     | { type: "noBattlerSwap" } // 両陣営とも、バトル中のスピリットの入れ替え（swapBattler）はできない（BS19-099「入れ替わらない」）
     | { type: "noCoreZeroOutsideEffect" } // 両陣営とも、効果以外の手段（コア移動・コスト・【転召】の支払い）でスピリットのコアを0個にできない（coreRemovalAllowed が止める。効果によるコア除去は通常どおり。BS19-103）
     | { type: "handGainOnlyInDrawStep" } // 両陣営とも、ドローステップ以外では手札を増やせない（ドロー・バウンス・トラッシュ回収など、手札が増える経路すべて。handGainDenial と draw の共通経路が止める。BS19-103）

@@ -1,0 +1,619 @@
+[
+ {
+  "cardId": "X13-01",
+  "name": "太陽凶龍アポロ・ガンディノス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 7,
+  "reduction": [
+   "red",
+   "red",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "星竜",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 10000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 12000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBP5000以下の相手のスピリット1体を破壊する。\nこの効果でスピリットを破壊したとき、ターンに1回、このスピリットは回復する。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体を指定し、そのスピリットにアタックできる。",
+  "effects": [
+   {
+    "id": "X13-01-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "maxBp": 5000
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {}
+       },
+       "oncePerTurn": "X13-01-e1",
+       "then": {
+        "type": "refresh",
+        "target": "self"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "X13-01-e2",
+    "kind": "constraint",
+    "levels": [
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "any"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X13-02",
+  "name": "闇王蛇ペンドクルス",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "妖蛇",
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n相手のスピリットすべてのコアを、それぞれ1個だけになるように相手のリザーブに置く。\nLv2『このスピリットのアタック時』\n相手のスピリットのコア1個を相手のリザーブに置く。\nこの効果でそのスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。",
+  "effects": [
+   {
+    "id": "X13-02-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "removeCores",
+     "target": "all",
+     "count": "all",
+     "leaveAtLeast": 1
+    }
+   },
+   {
+    "id": "X13-02-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "coreRemove",
+     "count": 1,
+     "drawIfEmptied": true
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X13-03",
+  "name": "神帝マッハホウオウガ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 5,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "爪鳥",
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "フラッシュ【神速】\n手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。\nLv2･Lv3『このスピリットのアタック時』\n相手のスピリット1体を疲労させる。\nLv3『このスピリットのアタック時』\nターンに1回、自分のリザーブにあるコア1個をボイドに置くことで、このスピリットは回復する。",
+  "effects": [
+   {
+    "id": "X13-03-e1",
+    "kind": "keyword",
+    "keyword": "soku",
+    "levels": null
+   },
+   {
+    "id": "X13-03-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   },
+   {
+    "id": "X13-03-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "removeCores",
+      "side": "own",
+      "from": [
+       "reserve"
+      ],
+      "to": "void",
+      "count": 1
+     },
+     "then": {
+      "type": "refresh",
+      "target": "self"
+     }
+    },
+    "oncePerTurn": true
+   }
+  ]
+ },
+ {
+  "cardId": "X13-04",
+  "name": "獅機鎧神ヴァルハランス・レオ",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 7,
+  "reduction": [
+   "white",
+   "white",
+   "white",
+   "white"
+  ],
+  "family": [
+   "武装",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【重装甲：紫/緑/白/黄】\nこのスピリットは、相手の紫/緑/白/黄のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv1･Lv2･Lv3『相手のアタックステップ』\n相手のスピリットがアタックしたとき、自分のスピリット1体を回復させる。\nLv2･Lv3『このスピリットのバトル時』\n自分の白のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する。",
+  "effects": [
+   {
+    "id": "X13-04-e1",
+    "kind": "keyword",
+    "keyword": "heavyArmor",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "colors": [
+     "purple",
+     "green",
+     "white",
+     "yellow"
+    ]
+   },
+   {
+    "id": "X13-04-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "subjectSide": "opponent",
+    "selfMode": "source",
+    "action": {
+     "type": "refresh",
+     "count": 1
+    }
+   },
+   {
+    "id": "X13-04-e3",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "eventTarget": "ignore",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "autoPickMaxBp": true,
+      "count": 1,
+      "filter": {
+       "color": "white"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "target": "self",
+      "duration": "battle",
+      "content": [
+       {
+        "type": "bp",
+        "amount": 1,
+        "amountCounter": "lastBp",
+        "countOnce": true
+       }
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X13-05",
+  "name": "星天使ミカリーン",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊",
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、相手のスピリット1体をBP-3000する。\nLv1･Lv2･Lv3\nこのスピリットは、合体条件を無視して合体できる。\nLv3『このスピリットのアタック時』\n自分のデッキを上から3枚オープンする。\nその中のマジックカード1枚を手札に加える。\n残ったカードは好きな順番でデッキの上に戻す。",
+  "effects": [
+   {
+    "id": "X13-05-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "bpMinus",
+     "amount": 3000,
+     "count": 1
+    }
+   },
+   {
+    "id": "X13-05-e2",
+    "kind": "constraint",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "constraint": {
+     "type": "ignoreBraveCondition"
+    }
+   },
+   {
+    "id": "X13-05-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 3
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": 1,
+       "dest": "hand",
+       "pick": {
+        "cardType": "magic"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "deckTop"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X13-06",
+  "name": "機動大帝アレク・キャッスル",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 6,
+  "reduction": [
+   "blue",
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "闘神",
+   "造兵"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 5,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2【強襲：2】『このスピリットのアタック時』\nこのスピリットは、ターンに2回まで、自分のネクサス1つを疲労させることで回復できる。\nLv2『このスピリットのアタック時』\n自分の青のシンボル1つにつき、相手のデッキを上から1枚破棄する。",
+  "effects": [
+   {
+    "id": "X13-06-e1",
+    "kind": "keyword",
+    "keyword": "kyoshu",
+    "count": 2,
+    "levels": [
+     1,
+     2
+    ]
+   },
+   {
+    "id": "X13-06-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2
+    ],
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "nexusOnly": true,
+      "count": 1
+     },
+     "then": {
+      "type": "refresh",
+      "target": "self"
+     },
+     "limitByKeyword": "kyoshu"
+    }
+   },
+   {
+    "id": "X13-06-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "discard",
+     "from": "deck",
+     "side": "opponent",
+     "count": 1,
+     "countCounter": {
+      "ownColorSymbols": "blue"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X13-09",
+  "name": "渚のトリックスター",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "道化",
+   "導魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のトラッシュにあるマジックカード1枚を手札に戻す。",
+  "effects": [
+   {
+    "id": "X13-09-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "magic"
+     }
+    }
+   }
+  ]
+ }
+]

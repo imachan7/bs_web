@@ -69,6 +69,14 @@ export function lastNexusCostOf(state: GameState): number {
     return state.lastNexusCost?.[currentRecordScope(state)] ?? 0
 }
 
+export function recordDestroyedCount(state: GameState, n: number, scope: string = currentRecordScope(state)): void {
+    state.lastDestroyedCount = { ...(state.lastDestroyedCount ?? {}), [scope]: n }
+}
+
+export function lastDestroyedCountOf(state: GameState): number {
+    return probe ?? state.lastDestroyedCount?.[currentRecordScope(state)] ?? 0
+}
+
 export function lastDrawnCount(state: GameState): number {
     return probe ?? state.lastDrawn?.[currentRecordScope(state)] ?? 0
 }

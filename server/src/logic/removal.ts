@@ -22,8 +22,9 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import type { FieldEventExtraItem } from "./fieldEventTriggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave, flushBraveKeeps } from "./brave"
-import { recordLeftCost } from "./record"
+import { recordDestroyedCount, recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
+import { leavesNothingBehind } from "./keywords/bunshin"
 import { isTokenCard } from "../../../shared/cardDb"
 import { trashUnderCards } from "./zones/underCards"
 import { collectReviveEntries, destroyedCostsOf, destroyedFamiliesOf, fushiCandidates, tryNexusReviveOnDestroy, wouldAskReviveConfirm } from "./revive"
@@ -597,6 +598,8 @@ export function commitPendingDestruction(
     // ⚠️ ここでは「フィールドに残る／戻る」を試さない。**破壊で誘発した効果の列の1項目**として
     // 既に解決済みだから（docs/design/TIMING_CHART.md）。列で復活が成立していれば
     // applyRevived が pendingDestruction を消しているので、この関数は上の行で抜けている
+    const braveCantRemain = inst.pendingDestroyContext?.braveCantRemain === true
+    const commitContext = inst.pendingDestroyContext
     delete inst.pendingDestroyContext
     delete inst.pendingDestroyAllowSuspend
     delete inst.skipReviveOnCommit
@@ -613,7 +616,7 @@ export function commitPendingDestruction(
     const burstInfo = inst.pendingDestroyBurstInfo
     delete inst.pendingDestroyBurstInfo
     // トークンはトラッシュに置かれずトークン置き場へ戻る＝破壊後バーストも起きない（「破壊時」は発揮済み）
-    const token = isTokenCard(inst.cardId)
+    const token = leavesNothingBehind(inst)
     if (!token) (state.pendingBurstDestroyQueue ??= []).push({
         pid: ownerPid,
         groupKey: state.destroyGroup?.id ?? inst.instanceId,
@@ -627,9 +630,15 @@ export function commitPendingDestruction(
     })
     player.field.spirits.splice(index, 1)
     trashUnderCards(state, ownerPid, inst) // 下のカードは場を離れるとき破棄（BS19-X02。トラッシュでは下のカードが先）
-    if (!token) {
+    if (inst.bunshinOf !== undefined) {
+        player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
+        if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
+    } else if (!token) {
         if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
-        else player.trashCards.push(inst.cardId)
+        else {
+            player.trashCards.push(inst.cardId)
+            if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
+        }
     }
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
@@ -680,7 +689,7 @@ export function commitPendingDestruction(
     delete inst.pendingDestruction
     // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
     // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
-    detachBravesOnLeave(state, ownerPid, inst)
+    detachBravesOnLeave(state, ownerPid, inst, false, "trash", braveCantRemain)
 }
 
 // globalConstraint "bp0DestroyedToDeckBottom"。発生源は破壊された側から見た相手のフィールドにある
@@ -926,6 +935,9 @@ export function destroySpiritsFrom(
     context?: DestroyContext,
 ): { destroyed: number; stoppedAt: number } {
     let destroyed = destroyedSoFar
+    if (startIndex === 0 && destroyedSoFar === 0 && context) context.trashedCount = 0
+    // 「実際にトラッシュへ置かれた体数」。復活で残った・手札へ戻った個体は数えない（context が無い破壊は破壊できた数で代用）
+    const record = (): void => recordDestroyedCount(state, context ? (context.trashedCount ?? 0) : destroyed)
     for (let i = startIndex; i < targets.length; i++) {
         // 同時破壊で「フィールドに残る」の確認が2体以上に出るなら、
         // どの体から破壊処理をするかをターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3）。
@@ -942,8 +954,12 @@ export function destroySpiritsFrom(
         if (state.winner) return { destroyed, stoppedAt: targets.length }
         // 復活の確認で中断した。**この対象はまだ決着していない**ので、次から再開する
         // （確認の答えは applyReviveConfirm / declineReviveConfirm が決着させる）
-        if (state.pendingChoice) return { destroyed, stoppedAt: i + 1 }
+        if (state.pendingChoice) {
+            record()
+            return { destroyed, stoppedAt: i + 1 }
+        }
     }
+    record()
     return { destroyed, stoppedAt: targets.length }
 }
 
@@ -1314,6 +1330,18 @@ function bouncesToDeckTop(state: GameState): boolean {
     return timedPlayerRules(state, pid).some((c) => c.type === "bounceToDeckTopForPid")
 }
 
+// return アクションの braveCantRemain を、その解決の間だけ markBounce へ届ける（戻す経路が多く、引数で通すと全部の呼び出しを直すことになる）
+let bounceBraveCantRemain = false
+export function withBounceBraveCantRemain(on: boolean, run: () => void): void {
+    const saved = bounceBraveCantRemain
+    bounceBraveCantRemain = on
+    try {
+        run()
+    } finally {
+        bounceBraveCantRemain = saved
+    }
+}
+
 export function markBounce(
     state: GameState,
     ownerPid: PlayerId,
@@ -1336,7 +1364,7 @@ export function markBounce(
     // 解決中の効果の持ち主が「このターンの間、自分の効果で手札に戻るスピリットは持ち主のデッキの上に戻る」を張っていれば、
     // 手札への戻しをデッキの上へ振り替える。手札への戻しはすべてここを通るので、「〜を手札に戻すことで」のコスト支払いも同じ扱いになる
     const srcPid = state.currentEffectSource?.pid
-    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}) }
+    inst.pendingBounce = { to: to === "hand" && bouncesToDeckTop(state) ? "deckTop" : to, ...(srcPid !== undefined && srcPid !== ownerPid ? { byOpponent: true as const } : {}), ...(bounceBraveCantRemain ? { braveCantRemain: true as const } : {}) }
     recordLeftCost(state, inst.cardId, instBaseCost(inst))
     if (sourceName !== undefined) bounceSourceNames.set(inst.instanceId, sourceName)
     return true
@@ -1373,12 +1401,18 @@ export function flushBounces(state: GameState, order?: string[]): void {
             player.reserve += inst.cores
             // 合体していたブレイヴを外す（§6.1.1。コアを移した後。§6.3.1）。残すかの確認は全員を移し終えてから出す
             // （途中で確認の中断を立てると、その後の移動で盤面が変わる。smoke part778 の場面25）
-            detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to)
+            detachBravesOnLeave(state, pid, inst, true, pb.to === "burst" ? "trash" : pb.to, pb.braveCantRemain === true)
             delete inst.pendingBounce
             const sourceName = bounceSourceNames.get(inst.instanceId)
             bounceSourceNames.delete(inst.instanceId)
             const name = getCard(inst.cardId).name
             const prefix = sourceName !== undefined ? `${sourceName}：` : ""
+            if (inst.bunshinOf !== undefined) {
+                // Q788：手札・デッキ・バーストには入らず、元のカードが表向きでトラッシュへ。「手札に戻ったとき」の誘発も起きない
+                player.trashCards.push(inst.bunshinOf)
+                log(state, `${prefix}${player.name}の分身スピリットは場を離れ、元のカードがトラッシュに置かれた。`)
+                continue
+            }
             if (pb.to === "hand") {
                 if (!isTokenCard(inst.cardId)) player.hand.push(inst.cardId)
                 log(state, `${prefix}${player.name}の${name}は手札に戻った。`)
@@ -1503,8 +1537,8 @@ export function canTakeCoresFrom(
 }
 
 // 効果で取り除ける上限（取り除けない系の禁止・バトル中の保護・下限をすべて見る）。actorPid 省略＝持ち主自身
-function effectCoreCap(state: GameState, ownerPid: PlayerId, inst: CardInstance, actorPid: PlayerId | undefined, srcType: CardType | undefined): number {
-    return coreRemovalAllowed(state, { ownerPid, target: inst, amount: inst.cores, cause: "effect", actorPid: actorPid ?? ownerPid, sourceType: srcType })
+function effectCoreCap(state: GameState, ownerPid: PlayerId, inst: CardInstance, actorPid: PlayerId | undefined, srcType: CardType | undefined, toReserve = false): number {
+    return coreRemovalAllowed(state, { ownerPid, target: inst, amount: inst.cores, cause: "effect", actorPid: actorPid ?? ownerPid, sourceType: srcType, ...(toReserve ? { toReserve: true as const } : {}) })
 }
 
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる。
@@ -1519,6 +1553,8 @@ export function removeCores(
     srcType?: CardType,
     // §1.3の持ち主選択で[ソウルコア]を含める答えが戻ってきたとき（ソウルコア1個ぶんも移す。案A-outsideのため数値には含めない）
     includeSoul?: boolean,
+    // 行き先がライフのとき（リザーブを経由するだけ）。「リザーブに置かれない」保護と opponentSpiritCoresToReserve の対象にしない
+    viaLife?: boolean,
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護やコア下限で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     const player = state.players[ownerPid]
@@ -1528,7 +1564,7 @@ export function removeCores(
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost：有効なら、このカードのコストを下回るまでは取り除けない
-    const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType)
+    const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType, !viaLife)
     // [ソウルコア]を含める指定: ソウルコア1個ぶんも移す個数に数える（案B-inside: coresには元から含まれる）。
     // 含めない指定なら、取り除き上限は[ソウルコア]を差し引いた通常コア数
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
@@ -1560,6 +1596,10 @@ export function removeCores(
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
         notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
+    }
+    // 取られたスピリットごとに発火する（1回の効果で複数体でも体数ぶん。「その相手のスピリットすべて」を疲労させるため）
+    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0 && !redirectToTrash && !viaLife && srcType !== undefined) {
+        fireFieldEventTriggers(state, actorPid, "opponentSpiritCoresToReserve", { pid: ownerPid, inst }, undefined, undefined, undefined, { causeType: srcType })
     }
     return removed
 }
@@ -1664,7 +1704,7 @@ export function removeCoresToVoid(
 // 移動・入れ替え系（moveCoresLeavingOne／swapOpponentCores）は各ハンドラがこの関数を直接見る。
 export function coreFloorFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     // トークンのスピリットも守る対象（「ソーディッシュ」）。ほかの下限は従来どおりカード種別が spirit のものだけ
-    if (isTokenCard(inst.cardId)) return coreFloorOwnNamedFor(state, inst, ownerPid, actorPid)
+    if (leavesNothingBehind(inst)) return coreFloorOwnNamedFor(state, inst, ownerPid, actorPid)
     if (getCard(inst.cardId).type !== "spirit") return 0
     return Math.max(coreFloorByCostFor(state, inst, ownerPid, actorPid), coreFloorBlockingKeywordFor(state, inst), coreFloorOwnNamedFor(state, inst, ownerPid, actorPid))
 }
@@ -1708,8 +1748,7 @@ function coreFloorBlockingKeywordFor(state: GameState, inst: CardInstance): numb
 function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     // ownOnly は発生源の持ち主のスピリットだけを守るので、どちらの発生源から来た制約かを見る必要がある
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-        for (const source of sources) {
+        for (const source of effectSources(state, pid)) {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
@@ -1723,7 +1762,8 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
                 if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
                 if (!matchesTarget(state, ownerPid ?? pid, inst, effect.constraint.filter, source.instanceId)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。以前はカードの召喚コストとして実装していた
-                return instMinLevelCores(inst)
+                noteCoverage(effect, "globalConstraint")
+                return effect.constraint.floor ?? instMinLevelCores(inst)
             }
         }
     }

@@ -2,6 +2,8 @@
 import type { ActionHandler, ActionRegistry } from "./types"
 import { log, getCard } from "../GameState"
 import { recordMoved } from "../record"
+import { matchesPick } from "./revealAction"
+import { requestCardChoice } from "../targeting"
 
 // 相手の手札1枚を「内容を見ないで選び」その内容だけを見る。
 // **どの1枚を選ぶかはランダム**（SEMANTICS_AUDIT.md §3.14。見る側が並び順から内容を推測できないため）
@@ -28,6 +30,7 @@ const peekOpponentBurstHandler: ActionHandler<"peekOpponentBurst"> = (ctx) => {
         return
     }
     state.players[owner].peekedOpponentBurstCardId = target.burst
+    recordMoved(state, [target.burst]) // 「コスト6以上のとき破棄」など、見た内容で続きを分けるため（見た本人だけが知る内容は log に出さない）
     log(state, `${state.players[owner].name}は${target.name}のバーストの内容を見た。`)
 }
 
@@ -42,7 +45,31 @@ const revealOpponentBurstHandler: ActionHandler<"revealOpponentBurst"> = (ctx) =
     log(state, `${target.name}のバースト（${getCard(target.burst).name}）をオープンした。`)
 }
 
+const revealHandCardHandler: ActionHandler<"revealHandCard"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex } = ctx
+    const hand = state.players[owner].hand
+    const reveal = (i: number): void => {
+        recordMoved(state, [hand[i]!])
+        log(state, `${state.players[owner].name}は手札の${getCard(hand[i]!).name}を相手に見せた。`)
+    }
+    if (chosenCardIndex !== undefined) {
+        reveal(chosenCardIndex)
+        return
+    }
+    const indices = hand.flatMap((id, i) => (matchesPick(id, action.pick, undefined, ctx.sourceCardId) ? [i] : []))
+    if (indices.length === 0) {
+        log(state, `${sourceName}：見せられる手札がなかった。`)
+        return
+    }
+    if (state.interactiveTargets) {
+        requestCardChoice(state, owner, `${sourceName}：相手に見せる手札を選んでください`, "hand", indices, false, action, self)
+        return
+    }
+    reveal(indices[0]!)
+}
+
 const handlers = {
+    revealHandCard: revealHandCardHandler,
     revealOpponentBurst: revealOpponentBurstHandler,
     peekOpponentBurst: peekOpponentBurstHandler,
     peekOpponentHand: peekOpponentHandHandler,

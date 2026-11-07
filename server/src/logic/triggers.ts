@@ -10,6 +10,7 @@
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
 import { noteCoverage } from "../../../shared/coverage"
 import { markPays } from "./actions/pay"
+import { wrapWithRepeat } from "./actions/combinedAttackRepeat"
 import type {
     CardInstance, EffectAction, EffectDef, GameState, PlayerId,
     ResolvedTargetFilter, TimedContent,
@@ -454,6 +455,8 @@ export function fireTrigger(
                 // 発生源の持ち主が自分のバーストエリアにカードをセットしている間だけ発火（docs/design/BURST.md）。
                 // false指定時は**セットしていない**間だけ発火（SD06-009キジ・トリアLv2）
                 if (state.players[owner].burstSet !== effect.condition.ownBurstSet) return false
+            } else if ("opponentBurstSet" in effect.condition) {
+                if (state.players[opponentOf(owner)].burstSet !== effect.condition.opponentBurstSet) return false
             } else if ("opponentFieldColorsAtLeast" in effect.condition) {
                 // BS15共通器：持ち主から見た相手フィールドの色の種類数がこれ以上のときのみ発火
                 const { opponentFieldColorsAtLeast, spiritsOnly } = effect.condition
@@ -513,10 +516,11 @@ export function fireTrigger(
     // **self はホストのまま**にする：合体スピリットは1体なので、効果文の「このスピリット」は
     // 合体スピリット＝ホスト側の個体を指す（refresh{target:"self"}・selfBuff などが正しく当たる）。
     // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
+    if (firedEvents.includes("onAttack")) delete selfInstance.combinedAttackRepeated
     const entries: { effect: EffectDef; src: CardInstance }[] = [
         ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
         ...(asCard !== undefined ? [] : bravesOf(state.players[owner], selfInstance)).flatMap((b) =>
-            getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
+            getCard(b.cardId).effects.map((e) => ({ effect: wrapWithRepeat(state, owner, selfInstance, b, e), src: b })),
         ),
     ]
     const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => {
@@ -675,7 +679,7 @@ export function fireCombinedAttackTrigger(
                     e.whileCombined === true &&
                     effectActiveAtLevel(e.levels, currentLevel(brave).level),
             )
-            .map((effect) => ({ effect, src: brave })),
+            .map((effect) => ({ effect: wrapWithRepeat(state, owner, host, brave, effect) as typeof effect, src: brave })),
     )
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i]
@@ -737,6 +741,7 @@ function collectGrantedTriggerActions(
                 continue
             }
             if (effect.keywordFilter && !spiritHasKeyword(state, owner, selfInstance, effect.keywordFilter)) continue
+            if (effect.filter && !matchesTarget(state, owner, selfInstance, effect.filter, source.instanceId)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && owner !== state.turnPlayer) continue

@@ -60,6 +60,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     levelup: { id: "levelup", label: "レベルアップ" },
     rensa: { id: "rensa", label: "連鎖" },
     kyoka: { id: "kyoka", label: "強化" },
+    bunshin: { id: "bunshin", label: "分身" },
 }
 
 // キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。
@@ -634,6 +635,7 @@ export function matchesBraveCondition(
     host: CardInstance,
     braveCardId: string,
 ): boolean {
+    if (host.bunshinOf !== undefined) return false // 分身スピリットは合体できない（Q785）
     // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
     if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return true
     const extra = braveExtraMinCostFor(board, hostOwnerPid, host)

@@ -13,12 +13,14 @@ import { returnToHandCandidateCountForPay } from "./bounce"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
-import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
+import { summonVoidToll } from "../../../../shared/rules/summonToll"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll } from "../summonSurcharge"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
 import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
+import { claimOnce } from "../oncePerTurn"
 import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
@@ -101,6 +103,7 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
             self,
             "option",
             action.modes.map((m) => m.label),
+            action.chooser === "opponent" ? ctx.opp : undefined,
         )
         return
 }
@@ -192,7 +195,10 @@ const openAwakenModeHandler: ActionHandler<"openAwakenMode"> = (ctx) => {
 const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const { state, owner, self, srcColors, srcType, sourceName } = ctx
     const cond = action.cond
-    const met = "lastEmptied" in cond
+    // cond を省いた if は then を必ず解決する（oncePerTurn の枠だけを付けたいとき。BS22-X04）
+    const met = cond === undefined
+        ? true
+        : "lastEmptied" in cond
         ? state.lastCoreRemoveEmptied === true
         : "last" in cond
         ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
@@ -279,6 +285,10 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
         : ((n) => (cond.atLeast === undefined || n >= cond.atLeast) && (cond.atMost === undefined || n <= cond.atMost))(
               countEffectCounter(state, owner, self, cond.count, srcType),
           )
+    if (met && action.oncePerTurn !== undefined && self !== null && !claimOnce(state, owner, self, { id: action.oncePerTurn }, "triggeredUsedTurn")) {
+        log(state, `${sourceName}：このターンはすでに使っている。`)
+        return
+    }
     const branch = met ? action.then : action.else
     if (branch === undefined) {
         log(state, `${sourceName}：条件を満たさなかった。`)
@@ -360,13 +370,14 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     // payCost でなくても、相手の転召の祭壇などの余分は払う（2026-10-15）
     if (action.surchargePrepaid) state.summonSurchargePaid = owner
     const cost = action.payCost ? effectiveCost(state, owner, card, false, [], false, false) : 0
-    if (action.payCost ? normalReserveOf(player) < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
+    if (action.payCost ? normalReserveOf(player) < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     if (!action.payCost && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
     player.burst = null
     player.burstSet = false
+    if (action.payCost) payVoidToll(state, owner, card)
     const placedFromField = action.payCost ? 0 : payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0
     player.reserve -= maintain + cost - placedFromField
     player.trashCores += cost
@@ -499,7 +510,7 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     const found = findSpiritAny(state, action.targetInstanceId)
     if (!found) {
         // 聞いている間に対象が場を離れた。払わせずに元の処理へ戻す（そちらが「対象がいない」を出す）
-        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
+        ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId, sourceColors: ctx.srcColors, sourceType: ctx.srcType })
         return
     }
     const defender = state.players[found.pid]
@@ -517,7 +528,8 @@ const payNegateDecideHandler: ActionHandler<"payNegateDecide"> = (ctx, action) =
     }
     // **対象を明示的に渡し直す**（ctx.resolve は targetInstanceId を暗黙には引き継がない。
     // 渡さないと元のアクションが「対象指定なし」の経路に落ちて、別のスピリットを巻き込む）
-    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId })
+    // 発生源の種別・色も渡し直す（落とすと耐性判定が発生源種別を見られず、払ったのに効果を受ける）
+    ctx.resolve(action.resume, { targetInstanceId: action.targetInstanceId, sourceColors: ctx.srcColors, sourceType: ctx.srcType })
     return
 }
 

@@ -27,6 +27,7 @@ import {
     spiritHasFamily,
     spiritHasKeyword,
     bravesOf,
+    braveCostZeroFor,
     hostsOf,
     instIsCombined,
     opponentFieldColorCount,
@@ -228,9 +229,10 @@ export function refreshLevelAsOverrides(state: GameState): void {
             const braves = bravesOf(player, host)
             if (braves.length === 0) continue
             const composite = { cost: 0, colors: [] as Color[], symbols: [] as Color[] }
+            const costZero = braveCostZeroFor(state, pid)
             for (const brave of braves) {
                 const master = getCard(brave.cardId)
-                composite.cost += master.cost
+                if (!costZero) composite.cost += master.cost
                 for (const c of master.colors) if (!composite.colors.includes(c)) composite.colors.push(c)
                 composite.symbols.push(...master.symbol)
             }
@@ -316,6 +318,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
                         if (effect.costFilter && !instMatchesCostFilter(spirit, effect.costFilter)) continue
+                        if (effect.filter && !matchesTarget(state, pid, spirit, effect.filter, source.instanceId)) continue
                         noteCoverage(effect, "keywordGrant")
                         if (effect.keyword === "heavyArmor") {
                             // 器AP：重装甲の継続付与（BS13-056ホーク・ブレイカー）
@@ -481,8 +484,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         continue
                     }
-                    const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
-                    for (const spirit of state.players[targetPid].field.spirits) {
+                    const targetPids: PlayerId[] = effect.target === "opponentAll" ? [opponentOf(pid)] : effect.target === "bothAll" ? ["p1", "p2"] : [pid]
+                    for (const targetPid of targetPids) for (const spirit of state.players[targetPid].field.spirits) {
+                        if (effect.filter && !matchesTarget(state, targetPid, spirit, effect.filter as unknown as ResolvedTargetFilter, source.instanceId)) continue
                         if (
                             effect.familyFilter &&
                             !matchesFamilyFilter(state, targetPid, spirit, effect.familyFilter)

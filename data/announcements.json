@@ -3,6 +3,11 @@
  "_comment": "トップ画面の「お知らせ」欄。GET /api/changelog がここを新しい順に返す。対戦者が読む文面なので内部用語を書かない。category は fix / ui / new / info / update（クライアントの parseReleaseMessage が解釈する）。date は YYYY-MM-DD。",
  "entries": [
   {
+   "date": "2026-11-07",
+   "category": "new",
+   "text": "第二十二弾「暗黒刃翼」のカード92枚と、キャンペーンカード7枚を追加しました。新しいキーワード【分身】が使えます"
+  },
+  {
    "date": "2026-11-06",
    "category": "new",
    "text": "第二十一弾「光輝剣武」のカード92枚と、キャンペーンカード「ミニーズ特攻隊」を追加しました"

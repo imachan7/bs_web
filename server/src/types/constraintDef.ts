@@ -7,7 +7,7 @@ export type ConstraintDef =
     | { type: "canBlockUnblockable" } // このスピリットは、「ブロックされない」効果を持つ相手のスピリットもブロックできる（継続的な制約・ターン限定の印の**どちらも**乗り越える。2026-08-14 ユーザー確認。BS09-049炎蜥蜴クトゥグマ）
     | { type: "cantBlockLowerBp" } // 自分より実効BPが低いアタッカーをブロックできない
     | { type: "unblockableBy"; opponentOnly?: true; noSoulCore?: true; filter?: ResolvedTargetFilter; fromMaxBpSelf?: true; requireOwnFieldColorNexus?: Color; requireOwnCostCountAtLeast?: { cost: number; count: number } } // このスピリットのアタックが、filter に合うスピリットにブロックされない（filter 省略＝すべてにブロックされない）。filter は AND で、self＝アタッカー（maxCostAsSelf 等）。fromMaxBpSelf＝このスピリット（アタッカー）自身の実効BP以下の相手からだけブロックされない（判定のたびにBPを引き直す継続効果用。期間つき unblockable の fromMaxBpSelf とは違い値を固定しない）。require* は持ち主の盤面が条件を満たす間だけ有効（activeConstraints が外す）
-    | { type: "coresImmovableByOpponent" } // このスピリットのコアは相手の効果では移動できない（相手の効果の coreRemove をすべて防ぐ。発生源の種別を問わない。26RDB01-025）
+    | { type: "coresImmovableByOpponent"; toReserveOnly?: true } // toReserveOnly＝行き先がリザーブのコア除去だけを止める（トラッシュ・ボイド行きとコアの移動は通る。BS22-020・Q4361）。 このスピリットのコアは相手の効果では移動できない（相手の効果の coreRemove をすべて防ぐ。発生源の種別を問わない。26RDB01-025）
     | { type: "untargetableByOpponentMagic" } // 相手のマジックの効果では指定されない（対象指定のみ。範囲効果は届く。26RDB01-049 Lv2 を constraintGrant で付与）
     | { type: "blockPayCost"; count: number; noStackId?: string } // このスピリットをブロックする時、相手はcountコスト支払わなければブロックできない（リザーブ＋フィールドのコアから選んで払う。2026-10-08 ユーザー確認。26RDB01-X06）。noStackId＝〔重複不可〕：同じ値の制約は何体から受けても1回分（2026-10-08 ユーザー確認）
     | { type: "blockReserveToTrash"; count: number } // このスピリットがアタックしている間、相手はブロックする時にリザーブのコアcount個をトラッシュに置かなければブロックできない（リザーブからだけ払う。26RCB01-050）

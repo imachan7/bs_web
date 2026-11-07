@@ -75,7 +75,7 @@ import {
     opponentFieldColorCount,
    
 } from "../../../shared/rules"
-import { lastCoresCount, lastDrawnCount, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
+import { lastCoresCount, lastDestroyedCountOf, lastDrawnCount, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedCount, lastMovedOf, lastNexusCostOf, lastTargetsOf } from "./record"
 import { checkExhaustOnCoreChange } from "./state/exhaust"
 export type { KeywordInfo }
 export { TENSHO_SUBSTITUTE_REST, TENSHO_SUBSTITUTE_DUMP, TENSHO_SUBSTITUTE_HAND, TENSHO_SUBSTITUTE_HAND_DUMP, tenshoSpecOf, tenshoCandidates, resolveTensho, fireTenshoEvent, flushPendingTenshoEvent, dumpAllCoresTensho, tenshoAfterTargetTrigger, applyTenshoSubstitute, applyTenshoSubstituteCrossSource, tenshoDumpAndDestroy } from "./keywords/tensho"
@@ -293,7 +293,7 @@ function tryPayableTargetNegate(
     // 「効果の**対象**になるたび」なので範囲効果は対象外。相手のスピリットの効果限定
     if (attempt.scope !== "targeted") return null
     if (attempt.actorPid === targetOwnerPid) return null
-    if (attempt.sourceType !== "spirit") return null
+    if (attempt.sourceType === undefined) return null
     const player = state.players[targetOwnerPid]
     // 実対戦では、対象が確定した時点で**守る側に聞いてある**（askPayToNegateIfNeeded → payNegateDecide）。
     // ここはその答えを読むだけ。答えは1回の対象化につき1つなので、**読んだら消費する**
@@ -308,13 +308,14 @@ function tryPayableTargetNegate(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "targetNegateByHandDiscard") continue
             if (!entryActive(state, targetOwnerPid, source, effect, level)) continue
-            if (effect.bySourceType !== attempt.sourceType) continue
+            if (!((effect.bySourceTypes ?? [effect.bySourceType]) as (CardType | undefined)[]).includes(attempt.sourceType)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
             }
-            if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
+            if (effect.familyFilter && !matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
+            if (effect.filter && !matchesTarget(state, targetOwnerPid, target, effect.filter, source.instanceId)) continue
             // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
             if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
             // 対話中に答え無しで来た＝この経路が askPayToNegateIfNeeded を通していない。
@@ -385,7 +386,7 @@ export function askPayToNegateIfNeeded(
     if (attempt.probing) return false
     if (attempt.scope !== "targeted") return false
     if (attempt.actorPid === targetOwnerPid) return false
-    if (attempt.sourceType !== "spirit") return false
+    if (attempt.sourceType === undefined) return false
     if (askMeisaiPayIfNeeded(state, targetOwnerPid, target, attempt, resume, self, sourceName)) return true
     // すでに答えが出ている（＝この中断から戻ってきた）なら聞き直さない
     if (state.payNegateDecision?.targetInstanceId === target.instanceId) return false
@@ -397,15 +398,18 @@ export function askPayToNegateIfNeeded(
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "targetNegateByHandDiscard") continue
             if (!entryActive(state, targetOwnerPid, source, effect, level)) continue
-            if (effect.bySourceType !== attempt.sourceType) continue
+            if (!((effect.bySourceTypes ?? [effect.bySourceType]) as (CardType | undefined)[]).includes(attempt.sourceType)) continue
             if (effect.phaseTurn) {
                 if (state.phase !== effect.phaseTurn.phase) continue
                 if (effect.phaseTurn.turn === "own" && targetOwnerPid !== state.turnPlayer) continue
                 if (effect.phaseTurn.turn === "opponent" && targetOwnerPid === state.turnPlayer) continue
             }
-            if (!matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
+            if (effect.familyFilter && !matchesFamilyFilter(state, targetOwnerPid, target, effect.familyFilter)) continue
+            if (effect.filter && !matchesTarget(state, targetOwnerPid, target, effect.filter, source.instanceId)) continue
             // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
             if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
+            // 対話では払う・払わないの答えが payNegateDecide で戻り、その時点では効果エントリを引けないので、確認を出す所で記録する（断った場合も数える）
+            noteCoverage(effect, "targetNegateByHandDiscard")
             requestCardChoice(
                 state,
                 // pid は**効果の実行者**（解決の主体。actorPid に入る）。
@@ -528,6 +532,7 @@ export function handImmuneFor(state: GameState, targetPid: PlayerId, sourceType:
             if (!entryActive(state, targetPid, source, effect, level)) continue
             // ネクサスの効果は既定では防がない＝意図的（BS12-067）。includeNexus指定時のみ防ぐ（BS14-082五角形の砦）
             if (sourceType === "nexus" && !effect.constraint.includeNexus) continue
+            noteCoverage(effect, "globalConstraint")
             return true
         }
     }
@@ -1167,6 +1172,7 @@ export function countEffectCounter(
         return f ? instBaseCost(f.inst) : 0
     }
     if (counter === "lastMoved") return lastMovedCount(state)
+    if (counter === "lastDestroyedCount") return lastDestroyedCountOf(state)
     if (counter === "lastTargetCount") return lastTargetsOf(state).length
     if (counter === "lastCores") return lastCoresCount(state)
     if (counter === "lastEmptiedSpirits") return lastEmptiedSpiritsOf(state)
@@ -1544,6 +1550,10 @@ export function resolveAction(
     if (isOutermostEffect && !state.pendingChoice) {
         delete state.enemyExhaustNotifiedPid
         delete state.coresEmptiedNotifiedPid
+        if (state.timedEffects.some((r) => r.until === "effect")) {
+            state.timedEffects = state.timedEffects.filter((r) => r.until !== "effect")
+            refreshLevelAsOverrides(state)
+        }
     }
     // バウンス待機状態のカードを、**この効果の解決が終わった時点で**まとめて手札／デッキへ移す
     // （Wiki「バウンスについて」：待機中の「戻るとき」効果は割り込まず、解決後に発揮する）。

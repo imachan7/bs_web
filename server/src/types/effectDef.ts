@@ -193,6 +193,7 @@ export type MagicCondition =
     | { bothFieldsHaveNexus: true } // お互いのフィールドにネクサスが1つ以上あるときのみ実行
     | { ownSpiritIsBlocking: true } // 自分のスピリットが現在のバトルでブロッカーになっているときのみ実行
     | { ownSpiritCountAtLeast: number } // 自分のフィールドのスピリット数がこれ以上のときのみ実行
+    | { opponentSpiritCountAtLeast: number } // 相手のフィールドのスピリット数がこれ以上のときのみ実行
     | { ownFieldHasColorSpirits: Color[] } // 自分のフィールドに指定した色のスピリットがそれぞれ1体以上いるときのみ実行（1体が多色で複数色満たしてもよい）
     | { ownFieldHasAllNames: string[] } // 自分のフィールドに指定したカード名すべてが1体ずつ揃っているときのみ実行（cardIdでなく名前の完全一致）
     | { ownNameIncludesCountAtLeast: { names: string[]; count: number } } // 自分のフィールドに names のいずれかをカード名に含むスピリットが count 体以上いるときのみ実行
