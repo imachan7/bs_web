@@ -1,11 +1,9 @@
 name: 検証（typecheck / smoke / E2E）
 
-# main への push と、main 宛の PR で検証を回す。
-# デプロイは Actions 画面の「Run workflow」（workflow_dispatch）で main を選んだときだけ行う。
+# main 宛の PR で検証を回す。main への push では回さない（main 保護で「最新の main を取り込んだ PR だけマージ可」なので、
+# squash 後の main は PR で検証した中身と同じ。2026-11-07 に重複実行をやめた）。
+# デプロイは Actions 画面の「Run workflow」（workflow_dispatch）で main を選んだときだけ行う（そのときも verify を通す）。
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -42,9 +40,6 @@ jobs:
       - name: クライアントをビルド
         run: npm run build
 
-      - name: 型チェック
-        run: npm run typecheck
-
       # CLAUDE.md の「バッチ完了時の定型」に揃える（カードデータは型検査の対象外なので、
       # ここを落とすと効果の実装漏れ・注意書きの不整合がすり抜ける）
       - name: カードデータの検査
@@ -54,8 +49,16 @@ jobs:
       - name: ヘルパーの索引が最新か
         run: npm run codemap:check
 
-      - name: スモークテスト（エンジン単体）
-        run: npm run smoke:quiet
+      # 型チェックは smoke と並べて走らせる（どちらも1コアしか使わない）
+      - name: 型チェックとスモークテスト（エンジン単体）
+        run: |
+          npm run typecheck > typecheck.log 2>&1 &
+          TC=$!
+          SMOKE=0; npm run smoke:quiet || SMOKE=$?
+          TYPE=0; wait $TC || TYPE=$?
+          echo "── 型チェック（終了コード $TYPE）"; cat typecheck.log
+          echo "── スモーク（終了コード $SMOKE）"
+          exit $(( SMOKE != 0 || TYPE != 0 ))
 
       - name: E2Eテスト（サーバー起動 → 疎通確認）
         # BS_AI_DELAY_MS=0：AI戦の検証で、AIが1手ごとに450ms待つのを止める

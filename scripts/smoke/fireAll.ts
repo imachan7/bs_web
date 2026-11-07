@@ -481,8 +481,9 @@ for (const card of CARDS) {
             }
         }
         // (6) 継続効果は「読まれた時点」で計測されるので、そのカードの継続効果が効くステップで読み直す。
-        // 全カード×7ステップ×両ターンで読むと smoke 全体の9割超の時間を使っていた（2026-09-28 計測）
-        for (const ph of continuousPhases(effects)) {
+        // 全カード×7ステップ×両ターンで読むと smoke 全体の9割超の時間を使っていた（2026-09-28 計測）。
+        // 絞った後も smoke 全体の7割を使っていた（2026-11-07）ので、計測する実行（COV_OUT あり）でだけ読む
+        for (const ph of process.env["COV_OUT"] ? continuousPhases(effects) : []) {
             for (const tp of ["p1", "p2"] as PlayerId[]) {
                 s.turnPlayer = tp
                 s.phase = ph
