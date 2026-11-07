@@ -334,7 +334,7 @@ export function hasMagicColorBan(board: Board, cardData: CardData): boolean {
 // **デッキの残り枚数による上限は呼び出し側でかける**（Board にデッキ枚数が無いため。
 // サーバーは player.deck.length、クライアントは view の deckCount を使う）
 export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
-    if (deckMillBlockedByRule(board, pid, false, true)) return false
+    if (deckMillBlockedByRule(board, pid, false)) return false
     for (const source of effectSources(board, pid)) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {
