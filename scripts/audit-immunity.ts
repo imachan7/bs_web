@@ -33,7 +33,7 @@ CARD_DB.set(SHIELD_ID, {
 } as unknown as CardData)
 const CARD_BY_ID = new Map(CARDS.map((c) => [c.cardId, c]))
 
-// lifeImmuneForPid は globalConstraint ではなく「このターンの間の制約」でしか持てない（constraints.ts の lifeImmuneThisTurn）。
+// 盾のライフ不減は globalConstraint でなく「このターンの間の制約」（playerRule の lifeGuard）で掛ける。
 // 発火はすべて同じターン内で行うので、setup で1回掛ければ足りる
 const shieldIds = new Map<GameState, string>()
 function setup(s: GameState): void {
@@ -41,7 +41,7 @@ function setup(s: GameState): void {
     const shield = createInstance(SHIELD_ID, s.turn, 1)
     s.players.p2.field.nexuses.push(shield)
     shieldIds.set(s, shield.instanceId)
-    giveTimedToPlayer(s, "p2", { type: "playerRule", rule: { type: "lifeImmuneForPid" } } as never, "turn")
+    giveTimedToPlayer(s, "p2", { type: "playerRule", rule: { type: "lifeGuard", max: 0 } } as never, "turn")
     if (!hasGlobalConstraint(s, "handImmuneForPid")) throw new Error("盾の globalConstraint が効いていない")
 }
 

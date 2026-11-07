@@ -148,7 +148,7 @@ const DOUBLE = "BS04-010" // 雷帝エール・クレル（シンボル2・効�
 {
     assert(getCard(DOUBLE).name === "雷帝エール・クレル" && getCard(DOUBLE).symbol.length === 2, "DOUBLEはシンボル2")
     for (const id of ["BS15-005", "BS15-014", "BS15-021", "BS15-031", "BS15-042", "BS15-051"]) {
-        assert(getCard(id).effects.some((e) => e.kind === "globalConstraint" && e.constraint.type === "lifeDamagePerSpiritPerTurn"), `${id}は1体から1まで`)
+        assert(getCard(id).effects.some((e) => e.kind === "globalConstraint" && e.constraint.type === "lifeGuard" && e.constraint.per === "spirit"), `${id}は1体から1まで`)
         scenario({
             name: `life-cap-${id}`,
             start: {

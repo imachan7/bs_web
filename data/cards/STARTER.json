@@ -376,8 +376,11 @@
         ],
         "turn": "opponent",
         "constraint": {
-          "type": "ownLifeDamageCapPerSourcePerTurn",
-          "max": 1
+          "type": "lifeGuard",
+          "side": "own",
+          "byOpponentOnly": true,
+          "max": 1,
+          "per": "spirit"
         }
       },
       {
@@ -6301,9 +6304,11 @@
         "phase": "attack",
         "turn": "opponent",
         "constraint": {
-          "type": "noLifeDamageByCost",
-          "maxBp": 4000,
-          "ownOnly": true
+          "type": "lifeGuard",
+          "side": "own",
+          "from": "attack",
+          "source": {"maxBp": 4000},
+          "max": 0
         }
       },
       {

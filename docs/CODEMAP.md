@@ -133,7 +133,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `attackOncePerTurnLimitApplies`（fn）：器AQ：globalConstraint "attackOncePerTurnBySymbolCount"（BS13-068遥かなる衛星砲）。
 - `attackOncePerTurnByCostLimitApplies`（fn）：attackOncePerTurnLimitAppliesのコスト版（BS14-088青玉の巨大迷宮）。
 - `attackTotalOncePerTurnLimitApplies`（fn）：attackOncePerTurnByCostLimitApplies の「合計」版（26RBS02-085）。attackerPid のコストがmaxCost以下のスピリットが
-- `ownLifeImmuneToOpponentSpiritEffects`（fn）：globalConstraint "ownLifeImmuneToSpiritEffects"（BS13-027ムーンショウウオLv2）：
 - `canDiscardHand`（fn）：手札破棄の関門（BS11-065 満天の牧草地Lv1-2「お互い、手札を破棄できない」）。
 - `cantSpiritStateBrave`（fn）：pid は「ブレイヴをスピリット状態にできない」側か（BS11-X02 滅神星龍ダークヴルム・ノヴァLv3）。
 - `braveExtraMinCostFor`（fn）：globalConstraint "opponentBraveConditionMinCost"（BS21-X06 Lv2）：hostOwnerPid の側のブレイヴの合体条件に足…
@@ -151,14 +150,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instCantAttackByFewOwnSpirits`（fn）：器BV：globalConstraint "cantAttackIfFewOwnSpirits"（両陣営それぞれ独立に判定）：
 - `opponentCantReturnFromTrashToHand`（fn）：器BO：globalConstraint "opponentCantReturnFromTrashToHand"。pid は「トラッシュから手札に戻そうとしている本人」。
 - `levelCantAct`（fn）：フィールド全体制約 levelCantAct（両陣営）：currentLevel が指定リストに含まれるスピリットは
-- `noLifeDamageByCost`（fn）：フィールド全体制約 noLifeDamageByCost（両陣営）：コストがmaxCost以下のスピリットのアタックでは
-- `lifeDamageLimit`（fn）：片側限定のライフ保護（playerRule "noLifeDamageByCostForPid"。BS07秘密の花園Lv2）：
+- `lifeDamageLimit`（fn）：このアタックで、防御側のライフが1回に減る**上限**を返す唯一の入口。
 - `LifeLossQuery`（型）
 - `lifeLossAllowed`（fn）：ライフを減らす処理の制限を1か所に集めた問い合わせ。0〜amount の「減らせる量」を返す。
 - `cantReduceOpponentLife`（fn）：attackerPid は「ライフを減らそうとしている側」。その持ち主のフィールドに
-- `lifeImmuneThisTurn`（fn）
-- `ownLifeFloorContinuous`（fn）：BS12-070天の階Lv2：「自分のフィールドに系統：「天霊」を持つスピリットが5体以上いる間、
-- `lifeProtectedByCostThisTurn`（fn）
 - `mustAttackThisTurn`（fn）：このターンだけの強制アタック（timedEffect の内容 mustAttack）が、恒久的な constraint:"mustAttack" と同じ扱いで掛かっているか
 - `mustAttackFirst`（fn）：「このステップの最初に必ずアタックする」（until:"firstAttack"）を受けているか。受けている間は他のスピリットでアタックできない
 - `canBlockWhileRestedThisTurn`（fn）：このターンだけの疲労状態ブロック許可（timedEffect の内容 canBlockWhileRested。constraint:"canBlockWhileRested" のタ…
@@ -264,6 +259,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `instMinLevelCores`（fn）：インスタンス単位の維持コア数（最小レベルに必要なコア数）。
 - `isSpiritOnField`（fn）：指定インスタンスがそのプレイヤーのフィールドにスピリットとして存在するか
 - `isOnFieldAnyZone`（fn）：この個体が**まだ場にいるか**（スピリット／ネクサス／**合体中のブレイヴ**）。
+
+## shared/rules/lifeGuard.ts
+
+- `lifeGuardsApplying`（fn）：この減少に当たる lifeGuard を集める。アタックでは sourceInstance がアタッカー
+- `lifeGuardBounds`（fn）：当たった lifeGuard 全部を畳んだ「減らせる量」の上限と、下回れない値
 
 ## shared/rules/resistance.ts
 
@@ -1214,6 +1214,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/types/keyword.ts
 
 - `Keyword`（型）：キーワード効果。今後同名キーワードを持つカードが多数追加されるため、
+
+## server/src/types/lifeGuard.ts
+
+- `LifeGuardDef`（型）：軸はすべて AND。「A または B」は lifeGuard を2つ並べて書く（1つにすると AND になる）。
 
 ## server/src/types/playerState.ts
 

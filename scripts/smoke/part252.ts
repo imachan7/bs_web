@@ -4,7 +4,7 @@
 //   - fieldEvent "ownSpiritDestroyed" の vanillaOnly を実際にカードで使用（既存の軸）
 //   - constraintGrant の costFilter / turn / combinedFilter（AuraDefの同名軸をconstraintGrantにも追加）
 //   - ConstraintDef "immuneToOpponentEffects" の against:"spirit"（マジックは通す絞り込み）
-//   - action "lifeImmuneThisTurn" ＋ TurnConstraintDef "lifeImmuneForPid"（あらゆる原因でライフが減らない全面ロック）
+//   - action "lifeImmuneThisTurn" ＋ playerRule の lifeGuard{max:0}（あらゆる原因でライフが減らない全面ロック）
 import {
     act,
     assert,
@@ -141,8 +141,8 @@ console.log("=== BS10-093 時刻む花時計：相手の効果で自分の黄の
     s.phase = "attack"
     destroySpirit(s, "p1", yellowSpirit.instanceId, "destroy", { sourcePid: "p2", sourceType: "spirit" })
     assert(
-        playerHas(s, "p1", "lifeImmuneForPid"),
-        "p1にlifeImmuneForPidが積まれる",
+        playerHas(s, "p1", "lifeGuard"),
+        "p1に lifeGuard（max:0）が積まれる",
     )
 
     const attacker = put(s, "p2", "BS01-005", 1) // BP2000・シンボル1

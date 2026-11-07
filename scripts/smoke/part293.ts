@@ -28,7 +28,7 @@ import {
     effectSources,
     hasMagicImmunity,
     instIsVanilla,
-    lifeProtectedByCostThisTurn,
+    lifeDamageLimit,
     noSummonTriggerByCost,
 } from "../../shared/rules"
 import { hasMagicRestriction } from "../../shared/cost"
@@ -98,11 +98,11 @@ console.log("=== BJ: 043Lv1 ステップ開始時、疲労させることで sym
     const attacker2sym = createInstance("BS12-047", s.turn, 4) // シンボル2つ・合体扱いにする
     attacker2sym.braveRefs = [{ slot: "single", instanceId: "dummy" }]
     assert(
-        lifeProtectedByCostThisTurn(s, "p1", attacker2sym),
+        lifeDamageLimit(s, "p1", attacker2sym).max === 0,
         "symbolCount:2 + combinedOnly のアタックでは自分のライフが保護される",
     )
     const attacker1sym = createInstance("BS12-041", s.turn, 1) // シンボル1つ
-    assert(!lifeProtectedByCostThisTurn(s, "p1", attacker1sym), "シンボル数が一致しないアタックは保護されない")
+    assert(lifeDamageLimit(s, "p1", attacker1sym).max !== 0, "シンボル数が一致しないアタックは保護されない")
 }
 
 console.log("=== BA/BC: 071のvanillaFilter+phaseTurn immunityGrant ===")

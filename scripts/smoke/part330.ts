@@ -118,7 +118,7 @@ console.log("=== 3. 神将：スピリット1体からのライフ減少はタ�
                 kind: "globalConstraint",
                 levels: null,
                 whileOwnBurstSet: true,
-                constraint: { type: "lifeDamagePerSpiritPerTurn", max: 1 },
+                constraint: { type: "lifeGuard", max: 1, per: "spirit" },
             },
         ],
     })
