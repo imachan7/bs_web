@@ -1,6 +1,8 @@
 // 合体条件が後から厳しくなったときの強制分離（BS21-X06「合体条件をコスト7以上にする」。2026-11-06 ユーザー確認）
 import type { GameState, PlayerId } from "../type"
 import { boardResistanceAgainst, braveExtraMinCostFor, instCostWithoutBraves } from "../../../shared/rules"
+import { braveSlotsUsed } from "../../../shared/rules/braveExtraCombine"
+import { combineLimitFor } from "../../../shared/summon"
 import { detachBraveByOwnerChoice } from "./brave"
 
 // handleAction の後始末（継続効果を組み直した後）で呼ぶ。
@@ -22,6 +24,26 @@ export function separateBravesBelowMinCost(state: GameState): void {
             for (const brave of (host.braveRefs ?? []).map((r) => player.field.combinedBraves.find((b) => b.instanceId === r.instanceId)).filter((b) => b !== undefined)) {
                 detachBraveByOwnerChoice(state, pid, host, brave!)
                 if (state.pendingChoice) return
+            }
+        }
+    }
+}
+
+// 合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
+// 持ち主が選ぶのは残すかトラッシュかの確認だけで、**どのブレイヴを外すかは最後に合体したものに固定する簡略化**
+export function separateBravesOverLimit(state: GameState): void {
+    if (state.pendingChoice || state.winner) return
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        const player = state.players[pid]
+        for (const host of [...player.field.spirits]) {
+            if (host.pendingDestruction || host.pendingVanish || host.pendingBounce) continue
+            while (braveSlotsUsed(state, pid, host) > combineLimitFor(state, pid, host)) {
+                const last = (host.braveRefs ?? []).at(-1)
+                const brave = last && player.field.combinedBraves.find((b) => b.instanceId === last.instanceId)
+                if (!brave) break
+                const before = (host.braveRefs ?? []).length
+                detachBraveByOwnerChoice(state, pid, host, brave)
+                if (state.pendingChoice || (host.braveRefs ?? []).length === before) return
             }
         }
     }

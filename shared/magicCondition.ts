@@ -18,6 +18,21 @@ export function magicConditionFailure(board: Board, owner: PlayerId, cond: Magic
         const min = cond.ownFieldHasMinSymbolSpirit
         return field.spirits.some((s) => instanceSymbolCount(s) >= min) ? null : `シンボル${min}個以上を持つスピリットがいない`
     }
+    if ("all" in cond) {
+        for (const c of cond.all) {
+            const failure = magicConditionFailure(board, owner, c)
+            if (failure !== null) return failure
+        }
+        return null
+    }
+    if ("ownBattlingSpiritHasFamily" in cond) {
+        const b = board.battle
+        const ids = [b?.attackerInstanceId, b?.blockerInstanceId]
+        return field.spirits.some((s) => ids.includes(s.instanceId) && spiritHasFamily(board, owner, s, cond.ownBattlingSpiritHasFamily)) ? null : `バトルしている系統「${cond.ownBattlingSpiritHasFamily}」の自分のスピリットがいない`
+    }
+    if ("ownHandHasCardType" in cond) {
+        return (board.players[owner].hand ?? []).some((id) => card(id).type === cond.ownHandHasCardType) ? null : "手札に該当するカードがない"
+    }
     if ("ownSpiritIsBlocking" in cond) {
         const blockerId = board.battle?.blockerInstanceId
         return blockerId != null && field.spirits.some((s) => s.instanceId === blockerId) ? null : "自分のスピリットがブロックしていない"

@@ -19,6 +19,56 @@
   "rarity": "X",
   "limited": false,
   "effect": "フラッシュ：\nバトルしている系統：「剣使」を持つ自分のスピリット1体の合体可能なブレイヴ数を1つ増やし、自分の手札にあるブレイヴカード1枚を、直接合体するように、コストを支払わずに召喚する。\nただし、『このブレイヴの召喚時』効果は発揮しない。\nこの効果で召喚したブレイヴは、フィールドに残せず、バトル終了時に破壊される。\nこの効果はターンに1回しか使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "X13-11-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "oncePerTurnByName": true,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "designate",
+       "filter": {
+        "family": [
+         "剣使"
+        ],
+        "inBattle": true
+       }
+      },
+      {
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "combineLimitBonus",
+         "amount": 1
+        }
+       ],
+       "duration": "battle",
+       "target": "lastTargets"
+      },
+      {
+       "type": "summon",
+       "from": "hand",
+       "bravesOnly": true,
+       "combineToLastTarget": true,
+       "skipOnSummon": true,
+       "destroyAtBattleEnd": true
+      }
+     ]
+    },
+    "useCondition": {
+     "all": [
+      {
+       "ownBattlingSpiritHasFamily": "剣使"
+      },
+      {
+       "ownHandHasCardType": "brave"
+      }
+     ]
+    }
+   }
+  ]
  }
 ]

@@ -119,7 +119,7 @@ scenario({
     name: "dancing-recover-all-spirit-state",
     start: {
         interactive: true,
-        phase: "attack",
+        phase: "main",
         me: {
             hand: [DANCING],
             spirits: [
@@ -135,8 +135,8 @@ scenario({
         drive(t, { opt: /スピリット状態|すべて/ })
     },
     expect: [
-        "自分.リザーブ: 10 → 6",
-        "自分.トラッシュのコア: 0 → 4",
+        "自分.リザーブ: 10 → 7",
+        "自分.トラッシュのコア: 0 → 3",
         "自分.日輪丸.疲労: true → false",
         "自分.ハイロゥ.疲労: true → false",
         "相手.サン.疲労: true → false",
@@ -158,13 +158,12 @@ scenario({
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0, braveTargetInstanceId: t.id("ミノ") })
         drive(t, { decline: true })
-        t.act("me", { type: "nextPhase" })
         t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
         drive(t, { opt: /合体/, picks: [MINO] })
     },
     expect: [
-        "自分.リザーブ: 10 → 2",
-        "自分.トラッシュのコア: 0 → 8",
+        "自分.リザーブ: 10 → 3",
+        "自分.トラッシュのコア: 0 → 7",
         "自分.ミノ.疲労: true → false",
         "自分.ミノ.BP: 3000 → 6000",
         handRow("自分", [NICHI, DANCING], []),
@@ -186,7 +185,8 @@ const checkOppCandidates = (t: Parameters<NonNullable<import("./b1helpers").Want
     if (pc.pid !== t.opp || pc.kind !== "target") return
     const ids = pc.candidates.map((id) => cardIdOf(t, id))
     assert(!ids.includes(WINGAL) && !ids.includes(ROKU), "相手が選ぶ候補にコスト超過・回復状態のスピリットはいない")
-    assert(ids.includes(AIBURN) && ids.includes(SHOCK) && ids.includes(METAL), "相手が選ぶ候補は疲労状態でコスト4以下の3体")
+    // エンジンは複数体の選択を1体ずつ聞くので、2回目は1体目を除いた候補になる（同時に2体を選ぶ器は無い。BS23_PLAN §5）
+    assert(ids.length > 0 && ids.every((id) => id !== undefined && [AIBURN, SHOCK, METAL].includes(id)), "相手が選ぶ候補は疲労状態でコスト4以下のものだけ")
 }
 
 console.log("=== J1. 075：スピリット状態のブレイヴ1体を破壊し、相手が疲労状態のコスト4以下のスピリット2体を選んで破壊。剣使がいなければマジックはトラッシュへ（Q25238） ===")
@@ -194,7 +194,7 @@ scenario({
     name: "deadsword-spirit-state-no-kenshi",
     start: {
         interactive: true,
-        phase: "attack",
+        phase: "main",
         me: { hand: [DEADSWORD], spirits: [{ card: HALO, label: "ハイロゥ" }] },
         opp: { spirits: oppSpirits },
     },
@@ -220,7 +220,7 @@ scenario({
     name: "deadsword-returns-with-kenshi",
     start: {
         interactive: true,
-        phase: "attack",
+        phase: "main",
         me: { hand: [DEADSWORD], spirits: [{ card: HALO, label: "ハイロゥ" }, { card: MINO, label: "ミノ" }] },
         opp: { spirits: oppSpirits },
     },
@@ -251,14 +251,13 @@ scenario({
     steps(t) {
         t.act("me", { type: "summon", handIndex: 0, braveTargetInstanceId: t.id("ミノ") })
         drive(t, { decline: true })
-        t.act("me", { type: "nextPhase" })
         t.act("me", { type: "castMagic", handIndex: 0, timing: "flash" })
         drive(t, { picks: [NICHI, AIBURN, SHOCK], onPrompt: checkOppCandidates })
     },
     // ミノ（剣使）がいるのでマジックは手札に戻る。ブレイヴの召喚（コスト4）とマジック（コスト3）を払う
     expect: [
-        "自分.リザーブ: 10 → 3",
-        "自分.トラッシュのコア: 0 → 7",
+        "自分.リザーブ: 10 → 4",
+        "自分.トラッシュのコア: 0 → 6",
         handRow("自分", [NICHI, DEADSWORD], [DEADSWORD]),
         trashRow("自分", [], [NICHI]),
         left("相手", "アイバーン"),
@@ -268,19 +267,6 @@ scenario({
     ],
 })
 
-console.log("=== J4. 075：自分のブレイヴがいなければ使えない（拒否される） ===")
-scenario({
-    name: "deadsword-no-brave",
-    start: {
-        interactive: true,
-        phase: "attack",
-        me: { hand: [DEADSWORD], spirits: [{ card: MINO, label: "ミノ" }] },
-        opp: { spirits: oppSpirits },
-    },
-    steps(t) {
-        t.actRejected("me", { type: "castMagic", handIndex: 0, timing: "flash" })
-    },
-    expect: [],
-})
+// J4（自分のブレイヴがいないとき 075 を使えるか）はユーザー確認待ち（BS23_PLAN §2-2）
 
 console.log("すべてのチェックに合格しました 🎉（part835）")

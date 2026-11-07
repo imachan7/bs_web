@@ -191,6 +191,9 @@ export type MagicCondition =
     | { ownFieldHasMinSymbolSpirit: number } // 自分のフィールドにシンボル数がこれ以上のスピリットが1体以上いるときのみ実行
     | { ownFieldSymbolColorsAtLeast: number } // 自分のフィールド全体が持つシンボルの色の種類数（重複除く）がこれ以上のときのみ実行
     | { bothFieldsHaveNexus: true } // お互いのフィールドにネクサスが1つ以上あるときのみ実行
+    | { all: MagicCondition[] } // すべて満たすとき
+    | { ownBattlingSpiritHasFamily: string } // いまのバトルのアタッカーかブロッカーに、この系統を持つ自分のスピリットがいるときのみ
+    | { ownHandHasCardType: "spirit" | "brave" | "magic" | "nexus" } // 自分の手札にこの種類のカードが1枚以上あるときのみ
     | { ownSpiritIsBlocking: true } // 自分のスピリットが現在のバトルでブロッカーになっているときのみ実行
     | { ownSpiritCountAtLeast: number } // 自分のフィールドのスピリット数がこれ以上のときのみ実行
     | { opponentSpiritCountAtLeast: number } // 相手のフィールドのスピリット数がこれ以上のときのみ実行

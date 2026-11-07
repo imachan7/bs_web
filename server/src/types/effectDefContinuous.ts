@@ -500,6 +500,7 @@ export type EffectDefContinuous =
               condition?: { targetMaxCost: number } | { targetMaxBp: number } // targetMaxBp は onBattleEnd 用
               keywordBody?: Keyword // この誘発がキーワードの本体（【聖命】等）。同じキーワードは重ねて持っても1回なので、元から持つ個体には付けず、付与が重なっても1回
           } // 付与される誘発効果（levelsは常に有効扱い）
+          lendFrom?: "sourceBraves" | "self" // granted.action のかわりに、ブレイヴが持つ onAttack＋whileCombined のエントリすべてを与える。sourceBraves＝発生源に合体しているブレイヴ（BS23-031）、self＝付与された個体自身（BS23-044）。2026-11-08 ユーザー決定：『合体アタック時』と【合体時】『アタック時』を区別しない。granted.action は使われない
           lentOnly?: boolean
       }
     | {
@@ -749,6 +750,11 @@ export type EffectDefContinuous =
           id: string
           kind: "deckRule" // デッキ構築の規則。継続効果ではなく印（盤面では読まない。validateDeckCards が読む）
           rule: "anyCopies" // 同名カードの枚数上限を外す（CP13-01）
+      }
+    | {
+          id: string
+          kind: "braveExtraCombine" // このブレイヴ自身の特性：要求した名前のブレイヴと合体中の自分のホストに、合体条件・数を無視して1つだけ追加で合体できる（Q20340〜Q20342）
+          requireHostBraveName: string
       }
     | {
           id: string

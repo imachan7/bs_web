@@ -88,7 +88,7 @@ scenario({
         drive(t, { card: SUN, picks: [MINO] })
     },
     expect: [
-        "自分.リザーブ: 10 → 5",
+        "自分.リザーブ: 10 → 4",
         "自分.トラッシュのコア: 0 → 5",
         handRow("自分", [SHOOT, SUN], []),
         ...appear("自分", SHOOT, { cores: 1, bp: 4000 }),
@@ -173,6 +173,7 @@ scenario({
 const attackWith = (t: ScenarioCtx, attacker: string, blocker: string | null, want = {}) => {
     t.act("me", { type: "nextPhase" })
     t.act("me", { type: "attack", instanceId: t.id(attacker) })
+    t.closeFlash()
     if (blocker !== null) t.act("opp", { type: "block", instanceId: t.id(blocker) })
     else t.act("opp", { type: "takeLife" })
     settle(t, want)

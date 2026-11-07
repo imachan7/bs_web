@@ -49,8 +49,8 @@ scenario({
     },
     // フィランダーの召喚時のドロー2・破棄2は発揮されないので、手札・デッキは動かない
     expect: [
-        "自分.リザーブ: 10 → 5",
-        "自分.トラッシュのコア: 0 → 4",
+        "自分.リザーブ: 10 → 6",
+        "自分.トラッシュのコア: 0 → 3",
         "自分.ミノ.BP: 3000 → 7000",
         handRow("自分", [BREAKER, FILANDER], []),
         ...appear("自分", BREAKER, { where: "合体", cores: 0 }),
@@ -73,8 +73,8 @@ scenario({
         drive(t, { card: FILANDER })
     },
     expect: [
-        "自分.リザーブ: 10 → 5",
-        "自分.トラッシュのコア: 0 → 4",
+        "自分.リザーブ: 10 → 6",
+        "自分.トラッシュのコア: 0 → 3",
         handRow("自分", [BREAKER, FILANDER], [FILANDER]),
         ...appear("自分", BREAKER, { cores: 1, bp: 4000 }),
     ],
@@ -95,8 +95,8 @@ scenario({
         drive(t, { card: FILANDER })
     },
     expect: [
-        "自分.リザーブ: 10 → 5",
-        "自分.トラッシュのコア: 0 → 4",
+        "自分.リザーブ: 10 → 6",
+        "自分.トラッシュのコア: 0 → 3",
         "自分.M.BP: 3000 → 7000",
         handRow("自分", [BREAKER, FILANDER], []),
         ...appear("自分", BREAKER, { where: "合体", cores: 0 }),
@@ -154,8 +154,8 @@ scenario({
         drive(t)
     },
     expect: [
-        "自分.リザーブ: 10 → 5",
-        "自分.トラッシュのコア: 0 → 5",
+        "自分.リザーブ: 10 → 6",
+        "自分.トラッシュのコア: 0 → 4",
         "自分.デッキ枚数: 5 → 0",
         handRow("自分", [SWORDRAID], [FILANDER, NICHI, SHUBU]),
         trashRow("自分", [], [SWORDRAID, AMARTIA, ZAGNA]),
@@ -192,8 +192,8 @@ scenario({
         drive(t)
     },
     expect: [
-        "自分.リザーブ: 10 → 5",
-        "自分.トラッシュのコア: 0 → 5",
+        "自分.リザーブ: 10 → 6",
+        "自分.トラッシュのコア: 0 → 4",
         "自分.デッキ枚数: 5 → 1",
         handRow("自分", [SWORDRAID], [NICHI, NICHI, NICHI, NICHI]),
         trashRow("自分", [], [SWORDRAID]),
@@ -223,14 +223,14 @@ scenario({
 console.log("=== F1. フラッシュ：このターンの間、スピリット1体をBP+3000する ===")
 scenario({
     name: "swordraid-flash-bp",
-    start: { phase: "attack", me: { hand: [SWORDRAID], spirits: [{ card: SHOOT, label: "シュー" }] } },
+    start: { phase: "main", me: { hand: [SWORDRAID], spirits: [{ card: SHOOT, label: "シュー" }] } },
     steps(t) {
         t.act("me", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("シュー") })
         drive(t, { picks: [SHOOT] })
     },
     expect: [
-        "自分.リザーブ: 10 → 5",
-        "自分.トラッシュのコア: 0 → 5",
+        "自分.リザーブ: 10 → 6",
+        "自分.トラッシュのコア: 0 → 4",
         "自分.シュー.BP: 4000 → 7000",
         handRow("自分", [SWORDRAID], []),
         trashRow("自分", [], [SWORDRAID]),

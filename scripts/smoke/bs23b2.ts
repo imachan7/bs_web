@@ -91,7 +91,8 @@ export function tryCombine(s: GameState, pid: PlayerId, brave: CardInstance, hos
 
 // 手札を介さず場に出したブレイヴを合体させて場面を作る（合体できなければ失敗）
 export function combine(s: GameState, pid: PlayerId, host: CardInstance, braveCardId: string): CardInstance {
-    const brave = put(s, pid, braveCardId, 1)
+    // 合体するとブレイヴの上のコアはホストに移りホストのレベルが上がるので、場に出す時点でコアは載せない
+    const brave = put(s, pid, braveCardId, 0)
     const err = tryCombine(s, pid, brave, host)
     assert(err === null, `準備: ${getCard(braveCardId).name} が ${getCard(host.cardId).name} に合体できる${err ? `（拒否: ${err}）` : ""}`)
     return brave

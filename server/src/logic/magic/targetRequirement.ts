@@ -4,6 +4,7 @@ import type { CardData, CardInstance, EffectAction, GameState, PlayerId } from "
 import { getCard, opponentOf } from "../GameState"
 import { canPayResolve } from "../actions/pay"
 import { pickEnemyCandidates } from "../targeting"
+import { ownBraveCandidates } from "../actions/destroyOwnBrave"
 import { matchesTarget } from "../../../../shared/rules"
 
 // 候補の有無を「1体ぶん払えるか」で見られる type。疲労・回復・コアを置くは下の countsAnyState で見る
@@ -17,12 +18,13 @@ function targetMissing(state: GameState, pid: PlayerId, action: EffectAction, ca
     if (action.type === "sequence" || action.type === "simultaneous") {
         // 「そのスピリット」（直前に BP を上げた個体）を受ける後半は、前半が対象を取れないなら後半も何も起きないので前半の結果に従う
         const dependsOnPrev = (a: EffectAction): boolean =>
-            (a.type === "timedEffect" && a.target === "lastBuffed") || (a.type === "pay" && a.then.type === "timedEffect" && a.then.target === "lastBuffed")
+            (a.type === "timedEffect" && a.target === "lastBuffed") || (a.type === "destroy" && a.filter?.maxCostAsLast === true) || (a.type === "pay" && a.then.type === "timedEffect" && a.then.target === "lastBuffed")
         const results: (boolean | null)[] = []
         action.actions.forEach((a, i) => results.push(i > 0 && dependsOnPrev(a) ? results[i - 1]! : targetMissing(state, pid, a, card)))
         if (results.some((r) => r === null)) return null
         return results.every((r) => r === true)
     }
+    if (action.type === "destroyOwnBrave") return ownBraveCandidates(state, pid).length === 0
     if (action.type === "declare") {
         if (!action.from) return null
         const side = action.fromSide === "opponent" ? opponentOf(pid) : pid

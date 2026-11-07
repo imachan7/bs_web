@@ -38,7 +38,28 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「剣使」/「地竜」を持つ自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-002-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onBattleWin",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    },
+    "battleRole": "attacker"
+   }
+  ]
  },
  {
   "cardId": "BS23-005",
@@ -80,7 +101,27 @@
   "rarity": "U",
   "limited": false,
   "effect": "自分のトラッシュにあるこのスピリットカードは、カード名に「シャイニング・ドラゴン」と入っている自分のスピリットが召喚されたとき、手札に戻る。\nLv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『このスピリットのバトル時』\nBP4000以下の相手のスピリット1体を破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-005-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-016",
@@ -123,7 +164,27 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のトラッシュにあるコスト0/3の紫のスピリットカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『このスピリットのアタック時』\n相手の合体スピリットのブレイヴ1つを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-016-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-024",
@@ -161,7 +222,27 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分の効果によって相手のスピリットを疲労させたとき、ボイドからコア1個を自分のリザーブに置く。\nLv1･Lv2【抜刀】『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2『このスピリットの合体アタック時』\n相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-024-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onBattleWin",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    },
+    "battleRole": "attacker"
+   }
+  ]
  },
  {
   "cardId": "BS23-026",
@@ -204,7 +285,27 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のスピリット1体の【分身】を発揮させる。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n自分の分身スピリット1体につき、このスピリットをBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-026-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-033",
@@ -242,7 +343,26 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2\n自分が【連鎖】でドローしたとき、自分はデッキから1枚ドローする。\n【合体時】Lv2『このスピリットのアタック時』\nBP6000以下の相手のスピリット1体を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-033-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-043",
@@ -285,7 +405,33 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3\nこのスピリットと、系統：「剣刃」を持つ自分のスピリット状態のブレイヴすべてに“【聖命】『このスピリットのアタック時』このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く”を与える。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n自分のスピリット状態のブレイヴすべては、Lv1/Lv3の相手のスピリットからブロックされない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-043-e1",
+    "kind": "keyword",
+    "keyword": "seimei",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS23-043-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "keyword": "seimei",
+    "target": "ownAll",
+    "familyFilter": [
+     "剣刃"
+    ],
+    "braveInSpiritState": true
+   }
+  ]
  },
  {
   "cardId": "BS23-044",
@@ -328,7 +474,73 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『お互いのアタックステップ』\n自分のスピリット状態のブレイヴすべてをBP+5000する。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「剣刃」を持つ自分のスピリット状態のブレイヴがアタックしたとき、そのブレイヴの『このスピリットの合体アタック時』効果すべてを発揮させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-044-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    }
+   },
+   {
+    "id": "BS23-044-e2",
+    "kind": "aura",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "braveOnly": true,
+     "amount": 5000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "both"
+     }
+    }
+   },
+   {
+    "id": "BS23-044-e3",
+    "kind": "effectGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "target": "ownAll",
+    "filter": {
+     "family": [
+      "剣刃"
+     ]
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "lendFrom": "self",
+    "granted": {
+     "trigger": "onAttack",
+     "action": {
+      "type": "sequence",
+      "actions": []
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-050",
@@ -370,7 +582,28 @@
   "rarity": "R",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「剣使」/「異合」を持つ自分のスピリットがアタックしたとき、ボイドからコア1個をこのスピリットに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-050-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onBattleWin",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    },
+    "battleRole": "attacker"
+   }
+  ]
  },
  {
   "cardId": "BS23-052",
@@ -412,7 +645,53 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから2枚ドローする。\nその後、自分は手札2枚を破棄する。\n【合体時】Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのコスト以下の相手のスピリット1体を破壊できる。\nこの効果発揮後、このスピリットのブレイヴ1つを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-052-e1",
+    "kind": "triggered",
+    "keyword": "batto",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "summon",
+     "from": "hand",
+     "bravesOnly": true,
+     "familyFilter": "剣刃",
+     "combinableWithSelf": true
+    }
+   },
+   {
+    "id": "BS23-052-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "draw",
+       "count": 2
+      },
+      {
+       "type": "discard",
+       "from": "hand",
+       "side": "own",
+       "count": 2
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-062",
@@ -453,7 +732,32 @@
   "braveCondition": {
    "minCost": 3
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-062-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": true,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownSpirits": {}
+      },
+      "atMost": 3
+     },
+     "then": {
+      "type": "summon",
+      "from": "hand",
+      "keywordFilter": "batto",
+      "skipOnSummon": true
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-063",
@@ -494,7 +798,32 @@
   "braveCondition": {
    "minCost": 4
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-063-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": true,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownSpirits": {}
+      },
+      "atMost": 3
+     },
+     "then": {
+      "type": "summon",
+      "from": "hand",
+      "keywordFilter": "batto",
+      "skipOnSummon": true
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-074",
@@ -516,7 +845,74 @@
   "rarity": "R",
   "limited": false,
   "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中の【抜刀】を持つスピリットカード/系統：「剣刃」を持つブレイヴカードすべてを手札に加える。それ以外は破棄する。\n【抜刀】を持つ自分のスピリット1体につき、このマジックの効果でオープンするカード枚数を+1枚する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-074-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "revealOpen",
+       "count": 1,
+       "countCounter": {
+        "plus": [
+         {
+          "ownKeyword": [
+           "batto"
+          ]
+         },
+         3
+        ]
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "hand",
+       "pick": {
+        "anyOf": [
+         {
+          "cardType": "spirit",
+          "keyword": "batto"
+         },
+         {
+          "cardType": "brave",
+          "family": "剣刃"
+         }
+        ]
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS23-074-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000
+      }
+     ],
+     "duration": "turn",
+     "side": "both",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-075",
@@ -537,7 +933,44 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\n自分の合体スピリットのブレイヴ1つ/スピリット状態のブレイヴ1体を破壊し、相手は、疲労状態の破壊したブレイヴ以下のコストの相手のスピリット2体を破壊する。\n系統：「剣使」を持つ自分のスピリットがいるとき、このマジックカードは手札に戻る。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-075-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroyOwnBrave"
+      },
+      {
+       "type": "destroy",
+       "count": 2,
+       "chooserIsTarget": true,
+       "filter": {
+        "rested": true,
+        "maxCostAsLast": true
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownSpirits": {
+          "family": "剣使"
+         }
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "returnLastUsedMagicToHand"
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-082",
@@ -558,6 +991,43 @@
   "rarity": "U",
   "limited": false,
   "effect": "フラッシュ：\n系統：「剣刃」を持つスピリット状態のブレイヴすべてを回復させる。\nまたは、系統：「剣刃」を持つブレイヴと合体している自分の合体スピリット1体を回復させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-082-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "chooseActionMode",
+     "modes": [
+      {
+       "label": "剣刃のスピリット状態のブレイヴすべてを回復させる",
+       "actions": [
+        {
+         "type": "refresh",
+         "all": true,
+         "anySide": true,
+         "filter": {
+          "braveInSpiritState": true,
+          "family": "剣刃"
+         }
+        }
+       ]
+      },
+      {
+       "label": "剣刃のブレイヴと合体している自分の合体スピリット1体を回復させる",
+       "actions": [
+        {
+         "type": "refresh",
+         "count": 1,
+         "filter": {
+          "braveFamily": "剣刃"
+         }
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
  }
 ]

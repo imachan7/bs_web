@@ -423,6 +423,9 @@ export function fireTrigger(
             } else if ("ownLifeAtMost" in effect.condition) {
                 // BS12-X05戦神乙女ヴィエルジェ：発生源の持ち主のライフがこの数以下のときのみ発火
                 if (state.players[owner].life > effect.condition.ownLifeAtMost) return false
+            } else if ("selfHasBraveNamed" in effect.condition) {
+                const wanted = effect.condition.selfHasBraveNamed
+                if (!bravesOf(state.players[owner], selfInstance).some((b) => getCard(b.cardId).name === wanted)) return false
             } else if ("selfSummonedByFushi" in effect.condition) {
                 // BS13-014闇騎士アグラヴェイン：その召喚が【不死】によるものだったときのみ発火
                 if (byFushi !== true) return false
@@ -756,6 +759,18 @@ function collectGrantedTriggerActions(
                 if ("targetMaxCost" in effect.granted.condition) {
                     if (!instMatchesCostFilter(found.inst, { max: effect.granted.condition.targetMaxCost })) continue
                 } else if (effectiveBp(state, found.pid, found.inst) > effect.granted.condition.targetMaxBp) continue
+            }
+            if (effect.lendFrom !== undefined) {
+                const holders = effect.lendFrom === "self" ? [selfInstance] : bravesOf(state.players[owner], source)
+                const lv = effect.lendFrom === "self" ? currentLevel(selfInstance).level : sourceLevel
+                for (const holder of holders) {
+                    for (const e of getCard(holder.cardId).effects) {
+                        if (e.kind !== "triggered" || e.trigger !== "onAttack" || e.whileCombined !== true) continue
+                        if (e.levels !== null && !e.levels.includes(lv)) continue
+                        actions.push(e.action)
+                    }
+                }
+                continue
             }
             const body = effect.granted.keywordBody
             if (body !== undefined) {

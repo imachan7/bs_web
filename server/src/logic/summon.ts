@@ -1,5 +1,6 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { braveCombinableWithHost } from "../../../shared/summon"
 import { noteCoverage } from "../../../shared/coverage"
 import { countEffectCounter, getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
@@ -201,6 +202,7 @@ export function summonFreeFromHandIndex(
         payCost?: true
         paidAsIf?: number // payCost 併用：通常のコストのうち支払ったものとして扱う量（BS22-073）
         skipOnSummon?: true
+        destroyAtBattleEnd?: true
         paySources?: PaySource[]
         surchargeBatch?: true // 複数体を同時に召喚する効果の1体（余分は1回だけ。summonSurcharge.ts）
         // 召喚経路の記録（CardInstance.summonedBy）。
@@ -250,6 +252,7 @@ export function summonFreeFromHandIndex(
         index: handIndex,
         ...(skipTensho ? { skipTensho } : {}),
         ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
+        ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
     })) return
@@ -262,6 +265,7 @@ export function summonFreeFromHandIndex(
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
+    if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
     const braveHost =
@@ -405,6 +409,7 @@ export function summonFromHandFreeCandidateMatches(
     // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
     // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
     if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false
+    if (action.combinableWithSelf && (!self || !braveCombinableWithHost(state, owner, self, candidateId))) return false
     if (action.colorFilter !== undefined) {
         const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
         if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false

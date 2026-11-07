@@ -110,6 +110,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `receivesBpPlus`（fn）：「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。
 - `timedRuleBp`（fn）：全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
 
+## shared/rules/braveExtraCombine.ts
+
+- `braveSlotsUsed`（fn）：追加枠を除いた、通常の合体数。上限との比較はこちらで行う
+- `extraCombineAllowed`（fn）：このブレイヴを、条件・数を無視した追加の合体として受けられるホストか
+
 ## shared/rules/cantRefresh.ts
 
 - `RefreshPath`（型）
@@ -307,6 +312,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
 - `braveCombineCandidates`（fn）：合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
+- `braveCombinableWithHost`（fn）：【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。
 - `canCombineBraveCount`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
 - `combineLimitFor`（fn）
 - `BattleSwapSummonOption`（型）：手札のこのスピリットカードを、フラッシュ中のバトルで
@@ -490,6 +496,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyWithinBudget`（fn）：「BP／コスト合計○○まで、相手のスピリットを好きなだけ破壊する」（destroy の budget 軸。ACTION_UNIFY_PLAN §4 PR 8）。
 - `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 
+## server/src/logic/actions/destroyOwnBrave.ts
+
+- `ownBraveCandidates`（fn）：自分のブレイヴ1つ＝合体スピリットに合体しているブレイヴか、スピリット状態のブレイヴ（BS23-075）
+
 ## server/src/logic/actions/exhaustBudget.ts
 
 - `exhaustWithinBudget`（fn）
@@ -622,6 +632,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/braveConditionGate.ts
 
 - `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
+- `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
 
 ## server/src/logic/burstNegate.ts
 

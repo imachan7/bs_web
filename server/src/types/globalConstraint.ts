@@ -8,6 +8,7 @@ import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent
 // kind: "constraint" は発生源自身への制約だが、こちらは発生源の持ち主に関係なく両陣営のスピリット／ネクサスすべてに効く
 // （RuleValidator.hasGlobalConstraint 経由）。片側限定の型は「発生源の持ち主」「相手」と明記してある。
 export type GlobalConstraintDef =
+    | { type: "ownBraveIndestructibleByOpponent"; family: string } // 発生源の持ち主の合体スピリットのブレイヴのうち、この系統を持つものは相手の効果で破壊されない（BS23-031。destroyCombinedBrave が読む。ホストごと破壊される場面は止めない）
     | { type: "singleCoreCantAct" } // コア1個のスピリットはアタックもブロックもできない（両陣営）
     | { type: "singleCoreCantAttack" } // アタックのみ不可（ブロックは可。両陣営）
     | { type: "opponentCantAttackByCost"; costs: number[] } // 発生源の持ち主から見た相手のスピリットのうち、コストが配列のいずれかと一致するものはアタック不可（ブロックは可。片側限定）

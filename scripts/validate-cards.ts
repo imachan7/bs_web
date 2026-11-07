@@ -83,7 +83,7 @@ const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
     "deckRule",
-    "rensaIgnoreCondition",
+    "rensaIgnoreCondition", "braveExtraCombine",
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "burstActivationNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "reductionAlsoColor", "levelAs", "battleWon", "magicRestriction",
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",
