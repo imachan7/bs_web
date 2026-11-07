@@ -36,47 +36,6 @@
   "effects": []
  },
  {
-  "cardId": "BS23-003",
-  "name": "シャイニング・ブレイドラ",
-  "type": "spirit",
-  "colors": [
-   "red"
-  ],
-  "cost": 4,
-  "reduction": [
-   "red",
-   "red"
-  ],
-  "family": [
-   "星竜"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 2000
-   },
-   {
-    "level": 2,
-    "cores": 3,
-    "bp": 3000
-   },
-   {
-    "level": 3,
-    "cores": 4,
-    "bp": 4000
-   }
-  ],
-  "symbol": [
-   "red"
-  ],
-  "flash": false,
-  "rarity": "",
-  "limited": false,
-  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、自分の手札にあるカード名に「シャイニング・ドラゴン」と入っているスピリットカード1枚のコストを、自分のライフと同じ数にする。\nLv1･Lv2･Lv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
-  "effects": []
- },
- {
   "cardId": "BS23-004",
   "name": "ソウエン・ドラグーン",
   "type": "spirit",
@@ -2104,40 +2063,6 @@
   "effects": []
  },
  {
-  "cardId": "BS23-068",
-  "name": "偽りの地下帝国",
-  "type": "nexus",
-  "colors": [
-   "purple"
-  ],
-  "cost": 3,
-  "reduction": [
-   "purple",
-   "purple"
-  ],
-  "family": [],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 0,
-    "bp": 0
-   },
-   {
-    "level": 2,
-    "cores": 2,
-    "bp": 0
-   }
-  ],
-  "symbol": [
-   "purple"
-  ],
-  "flash": false,
-  "rarity": "",
-  "limited": false,
-  "effect": "Lv1･Lv2『自分のエンドステップ』\n自分のトラッシュにあるカード名に「アルデウス」と入っているスピリットカード1枚を手札に戻すことができる。\nLv2『自分のメインステップ』\n自分の手札にある本来のコストがコスト10以上の紫のスピリットカードを召喚するとき、コスト6として扱う。",
-  "effects": []
- },
- {
   "cardId": "BS23-069",
   "name": "蟲招く妖花の塔",
   "type": "nexus",
@@ -2447,27 +2372,6 @@
   "effects": []
  },
  {
-  "cardId": "BS23-084",
-  "name": "ディープシーイリュージョン",
-  "type": "magic",
-  "colors": [
-   "blue"
-  ],
-  "cost": 3,
-  "reduction": [
-   "blue",
-   "blue"
-  ],
-  "family": [],
-  "levels": [],
-  "symbol": [],
-  "flash": true,
-  "rarity": "",
-  "limited": false,
-  "effect": "メイン：\nこのターンの間、自分がスピリットカード/ブレイヴカード1枚を召喚するとき、自分のネクサスを好きなだけ疲労させることで、この効果で疲労させたネクサス1つにつき、1コストを支払ったものとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
-  "effects": []
- },
- {
   "cardId": "BS23-X02",
   "name": "白蛇帝アルデウス・ヴァイパー",
   "type": "spirit",
@@ -2680,52 +2584,6 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「異合」を持つ自分のスピリットがアタックしたとき、相手は、相手の手札1枚を破棄しなければブロックできない。\nLv1･Lv2･Lv3『自分のアタックステップ』\n相手がバーストを発動するとき、相手はそのカードのコストを支払わなければ発動できない。\nLv2･Lv3『自分のアタックステップ』\n【連鎖】/系統：「異合」を持つ自分のスピリットすべてのシンボルを、そのスピリットが持つシンボルと同じ色のシンボル2つにする。",
-  "effects": []
- },
- {
-  "cardId": "BS23-X07",
-  "name": "真・裁きの神剣トゥルース・エデン",
-  "type": "brave",
-  "colors": [
-   "red"
-  ],
-  "cost": 6,
-  "reduction": [
-   "red",
-   "purple",
-   "green",
-   "white",
-   "yellow",
-   "blue"
-  ],
-  "family": [
-   "剣刃"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 10000
-   }
-  ],
-  "symbol": [
-   "red"
-  ],
-  "flash": false,
-  "rarity": "X",
-  "limited": false,
-  "effect": "このブレイヴカードは、1コスト以上支払わなければ召喚できない。\nLv1『このブレイヴの召喚時』\n自分の手札にある系統：「剣使」を持つスピリットカード/系統：「剣刃」を持つブレイヴカードを、コストを支払わずに好きなだけ召喚する。\nただし、『このスピリット/ブレイヴの召喚時』効果は発揮されない。\n合体条件：コスト5以上\n【合体時】『このスピリットのアタック時』\n相手のバースト1つを破棄することで、相手のスピリット1体を破壊する。",
-  "braveLevels": [
-   {
-    "level": 1,
-    "cores": 0,
-    "bp": 6000
-   }
-  ],
-  "braveConditionText": "コスト5以上",
-  "braveCondition": {
-   "minCost": 5
-  },
   "effects": []
  },
  {
