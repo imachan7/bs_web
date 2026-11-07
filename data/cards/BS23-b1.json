@@ -1,0 +1,563 @@
+[
+ {
+  "cardId": "BS23-002",
+  "name": "恐竜剣聖ドラコレックス",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 3,
+  "reduction": [
+   "red"
+  ],
+  "family": [
+   "剣使",
+   "地竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「剣使」/「地竜」を持つ自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-005",
+  "name": "流星の剣聖シューティングスター",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣使",
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "自分のトラッシュにあるこのスピリットカードは、カード名に「シャイニング・ドラゴン」と入っている自分のスピリットが召喚されたとき、手札に戻る。\nLv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『このスピリットのバトル時』\nBP4000以下の相手のスピリット1体を破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-016",
+  "name": "死神剣聖ダークネス・メア",
+  "type": "spirit",
+  "colors": [
+   "purple"
+  ],
+  "cost": 6,
+  "reduction": [
+   "purple",
+   "purple",
+   "purple"
+  ],
+  "family": [
+   "剣使",
+   "無魔"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 9000
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットのアタック時』\n自分のトラッシュにあるコスト0/3の紫のスピリットカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『このスピリットのアタック時』\n相手の合体スピリットのブレイヴ1つを破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-024",
+  "name": "夜蝶剣聖モルフォナイト",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 4,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣使",
+   "怪虫"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 4,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2『お互いのアタックステップ』\n自分の効果によって相手のスピリットを疲労させたとき、ボイドからコア1個を自分のリザーブに置く。\nLv1･Lv2【抜刀】『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2『このスピリットの合体アタック時』\n相手のスピリット1体を疲労させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-026",
+  "name": "剣聖仙忍ジライヤ",
+  "type": "spirit",
+  "colors": [
+   "green"
+  ],
+  "cost": 6,
+  "reduction": [
+   "green",
+   "green",
+   "green"
+  ],
+  "family": [
+   "剣使",
+   "爪鳥"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 5000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 7000
+   },
+   {
+    "level": 3,
+    "cores": 7,
+    "bp": 11000
+   }
+  ],
+  "symbol": [
+   "green"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分のスピリット1体の【分身】を発揮させる。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\n自分の分身スピリット1体につき、このスピリットをBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-033",
+  "name": "機甲剣聖ミノタウロス",
+  "type": "spirit",
+  "colors": [
+   "white"
+  ],
+  "cost": 5,
+  "reduction": [
+   "white",
+   "white",
+   "purple"
+  ],
+  "family": [
+   "剣使",
+   "機獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "white"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2\n自分が【連鎖】でドローしたとき、自分はデッキから1枚ドローする。\n【合体時】Lv2『このスピリットのアタック時』\nBP6000以下の相手のスピリット1体を手札に戻す。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-043",
+  "name": "月影の剣聖アマルティア",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 5,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "剣使",
+   "想獣"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 3,
+    "bp": 7000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nこのスピリットと、系統：「剣刃」を持つ自分のスピリット状態のブレイヴすべてに“【聖命】『このスピリットのアタック時』このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く”を与える。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n自分のスピリット状態のブレイヴすべては、Lv1/Lv3の相手のスピリットからブロックされない。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-044",
+  "name": "氷火の剣聖スフィエル",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "剣使",
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 6,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "U",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『お互いのアタックステップ』\n自分のスピリット状態のブレイヴすべてをBP+5000する。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「剣刃」を持つ自分のスピリット状態のブレイヴがアタックしたとき、そのブレイヴの『このスピリットの合体アタック時』効果すべてを発揮させる。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-050",
+  "name": "異海剣聖シュブ・ニグラ",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 4,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "剣使",
+   "異合"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 3000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 5000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットのアタック時』\nBPを比べ相手のスピリットだけを破壊したとき、自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\n【合体時】Lv2･Lv3『自分のアタックステップ』\n系統：「剣使」/「異合」を持つ自分のスピリットがアタックしたとき、ボイドからコア1個をこのスピリットに置く。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-052",
+  "name": "剣聖将軍フィランダー",
+  "type": "spirit",
+  "colors": [
+   "blue"
+  ],
+  "cost": 5,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [
+   "剣使",
+   "闘神"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 5,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "blue"
+  ],
+  "flash": false,
+  "rarity": "M",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3【抜刀】『このスピリットの召喚時』\n自分の手札にあるこのスピリットと合体可能な系統：「剣刃」を持つブレイヴカード1枚を、コストを支払わずに召喚できる。\nLv1･Lv2･Lv3『このスピリットの召喚時』\n自分はデッキから2枚ドローする。\nその後、自分は手札2枚を破棄する。\n【合体時】Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのコスト以下の相手のスピリット1体を破壊できる。\nこの効果発揮後、このスピリットのブレイヴ1つを破壊する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-062",
+  "name": "極光剣ソルブレイカー",
+  "type": "brave",
+  "colors": [
+   "white"
+  ],
+  "cost": 4,
+  "reduction": [
+   "white",
+   "white",
+   "green"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   }
+  ],
+  "symbol": [],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のスピリットが3体以下のとき、自分の手札にある【抜刀】を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\n合体条件：コスト3以上\n【合体時】『このスピリットの合体アタック時』\nBP5000以下の相手のスピリット1体を手札に戻す。\nこのスピリットが系統：「剣使」を持つとき、かわりに、BP10000以上の相手のスピリット1体を手札に戻す。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 4000
+   }
+  ],
+  "braveConditionText": "コスト3以上",
+  "braveCondition": {
+   "minCost": 3
+  },
+  "effects": []
+ },
+ {
+  "cardId": "BS23-063",
+  "name": "光輪剣エンジェルハイロゥ",
+  "type": "brave",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "R",
+  "limited": false,
+  "effect": "Lv1『このブレイヴの召喚時』\n自分のスピリットが3体以下のとき、自分の手札にある【抜刀】を持つスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。\n合体条件：コスト4以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 2000
+   }
+  ],
+  "braveConditionText": "コスト4以上",
+  "braveCondition": {
+   "minCost": 4
+  },
+  "effects": []
+ },
+ {
+  "cardId": "BS23-074",
+  "name": "ソードレイド",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "R",
+  "limited": false,
+  "effect": "メイン：\n自分のデッキを上から3枚オープンする。\nその中の【抜刀】を持つスピリットカード/系統：「剣刃」を持つブレイヴカードすべてを手札に加える。それ以外は破棄する。\n【抜刀】を持つ自分のスピリット1体につき、このマジックの効果でオープンするカード枚数を+1枚する。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-075",
+  "name": "デッドソード",
+  "type": "magic",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "フラッシュ：\n自分の合体スピリットのブレイヴ1つ/スピリット状態のブレイヴ1体を破壊し、相手は、疲労状態の破壊したブレイヴ以下のコストの相手のスピリット2体を破壊する。\n系統：「剣使」を持つ自分のスピリットがいるとき、このマジックカードは手札に戻る。",
+  "effects": []
+ },
+ {
+  "cardId": "BS23-082",
+  "name": "ダンシングソード",
+  "type": "magic",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 4,
+  "reduction": [
+   "yellow",
+   "yellow"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "U",
+  "limited": false,
+  "effect": "フラッシュ：\n系統：「剣刃」を持つスピリット状態のブレイヴすべてを回復させる。\nまたは、系統：「剣刃」を持つブレイヴと合体している自分の合体スピリット1体を回復させる。",
+  "effects": []
+ }
+]

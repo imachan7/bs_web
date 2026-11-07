@@ -624,5 +624,91 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "X13-10",
+  "name": "渚の乙女ヴィエルジェ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nカード名に「渚」と入っている自分のスピリットが相手によって破壊されたとき、自分のライフが5以下なら、ボイドからコア1個を自分のライフに置く。",
+  "effects": []
+ },
+ {
+  "cardId": "X13-12",
+  "name": "裁きの神剣リ・ジェネシス",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このブレイヴカードは、自分の手札にあるスピリットカード1枚を破棄しなければ召喚できない。\n合体条件：コスト8以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 10000
+   }
+  ],
+  "braveConditionText": "コスト8以上",
+  "braveCondition": {
+   "minCost": 8
+  },
+  "effects": []
  }
 ]
