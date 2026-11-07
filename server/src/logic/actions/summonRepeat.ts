@@ -6,7 +6,8 @@ import type { ActionCtx } from "./types"
 import type { CardData, EffectAction, PlayerId } from "../../type"
 import { createInstance, findSpirit, getCard, log, minLevelCores, pushResumeFrames, suspend } from "../GameState"
 import { autoPayPlan, payCost, requestChoice } from "../EffectModules"
-import { askCostPay } from "../summonSurcharge"
+import { askCostPay, payVoidToll } from "../summonSurcharge"
+import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
 import { effectiveCost, summonSurcharge } from "../../../../shared/cost"
 
@@ -40,14 +41,14 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
     // 余分を除いたコスト（余分は全体で1回だけ払うので、カードごとには数えない）。
     // 破壊待機の発動元のシンボルは、破壊時効果の軽減に使える（RULES_BATSPI_WIKI §破壊待機）
     const baseCost = (c: CardData): number => Math.max(0, effectiveCost(state, owner, c) - summonSurcharge(state, owner, c))
-    const totals = (idx: number[]): { cost: number; keep: number } => {
+    const totals = (idx: number[]): { cost: number; keep: number; toll: number } => {
         const cards = idx.map((i) => getCard(player.hand[i]!))
         const surcharge = Math.max(0, ...cards.map((c) => summonSurcharge(state, owner, c)))
-        return { cost: cards.reduce((sum, c) => sum + baseCost(c), 0) + surcharge, keep: cards.reduce((sum, c) => sum + minLevelCores(c), 0) }
+        return { cost: cards.reduce((sum, c) => sum + baseCost(c), 0) + surcharge, keep: cards.reduce((sum, c) => sum + minLevelCores(c), 0), toll: cards.reduce((sum, c) => sum + summonVoidToll(state, c), 0) }
     }
     const affordable = (idx: number[]): boolean => {
         const t = totals(idx)
-        return autoPayPlan(state, owner, t.cost + t.keep, true) !== null
+        return autoPayPlan(state, owner, t.cost + t.keep + t.toll, true) !== null
     }
     const matching = (): number[] => player.hand.map((_, i) => i).filter((i) => matches(player.hand[i]!))
 
@@ -57,6 +58,11 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
         const cards = idx.map((i) => player.hand[i]!)
         let placed = 0
         if (payNow) {
+            if (t.toll > player.reserve) {
+                log(state, `${sourceName}：ボイドにコアを置けず召喚できなかった。`)
+                return
+            }
+            for (const c of cards) payVoidToll(state, owner, getCard(c))
             const plan = autoPayPlan(state, owner, t.cost + t.keep, true)
             if (plan === null) {
                 log(state, `${sourceName}：コアが足りず召喚できなかった。`)

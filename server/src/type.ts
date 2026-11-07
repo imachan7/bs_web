@@ -43,7 +43,7 @@ export type Color = "red" | "purple" | "green" | "white" | "yellow" | "blue"
 // ブレイヴは「カードタイプ」。単体で場に出すとスピリットとして扱われ、
 // 合体すると合体元と合わせて**1体のスピリット**になる（docs/design/BRAVE.md §1.1）
 export type CardType = "spirit" | "nexus" | "magic" | "brave"
-export type ImmuneSource = "spirit" | "brave" | "magic" // immuneToOpponentEffects/immune の against が絞る発生源種別
+export type ImmuneSource = "spirit" | "brave" | "magic" | "nexus" // immuneToOpponentEffects/immune の against が絞る発生源種別
 
 // **効果の発生源の種別は CardType をそのまま流す**（sourceType / srcType）。
 // ⚠️ ブレイヴを "spirit" に丸めないこと（2026-08-25 ユーザー確認。docs/design/BRAVE.md §12）。
@@ -122,6 +122,7 @@ export type TriggerEvent =
     | "onBattleStart" // バトルが成立した時点（アタック宣言時またはブロック宣言時）で発火。勝敗を問わない「このスピリットのバトル時」はこちら
     | "onBattleLose" // BP比較で相手のスピリットに破壊されたとき（敗北時）。相打ちでは発火しない
     | "onBlock" // ブロック時
+    | "onUnblocked" // 防御側がブロックしないと宣言した時点で、アタック中の自分スピリットに発火（self=アタッカー）。後から「ブロックされなかった」扱いになっても出ない（Q20334・Q20335）
     | "onBlocked" // アタック中の自分スピリットが相手のブロック宣言を受けたとき（self=アタッカー）
     | "onBattleEnd" // バトル終了時（GameEngine.resolveBattleの最後。バトル参加者のうちまだ生存している個体に発火。コリスタル）
     | "onLifeDealt" // このスピリットのアタックによって相手のライフを減らしたとき（アタッカー側で発火。老賢樹トレントン）
@@ -192,6 +193,7 @@ export interface EndStepLock {
 export interface DestroyContext {
     sourcePid?: PlayerId // 破壊を引き起こした効果の持ち主（相手の効果による破壊か判定する）
     sourceType?: CardType
+    trashedCount?: number // この破壊で実際にトラッシュへ置かれた体数（removal.ts の commitPendingDestruction が数える。手札へ戻った個体・トークンは数えない。BS22-073 Q25205）
     suppressOnDestroy?: true
     suppressOwnEffects?: true // suppressOnDestroy に加え、破壊された個体自身の「フィールドに残る／戻る」も出さない（BS22-054。【不死】やほかのカードの効果は止めない。2026-11-07 ユーザー確認）
     braveCantRemain?: true // 合体スピリットが破壊されるとき、ブレイヴを残す確認を出さずトラッシュへ（BS22-016）

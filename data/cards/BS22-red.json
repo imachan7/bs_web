@@ -341,5 +341,216 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS22-009",
+    "name": "剣星メサイア・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 9,
+    "reduction": [
+      "red",
+      "red",
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [
+      "剣使",
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 8000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 13000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 16000
+      }
+    ],
+    "symbol": [
+      "red",
+      "red"
+    ],
+    "flash": false,
+    "rarity": "M",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nBP7000以下の相手のスピリット1体を破壊する。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nこのスピリットのブレイヴが持つ『このスピリットの合体アタック時』効果が発揮したとき、その効果発揮後、同じ効果1つを、もう1度だけ発揮できる。",
+    "effects": [
+      {
+        "id": "BS22-009-e1",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "optional": false,
+        "action": {
+          "type": "destroy",
+          "count": 1,
+          "filter": {
+            "maxBp": 7000
+          }
+        }
+      },
+      {
+        "id": "BS22-009-e2",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": [
+          2,
+          3
+        ],
+        "whileCombined": true,
+        "optional": false,
+        "action": {
+          "type": "repeatCombinedAttackMarker"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-003",
+    "name": "プロフェット・ドラゴン",
+    "type": "spirit",
+    "colors": [
+      "red"
+    ],
+    "cost": 2,
+    "reduction": [
+      "red"
+    ],
+    "family": [
+      "戦竜"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "red"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にあるコスト8以上のスピリットカードを好きなだけオープンして手元に置くことで、オープンしたカード1枚につき、自分はデッキから1枚ドローする。\nオープンしたスピリットカードは、ゲーム終了時まで、手札にあるときと同様に使用できる。",
+    "effects": [
+      {
+        "id": "BS22-003-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": true,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "toTegamoto",
+            "count": "any",
+            "pick": {
+              "cardType": "spirit",
+              "cost": {
+                "min": 8
+              }
+            },
+            "playable": true
+          },
+          "then": {
+            "type": "draw",
+            "count": 1,
+            "countCounter": "lastMoved"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-073",
+    "name": "ジェネレートファイア",
+    "type": "magic",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "reduction": [
+      "red",
+      "red",
+      "red"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "メイン：\nBP3000以下の相手のスピリットすべてを破壊する。\nこの効果発揮後、自分の手札にあるスピリットカード1枚を、この効果で破壊したスピリット1体につき、1コストを支払ったものとして召喚できる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+3000する。",
+    "effects": [
+      {
+        "id": "BS22-073-e1",
+        "kind": "magic",
+        "timing": "main",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "destroy",
+              "count": 1,
+              "all": true,
+              "filter": {
+                "maxBp": 3000
+              }
+            },
+            {
+              "type": "summon",
+              "from": "hand",
+              "count": 1,
+              "upTo": true,
+              "payCost": true,
+              "costPaidAsIfCounter": "lastDestroyedCount"
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS22-073-e2",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "timedEffect",
+          "content": [
+            {
+              "type": "bp",
+              "amount": 3000
+            }
+          ],
+          "duration": "turn",
+          "side": "both",
+          "count": 1
+        }
+      }
+    ]
   }
 ]

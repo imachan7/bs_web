@@ -150,6 +150,7 @@ export function matchesTarget(
     if (filter.notInBattle && (board.battle?.attackerInstanceId === inst.instanceId || board.battle?.blockerInstanceId === inst.instanceId)) return false
     if (filter.inBattle && board.battle?.attackerInstanceId !== inst.instanceId && board.battle?.blockerInstanceId !== inst.instanceId) return false
     // 指定トリガーの誘発効果を静的に持つものだけ（BS08プテラディア捕獲部隊：『召喚時』効果持ち）
+    if (filter.bunshin && inst.bunshinOf === undefined) return false
     if (filter.hasTrigger !== undefined && !instHasTriggerEffect(inst, filter.hasTrigger)) return false
     if (filter.instanceIn !== undefined && !filter.instanceIn.includes(inst.instanceId)) return false
     return true

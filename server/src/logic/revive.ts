@@ -5,7 +5,8 @@ import { entryActive } from "../../../shared/rules/effectStop"
 import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
-import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, surchargeOwed } from "./summonSurcharge"
+import { summonVoidToll } from "../../../shared/rules/summonToll"
+import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
 import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
 import { millAllowed, noteMilled } from "./zones/mill"
@@ -475,8 +476,13 @@ export function applyFushiSummon(
     }
     // 無償（魔門）でも相手の転召の祭壇などの余分は払う（2026-10-15）
     const cost = freeNexus ? surchargeOwed(state, info.pid, card, false) : fushiCostOf(state, info.pid, card)
+    const voidToll = summonVoidToll(state, card)
+    if (voidToll > player.reserve) {
+        log(state, `${player.name}はボイドにコアを置けず、${card.name}を召喚できなかった。`)
+        return
+    }
     if (!prepaid) {
-        if (autoPayPlan(state, info.pid, cost + maintain, true) === null) {
+        if (autoPayPlan(state, info.pid, cost + maintain + voidToll, true) === null) {
             log(state, `${player.name}は【不死】のコストを支払えず、${card.name}を召喚できなかった。`)
             return
         }
@@ -487,6 +493,7 @@ export function applyFushiSummon(
         if (asked) return
     }
     player.trashCards.splice(index, 1)
+    payVoidToll(state, info.pid, card)
     let placedFromField = 0
     if (!prepaid) {
         const plan = autoPayPlan(state, info.pid, cost + maintain, true)!

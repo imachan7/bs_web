@@ -21,6 +21,7 @@ import mill from "./mill"
 import pay from "./pay"
 import peekHand from "./peekHand"
 import repeatBurst from "./repeatBurst"
+import combinedAttackRepeat from "./combinedAttackRepeat"
 import placeCores from "./placeCores"
 import voidGainedCores from "./voidGainedCores"
 import soulCoreEffects from "./soulCoreEffects"
@@ -63,6 +64,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...pay,
     ...peekHand,
     ...repeatBurst,
+    ...combinedAttackRepeat,
     ...placeCores,
     ...voidGainedCores,
     ...soulCoreEffects,

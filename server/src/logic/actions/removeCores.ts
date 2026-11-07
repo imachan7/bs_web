@@ -744,7 +744,8 @@ function resolveLife(ctx: ActionCtx, action: RemoveCoresAction): void {
 function resolveOpponentLifeDownTo(ctx: ActionCtx, action: RemoveCoresAction): void {
     const { state, owner, opp, sourceName, self, srcType } = ctx
     const player = state.players[opp]
-    const wanted = player.life - (action.downTo as number)
+    // downTo なしの count 個は相手のライフから直接取る（BS22-X05 の聖命の置き換え）
+    const wanted = typeof action.downTo === "number" ? player.life - action.downTo : (action.count as number)
     const n = lifeLossAllowed(state, { pid: opp, amount: Math.max(0, wanted), cause: "effect", actorPid: owner, sourceType: srcType, sourceInstance: self ?? undefined })
     if (wanted <= 0) {
         log(state, `${sourceName}：${player.name}のライフはすでに${String(action.downTo)}個以下だった。`)
@@ -760,7 +761,7 @@ function resolveOpponentLifeDownTo(ctx: ActionCtx, action: RemoveCoresAction): v
 }
 
 function dispatchByTarget(ctx: ActionCtx, action: RemoveCoresAction): void {
-    if (action.from?.includes("life") && action.side === "opponent" && typeof action.downTo === "number") {
+    if (action.from?.includes("life") && action.side === "opponent" && (typeof action.downTo === "number" || typeof action.count === "number")) {
         resolveOpponentLifeDownTo(ctx, action)
         return
     }

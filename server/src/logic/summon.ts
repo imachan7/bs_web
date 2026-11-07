@@ -1,7 +1,8 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { noteCoverage } from "../../../shared/coverage"
-import { getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
+import { countEffectCounter, getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
+import { summonVoidToll } from "../../../shared/rules/summonToll"
 import { refreshLevelAsOverrides } from "./state/continuous"
 import type { CardInstance, EffectAction, GameState, PaySource, PlayerId } from "../type"
 import { createInstance, findInstanceAnywhere, getCard, log, minLevelCores, opponentOf, pushResumeFrames, resolveInOrder, suspend } from "./GameState"
@@ -18,7 +19,7 @@ import { effectiveCost } from "../../../shared/cost"
 import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
-import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "./summonSurcharge"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll } from "./summonSurcharge"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -198,6 +199,7 @@ export function summonFreeFromHandIndex(
     skipTensho?: true,
     opts?: {
         payCost?: true
+        paidAsIf?: number // payCost 併用：通常のコストのうち支払ったものとして扱う量（BS22-073）
         skipOnSummon?: true
         paySources?: PaySource[]
         surchargeBatch?: true // 複数体を同時に召喚する効果の1体（余分は1回だけ。summonSurcharge.ts）
@@ -227,9 +229,17 @@ export function summonFreeFromHandIndex(
     // BS08帝竜騎サイクル）。支払い元はリザーブに加えて**フィールドのコア**も使える
     // （paySources。通常の召喚と同じ。2026-08-23 まではリザーブのみの簡略化で、
     // 盤面のコアでなら払えるカードが候補にすら出なかった＝利用者報告）
-    const cost = opts?.payCost ? effectiveCost(state, owner, card) : 0
+    const cost = opts?.payCost ? Math.max(0, effectiveCost(state, owner, card) - (opts.paidAsIf ?? 0)) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
+    // ボイドの通行料はリザーブからだけ払う（BS22-012）。払える見込みは通行料を引いたリザーブで見る
+    const voidToll = opts?.payCost ? summonVoidToll(state, card) : 0 // 無償の経路は canPay…/payFree… が通行料も扱う
+    let short = voidToll > player.reserve
+    if (!short) {
+        player.reserve -= voidToll
+        short = opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)
+        player.reserve += voidToll
+    }
+    if (short) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
@@ -244,6 +254,7 @@ export function summonFreeFromHandIndex(
         ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
     })) return
     player.hand.splice(handIndex, 1)
+    if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
     // 支払い元が維持コア割れしたらそこで消滅する）。無償のときは余分をここで払う
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
@@ -323,7 +334,8 @@ export function summonFreeFromTrashIndex(
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
     const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo", false) : 0
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
-    if (opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
+    const voidToll = opts?.payCost ? summonVoidToll(state, card) : 0
+    if (opts?.payCost ? player.reserve - voidToll + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
@@ -336,6 +348,7 @@ export function summonFreeFromTrashIndex(
         ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
     })) return
     player.trashCards.splice(trashIndex, 1)
+    if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
@@ -436,7 +449,8 @@ export function summonFromHandFreeCandidateMatches(
             (sum, i) => sum + i.cores,
             0,
         )
-        if (player.reserve + fieldCores < minLevelCores(candidate) + effectiveCost(state, owner, candidate)) {
+        const paid = action.costPaidAsIfCounter === undefined ? 0 : countEffectCounter(state, owner, self, action.costPaidAsIfCounter)
+        if (player.reserve + fieldCores < minLevelCores(candidate) + Math.max(0, effectiveCost(state, owner, candidate) - paid) + summonVoidToll(state, candidate)) {
             return false
         }
     }

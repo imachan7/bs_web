@@ -47,6 +47,7 @@ export interface PendingChoice {
     resolveOnSkip?: true // kind:"card" / kind:"target"：スキップされたときも action を（選択なしで）解決する。
     // 「手札を好きなだけ破棄する」のように、**選び終わってから後処理がある**効果で使う。
     // 既定（未指定）はスキップ＝何もせず終了（従来どおり。BS08堕天使ミカファール）
+    declineAction?: EffectAction // 断ったとき（option 未選択）に代わりに解く効果。confirm と組む（seimeiReplace）
     confirm?: true // 「〜できる」効果の発動確認（kind:"option" 限定）。選択肢は1つだけで、
     // **選んだラベルを chosenOption として action に渡さない**（渡すと選択肢を解釈するアクションが誤動作する）。
     // スキップ＝発動しない。EffectDef.triggered.optional が true のときに fireTrigger が立てる
@@ -162,6 +163,7 @@ export interface PendingChoice {
         // **action は解決しない**。選ばれたら疲労させて宣言の続き（continueBlockDeclaration）へ進む
         blockerPid: PlayerId
         blockerInstanceId: string
+        destroy?: true // 疲労でなく破壊（timedEffect blockCost destroyOwnSpirit）
     }
     attackEffectsToll?: {
         // BS20-072 Lv2：アタックした側がリザーブのコア1個をトラッシュに置くかの確認待ち。**action は解決しない**。
@@ -291,6 +293,7 @@ export interface PendingChoice {
         // 「【神速】でコストを支払わずに召喚できる」（kind:"sokuFreeSummon"）の使用時確認。
         // **action は解決しない**（答えを持って doSummon をやり直す。magicFreeChoice と同じ形）
         handIndex: number
+        fromTegamoto?: true // 手元のカードの召喚：handIndex は手元の添字。答えが来るまでカードは手元に置いたまま
         level?: number
         paySources?: PaySource[]
         braveTargetInstanceId?: string

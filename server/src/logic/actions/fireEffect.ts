@@ -5,7 +5,8 @@ import type { ActionHandler, ActionRegistry } from "./types"
 import type { CardInstance, EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { getCard, log, pushResumeFrames } from "../GameState"
 import { fireSummonTrigger, fireTrigger, requestChoice, resolveAction } from "../EffectModules"
-import { bravesOf, currentLevel, matchesTarget } from "../../../../shared/rules"
+import { requestCardChoice } from "../targeting"
+import { bravesOf, currentLevel, effectActiveAtLevel, matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 
 type FireEffect = Extract<EffectAction, { type: "fireEffect" }>
@@ -26,6 +27,10 @@ function effectGroupsWithLabel(state: GameState, owner: PlayerId, inst: CardInst
             (e): e is Triggered => e.kind === "triggered" && e.trigger === trigger && entryActive(state, owner, src, e, level),
         ),
     )
+    return groupEffects(entries)
+}
+
+function groupEffects(entries: Triggered[]): { ids: string[]; label: string }[] {
     const groups = new Map<string, { ids: string[]; label: string }>()
     for (const e of entries) {
         const key = JSON.stringify([e.levels, e.condition ?? null, e.optional ?? false, e.whileCombined ?? false])
@@ -132,7 +137,47 @@ const replayOpponentSummonEffectHandler: ActionHandler<"replayOpponentSummonEffe
     fireTrigger(state, owner, inst, "onSummon", undefined, undefined, false, undefined, undefined, undefined, undefined, rec)
 }
 
+// 持ち主のスピリットではなくトラッシュのカードの効果なので、Lv は借りる側（発生源）の今のLvで見る（BS22 計画 §2-5）。
+// 候補は『召喚時』を持つものだけ。発揮できる効果が複数あるときは「効果1つ」を選ぶ
+const borrowTrashSummonEffectHandler: ActionHandler<"borrowTrashSummonEffect"> = (ctx, action) => {
+    const { state, owner, self, sourceName, chosenCardIndex, chosenOption } = ctx
+    if (!self) return
+    const trash = state.players[owner].trashCards
+    const level = currentLevel(self).level
+    const summonEffects = (cardId: string): Triggered[] =>
+        getCard(cardId).effects.filter((e): e is Triggered => e.kind === "triggered" && e.trigger === "onSummon" && effectActiveAtLevel(e.levels, level))
+    const eligible = (i: number): boolean => {
+        const card = getCard(trash[i]!)
+        return card.type === "spirit" && card.name !== action.nameExcludes && summonEffects(card.cardId).length > 0
+    }
+    const idx = action.chosenCardIndex ?? chosenCardIndex
+    if (idx === undefined) {
+        const indices = trash.map((_, i) => i).filter(eligible)
+        if (indices.length === 0) {
+            log(state, `${sourceName}：借りられる『召喚時』効果を持つスピリットカードがトラッシュになかった。`)
+            return
+        }
+        if (state.interactiveTargets) {
+            requestCardChoice(state, owner, `${sourceName}：『召喚時』効果を借りるスピリットカードを選んでください`, "trash", indices, false, action, self)
+            return
+        }
+        ctx.resolve(action, { chosenCardIndex: indices[0] })
+        return
+    }
+    const cardId = trash[idx]
+    if (cardId === undefined || !eligible(idx)) return
+    const groups = groupEffects(summonEffects(cardId))
+    const picked = chosenOption !== undefined ? groups.find((g) => g.label === chosenOption) : groups.length === 1 || !state.interactiveTargets ? groups[0] : undefined
+    if (!picked) {
+        requestChoice(state, owner, `${sourceName}：${getCard(cardId).name}のどの効果を発揮しますか`, [], false, { ...action, chosenCardIndex: idx }, self, "option", groups.map((g) => g.label))
+        return
+    }
+    log(state, `${sourceName}：${getCard(cardId).name}の『召喚時』効果を、自分の効果として発揮する。`)
+    fireTrigger(state, owner, self, "onSummon", undefined, undefined, false, undefined, undefined, picked.ids, undefined, { cardId, level })
+}
+
 const handlers = {
+    borrowTrashSummonEffect: borrowTrashSummonEffectHandler,
     replayOpponentSummonEffect: replayOpponentSummonEffectHandler,
     fireEffect: fireEffectHandler,
     fireSoryoSelf: fireSoryoSelfHandler,

@@ -158,7 +158,7 @@ function renderTegamotoPanel(view: GameView, tab: "mine" | "opp"): void {
         
         el.dataset.cardId = cardId // enable tooltip
         el.dataset.tegamotoIndex = String(index)
-        if (tab === "mine" && m.type === "magic") {
+        if (tab === "mine" && (m.type === "magic" || m.type === "spirit" || m.type === "brave")) {
             el.classList.add("clickable")
         }
         tegamotoContent.appendChild(el)
@@ -1060,13 +1060,15 @@ async function init(): Promise<void> {
         rerender()
     })
     
-    // 手元からのマジック使用
+    // 手元からのマジック使用・スピリット/ブレイヴの召喚
     byId("tegamoto-content").addEventListener("click", (e) => {
         if (activeTegamotoTab !== "mine") return
         const cardEl = closestData(e, "data-tegamoto-index")
         if (cardEl) {
             const index = Number(cardEl.dataset.tegamotoIndex)
-            send({ type: "castMagic", handIndex: index, fromTegamoto: true })
+            const tegamotoCard = master(cardEl.dataset.cardId ?? "")
+            if (tegamotoCard.type === "magic") send({ type: "castMagic", handIndex: index, fromTegamoto: true })
+            else send({ type: "summon", handIndex: index, fromTegamoto: true })
             byId("tegamoto-panel").classList.add("hidden")
         }
     })

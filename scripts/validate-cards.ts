@@ -34,7 +34,7 @@ const VALID_TYPES = new Set(["spirit", "nexus", "magic", "brave"])
 // TriggerEvent を追加・改名したらここにも追記すること
 const VALID_TRIGGERS = new Set([
     "onSummon", "onDeploy", "onAttack", "onDestroy", "onBattleWin", "onBattleStart", "onBattleLose",
-    "onBlock", "onBlocked", "onBattleEnd", "onLifeDealt", "onLifeReduced", "onRefreshed", "onTenshoTarget",
+    "onBlock", "onBlocked", "onUnblocked", "onBattleEnd", "onLifeDealt", "onLifeReduced", "onRefreshed", "onTenshoTarget",
 ])
 
 // 『』で囲まれた効果は**カテゴリ**で、効果を借りる／発揮させない器は『』付きしか対象にできない
@@ -58,6 +58,7 @@ const TRIGGER_QUOTE_WORDS: Record<string, string[]> = {
     onBattleLose: ["バトル時", "アタック時", "ブロック時"],
     onBattleEnd: ["バトル時", "アタック時", "ブロック時"],
     onLifeDealt: ["アタック時"],
+    onUnblocked: ["アタック時", "バトル時"],
 }
 
 // 上の検査で落ちるが、**直し方が未決**のもの。ここはベースラインではなく「宿題の一覧」で、
@@ -83,7 +84,7 @@ const VALID_KINDS = new Set([
     "deckRule",
     "rensaIgnoreCondition",
     "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "burstActivationNegate", "nexusCostMillPay", "countAsMultiple",
-    "reviveOnDestroy", "reductionGrant", "levelAs", "battleWon", "magicRestriction",
+    "reviveOnDestroy", "reductionGrant", "reductionAlsoColor", "levelAs", "battleWon", "magicRestriction",
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "drawStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
@@ -99,7 +100,7 @@ const VALID_KINDS = new Set([
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
     "trashReturnAtEndStep", "nexusAsSpiritDuringAttackStep", "burst", "extraStepAfterAttackStep",
     "handActivated", "ownMagicColorless", "fushiFreeByExhaust", "freeSummonFromHandOnOwnSpiritDestroyed",
-    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant", "lifeDamageReplace", "symbolWhenSummoning", "effectTax",
+    "bpEqualizeFamily", "destroyBpThresholdBonus", "burstMagicFreeEffect", "handBurstEffectGrant", "lifeDamageReplace", "seimeiReplace", "symbolWhenSummoning", "effectTax",
 ])
 
 export interface ValidationIssue {
@@ -753,6 +754,7 @@ const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],
     ["tenshoSubstituteChoice", "【転召】の「疲労で代替する」選択を内部で出す"],
     ["revealReturnToDeck", "公開したカードをデッキへ戻す後始末を内部で呼ぶ"],
+    ["fireAgain", "ブレイヴの『合体アタック時』効果の後ろに combinedAttackRepeat.ts が足す「もう1度」の確認（BS22-009 の目印 repeatCombinedAttackMarker が有効なときだけ）"],
     ["noop", "アクションを解決しない pendingChoice（マジック無効化の確認など）のプレースホルダ"],
     ["summonSequence", "【転召】の対象選択で中断した召喚の続き（召喚時効果以降）を GameEngine が queue へ積む"],
     ["tenshoResume", "【転召】の途中で誘発が選択待ちを立てたときの再開専用（resolveTensho が再開フレームへ積む）"],

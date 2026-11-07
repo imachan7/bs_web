@@ -49,7 +49,7 @@ import { countedAmount } from "../counted"
 import { recordDestroysOf, resolveHandFreeSummonOnDestroy } from "../removal"
 import { destroyDenial } from "../destroyGate"
 import { soulCoreLeavesField, wouldDeplete } from "../soulCore"
-import { currentRecordScope, lastMovedOf, recordLeftCost, recordMoved, recordNexusCost } from "../record"
+import { currentRecordScope, lastMovedOf, recordDestroyedCount, recordLeftCost, recordMoved, recordNexusCost } from "../record"
 
 type DestroyAction = Extract<EffectAction, { type: "destroy" }>
 type DestroyNexusAction = DestroyAction
@@ -542,6 +542,7 @@ export function destroyTargetList(
 ): void {
     const { state, owner, self, sourceName, destroyContext } = ctx
         if (batchTargets.length === 0) {
+            recordDestroyedCount(state, 0)
             log(state, `${sourceName}：対象がいなかった。`)
             return
         }

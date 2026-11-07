@@ -10,6 +10,7 @@
 // 呼び出し側の互換のため、EffectModules.ts がここの export を再エクスポートしている
 import { noteCoverage } from "../../../shared/coverage"
 import { markPays } from "./actions/pay"
+import { wrapWithRepeat } from "./actions/combinedAttackRepeat"
 import type {
     CardInstance, EffectAction, EffectDef, GameState, PlayerId,
     ResolvedTargetFilter, TimedContent,
@@ -513,10 +514,11 @@ export function fireTrigger(
     // **self はホストのまま**にする：合体スピリットは1体なので、効果文の「このスピリット」は
     // 合体スピリット＝ホスト側の個体を指す（refresh{target:"self"}・selfBuff などが正しく当たる）。
     // レベル判定だけはブレイヴ側の合体状態のレベル表を引く必要があるので、発生源を持ち回る
+    if (firedEvents.includes("onAttack")) delete selfInstance.combinedAttackRepeated
     const entries: { effect: EffectDef; src: CardInstance }[] = [
         ...card.effects.map((e) => ({ effect: e, src: selfInstance })),
         ...(asCard !== undefined ? [] : bravesOf(state.players[owner], selfInstance)).flatMap((b) =>
-            getCard(b.cardId).effects.map((e) => ({ effect: e, src: b })),
+            getCard(b.cardId).effects.map((e) => ({ effect: wrapWithRepeat(state, owner, selfInstance, b, e), src: b })),
         ),
     ]
     const resolveEntry = (entry: { effect: EffectDef; src: CardInstance }): void => {
@@ -675,7 +677,7 @@ export function fireCombinedAttackTrigger(
                     e.whileCombined === true &&
                     effectActiveAtLevel(e.levels, currentLevel(brave).level),
             )
-            .map((effect) => ({ effect, src: brave })),
+            .map((effect) => ({ effect: wrapWithRepeat(state, owner, host, brave, effect) as typeof effect, src: brave })),
     )
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i]

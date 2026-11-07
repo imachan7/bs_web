@@ -259,6 +259,9 @@ export function hasFullEffectImmunity(
             (c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "brave"),
         )
     }
+    if (srcType === "nexus") {
+        return activeConstraints(board, pid, inst).some((c) => c.type === "immuneToOpponentEffects" && againstIncludes(c.against, "nexus"))
+    }
     if (srcType !== "spirit" && srcType !== "magic") return false
     // activeConstraints は自前の kind:"constraint" だけでなく constraintGrant による範囲付与も含む
     // （BS10-091シャボンの湖畔Lv2＝「自分のコスト2のスピリットすべては」）。against指定時はそのsrcTypeのみ絞る
@@ -1090,6 +1093,7 @@ function lifeDamagePerSpiritRemaining(board: Board, pid: PlayerId, spirit: CardI
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "lifeDamagePerSpiritPerTurn") continue
                 if (!entryActive(board, pid, source, effect, currentLevel(source).level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
+                if (effect.constraint.minSymbols !== undefined && instanceSymbolCount(spirit) < effect.constraint.minSymbols) continue
                 noteCoverage(effect, "globalConstraint")
                 const dealt = spirit.lifeDealtThisTurn?.[pid] ?? 0
                 remaining = Math.min(remaining, Math.max(0, effect.constraint.max - dealt))

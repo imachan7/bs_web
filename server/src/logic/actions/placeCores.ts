@@ -21,6 +21,7 @@ import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { recordTargets } from "../record"
 import { placeCoresGather } from "./placeCoresGather"
+import { offerSeimeiReplace } from "../keywords/seimei"
 
 type WidePlaceCores = Extract<EffectAction, { type: "placeCores" }>
 type LegacyFrom = "void" | "reserve" | "trash" | "self" | "field" | "destroyed"
@@ -234,6 +235,10 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
     }
 
     const wantsSpiritOrNexus = action.to === "spirit" || action.to === "nexus"
+
+    if (action.to === "life" && action.from === "void" && action.seimeiChecked !== true && self && spiritHasKeyword(state, owner, self, "seimei")) {
+        if (offerSeimeiReplace(state, owner, self, action)) return
+    }
 
     // 取り元が空でfillTo/upToLevelでもないなら、対象選択より前に打ち切る（無駄な選択を出さない）
     if (

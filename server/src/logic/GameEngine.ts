@@ -1,6 +1,7 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
-import { askSurchargePay, payFreeSummonSurcharge } from "./summonSurcharge"
+import { askSurchargePay, payFreeSummonSurcharge, payVoidToll } from "./summonSurcharge"
+import { doSummonFromTegamoto } from "./tegamotoSummon"
 import { exSymbolsOfTrashCard, findSokuFreeSummonSource, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
@@ -29,7 +30,7 @@ import { resolveBlockDeclared } from "./blockDeclared"
 import { finishSummonEffect } from "./keywords/burst"
 import { markPayConfirmed } from "./actions/pay"
 import { doUseHandBurstEffect } from "./handBurstEffect"
-import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
+import { blockDestroyOwnSpiritRequired, blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount } from "../../../shared/block"
 import {
     AWAKEN_FROM_RESERVE,
     timedContentsOn,
@@ -281,6 +282,7 @@ function dispatchAction(
     }
     switch (action.type) {
         case "summon":
+            if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
             return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice)
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
@@ -411,6 +413,7 @@ function doBattleSwapSummon(
     const cost = effectiveCost(state, pid, card)
     returnSpiritToHand(state, pid, substitute)
     const maintain = minLevelCores(card)
+    payVoidToll(state, pid, card)
     const placedFromField = payCost(state, pid, cost, paySources, maintain)
     player.reserve -= maintain - placedFromField
     player.hand.splice(handIndex, 1)
@@ -623,6 +626,7 @@ export function doSummon(
         consumeSummonHandDiscardPay(state, pid)
     }
     if (paySoulCoreFromReserve === true || paySources?.some((src) => src.includeSoulCore === true)) state.summonPaidWithSoulCore = true
+    payVoidToll(state, pid, card)
     const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain, paySoulCoreFromReserve)
     // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
@@ -1215,7 +1219,31 @@ function doBlock(state: GameState, pid: PlayerId, instanceId: string, paySources
         }
         exhaustBlockToll(state, pid, candidates[0]!)
     }
+    // blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊する。
+    // ponytail: blockExhaustSpirit の選択待ちと両方が掛かると、破壊の選択は出さずに先頭を破壊する
+    if (blockDestroyOwnSpiritRequired(state, findSpirit(state.players[opponentOf(pid)], state.battle.attackerInstanceId))) {
+        const candidates = state.players[pid].field.spirits.filter((sp) => sp.instanceId !== instanceId)
+        if (state.interactiveTargets && candidates.length > 1) {
+            state.pendingChoice = {
+                pid,
+                kind: "target",
+                prompt: "ブロックのコストとして破壊するスピリットを選んでください",
+                candidates: candidates.map((sp) => sp.instanceId),
+                optional: false,
+                action: { type: "noop" },
+                selfInstanceId: instanceId,
+                blockExhaustPick: { blockerPid: pid, blockerInstanceId: instanceId, destroy: true },
+            }
+            return null
+        }
+        destroyBlockToll(state, pid, candidates[0]!)
+    }
     return continueBlockDeclaration(state, pid, instanceId)
+}
+
+export function destroyBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {
+    log(state, `${state.players[pid].name}はブロックのため${getCard(sp.cardId).name}を破壊した。`)
+    destroySpirit(state, pid, sp.instanceId)
 }
 
 export function exhaustBlockToll(state: GameState, pid: PlayerId, sp: CardInstance): void {
@@ -1337,6 +1365,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     for (const c of costAttacker && !forced ? timedContentsOn(state, costAttacker) : []) {
         if (c.type !== "blockCost") continue
         const blockerPlayer = state.players[pid]
+        if (c.cost === "destroyOwnSpirit") continue
         if (c.cost === "reserveCoreToTrash") {
             blockerPlayer.reserve -= c.count
             blockerPlayer.trashCores += c.count

@@ -13,7 +13,8 @@ import { returnToHandCandidateCountForPay } from "./bounce"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { toAttackPhase } from "../PhaseManager"
 import { effectiveCost, magicEffectiveColors } from "../../../../shared/cost"
-import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping } from "../summonSurcharge"
+import { summonVoidToll } from "../../../../shared/rules/summonToll"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll } from "../summonSurcharge"
 import { braveCombineCandidates } from "../../../../shared/summon"
 import { summonDenial } from "../summonGate"
 import { stayOnFieldRevived } from "../revive"
@@ -102,6 +103,7 @@ const chooseActionModeHandler: ActionHandler<"chooseActionMode"> = (ctx, action)
             self,
             "option",
             action.modes.map((m) => m.label),
+            action.chooser === "opponent" ? ctx.opp : undefined,
         )
         return
 }
@@ -365,13 +367,14 @@ export function summonBurstCardFreeHandler(ctx: ActionCtx, action: Extract<Effec
     // payCost でなくても、相手の転召の祭壇などの余分は払う（2026-10-15）
     if (action.surchargePrepaid) state.summonSurchargePaid = owner
     const cost = action.payCost ? effectiveCost(state, owner, card, false, [], false, false) : 0
-    if (action.payCost ? normalReserveOf(player) < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
+    if (action.payCost ? normalReserveOf(player) < maintain + cost + summonVoidToll(state, card) : !canPayFreeSummonSurcharge(state, owner, card, maintain, true)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
     if (!action.payCost && askSurchargePay(state, owner, card, true, maintain, { ...action, surchargePrepaid: true })) return
     player.burst = null
     player.burstSet = false
+    if (action.payCost) payVoidToll(state, owner, card)
     const placedFromField = action.payCost ? 0 : payFreeSummonSurchargeKeeping(state, owner, card, true, maintain) ?? 0
     player.reserve -= maintain + cost - placedFromField
     player.trashCores += cost

@@ -740,6 +740,13 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "seimeiReplace" // 持ち主の【聖命】すべてのライフ増加を、発揮のたびに聞いて action に置き換える
+          levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+          action: EffectAction
+      }
+    | {
+          id: string
           kind: "deckRule" // デッキ構築の規則。継続効果ではなく印（盤面では読まない。validateDeckCards が読む）
           rule: "anyCopies" // 同名カードの枚数上限を外す（CP13-01）
       }

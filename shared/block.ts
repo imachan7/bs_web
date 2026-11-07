@@ -79,6 +79,12 @@ export function blockReserveToTrashCount(board: Board, attackerPid: PlayerId, at
     return activeConstraints(board, attackerPid, attackerInst).reduce((n, c) => n + (c.type === "blockReserveToTrash" ? c.count : 0), 0)
 }
 
+// blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊しなければブロックできないか
+export function blockDestroyOwnSpiritRequired(board: Board, attackerInst: CardInstance | undefined): boolean {
+    if (!attackerInst) return false
+    return timedContentsOn(board, attackerInst).some((c) => c.type === "blockCost" && c.cost === "destroyOwnSpirit")
+}
+
 // このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
 export function blockExhaustSpiritRequired(board: Board, attackerPid: PlayerId, attackerInst: CardInstance | undefined): boolean {
     if (!attackerInst) return false

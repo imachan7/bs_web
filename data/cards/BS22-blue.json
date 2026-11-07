@@ -541,5 +541,85 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS22-072",
+    "name": "アトライア海帝国",
+    "type": "nexus",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 0
+      },
+      {
+        "level": 2,
+        "cores": 1,
+        "bp": 0
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『お互いのメインステップ』\nお互い、コスト0/3/4のスピリットカード/ブレイヴカードを召喚するとき、1コスト余分に支払わなければならない。\nLv2『相手のメインステップ』\n相手は、コスト6/7のスピリットカード/ブレイヴカードを召喚するとき、3コスト余分に支払わなければならない。",
+    "effects": [
+      {
+        "id": "BS22-072-e1",
+        "kind": "costMod",
+        "levels": [
+          1,
+          2
+        ],
+        "amount": 1,
+        "cardTypes": [
+          "spirit",
+          "brave"
+        ],
+        "costIn": [
+          0,
+          3,
+          4
+        ],
+        "phaseTurn": {
+          "phase": "main",
+          "turn": "both"
+        },
+        "asSurcharge": true
+      },
+      {
+        "id": "BS22-072-e2",
+        "kind": "costMod",
+        "levels": [
+          2
+        ],
+        "amount": 3,
+        "cardTypes": [
+          "spirit",
+          "brave"
+        ],
+        "costIn": [
+          6,
+          7
+        ],
+        "side": "opponent",
+        "phaseTurn": {
+          "phase": "main",
+          "turn": "opponent"
+        },
+        "asSurcharge": true
+      }
+    ]
   }
 ]

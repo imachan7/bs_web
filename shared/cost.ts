@@ -19,6 +19,15 @@ import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, hasGlobal
 // beforeReduction：省略時は「軽減の後に足す」ものだけ合計する。true 指定時は「軽減の前に足す」ものだけ合計する
 // （effectiveCost が①置換→②beforeReduction加算→③軽減→④通常加算 の順で呼び分ける。BS15共通器：虚神）
 export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardData, beforeReduction = false): number {
+    return costModSum(board, usingPid, cardData, beforeReduction, false)
+}
+
+// asSurcharge の costMod（余分のコスト）だけの合計。summonSurcharge 経由で、無償召喚でも払う余分として扱う（COST_MODEL §11）
+function costModSurcharge(board: Board, usingPid: PlayerId, cardData: CardData): number {
+    return costModSum(board, usingPid, cardData, false, true)
+}
+
+function costModSum(board: Board, usingPid: PlayerId, cardData: CardData, beforeReduction: boolean, surchargeOnly: boolean): number {
     let total = 0
     for (const pid of ["p1", "p2"] as PlayerId[]) {
         const player = board.players[pid]
@@ -30,9 +39,12 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
                 // mode:"set"（コスト置換。BS05パントマイスター／ゴッドスピード）はcostSetOverride側が
                 // 別途処理するため、加算合計のこちらでは読み飛ばす（二重適用を防ぐ）
                 if (effect.mode === "set") continue
+                if ((effect.asSurcharge === true) !== surchargeOnly) continue
                 if (!entryActive(board, pid, source, effect, sourceLevel)) continue
                 if (effect.colorFilter !== undefined && !cardHasColor(cardData, effect.colorFilter)) continue
                 if (effect.cardType !== undefined && cardData.type !== effect.cardType) continue
+                if (effect.cardTypes !== undefined && !effect.cardTypes.includes(cardData.type)) continue
+                if (effect.costIn !== undefined && !effect.costIn.includes(cardData.cost)) continue
                 // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
                 if (effect.side === "opponent" && usingPid === pid) continue
                 if (effect.phaseTurn) {
@@ -76,6 +88,55 @@ export function costModTotal(board: Board, usingPid: PlayerId, cardData: CardDat
 // pid 自身のフィールド（スピリット＋ネクサス）発生源のうち、レベル有効・カード種別/色一致・
 // 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
+// 軽減シンボル1つは、その色か also の色の場のシンボル1つで1回だけ満たされ、場のシンボルも1回しか使えない（Q22532・Q22533）。
+// 軽減が最大になる割り当てを増加路で求める
+function maxReductionMatch(demands: Color[], also: Color[], haveOf: (c: Color) => number): number {
+    const colors = [...new Set([...demands, ...also])]
+    const left = new Map<Color, number>(colors.map((c) => [c, haveOf(c)]))
+    const used = new Map<Color, Color[]>() // 供給色 → それを使っている要求の色（1要求ごとに1要素）
+    const allowed = (d: Color): Color[] => [...new Set([d, ...also])]
+    const place = (d: Color, seen: Set<Color>): boolean => {
+        for (const sc of allowed(d)) {
+            if (seen.has(sc)) continue
+            seen.add(sc)
+            const holders = used.get(sc) ?? []
+            if ((left.get(sc) ?? 0) > holders.length) {
+                used.set(sc, [...holders, d])
+                return true
+            }
+            for (let i = 0; i < holders.length; i++) {
+                if (place(holders[i]!, seen)) {
+                    used.set(sc, holders.map((h, j) => (j === i ? d : h)))
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    let n = 0
+    for (const d of demands) if (place(d, new Set())) n++
+    return n
+}
+
+// reductionAlsoColor：手札のこのカードの軽減シンボルを「としても」数える色（置き換えではなく追加）
+function reductionAlsoColors(board: Board, pid: PlayerId, cardData: CardData): Color[] {
+    const out: Color[] = []
+    for (const source of effectSources(board, pid)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "reductionAlsoColor" || !entryActive(board, pid, source, effect, level)) continue
+            if (effect.cardColor !== undefined && !cardHasColor(cardData, effect.cardColor)) continue
+            if (effect.cardTypes !== undefined && !effect.cardTypes.includes(cardData.type)) continue
+            if (effect.phase !== undefined && board.phase !== effect.phase) continue
+            if (effect.turn === "own" && pid !== board.turnPlayer) continue
+            if (effect.turn === "opponent" && pid === board.turnPlayer) continue
+            noteCoverage(effect, "reductionAlsoColor")
+            out.push(effect.color)
+        }
+    }
+    return out
+}
+
 export function reductionGrantSymbols(
     board: Board,
     pid: PlayerId,
@@ -744,15 +805,20 @@ export function effectiveCost(
             // 軽減できる（ループの外で1回だけ判定し、色ごとには呼ばない）
             const withTrash = hasTrashSymbolReduction(board, pid, cardData, viaSoryo)
             const fullReduction = selfSummonCostNotes(board, pid, cardData, "fullReduction", viaSoryo).length > 0
-            for (const color of new Set(reductionColors)) {
-                const need = reductionColors.filter((c) => c === color).length
-                const have =
-                    countSymbols(board.players[pid], [color], cardData.type === "spirit") +
-                    (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0) +
-                    // 《継召》：除外したカードのシンボルのうち、この色に一致するものだけ軽減に加算する
-                    exReductionSymbols.filter((c) => c === color).length +
-                    summoningSymbolBonus(board, pid, cardData, color)
-                reduction += Math.min(need, fullReduction ? need : have)
+            const alsoColors = fromHand ? reductionAlsoColors(board, pid, cardData) : []
+            const haveOf = (color: Color): number =>
+                countSymbols(board.players[pid], [color], cardData.type === "spirit") +
+                (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0) +
+                // 《継召》：除外したカードのシンボルのうち、この色に一致するものだけ軽減に加算する
+                exReductionSymbols.filter((c) => c === color).length +
+                summoningSymbolBonus(board, pid, cardData, color)
+            if (alsoColors.length > 0 && !fullReduction) {
+                reduction += maxReductionMatch(reductionColors, alsoColors, haveOf)
+            } else {
+                for (const color of new Set(reductionColors)) {
+                    const need = reductionColors.filter((c) => c === color).length
+                    reduction += Math.min(need, fullReduction ? need : haveOf(color))
+                }
             }
             // 相手のリザーブのコア1個につき、色を問わず軽減シンボル1つを満たせる（満たしていない分が上限）
             if (!fullReduction && selfSummonCostNotes(board, pid, cardData, "perOppReserveCore", viaSoryo).length > 0) {
@@ -799,6 +865,10 @@ function opponentMagicCostIncrease(board: Board, usingPid: PlayerId, cardData: C
 // スピリットカードを召喚するときに増える追加コストの合計（SD02-013 転召の祭壇Lv1-2）。
 // 条件は**カード静的な**コストとキーワードで見る（場に出る前の判定のため）
 export function summonSurcharge(board: Board, usingPid: PlayerId, cardData: CardData): number {
+    return opponentSummonCostIncrease(board, usingPid, cardData) + costModSurcharge(board, usingPid, cardData)
+}
+
+function opponentSummonCostIncrease(board: Board, usingPid: PlayerId, cardData: CardData): number {
     if (cardData.type !== "spirit") return 0
     let total = 0
     for (const ownerPid of ["p1", "p2"] as PlayerId[]) {

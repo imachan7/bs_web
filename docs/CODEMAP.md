@@ -7,6 +7,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `blockRequiredCount`（fn）：このアタッカーをブロックするのに必要なブロッカーの体数（blockRequiresCount）。
 - `blockPayCost`（fn）：このアタッカーをブロックするのに払うコスト（制約 blockPayCost の合計）。
 - `blockReserveToTrashCount`（fn）：このアタッカーをブロックするのにトラッシュへ置くリザーブのコアの数（制約 blockReserveToTrash の合計）
+- `blockDestroyOwnSpiritRequired`（fn）：blockCost destroyOwnSpirit：ブロックするスピリット以外の自分のスピリット1体を破壊しなければブロックできないか
 - `blockExhaustSpiritRequired`（fn）：このアタッカーをブロックするのに、ブロックするスピリット以外の回復状態のスピリット1体を疲労させる必要があるか（制約 blockExhaustSpirit）
 - `canBlock`（fn）
 - `matchesDirectedAttackFilter`（fn）：指定アタック（canDirectAttack）の対象条件に、指定された相手スピリットが合致するか。
@@ -27,7 +28,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## shared/cost.ts
 
 - `costModTotal`（fn）：コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
-- `reductionGrantSymbols`（fn）：軽減シンボル付与（kind: "reductionGrant"）で追加される軽減シンボルを求める。
+- `reductionGrantSymbols`（fn）
 - `hasMagicRestriction`（fn）：マジック使用制約（kind: "magicRestriction"）の判定。両陣営のフィールドを走査し、
 - `hasMagicCostLock`（fn）：コスト上限によるマジック使用制約（restriction:"costLimitAll"）の判定。
 - `hasMagicColorBan`（fn）：色によるマジック使用制約（restriction:"colorBanAll"）の判定。お互いに効くので
@@ -277,6 +278,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `isInBattle`（fn）：現在のバトルに参加しているか（サーバーの isInCurrentBattle と同じ判定。Board だけで決まる）
 - `isExhaustImmuneOnBoard`（fn）：【疲労しない】（kind:"exhaustImmunityGrant"。トランプの王国）。
 
+## shared/rules/summonToll.ts
+
+- `summonVoidToll`（fn）：Q4338：コストは印刷のコストで見る。発生源の陣営は問わず、召喚する側のリザーブから払う
+
 ## shared/rules/symbols.ts
 
 - `instanceSymbolColors`（fn）：画面に出すシンボルの色の列（効果の増減・合体を含む今の値）。ダブルハートの追加は持っている色で埋める
@@ -381,6 +386,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `finishResshinsokuSummon`（fn）：コアの配置がすべて終わったところで実際にスピリットを場に出す。コストも維持コアの支払いも無い（維持コアぶんは「このスピリット」に置かれたコアが兼ねる）。
 - `MAGIC_FREE_OPTIONS`（const）：無償化の確認の選択肢。**この並び順に doResolveChoice が依存する**（0=無償で使う / 1=コストを払って使う）
 - `COUNT_IS_BODIES`（const）：count が「対象の体数」を表すアクション。ここに挙げたものだけを「複数体が対象なのに1体しか渡されていない」の判定にかける。
+- `destroyBlockToll`（fn）
 - `exhaustBlockToll`（fn）
 - `continueBlockDeclaration`（fn）：ブロックのコストを払ったあとの宣言処理（blockExhaustSpirit の選択待ちからも再開する）
 - `finishBlockDeclaration`（fn）
@@ -457,6 +463,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `returnToHandCandidateCountForPay`（fn）：ponytail: self相対フィルタ（maxBp:"selfBp"等）は解決せずに比べる。pay で使うカードが出たら normalizeFilter を通す
 - `returnToDeckTopCandidateCountForPay`（fn）：pay の判定表（return の to:"deckTop"／"deckBottom"）が使う候補数
+
+## server/src/logic/actions/combinedAttackRepeat.ts
+
+- `wrapWithRepeat`（fn）：host の目印が有効なとき、ブレイヴの『合体アタック時』効果を「解決→もう1度の確認」の列に包む。
 
 ## server/src/logic/actions/control.ts
 
@@ -762,6 +772,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `rensaConditionIgnored`（fn）
 
+## server/src/logic/keywords/seimei.ts
+
+- `offerSeimeiReplace`（fn）：置き換えの確認を立てたら true。断れば original をそのまま（seimeiChecked 付きで）解く。
+
 ## server/src/logic/keywords/tensho.ts
 
 - `TENSHO_SUBSTITUTE_REST`（const）：【転召】置換（tenshoCoreSubstitute）の選択肢ラベル。cores.ts の tenshoSubstituteChoice ハンドラと共有する
@@ -885,6 +899,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `recordDrawn`（fn）
 - `recordNexusCost`（fn）
 - `lastNexusCostOf`（fn）
+- `recordDestroyedCount`（fn）
+- `lastDestroyedCountOf`（fn）
 - `lastDrawnCount`（fn）
 - `lastCoresCount`（fn）
 - `recordTargets`（fn）：直前に疲労させた個体（カードは動かないので lastMoved とは別に instanceId で持つ）
@@ -1023,6 +1039,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `surchargeOwed`（fn）：batch＝1つの効果で複数体を同時に召喚している（召喚は1回なので余分も1回）。単発の召喚は毎回払う。
 - `canPayFreeSummonSurcharge`（fn）：余分に加えて、続けて置くコア（extraNeeded）も賄えるか。余分が無いときは従来どおりリザーブだけで見る
+- `payVoidToll`（fn）：召喚するカードに掛かるボイドの通行料を払う（リザーブから引くだけ。トラッシュには数えない）。払えなければ何もせず false。
 - `payFreeSummonSurchargeKeeping`（fn）：余分を払い、置くコア（maintain）のうちフィールドのコアで賄えた数を返す（呼び出し側はリザーブから maintain - 戻り値 を引く）。
 - `payFreeSummonSurcharge`（fn）：払えたら true（置くコアは考えない。余分が無い・同じ召喚で払済みも true）。払えないときは何も動かさず false
 - `askCostPay`（fn）：対話中で支払い元を選べる場面なら、コストの支払い待ち（effectCostPay）を立てて true を返す。
@@ -1042,6 +1059,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `requestChoice`（fn）：選択を要するアクションの共通ヘルパー。候補が0件なら不発、1件なら即座に解決、
 - `requestUpToChoice`（fn）：「N体まで／Nつまで」（0〜N の好きな数を選べる）用の選択発行。requestChoice と違い、
 - `requestCardChoice`（fn）：requestChoice の kind:"card" 版：自分の手札／トラッシュのカードから選ばせる共通ヘルパー。
+
+## server/src/logic/tegamotoSummon.ts
+
+- `doSummonFromTegamoto`（fn）
 
 ## server/src/logic/triggers.ts
 

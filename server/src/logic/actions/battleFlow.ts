@@ -37,6 +37,7 @@ import {
     fireTrigger,
     instanceSymbolCount,
     fireNexusDeployed,
+    countEffectCounter,
     pickEnemyCandidates,
     refreshSpirit,
     requestCardChoice,
@@ -501,6 +502,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // フィールドのコアからの支払い指定）
         const summonOpts = {
             ...(action.payCost ? { payCost: action.payCost } : {}),
+            ...(action.payCost && action.costPaidAsIfCounter !== undefined ? { paidAsIf: countEffectCounter(state, owner, self, action.costPaidAsIfCounter) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」

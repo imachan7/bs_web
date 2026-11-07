@@ -22,7 +22,7 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import type { FieldEventExtraItem } from "./fieldEventTriggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave, flushBraveKeeps } from "./brave"
-import { recordLeftCost } from "./record"
+import { recordDestroyedCount, recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
 import { leavesNothingBehind } from "./keywords/bunshin"
 import { isTokenCard } from "../../../shared/cardDb"
@@ -599,6 +599,7 @@ export function commitPendingDestruction(
     // 既に解決済みだから（docs/design/TIMING_CHART.md）。列で復活が成立していれば
     // applyRevived が pendingDestruction を消しているので、この関数は上の行で抜けている
     const braveCantRemain = inst.pendingDestroyContext?.braveCantRemain === true
+    const commitContext = inst.pendingDestroyContext
     delete inst.pendingDestroyContext
     delete inst.pendingDestroyAllowSuspend
     delete inst.skipReviveOnCommit
@@ -629,10 +630,15 @@ export function commitPendingDestruction(
     })
     player.field.spirits.splice(index, 1)
     trashUnderCards(state, ownerPid, inst) // 下のカードは場を離れるとき破棄（BS19-X02。トラッシュでは下のカードが先）
-    if (inst.bunshinOf !== undefined) player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
-    else if (!token) {
+    if (inst.bunshinOf !== undefined) {
+        player.trashCards.push(inst.bunshinOf) // Q787：元のカードが表向きでトラッシュへ（BP0でもデッキ下へは行かない）
+        if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
+    } else if (!token) {
         if (burstInfo !== undefined && burstInfo.bp <= 0 && bp0DestroyedGoesToDeckBottom(state, ownerPid, inst)) player.deck.push(inst.cardId)
-        else player.trashCards.push(inst.cardId)
+        else {
+            player.trashCards.push(inst.cardId)
+            if (commitContext) commitContext.trashedCount = (commitContext.trashedCount ?? 0) + 1
+        }
     }
     // 破壊されたスピリット上のコアは通常リザーブへ戻るが、destroyedCoresToTrash が有効な間、またはバトル中に
     // battleOpponentDestroyedCoresTo がこのプレイヤーを指している間は、その行き先へ置く（void はどこにも足さない）。
@@ -929,6 +935,9 @@ export function destroySpiritsFrom(
     context?: DestroyContext,
 ): { destroyed: number; stoppedAt: number } {
     let destroyed = destroyedSoFar
+    if (startIndex === 0 && destroyedSoFar === 0 && context) context.trashedCount = 0
+    // 「実際にトラッシュへ置かれた体数」。復活で残った・手札へ戻った個体は数えない（context が無い破壊は破壊できた数で代用）
+    const record = (): void => recordDestroyedCount(state, context ? (context.trashedCount ?? 0) : destroyed)
     for (let i = startIndex; i < targets.length; i++) {
         // 同時破壊で「フィールドに残る」の確認が2体以上に出るなら、
         // どの体から破壊処理をするかをターンプレイヤーが決める（docs/design/TIMING_CHART.md §0-3）。
@@ -945,8 +954,12 @@ export function destroySpiritsFrom(
         if (state.winner) return { destroyed, stoppedAt: targets.length }
         // 復活の確認で中断した。**この対象はまだ決着していない**ので、次から再開する
         // （確認の答えは applyReviveConfirm / declineReviveConfirm が決着させる）
-        if (state.pendingChoice) return { destroyed, stoppedAt: i + 1 }
+        if (state.pendingChoice) {
+            record()
+            return { destroyed, stoppedAt: i + 1 }
+        }
     }
+    record()
     return { destroyed, stoppedAt: targets.length }
 }
 

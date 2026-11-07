@@ -361,6 +361,33 @@
             "turn": "both"
           }
         }
+      },
+      {
+        "id": "BS22-069-e2",
+        "kind": "constraintGrant",
+        "levels": [
+          2
+        ],
+        "target": "ownAll",
+        "filter": {
+          "family": "爪鳥"
+        },
+        "condition": {
+          "ownSpiritMatches": {
+            "bunshin": true
+          }
+        },
+        "phaseTurn": {
+          "phase": "attack",
+          "turn": "both"
+        },
+        "constraint": {
+          "type": "immuneToOpponentEffects",
+          "against": [
+            "spirit",
+            "nexus"
+          ]
+        }
       }
     ]
   },

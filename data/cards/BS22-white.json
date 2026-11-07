@@ -304,5 +304,95 @@
         }
       }
     ]
+  },
+  {
+    "cardId": "BS22-031",
+    "name": "水晶竜シリマナイト",
+    "type": "spirit",
+    "colors": [
+      "white"
+    ],
+    "cost": 4,
+    "reduction": [
+      "white",
+      "white"
+    ],
+    "family": [
+      "甲竜",
+      "機獣"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 5000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "white"
+    ],
+    "flash": false,
+    "rarity": "R",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nお互いのライフは、ターンごとに、シンボル2つ以上のスピリット1体から1しか減らない。\nLv1･Lv2･Lv3【重装甲：赤/緑/白】\nこのスピリットは、相手の赤/緑/白のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。\nLv2･Lv3\n自分の合体していないスピリットすべてに【重装甲：赤/緑/白】を与える。",
+    "effects": [
+      {
+        "id": "BS22-031-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "lifeDamagePerSpiritPerTurn",
+          "max": 1,
+          "minSymbols": 2
+        }
+      },
+      {
+        "id": "BS22-031-e2",
+        "kind": "keyword",
+        "keyword": "heavyArmor",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "colors": [
+          "red",
+          "green",
+          "white"
+        ]
+      },
+      {
+        "id": "BS22-031-e3",
+        "kind": "keywordGrant",
+        "levels": [
+          2,
+          3
+        ],
+        "keyword": "heavyArmor",
+        "colors": [
+          "red",
+          "green",
+          "white"
+        ],
+        "target": "ownAll",
+        "filter": {
+          "uncombined": true
+        }
+      }
+    ]
   }
 ]

@@ -154,6 +154,19 @@
         "optional": false
       },
       {
+        "id": "BS22-016-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noBounceByEffect",
+          "filter": "hasSummonTrigger"
+        }
+      },
+      {
         "id": "BS22-016-e3",
         "kind": "triggered",
         "trigger": "onAttack",
@@ -568,6 +581,303 @@
         },
         "constraint": {
           "type": "cantCombine"
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-012",
+    "name": "骸魔インプ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 3,
+    "reduction": [
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nお互いのデッキは破棄されない。\nLv1･Lv2･Lv3『お互いのメインステップ』\nお互い、コスト4/6/7のスピリットカードを召喚するとき、持ち主のリザーブのコア1個をボイドに置かなければ召喚できない。",
+    "effects": [
+      {
+        "id": "BS22-012-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
+      },
+      {
+        "id": "BS22-012-e2",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "phase": "main",
+        "constraint": {
+          "type": "summonPayToll",
+          "costIn": [
+            4,
+            6,
+            7
+          ],
+          "count": 1
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-014",
+    "name": "魔術師ハクジャ",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 4000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nお互いのデッキは破棄されない。\nLv1･Lv2･Lv3\nお互い、緑のスピリットの効果でボイドからコアが増えたとき、増えたコアすべてをボイドに置く。\nさらに、その効果を発揮したスピリットのコアすべてをボイドに置く。\nLv3【強化】\n自分の「コア除去効果」でリザーブに置くコアを+1個する。",
+    "effects": [
+      {
+        "id": "BS22-014-e1",
+        "kind": "globalConstraint",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "constraint": {
+          "type": "noDeckMill"
+        }
+      },
+      {
+        "id": "BS22-014-e2",
+        "kind": "fieldEvent",
+        "event": "coresGainedFromVoid",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "opponentEffectSourceTypes": [
+          "spirit"
+        ],
+        "sourceColorFilter": "green",
+        "eventSourceAsTarget": true,
+        "action": {
+          "type": "sequence",
+          "passEventTarget": true,
+          "actions": [
+            {
+              "type": "voidGainedCores"
+            },
+            {
+              "type": "removeCores",
+              "target": "event",
+              "to": "void",
+              "count": "all"
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS22-014-e3",
+        "kind": "fieldEvent",
+        "event": "coresGainedFromVoid",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "causedByOwnEffect": "spirit",
+        "sourceColorFilter": "green",
+        "eventSourceAsTarget": true,
+        "action": {
+          "type": "sequence",
+          "passEventTarget": true,
+          "actions": [
+            {
+              "type": "voidGainedCores"
+            },
+            {
+              "type": "removeCores",
+              "target": "event",
+              "to": "void",
+              "count": "all"
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS22-014-e4",
+        "kind": "keyword",
+        "keyword": "kyoka",
+        "kyoka": "coreRemove",
+        "levels": [
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-X02",
+    "name": "冥府三巨頭ザンデ・ミリオン",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 8,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 10000
+      },
+      {
+        "level": 3,
+        "cores": 6,
+        "bp": 14000
+      }
+    ],
+    "symbol": [
+      "purple",
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "X",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「無魔」を持つ自分のスピリットがアタックしたとき、相手は、相手のスピリット1体を破壊しなければブロックできない。\nLv2･Lv3『自分のアタックステップ』\n系統：「無魔」を持つ自分のスピリットが相手によって破壊されたとき、自分のトラッシュにある、破壊されたスピリットよりコストの低いスピリットカード1枚を、コストを支払わずに召喚できる。\nただし、『このスピリットの召喚時』効果は発揮されない。",
+    "effects": [
+      {
+        "id": "BS22-X02-e1",
+        "kind": "fieldEvent",
+        "event": "anySpiritAttacked",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "ownOnly": true,
+        "subjectFilter": {
+          "family": "無魔"
+        },
+        "phase": "attack",
+        "turn": "own",
+        "action": {
+          "type": "timedEffect",
+          "target": "self",
+          "duration": "battle",
+          "content": [
+            {
+              "type": "blockCost",
+              "cost": "destroyOwnSpirit",
+              "count": 1
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS22-X02-e2",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          2,
+          3
+        ],
+        "subjectFilter": {
+          "family": "無魔"
+        },
+        "byOpponentOnly": true,
+        "phase": "attack",
+        "turn": "own",
+        "optional": true,
+        "action": {
+          "type": "moveCards",
+          "from": "trash",
+          "dest": "summon",
+          "pick": {
+            "cardType": "spirit",
+            "lowerCostThanEventTarget": true
+          },
+          "count": 1,
+          "skipOnSummon": true
         }
       }
     ]

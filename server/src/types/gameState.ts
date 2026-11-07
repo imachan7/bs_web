@@ -221,6 +221,7 @@ export interface GameState {
     lastCores?: Record<string, number>
     lastEmptiedSpirits?: Record<string, number> // 枠ごとの、直前の removeCores の解決でコアが0個になった体数（logic/record.ts。EffectCounter "lastEmptiedSpirits" が読む）
     lastNexusCost?: Record<string, number> // 枠ごとの、直前に破壊した自分のネクサスの印刷コスト（logic/record.ts。ほかの破壊が lastMoved を書き換えても残る）
+    lastDestroyedCount?: Record<string, number> // 枠ごとの直前の破壊で実際に破壊できた体数（logic/record.ts）
     lastDrawn?: Record<string, number> // 枠ごとの直前のドローで引いた枚数（logic/record.ts）
     lastTargets?: Record<string, string[]>
     lastCoreRemoveEmptied?: boolean // 直前の coreRemove の解決で対象のコアが0個になったか（action "if" の lastEmptied が読む。coreRemove ハンドラが解決の冒頭で false に戻す）
