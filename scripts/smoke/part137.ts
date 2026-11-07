@@ -66,6 +66,12 @@ const FILLER = CARDS.find(
 )
 if (!FILLER) throw new Error("バニラが見つかりません")
 
+// BS07「勇傑」各色の lifeGuard（コストmax・両陣営）。ほかの lifeGuard と区別するため max:2 の絞りで引く
+const isCostGuard = (c: unknown): boolean => {
+    const g = c as { type?: string; side?: string; source?: { cost?: { max?: number } } } | undefined
+    return g?.type === "lifeGuard" && g.side === undefined && g.source?.cost?.max === 2
+}
+
 console.log("=== BS07 青：【強襲】はネクサスを疲労させて回復し、ターン上限を超えない ===")
 {
     // 【強襲：1】をLv1から持つスピリット（隼の剣士ファルコニア）をデータから引く
@@ -121,12 +127,12 @@ console.log("=== BS07 青：コスト2以下のスピリットのアタックで
     const holder = findByEffect(
         (e) =>
             e["kind"] === "globalConstraint" &&
-            (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noLifeDamageByCost",
+            isCostGuard(e["constraint"]),
     )
     const maxCost = Number(
         ((holder.effects ?? []).find(
-            (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noLifeDamageByCost",
-        )?.["constraint"] as Record<string, unknown>)["maxCost"],
+            (e) => isCostGuard(e["constraint"]),
+        )?.["constraint"] as { source: { cost: { max: number } } }).source.cost.max,
     )
     // 制約の発生源は p2 側に置く（両陣営に効くことも同時に確かめる）
     const cheap = CARDS.find(

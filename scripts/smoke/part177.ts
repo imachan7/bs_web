@@ -138,7 +138,7 @@ console.log("=== 秘密の花園：コストで疲労させる「楽族」を選
     const keep = put(s, gakuzoku[0]!.cardId, 3)
     const give = put(s, gakuzoku[1]!.cardId, 3)
 
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "exhaust", side: "own", count: 1, filter: { family: "楽族" } }, then: { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noLifeDamageByCostForPid", maxCost: 3 } }], duration: "turn", side: "own" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "exhaust", side: "own", count: 1, filter: { family: "楽族" } }, then: { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "lifeGuard", from: "attack", source: { cost: { max: 3 } }, max: 0 } }], duration: "turn", side: "own" } })
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice?.pid === "p1", "コストの犠牲を自分で選ぶ")
     assert(act(s, "p1", { type: "resolveChoice", instanceId: give }) === null, "犠牲を選ぶ")
@@ -148,7 +148,7 @@ console.log("=== 秘密の花園：コストで疲労させる「楽族」を選
     assert(rested(give), "選んだほうが疲労する")
     assert(!rested(keep), "選ばなかったほうは疲労しない")
     assert(
-        playerHas(s, "p1", "noLifeDamageByCostForPid"),
+        playerHas(s, "p1", "lifeGuard"),
         "コストを払ったので効果（ライフ保護）が付く",
     )
 }
@@ -160,7 +160,7 @@ console.log("=== 非対話（smokeの既定）では従来どおり自動で選�
     s.interactiveTargets = false
     put(s, gakuzoku[0]!.cardId, 3)
     put(s, gakuzoku[1]!.cardId, 3)
-    resolveAction(s, "p1", null, { type: "pay", cost: { type: "exhaust", side: "own", count: 1, filter: { family: "楽族" } }, then: { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "noLifeDamageByCostForPid", maxCost: 3 } }], duration: "turn", side: "own" } })
+    resolveAction(s, "p1", null, { type: "pay", cost: { type: "exhaust", side: "own", count: 1, filter: { family: "楽族" } }, then: { type: "timedEffect", content: [{ type: "playerRule", rule: { type: "lifeGuard", from: "attack", source: { cost: { max: 3 } }, max: 0 } }], duration: "turn", side: "own" } })
     answerPayConfirm(s, "p1")
     assert(s.pendingChoice === null, "選択待ちにならない")
     assert(s.players.p1.field.spirits.filter((x) => x.isRested).length === 1, "1体だけが自動で疲労する")

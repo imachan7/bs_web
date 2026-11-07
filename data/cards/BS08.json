@@ -2192,12 +2192,10 @@
      2
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "costs": [
-      3,
-      4
-     ],
-     "keywordExclude": "tensho"
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"in": [3, 4]}, "keywordExclude": "tensho"},
+     "max": 0
     }
    },
    {
