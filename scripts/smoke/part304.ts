@@ -263,6 +263,9 @@ console.log("=== 器AN：BS13-027Lv2「相手のスピリットの効果では�
     s.players.p1.field.spirits.push(source027)
     refreshLevelAsOverrides(s)
     const lifeBefore = s.players.p1.life
+    // Lv2『相手のアタックステップ』（時間帯の外では働かない。part830）
+    s.turnPlayer = "p2"
+    s.phase = "attack"
 
     // 相手のスピリットの効果でライフを減らそうとする（lifeCrush、srcType:"spirit"）
     resolveAction(s, "p2", null, { type: "lifeCrush", count: 1 }, undefined, undefined, "spirit")

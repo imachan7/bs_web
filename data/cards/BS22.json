@@ -2210,9 +2210,10 @@
      3
     ],
     "constraint": {
-     "type": "lifeDamagePerSpiritPerTurn",
+     "type": "lifeGuard",
+     "source": {"minSymbols": 2},
      "max": 1,
-     "minSymbols": 2
+     "per": "spirit"
     }
    },
    {
@@ -5883,12 +5884,19 @@
         {
          "type": "playerRule",
          "rule": {
-          "type": "lifeFloorForPid",
-          "floor": 1,
-          "byAttackMinCost": 4,
-          "byEffectSourceTypes": [
-           "spirit"
-          ]
+          "type": "lifeGuard",
+          "from": "attack",
+          "source": {"cost": {"min": 4}},
+          "floor": 1
+         }
+        },
+        {
+         "type": "playerRule",
+         "rule": {
+          "type": "lifeGuard",
+          "byOpponentOnly": true,
+          "effectSource": {"sourceTypes": ["spirit"]},
+          "floor": 1
          }
         }
        ],

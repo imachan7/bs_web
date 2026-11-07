@@ -2181,7 +2181,8 @@
             {
               "type": "playerRule",
               "rule": {
-                "type": "lifeDamageMaxForPid",
+                "type": "lifeGuard",
+                "from": "attack",
                 "max": 1
               }
             }

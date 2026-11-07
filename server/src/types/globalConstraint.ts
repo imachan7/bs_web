@@ -1,5 +1,6 @@
 // 場全体に掛かる制約 GlobalConstraintDef（kind:"globalConstraint" の constraint の種類）
 import type { EffectAction } from "./effectAction";
+import type { LifeGuardDef } from "./lifeGuard";
 import type { CoresProtectedRule } from "./coresProtected";
 import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent, ResolvedTargetFilter } from "../type";
 
@@ -13,7 +14,6 @@ export type GlobalConstraintDef =
     | { type: "cantAttackByCost"; costs: number[] } // opponentCantAttackByCost の両陣営版
     | { type: "cantBlockByCost"; costs: number[] } // cantAttackByCost のブロック版（両陣営）
     | { type: "cantBounce"; by?: "effect"; to?: ("hand" | "deck")[]; target?: ResolvedTargetFilter } // 両陣営のスピリットは、フィールドから to（省略＝手札のみ。デッキへ戻すのは止めない）へ戻らない。by:"effect" は効果による戻し（「〜することで」の支払いとして戻すのも効果のうち。2026-11-07 ユーザー確認）だけを止め、省略は原因を問わない。target＝戻される側の絞り込み。phase/turn はエントリ直下を見る（bounceDenial）
-    | { type: "noLifeDamageByCost"; maxCost?: number; costs?: number[]; keywordExclude?: Keyword; maxBp?: number; symbolCount?: number; combinedOnly?: true; ownOnly?: true; attackerLevel?: number; attackerCores?: number } // 既定は、コストが maxCost 以下のスピリットのアタックでお互いのライフが減らない（両陣営）。costs＝maxCost の代わりにコスト完全一致。keywordExclude＝そのキーワードを持つアタッカーは保護しない。maxBp＝実効BPで縛る。symbolCount+combinedOnly＝シンボル数ちょうどかつ合体スピリットのアタックでのみ保護（maxCost 等とは併用しない）。symbolCount のみ＝シンボル数ちょうど一致のアタックのみ保護。ownOnly＝発生源の持ち主だけを守る。attackerLevel＝maxCost と両方満たすときだけ保護（AND）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た相手のネクサスは疲労させられない（【強襲】の疲労元等も止める）。phase 指定時はそのステップ中のみ
     | { type: "cantReduceOpponentLifeWhileSelfRefreshed" } // 発生源が回復状態の間、発生源の持ち主は相手のライフを減らせない（片側のみ。2026-09-02 ユーザー確認で「文面どおり」）
     | { type: "noDrawInMain" } // 両陣営とも、メインステップの間はドローできない
@@ -35,17 +35,10 @@ export type GlobalConstraintDef =
     | { type: "noBpCompareDestroy" } // 両陣営のスピリットはBP比べでは破壊されない（バトル自体は成立し、効果による破壊は通常どおり）
     | { type: "nexusIndestructible" } // すべてのネクサスは破壊されない（両陣営）
     | { type: "combinedBraveIndestructible" } // 発生源自身（このスピリット）に合体中のブレイヴは破壊されない（BS19-040【合体時】「このスピリットのブレイヴは破壊されない」）。ブレイヴだけを破壊する効果は不発。合体元が破壊されてもブレイヴは「残す」の確認なしで場に残る（コアの支払いは通常の残す手順と同じ）
+    | LifeGuardDef
     | { type: "braveCostZero" } // 両陣営の合体スピリットのコストからブレイヴ分を引く（BS22-050）
     | { type: "braveBpBonusZero"; side?: "opponent" } // side:"opponent" は発生源の持ち主から見た相手の合体スピリットだけ（省略時は両陣営）。両陣営の合体スピリットの「合体時BP+」（braveBpBonus）を0にする。ブレイヴ自体のLv判定は変えない＝加算値だけ無視する。主語が無いので両陣営が対象
-    | { type: "lifeDamagePerSpiritPerTurn"; max: number; minSymbols?: number } // 両陣営とも、スピリット1体がそのターンに減らせるライフの合計は max まで（アタック・効果を合算。CardInstance.lifeDealtThisTurn で判定。ownLifeDamageCapPerSourcePerTurn と同じ記録だが、こちらは発生源の陣営を問わずお互いに効く）。effect.whileOwnBurstSet で絞れる。shared/rules.lifeDamagePerSpiritRemaining
-    | { type: "ownLifeDamageCapPerSourcePerTurn"; max: number; minSymbols?: number } // 発生源の持ち主だけを守る片側型。相手のスピリット1体（アタッカー個体）ごとのターン累計で max までしか減らされない（1回のアタックで max 個ずつの capLifeDamageThisTurn とは別物）。ターン終了でリセット。shared/rules.ownLifeDamageCapRemaining
-    // minSymbols＝ライフを減らした発生源のスピリットのシンボル数がこれ以上のときだけ cap をかける（BS19-043「シンボル2つ以上を持つ相手のスピリット1体からは1まで」。SEMANTICS_AUDIT §3.25：アタック中でない個体の効果による減少も同じ発生源で数える）
-    | { type: "ownLifeFloor"; floor: number; costSelfToTrash?: true; then?: EffectAction } // 発生源の持ち主だけのライフは floor を下回らない（片側のみ。condition:{ownFamilyCountAtLeast} と組み合わせて使う）。
-    // costSelfToTrash 指定時：ライフが実際に0になる瞬間だけ発揮する任意コスト版（tryOwnLifeFloorByCost が life<=0 判定の直後で処理）。
-    // 発生源自身を持ち主のトラッシュへ置くことで floor を適用する。払わなければ即敗北で、払わない理由が無いため、
-    // 対話確認を省いて自動で支払う簡略化（COST_MODEL.md）。then 指定時は支払い成立後にそのアクションを1回発揮する
-
-    | { type: "ownLifeImmuneToSpiritEffects" } // 発生源の持ち主だけ：相手のスピリットの効果（lifeCrush 系）ではライフが減らない。バトルの攻撃ダメージは含まない（negateLifeDamageFromTarget が別途カバー）。shared/rules.ownLifeImmuneToOpponentSpiritEffects
+    | { type: "ownLifeFloor"; floor: number; costSelfToTrash: true; then?: EffectAction } // 発生源の持ち主のライフが実際に0になる瞬間だけ、発生源自身を持ち主のトラッシュへ置いて floor に留める任意コスト版（下限1の無条件版は lifeGuard）。tryOwnLifeFloorByCost が life<=0 判定の直後で処理する
     | { type: "attackOncePerTurnBySymbolCount"; symbolCount: number } // 両陣営とも、シンボル数がちょうど symbolCount のスピリットはターンに1回しかアタックできない（CardInstance.attackedThisTurn で判定。RuleValidator.validateAttack）
     | { type: "attackOncePerTurnTotalByCost"; maxCost: number } // attackOncePerTurnByCost の合計版：コストが maxCost 以下のスピリットは、そのプレイヤーの該当スピリット全体でターンに合計1回しかアタックできない（PlayerState.minAttackCostThisTurn で判定。両陣営それぞれ。2026-10-11 ユーザー指示の解釈）
     | { type: "attackOncePerTurnByCost"; maxCost: number } // attackOncePerTurnBySymbolCount のコスト版（両陣営。instHasCost で判定＝付与コストも見る）
