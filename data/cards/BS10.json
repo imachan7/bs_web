@@ -5782,7 +5782,8 @@
             {
               "type": "playerRule",
               "rule": {
-                "type": "lifeImmuneForPid"
+                "type": "lifeGuard",
+                "max": 0
               }
             }
           ],

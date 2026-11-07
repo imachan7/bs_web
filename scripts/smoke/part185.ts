@@ -20,7 +20,9 @@ import {
 } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { findMagicNegateSource } from "../../server/src/logic/triggers"
-import { noLifeDamageByCost, cantActByTimed } from "../../shared/rules"
+import { lifeDamageLimit, cantActByTimed } from "../../shared/rules"
+
+const noLifeDamageByCost = (s: GameState, defender: "p1" | "p2", attacker: Parameters<typeof lifeDamageLimit>[2]): boolean => lifeDamageLimit(s, defender, attacker).max === 0
 import { loadAllCards } from "../../data/loadCards"
 
 function put(s: GameState, pid: PlayerId, cardId: string, cores: number): ReturnType<typeof createInstance> {

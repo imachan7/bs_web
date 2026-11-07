@@ -2,9 +2,11 @@
 // 効果エントリは BS01-007 / BS01-102 に一時的に載せて確かめる（終わりに必ず戻す）
 import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
-import type { EffectDef } from "../../server/src/type"
-import { directAttackFilter, noLifeDamageByCost } from "../../shared/rules"
+import type { CardInstance, EffectDef } from "../../server/src/type"
+import { directAttackFilter, lifeDamageLimit } from "../../shared/rules"
 import { matchesDirectedAttackFilter } from "../../shared/block"
+
+const noLifeDamageByCost = (s: GameState, defender: PlayerId, attacker: CardInstance): boolean => lifeDamageLimit(s, defender, attacker).max === 0
 
 const HOST = "BS01-007" // ハンマドレイク（赤・『召喚時』あり）
 const PLAIN = "BS01-002" // ロクケラトプス（赤・効果なし）
@@ -35,8 +37,8 @@ function put(s: GameState, pid: PlayerId, cardId: string, cores = 1) {
     return inst
 }
 
-const noLife: EffectDef = { id: "part637-nl", kind: "globalConstraint", levels: null, constraint: { type: "noLifeDamageByCost", attackerCores: 2 } }
-const noLifeOwn: EffectDef = { id: "part637-nlo", kind: "globalConstraint", levels: null, constraint: { type: "noLifeDamageByCost", attackerCores: 2, ownOnly: true } }
+const noLife: EffectDef = { id: "part637-nl", kind: "globalConstraint", levels: null, constraint: { type: "lifeGuard", from: "attack", source: { cores: 2 }, max: 0 } }
+const noLifeOwn: EffectDef = { id: "part637-nlo", kind: "globalConstraint", levels: null, constraint: { type: "lifeGuard", side: "own", from: "attack", source: { cores: 2 }, max: 0 } }
 const direct: EffectDef = { id: "part637-da", kind: "constraint", levels: null, constraint: { type: "canDirectAttack", targetFilter: "hasSummonTrigger" } }
 const cap0: EffectDef = { id: "part637-cap0", kind: "globalConstraint", levels: null, constraint: { type: "coreGainCap", max: 0, sourceTypes: ["spirit", "brave", "nexus"], from: ["void", "trash"], to: ["life", "field", "reserve"], side: "both" } }
 const host = getCard(HOST)

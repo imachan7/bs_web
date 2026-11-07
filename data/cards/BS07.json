@@ -250,8 +250,10 @@
      3
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 2
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 2}},
+     "max": 0
     }
    },
    {
@@ -815,8 +817,10 @@
      3
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 2
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 2}},
+     "max": 0
     }
    },
    {
@@ -1289,8 +1293,10 @@
      2
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 2
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 2}},
+     "max": 0
     }
    },
    {
@@ -1926,8 +1932,10 @@
      3
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 2
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 2}},
+     "max": 0
     }
    },
    {
@@ -2582,8 +2590,10 @@
      3
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 2
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 2}},
+     "max": 0
     }
    },
    {
@@ -3351,8 +3361,10 @@
      2
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 2
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 2}},
+     "max": 0
     }
    },
    {
@@ -4300,7 +4312,7 @@
        "family": "楽族"
       }
      },
-     "then": {"type": "timedEffect", "content": [{"type": "playerRule", "rule": {"type": "noLifeDamageByCostForPid", "maxCost": 3}}], "duration": "turn", "side": "own"}
+     "then": {"type": "timedEffect", "content": [{"type": "playerRule", "rule": {"type": "lifeGuard", "from": "attack", "source": {"cost": {"max": 3}}, "max": 0}}], "duration": "turn", "side": "own"}
     }
    }
   ]

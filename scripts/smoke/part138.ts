@@ -59,12 +59,15 @@ function hostOf(e: Record<string, unknown>): Record<string, unknown> | undefined
 }
 
 // 秘密の花園Lv2 の「このターンの間、コスト◯以下のアタックではライフが減らない」（timedEffect の playerRule）
+function costMaxOf(rule: Record<string, unknown>): number | undefined {
+    return ((rule["source"] as { cost?: { max?: number } } | undefined)?.cost)?.max
+}
 function lifeRuleOf(e: Record<string, unknown>): Record<string, unknown> | undefined {
     const h = hostOf(e)
     if (h?.["type"] !== "timedEffect") return undefined
     const c = (h["content"] as Record<string, unknown>[])[0]
     const rule = c?.["rule"] as Record<string, unknown> | undefined
-    return rule?.["type"] === "noLifeDamageByCostForPid" ? rule : undefined
+    return rule?.["type"] === "lifeGuard" && costMaxOf(rule) !== undefined ? rule : undefined
 }
 
 function findByEffect(pred: (e: Record<string, unknown>, c: CardRow) => boolean): CardRow {
@@ -439,7 +442,7 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
     const stepEntry = (garden.effects ?? []).find(
         (e) => lifeRuleOf(e) !== undefined,
     )!
-    const maxCost = Number(lifeRuleOf(stepEntry)!["maxCost"])
+    const maxCost = costMaxOf(lifeRuleOf(stepEntry)!)!
     const payCost = (stepEntry["action"] as Record<string, unknown>)["cost"] as Record<string, unknown>
     const family = String((payCost["filter"] as Record<string, unknown>)["family"])
     const gakuzoku = CARDS.find((c) => c.type === "spirit" && (c.family ?? []).includes(family))
@@ -460,7 +463,7 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
     fireStepTriggers(s, "start")
     assert(musician.isRested === true, `コストとして系統「${family}」の1体が疲労している`)
     assert(
-        playerHas(s, "p1", "noLifeDamageByCostForPid") && !playerHas(s, "p2", "noLifeDamageByCostForPid"),
+        playerHas(s, "p1", "lifeGuard") && !playerHas(s, "p2", "lifeGuard"),
         "p1 限定のライフ保護が積まれている",
     )
     // p2 がコスト条件を満たすスピリットでアタックしてもライフは減らない
@@ -479,12 +482,12 @@ console.log("=== BS07 黄：楽族を疲労させて、このターン自分だ�
     const action = (garden.effects ?? []).find(
         (e) => lifeRuleOf(e) !== undefined,
     )!
-    const maxCost = Number(lifeRuleOf(action)!["maxCost"])
+    const maxCost = costMaxOf(lifeRuleOf(action)!)!
     const cheap = CARDS.find(
         (c) => c.type === "spirit" && (c.effects ?? []).length === 0 && (c.cost ?? 99) <= maxCost,
     )!
     const s = base("garden-protect-oneside")
-    s.timedEffects.push({ content: [{ type: "playerRule", rule: { type: "noLifeDamageByCostForPid", maxCost } }], target: { kind: "player", pid: "p1" }, until: "turn", ownerPid: "p1" })
+    s.timedEffects.push({ content: [{ type: "playerRule", rule: { type: "lifeGuard", from: "attack", source: { cost: { max: maxCost } }, max: 0 } }], target: { kind: "player", pid: "p1" }, until: "turn", ownerPid: "p1" })
     const attacker = put(s, "p1", cheap.cardId, 1)
     const lifeBefore = s.players.p2.life
     assert(act(s, "p1", { type: "nextPhase" }) === null, "アタックステップへ")

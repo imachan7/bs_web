@@ -358,6 +358,8 @@ const LEGACY_BLOCK_CONSTRAINT_FIELDS: Record<string, string[]> = {
     noRestWhenBlockingColor: [], noRestWhenBlockingCost: [], noRestWhenBlockingWithoutKeyword: [],
 }
 
+const REMOVED_LIFE_GUARD_TYPES = new Set(["noLifeDamageByCost", "noLifeDamageByCostForPid", "lifeFloorForPid", "lifeDamageMaxForPid", "lifeDamagePerSpiritPerTurn", "ownLifeDamageCapPerSourcePerTurn", "lifeImmuneForPid", "ownLifeImmuneToSpiritEffects"])
+
 function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: string, message: string) => void): void {
     if (!node || typeof node !== "object") return
     if (Array.isArray(node)) {
@@ -366,6 +368,8 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     }
     const obj = node as Record<string, unknown>
     const t = obj["type"]
+    if (typeof t === "string" && REMOVED_LIFE_GUARD_TYPES.has(t)) add(cardId, `${t} は廃止（lifeGuard に統合済み。無言で無視される）`)
+    if (t === "ownLifeFloor" && obj["costSelfToTrash"] !== true) add(cardId, "ownLifeFloor は costSelfToTrash 版だけ（下限1の無条件版は lifeGuard{side:\"own\", floor} に統合済み）")
     if (typeof t === "string" && t in LEGACY_BLOCK_CONSTRAINT_FIELDS) {
         if (t.startsWith("noRestWhenBlocking") && t !== "noRestWhenBlocking") add(cardId, `${t} は廃止（noRestWhenBlocking{filter} に統合済み）`)
         for (const f of LEGACY_BLOCK_CONSTRAINT_FIELDS[t]!) if (f in obj) add(cardId, `${t} に旧軸 ${f} がある（filter に統合済み。無言で無視される）`)

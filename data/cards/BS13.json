@@ -3670,8 +3670,15 @@
     "levels": [
      2
     ],
+    "phase": "attack",
+    "turn": "opponent",
     "constraint": {
-     "type": "ownLifeImmuneToSpiritEffects"
+     "type": "lifeGuard",
+     "side": "own",
+     "from": "effect",
+     "byOpponentOnly": true,
+     "effectSource": {"sourceTypes": ["spirit"]},
+     "max": 0
     }
    }
   ]
@@ -5532,9 +5539,10 @@
      2
     ],
     "constraint": {
-     "type": "noLifeDamageByCost",
-     "maxCost": 3,
-     "attackerLevel": 1
+     "type": "lifeGuard",
+     "from": "attack",
+     "source": {"cost": {"max": 3}, "level": [1]},
+     "max": 0
     }
    },
    {

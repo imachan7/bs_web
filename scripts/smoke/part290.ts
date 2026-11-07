@@ -16,7 +16,9 @@ import {
 import type { GameState } from "./helpers"
 import { ALL_CARDS } from "../../server/src/logic/GameState"
 import { attachBrave } from "../../server/src/logic/brave"
-import { noLifeDamageByCost, coresCantBeRemovedByOpponent, boardResistanceAgainst } from "../../shared/rules"
+import { lifeDamageLimit, coresCantBeRemovedByOpponent, boardResistanceAgainst } from "../../shared/rules"
+
+const noLifeDamageByCost = (s: GameState, defender: "p1" | "p2", attacker: Parameters<typeof lifeDamageLimit>[2]): boolean => lifeDamageLimit(s, defender, attacker).max === 0
 
 const SHIBERUZA = "BS12-020" // 一番槍のシベルザ（symbolCount+combinedOnly）
 const GENJI = "BS12-022" // 太陽武者ゲンジ・ボルタ（coresCantBeRemovedByOpponent：カード名に「太陽」）

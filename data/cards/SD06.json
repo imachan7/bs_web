@@ -698,8 +698,11 @@
      3
     ],
     "constraint": {
-     "type": "ownLifeDamageCapPerSourcePerTurn",
-     "max": 1
+     "type": "lifeGuard",
+     "side": "own",
+     "byOpponentOnly": true,
+     "max": 1,
+     "per": "spirit"
     }
    }
   ]

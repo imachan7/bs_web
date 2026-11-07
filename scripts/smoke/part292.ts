@@ -17,7 +17,7 @@ import {
 } from "./helpers"
 import type { GameState } from "./helpers"
 import { attachBrave } from "../../server/src/logic/brave"
-import { hasDestroyAsMaxLevelGrant, ownLifeFloorContinuous, cantActByTimed } from "../../shared/rules"
+import { hasDestroyAsMaxLevelGrant, lifeLossAllowed, cantActByTimed } from "../../shared/rules"
 import { canBlock } from "../../shared/block"
 import { validateAttack } from "../../server/src/logic/RuleValidator"
 
@@ -132,12 +132,12 @@ console.log("=== YA: globalConstraint ownLifeFloor（ライフ1で下げ止ま�
     // 系統：「天霊」を5体そろえる（BS12-038 は天霊）
     for (let i = 0; i < 5; i++) s.players.p1.field.spirits.push(createInstance("BS12-038", s.turn, 1))
     refreshLevelAsOverrides(s)
-    assert(ownLifeFloorContinuous(s, "p1") === 1, "天霊が5体以上いる間、自分のライフの下限は1")
+    assert(lifeLossAllowed(s, { pid: "p1", amount: Number.POSITIVE_INFINITY, cause: "effect", actorPid: "p2" }) === s.players.p1.life - 1, "天霊が5体以上いる間、自分のライフの下限は1")
 
     // 4体に減らすと下限が消える
     s.players.p1.field.spirits.pop()
     refreshLevelAsOverrides(s)
-    assert(ownLifeFloorContinuous(s, "p1") === 0, "天霊が4体では下限が働かない")
+    assert(lifeLossAllowed(s, { pid: "p1", amount: Number.POSITIVE_INFINITY, cause: "effect", actorPid: "p2" }) === Number.POSITIVE_INFINITY, "天霊が4体では下限が働かない")
 }
 
 console.log("=== YB: timedEffect（このターンの間ブロックできない） ===")
