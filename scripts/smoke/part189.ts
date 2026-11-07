@@ -132,7 +132,7 @@ console.log("=== カードデータ経由で動かす（手で組んだ action �
     const volza = put(s, "p1", "BS09-027", 3) // Lv2
     s.battle = { attackerInstanceId: volza.instanceId, blockerInstanceId: null, directed: false }
     fireTrigger(s, "p1", volza, "onAttack")
-    assert(battleHas(s, "blockerCoresProtected"), "ブロッカー上のコアが保護される")
+    assert(battleHas(s, "coresProtected"), "ブロッカー上のコアが保護される")
 }
 {
     // ドラゴニックハウル：フラッシュで使用

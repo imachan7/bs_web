@@ -21,7 +21,7 @@ import { stayOnFieldRevived } from "../revive"
 import { combinedSpiritSymbolColors, effectiveBp, iceWallColorsOf, matchesTarget, ownAllHaveFamily, ownAllHaveTeam, ownAllNexusesHaveFamily, ownAllSpiritsHaveFamily, ownTeamAtLeast, spiritHasKeyword } from "../../../../shared/rules"
 import { COLOR_LABELS } from "../../../../data/constants"
 import { claimOnce } from "../oncePerTurn"
-import { currentRecordScope, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
+import { currentRecordScope, lastEmptiedSpiritsOf, lastLeftCostOf, lastMovedOf, newRecordScope, recordMoved } from "../record"
 
 // 効果文の「AするB。または、CするD。」。使用者がモードを1つ選び、その actions を順に解決する
 // （SD01-033 ヴィクトリーファイア）。
@@ -199,7 +199,7 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const met = cond === undefined
         ? true
         : "lastEmptied" in cond
-        ? state.lastCoreRemoveEmptied === true
+        ? lastEmptiedSpiritsOf(state) > 0
         : "last" in cond
         ? lastMovedOf(state).some((id) => matchesPick(id, cond.last, lastLeftCostOf(state, id)))
         : "lastAll" in cond

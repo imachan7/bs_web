@@ -2431,8 +2431,20 @@
           2
         ],
         "constraint": {
-          "type": "coresCantBeRemovedByOpponent",
+         "type": "coresProtected",
+         "side": "own",
+         "filter": {
           "nameContains": "月光"
+         },
+         "by": "opponent",
+         "causes": [
+          "effect"
+         ],
+         "sourceTypes": [
+          "spirit",
+          "brave",
+          "magic"
+         ]
         }
       },
       {

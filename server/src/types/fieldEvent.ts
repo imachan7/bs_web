@@ -67,5 +67,5 @@ export type FieldEvent =
     | "ownBurstActivated" // 自分のバーストの解決がすべて終わった後。eventInfo.burstCost に発動したカードのコストを載せる
     | "ownKeywordActivated"
     | "opponentSpiritCoresToReserve" // 自分の効果（sourceTypes で種別を指定。省略時はスピリット/ブレイヴ）で、相手のスピリットのコアがリザーブに置かれたとき。**self にはコアを取られたスピリットが渡る**。取られた体ごとに発火する（BS22-058）
-    | "opponentSpiritCoresEmptied" // 自分のスピリット/ブレイヴの効果の解決で、相手のスピリットのコアが0個になったとき（効果1回の解決につき1回。2体同時に0個でも1回）。coreRemove ハンドラが lastCoreRemoveEmptied を記録する各所から、効果の持ち主のフィールドへ発火。**self にはコアが0個になったスピリットが渡る**（この時点で消滅済みのこともある）。BS20-017
+    | "opponentSpiritCoresEmptied" // 自分のスピリット/ブレイヴの効果の解決で、相手のスピリットのコアが0個になったとき（効果1回の解決につき1回。2体同時に0個でも1回）。removeCores が、効果の持ち主のフィールドへ発火。**self にはコアが0個になったスピリットが渡る**（この時点で消滅済みのこともある）。BS20-017
     | "opponentSpiritExhaustedByOwnSpiritEffect" // 自分のスピリット/ブレイヴ/マジックの効果で相手のスピリットを疲労させたとき（実際に疲労状態になったときだけ。効果1回の解決につき1回＝2体疲労させても1回）。exhaustSpirit から効果の持ち主のフィールドへ発火。**self には疲労したスピリットが渡る**。eventInfo.causeType に疲労させた効果の種別（sourceTypes の絞り込みに使う。sourceTypes 省略のエントリはスピリット/ブレイヴの効果だけ）

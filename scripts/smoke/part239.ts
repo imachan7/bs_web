@@ -10,9 +10,10 @@
 import { act, assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { CARD_DB } from "../../server/src/logic/GameState"
+import { coreProtectedBy } from "../../server/src/logic/coreGate"
 import { millDeck } from "../../server/src/logic/EffectModules"
 import { validateMoveCore, validateAwaken } from "../../server/src/logic/RuleValidator"
-import { boardResistanceAgainst, canAwaken, coresCantBeRemoved, currentLevel, spiritHasKeyword } from "../../shared/rules"
+import { boardResistanceAgainst, canAwaken, currentLevel, spiritHasKeyword } from "../../shared/rules"
 import type { CardData } from "../../server/src/type"
 
 const BASE_SPIRIT = "BS01-001" // ゴラドン（赤・コスト0・Lv1=1コア/Lv2=3コア）
@@ -75,13 +76,13 @@ console.log("=== §A 【超覚醒】は別枠。ただし【覚醒】の参照�
 console.log("=== §B コアを取り除けない（効果でもプレイヤー操作でも。お互い） ===")
 {
     const LOCKED = make("TEST-CORELOCK", {
-        effects: [{ id: "TEST-CORELOCK-e1", kind: "constraint", levels: null, constraint: { type: "coresCantBeRemoved" } }],
+        effects: [{ id: "TEST-CORELOCK-e1", kind: "constraint", levels: null, constraint: { type: "coresProtected" } }],
     })
     const s = game()
     const locked = put(s, "p1", LOCKED, 3)
     const normal = put(s, "p1", BASE_SPIRIT, 3)
-    assert(coresCantBeRemoved(s, "p1", locked), "コアロックが効いている")
-    assert(!coresCantBeRemoved(s, "p1", normal), "普通のスピリットは効いていない")
+    assert(coreProtectedBy(s, { ownerPid: "p1", target: locked, amount: 1, cause: "cost", actorPid: "p1" }), "コアロックが効いている")
+    assert(!coreProtectedBy(s, { ownerPid: "p1", target: normal, amount: 1, cause: "cost", actorPid: "p1" }), "普通のスピリットは効いていない")
 
     // ① 効果による取り除き（**相手の効果も自分の効果も**止まる）
     const attempt = (actorPid: PlayerId) =>

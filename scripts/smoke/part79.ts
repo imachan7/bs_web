@@ -68,7 +68,7 @@ console.log("=== BS05-060 茨の決戦地 Lv2：バトル中のスピリット�
 
     // コア除去・疲労も同様に通らない
     const coresBefore = blocker.cores
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 1 }, blocker.instanceId, undefined, "magic")
+    resolveAction(s, "p1", null, { type: "removeCores", count: 1 }, blocker.instanceId, undefined, "magic")
     assert(blocker.cores === coresBefore, "バトル中のスピリットはコア除去も受けない")
 
     resolveAction(s, "p1", null, { type: "exhaust", count: 1 }, blocker.instanceId, undefined, "spirit")

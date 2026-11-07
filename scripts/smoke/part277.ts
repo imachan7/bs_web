@@ -45,7 +45,7 @@ console.log("=== §A BS11-052：シンボル数は合体スピリット全体（
     s.players.p2.field.spirits.push(target)
     const before = s.players.p2.reserve
     // 発生源は合体中のブレイヴ自身（【合体時】のエントリ）
-    resolveAction(s, "p1", brave, { type: "coreRemove", count: 1, countCounter: "selfSymbols" })
+    resolveAction(s, "p1", brave, { type: "removeCores", count: 1, countCounter: "selfSymbols" })
     assert(target.cores === 3, `コアが2個減る（実際は${String(target.cores)}個残り）`)
     assert(s.players.p2.reserve === before + 2, "取り除いたコアは相手のリザーブへ")
 }
