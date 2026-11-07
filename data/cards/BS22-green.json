@@ -1,5 +1,82 @@
 [
   {
+    "cardId": "BS22-020",
+    "name": "アライゴヤ",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "reduction": [
+      "green"
+    ],
+    "family": [
+      "遊精"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      },
+      {
+        "level": 3,
+        "cores": 4,
+        "bp": 5000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\nコスト5以下の自分のスピリットすべては、相手によってコアをリザーブに置かれない。\nLv1･Lv2･Lv3『このスピリットの破壊時』\nボイドからコア1個を自分のリザーブに置く。",
+    "effects": [
+      {
+        "id": "BS22-020-e1",
+        "kind": "constraintGrant",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "target": "ownAll",
+        "filter": {
+          "cost": {
+            "max": 5
+          }
+        },
+        "constraint": {
+          "type": "coresImmovableByOpponent",
+          "toReserveOnly": true
+        }
+      },
+      {
+        "id": "BS22-020-e2",
+        "kind": "triggered",
+        "trigger": "onDestroy",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "action": {
+          "type": "placeCores",
+          "from": "void",
+          "to": "reserve",
+          "count": 1
+        },
+        "optional": false
+      }
+    ]
+  },
+  {
     "cardId": "BS22-024",
     "name": "ジョーニン・トンビ",
     "type": "spirit",
@@ -61,6 +138,173 @@
           "type": "bunshin",
           "max": 1
         }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-026",
+    "name": "ゴースト・マンティス",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 6,
+    "reduction": [
+      "green",
+      "green",
+      "green",
+      "yellow"
+    ],
+    "family": [
+      "怪虫"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 5000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 8000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、コスト合計8まで相手のスピリットを好きなだけ疲労させる。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
+    "effects": [
+      {
+        "id": "BS22-026-e1",
+        "kind": "triggered",
+        "trigger": "onLifeDealt",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "exhaust",
+              "count": "any",
+              "budget": {
+                "by": "cost",
+                "amount": 8
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "yellow"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "placeCores",
+                "from": "void",
+                "to": "life",
+                "count": 1
+              }
+            }
+          ]
+        },
+        "keyword": "rensa"
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-027",
+    "name": "小覇鳥ソンサホーク",
+    "type": "spirit",
+    "colors": [
+      "green"
+    ],
+    "cost": 9,
+    "reduction": [
+      "green",
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [
+      "華兵",
+      "爪鳥"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 7000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 11000
+      }
+    ],
+    "symbol": [
+      "green"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト12以下の相手のスピリット2体を疲労させる。\nこの効果で疲労したスピリット1体につき、ボイドからコア1個をこのスピリットに置く。\nLv2『このスピリットのバトル時』\n相手の合体スピリット1体を疲労させる。",
+    "effects": [
+      {
+        "id": "BS22-027-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "exhaust",
+              "count": 2,
+              "filter": {
+                "cost": {
+                  "max": 12
+                }
+              }
+            },
+            {
+              "type": "placeCores",
+              "from": "void",
+              "to": "spirit",
+              "target": "self",
+              "count": 1,
+              "countCounter": "lastMoved"
+            }
+          ]
+        }
+      },
+      {
+        "id": "BS22-027-e2",
+        "kind": "triggered",
+        "trigger": "onBattleStart",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "count": 1,
+          "filter": {
+            "combined": true
+          }
+        },
+        "eventTarget": "use"
       }
     ]
   },
@@ -167,6 +411,74 @@
                   "nameIs": "光牙鳳凰レックウマル"
                 },
                 "oneEffect": true
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-078",
+    "name": "バインディングブランチ",
+    "type": "magic",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "reduction": [
+      "green",
+      "green",
+      "green"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\nコスト合計8まで相手のスピリットを好きなだけ疲労させる。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：相手の合体スピリット1体を指定する。\nこのターンの間、指定された合体スピリットはアタック/ブロックできない。",
+    "effects": [
+      {
+        "id": "BS22-078-e1",
+        "kind": "magic",
+        "keyword": "rensa",
+        "timing": "flash",
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "exhaust",
+              "count": "any",
+              "budget": {
+                "by": "cost",
+                "amount": 8
+              }
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "yellow"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "timedEffect",
+                "content": [
+                  {
+                    "type": "cantAttack"
+                  },
+                  {
+                    "type": "cantBlock"
+                  }
+                ],
+                "duration": "turn",
+                "side": "opponent",
+                "count": 1,
+                "filter": {
+                  "combined": true
+                }
               }
             }
           ]
@@ -285,95 +597,6 @@
     ]
   },
   {
-    "cardId": "BS22-027",
-    "name": "小覇鳥ソンサホーク",
-    "type": "spirit",
-    "colors": [
-      "green"
-    ],
-    "cost": 9,
-    "reduction": [
-      "green",
-      "green",
-      "green",
-      "green"
-    ],
-    "family": [
-      "華兵",
-      "爪鳥"
-    ],
-    "levels": [
-      {
-        "level": 1,
-        "cores": 1,
-        "bp": 7000
-      },
-      {
-        "level": 2,
-        "cores": 3,
-        "bp": 11000
-      }
-    ],
-    "symbol": [
-      "green"
-    ],
-    "flash": false,
-    "rarity": "U",
-    "limited": false,
-    "effect": "Lv1･Lv2『このスピリットの召喚時』\nコスト12以下の相手のスピリット2体を疲労させる。\nこの効果で疲労したスピリット1体につき、ボイドからコア1個をこのスピリットに置く。\nLv2『このスピリットのバトル時』\n相手の合体スピリット1体を疲労させる。",
-    "effects": [
-      {
-        "id": "BS22-027-e1",
-        "kind": "triggered",
-        "trigger": "onSummon",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "sequence",
-          "actions": [
-            {
-              "type": "exhaust",
-              "count": 2,
-              "filter": {
-                "cost": {
-                  "max": 12
-                }
-              }
-            },
-            {
-              "type": "placeCores",
-              "from": "void",
-              "to": "spirit",
-              "target": "self",
-              "count": 1,
-              "countCounter": "lastMoved"
-            }
-          ]
-        }
-      },
-      {
-        "id": "BS22-027-e2",
-        "kind": "triggered",
-        "trigger": "onBattleStart",
-        "levels": [
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "exhaust",
-          "count": 1,
-          "filter": {
-            "combined": true
-          }
-        },
-        "eventTarget": "use"
-      }
-    ]
-  },
-  {
     "cardId": "BS22-X07",
     "name": "疾風の双刃カムイ・ハヤテ",
     "type": "brave",
@@ -459,152 +682,6 @@
           ]
         },
         "whileCombined": true
-      }
-    ]
-  },
-  {
-    "cardId": "BS22-026",
-    "name": "ゴースト・マンティス",
-    "type": "spirit",
-    "colors": [
-      "green"
-    ],
-    "cost": 6,
-    "reduction": [
-      "green",
-      "green",
-      "green",
-      "yellow"
-    ],
-    "family": [
-      "怪虫"
-    ],
-    "levels": [
-      {
-        "level": 1,
-        "cores": 1,
-        "bp": 5000
-      },
-      {
-        "level": 2,
-        "cores": 3,
-        "bp": 8000
-      }
-    ],
-    "symbol": [
-      "green"
-    ],
-    "flash": false,
-    "rarity": "",
-    "limited": false,
-    "effect": "Lv1･Lv2『このスピリットのアタック時』\nこのスピリットのアタックによって相手のライフを減らしたとき、コスト合計8まで相手のスピリットを好きなだけ疲労させる。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く。",
-    "effects": [
-      {
-        "id": "BS22-026-e1",
-        "kind": "triggered",
-        "trigger": "onLifeDealt",
-        "levels": [
-          1,
-          2
-        ],
-        "optional": false,
-        "action": {
-          "type": "sequence",
-          "actions": [
-            {
-              "type": "exhaust",
-              "count": "any",
-              "budget": {
-                "by": "cost",
-                "amount": 8
-              }
-            },
-            {
-              "type": "if",
-              "cond": {
-                "count": {
-                  "ownColorSymbols": "yellow"
-                },
-                "atLeast": 1
-              },
-              "then": {
-                "type": "placeCores",
-                "from": "void",
-                "to": "life",
-                "count": 1
-              }
-            }
-          ]
-        },
-        "keyword": "rensa"
-      }
-    ]
-  },
-  {
-    "cardId": "BS22-078",
-    "name": "バインディングブランチ",
-    "type": "magic",
-    "colors": [
-      "green"
-    ],
-    "cost": 4,
-    "reduction": [
-      "green",
-      "green",
-      "green"
-    ],
-    "family": [],
-    "levels": [],
-    "symbol": [],
-    "flash": true,
-    "rarity": "",
-    "limited": false,
-    "effect": "フラッシュ：\nコスト合計8まで相手のスピリットを好きなだけ疲労させる。\n【連鎖：条件《黄シンボル》】\n(自分の黄シンボルがあるとき、下の効果を続けて発揮する)\n[黄]：相手の合体スピリット1体を指定する。\nこのターンの間、指定された合体スピリットはアタック/ブロックできない。",
-    "effects": [
-      {
-        "id": "BS22-078-e1",
-        "kind": "magic",
-        "keyword": "rensa",
-        "timing": "flash",
-        "action": {
-          "type": "sequence",
-          "actions": [
-            {
-              "type": "exhaust",
-              "count": "any",
-              "budget": {
-                "by": "cost",
-                "amount": 8
-              }
-            },
-            {
-              "type": "if",
-              "cond": {
-                "count": {
-                  "ownColorSymbols": "yellow"
-                },
-                "atLeast": 1
-              },
-              "then": {
-                "type": "timedEffect",
-                "content": [
-                  {
-                    "type": "cantAttack"
-                  },
-                  {
-                    "type": "cantBlock"
-                  }
-                ],
-                "duration": "turn",
-                "side": "opponent",
-                "count": 1,
-                "filter": {
-                  "combined": true
-                }
-              }
-            }
-          ]
-        }
       }
     ]
   }

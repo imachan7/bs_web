@@ -540,8 +540,9 @@ export type EffectDefContinuous =
           kind: "spiritEffectsDisabledGrant"
           // vanillaAsGrantと違い、対象判定用の述語でなく発揮自体を止める
           levels: number[] | null
-          target: "ownAll" | "opponentAll" | "chosenInstance" // ownAll=持ち主のスピリットすべて／opponentAll=相手のスピリットすべて／chosenInstance=targetChoiceLendThisTurnで選んだ1体だけ
+          target: "ownAll" | "opponentAll" | "bothAll" | "chosenInstance" // ownAll=持ち主のスピリットすべて／opponentAll=相手のスピリットすべて／bothAll=お互い／chosenInstance=targetChoiceLendThisTurnで選んだ1体だけ
           familyFilter?: FamilyFilter
+          filter?: TargetFilter // コスト・名前のように状態を読まない軸だけ使う（BP軸などは再構築中に自己参照する）
           keywordExclude?: Keyword // 静的に持たないスピリットのみ。一時/継続付与を見ないのは、spiritHasKeywordがeffectsDisabledContinuousを見て自己参照になるため
           blockingOnly?: true
           lentOnly?: boolean

@@ -484,8 +484,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                         }
                         continue
                     }
-                    const targetPid = effect.target === "opponentAll" ? opponentOf(pid) : pid
-                    for (const spirit of state.players[targetPid].field.spirits) {
+                    const targetPids: PlayerId[] = effect.target === "opponentAll" ? [opponentOf(pid)] : effect.target === "bothAll" ? ["p1", "p2"] : [pid]
+                    for (const targetPid of targetPids) for (const spirit of state.players[targetPid].field.spirits) {
+                        if (effect.filter && !matchesTarget(state, targetPid, spirit, effect.filter as unknown as ResolvedTargetFilter, source.instanceId)) continue
                         if (
                             effect.familyFilter &&
                             !matchesFamilyFilter(state, targetPid, spirit, effect.familyFilter)

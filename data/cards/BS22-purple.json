@@ -1,5 +1,101 @@
 [
   {
+    "cardId": "BS22-015",
+    "name": "ミイラ・ファント",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 4,
+    "reduction": [
+      "purple",
+      "purple",
+      "blue"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 2000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する)\n[青]：相手のバースト1つの内容を見て、バースト条件が【自分のライフ減少後】のとき、このターンの間、相手はバーストを発動できない。",
+    "effects": [
+      {
+        "id": "BS22-015-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "draw",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "sequence",
+                "actions": [
+                  {
+                    "type": "peekOpponentBurst"
+                  },
+                  {
+                    "type": "if",
+                    "cond": {
+                      "last": {
+                        "burstEvent": "ownLifeDamaged"
+                      }
+                    },
+                    "then": {
+                      "type": "timedEffect",
+                      "content": [
+                        {
+                          "type": "playerRule",
+                          "rule": {
+                            "type": "noBurstActivation"
+                          }
+                        }
+                      ],
+                      "duration": "turn",
+                      "side": "opponent"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS22-016",
     "name": "魔剣使プリシラ",
     "type": "spirit",
@@ -75,6 +171,100 @@
           "braveCantRemain": true
         },
         "optional": false
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-017",
+    "name": "ボーン・ベア",
+    "type": "spirit",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple",
+      "blue"
+    ],
+    "family": [
+      "無魔"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "purple"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv2『このスピリットのアタック時』\n相手のスピリットのコア1個を相手のトラッシュに置く。\n【連鎖：条件《青シンボル》】\n(自分の青シンボルがあるとき、下の効果を続けて発揮する。)\n[青]：相手のバースト1つの内容を見て、スピリットカードのとき破棄する。",
+    "effects": [
+      {
+        "id": "BS22-017-e1",
+        "kind": "triggered",
+        "keyword": "rensa",
+        "trigger": "onAttack",
+        "levels": [
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "sequence",
+          "actions": [
+            {
+              "type": "removeCores",
+              "side": "opponent",
+              "from": [
+                "spirit"
+              ],
+              "to": "trash",
+              "target": "one",
+              "count": 1
+            },
+            {
+              "type": "if",
+              "cond": {
+                "count": {
+                  "ownColorSymbols": "blue"
+                },
+                "atLeast": 1
+              },
+              "then": {
+                "type": "sequence",
+                "actions": [
+                  {
+                    "type": "peekOpponentBurst"
+                  },
+                  {
+                    "type": "if",
+                    "cond": {
+                      "last": {
+                        "cardType": "spirit"
+                      }
+                    },
+                    "then": {
+                      "type": "discard",
+                      "from": "burst",
+                      "side": "opponent"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
       }
     ]
   },
@@ -206,6 +396,91 @@
         "optional": false
       }
     ]
+  },
+  {
+    "cardId": "BS22-058",
+    "name": "ソー・スネーク",
+    "type": "brave",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "reduction": [
+      "purple",
+      "purple",
+      "purple"
+    ],
+    "family": [
+      "妖蛇"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 3000
+      }
+    ],
+    "symbol": [],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1『このブレイヴの召喚時』\nこのターンの間、自分のスピリット/ブレイヴ/ネクサス/マジックの効果で、相手のスピリットのコアをリザーブに置いたとき、その相手のスピリットすべてを疲労させる。\n合体条件：コスト5以上\n【合体時】『このスピリットの合体アタック時』\n相手のスピリットのコア1個を相手のリザーブに置く。",
+    "braveLevels": [
+      {
+        "level": 1,
+        "cores": 0,
+        "bp": 3000
+      }
+    ],
+    "braveConditionText": "コスト5以上",
+    "effects": [
+      {
+        "id": "BS22-058-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1
+        ],
+        "action": {
+          "type": "lendSelfThisTurn"
+        },
+        "optional": false
+      },
+      {
+        "id": "BS22-058-e2",
+        "kind": "fieldEvent",
+        "event": "opponentSpiritCoresToReserve",
+        "levels": null,
+        "lentOnly": true,
+        "sourceTypes": [
+          "spirit",
+          "brave",
+          "nexus",
+          "magic"
+        ],
+        "optional": false,
+        "action": {
+          "type": "exhaust",
+          "target": "self",
+          "count": 1
+        }
+      },
+      {
+        "id": "BS22-058-e3",
+        "kind": "triggered",
+        "trigger": "onAttack",
+        "levels": null,
+        "whileCombined": true,
+        "action": {
+          "type": "removeCores",
+          "count": 1
+        },
+        "optional": false
+      }
+    ],
+    "braveCondition": {
+      "minCost": 5
+    }
   },
   {
     "cardId": "BS22-068",

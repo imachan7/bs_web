@@ -115,7 +115,7 @@ function applyToSpirit(ctx: ActionCtx, pid: PlayerId, inst: CardInstance, amount
     else if (to === "trash") removeCoresToTrash(state, pid, inst, amount, owner, undefined, srcType)
     else if (to === "life") {
         // removeCores はリザーブへ置くところまで面倒を見るので、実際に取り除けたぶんだけリザーブからライフへ移す
-        const taken = removeCores(state, pid, inst, amount, owner, srcType)
+        const taken = removeCores(state, pid, inst, amount, owner, srcType, undefined, true)
         if (taken > 0) {
             const moved = Math.min(taken, state.players[pid].reserve)
             state.players[pid].reserve -= moved
@@ -185,7 +185,7 @@ export function removeCoresAchievableCountForPay(
             for (const s of player.field.spirits) {
                 if (!matchesTarget(state, pid, s, filter, self?.instanceId)) continue
                 if (pid !== owner && !canTakeCoresFrom(state, pid, s, owner, srcColors, srcType)) continue
-                const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "effect", actorPid: owner, sourceType: srcType })
+                const allowed = coreRemovalAllowed(state, { ownerPid: pid, target: s, amount: s.cores, cause: "effect", actorPid: owner, sourceType: srcType, ...(action.to === "trash" || action.to === "void" || action.to === "life" ? {} : { toReserve: true as const }) })
                 perInst.push(Math.max(0, Math.min(allowed, s.cores - (action.leaveAtLeast ?? 0))))
             }
         }
@@ -529,7 +529,7 @@ function takeOneFromSource(ctx: ActionCtx, s: RemoveSource, to: Dest): number {
     if (to === "void") return removeCoresToVoid(state, s.pid, sp, 1, owner, srcType)
     if (to === "trash") return removeCoresToTrash(state, s.pid, sp, 1, owner, undefined, srcType)
     if (to === "life") {
-        const taken = removeCores(state, s.pid, sp, 1, owner, srcType)
+        const taken = removeCores(state, s.pid, sp, 1, owner, srcType, undefined, true)
         if (taken > 0) {
             const moved = Math.min(taken, state.players[s.pid].reserve)
             state.players[s.pid].reserve -= moved

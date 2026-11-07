@@ -1,5 +1,90 @@
 [
   {
+    "cardId": "BS22-049",
+    "name": "海皇子イオン",
+    "type": "spirit",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue"
+    ],
+    "family": [
+      "闘神"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 4000
+      },
+      {
+        "level": 2,
+        "cores": 3,
+        "bp": 6000
+      }
+    ],
+    "symbol": [
+      "blue"
+    ],
+    "flash": false,
+    "rarity": "U",
+    "limited": false,
+    "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分の手札にあるスピリットカード/ブレイヴカード1枚を相手に見せることで、そのカードと同じコストの相手のスピリット1体を破壊する。\nLv2\n[海皇子イオン]以外のコスト6/7のスピリットすべての効果は発揮しない。",
+    "effects": [
+      {
+        "id": "BS22-049-e1",
+        "kind": "triggered",
+        "trigger": "onSummon",
+        "levels": [
+          1,
+          2
+        ],
+        "optional": false,
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "revealHandCard",
+            "pick": {
+              "cardType": [
+                "spirit",
+                "brave"
+              ]
+            }
+          },
+          "then": {
+            "type": "destroy",
+            "count": 1,
+            "filter": {
+              "sameCostAsLast": true
+            }
+          }
+        }
+      },
+      {
+        "id": "BS22-049-e2",
+        "kind": "spiritEffectsDisabledGrant",
+        "levels": [
+          2
+        ],
+        "target": "bothAll",
+        "filter": {
+          "cost": {
+            "in": [
+              6,
+              7
+            ]
+          },
+          "nameExcludes": [
+            "海皇子イオン"
+          ]
+        }
+      }
+    ]
+  },
+  {
     "cardId": "BS22-050",
     "name": "海皇帝アイヴァン",
     "type": "spirit",
@@ -239,6 +324,53 @@
               }
             }
           ]
+        }
+      }
+    ]
+  },
+  {
+    "cardId": "BS22-084",
+    "name": "レゾリューション",
+    "type": "magic",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "reduction": [
+      "blue",
+      "blue",
+      "blue",
+      "blue"
+    ],
+    "family": [],
+    "levels": [],
+    "symbol": [],
+    "flash": true,
+    "rarity": "",
+    "limited": false,
+    "effect": "フラッシュ：\n合体していない自分のスピリット1体を破壊することで、そのスピリット以下のコストの相手のスピリット1体を破壊する。",
+    "effects": [
+      {
+        "id": "BS22-084-e1",
+        "kind": "magic",
+        "timing": "flash",
+        "action": {
+          "type": "pay",
+          "cost": {
+            "type": "destroy",
+            "side": "own",
+            "count": 1,
+            "filter": {
+              "combined": false
+            }
+          },
+          "then": {
+            "type": "destroy",
+            "count": 1,
+            "filter": {
+              "maxCostAsLast": true
+            }
+          }
         }
       }
     ]

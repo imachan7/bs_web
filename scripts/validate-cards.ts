@@ -194,7 +194,9 @@ function checkLentEffects(
         // **誘発を受けた側の実在インスタンス**（fireTriggerがresolveActionへselfInstanceを渡す。
         // triggers.ts collectGrantedTriggerActions/fireTrigger）なので self は常に非null になる
         // （BS12-077インセクトオーラ：voidCoreToSelf を effectGrant 経由でアタックしたスピリットに渡す）
-        if (e.kind !== "effectGrant") {
+        // fieldEvent も例外：selfMode:"source" でなければ self はイベント対象の実在スピリット（BS22-058 のコアを取られたスピリット）
+        const selfIsEventSubject = e.kind === "fieldEvent" && (e as { selfMode?: string }).selfMode !== "source"
+        if (e.kind !== "effectGrant" && !selfIsEventSubject) {
             const lent: { type?: unknown; target?: unknown }[] = []
             collectActions([e], lent)
             for (const a of lent) {

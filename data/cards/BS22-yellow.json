@@ -1,0 +1,65 @@
+[
+  {
+    "cardId": "BS22-038",
+    "name": "ロールマイマイ",
+    "type": "spirit",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 2,
+    "reduction": [
+      "yellow",
+      "yellow"
+    ],
+    "family": [
+      "菓族"
+    ],
+    "levels": [
+      {
+        "level": 1,
+        "cores": 1,
+        "bp": 1000
+      },
+      {
+        "level": 2,
+        "cores": 2,
+        "bp": 2000
+      },
+      {
+        "level": 3,
+        "cores": 3,
+        "bp": 3000
+      }
+    ],
+    "symbol": [
+      "yellow"
+    ],
+    "flash": false,
+    "rarity": "",
+    "limited": false,
+    "effect": "Lv1･Lv2･Lv3\n自分の緑のスピリットが相手によって破壊されたとき、破壊されたスピリットからコア1個を自分のライフに置くことができる。",
+    "effects": [
+      {
+        "id": "BS22-038-e1",
+        "kind": "fieldEvent",
+        "event": "ownSpiritDestroyed",
+        "levels": [
+          1,
+          2,
+          3
+        ],
+        "subjectFilter": {
+          "color": "green"
+        },
+        "byOpponentOnly": true,
+        "optional": true,
+        "action": {
+          "type": "placeCores",
+          "from": "destroyed",
+          "to": "life",
+          "count": 1
+        }
+      }
+    ]
+  }
+]

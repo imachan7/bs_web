@@ -16,6 +16,8 @@ export type CoreRemovalAttempt = {
     actorPid: PlayerId
     sourceType?: CardType | undefined
     pierce?: "all"
+    // 取り除いたコアの行き先がリザーブか（coresImmovableByOpponent の toReserveOnly が見る）
+    toReserve?: true
 }
 
 // 取り除いてよい数（0〜min(amount, target.cores)）
@@ -28,7 +30,7 @@ export function coreRemovalAllowed(state: GameState, a: CoreRemovalAttempt): num
     // 【転召】は全体制約を通す（セフィロ・アリエスの「【転召】以外では」）
     if (cause !== "tensho" && globalCoresCantBeRemoved(state, ownerPid, cause === "effect" && actorPid === ownerPid)) return 0
     if (cause === "effect" && actorPid !== ownerPid) {
-        if (activeConstraints(state, ownerPid, target).some((c) => c.type === "coresImmovableByOpponent")) return 0
+        if (activeConstraints(state, ownerPid, target).some((c) => c.type === "coresImmovableByOpponent" && (!c.toReserveOnly || a.toReserve))) return 0
         if (coresCantBeRemovedByOpponent(state, ownerPid, target, a.sourceType)) return 0
     }
     if (isBattlingCoreProtected(state, target)) return 0

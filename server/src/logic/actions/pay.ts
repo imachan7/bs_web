@@ -64,7 +64,7 @@ export const PAYABLE_TYPES = [
     "moveCards", "destroyBlockerAfterBattle",
     "lifeCrush", "levelOverrideOpponentNexuses", "protectLifeByCostThisTurn",
     "negateLifeDamageFromTarget", "toTegamoto", "lendSelfThisTurn",
-    "peekOpponentHand", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
+    "peekOpponentHand", "revealHandCard", "sequence", "if", "simultaneous", "soulCoreToTrash", "treatAsUnblocked", "heavyExhaust", "peekOpponentBurst", "repeatBurstEffect",
     "discardUnder", "endAttackStepAfterBattle", "destroyBrave",
 ] as const
 
@@ -100,6 +100,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // peekOpponentHand：相手の手札が1枚以上あるか
     peekOpponentHand: (state, owner) => state.players[opponentOf(owner)].hand.length >= 1,
     peekOpponentBurst: (state, owner) => state.players[opponentOf(owner)].burst !== null,
+    revealHandCard: (state, owner, self, action) => action.type === "revealHandCard" && state.players[owner].hand.some((id) => matchesPick(id, action.pick, undefined, self?.cardId)),
     // 繰り返すバースト効果の中身が、いま解決できるとき（選べる対象がなければ偽）
     repeatBurstEffect: (state, owner, self, _action, srcColors, srcType) => {
         const last = lastBurstAction(state, owner)
@@ -451,6 +452,30 @@ function kyoshuSelfPayable(state: GameState, owner: PlayerId, action: Extract<Ef
     return action.limitByKeyword === "kyoshu" && action.cost.type === "exhaust" && action.cost.nexusOnly === true && kyoshuSelfExhaustSources(state, owner).length > 0
 }
 
+// then が cost で動いたカードのコスト（sameCostAsLast／maxCostAsLast）を読むとき、cost で選べるカードを then が解決できるものに絞る
+// （COST_MODEL §1：両方が完全に解決できるときだけ。cost を払った後でないと記録が無いので、then の判定は記録なしでは通らない）。
+// 対応は then が相手のスピリットを destroy する形、cost が手札を見せる／自分のスピリットを破壊する形だけ
+function narrowCostByLastRecord(state: GameState, owner: PlayerId, self: CardInstance | null, action: Extract<EffectAction, { type: "pay" }>, cost: EffectAction): EffectAction | "none" | null {
+    const then = action.then
+    if (then.type !== "destroy" || then.side === "own" || then.filter === undefined) return null
+    const same = then.filter.sameCostAsLast === true
+    if (!same && then.filter.maxCostAsLast !== true) return null
+    const opp = opponentOf(owner)
+    const costs = state.players[opp].field.spirits
+        .filter((s) => matchesTarget(state, opp, s, then.filter as unknown as ResolvedTargetFilter, self?.instanceId))
+        .map((s) => getCard(s.cardId).cost)
+    if (costs.length === 0) return "none"
+    const axis = same ? { in: [...new Set(costs)] } : { min: Math.min(...costs) }
+    if (cost.type === "revealHandCard") {
+        const pick = cost.pick ?? {}
+        return { ...cost, pick: same ? { ...pick, costIn: axis.in! } : { ...pick, cost: { ...(typeof pick.cost === "object" ? pick.cost : {}), min: axis.min! } } }
+    }
+    if (cost.type === "destroy" && cost.side === "own") {
+        return { ...cost, filter: { ...cost.filter, cost: { ...cost.filter?.cost, ...axis } } }
+    }
+    return null
+}
+
 // pay の成立判定の本体（payHandler と skipUnpayablePay が共有する）。好きなだけ払う cost は then を解決しきれる最大数までしか選べない
 // （2026-09-27 ユーザー確認）。skipThen：then を見ない（イベント対象が呼び出し側で分からないとき）
 function judgePay(
@@ -459,6 +484,12 @@ function judgePay(
 ): { cost: EffectAction; reason: string | null } {
     // コストの破壊は、破壊されないネクサスを候補から外す（Q1711）。印は払う側のハンドラも読む
     let c: EffectAction = action.cost.type === "destroy" && action.cost.nexus === "only" ? { ...action.cost, asCost: true } : action.cost
+    const narrowed = narrowCostByLastRecord(state, owner, self, action, c)
+    if (narrowed !== null) {
+        if (narrowed === "none") return { cost: c, reason: "破壊する相手のスピリットがいない" }
+        c = narrowed
+        skipThen = true
+    }
     if (action.costOnly) skipThen = true
     // 「Nコスト支払う」はリザーブ＋フィールドのコアから払える。疲労で肩代わりできるネクサスがあれば、その分は払う数から引く
     if (isReserveToll(c)) {

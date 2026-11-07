@@ -1524,8 +1524,8 @@ export function canTakeCoresFrom(
 }
 
 // 効果で取り除ける上限（取り除けない系の禁止・バトル中の保護・下限をすべて見る）。actorPid 省略＝持ち主自身
-function effectCoreCap(state: GameState, ownerPid: PlayerId, inst: CardInstance, actorPid: PlayerId | undefined, srcType: CardType | undefined): number {
-    return coreRemovalAllowed(state, { ownerPid, target: inst, amount: inst.cores, cause: "effect", actorPid: actorPid ?? ownerPid, sourceType: srcType })
+function effectCoreCap(state: GameState, ownerPid: PlayerId, inst: CardInstance, actorPid: PlayerId | undefined, srcType: CardType | undefined, toReserve = false): number {
+    return coreRemovalAllowed(state, { ownerPid, target: inst, amount: inst.cores, cause: "effect", actorPid: actorPid ?? ownerPid, sourceType: srcType, ...(toReserve ? { toReserve: true as const } : {}) })
 }
 
 // コアを取り除き、維持コア（Lv1）を下回ったら消滅させる。
@@ -1540,6 +1540,8 @@ export function removeCores(
     srcType?: CardType,
     // §1.3の持ち主選択で[ソウルコア]を含める答えが戻ってきたとき（ソウルコア1個ぶんも移す。案A-outsideのため数値には含めない）
     includeSoul?: boolean,
+    // 行き先がライフのとき（リザーブを経由するだけ）。「リザーブに置かれない」保護と opponentSpiritCoresToReserve の対象にしない
+    viaLife?: boolean,
 ): number {
     // 戻り値＝**実際に取り除けた数**。バトル中の保護やコア下限で減る場合があるため、呼び出し側が残数を数えるときは必ずこれを使う
     const player = state.players[ownerPid]
@@ -1549,7 +1551,7 @@ export function removeCores(
         log(state, `リザーブに置かれるコアが${Math.min(bonus, inst.cores - count)}個追加された。`)
     }
     // coreFloorByCost：有効なら、このカードのコストを下回るまでは取り除けない
-    const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType)
+    const allowed = effectCoreCap(state, ownerPid, inst, actorPid, srcType, !viaLife)
     // [ソウルコア]を含める指定: ソウルコア1個ぶんも移す個数に数える（案B-inside: coresには元から含まれる）。
     // 含めない指定なら、取り除き上限は[ソウルコア]を差し引いた通常コア数
     const soulHere = soulCoreOnInstance(player, inst.instanceId)
@@ -1581,6 +1583,10 @@ export function removeCores(
     }
     if (actorPid !== undefined && actorPid !== ownerPid && removed > 0) {
         notifySpiritCoresRemovedByOpponent(state, ownerPid, 1, removed)
+    }
+    // 取られたスピリットごとに発火する（1回の効果で複数体でも体数ぶん。「その相手のスピリットすべて」を疲労させるため）
+    if (actorPid !== undefined && actorPid !== ownerPid && removed > 0 && !redirectToTrash && !viaLife && srcType !== undefined) {
+        fireFieldEventTriggers(state, actorPid, "opponentSpiritCoresToReserve", { pid: ownerPid, inst }, undefined, undefined, undefined, { causeType: srcType })
     }
     return removed
 }
@@ -1729,8 +1735,7 @@ function coreFloorBlockingKeywordFor(state: GameState, inst: CardInstance): numb
 function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: PlayerId, actorPid?: PlayerId): number {
     // ownOnly は発生源の持ち主のスピリットだけを守るので、どちらの発生源から来た制約かを見る必要がある
     for (const pid of ["p1", "p2"] as PlayerId[]) {
-        const sources = [...state.players[pid].field.spirits, ...state.players[pid].field.nexuses]
-        for (const source of sources) {
+        for (const source of effectSources(state, pid)) {
             const level = currentLevel(source).level
             for (const effect of getCard(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
@@ -1744,7 +1749,7 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
                 if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
                 if (!matchesTarget(state, ownerPid ?? pid, inst, effect.constraint.filter, source.instanceId)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。以前はカードの召喚コストとして実装していた
-                return instMinLevelCores(inst)
+                return effect.constraint.floor ?? instMinLevelCores(inst)
             }
         }
     }

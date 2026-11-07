@@ -23,7 +23,7 @@ import { recordTargets } from "../record"
 import { placeCoresGather } from "./placeCoresGather"
 
 type WidePlaceCores = Extract<EffectAction, { type: "placeCores" }>
-type LegacyFrom = "void" | "reserve" | "trash" | "self" | "field"
+type LegacyFrom = "void" | "reserve" | "trash" | "self" | "field" | "destroyed"
 // 単一の取り元・従来の行き先・数値/all の個数だけを受ける形。それ以外は placeCoresGather が処理する
 export type PlaceCoresAction = Omit<WidePlaceCores, "from" | "to" | "count"> & {
     from: LegacyFrom
@@ -39,7 +39,7 @@ export function gainTo(to: PlaceCoresAction["to"]): string {
 export function isLegacyPlaceCores(action: WidePlaceCores): action is PlaceCoresAction {
     return (
         !Array.isArray(action.from) &&
-        (action.from === "void" || action.from === "reserve" || action.from === "trash" || action.from === "self" || action.from === "field") &&
+        (action.from === "void" || action.from === "reserve" || action.from === "trash" || action.from === "self" || action.from === "field" || action.from === "destroyed") &&
         action.to !== "self" &&
         action.count !== "any"
     )
@@ -58,6 +58,8 @@ export function availableFromSource(state: GameState, owner: PlayerId, from: Pla
             return player.trashCores
         case "self":
             return self ? self.cores : 0
+        case "destroyed":
+            return self ? normalCoresOn(player, self) : 0
         case "field":
             return (
                 player.field.nexuses.reduce((sum, n) => sum + n.cores, 0) +
@@ -95,6 +97,12 @@ function takeFromSource(
         case "self": {
             if (!self) return 0
             if (player.field.spirits.includes(self)) return takeCoresFromSpirit(state, owner, self, amount)
+            const taken = Math.min(amount, normalCoresOn(player, self))
+            self.cores -= taken
+            return taken
+        }
+        case "destroyed": {
+            if (!self) return 0
             const taken = Math.min(amount, normalCoresOn(player, self))
             self.cores -= taken
             return taken
@@ -452,14 +460,14 @@ function placeCoresLegacy(ctx: ActionCtx, inAction: PlaceCoresAction): void {
 
     // --- 実際の移動 ---
     const targetsFinal: (CardInstance | null)[] = allTargets ?? [targetInst]
-    const FROM_LABEL = { void: "ボイドから", reserve: "リザーブから", trash: "トラッシュから", self: "", field: "フィールドから" }
+    const FROM_LABEL = { void: "ボイドから", reserve: "リザーブから", trash: "トラッシュから", self: "", destroyed: "", field: "フィールドから" }
     const TO_LABEL = { reserve: "自分のリザーブに", trash: "自分のトラッシュに", life: "自分のライフに", deckSide: "デッキの横に", spirit: "", nexus: "" }
     let totalMoved = 0
     for (const t of targetsFinal) {
         const taken = takeCapped(ctx, action, t ? "field" : action.to, perTarget)
         if (taken <= 0) continue
         totalMoved += taken
-        const fromLabel = action.from === "self" && self ? `${getCard(self.cardId).name}の` : FROM_LABEL[action.from]
+        const fromLabel = (action.from === "self" || action.from === "destroyed") && self ? `${getCard(self.cardId).name}の` : FROM_LABEL[action.from]
         log(state, `${sourceName}：${fromLabel}コア${taken}個を${t ? `${getCard(t.cardId).name}に` : TO_LABEL[action.to]}置いた。`)
         if (t) {
             placeCoresOnSpirit(state, t, taken, owner)
