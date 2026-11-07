@@ -55,7 +55,7 @@ console.log("=== 器AB：条件外（コスト4）は通常どおり回復状態
     assert(!summoned.isRested, "コスト条件を満たさないので通常どおり回復状態")
 }
 
-console.log("=== 器AC：coresCantBeRemovedAll（BS13-X03白羊樹神セフィロ・アリエスLv3）。両陣営・【転召】以外で取り除けない ===")
+console.log("=== 器AC：coresProtected（side:both・BS13-X03白羊樹神セフィロ・アリエスLv3）。両陣営・【転召】以外で取り除けない ===")
 {
     const s = game("ac-cores-locked")
     s.players.p1.field.spirits.push(createInstance("BS13-X03", s.turn, 4)) // Lv3

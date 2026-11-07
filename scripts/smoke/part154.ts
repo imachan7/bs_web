@@ -71,10 +71,10 @@ console.log("=== 範囲のコア圧搾（coreSqueezeAll）は【装甲】を尊�
 console.log("=== BS05茨の決戦地Lv1：バトル中のスピリットのコアは範囲効果でも取り除けない ===")
 {
     const thorn = findByEffect(
-        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "battlingCoresProtected",
+        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "coresProtected",
     )
     const entry = (thorn.effects ?? []).find(
-        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "battlingCoresProtected",
+        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "coresProtected",
     )!
     const level = (entry["levels"] as number[])[0]!
     const phaseTurn = { phase: String(entry["phase"]), turn: String(entry["turn"]) }

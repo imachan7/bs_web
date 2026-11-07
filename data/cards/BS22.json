@@ -1473,8 +1473,12 @@
      }
     },
     "constraint": {
-     "type": "coresImmovableByOpponent",
-     "toReserveOnly": true
+     "type": "coresProtected",
+     "by": "opponent",
+     "causes": [
+      "effect"
+     ],
+     "to": "reserve"
     }
    },
    {
@@ -1538,7 +1542,11 @@
      2
     ],
     "constraint": {
-     "type": "coresImmovableByOpponent"
+     "type": "coresProtected",
+     "by": "opponent",
+     "causes": [
+      "effect"
+     ]
     }
    },
    {

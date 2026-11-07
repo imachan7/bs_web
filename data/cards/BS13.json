@@ -313,7 +313,7 @@
      "keyword": "superAwaken"
     },
     "constraint": {
-     "type": "coresCantBeRemoved"
+     "type": "coresProtected"
     }
    },
    {
@@ -3139,8 +3139,13 @@
     "phase": "main",
     "turn": "opponent",
     "constraint": {
-     "type": "coresCantBeRemovedAll",
+     "type": "coresProtected",
      "side": "opponent",
+     "causes": [
+      "effect",
+      "cost",
+      "player"
+     ],
      "exceptOwnerEffects": true
     }
    }
@@ -3396,8 +3401,13 @@
      3
     ],
     "constraint": {
-     "type": "coresCantBeRemovedAll",
-     "side": "both"
+     "type": "coresProtected",
+     "side": "both",
+     "causes": [
+      "effect",
+      "cost",
+      "player"
+     ]
     }
    }
   ]

@@ -5802,7 +5802,7 @@
      3
     ],
     "constraint": {
-     "type": "coresCantBeRemoved"
+     "type": "coresProtected"
     }
    },
    {
