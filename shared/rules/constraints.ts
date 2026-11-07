@@ -416,14 +416,12 @@ export function hasGlobalConstraint(
 }
 
 // pid のデッキが破棄できないか（globalConstraint／このターンの playerRule の noDeckMill）。mill・コスト・【粉砕】の判定はここ1か所。
-// alwaysOnly：phase 限定のエントリと by:"opponent" を数えない。ネクサスの配置コスト・【粉砕】の0枚判定は従来、常時のものしか見ていない
-export function deckMillBlockedByRule(board: Board, pid: PlayerId, byOpponent: boolean, alwaysOnly = false): boolean {
-    if (!alwaysOnly && timedPlayerRules(board, pid).some((r) => r.type === "noDeckMill" && (r.by !== "opponent" || byOpponent))) return true
+export function deckMillBlockedByRule(board: Board, pid: PlayerId, byOpponent: boolean): boolean {
+    if (timedPlayerRules(board, pid).some((r) => r.type === "noDeckMill" && (r.by !== "opponent" || byOpponent))) return true
     return hasGlobalConstraint(board, "noDeckMill", (effect, sourcePid, source) => {
         const c = effect.constraint
         if (c.type !== "noDeckMill") return false
         if (c.side === "own" && sourcePid !== pid) return false
-        if (alwaysOnly) return effect.phase === undefined && c.side !== "own" && c.by !== "opponent"
         if (c.by === "opponent" && !byOpponent) return false
         if (effect.phase !== undefined && effect.phase !== board.phase) return false
         if (c.whileSourceDeployedTurnOnly && source.summonedTurn !== board.turn) return false
