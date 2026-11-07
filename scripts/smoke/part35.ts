@@ -84,7 +84,7 @@ console.log("=== 極光の大地e1：相手の効果でスピリットのコア�
     const p1Spirit = createInstance("BS01-002", s.turn, 2) // 維持コア1・現在2個
     s.players.p1.field.spirits.push(p1Spirit)
     const before = s.players.p1.reserve
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 1 }, p1Spirit.instanceId)
+    resolveAction(s, "p2", null, { type: "removeCores", count: 1 }, p1Spirit.instanceId)
     assert(
         s.players.p1.reserve === before + 2,
         `相手のcoreRemoveで、除去された分(1)+極光の大地のボーナス(1)=2だけリザーブ増加（実際${s.players.p1.reserve - before}）`,

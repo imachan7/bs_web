@@ -65,7 +65,7 @@ console.log("=== §B coresToOpponentReserveGoToTrash：相手のリザーブに�
     const reserveBefore = s.players.p2.reserve
     const trashBefore = s.players.p2.trashCores
     // spirit効果によるcoreRemove（既定dest=リザーブ）が、コンストレイントによりp2のトラッシュへ振り替わることを確認
-    resolveAction(s, "p1", stein, { type: "coreRemove", count: 2 }, p2spirit.instanceId, undefined, "spirit")
+    resolveAction(s, "p1", stein, { type: "removeCores", count: 2 }, p2spirit.instanceId, undefined, "spirit")
     assert(p2spirit.cores === 3, "対象スピリットのコアは2個減った")
     assert(s.players.p2.reserve === reserveBefore, "本来増えるはずのリザーブは増えていない")
     assert(s.players.p2.trashCores === trashBefore + 2, "代わりに相手のトラッシュへ2個置かれた")

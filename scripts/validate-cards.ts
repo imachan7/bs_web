@@ -485,6 +485,7 @@ function checkPayActions(cardId: string, node: unknown, add: (cardId: string, me
     if (obj["type"] === "simultaneous") {
         for (const k of ["choosing", "chosenIds"]) if (k in obj) add(cardId, `simultaneous に実行時専用の内部欄 ${k} が書かれている（カードデータには書かない）`)
     }
+    if (obj["type"] === "coreRemove") add(cardId, "coreRemove は廃止（removeCores に統合済み。docs/design/CORE_UNIFY_REMOVE.md §3）")
     if (obj["kind"] === "step" && "cost" in obj) add(cardId, "step に cost が書かれている（廃止済み。「〜することで」は pay で書く）")
     if (obj["type"] === "pay") {
         if ("confirmed" in obj) add(cardId, "pay に実行時専用の内部欄 confirmed が書かれている（カードデータには書かない）")

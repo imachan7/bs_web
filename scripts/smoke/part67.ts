@@ -138,14 +138,14 @@ console.log("=== BS05-060 茨の決戦地：自分のアタックステップ中
     const attackerInst = s.players.p1.field.spirits.find((x) => x.instanceId === attacker)!
     const blockerInst = s.players.p2.field.spirits.find((x) => x.instanceId === blocker)!
 
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 5 }, attacker)
-    resolveAction(s, "p1", null, { type: "coreRemove", count: 5 }, blocker)
+    resolveAction(s, "p2", null, { type: "removeCores", count: 5 }, attacker)
+    resolveAction(s, "p1", null, { type: "removeCores", count: 5 }, blocker)
     assert(attackerInst.cores === 3, "バトル中のアタッカーはコアを取り除かれない")
     assert(blockerInst.cores === 3, "バトル中のブロッカーも取り除かれない（両陣営が対象）")
 
     // 対照：自分（茨の決戦地の持ち主）のアタックステップでなくなれば保護されない
     s.phase = "main"
-    resolveAction(s, "p2", null, { type: "coreRemove", count: 5 }, attacker)
+    resolveAction(s, "p2", null, { type: "removeCores", count: 5 }, attacker)
     assert(attackerInst.cores === 0, "自分のアタックステップ以外では保護されない（対照実験）")
 }
 

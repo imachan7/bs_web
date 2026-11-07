@@ -399,9 +399,18 @@
         ],
         "optional": false,
         "action": {
-          "type": "coreRemove",
-          "count": 2,
-          "drawIfEmptied": true
+          "type": "sequence",
+          "actions": [
+           {
+            "type": "removeCores",
+            "count": 2
+           },
+           {
+            "type": "draw",
+            "count": 1,
+            "countCounter": "lastEmptiedSpirits"
+           }
+          ]
         }
       },
       {
