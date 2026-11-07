@@ -250,6 +250,13 @@ console.log("=== 041 Lv2〜：【聖命】を持つ自分のスピリットす�
     assert(!onField(s, "p1", van), "【聖命】を持たないスピリットは破壊される")
 }
 {
+    const s = game("almi-other-seimei", "p2", "main")
+    put(s, "p1", ALMI, 2)
+    const harpy = put(s, "p1", HARPY, 1) // 【聖命】を持つ別のスピリット
+    summon(s, "p2", [QUICK], [harpy.instanceId])
+    assert(onField(s, "p1", harpy) && harpy.isRested, "【聖命】を持つ別のスピリットも、相手の効果で破壊されたとき疲労状態で残る")
+}
+{
     const s = game("almi-own-effect", "p1", "main")
     const almi = put(s, "p1", ALMI, 2)
     destroySpirit(s, "p1", almi.instanceId, "destroy", { sourcePid: "p1", sourceType: "magic" })

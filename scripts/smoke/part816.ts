@@ -373,6 +373,15 @@ for (const [label, hostCard, expected] of [["4", BLADE, false], ["5", STIRA, tru
     assert(combined === expected, expected ? `コスト${label}には合体できる` : `コスト${label}には合体できない`)
 }
 {
+    const s = game("p068-nocombine-opp")
+    putNexus(s, "p2", MAUSOLEUM)
+    const host = put(s, "p1", BLADE, 1)
+    s.players.p1.hand = [KARAKURI]
+    act(s, "p1", { type: "summon", handIndex: 0, braveTargetInstanceId: host.instanceId })
+    settle(s)
+    assert(s.players.p1.field.combinedBraves.length === 0, "相手のネクサスでもコスト4のスピリットは合体できない")
+}
+{
     const s = game("p068-nocombine-gone")
     const host = put(s, "p1", BLADE, 1)
     s.players.p1.hand = [KARAKURI]

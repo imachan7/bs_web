@@ -27,11 +27,12 @@
 - 道具：`audit:paths`（`VIA=direct|attack|block|summon`。TEST_STRATEGY §7）、全カードの火入れはブレイヴとバーストも撃つ（`fireAll.ts`）
 - **11-05 の反省：バグ修正でも、直し方に処理の順（どちらを先に・確認をいつ出す・条件をいつ判定する）の選択が入るなら、実装前に聞く**
 
-### いまの本線：BS22 の取り込み（2026-11-06。計画は [BS22_PLAN.md](./docs/design/BS22_PLAN.md)、型は [BS21_PLAN.md](./docs/design/BS21_PLAN.md)）
+### いまの本線：BS22 の取り込み（2026-11-07。計画は [BS22_PLAN.md](./docs/design/BS22_PLAN.md)）
 
-- **ブランチ `feat/bs22-import`**：staging に100枚（うち対象99枚）。解釈は §1・§2（確認済み）、新しい部品は §3 の B1〜B11。B1〜B11 は入った。次は新しい部品の要らないカードを色ごとに（期待値役 → 実装役）
+- **ブランチ `feat/bs22-import`（draft #399）：BS22 の92枚とキャンペーンカード X13 の7枚は全部入った**（`data/cards/BS22.json`・`X13.json`。全 smoke・coverage:check 緑）。解釈は §1・§2、新しい部品は §3、既知の限界は §5
+- 相談待ち：コア除去のアクション `coreRemove` と `removeCores` を1つにまとめるか（【強化】の処理が両方に入っている）
 - BS20 は #395、BS21・CP13-01 は #396 で入った
-- 取り込み済みは BS01〜BS21・CP13-01・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS22 は staging にある。BS23 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
+- 取り込み済みは BS01〜BS22・CP13-01・X13・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS23 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブ**：Mistral の枠は11月分を使い切った（月初に戻る）ので、今は Claude のサブ。以下は vibe の使い方（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral）。Mistral の枠は Vibe Code（ログイン）と API（`~/.config/mistral_api_key`。`MISTRAL_API_KEY="$(tr -d '\n ' < ~/.config/mistral_api_key)" vibe …`）の2つで、どちらも月初に戻る。**両方尽きたら Claude のサブ（期待値・実装＝Sonnet、データ＝Haiku）**。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）

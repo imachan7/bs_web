@@ -408,6 +408,8 @@ export function askPayToNegateIfNeeded(
             if (effect.filter && !matchesTarget(state, targetOwnerPid, target, effect.filter, source.instanceId)) continue
             // BS11-065 満天の牧草地：メインステップは手札を破棄できない（COST_MODEL.md §1）
             if (player.hand.length < effect.discardCount || !canDiscardHand(state, targetOwnerPid)) continue
+            // 対話では払う・払わないの答えが payNegateDecide で戻り、その時点では効果エントリを引けないので、確認を出す所で記録する（断った場合も数える）
+            noteCoverage(effect, "targetNegateByHandDiscard")
             requestCardChoice(
                 state,
                 // pid は**効果の実行者**（解決の主体。actorPid に入る）。
@@ -530,6 +532,7 @@ export function handImmuneFor(state: GameState, targetPid: PlayerId, sourceType:
             if (!entryActive(state, targetPid, source, effect, level)) continue
             // ネクサスの効果は既定では防がない＝意図的（BS12-067）。includeNexus指定時のみ防ぐ（BS14-082五角形の砦）
             if (sourceType === "nexus" && !effect.constraint.includeNexus) continue
+            noteCoverage(effect, "globalConstraint")
             return true
         }
     }

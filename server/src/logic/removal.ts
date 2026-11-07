@@ -1762,6 +1762,7 @@ function coreFloorByCostFor(state: GameState, inst: CardInstance, ownerPid?: Pla
                 if (effect.constraint.byOpponentOnly && (actorPid === undefined || actorPid === pid)) continue
                 if (!matchesTarget(state, ownerPid ?? pid, inst, effect.constraint.filter, source.instanceId)) continue
                 // 「Lv1コスト」＝**Lv1に必要なコア数**（レベル表の「Lv1コスト：1」。2026-08-14 ユーザー確認）。以前はカードの召喚コストとして実装していた
+                noteCoverage(effect, "globalConstraint")
                 return effect.constraint.floor ?? instMinLevelCores(inst)
             }
         }
