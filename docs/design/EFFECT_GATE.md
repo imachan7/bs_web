@@ -35,7 +35,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 - 貫通は問い合わせ側（`EffectAttempt`）に「無視する耐性の条件」として持たせる。判定は「効く耐性を集める → 貫通に当たるものを外す → 残れば止まる」で、§1 の2段（効果を受けない／操作ごと）を区別しない
 - 貫通は効果全体ではなく、その効果の中の1つの操作に付く（「この『BP破壊効果』は」）
 - **「装甲を含む」は【装甲】【重装甲】と今後の「〇〇装甲」すべて**（2026-10-29 ユーザー確認）
-- **「〜できない」型の制限も貫通される**（`coresCantBeRemoved*`「コアは取り除けない」・`nexusIndestructible` など。お互いに効くものも、効果で操作を防いでいるので同じ扱い。2026-10-29 ユーザー確認）
+- **「〜できない」型の制限も貫通される**（`coresProtected`（旧 coresCantBeRemoved*）「コアは取り除けない」・`nexusIndestructible` など。お互いに効くものも、効果で操作を防いでいるので同じ扱い。2026-10-29 ユーザー確認）
 - **ブレイヴの【合体時】効果は、合体スピリットに効果を足す扱い**。発生源はブレイヴのカードではなく合体スピリット（色・種類は合体スピリットで見る）。「スピリットの効果で防げない」はブレイヴ由来の【合体時】の耐性も貫通する（2026-10-29 ユーザー確認。根拠：効果の記述を持たないスピリットに、合体中／スピリット状態の効果を持つブレイヴを合体すると「効果の記述を持つ合体スピリット」として扱う。カブトガメ・式鬼魔神のような効果の無いブレイヴは例外）
 - 「相手のブレイヴの効果を受けない」（`braveImmune`）が防ぐのは、ブレイヴのカード自身が発揮する効果（召喚時・バースト・スピリット状態の効果）。【装甲】では防げなかったこれらを防げるのが【装甲】との違い（2026-10-29 ユーザー提示）。【合体時】効果は合体スピリットの効果なので `braveImmune` では防がない。今の `resistance.ts` はこの形（合体中の効果は sourceType "spirit" で来る）
 - 貫通の書き方の一覧（batspi.com「カード効果：自分の効果は相手の効果で防げない」。2026-10-29 ユーザー提供）から、貫通は**2つの軸の組み合わせ**で書ける:
@@ -46,7 +46,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
   | どの耐性を無視するか | すべて（「一切の」「すべての」）／陣営（「相手の効果では」「お互いの」）／耐性の名前（「装甲」を含む・【PS装甲】・【弾幕】・【転神】…）／発生源の属性（色・コスト・カードの種類）。それぞれ「〜では防げない」（それを無視）と「〜以外では防げない」（それ以外を無視）の向きがある | 【龍射撃】＝すべて、サンダー・Z・バイソン＝「効果名に『装甲』を含む効果では防げない」 |
 - 「指定アタック」も貫通の対象なので、**効果による指定アタックは問い合わせに入れる**（§3 の「入れない候補」から外す。【装甲】が防いでいるのは効果による指定）
 - 例外：「フィールドに残る」効果（破壊後に待機から戻る）は防ぐ効果ではないので、貫通されても働く（同ページの裁定）。効果そのものを発揮できなくする（【レーザーボレー】の無効など）も貫通とは別
-- **量の制限も同じ枠に入れる**（`coreFloor*`「N個より減らない」・`millCap`・`lifeDamagePerSpiritPerTurn` など）。問い合わせの答えは「止める／許す」に加えて「Nまで許す」を返す。量の制限も防ぐ効果なので貫通される（2026-10-29 ユーザー確認）
+- **量の制限も同じ枠に入れる**（`coreFloor*`「N個より減らない」・`millCap`・`lifeGuard`（旧 lifeDamagePerSpiritPerTurn） など）。問い合わせの答えは「止める／許す」に加えて「Nまで許す」を返す。量の制限も防ぐ効果なので貫通される（2026-10-29 ユーザー確認）
 - **防ぐ効果ではないので貫通されないもの**：対象の変更（【影武者】【煌空蝉】。Q7415）、「対象にならない」（2026-10-29 ユーザー見解：効果を防ぐところには効いていない）。今の `ResistanceCategory` では `untargetable`・`magicRedirect`・`meisai`（指定時のコスト要求）がこちら
 
 ## 3. 分類（たたき台。ユーザーと1行ずつ精査する）
@@ -57,15 +57,15 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
 | :-- | :-- | :-- |
 | 召喚 | `noBurstSpiritSummonForPid`・`noSummonByEffect`・`summonLimitByEffectForOpponent`・`summonLimitByCostForOpponent`・`maxSpiritsOnField` | `maxSpiritsOnField`（旋風渦巻く渓谷）は禁止。メインステップ中なら効果による召喚にも効き、貫通される（2026-10-29 ユーザー確認。今は通常の召喚にしか効いていない＝PR 2 で直す） |
 | 破壊 | `nexusIndestructible`・`ownNexusIndestructible`・`noBpCompareDestroy`・`immunityGrant` | BP比較の破壊も同じ問い合わせ（`cause:"bpCompare"`）。耐性は効く原因を持つ：「効果で破壊されない」「効果を受けない」は効果のときだけ、`noBpCompareDestroy` と原因を限らない「破壊されない」はBP比較も防ぐ。貫通は効果の操作にだけ付く（2026-10-29 ユーザー確認） |
-| 戻す | `allSpiritsCantBounce`・`immunityGrant` | |
+| 戻す | `cantBounce`（旧 allSpiritsCantBounce）・`immunityGrant` | |
 | 手札に加える | `noHandGainByEffect`・`noTrashRecovery`・`opponentCantReturnFromTrashToHand`・`handGainBlocked` | 禁止は2種類：**行き先で効く**もの（「手札に加えられない」は、ドロー（効果）・戻す（手札へ）・手札に加えるのどれでも `to: hand` なら効く。今の `noHandGainByEffect` の形）と、**操作で効く**もの（`noDrawInMain` はドローだけ）。ドローはデッキ切れの敗北があるので操作としては別のまま（2026-10-29 ユーザー確認） |
 | ドロー | `noDrawInMain`・`noDrawOutsideDrawStep` | |
-| 破棄（トラッシュに置く） | `noDeckMill`・`noDeckMillByOpponent`・`noDeckMillInMain`・`millCap`・`noHandDiscardByEffect`・`noHandDiscardInMain`・`handImmuneForPid` | `millCap` は量の制限（§2.5） |
-| コアを取り除く | `coresCantBeRemoved`・`coresCantBeRemovedAll`・`coresCantBeRemovedByOpponent`・`battlingCoresProtected`・`coreFloorByCost` 等 | `coreFloor*` は量の制限（§2.5） |
+| 破棄（トラッシュに置く） | `noDeckMill`・`noDeckMill`（旧 noDeckMillByOpponent）・`noDeckMill`（旧 noDeckMillInMain）・`millCap`・`noHandDiscardByEffect`・`noHandDiscardInMain`・`handImmuneForPid` | `millCap` は量の制限（§2.5） |
+| コアを取り除く | `coresProtected`（旧 coresCantBeRemoved）・`coresProtected`（旧 coresCantBeRemovedAll）・`coresProtected`（旧 coresCantBeRemovedByOpponent）・`coresProtected`（旧 battlingCoresProtected）・`coreFloorByCost` 等 | `coreFloor*` は量の制限（§2.5） |
 | コアを置く | `noVoidToLife`・`coreGainCap`・`voidCoreBlockedOutsideCoreStep` | |
-| ライフを減らす | `lifeImmuneForPid`・`ownLifeFloor`・`noLifeDamageByCost`・`ownLifeImmuneToSpiritEffects`・`cantReduceOpponentLife*`・`lifeDamagePerSpiritPerTurn` | 「1回に減るのはN個まで」は量の制限（§2.5） |
+| ライフを減らす | `lifeGuard`（旧 lifeImmuneForPid）・`ownLifeFloor`・`lifeGuard`（旧 noLifeDamageByCost）・`lifeGuard`（旧 ownLifeImmuneToSpiritEffects）・`cantReduceOpponentLife*`・`lifeGuard`（旧 lifeDamagePerSpiritPerTurn） | 「1回に減るのはN個まで」は量の制限（§2.5） |
 | 疲労 | `exhaustImmunityGrant`・`opponentNexusesUnexhaustable`・`exhaustPreventByPay` | 払って防ぐ（`exhaustPreventByPay`・`targetNegateByHandDiscard`）は問い合わせの答えが「払えば止まる」になる |
-| 回復 | `noRefresh`・`noRefreshByAnyEffect`・`noRefreshByNexusOrMagic`・`nexusesCantRefresh`・`opponentCombinedCantRefresh` | |
+| 回復 | `noRefresh`・`cantRefresh`（旧 noRefreshByAnyEffect）・`cantRefresh`（旧 noRefreshByNexusOrMagic）・`cantRefresh`（旧 nexusesCantRefresh）・`cantRefresh`（旧 opponentCombinedCantRefresh） | |
 | 合体／分離 | `cantCombine`・`cantSeparate`・`opponentCantSpiritStateBrave` | |
 | 効果を受けない（すべての操作に横断） | `immuneToOpponentEffects`・`immuneToOpponentSummonEffects`・`battlingEffectImmune`・`braveImmuneGrant` | 操作ごとではなく、全操作の問い合わせが共通に読む層か |
 | **入れない候補** | アタック・ブロックの可否（`cantAttack`・`cantBlock`・`unblockableBy`…）、マジック・バーストの使用（`cantUseMagicForPid`・`noBurstEffectForPid`・`magicNegate`…）、コストの増減 | 効果の操作ではなくプレイヤーの行動の可否。別の問い合わせ（行動の可否）にするか |
@@ -92,7 +92,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 「お互いのライフは、ターンごとにスピリット1体から1まで」は**プレイヤーごと**に数える（スピリットXが相手のライフを1減らした後でも、自分のライフはXからまだ減らされていない。10-30 ユーザー確認）。記録は「スピリット×減らされた側」の組ごとに持つ（今は `lifeDealtThisTurn` がスピリットごとに1つ）
    - ✅ **4 の設計（10-30 確定。#325）**：`server/src/logic/lifeGate.ts`（新規）に `lifeLossAllowed(state, a): number`（0〜amount。量で答える）。`a = { pid（減る側）, amount, cause: "attack"|"effect"|"cost", actorPid, sourceType?, sourceInstance?（アタッカーや効果の発生源のスピリット）, floor?（その効果だけの下限。neverZero 用） }`。
      集める制限：`lifeImmuneThisTurn`（原因を問わない）・`cantReduceOpponentLife`（actor≠pid）・`ownLifeImmuneToOpponentSpiritEffects`（cause effect・sourceType spirit・actor≠pid）・下限（`lifeFloorByEffect`・`ownLifeFloorContinuous`・永久凍土の王都の `ownLifeFloor`。今の `lifeCostBlocked` の床もここへ）・スピリット1体からの上限2種（`lifeDamagePerSpiritRemaining`・`ownLifeDamageCapRemaining`。原因を問わず、記録は組ごと）。
-     アタックだけの制限（`negateLifeDamageFromTarget`・`lifeDamageMaxForPid`・`noLifeDamageByCost` など）は今の `lifeDamageLimit` に残し、共通の分は `lifeDamageLimit` から `lifeLossAllowed` を呼ぶ。
+     アタックだけの制限（`negateLifeDamageFromTarget`・`lifeGuard`（旧 lifeDamageMaxForPid）・`lifeGuard`（旧 noLifeDamageByCost） など）は今の `lifeDamageLimit` に残し、共通の分は `lifeDamageLimit` から `lifeLossAllowed` を呼ぶ。
      減らした後の記録（`recordLifeLost`・組ごとの累計）も1つの関数にする。呼ぶ所：ライフを減らす全11か所（`grep -rn "\.life -=" server/src/logic`）。コストは「全部払えるか」（`lifeLossAllowed < amount` なら払えない）で、`lifeCostBlocked` はこれで置き換える
    - 4 の裁定（10-30 ユーザー確認）：「ターンごとにスピリット1体から1までしか減らされない」は、チャンプボンゴル型（お互い）もシーマ・クリーク型（自分だけ）も、そのスピリットのアタックと効果を合算して数える（今はシーマ・クリーク型がアタックだけ）
 5a. ✅ **手札に加える問い合わせ**（設計を10-30に確定。#326）
@@ -108,7 +108,7 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - データの食い違い：ノルンの泉 Lv2・巨人騎士アルダス・サファイアの城壁 Lv2 は「相手のスピリット/ネクサス/マジックの効果では」なのに `sourceTypes` が無く、自分の効果や相手のブレイヴの効果まで止めていた。`sourceTypes:["spirit","nexus","magic"]` を足す
 5c. ✅ **コアを取り除く問い合わせ**（設計を10-30に確定）
    - `server/src/logic/coreGate.ts`（新規）に `coreRemovalAllowed(state, a): number`（0〜amount。量で答える）。`a = { ownerPid, target, amount, cause: "effect"|"cost"|"tensho"|"player", actorPid, sourceType?, pierce?: "all" }`。`player`＝プレイヤーの操作（コアの移動・ソウルコアの交換）
-   - 0 にする禁止：`coresCantBeRemoved`（個体。原因を問わない）・`coresCantBeRemovedAll`（`exceptOwnerEffects` が通すのは cause effect かつ actor＝持ち主だけ。持ち主自身の支払い・コアの移動・【転召】は止まる＝RULES_BATSPI_WIKI「コストの支払いも止める」09-09。cause tensho は通す＝セフィロ・アリエスの「【転召】以外で」）・`coresCantBeRemovedByOpponent`／`coresImmovableByOpponent`（cause effect・actor≠持ち主）・バトル中の保護 `battlingCoresProtected`／`blockerCoresProtected`（原因を問わない）。それ以外は下限 `coreFloorFor` まで。`pierce:"all"` は cause effect のとき全部を無視（§2.5）
+   - 0 にする禁止：`coresProtected`（旧 coresCantBeRemoved）（個体。原因を問わない）・`coresProtected`（旧 coresCantBeRemovedAll）（`exceptOwnerEffects` が通すのは cause effect かつ actor＝持ち主だけ。持ち主自身の支払い・コアの移動・【転召】は止まる＝RULES_BATSPI_WIKI「コストの支払いも止める」09-09。cause tensho は通す＝セフィロ・アリエスの「【転召】以外で」）・`coresProtected`（旧 coresCantBeRemovedByOpponent）／`coresProtected`（旧 coresImmovableByOpponent）（cause effect・actor≠持ち主）・バトル中の保護 `coresProtected`（旧 battlingCoresProtected）／`coresProtected`（旧 blockerCoresProtected）（原因を問わない）。それ以外は下限 `coreFloorFor` まで。`pierce:"all"` は cause effect のとき全部を無視（§2.5）
    - **「取り除けない」は対象に取られることを防がない**（Q1711 の「破壊されない」と同じ。10-30 ユーザー確認）：効果のコア除去では候補に出し、取り除く時点で止める。`resistance.ts` の `coresLocked` 3行は消す（【装甲】など「効果を受けない」は残す）。**コストと【転召】は、全部動かせる個体だけを候補にする**（COST_MODEL §1・SOULCORE §2）
    - 原因を問わず効く（下限は08-24「動かし方を問わず」、取り除けないは RULES_BATSPI_WIKI「コストの支払いも止める」）。待機状態の個体にも効く（待機前からの常時効果は発揮したまま。PENDING_STATE §1）。魔影街（【呪撃】で破壊される個体のコアをボイドへ）は効果のコア除去として扱う
    - 呼ぶ所：`removal.ts` の取り除く4関数（今の保護と下限の判定を置き換え）、`removeCores.ts`・`cores.ts` の下限の直接判定、プレイヤーの支払い（`validatePaySources`・`autoPayPlan`・`brave.ts` の2か所）、効果のコスト（`moveRichestSpiritCoresToTrash`・`fieldCoresSpendable`・起動の `selfCoresToTrash`・`selfCoresToVoid`・復活のコスト・`reviveLastDestroyedNexus`）、プレイヤーの操作（RuleValidator のコア移動・交換・【覚醒】の移動元）、【転召】の候補（`tenshoCandidates`）、`jugeki.ts`
@@ -120,20 +120,20 @@ Q7409＝【装甲】・「効果を受けない」・「破壊されない」に
    - 発生源の種類が分からない相手の効果（発生源なしの解決）は、`sourceTypes` があっても耐性を効かせる側に倒す。トランプの王国の「ブレイヴ自身の効果は通す」を確かめる場面は無い（持ち主のアタックステップ中に相手がブレイヴを召喚できないため）
    - 入れないもの：ブロック時に疲労しない4枚（`noRestWhenBlocking*`。ブロックの手順で、効果の疲労ではない）・払って防ぐ `exhaustPreventByPay`（置換に近い選択なので `exhaustSpirit` の中のまま）
 5e. ✅ **回復の禁止**（10-30）
-   - 新しいファイルは作らない。回復の入口 `refreshSpirit`（`state/exhaust.ts`）が問い合わせを兼ねる：原因を問わない禁止（`noRefreshUntilOwnEndSteps`・スクルディアの指定）と効果に限った禁止（`noRefreshByNexusOrMagic`・`noRefreshByAnyEffect`）はここで止める。sourceType の省略＝リフレッシュステップ
-   - 『リフレッシュステップ』に限った禁止（`noRefresh`・`skipRefresh`・`nexusesCantRefresh`・`opponentCombinedCantRefresh`）と `refreshOnlyOneUncombined` は、リフレッシュステップの手順（`PhaseManager.ts`）に残す。「次のリフレッシュステップで」の記録をそのステップで使い切る作りのため
+   - 新しいファイルは作らない。回復の入口 `refreshSpirit`（`state/exhaust.ts`）が問い合わせを兼ねる：原因を問わない禁止（`noRefreshUntilOwnEndSteps`・スクルディアの指定）と効果に限った禁止（`cantRefresh`（旧 noRefreshByNexusOrMagic）・`cantRefresh`（旧 noRefreshByAnyEffect））はここで止める。sourceType の省略＝リフレッシュステップ
+   - 『リフレッシュステップ』に限った禁止（`noRefresh`・`cantRefresh`（旧 skipRefresh）・`cantRefresh`（旧 nexusesCantRefresh）・`cantRefresh`（旧 opponentCombinedCantRefresh））と `refreshOnlyOneUncombined` は、リフレッシュステップの手順（`PhaseManager.ts`）に残す。「次のリフレッシュステップで」の記録をそのステップで使い切る作りのため
    - 直したもの：スクルディアの指定がリフレッシュステップでしか効いていなかった／【超覚醒】とモクバオーの回復が発生源の種類を渡さず、渦巻く大海峡を素通りしていた。モクバオーは回復できなければ合体もしない（CONJUNCTION「Aし、Bできる」）
    - 入れないもの：ネクサスを効果で回復させる経路（`exhaustRefresh.ts`）は、効く禁止が無いので入口を通さない
 5f. ✅ **戻すの問い合わせ**（10-30。#332）
    - `server/src/logic/bounceGate.ts`（新規）に `bounceDenial(state, { ownerPid, target, to: "hand"|"deckTop"|"deckBottom"|"burst", actorPid?, sourceType? }): string | null`。actorPid 省略＝プレイヤー自身のコスト
-   - 集める禁止：`allSpiritsCantBounce`（金狐角。to hand だけ、原因を問わない）・`immunityGrant{against:"bounce"}`（to hand だけ、actor≠持ち主。軸 `sourceTypes?: CardType[]` を足し、恐竜姫ジュラ・転生の谷・タルタルガーは `["spirit","nexus","magic"]`＝ブレイヴ自身の効果は通す）
+   - 集める禁止：`cantBounce`（旧 allSpiritsCantBounce）（金狐角。to hand だけ、原因を問わない）・`immunityGrant{against:"bounce"}`（to hand だけ、actor≠持ち主。軸 `sourceTypes?: CardType[]` を足し、恐竜姫ジュラ・転生の谷・タルタルガーは `["spirit","nexus","magic"]`＝ブレイヴ自身の効果は通す）
    - **「手札に戻らない」はデッキへ戻す効果を止めない**。今は耐性の判定（op "bounce"）がデッキへ戻す効果にも効き、金狐角は行き先を問わず止めていた
    - 呼ぶ所：`removal.ts` の `markBounce`（戻すはすべてここを通る。誰の効果かは `currentEffectSource` で見る。止めたら false を返す）。`resistance.ts` の `bounceImmune` は消す（対象には取れる）。コストで戻す候補は止められる個体を外す
 5g. **ドロー・合体／分離**：直すものなし（10-30 に洗った）。ドローは入口 `draw()` が2つの禁止を見ていて、デッキから手札へ移す別経路も無い。分離は `detachBraveByEffect`／`detachBraveByOwnerChoice` の両方で `cantSeparate` を見ている。合体は候補（`braveCombineCandidates`）で `cantCombine` を外す（合体はプレイヤーの行動の一部なので候補で外す）。スピリット状態の禁止は検証と残す確認の両方で見ている
 5c'. **コアの問い合わせのコストの区別**（10-30。**入れない**）：上の一般則に合わせるなら、「Nコストを支払うことで」・起動能力・復活のコアのコストは `coreRemovalAllowed` に cause effect で聞くことになる。変わるのは八分儀の祠 Lv2 だけで、それが働く『相手のメインステップ』にターンプレイヤーがこれらのコストをスピリットのコアから払う場面が今のプールに無い（起動能力はアタックステップ限定、「コストを支払うことで」はバースト効果だけ）。該当カードを取り込むときに足す。「コアを〜置くことで」（エリミネイション型）は 5c の時点で効果として扱われていて、八分儀の下でも払える（smoke part693）
 5h. ✅ **デッキの破棄の問い合わせ**（10-30）
    - `server/src/logic/zones/mill.ts` に `millAllowed(state, { pid, count, actorPid?, sourceType? }): number`（0〜count）。`millDeck` の中の判定を移す
-   - 0 にする禁止：エンドステップの封印（`deckMill`）・`noDeckMill`・`noDeckMillInMain`（main）・期間つき `noDeckMillForPid`・`noDeckMillByOpponent`（ディスコンティニュー・鳳翼の聖剣。**効果文に「相手の効果で」が無いので、自分の効果・コストも止める**＝パイルドラコの `noDeckMillForPid` と同じ読み。今は相手の効果だけ止めていた）
+   - 0 にする禁止：エンドステップの封印（`deckMill`）・`noDeckMill`・`noDeckMill`（旧 noDeckMillInMain）（main）・期間つき `noDeckMill`（旧 noDeckMillForPid）・`noDeckMill`（旧 noDeckMillByOpponent）（ディスコンティニュー・鳳翼の聖剣。**効果文に「相手の効果で」が無いので、自分の効果・コストも止める**＝パイルドラコの `noDeckMill`（旧 noDeckMillForPid） と同じ読み。今は相手の効果だけ止めていた）
    - 量の制限：`millCap`（1回・perTurn・bothSides は actor≠持ち主のとき。軸 `sourceTypes?: CardType[]` を足し、侵されざる聖域・エターナルシールドは `["spirit","nexus","magic"]`）・mutual（キグナ・スワン Mk-II・リトル・ビッケン。誰の効果・コストでも）
    - 呼ぶ所：`millDeck`、`millDeck` を通らずにデッキを破棄している経路（`actions/mill.ts` の `runMillUntilMagicCastFree`・`revive.ts` の `millSelfOneMatching`／`millSelfCount`・`EffectModules.ts` の `lifeDamageMillGuard`・`keywords/funsai.ts`）と、払えるかの判定（`actions/pay.ts`）。できるだけ `millDeck` を通す形にして、累計（perTurn・mutual）も数える
    - 累計：`noteMilled` が数える。perTurn の上限の種類の指定はブレイヴを外す形しか無いので、ブレイヴの効果の分だけ別に数える（`millCountThisTurnBrave`）
