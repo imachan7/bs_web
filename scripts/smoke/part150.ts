@@ -43,7 +43,7 @@ const FILLER = CARDS.find((c) => c.type === "spirit" && (c.effects ?? []).length
 console.log("=== BS06ディスコンティニュー：このターンの間、自分のデッキは破棄されない ===")
 {
     const disco = findByEffect(
-        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noDeckMillByOpponent",
+        (e) => (e["constraint"] as Record<string, unknown> | undefined)?.["type"] === "noDeckMill" && (e["constraint"] as Record<string, unknown>)["side"] === "own",
     )
     assert(disco.type === "magic", "この形（貸与つき）で引けるのはマジックのディスコンティニュー")
 

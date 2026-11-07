@@ -8,7 +8,7 @@ import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -334,7 +334,7 @@ export function hasMagicColorBan(board: Board, cardData: CardData): boolean {
 // **デッキの残り枚数による上限は呼び出し側でかける**（Board にデッキ枚数が無いため。
 // サーバーは player.deck.length、クライアントは view の deckCount を使う）
 export function canPayNexusCostByMill(board: Board, pid: PlayerId): boolean {
-    if (hasGlobalConstraint(board, "noDeckMill")) return false
+    if (deckMillBlockedByRule(board, pid, false, true)) return false
     for (const source of effectSources(board, pid)) {
         const level = currentLevel(source).level
         for (const effect of card(source.cardId).effects) {

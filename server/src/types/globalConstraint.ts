@@ -19,8 +19,7 @@ export type GlobalConstraintDef =
     | { type: "noDrawInMain" } // 両陣営とも、メインステップの間はドローできない
     | { type: "noHandDiscardInMain" } // 両陣営とも、メインステップの間は手札を破棄できない（判定は shared/rules.ts の canDiscardHand。コストとしての破棄も止まる＝COST_MODEL.md §1）
     | { type: "handTrashSpiritEffectsDisabled" } // 両陣営の手札・トラッシュにあるスピリットカード自身の効果が発揮されない（判定は shared/rules/constraints.ts の zoneSpiritEffectsDisabled。2026-10-23 ユーザー確認）
-    | { type: "noDeckMill" } // 両陣営とも、ステップを問わずデッキが破棄されない（noDeckMillInMain のステップ無制限版）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）
-    | { type: "noDeckMillInMain" } // 両陣営とも、メインステップの間はデッキが破棄されない（自分の効果によるものも止める＝noDeckMillByOpponent と異なり陣営を問わない）
+    | { type: "noDeckMill"; side?: "both" | "own"; by?: "any" | "opponent"; whileSourceDeployedTurnOnly?: true } // デッキが破棄されない。side は発生源から見た陣営（既定 both、own＝持ち主だけ）。by:"opponent" は相手の効果による破棄だけ止め、既定の any は自分の効果・コスト支払いも止める。ステップ限定はエントリの phase（判定は deckMillBlockedByRule）。mill・【粉砕】は0枚、デッキ破棄コストは払えない扱い。オープンしてからトラッシュへ置く処理は止めない（2026-10-23 ユーザー確認）。whileSourceDeployedTurnOnly は発生源が場に出たターンだけ（BS08-064）
     | { type: "noRefreshByNexusOrMagic" } // 両陣営のスピリットは、ネクサス/マジックの効果では回復しない（スピリットの効果とリフレッシュステップは通る）
     | { type: "noRefreshByAnyEffect"; side?: "opponent" | "own" } // 疲労状態のスピリットは効果（種別を問わず）では回復しない（リフレッシュステップだけが通る）。side は発生源の持ち主から見た陣営で、省略時は両陣営。phase/turn はこの型では refreshBlockedByRule だけが見る
     | { type: "noHandDiscardByEffect" } // 両陣営とも、効果では手札を破棄できない（canDiscardHand の関門で止める＝「手札を破棄することで」のコストも払えなくなる。破棄する効果自体は発揮するが1枚も破棄されない）
@@ -87,7 +86,6 @@ export type GlobalConstraintDef =
     | { type: "coreFloorByCost"; floor?: number; ownOnly?: true; filter?: ResolvedTargetFilter; byOpponentOnly?: true } // 両陣営のスピリット上のコアは、効果によってそのカードのコスト（Lv1コスト）を下回るまで取り除けない。「Lv1コスト」＝Lv1に必要なコア数（レベル表の表記。2026-08-14 ユーザー確認）。ownOnly＝発生源の持ち主のスピリットだけ。filter＝それに合うスピリットだけ。removeCores/removeCoresToTrash/removeCoresToVoid の共通処理で判定し、コアの動かし方を問わず効く＝移動（moveCoresLeavingOne）と入れ替え（swapOpponentCores）も下限を割れない。入れ替えは同時の1つの動きなので、割るときは入れ替え自体を行わない（2026-08-24 ユーザー確認）
     | { type: "summonExhausted"; self?: true; cardTypes?: CardType[]; familyExclude?: FamilyFilter; costFilter?: { max?: number; min?: number } } // お互い、条件を満たすカードを召喚するとき、疲労状態で召喚する。ダイレクトブレイヴでは合体先のスピリットが疲労する（BS13_PLAN.md §1 #14）。「疲労する」であって「疲労状態になる」ではないため ownSpiritExhausted は発火せず、【装甲】等の耐性でも防げない（同 #24）。phase で「メインステップ」に絞る＝神速による召喚は対象外
     | { type: "handImmuneForPid"; includeNexus?: true } // 発生源の持ち主の手札は、相手のスピリット/ブレイヴ/マジックの効果を受けない（ネクサスの効果は防がない＝効果文に列挙が無いため意図的。EffectModules.handImmuneFor が判定し、discardOpponent 等の手札を対象に取る処理の冒頭で弾く）。includeNexus 指定時はネクサスの効果も防ぐ
-    | { type: "noDeckMillByOpponent"; whileSourceDeployedTurnOnly?: true } // 相手の効果では、この発生源の持ち主のデッキは破棄されない（millDeck の冒頭で判定。両陣営ではなく持ち主だけを守る＝millCap と同じ向き。自分自身の効果・コスト支払いによる破棄は止めない）。whileSourceDeployedTurnOnly 指定時は、発生源がこのターンに場へ出た（summonedTurn === state.turn）ときのみ有効
     | { type: "noDrawOutsideDrawStep" } // お互い、ドローステップ以外でドローできない（GameState.draw の共通経路冒頭で判定。ドローステップ自身は fromDrawStep 引数で除外）
     | { type: "summonLimitByCostForOpponent"; maxCost: number; limit: number } // 発生源の持ち主から見た相手は、コストが maxCost 以下のスピリットをターンに limit 体までしか召喚できない（RuleValidator.validateSummon が、相手フィールドの CardInstance.summonedTurn で自分のこのターンの該当召喚数を数えて判定。神速召喚も対象）
     | { type: "summonLimitByEffectForOpponent"; limit: number } // summonLimitByCostForOpponent の兄弟：コストでなく効果の記述を持つ（isVanillaCard が false）スピリットカードでターンに limit 体までしか召喚できない

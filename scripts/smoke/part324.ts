@@ -88,7 +88,7 @@ console.log("=== BS13-034-e1 ミノガメン：相手のデッキ破棄効果で
     assert(s.players.p1.reserve === reserveBefore - 1, "召喚コストは払わないが、Lv1のコア1個はリザーブから置く")
     assert(!s.players.p1.trashCards.includes("BS13-034"), "トラッシュには残らない")
     assert(
-        playerHas(s, "p1", "noDeckMillByOpponentForPid"),
+        playerHas(s, "p1", "noDeckMill"),
         "召喚成立時だけ、このターンの間デッキが相手の効果で破棄されなくなる",
     )
 }
@@ -220,7 +220,7 @@ console.log("=== BS14-049-e1 執事ペンタン：相手のデッキ破棄効果
     assert(s.players.p1.field.spirits.some((sp) => sp.cardId === "BS14-049"), "コストを支払わず場に出る")
     assert(s.players.p1.field.spirits.length === before + 1, "召喚された分だけ場が増える")
     assert(
-        playerHas(s, "p1", "noDeckMillByOpponentForPid"),
+        playerHas(s, "p1", "noDeckMill"),
         "召喚成立時だけ、このターンの間デッキが相手の効果で破棄されなくなる",
     )
 }

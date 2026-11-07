@@ -4482,7 +4482,9 @@
      2
     ],
     "constraint": {
-     "type": "noDeckMillByOpponent",
+     "type": "noDeckMill",
+     "side": "own",
+     "by": "any",
      "whileSourceDeployedTurnOnly": true
     }
    },

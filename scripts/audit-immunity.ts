@@ -28,7 +28,7 @@ CARD_DB.set(SHIELD_ID, {
     effects: [
         { id: "AS-e1", kind: "constraintGrant", levels: null, target: "ownAll", constraint: { type: "immuneToOpponentEffects" } },
         { id: "AS-e2", kind: "globalConstraint", levels: null, constraint: { type: "handImmuneForPid", includeNexus: true } },
-        { id: "AS-e3", kind: "globalConstraint", levels: null, constraint: { type: "noDeckMillByOpponent" } },
+        { id: "AS-e3", kind: "globalConstraint", levels: null, constraint: { type: "noDeckMill", side: "own", by: "any" } },
     ],
 } as unknown as CardData)
 const CARD_BY_ID = new Map(CARDS.map((c) => [c.cardId, c]))
