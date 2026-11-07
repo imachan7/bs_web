@@ -28,6 +28,7 @@ import soulCoreEffects from "./soulCoreEffects"
 import removeCores from "./removeCores"
 import reveal from "./reveal"
 import revealAction from "./revealAction"
+import destroyOwnBrave from "./destroyOwnBrave"
 import tegamoto from "./tegamoto"
 import tensho from "./tensho"
 import timedEffect from "./timedEffect"
@@ -71,6 +72,7 @@ const ACTION_HANDLERS: ActionRegistry = {
     ...removeCores,
     ...reveal,
     ...revealAction,
+    ...destroyOwnBrave,
     ...tegamoto,
     ...tensho,
     ...timedEffect,

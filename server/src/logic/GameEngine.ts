@@ -1,6 +1,7 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge, payVoidToll } from "./summonSurcharge"
+import { consumeSummonCostSetOnce, consumeSummonPayByNexusExhaust, noteSummonExtraDiscard, summonExtraDiscardPlan } from "./summonCostRules"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
 import { exSymbolsOfTrashCard, findSokuFreeSummonSource, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
@@ -112,7 +113,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
-import { separateBravesBelowMinCost } from "./braveConditionGate"
+import { separateBravesBelowMinCost, separateBravesOverLimit } from "./braveConditionGate"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
@@ -138,6 +139,7 @@ export function handleAction(
     // 維持コアを下回った個体の掃除（refreshLevelAsOverrides の後に置くこと）
     sweepLevelCostDepletion(state)
     separateBravesBelowMinCost(state)
+    separateBravesOverLimit(state)
     // バウンス待機カードは選択待ちが無くなった時点で手札／デッキへ移す。resolveAction を通らない経路（エンドステップのデッキ下戻し・召喚時の入れ替え）の安全網
     if (!state.pendingChoice) flushBounces(state)
     // 【迷彩】の支払い済み目印は、払った効果の解決（中断含む）が終わるまで持ち、次の効果へ持ち越さない
@@ -283,7 +285,7 @@ function dispatchAction(
     switch (action.type) {
         case "summon":
             if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices)
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
@@ -502,8 +504,9 @@ export function doSummon(
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（undefined=まだ聞いていない / true=無償 / false=あえて支払う）
+    extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（省略時は自動で選ぶ）
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices)
     if (error) return error
 
     const player = state.players[pid]
@@ -527,6 +530,7 @@ export function doSummon(
     }
     // kind:"payAssistByExhaust"：指定した発生源を疲労させ、召喚コストの一部を肩代わりする
     let shinsokuDiscount = 0
+    let usedNexusExhaustRule = false
     if (shinsokuAssistInstanceIds !== undefined && shinsokuAssistInstanceIds.length > 0) {
         // 【神速】かどうかの条件は validateSummon で確認済み。ここは割引額と消費記録を引くだけなので flash は見ない
         const candidates = new Map(payAssistCandidates(state, pid, { cardId: player.hand[handIndex]!, flash: true }).map((c) => [c.instanceId, c]))
@@ -537,7 +541,9 @@ export function doSummon(
             const c = candidates.get(id)
             if (c?.oncePerTurn) player.payAssistUsedThisTurn = [...(player.payAssistUsedThisTurn ?? []), id]
             shinsokuDiscount += c?.discount ?? 0
+            if (c?.byRule) usedNexusExhaustRule = true
         }
+        if (usedNexusExhaustRule) consumeSummonPayByNexusExhaust(state, pid)
         log(state, `${player.name}は自分のカードを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
     }
     // 《継召》：指定されたトラッシュのEXシンボル持ちカードを除外し、そのシンボル列を召喚コストの軽減に使う（軽減に使えるのは同じ色だけで、枚数×シンボル数とは限らない）
@@ -612,8 +618,21 @@ export function doSummon(
         discardHandIndices !== undefined
             ? discardHandIndices.slice(0, discardPaid).map((i) => player.hand[i]!)
             : player.hand.filter((_, i) => i !== handIndex).slice(-discardPaid)
+    // summonExtraDiscard の破棄対象も、抜く前のインデックスで確定させる
+    const extraPlan = summonExtraDiscardPlan(state, pid, handIndex, card, extraDiscardHandIndices, discardHandIndices)
+    const extraIds = "indices" in extraPlan ? extraPlan.indices.map((i) => player.hand[i]!) : []
+    consumeSummonCostSetOnce(state, pid, card)
     // **召喚するカードを先に手札から抜く**：破棄の対象に自分自身が混ざらないようにする
     player.hand.splice(handIndex, 1)
+    if (extraIds.length > 0) {
+        noteSummonExtraDiscard(card)
+        for (const id of extraIds) {
+            const at = player.hand.indexOf(id)
+            if (at !== -1) player.hand.splice(at, 1)
+            player.trashCards.push(id)
+        }
+        log(state, `${player.name}は召喚の追加コストとして手札の${extraIds.map((id) => getCard(id).name).join("、")}を破棄した。`)
+    }
     if (discardPaid > 0) {
         for (const id of discardIds) {
             const at = player.hand.indexOf(id)

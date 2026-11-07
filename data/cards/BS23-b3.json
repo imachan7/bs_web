@@ -1,0 +1,313 @@
+[
+ {
+  "cardId": "BS23-003",
+  "name": "シャイニング・ブレイドラ",
+  "type": "spirit",
+  "colors": [
+   "red"
+  ],
+  "cost": 4,
+  "reduction": [
+   "red",
+   "red"
+  ],
+  "family": [
+   "星竜"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 2000
+   },
+   {
+    "level": 2,
+    "cores": 3,
+    "bp": 3000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 4000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nこのターンの間、自分の手札にあるカード名に「シャイニング・ドラゴン」と入っているスピリットカード1枚のコストを、自分のライフと同じ数にする。\nLv1･Lv2･Lv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
+  "effects": [
+   {
+    "id": "BS23-003-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "summonCostSetOnceForPid",
+        "counter": "ownLife",
+        "nameContains": "シャイニング・ドラゴン",
+        "cardType": "spirit"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS23-003-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "cardId": "BS23-068",
+  "name": "偽りの地下帝国",
+  "type": "nexus",
+  "colors": [
+   "purple"
+  ],
+  "cost": 3,
+  "reduction": [
+   "purple",
+   "purple"
+  ],
+  "family": [],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 0
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 0
+   }
+  ],
+  "symbol": [
+   "purple"
+  ],
+  "flash": false,
+  "rarity": "",
+  "limited": false,
+  "effect": "Lv1･Lv2『自分のエンドステップ』\n自分のトラッシュにあるカード名に「アルデウス」と入っているスピリットカード1枚を手札に戻すことができる。\nLv2『自分のメインステップ』\n自分の手札にある本来のコストがコスト10以上の紫のスピリットカードを召喚するとき、コスト6として扱う。",
+  "effects": [
+   {
+    "id": "BS23-068-e1",
+    "kind": "step",
+    "step": "end",
+    "turn": "own",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": 1,
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "nameIncludes": "アルデウス"
+     },
+     "requireCandidate": true
+    }
+   },
+   {
+    "id": "BS23-068-e2",
+    "kind": "costMod",
+    "mode": "set",
+    "levels": [
+     2
+    ],
+    "setTo": 6,
+    "costFilter": {
+     "min": 10
+    },
+    "colorFilter": "purple",
+    "cardTypeFilter": "spirit",
+    "fromHandOnly": true,
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS23-084",
+  "name": "ディープシーイリュージョン",
+  "type": "magic",
+  "colors": [
+   "blue"
+  ],
+  "cost": 3,
+  "reduction": [
+   "blue",
+   "blue"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "",
+  "limited": false,
+  "effect": "メイン：\nこのターンの間、自分がスピリットカード/ブレイヴカード1枚を召喚するとき、自分のネクサスを好きなだけ疲労させることで、この効果で疲労させたネクサス1つにつき、1コストを支払ったものとして扱う。\nフラッシュ：\nこのターンの間、スピリット1体をBP+1000する。",
+  "effects": [
+   {
+    "id": "BS23-084-e1",
+    "kind": "magic",
+    "timing": "main",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "playerRule",
+       "rule": {
+        "type": "summonPayByNexusExhaustForPid"
+       }
+      }
+     ],
+     "duration": "turn",
+     "side": "own"
+    }
+   },
+   {
+    "id": "BS23-084-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 1000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "BS23-X07",
+  "name": "真・裁きの神剣トゥルース・エデン",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "purple",
+   "green",
+   "white",
+   "yellow",
+   "blue"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 10000
+   }
+  ],
+  "symbol": [
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このブレイヴカードは、1コスト以上支払わなければ召喚できない。\nLv1『このブレイヴの召喚時』\n自分の手札にある系統：「剣使」を持つスピリットカード/系統：「剣刃」を持つブレイヴカードを、コストを支払わずに好きなだけ召喚する。\nただし、『このスピリット/ブレイヴの召喚時』効果は発揮されない。\n合体条件：コスト5以上\n【合体時】『このスピリットのアタック時』\n相手のバースト1つを破棄することで、相手のスピリット1体を破壊する。",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 6000
+   }
+  ],
+  "braveConditionText": "コスト5以上",
+  "braveCondition": {
+   "minCost": 5
+  },
+  "effects": [
+   {
+    "id": "BS23-X07-e1",
+    "kind": "summonNeedsCost",
+    "levels": null
+   },
+   {
+    "id": "BS23-X07-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "action": {
+     "type": "moveCards",
+     "from": "hand",
+     "dest": "summon",
+     "count": "all",
+     "upTo": true,
+     "skipOnSummon": true,
+     "pick": {
+      "anyOf": [
+       {
+        "cardType": "spirit",
+        "family": "剣使"
+       },
+       {
+        "cardType": "brave",
+        "family": "剣刃"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "id": "BS23-X07-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "discard",
+      "from": "burst",
+      "side": "opponent"
+     },
+     "then": {
+      "type": "destroy",
+      "count": 1
+     }
+    }
+   }
+  ]
+ }
+]

@@ -22,6 +22,7 @@ import { fireFieldEventTriggers, notifyHandGained } from "./fieldEventTriggers"
 import type { FieldEventExtraItem } from "./fieldEventTriggers"
 import type { KeywordInfo } from "../../../shared/rules"
 import { detachBravesOnLeave, flushBraveKeeps } from "./brave"
+import { separateBravesOverLimit } from "./braveConditionGate"
 import { recordDestroyedCount, recordLeftCost } from "./record"
 import { isOnceNameUsed } from "./oncePerTurn"
 import { leavesNothingBehind } from "./keywords/bunshin"
@@ -669,6 +670,7 @@ export function commitPendingDestruction(
     // 合体していたブレイヴを外す（§6.1.1）。**コアを移した後**に呼ぶ：
     // ホストのコアがリザーブに入ってからブレイヴに置くのが正しい順（§6.3.1）
     detachBravesOnLeave(state, ownerPid, inst, false, "trash", braveCantRemain)
+    separateBravesOverLimit(state)
 }
 
 // globalConstraint "bp0DestroyedToDeckBottom"。発生源は破壊された側から見た相手のフィールドにある

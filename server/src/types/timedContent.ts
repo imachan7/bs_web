@@ -11,6 +11,7 @@ import { Color, CardType, ResolvedTargetFilter, TriggerEvent, PlayerRuleDef, Imm
 // countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
 export type TimedContent =
     | CantRefreshDef // 寿命 nextRefresh では by:"step"＝次のリフレッシュステップで回復しない
+    | { type: "combineLimitBonus"; amount: number } // 合体できるブレイヴの上限数を増やす（combineLimitFor が読む。期間 battle で、バトル後にあふれた分は separateBravesOverLimit が分離する）
     | { type: "cantAttack" }
     | { type: "effectsDisabled" } // 効果を失い、新たに得ることもない（付与されたキーワードも。instEffectsSuppressed が読む）
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）

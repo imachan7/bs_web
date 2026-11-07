@@ -624,5 +624,47 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "X13-10",
+  "name": "渚の乙女ヴィエルジェ",
+  "type": "spirit",
+  "colors": [
+   "yellow"
+  ],
+  "cost": 6,
+  "reduction": [
+   "yellow",
+   "yellow",
+   "yellow"
+  ],
+  "family": [
+   "天霊"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 4000
+   },
+   {
+    "level": 2,
+    "cores": 2,
+    "bp": 6000
+   },
+   {
+    "level": 3,
+    "cores": 4,
+    "bp": 8000
+   }
+  ],
+  "symbol": [
+   "yellow"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "Lv1･Lv2･Lv3\nカード名に「渚」と入っている自分のスピリットが相手によって破壊されたとき、自分のライフが5以下なら、ボイドからコア1個を自分のライフに置く。",
+  "effects": []
  }
 ]

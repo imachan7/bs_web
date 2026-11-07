@@ -72,6 +72,7 @@ export type EffectDefTrigger =
               | { soulCoreInReserve: true } // 自分のリザーブ
               | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } // 直近の《継召》で除外したカードを数える
               | { summonedBy: string } // CardInstance.summonedBy と突合
+              | { selfHasBraveNamed: string } // 発火したスピリット（合体スピリットのホスト）に、このカード名のブレイヴが合体している
       }
     | {
           id: string

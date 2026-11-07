@@ -9,7 +9,8 @@ import type { CardData, CardInstance, PlayerId } from "../server/src/type"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { effectiveCost } from "./cost"
-import { activeConstraints, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
+import { braveSlotsUsed, extraCombineAllowed } from "./rules/braveExtraCombine"
+import { activeConstraints, timedContentsOn, zoneSpiritEffectsDisabled, isFlashLockedFor, matchesBraveCondition, minLevelCores } from "./rules"
 
 // 召喚（type:"summon"）で場に出せるカードか。
 // **ブレイヴは単体で場に出すとスピリットとして扱われる**ので、こちらも true になる（BRAVE.md §1.1）。
@@ -39,20 +40,28 @@ export function braveCombineCandidates(board: Board, pid: PlayerId, braveCardId:
         .map((host) => host.instanceId)
 }
 
+// 【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。
+// 合体数に空きがあれば合体中のブレイヴのコストを含めて数え、埋まっていれば含めない
+export function braveCombinableWithHost(board: Board, pid: PlayerId, host: CardInstance, braveCardId: string): boolean {
+    if (card(braveCardId).type !== "brave") return false
+    return matchesBraveCondition(board, pid, host, braveCardId, !canCombineBraveCount(board, pid, host, braveCardId))
+}
+
 // このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
 // 「ブレイヴ2つまでと合体できる」＝ constraint combineLimit で上限を上げる。
 // RuleValidator（ダイレクトブレイヴの召喚検証）とbraveCombineCandidatesの両方がここを読む
 // 上限未満か。extraSlotSymbolless 指定の制約は2体目以降にシンボル0のブレイヴしか受け付けない
 export function canCombineBraveCount(board: Board, pid: PlayerId, host: CardInstance, braveCardId: string): boolean {
-    const n = (host.braveRefs ?? []).length
+    const n = braveSlotsUsed(board, pid, host)
     const c = activeConstraints(board, pid, host).find((c) => c.type === "combineLimit")
     if (c && c.type === "combineLimit" && c.extraSlotSymbolless && n >= 1 && card(braveCardId).symbol.length > 0) return false
-    return n < combineLimitFor(board, pid, host)
+    return braveSlotsUsed(board, pid, host) < combineLimitFor(board, pid, host) || extraCombineAllowed(board, pid, host, braveCardId)
 }
 
 export function combineLimitFor(board: Board, pid: PlayerId, host: CardInstance): number {
     const c = activeConstraints(board, pid, host).find((c) => c.type === "combineLimit")
-    return c && c.type === "combineLimit" ? c.limit : 1
+    const bonus = timedContentsOn(board, host).reduce((n, t) => (t.type === "combineLimitBonus" ? n + t.amount : n), 0)
+    return (c && c.type === "combineLimit" ? c.limit : 1) + bonus
 }
 
 // ---- 入れ替え召喚（kind:"battleSwapSummon"。BS07ブラックカラカロッサム） ----

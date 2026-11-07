@@ -1,0 +1,54 @@
+[
+ {
+  "cardId": "X13-12",
+  "name": "裁きの神剣リ・ジェネシス",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このブレイヴカードは、自分の手札にあるスピリットカード1枚を破棄しなければ召喚できない。\n合体条件：コスト8以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 10000
+   }
+  ],
+  "braveConditionText": "コスト8以上",
+  "braveCondition": {
+   "minCost": 8
+  },
+  "effects": [
+   {
+    "id": "X13-12-e1",
+    "kind": "summonExtraDiscard",
+    "levels": null,
+    "count": 1,
+    "cardType": "spirit"
+   }
+  ]
+ }
+]

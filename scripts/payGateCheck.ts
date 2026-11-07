@@ -37,6 +37,7 @@ const GATE_PARAMS = ["payCost", "costDestroyOwnSpiritSameCost", "costSkipCoreSte
 
 // 確認を出さないのが正しいもの・「ことで」がコストの意味でないもの
 const VERIFIED: Record<string, string> = {
+    "BS23-084": "疲労させるネクサスは召喚アクションで1つずつ指定する（0個でもよい）。指定した時点が確認",
     "BS14-084": "払わないと負けるので自動で払う（2026-10-02 ユーザー決定。COST_MODEL §10）",
     "BS12-075": "「ことで」はマジックの通常コストの支払い手段の言い直し",
     "BS21-052": "burstActivationNegate が破壊する前に任意の対象選択（断れる）を必ず出す。払えないときは聞かない（COST_MODEL §10）",

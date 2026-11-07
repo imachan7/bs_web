@@ -556,6 +556,10 @@ export function costSetOverride(
     if (fromHand) {
         for (const r of timedPlayerRules(board, pid)) {
             if (r.type === "handCostSetForPid" && (result === undefined || r.value < result)) result = r.value
+            if (r.type === "summonCostSetOnceForPid" && cardData.type === r.cardType && cardData.name.includes(r.nameContains)) {
+                const value = board.players[pid].life
+                if (result === undefined || value < result) result = value
+            }
         }
     }
     const sources = effectSources(board, pid)
@@ -578,6 +582,8 @@ export function costSetOverride(
                 if (!wanted.some((f) => cardData.family.includes(f))) continue
             }
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
+            if (effect.colorFilter !== undefined && !cardData.colors.includes(effect.colorFilter)) continue
+            if (effect.fromHandOnly && !fromHand) continue
             if (effect.costFilter !== undefined && !matchesCostFilter(cardData.cost, effect.costFilter)) continue
             // BS07女帝ペンプレスLv2-3：手札のカード名に「ペンタン」を含むスピリットカードのみ
             if (effect.nameContains !== undefined && !cardData.name.includes(effect.nameContains)) continue
