@@ -358,6 +358,7 @@ const LEGACY_BLOCK_CONSTRAINT_FIELDS: Record<string, string[]> = {
     noRestWhenBlockingColor: [], noRestWhenBlockingCost: [], noRestWhenBlockingWithoutKeyword: [],
 }
 
+const RETIRED_REFRESH_TYPES = new Set(["noRefreshByAnyEffect", "noRefreshByNexusOrMagic", "noSpiritRefresh", "nexusesCantRefresh", "opponentCombinedCantRefresh", "skipRefresh"])
 const REMOVED_LIFE_GUARD_TYPES = new Set(["noLifeDamageByCost", "noLifeDamageByCostForPid", "lifeFloorForPid", "lifeDamageMaxForPid", "lifeDamagePerSpiritPerTurn", "ownLifeDamageCapPerSourcePerTurn", "lifeImmuneForPid", "ownLifeImmuneToSpiritEffects"])
 const REMOVED_CORE_PROTECT_TYPES = new Set(["coresCantBeRemoved", "coresImmovableByOpponent", "coresCantBeRemovedByOpponent", "coresCantBeRemovedAll", "battlingCoresProtected", "blockerCoresProtected"])
 
@@ -369,6 +370,7 @@ function checkBlockConstraints(cardId: string, node: unknown, add: (cardId: stri
     }
     const obj = node as Record<string, unknown>
     const t = obj["type"]
+    if (typeof t === "string" && RETIRED_REFRESH_TYPES.has(t)) add(cardId, `${t} は廃止（cantRefresh{by,side,cardType,target,effectSource} に統合済み）`)
     if (t === "noDeckMillInMain" || t === "noDeckMillByOpponent" || t === "noDeckMillForPid" || t === "noDeckMillByOpponentForPid") add(cardId, `${t} は廃止（noDeckMill{side・by}・phase に統合済み）`)
     if (typeof t === "string" && REMOVED_LIFE_GUARD_TYPES.has(t)) add(cardId, `${t} は廃止（lifeGuard に統合済み。無言で無視される）`)
     if (t === "ownLifeFloor" && obj["costSelfToTrash"] !== true) add(cardId, "ownLifeFloor は costSelfToTrash 版だけ（下限1の無条件版は lifeGuard{side:\"own\", floor} に統合済み）")

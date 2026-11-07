@@ -17,15 +17,15 @@ console.log("=== ジャノメ・シールダー：指定した相手のスピリ
     other.isRested = true
     s.players.p2.field.spirits = [target, other]
     refreshLevelAsOverrides(s)
-    const effect = getCard("BS11-055").effects.find((e) => JSON.stringify(e).includes("skipRefresh")) as { action: Parameters<typeof resolveAction>[3] }
+    const effect = getCard("BS11-055").effects.find((e) => JSON.stringify(e).includes("cantRefresh")) as { action: Parameters<typeof resolveAction>[3] }
     resolveAction(s, "p1", null, effect.action, target.instanceId)
-    assert(timedHas(s, target, "skipRefresh"), "指定したスピリットに記録が付く")
+    assert(timedHas(s, target, "cantRefresh"), "指定したスピリットに記録が付く")
 
     endTurn(s) // p1 のターン終了 → p2 のターン（リフレッシュステップ）
     assert(s.turnPlayer === "p2", "p2 のターンになった")
     assert(target.isRested, "指定されたスピリットは回復しない")
     assert(!other.isRested, "指定されていないスピリットは回復する")
-    assert(!timedHas(s, target, "skipRefresh"), "記録は使い切って消える")
+    assert(!timedHas(s, target, "cantRefresh"), "記録は使い切って消える")
 }
 
 console.log("すべてのチェックに合格しました 🎉（part389）")
