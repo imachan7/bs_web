@@ -1055,7 +1055,8 @@
      "to": "spirit",
      "target": "self",
      "count": 1
-    }
+    },
+    "onceScope": "name"
    }
   ]
  },
