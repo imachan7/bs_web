@@ -514,7 +514,20 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『自分のメインステップ』\n自分の手札にあるカード名に「アルデウス」と入っているスピリットカードを召喚するとき、このスピリットを疲労させることで、そのコストを-2する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-010-e1",
+    "kind": "payAssistByExhaust",
+    "levels": [
+     1,
+     2
+    ],
+    "cost": 2,
+    "phase": "main",
+    "via": "any",
+    "summonedNameIncludes": "アルデウス"
+   }
+  ]
  },
  {
   "cardId": "BS23-011",
@@ -549,7 +562,31 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\nLv2【強化】\n自分の「コア除去効果」でリザーブに置くコアを+1個する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-011-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS23-011-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "coreRemove",
+    "levels": [
+     2
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS23-012",
@@ -586,7 +623,47 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分はデッキから1枚ドローする。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：コスト4以下の相手のスピリット1体を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-012-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "draw",
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "white"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "return",
+        "to": "hand",
+        "count": 1,
+        "filter": {
+         "cost": {
+          "max": 4
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-014",
@@ -627,7 +704,48 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv2･Lv3『このスピリットの破壊時』\n自分のトラッシュにある系統：「剣使」を持つスピリットカード1枚を召喚できる。\n【連鎖：条件《赤シンボル》】\n(自分の赤シンボルがあるとき、下の効果を続けて発揮する)\n[赤]：自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-014-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onDestroy",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "dest": "summon",
+       "pick": {
+        "cardType": "spirit",
+        "family": "剣使"
+       },
+       "count": 1,
+       "pay": "cost"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "red"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-015",
@@ -669,7 +787,19 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【強化】\n自分の「コア除去効果」でリザーブに置くコアを+1個する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-015-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "coreRemove",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS23-017",
@@ -712,7 +842,41 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n疲労状態の相手のスピリット1体を破壊する。\nこの効果でスピリットを破壊したとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-017-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "rested": true
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {}
+       },
+       "then": {
+        "type": "draw",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-018",
@@ -760,7 +924,55 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『お互いのアタックステップ』\n系統：「無魔」/「地竜」を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、自分のデッキの上から1枚を裏向きでこのスピリットの下に置く。\n(下のカードは、このスピリットがフィールドを離れるとき破棄する)\nLv3『このスピリットのアタック時』\n下のカード1枚を破棄することで、相手は、相手のスピリットのコア1個をボイドに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-018-e1",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "winnerFamilyFilter": [
+     "無魔",
+     "地竜"
+    ],
+    "selfMode": "source",
+    "action": {
+     "type": "placeUnderSelf",
+     "from": "deck",
+     "upTo": 1
+    }
+   },
+   {
+    "id": "BS23-018-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "discardUnder",
+      "count": 1
+     },
+     "then": {
+      "type": "removeCores",
+      "side": "opponent",
+      "from": [
+       "spirit"
+      ],
+      "to": "void",
+      "target": "one",
+      "count": 1,
+      "chooser": "owner"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-019",
@@ -1733,7 +1945,45 @@
   "braveCondition": {
    "minCost": 4
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-057-e1",
+    "kind": "constraint",
+    "levels": null,
+    "whileCombined": true,
+    "constraint": {
+     "type": "canDirectAttack",
+     "targetFilter": "rested"
+    }
+   },
+   {
+    "id": "BS23-057-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "whileCombined": true,
+    "trigger": "onAttack",
+    "levels": null,
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "white"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "spirit",
+      "count": 1,
+      "filter": {
+       "family": "機獣"
+      }
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-058",
@@ -1776,7 +2026,44 @@
   "braveCondition": {
    "minCost": 4
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-058-e0",
+    "kind": "trashImmunity"
+   },
+   {
+    "id": "BS23-058-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "discard",
+       "from": "deck",
+       "count": 6,
+       "side": "own",
+       "until": {
+        "cardType": "spirit",
+        "nameIncludes": "ダークネス"
+       }
+      },
+      {
+       "type": "takeLast",
+       "pick": {
+        "cardType": "spirit",
+        "nameIncludes": "ダークネス"
+       },
+       "to": "hand"
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-059",
@@ -2306,7 +2593,68 @@
   "rarity": "U",
   "limited": false,
   "effect": "フラッシュ：\n相手のスピリットのコア1個を相手のリザーブに置く。\n相手の緑のスピリットがいるとき、この効果で相手のリザーブに置かれるコアすべてはボイドに置かれる。\n【連鎖：条件《白シンボル》】\n(自分の白シンボルがあるとき、下の効果を続けて発揮する)\n[白]：ボイドからコア1個を自分の白のスピリットに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-076-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "keyword": "rensa",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "opponentSpirits": {
+          "color": "green"
+         }
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "removeCores",
+        "side": "opponent",
+        "from": [
+         "spirit"
+        ],
+        "to": "void",
+        "target": "one",
+        "count": 1
+       },
+       "else": {
+        "type": "removeCores",
+        "side": "opponent",
+        "from": [
+         "spirit"
+        ],
+        "to": "reserve",
+        "target": "one",
+        "count": 1
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "white"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "placeCores",
+        "from": "void",
+        "to": "spirit",
+        "count": 1,
+        "filter": {
+         "color": "white"
+        }
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-077",
@@ -2479,7 +2827,71 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n相手のスピリットのコア3個を相手のリザーブに置く。\nこの効果でコアが0個になったスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。\nLv2･Lv3『このスピリットのアタック時』\n相手のフィールドのコア1個を相手のリザーブに置く。\nLv3【強化】\nアルティメット以外の自分の「コア除去効果」でリザーブに置くコアを+1個する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-X02-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "removeCores",
+       "side": "opponent",
+       "from": [
+        "spirit"
+       ],
+       "to": "reserve",
+       "target": "one",
+       "count": 3
+      },
+      {
+       "type": "placeCores",
+       "from": "void",
+       "to": "reserve",
+       "count": 1,
+       "countCounter": "lastEmptiedSpirits"
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS23-X02-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "removeCores",
+     "side": "opponent",
+     "from": [
+      "spirit",
+      "nexus"
+     ],
+     "to": "reserve",
+     "target": "one",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS23-X02-e3",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "coreRemove",
+    "levels": [
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS23-X03",
@@ -2604,6 +3016,63 @@
   "braveCondition": {
    "minCost": 5
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-X08-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "removeCores",
+       "side": "opponent",
+       "from": [
+        "spirit"
+       ],
+       "to": "reserve",
+       "target": "one",
+       "count": 1
+      },
+      {
+       "type": "draw",
+       "count": 1
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS23-X08-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "coreRemove",
+    "levels": null,
+    "whileCombined": true
+   },
+   {
+    "id": "BS23-X08-e3",
+    "kind": "triggered",
+    "whileCombined": true,
+    "trigger": "onAttack",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "colorless"
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   }
+  ]
  }
 ]

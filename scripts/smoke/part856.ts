@@ -42,10 +42,12 @@ const born = (id: string, cores: number, lv: number, bp: number) => [
 const aroku = name(ROKU)
 const drew = (hand: string) => [`自分.手札: ${hand} → ${aroku}`, "自分.デッキ枚数: 40 → 39"]
 // 相手の標的（ROKU）のコアを選ぶ場面を、選択待ちを止めて答える
-function pickTarget(t: { act: (s: "me" | "opp", a: { type: "resolveChoice"; instanceId?: string }) => void; id: (l: string) => string; state: { pendingChoice: { pid: string; candidates: string[] } | null }; me: string }, label = "標的") {
+function pickTarget(t: { act: (s: "me" | "opp", a: { type: "resolveChoice"; instanceId?: string; option?: string }) => void; id: (l: string) => string; state: { pendingChoice: { pid: string; candidates: string[]; options?: string[] } | null }; me: string }, label = "標的") {
     const target = t.id(label)
     for (let i = 0; i < 3 && t.state.pendingChoice !== null; i++) {
         const pc = t.state.pendingChoice
+        // [ソウルコア]が載った個体からは含めるかを持ち主に聞かれる。どの場面も残す側で答える
+        if (pc.options?.includes("[ソウルコア]は残す")) { t.act(pc.pid === t.me ? "me" : "opp", { type: "resolveChoice", option: "[ソウルコア]は残す" }); continue }
         t.act(pc.pid === t.me ? "me" : "opp", pc.candidates.includes(target) ? { type: "resolveChoice", instanceId: target } : { type: "resolveChoice" })
     }
 }
@@ -98,7 +100,7 @@ function vanishing(label: string, o: { ally?: string; oppSpirits: { card: string
         },
         expect: [
             `自分.手札: ${vanish} → なし`, `自分.トラッシュ: なし → ${vanish}`, `自分.リザーブ: 10 → ${10 - cost}`, `自分.トラッシュのコア: 0 → ${cost}`,
-            "相手.標的.コア: 3 → 2", ...(o.toVoid ? [] : ["相手.リザーブ: 10 → 11"]),
+            "相手.標的.コア: 3 → 2", "相手.標的.BP: 4000 → 3000", "相手.標的.Lv: 3 → 2", ...(o.toVoid ? [] : ["相手.リザーブ: 10 → 11"]),
             ...(o.chain ? [`自分.${name(KIGUNA)}.コア: 1 → 2`, `自分.${name(KIGUNA)}.Lv: 1 → 2`, `自分.${name(KIGUNA)}.BP: 1000 → 2000`] : []),
         ],
     })
@@ -121,7 +123,7 @@ function viperSummon(label: string, oppCores: number, soul = false) {
         expect: [
             ...born(VIPER, 1, 1, 8000), `自分.手札: ${viper} → なし`, `自分.リザーブ: 15 → ${4 + (zeroed ? 1 : 0)}`, "自分.トラッシュのコア: 0 → 10",
             "相手.リザーブ: 10 → 13",
-            ...(zeroed ? ["相手.標的.場所: フィールド → なし", `相手.トラッシュ: なし → ${aroku}`] : [`相手.標的.コア: ${oppCores} → ${oppCores - 3}`]),
+            ...(zeroed ? ["相手.標的.場所: フィールド → なし", `相手.トラッシュ: なし → ${aroku}`] : [`相手.標的.コア: ${oppCores} → ${oppCores - 3}`, "相手.標的.BP: 4000 → 3000", "相手.標的.Lv: 3 → 2"]),
         ],
     })
 }
@@ -131,7 +133,7 @@ scenario({
     name: "X02-ソウルコアは動かず通常のコア3個がリザーブへ",
     start: { me: { reserve: 15, hand: [VIPER] }, opp: { spirits: [{ card: ROKU, label: "標的", cores: 5 }], soulCore: "標的" } },
     steps: (t) => t.act("me", { type: "summon", handIndex: 0 }),
-    expect: [...born(VIPER, 1, 1, 8000), `自分.手札: ${viper} → なし`, "自分.リザーブ: 15 → 4", "自分.トラッシュのコア: 0 → 10", "相手.リザーブ: 10 → 13", "相手.標的.コア: 5 → 2"],
+    expect: [...born(VIPER, 1, 1, 8000), `自分.手札: ${viper} → なし`, "自分.リザーブ: 15 → 4", "自分.トラッシュのコア: 0 → 10", "相手.リザーブ: 10 → 13", "相手.標的.コア: 5 → 2", "相手.標的.BP: 4000 → 3000", "相手.標的.Lv: 3 → 2"],
 })
 
 console.log("=== X02: Lv2 以上のアタック時に相手のフィールドのコア1個をリザーブへ／Lv3 の【強化】で+1個 ===")

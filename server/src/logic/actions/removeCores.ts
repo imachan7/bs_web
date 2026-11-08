@@ -32,7 +32,7 @@ type Dest = "reserve" | "trash" | "void" | "life"
 type CountSpec = number | "all" | "toLowerLevel"
 
 // 【強化】（紫）でリザーブに置くコアが+1個になる条件。行き先がリザーブ（既定）で、スピリットから
-// 取る数値 count のときだけ（ライフのコア・行き先リザーブ以外・downTo／leaveAtLeast は除く：Q759・Q761）。
+// 取る数値 count のときだけ（ライフのコア・行き先リザーブ以外・downTo／「1個残して残りすべて」は除く：Q759・Q761）。
 // from にライフが混ざる全体にも足さない（ライフのコアには効かないので、混在を個別に増やすのは複雑すぎる）
 export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action: RemoveCoresAction): number {
     if (action.kyokaSettled === true) return 0
@@ -42,7 +42,8 @@ export function removeCoresKyokaBonus(state: GameState, owner: PlayerId, action:
     if (action.target === "all") return 0
     if (action.side === "own") return 0 // 自分のスピリットのコアを置くのは「相手へのコアシュート」ではない
     if (!from.includes("spirit") || from.includes("life")) return 0
-    if (action.downTo !== undefined || action.leaveAtLeast !== undefined) return 0
+    // Q761 が除くのは「1個残して残りすべて」（count:"all"）だけ。数値の count に「0個にはできない」が付いた除去には足す（2026-11-08）
+    if (action.downTo !== undefined || (action.leaveAtLeast !== undefined && action.count === "all")) return 0
     return kyokaBonus(state, owner, "coreRemove")
 }
 

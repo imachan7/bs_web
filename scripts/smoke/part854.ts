@@ -111,7 +111,7 @@ function smogCase(label: string, mine: Sp[], opp: Sp[], removed: number) {
             }
         },
         expect: [...born(SMOG, 1, 1, 1000), `自分.手札: ${smog} → なし`, "自分.リザーブ: 10 → 8", "自分.トラッシュのコア: 0 → 1",
-            `相手.標的.コア: 5 → ${5 - removed}`, `相手.リザーブ: 10 → ${10 + removed}`],
+            `相手.標的.コア: 5 → ${5 - removed}`, ...(removed >= 3 ? ["相手.標的.BP: 4000 → 3000", "相手.標的.Lv: 3 → 2"] : []), `相手.リザーブ: 10 → ${10 + removed}`],
     })
 }
 smogCase("011-Lv2 の強化でコア除去が+1（計2個）", [{ card: AMETHYS, cores: 4 }], [], 2)
@@ -157,9 +157,9 @@ function serasCase(label: string, cores: number, ally: string | null, trash: str
         },
         expect: [
             "相手.攻撃役.疲労: false → true", `自分.${seras}.場所: フィールド → なし`,
-            `自分.リザーブ: 10 → ${10 + cores - (summoned ? 6 : 0)}`,
+            `自分.リザーブ: 10 → ${10 + cores - (summoned ? 5 : 0)}`,
             `自分.トラッシュ: ${trash.map(name).join("、") || "なし"} → ${[seras, ...(summoned ? [] : trash.map(name))].join("、")}`,
-            ...(summoned ? [...born(PALD, 1, 1, 3000), "自分.トラッシュのコア: 0 → 5"] : []),
+            ...(summoned ? [...born(PALD, 1, 1, 3000), "自分.トラッシュのコア: 0 → 4"] : []),
             ...(drawn ? drew("なし") : []),
         ],
     })

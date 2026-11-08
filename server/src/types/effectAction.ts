@@ -62,7 +62,7 @@ export type EffectAction =
  | { type: "bunshin"; max: number; left?: number } // 【分身：N】（keywords/bunshin.ts）。left は個体ごとのコア個数の選択から戻る再入用
  | { type: "spawnToken"; token: string; count: number; upTo?: true } // 召喚ではない（actions/token.ts）。upTo＝「N体まで」
  | { type: "soulCoreToTrash" } // リザーブ・場の個体のどこにあっても。無いときは不発。pay の cost に書ける
- | { type: "placeUnderSelf"; from: "hand"; upTo: number } // 自分の手札をupTo枚、発生源のスピリットの下に裏向きで置く（BS19-X02）。対話・非対話とも手札末尾から置けるだけ置く（決定的簡略化）
+ | { type: "placeUnderSelf"; from: "hand" | "deck"; upTo: number } // 自分の手札をupTo枚、発生源のスピリットの下に裏向きで置く（BS19-X02）。対話・非対話とも手札末尾から置けるだけ置く（決定的簡略化）。from:"deck" は山札の上からupTo枚（BS23-018）
  | { type: "discardUnder"; count: number } // 発生源のスピリットの下のカードcount枚を持ち主のトラッシュへ破棄（BS19-X02）。pay の cost に書ける
  | { type: "placeSoulCore"; from?: "reserve" | "trash"; target?: "self" | "one"; filter?: TargetFilter } // from省略時はトラッシュ。target:"self"＝効果発生源自身、省略時はfilterに合う自分の個体1体。置いた個体にはコア増加の誘発が効く
  // 対象スピリットのコアを持ち主のリザーブへ。drawIfEmptied＝**この効果で**対象のコアが0個になったときだけ自分がドロー。leaveAtLeast＝この数を下回らないところまでしか取り除かない。dest:"void"はボイド（消滅）、"trash"は持ち主のトラッシュ。anySide の自動選択は実効BP最大（同値は相手側優先）。all＝countを無視

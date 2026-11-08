@@ -195,7 +195,7 @@ function titanoxLv3(label: string, cores: number, withUnder: boolean, soul: bool
         expect: [
             `自分.${titanox}.疲労: false → true`, "相手.ライフ: 5 → 3", ...(oppCoresAfter === 3 ? [] : [`相手.標的.コア: 3 → ${oppCoresAfter}`]),
             ...(withUnder ? [`自分.${aroku}.疲労: false → true`, "相手.ブロッカー.場所: フィールド → なし", `相手.トラッシュ: なし → ${name(BEETLE)}`, "相手.リザーブ: 10 → 13",
-                ...(cores === 5 ? [`自分.トラッシュ: なし → ${aroku}`, "自分.デッキ枚数: 40 → 38"] : ["自分.デッキ枚数: 40 → 39"])]
+                ...(cores === 5 ? [`自分.トラッシュ: なし → ${aroku}`, "自分.デッキ枚数: 40 → 39"] : ["自分.デッキ枚数: 40 → 39"])]
                 : ["相手.リザーブ: 10 → 12"]),
         ],
     })

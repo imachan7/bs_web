@@ -231,6 +231,49 @@
      "familyFilter": "剣刃",
      "combinableWithSelf": true
     }
+   },
+   {
+    "id": "BS23-016-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": true,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "dest": "summon",
+     "pick": {
+      "cardType": "spirit",
+      "color": "purple",
+      "anyOf": [
+       {
+        "cost": 0
+       },
+       {
+        "cost": 3
+       }
+      ]
+     },
+     "count": 1
+    }
+   },
+   {
+    "id": "BS23-016-e3",
+    "kind": "triggered",
+    "whileCombined": true,
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroyBrave"
+    }
    }
   ]
  },
