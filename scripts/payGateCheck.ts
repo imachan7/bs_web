@@ -27,6 +27,7 @@ const GATE_KINDS = new Set([
     "fushiFreeByExhaust",
     "magicNegatePayByNexusGrant",
     "payAssistByExhaust",
+    "summonPayOff", // 召喚アクションが破壊する個体を指定したときだけ使う（指定しなければ通常の召喚）
 ])
 // cost 欄があるときだけ関門になる kind
 const GATE_KINDS_WITH_COST = new Set(["reviveOnDestroy", "activated", "handActivated"])

@@ -49,6 +49,16 @@ export type EffectDefCost =
       }
     | {
           id: string
+          kind: "summonPayOff" // 発生源が場にありレベル有効の間、持ち主が pick に合う手札のカードを召喚するとき、destroy の個体を破壊することを追加コストに、召喚コストを treatAs の形で払ったものとして扱える（任意。Summon アクションの payOffInstanceId で指定）。【合体時】は whileCombined
+          levels: number[] | null
+          pick: CardPick
+          destroy: "self" | "brave" // brave＝発生源に合体しているブレイヴ1つ
+          treatAs: "braveCost" | "fullReduction" // braveCost＝軽減後の支払うコストから、破壊したブレイヴの印刷コストだけ引く（Q4478）。fullReduction＝軽減シンボルをすべて満たしたものとして軽減を計算する（Q4566）
+          whileCombined?: true
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
           kind: "nexusCostMillPay" // 発生源が場にありレベル有効の間、持ち主はネクサスの配置コストを「コスト1につきデッキ上から1枚破棄」で支払える（コアは払えない）。
           // 全額コアか全額デッキ破棄かのどちらかを選ぶ
           levels: number[] | null

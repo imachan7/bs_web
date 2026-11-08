@@ -1,4 +1,5 @@
 // 受け取った状態をDOMへ反映する描画処理
+import { summonPayOffOptions } from "../../shared/summonPayOff"
 import type {
     CardData,
     CardInstance, GameEvent,
@@ -713,6 +714,22 @@ export function render(view: GameView, ui: UiState): void {
                     const name = inst ? master(inst.cardId).name : c.instanceId
                     const on = (ui.paying!.shinsokuAssistInstanceIds ?? []).includes(c.instanceId)
                     return `<button data-shinsokuassist="${c.instanceId}">${on ? "☑" : "☐"} ${name}を疲労させてコスト${c.discount}までを肩代わり</button>`
+                })
+                .join(" ")
+            $("targeting-info").innerHTML += `<br>${buttons}`
+        }
+        // kind:"summonPayOff"：破壊して召喚コストを払ったものとして扱える個体があれば選ばせる
+        const payingCardIdNow = payingCardId(view, ui.paying)
+        const payOffOptions = payingCardIdNow === undefined ? [] : summonPayOffOptions(view, view.you, payingCardIdNow)
+        if (payOffOptions.length > 0) {
+            const p = view.players[view.you]
+            const buttons = payOffOptions
+                .map((o) => {
+                    const inst = [...p.field.spirits, ...p.field.combinedBraves].find((s) => s.instanceId === o.targetInstanceId)
+                    const name = inst ? master(inst.cardId).name : o.targetInstanceId
+                    const on = ui.paying!.payOffInstanceId === o.targetInstanceId
+                    const what = o.treatAs === "fullReduction" ? "軽減をすべて満たしたものとして扱う" : "そのコストぶん支払ったものとして扱う"
+                    return `<button data-payoff="${o.targetInstanceId}">${on ? "☑" : "☐"} ${name}を破壊して${what}</button>`
                 })
                 .join(" ")
             $("targeting-info").innerHTML += `<br>${buttons}`

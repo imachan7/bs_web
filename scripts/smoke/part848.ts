@@ -140,7 +140,7 @@ scenario({
     steps: (t) => {
         summonBrave(t, CITRY)
         const brave = t.state.players[t.me].field.combinedBraves[0]!
-        t.act("me", { type: "summon", handIndex: handIdx(t, ALDEUS), substituteInstanceId: brave.instanceId })
+        t.act("me", { type: "summon", handIndex: handIdx(t, ALDEUS), payOffInstanceId: brave.instanceId })
     },
     // シトリー召喚で15→13（トラッシュのコア+2）、アルデウスで13→10（払う2＋維持コア1。トラッシュのコア+2）
     expect: [...ALDEUS_PAID, "自分.リザーブ: 15 → 10", "自分.トラッシュのコア: 0 → 4"],
@@ -153,7 +153,7 @@ scenario({
     steps: (t) => {
         summonBrave(t, CITRY)
         const brave = t.state.players[t.me].field.combinedBraves[0]!
-        t.actRejected("me", { type: "summon", handIndex: handIdx(t, ALDEUS), substituteInstanceId: brave.instanceId })
+        t.actRejected("me", { type: "summon", handIndex: handIdx(t, ALDEUS), payOffInstanceId: brave.instanceId })
     },
     expect: ["自分.冥獣騎シトリー.場所: なし → 合体", "自分.冥獣騎シトリー.疲労: なし → false", "自分.冥獣騎シトリー.コア: なし → 0", "自分.冥獣騎シトリー.Lv: なし → 1", "自分.手札: シャドー・アルデウス、冥獣騎シトリー → シャドー・アルデウス", "自分.リザーブ: 15 → 13", "自分.トラッシュのコア: 0 → 2"],
 })
@@ -163,7 +163,7 @@ scenario({
     steps: (t) => {
         summonBrave(t, CITRY)
         const brave = t.state.players[t.me].field.combinedBraves[0]!
-        t.actRejected("me", { type: "summon", handIndex: handIdx(t, VANILLA), substituteInstanceId: brave.instanceId })
+        t.actRejected("me", { type: "summon", handIndex: handIdx(t, VANILLA), payOffInstanceId: brave.instanceId })
     },
     expect: ["自分.冥獣騎シトリー.場所: なし → 合体", "自分.冥獣騎シトリー.疲労: なし → false", "自分.冥獣騎シトリー.コア: なし → 0", "自分.冥獣騎シトリー.Lv: なし → 1", "自分.手札: ロクケラトプス、冥獣騎シトリー → ロクケラトプス", "自分.リザーブ: 15 → 13", "自分.トラッシュのコア: 0 → 2"],
 })

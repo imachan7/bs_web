@@ -26,6 +26,9 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
+import { destroyCombinedBrave } from "./brave"
+import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
+import type { SummonPayOffOption } from "../../../shared/summonPayOff"
 import { wouldDepleteOf, moveSoulCore, placeSoulCoreOnSummoned, soulCoreInReserve, soulCoreInTrash } from "./soulCore"
 import { resolveAttackDeclared } from "./attackDeclared"
 import { resolveBlockDeclared } from "./blockDeclared"
@@ -288,7 +291,7 @@ function dispatchAction(
             const braveFree = tryBraveFreeSummon(state, pid, action)
             if (braveFree !== undefined) return braveFree
             if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId)
         }
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
@@ -509,8 +512,9 @@ export function doSummon(
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（undefined=まだ聞いていない / true=無償 / false=あえて支払う）
     extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（省略時は自動で選ぶ）
+    payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId)
     if (error) return error
 
     const player = state.players[pid]
@@ -570,9 +574,10 @@ export function doSummon(
     // 使用時確認は magicFreeGrant と同じ形：interactive で、リザーブで払える見込みがあるときだけ聞く
     const sokuFreeSource = altSummonNexusInstanceIds === undefined ? findSokuFreeSummonSource(state, pid) : null
     const sokuFree = sokuFreeSource !== null && sokuFreeChoice !== false
+    const payOff = payOffInstanceId === undefined ? undefined : summonPayOffOptions(state, pid, cardId).find((o) => o.targetInstanceId === payOffInstanceId)
     const baseCost = Math.max(
         0,
-        (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
+        (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
             shinsokuDiscount,
     )
     if (sokuFreeChoice === undefined && sokuFree && baseCost > 0 && state.interactiveTargets && player.reserve >= baseCost) {
@@ -651,6 +656,7 @@ export function doSummon(
     if (paySoulCoreFromReserve === true || paySources?.some((src) => src.includeSoulCore === true)) state.summonPaidWithSoulCore = true
     payVoidToll(state, pid, card)
     const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain, paySoulCoreFromReserve)
+    if (payOff !== undefined) payOffDestroy(state, pid, payOff)
     // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
@@ -703,6 +709,23 @@ export function doSummon(
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
     return null
+}
+
+// 破壊は召喚コストの支払いの一部（コスト計算は支払い前の盤面で済んでいる）。コアは通常の破壊どおりリザーブへ戻る
+function payOffDestroy(state: GameState, pid: PlayerId, option: SummonPayOffOption): void {
+    const player = state.players[pid]
+    const host = player.field.spirits.find((s) => s.instanceId === option.sourceInstanceId)
+    if (host === undefined) return
+    noteCoverage(getCard(host.cardId).effects.find((e) => e.kind === "summonPayOff"), "summonPayOff")
+    if (option.treatAs === "fullReduction") {
+        log(state, `${player.name}は${getCard(host.cardId).name}を破壊することで、召喚コストの軽減をすべて満たしたものとして扱った。`)
+        destroySpirit(state, pid, host.instanceId)
+        return
+    }
+    const brave = player.field.combinedBraves.find((b) => b.instanceId === option.targetInstanceId)
+    if (brave === undefined) return
+    log(state, `${player.name}は${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」を破壊することで、そのコストぶん召喚コストを支払ったものとして扱った。`)
+    destroyCombinedBrave(state, pid, host, brave)
 }
 
 export type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }

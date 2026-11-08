@@ -44,6 +44,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `exTrashReductionCandidateIndices`（fn）：トラッシュのEXシンボル持ちカード（軽減に使える候補）のインデックス一覧。
 - `exSymbolsOfTrashCard`（fn）：除外するトラッシュのカードのEXシンボルの色。もともとEXなら全シンボル、指定で扱うだけなら指定した1つ
 - `selfSetCost`（fn）：「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
+- `cardMatchesSummonPick`（fn）：軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
 - `effectiveCost`（fn）
 - `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
 
@@ -323,6 +324,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `BattleSwapSummonOption`（型）：手札のこのスピリットカードを、フラッシュ中のバトルで
 - `battleSwapSummonCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**。
 - `canBattleSwapSummon`（fn）：UI向け：手札の handIndex 枚目がいま入れ替え召喚できるなら、その選択肢を返す（できなければ null）。
+
+## shared/summonPayOff.ts
+
+- `SummonPayOffOption`（型）
+- `summonPayOffOptions`（fn）：破壊は召喚コストの支払いの一部なので、手札の cardId を召喚するときに使える個体を列挙する。
+- `summonCostWithPayOff`（fn）：軽減・追加コストを適用した後の支払うコスト（option が無ければ通常どおり）。
 
 ## server/src/accessLog.ts
 

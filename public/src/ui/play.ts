@@ -2,6 +2,7 @@
 import type { CardData, GameAction, PaySource } from "../../../server/src/type"
 import { ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { canDirectAttack, effectiveCost, magicTargetSide, master, matchesDirectedAttackFilter } from "../renderer"
+import { summonPayOffOptions } from "../../../shared/summonPayOff"
 import { exReductionSymbolsFor, type ExReductionGroup, payableFieldCores } from "./paying"
 import { canAltSummonFromHand, flashSummonFromHandNow, attackTollTotal, attackPayTollCount, instMinLevelCores, placedCoresForSummon, timedContentsOn } from "../../../shared/rules"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, exTrashReductionCandidateIndices, ownFieldSymbolColors } from "../../../shared/cost"
@@ -94,6 +95,7 @@ export function sendPlay(
     exReductionTrashIndices?: number[],
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚/配置した個体に置く
+    payOffInstanceId?: string, // kind:"summonPayOff"：破壊して召喚コストを払ったものとして扱う個体
 ): void {
     // ブレイヴは単体で場に出すとスピリットとして扱われるので、召喚はこちらを通る（BRAVE.md §1.1）
     if (isSummonableCardType(cardType)) {
@@ -109,7 +111,8 @@ export function sendPlay(
             ...(shinsokuAssistInstanceIds && shinsokuAssistInstanceIds.length > 0 ? { shinsokuAssistInstanceIds } : {}),
             ...(exReductionTrashIndices && exReductionTrashIndices.length > 0 ? { exReductionTrashIndices } : {}),
             ...(paySoulCoreFromReserve ? { paySoulCoreFromReserve } : {}),
-            ...(placeSoulCoreFromReserve ? { placeSoulCoreFromReserve } : {})
+            ...(placeSoulCoreFromReserve ? { placeSoulCoreFromReserve } : {}),
+            ...(payOffInstanceId ? { payOffInstanceId } : {}),
         })
     } else if (cardType === "nexus") {
         send({ type: "setNexus", handIndex, ...(paySources ? { paySources } : {}), ...(level !== undefined ? { level } : {}), ...(millPay !== undefined ? { millPay } : {}), ...(paySoulCoreFromReserve ? { paySoulCoreFromReserve } : {}), ...(placeSoulCoreFromReserve ? { placeSoulCoreFromReserve } : {}) })
@@ -269,7 +272,8 @@ export function tryPlay(handIndex: number, card: CardData, targetInstanceId: str
     // 代替コスト（手札破棄／デッキ破棄）が使えるなら、**コアが足りていても支払いモードへ入る**。
     // 手札破棄はどこまで代替で払うか、デッキ破棄はコアで払うかデッキで払うかをプレイヤーが選ぶ
     // （そのまま確定すれば従来どおり全額コア払いになる）
-    const altAvailable = millPayable > 0 || handDiscardPayable > 0
+    const payOffAvailable = isSummonableCardType(card.type) && summonPayOffOptions(view, view.you, card.cardId).length > 0
+    const altAvailable = millPayable > 0 || handDiscardPayable > 0 || payOffAvailable
     // 案B-inside: reserveには[ソウルコア]が含まれる。auto即送信は通常コアで足りるときだけにして、
     // [ソウルコア]を使うかどうかは支払いモードのトグルでプレイヤーが選ぶ（2026-10-05確定）
     const soulInReserve = view.players[view.you].soulCore?.zone === "reserve"

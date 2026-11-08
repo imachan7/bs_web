@@ -1,5 +1,7 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
+import type { SummonPayOffOption } from "../../../shared/summonPayOff"
 import { coreGainAllowed } from "./coreGainCap"
 import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -158,6 +160,7 @@ export function validateSummon(
     placeSoulCoreFromReserve?: boolean,
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（doSummon と同じ意味）
     extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（discardHandIndices はコストの肩代わり用で別物）
+    payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -293,11 +296,18 @@ export function validateSummon(
         substituteInstanceId === undefined &&
         findSokuFreeSummonSource(state, pid) !== null &&
         sokuFreeChoice !== false
+    let payOff: SummonPayOffOption | undefined
+    if (payOffInstanceId !== undefined) {
+        if (altSummon !== null || sokuFree) return "この召喚では破壊による支払いは使えません"
+        payOff = summonPayOffOptions(state, pid, cardId).find((o) => o.targetInstanceId === payOffInstanceId)
+        if (payOff === undefined) return "指定した個体を破壊して召喚コストを払うことはできません"
+        if ((paySources ?? []).some((src) => src.instanceId === payOffInstanceId)) return "破壊する個体のコアは支払いに使えません"
+    }
     const cost = sokuFree
         ? 0
         : Math.max(
               0,
-              (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
+              (altSummon !== null ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
           )
     // kind:"summonNeedsCost"：肩代わり（ネクサスの疲労）は払ったものとして数えるが、軽減で0になるコスト・無償化は払ったことにならない
     if (card.effects.some((e) => e.kind === "summonNeedsCost")) {

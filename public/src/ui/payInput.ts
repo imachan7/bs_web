@@ -136,6 +136,7 @@ export function submitPaying(): void {
         pay.exReductionTrashIndices,
         pay.useSoulCore === true ? true : undefined,
         pay.placeSoulCore === true ? true : undefined,
+        pay.payOffInstanceId,
     )
     ui.paying = null
 }

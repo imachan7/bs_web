@@ -28,6 +28,7 @@ const TURN_FLOW = [
 
 const pending = (t: ScenarioCtx) => t.state.pendingChoice
 function toMyStartStep(t: ScenarioCtx): void {
+    t.state.interactiveTargets = true
     t.act("me", { type: "endTurn" })
     assert(pending(t) === null, "相手のスタートステップでは自分のミゴーは何も聞かない")
     t.act("opp", { type: "endTurn" })
@@ -80,7 +81,7 @@ console.log("=== 4. Lv2：ミゴーを破壊して、異合のコスト8以上�
 scenario({
     name: "migo-reduction-all",
     start: { me: { reserve: 12, hand: [LUXION, VANILLA], spirits: [{ card: MIGO, cores: 2 }] } },
-    steps: (t) => t.act("me", { type: "summon", handIndex: 0, substituteInstanceId: t.id("ミゴー") }),
+    steps: (t) => t.act("me", { type: "summon", handIndex: 0, payOffInstanceId: t.id("ミゴー") }),
     expect: [
         "自分.ミゴー.場所: フィールド → なし",
         "自分.トラッシュ: なし → ミゴー",
@@ -100,7 +101,7 @@ for (const [name, cores, card] of [["migo-reduction-lv1", 1, LUXION], ["migo-red
     scenario({
         name,
         start: { me: { reserve: 12, hand: [card], spirits: [{ card: MIGO, cores }] } },
-        steps: (t) => t.actRejected("me", { type: "summon", handIndex: 0, substituteInstanceId: t.id("ミゴー") }),
+        steps: (t) => t.actRejected("me", { type: "summon", handIndex: 0, payOffInstanceId: t.id("ミゴー") }),
         expect: [],
     })
 }
