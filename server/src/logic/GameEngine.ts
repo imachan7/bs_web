@@ -3,6 +3,7 @@ import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge, payVoidToll } from "./summonSurcharge"
 import { consumeSummonCostSetOnce, consumeSummonPayByNexusExhaust, noteSummonExtraDiscard, summonExtraDiscardPlan } from "./summonCostRules"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
+import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { exSymbolsOfTrashCard, findSokuFreeSummonSource, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
@@ -283,9 +284,12 @@ function dispatchAction(
         return "対象の選択待ちです"
     }
     switch (action.type) {
-        case "summon":
+        case "summon": {
+            const braveFree = tryBraveFreeSummon(state, pid, action)
+            if (braveFree !== undefined) return braveFree
             if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
             return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices)
+        }
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":

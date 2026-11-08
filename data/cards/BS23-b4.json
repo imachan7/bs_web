@@ -38,7 +38,70 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\n【連鎖】を持つ自分のスピリットがブロックしたとき、このスピリットは回復する。\nLv1･Lv2『自分のアタックステップ』\nアタックしている自分のスピリットの【連鎖】の[白]が発揮したとき、相手のスピリット1体を疲労させる。\nLv2『自分のアタックステップ』\nアタックしている自分のスピリットの【連鎖】の[緑]が発揮したとき、相手の合体していないスピリット1体を手札に戻す。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-027-e1",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDeclaredBlock",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "opponent",
+    "subjectFilter": {
+     "keyword": "rensa"
+    },
+    "action": {
+     "type": "refresh",
+     "target": "self"
+    },
+    "selfMode": "source"
+   },
+   {
+    "id": "BS23-027-e2",
+    "kind": "fieldEvent",
+    "event": "ownKeywordActivated",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "keywordActivatedFilter": "rensa",
+    "rensaColor": "white",
+    "subjectFilter": {
+     "attackingOnly": true
+    },
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS23-027-e3",
+    "kind": "fieldEvent",
+    "event": "ownKeywordActivated",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "keywordActivatedFilter": "rensa",
+    "rensaColor": "green",
+    "subjectFilter": {
+     "attackingOnly": true
+    },
+    "action": {
+     "type": "return",
+     "to": "hand",
+     "count": 1,
+     "filter": {
+      "combined": false
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-032",
@@ -75,7 +138,41 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『相手のアタックステップ』\nステップ開始時、系統：「氷姫」を持つ自分のスピリット1体を疲労させることで、このターンの間、相手のスピリット1体の『自分のアタックステップ』効果すべてを無効にする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-032-e1",
+    "kind": "step",
+    "step": "attack",
+    "turn": "opponent",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": true,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "exhaust",
+      "side": "own",
+      "count": 1,
+      "filter": {
+       "family": "氷姫"
+      }
+     },
+     "then": {
+      "type": "timedEffect",
+      "content": [
+       {
+        "type": "ownAttackStepEffectsDisabled"
+       }
+      ],
+      "duration": "turn",
+      "side": "opponent",
+      "count": 1
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-041",
@@ -116,7 +213,38 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【強化】\nアルティメット以外の自分の「BP-効果」を-1000する。\nLv2･Lv3『自分のアタックステップ』\n相手のスピリットがターンで初めてBP0になったとき、ボイドからコア1個を自分のライフに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-041-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpMinus",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS23-041-e2",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritBpReachedZero",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "oncePerTurn": true,
+    "selfMode": "source",
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-X05",
@@ -158,6 +286,72 @@
   "rarity": "X",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分の手札にある/手元に置いてあるブレイヴカードを召喚するとき、自分のリザーブのコア1個を自分のトラッシュに置くことで、コストを支払わずに召喚する。\nただし、『このブレイヴの召喚時』効果は発揮されない。\n【合体時】Lv2･Lv3『このスピリットの合体アタック時』\nこのターンの間、相手のスピリット1体をBP-5000する。\nまたは、このターンの間、相手のスピリット3体をBP-3000する。\nこのバトルの間、相手のスピリットがBP0になったとき、BP0になったスピリットすべてを破壊する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-X05-e1",
+    "kind": "braveFreeSummonByCoreTrash",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   },
+   {
+    "id": "BS23-X05-e2",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "whileCombined": true,
+    "levels": [
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "chooseActionMode",
+     "modes": [
+      {
+       "label": "相手のスピリット1体をBP-5000する",
+       "actions": [
+        {
+         "type": "bpMinus",
+         "amount": 5000,
+         "count": 1
+        }
+       ]
+      },
+      {
+       "label": "相手のスピリット3体をBP-3000する",
+       "actions": [
+        {
+         "type": "bpMinus",
+         "amount": 3000,
+         "count": 3
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS23-X05-e3",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritBpReachedZero",
+    "whileCombined": true,
+    "duringSelfAttack": true,
+    "levels": [
+     2,
+     3
+    ],
+    "action": {
+     "type": "destroy",
+     "target": "self",
+     "count": 1
+    }
+   }
+  ]
  }
 ]

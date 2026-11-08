@@ -252,6 +252,8 @@ export type EffectDefTrigger =
           byOpponentSpiritEffectOnly?: true // ownSpiritDestroyed 限定。DestroyContext.sourceType=="spirit" かつ sourcePid が持ち主と異なるとき
           refreshSourceTypeFilter?: CardType[] // anySpiritRefreshed 限定。回復させた効果の発生源種別（配列＝OR）
           keywordActivatedFilter?: Keyword // ownKeywordActivated 限定。「【増幅】を発揮した時」＝zofuku 限定
+          rensaColor?: Color // ownKeywordActivated + keywordActivatedFilter:"rensa" 限定。【連鎖】の[色]の節が発揮したときだけ
+          rensaDrew?: true // 同上。その節の解決中にドローしたときだけ（「【連鎖】でドローしたとき」）
           summonedSpiritAsTarget?: true // ownSpiritSummoned 限定。selfMode:"source" と併用し、actionTargetId を召喚されたスピリット自身にする
           attackerAsTarget?: true // summonedSpiritAsTarget の同型で、selfOverride を渡すイベント全般で使える。selfMode:"source" と併用
           // 指定時、resolveAction へ渡す対象は通常のイベント対象ではなく、その効果を発揮したスピリット自身（DestroyContext.sourceInstanceId）になる

@@ -634,6 +634,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
 - `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
 
+## server/src/logic/braveFreeSummon.ts
+
+- `tryBraveFreeSummon`（fn）：undefined＝この経路には乗らない（通常の召喚へ進む）。null／文字列＝この経路で処理した結果（文字列は拒否理由）
+
 ## server/src/logic/burstNegate.ts
 
 - `negateBurstActivation`（fn）：バーストが発動する全経路（発動確認の承認・非対話の自動発動・効果でめくった／条件を無視した発動）が、効果の解決とバーストカードの公開の前に呼ぶ。
@@ -783,6 +787,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/rensa.ts
 
 - `rensaConditionIgnored`（fn）
+- `isRensaClause`（fn）：【連鎖】の[色]の節（keyword:"rensa" のエントリの if）か。コンテキストに効果エントリが渡らないので、
+- `fireRensaActivated`（fn）：節を解決し終えた直後（選択待ちから再開した後でも sequence の続きとして）呼ばれる
 
 ## server/src/logic/keywords/seimei.ts
 

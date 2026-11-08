@@ -184,7 +184,7 @@ console.log("=== 5. 合体アタック時：Lv1 では発揮しない・合体�
 {
     const s = game("x05-lv1")
     const host = put(s, "p1", AVRIEL, 1)
-    const brave = put(s, "p1", BANBOOL, 1)
+    const brave = put(s, "p1", BANBOOL, 0)  // 合体でブレイヴのコアがホストへ移るので、Lv1 のままにするため0個
     const target = put(s, "p2", METAL, 1, true)
     combinedAttack(s, host, brave)
     drain(s, /3体|3/, [])

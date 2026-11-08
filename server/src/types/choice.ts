@@ -300,6 +300,7 @@ export interface PendingChoice {
         exReductionTrashIndices?: number[]
         paySoulCoreFromReserve?: boolean
         placeSoulCoreFromReserve?: true
+        braveFree?: true // kind:"braveFreeSummonByCoreTrash" の確認（0=コアをトラッシュに置いて無償で召喚／1=通常どおり）。他のフィールドは sokuFreeChoice と同じ意味
     }
     burstActivate?: {
         // バーストの発動確認待ち（docs/design/BURST.md）。**action は self=null で解決する**（マジックと同じ扱い。

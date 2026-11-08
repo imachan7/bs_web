@@ -76,6 +76,7 @@ export interface GameState {
     // 直前に timedEffect が BP を増加させた対象の instanceId。効果文が「〜をBP+2000する。**そのスピリットが**〜」と
     // 前の文を指しているカードで、後ろの文を対象1体に限定するために使う（BS07ニードルショット）。
     // 直後の lendSelfThisBattle が仮想発生源の lentBuffTargetId へ写して、そこから battleWon が読む
+    drawCount?: Record<PlayerId, number> // draw() が引いた枚数の通算。【連鎖】の節の中でドローしたかの判定にだけ使う（rensaActivated）
     lastBpBuffTargetId?: string
     // いま解決中の効果の発生源（resolveAction が handler を呼ぶ間だけ立ち、抜けるときに元へ戻す）。
     // 「**相手の〈色〉のスピリット/ネクサス/マジックの効果で**〜されたとき」を判定するために使う

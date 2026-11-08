@@ -37,6 +37,7 @@ const GATE_PARAMS = ["payCost", "costDestroyOwnSpiritSameCost", "costSkipCoreSte
 
 // 確認を出さないのが正しいもの・「ことで」がコストの意味でないもの
 const VERIFIED: Record<string, string> = {
+    "BS23-X05": "braveFreeSummonByCoreTrash は召喚時に「コアをトラッシュに置いて無償で召喚するか」を対話では必ず聞く（braveFreeSummon.ts）。断れば通常の召喚",
     "BS23-084": "疲労させるネクサスは召喚アクションで1つずつ指定する（0個でもよい）。指定した時点が確認",
     "BS14-084": "払わないと負けるので自動で払う（2026-10-02 ユーザー決定。COST_MODEL §10）",
     "BS12-075": "「ことで」はマジックの通常コストの支払い手段の言い直し",

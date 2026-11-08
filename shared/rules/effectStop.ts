@@ -16,12 +16,17 @@ export function entryActive(
         kind?: string
         trigger?: string
         phaseTurn?: { phase?: Phase; turn?: TurnSide }
+        phase?: Phase
+        turn?: "own" | "opponent" | "both"
+        step?: string
+        aura?: { phaseTurn?: { phase?: Phase; turn?: TurnSide } }
     },
     level: number,
 ): boolean {
     if (!effectActiveOn(source, effect, level)) return false
     if (effect.phaseTurn && !inActivePeriod(board, pid, effect.phaseTurn)) return false
     if (instEffectsSuppressed(source)) return false
+    if (source.timedAttackStepEffectsDisabled && isOwnAttackStepEntry(effect)) return false
     if (!board.players[pid].field.nexuses.includes(source)) return true
     return !nexusEffectsStopped(board, pid, source) && !nexusEffectsDisabledFor(board, pid, source, effect)
 }
@@ -36,4 +41,11 @@ function inActivePeriod(board: Board, pid: PlayerId, t: { phase?: Phase; turn?: 
     if (t.turn === "own") return board.turnPlayer === pid
     if (t.turn === "opponent") return board.turnPlayer !== pid
     return true
+}
+
+// 見出し『自分のアタックステップ』のエントリ。aura は aura.phaseTurn、そのほかの継続は phaseTurn、誘発・ステップ誘発は直下の phase/turn（step 誘発は step）で書かれている
+function isOwnAttackStepEntry(effect: { phaseTurn?: { phase?: Phase; turn?: TurnSide }; phase?: Phase; turn?: "own" | "opponent" | "both"; step?: string; aura?: { phaseTurn?: { phase?: Phase; turn?: TurnSide } } }): boolean {
+    const t = effect.phaseTurn ?? effect.aura?.phaseTurn
+    if (t?.phase === "attack" && t.turn === "own") return true
+    return (effect.phase === "attack" || effect.step === "attack") && effect.turn === "own"
 }

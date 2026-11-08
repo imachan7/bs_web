@@ -63,6 +63,12 @@ export type EffectDefCost =
       }
     | {
           id: string
+          kind: "braveFreeSummonByCoreTrash" // 持ち主が手札/手元のブレイヴを召喚するとき、リザーブのコア1個をトラッシュに置くことでコストを支払わずに召喚できる（何回でも。その召喚の『このブレイヴの召喚時』は発揮されない）。維持コアは通常どおりリザーブから置く
+          levels: number[] | null
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
           kind: "summonNeedsCost" // このカード自身の召喚条件：1コスト以上支払わなければ召喚できない（軽減で0になる場合・効果によるコストなしの召喚は不可。Q20363・Q20364）
           levels: null
       }

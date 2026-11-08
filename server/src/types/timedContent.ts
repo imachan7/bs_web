@@ -19,6 +19,7 @@ export type TimedContent =
     | { type: "mustBlock" } // 可能ならばブロックしなければならない（期間は battle。その個体でブロックできるなら、ライフで受ける・ほかの個体でブロックは検証で拒否する。26RSD03-007）
     | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter; optional?: true } // 誘発効果を与える（期間は turn、または自分1体に限り battle。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火。optional＝「〜できる」：発火したとき持ち主に発動するかを聞く（2026-11-06 ユーザー確認：任意効果の聞き方に揃える）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
+    | { type: "ownAttackStepEffectsDisabled" } // そのスピリットの『自分のアタックステップ』の効果すべてが発揮されない（期間は turn のみ。解決済みの継続効果も止まる＝Q4521。entryActive が読む）
     | { type: "cantBlock" }
     | { type: "braveBpBonusZero" } // 効くのは target.kind:"player" の持ち主の合体スピリット。TimedRecord.sourceInstanceId の発生源が場を離れたら戻る（Q20310・Q20311）
     | { type: "braveCostZero" } // 合体スピリットのコストからブレイヴ分を引く。期間 effect は効果の解決が終わるまで（Q4418・Q4419）

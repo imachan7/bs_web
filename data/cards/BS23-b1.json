@@ -361,6 +361,21 @@
      "familyFilter": "剣刃",
      "combinableWithSelf": true
     }
+   },
+   {
+    "id": "BS23-033-e2",
+    "kind": "fieldEvent",
+    "event": "ownKeywordActivated",
+    "levels": [
+     1,
+     2
+    ],
+    "keywordActivatedFilter": "rensa",
+    "rensaDrew": true,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
    }
   ]
  },

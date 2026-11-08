@@ -19,7 +19,7 @@ const bpUntil = (action: TimedEffect): "turn" | "battle" => (action.duration ===
 type Content = TimedEffect["content"][number]
 
 // 一覧 state.timedEffects に記録する内容（docs/design/TIMED_EFFECTS.md。移し終えたものから増やす）
-const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
+const RECORDED = ["cantAttack", "cantBlock", "mustAttack", "mustBlock", "canBlockWhileRested", "suppressTrigger", "ownAttackStepEffectsDisabled", "grantTrigger", "keyword", "color", "level", "symbolAdd", "symbolSet", "symbolLoss", "cost", "alsoCost", "unblockable", "triggerSwap", "compareBy", "swapBattleBp", "invertBattleWinner", "noBpCompareDestroy", "battleLock", "playerRule", "bp", "blockCost", "bpAs", "immune", "cantRefresh", "untargetableByOpponentMagic", "colorless"] as const
 const isRecorded = (c: Content): boolean => (RECORDED as readonly string[]).includes(c.type)
 
 function pushInstanceRecord(state: GameState, owner: PlayerId, inst: CardInstance, content: Content[], until: TimedEffect["duration"]): void {
@@ -52,6 +52,7 @@ function contentLabel(action: TimedEffect): string {
     const bp = action.content.flatMap((c) => (c.type === "bp" ? [`BP${c.amount >= 0 ? "+" : ""}${c.amount}${c.amountCounter !== undefined ? "（数に応じて）" : ""}`] : []))
     const must = action.content.some((c) => c.type === "mustAttack") ? ["可能ならば必ずアタックする"] : []
     const suppress = action.content.some((c) => c.type === "suppressTrigger") ? ["効果が発揮されない"] : []
+    const stepOff = action.content.some((c) => c.type === "ownAttackStepEffectsDisabled") ? ["『自分のアタックステップ』の効果が発揮されない"] : []
     const rested = action.content.some((c) => c.type === "canBlockWhileRested") ? ["疲労状態でもブロックできる"] : []
     const mustBlock = action.content.some((c) => c.type === "mustBlock") ? ["可能ならばブロックしなければならない"] : []
     const granted = action.content.some((c) => c.type === "grantTrigger") ? ["効果を持つ"] : []
@@ -62,7 +63,7 @@ function contentLabel(action: TimedEffect): string {
     const skipRefresh = action.content.some((c) => c.type === "cantRefresh") ? ["回復できない"] : []
     const untargetable = action.content.some((c) => c.type === "untargetableByOpponentMagic") ? ["相手のマジックの効果では指定されない"] : []
     const symbolAdd = action.content.flatMap((c) => (c.type === "symbolAdd" ? [`${c.color !== undefined ? `${COLOR_LABELS[c.color]}の` : ""}シンボルを${c.count ?? 1}つ追加する`] : []))
-    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh, ...symbolAdd, ...colorless].join("、")
+    return [...bp, ...untargetable, ...(cant.length > 0 ? [`${cant.join("と")}ができない`] : []), ...must, ...suppress, ...stepOff, ...rested, ...mustBlock, ...granted, ...keywords, ...bpAs, ...blockCost, ...skipRefresh, ...symbolAdd, ...colorless].join("、")
 }
 
 // 全体ルールの「1体につき」は共有層（countAuraCounter）で計算のたびに数えるので、そこで数えられるものだけ受ける

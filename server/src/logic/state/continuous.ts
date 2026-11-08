@@ -76,6 +76,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.timedSymbolsOverride
             delete inst.timedSymbolLoss
             delete inst.timedEffectsDisabled
+            delete inst.timedAttackStepEffectsDisabled
         }
         all.push(...field.spirits, ...field.nexuses)
     }
@@ -88,6 +89,7 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
+            if (c.type === "ownAttackStepEffectsDisabled") inst.timedAttackStepEffectsDisabled = true
             if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount

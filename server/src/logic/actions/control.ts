@@ -4,7 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoUnpayable } from "../keywords/tensho"
-import { rensaConditionIgnored } from "../keywords/rensa"
+import { fireRensaActivated, isRensaClause, rensaConditionIgnored } from "../keywords/rensa"
 import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
@@ -294,6 +294,12 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
         log(state, `${sourceName}：条件を満たさなかった。`)
         return
     }
+    // 【連鎖】の[色]の節が発揮したら、解決後に「【連鎖】が発揮したとき」を起こす（027・033）
+    const rensaColor = met && cond !== undefined && "count" in cond && typeof cond.count === "object" && "ownColorSymbols" in cond.count ? cond.count.ownColorSymbols : undefined
+    if (rensaColor !== undefined && self !== null && isRensaClause(state, owner, self, action)) {
+        ctx.resolve({ type: "sequence", actions: [branch, { type: "rensaActivated", color: rensaColor, drawFrom: state.drawCount?.[owner] ?? 0 }] }, { sourceColors: srcColors, sourceType: srcType })
+        return
+    }
     ctx.resolve(branch, { sourceColors: srcColors, sourceType: srcType })
 }
 
@@ -579,6 +585,7 @@ const handlers = {
     simultaneous: simultaneousHandler,
     if: ifHandler,
     openAwakenMode: openAwakenModeHandler,
+    rensaActivated: (ctx, action) => fireRensaActivated(ctx.state, ctx.owner, ctx.self, action.color, action.drawFrom),
     remainOnFieldSelf: remainOnFieldSelfHandler,
     forceEndMainStep: forceEndMainStepHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,
