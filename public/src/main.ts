@@ -209,12 +209,127 @@ socket.on("matchCancelled", () => {
     if (status) status.classList.add("hidden")
 })
 
+// ---- 対戦募集掲示板のイベント ----
+
+let mySeekId: string | null = null
+
+interface SeekView {
+    seekId: string
+    name: string
+    deckLabel: string
+    createdAt: number
+    expiresAt: number
+}
+
+function showSeekStatus(): void {
+    const btn = document.getElementById("seek-post-btn")
+    const status = document.getElementById("seek-status")
+    if (btn) btn.classList.add("hidden")
+    if (status) status.classList.remove("hidden")
+}
+
+function hideSeekStatus(): void {
+    mySeekId = null
+    const btn = document.getElementById("seek-post-btn")
+    const status = document.getElementById("seek-status")
+    if (btn) btn.classList.remove("hidden")
+    if (status) status.classList.add("hidden")
+}
+
+// ロビーの名前・デッキ入力から対戦系イベントのペイロードを作る。
+// カスタムデッキが見つからなければ null（呼び出し側は中断する）
+function lobbyDeckPayload(): { name: string; deck: string } | { name: string; deckCards: Record<string, number> } | null {
+    const name =
+        (byId("name-input") as HTMLInputElement).value.trim() || "プレイヤー"
+    const deck = (byId("deck-select") as HTMLSelectElement).value
+    if (deck.startsWith(CUSTOM_DECK_PREFIX)) {
+        const deckName = deck.slice(CUSTOM_DECK_PREFIX.length)
+        const deckCards = customDecks.get(deckName)
+        if (!deckCards) {
+            showToast(`カスタムデッキが見つかりません: ${deckName}`)
+            return null
+        }
+        return { name, deckCards }
+    }
+    return { name, deck }
+}
+
+// 掲示板の募集に応じる。自分の名前・デッキ（ロビーの入力）でそのまま対戦に入る
+function claimSeek(seekId: string): void {
+    const payload = lobbyDeckPayload()
+    if (!payload) return
+    joinMode = "random"
+    connectAndRun(byId("seek-post-btn"), () => socket.emit("claimSeek", { seekId, ...payload }))
+}
+
+function renderSeekList(seeks: SeekView[]): void {
+    const container = document.getElementById("seek-list")
+    if (!container) return
+    container.innerHTML = ""
+    if (seeks.length === 0) {
+        const empty = document.createElement("p")
+        empty.className = "seek-empty"
+        empty.textContent = "いま出ている募集はありません"
+        container.appendChild(empty)
+        return
+    }
+    const now = Date.now()
+    for (const seek of seeks) {
+        const item = document.createElement("div")
+        item.className = "seek-item"
+        const info = document.createElement("div")
+        info.className = "seek-item-info"
+        const nameEl = document.createElement("div")
+        nameEl.className = "seek-item-name"
+        nameEl.textContent = seek.name
+        const meta = document.createElement("div")
+        meta.className = "seek-item-meta"
+        const remainMin = Math.max(0, Math.ceil((seek.expiresAt - now) / 60000))
+        meta.textContent = `${seek.deckLabel}・あと約${remainMin}分`
+        info.appendChild(nameEl)
+        info.appendChild(meta)
+        item.appendChild(info)
+        if (seek.seekId === mySeekId) {
+            const mine = document.createElement("span")
+            mine.className = "seek-item-meta"
+            mine.textContent = "自分の募集"
+            item.appendChild(mine)
+        } else {
+            const btn = document.createElement("button")
+            btn.textContent = "この相手と対戦"
+            btn.addEventListener("click", () => claimSeek(seek.seekId))
+            item.appendChild(btn)
+        }
+        container.appendChild(item)
+    }
+}
+
+socket.on("seekList", (payload: { seeks: SeekView[] }) => {
+    renderSeekList(payload.seeks)
+})
+
+socket.on("seekPosted", (payload: { seekId: string }) => {
+    mySeekId = payload.seekId
+    showSeekStatus()
+    showToast("対戦募集を出しました")
+})
+
+socket.on("seekCancelled", () => {
+    hideSeekStatus()
+})
+
+socket.on("seekExpired", () => {
+    hideSeekStatus()
+    showToast("募集の期限が切れました")
+})
+
 socket.on("matchFound", () => {
     showToast("対戦相手が見つかりました")
     const btn = document.getElementById("random-match-btn")
     const status = document.getElementById("random-match-status")
     if (btn) btn.classList.remove("hidden")
     if (status) status.classList.add("hidden")
+    hideSeekStatus()
 })
 
 socket.on("state", (v: GameView) => {
@@ -344,6 +459,37 @@ async function init(): Promise<void> {
     byId("random-match-cancel").addEventListener("click", () => {
         socket.emit("cancelRandomMatch")
     })
+
+    // ---- 対戦募集掲示板 ----
+    byId("seek-post-btn").addEventListener("click", () => {
+        const payload = lobbyDeckPayload()
+        if (!payload) return
+        joinMode = "random"
+        connectAndRun(byId("seek-post-btn"), () => socket.emit("postSeek", payload))
+    })
+
+    byId("seek-cancel").addEventListener("click", () => {
+        socket.emit("cancelSeek")
+    })
+
+    // 掲示板は接続前でも見えるよう HTTP で取りにいく（接続は対戦操作のときだけ、という方針は維持）。
+    // ロビーにいる間は1分ごとに更新し、対戦が始まったら止める
+    const refreshSeekList = async () => {
+        try {
+            const seeks = (await (await fetch("/api/seeks")).json()) as SeekView[]
+            renderSeekList(seeks)
+        } catch {
+            // 掲示板が取れなくてもロビーの他の機能は止めない
+        }
+    }
+    void refreshSeekList()
+    const seekTimer = setInterval(() => {
+        if (view) {
+            clearInterval(seekTimer)
+            return
+        }
+        void refreshSeekList()
+    }, 60_000)
 
     // ---- AI対戦 ----
     byId("start-ai-btn").addEventListener("click", () => {

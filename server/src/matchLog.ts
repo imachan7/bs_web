@@ -16,9 +16,12 @@ export const MATCH_TAG = "#MATCH"
 // 待機をやめた理由。`matched` と合わせて「待機がどう終わったか」の内訳になる
 export type MatchLeftReason =
     | "toggle" // ランダムマッチボタンの2回押し（取り消しトグル）
-    | "cancel" // 画面の「待機をやめる」
+    | "cancel" // 画面の「待機をやめる」「募集をやめる」
     | "to_room" // 合言葉ルームへ移った
     | "to_ai" // AI戦へ移った
+    | "to_seek" // 待機列から募集掲示板へ移った（または募集を claim した）
+    | "to_queue" // 募集掲示板から待機列へ移った
+    | "expired" // 募集の期限切れ（シークのみ）
     | "disconnect" // 切断（タブを閉じた等）
 
 function emit(

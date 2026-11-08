@@ -50,6 +50,18 @@
             </div>
         </div>
 
+        <!-- 対戦募集掲示板 -->
+        <div class="lobby-section">
+            <h2 class="lobby-section-title">対戦募集掲示板</h2>
+            <p class="lobby-section-desc">募集を出しておくと、来た人が選んで対戦できます（募集は30分間・接続中のみ有効）。下の一覧の募集は、選んだデッキでそのまま対戦できます</p>
+            <button id="seek-post-btn">対戦募集を出す</button>
+            <div id="seek-status" class="hidden">
+                <p class="match-waiting-text">対戦相手を募集中…</p>
+                <button id="seek-cancel" class="cancel-btn">募集をやめる</button>
+            </div>
+            <div id="seek-list"></div>
+        </div>
+
         <!-- AI対戦 -->
         <div class="lobby-section">
             <h2 class="lobby-section-title">AIと対戦</h2>

@@ -7,6 +7,7 @@ import compression from "compression"
 import { Server, type Socket } from "socket.io"
 import type { CardInstance, DeckSpec, GameAction, PlayerId } from "./type"
 import { MatchQueue, RoomManager, type Room } from "./roomManager"
+import { SeekBoard } from "./seekBoard"
 import { pumpAi } from "./ai/runner"
 import { ALL_CARDS, createGame, getCard, rawLevel, validateDeckCards, viewFor } from "./logic/GameState"
 import { runTurnStart } from "./logic/PhaseManager"
@@ -44,6 +45,10 @@ const server = http.createServer(app)
 const io = new Server(server)
 const roomManager = new RoomManager()
 const matchQueue = new MatchQueue()
+const seekBoard = new SeekBoard()
+// 対戦募集（シーク）の有効期限。Phase 1 はオンライン限定なので、
+// 投稿者が接続している間だけ掲示板に残る
+const SEEK_TTL_MS = Number(process.env.SEEK_TTL_MS ?? 30 * 60 * 1000)
 
 // Azure App Service 等のヘルスチェック用エンドポイント
 app.get("/health", (_req, res) => {
@@ -65,6 +70,12 @@ app.get("/data/cards.json", (_req, res) => {
 // おまかせデッキの一覧。ロビーのデッキ選択が使う
 app.get("/api/deck-recipes", (_req, res) => {
     res.json(DECK_RECIPES)
+})
+
+// 対戦募集掲示板の一覧。ロビーは Socket.io 接続前でもこれで一覧を出せる
+// （接続は対戦操作のときだけ、という既存方針を崩さないため HTTP で返す）
+app.get("/api/seeks", (_req, res) => {
+    res.json(seekBoard.list())
 })
 
 // ---- お知らせ ----
@@ -398,6 +409,36 @@ function resolveDeckSpec(deck: unknown, deckCards: unknown): { deck: DeckSpec } 
     return { deck: name }
 }
 
+// 掲示板の表示用ラベル。レシピは表示名、カスタムデッキは中身を出さず一律の表記にする
+function deckLabel(deck: DeckSpec): string {
+    if (typeof deck === "string") return DECK_RECIPES[deck]?.label ?? deck
+    return "カスタムデッキ"
+}
+
+// 接続中の全員へ掲示板の最新の一覧を配信する
+function broadcastSeekList(): void {
+    io.emit("seekList", { seeks: seekBoard.list() })
+}
+
+// 自分の募集を取り下げる共通処理（他モードへの移動・切断・取り消しから呼ぶ）。
+// 取り下げたら理由付きで計測に残し、本人の画面へも知らせる
+function dropOwnSeek(
+    socket: Socket,
+    reason: "cancel" | "to_room" | "to_ai" | "to_queue" | "disconnect",
+    notify: boolean,
+): void {
+    const seek = seekBoard.removeBySocket(socket.id)
+    if (!seek) return
+    logMatchLeft(
+        socket.handshake.headers as Record<string, unknown>,
+        socket.handshake.address,
+        reason,
+        Date.now() - seek.createdAt,
+    )
+    if (notify) socket.emit("seekCancelled", {})
+    broadcastSeekList()
+}
+
 // 待機中の全員へ現在の待ち人数を配信する
 function broadcastQueueSize(): void {
     const waiting = matchQueue.size
@@ -451,9 +492,10 @@ function tryMatch(): void {
 const IDLE_DISCONNECT_MS = Number(process.env.IDLE_DISCONNECT_MS ?? 15 * 60 * 1000)
 const idleSince = new Map<string, number>()
 
-// 待機列に並んでいる・ルームで相手を待っている・決着前で相手も接続中の対局、のどれかなら対戦中
+// 待機列に並んでいる・募集を出している・ルームで相手を待っている・決着前で相手も接続中の対局、のどれかなら対戦中
 function isPlaying(socketId: string): boolean {
     if (matchQueue.has(socketId)) return true
+    if (seekBoard.has(socketId)) return true
     const found = roomManager.findBySocket(socketId)
     if (!found) return false
     const { game, players } = found.room
@@ -461,6 +503,23 @@ function isPlaying(socketId: string): boolean {
     if (game.winner) return false
     return (["p1", "p2"] as const).every((pid) => players[pid]?.connected === true)
 }
+
+// 募集の期限切れ掃除。切れた募集は投稿者へ知らせて掲示板から落とす
+setInterval(() => {
+    for (const seek of seekBoard.expire(Date.now())) {
+        const poster = io.sockets.sockets.get(seek.socketId)
+        if (poster) {
+            logMatchLeft(
+                poster.handshake.headers as Record<string, unknown>,
+                poster.handshake.address,
+                "expired",
+                Date.now() - seek.createdAt,
+            )
+            poster.emit("seekExpired", {})
+        }
+        broadcastSeekList()
+    }
+}, 60_000).unref()
 
 setInterval(() => {
     const now = Date.now()
@@ -530,6 +589,8 @@ io.on("connection", (socket: Socket) => {
                 socket.emit("matchCancelled", {})
                 broadcastQueueSize()
             }
+            // 募集を出していたらそちらも取り下げる（待機列と同じ排他の考え方）
+            dropOwnSeek(socket, "to_room", true)
             socket.join(roomId)
             socket.emit("joined", { playerId, roomId })
 
@@ -571,6 +632,8 @@ io.on("connection", (socket: Socket) => {
                 socket.handshake.address,
                 "（ランダムマッチ）",
             )
+            // 募集を出していたら取り下げて待機列へ移る（プール内での移動として計測に残す）
+            dropOwnSeek(socket, "to_queue", true)
             matchQueue.add({ socketId: socket.id, name, deck: resolved.deck })
             logMatchQueued(
                 socket.handshake.headers as Record<string, unknown>,
@@ -596,6 +659,162 @@ io.on("connection", (socket: Socket) => {
         socket.emit("matchCancelled", {})
         broadcastQueueSize()
     })
+
+    // 接続したクライアントへ現在の掲示板を渡す（HTTP の /api/seeks と同じ内容）
+    socket.emit("seekList", { seeks: seekBoard.list() })
+
+    socket.on("requestSeekList", () => {
+        socket.emit("seekList", { seeks: seekBoard.list() })
+    })
+
+    // ---- 対戦募集（シーク掲示板） ----
+    // 募集を出す。待機列と違い「一覧に残して、来た人に選んでもらう」入口。
+    // **2回目の送信は取り消し**として扱う（join / randomMatch のトグルと揃える）
+    socket.on(
+        "postSeek",
+        (payload: { name?: string; deck?: string; deckCards?: Record<string, number> }) => {
+            if (seekBoard.has(socket.id)) {
+                dropOwnSeek(socket, "cancel", true)
+                return
+            }
+            if (roomManager.findBySocket(socket.id)) {
+                socket.emit("errorMessage", "すでに対戦に参加しています")
+                return
+            }
+            const resolved = resolveDeckSpec(payload?.deck, payload?.deckCards)
+            if ("error" in resolved) {
+                socket.emit("errorMessage", resolved.error)
+                return
+            }
+            // 待機列に並んでいたら、列をやめて募集へ移る
+            const leftForSeek = matchQueue.removeEntry(socket.id)
+            if (leftForSeek) {
+                logMatchLeft(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    "to_seek",
+                    Date.now() - leftForSeek.queuedAt,
+                )
+                socket.emit("matchCancelled", {})
+                broadcastQueueSize()
+            }
+            const name = String(payload?.name || "プレイヤー")
+            logSocketJoin(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                "（対戦募集）",
+            )
+            const seek = seekBoard.post({
+                socketId: socket.id,
+                name,
+                deck: resolved.deck,
+                deckLabel: deckLabel(resolved.deck),
+                ttlMs: SEEK_TTL_MS,
+            })
+            // 計測（Phase 0 の続き）: 募集も「待機開始」として同じファネルで数える。
+            // queue は待機列＋掲示板を合わせたプール人数
+            logMatchQueued(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                matchQueue.size + seekBoard.size,
+            )
+            socket.emit("seekPosted", { seekId: seek.seekId, expiresAt: seek.expiresAt })
+            broadcastSeekList()
+        },
+    )
+
+    // 募集の取り消し（画面の「募集をやめる」から）
+    socket.on("cancelSeek", () => {
+        dropOwnSeek(socket, "cancel", true)
+    })
+
+    // 掲示板の募集に応じる。応じた人と投稿者でルームを作って対戦を始める。
+    // 調停はこのハンドラが直列に処理するので、二重 claim は起きない
+    socket.on(
+        "claimSeek",
+        (payload: { seekId?: string; name?: string; deck?: string; deckCards?: Record<string, number> }) => {
+            const seek = payload?.seekId ? seekBoard.get(String(payload.seekId)) : null
+            if (!seek) {
+                socket.emit("errorMessage", "その募集はすでに締め切られました")
+                socket.emit("seekList", { seeks: seekBoard.list() })
+                return
+            }
+            if (seek.socketId === socket.id) {
+                socket.emit("errorMessage", "自分の募集には応じられません")
+                return
+            }
+            if (roomManager.findBySocket(socket.id)) {
+                socket.emit("errorMessage", "すでに対戦に参加しています")
+                return
+            }
+            const poster = io.sockets.sockets.get(seek.socketId)
+            if (!poster || roomManager.findBySocket(seek.socketId)) {
+                // 投稿者がもういない／対戦中なら募集を落として締め切る
+                seekBoard.remove(seek.seekId)
+                broadcastSeekList()
+                socket.emit("errorMessage", "その募集はすでに締め切られました")
+                return
+            }
+            const resolved = resolveDeckSpec(payload?.deck, payload?.deckCards)
+            if ("error" in resolved) {
+                socket.emit("errorMessage", resolved.error)
+                return
+            }
+            // ここから先は成立処理。まず募集を掲示板から落とす（claim の確定）
+            seekBoard.remove(seek.seekId)
+            const name = String(payload?.name || "プレイヤー")
+            logSocketJoin(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                "（対戦募集）",
+            )
+            // 応じた人が待機列に並んでいたら列を抜ける
+            const leftForSeek = matchQueue.removeEntry(socket.id)
+            if (leftForSeek) {
+                logMatchLeft(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    "to_seek",
+                    Date.now() - leftForSeek.queuedAt,
+                )
+                socket.emit("matchCancelled", {})
+                broadcastQueueSize()
+            }
+            // 計測: 応じた人もファネルに入れてから、両者の成立を記録する
+            // （投稿者の待ち時間は募集を出してから claim されるまで）
+            logMatchQueued(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                matchQueue.size + seekBoard.size,
+            )
+            logMatchMatched(
+                poster.handshake.headers as Record<string, unknown>,
+                poster.handshake.address,
+                Date.now() - seek.createdAt,
+            )
+            logMatchMatched(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                0,
+            )
+            const roomId = roomManager.newRoomId("match")
+            const posterResult = roomManager.join(roomId, seek.socketId, seek.name, seek.deck)
+            const claimerResult = roomManager.join(roomId, socket.id, name, resolved.deck)
+            if (!("room" in posterResult) || !("room" in claimerResult)) {
+                socket.emit("errorMessage", "対戦の開始に失敗しました")
+                return
+            }
+            poster.join(roomId)
+            socket.join(roomId)
+            poster.emit("matchFound", { roomId })
+            poster.emit("joined", { playerId: posterResult.playerId, roomId })
+            socket.emit("matchFound", { roomId })
+            socket.emit("joined", { playerId: claimerResult.playerId, roomId })
+            broadcastSeekList()
+            const room = roomManager.getRoom(roomId)
+            if (room) startGame(room)
+        },
+    )
 
     // ---- AI戦 ----
     // 自分のデッキと**AIのデッキ**の両方を指定して、その場で1人用の対戦を始める。
@@ -626,6 +845,8 @@ io.on("connection", (socket: Socket) => {
                 socket.emit("matchCancelled", {})
                 broadcastQueueSize()
             }
+            // 募集を出していたらそちらも取り下げる
+            dropOwnSeek(socket, "to_ai", true)
             const mine = resolveDeckSpec(payload?.deck, payload?.deckCards)
             if ("error" in mine) {
                 socket.emit("errorMessage", mine.error)
@@ -682,6 +903,8 @@ io.on("connection", (socket: Socket) => {
             )
             broadcastQueueSize()
         }
+        // 募集を出したまま閉じられた場合は募集も落とす（Phase 1 はオンライン限定）
+        dropOwnSeek(socket, "disconnect", false)
         const found = roomManager.leave(socket.id)
         if (found) {
             const other: PlayerId = found.playerId === "p1" ? "p2" : "p1"
