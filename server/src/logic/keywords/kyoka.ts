@@ -5,7 +5,8 @@ import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage } from "../../../../shared/coverage"
 import type { GameState, PlayerId } from "../../type"
 import { getCard } from "../GameState"
-import { currentLevel, effectSources, hasGlobalConstraint } from "../../../../shared/rules"
+import { currentLevel, effectSources, hasGlobalConstraint, instEffectsSuppressed } from "../../../../shared/rules"
+import { continuousKeywordGrantCount } from "../../../../shared/rules/keywordState"
 
 // 【強化】の対象になる効果の種類（effectDef.ts の keyword エントリの kyoka 欄と同じ値）
 export type KyokaKind = "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill"
@@ -24,6 +25,11 @@ export function kyokaBonus(state: GameState, pid: PlayerId, kind: KyokaKind): nu
             noteCoverage(effect, "keyword")
             total++
         }
+    }
+    // 継続付与（keywordGrant）で与えられた【強化】：付与先1体につき1つ。同じ付与が複数あっても1体1つに丸める
+    for (const target of state.players[pid].field.spirits) {
+        if (instEffectsSuppressed(target)) continue
+        if (continuousKeywordGrantCount(state, pid, target, "kyoka", kind) > 0) total++
     }
     return total
 }

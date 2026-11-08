@@ -393,6 +393,12 @@ export type EffectDefTrigger =
       }
     | {
           id: string
+          kind: "trashReturnOnNameSummoned" // トラッシュにあるこのカード自身の効果：自分のスピリットが召喚されたとき、そのカード名が nameIncludes を含めば手札に戻る（強制。同名が複数あればすべて戻る：Q4462）
+          levels: null
+          nameIncludes: string
+      }
+    | {
+          id: string
           kind: "trashSummonOnNameSummoned" // トラッシュにあるこのカード自身の効果：持ち主のフィールドに nameIncludes を含むスピリットが召喚されたとき、無償召喚できる（任意）
           // 【不死】と同じくトラッシュのカードが発生源なので effectSources では拾えず、fireSummonSequence が持ち主のトラッシュを走査する。維持コアはリザーブから払う
           levels: null

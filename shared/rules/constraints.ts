@@ -460,6 +460,7 @@ export function braveBpBonusZeroFor(board: Board, hostPid: PlayerId): boolean {
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "braveBpBonusZero") continue
                 if (effect.constraint.side === "opponent" && pid === hostPid) continue
+                if (effect.turn === "own" && board.turnPlayer !== pid) continue // 見出し『自分のターン』（BS23-008）
                 if (!entryActive(board, pid, inst, effect, level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 noteCoverage(effect, "globalConstraint")

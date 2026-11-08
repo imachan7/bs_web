@@ -261,6 +261,7 @@ export type EffectDefContinuous =
           whileCombined?: true
           onlyWhileSpiritState?: true // whileCombinedの逆。combinedBravesは合体中もeffectSourcesに含まれ続けるため、付けない継続付与は既定では合体後も効き続ける
           keyword: Keyword
+          kyoka?: "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill" // keyword:"kyoka" のとき、与える【強化】の種類（kyokaBonus が付与分を数える）
           target: "ownAll"
           filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordFilter の統一軸。ラベル専用キーワードの参照＝【連鎖】持ちなどはここに書く。Q774：Lvで判定される）
           combinedFilter?: true

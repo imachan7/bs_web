@@ -201,6 +201,7 @@ export function continuousKeywordGrantCount(
     ownerPid: PlayerId,
     inst: CardInstance,
     keyword: Keyword,
+    kyoka?: string, // keyword:"kyoka" の付与のうち、この種類（bpDestroy 等）だけを数える
 ): number {
     const sources = effectSources(board, ownerPid)
     for (const source of sources) {
@@ -209,6 +210,7 @@ export function continuousKeywordGrantCount(
             if (effect.kind !== "keywordGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.keyword !== keyword) continue
+            if (kyoka !== undefined && effect.kyoka !== kyoka) continue
             // 【合体時】＝発生源自身が合体しているときだけ（BS13-005強暴竜ディラノ・レックス【合体時】Lv3）
             if (!effectActiveOn(source, effect, sourceLevel)) continue
             // onlyWhileSpiritState＝whileCombinedの逆。発生源自身が合体しているときは発揮しない（BS13-056ホーク・ブレイカー）

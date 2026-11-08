@@ -45,6 +45,7 @@ export type EffectDefCost =
           phase?: Phase // 指定時はこのステップ中のみ有効
           via?: "shinsoku" | "any" | "magic" // 省略＝【神速】での召喚のときだけ。"any"＝通常の召喚でも。"magic"＝マジックカードの使用時（召喚では効かない。BS19-054）
           minBaseCost?: number // 召喚するカードの**印刷コスト**（軽減前）がこれ以上のときだけ
+          summonedFamily?: string // 召喚するカードが印刷でこの系統を持つときだけ（手札のカードなので盤面の付与は見ない）
           oncePerTurn?: true // 発生源1つにつきターンに1回（PlayerState.payAssistUsedThisTurn。同名を2枚置けば2回使える）
       }
     | {

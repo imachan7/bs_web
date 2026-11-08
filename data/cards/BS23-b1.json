@@ -58,6 +58,29 @@
      "combinableWithSelf": true
     },
     "battleRole": "attacker"
+   },
+   {
+    "id": "BS23-002-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": [
+      "剣使",
+      "地竜"
+     ]
+    },
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
    }
   ]
  },
@@ -119,6 +142,31 @@
      "bravesOnly": true,
      "familyFilter": "剣刃",
      "combinableWithSelf": true
+    }
+   },
+   {
+    "id": "BS23-005-e2",
+    "kind": "trashReturnOnNameSummoned",
+    "levels": null,
+    "nameIncludes": "シャイニング・ドラゴン"
+   },
+   {
+    "id": "BS23-005-e3",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "eventTarget": "ignore",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 4000
+     }
     }
    }
   ]

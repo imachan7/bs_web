@@ -82,6 +82,7 @@ export function payAssistCandidates(
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if ((effect.via ?? "shinsoku") === "shinsoku" && !summoning.flash) continue
             if (effect.minBaseCost !== undefined && summoned.cost < effect.minBaseCost) continue
+            if (effect.summonedFamily !== undefined && summoned.family?.includes(effect.summonedFamily) !== true) continue
             if (effect.oncePerTurn && used.includes(inst.instanceId)) continue
             // 同じネクサスが両方で候補になるときは、固有の肩代わり（payAssistByExhaust）を優先する
             const at = result.findIndex((r) => r.instanceId === inst.instanceId)

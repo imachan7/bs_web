@@ -67,6 +67,24 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     }
 }
 
+// トラッシュにあるカード自身の効果（kind:"trashReturnOnNameSummoned"）。条件を満たすカードはすべて手札に戻る
+function returnTrashOnNameSummoned(state: GameState, pid: PlayerId, summoned: CardInstance): void {
+    const player = state.players[pid]
+    const summonedCard = getCard(summoned.cardId)
+    if (summonedCard.type !== "spirit") return
+    for (let i = player.trashCards.length - 1; i >= 0; i--) {
+        const cardId = player.trashCards[i]
+        if (cardId === undefined || trashCardEffectsDisabled(state, cardId)) continue
+        const card = getCard(cardId)
+        const hit = card.effects.find((e) => e.kind === "trashReturnOnNameSummoned" && summonedCard.name.includes(e.nameIncludes))
+        if (!hit) continue
+        noteCoverage(hit, "trashReturnOnNameSummoned")
+        player.trashCards.splice(i, 1)
+        player.hand.push(cardId)
+        log(state, `トラッシュの${card.name}は手札に戻った。`)
+    }
+}
+
 // 効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
 export function startSummonBatch(state: GameState): void {
     if (state.summonBatch === undefined) state.summonBatch = []
@@ -188,6 +206,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
     // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
     if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
+    if (!state.winner) returnTrashOnNameSummoned(state, pid, inst)
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid), inst)) {

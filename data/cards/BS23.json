@@ -33,7 +33,44 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの破壊時』\nBP4000以下の相手のスピリット1体を破壊する。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手のスピリット1体を疲労させる。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-001-e1",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onDestroy",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "maxBp": 4000
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 1
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-004",
@@ -74,7 +111,38 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分の手札にある系統：「滅龍」を持つコスト9以上のスピリットカードを召喚するとき、このスピリットを疲労させることで、そのコストを-2する。\nLv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットがブロックされたとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-004-e1",
+    "kind": "payAssistByExhaust",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "cost": 2,
+    "phase": "main",
+    "via": "any",
+    "minBaseCost": 9,
+    "summonedFamily": "滅龍"
+   },
+   {
+    "id": "BS23-004-e2",
+    "kind": "triggered",
+    "trigger": "onBlocked",
+    "eventTarget": "ignore",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-006",
@@ -116,7 +184,48 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのバトル時』\nBP3000以下の相手のスピリット1体を破壊する。\nこの効果でスピリットを破壊したとき、『相手のアタックステップ』なら、このスピリットは回復する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-006-e1",
+    "kind": "triggered",
+    "trigger": "onBattleStart",
+    "eventTarget": "ignore",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "maxBp": 3000
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {}
+       },
+       "then": {
+        "type": "if",
+        "cond": {
+         "opponentAttackStepNow": true
+        },
+        "then": {
+         "type": "refresh",
+         "target": "self"
+        }
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-007",
@@ -158,7 +267,29 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3【強化】\n自分の「BP破壊効果」の上限を+1000する。\nLv2･Lv3【強化】\n自分の「BP破壊効果」の上限を+1000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-007-e1",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS23-007-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     2,
+     3
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS23-008",
@@ -201,7 +332,60 @@
   "rarity": "M",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\nBP6000以下の相手のスピリット1体を破壊することで、【強化】を持つ自分のスピリット1体につき、自分はデッキから1枚ドローする。\nLv1･Lv2･Lv3【強化】\n自分の「BP破壊効果」の上限を+1000する。\nLv2･Lv3『自分のターン』\n相手の合体スピリットすべての「合体時BP+」を0として扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-008-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "pay",
+     "cost": {
+      "type": "destroy",
+      "count": 1,
+      "filter": {
+       "maxBp": 6000
+      }
+     },
+     "then": {
+      "type": "draw",
+      "count": 1,
+      "countCounter": {
+       "ownKeyword": "kyoka"
+      }
+     }
+    }
+   },
+   {
+    "id": "BS23-008-e2",
+    "kind": "keyword",
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "levels": [
+     1,
+     2,
+     3
+    ]
+   },
+   {
+    "id": "BS23-008-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     2,
+     3
+    ],
+    "turn": "own",
+    "constraint": {
+     "type": "braveBpBonusZero",
+     "side": "opponent"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-009",
@@ -249,7 +433,53 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「怪虫」を持つ自分のスピリットがアタックしたとき、BP5000以下の相手のスピリット1体を破壊する。\nLv2･Lv3『自分のアタックステップ』\n系統：「地竜」を持つ自分のスピリットがアタックしたとき、ボイドからコア1個をそのスピリットに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-009-e1",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": "怪虫"
+    },
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "filter": {
+      "maxBp": 5000
+     }
+    }
+   },
+   {
+    "id": "BS23-009-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2,
+     3
+    ],
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": "地竜"
+    },
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-010",
@@ -1215,7 +1445,50 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\n系統：「想獣」/「地竜」を持つ自分のスピリットがBPを比べ相手のスピリットだけを破壊したとき、ボイドからコア1個を自分のライフに置く。\nLv2･Lv3『自分のアタックステップ』\n系統：「想獣」/「地竜」を持つ自分のスピリットすべてをBP+5000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-045-e1",
+    "kind": "battleWon",
+    "role": "any",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "turn": "own",
+    "winnerFamilyFilter": [
+     "想獣",
+     "地竜"
+    ],
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "life",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS23-045-e2",
+    "kind": "aura",
+    "levels": [
+     2,
+     3
+    ],
+    "aura": {
+     "type": "bp",
+     "target": "ownAll",
+     "familyFilter": [
+      "想獣",
+      "地竜"
+     ],
+     "amount": 5000,
+     "phaseTurn": {
+      "phase": "attack",
+      "turn": "own"
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-046",
@@ -1791,7 +2064,45 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このネクサスの配置時』\n自分のトラッシュにあるコスト8以上の赤のスピリットカードすべてを手札に戻す。\nLv2『自分のアタックステップ』\nコスト8以上の自分のスピリットすべてに“【激突】『このスピリットのアタック時』相手は可能ならば必ずブロックする”を与える。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-067-e1",
+    "kind": "triggered",
+    "trigger": "onDeploy",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "moveCards",
+     "from": "trash",
+     "count": "all",
+     "dest": "hand",
+     "pick": {
+      "cardType": "spirit",
+      "color": "red",
+      "cost": {
+       "min": 8
+      }
+     }
+    }
+   },
+   {
+    "id": "BS23-067-e2",
+    "kind": "keywordGrant",
+    "levels": [
+     2
+    ],
+    "keyword": "clash",
+    "target": "ownAll",
+    "costFilter": {
+     "min": 8
+    },
+    "phase": "attack",
+    "turn": "own"
+   }
+  ]
  },
  {
   "cardId": "BS23-069",
@@ -1916,7 +2227,63 @@
   "rarity": "",
   "limited": false,
   "effect": "メイン：\n自分のトラッシュにある系統：「剣使」/「地竜」を持つスピリットカード2枚までを手札に戻す。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：相手は、相手のスピリット2体を疲労させる。\nフラッシュ：\nこのターンの間、スピリット1体をBP+2000する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-073-e1",
+    "kind": "magic",
+    "keyword": "rensa",
+    "timing": "main",
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "moveCards",
+       "from": "trash",
+       "count": 2,
+       "upTo": true,
+       "dest": "hand",
+       "pick": {
+        "cardType": "spirit",
+        "family": [
+         "剣使",
+         "地竜"
+        ]
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownColorSymbols": "green"
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "exhaust",
+        "count": 2,
+        "chooserIsTarget": true
+       }
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS23-073-e2",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 2000
+      }
+     ],
+     "duration": "turn",
+     "side": "both"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-076",

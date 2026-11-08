@@ -360,6 +360,19 @@
       "maxBp": 10000
      }
     }
+   },
+   {
+    "id": "BS23-X01-e4",
+    "kind": "keywordGrant",
+    "levels": [
+     3
+    ],
+    "keyword": "kyoka",
+    "kyoka": "bpDestroy",
+    "target": "ownAll",
+    "filter": {
+     "color": "red"
+    }
    }
   ]
  }
