@@ -1328,6 +1328,21 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
     return false
 }
 
+// globalConstraint "burstActivationCost"：holderPid のバースト発動にコストの支払いが課されているか（金額は server/src/logic/burstActivationFee.ts が決める）
+export function burstActivationCostActive(board: Board, holderPid: PlayerId): boolean {
+    const opp: PlayerId = holderPid === "p1" ? "p2" : "p1"
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "burstActivationCost") continue
+            if (!entryActive(board, opp, source, effect, level) || !globalConstraintWindowOpen(board, effect, opp)) continue
+            noteCoverage(effect, "globalConstraint")
+            return true
+        }
+    }
+    return false
+}
+
 // globalConstraint "attackEffectsToll"（BS20-072 Lv2）：attackerPid の今回のアタックに効いているか。
 // 効果窓（phase／turn）は発生源の持ち主基準。アタックした側がコアを置くかは攻撃側の選択なので、ここでは効いているかだけを返す
 export function attackEffectsTollActive(board: Board, attackerPid: PlayerId): boolean {

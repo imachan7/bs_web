@@ -1,6 +1,7 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
+import { payBurstActivationFee } from "./burstActivationFee"
 import { activateBurstCard } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
 import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
@@ -698,6 +699,7 @@ function resolveChoiceInner(
                     // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
+                    payBurstActivationFee(state, info.pid, info.cardId)
                     announceBurstActivation(state, info.pid, info.cardId)
                     // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
                     // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う

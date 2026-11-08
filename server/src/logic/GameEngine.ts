@@ -687,6 +687,7 @@ export function doSummon(
         if (!ownHandKeyword(state, cardId, "soku")) for (const e of card.effects) if (e.kind === "flashSummonFromHand" && e.onceScope === "name") markOnceNameUsed(state, pid, cardId, e.id)
     }
     state.summoningFromHand = true // 通常召喚は手札から（fieldEvent.fromHandOnly）
+    state.summoningPaid = true
     if (!state.winner) resolveTensho(state, pid, inst, false, true)
     if (state.pendingChoice) {
         pushResumeFrames(state, [
@@ -1396,7 +1397,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
             continue
         }
         for (let i = 0; i < c.count; i++) {
-            const magicIdx = blockerPlayer.hand.findIndex((id) => getCard(id).type === "magic")
+            const magicIdx = blockerPlayer.hand.findIndex((id) => c.cost === "discardHand" || getCard(id).type === "magic")
             if (magicIdx === -1) break
             const cardId = blockerPlayer.hand[magicIdx]!
             blockerPlayer.hand.splice(magicIdx, 1)

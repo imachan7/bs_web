@@ -389,6 +389,14 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "coresAs" // 持ち主のカード名に nameContains を含むネクサスを、コアが count 個置かれているものとして扱う（coresOverride。Lv判定に効く。Q4578）
+          levels: number[] | null
+          nameContains: string
+          count: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
           kind: "bpAs"
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
@@ -453,6 +461,7 @@ export type EffectDefContinuous =
           levels: number[] | null
           target: "ownAll" | "self"
           familyFilter?: FamilyFilter
+          orKeyword?: Keyword // familyFilter とOR。このキーワード（ラベル専用の【連鎖】等を含む）を持つスピリットも対象（「系統：「異合」を持つ／【連鎖】を持つ」）
           colorFilter?: Color // target:"ownAll" の絞り。その色を持つスピリットだけ（familyFilterと併用ならAND）
           minCores?: number // target:"ownAll" の絞り。載っているコアがこの数以上のスピリットだけ。毎回の再計算で判定するのでコアが減れば外れる
           count: number

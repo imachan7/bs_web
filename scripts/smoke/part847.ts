@@ -85,7 +85,7 @@ scenario({
         assert(useHokora(t), "1回目は使える")
         assert(!useHokora(t), "2回目は使えない")
     },
-    expect: dorat,
+    expect: dorat.map((l) => (l === "自分.手札: ドラットフィッシュ → なし" ? "自分.手札: スタッガー、ドラットフィッシュ → スタッガー" : l)),
 })
 
 console.log("=== 072 Lv2: 相手のターンには使えない（『自分のメインステップ』） ===")

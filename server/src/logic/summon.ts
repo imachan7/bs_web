@@ -145,6 +145,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             byKeisho: state.summoningFromHand === true && (state.keishoExcludedCardIds?.length ?? 0) > 0,
             // 手札からの召喚か（doSummon / summonFreeFromHandIndex が立てる。BS11-X05 魔導双神ジェミナイズ）
             fromHand: state.summoningFromHand === true,
+            paidCost: state.summoningPaid === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
             // 器AG：summonedSpiritAsTarget指定時に、召喚されたスピリット自身をactionTargetIdとして渡す
@@ -177,11 +178,13 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
     // （ダイレクトブレイヴ）に入った場合も対象にするため isOnFieldAnyZone で判定する
     if (!state.winner && isOnFieldAnyZone(player, inst.instanceId) && getCard(inst.cardId).type === "brave") {
-        fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst })
-        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst })
+        const braveInfo = { paidCost: state.summoningPaid === true }
+        fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, braveInfo)
+        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, braveInfo)
     }
     delete state.summoningBySoku
     delete state.summoningFromHand
+    delete state.summoningPaid
     // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
     // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
     if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
@@ -263,6 +266,7 @@ export function summonFreeFromHandIndex(
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
+    if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
     if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
@@ -356,6 +360,7 @@ export function summonFreeFromTrashIndex(
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
+    if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
     player.field.spirits.push(inst)

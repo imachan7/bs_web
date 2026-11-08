@@ -188,9 +188,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 - `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"／"noBurstActivationByColor"：holderPid のバーストが発動で…
+- `burstActivationCostActive`（fn）：globalConstraint "burstActivationCost"：holderPid のバースト発動にコストの支払いが課されているか（金額は server/src/lo…
 - `attackEffectsTollActive`（fn）：globalConstraint "attackEffectsToll"（BS20-072 Lv2）：attackerPid の今回のアタックに効いているか。
 - `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 - `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
+
+## shared/rules/coreIntake.ts
+
+- `coreIntakeRefused`（fn）：置く側の発生源が inst 自身なら false（自分の効果なので置ける）
 
 ## shared/rules/effectStop.ts
 
@@ -637,6 +642,12 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/braveFreeSummon.ts
 
 - `tryBraveFreeSummon`（fn）：undefined＝この経路には乗らない（通常の召喚へ進む）。null／文字列＝この経路で処理した結果（文字列は拒否理由）
+
+## server/src/logic/burstActivationFee.ts
+
+- `burstActivationFee`（fn）
+- `burstFeeUnpayable`（fn）
+- `payBurstActivationFee`（fn）：ponytail: 支払い元は自動（リザーブ→ネクサス→コアの多いスピリット）。支払い元を選ばせるなら askCostPay（summonSurcharge.ts）へ載せ替える
 
 ## server/src/logic/burstNegate.ts
 

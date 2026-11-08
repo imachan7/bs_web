@@ -25,7 +25,7 @@ import {
 } from "./GameState"
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { canDiscardHand, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { canDiscardHand, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -889,6 +889,7 @@ export function validateMoveCore(
     // ネクサスもレベルを上げ下げできる。ネクサスの Lv1 は全カード0コアのため、維持コア判定でそのまま0まで戻せる
     const inst = findSpirit(player, instanceId) ?? findNexus(player, instanceId)
     if (!inst) return "対象のカードが見つかりません"
+    if (direction === "add" && coreIntakeRefused(inst)) return "このカードには、このカード自身の効果以外ではコアを置けません"
     if (soulCore) {
         // [ソウルコア]の移動検証: 通常コアの数値は不動のため reserve/cores の検証は不要。
         // 取り除くと維持コアを割るときは通常コアと同じ confirmDeplete の確認が要る
@@ -1313,6 +1314,7 @@ export function validateBlock(
             continue
         }
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
+        if (c.cost === "discardHand" && (state.players[pid].hand.length < c.count || !canDiscardHand(state, pid))) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"

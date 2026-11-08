@@ -283,7 +283,7 @@ export type EffectDefTrigger =
           magicCostEquals?: number // opponentMagicUsed 限定
           magicTiming?: "main" | "flash" // opponentMagicUsed 限定
           magicPick?: CardPick // ownMagicUsed 限定。eventInfo.magicCardId で判定
-          paidCostOnly?: true // ownMagicUsed 限定。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認）
+          paidCostOnly?: true // ownMagicUsed／anyBraveSummoned 限定（召喚は state.summoningPaid）。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認）
           magicFreeUseMaxPerTurn?: number // ownMagicUsed 限定。発生源が実際に無償使用を行った回数（CardInstance.magicFreeUseCount）がこの値未満のときのみ
           // 確認で「使わない」を選んだ・候補が無く不発だったときは消費しない（2026-09-07確認）
           familyFilter?: FamilyFilter // ownTensho 限定（主体が場に居ないので eventInfo.families で判定）。ほかのイベントは subjectFilter.family

@@ -31,7 +31,11 @@ export function confirmExtraCost(action: GameAction): boolean {
     if (action.type === "block") {
         const battle = view.battle
         const attacker = battle ? view.players[view.you === "p1" ? "p2" : "p1"].field.spirits.find((s) => s.instanceId === battle.attackerInstanceId) : undefined
-        if (!attacker || !timedContentsOn(view, attacker).some((c) => c.type === "blockCost" && c.cost === "discardMagic")) return true
+        const costs = attacker ? timedContentsOn(view, attacker) : []
+        if (costs.some((c) => c.type === "blockCost" && c.cost === "discardHand")) {
+            return window.confirm("ブロックするには、手札1枚を破棄する必要があります。\n\n破棄してブロックしますか？")
+        }
+        if (!costs.some((c) => c.type === "blockCost" && c.cost === "discardMagic")) return true
         return window.confirm(
             "ブロックするには、手札のマジックカード1枚を破棄する必要があります。\n\n破棄してブロックしますか？",
         )
