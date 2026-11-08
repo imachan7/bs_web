@@ -416,7 +416,8 @@ export type EffectDefContinuous =
           id: string
           kind: "bpEqualizeFamily" // Lv別BPを発生源の実効BP（合体時込み）と同じとして扱う全面上書き
           levels: number[] | null
-          familyFilter: FamilyFilter
+          familyFilter?: FamilyFilter // nameContains とどちらか一方
+          nameContains?: string // カード名に含む文字列。発生源と同名のカードは対象外（「[発生源名]以外」。BS23-036）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
     | {

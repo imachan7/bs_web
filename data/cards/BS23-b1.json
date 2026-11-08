@@ -548,6 +548,24 @@
      "type": "draw",
      "count": 1
     }
+   },
+   {
+    "id": "BS23-033-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "return",
+     "to": "hand",
+     "count": 1,
+     "filter": {
+      "maxBp": 6000
+     }
+    }
    }
   ]
  },

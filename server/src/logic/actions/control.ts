@@ -257,6 +257,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? state.phase === "attack" && state.turnPlayer !== owner
           : "magicUsedVia" in cond
           ? state.magicUsedVia === cond.magicUsedVia
+          : "firstBlockOfTurn" in cond
+          ? state.blocksThisTurn === 1
           : "firstBattleOfTurn" in cond
           ? state.attacksThisTurn === 1
           : "ownBurstSet" in cond

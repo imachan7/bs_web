@@ -521,6 +521,7 @@ export function endTurn(state: GameState): void {
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット
     // このターンのアタック回数（「最初のアタック」判定用）もリセット
     state.attacksThisTurn = 0
+    state.blocksThisTurn = 0
     // BS10-047：「次にアタックした」はターンをまたがないので、直前のアタック宣言の記録もリセット
     delete state.lastAttackerCombinedPid
     delete state.prevAttackerCombinedPid

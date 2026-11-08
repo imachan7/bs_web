@@ -61,6 +61,7 @@ scenario({
     steps(t) {
         t.act("opp", { type: "nextPhase" })
         assert(t.state.pendingChoice?.pid === t.me, "指定の選択は 035 の持ち主（自分）に出る")
+        t.act("me", { type: "resolveChoice", option: "発動する" }) // 「指定できる」の確認が先に出る
         t.act("me", { type: "resolveChoice", instanceId: t.id("A") })
         t.actRejected("opp", { type: "attack", instanceId: t.id("B") }) // 指定された A が最初にアタックするまで他は宣言できない
         t.act("opp", { type: "attack", instanceId: t.id("A") })
@@ -83,6 +84,7 @@ scenario({
     start: { turn: "opp", interactive: true, me: { spirits: [{ card: KUB, label: "ク" }] }, opp: { spirits: [{ card: VAN, label: "A", rested: true }, { card: VAN, label: "B" }] } },
     steps(t) {
         t.act("opp", { type: "nextPhase" })
+        t.act("me", { type: "resolveChoice", option: "発動する" }) // 「指定できる」の確認が先に出る
         t.act("me", { type: "resolveChoice", instanceId: t.id("A") })
         t.act("opp", { type: "attack", instanceId: t.id("B") })
     },
@@ -264,7 +266,10 @@ function phantom(name: string, target: string, protectedTarget: boolean, attacke
             t.act("me", { type: "summon", handIndex: 0 })
             t.act("me", { type: "nextPhase" })
             t.act("me", { type: "attack", instanceId: t.id(attacker) })
-            t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: target === RAIN ? t.state.players[t.me].field.spirits.find((x) => x.cardId === RAIN)!.instanceId : t.id(target) })
+            const cast = { type: "castMagic" as const, handIndex: 0, timing: "flash" as const, targetInstanceId: target === RAIN ? t.state.players[t.me].field.spirits.find((x) => x.cardId === RAIN)!.instanceId : t.id(target) }
+            // 「効果を受けない」スピリットは対象に選べず、使用ごと拒否される（SEMANTICS_AUDIT §3.20。2026-10-03 ユーザー確認）
+            if (protectedTarget) t.actRejected("opp", cast)
+            else t.act("opp", cast)
         },
         expect: [
             `自分.手札: ${join(PHANTOM, RAIN)} → なし`, "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 1", `自分.${attacker}.疲労: false → true`,
@@ -272,8 +277,7 @@ function phantom(name: string, target: string, protectedTarget: boolean, attacke
             "自分.ファントムジェッター.Lv: なし → 1", "自分.ファントムジェッター.BP: なし → 2000",
             "自分.近衛機レインジャー6号.場所: なし → フィールド", "自分.近衛機レインジャー6号.疲労: なし → false", "自分.近衛機レインジャー6号.コア: なし → 1",
             "自分.近衛機レインジャー6号.Lv: なし → 1", "自分.近衛機レインジャー6号.BP: なし → 3000",
-            "相手.手札: バインディングソーン → なし", "相手.トラッシュ: なし → バインディングソーン", "相手.リザーブ: 10 → 8", "相手.トラッシュのコア: 0 → 2",
-            ...(protectedTarget ? [] : [`自分.${target}.疲労: false → true`]),
+            ...(protectedTarget ? [] : ["相手.手札: バインディングソーン → なし", "相手.トラッシュ: なし → バインディングソーン", "相手.リザーブ: 10 → 8", "相手.トラッシュのコア: 0 → 2", `自分.${target}.疲労: false → true`]),
         ],
     })
 }

@@ -747,7 +747,11 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const sourceBp = effectiveBp(state, pid, source)
                     for (const spirit of player.field.spirits) {
                         if (spirit.instanceId === source.instanceId) continue
-                        if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.nameContains) {
+                            const name = getCard(spirit.cardId).name
+                            if (!name.includes(effect.nameContains) || name === getCard(source.cardId).name) continue
+                        }
                         noteCoverage(effect, "bpEqualizeFamily")
                         spirit.bpEqualizeContinuous = sourceBp
                     }

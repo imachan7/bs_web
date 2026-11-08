@@ -219,6 +219,7 @@ function swordImmune(name: string, cast: boolean) {
         },
         steps(t) {
             if (cast) t.act("me", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("守") })
+            if (cast) answer(t, ["守"]) // interactive なので「1体を指定する」の選択が出る
             t.act("me", { type: "nextPhase" })
             t.act("me", { type: "attack", instanceId: t.id("攻手") })
             const pc = t.state.pendingChoice
@@ -288,17 +289,20 @@ function burstGame(seed: string, withGreen: boolean): GameState {
 
 // ───────────── X04 双銃機神ディルム・ダイナ ─────────────
 console.log("=== 8. X04：【重装甲：赤/緑/青】相手の緑のマジックの効果を受けない。白は受ける ===")
-function x04Magic(name: string, magic: string, cost: number, expect: string[]) {
+function x04Magic(name: string, magic: string, cost: number, expect: string[] | null) {
     scenario({
         name,
         start: { turn: "opp", me: { spirits: [{ card: X04, label: "X" }] }, opp: { hand: [magic] } },
         steps(t) {
-            t.act("opp", { type: "castMagic", handIndex: 0, timing: "flash", targetInstanceId: t.id("X") })
+            const cast = { type: "castMagic" as const, handIndex: 0, timing: "flash" as const, targetInstanceId: t.id("X") }
+            // null＝【重装甲】で対象に選べず、使用ごと拒否される（SEMANTICS_AUDIT §3.20）
+            if (expect === null) t.actRejected("opp", cast)
+            else t.act("opp", cast)
         },
-        expect: [`相手.手札: ${getCard(magic).name} → なし`, `相手.トラッシュ: なし → ${getCard(magic).name}`, `相手.リザーブ: 10 → ${10 - cost}`, `相手.トラッシュのコア: 0 → ${cost}`, ...expect],
+        expect: expect === null ? [] : [`相手.手札: ${getCard(magic).name} → なし`, `相手.トラッシュ: なし → ${getCard(magic).name}`, `相手.リザーブ: 10 → ${10 - cost}`, `相手.トラッシュのコア: 0 → ${cost}`, ...expect],
     })
 }
-x04Magic("x04-armor-green-magic", BIND, 2, [])
+x04Magic("x04-armor-green-magic", BIND, 2, null)
 x04Magic("x04-white-magic-hits", RIBBON, 4, ["自分.X.場所: フィールド → なし", "自分.手札: なし → 双銃機神ディルム・ダイナ", "自分.リザーブ: 10 → 11"])
 
 console.log("=== 9. X04：フラッシュ『相手のアタックステップ』武装の自分のスピリット1体を疲労させることで「ブロックされない」効果を持つ相手のスピリット1体を破壊（自身を疲労させてもよい。Q4601） ===")

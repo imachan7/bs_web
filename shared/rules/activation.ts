@@ -295,6 +295,15 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
             return c !== null && (action.cardType === undefined || c.type === action.cardType) && (fams === undefined || fams.some((f) => c.family.includes(f)))
         })
     }
+    // 相手のスピリット1体以上を手札に戻す単純な形だけ。対象がいなければ起動できない（BS23-030 の合体スピリットだけがアタックしている場面）
+    if (action.type === "return" && action.to === "hand" && typeof action.count === "number" && action.side === undefined && !action.anySide && !action.all && action.target === undefined && action.nexus === undefined && action.countCounter === undefined && action.budget === undefined && action.costBudget === undefined && !action.maxBpFromSelf && !action.countPerOpponentNexus && !action.battlingOnly && !action.braveCantRemain) {
+        const returnFilter = (action.filter ?? {}) as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
+        if ([returnFilter.maxBp, returnFilter.minBp, returnFilter.exactBp].some((v) => typeof v === "string")) return true
+        const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+        const srcCard = card(source.cardId)
+        const bounce: EffectAttempt = { op: "bounce", scope: "targeted", actorPid: pid, sourceType: srcCard.type, sourceColors: srcCard.colors, probing: true }
+        return board.players[oppPid].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(board, oppPid, s, returnFilter, source.instanceId) && boardResistanceAgainst(board, oppPid, s, bounce) === null).length >= action.count
+    }
     if (action.type !== "destroy" || action.nexus !== undefined || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
     const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
     if ([filter.maxBp, filter.minBp, filter.exactBp].some((v) => typeof v === "string")) return true

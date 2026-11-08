@@ -223,6 +223,7 @@ export function createGame(
         timedEffects: [],
         endStepLocks: [],
         attacksThisTurn: 0,
+        blocksThisTurn: 0,
         lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleBlockerTrashCost: 0,

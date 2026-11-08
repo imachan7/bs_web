@@ -37,12 +37,12 @@ export function matchesTarget(
     if (filter.maxBp !== undefined && effectiveBp(board, ownerPid, inst) > filter.maxBp && !(filter.orMinBp !== undefined && effectiveBp(board, ownerPid, inst) >= filter.orMinBp)) return false
     if (filter.minBp !== undefined && effectiveBp(board, ownerPid, inst) < filter.minBp) return false
     if (filter.exactBp !== undefined && effectiveBp(board, ownerPid, inst) !== filter.exactBp) return false
-    if (filter.color !== undefined && !(Array.isArray(filter.color) ? filter.color : [filter.color]).some((c) => instHasColor(inst, c))) return false
-    if (filter.colorExclude !== undefined && instHasColor(inst, filter.colorExclude)) return false
+    if (filter.color !== undefined && !(Array.isArray(filter.color) ? filter.color : [filter.color]).some((c) => instColors(inst).includes(c))) return false
+    if (filter.colorExclude !== undefined && instColors(inst).includes(filter.colorExclude)) return false
     if (filter.minCores !== undefined && inst.cores < filter.minCores) return false
     if (filter.originallyNexus && card(inst.cardId).type !== "nexus") return false
     if (filter.colorNotIn !== undefined && !instColors(inst).some((c) => !filter.colorNotIn!.includes(c))) return false
-    if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instHasColor(inst, c))) return false
+    if (filter.colorAny !== undefined && !filter.colorAny.some((c) => instColors(inst).includes(c))) return false
     if (filter.family !== undefined && !matchesFamilyFilter(board, ownerPid, inst, filter.family)) return false
     if (filter.familyExclude !== undefined && matchesFamilyFilter(board, ownerPid, inst, filter.familyExclude)) return false
     // familyAll（AND版。BS13-061戴冠する活火山Lv2：系統「地竜」と系統「竜人」両方）
