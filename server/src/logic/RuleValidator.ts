@@ -301,7 +301,6 @@ export function validateSummon(
         if (altSummon !== null || sokuFree) return "この召喚では破壊による支払いは使えません"
         payOff = summonPayOffOptions(state, pid, cardId).find((o) => o.targetInstanceId === payOffInstanceId)
         if (payOff === undefined) return "指定した個体を破壊して召喚コストを払うことはできません"
-        if ((paySources ?? []).some((src) => src.instanceId === payOffInstanceId)) return "破壊する個体のコアは支払いに使えません"
     }
     const cost = sokuFree
         ? 0

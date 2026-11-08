@@ -130,7 +130,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // 召喚時の効果を書いていないカード（付与された召喚時だけを持つ場合も含む）は列に入れずに先に呼ぶ。入れると、誘発しない1件のせいで解決順を聞いてしまう
     const items: CollectedTrigger[] = []
     const level = currentLevel(inst).level
-    const hasOwnSummonTrigger = [inst, ...bravesOf(player, inst)].some((src) =>
+    const hasOwnSummonTrigger = inst.noOnSummon !== true && [inst, ...bravesOf(player, inst)].some((src) =>
         getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && entryActive(state, pid, src, e, level)),
     )
     if (hasOwnSummonTrigger) {
@@ -140,7 +140,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             frame: { kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", triggerOnly: true, ...(byFushi ? { byFushi: true } : {}) } },
             run: () => fireSummonTrigger(state, pid, inst, byFushi),
         })
-    } else fireSummonTrigger(state, pid, inst, byFushi)
+    } else if (inst.noOnSummon !== true) fireSummonTrigger(state, pid, inst, byFushi)
     const checks: EventBurstCheck[] = []
     // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
     // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
@@ -319,13 +319,8 @@ export function summonFreeFromHandIndex(
     // （実プレイで X002 極龍帝ジーク・ソル・フリードの召喚時効果から出したスピリットの
     //  召喚時効果が出ないと報告されて発覚）。転召の対象選択で中断したら、doSummon と同じく
     // summonSequence として積み直して選択の解決後に合流する
-    // skipOnSummon 指定時は召喚時効果も「召喚されたとき」の誘発も発揮させない。
-    // 効果文に「ただし、『このスピリットの召喚時』効果は発揮されない」と明記があるカードだけ
-    // （BS08帝竜騎サイクル6枚）。既定では発揮する（2026-08-17 修正）
-    if (opts?.skipOnSummon) {
-        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
-        return
-    }
+    // skipOnSummon は召喚されたスピリット自身の召喚時効果だけを止める（inst.noOnSummon を fireSummonSequence が読む）。
+    // ほかのカードの「召喚されたとき」・トラッシュからの戻りは通常どおり出す（2026-11-08 ユーザー確認。旧：2026-08-17 は全部止めていた）
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {
@@ -393,11 +388,6 @@ export function summonFreeFromTrashIndex(
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）
     if (!state.winner) resolveTensho(state, owner, inst, false, true)
-    // skipOnSummon 指定時は召喚時効果を発揮させない（効果文に明記があるカードだけ。BS11-038 天星馬ペガシーダ）
-    if (opts?.skipOnSummon) {
-        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
-        return
-    }
     // 手札版と同じく、これも「召喚」なので召喚時効果と「召喚されたとき」の誘発が発揮される（2026-08-17 修正）
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])

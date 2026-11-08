@@ -655,8 +655,13 @@ export function doSummon(
     }
     if (paySoulCoreFromReserve === true || paySources?.some((src) => src.includeSoulCore === true)) state.summonPaidWithSoulCore = true
     payVoidToll(state, pid, card)
+    // 破壊（payOff）は召喚コストの支払いより先（2026-11-08 ユーザー確認）。戻ったコアは支払い元に使えるので、
+    // 破壊する個体を指していた支払い元はリザーブ払いに読み替える（リザーブ払いは不足分の残りとして払われる）
+    if (payOff !== undefined) {
+        payOffDestroy(state, pid, payOff)
+        paySources = paySources?.filter((src) => src.instanceId !== payOff.targetInstanceId)
+    }
     const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain, paySoulCoreFromReserve)
-    if (payOff !== undefined) payOffDestroy(state, pid, payOff)
     // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
 
