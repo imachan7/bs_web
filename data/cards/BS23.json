@@ -359,43 +359,6 @@
   "effects": []
  },
  {
-  "cardId": "BS23-013",
-  "name": "白蛇剣聖アルビナーガ",
-  "type": "spirit",
-  "colors": [
-   "purple"
-  ],
-  "cost": 4,
-  "reduction": [
-   "purple",
-   "purple"
-  ],
-  "family": [
-   "剣使",
-   "妖蛇"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 2000
-   },
-   {
-    "level": 2,
-    "cores": 3,
-    "bp": 5000
-   }
-  ],
-  "symbol": [
-   "purple"
-  ],
-  "flash": false,
-  "rarity": "M",
-  "limited": false,
-  "effect": "Lv1･Lv2\nこのスピリットは、紫のブレイヴの合体条件を無視して合体できる。\nLv2『このスピリットのバトル時』\n相手のスピリットのコア1個を相手のリザーブに置く。\n【合体時】Lv2『自分のメインステップ』\n自分の手札にあるカード名に「アルデウス」と入っているスピリットカードを召喚するとき、このスピリットのブレイヴ1つを破壊することで、破壊したブレイヴのコストだけ召喚コストを支払ったものとして扱う。",
-  "effects": []
- },
- {
   "cardId": "BS23-014",
   "name": "ボーン・セーラス",
   "type": "spirit",
@@ -1086,46 +1049,6 @@
   "effects": []
  },
  {
-  "cardId": "BS23-038",
-  "name": "冒険天使チャール",
-  "type": "spirit",
-  "colors": [
-   "yellow"
-  ],
-  "cost": 3,
-  "reduction": [
-   "yellow"
-  ],
-  "family": [
-   "天霊"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 2000
-   },
-   {
-    "level": 2,
-    "cores": 2,
-    "bp": 3000
-   },
-   {
-    "level": 3,
-    "cores": 3,
-    "bp": 4000
-   }
-  ],
-  "symbol": [
-   "yellow"
-  ],
-  "flash": false,
-  "rarity": "R",
-  "limited": false,
-  "effect": "Lv1･Lv2･Lv3『このスピリットの召喚時』\n自分の手札にある黄のブレイヴカード3枚までをオープンして手元に置くことで、オープンしたブレイヴカード1枚につき、自分はデッキから1枚ドローする。\nオープンしたブレイヴカードは、ゲーム終了時まで、手札にあるときと同様に使用できる。この効果はターンに1回しか使えない。\nLv2･Lv3『相手のアタックステップ』\n回復状態の相手のスピリットのアタックでは自分のライフは減らない。",
-  "effects": []
- },
- {
   "cardId": "BS23-039",
   "name": "冒険家アドペンタン",
   "type": "spirit",
@@ -1332,41 +1255,6 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分の手札にある［海皇巨神デュランザム］を召喚するとき、そのコストを-1する。",
-  "effects": []
- },
- {
-  "cardId": "BS23-047",
-  "name": "ミゴー",
-  "type": "spirit",
-  "colors": [
-   "blue"
-  ],
-  "cost": 2,
-  "reduction": [
-   "blue"
-  ],
-  "family": [
-   "異合"
-  ],
-  "levels": [
-   {
-    "level": 1,
-    "cores": 1,
-    "bp": 2000
-   },
-   {
-    "level": 2,
-    "cores": 2,
-    "bp": 3000
-   }
-  ],
-  "symbol": [
-   "blue"
-  ],
-  "flash": false,
-  "rarity": "",
-  "limited": false,
-  "effect": "Lv1･Lv2『自分のスタートステップ』\n相手のバースト1つの内容を見ることができる。\nLv2『自分のメインステップ』\n自分の手札にある系統：「異合」を持つコスト8以上のスピリットカード1枚を召喚するとき、このスピリットを破壊することで、そのスピリットカードの軽減をすべて満たしたものとして扱う。",
   "effects": []
  },
  {
