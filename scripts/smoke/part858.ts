@@ -58,7 +58,7 @@ scenario({
 console.log("=== 023 キャタピラー：「できる」を断れば通常どおりドローする（コスト8は引くだけでコアは置かれない） ===")
 scenario({
     name: "cater-draw-declined",
-    start: { turn: "opp", me: { spirits: [{ card: CATER, label: "キャタ" }], deck: deckWithTop(X03) } },
+    start: { interactive: true, turn: "opp", me: { spirits: [{ card: CATER, label: "キャタ" }], deck: deckWithTop(X03) } },
     steps(t) {
         toMyDraw(t)
         settle(t, "no")

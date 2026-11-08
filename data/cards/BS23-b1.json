@@ -332,6 +332,43 @@
      "combinableWithSelf": true
     },
     "battleRole": "attacker"
+   },
+   {
+    "id": "BS23-024-e2",
+    "kind": "fieldEvent",
+    "event": "opponentSpiritExhaustedByOwnSpiritEffect",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "selfMode": "source",
+    "sourceTypes": [
+     "spirit",
+     "brave",
+     "magic"
+    ],
+    "optional": false,
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "reserve",
+     "count": 1
+    }
+   },
+   {
+    "id": "BS23-024-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "exhaust",
+     "count": 1
+    }
    }
   ]
  },
@@ -394,6 +431,50 @@
      "bravesOnly": true,
      "familyFilter": "剣刃",
      "combinableWithSelf": true
+    }
+   },
+   {
+    "id": "BS23-026-e2",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "fireEffect",
+     "trigger": "onSummon",
+     "bunshinOnly": true
+    }
+   },
+   {
+    "id": "BS23-026-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 3000,
+       "amountCounter": {
+        "ownSpirits": {
+         "bunshin": true
+        }
+       },
+       "countOnce": true
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
     }
    }
   ]

@@ -108,9 +108,33 @@ scenario({
     ],
 })
 
-console.log("=== 020 ヨロイバッタ：青シンボルだけなら【連鎖】青でBP+3000・相手は手札に戻らない ===")
+console.log("=== 020 ヨロイバッタ：【神速】で出し、青シンボルだけなら【連鎖】青でBP+3000・相手は手札に戻らない（連鎖は神速で召喚したときだけ。BS19 Q776） ===")
 scenario({
     name: "batta-chain-blue",
+    start: {
+        turn: "opp",
+        me: { spirits: [{ card: BLU, label: "青味方" }], hand: [BATTA] },
+        opp: { spirits: [{ card: ROK, label: "攻撃役" }] },
+    },
+    steps(t) {
+        t.act("opp", { type: "nextPhase" })
+        t.act("opp", { type: "attack", instanceId: t.id("攻撃役") })
+        giveFlash(t, "me")
+        t.act("me", { type: "summon", handIndex: 0 })
+        settle(t)
+        t.closeFlash()
+        settle(t)
+    },
+    expect: [
+        "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 2", `自分.手札: ${names([BATTA])} → なし`,
+        ...arrive("ヨロイバッタ", { cores: 1, lv: 1, bp: 5000 }),
+        "相手.攻撃役.疲労: false → true",
+    ],
+})
+
+console.log("=== 020 ヨロイバッタ：通常の召喚では【連鎖】は出ない ===")
+scenario({
+    name: "batta-normal-summon-no-chain",
     start: {
         me: { spirits: [{ card: BLU, label: "青味方" }], hand: [BATTA] },
         opp: { spirits: [{ card: ROK, label: "標的" }] },
@@ -121,7 +145,7 @@ scenario({
     },
     expect: [
         "自分.リザーブ: 10 → 7", "自分.トラッシュのコア: 0 → 2", `自分.手札: ${names([BATTA])} → なし`,
-        ...arrive("ヨロイバッタ", { cores: 1, lv: 1, bp: 5000 }),
+        ...arrive("ヨロイバッタ", { cores: 1, lv: 1, bp: 2000 }),
     ],
 })
 

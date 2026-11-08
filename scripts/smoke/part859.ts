@@ -109,12 +109,21 @@ morphCombined("morph-lv1-combined-no-rest", 1, [3000, 6000], false)
 
 console.log("=== 059 ハンミョール：合体アタック時にコアを好きなだけトラッシュへ（1個につきBP+3000）。【連鎖】青：コスト2以下を破壊 ===")
 function pickNumber(t: ScenarioCtx, n: number): void {
-    const pc = t.state.pendingChoice as unknown as { pid: string; options?: string[] } | null
-    if (!pc) return
-    const opts = pc.options ?? []
-    const hit = opts.find((o) => o.replace(/\D/g, "") === String(n)) ?? opts[n]
-    if (hit === undefined) throw new Error(`数を選ぶ選択肢が見つからない: ${opts.join("／")}`)
-    t.act(pc.pid === t.me ? "me" : "opp", { type: "resolveChoice", option: hit })
+    // 「好きなだけ」の前に「発動する」の確認が出るので、数の選択肢が出るまで確認に答える
+    for (let i = 0; i < 3; i++) {
+        const pc = t.state.pendingChoice as unknown as { pid: string; options?: string[] } | null
+        if (!pc) return
+        const opts = pc.options ?? []
+        const side = pc.pid === t.me ? "me" : "opp"
+        const hit = opts.find((o) => o.replace(/\D/g, "") === String(n))
+        if (hit !== undefined) {
+            t.act(side, { type: "resolveChoice", option: hit })
+            return
+        }
+        if (opts.length === 0) throw new Error("数を選ぶ選択肢が見つからない")
+        t.act(side, { type: "resolveChoice", option: opts[0]! })
+    }
+    throw new Error("数を選ぶ選択肢が見つからない")
 }
 // 青シンボルあり：軽減2 → コスト1。なし：軽減1 → コスト2。置いた分のコアもトラッシュのコアに数える
 function hammy(name: string, o: { blue: boolean; place: number; soul?: boolean }): void {
@@ -124,6 +133,7 @@ function hammy(name: string, o: { blue: boolean; place: number; soul?: boolean }
     scenario({
         name,
         start: {
+            interactive: true,
             me: {
                 spirits: [{ card: MATANGO, label: "マタンゴル", cores: 3 }, ...(o.blue ? [{ card: BLU, label: "青味方" }] : [])],
                 hand: [HAMMY],

@@ -3,7 +3,7 @@ import { getCard } from "./helpers"
 import type { ScenarioCtx, Side } from "./scenario"
 
 // 分身スピリットのカード名はカード定義側で決まる。効果文に名前が無いため仮置き
-export const BN = "分身"
+export const BN = "分身スピリット"
 
 // 写像の「手札」「トラッシュ」の書式（名前を並べ替えて「、」でつなぐ）
 export const names = (ids: string[]): string => ids.map((c) => getCard(c).name).sort().join("、") || "なし"
@@ -25,7 +25,7 @@ export function braved(label: string): string[] {
     return [`${k}.場所: なし → 合体`, `${k}.疲労: なし → false`, `${k}.コア: なし → 0`, `${k}.Lv: なし → 1`]
 }
 
-type Pending = { pid: string; options?: string[]; cardIndices?: number[]; candidates?: string[] } | null
+type Pending = { pid: string; options?: string[]; cardIndices?: number[]; candidates?: string[]; optional?: boolean; confirm?: boolean } | null
 
 // 出た選択待ちに答えきる。yes＝「〜できる」の確認や任意の選択を受ける／no＝断る。
 // prefer に対象の instanceId を渡すと、候補にあればそれを選ぶ
@@ -36,7 +36,10 @@ export function settle(t: ScenarioCtx, answer: "yes" | "no" = "yes", prefer: str
         const side: Side = pc.pid === t.me ? "me" : "opp"
         const opts = pc.options ?? []
         const declines = (o: string) => /しない|いいえ|断る|発揮しない/.test(o)
-        if (opts.length) {
+        if (answer === "no" && pc.confirm && pc.optional) {
+            // 「発動する」だけが選択肢に出る確認は、何も選ばずに答えるのが断る操作
+            t.act(side, { type: "resolveChoice" })
+        } else if (opts.length) {
             const pick = opts.find((o) => (answer === "yes" ? !declines(o) : declines(o))) ?? opts[0]!
             t.act(side, { type: "resolveChoice", option: pick })
         } else if (pc.candidates?.length) {

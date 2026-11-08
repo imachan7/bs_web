@@ -71,6 +71,7 @@ const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
     ["BS20-021-e2", "神速の連鎖（召喚時の見出しは無い）"],
     ["BS21-063-e1", "【合体時】「このスピリットが相手によって破壊されたとき」は『』の見出しの無い破壊誘発。破壊待機の列で『破壊時』と同時に解決する（BS21_PLAN §2 の9）"],
     ["SD14-004-e2", "神速の連鎖（召喚時の見出しは無い）"],
+    ["BS23-020-e2", "神速の連鎖（召喚時の見出しは無い）"],
     // BS15-X04機獣要塞ナウマンガルド：印刷テキストに『』見出しが無い「相手によって破壊されたとき」節。
     // fieldEvent(selfOnly)にすると、destroySpiritが破壊時トリガーの間instをまだfield.spiritsに残したまま
     // extraSourcesにも同じinstを渡すため、effectSources()とextraSourcesの両方にinstが載って二重発火する
