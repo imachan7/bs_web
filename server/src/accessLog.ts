@@ -57,6 +57,15 @@ export function accessLogMiddleware(req: Request, res: Response, next: NextFunct
     next()
 }
 
+// 訪問者ID（日替わりソルト付きハッシュ）。matchLog など他のログからも
+// 「同じ訪問者の一連の動き」を数えるために公開する
+export function visitorId(
+    headers: Record<string, unknown>,
+    remoteAddress: string | undefined,
+): string {
+    return hashIp(clientIp(headers, remoteAddress))
+}
+
 // Socket.IO 側。HTTPのページビューは「開いただけ」を含むので、
 // 実際に対戦へ入った数はこちらで別に数える
 export function logSocketJoin(
@@ -64,5 +73,5 @@ export function logSocketJoin(
     remoteAddress: string | undefined,
     roomId: string,
 ): void {
-    emit("join", hashIp(clientIp(headers, remoteAddress)), roomId)
+    emit("join", visitorId(headers, remoteAddress), roomId)
 }

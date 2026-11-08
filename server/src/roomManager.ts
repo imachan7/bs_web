@@ -161,16 +161,25 @@ export class MatchQueue {
     }
 
     // 待機列に加える。すでに並んでいれば二重には入れない
-    add(entry: Omit<MatchQueueEntry, "queuedAt">): void {
+    // queuedAt が渡されたらそれを優先する（tryMatch が切断済み相手を捨てて
+    // 生き残りを列へ戻すとき、待ち時間の計測が振り出しに戻らないように）
+    add(entry: Omit<MatchQueueEntry, "queuedAt"> & { queuedAt?: number }): void {
         if (this.has(entry.socketId)) return
-        this.entries.push({ ...entry, queuedAt: Date.now() })
+        this.entries.push({ ...entry, queuedAt: entry.queuedAt ?? Date.now() })
     }
 
     // 待機列から外す。外したら true（キャンセル・切断の両方から呼ぶ）
     remove(socketId: string): boolean {
-        const before = this.entries.length
+        return this.removeEntry(socketId) !== null
+    }
+
+    // 待機列から外し、外したエントリを返す（待ち時間の計測が queuedAt を読むため）。
+    // 並んでいなければ null
+    removeEntry(socketId: string): MatchQueueEntry | null {
+        const entry = this.entries.find((e) => e.socketId === socketId)
+        if (!entry) return null
         this.entries = this.entries.filter((e) => e.socketId !== socketId)
-        return this.entries.length !== before
+        return entry
     }
 
     // 先頭2人を取り出す。2人揃っていなければ null（列は変えない）

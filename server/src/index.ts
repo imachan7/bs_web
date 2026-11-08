@@ -14,6 +14,7 @@ import { handleAction } from "./logic/GameEngine"
 import { applyDebugBoard, type DebugBoard } from "./logic/debugBoard"
 import { DECK_RECIPES } from "../../data/constants"
 import { accessLogMiddleware, logSocketJoin } from "./accessLog"
+import { logMatchLeft, logMatchMatched, logMatchQueued } from "./matchLog"
 
 const PORT = Number(process.env.PORT ?? 3000)
 
@@ -426,6 +427,12 @@ function tryMatch(): void {
             if (!socket) return
             const result = roomManager.join(roomId, entry.socketId, entry.name, entry.deck)
             if (!("room" in result)) return
+            // 計測（Phase 0）: 成立した1人分として、並んでからの時間を記録する
+            logMatchMatched(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                Date.now() - entry.queuedAt,
+            )
             socket.join(roomId)
             socket.emit("matchFound", { roomId })
             socket.emit("joined", { playerId: result.playerId, roomId })
@@ -512,7 +519,14 @@ io.on("connection", (socket: Socket) => {
             // **両方に居させると壊れる**：後からマッチが成立すると同じ socket が2つのルームに座り、
             // findBySocket が返すルームが不定になって action がどちらの対戦に届くか分からなくなる。
             // 席の確保に成功したここで外す（デッキ不正などで参加に失敗したときは待機を続けさせる）
-            if (matchQueue.remove(socket.id)) {
+            const leftForRoom = matchQueue.removeEntry(socket.id)
+            if (leftForRoom) {
+                logMatchLeft(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    "to_room",
+                    Date.now() - leftForRoom.queuedAt,
+                )
                 socket.emit("matchCancelled", {})
                 broadcastQueueSize()
             }
@@ -530,8 +544,14 @@ io.on("connection", (socket: Socket) => {
     socket.on(
         "randomMatch",
         (payload: { name?: string; deck?: string; deckCards?: Record<string, number> }) => {
-            if (matchQueue.has(socket.id)) {
-                matchQueue.remove(socket.id)
+            const leftByToggle = matchQueue.removeEntry(socket.id)
+            if (leftByToggle) {
+                logMatchLeft(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    "toggle",
+                    Date.now() - leftByToggle.queuedAt,
+                )
                 socket.emit("matchCancelled", {})
                 broadcastQueueSize()
                 return
@@ -552,6 +572,11 @@ io.on("connection", (socket: Socket) => {
                 "（ランダムマッチ）",
             )
             matchQueue.add({ socketId: socket.id, name, deck: resolved.deck })
+            logMatchQueued(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                matchQueue.size,
+            )
             socket.emit("matchQueued", { waiting: matchQueue.size })
             broadcastQueueSize()
             tryMatch()
@@ -560,7 +585,14 @@ io.on("connection", (socket: Socket) => {
 
     // 待機の取り消し（画面の「やめる」から。二重送信のトグルとは別に明示の口を用意する）
     socket.on("cancelRandomMatch", () => {
-        if (!matchQueue.remove(socket.id)) return
+        const leftByCancel = matchQueue.removeEntry(socket.id)
+        if (!leftByCancel) return
+        logMatchLeft(
+            socket.handshake.headers as Record<string, unknown>,
+            socket.handshake.address,
+            "cancel",
+            Date.now() - leftByCancel.queuedAt,
+        )
         socket.emit("matchCancelled", {})
         broadcastQueueSize()
     })
@@ -583,7 +615,14 @@ io.on("connection", (socket: Socket) => {
                 return
             }
             // ランダムマッチを待っている最中に AI戦を選んだら、待機は取り消す
-            if (matchQueue.remove(socket.id)) {
+            const leftForAi = matchQueue.removeEntry(socket.id)
+            if (leftForAi) {
+                logMatchLeft(
+                    socket.handshake.headers as Record<string, unknown>,
+                    socket.handshake.address,
+                    "to_ai",
+                    Date.now() - leftForAi.queuedAt,
+                )
                 socket.emit("matchCancelled", {})
                 broadcastQueueSize()
             }
@@ -633,7 +672,16 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("disconnect", () => {
         // 待機列に並んだまま閉じられた場合は列から外す（幽霊が先頭に残るとマッチが1回空振りする）
-        if (matchQueue.remove(socket.id)) broadcastQueueSize()
+        const leftByDisconnect = matchQueue.removeEntry(socket.id)
+        if (leftByDisconnect) {
+            logMatchLeft(
+                socket.handshake.headers as Record<string, unknown>,
+                socket.handshake.address,
+                "disconnect",
+                Date.now() - leftByDisconnect.queuedAt,
+            )
+            broadcastQueueSize()
+        }
         const found = roomManager.leave(socket.id)
         if (found) {
             const other: PlayerId = found.playerId === "p1" ? "p2" : "p1"
