@@ -194,7 +194,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "uncombinedFilter": true,
+     "filter": {
+      "uncombined": true
+     },
      "amount": 3000,
      "condition": "hasOwnBurstSet",
      "phaseTurn": {
@@ -587,7 +589,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "uncombinedFilter": true,
+     "filter": {
+      "uncombined": true
+     },
      "amount": 2000,
      "condition": "hasOwnBurstSet",
      "turn": "opponent"
@@ -764,8 +768,10 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "覇皇",
-     "uncombinedFilter": true,
+     "filter": {
+      "family": "覇皇",
+      "uncombined": true
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -782,8 +788,10 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "覇皇",
-     "uncombinedFilter": true,
+     "filter": {
+      "family": "覇皇",
+      "uncombined": true
+     },
      "amount": 5000,
      "condition": "hasOwnBurstSet",
      "phaseTurn": {

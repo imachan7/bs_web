@@ -14,7 +14,7 @@ import type { Board } from "../board"
 import { card } from "../cardDb"
 import { bofuCountFor, matchesFamilyFilter, spiritHasFamily, spiritHasKeywordOrLabel, targetArmorColorCount } from "./keywordState"
 import { entryActive } from "./effectStop"
-import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, instIsVanilla, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
+import { braveBpBonus, currentLevel, effectActiveAtLevel, effectSources, instAllCosts, instFamilies, instHasColor, instHasCost, instIsCombined, isSpiritOnField, isVirtualSource, opponentFieldColorCount, ownAllHaveFamily, ownAllHaveTeam, ownAllSpiritsHaveFamily, ownFieldOnlyColor, ownTeamAtLeast } from "./level"
 import { countSymbols, handSizeOf, instanceSymbolCount } from "./symbols"
 import { cardNameContains, instMatchesCostFilter, matchesTarget } from "./targetFilter"
 
@@ -392,64 +392,23 @@ export function auraAppliesTo(
         if (aura.turn === "own" && sourcePid !== board.turnPlayer) return false
         if (aura.turn === "opponent" && sourcePid === board.turnPlayer) return false
     }
-    // バトル中かどうかの3つも target を問わず適用する（phaseTurn と同じ理由）。
-    // かつては target:"self" の早期リターンより後にあり、**self では黙って無視されていた**
-    // （2026-08-16 に SD02-009 獣将軍クジャルタで判明。当時の該当カードはこの1枚だけ）
-    if (aura.battlingOnly) {
-        if (!board.battle) return false
-        if (
-            board.battle.attackerInstanceId !== targetInst.instanceId &&
-            board.battle.blockerInstanceId !== targetInst.instanceId
-        ) {
-            return false
-        }
-    }
-    if (aura.attackingOnly) {
-        if (!board.battle) return false
-        if (board.battle.attackerInstanceId !== targetInst.instanceId) return false
-    }
-    if (aura.blockingOnly) {
-        if (!board.battle) return false
-        if (board.battle.blockerInstanceId !== targetInst.instanceId) return false
-    }
     if (aura.target === "self") {
+        // filter は self でも効く（バトル中限定の軸。2026-08-16 SD02-009 で self では無視されていた不具合が判明）
+        if (aura.filter && !matchesTarget(board, targetOwnerPid, targetInst, aura.filter, sourceInst.instanceId)) return false
         // 合体中のブレイヴが【合体時】で言う「このスピリット」はホストを指す（BRAVE.md §12.3。BS14-070ダイヤドカリ）
         return sourceInst.instanceId === targetInst.instanceId || (targetInst.braveRefs?.some((r) => r.instanceId === sourceInst.instanceId) ?? false)
     }
     // target === "chosenInstance"：targetChoiceLendThisTurn で選んだ1体だけ（発生源は仮想発生源）
     if (aura.target === "chosenInstance") {
+        if (aura.filter && !matchesTarget(board, targetOwnerPid, targetInst, aura.filter, sourceInst.instanceId)) return false
         return sourceInst.lentChoiceInstanceId === targetInst.instanceId
     }
     // target === "ownAll"：発生源の持ち主のスピリットすべて（ネクサスは対象外）
     if (sourcePid !== targetOwnerPid) return false
-    if (aura.excludeSelf && sourceInst.instanceId === targetInst.instanceId) return false
     if (!isSpiritOnField(board, targetOwnerPid, targetInst.instanceId)) return false
-    if (aura.colorFilter && !(Array.isArray(aura.colorFilter) ? aura.colorFilter : [aura.colorFilter]).some((c) => instHasColor(targetInst, c))) {
-        return false
-    }
     if (aura.filter && !matchesTarget(board, targetOwnerPid, targetInst, aura.filter, sourceInst.instanceId)) return false
-    // combinedFilter（BS10-097ブレイヴオーラ：合体スピリットへの追加BP）
-    if (aura.combinedFilter === true && !instIsCombined(targetInst)) {
-        return false
-    }
-    // uncombinedFilter（combinedFilterのちょうど逆。SD06-004ドス・モンキ：合体していないスピリットすべて）
-    if (aura.uncombinedFilter === true && instIsCombined(targetInst)) {
-        return false
-    }
-    // braveOnly（BS10-086巨星望む大樹Lv1：自分のスピリット状態のブレイヴすべて）。合体中のブレイヴは
-    // field.spiritsに実体が無いため、ownAllの走査に来た時点で自動的に「スピリット状態」を意味する
-    if (aura.braveOnly === true && card(targetInst.cardId).type !== "brave") {
-        return false
-    }
     if (aura.refreshedOnly === true && targetInst.isRested) return false
-    if (aura.restedOnly === true && !targetInst.isRested) return false
-    if (aura.summonedThisTurnOnly && targetInst.summonedTurn !== board.turn) {
-        return false
-    }
     if (aura.summonedByFilter !== undefined && targetInst.summonedBy !== aura.summonedByFilter) {
-        return false
-    }
-    if (aura.minSymbols !== undefined && instanceSymbolCount(targetInst) < aura.minSymbols) {
         return false
     }
     // 軽減シンボルの色数（BS09-003角竜人ドラケンLv2＝「軽減シンボルを2色以上持つ」）。
@@ -458,63 +417,15 @@ export function auraAppliesTo(
         const colors = new Set(card(targetInst.cardId).reduction)
         if (colors.size < aura.reductionColorsAtLeast) return false
     }
-    if (
-        aura.keywordFilter &&
-        !spiritHasKeywordOrLabel(board, targetOwnerPid, targetInst, aura.keywordFilter)
-    ) {
-        return false
-    }
-    // keywordsFilter（OR。BS11-081 ライトニングデリバリー＝【光芒】/【聖命】）
-    if (
-        aura.keywordsFilter &&
-        !aura.keywordsFilter.some((k) => spiritHasKeywordOrLabel(board, targetOwnerPid, targetInst, k))
-    ) {
-        return false
-    }
-    if (aura.minCores !== undefined && targetInst.cores < aura.minCores) {
-        return false
-    }
-    if (aura.coresExact !== undefined && targetInst.cores !== aura.coresExact) {
-        return false
-    }
-    if (aura.costFilter !== undefined && !instHasCost(targetInst, aura.costFilter)) {
-        return false
-    }
-    if (aura.levelFilter !== undefined && !aura.levelFilter.includes(currentLevel(targetInst).level)) {
-        return false
-    }
-    // costMinFilter（BS07造兵工房Lv2：コスト3以上）。costFilter＝完全一致とは別軸で、
-    // 付与コスト（道化師クラン）も含めていずれかが下限以上なら通す
-    const costMin = aura.costMinFilter
-    if (costMin !== undefined && !instAllCosts(targetInst).some((cost) => cost >= costMin)) {
-        return false
-    }
     const costMax = aura.costMaxFilter
     if (costMax !== undefined && !instAllCosts(targetInst).some((cost) => cost <= costMax)) {
         return false
-    }
-    if (
-        aura.familyFilter &&
-        !matchesFamilyFilter(board, targetOwnerPid, targetInst, aura.familyFilter)
-    ) {
-        return false
-    }
-    if (aura.familyAllFilter !== undefined && !aura.familyAllFilter.every((f) => spiritHasFamily(board, targetOwnerPid, targetInst, f))) {
-        return false
-    }
-    // nameIncludesFilter（配列＝いずれかを含むOR。26系スピッツ・ドラコニー：「ノア・フルール」/「ディアナ・フルール」）
-    if (aura.nameIncludesFilter !== undefined) {
-        const names = Array.isArray(aura.nameIncludesFilter) ? aura.nameIncludesFilter : [aura.nameIncludesFilter]
-        if (!names.some((n) => cardNameContains(targetInst, n))) return false
     }
     // teamFilter（26系グリーンウェーブステージ：指定チーム（CardData.team）所属のスピリットのみ）
     if (aura.teamFilter !== undefined && !(card(targetInst.cardId).team ?? []).includes(aura.teamFilter)) {
         return false
     }
     if (aura.keishoFilter && !card(targetInst.cardId).effects.some((e) => e.kind === "exTrashReduction")) return false
-    if (aura.vanillaFilter && !instIsVanilla(targetInst)) {
-        return false
-    }
     return true
 }
 // オーラ1件の増加量（発生源の持ち主 sourcePid 基準でカウンタ・条件を評価する）。

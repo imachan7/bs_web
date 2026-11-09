@@ -369,8 +369,8 @@ const S4_VERIFIED: Record<string, string> = {
     "BS01-105|Lv1･Lv2『お互いのアタックステップ』": "fieldEventはaction自身に作用し陣営不問のため（2026-09-16 確認）",
     // 魔帝の墓標: 同上（重複見出し）のため
     "BS01-105|Lv2『お互いのアタックステップ』": "同上（重複見出し）のため（2026-09-16 確認）",
-    // 隠されたる賢者の樹: auraはbattlingOnlyで対象自体が攻防中限定のため
-    "BS01-106|Lv1･Lv2『お互いのアタックステップ』": "auraはbattlingOnlyで対象自体が攻防中限定のため（2026-09-16 確認）",
+    // 隠されたる賢者の樹: auraはinBattle（旧battlingOnly）で対象自体が攻防中限定のため
+    "BS01-106|Lv1･Lv2『お互いのアタックステップ』": "auraはinBattle（旧battlingOnly）で対象自体が攻防中限定のため（2026-09-16 確認）",
     // ドラグノ突撃兵: 見出しはconstraintで別見出しのtriggeredと混同のため
     "BS02-005|Lv1･Lv2『相手のアタックステップ』": "見出しはconstraintで別見出しのtriggeredと混同のため（2026-09-16 確認）",
     // 騎獣スレイプホース: magicBuffBonusはphase==="attack"がハードコード済みのため

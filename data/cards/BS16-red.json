@@ -441,7 +441,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "nameIncludesFilter": "ドラゴン",
+          "filter": {
+            "nameContains": "ドラゴン"
+          },
           "amount": 2000,
           "phaseTurn": {
             "phase": "attack",

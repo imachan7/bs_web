@@ -2083,7 +2083,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "attackingOnly": true,
+          "filter": {
+            "attackingOnly": true
+          },
           "amount": 1000
         }
       },
@@ -2095,9 +2097,11 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "attackingOnly": true,
-          "amount": 3000,
-          "combinedFilter": true
+          "filter": {
+            "attackingOnly": true,
+            "combined": true
+          },
+          "amount": 3000
         }
       }
     ]
@@ -4651,7 +4655,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": "空魚",
+          "filter": {
+            "family": "空魚"
+          },
           "amount": 3000,
           "phaseTurn": {
             "phase": "attack",
@@ -4904,7 +4910,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "blockingOnly": true,
+          "filter": {
+            "blocking": true
+          },
           "amount": 2000,
           "lentOnly": true
         }
@@ -4916,10 +4924,12 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "blockingOnly": true,
+          "filter": {
+            "blocking": true,
+            "combined": true
+          },
           "amount": 3000,
-          "lentOnly": true,
-          "combinedFilter": true
+          "lentOnly": true
         }
       }
     ]
@@ -7225,7 +7235,9 @@
           "type": "bp",
           "target": "ownAll",
           "amount": 2000,
-          "braveOnly": true,
+          "filter": {
+            "braveInSpiritState": true
+          },
           "phaseTurn": {
             "phase": "attack",
             "turn": "both"

@@ -303,10 +303,12 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "竜人",
-            "翼竜"
-          ],
+          "filter": {
+            "family": [
+              "竜人",
+              "翼竜"
+            ]
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -904,9 +906,11 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "地竜"
-          ],
+          "filter": {
+            "family": [
+              "地竜"
+            ]
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -1012,7 +1016,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": "空魚",
+          "filter": {
+            "family": "空魚"
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -1125,10 +1131,12 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "空牙",
-            "神将"
-          ],
+          "filter": {
+            "family": [
+              "空牙",
+              "神将"
+            ]
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -1470,7 +1478,9 @@
             "phase": "attack",
             "turn": "own"
           },
-          "attackingOnly": true
+          "filter": {
+            "attackingOnly": true
+          }
         }
       },
       {
@@ -1559,10 +1569,12 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "星竜",
-            "翼竜"
-          ],
+          "filter": {
+            "family": [
+              "星竜",
+              "翼竜"
+            ]
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -1763,10 +1775,12 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "甲竜",
-            "神将"
-          ],
+          "filter": {
+            "family": [
+              "甲竜",
+              "神将"
+            ]
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -3565,7 +3579,9 @@
         "aura": {
           "type": "bp",
           "target": "self",
-          "attackingOnly": true,
+          "filter": {
+            "attackingOnly": true
+          },
           "amount": 4000,
           "condition": {
             "selfNotCombined": true
@@ -3786,7 +3802,9 @@
         "aura": {
           "type": "bp",
           "target": "self",
-          "blockingOnly": true,
+          "filter": {
+            "blocking": true
+          },
           "amount": 4000,
           "condition": {
             "selfNotCombined": true
@@ -4016,7 +4034,9 @@
           "target": "ownAll",
           "amountPer": 1000,
           "counter": "ownNexuses",
-          "keywordFilter": "kyoshu",
+          "filter": {
+            "keyword": "kyoshu"
+          },
           "phaseTurn": {
             "phase": "attack",
             "turn": "own"
@@ -5834,7 +5854,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "excludeSelf": true,
+          "filter": {
+            "excludeSelf": true
+          },
           "amount": 2000,
           "phaseTurn": {
             "phase": "attack",

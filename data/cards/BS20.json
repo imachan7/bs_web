@@ -111,7 +111,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "星竜",
+     "filter": {
+      "family": "星竜"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -1667,7 +1669,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "battlingOnly": true,
+     "filter": {
+      "inBattle": true
+     },
      "amountPer": 1000,
      "counter": "targetCores",
      "phaseTurn": {
@@ -4753,7 +4757,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "purple",
+     "filter": {
+      "color": "purple"
+     },
      "amount": 1000
     }
    },
@@ -6007,7 +6013,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "green",
+     "filter": {
+      "color": "green"
+     },
      "amountPer": 1000,
      "counter": {
       "ownFamily": "爪鳥"

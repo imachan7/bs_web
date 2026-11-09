@@ -136,14 +136,14 @@ const BUFF_NEXUS = CARDS.find((c) => {
             aura?.["type"] === "bp" &&
             aura["target"] === "ownAll" &&
             typeof aura["amount"] === "number" &&
-            typeof aura["colorFilter"] === "string" &&
-            aura["battlingOnly"] === undefined
+            typeof (aura["filter"] as Record<string, unknown> | undefined)?.["color"] === "string" &&
+            (aura["filter"] as Record<string, unknown>)["inBattle"] === undefined
         )
     })
 })!
 const BUFF_ENTRY = (BUFF_NEXUS.effects ?? []).find((e) => e["kind"] === "aura")!
 const BUFF_AURA = BUFF_ENTRY["aura"] as Record<string, unknown>
-const BUFF_COLOR = BUFF_AURA["colorFilter"] as string
+const BUFF_COLOR = (BUFF_AURA["filter"] as Record<string, unknown>)["color"] as string
 const BUFF_AMOUNT = BUFF_AURA["amount"] as number
 
 console.log("=== 破壊待機中のネクサスも、継続効果はそのまま働く ===")

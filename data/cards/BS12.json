@@ -213,7 +213,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "braveOnly": true,
+          "filter": {
+            "braveInSpiritState": true
+          },
           "amount": 3000
         }
       }
@@ -1188,11 +1190,13 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "怪虫",
-            "殻虫",
-            "殻人"
-          ],
+          "filter": {
+            "family": [
+              "怪虫",
+              "殻虫",
+              "殻人"
+            ]
+          },
           "amount": 1000
         }
       }
@@ -1431,11 +1435,13 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "怪虫",
-            "殻虫",
-            "殻人"
-          ],
+          "filter": {
+            "family": [
+              "怪虫",
+              "殻虫",
+              "殻人"
+            ]
+          },
           "amount": 1000
         }
       }
@@ -1512,11 +1518,13 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "怪虫",
-            "殻虫",
-            "殻人"
-          ],
+          "filter": {
+            "family": [
+              "怪虫",
+              "殻虫",
+              "殻人"
+            ]
+          },
           "amount": 1000
         }
       }
@@ -2079,7 +2087,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "colorFilter": "white",
+          "filter": {
+            "color": "white"
+          },
           "amount": 3000,
           "phaseTurn": {
             "phase": "attack",
