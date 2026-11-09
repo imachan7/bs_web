@@ -109,7 +109,8 @@ export type EffectDefCost =
           cardTypes?: CardType[] // cardType の複数版（どれかに一致）。Q4338：コストは印刷のコストで見る
           asSurcharge?: true // 余分のコストとして扱う：軽減の後に足し、「コストを支払わずに」の召喚でも払う（COST_MODEL §11。summonSurcharge が読む）
           costIn?: number[] // 対象カードの印刷のコストがこの一覧のどれか
-          side?: "opponent" // 指定時は「発生源の持ち主から見て相手」のカードのみに適用
+          side?: "opponent" | "own" // 指定時は「発生源の持ち主から見て相手／自分」のカードのみに適用
+          cardName?: string // 対象カードのカード名（完全一致）。手札以外からの召喚は区別しない（BS23-046の簡略化）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" } // 持ち主基準のステップ・turn条件
           turn?: "own" | "opponent" // phaseTurnと違いステップを問わないturn限定
           condition?:

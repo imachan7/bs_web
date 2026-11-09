@@ -47,6 +47,8 @@ function costModSum(board: Board, usingPid: PlayerId, cardData: CardData, before
                 if (effect.costIn !== undefined && !effect.costIn.includes(cardData.cost)) continue
                 // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
                 if (effect.side === "opponent" && usingPid === pid) continue
+                if (effect.side === "own" && usingPid !== pid) continue
+                if (effect.cardName !== undefined && cardData.name !== effect.cardName) continue
                 if (effect.phaseTurn) {
                     if (board.phase !== effect.phaseTurn.phase) continue
                     if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue

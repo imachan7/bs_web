@@ -303,8 +303,8 @@ function placeLastTargets(ctx: Parameters<ActionHandler<"timedEffect">>[0], acti
 function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: TimedEffect, filter: ResolvedTargetFilter): void {
     const { state, owner, opp, self, sourceName } = ctx
     const skipOnly = action.duration === "nextRefresh" && action.content.every((c) => c.type === "cantRefresh")
-    // バトル期間のルールとして置けるのは Lv の置き換えだけ（ほかの content は期間切れの扱いを確かめていない）
-    if (action.duration !== "turn" && !skipOnly && !action.content.some((c) => c.type === "level")) {
+    // バトル期間のルールとして置けるのは Lv の置き換えと効果の無効化だけ（ほかの content は期間切れの扱いを確かめていない）
+    if (action.duration !== "turn" && !skipOnly && !action.content.some((c) => c.type === "level" || c.type === "effectsDisabled")) {
         log(state, `${sourceName}：「このバトルの間、〜すべて」は未対応のため発揮しなかった。`)
         return
     }
@@ -358,7 +358,7 @@ function placeRule(ctx: Parameters<ActionHandler<"timedEffect">>[0], action: Tim
         log(state, `${sourceName}：${who}スピリットすべては、次のリフレッシュステップで回復できない。`)
         return
     }
-    log(state, `${sourceName}：このターンの間、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
+    log(state, `${sourceName}：${action.duration === "battle" ? "このバトルの間" : "このターンの間"}、条件に合う${who}スピリットすべては${contentLabel(action)}。`)
 }
 
 // 1体にキーワードを与える。対象の決め方は旧 grantKeyword と同じ（指定が無ければバトル中の自分のスピリット優先）

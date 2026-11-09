@@ -253,9 +253,8 @@ function fil(oppSpirits: string[], combined = true) {
     const { s, host, brave, opp } = fil([VOLCANO, DURANZAM])
     assert(act(s, "p1", { type: "attack", instanceId: host.instanceId }) === null, "合体したフィランダーがアタックできる")
     const pc = s.pendingChoice
-    if (pc && pc.confirm) answerAll(s, { picks: [] })
-    const pc2 = s.pendingChoice
-    assert(pc2 !== null && pc2.kind === "target" && pc2.candidates.includes(opp[0]!.instanceId) && !pc2.candidates.includes(opp[1]!.instanceId), "対象の候補は合計コスト9以下（ボルカノ・ゴレム）だけ")
+    if (pc && pc.confirm) assert(act(s, "p1", { type: "resolveChoice", option: "発動する" }) === null, "発動を確認する")
+    // 候補が合計コスト9以下のボルカノ・ゴレム1体だけなので、対象の選択は自動で決まる（選択待ちは出ない）
     answerAll(s, { picks: [opp[0]!.instanceId] })
     assert(!s.players.p2.field.spirits.some((x) => x.instanceId === opp[0]!.instanceId), "ボルカノ・ゴレムが破壊された")
     assert(s.players.p2.field.spirits.some((x) => x.instanceId === opp[1]!.instanceId), "デュランザムは破壊されない")

@@ -742,9 +742,17 @@ export function instCantBlockByCost(board: Board, inst: CardInstance): boolean {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
-                if (constraint.type !== "cantBlockByCost") continue
+                if (constraint.type !== "cantBlockByCost" && constraint.type !== "opponentCantBlockByCost") continue
                 if (!entryActive(board, pid, source, effect, level)) continue
-                if (costsOfBlocker.some((cost) => constraint.costs.includes(cost))) return true
+                if (constraint.type === "opponentCantBlockByCost") {
+                    if (board.players[pid].field.spirits.some((s) => s.instanceId === inst.instanceId)) continue
+                    if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                    if (effect.turn !== undefined && effect.turn !== "both" && (effect.turn === "own") !== (board.turnPlayer === pid)) continue
+                }
+                if (costsOfBlocker.some((cost) => constraint.costs.includes(cost))) {
+                    noteCoverage(effect, "globalConstraint")
+                    return true
+                }
             }
         }
     }

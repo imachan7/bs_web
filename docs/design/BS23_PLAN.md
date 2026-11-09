@@ -124,3 +124,5 @@
 - 071・BS19-099 の「効果では疲労しない」でコストの疲労を止めるのは、召喚・マジックの疲労による支払い（payAssistByExhaust）と起動能力の自身の疲労だけ（`costExhaustLocked`）。GameEngine の起動支払い・revive.ts・【氷壁】の exhaustSelf・pay の「自分の〜を疲労させる」はまだ払える
 - 064 の timedEffect は symbolAdd と unblockable を1本の content にまとめると unblockable が効かず、2本に分けた（複数 content の片方が落ちる不具合の疑い。未調査）
 - 071 Lv2「そのままトラッシュに置かれたとき」は ownSpiritDestroyed の発火に任せており、破壊後に場に残る・手札に戻る場合に出ないことは確かめていない
+- 046 は「手札にある」を区別しない（手札以外から召喚するデュランザムにも-1）
+- 065「相手のスピリット/ブレイヴ/ネクサスの効果すべて」は、スピリットの effectsDisabled（合体中のブレイヴ込み）とネクサスの nexusEffectsDisabledForPid の2本の timedEffect で書いた

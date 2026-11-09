@@ -619,7 +619,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const targets =
                         effect.target === "ownAll"
                             ? player.field.spirits.filter((sp) => matchesTarget(state, pid, sp, effect.filter as ResolvedTargetFilter | undefined))
-                            : [source]
+                            : effect.whileCombined === true && player.field.combinedBraves.includes(source)
+                              ? hostsOf(player, source) // 合体中のブレイヴの「このスピリットに」はホスト（BS23-066）
+                              : [source]
                     for (const target of targets) {
                         noteCoverage(effect, "symbolAddGrant")
                         if (!target.symbolsAddedContinuous) target.symbolsAddedContinuous = []

@@ -1,0 +1,6 @@
+- 046 costMod(cardName,side:own)・048 battleOpponentMatches{minSymbols:2}＋timedEffect battle・049 levelAs＋rensa を BS23.json に書いた。part867 の 048 の BP 行は battle 期間のため削除。
+- 054（opponentCantBlockByCost を shared/rules/constraints.ts に追加）まで書いた。part867 ❌0。
+- 050/051/052 書いた。filter.ts maxCostAsSelf を合体合計コスト(instAllCosts)に変更、destroyOwnBrave に hostSelf。part868 ❌0。残り 065/066/083（part869）
+- 065（timedEffect の all+effectsDisabled を battle 期間でも置けるよう placeRule を緩和）書いた。part869 065 ✅。残り 066・083
+- 066（symbolAddGrant: whileCombined のブレイヴは hostsOf に付与）書いた。残り 083
+- 083 書いた。part867〜869 ❌0。残り: 既存part・validate確認

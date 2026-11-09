@@ -833,6 +833,33 @@
      "combinableWithSelf": true
     },
     "battleRole": "attacker"
+   },
+   {
+    "id": "BS23-050-e2",
+    "kind": "fieldEvent",
+    "event": "anySpiritAttacked",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "phase": "attack",
+    "turn": "own",
+    "ownOnly": true,
+    "subjectFilter": {
+     "family": [
+      "剣使",
+      "異合"
+     ]
+    },
+    "action": {
+     "type": "placeCores",
+     "from": "void",
+     "to": "spirit",
+     "target": "self",
+     "count": 1
+    },
+    "selfMode": "source"
    }
   ]
  },
@@ -918,6 +945,39 @@
        "from": "hand",
        "side": "own",
        "count": 2
+      }
+     ]
+    }
+   },
+   {
+    "id": "BS23-052-e3",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "optional": true,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "destroy",
+       "count": 1,
+       "filter": {
+        "maxCostAsSelf": true
+       }
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {}
+       },
+       "then": {
+        "type": "destroyOwnBrave",
+        "hostSelf": true
+       }
       }
      ]
     }

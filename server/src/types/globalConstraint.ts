@@ -14,6 +14,7 @@ export type GlobalConstraintDef =
     | { type: "opponentCantAttackByCost"; costs: number[] } // 発生源の持ち主から見た相手のスピリットのうち、コストが配列のいずれかと一致するものはアタック不可（ブロックは可。片側限定）
     | { type: "opponentCantAttackByCores"; cores: number } // コア数がちょうどこの数の相手のスピリットはアタック不可（ブロックは可）
     | { type: "cantAttackByCost"; costs: number[] } // opponentCantAttackByCost の両陣営版
+    | { type: "opponentCantBlockByCost"; costs: number[] } // opponentCantAttackByCost のブロック版（発生源の持ち主から見た相手のスピリットだけ。phase/turn は instCantBlockByCost が読む）
     | { type: "cantBlockByCost"; costs: number[] } // cantAttackByCost のブロック版（両陣営）
     | { type: "cantBounce"; by?: "effect"; to?: ("hand" | "deck")[]; target?: ResolvedTargetFilter } // 両陣営のスピリットは、フィールドから to（省略＝手札のみ。デッキへ戻すのは止めない）へ戻らない。by:"effect" は効果による戻し（「〜することで」の支払いとして戻すのも効果のうち。2026-11-07 ユーザー確認）だけを止め、省略は原因を問わない。target＝戻される側の絞り込み。phase/turn はエントリ直下を見る（bounceDenial）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た相手のネクサスは疲労させられない（【強襲】の疲労元等も止める）。phase 指定時はそのステップ中のみ

@@ -2445,7 +2445,24 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分の手札にある［海皇巨神デュランザム］を召喚するとき、そのコストを-1する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-046-e1",
+    "kind": "costMod",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "amount": -1,
+    "cardName": "海皇巨神デュランザム",
+    "side": "own",
+    "phaseTurn": {
+     "phase": "main",
+     "turn": "own"
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-048",
@@ -2486,7 +2503,67 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのブロック時』\nシンボル2つ以上を持つ相手のスピリットをブロックしたとき、このスピリットをBP+7000する。\n【連鎖：条件《紫シンボル》】\n(自分の紫シンボルがあるとき、下の効果を続けて発揮する)\n[紫]：自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-048-e1",
+    "kind": "triggered",
+    "trigger": "onBlock",
+    "eventTarget": "ignore",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "condition": {
+     "battleOpponentMatches": {
+      "minSymbols": 2
+     }
+    },
+    "action": {
+     "type": "timedEffect",
+     "content": [
+      {
+       "type": "bp",
+       "amount": 7000
+      }
+     ],
+     "duration": "battle",
+     "target": "self"
+    }
+   },
+   {
+    "id": "BS23-048-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onBlock",
+    "eventTarget": "ignore",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "condition": {
+     "battleOpponentMatches": {
+      "minSymbols": 2
+     }
+    },
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "purple"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "draw",
+      "count": 1
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-049",
@@ -2527,7 +2604,46 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『このスピリットのアタック時』\nこのスピリットのLvを1つ上のものとして扱う。\n【連鎖：条件《緑シンボル》】\n(自分の緑シンボルがあるとき、下の効果を続けて発揮する)\n[緑]：ボイドからコア1個をこのスピリットに置く。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-049-e1",
+    "kind": "levelAs",
+    "levels": null,
+    "target": "self",
+    "treatAs": {
+     "plus": 1
+    },
+    "whileAttacking": true
+   },
+   {
+    "id": "BS23-049-e2",
+    "kind": "triggered",
+    "keyword": "rensa",
+    "trigger": "onAttack",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "optional": false,
+    "action": {
+     "type": "if",
+     "cond": {
+      "count": {
+       "ownColorSymbols": "green"
+      },
+      "atLeast": 1
+     },
+     "then": {
+      "type": "placeCores",
+      "from": "void",
+      "to": "spirit",
+      "target": "self",
+      "count": 1
+     }
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-051",
@@ -2568,7 +2684,34 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n系統：「剣刃」を持つブレイヴがコストを支払って召喚されたとき、自分の手札にあるネクサスカード1枚を、コストを支払わずに配置できる。\nこの効果はターンに1回しか使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-051-e1",
+    "kind": "fieldEvent",
+    "event": "anyBraveSummoned",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phase": "main",
+    "turn": "own",
+    "subjectSide": "own",
+    "subjectFilter": {
+     "family": "剣刃"
+    },
+    "selfMode": "source",
+    "paidCostOnly": true,
+    "optional": false,
+    "oncePerTurn": true,
+    "onceScope": "name",
+    "action": {
+     "type": "deployNexus",
+     "from": "hand",
+     "optional": true
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-054",
@@ -2607,7 +2750,67 @@
   "rarity": "U",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n系統：「剣使」/「造兵」を持つ自分のスピリット1体につき、コスト7以下の相手のスピリット1体を破壊する。\nLv1･Lv2『お互いのアタックステップ』\nコスト1/2の相手のスピリットすべてはアタック/ブロックできない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-054-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "countCounter": {
+      "ownFamily": [
+       "剣使",
+       "造兵"
+      ]
+     },
+     "filter": {
+      "cost": {
+       "max": 7
+      }
+     }
+    }
+   },
+   {
+    "id": "BS23-054-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "both",
+    "constraint": {
+     "type": "opponentCantAttackByCost",
+     "costs": [
+      1,
+      2
+     ]
+    }
+   },
+   {
+    "id": "BS23-054-e3",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "phase": "attack",
+    "turn": "both",
+    "constraint": {
+     "type": "opponentCantBlockByCost",
+     "costs": [
+      1,
+      2
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-057",
@@ -3183,7 +3386,66 @@
   "braveCondition": {
    "family": "剣使"
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-065-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "peekOpponentBurst"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {
+         "cardType": "magic"
+        }
+       },
+       "then": {
+        "type": "sequence",
+        "actions": [
+         {
+          "type": "discard",
+          "from": "burst",
+          "side": "opponent"
+         },
+         {
+          "type": "timedEffect",
+          "content": [
+           {
+            "type": "effectsDisabled"
+           }
+          ],
+          "duration": "battle",
+          "all": true,
+          "side": "opponent"
+         },
+         {
+          "type": "timedEffect",
+          "content": [
+           {
+            "type": "playerRule",
+            "rule": {
+             "type": "nexusEffectsDisabledForPid"
+            }
+           }
+          ],
+          "duration": "battle",
+          "side": "opponent"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-066",
@@ -3224,7 +3486,39 @@
   "braveCondition": {
    "minCost": 3
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-066-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1
+    ],
+    "optional": false,
+    "action": {
+     "type": "destroy",
+     "count": 1,
+     "countCounter": "opponentLife",
+     "filter": {
+      "cost": {
+       "max": 3
+      }
+     }
+    }
+   },
+   {
+    "id": "BS23-066-e2",
+    "kind": "symbolAddGrant",
+    "levels": null,
+    "whileCombined": true,
+    "target": "self",
+    "color": "blue",
+    "condition": {
+     "count": "ownHand",
+     "atMost": 3
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-067",
@@ -4006,7 +4300,58 @@
   "rarity": "U",
   "limited": false,
   "effect": "フラッシュ：\n相手のバースト1つの内容を見て、相手のデッキを上から、そのカードのコストと同じ枚数破棄する。\n系統：「剣使」を持つ自分のスピリットがいるとき、さらに、相手のデッキを上から5枚破棄する。\nこの効果はターンに1回しか使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-083-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "oncePerTurnByName": true,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "peekOpponentBurst"
+      },
+      {
+       "type": "if",
+       "cond": {
+        "last": {}
+       },
+       "then": {
+        "type": "if",
+        "cond": {
+         "count": {
+          "ownSpirits": {
+           "family": "剣使"
+          }
+         },
+         "atLeast": 1
+        },
+        "then": {
+         "type": "discard",
+         "from": "deck",
+         "side": "opponent",
+         "count": 1,
+         "countCounter": {
+          "plus": [
+           "lastCost",
+           5
+          ]
+         }
+        },
+        "else": {
+         "type": "discard",
+         "from": "deck",
+         "side": "opponent",
+         "count": 1,
+         "countCounter": "lastCost"
+        }
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-X02",

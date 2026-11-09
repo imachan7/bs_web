@@ -14,16 +14,19 @@ export function ownBraveCandidates(state: GameState, pid: PlayerId): CardInstanc
 }
 
 // 破壊したブレイヴは lastMoved に書く（直後の maxCostAsLast が、そのブレイヴの印刷コストを読む）
-const destroyOwnBraveHandler: ActionHandler<"destroyOwnBrave"> = (ctx) => {
+const destroyOwnBraveHandler: ActionHandler<"destroyOwnBrave"> = (ctx, action) => {
     const { state, owner, self, sourceName, targetInstanceId, destroyContext } = ctx
-    const braves = ownBraveCandidates(state, owner)
+    // hostSelf：発生源（合体スピリットのホスト）に合体しているブレイヴだけを候補にする（BS23-052「このスピリットのブレイヴ1つ」）
+    const braves = action.hostSelf
+        ? state.players[owner].field.combinedBraves.filter((b) => (self?.braveRefs ?? []).some((r) => r.instanceId === b.instanceId))
+        : ownBraveCandidates(state, owner)
     if (braves.length === 0) {
         log(state, `${sourceName}：破壊できる自分のブレイヴがいなかった。`)
         return
     }
     const chosen = braves.find((b) => b.instanceId === targetInstanceId) ?? (state.interactiveTargets && braves.length >= 2 ? undefined : braves[0])
     if (!chosen) {
-        requestChoice(state, owner, `${sourceName}：破壊する自分のブレイヴを選んでください`, braves.map((b) => b.instanceId), false, { type: "destroyOwnBrave" }, self)
+        requestChoice(state, owner, `${sourceName}：破壊する自分のブレイヴを選んでください`, braves.map((b) => b.instanceId), false, action, self)
         return
     }
     const scope = currentRecordScope(state)
