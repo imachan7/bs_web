@@ -50,6 +50,10 @@
 - 「召喚時効果は発揮されない」を自身の召喚時だけにする規則に、BS15-064 の配置経路（revive.ts）と兵隊アントマンの繰り返し召喚（summonRepeat.ts）がまだそろっていない
 - 「効果では疲労しない」でコストの疲労を止める入口が4つ残っている（GameEngine の起動支払い・revive.ts・【氷壁】の exhaustSelf・pay の「疲労させる」。EFFECT_GATE §1 の 11-09 の行）
 
+### 絞り込みの付録の統一（2026-11-09 着手）
+
+- 調査と決定は [FILTER_UNIFY_APPENDIX.md](./docs/design/FILTER_UNIFY_APPENDIX.md) §12。PR は fix 3本（装甲の付与先・色・ラベル付きキーワード）→ 統一2本の順
+
 ### 既知の残り（触るときに読む）
 
 - 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
