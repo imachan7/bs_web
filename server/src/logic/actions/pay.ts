@@ -1,6 +1,7 @@
 // 「〜することで〜する」の汎用の器（COST_MODEL.md §1）。cost・thenとも書いてある数どおりに
 // 解決できるときだけ発揮する。判定を通すのはこのファイルだけの責務で、実際の解決は
 // 各typeの既存ハンドラへ resolveInOrder 経由でそのまま委譲する（sequenceと同じ frame の作り方）。
+import { costExhaustLocked } from "../../../../shared/rules/constraints"
 import { bounceDenial } from "../bounceGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteKeyword } from "../../../../shared/coverage"
@@ -195,15 +196,16 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
     // exhaust：target:"self"（発生源自身が回復状態か）／side:"own"（自分の場に条件に合う回復状態の個体がcount体以上いるか）
     exhaust: (state, owner, self, action, _srcColors, srcType) => {
         if (action.type !== "exhaust") return false
-        if (action.target === "self") return self !== null && !self.isRested
+        if (action.target === "self") return self !== null && !self.isRested && !costExhaustLocked(state, owner, self)
         if (action.count === "any") return true
         if (action.nexusOnly) {
             return canExhaustNexus(state, owner) && state.players[owner].field.nexuses.filter((n) => !n.isRested).length >= action.count
         }
+        // 「効果では疲労しない」（BS19-099・BS23-071）はコストとしての疲労も止める（2026-11-09 ユーザー確認。Q22553）
         if (action.side === "own") {
             const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
             const count = state.players[owner].field.spirits.filter(
-                (s) => !s.isRested && matchesTarget(state, owner, s, filter, self?.instanceId),
+                (s) => !s.isRested && !costExhaustLocked(state, owner, s) && matchesTarget(state, owner, s, filter, self?.instanceId),
             ).length
             return count >= action.count
         }
@@ -217,7 +219,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         if (need <= 0) return false
         const filter = (action.filter ?? {}) as unknown as ResolvedTargetFilter
         const opp = opponentOf(owner)
-        return state.players[opp].field.spirits.filter((s) => !s.isRested && matchesTarget(state, opp, s, filter, self?.instanceId)).length >= need
+        return state.players[opp].field.spirits.filter((s) => !s.isRested && !costExhaustLocked(state, opp, s) && matchesTarget(state, opp, s, filter, self?.instanceId)).length >= need
     },
     // discard：from ごとに「破棄できるものがあるか」（COST_MODEL §1。手札が0枚なら不発）。デッキは side 側に count 枚（countCounter があれば数えた値）以上あり、止められていないか
     discard: (state, owner, self, action, _srcColors, srcType) => {
