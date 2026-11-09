@@ -5,6 +5,7 @@ import type { CardInstance, Color, GameState, PlayerId, ResolvedTargetFilter, Ti
 import { currentLevel, findInstanceAnywhere, getCard, opponentOf, rawLevel } from "../GameState"
 import { ownFieldSymbolColors } from "../../../../shared/cost"
 import { entryActive } from "../../../../shared/rules/effectStop"
+import { keywordGrantTargetMatches } from "../../../../shared/rules/keywordState"
 import { boardResistanceAgainst } from "../../../../shared/rules/resistance"
 import { matchesPick } from "../actions/revealAction"
 import {
@@ -22,7 +23,6 @@ import {
     matchesTarget,
     timedContentsOn,
     timedRecordsOn,
-    instMatchesCostFilter,
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
@@ -309,19 +309,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     if (effect.turn === "own" && pid !== state.turnPlayer) continue
                     if (effect.turn === "opponent" && pid === state.turnPlayer) continue
                     for (const spirit of player.field.spirits) {
-                        if (effect.combinedFilter && !instIsCombined(spirit)) continue
-                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
-                        if (effect.colorFilter && !instHasColor(spirit, effect.colorFilter)) continue
-                        if (effect.keywordFilter && !spiritHasKeyword(state, pid, spirit, effect.keywordFilter)) continue
-                        if (
-                            effect.keywordFilterAny &&
-                            !effect.keywordFilterAny.some((k) => spiritHasKeyword(state, pid, spirit, k))
-                        ) {
-                            continue
-                        }
-                        // 実コストに加えて tempAlsoCosts（道化師クランの「コスト2としても扱う」）も見る
-                        if (effect.costFilter && !instMatchesCostFilter(spirit, effect.costFilter)) continue
-                        if (effect.filter && !matchesTarget(state, pid, spirit, effect.filter, source.instanceId)) continue
+                        if (!keywordGrantTargetMatches(state, pid, source, effect, spirit)) continue
                         noteCoverage(effect, "keywordGrant")
                         if (effect.keyword === "heavyArmor") {
                             // 器AP：重装甲の継続付与（BS13-056ホーク・ブレイカー）

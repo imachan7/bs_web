@@ -48,6 +48,10 @@
 
 - 読み・裁定は [BS23_PLAN.md](./docs/design/BS23_PLAN.md) §1・§2、限界は §5
 
+### 絞り込みの付録の統一（2026-11-09 着手）
+
+- 調査と決定は [FILTER_UNIFY_APPENDIX.md](./docs/design/FILTER_UNIFY_APPENDIX.md) §12。PR は fix 3本（装甲の付与先・色・ラベル付きキーワード）→ 統一2本の順
+
 ### 既知の残り（触るときに読む）
 
 - 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
