@@ -223,6 +223,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `matchesFamilyFilter`（fn）：FamilyFilter（string | string[]）共通の判定：配列指定時はいずれかの系統を持てばよい（OR）
 - `bofuCountBonusFor`（fn）：持ち主フィールドの bofuCountBonus（BS08ゲラン准将Lv2）合計：【暴風】の指定数に加算する。
 - `bofuCountFor`（fn）：このスピリットが持つ【暴風】の実効指定数（静的keywordのcount + bofuCountBonus合計）。
+- `keywordGrantTargetMatches`（fn）：keywordGrant の付与先の絞り込み（装甲の色を組み直す continuous.ts もここを呼ぶ。2か所で欄の読み落としがあった）
 
 ## shared/rules/level.ts
 
