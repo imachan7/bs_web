@@ -10,6 +10,7 @@ import { askCostPay, payVoidToll } from "../summonSurcharge"
 import { summonVoidToll } from "../../../../shared/rules/summonToll"
 import { dumpAllCoresTensho, tenshoCandidates, tenshoSelfCostBonus, tenshoSpecOf } from "../keywords/tensho"
 import { effectiveCost, summonSurcharge } from "../../../../shared/cost"
+import { fireSummonSequence } from "../summon"
 
 type Repeat = Extract<EffectAction, { type: "summonBatchPaidInternal" }>
 
@@ -85,6 +86,17 @@ export function resolveSummonRepeatPaid(ctx: ActionCtx, action: Repeat, matches:
             else rest.push({ name: getCard(cards[k]!).name, targetId, dest: spec.dest })
         })
         runTensho(rest)
+        // 止まるのは召喚したスピリット自身の召喚時効果だけで、ほかのカードの「召喚されたとき」は出る（2026-11-08 ユーザー確認。RESUME_STACK §6）
+        const ids = insts.map((x) => x.instanceId)
+        for (let k = 0; k < ids.length; k++) {
+            if (state.winner) return
+            if (state.pendingChoice) {
+                pushResumeFrames(state, ids.slice(k).map((id) => ({ kind: "action" as const, selfInstanceId: id, actorPid: owner, action: { type: "summonSequence" as const } })))
+                return
+            }
+            const inst = findSpirit(player, ids[k]!)
+            if (inst) fireSummonSequence(state, owner, inst)
+        }
     }
 
     // 【転召】の候補（召喚前の場から。同じ効果で先に選んだ対象は除く。破壊待機の個体も対象にできる＝TIMING_CHART「【転召】との相互作用」）
