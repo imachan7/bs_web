@@ -20,6 +20,7 @@ export type EffectDef =
           keyword: Keyword
           levels: number[] | null
           whileCombined?: true // 合体中のみ発揮（一次資料はBRAVE.md §12.3）
+          outsideFieldOnly?: true // 手札・デッキ・トラッシュなど場の外でだけ持つ（BS23-X01「このカードは【強化】を持つものとして扱う」。場では持たない＝Q4582・Q4583）
           // ⚠️ このキーはゲートを実装したkindにしか宣言できない（他kindに書くとvalidate:cardsが落ちる）
           colors?: Color[] // 装甲用: この色の相手効果を受けない
           colorsFrom?: "opponentFieldSymbols" | "selfColors" // 装甲/重装甲用: 固定値の代わりに相手フィールド色または自分の色（instColors込み）を毎回算出（【装甲：∞】【重装甲：可変】）

@@ -1577,9 +1577,11 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "雄将"
-     ],
+     "filter": {
+      "family": [
+       "雄将"
+      ]
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -4304,7 +4306,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "red",
+     "filter": {
+      "color": "red"
+     },
      "amount": 1000,
      "turn": "own"
     }
@@ -4522,10 +4526,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "覇皇",
-      "雄将"
-     ],
+     "filter": {
+      "family": [
+       "覇皇",
+       "雄将"
+      ]
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",

@@ -51,6 +51,7 @@
 ### 絞り込みの付録の統一（2026-11-09 着手）
 
 - 調査と決定は [FILTER_UNIFY_APPENDIX.md](./docs/design/FILTER_UNIFY_APPENDIX.md) §12。PR は fix 3本（装甲の付与先・色・ラベル付きキーワード）→ 統一2本の順
+- fix 3本（#412〜#414）と AuraDef bp の統一は済み。**残り**：keywordGrant・effectGrant・immunityGrant を `filter` へ（§3・§4・§6）→ 手札の器（summon from:"hand"・costMod・reductionGrant）を `CardPick` へ（§8・§9）。挙動を変えないことは、移行前後の smoke の ✅ の文言を python で突き合わせて確かめる（macOS の sed は日本語の行も潰すので使わない）
 
 ### 既知の残り（触るときに読む）
 

@@ -615,7 +615,9 @@
         "aura": {
           "type": "bp",
           "target": "self",
-          "battlingOnly": true,
+          "filter": {
+            "inBattle": true
+          },
           "amount": 2000
         }
       },
@@ -628,8 +630,10 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "keywordFilter": "tensho",
-          "battlingOnly": true,
+          "filter": {
+            "keyword": "tensho",
+            "inBattle": true
+          },
           "amount": 2000
         }
       }
@@ -722,7 +726,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "keywordFilter": "kyoshu",
+          "filter": {
+            "keyword": "kyoshu"
+          },
           "amount": 3000,
           "phaseTurn": {
             "phase": "attack",

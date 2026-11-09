@@ -51,7 +51,9 @@
      "condition": {
       "ownFieldOnlyColor": "red"
      },
-     "battlingOnly": true
+     "filter": {
+      "inBattle": true
+     }
     }
    }
   ]
@@ -1781,7 +1783,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "華兵",
+     "filter": {
+      "family": "華兵"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -4365,7 +4369,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "red",
+     "filter": {
+      "color": "red"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -4454,7 +4460,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "皇獣",
+     "filter": {
+      "family": "皇獣"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -4727,7 +4735,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordFilter": "bofu",
+     "filter": {
+      "keyword": "bofu"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -6026,7 +6036,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "華兵",
+     "filter": {
+      "family": "華兵"
+     },
      "amountPer": 1000,
      "counter": {
       "ownColor": "green"

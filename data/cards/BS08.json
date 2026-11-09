@@ -514,7 +514,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "星竜",
+     "filter": {
+      "family": "星竜"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -4409,7 +4411,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "四道",
+     "filter": {
+      "family": "四道"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",

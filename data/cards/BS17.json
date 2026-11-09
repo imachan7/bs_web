@@ -122,7 +122,9 @@
      "type": "bp",
      "target": "self",
      "amount": 2000,
-     "attackingOnly": true
+     "filter": {
+      "attackingOnly": true
+     }
     }
    }
   ]
@@ -913,7 +915,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "battlingOnly": true,
+     "filter": {
+      "inBattle": true
+     },
      "phaseTurn": {
       "phase": "attack",
       "turn": "own"
@@ -4466,9 +4470,11 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "levelFilter": [
-      1
-     ],
+     "filter": {
+      "level": [
+       1
+      ]
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
