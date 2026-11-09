@@ -4,6 +4,7 @@ import { noteCoverage, noteKeyword } from "../coverage"
 import type {
     CardData,
     CardInstance,
+    EffectDef,
     Color,
     FamilyFilter,
     Keyword,
@@ -100,7 +101,9 @@ export function spiritHasLabeledKeyword(
 
 // キーワードを「持つ」かの共通判定：26系ラベルキーワードは spiritHasLabeledKeyword、旧キーワードは spiritHasKeyword
 export function spiritHasKeywordOrLabel(board: Board, ownerPid: PlayerId, inst: CardInstance, keyword: Keyword): boolean {
-    return LABELED_KEYWORDS.has(keyword) ? spiritHasLabeledKeyword(board, ownerPid, inst, keyword) : spiritHasKeyword(board, ownerPid, inst, keyword)
+    // 「【X】を持つ」は効果で得たキーワードを含める（2026-09-25 ユーザー決定）。ラベル付きも継続の付与を見る
+    if (!LABELED_KEYWORDS.has(keyword)) return spiritHasKeyword(board, ownerPid, inst, keyword)
+    return spiritHasLabeledKeyword(board, ownerPid, inst, keyword) || (!instEffectsSuppressed(inst) && continuousKeywordGrantCount(board, ownerPid, inst, keyword) > 0)
 }
 
 // 場の個体がカード静的にキーワードを持つか（付与は見ない）。Lv表記のあるキーワードは現在のレベルのときだけ。
@@ -215,44 +218,11 @@ export function continuousKeywordGrantCount(
             if (!effectActiveOn(source, effect, sourceLevel)) continue
             // onlyWhileSpiritState＝whileCombinedの逆。発生源自身が合体しているときは発揮しない（BS13-056ホーク・ブレイカー）
             if (effect.onlyWhileSpiritState && instIsCombined(source)) continue
-            // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
-            if (effect.combinedFilter && !instIsCombined(inst)) continue
-            if (effect.uncombinedFilter && instIsCombined(inst)) continue
-            if (
-                effect.familyFilter &&
-                !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
-            ) {
-                continue
-            }
-            if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) continue
-            // costFilter（BS02-101リフレクションアーマー：コスト2のスピリットのみ）。
-            // 従来はここが未対応で、armorColorsGranted経由のhasArmorAgainst（refreshLevelAsOverridesが
-            // costFilterを見て構築）は正しくコスト絞り込みできる一方、spiritHasKeyword経由のこちらは
-            // costFilter を無視してすべてのスピリットにマッチしてしまっていた（2026-07-31 発見・修正）
-            if (effect.costFilter && !instMatchesCostFilter(inst, effect.costFilter)) continue
-            // filter（統一軸）。ラベル専用キーワード（【連鎖】等）の参照はここを通る（Q774：Lvで判定）。
-            // filter の keyword 軸に旧キーワードを書くと spiritHasKeyword→この走査→matchesTarget と再帰するので書かない
-            if (effect.filter && !matchesTarget(board, ownerPid, inst, effect.filter, source.instanceId)) continue
-            // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
-            if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) continue
-            // keywordFilter の OR 版（BS12-068光の聖剣Lv1＝【装甲】/【重装甲】のいずれかを持つスピリットに【氷壁】を配る）
-            if (
-                effect.keywordFilterAny &&
-                !effect.keywordFilterAny.some((k) => spiritHasKeyword(board, ownerPid, inst, k))
-            ) {
-                continue
-            }
             if (effect.phase && board.phase !== effect.phase) continue
             // turn（BS07龍星皇メテオヴルムLv2-3：『自分のアタックステップ』）は phase と併用する
             if (effect.turn === "own" && ownerPid !== board.turnPlayer) continue
             if (effect.turn === "opponent" && ownerPid === board.turnPlayer) continue
-            if (effect.vanillaFilter && !instIsVanilla(inst)) continue
-            // braveInSpiritState（BS10-083魔星輝く古戦場Lv2）：スピリット状態のブレイヴのみ
-            // （TargetFilter.braveInSpiritStateと同じ判定＝カード種別がブレイヴで合体していない個体）
-            if (effect.braveInSpiritState && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) continue
-            // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
-            // 実効BPで見るので、BPバフで届いた個体にも付く
-            if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) continue
+            if (!keywordGrantTargetMatches(board, ownerPid, source, effect, inst)) continue
             noteCoverage(effect, "keywordGrant")
             return effect.count ?? 1
         }
@@ -488,4 +458,43 @@ export function bofuCountFor(board: Board, ownerPid: PlayerId, inst: CardInstanc
     }
     if (base === 0) return 0
     return base + bofuCountBonusFor(board, ownerPid)
+}
+
+// keywordGrant の付与先の絞り込み（装甲の色を組み直す continuous.ts もここを呼ぶ。2か所で欄の読み落としがあった）
+export function keywordGrantTargetMatches(board: Board, ownerPid: PlayerId, source: CardInstance, effect: Extract<EffectDef, { kind: "keywordGrant" }>, inst: CardInstance): boolean {
+    // combinedFilter（BS13-005）：対象（inst）自身が合体スピリットのときのみ
+    if (effect.combinedFilter && !instIsCombined(inst)) return false
+    if (effect.uncombinedFilter && instIsCombined(inst)) return false
+    if (
+        effect.familyFilter &&
+        !matchesFamilyFilter(board, ownerPid, inst, effect.familyFilter)
+    ) {
+        return false
+    }
+    if (effect.colorFilter && !instHasColor(inst, effect.colorFilter)) return false
+    // costFilter（BS02-101リフレクションアーマー：コスト2のスピリットのみ）。
+    // 従来はここが未対応で、armorColorsGranted経由のhasArmorAgainst（refreshLevelAsOverridesが
+    // costFilterを見て構築）は正しくコスト絞り込みできる一方、spiritHasKeyword経由のこちらは
+    // costFilter を無視してすべてのスピリットにマッチしてしまっていた（2026-07-31 発見・修正）
+    if (effect.costFilter && !instMatchesCostFilter(inst, effect.costFilter)) return false
+    // filter（統一軸）。ラベル専用キーワード（【連鎖】等）の参照はここを通る（Q774：Lvで判定）。
+    // filter の keyword 軸に旧キーワードを書くと spiritHasKeyword→この走査→matchesTarget と再帰するので書かない
+    if (effect.filter && !matchesTarget(board, ownerPid, inst, effect.filter, source.instanceId)) return false
+    // BS05黄道の虚空Lv2：転召持ちにのみ光芒を付与（対象が既に持つキーワードで絞る）
+    if (effect.keywordFilter && !spiritHasKeyword(board, ownerPid, inst, effect.keywordFilter)) return false
+    // keywordFilter の OR 版（BS12-068光の聖剣Lv1＝【装甲】/【重装甲】のいずれかを持つスピリットに【氷壁】を配る）
+    if (
+        effect.keywordFilterAny &&
+        !effect.keywordFilterAny.some((k) => spiritHasKeyword(board, ownerPid, inst, k))
+    ) {
+        return false
+    }
+    if (effect.vanillaFilter && !instIsVanilla(inst)) return false
+    // braveInSpiritState（BS10-083魔星輝く古戦場Lv2）：スピリット状態のブレイヴのみ
+    // （TargetFilter.braveInSpiritStateと同じ判定＝カード種別がブレイヴで合体していない個体）
+    if (effect.braveInSpiritState && !(card(inst.cardId).type === "brave" && !instIsCombined(inst))) return false
+    // minBp（BS09-056星創られし場所＝BP8000以上に【激突】を与える）。
+    // 実効BPで見るので、BPバフで届いた個体にも付く
+    if (effect.minBp !== undefined && bpForKeywordGrant(board, ownerPid, inst) < effect.minBp) return false
+    return true
 }
