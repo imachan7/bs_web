@@ -521,11 +521,8 @@ export function applyFushiSummon(
     // 「召喚」なので【転召】は通常どおり解決する（無償召喚でも必ず行う。skipOnSummonと同じ規則）
     if (!state.winner) resolveTensho(state, info.pid, inst, false, true)
     if (state.winner) return
-    // 無償召喚（魔門を疲労させた場合）は召喚時効果を発揮しない（BS15-064冥府へ続く魔門Lv2の明記どおり）
-    if (freeNexus) {
-        log(state, `${card.name}：『召喚時』効果は発揮されない。`)
-        return
-    }
+    // 魔門を疲労させた無償召喚は、このスピリット自身の召喚時効果だけを止める（inst.noOnSummon。ほかのカードの「召喚されたとき」は出る。RESUME_STACK §6）
+    if (freeNexus) log(state, `${card.name}：『召喚時』効果は発揮されない。`)
     if (state.pendingChoice) {
         // 【転召】の途中で中断したら、召喚時効果以降は再開フレームに任せる（doSummon と同じ形）
         pushResumeFrames(state, [
