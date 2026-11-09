@@ -695,5 +695,129 @@
     }
    }
   ]
+ },
+ {
+  "cardId": "X13-11",
+  "name": "ソードディスティニー",
+  "type": "magic",
+  "colors": [
+   "red"
+  ],
+  "cost": 5,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [],
+  "levels": [],
+  "symbol": [],
+  "flash": true,
+  "rarity": "X",
+  "limited": false,
+  "effect": "フラッシュ：\nバトルしている系統：「剣使」を持つ自分のスピリット1体の合体可能なブレイヴ数を1つ増やし、自分の手札にあるブレイヴカード1枚を、直接合体するように、コストを支払わずに召喚する。\nただし、『このブレイヴの召喚時』効果は発揮しない。\nこの効果で召喚したブレイヴは、フィールドに残せず、バトル終了時に破壊される。\nこの効果はターンに1回しか使えない。",
+  "effects": [
+   {
+    "id": "X13-11-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "oncePerTurnByName": true,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "designate",
+       "filter": {
+        "family": [
+         "剣使"
+        ],
+        "inBattle": true
+       }
+      },
+      {
+       "type": "timedEffect",
+       "content": [
+        {
+         "type": "combineLimitBonus",
+         "amount": 1
+        }
+       ],
+       "duration": "battle",
+       "target": "lastTargets"
+      },
+      {
+       "type": "summon",
+       "from": "hand",
+       "bravesOnly": true,
+       "combineToLastTarget": true,
+       "skipOnSummon": true,
+       "destroyAtBattleEnd": true
+      }
+     ]
+    },
+    "useCondition": {
+     "all": [
+      {
+       "ownBattlingSpiritHasFamily": "剣使"
+      },
+      {
+       "ownHandHasCardType": "brave"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "cardId": "X13-12",
+  "name": "裁きの神剣リ・ジェネシス",
+  "type": "brave",
+  "colors": [
+   "red"
+  ],
+  "cost": 6,
+  "reduction": [
+   "red",
+   "red",
+   "red"
+  ],
+  "family": [
+   "剣刃"
+  ],
+  "levels": [
+   {
+    "level": 1,
+    "cores": 1,
+    "bp": 6000
+   }
+  ],
+  "symbol": [
+   "red",
+   "red"
+  ],
+  "flash": false,
+  "rarity": "X",
+  "limited": false,
+  "effect": "このブレイヴカードは、自分の手札にあるスピリットカード1枚を破棄しなければ召喚できない。\n合体条件：コスト8以上",
+  "braveLevels": [
+   {
+    "level": 1,
+    "cores": 0,
+    "bp": 10000
+   }
+  ],
+  "braveConditionText": "コスト8以上",
+  "braveCondition": {
+   "minCost": 8
+  },
+  "effects": [
+   {
+    "id": "X13-12-e1",
+    "kind": "summonExtraDiscard",
+    "levels": null,
+    "count": 1,
+    "cardType": "spirit"
+   }
+  ]
  }
 ]

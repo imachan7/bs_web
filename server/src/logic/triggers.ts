@@ -772,6 +772,7 @@ function collectGrantedTriggerActions(
                         const cond = e.condition
                         if (typeof cond === "object" && "selfHasBraveNamed" in cond && !bravesOf(state.players[owner], selfInstance).some((b) => getCard(b.cardId).name === cond.selfHasBraveNamed)) continue
                         actions.push(e.action)
+                        noteCoverage(effect, "effectGrant")
                     }
                 }
                 continue
