@@ -927,6 +927,12 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
         log(state, `${sourceName}：この期間と内容の組み合わせは未対応のため発揮しなかった。`)
         return
     }
+    // 下の振り分けは中身の種類ごとに1つの置き方へ進み、ほかの中身を捨てる。発生源自身に置くときは選択が無いので中身ごとに分けて置く
+    // （BS23-064 で「シンボル追加＋ブロックされない」の後者が消えた）。対象を選ぶ形は1回の選択で全部を置く必要があるので分けない
+    if (action.target === "self" && new Set(action.content.map((c) => c.type)).size > 1) {
+        for (const c of action.content) timedEffectHandler(ctx, { ...action, content: [c] })
+        return
+    }
     if (action.content.some((c) => c.type === "braveBpBonusZero" || c.type === "braveCostZero")) {
         placeBraveZero(ctx, action)
         return
