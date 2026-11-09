@@ -862,7 +862,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     for (const spirit of player.field.spirits) {
                         if (effect.attackerOnly && spirit.instanceId !== state.battle?.attackerInstanceId) continue
                         const hasStaticKeyword =
-                            getCard(spirit.cardId).effects.some((e) => e.kind === "keyword" && e.keyword === effect.keywordFilter) ||
+                            getCard(spirit.cardId).effects.some((e) => e.kind === "keyword" && e.outsideFieldOnly !== true && e.keyword === effect.keywordFilter) ||
                             (effect.keywordFilter !== undefined && LABELED_KEYWORDS.has(effect.keywordFilter) && spiritHasLabeledKeyword(state, pid, spirit, effect.keywordFilter))
                         if (!hasStaticKeyword) continue
                         noteCoverage(effect, "levelAs")

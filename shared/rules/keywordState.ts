@@ -44,6 +44,7 @@ export function spiritHasKeyword(
             card(src.cardId).effects.some(
                 (e) =>
                     e.kind === "keyword" &&
+                    e.outsideFieldOnly !== true &&
                     keywordMatches(e.keyword, keyword) &&
                     // 合体中のブレイヴのキーワードは【合体時】のものだけ（BRAVE.md §12 の #8）
                     combinedBraveEntryOk(src, e),
@@ -113,6 +114,7 @@ export function instHasStaticKeyword(inst: CardInstance, keyword: Keyword): bool
     return card(inst.cardId).effects.some(
         (e) =>
             e.kind === "keyword" &&
+            e.outsideFieldOnly !== true &&
             keywordMatches(e.keyword, keyword) &&
             (e.whileCombined !== true || instIsCombined(inst)) &&
             // inst 自身が合体中のブレイヴのときは【合体時】のものだけ（BRAVE.md §12 の #8）
