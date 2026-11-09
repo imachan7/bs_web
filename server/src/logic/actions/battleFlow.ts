@@ -217,8 +217,11 @@ const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle">
                 return
             }
         }
+        // 無条件の終了が先にも後にも1つあれば、条件つき（081）より優先する
+        const unconditionalAlready = state.endAttackStepAfterBattle && !state.endAttackStepLifeCheck
+        if (action.ifOwnLifeAtMost === undefined) delete state.endAttackStepLifeCheck
+        else if (!unconditionalAlready) state.endAttackStepLifeCheck = { pid: owner, max: action.ifOwnLifeAtMost }
         state.endAttackStepAfterBattle = true
-        if (action.ifOwnLifeAtMost !== undefined) state.endAttackStepLifeCheck = { pid: owner, max: action.ifOwnLifeAtMost }
         log(
             state,
             `${sourceName}：このバトルが終了したとき、アタックステップを終了する。`,

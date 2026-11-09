@@ -4,6 +4,7 @@ import { scenario } from "./scenario"
 import type { ScenarioCtx } from "./scenario"
 
 const CATHEDRAL = "BS23-071" // 聖ミカファール大聖堂（Lv1 は 0 コア、Lv2 は 1 コア）
+const SILENT = "BS01-144" // サイレントウォール（白フラッシュ・コスト4。無条件でアタックステップを終了）
 const THUNDER = "BS23-081" // サンダーウォール（フラッシュマジック・コスト3・黄軽減2）
 const VIERGE = "X13-10" // 渚の乙女ヴィエルジェ（コスト6）
 const TRICK = "X13-09" // 渚のトリックスター（コスト6・名前に「渚」）
@@ -169,6 +170,28 @@ scenario({
         t.act("opp", { type: "attack", instanceId: t.id("B") })
     },
     expect: [...thunderRows, "相手.B.疲労: false → true"],
+})
+
+console.log("=== 9b. 081 の後に無条件のサイレントウォールを使えば、ライフ3でもアタックステップを終了する ===")
+scenario({
+    name: "thunder-then-silent-wall",
+    start: { ...thunderStart(3), me: { life: 3, hand: [THUNDER, SILENT], spirits: [{ card: BOJA, label: "ボジャ" }] } },
+    steps(t) {
+        t.act("opp", { type: "nextPhase" })
+        t.act("opp", { type: "attack", instanceId: t.id("A") })
+        t.closeFlash()
+        t.act("me", { type: "block", instanceId: t.id("ボジャ") })
+        if (t.state.priorityPlayer !== t.me) t.act("opp", { type: "pass" })
+        t.act("me", { type: "castMagic", handIndex: handIdx(t, THUNDER), timing: "flash" })
+        if (t.state.priorityPlayer !== t.me) t.act("opp", { type: "pass" })
+        t.act("me", { type: "castMagic", handIndex: handIdx(t, SILENT), timing: "flash" })
+        t.closeFlash()
+        t.actRejected("opp", { type: "attack", instanceId: t.id("B") })
+    },
+    expect: [
+        "自分.トラッシュ: なし → サイレントウォール、サンダーウォール", "相手.A.場所: フィールド → なし", "相手.トラッシュ: なし → ロクケラトプス", "相手.リザーブ: 10 → 11",
+        "自分.デッキ枚数: 40 → 39", "自分.リザーブ: 10 → 11", "自分.手札: サイレントウォール、サンダーウォール → ロクケラトプス",
+    ],
 })
 
 // ───────────── X13-10 渚の乙女ヴィエルジェ ─────────────
