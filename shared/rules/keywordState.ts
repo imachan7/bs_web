@@ -101,7 +101,9 @@ export function spiritHasLabeledKeyword(
 
 // キーワードを「持つ」かの共通判定：26系ラベルキーワードは spiritHasLabeledKeyword、旧キーワードは spiritHasKeyword
 export function spiritHasKeywordOrLabel(board: Board, ownerPid: PlayerId, inst: CardInstance, keyword: Keyword): boolean {
-    return LABELED_KEYWORDS.has(keyword) ? spiritHasLabeledKeyword(board, ownerPid, inst, keyword) : spiritHasKeyword(board, ownerPid, inst, keyword)
+    // 「【X】を持つ」は効果で得たキーワードを含める（2026-09-25 ユーザー決定）。ラベル付きも継続の付与を見る
+    if (!LABELED_KEYWORDS.has(keyword)) return spiritHasKeyword(board, ownerPid, inst, keyword)
+    return spiritHasLabeledKeyword(board, ownerPid, inst, keyword) || (!instEffectsSuppressed(inst) && continuousKeywordGrantCount(board, ownerPid, inst, keyword) > 0)
 }
 
 // 場の個体がカード静的にキーワードを持つか（付与は見ない）。Lv表記のあるキーワードは現在のレベルのときだけ。
