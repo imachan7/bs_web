@@ -27,12 +27,12 @@
 - 道具：`audit:paths`（`VIA=direct|attack|block|summon`。TEST_STRATEGY §7）、全カードの火入れはブレイヴとバーストも撃つ（`fireAll.ts`）
 - **11-05 の反省：バグ修正でも、直し方に処理の順（どちらを先に・確認をいつ出す・条件をいつ判定する）の選択が入るなら、実装前に聞く**
 
-### いまの本線：BS22 の取り込み（2026-11-07。計画は [BS22_PLAN.md](./docs/design/BS22_PLAN.md)）
+### 弾の取り込み（2026-11-09 時点）
 
-- **BS22 の92枚とキャンペーンカード X13 の7枚は #399 で入った**（`data/cards/BS22.json`・`X13.json`。全 smoke・coverage:check 緑）。解釈は §1・§2、新しい部品は §3、既知の限界は §5
+- BS22 は #399、BS23 は #409 で入った（計画は BS22_PLAN・BS23_PLAN。既知の限界は各 §5）
 - 禁止・保護の型の統一（#400〜#405）は済み。結果と残した型は [CONSTRAINT_UNIFY.md](./docs/design/CONSTRAINT_UNIFY.md)
 - BS20 は #395、BS21・CP13-01 は #396 で入った
-- 取り込み済みは BS01〜BS22・CP13-01・X13・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS23 は staging にあり、調査済み（[BS23_PLAN.md](./docs/design/BS23_PLAN.md)。§2 の確認待ち。2026-11-07 時点で週の枠88%なので、期待値役・実装役は枠が戻ってから。draft PR #409）。BS24 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
+- 取り込み済みは BS01〜BS23・CP13-01・X13・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS24 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブ**：Mistral の枠は11月分を使い切った（月初に戻る）ので、今は Claude のサブ。以下は vibe の使い方（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral）。Mistral の枠は Vibe Code（ログイン）と API（`~/.config/mistral_api_key`。`MISTRAL_API_KEY="$(tr -d '\n ' < ~/.config/mistral_api_key)" vibe …`）の2つで、どちらも月初に戻る。**両方尽きたら Claude のサブ（期待値・実装＝Sonnet、データ＝Haiku）**。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
@@ -57,7 +57,7 @@
 - 保留：使ったマジックを手札に戻す（`returnLastUsedMagicToHand`。26RBS01-X14 だけ）にトラッシュ回収の禁止を効かせるか。このリポジトリのプールに無い
 - 専用 type の統一は一区切り（[ACTION_UNIFY_PLAN.md](./docs/design/ACTION_UNIFY_PLAN.md) §4）。新しく統一するときは、分かれている理由がルール上の処理の違いかを先に確かめる
 - 「〜することで」の確認関門：規則と既知の限界は [COST_MODEL.md](./docs/design/COST_MODEL.md) §10。`if` の器は [IF_UNIFY.md](./docs/design/IF_UNIFY.md) §3・§5（残した2枚は §5「残す」）
-- 「破壊されたとき」は同時破壊でも1回：必須の `reviveOnDestroy` がコスト不足で不発になった場合、グループの消費を戻していない（次の1体で使えない）
+- 「破壊されたとき」は同時破壊でも1回：必須の `reviveOnDestroy` がコスト不足で不発になった場合（非対話のときだけ通る経路）、グループの消費を戻していない。今のプールのコスト（手札・自身の疲労・ライフ）は破壊されたスピリットによらないので、戻しても次の1体も払えず結果は変わらない（2026-11-09 確認）
 - `coverage:effects` の「場に出ているのに一度も適用されていない効果」は【大粉砕】（BS15-X06-e2）・【呪滅撃】（BS14-X02-e2）の2件だけ。宣言だけのキーワードで、挙動は同じカードの別エントリが持つ（読む側が無いので計測されない）
 
 ### standard 版エンジンの持ち込み（ブランチ `feat/legacy-port`。2026-10-15）— 残したもの
@@ -71,8 +71,7 @@
 
 ### ファイルの分割（R3）
 
-- R3 の残り（`validate:size` の据え置き5本。持ち込みで type.ts 222KB・effectDef.ts・triggers.ts・main.ts・renderer.ts が基準超え）と R6・R7 は随時。
-   R3 の済み：removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
+- R3 は済み（`validate:size` の据え置き0本）。removal（#156）・shared/rules（#157）・GameEngine（#160）・EffectModules（#162）・actions/cores（#163）ほか。R6・R7 は随時。**分割1つごとに [WHERE_TO_ADD.md](./docs/design/WHERE_TO_ADD.md)（R1）に行を足す**
 **分割の手順**（09-26 に2回やった形。スクリプトはジョブの tmp に置いたので残っていない）：
 関数名（か区切りコメント）でブロックに分けて移す → 型検査の「名前が見つからない」から import を足す（非公開なら export を付ける）→
 `tsc --noUnusedLocals` の報告で写った不要な import を消す → **元の関数本体が1文字も変わらず残っているかをスクリプトで確かめる** →
@@ -98,8 +97,6 @@ type.ts は2段でやる：①カード ID・作業番号の除去のような�
 
 ### BS15 で残した判断
 
-- **未実装3節（card-notes に partial）**：011 手札から使うフラッシュ（器が無い）／015 紫マジックの色を無いものとして扱う／
-  064 Lv2 【不死】の無償召喚。**ユーザーに実装するか確認する**
 - 簡略化（card-notes 無し）：X01 Lv2-3 はスピリット状態のブレイヴも破壊候補に含む／016・X02 のコア除去は1体からまとめて取る（既存と同じ）／
   004 の Q3469（その破壊の解決中は発動できない）は未実装
 - 008 は「指定色の和集合に無い色を1つでも持つスピリットを両陣営とも破壊」で実装（ユーザーに事後報告済み）
