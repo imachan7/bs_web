@@ -755,10 +755,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyAllFilter": [
-      "地竜",
-      "竜人"
-     ],
+     "filter": {
+      "familyAll": [
+       "地竜",
+       "竜人"
+      ]
+     },
      "amountPer": 1000,
      "counter": "ownLife",
      "phaseTurn": {

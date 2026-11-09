@@ -96,9 +96,11 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "星竜"
-     ],
+     "filter": {
+      "family": [
+       "星竜"
+      ]
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -1417,7 +1419,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "爪鳥",
+     "filter": {
+      "family": "爪鳥"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -2920,7 +2924,11 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "costMinFilter": 7,
+     "filter": {
+      "cost": {
+       "min": 7
+      }
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -3890,11 +3898,13 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "神星",
-      "光導",
-      "星魂"
-     ],
+     "filter": {
+      "family": [
+       "神星",
+       "光導",
+       "星魂"
+      ]
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -5045,10 +5055,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordsFilter": [
-      "kobo",
-      "seimei"
-     ],
+     "filter": {
+      "keyword": [
+       "kobo",
+       "seimei"
+      ]
+     },
      "amount": 1000,
      "lentOnly": true
     }

@@ -796,7 +796,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "white",
+     "filter": {
+      "color": "white"
+     },
      "amount": 1000
     }
    }

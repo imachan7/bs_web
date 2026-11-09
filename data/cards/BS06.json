@@ -305,7 +305,9 @@
      "type": "bp",
      "target": "ownAll",
      "amount": 1000,
-     "keywordFilter": "clash",
+     "filter": {
+      "keyword": "clash"
+     },
      "phaseTurn": {
       "phase": "attack",
       "turn": "own"
@@ -3721,7 +3723,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "造兵",
+     "filter": {
+      "family": "造兵"
+     },
      "amount": 1000
     }
    },
@@ -5017,7 +5021,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "blockingOnly": true,
+     "filter": {
+      "blocking": true
+     },
      "amountPer": 1000,
      "counter": "ownExhausted",
      "phaseTurn": {
@@ -5620,7 +5626,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "attackingOnly": true,
+     "filter": {
+      "attackingOnly": true
+     },
      "amount": 1000,
      "lentOnly": true
     }
@@ -5632,10 +5640,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "attackingOnly": true,
+     "filter": {
+      "attackingOnly": true,
+      "keyword": "clash"
+     },
      "amount": 2000,
-     "lentOnly": true,
-     "keywordFilter": "clash"
+     "lentOnly": true
     }
    }
   ]
@@ -6099,7 +6109,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "blockingOnly": true,
+     "filter": {
+      "blocking": true
+     },
      "amount": 2000,
      "lentOnly": true
     }
@@ -6111,10 +6123,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "blockingOnly": true,
+     "filter": {
+      "blocking": true,
+      "keyword": "armor"
+     },
      "amount": 2000,
-     "lentOnly": true,
-     "keywordFilter": "armor"
+     "lentOnly": true
     }
    }
   ]
