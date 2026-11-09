@@ -1,9 +1,10 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
+import { payBurstActivationFee } from "./burstActivationFee"
 import { activateBurstCard } from "./keywords/burst"
 import { resolveAttackDeclared } from "./attackDeclared"
-import type { GameState, PaySource, PendingChoice, PlayerId } from "../type"
+import type { GameAction, GameState, PaySource, PendingChoice, PlayerId } from "../type"
 import { fieldInstanceIdsOf, findInstanceAnywhere, findSpirit, getCard, log, opponentOf, resumeTriggerBatch } from "./GameState"
 import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
@@ -42,6 +43,7 @@ import { validatePaySources } from "./RuleValidator"
 import { magicEffectiveColors } from "../../../shared/cost"
 import { doCastMagic } from "./magic/cast"
 import { setTargetRedirect } from "./magic/redirect"
+import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
 import { applyResshinsokuDestination, continueBlockDeclaration, destroyBlockToll, doSummon, exhaustBlockToll, finishBlockDeclaration, placeSummonedSpirit, revertActivatedUse } from "./GameEngine"
 import { resumeBattleResolution, resumeLifeDamageResolution } from "./battleResolve"
@@ -555,6 +557,33 @@ function resolveChoiceInner(
 
     // 【神速】召喚の無償化（kind:"sokuFreeSummon"）の使用時確認。action は解決せず、
     // 答えを持って doSummon をやり直す（コストの支払いはそのやり直しの中で行う）
+    if (pending.sokuFreeChoice?.braveFree) {
+        const options = pending.options ?? []
+        if (option === undefined) return "召喚の方法を選んでください"
+        const index = options.indexOf(option)
+        if (index < 0) return "選択できない候補です"
+        const info = pending.sokuFreeChoice
+        state.pendingChoice = null
+        const summon: Extract<GameAction, { type: "summon" }> = {
+            type: "summon",
+            handIndex: info.handIndex,
+            braveFreeChoice: index === 0,
+            ...(info.fromTegamoto ? { fromTegamoto: true as const } : {}),
+            ...(info.level !== undefined ? { level: info.level } : {}),
+            ...(info.paySources !== undefined ? { paySources: info.paySources } : {}),
+            ...(info.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: info.braveTargetInstanceId } : {}),
+        }
+        const viaCore = tryBraveFreeSummon(state, pending.pid, summon)
+        const error =
+            viaCore !== undefined
+                ? viaCore
+                : info.fromTegamoto
+                  ? doSummonFromTegamoto(state, pending.pid, summon)
+                  : doSummon(state, pending.pid, info.handIndex, info.paySources, info.level, undefined, undefined, info.braveTargetInstanceId)
+        if (error) return error
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
     if (pending.sokuFreeChoice) {
         const options = pending.options ?? []
         if (option === undefined) return "コストを支払うかどうか選んでください"
@@ -670,6 +699,7 @@ function resolveChoiceInner(
                     // finishBurstActivation がバーストエリアの後始末（召喚以外はトラッシュへ）を行う
                     const info = pending.burstActivate
                     const before = fieldInstanceIdsOf(state, info.pid)
+                    payBurstActivationFee(state, info.pid, info.cardId)
                     announceBurstActivation(state, info.pid, info.cardId)
                     // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。
                     // BS16バッチ0：burstEventCostOptionsがあれば、選んだ選択肢（pending.optionsと同じ並び）のコストを使う

@@ -58,5 +58,6 @@ export type Keyword =
     // 判定は EffectModules.resistanceAgainst の tryMeisaiToll（候補列挙では払わず実適用の1点だけで払う）
     | "rensa" // 連鎖：ラベル専用（LABELED_KEYWORDS）。連鎖を含む効果のエントリに付け、そのLvで「【連鎖】を持つ」（Q774・Q775。シンボルの有無は問わない）
     | "kyoka" // 強化：keyword エントリの kyoka が効果の種類。数値の加算は server/src/logic/keywords/kyoka.ts
+    | "batto" // 抜刀：ラベル専用（LABELED_KEYWORDS）。手札の合体可能な剣刃ブレイヴを無償召喚する誘発効果に付け、そのLvで「【抜刀】を持つ」
     | "bunshin" // 分身：ラベル専用（LABELED_KEYWORDS）。挙動は actions の bunshin アクションと keywords/bunshin.ts
     | "levelup"

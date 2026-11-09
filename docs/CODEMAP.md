@@ -44,6 +44,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `exTrashReductionCandidateIndices`（fn）：トラッシュのEXシンボル持ちカード（軽減に使える候補）のインデックス一覧。
 - `exSymbolsOfTrashCard`（fn）：除外するトラッシュのカードのEXシンボルの色。もともとEXなら全シンボル、指定で扱うだけなら指定した1つ
 - `selfSetCost`（fn）：「手札のこのカードを召喚する時、〜なら、コストNにする」が効いているときの N（召喚側が「ターンに1回」の記録に使う）
+- `cardMatchesSummonPick`（fn）：軽減後の実コスト（フィールドの一致シンボル数だけ軽減、軽減シンボル数が上限）に
 - `effectiveCost`（fn）
 - `summonSurcharge`（fn）：globalConstraint "opponentSummonCostIncrease"：発生源の持ち主の**相手**が、条件を満たす
 
@@ -110,6 +111,11 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `receivesBpPlus`（fn）：「BPを+する」効果を受けているか（26RBS02-007）。期間つき・常時（オーラ）・自分自身の効果のどれでもよい。
 - `timedRuleBp`（fn）：全体ルール（timedEffect の all:true）の BP 増減。対象も量も計算のたびに判定し直す
 
+## shared/rules/braveExtraCombine.ts
+
+- `braveSlotsUsed`（fn）：追加枠を除いた、通常の合体数。上限との比較はこちらで行う
+- `extraCombineAllowed`（fn）：このブレイヴを、条件・数を無視した追加の合体として受けられるホストか
+
 ## shared/rules/cantRefresh.ts
 
 - `RefreshPath`（型）
@@ -130,6 +136,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `zoneSpiritEffectsDisabled`（fn）：BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
 - `trashFrozen`（fn）：PX19：トラッシュのカードが効果を受けない／自身の効果を使えない（Q18473・Q18475）。トラッシュの枚数やシンボルを数えるだけの参照は止めない
 - `trashCardEffectsDisabled`（fn）：トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
+- `costExhaustLocked`（fn）：効果のコストとして疲労させられないか（BS23-071。Q22553）。スピリットだけが対象で、アタック・ブロック宣言の疲労はここを通らない
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
 - `deckMillBlockedByRule`（fn）：pid のデッキが破棄できないか（globalConstraint／このターンの playerRule の noDeckMill）。mill・コスト・【粉砕】の判定はここ1か所。
@@ -183,9 +190,14 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `timedMagicLocked`（fn）：期間つき効果で、このバトルの間マジックを使用できないか（BS16-X06）。バースト発動は「使用」ではない
 - `cantActByTimed`（fn）：期間つき効果でアタック／ブロックできないか
 - `burstActivationForbidden`（fn）：globalConstraint "noBurstActivationByEvent"／"noBurstActivationByColor"：holderPid のバーストが発動で…
+- `burstActivationCostActive`（fn）：globalConstraint "burstActivationCost"：holderPid のバースト発動にコストの支払いが課されているか（金額は server/src/lo…
 - `attackEffectsTollActive`（fn）：globalConstraint "attackEffectsToll"（BS20-072 Lv2）：attackerPid の今回のアタックに効いているか。
 - `mustAttackOnceBlocksEnd`（fn）：globalConstraint "opponentMustAttackOnce"：pid がアタックを1回もしていないのに、アタックを強いられているか。
 - `mustBeAttackTargetIds`（fn）：constraint "mustBeAttackTarget"：attacker がアタックするとき指定しなければならない相手スピリットの instanceId（無ければ空）
+
+## shared/rules/coreIntake.ts
+
+- `coreIntakeRefused`（fn）：置く側の発生源が inst 自身なら false（自分の効果なので置ける）
 
 ## shared/rules/effectStop.ts
 
@@ -307,11 +319,18 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `isSummonableCardType`（fn）：召喚（type:"summon"）で場に出せるカードか。
 - `braveCombineCandidates`（fn）：合体先（ダイレクトブレイヴ）に選べる自分のスピリットの instanceId 一覧。
+- `braveCombinableWithHost`（fn）：【抜刀】の「このスピリットと合体可能な」（公式 Q800・Q802）：合体条件だけを見る（合体禁止中でも true＝Q798）。
 - `canCombineBraveCount`（fn）：このスピリットに合体できるブレイヴの上限数（既定1）。器P。BS13-X01光龍騎神サジット・アポロドラゴン
 - `combineLimitFor`（fn）
 - `BattleSwapSummonOption`（型）：手札のこのスピリットカードを、フラッシュ中のバトルで
 - `battleSwapSummonCheck`（fn）：判定の本体。**サーバー（RuleValidator.validateSummon）とクライアントUIの唯一の判定元**。
 - `canBattleSwapSummon`（fn）：UI向け：手札の handIndex 枚目がいま入れ替え召喚できるなら、その選択肢を返す（できなければ null）。
+
+## shared/summonPayOff.ts
+
+- `SummonPayOffOption`（型）
+- `summonPayOffOptions`（fn）：破壊は召喚コストの支払いの一部なので、手札の cardId を召喚するときに使える個体を列挙する。
+- `summonCostWithPayOff`（fn）：軽減・追加コストを適用した後の支払うコスト（option が無ければ通常どおり）。
 
 ## server/src/accessLog.ts
 
@@ -490,6 +509,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `destroyWithinBudget`（fn）：「BP／コスト合計○○まで、相手のスピリットを好きなだけ破壊する」（destroy の budget 軸。ACTION_UNIFY_PLAN §4 PR 8）。
 - `reviveLastDestroyedNexusBlockReason`（fn）：払えないなら理由を返す（確認の前の判定＝pay.ts の skipUnpayablePay と、本体の両方が使う。COST_MODEL §10）
 
+## server/src/logic/actions/destroyOwnBrave.ts
+
+- `ownBraveCandidates`（fn）：自分のブレイヴ1つ＝合体スピリットに合体しているブレイヴか、スピリット状態のブレイヴ（BS23-075）
+
 ## server/src/logic/actions/exhaustBudget.ts
 
 - `exhaustWithinBudget`（fn）
@@ -584,6 +607,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 
 - `resolveAttackDeclared`（fn）：directed：指定アタック。『バトル時』は相手が決まるブロック確定時に発火するので、ここでは積まない
 
+## server/src/logic/battleEndDestroy.ts
+
+- `reserveBlockerDestroyByEntries`（fn）：発生源が場にいる（effectSources）ことの判定はここで済ませる。予約の後は発生源の有無を見ない
+
 ## server/src/logic/battleResolve.ts
 
 - `resolveLifeDamage`（fn）：ライフで受けることを宣言した場でライフダメージを解決する（doTakeLifeから直接呼ばれる）。
@@ -622,6 +649,17 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/braveConditionGate.ts
 
 - `separateBravesBelowMinCost`（fn）：handleAction の後始末（継続効果を組み直した後）で呼ぶ。
+- `separateBravesOverLimit`（fn）：合体数の上限を上げていた効果（BS23-X01 など）が消えて、上限を超えたホストの分離（Q4588）。
+
+## server/src/logic/braveFreeSummon.ts
+
+- `tryBraveFreeSummon`（fn）：undefined＝この経路には乗らない（通常の召喚へ進む）。null／文字列＝この経路で処理した結果（文字列は拒否理由）
+
+## server/src/logic/burstActivationFee.ts
+
+- `burstActivationFee`（fn）
+- `burstFeeUnpayable`（fn）
+- `payBurstActivationFee`（fn）：ponytail: 支払い元は自動（リザーブ→ネクサス→コアの多いスピリット）。支払い元を選ばせるなら askCostPay（summonSurcharge.ts）へ載せ替える
 
 ## server/src/logic/burstNegate.ts
 
@@ -772,6 +810,8 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/keywords/rensa.ts
 
 - `rensaConditionIgnored`（fn）
+- `isRensaClause`（fn）：【連鎖】の[色]の節（keyword:"rensa" のエントリの if）か。コンテキストに効果エントリが渡らないので、
+- `fireRensaActivated`（fn）：節を解決し終えた直後（選択待ちから再開した後でも sequence の続きとして）呼ばれる
 
 ## server/src/logic/keywords/seimei.ts
 
@@ -1030,6 +1070,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `summonFreeFromTrashIndex`（fn）：summonFromTrashFree 共通の召喚実行部：summonFreeFromHandIndexのトラッシュ版。
 - `fchangeCostAs`（fn）：summon{from:"hand"} の候補判定（色・系統・コスト等の絞り込み＋payCost指定時の支払い可否）。
 - `summonFromHandFreeCandidateMatches`（fn）
+
+## server/src/logic/summonCostRules.ts
+
+- `consumeSummonCostSetOnce`（fn）：召喚の宣言で対象が決まる（Q4458）ので、該当するカードを召喚した時点で使い切る
+- `consumeSummonPayByNexusExhaust`（fn）：ネクサスを疲労させて払ったら、その1枚で使い切る（Q25255）
+- `summonExtraDiscardPlan`（fn）：summonExtraDiscard：破棄する手札のインデックス（召喚するカード自身・コストの手札破棄で使うカードは除く）。
+- `noteSummonExtraDiscard`（fn）
 
 ## server/src/logic/summonGate.ts
 

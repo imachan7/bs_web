@@ -26,6 +26,7 @@ import {
     matchesFamilyFilter,
     spiritHasFamily,
     spiritHasKeyword,
+    spiritHasKeywordOrLabel,
     bravesOf,
     braveCostZeroFor,
     hostsOf,
@@ -76,6 +77,7 @@ function applyTimedCopies(state: GameState): void {
             delete inst.timedSymbolsOverride
             delete inst.timedSymbolLoss
             delete inst.timedEffectsDisabled
+            delete inst.timedAttackStepEffectsDisabled
         }
         all.push(...field.spirits, ...field.nexuses)
     }
@@ -88,6 +90,7 @@ function applyTimedCopies(state: GameState): void {
             if (c.type === "symbolAdd" && c.color) (inst.timedSymbolsAdded ??= []).push(...new Array<Color>(c.count ?? 1).fill(c.color))
             else if (c.type === "symbolAdd") inst.timedExtraSymbols = (inst.timedExtraSymbols ?? 0) + 1
             if (c.type === "effectsDisabled") inst.timedEffectsDisabled = true
+            if (c.type === "ownAttackStepEffectsDisabled") inst.timedAttackStepEffectsDisabled = true
             if (c.type === "colorless") inst.colorlessThisBattle = true
             if (c.type === "alsoCost" && !inst.tempAlsoCosts.includes(c.cost)) inst.tempAlsoCosts.push(c.cost)
             if (c.type === "cost") inst.timedCostDelta = (inst.timedCostDelta ?? 0) + c.amount
@@ -616,7 +619,9 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const targets =
                         effect.target === "ownAll"
                             ? player.field.spirits.filter((sp) => matchesTarget(state, pid, sp, effect.filter as ResolvedTargetFilter | undefined))
-                            : [source]
+                            : effect.whileCombined === true && player.field.combinedBraves.includes(source)
+                              ? hostsOf(player, source) // 合体中のブレイヴの「このスピリットに」はホスト（BS23-066）
+                              : [source]
                     for (const target of targets) {
                         noteCoverage(effect, "symbolAddGrant")
                         if (!target.symbolsAddedContinuous) target.symbolsAddedContinuous = []
@@ -651,7 +656,7 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     // target:"self" は発生源自身だけ（BS11-039 天使ティアエル）
                     const symbolFixTargets = effect.target === "self" ? [source] : player.field.spirits
                     for (const spirit of symbolFixTargets) {
-                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter) && !(effect.orKeyword && spiritHasKeywordOrLabel(state, pid, spirit, effect.orKeyword))) continue
                         if (effect.colorFilter !== undefined && !instHasColor(spirit, effect.colorFilter)) continue
                         if (effect.minCores !== undefined && spirit.cores < effect.minCores) continue
                         // color 指定時はその色に固定する（省略時は対象が元々持つシンボルの1色目）
@@ -744,7 +749,11 @@ export function refreshLevelAsOverrides(state: GameState): void {
                     const sourceBp = effectiveBp(state, pid, source)
                     for (const spirit of player.field.spirits) {
                         if (spirit.instanceId === source.instanceId) continue
-                        if (!matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.familyFilter && !matchesFamilyFilter(state, pid, spirit, effect.familyFilter)) continue
+                        if (effect.nameContains) {
+                            const name = getCard(spirit.cardId).name
+                            if (!name.includes(effect.nameContains) || name === getCard(source.cardId).name) continue
+                        }
                         noteCoverage(effect, "bpEqualizeFamily")
                         spirit.bpEqualizeContinuous = sourceBp
                     }
@@ -958,6 +967,22 @@ export function refreshLevelAsOverrides(state: GameState): void {
                 continue
             }
             nexus.coresOverride = source.cores
+        }
+    }
+    // kind:"coresAs"。クロスシザースのリンクが無いネクサスの coresOverride は毎回ここで組み直す
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const nexus of state.players[pid].field.nexuses) if (!nexus.coresLinkedTo) delete nexus.coresOverride
+        for (const source of effectSources(state, pid)) {
+            const level = currentLevel(source).level
+            for (const effect of getCard(source.cardId).effects) {
+                if (effect.kind !== "coresAs" || !entryActive(state, pid, source, effect, level)) continue
+                if (effect.phaseTurn && (state.phase !== effect.phaseTurn.phase || (effect.phaseTurn.turn === "own") !== (pid === state.turnPlayer))) continue
+                for (const nexus of state.players[pid].field.nexuses) {
+                    if (nexus.coresLinkedTo || !cardNameContains(nexus, effect.nameContains)) continue
+                    noteCoverage(effect, "coresAs")
+                    nexus.coresOverride = effect.count
+                }
+            }
         }
     }
 }

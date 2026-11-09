@@ -141,6 +141,12 @@ function fixedCount(a: DestroyAction, count: number, append = false): DestroyAct
 
 const destroyHandler = (ctx: ActionCtx, action: Counted<DestroyAction>): void => {
     const { state, owner, opp, self, sourceName, srcColors, srcType, targetInstanceId, chosenOption } = ctx
+    // maxCostAsLast は最初の入りで数値に解く。1体ずつ選ぶ再入では先に破壊したカードが lastMoved を書き換えるため（BS23-075）
+    const firstMoved = action.filter?.maxCostAsLast ? lastMovedOf(state)[0] : undefined
+    if (firstMoved !== undefined) {
+        const { maxCostAsLast: _m, ...f } = action.filter!
+        action = { ...action, filter: { ...f, cost: { ...f.cost, max: getCard(firstMoved).cost } } }
+    }
     // 後続の動作へ印を持ち越さないよう、この破壊だけのコピーに付ける
     const marks: Partial<DestroyContext> = {
         ...(action.suppressOnDestroy || action.suppressOwnEffects ? { suppressOnDestroy: true as const } : {}),

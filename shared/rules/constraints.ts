@@ -385,6 +385,10 @@ export function trashFrozen(board: Board): boolean {
 export function trashCardEffectsDisabled(board: Board, cardId: string): boolean {
     return zoneSpiritEffectsDisabled(board, cardId) || trashFrozen(board)
 }
+// 効果のコストとして疲労させられないか（BS23-071。Q22553）。スピリットだけが対象で、アタック・ブロック宣言の疲労はここを通らない
+export function costExhaustLocked(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return board.players[pid].field.spirits.includes(inst) && hasGlobalConstraint(board, "noExhaustByEffect")
+}
 // 手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
     return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)
@@ -460,6 +464,7 @@ export function braveBpBonusZeroFor(board: Board, hostPid: PlayerId): boolean {
             for (const effect of card(inst.cardId).effects) {
                 if (effect.kind !== "globalConstraint" || effect.constraint.type !== "braveBpBonusZero") continue
                 if (effect.constraint.side === "opponent" && pid === hostPid) continue
+                if (effect.turn === "own" && board.turnPlayer !== pid) continue // 見出し『自分のターン』（BS23-008）
                 if (!entryActive(board, pid, inst, effect, level)) continue
                 if (effect.whileOwnBurstSet === true && !board.players[pid].burstSet) continue
                 noteCoverage(effect, "globalConstraint")
@@ -737,9 +742,17 @@ export function instCantBlockByCost(board: Board, inst: CardInstance): boolean {
             for (const effect of card(source.cardId).effects) {
                 if (effect.kind !== "globalConstraint") continue
                 const constraint = effect.constraint
-                if (constraint.type !== "cantBlockByCost") continue
+                if (constraint.type !== "cantBlockByCost" && constraint.type !== "opponentCantBlockByCost") continue
                 if (!entryActive(board, pid, source, effect, level)) continue
-                if (costsOfBlocker.some((cost) => constraint.costs.includes(cost))) return true
+                if (constraint.type === "opponentCantBlockByCost") {
+                    if (board.players[pid].field.spirits.some((s) => s.instanceId === inst.instanceId)) continue
+                    if (effect.phase !== undefined && board.phase !== effect.phase) continue
+                    if (effect.turn !== undefined && effect.turn !== "both" && (effect.turn === "own") !== (board.turnPlayer === pid)) continue
+                }
+                if (costsOfBlocker.some((cost) => constraint.costs.includes(cost))) {
+                    noteCoverage(effect, "globalConstraint")
+                    return true
+                }
             }
         }
     }
@@ -1323,6 +1336,21 @@ export function burstActivationForbidden(board: Board, holderPid: PlayerId, even
                 noteCoverage(effect, "globalConstraint")
                 return true
             }
+        }
+    }
+    return false
+}
+
+// globalConstraint "burstActivationCost"：holderPid のバースト発動にコストの支払いが課されているか（金額は server/src/logic/burstActivationFee.ts が決める）
+export function burstActivationCostActive(board: Board, holderPid: PlayerId): boolean {
+    const opp: PlayerId = holderPid === "p1" ? "p2" : "p1"
+    for (const source of effectSources(board, opp)) {
+        const level = currentLevel(source).level
+        for (const effect of card(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "burstActivationCost") continue
+            if (!entryActive(board, opp, source, effect, level) || !globalConstraintWindowOpen(board, effect, opp)) continue
+            noteCoverage(effect, "globalConstraint")
+            return true
         }
     }
     return false

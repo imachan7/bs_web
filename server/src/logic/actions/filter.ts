@@ -153,8 +153,8 @@ export function normalizeFilter(
     // 「このスピリットのコスト以下の相手」）
     if (maxCostAsSelf) {
         if (!ctx.self) return SELF_REQUIRED
-        const cost = getCard(ctx.self.cardId).cost
-        resolved.cost = { max: cost }
+        // 合体スピリットはブレイヴ込みの合計コストで見る（BS23-052 Q4576。lowerCostThanSelf と同じ）
+        resolved.cost = { max: Math.max(...instAllCosts(ctx.self)) }
     }
 
     // self のコストより低い（同じコストは含まない。BS20-061近衛機メッセンジャー【合体時】）。

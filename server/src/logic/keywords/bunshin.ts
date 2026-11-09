@@ -6,6 +6,7 @@ import type { ActionHandler, ActionRegistry } from "../actions/types"
 import type { CardInstance } from "../../type"
 import { createInstance, log } from "../GameState"
 import { requestChoice } from "../EffectModules"
+import { fireFieldEventTriggers } from "../fieldEventTriggers"
 import { isTokenCard } from "../../../../shared/cardDb"
 
 export const BUNSHIN_CARD_ID = "BS22-T001"
@@ -36,12 +37,18 @@ const bunshinHandler: ActionHandler<"bunshin"> = (ctx, action) => {
         cores = undefined
     }
     let placed = 0
+    // 置いた個体ごとに誘発する。選択待ちで抜ける前に、ここまでに置いた分を済ませる
+    const placedInsts: CardInstance[] = []
+    const announce = (): void => {
+        for (const p of placedInsts.splice(0)) fireFieldEventTriggers(state, owner, "ownBunshinPlaced", { pid: owner, inst: p })
+    }
     while (left > 0 && player.deck.length > 0 && player.reserve > 0) {
         const maxHere = player.reserve - (left - 1)
         if (maxHere < 1) break
         let n = 1
         if (cores !== undefined) n = Math.max(1, Math.min(maxHere, Number(cores) || 1))
         else if (maxHere > 1 && state.interactiveTargets) {
+            announce()
             requestChoice(state, owner, `${sourceName}：分身スピリットに置くコアの数を選んでください`, [], false, { ...action, left }, self, "option", Array.from({ length: maxHere }, (_, i) => String(i + 1)), undefined, true)
             return
         }
@@ -51,9 +58,11 @@ const bunshinHandler: ActionHandler<"bunshin"> = (ctx, action) => {
         const inst = createInstance(BUNSHIN_CARD_ID, state.turn, n)
         inst.bunshinOf = original
         player.field.spirits.push(inst)
+        placedInsts.push(inst)
         left--
         placed++
     }
+    announce()
     if (placed > 0) log(state, `${sourceName}：${player.name}は【分身】で山札の上から${placed}枚を分身スピリットにした。`)
 }
 

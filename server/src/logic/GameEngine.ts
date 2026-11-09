@@ -1,7 +1,9 @@
 // 召喚/アタック等のアクション実行とイベント発火の統括
 import { noteCoverage, noteKeyword } from "../../../shared/coverage"
 import { askSurchargePay, payFreeSummonSurcharge, payVoidToll } from "./summonSurcharge"
+import { consumeSummonCostSetOnce, consumeSummonPayByNexusExhaust, noteSummonExtraDiscard, summonExtraDiscardPlan } from "./summonCostRules"
 import { doSummonFromTegamoto } from "./tegamotoSummon"
+import { tryBraveFreeSummon } from "./braveFreeSummon"
 import { exSymbolsOfTrashCard, findSokuFreeSummonSource, selfSetCost, summonSurcharge } from "../../../shared/cost"
 import type { CardInstance, Color, EffectAction, EffectDef, GameAction, GameState, PaySource, PlayerId } from "../type"
 import {
@@ -24,6 +26,9 @@ import {
 } from "./GameState"
 import { endTurn, toAttackPhase } from "./PhaseManager"
 import { fireQueuedDestroyBursts } from "./removal"
+import { destroyCombinedBrave } from "./brave"
+import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
+import type { SummonPayOffOption } from "../../../shared/summonPayOff"
 import { wouldDepleteOf, moveSoulCore, placeSoulCoreOnSummoned, soulCoreInReserve, soulCoreInTrash } from "./soulCore"
 import { resolveAttackDeclared } from "./attackDeclared"
 import { resolveBlockDeclared } from "./blockDeclared"
@@ -112,7 +117,7 @@ import {
 import { doCastMagic } from "./magic/cast"
 import { effectActiveAtLevel } from "./EffectModules"
 import { doResolveChoice } from "./choice"
-import { separateBravesBelowMinCost } from "./braveConditionGate"
+import { separateBravesBelowMinCost, separateBravesOverLimit } from "./braveConditionGate"
 import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battleResolve"
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
@@ -138,6 +143,7 @@ export function handleAction(
     // 維持コアを下回った個体の掃除（refreshLevelAsOverrides の後に置くこと）
     sweepLevelCostDepletion(state)
     separateBravesBelowMinCost(state)
+    separateBravesOverLimit(state)
     // バウンス待機カードは選択待ちが無くなった時点で手札／デッキへ移す。resolveAction を通らない経路（エンドステップのデッキ下戻し・召喚時の入れ替え）の安全網
     if (!state.pendingChoice) flushBounces(state)
     // 【迷彩】の支払い済み目印は、払った効果の解決（中断含む）が終わるまで持ち、次の効果へ持ち越さない
@@ -281,9 +287,12 @@ function dispatchAction(
         return "対象の選択待ちです"
     }
     switch (action.type) {
-        case "summon":
+        case "summon": {
+            const braveFree = tryBraveFreeSummon(state, pid, action)
+            if (braveFree !== undefined) return braveFree
             if (action.fromTegamoto) return doSummonFromTegamoto(state, pid, action)
-            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice)
+            return doSummon(state, pid, action.handIndex, action.paySources, action.level, action.substituteInstanceId, action.discardHandIndices, action.braveTargetInstanceId, action.altSummonNexusInstanceIds, action.shinsokuAssistInstanceIds, action.exReductionTrashIndices, action.paySoulCoreFromReserve, action.placeSoulCoreFromReserve, action.sokuFreeChoice, action.extraDiscardHandIndices, action.payOffInstanceId)
+        }
         case "resshinsokuSummon":
             return doResshinsokuSummon(state, pid, action.handIndex)
         case "setBurst":
@@ -380,6 +389,12 @@ function forceEndTurnIfFlagged(state: GameState): void {
     if (!state.endAttackStepAfterBattle || state.winner) return
     if (state.battle) return
     state.endAttackStepAfterBattle = false
+    const lifeCheck = state.endAttackStepLifeCheck
+    delete state.endAttackStepLifeCheck
+    if (lifeCheck && state.players[lifeCheck.pid].life > lifeCheck.max) {
+        log(state, `${state.players[lifeCheck.pid].name}のライフのコアが${lifeCheck.max}個を超えているため、アタックステップは終了しない。`)
+        return
+    }
     log(state, "このバトルの終了にともない、アタックステップを終了する。")
     endTurn(state)
 }
@@ -502,8 +517,10 @@ export function doSummon(
     paySoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う
     placeSoulCoreFromReserve?: boolean, // リザーブの[ソウルコア]を維持コアとして召喚したスピリットに置く
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（undefined=まだ聞いていない / true=無償 / false=あえて支払う）
+    extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（省略時は自動で選ぶ）
+    payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
 ): string | null {
-    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice)
+    const error = validateSummon(state, pid, handIndex, paySources, level, substituteInstanceId, discardHandIndices, braveTargetInstanceId, altSummonNexusInstanceIds, shinsokuAssistInstanceIds, exReductionTrashIndices, paySoulCoreFromReserve, placeSoulCoreFromReserve, sokuFreeChoice, extraDiscardHandIndices, payOffInstanceId)
     if (error) return error
 
     const player = state.players[pid]
@@ -527,6 +544,7 @@ export function doSummon(
     }
     // kind:"payAssistByExhaust"：指定した発生源を疲労させ、召喚コストの一部を肩代わりする
     let shinsokuDiscount = 0
+    let usedNexusExhaustRule = false
     if (shinsokuAssistInstanceIds !== undefined && shinsokuAssistInstanceIds.length > 0) {
         // 【神速】かどうかの条件は validateSummon で確認済み。ここは割引額と消費記録を引くだけなので flash は見ない
         const candidates = new Map(payAssistCandidates(state, pid, { cardId: player.hand[handIndex]!, flash: true }).map((c) => [c.instanceId, c]))
@@ -537,7 +555,9 @@ export function doSummon(
             const c = candidates.get(id)
             if (c?.oncePerTurn) player.payAssistUsedThisTurn = [...(player.payAssistUsedThisTurn ?? []), id]
             shinsokuDiscount += c?.discount ?? 0
+            if (c?.byRule) usedNexusExhaustRule = true
         }
+        if (usedNexusExhaustRule) consumeSummonPayByNexusExhaust(state, pid)
         log(state, `${player.name}は自分のカードを疲労させ、召喚コストのうち${shinsokuDiscount}を支払ったものとして扱った。`)
     }
     // 《継召》：指定されたトラッシュのEXシンボル持ちカードを除外し、そのシンボル列を召喚コストの軽減に使う（軽減に使えるのは同じ色だけで、枚数×シンボル数とは限らない）
@@ -560,9 +580,10 @@ export function doSummon(
     // 使用時確認は magicFreeGrant と同じ形：interactive で、リザーブで払える見込みがあるときだけ聞く
     const sokuFreeSource = altSummonNexusInstanceIds === undefined ? findSokuFreeSummonSource(state, pid) : null
     const sokuFree = sokuFreeSource !== null && sokuFreeChoice !== false
+    const payOff = payOffInstanceId === undefined ? undefined : summonPayOffOptions(state, pid, cardId).find((o) => o.targetInstanceId === payOffInstanceId)
     const baseCost = Math.max(
         0,
-        (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
+        (altSummonNexusInstanceIds !== undefined ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) -
             shinsokuDiscount,
     )
     if (sokuFreeChoice === undefined && sokuFree && baseCost > 0 && state.interactiveTargets && player.reserve >= baseCost) {
@@ -612,8 +633,21 @@ export function doSummon(
         discardHandIndices !== undefined
             ? discardHandIndices.slice(0, discardPaid).map((i) => player.hand[i]!)
             : player.hand.filter((_, i) => i !== handIndex).slice(-discardPaid)
+    // summonExtraDiscard の破棄対象も、抜く前のインデックスで確定させる
+    const extraPlan = summonExtraDiscardPlan(state, pid, handIndex, card, extraDiscardHandIndices, discardHandIndices)
+    const extraIds = "indices" in extraPlan ? extraPlan.indices.map((i) => player.hand[i]!) : []
+    consumeSummonCostSetOnce(state, pid, card)
     // **召喚するカードを先に手札から抜く**：破棄の対象に自分自身が混ざらないようにする
     player.hand.splice(handIndex, 1)
+    if (extraIds.length > 0) {
+        noteSummonExtraDiscard(card)
+        for (const id of extraIds) {
+            const at = player.hand.indexOf(id)
+            if (at !== -1) player.hand.splice(at, 1)
+            player.trashCards.push(id)
+        }
+        log(state, `${player.name}は召喚の追加コストとして手札の${extraIds.map((id) => getCard(id).name).join("、")}を破棄した。`)
+    }
     if (discardPaid > 0) {
         for (const id of discardIds) {
             const at = player.hand.indexOf(id)
@@ -627,6 +661,12 @@ export function doSummon(
     }
     if (paySoulCoreFromReserve === true || paySources?.some((src) => src.includeSoulCore === true)) state.summonPaidWithSoulCore = true
     payVoidToll(state, pid, card)
+    // 破壊（payOff）は召喚コストの支払いより先（2026-11-08 ユーザー確認）。戻ったコアは支払い元に使えるので、
+    // 破壊する個体を指していた支払い元はリザーブ払いに読み替える（リザーブ払いは不足分の残りとして払われる）
+    if (payOff !== undefined) {
+        payOffDestroy(state, pid, payOff)
+        paySources = paySources?.filter((src) => src.instanceId !== payOff.targetInstanceId)
+    }
     const placedFromField = payCost(state, pid, cost - discardPaid, paySources, maintain, paySoulCoreFromReserve)
     // ⚠️ 維持コアをリザーブから引くのは**場に出す時点**（placeSummonedSpirit）。
     // 手順が「コストを支払う → 転召 → 維持コアを置く → 召喚完了」なのでここでは引かない
@@ -664,6 +704,7 @@ export function doSummon(
         if (!ownHandKeyword(state, cardId, "soku")) for (const e of card.effects) if (e.kind === "flashSummonFromHand" && e.onceScope === "name") markOnceNameUsed(state, pid, cardId, e.id)
     }
     state.summoningFromHand = true // 通常召喚は手札から（fieldEvent.fromHandOnly）
+    state.summoningPaid = true
     if (!state.winner) resolveTensho(state, pid, inst, false, true)
     if (state.pendingChoice) {
         pushResumeFrames(state, [
@@ -679,6 +720,23 @@ export function doSummon(
     passFlashPriority(state, pid)
     if (state.winner) state.battle = null
     return null
+}
+
+// 破壊は召喚コストの支払いの一部（コスト計算は支払い前の盤面で済んでいる）。コアは通常の破壊どおりリザーブへ戻る
+function payOffDestroy(state: GameState, pid: PlayerId, option: SummonPayOffOption): void {
+    const player = state.players[pid]
+    const host = player.field.spirits.find((s) => s.instanceId === option.sourceInstanceId)
+    if (host === undefined) return
+    noteCoverage(getCard(host.cardId).effects.find((e) => e.kind === "summonPayOff"), "summonPayOff")
+    if (option.treatAs === "fullReduction") {
+        log(state, `${player.name}は${getCard(host.cardId).name}を破壊することで、召喚コストの軽減をすべて満たしたものとして扱った。`)
+        destroySpirit(state, pid, host.instanceId)
+        return
+    }
+    const brave = player.field.combinedBraves.find((b) => b.instanceId === option.targetInstanceId)
+    if (brave === undefined) return
+    log(state, `${player.name}は${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」を破壊することで、そのコストぶん召喚コストを支払ったものとして扱った。`)
+    destroyCombinedBrave(state, pid, host, brave)
 }
 
 export type ResshinsokuInfo = { handIndex: number; cardId: string; remaining: number; selfCores: number }
@@ -1373,7 +1431,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
             continue
         }
         for (let i = 0; i < c.count; i++) {
-            const magicIdx = blockerPlayer.hand.findIndex((id) => getCard(id).type === "magic")
+            const magicIdx = blockerPlayer.hand.findIndex((id) => c.cost === "discardHand" || getCard(id).type === "magic")
             if (magicIdx === -1) break
             const cardId = blockerPlayer.hand[magicIdx]!
             blockerPlayer.hand.splice(magicIdx, 1)
@@ -1394,6 +1452,7 @@ export function finishBlockDeclaration(state: GameState, pid: PlayerId, instance
     log(state, `${state.players[pid].name}の${blockerName}がブロックした！ フラッシュタイミングを開始する。`)
     // ブロッカーが決まって初めて効く継続効果（blockingOnly の効果無効など）を『ブロック時』より先に反映する（BS20_PLAN §2 の6）
     refreshLevelAsOverrides(state)
+    state.blocksThisTurn += 1
     // ブロック宣言で誘発する効果は同時発揮。解決順はターンプレイヤーが選ぶ（blockDeclared.ts）
     resolveBlockDeclared(state, blockerPid, blocker, instanceId, directed, exhaustedBlockers)
     if (state.winner) {

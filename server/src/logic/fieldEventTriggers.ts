@@ -115,6 +115,9 @@ export function fireFieldEventTriggers(
         refreshSourceType?: CardType
         // event: "ownKeywordActivated" 限定：発揮されたキーワード（【増幅】/【水流】等のラベルID）
         keyword?: Keyword
+        // event: "ownKeywordActivated" + keyword:"rensa" 限定：発揮した【連鎖】の色と、その節の中でドローしたか
+        rensaColor?: Color
+        rensaDrew?: boolean
         // event: "ownSpiritBpReached" 限定：前回観測したBPと今回のBP（bpReachedAt の判定に使う）
         bpFrom?: number
         bpTo?: number
@@ -335,6 +338,8 @@ export function fireFieldEventTriggers(
             if (effect.keywordActivatedFilter !== undefined && eventInfo?.keyword !== effect.keywordActivatedFilter) {
                 continue
             }
+            if (effect.rensaColor !== undefined && eventInfo?.rensaColor !== effect.rensaColor) continue
+            if (effect.rensaDrew && eventInfo?.rensaDrew !== true) continue
             // 破壊/消滅したスピリットのコストで絞る（BS05天使クレイオ：コスト2）。
             // 道化師クランの付与コストも見るため、eventInfo.costsのいずれかが条件を満たせばよい
             if (

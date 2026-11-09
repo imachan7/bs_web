@@ -14,7 +14,7 @@ import {
     requestChoice,
     voidCoreToOwnTrash,
 } from "../EffectModules"
-import { effectiveBp, hasGlobalConstraint, isEndStepLocked, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
+import { coreIntakeRefused, effectiveBp, hasGlobalConstraint, isEndStepLocked, noteHeldKeyword, spiritHasKeyword } from "../../../../shared/rules"
 import { takeCoresFromSpirit } from "../removal"
 import { matchesTarget } from "../../../../shared/rules"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
@@ -160,7 +160,7 @@ export function placeCoresPoolCandidates(
     const pool = action.anyField ? [...player.field.spirits, ...player.field.nexuses] : action.to === "spirit" ? player.field.spirits : player.field.nexuses
     const resolvedFilter = normalizeFilter(ctx, action)
     if (resolvedFilter === SELF_REQUIRED) return SELF_REQUIRED
-    return pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId))
+    return pool.filter((inst) => matchesTarget(state, owner, inst, resolvedFilter, self?.instanceId) && !coreIntakeRefused(inst, self?.instanceId))
 }
 
 // spread：トラッシュなどから count 個まで（取り元にあるだけ）を、targets 体までの別々の置き先へ1個ずつ振り分ける。

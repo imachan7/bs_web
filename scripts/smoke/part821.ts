@@ -144,7 +144,7 @@ console.log("=== 009 Lv2 合体アタック時：ブレイヴの『合体アタ�
     takeLifeAndResolve(s, "p2")
 }
 
-console.log("=== 009：見出しが【合体時】『このスピリットのアタック時』のブレイヴ（バル・ガンナー）の効果はもう1度にならない（Q4332） ===")
+console.log("=== 009：見出しが【合体時】『このスピリットのアタック時』のブレイヴ（バル・ガンナー）の効果ももう1度になる（2026-11-08 ユーザー決定。Q4332 の見出しの区別はしない） ===")
 {
     const s = game("messiah-gunner", "p1", "attack", { p1: "red", p2: "green" })
     const m = put(s, "p1", MESSIAH, 3)
@@ -152,8 +152,8 @@ console.log("=== 009：見出しが【合体時】『このスピリットのア
     for (let i = 0; i < 4; i++) put(s, "p2", STIRA, 1)
     assert(act(s, "p1", { type: "attack", instanceId: m.instanceId }) === null, "合体したメサイアでアタックできる")
     settle(s)
-    assert(s.players.p1.hand.length === 1, "ドローは1枚だけ（もう1度の確認も出ない）")
-    assert(s.players.p2.field.spirits.length === 2, "メサイア自身1体＋バル・ガンナー1体の計2体だけ破壊される（4体中2体が残る）")
+    assert(s.players.p1.hand.length === 2, "もう1度でドローも2枚になる")
+    assert(s.players.p2.field.spirits.length === 1, "メサイア自身1体＋バル・ガンナー2回で計3体破壊される（4体中1体が残る）")
     takeLifeAndResolve(s, "p2")
 }
 

@@ -47,6 +47,8 @@ function costModSum(board: Board, usingPid: PlayerId, cardData: CardData, before
                 if (effect.costIn !== undefined && !effect.costIn.includes(cardData.cost)) continue
                 // side:"opponent"：発生源の持ち主（pid）から見て相手（usingPid !== pid）のカードのみ
                 if (effect.side === "opponent" && usingPid === pid) continue
+                if (effect.side === "own" && usingPid !== pid) continue
+                if (effect.cardName !== undefined && cardData.name !== effect.cardName) continue
                 if (effect.phaseTurn) {
                     if (board.phase !== effect.phaseTurn.phase) continue
                     if (effect.phaseTurn.turn === "own" && pid !== board.turnPlayer) continue
@@ -556,6 +558,10 @@ export function costSetOverride(
     if (fromHand) {
         for (const r of timedPlayerRules(board, pid)) {
             if (r.type === "handCostSetForPid" && (result === undefined || r.value < result)) result = r.value
+            if (r.type === "summonCostSetOnceForPid" && cardData.type === r.cardType && cardData.name.includes(r.nameContains)) {
+                const value = board.players[pid].life
+                if (result === undefined || value < result) result = value
+            }
         }
     }
     const sources = effectSources(board, pid)
@@ -578,6 +584,8 @@ export function costSetOverride(
                 if (!wanted.some((f) => cardData.family.includes(f))) continue
             }
             if (effect.keywordFilter !== undefined && !hasKeyword(cardData.cardId, effect.keywordFilter)) continue
+            if (effect.colorFilter !== undefined && !cardData.colors.includes(effect.colorFilter)) continue
+            if (effect.fromHandOnly && !fromHand) continue
             if (effect.costFilter !== undefined && !matchesCostFilter(cardData.cost, effect.costFilter)) continue
             // BS07女帝ペンプレスLv2-3：手札のカード名に「ペンタン」を含むスピリットカードのみ
             if (effect.nameContains !== undefined && !cardData.name.includes(effect.nameContains)) continue
@@ -690,7 +698,7 @@ function hasTrashSymbolReduction(board: Board, pid: PlayerId, cardData: CardData
 // noReductionOpponent（イワトビペンタン）が有効なマジックは軽減シンボルによる軽減自体ができない
 // kind:"symbolWhenSummoning"（26系RDB01-030「自分がコスト7以上で【イエローライズ】を持つスピリットカードを召喚する時、
 // このスピリットに黄シンボル1つを追加する」）。召喚するカードによって変わるので、盤面のシンボルでなく軽減計算で足す
-function cardMatchesSummonPick(c: CardData, pick: CardPick): boolean {
+export function cardMatchesSummonPick(c: CardData, pick: CardPick): boolean {
     if (pick.cardType !== undefined && !([] as string[]).concat(pick.cardType).includes(c.type)) return false
     if (pick.family !== undefined && !([] as string[]).concat(pick.family as string | string[]).some((f) => (c.family ?? []).includes(f))) return false
     if (pick.cost !== undefined && !matchesCostFilter(c.cost, typeof pick.cost === "number" ? { min: pick.cost, max: pick.cost } : pick.cost)) return false
@@ -748,6 +756,7 @@ export function effectiveCost(
     viaSoryo = false, // 【操霊】による召喚か（kind:"selfSummonCost" の viaSoryo 用）
     // 手札以外（トラッシュの【不死】・デッキ・バースト等）から出すときは false。既定は手札
     fromHand = true,
+    forceFullReduction = false, // 「軽減をすべて満たしたものとして扱う」（kind:"summonPayOff" treatAs:"fullReduction"）
 ): number {
     // マジック無償化（薔薇人バロッサ）：相手フィールドに noFreeCastOpponent（力奪う凱旋門Lv2）が
     // なければコスト0（costModも無視。他の軽減とは独立した完全無償化）。
@@ -804,7 +813,7 @@ export function effectiveCost(
             // BS10-092／BS10-X05：フィールドのシンボルに加え、自分のトラッシュにあるカードのシンボルでも
             // 軽減できる（ループの外で1回だけ判定し、色ごとには呼ばない）
             const withTrash = hasTrashSymbolReduction(board, pid, cardData, viaSoryo)
-            const fullReduction = selfSummonCostNotes(board, pid, cardData, "fullReduction", viaSoryo).length > 0
+            const fullReduction = forceFullReduction || selfSummonCostNotes(board, pid, cardData, "fullReduction", viaSoryo).length > 0
             const alsoColors = fromHand ? reductionAlsoColors(board, pid, cardData) : []
             const haveOf = (color: Color): number =>
                 countSymbols(board.players[pid], [color], cardData.type === "spirit") +

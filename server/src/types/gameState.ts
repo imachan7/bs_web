@@ -19,6 +19,7 @@ export interface GameState {
     players: Record<PlayerId, PlayerState>
     log: string[]
     winner: PlayerId | null
+    endAttackStepLifeCheck?: { pid: PlayerId; max: number } // endAttackStepAfterBattle の ifOwnLifeAtMost。バトル終了時に判定する
     endAttackStepAfterBattle: boolean // 今のバトルが終了したときアタックステップを強制終了するか（サイレントウォール用）
     extraStepAfterAttackUsed?: true // BS15-X04 Lv2 をこのターンに使った（ターン終了でリセット）
     extraMainStep?: true // BS15-X04 Lv2 で行っている追加のメインステップ中。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）
@@ -34,6 +35,7 @@ export interface GameState {
     timedEffects: TimedRecord[] // 期間つき効果の記録（docs/design/TIMED_EFFECTS.md）。ターン終了・バトル終了で until に応じて消える
     endStepLocks: EndStepLock[] // エンドステップを数える封印（BS10-108 ルナティックシール）。**ターン終了でリセットしない**
     turnEndActions?: { ownerPid: PlayerId; action: EffectAction; sourceCardId?: string }[] // atTurnEnd
+    blocksThisTurn: number // このターンのブロック宣言の回数（「このターンの最初のブロック」＝何回目のアタックかに関わらず1回目。Q4528）
     attacksThisTurn: number // このターンに宣言されたアタックの回数（doAttackで加算・ターン終了でリセット）。「ターンの最初のアタック」判定に使う（BS04ダックル／燃えさかる戦場Lv2）
     lastAttackerCombinedPid?: PlayerId // 直前のアタック宣言が合体スピリットによるものだったとき、そのアタッカーの持ち主（doAttackが宣言のたびに更新。それ以外はundefined）
     prevAttackerCombinedPid?: PlayerId // 「1つ前」の lastAttackerCombinedPid（doAttackが次の宣言の直前にスライドさせる）。ターン開始でどちらもリセット（「次にアタックした」はターンをまたがない。BS10-047赤ずきん妖精ルージュLv3）
@@ -76,6 +78,7 @@ export interface GameState {
     // 直前に timedEffect が BP を増加させた対象の instanceId。効果文が「〜をBP+2000する。**そのスピリットが**〜」と
     // 前の文を指しているカードで、後ろの文を対象1体に限定するために使う（BS07ニードルショット）。
     // 直後の lendSelfThisBattle が仮想発生源の lentBuffTargetId へ写して、そこから battleWon が読む
+    drawCount?: Record<PlayerId, number> // draw() が引いた枚数の通算。【連鎖】の節の中でドローしたかの判定にだけ使う（rensaActivated）
     lastBpBuffTargetId?: string
     // いま解決中の効果の発生源（resolveAction が handler を呼ぶ間だけ立ち、抜けるときに元へ戻す）。
     // 「**相手の〈色〉のスピリット/ネクサス/マジックの効果で**〜されたとき」を判定するために使う
@@ -150,6 +153,7 @@ export interface GameState {
     // 【転召】は「召喚コスト支払い後・維持コアを置く前」に解決するため、その間だけ立つ。
     // これが立っている間は『転召したとき』の誘発を保留する（下の pendingTenshoEvent）
     summoningFromHand?: true // いま解決中の召喚が**手札からの召喚**か（通常召喚・効果による手札からの召喚のどちらも）。fireSummonSequence が読んで「手札から召喚されたとき」（fieldEvent.fromHandOnly。BS11-X05 魔導双神ジェミナイズ）に渡し、そこで消す
+    summoningPaid?: true // いま解決中の召喚がコストを支払ったものか（通常召喚・payCost 付きの効果召喚）。fieldEvent.paidCostOnly（anyBraveSummoned）が読む。fireSummonSequence が消す
     summoningBySoku?: true // いま解決中の召喚が【神速】によるものか（フラッシュタイミングの手札からの召喚）。fireSummonSequence が読んで「【神速】の効果で召喚されたとき」（fieldEvent.sokuSummonOnly。BS11-065 満天の牧草地Lv2）に渡し、そこで消す
     summoningInstanceId?: string
     // 保留した『転召したとき』（fieldEvent "ownTensho"）。召喚されたスピリットが場に出た時点で発火する。

@@ -107,6 +107,15 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "destroyBlockerAtBattleEnd" // 発生源の持ち主のスピリット（attackerCost のコスト）をブロックしていた、blockerLevel のスピリットを、バトル終了時に破壊する
+          // 判定はバトル解決時（BP比較の前）。予約した後に発生源が離れても破壊する（BS23-042。Q4551〜Q4553）
+          levels: number[] | null
+          attackerCost: number
+          blockerLevel: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
           kind: "battleBpAsLevel" // 持ち主のfromLevelのスピリットは、バトルのBP比較のときだけuseLevelのBPを使う
           levels: number[] | null
           fromLevel?: number // 省略時はどのLvにも効く
@@ -261,6 +270,7 @@ export type EffectDefContinuous =
           whileCombined?: true
           onlyWhileSpiritState?: true // whileCombinedの逆。combinedBravesは合体中もeffectSourcesに含まれ続けるため、付けない継続付与は既定では合体後も効き続ける
           keyword: Keyword
+          kyoka?: "bpDestroy" | "coreRemove" | "exhaust" | "refresh" | "bpMinus" | "deckMill" // keyword:"kyoka" のとき、与える【強化】の種類（kyokaBonus が付与分を数える）
           target: "ownAll"
           filter?: ResolvedTargetFilter // 付与先の絞り込み（keywordFilter の統一軸。ラベル専用キーワードの参照＝【連鎖】持ちなどはここに書く。Q774：Lvで判定される）
           combinedFilter?: true
@@ -389,6 +399,14 @@ export type EffectDefContinuous =
       }
     | {
           id: string
+          kind: "coresAs" // 持ち主のカード名に nameContains を含むネクサスを、コアが count 個置かれているものとして扱う（coresOverride。Lv判定に効く。Q4578）
+          levels: number[] | null
+          nameContains: string
+          count: number
+          phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
+      }
+    | {
+          id: string
           kind: "bpAs"
           levels: number[] | null
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
@@ -407,7 +425,8 @@ export type EffectDefContinuous =
           id: string
           kind: "bpEqualizeFamily" // Lv別BPを発生源の実効BP（合体時込み）と同じとして扱う全面上書き
           levels: number[] | null
-          familyFilter: FamilyFilter
+          familyFilter?: FamilyFilter // nameContains とどちらか一方
+          nameContains?: string // カード名に含む文字列。発生源と同名のカードは対象外（「[発生源名]以外」。BS23-036）
           phaseTurn?: { phase: Phase; turn: "own" | "opponent" | "both" }
       }
     | {
@@ -453,6 +472,7 @@ export type EffectDefContinuous =
           levels: number[] | null
           target: "ownAll" | "self"
           familyFilter?: FamilyFilter
+          orKeyword?: Keyword // familyFilter とOR。このキーワード（ラベル専用の【連鎖】等を含む）を持つスピリットも対象（「系統：「異合」を持つ／【連鎖】を持つ」）
           colorFilter?: Color // target:"ownAll" の絞り。その色を持つスピリットだけ（familyFilterと併用ならAND）
           minCores?: number // target:"ownAll" の絞り。載っているコアがこの数以上のスピリットだけ。毎回の再計算で判定するのでコアが減れば外れる
           count: number
@@ -500,6 +520,7 @@ export type EffectDefContinuous =
               condition?: { targetMaxCost: number } | { targetMaxBp: number } // targetMaxBp は onBattleEnd 用
               keywordBody?: Keyword // この誘発がキーワードの本体（【聖命】等）。同じキーワードは重ねて持っても1回なので、元から持つ個体には付けず、付与が重なっても1回
           } // 付与される誘発効果（levelsは常に有効扱い）
+          lendFrom?: "sourceBraves" | "self" // granted.action のかわりに、ブレイヴが持つ onAttack＋whileCombined のエントリすべてを与える。sourceBraves＝発生源に合体しているブレイヴ（BS23-031）、self＝付与された個体自身（BS23-044）。2026-11-08 ユーザー決定：『合体アタック時』と【合体時】『アタック時』を区別しない。granted.action は使われない
           lentOnly?: boolean
       }
     | {
@@ -749,6 +770,11 @@ export type EffectDefContinuous =
           id: string
           kind: "deckRule" // デッキ構築の規則。継続効果ではなく印（盤面では読まない。validateDeckCards が読む）
           rule: "anyCopies" // 同名カードの枚数上限を外す（CP13-01）
+      }
+    | {
+          id: string
+          kind: "braveExtraCombine" // このブレイヴ自身の特性：要求した名前のブレイヴと合体中の自分のホストに、合体条件・数を無視して1つだけ追加で合体できる（Q20340〜Q20342）
+          requireHostBraveName: string
       }
     | {
           id: string

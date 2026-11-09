@@ -18,7 +18,7 @@ import { suspend } from "../GameState"
 import { exhaustNexus, exhaustSpirit } from "../state/exhaust"
 import { kyoshuLimitOf, kyoshuSelfExhaustSources, kyoshuUsedOf } from "../keywords/kyoshu"
 import { lifeLossAllowed } from "../lifeGate"
-import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf } from "../../../../shared/rules"
+import { canDiscardHand, effectiveBp, hasGlobalConstraint, isEndStepLocked, instColors, matchesFamilyFilter, matchesTarget, noteHeldKeyword, bravesOf, refreshBlockedByRule } from "../../../../shared/rules"
 import { budgetDestroyHasTarget, destroyCandidateCountForPay, destroyNexusCandidateCountForPay, reviveLastDestroyedNexusBlockReason } from "./destroy"
 import { returnToDeckTopCandidateCountForPay, returnToHandCandidateCountForPay } from "./bounce"
 import { removeCoresAchievableCountForPay, removeCoresKyokaBonus } from "./removeCores"
@@ -246,9 +246,11 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const opp = opponentOf(owner)
         return pickEnemyCandidates(state, opp, Infinity, (s) => !s.heavyRested && matchesTarget(state, opp, s, filter, self?.instanceId), srcColors, srcType, "exhaust").length >= 1
     },
-    refresh: (state, owner, self, action, _srcColors, _srcType, eventTarget) => {
+    // 回復禁止（cantRefresh）で回復できない個体は数えない（BS23-X04。Q4606「回復できなければバーストも破棄できない」）
+    refresh: (state, owner, self, action, _srcColors, srcType, eventTarget) => {
         if (action.type !== "refresh") return false
-        if (action.target === "self") return self !== null && self.isRested
+        const refreshable = (s: CardInstance) => srcType === undefined || !refreshBlockedByRule(state, owner, s, { by: "effect", sourceType: srcType })
+        if (action.target === "self") return self !== null && self.isRested && refreshable(self)
         if (action.eventTargetOnly) {
             return eventTarget !== undefined && state.players[owner].field.spirits.some((s) => s.instanceId === eventTarget && s.isRested)
         }
@@ -256,7 +258,7 @@ const CHECKERS: Partial<Record<EffectAction["type"], Checker>> = {
         const ctx = { state, owner, self, targetInstanceId: undefined } as ActionCtx
         const filter = normalizeFilter(ctx, action)
         if (filter === SELF_REQUIRED) return false
-        return refreshOneOwnCandidates(state, owner, self, filter).length >= 1
+        return refreshOneOwnCandidates(state, owner, self, filter).some(refreshable)
     },
     // placeCores：置き先（target self/one/all）があり、止める効果（coreGainAllowed・
     // ライフ専用ガード）に当たらず、取り元（reserve/trash/self/field）にcount個以上あるか

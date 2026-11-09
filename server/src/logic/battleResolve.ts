@@ -5,6 +5,8 @@ import { addLifeDealt, recordLifeLoss } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
+import { reserveBlockerDestroyByEntries } from "./battleEndDestroy"
+import { destroyCombinedBrave } from "./brave"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
 import type { EffectAttempt } from "../../../shared/rules"
@@ -264,9 +266,25 @@ function runLifeDamageStep(state: GameState, f: LifeDamageResolveFrame, step: nu
         const surviving = findSpirit(state.players[attackerPid], f.attackerSnapshot.instanceId)
         if (surviving) fireTrigger(state, attackerPid, surviving, "onBattleEnd", "attacker")
     } else if (step === 6) {
+        destroyMarkedAtBattleEnd(state)
         resolveKoboOnBattleEnd(state, attackerPid, attacker)
     } else {
         clearBattle(state)
+    }
+}
+
+// 印（destroyAtBattleEnd）を付けられたスピリットと合体中のブレイヴの、バトル終了時の破壊。
+// 参加者は case 8/9 で破壊済みなので、残っている個体が対象。合体中のブレイヴ（X13-11）は field.spirits にいないので別に拾う
+function destroyMarkedAtBattleEnd(state: GameState): void {
+    for (const pid of ["p1", "p2"] as PlayerId[]) {
+        for (const sp of [...state.players[pid].field.spirits]) {
+            if (!state.winner && sp.destroyAtBattleEnd) destroySpirit(state, pid, sp.instanceId)
+        }
+        for (const host of [...state.players[pid].field.spirits]) {
+            for (const brave of bravesOf(state.players[pid], host)) {
+                if (!state.winner && brave.destroyAtBattleEnd) destroyCombinedBrave(state, pid, host, brave)
+            }
+        }
     }
 }
 
@@ -356,6 +374,7 @@ export function resolveBattle(state: GameState): void {
             recordBlockerTrashCost(state, blockerPid)
             fireTrigger(state, attackerPid, attacker, "onBattleEnd", "attacker", state.battle.blockerInstanceId ?? undefined)
         }
+        destroyMarkedAtBattleEnd(state)
         clearBattle(state)
         return
     }
@@ -423,6 +442,7 @@ export function resolveBattle(state: GameState): void {
         resolveLifeDamage(state)
         return
     }
+    reserveBlockerDestroyByEntries(state, attackerPid, attacker, blockerPid, blocker)
     // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
     const attackerBp = battleBp(state, attackerPid, attacker)
     const blockerBp = battleBp(state, blockerPid, blocker)
@@ -759,7 +779,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                     op: "destroy",
                     scope: "targeted",
                     actorPid: entry.sourcePid,
-                    sourceType: "nexus",
+                    sourceType: entry.sourceType ?? "nexus",
                     sourceColors: entry.sourceColors,
                 }
                 const resisted = resistanceAgainst(state, found.pid, found.inst, attempt)
@@ -775,7 +795,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                     instanceId: found.inst.instanceId,
                     context: {
                         sourcePid: entry.sourcePid,
-                        sourceType: "nexus",
+                        sourceType: entry.sourceType ?? "nexus",
                         sourceColors: entry.sourceColors,
                     },
                 })
@@ -837,12 +857,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
             return
         }
         case 10: {
-            // バトルに参加しなかった個体の destroyAtBattleEnd（26RBS01-113「このバトル終了時、召喚したそれを破壊する」）。参加者は case 8/9 で破壊済み
-            for (const pid of [attackerPid, defenderPid]) {
-                for (const sp of [...state.players[pid].field.spirits]) {
-                    if (!state.winner && sp.destroyAtBattleEnd) destroySpirit(state, pid, sp.instanceId)
-                }
-            }
+            destroyMarkedAtBattleEnd(state)
             resolveKoboOnBattleEnd(state, attackerPid, attacker)
             return
         }

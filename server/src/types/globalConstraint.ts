@@ -8,11 +8,13 @@ import { Phase, Color, CardType, FamilyFilter, TriggerEvent, Keyword, FieldEvent
 // kind: "constraint" は発生源自身への制約だが、こちらは発生源の持ち主に関係なく両陣営のスピリット／ネクサスすべてに効く
 // （RuleValidator.hasGlobalConstraint 経由）。片側限定の型は「発生源の持ち主」「相手」と明記してある。
 export type GlobalConstraintDef =
+    | { type: "ownBraveIndestructibleByOpponent"; family: string } // 発生源の持ち主の合体スピリットのブレイヴのうち、この系統を持つものは相手の効果で破壊されない（BS23-031。destroyCombinedBrave が読む。ホストごと破壊される場面は止めない）
     | { type: "singleCoreCantAct" } // コア1個のスピリットはアタックもブロックもできない（両陣営）
     | { type: "singleCoreCantAttack" } // アタックのみ不可（ブロックは可。両陣営）
     | { type: "opponentCantAttackByCost"; costs: number[] } // 発生源の持ち主から見た相手のスピリットのうち、コストが配列のいずれかと一致するものはアタック不可（ブロックは可。片側限定）
     | { type: "opponentCantAttackByCores"; cores: number } // コア数がちょうどこの数の相手のスピリットはアタック不可（ブロックは可）
     | { type: "cantAttackByCost"; costs: number[] } // opponentCantAttackByCost の両陣営版
+    | { type: "opponentCantBlockByCost"; costs: number[] } // opponentCantAttackByCost のブロック版（発生源の持ち主から見た相手のスピリットだけ。phase/turn は instCantBlockByCost が読む）
     | { type: "cantBlockByCost"; costs: number[] } // cantAttackByCost のブロック版（両陣営）
     | { type: "cantBounce"; by?: "effect"; to?: ("hand" | "deck")[]; target?: ResolvedTargetFilter } // 両陣営のスピリットは、フィールドから to（省略＝手札のみ。デッキへ戻すのは止めない）へ戻らない。by:"effect" は効果による戻し（「〜することで」の支払いとして戻すのも効果のうち。2026-11-07 ユーザー確認）だけを止め、省略は原因を問わない。target＝戻される側の絞り込み。phase/turn はエントリ直下を見る（bounceDenial）
     | { type: "opponentNexusesUnexhaustable"; phase?: Phase } // 発生源の持ち主から見た相手のネクサスは疲労させられない（【強襲】の疲労元等も止める）。phase 指定時はそのステップ中のみ
@@ -100,6 +102,8 @@ export type GlobalConstraintDef =
     | { type: "opponentKyokaSuppressed" } // 発生源の持ち主の相手のスピリット（合体中のブレイヴ含む）の【強化】は数えない（kyokaBonus が読む）
     | { type: "opponentCantReturnFromTrashToHand" } // 発生源の持ち主から見た相手は、トラッシュからカードを手札に戻せない（noTrashRecovery〈両陣営〉の片側版）。トラッシュ→手札の経路の各ハンドラ冒頭が共通ヘルパーで一括して弾く
     | { type: "noBurstActivationByEvent"; events: FieldEvent[]; whileOwnAttackerFamily?: FamilyFilter } // 発生源の持ち主の**相手**は、バースト条件が events のいずれかのバーストを**発動できない**（セットされたまま残る。noBurstEffectForPid は発動が成立して解決だけ飛ぶ別物）。whileOwnAttackerFamily＝発生源の持ち主のその系統のスピリットがアタックしている間だけ。ownSpiritDestroyed は byOpponentEffectOnly の有無を区別しない（現行データのバーストは全部「相手による」。2026-10-23）
+    | { type: "coreIntakeSelfOnly" } // 発生源自身には、発生源自身の効果以外ではコアを置けない（配置時を含む。coreIntake.ts の coreIntakeRefused。BS23-072）
+    | { type: "burstActivationCost" } // 発生源の持ち主の**相手**は、バーストを発動するとき、そのカードのコスト（軽減込み）を発動宣言時に支払わなければ発動できない（払えなければセットしたまま。プレイヤーに掛かるのでセット中のカードの耐性は関係しない。burstActivationFee.ts。Q4617〜Q4621）
     | { type: "noBurstActivationByColor"; colors: Color[]; whileOwnAttackerKeyword?: Keyword } // 発生源の持ち主の**相手**は、colors のいずれかの色のバーストカードを発動できない（バースト条件のイベント軸は問わない。BS19-064・096）。whileOwnAttackerKeyword＝発生源の持ち主のそのキーワードを持つスピリットがアタックしている間だけ（§3.23。whileOwnAttackerFamily のキーワード版）
     | { type: "opponentMustAttackOnce" } // 発生源の持ち主の相手は、アタックできるスピリットがいるのにそのターン1回もアタックしていなければターンを終えられない（validateEndTurn。メインからの終了も同じ＝アタックステップは必ず来るので phase:"attack" の効果もメイン中から数える）。2026-10-23 ユーザー確認の読み。継続効果として levels／phase／turn を使うため playerRule（timedEffect 専用）でなくここに置いた
     | { type: "cantAttackIfFewOwnSpirits"; atMost: number }

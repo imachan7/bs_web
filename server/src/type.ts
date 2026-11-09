@@ -280,6 +280,7 @@ export interface BattleState {
         sourceInstanceId: string
         sourcePid: PlayerId
         sourceColors: Color[]
+        sourceType?: CardType // 省略時はネクサス（BS01-104）。装甲・効果耐性の判定に使う
     }[]
     lifeDamagers?: string[] // このバトルで相手のライフを減らしたスピリットのinstanceId（アタックで減らすたびに積む）。
     // event:"ownLifeDamaged"のバースト発動時、GameState.burstEventLifeDamagerIdへ引き継ぐ材料（BS16バッチ0：080用の器）
@@ -314,6 +315,8 @@ export type PlayerRuleDef =
     | { type: "cantUseHandCardsForPid"; allowedColor?: Color; bannedColors?: Color[] | "last"; cardType?: CardType; minCost?: number } // minCost＝印刷コストがこれ以上のカードだけ使えない。手札のカードを使えない（召喚・配置・マジック）。allowedColor＝その色だけ使える、bannedColors＝その色だけ使えない（配列）、cardType＝その種別だけ使えない。"last"は置く時点で直前に動いたカードの色の和集合に解決する（timedEffect.ts）
     | { type: "skipMainStep" } // 寿命 nextRefresh 専用：次の自分のターンのメインステップを行わずアタックステップへ進む（リフレッシュステップで使い切り、そのターンのメインステップ区間で消費）
     | { type: "handCostSetForPid"; value: number } // 手札にあるカードすべてのコストを value にする（後から手札に入ったカードにも効く。軽減はそのコストから適用。複数なら最小）
+    | { type: "summonCostSetOnceForPid"; counter: "ownLife"; nameContains: string; cardType: CardType } // 手札の該当カード**1枚**の召喚コストを counter の値にする。対象は召喚するときに宣言する（Q4458）ので、最初に召喚した該当カードで使い切る（summonCostRules.ts）
+    | { type: "summonPayByNexusExhaustForPid" } // このターン、スピリット/ブレイヴ**1枚**の召喚で、回復状態の自分のネクサスを好きなだけ疲労させ、1つにつき1コスト払ったことにできる（Q25253〜Q25255。使ったら使い切り）
     | { type: "armorDisabledForPid" } // スピリットの【装甲】が働かない（持っている分もこのターンに得た分も。2026-08-16 ユーザー判断）
     | { type: "freeFushiSummonForPid" } // このターン最初の【不死】召喚だけコストが0（維持コアは要る）。使ったら記録を消す
     | LifeGuardDef // ライフを減らす処理への制限（このターンの間の写し。timedEffect の playerRule。守られるのは積まれた側）

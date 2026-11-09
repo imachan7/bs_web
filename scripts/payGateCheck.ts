@@ -27,6 +27,7 @@ const GATE_KINDS = new Set([
     "fushiFreeByExhaust",
     "magicNegatePayByNexusGrant",
     "payAssistByExhaust",
+    "summonPayOff", // 召喚アクションが破壊する個体を指定したときだけ使う（指定しなければ通常の召喚）
 ])
 // cost 欄があるときだけ関門になる kind
 const GATE_KINDS_WITH_COST = new Set(["reviveOnDestroy", "activated", "handActivated"])
@@ -37,11 +38,15 @@ const GATE_PARAMS = ["payCost", "costDestroyOwnSpiritSameCost", "costSkipCoreSte
 
 // 確認を出さないのが正しいもの・「ことで」がコストの意味でないもの
 const VERIFIED: Record<string, string> = {
+    "BS23-X05": "braveFreeSummonByCoreTrash は召喚時に「コアをトラッシュに置いて無償で召喚するか」を対話では必ず聞く（braveFreeSummon.ts）。断れば通常の召喚",
+    "BS23-084": "疲労させるネクサスは召喚アクションで1つずつ指定する（0個でもよい）。指定した時点が確認",
     "BS14-084": "払わないと負けるので自動で払う（2026-10-02 ユーザー決定。COST_MODEL §10）",
     "BS12-075": "「ことで」はマジックの通常コストの支払い手段の言い直し",
     "BS21-052": "burstActivationNegate が破壊する前に任意の対象選択（断れる）を必ず出す。払えないときは聞かない（COST_MODEL §10）",
     "BS22-X03": "【分身】の「置くことで」は置く手順の言い直し。bunshin アクションが0〜N枚の選択（断れる）と1体ずつのコア個数を必ず出す",
     "BS22-024": "BS22-X03 と同じ（【分身】）",
+    "BS23-022": "BS22-X03 と同じ（【分身】）",
+    "BS23-025": "BS22-X03 と同じ（【分身】）",
     "BS17-043": "「ことで」は手札のバースト効果を使う操作（useHandBurstEffect）のコストの支払いそのもので、払うかは操作を選んだ時点で決まる",
 }
 

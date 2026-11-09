@@ -223,6 +223,7 @@ export function createGame(
         timedEffects: [],
         endStepLocks: [],
         attacksThisTurn: 0,
+        blocksThisTurn: 0,
         lastDestroyedNexus: null,
         lastBattleDestroyedCores: 0,
         lastBattleBlockerTrashCost: 0,
@@ -569,6 +570,7 @@ export function draw(state: GameState, pid: PlayerId, count: number, fromDrawSte
         }
         player.hand.push(cardId)
     }
+    state.drawCount = { p1: 0, p2: 0, ...state.drawCount, [pid]: (state.drawCount?.[pid] ?? 0) + count }
     log(state, `${player.name}は${count}枚ドローした。`)
     emitEvent(state, { type: "draw", pid, count })
     // フィールドイベント誘発「相手がドローしたとき」：ドローしたpidの相手側（opponentOf(pid)）の

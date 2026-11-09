@@ -413,6 +413,7 @@ export function endTurn(state: GameState): void {
         // 前のアタックステップで立った「バトル終了時に畳む」フラグは役目を終えているので落とす
         // （残すと追加ステップの最初のバトルで即座に終了してしまう）
         state.endAttackStepAfterBattle = false
+        delete state.endAttackStepLifeCheck
         log(state, `${state.players[state.turnPlayer].name}はアタックステップとエンドステップを、もう1回ずつ行う。`)
         toAttackPhase(state)
         return
@@ -508,6 +509,7 @@ export function endTurn(state: GameState): void {
     }
     // 遅延アタックステップ終了フラグ（サイレントウォール）もリセット
     state.endAttackStepAfterBattle = false
+    delete state.endAttackStepLifeCheck
     // このターン限りの全体制約（ヘビィゲート）もリセット
     // バトル限定の記録も、バトルが成立しないまま終わる経路のためにここで消す
     // 「次のリフレッシュステップで」の記録だけはターンをまたいで残す
@@ -521,6 +523,7 @@ export function endTurn(state: GameState): void {
     // このターン限りのトリガー抑止（ユーサネイジア）もリセット
     // このターンのアタック回数（「最初のアタック」判定用）もリセット
     state.attacksThisTurn = 0
+    state.blocksThisTurn = 0
     // BS10-047：「次にアタックした」はターンをまたがないので、直前のアタック宣言の記録もリセット
     delete state.lastAttackerCombinedPid
     delete state.prevAttackerCombinedPid

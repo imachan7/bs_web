@@ -11,6 +11,7 @@ import { Color, CardType, ResolvedTargetFilter, TriggerEvent, PlayerRuleDef, Imm
 // countOnce は「〜した回数」のように再計算すると意味が変わるカウンタ（lastFunsaiSpirits 等）用：解決時に固定する（旧 selfBuff と同じ）
 export type TimedContent =
     | CantRefreshDef // 寿命 nextRefresh では by:"step"＝次のリフレッシュステップで回復しない
+    | { type: "combineLimitBonus"; amount: number } // 合体できるブレイヴの上限数を増やす（combineLimitFor が読む。期間 battle で、バトル後にあふれた分は separateBravesOverLimit が分離する）
     | { type: "cantAttack" }
     | { type: "effectsDisabled" } // 効果を失い、新たに得ることもない（付与されたキーワードも。instEffectsSuppressed が読む）
     | { type: "mustAttack" } // 可能ならば必ずアタックする（期間は turn のみ）
@@ -18,6 +19,7 @@ export type TimedContent =
     | { type: "mustBlock" } // 可能ならばブロックしなければならない（期間は battle。その個体でブロックできるなら、ライフで受ける・ほかの個体でブロックは検証で拒否する。26RSD03-007）
     | { type: "grantTrigger"; trigger: TriggerEvent; action: EffectAction; battleRole?: "attacker" | "blocker"; targetFilter?: TargetFilter; optional?: true } // 誘発効果を与える（期間は turn、または自分1体に限り battle。1体は自分のスピリットから選ぶ）。targetFilter＝イベントの相手役（onBlocked ならブロッカー）が合うときだけ発火。optional＝「〜できる」：発火したとき持ち主に発動するかを聞く（2026-11-06 ユーザー確認：任意効果の聞き方に揃える）
     | { type: "suppressTrigger"; trigger: TriggerEvent } // そのスピリット自身の指定トリガーの効果が発揮されない（期間は turn のみ。onAttack は『合体アタック時』も含む）
+    | { type: "ownAttackStepEffectsDisabled" } // そのスピリットの『自分のアタックステップ』の効果すべてが発揮されない（期間は turn のみ。解決済みの継続効果も止まる＝Q4521。entryActive が読む）
     | { type: "cantBlock" }
     | { type: "braveBpBonusZero" } // 効くのは target.kind:"player" の持ち主の合体スピリット。TimedRecord.sourceInstanceId の発生源が場を離れたら戻る（Q20310・Q20311）
     | { type: "braveCostZero" } // 合体スピリットのコストからブレイヴ分を引く。期間 effect は効果の解決が終わるまで（Q4418・Q4419）
@@ -48,6 +50,6 @@ export type TimedContent =
     | { type: "colorless" } // 色とシンボルを無いものとして扱う
     | { type: "destroyedCoresTo"; to: "void" | "trash"; soleOnly?: true } // このプレイヤーのスピリットが破壊されたとき、コアをリザーブではなく to に置く（void＝ゲームから取り除く。【装甲】では防げない＝RULES_BATSPI_WIKI §6）
     | { type: "trashCoreReturnCap"; max: number } // 次のリフレッシュステップで、トラッシュのコアを max 個までしかリザーブに戻せない（寿命 nextRefresh。重なったら小さい方）
-    | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic" | "destroyOwnSpirit"; count: number } // destroyOwnSpirit＝ブロックするスピリット以外の自分のスピリット1体を破壊（選ぶのはブロック側。いなければブロックできない。Q4429〜Q4432）
+    | { type: "blockCost"; cost: "reserveCoreToTrash" | "discardMagic" | "discardHand" | "destroyOwnSpirit"; count: number } // destroyOwnSpirit＝ブロックするスピリット以外の自分のスピリット1体を破壊（選ぶのはブロック側。いなければブロックできない。Q4429〜Q4432）。discardHand＝手札1枚を破棄（Q4615。手札が無い・破棄できないならブロックできない。ponytail: 破棄するカードは選ばせず先頭を自動で捨てる）
     | ({ type: "coresProtected"; battle: "blocker" } & Pick<CoresProtectedRule, "causes">) // このバトルのブロッカー上のコアを取り除けない（target.kind:"battle"。アタック時にはまだブロッカーが決まっていないため）
     | { type: "refreshWhenBlockedBy"; color: Color }

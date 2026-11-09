@@ -32,7 +32,7 @@
 - **BS22 の92枚とキャンペーンカード X13 の7枚は #399 で入った**（`data/cards/BS22.json`・`X13.json`。全 smoke・coverage:check 緑）。解釈は §1・§2、新しい部品は §3、既知の限界は §5
 - 禁止・保護の型の統一（#400〜#405）は済み。結果と残した型は [CONSTRAINT_UNIFY.md](./docs/design/CONSTRAINT_UNIFY.md)
 - BS20 は #395、BS21・CP13-01 は #396 で入った
-- 取り込み済みは BS01〜BS22・CP13-01・X13・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS23 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
+- 取り込み済みは BS01〜BS22・CP13-01・X13・SD01〜SD18・プロモ P001〜P084・PX01〜PX19（`data/cards/`。構築済みデッキの専用カードと BSC05・EX・X009・BS01-125/141 は `STARTER.json`）。BS23 は staging にあり、調査済み（[BS23_PLAN.md](./docs/design/BS23_PLAN.md)。§2 の確認待ち。2026-11-07 時点で週の枠88%なので、期待値役・実装役は枠が戻ってから。draft PR #409）。BS24 から先は staging にも無い。**BS20-074 シャイニングフレイムは SD18 のために `STARTER.json` へ先に入れたので、BS20 の取り込みでは飛ばす**
 - **ソウルコアは烈火伝（BS31〜）から**（batspi「ソウルコア」）。それまでの約束は [SOULCORE.md](./docs/design/SOULCORE.md) §2 の「有効化までに足すコアの移動」
 - **サブ**：Mistral の枠は11月分を使い切った（月初に戻る）ので、今は Claude のサブ。以下は vibe の使い方（調査・期待値・部品＝GLM、データ＝Large 4、完成形がある機械作業＝devstral）。Mistral の枠は Vibe Code（ログイン）と API（`~/.config/mistral_api_key`。`MISTRAL_API_KEY="$(tr -d '\n ' < ~/.config/mistral_api_key)" vibe …`）の2つで、どちらも月初に戻る。**両方尽きたら Claude のサブ（期待値・実装＝Sonnet、データ＝Haiku）**。モデルは `vibe -p … --model glm|large4|devstral-latest` で選ぶ（別名は `~/.vibe/config.toml`）。指示の型は BS19_PLAN §4
 - 進め方は [BS18_PLAN.md](./docs/design/BS18_PLAN.md) §1 と同じ（調査役 → 確認 → 期待値役 → 実装役 → データ役 → `merge-set.ts`）
@@ -43,6 +43,12 @@
 - 新しい禁止・耐性は [EFFECT_GATE.md](./docs/design/EFFECT_GATE.md) の問い合わせへ足す。**新しい行・一般則を設計する前に、主役のカードの batspi.com の公式Q&Aを読む**
 - 取り込み時に足すもの：待機状態の改訂の残りの規則（[PENDING_STATE.md](./docs/design/PENDING_STATE.md) §2）、発生源の属性で絞る貫通（耐性ごとの発生源の記録が要る）
 - 5h 枠の上限は 85%（10-29 ユーザー指定。週は見ない）
+
+### BS23 の残り（取り込みは完了。PR #409）
+
+- 読み・裁定は [BS23_PLAN.md](./docs/design/BS23_PLAN.md) §1・§2、限界は §5
+- 「召喚時効果は発揮されない」を自身の召喚時だけにする規則に、BS15-064 の配置経路（revive.ts）と兵隊アントマンの繰り返し召喚（summonRepeat.ts）がまだそろっていない
+- 「効果では疲労しない」でコストの疲労を止める入口が4つ残っている（GameEngine の起動支払い・revive.ts・【氷壁】の exhaustSelf・pay の「疲労させる」。EFFECT_GATE §1 の 11-09 の行）
 
 ### 既知の残り（触るときに読む）
 

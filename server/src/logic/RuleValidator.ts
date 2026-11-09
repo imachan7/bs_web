@@ -1,5 +1,7 @@
 // 行動可否判定（召喚条件、コスト支払い可否など）
 // 各関数はエラー理由の文字列を返し、問題なければ null を返す
+import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
+import type { SummonPayOffOption } from "../../../shared/summonPayOff"
 import { coreGainAllowed } from "./coreGainCap"
 import { coreRemovalAllowed } from "./coreGate"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -9,6 +11,7 @@ import { moveCardCandidates } from "./actions/moveCards"
 import type { CardData, CardInstance, CardType, Color, EffectAction, EffectDef, GameState, PaySource, PlayerId } from "../type"
 import { summonFromHandFreeCandidateMatches } from "./summon"
 import { summonDenial } from "./summonGate"
+import { summonExtraDiscardPlan } from "./summonCostRules"
 import { normalReserveOf, soulCoreInReserve, soulCoreOnInstance, keishoExcludedTeamAtLeast } from "./soulCore"
 import {
     coresForLevel,
@@ -24,7 +27,7 @@ import {
 } from "./GameState"
 import { mustAttackOnceBlocksEnd, mustBeAttackTargetIds, AWAKEN_FROM_RESERVE, activatedActionResolvable, braveCombineOntoSelfCandidates, cardHasColor, altSummonFromHandCheck, attackOncePerTurnLimitApplies, attackOncePerTurnByCostLimitApplies, attackTotalOncePerTurnLimitApplies, canAwaken, canAwakenFromReserve, cantActByTimed, directAttackFilter, hasHandKeywordGrant, flashSummonFromHandNow, instCostCantAct, instCantAttackByOpponentCost, instCantAttackByCost, timedCantAttackByCost, attackTollTotal, attackPayTollCount, instCantAttackByFewOwnSpirits, isFlashLockedFor, isVanillaCard, mustAttackThisTurn, sokuPayableInstanceIds, hostsOf, burstSetCoresRequired, payAssistCandidates, magicPayAssistCandidates, instAttackRequiresCoreToll, mustAttackFirst } from "../../../shared/rules"
 import type { AltSummonFromHandOption } from "../../../shared/rules"
-import { canDiscardHand, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { canDiscardHand, costExhaustLocked, coreIntakeRefused, handCardBanned, magicUseWindowDenial, ownHandKeyword, zoneSpiritEffectsDisabled } from "../../../shared/rules"
 import { battleSwapSummonCheck, braveCombineCandidates, canCombineBraveCount, isSummonableCardType } from "../../../shared/summon"
 import { blockExhaustSpiritRequired, blockPayCost, blockReserveToTrashCount, blockRequiredCount, canBlock, matchesDirectedAttackFilter } from "../../../shared/block"
 // コスト計算は shared/cost.ts に一本化（クライアントの表示計算と同一実装）。
@@ -156,6 +159,8 @@ export function validateSummon(
     paySoulCoreFromReserve?: boolean,
     placeSoulCoreFromReserve?: boolean,
     sokuFreeChoice?: boolean, // kind:"sokuFreeSummon" の使用時確認の答え（doSummon と同じ意味）
+    extraDiscardHandIndices?: number[], // kind:"summonExtraDiscard" の追加コストで破棄する手札（discardHandIndices はコストの肩代わり用で別物）
+    payOffInstanceId?: string, // kind:"summonPayOff"：破壊することで召喚コストを払ったものとして扱う個体
 ): string | null {
     const player = state.players[pid]
     const cardId = player.hand[handIndex]
@@ -291,12 +296,25 @@ export function validateSummon(
         substituteInstanceId === undefined &&
         findSokuFreeSummonSource(state, pid) !== null &&
         sokuFreeChoice !== false
+    let payOff: SummonPayOffOption | undefined
+    if (payOffInstanceId !== undefined) {
+        if (altSummon !== null || sokuFree) return "この召喚では破壊による支払いは使えません"
+        payOff = summonPayOffOptions(state, pid, cardId).find((o) => o.targetInstanceId === payOffInstanceId)
+        if (payOff === undefined) return "指定した個体を破壊して召喚コストを払うことはできません"
+    }
     const cost = sokuFree
         ? 0
         : Math.max(
               0,
-              (altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
+              (altSummon !== null ? summonSurcharge(state, pid, card) : payOff !== undefined ? summonCostWithPayOff(state, pid, cardId, payOff, exReductionSymbols) : effectiveCost(state, pid, card, false, exReductionSymbols)) - shinsokuDiscount,
           )
+    // kind:"summonNeedsCost"：肩代わり（ネクサスの疲労）は払ったものとして数えるが、軽減で0になるコスト・無償化は払ったことにならない
+    if (card.effects.some((e) => e.kind === "summonNeedsCost")) {
+        const printedPaid = altSummon !== null ? summonSurcharge(state, pid, card) : effectiveCost(state, pid, card, false, exReductionSymbols)
+        if (sokuFree || printedPaid <= 0) return "1コスト以上支払わなければ召喚できません"
+    }
+    const extraPlan = summonExtraDiscardPlan(state, pid, handIndex, card, extraDiscardHandIndices, discardHandIndices)
+    if ("error" in extraPlan) return extraPlan.error
     // レベル指定時はそのレベルのコア数を置く（省略時はLv1）。
     // ダイレクトブレイヴは合体状態のLv1が0コアなので、置くコアの検証も要らない（§5.3）
     if (braveTargetInstanceId === undefined) {
@@ -880,6 +898,7 @@ export function validateMoveCore(
     // ネクサスもレベルを上げ下げできる。ネクサスの Lv1 は全カード0コアのため、維持コア判定でそのまま0まで戻せる
     const inst = findSpirit(player, instanceId) ?? findNexus(player, instanceId)
     if (!inst) return "対象のカードが見つかりません"
+    if (direction === "add" && coreIntakeRefused(inst)) return "このカードには、このカード自身の効果以外ではコアを置けません"
     if (soulCore) {
         // [ソウルコア]の移動検証: 通常コアの数値は不動のため reserve/cores の検証は不要。
         // 取り除くと維持コアを割るときは通常コアと同じ confirmDeplete の確認が要る
@@ -1085,6 +1104,7 @@ export function validateActivateAbility(
         if (!activatedActionResolvable(state, pid, inst, effect.action)) return "効果の対象がいません"
         if ("exhaustSelf" in effect.cost) {
             if (host.isRested) return "すでに疲労しています"
+            if (costExhaustLocked(state, pid, host)) return "効果では疲労しない"
         } else if ("selfCoresToTrash" in effect.cost) {
             if (host.cores < effect.cost.selfCoresToTrash) return "コアが足りません"
             if (coreRemovalAllowed(state, { ownerPid: pid, target: host, amount: effect.cost.selfCoresToTrash, cause: "cost", actorPid: pid }) < effect.cost.selfCoresToTrash) return "コアを取り除けません"
@@ -1304,6 +1324,7 @@ export function validateBlock(
             continue
         }
         if (c.cost === "reserveCoreToTrash" && normalReserveOf(state.players[pid]) < c.count) return `リザーブのコアが${String(c.count)}個ないためブロックできません`
+        if (c.cost === "discardHand" && (state.players[pid].hand.length < c.count || !canDiscardHand(state, pid))) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && !canDiscardHand(state, pid)) return "手札を破棄できないためブロックできません"
         if (c.cost === "discardMagic" && state.players[pid].hand.filter((id) => getCard(id).type === "magic").length < c.count) {
             return "手札にマジックカードがないためブロックできません"

@@ -1,4 +1,5 @@
 // コスト支払いモードの状態と、残りコスト・軽減の計算
+import { summonPayOffOptions, summonCostWithPayOff } from "../../../shared/summonPayOff"
 import type { CardData, Color, GameView } from "../../../server/src/type"
 import { canPayNexusCostByMill, canPaySummonCostByHandDiscard, effectiveCost, exSymbolsOfTrashCard } from "../../../shared/cost"
 import { ownHandKeyword, flashSummonFromHandNow, hasKeyword, minLevelCores, placedCoresForSummon, sokuPayableInstanceIds, handSizeOf, payAssistCandidates } from "../../../shared/rules"
@@ -35,7 +36,9 @@ export function payingNeed(view: GameView, paying: PayingState): number {
         return minLevelCores(card)
     }
     // 代替召喚（ネクサスをデッキの下に戻して払う）は召喚コストが0になる
-    const cost = paying.altSummonNexusInstanceIds ? 0 : effectiveCost(view, view.you, card, false, exReductionSymbolsFor(view, paying.exReductionTrashIndices))
+    const exSymbols = exReductionSymbolsFor(view, paying.exReductionTrashIndices)
+    const payOff = paying.payOffInstanceId === undefined ? undefined : summonPayOffOptions(view, view.you, cardId).find((o) => o.targetInstanceId === paying.payOffInstanceId)
+    const cost = paying.altSummonNexusInstanceIds ? 0 : payOff !== undefined ? summonCostWithPayOff(view, view.you, cardId, payOff, exSymbols) : effectiveCost(view, view.you, card, false, exSymbols)
     // 置くコア数。サーバー（placedCoresForSummon）と同じ計算。《真界放》マーカー付きで
     // [ソウルコア]を維持コアに使う選択ならwaiver配置（1コア）になる
     const maintain =
@@ -111,6 +114,8 @@ export interface PayingState {
     // kind:"payAssistByExhaust"（BS16-021）：疲労させて召喚コストの一部を肩代わりする自分のスピリット
     // （【神速】召喚のみ。任意で選ぶ。省略/空配列＝使わない）
     shinsokuAssistInstanceIds?: string[]
+    // kind:"summonPayOff"：破壊して召喚コストを払ったものとして扱う個体（省略＝使わない）
+    payOffInstanceId?: string
     // リザーブの[ソウルコア]をコスト支払い1個ぶんとして使う（docs/design/SOULCORE.md 部品3）。
     // 支払いでプレイヤーが選ぶ（2026-10-05 ユーザー確認）。置くコアだけの支払いでは使わない
     useSoulCore?: boolean

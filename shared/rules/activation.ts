@@ -12,7 +12,7 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { activeConstraints, canDiscardHand, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords } from "./constraints"
+import { activeConstraints, canDiscardHand, costExhaustLocked, hasGlobalConstraint, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
 import { instanceSymbolCount } from "./symbols"
@@ -62,14 +62,20 @@ export function payAssistCandidates(
     board: Board,
     pid: PlayerId,
     summoning: { cardId: string; flash: boolean },
-): { instanceId: string; discount: number; oncePerTurn: boolean }[] {
-    const result: { instanceId: string; discount: number; oncePerTurn: boolean }[] = []
+): { instanceId: string; discount: number; oncePerTurn: boolean; byRule?: true }[] {
+    const result: { instanceId: string; discount: number; oncePerTurn: boolean; byRule?: true }[] = []
     const player = board.players[pid]
     const summoned = card(summoning.cardId)
+    // summonPayByNexusExhaustForPid（BS23-084）：スピリット/ブレイヴの召喚で、回復状態のネクサスを1つ1コストとして疲労させられる
+    if ((summoned.type === "spirit" || summoned.type === "brave") && timedPlayerRules(board, pid).some((r) => r.type === "summonPayByNexusExhaustForPid")) {
+        for (const nx of player.field.nexuses) if (!nx.isRested) result.push({ instanceId: nx.instanceId, discount: 1, oncePerTurn: false, byRule: true })
+    }
     if (summoned.type !== "spirit") return result
     const used = player.payAssistUsedThisTurn ?? []
+    // 効果のコストとしての疲労も止める（BS23-071。Q22553）。ネクサスの疲労は対象外
+    const spiritsLocked = hasGlobalConstraint(board, "noExhaustByEffect")
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-        if (inst.isRested) continue
+        if (inst.isRested || (spiritsLocked && player.field.spirits.includes(inst))) continue
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "payAssistByExhaust") continue
@@ -78,7 +84,12 @@ export function payAssistCandidates(
             if (effect.phase !== undefined && board.phase !== effect.phase) continue
             if ((effect.via ?? "shinsoku") === "shinsoku" && !summoning.flash) continue
             if (effect.minBaseCost !== undefined && summoned.cost < effect.minBaseCost) continue
+            if (effect.summonedFamily !== undefined && summoned.family?.includes(effect.summonedFamily) !== true) continue
+            if (effect.summonedNameIncludes !== undefined && !summoned.name.includes(effect.summonedNameIncludes)) continue
             if (effect.oncePerTurn && used.includes(inst.instanceId)) continue
+            // 同じネクサスが両方で候補になるときは、固有の肩代わり（payAssistByExhaust）を優先する
+            const at = result.findIndex((r) => r.instanceId === inst.instanceId)
+            if (at !== -1) result.splice(at, 1)
             result.push({ instanceId: inst.instanceId, discount: effect.cost, oncePerTurn: effect.oncePerTurn === true })
             break
         }
@@ -96,8 +107,10 @@ export function magicPayAssistCandidates(
     const result: { instanceId: string; discount: number; oncePerTurn: boolean }[] = []
     const player = board.players[pid]
     const used = player.payAssistUsedThisTurn ?? []
+    // 効果のコストとしての疲労も止める（BS23-071。Q22553）。ネクサスの疲労は対象外
+    const spiritsLocked = hasGlobalConstraint(board, "noExhaustByEffect")
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-        if (inst.isRested) continue
+        if (inst.isRested || (spiritsLocked && player.field.spirits.includes(inst))) continue
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "payAssistByExhaust" || effect.via !== "magic") continue
@@ -286,6 +299,15 @@ export function activatedActionResolvable(board: Board, pid: PlayerId, source: C
             return c !== null && (action.cardType === undefined || c.type === action.cardType) && (fams === undefined || fams.some((f) => c.family.includes(f)))
         })
     }
+    // 相手のスピリット1体以上を手札に戻す単純な形だけ。対象がいなければ起動できない（BS23-030 の合体スピリットだけがアタックしている場面）
+    if (action.type === "return" && action.to === "hand" && typeof action.count === "number" && action.side === undefined && !action.anySide && !action.all && action.target === undefined && action.nexus === undefined && action.countCounter === undefined && action.budget === undefined && action.costBudget === undefined && !action.maxBpFromSelf && !action.countPerOpponentNexus && !action.battlingOnly && !action.braveCantRemain) {
+        const returnFilter = (action.filter ?? {}) as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
+        if ([returnFilter.maxBp, returnFilter.minBp, returnFilter.exactBp].some((v) => typeof v === "string")) return true
+        const oppPid: PlayerId = pid === "p1" ? "p2" : "p1"
+        const srcCard = card(source.cardId)
+        const bounce: EffectAttempt = { op: "bounce", scope: "targeted", actorPid: pid, sourceType: srcCard.type, sourceColors: srcCard.colors, probing: true }
+        return board.players[oppPid].field.spirits.filter((s) => !s.pendingBounce && matchesTarget(board, oppPid, s, returnFilter, source.instanceId) && boardResistanceAgainst(board, oppPid, s, bounce) === null).length >= action.count
+    }
     if (action.type !== "destroy" || action.nexus !== undefined || action.side === "own" || action.anySide || action.all || action.countCounter || action.countPerOpponentTrashMagicColors) return true
     const filter = { ...(action.filter ?? {}) } as unknown as NonNullable<Parameters<typeof matchesTarget>[3]>
     if ([filter.maxBp, filter.minBp, filter.exactBp].some((v) => typeof v === "string")) return true
@@ -391,7 +413,7 @@ function activatableAbilityOf(
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {
-            if (host.isRested) continue
+            if (host.isRested || costExhaustLocked(board, pid, host)) continue
             return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
         }
         if ("selfCoresToTrash" in e.cost) {

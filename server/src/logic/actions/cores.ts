@@ -30,7 +30,7 @@ import {
     tryInteractiveTargetChoice,
     recordTimed,
 } from "../EffectModules"
-import { canDiscardHand, effectiveBp, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
+import { canDiscardHand, coreIntakeRefused, effectiveBp, matchesFamilyFilter, matchesTarget } from "../../../../shared/rules"
 import { attemptOf, normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
 import { kyokaBonus } from "../keywords/kyoka"
@@ -313,7 +313,7 @@ const moveCoresLeavingOneHandler: ActionHandler<"moveCoresLeavingOne"> = (ctx, a
     // スピリットがいなければ自分のネクサス（先頭側）にも置ける（要塞龍ギガ＝「他のスピリットかネクサスに」）
     const dest =
         state.players[pid].field.spirits.find((s) => s.instanceId !== inst.instanceId) ??
-        (action.allowNexusDest ? state.players[pid].field.nexuses[0] : undefined)
+        (action.allowNexusDest ? state.players[pid].field.nexuses.find((n) => !coreIntakeRefused(n, self?.instanceId)) : undefined)
     if (!dest) {
         log(state, `${sourceName}：同じフィールドに移し先がいなかった。`)
         return

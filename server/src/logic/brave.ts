@@ -16,6 +16,7 @@ import {
     cantSpiritStateBrave,
 
     bravesOf,
+    effectSources,
     instColors,
 } from "../../../shared/rules"
 import { entryActive } from "../../../shared/rules/effectStop"
@@ -115,6 +116,22 @@ function combinedBraveIndestructibleFor(state: GameState, ownerPid: PlayerId, ho
     return false
 }
 
+// globalConstraint "ownBraveIndestructibleByOpponent"：持ち主側の発生源が、相手の効果による破壊から守っているか
+function braveProtectedFromOpponent(state: GameState, ownerPid: PlayerId, brave: CardInstance, context?: DestroyContext): boolean {
+    if (context?.sourcePid === undefined || context.sourcePid === ownerPid) return false
+    for (const source of effectSources(state, ownerPid)) {
+        const level = currentLevel(source).level
+        for (const effect of getCard(source.cardId).effects) {
+            if (effect.kind !== "globalConstraint" || effect.constraint.type !== "ownBraveIndestructibleByOpponent") continue
+            if (!getCard(brave.cardId).family.includes(effect.constraint.family)) continue
+            if (!entryActive(state, ownerPid, source, effect, level)) continue
+            noteCoverage(effect, "globalConstraint")
+            return true
+        }
+    }
+    return false
+}
+
 // 合体中のブレイヴ**だけ**を破壊する（BRAVE.md §6.5。2026-09-02 ユーザー確認）。
 // **ホストは無傷で場に残る。** 合体中のブレイヴはコア0なので、リザーブへ戻るコアは無い。
 // 『破壊時』はブレイヴ側のものだけ発火する（ホストは破壊されていないため）。
@@ -127,7 +144,7 @@ export function destroyCombinedBrave(
     brave: CardInstance,
     context?: DestroyContext,
 ): void {
-    if (combinedBraveIndestructibleFor(state, ownerPid, host)) {
+    if (combinedBraveIndestructibleFor(state, ownerPid, host) || braveProtectedFromOpponent(state, ownerPid, brave, context)) {
         log(state, `${getCard(host.cardId).name}のブレイヴ「${getCard(brave.cardId).name}」は破壊されない。`)
         return
     }

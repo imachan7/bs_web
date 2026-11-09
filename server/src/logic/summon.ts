@@ -1,5 +1,6 @@
 // 召喚時の誘発の並び（fireSummonSequence）と、効果による手札・トラッシュからの無償召喚
 import { trashCardEffectsDisabled, zoneSpiritEffectsDisabled } from "../../../shared/rules"
+import { braveCombinableWithHost } from "../../../shared/summon"
 import { noteCoverage } from "../../../shared/coverage"
 import { countEffectCounter, getAllFamilies, hasSummonedExhaustGrant, payCost, spiritHasFamily } from "./EffectModules"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
@@ -66,6 +67,24 @@ function tryTrashSummonOnNameSummoned(state: GameState, pid: PlayerId, summoned:
     }
 }
 
+// トラッシュにあるカード自身の効果（kind:"trashReturnOnNameSummoned"）。条件を満たすカードはすべて手札に戻る
+function returnTrashOnNameSummoned(state: GameState, pid: PlayerId, summoned: CardInstance): void {
+    const player = state.players[pid]
+    const summonedCard = getCard(summoned.cardId)
+    if (summonedCard.type !== "spirit") return
+    for (let i = player.trashCards.length - 1; i >= 0; i--) {
+        const cardId = player.trashCards[i]
+        if (cardId === undefined || trashCardEffectsDisabled(state, cardId)) continue
+        const card = getCard(cardId)
+        const hit = card.effects.find((e) => e.kind === "trashReturnOnNameSummoned" && summonedCard.name.includes(e.nameIncludes))
+        if (!hit) continue
+        noteCoverage(hit, "trashReturnOnNameSummoned")
+        player.trashCards.splice(i, 1)
+        player.hand.push(cardId)
+        log(state, `トラッシュの${card.name}は手札に戻った。`)
+    }
+}
+
 // 効果で複数体を同時に召喚するあいだは、召喚時効果を後回しにする（RESUME_STACK §6.2）
 export function startSummonBatch(state: GameState): void {
     if (state.summonBatch === undefined) state.summonBatch = []
@@ -111,7 +130,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // 召喚時の効果を書いていないカード（付与された召喚時だけを持つ場合も含む）は列に入れずに先に呼ぶ。入れると、誘発しない1件のせいで解決順を聞いてしまう
     const items: CollectedTrigger[] = []
     const level = currentLevel(inst).level
-    const hasOwnSummonTrigger = [inst, ...bravesOf(player, inst)].some((src) =>
+    const hasOwnSummonTrigger = inst.noOnSummon !== true && [inst, ...bravesOf(player, inst)].some((src) =>
         getCard(src.cardId).effects.some((e) => e.kind === "triggered" && e.trigger === "onSummon" && entryActive(state, pid, src, e, level)),
     )
     if (hasOwnSummonTrigger) {
@@ -121,7 +140,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             frame: { kind: "action", selfInstanceId: inst.instanceId, actorPid: pid, action: { type: "summonSequence", triggerOnly: true, ...(byFushi ? { byFushi: true } : {}) } },
             run: () => fireSummonTrigger(state, pid, inst, byFushi),
         })
-    } else fireSummonTrigger(state, pid, inst, byFushi)
+    } else if (inst.noOnSummon !== true) fireSummonTrigger(state, pid, inst, byFushi)
     const checks: EventBurstCheck[] = []
     // ⚠️ こちらは **spirits だけ**でよい：下で発火させる fieldEvent は
     // 「自分の**スピリット**が召喚されたとき」（BS08海底に眠りし古代都市など）なので、
@@ -144,6 +163,7 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
             byKeisho: state.summoningFromHand === true && (state.keishoExcludedCardIds?.length ?? 0) > 0,
             // 手札からの召喚か（doSummon / summonFreeFromHandIndex が立てる。BS11-X05 魔導双神ジェミナイズ）
             fromHand: state.summoningFromHand === true,
+            paidCost: state.summoningPaid === true,
             // 召喚されたスピリットがバニラ（効果の記述を持たない）かどうか（BS10-080炎の結晶石Lv2）
             vanilla: instIsVanilla(inst),
             // 器AG：summonedSpiritAsTarget指定時に、召喚されたスピリット自身をactionTargetIdとして渡す
@@ -176,14 +196,17 @@ export function fireSummonSequence(state: GameState, pid: PlayerId, inst: CardIn
     // ownSpiritSummonedと違い、field.spirits（スピリット状態）だけでなくfield.combinedBraves
     // （ダイレクトブレイヴ）に入った場合も対象にするため isOnFieldAnyZone で判定する
     if (!state.winner && isOnFieldAnyZone(player, inst.instanceId) && getCard(inst.cardId).type === "brave") {
-        fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst })
-        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst })
+        const braveInfo = { paidCost: state.summoningPaid === true }
+        fireFieldEventTriggers(state, pid, "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, braveInfo)
+        if (!state.winner) fireFieldEventTriggers(state, opponentOf(pid), "anyBraveSummoned", { pid, inst }, undefined, undefined, undefined, braveInfo)
     }
     delete state.summoningBySoku
     delete state.summoningFromHand
+    delete state.summoningPaid
     // トラッシュにあるカードの「〜が召喚されたとき、コストを支払わずに召喚できる」
     // （kind:"trashSummonOnNameSummoned"。BS11-004 プロミネンスワイバーン）
     if (!state.winner && stillOnField()) tryTrashSummonOnNameSummoned(state, pid, inst)
+    if (!state.winner) returnTrashOnNameSummoned(state, pid, inst)
     // 天使長ファニム：召喚した側（pid）から見た相手が summonedExhaustGrant を持つ間、
     // 召喚されたこのスピリットは疲労する
     if (!state.winner && stillOnField() && hasSummonedExhaustGrant(state, opponentOf(pid), inst)) {
@@ -201,6 +224,7 @@ export function summonFreeFromHandIndex(
         payCost?: true
         paidAsIf?: number // payCost 併用：通常のコストのうち支払ったものとして扱う量（BS22-073）
         skipOnSummon?: true
+        destroyAtBattleEnd?: true
         paySources?: PaySource[]
         surchargeBatch?: true // 複数体を同時に召喚する効果の1体（余分は1回だけ。summonSurcharge.ts）
         // 召喚経路の記録（CardInstance.summonedBy）。
@@ -250,6 +274,7 @@ export function summonFreeFromHandIndex(
         index: handIndex,
         ...(skipTensho ? { skipTensho } : {}),
         ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
+        ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
     })) return
@@ -260,8 +285,10 @@ export function summonFreeFromHandIndex(
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
     state.summoningFromHand = true // 効果による手札からの召喚（fieldEvent.fromHandOnly。BS11-X05）
+    if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
+    if (opts?.destroyAtBattleEnd) inst.destroyAtBattleEnd = true
     // ダイレクトブレイヴ：field.spiritsではなくfield.combinedBravesへ入れ、ホストがbraveRefsで参照する
     // （placeSummonedSpiritの合体分岐と同じ処理。二重に書かずここへ寄せる）
     const braveHost =
@@ -292,13 +319,8 @@ export function summonFreeFromHandIndex(
     // （実プレイで X002 極龍帝ジーク・ソル・フリードの召喚時効果から出したスピリットの
     //  召喚時効果が出ないと報告されて発覚）。転召の対象選択で中断したら、doSummon と同じく
     // summonSequence として積み直して選択の解決後に合流する
-    // skipOnSummon 指定時は召喚時効果も「召喚されたとき」の誘発も発揮させない。
-    // 効果文に「ただし、『このスピリットの召喚時』効果は発揮されない」と明記があるカードだけ
-    // （BS08帝竜騎サイクル6枚）。既定では発揮する（2026-08-17 修正）
-    if (opts?.skipOnSummon) {
-        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
-        return
-    }
+    // skipOnSummon は召喚されたスピリット自身の召喚時効果だけを止める（inst.noOnSummon を fireSummonSequence が読む）。
+    // ほかのカードの「召喚されたとき」・トラッシュからの戻りは通常どおり出す（2026-11-08 ユーザー確認。旧：2026-08-17 は全部止めていた）
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
     } else {
@@ -352,6 +374,7 @@ export function summonFreeFromTrashIndex(
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
     const placedFromField = opts?.payCost ? payCost(state, owner, cost, opts?.paySources, maintain) : payFreeSummonSurchargeKeeping(state, owner, card, opts?.surchargeBatch === true, maintain) ?? 0
     player.reserve -= maintain - placedFromField
+    if (opts?.payCost) state.summoningPaid = true
     const inst = createInstance(cardId, state.turn, maintain, opts?.summonedBy)
     if (opts?.skipOnSummon) inst.noOnSummon = true
     player.field.spirits.push(inst)
@@ -365,11 +388,6 @@ export function summonFreeFromTrashIndex(
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）
     if (!state.winner) resolveTensho(state, owner, inst, false, true)
-    // skipOnSummon 指定時は召喚時効果を発揮させない（効果文に明記があるカードだけ。BS11-038 天星馬ペガシーダ）
-    if (opts?.skipOnSummon) {
-        log(state, `${sourceName}：『召喚時』効果は発揮されない。`)
-        return
-    }
     // 手札版と同じく、これも「召喚」なので召喚時効果と「召喚されたとき」の誘発が発揮される（2026-08-17 修正）
     if (state.pendingChoice) {
         pushResumeFrames(state, [{ kind: "action", selfInstanceId: inst.instanceId, action: { type: "summonSequence" } }])
@@ -405,6 +423,7 @@ export function summonFromHandFreeCandidateMatches(
     // bravesOnly指定時はスピリットカードでなく**ブレイヴカードだけ**が対象
     // （recoverSpiritFromTrash.bravesOnlyと同義。BS10-096最後の優勝旗）
     if (action.bravesOnly ? candidate.type !== "brave" : candidate.type !== "spirit") return false
+    if (action.combinableWithSelf && (!self || !braveCombinableWithHost(state, owner, self, candidateId))) return false
     if (action.colorFilter !== undefined) {
         const wantedColors = Array.isArray(action.colorFilter) ? action.colorFilter : [action.colorFilter]
         if (!wantedColors.some((c) => cardHasColor(candidate, c))) return false

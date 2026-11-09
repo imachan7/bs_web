@@ -4,6 +4,7 @@ import { noteCoverage } from "../../../../shared/coverage"
 import { requestActivationConfirm } from "../targeting"
 import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { negateBurstActivation } from "../burstNegate"
+import { burstActivationFee, burstFeeUnpayable, payBurstActivationFee } from "../burstActivationFee"
 import { withEffectTax } from "../effectTax"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
@@ -291,6 +292,7 @@ function burstActivationBlocked(
     if (eventInfo?.lifeLossByNoOwnBurst === true) return true
     // 相手の noBurstActivationByEvent／ByColor／burstOnlyOwnFieldSymbolColors
     if (burstActivationForbidden(state, holderPid, event, burstCardId)) return true
+    if (burstFeeUnpayable(state, holderPid, burstCardId)) return true
     const timed = timedContentsFor(state, holderPid)
     // 「このスピリットのバトル時、相手はバーストを発動できない」（BS15-X03）。colors 指定時はその色のバーストカードだけ（BS19-060）
     if (timed.some((c) => c.type === "battleLock" && c.lock === "burst" && (c.colors === undefined || getCard(burstCardId).colors.some((col) => c.colors!.includes(col))))) return true
@@ -391,7 +393,8 @@ export function fireBurstOnEvent(
                     selfInstanceId: null,
                 })
             } else {
-                requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？`, actionToRun, null)
+                const fee = burstActivationFee(state, holderPid, burstCardId)
+                requestActivationConfirm(state, holderPid, `${getCard(burstCardId).name}のバーストを発動しますか？${fee > 0 ? `（コスト${fee}を支払います）` : ""}`, actionToRun, null)
             }
             // ⚠️ 対話モードでは、この1件を確認してから返る。同時に相手側も条件を満たしていた場合、
             // その宣言は今回は提示しない簡略化（1事象につき先着1件。docs/design/BURST.md）
@@ -419,6 +422,7 @@ export function fireBurstOnEvent(
             return
         }
         if (negateBurstActivation(state, holderPid, burstCardId, { kind: "card", ignoreCondition: false })) continue
+        payBurstActivationFee(state, holderPid, burstCardId)
         announceBurstActivation(state, holderPid, burstCardId)
         const before = fieldInstanceIdsOf(state, holderPid)
         // BS15共通器：EffectCounter "burstEventCost" 用（BS15-084／BS15-X06）。非対話では最大値を使う
@@ -475,11 +479,12 @@ export function activateBurstCard(state: GameState, owner: PlayerId, cardId: str
         player.trashCards.push(cardId)
         return true
     }
-    if (ignoreCondition && burstActivationBlocked(state, owner, cardId, effect.event)) return false
+    if ((ignoreCondition && burstActivationBlocked(state, owner, cardId, effect.event)) || burstFeeUnpayable(state, owner, cardId)) return false
     noteCoverage(effect, "burst")
     player.burst = cardId
     player.burstSet = true
     if (!negateChecked && negateBurstActivation(state, owner, cardId, { kind: "card", ignoreCondition })) return true
+    payBurstActivationFee(state, owner, cardId)
     announceBurstActivation(state, owner, cardId)
     const blocked = burstEffectBlocked(state, owner, cardId)
     const baseAction: EffectAction = (ignoreCondition || burstConditionMet(state, owner, effect.condition)) && !blocked ? markPayConfirmed(effect.action) : { type: "noop" }

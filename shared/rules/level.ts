@@ -17,6 +17,7 @@ import { activeConstraints, braveBpBonusZeroFor, braveExtraMinCostFor, hasGlobal
 import { instanceSymbolColors, instanceSymbolCount } from "./symbols"
 import { LABELED_KEYWORDS, spiritHasFamily, spiritHasKeyword } from "./keywordState"
 import { cardNameContains, instMatchesCostFilter } from "./targetFilter"
+import { extraCombineAllowed } from "./braveExtraCombine"
 
 // ---- キーワード ----
 
@@ -61,6 +62,7 @@ export const KEYWORDS: Record<Keyword, KeywordInfo> = {
     rensa: { id: "rensa", label: "連鎖" },
     kyoka: { id: "kyoka", label: "強化" },
     bunshin: { id: "bunshin", label: "分身" },
+    batto: { id: "batto", label: "抜刀" },
 }
 
 // キーワードの**包含関係**：左のキーワードを参照する効果は、右のキーワードを持つ個体にも当たる。
@@ -634,20 +636,23 @@ export function matchesBraveCondition(
     hostOwnerPid: PlayerId,
     host: CardInstance,
     braveCardId: string,
+    excludeBraveCost = false,
 ): boolean {
     if (host.bunshinOf !== undefined) return false // 分身スピリットは合体できない（Q785）
     // 器BI：「合体条件を無視して合体できる」（BS13-X05麒麟星獣リーン）
-    if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition")) return true
+    if (activeConstraints(board, hostOwnerPid, host).some((c) => c.type === "ignoreBraveCondition" && (c.braveColor === undefined || cardHasColor(card(braveCardId), c.braveColor)))) return true
+    if (extraCombineAllowed(board, hostOwnerPid, host, braveCardId)) return true
     const extra = braveExtraMinCostFor(board, hostOwnerPid, host)
     if (extra !== null && instCostWithoutBraves(host) < extra.minCost) return false
     const cond = card(braveCardId).braveCondition
     if (cond === undefined) return false
     const terms = Array.isArray(cond) ? cond : [cond]
     if (terms.length === 0) return false
+    const hostCost = excludeBraveCost ? instCostWithoutBraves(host) : instBaseCost(host)
     return terms.some((t) => {
         if (t.family !== undefined && !spiritHasFamily(board, hostOwnerPid, host, t.family)) return false
-        if (t.minCost !== undefined && instBaseCost(host) < t.minCost) return false
-        if (t.maxCost !== undefined && instBaseCost(host) > t.maxCost) return false
+        if (t.minCost !== undefined && hostCost < t.minCost) return false
+        if (t.maxCost !== undefined && hostCost > t.maxCost) return false
         if (t.minSymbols !== undefined && instanceSymbolCount(host) < t.minSymbols) return false
         if (t.symbolColor !== undefined && !instanceSymbolColors(host).includes(t.symbolColor)) return false
         if (t.cardName !== undefined && !cardNameContains(host, t.cardName)) return false

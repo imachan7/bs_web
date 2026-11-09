@@ -779,6 +779,15 @@ async function init(): Promise<void> {
         else list.push(id)
         rerender()
     })
+    // kind:"summonPayOff"：破壊して払ったものとして扱う個体の選択（1つだけ。もう一度押すと外す）
+    byId("targeting-info").addEventListener("click", (e) => {
+        const btn = closestData(e, "data-payoff")
+        if (!btn || !ui.paying) return
+        const id = String(btn.dataset.payoff)
+        if (ui.paying.payOffInstanceId === id) delete ui.paying.payOffInstanceId
+        else ui.paying.payOffInstanceId = id
+        rerender()
+    })
     byId("btn-cancel-target").addEventListener("click", () => {
         ui.targeting = null
         ui.awakenTarget = null

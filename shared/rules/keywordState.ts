@@ -66,7 +66,7 @@ export function noteHeldKeyword(board: Board, ownerPid: PlayerId, inst: CardInst
 // だけで「持つ」を判定する26系キーワード）。TargetFilter.keyword はこの集合のキーワードを
 // spiritHasLabeledKeyword（Lv条件を尊重）で解決し、旧キーワードは従来どおり spiritHasKeyword を使う。
 // 26系キーワードを増やすときはここへ足すだけで参照側（matchesTarget）が追従する
-export const LABELED_KEYWORDS: ReadonlySet<Keyword> = new Set(["zofuku", "suiryu", "chimei", "soryo", "majutsu", "kyoso", "clash", "meisai", "levelup", "fchange", "rensa", "bunshin"])
+export const LABELED_KEYWORDS: ReadonlySet<Keyword> = new Set(["zofuku", "suiryu", "chimei", "soryo", "majutsu", "kyoso", "clash", "meisai", "levelup", "fchange", "rensa", "bunshin", "batto"])
 
 // 効果レコードの keyword ラベル（triggered/activated の effect.keyword、kind:"keyword" の宣言レコード）に
 // よるキーワード保持判定。【増幅】/【水流】のように挙動が起動効果そのもので kind:"keyword" の宣言
@@ -201,6 +201,7 @@ export function continuousKeywordGrantCount(
     ownerPid: PlayerId,
     inst: CardInstance,
     keyword: Keyword,
+    kyoka?: string, // keyword:"kyoka" の付与のうち、この種類（bpDestroy 等）だけを数える
 ): number {
     const sources = effectSources(board, ownerPid)
     for (const source of sources) {
@@ -209,6 +210,7 @@ export function continuousKeywordGrantCount(
             if (effect.kind !== "keywordGrant") continue
             if (effect.lentOnly && !isVirtualSource(source)) continue
             if (effect.keyword !== keyword) continue
+            if (kyoka !== undefined && effect.kyoka !== kyoka) continue
             // 【合体時】＝発生源自身が合体しているときだけ（BS13-005強暴竜ディラノ・レックス【合体時】Lv3）
             if (!effectActiveOn(source, effect, sourceLevel)) continue
             // onlyWhileSpiritState＝whileCombinedの逆。発生源自身が合体しているときは発揮しない（BS13-056ホーク・ブレイカー）

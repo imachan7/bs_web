@@ -9,6 +9,7 @@ import { requestActivationConfirm, resolveAction } from "./EffectModules"
 import { claimOnce, isOnceUsed, markOnceUsed, revertOnceUsed } from "./oncePerTurn"
 import { keishoExcludedTeamAtLeast, soulCoreInReserve } from "./soulCore"
 import { fireFieldEventTriggers } from "./fieldEventTriggers"
+import { moveCardCandidates } from "./actions/moveCards"
 import { activationPrompt, confirmPromptIfOptional, isStillOnField } from "./triggers"
 
 // バトルの勝者側プレイヤーのフィールド（ネクサス＋スピリット）を走査し、
@@ -349,6 +350,8 @@ export function fireStepTriggers(
             } else if (e.effect.oncePerTurn === true) {
                 markOnceUsed(state, e.pid, e.inst, e.effect, "stepUsedTurn")
             }
+            // 動かせるカードが1枚も無いなら、発動の確認も出さない（requireCandidate。BS23-068）
+            if (e.effect.optional && e.effect.action.type === "moveCards" && e.effect.action.requireCandidate === true && moveCardCandidates(state, e.pid, e.effect.action, undefined, e.inst.cardId).length === 0) return
             // 「〜できる」（optional）は実対戦では発動可否を確認する（triggered と同じ扱い）
             if (e.effect.optional && state.interactiveTargets) {
                 requestActivationConfirm(state, e.pid, activationPrompt(e.inst), e.effect.action, e.inst, byName ? { instanceId: e.inst.instanceId, effectId: e.effect.id } : undefined)

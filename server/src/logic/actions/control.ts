@@ -4,7 +4,7 @@ import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
 import { burstTenshoUnpayable } from "../keywords/tensho"
-import { rensaConditionIgnored } from "../keywords/rensa"
+import { fireRensaActivated, isRensaClause, rensaConditionIgnored } from "../keywords/rensa"
 import { createInstance, getCard, log, minLevelCores, opponentOf, resolveInOrder } from "../GameState"
 import { attachBrave, countEffectCounter, recordBp, recordTimed, findSpiritAny, fireNexusDeployed, fireSummonSequence, placeBurst, requestChoice, resolveAction, resolveTensho, tryInteractiveCardChoice, requestCardChoice } from "../EffectModules"
 import { matchesPick } from "./revealAction"
@@ -257,6 +257,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? state.phase === "attack" && state.turnPlayer !== owner
           : "magicUsedVia" in cond
           ? state.magicUsedVia === cond.magicUsedVia
+          : "firstBlockOfTurn" in cond
+          ? state.blocksThisTurn === 1
           : "firstBattleOfTurn" in cond
           ? state.attacksThisTurn === 1
           : "ownBurstSet" in cond
@@ -267,6 +269,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? state.lifeLostThisTurn?.[owner === "p1" ? "p2" : "p1"] !== true
           : "ownMagicUsedThisTurn" in cond
           ? (state.magicIdsUsedThisTurn?.[owner] ?? []).some((id) => matchesPick(id, cond.ownMagicUsedThisTurn))
+          : "selfNameIs" in cond
+          ? self !== null && matchesTarget(state, owner, self, { nameIs: cond.selfNameIs })
           : "selfSummonedBy" in cond
           ? self?.summonedBy === cond.selfSummonedBy
           : "lastBuffed" in cond
@@ -292,6 +296,12 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
     const branch = met ? action.then : action.else
     if (branch === undefined) {
         log(state, `${sourceName}：条件を満たさなかった。`)
+        return
+    }
+    // 【連鎖】の[色]の節が発揮したら、解決後に「【連鎖】が発揮したとき」を起こす（027・033）
+    const rensaColor = met && cond !== undefined && "count" in cond && typeof cond.count === "object" && "ownColorSymbols" in cond.count ? cond.count.ownColorSymbols : undefined
+    if (rensaColor !== undefined && self !== null && isRensaClause(state, owner, self, action)) {
+        ctx.resolve({ type: "sequence", actions: [branch, { type: "rensaActivated", color: rensaColor, drawFrom: state.drawCount?.[owner] ?? 0 }] }, { sourceColors: srcColors, sourceType: srcType })
         return
     }
     ctx.resolve(branch, { sourceColors: srcColors, sourceType: srcType })
@@ -579,6 +589,7 @@ const handlers = {
     simultaneous: simultaneousHandler,
     if: ifHandler,
     openAwakenMode: openAwakenModeHandler,
+    rensaActivated: (ctx, action) => fireRensaActivated(ctx.state, ctx.owner, ctx.self, action.color, action.drawFrom),
     remainOnFieldSelf: remainOnFieldSelfHandler,
     forceEndMainStep: forceEndMainStepHandler,
     markUnblockableByIceWallColorThisTurn: markUnblockableByIceWallColorThisTurnHandler,

@@ -72,6 +72,7 @@ export type EffectDefTrigger =
               | { soulCoreInReserve: true } // 自分のリザーブ
               | { ownKeishoExcludedTeamAtLeast: { team: string; count: number } } // 直近の《継召》で除外したカードを数える
               | { summonedBy: string } // CardInstance.summonedBy と突合
+              | { selfHasBraveNamed: string } // 発火したスピリット（合体スピリットのホスト）に、このカード名のブレイヴが合体している
       }
     | {
           id: string
@@ -251,6 +252,8 @@ export type EffectDefTrigger =
           byOpponentSpiritEffectOnly?: true // ownSpiritDestroyed 限定。DestroyContext.sourceType=="spirit" かつ sourcePid が持ち主と異なるとき
           refreshSourceTypeFilter?: CardType[] // anySpiritRefreshed 限定。回復させた効果の発生源種別（配列＝OR）
           keywordActivatedFilter?: Keyword // ownKeywordActivated 限定。「【増幅】を発揮した時」＝zofuku 限定
+          rensaColor?: Color // ownKeywordActivated + keywordActivatedFilter:"rensa" 限定。【連鎖】の[色]の節が発揮したときだけ
+          rensaDrew?: true // 同上。その節の解決中にドローしたときだけ（「【連鎖】でドローしたとき」）
           summonedSpiritAsTarget?: true // ownSpiritSummoned 限定。selfMode:"source" と併用し、actionTargetId を召喚されたスピリット自身にする
           attackerAsTarget?: true // summonedSpiritAsTarget の同型で、selfOverride を渡すイベント全般で使える。selfMode:"source" と併用
           // 指定時、resolveAction へ渡す対象は通常のイベント対象ではなく、その効果を発揮したスピリット自身（DestroyContext.sourceInstanceId）になる
@@ -280,7 +283,7 @@ export type EffectDefTrigger =
           magicCostEquals?: number // opponentMagicUsed 限定
           magicTiming?: "main" | "flash" // opponentMagicUsed 限定
           magicPick?: CardPick // ownMagicUsed 限定。eventInfo.magicCardId で判定
-          paidCostOnly?: true // ownMagicUsed 限定。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認）
+          paidCostOnly?: true // ownMagicUsed／anyBraveSummoned 限定（召喚は state.summoningPaid）。「コストを支払わずに使用」経由の使用だけが除外される（2026-09-07確認）
           magicFreeUseMaxPerTurn?: number // ownMagicUsed 限定。発生源が実際に無償使用を行った回数（CardInstance.magicFreeUseCount）がこの値未満のときのみ
           // 確認で「使わない」を選んだ・候補が無く不発だったときは消費しない（2026-09-07確認）
           familyFilter?: FamilyFilter // ownTensho 限定（主体が場に居ないので eventInfo.families で判定）。ほかのイベントは subjectFilter.family
@@ -387,6 +390,12 @@ export type EffectDefTrigger =
           // 同じカード名のこの効果はターンに1回（onceByNameUsed）。removal.fireOwnSpiritDestroyed が持ち主のトラッシュを走査する
           levels: null
           familyFilter: string
+      }
+    | {
+          id: string
+          kind: "trashReturnOnNameSummoned" // トラッシュにあるこのカード自身の効果：自分のスピリットが召喚されたとき、そのカード名が nameIncludes を含めば手札に戻る（強制。同名が複数あればすべて戻る：Q4462）
+          levels: null
+          nameIncludes: string
       }
     | {
           id: string

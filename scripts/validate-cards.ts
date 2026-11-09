@@ -71,6 +71,7 @@ const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
     ["BS20-021-e2", "神速の連鎖（召喚時の見出しは無い）"],
     ["BS21-063-e1", "【合体時】「このスピリットが相手によって破壊されたとき」は『』の見出しの無い破壊誘発。破壊待機の列で『破壊時』と同時に解決する（BS21_PLAN §2 の9）"],
     ["SD14-004-e2", "神速の連鎖（召喚時の見出しは無い）"],
+    ["BS23-020-e2", "神速の連鎖（召喚時の見出しは無い）"],
     // BS15-X04機獣要塞ナウマンガルド：印刷テキストに『』見出しが無い「相手によって破壊されたとき」節。
     // fieldEvent(selfOnly)にすると、destroySpiritが破壊時トリガーの間instをまだfield.spiritsに残したまま
     // extraSourcesにも同じinstを渡すため、effectSources()とextraSourcesの両方にinstが載って二重発火する
@@ -83,19 +84,20 @@ const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
 // 効果エントリの kind。EffectDef のユニオンに対応する（新しい kind を足したらここにも追記する）
 const VALID_KINDS = new Set([
     "deckRule",
-    "rensaIgnoreCondition",
-    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "burstActivationNegate", "nexusCostMillPay", "countAsMultiple",
+    "rensaIgnoreCondition", "braveExtraCombine",
+    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "destroyBlockerAtBattleEnd", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "burstActivationNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "reductionAlsoColor", "levelAs", "battleWon", "magicRestriction",
-    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned",
+    "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned", "trashReturnOnNameSummoned",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",
     "magicFreeGrant", "coreStepBonus", "drawStepBonus", "immunityGrant", "constraintGrant", "drawDouble",
     "keywordGrant", "levelCostMod", "magicNegatePayByNexusGrant", "magicNegateTurnOverrideGrant", "freeSummonFromHandOnDiscardedByOpponent", "freeSummonFromHandOnOwnNexusDeployed", "lifeDamageNegate", "exhaustImmunityGrant", "funsaiOnBlock", "kyoshuOnBlock", "flashLockWhileAttackingFamily",
-    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "burstSetCost",
+    "triggerSuppression", "alsoCostGrant", "bpBuffSuppression", "awakenFromReserve", "constraintSuppression", "magicTargetRedirect", "sokuPaySourceGrant", "payAssistByExhaust", "summonPayOff", "burstSetCost",
     "destroyedCoresToTrash", "destroyedCoresToSelf", "nameAsGrant", "trashNameAs", "vanillaAsGrant", "nexusEffectsDisabled",
     "koboOnBlock", "attackTriggersAsBlockGrant", "summonedExhaustGrant", "millCapBonus",
     "spiritEffectsDisabledGrant", "magicRepeatGrant", "bofuOnBlock", "bofuChooserSelf", "blockTriggersAsAttackGrant", "lifeDamageMillGuard", "battleSwapSummon",
     "bofuCountBonus", "tenshoSelfCostBonus", "symbolFix", "onMilledFromDeck", "milledMagicToTegamoto", "jugekiOnBlockReplace", "freeSummonFromHandOnLifeDamaged", "deckMillNegate", "summonCostHandDiscardPay", "targetNegateByHandDiscard", "exhaustPreventByPay",
-    "kyoshuSelfExhaustGrant",
+    "kyoshuSelfExhaustGrant", "coresAs",
+    "summonNeedsCost", "summonExtraDiscard", "braveFreeSummonByCoreTrash",
     "sokuFreeSummon",
     "trashSymbolReduction", "altSummonFromHand", "braveStatsAs", "trashImmunity", "symbolAddGrant",
     "braveImmuneGrant", "armorEffectiveGrant", "effectEntryGrant", "destroyAsMaxLevelGrant", "bpAs",
@@ -222,7 +224,7 @@ function checkLentEffects(
 // **絞り込みが無言で無視され、全カードに置換が適用される**（エラーも出ない）。
 // 現行データ（BS05-030 / BS05-073）は該当しないが、将来「相手の◯色のカードのコストを△にする」を
 // 書いた瞬間に発現するため、データ側で落とす。
-const COST_SET_UNSUPPORTED = ["colorFilter", "cardType", "side", "phaseTurn"] as const
+const COST_SET_UNSUPPORTED = ["cardType", "side", "phaseTurn"] as const
 
 function checkCostSetEffects(
     c: CardData,
@@ -761,6 +763,7 @@ export function validateCards(cards: CardData[]): ValidationIssue[] {
 // ここに載せた action.type がカードデータに書かれていたら validate:cards で落とす（2026-09-25）。
 // 「先に仕組みだけ入れる」用途でここに載せない（カードが入った時点で落ちて気づけるが、載せっぱなしの原因になる）
 const INTERNAL_ONLY_ACTIONS = new Map<string, string>([
+    ["rensaActivated", "【連鎖】の[色]の節（if の then）の解決後に if ハンドラが積む（keywords/rensa.ts。027・033 の「【連鎖】が発揮したとき」用）"],
     ["resolveHandFreeSummonOnDestroy", "破壊で誘発した効果の列に並ぶ、手札の「〜が破壊されたときコストを支払わずに召喚できる」1枚分（removal.ts。手札が発生源なのでカードデータには書かない）"],
     ["funsaiOnBlock", "ブロック宣言時の同時発揮で【粉砕】を他の誘発と同じ列に並べるための再開フレーム（blockDeclared.ts）"],
     ["tenshoCoreDump", "【転召】のコア支払いを resolveTensho が内部で呼ぶ"],

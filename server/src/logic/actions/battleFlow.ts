@@ -75,6 +75,7 @@ import { braveCombineCandidates } from "../../../../shared/summon"
 import { effectiveCost } from "../RuleValidator"
 import { normalizeFilter, SELF_REQUIRED } from "./filter"
 import { countedAmount } from "../counted"
+import { lastTargetsOf } from "../record"
 
 const funsaiOnBlockHandler: ActionHandler<"funsaiOnBlock"> = (ctx) => {
     const { state, owner, self } = ctx
@@ -216,6 +217,10 @@ const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle">
                 return
             }
         }
+        // 無条件の終了が先にも後にも1つあれば、条件つき（081）より優先する
+        const unconditionalAlready = state.endAttackStepAfterBattle && !state.endAttackStepLifeCheck
+        if (action.ifOwnLifeAtMost === undefined) delete state.endAttackStepLifeCheck
+        else if (!unconditionalAlready) state.endAttackStepLifeCheck = { pid: owner, max: action.ifOwnLifeAtMost }
         state.endAttackStepAfterBattle = true
         log(
             state,
@@ -504,6 +509,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             ...(action.payCost ? { payCost: action.payCost } : {}),
             ...(action.payCost && action.costPaidAsIfCounter !== undefined ? { paidAsIf: countEffectCounter(state, owner, self, action.costPaidAsIfCounter) } : {}),
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
+            ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
             // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」
             summonedBy: action.summonedBy ?? "freeEffect",
@@ -574,6 +580,16 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             // spiritStateOnly（BS12-005星角獣ユニゴーント）：合体先を選ばせず、必ずスピリット状態で出す
             if (action.spiritStateOnly) {
                 finishBraveSummon(handIndex)
+                return
+            }
+            // combineToLastTarget（BS23 X13-11）：「直接合体するように」なので、指定した1体に合体できなければ召喚しない
+            if (action.combineToLastTarget) {
+                const hostId = lastTargetsOf(state)[0]
+                if (hostId === undefined || !combineCandidates.includes(hostId)) {
+                    log(state, `${sourceName}：合体させられるスピリットがいなかった。`)
+                    return
+                }
+                finishBraveSummon(handIndex, hostId)
                 return
             }
             // combineToSelf（BS11-020 陰陽ヤマセミ）：合体先は発生源自身に固定なので選ばせない。

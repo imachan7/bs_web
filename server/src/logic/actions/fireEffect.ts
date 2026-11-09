@@ -41,7 +41,37 @@ function groupEffects(entries: Triggered[]): { ids: string[]; label: string }[] 
     return list.map((g, i) => (list.filter((x) => x.label === g.label).length > 1 ? { ...g, label: `${g.label}${i + 1}` } : g))
 }
 
+// 【分身】の節（誘発の種類を問わない。破壊時の【分身】も、条件を見ずに発揮する）。合体中のブレイヴが持つ【分身】も数える
+function bunshinEntries(state: GameState, owner: PlayerId, inst: CardInstance): Triggered[] {
+    const level = currentLevel(inst).level
+    return [inst, ...bravesOf(state.players[owner], inst)].flatMap((src) =>
+        getCard(src.cardId).effects.filter((e): e is Triggered => e.kind === "triggered" && e.keyword === "bunshin" && entryActive(state, owner, src, e, level)),
+    )
+}
+
+const fireBunshinHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
+    const { state, owner, self, sourceName } = ctx
+    const pool = action.ofSelf ? (self ? [self] : []) : state.players[owner].field.spirits
+    const candidates = pool.filter((s) => bunshinEntries(state, owner, s).length > 0)
+    // targetInstanceId は読まない：selfMode:"source" の誘発ではイベントの相手（召喚されたブレイヴ等）が入っている
+    const inst = action.chosenId !== undefined ? candidates.find((s) => s.instanceId === action.chosenId) : candidates.length === 1 || !state.interactiveTargets ? candidates[0] : undefined
+    if (inst === undefined) {
+        if (candidates.length === 0 || action.chosenId !== undefined) {
+            log(state, `${sourceName}：【分身】を発揮できる自分のスピリットがいなかった。`)
+            return
+        }
+        requestChoice(state, owner, `${sourceName}：【分身】を発揮させるスピリットを選んでください`, candidates.map((s) => s.instanceId), false, action, self)
+        return
+    }
+    log(state, `${sourceName}：${getCard(inst.cardId).name}の【分身】を発揮させる。`)
+    ctx.resolve(bunshinEntries(state, owner, inst)[0]!.action)
+}
+
 const fireEffectHandler: ActionHandler<"fireEffect"> = (ctx, action) => {
+    if (action.bunshinOnly) {
+        fireBunshinHandler(ctx, action)
+        return
+    }
     const { state, owner, self, sourceName, targetInstanceId, chosenOption } = ctx
     const player = state.players[owner]
     const soryoIds = (inst: CardInstance): string[] => getCard(inst.cardId).effects.filter((e) => e.kind === "triggered" && e.keyword === "soryo").map((e) => e.id)
