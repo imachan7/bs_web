@@ -405,7 +405,9 @@ export function instHasColor(inst: CardInstance, color: Color): boolean {
     if (inst.colorlessThisBattle) return false
     if (cardHasColor(card(inst.cardId), color)) return true
     if (inst.timedColors.includes(color)) return true
-    return (inst.colorsAsContinuous ?? []).includes(color)
+    if ((inst.colorsAsContinuous ?? []).includes(color)) return true
+    // 合体スピリットは合体しているブレイヴの色も持つ（BRAVE §12.2。色の絞り込みはすべて合成後の色。instColors と同じ）
+    return (inst.braveComposite?.colors ?? []).includes(color)
 }
 
 // 状態を考慮した色の一覧。「発生源の色」を装甲判定などへまとめて渡すときに使う
