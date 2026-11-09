@@ -3881,7 +3881,13 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "costFilter": 5,
+     "filter": {
+      "cost": {
+       "in": [
+        5
+       ]
+      }
+     },
      "amount": 4000,
      "phaseTurn": {
       "phase": "attack",
@@ -4870,7 +4876,9 @@
      "type": "bp",
      "target": "self",
      "amount": 10000,
-     "battlingOnly": true,
+     "filter": {
+      "inBattle": true
+     },
      "condition": {
       "battleOpponentMatches": {
        "combined": true
@@ -5152,10 +5160,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "爪鳥",
-      "分身"
-     ],
+     "filter": {
+      "family": [
+       "爪鳥",
+       "分身"
+      ]
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -6839,7 +6849,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "闘神",
+     "filter": {
+      "family": "闘神"
+     },
      "amount": 5000
     }
    },

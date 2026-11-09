@@ -2425,7 +2425,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "white",
+     "filter": {
+      "color": "white"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -3029,7 +3031,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "道化",
+     "filter": {
+      "family": "道化"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -4413,8 +4417,14 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "costFilter": 2,
-     "battlingOnly": true,
+     "filter": {
+      "cost": {
+       "in": [
+        2
+       ]
+      },
+      "inBattle": true
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -4670,7 +4680,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "minCores": 3,
+     "filter": {
+      "minCores": 3
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -6273,7 +6285,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordFilter": "awaken",
+     "filter": {
+      "keyword": "awaken"
+     },
      "amount": 1000
     }
    },

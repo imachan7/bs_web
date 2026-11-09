@@ -1470,9 +1470,11 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "爪鳥"
-     ],
+     "filter": {
+      "family": [
+       "爪鳥"
+      ]
+     },
      "amountPer": 1000,
      "counter": {
       "ownSpiritsMatching": {
@@ -3705,7 +3707,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "braveOnly": true,
+     "filter": {
+      "braveInSpiritState": true
+     },
      "amount": 5000,
      "phaseTurn": {
       "phase": "attack",
@@ -3820,10 +3824,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "想獣",
-      "地竜"
-     ],
+     "filter": {
+      "family": [
+       "想獣",
+       "地竜"
+      ]
+     },
      "amount": 5000,
      "phaseTurn": {
       "phase": "attack",

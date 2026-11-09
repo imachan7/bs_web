@@ -2281,7 +2281,9 @@
      "type": "bp",
      "target": "ownAll",
      "amount": 2000,
-     "restedOnly": true,
+     "filter": {
+      "rested": true
+     },
      "turn": "opponent"
     }
    }
@@ -5339,7 +5341,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordFilter": "rensa",
+     "filter": {
+      "keyword": "rensa"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",

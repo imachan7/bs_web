@@ -609,7 +609,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "coresExact": 1,
+     "filter": {
+      "cores": 1
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -1866,7 +1868,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "爪鳥",
+     "filter": {
+      "family": "爪鳥"
+     },
      "amount": 1000
     }
    }
@@ -3018,7 +3022,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "white",
+     "filter": {
+      "color": "white"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -3260,7 +3266,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "nameIncludesFilter": "アルカナ",
+     "filter": {
+      "nameContains": "アルカナ"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -3409,7 +3417,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "遊精",
+     "filter": {
+      "family": "遊精"
+     },
      "amount": 1000
     }
    },
@@ -5671,7 +5681,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "vanillaFilter": true,
+     "filter": {
+      "vanilla": true
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -6223,7 +6235,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordFilter": "kobo",
+     "filter": {
+      "keyword": "kobo"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -7993,7 +8007,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "闘神",
+     "filter": {
+      "family": "闘神"
+     },
      "amount": 3000,
      "lentOnly": true
     }

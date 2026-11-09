@@ -152,14 +152,14 @@ console.log("=== familyFilter 軸: 指定系統だけがバフされる（BS04-0
     // （attackingOnly + familyFilter）へ移行済み（part76参照）。テスト前提は新データ形状で読む
     const card = getCard("BS04-097")
     const eff = card.effects.find((e) => e.kind === "aura") as
-        | { aura?: { familyFilter?: string[]; attackingOnly?: boolean; amount?: number } }
+        | { aura?: { filter?: { family?: string[]; attackingOnly?: boolean }; amount?: number } }
         | undefined
-    const families = eff?.aura?.familyFilter
+    const families = eff?.aura?.filter?.family
     assert(
         Array.isArray(families) && families.includes("爪鳥") && families.includes("樹魔"),
-        `テスト前提: ${card.name} は aura.familyFilter [爪鳥, 樹魔]`,
+        `テスト前提: ${card.name} は aura.filter.family [爪鳥, 樹魔]`,
     )
-    assert(eff?.aura?.attackingOnly === true, `テスト前提: ${card.name} は aura.attackingOnly`)
+    assert(eff?.aura?.filter?.attackingOnly === true, `テスト前提: ${card.name} は aura.filter.attackingOnly`)
     assert(eff?.aura?.amount === 3000, `テスト前提: ${card.name} は aura.amount 3000`)
 
     const s = newGame("axis-family-forestaura")

@@ -640,10 +640,12 @@
      "type": "bp",
      "target": "ownAll",
      "amount": 3000,
-     "colorFilter": [
-      "red",
-      "yellow"
-     ],
+     "filter": {
+      "color": [
+       "red",
+       "yellow"
+      ]
+     },
      "phaseTurn": {
       "phase": "attack",
       "turn": "own"
@@ -2691,7 +2693,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "天霊",
+     "filter": {
+      "family": "天霊"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -4903,7 +4907,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "battlingOnly": true,
+     "filter": {
+      "inBattle": true
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -4970,7 +4976,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "white",
+     "filter": {
+      "color": "white"
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
