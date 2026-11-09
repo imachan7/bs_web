@@ -154,7 +154,11 @@ scenario({
         thunderBattle(t)
         t.actRejected("opp", { type: "attack", instanceId: t.id("B") })
     },
-    expect: thunderRows,
+    // アタックステップが終わるとエンドステップを経て自分のターンが始まる（ドロー・リフレッシュでマジックのコアとボジャが戻る・コアステップ）
+    expect: [
+        ...thunderRows.filter((r) => !/^自分\.(トラッシュのコア|ボジャ\.疲労|リザーブ|手札):/.test(r)),
+        "自分.デッキ枚数: 40 → 39", "自分.リザーブ: 10 → 11", "自分.手札: サンダーウォール → ロクケラトプス",
+    ],
 })
 console.log("=== 9. 081：ライフのコアが3個なら終了しない（もう1体がアタックできる） ===")
 scenario({

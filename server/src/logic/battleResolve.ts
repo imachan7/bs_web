@@ -5,6 +5,7 @@ import { addLifeDealt, recordLifeLoss } from "./lifeGate"
 import type { CardInstance, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { clearBattle, currentLevel, findSpirit, findInstanceAnywhere, getCard, log, opponentOf, pushResumeFrames } from "./GameState"
 import { destroyTargetsBatch } from "./removal"
+import { reserveBlockerDestroyByEntries } from "./battleEndDestroy"
 import { destroyCombinedBrave } from "./brave"
 import { destroyDenial } from "./destroyGate"
 import { matchesPick } from "./actions/revealAction"
@@ -441,6 +442,7 @@ export function resolveBattle(state: GameState): void {
         resolveLifeDamage(state)
         return
     }
+    reserveBlockerDestroyByEntries(state, attackerPid, attacker, blockerPid, blocker)
     // 果て無き地平線Lv1：バトルのBP比較のときだけ、Lv1スピリットがLv2BPを使う（battleBp が差分を足す）
     const attackerBp = battleBp(state, attackerPid, attacker)
     const blockerBp = battleBp(state, blockerPid, blocker)
@@ -777,7 +779,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                     op: "destroy",
                     scope: "targeted",
                     actorPid: entry.sourcePid,
-                    sourceType: "nexus",
+                    sourceType: entry.sourceType ?? "nexus",
                     sourceColors: entry.sourceColors,
                 }
                 const resisted = resistanceAgainst(state, found.pid, found.inst, attempt)
@@ -793,7 +795,7 @@ function runBattleStep(state: GameState, f: BattleResolveFrame, step: number): v
                     instanceId: found.inst.instanceId,
                     context: {
                         sourcePid: entry.sourcePid,
-                        sourceType: "nexus",
+                        sourceType: entry.sourceType ?? "nexus",
                         sourceColors: entry.sourceColors,
                     },
                 })

@@ -385,6 +385,10 @@ export function trashFrozen(board: Board): boolean {
 export function trashCardEffectsDisabled(board: Board, cardId: string): boolean {
     return zoneSpiritEffectsDisabled(board, cardId) || trashFrozen(board)
 }
+// 効果のコストとして疲労させられないか（BS23-071。Q22553）。スピリットだけが対象で、アタック・ブロック宣言の疲労はここを通らない
+export function costExhaustLocked(board: Board, pid: PlayerId, inst: CardInstance): boolean {
+    return board.players[pid].field.spirits.includes(inst) && hasGlobalConstraint(board, "noExhaustByEffect")
+}
 // 手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 export function ownHandKeyword(board: Board, cardId: string, keyword: Keyword): boolean {
     return hasKeyword(cardId, keyword) && !zoneSpiritEffectsDisabled(board, cardId)

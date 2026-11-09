@@ -12,7 +12,7 @@ import type {
 } from "../../server/src/type"
 import type { Board } from "../board"
 import { card } from "../cardDb"
-import { activeConstraints, canDiscardHand, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
+import { activeConstraints, canDiscardHand, costExhaustLocked, hasGlobalConstraint, zoneSpiritEffectsDisabled, mustBeAttackTargetIds, timedFlashLocked, timedKeywords, timedPlayerRules } from "./constraints"
 import { hasContinuousKeywordGrant, matchesFamilyFilter, spiritHasKeyword } from "./keywordState"
 import { matchesTarget } from "./targetFilter"
 import { instanceSymbolCount } from "./symbols"
@@ -72,8 +72,10 @@ export function payAssistCandidates(
     }
     if (summoned.type !== "spirit") return result
     const used = player.payAssistUsedThisTurn ?? []
+    // 効果のコストとしての疲労も止める（BS23-071。Q22553）。ネクサスの疲労は対象外
+    const spiritsLocked = hasGlobalConstraint(board, "noExhaustByEffect")
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-        if (inst.isRested) continue
+        if (inst.isRested || (spiritsLocked && player.field.spirits.includes(inst))) continue
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "payAssistByExhaust") continue
@@ -105,8 +107,10 @@ export function magicPayAssistCandidates(
     const result: { instanceId: string; discount: number; oncePerTurn: boolean }[] = []
     const player = board.players[pid]
     const used = player.payAssistUsedThisTurn ?? []
+    // 効果のコストとしての疲労も止める（BS23-071。Q22553）。ネクサスの疲労は対象外
+    const spiritsLocked = hasGlobalConstraint(board, "noExhaustByEffect")
     for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
-        if (inst.isRested) continue
+        if (inst.isRested || (spiritsLocked && player.field.spirits.includes(inst))) continue
         const level = currentLevel(inst).level
         for (const effect of card(inst.cardId).effects) {
             if (effect.kind !== "payAssistByExhaust" || effect.via !== "magic") continue
@@ -409,7 +413,7 @@ function activatableAbilityOf(
         // コスト省略時は追加コストなし（BS08帝竜騎サイクル）
         if (e.cost === undefined) return { effectId: e.id, costLabel: "効果を発動" }
         if ("exhaustSelf" in e.cost) {
-            if (host.isRested) continue
+            if (host.isRested || costExhaustLocked(board, pid, host)) continue
             return { effectId: e.id, costLabel: "このスピリットを疲労させて効果を発動" }
         }
         if ("selfCoresToTrash" in e.cost) {

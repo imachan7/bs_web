@@ -19,6 +19,7 @@ export interface GameState {
     players: Record<PlayerId, PlayerState>
     log: string[]
     winner: PlayerId | null
+    endAttackStepLifeCheck?: { pid: PlayerId; max: number } // endAttackStepAfterBattle の ifOwnLifeAtMost。バトル終了時に判定する
     endAttackStepAfterBattle: boolean // 今のバトルが終了したときアタックステップを強制終了するか（サイレントウォール用）
     extraStepAfterAttackUsed?: true // BS15-X04 Lv2 をこのターンに使った（ターン終了でリセット）
     extraMainStep?: true // BS15-X04 Lv2 で行っている追加のメインステップ中。アタックステップへは進めず、ターン終了でエンドステップへ（ターン終了でリセット）

@@ -85,7 +85,7 @@ const QUOTE_MISMATCH_KNOWN = new Map<string, string>([
 const VALID_KINDS = new Set([
     "deckRule",
     "rensaIgnoreCondition", "braveExtraCombine",
-    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "burstActivationNegate", "nexusCostMillPay", "countAsMultiple",
+    "triggered", "magic", "keyword", "constraint", "aura", "step", "fieldEvent", "jugekiCoreToVoid", "battleBpAsLevel", "destroyBlockerAtBattleEnd", "familySuppression", "handKeywordGrant", "bothSidesTargetRedirect", "magicNegate", "burstActivationNegate", "nexusCostMillPay", "countAsMultiple",
     "reviveOnDestroy", "reductionGrant", "reductionAlsoColor", "levelAs", "battleWon", "magicRestriction",
     "globalConstraint", "coreBonus", "coreReturnBonus", "costMod", "costDelta", "effectGrant", "colorAs", "funsaiBonus", "trashSummonOnNameSummoned", "trashReturnOnNameSummoned",
     "activated", "mustBlockGrant", "magicBuffBonus", "familyGrant", "exhaustOnManualCoreAdd",

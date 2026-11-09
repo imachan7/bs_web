@@ -136,6 +136,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `zoneSpiritEffectsDisabled`（fn）：BS18-052：手札・トラッシュにあるスピリットカード自身の効果を止めるか（2026-10-23 ユーザー確認）。
 - `trashFrozen`（fn）：PX19：トラッシュのカードが効果を受けない／自身の効果を使えない（Q18473・Q18475）。トラッシュの枚数やシンボルを数えるだけの参照は止めない
 - `trashCardEffectsDisabled`（fn）：トラッシュにあるカード自身の効果の発揮を止めるか。トラッシュだけで効く呼び出し元は zoneSpiritEffectsDisabled ではなくこちらを使う
+- `costExhaustLocked`（fn）：効果のコストとして疲労させられないか（BS23-071。Q22553）。スピリットだけが対象で、アタック・ブロック宣言の疲労はここを通らない
 - `ownHandKeyword`（fn）：手札にあるカード自身のキーワード（【神速】【烈神速】）を行使できるか。持っているかの参照には hasKeyword を使うこと
 - `hasGlobalConstraint`（fn）：match：型ごとの追加の絞り込み（発生源の持ち主 pid とエントリを受ける）。発生源が効いているかの判定はここ1か所
 - `deckMillBlockedByRule`（fn）：pid のデッキが破棄できないか（globalConstraint／このターンの playerRule の noDeckMill）。mill・コスト・【粉砕】の判定はここ1か所。
@@ -605,6 +606,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/attackDeclared.ts
 
 - `resolveAttackDeclared`（fn）：directed：指定アタック。『バトル時』は相手が決まるブロック確定時に発火するので、ここでは積まない
+
+## server/src/logic/battleEndDestroy.ts
+
+- `reserveBlockerDestroyByEntries`（fn）：発生源が場にいる（effectSources）ことの判定はここで済ませる。予約の後は発生源の有無を見ない
 
 ## server/src/logic/battleResolve.ts
 

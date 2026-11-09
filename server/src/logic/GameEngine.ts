@@ -389,6 +389,12 @@ function forceEndTurnIfFlagged(state: GameState): void {
     if (!state.endAttackStepAfterBattle || state.winner) return
     if (state.battle) return
     state.endAttackStepAfterBattle = false
+    const lifeCheck = state.endAttackStepLifeCheck
+    delete state.endAttackStepLifeCheck
+    if (lifeCheck && state.players[lifeCheck.pid].life > lifeCheck.max) {
+        log(state, `${state.players[lifeCheck.pid].name}のライフのコアが${lifeCheck.max}個を超えているため、アタックステップは終了しない。`)
+        return
+    }
     log(state, "このバトルの終了にともない、アタックステップを終了する。")
     endTurn(state)
 }

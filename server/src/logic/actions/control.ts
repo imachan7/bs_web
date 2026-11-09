@@ -269,6 +269,8 @@ const ifHandler: ActionHandler<"if"> = (ctx, action) => {
           ? state.lifeLostThisTurn?.[owner === "p1" ? "p2" : "p1"] !== true
           : "ownMagicUsedThisTurn" in cond
           ? (state.magicIdsUsedThisTurn?.[owner] ?? []).some((id) => matchesPick(id, cond.ownMagicUsedThisTurn))
+          : "selfNameIs" in cond
+          ? self !== null && matchesTarget(state, owner, self, { nameIs: cond.selfNameIs })
           : "selfSummonedBy" in cond
           ? self?.summonedBy === cond.selfSummonedBy
           : "lastBuffed" in cond

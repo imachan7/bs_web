@@ -635,6 +635,32 @@
      "剣刃"
     ],
     "braveInSpiritState": true
+   },
+   {
+    "id": "BS23-043-e3",
+    "kind": "constraintGrant",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "target": "ownAll",
+    "filter": {
+     "braveInSpiritState": true
+    },
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "constraint": {
+     "type": "unblockableBy",
+     "filter": {
+      "level": [
+       1,
+       3
+      ]
+     }
+    }
    }
   ]
  },

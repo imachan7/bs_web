@@ -2076,7 +2076,32 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のメインステップ』\n自分がカード名に「ベヒモス」と入っているスピリットカードを召喚するとき、このスピリットを疲労させることで、そのコストを-2する。\nLv2･Lv3\nこのスピリットは緑のスピリットとしても扱う。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-037-e1",
+    "kind": "payAssistByExhaust",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "cost": 2,
+    "phase": "main",
+    "via": "any",
+    "summonedNameIncludes": "ベヒモス"
+   },
+   {
+    "id": "BS23-037-e2",
+    "kind": "colorAs",
+    "levels": [
+     2,
+     3
+    ],
+    "colors": [
+     "green"
+    ]
+   }
+  ]
  },
  {
   "cardId": "BS23-039",
@@ -2113,7 +2138,61 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2『このスピリットの召喚時』\n自分のデッキを上から3枚オープンする。\nその中の系統：「剣刃」を持つブレイヴカードすべてを手札に加える。\n残ったカードは破棄する。\nカード名に「チャール」と入っている自分のスピリットがいるとき、この効果でデッキからオープンする枚数を5枚にする。\nこの効果はターンに1回しか使えない。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-039-e1",
+    "kind": "triggered",
+    "trigger": "onSummon",
+    "levels": [
+     1,
+     2
+    ],
+    "optional": false,
+    "oncePerTurn": true,
+    "onceScope": "name",
+    "action": {
+     "type": "sequence",
+     "keepScope": true,
+     "actions": [
+      {
+       "type": "if",
+       "cond": {
+        "count": {
+         "ownSpirits": {
+          "nameContains": "チャール"
+         }
+        },
+        "atLeast": 1
+       },
+       "then": {
+        "type": "revealOpen",
+        "count": 5
+       },
+       "else": {
+        "type": "revealOpen",
+        "count": 3
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "hand",
+       "pick": {
+        "cardType": "brave",
+        "family": "剣刃"
+       }
+      },
+      {
+       "type": "moveCards",
+       "from": "revealed",
+       "count": "all",
+       "dest": "trash"
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-040",
@@ -2197,7 +2276,45 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2･Lv3『自分のアタックステップ』\nバトル解決時、コスト2の自分のスピリットをブロックしていたLv1の相手のスピリット1体を、バトル終了時に破壊する。\nLv2･Lv3\nコスト2の自分のスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-042-e1",
+    "kind": "destroyBlockerAtBattleEnd",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "phaseTurn": {
+     "phase": "attack",
+     "turn": "own"
+    },
+    "attackerCost": 2,
+    "blockerLevel": 1
+   },
+   {
+    "id": "BS23-042-e2",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2,
+     3
+    ],
+    "byOpponentOnly": true,
+    "subjectFilter": {
+     "cost": {
+      "in": [
+       2
+      ]
+     }
+    },
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 1
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-045",
@@ -2965,7 +3082,66 @@
   "braveCondition": {
    "minCost": 5
   },
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-064-e1",
+    "kind": "triggered",
+    "trigger": "onAttack",
+    "levels": null,
+    "whileCombined": true,
+    "optional": false,
+    "action": {
+     "type": "sequence",
+     "actions": [
+      {
+       "type": "bpMinus",
+       "amount": 5000,
+       "count": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "selfNameIs": "大天使アヴリエル"
+       },
+       "then": {
+        "type": "sequence",
+        "actions": [
+         {
+          "type": "timedEffect",
+          "content": [
+           {
+            "type": "symbolAdd",
+            "color": "yellow",
+            "count": 1
+           }
+          ],
+          "duration": "battle",
+          "target": "self"
+         },
+         {
+          "type": "timedEffect",
+          "content": [
+           {
+            "type": "unblockable",
+            "opponentOnly": true,
+            "from": {
+             "level": [
+              1,
+              2
+             ]
+            }
+           }
+          ],
+          "duration": "battle",
+          "target": "self"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-065",
@@ -3322,7 +3498,53 @@
   "rarity": "",
   "limited": false,
   "effect": "Lv1･Lv2\nお互いのデッキは破棄されず、スピリットすべては、効果では疲労しない。\nLv2『お互いのアタックステップ』\n系統：「天霊」を持つコスト5以上の自分のスピリットが相手によって破壊され、自分のトラッシュに置かれたとき、自分はデッキから2枚ドローする。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-071-e1",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noDeckMill"
+    }
+   },
+   {
+    "id": "BS23-071-e2",
+    "kind": "globalConstraint",
+    "levels": [
+     1,
+     2
+    ],
+    "constraint": {
+     "type": "noExhaustByEffect"
+    }
+   },
+   {
+    "id": "BS23-071-e3",
+    "kind": "fieldEvent",
+    "event": "ownSpiritDestroyed",
+    "levels": [
+     2
+    ],
+    "phase": "attack",
+    "byOpponentOnly": true,
+    "subjectFilter": {
+     "family": [
+      "天霊"
+     ],
+     "cost": {
+      "min": 5
+     }
+    },
+    "optional": false,
+    "action": {
+     "type": "draw",
+     "count": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-073",
@@ -3754,7 +3976,17 @@
   "rarity": "",
   "limited": false,
   "effect": "フラッシュ：\nこのバトルが終了したとき、自分のライフのコアが2個以下なら、アタックステップを終了する。",
-  "effects": []
+  "effects": [
+   {
+    "id": "BS23-081-e1",
+    "kind": "magic",
+    "timing": "flash",
+    "action": {
+     "type": "endAttackStepAfterBattle",
+     "ifOwnLifeAtMost": 2
+    }
+   }
+  ]
  },
  {
   "cardId": "BS23-083",

@@ -218,6 +218,7 @@ const endAttackStepAfterBattleHandler: ActionHandler<"endAttackStepAfterBattle">
             }
         }
         state.endAttackStepAfterBattle = true
+        if (action.ifOwnLifeAtMost !== undefined) state.endAttackStepLifeCheck = { pid: owner, max: action.ifOwnLifeAtMost }
         log(
             state,
             `${sourceName}：このバトルが終了したとき、アタックステップを終了する。`,

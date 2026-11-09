@@ -280,6 +280,7 @@ export interface BattleState {
         sourceInstanceId: string
         sourcePid: PlayerId
         sourceColors: Color[]
+        sourceType?: CardType // 省略時はネクサス（BS01-104）。装甲・効果耐性の判定に使う
     }[]
     lifeDamagers?: string[] // このバトルで相手のライフを減らしたスピリットのinstanceId（アタックで減らすたびに積む）。
     // event:"ownLifeDamaged"のバースト発動時、GameState.burstEventLifeDamagerIdへ引き継ぐ材料（BS16バッチ0：080用の器）
