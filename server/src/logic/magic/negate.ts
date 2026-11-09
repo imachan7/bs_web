@@ -1,4 +1,5 @@
 // マジックの無効化（magicNegate）
+import { costExhaustLocked } from "../../../../shared/rules/constraints"
 import { coreRemovalAllowed } from "../coreGate"
 import { entryActive } from "../../../../shared/rules/effectStop"
 import { noteCoverage, noteKeyword } from "../../../../shared/coverage"
@@ -94,7 +95,7 @@ export function findMagicNegateSource(
             // スピリットを回復状態のまま残す（プレイヤー選択の決定的簡略化）
             const payer = isHyoheki && nexusPayer ? nexusPayer : null
             if ("exhaustSelf" in effect.cost) {
-                if (!payer && inst.isRested) continue
+                if (!payer && (inst.isRested || costExhaustLocked(state, defenderPid, inst))) continue
             } else if ("selfCoresToVoid" in effect.cost) {
                 if (inst.cores < effect.cost.selfCoresToVoid || coreRemovalAllowed(state, { ownerPid: defenderPid, target: inst, amount: effect.cost.selfCoresToVoid, cause: "cost", actorPid: defenderPid }) < effect.cost.selfCoresToVoid) continue
             } else if ("selfCoresToTrash" in effect.cost) {
