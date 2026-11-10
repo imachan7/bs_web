@@ -598,6 +598,17 @@ async function init(): Promise<void> {
 
     // ネクサスは通常操作の対象外だが、pendingChoiceの候補になる場合と支払いモード中はコア割り当て対象になる
     byId("my-nexuses").addEventListener("click", (e) => {
+        // ネクサスの起動能力バッジ（BS11-067 白き楯の長城・BS13-062 光り輝く大銀河）。スピリット欄と同じ送り方
+        // （2026-11-11 まで、ボタンは出るのにこの欄のクリック処理に無く、押しても何も送られなかった）
+        const activateBtn = closestData(e, "data-activate")
+        if (activateBtn) {
+            send({
+                type: "activateAbility",
+                instanceId: String(activateBtn.dataset.activate),
+                effectId: String(activateBtn.dataset.effect),
+            })
+            return
+        }
         // [ソウルコア]の1:1交換バッジ（§1.4）が先（カードクリックと区別する）
         const soulSwapBtn = closestData(e, "data-soulswap")
         if (soulSwapBtn) {
