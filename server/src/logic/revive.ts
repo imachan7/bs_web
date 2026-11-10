@@ -6,6 +6,7 @@ import { coreGainBlocked, takeCoreGainAllowance } from "./coreGainCap"
 import { noteCoverage, noteGrantedFrom, noteKeyword } from "../../../shared/coverage"
 import { summonSurcharge } from "../../../shared/cost"
 import { summonVoidToll } from "../../../shared/rules/summonToll"
+import { coreZoneChoiceId } from "../../../shared/rules/activation"
 import { askCostPay, askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
 import { canPayLife, lifeCostQuery, recordLifeLoss } from "./lifeGate"
 import type { CardData, CardInstance, CardType, Color, PendingChoice, DestroyContext, EffectDef, GameState, Phase, PlayerId, ResolvedTargetFilter } from "../type"
@@ -896,25 +897,37 @@ function tryReviveOnDestroy(
             return true
         }
         if (effect.cost?.fieldOrReserveOneToTrash) {
-            // リザーブ → 破壊される本人 → 他のスピリット/ネクサス、の順に1個（どこから払うかは自動の簡略化）。
-            // 本人のコアは手札へ戻ればリザーブへ行くので、他の個体のレベルを下げるより先に使う。
-            // ただし0個にならないときだけ。0個にすると消滅の待機に変わり、この「破壊されたとき」が解決できなくなる
+            // リザーブか、自分のスピリット/ネクサス1つのコア1個を持ち主のトラッシュへ。どこから払うかは持ち主がクリックして選ぶ
+            // （2026-11-11 ユーザー指示。候補が1つだけなら選ばせない＝2026-11-05 の他のコスト選択と同じ。非対話はリザーブ優先の自動）。
+            // 破壊される本人のコアは0個にならないときだけ。0個にすると消滅の待機に変わり、この「破壊されたとき」が解決できなくなる
             // （PENDING_STATE.md の改訂文・2026-11-11 ユーザー確認）
-            if (player.reserve > 0) {
-                player.reserve -= 1
-                player.trashCores += 1
-                return true
-            }
             const removable = (i: CardInstance): boolean => coreRemovalAllowed(state, { ownerPid: ownerPid, target: i, amount: 1, cause: "cost", actorPid: ownerPid }) >= 1
-            const source =
-                (inst.cores >= 2 && removable(inst) ? inst : undefined) ??
-                [...player.field.spirits, ...player.field.nexuses].find((i) => i.instanceId !== inst.instanceId && i.cores > 0 && removable(i))
-            if (source) {
-                source.cores -= 1
-                player.trashCores += 1
-                return true
+            const reserveId = coreZoneChoiceId("reserve", ownerPid)
+            const fieldCands = [...player.field.spirits, ...player.field.nexuses].filter(
+                (i) => (i.instanceId === inst.instanceId ? i.cores >= 2 : i.cores > 0) && removable(i),
+            )
+            const candidates = [...(player.reserve > 0 ? [reserveId] : []), ...fieldCands.map((i) => i.instanceId)]
+            if (candidates.length === 0) return false
+            let pick = chosen?.instanceId
+            if (pick !== undefined && !candidates.includes(pick)) return false
+            if (pick === undefined) {
+                if (candidates.length === 1 || !state.interactiveTargets) pick = candidates[0]!
+                else {
+                    return suspendReviveCostPick(
+                        state, ownerPid, inst, effect, source, context,
+                        candidates, undefined,
+                        `${getCard((source ?? inst).cardId).name}：トラッシュに置くコアを、リザーブか自分のスピリット/ネクサスから1個選んでください`,
+                    )
+                }
             }
-            return false
+            if (pick === reserveId) {
+                player.reserve -= 1
+            } else {
+                const from = fieldCands.find((i) => i.instanceId === pick)!
+                from.cores -= 1
+            }
+            player.trashCores += 1
+            return true
         }
         if (effect.cost?.handDiscardOne) {
             // BS11-065 満天の牧草地：『お互いのメインステップ』手札を破棄できない（コストとしての破棄も止まる。COST_MODEL.md §1）
