@@ -1083,7 +1083,7 @@
      "then": {
       "type": "removeCores",
       "count": 3,
-      "to": "trash"
+      "to": "reserve"
      }
     }
    },
