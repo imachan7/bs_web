@@ -4769,6 +4769,7 @@
     "levels": null,
     "lentOnly": true,
     "scope": "ownAll",
+    "perDestroyed": true,
     "when": {
      "byOpponentEffect": true
     },

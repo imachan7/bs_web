@@ -88,6 +88,7 @@
      3
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "max": 3
@@ -842,6 +843,7 @@
      3
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "max": 3
@@ -1441,6 +1443,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "max": 3
@@ -2030,6 +2033,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "max": 3
@@ -2706,6 +2710,7 @@
      3
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "max": 3
@@ -3284,6 +3289,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "max": 3

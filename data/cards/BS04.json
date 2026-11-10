@@ -2331,6 +2331,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "keyword": "soku"
     },
@@ -4795,6 +4796,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "minBp": 6000
     },
@@ -5040,6 +5042,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "family": "天霊"
     },

@@ -6214,6 +6214,7 @@
           3
         ],
         "scope": "ownAll",
+        "perDestroyed": true,
         "filter": {
          "family": [
           "光導",
