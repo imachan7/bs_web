@@ -6790,21 +6790,6 @@
     "action": {
      "type": "placeCores",
      "from": "void",
-     "to": "reserve",
-     "count": 1
-    },
-    "optional": false
-   },
-   {
-    "id": "BS01-X01-e3",
-    "kind": "triggered",
-    "trigger": "onDestroy",
-    "levels": [
-     3
-    ],
-    "action": {
-     "type": "placeCores",
-     "from": "reserve",
      "to": "life",
      "count": 1
     },

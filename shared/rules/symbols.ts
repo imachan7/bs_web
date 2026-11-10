@@ -74,7 +74,7 @@ export function instanceSymbolCount(inst: CardInstance): number {
 // そのインスタンスが元々colors該当のシンボルを持つ場合にのみ加算する
 // forSummon: スピリット召喚の軽減計算から呼ばれたか。true のときだけ
 // symbolsForSummonReduction（BS11-039 天使ティアエル＝召喚の軽減の間だけ黄3つ）を使う
-export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = false): number {
+export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = false, skipGranted = false): number {
     let count = 0
     const all = [...player.field.spirits, ...player.field.nexuses]
     for (const inst of all) {
@@ -88,6 +88,7 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         // 元の色を失うわけではないので、緑1シンボルの個体が白としても扱われるなら
         // 「緑シンボル1つ」としても「白シンボル1つ」としても数える（置き換えではない）
         const grantedColors = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
+        if (skipGranted && grantedColors.length > 0) continue
         const grantedMatches = grantedColors.some((c) => colors.includes(c))
         let matched = false
         for (const sym of cardSymbols) {
@@ -99,6 +100,22 @@ export function countSymbols(player: BoardPlayer, colors: Color[], forSummon = f
         if (matched && !fixed && inst.timedExtraSymbols) count += inst.timedExtraSymbols
     }
     return count
+}
+
+// 軽減計算用：「◯色としても扱う」を持つ個体のシンボルを、1つずつ「満たせる色の集合」にして返す。
+// 1つのシンボルで軽減シンボル複数は満たせないので、countSymbols(skipGranted) と対にして、どの色に当てるかは呼び出し側が最適に割り当てる
+export function flexibleSymbolUnits(player: BoardPlayer, forSummon = false): Color[][] {
+    const units: Color[][] = []
+    for (const inst of [...player.field.spirits, ...player.field.nexuses]) {
+        if (inst.colorlessThisBattle) continue
+        const granted = [...inst.timedColors, ...(inst.colorsAsContinuous ?? [])]
+        if (granted.length === 0) continue
+        const { symbols, fixed } = symbolsOf(inst, forSummon)
+        const extra = fixed ? 0 : inst.timedExtraSymbols ?? 0
+        for (const sym of symbols) units.push([sym, ...granted])
+        if (symbols.length > 0) for (let i = 0; i < extra; i++) units.push([symbols[0]!, ...granted])
+    }
+    return units
 }
 
 // 軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。

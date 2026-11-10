@@ -78,7 +78,7 @@ console.log("=== 器AR：BS13-036（自分の黄が破壊されたとき、ラ�
 console.log("=== 器AT：BS13-057（合体スピリットの破壊時、ブレイヴを回復状態で無償フィールドに残し、スピリットは手札へ） ===")
 {
     const s = game("at-057-brave-keep")
-    const host = createInstance("BS13-038", s.turn, 1) // コスト5（合体条件コスト4以上を満たす）
+    const host = createInstance("BS03-009", s.turn, 1) // コスト5（合体条件コスト4以上を満たす）
     const brave = createInstance("BS13-057", s.turn, 3) // 現在のコアを保つことを確認するため3を入れる
     brave.braveCombined = true
     brave.isRested = true // 合体前の状態を残しても、復帰後は「回復状態」を強制されることを確認する
@@ -89,7 +89,7 @@ console.log("=== 器AT：BS13-057（合体スピリットの破壊時、ブレ�
     destroySpiritsFrom(s, [{ pid: "p1", instanceId: host.instanceId }], 0, 0)
     assert(s.pendingChoice === null, "「〜できる」ではない（確認を出さず確定する）")
     assert(!s.players.p1.field.spirits.some((sp) => sp.instanceId === host.instanceId), "ホストは場から離れる")
-    assert(s.players.p1.hand.includes("BS13-038"), "ホスト（スピリット）は手札に戻る")
+    assert(s.players.p1.hand.includes("BS03-009"), "ホスト（スピリット）は手札に戻る")
     assert(
         s.players.p1.field.spirits.some((sp) => sp.instanceId === brave.instanceId),
         "ブレイヴは無償でフィールドに残る（コアの支払い確認が出ない）",

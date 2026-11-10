@@ -5442,7 +5442,7 @@
         ],
         "action": {
           "type": "placeCores",
-          "from": "reserve",
+          "from": "void",
           "to": "life",
           "count": 0,
           "fillTo": 5
