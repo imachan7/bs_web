@@ -51,11 +51,7 @@ console.log("=== §A 指定アタック：最もBPの高い相手を指定でき
         }) === null,
         "最もBPの高い相手を指定してアタックできる",
     )
-    assert(s.battle?.blockerInstanceId === null, "アタック宣言の時点ではまだブロックは確定しない")
-    assert(s.battle?.directedTargetInstanceId === strong.instanceId, "指定先だけが控えられている")
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ここでブロック確定）")
-    assert(s.battle?.blockerInstanceId === strong.instanceId, "指定した相手が自動でブロッカーになる")
+    assert(s.battle?.blockerInstanceId === strong.instanceId, "指定した相手が自動でブロッカーになる（フラッシュ①は行わない）")
     assert(strong.isRested === true, "疲労状態のままブロック宣言する")
 }
 
@@ -89,7 +85,7 @@ console.log("=== §B 指定アタック：装甲持ちは指定できない ==="
     assert(s.battle?.directedTargetInstanceId === undefined, "指定なしのアタックになっている")
 }
 
-console.log("=== §C 指定アタック：指定先が場を離れたら通常のアタックに戻る ===")
+console.log("=== §C 指定アタック：指定先が有効ならフラッシュ①を飛ばしてブロックが確定する ===")
 {
     const s = game("designate-gone")
     const attacker = createInstance(CASTLE, s.turn, 1)
@@ -106,13 +102,7 @@ console.log("=== §C 指定アタック：指定先が場を離れたら通常�
         }) === null,
         "指定してアタック",
     )
-    assert(s.battle?.directedTargetInstanceId === only.instanceId, "この時点では指定されている")
-    // フラッシュ①の間に指定先が場を離れる
-    s.players.p2.field.spirits = []
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス")
-    assert(s.battle?.blockerInstanceId === null, "指定先が消えたので自動ブロックは成立しない（通常のアタックに戻る）")
-    assert(s.battle !== null, "バトル自体は続いている（防御側のブロック/ライフ受け待ち）")
+    assert(s.battle?.blockerInstanceId === only.instanceId, "指定先が有効なのでフラッシュ①を飛ばしてブロックが確定する")
 }
 
 console.log("=== §D symbolAddGrant：盤面のシンボル数に効く（軽減にもライフダメージにも） ===")
