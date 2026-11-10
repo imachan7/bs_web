@@ -10,6 +10,7 @@ import { notifyHandGained } from "./fieldEventTriggers"
 import { claimOnce, ownerPidOfInstance } from "./oncePerTurn"
 import { EXTRA_STEP_OPTIONS, driveTurnStart, endTurn, runExtraStep, toAttackPhase } from "./PhaseManager"
 import { resumeDestroyBatch, resumeDestroyCommit, resumeDestroyNexusCommit, applyCoreDestination, flushCoreDestinations } from "./removal"
+import { resolveRevivePickMany } from "./revivePickMany"
 import { applyFushiSummon, applyNexusReviveConfirm, applySpiritMillFreeSummon, applyReviveCostPick, declineSpiritMillFreeSummon } from "./revive"
 import {
     summonFreeFromTrashIndex,
@@ -266,10 +267,30 @@ function resolveChoiceInner(
         return finishChoiceResolution(state, pending.pid)
     }
 
+    // 復活の複数選択（pickMany）。選択中・確定のどちらも action は解決しない
+    if (pending.revivePickMany) {
+        const err = resolveRevivePickMany(state, pending, instanceId, cardIndex)
+        if (err) return err
+        if (state.winner) return null
+        return finishChoiceResolution(state, pending.pid)
+    }
+
     // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択。action は解決しない。
     // 選んだ対象でコストを払って復活が確定する
     if (pending.reviveCostPick) {
         const entry = pending.reviveCostPick
+        if (pending.selectedCardIndices !== undefined) {
+            const chosen = pending.selectedCardIndices
+            if (cardIndex !== undefined) {
+                if (!(pending.cardIndices ?? []).includes(cardIndex)) return "選択できない対象です"
+                if (!chosen.includes(cardIndex) && chosen.length >= 1) return "これ以上選べません（1枚）"
+                const next = chosen.includes(cardIndex) ? [] : [cardIndex]
+                state.pendingChoice = { ...pending, selectedCardIndices: next, counter: { label: "捨てる", current: next.length, max: 1 } }
+                return null
+            }
+            if (chosen.length !== 1) return "破棄する手札を1枚選んでください"
+            cardIndex = chosen[0]
+        }
         if (pending.kind === "card") {
             if (cardIndex === undefined || !(pending.cardIndices ?? []).includes(cardIndex)) {
                 return "破棄するカードを選んでください"

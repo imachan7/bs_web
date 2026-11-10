@@ -86,6 +86,16 @@ export interface PendingChoice {
         sourceInstanceId: string
         effectId: string
     }
+    revivePickMany?: {
+        // reviveOnDestroy.pickMany の選択待ち（action は解決しない）。bodies＝戻す体のトグル、cards＝破棄する手札のトグル。
+        // bodies を確定したあと cards の chosenIds に選んだ体を持ち越す
+        pid: PlayerId
+        sourceInstanceId: string
+        effectId: string
+        phase: "bodies" | "cards"
+        chosenIds?: string[]
+        context?: DestroyContext
+    }
     reviveCostPick?: {
         // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択待ち（action は解決しない）。
         // 復活の確認（reviveConfirm）に「復活させる」と答えたあとに立つ。選んだ対象でコストを払って復活が確定する

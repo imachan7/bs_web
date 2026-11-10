@@ -4,7 +4,7 @@
 // 「どれを何体破壊するか」がプレイヤーの選択なのに、貪欲な自動選択で固定されていた。
 //
 // 対話モードでは**トグル式**にする：クリックで選択、もう一度クリックで選択解除。
-// 選んだ合計は prompt に出し、スキップボタン（skipLabel＝「これで破壊する」）で確定する。
+// 選んだ合計は counter に出し、スキップボタン（skipLabel＝「これで破壊する」）で確定する。
 // 予算に収まらない未選択のスピリットは候補から外れる。
 // 非対話（テスト・自動解決）は従来どおりの貪欲選択を残す。
 //
@@ -49,13 +49,13 @@ console.log("=== コスト予算：クリックで選択、もう一度クリッ
     assert((s.pendingChoice!.selectedIds ?? []).length === 0, "まだ何も選ばれていない")
     assert(s.pendingChoice!.optional === true, "スキップ（確定）できる")
     assert(s.pendingChoice!.skipLabel === "破壊しない", "1体も選んでいなければ「破壊しない」")
-    assert(s.pendingChoice!.prompt.includes("0／5"), `選んだ合計が prompt に出る（実際は「${s.pendingChoice!.prompt}」）`)
+    assert(s.pendingChoice!.counter?.current === 0 && s.pendingChoice!.counter.max === 5, `選んだ合計が counter に出る（実際は「${JSON.stringify(s.pendingChoice!.counter)}」）`)
 
     // コスト4を選ぶ → 残り予算1
     assert(handleAction(s, "p1", { type: "resolveChoice", instanceId: c4 }) === null, "コスト4を選ぶ")
     assert(!!s.pendingChoice, "選択待ちが続く（勝手に確定しない）")
     assert((s.pendingChoice!.selectedIds ?? []).includes(c4), "選択済みとして返る")
-    assert(s.pendingChoice!.prompt.includes("4／5"), `合計が更新される（実際は「${s.pendingChoice!.prompt}」）`)
+    assert(s.pendingChoice!.counter?.current === 4 && s.pendingChoice!.counter.max === 5, `合計が更新される（実際は「${JSON.stringify(s.pendingChoice!.counter)}」）`)
     assert(s.pendingChoice!.skipLabel === "これで破壊する（1体）", "確定ボタンの文言が変わる")
     assert(candidates(s).includes(c4), "選択済みも候補に残る＝もう一度押すと外れる")
     assert(candidates(s).includes(c1), "残り予算1に収まるコスト1は候補")
@@ -111,10 +111,10 @@ console.log("=== BP予算：同じトグルで選べる ===")
     // 剣龍皇エクス・キャリバス：BP合計6000まで
     resolveAction(s, "p1", null, { type: "destroy", count: "any", budget: { by: "bp", amount: 6000 } })
     assert(!!s.pendingChoice, "選択待ちになる")
-    assert(s.pendingChoice!.prompt.includes("BP合計 0／6000"), `BPで数える（実際は「${s.pendingChoice!.prompt}」）`)
+    assert(s.pendingChoice!.counter?.label === "BP合計" && s.pendingChoice!.counter.current === 0 && s.pendingChoice!.counter.max === 6000, `BPで数える（実際は「${JSON.stringify(s.pendingChoice!.counter)}」）`)
 
     assert(handleAction(s, "p1", { type: "resolveChoice", instanceId: c3 }) === null, "BP3000を選ぶ")
-    assert(s.pendingChoice!.prompt.includes("3000／6000"), "合計が更新される")
+    assert(s.pendingChoice!.counter?.current === 3000 && s.pendingChoice!.counter.max === 6000, "合計が更新される")
     assert(candidates(s).includes(c2), "残り3000に収まるBP2000はまだ候補")
 
     // 貪欲な自動選択なら3体すべてが破壊される（1000+2000+3000＝6000）。あえて2体だけ選ぶ

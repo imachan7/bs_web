@@ -894,7 +894,7 @@ const destroyNexusHandler = (ctx: ActionCtx, action: Counted<DestroyNexusAction>
 
 
 // 「予算の範囲で**好きなだけ**破壊する」のトグル選択（2026-08-24 ユーザー確定）。
-// クリックで選択、もう一度クリックで選択解除。選んだ合計は prompt に出し、「これで破壊する」で確定する。
+// クリックで選択、もう一度クリックで選択解除。選んだ合計は counter に出し、「これで破壊する」で確定する。
 //
 // 「好きなだけ」は途中でやめられる効果なので、選び終わりの合図が要る。
 // **選択済みも候補に残す**（＝もう一度押すと外れる）ことでトグルにし、スキップボタンを
@@ -945,9 +945,10 @@ function budgetToggleDestroy(
             suspend(state, {
                 pid: owner,
                 kind: "target",
-                prompt: `${sourceName}：破壊するスピリットを選んでください（${unitLabel}合計 ${used}／${budget}。選んだものをもう一度押すと外れます）`,
+                prompt: `${sourceName}：破壊するスピリットを選んでください（選んだものをもう一度押すと外れます）`,
                 candidates: candidates.map((sp) => sp.instanceId),
                 selectedIds: chosen,
+                counter: { label: `${unitLabel}合計`, current: used, max: budget },
                 skipLabel: chosen.length > 0 ? `これで破壊する（${chosen.length}体）` : "破壊しない",
                 optional: true,
                 resolveOnSkip: true,

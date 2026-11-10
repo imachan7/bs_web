@@ -138,7 +138,10 @@ function suspendReviveCostPick(
         prompt,
         candidates: instanceIds ?? [],
         ...(cardIndices !== undefined ? { cardZone: "hand" as const, cardOwner: ownerPid, cardIndices } : {}),
-        optional: false,
+        // pickMany の効果は、1体だけのときも破棄の選択を複数体のときと同じトグル＋確定にそろえる
+        ...(cardIndices !== undefined && effect.pickMany
+            ? { selectedCardIndices: [], counter: { label: "捨てる", current: 0, max: 1 }, skipLabel: "これで捨てる", optional: true }
+            : { optional: false }),
         reviveCostPick: {
             pid: ownerPid,
             instanceId: inst.instanceId,
@@ -263,7 +266,7 @@ export function collectReviveEntries(
     inst: CardInstance,
     context?: DestroyContext,
 ): { effectId: string; sourceName: string }[] {
-    const found: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true }[] = []
+    const found: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true; pickMany?: true }[] = []
     tryReviveOnDestroy(state, ownerPid, inst, context, undefined, undefined, undefined, found)
     const group = state.destroyGroup
     const result: { effectId: string; sourceName: string }[] = []
@@ -688,6 +691,18 @@ export function stayOnFieldRevived(state: GameState, ownerPid: PlayerId, inst: C
     }
 }
 
+// pickMany の発生源が、この個体を戻す候補にできるか（revivePickMany.ts が使う。判定は破壊時の走査と同じ）
+export function collectPickManyEntries(
+    state: GameState,
+    ownerPid: PlayerId,
+    inst: CardInstance,
+    context?: DestroyContext,
+): { effectId: string; sourceInstanceId: string }[] {
+    const found: { effectId: string; sourceName: string; sourceInstanceId?: string; pickMany?: true }[] = []
+    tryReviveOnDestroy(state, ownerPid, inst, context, undefined, undefined, undefined, found)
+    return found.flatMap((e) => (e.pickMany && e.sourceInstanceId !== undefined ? [{ effectId: e.effectId, sourceInstanceId: e.sourceInstanceId }] : []))
+}
+
 // reviveOnDestroy の判定と実行。復活できたら true を返す（呼び出し側 destroySpirit はそのまま return する）。
 // 優先順位: instのカード自身が持つ scope:"self" の効果 → 持ち主フィールドの scope:"ownAll" の効果（先に見つかった方）。
 function tryReviveOnDestroy(
@@ -712,7 +727,7 @@ function tryReviveOnDestroy(
     // 「フィールドに残る／戻る」を列の項目として出すために使う。docs/design/TIMING_CHART.md）。
     // sourceInstanceId／perDestroyed は scope:"ownAll"（他の発生源）のときだけ載る
     // （collectReviveEntries が同時破壊グループの重複判定に使う。scope:"self" は対象外＝常に載らない）
-    collect?: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true }[],
+    collect?: { effectId: string; sourceName: string; sourceInstanceId?: string; perDestroyed?: true; pickMany?: true }[],
     // reviveCostPick の選択で持ち主が選んだ対象（スピリット/ネクサスのinstanceId、手札のcardIndex）。
     // 指定時は applyCost がその候補を使う（候補外・既に使えなければ不発）
     chosen?: { instanceId?: string; cardIndex?: number },
@@ -1311,6 +1326,9 @@ function tryReviveOnDestroy(
             if (effect.scope === "chosenInstance" && source.lentChoiceInstanceId !== inst.instanceId) continue
             if (!entryActive(state, ownerPid, source, effect, sourceLevel)) continue
             if (!matchesTarget(state, ownerPid, inst, effect.filter, source.instanceId)) continue
+            // pickMany：グループの先頭で戻す体が選ばれていれば、選ばれた体だけが確認・コストなしで戻る
+            const pickedBodies = effect.pickMany ? state.destroyGroup?.pickMany?.[`${source.instanceId}:${effect.id}`] : undefined
+            if (pickedBodies !== undefined && !pickedBodies.includes(inst.instanceId)) continue
             if (effect.keywordFilter && ![effect.keywordFilter].flat().some((k) => spiritHasKeyword(state, ownerPid, inst, k))) continue
             // BS03エスケープルート：カード静的な family 配列の要素数が指定数以上のスピリットのみ対象
             if (effect.minFamilies !== undefined && getCard(inst.cardId).family.length < effect.minFamilies) continue
@@ -1324,13 +1342,14 @@ function tryReviveOnDestroy(
                     effectId: effect.id,
                     sourceName: getCard(source.cardId).name,
                     sourceInstanceId: source.instanceId,
-                    ...(effect.perDestroyed ? { perDestroyed: true as const } : {}),
+                    ...(effect.perDestroyed || pickedBodies !== undefined ? { perDestroyed: true as const } : {}),
+                    ...(effect.pickMany ? { pickMany: true as const } : {}),
                 })
                 continue
             }
             // optional は self 由来と同じ扱い（発生源は source 側＝oncePerTurn の記録先）。
             // allowSuspend が渡っていれば**その場で**確認を出す（渡っていなければ従来どおり保留へ）
-            if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm) {
+            if ((effect.optional || effect.cost !== undefined) && state.interactiveTargets && !forced?.skipConfirm && pickedBodies === undefined) {
                 if (skipUnpayable(effect, source, getCard(source.cardId).name)) continue
                 if (probe) return true // 下見：ここで確認が出る
                 if (allowSuspend) {
@@ -1343,7 +1362,7 @@ function tryReviveOnDestroy(
             // 任意でない復活。"any" は復活しうるので true、"confirm" は次の発生源を見に行く
             if (probe === "any") return true
             if (probe) continue
-            const paid = applyCost(effect, source)
+            const paid = pickedBodies !== undefined ? true : applyCost(effect, source)
             if (paid === "pending") return true // コストの対象の選択待ち（applyReviveCostPick が確定させる）
             if (!paid) continue
             markOncePerTurn(effect, source)

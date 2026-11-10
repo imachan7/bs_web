@@ -9,6 +9,7 @@ import { kyokaBonus } from "./keywords/kyoka"
 import { noteCoverage } from "../../../shared/coverage"
 import { canPayFreeSummonSurcharge } from "./summonSurcharge"
 import { randomUUID } from "node:crypto"
+import { askNextPickMany, selectedFirst } from "./revivePickMany"
 import type { CardInstance, CardType, Color, EffectAction, PendingChoice, DestroyContext, GameState, PlayerId, ResumeFrame } from "../type"
 import { currentLevel, draw, findInstanceAnywhere, getCard, log, instMinLevelCores, minLevelCores, opponentOf, pushResumeFrames, requestTrashReturn, suspend } from "./GameState"
 import { wouldDeplete, soulCoreOnInstance, moveSoulCore, soulCoreLeavesField } from "./soulCore"
@@ -965,6 +966,20 @@ export function destroyTargetsBatch(
         familiesByPid[t.pid] = [...new Set([...(familiesByPid[t.pid] ?? []), ...grantedFamilies(state, t.pid, inst)])]
     }
     state.destroyGroup = { id: randomUUID(), memberIds: targets.map((t) => t.instanceId), used: [], familiesByPid }
+    if (askNextPickMany(state, targets, context)) {
+        pushResumeFrames(state, [{
+            kind: "destroyBatch",
+            ownerPid,
+            targets,
+            index: 0,
+            destroyed: 0,
+            ...(context ? { context } : {}),
+            ...(after ? { after } : {}),
+            ...(prevGroup ? { prevGroup } : {}),
+        }])
+        return 0
+    }
+    targets = selectedFirst(state, targets)
     const { destroyed, stoppedAt } = destroySpiritsFrom(state, targets, 0, 0, context)
     if (stoppedAt < targets.length) {
         pushResumeFrames(state, [{

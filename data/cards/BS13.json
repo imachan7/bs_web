@@ -5087,6 +5087,7 @@
      2
     ],
     "scope": "ownAll",
+    "pickMany": true,
     "filter": {
      "family": "導魔"
     },
