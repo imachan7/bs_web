@@ -143,7 +143,7 @@ console.log("--- aura（マジックが貸すBP増加。シンボル数の条件
     assert(card.name === "一角竜ヴォルスング", "前提: BS05-008 は一角竜ヴォルスング")
     const entry = entryOf(card, "e3")
     const aura = entry["aura"] as Record<string, unknown>
-    const minSymbols = Number(aura["minSymbols"])
+    const minSymbols = Number((aura["filter"] as Record<string, unknown>)["minSymbols"])
     const amount = Number(aura["amount"])
 
     const s = base("bs05-008")

@@ -328,7 +328,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "神将",
+     "filter": {
+      "family": "神将"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -1638,7 +1640,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "剣獣",
+     "filter": {
+      "family": "剣獣"
+     },
      "amount": 1000
     }
    }
@@ -3711,7 +3715,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "星竜",
+     "filter": {
+      "family": "星竜"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -4360,7 +4366,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordFilter": "seimei",
+     "filter": {
+      "keyword": "seimei"
+     },
      "amount": 1000
     }
    },
@@ -4454,8 +4462,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "造兵",
-     "costMinFilter": 3,
+     "filter": {
+      "family": "造兵",
+      "cost": {
+       "min": 3
+      }
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",

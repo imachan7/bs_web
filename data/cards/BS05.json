@@ -369,10 +369,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "龍帝",
-      "虚神"
-     ],
+     "filter": {
+      "family": [
+       "龍帝",
+       "虚神"
+      ]
+     },
      "amount": 3000,
      "phaseTurn": {
       "phase": "attack",
@@ -444,7 +446,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "minSymbols": 2,
+     "filter": {
+      "minSymbols": 2
+     },
      "amount": 5000,
      "lentOnly": true
     }
@@ -3534,7 +3538,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "魔影",
+     "filter": {
+      "family": "魔影"
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -3798,7 +3804,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "氷姫",
+     "filter": {
+      "family": "氷姫"
+     },
      "amount": 1000
     }
    },

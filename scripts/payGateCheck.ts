@@ -64,7 +64,8 @@ function countGates(node: unknown): number {
     }
     if (typeof obj["keyword"] === "string" && GATE_KEYWORDS.has(obj["keyword"])) n++
     for (const k of GATE_PARAMS) if (obj[k] !== undefined) n++
-    for (const v of Object.values(obj)) n += countGates(v)
+    // filter の keyword は絞り込みの条件であって、キーワード能力の宣言ではない（SD02-010 のオーラの filter.keyword を関門に数えていた）
+    for (const [k, v] of Object.entries(obj)) if (k !== "filter") n += countGates(v)
     return n
 }
 

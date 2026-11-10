@@ -437,7 +437,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": "星竜",
+          "filter": {
+            "family": "星竜"
+          },
           "amount": 3000,
           "phaseTurn": {
             "phase": "attack",
@@ -1527,7 +1529,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "keywordFilter": "bofu",
+          "filter": {
+            "keyword": "bofu"
+          },
           "amount": 2000,
           "phaseTurn": {
             "phase": "attack",
@@ -2414,10 +2418,12 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": [
-            "巨獣",
-            "戯狩"
-          ],
+          "filter": {
+            "family": [
+              "巨獣",
+              "戯狩"
+            ]
+          },
           "amount": 2000,
           "phaseTurn": {
             "phase": "attack",
@@ -3907,7 +3913,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "keywordFilter": "fushi",
+          "filter": {
+            "keyword": "fushi"
+          },
           "amount": 1000
         }
       },
@@ -4033,7 +4041,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "familyFilter": "剣獣",
+          "filter": {
+            "family": "剣獣"
+          },
           "amount": 2000,
           "phaseTurn": {
             "phase": "attack",

@@ -68,7 +68,7 @@ console.log("=== 2. AuraCondition.battleOpponentMatches{keyword}：バトル中�
     const card = getCard(VANILLA)
     const savedEffects = card.effects
     try {
-        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", battlingOnly: true, amount: 3000, condition: { battleOpponentMatches: { keyword: ["armor", "heavyArmor"] } } } }] as typeof card.effects
+        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", filter: { inBattle: true }, amount: 3000, condition: { battleOpponentMatches: { keyword: ["armor", "heavyArmor"] } } } }] as typeof card.effects
         const attacker = put(s, "p1", VANILLA, 1)
         const blocker = put(s, "p2", VANILLA, 1)
         const baseBp = effectiveBp(s, "p1", attacker)
@@ -76,7 +76,7 @@ console.log("=== 2. AuraCondition.battleOpponentMatches{keyword}：バトル中�
         assert(effectiveBp(s, "p1", attacker) === baseBp, "相手側当事者が【装甲】/【重装甲】を持たない間はBP+3000が乗らない")
         // attacker/blockerは同じcardId（VANILLA）を使っているため、effects の再代入は両方に効く。
         // battleOpponentMatches{keyword}は相手側当事者だけを見るので、自分側にも装甲が付いても判定には影響しない
-        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", battlingOnly: true, amount: 3000, condition: { battleOpponentMatches: { keyword: ["armor", "heavyArmor"] } } } }, { id: "smoke442-armor", kind: "keyword", keyword: "armor", levels: null }] as typeof card.effects
+        card.effects = [...savedEffects, { id: "smoke442-battleopp", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", filter: { inBattle: true }, amount: 3000, condition: { battleOpponentMatches: { keyword: ["armor", "heavyArmor"] } } } }, { id: "smoke442-armor", kind: "keyword", keyword: "armor", levels: null }] as typeof card.effects
         assert(effectiveBp(s, "p1", attacker) === baseBp + 3000, "相手側当事者が【装甲】を持つ間はBP+3000が乗る")
     } finally {
         card.effects = savedEffects
@@ -89,7 +89,7 @@ console.log("=== 3. AuraDef.levelFilter：ownAll対象の現在Lvが配列に含
     const card = getCard(HOST)
     const savedEffects = card.effects
     try {
-        card.effects = [...savedEffects, { id: "smoke442-lvfilter", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", amount: 2000, levelFilter: [1] } }] as typeof card.effects
+        card.effects = [...savedEffects, { id: "smoke442-lvfilter", kind: "aura", levels: null, aura: { type: "bp", target: "ownAll", amount: 2000, filter: { level: [1] } } }] as typeof card.effects
         put(s, "p1", HOST, 1) // 発生源。levelFilterに関わらずownAllなので自分自身もLv1なら対象になるが、ここでは検証しない
         const lv1 = put(s, "p1", VANILLA, 1)
         const lv2 = put(s, "p1", VANILLA, 2)

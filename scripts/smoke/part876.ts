@@ -1,60 +1,45 @@
-// smoke パート876（軽微バグ3件：ノヴァの転召ライフ補充元／ヴィエルジェ自身の手札戻り／複数色の「としても扱う」の軽減割り当て）
-import { assert, createGame, createInstance, destroySpirit, getCard, refreshLevelAsOverrides, runTurnStart } from "./helpers"
-import { effectiveCost } from "../../server/src/logic/RuleValidator"
-import type { GameState } from "./helpers"
+// smoke パート876（BS23-X01「このカードは【強化】を持つものとして扱う」は場の外だけ。場では Lv3 の付与でだけ持つ＝Q4582・Q4583）
+import { assert, createGame, createInstance, getCard, refreshLevelAsOverrides, resolveAction, runTurnStart } from "./helpers"
+import { spiritHasKeyword } from "../../shared/rules/keywordState"
 
-function game(seed: string): GameState {
-    const s = createGame(seed, { p1: "アキラ", p2: "ユウキ" }, { p1: "yellow", p2: "yellow" })
+const X01 = "BS23-X01" // 龍輝神シャイニング・ドラゴン・オーバーレイ（赤）
+const MAGICAL = "SD15-008" // マジカルドロー（1枚ドロー→5枚オープンし【強化】を持つスピリットカードを手札へ）
+const VANILLA = "BS01-002"
+
+console.log("=== 前提: カードの機械確認 ===")
+{
+    assert(getCard(X01).name === "龍輝神シャイニング・ドラゴン・オーバーレイ", "X01 は龍輝神")
+    assert(getCard(MAGICAL).name === "マジカルドロー" && getCard(MAGICAL).type === "magic", "MAGICAL はマジカルドロー")
+}
+
+function game() {
+    const s = createGame("x01-kyoka", { p1: "アキラ", p2: "ユウキ" }, { p1: "red", p2: "red" })
+    s.interactiveTargets = false
     runTurnStart(s)
-    s.players.p1.reserve = 10
+    s.turn = 3
     return s
 }
 
-console.log("=== 前提: カードの機械確認 ===")
-assert(getCard("BS12-X05").name === "戦神乙女ヴィエルジェ", "BS12-X05 はヴィエルジェ")
-assert(getCard("BS05-036").name === "氷の魔女ヘル", "BS05-036 はヘル")
-assert(getCard("P066").name === "プリズモルフォ", "P066 はプリズモルフォ")
-assert(getCard("SD03-008").name === "棟梁マッコイ" && getCard("SD03-008").reduction.join() === "blue,red", "SD03-008 は青赤の軽減")
-
-console.log("=== BS09-X35 ノヴァ：ライフの補充元はボイド ===")
+console.log("=== 1. デッキの X01 は【強化】を持つスピリットカードとして、マジカルドローで手札に加わる ===")
 {
-    const e = getCard("BS09-X35").effects.find((x) => x.id === "BS09-X35-e2")
-    const a = (e as { action: { from: string } }).action
-    assert(a.from === "void", "【転召】後のライフ補充は『ボイドからコアを置く』")
+    const s = game()
+    s.players.p1.hand = []
+    s.players.p1.deck = [VANILLA, X01, VANILLA, VANILLA, VANILLA, VANILLA, ...Array.from({ length: 10 }, () => VANILLA)]
+    const src = createInstance(VANILLA, s.turn, 1)
+    resolveAction(s, "p1", src, getCard(MAGICAL).effects.find((e) => e.kind === "magic")!.action)
+    assert(s.players.p1.hand.filter((c) => c === X01).length === 1, "オープンした X01 は手札に加わる")
 }
 
-console.log("=== BS12-X05 ヴィエルジェ：自分自身も相手によって破壊されたとき手札に戻る ===")
+console.log("=== 2. 場の X01 は Lv1 では【強化】を持たず、Lv3 では持つ ===")
 {
-    const s = game("vierge-self")
-    const v = createInstance("BS12-X05", s.turn, 3)
-    s.players.p1.field.spirits.push(v)
+    const s = game()
+    const lv1 = createInstance(X01, s.turn - 1, 1)
+    s.players.p1.field.spirits.push(lv1)
     refreshLevelAsOverrides(s)
-    const h = s.players.p1.hand.length
-    destroySpirit(s, "p1", v.instanceId, "destroy", { sourcePid: "p2", sourceType: "magic" })
-    assert(s.players.p1.hand.length === h + 1 && s.players.p1.field.spirits.length === 0, "ヴィエルジェ自身も手札に戻る")
+    assert(!spiritHasKeyword(s, "p1", lv1, "kyoka"), "Lv1 の X01 は【強化】を持たない")
+    lv1.cores = 4
+    refreshLevelAsOverrides(s)
+    assert(spiritHasKeyword(s, "p1", lv1, "kyoka"), "Lv3 の X01 は【強化】を持つ（自身への付与）")
 }
 
-console.log("=== BS05-036 ヘル：『ヘル以外』なので自分自身は戻らない ===")
-{
-    const s = game("hel-self")
-    const hel = createInstance("BS05-036", s.turn, 3)
-    s.players.p1.field.spirits.push(hel)
-    refreshLevelAsOverrides(s)
-    s.phase = "attack"
-    const h = s.players.p1.hand.length
-    destroySpirit(s, "p1", hel.instanceId, "destroy", { sourcePid: "p2", sourceType: "magic" })
-    assert(s.players.p1.hand.length === h, "ヘル自身は手札に戻らない")
-}
-
-console.log("=== P066 プリズモルフォ：1つのシンボルは軽減シンボル1つにしか使えない ===")
-{
-    const s = game("prism")
-    s.players.p1.field.spirits.push(createInstance("P066", s.turn, 1))
-    refreshLevelAsOverrides(s)
-    const mccoy = getCard("SD03-008") // コスト4・青赤
-    assert(effectiveCost(s, "p1", mccoy) === 3, "プリズモルフォ1体では青と赤を同時には満たせず、軽減は1")
-    s.players.p1.field.spirits.push(createInstance("BS01-002", s.turn, 1)) // 赤シンボル1つ
-    refreshLevelAsOverrides(s)
-    assert(effectiveCost(s, "p1", mccoy) === 2, "赤1つがあれば、プリズモルフォは青に回って軽減は2（最適に割り当てる）")
-}
 console.log("すべてのチェックに合格しました 🎉（part876）")

@@ -221,7 +221,7 @@ console.log("=== BS07：オーラ（剣獣すべてBP+／「ペンタン」1体�
     const matsuno = byId("BS07-026")
     const aura = entryOf(matsuno, (e) => e["kind"] === "aura")
     const amount = Number((aura["aura"] as Record<string, unknown>)["amount"])
-    const family = String((aura["aura"] as Record<string, unknown>)["familyFilter"])
+    const family = String(((aura["aura"] as Record<string, unknown>)["filter"] as Record<string, unknown>)["family"])
     const level = (aura["levels"] as number[])[0]!
     const member = CARDS.find(
         (c) =>
