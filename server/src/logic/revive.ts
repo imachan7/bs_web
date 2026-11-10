@@ -700,6 +700,14 @@ export function collectPickManyEntries(
 ): { effectId: string; sourceInstanceId: string }[] {
     const found: { effectId: string; sourceName: string; sourceInstanceId?: string; pickMany?: true }[] = []
     tryReviveOnDestroy(state, ownerPid, inst, context, undefined, undefined, undefined, found)
+    // 自分の強制の「残る」（確認もコストも無い scope:"self"）が先に効く体は、選ばせると捨てた手札が無駄になるので候補にしない
+    const ownEffects = getCard(inst.cardId).effects
+    const staysByItself = found.some((e) => {
+        if (e.sourceInstanceId !== undefined) return false
+        const own = ownEffects.find((x) => x.id === e.effectId)
+        return own?.kind === "reviveOnDestroy" && own.scope === "self" && !own.optional && own.cost === undefined
+    })
+    if (staysByItself) return []
     return found.flatMap((e) => (e.pickMany && e.sourceInstanceId !== undefined ? [{ effectId: e.effectId, sourceInstanceId: e.sourceInstanceId }] : []))
 }
 

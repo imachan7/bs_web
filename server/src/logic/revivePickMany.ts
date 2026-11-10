@@ -172,9 +172,9 @@ export function resolveRevivePickMany(state: GameState, pending: PendingChoice, 
 }
 
 function proceed(state: GameState): null {
-    const frame = state.resumeStack[0]
-    if (frame?.kind !== "destroyBatch") return null
-    const batch: Extract<ResumeFrame, { kind: "destroyBatch" }> = frame
+    // 選択を出した破壊バッチの続き（いちばん内側＝先頭に近いもの）。入れ子の処理で先頭が別のフレームでも拾えるよう探す
+    const batch = state.resumeStack.find((f): f is Extract<ResumeFrame, { kind: "destroyBatch" }> => f.kind === "destroyBatch")
+    if (!batch) return null
     if (askNextPickMany(state, batch.targets, batch.context)) return null
     batch.targets = selectedFirst(state, batch.targets)
     return null
