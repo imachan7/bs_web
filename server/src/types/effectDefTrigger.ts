@@ -326,6 +326,7 @@ export type EffectDefTrigger =
           levels: number[] | null
           scope: "self" | "ownAll" | "ownNexus" | "chosenInstance" // self＝このスピリット自身／ownAll＝発生源の持ち主のスピリットすべて／ownNexus＝発生源の持ち主のネクサスが破壊されるとき、そのネクサスを場に残す（発生源はネクサス。発生源自身が破壊されたときは発揮できない＝破壊待機状態では疲労できずコストが払えない。STARTER_PLAN §2.2 の2）／chosenInstance＝targetChoiceLendThisTurn で選んだ1体だけ（発生源は仮想発生源）
           perDestroyed?: true // scope:"ownAll" 限定。同時破壊でも破壊された体数ぶん確認する（省略時は同時破壊グループにつき1回。Q22359）
+          pickMany?: true // scope:"ownAll" 限定。同時に破壊された対象のうち**戻す体を持ち主が複数選ぶ**（トグル選択）。誘発は同時破壊グループにつき1回（Q22359）。cost（handDiscardOne）は選んだ体数ぶん払う（「破棄した1枚につき1体」。BS13-038・BS10-046。2026-11-10）。perDestroyed とは併用しない
           whileCombined?: true // scope:"self" 専用
           lentOnly?: boolean // 仮想発生源（lendSelfThisTurn でこのターンだけ貸した効果）からのみ有効
           optional?: true // 承認でコスト支払い＋復活確定、断ればその場で破壊（非対話は即時確定）。省略時は必ず戻る
