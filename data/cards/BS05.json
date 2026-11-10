@@ -2148,6 +2148,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "family": "氷姫",
      "excludeSelf": true
@@ -4422,6 +4423,7 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "keyword": "jugeki"
     },

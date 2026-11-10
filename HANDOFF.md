@@ -30,15 +30,6 @@
 - **counter**：`PendingChoice.counter?: { label; current; max }`（`types/choice.ts` に追加済み。相手視点ではマスク）。トグル選択3か所（合計BP破壊 `destroy.ts`・疲労の合計 `exhaustBudget.ts`・`timedEffect.ts`）と今回の選択で、**プロンプト文から「合計 x／y」を外して `counter` に入れる**。クライアントは `renderer.ts`（`btn-skip-choice` の近く）で選択バーに目立つ表示（例「BP合計 3000／10000」「戻す 1／2」）を出す。カードのハイライト（`fieldCard.ts` の `selectedIds`）は今のまま
 - 検証：part 新規（期待値役が効果文から。同時2体・手札3枚・手札1枚・導魔でない体・手札0枚・龍仙公主）＋既存の復活 smoke が全緑
 
-### 進行中：同時破壊は全員の誘発を解決してからまとめてトラッシュへ（2026-11-10 確定。`fix/simul-destroy-deferred-commit`）
-
-- 規則（TIMING_CHART §1.5・バトスピ Wiki「破壊について」）：同時に破壊されたものは、全員が破壊待機のまま誘発を解決し、最後にまとめてトラッシュへ。いまは `destroySpiritsFrom` が1体ずつ確定するので、`ownAll` の「残る」の発生源（コロナ・タランダ）が先に確定すると後の体に届かない。調査メモは [SIMUL_DESTROY.md](./docs/design/SIMUL_DESTROY.md)
-- 設計（メモの案A）：`destroyGroup` に `deferred: { pid; instanceId }[]`。グループの体の確定（`commitPendingDestruction`。`destroySpirit` と `resumeDestroyCommit` の2か所）は `deferred` に積み、`destroyTargetsBatch`／`resumeDestroyBatch` の完了時（`restoreDestroyGroup` の直前。勝敗で途中終了する経路も）に `flushDeferredCommits` でまとめて確定。グループ外の単体破壊は従来どおり即確定。入れ子は内側が先に flush してから外側へ戻る
-- 「この効果で破壊した数」は flush の後に、実際にトラッシュへ置いた数で数える（`record()`・`lastReviveDestroyed` の扱いを flush 後へ寄せる）
-- `revivePickMany.ts` の `selectedFirst`（選んだ体を先に処理する並べ替え）は消す
-- データ：`scope:"ownAll"` の「〜すべては、破壊されたとき残る（戻る）」型に `perDestroyed: true`（体ごとに効く。2026-11-10 ユーザー決定・暫定）。一覧はメモ §4（約26枚。pickMany のタランダ・龍仙公主、単数型の吊られた古城・チワール・花の宮殿、BS15-049 は付けない）
-- 検証：期待値役の新 part（コロナとゴラドンの同時破壊でコロナが断ってもゴラドンに確認が出る／「すべては」型で2体とも確認が出る／タランダが選ばれなくても選んだ体が戻る／相打ちで先の体の誘発中に後の体が場にいる）＋既存 smoke 全緑（落ちたら「先の体が居ない前提」かを見る）
-
 ### バグ探し（2026-11-02〜05。済み）
 
 - ①〜③ は 11-05 に終わった。一度も実行されていない効果は、宣言だけのキーワード2件（【大粉砕】BS15-X06-e2・【呪滅撃】BS14-X02-e2）と BS13-081-e0 だけ（`data/coverage-baseline.json`）

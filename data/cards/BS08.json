@@ -4428,6 +4428,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "family": "四道"
     },
