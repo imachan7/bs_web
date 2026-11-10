@@ -776,7 +776,7 @@ function playerView(player: PlayerState, isSelf: boolean, opponent: PlayerState)
 function maskPendingChoiceForOpponent(pc: NonNullable<GameState["pendingChoice"]>): NonNullable<GameState["pendingChoice"]> {
     const isCard = pc.kind === "card"
     // 発動確認の時点ではバーストはまだ非公開（断れば公開されない）ので、カードIDを相手に渡さない
-    const { burstActivate: _hidden, ...rest } = pc
+    const { burstActivate: _hidden, counter: _counter, ...rest } = pc
     return {
         ...rest,
         candidates: [],

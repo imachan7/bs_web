@@ -1008,6 +1008,13 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `applyReviveCostPick`（fn）：「フィールドに残る」のコストの選択（reviveCostPick）に答えたときの後処理。
 - `declineReviveConfirm`（fn）：保留していた復活の確認で「復活させない」が選ばれたときの後処理。見送っていた破壊をここで行う
 - `stayOnFieldRevived`（fn）：「残る」の後始末。reviveOnDestroy の revived:{rested} と action "remainOnFieldSelf"（破壊時効果の中で
+- `collectPickManyEntries`（fn）：pickMany の発生源が、この個体を戻す候補にできるか（revivePickMany.ts が使う。判定は破壊時の走査と同じ）
+
+## server/src/logic/revivePickMany.ts
+
+- `askNextPickMany`（fn）：選択待ちを立てたら true（呼び出し元は destroyBatch フレームを積んで止まる）。
+- `selectedFirst`（fn）：選ばれた体を先に処理する（発生源自身が選ばれていないと、先に破壊されて他の体の復活が効かなくなるため）
+- `resolveRevivePickMany`（fn）：選択待ちへの応答。選択中はエラーなら選択待ちを残し、確定したら次の発生源へ進む（無ければ破壊バッチの再開に任せる）
 
 ## server/src/logic/soulCore.ts
 
@@ -1293,6 +1300,10 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `cardSetDir`（fn）：画像の置き場の弾フォルダ。プロモ（P001・PX01・X014）は番号に「-」が無いので英字の部分で分ける。
 - `installSecretCardArt`（fn）
 - `attachCardArt`（fn）
+
+## public/src/choiceCounter.ts
+
+- `choiceCounterView`（fn）：トグル選択の「選んだ量／上限」表示。上限ちょうどで見た目を変えるのは、これ以上選べないと一目で分かるようにするため
 
 ## public/src/effectText.ts
 

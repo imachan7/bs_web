@@ -32,9 +32,10 @@ export function exhaustWithinBudget(ctx: ActionCtx, action: ExhaustAction): void
                 suspend(state, {
                     pid: owner,
                     kind: "target",
-                    prompt: `${sourceName}：疲労させるスピリットを選んでください（${byCost ? "コスト" : "BP"}合計 ${used}／${budget}。選んだものをもう一度押すと外れます）`,
+                    prompt: `${sourceName}：疲労させるスピリットを選んでください（選んだものをもう一度押すと外れます）`,
                     candidates: candidates.map((s) => s.instanceId),
                     selectedIds: chosen,
+                    counter: { label: `${byCost ? "コスト" : "BP"}合計`, current: used, max: budget },
                     skipLabel: chosen.length > 0 ? `これで疲労させる（${chosen.length}体）` : "疲労させない",
                     optional: true,
                     resolveOnSkip: true,

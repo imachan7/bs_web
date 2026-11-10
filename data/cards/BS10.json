@@ -6014,6 +6014,7 @@
           2
         ],
         "scope": "ownAll",
+        "pickMany": true,
         "optional": true,
         "revived": {
           "rested": true

@@ -21,6 +21,15 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
+
+- **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
+- **流れ**（同時破壊グループにつき誘発1回＝Q22359）：①破壊された対象（filter 一致）のうち**戻す体をトグルで複数選ぶ**（`kind:"target"`＋`selectedIds`・確定は `skipLabel`「これで戻す」。0体で確定＝戻さない。上限＝min(対象の体数, cost を払える手札の枚数)）→ ②選んだ体数 k ぶん、手札の該当カードを**トグルで k 枚選んで破棄**（`kind:"card"`＋`selectedCardIndices`。k 枚そろうまで確定できない）→ ③選んだ体が疲労状態で戻る。対象が1体だけのときは従来の確認（「復活させますか？」）のまま
+- **スキーマ**：`reviveOnDestroy.pickMany?: true`（`effectDefTrigger.ts` に追加済み。`scope:"ownAll"` 限定・既存の `cost.handDiscardOne`/`handDiscardCardType` を選んだ体数ぶん払う。`perDestroyed` とは併用しない）。BS13-038-e1 から `perDestroyed` を外して `pickMany` を付け、BS10-046-e1 にも付ける
+- **選択ステップは同時破壊グループの先頭**（`destroyTargetsBatch` が1体目を処理する前）に1回だけ出す。選んだ結果は `destroyGroup` に控え、各体の処理では「選ばれた体は確認・コストなしで戻す／選ばれなかった体は通常どおり破壊」。中断・再開は `destroyBatch` の再開スタックを通す（RESUME_STACK.md）
+- **counter**：`PendingChoice.counter?: { label; current; max }`（`types/choice.ts` に追加済み。相手視点ではマスク）。トグル選択3か所（合計BP破壊 `destroy.ts`・疲労の合計 `exhaustBudget.ts`・`timedEffect.ts`）と今回の選択で、**プロンプト文から「合計 x／y」を外して `counter` に入れる**。クライアントは `renderer.ts`（`btn-skip-choice` の近く）で選択バーに目立つ表示（例「BP合計 3000／10000」「戻す 1／2」）を出す。カードのハイライト（`fieldCard.ts` の `selectedIds`）は今のまま
+- 検証：part 新規（期待値役が効果文から。同時2体・手札3枚・手札1枚・導魔でない体・手札0枚・龍仙公主）＋既存の復活 smoke が全緑
+
 ### バグ探し（2026-11-02〜05。済み）
 
 - ①〜③ は 11-05 に終わった。一度も実行されていない効果は、宣言だけのキーワード2件（【大粉砕】BS15-X06-e2・【呪滅撃】BS14-X02-e2）と BS13-081-e0 だけ（`data/coverage-baseline.json`）
