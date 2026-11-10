@@ -399,6 +399,8 @@ export function findMagicFreeGrantSource(
                 continue
             }
             const isAllScope = effect.scope === "allMagicHandAndTegamoto"
+            // scope と colorFilter の両方を持つ発生源（BS09-X39 アンブロシウス＝「黄のマジックすべて」）は、手札・手元の両方で色を見る
+            if (isAllScope && effect.colorFilter !== undefined && !cardHasColor(cardData, effect.colorFilter)) continue
             if (requireTegamotoScope) {
                 if (!isAllScope) continue
             } else if (!isAllScope) {
