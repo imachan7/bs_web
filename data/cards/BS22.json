@@ -2997,6 +2997,7 @@
      3
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "when": {
      "byOpponentEffect": true
     },

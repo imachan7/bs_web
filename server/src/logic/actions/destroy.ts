@@ -12,11 +12,9 @@ import {
     countEffectCounter,
     destroyNexus,
     destroySpirit,
-    destroySpiritsFrom,
     destroyTargetsBatch,
     applyReviveEntry,
     fushiSummonOrConfirm,
-    applyDestroyBatchAfter,
     destroyBpThresholdBonusFor,
     fireTrigger,
     findSpiritAny,
@@ -569,28 +567,8 @@ export function destroyTargetList(
             ...(action.voidCoreToSelfPerDestroyed ? { voidCoreToSelfPerDestroyed: true as const } : {}),
             ...(self ? { selfInstanceId: self.instanceId } : {}),
         }
-        const { destroyed, stoppedAt } = destroySpiritsFrom(
-            state,
-            batchTargets,
-            0,
-            0,
-            destroyContext,
-        )
-        if (stoppedAt < batchTargets.length) {
-            pushResumeFrames(state, [{
-                kind: "destroyBatch",
-                ownerPid: owner,
-                targets: batchTargets,
-                index: stoppedAt,
-                destroyed,
-                ...(destroyContext ? { context: destroyContext } : {}),
-                after,
-            }])
-            return
-        }
-        if (state.winner) return
-        applyDestroyBatchAfter(state, owner, destroyed, after)
-        return
+        // 同時破壊のグループ（全員が待機のまま誘発を解決してからまとめて確定・Q22359 の1回扱い）を通す
+        destroyTargetsBatch(state, owner, batchTargets, destroyContext, after)
 }
 
 // マインドフレア：相手のフィールドに同じカード名のスピリットが2体以上いるとき、

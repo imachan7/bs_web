@@ -6780,6 +6780,7 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "cost": {
       "min": 3

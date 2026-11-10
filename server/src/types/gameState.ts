@@ -116,7 +116,7 @@ export interface GameState {
     // （perDestroyed指定の効果は対象外。公式Q&A Q22359。docs/design/TIMING_CHART.md）。
     // 中断・入れ子の破壊に備え、destroyTargetsBatch/resumeDestroyBatch が退避・復元する
     // pickMany：`${発生源instanceId}:${effectId}` → グループの先頭で持ち主が選んだ「戻す体」（空配列＝戻さない）
-    destroyGroup?: { id: string; memberIds: string[]; used: string[]; familiesByPid: Partial<Record<PlayerId, string[]>>; pickMany?: Record<string, string[]> }
+    destroyGroup?: { id: string; memberIds: string[]; used: string[]; familiesByPid: Partial<Record<PlayerId, string[]>>; pickMany?: Record<string, string[]>; deferred?: { pid: PlayerId; instanceId: string }[]; recordScope?: string }
     // 破壊後バースト（kind:"burst".event:"ownSpiritDestroyed"）が発火を待つ列。
     // commitPendingDestructionが確定のたびに1件積み、ブレイヴの「残す/残さない」まで決着した後
     // （handleAction末尾のfireQueuedDestroyBursts）でgroupKey+pid単位にまとめて1回だけ発火する
