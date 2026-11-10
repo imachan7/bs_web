@@ -82,7 +82,11 @@ export function keywordMatches(has: Keyword, asked: Keyword): boolean {
 export function hasKeyword(cardId: string, keyword: Keyword | Keyword[]): boolean {
     const wanted = Array.isArray(keyword) ? keyword : [keyword]
     return card(cardId).effects.some((e) => {
-        if (e.kind === "keyword") return wanted.includes(e.keyword)
+        if (e.kind === "keyword") {
+            if (!wanted.includes(e.keyword)) return false
+            if (e.outsideFieldOnly) noteCoverage(e, "keyword")
+            return true
+        }
         const label = (e as { keyword?: Keyword }).keyword
         return label !== undefined && LABELED_KEYWORDS.has(label) && wanted.includes(label)
     })

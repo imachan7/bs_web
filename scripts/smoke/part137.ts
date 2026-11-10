@@ -407,14 +407,15 @@ console.log("=== BS07 青：系統「勇傑」でアタックしているとき�
 console.log("=== BS07 青：系統「造兵」のコスト3以上をBP+2000（造兵工房Lv2のコスト下限） ===")
 {
     const nexus = findByEffect(
-        (e) => (e["aura"] as Record<string, unknown> | undefined)?.["costMinFilter"] !== undefined,
+        (e) => ((e["aura"] as Record<string, unknown> | undefined)?.["filter"] as { cost?: { min?: number } } | undefined)?.cost?.min !== undefined,
     )
     const auraEntry = (nexus.effects ?? []).find(
-        (e) => (e["aura"] as Record<string, unknown> | undefined)?.["costMinFilter"] !== undefined,
+        (e) => ((e["aura"] as Record<string, unknown> | undefined)?.["filter"] as { cost?: { min?: number } } | undefined)?.cost?.min !== undefined,
     )
     const aura = auraEntry?.["aura"] as Record<string, unknown>
-    const family = String(aura["familyFilter"])
-    const costMin = Number(aura["costMinFilter"])
+    const auraFilter = aura["filter"] as Record<string, unknown>
+    const family = String(auraFilter["family"])
+    const costMin = Number((auraFilter["cost"] as { min: number }).min)
     const amount = Number(aura["amount"])
     const nexusLv = Math.min(...((auraEntry?.["levels"] as number[] | null) ?? [1]))
     const big = CARDS.find(

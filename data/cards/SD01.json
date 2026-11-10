@@ -1178,7 +1178,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "colorFilter": "white",
+          "filter": {
+            "color": "white"
+          },
           "amount": 1000
         }
       }
@@ -1426,7 +1428,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "attackingOnly": true,
+          "filter": {
+            "attackingOnly": true
+          },
           "amount": 1000,
           "phaseTurn": {
             "phase": "attack",
@@ -1496,7 +1500,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "colorFilter": "purple",
+          "filter": {
+            "color": "purple"
+          },
           "amount": 1000
         }
       },
@@ -1652,7 +1658,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "battlingOnly": true,
+          "filter": {
+            "inBattle": true
+          },
           "amountPer": 1000,
           "counter": "ownExhausted",
           "phaseTurn": {
@@ -2141,7 +2149,9 @@
         "aura": {
           "type": "bp",
           "target": "ownAll",
-          "attackingOnly": true,
+          "filter": {
+            "attackingOnly": true
+          },
           "amountPer": 1000,
           "counter": "targetReductionSymbols",
           "lentOnly": true

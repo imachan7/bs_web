@@ -325,7 +325,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "purple",
+     "filter": {
+      "color": "purple"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -1776,10 +1778,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "殻人",
-      "殻虫"
-     ],
+     "filter": {
+      "family": [
+       "殻人",
+       "殻虫"
+      ]
+     },
      "amount": 3000,
      "lentOnly": true
     }
@@ -2310,7 +2314,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "keywordFilter": "soku",
+     "filter": {
+      "keyword": "soku"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -2974,7 +2980,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "colorFilter": "white",
+     "filter": {
+      "color": "white"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -4459,10 +4467,12 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": [
-      "翼竜",
-      "空牙"
-     ],
+     "filter": {
+      "family": [
+       "翼竜",
+       "空牙"
+      ]
+     },
      "amount": 2000,
      "phaseTurn": {
       "phase": "attack",
@@ -5013,7 +5023,9 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "familyFilter": "天霊",
+     "filter": {
+      "family": "天霊"
+     },
      "amount": 1000,
      "phaseTurn": {
       "phase": "attack",
@@ -5741,11 +5753,13 @@
     "aura": {
      "type": "bp",
      "target": "ownAll",
-     "attackingOnly": true,
-     "familyFilter": [
-      "爪鳥",
-      "樹魔"
-     ],
+     "filter": {
+      "attackingOnly": true,
+      "family": [
+       "爪鳥",
+       "樹魔"
+      ]
+     },
      "amount": 3000,
      "lentOnly": true
     }
