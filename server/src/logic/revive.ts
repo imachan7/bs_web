@@ -1301,7 +1301,6 @@ function tryReviveOnDestroy(
     // effectSources() でこのターンだけの仮想発生源（マジックが貸した継続効果。BS05リアニメイト）も含める
     const sources = effectSources(state, ownerPid)
     for (const source of sources) {
-        if (source.instanceId === inst.instanceId) continue
         const sourceLevel = currentLevel(source).level
         for (const effect of getCard(source.cardId).effects) {
             if (effect.kind !== "reviveOnDestroy") continue

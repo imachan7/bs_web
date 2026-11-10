@@ -2149,7 +2149,8 @@
     ],
     "scope": "ownAll",
     "filter": {
-     "family": "氷姫"
+     "family": "氷姫",
+     "excludeSelf": true
     },
     "when": {},
     "phaseTurn": {

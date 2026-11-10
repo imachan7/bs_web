@@ -8,7 +8,7 @@ import type { CardPick } from "../server/src/types/effectAction"
 import type { Board } from "./board"
 import { card } from "./cardDb"
 import { entryActive } from "./rules/effectStop"
-import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
+import { noReductionGrantFrom, trashFrozen, zoneSpiritEffectsDisabled, deckMillBlockedByRule, hasGlobalConstraint, cardHasTeam, canDiscardHand, timedPlayerRules, cardHasColor, countSymbols, flexibleSymbolUnits, countTrashSymbols, currentLevel, effectActiveAtLevel, effectSources, hasKeyword, instHasColor, isVirtualSource, matchesCostFilter, matchesFamilyFilter, noReductionBySummonCost, opponentFieldColorCount, spiritHasKeyword, instIsCombined, instMatchesCostFilter, isVanillaCard } from "./rules"
 
 // コスト修正（kind: "costMod"）の合計を求める。両プレイヤーのフィールド（スピリット＋ネクサス）を
 // 走査し、レベル有効な costMod のうち条件（colorFilter・cardType・side・phaseTurn。すべて省略時は
@@ -91,32 +91,22 @@ function costModSum(board: Board, usingPid: PlayerId, cardData: CardData, before
 // 条件成立（ownColorTotalAtLeast：自分のスピリット+ネクサス合計）のものを集める
 // （ペンタン：黄のマジック軽減、天使バーチュ：手札の黄スピリット軽減）
 // 軽減シンボル1つは、その色か also の色の場のシンボル1つで1回だけ満たされ、場のシンボルも1回しか使えない（Q22532・Q22533）。
-// 軽減が最大になる割り当てを増加路で求める
-function maxReductionMatch(demands: Color[], also: Color[], haveOf: (c: Color) => number): number {
-    const colors = [...new Set([...demands, ...also])]
-    const left = new Map<Color, number>(colors.map((c) => [c, haveOf(c)]))
-    const used = new Map<Color, Color[]>() // 供給色 → それを使っている要求の色（1要求ごとに1要素）
-    const allowed = (d: Color): Color[] => [...new Set([d, ...also])]
-    const place = (d: Color, seen: Set<Color>): boolean => {
-        for (const sc of allowed(d)) {
-            if (seen.has(sc)) continue
-            seen.add(sc)
-            const holders = used.get(sc) ?? []
-            if ((left.get(sc) ?? 0) > holders.length) {
-                used.set(sc, [...holders, d])
+// 軽減が最大になる割り当てを増加路で求める。供給は「そのシンボルが満たせる色の集合」の列（「◯色としても扱う」を持つ個体のシンボルは複数色の集合で、軽減シンボル1つにしか使えない）
+function maxReductionMatch(demands: Color[], also: Color[], units: Color[][]): number {
+    const owner: number[] = new Array(units.length).fill(-1) // 供給 → それを使っている要求の添字
+    const place = (d: number, seen: Set<number>): boolean => {
+        for (let u = 0; u < units.length; u++) {
+            if (seen.has(u) || !(units[u]!.includes(demands[d]!) || units[u]!.some((c) => also.includes(c)))) continue
+            seen.add(u)
+            if (owner[u] === -1 || place(owner[u]!, seen)) {
+                owner[u] = d
                 return true
-            }
-            for (let i = 0; i < holders.length; i++) {
-                if (place(holders[i]!, seen)) {
-                    used.set(sc, holders.map((h, j) => (j === i ? d : h)))
-                    return true
-                }
             }
         }
         return false
     }
     let n = 0
-    for (const d of demands) if (place(d, new Set())) n++
+    for (let d = 0; d < demands.length; d++) if (place(d, new Set())) n++
     return n
 }
 
@@ -816,18 +806,19 @@ export function effectiveCost(
             const fullReduction = forceFullReduction || selfSummonCostNotes(board, pid, cardData, "fullReduction", viaSoryo).length > 0
             const alsoColors = fromHand ? reductionAlsoColors(board, pid, cardData) : []
             const haveOf = (color: Color): number =>
-                countSymbols(board.players[pid], [color], cardData.type === "spirit") +
+                countSymbols(board.players[pid], [color], cardData.type === "spirit", true) +
                 (withTrash ? countTrashSymbols(board.players[pid], [color]) : 0) +
                 // 《継召》：除外したカードのシンボルのうち、この色に一致するものだけ軽減に加算する
                 exReductionSymbols.filter((c) => c === color).length +
                 summoningSymbolBonus(board, pid, cardData, color)
-            if (alsoColors.length > 0 && !fullReduction) {
-                reduction += maxReductionMatch(reductionColors, alsoColors, haveOf)
+            if (fullReduction) {
+                reduction += reductionColors.length
             } else {
-                for (const color of new Set(reductionColors)) {
-                    const need = reductionColors.filter((c) => c === color).length
-                    reduction += Math.min(need, fullReduction ? need : haveOf(color))
+                const units: Color[][] = flexibleSymbolUnits(board.players[pid], cardData.type === "spirit")
+                for (const color of new Set([...reductionColors, ...alsoColors])) {
+                    for (let i = haveOf(color); i > 0; i--) units.push([color])
                 }
+                reduction += maxReductionMatch(reductionColors, alsoColors, units)
             }
             // 相手のリザーブのコア1個につき、色を問わず軽減シンボル1つを満たせる（満たしていない分が上限）
             if (!fullReduction && selfSummonCostNotes(board, pid, cardData, "perOppReserveCore", viaSoryo).length > 0) {

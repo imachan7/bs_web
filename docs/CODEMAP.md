@@ -303,6 +303,7 @@ export されている関数・定数・型の置き場。名前で引いて、�
 - `combinedSpiritSymbolColors`（fn）：合体スピリット全体のシンボルの色（BS21_PLAN §3 の N7）。instanceSymbolColors は braveComposite の
 - `instanceSymbolCount`（fn）：インスタンスのシンボル数。ライフダメージ計算・シンボル数の条件・比較が共用する
 - `countSymbols`（fn）：軽減計算用：プレイヤーのフィールドにある指定色シンボルの数を数える。
+- `flexibleSymbolUnits`（fn）：軽減計算用：「◯色としても扱う」を持つ個体のシンボルを、1つずつ「満たせる色の集合」にして返す。
 - `countTrashSymbols`（fn）：軽減計算用：トラッシュにあるカードのシンボル数（BS10-092／BS10-X05）。
 - `handSizeOf`（fn）：手札の枚数（内容は隠匿されても枚数は公開情報）。BoardPlayer.handCountがあればそれを使い、
 
