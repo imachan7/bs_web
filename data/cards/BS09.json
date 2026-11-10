@@ -1801,6 +1801,7 @@
           2
         ],
         "scope": "ownAll",
+        "perDestroyed": true,
         "filter": {
          "keyword": "bofu"
         },

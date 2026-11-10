@@ -1013,7 +1013,6 @@ export されている関数・定数・型の置き場。名前で引いて、�
 ## server/src/logic/revivePickMany.ts
 
 - `askNextPickMany`（fn）：選択待ちを立てたら true（呼び出し元は destroyBatch フレームを積んで止まる）。
-- `selectedFirst`（fn）：選ばれた体を先に処理する（発生源自身が選ばれていないと、先に破壊されて他の体の復活が効かなくなるため）
 - `resolveRevivePickMany`（fn）：選択待ちへの応答。選択中はエラーなら選択待ちを残し、確定したら次の発生源へ進む（無ければ破壊バッチの再開に任せる）
 
 ## server/src/logic/soulCore.ts

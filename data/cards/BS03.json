@@ -5698,6 +5698,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "vanilla": true
     },
@@ -5974,6 +5975,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "vanilla": true
     },
@@ -6044,6 +6046,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "keyword": "soku"
     },
@@ -6296,6 +6299,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "vanilla": true
     },
@@ -6317,6 +6321,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "vanilla": true
     },
@@ -7345,6 +7350,7 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
+    "perDestroyed": true,
     "filter": {
      "keyword": "armor"
     },
@@ -7506,6 +7512,7 @@
     "kind": "reviveOnDestroy",
     "levels": null,
     "scope": "ownAll",
+    "perDestroyed": true,
     "minFamilies": 2,
     "when": {
      "byBattle": true

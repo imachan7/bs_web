@@ -4882,6 +4882,7 @@
      2
     ],
     "scope": "ownAll",
+    "perDestroyed": true,
     "when": {
      "byBattleVsArmorColor": true
     },

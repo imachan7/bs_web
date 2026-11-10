@@ -143,7 +143,7 @@ console.log("--- スキップすると、見送っていた破壊がその場で
     assert(s.players.p1.reserve === reserveBefore + CHAGA_CORES, "破壊されたコアは通常どおりリザーブへ戻る")
 }
 
-console.log("=== 複数体が候補になったときは1体ずつ確認する（紫水晶の森：scope ownAll） ===")
+console.log("=== 複数体が候補でも、単数型（紫水晶の森）は同時破壊につき1体だけ確認する ===")
 {
     const forest = findByEffect(
         (e) => e["kind"] === "reviveOnDestroy" && e["optional"] === true && e["scope"] === "ownAll",
@@ -195,9 +195,8 @@ console.log("=== 複数体が候補になったときは1体ずつ確認する�
     assert(act(s, "p1", { type: "resolveChoice", option: "復活させる" }) === null, "1体目は復活させる")
     // 残る候補は1体だけなので、順番の選択はもう出ない
     assert(s.pendingChoice?.destroyOrder === undefined, "候補が1体になれば順番は聞かない")
-    assert(s.pendingChoice !== null, "続けて2体目の確認が立つ")
-    assert(act(s, "p1", { type: "resolveChoice" }) === null, "2体目はスキップ")
-    assert(s.pendingChoice === null, "すべて解決すると選択待ちが無くなる")
+    // 紫水晶の森は「〜が破壊されたとき、そのスピリットを戻す」型なので、同時破壊では1回だけ（Q22359。2026-11-10 に全体破壊も同時破壊のグループを通すようにした）
+    assert(s.pendingChoice === null, "1体を戻したので、2体目の確認は出ない")
 
     const survivors = [a, b].filter((x) => ALIVE(s, "p1", x.instanceId)).length
     assert(survivors === 1, `復活させた1体だけが残る（実際: ${String(survivors)}体）`)

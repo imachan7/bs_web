@@ -122,13 +122,6 @@ export function askNextPickMany(state: GameState, targets: Target[], context?: D
     }
 }
 
-// 選ばれた体を先に処理する（発生源自身が選ばれていないと、先に破壊されて他の体の復活が効かなくなるため）
-export function selectedFirst(state: GameState, targets: Target[]): Target[] {
-    const picked = new Set(Object.values(state.destroyGroup?.pickMany ?? {}).flat())
-    if (picked.size === 0) return targets
-    return [...targets.filter((t) => picked.has(t.instanceId)), ...targets.filter((t) => !picked.has(t.instanceId))]
-}
-
 // 選択待ちへの応答。選択中はエラーなら選択待ちを残し、確定したら次の発生源へ進む（無ければ破壊バッチの再開に任せる）
 export function resolveRevivePickMany(state: GameState, pending: PendingChoice, instanceId?: string, cardIndex?: number): string | null {
     const info = pending.revivePickMany!
@@ -176,6 +169,5 @@ function proceed(state: GameState): null {
     const batch = state.resumeStack.find((f): f is Extract<ResumeFrame, { kind: "destroyBatch" }> => f.kind === "destroyBatch")
     if (!batch) return null
     if (askNextPickMany(state, batch.targets, batch.context)) return null
-    batch.targets = selectedFirst(state, batch.targets)
     return null
 }
