@@ -122,6 +122,16 @@ import { resolveBattle, resolveDirectedBlock, resolveLifeDamage } from "./battle
 import { resolveForcedBlock } from "./forcedBlock"
 import { markOnceUsed, markOnceNameUsed, revertOnceUsed, markOncePerBattleUsed, revertOncePerBattleUsed, markUsedOnceThisTurn, markNameUsedOnceThisTurn } from "./oncePerTurn"
 
+// 指定アタックのブロック確定（TIMING_CHART §1.10。2026-11-10 ユーザー確認）。
+// アタック時効果と【バースト】の解決がすべて終わった時点で、指定先が有効ならフラッシュ①を行わずブロック宣言へ移る。
+// 無効なら resolveDirectedBlock が何もせず、開いたままのフラッシュ①から通常のアタックになる
+function settleDirectedAttack(state: GameState): void {
+    const b = state.battle
+    if (!b || b.directedTargetInstanceId === undefined || b.blockerInstanceId !== null) return
+    if (state.winner || state.pendingChoice || state.resumeStack.length > 0) return
+    resolveDirectedBlock(state)
+}
+
 // アクションを実行し、エラーがあれば理由を返す（null = 成功）
 export function handleAction(
     state: GameState,
@@ -135,6 +145,7 @@ export function handleAction(
     state.events = []
     noteHandleActionEntry(state)
     const result = dispatchAction(state, pid, action)
+    settleDirectedAttack(state)
     // バトルがどの経路（解決・ライフ受け・endBattle 効果）で終了しても、
     // サイレントウォールの遅延効果（アタックステップ終了）を一元的に処理する
     forceEndTurnIfFlagged(state)
