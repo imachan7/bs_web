@@ -896,16 +896,19 @@ function tryReviveOnDestroy(
             return true
         }
         if (effect.cost?.fieldOrReserveOneToTrash) {
-            // 持ち主のリザーブのコア1個（無ければ自分のフィールド＝スピリット/ネクサス、
-            // 発生源自身を除く、からコア1個）を持ち主のトラッシュへ（BS04宝石虫スカラベール）
+            // リザーブ → 破壊される本人 → 他のスピリット/ネクサス、の順に1個（どこから払うかは自動の簡略化）。
+            // 本人のコアは手札へ戻ればリザーブへ行くので、他の個体のレベルを下げるより先に使う。
+            // ただし0個にならないときだけ。0個にすると消滅の待機に変わり、この「破壊されたとき」が解決できなくなる
+            // （PENDING_STATE.md の改訂文・2026-11-11 ユーザー確認）
             if (player.reserve > 0) {
                 player.reserve -= 1
                 player.trashCores += 1
                 return true
             }
-            const source = [...player.field.spirits, ...player.field.nexuses].find(
-                (i) => i.instanceId !== inst.instanceId && i.cores > 0 && coreRemovalAllowed(state, { ownerPid: ownerPid, target: i, amount: 1, cause: "cost", actorPid: ownerPid }) >= 1,
-            )
+            const removable = (i: CardInstance): boolean => coreRemovalAllowed(state, { ownerPid: ownerPid, target: i, amount: 1, cause: "cost", actorPid: ownerPid }) >= 1
+            const source =
+                (inst.cores >= 2 && removable(inst) ? inst : undefined) ??
+                [...player.field.spirits, ...player.field.nexuses].find((i) => i.instanceId !== inst.instanceId && i.cores > 0 && removable(i))
             if (source) {
                 source.cores -= 1
                 player.trashCores += 1
@@ -1121,7 +1124,7 @@ function tryReviveOnDestroy(
         if (cost.oneCoreToTrash) return inst.cores <= 0 ? "コアが足りない" : null
         if (cost.reserveOneToTrash) return player.reserve <= 0 ? "リザーブにコアがない" : null
         if (cost.fieldOrReserveOneToTrash) {
-            const any = player.reserve > 0 || [...player.field.spirits, ...player.field.nexuses].some((i) => i.instanceId !== inst.instanceId && i.cores > 0)
+            const any = player.reserve > 0 || inst.cores >= 2 || [...player.field.spirits, ...player.field.nexuses].some((i) => i.instanceId !== inst.instanceId && i.cores > 0)
             return any ? null : "トラッシュへ置けるコアがない"
         }
         if (cost.handDiscardOne) {
