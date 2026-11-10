@@ -38,6 +38,7 @@ export interface PendingChoice {
     selectedIds?: string[] // kind:"target" のトグル選択で「いま選ばれている」候補（クライアントが選択済みとして描く）。
     // 候補（candidates）には選択済みのものも入れておき、もう一度クリックすると選択が外れる。
     // 相手視点ではマスクする（maskPendingChoiceForOpponent）
+    counter?: { label: string; current: number; max: number } // トグル選択の「選んだ量／上限」。クライアントが選択バーに目立つ表示で出す（prompt の文章には埋め込まない）。例：{ label: "BP合計", current: 3000, max: 10000 }・{ label: "戻す", current: 1, max: 2 }。相手視点ではマスクする
     skipLabel?: string // 「選ばない」ボタンの文言の差し替え。トグル選択の「これで破壊する」のように、
     // スキップが**中止ではなく確定**を意味するときに使う（未指定なら「選ばない」）
     stepper?: true // kind:"option" 限定：選択肢を**ボタンの列ではなく −／＋ の増減表示**で選ばせる
@@ -84,6 +85,16 @@ export interface PendingChoice {
         instanceId: string
         sourceInstanceId: string
         effectId: string
+    }
+    revivePickMany?: {
+        // reviveOnDestroy.pickMany の選択待ち（action は解決しない）。bodies＝戻す体のトグル、cards＝破棄する手札のトグル。
+        // bodies を確定したあと cards の chosenIds に選んだ体を持ち越す
+        pid: PlayerId
+        sourceInstanceId: string
+        effectId: string
+        phase: "bodies" | "cards"
+        chosenIds?: string[]
+        context?: DestroyContext
     }
     reviveCostPick?: {
         // 「フィールドに残る」のコストの「使う1体／1つ／1枚」の選択待ち（action は解決しない）。

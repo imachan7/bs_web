@@ -7,6 +7,7 @@ import type {
 } from "../../server/src/type"
 import { CARD_TYPE_LABELS } from "../../data/constants"
 import { setCardLookup } from "../../shared/cardDb"
+import { choiceCounterView } from "./choiceCounter"
 import { effectiveCost } from "../../shared/cost"
 import { canBlock, matchesDirectedAttackFilter as sharedMatchesDirectedAttackFilter } from "../../shared/block"
 // ルール判定はサーバーと同一の実装を共有する（二重実装によるズレを防ぐ）
@@ -442,6 +443,12 @@ export function render(view: GameView, ui: UiState): void {
     show("btn-skip-choice", myPendingChoice?.optional === true)
     // トグル選択では、スキップは「中止」ではなく「これで確定」を意味する（PendingChoice.skipLabel）
     $("btn-skip-choice").textContent = myPendingChoice?.skipLabel ?? "選ばない"
+    const counterView = myPendingChoice?.counter ? choiceCounterView(myPendingChoice.counter) : null
+    show("choice-counter", counterView !== null)
+    if (counterView) {
+        $("choice-counter").textContent = counterView.text
+        $("choice-counter").classList.toggle("full", counterView.full)
+    }
     // kind:"option"の選択肢ボタンを描画する（myPendingChoiceが自分宛かつoption式のときのみ）。
     // kind:"card"かつcardZone:"trash"のときも同じボタンUIでカード名を並べる
     // （cardZone:"hand"は手札のカード自体をクリックさせるためここには描画しない）
