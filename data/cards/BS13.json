@@ -5098,6 +5098,7 @@
      "rested": true
     },
     "optional": true,
+    "perDestroyed": true,
     "when": {}
    },
    {
