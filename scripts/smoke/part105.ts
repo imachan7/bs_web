@@ -146,7 +146,8 @@ console.log("=== BS04-039 宝石虫スカラベール：Lv2『自分のアタッ
     s.phase = "attack"
     s.turnPlayer = "p1"
     const scarabael = put(s, "p1", "BS04-039", 3) // Lv2（コスト用のフィールドコア源も兼ねる）
-    const sokuSpirit = put(s, "p1", "BS03-028", 2) // モグランナー：神速持ち
+    // コア1個：本人から払うと0個で消滅の待機になるので本人からは払えない（2個以上なら本人から払う。part888）
+    const sokuSpirit = put(s, "p1", "BS03-028", 1) // モグランナー：神速持ち
     s.players.p1.reserve = 0 // リザーブ0なのでフィールド（スカラベール自身）から支払う
     destroySpirit(s, "p1", sokuSpirit.instanceId, "destroy", {
         sourcePid: "p2",
