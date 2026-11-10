@@ -65,10 +65,7 @@ console.log("=== §B BS11-X02：相手の合体スピリットしか指定アタ
         act(s, "p1", { type: "attack", instanceId: nova.instanceId, targetSpiritInstanceId: host.instanceId }) === null,
         "合体スピリットは指定できる",
     )
-    assert(s.battle?.directedTargetInstanceId === host.instanceId, "指定先が控えられる")
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ブロック確定）")
-    assert(s.battle?.blockerInstanceId === host.instanceId, "指定した合体スピリットがブロッカーになる")
+    assert(s.battle?.blockerInstanceId === host.instanceId, "指定した合体スピリットがブロッカーになる（フラッシュ①は行わない）")
 }
 
 console.log("=== §C BS11-X02 Lv2：合体スピリットとバトルしたときだけBP+10000 ===")
@@ -83,10 +80,7 @@ console.log("=== §C BS11-X02 Lv2：合体スピリットとバトルしたと�
         act(s, "p1", { type: "attack", instanceId: nova.instanceId, targetSpiritInstanceId: host.instanceId }) === null,
         "合体スピリットを指定してアタック",
     )
-    // 指定アタックのブロックはフラッシュ①を閉じた時点で確定するので、
-    // 「合体スピリットとバトルしている」状態になるのもそこから
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ブロック確定）")
+    // 指定アタックのブロックはアタック時効果の解決後にすぐ確定する（フラッシュ①は行わない）
     assert(effectiveBp(s, "p1", nova) === base + 10000, "BP+10000される")
 }
 {

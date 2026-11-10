@@ -614,9 +614,8 @@ console.log("=== 指定アタック（canDirectAttack）：イリュージョナ
         "疲労状態の相手を指定してアタックできる",
     )
     assert(s.battle !== null, "バトルが発生")
-    // 宣言の時点ではまだブロックは確定しない（アタック時効果と【バースト】の解決後に確定する）
-    assert(s.battle?.blockerInstanceId === null, "アタック宣言の時点ではブロックは確定しない")
-    assert(s.battle?.directedTargetInstanceId === restedTarget.instanceId, "指定先が控えられる")
+    // アタック時効果と【バースト】が無く指定先が有効なので、フラッシュ①を飛ばしてブロックが確定する
+    assert(s.battle?.blockerInstanceId === restedTarget.instanceId, "指定した相手がブロッカーになる")
     assert(s.battle?.directed === true, "directedフラグが立つ")
     assert(
         s.log.some((line) => line.includes("指定してアタックした")),
@@ -627,9 +626,6 @@ console.log("=== 指定アタック（canDirectAttack）：イリュージョナ
         act(s, "p2", { type: "block", instanceId: readyOther.instanceId }) !== null,
         "指定アタック成立後は別のスピリットでブロックもできない",
     )
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ここでブロック確定）")
-    assert(s.battle?.blockerInstanceId === restedTarget.instanceId, "指定した相手がブロッカーになる")
     // ブロック確定後のフラッシュ②を閉じるとバトルが解決する
     assert(act(s, "p2", { type: "pass" }) === null, "防御側パス（フラッシュ②）")
     assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（バトル解決）")
@@ -669,10 +665,7 @@ console.log("=== 指定アタック（canDirectAttack）：牛霊スモゥグ（
         }) === null,
         "コア1個の相手を指定してアタックできる",
     )
-    assert(s.battle?.directedTargetInstanceId === singleCoreTarget.instanceId, "指定先が控えられる")
-    assert(act(s, "p2", { type: "pass" }) === null, "防御側パス")
-    assert(act(s, "p1", { type: "pass" }) === null, "攻撃側パス（フラッシュ①終了→ブロック確定）")
-    assert(s.battle?.blockerInstanceId === singleCoreTarget.instanceId, "指定した相手がブロッカーになる")
+    assert(s.battle?.blockerInstanceId === singleCoreTarget.instanceId, "指定した相手がブロッカーになる（フラッシュ①は行わない）")
 
     console.log("--- canDirectAttack を持たない通常スピリットは指定アタックを拒否 ---")
     const s2 = createGame(

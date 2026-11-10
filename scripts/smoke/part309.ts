@@ -248,7 +248,7 @@ console.log("=== SD06-006 イカヅチ・ヴルム：バーストをセットし
         act(s, "p1", { type: "attack", instanceId: vurm.instanceId, targetSpiritInstanceId: prey.instanceId }) === null,
         "バーストをセットしている間は指定アタックできる",
     )
-    assert(s.battle?.directedTargetInstanceId === prey.instanceId, "指定先が控えられる")
+    assert(s.battle?.blockerInstanceId === prey.instanceId, "指定先がブロックする")
 }
 
 console.log("=== SD06-010 海皇龍シーマ・クリーク Lv1-2：このスピリットはアタックできない ===")
