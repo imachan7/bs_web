@@ -22,6 +22,7 @@ const STAVA = "BS19-007" // スタバ・ドラゴン（赤・コスト4・Lv2ア
 const QUICK = "BS20-005" // クイックサンド・ドラゴン（赤・コスト4・召喚時 BP4000以下の相手のスピリット1体を破壊）
 const FLAMEGUST = "BS09-069" // フレイムガスト（赤・マジック・コスト6・フラッシュ BP6000以下破壊）
 const HONEDEER = "BS16-010" // 骨鹿（紫・コスト1・無魔・Lv1 BP2000）
+const VIZOF = "BS04-034" // ヴィゾフニル（白・コスト1・【装甲：紫】）
 const TOPS = "BS20-012" // ボーン・トプス（紫・コスト3・無魔・Lv1 BP2000）
 
 console.log("=== 前提: カードの機械確認（BS22 と BS20 は staging にしか無い） ===")
@@ -47,6 +48,7 @@ console.log("=== 前提: カードの機械確認（BS22 と BS20 は staging �
     assert(getCard(VAN).name === "ロクケラトプス" && getCard(VAN).effect === "", "VANはロクケラトプス")
     assert(getCard(STAVA).name === "スタバ・ドラゴン" && getCard(STAVA).effect.includes("BP4000以下"), "STAVAはスタバ・ドラゴン")
     assert(getCard(FLAMEGUST).name === "フレイムガスト" && getCard(FLAMEGUST).type === "magic", "FLAMEGUSTはフレイムガスト")
+    assert(getCard(VIZOF).name === "ヴィゾフニル" && getCard(VIZOF).effect.includes("【装甲：") && getCard(VIZOF).effect.includes("紫"), "VIZOFはヴィゾフニル（【装甲：紫】）")
     assert(getCard(HONEDEER).name === "骨鹿" && getCard(HONEDEER).family.includes("無魔"), "HONEDEERは骨鹿（無魔）")
 }
 
@@ -297,6 +299,22 @@ console.log("=== X02 節1：無魔の自分のスピリットがアタックし�
     assert(act(s, "p2", { type: "pass" }) === null, "防御側のパス")
     assert(act(s, "p1", { type: "pass" }) === null, "アタック側のパス")
     assert(declareBlock(s, "p2", a.instanceId) !== null, "ブロックするスピリット以外に破壊できる相手のスピリットがいなければブロックできない")
+}
+{
+    // Q4432：ほかのスピリットがすべて【装甲：紫】なら破壊できずブロックできない
+    const s = game("zande-armor", "purple", "white")
+    const zande = put(s, "p1", ZANDE, 1)
+    const a = put(s, "p2", VIZOF, 1)
+    const b = put(s, "p2", VIZOF, 1)
+    assert(act(s, "p1", { type: "attack", instanceId: zande.instanceId }) === null, "ザンデでアタック")
+    assert(act(s, "p2", { type: "pass" }) === null, "防御側のパス")
+    assert(act(s, "p1", { type: "pass" }) === null, "アタック側のパス")
+    assert(declareBlock(s, "p2", a.instanceId) !== null, "ほかのスピリットがすべて【装甲：紫】ならブロックできない")
+    assert(onField(s, "p2", b), "【装甲：紫】のスピリットは破壊されない")
+    const c = put(s, "p2", VAN, 1)
+    assert(declareBlock(s, "p2", a.instanceId) === null, "装甲を持たないスピリットがいればブロックできる")
+    settle(s, [c.instanceId])
+    assert(!onField(s, "p2", c) && onField(s, "p2", b), "破壊されるのは装甲を持たない側")
 }
 {
     const s = game("zande-nonmama")

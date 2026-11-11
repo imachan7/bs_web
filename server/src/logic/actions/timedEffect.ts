@@ -1,6 +1,6 @@
 // 継続効果を期間つきで置く（ACTION_VOCABULARY §3「期間つきの継続効果」）
 import type { ActionHandler, ActionRegistry } from "./types"
-import type { AuraCounter, CardInstance, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
+import type { AuraCounter, CardInstance, CardType, Color, EffectAction, EffectCounter, GameState, PlayerId, ResolvedTargetFilter } from "../../type"
 import { currentLevel, getCard, log, suspend } from "../GameState"
 import { applyMagicBuffBonus, recordBp, findSpiritAny, pickAnySideByBp, pickAnySideCandidates, resistanceAgainst, pickEnemyByBp, pickEnemyCandidates, pickOwnKeywordTarget, recordTimed, refreshLevelAsOverrides, requestChoice, tryInteractiveTargetChoice } from "../EffectModules"
 import { KEYWORDS, countAuraCounter, effectiveBp, instBaseCost, instHasColor, isBpBuffSuppressed, matchesTarget } from "../../../../shared/rules"
@@ -38,9 +38,12 @@ function has(state: GameState, inst: CardInstance, action: TimedEffect): boolean
     })
 }
 
-function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect): string {
+// src：blockCost の破壊は記録した側の効果として耐性を判定するので、発生源を記録に残す
+function apply(state: GameState, owner: PlayerId, inst: CardInstance, action: TimedEffect, src?: { sourceType?: CardType; sourceColors?: Color[] }): string {
     const recorded = action.content.filter(isRecorded)
-    if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
+    if (src && recorded.some((c) => c.type === "blockCost")) {
+        recordTimed(state, { content: recorded, target: { kind: "instance", instanceId: inst.instanceId }, until: action.duration, ownerPid: owner, ...src })
+    } else if (recorded.length > 0) pushInstanceRecord(state, owner, inst, recorded, action.duration)
     if (action.duration === "nextRefresh") return `${getCard(inst.cardId).name}は、次のリフレッシュステップで${contentLabel(action)}。`
     if (action.duration === "firstAttack") return `${getCard(inst.cardId).name}は、このステップの最初に${contentLabel(action)}。`
     const period = action.duration === "turn" ? "このターン" : "このバトル"
@@ -1027,7 +1030,7 @@ const timedEffectHandler: ActionHandler<"timedEffect"> = (ctx, action) => {
     }
     if (action.target === "self" && !action.content.some((c) => c.type === "bp")) {
         if (!self) return
-        log(state, apply(state, owner, self, action))
+        log(state, apply(state, owner, self, action, { ...(srcType ? { sourceType: srcType } : {}), ...(srcColors ? { sourceColors: srcColors } : {}) }))
         return
     }
     if (action.target === "self") {
