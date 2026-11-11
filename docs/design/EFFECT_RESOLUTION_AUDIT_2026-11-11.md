@@ -145,3 +145,96 @@
 ## 付記
 
 本書は 2026-11-11 の監査（既存監査スクリプトの実行＋仕様と実装の照合、2系統で実施し結果を突き合わせて統合）をもとに作成した。修正に着手する際は、§2 の2件は先例と方針が確定しているためそのまま修正 PR にでき、§3 はユーザーの解釈判断が出てから一般則として `SEMANTICS_AUDIT.md` へ追記したうえで直すのが従来の流儀に合う。
+
+---
+
+# 追補（2026-11-11 Round 2）: 未仕分け分の全件調査と原因確定
+
+Round 1 で「未仕分け」として残した3か所（semantics 候補の残り、immunity 変化行、paths 食い違い、coverage 未発火）を全件調査した。あわせて、ユーザーの解釈判断（2026-11-11）が出たため、その決定もここに記録する。**本追補も調査報告であり、コード・データの修正は含まない**（修正はユーザーが実施する）。
+
+## R-0. ユーザー判断の記録（2026-11-11）
+
+- **B1（§3-1 BS20-068）**: 解釈Aを採用。「相手は〜置く」型の removeCores は**発生源の持ち主の効果**として扱い、耐性（装甲・「相手の効果を受けない」）を適用し、選ぶのはコアを失う側とする。根拠は公式Q&A（《魔帝の墓標》の同文裁定：【超装甲：紫】を持つスピリットのコアはトラッシュに置けない）と公式FAQ（コアの移動先の選択は失う側）
+- **B2（§3-2 BS05-076）**: 現行の「1回の効果あたり上限」を維持する
+- **B3（§3-3 色分割OR）**: 現状維持。未検証のリスクとして本書に残す
+- **B4（§3-4 BS14-081）**: R-1 の訂正も参照（現行では確認が出る形に収まっていた）
+- **B5（§3-5 BS04-081）**: 現行維持、論点として記録のみ
+- **B6（§4 BS15-036/045）**: BS15-027 に揃えて `excludeSelf` を足す方向で決定
+
+## R-1. semantics 候補157件: 全件仕分け完了
+
+内訳: 仕分け済み48件／無害（等価表現が実装にある）88件／道具の誤検出18件／新規疑い1件／要精査1件＋BS20-068の原因確定。**未仕分け分から新規の実バグ確定は0件**。
+
+- 無害88件の根拠は全件、等価表現の実装箇所を確認済み（例: S3 の `canDirectAttack` 付与14件・`canBlockWhileRested` 8件・`pay` の発動確認・`setBurstFromHand {ask:true}`、S4 の `exhaustOnManualCoreAdd` のハンドラ側メイン限定・`fushiCandidates` の attack 限定、S5 の段階表や `lastEmptied` 系の専用表現、S8 の発生源が構造的に排他な e2/e3 分割）
+- 誤検出18件の主因は道具の粒度: S7 の `hasChooserEvidence` が `chooser:"owner"` を見落とす、S1 の「ターンに1回以上（最低回数の強制）」を上限と誤読、S5 の区間上限が次閾値で表現されリテラルに無い、等
+- **新規疑い（低）BS22-052 古剣使ティグリス e2**: 【連鎖：白】「ネクサスの色1色を**指定できる**」に対し、`server/src/logic/actions/declare.ts:111` の `requestChoice(..., false, ...)` はスキップ不可で、色の指定を断れない。実害は「相手のネクサスを戻したくない」場面に限られる
+- **要精査（低）BS02-028 クロスシザース e1**: 「指定する」は必須（2026-10-08 ユーザー確認済み、`cores.ts:140`）だが、指定した後に「同じとして扱う」ことを断る余地がテキスト上あるかは未確認。実害の経路は見つかっていない
+- **訂正**: Round 1 で §3-4「要判断・確度中」とした **BS14-081** は、現行コードでは S3 の VERIFIED 登録（`revealTopSummonFreeOrReturnToDeck` が発動確認を出す）により候補に出ておらず、確認が出る形に収まっている。Round 1 の報告は強すぎた
+
+## R-2. BS20-068 腐食する大瀑布: 原因の最終確定
+
+R-0 の決定解釈と現行コードの乖離は、以下の1本の因果鎖で確定する。
+
+1. **データ**（`data/cards/BS20.json:4761` e2）: `fieldEvent anySpiritAttacked`、`subjectSide:"opponent"`、action は `removeCores {side:"own", to:"trash", count:1}`。`selfMode:"source"` が無く action に `chooser` も無い。`subjectSide:"opponent"` は「相手のアタックで発火する」という発火条件にすぎず、主体の固定にはならない
+2. **実行者の差し替わり**（`server/src/logic/fieldEventTriggers.ts:515` `contextOf`）: `selfMode:"source"` でないため `selfOverride`（＝アタックしたスピリットとその持ち主）を使う分岐に入る。`:546` の `actsOnEventSubject` は `destroy{target:"self"}` と `exhaust{target:"self"}` のみで、これは SEMANTICS_AUDIT §3.18（2026-09-30 ユーザー確認）が対象にした範囲そのもの。`removeCores` は含まれないため、`:548` で `actionPid = selfOverride.pid` ＝アタッカーの持ち主になる
+3. **対象選択は偶然合う**: removeCores の `side:"own"` は実行者から見た自軍なので、差し替わった後は「アタッカー側のスピリット」が候補になり、テキストの「相手のスピリット」と一致してしまう。ここがバグを見えにくくしている
+4. **耐性チェックのスキップ**（`server/src/logic/actions/removeCores.ts`）: 候補絞り込み `:353` の `if (pid !== owner && !canTakeCoresFrom(...))` と適用時 `:368` 付近の `resistanceAgainst` / `askPayToNegateIfNeeded` は、どちらも「対象が実行者と別陣営」のときだけ効く。全候補が `pid === owner` になるため、【装甲：紫】・「相手の効果を受けない」は一切判定されず素通りする。`actorPid` も対象自身になるため「相手の効果でコアを置かれたとき」系の誘発も発火しない
+5. **chooser の二次的な乖離**: `:413-414` の `chooserPid` は `action.chooser === "owner"` のときだけ失う側になる。本件は chooser が無いので `chooserPid = owner`。対話時は owner がたまたま失う側なので選ぶ人は合うが、自動選択 `:431` の `favorHigh = chooserPid === owner` が true になり、失う側が損を最小化するはずの場面で実効BP最大のスピリットが自動で選ばれる
+6. **正しい形の先例（同文）**: BS08-012 ダークスカルデーモン e2 はテキストも同一（「相手は、相手のスピリット上のコア1個を相手のトラッシュに置く」）で、`selfMode:"source"` ＋ `removeCores {chooser:"owner"}` と実装されており、実行者は発生源の持ち主のまま耐性判定が効き、選ぶのは失う側になっている。BS20-068 だけが「相手を実行者にする」近道で書かれているのが根本原因
+7. なお BS06-078 魔帝の寝所 e2 のような `removeCores {target:"self"}` 型（対象がアタッカー自身で固定）は主体がどちらでも結果が変わらず、本件とは別物
+
+## R-3. immunity 変化354行: 全件仕分け完了と新規疑い2件
+
+分類前提: 盾 `immuneToOpponentEffects`（against 未指定）は spirit/magic 発生源だけを止めるのが意図的仕様（`shared/rules/constraints.ts` の `hasFullEffectImmunity`）。手札保護 `handImmuneFor` は全発生源を止める想定で、判定は各ハンドラの責任。
+
+内訳: マジック発生源のBP変化（対象直渡し・既知）164行／ブレイヴ発生源（設計上素通り）117行／ネクサス発生源（無防備ゾーン）24行／無防備な対象の破壊・移動 21行／継続効果の失効による見かけの変化 7行／その他既知クラス 13行／**新規疑い 10行（下記2件）**。残りは全て設計通りの素通りか既知の誤検出で説明がついた。
+
+### R-3a.【確度：高】`removeOneOfAnyType` がスピリットの耐性を一切見ない
+
+- 症状: BS12-003 鎧竜人ガストンの『このスピリットの破壊時』「このスピリットのBP以下の相手のスピリット/ブレイヴどちらか1つを破壊する」が盾持ちスピリット（BS01-001、BS01-050）を破壊した。SD06-017 甲竜封絶破 のバースト「相手のスピリット/ブレイヴ/ネクサスどれか1つをデッキの下に戻す」も盾持ちスピリットを戻した
+- 根本原因: `server/src/logic/actions/battleFlow.ts:1269-1355` の `removeOneOfAnyTypeHandler`
+  - `collect()`（`:1273-1297`）が候補を集める際に `resistanceAgainst`／対象不可のフィルタを**一切していない**（あるのは `maxBpFromSelf` のBP条件だけ）
+  - `removeOne()` のスピリット枝は `server/src/logic/removal.ts:150` の `destroySpirit`（耐性を見ない低レベル原語で、耐性判定は呼び出し側の責任という設計）を直接呼ぶ。対照的に**同じ関数のネクサス枝だけは** `destroyNexus` に sourcePid/srcType/srcColors を渡している（非対称）
+  - 標準経路との差: 通常の destroy は `server/src/logic/actions/destroy.ts:210` で `resistanceAgainst` を確認し、`:1146` で候補を耐性で絞る。範囲バウンスも `bounce.ts:677` で絞る。このハンドラだけ両方が無い
+  - 対話経路も同じ: `server/src/logic/targeting.ts:158` の `tryInteractiveTargetChoice` は渡された候補をそのまま提示するので、実プレイでも耐性持ちが選択肢に出て破壊／バウンスできる（総当たり固有の artifact ではない）
+- 影響範囲（同アクション全7エントリのうちスピリットに届くもの）: BS11-056-e1（mode: toHand）、BS11-X01-e2（destroy）、BS12-003-e1（destroy）、SD06-017-e1（toDeckBottom）。ブレイヴ／ネクサスだけが対象の BS13-X06・BS15-X01-e2・SD06-006 は、合体ブレイヴの耐性を見ないことが `bounce.ts:147` のコメントで意図として明記されているため含めない
+
+### R-3b.【確度：中〜高】BS07-013 魔札の占い師ディーシャ が手札保護を素通り
+
+- テキスト: Lv2『このスピリットの破壊時』「**相手は**手札1枚を選んでデッキの上に戻す」。データは `moveCards {from:"hand", dest:"deckTop", side:"opponent", chooserIsTarget:true}`（`data/cards/BS07.json` BS07-013-e1）
+- 根本原因: `server/src/logic/actions/moveCards.ts:466` の `moveCardsHandler` には `handImmuneFor` の判定が**1か所も無い**（あるのは hand→trash 用の `canDiscardHand` ゲートだけ）。対照的に discard 系は `server/src/logic/actions/drawDiscard.ts:69,179,384` で `handImmuneFor` を確認している。「手札→デッキ」は discard と別ハンドラのため、ゲートが抜けた
+- 影響範囲: `moveCards` で `side:"opponent"` かつ `from:"hand"` のエントリは全プールで BS07-013-e1 が唯一。波及はこの1枚に閉じる
+- 確度の留保: コードにゲートが無いことは確実。「手札保護がデッキ戻しに及ぶか」は解釈前提を含むが、R-0 の B1 一般則（「相手は〜」型は発生源の効果・耐性適用）に従えば阻止されるべきものになる
+
+## R-4. paths 食い違い118件: 全件無害（原因は監査のノイズ構造）
+
+全件について正規化済み全状態をダンプして再帰比較し、**記録マップ以外の状態（プレイヤー・場・手札・ライフ・トラッシュ・保留状態）は118件全てで完全に一致**していた。#235 型（解決順・再開スタック経由で発生源や主体を見失う）は混ざっていなかった。
+
+- 内訳: 記録マップの残留エントリ数差 114件（`lastEmptiedSpirits` 112件、`lastDestroyedCount` 2件）、キー出現順の差のみ 4件（BS20-041-e2。キー集合・値は完全一致で、監査がキー順ソートなしで文字列比較するための人工物）
+- 根本原因（3点の組み合わせ）:
+  1. 書き込み側はスコープごとに必ず記録を作る。`removeCores` は開始時に無条件で `recordEmptiedSpirits(state, 0)` を書く（`server/src/logic/actions/removeCores.ts:724`、実績の加算は `:109`）。破壊も対象なし時に `recordDestroyedCount(state, 0)`（`destroy.ts:549-552`、実績は `removal.ts:919`）
+  2. **掃除の非対称**: 解決後の後始末（`server/src/logic/GameEngine.ts:151-161`）は `lastMoved` / `lastCores` / `lastDrawn` / `lastTargets` / `lastLeftCosts` / `recordScope` を消すが、**`lastEmptiedSpirits` と `lastDestroyedCount` だけ消さない**。そのため前段手順や相方の解決で作られたスコープのエントリが残留し、経路ごとに残留数が変わる
+  3. 監査の正規化（`scripts/audit-paths.ts` の `norm()`）がスコープ UUID を全て `""` に潰すため、残留数の差がそのまま文字列差になる
+- 無害と言える根拠: 記録マップの読み手は `server/src/logic/record.ts` の `lastEmptiedSpiritsOf` / `lastDestroyedCountOf` のみで、常に `currentRecordScope(state)` のエントリだけを読み、無ければ0。呼び出しは `EffectModules.ts:1175,1178` と `control.ts:202` に限られる。中断した効果の再開時も `choice.ts:104,860` がフレーム自身の `recordScope` を復元して読むため、読まれるのは自分のスコープの値だけであり、その値は全ペアで一致を実測した
+- 任意の衛生改善（やるなら）: 後始末で両マップも消すか、監査の `norm()` でキー順ソート／記録マップ除外をすれば、この監査のノイズ118件はゼロになり、本物の食い違いが埋もれなくなる
+
+## R-5. coverage 未発火4件: 全件バグなし（原因は計測構造）
+
+BS21-026-e2 を除く残り4件は、いずれも挙動ではなく「計測点に到達する問い合わせ経路が無い」ことが未発火の原因だった。実挙動は隣接エントリが持ち、smoke の専用場面で検証済み。
+
+| 対象 | 未発火の原因 | テキストと実装 | 検証 |
+|---|---|---|---|
+| BS14-X02-e2【呪滅撃】 | マーカー型キーワード（`server/src/types/keyword.ts:30`「固有の処理は無く名前の登録だけ」）。実挙動は e3 `reviveOnDestroy` が持ち、`revive.ts` は e3 を直接処理するため `jumetsugeki` の保持問い合わせが発生しない。他に参照するカードもプールに無い | 一致（e3 の scope/when/cost はテキスト通り） | part314、part602 |
+| BS15-X06-e2【大粉砕】 | 同型マーカー。実挙動は e3 `triggered onAttack`。【大粉砕】保持側と BS14-062 のオーラを組んだ場面が無く、保持問い合わせ経由の note が発生しない | 一致（e3 は Lv につき5枚×、バースト破棄で破壊1） | e3 は発火済み |
+| BS22-X06-e1【大粉砕】 | 同上。実挙動は e2 | 一致（e2 は BS15-X06-e3 と同一構造） | part817 |
+| BS22-X06-e4【大粉砕】付与（keywordGrant） | 材料不足ではない（系統：闘神・コスト5以上はプールに多数）。実挙動は e5 `effectGrant` が担う。e4 の計測点 `shared/rules/keywordState.ts:254` は「キーワードを持つか」の問い合わせ時のみ通るが、アタック解決は effectGrant の収集経路で進み問い合わせをしない | 一致（e4 の filter はテキスト通り、e5 は付与先のLvで数える） | part817（否定ケース含む） |
+
+- 付記1: `server/src/types/keyword.ts:33` のコメント「このキーワードを持つカードはプールに存在しない（BS14時点）」は BS15-X06／BS22-X06 の追加で陳腐化している（コメントの記述ミスであり、解決挙動のバグではない）
+- 付記2: BS22-X06 の e4（キーワードラベル付与）と e5（効果付与）の二重持ち構造について、将来「キーワード保持を問い合わせて効果を引く」経路が増えた場合に二重発揮しないかは、その経路が現状存在しないため未検証
+
+## R-6. Round 2 でも追い切れなかった範囲
+
+- `audit:paths` 自体が抱える「一度も比べられなかった252エントリ」「相方が誘発しなかった36回」は未調査（監査の比較対象そのものから漏れている範囲）
+- `audit:immunity` のスクリプト除外分（ネクサス発生源のスピリット変化33行、盾が消えた108発火）は再精査していない
+- coverage の「action付き未実行1件（trashImmunity）」は未特定
+- spec 照合系ツールの休眠（§6-2）は未解消のまま
