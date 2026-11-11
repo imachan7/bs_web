@@ -37,7 +37,9 @@
   - 428（case6・9）・439：選ぶたびに場に出ていたのが、選び終わるまで出なくなった（`summonFromHandFree`／`summonFromTrashFree` の upTo）。挙動を変えてはいけない（期待値が正しい）
   - 595：「余分の支払い待ちは1回」の検査が、Lv の待ち（effectCostPay 付き）を2回と数える。余分を払うのが1回のままか確かめてから、数え方を直す
   - 722：P063 サンク・シャインのバースト召喚で、後続の BP+3000 が起きない。未調査
-- **この PR に入れない既知の件**：オープンで置いたネクサスが `fireNexusDeployed` を呼ばない疑い（`revealAction.ts` の placeNexus）／バーストの payCost の支払い元がリザーブだけ（COST_MODEL §12 とずれる）／`summonFreeFromHandIndex` の payCost 経路（帝竜騎）は Lv を選べない
+- **コストを払う効果召喚（15枚：帝竜騎6枚・聖なる柱状彫刻・常闇の聖堂・アンドレアルファス・虚実の口・ボーン・セーラス・ボオーテスコール・兵隊アントマン・陰陽ヤマセミ・ジェネレートファイア）も Lv を選ぶ**（11-11 ユーザー指示）。今はクライアントの `startChoicePaying` が「コスト＋Lv1」で先に払わせている。**サーバー側で `askSummonCores(cost)` を立てる形にそろえる**（カードを選ぶ → Lv と支払い元を選ぶ effectCostPay → 払い済みとして召喚）。クライアントの先払い（`startChoicePaying` の召喚分）はやめる。ジェネレートファイアの「1コストを支払ったものとして」は cost から引いた値を need にする
+- **「リザーブから使用することで」（ボオーテスコール BS12-075）はフィールドのコアを使えない**。`moveCards`／`summon` に `reserveOnly?: true` を足し、`askSummonCores` がリザーブだけで Lv を出し、paySources を拒む（COST_MODEL の「リザーブのコアN個をトラッシュに置くことで」の `reserveOnly` と同じ考え方）。陰陽ヤマセミの payCost はブレイヴの直接合体（置くコア0）なので Lv は関係ない
+- 済み（別 PR）：オープンで置いたネクサスの配置時効果 #436。バーストの「召喚する」は無償（BURST.md の決定）なので payCost 経路は今は使われていない（`control.ts` のコメントが古い）
 
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
