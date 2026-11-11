@@ -6,6 +6,7 @@ import { markPayConfirmed, unpayableLine } from "../actions/pay"
 import { negateBurstActivation } from "../burstNegate"
 import { burstActivationFee, burstFeeUnpayable, payBurstActivationFee } from "../burstActivationFee"
 import { withEffectTax } from "../effectTax"
+import { canPayBurstThenPay, payBurstThenPay } from "../burstThenPay"
 import { emitEvent, hasBurstMagicFreeEffect, resolveAction } from "../EffectModules"
 import type { Color, EffectAction, EffectDef, EventBurstCheck, FieldEvent, GameState, PendingChoice, PlayerId, ResumeFrame } from "../../type"
 import { currentLevel, fieldInstanceIdsOf, getCard, log, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -126,10 +127,9 @@ function tryBurstThenPay(
     const entry = card.effects.find((e): e is Extract<EffectDef, { kind: "magic" }> => e.kind === "magic" && e.timing === thenPay)
     if (!entry) return
     const cost = effectiveCost(state, pid, card)
-    const player = state.players[pid]
     // 払えないなら払う確認は出さず不発（2026-10-02 ユーザー確認。バースト自体の発動確認は済んでいる）。
     // 簡略化：判定するのはコストのコアだけで、効果本体（entry.action）が解決できるかは見ない
-    if (player.reserve < cost) {
+    if (!canPayBurstThenPay(state, pid, cost)) {
         log(state, unpayableLine(card.name, "コストのコアが足りない"))
         return
     }
@@ -150,11 +150,7 @@ function tryBurstThenPay(
         if (state.pendingChoice) state.pendingChoice.burstThenPay = { pid, cost, cardId }
         return
     }
-    player.reserve -= cost
-    player.trashCores += cost
-    log(state, `${player.name}は${card.name}のコスト${cost}を支払った。`)
-    // 色は magicEffectiveColors を通す（BS15-015吸血令嬢エサルフリーダ Lv1-3。BS15_PLAN.md §7.3）
-    resolveAction(state, pid, null, markPayConfirmed(entry.action), undefined, magicEffectiveColors(state, pid, card), "magic", undefined, undefined, cardId)
+    payBurstThenPay(state, pid, cardId, cost, entry.action)
 }
 
 // burstMagicFreeEffect持ち（BS16-070）の分岐：「コストを払ってthenPay」「無償でメイン」「無償でフラッシュ」
@@ -173,7 +169,7 @@ function tryBurstMagicFreeOrThenPay(
     const flashEntry = magicEntry("flash")
     const payEntry = thenPay !== undefined ? magicEntry(thenPay) : undefined
     const payCost = payEntry ? effectiveCost(state, pid, card) : 0
-    const canPay = payEntry !== undefined && player.reserve >= payCost
+    const canPay = payEntry !== undefined && canPayBurstThenPay(state, pid, payCost)
     const resolveFree = (entry: ReturnType<typeof magicEntry>): void => {
         if (!entry) return
         // マジックの「使用」ではないのでresolveMagicは通さない（Q22399。docs/design/BURST.md §7.1）
@@ -183,12 +179,7 @@ function tryBurstMagicFreeOrThenPay(
         // 非対話の既定：無償でフラッシュがあればそれ、無ければ無償でメイン（2026-09-28ユーザー決定）
         if (flashEntry) return resolveFree(flashEntry)
         if (mainEntry) return resolveFree(mainEntry)
-        if (canPay && payEntry) {
-            player.reserve -= payCost
-            player.trashCores += payCost
-            log(state, `${player.name}は${card.name}のコスト${payCost}を支払った。`)
-            resolveFree(payEntry)
-        }
+        if (canPay && payEntry) payBurstThenPay(state, pid, cardId, payCost, payEntry.action)
         return
     }
     const options: string[] = []

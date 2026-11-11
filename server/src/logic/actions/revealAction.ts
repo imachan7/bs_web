@@ -10,7 +10,7 @@ import type { CardPick, EffectAction, Keyword, PlayerId, PlayerState } from "../
 import { createInstance, currentLevel, getCard, log, minLevelCores, pushResumeFrames } from "../GameState"
 import { payCost, fireSummonSequence, fireSummonTrigger, notifyHandGained, requestCardChoice, requestChoice, resolveTensho } from "../EffectModules"
 import { resolveMagicEffects } from "../triggers"
-import { notifyNexusDeployed } from "../fieldEventTriggers"
+import { fireNexusDeployed } from "../fieldEventTriggers"
 import { cardHasTeam, isVanillaCard } from "../../../../shared/rules/level"
 import { summonDenial } from "../summonGate"
 import { hasKeyword, instHasColor, countSymbols } from "../../../../shared/rules"
@@ -165,7 +165,7 @@ function applyPicked(ctx: ActionCtx, action: Extract<EffectAction, { type: "reve
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
             log(state, `${player.name}は${sourceName}の効果で、${card.name}を${action.pay === "cost" ? `コスト${fullCost}を支払って` : "コストを支払わずに"}配置した。`)
-            notifyNexusDeployed(state, owner)
+            fireNexusDeployed(state, owner, inst)
             return
         }
         case "cast": {

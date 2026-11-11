@@ -150,6 +150,7 @@ export type EffectAction =
  | { type: "mutualKeepChoice"; chosenOwn?: string; chosenOpp?: string; awaiting?: "own" | "opponent" } // mutualDestroyChoiceの否定版：各自は**自分の**フィールドから1体を指定し、その2体を除く両陣営のスピリットすべてを破壊する。破壊待機中のself自身は候補に含めない。自動選択は各自の実効BP最大（決定的簡略化）
  | { type: "summonSequence"; byFushi?: true; triggerOnly?: true } // byFushi＝【不死】による召喚として「自分のスピリットが召喚されたとき」を発火する（fieldEvent.fushiSummonOnlyの判定に使う）。**内部専用**：【転召】の対象選択で中断したとき、GameEngineがpendingChoice.queueへ積んで選択の解決後に合流させる
  | { type: "finishMagicUse" } // **内部専用**。選択待ちで止まったマジックを、解決し終えた時点でトラッシュ（または変えた行き先）へ置く
+ | { type: "resumeMagicAfterEffects"; cardId: string; timing: "main" | "flash"; targetInstanceId?: string; paidCost: boolean; repeatSourceId?: string } // **内部専用**。選択待ちで止まったマジックの、効果を解決し終えたあとの再発揮の確認と「マジックを使用したとき」の誘発
  | { type: "resumeMagicEntry"; cardId: string; effectId: string } // **内部専用**。選択待ちで止まったマジックの残りのエントリ1つを、条件の判定から解決し直す
  | { type: "magicMirrorRepeat" } // 相手が直前に使用したマジックの効果を自分が使用したものとして解決し直す（対象・コストは無償の再現。GameState.lastMagicCast。相手の使用でなければ不発。[マジックミラー]自身は対象にできない＝連鎖ミラー防止）
  | { type: "magicFreeUseFromHandOrTegamoto"; colorFilter?: Color; familyFilter?: FamilyFilter; handOnly?: true } // 手札/手元(tegamoto。要tegamotoPlayable)のマジック1枚をコストを支払わずに使用（任意。候補0なら不発）。自動選択は手札→手元の順でコスト最大（決定的簡略化）。paidCost=false で解決するので ownMagicUsed の paidCostOnly は連鎖しない。カード側で optional:true と併用する。handOnly＝手元を候補から外す。familyFilter の配列＝OR

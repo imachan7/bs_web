@@ -1,5 +1,6 @@
 // 効果の**流れ**を決めるだけのアクション（何かを破壊したりコアを動かしたりはしない）。
 // いまは「〜する。**または**、〜する」の分岐だけが入っている。
+import { payBurstThenPay } from "../burstThenPay"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { keishoExcludedTeamAtLeast, normalReserveOf, soulCoreInReserve } from "../soulCore"
 import type { EffectAction, EffectDef, GameState, PlayerId } from "../../type"
@@ -574,12 +575,8 @@ const burstMagicFreeOrThenPayHandler: ActionHandler<"burstMagicFreeOrThenPay"> =
         return
     }
     if (action.payTiming === undefined || action.payCost === undefined) return
-    const player = state.players[owner]
-    if (normalReserveOf(player) < action.payCost) return
-    player.reserve -= action.payCost
-    player.trashCores += action.payCost
-    log(state, `${player.name}は${card.name}のコスト${action.payCost}を支払った。`)
-    resolveFree(magicEntry(action.payTiming))
+    const entry = magicEntry(action.payTiming)
+    if (entry) payBurstThenPay(state, owner, action.cardId, action.payCost, entry.action)
 }
 
 const remainOnFieldSelfHandler: ActionHandler<"remainOnFieldSelf"> = (ctx, action) => {

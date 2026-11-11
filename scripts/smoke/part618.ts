@@ -651,7 +651,9 @@ play("056 バースト：ライフ減少後→相手のスピリットのコア2
     const before = totalCores(t.p("opp"))
     hitLife(t, "opp", attackerLabel)
     answer(t, { by: "me", yes: true }, "バースト発動の確認")
-    answer(t, { by: "me", target: "狙い" }, "コアを置かせる相手のスピリットを選ぶ")
+    // 合計2個（何体からでもよい。2026-11-11 ユーザー確認）なので1個ずつ選ぶ。2個とも同じスピリットから取る
+    answer(t, { by: "me", target: "狙い" }, "コアを置かせる相手のスピリットを選ぶ（1個目）")
+    answer(t, { by: "me", target: "狙い" }, "コアを置かせる相手のスピリットを選ぶ（2個目）")
     finish(t)
     assert(t.inst("狙い").cores === 1, `${t.tag} 狙ったスピリットのコアが2個減る`)
     assert(t.inst(attackerLabel).cores === 3, `${t.tag} 他のスピリットは変わらない`)

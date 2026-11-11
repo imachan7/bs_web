@@ -1,4 +1,5 @@
 // 効果解決中のプレイヤー選択（pendingChoice）への応答と、再開スタックの消化
+import { payBurstThenPay } from "./burstThenPay"
 import { handGainDenial } from "./handGate"
 import { applyBurstNegate, negateBurstActivation } from "./burstNegate"
 import { payBurstActivationFee } from "./burstActivationFee"
@@ -706,16 +707,7 @@ function resolveChoiceInner(
                 if (pending.burstThenPay) {
                     // バーストのthenPay：確認どおりコストを支払ってから発揮する（docs/design/BURST.md）
                     const info = pending.burstThenPay
-                    if (state.players[info.pid].reserve < info.cost) {
-                        log(state, `${getCard(info.cardId).name}：条件を満たさないため発動しなかった。`)
-                    } else {
-                        state.players[info.pid].reserve -= info.cost
-                        state.players[info.pid].trashCores += info.cost
-                        log(state, `${state.players[info.pid].name}はコスト${info.cost}を支払った。`)
-                        // 非対話の tryBurstThenPay と同じく、マジックの色と種別を渡す（【装甲】などの効果耐性。BURST.md §7）。
-                        // 色は magicEffectiveColors を通す（BS15_PLAN.md §7.3）
-                        resolveAction(state, actor, self, pending.action, undefined, magicEffectiveColors(state, info.pid, getCard(info.cardId)), "magic", undefined, undefined, info.cardId)
-                    }
+                    payBurstThenPay(state, info.pid, info.cardId, info.cost, pending.action)
                 } else if (pending.burstActivate && !pending.burstNegateChecked && negateBurstActivation(state, pending.burstActivate.pid, pending.burstActivate.cardId, { kind: "confirm", original: pending, option })) {
                     // 無効にした、または相手の BS21-052 の確認待ち（続きは burstNegate の解決で行う）
                 } else if (pending.burstActivate) {
