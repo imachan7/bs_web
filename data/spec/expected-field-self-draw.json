@@ -1,0 +1,9869 @@
+[
+ {
+  "id": "BS01-059",
+  "clauses": [
+   {
+    "text": "相手がデッキからカードをドローするとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS01-104",
+  "clauses": [
+   {
+    "text": "相手のスピリットが疲労するたびに、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このネクサス上のコア1個をトラッシュに置くことで、相手のブロックしたスピリット1体を、バトル終了後に破壊する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS01-105",
+  "clauses": [
+   {
+    "text": "コア1個しか置いていないスピリットは、アタックとブロックができない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "制約",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "アタックを宣言したスピリットは、そのスピリット上のコア1個をトラッシュに置かなければならない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS01-107",
+  "clauses": [
+   {
+    "text": "相手によって自分のライフが減らされたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手によって自分のライフが減らされたとき、ボイドからコア1個を自分のリザーブに置く。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS01-123",
+  "clauses": [
+   {
+    "text": "メイン：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、自分のスピリットが手札に戻るとき、戻るスピリット1体につき、自分はデッキから1枚ドローする。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "フラッシュ：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、スピリット1体をBP+1000する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS02-009",
+  "clauses": [
+   {
+    "text": "自分か相手のフィールドにあるネクサスが破壊されたとき、破壊されたネクサス1つにつき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "any",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS02-084",
+  "clauses": [
+   {
+    "text": "自分の黄のスピリットが破壊されたとき、ボイドからコア1個を自分のリザーブに置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の黄のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS03-028",
+  "clauses": [
+   {
+    "text": "フラッシュ【神速】",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットは手札からフラッシュのタイミングで召喚できる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "activated",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "このときスピリットに置くコアとコストは、すべてリザーブから支払われなくてはならない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットは、相手がデッキからカードをドローするとき回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS03-050",
+  "clauses": [
+   {
+    "text": "自分がマジックの効果を使用するたび、このスピリットをBP+1000する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS03-082",
+  "clauses": [
+   {
+    "text": "このスピリットは、自分のネクサスが破壊されたとき回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS03-086",
+  "clauses": [
+   {
+    "text": "自分のフィールドに緑のネクサスがある間、【粉砕】によって相手のトラッシュにカードが置かれるたび、ボイドからコア1個をこのスピリット上に置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS03-104",
+  "clauses": [
+   {
+    "text": "カードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "カードに効果の記述を持たない自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、自分か相手のスピリット1体を疲労させる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS04-036",
+  "clauses": [
+   {
+    "text": "このスピリットはアタックできない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフが減ったとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS04-037",
+  "clauses": [
+   {
+    "text": "相手のフィールドに赤のスピリットがいない間、このスピリットはアタックできない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "コスト1以下の相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS04-043",
+  "clauses": [
+   {
+    "text": "このスピリットは、相手のスピリット/マジックの効果を受けない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフが減ったとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS04-085",
+  "clauses": [
+   {
+    "text": "自分のフィールドに系統：「四道」を持つスピリットが3体以上いる間、相手はスピリットを召喚するとき、1コスト余分に支払わなければならない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のメインステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "常時的な制約（〜いる間、相手は〜しなければならない）で誘発ではない。skeletonの誤分類"
+   },
+   {
+    "text": "自分のフィールドに系統：「四道」を持つスピリットが3体以上いる間、相手はアタックをするとき、相手のフィールド/リザーブにあるコア1個を相手のトラッシュに置かなければならない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "常時的な制約（〜いる間、相手は〜しなければならない）で誘発ではない。skeletonの誤分類"
+   }
+  ]
+ },
+ {
+  "id": "BS04-X14",
+  "clauses": [
+   {
+    "text": "相手のスピリットを破壊したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い（破壊された とは主体が異なる）"
+   },
+   {
+    "text": "自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、相手のスピリット1体を疲労させる。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "お互い、手札5枚を破棄する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの破壊時』",
+    "actor": "turnPlayer",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS05-037",
+  "clauses": [
+   {
+    "text": "コスト2の自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS05-057",
+  "clauses": [
+   {
+    "text": "コスト1以下のスピリットが疲労したとき、そのスピリット上のコア2個を持ち主のトラッシュに置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 2,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【転召】を持つ自分のスピリットすべてに“『このスピリットのアタック時』相手の疲労状態のスピリット1体を破壊する”という効果を与える。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS05-064",
+  "clauses": [
+   {
+    "text": "自分の黄のスピリットが破壊されたとき、自分の手札にあるカード名に「ペンタン」を含むスピリットカード1枚をコストを支払わずに召喚できる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "ただし、『このスピリットの召喚時』効果は発揮されない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "アタックしているカード名に「ペンタン」/「アンプルール」を含む自分のスピリットは、同じLvの相手のスピリットにブロックされたとき回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS06-034",
+  "clauses": [
+   {
+    "text": "自分の手札にある系統：「虚神」を持つスピリットカードすべてのコストを6にする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフが3以下の間、このスピリットをBP+3000する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "[鉄拳のカクタスガルー]以外の【暴風】を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS06-038",
+  "clauses": [
+   {
+    "text": "このスピリットはアタックできない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフが減ったとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS06-050",
+  "clauses": [
+   {
+    "text": "このスピリットは疲労する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手がマジックの効果を使用したとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS06-075",
+  "clauses": [
+   {
+    "text": "【激突】を持つ自分のスピリットが、BPを比べ相手のスピリットに破壊されたとき、その破壊されたスピリット上のコアすべてを自分のスピリット1体の上に置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【激突】を持つ自分のスピリット1体が自分のターンの最初のアタックをしたとき、そのスピリットを回復させる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS06-076",
+  "clauses": [
+   {
+    "text": "自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "ターンに1回、系統：「無魔」を持つ自分のスピリットが破壊されたとき、自分の手札1枚を破棄することで、回復状態で自分のフィールドに残る。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『フィールドに残る/残す』処理は語彙の op に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS06-078",
+  "clauses": [
+   {
+    "text": "スピリット/ネクサス/マジックの効果以外でコアの数を増やしたスピリットすべては疲労する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のメインステップ』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "アタックしたスピリットは、そのスピリット上のコア1個を持ち主のトラッシュに置く。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS06-080",
+  "clauses": [
+   {
+    "text": "【暴風】を持つ自分のスピリットが召喚されたとき、その召喚されたスピリットの【暴風】の指定数1につき、ボイドからコア1個を召喚されたスピリットに置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【暴風】を持つ自分のスピリットが、BPを比べ相手のスピリットだけを破壊したとき、【暴風】で疲労した相手のスピリットすべてを好きな順番でデッキの下に戻す。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS06-087",
+  "clauses": [
+   {
+    "text": "系統：「想獣」を持つスピリットが召喚されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のフィールドにシンボルが1色しかない間、自分の黄のスピリットすべては、BPを比べ相手のスピリットに破壊されたとき、疲労状態でフィールドに残る。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『フィールドに残る/残す』処理は語彙の op に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS06-095",
+  "clauses": [
+   {
+    "text": "メイン：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、アタックした自分の紫のスピリットが、BPを比べ相手のスピリットに破壊されるたび、自分はデッキから2枚ドローする。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 2,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "フラッシュ：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、スピリット1体をBP+2000する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS07-043",
+  "clauses": [
+   {
+    "text": "カード名に「ペンタン」と入っている自分のスピリットが破壊されたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の手札にあるカード名に「ペンタン」と入っているスピリットカードすべてのコストを3にする。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "カード名に「ペンタン」と入っているスピリット1体につき、このスピリットをBP+1000する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS07-047",
+  "clauses": [
+   {
+    "text": "相手がマジックの効果を使用したとき、ボイドからコア1個をこのスピリット上に置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS07-071",
+  "clauses": [
+   {
+    "text": "フラッシュ：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このバトルの間、自分のスピリットのアタックによって相手のライフを減らしたとき、自分はデッキから2枚ドローする。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 2,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS08-016",
+  "clauses": [
+   {
+    "text": "【転召：コスト1以上/トラッシュ】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "召喚コスト支払い後、自分のコスト1以上のスピリット1体の上のコアすべてを自分のトラッシュに置かなければならない。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「冥主」を持つスピリットで【転召】したとき、ドローするカードを3枚にする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS08-061",
+  "clauses": [
+   {
+    "text": "コスト4以下の『このスピリットの召喚時』効果は発揮されない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "ドローステップ以外で相手がドローしたとき、自分はデッキから1枚ドローできる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS08-X32",
+  "clauses": [
+   {
+    "text": "【転召：コスト5以上/ボイド】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "召喚コスト支払い後、自分のコスト5以上のスピリット1体の上のコアすべてをボイドに置かなければならない。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【氷壁：赤/紫/緑/白/黄/青】『相手のターン』",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手が赤/紫/緑/白/黄/青のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『効果を無効にする』は語彙の op に無い"
+   },
+   {
+    "text": "[翼神機グラン・ウォーデン]以外の、系統：「武装」を持つ自分のスピリットが疲労したとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS08-X33",
+  "clauses": [
+   {
+    "text": "自分の手札を好きなだけ破棄する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "その破棄したカード1枚につき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のトラッシュにある黄のマジックカード1枚を、手札にあるときと同様に使用できる。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "マジックの効果が使用されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS09-021",
+  "clauses": [
+   {
+    "text": "系統：「剣獣」/「勇傑」を持つ自分のスピリットが疲労したとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS09-050",
+  "clauses": [
+   {
+    "text": "自分のネクサスが配置されたとき、ボイドからコア1個をこのスピリット上に置く。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "配置された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS09-071",
+  "clauses": [
+   {
+    "text": "メイン：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、【不死】を持つ自分のスピリットが召喚されたとき、自分はデッキから2枚ドローする。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 2,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "フラッシュ：",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、スピリット1体をBP+1000する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS09-X37",
+  "clauses": [
+   {
+    "text": "【転召：コスト6以上/ボイド】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "召喚コスト支払い後、コスト6以上の自分のスピリット1体のコアすべてをボイドに置かなければならない。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットすべてを疲労させる。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "[鉄騎皇イグドラシル]で【転召】したとき、さらにボイドからコア6個をこのスピリットに置く。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": 6,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "コスト8以下の自分のスピリット3体を回復させる。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのバトル時』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS09-X39",
+  "clauses": [
+   {
+    "text": "相手のスピリットによって自分のライフが減ったとき、自分のトラッシュにある黄のマジックカード1枚を手札に戻す。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分か相手がマジックカードを使用したとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": "any",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の手札/手元にある黄のマジックカードすべてを、コストを支払わずに使用できる。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "activated",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-070",
+  "clauses": [
+   {
+    "text": "相手のスピリット1体を手札に戻す。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体条件：効果の記述を持たない",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体していない相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-083",
+  "clauses": [
+   {
+    "text": "相手のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のスピリット状態のブレイヴすべてに“【呪撃】『このスピリットのアタック時』このスピリットは、ブロックした相手のスピリット1体をバトル終了時に破壊する”という効果を与える。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-084",
+  "clauses": [
+   {
+    "text": "系統：「妖蛇」を持つ自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のトラッシュにある【合体時】効果を持つスピリットカード1枚を召喚できる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のエンドステップ』",
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-085",
+  "clauses": [
+   {
+    "text": "効果の記述を持たない自分のスピリットがアタックしたとき、ボイドからコア1個をそのスピリット上に置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の手札にある効果の記述を持たないスピリットカードすべてに“【神速】手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで、フラッシュタイミングで召喚できる”という効果を与える。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-034",
+  "clauses": [
+   {
+    "text": "【氷壁：赤/紫】『相手のターン』",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手が赤/紫のマジックの効果を使用したとき、このスピリットを疲労させることで、その効果を無効にする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『効果を無効にする』は語彙の op に無い"
+   },
+   {
+    "text": "自分のライフが減ったとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-088",
+  "clauses": [
+   {
+    "text": "効果の記述を持たない自分のスピリットがブロックしたとき、ボイドからコア1個をそのスピリット上に置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ブロックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットがアタックしたとき、効果の記述を持たない自分のスピリットすべては回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-089",
+  "clauses": [
+   {
+    "text": "相手のネクサス1つを手札に戻す。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のスタートステップ』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "ドローステップ以外で相手がドローしたとき、自分はデッキから1枚ドローできる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-X04",
+  "clauses": [
+   {
+    "text": "相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "BPを比べ相手のスピリットだけを破壊したとき、そのスピリットよりBPの低い相手のスピリットすべてを手札に戻す。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのブロック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い"
+   },
+   {
+    "text": "ステップ開始時、合体していない相手のスピリット1体を指定する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "そのスピリットは可能ならば必ずアタックする。",
+    "levels": [
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-043",
+  "clauses": [
+   {
+    "text": "コスト2の自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS10-091",
+  "clauses": [
+   {
+    "text": "効果の記述を持たない自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のコスト2のスピリットすべては、相手のスピリットの効果を受けない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS11-023",
+  "clauses": [
+   {
+    "text": "相手がデッキからカードをドローしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS11-040",
+  "clauses": [
+   {
+    "text": "【光芒】『このスピリットのアタック時』",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "バトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分がマジックの効果を使用したとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの合体アタック時』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS11-064",
+  "clauses": [
+   {
+    "text": "自分のスピリットが破壊されたとき、そのスピリットをコスト3/4のスピリットとしても扱う。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "述語が語彙の op のどれにも一意に落ちない"
+   },
+   {
+    "text": "相手のスピリットが合体したとき、その合体スピリットは疲労する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "合体した",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS11-070",
+  "clauses": [
+   {
+    "text": "系統：「戯狩」を持つ自分のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「戯狩」を持つ自分のスピリットすべてに“【聖命】『このスピリットのアタック時』このスピリットのアタックによって相手のライフを減らしたとき、ボイドからコア1個を自分のライフに置く”という効果を与える。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "他のスピリットへ効果を与える付与文で、このカード自身の誘発ではない"
+   }
+  ]
+ },
+ {
+  "id": "BS11-X03",
+  "clauses": [
+   {
+    "text": "自分のライフが3以下の間、手札にあるこのスピリットカードのコストを4にする。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "フラッシュ【神速】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "手札にあるこのスピリットカードは、召喚コストの支払いと上に置くコアをリザーブから使用することで召喚できる。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "【神速】を持つ自分のスピリットが召喚されたとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS12-014",
+  "clauses": [
+   {
+    "text": "系統：「無魔」を持つ自分のスピリットが破壊されたとき、その破壊されたスピリット1体につき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「無魔」を持つ自分のスピリット1体につき、疲労状態の相手のスピリット1体を破壊する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの合体アタック時』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS12-053",
+  "clauses": [
+   {
+    "text": "自分の手札すべて(最低1枚以上)を破棄できる。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "そうしたとき、自分はデッキから相手の手札と同じ枚数ドローする。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体条件：コスト3以上",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【合体中】",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手がドローしたとき、このスピリットは回復する。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS12-061",
+  "clauses": [
+   {
+    "text": "【転召】するとき、このネクサスを疲労させることで、系統：「星魂」を持つ自分のコスト3のスピリット1体のコアすべてを指定場所に置いたものとして扱う。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『転召するとき』は語彙の trigger.event に無い"
+   },
+   {
+    "text": "ブレイヴが召喚されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS12-X04",
+  "clauses": [
+   {
+    "text": "Lv1･Lv2･Lv3【重装甲：可変】",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットは、このスピリットの色の相手のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットのBP以下の相手のスピリット1体を手札に戻す。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック/ブロック時』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "X008",
+  "clauses": [
+   {
+    "text": "緑/白/黄のブレイヴとの合体時、相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "赤/紫/青のブレイヴとの合体時、BP10000以下の相手のスピリット1体を破壊する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの合体アタック時』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-006",
+  "clauses": [
+   {
+    "text": "BP4000以下の相手のスピリットがアタックしたとき、そのスピリットを破壊する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のフィールドにスピリット状態のブレイヴがいる間、このスピリットに赤のシンボル1つを追加する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-061",
+  "clauses": [
+   {
+    "text": "BP4000以下のスピリットがアタックしたとき、そのスピリットを破壊する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフのコア1個につき、系統：「地竜」と系統：「竜人」両方を持つ自分のスピリットすべてをBP+1000する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-015",
+  "clauses": [
+   {
+    "text": "自分のトラッシュにあるこのスピリットカードは、『自分のエンドステップ』に手札に戻る。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のトラッシュにある【呪撃】/【不死】を持つスピリットカード1枚を手札に戻す。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "アタックしている【呪撃】/【不死】を持つ自分のスピリットすべての色を無いものとして扱う。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "として扱う",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-016",
+  "clauses": [
+   {
+    "text": "系統：「妖蛇」を持つ自分のスピリットが召喚されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「竜人」を持つ自分のスピリットが疲労したとき、相手のスピリット上のコア1個を相手のリザーブに置く。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のトラッシュにある、カード名に「ドラゴナーガ」と入っているスピリットカードすべてを手札に戻す。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの破壊時』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-063",
+  "clauses": [
+   {
+    "text": "コアが2個以下しか置かれていないスピリットがアタックしたとき、そのスピリットを破壊する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "ステップ開始時、自分の手札にある【呪撃】/【不死】を持つスピリットカード1枚を破棄することで、ドローの枚数を+2枚する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のドローステップ』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-019",
+  "clauses": [
+   {
+    "text": "【神速】を持つ自分のスピリット1体を手札に戻すことで、このスピリットは回復する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のエンドステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のスピリットが合体したとき、そのスピリットを回復させる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "合体した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-024",
+  "clauses": [
+   {
+    "text": "系統：「遊精」を持つ自分のスピリット1体につき、ボイドからコア1個を自分のリザーブに置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「遊精」を持つ自分のスピリット1体を疲労させることで、このスピリットをBP+(疲労させたスピリットのBP)する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "[武神獣ディアル・ユキムラ]以外の自分のスピリットが回復したとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "回復した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-X04",
+  "clauses": [
+   {
+    "text": "Lv1･Lv2･Lv3【重装甲：紫/緑/白/黄】",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットは、相手の紫/緑/白/黄のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリット以外の系統：「光導」/「星魂」を持つ自分のスピリットが疲労したとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「光導」/「星魂」を持つ自分のスピリットすべてに白のシンボル1つを追加する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS13-036",
+  "clauses": [
+   {
+    "text": "自分の黄のスピリットが破壊されたとき、自分のライフのコア1個を自分のリザーブに置くことで、破壊された自分の黄のスピリット1体を疲労状態でフィールドに残す。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『フィールドに残る/残す』処理は語彙の op に無い"
+   },
+   {
+    "text": "自分の黄のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の黄のスピリットが破壊されたとき、ボイドからコア1個を自分のリザーブに置く。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS14-037",
+  "clauses": [
+   {
+    "text": "相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のバーストをセットしているとき、ボイドからコア1個をこのスピリットに置く。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのブロック時』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS14-049",
+  "clauses": [
+   {
+    "text": "このスピリットカードが相手の「デッキ破棄効果」で破棄されたとき、このターンの間、自分のデッキは破棄されず、このスピリットカードを、コストを支払わずに召喚できる。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "デッキが破棄された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "カード名に「ペンタン」を含む自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS14-068",
+  "clauses": [
+   {
+    "text": "合体条件：コスト4以上",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS14-075",
+  "clauses": [
+   {
+    "text": "相手のスピリットを破壊したとき、破壊したスピリット1体につき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS14-077",
+  "clauses": [
+   {
+    "text": "スピリット/ブレイヴ/ネクサス/マジックの効果以外でコアを置いた相手のスピリットを疲労させる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のメインステップ』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS14-082",
+  "clauses": [
+   {
+    "text": "自分の手札は相手のスピリット/ブレイヴ/ネクサス/マジックの効果を受けない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "ドローステップ以外で相手がドローしたとき、自分はデッキから1枚ドローできる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS14-085",
+  "clauses": [
+   {
+    "text": "お互い、メインステップでデッキは破棄されない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "turnPlayer",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "スピリット/マジックの効果で回復した赤/緑/白/青のスピリットすべてを破壊する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS15-009",
+  "clauses": [
+   {
+    "text": "自分のバーストをセットしている間、手札にあるこのスピリットカードをコスト7にする。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のデッキを上から2枚オープンできる。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "オープン",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 2,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "その中の【激突】を持つスピリットカードを、コストを支払わずに好きなだけ召喚する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "残ったカードは破棄する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリット以外の【激突】を持つ自分のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS15-X03",
+  "clauses": [
+   {
+    "text": "相手はバーストを発動できない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのバトル時』",
+    "actor": "opponent",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の緑のスピリット1体につき、系統：「華兵」を持つ自分のスピリットすべてをBP+1000する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットが疲労したとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS16-054",
+  "clauses": [
+   {
+    "text": "【バースト：自分のライフ減少後】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフが3以下のとき、このスピリットカードを召喚する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「覇皇」を持つ相手のスピリット1体を破壊する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「覇皇」/「雄将」を持つ自分のスピリットがアタックしたとき、相手は、相手のリザーブのコア2個を相手のトラッシュに置かなければブロックできない。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "opponent",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 2,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS16-X01",
+  "clauses": [
+   {
+    "text": "【バースト：自分のライフ減少後】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このカードをコストを支払わずに召喚する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のバースト1つをオープンできる。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "オープン",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "そのカードのバースト条件が【相手の『このスピリット/ブレイヴの召喚時』発揮後】のとき発動させる。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "他のバースト条件のときはデッキの下に戻す。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "デッキに戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットは回復する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のバースト発動後』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS16-038",
+  "clauses": [
+   {
+    "text": "相手によって系統：「四道」を持つ自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【光芒】『このスピリットのアタック時』",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "バトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS16-044",
+  "clauses": [
+   {
+    "text": "自分のデッキを上から6枚オープンできる。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "オープン",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 6,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "その中の系統：「四道」を持つスピリットカード2枚までを、コストを支払わずに召喚できる。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "ただし、それらの『このスピリットの召喚時』効果は発揮されない。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "残ったカードは破棄する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分はデッキから1枚ドローする。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のバースト発動後』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS16-069",
+  "clauses": [
+   {
+    "text": "ステップ開始時、自分の手札にある黄のスピリットカード1枚を破棄することで、ドローの枚数を+1枚する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のドローステップ』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「四道」を持つ自分のスピリットが破壊されたとき、その破壊されたスピリット1体をデッキの上に戻すことができる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "デッキに戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS17-005",
+  "clauses": [
+   {
+    "text": "【バースト：相手の『このスピリット/ブレイヴの召喚時』発揮後】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットカードを召喚する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "その後、自分のバーストをセットしていないとき、自分の手札にあるバースト効果を持つカード1枚をセットできる。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "自分のバーストをセットしている間、系統：「覇皇」/「雄将」を持つ自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS17-038",
+  "clauses": [
+   {
+    "text": "自分がマジックカードを使用したとき、その効果発揮後、このターンの間、このスピリットをBP+2000する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS17-042",
+  "clauses": [
+   {
+    "text": "【光芒】『このスピリットのアタック時』",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "バトル終了時、自分がこのバトルで使用したマジックカードすべては手札に戻る。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "ターンに1回、自分がマジックカードを使用したとき、その効果発揮後、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS17-064",
+  "clauses": [
+   {
+    "text": "相手の合体スピリットのブレイヴ1つを破壊する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のバースト発動後』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "コスト3の自分のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS17-070",
+  "clauses": [
+   {
+    "text": "相手によって自分のデッキからバースト効果を持つカードが破棄されたとき、そのカードを手札に加える。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "デッキが破棄された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "手札に加える",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "さらに、このターンの間、自分のデッキは破棄されない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分がマジックカードを使用したとき、その効果発揮後、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "マジックを使用した",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果はターンに1回しか使えない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-040",
+  "clauses": [
+   {
+    "text": "相手のスピリット/ネクサスの効果でボイドからコアが増えたとき、増えたコア1個につき、自分はデッキから1枚ドローできる。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "コアが置かれた",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットとバトルしたコスト4以下の相手のスピリットをLv1として扱う。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのバトル時』",
+    "actor": "owner",
+    "op": "として扱う",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-041",
+  "clauses": [
+   {
+    "text": "自分か相手のライフにコアが置かれたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "コアが置かれた",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-046",
+  "clauses": [
+   {
+    "text": "シンボル2つ以上を持つ自分のスピリットは、BPを比べ相手のスピリットだけを破壊したとき回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-061",
+  "clauses": [
+   {
+    "text": "系統：「戦竜」を持つ自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手によって自分の赤のスピリットが破壊されたとき、BP5000以下の相手のスピリット1体を破壊する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-063",
+  "clauses": [
+   {
+    "text": "お互い、スピリット/ブレイヴの効果でボイドからコアを増やすことができない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "turnPlayer",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の手札が5枚以上の間、相手によって自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-069",
+  "clauses": [
+   {
+    "text": "相手によって自分のスピリットが破壊されたとき、ターンに1回、自分の手札にあるカード名に「グリム」と入っているスピリットカード1枚を、コストを支払わずに召喚できる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「天霊」を持つ自分のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS18-X01",
+  "clauses": [
+   {
+    "text": "【バースト転召：自分のライフ減少後】",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「覇皇」を持つ自分のスピリット1体のコアすべてをボイドに置くことで、このカードをコストを支払わずに召喚する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果発揮後、自分のライフが5になるまで、自分のフィールド/リザーブから好きなだけコアを置く。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフのコア1個をこのスピリットに置くことで、このターンの間、自分のスピリットすべてをBP+5000する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック/ブロック時』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットは回復する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のバースト発動後』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-003",
+  "clauses": [
+   {
+    "text": "系統：「星竜」を持つ自分のスピリットは、【重装甲】を持つ相手のスピリットにブロックされたとき回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットをBP+3000する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-053",
+  "clauses": [
+   {
+    "text": "このターンの間、相手のスピリット1体をBP-2000する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の黄のマジックカード1枚を、フラッシュタイミングでコストを支払わずに使用できる。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの合体アタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "自分がコスト3のマジックカードを使用したとき、その効果発揮後、このスピリットは回復する。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-074",
+  "clauses": [
+   {
+    "text": "合体条件：コスト4以上",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のライフが減ったとき、このスピリットは回復する。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-079",
+  "clauses": [
+   {
+    "text": "【強化】を持つコスト2以上の自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「星竜」を持つ自分のスピリットが相手のスピリットを破壊したとき、自分のトラッシュにあるブレイヴカード1枚を手札に戻す。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS19-082",
+  "clauses": [
+   {
+    "text": "自分のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「無魔」を持つ自分のスピリットすべては、相手の効果では疲労しない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-085",
+  "clauses": [
+   {
+    "text": "自分の緑のスピリットがアタックしたとき、ボイドからコア1個を【強化】を持つ自分のスピリットに置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットのアタックによって自分のライフが減ったとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-088",
+  "clauses": [
+   {
+    "text": "BP4000以下のスピリットのアタックでは、お互いのライフは減らない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリット/マジックの効果で相手の手札が増えたとき、増えたカード1枚につき、自分はデッキから1枚ドローできる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "手札に加えられた",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-090",
+  "clauses": [
+   {
+    "text": "自分の緑のスピリットが召喚されたとき、ボイドからコア1個を自分の白のスピリットに置く。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【連鎖】を持つ自分のスピリットが相手の効果によって破壊されたとき、破壊された自分のスピリット1体を手札に戻す。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-091",
+  "clauses": [
+   {
+    "text": "相手のスピリットがターンで初めてBP0になったとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『BP0になったとき』は語彙の trigger.event に無い"
+   },
+   {
+    "text": "系統：「天霊」を持つ自分のスピリットがBPを比べ相手のスピリットだけに破壊されたとき、ボイドからコア1個を自分のライフに置く。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-093",
+  "clauses": [
+   {
+    "text": "【連鎖】を持つ自分のスピリットが召喚されたとき、自分のデッキを上から1枚オープンできる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "オープン",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "そのカードがブレイヴカード/マジックカードのとき自分の手札に加える。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "手札に加える",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "他のカードのときは破棄する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "破棄",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の合体スピリットのブレイヴだけが破壊されたとき、そのブレイヴを手札に戻すことができる。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS19-X06",
+  "clauses": [
+   {
+    "text": "相手のデッキを上から5枚破棄し、マジックカードが破棄されたとき、このスピリットに青のシンボル1つを追加する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "Lv2･Lv3【強化】",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の「相手へのデッキ破棄効果」の枚数を+1枚する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリットが相手へのデッキ破棄効果を発揮したとき、相手の効果で1枚も破棄できなければ、ターンに3回まで、このスピリットは回復できる。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS20-017",
+  "clauses": [
+   {
+    "text": "自分のトラッシュにあるブレイヴカード1枚を手札に戻す。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの召喚時』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットのコア1個を相手のリザーブに置く。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のスピリットの効果で相手のスピリットのコアが0個になったとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "コアが取り除かれた",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『コアが0個になったとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS20-025",
+  "clauses": [
+   {
+    "text": "相手がドローしたとき、このスピリットは回復する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ドローした",
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "バトルしている自分のスピリットのコア1個につき、そのスピリットをBP+1000する。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": true,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS20-043",
+  "clauses": [
+   {
+    "text": "系統：「想獣」を持つ自分のスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS20-071",
+  "clauses": [
+   {
+    "text": "系統：「天霊」を持つ自分のスピリットのアタックによって相手のライフを減らしたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【強化】を持つ自分のスピリットが相手によって破壊されたとき、このネクサスを疲労させることで、そのスピリット1体を疲労状態でフィールドに残す。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『フィールドに残る/残す』処理は語彙の op に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS20-X01",
+  "clauses": [
+   {
+    "text": "破壊された自分のスピリットのコアすべては、リザーブではなく、このスピリットに置かれる。",
+    "levels": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "カード名：「滅龍帝ジエンド・ドラゴニス」以外の自分のスピリットが相手のスピリットにブロックされたとき、このスピリットは回復する。",
+    "levels": [
+     2,
+     3,
+     4
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ブロックされた",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "フラッシュ『このスピリットのアタック時』",
+    "levels": [
+     3,
+     4
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のスピリット1体を破壊することで、このスピリットは回復する。",
+    "levels": [
+     3,
+     4
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果は、ターンに3回までしか使えない。",
+    "levels": [
+     3,
+     4
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS20-X08",
+  "clauses": [
+   {
+    "text": "Lv1【強化】",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "アルティメット以外の自分の「BP-効果」を-1000する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体条件：コスト5以上",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【合体中】【強化】",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "アルティメット以外の自分の「BP-効果」を-1000する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このターンの間、相手のスピリット1体をBP-3000する。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "その相手のスピリットがターンで初めてBP0になったとき、このスピリットは回復する。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-001",
+  "clauses": [
+   {
+    "text": "相手によって自分の緑のスピリットが破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果は重複しない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-004",
+  "clauses": [
+   {
+    "text": "Lv1･Lv2【強化】",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "keyword",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の「BP破壊効果」の上限を+1000する。",
+    "levels": null,
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "コスト5以上の自分のスピリットが召喚されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果はターンに1回しか使えない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-006",
+  "clauses": [
+   {
+    "text": "自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのアタック時』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "【合体時】『自分のアタックステップ』",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "このスピリット以外の系統：「皇獣」を持つ自分のスピリットがアタックしたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-012",
+  "clauses": [
+   {
+    "text": "自分の青のスピリットが召喚されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果はターンに1回しか使えない。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-017",
+  "clauses": [
+   {
+    "text": "【呪撃】を持つ自分のスピリットが相手によって破壊されたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-023",
+  "clauses": [
+   {
+    "text": "系統：「想獣」を持つ自分のスピリットがアタックしたとき、ボイドからコア1個をそのスピリットに置く。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-025",
+  "clauses": [
+   {
+    "text": "系統：「爪鳥」を持つ自分のスピリットすべてのコアの数は、相手によってLv1コストより少なくならない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のマジックの効果で相手のスピリットが疲労したとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-026",
+  "clauses": [
+   {
+    "text": "【神速】を持つ自分のスピリット/ブレイヴが召喚されたとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "召喚された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-034",
+  "clauses": [
+   {
+    "text": "自分の白のスピリットがブロックしたとき、そのスピリットをBP+3000する。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ブロックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体していない相手のスピリットすべては、可能ならば必ずアタックする。",
+    "levels": [
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-041",
+  "clauses": [
+   {
+    "text": "相手のスピリットがターンで初めてBP0になったとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『BP0になったとき』は語彙の trigger.event に無い"
+   },
+   {
+    "text": "相手のスピリットすべては回復できない。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS21-068",
+  "clauses": [
+   {
+    "text": "自分のスピリットすべての【呪撃】を“【呪撃】『このスピリットのブロック時』バトル解決時にアタックしていた相手のスピリット1体を、バトル終了時に破壊する”に変更する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分の効果によって相手のスピリットのコアが0個になったとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "コアが取り除かれた",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『コアが0個になったとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "BS22-058",
+  "clauses": [
+   {
+    "text": "このターンの間、自分のスピリット/ブレイヴ/ネクサス/マジックの効果で、相手のスピリットのコアをリザーブに置いたとき、その相手のスピリットすべてを疲労させる。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "疲労させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体条件：コスト5以上",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットのコア1個を相手のリザーブに置く。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "onAttack",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットの合体アタック時』",
+    "actor": "owner",
+    "op": "コアを取り除く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS22-071",
+  "clauses": [
+   {
+    "text": "自分のライフが増えたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "『ライフが増えたとき』は語彙の trigger.event に無い（ライフが減った の対）"
+   },
+   {
+    "text": "自分の手札にある赤のスピリットカード/ブレイヴカードすべての軽減シンボルすべてを黄としても扱う。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のメインステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BS22-X02",
+  "clauses": [
+   {
+    "text": "系統：「無魔」を持つ自分のスピリットがアタックしたとき、相手は、相手のスピリット1体を破壊しなければブロックできない。",
+    "levels": [
+     1,
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "opponent",
+    "op": "制約",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「無魔」を持つ自分のスピリットが相手によって破壊されたとき、自分のトラッシュにある、破壊されたスピリットよりコストの低いスピリットカード1枚を、コストを支払わずに召喚できる。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "ただし、『このスピリットの召喚時』効果は発揮されない。",
+    "levels": [
+     2,
+     3
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "P052",
+  "clauses": [
+   {
+    "text": "自分のバーストをセットしている間、合体していないこのスピリットをBP+4000する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このスピリットのブロック時』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "コスト5以下の相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "SD01-028",
+  "clauses": [
+   {
+    "text": "自分の紫のスピリットすべてをBP+1000する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "相手のスピリットが疲労したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "疲労した",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "SD06-011",
+  "clauses": [
+   {
+    "text": "自分のバーストをセットしたとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "バーストをセットした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "ドロー",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "この効果はターンに1回しか使えない。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「覇皇」を持つ合体していない自分のスピリットすべてをBP+3000する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "さらに、自分のバーストをセットしている間、系統：「覇皇」を持つ合体していない自分のスピリットすべてをBP+5000する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "BSC05-020",
+  "clauses": [
+   {
+    "text": "自分のライフが減ったとき、自分のデッキを上から1枚オープンできる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ライフが減った",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "オープン",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "それがコスト2以下のスピリットカードのとき、コストを支払わずに召喚できる。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "召喚",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": true,
+    "unclassified": null
+   },
+   {
+    "text": "残ったカードは手札に加える。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": null,
+    "actor": "owner",
+    "op": "手札に加える",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "スピリット/マジックの効果で回復した赤/緑/青のスピリットすべてを破壊する。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のターン』",
+    "actor": "owner",
+    "op": "破壊",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "allMatching",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "SD10-012",
+  "clauses": [
+   {
+    "text": "系統：「星竜」を持つ自分のスピリットすべてをBP+2000する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『自分のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "自分のスピリットの効果で相手のスピリットを破壊したとき、自分はデッキから1枚ドローする。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "破壊された",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『お互いのアタックステップ』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": "能動形『破壊したとき』は語彙の trigger.event に無い"
+   }
+  ]
+ },
+ {
+  "id": "SD11-011",
+  "clauses": [
+   {
+    "text": "相手のネクサス1つを手札に戻す。",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "手札に戻す",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "合体条件：コスト4以上",
+    "levels": [
+     1
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "onSummon",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『このブレイヴの召喚時』",
+    "actor": "owner",
+    "op": "なし",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "none",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "BP4000以上の相手のスピリットがアタックしたとき、このスピリットは回復する。",
+    "levels": null,
+    "whileCombined": true,
+    "trigger": {
+     "kind": "field",
+     "event": "アタックした",
+     "subject": "opponent",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "回復させる",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "source",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ },
+ {
+  "id": "SD11-012",
+  "clauses": [
+   {
+    "text": "系統：「機獣」を持つ自分のスピリットすべてをBP+2000する。",
+    "levels": [
+     1,
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "continuous",
+     "event": null,
+     "subject": null,
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "BP増減",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "chosen",
+     "filter": null
+    },
+    "amount": null,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   },
+   {
+    "text": "系統：「機獣」を持つ自分のスピリットがブロックしたとき、ボイドからコア1個をそのスピリットに置く。",
+    "levels": [
+     2
+    ],
+    "whileCombined": false,
+    "trigger": {
+     "kind": "field",
+     "event": "ブロックした",
+     "subject": "own",
+     "subjectFilter": null
+    },
+    "window": "『相手のアタックステップ』",
+    "actor": "owner",
+    "op": "コアを置く",
+    "exception": null,
+    "restriction": null,
+    "target": {
+     "ref": "prevClause",
+     "filter": null
+    },
+    "amount": 1,
+    "cond": null,
+    "link": "none",
+    "optional": false,
+    "unclassified": null
+   }
+  ]
+ }
+]
