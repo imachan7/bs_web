@@ -187,6 +187,8 @@ console.log("=== 器BR：BS13-084アルゴアタック（トラッシュの「�
     const oppSp = createInstance("BS02-039", s.turn, 1)
     s.players.p2.field.spirits.push(oppSp)
     resolveAction(s, "p1", null, { type: "deployNexus", from: "trash", nameContains: "古代戦艦", all: true }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
+    // 1枚ずつ置くコアの数（Lv）を聞かれる（2026-11-11）。すべて Lv1 を選ぶ
+    for (let i = 0; i < 5 && s.pendingChoice?.effectCostPay?.keepByOption; i++) act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! })
     assert(s.players.p1.field.nexuses.length === 3, "トラッシュの「古代戦艦」ネクサス3枚が配置された")
     resolveAction(s, "p1", null, { type: "fireEffect", trigger: "onSummon", filter: { nameContains: "古代戦艦アルゴ・ゴレム" } }, undefined, undefined, "magic", undefined, undefined, "BS13-084")
     assert(s.players.p2.field.spirits.length === 1, "ネクサスが3種類のため召喚時効果は発揮されなかった")

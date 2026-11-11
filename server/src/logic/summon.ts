@@ -20,7 +20,8 @@ import { effectiveCost } from "../../../shared/cost"
 import { cardHasColor, hasKeyword, instColors, instIsVanilla, isOnFieldAnyZone, matchesCostFilter } from "../../../shared/rules"
 import { resolveTensho } from "./keywords/tensho"
 import { exhaustSpirit } from "./state/exhaust"
-import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll } from "./summonSurcharge"
+import { askSurchargePay, canPayFreeSummonSurcharge, payFreeSummonSurchargeKeeping, payVoidToll, surchargeOwed } from "./summonSurcharge"
+import { askSummonCores, summonCoreOptions } from "./summonCores"
 
 // 召喚が済んだ後にまとめて走る処理：『このスピリットの召喚時』効果 →「自分のスピリットが
 // 召喚されたとき」のフィールド誘発 → 天使長ファニムの疲労付与、の順。
@@ -233,6 +234,9 @@ export function summonFreeFromHandIndex(
         // 指定時は**ダイレクトブレイヴ**（doSummonのbraveTargetInstanceIdと同じ結果になるようにする。
         // 維持コアを置かない・field.combinedBravesへ入れる・host.braveRefsで参照する。BS10-096最後の優勝旗）
         braveTargetInstanceId?: string
+        placeCores?: number // 置くコアの選択待ちで選ばれた数（summonCores.ts）
+        costPaid?: true // payCost のコストは置くコアの待ちで払い済み
+        reserveOnly?: true // payCost のコストと置くコアをリザーブだけで払う（BS12-075）
     },
 ): void {
     const player = state.players[owner]
@@ -248,19 +252,21 @@ export function summonFreeFromHandIndex(
     }
     const card = getCard(cardId)
     // ダイレクトブレイヴは**維持コアを置かない**（合体状態のLv1が0コア。doSummonと同じ規則）
-    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : minLevelCores(card)
+    const maintain = opts?.braveTargetInstanceId !== undefined ? 0 : opts?.placeCores ?? minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS08帝竜騎サイクル）。支払い元はリザーブに加えて**フィールドのコア**も使える
     // （paySources。通常の召喚と同じ。2026-08-23 まではリザーブのみの簡略化で、
     // 盤面のコアでなら払えるカードが候補にすら出なかった＝利用者報告）
-    const cost = opts?.payCost ? Math.max(0, effectiveCost(state, owner, card) - (opts.paidAsIf ?? 0)) : 0
+    const fullCost = opts?.payCost ? Math.max(0, effectiveCost(state, owner, card) - (opts.paidAsIf ?? 0)) : 0
+    const cost = opts?.costPaid ? 0 : fullCost
+    const askCores = opts?.payCost === true && !opts.costPaid && opts.placeCores === undefined && opts.paySources === undefined && opts.braveTargetInstanceId === undefined && state.interactiveTargets
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
     // ボイドの通行料はリザーブからだけ払う（BS22-012）。払える見込みは通行料を引いたリザーブで見る
     const voidToll = opts?.payCost ? summonVoidToll(state, card) : 0 // 無償の経路は canPay…/payFree… が通行料も扱う
     let short = voidToll > player.reserve
     if (!short) {
         player.reserve -= voidToll
-        short = opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)
+        short = askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : opts?.payCost ? player.reserve + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true) && !(state.interactiveTargets && voidToll === 0 && opts?.braveTargetInstanceId === undefined && summonCoreOptions(state, owner, card, surchargeOwed(state, owner, card, opts?.surchargeBatch === true)).length > 0)
         player.reserve += voidToll
     }
     if (short) {
@@ -268,16 +274,23 @@ export function summonFreeFromHandIndex(
         return
     }
     // 余分の支払い元を選ばせる待ち。払ったあと同じ召喚を再開する（呼び出し側からは「召喚されなかった」ように見えるが、待ちが立っている）
-    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, {
-        type: "summonFreeIndexInternal",
-        zone: "hand",
+    const resume = {
+        type: "summonFreeIndexInternal" as const,
+        zone: "hand" as const,
         index: handIndex,
         ...(skipTensho ? { skipTensho } : {}),
         ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
         ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.braveTargetInstanceId !== undefined ? { braveTargetInstanceId: opts.braveTargetInstanceId } : {}),
-    })) return
+        ...(opts?.payCost ? { payCost: true as const, costPaid: true as const } : {}),
+    }
+    if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true)) return
+    if (!opts?.payCost && opts?.placeCores === undefined && opts?.braveTargetInstanceId === undefined && voidToll === 0) {
+        const owed = surchargeOwed(state, owner, card, opts?.surchargeBatch === true)
+        if (askSummonCores(state, owner, card, owed, resume, owed > 0)) return
+    }
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume)) return
     player.hand.splice(handIndex, 1)
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る。
@@ -305,7 +318,7 @@ export function summonFreeFromHandIndex(
     log(
         state,
         `${player.name}は${sourceName}の効果で、${braveNote}${card.name}を` +
-            (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。") +
+            (opts?.payCost ? `コスト${fullCost}を支払って召喚した。` : "コストを支払わずに召喚した。") +
             (skipTensho ? "（【転召】させずに召喚した）" : ""),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
@@ -336,7 +349,7 @@ export function summonFreeFromTrashIndex(
     owner: PlayerId,
     sourceName: string,
     trashIndex: number,
-    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true },
+    opts?: { payCost?: true; paySources?: PaySource[]; skipOnSummon?: true; destroyAtBattleEnd?: true; summonedBy?: string; surchargeBatch?: true; placeCores?: number; costPaid?: true; reserveOnly?: true },
 ): void {
     const player = state.players[owner]
     const cardId = player.trashCards[trashIndex]
@@ -350,25 +363,34 @@ export function summonFreeFromTrashIndex(
         return
     }
     const card = getCard(cardId)
-    const maintain = minLevelCores(card)
+    const maintain = opts?.placeCores ?? minLevelCores(card)
     // payCost 指定時は**通常の召喚コストも**支払う（効果文に「コストを支払わずに」が無いカード。
     // BS07常闇の聖堂＝「自分のフィールドのコアをコストとして使うことで〜召喚できる」）。
     // 支払い元はリザーブに加えて**フィールドのコア**も使える（paySources。手札版と同じ）
-    const cost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo", false) : 0
+    const fullCost = opts?.payCost ? effectiveCost(state, owner, card, false, [], opts.summonedBy === "soryo", false) : 0
+    const cost = opts?.costPaid ? 0 : fullCost
+    const askCores = opts?.payCost === true && !opts.costPaid && opts.placeCores === undefined && opts.paySources === undefined && state.interactiveTargets
     const fromField = (opts?.paySources ?? []).reduce((sum, s) => sum + s.count, 0)
     const voidToll = opts?.payCost ? summonVoidToll(state, card) : 0
-    if (opts?.payCost ? player.reserve - voidToll + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true)) {
+    if (askCores ? summonCoreOptions(state, owner, card, cost, opts?.reserveOnly === true).length === 0 : opts?.payCost ? player.reserve - voidToll + fromField < maintain + cost : !canPayFreeSummonSurcharge(state, owner, card, maintain, opts?.surchargeBatch === true) && !(state.interactiveTargets && summonCoreOptions(state, owner, card, surchargeOwed(state, owner, card, opts?.surchargeBatch === true)).length > 0)) {
         log(state, `${sourceName}：コアが足りず${card.name}を召喚できなかった。`)
         return
     }
-    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, {
-        type: "summonFreeIndexInternal",
-        zone: "trash",
+    const resume = {
+        type: "summonFreeIndexInternal" as const,
+        zone: "trash" as const,
         index: trashIndex,
         ...(opts?.skipOnSummon ? { skipOnSummon: true as const } : {}),
         ...(opts?.summonedBy !== undefined ? { summonedBy: opts.summonedBy } : {}),
         ...(opts?.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
-    })) return
+        ...(opts?.payCost ? { payCost: true as const, costPaid: true as const } : {}),
+    }
+    if (askCores && askSummonCores(state, owner, card, cost, resume, false, opts?.reserveOnly === true)) return
+    if (!opts?.payCost && opts?.placeCores === undefined && voidToll === 0) {
+        const owed = surchargeOwed(state, owner, card, opts?.surchargeBatch === true)
+        if (askSummonCores(state, owner, card, owed, resume, owed > 0)) return
+    }
+    if (!opts?.payCost && askSurchargePay(state, owner, card, opts?.surchargeBatch === true, maintain, resume)) return
     player.trashCards.splice(trashIndex, 1)
     if (voidToll > 0) payVoidToll(state, owner, card)
     // フィールドのコアはコスト優先で充当し、余りを置くコアへ回す（payCost が面倒を見る）。無償のときは余分をここで払う
@@ -383,7 +405,7 @@ export function summonFreeFromTrashIndex(
     log(
         state,
         `${player.name}は${sourceName}の効果で、トラッシュから${card.name}を` +
-            (opts?.payCost ? `コスト${cost}を支払って召喚した。` : "コストを支払わずに召喚した。"),
+            (opts?.payCost ? `コスト${fullCost}を支払って召喚した。` : "コストを支払わずに召喚した。"),
     )
     // 【転召】は**コストを支払わない召喚でも必ず行う**（公式Q&A 2024-10-31：BS02ディバインウィンドで
     // 転召持ちを召喚しても転召は無視できない）

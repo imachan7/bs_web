@@ -4,7 +4,7 @@
 //     funsaiOnBlock 等の「にも発揮される」＝追加とは違い、アタック時には発揮されなくなる）／
 //   kind"freeSummonFromHandOnLifeDamaged"（**手札にあるカード自身**が持つ効果。
 //     ライフが減ったときコストを支払わず召喚できる。実対戦では確認を出す）
-import { act, assert, createGame, createInstance, declareBlock, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve } from "./helpers"
+import { act, assert, createGame, createInstance, declareBlock, refreshLevelAsOverrides, runTurnStart, takeLifeAndResolve, answerCoreLevel } from "./helpers"
 import type { GameState, PlayerId } from "./helpers"
 import { loadAllCards } from "../../data/loadCards"
 import { resolveAction } from "./helpers"
@@ -169,6 +169,7 @@ console.log("--- 実対戦では召喚するかを確認する ---")
     assert(act(s2, "p2", { type: "attack", instanceId: attacker2.instanceId }) === null, "p2がアタック")
     assert(takeLifeAndResolve(s2, "p1") === null, "p1がライフで受ける")
     assert(act(s2, "p1", { type: "resolveChoice", option: "召喚する" }) === null, "「召喚する」を選ぶ")
+    answerCoreLevel(s2, "p1")
     assert(
         s2.players.p1.field.spirits.some((x) => x.cardId === annie.cardId),
         "手札から場に出る",

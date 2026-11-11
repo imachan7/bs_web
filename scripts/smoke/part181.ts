@@ -159,8 +159,8 @@ console.log("=== 【不死】：確認で「召喚する」を選ぶとコスト
     destroyByEffect(s, "p1", victim.instanceId)
     assert(s.pendingChoice?.fushiSummon !== undefined, "【不死】の召喚確認が立つ")
     assert(act(s, "p1", { type: "resolveChoice", option: "召喚する" }) === null, "召喚するを選ぶ")
-    // 破壊待機の生贄のコアも支払いに使えるので支払い元を聞かれる（2026-10-15）。リザーブから払う
-    assert(s.pendingChoice?.effectCostPay !== undefined && act(s, "p1", { type: "resolveChoice", option: "支払う" }) === null, "支払い元を聞かれ、リザーブから払う")
+    // 破壊待機の生贄のコアも支払いに使えるので、置くコアの数（Lv）と支払い元を聞かれる（2026-10-15・11-11）。Lv1 を選んでリザーブから払う
+    assert(s.pendingChoice?.effectCostPay?.keepByOption !== undefined && act(s, "p1", { type: "resolveChoice", option: s.pendingChoice.options![0]! }) === null, "Lv1を選び、リザーブから払う")
     assert(ON_FIELD(s, "p1", FUSHI.cardId), "トラッシュから召喚されている")
 }
 

@@ -9,6 +9,7 @@ import { normalReserveOf, soulCoreLeavesField } from "../soulCore"
 import type { ActionCtx, ActionHandler, ActionRegistry } from "./types"
 import { summonBurstCardFreeHandler } from "./control"
 import { summonDenial } from "../summonGate"
+import { askSummonCores } from "../summonCores"
 import { resolveFunsai } from "../keywords/funsai"
 import type { CardInstance, EffectAction, EffectDef } from "../../type"
 import { clearBattle, createInstance, draw, getCard, log, minLevelCores, opponentOf, pushResumeFrames, suspend } from "../GameState"
@@ -380,15 +381,19 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             if (action.nameContains !== undefined && !c.name.includes(action.nameContains)) return false
             return action.colors === undefined || action.colors.some((col) => cardHasColor(c, col))
         }
-        const deployFromIndex = (idx: number): void => {
+        // 置くコアの選択待ちを立てたら true（all は1枚ずつ聞くので、待ちが立ったらそこで止める）
+        const deployFromIndex = (idx: number, placeCores?: number): boolean => {
             const zone = action.from === "hand" ? player.hand : player.trashCards
             const cardId = zone[idx]
             if (cardId === undefined) {
                 log(state, `${sourceName}：対象がいなかった。`)
-                return
+                return false
             }
+            if (placeCores === undefined && askSummonCores(state, owner, getCard(cardId), 0, { ...action, deployIndex: idx })) return true
             zone.splice(idx, 1)
-            const maintain = minLevelCores(getCard(cardId))
+            const maintain = placeCores ?? minLevelCores(getCard(cardId))
+            // 選んだ数はリザーブから置く。選ばない経路は従来どおり（リザーブを減らさない）
+            if (placeCores !== undefined) player.reserve -= placeCores
             const inst = createInstance(cardId, state.turn, maintain)
             player.field.nexuses.push(inst)
             log(
@@ -396,6 +401,12 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
             )
             fireNexusDeployed(state, owner, inst)
+            return false
+        }
+        if (action.deployIndex !== undefined) {
+            deployFromIndex(action.deployIndex, action.placeCores)
+            // all の続き：残りの該当カードを、次の1枚から聞き直す
+            if (!action.all || state.pendingChoice) return
         }
         if (action.all) {
             // 該当するネクサスカードをすべて配置する（選択の余地がないためinteractiveTargets/chosenCardIndexは無関係）
@@ -405,12 +416,12 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
                 if (isMatch(zone[i]!)) indices.push(i)
             }
             if (indices.length === 0) {
-                log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
+                if (action.deployIndex === undefined) log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
                 return
             }
             // 後ろのインデックスから順に配置（splice後もインデックスがずれないように）
             for (let i = indices.length - 1; i >= 0; i--) {
-                deployFromIndex(indices[i]!)
+                if (deployFromIndex(indices[i]!)) return
             }
             return
         }
@@ -440,41 +451,23 @@ const deployNexusHandler: ActionHandler<"deployNexus"> = (ctx, action) => {
             }
         }
         // 既存の決定的自動選択（手札は先頭、トラッシュは末尾＝新しい方から）
-        let cardId: string | undefined
+        let idx = -1
         if (action.from === "hand") {
-            const idx = player.hand.findIndex(isMatch)
-            if (idx === -1) {
-                log(state, `${sourceName}：手札に対象のネクサスがなかった。`)
-                return
-            }
-            cardId = player.hand[idx]
-            player.hand.splice(idx, 1)
+            idx = player.hand.findIndex(isMatch)
         } else {
             // トラッシュは末尾（新しい方）から最初の一致を選ぶ（本来は好きな1枚を選べる簡略化）
-            let idx = -1
             for (let j = player.trashCards.length - 1; j >= 0; j--) {
                 if (isMatch(player.trashCards[j]!)) {
                     idx = j
                     break
                 }
             }
-            if (idx === -1) {
-                log(state, `${sourceName}：トラッシュに対象のネクサスがなかった。`)
-                return
-            }
-            cardId = player.trashCards[idx]
-            player.trashCards.splice(idx, 1)
         }
-        if (cardId === undefined) return
-        const maintain = minLevelCores(getCard(cardId))
-        const inst = createInstance(cardId, state.turn, maintain)
-        player.field.nexuses.push(inst)
-        log(
-            state,
-            `${player.name}は${sourceName}の効果で、${action.from === "hand" ? "手札" : "トラッシュ"}から${getCard(cardId).name}をコストを支払わずに配置した。`,
-        )
-        fireNexusDeployed(state, owner, inst)
-        return
+        if (idx === -1) {
+            log(state, `${sourceName}：${action.from === "hand" ? "手札" : "トラッシュ"}に対象のネクサスがなかった。`)
+            return
+        }
+        deployFromIndex(idx)
 }
 
 function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectAction, { type: "summon"; from: "hand" }>): void {
@@ -511,6 +504,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
             ...(action.skipOnSummon ? { skipOnSummon: action.skipOnSummon } : {}),
             ...(action.destroyAtBattleEnd ? { destroyAtBattleEnd: true as const } : {}),
             ...(action.payCost && ctx.paySources ? { paySources: ctx.paySources } : {}),
+            ...(action.reserveOnly ? { reserveOnly: true as const } : {}),
             // 召喚経路の記録（CardInstance.summonedBy）。未指定なら「その他の効果による無償召喚」
             summonedBy: action.summonedBy ?? "freeEffect",
             surchargeBatch: true as const,
@@ -673,16 +667,25 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
         // コスト最大から貪欲に選び、維持コアがリザーブから払えなくなった時点で打ち切る決定的簡略化。
         // interactiveTargetsでも選択式にはしない（この経路は自動選択のみ）
         if (action.count !== undefined) {
+            // 召喚の途中で置くコアの待ちなどが立ったら、残りは再開スタックへ（立った待ちを上書きしない）
+            const resumeAfterPending = (next: typeof action): boolean => {
+                if (!state.pendingChoice) return false
+                pushResumeFrames(state, [{ kind: "action", selfInstanceId: self ? self.instanceId : null, actorPid: owner, action: next }])
+                return true
+            }
             // alsoFrom:"trash"：手札とトラッシュの合計でcount枚まで、1枚ずつどちらの場所かを選べる（X05）
             if (action.alsoFrom === "trash") {
+                // 同時の召喚なので、1枚目の【転召】などで途中から手札・トラッシュに来たカードは選べない（COST_MODEL §11。part762）。
+                // 位置は末尾に追加されるので、始めた時点の枚数より前の位置だけを候補にする
+                const bounds = { ...(action.zoneBounds ?? { hand: player.hand.length, trash: player.trashCards.length }) }
                 const matchesTrashId = (candidateId: string): boolean =>
                     !isTrashCardProtected(candidateId, state) && matchesCardId(candidateId, "trash")
                 const requestZone = (zone: "hand" | "trash", remaining: number): void => {
                     const idxs: number[] = []
                     if (zone === "hand") {
-                        for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) idxs.push(i)
+                        for (let i = 0; i < Math.min(bounds.hand, player.hand.length); i++) if (matchesCardId(player.hand[i]!)) idxs.push(i)
                     } else {
-                        for (let i = 0; i < player.trashCards.length; i++) {
+                        for (let i = 0; i < Math.min(bounds.trash, player.trashCards.length); i++) {
                             const id = player.trashCards[i]
                             if (id !== undefined && matchesTrashId(id)) idxs.push(i)
                         }
@@ -698,7 +701,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                         zone,
                         idxs,
                         true,
-                        { ...action, count: remaining, pendingZone: zone },
+                        { ...action, count: remaining, pendingZone: zone, zoneBounds: bounds },
                         self,
                         true,
                     )
@@ -711,7 +714,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                             let bestZone: "hand" | "trash" | null = null
                             let bestIdx = -1
                             let bestCost = -1
-                            for (let i = 0; i < player.hand.length; i++) {
+                            for (let i = 0; i < Math.min(bounds.hand, player.hand.length); i++) {
                                 if (!matchesCardId(player.hand[i]!)) continue
                                 const cost = getCard(player.hand[i]!).cost
                                 if (cost > bestCost) {
@@ -720,7 +723,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                                     bestZone = "hand"
                                 }
                             }
-                            for (let i = 0; i < player.trashCards.length; i++) {
+                            for (let i = 0; i < Math.min(bounds.trash, player.trashCards.length); i++) {
                                 const id = player.trashCards[i]
                                 if (id === undefined || !matchesTrashId(id)) continue
                                 const cost = getCard(id).cost
@@ -733,15 +736,16 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                             if (bestZone === null) break
                             if (bestZone === "hand") summonFreeFromHandIndex(state, owner, sourceName, bestIdx, action.skipTensho, summonOpts)
                             else summonFreeFromTrashIndex(state, owner, sourceName, bestIdx, summonOpts)
+                            bounds[bestZone]--
                             left--
                             if (state.winner) return
                         }
                         return
                     }
                     const handIdxs: number[] = []
-                    for (let i = 0; i < player.hand.length; i++) if (matchesCardId(player.hand[i]!)) handIdxs.push(i)
+                    for (let i = 0; i < Math.min(bounds.hand, player.hand.length); i++) if (matchesCardId(player.hand[i]!)) handIdxs.push(i)
                     const trashIdxs: number[] = []
-                    for (let i = 0; i < player.trashCards.length; i++) {
+                    for (let i = 0; i < Math.min(bounds.trash, player.trashCards.length); i++) {
                         const id = player.trashCards[i]
                         if (id !== undefined && matchesTrashId(id)) trashIdxs.push(i)
                     }
@@ -754,7 +758,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                             candidates: [],
                             options: ["手札から選ぶ", "トラッシュから選ぶ"],
                             optional: true,
-                            action: { ...action, count: remaining },
+                            action: { ...action, count: remaining, zoneBounds: bounds },
                             selfInstanceId: self ? self.instanceId : null,
                         })
                         return
@@ -764,7 +768,9 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 if (chosenCardIndex !== undefined) {
                     if (action.pendingZone === "trash") summonFreeFromTrashIndex(state, owner, sourceName, chosenCardIndex, summonOpts)
                     else summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
+                    bounds[action.pendingZone === "trash" ? "trash" : "hand"]--
                     if (state.winner) return
+                    if (resumeAfterPending({ ...action, count: action.count - 1, zoneBounds: bounds })) return
                     askPick(action.count - 1)
                     return
                 }
@@ -780,6 +786,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 if (chosenCardIndex !== undefined) {
                     summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
                     if (state.winner) return
+                    if (resumeAfterPending({ ...action, count: action.count - 1 })) return
                 }
                 const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
                 const indices: number[] = []
@@ -808,6 +815,7 @@ function summonFromHandFreeHandler(ctx: ActionCtx, rawAction: Extract<EffectActi
                 if (chosenCardIndex !== undefined) {
                     summonFreeFromHandIndex(state, owner, sourceName, chosenCardIndex, action.skipTensho, summonOpts)
                     if (state.winner) return
+                    if (resumeAfterPending({ ...action, count: action.count - 1 })) return
                 }
                 const remaining = action.count - (chosenCardIndex !== undefined ? 1 : 0)
                 const indices: number[] = []
