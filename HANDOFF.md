@@ -21,6 +21,13 @@
 
 ## 1. いまの本線と次の一手
 
+### 進行中：効果解決の監査（#437）の確定バグを直す（2026-11-11 確定。`fix/effect-audit-bugs`）
+
+- 解釈は SEMANTICS_AUDIT §3.27〜§3.29 に書いた。B4・B5 はレポートのまま（今のまま）
+- **実装A（データと小さい直し）**：①BS16-007-e1 `optional:true` ②BS21-026-e1/e2 に `phase:"attack"`（turn は書かない＝お互い） ③BS20-068-e2 を BS08-012-e2 と同じ形（`selfMode:"source"`、`removeCores{from:["spirit"], to:"trash", count:1, chooser:"owner"}`。side は相手）④`removeOneOfAnyType`（`battleFlow.ts`）の候補を `resistanceAgainst` で絞り、除去も耐性を通す（destroy/bounce の op、scope は targeted）⑤`moveCards` の手札から動かす経路で、相手の手札なら `handImmuneFor(state, 対象pid, srcType)` を見て止める（BS07-013）⑥BS14-085・BSC05-020 の色ごとのエントリを `subjectFilter.color` の配列1つにまとめる（id は先頭を残す）⑦BS15-036-e5・BS15-045-e2 に BS15-027-e3 と同じ `excludeSelf:true`
+- **実装B（使ってからの累計）**：足りない部品は「数え始め＝記録した時点の累計」1つ。`millCap` と `lifeGuard` に共通の `total?: true`（記録してから合計で max まで）を足し、数えた量は期間つきの記録（`timedEffect` の playerRule）に持たせる。エターナルシールド（BS05-076）は `lendSelfThisTurn`＋globalConstraint をやめ、`timedEffect{duration:"turn", content:[playerRule millCap{maxCount:5, total:true, sourceTypes}]}` にする。ブリザードウォール（SD01-039）の lifeGuard に `total:true` を足す
+- 検証：期待値役が先に part896（A）・part897（B）を書く。既存 smoke で「1回ごと」を固定しているテストがあれば報告させる（期待値を勝手に変えない）
+
 ### 進行中：復活を「戻す体を持ち主が複数選ぶ」にする＋選択バーの counter（2026-11-10 確定。`feat/revive-pick-many`）
 
 - **対象**：BS13-038 魔女タランダ（手札のスピリット）・BS10-046 龍仙公主（手札のマジック）。「好きなだけ破棄、**破棄した1枚につき**破壊された体を1体戻す」。#423（perDestroyed）の置き換え（#423 は閉じる）
